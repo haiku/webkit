@@ -343,3 +343,14 @@ if (ENABLE_ACCESSIBILITY)
         ${ATK_LIBRARIES}
     )
 endif ()
+
+# FIXME: We do not need everything from all of these directories.
+# Move some to WebCore_FORWARDING_HEADERS_FILES once people start actually maintaining this.
+set(WebCore_FORWARDING_HEADERS_DIRECTORIES
+)
+
+set(WebCore_FORWARDING_HEADERS_FILES
+    platform/PlatformExportMacros.h
+)
+
+WEBKIT_CREATE_FORWARDING_HEADERS(WebCore DIRECTORIES ${WebCore_FORWARDING_HEADERS_DIRECTORIES} FILES ${WebCore_FORWARDING_HEADERS_FILES})
