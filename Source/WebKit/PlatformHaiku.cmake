@@ -4,7 +4,6 @@ list(APPEND WebKit_SOURCES
 
     Platform/haiku/LoggingHaiku.cpp
     Platform/haiku/ModuleHaiku.cpp
-    Platform/haiku/WorkQueueHaiku.cpp
 
     Platform/unix/SharedMemoryUnix.cpp
 
@@ -131,3 +130,10 @@ add_definitions(
     -DNETWORKPROCESSNAME=\"NetworkProcess\"
 )
 
+set(WebKit_FORWARDING_HEADERS_DIRECTORIES
+   Shared/API/c
+   Shared/API/c/haiku
+)
+
+WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
+${WebKit_FORWARDING_HEADERS_DIRECTORIES})

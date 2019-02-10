@@ -347,6 +347,26 @@ endif ()
 # FIXME: We do not need everything from all of these directories.
 # Move some to WebCore_FORWARDING_HEADERS_FILES once people start actually maintaining this.
 set(WebCore_FORWARDING_HEADERS_DIRECTORIES
+   dom
+   shared
+   platform
+   loader
+
+   page
+   page/scrolling
+
+   platform/graphics
+   platform/network
+   platform/mediastream
+   platform/graphics/haiku
+   platform/text
+
+   Modules/cache
+   Modules/indexeddb
+   Modules/notifications
+
+   workers
+   workers/service
 )
 
 set(WebCore_FORWARDING_HEADERS_FILES
