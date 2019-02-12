@@ -348,6 +348,7 @@ endif ()
 # Move some to WebCore_FORWARDING_HEADERS_FILES once people start actually maintaining this.
 set(WebCore_FORWARDING_HEADERS_DIRECTORIES
    dom
+   editing
    shared
    platform
    loader
@@ -360,10 +361,12 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
    platform/mediastream
    platform/graphics/haiku
    platform/text
+   platform/network/haiku
 
    Modules/cache
    Modules/indexeddb
    Modules/notifications
+   Modules/webdatabase
 
    workers
    workers/service

@@ -44,8 +44,8 @@ static String findProcessPath(const char* processName)
     String executablePath;
     static const char* execDirectory = getenv("WEBKIT_EXEC_PATH");
     if (execDirectory) {
-        executablePath = WebCore::pathByAppendingComponent(String::fromUTF8(execDirectory), processName);
-        if (WebCore::fileExists(executablePath))
+        executablePath = WebCore::FileSystem::pathByAppendingComponent(String::fromUTF8(execDirectory), processName);
+        if (WebCore::FileSystem::fileExists(executablePath))
             return executablePath;
     }
 
@@ -60,13 +60,13 @@ static String findProcessPath(const char* processName)
 #endif
     if (result > 0) {
         char* executablePathPtr = dirname(readLinkBuffer);
-        executablePath = WebCore::pathByAppendingComponent(String::fromUTF8(executablePathPtr), processName);
-        if (WebCore::fileExists(executablePath))
+        executablePath = WebCore::FileSystem::pathByAppendingComponent(String::fromUTF8(executablePathPtr), processName);
+        if (WebCore::FileSystem::fileExists(executablePath))
             return executablePath;
     }
 #endif
-    executablePath = WebCore::pathByAppendingComponent(String(LIBEXECDIR), processName);
-    ASSERT(WebCore::fileExists(executablePath));
+    executablePath = WebCore::FileSystem::pathByAppendingComponent(String(LIBEXECDIR), processName);
+    ASSERT(WebCore::FileSystem::fileExists(executablePath));
     return executablePath;
 }
 
