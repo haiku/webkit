@@ -347,29 +347,104 @@ endif ()
 # FIXME: We do not need everything from all of these directories.
 # Move some to WebCore_FORWARDING_HEADERS_FILES once people start actually maintaining this.
 set(WebCore_FORWARDING_HEADERS_DIRECTORIES
-   dom
-   editing
-   shared
-   platform
-   loader
+    .
+    accessibility
+    animation
+    bindings
+    bridge
+    contentextensions
+    crypto
+    css
+    dom
+    editing
+    fileapi
+    history
+    html
+    inspector
+    loader
+    page
+    platform
+    plugins
+    rendering
+    replay
+    storage
+    style
+    svg
+    websockets
+    workers
+    xml
 
-   page
-   page/scrolling
+    Modules/cache
+    Modules/fetch
+    Modules/geolocation
+    Modules/indexeddb
+    Modules/mediastream
+    Modules/websockets
 
-   platform/graphics
-   platform/network
-   platform/mediastream
-   platform/graphics/haiku
-   platform/text
-   platform/network/haiku
+    Modules/indexeddb/client
+    Modules/indexeddb/legacy
+    Modules/indexeddb/server
+    Modules/indexeddb/shared
+    Modules/notifications
+    Modules/webdatabase
 
-   Modules/cache
-   Modules/indexeddb
-   Modules/notifications
-   Modules/webdatabase
+    bindings/js
 
-   workers
-   workers/service
+    bridge/c
+    bridge/jsc
+
+    css/parser
+
+    html/canvas
+    html/forms
+    html/parser
+    html/shadow
+    html/track
+
+    loader/appcache
+    loader/archive
+    loader/cache
+    loader/icon
+
+
+    page/animation
+    page/csp
+    page/scrolling
+    page/haiku
+
+    platform/animation
+    platform/audio
+    platform/graphics
+    platform/mediacapabilities
+    platform/mock
+    platform/network
+    platform/sql
+    platform/text
+    platform/haiku
+
+    platform/graphics/filters
+    platform/graphics/opengl
+    platform/graphics/opentype
+    platform/graphics/texmap
+    platform/graphics/transforms
+    platform/graphics/haiku
+
+    platform/mediastream/libwebrtc
+
+    platform/text/transcoder
+
+    rendering/line
+    rendering/shapes
+    rendering/style
+    rendering/svg
+
+    svg/animation
+    svg/graphics
+    svg/properties
+
+    svg/graphics/filters
+
+    workers/service
 )
 
 set(WebCore_FORWARDING_HEADERS_FILES
