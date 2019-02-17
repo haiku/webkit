@@ -374,6 +374,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     workers
     xml
 
+    dom/messageports/
+
     Modules/cache
     Modules/fetch
     Modules/geolocation
@@ -381,6 +383,7 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     Modules/mediastream
     Modules/websockets
 
+    Modules/applicationmanifest
     Modules/indexeddb/client
     Modules/indexeddb/legacy
     Modules/indexeddb/server
@@ -421,6 +424,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     platform/sql
     platform/text
     platform/haiku
+    platform/mediastream
+    platform/network/haiku
 
     platform/graphics/filters
     platform/graphics/opengl
@@ -432,6 +437,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     platform/mediastream/libwebrtc
 
     platform/text/transcoder
+
+   PAL/pal
 
     rendering/line
     rendering/shapes

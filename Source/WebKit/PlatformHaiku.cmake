@@ -13,34 +13,14 @@ list(APPEND WebKit_SOURCES
 
     Shared/WebCoreArgumentCoders.cpp
 
-    Shared/haiku/ShareableBitmapHaiku.cpp
-
     Shared/haiku/ProcessExecutablePathHaiku.cpp
-
-    Shared/haiku/WebCoreArgumentCodersHaiku.cpp
-    Shared/haiku/WebMemorySamplerHaiku.cpp
 
     Shared/unix/ChildProcessMain.cpp
 
     UIProcess/DefaultUndoController.cpp
 
-    UIProcess/API/C/haiku/WKView.cpp
-
-    UIProcess/API/haiku/WebView.cpp
-
-    UIProcess/Launcher/haiku/ProcessLauncherHaiku.cpp
-
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
     UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp
-
-    UIProcess/haiku/BackingStoreHaiku.cpp
-    UIProcess/haiku/TextCheckerHaiku.cpp
-    UIProcess/haiku/WebContextHaiku.cpp
-    UIProcess/haiku/WebInspectorProxyHaiku.cpp
-    UIProcess/haiku/WebPageProxyHaiku.cpp
-    UIProcess/haiku/WebPreferencesHaiku.cpp
-    UIProcess/haiku/WebProcessProxyHaiku.cpp
-    UIProcess/haiku/WebView.cpp
 
     WebProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
 
@@ -48,20 +28,9 @@ list(APPEND WebKit_SOURCES
 
     WebProcess/Plugins/Netscape/unix/PluginProxyUnix.cpp
 
-    WebProcess/WebCoreSupport/haiku/WebContextMenuClientHaiku.cpp
-    WebProcess/WebCoreSupport/haiku/WebErrorsHaiku.cpp
-    WebProcess/WebCoreSupport/haiku/WebFrameNetworkingContext.cpp
-    WebProcess/WebCoreSupport/haiku/WebPopupMenuHaiku.cpp
-
     WebProcess/WebPage/DrawingAreaImpl.cpp
 
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
-
-    WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
-    WebProcess/WebPage/haiku/WebPageHaiku.cpp
-
-    WebProcess/haiku/WebProcessHaiku.cpp
-    WebProcess/haiku/WebProcessMainHaiku.cpp
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES
@@ -133,6 +102,12 @@ add_definitions(
 set(WebKit_FORWARDING_HEADERS_DIRECTORIES
    Shared/API/c
    Shared/API/c/haiku
+   UIProcess/API/C
+   Platform/IPC/unix
+)
+set(WebKit_FORWARDING_HEADERS_FILES
+    #Platform/classifier/ResourceLoadStatisticsClassifier.h
+    Platform/IPC/unix/UnixMessage.h
 )
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
