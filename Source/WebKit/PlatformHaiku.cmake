@@ -34,8 +34,8 @@ list(APPEND WebKit_SOURCES
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES
-    "${WEBCORE_DIR}/platform/graphics/opentype"
-    "${WEBCORE_DIR}/platform/network/haiku"
+    #"${WEBCORE_DIR}/platform/graphics/opentype"
+    #"${WEBCORE_DIR}/platform/network/haiku"
     "${WEBKIT_DIR}/NetworkProcess/unix"
     "${WEBKIT_DIR}/Platform"
     "${WEBKIT_DIR}/Shared/API/c/haiku"
@@ -112,3 +112,4 @@ set(WebKit_FORWARDING_HEADERS_FILES
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
 ${WebKit_FORWARDING_HEADERS_DIRECTORIES})
+

@@ -90,12 +90,13 @@ set(WebKit_INCLUDE_DIRECTORIES
     "${CMAKE_SOURCE_DIR}/WebKitLibraries"
 )
 
-set(WebKit2_LOCAL_INCLUDE_DIRECTORIES
+SET(WebKit_LOCAL_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/css"
-    "${WEBCORE_DIR}/platform"
-    "${WEBCORE_DIR}/platform/graphics"
-    "${WEBCORE_DIR}/platform/graphics/transforms"
 )
+
+foreach(inc ${WebKit_LOCAL_INCLUDE_DIRECTORIES})
+   ADD_DEFINITIONS(-iquote ${inc})
+endforeach(inc)
 
 set(PROTOCOL_GENERATOR_SCRIPTS_DIR "${JAVASCRIPTCORE_DIR}/inspector/scripts")
 
