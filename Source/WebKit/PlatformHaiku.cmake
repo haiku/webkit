@@ -15,8 +15,6 @@ list(APPEND WebKit_SOURCES
 
     Shared/haiku/ProcessExecutablePathHaiku.cpp
 
-    Shared/unix/ChildProcessMain.cpp
-
     UIProcess/DefaultUndoController.cpp
 
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
@@ -38,6 +36,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     #"${WEBCORE_DIR}/platform/network/haiku"
     "${WEBKIT_DIR}/NetworkProcess/unix"
     "${WEBKIT_DIR}/Platform"
+    "${WEBKIT_DIR}/Platform/IPC/unix"
     "${WEBKIT_DIR}/Shared/API/c/haiku"
     "${WEBKIT_DIR}/Shared/CoordinatedGraphics"
     "${WEBKIT_DIR}/Shared/unix"
@@ -53,9 +52,21 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     ${LIBXSLT_INCLUDE_DIRS}
     ${SQLITE_INCLUDE_DIRS}
     ${WTF_DIR}
-    "${FORWARDING_HEADERS_DIR}/WebCore"
+    ${WTF_DIR}
     "${DERIVED_SOURCES_WEBCORE_DIR}"
+    "${WEBCORE_DIR}/platform"
+    "${WEBCORE_DIR}/platform/text"
+    "${WEBCORE_DIR}/dom"
 )
+
+list(APPEND WebKit_LOCAL_INCLUDE_DIRECTORIES
+    "${WEBCORE_DIR}/platform/graphics"
+    "${WEBCORE_DIR}/platform/graphics/transforms"
+)
+
+foreach(inc ${WebKitLegacy_LOCAL_INCLUDE_DIRECTORIES})
+    ADD_DEFINITIONS(-iquote ${inc})
+endforeach(inc)
 
 list(APPEND WebKit_LIBRARIES
     ${CMAKE_DL_LIBS}

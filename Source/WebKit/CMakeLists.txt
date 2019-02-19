@@ -94,10 +94,6 @@ SET(WebKit_LOCAL_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/css"
 )
 
-foreach(inc ${WebKit_LOCAL_INCLUDE_DIRECTORIES})
-   ADD_DEFINITIONS(-iquote ${inc})
-endforeach(inc)
-
 set(PROTOCOL_GENERATOR_SCRIPTS_DIR "${JAVASCRIPTCORE_DIR}/inspector/scripts")
 
 set(WebKit_SYSTEM_INCLUDE_DIRECTORIES
