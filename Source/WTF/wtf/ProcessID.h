@@ -35,10 +35,35 @@
 
 namespace WTF {
 
-#if OS(WINDOWS)
-using ProcessID = int;
+#if OS(HAIKU)
+using ProcessID = int32_t;
+static_assert(sizeof(ProcessID) >= sizeof(pid_t), "pid_t must fit in ProcessID");
+
+inline pid_t toPid(ProcessID pid)
+{
+    return pid;
+}
+
+inline ProcessID toProcessID(pid_t pid)
+{
+    return pid;
+}
 #else
-using ProcessID = pid_t;
+    #if OS(WINDOWS)
+        using ProcessID = int;
+    #else
+        using ProcessID = pid_t;
+    #endif
+
+inline pid_t toPid(ProcessID pid)
+{
+    return pid;
+}
+
+inline ProcessID toProcessID(pid_t pid)
+{
+    return pid;
+}
 #endif
 
 inline ProcessID getCurrentProcessID()

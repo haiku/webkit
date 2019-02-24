@@ -37,7 +37,7 @@ ProcessAssertion::ProcessAssertion(ProcessID, const String&, AssertionState asse
 {
 }
 
-ProcessAssertion::ProcessAssertion(pid_t pid, const String& name, AssertionState assertionState, AssertionReason)
+ProcessAssertion::ProcessAssertion(WTF::ProcessID pid, const String& name, AssertionState assertionState, AssertionReason)
     : m_assertionState(assertionState)
 {
 }

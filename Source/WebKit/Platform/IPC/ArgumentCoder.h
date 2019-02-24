@@ -34,6 +34,10 @@ class ResourceResponse;
 struct ViewportArguments;
 }
 
+namespace WebKit {
+    struct PidWrapper;
+};
+
 namespace IPC {
 
 class Decoder;
@@ -84,6 +88,7 @@ public:
 };
 
 // ResourceResponseBase has the legacy decode template, not ResourceResponse.
+template<> class UsesModernDecoder<WebKit::PidWrapper> : public DefaultDecoderValues<std::false_type> { };
 template<> class UsesModernDecoder<WebCore::ResourceResponse> : public DefaultDecoderValues<std::false_type> { };
 template<> class UsesLegacyDecoder<WebCore::ResourceResponse> : public DefaultDecoderValues<std::true_type> { };
 
