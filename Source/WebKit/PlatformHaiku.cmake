@@ -46,7 +46,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/UIProcess/haiku"
     "${WEBKIT_DIR}/UIProcess/CoordinatedGraphics"
     "${WEBKIT_DIR}/WebProcess/unix"
-    "${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
+    #"${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
     "${WEBKIT_DIR}/WebProcess/WebPage/CoordinatedGraphics"
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIRS}
@@ -62,6 +62,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
 list(APPEND WebKit_LOCAL_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/graphics"
     "${WEBCORE_DIR}/platform/graphics/transforms"
+    "${WEBCORE_DIR}/rendering/shapes"
 )
 
 foreach(inc ${WebKitLegacy_LOCAL_INCLUDE_DIRECTORIES})
@@ -115,6 +116,7 @@ set(WebKit_FORWARDING_HEADERS_DIRECTORIES
    Shared/API/c/haiku
    UIProcess/API/C
    Platform/IPC/unix
+   WebProcess/InjectedBundle/API/c
 )
 set(WebKit_FORWARDING_HEADERS_FILES
     #Platform/classifier/ResourceLoadStatisticsClassifier.h

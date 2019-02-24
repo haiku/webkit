@@ -452,10 +452,12 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     svg/graphics/filters
 
     workers/service
+    workers/service/context
 )
 
 set(WebCore_FORWARDING_HEADERS_FILES
     platform/PlatformExportMacros.h
+    fileapi/Blob.h
 )
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebCore DIRECTORIES ${WebCore_FORWARDING_HEADERS_DIRECTORIES} FILES ${WebCore_FORWARDING_HEADERS_FILES})
