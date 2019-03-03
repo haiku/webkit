@@ -46,7 +46,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/UIProcess/haiku"
     "${WEBKIT_DIR}/UIProcess/CoordinatedGraphics"
     "${WEBKIT_DIR}/WebProcess/unix"
-    #"${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
+    "${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
     "${WEBKIT_DIR}/WebProcess/WebPage/CoordinatedGraphics"
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIRS}

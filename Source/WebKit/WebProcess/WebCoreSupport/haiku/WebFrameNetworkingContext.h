@@ -28,7 +28,7 @@
 
 #include "HTTPCookieAcceptPolicy.h"
 #include <WebCore/FrameNetworkingContext.h>
-#include <WebCore/SessionID.h>
+#include <pal/SessionID.h>
 
 namespace WebKit {
 
@@ -51,7 +51,7 @@ public:
 private:
     WebFrameNetworkingContext(WebFrame*);
 
-    virtual WebCore::NetworkStorageSession& storageSession() const;
+    WebCore::NetworkStorageSession* storageSession() const override {return nullptr;}
 };
 
 }
