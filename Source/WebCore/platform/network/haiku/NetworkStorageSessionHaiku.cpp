@@ -31,7 +31,6 @@
 #include <UrlContext.h>
 
 #include "Cookie.h"
-#include "CookiesStrategy.h"
 #include "CookieRequestHeaderFieldProxy.h"
 #include "NetworkingContext.h"
 #include "NotImplemented.h"
@@ -62,20 +61,8 @@ static std::unique_ptr<NetworkStorageSession>& defaultSession()
     return session;
 }
 
-NetworkStorageSession& NetworkStorageSession::defaultStorageSession()
-{
-    if (!defaultSession())
-        defaultSession() = std::make_unique<NetworkStorageSession>(PAL::SessionID::defaultSessionID(), nullptr);
-    return *defaultSession();
-}
-
-void NetworkStorageSession::switchToNewTestingSession()
-{
-    defaultSession() = std::make_unique<NetworkStorageSession>(PAL::SessionID::defaultSessionID(), new BUrlContext());
-}
-
-
-void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, const String& value) const
+void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty,
+	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<uint64_t> frameID, WTF::Optional<uint64_t> pageID, const String& value) const
 {
 	BNetworkCookie* heapCookie
 		= new BNetworkCookie(value, BUrl(url));
@@ -93,7 +80,8 @@ bool NetworkStorageSession::cookiesEnabled() const
     return true;
 }
 
-std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
+std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty,
+	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<uint64_t> frameID, WTF::Optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: Request for %s\n", url.string().utf8().data());
@@ -182,7 +170,9 @@ Vector<Cookie> NetworkStorageSession::getCookies(const URL&)
     return { };
 }
 
-bool NetworkStorageSession::getRawCookies(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, Vector<Cookie>& rawCookies) const
+bool NetworkStorageSession::getRawCookies(const URL& firstParty,
+	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<uint64_t> frameID,
+	WTF::Optional<uint64_t> pageID, Vector<Cookie>& rawCookies) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: get raw cookies for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
@@ -198,7 +188,9 @@ void NetworkStorageSession::flushCookieStore()
     // FIXME: Implement for WebKit to use.
 }
 
-std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
+std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty,
+	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<uint64_t> frameID,
+	WTF::Optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: RequestHeaderField for %s\n", url.string().utf8().data());

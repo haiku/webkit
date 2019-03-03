@@ -43,7 +43,7 @@ class ScreenDisplayCaptureSourceMac : public DisplayCaptureSourceCocoa {
 public:
     static CaptureSourceOrError create(String&&, const MediaConstraints*);
 
-    static std::optional<CaptureDevice> screenCaptureDeviceWithPersistentID(const String&);
+    static Optional<CaptureDevice> screenCaptureDeviceWithPersistentID(const String&);
     static void screenCaptureDevices(Vector<CaptureDevice>&);
 
 private:
@@ -61,8 +61,8 @@ private:
 
     void startProducingData() final;
     void stopProducingData() final;
-    void settingsDidChange(OptionSet<RealtimeMediaSourceSettings::Flag>) final;
     void commitConfiguration() final;
+    CaptureDevice::DeviceType deviceType() const final { return CaptureDevice::DeviceType::Screen; }
 
     bool createDisplayStream();
     void startDisplayStream();
@@ -95,8 +95,6 @@ private:
     mutable Lock m_currentFrameMutex;
     DisplaySurface m_currentFrame;
     RetainPtr<CGDisplayStreamRef> m_displayStream;
-    CGDisplayStreamFrameAvailableHandler m_frameAvailableBlock;
-
     OSObjectPtr<dispatch_queue_t> m_captureQueue;
 
     uint32_t m_displayID { 0 };

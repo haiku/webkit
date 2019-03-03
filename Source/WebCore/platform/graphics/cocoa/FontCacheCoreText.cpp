@@ -598,7 +598,7 @@ RetainPtr<CTFontRef> preparePlatformFont(CTFontRef originalFont, const FontDescr
     if (applyWeightWidthSlopeVariations && !fontIsSystemFont(originalFont)) {
         float weight = fontSelectionRequest.weight;
         float width = fontSelectionRequest.width;
-        float slope = fontSelectionRequest.slope.value_or(normalItalicValue());
+        float slope = fontSelectionRequest.slope.valueOr(normalItalicValue());
         if (auto weightValue = fontFaceCapabilities.weight)
             weight = std::max(std::min(weight, static_cast<float>(weightValue->maximum)), static_cast<float>(weightValue->minimum));
         if (auto widthValue = fontFaceCapabilities.width)
@@ -971,13 +971,13 @@ struct MinMax {
 };
 
 struct VariationCapabilities {
-    std::optional<MinMax> weight;
-    std::optional<MinMax> width;
-    std::optional<MinMax> slope;
+    Optional<MinMax> weight;
+    Optional<MinMax> width;
+    Optional<MinMax> slope;
 };
 
 #if ENABLE(VARIATION_FONTS)
-static std::optional<MinMax> extractVariationBounds(CFDictionaryRef axis)
+static Optional<MinMax> extractVariationBounds(CFDictionaryRef axis)
 {
     CFNumberRef minimumValue = static_cast<CFNumberRef>(CFDictionaryGetValue(axis, kCTFontVariationAxisMinimumValueKey));
     CFNumberRef maximumValue = static_cast<CFNumberRef>(CFDictionaryGetValue(axis, kCTFontVariationAxisMaximumValueKey));
@@ -987,7 +987,7 @@ static std::optional<MinMax> extractVariationBounds(CFDictionaryRef axis)
     CFNumberGetValue(maximumValue, kCFNumberFloatType, &rawMaximumValue);
     if (rawMinimumValue < rawMaximumValue)
         return {{ rawMinimumValue, rawMaximumValue }};
-    return std::nullopt;
+    return WTF::nullopt;
 }
 #endif
 
@@ -1354,7 +1354,7 @@ static RetainPtr<CTFontRef> lookupFallbackFont(CTFontRef font, FontSelectionValu
     return result;
 }
 
-RefPtr<Font> FontCache::systemFallbackForCharacters(const FontDescription& description, const Font* originalFontData, bool isPlatformFont, const UChar* characters, unsigned length)
+RefPtr<Font> FontCache::systemFallbackForCharacters(const FontDescription& description, const Font* originalFontData, IsForPlatformFont isForPlatformFont, PreferColoredFont, const UChar* characters, unsigned length)
 {
 #if PLATFORM(IOS_FAMILY)
     if (length && requiresCustomFallbackFont(*characters)) {
@@ -1383,7 +1383,7 @@ RefPtr<Font> FontCache::systemFallbackForCharacters(const FontDescription& descr
     CTFontRef substituteFont = fallbackDedupSet().add(result).iterator->get();
 
     bool syntheticBold, syntheticOblique;
-    std::tie(syntheticBold, syntheticOblique) = computeNecessarySynthesis(substituteFont, description, isPlatformFont).boldObliquePair();
+    std::tie(syntheticBold, syntheticOblique) = computeNecessarySynthesis(substituteFont, description, isForPlatformFont == IsForPlatformFont::Yes).boldObliquePair();
 
     FontPlatformData alternateFont(substituteFont, platformData.size(), syntheticBold, syntheticOblique, platformData.orientation(), platformData.widthVariant(), platformData.textRenderingMode());
 

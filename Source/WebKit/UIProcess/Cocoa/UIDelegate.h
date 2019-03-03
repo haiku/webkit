@@ -95,7 +95,7 @@ private:
         void exceededDatabaseQuota(WebPageProxy*, WebFrameProxy*, API::SecurityOrigin*, const WTF::String& databaseName, const WTF::String& displayName, unsigned long long currentQuota, unsigned long long currentOriginUsage, unsigned long long currentUsage, unsigned long long expectedUsage, Function<void(unsigned long long)>&& completionHandler) final;
         void reachedApplicationCacheOriginQuota(WebPageProxy*, const WebCore::SecurityOrigin&, uint64_t currentQuota, uint64_t totalBytesNeeded, Function<void(unsigned long long)>&& completionHandler) final;
         void didResignInputElementStrongPasswordAppearance(WebPageProxy&, API::Object*) final;
-        void takeFocus(WebPageProxy*, WKFocusDirection) final;
+        bool takeFocus(WebPageProxy*, WKFocusDirection) final;
 #if PLATFORM(MAC)
         void showPage(WebPageProxy*) final;
         void focus(WebPageProxy*) final;
@@ -123,8 +123,8 @@ private:
 #endif
         bool needsFontAttributes() const final { return m_uiDelegate.m_delegateMethods.webViewDidChangeFontAttributes; }
         void didChangeFontAttributes(const WebCore::FontAttributes&) final;
-        bool decidePolicyForUserMediaPermissionRequest(WebPageProxy&, WebFrameProxy&, API::SecurityOrigin&, API::SecurityOrigin&, UserMediaPermissionRequestProxy&) final;
-        bool checkUserMediaPermissionForOrigin(WebPageProxy&, WebFrameProxy&, API::SecurityOrigin&, API::SecurityOrigin&, UserMediaPermissionCheckProxy&) final;
+        void decidePolicyForUserMediaPermissionRequest(WebPageProxy&, WebFrameProxy&, API::SecurityOrigin&, API::SecurityOrigin&, UserMediaPermissionRequestProxy&) final;
+        void checkUserMediaPermissionForOrigin(WebPageProxy&, WebFrameProxy&, API::SecurityOrigin&, API::SecurityOrigin&, UserMediaPermissionCheckProxy&) final;
         void mediaCaptureStateDidChange(WebCore::MediaProducer::MediaStateFlags) final;
         void printFrame(WebPageProxy&, WebFrameProxy&) final;
 #if PLATFORM(IOS_FAMILY)
@@ -146,6 +146,8 @@ private:
         void hasVideoInPictureInPictureDidChange(WebPageProxy*, bool) final;
 
         void imageOrMediaDocumentSizeChanged(const WebCore::IntSize&) final;
+        void didShowSafeBrowsingWarning() final;
+        void didClickGoBackFromSafeBrowsingWarning() final;
 
         UIDelegate& m_uiDelegate;
     };
@@ -197,8 +199,8 @@ private:
         bool webViewFullscreenMayReturnToInline : 1;
         bool webViewDidEnterFullscreen : 1;
         bool webViewDidExitFullscreen : 1;
-        bool webViewRequestUserMediaAuthorizationForDevicesURLMainFrameURLDecisionHandler : 1;
-        bool webViewCheckUserMediaPermissionForURLMainFrameURLFrameIdentifierDecisionHandler : 1;
+        bool webViewRequestMediaCaptureAuthorizationForFrameDecisionHandler : 1;
+        bool webViewIsMediaCaptureAuthorizedForFrameDecisionHandler : 1;
         bool webViewMediaCaptureStateDidChange : 1;
         bool webViewDidChangeFontAttributes : 1;
 #if PLATFORM(IOS_FAMILY)
@@ -222,6 +224,8 @@ private:
         bool webViewGetContextMenuFromProposedMenuForElementUserInfoCompletionHandler : 1;
 #endif
         bool webViewHasVideoInPictureInPictureDidChange : 1;
+        bool webViewDidShowSafeBrowsingWarning : 1;
+        bool webViewDidClickGoBackFromSafeBrowsingWarning : 1;
     } m_delegateMethods;
 };
 

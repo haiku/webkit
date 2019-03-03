@@ -53,8 +53,8 @@ class DarwinPort(ApplePort):
             return 350 * 1000
         return super(DarwinPort, self).default_timeout_ms()
 
-    def _port_specific_expectations_files(self):
-        return list(reversed([self._filesystem.join(self._webkit_baseline_path(p), 'TestExpectations') for p in self.baseline_search_path()]))
+    def _port_specific_expectations_files(self, device_type=None):
+        return list(reversed([self._filesystem.join(self._webkit_baseline_path(p), 'TestExpectations') for p in self.baseline_search_path(device_type=device_type)]))
 
     def check_for_leaks(self, process_name, process_pid):
         if not self.get_option('leaks'):
@@ -104,7 +104,7 @@ class DarwinPort(ApplePort):
                 else:
                     process_name = test.split('-')[0]
                     pid = int(test.split('-')[1])
-            except IndexError:
+            except (IndexError, ValueError):
                 continue
             if not any(entry[1] == process_name and entry[2] == pid for entry in crashed_processes):
                 # if this is a new crash, then append the logs

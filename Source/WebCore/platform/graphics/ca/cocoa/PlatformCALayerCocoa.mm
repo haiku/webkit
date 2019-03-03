@@ -40,9 +40,6 @@
 #import "WebGLLayer.h"
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/SoftLinking.h>
-#if ENABLE(WEBMETAL)
-#import "WebMetalLayer.h"
-#endif
 #import "WebLayer.h"
 #import "WebSystemBackdropLayer.h"
 #import "WebTiledBackingLayer.h"
@@ -52,6 +49,14 @@
 #import <objc/runtime.h>
 #import <wtf/BlockObjCExceptions.h>
 #import <wtf/RetainPtr.h>
+
+#if ENABLE(WEBGPU)
+#import "WebGPULayer.h"
+#endif
+
+#if ENABLE(WEBMETAL)
+#import "WebMetalLayer.h"
+#endif
 
 #if PLATFORM(IOS_FAMILY)
 #import "FontAntialiasingStateSaver.h"
@@ -203,6 +208,11 @@ PlatformCALayer::LayerType PlatformCALayerCocoa::layerTypeForPlatformLayer(Platf
     if ([layer isKindOfClass:[WebGLLayer class]])
         return LayerTypeContentsProvidedLayer;
 
+#if ENABLE(WEBGPU)
+    if ([layer isKindOfClass:[WebGPULayer class]])
+        return LayerTypeContentsProvidedLayer;
+#endif
+
 #if ENABLE(WEBMETAL)
     if ([layer isKindOfClass:[WebMetalLayer class]])
         return LayerTypeContentsProvidedLayer;
@@ -260,7 +270,7 @@ PlatformCALayerCocoa::PlatformCALayerCocoa(LayerType layerType, PlatformCALayerC
         layerClass = getAVPlayerLayerClass();
         break;
     case LayerTypeContentsProvidedLayer:
-        // We don't create PlatformCALayerCocoas wrapped around WebGLLayers or WebMetalLayers.
+        // We don't create PlatformCALayerCocoas wrapped around WebGLLayers, WebGPULayers or WebMetalLayers.
         ASSERT_NOT_REACHED();
         break;
     case LayerTypeShapeLayer:
@@ -1041,8 +1051,10 @@ static NSString *layerContentsFormat(bool acceleratesDrawing, bool wantsDeepColo
 #endif
 
 #if PLATFORM(MAC)
+    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     if (supportsSubpixelAntialiasedFonts && acceleratesDrawing)
         return kCAContentsFormatRGBA8ColorRGBA8LinearGlyphMask;
+    ALLOW_DEPRECATED_DECLARATIONS_END
 #else
     UNUSED_PARAM(supportsSubpixelAntialiasedFonts);
     UNUSED_PARAM(acceleratesDrawing);
@@ -1174,7 +1186,7 @@ void PlatformCALayer::drawLayerContents(CGContextRef context, WebCore::PlatformC
         graphicsContext.setIsCALayerContext(true);
         graphicsContext.setIsAcceleratedContext(platformCALayer->acceleratesDrawing());
         
-        if (!layerContents->platformCALayerContentsOpaque() && !platformCALayer->supportsSubpixelAntialiasedText()) {
+        if (!layerContents->platformCALayerContentsOpaque() && !platformCALayer->supportsSubpixelAntialiasedText() && FontCascade::isSubpixelAntialiasingAvailable()) {
             // Turn off font smoothing to improve the appearance of text rendered onto a transparent background.
             graphicsContext.setShouldSmoothFonts(false);
         }

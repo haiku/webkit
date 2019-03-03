@@ -231,6 +231,9 @@ interface UIScriptController {
 
     void resignFirstResponder();
 
+    readonly attribute double contentOffsetX;
+    readonly attribute double contentOffsetY;
+
     void scrollToOffset(long x, long y); // Initiate an animated scroll in the UI process.
     attribute object didEndScrollingCallback;
 
@@ -257,6 +260,8 @@ interface UIScriptController {
     readonly attribute object calendarType;
     void setDefaultCalendarType(DOMString calendarIdentifier);
     readonly attribute object inputViewBounds;
+
+    void setKeyboardInputModeIdentifier(DOMString identifier);
 
     void replaceTextAtRange(DOMString text, long location, long length);
     void removeAllDynamicDictionaries();
@@ -285,8 +290,11 @@ interface UIScriptController {
     void makeWindowContentViewFirstResponder();
     readonly attribute boolean isWindowContentViewFirstResponder;
 
+    object attachmentInfo(DOMString attachmentIdentifier);
+
+    // Editing
     void drawSquareInEditableImage();
     readonly attribute long numberOfStrokesInEditableImage;
-
-    object attachmentInfo(DOMString attachmentIdentifier);
+    readonly attribute DOMString lastUndoLabel;
+    readonly attribute DOMString firstRedoLabel;
 };

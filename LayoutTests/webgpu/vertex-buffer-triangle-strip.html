@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>WebGPU Hello Triangles</title>
+<meta name="assert" content="WebGPU correctly renders a green canvas.">
+<link rel="match" href="vertex-buffer-triangle-strip-expected.html">
+<p>Pass if square canvas below is completely green.</p>
+<canvas width="400" height="400"></canvas>
+<script src="js/webgpu-functions.js"></script>
+<script>
+const shaderCode = `
+#include <metal_stdlib>
+    
+using namespace metal;
+
+struct VertexIn
+{
+    float4 position [[attribute(0)]];
+    float green [[attribute(1)]];
+};
+
+struct VertexOut
+{
+    float4 position [[position]];
+    float4 color;
+};
+
+vertex VertexOut vertex_main(VertexIn vertexIn [[stage_in]])
+{
+    VertexOut vOut;
+    vOut.position = vertexIn.position;
+    vOut.color = float4(0, vertexIn.green, 0, 1);
+    return vOut;
+}
+
+fragment float4 fragment_main(VertexOut v [[stage_in]])
+{
+    return v.color;
+}
+`
+
+function createVertexBuffer(device) {
+    const bufferSize = 4 * 5 * 4;
+    const buffer = device.createBuffer({ size: bufferSize, usage: WebGPUBufferUsage.MAP_WRITE });
+    
+    let floatArray = new Float32Array(buffer.mapping);
+
+    const vertices = [
+        // float4 xyzw, float g
+        -1, 1, 0, 1, 1,
+        -1, -1, 0, 1, 1,
+        1, 1, 0, 1, 1,
+        1, -1, 0, 1, 1
+    ];
+
+    for (let i = 0; i < vertices.length; ++i) {
+        floatArray[i] = vertices[i];
+    }
+
+    return buffer;
+}
+
+function createInputStateDescriptor() {
+    return {
+        indexFormat: WebGPUIndexFormat.UINT32,
+        attributes: [{
+            shaderLocation: 0,
+            inputSlot: 0,
+            offset: 0,
+            format: WebGPUVertexFormat.FLOAT_R32_G32_B32_A32
+        }, {
+            shaderLocation: 1,
+            inputSlot: 0,
+            offset: 4 * 4,
+            format: WebGPUVertexFormat.FLOAT_R32
+        }],
+        inputs: [{
+            inputSlot: 0,
+            stride: 4 * 5,
+            stepMode: WebGPUInputStepMode.VERTEX
+        }]
+    }
+}
+
+async function test() {
+    const device = await getBasicDevice();
+    const canvas = document.querySelector("canvas");
+    const context = createBasicContext(canvas, device);
+    // FIXME: Replace with non-MSL shaders.
+    const shaderModule = device.createShaderModule({ code: shaderCode });
+    const vertexBuffer = createVertexBuffer(device);
+    const inputStateDescriptor = createInputStateDescriptor();
+    const pipeline = createBasicPipeline(shaderModule, device, null, inputStateDescriptor);
+    const commandBuffer = device.createCommandBuffer();
+    const passEncoder = beginBasicRenderPass(context, commandBuffer);
+    const endCommandBuffer = encodeBasicCommands(passEncoder, pipeline, vertexBuffer);
+    const queue = device.getQueue();
+
+    queue.submit([endCommandBuffer]);
+    context.present();
+}
+
+test();
+</script>

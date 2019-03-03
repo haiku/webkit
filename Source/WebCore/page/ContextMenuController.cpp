@@ -73,8 +73,8 @@
 
 
 namespace WebCore {
-using namespace WTF;
-using namespace Unicode;
+
+using namespace WTF::Unicode;
 
 ContextMenuController::ContextMenuController(Page& page, ContextMenuClient& client)
     : m_page(page)
@@ -429,13 +429,13 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
         m_client.stopSpeaking();
         break;
     case ContextMenuItemTagDefaultDirection:
-        frame->editor().setBaseWritingDirection(NaturalWritingDirection);
+        frame->editor().setBaseWritingDirection(WritingDirection::Natural);
         break;
     case ContextMenuItemTagLeftToRight:
-        frame->editor().setBaseWritingDirection(LeftToRightWritingDirection);
+        frame->editor().setBaseWritingDirection(WritingDirection::LeftToRight);
         break;
     case ContextMenuItemTagRightToLeft:
-        frame->editor().setBaseWritingDirection(RightToLeftWritingDirection);
+        frame->editor().setBaseWritingDirection(WritingDirection::RightToLeft);
         break;
     case ContextMenuItemTagTextDirectionDefault:
         frame->editor().command("MakeTextWritingDirectionNatural").execute();

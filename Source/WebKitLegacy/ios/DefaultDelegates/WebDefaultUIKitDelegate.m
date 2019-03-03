@@ -162,6 +162,16 @@ static WebDefaultUIKitDelegate *sharedDelegate = nil;
 {
 }
 
+- (BOOL)handleKeyTextCommandForCurrentEvent
+{
+    return NO;
+}
+
+- (BOOL)handleKeyAppCommandForCurrentEvent
+{
+    return NO;
+}
+
 - (void)addInputString:(NSString *)str withFlags:(NSUInteger)flags
 {
 }

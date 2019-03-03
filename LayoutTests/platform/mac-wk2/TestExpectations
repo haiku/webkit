@@ -5,12 +5,14 @@
 # Platform-specific directories. Skipped globally, then re-enabled here.
 #//////////////////////////////////////////////////////////////////////////////////////////
 
-tiled-drawing [ Pass ]
-tiled-drawing/ios [ Skip ]
-fast/visual-viewport/tiled-drawing [ Pass ]
-swipe [ Pass ]
-fast/web-share [ Pass ]
 editing/find [ Pass ]
+editing/undo-manager [ Pass ]
+fast/visual-viewport/tiled-drawing [ Pass ]
+fast/web-share [ Pass ]
+scrollingcoordinator [ Pass ]
+scrollingcoordinator/ios [ Skip ]
+swipe [ Pass ]
+tiled-drawing [ Pass ]
 
 fast/events/autoscroll-when-zoomed.html [ Pass ]
 fast/events/autoscroll-main-document.html [ Pass ]
@@ -63,7 +65,8 @@ webkit.org/b/190828 [ Mojave+ Debug ]  http/tests/workers/service/self_registrat
 
 fast/misc/valid-primary-screen-displayID.html [ Pass ]
 
-webkit.org/b/187773 http/tests/webAPIStatistics [ Pass ]
+# Skipped because of <rdar://problem/45388584>.
+http/tests/webAPIStatistics [ Skip ]
 
 webkit.org/b/184569 storage/indexeddb/modern/transactions-stop-on-navigation.html [ Pass Failure ]
 
@@ -786,6 +789,7 @@ webkit.org/b/185994 [ Debug ] fast/text/user-installed-fonts/shadow-postscript-f
 # Skipped in general expectations since they only work on iOS and Mac, WK2.
 http/tests/security/strip-referrer-to-origin-for-third-party-redirects-in-private-mode.html [ Pass ]
 http/tests/security/strip-referrer-to-origin-for-third-party-requests-in-private-mode.html [ Pass ]
+media/deactivate-audio-session.html [ Pass ]
 
 # Link preconnect is disabled on pre-High Sierra because the CFNetwork SPI is missing.
 [ Sierra ] http/tests/preconnect [ Skip ]
@@ -819,8 +823,6 @@ webkit.org/b/181502 swipe/pushstate-with-manual-scrollrestoration.html [ Failure
 webkit.org/b/181750 imported/w3c/web-platform-tests/service-workers/service-worker/fetch-request-redirect.https.html [ DumpJSConsoleLogInStdErr Pass Failure ]
 
 webkit.org/b/181839 [ Debug ] inspector/debugger/breakpoint-action-log.html [ Pass Timeout ]
-
-webkit.org/b/181957 [ Release ] http/tests/misc/resource-timing-resolution.html [ Pass Failure ]
 
 webkit.org/b/181835 webrtc/captureCanvas-webrtc.html [ Pass Timeout ]
 
@@ -892,11 +894,7 @@ imported/w3c/web-platform-tests/payment-request/updateWith-method-pmi-handling-m
 imported/w3c/web-platform-tests/payment-request/user-abort-algorithm-manual.https.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/user-accepts-payment-request-algo-manual.https.html [ Skip ]
 
-webkit.org/b/189094 [ HighSierra+ ] accessibility/mac/focus-setting-selection-syncronizing-not-clearing.html [ Skip ]
-
 webkit.org/b/189598 compositing/backing/backing-store-attachment-fill-forwards-animation.html [ Pass Failure ]
-
-webkit.org/b/190323 http/tests/cache/disk-cache/disk-cache-validation-attachment.html [ Pass Failure ]
 
 # Skip local authenticator tests for mac now.
 http/wpt/webauthn/public-key-credential-create-failure-local.https.html [ Skip ]
@@ -912,3 +910,5 @@ webkit.org/b/183878 media/modern-media-controls/tracks-panel/tracks-panel-up-cli
 webkit.org/b/191644 [ Sierra ] fast/workers/worker-cloneport.html [ Pass Failure ]
 
 webkit.org/b/191658 [ Sierra Release ] fast/layers/no-clipping-overflow-hidden-added-after-transform.html [ Pass ImageOnlyFailure ]
+
+webkit.org/b/193976 http/tests/cache-storage/cache-clearing-origin.https.html [ Pass Failure ]

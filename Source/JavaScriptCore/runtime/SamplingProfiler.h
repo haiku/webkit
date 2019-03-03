@@ -112,7 +112,7 @@ public:
         };
 
         CodeLocation semanticLocation;
-        std::optional<std::pair<CodeLocation, CodeBlock*>> machineLocation; // This is non-null if we were inlined. It represents the machine frame we were inlined into.
+        Optional<std::pair<CodeLocation, CodeBlock*>> machineLocation; // This is non-null if we were inlined. It represents the machine frame we were inlined into.
 
         bool hasExpressionInfo() const { return semanticLocation.hasExpressionInfo(); }
         unsigned lineNumber() const
@@ -181,6 +181,10 @@ public:
     JS_EXPORT_PRIVATE void reportTopFunctions(PrintStream&);
     JS_EXPORT_PRIVATE void reportTopBytecodes();
     JS_EXPORT_PRIVATE void reportTopBytecodes(PrintStream&);
+
+#if OS(DARWIN)
+    JS_EXPORT_PRIVATE mach_port_t machThread();
+#endif
 
 private:
     void createThreadIfNecessary(const AbstractLocker&);

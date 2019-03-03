@@ -874,6 +874,14 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return nullptr;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "SetOnlyAcceptFirstPartyCookies")) {
+        WKBooleanRef accept = static_cast<WKBooleanRef>(messageBody);
+        WKHTTPCookieAcceptPolicy policy = WKBooleanGetValue(accept) ? kWKHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain : kWKHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain;
+        // FIXME: This updates the policy in WebProcess and in NetworkProcess asynchronously, which might break some tests' expectations.
+        WKCookieManagerSetHTTPCookieAcceptPolicy(WKContextGetCookieManager(TestController::singleton().context()), policy);
+        return nullptr;
+    }
+    
     if (WKStringIsEqualToUTF8CString(messageName, "SetCustomUserAgent")) {
         WKStringRef userAgent = static_cast<WKStringRef>(messageBody);
         WKPageSetCustomUserAgent(TestController::singleton().mainWebView()->page(), userAgent);
@@ -903,7 +911,7 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
     }
     
     if (WKStringIsEqualToUTF8CString(messageName, "DeleteAllIndexedDatabases")) {
-        WKWebsiteDataStoreRemoveAllIndexedDatabases(WKContextGetWebsiteDataStore(TestController::singleton().context()));
+        WKWebsiteDataStoreRemoveAllIndexedDatabases(WKContextGetWebsiteDataStore(TestController::singleton().context()), nullptr, { });
         return nullptr;
     }
 
@@ -1420,6 +1428,11 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return result;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "AllowCacheStorageQuotaIncrease")) {
+        TestController::singleton().allowCacheStorageQuotaIncrease();
+        return nullptr;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "SetIDBPerOriginQuota")) {
         ASSERT(WKGetTypeID(messageBody) == WKUInt64GetTypeID());
         WKUInt64Ref quota = static_cast<WKUInt64Ref>(messageBody);
@@ -1506,6 +1519,23 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
 
         bool keyExistsInKeychain = TestController::singleton().keyExistsInKeychain(toWTFString(attrLabelWK), toWTFString(applicationTagWK));
         WKRetainPtr<WKTypeRef> result(AdoptWK, WKBooleanCreate(keyExistsInKeychain));
+        return result;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "SetCanHandleHTTPSServerTrustEvaluation")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        auto canHandle = WKBooleanGetValue(static_cast<WKBooleanRef>(messageBody));
+        WKContextSetCanHandleHTTPSServerTrustEvaluation(TestController::singleton().context(), canHandle);
+        return nullptr;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "CanDoServerTrustEvaluationInNetworkProcess")) {
+        WKRetainPtr<WKTypeRef> result(AdoptWK, WKBooleanCreate(TestController::singleton().canDoServerTrustEvaluationInNetworkProcess()));
+        return result;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "ServerTrustEvaluationCallbackCallsCount")) {
+        WKRetainPtr<WKTypeRef> result(AdoptWK, WKUInt64Create(TestController::singleton().serverTrustEvaluationCallbackCallsCount()));
         return result;
     }
 

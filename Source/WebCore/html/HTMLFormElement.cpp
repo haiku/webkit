@@ -81,7 +81,7 @@ HTMLFormElement::~HTMLFormElement()
 {
     document().formController().willDeleteForm(*this);
     if (!shouldAutocomplete())
-        document().unregisterForDocumentSuspensionCallbacks(this);
+        document().unregisterForDocumentSuspensionCallbacks(*this);
 
     m_defaultButton = nullptr;
     for (auto& associatedElement : m_associatedElements)
@@ -166,12 +166,12 @@ HTMLElement* HTMLFormElement::item(unsigned index)
     return elements()->item(index);
 }
 
-std::optional<Variant<RefPtr<RadioNodeList>, RefPtr<Element>>> HTMLFormElement::namedItem(const AtomicString& name)
+Optional<Variant<RefPtr<RadioNodeList>, RefPtr<Element>>> HTMLFormElement::namedItem(const AtomicString& name)
 {
     auto namedItems = namedElements(name);
 
     if (namedItems.isEmpty())
-        return std::nullopt;
+        return WTF::nullopt;
     if (namedItems.size() == 1)
         return Variant<RefPtr<RadioNodeList>, RefPtr<Element>> { RefPtr<Element> { WTFMove(namedItems[0]) } };
 
@@ -439,9 +439,9 @@ void HTMLFormElement::parseAttribute(const QualifiedName& name, const AtomicStri
         m_attributes.setAcceptCharset(value);
     else if (name == autocompleteAttr) {
         if (!shouldAutocomplete())
-            document().registerForDocumentSuspensionCallbacks(this);
+            document().registerForDocumentSuspensionCallbacks(*this);
         else
-            document().unregisterForDocumentSuspensionCallbacks(this);
+            document().unregisterForDocumentSuspensionCallbacks(*this);
     } else
         HTMLElement::parseAttribute(name, value);
 }
@@ -843,8 +843,8 @@ void HTMLFormElement::resumeFromDocumentSuspension()
 void HTMLFormElement::didMoveToNewDocument(Document& oldDocument, Document& newDocument)
 {
     if (!shouldAutocomplete()) {
-        oldDocument.unregisterForDocumentSuspensionCallbacks(this);
-        document().registerForDocumentSuspensionCallbacks(this);
+        oldDocument.unregisterForDocumentSuspensionCallbacks(*this);
+        newDocument.registerForDocumentSuspensionCallbacks(*this);
     }
 
     HTMLElement::didMoveToNewDocument(oldDocument, newDocument);
@@ -863,7 +863,7 @@ void HTMLFormElement::finishParsingChildren()
 
 const Vector<FormAssociatedElement*>& HTMLFormElement::unsafeAssociatedElements() const
 {
-    ASSERT(!ScriptDisallowedScope::InMainThread::isScriptAllowed());
+    ASSERT(ScriptDisallowedScope::InMainThread::hasDisallowedScope());
     return m_associatedElements;
 }
 

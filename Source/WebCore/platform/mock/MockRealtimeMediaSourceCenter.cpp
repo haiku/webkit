@@ -94,14 +94,15 @@ public:
         return MockRealtimeVideoSource::create(String { device.persistentId() }, String { device.label() }, WTFMove(hashSalt), constraints);
     }
 
-#if PLATFORM(IOS_FAMILY)
 private:
+#if PLATFORM(IOS_FAMILY)
     void setVideoCapturePageState(bool interrupted, bool pageMuted)
     {
         if (activeSource())
             activeSource()->setInterrupted(interrupted, pageMuted);
     }
 #endif
+    CaptureDeviceManager& videoCaptureDeviceManager() final { return MockRealtimeMediaSourceCenter::singleton().videoCaptureDeviceManager(); }
 };
 
 class MockRealtimeDisplaySourceFactory : public DisplayCaptureFactory {
@@ -115,8 +116,6 @@ public:
         case CaptureDevice::DeviceType::Window:
             return MockRealtimeVideoSource::create(String { device.persistentId() }, String { device.label() }, String { }, constraints);
             break;
-        case CaptureDevice::DeviceType::Application:
-        case CaptureDevice::DeviceType::Browser:
         case CaptureDevice::DeviceType::Microphone:
         case CaptureDevice::DeviceType::Camera:
         case CaptureDevice::DeviceType::Unknown:
@@ -126,6 +125,8 @@ public:
 
         return { };
     }
+private:
+    CaptureDeviceManager& displayCaptureDeviceManager() final { return MockRealtimeMediaSourceCenter::singleton().displayCaptureDeviceManager(); }
 };
 
 class MockRealtimeAudioSourceFactory : public AudioCaptureFactory {
@@ -137,6 +138,8 @@ public:
 
         return MockRealtimeAudioSource::create(String { device.persistentId() }, String { device.label() }, WTFMove(hashSalt), constraints);
     }
+private:
+    CaptureDeviceManager& audioCaptureDeviceManager() final { return MockRealtimeMediaSourceCenter::singleton().audioCaptureDeviceManager(); }
 };
 
 static Vector<MockMediaDevice>& devices()
@@ -179,10 +182,30 @@ MockRealtimeMediaSourceCenter& MockRealtimeMediaSourceCenter::singleton()
 void MockRealtimeMediaSourceCenter::setMockRealtimeMediaSourceCenterEnabled(bool enabled)
 {
     static bool active = false;
-    if (active != enabled) {
-        active = enabled;
-        RealtimeMediaSourceCenter::setSharedStreamCenterOverride(enabled ? &singleton() : nullptr);
+    if (active == enabled)
+        return;
+
+    active = enabled;
+
+    RealtimeMediaSourceCenter& center = RealtimeMediaSourceCenter::singleton();
+    MockRealtimeMediaSourceCenter& mock = singleton();
+
+    if (active) {
+        if (mock.m_isMockAudioCaptureEnabled)
+            center.setAudioCaptureFactory(mock.audioCaptureFactory());
+        if (mock.m_isMockVideoCaptureEnabled)
+            center.setVideoCaptureFactory(mock.videoCaptureFactory());
+        if (mock.m_isMockDisplayCaptureEnabled)
+            center.setDisplayCaptureFactory(mock.displayCaptureFactory());
+        return;
     }
+
+    if (mock.m_isMockAudioCaptureEnabled)
+        center.unsetAudioCaptureFactory(mock.audioCaptureFactory());
+    if (mock.m_isMockVideoCaptureEnabled)
+        center.unsetVideoCaptureFactory(mock.videoCaptureFactory());
+    if (mock.m_isMockDisplayCaptureEnabled)
+        center.unsetDisplayCaptureFactory(mock.displayCaptureFactory());
 }
 
 static void createCaptureDevice(const MockMediaDevice& device)
@@ -242,26 +265,26 @@ void MockRealtimeMediaSourceCenter::removeDevice(const String& persistentId)
     RealtimeMediaSourceCenter::singleton().captureDevicesChanged();
 }
 
-std::optional<MockMediaDevice> MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(const String& id)
+Optional<MockMediaDevice> MockRealtimeMediaSourceCenter::mockDeviceWithPersistentID(const String& id)
 {
     ASSERT(!id.isEmpty());
 
     auto& map = deviceMap();
     auto iterator = map.find(id);
     if (iterator == map.end())
-        return std::nullopt;
+        return WTF::nullopt;
 
     return iterator->value;
 }
 
-std::optional<CaptureDevice> MockRealtimeMediaSourceCenter::captureDeviceWithPersistentID(CaptureDevice::DeviceType type, const String& id)
+Optional<CaptureDevice> MockRealtimeMediaSourceCenter::captureDeviceWithPersistentID(CaptureDevice::DeviceType type, const String& id)
 {
     ASSERT(!id.isEmpty());
 
     auto& map = deviceMap();
     auto iterator = map.find(id);
     if (iterator == map.end() || iterator->value.type() != type)
-        return std::nullopt;
+        return WTF::nullopt;
 
     CaptureDevice device { iterator->value.persistentId, type, iterator->value.label };
     device.setEnabled(true);
@@ -310,19 +333,19 @@ Vector<CaptureDevice>& MockRealtimeMediaSourceCenter::displayDevices()
     return displayDevices;
 }
 
-AudioCaptureFactory& MockRealtimeMediaSourceCenter::audioFactoryPrivate()
+AudioCaptureFactory& MockRealtimeMediaSourceCenter::audioCaptureFactory()
 {
     static NeverDestroyed<MockRealtimeAudioSourceFactory> factory;
     return factory.get();
 }
 
-VideoCaptureFactory& MockRealtimeMediaSourceCenter::videoFactoryPrivate()
+VideoCaptureFactory& MockRealtimeMediaSourceCenter::videoCaptureFactory()
 {
     static NeverDestroyed<MockRealtimeVideoSourceFactory> factory;
     return factory.get();
 }
 
-DisplayCaptureFactory& MockRealtimeMediaSourceCenter::displayCaptureFactoryPrivate()
+DisplayCaptureFactory& MockRealtimeMediaSourceCenter::displayCaptureFactory()
 {
     static NeverDestroyed<MockRealtimeDisplaySourceFactory> factory;
     return factory.get();

@@ -39,24 +39,14 @@ WebKitBuildbot = function()
         "Apple High Sierra Debug WK1 (Tests)": {platform: Dashboard.Platform.macOSHighSierra, debug: true, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
         "Apple High Sierra Debug WK2 (Tests)": {platform: Dashboard.Platform.macOSHighSierra, debug: true, tester: true, testCategory: Buildbot.TestCategory.WebKit2},
         "Apple High Sierra Release WK1 (Tests)": {platform: Dashboard.Platform.macOSHighSierra, debug: false, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
+        "Apple High Sierra Release WK2 (Perf)": {platform: Dashboard.Platform.macOSHighSierra, debug: false, performance: true, heading: "Performance"},
         "Apple High Sierra Release WK2 (Tests)": {platform: Dashboard.Platform.macOSHighSierra, debug: false, tester: true, testCategory: Buildbot.TestCategory.WebKit2},
         "Apple High Sierra JSC": {platform: Dashboard.Platform.macOSHighSierra, heading: "JavaScript", combinedQueues: {
-            "Apple High Sierra 32-bit JSC (BuildAndTest)": {heading: "32-bit JSC (BuildAndTest)"},
             "Apple High Sierra LLINT CLoop (BuildAndTest)": {heading: "LLINT CLoop (BuildAndTest)"},
             "Apple High Sierra Debug JSC (Tests)": {heading: "Debug JSC (Tests)"},
             "Apple High Sierra Release JSC (Tests)": {heading: "Release JSC (Tests)"},
-        }},
-        "Apple Sierra Debug (Build)": {platform: Dashboard.Platform.macOSSierra, debug: true, builder: true, architecture: Buildbot.BuildArchitecture.SixtyFourBit},
-        "Apple Sierra Release (Build)": {platform: Dashboard.Platform.macOSSierra, debug: false, builder: true, architecture: Buildbot.BuildArchitecture.SixtyFourBit},
-        "Apple Sierra Release (32-bit Build)": {platform: Dashboard.Platform.macOSSierra, builder: true, architecture: Buildbot.BuildArchitecture.ThirtyTwoBit},
-        "Apple Sierra Debug WK1 (Tests)": {platform: Dashboard.Platform.macOSSierra, debug: true, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
-        "Apple Sierra Debug WK2 (Tests)": {platform: Dashboard.Platform.macOSSierra, debug: true, tester: true, testCategory: Buildbot.TestCategory.WebKit2},
-        "Apple Sierra Release WK1 (Tests)": {platform: Dashboard.Platform.macOSSierra, debug: false, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
-        "Apple Sierra Release WK2 (Tests)": {platform: Dashboard.Platform.macOSSierra, debug: false, tester: true, testCategory: Buildbot.TestCategory.WebKit2},
-        "Apple Sierra Release WK2 (Perf)": {platform: Dashboard.Platform.macOSSierra, debug: false, performance: true, heading: "Performance"},
-        "Apple Sierra JSC": {platform: Dashboard.Platform.macOSSierra, heading: "JavaScript", combinedQueues: {
-            "Apple Sierra Debug Test262 (Tests)": {heading: "Debug Test262 (Tests)"},
-            "Apple Sierra Release Test262 (Tests)": {heading: "Release Test262 (Tests)"},
+            "Apple High Sierra Debug Test262 (Tests)": {heading: "Debug Test262 (Tests)"},
+            "Apple High Sierra Release Test262 (Tests)": {heading: "Release Test262 (Tests)"},
         }},
         "Apple iOS 12 Release (Build)": {platform: Dashboard.Platform.iOS12Device, debug: false, builder: true, architecture: Buildbot.BuildArchitecture.SixtyFourBit},
         "Apple iOS 12 Simulator Release (Build)": {platform: Dashboard.Platform.iOS12Simulator, debug: false, builder: true, architecture: Buildbot.BuildArchitecture.SixtyFourBit},
@@ -88,7 +78,18 @@ WebKitBuildbot = function()
         }},
         "GTK Wayland Testers": {platform: Dashboard.Platform.LinuxGTK, heading: "Wayland", combinedQueues: {
             "GTK Linux 64-bit Release Wayland (Tests)": {heading: "Wayland"},
-        }}
+        }},
+        "JSCOnly AArch64 Testers": {platform: Dashboard.Platform.LinuxJSCOnly, heading: "AArch64", combinedQueues: {
+            "JSCOnly Linux AArch64 Release": {heading: "AArch64"},
+        }},
+        "JSCOnly ARMv7 Testers": {platform: Dashboard.Platform.LinuxJSCOnly, heading: "ARMv7", combinedQueues: {
+            "JSCOnly Linux ARMv7 Thumb2 Release": {heading: "ARMv7 Thumb2"},
+            "JSCOnly Linux ARMv7 Thumb2 SoftFP Release": {heading: "ARMv7 Thumb2 SoftFP"},
+            "JSCOnly Linux ARMv7 Traditional Release": {heading: "ARMv7 Traditional"},
+        }},
+        "JSCOnly MIPS Testers": {platform: Dashboard.Platform.LinuxJSCOnly, heading: "MIPS", combinedQueues: {
+            "JSCOnly Linux MIPS32el Release": {heading: "MIPS32el"},
+        }},
     };
 
     Buildbot.call(this, "https://build.webkit.org/", queueInfo, {"USE_BUILDBOT_VERSION_LESS_THAN_09" : true});

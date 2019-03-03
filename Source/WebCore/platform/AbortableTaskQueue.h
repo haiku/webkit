@@ -134,21 +134,25 @@ public:
     // forwarded to the background thread, wrapped in an optional.
     //
     // If we are aborting, the call finishes immediately, returning an empty optional.
+    //
+    // It is allowed for the main thread task handler to abort the AbortableTaskQueue. In that case, the return
+    // value is discarded and the caller receives an empty optional.
     template<typename R>
-    std::optional<R> enqueueTaskAndWait(WTF::Function<R()>&& mainThreadTaskHandler)
+    Optional<R> enqueueTaskAndWait(WTF::Function<R()>&& mainThreadTaskHandler)
     {
         // Don't deadlock the main thread with itself.
         ASSERT(!isMainThread());
 
         LockHolder lockHolder(m_mutex);
         if (m_aborting)
-            return std::nullopt;
+            return WTF::nullopt;
 
-        std::optional<R> response = std::nullopt;
+        Optional<R> response = WTF::nullopt;
         postTask([this, &response, &mainThreadTaskHandler]() {
             R responseValue = mainThreadTaskHandler();
             LockHolder lockHolder(m_mutex);
-            response = WTFMove(responseValue);
+            if (!m_aborting)
+                response = WTFMove(responseValue);
             m_abortedOrResponseSet.notifyAll();
         });
         m_abortedOrResponseSet.wait(m_mutex, [this, &response]() {

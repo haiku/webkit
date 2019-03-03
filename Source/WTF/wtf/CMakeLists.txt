@@ -61,7 +61,9 @@ set(WTF_PUBLIC_HEADERS
     FastMalloc.h
     FastTLS.h
     FeatureDefines.h
+    FileMetadata.h
     FilePrintStream.h
+    FileSystem.h
     FlipBytes.h
     ForbidHeapAllocation.h
     Forward.h
@@ -334,6 +336,7 @@ set(WTF_PUBLIC_HEADERS
 )
 
 set(WTF_SOURCES
+    ASCIICType.cpp
     Assertions.cpp
     AutomaticThread.cpp
     BitVector.cpp
@@ -353,6 +356,7 @@ set(WTF_SOURCES
     FastBitVector.cpp
     FastMalloc.cpp
     FilePrintStream.cpp
+    FileSystem.cpp
     FunctionDispatcher.cpp
     Gigacage.cpp
     GlobalVersion.cpp
@@ -371,6 +375,7 @@ set(WTF_SOURCES
     MonotonicTime.cpp
     NumberOfCores.cpp
     OSRandomSource.cpp
+    ObjectIdentifier.cpp
     PageBlock.cpp
     ParallelHelperPool.cpp
     ParallelJobsGeneric.cpp
@@ -491,23 +496,6 @@ list(APPEND WTF_LIBRARIES
     ${ICU_I18N_LIBRARIES}
     ${ICU_LIBRARIES}
 )
-
-if (WIN32)
-    list(APPEND WTF_SOURCES
-        OSAllocatorWin.cpp
-        ThreadSpecificWin.cpp
-        ThreadingWin.cpp
-    )
-    list(APPEND WTF_LIBRARIES
-        DbgHelp
-        winmm
-    )
-else ()
-    list(APPEND WTF_SOURCES
-        OSAllocatorPosix.cpp
-        ThreadingPthreads.cpp
-    )
-endif ()
 
 WEBKIT_FRAMEWORK_DECLARE(WTF)
 WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()

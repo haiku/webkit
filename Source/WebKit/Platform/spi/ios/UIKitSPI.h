@@ -297,6 +297,7 @@ typedef enum {
 + (UIPeripheralHost *)activeInstance;
 + (CGRect)visiblePeripheralFrame;
 - (BOOL)isOnScreen;
+- (BOOL)isUndocked;
 - (UIKeyboardRotationState *)rotationState;
 @end
 
@@ -348,6 +349,7 @@ typedef NS_ENUM(NSInteger, UIScrollViewIndicatorInsetAdjustmentBehavior) {
 @property (nonatomic, getter=_contentScrollInset, setter=_setContentScrollInset:) UIEdgeInsets contentScrollInset;
 @property (nonatomic, getter=_indicatorInsetAdjustmentBehavior, setter=_setIndicatorInsetAdjustmentBehavior:) UIScrollViewIndicatorInsetAdjustmentBehavior indicatorInsetAdjustmentBehavior;
 @property (nonatomic, readonly) UIEdgeInsets _systemContentInset;
+@property (nonatomic, readonly) UIEdgeInsets _effectiveContentInset;
 @end
 
 @interface NSString (UIKitDetails)
@@ -374,6 +376,9 @@ typedef enum {
 - (void)takeTraitsFrom:(id <UITextInputTraits>)traits;
 @optional
 @property (nonatomic) UITextShortcutConversionType shortcutConversionType;
+@property (nonatomic, retain) UIColor *insertionPointColor;
+@property (nonatomic, retain) UIColor *selectionBarColor;
+@property (nonatomic, retain) UIColor *selectionHighlightColor;
 @end
 
 @class UITextInputArrowKeyHistory;
@@ -389,6 +394,9 @@ typedef enum {
 - (void)insertDictationResult:(NSArray *)dictationResult withCorrectionIdentifier:(id)correctionIdentifier;
 - (void)replaceRangeWithTextWithoutClosingTyping:(UITextRange *)range replacementText:(NSString *)text;
 - (void)setBottomBufferHeight:(CGFloat)bottomBuffer;
+#if USE(UIKIT_KEYBOARD_ADDITIONS)
+- (void)modifierFlagsDidChangeFrom:(UIKeyModifierFlags)oldFlags to:(UIKeyModifierFlags)newFlags;
+#endif
 @property (nonatomic) UITextGranularity selectionGranularity;
 @required
 - (BOOL)hasContent;
@@ -397,6 +405,7 @@ typedef enum {
 @end
 
 @interface UITextInputTraits : NSObject <UITextInputTraits, UITextInputTraits_Private, NSCopying>
+- (void)_setColorsToMatchTintColor:(UIColor *)tintColor;
 @end
 
 @interface UITextInteractionAssistant : NSObject
@@ -502,6 +511,7 @@ typedef NS_ENUM (NSInteger, _UIBackdropMaskViewFlags) {
 - (void)viewWillMoveToSuperview:(UIView *)newSuperview;
 - (CGSize)convertSize:(CGSize)size toView:(UIView *)view;
 - (void)_removeAllAnimations:(BOOL)includeSubviews;
+- (UIColor *)_inheritedInteractionTintColor;
 @end
 
 @interface UIWebSelectionView : UIView
@@ -749,6 +759,7 @@ struct _UIWebTouchEvent {
 
 @interface UIWebTouchEventsGestureRecognizer ()
 - (id)initWithTarget:(id)target action:(SEL)action touchDelegate:(id <UIWebTouchEventsGestureRecognizerDelegate>)delegate;
+- (void)cancel;
 @property (nonatomic, getter=isDefaultPrevented) BOOL defaultPrevented;
 @property (nonatomic, readonly) BOOL inJavaScriptGesture;
 @property (nonatomic, readonly) CGPoint locationInWindow;
@@ -913,6 +924,7 @@ typedef enum {
 @end
 
 @interface UIKeyboardInputMode : UITextInputMode <NSCopying>
++ (UIKeyboardInputMode *)keyboardInputModeWithIdentifier:(NSString *)identifier;
 @property (nonatomic, readonly, retain) NSArray <NSString *> *multilingualLanguages;
 @property (nonatomic, readonly, retain) NSString *languageWithRegion;
 @end
@@ -1048,8 +1060,8 @@ typedef NSInteger UICompositingMode;
 - (void)_adjustForAutomaticKeyboardInfo:(NSDictionary *)info animated:(BOOL)animated lastAdjustment:(CGFloat*)lastAdjustment;
 - (BOOL)_isScrollingToTop;
 - (CGPoint)_animatedTargetOffset;
-- (BOOL)_canScrollX;
-- (BOOL)_canScrollY;
+- (BOOL)_canScrollWithoutBouncingX;
+- (BOOL)_canScrollWithoutBouncingY;
 - (void)_setContentOffsetWithDecelerationAnimation:(CGPoint)contentOffset;
 - (CGPoint)_adjustedContentOffsetForContentOffset:(CGPoint)contentOffset;
 - (void)_flashScrollIndicatorsPersistingPreviousFlashes:(BOOL)persisting;
@@ -1060,6 +1072,14 @@ typedef NSInteger UICompositingMode;
 - (int)_endIgnoringReloadInputViews;
 - (void)forceReloadInputViews;
 - (CGFloat)getVerticalOverlapForView:(UIView *)view usingKeyboardInfo:(NSDictionary *)info;
+@end
+
+@interface UIKeyboardImpl (IPI)
+- (void)setInitialDirection;
+- (void)prepareKeyboardInputModeFromPreferences:(UIKeyboardInputMode *)lastUsedMode;
+- (BOOL)handleKeyTextCommandForCurrentEvent;
+- (BOOL)handleKeyAppCommandForCurrentEvent;
+@property (nonatomic, readonly) UIKeyboardInputMode *currentInputModeInPreference;
 @end
 
 @interface _UILayerHostView : UIView
@@ -1124,6 +1144,8 @@ extern NSString * const UIWindowDidMoveToScreenNotification;
 extern NSString * const UIWindowDidRotateNotification;
 extern NSString * const UIWindowNewScreenUserInfoKey;
 extern NSString * const UIWindowWillRotateNotification;
+
+extern NSString * const UIKeyboardPrivateDidRequestDismissalNotification;
 
 extern NSString * const UIKeyboardIsLocalUserInfoKey;
 

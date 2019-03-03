@@ -40,9 +40,10 @@ namespace WebCore {
 
 static const int kReadBufferSize = 1024;
 
-SocketStreamHandleImpl::SocketStreamHandleImpl(const URL& url, SocketStreamHandleClient& client)
+SocketStreamHandleImpl::SocketStreamHandleImpl(const URL& url, SocketStreamHandleClient& client, const StorageSessionProvider* provider)
     :
-    SocketStreamHandle(url, client)
+    SocketStreamHandle(url, client),
+	m_storageSessionProvider(provider)
 {
     LOG(Network, "SocketStreamHandle %p new client %p", this, &m_client);
     fReadThreadId = 0;
@@ -77,7 +78,7 @@ SocketStreamHandleImpl::~SocketStreamHandleImpl()
 }
 
 
-std::optional<size_t> SocketStreamHandleImpl::platformSendInternal(const uint8_t* buffer, size_t length)
+WTF::Optional<size_t> SocketStreamHandleImpl::platformSendInternal(const uint8_t* buffer, size_t length)
 {
 	int32 writtenLength = 0;
 	bool flagForPending = false;

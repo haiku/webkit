@@ -134,6 +134,10 @@ const HashSet<String, ASCIICaseInsensitiveHash>& MIMETypeRegistry::supportedImag
         "image/vnd.microsoft.icon"_s, // ico
         "image/x-icon"_s, // ico
         "image/x-xbitmap"_s, // xbm
+#if USE(OPENJPEG)
+        "image/jp2"_s,
+        "image/jpeg2000"_s,
+#endif
 #if USE(WEBP)
         "image/webp"_s,
 #endif
@@ -563,6 +567,26 @@ bool MIMETypeRegistry::isSupportedFontMIMEType(const String& mimeType)
         || equalLettersIgnoringASCIICase(subtype, "sfnt");
 }
 
+bool MIMETypeRegistry::isTextMediaPlaylistMIMEType(const String& mimeType)
+{
+    if (startsWithLettersIgnoringASCIICase(mimeType, "application/")) {
+        static const unsigned applicationLength = 12;
+        auto subtype = StringView { mimeType }.substring(applicationLength);
+        return equalLettersIgnoringASCIICase(subtype, "vnd.apple.mpegurl")
+            || equalLettersIgnoringASCIICase(subtype, "mpegurl")
+            || equalLettersIgnoringASCIICase(subtype, "x-mpegurl");
+    }
+
+    if (startsWithLettersIgnoringASCIICase(mimeType, "audio/")) {
+        static const unsigned audioLength = 6;
+        auto subtype = StringView { mimeType }.substring(audioLength);
+        return equalLettersIgnoringASCIICase(subtype, "mpegurl")
+            || equalLettersIgnoringASCIICase(subtype, "x-mpegurl");
+    }
+
+    return false;
+}
+
 bool MIMETypeRegistry::isSupportedJSONMIMEType(const String& mimeType)
 {
     if (mimeType.isEmpty())
@@ -695,7 +719,6 @@ const String& defaultMIMEType()
     return defaultMIMEType;
 }
 
-#if USE(SYSTEM_PREVIEW)
 const HashSet<String, ASCIICaseInsensitiveHash>& MIMETypeRegistry::systemPreviewMIMETypes()
 {
     static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> systemPreviewMIMETypes = std::initializer_list<String> {
@@ -714,7 +737,6 @@ bool MIMETypeRegistry::isSystemPreviewMIMEType(const String& mimeType)
         return false;
     return systemPreviewMIMETypes().contains(mimeType);
 }
-#endif
 
 #if !USE(CURL)
 

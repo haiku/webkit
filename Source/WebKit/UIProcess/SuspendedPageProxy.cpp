@@ -26,6 +26,7 @@
 #include "config.h"
 #include "SuspendedPageProxy.h"
 
+#include "DrawingAreaProxy.h"
 #include "Logging.h"
 #include "WebPageMessages.h"
 #include "WebPageProxy.h"
@@ -79,6 +80,9 @@ SuspendedPageProxy::SuspendedPageProxy(WebPageProxy& page, Ref<WebProcessProxy>&
     , m_process(WTFMove(process))
     , m_mainFrameID(mainFrameID)
     , m_registrableDomain(toRegistrableDomain(URL(URL(), item.url())))
+#if PLATFORM(IOS_FAMILY)
+    , m_suspensionToken(m_process->throttler().backgroundActivityToken())
+#endif
 {
     item.setSuspendedPage(this);
     m_process->addMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_page.pageID(), *this);
@@ -88,13 +92,18 @@ SuspendedPageProxy::SuspendedPageProxy(WebPageProxy& page, Ref<WebProcessProxy>&
 
 SuspendedPageProxy::~SuspendedPageProxy()
 {
-    if (!m_isSuspended)
+    if (m_readyToUnsuspendHandler)
+        m_readyToUnsuspendHandler(nullptr);
+
+    if (m_suspensionState == SuspensionState::Resumed)
         return;
 
     // If the suspended page was not consumed before getting destroyed, then close the corresponding page
     // on the WebProcess side.
-    m_process->send(Messages::WebPage::Close(), m_page.pageID());
-    m_process->removeMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_page.pageID());
+    close();
+
+    if (m_suspensionState == SuspensionState::Suspending)
+        m_process->removeMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_page.pageID());
 
     // We call maybeShutDown() asynchronously since the SuspendedPage is currently being removed from the WebProcessPool
     // and we want to avoid re-entering WebProcessPool methods.
@@ -103,44 +112,87 @@ SuspendedPageProxy::~SuspendedPageProxy()
     });
 }
 
-void SuspendedPageProxy::unsuspend(CompletionHandler<void()>&& completionHandler)
+void SuspendedPageProxy::waitUntilReadyToUnsuspend(CompletionHandler<void(SuspendedPageProxy*)>&& completionHandler)
 {
-    ASSERT(m_isSuspended);
+    if (m_readyToUnsuspendHandler)
+        m_readyToUnsuspendHandler(nullptr);
 
-    auto doUnsuspend = [this, completionHandler = WTFMove(completionHandler)]() mutable {
-        m_isSuspended = false;
-        m_process->removeMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_page.pageID());
-        m_process->send(Messages::WebPage::SetIsSuspended(false), m_page.pageID());
-        completionHandler();
-    };
-
-    if (!m_finishedSuspending) {
-        ASSERT(!m_finishedSuspendingHandler);
-        m_finishedSuspendingHandler = WTFMove(doUnsuspend);
-    } else
-        doUnsuspend();
+    switch (m_suspensionState) {
+    case SuspensionState::Suspending:
+        m_readyToUnsuspendHandler = WTFMove(completionHandler);
+        break;
+    case SuspensionState::FailedToSuspend:
+    case SuspensionState::Suspended:
+        completionHandler(this);
+        break;
+    case SuspensionState::Resumed:
+        ASSERT_NOT_REACHED();
+        completionHandler(nullptr);
+        break;
+    }
 }
 
-void SuspendedPageProxy::didFinishLoad()
+void SuspendedPageProxy::unsuspend()
+{
+    ASSERT(m_suspensionState == SuspensionState::Suspended);
+
+    m_suspensionState = SuspensionState::Resumed;
+    m_process->send(Messages::WebPage::SetIsSuspended(false), m_page.pageID());
+}
+
+void SuspendedPageProxy::close()
+{
+    ASSERT(m_suspensionState != SuspensionState::Resumed);
+
+    if (m_isClosed)
+        return;
+
+    m_isClosed = true;
+    m_process->send(Messages::WebPage::Close(), m_page.pageID());
+}
+
+void SuspendedPageProxy::didProcessRequestToSuspend(SuspensionState newSuspensionState)
 {
     LOG(ProcessSwapping, "SuspendedPageProxy %s from process %i finished transition to suspended", loggingString(), m_process->processIdentifier());
 
-    m_finishedSuspending = true;
+    ASSERT(m_suspensionState == SuspensionState::Suspending);
+    ASSERT(newSuspensionState == SuspensionState::Suspended || newSuspensionState == SuspensionState::FailedToSuspend);
 
-    m_process->send(Messages::WebProcess::UpdateActivePages(), 0);
+    m_suspensionState = newSuspensionState;
 
-    if (auto finishedSuspendingHandler = WTFMove(m_finishedSuspendingHandler))
-        finishedSuspendingHandler();
+#if PLATFORM(IOS_FAMILY)
+    m_suspensionToken = nullptr;
+#endif
+
+    m_process->removeMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_page.pageID());
+
+    bool shouldDelayClosingOnFailure = false;
+#if PLATFORM(MAC)
+    // With web process side tiles, we need to keep the suspended page around on failure to avoid flashing.
+    // It is removed by WebPageProxy::enterAcceleratedCompositingMode when the target page is ready.
+    shouldDelayClosingOnFailure = m_page.drawingArea() && m_page.drawingArea()->type() == DrawingAreaTypeTiledCoreAnimation;
+#endif
+    if (m_suspensionState == SuspensionState::FailedToSuspend && !shouldDelayClosingOnFailure)
+        close();
+
+    if (m_readyToUnsuspendHandler)
+        m_readyToUnsuspendHandler(this);
 }
 
 void SuspendedPageProxy::didReceiveMessage(IPC::Connection&, IPC::Decoder& decoder)
 {
     ASSERT(decoder.messageReceiverName() == Messages::WebPageProxy::messageReceiverName());
 
-    if (decoder.messageName() == Messages::WebPageProxy::DidFinishLoadForFrame::name()) {
-        didFinishLoad();
+    if (decoder.messageName() == Messages::WebPageProxy::DidSuspendAfterProcessSwap::name()) {
+        didProcessRequestToSuspend(SuspensionState::Suspended);
         return;
     }
+
+    if (decoder.messageName() == Messages::WebPageProxy::DidFailToSuspendAfterProcessSwap::name()) {
+        didProcessRequestToSuspend(SuspensionState::FailedToSuspend);
+        return;
+    }
+
 #if !LOG_DISABLED
     if (!messageNamesToIgnoreWhileSuspended().contains(decoder.messageName()))
         LOG(ProcessSwapping, "SuspendedPageProxy received unexpected WebPageProxy message '%s'", decoder.messageName().toString().data());
@@ -154,7 +206,7 @@ void SuspendedPageProxy::didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, 
 #if !LOG_DISABLED
 const char* SuspendedPageProxy::loggingString() const
 {
-    return debugString("(", String::format("%p", this), " page ID ", String::number(m_page.pageID()), ", m_finishedSuspending ", String::number(m_finishedSuspending), ")");
+    return debugString("(", String::format("%p", this), " page ID ", String::number(m_page.pageID()), ", m_suspensionState ", String::number(static_cast<unsigned>(m_suspensionState)), ")");
 }
 #endif
 

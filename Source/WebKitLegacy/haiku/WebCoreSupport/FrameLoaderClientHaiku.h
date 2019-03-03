@@ -65,8 +65,8 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     void setDispatchTarget(const BMessenger& messenger);
     BWebPage* page() const;
 
-    std::optional<uint64_t> pageID() const final;
-    std::optional<uint64_t> frameID() const final;
+	WTF::Optional<uint64_t> pageID() const final;
+	WTF::Optional<uint64_t> frameID() const final;
     PAL::SessionID sessionID() const final;
 
     bool hasWebView() const override;
@@ -91,7 +91,7 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     bool dispatchDidReceiveInvalidCertificate(DocumentLoader*,
         const CertificateInfo& certificate, const char* message) override;
 
-    void dispatchDidCommitLoad(std::optional<WebCore::HasInsecureContent>) override;
+    void dispatchDidCommitLoad(WTF::Optional<WebCore::HasInsecureContent>) override;
     void dispatchDidReceiveResponse(DocumentLoader*, unsigned long,
                                             const ResourceResponse&) override;
     void dispatchDidReceiveContentLength(DocumentLoader*, unsigned long, int) override;
@@ -109,7 +109,7 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     void dispatchDidPopStateWithinPage() override;
     void dispatchWillClose() override;
     void dispatchDidReceiveIcon() override;
-    void dispatchDidStartProvisionalLoad() override;
+    void dispatchDidStartProvisionalLoad(WTF::CompletionHandler<void()>&&) override;
     void dispatchDidReceiveTitle(const StringWithDirection&) override;
     void dispatchDidFailProvisionalLoad(const ResourceError&) override;
     void dispatchDidFailLoad(const ResourceError&) override;

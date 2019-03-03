@@ -70,7 +70,8 @@ Ref<DebuggerCallFrame> DebuggerCallFrame::create(VM& vm, CallFrame* callFrame)
     }
 
     Vector<ShadowChicken::Frame> frames;
-    vm.shadowChicken().iterate(vm, callFrame, [&] (const ShadowChicken::Frame& frame) -> bool {
+    vm.ensureShadowChicken();
+    vm.shadowChicken()->iterate(vm, callFrame, [&] (const ShadowChicken::Frame& frame) -> bool {
         frames.append(frame);
         return true;
     });
@@ -232,7 +233,7 @@ JSValue DebuggerCallFrame::evaluateWithScopeExtension(const String& script, JSOb
     if (!codeBlock)
         return jsUndefined();
     
-    DebuggerEvalEnabler evalEnabler(callFrame);
+    DebuggerEvalEnabler evalEnabler(callFrame, DebuggerEvalEnabler::Mode::EvalOnCallFrameAtDebuggerEntry);
 
     EvalContextType evalContextType;
     
@@ -293,7 +294,7 @@ TextPosition DebuggerCallFrame::currentPosition(VM& vm)
 
     if (isTailDeleted()) {
         CodeBlock* codeBlock = m_shadowChickenFrame.codeBlock;
-        if (std::optional<unsigned> bytecodeOffset = codeBlock->bytecodeOffsetFromCallSiteIndex(m_shadowChickenFrame.callSiteIndex)) {
+        if (Optional<unsigned> bytecodeOffset = codeBlock->bytecodeOffsetFromCallSiteIndex(m_shadowChickenFrame.callSiteIndex)) {
             return TextPosition(OrdinalNumber::fromOneBasedInt(codeBlock->lineNumberForBytecodeOffset(*bytecodeOffset)),
                 OrdinalNumber::fromOneBasedInt(codeBlock->columnNumberForBytecodeOffset(*bytecodeOffset)));
         }

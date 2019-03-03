@@ -38,6 +38,7 @@ WI.loaded = function()
     InspectorBackend.registerMemoryDispatcher(new WI.MemoryObserver);
     InspectorBackend.registerDOMStorageDispatcher(new WI.DOMStorageObserver);
     InspectorBackend.registerScriptProfilerDispatcher(new WI.ScriptProfilerObserver);
+    InspectorBackend.registerCPUProfilerDispatcher(new WI.CPUProfilerObserver);
     InspectorBackend.registerTimelineDispatcher(new WI.TimelineObserver);
     InspectorBackend.registerCSSDispatcher(new WI.CSSObserver);
     InspectorBackend.registerLayerTreeDispatcher(new WI.LayerTreeObserver);
@@ -57,12 +58,12 @@ WI.loaded = function()
         WI.heapManager = new WI.HeapManager,
         WI.memoryManager = new WI.MemoryManager,
         WI.timelineManager = new WI.TimelineManager,
+        WI.auditManager = new WI.AuditManager,
         WI.debuggerManager = new WI.DebuggerManager,
         WI.layerTreeManager = new WI.LayerTreeManager,
         WI.workerManager = new WI.WorkerManager,
         WI.domDebuggerManager = new WI.DOMDebuggerManager,
         WI.canvasManager = new WI.CanvasManager,
-        WI.auditManager = new WI.AuditManager,
     ];
 
     // Register for events.
@@ -150,6 +151,10 @@ WI.performOneTimeFrontendInitializationsUsingTarget = function(target)
     }
 };
 
+WI.initializeTarget = function(target)
+{
+};
+
 Object.defineProperty(WI, "mainTarget",
 {
     get() { return WI.pageTarget || WI.backendTarget; }
@@ -165,7 +170,7 @@ WI.assumingMainTarget = () => WI.mainTarget;
 WI.isDebugUIEnabled = () => false;
 
 WI.unlocalizedString = (string) => string;
-WI.UIString = (string) => string;
+WI.UIString = (string, key, comment) => string;
 
 WI.indentString = () => "    ";
 

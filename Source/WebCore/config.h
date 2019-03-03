@@ -33,13 +33,12 @@
 #include <JavaScriptCore/JSExportMacros.h>
 #include <pal/ExportMacros.h>
 
-#ifdef __APPLE__
-#define HAVE_FUNC_USLEEP 1
-#endif /* __APPLE__ */
-
 // Using CMake with Unix makefiles does not use prefix headers.
 #if PLATFORM(MAC) && defined(BUILDING_WITH_CMAKE)
 #include "WebCorePrefix.h"
+#ifndef JSC_API_AVAILABLE
+#define JSC_API_AVAILABLE(...)
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -55,10 +54,6 @@
 #endif
 
 #include <wtf/DisallowCType.h>
-
-#if PLATFORM(MAC) || PLATFORM(WPE)
-#define USE_NEW_THEME 1
-#endif
 
 #if USE(CG)
 #ifndef CGFLOAT_DEFINED

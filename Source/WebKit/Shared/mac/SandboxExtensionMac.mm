@@ -31,13 +31,12 @@
 #import "DataReference.h"
 #import "Decoder.h"
 #import "Encoder.h"
-#import <WebCore/FileSystem.h>
 #import <sys/stat.h>
+#import <wtf/FileSystem.h>
 #import <wtf/spi/darwin/SandboxSPI.h>
 #import <wtf/text/CString.h>
 
 namespace WebKit {
-using namespace WebCore;
 
 class SandboxExtensionImpl {
 public:
@@ -134,11 +133,11 @@ void SandboxExtension::Handle::encode(IPC::Encoder& encoder) const
     m_sandboxExtension = 0;
 }
 
-auto SandboxExtension::Handle::decode(IPC::Decoder& decoder) -> std::optional<Handle>
+auto SandboxExtension::Handle::decode(IPC::Decoder& decoder) -> Optional<Handle>
 {
     IPC::DataReference dataReference;
     if (!decoder.decode(dataReference))
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (dataReference.isEmpty())
         return {{ }};
@@ -190,19 +189,19 @@ void SandboxExtension::HandleArray::encode(IPC::Encoder& encoder) const
         encoder << handle;
 }
 
-std::optional<SandboxExtension::HandleArray> SandboxExtension::HandleArray::decode(IPC::Decoder& decoder)
+Optional<SandboxExtension::HandleArray> SandboxExtension::HandleArray::decode(IPC::Decoder& decoder)
 {
-    std::optional<uint64_t> size;
+    Optional<uint64_t> size;
     decoder >> size;
     if (!size)
-        return std::nullopt;
+        return WTF::nullopt;
     SandboxExtension::HandleArray handles;
     handles.allocate(*size);
     for (size_t i = 0; i < *size; ++i) {
-        std::optional<SandboxExtension::Handle> handle;
+        Optional<SandboxExtension::Handle> handle;
         decoder >> handle;
         if (!handle)
-            return std::nullopt;
+            return WTF::nullopt;
         handles[i] = WTFMove(*handle);
     }
     return WTFMove(handles);

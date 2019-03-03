@@ -28,6 +28,7 @@
 #import "PlatformUtilities.h"
 #import "Test.h"
 #import "TestNavigationDelegate.h"
+#import <WebKit/WKPreferencesRef.h>
 #import <WebKit/WKProcessPoolPrivate.h>
 #import <WebKit/WKUserContentControllerPrivate.h>
 #import <WebKit/WKWebViewConfigurationPrivate.h>
@@ -128,6 +129,9 @@ static void runWebsiteDataStoreCustomPaths(ShouldEnableProcessPrewarming shouldE
 
     RetainPtr<WKWebView> webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
     [webView setNavigationDelegate:handler.get()];
+
+    auto preferences = (__bridge WKPreferencesRef)[[webView configuration] preferences];
+    WKPreferencesSetWebSQLDisabled(preferences, false);
 
     NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"WebsiteDataStoreCustomPaths" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:request];
@@ -280,14 +284,14 @@ TEST(WebKit, WebsiteDataStoreCustomPathsWithPrewarming)
 TEST(WebKit, CustomDataStorePathsVersusCompletionHandlers)
 {
     // Copy the baked database files to the database directory
-    NSURL *url1 = [[NSBundle mainBundle] URLForResource:@"SimpleServiceWorkerRegistrations-3" withExtension:@"sqlite3" subdirectory:@"TestWebKitAPI.resources"];
+    NSURL *url1 = [[NSBundle mainBundle] URLForResource:@"SimpleServiceWorkerRegistrations-4" withExtension:@"sqlite3" subdirectory:@"TestWebKitAPI.resources"];
 
     NSURL *swPath = [NSURL fileURLWithPath:[@"~/Library/Caches/TestWebKitAPI/WebKit/ServiceWorkers/" stringByExpandingTildeInPath]];
     [[NSFileManager defaultManager] removeItemAtURL:swPath error:nil];
     EXPECT_FALSE([[NSFileManager defaultManager] fileExistsAtPath:swPath.path]);
 
     [[NSFileManager defaultManager] createDirectoryAtURL:swPath withIntermediateDirectories:YES attributes:nil error:nil];
-    [[NSFileManager defaultManager] copyItemAtURL:url1 toURL:[swPath URLByAppendingPathComponent:@"ServiceWorkerRegistrations-3.sqlite3"] error:nil];
+    [[NSFileManager defaultManager] copyItemAtURL:url1 toURL:[swPath URLByAppendingPathComponent:@"ServiceWorkerRegistrations-4.sqlite3"] error:nil];
 
     auto websiteDataStoreConfiguration = adoptNS([[_WKWebsiteDataStoreConfiguration alloc] init]);
     websiteDataStoreConfiguration.get()._serviceWorkerRegistrationDirectory = swPath;

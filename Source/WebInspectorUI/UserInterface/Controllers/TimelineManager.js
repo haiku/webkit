@@ -49,6 +49,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         this._autoCaptureOnPageLoad = false;
         this._mainResourceForAutoCapturing = null;
         this._shouldSetAutoCapturingMainResource = false;
+        this._transitioningPageTarget = false;
         this._boundStopCapturing = this.stopCapturing.bind(this);
 
         this._webTimelineScriptRecordsExpectingScriptProfilerEvents = null;
@@ -65,7 +66,18 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
     initializeTarget(target)
     {
-        this._updateAutoCaptureInstruments([target]);
+        if (target.TimelineAgent) {
+            this._updateAutoCaptureInstruments([target]);
+
+            // COMPATIBILITY (iOS 9): Timeline.setAutoCaptureEnabled did not exist.
+            if (target.TimelineAgent.setAutoCaptureEnabled)
+                target.TimelineAgent.setAutoCaptureEnabled(this._autoCaptureOnPageLoad);
+        }
+    }
+
+    transitionPageTarget()
+    {
+        this._transitioningPageTarget = true;
     }
 
     // Static
@@ -104,6 +116,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         let types = WI.TimelineManager.defaultTimelineTypes();
         if (WI.sharedApp.debuggableType === WI.DebuggableType.JavaScript || WI.sharedApp.debuggableType === WI.DebuggableType.ServiceWorker)
             return types;
+
+        if (WI.CPUInstrument.supported())
+            types.push(WI.TimelineRecord.Type.CPU);
 
         if (WI.MemoryInstrument.supported())
             types.push(WI.TimelineRecord.Type.Memory);
@@ -415,14 +430,36 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         this._stopAutoRecordingSoon();
     }
 
-    memoryTrackingStart(timestamp)
+    cpuProfilerTrackingStarted(timestamp)
+    {
+        // Called from WI.CPUProfilerObserver.
+
+        this.capturingStarted(timestamp);
+    }
+
+    cpuProfilerTrackingUpdated(event)
+    {
+        // Called from WI.CPUProfilerObserver.
+
+        if (!this._isCapturing)
+            return;
+
+        this._addRecord(new WI.CPUTimelineRecord(event.timestamp, event.usage));
+    }
+
+    cpuProfilerTrackingCompleted()
+    {
+        // Called from WI.CPUProfilerObserver.
+    }
+
+    memoryTrackingStarted(timestamp)
     {
         // Called from WI.MemoryObserver.
 
         this.capturingStarted(timestamp);
     }
 
-    memoryTrackingUpdate(event)
+    memoryTrackingUpdated(event)
     {
         // Called from WI.MemoryObserver.
 
@@ -432,7 +469,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         this._addRecord(new WI.MemoryTimelineRecord(event.timestamp, event.categories));
     }
 
-    memoryTrackingComplete()
+    memoryTrackingCompleted()
     {
         // Called from WI.MemoryObserver.
     }
@@ -520,10 +557,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
                 var scriptResource = mainFrame.url === recordPayload.data.url ? mainFrame.mainResource : mainFrame.resourceForURL(recordPayload.data.url, true);
                 if (scriptResource) {
                     // The lineNumber is 1-based, but we expect 0-based.
-                    var lineNumber = recordPayload.data.lineNumber - 1;
-
-                    // FIXME: No column number is provided.
-                    sourceCodeLocation = scriptResource.createSourceCodeLocation(lineNumber, 0);
+                    let lineNumber = recordPayload.data.lineNumber - 1;
+                    let columnNumber = "columnNumber" in recordPayload.data ? recordPayload.data.columnNumber - 1 : 0;
+                    sourceCodeLocation = scriptResource.createSourceCodeLocation(lineNumber, columnNumber);
                 }
             }
 
@@ -533,6 +569,12 @@ WI.TimelineManager = class TimelineManager extends WI.Object
             switch (parentRecordPayload && parentRecordPayload.type) {
             case TimelineAgent.EventType.TimerFire:
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.TimerFired, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.timerId, profileData);
+                break;
+            case TimelineAgent.EventType.ObserverCallback:
+                record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.ObserverCallback, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData);
+                break;
+            case TimelineAgent.EventType.FireAnimationFrame:
+                record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.AnimationFrameFired, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.id, profileData);
                 break;
             default:
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.ScriptEvaluated, startTime, endTime, callFrames, sourceCodeLocation, null, profileData);
@@ -551,7 +593,8 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         case TimelineAgent.EventType.TimerFire:
         case TimelineAgent.EventType.EventDispatch:
         case TimelineAgent.EventType.FireAnimationFrame:
-            // These are handled when the parent of FunctionCall or EvaluateScript.
+        case TimelineAgent.EventType.ObserverCallback:
+            // These are handled when we see the child FunctionCall or EvaluateScript.
             break;
 
         case TimelineAgent.EventType.FunctionCall:
@@ -567,10 +610,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
                 var scriptResource = mainFrame.url === recordPayload.data.scriptName ? mainFrame.mainResource : mainFrame.resourceForURL(recordPayload.data.scriptName, true);
                 if (scriptResource) {
                     // The lineNumber is 1-based, but we expect 0-based.
-                    var lineNumber = recordPayload.data.scriptLine - 1;
-
-                    // FIXME: No column number is provided.
-                    sourceCodeLocation = scriptResource.createSourceCodeLocation(lineNumber, 0);
+                    let lineNumber = recordPayload.data.scriptLine - 1;
+                    let columnNumber = "scriptColumn" in recordPayload.data ? recordPayload.data.scriptColumn - 1 : 0;
+                    sourceCodeLocation = scriptResource.createSourceCodeLocation(lineNumber, columnNumber);
                 }
             }
 
@@ -583,6 +625,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
                 break;
             case TimelineAgent.EventType.EventDispatch:
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.EventDispatched, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData);
+                break;
+            case TimelineAgent.EventType.ObserverCallback:
+                record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.ObserverCallback, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData);
                 break;
             case TimelineAgent.EventType.FireAnimationFrame:
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.AnimationFrameFired, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.id, profileData);
@@ -830,6 +875,17 @@ WI.TimelineManager = class TimelineManager extends WI.Object
             return;
 
         let frame = event.target;
+
+        // When performing a page transition start a recording once the main resource changes.
+        // We start a legacy capture because the backend wasn't available to automatically
+        // initiate the capture, so the frontend must start the capture.
+        if (this._transitioningPageTarget) {
+            this._transitioningPageTarget = false;
+            if (this._autoCaptureOnPageLoad)
+                this._legacyAttemptStartAutoCapturingForFrame(frame);
+            return;
+        }
+
         if (this._attemptAutoCapturingForFrame(frame))
             return;
 
@@ -1079,6 +1135,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
                 case WI.TimelineRecord.Type.Layout:
                 case WI.TimelineRecord.Type.Media:
                     instrumentSet.add(target.TimelineAgent.Instrument.Timeline);
+                    break;
+                case WI.TimelineRecord.Type.CPU:
+                    instrumentSet.add(target.TimelineAgent.Instrument.CPU);
                     break;
                 case WI.TimelineRecord.Type.Memory:
                     instrumentSet.add(target.TimelineAgent.Instrument.Memory);

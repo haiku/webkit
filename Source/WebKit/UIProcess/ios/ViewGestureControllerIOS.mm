@@ -300,15 +300,9 @@ void ViewGestureController::endSwipeGesture(WebBackForwardListItem* targetItem, 
         return;
     }
 
-    if (auto drawingArea = m_webPageProxy.drawingArea()) {
-        uint64_t pageID = m_webPageProxy.pageID();
-        GestureID gestureID = m_currentGestureID;
-        drawingArea->dispatchAfterEnsuringDrawing([pageID, gestureID] (CallbackBase::Error error) {
-            if (auto gestureController = controllerForGesture(pageID, gestureID))
-                gestureController->willCommitPostSwipeTransitionLayerTree(error == CallbackBase::Error::None);
-        });
-        drawingArea->hideContentUntilPendingUpdate();
-    } else {
+    auto* currentItem = m_webPageProxyForBackForwardListForCurrentSwipe->backForwardList().currentItem();
+    // The main frame will not be navigated so hide the snapshot right away.
+    if (currentItem && currentItem->itemIsClone(*targetItem)) {
         removeSwipeSnapshot();
         return;
     }
@@ -326,6 +320,22 @@ void ViewGestureController::endSwipeGesture(WebBackForwardListItem* targetItem, 
         m_backgroundColorForCurrentSnapshot = snapshot->backgroundColor();
         m_webPageProxy.didChangeBackgroundColor();
     }
+
+    uint64_t pageID = m_webPageProxy.pageID();
+    GestureID gestureID = m_currentGestureID;
+    m_loadCallback = [this, pageID, gestureID] {
+        auto drawingArea = m_webPageProxy.provisionalDrawingArea();
+        if (!drawingArea) {
+            removeSwipeSnapshot();
+            return;
+        }
+
+        drawingArea->dispatchAfterEnsuringDrawing([pageID, gestureID] (CallbackBase::Error error) {
+            if (auto gestureController = controllerForGesture(pageID, gestureID))
+                gestureController->willCommitPostSwipeTransitionLayerTree(error == CallbackBase::Error::None);
+        });
+        drawingArea->hideContentUntilPendingUpdate();
+    };
 }
 
 void ViewGestureController::setRenderTreeSize(uint64_t renderTreeSize)

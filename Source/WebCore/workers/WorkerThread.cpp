@@ -190,7 +190,7 @@ void WorkerThread::workerThread()
     }
 
     String exceptionMessage;
-    scriptController->evaluate(ScriptSourceCode(m_startupData->m_sourceCode, m_startupData->m_scriptURL), &exceptionMessage);
+    scriptController->evaluate(ScriptSourceCode(m_startupData->m_sourceCode, URL(m_startupData->m_scriptURL)), &exceptionMessage);
     
     callOnMainThread([evaluateCallback = WTFMove(m_evaluateCallback), message = exceptionMessage.isolatedCopy()] {
         if (evaluateCallback)
@@ -249,7 +249,7 @@ void WorkerThread::startRunningDebuggerTasks()
 
     MessageQueueWaitResult result;
     do {
-        result = m_runLoop.runInMode(m_workerGlobalScope.get(), WorkerRunLoop::debuggerMode());
+        result = m_runLoop.runInDebuggerMode(*m_workerGlobalScope);
     } while (result != MessageQueueTerminated && m_pausedForDebugger);
 }
 

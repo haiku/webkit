@@ -86,6 +86,12 @@ const String& HTMLAttachmentElement::getAttachmentIdentifier(HTMLImageElement& i
     return identifier;
 }
 
+void HTMLAttachmentElement::copyNonAttributePropertiesFromElement(const Element& source)
+{
+    m_uniqueIdentifier = downcast<HTMLAttachmentElement>(source).uniqueIdentifier();
+    HTMLElement::copyNonAttributePropertiesFromElement(source);
+}
+
 URL HTMLAttachmentElement::archiveResourceURL(const String& identifier)
 {
     auto resourceURL = URL({ }, "applewebdata://attachment/"_s);
@@ -199,7 +205,7 @@ String HTMLAttachmentElement::attachmentPath() const
     return attributeWithoutSynchronization(webkitattachmentpathAttr);
 }
 
-void HTMLAttachmentElement::updateAttributes(std::optional<uint64_t>&& newFileSize, const String& newContentType, const String& newFilename)
+void HTMLAttachmentElement::updateAttributes(Optional<uint64_t>&& newFileSize, const String& newContentType, const String& newFilename)
 {
     if (!newFilename.isNull())
         setAttributeWithoutSynchronization(HTMLNames::titleAttr, newFilename);
@@ -220,6 +226,11 @@ void HTMLAttachmentElement::updateAttributes(std::optional<uint64_t>&& newFileSi
         renderer->invalidate();
 }
 
+static bool mimeTypeIsSuitableForInlineImageAttachment(const String& mimeType)
+{
+    return MIMETypeRegistry::isSupportedImageMIMEType(mimeType) || MIMETypeRegistry::isPDFMIMEType(mimeType);
+}
+
 void HTMLAttachmentElement::updateEnclosingImageWithData(const String& contentType, Ref<SharedBuffer>&& data)
 {
     auto* hostElement = shadowHost();
@@ -232,7 +243,7 @@ void HTMLAttachmentElement::updateEnclosingImageWithData(const String& contentTy
         mimeType = MIMETypeFromUTI(contentType);
 #endif
 
-    if (!MIMETypeRegistry::isSupportedImageMIMEType(mimeType))
+    if (!mimeTypeIsSuitableForInlineImageAttachment(mimeType))
         return;
 
     hostElement->setAttributeWithoutSynchronization(HTMLNames::srcAttr, DOMURL::createObjectURL(document(), Blob::create(WTFMove(data), mimeType)));

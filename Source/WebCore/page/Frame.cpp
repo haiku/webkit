@@ -57,7 +57,6 @@
 #include "FrameView.h"
 #include "GraphicsContext.h"
 #include "GraphicsLayer.h"
-#include "HTMLDocument.h"
 #include "HTMLFormControlElement.h"
 #include "HTMLFormElement.h"
 #include "HTMLFrameElementBase.h"
@@ -661,22 +660,23 @@ bool Frame::selectionChangeCallbacksDisabled() const
 
 void Frame::setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot shouldAdjustViewSize)
 {
+    if (!view())
+        return;
     // In setting printing, we should not validate resources already cached for the document.
     // See https://bugs.webkit.org/show_bug.cgi?id=43704
     ResourceCacheValidationSuppressor validationSuppressor(m_doc->cachedResourceLoader());
 
     m_doc->setPrinting(printing);
-    if (auto* frameView = view()) {
-        frameView->adjustMediaTypeForPrinting(printing);
+    auto& frameView = *view();
+    frameView.adjustMediaTypeForPrinting(printing);
 
-        m_doc->styleScope().didChangeStyleSheetEnvironment();
-        if (shouldUsePrintingLayout())
-            frameView->forceLayoutForPagination(pageSize, originalPageSize, maximumShrinkRatio, shouldAdjustViewSize);
-        else {
-            frameView->forceLayout();
-            if (shouldAdjustViewSize == AdjustViewSize)
-                frameView->adjustViewSize();
-        }
+    m_doc->styleScope().didChangeStyleSheetEnvironment();
+    if (shouldUsePrintingLayout())
+        frameView.forceLayoutForPagination(pageSize, originalPageSize, maximumShrinkRatio, shouldAdjustViewSize);
+    else {
+        frameView.forceLayout();
+        if (shouldAdjustViewSize == AdjustViewSize)
+            frameView.adjustViewSize();
     }
 
     // Subframes of the one we're printing don't lay out to the page size.
@@ -737,7 +737,7 @@ void Frame::injectUserScriptImmediately(DOMWrapperWorld& world, const UserScript
 
     document->topDocument().setAsRunningUserScripts();
     loader().client().willInjectUserScript(world);
-    m_script->evaluateInWorld(ScriptSourceCode(script.source(), script.url()), world);
+    m_script->evaluateInWorld(ScriptSourceCode(script.source(), URL(script.url())), world);
 }
 
 RenderView* Frame::contentRenderer() const
@@ -805,8 +805,10 @@ void Frame::willDetachPage()
         page()->scrollingCoordinator()->willDestroyScrollableArea(*m_view);
 
 #if PLATFORM(IOS_FAMILY)
-    if (WebThreadCountOfObservedDOMTimers() > 0 && m_page)
+    if (WebThreadCountOfObservedDOMTimers() > 0 && m_page) {
+        LOG(ContentObservation, "Frame::willDetachPage: remove registered timers.");
         m_page->chrome().client().clearContentChangeObservers(*this);
+    }
 #endif
 
     script().clearScriptObjects();

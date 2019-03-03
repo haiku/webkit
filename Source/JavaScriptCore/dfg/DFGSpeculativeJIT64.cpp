@@ -187,7 +187,7 @@ void SpeculativeJIT::cachedGetById(CodeOrigin codeOrigin, GPRReg baseGPR, GPRReg
     addSlowPathGenerator(WTFMove(slowPath));
 }
 
-void SpeculativeJIT::cachedGetByIdWithThis(CodeOrigin codeOrigin, GPRReg baseGPR, GPRReg thisGPR, GPRReg resultGPR, unsigned identifierNumber, JITCompiler::JumpList slowPathTarget)
+void SpeculativeJIT::cachedGetByIdWithThis(CodeOrigin codeOrigin, GPRReg baseGPR, GPRReg thisGPR, GPRReg resultGPR, unsigned identifierNumber, const JITCompiler::JumpList& slowPathTarget)
 {
     CallSiteIndex callSite = m_jit.recordCallSiteAndGenerateExceptionHandlingOSRExitIfNeeded(codeOrigin, m_stream->size());
     RegisterSet usedRegisters = this->usedRegisters();
@@ -876,7 +876,7 @@ void SpeculativeJIT::emitCall(Node* node)
 
 // Clang should allow unreachable [[clang::fallthrough]] in template functions if any template expansion uses it
 // http://llvm.org/bugs/show_bug.cgi?id=18619
-IGNORE_CLANG_WARNINGS_BEGIN("implicit-fallthrough")
+IGNORE_WARNINGS_BEGIN("implicit-fallthrough")
 template<bool strict>
 GPRReg SpeculativeJIT::fillSpeculateInt32Internal(Edge edge, DataFormat& returnFormat)
 {
@@ -1007,7 +1007,7 @@ GPRReg SpeculativeJIT::fillSpeculateInt32Internal(Edge edge, DataFormat& returnF
         return InvalidGPRReg;
     }
 }
-IGNORE_CLANG_WARNINGS_END
+IGNORE_WARNINGS_END
 
 GPRReg SpeculativeJIT::fillSpeculateInt32(Edge edge, DataFormat& returnFormat)
 {
@@ -1702,7 +1702,7 @@ void SpeculativeJIT::compileLogicalNot(Node* node)
 
         bool shouldCheckMasqueradesAsUndefined = !masqueradesAsUndefinedWatchpointIsStillValid();
         JSGlobalObject* globalObject = m_jit.graph().globalObjectFor(node->origin.semantic);
-        std::optional<GPRTemporary> scratch;
+        Optional<GPRTemporary> scratch;
         GPRReg scratchGPR = InvalidGPRReg;
         if (shouldCheckMasqueradesAsUndefined) {
             scratch.emplace(this);
@@ -1856,7 +1856,7 @@ void SpeculativeJIT::emitBranch(Node* node)
             GPRTemporary result(this);
             FPRTemporary fprValue(this);
             FPRTemporary fprTemp(this);
-            std::optional<GPRTemporary> scratch;
+            Optional<GPRTemporary> scratch;
 
             GPRReg scratchGPR = InvalidGPRReg;
             bool shouldCheckMasqueradesAsUndefined = !masqueradesAsUndefinedWatchpointIsStillValid();
@@ -2208,6 +2208,15 @@ void SpeculativeJIT::compile(Node* node)
     case ArithMul:
         compileArithMul(node);
         break;
+
+    case ValueMul:
+        compileValueMul(node);
+        break;
+
+    case ValueDiv: {
+        compileValueDiv(node);
+        break;
+    }
 
     case ArithDiv: {
         compileArithDiv(node);
@@ -2863,7 +2872,7 @@ void SpeculativeJIT::compile(Node* node)
             // We are in generic mode!
             JSValueOperand base(this, baseEdge);
             JSValueOperand index(this, indexEdge);
-            std::optional<JSValueOperand> args[2];
+            Optional<JSValueOperand> args[2];
             baseGPR = base.gpr();
             indexGPR = index.gpr();
             for (unsigned i = numExtraArgs; i--;) {
@@ -3343,6 +3352,11 @@ void SpeculativeJIT::compile(Node* node)
         compileNewStringObject(node);
         break;
     }
+
+    case NewSymbol: {
+        compileNewSymbol(node);
+        break;
+    }
         
     case NewArray: {
         compileNewArray(node);
@@ -3392,6 +3406,11 @@ void SpeculativeJIT::compile(Node* node)
 
     case ObjectCreate: {
         compileObjectCreate(node);
+        break;
+    }
+
+    case ObjectKeys: {
+        compileObjectKeys(node);
         break;
     }
 
@@ -3568,7 +3587,7 @@ void SpeculativeJIT::compile(Node* node)
         GPRReg cellGPR = cell.gpr();
 
         GPRReg tempGPR = InvalidGPRReg;
-        std::optional<GPRTemporary> temp;
+        Optional<GPRTemporary> temp;
         if (node->structureSet().size() > 1) {
             temp.emplace(this);
             tempGPR = temp->gpr();
@@ -3849,6 +3868,21 @@ void SpeculativeJIT::compile(Node* node)
         jsValueResult(result.gpr(), node, DataFormatJSBoolean);
         break;
     }
+
+    case IsUndefinedOrNull: {
+        JSValueOperand value(this, node->child1());
+        GPRTemporary result(this, Reuse, value);
+
+        GPRReg valueGPR = value.gpr();
+        GPRReg resultGPR = result.gpr();
+
+        m_jit.move(valueGPR, resultGPR);
+        m_jit.and64(CCallHelpers::TrustedImm32(~TagBitUndefined), resultGPR);
+        m_jit.compare64(CCallHelpers::Equal, resultGPR, CCallHelpers::TrustedImm32(ValueNull), resultGPR);
+
+        unblessedBooleanResult(resultGPR, node);
+        break;
+    }
         
     case IsBoolean: {
         JSValueOperand value(this, node->child1());
@@ -3941,7 +3975,7 @@ void SpeculativeJIT::compile(Node* node)
         case StringUse: {
             SpeculateCellOperand input(this, node->child1());
             GPRTemporary result(this);
-            std::optional<GPRTemporary> temp;
+            Optional<GPRTemporary> temp;
 
             GPRReg tempGPR = InvalidGPRReg;
             if (node->child1().useKind() == CellUse) {
@@ -4347,8 +4381,8 @@ void SpeculativeJIT::compile(Node* node)
         GPRTemporary structureID(this);
         GPRTemporary result(this);
 
-        std::optional<SpeculateCellOperand> keyAsCell;
-        std::optional<JSValueOperand> keyAsValue;
+        Optional<SpeculateCellOperand> keyAsCell;
+        Optional<JSValueOperand> keyAsValue;
         GPRReg keyGPR;
         if (node->child2().useKind() == UntypedUse) {
             keyAsValue.emplace(this, node->child2());
@@ -4582,7 +4616,7 @@ void SpeculativeJIT::compile(Node* node)
         GPRTemporary temp2(this);
         GPRReg t2 = temp2.gpr();
 
-        std::optional<SpeculateBooleanOperand> isLittleEndianOperand;
+        Optional<SpeculateBooleanOperand> isLittleEndianOperand;
         if (node->child3())
             isLittleEndianOperand.emplace(this, node->child3());
         GPRReg isLittleEndianGPR = isLittleEndianOperand ? isLittleEndianOperand->gpr() : InvalidGPRReg;
@@ -4741,10 +4775,10 @@ void SpeculativeJIT::compile(Node* node)
         SpeculateInt32Operand index(this, m_graph.varArgChild(node, 1));
         GPRReg indexGPR = index.gpr();
 
-        std::optional<SpeculateStrictInt52Operand> int52Value;
-        std::optional<SpeculateDoubleOperand> doubleValue;
-        std::optional<SpeculateInt32Operand> int32Value;
-        std::optional<FPRTemporary> fprTemporary;
+        Optional<SpeculateStrictInt52Operand> int52Value;
+        Optional<SpeculateDoubleOperand> doubleValue;
+        Optional<SpeculateInt32Operand> int32Value;
+        Optional<FPRTemporary> fprTemporary;
         GPRReg valueGPR = InvalidGPRReg;
         FPRReg valueFPR = InvalidFPRReg;
         FPRReg tempFPR = InvalidFPRReg;
@@ -4780,7 +4814,7 @@ void SpeculativeJIT::compile(Node* node)
         GPRTemporary temp3(this);
         GPRReg t3 = temp3.gpr();
 
-        std::optional<SpeculateBooleanOperand> isLittleEndianOperand;
+        Optional<SpeculateBooleanOperand> isLittleEndianOperand;
         if (m_graph.varArgChild(node, 3))
             isLittleEndianOperand.emplace(this, m_graph.varArgChild(node, 3));
         GPRReg isLittleEndianGPR = isLittleEndianOperand ? isLittleEndianOperand->gpr() : InvalidGPRReg;

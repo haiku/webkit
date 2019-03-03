@@ -161,7 +161,7 @@ public:
 
     virtual Color disabledTextColor(const Color& textColor, const Color& backgroundColor) const;
 
-    static Color focusRingColor(OptionSet<StyleColor::Options>);
+    Color focusRingColor(OptionSet<StyleColor::Options>) const;
     virtual Color platformFocusRingColor(OptionSet<StyleColor::Options>) const { return Color(0, 0, 0); }
     static void setCustomFocusRingColor(const Color&);
     static float platformFocusRingWidth() { return 3; }
@@ -438,10 +438,11 @@ protected:
         Color inactiveTextSearchHighlightColor;
     };
 
-    virtual ColorCache& colorCache(OptionSet<StyleColor::Options>) const { return m_colorCache; }
+    virtual ColorCache& colorCache(OptionSet<StyleColor::Options>) const;
 
 private:
     mutable ColorCache m_colorCache;
+    mutable ColorCache m_darkColorCache;
 };
 
 } // namespace WebCore

@@ -57,6 +57,7 @@
 #include <WebCore/MIMETypeRegistry.h>
 #include <WebCore/MouseEvent.h>
 #include <WebCore/NetscapePlugInStreamLoader.h>
+#include <WebCore/NetworkStorageSession.h>
 #include <WebCore/Page.h>
 #include <WebCore/PlatformMouseEvent.h>
 #include <WebCore/ProtectionSpace.h>
@@ -320,9 +321,9 @@ PluginView::~PluginView()
     ASSERT(!m_plugin || !m_plugin->isBeingDestroyed());
 
     if (m_isWaitingUntilMediaCanStart)
-        m_pluginElement->document().removeMediaCanStartListener(this);
+        m_pluginElement->document().removeMediaCanStartListener(*this);
 
-    m_pluginElement->document().removeAudioProducer(this);
+    m_pluginElement->document().removeAudioProducer(*this);
 
     destroyPluginAndReset();
 
@@ -590,13 +591,13 @@ void PluginView::initializePlugin()
                     return;
                 
                 m_isWaitingUntilMediaCanStart = true;
-                m_pluginElement->document().addMediaCanStartListener(this);
+                m_pluginElement->document().addMediaCanStartListener(*this);
                 return;
             }
         }
     }
 
-    m_pluginElement->document().addAudioProducer(this);
+    m_pluginElement->document().addAudioProducer(*this);
 
 #if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
     HTMLPlugInImageElement& plugInImageElement = downcast<HTMLPlugInImageElement>(*m_pluginElement);
@@ -997,8 +998,12 @@ void PluginView::willDetachRenderer()
 
 RefPtr<SharedBuffer> PluginView::liveResourceData() const
 {
-    if (!m_isInitialized || !m_plugin)
-        return 0;
+    if (!m_isInitialized || !m_plugin) {
+        if (m_manualStreamData && m_manualStreamState == ManualStreamState::Finished)
+            return m_manualStreamData;
+
+        return nullptr;
+    }
 
     return m_plugin->liveResourceData();
 }
@@ -1174,8 +1179,8 @@ void PluginView::performURLRequest(URLRequest* request)
     }
 
     // This request is to load a URL and create a stream.
-    RefPtr<Stream> stream = PluginView::Stream::create(this, request->requestID(), request->request());
-    addStream(stream.get());
+    auto stream = PluginView::Stream::create(this, request->requestID(), request->request());
+    addStream(stream.ptr());
     stream->start();
 }
 
@@ -1193,7 +1198,7 @@ void PluginView::performFrameLoadURLRequest(URLRequest* request)
         return;
     }
 
-    UserGestureIndicator gestureIndicator(request->allowPopups() ? std::optional<ProcessingUserGestureState>(ProcessingUserGesture) : std::nullopt);
+    UserGestureIndicator gestureIndicator(request->allowPopups() ? Optional<ProcessingUserGestureState>(ProcessingUserGesture) : WTF::nullopt);
 
     // First, try to find a target frame.
     Frame* targetFrame = frame->loader().findFrameForNavigation(request->target());
@@ -1477,7 +1482,7 @@ bool PluginView::evaluate(NPObject* npObject, const String& scriptString, NPVari
     // protect the plug-in view from destruction.
     NPRuntimeObjectMap::PluginProtector pluginProtector(&m_npRuntimeObjectMap);
 
-    UserGestureIndicator gestureIndicator(allowPopups ? std::optional<ProcessingUserGestureState>(ProcessingUserGesture) : std::nullopt);
+    UserGestureIndicator gestureIndicator(allowPopups ? Optional<ProcessingUserGestureState>(ProcessingUserGesture) : WTF::nullopt);
     return m_npRuntimeObjectMap.evaluate(npObject, scriptString, result);
 }
 
@@ -1577,12 +1582,18 @@ String PluginView::proxiesForURL(const String& urlString)
 
 String PluginView::cookiesForURL(const String& urlString)
 {
-    return cookies(m_pluginElement->document(), URL(URL(), urlString));
+    if (auto* page = m_pluginElement->document().page())
+        return page->cookieJar().cookies(m_pluginElement->document(), URL(URL(), urlString));
+    ASSERT_NOT_REACHED();
+    return { };
 }
 
 void PluginView::setCookiesForURL(const String& urlString, const String& cookieString)
 {
-    setCookies(m_pluginElement->document(), URL(URL(), urlString), cookieString);
+    if (auto* page = m_pluginElement->document().page())
+        page->cookieJar().setCookies(m_pluginElement->document(), URL(URL(), urlString), cookieString);
+    else
+        ASSERT_NOT_REACHED();
 }
 
 bool PluginView::getAuthenticationInfo(const ProtectionSpace& protectionSpace, String& username, String& password)
@@ -1591,11 +1602,7 @@ bool PluginView::getAuthenticationInfo(const ProtectionSpace& protectionSpace, S
     if (!contentDocument)
         return false;
 
-    String partitionName = contentDocument->topDocument().domainForCachePartition();
-    Credential credential = CredentialStorage::defaultCredentialStorage().get(partitionName, protectionSpace);
-    if (credential.isEmpty())
-        credential = CredentialStorage::defaultCredentialStorage().getFromPersistentStorage(protectionSpace);
-
+    auto credential = CredentialStorage::getFromPersistentStorage(protectionSpace);
     if (!credential.hasPassword())
         return false;
 

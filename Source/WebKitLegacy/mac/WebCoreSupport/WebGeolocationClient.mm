@@ -56,7 +56,7 @@ using namespace WebCore;
 @interface WebGeolocationPolicyListener : NSObject <WebAllowDenyPolicyListener>
 {
     RefPtr<Geolocation> _geolocation;
-    RetainPtr<WebView *> _webView;
+    RetainPtr<WebView> _webView;
 }
 - (id)initWithGeolocation:(Geolocation*)geolocation forWebView:(WebView*)webView;
 @end
@@ -132,7 +132,7 @@ void WebGeolocationClient::requestPermission(Geolocation& geolocation)
     END_BLOCK_OBJC_EXCEPTIONS;
 }
 
-std::optional<GeolocationPosition> WebGeolocationClient::lastPosition()
+Optional<GeolocationPosition> WebGeolocationClient::lastPosition()
 {
     return core([[m_webView _geolocationProvider] lastPosition]);
 }

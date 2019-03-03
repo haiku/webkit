@@ -24,7 +24,7 @@
  */
 
 #include "config.h"
-#include "LayoutFormattingState.h"
+#include "LayoutState.h"
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
@@ -46,7 +46,7 @@ static bool areEssentiallyEqual(float a, LayoutUnit b)
     if (a == b.toFloat())
         return true;
 
-    return fabs(a - b.toFloat()) <= 4 * LayoutUnit::epsilon();
+    return fabs(a - b.toFloat()) <= 8 * LayoutUnit::epsilon();
 }
 
 static bool outputMismatchingSimpleLineInformationIfNeeded(TextStream& stream, const LayoutState& layoutState, const RenderBlockFlow& blockFlow, const Container& inlineFormattingRoot)
@@ -246,10 +246,10 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         auto borderBox = displayBox.borderBox();
 
         return Display::Box::Rect {
-            borderBox.top() - displayBox.nonCollapsedMarginTop(),
-            borderBox.left() - displayBox.nonComputedMarginLeft(),
-            displayBox.nonComputedMarginLeft() + borderBox.width() + displayBox.nonComputedMarginRight(),
-            displayBox.nonCollapsedMarginTop() + borderBox.height() + displayBox.nonCollapsedMarginBottom()
+            borderBox.top() - displayBox.nonCollapsedMarginBefore(),
+            borderBox.left() - displayBox.computedMarginStart().valueOr(0),
+            displayBox.computedMarginStart().valueOr(0) + borderBox.width() + displayBox.computedMarginEnd().valueOr(0),
+            displayBox.nonCollapsedMarginBefore() + borderBox.height() + displayBox.nonCollapsedMarginAfter()
         };
     };
 
@@ -262,11 +262,6 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
 
     if (frameRect != displayBox.rect()) {
         outputRect("frameBox", renderer.frameRect(), displayBox.rect());
-        return true;
-    }
-
-    if (renderer.marginBoxRect() != renderBoxLikeMarginBox(displayBox)) {
-        outputRect("marginBox", renderer.marginBoxRect(), renderBoxLikeMarginBox(displayBox));
         return true;
     }
 
@@ -283,6 +278,20 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
     if (renderer.contentBoxRect() != displayBox.contentBox()) {
         outputRect("contentBox", renderer.contentBoxRect(), displayBox.contentBox());
         return true;
+    }
+
+    if (renderer.marginBoxRect() != renderBoxLikeMarginBox(displayBox)) {
+        // In certain cases, like out-of-flow boxes with margin auto, marginBoxRect() returns 0. It's clearly incorrect,
+        // so let's check the individual margin values instead (and at this point we know that all other boxes match).
+        auto marginsMatch = displayBox.marginBefore() == renderer.marginBefore()
+            && displayBox.marginAfter() == renderer.marginAfter()
+            && displayBox.marginStart() == renderer.marginStart()
+            && displayBox.marginEnd() == renderer.marginEnd();
+
+        if (!marginsMatch) {
+            outputRect("marginBox", renderer.marginBoxRect(), renderBoxLikeMarginBox(displayBox));
+            return true;
+        }
     }
 
     return false;

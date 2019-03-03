@@ -137,7 +137,7 @@ public:
     };
     static bool identifierIsValid(Identifier identifier) { return MACH_PORT_VALID(identifier.port); }
     xpc_connection_t xpcConnection() const { return m_xpcConnection.get(); }
-    bool getAuditToken(audit_token_t&);
+    Optional<audit_token_t> getAuditToken();
     pid_t remoteProcessID() const;
 #elif OS(WINDOWS)
     typedef HANDLE Identifier;
@@ -179,7 +179,7 @@ public:
 
     template<typename T, typename... Args> void sendWithAsyncReply(T&& message, CompletionHandler<void(Args...)>&& args, uint64_t destinationID = 0);
     template<typename T> bool send(T&& message, uint64_t destinationID, OptionSet<SendOption> sendOptions = { });
-    template<typename T> void sendWithReply(T&& message, uint64_t destinationID, FunctionDispatcher& replyDispatcher, Function<void(std::optional<typename CodingType<typename T::Reply>::Type>)>&& replyHandler);
+    template<typename T> void sendWithReply(T&& message, uint64_t destinationID, FunctionDispatcher& replyDispatcher, Function<void(Optional<typename CodingType<typename T::Reply>::Type>)>&& replyHandler);
     template<typename T> bool sendSync(T&& message, typename T::Reply&& reply, uint64_t destinationID, Seconds timeout = Seconds::infinity(), OptionSet<SendSyncOption> sendSyncOptions = { });
     template<typename T> bool waitForAndDispatchImmediately(uint64_t destinationID, Seconds timeout, OptionSet<WaitForOption> waitForOptions = { });
 
@@ -434,7 +434,7 @@ void Connection::sendWithAsyncReply(T&& message, CompletionHandler<void(Args...)
 }
 
 template<typename T>
-void Connection::sendWithReply(T&& message, uint64_t destinationID, FunctionDispatcher& replyDispatcher, Function<void(std::optional<typename CodingType<typename T::Reply>::Type>)>&& replyHandler)
+void Connection::sendWithReply(T&& message, uint64_t destinationID, FunctionDispatcher& replyDispatcher, Function<void(Optional<typename CodingType<typename T::Reply>::Type>)>&& replyHandler)
 {
     uint64_t requestID = 0;
     std::unique_ptr<Encoder> encoder = createSyncMessageEncoder(T::receiverName(), T::name(), destinationID, requestID);
@@ -450,7 +450,7 @@ void Connection::sendWithReply(T&& message, uint64_t destinationID, FunctionDisp
             }
         }
 
-        replyHandler(std::nullopt);
+        replyHandler(WTF::nullopt);
     });
 }
 

@@ -64,7 +64,7 @@ using namespace PeerConnection;
 
 Ref<RTCPeerConnection> RTCPeerConnection::create(ScriptExecutionContext& context)
 {
-    Ref<RTCPeerConnection> peerConnection = adoptRef(*new RTCPeerConnection(context));
+    auto peerConnection = adoptRef(*new RTCPeerConnection(context));
     peerConnection->suspendIfNeeded();
     // RTCPeerConnection may send events at about any time during its lifetime.
     // Let's make it uncollectable until the pc is closed by JS or the page stops it.
@@ -114,8 +114,8 @@ ExceptionOr<Ref<RTCRtpSender>> RTCPeerConnection::addTrack(Ref<MediaStreamTrack>
     if (isClosed())
         return Exception { InvalidStateError };
 
-    for (RTCRtpSender& sender : m_transceiverSet->senders()) {
-        if (sender.trackId() == track->id())
+    for (auto& transceiver : m_transceiverSet->list()) {
+        if (transceiver->sender().trackId() == track->id())
             return Exception { InvalidAccessError };
     }
 
@@ -641,13 +641,13 @@ void RTCPeerConnection::generateCertificate(JSC::ExecState& state, AlgorithmIden
     PeerConnectionBackend::generateCertificate(document, parameters.returnValue(), WTFMove(promise));
 }
 
-const Vector<std::reference_wrapper<RTCRtpSender>>& RTCPeerConnection::getSenders() const
+Vector<std::reference_wrapper<RTCRtpSender>> RTCPeerConnection::getSenders() const
 {
     m_backend->collectTransceivers();
     return m_transceiverSet->senders();
 }
 
-const Vector<std::reference_wrapper<RTCRtpReceiver>>& RTCPeerConnection::getReceivers() const
+Vector<std::reference_wrapper<RTCRtpReceiver>> RTCPeerConnection::getReceivers() const
 {
     m_backend->collectTransceivers();
     return m_transceiverSet->receivers();

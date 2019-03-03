@@ -58,13 +58,12 @@ function installDependenciesWithApt {
         automake \
         autopoint \
         autotools-dev \
-        bison \
         cmake \
-        flex \
         g++ \
         gawk \
         gcc \
         gperf \
+        gtk-doc-tools \
         intltool \
         itstool \
         libasound2-dev \
@@ -97,6 +96,7 @@ function installDependenciesWithApt {
         gdb \
         libapache2-mod-bw \
         libapache2-mod-php \
+        php-json \
         libcgi-pm-perl \
         psmisc \
         pulseaudio-utils \
@@ -118,6 +118,7 @@ function installDependenciesWithApt {
         libopus-dev \
         liborc-0.4-dev \
         libproxy-dev \
+        libpsl-dev \
         libpulse-dev \
         libsrtp0-dev \
         libtheora-dev \
@@ -146,15 +147,14 @@ function installDependenciesWithPacman {
         alsa-lib \
         autoconf \
         automake \
-        bison \
         cmake \
         file \
         findutils \
-        flex \
         gawk \
         gcc \
         gnutls \
         gperf \
+        gtk-doc \
         grep \
         groff \
         gstreamer \
@@ -208,6 +208,7 @@ function installDependenciesWithPacman {
         git \
         gsettings-desktop-schemas \
         libproxy \
+        libpsl \
         libpulse \
         libsrtp \
         libtheora \
@@ -244,15 +245,14 @@ function installDependenciesWithDnf {
         autoconf \
         automake \
         alsa-lib-devel \
-        bison \
         cmake \
-        flex \
         gcc-c++ \
         gnutls-devel \
         gperf \
         gstreamer1-devel \
         gstreamer1-plugins-bad-free-devel \
         gstreamer1-plugins-base-devel \
+        gtk-doc \
         intltool \
         itstool \
         libevent-devel \
@@ -283,6 +283,7 @@ function installDependenciesWithDnf {
         mod_ssl \
         perl-CGI \
         php \
+        php-json \
         psmisc \
         pulseaudio-utils \
         python2-psutil \
@@ -298,6 +299,7 @@ function installDependenciesWithDnf {
         gsettings-desktop-schemas-devel \
         libmount-devel \
         libproxy-devel \
+        libpsl-devel \
         libsrtp-devel \
         libtheora-devel \
         libv4l-devel \

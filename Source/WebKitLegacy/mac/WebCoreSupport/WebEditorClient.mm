@@ -125,7 +125,7 @@ static WebViewInsertAction kit(EditorInsertAction action)
     RefPtr<UndoStep> m_step;   
 }
 
-+ (WebUndoStep *)stepWithUndoStep:(UndoStep&)step;
++ (WebUndoStep *)stepWithUndoStep:(Ref<UndoStep>&&)step;
 - (UndoStep&)step;
 
 @end
@@ -141,12 +141,12 @@ static WebViewInsertAction kit(EditorInsertAction action)
 #endif
 }
 
-- (id)initWithUndoStep:(UndoStep&)step
+- (id)initWithUndoStep:(Ref<UndoStep>&&)step
 {
     self = [super init];
     if (!self)
         return nil;
-    m_step = &step;
+    m_step = WTFMove(step);
     return self;
 }
 
@@ -158,9 +158,9 @@ static WebViewInsertAction kit(EditorInsertAction action)
     [super dealloc];
 }
 
-+ (WebUndoStep *)stepWithUndoStep:(UndoStep&)step
++ (WebUndoStep *)stepWithUndoStep:(Ref<UndoStep>&&)step
 {
-    return [[[WebUndoStep alloc] initWithUndoStep:step] autorelease];
+    return [[[WebUndoStep alloc] initWithUndoStep:WTFMove(step)] autorelease];
 }
 
 - (UndoStep&)step
@@ -589,77 +589,6 @@ bool WebEditorClient::shouldInsertNode(Node *node, Range* replacingRange, Editor
     return [[m_webView _editingDelegateForwarder] webView:m_webView shouldInsertNode:kit(node) replacingDOMRange:kit(replacingRange) givenAction:(WebViewInsertAction)givenAction];
 }
 
-static NSString* undoNameForEditAction(EditAction editAction)
-{
-    // FIXME: This is identical to code in WebKit2's WebEditCommandProxy class; would be nice to share the strings instead of having two copies.
-    switch (editAction) {
-    case EditAction::Unspecified: return nil;
-    case EditAction::Insert: return nil;
-    case EditAction::InsertReplacement: return nil;
-    case EditAction::InsertFromDrop: return nil;
-    case EditAction::SetColor: return UI_STRING_KEY_INTERNAL("Set Color", "Set Color (Undo action name)", "Undo action name");
-    case EditAction::SetBackgroundColor: return UI_STRING_KEY_INTERNAL("Set Background Color", "Set Background Color (Undo action name)", "Undo action name");
-    case EditAction::TurnOffKerning: return UI_STRING_KEY_INTERNAL("Turn Off Kerning", "Turn Off Kerning (Undo action name)", "Undo action name");
-    case EditAction::TightenKerning: return UI_STRING_KEY_INTERNAL("Tighten Kerning", "Tighten Kerning (Undo action name)", "Undo action name");
-    case EditAction::LoosenKerning: return UI_STRING_KEY_INTERNAL("Loosen Kerning", "Loosen Kerning (Undo action name)", "Undo action name");
-    case EditAction::UseStandardKerning: return UI_STRING_KEY_INTERNAL("Use Standard Kerning", "Use Standard Kerning (Undo action name)", "Undo action name");
-    case EditAction::TurnOffLigatures: return UI_STRING_KEY_INTERNAL("Turn Off Ligatures", "Turn Off Ligatures (Undo action name)", "Undo action name");
-    case EditAction::UseStandardLigatures: return UI_STRING_KEY_INTERNAL("Use Standard Ligatures", "Use Standard Ligatures (Undo action name)", "Undo action name");
-    case EditAction::UseAllLigatures: return UI_STRING_KEY_INTERNAL("Use All Ligatures", "Use All Ligatures (Undo action name)", "Undo action name");
-    case EditAction::RaiseBaseline: return UI_STRING_KEY_INTERNAL("Raise Baseline", "Raise Baseline (Undo action name)", "Undo action name");
-    case EditAction::LowerBaseline: return UI_STRING_KEY_INTERNAL("Lower Baseline", "Lower Baseline (Undo action name)", "Undo action name");
-    case EditAction::SetTraditionalCharacterShape: return UI_STRING_KEY_INTERNAL("Set Traditional Character Shape", "Set Traditional Character Shape (Undo action name)", "Undo action name");
-    case EditAction::SetFont: return UI_STRING_KEY_INTERNAL("Set Font", "Set Font (Undo action name)", "Undo action name");
-    case EditAction::ChangeAttributes: return UI_STRING_KEY_INTERNAL("Change Attributes", "Change Attributes (Undo action name)", "Undo action name");
-    case EditAction::AlignLeft: return UI_STRING_KEY_INTERNAL("Align Left", "Align Left (Undo action name)", "Undo action name");
-    case EditAction::AlignRight: return UI_STRING_KEY_INTERNAL("Align Right", "Align Right (Undo action name)", "Undo action name");
-    case EditAction::Center: return UI_STRING_KEY_INTERNAL("Center", "Center (Undo action name)", "Undo action name");
-    case EditAction::Justify: return UI_STRING_KEY_INTERNAL("Justify", "Justify (Undo action name)", "Undo action name");
-    case EditAction::SetWritingDirection: return UI_STRING_KEY_INTERNAL("Set Writing Direction", "Set Writing Direction (Undo action name)", "Undo action name");
-    case EditAction::Subscript: return UI_STRING_KEY_INTERNAL("Subscript", "Subscript (Undo action name)", "Undo action name");
-    case EditAction::Superscript: return UI_STRING_KEY_INTERNAL("Superscript", "Superscript (Undo action name)", "Undo action name");
-    case EditAction::Underline: return UI_STRING_KEY_INTERNAL("Underline", "Underline (Undo action name)", "Undo action name");
-    case EditAction::Outline: return UI_STRING_KEY_INTERNAL("Outline", "Outline (Undo action name)", "Undo action name");
-    case EditAction::Unscript: return UI_STRING_KEY_INTERNAL("Unscript", "Unscript (Undo action name)", "Undo action name");
-    case EditAction::DeleteByDrag: return UI_STRING_KEY_INTERNAL("Drag", "Drag (Undo action name)", "Undo action name");
-    case EditAction::Cut: return UI_STRING_KEY_INTERNAL("Cut", "Cut (Undo action name)", "Undo action name");
-    case EditAction::Paste: return UI_STRING_KEY_INTERNAL("Paste", "Paste (Undo action name)", "Undo action name");
-    case EditAction::PasteFont: return UI_STRING_KEY_INTERNAL("Paste Font", "Paste Font (Undo action name)", "Undo action name");
-    case EditAction::PasteRuler: return UI_STRING_KEY_INTERNAL("Paste Ruler", "Paste Ruler (Undo action name)", "Undo action name");
-    case EditAction::TypingDeleteSelection:
-    case EditAction::TypingDeleteBackward:
-    case EditAction::TypingDeleteForward:
-    case EditAction::TypingDeleteWordBackward:
-    case EditAction::TypingDeleteWordForward:
-    case EditAction::TypingDeleteLineBackward:
-    case EditAction::TypingDeleteLineForward:
-    case EditAction::TypingDeletePendingComposition:
-    case EditAction::TypingDeleteFinalComposition:
-    case EditAction::TypingInsertText:
-    case EditAction::TypingInsertLineBreak:
-    case EditAction::TypingInsertParagraph:
-    case EditAction::TypingInsertPendingComposition:
-    case EditAction::TypingInsertFinalComposition:
-        return UI_STRING_KEY_INTERNAL("Typing", "Typing (Undo action name)", "Undo action name");
-    case EditAction::CreateLink: return UI_STRING_KEY_INTERNAL("Create Link", "Create Link (Undo action name)", "Undo action name");
-    case EditAction::Unlink: return UI_STRING_KEY_INTERNAL("Unlink", "Unlink (Undo action name)", "Undo action name");
-    case EditAction::InsertOrderedList:
-    case EditAction::InsertUnorderedList:
-        return UI_STRING_KEY_INTERNAL("Insert List", "Insert List (Undo action name)", "Undo action name");
-    case EditAction::FormatBlock: return UI_STRING_KEY_INTERNAL("Formatting", "Format Block (Undo action name)", "Undo action name");
-    case EditAction::Indent: return UI_STRING_KEY_INTERNAL("Indent", "Indent (Undo action name)", "Undo action name");
-    case EditAction::Outdent: return UI_STRING_KEY_INTERNAL("Outdent", "Outdent (Undo action name)", "Undo action name");
-    case EditAction::Bold: return UI_STRING_KEY_INTERNAL("Bold", "Bold (Undo action name)", "Undo action name");
-    case EditAction::Italics: return UI_STRING_KEY_INTERNAL("Italics", "Italics (Undo action name)", "Undo action name");
-    case EditAction::Delete: return UI_STRING_KEY_INTERNAL("Delete", "Delete (Undo action name)", "Undo action name");
-    case EditAction::Dictation: return UI_STRING_KEY_INTERNAL("Dictation", "Dictation (Undo action name)", "Undo action name");
-    case EditAction::ConvertToOrderedList: return UI_STRING_KEY_INTERNAL("Convert to Ordered List", "Convert to Ordered List (Undo action name)", "Undo action name");
-    case EditAction::ConvertToUnorderedList: return UI_STRING_KEY_INTERNAL("Convert to Unordered List", "Convert to Unordered List (Undo action name)", "Undo action name");
-    case EditAction::InsertEditableImage: return UI_STRING_KEY_INTERNAL("Insert Drawing", "Insert Drawing (Undo action name)", "Undo action name");
-    }
-    return nil;
-}
-
 void WebEditorClient::registerUndoOrRedoStep(UndoStep& step, bool isRedo)
 {
     NSUndoManager *undoManager = [m_webView undoManager];
@@ -672,9 +601,8 @@ void WebEditorClient::registerUndoOrRedoStep(UndoStep& step, bool isRedo)
         return;
 #endif
 
-    NSString *actionName = undoNameForEditAction(step.editingAction());
-    WebUndoStep *webEntry = [WebUndoStep stepWithUndoStep:step];
-    [undoManager registerUndoWithTarget:m_undoTarget.get() selector:(isRedo ? @selector(redoEditing:) : @selector(undoEditing:)) object:webEntry];
+    NSString *actionName = step.label();
+    [undoManager registerUndoWithTarget:m_undoTarget.get() selector:(isRedo ? @selector(redoEditing:) : @selector(undoEditing:)) object:[WebUndoStep stepWithUndoStep:step]];
     if (actionName)
         [undoManager setActionName:actionName];
     m_haveUndoRedoOperations = YES;
@@ -700,14 +628,14 @@ void WebEditorClient::updateEditorStateAfterLayoutIfEditabilityChanged()
         [m_webView updateTouchBar];
 }
 
-void WebEditorClient::registerUndoStep(UndoStep& cmd)
+void WebEditorClient::registerUndoStep(UndoStep& command)
 {
-    registerUndoOrRedoStep(cmd, false);
+    registerUndoOrRedoStep(command, false);
 }
 
-void WebEditorClient::registerRedoStep(UndoStep& cmd)
+void WebEditorClient::registerRedoStep(UndoStep& command)
 {
-    registerUndoOrRedoStep(cmd, true);
+    registerUndoOrRedoStep(command, true);
 }
 
 void WebEditorClient::clearUndoRedoOperations()
@@ -1103,21 +1031,16 @@ static Vector<TextCheckingResult> core(NSArray *incomingResults, OptionSet<TextC
     return results;
 }
 
-#if HAVE(ADVANCED_SPELL_CHECKING)
 static int insertionPointFromCurrentSelection(const VisibleSelection& currentSelection)
 {
     VisiblePosition selectionStart = currentSelection.visibleStart();
     VisiblePosition paragraphStart = startOfParagraph(selectionStart);
     return TextIterator::rangeLength(makeRange(paragraphStart, selectionStart).get());
 }
-#endif
 
 Vector<TextCheckingResult> WebEditorClient::checkTextOfParagraph(StringView string, OptionSet<TextCheckingType> coreCheckingTypes, const VisibleSelection& currentSelection)
 {
-    NSDictionary *options = nil;
-#if HAVE(ADVANCED_SPELL_CHECKING)
-    options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
-#endif
+    NSDictionary *options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
     return core([[NSSpellChecker sharedSpellChecker] checkString:string.createNSStringWithoutCopying().get() range:NSMakeRange(0, string.length()) types:(nsTextCheckingTypes(coreCheckingTypes) | NSTextCheckingTypeOrthography) options:options inSpellDocumentWithTag:spellCheckerDocumentTag() orthography:NULL wordCount:NULL], coreCheckingTypes);
 }
 
@@ -1160,10 +1083,7 @@ void WebEditorClient::getGuessesForWord(const String& word, const String& contex
     NSString* language = nil;
     NSOrthography* orthography = nil;
     NSSpellChecker *checker = [NSSpellChecker sharedSpellChecker];
-    NSDictionary *options = nil;
-#if HAVE(ADVANCED_SPELL_CHECKING)
-    options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
-#endif
+    NSDictionary *options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
     if (context.length()) {
         [checker checkString:context range:NSMakeRange(0, context.length()) types:NSTextCheckingTypeOrthography options:options inSpellDocumentWithTag:spellCheckerDocumentTag() orthography:&orthography wordCount:0];
         language = [checker languageForWordRange:NSMakeRange(0, context.length()) inString:context orthography:orthography];
@@ -1206,7 +1126,6 @@ void WebEditorClient::requestCandidatesForSelection(const VisibleSelection& sele
 
     m_lastSelectionForRequestedCandidates = selection;
 
-#if HAVE(ADVANCED_SPELL_CHECKING)
     VisiblePosition selectionStart = selection.visibleStart();
     VisiblePosition selectionEnd = selection.visibleEnd();
     VisiblePosition paragraphStart = startOfParagraph(selectionStart);
@@ -1226,7 +1145,6 @@ void WebEditorClient::requestCandidatesForSelection(const VisibleSelection& sele
             weakEditor->handleRequestedCandidates(sequenceNumber, candidates);
         });
     }];
-#endif // HAVE(ADVANCED_SPELL_CHECKING)
 }
 
 void WebEditorClient::handleRequestedCandidates(NSInteger sequenceNumber, NSArray<NSTextCheckingResult *> *candidates)
@@ -1338,10 +1256,7 @@ void WebEditorClient::requestCheckingOfString(WebCore::TextCheckingRequest& requ
     int sequence = m_textCheckingRequest->data().sequence();
     NSRange range = NSMakeRange(0, m_textCheckingRequest->data().text().length());
     NSRunLoop* currentLoop = [NSRunLoop currentRunLoop];
-    NSDictionary *options = nil;
-#if HAVE(ADVANCED_SPELL_CHECKING)
-    options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
-#endif
+    NSDictionary *options = @{ NSTextCheckingInsertionPointKey :  [NSNumber numberWithUnsignedInteger:insertionPointFromCurrentSelection(currentSelection)] };
     [[NSSpellChecker sharedSpellChecker] requestCheckingOfString:m_textCheckingRequest->data().text() range:range types:NSTextCheckingAllSystemTypes options:options inSpellDocumentWithTag:0 completionHandler:^(NSInteger, NSArray* results, NSOrthography*, NSInteger) {
             [currentLoop performSelector:@selector(perform) 
                                   target:[[[WebEditorSpellCheckResponder alloc] initWithClient:this sequence:sequence results:results] autorelease]

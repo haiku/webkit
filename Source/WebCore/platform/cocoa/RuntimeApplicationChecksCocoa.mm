@@ -66,9 +66,9 @@ void setApplicationBundleIdentifier(const String& bundleIdentifier)
     applicationBundleIdentifierOverride() = bundleIdentifier;
 }
 
-static std::optional<uint32_t>& applicationSDKVersionOverride()
+static Optional<uint32_t>& applicationSDKVersionOverride()
 {
-    static NeverDestroyed<std::optional<uint32_t>> version;
+    static NeverDestroyed<Optional<uint32_t>> version;
     return version;
 }
 
@@ -276,7 +276,13 @@ bool IOSApplication::isMoviStarPlus()
     static bool isMoviStarPlus = applicationBundleIsEqualTo("com.prisatv.yomvi"_s);
     return isMoviStarPlus;
 }
-    
+
+bool IOSApplication::isFirefox()
+{
+    static bool isFirefox = applicationBundleIsEqualTo("org.mozilla.ios.Firefox"_s);
+    return isFirefox;
+}
+
 #endif
 
 } // namespace WebCore

@@ -2,9 +2,6 @@
 #
 # See http://trac.webkit.org/wiki/TestExpectations for more information on this file.
 
-# Selectively re-enable viewport tests that work
-fast/viewport/ios/ipad/width-is-device-width.html [ Pass ]
-
 editing/input/focus-change-with-marked-text.html [ Pass ]
 
 # No service worker implementation for WK1
@@ -33,6 +30,9 @@ imported/w3c/web-platform-tests/html/semantics/forms/the-datalist-element [ Wont
 
 # No support for testing key commands with modifiers in WK1
 fast/events/ios/focus-tab-previous-field.html [ Skip ]
+fast/events/ios/key-command-italic-dispatches-keydown.html [ Skip ]
+fast/events/ios/key-command-italic.html [ Skip ]
+fast/events/ios/type-digits-holding-control-key.html [ Skip ]
 
 # <input type=color> is not supported in WebKit1 on iOS.
 fast/forms/color/input-color-onchange-event.html [ Failure ]
@@ -1466,7 +1466,6 @@ http/tests/navigation/page-cache-iframe-provisional-load.html [ Crash Pass Failu
 imported/blink/editing/execCommand/4128080-2.html [ Crash Failure ]
 imported/blink/editing/undo/crash-redo-with-iframes.html [ Crash Pass ]
 imported/blink/paint/deprecatedpaintlayer/non-self-painting-layer-overrides-visibility.html [ Crash Pass ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-location.html [ Crash Pass ]
 platform/ios/ios/fast/coordinates/document-elementFromPoint.html [ Timeout Failure ]
 platform/ios/ios/fast/coordinates/touch-event-zoomed.html [ Crash Timeout ]
 platform/ios/ios/fast/coordinates/touch-event.html [ Crash Timeout ]
@@ -1900,7 +1899,6 @@ fast/forms/selection-direction.html [ Timeout ]
 
 # Failure as of 09/21/2016
 css2.1/t1008-c44-ln-box-02-d-ag.html [ Failure ]
-fast/text-autosizing/ios/ipad/text-size-adjust-inline-style.html [ ImageOnlyFailure ]
 fast/text-autosizing/ios/text-size-adjust-inline-style.html [ ImageOnlyFailure ]
 
 # Flaky as of 09/21/2016
@@ -1923,7 +1921,6 @@ imported/blink/imported/csswg-test/css-writing-modes-3/bidi-override-001.html [ 
 imported/blink/imported/csswg-test/css-writing-modes-3/bidi-plaintext-004.html [ Pass ImageOnlyFailure ]
 imported/blink/imported/csswg-test/css-writing-modes-3/bidi-unset-007.html [ Pass ImageOnlyFailure ]
 imported/blink/imported/csswg-test/css-writing-modes-3/block-embed-001.html [ Pass ImageOnlyFailure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count.html [ Crash Pass ]
 imported/mozilla/svg/text/clipPath-content.svg [ Pass ImageOnlyFailure ]
 
 # Skipping timeouts that are impacting testing
@@ -1997,5 +1994,6 @@ webkit.org/b/189594 imported/w3c/web-platform-tests/css/css-animations/pending-s
 # Not supported on WK1
 css-custom-properties-api [ Skip ]
 fast/css-custom-paint [ Skip ]
+css-typedom [ Skip ]
 
 webkit.org/b/188762 fast/writing-mode/english-rl-text-with-spelling-marker.html [ ImageOnlyFailure ]

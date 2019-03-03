@@ -29,7 +29,7 @@
 #if ENABLE(WEB_AUTHN) && PLATFORM(MAC)
 
 #include <WebCore/FidoConstants.h>
-#include <wtf/CryptographicallyRandomNumber.h>
+#include <wtf/RandomNumber.h>
 #include <wtf/RunLoop.h>
 #include <wtf/Vector.h>
 #include <wtf/text/Base64.h>
@@ -70,7 +70,7 @@ void CtapHidDriver::Worker::write(HidConnection::DataSent sent)
 {
     ASSERT(m_state == State::Write);
     if (sent != HidConnection::DataSent::Yes) {
-        returnMessage(std::nullopt);
+        returnMessage(WTF::nullopt);
         return;
     }
 
@@ -107,7 +107,7 @@ void CtapHidDriver::Worker::read(const Vector<uint8_t>& data)
     } else {
         if (!m_responseMessage->addContinuationPacket(data)) {
             LOG_ERROR("Couldn't parse a hid continuation packet.");
-            returnMessage(std::nullopt);
+            returnMessage(WTF::nullopt);
             return;
         }
     }
@@ -124,7 +124,7 @@ void CtapHidDriver::Worker::read(const Vector<uint8_t>& data)
     }
 }
 
-void CtapHidDriver::Worker::returnMessage(std::optional<fido::FidoHidMessage>&& message)
+void CtapHidDriver::Worker::returnMessage(Optional<fido::FidoHidMessage>&& message)
 {
     m_state = State::Idle;
     m_connection->unregisterDataReceivedCallback();
@@ -146,11 +146,18 @@ void CtapHidDriver::transact(Vector<uint8_t>&& data, ResponseCallback&& callback
     m_responseCallback = WTFMove(callback);
 
     // Allocate a channel.
-    ASSERT(m_nonce.size() == kHidInitNonceLength);
-    cryptographicallyRandomValues(m_nonce.data(), m_nonce.size());
+    // Use a pseudo random nonce instead of a cryptographically strong one as the nonce
+    // is mainly for identifications.
+    size_t steps = kHidInitNonceLength / sizeof(uint32_t);
+    ASSERT(!(kHidInitNonceLength % sizeof(uint32_t)) && steps >= 1);
+    for (size_t i = 0; i < steps; ++i) {
+        uint32_t weakRandom = weakRandomUint32();
+        memcpy(m_nonce.data() + i * sizeof(uint32_t), &weakRandom, sizeof(uint32_t));
+    }
+
     auto initCommand = FidoHidMessage::create(m_channelId, FidoHidDeviceCommand::kInit, m_nonce);
     ASSERT(initCommand);
-    m_worker->transact(WTFMove(*initCommand), [weakThis = makeWeakPtr(*this)](std::optional<FidoHidMessage>&& response) mutable {
+    m_worker->transact(WTFMove(*initCommand), [weakThis = makeWeakPtr(*this)](Optional<FidoHidMessage>&& response) mutable {
         ASSERT(RunLoop::isMain());
         if (!weakThis)
             return;
@@ -158,7 +165,7 @@ void CtapHidDriver::transact(Vector<uint8_t>&& data, ResponseCallback&& callback
     });
 }
 
-void CtapHidDriver::continueAfterChannelAllocated(std::optional<FidoHidMessage>&& message)
+void CtapHidDriver::continueAfterChannelAllocated(Optional<FidoHidMessage>&& message)
 {
     ASSERT(m_state == State::AllocateChannel);
     if (!message) {
@@ -187,9 +194,9 @@ void CtapHidDriver::continueAfterChannelAllocated(std::optional<FidoHidMessage>&
     m_channelId |= static_cast<uint32_t>(payload[index++]) << 8;
     m_channelId |= static_cast<uint32_t>(payload[index]);
     // FIXME(191534): Check the reset of the payload.
-    auto cmd = FidoHidMessage::create(m_channelId, FidoHidDeviceCommand::kCbor, m_requestData);
+    auto cmd = FidoHidMessage::create(m_channelId, m_protocol == ProtocolVersion::kCtap ? FidoHidDeviceCommand::kCbor : FidoHidDeviceCommand::kMsg, m_requestData);
     ASSERT(cmd);
-    m_worker->transact(WTFMove(*cmd), [weakThis = makeWeakPtr(*this)](std::optional<FidoHidMessage>&& response) mutable {
+    m_worker->transact(WTFMove(*cmd), [weakThis = makeWeakPtr(*this)](Optional<FidoHidMessage>&& response) mutable {
         ASSERT(RunLoop::isMain());
         if (!weakThis)
             return;
@@ -197,7 +204,7 @@ void CtapHidDriver::continueAfterChannelAllocated(std::optional<FidoHidMessage>&
     });
 }
 
-void CtapHidDriver::continueAfterResponseReceived(std::optional<fido::FidoHidMessage>&& message)
+void CtapHidDriver::continueAfterResponseReceived(Optional<fido::FidoHidMessage>&& message)
 {
     ASSERT(m_state == State::Ready);
     ASSERT(!message || message->channelId() == m_channelId);

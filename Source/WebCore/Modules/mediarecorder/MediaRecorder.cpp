@@ -33,22 +33,50 @@
 #include "Document.h"
 #include "EventNames.h"
 #include "MediaRecorderErrorEvent.h"
-#include "MediaRecorderPrivateMock.h"
+#include "MediaRecorderPrivate.h"
+#include "SharedBuffer.h"
+
+#if PLATFORM(COCOA)
+#include "MediaRecorderPrivateAVFImpl.h"
+#endif
 
 namespace WebCore {
 
-Ref<MediaRecorder> MediaRecorder::create(Document& document, Ref<MediaStream>&& stream, Options&& options)
+creatorFunction MediaRecorder::m_customCreator = nullptr;
+
+ExceptionOr<Ref<MediaRecorder>> MediaRecorder::create(Document& document, Ref<MediaStream>&& stream, Options&& options)
 {
-    auto recorder = adoptRef(*new MediaRecorder(document, WTFMove(stream), WTFMove(options)));
+    auto privateInstance = MediaRecorder::getPrivateImpl(stream->privateStream());
+    if (!privateInstance)
+        return Exception { NotSupportedError, "The MediaRecorder is unsupported on this platform"_s };
+    auto recorder = adoptRef(*new MediaRecorder(document, WTFMove(stream), WTFMove(privateInstance), WTFMove(options)));
     recorder->suspendIfNeeded();
-    return recorder;
+    return WTFMove(recorder);
 }
 
-MediaRecorder::MediaRecorder(Document& document, Ref<MediaStream>&& stream, Options&& option)
+void MediaRecorder::setCustomPrivateRecorderCreator(creatorFunction creator)
+{
+    m_customCreator = creator;
+}
+
+std::unique_ptr<MediaRecorderPrivate> MediaRecorder::getPrivateImpl(const MediaStreamPrivate& stream)
+{
+    if (m_customCreator)
+        return m_customCreator();
+    
+#if PLATFORM(COCOA)
+    return MediaRecorderPrivateAVFImpl::create(stream);
+#else
+    UNUSED_PARAM(stream);
+    return nullptr;
+#endif
+}
+
+MediaRecorder::MediaRecorder(Document& document, Ref<MediaStream>&& stream, std::unique_ptr<MediaRecorderPrivate>&& privateImpl, Options&& option)
     : ActiveDOMObject(&document)
     , m_options(WTFMove(option))
     , m_stream(WTFMove(stream))
-    , m_private(makeUniqueRef<MediaRecorderPrivateMock>()) // FIXME: we will need to decide which MediaRecorderPrivate instance to create based on the mock enabled feature flag
+    , m_private(WTFMove(privateImpl))
 {
     m_tracks = WTF::map(m_stream->getTracks(), [] (auto&& track) -> Ref<MediaStreamTrackPrivate> {
         return track->privateTrack();
@@ -78,7 +106,7 @@ bool MediaRecorder::canSuspendForDocumentSuspension() const
     return false; // FIXME: We should do better here as this prevents entering PageCache.
 }
 
-ExceptionOr<void> MediaRecorder::startRecording(std::optional<int> timeslice)
+ExceptionOr<void> MediaRecorder::startRecording(Optional<int> timeslice)
 {
     UNUSED_PARAM(timeslice);
     if (state() != RecordingState::Inactive)
@@ -95,14 +123,14 @@ ExceptionOr<void> MediaRecorder::stopRecording()
 {
     if (state() == RecordingState::Inactive)
         return Exception { InvalidStateError, "The MediaRecorder's state cannot be inactive"_s };
-
+    
     scheduleDeferredTask([this] {
         if (!m_isActive || state() == RecordingState::Inactive)
             return;
 
         stopRecordingInternal();
         ASSERT(m_state == RecordingState::Inactive);
-        dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, m_private->fetchData()));
+        dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, createRecordingDataBlob()));
         if (!m_isActive)
             return;
         dispatchEvent(Event::create(eventNames().stopEvent, Event::CanBubble::No, Event::IsCancelable::No));
@@ -119,6 +147,15 @@ void MediaRecorder::stopRecordingInternal()
         track->removeObserver(*this);
 
     m_state = RecordingState::Inactive;
+    m_private->stopRecording();
+}
+
+Ref<Blob> MediaRecorder::createRecordingDataBlob()
+{
+    auto data = m_private->fetchData();
+    if (!data)
+        return Blob::create();
+    return Blob::create(*data, m_private->mimeType());
 }
 
 void MediaRecorder::didAddOrRemoveTrack()
@@ -126,8 +163,9 @@ void MediaRecorder::didAddOrRemoveTrack()
     scheduleDeferredTask([this] {
         if (!m_isActive || state() == RecordingState::Inactive)
             return;
+        stopRecordingInternal();
         auto event = MediaRecorderErrorEvent::create(eventNames().errorEvent, Exception { UnknownError, "Track cannot be added to or removed from the MediaStream while recording is happening"_s });
-        setNewRecordingState(RecordingState::Inactive, WTFMove(event));
+        dispatchEvent(WTFMove(event));
     });
 }
 
@@ -152,18 +190,13 @@ void MediaRecorder::audioSamplesAvailable(MediaStreamTrackPrivate& track, const 
     m_private->audioSamplesAvailable(track, mediaTime, audioData, description, sampleCount);
 }
 
-void MediaRecorder::setNewRecordingState(RecordingState newState, Ref<Event>&& event)
-{
-    m_state = newState;
-    dispatchEvent(WTFMove(event));
-}
-
 void MediaRecorder::scheduleDeferredTask(Function<void()>&& function)
 {
     ASSERT(function);
     auto* scriptExecutionContext = this->scriptExecutionContext();
     if (!scriptExecutionContext)
         return;
+
     scriptExecutionContext->postTask([protectedThis = makeRef(*this), function = WTFMove(function)] (auto&) {
         function();
     });

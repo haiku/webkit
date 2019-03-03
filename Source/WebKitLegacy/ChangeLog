@@ -1,3 +1,211 @@
+2019-01-31  Takashi Komori  <Takashi.Komori@sony.com>
+
+        [Curl] Fix DRT crash related to private browsing.
+        https://bugs.webkit.org/show_bug.cgi?id=193816
+
+        Reviewed by Alex Christensen.
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp:
+        (NetworkStorageSessionMap::ensureSession):
+
+2019-01-26  Darin Adler  <darin@apple.com>
+  
+        Replace many uses of String::format with more type-safe alternatives
+        https://bugs.webkit.org/show_bug.cgi?id=192742
+
+        Reviewed by Mark Lam.
+
+        * Shared/WebMemorySampler.cpp:
+        (WebKit::WebMemorySampler::writeHeaders): Use makeString.
+
+        * UIProcess/WebAuthentication/Cocoa/LocalAuthenticator.mm:
+        (WebKit::LocalAuthenticator::makeCredential): Use string concatentation.
+
+        * UIProcess/WebInspectorUtilities.cpp:
+        (WebKit::inspectorPageGroupIdentifierForPage): Use makeString.
+        * UIProcess/WebProcessPool.cpp:
+        (WebKit::WebProcessPool::processDidFinishLaunching): Ditto.
+        (WebKit::WebProcessPool::startMemorySampler): Ditto.
+
+2019-01-24  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Move FileSystem to WTF
+        https://bugs.webkit.org/show_bug.cgi?id=193602
+
+        Reviewed by Yusuke Suzuki.
+
+        * Storage/StorageAreaSync.cpp:
+        * Storage/StorageSyncManager.cpp:
+        * Storage/StorageTracker.cpp:
+
+2019-01-23  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Curl] Unreviewed build fix for r240292 and friends.
+
+        WinCairo test stability must be restored in subsequent patch.
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp:
+        (NetworkStorageSessionMap::defaultStorageSession):
+        (NetworkStorageSessionMap::switchToNewTestingSession):
+        (NetworkStorageSessionMap::ensureSession):
+
+2019-01-23  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r240403.
+        https://bugs.webkit.org/show_bug.cgi?id=193757
+
+        "Causes multiple crashes on macOS port (probably used wrong
+        ENABLE macro)" (Requested by ddkilzer on #webkit).
+
+        Reverted changeset:
+
+        "[Curl] Unreviewed build fix for r240292 and friends."
+        https://trac.webkit.org/changeset/240403
+
+2019-01-23  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Curl] Unreviewed build fix for r240292 and friends.
+
+        WinCairo test stability must be restored in subsequent patch.
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp:
+        (NetworkStorageSessionMap::defaultStorageSession):
+        (NetworkStorageSessionMap::switchToNewTestingSession):
+        (NetworkStorageSessionMap::ensureSession):
+
+2019-01-22  Alex Christensen  <achristensen@webkit.org>
+
+        Fix some builds after r240292
+        https://bugs.webkit.org/show_bug.cgi?id=193580
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp:
+
+2019-01-22  Alex Christensen  <achristensen@webkit.org>
+
+        Move NetworkStorageSession ownership to NetworkProcess
+        https://bugs.webkit.org/show_bug.cgi?id=193580
+
+        Reviewed by Geoff Garen.
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp: Added.
+        (defaultNetworkStorageSession):
+        (globalSessionMap):
+        (NetworkStorageSessionMap::storageSession):
+        (NetworkStorageSessionMap::defaultStorageSession):
+        (NetworkStorageSessionMap::switchToNewTestingSession):
+        (NetworkStorageSessionMap::ensureSession):
+        (NetworkStorageSessionMap::destroySession):
+        * WebCoreSupport/NetworkStorageSessionMap.h: Added.
+        * WebCoreSupport/PageStorageSessionProvider.h:
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
+2019-01-15  Darin Adler  <darin@apple.com>
+
+        Use references rather than pointers for register/unregister functions, and more
+        https://bugs.webkit.org/show_bug.cgi?id=175028
+
+        Reviewed by Daniel Bates.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj: Let Xcode update this project.
+
+2019-01-18  Eric Carlson  <eric.carlson@apple.com>
+
+        Revert r238815, it broke WK1 video fullscreen on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=193586
+        <rdar://problem/47358941>
+
+        Reviewed by Jer Noble.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
+2019-01-17  Alex Christensen  <achristensen@webkit.org>
+
+        Stop using NetworkStorageSession::storageSession in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=193529
+
+        Reviewed by Tim Horton.
+
+        * WebCoreSupport/PageStorageSessionProvider.h: Added.
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
+2019-01-04  Youenn Fablet  <youenn@apple.com>
+
+        CSP violation reports should bypass CSP checks
+        https://bugs.webkit.org/show_bug.cgi?id=192857
+        <rdar://problem/46887236>
+
+        Reviewed by Chris Dumez.
+
+        * WebCoreSupport/WebResourceLoadScheduler.cpp:
+        (WebResourceLoadScheduler::startPingLoad):
+        * WebCoreSupport/WebResourceLoadScheduler.h:
+
+2018-12-27  Alex Christensen  <achristensen@webkit.org>
+
+        Resurrect Mac CMake build
+        https://bugs.webkit.org/show_bug.cgi?id=192658
+
+        Reviewed by Yusuke Suzuki.
+
+        * PlatformMac.cmake:
+
+2018-12-20  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
+
+        Use Ref<> as much as possible
+        https://bugs.webkit.org/show_bug.cgi?id=192808
+
+        Reviewed by Alex Christensen.
+
+        * Storage/StorageNamespaceImpl.cpp:
+        (WebKit::StorageNamespaceImpl::copy):
+        (WebKit::StorageNamespaceImpl::storageArea):
+        * Storage/StorageNamespaceImpl.h:
+        * Storage/WebStorageNamespaceProvider.cpp:
+        (WebKit::WebStorageNamespaceProvider::create):
+        (WebKit::WebStorageNamespaceProvider::createSessionStorageNamespace):
+        (WebKit::WebStorageNamespaceProvider::createEphemeralLocalStorageNamespace):
+        (WebKit::WebStorageNamespaceProvider::createLocalStorageNamespace):
+        (WebKit::WebStorageNamespaceProvider::createTransientLocalStorageNamespace):
+        * Storage/WebStorageNamespaceProvider.h:
+        * WebCoreSupport/WebViewGroup.cpp:
+        (WebViewGroup::getOrCreate):
+        * WebCoreSupport/WebViewGroup.h:
+
+2018-12-11  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [Win][WebKitLegacy][Clang] WebKit.h warning: 'IWebEditingDelegate2::shouldInsertNode' hides overloaded virtual function [-Woverloaded-virtual]
+        https://bugs.webkit.org/show_bug.cgi?id=192581
+
+        Reviewed by Alex Christensen.
+
+        Conventionally, WebKit COM interface adds a new interface with
+        same name methods with the old interface. For example, both
+        IWebEditingDelegate and IWebEditingDelegate2 interfaces has
+        shouldInsertNode method.
+
+        This is a part of public API, can't be renamed.
+
+        * PlatformWin.cmake: Added -Wno-overloaded-virtual compiler option
+        for WebKitLegacy
+
+2018-12-06  Alex Christensen  <achristensen@webkit.org>
+
+        Remove unused LoaderStrategy::storeDerivedDataToCache and associated dead code
+        https://bugs.webkit.org/show_bug.cgi?id=192452
+
+        Reviewed by Anders Carlsson.
+
+        * WebCoreSupport/WebResourceLoadScheduler.h:
+
+2018-12-03  Jer Noble  <jer.noble@apple.com>
+
+        Get rid of old, dead Mac video fullscreen code.
+        https://bugs.webkit.org/show_bug.cgi?id=192315
+
+        Reviewed by Eric Carlson.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
 2018-11-30  Alex Christensen  <achristensen@webkit.org>
 
         Move URL from WebCore to WTF

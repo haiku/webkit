@@ -198,7 +198,7 @@ void HTMLLinkElement::parseAttribute(const QualifiedName& name, const AtomicStri
         return;
     }
     if (name == titleAttr) {
-        if (m_sheet)
+        if (m_sheet && !isInShadowTree())
             m_sheet->setTitle(value);
         return;
     }
@@ -289,7 +289,7 @@ void HTMLLinkElement::process()
 
         bool mediaQueryMatches = true;
         if (!m_media.isEmpty()) {
-            std::optional<RenderStyle> documentStyle;
+            Optional<RenderStyle> documentStyle;
             if (document().hasLivingRenderTree())
                 documentStyle = Style::resolveForDocument(document());
             auto media = MediaQuerySet::create(m_media, MediaQueryParserContext(document()));
@@ -303,7 +303,7 @@ void HTMLLinkElement::process()
         addPendingSheet(isActive ? ActiveSheet : InactiveSheet);
 
         // Load stylesheets that are not needed for the rendering immediately with low priority.
-        std::optional<ResourceLoadPriority> priority;
+        Optional<ResourceLoadPriority> priority;
         if (!isActive)
             priority = ResourceLoadPriority::VeryLow;
 
@@ -395,13 +395,14 @@ void HTMLLinkElement::finishParsingChildren()
 void HTMLLinkElement::initializeStyleSheet(Ref<StyleSheetContents>&& styleSheet, const CachedCSSStyleSheet& cachedStyleSheet, MediaQueryParserContext context)
 {
     // FIXME: originClean should be turned to false except if fetch mode is CORS.
-    std::optional<bool> originClean;
+    Optional<bool> originClean;
     if (cachedStyleSheet.options().mode == FetchOptions::Mode::Cors)
         originClean = cachedStyleSheet.isCORSSameOrigin();
 
     m_sheet = CSSStyleSheet::create(WTFMove(styleSheet), *this, originClean);
     m_sheet->setMediaQueries(MediaQuerySet::create(m_media, context));
-    m_sheet->setTitle(title());
+    if (!isInShadowTree())
+        m_sheet->setTitle(title());
 
     if (!m_sheet->canAccessRules())
         m_sheet->contents().setAsOpaque();
@@ -579,7 +580,7 @@ const AtomicString& HTMLLinkElement::type() const
     return attributeWithoutSynchronization(typeAttr);
 }
 
-std::optional<LinkIconType> HTMLLinkElement::iconType() const
+Optional<LinkIconType> HTMLLinkElement::iconType() const
 {
     return m_relAttribute.iconType;
 }

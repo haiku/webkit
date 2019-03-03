@@ -55,20 +55,20 @@
 
 namespace WebCore {
 
-CachedImage::CachedImage(CachedResourceRequest&& request, PAL::SessionID sessionID)
-    : CachedResource(WTFMove(request), Type::ImageResource, sessionID)
+CachedImage::CachedImage(CachedResourceRequest&& request, const PAL::SessionID& sessionID, const CookieJar* cookieJar)
+    : CachedResource(WTFMove(request), Type::ImageResource, sessionID, cookieJar)
 {
     setStatus(Unknown);
 }
 
-CachedImage::CachedImage(Image* image, PAL::SessionID sessionID)
-    : CachedResource(URL(), Type::ImageResource, sessionID)
+CachedImage::CachedImage(Image* image, const PAL::SessionID& sessionID, const CookieJar* cookieJar)
+    : CachedResource(URL(), Type::ImageResource, sessionID, cookieJar)
     , m_image(image)
 {
 }
 
-CachedImage::CachedImage(const URL& url, Image* image, PAL::SessionID sessionID, const String& domainForCachePartition)
-    : CachedResource(url, Type::ImageResource, sessionID)
+CachedImage::CachedImage(const URL& url, Image* image, const PAL::SessionID& sessionID, const CookieJar* cookieJar, const String& domainForCachePartition)
+    : CachedResource(url, Type::ImageResource, sessionID, cookieJar)
     , m_image(image)
     , m_isManuallyCached(true)
 {
@@ -371,6 +371,12 @@ CachedImage::CachedImageObserver::CachedImageObserver(CachedImage& image)
     m_cachedImages.add(&image);
 }
 
+void CachedImage::CachedImageObserver::encodedDataStatusChanged(const Image& image, EncodedDataStatus status)
+{
+    for (auto cachedImage : m_cachedImages)
+        cachedImage->encodedDataStatusChanged(image, status);
+}
+
 void CachedImage::CachedImageObserver::decodedSizeChanged(const Image& image, long long delta)
 {
     for (auto cachedImage : m_cachedImages)
@@ -580,6 +586,14 @@ void CachedImage::destroyDecodedData()
         setDecodedSize(0);
     } else if (m_image && !errorOccurred())
         m_image->destroyDecodedData();
+}
+
+void CachedImage::encodedDataStatusChanged(const Image& image, EncodedDataStatus)
+{
+    if (&image != m_image)
+        return;
+
+    notifyObservers();
 }
 
 void CachedImage::decodedSizeChanged(const Image& image, long long delta)

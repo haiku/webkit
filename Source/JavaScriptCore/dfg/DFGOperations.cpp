@@ -65,7 +65,7 @@
 #include "ObjectConstructor.h"
 #include "Operations.h"
 #include "ParseInt.h"
-#include "RegExpConstructor.h"
+#include "RegExpGlobalDataInlines.h"
 #include "RegExpMatchesArray.h"
 #include "RegExpObjectInlines.h"
 #include "Repatch.h"
@@ -142,7 +142,7 @@ ALWAYS_INLINE static void putByValInternal(ExecState* exec, VM& vm, EncodedJSVal
     if (direct) {
         RELEASE_ASSERT(baseValue.isObject());
         JSObject* baseObject = asObject(baseValue);
-        if (std::optional<uint32_t> index = parseIndex(propertyName)) {
+        if (Optional<uint32_t> index = parseIndex(propertyName)) {
             scope.release();
             baseObject->putDirectIndex(exec, index.value(), value, 0, strict ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
             return;
@@ -162,7 +162,7 @@ ALWAYS_INLINE static void putByValCellInternal(ExecState* exec, VM& vm, JSCell* 
     if (direct) {
         RELEASE_ASSERT(base->isObject());
         JSObject* baseObject = asObject(base);
-        if (std::optional<uint32_t> index = parseIndex(propertyName)) {
+        if (Optional<uint32_t> index = parseIndex(propertyName)) {
             baseObject->putDirectIndex(exec, index.value(), value, 0, strict ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
             return;
         }
@@ -248,6 +248,25 @@ EncodedJSValue JIT_OPERATION operationToThisStrict(ExecState* exec, EncodedJSVal
     return JSValue::encode(JSValue::decode(encodedOp).toThis(exec, StrictMode));
 }
 
+JSArray* JIT_OPERATION operationObjectKeys(ExecState* exec, EncodedJSValue encodedObject)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    JSObject* object = JSValue::decode(encodedObject).toObject(exec);
+    RETURN_IF_EXCEPTION(scope, nullptr);
+    scope.release();
+    return ownPropertyKeys(exec, object, PropertyNameMode::Strings, DontEnumPropertiesMode::Exclude);
+}
+
+JSArray* JIT_OPERATION operationObjectKeysObject(ExecState* exec, JSObject* object)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
+    return ownPropertyKeys(exec, object, PropertyNameMode::Strings, DontEnumPropertiesMode::Exclude);
+}
+
 JSCell* JIT_OPERATION operationObjectCreate(ExecState* exec, EncodedJSValue encodedPrototype)
 {
     VM& vm = exec->vm();
@@ -280,7 +299,7 @@ JSCell* JIT_OPERATION operationCreateThis(ExecState* exec, JSObject* constructor
     auto scope = DECLARE_THROW_SCOPE(vm);
     if (constructor->type() == JSFunctionType && jsCast<JSFunction*>(constructor)->canUseAllocationProfile()) {
         auto rareData = jsCast<JSFunction*>(constructor)->ensureRareDataAndAllocationProfile(exec, inlineCapacity);
-        RETURN_IF_EXCEPTION(scope, nullptr);
+        scope.releaseAssertNoException();
         ObjectAllocationProfile* allocationProfile = rareData->objectAllocationProfile();
         Structure* structure = allocationProfile->structure();
         JSObject* result = constructEmptyObject(exec, structure);
@@ -1155,7 +1174,6 @@ EncodedJSValue JIT_OPERATION operationRegExpExecNonGlobalOrSticky(ExecState* exe
 
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    RegExpConstructor* regExpConstructor = globalObject->regExpConstructor();
     String input = string->value(exec);
     RETURN_IF_EXCEPTION(scope, { });
 
@@ -1168,7 +1186,7 @@ EncodedJSValue JIT_OPERATION operationRegExpExecNonGlobalOrSticky(ExecState* exe
     }
 
     RETURN_IF_EXCEPTION(scope, { });
-    regExpConstructor->recordMatch(vm, regExp, string, result);
+    globalObject->regExpGlobalData().recordMatch(vm, globalObject, regExp, string, result);
     return JSValue::encode(array);
 }
 
@@ -1198,19 +1216,17 @@ EncodedJSValue JIT_OPERATION operationRegExpMatchFastGlobalString(ExecState* exe
     String s = string->value(exec);
     RETURN_IF_EXCEPTION(scope, { });
 
-    RegExpConstructor* regExpConstructor = globalObject->regExpConstructor();
-
     if (regExp->unicode()) {
         unsigned stringLength = s.length();
         RELEASE_AND_RETURN(scope, JSValue::encode(collectMatches(
-            vm, exec, string, s, regExpConstructor, regExp,
+            vm, exec, string, s, globalObject, regExp,
             [&] (size_t end) -> size_t {
                 return advanceStringUnicode(s, stringLength, end);
             })));
     }
 
     RELEASE_AND_RETURN(scope, JSValue::encode(collectMatches(
-        vm, exec, string, s, regExpConstructor, regExp,
+        vm, exec, string, s, globalObject, regExp,
         [&] (size_t end) -> size_t {
             return end + 1;
         })));
@@ -1320,6 +1336,28 @@ JSCell* JIT_OPERATION operationSubBigInt(ExecState* exec, JSCell* op1, JSCell* o
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
     return JSBigInt::sub(exec, leftOperand, rightOperand);
+}
+
+JSCell* JIT_OPERATION operationMulBigInt(ExecState* exec, JSCell* op1, JSCell* op2)
+{
+    VM* vm = &exec->vm();
+    NativeCallFrameTracer tracer(vm, exec);
+
+    JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
+    JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
+
+    return JSBigInt::multiply(exec, leftOperand, rightOperand);
+}
+    
+JSCell* JIT_OPERATION operationDivBigInt(ExecState* exec, JSCell* op1, JSCell* op2)
+{
+    VM* vm = &exec->vm();
+    NativeCallFrameTracer tracer(vm, exec);
+    
+    JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
+    JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
+    
+    return JSBigInt::divide(exec, leftOperand, rightOperand);
 }
 
 JSCell* JIT_OPERATION operationBitAndBigInt(ExecState* exec, JSCell* op1, JSCell* op2)
@@ -1645,7 +1683,7 @@ char* JIT_OPERATION operationNewInt8ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt8Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt8Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewInt16ArrayWithSize(
@@ -1659,7 +1697,7 @@ char* JIT_OPERATION operationNewInt16ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt16Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt16Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewInt32ArrayWithSize(
@@ -1673,7 +1711,7 @@ char* JIT_OPERATION operationNewInt32ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt32Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSInt32Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewUint8ArrayWithSize(
@@ -1687,7 +1725,7 @@ char* JIT_OPERATION operationNewUint8ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint8Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint8Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewUint8ClampedArrayWithSize(
@@ -1701,7 +1739,7 @@ char* JIT_OPERATION operationNewUint8ClampedArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint8ClampedArray>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint8ClampedArray>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewUint16ArrayWithSize(
@@ -1715,7 +1753,7 @@ char* JIT_OPERATION operationNewUint16ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint16Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint16Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewUint32ArrayWithSize(
@@ -1729,7 +1767,7 @@ char* JIT_OPERATION operationNewUint32ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint32Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSUint32Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewFloat32ArrayWithSize(
@@ -1743,7 +1781,7 @@ char* JIT_OPERATION operationNewFloat32ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSFloat32Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSFloat32Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 char* JIT_OPERATION operationNewFloat64ArrayWithSize(
@@ -1757,7 +1795,7 @@ char* JIT_OPERATION operationNewFloat64ArrayWithOneArgument(
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSFloat64Array>(exec, structure, encodedValue, 0, std::nullopt));
+    return reinterpret_cast<char*>(constructGenericTypedArrayViewWithArguments<JSFloat64Array>(exec, structure, encodedValue, 0, WTF::nullopt));
 }
 
 JSCell* JIT_OPERATION operationCreateActivationDirect(ExecState* exec, Structure* structure, JSScope* scope, SymbolTable* table, EncodedJSValue initialValueEncoded)
@@ -2217,6 +2255,22 @@ JSString* JIT_OPERATION operationSingleCharacterString(ExecState* exec, int32_t 
     NativeCallFrameTracer tracer(&vm, exec);
     
     return jsSingleCharacterString(exec, static_cast<UChar>(character));
+}
+
+Symbol* JIT_OPERATION operationNewSymbol(ExecState* exec)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
+
+    return Symbol::create(vm);
+}
+
+Symbol* JIT_OPERATION operationNewSymbolWithDescription(ExecState* exec, JSString* description)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
+
+    return Symbol::create(exec, description);
 }
 
 JSCell* JIT_OPERATION operationNewStringObject(ExecState* exec, JSString* string, Structure* structure)

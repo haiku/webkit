@@ -29,7 +29,9 @@
 #include "DOMPromiseProxy.h"
 #include "EventTarget.h"
 #include "ExceptionOr.h"
+#include "WebAnimationUtilities.h"
 #include <wtf/Forward.h>
+#include <wtf/Markable.h>
 #include <wtf/Optional.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
@@ -65,14 +67,14 @@ public:
     AnimationTimeline* timeline() const { return m_timeline.get(); }
     virtual void setTimeline(RefPtr<AnimationTimeline>&&);
 
-    std::optional<Seconds> currentTime() const;
-    ExceptionOr<void> setCurrentTime(std::optional<Seconds>);
+    Optional<Seconds> currentTime() const;
+    ExceptionOr<void> setCurrentTime(Optional<Seconds>);
 
-    enum class Silently { Yes, No };
+    enum class Silently : uint8_t { Yes, No };
     double playbackRate() const { return m_playbackRate + 0; }
     void setPlaybackRate(double);
 
-    enum class PlayState { Idle, Running, Paused, Finished };
+    enum class PlayState : uint8_t { Idle, Running, Paused, Finished };
     PlayState playState() const;
 
     bool pending() const { return hasPendingPauseTask() || hasPendingPlayTask(); }
@@ -91,10 +93,10 @@ public:
     ExceptionOr<void> pause();
     ExceptionOr<void> reverse();
 
-    virtual std::optional<double> startTime() const;
-    virtual void setStartTime(std::optional<double>);
-    virtual std::optional<double> bindingsCurrentTime() const;
-    virtual ExceptionOr<void> setBindingsCurrentTime(std::optional<double>);
+    virtual Optional<double> startTime() const;
+    virtual void setStartTime(Optional<double>);
+    virtual Optional<double> bindingsCurrentTime() const;
+    virtual ExceptionOr<void> setBindingsCurrentTime(Optional<double>);
     virtual PlayState bindingsPlayState() const { return playState(); }
     virtual bool bindingsPending() const { return pending(); }
     virtual ReadyPromise& bindingsReady() { return ready(); }
@@ -128,23 +130,21 @@ protected:
     void stop() override;
 
 private:
-    enum class DidSeek { Yes, No };
-    enum class SynchronouslyNotify { Yes, No };
-    enum class RespectHoldTime { Yes, No };
-    enum class AutoRewind { Yes, No };
-    enum class TimeToRunPendingTask { NotScheduled, ASAP, WhenReady };
+    enum class DidSeek : uint8_t { Yes, No };
+    enum class SynchronouslyNotify : uint8_t { Yes, No };
+    enum class RespectHoldTime : uint8_t { Yes, No };
+    enum class AutoRewind : uint8_t { Yes, No };
+    enum class TimeToRunPendingTask : uint8_t { NotScheduled, ASAP, WhenReady };
 
     void timingDidChange(DidSeek, SynchronouslyNotify);
     void updateFinishedState(DidSeek, SynchronouslyNotify);
-    void enqueueAnimationPlaybackEvent(const AtomicString&, std::optional<Seconds>, std::optional<Seconds>);
+    void enqueueAnimationPlaybackEvent(const AtomicString&, Optional<Seconds>, Optional<Seconds>);
     Seconds effectEndTime() const;
     WebAnimation& readyPromiseResolve();
     WebAnimation& finishedPromiseResolve();
-    std::optional<Seconds> currentTime(RespectHoldTime) const;
-    ExceptionOr<void> silentlySetCurrentTime(std::optional<Seconds>);
+    Optional<Seconds> currentTime(RespectHoldTime) const;
+    ExceptionOr<void> silentlySetCurrentTime(Optional<Seconds>);
     void finishNotificationSteps();
-    void scheduleMicrotaskIfNeeded();
-    void performMicrotask();
     bool hasPendingPauseTask() const { return m_timeToRunPendingPauseTask != TimeToRunPendingTask::NotScheduled; }
     bool hasPendingPlayTask() const { return m_timeToRunPendingPlayTask != TimeToRunPendingTask::NotScheduled; }
     ExceptionOr<void> play(AutoRewind);
@@ -160,22 +160,24 @@ private:
     double effectivePlaybackRate() const;
     void applyPendingPlaybackRate();
 
-    String m_id;
     RefPtr<AnimationEffect> m_effect;
     RefPtr<AnimationTimeline> m_timeline;
-    std::optional<Seconds> m_previousCurrentTime;
-    std::optional<Seconds> m_startTime;
-    std::optional<Seconds> m_holdTime;
-    int m_suspendCount { 0 };
+    UniqueRef<ReadyPromise> m_readyPromise;
+    UniqueRef<FinishedPromise> m_finishedPromise;
+    Markable<Seconds, Seconds::MarkableTraits> m_previousCurrentTime;
+    Markable<Seconds, Seconds::MarkableTraits> m_startTime;
+    Markable<Seconds, Seconds::MarkableTraits> m_holdTime;
+    MarkableDouble m_pendingPlaybackRate;
     double m_playbackRate { 1 };
-    std::optional<double> m_pendingPlaybackRate;
+    String m_id;
+
+    int m_suspendCount { 0 };
+
     bool m_isStopped { false };
     bool m_isSuspended { false };
     bool m_finishNotificationStepsMicrotaskPending;
-    bool m_scheduledMicrotask;
     bool m_isRelevant;
-    UniqueRef<ReadyPromise> m_readyPromise;
-    UniqueRef<FinishedPromise> m_finishedPromise;
+    bool m_shouldSkipUpdatingFinishedStateWhenResolving;
     TimeToRunPendingTask m_timeToRunPendingPlayTask { TimeToRunPendingTask::NotScheduled };
     TimeToRunPendingTask m_timeToRunPendingPauseTask { TimeToRunPendingTask::NotScheduled };
 

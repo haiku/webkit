@@ -44,7 +44,6 @@
 #include <WebCore/BitmapInfo.h>
 #include <WebCore/Cursor.h>
 #include <WebCore/Editor.h>
-#include <WebCore/FileSystem.h>
 #include <WebCore/FloatRect.h>
 #include <WebCore/HWndDC.h>
 #include <WebCore/IntRect.h>
@@ -55,6 +54,7 @@
 #include <WebCore/WindowsTouch.h>
 #include <cairo-win32.h>
 #include <cairo.h>
+#include <wtf/FileSystem.h>
 #include <wtf/SoftLinking.h>
 #include <wtf/text/StringBuffer.h>
 #include <wtf/text/StringBuilder.h>
@@ -474,10 +474,8 @@ void WebView::paint(HDC hdc, const IntRect& dirtyRect)
         cairo_surface_destroy(surface);
 
         Vector<IntRect> unpaintedRects = unpaintedRegion.rects();
-        for (size_t i = 0; i < unpaintedRects.size(); ++i) {
-            RECT winRect = unpaintedRects[i];
-            drawPageBackground(hdc, m_page.get(), unpaintedRects[i]);
-        }
+        for (auto& rect : unpaintedRects)
+            drawPageBackground(hdc, m_page.get(), rect);
     } else
         drawPageBackground(hdc, m_page.get(), dirtyRect);
 }
@@ -653,7 +651,7 @@ void WebView::initializeToolTipWindow()
     if (!m_toolTipWindow)
         return;
 
-    TOOLINFO info = { 0 };
+    TOOLINFO info { };
     info.cbSize = sizeof(info);
     info.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
     info.uId = reinterpret_cast<UINT_PTR>(m_window);
@@ -871,7 +869,7 @@ void WebView::setToolTip(const String& toolTip)
         return;
 
     if (!toolTip.isEmpty()) {
-        TOOLINFO info = { 0 };
+        TOOLINFO info { };
         info.cbSize = sizeof(info);
         info.uFlags = TTF_IDISHWND;
         info.uId = reinterpret_cast<UINT_PTR>(nativeWindow());

@@ -1052,10 +1052,6 @@ public:
 #endif
     }
 
-    JumpList branchIfNotType(
-        JSValueRegs, GPRReg tempGPR, const InferredType::Descriptor&,
-        TagRegistersMode = HaveTagRegisters);
-
     template<typename T>
     Jump branchStructure(RelationalCondition condition, T leftHandSide, Structure* structure)
     {
@@ -1654,6 +1650,8 @@ public:
         //         }
         //     } else if (is string) {
         //         return string
+        //     } else if (is bigint) {
+        //         return bigint
         //     } else {
         //         return symbol
         //     }
@@ -1666,6 +1664,10 @@ public:
         // } else {
         //     return undefined
         // }
+        //
+        // FIXME: typeof Symbol should be more frequently seen than BigInt.
+        // We should change the order of type detection based on this frequency.
+        // https://bugs.webkit.org/show_bug.cgi?id=192650
         
         Jump notCell = branchIfNotCell(regs);
         
@@ -1687,7 +1689,13 @@ public:
         
         Jump notString = branchIfNotString(cellGPR);
         functor(TypeofType::String, false);
+
         notString.link(this);
+
+        Jump notBigInt = branchIfNotBigInt(cellGPR);
+        functor(TypeofType::BigInt, false);
+
+        notBigInt.link(this);
         functor(TypeofType::Symbol, false);
         
         notCell.link(this);

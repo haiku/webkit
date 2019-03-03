@@ -54,10 +54,10 @@
 #include "WebNotificationManagerProxy.h"
 #include "WebsiteDataType.h"
 #include <JavaScriptCore/RemoteInspector.h>
-#include <WebCore/FileSystem.h>
 #include <glib/gi18n-lib.h>
 #include <libintl.h>
 #include <memory>
+#include <wtf/FileSystem.h>
 #include <wtf/HashMap.h>
 #include <wtf/Language.h>
 #include <wtf/NeverDestroyed.h>
@@ -314,14 +314,15 @@ static void webkitWebContextSetProperty(GObject* object, guint propID, const GVa
     }
 }
 
-static inline WebsiteDataStore::Configuration websiteDataStoreConfigurationForWebProcessPoolConfiguration(const API::ProcessPoolConfiguration& processPoolconfigurarion)
+static inline Ref<WebsiteDataStoreConfiguration> websiteDataStoreConfigurationForWebProcessPoolConfiguration(const API::ProcessPoolConfiguration& processPoolconfigurarion)
 {
-    WebsiteDataStore::Configuration configuration;
-    configuration.applicationCacheDirectory = processPoolconfigurarion.applicationCacheDirectory();
-    configuration.networkCacheDirectory = processPoolconfigurarion.diskCacheDirectory();
-    configuration.webSQLDatabaseDirectory = processPoolconfigurarion.webSQLDatabaseDirectory();
-    configuration.localStorageDirectory = processPoolconfigurarion.localStorageDirectory();
-    configuration.mediaKeysStorageDirectory = processPoolconfigurarion.mediaKeysStorageDirectory();
+    auto configuration = WebsiteDataStoreConfiguration::create();
+    configuration->setApplicationCacheDirectory(String(processPoolconfigurarion.applicationCacheDirectory()));
+    configuration->setNetworkCacheDirectory(String(processPoolconfigurarion.diskCacheDirectory()));
+    configuration->setWebSQLDatabaseDirectory(String(processPoolconfigurarion.webSQLDatabaseDirectory()));
+    configuration->setLocalStorageDirectory(String(processPoolconfigurarion.localStorageDirectory()));
+    configuration->setDeviceIdHashSaltsStorageDirectory(String(processPoolconfigurarion.deviceIdHashSaltsStorageDirectory()));
+    configuration->setMediaKeysStorageDirectory(String(processPoolconfigurarion.mediaKeysStorageDirectory()));
     return configuration;
 }
 
@@ -332,20 +333,19 @@ static void webkitWebContextConstructed(GObject* object)
     GUniquePtr<char> bundleFilename(g_build_filename(injectedBundleDirectory(), INJECTED_BUNDLE_FILENAME, nullptr));
 
     API::ProcessPoolConfiguration configuration;
-    configuration.setInjectedBundlePath(WebCore::FileSystem::stringFromFileSystemRepresentation(bundleFilename.get()));
-    configuration.setMaximumProcessCount(1);
+    configuration.setInjectedBundlePath(FileSystem::stringFromFileSystemRepresentation(bundleFilename.get()));
     configuration.setDiskCacheSpeculativeValidationEnabled(true);
 
     WebKitWebContext* webContext = WEBKIT_WEB_CONTEXT(object);
     WebKitWebContextPrivate* priv = webContext->priv;
     if (priv->websiteDataManager && !webkit_website_data_manager_is_ephemeral(priv->websiteDataManager.get())) {
-        configuration.setLocalStorageDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_local_storage_directory(priv->websiteDataManager.get())));
-        configuration.setDiskCacheDirectory(WebCore::FileSystem::pathByAppendingComponent(WebCore::FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_disk_cache_directory(priv->websiteDataManager.get())), networkCacheSubdirectory));
-        configuration.setApplicationCacheDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_offline_application_cache_directory(priv->websiteDataManager.get())));
-        configuration.setIndexedDBDatabaseDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_indexeddb_directory(priv->websiteDataManager.get())));
-        configuration.setWebSQLDatabaseDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_websql_directory(priv->websiteDataManager.get())));
+        configuration.setLocalStorageDirectory(FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_local_storage_directory(priv->websiteDataManager.get())));
+        configuration.setDiskCacheDirectory(FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_disk_cache_directory(priv->websiteDataManager.get())), networkCacheSubdirectory));
+        configuration.setApplicationCacheDirectory(FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_offline_application_cache_directory(priv->websiteDataManager.get())));
+        configuration.setIndexedDBDatabaseDirectory(FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_indexeddb_directory(priv->websiteDataManager.get())));
+        configuration.setWebSQLDatabaseDirectory(FileSystem::stringFromFileSystemRepresentation(webkit_website_data_manager_get_websql_directory(priv->websiteDataManager.get())));
     } else if (!priv->localStorageDirectory.isNull())
-        configuration.setLocalStorageDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(priv->localStorageDirectory.data()));
+        configuration.setLocalStorageDirectory(FileSystem::stringFromFileSystemRepresentation(priv->localStorageDirectory.data()));
 
     priv->processPool = WebProcessPool::create(configuration);
 
@@ -719,13 +719,13 @@ void webkit_web_context_set_cache_model(WebKitWebContext* context, WebKitCacheMo
 
     switch (model) {
     case WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER:
-        cacheModel = CacheModelDocumentViewer;
+        cacheModel = CacheModel::DocumentViewer;
         break;
     case WEBKIT_CACHE_MODEL_WEB_BROWSER:
-        cacheModel = CacheModelPrimaryWebBrowser;
+        cacheModel = CacheModel::PrimaryWebBrowser;
         break;
     case WEBKIT_CACHE_MODEL_DOCUMENT_BROWSER:
-        cacheModel = CacheModelDocumentBrowser;
+        cacheModel = CacheModel::DocumentBrowser;
         break;
     default:
         g_assert_not_reached();
@@ -750,11 +750,11 @@ WebKitCacheModel webkit_web_context_get_cache_model(WebKitWebContext* context)
     g_return_val_if_fail(WEBKIT_IS_WEB_CONTEXT(context), WEBKIT_CACHE_MODEL_WEB_BROWSER);
 
     switch (context->priv->processPool->cacheModel()) {
-    case CacheModelDocumentViewer:
+    case CacheModel::DocumentViewer:
         return WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER;
-    case CacheModelPrimaryWebBrowser:
+    case CacheModel::PrimaryWebBrowser:
         return WEBKIT_CACHE_MODEL_WEB_BROWSER;
-    case CacheModelDocumentBrowser:
+    case CacheModel::DocumentBrowser:
         return WEBKIT_CACHE_MODEL_DOCUMENT_BROWSER;
     default:
         g_assert_not_reached();
@@ -923,7 +923,7 @@ void webkit_web_context_set_favicon_database_directory(WebKitWebContext* context
     WebKitWebContextPrivate* priv = context->priv;
     ensureFaviconDatabase(context);
 
-    String directoryPath = WebCore::FileSystem::stringFromFileSystemRepresentation(path);
+    String directoryPath = FileSystem::stringFromFileSystemRepresentation(path);
     // Use default if nullptr is passed as parameter.
     if (directoryPath.isEmpty()) {
 #if PLATFORM(GTK)
@@ -932,7 +932,7 @@ void webkit_web_context_set_favicon_database_directory(WebKitWebContext* context
         const char* portDirectory = "wpe";
 #endif
         GUniquePtr<gchar> databaseDirectory(g_build_filename(g_get_user_cache_dir(), portDirectory, "icondatabase", nullptr));
-        directoryPath = WebCore::FileSystem::stringFromFileSystemRepresentation(databaseDirectory.get());
+        directoryPath = FileSystem::stringFromFileSystemRepresentation(databaseDirectory.get());
     }
     priv->faviconDatabaseDirectory = directoryPath.utf8();
 
@@ -941,7 +941,7 @@ void webkit_web_context_set_favicon_database_directory(WebKitWebContext* context
         "WebpageIcons.db", nullptr));
 
     // Setting the path will cause the icon database to be opened.
-    webkitFaviconDatabaseOpen(priv->faviconDatabase.get(), WebCore::FileSystem::stringFromFileSystemRepresentation(faviconDatabasePath.get()));
+    webkitFaviconDatabaseOpen(priv->faviconDatabase.get(), FileSystem::stringFromFileSystemRepresentation(faviconDatabasePath.get()));
 
     if (webkit_web_context_is_ephemeral(context))
         webkitFaviconDatabaseSetPrivateBrowsingEnabled(priv->faviconDatabase.get(), true);
@@ -1025,7 +1025,7 @@ void webkit_web_context_set_additional_plugins_directory(WebKitWebContext* conte
     g_return_if_fail(directory);
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
-    context->priv->processPool->setAdditionalPluginsDirectory(WebCore::FileSystem::stringFromFileSystemRepresentation(directory));
+    context->priv->processPool->setAdditionalPluginsDirectory(FileSystem::stringFromFileSystemRepresentation(directory));
 #endif
 }
 
@@ -1159,10 +1159,6 @@ void webkit_web_context_register_uri_scheme(WebKitWebContext* context, const cha
  *
  * This is only implemented on Linux and is a no-op otherwise.
  *
- * If you read from `$XDG_CONFIG_HOME/g_get_prgname()` or `$XDG_CACHE_HOME/g_get_prgname()`
- * in your WebProcess you must ensure it exists before subprocesses are created.
- * This behavior may change in the future.
- *
  * Since: 2.24
  */
 void webkit_web_context_set_sandbox_enabled(WebKitWebContext* context, gboolean enabled)
@@ -1173,6 +1169,32 @@ void webkit_web_context_set_sandbox_enabled(WebKitWebContext* context, gboolean 
         g_error("Sandboxing cannot be changed after subprocesses were spawned.");
 
     context->priv->processPool->setSandboxEnabled(enabled);
+}
+
+/**
+ * webkit_web_context_add_path_to_sandbox:
+ * @context: a #WebKitWebContext
+ * @path: (type filename): an absolute path to mount in the sandbox
+ * @read_only: if %TRUE the path will be read-only
+ *
+ * Adds a path to be mounted in the sandbox. @path must exist before any web process
+ * has been created otherwise it will be silently ignored. It is a fatal error to
+ * add paths after a web process has been spawned.
+ *
+ * See also webkit_web_context_set_sandbox_enabled()
+ *
+ * Since: 2.24
+ */
+void webkit_web_context_add_path_to_sandbox(WebKitWebContext* context, const char* path, gboolean readOnly)
+{
+    g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
+    g_return_if_fail(g_path_is_absolute(path));
+
+    if (context->priv->processPool->processes().size())
+        g_error("Sandbox paths cannot be changed after subprocesses were spawned.");
+
+    auto permission = readOnly ? SandboxPermission::ReadOnly : SandboxPermission::ReadWrite;
+    context->priv->processPool->addSandboxPath(path, permission);
 }
 
 /**
@@ -1417,7 +1439,7 @@ void webkit_web_context_set_disk_cache_directory(WebKitWebContext* context, cons
     g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
     g_return_if_fail(directory);
 
-    context->priv->processPool->configuration().setDiskCacheDirectory(WebCore::FileSystem::pathByAppendingComponent(WebCore::FileSystem::stringFromFileSystemRepresentation(directory), networkCacheSubdirectory));
+    context->priv->processPool->configuration().setDiskCacheDirectory(FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(directory), networkCacheSubdirectory));
 }
 #endif
 
@@ -1455,8 +1477,8 @@ void webkit_web_context_allow_tls_certificate_for_host(WebKitWebContext* context
     g_return_if_fail(G_IS_TLS_CERTIFICATE(certificate));
     g_return_if_fail(host);
 
-    RefPtr<WebCertificateInfo> webCertificateInfo = WebCertificateInfo::create(WebCore::CertificateInfo(certificate, static_cast<GTlsCertificateFlags>(0)));
-    context->priv->processPool->allowSpecificHTTPSCertificateForHost(webCertificateInfo.get(), String::fromUTF8(host));
+    auto webCertificateInfo = WebCertificateInfo::create(WebCore::CertificateInfo(certificate, static_cast<GTlsCertificateFlags>(0)));
+    context->priv->processPool->allowSpecificHTTPSCertificateForHost(webCertificateInfo.ptr(), String::fromUTF8(host));
 }
 
 /**
@@ -1494,14 +1516,6 @@ void webkit_web_context_set_process_model(WebKitWebContext* context, WebKitProce
         return;
 
     context->priv->processModel = processModel;
-    switch (context->priv->processModel) {
-    case WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS:
-        context->priv->processPool->setMaximumNumberOfProcesses(1);
-        break;
-    case WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES:
-        context->priv->processPool->setMaximumNumberOfProcesses(context->priv->processCountLimit);
-        break;
-    }
 }
 
 /**
@@ -1544,8 +1558,6 @@ void webkit_web_context_set_web_process_count_limit(WebKitWebContext* context, g
         return;
 
     context->priv->processCountLimit = limit;
-    if (context->priv->processModel != WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS)
-        context->priv->processPool->setMaximumNumberOfProcesses(limit);
 }
 
 /**

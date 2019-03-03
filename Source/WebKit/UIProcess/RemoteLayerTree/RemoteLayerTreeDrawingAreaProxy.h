@@ -40,7 +40,7 @@ class RemoteScrollingCoordinatorTransaction;
 
 class RemoteLayerTreeDrawingAreaProxy final : public DrawingAreaProxy {
 public:
-    explicit RemoteLayerTreeDrawingAreaProxy(WebPageProxy&);
+    RemoteLayerTreeDrawingAreaProxy(WebPageProxy&, WebProcessProxy&);
     virtual ~RemoteLayerTreeDrawingAreaProxy();
 
     const RemoteLayerTreeHost& remoteLayerTreeHost() const { return *m_remoteLayerTreeHost; }
@@ -70,7 +70,7 @@ private:
     void dispatchAfterEnsuringDrawing(WTF::Function<void (CallbackBase::Error)>&&) override;
 
 #if PLATFORM(MAC)
-    void setViewExposedRect(std::optional<WebCore::FloatRect>) override;
+    void setViewExposedRect(Optional<WebCore::FloatRect>) override;
 #endif
 
 #if PLATFORM(IOS_FAMILY)

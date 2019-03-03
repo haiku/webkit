@@ -241,7 +241,8 @@ def parse_args(args):
                  "'only' == only run the SKIP tests, "
                  "'always' == always skip, even if listed on the command line.")),
         optparse.make_option("--force", action="store_true", default=False,
-            help="Run all tests with PASS as expected result, even those marked SKIP in the test list (implies --skipped=ignore)"),
+            help="Run all tests with PASS as expected result, even those marked SKIP in the test list or " + \
+                 "those which are device-specific (implies --skipped=ignore)"),
         optparse.make_option("--time-out-ms",
             help="Set the timeout for each test"),
         optparse.make_option("--order", action="store", default="natural",
@@ -371,8 +372,7 @@ def _print_expectations(port, options, args, logging_stream):
 def _set_up_derived_options(port, options):
     """Sets the options values that depend on other options values."""
     if not options.child_processes:
-        options.child_processes = os.environ.get("WEBKIT_TEST_CHILD_PROCESSES",
-                                                 str(port.default_child_processes()))
+        options.child_processes = os.environ.get('WEBKIT_TEST_CHILD_PROCESSES')
 
     if not options.configuration:
         options.configuration = port.default_configuration()

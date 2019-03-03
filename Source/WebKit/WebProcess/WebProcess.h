@@ -25,8 +25,8 @@
 
 #pragma once
 
+#include "AuxiliaryProcess.h"
 #include "CacheModel.h"
-#include "ChildProcess.h"
 #include "PluginProcessConnectionManager.h"
 #include "ResourceCachesToClear.h"
 #include "SandboxExtension.h"
@@ -73,7 +73,6 @@ struct MockMediaDevice;
 struct PluginInfo;
 struct PrewarmInformation;
 struct SecurityOriginData;
-struct SoupNetworkProxySettings;
 
 #if ENABLE(SERVICE_WORKER)
 struct ServiceWorkerContextData;
@@ -106,7 +105,7 @@ struct WebProcessCreationParameters;
 struct WebsiteData;
 struct WebsiteDataStoreParameters;
 
-class WebProcess : public ChildProcess {
+class WebProcess : public AuxiliaryProcess {
 public:
     static WebProcess& singleton();
     static constexpr ProcessType processType = ProcessType::WebContent;
@@ -175,11 +174,9 @@ public:
 
     LibWebRTCNetwork& libWebRTCNetwork();
 
-    void setCacheModel(uint32_t);
+    void setCacheModel(CacheModel);
 
     void ensureLegacyPrivateBrowsingSessionInNetworkProcess();
-    void addWebsiteDataStore(WebsiteDataStoreParameters&&);
-    void destroySession(PAL::SessionID);
 
     void pageDidEnterWindow(uint64_t pageID);
     void pageWillLeaveWindow(uint64_t pageID);
@@ -190,6 +187,8 @@ public:
     RetainPtr<CFDataRef> sourceApplicationAuditData() const;
     void destroyRenderingResources();
 #endif
+
+    const String& uiProcessBundleIdentifier() const { return m_uiProcessBundleIdentifier; }
 
     void updateActivePages();
     void getActivePagesOriginsForTesting(CompletionHandler<void(Vector<String>&&)>&&);
@@ -266,8 +265,6 @@ private:
 
     void processSuspensionCleanupTimerFired();
 
-    void clearCachedCredentials();
-
     void platformTerminate();
 
     void markIsNoLongerPrewarmed();
@@ -321,9 +318,7 @@ private:
     void gamepadConnected(const GamepadData&);
     void gamepadDisconnected(unsigned index);
 #endif
-#if USE(SOUP)
-    void setNetworkProxySettings(const WebCore::SoupNetworkProxySettings&);
-#endif
+
 #if ENABLE(SERVICE_WORKER)
     void establishWorkerContextConnectionToNetworkProcess(uint64_t pageGroupID, uint64_t pageID, const WebPreferencesStore&, PAL::SessionID);
     void registerServiceWorkerClients();
@@ -348,6 +343,8 @@ private:
     enum class ShouldAcknowledgeWhenReadyToSuspend { No, Yes };
     void actualPrepareToSuspend(ShouldAcknowledgeWhenReadyToSuspend);
 
+    bool hasPageRequiringPageCacheWhileSuspended() const;
+
     void ensureAutomationSessionProxy(const String& sessionIdentifier);
     void destroyAutomationSessionProxy();
 
@@ -357,10 +354,10 @@ private:
     enum class CPUMonitorUpdateReason { LimitHasChanged, VisibilityHasChanged };
     void updateCPUMonitorState(CPUMonitorUpdateReason);
 
-    // ChildProcess
-    void initializeProcess(const ChildProcessInitializationParameters&) override;
-    void initializeProcessName(const ChildProcessInitializationParameters&) override;
-    void initializeSandbox(const ChildProcessInitializationParameters&, SandboxInitializationParameters&) override;
+    // AuxiliaryProcess
+    void initializeProcess(const AuxiliaryProcessInitializationParameters&) override;
+    void initializeProcessName(const AuxiliaryProcessInitializationParameters&) override;
+    void initializeSandbox(const AuxiliaryProcessInitializationParameters&, SandboxInitializationParameters&) override;
     void initializeConnection(IPC::Connection*) override;
     bool shouldTerminate() override;
     void terminate() override;
@@ -376,7 +373,7 @@ private:
     void resetMockMediaDevices();
 #endif
 
-    void platformInitializeProcess(const ChildProcessInitializationParameters&);
+    void platformInitializeProcess(const AuxiliaryProcessInitializationParameters&);
 
     // IPC::Connection::Client
     friend class WebConnectionToUIProcess;
@@ -397,6 +394,8 @@ private:
 #endif
 #endif
 
+    void clearCurrentModifierStateForTesting();
+
     RefPtr<WebConnectionToUIProcess> m_webConnection;
 
     HashMap<uint64_t, RefPtr<WebPage>> m_pageMap;
@@ -413,7 +412,7 @@ private:
     HashSet<String> m_plugInAutoStartOrigins;
 
     bool m_hasSetCacheModel { false };
-    CacheModel m_cacheModel { CacheModelDocumentViewer };
+    CacheModel m_cacheModel { CacheModel::DocumentViewer };
 
 #if PLATFORM(COCOA)
     WTF::MachSendRight m_compositingRenderServerPort;
@@ -428,6 +427,7 @@ private:
 
     TextCheckerState m_textCheckerState;
 
+    String m_uiProcessBundleIdentifier;
     RefPtr<NetworkProcessConnection> m_networkProcessConnection;
     WebLoaderStrategy& m_webLoaderStrategy;
 
@@ -463,7 +463,7 @@ private:
     bool m_suppressMemoryPressureHandler { false };
 #if PLATFORM(MAC)
     std::unique_ptr<WebCore::CPUMonitor> m_cpuMonitor;
-    std::optional<double> m_cpuLimit;
+    Optional<double> m_cpuLimit;
 
     enum class ProcessType { Inspector, ServiceWorker, PrewarmedWebContent, WebContent };
     ProcessType m_processType { ProcessType::WebContent };
@@ -476,6 +476,7 @@ private:
 #if PLATFORM(WAYLAND)
     std::unique_ptr<WaylandCompositorDisplay> m_waylandCompositorDisplay;
 #endif
+    bool m_isSuspending { false };
 };
 
 } // namespace WebKit

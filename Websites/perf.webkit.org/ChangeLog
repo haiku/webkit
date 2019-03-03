@@ -1,3 +1,135 @@
+2019-01-17  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Analyzing a chart that does not exist should not halt whole run-analysis script.
+        https://bugs.webkit.org/show_bug.cgi?id=193563
+
+        Reviewed by Ryosuke Niwa.
+
+        Halting whole run-analysis script while there is any invalid chart specified in Manifest makes the script fragile.
+        Run-analysis is also responsible for adding retry and sending notification which should not be block by this error.
+        Skipping analyzing the corresponding configuration seems reasonable.
+
+        * public/v3/models/measurement-set.js:
+        (MeasurementSet.prototype._ensureClusterPromise): Only add callback when callback is specified.
+        This will help to fix 'UnhandledPromiseRejectionWarning' while running the test.
+        * tools/js/measurement-set-analyzer.js:
+        (MeasurementSetAnalyzer.prototype.async._analyzeMeasurementSet): Catch the exception while failing to fetch a measurement set and skip the analysis for this config.
+        * unit-tests/measurement-set-analyzer-tests.js: Added unit tests for this.
+
+2019-01-17  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Updating commit in OSBuildFetcher should respect revision range in config.
+        https://bugs.webkit.org/show_bug.cgi?id=193558
+
+        Reviewed by Ryosuke Niwa.
+
+        OSBuildFetcher._fetchAvailableBuilds should filter out commits those are not in
+        revision range specified by cofnig.
+
+        * server-tests/tools-os-build-fetcher-tests.js: Added a unit test for this change.
+        * tools/js/os-build-fetcher.js:
+        (prototype.async._fetchAvailableBuilds): Filter out commits from update list if commit
+        revision is out of range.
+
+2018-12-31  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Test group results notification should not say a build request to build had failed even when it had successfully completed.
+        https://bugs.webkit.org/show_bug.cgi?id=193064
+
+        Reviewed by Ryosuke Niwa.
+
+        Should show 'Build completed' or 'Build failed' for build type build requests.
+
+        * browser-tests/test-group-result-page-tests.js: Added a unit test to guard this bug.
+        * tools/js/test-group-result-page.js: Show 'Build completed' or 'Build failed' for build type build requests.
+
+2018-12-21  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Add UI in analysis task page to show commit testability information.
+        https://bugs.webkit.org/show_bug.cgi?id=192972
+
+        Reviewed by Ryosuke Niwa.
+
+        Add UI in custom analysis task configuration and customizable test group form to show testability information.
+        Fix a bug in 'CustomAnalysisTaskConfigurator._updateCommitSetMap' that 'currentComparison' is incorrectly set.
+        SQL to update existing database:
+            ALTER TABLE commits ADD COLUMN IF NOT EXISTS commit_testability varchar(128) DEFAULT NULL;
+
+        * browser-tests/custom-analysis-task-configurator-tests.js: Added a unit test for the bug in
+        'CustomAnalysisTaskConfigurator._updateCommitSetMap'.
+        Added a unit test to make sure 'CustomAnalysisTaskConfigurator' still works when commit fetching never returns.
+        * browser-tests/index.html: Imported ''custom-analysis-task-configurator-tests.js'.
+        * init-database.sql: Increase 'commit_testability' field length from 64 characters to 128.
+        * public/v3/components/custom-analysis-task-configurator.js: Added UI to show testability information.
+        (CustomAnalysisTaskConfigurator):
+        (CustomAnalysisTaskConfigurator.prototype._didUpdateSelectedPlatforms): Should reset related field for corresponding
+        repositories that user does not specify revision.
+        (CustomAnalysisTaskConfigurator.prototype._updateMapFromSpecifiedRevisionsForConfiguration): A helper function
+        to update '_specifiedCommits' and '_invalidRevisionsByConfiguration' per '_specifiedRevisions'.
+        (CustomAnalysisTaskConfigurator.prototype.render):
+        (CustomAnalysisTaskConfigurator.prototype._updateCommitSetMap): Fixed a bug that 'currentComparison' is incorrectly set.
+        (CustomAnalysisTaskConfigurator.prototype._computeCommitSet):
+        (CustomAnalysisTaskConfigurator.prototype.async._fetchCommitsForConfiguration):
+        (CustomAnalysisTaskConfigurator.prototype.async._resolveRevision):
+        (CustomAnalysisTaskConfigurator.prototype._buildRevisionTable):
+        (CustomAnalysisTaskConfigurator.prototype._buildTestabilityList):
+        (CustomAnalysisTaskConfigurator.prototype._selectRepositoryGroup):
+        (CustomAnalysisTaskConfigurator.prototype._buildRevisionInput):
+        (CustomAnalysisTaskConfigurator.cssTemplate):
+        * public/v3/components/customizable-test-group-form.js: Added UI to show testability information.
+        (CustomizableTestGroupForm.prototype._renderCustomRevisionTable):
+        (CustomizableTestGroupForm.prototype._constructTestabilityRows.):
+        (CustomizableTestGroupForm.prototype._constructTestabilityRows):
+        (CustomizableTestGroupForm.prototype._constructRevisionRadioButtons):
+        Changing either revision editor or radio button should trigger a re-render as testability
+        information for updated revision may change.
+        (CustomizableTestGroupForm.cssTemplate):
+        * public/v3/models/commit-set.js:
+        (IntermediateCommitSet.prototype.commitsWithTestability): Renamed from 'commitsWithTestabilityWarnings'.
+        (IntermediateCommitSet.prototype.commitsWithTestabilityWarnings): Deleted.
+
+2018-12-14  Dewei Zhu  <dewei_zhu@apple.com>
+
+        Extend commits table to contain testability information.
+        https://bugs.webkit.org/show_bug.cgi?id=191557
+
+        Reviewed by Ryosuke Niwa.
+
+        Added the ability to store testability message in commits table.
+        Refactored '/api/report-commits' to support updating commit only.
+        Updated os version syncing script to be able to update testability information.
+
+        * init-database.sql: Added 'commit_testability' field to 'commits' table.
+        * public/api/report-commits.php: Refactor this api to allow only update existing commits.
+        * public/include/commit-log-fetcher.php: Expose testability warning information in this API.
+        * public/include/commit-updater.php: Added 'CommitUpdater' to manage commit insert and update.
+        * public/v3/models/commit-log.js: CommitLog object should expose testability warning information.
+        (CommitLog.prototype.updateSingleton):
+        (CommitLog.prototype.testability):
+        * public/v3/models/commit-set.js: Added 'commitsWithTestability' and 'commits' to CommitSet and
+        IntermediateCommitSet instances.
+        (CommitSet.prototype.commitsWithTestability):
+        (CommitSet.prototype.commits):
+        (IntermediateCommitSet.prototype.commitsWithTestability):
+        (IntermediateCommitSet.prototype.commits):
+        * server-tests/api-report-commits-tests.js: Added unit tests for '/api/report-commits' when `insert=false`.
+        * server-tests/tools-os-build-fetcher-tests.js: Added and updated unit tests.
+        * tools/js/os-build-fetcher.js: Added the ability to update commit testability warnings.
+        (async.fetchReportAndUpdateCommits):
+        (prototype.async.fetchReportAndUpdateBuilds):
+        (prototype.async._fetchAvailableBuilds):
+        (prototype.async._commitsForAvailableBuilds):
+        (prototype._commitsWithinRange):
+        (prototype.async._reportCommits):
+        (fetchAndReportAllInOrder): Deleted.
+        (prototype.fetchAndReportNewBuilds): Deleted.
+        (prototype._fetchAvailableBuilds): Deleted.
+        (prototype._commitsForAvailableBuilds): Deleted.
+        (prototype._submitCommits): Deleted.
+        * tools/sync-os-versions.js:
+        * unit-tests/commit-log-tests.js: Added a unit test for 'testability'.
+        * unit-tests/commit-set-tests.js: Added unit tests for 'commitsWithTestability'.
+
 2018-11-16  Ryosuke Niwa  <rniwa@webkit.org>
 
         Manifest file can contain a test metric which references a non-existent test

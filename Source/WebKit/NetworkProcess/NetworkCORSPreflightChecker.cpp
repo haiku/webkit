@@ -31,9 +31,7 @@
 #include "Logging.h"
 #include "NetworkLoadParameters.h"
 #include "NetworkProcess.h"
-#include "SessionTracker.h"
 #include <WebCore/CrossOriginAccessControl.h>
-#include <WebCore/SecurityOrigin.h>
 
 #define RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(m_parameters.sessionID.isAlwaysOnLoggingAllowed(), Network, "%p - NetworkCORSPreflightChecker::" fmt, this, ##__VA_ARGS__)
 
@@ -41,8 +39,9 @@ namespace WebKit {
 
 using namespace WebCore;
 
-NetworkCORSPreflightChecker::NetworkCORSPreflightChecker(Parameters&& parameters, bool shouldCaptureExtraNetworkLoadMetrics, CompletionCallback&& completionCallback)
+NetworkCORSPreflightChecker::NetworkCORSPreflightChecker(NetworkProcess& networkProcess, Parameters&& parameters, bool shouldCaptureExtraNetworkLoadMetrics, CompletionCallback&& completionCallback)
     : m_parameters(WTFMove(parameters))
+    , m_networkProcess(networkProcess)
     , m_completionCallback(WTFMove(completionCallback))
     , m_shouldCaptureExtraNetworkLoadMetrics(shouldCaptureExtraNetworkLoadMetrics)
 {
@@ -66,14 +65,13 @@ void NetworkCORSPreflightChecker::startPreflight()
     NetworkLoadParameters loadParameters;
     loadParameters.sessionID = m_parameters.sessionID;
     loadParameters.request = createAccessControlPreflightRequest(m_parameters.originalRequest, m_parameters.sourceOrigin, m_parameters.referrer);
-    loadParameters.shouldFollowRedirects = false;
     if (!m_parameters.userAgent.isNull())
         loadParameters.request.setHTTPHeaderField(HTTPHeaderName::UserAgent, m_parameters.userAgent);
 
     if (m_shouldCaptureExtraNetworkLoadMetrics)
         m_loadInformation = NetworkTransactionInformation { NetworkTransactionInformation::Type::Preflight, loadParameters.request, { }, { } };
 
-    if (auto* networkSession = SessionTracker::networkSession(loadParameters.sessionID)) {
+    if (auto* networkSession = m_networkProcess->networkSession(loadParameters.sessionID)) {
         m_task = NetworkDataTask::create(*networkSession, *this, WTFMove(loadParameters));
         m_task->resume();
     } else
@@ -103,7 +101,7 @@ void NetworkCORSPreflightChecker::didReceiveChallenge(WebCore::AuthenticationCha
         return;
     }
 
-    NetworkProcess::singleton().authenticationManager().didReceiveAuthenticationChallenge(m_parameters.pageID, m_parameters.frameID, challenge, WTFMove(completionHandler));
+    m_networkProcess->authenticationManager().didReceiveAuthenticationChallenge(m_parameters.pageID, m_parameters.frameID, challenge, WTFMove(completionHandler));
 }
 
 void NetworkCORSPreflightChecker::didReceiveResponse(WebCore::ResourceResponse&& response, ResponseCompletionHandler&& completionHandler)

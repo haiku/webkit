@@ -27,19 +27,21 @@
 #include "NetworkProcess.h"
 
 #include "NetworkProcessCreationParameters.h"
-#include "WebCookieManager.h"
 #include <WebCore/CurlContext.h>
 #include <WebCore/NetworkStorageSession.h>
 #include <WebCore/NotImplemented.h>
 
-using namespace WebCore;
-
 namespace WebKit {
 
-void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters& parameters)
+using namespace WebCore;
+
+void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters&)
 {
-    if (!parameters.cookiePersistentStorageFile.isEmpty())
-        supplement<WebCookieManager>()->setCookiePersistentStorage(parameters.cookiePersistentStorageFile);
+}
+
+std::unique_ptr<WebCore::NetworkStorageSession> NetworkProcess::platformCreateDefaultStorageSession() const
+{
+    return std::make_unique<WebCore::NetworkStorageSession>(PAL::SessionID::defaultSessionID(), nullptr);
 }
 
 void NetworkProcess::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)
@@ -52,9 +54,10 @@ void NetworkProcess::clearCacheForAllOrigins(uint32_t cachesToClear)
     notImplemented();
 }
 
-void NetworkProcess::clearDiskCache(WallTime, Function<void()>&&)
+void NetworkProcess::clearDiskCache(WallTime, CompletionHandler<void()>&& completionHandler)
 {
     notImplemented();
+    completionHandler();
 }
 
 void NetworkProcess::platformTerminate()
@@ -85,7 +88,7 @@ void NetworkProcess::platformProcessDidTransitionToBackground()
 
 void NetworkProcess::setNetworkProxySettings(PAL::SessionID sessionID, WebCore::CurlProxySettings&& settings)
 {
-    if (auto* networkStorageSession = NetworkStorageSession::storageSession(sessionID))
+    if (auto* networkStorageSession = storageSession(sessionID))
         networkStorageSession->setProxySettings(WTFMove(settings));
     else
         ASSERT_NOT_REACHED();

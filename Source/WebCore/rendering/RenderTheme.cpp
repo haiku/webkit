@@ -25,7 +25,6 @@
 #include "ControlStates.h"
 #include "Document.h"
 #include "FileList.h"
-#include "FileSystem.h"
 #include "FloatConversion.h"
 #include "FloatRoundedRect.h"
 #include "FocusController.h"
@@ -45,6 +44,7 @@
 #include "SpinButtonElement.h"
 #include "StringTruncator.h"
 #include "TextControlInnerElements.h"
+#include <wtf/FileSystem.h>
 #include <wtf/NeverDestroyed.h>
 
 #if ENABLE(METER_ELEMENT)
@@ -1216,13 +1216,22 @@ void RenderTheme::adjustSearchFieldResultsButtonStyle(StyleResolver&, RenderStyl
 void RenderTheme::purgeCaches()
 {
     m_colorCache = ColorCache();
+    m_darkColorCache = ColorCache();
 }
 
 void RenderTheme::platformColorsDidChange()
 {
     m_colorCache = ColorCache();
+    m_darkColorCache = ColorCache();
 
     Page::updateStyleForAllPagesAfterGlobalChangeInEnvironment();
+}
+
+auto RenderTheme::colorCache(OptionSet<StyleColor::Options> options) const -> ColorCache&
+{
+    if (options.contains(StyleColor::Options::UseDarkAppearance))
+        return m_darkColorCache;
+    return m_colorCache;
 }
 
 FontCascadeDescription& RenderTheme::cachedSystemFontDescription(CSSValueID systemFontID) const
@@ -1411,9 +1420,15 @@ void RenderTheme::setCustomFocusRingColor(const Color& color)
     customFocusRingColor() = color;
 }
 
-Color RenderTheme::focusRingColor(OptionSet<StyleColor::Options> options)
+Color RenderTheme::focusRingColor(OptionSet<StyleColor::Options> options) const
 {
-    return customFocusRingColor().isValid() ? customFocusRingColor() : RenderTheme::singleton().platformFocusRingColor(options);
+    if (customFocusRingColor().isValid())
+        return customFocusRingColor();
+
+    auto& cache = colorCache(options);
+    if (!cache.systemFocusRingColor.isValid())
+        cache.systemFocusRingColor = platformFocusRingColor(options);
+    return cache.systemFocusRingColor;
 }
 
 String RenderTheme::fileListDefaultLabel(bool multipleFilesAllowed) const

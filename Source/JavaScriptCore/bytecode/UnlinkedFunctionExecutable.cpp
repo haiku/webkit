@@ -133,7 +133,7 @@ void UnlinkedFunctionExecutable::visitChildren(JSCell* cell, SlotVisitor& visito
     visitor.append(thisObject->m_unlinkedCodeBlockForConstruct);
 }
 
-FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, std::optional<int> overrideLineNumber, Intrinsic intrinsic)
+FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& passedParentSource, Optional<int> overrideLineNumber, Intrinsic intrinsic)
 {
     const SourceCode& parentSource = !m_isBuiltinDefaultClassConstructor ? passedParentSource : BuiltinExecutables::defaultConstructorSourceCode(constructorKind());
     unsigned firstLine = parentSource.firstLine().oneBasedInt() + m_firstLineOffset;
@@ -174,7 +174,7 @@ FunctionExecutable* UnlinkedFunctionExecutable::link(VM& vm, const SourceCode& p
 
 UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
     const Identifier& name, ExecState& exec, const SourceCode& source, 
-    JSObject*& exception, int overrideLineNumber, std::optional<int> functionConstructorParametersEndPosition)
+    JSObject*& exception, int overrideLineNumber, Optional<int> functionConstructorParametersEndPosition)
 {
     ParserError error;
     VM& vm = exec.vm();
@@ -192,6 +192,18 @@ UnlinkedFunctionExecutable* UnlinkedFunctionExecutable::fromGlobalCode(
     }
 
     return executable;
+}
+
+UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(CodeSpecializationKind specializationKind)
+{
+    switch (specializationKind) {
+    case CodeForCall:
+        return m_unlinkedCodeBlockForCall.get();
+    case CodeForConstruct:
+        return m_unlinkedCodeBlockForConstruct.get();
+    }
+    ASSERT_NOT_REACHED();
+    return nullptr;
 }
 
 UnlinkedFunctionCodeBlock* UnlinkedFunctionExecutable::unlinkedCodeBlockFor(

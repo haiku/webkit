@@ -33,7 +33,7 @@
 #include <wtf/text/CString.h>
 
 #if ENABLE(NETSCAPE_PLUGIN_METADATA_CACHE)
-#include "FileSystem.h"
+#include <wtf/FileSystem.h>
 #endif
 
 namespace WebCore {
@@ -141,7 +141,7 @@ bool PluginDatabase::refresh()
             remove(oldPackage.get());
         }
 
-        RefPtr<PluginPackage> package = PluginPackage::createPackage(*it, lastModified);
+        auto package = PluginPackage::createPackage(*it, lastModified);
         if (package && add(package.releaseNonNull()))
             pluginSetChanged = true;
     }

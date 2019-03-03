@@ -32,6 +32,7 @@
 #import "GPUTexture.h"
 #import "GPUTextureFormatEnum.h"
 #import "Logging.h"
+#import "WebGPULayer.h"
 
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -45,7 +46,7 @@ RefPtr<GPUSwapChain> GPUSwapChain::create()
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
-    platformLayer = adoptNS([[CAMetalLayer alloc] init]);
+    platformLayer = adoptNS([[WebGPULayer alloc] init]);
 
     [platformLayer setOpaque:0];
     [platformLayer setName:@"WebGPU Layer"];
@@ -66,19 +67,20 @@ RefPtr<GPUSwapChain> GPUSwapChain::create()
 GPUSwapChain::GPUSwapChain(PlatformSwapLayerSmartPtr&& platformLayer)
     : m_platformSwapLayer(WTFMove(platformLayer))
 {
+    platformLayer.get().swapChain = this;
 }
 
 void GPUSwapChain::setDevice(const GPUDevice& device)
 {
     if (!device.platformDevice()) {
-        LOG(WebGPU, "GPUSwapChain::setDevice(): MTLDevice does not exist!");
+        LOG(WebGPU, "GPUSwapChain::setDevice(): Invalid GPUDevice!");
         return;
     }
 
     [m_platformSwapLayer setDevice:device.platformDevice()];
 }
 
-static std::optional<PlatformTextureFormat> platformTextureFormatForGPUTextureFormat(GPUTextureFormatEnum format)
+static Optional<PlatformTextureFormat> platformTextureFormatForGPUTextureFormat(GPUTextureFormatEnum format)
 {
     switch (format) {
     case GPUTextureFormatEnum::R8G8B8A8Unorm:
@@ -91,7 +93,7 @@ static std::optional<PlatformTextureFormat> platformTextureFormatForGPUTextureFo
         return MTLPixelFormatDepth32Float_Stencil8;
     default:
         LOG(WebGPU, "GPUSwapChain::setFormat(): Invalid texture format specified!");
-        return std::nullopt;
+        return WTF::nullopt;
     }
 }
 

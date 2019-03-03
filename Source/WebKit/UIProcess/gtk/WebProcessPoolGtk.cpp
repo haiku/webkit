@@ -34,10 +34,10 @@
 #include "WebProcessCreationParameters.h"
 #include "WebProcessMessages.h"
 #include <JavaScriptCore/RemoteInspectorServer.h>
-#include <WebCore/FileSystem.h>
 #include <WebCore/GStreamerCommon.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/SchemeRegistry.h>
+#include <wtf/FileSystem.h>
 #include <wtf/glib/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
@@ -79,7 +79,7 @@ void WebProcessPool::platformInitialize()
 
 void WebProcessPool::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
-    parameters.memoryCacheDisabled = m_memoryCacheDisabled || cacheModel() == CacheModelDocumentViewer;
+    parameters.memoryCacheDisabled = m_memoryCacheDisabled || cacheModel() == CacheModel::DocumentViewer;
     parameters.proxySettings = m_networkProxySettings;
 
     parameters.shouldAlwaysUseComplexTextCodePath = true;

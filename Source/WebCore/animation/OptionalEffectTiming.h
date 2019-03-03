@@ -27,20 +27,21 @@
 
 #include "FillMode.h"
 #include "PlaybackDirection.h"
+#include "WebAnimationUtilities.h"
 #include <wtf/Variant.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
 struct OptionalEffectTiming {
-    std::optional<double> delay;
-    std::optional<double> endDelay;
-    std::optional<FillMode> fill;
-    std::optional<double> iterationStart;
-    std::optional<double> iterations;
-    std::optional<Variant<double, String>> duration;
-    std::optional<PlaybackDirection> direction;
+    Optional<Variant<double, String>> duration;
+    Optional<double> iterations; // This value cannot be a MarkableDouble since we need to check for a NaN value.
+    MarkableDouble delay;
+    MarkableDouble endDelay;
+    MarkableDouble iterationStart;
     String easing;
+    OptionalFillMode fill;
+    OptionalPlaybackDirection direction;
 };
 
 } // namespace WebCore

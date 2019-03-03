@@ -25,6 +25,9 @@
 // linking PluginProcessGTK2. I don't know why this is necessary. These
 // annotations should be revisited after removing PluginProcessGTK2.
 
+NetworkProcess/Classifier/WebResourceLoadStatisticsStore.cpp
+NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.cpp
+
 NetworkProcess/Cookies/soup/WebCookieManagerSoup.cpp
 
 NetworkProcess/CustomProtocols/LegacyCustomProtocolManager.cpp
@@ -39,6 +42,7 @@ NetworkProcess/soup/NetworkProcessMainSoup.cpp
 NetworkProcess/soup/NetworkProcessSoup.cpp
 NetworkProcess/soup/NetworkSessionSoup.cpp
 NetworkProcess/soup/RemoteNetworkingContextSoup.cpp
+NetworkProcess/soup/WebKitSoupRequestInputStream.cpp
 
 NetworkProcess/webrtc/LibWebRTCSocketClient.cpp
 NetworkProcess/webrtc/NetworkRTCMonitor.cpp
@@ -101,7 +105,7 @@ Shared/linux/WebMemorySamplerLinux.cpp
 Shared/soup/WebCoreArgumentCodersSoup.cpp @no-unify
 Shared/soup/WebErrorsSoup.cpp
 
-Shared/unix/ChildProcessMain.cpp @no-unify
+Shared/unix/AuxiliaryProcessMain.cpp @no-unify
 
 UIProcess/AcceleratedDrawingAreaProxy.cpp
 UIProcess/BackingStore.cpp
@@ -109,8 +113,6 @@ UIProcess/DefaultUndoController.cpp
 UIProcess/DrawingAreaProxyImpl.cpp
 UIProcess/LegacySessionStateCodingNone.cpp
 UIProcess/WebGrammarDetail.cpp
-UIProcess/WebResourceLoadStatisticsStore.cpp
-UIProcess/WebResourceLoadStatisticsTelemetry.cpp
 UIProcess/WebTextChecker.cpp
 UIProcess/WebTextCheckerClient.cpp
 UIProcess/WebViewportAttributes.cpp
@@ -216,6 +218,7 @@ UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp @no-unify
 
 UIProcess/WebStorage/StorageManager.cpp
 
+UIProcess/WebsiteData/soup/WebsiteDataStoreSoup.cpp
 UIProcess/WebsiteData/unix/WebsiteDataStoreUnix.cpp
 
 UIProcess/cairo/BackingStoreCairo.cpp @no-unify
@@ -411,10 +414,9 @@ WebProcess/WebPage/gtk/WebInspectorUIGtk.cpp
 WebProcess/WebPage/gtk/WebPageGtk.cpp
 WebProcess/WebPage/gtk/WebPrintOperationGtk.cpp
 
+WebProcess/glib/WebProcessGLib.cpp
+
 WebProcess/gtk/WaylandCompositorDisplay.cpp
 WebProcess/gtk/WebProcessMainGtk.cpp
-
-WebProcess/soup/WebKitSoupRequestInputStream.cpp
-WebProcess/soup/WebProcessSoup.cpp
 
 WebProcess/Plugins/Netscape/NetscapePluginNone.cpp

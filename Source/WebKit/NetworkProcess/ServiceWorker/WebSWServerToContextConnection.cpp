@@ -33,15 +33,17 @@
 #include "WebSWContextManagerConnectionMessages.h"
 #include <WebCore/ServiceWorkerContextData.h>
 
+namespace WebKit {
 using namespace WebCore;
 
-namespace WebKit {
-
-WebSWServerToContextConnection::WebSWServerToContextConnection(const SecurityOriginData& securityOrigin, Ref<IPC::Connection>&& connection)
+WebSWServerToContextConnection::WebSWServerToContextConnection(NetworkProcess& networkProcess, const SecurityOriginData& securityOrigin, Ref<IPC::Connection>&& connection)
     : SWServerToContextConnection(securityOrigin)
     , m_ipcConnection(WTFMove(connection))
+    , m_networkProcess(networkProcess)
 {
 }
+
+WebSWServerToContextConnection::~WebSWServerToContextConnection() = default;
 
 IPC::Connection* WebSWServerToContextConnection::messageSenderConnection()
 {
@@ -58,9 +60,9 @@ void WebSWServerToContextConnection::connectionClosed()
     // FIXME: Do what here...?
 }
 
-void WebSWServerToContextConnection::installServiceWorkerContext(const ServiceWorkerContextData& data, PAL::SessionID sessionID)
+void WebSWServerToContextConnection::installServiceWorkerContext(const ServiceWorkerContextData& data, PAL::SessionID sessionID, const String& userAgent)
 {
-    send(Messages::WebSWContextManagerConnection::InstallServiceWorker { data, sessionID });
+    send(Messages::WebSWContextManagerConnection::InstallServiceWorker { data, sessionID, userAgent });
 }
 
 void WebSWServerToContextConnection::fireInstallEvent(ServiceWorkerIdentifier serviceWorkerIdentifier)
@@ -83,7 +85,7 @@ void WebSWServerToContextConnection::syncTerminateWorker(ServiceWorkerIdentifier
     sendSync(Messages::WebSWContextManagerConnection::SyncTerminateWorker(serviceWorkerIdentifier), Messages::WebSWContextManagerConnection::SyncTerminateWorker::Reply());
 }
 
-void WebSWServerToContextConnection::findClientByIdentifierCompleted(uint64_t requestIdentifier, const std::optional<ServiceWorkerClientData>& data, bool hasSecurityError)
+void WebSWServerToContextConnection::findClientByIdentifierCompleted(uint64_t requestIdentifier, const Optional<ServiceWorkerClientData>& data, bool hasSecurityError)
 {
     send(Messages::WebSWContextManagerConnection::FindClientByIdentifierCompleted { requestIdentifier, data, hasSecurityError });
 }
@@ -105,7 +107,7 @@ void WebSWServerToContextConnection::didFinishSkipWaiting(uint64_t callbackID)
 
 void WebSWServerToContextConnection::connectionMayNoLongerBeNeeded()
 {
-    NetworkProcess::singleton().swContextConnectionMayNoLongerBeNeeded(*this);
+    m_networkProcess->swContextConnectionMayNoLongerBeNeeded(*this);
 }
 
 void WebSWServerToContextConnection::terminate()

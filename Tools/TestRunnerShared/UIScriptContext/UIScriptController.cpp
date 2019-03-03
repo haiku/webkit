@@ -336,6 +336,16 @@ JSRetainPtr<JSStringRef> UIScriptController::formInputLabel() const
     return nullptr;
 }
 
+double UIScriptController::contentOffsetX() const
+{
+    return 0;
+}
+
+double UIScriptController::contentOffsetY() const
+{
+    return 0;
+}
+
 void UIScriptController::scrollToOffset(long x, long y)
 {
 }
@@ -380,12 +390,12 @@ double UIScriptController::maximumZoomScale() const
     return 1;
 }
 
-std::optional<bool> UIScriptController::stableStateOverride() const
+Optional<bool> UIScriptController::stableStateOverride() const
 {
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-void UIScriptController::setStableStateOverride(std::optional<bool>)
+void UIScriptController::setStableStateOverride(Optional<bool>)
 {
 }
 
@@ -510,6 +520,10 @@ JSObjectRef UIScriptController::attachmentInfo(JSStringRef)
     return nullptr;
 }
 
+void UIScriptController::setKeyboardInputModeIdentifier(JSStringRef)
+{
+}
+
 #endif
 
 #if !PLATFORM(COCOA)
@@ -553,6 +567,16 @@ bool UIScriptController::isShowingDataListSuggestions() const
 
 void UIScriptController::overridePreference(JSStringRef, JSStringRef)
 {
+}
+
+JSRetainPtr<JSStringRef> UIScriptController::lastUndoLabel() const
+{
+    return nullptr;
+}
+
+JSRetainPtr<JSStringRef> UIScriptController::firstRedoLabel() const
+{
+    return nullptr;
 }
 
 #endif // !PLATFORM(COCOA)

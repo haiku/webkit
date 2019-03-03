@@ -489,6 +489,67 @@ Object.defineProperty(Array, "shallowEqual",
     }
 });
 
+Object.defineProperty(Array, "diffArrays",
+{
+    value(initialArray, currentArray, onEach)
+    {
+        let initialSet = new Set(initialArray);
+        let currentSet = new Set(currentArray);
+        let indexInitial = 0;
+        let indexCurrent = 0;
+        let deltaInitial = 0;
+        let deltaCurrent = 0;
+
+        let i = 0;
+        while (true) {
+            if (indexInitial >= initialArray.length || indexCurrent >= currentArray.length)
+                break;
+
+            let initial = initialArray[indexInitial];
+            let current = currentArray[indexCurrent];
+
+            if (initial === current)
+                onEach(current, 0);
+            else if (currentSet.has(initial)) {
+                if (initialSet.has(current)) {
+                    // Moved.
+                    onEach(current, 0);
+                } else {
+                    // Added.
+                    onEach(current, 1);
+                    --i;
+                    ++deltaCurrent;
+                }
+            } else {
+                // Removed.
+                onEach(initial, -1);
+                if (!initialSet.has(current)) {
+                    // Added.
+                    onEach(current, 1);
+                } else {
+                    --i;
+                    ++deltaInitial;
+                }
+            }
+
+            ++i;
+            indexInitial = i + deltaInitial;
+            indexCurrent = i + deltaCurrent;
+        }
+
+        for (let i = indexInitial; i < initialArray.length; ++i) {
+            // Removed.
+            onEach(initialArray[i], -1);
+        }
+
+        for (let i = indexCurrent; i < currentArray.length; ++i) {
+            // Added.
+            onEach(currentArray[i], 1);
+        }
+
+    }
+});
+
 Object.defineProperty(Array.prototype, "lastValue",
 {
     get()
@@ -1613,17 +1674,13 @@ function isFunctionStringNativeCode(str)
     return str.endsWith("{\n    [native code]\n}");
 }
 
-function isTextLikelyMinified(content)
+function whitespaceRatio(content, start, end)
 {
-    const autoFormatMaxCharactersToCheck = 5000;
-    const autoFormatWhitespaceRatio = 0.2;
-
     let whitespaceScore = 0;
-    let size = Math.min(autoFormatMaxCharactersToCheck, content.length);
+    let size = end - start;
 
-    for (let i = 0; i < size; i++) {
+    for (let i = start; i < end; i++) {
         let char = content[i];
-
         if (char === " ")
             whitespaceScore++;
         else if (char === "\t")
@@ -1633,7 +1690,28 @@ function isTextLikelyMinified(content)
     }
 
     let ratio = whitespaceScore / size;
-    return ratio < autoFormatWhitespaceRatio;
+    return ratio;
+}
+
+function isTextLikelyMinified(content)
+{
+    const autoFormatMaxCharactersToCheck = 2500;
+    const autoFormatWhitespaceRatio = 0.2;
+
+    if (content.length <= autoFormatMaxCharactersToCheck) {
+        let ratio = whitespaceRatio(content, 0, content.length);
+        return ratio < autoFormatWhitespaceRatio;
+    }
+
+    let startRatio = whitespaceRatio(content, 0, autoFormatMaxCharactersToCheck);
+    if (startRatio < autoFormatWhitespaceRatio)
+        return true;
+
+    let endRatio = whitespaceRatio(content, content.length - autoFormatMaxCharactersToCheck, content.length)
+    if (endRatio < autoFormatWhitespaceRatio)
+        return true;
+
+    return false;
 }
 
 function doubleQuotedString(str)
@@ -1690,11 +1768,4 @@ function blobAsText(blob, callback)
     let fileReader = new FileReader;
     fileReader.addEventListener("loadend", () => { callback(fileReader.result); });
     fileReader.readAsText(blob);
-}
-
-if (!window.handlePromiseException) {
-    window.handlePromiseException = function handlePromiseException(error)
-    {
-        console.error("Uncaught exception in Promise", error);
-    };
 }

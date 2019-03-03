@@ -30,7 +30,7 @@ messages -> WebProcess LegacyReceiver {
     PrewarmWithDomainInformation(struct WebCore::PrewarmInformation prewarmInformation)
 
     # Global preferences.
-    SetCacheModel(uint32_t cacheModel)
+    SetCacheModel(enum:uint8_t WebKit::CacheModel cacheModel)
 
     RegisterURLSchemeAsEmptyDocument(String scheme)
     RegisterURLSchemeAsSecure(String scheme)
@@ -50,11 +50,6 @@ messages -> WebProcess LegacyReceiver {
     ClearResourceLoadStatistics();
     UserPreferredLanguagesChanged(Vector<String> languages)
     FullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled)
-
-    ClearCachedCredentials()
-
-    AddWebsiteDataStore(struct WebKit::WebsiteDataStoreParameters websiteDataStoreParameters);
-    DestroySession(PAL::SessionID sessionID)
 
     # Plug-ins.
     DidAddPlugInAutoStartOriginHash(uint32_t hash, WallTime expirationTime, PAL::SessionID sessionID)
@@ -114,10 +109,6 @@ messages -> WebProcess LegacyReceiver {
     GamepadDisconnected(unsigned index)
 #endif
 
-#if USE(SOUP)
-    SetNetworkProxySettings(struct WebCore::SoupNetworkProxySettings settings)
-#endif
-
 #if ENABLE(SERVICE_WORKER)
     EstablishWorkerContextConnectionToNetworkProcess(uint64_t pageGroupID, uint64_t pageID, struct WebKit::WebPreferencesStore store, PAL::SessionID initialSessionID)
     RegisterServiceWorkerClients()
@@ -153,4 +144,6 @@ messages -> WebProcess LegacyReceiver {
     RemoveMockMediaDevice(String persistentId);
     ResetMockMediaDevices();
 #endif
+
+    ClearCurrentModifierStateForTesting()
 }

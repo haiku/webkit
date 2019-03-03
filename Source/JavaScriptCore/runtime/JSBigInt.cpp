@@ -65,7 +65,6 @@ const ClassInfo JSBigInt::s_info =
 JSBigInt::JSBigInt(VM& vm, Structure* structure, unsigned length)
     : Base(vm, structure)
     , m_length(length)
-    , m_sign(false)
 { }
 
 void JSBigInt::initialize(InitializationType initType)
@@ -189,7 +188,7 @@ JSValue JSBigInt::toPrimitive(ExecState*, PreferredPrimitiveType) const
     return const_cast<JSBigInt*>(this);
 }
 
-std::optional<uint8_t> JSBigInt::singleDigitValueForString()
+Optional<uint8_t> JSBigInt::singleDigitValueForString()
 {
     if (isZero())
         return 0;
@@ -230,12 +229,6 @@ String JSBigInt::toString(ExecState* exec, unsigned radix)
         return toStringBasePowerOfTwo(exec, this, radix);
 
     return toStringGeneric(exec, this, radix);
-}
-
-inline bool JSBigInt::isZero()
-{
-    ASSERT(length() || !sign());
-    return length() == 0;
 }
 
 // Multiplies {this} with {factor} and adds {summand} to the result.
@@ -1695,11 +1688,6 @@ bool JSBigInt::getPrimitiveNumber(ExecState* exec, double& number, JSValue& resu
     return true;
 }
 
-inline size_t JSBigInt::offsetOfData()
-{
-    return WTF::roundUpToMultipleOf<sizeof(Digit)>(sizeof(JSBigInt));
-}
-
 template <typename CharType>
 JSBigInt* JSBigInt::parseInt(ExecState* exec, CharType*  data, unsigned length, ErrorParseMode errorParseMode)
 {
@@ -1802,11 +1790,6 @@ JSBigInt* JSBigInt::parseInt(ExecState* exec, VM& vm, CharType* data, unsigned l
     return nullptr;
 }
 
-inline JSBigInt::Digit* JSBigInt::dataStorage()
-{
-    return reinterpret_cast<Digit*>(reinterpret_cast<char*>(this) + offsetOfData());
-}
-
 inline JSBigInt::Digit JSBigInt::digit(unsigned n)
 {
     ASSERT(n < length());
@@ -1818,6 +1801,7 @@ inline void JSBigInt::setDigit(unsigned n, Digit value)
     ASSERT(n < length());
     dataStorage()[n] = value;
 }
+
 JSObject* JSBigInt::toObject(ExecState* exec, JSGlobalObject* globalObject) const
 {
     return BigIntObject::create(exec->vm(), globalObject, const_cast<JSBigInt*>(this));
@@ -1967,16 +1951,16 @@ JSBigInt::ComparisonResult JSBigInt::compareToDouble(JSBigInt* x, double y)
     return ComparisonResult::Equal;
 }
 
-std::optional<JSBigInt::Digit> JSBigInt::toShiftAmount(JSBigInt* x)
+Optional<JSBigInt::Digit> JSBigInt::toShiftAmount(JSBigInt* x)
 {
     if (x->length() > 1)
-        return std::nullopt;
+        return WTF::nullopt;
     
     Digit value = x->digit(0);
     static_assert(maxLengthBits < std::numeric_limits<Digit>::max(), "maxLengthBits needs to be less than digit");
     
     if (value > maxLengthBits)
-        return std::nullopt;
+        return WTF::nullopt;
 
     return value;
 }

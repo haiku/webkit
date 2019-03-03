@@ -37,21 +37,19 @@ class Decoder;
 class DataReference;
 }
 
-namespace WebCore {
-class SocketStreamHandleImpl;
-}
-
 namespace WebKit {
+
+class NetworkProcess;
 
 class NetworkSocketStream : public RefCounted<NetworkSocketStream>, public IPC::MessageSender, public IPC::MessageReceiver, public WebCore::SocketStreamHandleClient {
 public:
-    static Ref<NetworkSocketStream> create(URL&&, PAL::SessionID, const String& credentialPartition, uint64_t, IPC::Connection&, WebCore::SourceApplicationAuditToken&&);
+    static Ref<NetworkSocketStream> create(NetworkProcess&, URL&&, PAL::SessionID, const String& credentialPartition, uint64_t, IPC::Connection&, WebCore::SourceApplicationAuditToken&&);
     ~NetworkSocketStream();
 
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&);
 
     void sendData(const IPC::DataReference&, uint64_t);
-    void sendHandshake(const IPC::DataReference&, const std::optional<WebCore::CookieRequestHeaderFieldProxy>&, uint64_t);
+    void sendHandshake(const IPC::DataReference&, const Optional<WebCore::CookieRequestHeaderFieldProxy>&, uint64_t);
     void close();
     
     // SocketStreamHandleClient
@@ -66,7 +64,7 @@ private:
     IPC::Connection* messageSenderConnection() final;
     uint64_t messageSenderDestinationID() final;
 
-    NetworkSocketStream(URL&&, PAL::SessionID, const String& credentialPartition, uint64_t, IPC::Connection&, WebCore::SourceApplicationAuditToken&&);
+    NetworkSocketStream(NetworkProcess&, URL&&, PAL::SessionID, const String& credentialPartition, uint64_t, IPC::Connection&, WebCore::SourceApplicationAuditToken&&);
 
     uint64_t m_identifier;
     IPC::Connection& m_connection;

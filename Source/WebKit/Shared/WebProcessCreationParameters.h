@@ -93,6 +93,7 @@ struct WebProcessCreationParameters {
 #if ENABLE(MEDIA_STREAM)
     SandboxExtension::Handle audioCaptureExtensionHandle;
     bool shouldCaptureAudioInUIProcess { false };
+    bool shouldCaptureVideoInUIProcess { false };
     bool shouldCaptureDisplayInUIProcess { false };
 #endif
     String mediaKeyStorageDirectory;
@@ -123,7 +124,6 @@ struct WebProcessCreationParameters {
 
     double defaultRequestTimeoutInterval { INT_MAX };
 
-    bool shouldUseTestingNetworkSession { false };
     bool shouldAlwaysUseComplexTextCodePath { false };
     bool shouldEnableMemoryPressureReliefLogging { false };
     bool shouldSuppressMemoryPressureHandler { false };

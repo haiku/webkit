@@ -44,7 +44,7 @@ public:
     // FIXME: We should implement this when we support ScrollingTreeScrollingNodes as children.
     void updateLayersAfterAncestorChange(const ScrollingTreeNode& /*changedNode*/, const FloatRect& /*fixedPositionRect*/, const FloatSize& /*cumulativeDelta*/) override { }
 
-    void handleWheelEvent(const PlatformWheelEvent&) override = 0;
+    ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override = 0;
     void setScrollPosition(const FloatPoint&) override;
     void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&) override = 0;
 
@@ -80,7 +80,10 @@ protected:
     ScrollBehaviorForFixedElements scrollBehaviorForFixedElements() const { return m_behaviorForFixed; }
 
 private:
-    void dumpProperties(WTF::TextStream&, ScrollingStateTreeAsTextBehavior) const override;
+    WEBCORE_EXPORT LayoutPoint parentToLocalPoint(LayoutPoint) const final;
+    WEBCORE_EXPORT LayoutPoint localToContentsPoint(LayoutPoint) const final;
+
+    WEBCORE_EXPORT void dumpProperties(WTF::TextStream&, ScrollingStateTreeAsTextBehavior) const override;
 
     FloatRect m_layoutViewport;
     FloatPoint m_minLayoutViewportOrigin;

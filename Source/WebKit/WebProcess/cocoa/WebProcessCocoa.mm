@@ -33,7 +33,6 @@
 #import "ObjCObjectGraph.h"
 #import "SandboxExtension.h"
 #import "SandboxInitializationParameters.h"
-#import "SessionTracker.h"
 #import "WKAPICast.h"
 #import "WKBrowsingContextHandleInternal.h"
 #import "WKCrashReporter.h"
@@ -52,7 +51,6 @@
 #import <WebCore/AXObjectCache.h>
 #import <WebCore/CPUMonitor.h>
 #import <WebCore/DisplayRefreshMonitorManager.h>
-#import <WebCore/FileSystem.h>
 #import <WebCore/FontCache.h>
 #import <WebCore/FontCascade.h>
 #import <WebCore/HistoryController.h>
@@ -73,6 +71,7 @@
 #import <pal/spi/mac/NSAccessibilitySPI.h>
 #import <pal/spi/mac/NSApplicationSPI.h>
 #import <stdio.h>
+#import <wtf/FileSystem.h>
 #import <wtf/cocoa/NSURLExtras.h>
 
 #if PLATFORM(IOS_FAMILY)
@@ -134,7 +133,7 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters&& par
     WebCore::setApplicationBundleIdentifier(parameters.uiProcessBundleIdentifier);
     WebCore::setApplicationSDKVersion(parameters.uiProcessSDKVersion);
 
-    SessionTracker::setIdentifierBase(parameters.uiProcessBundleIdentifier);
+    m_uiProcessBundleIdentifier = parameters.uiProcessBundleIdentifier;
 
 #if ENABLE(SANDBOX_EXTENSIONS)
     SandboxExtension::consumePermanently(parameters.uiProcessBundleResourcePathExtensionHandle);
@@ -209,7 +208,7 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters&& par
 #endif
 }
 
-void WebProcess::initializeProcessName(const ChildProcessInitializationParameters&)
+void WebProcess::initializeProcessName(const AuxiliaryProcessInitializationParameters&)
 {
 #if PLATFORM(MAC)
     updateProcessName();
@@ -349,7 +348,7 @@ void WebProcess::registerWithStateDumper()
 }
 #endif
 
-void WebProcess::platformInitializeProcess(const ChildProcessInitializationParameters& parameters)
+void WebProcess::platformInitializeProcess(const AuxiliaryProcessInitializationParameters& parameters)
 {
 #if PLATFORM(MAC)
 #if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
@@ -403,9 +402,9 @@ void WebProcess::platformInitializeProcess(const ChildProcessInitializationParam
 void WebProcess::stopRunLoop()
 {
 #if PLATFORM(MAC) && ENABLE(WEBPROCESS_NSRUNLOOP)
-    ChildProcess::stopNSRunLoop();
+    AuxiliaryProcess::stopNSRunLoop();
 #else
-    ChildProcess::stopNSAppRunLoop();
+    AuxiliaryProcess::stopNSAppRunLoop();
 #endif
 }
 #endif
@@ -417,18 +416,20 @@ void WebProcess::platformTerminate()
 
 RetainPtr<CFDataRef> WebProcess::sourceApplicationAuditData() const
 {
-#if PLATFORM(IOS_FAMILY)
-    audit_token_t auditToken;
+#if USE(SOURCE_APPLICATION_AUDIT_DATA)
     ASSERT(parentProcessConnection());
-    if (!parentProcessConnection() || !parentProcessConnection()->getAuditToken(auditToken))
+    if (!parentProcessConnection())
         return nullptr;
-    return adoptCF(CFDataCreate(nullptr, (const UInt8*)&auditToken, sizeof(auditToken)));
+    Optional<audit_token_t> auditToken = parentProcessConnection()->getAuditToken();
+    if (!auditToken)
+        return nullptr;
+    return adoptCF(CFDataCreate(nullptr, (const UInt8*)&*auditToken, sizeof(*auditToken)));
 #else
     return nullptr;
 #endif
 }
 
-void WebProcess::initializeSandbox(const ChildProcessInitializationParameters& parameters, SandboxInitializationParameters& sandboxParameters)
+void WebProcess::initializeSandbox(const AuxiliaryProcessInitializationParameters& parameters, SandboxInitializationParameters& sandboxParameters)
 {
 #if ENABLE(WEB_PROCESS_SANDBOX)
 #if ENABLE(MANUAL_SANDBOXING)
@@ -443,7 +444,7 @@ void WebProcess::initializeSandbox(const ChildProcessInitializationParameters& p
 #else
     sandboxParameters.setOverrideSandboxProfilePath([webKit2Bundle pathForResource:@"com.apple.WebProcess" ofType:@"sb"]);
 #endif
-    ChildProcess::initializeSandbox(parameters, sandboxParameters);
+    AuxiliaryProcess::initializeSandbox(parameters, sandboxParameters);
 #endif
 #else
     UNUSED_PARAM(parameters);
@@ -460,14 +461,6 @@ static NSURL *origin(WebPage& page)
         return nil;
 
     URL mainFrameURL = { URL(), mainFrame->url() };
-    if (page.isSuspended()) {
-        // Suspended page are navigated to about:blank upon suspension so we really want to report the previous URL.
-        if (auto* coreFrame = mainFrame->coreFrame()) {
-            if (auto* backHistoryItem = coreFrame->loader().history().previousItem())
-                mainFrameURL = { URL(), backHistoryItem->urlString() };
-        }
-    }
-
     Ref<SecurityOrigin> mainFrameOrigin = SecurityOrigin::create(mainFrameURL);
     String mainFrameOriginString;
     if (!mainFrameOrigin->isUnique())
@@ -529,13 +522,13 @@ void WebProcess::getActivePagesOriginsForTesting(CompletionHandler<void(Vector<S
 void WebProcess::updateCPULimit()
 {
 #if PLATFORM(MAC)
-    std::optional<double> cpuLimit;
+    Optional<double> cpuLimit;
 
     // Use the largest limit among all pages in this process.
     for (auto& page : m_pageMap.values()) {
         auto pageCPULimit = page->cpuLimit();
         if (!pageCPULimit) {
-            cpuLimit = std::nullopt;
+            cpuLimit = WTF::nullopt;
             break;
         }
         if (!cpuLimit || pageCPULimit > cpuLimit.value())
@@ -555,7 +548,7 @@ void WebProcess::updateCPUMonitorState(CPUMonitorUpdateReason reason)
 #if PLATFORM(MAC)
     if (!m_cpuLimit) {
         if (m_cpuMonitor)
-            m_cpuMonitor->setCPULimit(std::nullopt);
+            m_cpuMonitor->setCPULimit(WTF::nullopt);
         return;
     }
 
@@ -567,9 +560,9 @@ void WebProcess::updateCPUMonitorState(CPUMonitorUpdateReason reason)
     } else if (reason == CPUMonitorUpdateReason::VisibilityHasChanged) {
         // If the visibility has changed, stop the CPU monitor before setting its limit. This is needed because the CPU usage can vary wildly based on visibility and we would
         // not want to report that a process has exceeded its background CPU limit even though most of the CPU time was used while the process was visible.
-        m_cpuMonitor->setCPULimit(std::nullopt);
+        m_cpuMonitor->setCPULimit(WTF::nullopt);
     }
-    m_cpuMonitor->setCPULimit(m_cpuLimit.value());
+    m_cpuMonitor->setCPULimit(m_cpuLimit);
 #else
     UNUSED_PARAM(reason);
 #endif

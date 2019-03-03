@@ -105,9 +105,6 @@
     (allow mach-lookup
         (global-name "com.apple.cvmsServ"))
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
-    ;; Needed by <rdar://problem/40093461>, remove when <rdar://problem/39402555> is fixed.
-    (allow file-read* file-write-unlink
-        (prefix "/private/tmp/cvmsCodeSignObj"))
     (allow file-read*
         (prefix "/private/var/db/CVMS/cvmsCodeSignObj"))
 #endif
@@ -251,7 +248,7 @@
     (iokit-property "IOFramebufferOpenGLIndex")
     (iokit-property "IOGeneralInterest")
     (iokit-property "IOGLBundleName")
-    (iokit-property-regex #"^IOGVA(BGRAEnc|Codec|EncoderRestricted|Scaler|VTCapabilities)")
+    (iokit-property-regex #"^IOGVA(BGRAEnc|Codec|EncoderRestricted|Scaler|VTCapabilities|HEVCDecodeCapabilities|HEVCEncodeCapabilities)")
     (iokit-property-regex #"^IOGVA(.*)(De|En)code$")
     (iokit-property "IOHibernateState")
     (iokit-property "IOI2CTransactionTypes")
@@ -291,6 +288,7 @@
     (iokit-property "NVArch")
     (iokit-property-regex #"^NVC(AP|LASS)")
     (iokit-property-regex #"^NVDA,(Features|NVPresentment-version|accel-loaded|invalid-config|mm-version)")
+    (iokit-property "NVDA,Enable-A2R10G10B10Format")
     (iokit-property-regex #"^NVDA(Type|initgl_created)")
     (iokit-property "NVRAMProperty")
     (iokit-property "NXSystemInfo")
@@ -326,7 +324,9 @@
     (iokit-property "boot-gamma-restored")
     (iokit-property "built-in")
     (iokit-property "cail_properties")
+    (iokit-property-regex #"^canvas-(height|width)")
     (iokit-property "class-code")
+    (iokit-property "color-accuracy-index")
     (iokit-property "compatible")
     (iokit-property "connector-type")
     (iokit-property-regex #"^(device|revision|subsystem-vendor|touch-size)-id")
@@ -579,6 +579,7 @@
        (global-name "com.apple.audio.AudioComponentRegistrar")
 #endif
        (global-name "com.apple.assertiond.processassertionconnection")
+       (global-name "com.apple.audio.SystemSoundServer-OSX")
        (global-name "com.apple.audio.audiohald")
        (global-name "com.apple.awdd")
        (global-name "com.apple.cfprefsd.agent")
@@ -586,6 +587,7 @@
        (global-name "com.apple.cmio.registerassistantservice") ;; Needed by CoreMedia for plugin drivers
        (global-name "com.apple.cookied")
        (global-name "com.apple.coreservices.launchservicesd")
+       (global-name "com.apple.diagnosticd")
        (global-name "com.apple.fonts")
        (global-name "com.apple.iconservices")
        (global-name "com.apple.iconservices.store")
@@ -595,8 +597,10 @@
        (global-name "com.apple.lsd.mapdb")
        (global-name "com.apple.mobileassetd")
        (global-name "com.apple.powerlog.plxpclogger.xpc")
+       (global-name "com.apple.speech.speechsynthesisd")
        (global-name "com.apple.system.logger")
        (global-name "com.apple.tccd")
+       (global-name "com.apple.tccd.system")
        (global-name "com.apple.trustd.agent")
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
        (global-name "com.apple.CARenderServer") ; Needed for [CAContext remoteContextWithOptions]
@@ -605,38 +609,10 @@
 #endif
 )
 
-(allow mach-lookup (with report)
-    (global-name "com.apple.FileCoordination")
-    (global-name "com.apple.FontObjectsServer")
-    (global-name "com.apple.GSSCred")
-    (global-name "com.apple.SystemConfiguration.PPPController")
-    (global-name "com.apple.audio.SystemSoundServer-OSX")
-    (global-name "com.apple.audio.coreaudiod")
-    (global-name "com.apple.cfnetwork.AuthBrokerAgent")
-    ; "com.apple.coremedia.endpointpicker.xpc" can be removed when <rdar://problem/30081582> is resolved.
-    (global-name "com.apple.coremedia.endpointpicker.xpc")
-    (global-name "com.apple.coremedia.endpointplaybacksession.xpc")
-    (global-name "com.apple.diagnosticd")
-    (global-name "com.apple.dock.server")
-    (global-name "com.apple.dyld.closured")
-    ;; OpenGL memory debugging
-    (global-name "com.apple.gpumemd.source")
-    (global-name "com.apple.nesessionmanager.flow-divert-token")
-#if !PLATFORM(MAC) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
-    (xpc-service-name "com.apple.ist.ds.appleconnect2.HelperService")
-    (xpc-service-name "com.apple.signpost.signpost-notificationd")
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+;; <rdar://problem/47268166>
+(allow mach-lookup (xpc-service-name "com.apple.MTLCompilerService"))
 #endif
-    (global-name "com.apple.speech.speechsynthesisd")
-    (global-name "com.apple.speech.synthesis.console")
-    (global-name "com.apple.system.DirectoryService.libinfo_v1")
-    (global-name "com.apple.system.opendirectoryd.api")
-    (global-name "com.apple.tccd.system")
-    (global-name "com.apple.trustd")
-    (global-name "com.apple.window_proxies")
-    (global-name "com.apple.xpc.activity.unmanaged")
-    (global-name "com.apple.xpcd")
-    (global-name "org.h5l.kcm")
-)
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
 (deny mach-lookup (with no-log)
@@ -662,10 +638,7 @@
 ;; CoreFoundation. We don't import com.apple.corefoundation.sb, because it allows unnecessary access to pasteboard.
 (allow mach-lookup
     (global-name-regex #"^com.apple.distributed_notifications")                                                       
-#if __MAC_OS_X_VERSION_MIN_REQUIRED < 101400
-    (global-name "com.apple.CoreServices.coreservicesd")
-#endif
-)
+    (global-name "com.apple.CoreServices.coreservicesd"))
 (allow file-read-data
     (literal "/dev/autofs_nowait")) ; Used by CF to circumvent automount triggers
 (allow ipc-posix-shm
@@ -757,6 +730,7 @@
 (allow mach-lookup
     (global-name "com.apple.coremedia.endpoint.xpc")
     (global-name "com.apple.coremedia.endpointstream.xpc")
+    (global-name "com.apple.coremedia.endpointplaybacksession.xpc")
     ; <rdar://problem/35509194>
     (global-name "com.apple.coremedia.endpointremotecontrolsession.xpc")
 #if !PLATFORM(MAC) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
@@ -853,7 +827,6 @@
 #endif // PLATFORM(MAC)
 
 (when (defined? 'syscall-unix)
-    (allow syscall-unix (with report))
     (allow syscall-unix
         (syscall-number SYS_exit)
         (syscall-number SYS_read)

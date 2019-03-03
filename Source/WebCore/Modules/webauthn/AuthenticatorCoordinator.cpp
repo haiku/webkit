@@ -66,8 +66,6 @@ static Ref<ArrayBuffer> produceClientDataJson(ClientDataType type, const BufferS
     }
     object->setString("challenge"_s, WTF::base64URLEncode(challenge.data(), challenge.length()));
     object->setString("origin"_s, origin.toRawString());
-    // FIXME: This might be platform dependent.
-    object->setString("hashAlgorithm"_s, "SHA-256"_s);
 
     auto utf8JSONString = object->toJSONString().utf8();
     return ArrayBuffer::create(utf8JSONString.data(), utf8JSONString.length());
@@ -75,7 +73,6 @@ static Ref<ArrayBuffer> produceClientDataJson(ClientDataType type, const BufferS
 
 static Vector<uint8_t> produceClientDataJsonHash(const ArrayBuffer& clientDataJson)
 {
-    // FIXME: This might be platform dependent.
     auto crypto = PAL::CryptoDigest::create(PAL::CryptoDigest::Algorithm::SHA_256);
     crypto->addBytes(clientDataJson.data(), clientDataJson.byteLength());
     return crypto->computeHash();

@@ -1,4 +1,5 @@
 include(InspectorGResources.cmake)
+include(GNUInstallDirs)
 
 set(WebKit_OUTPUT_NAME WPEWebKit-${WPE_API_VERSION})
 set(WebKit_WebProcess_OUTPUT_NAME WPEWebProcess)
@@ -10,8 +11,8 @@ file(MAKE_DIRECTORY ${FORWARDING_HEADERS_WPE_EXTENSION_DIR})
 file(MAKE_DIRECTORY ${FORWARDING_HEADERS_WPE_DOM_DIR})
 
 configure_file(UIProcess/API/wpe/WebKitVersion.h.in ${DERIVED_SOURCES_WPE_API_DIR}/WebKitVersion.h)
-configure_file(wpe/wpe-webkit.pc.in ${CMAKE_BINARY_DIR}/wpe-webkit-${WPE_API_VERSION}.pc @ONLY)
-configure_file(wpe/wpe-web-extension.pc.in ${CMAKE_BINARY_DIR}/wpe-web-extension-${WPE_API_VERSION}.pc @ONLY)
+configure_file(wpe/wpe-webkit.pc.in ${WPE_PKGCONFIG_FILE} @ONLY)
+configure_file(wpe/wpe-web-extension.pc.in ${WPEWebExtension_PKGCONFIG_FILE} @ONLY)
 
 add_definitions(-DWEBKIT2_COMPILATION)
 
@@ -315,6 +316,93 @@ target_link_libraries(WPEInjectedBundle WebKit)
 
 target_include_directories(WPEInjectedBundle PRIVATE ${WebKit_INCLUDE_DIRECTORIES})
 target_include_directories(WPEInjectedBundle SYSTEM PRIVATE ${WebKit_SYSTEM_INCLUDE_DIRECTORIES})
+
+file(WRITE ${CMAKE_BINARY_DIR}/gtkdoc-wpe.cfg
+    "[wpe-${WPE_API_VERSION}]\n"
+    "pkgconfig_file=${WPE_PKGCONFIG_FILE}\n"
+    "decorator=WEBKIT_API|WEBKIT_DEPRECATED|WEBKIT_DEPRECATED_FOR\\(.+\\)\n"
+    "deprecation_guard=WEBKIT_DISABLE_DEPRECATED\n"
+    "namespace=webkit\n"
+    "cflags=-I${CMAKE_SOURCE_DIR}/Source\n"
+    "       -I${WEBKIT_DIR}/Shared/API/glib\n"
+    "       -I${WEBKIT_DIR}/UIProcess/API/glib\n"
+    "       -I${WEBKIT_DIR}/UIProcess/API/wpe\n"
+    "       -I${FORWARDING_HEADERS_WPE_DIR}\n"
+    "doc_dir=${WEBKIT_DIR}/UIProcess/API/wpe/docs\n"
+    "source_dirs=${WEBKIT_DIR}/Shared/API/glib\n"
+    "            ${WEBKIT_DIR}/UIProcess/API/glib\n"
+    "            ${WEBKIT_DIR}/UIProcess/API/wpe\n"
+    "            ${DERIVED_SOURCES_WPE_API_DIR}\n"
+    "headers=${WPE_ENUM_GENERATION_HEADERS}\n"
+    "main_sgml_file=wpe-docs.sgml\n"
+)
+
+file(WRITE ${CMAKE_BINARY_DIR}/gtkdoc-webextensions.cfg
+    "[wpe-webextensions-${WPE_API_VERSION}]\n"
+    "pkgconfig_file=${WPEWebExtension_PKGCONFIG_FILE}\n"
+    "decorator=WEBKIT_API|WEBKIT_DEPRECATED|WEBKIT_DEPRECATED_FOR\\(.+\\)\n"
+    "deprecation_guard=WEBKIT_DISABLE_DEPRECATED\n"
+    "namespace=webkit_webextensions\n"
+    "cflags=-I${CMAKE_SOURCE_DIR}/Source\n"
+    "       -I${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe\n"
+    "       -I${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/DOM\n"
+    "       -I${FORWARDING_HEADERS_WPE_DIR}\n"
+    "doc_dir=${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/docs\n"
+    "source_dirs=${WEBKIT_DIR}/WebProcess/InjectedBundle/API/glib\n"
+    "            ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/glib/DOM\n"
+    "            ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe\n"
+    "            ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/DOM\n"
+    "headers=${WPE_WEB_EXTENSION_API_INSTALLED_HEADERS}\n"
+    "main_sgml_file=wpe-webextensions-docs.sgml\n"
+)
+
+if (ENABLE_WPE_QT_API)
+    set(qtwpe_SOURCES
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQtViewBackend.cpp
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQmlExtensionPlugin.cpp
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQtView.cpp
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQtViewLoadRequest.cpp
+    )
+
+    set(qtwpe_LIBRARIES
+        Qt5::Core Qt5::Quick
+        WebKit
+        ${LIBEPOXY_LIBRARIES}
+        ${WPE_BACKEND_FDO_LIBRARIES}
+    )
+
+    set(qtwpe_INCLUDE_DIRECTORIES
+        ${Qt5_INCLUDE_DIRS}
+        ${Qt5Gui_PRIVATE_INCLUDE_DIRS}
+        ${LIBEPOXY_INCLUDE_DIRS}
+        ${WPE_BACKEND_FDO_INCLUDE_DIRS}
+    )
+
+    list(APPEND WPE_API_INSTALLED_HEADERS
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQtView.h
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/WPEQtViewLoadRequest.h
+    )
+
+    add_library(qtwpe SHARED ${qtwpe_SOURCES})
+    set_target_properties(qtwpe PROPERTIES
+        OUTPUT_NAME qtwpe
+        AUTOMOC ON
+        CXX_STANDARD 14
+    )
+    target_compile_definitions(qtwpe PUBLIC QT_NO_KEYWORDS=1)
+    target_link_libraries(qtwpe ${qtwpe_LIBRARIES})
+    target_include_directories(qtwpe SYSTEM PRIVATE ${qtwpe_INCLUDE_DIRECTORIES})
+    install(TARGETS qtwpe DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/qml/org/wpewebkit/qtwpe/")
+    install(FILES ${WEBKIT_DIR}/UIProcess/API/wpe/qt/qmldir DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}/qml/org/wpewebkit/qtwpe/")
+
+    file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/qml/org/wpewebkit/qtwpe)
+    add_custom_command(TARGET qtwpe POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libqtwpe.so
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/qml/org/wpewebkit/qtwpe)
+    add_custom_command(TARGET qtwpe POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+        ${WEBKIT_DIR}/UIProcess/API/wpe/qt/qmldir
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/qml/org/wpewebkit/qtwpe)
+endif ()
 
 install(TARGETS WPEInjectedBundle
         DESTINATION "${LIB_INSTALL_DIR}/wpe-webkit-${WPE_API_VERSION}/injected-bundle"

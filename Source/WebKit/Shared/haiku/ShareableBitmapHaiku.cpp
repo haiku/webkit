@@ -37,9 +37,9 @@ using namespace WebCore;
 
 namespace WebKit {
 
-static inline PassRefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
+static inline RefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
 {
-    PassRefPtr<StillImage> image = StillImage::createForRendering(new BBitmap(
+    RefPtr<StillImage> image = StillImage::createForRendering(new BBitmap(
             BRect(B_ORIGIN, size), B_RGBA32,
         static_cast<unsigned char*>(data), B_BITMAP_ACCEPTS_VIEWS));
     return image;

@@ -178,6 +178,7 @@ public:
     void clearDOMCaches();
     bool hasDOMCache(JSStringRef origin);
     uint64_t domCacheSize(JSStringRef origin);
+    void allowCacheStorageQuotaIncrease();
 
     // IndexedDB
     void setIDBPerOriginQuota(uint64_t);
@@ -297,6 +298,7 @@ public:
 
     // Cookies testing
     void setAlwaysAcceptCookies(bool);
+    void setOnlyAcceptFirstPartyCookies(bool);
 
     // Custom full screen behavior.
     void setHasCustomFullScreenBehavior(bool value) { m_customFullScreenBehavior = value; }
@@ -481,6 +483,10 @@ public:
     void addTestKeyToKeychain(JSStringRef privateKeyBase64, JSStringRef attrLabel, JSStringRef applicationTagBase64);
     void cleanUpKeychain(JSStringRef attrLabel);
     bool keyExistsInKeychain(JSStringRef attrLabel, JSStringRef applicationTagBase64);
+
+    void setCanHandleHTTPSServerTrustEvaluation(bool canHandle);
+    bool canDoServerTrustEvaluationInNetworkProcess();
+    unsigned long serverTrustEvaluationCallbackCallsCount();
 
 private:
     TestRunner();

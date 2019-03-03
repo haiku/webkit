@@ -37,6 +37,7 @@ ALLOW_UNUSED_PARAMETERS_BEGIN
 #include <webrtc/api/asyncresolverfactory.h>
 #include <webrtc/api/audio_codecs/builtin_audio_decoder_factory.h>
 #include <webrtc/api/audio_codecs/builtin_audio_encoder_factory.h>
+#include <webrtc/api/create_peerconnection_factory.h>
 #include <webrtc/api/peerconnectionfactoryproxy.h>
 #include <webrtc/modules/audio_processing/include/audio_processing.h>
 #include <webrtc/p2p/base/basicpacketsocketfactory.h>
@@ -286,7 +287,7 @@ rtc::RTCCertificateGenerator& LibWebRTCProvider::certificateGenerator()
     return *factoryAndThreads.certificateGenerator;
 }
 
-static inline std::optional<cricket::MediaType> typeFromKind(const String& kind)
+static inline Optional<cricket::MediaType> typeFromKind(const String& kind)
 {
     if (kind == "audio"_s)
         return cricket::MediaType::MEDIA_TYPE_AUDIO;
@@ -300,7 +301,7 @@ static inline String fromStdString(const std::string& value)
     return String::fromUTF8(value.data(), value.length());
 }
 
-static inline std::optional<uint16_t> toChannels(absl::optional<int> numChannels)
+static inline Optional<uint16_t> toChannels(absl::optional<int> numChannels)
 {
     if (!numChannels)
         return { };
@@ -322,7 +323,7 @@ static inline RTCRtpCapabilities toRTCRtpCapabilities(const webrtc::RtpCapabilit
     return capabilities;
 }
 
-std::optional<RTCRtpCapabilities> LibWebRTCProvider::receiverCapabilities(const String& kind)
+Optional<RTCRtpCapabilities> LibWebRTCProvider::receiverCapabilities(const String& kind)
 {
     auto mediaType = typeFromKind(kind);
     if (!mediaType)
@@ -335,7 +336,7 @@ std::optional<RTCRtpCapabilities> LibWebRTCProvider::receiverCapabilities(const 
     return toRTCRtpCapabilities(factory->GetRtpReceiverCapabilities(*mediaType));
 }
 
-std::optional<RTCRtpCapabilities> LibWebRTCProvider::senderCapabilities(const String& kind)
+Optional<RTCRtpCapabilities> LibWebRTCProvider::senderCapabilities(const String& kind)
 {
     auto mediaType = typeFromKind(kind);
     if (!mediaType)

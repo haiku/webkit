@@ -53,26 +53,26 @@
 #include <WebCore/ServiceWorkerUpdateViaCache.h>
 #include <wtf/MainThread.h>
 
+namespace WebKit {
 using namespace PAL;
 using namespace WebCore;
-
-namespace WebKit {
 
 #define SWSERVERCONNECTION_RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(m_sessionID.isAlwaysOnLoggingAllowed(), ServiceWorker, "%p - WebSWServerConnection::" fmt, this, ##__VA_ARGS__)
 #define SWSERVERCONNECTION_RELEASE_LOG_ERROR_IF_ALLOWED(fmt, ...) RELEASE_LOG_ERROR_IF(m_sessionID.isAlwaysOnLoggingAllowed(), ServiceWorker, "%p - WebSWServerConnection::" fmt, this, ##__VA_ARGS__)
 
-WebSWServerConnection::WebSWServerConnection(SWServer& server, IPC::Connection& connection, SessionID sessionID)
+WebSWServerConnection::WebSWServerConnection(NetworkProcess& networkProcess, SWServer& server, IPC::Connection& connection, SessionID sessionID)
     : SWServer::Connection(server)
     , m_sessionID(sessionID)
     , m_contentConnection(connection)
+    , m_networkProcess(networkProcess)
 {
-    NetworkProcess::singleton().registerSWServerConnection(*this);
+    networkProcess.registerSWServerConnection(*this);
 }
 
 WebSWServerConnection::~WebSWServerConnection()
 {
-    NetworkProcess::singleton().unregisterSWServerConnection(*this);
-    for (auto keyValue : m_clientOrigins)
+    m_networkProcess->unregisterSWServerConnection(*this);
+    for (const auto& keyValue : m_clientOrigins)
         server().unregisterServiceWorkerClient(keyValue.value, keyValue.key);
 }
 
@@ -96,7 +96,7 @@ void WebSWServerConnection::startScriptFetchInClient(ServiceWorkerJobIdentifier 
     send(Messages::WebSWClientConnection::StartScriptFetchForServer(jobIdentifier, registrationKey, cachePolicy));
 }
 
-void WebSWServerConnection::updateRegistrationStateInClient(ServiceWorkerRegistrationIdentifier identifier, ServiceWorkerRegistrationState state, const std::optional<ServiceWorkerData>& serviceWorkerData)
+void WebSWServerConnection::updateRegistrationStateInClient(ServiceWorkerRegistrationIdentifier identifier, ServiceWorkerRegistrationState state, const Optional<ServiceWorkerData>& serviceWorkerData)
 {
     send(Messages::WebSWClientConnection::UpdateRegistrationState(identifier, state, serviceWorkerData));
 }
@@ -166,7 +166,7 @@ void WebSWServerConnection::startFetch(ServiceWorkerRegistrationIdentifier servi
         }
 
         if (!worker->contextConnection())
-            NetworkProcess::singleton().createServerToContextConnection(worker->securityOrigin(), server().sessionID());
+            m_networkProcess->createServerToContextConnection(worker->securityOrigin(), server().sessionID());
 
         server().runServiceWorkerIfNecessary(serviceWorkerIdentifier, [weakThis = WTFMove(weakThis), this, fetchIdentifier, serviceWorkerIdentifier, request = WTFMove(request), options = WTFMove(options), formData = WTFMove(formData), referrer = WTFMove(referrer)](auto* contextConnection) {
             if (!weakThis)
@@ -196,7 +196,7 @@ void WebSWServerConnection::postMessageToServiceWorker(ServiceWorkerIdentifier d
     if (!destinationWorker)
         return;
 
-    std::optional<ServiceWorkerOrClientData> sourceData;
+    Optional<ServiceWorkerOrClientData> sourceData;
     WTF::switchOn(sourceIdentifier, [&](ServiceWorkerIdentifier identifier) {
         if (auto* sourceWorker = server().workerByID(identifier))
             sourceData = ServiceWorkerOrClientData { sourceWorker->data() };
@@ -209,7 +209,7 @@ void WebSWServerConnection::postMessageToServiceWorker(ServiceWorkerIdentifier d
         return;
 
     if (!destinationWorker->contextConnection())
-        NetworkProcess::singleton().createServerToContextConnection(destinationWorker->securityOrigin(), server().sessionID());
+        m_networkProcess->createServerToContextConnection(destinationWorker->securityOrigin(), server().sessionID());
 
     // It's possible this specific worker cannot be re-run (e.g. its registration has been removed)
     server().runServiceWorkerIfNecessary(destinationIdentifier, [destinationIdentifier, message = WTFMove(message), sourceData = WTFMove(*sourceData)](auto* contextConnection) mutable {
@@ -221,8 +221,8 @@ void WebSWServerConnection::postMessageToServiceWorker(ServiceWorkerIdentifier d
 void WebSWServerConnection::scheduleJobInServer(ServiceWorkerJobData&& jobData)
 {
     auto securityOrigin = SecurityOriginData::fromURL(jobData.scriptURL);
-    if (!NetworkProcess::singleton().serverToContextConnectionForOrigin(securityOrigin))
-        NetworkProcess::singleton().createServerToContextConnection(securityOrigin, server().sessionID());
+    if (!m_networkProcess->serverToContextConnectionForOrigin(securityOrigin))
+        m_networkProcess->createServerToContextConnection(securityOrigin, server().sessionID());
 
     SWSERVERCONNECTION_RELEASE_LOG_IF_ALLOWED("Scheduling ServiceWorker job %s in server", jobData.identifier().loggingString().utf8().data());
     ASSERT(identifier() == jobData.connectionIdentifier());
@@ -278,7 +278,7 @@ void WebSWServerConnection::matchRegistration(uint64_t registrationMatchRequestI
         send(Messages::WebSWClientConnection::DidMatchRegistration { registrationMatchRequestIdentifier, registration->data() });
         return;
     }
-    send(Messages::WebSWClientConnection::DidMatchRegistration { registrationMatchRequestIdentifier, std::nullopt });
+    send(Messages::WebSWClientConnection::DidMatchRegistration { registrationMatchRequestIdentifier, WTF::nullopt });
 }
 
 void WebSWServerConnection::registrationReady(uint64_t registrationReadyRequestIdentifier, ServiceWorkerRegistrationData&& registrationData)
@@ -292,11 +292,11 @@ void WebSWServerConnection::getRegistrations(uint64_t registrationMatchRequestId
     send(Messages::WebSWClientConnection::DidGetRegistrations { registrationMatchRequestIdentifier, registrations });
 }
 
-void WebSWServerConnection::registerServiceWorkerClient(SecurityOriginData&& topOrigin, ServiceWorkerClientData&& data, const std::optional<ServiceWorkerRegistrationIdentifier>& controllingServiceWorkerRegistrationIdentifier)
+void WebSWServerConnection::registerServiceWorkerClient(SecurityOriginData&& topOrigin, ServiceWorkerClientData&& data, const Optional<ServiceWorkerRegistrationIdentifier>& controllingServiceWorkerRegistrationIdentifier, String&& userAgent)
 {
     auto clientOrigin = ClientOrigin { WTFMove(topOrigin), SecurityOriginData::fromURL(data.url) };
     m_clientOrigins.add(data.identifier, clientOrigin);
-    server().registerServiceWorkerClient(WTFMove(clientOrigin), WTFMove(data), controllingServiceWorkerRegistrationIdentifier);
+    server().registerServiceWorkerClient(WTFMove(clientOrigin), WTFMove(data), controllingServiceWorkerRegistrationIdentifier, WTFMove(userAgent));
 }
 
 void WebSWServerConnection::unregisterServiceWorkerClient(const ServiceWorkerClientIdentifier& clientIdentifier)

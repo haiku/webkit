@@ -88,6 +88,9 @@ public:
 private:
     EditCommandComposition(Document&, const VisibleSelection& startingSelection, const VisibleSelection& endingSelection, EditAction);
 
+    String label() const final;
+    void didRemoveFromUndoManager() final { }
+
     RefPtr<Document> m_document;
     VisibleSelection m_startingSelection;
     VisibleSelection m_endingSelection;
@@ -199,7 +202,7 @@ protected:
     void cloneParagraphUnderNewElement(const Position& start, const Position& end, Node* outerNode, Element* blockElement);
     void cleanupAfterDeletion(VisiblePosition destination = VisiblePosition());
     
-    std::optional<VisibleSelection> shouldBreakOutOfEmptyListItem() const;
+    Optional<VisibleSelection> shouldBreakOutOfEmptyListItem() const;
     bool breakOutOfEmptyListItem();
     bool breakOutOfEmptyMailBlockquotedParagraph();
     

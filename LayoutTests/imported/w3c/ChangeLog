@@ -1,3 +1,693 @@
+2019-01-30  Youenn Fablet  <youenn@apple.com>
+
+        ServiceWorkerJob should notify its client in case its job is cancelled
+        https://bugs.webkit.org/show_bug.cgi?id=193747
+        <rdar://problem/47498196>
+
+        Reviewed by Chris Dumez.
+
+        * web-platform-tests/service-workers/service-worker/registration-security-error.https-expected.txt:
+
+2019-01-29  Rob Buis  <rbuis@igalia.com>
+
+        Align with Fetch on data: URLs
+        https://bugs.webkit.org/show_bug.cgi?id=182325
+
+        Reviewed by Alex Christensen.
+
+        Update improved test expectations.
+
+        * web-platform-tests/fetch/data-urls/processing.any-expected.txt:
+        * web-platform-tests/fetch/data-urls/processing.any.worker-expected.txt:
+        * web-platform-tests/xhr/overridemimetype-blob-expected.txt:
+
+2019-01-29  cathie chen  <cathiechen@igalia.com>
+
+        Import Resize Observer test cases from WPTs
+        https://bugs.webkit.org/show_bug.cgi?id=193821
+
+        Reviewed by Frédéric Wang.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/resize-observer/META.yml: Added.
+        * web-platform-tests/resize-observer/eventloop-expected.txt: Added.
+        * web-platform-tests/resize-observer/eventloop.html: Added.
+        * web-platform-tests/resize-observer/idlharness.window-expected.txt: Added.
+        * web-platform-tests/resize-observer/idlharness.window.html: Added.
+        * web-platform-tests/resize-observer/idlharness.window.js: Added.
+        * web-platform-tests/resize-observer/notify-expected.txt: Added.
+        * web-platform-tests/resize-observer/notify.html: Added.
+        * web-platform-tests/resize-observer/observe-expected.txt: Added.
+        * web-platform-tests/resize-observer/observe.html: Added.
+        * web-platform-tests/resize-observer/resources/iframe.html: Added.
+        * web-platform-tests/resize-observer/resources/resizeTestHelper.js: Added.
+        (ResizeTestHelper):
+        (ResizeTestHelper.prototype.get _currentStep):
+        (ResizeTestHelper.prototype._nextStep):
+        (ResizeTestHelper.prototype._handleNotification):
+        (ResizeTestHelper.prototype._handleTimeout):
+        (ResizeTestHelper.prototype._done):
+        (ResizeTestHelper.prototype.start):
+        (ResizeTestHelper.prototype.get rafCount):
+        (ResizeTestHelper.prototype._incrementRaf):
+        (ResizeTestHelper.prototype.startCountingRaf):
+        * web-platform-tests/resize-observer/resources/w3c-import.log: Added.
+        * web-platform-tests/resize-observer/svg-expected.txt: Added.
+        * web-platform-tests/resize-observer/svg.html: Added.
+        * web-platform-tests/resize-observer/w3c-import.log: Added.
+
+2019-01-28  Rob Buis  <rbuis@igalia.com>
+
+        Update MIME type parser
+        https://bugs.webkit.org/show_bug.cgi?id=180526
+
+        Reviewed by Frédéric Wang.
+
+        Update improved test expectations.
+
+        * web-platform-tests/xhr/overridemimetype-blob-expected.txt:
+
+2019-01-28  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-logical] Reject unitless length quirk in 'inset' shorthand
+        https://bugs.webkit.org/show_bug.cgi?id=193773
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Import WPT tests that check that the unitless length quirk is not
+        allowed in the 'inset' shorthand.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/quirks/support/test-ref-iframe.js: Added.
+        (setupIframe):
+        * web-platform-tests/quirks/support/w3c-import.log: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-001-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-001.html: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-002-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-002.html: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-003-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/excluded-properties-003.html: Added.
+        * web-platform-tests/quirks/unitless-length/limited-quirks-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/limited-quirks.html: Added.
+        * web-platform-tests/quirks/unitless-length/no-quirks-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/no-quirks.html: Added.
+        * web-platform-tests/quirks/unitless-length/quirks-expected.txt: Added.
+        * web-platform-tests/quirks/unitless-length/quirks.html: Added.
+        * web-platform-tests/quirks/unitless-length/support/common.js: Added.
+        (onload):
+        * web-platform-tests/quirks/unitless-length/support/w3c-import.log: Added.
+        * web-platform-tests/quirks/unitless-length/w3c-import.log: Added.
+
+2019-01-24  Charles Vazac  <cvazac@akamai.com>
+
+        Implement PerformanceObserver.supportedEntryTypes
+        https://bugs.webkit.org/show_bug.cgi?id=193428
+
+        Reviewed by Joseph Pecoraro.
+
+        * web-platform-tests/resource-timing/supported_resource_type.any-expected.txt:
+        * web-platform-tests/resource-timing/supported_resource_type.any.worker-expected.txt:
+
+2019-01-23  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-logical] Implement flow-relative inset properties
+        https://bugs.webkit.org/show_bug.cgi?id=189441
+
+        Reviewed by Dean Jackson.
+
+        Enable the CSSLogicalEnabled flag in the test for logical insets, and
+        update its expectations. It still has some failures because sideways
+        writing modes have not been implemented yet
+        (https://bugs.webkit.org/show_bug.cgi?id=166941).
+
+        * web-platform-tests/css/css-logical/logical-box-inset-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-inset.html:
+
+2019-01-23  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-grid] Properly handle static positions of abspos inside grid items
+        https://bugs.webkit.org/show_bug.cgi?id=193657
+
+        Reviewed by Javier Fernandez.
+
+        Import test changes from WPT.
+        Various orthogonal tests still fail because of https://bugs.webkit.org/show_bug.cgi?id=189513
+        Some other tests also fail because of https://bugs.webkit.org/show_bug.cgi?id=193656
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-001-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-001.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-002-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-002.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-003-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-003.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-004-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-004.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-005-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-005.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-006-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-006.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-007-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-007.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-008-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-008.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-009-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-009.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-010-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-010.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-011-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-011.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-012-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-012.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-013-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-013.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-014-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-014.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-015-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-015.html: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-016-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-016.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-001-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-001.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-002-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-002.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-003-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-003.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-004-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-004.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-005-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-005.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-006-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-006.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-007-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-007.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-008-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-008.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-009-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-009.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-010-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-010.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-011-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-011.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-012-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-012.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-013-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-013.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-014-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-014.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-015-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-015.html: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-016-expected.txt: Added.
+        * web-platform-tests/css/css-grid/abspos/positioned-grid-descendants-016.html: Added.
+        * web-platform-tests/css/css-grid/abspos/support/positioned-grid-descendants.css: Added.
+        (.grid):
+        (.abspos):
+        (.orthogonal):
+        (.grid > :nth-child(1) > .abspos):
+        (.grid > :nth-child(2) > .abspos):
+        * web-platform-tests/css/css-grid/abspos/support/positioned-grid-descendants.js: Added.
+        (export.runTests):
+        * web-platform-tests/css/css-grid/abspos/support/w3c-import.log:
+        * web-platform-tests/css/css-grid/abspos/w3c-import.log:
+
+2019-01-23  Rob Buis  <rbuis@igalia.com>
+
+        Update MIME type parser
+        https://bugs.webkit.org/show_bug.cgi?id=180526
+
+        Reviewed by Frédéric Wang.
+
+        Update improved test expectations.
+
+        * web-platform-tests/xhr/overridemimetype-blob-expected.txt:
+
+2019-01-22  Youenn Fablet  <youenn@apple.com>
+
+        Resync libwebrtc with latest M72 branch
+        https://bugs.webkit.org/show_bug.cgi?id=193693
+        <rdar://problem/47463803>
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/webrtc/RTCRtpTransceiver.https-expected.txt:
+
+2019-01-22  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-logical] Implement flow-relative margin, padding and border shorthands
+        https://bugs.webkit.org/show_bug.cgi?id=188697
+
+        Reviewed by Simon Fraser and Antti Koivisto.
+
+        Import tests from the WPT test suite for CSS Logical Properties and Values,
+        and enable the CSSLogicalEnabled runtime flag for them.
+
+        They still have some failures because sideways writing modes have not been
+        implemented yet (https://bugs.webkit.org/show_bug.cgi?id=166941).
+
+        * web-platform-tests/css/css-logical/logical-box-border-color-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-border-color.html:
+        * web-platform-tests/css/css-logical/logical-box-border-shorthands-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-border-shorthands.html:
+        * web-platform-tests/css/css-logical/logical-box-border-style-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-border-style.html:
+        * web-platform-tests/css/css-logical/logical-box-border-width-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-border-width.html:
+        * web-platform-tests/css/css-logical/logical-box-inset-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-inset.html:
+        * web-platform-tests/css/css-logical/logical-box-margin-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-margin.html:
+        * web-platform-tests/css/css-logical/logical-box-padding-expected.txt:
+        * web-platform-tests/css/css-logical/logical-box-padding.html:
+        * web-platform-tests/css/css-logical/logical-box-size.html:
+        * web-platform-tests/css/css-logical/resources/test-box-properties.js:
+        (export.createBoxPropertyGroup):
+        (export.createSizingPropertyGroup):
+        (export.runTests.set test):
+        (export.runTests):
+        * web-platform-tests/css/css-logical/resources/test-shared.js: Added.
+        (export.testCSSValues):
+        (export.testComputedValues):
+        (export.makeDeclaration):
+        * web-platform-tests/css/css-logical/resources/w3c-import.log:
+
+2019-01-18  Ali Juma  <ajuma@chromium.org>
+
+        FetchResponse::url should return the empty string for tainted responses
+        https://bugs.webkit.org/show_bug.cgi?id=193553
+
+        Reviewed by Youenn Fablet.
+
+        * web-platform-tests/fetch/api/basic/mode-no-cors.sub.any.js:
+        (fetchNoCors):
+
+2019-01-14  Charles Vazac  <cvazac@akamai.com>
+
+        Import current Resource-Timing WPTs
+        https://bugs.webkit.org/show_bug.cgi?id=193302
+
+        Reviewed by Youenn Fablet.
+
+        * web-platform-tests/resource-timing/SyntheticResponse.py:
+        (main):
+        * web-platform-tests/resource-timing/buffer-full-add-after-full-event-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-after-full-event.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-entries-during-callback-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-entries-during-callback-that-drop.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-entries-during-callback.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-then-clear-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-add-then-clear.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-decrease-buffer-during-callback.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-increase-buffer-during-callback-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-increase-buffer-during-callback.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-inspect-buffer-during-callback-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-inspect-buffer-during-callback.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-set-to-current-buffer-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-set-to-current-buffer.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-store-and-clear-during-callback-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-store-and-clear-during-callback.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-then-increased-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-then-increased.html: Added.
+        * web-platform-tests/resource-timing/buffer-full-when-populate-entries-expected.txt: Added.
+        * web-platform-tests/resource-timing/buffer-full-when-populate-entries.html: Added.
+        * web-platform-tests/resource-timing/document-domain-no-impact-loader.sub-expected.txt: Added.
+        * web-platform-tests/resource-timing/document-domain-no-impact-loader.sub.html: Added.
+        * web-platform-tests/resource-timing/no-entries-for-cross-origin-css-fetched.sub-expected.txt: Added.
+        * web-platform-tests/resource-timing/no-entries-for-cross-origin-css-fetched.sub.html: Added.
+        * web-platform-tests/resource-timing/resource-timing-level1.js: Renamed from LayoutTests/imported/w3c/web-platform-tests/resource-timing/resource-timing.js.
+        (assertInvariants):
+        (window.onload):
+        * web-platform-tests/resource-timing/resource-timing-level1.sub-expected.txt: Added.
+        * web-platform-tests/resource-timing/resource-timing-level1.sub.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/resource-timing/resource-timing.html.
+        * web-platform-tests/resource-timing/resource_connection_reuse.html:
+        * web-platform-tests/resource-timing/resource_timing.worker.js:
+        * web-platform-tests/resource-timing/resource_timing_buffer_full_when_populate_entries-expected.txt: Removed.
+        * web-platform-tests/resource-timing/resource_timing_buffer_full_when_populate_entries.html: Removed.
+        * web-platform-tests/resource-timing/resource_timing_store_and_clear_during_callback-expected.txt: Removed.
+        * web-platform-tests/resource-timing/resource_timing_store_and_clear_during_callback.html: Removed.
+        * web-platform-tests/resource-timing/resources/buffer-full-utilities.js: Added.
+        (let.appendScript):
+        (let.waitForNextTask):
+        (let.waitForEventToFire.return.new.Promise):
+        (let.waitForEventToFire):
+        * web-platform-tests/resource-timing/resources/document-domain-no-impact.sub.html: Added.
+        * web-platform-tests/resource-timing/resources/iframe-setdomain.sub.html: Renamed from LayoutTests/imported/w3c/web-platform-tests/resource-timing/iframe-setdomain.sub.html.
+        * web-platform-tests/resource-timing/resources/w3c-import.log:
+        * web-platform-tests/resource-timing/resources/webperftestharness.js:
+        (wp_test):
+        (test_namespace):
+        * web-platform-tests/resource-timing/resources/webperftestharnessextension.js:
+        (test_resource_entries):
+        (performance_entrylist_checker): Deleted.
+        * web-platform-tests/resource-timing/single-entry-per-resource.html:
+        * web-platform-tests/resource-timing/supported_resource_type.any-expected.txt: Added.
+        * web-platform-tests/resource-timing/supported_resource_type.any.html: Added.
+        * web-platform-tests/resource-timing/supported_resource_type.any.js: Added.
+        (test):
+        * web-platform-tests/resource-timing/supported_resource_type.any.worker-expected.txt: Added.
+        * web-platform-tests/resource-timing/supported_resource_type.any.worker.html: Added.
+        * web-platform-tests/resource-timing/test_resource_timing.https-expected.txt: Added.
+        * web-platform-tests/resource-timing/test_resource_timing.https.html: Added.
+        * web-platform-tests/resource-timing/test_resource_timing.js:
+        (resource_load):
+        * web-platform-tests/resource-timing/w3c-import.log:
+2019-01-10  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-grid] Let abspos items reference implicit grid lines
+        https://bugs.webkit.org/show_bug.cgi?id=193313
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Import test changes from WPT.
+
+        * web-platform-tests/css/css-grid/abspos/grid-positioned-items-padding-001.html:
+        * web-platform-tests/css/css-grid/abspos/grid-positioned-items-unknown-named-grid-line-001.html:
+
+2019-01-10  cathie chen  <cathiechen@igalia.com>
+
+        Import css-lists testcases from WPT.
+        https://bugs.webkit.org/show_bug.cgi?id=193273
+
+        Reviewed by Daniel Bates.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/css/css-lists/META.yml: Added.
+        * web-platform-tests/css/css-lists/add-inline-child-after-marker-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/add-inline-child-after-marker-001.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-armenian-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-armenian.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-circle-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-circle.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-decimal-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-decimal-leading-zero-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-decimal-leading-zero.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-decimal.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-disc-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-disc.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-georgian-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-georgian.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-greek-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-greek.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-latin-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-latin.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-roman-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-roman.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-square-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-square.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-upper-latin-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-upper-latin.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-upper-roman-expected.html: Added.
+        * web-platform-tests/css/css-lists/content-property/marker-text-matches-upper-roman.html: Added.
+        * web-platform-tests/css/css-lists/content-property/w3c-import.log: Added.
+        * web-platform-tests/css/css-lists/counter-increment-inside-display-contents-expected.html: Added.
+        * web-platform-tests/css/css-lists/counter-increment-inside-display-contents.html: Added.
+        * web-platform-tests/css/css-lists/counter-invalid-expected.html: Added.
+        * web-platform-tests/css/css-lists/counter-invalid.htm: Added.
+        * web-platform-tests/css/css-lists/counter-reset-increment-display-contents-expected.html: Added.
+        * web-platform-tests/css/css-lists/counter-reset-increment-display-contents.html: Added.
+        * web-platform-tests/css/css-lists/counter-reset-increment-display-none-expected.html: Added.
+        * web-platform-tests/css/css-lists/counter-reset-increment-display-none.html: Added.
+        * web-platform-tests/css/css-lists/counter-reset-inside-display-contents-expected.html: Added.
+        * web-platform-tests/css/css-lists/counter-reset-inside-display-contents.html: Added.
+        * web-platform-tests/css/css-lists/inheritance-expected.txt: Added.
+        * web-platform-tests/css/css-lists/inheritance.html: Added.
+        * web-platform-tests/css/css-lists/li-with-height-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/li-with-height-001.html: Added.
+        * web-platform-tests/css/css-lists/li-with-overflow-hidden-change-list-style-position-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/li-with-overflow-hidden-change-list-style-position-001.html: Added.
+        * web-platform-tests/css/css-lists/list-and-block-textarea-001-expected.txt: Added.
+        * web-platform-tests/css/css-lists/list-and-block-textarea-001.html: Added.
+        * web-platform-tests/css/css-lists/list-and-flex-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/list-and-flex-001.html: Added.
+        * web-platform-tests/css/css-lists/list-and-grid-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/list-and-grid-001.html: Added.
+        * web-platform-tests/css/css-lists/list-and-margin-collapse-001-expected.txt: Added.
+        * web-platform-tests/css/css-lists/list-and-margin-collapse-001.html: Added.
+        * web-platform-tests/css/css-lists/list-and-writing-mode-001-expected.txt: Added.
+        * web-platform-tests/css/css-lists/list-and-writing-mode-001.html: Added.
+        * web-platform-tests/css/css-lists/list-marker-with-lineheight-and-overflow-hidden-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/list-marker-with-lineheight-and-overflow-hidden-001.html: Added.
+        * web-platform-tests/css/css-lists/list-style-type-armenian-002.xht: Added.
+        * web-platform-tests/css/css-lists/list-style-type-armenian-003.xht: Added.
+        * web-platform-tests/css/css-lists/list-with-image-display-changed-001-expected.html: Added.
+        * web-platform-tests/css/css-lists/list-with-image-display-changed-001.html: Added.
+        * web-platform-tests/css/css-lists/resources/w3c-import.log: Added.
+        * web-platform-tests/css/css-lists/resources/white.gif: Added.
+        * web-platform-tests/css/css-lists/w3c-import.log: Added.
+
+2019-01-08  Youenn Fablet  <youenn@apple.com>
+
+        service worker fetch handler results in bad referrer
+        https://bugs.webkit.org/show_bug.cgi?id=188248
+        <rdar://problem/47050478>
+
+        Reviewed by Alex Christensen.
+
+        * web-platform-tests/service-workers/service-worker/referrer-policy-header.https-expected.txt:
+
+2019-01-07  Dean Jackson  <dino@apple.com>
+
+        Turn on Pointer Events by default for iOS
+        https://bugs.webkit.org/show_bug.cgi?id=193214
+        <rdar://problem/46974878>
+
+        Reviewed by Wenson Hsieh.
+
+        Update expected results.
+
+        * web-platform-tests/pointerevents/extension/pointerevent_touch-action-verification-expected.txt:
+        * web-platform-tests/pointerevents/pointerevent_touch-action-illegal-expected.txt:
+        * web-platform-tests/pointerevents/pointerevent_touch-action-verification-expected.txt:
+
+2019-01-07  Youenn Fablet  <youenn@apple.com>
+
+        Resync WPT fetch tests to 834eac4
+        https://bugs.webkit.org/show_bug.cgi?id=193125
+
+        Reviewed by Chris Dumez.
+
+        * web-platform-tests/fetch: Resynced.
+        * web-platform-tests/html/webappapis/atob/base64-expected.txt:
+
+2019-01-05  Youenn Fablet  <youenn@apple.com>
+
+        Service Worker fetch should obey its referrer policy
+        https://bugs.webkit.org/show_bug.cgi?id=193152
+
+        Reviewed by Chris Dumez.
+
+        * web-platform-tests/fetch/api/policies/referrer-origin-service-worker.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/referrer-policy-header.https-expected.txt:
+
+2019-01-04  Youenn Fablet  <youenn@apple.com>
+
+        [Fetch API] Implement abortable fetch
+        https://bugs.webkit.org/show_bug.cgi?id=174980
+        <rdar://problem/46861402>
+
+        Reviewed by Chris Dumez.
+
+        Fixed tests to run in WebKit CI.
+        Also fixed a bug in a test where the fetch response body is not actually empty.
+
+        * web-platform-tests/fetch/api/abort/cache.https-expected.txt:
+        * web-platform-tests/fetch/api/abort/general-serviceworker.https-expected.txt:
+        * web-platform-tests/fetch/api/abort/general.any-expected.txt:
+        * web-platform-tests/fetch/api/abort/general.any.js:
+        * web-platform-tests/fetch/api/abort/general.any.worker-expected.txt:
+        * web-platform-tests/fetch/api/abort/serviceworker-intercepted.https-expected.txt:
+        * web-platform-tests/fetch/api/response/response-consume-stream-expected.txt:
+
+2019-01-02  Simon Fraser  <simon.fraser@apple.com>
+
+        Support css-color-4 rgb functions
+        https://bugs.webkit.org/show_bug.cgi?id=192321
+
+        Reviewed by Zalan Bujtas.
+        
+        New expected results.
+
+        * web-platform-tests/css/css-color/color-resolving-expected.txt:
+        * web-platform-tests/css/css-color/rgb-rounding-001-expected.txt:
+
+2018-12-21  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        [css-grid] Fix percentages in relative offsets for grid items
+        https://bugs.webkit.org/show_bug.cgi?id=190492
+
+        Reviewed by Sergio Villar Senin.
+
+        * web-platform-tests/css/css-grid/grid-items/grid-items-relative-offsets-002-expected.txt:
+          Update expected file as we're now passing this test.
+
+2018-12-19  Youenn Fablet  <youenn@apple.com>
+
+        Remove RTCRtpTransceiver.setDirection
+        https://bugs.webkit.org/show_bug.cgi?id=192869
+
+        Reviewed by Alex Christensen.
+
+        * web-platform-tests/webrtc/historical-expected.txt:
+
+2018-12-18  Justin Michaud  <justin_michaud@apple.com>
+
+        Update CSS Properties and Values API to use new cycle fallback behaviour
+        https://bugs.webkit.org/show_bug.cgi?id=192800
+
+        Reviewed by Antti Koivisto.
+
+        Re-import tests and adjust expected results. Some of the tests go from pass to fail because
+        this patch adds some extra dependency checking to property registrations to fix a crash, but
+        now unsupported syntaxes like <length-percentage> do not register properly.
+
+        * web-platform-tests/css/css-properties-values-api/register-property-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/register-property-syntax-parsing-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/register-property-syntax-parsing.html:
+        * web-platform-tests/css/css-properties-values-api/register-property.html:
+        * web-platform-tests/css/css-properties-values-api/registered-properties-inheritance-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/registered-properties-inheritance.html:
+        * web-platform-tests/css/css-properties-values-api/registered-property-computation-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/registered-property-computation.html:
+        * web-platform-tests/css/css-properties-values-api/registered-property-cssom-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/registered-property-cssom.html:
+        * web-platform-tests/css/css-properties-values-api/registered-property-initial-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/registered-property-initial.html:
+        * web-platform-tests/css/css-properties-values-api/resources/utils.js: Added.
+        (generate_name):
+        (any_initial_value):
+        (generate_property):
+        (all_syntaxes):
+        * web-platform-tests/css/css-properties-values-api/resources/w3c-import.log: Added.
+        * web-platform-tests/css/css-properties-values-api/self-utils-expected.txt: Added.
+        * web-platform-tests/css/css-properties-values-api/self-utils.html: Added.
+        * web-platform-tests/css/css-properties-values-api/typedom.tentative-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/typedom.tentative.html:
+        * web-platform-tests/css/css-properties-values-api/unit-cycles-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/unit-cycles.html:
+        * web-platform-tests/css/css-properties-values-api/var-reference-registered-properties-cycles.html:
+        * web-platform-tests/css/css-properties-values-api/var-reference-registered-properties-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/var-reference-registered-properties.html:
+        * web-platform-tests/css/css-properties-values-api/w3c-import.log:
+
+2018-12-18  Justin Michaud  <justin_michaud@apple.com>
+
+        CSS Typed OM should expose attributeStyleMap
+        https://bugs.webkit.org/show_bug.cgi?id=192671
+
+        Reviewed by Ryosuke Niwa.
+
+        * web-platform-tests/css/css-properties-values-api/typedom.tentative-expected.txt:
+        * web-platform-tests/css/css-properties-values-api/unit-cycles-expected.txt:
+
+2018-12-14  Youenn Fablet  <youenn@apple.com>
+
+        getSenders/getReceivers() should not return closed transceiver senders/receivers
+        https://bugs.webkit.org/show_bug.cgi?id=192706
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/webrtc/RTCPeerConnection-setDescription-transceiver.html:
+        * web-platform-tests/webrtc/RTCRtpTransceiver.https.html:
+
+2018-12-13  Youenn Fablet  <youenn@apple.com>
+
+        RTCRtpTransceiver.stopped should be true when applying a remote description with the corresponding m section rejected
+        https://bugs.webkit.org/show_bug.cgi?id=192685
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/webrtc/RTCPeerConnection-setDescription-transceiver-expected.txt:
+        * web-platform-tests/webrtc/RTCPeerConnection-setDescription-transceiver.html:
+
+2018-12-10  Rob Buis  <rbuis@igalia.com>
+
+        XMLHttpRequest removes spaces from content-types before processing
+        https://bugs.webkit.org/show_bug.cgi?id=8644
+
+        Reviewed by Chris Dumez.
+
+        Update improved test expectations.
+
+        * web-platform-tests/mimesniff/mime-types/parsing.any-expected.txt:
+        * web-platform-tests/mimesniff/mime-types/parsing.any.worker-expected.txt:
+
+2018-12-05  Youenn Fablet  <youenn@apple.com>
+
+        [iOS] Layout Test imported/w3c/web-platform-tests/service-workers/service-worker/fetch-cors-xhr.https.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=189727
+        <rdar://problem/44584993>
+
+        Reviewed by Chris Dumez.
+
+        Make the test more deterministic and output more test to ease debugging.
+
+        * web-platform-tests/service-workers/service-worker/fetch-cors-xhr.https-expected.txt:
+        * web-platform-tests/service-workers/service-worker/fetch-cors-xhr.https.html:
+        * web-platform-tests/service-workers/service-worker/resources/fetch-cors-xhr-iframe.html:
+
+2018-12-05  Frederic Wang  <fwang@igalia.com>
+
+        Import css overscroll behavior WPT test
+        https://bugs.webkit.org/show_bug.cgi?id=192397
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/css-overscroll-behavior/META.yml: Added.
+        * web-platform-tests/css/css-overscroll-behavior/inheritance-expected.txt: Added.
+        * web-platform-tests/css/css-overscroll-behavior/inheritance.html: Added.
+        * web-platform-tests/css/css-overscroll-behavior/w3c-import.log: Added.
+
+2018-12-05  Alicia Boya García  <aboya@igalia.com>
+
+        [MSE][GStreamer] Remove the AppendPipeline state machine
+        https://bugs.webkit.org/show_bug.cgi?id=192204
+
+        Reviewed by Xabier Rodriguez-Calvar.
+
+        Added a test checking that initialization segments with invalid codec
+        identifiers are flagged as errors.
+
+        * web-platform-tests/media-source/mediasource-invalid-codec-expected.txt: Added.
+        * web-platform-tests/media-source/mediasource-invalid-codec.html: Added.
+        * web-platform-tests/media-source/mp4/invalid-codec.mp4: Added.
+        * web-platform-tests/media-source/webm/invalid-codec.webm: Added.
+
+2018-12-05  Rob Buis  <rbuis@igalia.com>
+
+        [Mac] HEAD requests changed to GET after 301, 302, and 303 redirections (http/tests/xmlhttprequest/head-redirection.html)
+        https://bugs.webkit.org/show_bug.cgi?id=114965
+
+        Reviewed by Frédéric Wang.
+
+        Update test expectations.
+
+        * web-platform-tests/fetch/api/redirect/redirect-method-expected.txt:
+        * web-platform-tests/fetch/api/redirect/redirect-method-worker-expected.txt:
+
+2018-12-05  Rob Buis  <rbuis@igalia.com>
+
+        Align with Fetch on data: URLs
+        https://bugs.webkit.org/show_bug.cgi?id=182325
+
+        Reviewed by Alex Christensen.
+
+        Update improved test expectations.
+
+        * web-platform-tests/fetch/api/basic/scheme-data.any-expected.txt:
+        * web-platform-tests/fetch/api/basic/scheme-data.any.worker-expected.txt:
+
+2018-11-30  Ryosuke Niwa  <rniwa@webkit.org>
+
+        title attribute on style & link elements should be ignored inside a shadow tree
+        https://bugs.webkit.org/show_bug.cgi?id=191297
+
+        Reviewed by Antti Koivisto.
+
+        Rebaseline the test case that's now passing.
+
+        * web-platform-tests/css/css-scoping/stylesheet-title-002-expected.txt:
+
 2018-11-30  Ryosuke Niwa  <rniwa@webkit.org>
 
         ShadowRoot should have styleSheets property

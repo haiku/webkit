@@ -37,12 +37,12 @@ class WebFrameLoaderClient;
 
 class WebFrameNetworkingContext : public WebCore::FrameNetworkingContext {
 public:
-    static PassRefPtr<WebFrameNetworkingContext> create(WebFrame* frame)
+    static RefPtr<WebFrameNetworkingContext> create(WebFrame* frame)
     {
         return adoptRef(new WebFrameNetworkingContext(frame));
     }
 
-    static void ensurePrivateBrowsingSession(WebCore::SessionID);
+    static void ensurePrivateBrowsingSession(PAL::SessionID);
     static void setCookieAcceptPolicyForAllContexts(HTTPCookieAcceptPolicy);
 
     WebFrameLoaderClient* webFrameLoaderClient() const;

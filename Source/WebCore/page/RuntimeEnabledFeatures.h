@@ -104,6 +104,9 @@ public:
     void setWebAuthenticationEnabled(bool isEnabled) { m_isWebAuthenticationEnabled = isEnabled; }
     bool webAuthenticationEnabled() const { return m_isWebAuthenticationEnabled; }
 
+    void setWebAuthenticationLocalAuthenticatorEnabled(bool isEnabled) { m_isWebAuthenticationLocalAuthenticatorEnabled = isEnabled; }
+    bool webAuthenticationLocalAuthenticatorEnabled() const { return m_isWebAuthenticationLocalAuthenticatorEnabled; }
+
     void setIsSecureContextAttributeEnabled(bool isEnabled) { m_isSecureContextAttributeEnabled = isEnabled; }
     bool isSecureContextAttributeEnabled() const { return m_isSecureContextAttributeEnabled; }
 
@@ -142,8 +145,8 @@ public:
     void setAriaReflectionEnabled(bool isEnabled) { m_ariaReflectionEnabled = isEnabled; }
     bool ariaReflectionEnabled() const { return m_ariaReflectionEnabled; }
 
-    void setResourceLoadStatisticsDebugMode(bool isEnabled) { m_resourceLoadStatisticsDebugMode = isEnabled; }
-    bool resourceLoadStatisticsDebugMode() const { return m_resourceLoadStatisticsDebugMode; }
+    void setItpDebugModeEnabled(bool isEnabled) { m_itpDebugMode = isEnabled; }
+    bool itpDebugModeEnabled() const { return m_itpDebugMode; }
 
     void setRestrictedHTTPResponseAccess(bool isEnabled) { m_isRestrictedHTTPResponseAccess = isEnabled; }
     bool restrictedHTTPResponseAccess() const { return m_isRestrictedHTTPResponseAccess; }
@@ -186,6 +189,11 @@ public:
 #if ENABLE(CSS_PAINTING_API)
     void setCSSPaintingAPIEnabled(bool isEnabled) { m_CSSPaintingAPIEnabled = isEnabled; }
     bool cssPaintingAPIEnabled() const { return m_CSSPaintingAPIEnabled; }
+#endif
+
+#if ENABLE(CSS_TYPED_OM)
+    void setCSSTypedOMEnabled(bool isEnabled) { m_CSSTypedOMEnabled = isEnabled; }
+    bool cssTypedOMEnabled() const { return m_CSSTypedOMEnabled; }
 #endif
 
     void setWebSQLDisabled(bool isDisabled) { m_webSQLEnabled = !isDisabled; }
@@ -307,6 +315,9 @@ public:
     bool intersectionObserverEnabled() const { return m_intersectionObserverEnabled; }
 #endif
 
+    void setUndoManagerAPIEnabled(bool isEnabled) { m_undoManagerAPIEnabled = isEnabled; }
+    bool undoManagerAPIEnabled() const { return m_undoManagerAPIEnabled; }
+
 #if ENABLE(ENCRYPTED_MEDIA)
     void setEncryptedMediaAPIEnabled(bool isEnabled) { m_encryptedMediaAPIEnabled = isEnabled; }
     bool encryptedMediaAPIEnabled() const { return m_encryptedMediaAPIEnabled; }
@@ -327,6 +338,12 @@ public:
     bool systemPreviewEnabled() const { return m_systemPreviewEnabled; }
 #endif
 
+    void setCSSLogicalEnabled(bool isEnabled) { m_CSSLogicalEnabled = isEnabled; }
+    bool cssLogicalEnabled() const { return m_CSSLogicalEnabled; }
+
+    bool adClickAttributionEnabled() const { return m_adClickAttributionEnabled; }
+    void setAdClickAttributionEnabled(bool isEnabled) { m_adClickAttributionEnabled = isEnabled; }
+
     WEBCORE_EXPORT static RuntimeEnabledFeatures& sharedFeatures();
 
 private:
@@ -342,6 +359,7 @@ private:
     bool m_isUserTimingEnabled { false };
     bool m_isInteractiveFormValidationEnabled { false };
     bool m_isWebAuthenticationEnabled { false };
+    bool m_isWebAuthenticationLocalAuthenticatorEnabled { false };
     bool m_isSecureContextAttributeEnabled { false };
     bool m_isDisplayContentsEnabled { true };
     bool m_isShadowDOMEnabled { true };
@@ -363,7 +381,7 @@ private:
     bool m_webVREnabled { false };
     bool m_accessibilityObjectModelEnabled { false };
     bool m_ariaReflectionEnabled { true };
-    bool m_resourceLoadStatisticsDebugMode { false };
+    bool m_itpDebugMode { false };
     bool m_isRestrictedHTTPResponseAccess { true };
     bool m_crossOriginResourcePolicyEnabled { true };
     bool m_isWebGLCompressedTextureASTCSupportEnabled { false };
@@ -383,6 +401,10 @@ private:
 
 #if ENABLE(CSS_PAINTING_API)
     bool m_CSSPaintingAPIEnabled { false };
+#endif
+
+#if ENABLE(CSS_TYPED_OM)
+    bool m_CSSTypedOMEnabled { false };
 #endif
 
 #if ENABLE(ATTACHMENT_ELEMENT)
@@ -492,6 +514,12 @@ private:
 #if USE(SYSTEM_PREVIEW)
     bool m_systemPreviewEnabled { false };
 #endif
+
+    bool m_undoManagerAPIEnabled { false };
+
+    bool m_CSSLogicalEnabled { false };
+
+    bool m_adClickAttributionEnabled { false };
 
     friend class WTF::NeverDestroyed<RuntimeEnabledFeatures>;
 };

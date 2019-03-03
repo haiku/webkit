@@ -33,10 +33,6 @@
 typedef const struct __CFURL* CFURLRef;
 #endif
 
-#if USE(SOUP)
-#include <wtf/glib/GUniquePtrSoup.h>
-#endif
-
 #if USE(FOUNDATION)
 OBJC_CLASS NSURL;
 #endif
@@ -104,7 +100,7 @@ public:
 
     StringView protocol() const;
     StringView host() const;
-    std::optional<uint16_t> port() const;
+    Optional<uint16_t> port() const;
     String hostAndPort() const;
     String protocolHostAndPort() const;
     String user() const;
@@ -183,11 +179,6 @@ public:
     RetainPtr<CFURLRef> createCFURL() const;
 #endif
 
-#if USE(SOUP)
-    URL(SoupURI*);
-    GUniquePtr<SoupURI> createSoupURI() const;
-#endif
-
 #if USE(FOUNDATION)
     URL(NSURL*);
     operator NSURL*() const;
@@ -207,7 +198,7 @@ public:
 
     template <class Encoder> void encode(Encoder&) const;
     template <class Decoder> static bool decode(Decoder&, URL&);
-    template <class Decoder> static std::optional<URL> decode(Decoder&);
+    template <class Decoder> static Optional<URL> decode(Decoder&);
 
 private:
     friend class URLParser;
@@ -260,11 +251,11 @@ bool URL::decode(Decoder& decoder, URL& url)
 }
 
 template <class Decoder>
-std::optional<URL> URL::decode(Decoder& decoder)
+Optional<URL> URL::decode(Decoder& decoder)
 {
     String string;
     if (!decoder.decode(string))
-        return std::nullopt;
+        return WTF::nullopt;
     return URL(URL(), string);
 }
 
@@ -285,7 +276,7 @@ WTF_EXPORT_PRIVATE bool protocolIsJavaScript(const String& url);
 WTF_EXPORT_PRIVATE bool protocolIsJavaScript(StringView url);
 WTF_EXPORT_PRIVATE bool protocolIsInHTTPFamily(const String& url);
 
-WTF_EXPORT_PRIVATE std::optional<uint16_t> defaultPortForProtocol(StringView protocol);
+WTF_EXPORT_PRIVATE Optional<uint16_t> defaultPortForProtocol(StringView protocol);
 WTF_EXPORT_PRIVATE bool isDefaultPortForProtocol(uint16_t port, StringView protocol);
 WTF_EXPORT_PRIVATE bool portAllowed(const URL&); // Blacklist ports that should never be used for Web resources.
 

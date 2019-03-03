@@ -1,3 +1,361 @@
+2019-01-31  Takashi Komori  <Takashi.Komori@sony.com>
+
+        [Curl] Fix DRT crash related to private browsing.
+        https://bugs.webkit.org/show_bug.cgi?id=193816
+
+        Reviewed by Alex Christensen.
+
+        * WebCoreSupport/WebFrameNetworkingContext.cpp:
+        (WebFrameNetworkingContext::ensurePrivateBrowsingSession):
+
+2019-01-28  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Remove unnecessary `using namespace WTF`s (or at least restrict their scope).
+        https://bugs.webkit.org/show_bug.cgi?id=193941
+
+        Reviewed by Alex Christensen.
+
+        * Plugins/PluginMessageThrottlerWin.cpp:
+        * Plugins/PluginView.cpp:
+        * Plugins/PluginViewWin.cpp:
+
+2019-01-24  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Move FileSystem to WTF
+        https://bugs.webkit.org/show_bug.cgi?id=193602
+
+        Reviewed by Yusuke Suzuki.
+
+        * Plugins/PluginDatabase.cpp:
+        * Plugins/PluginPackage.h:
+        * Plugins/PluginStream.h:
+        * WebApplicationCache.cpp:
+        * WebDatabaseManager.cpp:
+        * WebDownloadCurl.cpp:
+        * WebPreferences.cpp:
+        * WebView.cpp:
+
+2019-01-22  Alex Christensen  <achristensen@webkit.org>
+
+        Move NetworkStorageSession ownership to NetworkProcess
+        https://bugs.webkit.org/show_bug.cgi?id=193580
+
+        Reviewed by Geoff Garen.
+
+        * WebCoreSupport/WebFrameNetworkingContext.cpp:
+        (WebFrameNetworkingContext::setCookieAcceptPolicyForAllContexts):
+        (WebFrameNetworkingContext::ensurePrivateBrowsingSession):
+        (WebFrameNetworkingContext::destroyPrivateBrowsingSession):
+        (WebFrameNetworkingContext::storageSession const):
+        * WebDownloadCFNet.cpp:
+        (WebDownload::didReceiveAuthenticationChallenge):
+        * WebPreferences.cpp:
+        (WebPreferences::clearNetworkLoaderSession):
+        (WebPreferences::switchNetworkLoaderToNewTestingSession):
+
+2019-01-15  Darin Adler  <darin@apple.com>
+
+        Use references rather than pointers for register/unregister functions, and more
+        https://bugs.webkit.org/show_bug.cgi?id=175028
+
+        Reviewed by Daniel Bates.
+
+        * Plugins/PluginView.cpp:
+        (WebCore::PluginView::startOrAddToUnstartedList): Pass a reference.
+        (WebCore::PluginView::~PluginView): Ditto.
+        * WebView.cpp:
+        (WebView::fullScreenClientWillEnterFullScreen): Ditto.
+        (WebView::fullScreenClientDidEnterFullScreen): Ditto.
+        (WebView::fullScreenClientDidExitFullScreen): Ditto.
+
+2019-01-17  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win][HighDPI] Repaint glitches when scrolling.
+        https://bugs.webkit.org/show_bug.cgi?id=173152
+        <rdar://problem/45269953>
+
+        Reviewed by Brent Fulgham.
+
+        Non-integral device scale factors are causing repaint glitches, because the computation of the scroll
+        delta in pixel coordinates from the scroll delta in logical coordinates will not always be correct.
+        Instead of blitting the scroll rectangle, repaint the entire region affected by scrolling.
+
+        * WebView.cpp:
+        (WebView::scrollBackingStore):
+
+2019-01-17  Alex Christensen  <achristensen@webkit.org>
+
+        Stop using NetworkStorageSession::storageSession in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=193529
+
+        Reviewed by Tim Horton.
+
+        * WebView.cpp:
+        (WebView::initWithFrame):
+
+2019-01-15  Alex Christensen  <achristensen@webkit.org>
+
+        Reduce use of NetworkStorageSession::defaultStorageSession in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=193368
+
+        Reviewed by Geoff Garen.
+
+        * WebDownloadCFNet.cpp:
+        (WebDownload::didReceiveAuthenticationChallenge):
+
+2019-01-15  Alex Christensen  <achristensen@webkit.org>
+
+        Fix Windows build after r240014
+        https://bugs.webkit.org/show_bug.cgi?id=161106
+
+        * WebView.cpp:
+
+2019-01-15  Alex Christensen  <achristensen@webkit.org>
+
+        Stop using CookiesStrategy
+        https://bugs.webkit.org/show_bug.cgi?id=161106
+
+        Reviewed by Don Olmstead and Antti Koivisto.
+
+        * Plugins/PluginView.cpp:
+        (WebCore::PluginView::getValueForURL):
+        (WebCore::PluginView::setValueForURL):
+        * WebCoreSupport/WebPlatformStrategies.cpp:
+        (WebPlatformStrategies::createBlobRegistry):
+        (WebPlatformStrategies::createCookiesStrategy): Deleted.
+        (WebPlatformStrategies::cookiesForDOM): Deleted.
+        (WebPlatformStrategies::setCookiesFromDOM): Deleted.
+        (WebPlatformStrategies::cookiesEnabled): Deleted.
+        (WebPlatformStrategies::cookieRequestHeaderFieldValue): Deleted.
+        (WebPlatformStrategies::getRawCookies): Deleted.
+        (WebPlatformStrategies::deleteCookie): Deleted.
+        * WebCoreSupport/WebPlatformStrategies.h:
+        * WebView.cpp:
+        (WebView::initWithFrame):
+
+2019-01-08  Alex Christensen  <achristensen@webkit.org>
+
+        Stop using NetworkStorageSession in WebProcess
+        https://bugs.webkit.org/show_bug.cgi?id=193236
+
+        Reviewed by Don Olmstead.
+
+        * WebCoreSupport/WebFrameNetworkingContext.cpp:
+        (WebFrameNetworkingContext::storageSession const):
+        * WebCoreSupport/WebFrameNetworkingContext.h:
+        * WebCoreSupport/WebPlatformStrategies.cpp:
+        (WebPlatformStrategies::cookiesForDOM):
+        (WebPlatformStrategies::setCookiesFromDOM):
+        (WebPlatformStrategies::cookiesEnabled):
+        (WebPlatformStrategies::cookieRequestHeaderFieldValue):
+        (WebPlatformStrategies::getRawCookies):
+        (WebPlatformStrategies::deleteCookie):
+        * WebCoreSupport/WebPlatformStrategies.h:
+
+2019-01-08  Alex Christensen  <achristensen@webkit.org>
+
+        Unreviewed, rolling out r239727.
+
+        Broke API tests
+
+        Reverted changeset:
+
+        "Stop using NetworkStorageSession in WebProcess"
+        https://bugs.webkit.org/show_bug.cgi?id=193236
+        https://trac.webkit.org/changeset/239727
+
+2018-12-24  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Remove "using namespace std;"
+        https://bugs.webkit.org/show_bug.cgi?id=192973
+
+        Reviewed by Alex Christensen.
+
+        * FullscreenVideoController.cpp:
+        * WebFrame.cpp:
+        (WebFrame::drawFooter):
+        * WebHistory.cpp:
+        * WebKitQuartzCoreAdditions/CAD3DRenderer.cpp:
+        * WebKitQuartzCoreAdditions/CAView.cpp:
+        * WebView.cpp:
+        (PreferencesChangedOrRemovedObserver::notifyPreferencesChanged):
+        (PreferencesChangedOrRemovedObserver::notifyPreferencesRemoved):
+        (WebView::setCacheModel):
+        (WebView::maxCacheModelInAnyInstance):
+
+2018-12-20  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
+
+        Use Ref<> as much as possible
+        https://bugs.webkit.org/show_bug.cgi?id=192808
+
+        Reviewed by Alex Christensen.
+
+        * Plugins/PluginDatabase.cpp:
+        (WebCore::PluginDatabase::refresh):
+        * Plugins/PluginView.cpp:
+        (WebCore::PluginView::mediaCanStart):
+        (WebCore::PluginView::performRequest):
+        (WebCore::PluginView::bindingInstance):
+        * Plugins/PluginView.h:
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::dispatchDidFailToStartPlugin const):
+        (WebFrameLoaderClient::createPlugin):
+        (WebFrameLoaderClient::createJavaAppletWidget):
+        * WebCoreSupport/WebFrameLoaderClient.h:
+        * WebFrame.cpp:
+        (WebFrame::loadData):
+        (WebFrame::loadPlainTextString):
+        (WebFrame::loadHTMLString):
+        * WebFrame.h:
+        * WebKitQuartzCoreAdditions/CAView.cpp:
+        (WKQCA::CAView::create):
+        * WebKitQuartzCoreAdditions/CAView.h:
+        * WebKitQuartzCoreAdditions/CVDisplayLink.cpp:
+        (WKQCA::CVDisplayLink::create):
+        * WebKitQuartzCoreAdditions/CVDisplayLink.h:
+        * WebKitQuartzCoreAdditions/ImageConversion.cpp:
+        (WKQCA::getImageCopy):
+        * WebView.cpp:
+        (WebView::addUserScriptToGroup):
+        (WebView::addUserStyleSheetToGroup):
+
+2018-12-20  Chris Dumez  <cdumez@apple.com>
+
+        Use Optional::valueOr() instead of Optional::value_or()
+        https://bugs.webkit.org/show_bug.cgi?id=192933
+
+        Reviewed by Geoffrey Garen.
+
+        * WebSecurityOrigin.cpp:
+        (WebSecurityOrigin::port):
+
+2018-12-19  Chris Dumez  <cdumez@apple.com>
+
+        wtf/Optional.h: move-constructor and move-assignment operator should disengage the value being moved from
+        https://bugs.webkit.org/show_bug.cgi?id=192728
+        <rdar://problem/46746779>
+
+        Reviewed by Geoff Garen.
+
+        * Plugins/*:
+        * WebCoreSupport/*:
+
+2018-12-12  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [Win][Clang][WebKitLegacy] warning: expected a qualified name after 'typename' of COMEnumVariant and COMPropertyBag
+        https://bugs.webkit.org/show_bug.cgi?id=192617
+
+        Reviewed by Alex Christensen.
+
+        * COMEnumVariant.h:
+        (COMEnumVariant<ContainerType>::adopt): Removed 'typename' from non dependent names.
+        (COMEnumVariant<ContainerType>::createInstance): Ditto.
+        (COMEnumVariant<ContainerType>::Next): Prepend 'typename' for dependent names.
+        * COMPropertyBag.h:
+        (HashType>::createInstance): Removed 'typename' from non dependent names.
+        (HashType>::adopt): Ditto.
+        (HashType>::Read): Replaced dependent name 'HashMapType::const_iterator' with 'auto'.
+        (HashType>::GetPropertyInfo): Ditto.
+
+2018-12-12  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [Win][Clang][WebKitLegacy] WebFrame.cpp: warning: delete called on non-final 'WebFrame' that has virtual functions but non-virtual destructor [-Wdelete-non-virtual-dtor]
+        https://bugs.webkit.org/show_bug.cgi?id=192618
+
+        Reviewed by Alex Christensen.
+
+        Classes which implement COM interface usually doesn't need the
+        virtual destructor because it has Release() virtual method to
+        destruct itself.
+
+        Marked 'final' such classes to suppress clang-cl's compilation
+        warnings.
+
+        * COMEnumVariant.h:
+        * COMPropertyBag.h:
+        * DefaultDownloadDelegate.h:
+        * DefaultPolicyDelegate.h:
+        * MemoryStream.h:
+        * WebActionPropertyBag.h:
+        * WebApplicationCache.h:
+        * WebArchive.h:
+        * WebBackForwardList.h:
+        * WebCache.h:
+        * WebCoreStatistics.h:
+        * WebCoreSupport/WebEditorClient.cpp:
+        * WebCoreSupport/WebInspectorDelegate.h:
+        * WebDataSource.h:
+        * WebDatabaseManager.cpp:
+        * WebDatabaseManager.h:
+        * WebDownload.h:
+        * WebDropSource.h:
+        * WebElementPropertyBag.h:
+        * WebError.h:
+        * WebFrame.cpp:
+        * WebFrame.h:
+        * WebFramePolicyListener.h:
+        * WebGeolocationPolicyListener.h:
+        * WebGeolocationPosition.h:
+        * WebHTMLRepresentation.h:
+        * WebHistory.h:
+        * WebHistoryItem.h:
+        * WebInspector.h:
+        * WebJavaScriptCollector.h:
+        * WebKitClassFactory.h:
+        * WebKitMessageLoop.h:
+        * WebKitStatistics.h:
+        * WebMutableURLRequest.h:
+        * WebNavigationData.h:
+        * WebNotification.h:
+        * WebNotificationCenter.h:
+        * WebPreferences.h:
+        * WebResource.h:
+        * WebScriptWorld.h:
+        * WebSecurityOrigin.h:
+        * WebSerializedJSValue.h:
+        * WebTextRenderer.h:
+        * WebURLAuthenticationChallenge.h:
+        * WebURLAuthenticationChallengeSender.h:
+        * WebURLCredential.h:
+        * WebURLProtectionSpace.h:
+        * WebURLResponse.h:
+        * WebUserContentURLPattern.h:
+        * WebView.cpp:
+        * WebView.h:
+        * WebWorkersPrivate.h:
+
+2018-12-11  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [Win][Clang] Fix warning -Wmissing-field-initializers
+        https://bugs.webkit.org/show_bug.cgi?id=192584
+
+        Reviewed by Yusuke Suzuki.
+
+        Initialize a struct with '{ }' instead of '= {0}'.
+
+        * WebKitMessageLoop.cpp:
+        (WebKitMessageLoop::run):
+        * WebView.cpp:
+        (WebView::onMenuCommand):
+        (WebView::gesture):
+        (WebView::setShouldInvertColors):
+        (WebView::initializeToolTipWindow):
+        (WebView::setToolTip):
+        (WebView::fullScreenClientForceRepaint):
+
+2018-12-05  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Turn WritingDirection into an enum class
+        https://bugs.webkit.org/show_bug.cgi?id=192401
+        Work towards <rdar://problem/42075638>
+
+        Reviewed by Dan Bernstein.
+
+        Change WritingDirection from an enum to an enum class. No change in behavior.
+
+        * WebFrame.cpp:
+        (WebFrame::setTextDirection):
+
 2018-12-03  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
 
         Use WallTime for file time

@@ -29,9 +29,7 @@
 #include "NetworkDataTaskBlob.h"
 #include "NetworkLoadParameters.h"
 #include "NetworkSession.h"
-#include <WebCore/ResourceError.h>
 #include <WebCore/ResourceResponse.h>
-#include <wtf/MainThread.h>
 #include <wtf/RunLoop.h>
 
 #if PLATFORM(COCOA)
@@ -105,7 +103,7 @@ void NetworkDataTask::didReceiveResponse(ResourceResponse&& response, ResponseCo
     ASSERT(m_client);
     if (response.isHTTP09()) {
         auto url = response.url();
-        std::optional<uint16_t> port = url.port();
+        Optional<uint16_t> port = url.port();
         if (port && !WTF::isDefaultPortForProtocol(port.value(), url.protocol())) {
             completionHandler(PolicyAction::Ignore);
             cancel();

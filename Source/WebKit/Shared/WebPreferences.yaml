@@ -6,6 +6,12 @@ BlankAnchorTargetImpliesNoOpenerEnabled:
    humanReadableDescription: "target=_blank on anchor elements implies rel=noopener"
    category: experimental
 
+DeviceOrientationEventEnabled:
+  type: bool
+  defaultValue: true
+  condition: ENABLE(DEVICE_ORIENTATION)
+  webcoreName: deviceOrientationEventEnabled
+
 JavaScriptEnabled:
   type: bool
   defaultValue: true
@@ -28,6 +34,20 @@ LoadsSiteIconsIgnoringImageLoadingPreference:
 PluginsEnabled:
   type: bool
   defaultValue: false
+
+HTTPSUpgradeEnabled:
+   type: bool
+   defaultValue: false
+   humanReadableName: "Automatic HTTPS upgrade"
+   humanReadableDescription: "Automatic HTTPS upgrade for known supported sites"
+   category: experimental
+
+ThirdPartyIframeRedirectBlockingEnabled:
+   type: bool
+   defaultValue: true
+   humanReadableName: "Block top-level redirects by third-party iframes"
+   humanReadableDescription: "Block top-level redirects by third-party iframes"
+   category: experimental
 
 JavaEnabled:
   type: bool
@@ -495,7 +515,7 @@ MediaStreamEnabled:
 
 ScreenCaptureEnabled:
   type: bool
-  defaultValue: false
+  defaultValue: true
   webcoreBinding: RuntimeEnabledFeatures
   condition: ENABLE(MEDIA_STREAM) && PLATFORM(MAC)
   humanReadableName: "ScreenCapture"
@@ -537,7 +557,7 @@ WebRTCH264SimulcastEnabled:
 
 WebRTCMDNSICECandidatesEnabled:
   type: bool
-  defaultValue: false
+  defaultValue: true
   humanReadableName: "WebRTC mDNS ICE candidates"
   humanReadableDescription: "Enable WebRTC mDNS ICE candidates"
   webcoreBinding: RuntimeEnabledFeatures
@@ -609,33 +629,15 @@ HTTPEquivEnabled:
   defaultValue: true
   webcoreName: httpEquivEnabled
 
-MockCaptureDevicesEnabled:
-  type: bool
-  defaultValue: DEFAULT_MOCK_CAPTURE_DEVICES_ENABLED
-  webcoreBinding: DeprecatedGlobalSettings
-  condition: ENABLE(MEDIA_STREAM)
-
 MockCaptureDevicesPromptEnabled:
   type: bool
   defaultValue: true
   webcoreBinding: none
 
-MediaCaptureRequiresSecureConnection:
-  type: bool
-  defaultValue: true
-  webcoreBinding: DeprecatedGlobalSettings
-  condition: ENABLE(MEDIA_STREAM)
-
 # FIXME: What is this for?
 EnumeratingAllNetworkInterfacesEnabled:
   type: bool
   defaultValue: false
-  webcoreBinding: none
-
-# FIXME: What is this for?
-ICECandidateFilteringEnabled:
-  type: bool
-  defaultValue: true
   webcoreBinding: none
 
 ShadowDOMEnabled:
@@ -738,6 +740,14 @@ WebAuthenticationEnabled:
   humanReadableDescription: "Enable Web Authentication support"
   webcoreBinding: RuntimeEnabledFeatures
   category: experimental
+  condition: ENABLE(WEB_AUTHN)
+
+WebAuthenticationLocalAuthenticatorEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "Web Authentication Local Authenticator"
+  humanReadableDescription: "Enable Web Authentication local authenticator support"
+  webcoreBinding: RuntimeEnabledFeatures
   condition: ENABLE(WEB_AUTHN)
 
 ModernMediaControlsEnabled:
@@ -1091,10 +1101,7 @@ ShouldAllowUserInstalledFonts:
 
 MediaCapabilitiesEnabled:
   type: bool
-  defaultValue: DEFAULT_EXPERIMENTAL_FEATURES_ENABLED
-  humanReadableName: "Media Capabilities API"
-  humanReadableDescription: "Media Capabilities API"
-  category: experimental
+  defaultValue: true
 
 SystemPreviewEnabled:
   type: bool
@@ -1114,11 +1121,6 @@ ConstantPropertiesEnabled:
 SubresourceIntegrityEnabled:
   type: bool
   defaultValue: true
-
-RestrictedHTTPResponseAccess:
-  type: bool
-  defaultValue: true
-  webcoreBinding: RuntimeEnabledFeatures
 
 CrossOriginResourcePolicyEnabled:
   type: bool
@@ -1220,14 +1222,14 @@ IntersectionObserverEnabled:
 
 VisualViewportAPIEnabled:
   type: bool
-  defaultValue: DEFAULT_EXPERIMENTAL_FEATURES_ENABLED
+  defaultValue: true
   humanReadableName: "Visual Viewport API"
   humanReadableDescription: "Enable Visual Viewport API"
   category: experimental
 
 PointerEventsEnabled:
   type: bool
-  defaultValue: false
+  defaultValue: DEFAULT_POINTER_EVENTS_ENABLED
   humanReadableName: "Pointer Events"
   humanReadableDescription: "Enable Pointer Events"
   webcoreBinding: RuntimeEnabledFeatures
@@ -1235,10 +1237,10 @@ PointerEventsEnabled:
 
 CSSOMViewScrollingAPIEnabled:
   type: bool
-  defaultValue: false
+  defaultValue: true
   humanReadableName: "CSSOM View Scrolling API"
   humanReadableDescription: "Implement standard behavior for scrollLeft, scrollTop, scrollWidth, scrollHeight, scrollTo, scrollBy and scrollingElement."
-  category: experimental
+  category: internal
 
 WebAnimationsEnabled:
   type: bool
@@ -1335,9 +1337,18 @@ CSSPaintingAPIEnabled:
   category: experimental
   condition: ENABLE(CSS_PAINTING_API)
 
-WebSQLDisabled:
+CSSTypedOMEnabled:
   type: bool
   defaultValue: false
+  humanReadableName: "CSS Typed OM"
+  humanReadableDescription: "Enable the CSS Typed OM"
+  webcoreBinding: RuntimeEnabledFeatures
+  category: experimental
+  condition: ENABLE(CSS_TYPED_OM)
+
+WebSQLDisabled:
+  type: bool
+  defaultValue: true
   humanReadableName: "Disable Web SQL"
   humanReadableDescription: "Disable Web SQL"
   webcoreBinding: RuntimeEnabledFeatures
@@ -1365,12 +1376,11 @@ ExperimentalPlugInSandboxProfilesEnabled:
   webcoreBinding: RuntimeEnabledFeatures
   webcoreName: experimentalPlugInSandboxProfilesEnabled
 
-ResourceLoadStatisticsDebugMode:
+ItpDebugModeEnabled:
   type: bool
   defaultValue: false
   humanReadableName: "ITP Debug Mode"
   humanReadableDescription: "Intelligent Tracking Prevention Debug Mode"
-  category: internal
   webcoreBinding: RuntimeEnabledFeatures
 
 ServiceWorkersEnabled:
@@ -1474,3 +1484,68 @@ LayoutFormattingContextEnabled:
   webcoreBinding: RuntimeEnabledFeatures
   condition: ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+CaptureAudioInUIProcessEnabled:
+  type: bool
+  defaultValue: DEFAULT_CAPTURE_AUDIO_IN_UIPROCESS
+  humanReadableName: "Capture audio in UIProcess"
+  humanReadableDescription: "Enable audio capture in UIProcess"
+  category: internal
+  webcoreBinding: none
+  condition: ENABLE(MEDIA_STREAM)
+
+CaptureVideoInUIProcessEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "Capture video in UIProcess"
+  humanReadableDescription: "Enable video capture in UIProcess"
+  category: internal
+  webcoreBinding: none
+  condition: ENABLE(MEDIA_STREAM)
+
+RestrictedHTTPResponseAccess:
+  type: bool
+  defaultValue: true
+  humanReadableName: "Filter HTTP Response for WebProcesses"
+  humanReadableDescription: "Enable HTTP Response filtering for WebProcesses"
+  category: internal
+  webcoreBinding: RuntimeEnabledFeatures
+
+UndoManagerAPIEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "UndoManager DOM API"
+  humanReadableDescription: "Enable the UndoManager DOM API"
+  category: internal
+  webcoreBinding: RuntimeEnabledFeatures
+
+CSSLogicalEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "CSS Logical Properties and Values"
+  humanReadableDescription: "Enable CSS Logical Properties and Values"
+  webcoreBinding: RuntimeEnabledFeatures
+  category: internal
+
+AdClickAttributionEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "Ad Click Attribution"
+  humanReadableDescription: "Enable Ad Click Attribution for Cross-Site Link Navigations"
+  webcoreBinding: RuntimeEnabledFeatures
+  category: internal
+
+# Deprecated
+
+ICECandidateFilteringEnabled:
+  type: bool
+  defaultValue: true
+
+MockCaptureDevicesEnabled:
+  type: bool
+  defaultValue: DEFAULT_MOCK_CAPTURE_DEVICES_ENABLED
+  condition: ENABLE(MEDIA_STREAM)
+
+MediaCaptureRequiresSecureConnection:
+  type: bool
+  defaultValue: true
+  condition: ENABLE(MEDIA_STREAM)

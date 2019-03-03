@@ -46,12 +46,6 @@ BlockFormattingState::~BlockFormattingState()
 {
 }
 
-std::unique_ptr<FormattingContext> BlockFormattingState::formattingContext(const Box& formattingContextRoot)
-{
-    ASSERT(formattingContextRoot.establishesBlockFormattingContext());
-    return std::make_unique<BlockFormattingContext>(formattingContextRoot, *this);
-}
-
 }
 }
 #endif

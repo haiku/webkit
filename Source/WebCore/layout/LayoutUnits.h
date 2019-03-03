@@ -30,6 +30,7 @@
 #include "LayoutUnit.h"
 #include "LayoutPoint.h"
 #include "LayoutRect.h"
+#include "MarginTypes.h"
 #include <wtf/Optional.h>
 
 namespace WebCore {
@@ -102,16 +103,13 @@ struct Edges {
 
 struct WidthAndMargin {
     LayoutUnit width;
-    HorizontalEdges margin;
-    HorizontalEdges nonComputedMargin;
+    UsedHorizontalMargin usedMargin;
+    ComputedHorizontalMargin computedMargin;
 };
 
 struct HeightAndMargin {
-    VerticalEdges usedMarginValues() const { return collapsedMargin.value_or(margin); }
-
     LayoutUnit height;
-    VerticalEdges margin;
-    std::optional<VerticalEdges> collapsedMargin;
+    UsedVerticalMargin::NonCollapsedValues nonCollapsedMargin;
 };
 
 struct HorizontalGeometry {

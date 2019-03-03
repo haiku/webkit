@@ -5,6 +5,7 @@ set_property(DIRECTORY . PROPERTY FOLDER "WebKit")
 set(WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}"
     "${WEBKIT_DIR}/NetworkProcess"
+    "${WEBKIT_DIR}/NetworkProcess/Classifier"
     "${WEBKIT_DIR}/NetworkProcess/Cookies"
     "${WEBKIT_DIR}/NetworkProcess/CustomProtocols"
     "${WEBKIT_DIR}/NetworkProcess/Downloads"
@@ -89,11 +90,8 @@ set(WebKit_INCLUDE_DIRECTORIES
     "${CMAKE_SOURCE_DIR}/WebKitLibraries"
 )
 
-set(WebKit2_LOCAL_INCLUDE_DIRECTORIES
+SET(WebKit_LOCAL_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/css"
-    "${WEBCORE_DIR}/platform"
-    "${WEBCORE_DIR}/platform/graphics"
-    "${WEBCORE_DIR}/platform/graphics/transforms"
 )
 
 set(PROTOCOL_GENERATOR_SCRIPTS_DIR "${JAVASCRIPTCORE_DIR}/inspector/scripts")
@@ -131,7 +129,7 @@ set(WebKit_MESSAGES_IN_FILES
     PluginProcess/PluginProcess.messages.in
     PluginProcess/WebProcessConnection.messages.in
 
-    Shared/ChildProcess.messages.in
+    Shared/AuxiliaryProcess.messages.in
     Shared/WebConnection.messages.in
 
     Shared/Authentication/AuthenticationManager.messages.in

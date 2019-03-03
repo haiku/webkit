@@ -132,6 +132,10 @@
 #import <wtf/RunLoop.h>
 #import <wtf/text/WTFString.h>
 
+#if USE(APPLE_INTERNAL_SDK)
+#import <WebKitAdditions/WebFrameLoaderClientAdditions.mm>
+#endif
+
 #if USE(PLUGIN_HOST_PROCESS) && ENABLE(NETSCAPE_PLUGIN_API)
 #import "NetscapePluginHostManager.h"
 #import "WebHostedNetscapePluginView.h"
@@ -204,14 +208,14 @@ WebFrameLoaderClient::WebFrameLoaderClient(WebFrame *webFrame)
 {
 }
 
-std::optional<uint64_t> WebFrameLoaderClient::pageID() const
+Optional<uint64_t> WebFrameLoaderClient::pageID() const
 {
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-std::optional<uint64_t> WebFrameLoaderClient::frameID() const
+Optional<uint64_t> WebFrameLoaderClient::frameID() const
 {
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 PAL::SessionID WebFrameLoaderClient::sessionID() const
@@ -666,7 +670,7 @@ void WebFrameLoaderClient::dispatchWillClose()
 #endif
 }
 
-void WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
+void WebFrameLoaderClient::dispatchDidStartProvisionalLoad(CompletionHandler<void()>&& completionHandler)
 {
     ASSERT(!m_webFrame->_private->provisionalURL);
     m_webFrame->_private->provisionalURL = core(m_webFrame.get())->loader().provisionalDocumentLoader()->url().string();
@@ -683,6 +687,7 @@ void WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
     WebFrameLoadDelegateImplementationCache* implementations = WebViewGetFrameLoadDelegateImplementations(webView);
     if (implementations->didStartProvisionalLoadForFrameFunc)
         CallFrameLoadDelegate(implementations->didStartProvisionalLoadForFrameFunc, webView, @selector(webView:didStartProvisionalLoadForFrame:), m_webFrame.get());
+    completionHandler();
 }
 
 static constexpr unsigned maxTitleLength = 1000; // Closest power of 10 above the W3C recommendation for Title length.
@@ -699,7 +704,7 @@ void WebFrameLoaderClient::dispatchDidReceiveTitle(const StringWithDirection& ti
     }
 }
 
-void WebFrameLoaderClient::dispatchDidCommitLoad(std::optional<HasInsecureContent>)
+void WebFrameLoaderClient::dispatchDidCommitLoad(Optional<HasInsecureContent>)
 {
     // Tell the client we've committed this URL.
     ASSERT([m_webFrame->_private->webFrameView documentView] != nil);
@@ -1464,7 +1469,7 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
     if (isMainFrame && coreFrame->view())
         coreFrame->view()->setParentVisible(false);
     coreFrame->setView(nullptr);
-    RefPtr<FrameView> coreView = FrameView::create(*coreFrame);
+    auto coreView = FrameView::create(*coreFrame);
     coreFrame->setView(coreView.copyRef());
 
     [m_webFrame.get() _updateBackgroundAndUpdatesWhileOffscreen];

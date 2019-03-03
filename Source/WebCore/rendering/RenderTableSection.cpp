@@ -28,9 +28,9 @@
 #include "Document.h"
 #include "HitTestResult.h"
 #include "HTMLNames.h"
-#include "LayoutState.h"
 #include "PaintInfo.h"
 #include "RenderChildIterator.h"
+#include "RenderLayoutState.h"
 #include "RenderTableCell.h"
 #include "RenderTableCol.h"
 #include "RenderTableRow.h"
@@ -871,16 +871,16 @@ void RenderTableSection::recalcOuterBorder()
     m_outerBorderEnd = calcOuterBorderEnd();
 }
 
-std::optional<int> RenderTableSection::firstLineBaseline() const
+Optional<int> RenderTableSection::firstLineBaseline() const
 {
     if (!m_grid.size())
-        return std::optional<int>();
+        return Optional<int>();
 
     int firstLineBaseline = m_grid[0].baseline;
     if (firstLineBaseline)
         return firstLineBaseline + roundToInt(m_rowPos[0]);
 
-    std::optional<int> result;
+    Optional<int> result;
     const Row& firstRow = m_grid[0].row;
     for (size_t i = 0; i < firstRow.size(); ++i) {
         const CellStruct& cs = firstRow.at(i);
@@ -888,7 +888,7 @@ std::optional<int> RenderTableSection::firstLineBaseline() const
         // Only cells with content have a baseline
         if (cell && cell->contentLogicalHeight()) {
             int candidate = roundToInt(cell->logicalTop() + cell->borderAndPaddingBefore() + cell->contentLogicalHeight());
-            result = std::max(result.value_or(candidate), candidate);
+            result = std::max(result.valueOr(candidate), candidate);
         }
     }
 

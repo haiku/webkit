@@ -385,9 +385,6 @@ void NetworkDataTaskSoup::dispatchDidReceiveResponse()
                 ASSERT_NOT_REACHED();
 
             break;
-        case PolicyAction::Suspend:
-            LOG_ERROR("PolicyAction::Suspend encountered - Treating as PolicyAction::Ignore for now");
-            FALLTHROUGH;
         case PolicyAction::Ignore:
             clearRequest();
             break;
@@ -423,7 +420,7 @@ gboolean NetworkDataTaskSoup::tlsConnectionAcceptCertificateCallback(GTlsConnect
 bool NetworkDataTaskSoup::tlsConnectionAcceptCertificate(GTlsCertificate* certificate, GTlsCertificateFlags tlsErrors)
 {
     ASSERT(m_soupRequest);
-    URL url(soup_request_get_uri(m_soupRequest.get()));
+    URL url = soupURIToURL(soup_request_get_uri(m_soupRequest.get()));
     auto error = SoupNetworkSession::checkTLSErrors(url, certificate, tlsErrors);
     if (!error)
         return true;
@@ -910,7 +907,7 @@ void NetworkDataTaskSoup::download()
     }
     m_downloadOutputStream = adoptGRef(G_OUTPUT_STREAM(outputStream.leakRef()));
 
-    auto& downloadManager = NetworkProcess::singleton().downloadManager();
+    auto& downloadManager = m_session->networkProcess().downloadManager();
     auto download = std::make_unique<Download>(downloadManager, m_pendingDownloadID, *this, m_session->sessionID(), suggestedFilename());
     auto* downloadPtr = download.get();
     downloadManager.dataTaskBecameDownloadTask(m_pendingDownloadID, WTFMove(download));
@@ -977,7 +974,7 @@ void NetworkDataTaskSoup::writeDownload()
 void NetworkDataTaskSoup::didWriteDownload(gsize bytesWritten)
 {
     ASSERT(bytesWritten == m_readBuffer.size());
-    auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+    auto* download = m_session->networkProcess().downloadManager().download(m_pendingDownloadID);
     ASSERT(download);
     download->didReceiveData(bytesWritten);
     read();
@@ -1005,7 +1002,7 @@ void NetworkDataTaskSoup::didFinishDownload()
     g_file_set_attributes_async(m_downloadDestinationFile.get(), info.get(), G_FILE_QUERY_INFO_NONE, RunLoopSourcePriority::AsyncIONetwork, nullptr, nullptr, nullptr);
 
     clearRequest();
-    auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+    auto* download = m_session->networkProcess().downloadManager().download(m_pendingDownloadID);
     ASSERT(download);
     download->didFinish();
 }
@@ -1017,7 +1014,7 @@ void NetworkDataTaskSoup::didFailDownload(const ResourceError& error)
     if (m_client)
         dispatchDidCompleteWithError(error);
     else {
-        auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+        auto* download = m_session->networkProcess().downloadManager().download(m_pendingDownloadID);
         ASSERT(download);
         download->didFail(error, IPC::DataReference());
     }

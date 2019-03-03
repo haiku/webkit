@@ -107,11 +107,6 @@ enum ShouldApplyRootOffsetToFragments {
     IgnoreRootOffsetForFragments
 };
 
-enum LayerScrollCoordinationRole {
-    ViewportConstrained = 1 << 0,
-    Scrolling           = 1 << 1
-};
-
 enum class RequestState {
     Unknown,
     DontCare,
@@ -207,9 +202,10 @@ private:
         // Things that trigger HasDescendantNeedingBackingOrHierarchyTraversal
         NeedsGeometryUpdate                                 = 1 << 6, // This layer needs a geometry update.
         NeedsConfigurationUpdate                            = 1 << 7, // This layer needs a configuration update (updating its internal compositing hierarchy).
-        NeedsLayerConnection                                = 1 << 8, // This layer needs hookup with its parents or children.
-        ChildrenNeedGeometryUpdate                          = 1 << 9, // This layer's composited children needs a geometry update.
-        DescendantsNeedBackingAndHierarchyTraversal         = 1 << 10, // Something changed that forces us to traverse all descendant layers in updateBackingAndHierarchy.
+        NeedsScrollingTreeUpdate                            = 1 << 8, // Something changed that requires this layer's scrolling tree node to be updated.
+        NeedsLayerConnection                                = 1 << 9, // This layer needs hookup with its parents or children.
+        ChildrenNeedGeometryUpdate                          = 1 << 10, // This layer's composited children need a geometry update.
+        DescendantsNeedBackingAndHierarchyTraversal         = 1 << 11, // Something changed that forces us to traverse all descendant layers in updateBackingAndHierarchy.
     };
 
     static constexpr OptionSet<Compositing> computeCompositingRequirementsFlags()
@@ -228,6 +224,7 @@ private:
             Compositing::NeedsLayerConnection,
             Compositing::NeedsGeometryUpdate,
             Compositing::NeedsConfigurationUpdate,
+            Compositing::NeedsScrollingTreeUpdate,
             Compositing::ChildrenNeedGeometryUpdate,
             Compositing::DescendantsNeedBackingAndHierarchyTraversal,
         };
@@ -247,6 +244,7 @@ public:
     bool needsCompositingLayerConnection() const { return m_compositingDirtyBits.contains(Compositing::NeedsLayerConnection); }
     bool needsCompositingGeometryUpdate() const { return m_compositingDirtyBits.contains(Compositing::NeedsGeometryUpdate); }
     bool needsCompositingConfigurationUpdate() const { return m_compositingDirtyBits.contains(Compositing::NeedsConfigurationUpdate); }
+    bool needsScrollingTreeUpdate() const { return m_compositingDirtyBits.contains(Compositing::NeedsScrollingTreeUpdate); }
     bool childrenNeedCompositingGeometryUpdate() const { return m_compositingDirtyBits.contains(Compositing::ChildrenNeedGeometryUpdate); }
     bool descendantsNeedUpdateBackingAndHierarchyTraversal() const { return m_compositingDirtyBits.contains(Compositing::DescendantsNeedBackingAndHierarchyTraversal); }
 
@@ -274,6 +272,7 @@ public:
     void setNeedsCompositingLayerConnection() { setBackingAndHierarchyTraversalDirtyBit<Compositing::NeedsLayerConnection>(); }
     void setNeedsCompositingGeometryUpdate() { setBackingAndHierarchyTraversalDirtyBit<Compositing::NeedsGeometryUpdate>(); }
     void setNeedsCompositingConfigurationUpdate() { setBackingAndHierarchyTraversalDirtyBit<Compositing::NeedsConfigurationUpdate>(); }
+    void setNeedsScrollingTreeUpdate() { setBackingAndHierarchyTraversalDirtyBit<Compositing::NeedsScrollingTreeUpdate>(); }
     void setChildrenNeedCompositingGeometryUpdate() { setBackingAndHierarchyTraversalDirtyBit<Compositing::ChildrenNeedGeometryUpdate>(); }
     void setDescendantsNeedUpdateBackingAndHierarchyTraversal() { setBackingAndHierarchyTraversalDirtyBit<Compositing::DescendantsNeedBackingAndHierarchyTraversal>(); }
 
@@ -398,6 +397,9 @@ public:
 
     LayoutRect rect() const { return LayoutRect(location(), size()); }
 
+    IntSize visibleSize() const override;
+    IntSize contentsSize() const override;
+
     int scrollWidth() const;
     int scrollHeight() const;
 
@@ -413,7 +415,7 @@ public:
     void scrollToXPosition(int x, ScrollClamping = ScrollClamping::Clamped);
     void scrollToYPosition(int y, ScrollClamping = ScrollClamping::Clamped);
 
-    void setPostLayoutScrollPosition(std::optional<ScrollPosition>);
+    void setPostLayoutScrollPosition(Optional<ScrollPosition>);
     void applyPostLayoutScrollPositionIfNeeded();
 
     ScrollOffset scrollOffset() const { return scrollOffsetFromPosition(m_scrollPosition); }
@@ -1031,8 +1033,6 @@ private:
     void setScrollOffset(const ScrollOffset&) override;
 
     IntRect visibleContentRectInternal(VisibleContentRectIncludesScrollbars, VisibleContentRectBehavior) const override;
-    IntSize visibleSize() const override;
-    IntSize contentsSize() const override;
     IntSize overhangAmount() const override;
     IntPoint lastKnownMousePosition() const override;
     bool isHandlingWheelEvent() const override;
@@ -1243,7 +1243,7 @@ private:
     IntSize m_layerSize;
 
     ScrollPosition m_scrollPosition;
-    std::optional<ScrollPosition> m_postLayoutScrollPosition;
+    Optional<ScrollPosition> m_postLayoutScrollPosition;
 
     // The width/height of our scrolled area.
     IntSize m_scrollSize;

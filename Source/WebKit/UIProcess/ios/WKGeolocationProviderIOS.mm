@@ -186,9 +186,9 @@ static void setEnableHighAccuracy(WKGeolocationManagerRef geolocationManager, bo
         if ([uiDelegate respondsToSelector:@selector(_webView:requestGeolocationAuthorizationForURL:frame:decisionHandler:)]) {
             URL requestFrameURL(URL(), request.frame->url());
             RetainPtr<WKFrameInfo> frameInfo = wrapper(API::FrameInfo::create(*request.frame.get(), *request.origin.get()));
-            RefPtr<WebKit::CompletionHandlerCallChecker> checker = WebKit::CompletionHandlerCallChecker::create(uiDelegate, @selector(_webView:requestGeolocationAuthorizationForURL:frame:decisionHandler:));
+            auto checker = WebKit::CompletionHandlerCallChecker::create(uiDelegate, @selector(_webView:requestGeolocationAuthorizationForURL:frame:decisionHandler:));
             WKWebView *viewFromRequest = request.view.get();
-            [uiDelegate _webView:viewFromRequest requestGeolocationAuthorizationForURL:requestFrameURL frame:frameInfo.get() decisionHandler:BlockPtr<void(BOOL)>::fromCallable([request = WTFMove(request), checker = WTFMove(checker)](BOOL authorized) {
+            [uiDelegate _webView:viewFromRequest requestGeolocationAuthorizationForURL:requestFrameURL frame:frameInfo.get() decisionHandler:makeBlockPtr([request = WTFMove(request), checker = WTFMove(checker)](BOOL authorized) {
                 if (checker->completionHandlerHasBeenCalled())
                     return;
                 checker->didCallCompletionHandler();

@@ -32,6 +32,7 @@
 #include "WKDragDestinationAction.h"
 #include "WKLayoutMode.h"
 #include "_WKOverlayScrollbarStyle.h"
+#include <WebCore/FocusDirection.h>
 #include <WebCore/ScrollTypes.h>
 #include <WebCore/TextIndicatorWindow.h>
 #include <WebCore/UserInterfaceLayoutDirection.h>
@@ -50,7 +51,7 @@ OBJC_CLASS NSTextInputContext;
 OBJC_CLASS NSView;
 OBJC_CLASS WKAccessibilitySettingsObserver;
 OBJC_CLASS WKBrowsingContextController;
-OBJC_CLASS WKEditorUndoTargetObjC;
+OBJC_CLASS WKEditorUndoTarget;
 OBJC_CLASS WKFullScreenWindowController;
 OBJC_CLASS WKImmediateActionController;
 OBJC_CLASS WKSafeBrowsingWarning;
@@ -134,6 +135,7 @@ namespace WebKit {
 class PageClient;
 class PageClientImpl;
 class DrawingAreaProxy;
+class SafeBrowsingWarning;
 class ViewGestureController;
 class ViewSnapshot;
 class WebBackForwardListItem;
@@ -195,7 +197,7 @@ public:
     void setFixedLayoutSize(CGSize);
     CGSize fixedLayoutSize() const;
 
-    std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy();
+    std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&);
     bool isUsingUISideCompositing() const;
     void setDrawingAreaSize(CGSize);
     void updateLayer();
@@ -228,6 +230,7 @@ public:
 
     void showSafeBrowsingWarning(const SafeBrowsingWarning&, CompletionHandler<void(Variant<ContinueUnsafeLoad, URL>&&)>&&);
     void clearSafeBrowsingWarning();
+    void clearSafeBrowsingWarningIfForMainFrameNavigation();
 
     WKLayoutMode layoutMode() const;
     void setLayoutMode(WKLayoutMode);
@@ -276,8 +279,8 @@ public:
     _WKRectEdge rubberBandingEnabled();
     void setRubberBandingEnabled(_WKRectEdge);
 
-    void setOverlayScrollbarStyle(std::optional<WebCore::ScrollbarOverlayStyle> scrollbarStyle);
-    std::optional<WebCore::ScrollbarOverlayStyle> overlayScrollbarStyle() const;
+    void setOverlayScrollbarStyle(Optional<WebCore::ScrollbarOverlayStyle> scrollbarStyle);
+    Optional<WebCore::ScrollbarOverlayStyle> overlayScrollbarStyle() const;
 
     void beginDeferringViewInWindowChanges();
     // FIXME: Merge these two?
@@ -406,7 +409,7 @@ public:
     bool accessibilityIsIgnored() const { return false; }
     id accessibilityHitTest(CGPoint);
     void enableAccessibilityIfNecessary();
-    id accessibilityAttributeValue(NSString *);
+    id accessibilityAttributeValue(NSString *, id parameter = nil);
 
     NSTrackingArea *primaryTrackingArea() const { return m_primaryTrackingArea.get(); }
     void setPrimaryTrackingArea(NSTrackingArea *);
@@ -601,6 +604,8 @@ public:
     void effectiveAppearanceDidChange();
     bool effectiveAppearanceIsDark();
 
+    void takeFocus(WebCore::FocusDirection);
+
 private:
 #if HAVE(TOUCH_BAR)
     void setUpTextTouchBar(NSTouchBar *);
@@ -704,7 +709,7 @@ private:
     CGSize m_lastRequestedFixedLayoutSize { 0, 0 };
 
     bool m_inSecureInputState { false };
-    RetainPtr<WKEditorUndoTargetObjC> m_undoTarget;
+    RetainPtr<WKEditorUndoTarget> m_undoTarget;
 
     ValidationMap m_validationMap;
 
@@ -778,7 +783,7 @@ private:
     String m_promisedFilename;
     String m_promisedURL;
 
-    std::optional<NSInteger> m_spellCheckerDocumentTag;
+    Optional<NSInteger> m_spellCheckerDocumentTag;
 
     CGFloat m_totalHeightOfBanners { 0 };
 

@@ -153,7 +153,7 @@ MacroAssemblerCodeRef<JSEntryPtrTag> compile(Generator&& generate)
 }
 
 template<typename T, typename... Arguments>
-T invoke(MacroAssemblerCodeRef<JSEntryPtrTag> code, Arguments... arguments)
+T invoke(const MacroAssemblerCodeRef<JSEntryPtrTag>& code, Arguments... arguments)
 {
     void* executableAddress = untagCFunctionPtr<JSEntryPtrTag>(code.code().executableAddress());
     T (*function)(Arguments...) = bitwise_cast<T(*)(Arguments...)>(executableAddress);
@@ -264,6 +264,21 @@ static Vector<float> floatOperands()
     };
 }
 
+static Vector<int32_t> int32Operands()
+{
+    return Vector<int32_t> {
+        0,
+        1,
+        -1,
+        2,
+        -2,
+        42,
+        -42,
+        64,
+        std::numeric_limits<int32_t>::max(),
+        std::numeric_limits<int32_t>::min(),
+    };
+}
 
 void testCompareDouble(MacroAssembler::DoubleCondition condition)
 {
@@ -303,6 +318,23 @@ void testCompareDouble(MacroAssembler::DoubleCondition condition)
             arg2 = b;
             CHECK_EQ(invoke<int>(compareDouble), invoke<int>(compareDoubleGeneric));
         }
+    }
+}
+
+void testMul32WithImmediates()
+{
+    for (auto immediate : int32Operands()) {
+        auto mul = compile([=] (CCallHelpers& jit) {
+            jit.emitFunctionPrologue();
+
+            jit.mul32(CCallHelpers::TrustedImm32(immediate), GPRInfo::argumentGPR0, GPRInfo::returnValueGPR);
+
+            jit.emitFunctionEpilogue();
+            jit.ret();
+        });
+
+        for (auto value : int32Operands())
+            CHECK_EQ(invoke<int>(mul, value), immediate * value);
     }
 }
 
@@ -956,6 +988,7 @@ void run(const char* filter)
     RUN(testCompareDouble(MacroAssembler::DoubleGreaterThanOrEqualOrUnordered));
     RUN(testCompareDouble(MacroAssembler::DoubleLessThanOrUnordered));
     RUN(testCompareDouble(MacroAssembler::DoubleLessThanOrEqualOrUnordered));
+    RUN(testMul32WithImmediates());
 
 #if CPU(X86) || CPU(X86_64) || CPU(ARM64)
     RUN(testCompareFloat(MacroAssembler::DoubleEqual));

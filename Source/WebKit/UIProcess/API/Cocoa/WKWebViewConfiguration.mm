@@ -160,6 +160,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     BOOL _shouldDeferAsynchronousScriptsUntilAfterDocumentLoad;
     BOOL _drawsBackground;
     BOOL _editableImagesEnabled;
+    BOOL _undoManagerAPIEnabled;
 
     RetainPtr<NSString> _mediaContentTypesRequiringHardwareSupport;
     RetainPtr<NSArray<NSString *>> _additionalSupportedImageTypes;
@@ -248,6 +249,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     _drawsBackground = YES;
 
     _editableImagesEnabled = NO;
+    _undoManagerAPIEnabled = NO;
 
     return self;
 }
@@ -409,6 +411,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     configuration->_drawsBackground = self->_drawsBackground;
 
     configuration->_editableImagesEnabled = self->_editableImagesEnabled;
+    configuration->_undoManagerAPIEnabled = self->_undoManagerAPIEnabled;
 
     return configuration;
 }
@@ -456,7 +459,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
 static NSString *defaultApplicationNameForUserAgent()
 {
 #if PLATFORM(IOS_FAMILY)
-    return [@"Mobile/" stringByAppendingString:[UIDevice currentDevice].buildVersion];
+    return @"Mobile/15E148";
 #else
     return nil;
 #endif
@@ -946,7 +949,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (double)_cpuLimit
 {
-    return _pageConfiguration->cpuLimit().value_or(0);
+    return _pageConfiguration->cpuLimit().valueOr(0);
 }
 
 #endif // PLATFORM(MAC)
@@ -1035,6 +1038,16 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 - (BOOL)_editableImagesEnabled
 {
     return _editableImagesEnabled;
+}
+
+- (void)_setUndoManagerAPIEnabled:(BOOL)enabled
+{
+    _undoManagerAPIEnabled = enabled;
+}
+
+- (BOOL)_undoManagerAPIEnabled
+{
+    return _undoManagerAPIEnabled;
 }
 
 @end

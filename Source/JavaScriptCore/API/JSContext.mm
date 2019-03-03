@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,11 +26,14 @@
 #include "config.h"
 
 #import "APICast.h"
+#import "Completion.h"
 #import "JSCInlines.h"
 #import "JSContextInternal.h"
 #import "JSContextPrivate.h"
 #import "JSContextRefInternal.h"
 #import "JSGlobalObject.h"
+#import "JSInternalPromise.h"
+#import "JSModuleLoader.h"
 #import "JSValueInternal.h"
 #import "JSVirtualMachineInternal.h"
 #import "JSWrapperMap.h"
@@ -38,12 +41,15 @@
 #import "ObjcRuntimeExtras.h"
 #import "StrongInlines.h"
 
+#import <wtf/WeakObjCPtr.h>
+
 #if JSC_OBJC_API_ENABLED
 
 @implementation JSContext {
     JSVirtualMachine *m_virtualMachine;
     JSGlobalContextRef m_context;
     JSC::Strong<JSC::JSObject> m_exception;
+    WeakObjCPtr<id <JSModuleLoaderDelegate>> m_moduleLoaderDelegate;
 }
 
 - (JSGlobalContextRef)JSGlobalContextRef
@@ -126,11 +132,6 @@
     if (!m_exception)
         return nil;
     return [JSValue valueWithJSValueRef:toRef(m_exception.get()) inContext:self];
-}
-
-- (JSWrapperMap *)wrapperMap
-{
-    return toJS(m_context)->lexicalGlobalObject()->wrapperMap();
 }
 
 - (JSValue *)globalObject
@@ -233,6 +234,16 @@
     JSGlobalContextSetDebuggerRunLoop(m_context, runLoop);
 }
 
+- (id<JSModuleLoaderDelegate>)moduleLoaderDelegate
+{
+    return m_moduleLoaderDelegate.getAutoreleased();
+}
+
+- (void)setModuleLoaderDelegate:(id<JSModuleLoaderDelegate>)moduleLoaderDelegate
+{
+    m_moduleLoaderDelegate = moduleLoaderDelegate;
+}
+
 @end
 
 @implementation JSContext(SubscriptSupport)
@@ -313,6 +324,11 @@
 {
     JSC::JSLockHolder locker(toJS(m_context));
     return [[self wrapperMap] jsWrapperForObject:object inContext:self];
+}
+
+- (JSWrapperMap *)wrapperMap
+{
+    return toJS(m_context)->lexicalGlobalObject()->wrapperMap();
 }
 
 - (JSValue *)wrapperForJSObject:(JSValueRef)value

@@ -69,6 +69,7 @@
 #include "PageCache.h"
 #include "PageConfiguration.h"
 #include "PageGroup.h"
+#include "PageStorageSessionProvider.h"
 #include "PlatformKeyboardEvent.h"
 #include "PlatformMouseEvent.h"
 #include "PlatformStrategiesHaiku.h"
@@ -154,7 +155,7 @@ enum {
 
 class EmptyPluginInfoProvider final : public PluginInfoProvider {
     void refreshPlugins() final { };
-    Vector<PluginInfo> pluginInfo(Page&, std::optional<Vector<SupportedPluginIdentifier>>&) final { return { }; }
+    Vector<PluginInfo> pluginInfo(Page&, WTF::Optional<Vector<SupportedPluginIdentifier>>&) final { return { }; }
 	Vector<PluginInfo> webVisiblePluginInfo(Page&, const URL&) final { return { }; }
 };
 
@@ -259,12 +260,13 @@ BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
     RefPtr<WebViewGroup> viewGroup = WebViewGroup::getOrCreate("default",
         storagePath.Path());
 
+	auto storageProvider = PageStorageSessionProvider::create();
     PageConfiguration pageClients(
 		makeUniqueRef<EditorClientHaiku>(this),
 		SocketProvider::create(),
         makeUniqueRef<LibWebRTCProvider>(),
 		CacheStorageProvider::create(),
-		BackForwardList::create());
+		BackForwardList::create(), CookieJar::create(storageProvider.copyRef()));
 
 	// alternativeText
     pageClients.chromeClient = new ChromeClientHaiku(this, webView);
@@ -286,6 +288,7 @@ BWebPage::BWebPage(BWebView* webView, BUrlContext* context)
 	// webGLStateTracker *
 
     fPage = new Page(WTFMove(pageClients));
+	storageProvider->setPage(*fPage);
 
 #if ENABLE(GEOLOCATION)
     WebCore::provideGeolocationTo(fPage, new GeolocationClientMock());

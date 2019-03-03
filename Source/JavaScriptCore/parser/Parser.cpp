@@ -129,7 +129,6 @@ Parser<LexerType>::Parser(VM* vm, const SourceCode& source, JSParserBuiltinMode 
     , m_source(&source)
     , m_hasStackOverflow(false)
     , m_allowsIn(true)
-    , m_syntaxAlreadyValidated(source.provider()->isValid())
     , m_statementDepth(0)
     , m_sourceElements(0)
     , m_parsingBuiltin(builtinMode == JSParserBuiltinMode::Builtin)
@@ -194,7 +193,7 @@ Parser<LexerType>::~Parser()
 }
 
 template <typename LexerType>
-String Parser<LexerType>::parseInner(const Identifier& calleeName, SourceParseMode parseMode, ParsingContext parsingContext, std::optional<int> functionConstructorParametersEndPosition)
+String Parser<LexerType>::parseInner(const Identifier& calleeName, SourceParseMode parseMode, ParsingContext parsingContext, Optional<int> functionConstructorParametersEndPosition)
 {
     String parseError = String();
 
@@ -279,7 +278,8 @@ String Parser<LexerType>::parseInner(const Identifier& calleeName, SourceParseMo
         VariableEnvironment& lexicalVariables = scope->lexicalVariables();
         const HashSet<UniquedStringImpl*>& closedVariableCandidates = scope->closedVariableCandidates();
         for (UniquedStringImpl* candidate : closedVariableCandidates) {
-            if (!lexicalVariables.contains(candidate) && !varDeclarations.contains(candidate) && !candidate->isSymbol()) {
+            // FIXME: We allow async to leak because it appearing as a closed variable is a side effect of trying to parse async arrow functions.
+            if (!lexicalVariables.contains(candidate) && !varDeclarations.contains(candidate) && !candidate->isSymbol() && candidate != m_vm->propertyNames->async.impl()) {
                 dataLog("Bad global capture in builtin: '", candidate, "'\n");
                 dataLog(m_source->view());
                 CRASH();
@@ -614,7 +614,7 @@ template <class TreeBuilder> TreeSourceElements Parser<LexerType>::parseAsyncGen
 }
 
 template <typename LexerType>
-template <class TreeBuilder> TreeSourceElements Parser<LexerType>::parseSingleFunction(TreeBuilder& context, std::optional<int> functionConstructorParametersEndPosition)
+template <class TreeBuilder> TreeSourceElements Parser<LexerType>::parseSingleFunction(TreeBuilder& context, Optional<int> functionConstructorParametersEndPosition)
 {
     TreeSourceElements sourceElements = context.createSourceElements();
     TreeStatement statement = 0;
@@ -1759,6 +1759,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseTryStatement(
             catchScope->preventVarDeclarations();
             const Identifier* ident = nullptr;
             if (matchSpecIdentifier()) {
+                catchScope->setIsSimpleCatchParameterScope();
                 ident = m_token.m_data.ident;
                 catchPattern = context.createBindingLocation(m_token.m_location, *ident, m_token.m_startPosition, m_token.m_endPosition, AssignmentContext::DeclarationStatement);
                 next();
@@ -2297,7 +2298,7 @@ template <class TreeBuilder> typename TreeBuilder::FormalParameterList Parser<Le
 }
 
 template <typename LexerType>
-template <class TreeBuilder> bool Parser<LexerType>::parseFunctionInfo(TreeBuilder& context, FunctionNameRequirements requirements, SourceParseMode mode, bool nameIsInContainingScope, ConstructorKind constructorKind, SuperBinding expectedSuperBinding, int functionKeywordStart, ParserFunctionInfo<TreeBuilder>& functionInfo, FunctionDefinitionType functionDefinitionType, std::optional<int> functionConstructorParametersEndPosition)
+template <class TreeBuilder> bool Parser<LexerType>::parseFunctionInfo(TreeBuilder& context, FunctionNameRequirements requirements, SourceParseMode mode, bool nameIsInContainingScope, ConstructorKind constructorKind, SuperBinding expectedSuperBinding, int functionKeywordStart, ParserFunctionInfo<TreeBuilder>& functionInfo, FunctionDefinitionType functionDefinitionType, Optional<int> functionConstructorParametersEndPosition)
 {
     RELEASE_ASSERT(isFunctionParseMode(mode));
 
@@ -2631,7 +2632,7 @@ static NO_RETURN_DUE_TO_CRASH FunctionMetadataNode* getMetadata(ParserFunctionIn
 static FunctionMetadataNode* getMetadata(ParserFunctionInfo<ASTBuilder>& info) { return info.body; }
 
 template <typename LexerType>
-template <class TreeBuilder> TreeStatement Parser<LexerType>::parseFunctionDeclaration(TreeBuilder& context, ExportType exportType, DeclarationDefaultContext declarationDefaultContext, std::optional<int> functionConstructorParametersEndPosition)
+template <class TreeBuilder> TreeStatement Parser<LexerType>::parseFunctionDeclaration(TreeBuilder& context, ExportType exportType, DeclarationDefaultContext declarationDefaultContext, Optional<int> functionConstructorParametersEndPosition)
 {
     ASSERT(match(FUNCTION));
     JSTokenLocation location(tokenLocation());
@@ -2689,7 +2690,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseFunctionDecla
 }
 
 template <typename LexerType>
-template <class TreeBuilder> TreeStatement Parser<LexerType>::parseAsyncFunctionDeclaration(TreeBuilder& context, ExportType exportType, DeclarationDefaultContext declarationDefaultContext, std::optional<int> functionConstructorParametersEndPosition)
+template <class TreeBuilder> TreeStatement Parser<LexerType>::parseAsyncFunctionDeclaration(TreeBuilder& context, ExportType exportType, DeclarationDefaultContext declarationDefaultContext, Optional<int> functionConstructorParametersEndPosition)
 {
     ASSERT(match(FUNCTION));
     JSTokenLocation location(tokenLocation());
@@ -3008,14 +3009,13 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseExpressionOrL
         JSTextPosition end = tokenEndPosition();
         next();
         consumeOrFail(COLON, "Labels must be followed by a ':'");
-        if (!m_syntaxAlreadyValidated) {
-            // This is O(N^2) over the current list of consecutive labels, but I
-            // have never seen more than one label in a row in the real world.
-            for (size_t i = 0; i < labels.size(); i++)
-                failIfTrue(ident->impl() == labels[i].m_ident->impl(), "Attempted to redeclare the label '", ident->impl(), "'");
-            failIfTrue(getLabel(ident), "Cannot find scope for the label '", ident->impl(), "'");
-            labels.append(LabelInfo(ident, start, end));
-        }
+
+        // This is O(N^2) over the current list of consecutive labels, but I
+        // have never seen more than one label in a row in the real world.
+        for (size_t i = 0; i < labels.size(); i++)
+            failIfTrue(ident->impl() == labels[i].m_ident->impl(), "Attempted to redeclare the label '", ident->impl(), "'");
+        failIfTrue(getLabel(ident), "Cannot find scope for the label '", ident->impl(), "'");
+        labels.append(LabelInfo(ident, start, end));
     } while (matchSpecIdentifier());
     bool isLoop = false;
     switch (m_token.m_type) {
@@ -3030,16 +3030,12 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseExpressionOrL
     }
     const Identifier* unused = 0;
     ScopeRef labelScope = currentScope();
-    if (!m_syntaxAlreadyValidated) {
-        for (size_t i = 0; i < labels.size(); i++)
-            pushLabel(labels[i].m_ident, isLoop);
-    }
+    for (size_t i = 0; i < labels.size(); i++)
+        pushLabel(labels[i].m_ident, isLoop);
     m_immediateParentAllowsFunctionDeclarationInStatement = allowFunctionDeclarationAsStatement;
     TreeStatement statement = parseStatement(context, unused);
-    if (!m_syntaxAlreadyValidated) {
-        for (size_t i = 0; i < labels.size(); i++)
-            popLabel(labelScope);
-    }
+    for (size_t i = 0; i < labels.size(); i++)
+        popLabel(labelScope);
     failIfFalse(statement, "Cannot parse statement");
     for (size_t i = 0; i < labels.size(); i++) {
         const LabelInfo& info = labels[labels.size() - i - 1];
@@ -3885,7 +3881,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseBinaryExpres
         //          Check this.
         // If the binary operator <> has higher precedence than one of "**", this check does not work.
         // But it's OK for ** because the operator "**" has the highest operator precedence in the binary operators.
-        failIfTrue(match(POW) && isUnaryOpExcludingUpdateOp(leadingTokenTypeForUnaryExpression), "Amiguous unary expression in the left hand side of the exponentiation expression; parenthesis must be used to disambiguate the expression");
+        failIfTrue(match(POW) && isUnaryOpExcludingUpdateOp(leadingTokenTypeForUnaryExpression), "Ambiguous unary expression in the left hand side of the exponentiation expression; parentheses must be used to disambiguate the expression");
 
         int precedence = isBinaryOperator(m_token.m_type);
         if (!precedence)
@@ -4122,9 +4118,6 @@ template <class TreeBuilder> TreeProperty Parser<LexerType>::parseGetterSetter(T
 template <typename LexerType>
 template <class TreeBuilder> bool Parser<LexerType>::shouldCheckPropertyForUnderscoreProtoDuplicate(TreeBuilder& context, const TreeProperty& property)
 {
-    if (m_syntaxAlreadyValidated)
-        return false;
-
     if (!context.getName(property))
         return false;
 
@@ -4179,7 +4172,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseObjectLitera
     TreeProperty property = parseProperty(context, false);
     failIfFalse(property, "Cannot parse object literal property");
 
-    if (!m_syntaxAlreadyValidated && context.getType(property) & (PropertyNode::Getter | PropertyNode::Setter)) {
+    if (context.getType(property) & (PropertyNode::Getter | PropertyNode::Setter)) {
         restoreSavePoint(savePoint);
         return parseStrictObjectLiteral(context);
     }
@@ -4197,7 +4190,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseObjectLitera
         JSTokenLocation propertyLocation(tokenLocation());
         property = parseProperty(context, false);
         failIfFalse(property, "Cannot parse object literal property");
-        if (!m_syntaxAlreadyValidated && context.getType(property) & (PropertyNode::Getter | PropertyNode::Setter)) {
+        if (context.getType(property) & (PropertyNode::Getter | PropertyNode::Setter)) {
             restoreSavePoint(savePoint);
             return parseStrictObjectLiteral(context);
         }
@@ -4517,9 +4510,10 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parsePrimaryExpre
     }
     case BIGINT: {
         const Identifier* ident = m_token.m_data.bigIntString;
+        uint8_t radix = m_token.m_data.radix;
         JSTokenLocation location(tokenLocation());
         next();
-        return context.createBigInt(location, ident, m_token.m_data.radix);
+        return context.createBigInt(location, ident, radix);
     }
     case STRING: {
         const Identifier* ident = m_token.m_data.ident;
@@ -4659,7 +4653,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseArgument(Tre
 }
 
 template <typename TreeBuilder, typename ParserType, typename = typename std::enable_if<std::is_same<TreeBuilder, ASTBuilder>::value>::type>
-static inline void recordCallOrApplyDepth(ParserType* parser, VM& vm, std::optional<typename ParserType::CallOrApplyDepthScope>& callOrApplyDepthScope, ExpressionNode* expression)
+static inline void recordCallOrApplyDepth(ParserType* parser, VM& vm, Optional<typename ParserType::CallOrApplyDepthScope>& callOrApplyDepthScope, ExpressionNode* expression)
 {
     if (expression->isDotAccessorNode()) {
         DotAccessorNode* dot = static_cast<DotAccessorNode*>(expression);
@@ -4670,7 +4664,7 @@ static inline void recordCallOrApplyDepth(ParserType* parser, VM& vm, std::optio
 }
 
 template <typename TreeBuilder, typename ParserType, typename = typename std::enable_if<std::is_same<TreeBuilder, SyntaxChecker>::value>::type>
-static inline void recordCallOrApplyDepth(ParserType*, VM&, std::optional<typename ParserType::CallOrApplyDepthScope>&, SyntaxChecker::Expression)
+static inline void recordCallOrApplyDepth(ParserType*, VM&, Optional<typename ParserType::CallOrApplyDepthScope>&, SyntaxChecker::Expression)
 {
 }
 
@@ -4800,7 +4794,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseMemberExpres
             } else {
                 size_t usedVariablesSize = currentScope()->currentUsedVariablesSize();
                 JSTextPosition expressionEnd = lastTokenEndPosition();
-                std::optional<CallOrApplyDepthScope> callOrApplyDepthScope;
+                Optional<CallOrApplyDepthScope> callOrApplyDepthScope;
                 recordCallOrApplyDepth<TreeBuilder>(this, *m_vm, callOrApplyDepthScope, base);
 
                 TreeArguments arguments = parseArguments(context);
@@ -4965,7 +4959,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseUnaryExpress
     if (UNLIKELY(isUpdateOp(static_cast<JSTokenType>(lastOperator)) && context.isMetaProperty(expr)))
         internalFailWithMessage(false, metaPropertyName(context, expr), " can't come after a prefix operator");
     bool isEvalOrArguments = false;
-    if (strictMode() && !m_syntaxAlreadyValidated) {
+    if (strictMode()) {
         if (context.isResolve(expr))
             isEvalOrArguments = *m_parserState.lastIdentifier == m_vm->propertyNames->eval || *m_parserState.lastIdentifier == m_vm->propertyNames->arguments;
     }
@@ -5001,7 +4995,7 @@ template <class TreeBuilder> TreeExpression Parser<LexerType>::parseUnaryExpress
     
     JSTextPosition end = lastTokenEndPosition();
 
-    if (!TreeBuilder::CreatesAST && (m_syntaxAlreadyValidated || !strictMode()))
+    if (!TreeBuilder::CreatesAST && (!strictMode()))
         return expr;
 
     while (tokenStackDepth) {

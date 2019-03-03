@@ -18,8 +18,6 @@ fast/forms/search/search-results-hidden-crash.html [ Pass ]
 fast/url/user-visible [ Pass ]
 fast/images/eps-as-image.html [ Pass ]
 
-fast/text-autosizing/ios/ipad/programmatic-text-size-adjust.html [ Skip ]
-fast/text-autosizing/ios/ipad/text-size-adjust-inline-style.html [ Skip ]
 fast/text-autosizing/ios/programmatic-text-size-adjust.html [ Skip ]
 fast/text-autosizing/ios/text-size-adjust-inline-style.html [ Skip ]
 fast/text-autosizing [ Pass ]
@@ -147,6 +145,9 @@ fast/mediastream/MediaStream-add-ended-tracks.html
 fast/mediastream/RTCPeerConnection-ice.html [ Skip ]
 fast/mediastream/RTCPeerConnection-media-setup-callbacks-single-dialog.html [ Skip ]
 fast/mediastream/RTCPeerConnection-stats.html [ Skip ]
+
+[ HighSierra ] inspector/page/overrideSetting-ICECandidateFilteringEnabled.html [ Skip ]
+[ HighSierra ] inspector/page/overrideSetting-MockCaptureDevicesEnabled.html [ Skip ]
 
 # Asserts in debug.
 [ Debug ] fast/images/large-size-image-crash.html [ Skip ]
@@ -368,6 +369,8 @@ editing/mac/pasteboard/dataTransfer-set-data-file-url.html [ Skip ]
 webkit.org/b/147674 editing/mac/pasteboard/5583362.html [ Skip ]
 
 # Assorted failures that need investigation
+[ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method.any.worker.html [ Skip ]
+[ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method.any.html [ Skip ]
 
 webkit.org/b/184060 [ Debug ] imported/w3c/web-platform-tests/html/browsers/history/the-location-interface/location-protocol-setter-non-broken.html [ Pass Failure ]
 webkit.org/b/107118 fast/canvas/canvas-quadratic-same-endpoint.html [ Failure ]
@@ -560,17 +563,6 @@ webkit.org/b/39725 fast/events/drag-and-drop-autoscroll.html [ Skip ]
 
 # Need support for ResourceHandle::didChangePriority and DRT support
 webkit.org/b/111016 http/tests/loading/promote-img-preload-priority.html [ Failure ]
-
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A1.1_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A1.4_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A2.1_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A2.4_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/10_Execution_Contexts/10.1_Definitions/10.1.8_Arguments_Object/S10.1.8_A3_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.4_Comments/S7.4_A5.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/07_Lexical_Conventions/7.4_Comments/S7.4_A6.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/12_Statement/12.6_Iteration_Statements/12.6.2_The_while_statement/S12.6.2_A6_T2.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Conformance/13_Function_Definition/S13_A4_T4.html [ Slow ]
-webkit.org/b/111647 [ Debug ] sputnik/Unicode/Unicode_218/S7.6_A5.3_T2.html [ Slow ]
 
 webkit.org/b/111606 fast/borders/border-fit-2.html [ Failure Pass ]
 webkit.org/b/111606 fast/borders/border-fit.html [ Failure Pass ]
@@ -1024,12 +1016,6 @@ webkit.org/b/145432 media/video-transformed-by-javascript.html [ Failure ]
 
 webkit.org/b/140022 http/tests/media/track-in-band-hls-metadata.html [ Pass Timeout ]
 
-# <rdar://problem/19893462>
-[ Sierra+ ] sputnik/Unicode/Unicode_510/S7.6_A3.1.html [ Failure ]
-[ Sierra+ ] sputnik/Unicode/Unicode_510/S7.6_A3.2.html [ Failure ]
-[ Sierra+ ] sputnik/Unicode/Unicode_510/S7.6_A5.3_T1.html [ Failure ]
-[ Sierra+ ] sputnik/Unicode/Unicode_510/S7.6_A5.3_T2.html [ Failure ]
-
 # See also: <rdar://problem/20622665>
 webkit.org/b/148597 http/tests/media/video-play-stall.html [ Pass Failure ]
 
@@ -1053,7 +1039,6 @@ webkit.org/b/160048 [ Debug ] inspector/codemirror/prettyprinting-javascript.htm
 webkit.org/b/152025 [ Debug ] inspector/console/messagesCleared.html [ Pass Timeout ]
 webkit.org/b/152452 [ Debug ] inspector/console/messageRepeatCountUpdated.html [ Pass Timeout ]
 webkit.org/b/168926 inspector/controller/runtime-controller-import.html [ Pass Timeout ]
-webkit.org/b/148636 inspector/css/createStyleSheet.html [ Pass Timeout ]
 webkit.org/b/148636 inspector/css/get-system-fonts.html [ Pass Timeout ]
 webkit.org/b/148636 inspector/css/getAllStyleSheets.html [ Pass Timeout ]
 webkit.org/b/148636 inspector/css/matched-style-properties.html [ Pass Timeout ]
@@ -1108,6 +1093,7 @@ webkit.org/b/158006 inspector/console/console-time.html [ Pass Timeout ]
 webkit.org/b/183880 [ Debug ] inspector/console/messageAdded-from-named-evaluations.html [ Slow ]
 webkit.org/b/156634 inspector/formatting/formatting-javascript.html [ Pass Timeout ]
 webkit.org/b/158948 inspector/timeline [ Pass Timeout ]
+webkit.org/b/191539 http/tests/inspector/network/resource-security-connection.html [ Skip ]
 
 webkit.org/b/187622 [ Debug ] inspector/view/asynchronous-layout.html [ Pass Timeout ]
 
@@ -1137,8 +1123,6 @@ webkit.org/b/162668 fast/text/woff2-totalsfntsize.html [ ImageOnlyFailure ]
 webkit.org/b/140217 http/tests/navigation/forward-and-cancel.html [ Pass Failure ]
 
 webkit.org/b/151469 imported/w3c/web-platform-tests/html/syntax/parsing/template/creating-an-element-for-the-token/template-owner-document.html [ Pass Crash ]
-
-webkit.org/b/153086 sputnik/Conformance/15_Native_Objects/15.1_The_Global_Object/15.1.3/15.1.3.3_encodeURI/S15.1.3.3_A2.4_T2.html [ Pass Crash ]
 
 webkit.org/b/153809 transitions/clip-path-transitions.html [ Pass Failure ]
 webkit.org/b/153809 legacy-animation-engine/transitions/clip-path-transitions.html [ Pass Failure ]
@@ -1343,13 +1327,6 @@ webkit.org/b/168087 media/video-zoom.html [ Pass Failure ]
 webkit.org/b/168094 imported/w3c/web-platform-tests/media-source/SourceBuffer-abort.html [ Pass Failure ]
 webkit.org/b/167975 imported/w3c/web-platform-tests/media-source/SourceBuffer-abort-removed.html [ Pass Failure ]
 
-# <rdar://problem/30610988>
-[ Sierra+ ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin.html [ Failure ]
-[ Sierra+ ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-worker.html [ Failure ]
-[ Sierra+ ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count.html [ Failure ]
-[ Sierra+ ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-location-worker.html [ Failure ]
-[ Sierra+ ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-location.html [ Failure ]
-
 [ Debug ] imported/w3c/web-platform-tests/IndexedDB/interfaces.any.html [ Slow ]
 [ Debug ] imported/w3c/web-platform-tests/IndexedDB/interfaces.any.worker.html [ Slow ]
 [ Debug ] imported/w3c/web-platform-tests/hr-time/idlharness.html [ Slow ]
@@ -1418,8 +1395,6 @@ webkit.org/b/178127 media/modern-media-controls/media-controller/media-controlle
 # the image is dumped after the video is loaded and the control overlay is displayed. It seems the test still works
 # on iOS, and the bug it was created to regression-test was iOS-only, so there is no hurry to make it work on Mac.
 media/modern-media-controls/media-documents/background-color-and-centering.html [ Pass ImageOnlyFailure ]
-
-media/modern-media-controls/pip-support/ipad [ Skip ]
 
 webkit.org/b/169158 media/modern-media-controls/tracks-support/tracks-support-show-panel-after-dragging-controls.html [ Skip ]
 
@@ -1685,9 +1660,6 @@ webkit.org/b/184116 imported/w3c/web-platform-tests/IndexedDB/idbobjectstore_cre
 
 webkit.org/b/177616 [ HighSierra+ ] http/tests/media/video-buffered-range-contains-currentTime.html [ Pass Timeout ]
 
-webkit.org/b/184365 [ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method-worker.html [ Skip ]
-webkit.org/b/184365 [ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method.html [ Skip ]
-
 webkit.org/b/184610 media/video-volume-slider-drag.html [ Pass Timeout ]
 
 webkit.org/b/184612 [ Debug ] media/audio-concurrent-supported.html [ Pass Failure ]
@@ -1733,6 +1705,9 @@ webkit.org/b/187393 imported/w3c/web-platform-tests/2dcontext/imagebitmap/create
 
 [ Mojave+ ] http/tests/cookies/same-site [ Pass ]
 
+# FIXME: Mark as Pass once <rdar://problem/47165939> is fixed.
+[ Mojave+ ] http/tests/cookies/only-accept-first-party-cookies.html [ Skip ]
+
 # FIXME: Mark as Pass once the fix for <rdar://problem/42255251> is shipped.
 [ Mojave+ ] http/tests/cookies/same-site/set-first-party-cross-site-cookies.php [ Skip ]
 [ Mojave+ ] http/tests/cookies/same-site/set-first-party-same-site-cookies.php [ Skip ]
@@ -1752,6 +1727,9 @@ webkit.org/b/187393 imported/w3c/web-platform-tests/2dcontext/imagebitmap/create
 [ Mojave+ ] imported/blink/fast/text/international/text-shaping-arabic.html [ ImageOnlyFailure ]
 [ Mojave+ ] imported/blink/fast/text/international/vertical-positioning-with-combining-marks.html [ ImageOnlyFailure ]
 
+# < Mojave uses font smoothing.
+[ Sierra HighSierra ] compositing/contents-format/subpixel-antialiased-text.html [ ImageOnlyFailure ]
+
 # < Mojave doesn't support the CG needed for Conic Gradients
 [ Mojave+ ] http/wpt/css/css-images-4/conic-gradient-parsing.html [ Pass ]
 [ Mojave+ ] fast/gradients/conic-repeating.html [ Pass ]
@@ -1768,7 +1746,11 @@ webkit.org/b/187393 imported/w3c/web-platform-tests/2dcontext/imagebitmap/create
 
 # Dark Mode is Mojave and later.
 [ Mojave+ ] css-dark-mode [ Pass ]
+[ Mojave+ ] css-dark-mode/older-systems [ Skip ]
 [ Mojave+ ] inspector/css/force-page-appearance.html [ Pass ]
+
+# Test Dark Mode CSS support for light mode on older systems.
+[ Sierra HighSierra ] css-dark-mode/older-systems [ Pass ]
 
 webkit.org/b/185651 legacy-animation-engine/animations/play-state-in-shorthand.html [ Pass Failure ]
 
@@ -1792,3 +1774,27 @@ webkit.org/b/170877 [ Debug ] webgl/1.0.2/conformance/glsl/misc/shader-with-rese
 webkit.org/b/190883 legacy-animation-engine/animations/suspend-resume-animation.html [ Pass Failure ]
 
 webkit.org/b/190724 [ Debug ] http/tests/misc/large-js-program.php [ Pass Timeout ]
+
+webkit.org/b/191565 imported/w3c/web-platform-tests/css/mediaqueries/test_media_queries.html [ Pass Slow ] 
+
+webkit.org/b/183389 [ Debug ] fast/css/counters/element-removal-crash.xhtml [ Pass Failure ] 
+
+webkit.org/b/190892 [ Debug ] webgl/2.0.0/conformance2/textures/misc/tex-unpack-params.html [ Pass Slow ] 
+
+webkit.org/b/190976 imported/w3c/web-platform-tests/media-source/mediasource-changetype-play.html [ Pass Failure ]
+
+webkit.org/b/192956 [ Sierra ] webgpu/buffers.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/command-buffers.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/pipeline-layouts.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/queue-creation.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/render-command-encoding.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/render-passes.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/render-pipelines.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/shader-modules.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/textures-textureviews.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/webgpu-basics.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/webgpu-enabled.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/simple-triangle-strip.html [ Skip ]
+webkit.org/b/192956 [ Sierra ] webgpu/vertex-buffer-triangle-strip.html [ Skip ]
+
+webkit.org/b/189680 platform/mac/media/audio-session-category-video-paused.html [ Pass Timeout ]

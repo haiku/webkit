@@ -44,14 +44,11 @@ class LegacyCustomProtocolManager;
 class NetworkSessionCocoa final : public NetworkSession {
     friend class NetworkDataTaskCocoa;
 public:
-    static Ref<NetworkSession> create(NetworkSessionCreationParameters&&);
+    static Ref<NetworkSession> create(NetworkProcess&, NetworkSessionCreationParameters&&);
     ~NetworkSessionCocoa();
 
     // Must be called before any NetworkSession has been created.
-    // FIXME: Move these to NetworkSessionCreationParameters.
-    static void setSourceApplicationAuditTokenData(RetainPtr<CFDataRef>&&);
-    static void setSourceApplicationBundleIdentifier(const String&);
-    static void setSourceApplicationSecondaryIdentifier(const String&);
+    // FIXME: Move this to NetworkSessionCreationParameters.
 #if PLATFORM(IOS_FAMILY)
     static void setCTDataConnectionServiceType(const String&);
 #endif
@@ -65,8 +62,10 @@ public:
 
     static bool allowsSpecificHTTPSCertificateForHost(const WebCore::AuthenticationChallenge&);
 
+    void continueDidReceiveChallenge(const WebCore::AuthenticationChallenge&, NetworkDataTaskCocoa::TaskIdentifier, NetworkDataTaskCocoa*, CompletionHandler<void(WebKit::AuthenticationChallengeDisposition, const WebCore::Credential&)>&&);
+
 private:
-    NetworkSessionCocoa(NetworkSessionCreationParameters&&);
+    NetworkSessionCocoa(NetworkProcess&, NetworkSessionCreationParameters&&);
 
     void invalidateAndCancel() override;
     void clearCredentials() override;
@@ -86,9 +85,6 @@ private:
     RetainPtr<CFDictionaryRef> m_proxyConfiguration;
     bool m_shouldLogCookieInformation { false };
     Seconds m_loadThrottleLatency;
-
-    String m_sourceApplicationBundleIdentifier;
-    String m_sourceApplicationSecondaryIdentifier;
 };
 
 } // namespace WebKit

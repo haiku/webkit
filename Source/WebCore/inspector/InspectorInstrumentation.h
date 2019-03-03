@@ -137,6 +137,7 @@ public:
     static bool forcePseudoState(const Element&, CSSSelector::PseudoClassType);
 
     static void willSendXMLHttpRequest(ScriptExecutionContext*, const String& url);
+    static void willFetch(ScriptExecutionContext&, const String& url);
     static void didInstallTimer(ScriptExecutionContext&, int timerId, Seconds timeout, bool singleShot);
     static void didRemoveTimer(ScriptExecutionContext&, int timerId);
 
@@ -145,7 +146,7 @@ public:
     static void willDispatchPostMessage(Frame&, TimerBase&);
     static void didDispatchPostMessage(Frame&, TimerBase&);
 
-    static InspectorInstrumentationCookie willCallFunction(ScriptExecutionContext*, const String& scriptName, int scriptLine);
+    static InspectorInstrumentationCookie willCallFunction(ScriptExecutionContext*, const String& scriptName, int scriptLine, int scriptColumn);
     static void didCallFunction(const InspectorInstrumentationCookie&, ScriptExecutionContext*);
     static void didAddEventListener(EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static void willRemoveEventListener(EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
@@ -157,7 +158,7 @@ public:
     static InspectorInstrumentationCookie willDispatchEventOnWindow(Frame*, const Event&, DOMWindow&);
     static void didDispatchEventOnWindow(const InspectorInstrumentationCookie&);
     static void eventDidResetAfterDispatch(const Event&);
-    static InspectorInstrumentationCookie willEvaluateScript(Frame&, const String& url, int lineNumber);
+    static InspectorInstrumentationCookie willEvaluateScript(Frame&, const String& url, int lineNumber, int columnNumber);
     static void didEvaluateScript(const InspectorInstrumentationCookie&, Frame&);
     static InspectorInstrumentationCookie willFireTimer(ScriptExecutionContext&, int timerId, bool oneShot);
     static void didFireTimer(const InspectorInstrumentationCookie&);
@@ -172,6 +173,7 @@ public:
     static InspectorInstrumentationCookie willRecalculateStyle(Document&);
     static void didRecalculateStyle(const InspectorInstrumentationCookie&);
     static void didScheduleStyleRecalculation(Document&);
+    static void applyUserAgentOverride(Frame&, String&);
     static void applyEmulatedMedia(Frame&, String&);
 
     static void willSendRequest(Frame*, unsigned long identifier, DocumentLoader*, ResourceRequest&, const ResourceResponse& redirectResponse);
@@ -234,6 +236,9 @@ public:
     static void didCancelAnimationFrame(Document&, int callbackId);
     static InspectorInstrumentationCookie willFireAnimationFrame(Document&, int callbackId);
     static void didFireAnimationFrame(const InspectorInstrumentationCookie&);
+
+    static InspectorInstrumentationCookie willFireObserverCallback(ScriptExecutionContext&, const String& callbackType);
+    static void didFireObserverCallback(const InspectorInstrumentationCookie&);
 
     static void didOpenDatabase(ScriptExecutionContext*, RefPtr<Database>&&, const String& domain, const String& name, const String& version);
 
@@ -325,6 +330,7 @@ private:
     static bool forcePseudoStateImpl(InstrumentingAgents&, const Element&, CSSSelector::PseudoClassType);
 
     static void willSendXMLHttpRequestImpl(InstrumentingAgents&, const String& url);
+    static void willFetchImpl(InstrumentingAgents&, const String& url);
     static void didInstallTimerImpl(InstrumentingAgents&, int timerId, Seconds timeout, bool singleShot, ScriptExecutionContext&);
     static void didRemoveTimerImpl(InstrumentingAgents&, int timerId, ScriptExecutionContext&);
 
@@ -333,7 +339,7 @@ private:
     static void willDispatchPostMessageImpl(InstrumentingAgents&, const TimerBase&);
     static void didDispatchPostMessageImpl(InstrumentingAgents&, const TimerBase&);
 
-    static InspectorInstrumentationCookie willCallFunctionImpl(InstrumentingAgents&, const String& scriptName, int scriptLine, ScriptExecutionContext*);
+    static InspectorInstrumentationCookie willCallFunctionImpl(InstrumentingAgents&, const String& scriptName, int scriptLine, int scriptColumn, ScriptExecutionContext*);
     static void didCallFunctionImpl(const InspectorInstrumentationCookie&, ScriptExecutionContext*);
     static void didAddEventListenerImpl(InstrumentingAgents&, EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static void willRemoveEventListenerImpl(InstrumentingAgents&, EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
@@ -345,7 +351,7 @@ private:
     static InspectorInstrumentationCookie willDispatchEventOnWindowImpl(InstrumentingAgents&, const Event&, DOMWindow&);
     static void didDispatchEventOnWindowImpl(const InspectorInstrumentationCookie&);
     static void eventDidResetAfterDispatchImpl(InstrumentingAgents&, const Event&);
-    static InspectorInstrumentationCookie willEvaluateScriptImpl(InstrumentingAgents&, Frame&, const String& url, int lineNumber);
+    static InspectorInstrumentationCookie willEvaluateScriptImpl(InstrumentingAgents&, Frame&, const String& url, int lineNumber, int columnNumber);
     static void didEvaluateScriptImpl(const InspectorInstrumentationCookie&, Frame&);
     static InspectorInstrumentationCookie willFireTimerImpl(InstrumentingAgents&, int timerId, bool oneShot, ScriptExecutionContext&);
     static void didFireTimerImpl(const InspectorInstrumentationCookie&);
@@ -360,6 +366,7 @@ private:
     static InspectorInstrumentationCookie willRecalculateStyleImpl(InstrumentingAgents&, Document&);
     static void didRecalculateStyleImpl(const InspectorInstrumentationCookie&);
     static void didScheduleStyleRecalculationImpl(InstrumentingAgents&, Document&);
+    static void applyUserAgentOverrideImpl(InstrumentingAgents&, String&);
     static void applyEmulatedMediaImpl(InstrumentingAgents&, String&);
 
     static void willSendRequestImpl(InstrumentingAgents&, unsigned long identifier, DocumentLoader*, ResourceRequest&, const ResourceResponse& redirectResponse);
@@ -406,6 +413,9 @@ private:
     static void didCancelAnimationFrameImpl(InstrumentingAgents&, int callbackId, Document&);
     static InspectorInstrumentationCookie willFireAnimationFrameImpl(InstrumentingAgents&, int callbackId, Document&);
     static void didFireAnimationFrameImpl(const InspectorInstrumentationCookie&);
+
+    static InspectorInstrumentationCookie willFireObserverCallbackImpl(InstrumentingAgents&, const String&, ScriptExecutionContext&);
+    static void didFireObserverCallbackImpl(const InspectorInstrumentationCookie&);
 
     static void didOpenDatabaseImpl(InstrumentingAgents&, RefPtr<Database>&&, const String& domain, const String& name, const String& version);
 
@@ -689,6 +699,13 @@ inline void InspectorInstrumentation::willSendXMLHttpRequest(ScriptExecutionCont
         willSendXMLHttpRequestImpl(*instrumentingAgents, url);
 }
 
+inline void InspectorInstrumentation::willFetch(ScriptExecutionContext& context, const String& url)
+{
+    FAST_RETURN_IF_NO_FRONTENDS(void());
+    if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
+        willFetchImpl(*instrumentingAgents, url);
+}
+
 inline void InspectorInstrumentation::didInstallTimer(ScriptExecutionContext& context, int timerId, Seconds timeout, bool singleShot)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
@@ -753,11 +770,11 @@ inline void InspectorInstrumentation::didDispatchPostMessage(Frame& frame, Timer
         didDispatchPostMessageImpl(*instrumentingAgents, timer);
 }
 
-inline InspectorInstrumentationCookie InspectorInstrumentation::willCallFunction(ScriptExecutionContext* context, const String& scriptName, int scriptLine)
+inline InspectorInstrumentationCookie InspectorInstrumentation::willCallFunction(ScriptExecutionContext* context, const String& scriptName, int scriptLine, int scriptColumn)
 {
     FAST_RETURN_IF_NO_FRONTENDS(InspectorInstrumentationCookie());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
-        return willCallFunctionImpl(*instrumentingAgents, scriptName, scriptLine, context);
+        return willCallFunctionImpl(*instrumentingAgents, scriptName, scriptLine, scriptColumn, context);
     return InspectorInstrumentationCookie();
 }
 
@@ -824,11 +841,11 @@ inline void InspectorInstrumentation::eventDidResetAfterDispatch(const Event& ev
         return eventDidResetAfterDispatchImpl(*instrumentingAgents, event);
 }
 
-inline InspectorInstrumentationCookie InspectorInstrumentation::willEvaluateScript(Frame& frame, const String& url, int lineNumber)
+inline InspectorInstrumentationCookie InspectorInstrumentation::willEvaluateScript(Frame& frame, const String& url, int lineNumber, int columnNumber)
 {
     FAST_RETURN_IF_NO_FRONTENDS(InspectorInstrumentationCookie());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
-        return willEvaluateScriptImpl(*instrumentingAgents, frame, url, lineNumber);
+        return willEvaluateScriptImpl(*instrumentingAgents, frame, url, lineNumber, columnNumber);
     return InspectorInstrumentationCookie();
 }
 
@@ -930,6 +947,13 @@ inline void InspectorInstrumentation::didScheduleStyleRecalculation(Document& do
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForDocument(document))
         didScheduleStyleRecalculationImpl(*instrumentingAgents, document);
+}
+
+inline void InspectorInstrumentation::applyUserAgentOverride(Frame& frame, String& userAgent)
+{
+    FAST_RETURN_IF_NO_FRONTENDS(void());
+    if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
+        applyUserAgentOverrideImpl(*instrumentingAgents, userAgent);
 }
 
 inline void InspectorInstrumentation::applyEmulatedMedia(Frame& frame, String& media)
@@ -1410,6 +1434,7 @@ inline void InspectorInstrumentation::didCancelAnimationFrame(Document& document
 
 inline InspectorInstrumentationCookie InspectorInstrumentation::willFireAnimationFrame(Document& document, int callbackId)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(InspectorInstrumentationCookie());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForDocument(document))
         return willFireAnimationFrameImpl(*instrumentingAgents, callbackId, document);
     return InspectorInstrumentationCookie();
@@ -1420,6 +1445,21 @@ inline void InspectorInstrumentation::didFireAnimationFrame(const InspectorInstr
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (cookie.isValid())
         didFireAnimationFrameImpl(cookie);
+}
+
+inline InspectorInstrumentationCookie InspectorInstrumentation::willFireObserverCallback(ScriptExecutionContext& context, const String& callbackType)
+{
+    FAST_RETURN_IF_NO_FRONTENDS(InspectorInstrumentationCookie());
+    if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
+        return willFireObserverCallbackImpl(*instrumentingAgents, callbackType, context);
+    return InspectorInstrumentationCookie();
+}
+
+inline void InspectorInstrumentation::didFireObserverCallback(const InspectorInstrumentationCookie& cookie)
+{
+    FAST_RETURN_IF_NO_FRONTENDS(void());
+    if (cookie.isValid())
+        didFireObserverCallbackImpl(cookie);
 }
 
 inline void InspectorInstrumentation::layerTreeDidChange(Page* page)

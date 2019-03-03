@@ -51,6 +51,7 @@
 #include "FrameSelection.h"
 #include "FrameTree.h"
 #include "FrameView.h"
+#include "HTMLDocument.h"
 #include "HTMLFrameElement.h"
 #include "HTMLFrameSetElement.h"
 #include "HTMLHtmlElement.h"
@@ -138,7 +139,7 @@ const int ImageDragHysteresis = 5;
 const int TextDragHysteresis = 3;
 const int ColorDragHystersis = 3;
 const int GeneralDragHysteresis = 3;
-#if PLATFORM(COCOA)
+#if PLATFORM(MAC)
 const Seconds EventHandler::TextDragDelay { 150_ms };
 #else
 const Seconds EventHandler::TextDragDelay { 0_s };
@@ -654,8 +655,8 @@ bool EventHandler::handleMousePressEventTripleClick(const MouseEventWithHitTestR
 
 static int textDistance(const Position& start, const Position& end)
 {
-    RefPtr<Range> range = Range::create(start.anchorNode()->document(), start, end);
-    return TextIterator::rangeLength(range.get(), true);
+    auto range = Range::create(start.anchorNode()->document(), start, end);
+    return TextIterator::rangeLength(range.ptr(), true);
 }
 
 bool EventHandler::handleMousePressEventSingleClick(const MouseEventWithHitTestResults& event)
@@ -1405,17 +1406,17 @@ void EventHandler::updateCursor(FrameView& view, const HitTestResult& result, bo
     }
 }
 
-std::optional<Cursor> EventHandler::selectCursor(const HitTestResult& result, bool shiftKey)
+Optional<Cursor> EventHandler::selectCursor(const HitTestResult& result, bool shiftKey)
 {
     if (m_resizeLayer && m_resizeLayer->inResizeMode())
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (!m_frame.page())
-        return std::nullopt;
+        return WTF::nullopt;
 
 #if ENABLE(PAN_SCROLLING)
     if (m_frame.mainFrame().eventHandler().panScrollInProgress())
-        return std::nullopt;
+        return WTF::nullopt;
 #endif
 
     Ref<Frame> protectedFrame(m_frame);
@@ -1430,7 +1431,7 @@ std::optional<Cursor> EventHandler::selectCursor(const HitTestResult& result, bo
 
     Node* node = result.targetNode();
     if (!node)
-        return std::nullopt;
+        return WTF::nullopt;
 
     auto renderer = node->renderer();
     auto* style = renderer ? &renderer->style() : nullptr;
@@ -1452,7 +1453,7 @@ std::optional<Cursor> EventHandler::selectCursor(const HitTestResult& result, bo
         case SetCursor:
             return overrideCursor;
         case DoNotSetCursor:
-            return std::nullopt;
+            return WTF::nullopt;
         }
     }
 
@@ -2330,7 +2331,7 @@ EventHandler::DragTargetResponse EventHandler::dispatchDragEnterOrDragOverEvent(
     dataTransfer->makeInvalidForSecurity();
     if (accept && !dataTransfer->dropEffectIsUninitialized())
         return { true, dataTransfer->destinationOperation() };
-    return { accept, std::nullopt };
+    return { accept, WTF::nullopt };
 }
 
 EventHandler::DragTargetResponse EventHandler::updateDragAndDrop(const PlatformMouseEvent& event, const std::function<std::unique_ptr<Pasteboard>()>& makePasteboard, DragOperation sourceOperation, bool draggingFiles)
@@ -3577,7 +3578,7 @@ void EventHandler::didStartDrag()
     }
 
     if (draggedContentRange) {
-        draggedContentRange->ownerDocument().markers().addDraggedContentMarker(draggedContentRange.get());
+        draggedContentRange->ownerDocument().markers().addDraggedContentMarker(*draggedContentRange);
         if (auto* renderer = m_frame.contentRenderer())
             renderer->repaintRootContents();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2008-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -129,6 +129,7 @@ class JSWebAssemblyInstance;
 class LLIntOffsetsExtractor;
 class NativeExecutable;
 class PromiseDeferredTimer;
+class RegExp;
 class RegExpCache;
 class Register;
 class RegisterAtOffsetList;
@@ -346,6 +347,8 @@ public:
     ALWAYS_INLINE CompleteSubspace& gigacageAuxiliarySpace(Gigacage::Kind kind)
     {
         switch (kind) {
+        case Gigacage::ReservedForFlagsAndNotABasePtr:
+            RELEASE_ASSERT_NOT_REACHED();
         case Gigacage::Primitive:
             return primitiveGigacageAuxiliarySpace;
         case Gigacage::JSValue:
@@ -365,26 +368,16 @@ public:
     CompleteSubspace eagerlySweptDestructibleObjectSpace;
     CompleteSubspace segmentedVariableObjectSpace;
     
-    IsoSubspace arrayBufferConstructorSpace;
     IsoSubspace asyncFunctionSpace;
     IsoSubspace asyncGeneratorFunctionSpace;
     IsoSubspace boundFunctionSpace;
     IsoSubspace callbackFunctionSpace;
     IsoSubspace customGetterSetterFunctionSpace;
-    IsoSubspace errorConstructorSpace;
     IsoSubspace executableToCodeBlockEdgeSpace;
     IsoSubspace functionSpace;
     IsoSubspace generatorFunctionSpace;
-    IsoSubspace inferredTypeSpace;
     IsoSubspace inferredValueSpace;
     IsoSubspace internalFunctionSpace;
-#if ENABLE(INTL)
-    IsoSubspace intlCollatorConstructorSpace;
-    IsoSubspace intlDateTimeFormatConstructorSpace;
-    IsoSubspace intlNumberFormatConstructorSpace;
-    IsoSubspace intlPluralRulesConstructorSpace;
-#endif
-    IsoSubspace nativeErrorConstructorSpace;
     IsoSubspace nativeExecutableSpace;
     IsoSubspace nativeStdFunctionSpace;
 #if JSC_OBJC_API_ENABLED
@@ -392,8 +385,6 @@ public:
 #endif
     IsoSubspace propertyTableSpace;
     IsoSubspace proxyRevokeSpace;
-    IsoSubspace regExpConstructorSpace;
-    IsoSubspace strictModeTypeErrorFunctionSpace;
     IsoSubspace structureRareDataSpace;
     IsoSubspace structureSpace;
     IsoSubspace weakSetSpace;
@@ -407,7 +398,6 @@ public:
     
     IsoCellSet executableToCodeBlockEdgesWithConstraints;
     IsoCellSet executableToCodeBlockEdgesWithFinalizers;
-    IsoCellSet inferredTypesWithFinalizers;
     IsoCellSet inferredValuesWithFinalizers;
     
     struct SpaceAndFinalizerSet {
@@ -549,8 +539,6 @@ public:
     Strong<Structure> unlinkedFunctionCodeBlockStructure;
     Strong<Structure> unlinkedModuleProgramCodeBlockStructure;
     Strong<Structure> propertyTableStructure;
-    Strong<Structure> inferredTypeStructure;
-    Strong<Structure> inferredTypeTableStructure;
     Strong<Structure> inferredValueStructure;
     Strong<Structure> functionRareDataStructure;
     Strong<Structure> exceptionStructure;
@@ -692,6 +680,10 @@ public:
 
     Exception* lastException() const { return m_lastException; }
     JSCell** addressOfLastException() { return reinterpret_cast<JSCell**>(&m_lastException); }
+
+    // This should only be used for test or assertion code that wants to inspect
+    // the pending exception without interfering with Throw/CatchScopes.
+    Exception* exceptionForInspection() const { return m_exception; }
 
     void setFailNextNewCodeBlock() { m_failNextNewCodeBlock = true; }
     bool getAndClearFailNextNewCodeBlock()
@@ -856,6 +848,7 @@ public:
 
     void queueMicrotask(JSGlobalObject&, Ref<Microtask>&&);
     JS_EXPORT_PRIVATE void drainMicrotasks();
+    ALWAYS_INLINE void setOnEachMicrotaskTick(WTF::Function<void(VM&)>&& func) { m_onEachMicrotaskTick = WTFMove(func); }
     void setGlobalConstRedeclarationShouldThrow(bool globalConstRedeclarationThrow) { m_globalConstRedeclarationShouldThrow = globalConstRedeclarationThrow; }
     ALWAYS_INLINE bool globalConstRedeclarationShouldThrow() const { return m_globalConstRedeclarationShouldThrow; }
 
@@ -864,12 +857,13 @@ public:
 
     BytecodeIntrinsicRegistry& bytecodeIntrinsicRegistry() { return *m_bytecodeIntrinsicRegistry; }
     
-    ShadowChicken& shadowChicken() { return *m_shadowChicken; }
+    ShadowChicken* shadowChicken() { return m_shadowChicken.get(); }
+    void ensureShadowChicken();
     
     template<typename Func>
     void logEvent(CodeBlock*, const char* summary, const Func& func);
 
-    std::optional<RefPtr<Thread>> ownerThread() const { return m_apiLock->ownerThread(); }
+    Optional<RefPtr<Thread>> ownerThread() const { return m_apiLock->ownerThread(); }
 
     VMTraps& traps() { return m_traps; }
 
@@ -1014,6 +1008,8 @@ private:
 #endif
     std::unique_ptr<ShadowChicken> m_shadowChicken;
     std::unique_ptr<BytecodeIntrinsicRegistry> m_bytecodeIntrinsicRegistry;
+
+    WTF::Function<void(VM&)> m_onEachMicrotaskTick;
 
 #if ENABLE(JIT)
 #if !ASSERT_DISABLED

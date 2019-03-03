@@ -8,6 +8,9 @@ file(MAKE_DIRECTORY ${DERIVED_SOURCES_WEBKIT_DIR})
 add_definitions(-DBUILDING_WEBKIT)
 
 list(APPEND WebKit_SOURCES
+    NetworkProcess/Classifier/WebResourceLoadStatisticsStore.cpp
+    NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.cpp
+
     NetworkProcess/win/NetworkProcessMainWin.cpp
 
     Platform/IPC/win/AttachmentWin.cpp
@@ -23,7 +26,7 @@ list(APPEND WebKit_SOURCES
 
     Shared/Plugins/Netscape/NetscapePluginModuleNone.cpp
 
-    Shared/win/ChildProcessMainWin.cpp
+    Shared/win/AuxiliaryProcessMainWin.cpp
     Shared/win/NativeWebKeyboardEventWin.cpp
     Shared/win/NativeWebMouseEventWin.cpp
     Shared/win/NativeWebTouchEventWin.cpp
@@ -36,8 +39,6 @@ list(APPEND WebKit_SOURCES
     UIProcess/DrawingAreaProxyImpl.cpp
     UIProcess/LegacySessionStateCodingNone.cpp
     UIProcess/WebGrammarDetail.cpp
-    UIProcess/WebResourceLoadStatisticsStore.cpp
-    UIProcess/WebResourceLoadStatisticsTelemetry.cpp
     UIProcess/WebViewportAttributes.cpp
 
     UIProcess/API/C/WKViewportAttributes.cpp

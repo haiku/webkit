@@ -30,6 +30,7 @@
 #import "WebPreferencesPrivate.h"
 #import "WebPreferenceKeysPrivate.h"
 
+#import "NetworkStorageSessionMap.h"
 #import "WebApplicationCache.h"
 #import "WebFrameNetworkingContext.h"
 #import "WebKitLogging.h"
@@ -654,7 +655,7 @@ public:
 #else
         [NSNumber numberWithBool:YES], WebKitVisualViewportEnabledPreferenceKey,
 #endif
-        [NSNumber numberWithBool:NO], WebKitVisualViewportAPIEnabledPreferenceKey,
+        [NSNumber numberWithBool:YES], WebKitVisualViewportAPIEnabledPreferenceKey,
 
         [NSNumber numberWithBool:NO], WebKitCSSOMViewScrollingAPIEnabledPreferenceKey,
         [NSNumber numberWithBool:YES], WebKitNeedsStorageAccessFromFileURLsQuirkKey,
@@ -668,13 +669,14 @@ public:
         [NSNumber numberWithBool:YES], WebKitPeerConnectionEnabledPreferenceKey,
 #endif
         [NSNumber numberWithBool:YES], WebKitSelectionAcrossShadowBoundariesEnabledPreferenceKey,
+        [NSNumber numberWithBool:NO], WebKitCSSLogicalEnabledPreferenceKey,
+        [NSNumber numberWithBool:NO], WebKitAdClickAttributionEnabledPreferenceKey,
 #if ENABLE(INTERSECTION_OBSERVER)
         @NO, WebKitIntersectionObserverEnabledPreferenceKey,
 #endif
         @YES, WebKitDisplayContentsEnabledPreferenceKey,
         @NO, WebKitUserTimingEnabledPreferenceKey,
         @NO, WebKitResourceTimingEnabledPreferenceKey,
-        @NO, WebKitWebAuthenticationEnabledPreferenceKey,
         @NO, WebKitMediaUserGestureInheritsFromDocument,
         @NO, WebKitIsSecureContextAttributeEnabledPreferenceKey,
         @YES, WebKitLegacyEncryptedMediaAPIEnabledKey,
@@ -1877,18 +1879,18 @@ static NSString *classIBCreatorID = nil;
 #if PLATFORM(IOS_FAMILY)
     WebThreadLock();
 #endif
-    NetworkStorageSession::switchToNewTestingSession();
+    NetworkStorageSessionMap::switchToNewTestingSession();
 }
 
 + (void)_clearNetworkLoaderSession
 {
-    NetworkStorageSession::defaultStorageSession().deleteAllCookies();
+    NetworkStorageSessionMap::defaultStorageSession().deleteAllCookies();
 }
 
 + (void)_setCurrentNetworkLoaderSessionCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)policy
 {
-    RetainPtr<CFHTTPCookieStorageRef> cookieStorage = NetworkStorageSession::defaultStorageSession().cookieStorage();
-    ASSERT(cookieStorage); // Will fail when NetworkStorageSession::switchToNewTestingSession() was not called beforehand.
+    RetainPtr<CFHTTPCookieStorageRef> cookieStorage = NetworkStorageSessionMap::defaultStorageSession().cookieStorage();
+    ASSERT(cookieStorage); // Will fail when NetworkStorageSessionMap::switchToNewTestingSession() was not called beforehand.
     CFHTTPCookieStorageSetCookieAcceptPolicy(cookieStorage.get(), policy);
 }
 
@@ -3197,16 +3199,6 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitResourceTimingEnabledPreferenceKey];
 }
 
-- (BOOL)webAuthenticationEnabled
-{
-    return [self _boolValueForKey:WebKitWebAuthenticationEnabledPreferenceKey];
-}
-
-- (void)setWebAuthenticationEnabled:(BOOL)flag
-{
-    [self _setBoolValue:flag forKey:WebKitWebAuthenticationEnabledPreferenceKey];
-}
-
 - (BOOL)mediaUserGestureInheritsFromDocument
 {
     return [self _boolValueForKey:WebKitMediaUserGestureInheritsFromDocument];
@@ -3387,6 +3379,26 @@ static NSString *classIBCreatorID = nil;
 - (void)setSelectionAcrossShadowBoundariesEnabled:(BOOL)flag
 {
     [self _setBoolValue:flag forKey:WebKitSelectionAcrossShadowBoundariesEnabledPreferenceKey];
+}
+
+- (BOOL)cssLogicalEnabled
+{
+    return [self _boolValueForKey:WebKitCSSLogicalEnabledPreferenceKey];
+}
+
+- (void)setCSSLogicalEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitCSSLogicalEnabledPreferenceKey];
+}
+
+- (BOOL)adClickAttributionEnabled
+{
+    return [self _boolValueForKey:WebKitAdClickAttributionEnabledPreferenceKey];
+}
+
+- (void)setAdClickAttributionEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitAdClickAttributionEnabledPreferenceKey];
 }
 
 @end

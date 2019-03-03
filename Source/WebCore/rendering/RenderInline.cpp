@@ -30,7 +30,6 @@
 #include "HitTestResult.h"
 #include "InlineElementBox.h"
 #include "InlineTextBox.h"
-#include "LayoutState.h"
 #include "RenderBlock.h"
 #include "RenderChildIterator.h"
 #include "RenderFragmentedFlow.h"
@@ -38,6 +37,7 @@
 #include "RenderGeometryMap.h"
 #include "RenderIterator.h"
 #include "RenderLayer.h"
+#include "RenderLayoutState.h"
 #include "RenderLineBreak.h"
 #include "RenderListMarker.h"
 #include "RenderTable.h"
@@ -884,7 +884,7 @@ LayoutRect RenderInline::computeVisibleRectUsingPaintOffset(const LayoutRect& re
     return adjustedRect;
 }
 
-std::optional<LayoutRect> RenderInline::computeVisibleRectInContainer(const LayoutRect& rect, const RenderLayerModelObject* container, VisibleRectContext context) const
+Optional<LayoutRect> RenderInline::computeVisibleRectInContainer(const LayoutRect& rect, const RenderLayerModelObject* container, VisibleRectContext context) const
 {
     // Repaint offset cache is only valid for root-relative repainting
     if (view().frameView().layoutContext().isPaintOffsetCacheEnabled() && !container && !context.m_options.contains(VisibleRectContextOption::UseEdgeInclusiveIntersection))
@@ -918,7 +918,7 @@ std::optional<LayoutRect> RenderInline::computeVisibleRectInContainer(const Layo
         bool isEmpty = !downcast<RenderBox>(*localContainer).applyCachedClipAndScrollPosition(adjustedRect, container, context);
         if (isEmpty) {
             if (context.m_options.contains(VisibleRectContextOption::UseEdgeInclusiveIntersection))
-                return std::nullopt;
+                return WTF::nullopt;
             return adjustedRect;
         }
     }

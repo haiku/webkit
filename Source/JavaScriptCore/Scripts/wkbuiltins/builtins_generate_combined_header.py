@@ -55,6 +55,8 @@ class BuiltinsCombinedHeaderGenerator(BuiltinsGenerator):
         sections.append(Template(Templates.HeaderIncludeGuard).substitute(args))
         sections.append(self.generate_forward_declarations())
         sections.append(Template(Templates.NamespaceTop).substitute(args))
+        sections.append("extern const char s_%(namespace)sCombinedCode[];" % args);
+        sections.append("extern const unsigned s_%(namespace)sCombinedCodeLength;" % args);
         for object in self.model().objects:
             sections.append(self.generate_section_for_object(object))
         sections.append(self.generate_section_for_code_table_macro())
@@ -89,7 +91,7 @@ enum class ConstructAbility : unsigned;
                 'codeName': BuiltinsGenerator.mangledNameForFunction(function) + 'Code',
             }
 
-            lines.append("""extern const char* s_%(codeName)s;
+            lines.append("""extern const char* const s_%(codeName)s;
 extern const int s_%(codeName)sLength;
 extern const JSC::ConstructAbility s_%(codeName)sConstructAbility;""" % function_args)
 

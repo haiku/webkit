@@ -34,8 +34,11 @@
 
 namespace WebCore {
 
+class Blob;
 class Document;
 class MediaRecorderPrivate;
+
+typedef std::unique_ptr<MediaRecorderPrivate>(*creatorFunction)();
 
 class MediaRecorder final
     : public ActiveDOMObject
@@ -56,19 +59,25 @@ public:
     
     ~MediaRecorder();
     
-    static Ref<MediaRecorder> create(Document&, Ref<MediaStream>&&, Options&& = { });
+    static ExceptionOr<Ref<MediaRecorder>> create(Document&, Ref<MediaStream>&&, Options&& = { });
+    
+    WEBCORE_EXPORT static void setCustomPrivateRecorderCreator(creatorFunction);
     
     RecordingState state() const { return m_state; }
     
     using RefCounted::ref;
     using RefCounted::deref;
     
-    ExceptionOr<void> startRecording(std::optional<int>);
+    ExceptionOr<void> startRecording(Optional<int>);
     ExceptionOr<void> stopRecording();
     
 private:
-    MediaRecorder(Document&, Ref<MediaStream>&&, Options&& = { });
+    MediaRecorder(Document&, Ref<MediaStream>&&, std::unique_ptr<MediaRecorderPrivate>&&, Options&& = { });
     
+    static std::unique_ptr<MediaRecorderPrivate> getPrivateImpl(const MediaStreamPrivate&);
+    
+    Ref<Blob> createRecordingDataBlob();
+
     // EventTarget
     void refEventTarget() final { ref(); }
     void derefEventTarget() final { deref(); }
@@ -94,17 +103,18 @@ private:
     void audioSamplesAvailable(MediaStreamTrackPrivate&, const MediaTime&, const PlatformAudioData&, const AudioStreamDescription&, size_t) final;
     
     void scheduleDeferredTask(Function<void()>&&);
-    void setNewRecordingState(RecordingState, Ref<Event>&&);
+    
+    static creatorFunction m_customCreator;
     
     Options m_options;
     Ref<MediaStream> m_stream;
-    UniqueRef<MediaRecorderPrivate> m_private;
+    std::unique_ptr<MediaRecorderPrivate> m_private;
     RecordingState m_state { RecordingState::Inactive };
     Vector<Ref<MediaStreamTrackPrivate>> m_tracks;
     
     bool m_isActive { true };
 };
-    
+
 } // namespace WebCore
 
 #endif // ENABLE(MEDIA_STREAM)

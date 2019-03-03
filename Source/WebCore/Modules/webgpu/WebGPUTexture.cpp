@@ -34,10 +34,7 @@ namespace WebCore {
 
 RefPtr<WebGPUTexture> WebGPUTexture::create(RefPtr<GPUTexture>&& texture)
 {
-    if (!texture)
-        return nullptr;
-
-    return adoptRef(new WebGPUTexture(texture.releaseNonNull()));
+    return texture ? adoptRef(new WebGPUTexture(texture.releaseNonNull())) : nullptr;
 }
 
 WebGPUTexture::WebGPUTexture(Ref<GPUTexture>&& texture)
@@ -47,12 +44,9 @@ WebGPUTexture::WebGPUTexture(Ref<GPUTexture>&& texture)
 
 RefPtr<WebGPUTextureView> WebGPUTexture::createDefaultTextureView()
 {
-    auto gpuTexture = m_texture->createDefaultTextureView();
-
-    if (!gpuTexture)
-        return nullptr;
-
-    return WebGPUTextureView::create(gpuTexture.releaseNonNull());
+    if (auto gpuTexture = m_texture->createDefaultTextureView())
+        return WebGPUTextureView::create(gpuTexture.releaseNonNull());
+    return nullptr;
 }
 
 } // namespace WebCore

@@ -44,13 +44,12 @@
 #include <unistd.h>
 #endif
 
-using namespace WebCore;
-
 namespace WebKit {
+using namespace WebCore;
 
 static IPC::Connection* currentConnection;
 
-RefPtr<WebProcessConnection> WebProcessConnection::create(IPC::Connection::Identifier connectionIdentifier)
+Ref<WebProcessConnection> WebProcessConnection::create(IPC::Connection::Identifier connectionIdentifier)
 {
     return adoptRef(*new WebProcessConnection(connectionIdentifier));
 }

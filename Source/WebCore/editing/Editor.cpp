@@ -32,11 +32,14 @@
 #include "ApplyStyleCommand.h"
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
+#include "CSSValueList.h"
+#include "CSSValuePool.h"
 #include "CachedResourceLoader.h"
 #include "ChangeListTypeCommand.h"
 #include "ClipboardEvent.h"
 #include "CompositionEvent.h"
 #include "CreateLinkCommand.h"
+#include "CustomUndoStep.h"
 #include "DataTransfer.h"
 #include "DeleteSelectionCommand.h"
 #include "DictationAlternative.h"
@@ -63,8 +66,10 @@
 #include "HTMLImageElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
+#include "HTMLOListElement.h"
 #include "HTMLQuoteElement.h"
 #include "HTMLSpanElement.h"
+#include "HTMLUListElement.h"
 #include "HitTestResult.h"
 #include "IndentOutdentCommand.h"
 #include "InputEvent.h"
@@ -195,10 +200,9 @@ void ClearTextCommand::CreateAndApply(const RefPtr<Frame> frame)
 }
 
 using namespace HTMLNames;
-using namespace WTF;
-using namespace Unicode;
+using namespace WTF::Unicode;
 
-TemporarySelectionChange::TemporarySelectionChange(Frame& frame, std::optional<VisibleSelection> temporarySelection, OptionSet<TemporarySelectionOption> options)
+TemporarySelectionChange::TemporarySelectionChange(Frame& frame, Optional<VisibleSelection> temporarySelection, OptionSet<TemporarySelectionOption> options)
     : m_frame(frame)
     , m_options(options)
     , m_wasIgnoringSelectionChanges(frame.editor().ignoreSelectionChanges())
@@ -1736,6 +1740,13 @@ void Editor::redo()
         client()->redo();
 }
 
+void Editor::registerCustomUndoStep(Ref<CustomUndoStep>&& undoStep)
+{
+    ASSERT(RuntimeEnabledFeatures::sharedFeatures().undoManagerAPIEnabled());
+    if (auto* client = this->client())
+        client->registerUndoStep(WTFMove(undoStep));
+}
+
 void Editor::didBeginEditing()
 {
     if (client())
@@ -1780,11 +1791,11 @@ void Editor::setBaseWritingDirection(WritingDirection direction)
         
     Element* focusedElement = document().focusedElement();
     if (focusedElement && focusedElement->isTextField()) {
-        if (direction == NaturalWritingDirection)
+        if (direction == WritingDirection::Natural)
             return;
 
         auto& focusedFormElement = downcast<HTMLTextFormControlElement>(*focusedElement);
-        auto directionValue = direction == LeftToRightWritingDirection ? "ltr" : "rtl";
+        auto directionValue = direction == WritingDirection::LeftToRight ? "ltr" : "rtl";
         auto writingDirectionInputTypeName = inputTypeNameForEditingAction(EditAction::SetWritingDirection);
         if (!dispatchBeforeInputEvent(focusedFormElement, writingDirectionInputTypeName, directionValue))
             return;
@@ -1795,14 +1806,14 @@ void Editor::setBaseWritingDirection(WritingDirection direction)
         return;
     }
 
-    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
-    style->setProperty(CSSPropertyDirection, direction == LeftToRightWritingDirection ? "ltr" : direction == RightToLeftWritingDirection ? "rtl" : "inherit", false);
-    applyParagraphStyleToSelection(style.get(), EditAction::SetWritingDirection);
+    auto style = MutableStyleProperties::create();
+    style->setProperty(CSSPropertyDirection, direction == WritingDirection::LeftToRight ? "ltr" : direction == WritingDirection::RightToLeft ? "rtl" : "inherit", false);
+    applyParagraphStyleToSelection(style.ptr(), EditAction::SetWritingDirection);
 }
 
 WritingDirection Editor::baseWritingDirectionForSelectionStart() const
 {
-    WritingDirection result = LeftToRightWritingDirection;
+    auto result = WritingDirection::LeftToRight;
 
     Position pos = m_frame.selection().selection().visibleStart().deepEquivalent();
     Node* node = pos.deprecatedNode();
@@ -1821,9 +1832,9 @@ WritingDirection Editor::baseWritingDirectionForSelectionStart() const
 
     switch (renderer->style().direction()) {
     case TextDirection::LTR:
-        return LeftToRightWritingDirection;
+        return WritingDirection::LeftToRight;
     case TextDirection::RTL:
-        return RightToLeftWritingDirection;
+        return WritingDirection::RightToLeft;
     }
     
     return result;
@@ -2023,8 +2034,8 @@ void Editor::setComposition(const String& text, const Vector<CompositionUnderlin
 
             unsigned start = std::min(baseOffset + selectionStart, extentOffset);
             unsigned end = std::min(std::max(start, baseOffset + selectionEnd), extentOffset);
-            RefPtr<Range> selectedRange = Range::create(baseNode->document(), baseNode, start, baseNode, end);
-            m_frame.selection().setSelectedRange(selectedRange.get(), DOWNSTREAM, FrameSelection::ShouldCloseTyping::No);
+            auto selectedRange = Range::create(baseNode->document(), baseNode, start, baseNode, end);
+            m_frame.selection().setSelectedRange(selectedRange.ptr(), DOWNSTREAM, FrameSelection::ShouldCloseTyping::No);
         }
     }
 
@@ -2040,7 +2051,7 @@ void Editor::ignoreSpelling()
         
     RefPtr<Range> selectedRange = m_frame.selection().toNormalizedRange();
     if (selectedRange)
-        document().markers().removeMarkers(selectedRange.get(), DocumentMarker::Spelling);
+        document().markers().removeMarkers(*selectedRange, DocumentMarker::Spelling);
 
     String text = selectedText();
     ASSERT(text.length());
@@ -2056,7 +2067,7 @@ void Editor::learnSpelling()
 
     RefPtr<Range> selectedRange = m_frame.selection().toNormalizedRange();
     if (selectedRange)
-        document().markers().removeMarkers(selectedRange.get(), DocumentMarker::Spelling);
+        document().markers().removeMarkers(*selectedRange, DocumentMarker::Spelling);
 
     String text = selectedText();
     ASSERT(text.length());
@@ -2222,12 +2233,12 @@ void Editor::advanceToNextMisspelling(bool startBeforeSelection)
         ASSERT(grammarDetail.location != -1 && grammarDetail.length > 0);
         
         // FIXME 4859190: This gets confused with doubled punctuation at the end of a paragraph
-        RefPtr<Range> badGrammarRange = TextIterator::subrange(*grammarSearchRange, grammarPhraseOffset + grammarDetail.location, grammarDetail.length);
-        m_frame.selection().setSelection(VisibleSelection(*badGrammarRange, SEL_DEFAULT_AFFINITY));
+        auto badGrammarRange = TextIterator::subrange(*grammarSearchRange, grammarPhraseOffset + grammarDetail.location, grammarDetail.length);
+        m_frame.selection().setSelection(VisibleSelection(badGrammarRange, SEL_DEFAULT_AFFINITY));
         m_frame.selection().revealSelection();
         
         client()->updateSpellingUIWithGrammarString(badGrammarPhrase, grammarDetail);
-        document().markers().addMarker(badGrammarRange.get(), DocumentMarker::Grammar, grammarDetail.userDescription);
+        document().markers().addMarker(badGrammarRange, DocumentMarker::Grammar, grammarDetail.userDescription);
     } else
 #endif
     if (!misspelledWord.isEmpty()) {
@@ -2239,7 +2250,7 @@ void Editor::advanceToNextMisspelling(bool startBeforeSelection)
         m_frame.selection().revealSelection();
         
         client()->updateSpellingUIWithMisspelledWord(misspelledWord);
-        document().markers().addMarker(misspellingRange.ptr(), DocumentMarker::Spelling);
+        document().markers().addMarker(misspellingRange, DocumentMarker::Spelling);
     }
 }
 
@@ -2374,13 +2385,10 @@ bool Editor::spellingPanelIsShowing()
     return client()->spellingUIIsShowing();
 }
 
-void Editor::clearMisspellingsAndBadGrammar(const VisibleSelection &movingSelection)
+void Editor::clearMisspellingsAndBadGrammar(const VisibleSelection& movingSelection)
 {
-    RefPtr<Range> selectedRange = movingSelection.toNormalizedRange();
-    if (selectedRange) {
-        document().markers().removeMarkers(selectedRange.get(), DocumentMarker::Spelling);
-        document().markers().removeMarkers(selectedRange.get(), DocumentMarker::Grammar);
-    }
+    if (auto selectedRange = movingSelection.toNormalizedRange())
+        document().markers().removeMarkers(*selectedRange, { DocumentMarker::Spelling, DocumentMarker::Grammar });
 }
 
 void Editor::markMisspellingsAndBadGrammar(const VisibleSelection &movingSelection)
@@ -2486,8 +2494,8 @@ void Editor::markMisspellingsAfterTypingToWord(const VisiblePosition &wordStart,
         // cause any other part of the current sentence to lose or gain spelling correction markers, due to
         // sentence retro correction. As such, we expand the spell checking range to encompass as much of the
         // full sentence as we can, respecting boundaries where spellchecking is disabled.
-        fullSentenceRange->ownerDocument().markers().removeMarkers(fullSentenceRange.get(), DocumentMarker::Grammar);
-        spellCheckingRange->ownerDocument().markers().removeMarkers(spellCheckingRange.get(), DocumentMarker::Spelling);
+        fullSentenceRange->ownerDocument().markers().removeMarkers(*fullSentenceRange, DocumentMarker::Grammar);
+        spellCheckingRange->ownerDocument().markers().removeMarkers(*spellCheckingRange, DocumentMarker::Spelling);
         markAllMisspellingsAndBadGrammarInRanges(textCheckingOptions, WTFMove(spellCheckingRange), WTFMove(adjacentWordRange), WTFMove(fullSentenceRange));
         return;
     }
@@ -2757,14 +2765,14 @@ void Editor::markAndReplaceFor(const SpellCheckRequest& request, const Vector<Te
             auto misspellingRange = paragraph.subrange(resultLocation, resultLength);
             if (!m_alternativeTextController->isSpellingMarkerAllowed(misspellingRange))
                 continue;
-            misspellingRange->startContainer().document().markers().addMarker(misspellingRange.ptr(), DocumentMarker::Spelling, replacement);
+            misspellingRange->startContainer().document().markers().addMarker(misspellingRange, DocumentMarker::Spelling, replacement);
         } else if (shouldMarkGrammar && resultType == TextCheckingType::Grammar && paragraph.checkingRangeCovers(resultLocation, resultLength)) {
             ASSERT(resultLength > 0 && resultLocation >= 0);
             for (auto& detail : results[i].details) {
                 ASSERT(detail.length > 0 && detail.location >= 0);
                 if (paragraph.checkingRangeCovers(resultLocation + detail.location, detail.length)) {
                     auto badGrammarRange = paragraph.subrange(resultLocation + detail.location, detail.length);
-                    badGrammarRange->startContainer().document().markers().addMarker(badGrammarRange.ptr(), DocumentMarker::Grammar, detail.userDescription);
+                    badGrammarRange->startContainer().document().markers().addMarker(badGrammarRange, DocumentMarker::Grammar, detail.userDescription);
                 }
             }
         } else if (resultEndLocation <= automaticReplacementEndLocation && resultEndLocation >= paragraph.automaticReplacementStart()
@@ -2878,7 +2886,7 @@ void Editor::changeBackToReplacedString(const String& replacedString)
     TextCheckingParagraph paragraph(*selection);
     replaceSelectionWithText(replacedString, SelectReplacement::No, SmartReplace::No, EditAction::Insert);
     auto changedRange = paragraph.subrange(paragraph.checkingStart(), replacedString.length());
-    changedRange->startContainer().document().markers().addMarker(changedRange.ptr(), DocumentMarker::Replacement, String());
+    changedRange->startContainer().document().markers().addMarker(changedRange, DocumentMarker::Replacement, String());
     m_alternativeTextController->markReversed(changedRange);
 #else
     ASSERT_NOT_REACHED();
@@ -2994,7 +3002,7 @@ void Editor::updateMarkersForWordsAffectedByEditing(bool doNotRemoveIfSelectionA
         DocumentMarker::Grammar,
 #endif
     };
-    document().markers().removeMarkers(wordRange.ptr(), markerTypesToRemove, DocumentMarkerController::RemovePartiallyOverlappingMarker);
+    document().markers().removeMarkers(wordRange, markerTypesToRemove, DocumentMarkerController::RemovePartiallyOverlappingMarker);
     document().markers().clearDescriptionOnMarkersIntersectingRange(wordRange, DocumentMarker::Replacement);
 }
 
@@ -3486,7 +3494,7 @@ unsigned Editor::countMatchesForText(const String& target, Range* range, FindOpt
 
     unsigned matchCount = 0;
     do {
-        RefPtr<Range> resultRange(findPlainText(*searchRange, target, options - Backwards));
+        auto resultRange = findPlainText(*searchRange, target, options - Backwards);
         if (resultRange->collapsed()) {
             if (!resultRange->startContainer().isInShadowTree())
                 break;
@@ -3498,10 +3506,10 @@ unsigned Editor::countMatchesForText(const String& target, Range* range, FindOpt
 
         ++matchCount;
         if (matches)
-            matches->append(resultRange);
+            matches->append(resultRange.ptr());
         
         if (markMatches)
-            document().markers().addMarker(resultRange.get(), DocumentMarker::TextMatch);
+            document().markers().addMarker(resultRange, DocumentMarker::TextMatch);
 
         // Stop looking if we hit the specified limit. A limit of 0 means no limit.
         if (limit > 0 && matchCount >= limit)
@@ -3650,10 +3658,10 @@ void Editor::scanRangeForTelephoneNumbers(Range& range, const StringView& string
         unsigned subrangeOffset = scannerPosition + relativeStartPosition;
         unsigned subrangeLength = relativeEndPosition - relativeStartPosition + 1;
 
-        RefPtr<Range> subrange = TextIterator::subrange(range, subrangeOffset, subrangeLength);
+        auto subrange = TextIterator::subrange(range, subrangeOffset, subrangeLength);
 
-        markedRanges.append(subrange);
-        range.ownerDocument().markers().addMarker(subrange.get(), DocumentMarker::TelephoneNumber);
+        markedRanges.append(subrange.ptr());
+        range.ownerDocument().markers().addMarker(subrange, DocumentMarker::TelephoneNumber);
 
         scannerPosition += relativeEndPosition + 1;
     }
@@ -3718,11 +3726,11 @@ void Editor::editorUIUpdateTimerFired()
 
         if (!textChecker() || textChecker()->shouldEraseMarkersAfterChangeSelection(TextCheckingType::Spelling)) {
             if (RefPtr<Range> wordRange = newAdjacentWords.toNormalizedRange())
-                document().markers().removeMarkers(wordRange.get(), DocumentMarker::Spelling);
+                document().markers().removeMarkers(*wordRange, DocumentMarker::Spelling);
         }
         if (!textChecker() || textChecker()->shouldEraseMarkersAfterChangeSelection(TextCheckingType::Grammar)) {
             if (RefPtr<Range> sentenceRange = newSelectedSentence.toNormalizedRange())
-                document().markers().removeMarkers(sentenceRange.get(), DocumentMarker::Grammar);
+                document().markers().removeMarkers(*sentenceRange, DocumentMarker::Grammar);
         }
     }
 
@@ -3768,7 +3776,7 @@ bool Editor::selectionStartHasMarkerFor(DocumentMarker::MarkerType markerType, i
 
     unsigned int startOffset = static_cast<unsigned int>(from);
     unsigned int endOffset = static_cast<unsigned int>(from + length);
-    Vector<RenderedDocumentMarker*> markers = document().markers().markersFor(node);
+    Vector<RenderedDocumentMarker*> markers = document().markers().markersFor(*node);
     for (auto* marker : markers) {
         if (marker->startOffset() <= startOffset && endOffset <= marker->endOffset() && marker->type() == markerType)
             return true;
@@ -4090,7 +4098,7 @@ void Editor::notifyClientOfAttachmentUpdates()
     }
 }
 
-void Editor::insertAttachment(const String& identifier, std::optional<uint64_t>&& fileSize, const String& fileName, const String& contentType)
+void Editor::insertAttachment(const String& identifier, Optional<uint64_t>&& fileSize, const String& fileName, const String& contentType)
 {
     auto attachment = HTMLAttachmentElement::create(HTMLNames::attachmentTag, document());
     attachment->setUniqueIdentifier(identifier);
@@ -4118,7 +4126,7 @@ void Editor::handleAcceptedCandidate(TextCheckingResult acceptedCandidate)
 
     RefPtr<Range> insertedCandidateRange = rangeExpandedByCharactersInDirectionAtWordBoundary(selection.visibleStart(), acceptedCandidate.replacement.length(), DirectionBackward);
     if (insertedCandidateRange)
-        insertedCandidateRange->startContainer().document().markers().addMarker(insertedCandidateRange.get(), DocumentMarker::AcceptedCandidate, acceptedCandidate.replacement);
+        insertedCandidateRange->startContainer().document().markers().addMarker(*insertedCandidateRange, DocumentMarker::AcceptedCandidate, acceptedCandidate.replacement);
 
     m_isHandlingAcceptedCandidate = false;
 }
@@ -4254,6 +4262,12 @@ String Editor::clientReplacementURLForResource(Ref<SharedBuffer>&& resourceData,
 RefPtr<HTMLImageElement> Editor::insertEditableImage()
 {
     return InsertEditableImageCommand::insertEditableImage(document());
+}
+
+bool Editor::canCopyExcludingStandaloneImages() const
+{
+    auto& selection = m_frame.selection().selection();
+    return selection.isRange() && !selection.isInPasswordField();
 }
 
 } // namespace WebCore

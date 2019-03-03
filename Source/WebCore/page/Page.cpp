@@ -34,6 +34,7 @@
 #include "ConstantPropertyMap.h"
 #include "ContextMenuClient.h"
 #include "ContextMenuController.h"
+#include "CookieJar.h"
 #include "DOMRect.h"
 #include "DOMRectList.h"
 #include "DatabaseProvider.h"
@@ -50,7 +51,6 @@
 #include "Event.h"
 #include "EventNames.h"
 #include "ExtensionStyleSheets.h"
-#include "FileSystem.h"
 #include "FocusController.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
@@ -86,6 +86,7 @@
 #include "PluginData.h"
 #include "PluginInfoProvider.h"
 #include "PluginViewBase.h"
+#include "PointerCaptureController.h"
 #include "PointerLockController.h"
 #include "ProgressTracker.h"
 #include "PublicSuffix.h"
@@ -121,6 +122,7 @@
 #include "WebGLStateTracker.h"
 #include "WheelEventDeltaFilter.h"
 #include "Widget.h"
+#include <wtf/FileSystem.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/Base64.h>
@@ -213,6 +215,9 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #endif
     , m_userInputBridge(std::make_unique<UserInputBridge>(*this))
     , m_inspectorController(std::make_unique<InspectorController>(*this, pageConfiguration.inspectorClient))
+#if ENABLE(POINTER_EVENTS)
+    , m_pointerCaptureController(std::make_unique<PointerCaptureController>())
+#endif
 #if ENABLE(POINTER_LOCK)
     , m_pointerLockController(std::make_unique<PointerLockController>(*this))
 #endif
@@ -238,6 +243,7 @@ Page::Page(PageConfiguration&& pageConfiguration)
     , m_inspectorDebuggable(std::make_unique<PageDebuggable>(*this))
 #endif
     , m_socketProvider(WTFMove(pageConfiguration.socketProvider))
+    , m_cookieJar(WTFMove(pageConfiguration.cookieJar))
     , m_applicationCacheStorage(*WTFMove(pageConfiguration.applicationCacheStorage))
     , m_cacheStorageProvider(WTFMove(pageConfiguration.cacheStorageProvider))
     , m_databaseProvider(*WTFMove(pageConfiguration.databaseProvider))
@@ -548,7 +554,7 @@ void Page::updateStyleAfterChangeInEnvironment()
 
         if (StyleResolver* styleResolver = document->styleScope().resolverIfExists())
             styleResolver->invalidateMatchedPropertiesCache();
-        document->scheduleForcedStyleRecalc();
+        document->scheduleFullStyleRebuild();
         document->styleScope().didChangeStyleSheetEnvironment();
     }
 }
@@ -602,7 +608,7 @@ bool Page::showAllPlugins() const
     return false;
 }
 
-inline std::optional<std::pair<MediaCanStartListener&, Document&>>  Page::takeAnyMediaCanStartListener()
+inline Optional<std::pair<MediaCanStartListener&, Document&>>  Page::takeAnyMediaCanStartListener()
 {
     for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
         if (!frame->document())
@@ -610,7 +616,7 @@ inline std::optional<std::pair<MediaCanStartListener&, Document&>>  Page::takeAn
         if (MediaCanStartListener* listener = frame->document()->takeAnyMediaCanStartListener())
             return { { *listener, *frame->document() } };
     }
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 void Page::setCanStartMedia(bool canStartMedia)
@@ -1125,10 +1131,10 @@ bool Page::isLowPowerModeEnabled() const
     return m_lowPowerModeNotifier->isLowPowerModeEnabled();
 }
 
-void Page::setLowPowerModeEnabledOverrideForTesting(std::optional<bool> isEnabled)
+void Page::setLowPowerModeEnabledOverrideForTesting(Optional<bool> isEnabled)
 {
     m_lowPowerModeEnabledOverrideForTesting = isEnabled;
-    handleLowModePowerChange(m_lowPowerModeEnabledOverrideForTesting.value_or(false));
+    handleLowModePowerChange(m_lowPowerModeEnabledOverrideForTesting.valueOr(false));
 }
 
 void Page::setTopContentInset(float contentInset)
@@ -1263,7 +1269,7 @@ void Page::addDocumentNeedingIntersectionObservationUpdate(Document& document)
 void Page::updateIntersectionObservations()
 {
     m_intersectionObservationUpdateTimer.stop();
-    for (auto document : m_documentsNeedingIntersectionObservationUpdate) {
+    for (const auto& document : m_documentsNeedingIntersectionObservationUpdate) {
         if (document)
             document->updateIntersectionObservations();
     }
@@ -1347,7 +1353,7 @@ void Page::userStyleSheetLocationChanged()
 
     m_didLoadUserStyleSheet = false;
     m_userStyleSheet = String();
-    m_userStyleSheetModificationTime = std::nullopt;
+    m_userStyleSheetModificationTime = WTF::nullopt;
 
     // Data URLs with base64-encoded UTF-8 style sheets are common. We can process them
     // synchronously and avoid using a loader. 
@@ -1395,7 +1401,7 @@ const String& Page::userStyleSheet() const
     // and what should happen when it finishes loading, especially with respect
     // to when the load event fires, when Document::close is called, and when
     // layout/paint are allowed to happen.
-    RefPtr<SharedBuffer> data = SharedBuffer::createWithContentsOfFile(m_userStyleSheetPath);
+    auto data = SharedBuffer::createWithContentsOfFile(m_userStyleSheetPath);
     if (!data)
         return m_userStyleSheet;
 
@@ -1716,6 +1722,47 @@ void Page::stopMediaCapture()
 #endif
 }
 
+void Page::stopAllMediaPlayback()
+{
+#if ENABLE(VIDEO)
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (auto* document = frame->document())
+            document->stopAllMediaPlayback();
+    }
+#endif
+}
+
+void Page::suspendAllMediaPlayback()
+{
+#if ENABLE(VIDEO)
+    ASSERT(!m_mediaPlaybackIsSuspended);
+    if (m_mediaPlaybackIsSuspended)
+        return;
+
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (auto* document = frame->document())
+            document->suspendAllMediaPlayback();
+    }
+
+    m_mediaPlaybackIsSuspended = true;
+#endif
+}
+
+void Page::resumeAllMediaPlayback()
+{
+#if ENABLE(VIDEO)
+    ASSERT(m_mediaPlaybackIsSuspended);
+    if (!m_mediaPlaybackIsSuspended)
+        return;
+    m_mediaPlaybackIsSuspended = false;
+
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (auto* document = frame->document())
+            document->resumeAllMediaPlayback();
+    }
+#endif
+}
+
 #if ENABLE(MEDIA_SESSION)
 void Page::handleMediaEvent(MediaEventType eventType)
 {
@@ -1871,7 +1918,7 @@ void Page::setIsVisibleInternal(bool isVisible)
 
         if (m_navigationToLogWhenVisible) {
             logNavigation(m_navigationToLogWhenVisible.value());
-            m_navigationToLogWhenVisible = std::nullopt;
+            m_navigationToLogWhenVisible = WTF::nullopt;
         }
     }
 
@@ -2337,7 +2384,7 @@ void Page::mainFrameLoadStarted(const URL& destinationURL, FrameLoadType type)
         return;
     }
 
-    m_navigationToLogWhenVisible = std::nullopt;
+    m_navigationToLogWhenVisible = WTF::nullopt;
     logNavigation(navigation);
 }
 
@@ -2564,8 +2611,6 @@ void Page::setCaptionUserPreferencesStyleSheet(const String& styleSheet)
         return;
 
     m_captionUserPreferencesStyleSheet = styleSheet;
-    
-    invalidateInjectedStyleSheetCacheInAllFrames();
 }
 
 void Page::accessibilitySettingsDidChange()
@@ -2627,6 +2672,7 @@ void Page::setUseSystemAppearance(bool value)
 
 void Page::setUseDarkAppearance(bool value)
 {
+#if HAVE(OS_DARK_MODE_SUPPORT)
     if (m_useDarkAppearance == value)
         return;
 
@@ -2635,26 +2681,37 @@ void Page::setUseDarkAppearance(bool value)
     InspectorInstrumentation::defaultAppearanceDidChange(*this, value);
 
     appearanceDidChange();
+#else
+    UNUSED_PARAM(value);
+#endif
 }
 
 bool Page::useDarkAppearance() const
 {
+#if HAVE(OS_DARK_MODE_SUPPORT)
     FrameView* view = mainFrame().view();
     if (!view || !equalLettersIgnoringASCIICase(view->mediaType(), "screen"))
         return false;
     if (m_useDarkAppearanceOverride)
         return m_useDarkAppearanceOverride.value();
     return m_useDarkAppearance;
+#else
+    return false;
+#endif
 }
 
-void Page::setUseDarkAppearanceOverride(std::optional<bool> valueOverride)
+void Page::setUseDarkAppearanceOverride(Optional<bool> valueOverride)
 {
+#if HAVE(OS_DARK_MODE_SUPPORT)
     if (valueOverride == m_useDarkAppearanceOverride)
         return;
 
     m_useDarkAppearanceOverride = valueOverride;
 
     appearanceDidChange();
+#else
+    UNUSED_PARAM(valueOverride);
+#endif
 }
 
 void Page::setFullscreenInsets(const FloatBoxExtent& insets)

@@ -749,7 +749,7 @@ public:
             m_jumps.append(other.m_jumps.begin(), other.m_jumps.size());
         }
 
-        bool empty()
+        bool empty() const
         {
             return !m_jumps.size();
         }
@@ -986,11 +986,7 @@ public:
 protected:
     AbstractMacroAssembler()
         : m_randomSource(0)
-#if CPU(ARM64E)
-        , m_assembler(random())
-#else
         , m_assembler()
-#endif
     {
         invalidateAllTempRegisters();
     }

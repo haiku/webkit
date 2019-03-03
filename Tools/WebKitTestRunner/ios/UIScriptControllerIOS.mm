@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +43,7 @@
 #import <WebKit/WKWebViewPrivate.h>
 #import <WebKit/WebKit.h>
 #import <wtf/SoftLinking.h>
+#import <wtf/Vector.h>
 
 SOFT_LINK_FRAMEWORK(UIKit)
 SOFT_LINK_CLASS(UIKit, UIPhysicalKeyboardEvent)
@@ -356,37 +357,23 @@ static unsigned arrayLength(JSContextRef context, JSObjectRef array)
     return 0;
 }
 
-static UIKeyModifierFlags parseModifier(JSStringRef modifier)
-{
-    if (JSStringIsEqualToUTF8CString(modifier, "altKey"))
-        return UIKeyModifierAlternate;
-    if (JSStringIsEqualToUTF8CString(modifier, "capsLockKey"))
-        return UIKeyModifierAlphaShift;
-    if (JSStringIsEqualToUTF8CString(modifier, "ctrlKey"))
-        return UIKeyModifierControl;
-    if (JSStringIsEqualToUTF8CString(modifier, "metaKey"))
-        return UIKeyModifierCommand;
-    if (JSStringIsEqualToUTF8CString(modifier, "shiftKey"))
-        return UIKeyModifierShift;
-    return 0;
-}
-
-static UIKeyModifierFlags parseModifierArray(JSContextRef context, JSValueRef arrayValue)
+static Vector<String> parseModifierArray(JSContextRef context, JSValueRef arrayValue)
 {
     if (!arrayValue)
-        return 0;
+        return { };
 
     // The value may either be a string with a single modifier or an array of modifiers.
     if (JSValueIsString(context, arrayValue)) {
-        auto string = adopt(JSValueToStringCopy(context, arrayValue, nullptr));
-        return parseModifier(string.get());
+        auto string = toWTFString(toWK(adopt(JSValueToStringCopy(context, arrayValue, nullptr))));
+        return { string };
     }
 
     if (!JSValueIsObject(context, arrayValue))
-        return 0;
+        return { };
     JSObjectRef array = const_cast<JSObjectRef>(arrayValue);
     unsigned length = arrayLength(context, array);
-    UIKeyModifierFlags modifiers = 0;
+    Vector<String> modifiers;
+    modifiers.reserveInitialCapacity(length);
     for (unsigned i = 0; i < length; ++i) {
         JSValueRef exception = nullptr;
         JSValueRef value = JSObjectGetPropertyAtIndex(context, array, i, &exception);
@@ -395,14 +382,14 @@ static UIKeyModifierFlags parseModifierArray(JSContextRef context, JSValueRef ar
         auto string = adopt(JSValueToStringCopy(context, value, &exception));
         if (exception)
             continue;
-        modifiers |= parseModifier(string.get());
+        modifiers.append(toWTFString(toWK(string.get())));
     }
     return modifiers;
 }
 
-static UIPhysicalKeyboardEvent *createUIPhysicalKeyboardEvent(const String& hidInputString, const String& uiEventInputString, UIKeyModifierFlags modifierFlags, bool isKeyDown)
+static UIPhysicalKeyboardEvent *createUIPhysicalKeyboardEvent(NSString *hidInputString, NSString *uiEventInputString, UIKeyModifierFlags modifierFlags, UIKeyboardInputFlags inputFlags, bool isKeyDown)
 {
-    auto* keyboardEvent = [getUIPhysicalKeyboardEventClass() _eventWithInput:uiEventInputString inputFlags:(UIKeyboardInputFlags)0];
+    auto* keyboardEvent = [getUIPhysicalKeyboardEventClass() _eventWithInput:uiEventInputString inputFlags:inputFlags];
     keyboardEvent._modifierFlags = modifierFlags;
     auto hidEvent = createHIDKeyEvent(hidInputString, keyboardEvent.timestamp, isKeyDown);
     [keyboardEvent _setHIDEvent:hidEvent.get() keyboard:nullptr];
@@ -412,26 +399,22 @@ static UIPhysicalKeyboardEvent *createUIPhysicalKeyboardEvent(const String& hidI
 void UIScriptController::keyDown(JSStringRef character, JSValueRef modifierArray)
 {
     // Character can be either a single Unicode code point or the name of a special key (e.g. "downArrow").
-    // createHIDKeyEvent() knows how to map these special keys to the appropriate keycode.
-    //
-    // FIXME: The UIEvent input string for special keys (e.g. "downArrow") should either be a UIKeyInput*
-    // string constant or an ASCII control character. In practice the input string for a special key is
-    // ambiguious (e.g. F5 and F6 have the same string - the ASCII DLE character) and hence it is effectively
-    // ignored in favor of key identification by keycode. So, we just take the empty string as the input string
-    // for a special key.
+    // HIDEventGenerator knows how to map these special keys to the appropriate keycode.
     String inputString = toWTFString(toWK(character));
-    String uiEventInputString = inputString.length() > 1 ? emptyString() : inputString;
     auto modifierFlags = parseModifierArray(m_context->jsContext(), modifierArray);
 
-    // Note that UIKit will call -release on the passed UIPhysicalKeyboardEvent.
+    for (auto& modifierFlag : modifierFlags)
+        [[HIDEventGenerator sharedHIDEventGenerator] keyDown:modifierFlag];
 
-    // Key down
-    auto* keyboardEvent = createUIPhysicalKeyboardEvent(inputString, uiEventInputString, modifierFlags, true /* isKeyDown */);
-    [[UIApplication sharedApplication] handleKeyUIEvent:keyboardEvent];
+    [[HIDEventGenerator sharedHIDEventGenerator] keyDown:inputString];
+    [[HIDEventGenerator sharedHIDEventGenerator] keyUp:inputString];
 
-    // Key up
-    keyboardEvent = createUIPhysicalKeyboardEvent(inputString, uiEventInputString, modifierFlags, false /* isKeyDown */);
-    [[UIApplication sharedApplication] handleKeyUIEvent:keyboardEvent];
+    for (size_t i = modifierFlags.size(); i; ) {
+        --i;
+        [[HIDEventGenerator sharedHIDEventGenerator] keyUp:modifierFlags[i]];
+    }
+
+    [[HIDEventGenerator sharedHIDEventGenerator] sendMarkerHIDEventWithCompletionBlock:^{ /* Do nothing */ }];
 }
 
 void UIScriptController::dismissFormAccessoryView()
@@ -484,6 +467,18 @@ static CGPoint contentOffsetBoundedInValidRange(UIScrollView *scrollView, CGPoin
     contentOffset.y = std::min(maxVerticalOffset, contentOffset.y);
     contentOffset.y = std::max(-contentInsets.top, contentOffset.y);
     return contentOffset;
+}
+
+double UIScriptController::contentOffsetX() const
+{
+    TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
+    return webView.scrollView.contentOffset.x;
+}
+
+double UIScriptController::contentOffsetY() const
+{
+    TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
+    return webView.scrollView.contentOffset.y;
 }
 
 void UIScriptController::scrollToOffset(long x, long y)
@@ -549,16 +544,16 @@ double UIScriptController::maximumZoomScale() const
     return webView.scrollView.maximumZoomScale;
 }
 
-std::optional<bool> UIScriptController::stableStateOverride() const
+Optional<bool> UIScriptController::stableStateOverride() const
 {
     TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
     if (webView._stableStateOverride)
         return webView._stableStateOverride.boolValue;
 
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-void UIScriptController::setStableStateOverride(std::optional<bool> overrideValue)
+void UIScriptController::setStableStateOverride(Optional<bool> overrideValue)
 {
     TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
     if (overrideValue)
@@ -827,18 +822,12 @@ void UIScriptController::beginBackSwipe(JSValueRef callback)
 {
     TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
     [webView _beginBackSwipeForTesting];
-
-    unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    m_context->asyncTaskComplete(callbackID);
 }
 
 void UIScriptController::completeBackSwipe(JSValueRef callback)
 {
     TestRunnerWKWebView *webView = TestController::singleton().mainWebView()->platformView();
     [webView _completeBackSwipeForTesting];
-
-    unsigned callbackID = m_context->prepareForAsyncTask(callback, CallbackTypeNonPersistent);
-    m_context->asyncTaskComplete(callbackID);
 }
 
 static BOOL forEachViewInHierarchy(UIView *view, void(^mapFunction)(UIView *subview, BOOL *stop))
@@ -925,9 +914,19 @@ long UIScriptController::numberOfStrokesInEditableImage()
 #endif
 }
 
+void UIScriptController::setKeyboardInputModeIdentifier(JSStringRef identifier)
+{
+    TestController::singleton().setKeyboardInputModeIdentifier(toWTFString(toWK(identifier)));
+}
+
+// FIXME: Write this in terms of HIDEventGenerator once we know how to reset caps lock state
+// on test completion to avoid it effecting subsequent tests.
 void UIScriptController::toggleCapsLock(JSValueRef callback)
 {
-    // FIXME: Implement for iOS. See <https://bugs.webkit.org/show_bug.cgi?id=191815>.
+    m_capsLockOn = !m_capsLockOn;
+    auto *keyboardEvent = createUIPhysicalKeyboardEvent(@"capsLock", [NSString string], m_capsLockOn ? UIKeyModifierAlphaShift : 0,
+        kUIKeyboardInputModifierFlagsChanged, m_capsLockOn);
+    [[UIApplication sharedApplication] handleKeyUIEvent:keyboardEvent];
     doAsyncTask(callback);
 }
 
@@ -948,6 +947,11 @@ JSObjectRef UIScriptController::attachmentInfo(JSStringRef jsAttachmentIdentifie
     };
 
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:attachmentInfoDictionary inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
+}
+
+NSUndoManager *UIScriptController::platformUndoManager() const
+{
+    return [(UIView *)[TestController::singleton().mainWebView()->platformView() valueForKeyPath:@"_currentContentView"] undoManager];
 }
 
 }

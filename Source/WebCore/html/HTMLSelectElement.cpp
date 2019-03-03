@@ -55,6 +55,7 @@
 #include "Settings.h"
 #include "SpatialNavigation.h"
 #include <wtf/IsoMallocInlines.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebCore {
 
@@ -221,7 +222,7 @@ int HTMLSelectElement::activeSelectionEndListIndex() const
     return lastSelectedListIndex();
 }
 
-ExceptionOr<void> HTMLSelectElement::add(const OptionOrOptGroupElement& element, const std::optional<HTMLElementOrInt>& before)
+ExceptionOr<void> HTMLSelectElement::add(const OptionOrOptGroupElement& element, const Optional<HTMLElementOrInt>& before)
 {
     RefPtr<HTMLElement> beforeElement;
     if (before) {
@@ -458,7 +459,7 @@ ExceptionOr<void> HTMLSelectElement::setItem(unsigned index, HTMLOptionElement* 
 ExceptionOr<void> HTMLSelectElement::setLength(unsigned newLength)
 {
     if (newLength > length() && newLength > maxSelectItems) {
-        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, String::format("Blocked attempt to expand the option list to %u items. The maximum number of items allowed is %u.", newLength, maxSelectItems));
+        document().addConsoleMessage(MessageSource::Other, MessageLevel::Warning, makeString("Blocked attempt to expand the option list to ", newLength, " items. The maximum number of items allowed is ", maxSelectItems, '.'));
         return { };
     }
 
@@ -466,7 +467,7 @@ ExceptionOr<void> HTMLSelectElement::setLength(unsigned newLength)
 
     if (diff < 0) { // Add dummy elements.
         do {
-            auto result = add(HTMLOptionElement::create(document()).ptr(), std::nullopt);
+            auto result = add(HTMLOptionElement::create(document()).ptr(), WTF::nullopt);
             if (result.hasException())
                 return result;
         } while (++diff);

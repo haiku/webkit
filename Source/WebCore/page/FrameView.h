@@ -53,12 +53,12 @@ class Element;
 class FloatSize;
 class Frame;
 class HTMLFrameOwnerElement;
-class Node;
 class Page;
 class RenderBox;
 class RenderElement;
 class RenderEmbeddedObject;
 class RenderLayer;
+class RenderLayerModelObject;
 class RenderObject;
 class RenderScrollbarPart;
 class RenderStyle;
@@ -152,10 +152,9 @@ public:
 
     WEBCORE_EXPORT TiledBacking* tiledBacking() const final;
 
-    // In the future when any ScrollableArea can have a node in th ScrollingTree, this should
-    // become a virtual function on ScrollableArea.
-    uint64_t scrollLayerID() const;
+    uint64_t scrollLayerID() const override;
     ScrollableArea* scrollableAreaForScrollLayerID(uint64_t) const;
+    bool usesAsyncScrolling() const final;
 
     WEBCORE_EXPORT void enterCompositingMode();
     WEBCORE_EXPORT bool isEnclosedInCompositingLayer() const;
@@ -257,9 +256,9 @@ public:
     
     // If set, overrides the default "m_layoutViewportOrigin, size of initial containing block" rect.
     // Used with delegated scrolling (i.e. iOS).
-    WEBCORE_EXPORT void setLayoutViewportOverrideRect(std::optional<LayoutRect>, TriggerLayoutOrNot = TriggerLayoutOrNot::Yes);
+    WEBCORE_EXPORT void setLayoutViewportOverrideRect(Optional<LayoutRect>, TriggerLayoutOrNot = TriggerLayoutOrNot::Yes);
 
-    WEBCORE_EXPORT void setVisualViewportOverrideRect(std::optional<LayoutRect>);
+    WEBCORE_EXPORT void setVisualViewportOverrideRect(Optional<LayoutRect>);
 
     // These are in document coordinates, unaffected by page scale (but affected by zooming).
     WEBCORE_EXPORT LayoutRect layoutViewportRect() const;
@@ -290,9 +289,9 @@ public:
     bool hasSlowRepaintObjects() const { return m_slowRepaintObjects && m_slowRepaintObjects->size(); }
 
     // Includes fixed- and sticky-position objects.
-    typedef HashSet<RenderElement*> ViewportConstrainedObjectSet;
-    void addViewportConstrainedObject(RenderElement*);
-    void removeViewportConstrainedObject(RenderElement*);
+    typedef HashSet<RenderLayerModelObject*> ViewportConstrainedObjectSet;
+    void addViewportConstrainedObject(RenderLayerModelObject*);
+    void removeViewportConstrainedObject(RenderLayerModelObject*);
     const ViewportConstrainedObjectSet* viewportConstrainedObjects() const { return m_viewportConstrainedObjects.get(); }
     bool hasViewportConstrainedObjects() const { return m_viewportConstrainedObjects && m_viewportConstrainedObjects->size() > 0; }
     
@@ -326,6 +325,8 @@ public:
     // Static function can be called from another thread.
     WEBCORE_EXPORT static LayoutRect rectForViewportConstrainedObjects(const LayoutRect& visibleContentRect, const LayoutSize& totalContentsSize, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, ScrollBehaviorForFixedElements);
 #endif
+
+    IntRect unobscuredContentRectExpandedByContentInsets() const;
     
     bool fixedElementsLayoutRelativeToFrame() const;
 
@@ -333,9 +334,6 @@ public:
     bool speculativeTilingEnabled() const { return m_speculativeTilingEnabled; }
     void loadProgressingStatusChanged();
 
-#if ENABLE(DASHBOARD_SUPPORT)
-    void updateAnnotatedRegions();
-#endif
     WEBCORE_EXPORT void updateControlTints();
 
     WEBCORE_EXPORT bool wasScrolledByUser() const;
@@ -470,13 +468,13 @@ public:
     IntPoint convertToContainingView(const IntPoint&) const final;
     IntPoint convertFromContainingView(const IntPoint&) const final;
 
-    float documentToAbsoluteScaleFactor(std::optional<float> effectiveZoom = std::nullopt) const;
-    float absoluteToDocumentScaleFactor(std::optional<float> effectiveZoom = std::nullopt) const;
+    float documentToAbsoluteScaleFactor(Optional<float> effectiveZoom = WTF::nullopt) const;
+    float absoluteToDocumentScaleFactor(Optional<float> effectiveZoom = WTF::nullopt) const;
 
-    FloatRect absoluteToDocumentRect(FloatRect, std::optional<float> effectiveZoom = std::nullopt) const;
-    FloatPoint absoluteToDocumentPoint(FloatPoint, std::optional<float> effectiveZoom = std::nullopt) const;
+    FloatRect absoluteToDocumentRect(FloatRect, Optional<float> effectiveZoom = WTF::nullopt) const;
+    FloatPoint absoluteToDocumentPoint(FloatPoint, Optional<float> effectiveZoom = WTF::nullopt) const;
 
-    FloatRect absoluteToClientRect(FloatRect, std::optional<float> effectiveZoom = std::nullopt) const;
+    FloatRect absoluteToClientRect(FloatRect, Optional<float> effectiveZoom = WTF::nullopt) const;
 
     FloatSize documentToClientOffset() const;
     FloatRect documentToClientRect(FloatRect) const;
@@ -487,7 +485,8 @@ public:
     FloatPoint layoutViewportToAbsolutePoint(FloatPoint) const;
 
     // Unlike client coordinates, layout viewport coordinates are affected by page zoom.
-    FloatPoint clientToLayoutViewportPoint(FloatPoint) const;
+    WEBCORE_EXPORT FloatRect clientToLayoutViewportRect(FloatRect) const;
+    WEBCORE_EXPORT FloatPoint clientToLayoutViewportPoint(FloatPoint) const;
 
     bool isFrameViewScrollCorner(const RenderScrollbarPart& scrollCorner) const { return m_scrollCorner.get() == &scrollCorner; }
 
@@ -593,6 +592,10 @@ public:
     void updateTiledBackingAdaptiveSizing();
     TiledBacking::Scrollability computeScrollability() const;
 
+#if PLATFORM(IOS_FAMILY)
+    WEBCORE_EXPORT void didUpdateViewportOverrideRects();
+#endif
+
     void addPaintPendingMilestones(OptionSet<LayoutMilestone>);
     void firePaintRelatedMilestonesIfNeeded();
     void fireLayoutRelatedMilestonesIfNeeded();
@@ -622,8 +625,8 @@ public:
     // of the view is actually exposed on screen (taking into account
     // clipping by other UI elements), whereas visibleContentRect is
     // internal to WebCore and doesn't respect those things.
-    WEBCORE_EXPORT void setViewExposedRect(std::optional<FloatRect>);
-    std::optional<FloatRect> viewExposedRect() const { return m_viewExposedRect; }
+    WEBCORE_EXPORT void setViewExposedRect(Optional<FloatRect>);
+    Optional<FloatRect> viewExposedRect() const { return m_viewExposedRect; }
 
 #if ENABLE(CSS_SCROLL_SNAP)
     void updateSnapOffsets() final;
@@ -652,6 +655,9 @@ public:
     WEBCORE_EXPORT void traverseForPaintInvalidation(GraphicsContext::PaintInvalidationReasons);
     void invalidateControlTints() { traverseForPaintInvalidation(GraphicsContext::PaintInvalidationReasons::InvalidatingControlTints); }
     void invalidateImagesWithAsyncDecodes() { traverseForPaintInvalidation(GraphicsContext::PaintInvalidationReasons::InvalidatingImagesWithAsyncDecodes); }
+
+    GraphicsLayer* layerForHorizontalScrollbar() const final;
+    GraphicsLayer* layerForVerticalScrollbar() const final;
 
 protected:
     bool scrollContentsFastPath(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect) final;
@@ -724,8 +730,6 @@ private:
     IntRect scrollableAreaBoundingBox(bool* = nullptr) const final;
     bool scrollAnimatorEnabled() const final;
     GraphicsLayer* layerForScrolling() const final;
-    GraphicsLayer* layerForHorizontalScrollbar() const final;
-    GraphicsLayer* layerForVerticalScrollbar() const final;
     GraphicsLayer* layerForScrollCorner() const final;
 #if ENABLE(RUBBER_BANDING)
     GraphicsLayer* layerForOverhangAreas() const final;
@@ -741,7 +745,6 @@ private:
 #endif
 
     bool usesCompositedScrolling() const final;
-    bool usesAsyncScrolling() const final;
     bool usesMockScrollAnimator() const final;
     void logMockScrollAnimatorMessage(const String&) const final;
 
@@ -788,6 +791,9 @@ private:
     void markRootOrBodyRendererDirty() const;
 
     bool qualifiesAsVisuallyNonEmpty() const;
+    bool qualifiesAsSignificantRenderedText() const;
+    void updateHasReachedSignificantRenderedTextThreshold();
+
     bool isViewForDocumentInFrame() const;
 
     AXObjectCache* axObjectCache() const;
@@ -801,8 +807,8 @@ private:
     void didLayout(WeakPtr<RenderElement> layoutRoot);
 
     struct OverrideViewportSize {
-        std::optional<int> width;
-        std::optional<int> height;
+        Optional<int> width;
+        Optional<int> height;
 
         bool operator==(const OverrideViewportSize& rhs) const { return rhs.width == width && rhs.height == height; }
     };
@@ -863,24 +869,23 @@ private:
 
     bool m_shouldUpdateWhileOffscreen;
 
-    std::optional<FloatRect> m_viewExposedRect;
+    Optional<FloatRect> m_viewExposedRect;
     
     LayoutPoint m_layoutViewportOrigin;
-    std::optional<LayoutRect> m_layoutViewportOverrideRect;
-    std::optional<LayoutRect> m_visualViewportOverrideRect; // Used when the iOS keyboard is showing.
+    Optional<LayoutRect> m_layoutViewportOverrideRect;
+    Optional<LayoutRect> m_visualViewportOverrideRect; // Used when the iOS keyboard is showing.
 
     RefPtr<Node> m_nodeToDraw;
     OptionSet<PaintBehavior> m_paintBehavior;
     bool m_isPainting;
 
-    unsigned m_visuallyNonEmptyCharacterCount;
-    unsigned m_visuallyNonEmptyPixelCount;
-    bool m_isVisuallyNonEmpty;
-    bool m_firstVisuallyNonEmptyLayoutCallbackPending;
+    bool m_isVisuallyNonEmpty { false };
+    unsigned m_visuallyNonEmptyCharacterCount { 0 };
+    unsigned m_visuallyNonEmptyPixelCount { 0 };
 
     unsigned m_textRendererCountForVisuallyNonEmptyCharacters { 0 };
-    bool m_renderedSignificantAmountOfText;
-    bool m_significantRenderedTextMilestonePending;
+    bool m_renderedSignificantAmountOfText { false };
+    bool m_hasReachedSignificantRenderedTextThreshold { false };
 
     bool m_needsDeferredScrollbarsUpdate { false };
 
@@ -900,7 +905,7 @@ private:
     IntSize m_customSizeForResizeEvent;
 #endif
 
-    std::optional<OverrideViewportSize> m_overrideViewportSize;
+    Optional<OverrideViewportSize> m_overrideViewportSize;
 
     // If true, automatically resize the frame view around its content.
     bool m_shouldAutoSize;
@@ -947,12 +952,9 @@ private:
 
 inline void FrameView::incrementVisuallyNonEmptyPixelCount(const IntSize& size)
 {
-    if (m_isVisuallyNonEmpty)
+    if (m_visuallyNonEmptyPixelCount > visualPixelThreshold)
         return;
     m_visuallyNonEmptyPixelCount += size.width() * size.height();
-    if (m_visuallyNonEmptyPixelCount <= visualPixelThreshold)
-        return;
-    updateIsVisuallyNonEmpty();
 }
 
 } // namespace WebCore

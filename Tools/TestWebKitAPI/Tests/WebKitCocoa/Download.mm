@@ -33,7 +33,6 @@
 #import "Test.h"
 #import "TestProtocol.h"
 #import "TestWKWebView.h"
-#import <WebCore/FileSystem.h>
 #import <WebKit/_WKDownload.h>
 #import <WebKit/_WKDownloadDelegate.h>
 #import <WebKit/WKNavigationDelegatePrivate.h>
@@ -41,6 +40,8 @@
 #import <WebKit/WKUIDelegatePrivate.h>
 #import <WebKit/WKWebView.h>
 #import <WebKit/WKWebViewConfiguration.h>
+#import <wtf/FileSystem.h>
+#import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/text/WTFString.h>
 
@@ -93,10 +94,10 @@ IGNORE_WARNINGS_END
     EXPECT_TRUE(hasReceivedResponse);
     EXPECT_EQ(_download, download);
 
-    WebCore::FileSystem::PlatformFileHandle fileHandle;
-    _destinationPath = WebCore::FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
-    EXPECT_TRUE(fileHandle != WebCore::FileSystem::invalidPlatformFileHandle);
-    WebCore::FileSystem::closeFile(fileHandle);
+    FileSystem::PlatformFileHandle fileHandle;
+    _destinationPath = FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
+    EXPECT_TRUE(fileHandle != FileSystem::invalidPlatformFileHandle);
+    FileSystem::closeFile(fileHandle);
 
     *allowOverwrite = YES;
     return _destinationPath;
@@ -108,7 +109,7 @@ IGNORE_WARNINGS_END
     EXPECT_EQ(expectedUserInitiatedState, download.wasUserInitiated);
     EXPECT_TRUE(_expectedContentLength == NSURLResponseUnknownLength || static_cast<uint64_t>(_expectedContentLength) == _receivedContentLength);
     EXPECT_TRUE([[NSFileManager defaultManager] contentsEqualAtPath:_destinationPath andPath:[sourceURL path]]);
-    WebCore::FileSystem::deleteFile(_destinationPath);
+    FileSystem::deleteFile(_destinationPath);
     isDone = true;
 }
 
@@ -253,13 +254,13 @@ TEST(_WKDownload, CancelDownload)
 
 - (void)_downloadDidStart:(_WKDownload *)download
 {
-    @autoreleasepool {
-        EXPECT_EQ([download originatingWebView], _webView);
-    }
-
+    EXPECT_EQ([download originatingWebView], _webView);
     _webView = nullptr;
-    EXPECT_NULL([download originatingWebView]);
-    isDone = true;
+
+    WTF::callOnMainThread([download = retainPtr(download)] {
+        EXPECT_NULL([download originatingWebView]);
+        isDone = true;
+    });
 }
 
 @end
@@ -396,10 +397,10 @@ IGNORE_WARNINGS_END
     EXPECT_TRUE(hasReceivedResponse);
     EXPECT_EQ(_download, download);
 
-    WebCore::FileSystem::PlatformFileHandle fileHandle;
-    _destinationPath = WebCore::FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
-    EXPECT_TRUE(fileHandle != WebCore::FileSystem::invalidPlatformFileHandle);
-    WebCore::FileSystem::closeFile(fileHandle);
+    FileSystem::PlatformFileHandle fileHandle;
+    _destinationPath = FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
+    EXPECT_TRUE(fileHandle != FileSystem::invalidPlatformFileHandle);
+    FileSystem::closeFile(fileHandle);
 
     *allowOverwrite = YES;
     return _destinationPath;
@@ -413,7 +414,7 @@ IGNORE_WARNINGS_END
     NSString* expectedContent = @"{\"x\":42,\"s\":\"hello, world\"}";
     NSData* expectedData = [expectedContent dataUsingEncoding:NSUTF8StringEncoding];
     EXPECT_TRUE([[[NSFileManager defaultManager] contentsAtPath:_destinationPath] isEqualToData:expectedData]);
-    WebCore::FileSystem::deleteFile(_destinationPath);
+    FileSystem::deleteFile(_destinationPath);
     isDone = true;
 }
 
@@ -456,10 +457,10 @@ IGNORE_WARNINGS_BEGIN("deprecated-implementations")
 - (NSString *)_download:(_WKDownload *)download decideDestinationWithSuggestedFilename:(NSString *)filename allowOverwrite:(BOOL *)allowOverwrite
 IGNORE_WARNINGS_END
 {
-    WebCore::FileSystem::PlatformFileHandle fileHandle;
-    _destinationPath = WebCore::FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
-    EXPECT_TRUE(fileHandle != WebCore::FileSystem::invalidPlatformFileHandle);
-    WebCore::FileSystem::closeFile(fileHandle);
+    FileSystem::PlatformFileHandle fileHandle;
+    _destinationPath = FileSystem::openTemporaryFile("TestWebKitAPI", fileHandle);
+    EXPECT_TRUE(fileHandle != FileSystem::invalidPlatformFileHandle);
+    FileSystem::closeFile(fileHandle);
     *allowOverwrite = YES;
     return _destinationPath;
 }
@@ -486,7 +487,7 @@ IGNORE_WARNINGS_END
     if (redirectChain.count > 2)
         EXPECT_STREQ("http://pass/", [redirectChain[2].absoluteString UTF8String]);
 
-    WebCore::FileSystem::deleteFile(_destinationPath);
+    FileSystem::deleteFile(_destinationPath);
     isDone = true;
 }
 
@@ -618,6 +619,39 @@ TEST(_WKDownload, DownloadCanceledWhileDecidingDestination)
     TestWebKitAPI::Util::run(&downloadHasDecidedDestination);
 
     [TestProtocol unregister];
+}
+
+@interface BlobWithUSDZExtensionDownloadDelegate : NSObject <_WKDownloadDelegate>
+@end
+
+@implementation BlobWithUSDZExtensionDownloadDelegate {
+    String _destinationPath;
+}
+
+- (void)_download:(_WKDownload *)download decideDestinationWithSuggestedFilename:(NSString *)filename completionHandler:(void (^)(BOOL allowOverwrite, NSString *destination))completionHandler
+{
+    EXPECT_TRUE([filename hasSuffix:@".usdz"]);
+
+    FileSystem::PlatformFileHandle fileHandle;
+    _destinationPath = FileSystem::openTemporaryFile(filename, fileHandle);
+    EXPECT_TRUE(fileHandle != FileSystem::invalidPlatformFileHandle);
+    FileSystem::closeFile(fileHandle);
+
+    completionHandler(YES, _destinationPath);
+}
+
+- (void)_downloadDidFinish:(_WKDownload *)download
+{
+    FileSystem::deleteFile(_destinationPath);
+    isDone = true;
+}
+
+@end
+
+TEST(_WKDownload, SystemPreviewUSDZBlobNaming)
+{
+    NSURL *originalURL = [[NSBundle mainBundle] URLForResource:@"SystemPreviewBlobNaming" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"];
+    runTest(adoptNS([[DownloadBlobURLNavigationDelegate alloc] init]).get(), adoptNS([[BlobWithUSDZExtensionDownloadDelegate alloc] init]).get(), originalURL);
 }
 
 #endif

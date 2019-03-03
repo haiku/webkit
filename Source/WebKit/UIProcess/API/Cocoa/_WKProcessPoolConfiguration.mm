@@ -64,22 +64,22 @@
 
 - (NSUInteger)maximumProcessCount
 {
-    return _processPoolConfiguration->maximumProcessCount();
+    // Deprecated.
+    return NSUIntegerMax;
 }
 
 - (void)setMaximumProcessCount:(NSUInteger)maximumProcessCount
 {
-    _processPoolConfiguration->setMaximumProcessCount(maximumProcessCount);
+    // Deprecated.
 }
 
 - (NSInteger)diskCacheSizeOverride
 {
-    return _processPoolConfiguration->diskCacheSizeOverride();
+    return 0;
 }
 
 - (void)setDiskCacheSizeOverride:(NSInteger)size
 {
-    _processPoolConfiguration->setDiskCacheSizeOverride(size);
 }
 
 - (BOOL)diskCacheSpeculativeValidationEnabled
@@ -202,22 +202,20 @@
 
 - (NSString *)sourceApplicationBundleIdentifier
 {
-    return _processPoolConfiguration->sourceApplicationBundleIdentifier();
+    return nil;
 }
 
 - (void)setSourceApplicationBundleIdentifier:(NSString *)sourceApplicationBundleIdentifier
 {
-    _processPoolConfiguration->setSourceApplicationBundleIdentifier(sourceApplicationBundleIdentifier);
 }
 
 - (NSString *)sourceApplicationSecondaryIdentifier
 {
-    return _processPoolConfiguration->sourceApplicationSecondaryIdentifier();
+    return nil;
 }
 
 - (void)setSourceApplicationSecondaryIdentifier:(NSString *)sourceApplicationSecondaryIdentifier
 {
-    _processPoolConfiguration->setSourceApplicationSecondaryIdentifier(sourceApplicationSecondaryIdentifier);
 }
 
 - (BOOL)shouldCaptureAudioInUIProcess
@@ -282,15 +280,25 @@
 
 - (BOOL)pageCacheEnabled
 {
-    return _processPoolConfiguration->cacheModel() != WebKit::CacheModelDocumentViewer;
+    return _processPoolConfiguration->cacheModel() != WebKit::CacheModel::DocumentViewer;
 }
 
 - (void)setPageCacheEnabled:(BOOL)enabled
 {
     if (!enabled)
-        _processPoolConfiguration->setCacheModel(WebKit::CacheModelDocumentViewer);
+        _processPoolConfiguration->setCacheModel(WebKit::CacheModel::DocumentViewer);
     else if (![self pageCacheEnabled])
-        _processPoolConfiguration->setCacheModel(WebKit::CacheModelPrimaryWebBrowser);
+        _processPoolConfiguration->setCacheModel(WebKit::CacheModel::PrimaryWebBrowser);
+}
+
+- (BOOL)usesSingleWebProcess
+{
+    return _processPoolConfiguration->usesSingleWebProcess();
+}
+
+- (void)setUsesSingleWebProcess:(BOOL)enabled
+{
+    _processPoolConfiguration->setUsesSingleWebProcess(enabled);
 }
 
 - (BOOL)suppressesConnectionTerminationOnSystemChange
@@ -347,7 +355,7 @@
 
 - (NSString *)description
 {
-    NSString *description = [NSString stringWithFormat:@"<%@: %p; maximumProcessCount = %lu", NSStringFromClass(self.class), self, static_cast<unsigned long>([self maximumProcessCount])];
+    NSString *description = [NSString stringWithFormat:@"<%@: %p", NSStringFromClass(self.class), self];
 
     if (!_processPoolConfiguration->injectedBundlePath().isEmpty())
         return [description stringByAppendingFormat:@"; injectedBundleURL: \"%@\">", [self injectedBundleURL]];

@@ -34,6 +34,7 @@
 #include "HTMLMediaElementEnums.h"
 #include "HostWindow.h"
 #include "Icon.h"
+#include "InputMode.h"
 #include "LayerFlushThrottleState.h"
 #include "MediaProducer.h"
 #include "PopupMenu.h"
@@ -262,7 +263,7 @@ public:
 
     virtual bool fetchCustomFixedPositionLayoutRect(IntRect&) { return false; }
 
-    virtual void updateViewportConstrainedLayers(HashMap<PlatformLayer*, std::unique_ptr<ViewportConstraints>>&, HashMap<PlatformLayer*, PlatformLayer*>&) { }
+    virtual void updateViewportConstrainedLayers(HashMap<PlatformLayer*, std::unique_ptr<ViewportConstraints>>&, const HashMap<PlatformLayer*, PlatformLayer*>&) { }
 
     virtual void addOrUpdateScrollingLayer(Node*, PlatformLayer* scrollingLayer, PlatformLayer* contentsLayer, const IntSize& scrollSize, bool allowHorizontalScrollbar, bool allowVerticalScrollbar) = 0;
     virtual void removeScrollingLayer(Node*, PlatformLayer* scrollingLayer, PlatformLayer* contentsLayer) = 0;
@@ -292,7 +293,9 @@ public:
     virtual void elementDidFocus(Element&) { }
     virtual void elementDidBlur(Element&) { }
     virtual void elementDidRefocus(Element&) { }
-    
+
+    virtual void focusedElementDidChangeInputMode(Element&, InputMode) { }
+
     virtual bool shouldPaintEntireContents() const { return false; }
     virtual bool hasStablePageScaleFactor() const { return true; }
 
@@ -403,7 +406,7 @@ public:
     virtual void notifyScrollerThumbIsVisibleInRect(const IntRect&) { }
     virtual void recommendedScrollbarStyleDidChange(ScrollbarStyle) { }
 
-    virtual std::optional<ScrollbarOverlayStyle> preferredScrollbarOverlayStyle() { return ScrollbarOverlayStyleDefault; }
+    virtual Optional<ScrollbarOverlayStyle> preferredScrollbarOverlayStyle() { return ScrollbarOverlayStyleDefault; }
 
     virtual void wheelEventHandlersChanged(bool hasHandlers) = 0;
         

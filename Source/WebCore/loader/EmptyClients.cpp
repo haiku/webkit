@@ -33,6 +33,7 @@
 #include "CacheStorageProvider.h"
 #include "ColorChooser.h"
 #include "ContextMenuClient.h"
+#include "CookieJar.h"
 #include "DataListSuggestionPicker.h"
 #include "DatabaseProvider.h"
 #include "DiagnosticLoggingClient.h"
@@ -215,6 +216,7 @@ private:
     int getPasteboardItemsCount() final { return 0; }
     RefPtr<DocumentFragment> documentFragmentFromDelegate(int) final { return nullptr; }
     bool performsTwoStepPaste(DocumentFragment*) final { return false; }
+    void updateStringForFind(const String&) final { }
 #endif
 
     bool performTwoStepDrop(DocumentFragment&, Range&, bool) final { return false; }
@@ -286,7 +288,7 @@ private:
     EmptyFrameNetworkingContext();
 
     bool shouldClearReferrerOnHTTPSToHTTPRedirect() const { return true; }
-    NetworkStorageSession& storageSession() const final { return NetworkStorageSession::defaultStorageSession(); }
+    NetworkStorageSession* storageSession() const final { return nullptr; }
 
 #if PLATFORM(COCOA)
     bool localFileContentSniffingEnabled() const { return false; }
@@ -311,16 +313,16 @@ class EmptyInspectorClient final : public InspectorClient {
 
 class EmptyPaymentCoordinatorClient final : public PaymentCoordinatorClient {
     bool supportsVersion(unsigned) final { return false; }
-    std::optional<String> validatedPaymentNetwork(const String&) final { return std::nullopt; }
+    Optional<String> validatedPaymentNetwork(const String&) final { return WTF::nullopt; }
     bool canMakePayments() final { return false; }
     void canMakePaymentsWithActiveCard(const String&, const String&, WTF::Function<void(bool)>&& completionHandler) final { callOnMainThread([completionHandler = WTFMove(completionHandler)] { completionHandler(false); }); }
     void openPaymentSetup(const String&, const String&, WTF::Function<void(bool)>&& completionHandler) final { callOnMainThread([completionHandler = WTFMove(completionHandler)] { completionHandler(false); }); }
     bool showPaymentUI(const URL&, const Vector<URL>&, const ApplePaySessionPaymentRequest&) final { return false; }
     void completeMerchantValidation(const PaymentMerchantSession&) final { }
-    void completeShippingMethodSelection(std::optional<ShippingMethodUpdate>&&) final { }
-    void completeShippingContactSelection(std::optional<ShippingContactUpdate>&&) final { }
-    void completePaymentMethodSelection(std::optional<PaymentMethodUpdate>&&) final { }
-    void completePaymentSession(std::optional<PaymentAuthorizationResult>&&) final { }
+    void completeShippingMethodSelection(Optional<ShippingMethodUpdate>&&) final { }
+    void completeShippingContactSelection(Optional<ShippingContactUpdate>&&) final { }
+    void completePaymentMethodSelection(Optional<PaymentMethodUpdate>&&) final { }
+    void completePaymentSession(Optional<PaymentAuthorizationResult>&&) final { }
     void cancelPaymentSession() final { }
     void abortPaymentSession() final { }
     void paymentCoordinatorDestroyed() final { }
@@ -330,7 +332,7 @@ class EmptyPaymentCoordinatorClient final : public PaymentCoordinatorClient {
 
 class EmptyPluginInfoProvider final : public PluginInfoProvider {
     void refreshPlugins() final { };
-    Vector<PluginInfo> pluginInfo(Page&, std::optional<Vector<SupportedPluginIdentifier>>&) final { return { }; }
+    Vector<PluginInfo> pluginInfo(Page&, Optional<Vector<SupportedPluginIdentifier>>&) final { return { }; }
     Vector<PluginInfo> webVisiblePluginInfo(Page&, const URL&) final { return { }; }
 };
 
@@ -383,14 +385,14 @@ class EmptyStorageNamespaceProvider final : public StorageNamespaceProvider {
     };
 
     struct EmptyStorageNamespace final : public StorageNamespace {
-        RefPtr<StorageArea> storageArea(const SecurityOriginData&) final { return adoptRef(*new EmptyStorageArea); }
-        RefPtr<StorageNamespace> copy(Page*) final { return adoptRef(*new EmptyStorageNamespace); }
+        Ref<StorageArea> storageArea(const SecurityOriginData&) final { return adoptRef(*new EmptyStorageArea); }
+        Ref<StorageNamespace> copy(Page*) final { return adoptRef(*new EmptyStorageNamespace); }
     };
 
-    RefPtr<StorageNamespace> createSessionStorageNamespace(Page&, unsigned) final;
-    RefPtr<StorageNamespace> createLocalStorageNamespace(unsigned) final;
-    RefPtr<StorageNamespace> createEphemeralLocalStorageNamespace(Page&, unsigned) final;
-    RefPtr<StorageNamespace> createTransientLocalStorageNamespace(SecurityOrigin&, unsigned) final;
+    Ref<StorageNamespace> createSessionStorageNamespace(Page&, unsigned) final;
+    Ref<StorageNamespace> createLocalStorageNamespace(unsigned) final;
+    Ref<StorageNamespace> createEphemeralLocalStorageNamespace(Page&, unsigned) final;
+    Ref<StorageNamespace> createTransientLocalStorageNamespace(SecurityOrigin&, unsigned) final;
 };
 
 class EmptyUserContentProvider final : public UserContentProvider {
@@ -513,25 +515,29 @@ void EmptyEditorClient::registerRedoStep(UndoStep&)
 {
 }
 
-RefPtr<StorageNamespace> EmptyStorageNamespaceProvider::createSessionStorageNamespace(Page&, unsigned)
+Ref<StorageNamespace> EmptyStorageNamespaceProvider::createSessionStorageNamespace(Page&, unsigned)
 {
     return adoptRef(*new EmptyStorageNamespace);
 }
 
-RefPtr<StorageNamespace> EmptyStorageNamespaceProvider::createLocalStorageNamespace(unsigned)
+Ref<StorageNamespace> EmptyStorageNamespaceProvider::createLocalStorageNamespace(unsigned)
 {
     return adoptRef(*new EmptyStorageNamespace);
 }
 
-RefPtr<StorageNamespace> EmptyStorageNamespaceProvider::createEphemeralLocalStorageNamespace(Page&, unsigned)
+Ref<StorageNamespace> EmptyStorageNamespaceProvider::createEphemeralLocalStorageNamespace(Page&, unsigned)
 {
     return adoptRef(*new EmptyStorageNamespace);
 }
 
-RefPtr<StorageNamespace> EmptyStorageNamespaceProvider::createTransientLocalStorageNamespace(SecurityOrigin&, unsigned)
+Ref<StorageNamespace> EmptyStorageNamespaceProvider::createTransientLocalStorageNamespace(SecurityOrigin&, unsigned)
 {
     return adoptRef(*new EmptyStorageNamespace);
 }
+
+class EmptyStorageSessionProvider : public StorageSessionProvider {
+    NetworkStorageSession* storageSession() const final { return nullptr; }
+};
 
 PageConfiguration pageConfigurationWithEmptyClients()
 {
@@ -540,7 +546,8 @@ PageConfiguration pageConfigurationWithEmptyClients()
         SocketProvider::create(),
         LibWebRTCProvider::create(),
         CacheStorageProvider::create(),
-        adoptRef(*new EmptyBackForwardClient)
+        adoptRef(*new EmptyBackForwardClient),
+        CookieJar::create(adoptRef(*new EmptyStorageSessionProvider))
     };
 
     static NeverDestroyed<EmptyChromeClient> dummyChromeClient;

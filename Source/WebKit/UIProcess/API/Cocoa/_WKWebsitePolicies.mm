@@ -59,6 +59,16 @@
     return _websitePolicies->contentBlockersEnabled();
 }
 
+- (void)setDeviceOrientationEventEnabled:(BOOL)deviceOrientationEventEnabled
+{
+    _websitePolicies->setDeviceOrientationEventEnabled(deviceOrientationEventEnabled);
+}
+
+- (BOOL)deviceOrientationEventEnabled
+{
+    return _websitePolicies->deviceOrientationEventEnabled();
+}
+
 - (void)setAllowedAutoplayQuirks:(_WKWebsiteAutoplayQuirk)allowedQuirks
 {
     OptionSet<WebKit::WebsiteAutoplayQuirk> quirks;
@@ -71,6 +81,9 @@
 
     if (allowedQuirks & _WKWebsiteAutoplayQuirkArbitraryUserGestures)
         quirks.add(WebKit::WebsiteAutoplayQuirk::ArbitraryUserGestures);
+
+    if (allowedQuirks & _WKWebsiteAutoplayQuirkPerDocumentAutoplayBehavior)
+        quirks.add(WebKit::WebsiteAutoplayQuirk::PerDocumentAutoplayBehavior);
 
     _websitePolicies->setAllowedAutoplayQuirks(quirks);
 }
@@ -88,6 +101,9 @@
 
     if (allowedQuirks.contains(WebKit::WebsiteAutoplayQuirk::ArbitraryUserGestures))
         quirks |= _WKWebsiteAutoplayQuirkArbitraryUserGestures;
+
+    if (allowedQuirks.contains(WebKit::WebsiteAutoplayQuirk::PerDocumentAutoplayBehavior))
+        quirks |= _WKWebsiteAutoplayQuirkPerDocumentAutoplayBehavior;
 
     return quirks;
 }
@@ -181,6 +197,36 @@
 - (void)setWebsiteDataStore:(WKWebsiteDataStore *)websiteDataStore
 {
     _websitePolicies->setWebsiteDataStore(websiteDataStore->_websiteDataStore.get());
+}
+
+- (void)setCustomUserAgent:(NSString *)customUserAgent
+{
+    _websitePolicies->setCustomUserAgent(customUserAgent);
+}
+
+- (NSString *)customUserAgent
+{
+    return _websitePolicies->customUserAgent();
+}
+
+- (void)setCustomJavaScriptUserAgentAsSiteSpecificQuirks:(NSString *)customUserAgent
+{
+    _websitePolicies->setCustomJavaScriptUserAgentAsSiteSpecificQuirks(customUserAgent);
+}
+
+- (NSString *)customJavaScriptUserAgentAsSiteSpecificQuirks
+{
+    return _websitePolicies->customJavaScriptUserAgentAsSiteSpecificQuirks();
+}
+
+- (void)setCustomNavigatorPlatform:(NSString *)customNavigatorPlatform
+{
+    _websitePolicies->setCustomNavigatorPlatform(customNavigatorPlatform);
+}
+
+- (NSString *)customNavigatorPlatform
+{
+    return _websitePolicies->customNavigatorPlatform();
 }
 
 - (NSString *)description

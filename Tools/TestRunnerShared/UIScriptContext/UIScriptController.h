@@ -31,6 +31,8 @@
 #include <wtf/Optional.h>
 #include <wtf/Ref.h>
 
+OBJC_CLASS NSUndoManager;
+
 namespace WebCore {
 class FloatRect;
 }
@@ -113,6 +115,9 @@ public:
     JSObjectRef contentsOfUserInterfaceItem(JSStringRef) const;
     void overridePreference(JSStringRef preference, JSStringRef value);
     
+    double contentOffsetX() const;
+    double contentOffsetY() const;
+
     void scrollToOffset(long x, long y);
 
     void immediateScrollToOffset(long x, long y);
@@ -156,8 +161,8 @@ public:
     double minimumZoomScale() const;
     double maximumZoomScale() const;
     
-    std::optional<bool> stableStateOverride() const;
-    void setStableStateOverride(std::optional<bool>);
+    Optional<bool> stableStateOverride() const;
+    void setStableStateOverride(Optional<bool>);
 
     JSObjectRef contentVisibleRect() const;
     
@@ -170,6 +175,8 @@ public:
     JSObjectRef calendarType() const;
     void setDefaultCalendarType(JSStringRef calendarIdentifier);
     JSObjectRef inputViewBounds() const;
+
+    void setKeyboardInputModeIdentifier(JSStringRef);
 
     void replaceTextAtRange(JSStringRef, int location, int length);
     void removeAllDynamicDictionaries();
@@ -201,6 +208,9 @@ public:
     void drawSquareInEditableImage();
     long numberOfStrokesInEditableImage();
 
+    JSRetainPtr<JSStringRef> lastUndoLabel() const;
+    JSRetainPtr<JSStringRef> firstRedoLabel() const;
+
     JSObjectRef attachmentInfo(JSStringRef attachmentIdentifier);
 
 private:
@@ -220,13 +230,17 @@ private:
     void platformClearAllCallbacks();
     void platformPlayBackEventStream(JSStringRef, JSValueRef);
 
+#if PLATFORM(COCOA)
+    NSUndoManager *platformUndoManager() const;
+#endif
+
     JSClassRef wrapperClass() final;
 
     JSObjectRef objectFromRect(const WebCore::FloatRect&) const;
 
     UIScriptContext* m_context;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     bool m_capsLockOn { false };
 #endif
 };

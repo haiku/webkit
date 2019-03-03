@@ -83,6 +83,51 @@ enum class CompositingReason {
     EmbeddedView                           = 1 << 26,
 };
 
+enum class ScrollCoordinationRole {
+    ViewportConstrained = 1 << 0,
+    Scrolling           = 1 << 1,
+    FrameHosting        = 1 << 2,
+};
+
+#if PLATFORM(IOS_FAMILY)
+class LegacyWebKitScrollingLayerCoordinator {
+public:
+    LegacyWebKitScrollingLayerCoordinator(ChromeClient& chromeClient, bool coordinateViewportConstrainedLayers)
+        : m_chromeClient(chromeClient)
+        , m_coordinateViewportConstrainedLayers(coordinateViewportConstrainedLayers)
+    {
+    }
+
+    void registerAllViewportConstrainedLayers(RenderLayerCompositor&);
+    void unregisterAllViewportConstrainedLayers();
+    
+    void registerAllScrollingLayers();
+    void registerScrollingLayersNeedingUpdate();
+    void unregisterAllScrollingLayers();
+    
+    void addScrollingLayer(RenderLayer&);
+    void removeScrollingLayer(RenderLayer&, RenderLayerBacking&);
+
+    void addViewportConstrainedLayer(RenderLayer&);
+    void removeViewportConstrainedLayer(RenderLayer&);
+
+    void didChangePlatformLayerForLayer(RenderLayer&);
+
+    void removeLayer(RenderLayer&);
+
+private:
+    void updateScrollingLayer(RenderLayer&);
+
+    ChromeClient& m_chromeClient;
+
+    HashSet<RenderLayer*> m_scrollingLayers;
+    HashSet<RenderLayer*> m_viewportConstrainedLayers;
+
+    HashSet<RenderLayer*> m_scrollingLayersNeedingUpdate;
+    const bool m_coordinateViewportConstrainedLayers;
+};
+#endif
+
 // RenderLayerCompositor manages the hierarchy of
 // composited RenderLayers. It determines which RenderLayers
 // become compositing, and creates and maintains a hierarchy of
@@ -92,6 +137,7 @@ enum class CompositingReason {
 
 class RenderLayerCompositor final : public GraphicsLayerClient, public GraphicsLayerUpdaterClient {
     WTF_MAKE_FAST_ALLOCATED;
+    friend class LegacyWebKitScrollingLayerCoordinator;
 public:
     explicit RenderLayerCompositor(RenderView&);
     virtual ~RenderLayerCompositor();
@@ -122,9 +168,9 @@ public:
     // at specific times.
     void scheduleLayerFlush(bool canThrottle);
     void flushPendingLayerChanges(bool isFlushRoot = true);
-    
+
     // Called when the GraphicsLayer for the given RenderLayer has flushed changes inside of flushPendingLayerChanges().
-    void didFlushChangesForLayer(RenderLayer&, const GraphicsLayer*);
+    void didChangePlatformLayerForLayer(RenderLayer&, const GraphicsLayer*);
 
     // Called when something outside WebKit affects the visible rect (e.g. delegated scrolling). Might schedule a layer flush.
     void didChangeVisibleRect();
@@ -199,6 +245,7 @@ public:
     GraphicsLayer* clipLayer() const { return m_clipLayer.get(); }
     GraphicsLayer* rootContentLayer() const { return m_rootContentLayer.get(); }
 
+    GraphicsLayer* layerForClipping() const {  return m_clipLayer ? m_clipLayer.get() : m_scrollLayer.get();  }
 
 #if ENABLE(RUBBER_BANDING)
     GraphicsLayer* headerLayer() const { return m_layerForHeader.get(); }
@@ -231,9 +278,9 @@ public:
     // to know if there is non-affine content, e.g. for drawing into an image.
     bool has3DContent() const;
     
-    static RenderLayerCompositor* frameContentsCompositor(RenderWidget*);
+    static RenderLayerCompositor* frameContentsCompositor(RenderWidget&);
     // Return true if the layers changed.
-    static bool parentFrameContentLayers(RenderWidget*);
+    bool parentFrameContentLayers(RenderWidget&);
 
     // Update the geometry of the layers used for clipping and scrolling in frames.
     void frameViewDidChangeLocation(const IntPoint& contentsOffset);
@@ -243,17 +290,13 @@ public:
     void frameViewDidLayout();
     void rootLayerConfigurationChanged();
 
-    void scrollingLayerDidChange(RenderLayer&);
-    void fixedRootBackgroundLayerChanged();
-
     String layerTreeAsText(LayerTreeFlags);
 
     float deviceScaleFactor() const override;
     float contentsScaleMultiplierForNewTiles(const GraphicsLayer*) const override;
     float pageScaleFactor() const override;
     float zoomedOutPageScaleFactor() const override;
-
-    void didCommitChangesForLayer(const GraphicsLayer*) const override;
+    void didChangePlatformLayerForLayer(const GraphicsLayer*) override { }
     void notifyFlushBeforeDisplayRefresh(const GraphicsLayer*) override;
 
     void layerTiledBackingUsageChanged(const GraphicsLayer*, bool /*usingTiledBacking*/);
@@ -278,26 +321,17 @@ public:
     GraphicsLayer* updateLayerForFooter(bool wantsLayer);
 #endif
 
+    // FIXME: make the coordinated/async terminology consistent.
+    bool isViewportConstrainedFixedOrStickyLayer(const RenderLayer&) const;
+    bool useCoordinatedScrollingForLayer(const RenderLayer&) const;
+    bool isLayerForIFrameWithScrollCoordinatedContents(const RenderLayer&) const;
+
     ScrollableArea* scrollableAreaForScrollLayerID(ScrollingNodeID) const;
 
-    enum class ScrollingNodeChangeFlags {
-        Layer           = 1 << 0,
-        LayerGeometry   = 1 << 1,
-    };
-
-    void updateScrollCoordinatedStatus(RenderLayer&, OptionSet<ScrollingNodeChangeFlags>);
     void removeFromScrollCoordinatedLayers(RenderLayer&);
 
     void willRemoveScrollingLayerWithBacking(RenderLayer&, RenderLayerBacking&);
     void didAddScrollingLayer(RenderLayer&);
-
-#if PLATFORM(IOS_FAMILY)
-    void registerAllViewportConstrainedLayers();
-    void unregisterAllViewportConstrainedLayers();
-
-    void registerAllScrollingLayers();
-    void unregisterAllScrollingLayers();
-#endif
 
     void resetTrackedRepaintRects();
     void setTracksRepaints(bool tracksRepaints) { m_isTrackingRepaints = tracksRepaints; }
@@ -318,7 +352,7 @@ public:
     void updateRootContentLayerClipping();
 
 #if ENABLE(CSS_SCROLL_SNAP)
-    void updateScrollSnapPropertiesWithFrameView(const FrameView&);
+    void updateScrollSnapPropertiesWithFrameView(const FrameView&) const;
 #endif
 
     // For testing.
@@ -380,10 +414,7 @@ private:
         CompositedChildren      = 1 << 1,
     };
     // Recurses down the tree, parenting descendant compositing layers and collecting an array of child layers for the current compositing layer.
-    void updateBackingAndHierarchy(RenderLayer&, Vector<Ref<GraphicsLayer>>& childGraphicsLayersOfEnclosingLayer, OptionSet<UpdateLevel> = { }, int depth = 0);
-
-    void setCompositingParent(RenderLayer& childLayer, RenderLayer* parentLayer);
-    void removeCompositedChildren(RenderLayer&);
+    void updateBackingAndHierarchy(RenderLayer&, Vector<Ref<GraphicsLayer>>& childGraphicsLayersOfEnclosingLayer, struct ScrollingTreeState&, OptionSet<UpdateLevel> = { }, int depth = 0);
 
     bool layerHas3DContent(const RenderLayer&) const;
     bool isRunningTransformAnimation(RenderLayerModelObject&) const;
@@ -403,13 +434,16 @@ private:
     void updateOverflowControlsLayers();
 
     void updateScrollLayerPosition();
+    void updateScrollLayerClipping();
 
     FloatPoint positionForClipLayer() const;
 
     void notifyIFramesOfCompositingChange();
 
+#if PLATFORM(IOS_FAMILY)
     void updateScrollCoordinatedLayersAfterFlushIncludingSubframes();
     void updateScrollCoordinatedLayersAfterFlush();
+#endif
 
     FloatRect visibleRectForLayerFlushing() const;
     
@@ -442,16 +476,30 @@ private:
 
     static bool styleChangeMayAffectIndirectCompositingReasons(const RenderStyle& oldStyle, const RenderStyle& newStyle);
 
-    void updateCustomLayersAfterFlush();
+    enum class ScrollingNodeChangeFlags {
+        Layer           = 1 << 0,
+        LayerGeometry   = 1 << 1,
+    };
 
-    void updateScrollCoordinationForThisFrame(ScrollingNodeID);
-    ScrollingNodeID attachScrollingNode(RenderLayer&, ScrollingNodeType, ScrollingNodeID parentNodeID);
-    void updateScrollCoordinatedLayer(RenderLayer&, OptionSet<LayerScrollCoordinationRole>, OptionSet<ScrollingNodeChangeFlags>);
-    void detachScrollCoordinatedLayer(RenderLayer&, OptionSet<LayerScrollCoordinationRole>);
-    void reattachSubframeScrollLayers();
+    ScrollingNodeID attachScrollingNode(RenderLayer&, ScrollingNodeType, struct ScrollingTreeState&);
+
+    // Returns the ScrollingNodeID which acts as the parent for children.
+    ScrollingNodeID updateScrollCoordinationForLayer(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollCoordinationRole>, OptionSet<ScrollingNodeChangeFlags>);
+
+    // These return the ScrollingNodeID which acts as the parent for children.
+    ScrollingNodeID updateScrollingNodeForViewportConstrainedRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
+    ScrollingNodeID updateScrollingNodeForScrollingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
+    ScrollingNodeID updateScrollingNodeForFrameHostingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
+
+    void detachScrollCoordinatedLayer(RenderLayer&, OptionSet<ScrollCoordinationRole>);
+    void detachScrollCoordinatedLayerWithRole(RenderLayer&, ScrollingCoordinator&, ScrollCoordinationRole);
     
     FixedPositionViewportConstraints computeFixedViewportConstraints(RenderLayer&) const;
     StickyPositionViewportConstraints computeStickyViewportConstraints(RenderLayer&) const;
+
+    void computeFrameScrollingGeometry(ScrollingCoordinator::ScrollingGeometry&) const;
+    void computeFrameHostingGeometry(const RenderLayer&, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry&) const;
+    void computeOverflowScrollingGeometry(const RenderLayer&, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry&) const;
 
     bool requiresScrollLayer(RootLayerAttachment) const;
     bool requiresHorizontalScrollbarLayer() const;
@@ -464,11 +512,10 @@ private:
 
     // True if the FrameView uses a ScrollingCoordinator.
     bool hasCoordinatedScrolling() const;
-    bool useCoordinatedScrollingForLayer(const RenderLayer&) const;
 
+    // FIXME: make the coordinated/async terminology consistent.
     bool isAsyncScrollableStickyLayer(const RenderLayer&, const RenderLayer** enclosingAcceleratedOverflowLayer = nullptr) const;
-    bool isViewportConstrainedFixedOrStickyLayer(const RenderLayer&) const;
-    
+
     bool shouldCompositeOverflowControls() const;
 
     void scheduleLayerFlushNow();
@@ -505,7 +552,6 @@ private:
     bool m_shouldFlushOnReattach { false };
     bool m_forceCompositingMode { false };
     bool m_inPostLayoutUpdate { false }; // true when it's OK to trust layout information (e.g. layer sizes and positions)
-    bool m_subframeScrollLayersNeedReattach { false };
 
     bool m_isTrackingRepaints { false }; // Used for testing.
 
@@ -519,13 +565,6 @@ private:
     // Enclosing clipping layer for iframe content
     RefPtr<GraphicsLayer> m_clipLayer;
     RefPtr<GraphicsLayer> m_scrollLayer;
-
-#if PLATFORM(IOS_FAMILY)
-    HashSet<RenderLayer*> m_scrollingLayers;
-    HashSet<RenderLayer*> m_scrollingLayersNeedingUpdate;
-#endif
-    HashSet<RenderLayer*> m_scrollCoordinatedLayers;
-    HashSet<RenderLayer*> m_scrollCoordinatedLayersNeedingUpdate;
 
     // Enclosing layer for overflow controls and the clipping layer
     RefPtr<GraphicsLayer> m_overflowControlsHostLayer;
@@ -564,6 +603,9 @@ private:
     Color m_rootExtendedBackgroundColor;
 
     HashMap<ScrollingNodeID, RenderLayer*> m_scrollingNodeToLayerMap;
+#if PLATFORM(IOS_FAMILY)
+    std::unique_ptr<LegacyWebKitScrollingLayerCoordinator> m_legacyScrollingLayerCoordinator;
+#endif
 };
 
 void paintScrollbar(Scrollbar*, GraphicsContext&, const IntRect& clip);

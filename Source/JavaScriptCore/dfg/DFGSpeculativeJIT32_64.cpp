@@ -228,7 +228,7 @@ void SpeculativeJIT::cachedGetById(
 
 void SpeculativeJIT::cachedGetByIdWithThis(
     CodeOrigin codeOrigin, GPRReg baseTagGPROrNone, GPRReg basePayloadGPR, GPRReg thisTagGPR, GPRReg thisPayloadGPR, GPRReg resultTagGPR, GPRReg resultPayloadGPR,
-    unsigned identifierNumber, JITCompiler::JumpList slowPathTarget)
+    unsigned identifierNumber, const JITCompiler::JumpList& slowPathTarget)
 {
     RegisterSet usedRegisters = this->usedRegisters();
     
@@ -2067,6 +2067,15 @@ void SpeculativeJIT::compile(Node* node)
         compileArithMul(node);
         break;
 
+    case ValueMul:
+        compileValueMul(node);
+        break;
+            
+    case ValueDiv: {
+        compileValueDiv(node);
+        break;
+    }
+
     case ArithDiv: {
         compileArithDiv(node);
         break;
@@ -3101,6 +3110,11 @@ void SpeculativeJIT::compile(Node* node)
         compileNewStringObject(node);
         break;
     }
+
+    case NewSymbol: {
+        compileNewSymbol(node);
+        break;
+    }
         
     case NewArray: {
         compileNewArray(node);
@@ -3150,6 +3164,11 @@ void SpeculativeJIT::compile(Node* node)
 
     case ObjectCreate: {
         compileObjectCreate(node);
+        break;
+    }
+
+    case ObjectKeys: {
+        compileObjectKeys(node);
         break;
     }
 
@@ -3540,6 +3559,23 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
+    case IsUndefinedOrNull: {
+        JSValueOperand value(this, node->child1());
+        GPRTemporary result(this, Reuse, value, TagWord);
+
+        GPRReg valueTagGPR = value.tagGPR();
+        GPRReg resultGPR = result.gpr();
+
+        m_jit.move(valueTagGPR, resultGPR);
+        static_assert((JSValue::UndefinedTag + 1 == JSValue::NullTag) && (JSValue::NullTag & 0x1), "");
+        m_jit.or32(CCallHelpers::TrustedImm32(1), resultGPR);
+        m_jit.compare32(CCallHelpers::Equal, resultGPR, CCallHelpers::TrustedImm32(JSValue::NullTag), resultGPR);
+
+        booleanResult(resultGPR, node);
+        break;
+    }
+
+
     case IsBoolean: {
         JSValueOperand value(this, node->child1());
         GPRTemporary result(this, Reuse, value, TagWord);
@@ -3813,8 +3849,8 @@ void SpeculativeJIT::compile(Node* node)
         GPRTemporary structureID(this);
         GPRTemporary result(this);
 
-        std::optional<SpeculateCellOperand> keyAsCell;
-        std::optional<JSValueOperand> keyAsValue;
+        Optional<SpeculateCellOperand> keyAsCell;
+        Optional<JSValueOperand> keyAsValue;
         JSValueRegs keyRegs;
         if (node->child2().useKind() == UntypedUse) {
             keyAsValue.emplace(this, node->child2());

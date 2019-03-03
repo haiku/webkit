@@ -58,6 +58,7 @@ class AlternativeTextController;
 class ArchiveResource;
 class DataTransfer;
 class CompositeEditCommand;
+class CustomUndoStep;
 class DeleteButtonController;
 class EditCommand;
 class EditCommandComposition;
@@ -115,7 +116,7 @@ enum class TemporarySelectionOption : uint8_t {
 
 class TemporarySelectionChange {
 public:
-    TemporarySelectionChange(Frame&, std::optional<VisibleSelection> = std::nullopt, OptionSet<TemporarySelectionOption> = { });
+    TemporarySelectionChange(Frame&, Optional<VisibleSelection> = WTF::nullopt, OptionSet<TemporarySelectionOption> = { });
     ~TemporarySelectionChange();
 
 private:
@@ -127,7 +128,7 @@ private:
 #if PLATFORM(IOS_FAMILY)
     bool m_appearanceUpdatesWereEnabled;
 #endif
-    std::optional<VisibleSelection> m_selectionToRestore;
+    Optional<VisibleSelection> m_selectionToRestore;
 };
 
 class Editor {
@@ -324,6 +325,8 @@ public:
     bool canRedo() const;
     void redo();
 
+    void registerCustomUndoStep(Ref<CustomUndoStep>&&);
+
     void didBeginEditing();
     void didEndEditing();
     void willWriteSelectionToPasteboard(Range*);
@@ -485,15 +488,16 @@ public:
 #if PLATFORM(COCOA)
     WEBCORE_EXPORT String stringSelectionForPasteboard();
     String stringSelectionForPasteboardWithImageAltText();
-#if !PLATFORM(IOS_FAMILY)
-    bool canCopyExcludingStandaloneImages();
     void takeFindStringFromSelection();
+#if !PLATFORM(IOS_FAMILY)
     WEBCORE_EXPORT void readSelectionFromPasteboard(const String& pasteboardName);
     WEBCORE_EXPORT void replaceNodeFromPasteboard(Node*, const String& pasteboardName);
     WEBCORE_EXPORT RefPtr<SharedBuffer> dataSelectionForPasteboard(const String& pasteboardName);
 #endif // !PLATFORM(IOS_FAMILY)
     WEBCORE_EXPORT void replaceSelectionWithAttributedString(NSAttributedString *, MailBlockquoteHandling = MailBlockquoteHandling::RespectBlockquote);
 #endif
+
+    bool canCopyExcludingStandaloneImages() const;
 
     String clientReplacementURLForResource(Ref<SharedBuffer>&& resourceData, const String& mimeType);
 
@@ -518,7 +522,7 @@ public:
     bool isGettingDictionaryPopupInfo() const { return m_isGettingDictionaryPopupInfo; }
 
 #if ENABLE(ATTACHMENT_ELEMENT)
-    WEBCORE_EXPORT void insertAttachment(const String& identifier, std::optional<uint64_t>&& fileSize, const String& fileName, const String& contentType);
+    WEBCORE_EXPORT void insertAttachment(const String& identifier, Optional<uint64_t>&& fileSize, const String& fileName, const String& contentType);
     void registerAttachmentIdentifier(const String&, const String& contentType, const String& preferredFileName, Ref<SharedBuffer>&& fileData);
     void registerAttachments(Vector<SerializedAttachmentData>&&);
     void registerAttachmentIdentifier(const String&, const String& contentType, const String& filePath);

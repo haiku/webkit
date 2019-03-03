@@ -22,6 +22,7 @@
 #pragma once
 
 #if ENABLE(MEDIA_STREAM) && USE(LIBWEBRTC) && USE(GSTREAMER)
+#include "CaptureDevice.h"
 #include "GStreamerAudioCapturer.h"
 #include "GStreamerCaptureDevice.h"
 #include "RealtimeMediaSource.h"
@@ -45,9 +46,10 @@ protected:
     virtual ~GStreamerAudioCaptureSource();
     void startProducingData() override;
     void stopProducingData() override;
+    CaptureDevice::DeviceType deviceType() const override { return CaptureDevice::DeviceType::Microphone; }
 
-    mutable std::optional<RealtimeMediaSourceCapabilities> m_capabilities;
-    mutable std::optional<RealtimeMediaSourceSettings> m_currentSettings;
+    mutable Optional<RealtimeMediaSourceCapabilities> m_capabilities;
+    mutable Optional<RealtimeMediaSourceSettings> m_currentSettings;
 
 private:
     bool isCaptureSource() const final { return true; }

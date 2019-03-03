@@ -28,9 +28,9 @@
 
 #include "SessionState.h"
 #include <WebCore/BlobData.h>
-#include <WebCore/FileSystem.h>
 #include <WebCore/FormData.h>
 #include <WebCore/HistoryItem.h>
+#include <wtf/FileSystem.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -96,6 +96,7 @@ static FrameState toFrameState(const HistoryItem& historyItem)
     frameState.minimumLayoutSizeInScrollViewCoordinates = historyItem.minimumLayoutSizeInScrollViewCoordinates();
     frameState.contentSize = historyItem.contentSize();
     frameState.scaleIsInitial = historyItem.scaleIsInitial();
+    frameState.obscuredInsets = historyItem.obscuredInsets();
 #endif
 
     for (auto& childHistoryItem : historyItem.children()) {
@@ -128,7 +129,7 @@ static Ref<FormData> toFormData(const HTTPBody& httpBody)
             break;
 
         case HTTPBody::Element::Type::File:
-            formData->appendFileRange(element.filePath, element.fileStart, element.fileLength.value_or(BlobDataItem::toEndOfFile), element.expectedFileModificationTime);
+            formData->appendFileRange(element.filePath, element.fileStart, element.fileLength.valueOr(BlobDataItem::toEndOfFile), element.expectedFileModificationTime);
             break;
 
         case HTTPBody::Element::Type::Blob:
@@ -173,10 +174,11 @@ static void applyFrameState(HistoryItem& historyItem, const FrameState& frameSta
     historyItem.setMinimumLayoutSizeInScrollViewCoordinates(frameState.minimumLayoutSizeInScrollViewCoordinates);
     historyItem.setContentSize(frameState.contentSize);
     historyItem.setScaleIsInitial(frameState.scaleIsInitial);
+    historyItem.setObscuredInsets(frameState.obscuredInsets);
 #endif
 
     for (const auto& childFrameState : frameState.children) {
-        Ref<HistoryItem> childHistoryItem = HistoryItem::create(childFrameState.urlString, { }, { }, { Process::identifier(), generateObjectIdentifier<BackForwardItemIdentifier::ItemIdentifierType>() });
+        Ref<HistoryItem> childHistoryItem = HistoryItem::create(childFrameState.urlString, { }, { });
         applyFrameState(childHistoryItem, childFrameState);
 
         historyItem.addChildItem(WTFMove(childHistoryItem));

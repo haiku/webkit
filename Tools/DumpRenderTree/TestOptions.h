@@ -35,7 +35,6 @@ struct TestOptions {
     bool enableMenuItemElement { false };
     bool enableModernMediaControls { true };
     bool enablePointerLock { false };
-    bool enableWebAuthentication { true };
     bool enableDragDestinationActionLoad { false };
     bool layerBackedWebView { false };
     bool enableIsSecureContextAttribute { true };
@@ -45,6 +44,8 @@ struct TestOptions {
     bool enableColorFilter { false };
     bool enableSelectionAcrossShadowBoundaries { true };
     bool enableWebGPU { false };
+    bool enableCSSLogical { false };
+    bool adClickAttributionEnabled { false };
     std::string jscOptions;
 
     TestOptions(const std::string& pathOrURL, const std::string& absolutePath);

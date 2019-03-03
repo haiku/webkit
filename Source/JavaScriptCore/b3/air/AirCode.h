@@ -170,7 +170,7 @@ public:
     const FrequentedBlock& entrypoint(unsigned index) const { return m_entrypoints[index]; }
     bool isEntrypoint(BasicBlock*) const;
     // Note: It is only valid to call this function after LowerEntrySwitch.
-    std::optional<unsigned> entrypointIndex(BasicBlock*) const;
+    Optional<unsigned> entrypointIndex(BasicBlock*) const;
 
     // Note: We allow this to be called even before we set m_entrypoints just for convenience to users of this API.
     // However, if you call this before setNumEntrypoints, setNumEntrypoints will overwrite this value.
@@ -335,6 +335,8 @@ public:
     RegisterSet pinnedRegisters() const { return m_pinnedRegs; }
     
     WeakRandom& weakRandom() { return m_weakRandom; }
+
+    void emitDefaultPrologue(CCallHelpers&);
     
 private:
     friend class ::JSC::B3::Procedure;

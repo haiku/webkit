@@ -78,7 +78,11 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 @class WKSelectPopover;
 
+#if USE(UIKIT_KEYBOARD_ADDITIONS)
+@interface WKSelectTableViewController : UITableViewController
+#else
 @interface WKSelectTableViewController : UITableViewController <UIKeyInput>
+#endif
 {
     NSUInteger _singleSelectionIndex;
     NSUInteger _singleSelectionSection;
@@ -104,8 +108,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
         return nil;
     
     _contentView = view;
-    Vector<OptionItem>& selectOptions = [_contentView assistedNodeSelectOptions];
-    _allowsMultipleSelection = _contentView.assistedNodeInformation.isMultiSelect;
+    Vector<OptionItem>& selectOptions = [_contentView focusedSelectElementOptions];
+    _allowsMultipleSelection = _contentView.focusedElementInformation.isMultiSelect;
     
     // Even if the select is empty, there is at least one tableview section.
     _numberOfSections = 1;
@@ -126,7 +130,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     }
 
     ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-    UITextWritingDirection writingDirection = _contentView.assistedNodeInformation.isRTL ? UITextWritingDirectionRightToLeft : UITextWritingDirectionLeftToRight;
+    UITextWritingDirection writingDirection = _contentView.focusedElementInformation.isRTL ? UITextWritingDirectionRightToLeft : UITextWritingDirectionLeftToRight;
     BOOL override = NO;
     _textAlignment = (writingDirection == UITextWritingDirectionLeftToRight) ? NSTextAlignmentLeft : NSTextAlignmentRight;
 
@@ -135,7 +139,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     // For that reason we have to override what the system thinks.
     if (writingDirection == UITextWritingDirectionRightToLeft)
         self.view.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
-    [self setTitle:stringWithWritingDirection(_contentView.assistedNodeInformation.title, writingDirection, override)];
+    [self setTitle:stringWithWritingDirection(_contentView.focusedElementInformation.title, writingDirection, override)];
     ALLOW_DEPRECATED_DECLARATIONS_END
 
     return self;
@@ -167,12 +171,12 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-    if ([_contentView assistedNodeSelectOptions].isEmpty())
+    if ([_contentView focusedSelectElementOptions].isEmpty())
         return 1;
     
     int rowCount = 0;
-    for (size_t i = 0; i < [_contentView assistedNodeSelectOptions].size(); ++i) {
-        const OptionItem& item = [_contentView assistedNodeSelectOptions][i];
+    for (size_t i = 0; i < [_contentView focusedSelectElementOptions].size(); ++i) {
+        const OptionItem& item = [_contentView focusedSelectElementOptions][i];
         if (item.isGroup)
             continue;
         if (item.parentGroupID == section)
@@ -190,8 +194,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
         return nil;
     
     int groupCount = 0;
-    for (size_t i = 0; i < [_contentView assistedNodeSelectOptions].size(); ++i) {
-        const OptionItem& item = [_contentView assistedNodeSelectOptions][i];
+    for (size_t i = 0; i < [_contentView focusedSelectElementOptions].size(); ++i) {
+        const OptionItem& item = [_contentView focusedSelectElementOptions][i];
         if (!item.isGroup)
             continue;
         groupCount++;
@@ -216,8 +220,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     
     int optionIndex = 0;
     int rowIndex = 0;
-    for (size_t i = 0; i < [_contentView assistedNodeSelectOptions].size(); ++i) {
-        const OptionItem& item = [_contentView assistedNodeSelectOptions][i];
+    for (size_t i = 0; i < [_contentView focusedSelectElementOptions].size(); ++i) {
+        const OptionItem& item = [_contentView focusedSelectElementOptions][i];
         if (item.isGroup) {
             rowIndex = 0;
             continue;
@@ -236,8 +240,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     ASSERT(indexPath.section <= _numberOfSections);
 
     int index = 0;
-    for (size_t i = 0; i < [_contentView assistedNodeSelectOptions].size(); ++i) {
-        OptionItem& item = [_contentView assistedNodeSelectOptions][i];
+    for (size_t i = 0; i < [_contentView focusedSelectElementOptions].size(); ++i) {
+        OptionItem& item = [_contentView focusedSelectElementOptions][i];
         if (item.isGroup || item.parentGroupID != indexPath.section)
             continue;
         if (index == indexPath.row)
@@ -256,7 +260,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     cell.semanticContentAttribute = self.view.semanticContentAttribute;
     cell.textLabel.textAlignment = _textAlignment;
     
-    if (_contentView.assistedNodeInformation.selectOptions.isEmpty()) {
+    if (_contentView.focusedElementInformation.selectOptions.isEmpty()) {
         cell.textLabel.enabled = NO;
         cell.textLabel.text = WEB_UI_STRING_KEY("No Options", "No Options Select Popover", "Empty select list");
         cell.accessoryType = UITableViewCellAccessoryNone;
@@ -273,7 +277,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     ASSERT(initialFontSize);
     if (textRect.size.width != _maximumTextWidth || _fontSize == 0) {
         _maximumTextWidth = textRect.size.width;
-        _fontSize = adjustedFontSize(_maximumTextWidth, font, initialFontSize, _contentView.assistedNodeInformation.selectOptions);
+        _fontSize = adjustedFontSize(_maximumTextWidth, font, initialFontSize, _contentView.focusedElementInformation.selectOptions);
     }
     
     const OptionItem* item = [self findItemAt:indexPath];
@@ -288,7 +292,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    if (_contentView.assistedNodeInformation.selectOptions.isEmpty())
+    if (_contentView.focusedElementInformation.selectOptions.isEmpty())
         return;
     
     NSInteger itemIndex = [self findItemIndexAt:indexPath];
@@ -311,8 +315,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
         // SPI which mimics a user action on the <select>. Normally programmatic
         // changes do not trigger "change" events on such selects.
     
-        [_contentView page]->setAssistedNodeSelectedIndex(itemIndex, true);
-        OptionItem& item = [_contentView assistedNodeSelectOptions][itemIndex];
+        [_contentView page]->setFocusedElementSelectedIndex(itemIndex, true);
+        OptionItem& item = [_contentView focusedSelectElementOptions][itemIndex];
         item.isSelected = newStateIsSelected;
     } else {
         [tableView deselectRowAtIndexPath:indexPath animated:NO];
@@ -344,8 +348,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
             _singleSelectionIndex = indexPath.row;
             _singleSelectionSection = indexPath.section;
  
-            [_contentView page]->setAssistedNodeSelectedIndex(itemIndex);
-            OptionItem& newItem = [_contentView assistedNodeSelectOptions][itemIndex];
+            [_contentView page]->setFocusedElementSelectedIndex(itemIndex);
+            OptionItem& newItem = [_contentView focusedSelectElementOptions][itemIndex];
             newItem.isSelected = true;
         }
         
@@ -359,6 +363,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     }
 }
 
+#if !USE(UIKIT_KEYBOARD_ADDITIONS)
 #pragma mark UIKeyInput delegate methods
 
 - (BOOL)hasText
@@ -373,6 +378,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 - (void)deleteBackward
 {
 }
+
+#endif
 
 @end
 
@@ -393,7 +400,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     [_tableViewController setPopover:self];
     UIViewController *popoverViewController = _tableViewController.get();
     UINavigationController *navController = nil;
-    BOOL needsNavigationController = !view.assistedNodeInformation.title.isEmpty();
+    BOOL needsNavigationController = !view.focusedElementInformation.title.isEmpty();
     if (needsNavigationController) {
         navController = [[UINavigationController alloc] initWithRootViewController:_tableViewController.get()];
         popoverViewController = navController;
@@ -410,8 +417,10 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     ALLOW_DEPRECATED_DECLARATIONS_END
 
     [navController release];
-    
+
+#if !USE(UIKIT_KEYBOARD_ADDITIONS)
     [[UIKeyboardImpl sharedInstance] setDelegate:_tableViewController.get()];
+#endif
     
     return self;
 }

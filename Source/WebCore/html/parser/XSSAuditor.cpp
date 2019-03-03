@@ -45,7 +45,7 @@
 #include <wtf/ASCIICType.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/text/StringView.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebCore {
 
@@ -149,7 +149,7 @@ static bool isNameOfInlineEventHandler(const Vector<UChar, 32>& name)
 static bool isDangerousHTTPEquiv(const String& value)
 {
     String equiv = value.stripWhiteSpace();
-    return equalLettersIgnoringASCIICase(equiv, "refresh") || equalLettersIgnoringASCIICase(equiv, "set-cookie");
+    return equalLettersIgnoringASCIICase(equiv, "refresh");
 }
 
 static inline String decode16BitUnicodeEscapeSequences(const String& string)
@@ -332,7 +332,7 @@ void XSSAuditor::init(Document* document, XSSAuditorDelegate* auditorDelegate)
             }
         }
         if (m_xssProtection == XSSProtectionDisposition::Invalid) {
-            document->addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Error parsing header X-XSS-Protection: " + headerValue + ": "  + errorDetails + " at character position " + String::format("%u", errorPosition) + ". The default protections will be applied.");
+            document->addConsoleMessage(MessageSource::Security, MessageLevel::Error, makeString("Error parsing header X-XSS-Protection: ", headerValue, ": ", errorDetails, " at character position ", errorPosition, ". The default protections will be applied."));
             m_xssProtection = XSSProtectionDisposition::Enabled;
         }
 

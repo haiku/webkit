@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,13 +56,16 @@
 #import "UndoOrRedo.h"
 #import "ViewGestureController.h"
 #import "WKBrowsingContextControllerInternal.h"
+#import "WKEditCommand.h"
 #import "WKErrorInternal.h"
 #import "WKFullScreenWindowController.h"
 #import "WKImmediateActionController.h"
 #import "WKPrintingView.h"
 #import "WKSafeBrowsingWarning.h"
+#import "WKShareSheet.h"
 #import "WKTextInputWindowController.h"
 #import "WKViewLayoutStrategy.h"
+#import "WKWebViewInternal.h"
 #import "WKWebViewPrivate.h"
 #import "WebBackForwardList.h"
 #import "WebEditCommandProxy.h"
@@ -73,7 +76,7 @@
 #import "WebProcessProxy.h"
 #import "_WKRemoteObjectRegistryInternal.h"
 #import "_WKThumbnailViewInternal.h"
-#import <HIToolbox/CarbonEventsCore.h>
+#import <Carbon/Carbon.h>
 #import <WebCore/AXObjectCache.h>
 #import <WebCore/ActivityState.h>
 #import <WebCore/ColorMac.h>
@@ -81,7 +84,6 @@
 #import <WebCore/DragData.h>
 #import <WebCore/DragItem.h>
 #import <WebCore/Editor.h>
-#import <WebCore/FileSystem.h>
 #import <WebCore/FontAttributeChanges.h>
 #import <WebCore/FontAttributes.h>
 #import <WebCore/KeypressCommand.h>
@@ -109,8 +111,10 @@
 #import <pal/spi/mac/NSScrollerImpSPI.h>
 #import <pal/spi/mac/NSSpellCheckerSPI.h>
 #import <pal/spi/mac/NSTextFinderSPI.h>
+#import <pal/spi/mac/NSViewSPI.h>
 #import <pal/spi/mac/NSWindowSPI.h>
 #import <sys/stat.h>
+#import <wtf/FileSystem.h>
 #import <wtf/NeverDestroyed.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/SetForScope.h>
@@ -130,10 +134,6 @@ SOFT_LINK_CLASS(AVKit, AVFunctionBarScrubber)
 
 static NSString * const WKMediaExitFullScreenItem = @"WKMediaExitFullScreenItem";
 #endif // HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
-
-#if PLATFORM(MAC) && !ENABLE(REVEAL)
-SOFT_LINK_CONSTANT_MAY_FAIL(Lookup, LUNotificationPopoverWillClose, NSString *)
-#endif // ENABLE(REVEAL)
 
 WTF_DECLARE_CF_TYPE_TRAIT(CGImage);
 
@@ -229,8 +229,8 @@ WTF_DECLARE_CF_TYPE_TRAIT(CGImage);
 - (void)dealloc
 {
 #if !ENABLE(REVEAL)
-    if (_didRegisterForLookupPopoverCloseNotifications && canLoadLUNotificationPopoverWillClose())
-        [[NSNotificationCenter defaultCenter] removeObserver:self name:getLUNotificationPopoverWillClose() object:nil];
+    if (_didRegisterForLookupPopoverCloseNotifications && PAL::canLoad_Lookup_LUNotificationPopoverWillClose())
+        [[NSNotificationCenter defaultCenter] removeObserver:self name:PAL::get_Lookup_LUNotificationPopoverWillClose() object:nil];
 #endif // !ENABLE(REVEAL)
 
     NSNotificationCenter *workspaceNotificationCenter = [[NSWorkspace sharedWorkspace] notificationCenter];
@@ -306,8 +306,8 @@ static void* keyValueObservingContext = &keyValueObservingContext;
 
     _didRegisterForLookupPopoverCloseNotifications = YES;
 #if !ENABLE(REVEAL)
-    if (canLoadLUNotificationPopoverWillClose())
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_dictionaryLookupPopoverWillClose:) name:getLUNotificationPopoverWillClose() object:nil];
+    if (PAL::canLoad_Lookup_LUNotificationPopoverWillClose())
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_dictionaryLookupPopoverWillClose:) name:PAL::get_Lookup_LUNotificationPopoverWillClose() object:nil];
 #endif
 }
 
@@ -401,53 +401,6 @@ static void* keyValueObservingContext = &keyValueObservingContext;
 
 @end
 
-@interface WKEditCommandObjC : NSObject {
-    RefPtr<WebKit::WebEditCommandProxy> m_command;
-}
-- (id)initWithWebEditCommandProxy:(RefPtr<WebKit::WebEditCommandProxy>)command;
-- (WebKit::WebEditCommandProxy*)command;
-@end
-
-@interface WKEditorUndoTargetObjC : NSObject
-- (void)undoEditing:(id)sender;
-- (void)redoEditing:(id)sender;
-@end
-
-@implementation WKEditCommandObjC
-
-- (id)initWithWebEditCommandProxy:(RefPtr<WebKit::WebEditCommandProxy>)command
-{
-    self = [super init];
-    if (!self)
-        return nil;
-
-    m_command = command;
-    return self;
-}
-
-- (WebKit::WebEditCommandProxy*)command
-{
-    return m_command.get();
-}
-
-@end
-
-@implementation WKEditorUndoTargetObjC
-
-- (void)undoEditing:(id)sender
-{
-    ASSERT([sender isKindOfClass:[WKEditCommandObjC class]]);
-    [sender command]->unapply();
-}
-
-- (void)redoEditing:(id)sender
-{
-    ASSERT([sender isKindOfClass:[WKEditCommandObjC class]]);
-    [sender command]->reapply();
-}
-
-@end
-
 @interface WKFlippedView : NSView
 @end
 
@@ -526,19 +479,17 @@ static void* keyValueObservingContext = &keyValueObservingContext;
 
 @end
 
-using namespace WebKit;
-
 #if HAVE(TOUCH_BAR)
 
 @interface WKTextListTouchBarViewController : NSViewController {
 @private
-    WebViewImpl* _webViewImpl;
-    ListType _currentListType;
+    WebKit::WebViewImpl* _webViewImpl;
+    WebKit::ListType _currentListType;
 }
 
-@property (nonatomic) ListType currentListType;
+@property (nonatomic) WebKit::ListType currentListType;
 
-- (instancetype)initWithWebViewImpl:(WebViewImpl*)webViewImpl;
+- (instancetype)initWithWebViewImpl:(WebKit::WebViewImpl*)webViewImpl;
 
 @end
 
@@ -555,7 +506,7 @@ static const NSUInteger noListSegment = 0;
 static const NSUInteger unorderedListSegment = 1;
 static const NSUInteger orderedListSegment = 2;
 
-- (instancetype)initWithWebViewImpl:(WebViewImpl*)webViewImpl
+- (instancetype)initWithWebViewImpl:(WebKit::WebViewImpl*)webViewImpl
 {
     if (!(self = [super init]))
         return nil;
@@ -598,9 +549,9 @@ static const NSUInteger orderedListSegment = 2;
         // There is no "remove list" edit command, but InsertOrderedList and InsertUnorderedList both
         // behave as toggles, so we can invoke the appropriate edit command depending on our _currentListType
         // to remove an existing list. We don't have to do anything if _currentListType is NoList.
-        if (_currentListType == OrderedList)
+        if (_currentListType == WebKit::OrderedList)
             _webViewImpl->page().executeEditCommand(@"InsertOrderedList", @"");
-        else if (_currentListType == UnorderedList)
+        else if (_currentListType == WebKit::UnorderedList)
             _webViewImpl->page().executeEditCommand(@"InsertUnorderedList", @"");
         break;
     case unorderedListSegment:
@@ -614,17 +565,17 @@ static const NSUInteger orderedListSegment = 2;
     _webViewImpl->dismissTextTouchBarPopoverItemWithIdentifier(NSTouchBarItemIdentifierTextList);
 }
 
-- (void)setCurrentListType:(ListType)listType
+- (void)setCurrentListType:(WebKit::ListType)listType
 {
     NSSegmentedControl *insertListControl = (NSSegmentedControl *)self.view;
     switch (listType) {
-    case NoList:
+    case WebKit::NoList:
         [insertListControl setSelected:YES forSegment:noListSegment];
         break;
-    case OrderedList:
+    case WebKit::OrderedList:
         [insertListControl setSelected:YES forSegment:orderedListSegment];
         break;
-    case UnorderedList:
+    case WebKit::UnorderedList:
         [insertListControl setSelected:YES forSegment:unorderedListSegment];
         break;
     }
@@ -644,7 +595,7 @@ static const NSUInteger orderedListSegment = 2;
     RetainPtr<WKTextListTouchBarViewController> _textListTouchBarViewController;
 
 @private
-    WebViewImpl* _webViewImpl;
+    WebKit::WebViewImpl* _webViewImpl;
 }
 
 @property (nonatomic) BOOL textIsBold;
@@ -653,7 +604,7 @@ static const NSUInteger orderedListSegment = 2;
 @property (nonatomic) NSTextAlignment currentTextAlignment;
 @property (nonatomic, retain, readwrite) NSColor *textColor;
 
-- (instancetype)initWithWebViewImpl:(WebViewImpl*)webViewImpl;
+- (instancetype)initWithWebViewImpl:(WebKit::WebViewImpl*)webViewImpl;
 @end
 
 @implementation WKTextTouchBarItemController
@@ -663,7 +614,7 @@ static const NSUInteger orderedListSegment = 2;
 @synthesize textIsUnderlined=_textIsUnderlined;
 @synthesize currentTextAlignment=_currentTextAlignment;
 
-- (instancetype)initWithWebViewImpl:(WebViewImpl*)webViewImpl
+- (instancetype)initWithWebViewImpl:(WebKit::WebViewImpl*)webViewImpl
 {
     if (!(self = [super init]))
         return nil;
@@ -1386,7 +1337,7 @@ WebViewImpl::WebViewImpl(NSView <WebViewImplDelegate> *view, WKWebView *outerWeb
     , m_needsViewFrameInWindowCoordinates(m_page->preferences().pluginsEnabled())
     , m_intrinsicContentSize(CGSizeMake(NSViewNoIntrinsicMetric, NSViewNoIntrinsicMetric))
     , m_layoutStrategy([WKViewLayoutStrategy layoutStrategyWithPage:m_page view:view viewImpl:*this mode:kWKLayoutModeViewSize])
-    , m_undoTarget(adoptNS([[WKEditorUndoTargetObjC alloc] init]))
+    , m_undoTarget(adoptNS([[WKEditorUndoTarget alloc] init]))
     , m_windowVisibilityObserver(adoptNS([[WKWindowVisibilityObserver alloc] initWithView:view impl:*this]))
     , m_accessibilitySettingsObserver(adoptNS([[WKAccessibilitySettingsObserver alloc] initWithImpl:*this]))
     , m_primaryTrackingArea(adoptNS([[NSTrackingArea alloc] initWithRect:view.frame options:trackingAreaOptions() owner:view userInfo:nil]))
@@ -1498,6 +1449,7 @@ void WebViewImpl::didRelaunchProcess()
         m_gestureController->connectToProcess();
 
     accessibilityRegisterUIProcessTokens();
+    windowDidChangeScreen(); // Make sure DisplayID is set.
 }
 
 void WebViewImpl::setDrawsBackground(bool drawsBackground)
@@ -1615,15 +1567,36 @@ bool WebViewImpl::resignFirstResponder()
     return true;
 }
 
+void WebViewImpl::takeFocus(WebCore::FocusDirection direction)
+{
+    NSView *webView = m_view.getAutoreleased();
+
+    if (direction == FocusDirectionForward) {
+        // Since we're trying to move focus out of m_webView, and because
+        // m_webView may contain subviews within it, we ask it for the next key
+        // view of the last view in its key view loop. This makes m_webView
+        // behave as if it had no subviews, which is the behavior we want.
+        [webView.window selectKeyViewFollowingView:[webView _findLastViewInKeyViewLoop]];
+    } else
+        [webView.window selectKeyViewPrecedingView:webView];
+}
+
 void WebViewImpl::showSafeBrowsingWarning(const SafeBrowsingWarning& warning, CompletionHandler<void(Variant<ContinueUnsafeLoad, URL>&&)>&& completionHandler)
 {
     if (!m_view)
         return completionHandler(ContinueUnsafeLoad::Yes);
 
     m_safeBrowsingWarning = adoptNS([[WKSafeBrowsingWarning alloc] initWithFrame:[m_view bounds] safeBrowsingWarning:warning completionHandler:[weakThis = makeWeakPtr(*this), completionHandler = WTFMove(completionHandler)] (auto&& result) mutable {
-        if (weakThis)
-            [std::exchange(weakThis->m_safeBrowsingWarning, nullptr) removeFromSuperview];
         completionHandler(WTFMove(result));
+        if (!weakThis)
+            return;
+        bool navigatesMainFrame = WTF::switchOn(result,
+            [] (ContinueUnsafeLoad continueUnsafeLoad) { return continueUnsafeLoad == ContinueUnsafeLoad::Yes; },
+            [] (const URL&) { return true; }
+        );
+        if (navigatesMainFrame && [weakThis->m_safeBrowsingWarning forMainFrameNavigation])
+            return;
+        [std::exchange(weakThis->m_safeBrowsingWarning, nullptr) removeFromSuperview];
     }]);
     [m_view addSubview:m_safeBrowsingWarning.get()];
 }
@@ -1631,6 +1604,12 @@ void WebViewImpl::showSafeBrowsingWarning(const SafeBrowsingWarning& warning, Co
 void WebViewImpl::clearSafeBrowsingWarning()
 {
     [std::exchange(m_safeBrowsingWarning, nullptr) removeFromSuperview];
+}
+
+void WebViewImpl::clearSafeBrowsingWarningIfForMainFrameNavigation()
+{
+    if ([m_safeBrowsingWarning forMainFrameNavigation])
+        clearSafeBrowsingWarning();
 }
 
 bool WebViewImpl::isFocused() const
@@ -1742,12 +1721,12 @@ CGSize WebViewImpl::fixedLayoutSize() const
     return m_page->fixedLayoutSize();
 }
 
-std::unique_ptr<WebKit::DrawingAreaProxy> WebViewImpl::createDrawingAreaProxy()
+std::unique_ptr<WebKit::DrawingAreaProxy> WebViewImpl::createDrawingAreaProxy(WebProcessProxy& process)
 {
     if ([[[NSUserDefaults standardUserDefaults] objectForKey:@"WebKit2UseRemoteLayerTreeDrawingArea"] boolValue])
-        return std::make_unique<RemoteLayerTreeDrawingAreaProxy>(m_page);
+        return std::make_unique<RemoteLayerTreeDrawingAreaProxy>(m_page, process);
 
-    return std::make_unique<TiledCoreAnimationDrawingAreaProxy>(m_page);
+    return std::make_unique<TiledCoreAnimationDrawingAreaProxy>(m_page, process);
 }
 
 bool WebViewImpl::isUsingUISideCompositing() const
@@ -1867,7 +1846,7 @@ void WebViewImpl::updateViewExposedRect()
         exposedRect = CGRectUnion(m_contentPreparationRect, exposedRect);
 
     if (auto drawingArea = m_page->drawingArea())
-        drawingArea->setViewExposedRect(m_clipsToVisibleRect ? std::optional<WebCore::FloatRect>(exposedRect) : std::nullopt);
+        drawingArea->setViewExposedRect(m_clipsToVisibleRect ? Optional<WebCore::FloatRect>(exposedRect) : WTF::nullopt);
 }
 
 void WebViewImpl::setClipsToVisibleRect(bool clipsToVisibleRect)
@@ -2323,12 +2302,12 @@ NSColor *WebViewImpl::pageExtendedBackgroundColor() const
     return WebCore::nsColor(color);
 }
 
-void WebViewImpl::setOverlayScrollbarStyle(std::optional<WebCore::ScrollbarOverlayStyle> scrollbarStyle)
+void WebViewImpl::setOverlayScrollbarStyle(Optional<WebCore::ScrollbarOverlayStyle> scrollbarStyle)
 {
     m_page->setOverlayScrollbarStyle(scrollbarStyle);
 }
 
-std::optional<WebCore::ScrollbarOverlayStyle> WebViewImpl::overlayScrollbarStyle() const
+Optional<WebCore::ScrollbarOverlayStyle> WebViewImpl::overlayScrollbarStyle() const
 {
     return m_page->overlayScrollbarStyle();
 }
@@ -2709,8 +2688,8 @@ void WebViewImpl::executeEditCommandForSelector(SEL selector, const String& argu
 
 void WebViewImpl::registerEditCommand(Ref<WebEditCommandProxy>&& command, UndoOrRedo undoOrRedo)
 {
-    RetainPtr<WKEditCommandObjC> commandObjC = adoptNS([[WKEditCommandObjC alloc] initWithWebEditCommandProxy:command.ptr()]);
-    String actionName = WebEditCommandProxy::nameForEditAction(command->editAction());
+    auto actionName = command->label();
+    auto commandObjC = adoptNS([[WKEditCommand alloc] initWithWebEditCommandProxy:WTFMove(command)]);
 
     NSUndoManager *undoManager = [m_view undoManager];
     [undoManager registerUndoWithTarget:m_undoTarget.get() selector:((undoOrRedo == UndoOrRedo::Undo) ? @selector(undoEditing:) : @selector(redoEditing:)) object:commandObjC.get()];
@@ -3246,7 +3225,6 @@ void WebViewImpl::requestCandidatesForSelectionIfNeeded()
     auto& postLayoutData = editorState.postLayoutData();
     m_lastStringForCandidateRequest = postLayoutData.stringForCandidateRequest;
 
-#if HAVE(ADVANCED_SPELL_CHECKING)
     NSRange selectedRange = NSMakeRange(postLayoutData.candidateRequestStartPosition, postLayoutData.selectedTextLength);
     NSTextCheckingTypes checkingTypes = NSTextCheckingTypeSpelling | NSTextCheckingTypeReplacement | NSTextCheckingTypeCorrection;
     auto weakThis = makeWeakPtr(*this);
@@ -3257,7 +3235,6 @@ void WebViewImpl::requestCandidatesForSelectionIfNeeded()
             weakThis->handleRequestedCandidates(sequenceNumber, candidates);
         });
     }];
-#endif // HAVE(ADVANCED_SPELL_CHECKING)
 }
 
 void WebViewImpl::handleRequestedCandidates(NSInteger sequenceNumber, NSArray<NSTextCheckingResult *> *candidates)
@@ -3283,7 +3260,7 @@ void WebViewImpl::handleRequestedCandidates(NSInteger sequenceNumber, NSArray<NS
 
 #if HAVE(TOUCH_BAR)
     NSRange selectedRange = NSMakeRange(postLayoutData.candidateRequestStartPosition, postLayoutData.selectedTextLength);
-    WebCore::IntRect offsetSelectionRect = postLayoutData.selectionClipRect;
+    WebCore::IntRect offsetSelectionRect = postLayoutData.focusedElementRect;
     offsetSelectionRect.move(0, offsetSelectionRect.height());
 
     [candidateListTouchBarItem() setCandidates:candidates forSelectedRange:selectedRange inString:postLayoutData.paragraphContextForCandidateRequest rect:offsetSelectionRect view:m_view.getAutoreleased() completionHandler:nil];
@@ -3608,7 +3585,7 @@ void WebViewImpl::enableAccessibilityIfNecessary()
     updateWindowAndViewFrames();
 }
 
-id WebViewImpl::accessibilityAttributeValue(NSString *attribute)
+id WebViewImpl::accessibilityAttributeValue(NSString *attribute, id parameter)
 {
     enableAccessibilityIfNecessary();
 
@@ -3630,6 +3607,13 @@ id WebViewImpl::accessibilityAttributeValue(NSString *attribute)
             return NSAccessibilityUnignoredAncestor([m_view superview]);
             if ([attribute isEqualToString:NSAccessibilityEnabledAttribute])
                 return @YES;
+    
+    if ([attribute isEqualToString:@"AXConvertRelativeFrame"]) {
+        if ([parameter isKindOfClass:[NSValue class]]) {
+            NSRect rect = [(NSValue *)parameter rectValue];
+            return [NSValue valueWithRect:m_pageClient->rootViewToScreen(IntRect(rect))];
+        }
+    }
     
     return [m_view _web_superAccessibilityAttributeValue:attribute];
 }
@@ -3981,7 +3965,7 @@ bool WebViewImpl::performDragOperation(id <NSDraggingInfo> draggingInfo)
             return false;
         }
 
-        NSString *dropDestinationPath = WebCore::FileSystem::createTemporaryDirectory(@"WebKitDropDestination");
+        NSString *dropDestinationPath = FileSystem::createTemporaryDirectory(@"WebKitDropDestination");
         if (!dropDestinationPath) {
             delete dragData;
             return false;
@@ -4109,9 +4093,7 @@ void WebViewImpl::writeToURLForFilePromiseProvider(NSFilePromiseProvider *provid
         return;
     }
 
-    m_page->writeBlobToFilePath(blobURL, fileURL.path, [protectedCompletionHandler = makeBlockPtr(completionHandler)] (bool success) {
-        protectedCompletionHandler(success ? nil : webKitUnknownError());
-    });
+    completionHandler(webKitUnknownError());
 }
 
 NSDragOperation WebViewImpl::dragSourceOperationMask(NSDraggingSession *, NSDraggingContext context)
@@ -4303,7 +4285,7 @@ NSArray *WebViewImpl::namesOfPromisedFilesDroppedAtDestination(NSURL *dropDestin
         LOG_ERROR("Failed to create image file via -[NSFileWrapper writeToURL:options:originalContentsURL:error:]");
 
     if (!m_promisedURL.isEmpty())
-        WebCore::FileSystem::setMetadataURL(String(path), m_promisedURL);
+        FileSystem::setMetadataURL(String(path), m_promisedURL);
     
     return [NSArray arrayWithObject:[path lastPathComponent]];
 }
@@ -4373,10 +4355,10 @@ RefPtr<ViewSnapshot> WebViewImpl::takeViewSnapshot()
     if (!surface)
         return nullptr;
 
-    RefPtr<ViewSnapshot> snapshot = ViewSnapshot::create(WTFMove(surface));
+    auto snapshot = ViewSnapshot::create(WTFMove(surface));
     snapshot->setVolatile(true);
 
-    return snapshot;
+    return WTFMove(snapshot);
 }
 
 void WebViewImpl::saveBackForwardSnapshotForCurrentItem()
@@ -4773,12 +4755,10 @@ void WebViewImpl::insertText(id string, NSRange replacementRange)
         text = string;
 
     m_isTextInsertionReplacingSoftSpace = false;
-#if HAVE(ADVANCED_SPELL_CHECKING)
     if (m_softSpaceRange.location != NSNotFound && (replacementRange.location == NSMaxRange(m_softSpaceRange) || replacementRange.location == NSNotFound) && replacementRange.length == 0 && [[NSSpellChecker sharedSpellChecker] deletesAutospaceBeforeString:text language:nil]) {
         replacementRange = m_softSpaceRange;
         m_isTextInsertionReplacingSoftSpace = true;
     }
-#endif
     m_softSpaceRange = NSMakeRange(NSNotFound, 0);
 
     // insertText can be called for several reasons:
@@ -5360,7 +5340,7 @@ void WebViewImpl::effectiveAppearanceDidChange()
 
 bool WebViewImpl::effectiveAppearanceIsDark()
 {
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     NSAppearanceName appearance = [[m_view effectiveAppearance] bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
     return [appearance isEqualToString:NSAppearanceNameDarkAqua];
 #else

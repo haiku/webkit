@@ -39,9 +39,9 @@ public:
     static void deleteDefaultDataStoreForTesting();
 
     static Ref<WebsiteDataStore> createNonPersistentDataStore();
-    static Ref<WebsiteDataStore> createLegacy(WebKit::WebsiteDataStore::Configuration);
+    static Ref<WebsiteDataStore> createLegacy(Ref<WebKit::WebsiteDataStoreConfiguration>&&);
 
-    explicit WebsiteDataStore(WebKit::WebsiteDataStore::Configuration, PAL::SessionID);
+    explicit WebsiteDataStore(Ref<WebKit::WebsiteDataStoreConfiguration>&&, PAL::SessionID);
     virtual ~WebsiteDataStore();
 
     bool isPersistent();
@@ -62,11 +62,12 @@ public:
     static WTF::String defaultServiceWorkerRegistrationDirectory();
     static WTF::String defaultLocalStorageDirectory();
     static WTF::String defaultMediaKeysStorageDirectory();
+    static WTF::String defaultDeviceIdHashSaltsStorageDirectory();
     static WTF::String defaultWebSQLDatabaseDirectory();
     static WTF::String defaultResourceLoadStatisticsDirectory();
     static WTF::String defaultJavaScriptConfigurationDirectory();
 
-    static WebKit::WebsiteDataStore::Configuration defaultDataStoreConfiguration();
+    static Ref<WebKit::WebsiteDataStoreConfiguration> defaultDataStoreConfiguration();
 
     static WTF::String legacyDefaultApplicationCacheDirectory();
     static WTF::String legacyDefaultNetworkCacheDirectory();
@@ -74,10 +75,11 @@ public:
     static WTF::String legacyDefaultIndexedDBDatabaseDirectory();
     static WTF::String legacyDefaultWebSQLDatabaseDirectory();
     static WTF::String legacyDefaultMediaKeysStorageDirectory();
+    static WTF::String legacyDefaultDeviceIdHashSaltsStorageDirectory();
     static WTF::String legacyDefaultMediaCacheDirectory();
     static WTF::String legacyDefaultJavaScriptConfigurationDirectory();
 
-    static WebKit::WebsiteDataStore::Configuration legacyDefaultDataStoreConfiguration();
+    static Ref<WebKit::WebsiteDataStoreConfiguration> legacyDefaultDataStoreConfiguration();
 
 private:
     enum ShouldCreateDirectory { CreateDirectory, DontCreateDirectory };

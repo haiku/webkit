@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2014-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -475,9 +475,15 @@ extern "C" JSCell* JIT_OPERATION operationMaterializeObjectInOSR(
         // and PhantomNewArrayBuffer are always bound to a specific op_new_array_buffer.
         CodeBlock* codeBlock = baselineCodeBlockForOriginAndBaselineCodeBlock(materialization->origin(), exec->codeBlock()->baselineAlternative());
         const Instruction* currentInstruction = codeBlock->instructions().at(materialization->origin().bytecodeIndex).ptr();
-        RELEASE_ASSERT(currentInstruction->is<OpNewArrayBuffer>());
+        if (!currentInstruction->is<OpNewArrayBuffer>()) {
+            // This case can happen if Object.keys, an OpCall is first converted into a NewArrayBuffer which is then converted into a PhantomNewArrayBuffer.
+            // There is no need to update the array allocation profile in that case.
+            RELEASE_ASSERT(currentInstruction->is<OpCall>());
+            Structure* structure = exec->lexicalGlobalObject()->arrayStructureForIndexingTypeDuringAllocation(immutableButterfly->indexingMode());
+            return CommonSlowPaths::allocateNewArrayBuffer(vm, structure, immutableButterfly);
+        }
         auto newArrayBuffer = currentInstruction->as<OpNewArrayBuffer>();
-        ArrayAllocationProfile* profile = &newArrayBuffer.metadata(codeBlock).arrayAllocationProfile;
+        ArrayAllocationProfile* profile = &newArrayBuffer.metadata(codeBlock).m_arrayAllocationProfile;
 
         // FIXME: Share the code with CommonSlowPaths. Currently, codeBlock etc. are slightly different.
         IndexingType indexingMode = profile->selectIndexingType();
@@ -495,7 +501,7 @@ extern "C" JSCell* JIT_OPERATION operationMaterializeObjectInOSR(
             // We also cannot allocate a new butterfly from compilation threads since it's invalid to allocate cells from
             // a compilation thread.
             WTF::storeStoreFence();
-            codeBlock->constantRegister(newArrayBuffer.immutableButterfly.offset()).set(vm, codeBlock, immutableButterfly);
+            codeBlock->constantRegister(newArrayBuffer.m_immutableButterfly.offset()).set(vm, codeBlock, immutableButterfly);
             WTF::storeStoreFence();
         }
 

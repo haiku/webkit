@@ -33,6 +33,8 @@
 #import "TestWKWebView.h"
 #import "UIKitSPI.h"
 #import "WKWebViewConfigurationExtras.h"
+#import <Contacts/Contacts.h>
+#import <MapKit/MapKit.h>
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <UIKit/NSItemProvider+UIKitAdditions.h>
 #import <WebKit/WKPreferencesPrivate.h>
@@ -42,6 +44,14 @@
 #import <WebKit/WebItemProviderPasteboard.h>
 #import <WebKit/_WKProcessPoolConfiguration.h>
 #import <wtf/Seconds.h>
+#import <wtf/SoftLinking.h>
+
+SOFT_LINK_FRAMEWORK(Contacts)
+SOFT_LINK_CLASS(Contacts, CNMutableContact)
+
+SOFT_LINK_FRAMEWORK(MapKit)
+SOFT_LINK_CLASS(MapKit, MKMapItem)
+SOFT_LINK_CLASS(MapKit, MKPlacemark)
 
 typedef void (^FileLoadCompletionBlock)(NSURL *, BOOL, NSError *);
 typedef void (^DataLoadCompletionBlock)(NSData *, NSError *);
@@ -187,8 +197,6 @@ static void checkDragCaretRectIsContainedInRect(CGRect caretRect, CGRect contain
         NSLog(@"Expected caret rect: %@ to fit within container rect: %@", NSStringFromCGRect(caretRect), NSStringFromCGRect(containerRect));
 }
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
-
 static void checkJSONWithLogging(NSString *jsonString, NSDictionary *expected)
 {
     BOOL success = TestWebKitAPI::Util::jsonMatchesExpectedValues(jsonString, expected);
@@ -251,8 +259,6 @@ static void runTestWithTemporaryFolder(void(^runTest)(NSURL *folderURL))
     }
 }
 
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
-
 namespace TestWebKitAPI {
 
 TEST(DragAndDropTests, ImageToContentEditable)
@@ -272,6 +278,7 @@ TEST(DragAndDropTests, ImageToContentEditable)
     checkSelectionRectsWithLogging(@[ makeCGRectValue(1, 201, 215, 174) ], [simulator finalSelectionRects]);
     checkFirstTypeIsPresentAndSecondTypeIsMissing(simulator.get(), kUTTypePNG, kUTTypeFileURL);
     checkEstimatedSize(simulator.get(), { 215, 174 });
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, CanStartDragOnEnormousImage)
@@ -316,6 +323,28 @@ TEST(DragAndDropTests, ImageInLinkToInput)
     checkSelectionRectsWithLogging(@[ makeCGRectValue(101, 241, 2057, 232) ], [simulator finalSelectionRects]);
     checkSuggestedNameAndEstimatedSize(simulator.get(), @"icon.png", { 215, 174 });
     checkTypeIdentifierIsRegisteredAtIndex(simulator.get(), (__bridge NSString *)kUTTypePNG, 0);
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
+}
+
+TEST(DragAndDropTests, AvoidPreciseDropNearTopOfTextArea)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView synchronouslyLoadHTMLString:@"<meta name='viewport' content='width=device-width, initial-scale=1'><body style='margin: 0'><textarea style='height: 100px'></textarea></body>"];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    auto firstItem = adoptNS([[NSItemProvider alloc] initWithObject:[NSURL URLWithString:@"https://webkit.org"]]);
+    [simulator setExternalItemProviders:@[ firstItem.get() ]];
+    [simulator runFrom:CGPointMake(320, 10) to:CGPointMake(20, 10)];
+
+    EXPECT_WK_STREQ("https://webkit.org/", [webView stringByEvaluatingJavaScript:@"document.querySelector('textarea').value"]);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
+    [webView evaluateJavaScript:@"document.querySelector('textarea').value = ''" completionHandler:nil];
+
+    auto secondItem = adoptNS([[NSItemProvider alloc] initWithObject:[NSURL URLWithString:@"https://apple.com"]]);
+    [simulator setExternalItemProviders:@[ secondItem.get() ]];
+    [simulator runFrom:CGPointMake(320, 50) to:CGPointMake(20, 50)];
+    EXPECT_WK_STREQ("https://apple.com/", [webView stringByEvaluatingJavaScript:@"document.querySelector('textarea').value"]);
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ImageInLinkWithoutHREFToInput)
@@ -363,6 +392,10 @@ TEST(DragAndDropTests, ContentEditableToContentEditable)
     EXPECT_TRUE([observedEventNames containsObject:@"drop"]);
     checkSelectionRectsWithLogging(@[ makeCGRectValue(1, 201, 961, 227) ], [simulator finalSelectionRects]);
     checkRichTextTypePrecedesPlainTextType(simulator.get());
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
+
+    // FIXME: Once <rdar://problem/46830277> is fixed, we should add "com.apple.webarchive" as a registered pasteboard type and rebaseline this expectation.
+    EXPECT_FALSE([[[simulator sourceItemProviders].firstObject registeredTypeIdentifiers] containsObject:(__bridge NSString *)kUTTypeWebArchive]);
 }
 
 TEST(DragAndDropTests, ContentEditableToTextarea)
@@ -383,6 +416,7 @@ TEST(DragAndDropTests, ContentEditableToTextarea)
     EXPECT_TRUE([observedEventNames containsObject:@"drop"]);
     checkSelectionRectsWithLogging(@[ makeCGRectValue(6, 203, 990, 232) ], [simulator finalSelectionRects]);
     checkRichTextTypePrecedesPlainTextType(simulator.get());
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, NonEditableTextSelectionToTextarea)
@@ -413,6 +447,7 @@ TEST(DragAndDropTests, ContentEditableMoveParagraphs)
     EXPECT_FALSE(secondParagraphOffset == NSNotFound);
     EXPECT_GT(firstParagraphOffset, secondParagraphOffset);
     checkSelectionRectsWithLogging(@[ makeCGRectValue(190, 100, 130, 20), makeCGRectValue(0, 120, 320, 100), makeCGRectValue(0, 220, 252, 20) ], [simulator finalSelectionRects]);
+    EXPECT_TRUE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, DragImageFromContentEditable)
@@ -629,6 +664,7 @@ TEST(DragAndDropTests, ExternalSourceInlineTextToFileInput)
     [simulator runFrom:CGPointMake(200, 100) to:CGPointMake(100, 100)];
 
     EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"output.value"]);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceJSONToFileInput)
@@ -645,6 +681,7 @@ TEST(DragAndDropTests, ExternalSourceJSONToFileInput)
     [simulator runFrom:CGPointMake(200, 100) to:CGPointMake(100, 100)];
 
     EXPECT_WK_STREQ("application/json", [webView stringByEvaluatingJavaScript:@"output.value"]);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceImageToFileInput)
@@ -662,6 +699,7 @@ TEST(DragAndDropTests, ExternalSourceImageToFileInput)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("image/jpeg", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceHTMLToUploadArea)
@@ -681,6 +719,7 @@ TEST(DragAndDropTests, ExternalSourceHTMLToUploadArea)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("text/html", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceMoveOperationNotAllowed)
@@ -701,6 +740,21 @@ TEST(DragAndDropTests, ExternalSourceMoveOperationNotAllowed)
     EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"output.value"]);
 }
 
+TEST(DragAndDropTests, ExternalSourcePKCS12ToSingleFileInput)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView synchronouslyLoadTestPageNamed:@"file-uploading"];
+
+    auto item = adoptNS([[NSItemProvider alloc] init]);
+    [item registerDataRepresentationForTypeIdentifier:(__bridge NSString *)kUTTypePKCS12 withData:[@"Not a real p12 file." dataUsingEncoding:NSUTF8StringEncoding]];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setExternalItemProviders:@[ item.get() ]];
+    [simulator runFrom:CGPointMake(200, 100) to:CGPointMake(100, 100)];
+
+    EXPECT_WK_STREQ("application/x-pkcs12", [webView stringByEvaluatingJavaScript:@"output.value"]);
+}
+
 TEST(DragAndDropTests, ExternalSourceZIPArchiveAndURLToSingleFileInput)
 {
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
@@ -718,6 +772,7 @@ TEST(DragAndDropTests, ExternalSourceZIPArchiveAndURLToSingleFileInput)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("application/zip", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceZIPArchiveToUploadArea)
@@ -734,6 +789,7 @@ TEST(DragAndDropTests, ExternalSourceZIPArchiveToUploadArea)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("application/zip", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceImageAndHTMLToSingleFileInput)
@@ -755,6 +811,7 @@ TEST(DragAndDropTests, ExternalSourceImageAndHTMLToSingleFileInput)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceImageAndHTMLToMultipleFileInput)
@@ -777,6 +834,7 @@ TEST(DragAndDropTests, ExternalSourceImageAndHTMLToMultipleFileInput)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("image/jpeg, text/html", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceImageAndHTMLToUploadArea)
@@ -803,6 +861,7 @@ TEST(DragAndDropTests, ExternalSourceImageAndHTMLToUploadArea)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("image/jpeg, text/html, text/html", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
 TEST(DragAndDropTests, ExternalSourceHTMLToContentEditable)
@@ -1029,9 +1088,79 @@ TEST(DragAndDropTests, ExternalSourceOverrideDropFileUpload)
 
     NSString *outputValue = [webView stringByEvaluatingJavaScript:@"output.value"];
     EXPECT_WK_STREQ("text/html", outputValue.UTF8String);
+    EXPECT_FALSE([simulator lastKnownDropProposal].precise);
 }
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
+static RetainPtr<NSItemProvider> createMapItemForTesting()
+{
+    auto placemark = adoptNS([allocMKPlacemarkInstance() initWithCoordinate:CLLocationCoordinate2DMake(37.3327, -122.0053)]);
+    auto item = adoptNS([allocMKMapItemInstance() initWithPlacemark:placemark.get()]);
+    [item setName:@"Apple Park"];
+
+    auto itemProvider = adoptNS([[NSItemProvider alloc] init]);
+    [itemProvider registerObject:item.get() visibility:NSItemProviderRepresentationVisibilityAll];
+    [itemProvider setSuggestedName:[item name]];
+
+    return itemProvider;
+}
+
+static RetainPtr<NSItemProvider> createContactItemForTesting()
+{
+    auto contact = adoptNS([allocCNMutableContactInstance() init]);
+    [contact setGivenName:@"Foo"];
+    [contact setFamilyName:@"Bar"];
+
+    auto itemProvider = adoptNS([[NSItemProvider alloc] init]);
+    [itemProvider registerObject:contact.get() visibility:NSItemProviderRepresentationVisibilityAll];
+    [itemProvider setSuggestedName:@"Foo Bar"];
+
+    return itemProvider;
+}
+
+TEST(DragAndDropTests, ExternalSourceMapItemIntoEditableAreas)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView synchronouslyLoadTestPageNamed:@"contenteditable-and-textarea"];
+    [webView _synchronouslyExecuteEditCommand:@"Delete" argument:nil];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setExternalItemProviders:@[ createMapItemForTesting().autorelease() ]];
+    [simulator runFrom:CGPointMake(0, 0) to:CGPointMake(100, 100)];
+    EXPECT_WK_STREQ("Apple Park", [webView stringByEvaluatingJavaScript:@"document.querySelector('div[contenteditable]').textContent"]);
+    NSURL *firstURL = [NSURL URLWithString:[webView stringByEvaluatingJavaScript:@"document.querySelector('a').href"]];
+    EXPECT_WK_STREQ("maps.apple.com", firstURL.host);
+
+    [simulator runFrom:CGPointMake(0, 0) to:CGPointMake(100, 300)];
+    NSURL *secondURL = [NSURL URLWithString:[webView stringByEvaluatingJavaScript:@"document.querySelector('textarea').value"]];
+    EXPECT_WK_STREQ("maps.apple.com", secondURL.host);
+}
+
+TEST(DragAndDropTests, ExternalSourceContactIntoEditableAreas)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView synchronouslyLoadTestPageNamed:@"contenteditable-and-textarea"];
+    [webView _synchronouslyExecuteEditCommand:@"Delete" argument:nil];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setExternalItemProviders:@[ createContactItemForTesting().autorelease() ]];
+    [simulator runFrom:CGPointMake(0, 0) to:CGPointMake(100, 100)];
+    EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"document.querySelector('div[contenteditable]').textContent"]);
+
+    [simulator runFrom:CGPointMake(0, 0) to:CGPointMake(100, 300)];
+    EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"document.querySelector('textarea').textContent"]);
+}
+
+TEST(DragAndDropTests, ExternalSourceMapItemAndContactToUploadArea)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView synchronouslyLoadTestPageNamed:@"file-uploading"];
+
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setExternalItemProviders:@[ createMapItemForTesting().autorelease(), createContactItemForTesting().autorelease() ]];
+    [simulator runFrom:CGPointMake(200, 100) to:CGPointMake(100, 300)];
+
+    EXPECT_WK_STREQ("text/vcard, text/vcard", [webView stringByEvaluatingJavaScript:@"output.value"]);
+}
 
 static RetainPtr<TestWKWebView> setUpTestWebViewForDataTransferItems()
 {
@@ -1113,8 +1242,6 @@ TEST(DragAndDropTests, ExternalSourceDataTransferItemGetPlainTextFileAsEntry)
     EXPECT_WK_STREQ([expectedOutput componentsJoinedByString:@"\n"], [webView stringByEvaluatingJavaScript:@"output.value"]);
 }
 
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
-
 TEST(DragAndDropTests, ExternalSourceOverrideDropInsertURL)
 {
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
@@ -1154,9 +1281,8 @@ TEST(DragAndDropTests, OverrideDrop)
     __block bool finishedLoadingData = false;
     auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
     [simulator setExternalItemProviders:@[ simulatedItemProvider.get() ]];
-    [simulator setOverrideDragUpdateBlock:^NSUInteger(NSUInteger operation, id session)
-    {
-        EXPECT_EQ(0U, operation);
+    [simulator setOverrideDragUpdateBlock:[] (UIDropOperation operation, id <UIDropSession> session) {
+        EXPECT_EQ(UIDropOperationCancel, operation);
         return UIDropOperationCopy;
     }];
     [simulator setDropCompletionBlock:^(BOOL handled, NSArray *itemProviders) {
@@ -1532,8 +1658,6 @@ TEST(DragAndDropTests, DragLiftPreviewDataTransferSetDragImage)
     [simulator runFrom:CGPointMake(50, 450) to:CGPointMake(250, 450)];
     checkCGRectIsEqualToCGRectWithLogging({{0, 400}, {215, 174}}, [simulator liftPreviews][0].view.frame);
 }
-
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
 
 static NSData *testIconImageData()
 {
@@ -1957,8 +2081,6 @@ TEST(DragAndDropTests, DataTransferSanitizeHTML)
     });
     TestWebKitAPI::Util::run(&done);
 }
-
-#endif // __IPHONE_OS_VERSION_MIN_REQUIRED >= 110300
 
 } // namespace TestWebKitAPI
 

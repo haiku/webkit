@@ -64,6 +64,7 @@
 #include "StyleVisualData.h"
 #include "TextFlags.h"
 #include "ThemeTypes.h"
+#include "TouchAction.h"
 #include "TransformOperations.h"
 #include "UnicodeBidi.h"
 #include <memory>
@@ -369,7 +370,7 @@ public:
 #endif
     FontSelectionValue fontWeight() const { return fontDescription().weight(); }
     FontSelectionValue fontStretch() const { return fontDescription().stretch(); }
-    std::optional<FontSelectionValue> fontItalic() const { return fontDescription().italic(); }
+    Optional<FontSelectionValue> fontItalic() const { return fontDescription().italic(); }
 
     const Length& textIndent() const { return m_rareInheritedData->indent; }
     TextAlignMode textAlign() const { return static_cast<TextAlignMode>(m_inheritedFlags.textAlign); }
@@ -703,8 +704,8 @@ public:
     int initialLetterDrop() const { return initialLetter().width(); }
     int initialLetterHeight() const { return initialLetter().height(); }
 
-#if ENABLE(TOUCH_EVENTS)
-    TouchAction touchAction() const { return static_cast<TouchAction>(m_rareNonInheritedData->touchAction); }
+#if ENABLE(POINTER_EVENTS)
+    OptionSet<TouchAction> touchActions() const { return OptionSet<TouchAction>::fromRaw(m_rareNonInheritedData->touchActions); }
 #endif
 
 #if ENABLE(CSS_SCROLL_SNAP)
@@ -922,7 +923,7 @@ public:
 #endif
     void setFontWeight(FontSelectionValue);
     void setFontStretch(FontSelectionValue);
-    void setFontItalic(std::optional<FontSelectionValue>);
+    void setFontItalic(Optional<FontSelectionValue>);
 
     void setColor(const Color&);
     void setTextIndent(Length&& length) { SET_VAR(m_rareInheritedData, indent, WTFMove(length)); }
@@ -1222,8 +1223,8 @@ public:
     
     void setInitialLetter(const IntSize& size) { SET_VAR(m_rareNonInheritedData, initialLetter, size); }
     
-#if ENABLE(TOUCH_EVENTS)
-    void setTouchAction(TouchAction touchAction) { SET_VAR(m_rareNonInheritedData, touchAction, static_cast<unsigned>(touchAction)); }
+#if ENABLE(POINTER_EVENTS)
+    void setTouchActions(OptionSet<TouchAction> touchActions) { SET_VAR(m_rareNonInheritedData, touchActions, touchActions.toRaw()); }
 #endif
 
 #if ENABLE(CSS_SCROLL_SNAP)
@@ -1618,8 +1619,8 @@ public:
 
     static WillChangeData* initialWillChange() { return nullptr; }
 
-#if ENABLE(TOUCH_EVENTS)
-    static TouchAction initialTouchAction() { return TouchAction::Auto; }
+#if ENABLE(POINTER_EVENTS)
+    static TouchAction initialTouchActions() { return TouchAction::Auto; }
 #endif
 
 #if ENABLE(CSS_SCROLL_SNAP)

@@ -9,9 +9,9 @@
 accessibility/ios-simulator [ Pass ]
 displaylists [ Pass ]
 http/tests/quicklook [ Pass ]
-media/controls/ipad [ Pass ]
 media/ios [ Pass ]
 quicklook [ Pass ]
+swipe [ Pass ]
 
 fast/text-autosizing/ios [ Pass ]
 fast/zooming/ios [ Pass ]
@@ -126,6 +126,7 @@ compositing/plugins
 http/tests/plugins
 fast/frames/sandboxed-iframe-plugins.html
 fast/loader/reload-zero-byte-plugin.html
+http/tests/download/convert-cached-load-to-download.html
 http/tests/security/contentSecurityPolicy/1.1/plugintypes-affects-child.html
 http/tests/security/contentSecurityPolicy/1.1/plugintypes-invalid.html
 http/tests/security/contentSecurityPolicy/1.1/plugintypes-mismatched-data.html
@@ -190,7 +191,10 @@ platform/ios/ios/fast/forms/range-input-touches.html [ Skip ]
 platform/ios/ios/fast/text/data-detectors/phone-disabled.html [ Skip ]
 platform/ios/ios/fast/text/data-detectors/phone.html [ Skip ]
 platform/ios/ios/touch [ Skip ]
+platform/iphone-7/fast/events/touch [ Skip ]
 media/modern-media-controls/css/pointer-events-none.html [ Skip ]
+
+platform/ipad/fast/forms [ Skip ]
 
 # Codecs not supported
 media/media-can-play-ogg.html [ WontFix ]
@@ -218,6 +222,7 @@ fast/history/page-cache-media-source-closed-2.html [ Skip ]
 fast/history/page-cache-media-source-closed.html [ Skip ]
 fast/history/page-cache-media-source-opened.html [ Skip ]
 fast/history/page-cache-removed-source-buffer.html [ Skip ]
+imported/w3c/web-platform-tests/fetch/api/basic/mediasource.window.html [ Skip ]
 
 # Quota API is not supported on iOS
 storage/domstorage/quota.html
@@ -794,6 +799,7 @@ fast/text/complex-small-caps-non-bmp-capitalize.html [ Skip ]
 fast/text/all-small-caps-whitespace.html [ Skip ]
 
 # These tests rely on EventSender.keydown(), which is not supported on iOS
+compositing/fixed-with-main-thread-scrolling.html [ Skip ]
 editing/caret/emoji.html [ WontFix ]
 editing/deleting/5729680.html [ Skip ]
 editing/deleting/delete-by-word-001.html [ Skip ]
@@ -1526,10 +1532,6 @@ svg/zoom/text/zoom-svg-float-border-padding.xml [ Failure ]
 transforms/3d/point-mapping/3d-point-mapping-3.html [ Failure ]
 transforms/3d/point-mapping/3d-point-mapping-overlapping.html [ Failure ]
 
-# Scrolling coordinator tests that fail:
-scrollingcoordinator/non-fast-scrollable-region-scaled-iframe.html [ Failure ]
-scrollingcoordinator/non-fast-scrollable-region-transformed-iframe.html [ Failure ]
-
 # Userscript tests that fail:
 userscripts/user-script-plugin-document.html [ Failure ]
 
@@ -1550,7 +1552,6 @@ http/tests/webarchive/test-css-url-encoding.html
 # XMLHttpRequest tests that fail:
 http/tests/xmlhttprequest/basic-auth-nopassword.html [ Failure ]
 http/tests/xmlhttprequest/default-content-type-dashboard.html [ Failure ]
-http/tests/xmlhttprequest/head-redirection.html [ Failure ]
 
 # DeviceMotion tests that time out:
 fast/dom/DeviceMotion/no-page-cache.html
@@ -1682,7 +1683,6 @@ fast/forms/hidpi-textfield-background-bleeding.html [ ImageOnlyFailure ]
 fast/forms/input-baseline.html [ Failure ]
 fast/forms/input-live-pseudo-selectors.html [ Failure ]
 fast/forms/input-no-renderer.html [ Failure ]
-fast/forms/input-select-webkit-user-select-none.html [ Failure ]
 fast/forms/input-set-composition-scroll.html [ Failure ]
 fast/forms/input-textarea-padding-match.html [ ImageOnlyFailure ]
 fast/forms/listbox-clip.html [ Failure ]
@@ -1707,12 +1707,10 @@ fast/forms/select-live-pseudo-selectors.html [ Failure ]
 fast/forms/select-overflow-scroll-inherited.html [ Failure ]
 fast/forms/select-overflow-scroll.html [ Failure ]
 fast/forms/select/option-selecting.html [ Failure ]
-fast/forms/shadow-tree-exposure.html [ Failure ]
 fast/forms/textarea-input-event.html [ Failure ]
 fast/forms/textarea-live-pseudo-selectors.html [ Failure ]
 fast/forms/textarea-metrics.html [ Failure ]
 fast/forms/textarea-placeholder-wrapping.html [ ImageOnlyFailure ]
-fast/forms/textarea-set-defaultvalue-after-value.html [ Failure ]
 fast/forms/textfield-overflow-by-value-update.html [ Failure ]
 fast/frames/calculate-fixed.html [ Failure ]
 fast/frames/calculate-order.html [ Failure ]
@@ -2000,17 +1998,6 @@ editing/undo/undo-combined-delete.html [ Pass Failure ]
 editing/undo/undo-forward-delete-boundary.html [ Pass Failure ]
 editing/undo/undo-forward-delete.html [ Pass Failure ]
 
-# Sputnik tests that are flaky:
-sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A1.4_T2.html
-sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A2.1_T2.html
-sputnik/Conformance/07_Lexical_Conventions/7.8_Literals/7.8.5_Regular_Expression_Literals/S7.8.5_A2.4_T2.html
-
-# Sputnik tests that fail:
-sputnik/Unicode/Unicode_510/S7.6_A3.1.html [ Failure ]
-sputnik/Unicode/Unicode_510/S7.6_A3.2.html [ Failure ]
-sputnik/Unicode/Unicode_510/S7.6_A5.3_T1.html [ Failure ]
-sputnik/Unicode/Unicode_510/S7.6_A5.3_T2.html [ Failure ]
-
 # storage tests that fail:
 storage/websql/sql-error-codes.html [ Failure ]
 
@@ -2128,7 +2115,6 @@ editing/pasteboard/copy-backslash-with-euc.html [ Failure ]
 editing/pasteboard/copy-in-password-field.html [ Failure ]
 editing/pasteboard/copy-inside-h1-preserves-h1.html [ Failure ]
 editing/pasteboard/copy-text-with-backgroundcolor.html [ Failure ]
-editing/pasteboard/copy-two-pasteboard-types-both-work.html [ Failure ]
 webkit.org/b/177961 editing/pasteboard/data-transfer-items.html [ Skip ]
 editing/pasteboard/dataTransfer-setData-getData.html [ Failure ]
 editing/pasteboard/display-block-on-spans.html [ Failure ]
@@ -2148,7 +2134,6 @@ editing/pasteboard/paste-before-tab-span.html [ Failure ]
 editing/pasteboard/paste-blockquote-3.html [ Failure ]
 editing/pasteboard/paste-global-selection.html [ Failure ]
 editing/pasteboard/paste-list-004.html [ Failure ]
-editing/pasteboard/paste-placeholder-input.html [ Failure ]
 editing/pasteboard/paste-plaintext-user-select-none.html [ Failure ]
 editing/pasteboard/paste-sanitize-crash-1.html [ Failure ]
 editing/pasteboard/paste-sanitize-crash-2.html [ Failure ]
@@ -2473,6 +2458,7 @@ webkit.org/b/142969 editing/spelling/copy-paste-crash.html
 platform/ios/media/video-interruption-suspendunderlock.html [ Skip ]
 
 media/accessibility-closed-captions-has-aria-owns.html
+media/airplay-allows-buffering.html
 media/airplay-autoplay.html
 media/airplay-target-availability.html
 media/audio-delete-while-slider-thumb-clicked.html
@@ -2490,7 +2476,6 @@ media/media-fullscreen-inline.html
 
 webkit.org/b/136708 media/media-fullscreen-not-in-document.html
 
-media/document-level-media-user-gesture-quirk.html
 media/media-controls-accessibility.html [ Timeout ]
 media/media-fullscreen-return-to-inline.html
 media/no-autoplay-with-user-gesture-requirement.html
@@ -2687,10 +2672,6 @@ webkit.org/b/168215 imported/w3c/web-platform-tests/html/semantics/embedded-cont
 # <rdar://problem/30610988>
 imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin-worker.html [ Failure ]
 imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin.html [ Failure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-worker.html [ Failure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count.html [ Failure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-location-worker.html [ Failure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-location.html [ Failure ]
 
 # rdar://problem/23643423
 [ Debug ] fast/frames/exponential-frames.html [ Skip ]
@@ -2818,6 +2799,7 @@ http/tests/resourceLoadStatistics/cap-cache-max-age-for-prevalent-resource.html 
 # Skipped in general expectations since they only work on iOS and Mac, WK2.
 http/tests/security/strip-referrer-to-origin-for-third-party-redirects-in-private-mode.html [ Pass ]
 http/tests/security/strip-referrer-to-origin-for-third-party-requests-in-private-mode.html [ Pass ]
+media/deactivate-audio-session.html [ Pass ]
 
 webkit.org/b/175273 imported/w3c/web-platform-tests/html/browsers/windows/noreferrer-window-name.html [ Failure ]
 
@@ -2985,7 +2967,6 @@ media/modern-media-controls/fullscreen-support/fullscreen-support-press.html [ S
 media/modern-media-controls/media-controller/ios/media-controller-ios-only-enable-tap-gesture-recognizer-with-fades-when-idle.html [ Skip ]
 media/modern-media-controls/media-controller/ios/media-controller-stop-updates-in-fullscreen.html [ Skip ]
 media/modern-media-controls/mute-support/mute-support-press-on-button.html [ Skip ]
-media/modern-media-controls/pip-support/ipad/pip-support-tap.html [ Skip ]
 media/modern-media-controls/placard-support/ipad [ Skip ]
 media/modern-media-controls/scrubber-support/ipad/scrubber-support-drag.html [ Skip ]
 media/modern-media-controls/seek-backward-support [ Skip ]
@@ -3035,8 +3016,6 @@ media/modern-media-controls/text-tracks [ Skip ]
 media/modern-media-controls/tracks-panel [ Skip ]
 media/modern-media-controls/tracks-support [ Skip ]
 media/modern-media-controls/volume-support [ Skip ]
-
-media/modern-media-controls/pip-support/ipad [ Pass ]
 
 webkit.org/b/178127 media/modern-media-controls/media-controller/media-controller-video-with-only-audio.html [ Skip ]
 
@@ -3173,6 +3152,9 @@ webkit.org/b/190032 animations/stop-animation-on-suspend.html [ Failure ]
 
 http/tests/cookies/same-site [ Pass ]
 
+# FIXME: Mark as Pass once <rdar://problem/47165939> is fixed.
+http/tests/cookies/only-accept-first-party-cookies.html [ Skip ]
+
 system-preview [ Pass ]
 
 editing/selection/character-granularity-rect.html [ Pass ]
@@ -3222,3 +3204,13 @@ webkit.org/b/190764 editing/spelling/spelling-dots-repaint.html [ Skip ]
 webkit.org/b/190764 editing/spelling/spelling-dots-position.html [ Skip ]
 webkit.org/b/190764 editing/spelling/spelling-dots-position-2.html [ Skip ]
 webkit.org/b/190764 editing/spelling/spelling-dots-position-3.html [ Skip ]
+
+webkit.org/b/192279 imported/w3c/web-platform-tests/service-workers/service-worker/register-closed-window.https.html [ Pass Failure ]
+
+webkit.org/b/192250 imported/w3c/web-platform-tests/service-workers/service-worker/update-missing-import-scripts.https.html [ Pass Failure ]
+
+webkit.org/b/192398 imported/w3c/web-platform-tests/service-workers/service-worker/update-registration-with-type.https.html [ Pass Failure ]
+
+webkit.org/b/191704 imported/w3c/web-platform-tests/service-workers/service-worker/windowclient-navigate.https.html [ Pass Failure ]
+
+webkit.org/b/193955 compositing/iframes/remove-reinsert-webview-with-iframe.html [ Skip ]

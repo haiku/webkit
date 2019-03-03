@@ -36,60 +36,77 @@
 
 namespace WebCore {
 
-class DummyParsedContentType {
-public:
-    void setContentType(const SubstringRange&) const { }
-    void setContentTypeParameter(const SubstringRange&, const SubstringRange&) const { }
-};
-
 static void skipSpaces(const String& input, unsigned& startIndex)
 {
     while (startIndex < input.length() && input[startIndex] == ' ')
         ++startIndex;
 }
 
-static bool isTokenCharacter(char c)
+static bool isQuotedStringTokenCharacter(UChar c)
+{
+    return (c >= ' ' && c <= '~') || (c >= 0x80 && c <= 0xFF) || c == '\t';
+}
+
+static bool isTokenCharacter(UChar c)
 {
     return isASCII(c) && c > ' ' && c != '"' && c != '(' && c != ')' && c != ',' && c != '/' && (c < ':' || c > '@') && (c < '[' || c > ']');
 }
 
-static std::optional<SubstringRange> parseToken(const String& input, unsigned& startIndex)
+using CharacterMeetsCondition = bool (*)(UChar);
+
+static Optional<SubstringRange> parseToken(const String& input, unsigned& startIndex, CharacterMeetsCondition characterMeetsCondition, Mode mode, bool skipTrailingWhitespace = false)
 {
     unsigned inputLength = input.length();
     unsigned tokenStart = startIndex;
     unsigned& tokenEnd = startIndex;
 
     if (tokenEnd >= inputLength)
-        return std::nullopt;
+        return WTF::nullopt;
 
-    while (tokenEnd < inputLength) {
-        if (!isTokenCharacter(input[tokenEnd]))
+    while (tokenEnd < inputLength && characterMeetsCondition(input[tokenEnd])) {
+        if (mode == Mode::Rfc2045 && !isTokenCharacter(input[tokenEnd]))
             break;
         ++tokenEnd;
     }
 
     if (tokenEnd == tokenStart)
-        return std::nullopt;
+        return WTF::nullopt;
+    if (skipTrailingWhitespace) {
+        while (input[tokenEnd - 1] == ' ')
+            --tokenEnd;
+    }
     return SubstringRange(tokenStart, tokenEnd - tokenStart);
 }
 
-static std::optional<SubstringRange> parseQuotedString(const String& input, unsigned& startIndex)
+static bool containsNonTokenCharacters(const String& input, SubstringRange range)
+{
+    for (unsigned index = 0; index < range.second; ++index) {
+        if (!isTokenCharacter(input[range.first + index]))
+            return true;
+    }
+    return false;
+}
+
+static Optional<SubstringRange> parseQuotedString(const String& input, unsigned& startIndex, Mode mode)
 {
     unsigned inputLength = input.length();
     unsigned quotedStringStart = startIndex + 1;
     unsigned& quotedStringEnd = startIndex;
 
     if (quotedStringEnd >= inputLength)
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (input[quotedStringEnd++] != '"' || quotedStringEnd >= inputLength)
-        return std::nullopt;
+        return WTF::nullopt;
 
     bool lastCharacterWasBackslash = false;
     char currentCharacter;
     while ((currentCharacter = input[quotedStringEnd++]) != '"' || lastCharacterWasBackslash) {
-        if (quotedStringEnd >= inputLength)
-            return std::nullopt;
+        if (quotedStringEnd >= inputLength) {
+            if (mode == Mode::Rfc2045)
+                return WTF::nullopt;
+            break;
+        }
         if (currentCharacter == '\\' && !lastCharacterWasBackslash) {
             lastCharacterWasBackslash = true;
             continue;
@@ -151,78 +168,116 @@ static String substringForRange(const String& string, const SubstringRange& rang
 //               ; Must be in quoted-string,
 //               ; to use within parameter values
 
-template <class ReceiverType>
-bool parseContentType(const String& contentType, ReceiverType& receiver)
+static bool isNotForwardSlash(UChar ch)
 {
+    return ch != '/';
+}
+
+static bool isNotSemicolon(UChar ch)
+{
+    return ch != ';';
+}
+
+static bool isNotSemicolonOrEqualSign(UChar ch)
+{
+    return ch != ';' && ch != '=';
+}
+
+static bool containsNewline(UChar ch)
+{
+    return ch == '\r' || ch == '\n';
+}
+
+bool ParsedContentType::parseContentType(Mode mode)
+{
+    if (m_contentType.find(containsNewline) != notFound)
+        return false;
     unsigned index = 0;
-    unsigned contentTypeLength = contentType.length();
-    skipSpaces(contentType, index);
+    unsigned contentTypeLength = m_contentType.length();
+    skipSpaces(m_contentType, index);
     if (index >= contentTypeLength)  {
-        LOG_ERROR("Invalid Content-Type string '%s'", contentType.ascii().data());
+        LOG_ERROR("Invalid Content-Type string '%s'", m_contentType.ascii().data());
         return false;
     }
 
     unsigned contentTypeStart = index;
-    auto typeRange = parseToken(contentType, index);
-    if (!typeRange) {
+    auto typeRange = parseToken(m_contentType, index, isNotForwardSlash, mode);
+    if (!typeRange || containsNonTokenCharacters(m_contentType, *typeRange)) {
         LOG_ERROR("Invalid Content-Type, invalid type value.");
         return false;
     }
 
-    if (contentType[index++] != '/') {
+    if (m_contentType[index++] != '/') {
         LOG_ERROR("Invalid Content-Type, missing '/'.");
         return false;
     }
 
-    auto subTypeRange = parseToken(contentType, index);
-    if (!subTypeRange) {
+    auto subTypeRange = parseToken(m_contentType, index, isNotSemicolon, mode, mode == Mode::MimeSniff);
+    if (!subTypeRange || containsNonTokenCharacters(m_contentType, *subTypeRange)) {
         LOG_ERROR("Invalid Content-Type, invalid subtype value.");
         return false;
     }
 
     // There should not be any quoted strings until we reach the parameters.
-    size_t semiColonIndex = contentType.find(';', contentTypeStart);
+    size_t semiColonIndex = m_contentType.find(';', contentTypeStart);
     if (semiColonIndex == notFound) {
-        receiver.setContentType(SubstringRange(contentTypeStart, contentTypeLength - contentTypeStart));
+        setContentType(SubstringRange(contentTypeStart, contentTypeLength - contentTypeStart), mode);
         return true;
     }
 
-    receiver.setContentType(SubstringRange(contentTypeStart, semiColonIndex - contentTypeStart));
+    setContentType(SubstringRange(contentTypeStart, semiColonIndex - contentTypeStart), mode);
     index = semiColonIndex + 1;
     while (true) {
-        skipSpaces(contentType, index);
-        auto keyRange = parseToken(contentType, index);
-        if (!keyRange || index >= contentTypeLength) {
+        skipSpaces(m_contentType, index);
+        auto keyRange = parseToken(m_contentType, index, isNotSemicolonOrEqualSign, mode);
+        if (mode == Mode::Rfc2045 && (!keyRange || index >= contentTypeLength)) {
             LOG_ERROR("Invalid Content-Type parameter name.");
             return false;
         }
 
         // Should we tolerate spaces here?
-        if (contentType[index++] != '=' || index >= contentTypeLength) {
-            LOG_ERROR("Invalid Content-Type malformed parameter.");
-            return false;
+        if (mode == Mode::Rfc2045) {
+            if (m_contentType[index++] != '=' || index >= contentTypeLength) {
+                LOG_ERROR("Invalid Content-Type malformed parameter.");
+                return false;
+            }
+        } else {
+            if (index >= contentTypeLength)
+                break;
+            if (m_contentType[index] != '=' && m_contentType[index] != ';') {
+                LOG_ERROR("Invalid Content-Type malformed parameter.");
+                return false;
+            }
+            if (m_contentType[index++] == ';')
+                continue;
         }
 
+        String parameterName = substringForRange(m_contentType, *keyRange);
+
         // Should we tolerate spaces here?
-        String value;
-        std::optional<SubstringRange> valueRange;
-        if (contentType[index] == '"')
-            valueRange = parseQuotedString(contentType, index);
-        else
-            valueRange = parseToken(contentType, index);
+        Optional<SubstringRange> valueRange;
+        if (m_contentType[index] == '"') {
+            valueRange = parseQuotedString(m_contentType, index, mode);
+            if (mode == Mode::MimeSniff)
+                parseToken(m_contentType, index, isNotSemicolon, mode);
+        } else
+            valueRange = parseToken(m_contentType, index, isNotSemicolon, mode, mode == Mode::MimeSniff);
 
         if (!valueRange) {
+            if (mode == Mode::MimeSniff)
+                continue;
             LOG_ERROR("Invalid Content-Type, invalid parameter value.");
             return false;
         }
 
+        String parameterValue = substringForRange(m_contentType, *valueRange);
         // Should we tolerate spaces here?
-        if (index < contentTypeLength && contentType[index++] != ';') {
+        if (mode == Mode::Rfc2045 && index < contentTypeLength && m_contentType[index++] != ';') {
             LOG_ERROR("Invalid Content-Type, invalid character at the end of key/value parameter.");
             return false;
         }
 
-        receiver.setContentTypeParameter(*keyRange, *valueRange);
+        setContentTypeParameter(parameterName, parameterValue, mode);
 
         if (index >= contentTypeLength)
             return true;
@@ -231,19 +286,22 @@ bool parseContentType(const String& contentType, ReceiverType& receiver)
     return true;
 }
 
-bool isValidContentType(const String& contentType)
+Optional<ParsedContentType> ParsedContentType::create(const String& contentType, Mode mode)
 {
-    if (contentType.contains('\r') || contentType.contains('\n'))
-        return false;
+    ParsedContentType parsedContentType(mode == Mode::Rfc2045 ? contentType : contentType.stripWhiteSpace());
+    if (!parsedContentType.parseContentType(mode))
+        return WTF::nullopt;
+    return { WTFMove(parsedContentType) };
+}
 
-    DummyParsedContentType parsedContentType = DummyParsedContentType();
-    return parseContentType<DummyParsedContentType>(contentType, parsedContentType);
+bool isValidContentType(const String& contentType, Mode mode)
+{
+    return ParsedContentType::create(contentType, mode) != WTF::nullopt;
 }
 
 ParsedContentType::ParsedContentType(const String& contentType)
-    : m_contentType(contentType.stripWhiteSpace())
+    : m_contentType(contentType)
 {
-    parseContentType<ParsedContentType>(m_contentType, *this);
 }
 
 String ParsedContentType::charset() const
@@ -261,14 +319,31 @@ size_t ParsedContentType::parameterCount() const
     return m_parameters.size();
 }
 
-void ParsedContentType::setContentType(const SubstringRange& contentRange)
+void ParsedContentType::setContentType(const SubstringRange& contentRange, Mode mode)
 {
     m_mimeType = substringForRange(m_contentType, contentRange).stripWhiteSpace();
+    if (mode == Mode::MimeSniff)
+        m_mimeType.convertToASCIILowercase();
 }
 
-void ParsedContentType::setContentTypeParameter(const SubstringRange& key, const SubstringRange& value)
+static bool isNonTokenCharacter(UChar ch)
 {
-    m_parameters.set(substringForRange(m_contentType, key), substringForRange(m_contentType, value));
+    return !isTokenCharacter(ch);
+}
+
+static bool isNonQuotedStringTokenCharacter(UChar ch)
+{
+    return !isQuotedStringTokenCharacter(ch);
+}
+
+void ParsedContentType::setContentTypeParameter(const String& keyName, const String& keyValue, Mode mode)
+{
+    if (mode == Mode::MimeSniff) {
+        if (m_parameters.contains(keyName) || keyName.find(isNonTokenCharacter) != notFound || keyValue.find(isNonQuotedStringTokenCharacter) != notFound)
+            return;
+        keyName.convertToASCIILowercase();
+    }
+    m_parameters.set(keyName, keyValue);
 }
 
 }

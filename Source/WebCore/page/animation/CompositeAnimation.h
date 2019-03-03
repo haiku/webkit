@@ -59,7 +59,7 @@ public:
     std::unique_ptr<RenderStyle> getAnimatedStyle() const;
     bool computeExtentOfTransformAnimation(LayoutRect&) const;
 
-    std::optional<Seconds> timeToNextService() const;
+    Optional<Seconds> timeToNextService() const;
     
     CSSAnimationControllerPrivate& animationController() const { return m_animationController; }
 
@@ -69,7 +69,7 @@ public:
     
     bool hasAnimations() const  { return !m_transitions.isEmpty() || !m_keyframeAnimations.isEmpty(); }
 
-    bool isAnimatingProperty(CSSPropertyID, bool acceleratedOnly, AnimationBase::RunningState) const;
+    bool isAnimatingProperty(CSSPropertyID, bool acceleratedOnly) const;
 
     KeyframeAnimation* animationForProperty(CSSPropertyID) const;
 

@@ -33,6 +33,7 @@
 #include "HasOwnPropertyCache.h"
 #include "IndexingType.h"
 #include "JSFixedArray.h"
+#include "JSGlobalObject.h"
 #include "JSMap.h"
 #include "JSSet.h"
 #include "JSWeakMap.h"
@@ -63,6 +64,7 @@ namespace JSC { namespace FTL {
     macro(JSArrayBufferView_length, JSArrayBufferView::offsetOfLength()) \
     macro(JSArrayBufferView_mode, JSArrayBufferView::offsetOfMode()) \
     macro(JSArrayBufferView_vector, JSArrayBufferView::offsetOfVector()) \
+    macro(JSBigIntOrString_length, JSBigInt::offsetOfLength()) \
     macro(JSCell_cellState, JSCell::cellStateOffset()) \
     macro(JSCell_header, 0) \
     macro(JSCell_indexingTypeAndMisc, JSCell::indexingTypeAndMiscOffset()) \
@@ -74,6 +76,11 @@ namespace JSC { namespace FTL {
     macro(JSFunction_executable, JSFunction::offsetOfExecutable()) \
     macro(JSFunction_scope, JSFunction::offsetOfScopeChain()) \
     macro(JSFunction_rareData, JSFunction::offsetOfRareData()) \
+    macro(JSGlobalObject_regExpGlobalData_cachedResult_lastRegExp, JSGlobalObject::regExpGlobalDataOffset() + RegExpGlobalData::offsetOfCachedResult() + RegExpCachedResult::offsetOfLastRegExp()) \
+    macro(JSGlobalObject_regExpGlobalData_cachedResult_lastInput, JSGlobalObject::regExpGlobalDataOffset() + RegExpGlobalData::offsetOfCachedResult() + RegExpCachedResult::offsetOfLastInput()) \
+    macro(JSGlobalObject_regExpGlobalData_cachedResult_result_start, JSGlobalObject::regExpGlobalDataOffset() + RegExpGlobalData::offsetOfCachedResult() + RegExpCachedResult::offsetOfResult() + OBJECT_OFFSETOF(MatchResult, start)) \
+    macro(JSGlobalObject_regExpGlobalData_cachedResult_result_end, JSGlobalObject::regExpGlobalDataOffset() + RegExpGlobalData::offsetOfCachedResult() + RegExpCachedResult::offsetOfResult() + OBJECT_OFFSETOF(MatchResult, end)) \
+    macro(JSGlobalObject_regExpGlobalData_cachedResult_reified, JSGlobalObject::regExpGlobalDataOffset() + RegExpGlobalData::offsetOfCachedResult() + RegExpCachedResult::offsetOfReified()) \
     macro(JSObject_butterfly, JSObject::butterflyOffset()) \
     macro(JSPropertyNameEnumerator_cachedInlineCapacity, JSPropertyNameEnumerator::cachedInlineCapacityOffset()) \
     macro(JSPropertyNameEnumerator_cachedPropertyNamesVector, JSPropertyNameEnumerator::cachedPropertyNamesVectorOffset()) \
@@ -83,15 +90,9 @@ namespace JSC { namespace FTL {
     macro(JSPropertyNameEnumerator_indexLength, JSPropertyNameEnumerator::indexedLengthOffset()) \
     macro(JSScope_next, JSScope::offsetOfNext()) \
     macro(JSString_flags, JSString::offsetOfFlags()) \
-    macro(JSString_length, JSString::offsetOfLength()) \
     macro(JSString_value, JSString::offsetOfValue()) \
     macro(JSSymbolTableObject_symbolTable, JSSymbolTableObject::offsetOfSymbolTable()) \
     macro(JSWrapperObject_internalValue, JSWrapperObject::internalValueOffset()) \
-    macro(RegExpConstructor_cachedResult_lastRegExp, RegExpConstructor::offsetOfCachedResult() + RegExpCachedResult::offsetOfLastRegExp()) \
-    macro(RegExpConstructor_cachedResult_lastInput, RegExpConstructor::offsetOfCachedResult() + RegExpCachedResult::offsetOfLastInput()) \
-    macro(RegExpConstructor_cachedResult_result_start, RegExpConstructor::offsetOfCachedResult() + RegExpCachedResult::offsetOfResult() + OBJECT_OFFSETOF(MatchResult, start)) \
-    macro(RegExpConstructor_cachedResult_result_end, RegExpConstructor::offsetOfCachedResult() + RegExpCachedResult::offsetOfResult() + OBJECT_OFFSETOF(MatchResult, end)) \
-    macro(RegExpConstructor_cachedResult_reified, RegExpConstructor::offsetOfCachedResult() + RegExpCachedResult::offsetOfReified()) \
     macro(RegExpObject_regExp, RegExpObject::offsetOfRegExp()) \
     macro(RegExpObject_lastIndex, RegExpObject::offsetOfLastIndex()) \
     macro(RegExpObject_lastIndexIsWritable, RegExpObject::offsetOfLastIndexIsWritable()) \
@@ -116,8 +117,10 @@ namespace JSC { namespace FTL {
     macro(Structure_globalObject, Structure::globalObjectOffset()) \
     macro(Structure_indexingModeIncludingHistory, Structure::indexingModeIncludingHistoryOffset()) \
     macro(Structure_inlineCapacity, Structure::inlineCapacityOffset()) \
+    macro(Structure_previousOrRareData, Structure::previousOrRareDataOffset()) \
     macro(Structure_prototype, Structure::prototypeOffset()) \
     macro(Structure_structureID, Structure::structureIDOffset()) \
+    macro(StructureRareData_cachedOwnKeys, StructureRareData::offsetOfCachedOwnKeys()) \
     macro(HashMapImpl_capacity, HashMapImpl<HashMapBucket<HashMapBucketDataKey>>::offsetOfCapacity()) \
     macro(HashMapImpl_buffer,  HashMapImpl<HashMapBucket<HashMapBucketDataKey>>::offsetOfBuffer()) \
     macro(HashMapImpl_head,  HashMapImpl<HashMapBucket<HashMapBucketDataKey>>::offsetOfHead()) \
@@ -177,6 +180,8 @@ public:
     AbstractHeap& JSCell_freeListNext;
     AbstractHeap& ArrayStorage_publicLength;
     AbstractHeap& ArrayStorage_vectorLength;
+    AbstractHeap& JSBigInt_length;
+    AbstractHeap& JSString_length;
     
 #define INDEXED_ABSTRACT_HEAP_DECLARATION(name, offset, size) IndexedAbstractHeap name;
     FOR_EACH_INDEXED_ABSTRACT_HEAP(INDEXED_ABSTRACT_HEAP_DECLARATION)

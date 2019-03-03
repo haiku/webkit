@@ -429,7 +429,7 @@ body:not(.window-inactive, .window-docked-inactive) .data-grid:focus tr.editable
     color: var(--selected-foreground-color);
 }
 
-@media (prefers-dark-interface) {
+@media (prefers-color-scheme: dark) {
     .data-grid td .subtitle {
         color: var(--selected-secondary-text-color);
     }
@@ -445,5 +445,14 @@ body:not(.window-inactive, .window-docked-inactive) .data-grid:focus tr.editable
     .data-grid td.spanning {
         color: var(--text-color-secondary);
         background-color: unset;
+    }
+
+    .data-grid th.sortable:active {
+        background-color: hsl(0, 0%, 40%);
+    }
+
+    .data-grid th.sort-ascending > div:first-child::after,
+    .data-grid th.sort-descending > div:first-child::after {
+        filter: invert();
     }
 }

@@ -87,11 +87,23 @@ public:
         );
     }
 
+    void clearSource()
+    {
+        ASSERT(hasSource());
+        m_source = nullptr;
+    }
+
     void setSource(Source&& source)
     {
         ASSERT(!hasSource());
         m_source = WTFMove(source);
         ASSERT(hasSource());
+    }
+
+    void takeSource(LibWebRTCRtpSenderBackend& backend)
+    {
+        ASSERT(backend.hasSource());
+        setSource(WTFMove(backend.m_source));
     }
 
 private:
@@ -102,6 +114,7 @@ private:
     WeakPtr<LibWebRTCPeerConnectionBackend> m_peerConnectionBackend;
     rtc::scoped_refptr<webrtc::RtpSenderInterface> m_rtcSender;
     Source m_source;
+    mutable Optional<webrtc::RtpParameters> m_currentParameters;
 };
 
 } // namespace WebCore

@@ -49,7 +49,7 @@ public:
     ~CSSAnimationControllerPrivate();
 
     // Returns the time until the next animation needs to be serviced, or -1 if there are none.
-    std::optional<Seconds> updateAnimations(SetChanged callSetChanged = DoNotCallSetChanged);
+    Optional<Seconds> updateAnimations(SetChanged callSetChanged = DoNotCallSetChanged);
     void updateAnimationTimer(SetChanged callSetChanged = DoNotCallSetChanged);
 
     CompositeAnimation& ensureCompositeAnimation(Element&);
@@ -76,8 +76,8 @@ public:
     void startAnimationsIfNotSuspended(Document*);
     void detachFromDocument(Document*);
 
-    bool isRunningAnimationOnRenderer(RenderElement&, CSSPropertyID, AnimationBase::RunningState) const;
-    bool isRunningAcceleratedAnimationOnRenderer(RenderElement&, CSSPropertyID, AnimationBase::RunningState) const;
+    bool isRunningAnimationOnRenderer(RenderElement&, CSSPropertyID) const;
+    bool isRunningAcceleratedAnimationOnRenderer(RenderElement&, CSSPropertyID) const;
 
     bool pauseAnimationAtTime(Element&, const AtomicString& name, double t);
     bool pauseTransitionAtTime(Element&, const String& property, double t);
@@ -93,13 +93,13 @@ public:
     void endAnimationUpdate();
     void receivedStartTimeResponse(MonotonicTime);
     
-    void addToAnimationsWaitingForStyle(AnimationBase*);
-    void removeFromAnimationsWaitingForStyle(AnimationBase*);
+    void addToAnimationsWaitingForStyle(AnimationBase&);
+    void removeFromAnimationsWaitingForStyle(AnimationBase&);
 
-    void addToAnimationsWaitingForStartTimeResponse(AnimationBase*, bool willGetResponse);
-    void removeFromAnimationsWaitingForStartTimeResponse(AnimationBase*);
+    void addToAnimationsWaitingForStartTimeResponse(AnimationBase&, bool willGetResponse);
+    void removeFromAnimationsWaitingForStartTimeResponse(AnimationBase&);
 
-    void animationWillBeRemoved(AnimationBase*);
+    void animationWillBeRemoved(AnimationBase&);
 
     void updateAnimationTimerForElement(Element&);
 
@@ -130,7 +130,7 @@ private:
     Vector<Ref<Element>> m_elementChangesToDispatch;
     HashSet<Document*> m_suspendedDocuments;
 
-    std::optional<MonotonicTime> m_beginAnimationUpdateTime;
+    Optional<MonotonicTime> m_beginAnimationUpdateTime;
 
     using AnimationsSet = HashSet<RefPtr<AnimationBase>>;
     AnimationsSet m_animationsWaitingForStyle;

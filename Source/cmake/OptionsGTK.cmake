@@ -1,11 +1,11 @@
 include(GNUInstallDirs)
 include(VersioningUtils)
 
-SET_PROJECT_VERSION(2 23 1)
+SET_PROJECT_VERSION(2 23 3)
 set(WEBKITGTK_API_VERSION 4.0)
 
-CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 71 0 34)
-CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(JAVASCRIPTCORE 30 0 12)
+CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 72 1 35)
+CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(JAVASCRIPTCORE 30 2 12)
 
 # These are shared variables, but we special case their definition so that we can use the
 # CMAKE_INSTALL_* variables that are populated by the GNUInstallDirs macro.
@@ -83,6 +83,7 @@ WEBKIT_OPTION_DEFINE(ENABLE_WAYLAND_TARGET "Whether to enable support for the Wa
 WEBKIT_OPTION_DEFINE(USE_LIBNOTIFY "Whether to enable the default web notification implementation." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_LIBHYPHEN "Whether to enable the default automatic hyphenation implementation." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_LIBSECRET "Whether to enable the persistent credential storage using libsecret." PUBLIC ON)
+WEBKIT_OPTION_DEFINE(USE_OPENJPEG "Whether to enable support for JPEG2000 images." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_WOFF2 "Whether to enable support for WOFF2 Web Fonts." PUBLIC ON)
 
 # Private options specific to the GTK+ port. Changing these options is
@@ -95,6 +96,7 @@ WEBKIT_OPTION_CONFLICT(ENABLE_ACCELERATED_2D_CANVAS ENABLE_GLES2)
 
 WEBKIT_OPTION_DEPEND(ENABLE_3D_TRANSFORMS ENABLE_OPENGL)
 WEBKIT_OPTION_DEPEND(ENABLE_ACCELERATED_2D_CANVAS ENABLE_OPENGL)
+WEBKIT_OPTION_DEPEND(ENABLE_ASYNC_SCROLLING ENABLE_OPENGL)
 WEBKIT_OPTION_DEPEND(ENABLE_GLES2 ENABLE_OPENGL)
 WEBKIT_OPTION_DEPEND(ENABLE_PLUGIN_PROCESS_GTK2 ENABLE_X11_TARGET)
 WEBKIT_OPTION_DEPEND(ENABLE_WEBGL ENABLE_OPENGL)
@@ -124,6 +126,14 @@ else ()
     WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_BUBBLEWRAP_SANDBOX PRIVATE OFF)
 endif ()
 
+# Enable variation fonts when cairo >= 1.16, fontconfig >= 2.13.0, freetype >= 2.9.0 and harfbuzz >= 1.4.2.
+if (("${PC_CAIRO_VERSION}" VERSION_GREATER "1.16.0" OR "${PC_CAIRO_VERSION}" STREQUAL "1.16.0")
+    AND ("${PC_FONTCONFIG_VERSION}" VERSION_GREATER "2.13.0" OR "${PC_FONTCONFIG_VERSION}" STREQUAL "2.13.0")
+    AND ("${FREETYPE_VERSION_STRING}" VERSION_GREATER "2.9.0" OR "${FREETYPE_VERSION_STRING}" STREQUAL "2.9.0")
+    AND ("${PC_HARFBUZZ_VERSION}" VERSION_GREATER "1.4.2" OR "${PC_HARFBUZZ_VERSION}" STREQUAL "1.4.2"))
+    WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VARIATION_FONTS PRIVATE ON)
+endif ()
+
 # Public options shared with other WebKit ports. Do not add any options here
 # without approval from a GTK+ reviewer. There must be strong reason to support
 # changing the value of the option.
@@ -149,7 +159,7 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_MEDIA_STREAM PRIVATE ${ENABLE_EXPERIMENT
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_SERVICE_WORKER PRIVATE ${ENABLE_EXPERIMENTAL_FEATURES})
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_RTC PRIVATE ${ENABLE_EXPERIMENTAL_FEATURES})
 
-include(GStreamerDefinitions)
+include(GStreamerDependencies)
 
 # Finalize the value for all options. Do not attempt to use an option before
 # this point, and do not attempt to change any option after this point.
@@ -377,6 +387,16 @@ if (USE_LIBHYPHEN)
     find_package(Hyphen)
     if (NOT HYPHEN_FOUND)
        message(FATAL_ERROR "libhyphen is needed for USE_LIBHYPHEN.")
+    endif ()
+endif ()
+
+if (USE_OPENJPEG)
+    find_package(OpenJPEG)
+    if (NOT OpenJPEG_FOUND)
+        message(FATAL_ERROR "libopenjpeg is needed for USE_OPENJPEG.")
+    endif ()
+    if ("${OPENJPEG_MAJOR_VERSION}.${OPENJPEG_MINOR_VERSION}.${OPENJPEG_BUILD_VERSION}" VERSION_LESS "2.2.0")
+        message(FATAL_ERROR "libopenjpeg 2.2.0 is required for USE_OPENJPEG.")
     endif ()
 endif ()
 

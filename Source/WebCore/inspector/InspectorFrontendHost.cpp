@@ -254,6 +254,11 @@ void InspectorFrontendHost::moveWindowBy(float x, float y) const
         m_client->moveWindowBy(x, y);
 }
 
+bool InspectorFrontendHost::isRemote() const
+{
+    return m_client ? m_client->isRemote() : false;
+}
+
 String InspectorFrontendHost::localizedStringsURL()
 {
     return m_client ? m_client->localizedStringsURL() : String();
@@ -373,7 +378,7 @@ static void populateContextMenu(Vector<InspectorFrontendHost::ContextMenuItem>&&
         }
 
         auto type = item.type == "checkbox" ? CheckableActionType : ActionType;
-        auto action = static_cast<ContextMenuAction>(ContextMenuItemBaseCustomTag + item.id.value_or(0));
+        auto action = static_cast<ContextMenuAction>(ContextMenuItemBaseCustomTag + item.id.valueOr(0));
         ContextMenuItem menuItem = { type, action, item.label };
         if (item.enabled)
             menuItem.setEnabled(*item.enabled);
@@ -443,6 +448,15 @@ void InspectorFrontendHost::inspectInspector()
 {
     if (m_frontendPage)
         m_frontendPage->inspectorController().show();
+}
+
+bool InspectorFrontendHost::isBeingInspected()
+{
+    if (!m_frontendPage)
+        return false;
+
+    InspectorController& inspectorController = m_frontendPage->inspectorController();
+    return inspectorController.hasLocalFrontend() || inspectorController.hasRemoteFrontend();
 }
 
 bool InspectorFrontendHost::supportsShowCertificate() const

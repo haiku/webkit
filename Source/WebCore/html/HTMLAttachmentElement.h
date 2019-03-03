@@ -52,7 +52,9 @@ public:
     const String& uniqueIdentifier() const { return m_uniqueIdentifier; }
     void setUniqueIdentifier(const String& uniqueIdentifier) { m_uniqueIdentifier = uniqueIdentifier; }
 
-    WEBCORE_EXPORT void updateAttributes(std::optional<uint64_t>&& newFileSize, const String& newContentType, const String& newFilename);
+    void copyNonAttributePropertiesFromElement(const Element&) final;
+
+    WEBCORE_EXPORT void updateAttributes(Optional<uint64_t>&& newFileSize, const String& newContentType, const String& newFilename);
     WEBCORE_EXPORT void updateEnclosingImageWithData(const String& contentType, Ref<SharedBuffer>&& data);
 
     InsertedIntoAncestorResult insertedIntoAncestor(InsertionType, ContainerNode&) final;

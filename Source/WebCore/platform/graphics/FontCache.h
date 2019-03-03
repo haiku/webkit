@@ -60,6 +60,7 @@ class FontPlatformData;
 class FontSelector;
 class OpenTypeVerticalData;
 class Font;
+enum class IsForPlatformFont : uint8_t;
 
 #if PLATFORM(WIN)
 #if USE(IMLANG_FONT_LINK2)
@@ -113,7 +114,7 @@ struct FontDescriptionKey {
         hasher.add(m_size);
         hasher.add(m_fontSelectionRequest.weight);
         hasher.add(m_fontSelectionRequest.width);
-        hasher.add(m_fontSelectionRequest.slope.value_or(normalItalicValue()));
+        hasher.add(m_fontSelectionRequest.slope.valueOr(normalItalicValue()));
         hasher.add(m_locale.existingHash());
         for (unsigned flagItem : m_flags)
             hasher.add(flagItem);
@@ -190,7 +191,8 @@ public:
     WEBCORE_EXPORT static FontCache& singleton();
 
     // These methods are implemented by the platform.
-    RefPtr<Font> systemFallbackForCharacters(const FontDescription&, const Font* originalFontData, bool isPlatformFont, const UChar* characters, unsigned length);
+    enum class PreferColoredFont : uint8_t { No, Yes };
+    RefPtr<Font> systemFallbackForCharacters(const FontDescription&, const Font* originalFontData, IsForPlatformFont, PreferColoredFont, const UChar* characters, unsigned length);
     Vector<String> systemFontFamilies();
     void platformInit();
 
@@ -245,7 +247,7 @@ public:
         PrewarmInformation isolatedCopy() const;
 
         template<class Encoder> void encode(Encoder&) const;
-        template<class Decoder> static std::optional<PrewarmInformation> decode(Decoder&);
+        template<class Decoder> static Optional<PrewarmInformation> decode(Decoder&);
     };
     PrewarmInformation collectPrewarmInformation() const;
     void prewarm(const PrewarmInformation&);
@@ -314,7 +316,7 @@ void FontCache::PrewarmInformation::encode(Encoder& encoder) const
 }
 
 template<class Decoder>
-std::optional<FontCache::PrewarmInformation> FontCache::PrewarmInformation::decode(Decoder& decoder)
+Optional<FontCache::PrewarmInformation> FontCache::PrewarmInformation::decode(Decoder& decoder)
 {
     PrewarmInformation prewarmInformation;
     if (!decoder.decode(prewarmInformation.seenFamilies))

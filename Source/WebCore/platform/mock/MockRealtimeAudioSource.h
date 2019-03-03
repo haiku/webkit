@@ -64,11 +64,12 @@ private:
     void tick();
 
     bool isCaptureSource() const final { return true; }
+    CaptureDevice::DeviceType deviceType() const final { return CaptureDevice::DeviceType::Microphone; }
 
     void delaySamples(Seconds) final;
 
-    std::optional<RealtimeMediaSourceCapabilities> m_capabilities;
-    std::optional<RealtimeMediaSourceSettings> m_currentSettings;
+    Optional<RealtimeMediaSourceCapabilities> m_capabilities;
+    Optional<RealtimeMediaSourceSettings> m_currentSettings;
     RealtimeMediaSourceSupportedConstraints m_supportedConstraints;
 
     RunLoop::Timer<MockRealtimeAudioSource> m_timer;

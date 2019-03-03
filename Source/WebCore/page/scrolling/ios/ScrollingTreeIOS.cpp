@@ -32,6 +32,7 @@
 #include "PlatformWheelEvent.h"
 #include "ScrollingThread.h"
 #include "ScrollingTreeFixedNode.h"
+#include "ScrollingTreeFrameHostingNode.h"
 #include "ScrollingTreeFrameScrollingNodeIOS.h"
 #include "ScrollingTreeNode.h"
 #include "ScrollingTreeScrollingNode.h"
@@ -70,7 +71,7 @@ void ScrollingTreeIOS::invalidate()
     });
 }
 
-void ScrollingTreeIOS::scrollingTreeNodeDidScroll(ScrollingNodeID nodeID, const FloatPoint& scrollPosition, const std::optional<FloatPoint>& layoutViewportOrigin, ScrollingLayerPositionAction scrollingLayerPositionAction)
+void ScrollingTreeIOS::scrollingTreeNodeDidScroll(ScrollingNodeID nodeID, const FloatPoint& scrollPosition, const Optional<FloatPoint>& layoutViewportOrigin, ScrollingLayerPositionAction scrollingLayerPositionAction)
 {
     if (!m_scrollingCoordinator)
         return;
@@ -86,15 +87,17 @@ void ScrollingTreeIOS::scrollingTreeNodeDidScroll(ScrollingNodeID nodeID, const 
 Ref<ScrollingTreeNode> ScrollingTreeIOS::createScrollingTreeNode(ScrollingNodeType nodeType, ScrollingNodeID nodeID)
 {
     switch (nodeType) {
-    case MainFrameScrollingNode:
-    case SubframeScrollingNode:
+    case ScrollingNodeType::MainFrame:
+    case ScrollingNodeType::Subframe:
         return ScrollingTreeFrameScrollingNodeIOS::create(*this, nodeType, nodeID);
-    case OverflowScrollingNode:
+    case ScrollingNodeType::FrameHosting:
+        return ScrollingTreeFrameHostingNode::create(*this, nodeID);
+    case ScrollingNodeType::Overflow:
         ASSERT_NOT_REACHED();
         break;
-    case FixedNode:
+    case ScrollingNodeType::Fixed:
         return ScrollingTreeFixedNode::create(*this, nodeID);
-    case StickyNode:
+    case ScrollingNodeType::Sticky:
         return ScrollingTreeStickyNode::create(*this, nodeID);
     }
     ASSERT_NOT_REACHED();

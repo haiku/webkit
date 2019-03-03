@@ -43,7 +43,10 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_RTC PRIVATE ${ENABLE_EXPERIMENTAL_FE
 # Public options specific to the WPE port. Do not add any options here unless
 # there is a strong reason we should support changing the value of the option,
 # and the option is not relevant to any other WebKit ports.
+WEBKIT_OPTION_DEFINE(ENABLE_GTKDOC "Whether or not to use generate gtkdoc." PUBLIC OFF)
+WEBKIT_OPTION_DEFINE(USE_OPENJPEG "Whether to enable support for JPEG2000 images." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_WOFF2 "Whether to enable support for WOFF2 Web Fonts." PUBLIC ON)
+WEBKIT_OPTION_DEFINE(ENABLE_WPE_QT_API "Whether to enable support for the Qt5/QML plugin" PUBLIC OFF)
 
 # Private options specific to the WPE port.
 WEBKIT_OPTION_DEFINE(USE_OPENVR "Whether to use OpenVR as WebVR backend." PRIVATE ${ENABLE_EXPERIMENTAL_FEATURES})
@@ -84,6 +87,16 @@ find_package(WebP REQUIRED)
 find_package(WPE REQUIRED)
 find_package(ZLIB REQUIRED)
 
+if (USE_OPENJPEG)
+    find_package(OpenJPEG)
+    if (NOT OpenJPEG_FOUND)
+        message(FATAL_ERROR "libopenjpeg is needed for USE_OPENJPEG.")
+    endif ()
+    if ("${OPENJPEG_MAJOR_VERSION}.${OPENJPEG_MINOR_VERSION}.${OPENJPEG_BUILD_VERSION}" VERSION_LESS "2.2.0")
+        message(FATAL_ERROR "libopenjpeg 2.2.0 is required for USE_OPENJPEG.")
+    endif ()
+endif ()
+
 if (USE_WOFF2)
     find_package(WOFF2Dec 1.0.2)
     if (NOT WOFF2DEC_FOUND)
@@ -107,6 +120,13 @@ endif ()
 
 if (ENABLE_XSLT)
     find_package(LibXslt 1.1.7 REQUIRED)
+endif ()
+
+if (ENABLE_WPE_QT_API)
+    find_package(Qt5 REQUIRED COMPONENTS Core Quick Gui)
+    find_package(Qt5Test REQUIRED)
+    find_package(PkgConfig)
+    pkg_check_modules(WPE_BACKEND_FDO REQUIRED wpebackend-fdo-0.1)
 endif ()
 
 add_definitions(-DBUILDING_WPE__=1)
@@ -134,6 +154,11 @@ SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS_THREADED TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_NICOSIA TRUE)
 
+# Override the cached variable, gtk-doc does not really work when cross-building or building on Mac.
+if (CMAKE_CROSSCOMPILING OR APPLE)
+    set(ENABLE_GTKDOC OFF)
+endif ()
+
 set(FORWARDING_HEADERS_DIR ${DERIVED_SOURCES_DIR}/ForwardingHeaders)
 set(FORWARDING_HEADERS_WPE_DIR ${FORWARDING_HEADERS_DIR}/wpe)
 set(FORWARDING_HEADERS_WPE_EXTENSION_DIR ${FORWARDING_HEADERS_DIR}/wpe-webextension)
@@ -141,5 +166,8 @@ set(FORWARDING_HEADERS_WPE_DOM_DIR ${FORWARDING_HEADERS_DIR}/wpe-dom)
 set(DERIVED_SOURCES_JAVASCRIPCOREWPE_DIR ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/javascriptcorewpe)
 set(DERIVED_SOURCES_JAVASCRIPCORE_GLIB_API_DIR ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/javascriptcorewpe/jsc)
 set(DERIVED_SOURCES_WPE_API_DIR ${DERIVED_SOURCES_WEBKIT_DIR}/wpe)
+
+set(WPE_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/wpe-webkit-${WPE_API_VERSION}.pc)
+set(WPEWebExtension_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/wpe-web-extension-${WPE_API_VERSION}.pc)
 
 include(GStreamerChecks)

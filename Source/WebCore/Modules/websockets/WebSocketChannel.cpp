@@ -38,8 +38,10 @@
 #include "FileError.h"
 #include "FileReaderLoader.h"
 #include "Frame.h"
+#include "FrameLoader.h"
 #include "InspectorInstrumentation.h"
 #include "Logging.h"
+#include "NetworkingContext.h"
 #include "Page.h"
 #include "ProgressTracker.h"
 #include "ResourceRequest.h"
@@ -123,7 +125,7 @@ void WebSocketChannel::connect(const URL& requestedURL, const String& protocol)
         Page* page = frame->page();
         PAL::SessionID sessionID = page ? page->sessionID() : PAL::SessionID::defaultSessionID();
         String partition = m_document->domainForCachePartition();
-        m_handle = m_socketProvider->createSocketStreamHandle(m_handshake->url(), *this, sessionID, partition);
+        m_handle = m_socketProvider->createSocketStreamHandle(m_handshake->url(), *this, sessionID, partition, frame->loader().networkingContext());
     }
 }
 
@@ -450,8 +452,8 @@ bool WebSocketChannel::processBuffer()
                 InspectorInstrumentation::didReceiveWebSocketHandshakeResponse(m_document, m_identifier, m_handshake->serverHandshakeResponse());
             String serverSetCookie = m_handshake->serverSetCookie();
             if (!serverSetCookie.isEmpty()) {
-                if (m_document && cookiesEnabled(*m_document))
-                    setCookies(*m_document, m_handshake->httpURLForAuthenticationAndCookies(), serverSetCookie);
+                if (m_document && m_document->page() && m_document->page()->cookieJar().cookiesEnabled(*m_document))
+                    m_document->page()->cookieJar().setCookies(*m_document, m_handshake->httpURLForAuthenticationAndCookies(), serverSetCookie);
             }
             LOG(Network, "WebSocketChannel %p Connected", this);
             skipBuffer(headerLength);

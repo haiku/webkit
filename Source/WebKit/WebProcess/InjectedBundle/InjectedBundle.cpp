@@ -33,7 +33,6 @@
 #include "NetworkProcessConnection.h"
 #include "NetworkSessionCreationParameters.h"
 #include "NotificationPermissionRequestManager.h"
-#include "SessionTracker.h"
 #include "UserData.h"
 #include "WebConnectionToUIProcess.h"
 #include "WebCoreArgumentCoders.h"
@@ -266,6 +265,11 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
         RuntimeEnabledFeatures::sharedFeatures().setCSSPaintingAPIEnabled(enabled);
 #endif
 
+#if ENABLE(CSS_TYPED_OM)
+    if (preference == "CSSTypedOMEnabled")
+        RuntimeEnabledFeatures::sharedFeatures().setCSSTypedOMEnabled(enabled);
+#endif
+
     // Map the names used in LayoutTests with the names used in WebCore::Settings and WebPreferencesStore.
 #define FOR_EACH_OVERRIDE_BOOL_PREFERENCE(macro) \
     macro(WebKitJavaEnabled, JavaEnabled, javaEnabled) \
@@ -350,11 +354,8 @@ void InjectedBundle::setJavaScriptCanAccessClipboard(WebPageGroupProxy* pageGrou
 void InjectedBundle::setPrivateBrowsingEnabled(WebPageGroupProxy* pageGroup, bool enabled)
 {
     ASSERT(!hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies));
-    if (enabled) {
+    if (enabled)
         WebProcess::singleton().ensureLegacyPrivateBrowsingSessionInNetworkProcess();
-        WebFrameNetworkingContext::ensureWebsiteDataStoreSession(WebsiteDataStoreParameters::legacyPrivateSessionParameters());
-    } else
-        SessionTracker::destroySession(PAL::SessionID::legacyPrivateSessionID());
 
     const HashSet<Page*>& pages = PageGroup::pageGroup(pageGroup->identifier())->pages();
     for (HashSet<Page*>::iterator iter = pages.begin(); iter != pages.end(); ++iter)

@@ -37,10 +37,32 @@ WI.Setting = class Setting extends WI.Object
 
         this._name = name;
 
+        this._localStorageKey = WI.Setting._localStorageKey(this._name);
+        this._defaultValue = defaultValue;
+    }
+
+    // Static
+
+    static migrateValue(key)
+    {
+        let localStorageKey = WI.Setting._localStorageKey(key);
+
+        let value = undefined;
+        if (!window.InspectorTest && window.localStorage && localStorageKey in window.localStorage) {
+            try {
+                value = JSON.parse(window.localStorage[localStorageKey]);
+            } catch { }
+
+            window.localStorage.removeItem(localStorageKey);
+        }
+        return value;
+    }
+
+    static _localStorageKey(name)
+    {
         let inspectionLevel = InspectorFrontendHost ? InspectorFrontendHost.inspectionLevel() : 1;
         let levelString = inspectionLevel > 1 ? "-" + inspectionLevel : "";
-        this._localStorageKey = `com.apple.WebInspector${levelString}.${name}`;
-        this._defaultValue = defaultValue;
+        return `com.apple.WebInspector${levelString}.${name}`;
     }
 
     // Public
@@ -114,6 +136,7 @@ WI.settings = {
     indentWithTabs: new WI.Setting("indent-with-tabs", false),
     resourceCachingDisabled: new WI.Setting("disable-resource-caching", false),
     selectedNetworkDetailContentViewIdentifier: new WI.Setting("network-detail-content-view-identifier", "preview"),
+    sourceMapsEnabled: new WI.Setting("source-maps-enabled", true),
     showAllRequestsBreakpoint: new WI.Setting("show-all-requests-breakpoint", true),
     showAssertionFailuresBreakpoint: new WI.Setting("show-assertion-failures-breakpoint", true),
     showCanvasPath: new WI.Setting("show-canvas-path", false),
@@ -129,7 +152,6 @@ WI.settings = {
     zoomFactor: new WI.Setting("zoom-factor", 1),
 
     // Experimental
-    experimentalEnableComputedStyleCascades: new WI.Setting("experimental-enable-computed-style-cascades", false),
     experimentalEnableLayersTab: new WI.Setting("experimental-enable-layers-tab", false),
     experimentalEnableNewTabBar: new WI.Setting("experimental-enable-new-tab-bar", false),
     experimentalEnableAuditTab: new WI.Setting("experimental-enable-audit-tab", false),
@@ -138,6 +160,7 @@ WI.settings = {
     autoLogProtocolMessages: new WI.Setting("auto-collect-protocol-messages", false),
     autoLogTimeStats: new WI.Setting("auto-collect-time-stats", false),
     enableLayoutFlashing: new WI.Setting("enable-layout-flashing", false),
+    enableStyleEditingDebugMode: new WI.Setting("enable-style-editing-debug-mode", false),
     enableUncaughtExceptionReporter: new WI.Setting("enable-uncaught-exception-reporter", true),
     filterMultiplexingBackendInspectorProtocolMessages: new WI.Setting("filter-multiplexing-backend-inspector-protocol-messages", true),
     layoutDirection: new WI.Setting("layout-direction-override", "system"),

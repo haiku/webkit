@@ -28,17 +28,19 @@
 #if ENABLE(WEBGPU)
 
 #include "GPUProgrammablePassEncoder.h"
+#include "GPURenderPipeline.h"
 
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/RetainPtr.h>
+#include <wtf/Vector.h>
 
 OBJC_PROTOCOL(MTLRenderCommandEncoder);
 
 namespace WebCore {
 
+class GPUBuffer;
 class GPUCommandBuffer;
-class GPURenderPipeline;
 
 struct GPURenderPassDescriptor;
 
@@ -51,13 +53,21 @@ public:
 
     void setPipeline(Ref<GPURenderPipeline>&&) final;
 
-    void draw(unsigned long, unsigned long, unsigned long, unsigned long);
+    void setVertexBuffers(unsigned long, Vector<Ref<const GPUBuffer>>&&, Vector<unsigned>&&);
+    void draw(unsigned long vertexCount, unsigned long instanceCount, unsigned long firstVertex, unsigned long firstInstance);
 
 private:
     GPURenderPassEncoder(PlatformRenderPassEncoderSmartPtr&&);
     ~GPURenderPassEncoder() { endPass(); } // Ensure that encoding has ended before release.
 
     PlatformProgrammablePassEncoder* platformPassEncoder() const final;
+
+#if USE(METAL)
+    // GPUProgrammablePassEncoder
+    void useResource(MTLResource *, unsigned long usage) final;
+    void setVertexBuffer(MTLBuffer *, unsigned long offset, unsigned long index) final;
+    void setFragmentBuffer(MTLBuffer *, unsigned long offset, unsigned long index) final;
+#endif // USE(METAL)
 
     PlatformRenderPassEncoderSmartPtr m_platformRenderPassEncoder;
     RefPtr<GPURenderPipeline> m_pipeline;

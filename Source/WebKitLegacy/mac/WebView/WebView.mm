@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2006 David Smith (catfish.man@gmail.com)
  * Copyright (C) 2010 Igalia S.L
  *
@@ -37,6 +37,7 @@
 #import "DOMInternal.h"
 #import "DOMNodeInternal.h"
 #import "DOMRangeInternal.h"
+#import "PageStorageSessionProvider.h"
 #import "StorageThread.h"
 #import "WebAlternativeTextClient.h"
 #import "WebApplicationCacheInternal.h"
@@ -134,6 +135,7 @@
 #import <WebCore/CacheStorageProvider.h>
 #import <WebCore/Chrome.h>
 #import <WebCore/ColorMac.h>
+#import <WebCore/CookieJar.h>
 #import <WebCore/DatabaseManager.h>
 #import <WebCore/DeprecatedGlobalSettings.h>
 #import <WebCore/DictionaryLookup.h>
@@ -146,7 +148,6 @@
 #import <WebCore/Editor.h>
 #import <WebCore/Event.h>
 #import <WebCore/EventHandler.h>
-#import <WebCore/FileSystem.h>
 #import <WebCore/FocusController.h>
 #import <WebCore/FontAttributes.h>
 #import <WebCore/FontCache.h>
@@ -229,6 +230,7 @@
 #import <pal/spi/mac/NSSpellCheckerSPI.h>
 #import <pal/spi/mac/NSWindowSPI.h>
 #import <wtf/Assertions.h>
+#import <wtf/FileSystem.h>
 #import <wtf/HashTraits.h>
 #import <wtf/MainThread.h>
 #import <wtf/ObjCRuntimeExtras.h>
@@ -334,17 +336,9 @@
 #endif
 
 #if ENABLE(DATA_INTERACTION)
-#import <UIKit/UIBezierPath.h>
 #import <UIKit/UIColor.h>
 #import <UIKit/UIImage.h>
-SOFT_LINK_FRAMEWORK(UIKit)
-SOFT_LINK_CLASS(UIKit, UIBezierPath)
-SOFT_LINK_CLASS(UIKit, UIColor)
-SOFT_LINK_CLASS(UIKit, UIImage)
-SOFT_LINK(UIKit, UIGraphicsBeginImageContextWithOptions, void, (CGSize size, BOOL opaque, CGFloat scale), (size, opaque, scale))
-SOFT_LINK(UIKit, UIGraphicsGetCurrentContext, CGContextRef, (void), ())
-SOFT_LINK(UIKit, UIGraphicsGetImageFromCurrentImageContext, UIImage *, (void), ())
-SOFT_LINK(UIKit, UIGraphicsEndImageContext, void, (void), ())
+#import <pal/ios/UIKitSoftLink.h>
 #endif
 
 #if HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
@@ -357,10 +351,6 @@ SOFT_LINK_CLASS(AVKit, AVFunctionBarPlaybackControlsProvider)
 SOFT_LINK_CLASS(AVKit, AVFunctionBarScrubber)
 #endif // __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
 #endif // HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
-
-#if PLATFORM(MAC) && !ENABLE(REVEAL)
-SOFT_LINK_CONSTANT_MAY_FAIL(Lookup, LUNotificationPopoverWillClose, NSString *)
-#endif
 
 #if !PLATFORM(IOS_FAMILY)
 
@@ -376,7 +366,6 @@ SOFT_LINK_CONSTANT_MAY_FAIL(Lookup, LUNotificationPopoverWillClose, NSString *)
 @end
 
 @interface NSWindow (WebNSWindowDetails)
-- (id)_oldFirstResponderBeforeBecoming;
 - (void)_enableScreenUpdatesIfNeeded;
 - (BOOL)_wrapsCarbonWindow;
 - (BOOL)_hasKeyAppearance;
@@ -701,7 +690,7 @@ private:
     if (!(self = [super init]))
         return nil;
     
-    _dataInteractionImage = [allocUIImageInstance() initWithCGImage:image scale:scale orientation:UIImageOrientationDownMirrored];
+    _dataInteractionImage = [PAL::allocUIImageInstance() initWithCGImage:image scale:scale orientation:UIImageOrientationDownMirrored];
     _selectionRectInRootViewCoordinates = indicatorData.selectionRectInRootViewCoordinates;
     _textBoundingRectInRootViewCoordinates = indicatorData.textBoundingRectInRootViewCoordinates;
     
@@ -711,20 +700,20 @@ private:
     _textRectsInBoundingRectCoordinates = [[NSArray arrayWithArray:textRectsInBoundingRectCoordinates] retain];
     _contentImageScaleFactor = indicatorData.contentImageScaleFactor;
     if (indicatorData.contentImageWithHighlight)
-        _contentImageWithHighlight = [allocUIImageInstance() initWithCGImage:indicatorData.contentImageWithHighlight.get()->nativeImage().get() scale:scale orientation:UIImageOrientationDownMirrored];
+        _contentImageWithHighlight = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImageWithHighlight.get()->nativeImage().get() scale:scale orientation:UIImageOrientationDownMirrored];
     if (indicatorData.contentImage)
-        _contentImage = [allocUIImageInstance() initWithCGImage:indicatorData.contentImage.get()->nativeImage().get() scale:scale orientation:UIImageOrientationUp];
+        _contentImage = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImage.get()->nativeImage().get() scale:scale orientation:UIImageOrientationUp];
 
     if (indicatorData.contentImageWithoutSelection) {
         auto nativeImage = indicatorData.contentImageWithoutSelection.get()->nativeImage();
         if (nativeImage) {
-            _contentImageWithoutSelection = [allocUIImageInstance() initWithCGImage:nativeImage.get() scale:scale orientation:UIImageOrientationUp];
+            _contentImageWithoutSelection = [PAL::allocUIImageInstance() initWithCGImage:nativeImage.get() scale:scale orientation:UIImageOrientationUp];
             _contentImageWithoutSelectionRectInRootViewCoordinates = indicatorData.contentImageWithoutSelectionRectInRootViewCoordinates;
         }
     }
 
     if (indicatorData.options & TextIndicatorOptionComputeEstimatedBackgroundColor)
-        _estimatedBackgroundColor = [allocUIColorInstance() initWithCGColor:cachedCGColor(indicatorData.estimatedBackgroundColor)];
+        _estimatedBackgroundColor = [PAL::allocUIColorInstance() initWithCGColor:cachedCGColor(indicatorData.estimatedBackgroundColor)];
 
     return self;
 }
@@ -734,7 +723,7 @@ private:
     if (!(self = [super init]))
         return nil;
     
-    _dataInteractionImage = [allocUIImageInstance() initWithCGImage:image scale:scale orientation:UIImageOrientationDownMirrored];
+    _dataInteractionImage = [PAL::allocUIImageInstance() initWithCGImage:image scale:scale orientation:UIImageOrientationDownMirrored];
     
     return self;
 }
@@ -1159,12 +1148,15 @@ static CFMutableSetRef allWebViewsSet;
 #if PLATFORM(IOS_FAMILY)
 - (void)_setBrowserUserAgentProductVersion:(NSString *)productVersion buildVersion:(NSString *)buildVersion bundleVersion:(NSString *)bundleVersion
 {
-    [self setApplicationNameForUserAgent:[NSString stringWithFormat:@"Version/%@ Mobile/%@ Safari/%@", productVersion, buildVersion, bundleVersion]];
+    // The web-visible build and bundle versions are frozen to remove a fingerprinting surface
+    UNUSED_PARAM(buildVersion);
+    [self setApplicationNameForUserAgent:[NSString stringWithFormat:@"Version/%@ Mobile/15E148 Safari/%@", productVersion, bundleVersion]];
 }
 
 - (void)_setUIWebViewUserAgentWithBuildVersion:(NSString *)buildVersion
 {
-    [self setApplicationNameForUserAgent:[@"Mobile/" stringByAppendingString:buildVersion]];
+    UNUSED_PARAM(buildVersion);
+    [self setApplicationNameForUserAgent:@"Mobile/15E148"];
 }
 #endif // PLATFORM(IOS_FAMILY)
 
@@ -1438,12 +1430,14 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     _private->group = WebViewGroup::getOrCreate(groupName, _private->preferences._localStorageDatabasePath);
     _private->group->addWebView(self);
 
+    auto storageProvider = PageStorageSessionProvider::create();
     PageConfiguration pageConfiguration(
         makeUniqueRef<WebEditorClient>(self),
         SocketProvider::create(),
         LibWebRTCProvider::create(),
         WebCore::CacheStorageProvider::create(),
-        BackForwardList::create(self)
+        BackForwardList::create(self),
+        CookieJar::create(storageProvider.copyRef())
     );
 #if !PLATFORM(IOS_FAMILY)
     pageConfiguration.chromeClient = new WebChromeClient(self);
@@ -1474,6 +1468,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     pageConfiguration.userContentProvider = &_private->group->userContentController();
     pageConfiguration.visitedLinkStore = &_private->group->visitedLinkStore();
     _private->page = new Page(WTFMove(pageConfiguration));
+    storageProvider->setPage(*_private->page);
 
     _private->page->setGroupName(groupName);
 
@@ -1483,10 +1478,8 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 #if ENABLE(NOTIFICATIONS)
     WebCore::provideNotification(_private->page, new WebNotificationClient(self));
 #endif
-#if ENABLE(DEVICE_ORIENTATION)
-#if !PLATFORM(IOS_FAMILY)
-    WebCore::provideDeviceOrientationTo(_private->page, new WebDeviceOrientationClient(self));
-#endif
+#if ENABLE(DEVICE_ORIENTATION) && !PLATFORM(IOS_FAMILY)
+    WebCore::provideDeviceOrientationTo(*_private->page, *new WebDeviceOrientationClient(self));
 #endif
 
 #if ENABLE(REMOTE_INSPECTOR)
@@ -1590,6 +1583,9 @@ static void WebKitInitializeGamepadProviderIfNecessary()
         ResourceHandle::forceContentSniffing();
 
     _private->page->setDeviceScaleFactor([self _deviceScaleFactor]);
+#endif
+
+#if HAVE(OS_DARK_MODE_SUPPORT) && PLATFORM(MAC)
     _private->page->setUseDarkAppearance(self._effectiveAppearanceIsDark);
 #endif
 
@@ -1703,12 +1699,14 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     _private->group = WebViewGroup::getOrCreate(groupName, _private->preferences._localStorageDatabasePath);
     _private->group->addWebView(self);
 
+    auto storageProvider = PageStorageSessionProvider::create();
     PageConfiguration pageConfiguration(
         makeUniqueRef<WebEditorClient>(self),
         SocketProvider::create(),
         LibWebRTCProvider::create(),
         WebCore::CacheStorageProvider::create(),
-        BackForwardList::create(self)
+        BackForwardList::create(self),
+        CookieJar::create(storageProvider.copyRef())
     );
     pageConfiguration.chromeClient = new WebChromeClientIOS(self);
 #if ENABLE(DRAG_SUPPORT)
@@ -1730,6 +1728,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     pageConfiguration.pluginInfoProvider = &WebPluginInfoProvider::singleton();
 
     _private->page = new Page(WTFMove(pageConfiguration));
+    storageProvider->setPage(*_private->page);
     
     [self setSmartInsertDeleteEnabled:YES];
     
@@ -1827,7 +1826,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 - (BOOL)_requestStartDataInteraction:(CGPoint)clientPosition globalPosition:(CGPoint)globalPosition
 {
     WebThreadLock();
-    return _private->page->mainFrame().eventHandler().tryToBeginDataInteractionAtPoint(IntPoint(clientPosition), IntPoint(globalPosition));
+    return _private->page->mainFrame().eventHandler().tryToBeginDragAtPoint(IntPoint(clientPosition), IntPoint(globalPosition));
 }
 
 - (void)_startDrag:(const DragItem&)dragItem
@@ -1939,7 +1938,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     _private->draggedLinkURL = nil;
 }
 
-- (void)_didConcludeEditDataInteraction
+- (void)_didConcludeEditDrag
 {
     _private->dataOperationTextIndicator = nullptr;
     auto* page = _private->page;
@@ -3058,8 +3057,8 @@ static bool needsSelfRetainWhileLoadingQuirk()
 #endif
 
 #if ENABLE(MEDIA_STREAM)
-    DeprecatedGlobalSettings::setMockCaptureDevicesEnabled(false);
-    DeprecatedGlobalSettings::setMediaCaptureRequiresSecureConnection(true);
+    settings.setMockCaptureDevicesEnabled(false);
+    settings.setMediaCaptureRequiresSecureConnection(true);
     RuntimeEnabledFeatures::sharedFeatures().setMediaStreamEnabled(false);
     RuntimeEnabledFeatures::sharedFeatures().setMediaDevicesEnabled(false);
     RuntimeEnabledFeatures::sharedFeatures().setMediaRecorderEnabled(preferences.mediaRecorderEnabled);
@@ -3076,6 +3075,10 @@ static bool needsSelfRetainWhileLoadingQuirk()
 #if ENABLE(FULLSCREEN_API)
     settings.setFullScreenEnabled([preferences fullScreenEnabled]);
 #endif
+
+    RuntimeEnabledFeatures::sharedFeatures().setCSSLogicalEnabled([preferences cssLogicalEnabled]);
+
+    RuntimeEnabledFeatures::sharedFeatures().setAdClickAttributionEnabled([preferences adClickAttributionEnabled]);
 
     settings.setHiddenPageDOMTimerThrottlingEnabled([preferences hiddenPageDOMTimerThrottlingEnabled]);
 
@@ -3138,7 +3141,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setResourceTimingEnabled(preferences.resourceTimingEnabled);
     RuntimeEnabledFeatures::sharedFeatures().setLinkPreloadEnabled(preferences.linkPreloadEnabled);
     RuntimeEnabledFeatures::sharedFeatures().setMediaPreloadingEnabled(preferences.mediaPreloadingEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setWebAuthenticationEnabled(preferences.webAuthenticationEnabled);
     RuntimeEnabledFeatures::sharedFeatures().setIsSecureContextAttributeEnabled(preferences.isSecureContextAttributeEnabled);
     RuntimeEnabledFeatures::sharedFeatures().setDirectoryUploadEnabled([preferences directoryUploadEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setMenuItemElementEnabled([preferences menuItemElementEnabled]);
@@ -3660,14 +3662,14 @@ IGNORE_WARNINGS_END
 
 - (NSCachedURLResponse *)_cachedResponseForURL:(NSURL *)URL
 {
-    RetainPtr<NSMutableURLRequest *> request = adoptNS([[NSMutableURLRequest alloc] initWithURL:URL]);
+    RetainPtr<NSMutableURLRequest> request = adoptNS([[NSMutableURLRequest alloc] initWithURL:URL]);
     [request _web_setHTTPUserAgent:[self userAgentForURL:URL]];
     NSCachedURLResponse *cachedResponse;
 
     if (!_private->page)
         return nil;
 
-    if (CFURLStorageSessionRef storageSession = _private->page->mainFrame().loader().networkingContext()->storageSession().platformSession())
+    if (auto storageSession = _private->page->mainFrame().loader().networkingContext()->storageSession()->platformSession())
         cachedResponse = cachedResponseForRequest(storageSession, request.get());
     else
         cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:request.get()];
@@ -4669,14 +4671,20 @@ IGNORE_WARNINGS_END
 
 - (BOOL)_isViewVisible
 {
-    if (![self window])
+    NSWindow *window = [self window];
+    if (!window)
         return false;
 
-    if (![[self window] isVisible])
+    if (![window isVisible])
         return false;
 
     if ([self isHiddenOrHasHiddenAncestor])
         return false;
+
+#if !PLATFORM(IOS_FAMILY)
+    if (_private->windowOcclusionDetectionEnabled && (window.occlusionState & NSWindowOcclusionStateVisible) != NSWindowOcclusionStateVisible)
+        return false;
+#endif
 
     return true;
 }
@@ -4730,8 +4738,6 @@ static Vector<String> toStringVector(NSArray* patterns)
         return;
 
     auto viewGroup = WebViewGroup::getOrCreate(groupName, String());
-    if (!viewGroup)
-        return;
 
     if (!world)
         return;
@@ -4755,8 +4761,6 @@ static Vector<String> toStringVector(NSArray* patterns)
         return;
 
     auto viewGroup = WebViewGroup::getOrCreate(groupName, String());
-    if (!viewGroup)
-        return;
 
     if (!world)
         return;
@@ -5066,6 +5070,18 @@ static Vector<String> toStringVector(NSArray* patterns)
     }
 }
 
+#if !PLATFORM(IOS_FAMILY)
+- (BOOL)windowOcclusionDetectionEnabled
+{
+    return _private->windowOcclusionDetectionEnabled;
+}
+
+- (void)setWindowOcclusionDetectionEnabled:(BOOL)flag
+{
+    _private->windowOcclusionDetectionEnabled = flag;
+}
+#endif
+
 - (void)_setPaginationBehavesLikeColumns:(BOOL)behavesLikeColumns
 {
     Page* page = core(self);
@@ -5280,15 +5296,13 @@ static Vector<String> toStringVector(NSArray* patterns)
     return insets;
 }
 
+#if HAVE(OS_DARK_MODE_SUPPORT) && PLATFORM(MAC)
 - (bool)_effectiveAppearanceIsDark
 {
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
     NSAppearanceName appearance = [[self effectiveAppearance] bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
     return [appearance isEqualToString:NSAppearanceNameDarkAqua];
-#else
-    return false;
-#endif
 }
+#endif
 
 - (void)_setUseSystemAppearance:(BOOL)useSystemAppearance
 {
@@ -5304,6 +5318,7 @@ static Vector<String> toStringVector(NSArray* patterns)
     return _private->page->useSystemAppearance();
 }
 
+#if HAVE(OS_DARK_MODE_SUPPORT) && PLATFORM(MAC)
 - (void)viewDidChangeEffectiveAppearance
 {
     // This can be called during [super initWithCoder:] and [super initWithFrame:].
@@ -5313,6 +5328,7 @@ static Vector<String> toStringVector(NSArray* patterns)
 
     _private->page->setUseDarkAppearance(self._effectiveAppearanceIsDark);
 }
+#endif
 
 - (void)_setSourceApplicationAuditData:(NSData *)sourceApplicationAuditData
 {
@@ -6001,22 +6017,26 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 - (void)addWindowObserversForWindow:(NSWindow *)window
 {
     if (window) {
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowKeyStateChanged:)
+        NSNotificationCenter *defaultNotificationCenter = [NSNotificationCenter defaultCenter];
+
+        [defaultNotificationCenter addObserver:self selector:@selector(windowKeyStateChanged:)
             name:NSWindowDidBecomeKeyNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowKeyStateChanged:)
+        [defaultNotificationCenter addObserver:self selector:@selector(windowKeyStateChanged:)
             name:NSWindowDidResignKeyNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowWillOrderOnScreen:)
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowWillOrderOnScreen:)
             name:NSWindowWillOrderOnScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowWillOrderOffScreen:)
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowWillOrderOffScreen:)
             name:NSWindowWillOrderOffScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowDidChangeBackingProperties:)
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowDidChangeBackingProperties:)
             name:windowDidChangeBackingPropertiesNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowDidChangeScreen:)
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowDidChangeScreen:)
             name:NSWindowDidChangeScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowVisibilityChanged:) 
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowVisibilityChanged:)
             name:NSWindowDidMiniaturizeNotification object:window];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowVisibilityChanged:)
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowVisibilityChanged:)
             name:NSWindowDidDeminiaturizeNotification object:window];
+        [defaultNotificationCenter addObserver:self selector:@selector(_windowDidChangeOcclusionState:)
+            name:NSWindowDidChangeOcclusionStateNotification object:window];
         [_private->windowVisibilityObserver startObserving:window];
     }
 }
@@ -6025,22 +6045,26 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 {
     NSWindow *window = [self window];
     if (window) {
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        NSNotificationCenter *defaultNotificationCenter = [NSNotificationCenter defaultCenter];
+
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowDidBecomeKeyNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowDidResignKeyNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowWillOrderOnScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowWillOrderOffScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:windowDidChangeBackingPropertiesNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowDidChangeScreenNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowDidMiniaturizeNotification object:window];
-        [[NSNotificationCenter defaultCenter] removeObserver:self
+        [defaultNotificationCenter removeObserver:self
             name:NSWindowDidDeminiaturizeNotification object:window];
+        [defaultNotificationCenter removeObserver:self
+            name:NSWindowDidChangeOcclusionStateNotification object:window];
         [_private->windowVisibilityObserver stopObserving:window];
     }
 }
@@ -6191,6 +6215,12 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 
     _private->page->setDeviceScaleFactor(newBackingScaleFactor);
 }
+
+- (void)_windowDidChangeOcclusionState:(NSNotification *)notification
+{
+    [self _updateVisibilityState];
+}
+
 #else
 - (void)_wakWindowScreenScaleChanged:(NSNotification *)notification
 {
@@ -6856,7 +6886,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
             return false;
         }
 
-        NSString *dropDestinationPath = WebCore::FileSystem::createTemporaryDirectory(@"WebKitDropDestination");
+        NSString *dropDestinationPath = FileSystem::createTemporaryDirectory(@"WebKitDropDestination");
         if (!dropDestinationPath) {
             delete dragData;
             return false;
@@ -9222,7 +9252,7 @@ FORWARD(toggleUnderline)
     if (!networkingContext)
         return;
 
-    networkingContext->storageSession().credentialStorage().clearCredentials();
+    networkingContext->storageSession()->credentialStorage().clearCredentials();
 }
 
 - (BOOL)_needsOneShotDrawingSynchronization
@@ -9587,8 +9617,8 @@ bool LayerFlushController::flushLayers()
     _private->hasInitializedLookupObserver = YES;
     
 #if !ENABLE(REVEAL)
-    if (canLoadLUNotificationPopoverWillClose())
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_dictionaryLookupPopoverWillClose:) name:getLUNotificationPopoverWillClose() object:nil];
+    if (PAL::canLoad_Lookup_LUNotificationPopoverWillClose())
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_dictionaryLookupPopoverWillClose:) name:PAL::get_Lookup_LUNotificationPopoverWillClose() object:nil];
 #endif // !ENABLE(REVEAL)
     
 }

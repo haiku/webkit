@@ -64,6 +64,7 @@ ScrollingStateFrameScrollingNode::ScrollingStateFrameScrollingNode(const Scrolli
     , m_requestedScrollPositionRepresentsProgrammaticScroll(stateNode.requestedScrollPositionRepresentsProgrammaticScroll())
     , m_fixedElementsLayoutRelativeToFrame(stateNode.fixedElementsLayoutRelativeToFrame())
     , m_visualViewportEnabled(stateNode.visualViewportEnabled())
+    , m_asyncFrameOrOverflowScrollingEnabled(stateNode.asyncFrameOrOverflowScrollingEnabled())
 {
     if (hasChangedProperty(CounterScrollingLayer))
         setCounterScrollingLayer(stateNode.counterScrollingLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
@@ -79,6 +80,12 @@ ScrollingStateFrameScrollingNode::ScrollingStateFrameScrollingNode(const Scrolli
 
     if (hasChangedProperty(FooterLayer))
         setFooterLayer(stateNode.footerLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
+
+    if (hasChangedProperty(VerticalScrollbarLayer))
+        setVerticalScrollbarLayer(stateNode.verticalScrollbarLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
+
+    if (hasChangedProperty(HorizontalScrollbarLayer))
+        setHorizontalScrollbarLayer(stateNode.horizontalScrollbarLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
 }
 
 ScrollingStateFrameScrollingNode::~ScrollingStateFrameScrollingNode() = default;
@@ -86,6 +93,34 @@ ScrollingStateFrameScrollingNode::~ScrollingStateFrameScrollingNode() = default;
 Ref<ScrollingStateNode> ScrollingStateFrameScrollingNode::clone(ScrollingStateTree& adoptiveTree)
 {
     return adoptRef(*new ScrollingStateFrameScrollingNode(*this, adoptiveTree));
+}
+
+void ScrollingStateFrameScrollingNode::setAllPropertiesChanged()
+{
+    setPropertyChangedBit(FrameScaleFactor);
+    setPropertyChangedBit(EventTrackingRegion);
+    setPropertyChangedBit(ReasonsForSynchronousScrolling);
+    setPropertyChangedBit(ScrolledContentsLayer);
+    setPropertyChangedBit(CounterScrollingLayer);
+    setPropertyChangedBit(InsetClipLayer);
+    setPropertyChangedBit(ContentShadowLayer);
+    setPropertyChangedBit(HeaderHeight);
+    setPropertyChangedBit(FooterHeight);
+    setPropertyChangedBit(HeaderLayer);
+    setPropertyChangedBit(FooterLayer);
+    setPropertyChangedBit(VerticalScrollbarLayer);
+    setPropertyChangedBit(HorizontalScrollbarLayer);
+    setPropertyChangedBit(PainterForScrollbar);
+    setPropertyChangedBit(BehaviorForFixedElements);
+    setPropertyChangedBit(TopContentInset);
+    setPropertyChangedBit(FixedElementsLayoutRelativeToFrame);
+    setPropertyChangedBit(VisualViewportEnabled);
+    setPropertyChangedBit(AsyncFrameOrOverflowScrollingEnabled);
+    setPropertyChangedBit(LayoutViewport);
+    setPropertyChangedBit(MinLayoutViewportOrigin);
+    setPropertyChangedBit(MaxLayoutViewportOrigin);
+
+    ScrollingStateScrollingNode::setAllPropertiesChanged();
 }
 
 void ScrollingStateFrameScrollingNode::setFrameScaleFactor(float scaleFactor)
@@ -224,6 +259,24 @@ void ScrollingStateFrameScrollingNode::setFooterLayer(const LayerRepresentation&
     setPropertyChanged(FooterLayer);
 }
 
+void ScrollingStateFrameScrollingNode::setVerticalScrollbarLayer(const LayerRepresentation& layer)
+{
+    if (layer == m_verticalScrollbarLayer)
+        return;
+
+    m_verticalScrollbarLayer = layer;
+    setPropertyChanged(VerticalScrollbarLayer);
+}
+
+void ScrollingStateFrameScrollingNode::setHorizontalScrollbarLayer(const LayerRepresentation& layer)
+{
+    if (layer == m_horizontalScrollbarLayer)
+        return;
+
+    m_horizontalScrollbarLayer = layer;
+    setPropertyChanged(HorizontalScrollbarLayer);
+}
+
 void ScrollingStateFrameScrollingNode::setFixedElementsLayoutRelativeToFrame(bool fixedElementsLayoutRelativeToFrame)
 {
     if (fixedElementsLayoutRelativeToFrame == m_fixedElementsLayoutRelativeToFrame)
@@ -241,6 +294,15 @@ void ScrollingStateFrameScrollingNode::setVisualViewportEnabled(bool visualViewp
     
     m_visualViewportEnabled = visualViewportEnabled;
     setPropertyChanged(VisualViewportEnabled);
+}
+
+void ScrollingStateFrameScrollingNode::setAsyncFrameOrOverflowScrollingEnabled(bool enabled)
+{
+    if (enabled == m_asyncFrameOrOverflowScrollingEnabled)
+        return;
+    
+    m_asyncFrameOrOverflowScrollingEnabled = enabled;
+    setPropertyChanged(AsyncFrameOrOverflowScrollingEnabled);
 }
 
 #if !PLATFORM(MAC)

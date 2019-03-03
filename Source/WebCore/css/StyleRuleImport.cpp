@@ -95,8 +95,11 @@ void StyleRuleImport::requestStyleSheet()
 {
     if (!m_parentStyleSheet)
         return;
-    Document* document = m_parentStyleSheet->singleOwnerDocument();
+    auto* document = m_parentStyleSheet->singleOwnerDocument();
     if (!document)
+        return;
+    auto* page = document->page();
+    if (!page)
         return;
 
     URL absURL;
@@ -118,7 +121,7 @@ void StyleRuleImport::requestStyleSheet()
 
     // FIXME: Skip Content Security Policy check when stylesheet is in a user agent shadow tree.
     // See <https://bugs.webkit.org/show_bug.cgi?id=146663>.
-    CachedResourceRequest request(absURL, CachedResourceLoader::defaultCachedResourceOptions(), std::nullopt, String(m_parentStyleSheet->charset()));
+    CachedResourceRequest request(absURL, CachedResourceLoader::defaultCachedResourceOptions(), WTF::nullopt, String(m_parentStyleSheet->charset()));
     request.setInitiator(cachedResourceRequestInitiators().css);
     if (m_cachedSheet)
         m_cachedSheet->removeClient(m_styleSheetClient);
@@ -141,7 +144,7 @@ void StyleRuleImport::requestStyleSheet()
 
         request.setOptions(WTFMove(options));
 
-        m_cachedSheet = document->cachedResourceLoader().requestUserCSSStyleSheet(WTFMove(request));
+        m_cachedSheet = document->cachedResourceLoader().requestUserCSSStyleSheet(*page, WTFMove(request));
     } else {
         auto options = request.options();
         options.loadedFromOpaqueSource = m_parentStyleSheet->isContentOpaque() ? LoadedFromOpaqueSource::Yes : LoadedFromOpaqueSource::No;

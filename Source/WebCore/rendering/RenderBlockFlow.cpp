@@ -35,13 +35,13 @@
 #include "HitTestLocation.h"
 #include "InlineTextBox.h"
 #include "LayoutRepainter.h"
-#include "LayoutState.h"
 #include "Logging.h"
 #include "RenderCombineText.h"
 #include "RenderFlexibleBox.h"
 #include "RenderInline.h"
 #include "RenderIterator.h"
 #include "RenderLayer.h"
+#include "RenderLayoutState.h"
 #include "RenderLineBreak.h"
 #include "RenderListItem.h"
 #include "RenderMarquee.h"
@@ -404,7 +404,7 @@ void RenderBlockFlow::computeColumnCountAndWidth()
     setComputedColumnCountAndWidth(desiredColumnCount, desiredColumnWidth);
 }
 
-bool RenderBlockFlow::willCreateColumns(std::optional<unsigned> desiredColumnCount) const
+bool RenderBlockFlow::willCreateColumns(Optional<unsigned> desiredColumnCount) const
 {
     // The following types are not supposed to create multicol context.
     if (isFileUploadControl() || isTextControl() || isListBox())
@@ -2998,19 +2998,19 @@ void RenderBlockFlow::markLinesDirtyInBlockRange(LayoutUnit logicalTop, LayoutUn
     }
 }
 
-std::optional<int> RenderBlockFlow::firstLineBaseline() const
+Optional<int> RenderBlockFlow::firstLineBaseline() const
 {
     if (isWritingModeRoot() && !isRubyRun() && !isGridItem())
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (!childrenInline())
         return RenderBlock::firstLineBaseline();
 
     if (!hasLines())
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (auto simpleLineLayout = this->simpleLineLayout())
-        return std::optional<int>(SimpleLineLayout::computeFlowFirstLineBaseline(*this, *simpleLineLayout));
+        return Optional<int>(SimpleLineLayout::computeFlowFirstLineBaseline(*this, *simpleLineLayout));
 
     ASSERT(firstRootBox());
     if (style().isFlippedLinesWritingMode())
@@ -3018,25 +3018,25 @@ std::optional<int> RenderBlockFlow::firstLineBaseline() const
     return firstRootBox()->logicalTop() + firstLineStyle().fontMetrics().ascent(firstRootBox()->baselineType());
 }
 
-std::optional<int> RenderBlockFlow::inlineBlockBaseline(LineDirectionMode lineDirection) const
+Optional<int> RenderBlockFlow::inlineBlockBaseline(LineDirectionMode lineDirection) const
 {
     if (isWritingModeRoot() && !isRubyRun())
-        return std::nullopt;
+        return WTF::nullopt;
 
     // Note that here we only take the left and bottom into consideration. Our caller takes the right and top into consideration.
     float boxHeight = lineDirection == HorizontalLine ? height() + m_marginBox.bottom() : width() + m_marginBox.left();
     float lastBaseline;
     if (!childrenInline()) {
-        std::optional<int> inlineBlockBaseline = RenderBlock::inlineBlockBaseline(lineDirection);
+        Optional<int> inlineBlockBaseline = RenderBlock::inlineBlockBaseline(lineDirection);
         if (!inlineBlockBaseline)
             return inlineBlockBaseline;
         lastBaseline = inlineBlockBaseline.value();
     } else {
         if (!hasLines()) {
             if (!hasLineIfEmpty())
-                return std::nullopt;
+                return WTF::nullopt;
             const auto& fontMetrics = firstLineStyle().fontMetrics();
-            return std::optional<int>(fontMetrics.ascent()
+            return Optional<int>(fontMetrics.ascent()
                 + (lineHeight(true, lineDirection, PositionOfInteriorLineBoxes) - fontMetrics.height()) / 2
                 + (lineDirection == HorizontalLine ? borderTop() + paddingTop() : borderRight() + paddingRight()));
         }
@@ -3842,7 +3842,7 @@ void RenderBlockFlow::checkForPaginationLogicalHeightChange(bool& relayoutChildr
         RenderFragmentedFlow& fragmentedFlow = downcast<RenderFragmentedFlow>(*this);
 
         // FIXME: This is a hack to always make sure we have a page logical height, if said height
-        // is known. The page logical height thing in LayoutState is meaningless for flow
+        // is known. The page logical height thing in RenderLayoutState is meaningless for flow
         // thread-based pagination (page height isn't necessarily uniform throughout the flow
         // thread), but as long as it is used universally as a means to determine whether page
         // height is known or not, we need this. Page height is unknown when column balancing is

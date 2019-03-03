@@ -30,9 +30,10 @@
 #import "StorageManager.h"
 #import "WebResourceLoadStatisticsStore.h"
 #import "WebsiteDataStoreParameters.h"
-#import <WebCore/FileSystem.h>
+#import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/SearchPopupMenuCocoa.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
+#import <wtf/FileSystem.h>
 #import <wtf/NeverDestroyed.h>
 #import <wtf/ProcessPrivilege.h>
 
@@ -67,16 +68,41 @@ WebsiteDataStoreParameters WebsiteDataStore::parameters()
     bool shouldLogCookieInformation = false;
 #endif
 
+    URL httpProxy = m_configuration->httpProxy();
+    URL httpsProxy = m_configuration->httpsProxy();
+    
+    bool isSafari = false;
+#if PLATFORM(IOS_FAMILY)
+    isSafari = WebCore::IOSApplication::isMobileSafari();
+#elif PLATFORM(MAC)
+    isSafari = WebCore::MacApplication::isSafari();
+#endif
+    // FIXME: Remove these once Safari adopts _WKWebsiteDataStoreConfiguration.httpProxy and .httpsProxy.
+    if (!httpProxy.isValid() && isSafari)
+        httpProxy = URL(URL(), [defaults stringForKey:(NSString *)WebKit2HTTPProxyDefaultsKey]);
+    if (!httpsProxy.isValid() && isSafari)
+        httpsProxy = URL(URL(), [defaults stringForKey:(NSString *)WebKit2HTTPSProxyDefaultsKey]);
+
+    auto resourceLoadStatisticsDirectory = m_configuration->resourceLoadStatisticsDirectory();
+    SandboxExtension::Handle resourceLoadStatisticsDirectoryHandle;
+    if (!resourceLoadStatisticsDirectory.isEmpty())
+        SandboxExtension::createHandleForReadWriteDirectory(resourceLoadStatisticsDirectory, resourceLoadStatisticsDirectoryHandle);
+
     WebsiteDataStoreParameters parameters;
     parameters.networkSessionParameters = {
         m_sessionID,
         m_boundInterfaceIdentifier,
         m_allowsCellularAccess,
         m_proxyConfiguration,
-        m_configuration.sourceApplicationBundleIdentifier,
-        m_configuration.sourceApplicationSecondaryIdentifier,
+        m_configuration->sourceApplicationBundleIdentifier(),
+        m_configuration->sourceApplicationSecondaryIdentifier(),
         shouldLogCookieInformation,
-        Seconds { [defaults integerForKey:WebKitNetworkLoadThrottleLatencyMillisecondsDefaultsKey] / 1000. }
+        Seconds { [defaults integerForKey:WebKitNetworkLoadThrottleLatencyMillisecondsDefaultsKey] / 1000. },
+        WTFMove(httpProxy),
+        WTFMove(httpsProxy),
+        WTFMove(resourceLoadStatisticsDirectory),
+        WTFMove(resourceLoadStatisticsDirectoryHandle),
+        false
     };
 
     auto cookieFile = resolvedCookieStorageFile();
@@ -89,13 +115,13 @@ WebsiteDataStoreParameters WebsiteDataStore::parameters()
     }
 
     parameters.uiProcessCookieStorageIdentifier = m_uiProcessCookieStorageIdentifier;
-    parameters.networkSessionParameters.sourceApplicationBundleIdentifier = m_configuration.sourceApplicationBundleIdentifier;
-    parameters.networkSessionParameters.sourceApplicationSecondaryIdentifier = m_configuration.sourceApplicationSecondaryIdentifier;
+    parameters.networkSessionParameters.sourceApplicationBundleIdentifier = m_configuration->sourceApplicationBundleIdentifier();
+    parameters.networkSessionParameters.sourceApplicationSecondaryIdentifier = m_configuration->sourceApplicationSecondaryIdentifier();
 
     parameters.pendingCookies = copyToVector(m_pendingCookies);
 
     if (!cookieFile.isEmpty())
-        SandboxExtension::createHandleForReadWriteDirectory(WebCore::FileSystem::directoryName(cookieFile), parameters.cookieStoragePathExtensionHandle);
+        SandboxExtension::createHandleForReadWriteDirectory(FileSystem::directoryName(cookieFile), parameters.cookieStoragePathExtensionHandle);
 
 #if ENABLE(INDEXED_DATABASE)
     parameters.indexedDatabaseDirectory = resolvedIndexedDatabaseDirectory();
@@ -128,8 +154,10 @@ void WebsiteDataStore::platformInitialize()
         terminationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:notificationName object:nil queue:nil usingBlock:^(NSNotification *note) {
             for (auto& dataStore : dataStoresWithStorageManagers()) {
                 dataStore->m_storageManager->applicationWillTerminate();
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
                 if (dataStore->m_resourceLoadStatistics)
                     dataStore->m_resourceLoadStatistics->applicationWillTerminate();
+#endif
             }
         }];
     }
@@ -140,8 +168,10 @@ void WebsiteDataStore::platformInitialize()
 
 void WebsiteDataStore::platformDestroy()
 {
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
     if (m_resourceLoadStatistics)
         m_resourceLoadStatistics->applicationWillTerminate();
+#endif
 
     if (!m_storageManager)
         return;

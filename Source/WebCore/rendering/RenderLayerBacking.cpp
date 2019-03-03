@@ -236,6 +236,7 @@ RenderLayerBacking::RenderLayerBacking(RenderLayer& layer)
 
 RenderLayerBacking::~RenderLayerBacking()
 {
+    // Note that m_owningLayer->backing() is null here.
     updateAncestorClippingLayer(false);
     updateChildClippingStrategy(false);
     updateDescendantClippingLayer(false);
@@ -244,8 +245,18 @@ RenderLayerBacking::~RenderLayerBacking()
     updateBackgroundLayer(false);
     updateMaskingLayer(false, false);
     updateScrollingLayers(false);
-    detachFromScrollingCoordinator({ Scrolling, ViewportConstrained });
+    
+    ASSERT(!m_viewportConstrainedNodeID);
+    ASSERT(!m_scrollingNodeID);
+    ASSERT(!m_frameHostingNodeID);
+
     destroyGraphicsLayers();
+}
+
+void RenderLayerBacking::willBeDestroyed()
+{
+    ASSERT(m_owningLayer.backing() == this);
+    compositor().removeFromScrollCoordinatedLayers(m_owningLayer);
 }
 
 void RenderLayerBacking::willDestroyLayer(const GraphicsLayer* layer)
@@ -634,7 +645,7 @@ void RenderLayerBacking::updateAfterWidgetResize()
     if (!is<RenderWidget>(renderer()))
         return;
 
-    if (auto* innerCompositor = RenderLayerCompositor::frameContentsCompositor(&downcast<RenderWidget>(renderer()))) {
+    if (auto* innerCompositor = RenderLayerCompositor::frameContentsCompositor(downcast<RenderWidget>(renderer()))) {
         innerCompositor->frameViewDidChangeSize();
         innerCompositor->frameViewDidChangeLocation(flooredIntPoint(contentsBox().location()));
     }
@@ -783,7 +794,7 @@ bool RenderLayerBacking::updateConfiguration()
         layerConfigChanged = true;
     }
 #endif
-    if (is<RenderWidget>(renderer()) && RenderLayerCompositor::parentFrameContentLayers(&downcast<RenderWidget>(renderer()))) {
+    if (is<RenderWidget>(renderer()) && compositor().parentFrameContentLayers(downcast<RenderWidget>(renderer()))) {
         m_owningLayer.setNeedsCompositingGeometryUpdate();
         layerConfigChanged = true;
     }
@@ -905,9 +916,9 @@ private:
         return m_fromAncestorGraphicsLayer.value();
     }
 
-    std::optional<LayoutSize> m_fromAncestorGraphicsLayer;
-    std::optional<LayoutSize> m_fromParentGraphicsLayer;
-    std::optional<LayoutSize> m_fromPrimaryGraphicsLayer;
+    Optional<LayoutSize> m_fromAncestorGraphicsLayer;
+    Optional<LayoutSize> m_fromParentGraphicsLayer;
+    Optional<LayoutSize> m_fromPrimaryGraphicsLayer;
     
     const RenderLayer& m_renderLayer;
     // Location is relative to the renderer.
@@ -946,15 +957,13 @@ LayoutRect RenderLayerBacking::computeParentGraphicsLayerRect(RenderLayer* compo
         parentGraphicsLayerRect = snappedGraphicsLayer(clippingBoxOffset, clippingBox.size(), deviceScaleFactor()).m_snappedRect;
     }
 
-#if PLATFORM(IOS_FAMILY)
     if (compositedAncestor->hasCompositedScrollableOverflow()) {
         LayoutRect ancestorCompositedBounds = ancestorBackingLayer->compositedBounds();
         auto& renderBox = downcast<RenderBox>(compositedAncestor->renderer());
-        LayoutRect paddingBox(renderBox.borderLeft(), renderBox.borderTop(), renderBox.width() - renderBox.borderLeft() - renderBox.borderRight(), renderBox.height() - renderBox.borderTop() - renderBox.borderBottom());
+        LayoutRect paddingBoxIncludingScrollbar = renderBox.paddingBoxRectIncludingScrollbar();
         ScrollOffset scrollOffset = compositedAncestor->scrollOffset();
-        parentGraphicsLayerRect = LayoutRect((paddingBox.location() - toLayoutSize(ancestorCompositedBounds.location()) - toLayoutSize(scrollOffset)), paddingBox.size());
+        parentGraphicsLayerRect = LayoutRect((paddingBoxIncludingScrollbar.location() - toLayoutSize(ancestorCompositedBounds.location()) - toLayoutSize(scrollOffset)), paddingBoxIncludingScrollbar.size());
     }
-#endif
 
     if (m_ancestorClippingLayer) {
         // Call calculateRects to get the backgroundRect which is what is used to clip the contents of this
@@ -990,8 +999,8 @@ void RenderLayerBacking::updateGeometry()
             isRunningAcceleratedOpacityAnimation = timeline->isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyOpacity);
         }
     } else {
-        isRunningAcceleratedTransformAnimation = renderer().animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyTransform, AnimationBase::Running | AnimationBase::Paused);
-        isRunningAcceleratedOpacityAnimation = renderer().animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyOpacity, AnimationBase::Running | AnimationBase::Paused);
+        isRunningAcceleratedTransformAnimation = renderer().animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyTransform);
+        isRunningAcceleratedOpacityAnimation = renderer().animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyOpacity);
     }
 
     // Set transform property, if it is not animating. We have to do this here because the transform
@@ -1026,7 +1035,7 @@ void RenderLayerBacking::updateGeometry()
     m_graphicsLayer->setPosition(primaryGraphicsLayerRect.location());
     m_graphicsLayer->setSize(primaryGraphicsLayerRect.size());
 
-    auto computeAnimationExtent = [&] () -> std::optional<FloatRect> {
+    auto computeAnimationExtent = [&] () -> Optional<FloatRect> {
         LayoutRect animatedBounds;
         if (isRunningAcceleratedTransformAnimation && m_owningLayer.getOverlapBoundsIncludingChildrenAccountingForTransformAnimations(animatedBounds, RenderLayer::IncludeCompositedDescendants))
             return FloatRect(animatedBounds);
@@ -1175,16 +1184,16 @@ void RenderLayerBacking::updateGeometry()
     if (m_scrollingLayer) {
         ASSERT(m_scrollingContentsLayer);
         auto& renderBox = downcast<RenderBox>(renderer());
-        LayoutRect paddingBox(renderBox.borderLeft(), renderBox.borderTop(), renderBox.width() - renderBox.borderLeft() - renderBox.borderRight(), renderBox.height() - renderBox.borderTop() - renderBox.borderBottom());
+        LayoutRect paddingBoxIncludingScrollbar = renderBox.paddingBoxRectIncludingScrollbar();
         ScrollOffset scrollOffset = m_owningLayer.scrollOffset();
 
         // FIXME: need to do some pixel snapping here.
-        m_scrollingLayer->setPosition(FloatPoint(paddingBox.location() - compositedBounds().location()));
+        m_scrollingLayer->setPosition(FloatPoint(paddingBoxIncludingScrollbar.location() - compositedBounds().location()));
 
         m_scrollingLayer->setSize(roundedIntSize(LayoutSize(renderBox.clientWidth(), renderBox.clientHeight())));
 #if PLATFORM(IOS_FAMILY)
         FloatSize oldScrollingLayerOffset = m_scrollingLayer->offsetFromRenderer();
-        m_scrollingLayer->setOffsetFromRenderer(FloatPoint() - paddingBox.location());
+        m_scrollingLayer->setOffsetFromRenderer(FloatPoint() - paddingBoxIncludingScrollbar.location());
         bool paddingBoxOffsetChanged = oldScrollingLayerOffset != m_scrollingLayer->offsetFromRenderer();
 
         if (m_owningLayer.isInUserScroll()) {
@@ -1207,17 +1216,17 @@ void RenderLayerBacking::updateGeometry()
         m_scrollingContentsLayer->setSize(scrollSize);
         // Scrolling the content layer does not need to trigger a repaint. The offset will be compensated away during painting.
         m_scrollingContentsLayer->setScrollOffset(scrollOffset, GraphicsLayer::DontSetNeedsDisplay);
-        m_scrollingContentsLayer->setOffsetFromRenderer(toLayoutSize(paddingBox.location()), GraphicsLayer::DontSetNeedsDisplay);
+        m_scrollingContentsLayer->setOffsetFromRenderer(toLayoutSize(paddingBoxIncludingScrollbar.location()), GraphicsLayer::DontSetNeedsDisplay);
 #else
         m_scrollingContentsLayer->setPosition(-scrollOffset);
 
         FloatSize oldScrollingLayerOffset = m_scrollingLayer->offsetFromRenderer();
-        m_scrollingLayer->setOffsetFromRenderer(-toFloatSize(paddingBox.location()));
+        m_scrollingLayer->setOffsetFromRenderer(-toFloatSize(paddingBoxIncludingScrollbar.location()));
 
         if (m_childClippingMaskLayer) {
             m_childClippingMaskLayer->setPosition(m_scrollingLayer->position());
             m_childClippingMaskLayer->setSize(m_scrollingLayer->size());
-            m_childClippingMaskLayer->setOffsetFromRenderer(toFloatSize(paddingBox.location()));
+            m_childClippingMaskLayer->setOffsetFromRenderer(toFloatSize(paddingBoxIncludingScrollbar.location()));
         }
 
         bool paddingBoxOffsetChanged = oldScrollingLayerOffset != m_scrollingLayer->offsetFromRenderer();
@@ -1226,12 +1235,9 @@ void RenderLayerBacking::updateGeometry()
         if (scrollSize != m_scrollingContentsLayer->size() || paddingBoxOffsetChanged)
             m_scrollingContentsLayer->setNeedsDisplay();
 
-        if (toLayoutSize(paddingBox.location()) != m_scrollingContentsLayer->offsetFromRenderer() || scrollOffset != m_scrollingContentsLayer->scrollOffset() || scrollSize != m_scrollingContentsLayer->size())
-            compositor().scrollingLayerDidChange(m_owningLayer);
-
         m_scrollingContentsLayer->setSize(scrollSize);
         m_scrollingContentsLayer->setScrollOffset(scrollOffset, GraphicsLayer::DontSetNeedsDisplay);
-        m_scrollingContentsLayer->setOffsetFromRenderer(toLayoutSize(paddingBox.location()), GraphicsLayer::DontSetNeedsDisplay);
+        m_scrollingContentsLayer->setOffsetFromRenderer(toLayoutSize(paddingBoxIncludingScrollbar.location()), GraphicsLayer::DontSetNeedsDisplay);
 #endif
 
         if (m_foregroundLayer) {
@@ -1251,15 +1257,13 @@ void RenderLayerBacking::updateGeometry()
 
     if (subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor()) && canIssueSetNeedsDisplay())
         setContentsNeedDisplay();
-
-    compositor().updateScrollCoordinatedStatus(m_owningLayer, { RenderLayerCompositor::ScrollingNodeChangeFlags::Layer, RenderLayerCompositor::ScrollingNodeChangeFlags::LayerGeometry });
 }
 
 void RenderLayerBacking::updateAfterDescendants()
 {
     // FIXME: this potentially duplicates work we did in updateConfiguration().
     PaintedContentsInfo contentsInfo(*this);
-    contentsInfo.setWantsSubpixelAntialiasedTextState(GraphicsLayer::supportsSubpixelAntialiasedLayerText());
+    contentsInfo.setWantsSubpixelAntialiasedTextState(GraphicsLayer::supportsSubpixelAntialiasedLayerText() && FontCascade::isSubpixelAntialiasingAvailable());
 
     if (!m_owningLayer.isRenderViewLayer()) {
         bool didUpdateContentsRect = false;
@@ -1648,12 +1652,8 @@ bool RenderLayerBacking::updateBackgroundLayer(bool needsBackgroundLayer)
         }
     }
     
-    if (layerChanged) {
+    if (layerChanged)
         m_graphicsLayer->setNeedsDisplay();
-
-        if (m_backgroundLayerPaintsFixedRootBackground)
-            compositor().fixedRootBackgroundLayerChanged();
-    }
     
     return layerChanged;
 }
@@ -1747,6 +1747,7 @@ bool RenderLayerBacking::updateScrollingLayers(bool needsScrollingLayers)
         // Inner layer which renders the content that scrolls.
         m_scrollingContentsLayer = createGraphicsLayer("scrolled Contents");
         m_scrollingContentsLayer->setDrawsContent(true);
+        m_scrollingContentsLayer->setAnchorPoint({ });
 
         GraphicsLayerPaintingPhase paintPhase = GraphicsLayerPaintOverflowContents | GraphicsLayerPaintCompositedScroll;
         if (!m_foregroundLayer)
@@ -1772,24 +1773,47 @@ bool RenderLayerBacking::updateScrollingLayers(bool needsScrollingLayers)
     return true;
 }
 
-void RenderLayerBacking::detachFromScrollingCoordinator(OptionSet<LayerScrollCoordinationRole> roles)
+OptionSet<ScrollCoordinationRole> RenderLayerBacking::coordinatedScrollingRoles() const
 {
-    if (!m_scrollingNodeID && !m_viewportConstrainedNodeID)
+    auto& compositor = this->compositor();
+
+    OptionSet<ScrollCoordinationRole> coordinationRoles;
+    if (compositor.isViewportConstrainedFixedOrStickyLayer(m_owningLayer))
+        coordinationRoles.add(ScrollCoordinationRole::ViewportConstrained);
+
+    if (compositor.useCoordinatedScrollingForLayer(m_owningLayer))
+        coordinationRoles.add(ScrollCoordinationRole::Scrolling);
+
+    if (compositor.isLayerForIFrameWithScrollCoordinatedContents(m_owningLayer))
+        coordinationRoles.add(ScrollCoordinationRole::FrameHosting);
+
+    return coordinationRoles;
+}
+
+void RenderLayerBacking::detachFromScrollingCoordinator(OptionSet<ScrollCoordinationRole> roles)
+{
+    if (!m_scrollingNodeID && !m_frameHostingNodeID && !m_viewportConstrainedNodeID)
         return;
 
     auto* scrollingCoordinator = m_owningLayer.page().scrollingCoordinator();
     if (!scrollingCoordinator)
         return;
 
-    if ((roles & Scrolling) && m_scrollingNodeID) {
+    if (roles.contains(ScrollCoordinationRole::Scrolling) && m_scrollingNodeID) {
         LOG(Compositing, "Detaching Scrolling node %" PRIu64, m_scrollingNodeID);
-        scrollingCoordinator->detachFromStateTree(m_scrollingNodeID);
+        scrollingCoordinator->unparentChildrenAndDestroyNode(m_scrollingNodeID);
         m_scrollingNodeID = 0;
     }
-    
-    if ((roles & ViewportConstrained) && m_viewportConstrainedNodeID) {
+
+    if (roles.contains(ScrollCoordinationRole::Scrolling) && m_frameHostingNodeID) {
+        LOG(Compositing, "Detaching FrameHosting node %" PRIu64, m_frameHostingNodeID);
+        scrollingCoordinator->unparentChildrenAndDestroyNode(m_frameHostingNodeID);
+        m_frameHostingNodeID = 0;
+    }
+
+    if (roles.contains(ScrollCoordinationRole::ViewportConstrained) && m_viewportConstrainedNodeID) {
         LOG(Compositing, "Detaching ViewportConstrained node %" PRIu64, m_viewportConstrainedNodeID);
-        scrollingCoordinator->detachFromStateTree(m_viewportConstrainedNodeID);
+        scrollingCoordinator->unparentChildrenAndDestroyNode(m_viewportConstrainedNodeID);
         m_viewportConstrainedNodeID = 0;
     }
 }
@@ -2660,9 +2684,9 @@ bool RenderLayerBacking::paintsOpaquelyAtNonIntegralScales(const GraphicsLayer*)
     return m_isMainFrameRenderViewLayer;
 }
 
-void RenderLayerBacking::didCommitChangesForLayer(const GraphicsLayer* layer) const
+void RenderLayerBacking::didChangePlatformLayerForLayer(const GraphicsLayer* layer)
 {
-    compositor().didFlushChangesForLayer(m_owningLayer, layer);
+    compositor().didChangePlatformLayerForLayer(m_owningLayer, layer);
 }
 
 bool RenderLayerBacking::getCurrentTransform(const GraphicsLayer* graphicsLayer, TransformationMatrix& transform) const
@@ -3082,10 +3106,12 @@ TextStream& operator<<(TextStream& ts, const RenderLayerBacking& backing)
         ts << " paintsIntoCompositedAncestor";
 
     ts << " primary layer ID " << backing.graphicsLayer()->primaryLayerID();
-    if (auto nodeID = backing.scrollingNodeIDForRole(ViewportConstrained))
+    if (auto nodeID = backing.scrollingNodeIDForRole(ScrollCoordinationRole::ViewportConstrained))
         ts << " viewport constrained scrolling node " << nodeID;
-    if (auto nodeID = backing.scrollingNodeIDForRole(Scrolling))
+    if (auto nodeID = backing.scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling))
         ts << " scrolling node " << nodeID;
+    if (auto nodeID = backing.scrollingNodeIDForRole(ScrollCoordinationRole::FrameHosting))
+        ts << " frame hosting node " << nodeID;
     return ts;
 }
 

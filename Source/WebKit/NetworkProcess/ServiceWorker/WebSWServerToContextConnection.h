@@ -33,6 +33,8 @@
 
 namespace WebKit {
 
+class NetworkProcess;
+
 class WebSWServerToContextConnection : public WebCore::SWServerToContextConnection, public IPC::MessageSender, public IPC::MessageReceiver {
 public:
     template <typename... Args> static Ref<WebSWServerToContextConnection> create(Args&&... args)
@@ -50,19 +52,20 @@ public:
     void terminate();
 
 private:
-    WebSWServerToContextConnection(const WebCore::SecurityOriginData&, Ref<IPC::Connection>&&);
+    WebSWServerToContextConnection(NetworkProcess&, const WebCore::SecurityOriginData&, Ref<IPC::Connection>&&);
+    ~WebSWServerToContextConnection();
 
     // IPC::MessageSender
     IPC::Connection* messageSenderConnection() final;
     uint64_t messageSenderDestinationID() final;
 
     // Messages to the SW host WebProcess
-    void installServiceWorkerContext(const WebCore::ServiceWorkerContextData&, PAL::SessionID) final;
+    void installServiceWorkerContext(const WebCore::ServiceWorkerContextData&, PAL::SessionID, const String& userAgent) final;
     void fireInstallEvent(WebCore::ServiceWorkerIdentifier) final;
     void fireActivateEvent(WebCore::ServiceWorkerIdentifier) final;
     void terminateWorker(WebCore::ServiceWorkerIdentifier) final;
     void syncTerminateWorker(WebCore::ServiceWorkerIdentifier) final;
-    void findClientByIdentifierCompleted(uint64_t requestIdentifier, const std::optional<WebCore::ServiceWorkerClientData>&, bool hasSecurityError) final;
+    void findClientByIdentifierCompleted(uint64_t requestIdentifier, const Optional<WebCore::ServiceWorkerClientData>&, bool hasSecurityError) final;
     void matchAllCompleted(uint64_t requestIdentifier, const Vector<WebCore::ServiceWorkerClientData>&) final;
     void claimCompleted(uint64_t requestIdentifier) final;
     void didFinishSkipWaiting(uint64_t callbackID) final;
@@ -70,6 +73,7 @@ private:
     void connectionMayNoLongerBeNeeded() final;
 
     Ref<IPC::Connection> m_ipcConnection;
+    Ref<NetworkProcess> m_networkProcess;
     
 }; // class WebSWServerToContextConnection
 

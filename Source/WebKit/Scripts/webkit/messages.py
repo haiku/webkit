@@ -328,7 +328,7 @@ def class_template_headers(template_string):
         'WebCore::RectEdges': {'headers': ['<WebCore/RectEdges.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
         'HashMap': {'headers': ['<wtf/HashMap.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
         'HashSet': {'headers': ['<wtf/HashSet.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
-        'std::optional': {'headers': ['<wtf/Optional.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
+        'Optional': {'headers': ['<wtf/Optional.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
         'OptionSet': {'headers': ['<wtf/OptionSet.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
         'Vector': {'headers': ['<wtf/Vector.h>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
         'std::pair': {'headers': ['<utility>'], 'argument_coder_headers': ['"ArgumentCoders.h"']},
@@ -397,6 +397,7 @@ def headers_for_type(type):
         'String': ['<wtf/text/WTFString.h>'],
         'PAL::SessionID': ['<pal/SessionID.h>'],
         'WebCore::AutoplayEventFlags': ['<WebCore/AutoplayEvent.h>'],
+        'WebCore::DragHandlingMethod': ['<WebCore/DragActions.h>'],
         'WebCore::ExceptionDetails': ['<WebCore/JSDOMExceptionHandling.h>'],
         'WebCore::FileChooserSettings': ['<WebCore/FileChooser.h>'],
         'WebCore::ShareDataWithParsedURL': ['<WebCore/ShareData.h>'],
@@ -405,7 +406,8 @@ def headers_for_type(type):
         'WebCore::GrammarDetail': ['<WebCore/TextCheckerClient.h>'],
         'WebCore::HasInsecureContent': ['<WebCore/FrameLoaderTypes.h>'],
         'WebCore::Highlight': ['<WebCore/InspectorOverlay.h>'],
-        'WebCore::IncludeSecureCookies': ['<WebCore/CookiesStrategy.h>'],
+        'WebCore::IncludeSecureCookies': ['<WebCore/CookieJar.h>'],
+        'WebCore::InputMode': ['<WebCore/InputMode.h>'],
         'WebCore::KeyframeValueList': ['<WebCore/GraphicsLayer.h>'],
         'WebCore::KeypressCommand': ['<WebCore/KeyboardEvent.h>'],
         'WebCore::LockBackForwardList': ['<WebCore/FrameLoaderTypes.h>'],
@@ -440,7 +442,6 @@ def headers_for_type(type):
         'WebCore::SelectionRect': ['"EditorState.h"'],
         'WebKit::ActivityStateChangeID': ['"DrawingAreaInfo.h"'],
         'WebKit::BackForwardListItemState': ['"SessionState.h"'],
-        'WebKit::DeviceAccessState': ['"UserMediaPermissionRequestManager.h"'],
         'WebKit::LayerHostingMode': ['"LayerTreeContext.h"'],
         'WebKit::PageState': ['"SessionState.h"'],
         'WebKit::WebGestureEvent': ['"WebEvent.h"'],
@@ -563,7 +564,7 @@ def generate_message_handler(file):
                 move_parameters = message.name, ', '.join([move_type(x.type) for x in message.reply_parameters])
                 result.append('void %s::callReply(IPC::Decoder& decoder, CompletionHandler<void(%s)>&& completionHandler)\n{\n' % move_parameters)
                 for x in message.reply_parameters:
-                    result.append('    std::optional<%s> %s;\n' % (x.type, x.name))
+                    result.append('    Optional<%s> %s;\n' % (x.type, x.name))
                     result.append('    decoder >> %s;\n' % x.name)
                     result.append('    if (!%s) {\n        ASSERT_NOT_REACHED();\n        return;\n    }\n' % x.name)
                 result.append('    completionHandler(')

@@ -30,7 +30,7 @@
 #include "FrameInfoData.h"
 #include "NavigationActionData.h"
 #include "WebBackForwardListItem.h"
-#include <WebCore/Process.h>
+#include <WebCore/ProcessIdentifier.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/SecurityOriginData.h>
 #include <wtf/Ref.h>
@@ -93,26 +93,27 @@ public:
     const WebCore::ResourceRequest& originalRequest() const { return m_originalRequest; }
     void setCurrentRequest(WebCore::ResourceRequest&&, WebCore::ProcessIdentifier);
     const WebCore::ResourceRequest& currentRequest() const { return m_currentRequest; }
-    std::optional<WebCore::ProcessIdentifier> currentRequestProcessIdentifier() const { return m_currentRequestProcessIdentifier; }
+    Optional<WebCore::ProcessIdentifier> currentRequestProcessIdentifier() const { return m_currentRequestProcessIdentifier; }
 
     bool currentRequestIsRedirect() const { return m_lastNavigationAction.isRedirect; }
 
-    void setTargetItem(WebKit::WebBackForwardListItem& item) { m_targetItem = &item; }
     WebKit::WebBackForwardListItem* targetItem() const { return m_targetItem.get(); }
     WebKit::WebBackForwardListItem* fromItem() const { return m_fromItem.get(); }
-    std::optional<WebCore::FrameLoadType> backForwardFrameLoadType() const { return m_backForwardFrameLoadType; }
+    Optional<WebCore::FrameLoadType> backForwardFrameLoadType() const { return m_backForwardFrameLoadType; }
 
     void appendRedirectionURL(const WTF::URL&);
     Vector<WTF::URL> takeRedirectChain() { return WTFMove(m_redirectChain); }
 
     bool wasUserInitiated() const { return !!m_lastNavigationAction.userGestureTokenIdentifier; }
 
-    bool shouldForceDownload() const
+    bool shouldForceDownload() const { return !m_lastNavigationAction.downloadAttribute.isNull(); }
+
+    bool isSystemPreview() const
     {
 #if USE(SYSTEM_PREVIEW)
-        return !m_lastNavigationAction.downloadAttribute.isNull() || currentRequest().isSystemPreview();
+        return currentRequest().isSystemPreview();
 #else
-        return !m_lastNavigationAction.downloadAttribute.isNull();
+        return false;
 #endif
     }
 
@@ -150,12 +151,12 @@ private:
     uint64_t m_navigationID;
     WebCore::ResourceRequest m_originalRequest;
     WebCore::ResourceRequest m_currentRequest;
-    std::optional<WebCore::ProcessIdentifier> m_currentRequestProcessIdentifier;
+    Optional<WebCore::ProcessIdentifier> m_currentRequestProcessIdentifier;
     Vector<WTF::URL> m_redirectChain;
 
     RefPtr<WebKit::WebBackForwardListItem> m_targetItem;
     RefPtr<WebKit::WebBackForwardListItem> m_fromItem;
-    std::optional<WebCore::FrameLoadType> m_backForwardFrameLoadType;
+    Optional<WebCore::FrameLoadType> m_backForwardFrameLoadType;
     std::unique_ptr<SubstituteData> m_substituteData;
     WebKit::NavigationActionData m_lastNavigationAction;
     WebKit::FrameInfoData m_originatingFrameInfo;

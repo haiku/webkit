@@ -42,11 +42,15 @@ NetworkSessionCreationParameters NetworkSessionCreationParameters::privateSessio
 {
     return { sessionID, { }, AllowsCellularAccess::Yes
 #if PLATFORM(COCOA)
-        , { }, { }, { }, false, { }
+        , { }, { }, { }, false, { }, { }, { }
+#endif
+#if USE(SOUP)
+        , { }, 0
 #endif
 #if USE(CURL)
-        , { }
+        , { }, { }
 #endif
+        , { }, { }, false
     };
 }
 
@@ -61,61 +65,113 @@ void NetworkSessionCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << sourceApplicationSecondaryIdentifier;
     encoder << shouldLogCookieInformation;
     encoder << loadThrottleLatency;
+    encoder << httpProxy;
+    encoder << httpsProxy;
+#endif
+#if USE(SOUP)
+    encoder << cookiePersistentStoragePath;
+    encoder << cookiePersistentStorageType;
 #endif
 #if USE(CURL)
+    encoder << cookiePersistentStorageFile;
     encoder << proxySettings;
 #endif
+    encoder << resourceLoadStatisticsDirectory;
+    encoder << resourceLoadStatisticsDirectoryExtensionHandle;
+    encoder << enableResourceLoadStatistics;
 }
 
-std::optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::decode(IPC::Decoder& decoder)
+Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::decode(IPC::Decoder& decoder)
 {
     PAL::SessionID sessionID;
     if (!decoder.decode(sessionID))
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<String> boundInterfaceIdentifier;
+    Optional<String> boundInterfaceIdentifier;
     decoder >> boundInterfaceIdentifier;
     if (!boundInterfaceIdentifier)
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<AllowsCellularAccess> allowsCellularAccess;
+    Optional<AllowsCellularAccess> allowsCellularAccess;
     decoder >> allowsCellularAccess;
     if (!allowsCellularAccess)
-        return std::nullopt;
+        return WTF::nullopt;
     
 #if PLATFORM(COCOA)
     RetainPtr<CFDictionaryRef> proxyConfiguration;
     if (!IPC::decode(decoder, proxyConfiguration))
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<String> sourceApplicationBundleIdentifier;
+    Optional<String> sourceApplicationBundleIdentifier;
     decoder >> sourceApplicationBundleIdentifier;
     if (!sourceApplicationBundleIdentifier)
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<String> sourceApplicationSecondaryIdentifier;
+    Optional<String> sourceApplicationSecondaryIdentifier;
     decoder >> sourceApplicationSecondaryIdentifier;
     if (!sourceApplicationSecondaryIdentifier)
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<bool> shouldLogCookieInformation;
+    Optional<bool> shouldLogCookieInformation;
     decoder >> shouldLogCookieInformation;
     if (!shouldLogCookieInformation)
-        return std::nullopt;
+        return WTF::nullopt;
     
-    std::optional<Seconds> loadThrottleLatency;
+    Optional<Seconds> loadThrottleLatency;
     decoder >> loadThrottleLatency;
     if (!loadThrottleLatency)
-        return std::nullopt;
-#endif
+        return WTF::nullopt;
     
+    Optional<URL> httpProxy;
+    decoder >> httpProxy;
+    if (!httpProxy)
+        return WTF::nullopt;
+
+    Optional<URL> httpsProxy;
+    decoder >> httpsProxy;
+    if (!httpsProxy)
+        return WTF::nullopt;
+#endif
+
+#if USE(SOUP)
+    Optional<String> cookiePersistentStoragePath;
+    decoder >> cookiePersistentStoragePath;
+    if (!cookiePersistentStoragePath)
+        return WTF::nullopt;
+
+    Optional<uint32_t> cookiePersistentStorageType;
+    decoder >> cookiePersistentStorageType;
+    if (!cookiePersistentStorageType)
+        return WTF::nullopt;
+#endif
+
 #if USE(CURL)
-    std::optional<WebCore::CurlProxySettings> proxySettings;
+    Optional<String> cookiePersistentStorageFile;
+    decoder >> cookiePersistentStorageFile;
+    if (!cookiePersistentStorageFile)
+        return WTF::nullopt;
+
+    Optional<WebCore::CurlProxySettings> proxySettings;
     decoder >> proxySettings;
     if (!proxySettings)
-        return std::nullopt;
+        return WTF::nullopt;
 #endif
-    
+
+    Optional<String> resourceLoadStatisticsDirectory;
+    decoder >> resourceLoadStatisticsDirectory;
+    if (!resourceLoadStatisticsDirectory)
+        return WTF::nullopt;
+
+    Optional<SandboxExtension::Handle> resourceLoadStatisticsDirectoryExtensionHandle;
+    decoder >> resourceLoadStatisticsDirectoryExtensionHandle;
+    if (!resourceLoadStatisticsDirectoryExtensionHandle)
+        return WTF::nullopt;
+
+    Optional<bool> enableResourceLoadStatistics;
+    decoder >> enableResourceLoadStatistics;
+    if (!enableResourceLoadStatistics)
+        return WTF::nullopt;
+
     return {{
         sessionID
         , WTFMove(*boundInterfaceIdentifier)
@@ -126,10 +182,20 @@ std::optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters
         , WTFMove(*sourceApplicationSecondaryIdentifier)
         , WTFMove(*shouldLogCookieInformation)
         , WTFMove(*loadThrottleLatency)
+        , WTFMove(*httpProxy)
+        , WTFMove(*httpsProxy)
+#endif
+#if USE(SOUP)
+        , WTFMove(*cookiePersistentStoragePath)
+        , WTFMove(*cookiePersistentStorageType)
 #endif
 #if USE(CURL)
+        , WTFMove(*cookiePersistentStorageFile)
         , WTFMove(*proxySettings)
 #endif
+        , WTFMove(*resourceLoadStatisticsDirectory)
+        , WTFMove(*resourceLoadStatisticsDirectoryExtensionHandle)
+        , WTFMove(*enableResourceLoadStatistics)
     }};
 }
 

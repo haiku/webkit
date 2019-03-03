@@ -153,9 +153,6 @@ public:
     void setAutomationClient(std::unique_ptr<API::AutomationClient>&&);
     void setLegacyCustomProtocolManagerClient(std::unique_ptr<API::CustomProtocolManagerClient>&&);
 
-    void setMaximumNumberOfProcesses(unsigned); // Can only be called when there are no processes running.
-    unsigned maximumNumberOfProcesses() const { return !m_configuration->maximumProcessCount() ? UINT_MAX : m_configuration->maximumProcessCount(); }
-
     void setCustomWebContentServiceBundleIdentifier(const String&);
     const String& customWebContentServiceBundleIdentifier() { return m_configuration->customWebContentServiceBundleIdentifier(); }
 
@@ -189,7 +186,7 @@ public:
     const String& injectedBundlePath() const { return m_configuration->injectedBundlePath(); }
 
     DownloadProxy* download(WebPageProxy* initiatingPage, const WebCore::ResourceRequest&, const String& suggestedFilename = { });
-    DownloadProxy* resumeDownload(const API::Data* resumeData, const String& path);
+    DownloadProxy* resumeDownload(WebPageProxy* initiatingPage, const API::Data* resumeData, const String& path);
 
     void setInjectedBundleInitializationUserData(RefPtr<API::Object>&& userData) { m_injectedBundleInitializationUserData = WTFMove(userData); }
 
@@ -345,7 +342,7 @@ public:
     void getNetworkProcessConnection(WebProcessProxy&, Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply&&);
 
 #if ENABLE(SERVICE_WORKER)
-    void establishWorkerContextConnectionToNetworkProcess(NetworkProcessProxy&, WebCore::SecurityOriginData&&, std::optional<PAL::SessionID>);
+    void establishWorkerContextConnectionToNetworkProcess(NetworkProcessProxy&, WebCore::SecurityOriginData&&, Optional<PAL::SessionID>);
     ServiceWorkerProcessProxy* serviceWorkerProcessProxyFromPageID(uint64_t pageID) const;
     const HashMap<WebCore::SecurityOriginData, ServiceWorkerProcessProxy*>& serviceWorkerProxies() const { return m_serviceWorkerProcesses; }
     void setAllowsAnySSLCertificateForServiceWorker(bool allows) { m_allowsAnySSLCertificateForServiceWorker = allows; }
@@ -445,14 +442,15 @@ public:
     BackgroundWebProcessToken backgroundWebProcessToken() const { return BackgroundWebProcessToken(m_backgroundWebProcessCounter.count()); }
 #endif
 
-    Ref<WebProcessProxy> processForNavigation(WebPageProxy&, const API::Navigation&, ProcessSwapRequestedByClient, String& reason);
+    void processForNavigation(WebPageProxy&, const API::Navigation&, ProcessSwapRequestedByClient, CompletionHandler<void(Ref<WebProcessProxy>&&, SuspendedPageProxy*, const String&)>&&);
 
     // SuspendedPageProxy management.
     void addSuspendedPage(std::unique_ptr<SuspendedPageProxy>&&);
-    void removeAllSuspendedPagesForPage(WebPageProxy&);
+    void removeAllSuspendedPagesForPage(WebPageProxy&, WebProcessProxy* = nullptr);
+    void closeFailedSuspendedPagesForPage(WebPageProxy&);
     std::unique_ptr<SuspendedPageProxy> takeSuspendedPage(SuspendedPageProxy&);
     void removeSuspendedPage(SuspendedPageProxy&);
-    bool hasSuspendedPageFor(WebProcessProxy&) const;
+    bool hasSuspendedPageFor(WebProcessProxy&, WebPageProxy* = nullptr) const;
     unsigned maxSuspendedPageCount() const { return m_maxSuspendedPageCount; }
 
     void didReachGoodTimeToPrewarm();
@@ -467,9 +465,12 @@ public:
     void resetMockMediaDevices();
 
     void sendDisplayConfigurationChangedMessageForTesting();
+    void clearCurrentModifierStateForTesting();
 
 #if PLATFORM(GTK) || PLATFORM(WPE)
     void setSandboxEnabled(bool enabled) { m_sandboxEnabled = enabled; };
+    void addSandboxPath(const CString& path, SandboxPermission permission) { m_extraSandboxPaths.add(path, permission); };
+    const HashMap<CString, SandboxPermission>& sandboxPaths() const { return m_extraSandboxPaths; };
     bool sandboxEnabled() const { return m_sandboxEnabled; };
 #endif
 
@@ -479,15 +480,15 @@ private:
     void platformInitializeWebProcess(WebProcessCreationParameters&);
     void platformInvalidateContext();
 
-    Ref<WebProcessProxy> processForNavigationInternal(WebPageProxy&, const API::Navigation&, ProcessSwapRequestedByClient, String& reason);
+    void processForNavigationInternal(WebPageProxy&, const API::Navigation&, ProcessSwapRequestedByClient, CompletionHandler<void(Ref<WebProcessProxy>&&, SuspendedPageProxy*, const String&)>&&);
 
     RefPtr<WebProcessProxy> tryTakePrewarmedProcess(WebsiteDataStore&);
 
     WebProcessProxy& createNewWebProcess(WebsiteDataStore&, WebProcessProxy::IsPrewarmed = WebProcessProxy::IsPrewarmed::No);
     void initializeNewWebProcess(WebProcessProxy&, WebsiteDataStore&);
 
-    void requestWebContentStatistics(StatisticsRequest*);
-    void requestNetworkingStatistics(StatisticsRequest*);
+    void requestWebContentStatistics(StatisticsRequest&);
+    void requestNetworkingStatistics(StatisticsRequest&);
 
     void platformInitializeNetworkProcess(NetworkProcessCreationParameters&);
 
@@ -513,6 +514,8 @@ private:
 
     static void languageChanged(void* context);
     void languageChanged();
+
+    bool usesSingleWebProcess() const { return m_configuration->usesSingleWebProcess(); }
 
 #if PLATFORM(IOS_FAMILY)
     String cookieStorageDirectory() const;
@@ -559,7 +562,7 @@ private:
     bool m_allowsAnySSLCertificateForServiceWorker { false };
     bool m_shouldDisableServiceWorkerProcessTerminationDelay { false };
     String m_serviceWorkerUserAgent;
-    std::optional<WebPreferencesStore> m_serviceWorkerPreferences;
+    Optional<WebPreferencesStore> m_serviceWorkerPreferences;
     HashMap<String, bool> m_mayHaveRegisteredServiceWorkers;
 #endif
 
@@ -727,6 +730,7 @@ private:
 
 #if PLATFORM(GTK) || PLATFORM(WPE)
     bool m_sandboxEnabled { false };
+    HashMap<CString, SandboxPermission> m_extraSandboxPaths;
 #endif
 };
 

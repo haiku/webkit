@@ -29,7 +29,10 @@
 
 #include "GPUDevice.h"
 #include "WebGPUAdapter.h"
+#include "WebGPUBindGroupLayoutDescriptor.h"
+#include "WebGPUBufferDescriptor.h"
 #include "WebGPUQueue.h"
+
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
@@ -37,10 +40,16 @@
 namespace WebCore {
 
 class ScriptExecutionContext;
+class WebGPUBindGroup;
+class WebGPUBindGroupLayout;
+class WebGPUBuffer;
 class WebGPUCommandBuffer;
+class WebGPUPipelineLayout;
 class WebGPURenderPipeline;
 class WebGPUShaderModule;
 
+struct WebGPUBindGroupDescriptor;
+struct WebGPUPipelineLayoutDescriptor;
 struct WebGPURenderPipelineDescriptor;
 struct WebGPUShaderModuleDescriptor;
 
@@ -49,7 +58,13 @@ public:
     static RefPtr<WebGPUDevice> create(Ref<WebGPUAdapter>&&);
 
     const WebGPUAdapter& adapter() const { return m_adapter.get(); }
-    const GPUDevice& device() const { return *m_device; }
+    const GPUDevice& device() const { return m_device.get(); }
+
+    RefPtr<WebGPUBuffer> createBuffer(WebGPUBufferDescriptor&&) const;
+
+    Ref<WebGPUBindGroupLayout> createBindGroupLayout(WebGPUBindGroupLayoutDescriptor&&) const;
+    Ref<WebGPUPipelineLayout> createPipelineLayout(WebGPUPipelineLayoutDescriptor&&) const;
+    Ref<WebGPUBindGroup> createBindGroup(WebGPUBindGroupDescriptor&&) const;
 
     RefPtr<WebGPUShaderModule> createShaderModule(WebGPUShaderModuleDescriptor&&) const;
     RefPtr<WebGPURenderPipeline> createRenderPipeline(WebGPURenderPipelineDescriptor&&) const;
@@ -58,10 +73,10 @@ public:
     RefPtr<WebGPUQueue> getQueue();
 
 private:
-    WebGPUDevice(Ref<WebGPUAdapter>&&, RefPtr<GPUDevice>&&);
+    WebGPUDevice(Ref<WebGPUAdapter>&&, Ref<GPUDevice>&&);
 
     Ref<WebGPUAdapter> m_adapter;
-    RefPtr<GPUDevice> m_device;
+    Ref<GPUDevice> m_device;
     RefPtr<WebGPUQueue> m_queue;
 };
 

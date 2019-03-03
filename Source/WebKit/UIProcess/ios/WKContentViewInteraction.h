@@ -31,9 +31,9 @@
 #import "WKShareSheet.h"
 #endif
 
-#import "AssistedNodeInformation.h"
 #import "DragDropInteractionState.h"
 #import "EditorState.h"
+#import "FocusedElementInformation.h"
 #import "GestureTypes.h"
 #import "InteractionInformationAtPosition.h"
 #import "UIKitSPI.h"
@@ -93,6 +93,7 @@ class WebPageProxy;
 @class UIHoverGestureRecognizer;
 @class WebEvent;
 @class WKActionSheetAssistant;
+@class WKDrawingCoordinator;
 @class WKFocusedFormControlView;
 @class WKFormInputControl;
 @class WKFormInputSession;
@@ -128,15 +129,6 @@ typedef std::pair<WebKit::InteractionInformationRequest, InteractionInformationC
     M(toggleUnderline) \
     M(increaseSize) \
     M(decreaseSize) \
-    M(toggleStrikeThrough) \
-    M(insertUnorderedList) \
-    M(insertOrderedList) \
-    M(indent) \
-    M(outdent) \
-    M(alignLeft) \
-    M(alignRight) \
-    M(alignCenter) \
-    M(alignJustified) \
     M(pasteAndMatchStyle) \
     M(makeTextWritingDirectionNatural)
 
@@ -161,8 +153,9 @@ typedef std::pair<WebKit::InteractionInformationRequest, InteractionInformationC
 namespace WebKit {
 
 enum SuppressSelectionAssistantReason : uint8_t {
-    FocusedElementIsTransparent = 1 << 0,
-    DropAnimationIsRunning = 1 << 1
+    FocusedElementIsTransparentOrFullyClipped = 1 << 0,
+    FocusedElementIsTooSmall = 1 << 1,
+    DropAnimationIsRunning = 1 << 2
 };
 
 struct WKSelectionDrawingInfo {
@@ -203,6 +196,10 @@ struct WKAutoCorrectionData {
     RetainPtr<UIWebTouchEventsGestureRecognizer> _touchEventGestureRecognizer;
 
     BOOL _canSendTouchEventsAsynchronously;
+#if ENABLE(POINTER_EVENTS)
+    BOOL _preventsPanningInXAxis;
+    BOOL _preventsPanningInYAxis;
+#endif
 
     RetainPtr<WKSyntheticClickTapGestureRecognizer> _singleTapGestureRecognizer;
     RetainPtr<_UIWebHighlightLongPressGestureRecognizer> _highlightLongPressGestureRecognizer;
@@ -249,6 +246,7 @@ struct WKAutoCorrectionData {
 
     uint64_t _latestTapID;
     struct TapHighlightInformation {
+        BOOL nodeHasBuiltInClickHandling { false };
         WebCore::Color color;
         Vector<WebCore::FloatQuad> quads;
         WebCore::IntSize topLeftRadius;
@@ -260,9 +258,11 @@ struct WKAutoCorrectionData {
 
     WebKit::WKAutoCorrectionData _autocorrectionData;
     WebKit::InteractionInformationAtPosition _positionInformation;
-    WebKit::AssistedNodeInformation _assistedNodeInformation;
+    WebKit::FocusedElementInformation _focusedElementInformation;
     RetainPtr<NSObject<WKFormPeripheral>> _inputPeripheral;
+#if !USE(UIKIT_KEYBOARD_ADDITIONS)
     RetainPtr<UIEvent> _uiEventBeingResent;
+#endif
     BlockPtr<void(::WebEvent *, BOOL)> _keyWebEventHandler;
 
     CGPoint _lastInteractionLocation;
@@ -270,10 +270,10 @@ struct WKAutoCorrectionData {
 
     WebKit::WKSelectionDrawingInfo _lastSelectionDrawingInfo;
 
-    std::optional<WebKit::InteractionInformationRequest> _outstandingPositionInformationRequest;
+    Optional<WebKit::InteractionInformationRequest> _outstandingPositionInformationRequest;
 
     uint64_t _positionInformationCallbackDepth;
-    Vector<std::optional<InteractionInformationRequestAndCallback>> _pendingPositionInformationHandlers;
+    Vector<Optional<InteractionInformationRequestAndCallback>> _pendingPositionInformationHandlers;
     
     std::unique_ptr<WebKit::InputViewUpdateDeferrer> _inputViewUpdateDeferrer;
 
@@ -282,6 +282,10 @@ struct WKAutoCorrectionData {
 #if ENABLE(DATALIST_ELEMENT)
     RetainPtr<UIView <WKFormControl>> _dataListTextSuggestionsInputView;
     RetainPtr<NSArray<UITextSuggestion *>> _dataListTextSuggestions;
+#endif
+
+#if HAVE(PENCILKIT)
+    RetainPtr<WKDrawingCoordinator> _drawingCoordinator;
 #endif
 
     BOOL _isEditable;
@@ -296,9 +300,13 @@ struct WKAutoCorrectionData {
     BOOL _shouldRestoreSelection;
     BOOL _usingGestureForSelection;
     BOOL _inspectorNodeSearchEnabled;
+    BOOL _isChangingFocusUsingAccessoryTab;
     BOOL _didAccessoryTabInitiateFocus;
     BOOL _isExpectingFastSingleTapCommit;
     BOOL _showDebugTapHighlightsForFastClicking;
+    BOOL _isZoomingToRevealFocusedElement;
+
+    BOOL _keyboardDidRequestDismissal;
 
     BOOL _becomingFirstResponder;
     BOOL _resigningFirstResponder;
@@ -346,9 +354,13 @@ struct WKAutoCorrectionData {
 @property (nonatomic, readonly) BOOL shouldHideSelectionWhenScrolling;
 @property (nonatomic, readonly) const WebKit::InteractionInformationAtPosition& positionInformation;
 @property (nonatomic, readonly) const WebKit::WKAutoCorrectionData& autocorrectionData;
-@property (nonatomic, readonly) const WebKit::AssistedNodeInformation& assistedNodeInformation;
+@property (nonatomic, readonly) const WebKit::FocusedElementInformation& focusedElementInformation;
 @property (nonatomic, readonly) UIWebFormAccessory *formAccessoryView;
 @property (nonatomic, readonly) UITextInputAssistantItem *inputAssistantItemForWebView;
+#if ENABLE(POINTER_EVENTS)
+@property (nonatomic, readonly) BOOL preventsPanningInXAxis;
+@property (nonatomic, readonly) BOOL preventsPanningInYAxis;
+#endif
 
 #if ENABLE(DATALIST_ELEMENT)
 @property (nonatomic, strong) UIView <WKFormControl> *dataListTextSuggestionsInputView;
@@ -372,9 +384,9 @@ FOR_EACH_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 #undef DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW
 
-- (void)setFontForWebView:(UIFont *)fontFamily sender:(id)sender;
-- (void)setFontSizeForWebView:(CGFloat)fontSize sender:(id)sender;
-- (void)setTextColorForWebView:(UIColor *)color sender:(id)sender;
+- (void)_setFontForWebView:(UIFont *)fontFamily sender:(id)sender;
+- (void)_setFontSizeForWebView:(CGFloat)fontSize sender:(id)sender;
+- (void)_setTextColorForWebView:(UIColor *)color sender:(id)sender;
 
 #if ENABLE(TOUCH_EVENTS)
 - (void)_webTouchEvent:(const WebKit::NativeWebTouchEvent&)touchEvent preventsNativeGestures:(BOOL)preventsDefault;
@@ -382,12 +394,14 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_commitPotentialTapFailed;
 - (void)_didNotHandleTapAsClick:(const WebCore::IntPoint&)point;
 - (void)_didCompleteSyntheticClick;
-- (void)_didGetTapHighlightForRequest:(uint64_t)requestID color:(const WebCore::Color&)color quads:(const Vector<WebCore::FloatQuad>&)highlightedQuads topLeftRadius:(const WebCore::IntSize&)topLeftRadius topRightRadius:(const WebCore::IntSize&)topRightRadius bottomLeftRadius:(const WebCore::IntSize&)bottomLeftRadius bottomRightRadius:(const WebCore::IntSize&)bottomRightRadius;
+- (void)_didGetTapHighlightForRequest:(uint64_t)requestID color:(const WebCore::Color&)color quads:(const Vector<WebCore::FloatQuad>&)highlightedQuads topLeftRadius:(const WebCore::IntSize&)topLeftRadius topRightRadius:(const WebCore::IntSize&)topRightRadius bottomLeftRadius:(const WebCore::IntSize&)bottomLeftRadius bottomRightRadius:(const WebCore::IntSize&)bottomRightRadius nodeHasBuiltInClickHandling:(BOOL)nodeHasBuiltInClickHandling;
 
 - (BOOL)_mayDisableDoubleTapGesturesDuringSingleTap;
 - (void)_disableDoubleTapGesturesDuringTapIfNecessary:(uint64_t)requestID;
-- (void)_startAssistingNode:(const WebKit::AssistedNodeInformation&)information userIsInteracting:(BOOL)userIsInteracting blurPreviousNode:(BOOL)blurPreviousNode changingActivityState:(BOOL)changingActivityState userObject:(NSObject <NSSecureCoding> *)userObject;
-- (void)_stopAssistingNode;
+- (void)_elementDidFocus:(const WebKit::FocusedElementInformation&)information userIsInteracting:(BOOL)userIsInteracting blurPreviousNode:(BOOL)blurPreviousNode changingActivityState:(BOOL)changingActivityState userObject:(NSObject <NSSecureCoding> *)userObject;
+- (void)_elementDidBlur;
+- (void)_didUpdateInputMode:(WebCore::InputMode)mode;
+- (void)_didReceiveEditorStateUpdateAfterFocus;
 - (void)_selectionChanged;
 - (void)_updateChangedSelection;
 - (BOOL)_interpretKeyEvent:(::WebEvent *)theEvent isCharEvent:(BOOL)isCharEvent;
@@ -403,7 +417,7 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_showShareSheet:(const WebCore::ShareDataWithParsedURL&)shareData completionHandler:(WTF::CompletionHandler<void(bool)>&&)completionHandler;
 - (void)accessoryDone;
 - (void)_didHandleKeyEvent:(::WebEvent *)event eventWasHandled:(BOOL)eventWasHandled;
-- (Vector<WebKit::OptionItem>&) assistedNodeSelectOptions;
+- (Vector<WebKit::OptionItem>&) focusedSelectElementOptions;
 - (void)_enableInspectorNodeSearch;
 - (void)_disableInspectorNodeSearch;
 - (void)_becomeFirstResponderWithSelectionMovingForward:(BOOL)selectingForward completionHandler:(void (^)(BOOL didBecomeFirstResponder))completionHandler;
@@ -427,17 +441,21 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 #if ENABLE(DATA_INTERACTION)
 - (void)_didChangeDragInteractionPolicy;
 - (void)_didPerformDragOperation:(BOOL)handled;
-- (void)_didHandleStartDataInteractionRequest:(BOOL)started;
+- (void)_didHandleDragStartRequest:(BOOL)started;
 - (void)_didHandleAdditionalDragItemsRequest:(BOOL)added;
 - (void)_startDrag:(RetainPtr<CGImageRef>)image item:(const WebCore::DragItem&)item;
-- (void)_didConcludeEditDataInteraction:(std::optional<WebCore::TextIndicatorData>)data;
-- (void)_didChangeDataInteractionCaretRect:(CGRect)previousRect currentRect:(CGRect)rect;
+- (void)_didConcludeEditDrag:(Optional<WebCore::TextIndicatorData>)data;
+- (void)_didChangeDragCaretRect:(CGRect)previousRect currentRect:(CGRect)rect;
 #endif
 
 - (void)reloadContextViewForPresentedListViewController;
 
 #if ENABLE(DATALIST_ELEMENT)
 - (void)updateTextSuggestionsForInputDelegate;
+#endif
+
+#if HAVE(PENCILKIT)
+- (WKDrawingCoordinator *)_drawingCoordinator;
 #endif
 
 @end

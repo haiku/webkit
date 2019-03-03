@@ -77,7 +77,7 @@ bool isValidAcceptHeaderValue(const String&);
 bool isValidLanguageHeaderValue(const String&);
 bool isValidHTTPToken(const String&);
 bool parseHTTPRefresh(const String& refresh, double& delay, String& url);
-std::optional<WallTime> parseHTTPDate(const String&);
+Optional<WallTime> parseHTTPDate(const String&);
 String filenameFromHTTPContentDisposition(const String&);
 String extractMIMETypeFromMediaType(const String&);
 String extractCharsetFromMediaType(const String&);
@@ -96,8 +96,6 @@ enum HTTPVersion { Unknown, HTTP_1_0, HTTP_1_1 };
 size_t parseHTTPRequestLine(const char* data, size_t length, String& failureReason, String& method, String& url, HTTPVersion&);
 size_t parseHTTPHeader(const char* data, size_t length, String& failureReason, StringView& nameStr, String& valueStr, bool strict = true);
 size_t parseHTTPRequestBody(const char* data, size_t length, Vector<unsigned char>& body);
-
-void parseAccessControlExposeHeadersAllowList(const String& headerValue, HTTPHeaderSet&);
 
 // HTTP Header routine as per https://fetch.spec.whatwg.org/#terminology-headers
 bool isForbiddenHeaderName(const String&);
@@ -151,7 +149,7 @@ void addToAccessControlAllowList(const String& string, unsigned start, unsigned 
 }
 
 template<class HashType = DefaultHash<String>::Hash>
-std::optional<HashSet<String, HashType>> parseAccessControlAllowList(const String& string)
+HashSet<String, HashType> parseAccessControlAllowList(const String& string)
 {
     HashSet<String, HashType> set;
     unsigned start = 0;
@@ -163,7 +161,6 @@ std::optional<HashSet<String, HashType>> parseAccessControlAllowList(const Strin
     }
     if (start != string.length())
         addToAccessControlAllowList(string, start, string.length() - 1, set);
-
     return set;
 }
 

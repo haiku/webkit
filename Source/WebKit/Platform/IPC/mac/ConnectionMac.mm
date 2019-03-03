@@ -56,7 +56,7 @@
 #if PLATFORM(MAC)
 
 #if USE(APPLE_INTERNAL_SDK)
-#import <HIServices/AccessibilityPriv.h>
+#import <ApplicationServices/ApplicationServicesPriv.h>
 #else
 typedef enum {
     AXSuspendStatusRunning = 0,
@@ -476,7 +476,7 @@ static mach_msg_header_t* readFromMachPort(mach_port_t machPort, ReceiveBuffer& 
     buffer.resize(receiveBufferSize);
 
     mach_msg_header_t* header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
-    kern_return_t kr = mach_msg(header, MACH_RCV_MSG | MACH_RCV_LARGE | MACH_RCV_TIMEOUT, 0, buffer.size(), machPort, 0, MACH_PORT_NULL);
+    kern_return_t kr = mach_msg(header, MACH_RCV_MSG | MACH_RCV_LARGE | MACH_RCV_TIMEOUT | MACH_RCV_VOUCHER, 0, buffer.size(), machPort, 0, MACH_PORT_NULL);
     if (kr == MACH_RCV_TIMED_OUT)
         return nullptr;
 
@@ -485,7 +485,7 @@ static mach_msg_header_t* readFromMachPort(mach_port_t machPort, ReceiveBuffer& 
         buffer.resize(header->msgh_size + MAX_TRAILER_SIZE);
         header = reinterpret_cast<mach_msg_header_t*>(buffer.data());
         
-        kr = mach_msg(header, MACH_RCV_MSG | MACH_RCV_LARGE | MACH_RCV_TIMEOUT, 0, buffer.size(), machPort, 0, MACH_PORT_NULL);
+        kr = mach_msg(header, MACH_RCV_MSG | MACH_RCV_LARGE | MACH_RCV_TIMEOUT | MACH_RCV_VOUCHER, 0, buffer.size(), machPort, 0, MACH_PORT_NULL);
         ASSERT(kr != MACH_RCV_TOO_LARGE);
     }
 
@@ -603,13 +603,14 @@ IPC::Connection::Identifier Connection::identifier() const
     return Identifier(m_isServer ? m_receivePort : m_sendPort, m_xpcConnection);
 }
 
-bool Connection::getAuditToken(audit_token_t& auditToken)
+Optional<audit_token_t> Connection::getAuditToken()
 {
     if (!m_xpcConnection)
-        return false;
+        return WTF::nullopt;
     
+    audit_token_t auditToken;
     xpc_connection_get_audit_token(m_xpcConnection.get(), &auditToken);
-    return true;
+    return WTFMove(auditToken);
 }
 
 bool Connection::kill()

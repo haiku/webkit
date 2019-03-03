@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebCookieManager.h"
 
-#include "ChildProcess.h"
+#include "NetworkProcess.h"
 #include <WebCore/NetworkStorageSession.h>
 #include <WebCore/SoupNetworkSession.h>
 #include <libsoup/soup.h>
@@ -51,14 +51,14 @@ void WebCookieManager::platformSetHTTPCookieAcceptPolicy(HTTPCookieAcceptPolicy 
         break;
     }
 
-    NetworkStorageSession::forEach([soupPolicy] (const NetworkStorageSession& session) {
+    m_process.forEachNetworkStorageSession([soupPolicy] (const auto& session) {
         soup_cookie_jar_set_accept_policy(session.cookieStorage(), soupPolicy);
     });
 }
 
 HTTPCookieAcceptPolicy WebCookieManager::platformGetHTTPCookieAcceptPolicy()
 {
-    switch (soup_cookie_jar_get_accept_policy(NetworkStorageSession::defaultStorageSession().cookieStorage())) {
+    switch (soup_cookie_jar_get_accept_policy(m_process.defaultStorageSession().cookieStorage())) {
     case SOUP_COOKIE_JAR_ACCEPT_ALWAYS:
         return HTTPCookieAcceptPolicyAlways;
     case SOUP_COOKIE_JAR_ACCEPT_NEVER:
@@ -71,7 +71,7 @@ HTTPCookieAcceptPolicy WebCookieManager::platformGetHTTPCookieAcceptPolicy()
     return HTTPCookieAcceptPolicyOnlyFromMainDocumentDomain;
 }
 
-void WebCookieManager::setCookiePersistentStorage(const String& storagePath, uint32_t storageType)
+void WebCookieManager::setCookiePersistentStorage(PAL::SessionID sessionID, const String& storagePath, uint32_t storageType)
 {
     GRefPtr<SoupCookieJar> jar;
     switch (storageType) {
@@ -85,9 +85,10 @@ void WebCookieManager::setCookiePersistentStorage(const String& storagePath, uin
         ASSERT_NOT_REACHED();
     }
 
-    auto& storageSession = NetworkStorageSession::defaultStorageSession();
-    soup_cookie_jar_set_accept_policy(jar.get(), soup_cookie_jar_get_accept_policy(storageSession.cookieStorage()));
-    storageSession.setCookieStorage(jar.get());
+    if (auto* storageSession = m_process.storageSession(sessionID)) {
+        soup_cookie_jar_set_accept_policy(jar.get(), soup_cookie_jar_get_accept_policy(storageSession->cookieStorage()));
+        storageSession->setCookieStorage(jar.get());
+    }
 }
 
 } // namespace WebKit

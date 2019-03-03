@@ -61,7 +61,7 @@ WorkletGlobalScope::WorkletGlobalScope(Document& document, ScriptSourceCode&& co
     ASSERT(document.page());
 
     setSecurityOriginPolicy(SecurityOriginPolicy::create(m_topOrigin.copyRef()));
-    setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(URL { code.url() }, *this));
+    setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(URL { m_code.url() }, *this));
 }
 
 WorkletGlobalScope::~WorkletGlobalScope()
@@ -74,7 +74,8 @@ WorkletGlobalScope::~WorkletGlobalScope()
 
 void WorkletGlobalScope::prepareForDestruction()
 {
-    ASSERT(m_script);
+    if (!m_script)
+        return;
     stopActiveDOMObjects();
     removeRejectedPromiseTracker();
     removeAllEventListeners();

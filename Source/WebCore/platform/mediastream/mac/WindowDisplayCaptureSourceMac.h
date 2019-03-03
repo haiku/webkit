@@ -42,7 +42,7 @@ class WindowDisplayCaptureSourceMac : public DisplayCaptureSourceCocoa {
 public:
     static CaptureSourceOrError create(String&&, const MediaConstraints*);
 
-    static std::optional<CaptureDevice> windowCaptureDeviceWithPersistentID(const String&);
+    static Optional<CaptureDevice> windowCaptureDeviceWithPersistentID(const String&);
     static void windowCaptureDevices(Vector<CaptureDevice>&);
 
 private:
@@ -51,6 +51,7 @@ private:
 
     DisplayCaptureSourceCocoa::DisplayFrameType generateFrame() final;
     RealtimeMediaSourceSettings::DisplaySurfaceType surfaceType() const final { return RealtimeMediaSourceSettings::DisplaySurfaceType::Window; }
+    CaptureDevice::DeviceType deviceType() const final { return CaptureDevice::DeviceType::Window; }
 
     RetainPtr<CGImageRef> windowImage();
 

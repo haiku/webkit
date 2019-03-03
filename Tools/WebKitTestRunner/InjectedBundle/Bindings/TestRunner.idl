@@ -62,6 +62,7 @@ interface TestRunner {
     void clearDOMCache(DOMString origin);
     boolean hasDOMCache(DOMString origin);
     unsigned long domCacheSize(DOMString origin);
+    void allowCacheStorageQuotaIncrease();
 
     // Special options.
     void keepWebHistory();
@@ -187,6 +188,7 @@ interface TestRunner {
 
     // Cookies testing
     void setAlwaysAcceptCookies(boolean accept);
+    void setOnlyAcceptFirstPartyCookies(boolean accept);
 
     void overridePreference(DOMString preference, DOMString value);
 
@@ -335,6 +337,10 @@ interface TestRunner {
 
     void terminateNetworkProcess();
     void terminateServiceWorkerProcess();
+
+    void setCanHandleHTTPSServerTrustEvaluation(boolean canHandle);
+    readonly attribute boolean canDoServerTrustEvaluationInNetworkProcess;
+    readonly attribute unsigned long serverTrustEvaluationCallbackCallsCount;
 
     readonly attribute boolean didCancelClientRedirect;
 

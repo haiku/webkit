@@ -29,6 +29,8 @@
 #include "CSSPropertyNames.h"
 #include "CSSValueKeywords.h"
 #include "CSSValuePool.h"
+#include "Chrome.h"
+#include "ChromeClient.h"
 #include "DOMTokenList.h"
 #include "DocumentFragment.h"
 #include "ElementAncestorIterator.h"
@@ -74,7 +76,6 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLElement);
 
 using namespace HTMLNames;
-using namespace WTF;
 
 Ref<HTMLElement> HTMLElement::create(const QualifiedName& tagName, Document& document)
 {
@@ -447,6 +448,14 @@ void HTMLElement::parseAttribute(const QualifiedName& name, const AtomicString& 
         else if (auto optionalTabIndex = parseHTMLInteger(value))
             setTabIndexExplicitly(optionalTabIndex.value());
         return;
+    }
+    
+    if (name == inputmodeAttr) {
+        auto& document = this->document();
+        if (this == document.focusedElement()) {
+            if (auto* page = document.page())
+                page->chrome().client().focusedElementDidChangeInputMode(*this, canonicalInputMode());
+        }
     }
 
     auto& eventName = eventNameForEventHandlerAttribute(name);

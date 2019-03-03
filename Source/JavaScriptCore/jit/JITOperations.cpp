@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -102,7 +102,7 @@ void JIT_OPERATION operationThrowStackOverflowError(ExecState* exec, CodeBlock* 
     // We pass in our own code block, because the callframe hasn't been populated.
     VM* vm = codeBlock->vm();
     auto scope = DECLARE_THROW_SCOPE(*vm);
-    exec->convertToStackOverflowFrame(*vm);
+    exec->convertToStackOverflowFrame(*vm, codeBlock);
     NativeCallFrameTracer tracer(vm, exec);
     throwStackOverflowError(exec, scope);
 }
@@ -113,8 +113,9 @@ int32_t JIT_OPERATION operationCallArityCheck(ExecState* exec)
     auto scope = DECLARE_THROW_SCOPE(*vm);
 
     int32_t missingArgCount = CommonSlowPaths::arityCheckFor(exec, *vm, CodeForCall);
-    if (missingArgCount < 0) {
-        exec->convertToStackOverflowFrame(*vm);
+    if (UNLIKELY(missingArgCount < 0)) {
+        CodeBlock* codeBlock = CommonSlowPaths::codeBlockFromCallFrameCallee(exec, CodeForCall);
+        exec->convertToStackOverflowFrame(*vm, codeBlock);
         NativeCallFrameTracer tracer(vm, exec);
         throwStackOverflowError(vm->topCallFrame, scope);
     }
@@ -128,8 +129,9 @@ int32_t JIT_OPERATION operationConstructArityCheck(ExecState* exec)
     auto scope = DECLARE_THROW_SCOPE(*vm);
 
     int32_t missingArgCount = CommonSlowPaths::arityCheckFor(exec, *vm, CodeForConstruct);
-    if (missingArgCount < 0) {
-        exec->convertToStackOverflowFrame(*vm);
+    if (UNLIKELY(missingArgCount < 0)) {
+        CodeBlock* codeBlock = CommonSlowPaths::codeBlockFromCallFrameCallee(exec, CodeForConstruct);
+        exec->convertToStackOverflowFrame(*vm, codeBlock);
         NativeCallFrameTracer tracer(vm, exec);
         throwStackOverflowError(vm->topCallFrame, scope);
     }
@@ -689,7 +691,7 @@ static void directPutByVal(CallFrame* callFrame, JSObject* baseObject, JSValue s
     auto property = subscript.toPropertyKey(callFrame);
     RETURN_IF_EXCEPTION(scope, void());
 
-    if (std::optional<uint32_t> index = parseIndex(property)) {
+    if (Optional<uint32_t> index = parseIndex(property)) {
         byValInfo->tookSlowPath = true;
         scope.release();
         baseObject->putDirectIndex(callFrame, index.value(), value, 0, isStrictMode ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
@@ -1659,7 +1661,7 @@ char* JIT_OPERATION operationTryOSREnterAtCatchAndValueProfile(ExecState* exec, 
     codeBlock->ensureCatchLivenessIsComputedForBytecodeOffset(bytecodeIndex);
     auto bytecode = codeBlock->instructions().at(bytecodeIndex)->as<OpCatch>();
     auto& metadata = bytecode.metadata(codeBlock);
-    metadata.buffer->forEach([&] (ValueProfileAndOperand& profile) {
+    metadata.m_buffer->forEach([&] (ValueProfileAndOperand& profile) {
         profile.m_profile.m_buckets[0] = JSValue::encode(exec->uncheckedR(profile.m_operand).jsValue());
     });
 
@@ -2290,9 +2292,9 @@ EncodedJSValue JIT_OPERATION operationGetFromScope(ExecState* exec, const Instru
     CodeBlock* codeBlock = exec->codeBlock();
 
     auto bytecode = pc->as<OpGetFromScope>();
-    const Identifier& ident = codeBlock->identifier(bytecode.var);
-    JSObject* scope = jsCast<JSObject*>(exec->uncheckedR(bytecode.scope.offset()).jsValue());
-    GetPutInfo& getPutInfo = bytecode.metadata(codeBlock).getPutInfo;
+    const Identifier& ident = codeBlock->identifier(bytecode.m_var);
+    JSObject* scope = jsCast<JSObject*>(exec->uncheckedR(bytecode.m_scope.offset()).jsValue());
+    GetPutInfo& getPutInfo = bytecode.metadata(codeBlock).m_getPutInfo;
 
     // ModuleVar is always converted to ClosureVar for get_from_scope.
     ASSERT(getPutInfo.resolveType() != ModuleVar);
@@ -2332,18 +2334,18 @@ void JIT_OPERATION operationPutToScope(ExecState* exec, const Instruction* pc)
     auto bytecode = pc->as<OpPutToScope>();
     auto& metadata = bytecode.metadata(codeBlock);
 
-    const Identifier& ident = codeBlock->identifier(bytecode.var);
-    JSObject* scope = jsCast<JSObject*>(exec->uncheckedR(bytecode.scope.offset()).jsValue());
-    JSValue value = exec->r(bytecode.value.offset()).jsValue();
-    GetPutInfo& getPutInfo = metadata.getPutInfo;
+    const Identifier& ident = codeBlock->identifier(bytecode.m_var);
+    JSObject* scope = jsCast<JSObject*>(exec->uncheckedR(bytecode.m_scope.offset()).jsValue());
+    JSValue value = exec->r(bytecode.m_value.offset()).jsValue();
+    GetPutInfo& getPutInfo = metadata.m_getPutInfo;
 
     // ModuleVar does not keep the scope register value alive in DFG.
     ASSERT(getPutInfo.resolveType() != ModuleVar);
 
     if (getPutInfo.resolveType() == LocalClosureVar) {
         JSLexicalEnvironment* environment = jsCast<JSLexicalEnvironment*>(scope);
-        environment->variableAt(ScopeOffset(metadata.operand)).set(vm, environment, value);
-        if (WatchpointSet* set = metadata.watchpointSet)
+        environment->variableAt(ScopeOffset(metadata.m_operand)).set(vm, environment, value);
+        if (WatchpointSet* set = metadata.m_watchpointSet)
             set->touch(vm, "Executed op_put_scope<LocalClosureVar>");
         return;
     }
@@ -2432,7 +2434,8 @@ void JIT_OPERATION lookupExceptionHandler(VM* vm, ExecState* exec)
 
 void JIT_OPERATION lookupExceptionHandlerFromCallerFrame(VM* vm, ExecState* exec)
 {
-    exec->convertToStackOverflowFrame(*vm);
+    ASSERT(exec->isStackOverflowFrame());
+    ASSERT(jsCast<ErrorInstance*>(vm->exceptionForInspection()->value().asCell())->isStackOverflowError());
     lookupExceptionHandler(vm, exec);
 }
 
@@ -2879,7 +2882,8 @@ void JIT_OPERATION operationProcessShadowChickenLog(ExecState* exec)
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    vm.shadowChicken().update(vm, exec);
+    RELEASE_ASSERT(vm.shadowChicken());
+    vm.shadowChicken()->update(vm, exec);
 }
 
 int32_t JIT_OPERATION operationCheckIfExceptionIsUncatchableAndNotifyProfiler(ExecState* exec)

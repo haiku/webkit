@@ -495,6 +495,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(bool, crashIfWebAssemblyCantFastMemory, false, Normal, "If true, we will crash if we can't obtain fast memory for wasm.") \
     v(unsigned, maxNumWebAssemblyFastMemories, 4, Normal, nullptr) \
     v(bool, useFastTLSForWasmContext, true, Normal, "If true, we will store context in fast TLS. If false, we will pin it to a register.") \
+    v(bool, wasmBBQUsesAir, true, Normal, nullptr) \
     v(bool, useWebAssemblyStreamingApi, enableWebAssemblyStreamingApi, Normal, "Allow to run WebAssembly's Streaming API") \
     v(bool, useCallICsForWebAssemblyToJSCalls, true, Normal, "If true, we will use CallLinkInfo to inline cache Wasm to JS calls.") \
     v(bool, useEagerWebAssemblyModuleHashing, false, Normal, "Unnamed WebAssembly modules are identified in backtraces through their hash, if available.") \
@@ -507,6 +508,10 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(bool, useTracePoints, false, Normal, nullptr) \
     v(bool, traceLLIntExecution, false, Configurable, nullptr) \
     v(bool, traceLLIntSlowPath, false, Configurable, nullptr) \
+    v(bool, traceBaselineJITExecution, false, Normal, nullptr) \
+    v(unsigned, thresholdForGlobalLexicalBindingEpoch, UINT_MAX, Normal, "Threshold for global lexical binding epoch. If the epoch reaches to this value, CodeBlock metadata for scope operations will be revised globally. It needs to be greater than 1.") \
+    v(optionString, diskCachePath, nullptr, Restricted, nullptr) \
+    v(bool, forceDiskCache, false, Restricted, nullptr) \
 
 
 enum OptionEquivalence {

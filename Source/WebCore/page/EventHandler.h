@@ -162,7 +162,7 @@ public:
 #if ENABLE(DRAG_SUPPORT)
     struct DragTargetResponse {
         bool accept { false };
-        std::optional<DragOperation> operation;
+        Optional<DragOperation> operation;
     };
     DragTargetResponse updateDragAndDrop(const PlatformMouseEvent&, const std::function<std::unique_ptr<Pasteboard>()>&, DragOperation sourceOperation, bool draggingFiles);
     void cancelDragAndDrop(const PlatformMouseEvent&, std::unique_ptr<Pasteboard>&&, DragOperation, bool draggingFiles);
@@ -329,8 +329,8 @@ public:
 
     static Widget* widgetForEventTarget(Element* eventTarget);
 
-#if ENABLE(DATA_INTERACTION)
-    WEBCORE_EXPORT bool tryToBeginDataInteractionAtPoint(const IntPoint& clientPosition, const IntPoint& globalPosition);
+#if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
+    WEBCORE_EXPORT bool tryToBeginDragAtPoint(const IntPoint& clientPosition, const IntPoint& globalPosition);
 #endif
     
 #if PLATFORM(IOS_FAMILY)
@@ -369,7 +369,7 @@ private:
 
     bool internalKeyEvent(const PlatformKeyboardEvent&);
 
-    std::optional<Cursor> selectCursor(const HitTestResult&, bool shiftKey);
+    Optional<Cursor> selectCursor(const HitTestResult&, bool shiftKey);
     void updateCursor(FrameView&, const HitTestResult&, bool shiftKey);
 
     void hoverTimerFired();

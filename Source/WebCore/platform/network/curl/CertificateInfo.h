@@ -49,7 +49,7 @@ public:
 
     bool containsNonRootSHA1SignedCertificate() const { notImplemented(); return false; }
 
-    std::optional<SummaryInfo> summaryInfo() const { notImplemented(); return std::nullopt; }
+    Optional<SummaryInfo> summaryInfo() const { notImplemented(); return WTF::nullopt; }
 
     bool isEmpty() const { return m_certificateChain.isEmpty(); }
 
@@ -71,12 +71,12 @@ namespace WTF {
 namespace Persistence {
 
 template<> struct Coder<WebCore::CertificateInfo> {
-    static void encode(Encoder& encoder, const WebCore::CertificateInfo& certificateInfo)
+    static void encode(Encoder&, const WebCore::CertificateInfo&)
     {
         notImplemented();
     }
 
-    static bool decode(Decoder& decoder, WebCore::CertificateInfo& certificateInfo)
+    static bool decode(Decoder&, WebCore::CertificateInfo&)
     {
         notImplemented();
         return false;

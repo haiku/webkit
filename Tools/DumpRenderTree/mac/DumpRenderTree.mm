@@ -184,7 +184,7 @@ volatile bool done;
 NavigationController* gNavigationController = nullptr;
 RefPtr<TestRunner> gTestRunner;
 
-std::optional<TestOptions> mainFrameTestOptions;
+Optional<TestOptions> mainFrameTestOptions;
 WebFrame *mainFrame = nil;
 // This is the topmost frame that is loading, during a given load, or nil when no load is 
 // in progress.  Usually this is the same as the main frame, but not always.  In the case
@@ -724,6 +724,7 @@ WebView *createWebViewAndOffscreenWindow()
     [WebView registerURLSchemeAsLocal:@"feedsearch"];
 
 #if PLATFORM(MAC)
+    [webView setWindowOcclusionDetectionEnabled:NO];
     [WebView _setFontWhitelist:fontWhitelist()];
 #endif
 
@@ -855,7 +856,6 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setWebGL2Enabled:YES];
     [preferences setWebMetalEnabled:YES];
     // FIXME: AsyncFrameScrollingEnabled
-    [preferences setWebAuthenticationEnabled:NO];
     [preferences setCacheAPIEnabled:NO];
     [preferences setReadableByteStreamAPIEnabled:YES];
     [preferences setWritableStreamAPIEnabled:YES];
@@ -1003,7 +1003,6 @@ static void setWebPreferencesForTestOptions(const TestOptions& options)
     preferences.acceleratedDrawingEnabled = options.useAcceleratedDrawing;
     preferences.menuItemElementEnabled = options.enableMenuItemElement;
     preferences.modernMediaControlsEnabled = options.enableModernMediaControls;
-    preferences.webAuthenticationEnabled = options.enableWebAuthentication;
     preferences.isSecureContextAttributeEnabled = options.enableIsSecureContextAttribute;
     preferences.inspectorAdditionsEnabled = options.enableInspectorAdditions;
     preferences.allowCrossOriginSubresourcesToAskForCredentials = options.allowCrossOriginSubresourcesToAskForCredentials;
@@ -1011,6 +1010,8 @@ static void setWebPreferencesForTestOptions(const TestOptions& options)
     preferences.colorFilterEnabled = options.enableColorFilter;
     preferences.selectionAcrossShadowBoundariesEnabled = options.enableSelectionAcrossShadowBoundaries;
     preferences.webGPUEnabled = options.enableWebGPU;
+    preferences.CSSLogicalEnabled = options.enableCSSLogical;
+    preferences.adClickAttributionEnabled = options.adClickAttributionEnabled;
 }
 
 // Called once on DumpRenderTree startup.
@@ -1618,7 +1619,11 @@ static void changeWindowScaleIfNeeded(const char* testPathOrUR)
         return;
     // When the new scale factor is set on the window first, WebView doesn't see it as a new scale and stops propagating the behavior change to WebCore::Page.
     gTestRunner->setBackingScaleFactor(requiredScaleFactor);
-    [[[mainFrame webView] window] _setWindowResolution:requiredScaleFactor displayIfChanged:YES];
+    NSWindow *window = [[mainFrame webView] window];
+    if ([window respondsToSelector:@selector(_setWindowResolution:)])
+        [window _setWindowResolution:requiredScaleFactor];
+    else
+        [window _setWindowResolution:requiredScaleFactor displayIfChanged:YES];
 }
 #endif
 
@@ -2012,6 +2017,9 @@ static void runTest(const string& inputLine)
     sizeWebViewForCurrentTest();
     gTestRunner->setIconDatabaseEnabled(false);
     gTestRunner->clearAllApplicationCaches();
+
+    gTestRunner->clearAllDatabases();
+    gTestRunner->setIDBPerOriginQuota(50 * MB);
 
     if (disallowedURLs)
         CFSetRemoveAllValues(disallowedURLs);

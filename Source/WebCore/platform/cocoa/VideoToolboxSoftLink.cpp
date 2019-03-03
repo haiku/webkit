@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,10 +25,13 @@
 
 #include "config.h"
 
+#if USE(VIDEOTOOLBOX)
+
 #include <VideoToolbox/VideoToolbox.h>
 #include <wtf/SoftLinking.h>
 
 typedef struct OpaqueVTImageRotationSession* VTImageRotationSessionRef;
+typedef struct OpaqueVTPixelBufferConformer* VTPixelBufferConformerRef;
 typedef struct OpaqueVTPixelTransferSession* VTPixelTransferSessionRef;
 
 SOFT_LINK_FRAMEWORK_FOR_SOURCE(WebCore, VideoToolbox)
@@ -58,7 +61,7 @@ SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTPixelTransferSessionCreat
 SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTPixelTransferSessionTransferImage, OSStatus, (VTPixelTransferSessionRef session, CVPixelBufferRef sourceBuffer, CVPixelBufferRef destinationBuffer), (session, sourceBuffer, destinationBuffer))
 SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTSessionSetProperty, OSStatus, (VTSessionRef session, CFStringRef propertyKey, CFTypeRef propertyValue), (session, propertyKey, propertyValue))
 SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTPixelTransferPropertyKey_ScalingMode, CFStringRef)
-SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTScalingMode_Trim, CFStringRef)
+SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTScalingMode_Letterbox, CFStringRef)
 SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTPixelTransferPropertyKey_EnableHardwareAcceleratedTransfer, CFStringRef)
 SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTPixelTransferPropertyKey_EnableHighSpeedTransfer, CFStringRef)
 SOFT_LINK_CONSTANT_FOR_SOURCE(WebCore, VideoToolbox, kVTPixelTransferPropertyKey_RealTime, CFStringRef)
@@ -68,3 +71,9 @@ SOFT_LINK_CONSTANT_MAY_FAIL_FOR_SOURCE(WebCore, VideoToolbox, kVTHEVCDecoderCapa
 SOFT_LINK_CONSTANT_MAY_FAIL_FOR_SOURCE(WebCore, VideoToolbox, kVTHEVCDecoderProfileCapability_IsHardwareAccelerated, CFStringRef)
 SOFT_LINK_CONSTANT_MAY_FAIL_FOR_SOURCE(WebCore, VideoToolbox, kVTHEVCDecoderProfileCapability_MaxDecodeLevel, CFStringRef)
 SOFT_LINK_CONSTANT_MAY_FAIL_FOR_SOURCE(WebCore, VideoToolbox, kVTHEVCDecoderProfileCapability_MaxPlaybackLevel, CFStringRef)
+
+SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTPixelBufferConformerCreateWithAttributes, OSStatus, (CFAllocatorRef allocator, CFDictionaryRef attributes, VTPixelBufferConformerRef* conformerOut), (allocator, attributes, conformerOut));
+SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTPixelBufferConformerIsConformantPixelBuffer, Boolean, (VTPixelBufferConformerRef conformer, CVPixelBufferRef pixBuf), (conformer, pixBuf))
+SOFT_LINK_FUNCTION_FOR_SOURCE(WebCore, VideoToolbox, VTPixelBufferConformerCopyConformedPixelBuffer, OSStatus, (VTPixelBufferConformerRef conformer, CVPixelBufferRef sourceBuffer, Boolean ensureModifiable, CVPixelBufferRef* conformedBufferOut), (conformer, sourceBuffer, ensureModifiable, conformedBufferOut))
+
+#endif // USE(VIDEOTOOLBOX)

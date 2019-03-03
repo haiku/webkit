@@ -30,15 +30,15 @@
 #include "SoupNetworkSession.h"
 
 #include "AuthenticationChallenge.h"
-#include "FileSystem.h"
+#include "GUniquePtrSoup.h"
 #include "Logging.h"
 #include "SoupNetworkProxySettings.h"
 #include <glib/gstdio.h>
 #include <libsoup/soup.h>
 #include <pal/crypto/CryptoDigest.h>
+#include <wtf/FileSystem.h>
 #include <wtf/HashSet.h>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/glib/GUniquePtrSoup.h>
 #include <wtf/text/Base64.h>
 #include <wtf/text/CString.h>
 
@@ -276,17 +276,17 @@ void SoupNetworkSession::setShouldIgnoreTLSErrors(bool ignoreTLSErrors)
     gIgnoreTLSErrors = ignoreTLSErrors;
 }
 
-std::optional<ResourceError> SoupNetworkSession::checkTLSErrors(const URL& requestURL, GTlsCertificate* certificate, GTlsCertificateFlags tlsErrors)
+Optional<ResourceError> SoupNetworkSession::checkTLSErrors(const URL& requestURL, GTlsCertificate* certificate, GTlsCertificateFlags tlsErrors)
 {
     if (gIgnoreTLSErrors)
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (!tlsErrors)
-        return std::nullopt;
+        return WTF::nullopt;
 
     auto it = clientCertificates().find(requestURL.host().toString());
     if (it != clientCertificates().end() && it->value.contains(certificate))
-        return std::nullopt;
+        return WTF::nullopt;
 
     return ResourceError::tlsError(requestURL, tlsErrors, certificate);
 }

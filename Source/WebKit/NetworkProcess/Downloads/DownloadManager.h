@@ -69,8 +69,12 @@ public:
         virtual void didCreateDownload() = 0;
         virtual void didDestroyDownload() = 0;
         virtual IPC::Connection* downloadProxyConnection() = 0;
+        virtual IPC::Connection* parentProcessConnectionForDownloads() = 0;
         virtual AuthenticationManager& downloadsAuthenticationManager() = 0;
         virtual void pendingDownloadCanceled(DownloadID) = 0;
+        virtual NetworkSession* networkSession(const PAL::SessionID&) const = 0;
+        virtual void ref() const = 0;
+        virtual void deref() const = 0;
     };
 
     explicit DownloadManager(Client&);
@@ -100,6 +104,8 @@ public:
 
     IPC::Connection* downloadProxyConnection();
     AuthenticationManager& downloadsAuthenticationManager();
+    
+    Client& client() { return m_client; }
 
 private:
     Client& m_client;

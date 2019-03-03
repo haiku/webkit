@@ -86,7 +86,7 @@ void CanvasRenderingContext2D::drawFocusIfNeededInternal(const Path& path, Eleme
     auto* context = drawingContext();
     if (!element.focused() || !state().hasInvertibleTransform || path.isEmpty() || !element.isDescendantOf(canvas()) || !context)
         return;
-    context->drawFocusRing(path, 1, 1, RenderTheme::focusRingColor(element.document().styleColorOptions(canvas().computedStyle())));
+    context->drawFocusRing(path, 1, 1, RenderTheme::singleton().focusRingColor(element.document().styleColorOptions(canvas().computedStyle())));
 }
 
 String CanvasRenderingContext2D::font() const
@@ -323,12 +323,12 @@ void CanvasRenderingContext2D::setDirection(CanvasDirection direction)
     modifiableState().direction = direction;
 }
 
-void CanvasRenderingContext2D::fillText(const String& text, float x, float y, std::optional<float> maxWidth)
+void CanvasRenderingContext2D::fillText(const String& text, float x, float y, Optional<float> maxWidth)
 {
     drawTextInternal(text, x, y, true, maxWidth);
 }
 
-void CanvasRenderingContext2D::strokeText(const String& text, float x, float y, std::optional<float> maxWidth)
+void CanvasRenderingContext2D::strokeText(const String& text, float x, float y, Optional<float> maxWidth)
 {
     drawTextInternal(text, x, y, false, maxWidth);
 }
@@ -457,7 +457,7 @@ FloatPoint CanvasRenderingContext2D::textOffset(float width, TextDirection direc
     return offset;
 }
 
-void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, float y, bool fill, std::optional<float> maxWidth)
+void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, float y, bool fill, Optional<float> maxWidth)
 {
     if (RuntimeEnabledFeatures::sharedFeatures().webAPIStatisticsEnabled())
         ResourceLoadObserver::shared().logCanvasWriteOrMeasure(this->canvas().document(), text);

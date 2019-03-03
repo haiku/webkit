@@ -162,7 +162,7 @@ static const double progressAnimationNumFrames = 256;
 
 - (CFDictionaryRef)_adjustedCoreUIDrawOptionsForDrawingBordersOnly:(CFDictionaryRef)defaultOptions
 {
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     // Dark mode controls don't have borders, just a semi-transparent background of shadows.
     // In the dark mode case we can't disable borders, or we will not paint anything for the control.
     NSAppearanceName appearance = [self.controlView.effectiveAppearance bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
@@ -235,7 +235,7 @@ static const CGFloat listButtonCornerRadius = 5.0f;
 
     // FIXME: Obtain the gradient colors from CoreUI or AppKit
     RetainPtr<NSGradient> gradient;
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     NSUserAccentColor accentColor = NSColorGetUserAccentColor();
     if (accentColor == NSUserAccentColorRed)
         gradient = adoptNS([[NSGradient alloc] initWithStartingColor:[NSColor colorWithRed:(212.0 / 255) green:(122.0 / 255) blue:(117.0 / 255) alpha:1.0] endingColor:[NSColor colorWithRed:(189.0 / 255) green:(34.0 / 255) blue:(23.0 / 255) alpha:1.0]]);
@@ -335,7 +335,6 @@ void RenderThemeMac::purgeCaches()
     m_mediaControlsScript.clearImplIfNotShared();
     m_legacyMediaControlsStyleSheet.clearImplIfNotShared();
     m_mediaControlsStyleSheet.clearImplIfNotShared();
-    m_darkColorCache = ColorCache();
 
     RenderTheme::purgeCaches();
 }
@@ -398,7 +397,7 @@ Color RenderThemeMac::platformActiveSelectionBackgroundColor(OptionSet<StyleColo
 
 Color RenderThemeMac::platformInactiveSelectionBackgroundColor(OptionSet<StyleColor::Options> options) const
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
     return colorFromNSColor([NSColor unemphasizedSelectedTextBackgroundColor]);
 #else
@@ -435,7 +434,7 @@ Color RenderThemeMac::platformActiveSelectionForegroundColor(OptionSet<StyleColo
 
 Color RenderThemeMac::platformInactiveSelectionForegroundColor(OptionSet<StyleColor::Options> options) const
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
     if (localAppearance.usingDarkAppearance())
         return colorFromNSColor([NSColor unemphasizedSelectedTextColor]);
@@ -448,7 +447,7 @@ Color RenderThemeMac::platformInactiveSelectionForegroundColor(OptionSet<StyleCo
 
 Color RenderThemeMac::platformActiveListBoxSelectionBackgroundColor(OptionSet<StyleColor::Options> options) const
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
     return colorFromNSColor([NSColor selectedContentBackgroundColor]);
 #else
@@ -459,7 +458,7 @@ Color RenderThemeMac::platformActiveListBoxSelectionBackgroundColor(OptionSet<St
 
 Color RenderThemeMac::platformInactiveListBoxSelectionBackgroundColor(OptionSet<StyleColor::Options> options) const
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
     return colorFromNSColor([NSColor unemphasizedSelectedContentBackgroundColor]);
 #else
@@ -476,7 +475,7 @@ Color RenderThemeMac::platformActiveListBoxSelectionForegroundColor(OptionSet<St
 
 Color RenderThemeMac::platformInactiveListBoxSelectionForegroundColor(OptionSet<StyleColor::Options> options) const
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
     return colorFromNSColor([NSColor unemphasizedSelectedTextColor]);
 #else
@@ -489,7 +488,9 @@ Color RenderThemeMac::platformFocusRingColor(OptionSet<StyleColor::Options> opti
 {
     if (usesTestModeFocusRingColor())
         return oldAquaFocusRingColor();
-    return systemColor(CSSValueWebkitFocusRingColor, options);
+    LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
+    // The color is expected to be opaque, since CoreGraphics will apply opacity when drawing (because opacity is normally animated).
+    return colorWithOverrideAlpha(colorFromNSColor([NSColor keyboardFocusIndicatorColor]).rgb(), 1);
 }
 
 Color RenderThemeMac::platformActiveTextSearchHighlightColor(OptionSet<StyleColor::Options> options) const
@@ -603,21 +604,6 @@ static RGBA32 menuBackgroundColor()
     return makeRGBA(pixel[0], pixel[1], pixel[2], pixel[3]);
 }
 
-void RenderThemeMac::platformColorsDidChange()
-{
-    m_darkColorCache = ColorCache();
-
-    RenderTheme::platformColorsDidChange();
-}
-
-auto RenderThemeMac::colorCache(OptionSet<StyleColor::Options> options) const -> ColorCache&
-{
-    LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
-    if (localAppearance.usingDarkAppearance())
-        return m_darkColorCache;
-    return RenderTheme::colorCache(options);
-}
-
 Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::Options> options) const
 {
     const bool useSystemAppearance = options.contains(StyleColor::Options::UseSystemAppearance);
@@ -654,10 +640,10 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
         // These should only be available when the web view is wanting the system appearance.
         case CSSValueWebkitFocusRingColor:
         case CSSValueActiveborder:
-            return systemAppearanceColor(cache.systemFocusRingColor, @selector(keyboardFocusIndicatorColor));
+            return focusRingColor(options);
 
         case CSSValueAppleSystemControlAccent:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
             return systemAppearanceColor(cache.systemControlAccentColor, @selector(controlAccentColor));
 #else
             return systemAppearanceColor(cache.systemControlAccentColor, @selector(alternateSelectedControlColor));
@@ -738,7 +724,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
             case CSSValueAppleSystemAlternateSelectedText:
                 return @selector(alternateSelectedControlTextColor);
             case CSSValueAppleSystemUnemphasizedSelectedContentBackground:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(unemphasizedSelectedContentBackgroundColor);
 #else
                 return @selector(secondarySelectedControlColor);
@@ -746,13 +732,13 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
             case CSSValueAppleSystemSelectedText:
                 return @selector(selectedTextColor);
             case CSSValueAppleSystemUnemphasizedSelectedText:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(unemphasizedSelectedTextColor);
 #else
                 return @selector(textColor);
 #endif
             case CSSValueAppleSystemUnemphasizedSelectedTextBackground:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(unemphasizedSelectedTextBackgroundColor);
 #else
                 return @selector(secondarySelectedControlColor);
@@ -767,7 +753,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
                 return nullptr;
 #endif
             case CSSValueAppleSystemContainerBorder:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(containerBorderColor);
 #else
                 // Handled below.
@@ -784,7 +770,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
             case CSSValueAppleSystemGrid:
                 return @selector(gridColor);
             case CSSValueAppleSystemSeparator:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(separatorColor);
 #else
                 return @selector(gridColor);
@@ -841,8 +827,8 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
         case CSSValueActiveborder:
             // Hardcoded to avoid exposing a user appearance preference to the web for fingerprinting.
             if (localAppearance.usingDarkAppearance())
-                return Color(0x4C1AA9FF, Color::Semantic);
-            return Color(0x3F0067F4, Color::Semantic);
+                return Color(0xFF1AA9FF, Color::Semantic);
+            return Color(0xFF0067F4, Color::Semantic);
 
         case CSSValueAppleSystemControlAccent:
             // Hardcoded to avoid exposing a user appearance preference to the web for fingerprinting.
@@ -867,13 +853,13 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
             return platformActiveTextSearchHighlightColor(options);
 #endif
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED < 101400
+#if !HAVE(OS_DARK_MODE_SUPPORT)
         case CSSValueAppleSystemContainerBorder:
             return 0xFFC5C5C5;
 #endif
 
         case CSSValueAppleSystemEvenAlternatingContentBackground: {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
             NSArray<NSColor *> *alternateColors = [NSColor alternatingContentBackgroundColors];
 #else
             NSArray<NSColor *> *alternateColors = [NSColor controlAlternatingRowBackgroundColors];
@@ -883,7 +869,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
         }
 
         case CSSValueAppleSystemOddAlternatingContentBackground: {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
             NSArray<NSColor *> *alternateColors = [NSColor alternatingContentBackgroundColors];
 #else
             NSArray<NSColor *> *alternateColors = [NSColor controlAlternatingRowBackgroundColors];
@@ -1143,8 +1129,11 @@ void RenderThemeMac::paintListButtonForInput(const RenderObject& o, GraphicsCont
         [listButton setUserInterfaceLayoutDirection:NSUserInterfaceLayoutDirectionLeftToRight];
 
     [listButton setHighlighted:input.isPresentingAttachedView()];
-    if (!input.isPresentingAttachedView())
-        updatePressedState(listButton, *(input.dataListButtonElement()->renderer()));
+    if (!input.isPresentingAttachedView()) {
+        ASSERT(input.dataListButtonElement());
+        if (auto* buttonElement = input.dataListButtonElement())
+            updatePressedState(listButton, *buttonElement->renderer());
+    }
 
     [listButton drawWithFrame:listButtonFrame inView:documentViewFor(o)];
     [listButton setControlView:nil];
@@ -2074,27 +2063,13 @@ bool RenderThemeMac::paintSearchFieldCancelButton(const RenderBox& box, const Pa
         [[search cancelButtonCell] setHighlighted:NO];
 
     GraphicsContextStateSaver stateSaver(paintInfo.context());
-
-    float zoomLevel = box.style().effectiveZoom();
-
     FloatRect localBounds = adjustedCancelButtonRect([search cancelButtonRectForBounds:NSRect(snappedIntRect(inputBox.contentBoxRect()))]);
-
-    // Adjust position based on the content direction.
-    float adjustedXPosition;
-
-    if (is<HTMLInputElement>(*input)) {
-        RenderBox* cancelButtonBox = downcast<RenderBox>(downcast<HTMLInputElement>(*input).cancelButtonElement()->renderer());
-        // The cancel button won't always be the rightmost element.
-        adjustedXPosition = inputBox.contentBoxRect().x() + (cancelButtonBox->absoluteContentBox().x() - inputBox.absoluteContentBox().x());
-    } else if (box.style().direction() == TextDirection::RTL)
-        adjustedXPosition = inputBox.contentBoxRect().x();
-    else
-        adjustedXPosition = inputBox.contentBoxRect().maxX() - localBounds.size().width();
-    
-    localBounds.setX(adjustedXPosition);
+    // Set the original horizontal position back (cancelButtonRectForBounds() moves it based on the system direction).
+    localBounds.setX(inputBox.contentBoxRect().x() + box.x());
     FloatPoint paintingPos = convertToPaintingPosition(inputBox, box, localBounds.location(), r.location());
 
     FloatRect unzoomedRect(paintingPos, localBounds.size());
+    auto zoomLevel = box.style().effectiveZoom();
     if (zoomLevel != 1.0f) {
         unzoomedRect.setSize(unzoomedRect.size() / zoomLevel);
         paintInfo.context().translate(unzoomedRect.location());

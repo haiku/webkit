@@ -32,6 +32,7 @@
 #import "CSSPrimitiveValue.h"
 #import "CSSToLengthConversionData.h"
 #import "CSSValueKeywords.h"
+#import "ColorIOS.h"
 #import "DateComponents.h"
 #import "Document.h"
 #import "File.h"
@@ -70,20 +71,12 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <CoreImage/CoreImage.h>
 #import <objc/runtime.h>
+#import <pal/ios/UIKitSoftLink.h>
 #import <pal/spi/cocoa/CoreTextSPI.h>
 #import <pal/spi/ios/UIKitSPI.h>
 #import <wtf/NeverDestroyed.h>
 #import <wtf/RefPtr.h>
-#import <wtf/SoftLinking.h>
 #import <wtf/StdLibExtras.h>
-
-SOFT_LINK_FRAMEWORK(UIKit)
-SOFT_LINK_CLASS(UIKit, UIApplication)
-SOFT_LINK_CLASS(UIKit, UIColor)
-SOFT_LINK_CLASS(UIKit, UIDocumentInteractionController)
-SOFT_LINK_CLASS(UIKit, UIImage)
-SOFT_LINK_CONSTANT(UIKit, UIContentSizeCategoryDidChangeNotification, CFStringRef)
-#define UIContentSizeCategoryDidChangeNotification getUIContentSizeCategoryDidChangeNotification()
 
 @interface WebCoreRenderThemeBundle : NSObject
 @end
@@ -286,7 +279,7 @@ static IOSGradientRef gradientWithName(IOSGradientType gradientType)
 
 static void contentSizeCategoryDidChange(CFNotificationCenterRef, void*, CFStringRef name, const void*, CFDictionaryRef)
 {
-    ASSERT_UNUSED(name, CFEqual(name, UIContentSizeCategoryDidChangeNotification));
+    ASSERT_UNUSED(name, CFEqual(name, PAL::get_UIKit_UIContentSizeCategoryDidChangeNotification()));
     WebThreadRun(^{
         Page::updateStyleForAllPagesAfterGlobalChangeInEnvironment();
     });
@@ -294,7 +287,7 @@ static void contentSizeCategoryDidChange(CFNotificationCenterRef, void*, CFStrin
 
 RenderThemeIOS::RenderThemeIOS()
 {
-    CFNotificationCenterAddObserver(CFNotificationCenterGetLocalCenter(), this, contentSizeCategoryDidChange, UIContentSizeCategoryDidChangeNotification, 0, CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver(CFNotificationCenterGetLocalCenter(), this, contentSizeCategoryDidChange, (__bridge CFStringRef)PAL::get_UIKit_UIContentSizeCategoryDidChangeNotification(), 0, CFNotificationSuspensionBehaviorDeliverImmediately);
 }
 
 RenderTheme& RenderTheme::singleton()
@@ -313,7 +306,7 @@ CFStringRef RenderThemeIOS::contentSizeCategory()
 {
     if (!_contentSizeCategory().isNull())
         return (__bridge CFStringRef)static_cast<NSString*>(_contentSizeCategory());
-    return (CFStringRef)[[getUIApplicationClass() sharedApplication] preferredContentSizeCategory];
+    return (CFStringRef)[[PAL::getUIApplicationClass() sharedApplication] preferredContentSizeCategory];
 }
 
 void RenderThemeIOS::setContentSizeCategory(const String& contentSizeCategory)
@@ -562,7 +555,7 @@ void RenderThemeIOS::adjustRoundBorderRadius(RenderStyle& style, RenderBox& box)
 static void applyCommonButtonPaddingToStyle(RenderStyle& style, const Element& element)
 {
     Document& document = element.document();
-    RefPtr<CSSPrimitiveValue> emSize = CSSPrimitiveValue::create(0.5, CSSPrimitiveValue::CSS_EMS);
+    auto emSize = CSSPrimitiveValue::create(0.5, CSSPrimitiveValue::CSS_EMS);
     int pixels = emSize->computeLength<int>(CSSToLengthConversionData(&style, document.renderStyle(), document.renderView(), document.frame()->pageZoomFactor()));
     style.setPaddingBox(LengthBox(0, pixels, 0, pixels));
 }
@@ -917,12 +910,12 @@ bool RenderThemeIOS::paintProgressBar(const RenderObject& renderer, const PaintI
     context.setStrokeStyle(SolidStroke);
 
     const float verticalRenderingPosition = rect.y() + verticalOffset;
-    RefPtr<Gradient> strokeGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
+    auto strokeGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
     strokeGradient->addColorStop(0.0, Color(0x8d, 0x8d, 0x8d));
     strokeGradient->addColorStop(0.45, Color(0xee, 0xee, 0xee));
     strokeGradient->addColorStop(0.55, Color(0xee, 0xee, 0xee));
     strokeGradient->addColorStop(1.0, Color(0x8d, 0x8d, 0x8d));
-    context.setStrokeGradient(strokeGradient.releaseNonNull());
+    context.setStrokeGradient(WTFMove(strokeGradient));
 
     context.setFillColor(Color(255, 255, 255));
 
@@ -937,10 +930,10 @@ bool RenderThemeIOS::paintProgressBar(const RenderObject& renderer, const PaintI
     paintInfo.context().clipRoundedRect(FloatRoundedRect(border, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius));
 
     float upperGradientHeight = progressBarHeight / 2.;
-    RefPtr<Gradient> upperGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition + 0.5), FloatPoint(rect.x(), verticalRenderingPosition + upperGradientHeight - 1.5) });
+    auto upperGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition + 0.5), FloatPoint(rect.x(), verticalRenderingPosition + upperGradientHeight - 1.5) });
     upperGradient->addColorStop(0.0, Color(133, 133, 133, 188));
     upperGradient->addColorStop(1.0, Color(18, 18, 18, 51));
-    context.setFillGradient(upperGradient.releaseNonNull());
+    context.setFillGradient(WTFMove(upperGradient));
 
     context.fillRect(FloatRect(rect.x(), verticalRenderingPosition, rect.width(), upperGradientHeight));
 
@@ -949,20 +942,20 @@ bool RenderThemeIOS::paintProgressBar(const RenderObject& renderer, const PaintI
         // 2) Draw the progress bar.
         double position = clampTo(renderProgress.position(), 0.0, 1.0);
         double barWidth = position * rect.width();
-        RefPtr<Gradient> barGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition + 0.5), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
+        auto barGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition + 0.5), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
         barGradient->addColorStop(0.0, Color(195, 217, 247));
         barGradient->addColorStop(0.45, Color(118, 164, 228));
         barGradient->addColorStop(0.49, Color(118, 164, 228));
         barGradient->addColorStop(0.51, Color(36, 114, 210));
         barGradient->addColorStop(0.55, Color(36, 114, 210));
         barGradient->addColorStop(1.0, Color(57, 142, 244));
-        context.setFillGradient(barGradient.releaseNonNull());
+        context.setFillGradient(WTFMove(barGradient));
 
-        RefPtr<Gradient> barStrokeGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
+        auto barStrokeGradient = Gradient::create(Gradient::LinearData { FloatPoint(rect.x(), verticalRenderingPosition), FloatPoint(rect.x(), verticalRenderingPosition + progressBarHeight - 1) });
         barStrokeGradient->addColorStop(0.0, Color(95, 107, 183));
         barStrokeGradient->addColorStop(0.5, Color(66, 106, 174, 240));
         barStrokeGradient->addColorStop(1.0, Color(38, 104, 166));
-        context.setStrokeGradient(barStrokeGradient.releaseNonNull());
+        context.setStrokeGradient(WTFMove(barStrokeGradient));
 
         Path barPath;
         int left = rect.x();
@@ -1025,7 +1018,7 @@ void RenderThemeIOS::adjustButtonStyle(StyleResolver& selector, RenderStyle& sty
     // CSSPrimitiveValue::computeLengthInt only needs the element's style to calculate em lengths.
     // Since the element might not be in a document, just pass nullptr for the root element style
     // and the render view.
-    RefPtr<CSSPrimitiveValue> emSize = CSSPrimitiveValue::create(1.0, CSSPrimitiveValue::CSS_EMS);
+    auto emSize = CSSPrimitiveValue::create(1.0, CSSPrimitiveValue::CSS_EMS);
     int pixels = emSize->computeLength<int>(CSSToLengthConversionData(&style, nullptr, nullptr, 1.0, false));
     style.setPaddingBox(LengthBox(0, pixels, 0, pixels));
 
@@ -1130,7 +1123,19 @@ Color RenderThemeIOS::platformInactiveSelectionBackgroundColor(OptionSet<StyleCo
     return Color::transparent;
 }
 
+#if ENABLE(FULL_KEYBOARD_ACCESS)
+Color RenderThemeIOS::platformFocusRingColor(OptionSet<StyleColor::Options>) const
+{
+    return colorFromUIColor([PAL::getUIColorClass() keyboardFocusIndicatorColor]);
+}
+#endif
+
 bool RenderThemeIOS::shouldHaveSpinButton(const HTMLInputElement&) const
+{
+    return false;
+}
+
+bool RenderThemeIOS::supportsFocusRing(const RenderStyle&) const
 {
     return false;
 }
@@ -1436,28 +1441,28 @@ Color RenderThemeIOS::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
     Color color;
     switch (cssValueID) {
     case CSSValueAppleWirelessPlaybackTargetActive:
-        color = [getUIColorClass() systemBlueColor].CGColor;
+        color = [PAL::getUIColorClass() systemBlueColor].CGColor;
         break;
     case CSSValueAppleSystemBlue:
-        color = [getUIColorClass() systemBlueColor].CGColor;
+        color = [PAL::getUIColorClass() systemBlueColor].CGColor;
         break;
     case CSSValueAppleSystemGray:
-        color = [getUIColorClass() systemGrayColor].CGColor;
+        color = [PAL::getUIColorClass() systemGrayColor].CGColor;
         break;
     case CSSValueAppleSystemGreen:
-        color = [getUIColorClass() systemGreenColor].CGColor;
+        color = [PAL::getUIColorClass() systemGreenColor].CGColor;
         break;
     case CSSValueAppleSystemOrange:
-        color = [getUIColorClass() systemOrangeColor].CGColor;
+        color = [PAL::getUIColorClass() systemOrangeColor].CGColor;
         break;
     case CSSValueAppleSystemPink:
-        color = [getUIColorClass() systemPinkColor].CGColor;
+        color = [PAL::getUIColorClass() systemPinkColor].CGColor;
         break;
     case CSSValueAppleSystemRed:
-        color = [getUIColorClass() systemRedColor].CGColor;
+        color = [PAL::getUIColorClass() systemRedColor].CGColor;
         break;
     case CSSValueAppleSystemYellow:
-        color = [getUIColorClass() systemYellowColor].CGColor;
+        color = [PAL::getUIColorClass() systemYellowColor].CGColor;
         break;
     default:
         break;
@@ -1501,7 +1506,7 @@ static RetainPtr<CTFontRef> attachmentActionFont()
 
 static UIColor *attachmentActionColor(const RenderAttachment& attachment)
 {
-    return [getUIColorClass() colorWithCGColor:cachedCGColor(attachment.style().visitedDependentColor(CSSPropertyColor))];
+    return [PAL::getUIColorClass() colorWithCGColor:cachedCGColor(attachment.style().visitedDependentColor(CSSPropertyColor))];
 }
 
 static RetainPtr<CTFontRef> attachmentTitleFont()
@@ -1510,10 +1515,10 @@ static RetainPtr<CTFontRef> attachmentTitleFont()
     return adoptCF(CTFontCreateWithFontDescriptor(fontDescriptor.get(), 0, nullptr));
 }
 
-static UIColor *attachmentTitleColor() { return [getUIColorClass() systemGrayColor]; }
+static UIColor *attachmentTitleColor() { return [PAL::getUIColorClass() systemGrayColor]; }
 
 static RetainPtr<CTFontRef> attachmentSubtitleFont() { return attachmentTitleFont(); }
-static UIColor *attachmentSubtitleColor() { return [getUIColorClass() systemGrayColor]; }
+static UIColor *attachmentSubtitleColor() { return [PAL::getUIColorClass() systemGrayColor]; }
 
 struct RenderAttachmentInfo {
     explicit RenderAttachmentInfo(const RenderAttachment&);
@@ -1635,7 +1640,7 @@ static BOOL getAttachmentProgress(const RenderAttachment& attachment, float& pro
 
 static RetainPtr<UIImage> iconForAttachment(const RenderAttachment& attachment, FloatSize& size)
 {
-    auto documentInteractionController = adoptNS([allocUIDocumentInteractionControllerInstance() init]);
+    auto documentInteractionController = adoptNS([PAL::allocUIDocumentInteractionControllerInstance() init]);
 
     String fileName;
     if (File* file = attachment.attachmentElement().file())
@@ -1743,11 +1748,8 @@ static void paintAttachmentIcon(GraphicsContext& context, RenderAttachmentInfo& 
     if (!info.icon)
         return;
 
-    RefPtr<Image> iconImage = BitmapImage::create([info.icon CGImage]);
-    if (!iconImage)
-        return;
-
-    context.drawImage(*iconImage, info.iconRect);
+    auto iconImage = BitmapImage::create([info.icon CGImage]);
+    context.drawImage(iconImage.get(), info.iconRect);
 }
 
 static void paintAttachmentText(GraphicsContext& context, RenderAttachmentInfo& info)

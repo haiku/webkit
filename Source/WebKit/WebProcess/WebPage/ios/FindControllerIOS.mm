@@ -94,7 +94,7 @@ bool FindController::updateFindIndicator(Frame& selectedFrame, bool isShowingOve
         m_isShowingFindIndicator = false;
     }
 
-    RefPtr<TextIndicator> textIndicator = TextIndicator::createWithSelectionInFrame(selectedFrame, findTextIndicatorOptions, TextIndicatorPresentationTransition::None, FloatSize(totalHorizontalMargin, totalVerticalMargin));
+    auto textIndicator = TextIndicator::createWithSelectionInFrame(selectedFrame, findTextIndicatorOptions, TextIndicatorPresentationTransition::None, FloatSize(totalHorizontalMargin, totalVerticalMargin));
     if (!textIndicator)
         return false;
 
@@ -105,7 +105,7 @@ bool FindController::updateFindIndicator(Frame& selectedFrame, bool isShowingOve
     m_findIndicatorOverlay->setFrame(enclosingIntRect(textIndicator->textBoundingRectInRootViewCoordinates()));
     m_findIndicatorOverlay->setNeedsDisplay();
 
-    if (isShowingOverlay || shouldAnimate) {
+    if (shouldAnimate) {
         FloatRect visibleContentRect = m_webPage->mainFrameView()->unobscuredContentRectIncludingScrollbars();
 
         bool isReplaced;

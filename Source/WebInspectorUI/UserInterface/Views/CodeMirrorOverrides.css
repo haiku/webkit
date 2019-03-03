@@ -42,7 +42,7 @@
 }
 
 .CodeMirror .CodeMirror-selected {
-    background-color: hsl(0, 0%, 83%);
+    background-color: var(--selected-background-color-unfocused);
 }
 
 .CodeMirror.CodeMirror-focused .CodeMirror-selected {
@@ -118,7 +118,7 @@
     display: initial;
 }
 
-@media (prefers-dark-interface) {
+@media (prefers-color-scheme: dark) {
     .CodeMirror-cursor {
         border-left-color: hsl(0, 0%, var(--foreground-lightness));
     }

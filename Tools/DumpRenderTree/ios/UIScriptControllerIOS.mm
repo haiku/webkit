@@ -211,6 +211,16 @@ static CGPoint contentOffsetBoundedInValidRange(UIScrollView *scrollView, CGPoin
     return contentOffset;
 }
 
+double UIScriptController::contentOffsetX() const
+{
+    return [gWebScrollView contentOffset].x;
+}
+
+double UIScriptController::contentOffsetY() const
+{
+    return [gWebScrollView contentOffset].y;
+}
+
 void UIScriptController::scrollToOffset(long x, long y)
 {
     [gWebScrollView setContentOffset:contentOffsetBoundedInValidRange(gWebScrollView, CGPointMake(x, y)) animated:YES];
@@ -253,12 +263,12 @@ double UIScriptController::maximumZoomScale() const
     return gWebScrollView.maximumZoomScale;
 }
 
-std::optional<bool> UIScriptController::stableStateOverride() const
+Optional<bool> UIScriptController::stableStateOverride() const
 {
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-void UIScriptController::setStableStateOverride(std::optional<bool>)
+void UIScriptController::setStableStateOverride(Optional<bool>)
 {
 }
 
@@ -434,6 +444,25 @@ void UIScriptController::toggleCapsLock(JSValueRef callback)
 JSObjectRef UIScriptController::attachmentInfo(JSStringRef)
 {
     return nullptr;
+}
+
+void UIScriptController::setKeyboardInputModeIdentifier(JSStringRef)
+{
+}
+
+JSRetainPtr<JSStringRef> UIScriptController::lastUndoLabel() const
+{
+    return nullptr;
+}
+
+JSRetainPtr<JSStringRef> UIScriptController::firstRedoLabel() const
+{
+    return nullptr;
+}
+
+NSUndoManager *UIScriptController::platformUndoManager() const
+{
+    return nil;
 }
 
 }

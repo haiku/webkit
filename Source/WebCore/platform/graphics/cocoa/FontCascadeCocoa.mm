@@ -38,16 +38,13 @@
 #import <wtf/MathExtras.h>
 
 #if PLATFORM(IOS_FAMILY)
+#import <pal/ios/UIKitSoftLink.h>
 #import <pal/spi/ios/CoreUISPI.h>
 #import <wtf/SoftLinking.h>
 
 SOFT_LINK_PRIVATE_FRAMEWORK(CoreUI)
 SOFT_LINK_CLASS(CoreUI, CUICatalog)
 SOFT_LINK_CLASS(CoreUI, CUIStyleEffectConfiguration)
-
-SOFT_LINK_FRAMEWORK(UIKit)
-SOFT_LINK(UIKit, _UIKitGetTextEffectsCatalog, CUICatalog *, (void), ())
-SOFT_LINK_CLASS(UIKit, UIColor)
 #endif
 
 #ifdef __LP64__
@@ -57,6 +54,24 @@ SOFT_LINK_CLASS(UIKit, UIColor)
 #endif
 
 namespace WebCore {
+
+// Confusingly, even when CGFontRenderingGetFontSmoothingDisabled() returns true, CGContextSetShouldSmoothFonts() still impacts text
+// rendering, which is why this function uses the "subpixel antialiasing" rather than "smoothing" terminology.
+bool FontCascade::isSubpixelAntialiasingAvailable()
+{
+#if HAVE(CG_FONT_RENDERING_GET_FONT_SMOOTHING_DISABLED)
+    static bool subpixelAntialiasingEnabled;
+    static std::once_flag onceFlag;
+    std::call_once(onceFlag, [&] () {
+        subpixelAntialiasingEnabled = !CGFontRenderingGetFontSmoothingDisabled();
+    });
+    return subpixelAntialiasingEnabled;
+#elif PLATFORM(MAC)
+    return true;
+#else
+    return false;
+#endif
+}
 
 bool FontCascade::canReturnFallbackFontsForComplexText()
 {
@@ -108,7 +123,7 @@ static void showLetterpressedGlyphsWithAdvances(const FloatPoint& point, const F
     CTFontRef ctFont = platformData.ctFont();
     CGContextSetFontSize(context, CTFontGetSize(ctFont));
 
-    static CUICatalog *catalog = _UIKitGetTextEffectsCatalog();
+    static CUICatalog *catalog = PAL::softLink_UIKit__UIKitGetTextEffectsCatalog();
     if (!catalog)
         return;
 

@@ -31,10 +31,10 @@
 #include "config.h"
 #include "SQLiteFileSystem.h"
 
-#include "FileSystem.h"
 #include "SQLiteDatabase.h"
 #include "SQLiteStatement.h"
 #include <sqlite3.h>
+#include <wtf/FileSystem.h>
 
 #if PLATFORM(IOS_FAMILY)
 #include <pal/spi/ios/SQLite3SPI.h>
@@ -108,12 +108,12 @@ long long SQLiteFileSystem::getDatabaseFileSize(const String& fileName)
     return FileSystem::getFileSize(fileName, size) ? size : 0;
 }
 
-std::optional<WallTime> SQLiteFileSystem::databaseCreationTime(const String& fileName)
+Optional<WallTime> SQLiteFileSystem::databaseCreationTime(const String& fileName)
 {
     return FileSystem::getFileCreationTime(fileName);
 }
 
-std::optional<WallTime> SQLiteFileSystem::databaseModificationTime(const String& fileName)
+Optional<WallTime> SQLiteFileSystem::databaseModificationTime(const String& fileName)
 {
     return FileSystem::getFileModificationTime(fileName);
 }

@@ -253,18 +253,9 @@ void WebFrame::invalidatePolicyListener()
         completionHandler();
 }
 
-void WebFrame::didReceivePolicyDecision(uint64_t listenerID, PolicyAction action, uint64_t navigationID, DownloadID downloadID, std::optional<WebsitePoliciesData>&& websitePolicies)
+void WebFrame::didReceivePolicyDecision(uint64_t listenerID, PolicyAction action, uint64_t navigationID, DownloadID downloadID, Optional<WebsitePoliciesData>&& websitePolicies)
 {
-    if (!m_coreFrame)
-        return;
-
-    if (!m_policyListenerID)
-        return;
-
-    if (listenerID != m_policyListenerID)
-        return;
-
-    if (!m_policyFunction)
+    if (!m_coreFrame || !m_policyListenerID || listenerID != m_policyListenerID || !m_policyFunction)
         return;
 
     FramePolicyFunction function = WTFMove(m_policyFunction);
@@ -802,11 +793,11 @@ void WebFrame::setTextDirection(const String& direction)
         return;
 
     if (direction == "auto")
-        m_coreFrame->editor().setBaseWritingDirection(NaturalWritingDirection);
+        m_coreFrame->editor().setBaseWritingDirection(WritingDirection::Natural);
     else if (direction == "ltr")
-        m_coreFrame->editor().setBaseWritingDirection(LeftToRightWritingDirection);
+        m_coreFrame->editor().setBaseWritingDirection(WritingDirection::LeftToRight);
     else if (direction == "rtl")
-        m_coreFrame->editor().setBaseWritingDirection(RightToLeftWritingDirection);
+        m_coreFrame->editor().setBaseWritingDirection(WritingDirection::RightToLeft);
 }
 
 void WebFrame::documentLoaderDetached(uint64_t navigationID)
@@ -818,7 +809,7 @@ void WebFrame::documentLoaderDetached(uint64_t navigationID)
 #if PLATFORM(COCOA)
 RetainPtr<CFDataRef> WebFrame::webArchiveData(FrameFilterFunction callback, void* context)
 {
-    RefPtr<LegacyWebArchive> archive = LegacyWebArchive::create(*coreFrame()->document(), [this, callback, context](Frame& frame) -> bool {
+    auto archive = LegacyWebArchive::create(*coreFrame()->document(), [this, callback, context](Frame& frame) -> bool {
         if (!callback)
             return true;
 

@@ -68,6 +68,7 @@
 #include <wtf/JSONValues.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Vector.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 using JSON::ArrayOf;
 using Inspector::Protocol::IndexedDB::DatabaseWithObjectStores;
@@ -160,7 +161,7 @@ void ExecutableWithDatabase::start(IDBFactory* idbFactory, SecurityOrigin*, cons
         return;
     }
 
-    auto result = idbFactory->open(*context(), databaseName, std::nullopt);
+    auto result = idbFactory->open(*context(), databaseName, WTF::nullopt);
     if (result.hasException()) {
         requestCallback().sendFailure("Could not open database.");
         return;
@@ -170,20 +171,20 @@ void ExecutableWithDatabase::start(IDBFactory* idbFactory, SecurityOrigin*, cons
 }
 
 
-static RefPtr<KeyPath> keyPathFromIDBKeyPath(const std::optional<IDBKeyPath>& idbKeyPath)
+static RefPtr<KeyPath> keyPathFromIDBKeyPath(const Optional<IDBKeyPath>& idbKeyPath)
 {
     if (!idbKeyPath)
         return KeyPath::create().setType(KeyPath::Type::Null).release();
 
     auto visitor = WTF::makeVisitor([](const String& string) {
-        RefPtr<KeyPath> keyPath = KeyPath::create().setType(KeyPath::Type::String).release();
+        auto keyPath = KeyPath::create().setType(KeyPath::Type::String).release();
         keyPath->setString(string);
         return keyPath;
     }, [](const Vector<String>& vector) {
         auto array = JSON::ArrayOf<String>::create();
         for (auto& string : vector)
             array->addItem(string);
-        RefPtr<KeyPath> keyPath = KeyPath::create().setType(KeyPath::Type::Array).release();
+        auto keyPath = KeyPath::create().setType(KeyPath::Type::Array).release();
         keyPath->setArray(WTFMove(array));
         return keyPath;
     });
@@ -711,7 +712,7 @@ public:
             auto result = idbObjectStore->clear(*exec);
             ASSERT(!result.hasException());
             if (result.hasException()) {
-                m_requestCallback->sendFailure(String::format("Could not clear object store '%s': %d", m_objectStoreName.utf8().data(), result.releaseException().code()));
+                m_requestCallback->sendFailure(makeString("Could not clear object store '", m_objectStoreName, "': ", static_cast<int>(result.releaseException().code())));
                 return;
             }
             idbRequest = result.releaseReturnValue();

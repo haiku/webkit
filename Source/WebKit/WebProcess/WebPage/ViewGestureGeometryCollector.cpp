@@ -138,7 +138,7 @@ struct FontSizeAndCount {
     unsigned count;
 };
 
-std::optional<std::pair<double, double>> ViewGestureGeometryCollector::computeTextLegibilityScales(double& viewportMinimumScale, double& viewportMaximumScale)
+Optional<std::pair<double, double>> ViewGestureGeometryCollector::computeTextLegibilityScales(double& viewportMinimumScale, double& viewportMaximumScale)
 {
     static const unsigned fontSizeBinningInterval = 2;
     static const double maximumNumberOfTextRunsToConsider = 200;
@@ -153,7 +153,7 @@ std::optional<std::pair<double, double>> ViewGestureGeometryCollector::computeTe
 
     auto document = makeRefPtr(m_webPage.mainFrame()->document());
     if (!document)
-        return std::nullopt;
+        return WTF::nullopt;
 
     document->updateLayoutIgnorePendingStylesheets();
 
@@ -253,6 +253,20 @@ void ViewGestureGeometryCollector::collectGeometryForMagnificationGesture()
     bool frameHandlesMagnificationGesture = m_webPage.mainWebFrame()->handlesPageScaleGesture();
     m_webPage.send(Messages::ViewGestureController::DidCollectGeometryForMagnificationGesture(visibleContentRect, frameHandlesMagnificationGesture));
 }
+
+void ViewGestureGeometryCollector::setRenderTreeSizeNotificationThreshold(uint64_t size)
+{
+    m_renderTreeSizeNotificationThreshold = size;
+    sendDidHitRenderTreeSizeThresholdIfNeeded();
+}
+
+void ViewGestureGeometryCollector::sendDidHitRenderTreeSizeThresholdIfNeeded()
+{
+    if (m_renderTreeSizeNotificationThreshold && m_webPage.renderTreeSize() >= m_renderTreeSizeNotificationThreshold) {
+        m_webPage.send(Messages::ViewGestureController::DidHitRenderTreeSizeThreshold());
+        m_renderTreeSizeNotificationThreshold = 0;
+    }
+}
 #endif
 
 void ViewGestureGeometryCollector::mainFrameDidLayout()
@@ -261,10 +275,7 @@ void ViewGestureGeometryCollector::mainFrameDidLayout()
     m_cachedTextLegibilityScales.reset();
 #endif
 #if PLATFORM(MAC)
-    if (m_renderTreeSizeNotificationThreshold && m_webPage.renderTreeSize() >= m_renderTreeSizeNotificationThreshold) {
-        m_webPage.send(Messages::ViewGestureController::DidHitRenderTreeSizeThreshold());
-        m_renderTreeSizeNotificationThreshold = 0;
-    }
+    sendDidHitRenderTreeSizeThresholdIfNeeded();
 #endif
 }
 

@@ -527,7 +527,7 @@ enum FeatureToAnimate {
     return _scrollbar->supportsUpdateOnSecondaryThread();
 }
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if HAVE(OS_DARK_MODE_SUPPORT)
 - (NSAppearance *)effectiveAppearanceForScrollerImp:(NSScrollerImp *)scrollerImp
 {
     UNUSED_PARAM(scrollerImp);
@@ -535,9 +535,8 @@ enum FeatureToAnimate {
     if (!_scrollbar)
         return [NSAppearance currentAppearance];
 
-    // If dark appearance is used or the overlay style is light (because of a dark page background), return the dark apppearance.
     // Keep this in sync with FrameView::paintScrollCorner.
-    bool useDarkAppearance = _scrollbar->scrollableArea().useDarkAppearance() || _scrollbar->scrollableArea().scrollbarOverlayStyle() == WebCore::ScrollbarOverlayStyleLight;
+    bool useDarkAppearance = _scrollbar->scrollableArea().useDarkAppearanceForScrollbars();
     return [NSAppearance appearanceNamed:useDarkAppearance ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
 }
 #endif
@@ -805,8 +804,8 @@ void ScrollAnimatorMac::adjustScrollPositionToBoundsIfNecessary()
     m_scrollableArea.setConstrainsScrollingToContentEdge(true);
 
     ScrollPosition currentScrollPosition = m_scrollableArea.scrollPosition();
-    ScrollPosition constainedPosition = m_scrollableArea.constrainScrollPosition(currentScrollPosition);
-    immediateScrollBy(constainedPosition - currentScrollPosition);
+    ScrollPosition constrainedPosition = m_scrollableArea.constrainScrollPosition(currentScrollPosition);
+    immediateScrollBy(constrainedPosition - currentScrollPosition);
 
     m_scrollableArea.setConstrainsScrollingToContentEdge(currentlyConstrainsToContentEdge);
 }
@@ -1124,9 +1123,6 @@ bool ScrollAnimatorMac::shouldScrollbarParticipateInHitTesting(Scrollbar* scroll
 {
     // Non-overlay scrollbars should always participate in hit testing.
     if (ScrollerStyle::recommendedScrollerStyle() != NSScrollerStyleOverlay)
-        return true;
-
-    if (scrollbar->isAlphaLocked())
         return true;
 
     // Overlay scrollbars should participate in hit testing whenever they are at all visible.

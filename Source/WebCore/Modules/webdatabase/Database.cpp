@@ -107,7 +107,7 @@ static const char* fullyQualifiedInfoTableName()
 
 static String formatErrorMessage(const char* message, int sqliteErrorCode, const char* sqliteErrorMessage)
 {
-    return String::format("%s (%d %s)", message, sqliteErrorCode, sqliteErrorMessage);
+    return makeString(message, " (", sqliteErrorCode, ' ', sqliteErrorMessage, ')');
 }
 
 static bool setTextValueInDatabase(SQLiteDatabase& db, const String& query, const String& value)
@@ -638,7 +638,7 @@ String Database::fileName() const
 DatabaseDetails Database::details() const
 {
     // This code path is only used for database quota delegate calls, so file dates are irrelevant and left uninitialized.
-    return DatabaseDetails(stringIdentifier(), displayName(), estimatedSize(), 0, std::nullopt, std::nullopt);
+    return DatabaseDetails(stringIdentifier(), displayName(), estimatedSize(), 0, WTF::nullopt, WTF::nullopt);
 }
 
 void Database::disableAuthorizer()

@@ -30,6 +30,7 @@
 #include "config.h"
 #include "FrameNetworkingContextHaiku.h"
 
+#include "NetworkStorageSessionMap.h"
 #include "NetworkStorageSession.h"
 #include "NotImplemented.h"
 #include "Page.h"
@@ -54,7 +55,7 @@ Ref<FrameNetworkingContextHaiku> FrameNetworkingContextHaiku::create(Frame* fram
 FrameNetworkingContextHaiku::FrameNetworkingContextHaiku(Frame* frame, BUrlContext* context)
     : FrameNetworkingContext(frame)
 {
-    storageSession().setPlatformSession(context);
+    storageSession()->setPlatformSession(context);
 }
 
 FrameNetworkingContextHaiku::~FrameNetworkingContextHaiku()
@@ -63,7 +64,7 @@ FrameNetworkingContextHaiku::~FrameNetworkingContextHaiku()
 
 BUrlContext* FrameNetworkingContextHaiku::context()
 {
-    return &storageSession().platformSession();
+    return &storageSession()->platformSession();
 }
 
 uint64_t FrameNetworkingContextHaiku::initiatingPageID() const
@@ -73,14 +74,14 @@ uint64_t FrameNetworkingContextHaiku::initiatingPageID() const
 }
 
 
-NetworkStorageSession& FrameNetworkingContextHaiku::storageSession() const
+NetworkStorageSession* FrameNetworkingContextHaiku::storageSession() const
 {
     ASSERT(isMainThread());
 
     if (frame() && frame()->page()->usesEphemeralSession())
-        return *privateSession();
+        return NetworkStorageSessionMap::storageSession(PAL::SessionID::legacyPrivateSessionID());
 
-    return NetworkStorageSession::defaultStorageSession();
+    return &NetworkStorageSessionMap::defaultStorageSession();
 }
 
 }

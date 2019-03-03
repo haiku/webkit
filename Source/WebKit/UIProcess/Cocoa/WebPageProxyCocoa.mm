@@ -72,14 +72,14 @@ void WebPageProxy::loadRecentSearches(const String& name, Vector<WebCore::Recent
     searchItems = WebCore::loadRecentSearches(name);
 }
 
-void WebPageProxy::beginSafeBrowsingCheck(const URL& url, WebFramePolicyListenerProxy& listener)
+void WebPageProxy::beginSafeBrowsingCheck(const URL& url, bool forMainFrameNavigation, WebFramePolicyListenerProxy& listener)
 {
 #if HAVE(SAFE_BROWSING)
     SSBLookupContext *context = [SSBLookupContext sharedLookupContext];
     if (!context)
         return listener.didReceiveSafeBrowsingResults({ });
-    [context lookUpURL:url completionHandler:BlockPtr<void(SSBLookupResult *, NSError *)>::fromCallable([listener = makeRef(listener), url = url] (SSBLookupResult *result, NSError *error) mutable {
-        RunLoop::main().dispatch([listener = WTFMove(listener), result = retainPtr(result), error = retainPtr(error), url = WTFMove(url)] {
+    [context lookUpURL:url completionHandler:makeBlockPtr([listener = makeRef(listener), forMainFrameNavigation, url = url] (SSBLookupResult *result, NSError *error) mutable {
+        RunLoop::main().dispatch([listener = WTFMove(listener), result = retainPtr(result), error = retainPtr(error), forMainFrameNavigation, url = WTFMove(url)] {
             if (error) {
                 listener->didReceiveSafeBrowsingResults({ });
                 return;
@@ -87,7 +87,7 @@ void WebPageProxy::beginSafeBrowsingCheck(const URL& url, WebFramePolicyListener
 
             for (SSBServiceLookupResult *lookupResult in [result serviceLookupResults]) {
                 if (lookupResult.isPhishing || lookupResult.isMalware || lookupResult.isUnwantedSoftware) {
-                    listener->didReceiveSafeBrowsingResults(SafeBrowsingWarning::create(url, lookupResult));
+                    listener->didReceiveSafeBrowsingResults(SafeBrowsingWarning::create(url, forMainFrameNavigation, lookupResult));
                     return;
                 }
             }
@@ -121,7 +121,7 @@ void WebPageProxy::createSandboxExtensionsIfNeeded(const Vector<String>& files, 
         BOOL isDirectory;
         if ([[NSFileManager defaultManager] fileExistsAtPath:files[0] isDirectory:&isDirectory] && !isDirectory) {
             SandboxExtension::createHandle("/", SandboxExtension::Type::ReadOnly, fileReadHandle);
-            process().willAcquireUniversalFileReadSandboxExtension();
+            willAcquireUniversalFileReadSandboxExtension(m_process);
         }
     }
 
@@ -155,7 +155,7 @@ void WebPageProxy::setDragCaretRect(const IntRect& dragCaretRect)
 
     auto previousRect = m_currentDragCaretRect;
     m_currentDragCaretRect = dragCaretRect;
-    pageClient().didChangeDataInteractionCaretRect(previousRect, dragCaretRect);
+    pageClient().didChangeDragCaretRect(previousRect, dragCaretRect);
 }
 
 #endif // PLATFORM(IOS_FAMILY)

@@ -34,9 +34,9 @@
 #include "LayoutBox.h"
 #include "LayoutChildIterator.h"
 #include "LayoutContainer.h"
-#include "LayoutFormattingState.h"
 #include "LayoutInlineBox.h"
 #include "LayoutInlineContainer.h"
+#include "LayoutState.h"
 #include "RenderBlock.h"
 #include "RenderChildIterator.h"
 #include "RenderElement.h"
@@ -50,14 +50,14 @@ namespace Layout {
 
 std::unique_ptr<Container> TreeBuilder::createLayoutTree(const RenderView& renderView)
 {
-    std::unique_ptr<Container> initialContainingBlock(new BlockContainer(std::nullopt, RenderStyle::clone(renderView.style())));
+    std::unique_ptr<Container> initialContainingBlock(new BlockContainer(WTF::nullopt, RenderStyle::clone(renderView.style())));
     TreeBuilder::createSubTree(renderView, *initialContainingBlock);
     return initialContainingBlock;
 }
 
 void TreeBuilder::createSubTree(const RenderElement& rootRenderer, Container& rootContainer)
 {
-    auto elementAttributes = [] (const RenderElement& renderer) -> std::optional<Box::ElementAttributes> {
+    auto elementAttributes = [] (const RenderElement& renderer) -> Optional<Box::ElementAttributes> {
         if (renderer.isDocumentElementRenderer())
             return Box::ElementAttributes { Box::ElementType::Document };
         if (auto* element = renderer.element()) {
@@ -77,22 +77,26 @@ void TreeBuilder::createSubTree(const RenderElement& rootRenderer, Container& ro
                 return Box::ElementAttributes { Box::ElementType::TableFooterGroup };
             if (element->hasTagName(HTMLNames::tfootTag))
                 return Box::ElementAttributes { Box::ElementType::TableFooterGroup };
-            if (element->hasTagName(HTMLNames::imgTag))
+            if (element->hasTagName(HTMLNames::imgTag) || element->hasTagName(HTMLNames::iframeTag))
                 return Box::ElementAttributes { Box::ElementType::Replaced };
             return Box::ElementAttributes { Box::ElementType::GenericElement };
         }
-        return std::nullopt;
+        return WTF::nullopt;
     };
 
     for (auto& child : childrenOfType<RenderObject>(rootRenderer)) {
         std::unique_ptr<Box> box;
 
         if (is<RenderText>(child)) {
-            box = std::make_unique<InlineBox>(std::optional<Box::ElementAttributes>(), RenderStyle::createAnonymousStyleWithDisplay(rootRenderer.style(), DisplayType::Inline));
+            box = std::make_unique<InlineBox>(Optional<Box::ElementAttributes>(), RenderStyle::createAnonymousStyleWithDisplay(rootRenderer.style(), DisplayType::Inline));
             downcast<InlineBox>(*box).setTextContent(downcast<RenderText>(child).originalText());
         } else if (is<RenderReplaced>(child)) {
             auto& renderer = downcast<RenderReplaced>(child);
-            box = std::make_unique<InlineBox>(elementAttributes(renderer), RenderStyle::clone(renderer.style()));
+            auto display = renderer.style().display();
+            if (display == DisplayType::Block)
+                box = std::make_unique<Box>(elementAttributes(renderer), RenderStyle::clone(renderer.style()));
+            else
+                box = std::make_unique<InlineBox>(elementAttributes(renderer), RenderStyle::clone(renderer.style()));
         } else if (is<RenderElement>(child)) {
             auto& renderer = downcast<RenderElement>(child);
             auto display = renderer.style().display();
@@ -176,7 +180,9 @@ static void outputLayoutBox(TextStream& stream, const Box& layoutBox, const Disp
         if (!layoutBox.parent())
             stream << "initial ";
         stream << "block container";
-    } else
+    } else if (layoutBox.isBlockLevelBox())
+        stream << "block box";
+    else
         stream << "box";
     // FIXME: Inline text runs don't create display boxes yet.
     if (displayBox) {

@@ -39,11 +39,13 @@
 
 namespace JSC {
 
+class Decoder;
 class FunctionMetadataNode;
 class FunctionExecutable;
 class ParserError;
 class SourceProvider;
 class UnlinkedFunctionCodeBlock;
+class CachedFunctionExecutable;
 
 enum UnlinkedFunctionKind {
     UnlinkedNormalFunction,
@@ -54,6 +56,7 @@ class UnlinkedFunctionExecutable final : public JSCell {
 public:
     friend class CodeCache;
     friend class VM;
+    friend CachedFunctionExecutable;
 
     typedef JSCell Base;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
@@ -101,15 +104,17 @@ public:
     unsigned typeProfilingEndOffset() const { return m_typeProfilingEndOffset; }
     void setInvalidTypeProfilingOffsets();
 
+    UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(CodeSpecializationKind);
+
     UnlinkedFunctionCodeBlock* unlinkedCodeBlockFor(
         VM&, const SourceCode&, CodeSpecializationKind, DebuggerMode,
         ParserError&, SourceParseMode);
 
     static UnlinkedFunctionExecutable* fromGlobalCode(
         const Identifier&, ExecState&, const SourceCode&, JSObject*& exception, 
-        int overrideLineNumber, std::optional<int> functionConstructorParametersEndPosition);
+        int overrideLineNumber, Optional<int> functionConstructorParametersEndPosition);
 
-    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, std::optional<int> overrideLineNumber = std::nullopt, Intrinsic = NoIntrinsic);
+    JS_EXPORT_PRIVATE FunctionExecutable* link(VM&, const SourceCode& parentSource, Optional<int> overrideLineNumber = WTF::nullopt, Intrinsic = NoIntrinsic);
 
     void clearCode(VM& vm)
     {
@@ -147,6 +152,7 @@ public:
 
 private:
     UnlinkedFunctionExecutable(VM*, Structure*, const SourceCode&, FunctionMetadataNode*, UnlinkedFunctionKind, ConstructAbility, JSParserScriptMode, VariableEnvironment&,  JSC::DerivedContextType, bool isBuiltinDefaultClassConstructor);
+    UnlinkedFunctionExecutable(Decoder&, VariableEnvironment&, const CachedFunctionExecutable&);
 
     unsigned m_firstLineOffset;
     unsigned m_lineCount;

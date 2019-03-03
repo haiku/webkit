@@ -123,7 +123,7 @@ ALWAYS_INLINE void JSObject::markAuxiliaryAndVisitOutOfLineProperties(SlotVisito
 
 ALWAYS_INLINE Structure* JSObject::visitButterfly(SlotVisitor& visitor)
 {
-    static const char* raceReason = "JSObject::visitButterfly";
+    static const char* const raceReason = "JSObject::visitButterfly";
     Structure* result = visitButterflyImpl(visitor);
     if (!result)
         visitor.didRace(this, raceReason);
@@ -519,7 +519,7 @@ String JSObject::toStringName(const JSObject* object, ExecState* exec)
     VM& vm = exec->vm();
     const ClassInfo* info = object->classInfo(vm);
     ASSERT(info);
-    return info->methodTable.className(object, vm);
+    return info->className;
 }
 
 String JSObject::calculatedClassName(JSObject* object)
@@ -1854,15 +1854,21 @@ bool JSObject::putDirectAccessor(ExecState* exec, PropertyName propertyName, Get
 {
     ASSERT(attributes & PropertyAttribute::Accessor);
 
-    if (std::optional<uint32_t> index = parseIndex(propertyName))
+    if (Optional<uint32_t> index = parseIndex(propertyName))
         return putDirectIndex(exec, index.value(), accessor, attributes, PutDirectIndexLikePutDirect);
 
     return putDirectNonIndexAccessor(exec->vm(), propertyName, accessor, attributes);
 }
 
+// FIXME: Introduce a JSObject::putDirectCustomValue() method instead of using
+// JSObject::putDirectCustomAccessor() to put CustomValues.
+// https://bugs.webkit.org/show_bug.cgi?id=192576
 bool JSObject::putDirectCustomAccessor(VM& vm, PropertyName propertyName, JSValue value, unsigned attributes)
 {
     ASSERT(!parseIndex(propertyName));
+    ASSERT(value.isCustomGetterSetter());
+    if (!(attributes & PropertyAttribute::CustomAccessor))
+        attributes |= PropertyAttribute::CustomValue;
 
     PutPropertySlot slot(this);
     bool result = putDirectInternal<PutModeDefineOwnProperty>(vm, propertyName, value, attributes, slot);
@@ -1878,6 +1884,7 @@ bool JSObject::putDirectCustomAccessor(VM& vm, PropertyName propertyName, JSValu
 
 bool JSObject::putDirectNonIndexAccessor(VM& vm, PropertyName propertyName, GetterSetter* accessor, unsigned attributes)
 {
+    ASSERT(attributes & PropertyAttribute::Accessor);
     PutPropertySlot slot(this);
     bool result = putDirectInternal<PutModeDefineOwnProperty>(vm, propertyName, accessor, attributes, slot);
 
@@ -1919,7 +1926,7 @@ bool JSObject::deleteProperty(JSCell* cell, ExecState* exec, PropertyName proper
     JSObject* thisObject = jsCast<JSObject*>(cell);
     VM& vm = exec->vm();
     
-    if (std::optional<uint32_t> index = parseIndex(propertyName))
+    if (Optional<uint32_t> index = parseIndex(propertyName))
         return thisObject->methodTable(vm)->deletePropertyByIndex(thisObject, exec, index.value());
 
     unsigned attributes;
@@ -2161,7 +2168,7 @@ bool JSObject::getOwnStaticPropertySlot(VM& vm, PropertyName propertyName, Prope
     return false;
 }
 
-auto JSObject::findPropertyHashEntry(VM& vm, PropertyName propertyName) const -> std::optional<PropertyHashEntry>
+auto JSObject::findPropertyHashEntry(VM& vm, PropertyName propertyName) const -> Optional<PropertyHashEntry>
 {
     for (const ClassInfo* info = classInfo(vm); info; info = info->parentClass) {
         if (const HashTable* propHashTable = info->staticPropHashTable) {
@@ -2169,7 +2176,7 @@ auto JSObject::findPropertyHashEntry(VM& vm, PropertyName propertyName) const ->
                 return PropertyHashEntry { propHashTable, entry };
         }
     }
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 bool JSObject::hasInstance(ExecState* exec, JSValue value, JSValue hasInstanceValue)
@@ -2424,7 +2431,7 @@ bool JSObject::preventExtensions(JSObject* object, ExecState* exec)
 
 bool JSObject::isExtensible(JSObject* obj, ExecState* exec)
 {
-    return obj->isExtensibleImpl(exec->vm());
+    return obj->isStructureExtensible(exec->vm());
 }
 
 bool JSObject::isExtensible(ExecState* exec)
@@ -2982,7 +2989,8 @@ bool JSObject::putDirectIndexBeyondVectorLengthWithArrayStorage(ExecState* exec,
 bool JSObject::putDirectIndexSlowOrBeyondVectorLength(ExecState* exec, unsigned i, JSValue value, unsigned attributes, PutDirectIndexMode mode)
 {
     VM& vm = exec->vm();
-    
+    ASSERT(!value.isCustomGetterSetter());
+
     if (!canDoFastPutDirectIndex(vm, this)) {
         PropertyDescriptor descriptor;
         descriptor.setDescriptor(value, attributes);
@@ -3467,7 +3475,7 @@ static bool putDescriptor(ExecState* exec, JSObject* target, PropertyName proper
 
 bool JSObject::putDirectMayBeIndex(ExecState* exec, PropertyName propertyName, JSValue value)
 {
-    if (std::optional<uint32_t> index = parseIndex(propertyName))
+    if (Optional<uint32_t> index = parseIndex(propertyName))
         return putDirectIndex(exec, index.value(), value);
     return putDirect(exec->vm(), propertyName, value);
 }
@@ -3633,7 +3641,7 @@ bool JSObject::defineOwnNonIndexProperty(ExecState* exec, PropertyName propertyN
 bool JSObject::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName propertyName, const PropertyDescriptor& descriptor, bool throwException)
 {
     // If it's an array index, then use the indexed property storage.
-    if (std::optional<uint32_t> index = parseIndex(propertyName)) {
+    if (Optional<uint32_t> index = parseIndex(propertyName)) {
         // c. Let succeeded be the result of calling the default [[DefineOwnProperty]] internal method (8.12.9) on A passing P, Desc, and false as arguments.
         // d. Reject if succeeded is false.
         // e. If index >= oldLen

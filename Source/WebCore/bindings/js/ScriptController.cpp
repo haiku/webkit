@@ -125,7 +125,7 @@ JSValue ScriptController::evaluateInWorld(const ScriptSourceCode& sourceCode, DO
 
     Ref<Frame> protector(m_frame);
 
-    InspectorInstrumentationCookie cookie = InspectorInstrumentation::willEvaluateScript(m_frame, sourceURL, sourceCode.startLine());
+    InspectorInstrumentationCookie cookie = InspectorInstrumentation::willEvaluateScript(m_frame, sourceURL, sourceCode.startLine(), sourceCode.startColumn());
 
     NakedPtr<JSC::Exception> evaluationException;
     JSValue returnValue = JSExecState::profiledEvaluate(&exec, JSC::ProfilingReason::Other, jsSourceCode, &proxy, evaluationException);
@@ -218,7 +218,7 @@ JSC::JSValue ScriptController::evaluateModule(const URL& sourceURL, JSModuleReco
 
     Ref<Frame> protector(m_frame);
 
-    auto cookie = InspectorInstrumentation::willEvaluateScript(m_frame, sourceURL, jsSourceCode.firstLine().oneBasedInt());
+    auto cookie = InspectorInstrumentation::willEvaluateScript(m_frame, sourceURL, jsSourceCode.firstLine().oneBasedInt(), jsSourceCode.startColumn().oneBasedInt());
 
     auto returnValue = moduleRecord.evaluate(&state);
     InspectorInstrumentation::didEvaluateScript(cookie, m_frame);
@@ -295,7 +295,7 @@ void ScriptController::setupModuleScriptHandlers(LoadableModuleScript& moduleScr
                 case ModuleFetchFailureKind::WasErrored:
                     moduleScript->notifyLoadFailed(LoadableScript::Error {
                         LoadableScript::ErrorType::CachedScript,
-                        std::nullopt
+                        WTF::nullopt
                     });
                     break;
                 case ModuleFetchFailureKind::WasCanceled:
@@ -542,8 +542,8 @@ void ScriptController::clearScriptObjects()
 
 JSValue ScriptController::executeScriptInWorld(DOMWrapperWorld& world, const String& script, bool forceUserGesture, ExceptionDetails* exceptionDetails)
 {
-    UserGestureIndicator gestureIndicator(forceUserGesture ? std::optional<ProcessingUserGestureState>(ProcessingUserGesture) : std::nullopt);
-    ScriptSourceCode sourceCode(script, m_frame.document()->url(), TextPosition(), JSC::SourceProviderSourceType::Program, CachedScriptFetcher::create(m_frame.document()->charset()));
+    UserGestureIndicator gestureIndicator(forceUserGesture ? Optional<ProcessingUserGestureState>(ProcessingUserGesture) : WTF::nullopt);
+    ScriptSourceCode sourceCode(script, URL(m_frame.document()->url()), TextPosition(), JSC::SourceProviderSourceType::Program, CachedScriptFetcher::create(m_frame.document()->charset()));
 
     if (!canExecuteScripts(AboutToExecuteScript) || isPaused())
         return { };
@@ -571,8 +571,8 @@ bool ScriptController::canExecuteScripts(ReasonForCallingCanExecuteScripts reaso
 
 JSValue ScriptController::executeScript(const String& script, bool forceUserGesture, ExceptionDetails* exceptionDetails)
 {
-    UserGestureIndicator gestureIndicator(forceUserGesture ? std::optional<ProcessingUserGestureState>(ProcessingUserGesture) : std::nullopt);
-    return executeScript(ScriptSourceCode(script, m_frame.document()->url(), TextPosition(), JSC::SourceProviderSourceType::Program, CachedScriptFetcher::create(m_frame.document()->charset())), exceptionDetails);
+    UserGestureIndicator gestureIndicator(forceUserGesture ? Optional<ProcessingUserGestureState>(ProcessingUserGesture) : WTF::nullopt);
+    return executeScript(ScriptSourceCode(script, URL(m_frame.document()->url()), TextPosition(), JSC::SourceProviderSourceType::Program, CachedScriptFetcher::create(m_frame.document()->charset())), exceptionDetails);
 }
 
 JSValue ScriptController::executeScript(const ScriptSourceCode& sourceCode, ExceptionDetails* exceptionDetails)

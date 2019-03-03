@@ -31,7 +31,6 @@
 #import "AVAssetTrackUtilities.h"
 #import "AVFoundationMIMETypeCache.h"
 #import "CDMSessionAVStreamSession.h"
-#import "FileSystem.h"
 #import "GraphicsContextCG.h"
 #import "Logging.h"
 #import "MediaSourcePrivateAVFObjC.h"
@@ -49,12 +48,14 @@
 #import <pal/avfoundation/MediaTimeAVFoundation.h>
 #import <pal/spi/mac/AVFoundationSPI.h>
 #import <wtf/Deque.h>
+#import <wtf/FileSystem.h>
 #import <wtf/MainThread.h>
 #import <wtf/NeverDestroyed.h>
 
 #pragma mark - Soft Linking
 
 #import <pal/cf/CoreMediaSoftLink.h>
+#import "CoreVideoSoftLink.h"
 
 SOFT_LINK_FRAMEWORK_OPTIONAL(AVFoundation)
 
@@ -104,7 +105,6 @@ MediaPlayerPrivateMediaSourceAVFObjC::MediaPlayerPrivateMediaSourceAVFObjC(Media
     : m_player(player)
     , m_synchronizer(adoptNS([allocAVSampleBufferRenderSynchronizerInstance() init]))
     , m_seekTimer(*this, &MediaPlayerPrivateMediaSourceAVFObjC::seekInternal)
-    , m_session(nullptr)
     , m_networkState(MediaPlayer::Empty)
     , m_readyState(MediaPlayer::HaveNothing)
     , m_rate(1)
@@ -301,7 +301,7 @@ bool MediaPlayerPrivateMediaSourceAVFObjC::paused() const
 
 void MediaPlayerPrivateMediaSourceAVFObjC::setVolume(float volume)
 {
-    for (auto key : m_sampleBufferAudioRendererMap.keys())
+    for (const auto& key : m_sampleBufferAudioRendererMap.keys())
         [(__bridge AVSampleBufferAudioRenderer *)key.get() setVolume:volume];
 }
 
@@ -312,7 +312,7 @@ bool MediaPlayerPrivateMediaSourceAVFObjC::supportsScanning() const
 
 void MediaPlayerPrivateMediaSourceAVFObjC::setMuted(bool muted)
 {
-    for (auto key : m_sampleBufferAudioRendererMap.keys())
+    for (const auto& key : m_sampleBufferAudioRendererMap.keys())
         [(__bridge AVSampleBufferAudioRenderer *)key.get() setMuted:muted];
 }
 
@@ -460,7 +460,7 @@ void MediaPlayerPrivateMediaSourceAVFObjC::setRateDouble(double rate)
 void MediaPlayerPrivateMediaSourceAVFObjC::setPreservesPitch(bool preservesPitch)
 {
     NSString *algorithm = preservesPitch ? AVAudioTimePitchAlgorithmSpectral : AVAudioTimePitchAlgorithmVarispeed;
-    for (auto key : m_sampleBufferAudioRendererMap.keys())
+    for (const auto& key : m_sampleBufferAudioRendererMap.keys())
         [(__bridge AVSampleBufferAudioRenderer *)key.get() setAudioTimePitchAlgorithm:algorithm];
 }
 
@@ -640,7 +640,7 @@ size_t MediaPlayerPrivateMediaSourceAVFObjC::extraMemoryCost() const
     return 0;
 }
 
-std::optional<VideoPlaybackQualityMetrics> MediaPlayerPrivateMediaSourceAVFObjC::videoPlaybackQualityMetrics()
+Optional<VideoPlaybackQualityMetrics> MediaPlayerPrivateMediaSourceAVFObjC::videoPlaybackQualityMetrics()
 {
     if (m_decompressionSession) {
         return VideoPlaybackQualityMetrics {
@@ -654,15 +654,13 @@ std::optional<VideoPlaybackQualityMetrics> MediaPlayerPrivateMediaSourceAVFObjC:
 
     auto metrics = [m_sampleBufferDisplayLayer videoPerformanceMetrics];
     if (!metrics)
-        return std::nullopt;
+        return WTF::nullopt;
 
     uint32_t displayCompositedFrames = 0;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunknown-pragmas"
-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+    ALLOW_NEW_API_WITHOUT_GUARDS_BEGIN
     if ([metrics respondsToSelector:@selector(numberOfDisplayCompositedVideoFrames)])
         displayCompositedFrames = [metrics numberOfDisplayCompositedVideoFrames];
-#pragma clang diagnostic pop
+    ALLOW_NEW_API_WITHOUT_GUARDS_END
 
     return VideoPlaybackQualityMetrics {
         static_cast<uint32_t>([metrics totalNumberOfVideoFrames]),
@@ -832,7 +830,7 @@ void MediaPlayerPrivateMediaSourceAVFObjC::durationChanged()
 
         weakThis->pauseInternal();
         if (now < duration) {
-            LOG(MediaSource, "   ERROR: boundary time observer called before duration!", weakThis.get());
+            LOG(MediaSource, "MediaPlayerPrivateMediaSourceAVFObjC::durationChanged(%p) ERROR: boundary time observer called before duration!", weakThis.get());
             [weakThis->m_synchronizer setRate:0 time:PAL::toCMTime(duration)];
         }
         weakThis->m_player->timeChanged();
@@ -887,7 +885,7 @@ void MediaPlayerPrivateMediaSourceAVFObjC::flushPendingSizeChanges()
     m_sizeChangeObserverWeakPtrFactory.revokeAll();
 }
 
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA)
+#if HAVE(AVSTREAMSESSION) && ENABLE(LEGACY_ENCRYPTED_MEDIA)
 AVStreamSession* MediaPlayerPrivateMediaSourceAVFObjC::streamSession()
 {
     if (!getAVStreamSessionClass() || ![getAVStreamSessionClass() instancesRespondToSelector:@selector(initWithStorageDirectoryAtURL:)])
@@ -914,18 +912,21 @@ void MediaPlayerPrivateMediaSourceAVFObjC::setCDMSession(LegacyCDMSession* sessi
     if (session == m_session)
         return;
 
-    m_session = toCDMSessionMediaSourceAVFObjC(session);
+    m_session = makeWeakPtr(toCDMSessionMediaSourceAVFObjC(session));
 
-    if (CDMSessionAVStreamSession* cdmStreamSession = toCDMSessionAVStreamSession(m_session))
+    if (CDMSessionAVStreamSession* cdmStreamSession = toCDMSessionAVStreamSession(m_session.get()))
         cdmStreamSession->setStreamSession(streamSession());
     for (auto& sourceBuffer : m_mediaSourcePrivate->sourceBuffers())
-        sourceBuffer->setCDMSession(m_session);
+        sourceBuffer->setCDMSession(m_session.get());
 }
+#endif // HAVE(AVSTREAMSESSION) && ENABLE(LEGACY_ENCRYPTED_MEDIA)
 
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateMediaSourceAVFObjC::keyNeeded(Uint8Array* initData)
 {
     m_player->keyNeeded(initData);
 }
+#endif
 
 void MediaPlayerPrivateMediaSourceAVFObjC::outputObscuredDueToInsufficientExternalProtectionChanged(bool obscured)
 {
@@ -936,7 +937,6 @@ void MediaPlayerPrivateMediaSourceAVFObjC::outputObscuredDueToInsufficientExtern
     UNUSED_PARAM(obscured);
 #endif
 }
-#endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateMediaSourceAVFObjC::cdmInstanceAttached(CDMInstance& instance)
@@ -1106,7 +1106,10 @@ bool MediaPlayerPrivateMediaSourceAVFObjC::performTaskAtMediaTime(WTF::Function<
 {
     __block WTF::Function<void()> taskIn = WTFMove(task);
 
-    [m_synchronizer addBoundaryTimeObserverForTimes:@[[NSValue valueWithCMTime:toCMTime(time)]] queue:dispatch_get_main_queue() usingBlock:^{
+    if (m_performTaskObserver)
+        [m_synchronizer removeTimeObserver:m_performTaskObserver.get()];
+
+    m_performTaskObserver = [m_synchronizer addBoundaryTimeObserverForTimes:@[[NSValue valueWithCMTime:toCMTime(time)]] queue:dispatch_get_main_queue() usingBlock:^{
         taskIn();
     }];
     return true;

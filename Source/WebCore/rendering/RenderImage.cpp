@@ -45,11 +45,11 @@
 #include "HTMLNames.h"
 #include "HitTestResult.h"
 #include "InlineElementBox.h"
-#include "LayoutState.h"
 #include "Page.h"
 #include "PaintInfo.h"
 #include "RenderFragmentedFlow.h"
 #include "RenderImageResourceStyleImage.h"
+#include "RenderLayoutState.h"
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
@@ -284,7 +284,7 @@ void RenderImage::imageChanged(WrappedImagePtr newImage, const IntRect* rect)
             ASSERT(element());
             if (element()) {
                 m_needsToSetSizeForAltText = true;
-                element()->invalidateStyleAndLayerComposition();
+                element()->invalidateStyle();
             }
             return;
         }
@@ -550,10 +550,7 @@ void RenderImage::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     
 void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-#if PLATFORM(IOS_FAMILY)
-    UNUSED_PARAM(paintInfo);
-    UNUSED_PARAM(paintOffset);
-#else
+#if !PLATFORM(IOS_FAMILY) || ENABLE(FULL_KEYBOARD_ACCESS)
     if (document().printing() || !frame().selection().isFocusedAndActive())
         return;
     
@@ -592,13 +589,16 @@ void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPo
 
 #if PLATFORM(MAC)
     bool needsRepaint;
-    paintInfo.context().drawFocusRing(path, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::focusRingColor(styleColorOptions()));
+    paintInfo.context().drawFocusRing(path, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::singleton().focusRingColor(styleColorOptions()));
     if (needsRepaint)
         page().focusController().setFocusedElementNeedsRepaint();
 #else
     paintInfo.context().drawFocusRing(path, outlineWidth, areaElementStyle->outlineOffset(), areaElementStyle->visitedDependentColorWithColorFilter(CSSPropertyOutlineColor));
-#endif
-#endif
+#endif // PLATFORM(MAC)
+#else
+    UNUSED_PARAM(paintInfo);
+    UNUSED_PARAM(paintOffset);
+#endif // ENABLE(FULL_KEYBOARD_ACCESS)
 }
 
 void RenderImage::areaElementFocusChanged(HTMLAreaElement* element)

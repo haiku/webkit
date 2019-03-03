@@ -26,9 +26,6 @@ list(APPEND WebCore_SOURCES
   page/haiku/DragControllerHaiku.cpp
   page/haiku/EventHandlerHaiku.cpp
 
-  page/scrolling/coordinatedgraphics/ScrollingCoordinatorCoordinatedGraphics.cpp
-  page/scrolling/coordinatedgraphics/ScrollingStateNodeCoordinatedGraphics.cpp
-
   page/PointerLockController.cpp
 
   platform/audio/FFTFrameStub.cpp
@@ -56,11 +53,12 @@ list(APPEND WebCore_SOURCES
   platform/haiku/RenderThemeHaiku.cpp
   platform/haiku/ScrollbarThemeHaiku.cpp
   platform/haiku/SearchPopupMenuHaiku.cpp
-  platform/posix/SharedBufferPOSIX.cpp
   platform/haiku/SharedTimerHaiku.cpp
   platform/haiku/SoundHaiku.cpp
   platform/haiku/TemporaryLinkStubs.cpp
   platform/haiku/WidgetHaiku.cpp
+
+  platform/posix/SharedBufferPOSIX.cpp
 
   platform/graphics/WOFFFileFormat.cpp
 
@@ -117,8 +115,6 @@ list(APPEND WebCore_SOURCES
   platform/network/haiku/SocketStreamHandleHaiku.cpp
   platform/network/haiku/NetworkStateNotifierHaiku.cpp
   platform/network/haiku/NetworkStorageSessionHaiku.cpp
-
-  platform/posix/FileSystemPOSIX.cpp
 
   platform/text/Hyphenation.cpp
   platform/text/LocaleICU.cpp
@@ -347,3 +343,121 @@ if (ENABLE_ACCESSIBILITY)
         ${ATK_LIBRARIES}
     )
 endif ()
+
+# FIXME: We do not need everything from all of these directories.
+# Move some to WebCore_FORWARDING_HEADERS_FILES once people start actually maintaining this.
+set(WebCore_FORWARDING_HEADERS_DIRECTORIES
+    .
+    accessibility
+    animation
+    bindings
+    bridge
+    contentextensions
+    crypto
+    css
+    dom
+    editing
+    fileapi
+    history
+    html
+    inspector
+    loader
+    page
+    platform
+    plugins
+    rendering
+    replay
+    storage
+    style
+    svg
+    websockets
+    workers
+    xml
+
+    dom/messageports/
+
+    Modules/cache
+    Modules/fetch
+    Modules/geolocation
+    Modules/indexeddb
+    Modules/mediastream
+    Modules/websockets
+
+    Modules/applicationmanifest
+    Modules/indexeddb/client
+    Modules/indexeddb/legacy
+    Modules/indexeddb/server
+    Modules/indexeddb/shared
+    Modules/notifications
+    Modules/webdatabase
+
+    bindings/js
+
+    bridge/c
+    bridge/jsc
+
+    css/parser
+
+    html/canvas
+    html/forms
+    html/parser
+    html/shadow
+    html/track
+
+    loader/appcache
+    loader/archive
+    loader/cache
+    loader/icon
+
+
+    page/animation
+    page/csp
+    page/scrolling
+    page/haiku
+
+    platform/animation
+    platform/audio
+    platform/graphics
+    platform/mediacapabilities
+    platform/mock
+    platform/network
+    platform/sql
+    platform/text
+    platform/haiku
+    platform/mediastream
+    platform/network/haiku
+
+    platform/graphics/filters
+    platform/graphics/opengl
+    platform/graphics/opentype
+    platform/graphics/texmap
+    platform/graphics/transforms
+    platform/graphics/haiku
+
+    platform/mediastream/libwebrtc
+
+    platform/text/transcoder
+
+   PAL/pal
+
+    rendering/line
+    rendering/shapes
+    rendering/style
+    rendering/svg
+
+    svg/animation
+    svg/graphics
+    svg/properties
+
+    svg/graphics/filters
+
+    workers/service
+    workers/service/context
+)
+
+set(WebCore_FORWARDING_HEADERS_FILES
+    platform/PlatformExportMacros.h
+    fileapi/Blob.h
+)
+
+WEBKIT_CREATE_FORWARDING_HEADERS(WebCore DIRECTORIES ${WebCore_FORWARDING_HEADERS_DIRECTORIES} FILES ${WebCore_FORWARDING_HEADERS_FILES})

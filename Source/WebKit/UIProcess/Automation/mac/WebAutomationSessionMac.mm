@@ -33,7 +33,7 @@
 #import "WebInspectorProxy.h"
 #import "WebPageProxy.h"
 #import "_WKAutomationSession.h"
-#import <HIToolbox/Events.h>
+#import <Carbon/Carbon.h>
 #import <WebCore/IntPoint.h>
 #import <WebCore/IntSize.h>
 #import <WebCore/PlatformMouseEvent.h>
@@ -120,6 +120,7 @@ bool WebAutomationSession::wasEventSynthesizedForAutomation(NSEvent *event)
 
 #pragma mark Platform-dependent Implementations
 
+#if ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
 void WebAutomationSession::platformSimulateMouseInteraction(WebPageProxy& page, MouseInteraction interaction, WebMouseEvent::Button button, const WebCore::IntPoint& locationInView, WebEvent::Modifiers keyModifiers)
 {
     IntRect windowRect;
@@ -210,7 +211,9 @@ void WebAutomationSession::platformSimulateMouseInteraction(WebPageProxy& page, 
 
     sendSynthesizedEventsToPage(page, eventsToBeSent.get());
 }
+#endif // ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
 
+#if ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
 static bool virtualKeyHasStickyModifier(VirtualKey key)
 {
     // Returns whether the key's modifier flags should affect other events while pressed down.
@@ -574,8 +577,8 @@ void WebAutomationSession::platformSimulateKeyboardInteraction(WebPageProxy& pag
     bool isStickyModifier = false;
     NSEventModifierFlags changedModifiers = 0;
     int keyCode = 0;
-    std::optional<unichar> charCode;
-    std::optional<unichar> charCodeIgnoringModifiers;
+    Optional<unichar> charCode;
+    Optional<unichar> charCodeIgnoringModifiers;
 
     WTF::switchOn(key,
         [&] (VirtualKey virtualKey) {
@@ -718,6 +721,7 @@ void WebAutomationSession::platformSimulateKeySequence(WebPageProxy& page, const
 
     sendSynthesizedEventsToPage(page, eventsToBeSent.get());
 }
+#endif // ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
 
 } // namespace WebKit
 

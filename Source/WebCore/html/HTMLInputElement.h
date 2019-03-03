@@ -86,7 +86,7 @@ public:
     StepRange createStepRange(AnyStepHandling) const;
 
 #if ENABLE(DATALIST_ELEMENT)
-    std::optional<Decimal> findClosestTickMarkValue(const Decimal&);
+    Optional<Decimal> findClosestTickMarkValue(const Decimal&);
 #endif
 
     WEBCORE_EXPORT ExceptionOr<void> stepUp(int = 1);
@@ -453,6 +453,8 @@ private:
 
     void addToRadioButtonGroup();
     void removeFromRadioButtonGroup();
+
+    void setDefaultSelectionAfterFocus(SelectionRevealMode);
 
     AtomicString m_name;
     String m_valueIfDirty;

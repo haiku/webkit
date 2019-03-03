@@ -49,7 +49,7 @@ namespace WebKit {
 
 class LayerHostingContext;
 
-class TiledCoreAnimationDrawingArea : public DrawingArea {
+class TiledCoreAnimationDrawingArea : public DrawingArea, public CanMakeWeakPtr<TiledCoreAnimationDrawingArea> {
 public:
     TiledCoreAnimationDrawingArea(WebPage&, const WebPageCreationParameters&);
     virtual ~TiledCoreAnimationDrawingArea();
@@ -72,8 +72,8 @@ private:
     void updatePreferences(const WebPreferencesStore&) override;
     void mainFrameContentSizeChanged(const WebCore::IntSize&) override;
 
-    void setViewExposedRect(std::optional<WebCore::FloatRect>) override;
-    std::optional<WebCore::FloatRect> viewExposedRect() const override { return m_scrolledViewExposedRect; }
+    void setViewExposedRect(Optional<WebCore::FloatRect>) override;
+    Optional<WebCore::FloatRect> viewExposedRect() const override { return m_scrolledViewExposedRect; }
 
     bool supportsAsyncScrolling() override { return true; }
 
@@ -102,7 +102,7 @@ private:
     void addTransactionCallbackID(CallbackID) override;
     void setShouldScaleViewToFitDocument(bool) override;
 
-    void attach() override;
+    void sendEnterAcceleratedCompositingModeIfNeeded();
 
     void adjustTransientZoom(double scale, WebCore::FloatPoint origin) override;
     void commitTransientZoom(double scale, WebCore::FloatPoint origin) override;
@@ -148,8 +148,8 @@ private:
 
     bool m_isPaintingSuspended;
 
-    std::optional<WebCore::FloatRect> m_viewExposedRect;
-    std::optional<WebCore::FloatRect> m_scrolledViewExposedRect;
+    Optional<WebCore::FloatRect> m_viewExposedRect;
+    Optional<WebCore::FloatRect> m_scrolledViewExposedRect;
 
     WebCore::IntSize m_lastSentIntrinsicContentSize;
     bool m_inUpdateGeometry;
@@ -177,6 +177,7 @@ private:
 
     bool m_isThrottlingLayerFlushes { false };
     bool m_isLayerFlushThrottlingTemporarilyDisabledForInteraction { false };
+    bool m_needsSendEnterAcceleratedCompositingMode { true };
 
     WebCore::Timer m_layerFlushThrottlingTimer;
 };

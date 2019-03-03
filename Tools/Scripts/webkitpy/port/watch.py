@@ -37,7 +37,7 @@ class WatchPort(DevicePort):
     port_name = 'watchos'
 
     CURRENT_VERSION = Version(5)
-    DEFAULT_DEVICE_TYPE = DeviceType(software_variant='watchOS')
+    DEVICE_TYPE = DeviceType(software_variant='watchOS')
 
     def __init__(self, *args, **kwargs):
         super(WatchPort, self).__init__(*args, **kwargs)
@@ -58,8 +58,7 @@ class WatchPort(DevicePort):
     def test_expectations_file_position(self):
         return 4
 
-    @memoized
-    def default_baseline_search_path(self):
+    def default_baseline_search_path(self, **kwargs):
         versions_to_fallback = []
         if self.device_version() == self.CURRENT_VERSION:
             versions_to_fallback = [self.CURRENT_VERSION]

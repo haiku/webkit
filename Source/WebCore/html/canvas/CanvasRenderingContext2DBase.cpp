@@ -61,6 +61,7 @@
 #include "StyleResolver.h"
 #include "TextMetrics.h"
 #include "TextRun.h"
+#include "TypedOMCSSImageValue.h"
 #include <wtf/CheckedArithmetic.h>
 #include <wtf/MathExtras.h>
 #include <wtf/NeverDestroyed.h>
@@ -386,7 +387,7 @@ void CanvasRenderingContext2DBase::restore()
         return;
     m_path.transform(state().transform);
     m_stateStack.removeLast();
-    if (std::optional<AffineTransform> inverse = state().transform.inverse())
+    if (Optional<AffineTransform> inverse = state().transform.inverse())
         m_path.transform(inverse.value());
     GraphicsContext* c = drawingContext();
     if (!c)
@@ -914,7 +915,7 @@ ExceptionOr<void> CanvasRenderingContext2DBase::setTransform(DOMMatrix2DInit&& m
     if (checkValid.hasException())
         return checkValid.releaseException();
 
-    setTransform(matrixInit.a.value_or(1), matrixInit.b.value_or(0), matrixInit.c.value_or(0), matrixInit.d.value_or(1), matrixInit.e.value_or(0), matrixInit.f.value_or(0));
+    setTransform(matrixInit.a.valueOr(1), matrixInit.b.valueOr(0), matrixInit.c.valueOr(0), matrixInit.d.valueOr(1), matrixInit.e.valueOr(0), matrixInit.f.valueOr(0));
     return { };
 }
 
@@ -938,7 +939,7 @@ void CanvasRenderingContext2DBase::resetTransform()
     modifiableState().hasInvertibleTransform = true;
 }
 
-void CanvasRenderingContext2DBase::setStrokeColor(const String& color, std::optional<float> alpha)
+void CanvasRenderingContext2DBase::setStrokeColor(const String& color, Optional<float> alpha)
 {
     if (alpha) {
         setStrokeStyle(CanvasStyle::createFromStringWithOverrideAlpha(color, alpha.value()));
@@ -974,7 +975,7 @@ void CanvasRenderingContext2DBase::setStrokeColor(float c, float m, float y, flo
     setStrokeStyle(CanvasStyle(c, m, y, k, a));
 }
 
-void CanvasRenderingContext2DBase::setFillColor(const String& color, std::optional<float> alpha)
+void CanvasRenderingContext2DBase::setFillColor(const String& color, Optional<float> alpha)
 {
     if (alpha) {
         setFillStyle(CanvasStyle::createFromStringWithOverrideAlpha(color, alpha.value()));
@@ -1203,7 +1204,7 @@ bool CanvasRenderingContext2DBase::isPointInPathInternal(const Path& path, float
     if (!state().hasInvertibleTransform)
         return false;
 
-    auto transformedPoint = state().transform.inverse().value_or(AffineTransform()).mapPoint(FloatPoint(x, y));
+    auto transformedPoint = state().transform.inverse().valueOr(AffineTransform()).mapPoint(FloatPoint(x, y));
 
     if (!std::isfinite(transformedPoint.x()) || !std::isfinite(transformedPoint.y()))
         return false;
@@ -1219,7 +1220,7 @@ bool CanvasRenderingContext2DBase::isPointInStrokeInternal(const Path& path, flo
     if (!state().hasInvertibleTransform)
         return false;
 
-    auto transformedPoint = state().transform.inverse().value_or(AffineTransform()).mapPoint(FloatPoint(x, y));
+    auto transformedPoint = state().transform.inverse().valueOr(AffineTransform()).mapPoint(FloatPoint(x, y));
     if (!std::isfinite(transformedPoint.x()) || !std::isfinite(transformedPoint.y()))
         return false;
 
@@ -1338,7 +1339,7 @@ void CanvasRenderingContext2DBase::strokeRect(float x, float y, float width, flo
     }
 }
 
-void CanvasRenderingContext2DBase::setShadow(float width, float height, float blur, const String& colorString, std::optional<float> alpha)
+void CanvasRenderingContext2DBase::setShadow(float width, float height, float blur, const String& colorString, Optional<float> alpha)
 {
     Color color = Color::transparent;
     if (!colorString.isNull()) {
@@ -1438,6 +1439,17 @@ static inline FloatSize size(HTMLVideoElement& video)
 
 #endif
 
+#if ENABLE(CSS_TYPED_OM)
+static inline FloatSize size(TypedOMCSSImageValue& image)
+{
+    auto* cachedImage = image.image();
+    if (!cachedImage)
+        return FloatSize();
+
+    return cachedImage->imageSizeForRenderer(nullptr, 1.0f);
+}
+#endif
+
 static inline FloatRect normalizeRect(const FloatRect& rect)
 {
     return FloatRect(std::min(rect.x(), rect.maxX()),
@@ -1487,6 +1499,35 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
 
 ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imageElement, const FloatRect& srcRect, const FloatRect& dstRect, const CompositeOperator& op, const BlendMode& blendMode)
 {
+    if (!imageElement.complete())
+        return { };
+    FloatRect imageRect = FloatRect(FloatPoint(), size(imageElement, ImageSizeType::BeforeDevicePixelRatio));
+
+    auto result = drawImage(imageElement.document(), imageElement.cachedImage(), imageElement.renderer(), imageRect, srcRect, dstRect, op, blendMode);
+
+    if (!result.hasException())
+        checkOrigin(&imageElement);
+    return result;
+}
+
+#if ENABLE(CSS_TYPED_OM)
+ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(TypedOMCSSImageValue& image, const FloatRect& srcRect, const FloatRect& dstRect)
+{
+    auto* cachedImage = image.image();
+    if (!cachedImage || !image.document())
+        return { };
+    FloatRect imageRect = FloatRect(FloatPoint(), size(image));
+
+    auto result = drawImage(*image.document(), cachedImage, nullptr, imageRect, srcRect, dstRect, state().globalComposite, state().globalBlend);
+
+    if (!result.hasException())
+        checkOrigin(image);
+    return result;
+}
+#endif
+
+ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(Document& document, CachedImage* cachedImage, const RenderObject* renderer, const FloatRect& imageRect, const FloatRect& srcRect, const FloatRect& dstRect, const CompositeOperator& op, const BlendMode& blendMode)
+{
     if (!std::isfinite(dstRect.x()) || !std::isfinite(dstRect.y()) || !std::isfinite(dstRect.width()) || !std::isfinite(dstRect.height())
         || !std::isfinite(srcRect.x()) || !std::isfinite(srcRect.y()) || !std::isfinite(srcRect.width()) || !std::isfinite(srcRect.height()))
         return { };
@@ -1494,13 +1535,9 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     if (!dstRect.width() || !dstRect.height())
         return { };
 
-    if (!imageElement.complete())
-        return { };
-
     FloatRect normalizedSrcRect = normalizeRect(srcRect);
     FloatRect normalizedDstRect = normalizeRect(dstRect);
 
-    FloatRect imageRect = FloatRect(FloatPoint(), size(imageElement, ImageSizeType::BeforeDevicePixelRatio));
     if (!srcRect.width() || !srcRect.height())
         return Exception { IndexSizeError };
 
@@ -1524,11 +1561,10 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     if (!state().hasInvertibleTransform)
         return { };
 
-    CachedImage* cachedImage = imageElement.cachedImage();
     if (!cachedImage)
         return { };
 
-    RefPtr<Image> image = cachedImage->imageForRenderer(imageElement.renderer());
+    RefPtr<Image> image = cachedImage->imageForRenderer(renderer);
     if (!image)
         return { };
 
@@ -1540,7 +1576,7 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     }
 
     if (image->isBitmapImage())
-        downcast<BitmapImage>(*image).updateFromSettings(imageElement.document().settings());
+        downcast<BitmapImage>(*image).updateFromSettings(document.settings());
 
     if (rectContainsCanvas(normalizedDstRect)) {
         c->drawImage(*image, normalizedDstRect, normalizedSrcRect, ImagePaintingOptions(op, blendMode));
@@ -1559,8 +1595,6 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLImageElement& imag
     
     if (image->isSVGImage())
         image->setImageObserver(observer);
-
-    checkOrigin(&imageElement);
 
     return { };
 }
@@ -1983,6 +2017,14 @@ ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(I
     // FIXME: Implement.
     return Exception { TypeError };
 }
+
+#if ENABLE(CSS_TYPED_OM)
+ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(TypedOMCSSImageValue&, bool, bool)
+{
+    // FIXME: Implement.
+    return Exception { TypeError };
+}
+#endif
 
 void CanvasRenderingContext2DBase::didDrawEntireCanvas()
 {

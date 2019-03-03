@@ -40,6 +40,12 @@ public:
     }
 };
 
+template<>
+void initializeAuxiliaryProcess<NetworkProcess>(AuxiliaryProcessInitializationParameters&& parameters)
+{
+    static NeverDestroyed<NetworkProcess> networkProcess(WTFMove(parameters));
+}
+
 } // namespace WebKit
 
 using namespace WebKit;

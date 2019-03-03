@@ -52,8 +52,8 @@ const Vector<CaptureDevice>& DisplayCaptureManagerCocoa::captureDevices()
 {
     m_devices.clear();
 
-    updateWindowCaptureDevices();
     updateDisplayCaptureDevices();
+    updateWindowCaptureDevices();
 
     return m_devices;
 }
@@ -72,27 +72,27 @@ void DisplayCaptureManagerCocoa::updateWindowCaptureDevices()
 #endif
 }
 
-std::optional<CaptureDevice> DisplayCaptureManagerCocoa::screenCaptureDeviceWithPersistentID(const String& deviceID)
+Optional<CaptureDevice> DisplayCaptureManagerCocoa::screenCaptureDeviceWithPersistentID(const String& deviceID)
 {
 #if PLATFORM(MAC)
     return ScreenDisplayCaptureSourceMac::screenCaptureDeviceWithPersistentID(deviceID);
 #else
     UNUSED_PARAM(deviceID);
-    return std::nullopt;
+    return WTF::nullopt;
 #endif
 }
 
-std::optional<CaptureDevice> DisplayCaptureManagerCocoa::windowCaptureDeviceWithPersistentID(const String& deviceID)
+Optional<CaptureDevice> DisplayCaptureManagerCocoa::windowCaptureDeviceWithPersistentID(const String& deviceID)
 {
 #if PLATFORM(MAC)
     return WindowDisplayCaptureSourceMac::windowCaptureDeviceWithPersistentID(deviceID);
 #else
     UNUSED_PARAM(deviceID);
-    return std::nullopt;
+    return WTF::nullopt;
 #endif
 }
 
-std::optional<CaptureDevice> DisplayCaptureManagerCocoa::captureDeviceWithPersistentID(CaptureDevice::DeviceType type, const String& id)
+Optional<CaptureDevice> DisplayCaptureManagerCocoa::captureDeviceWithPersistentID(CaptureDevice::DeviceType type, const String& id)
 {
     switch (type) {
     case CaptureDevice::DeviceType::Screen:
@@ -103,10 +103,6 @@ std::optional<CaptureDevice> DisplayCaptureManagerCocoa::captureDeviceWithPersis
         return windowCaptureDeviceWithPersistentID(id);
         break;
 
-    case CaptureDevice::DeviceType::Application:
-    case CaptureDevice::DeviceType::Browser:
-        break;
-
     case CaptureDevice::DeviceType::Camera:
     case CaptureDevice::DeviceType::Microphone:
     case CaptureDevice::DeviceType::Unknown:
@@ -114,7 +110,7 @@ std::optional<CaptureDevice> DisplayCaptureManagerCocoa::captureDeviceWithPersis
         break;
     }
 
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 } // namespace WebCore

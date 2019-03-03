@@ -147,7 +147,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         // triggers a MainResource change and then a MainFrame change. Page Transition
         // triggers a MainFrame change then a MainResource change.
         this._transitioningPageTarget = false;
-        
+
         WI.notifications.addEventListener(WI.Notification.TransitionPageTarget, this._transitionPageTarget, this);
     }
 
@@ -224,7 +224,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
 
     get supportsSave()
     {
-        return this._filteredEntries.some((entry) => entry.resource.finished);
+        return this._canExportHAR();
     }
 
     get saveData()
@@ -363,7 +363,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         WI.appendContextMenuItemsForSourceCode(contextMenu, entry.resource);
 
         contextMenu.appendSeparator();
-        contextMenu.appendItem(WI.UIString("Export HAR"), () => { this._exportHAR(); });
+        contextMenu.appendItem(WI.UIString("Export HAR"), () => { this._exportHAR(); }, !this._canExportHAR());
     }
 
     tableShouldSelectRow(table, cell, column, rowIndex)
@@ -1070,6 +1070,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         this._waterfallColumn = new WI.TableColumn("waterfall", WI.UIString("Waterfall"), {
             minWidth: 230,
             headerView: this._waterfallTimelineRuler,
+            needsReloadOnResize: true,
         });
 
         this._nameColumn.addEventListener(WI.TableColumn.Event.WidthDidChange, this._tableNameColumnDidChangeWidth, this);
@@ -1158,10 +1159,28 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         }
     }
 
+    _canExportHAR()
+    {
+        let mainFrame = WI.networkManager.mainFrame;
+        if (!mainFrame)
+            return false;
+
+        let mainResource = mainFrame.mainResource;
+        if (!mainResource)
+            return false;
+
+        if (!mainResource.requestSentDate)
+            return false;
+
+        if (!this._HARResources().length)
+            return false;
+
+        return true;
+    }
+
     _updateExportButton()
     {
-        let enabled = this._filteredEntries.length > 0;
-        this._harExportNavigationItem.enabled = enabled;
+        this._harExportNavigationItem.enabled = this._canExportHAR();
     }
 
     _processPendingEntries()
@@ -1871,7 +1890,20 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
     {
         let resources = this._filteredEntries.map((x) => x.resource);
         const supportedHARSchemes = new Set(["http", "https", "ws", "wss"]);
-        return resources.filter((resource) => resource.finished && supportedHARSchemes.has(resource.urlComponents.scheme));
+        return resources.filter((resource) => {
+            if (!resource) {
+                // DOM node entries are also added to `_filteredEntries`.
+                return false;
+            }
+
+            if (!resource.finished)
+                return false;
+            if (!resource.requestSentDate)
+                return false;
+            if (!supportedHARSchemes.has(resource.urlComponents.scheme))
+                return false;
+            return true;
+        });
     }
 
     _exportHAR()
@@ -1891,7 +1923,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
                 content: JSON.stringify(har, null, 2),
                 forceSaveAs: true,
             });
-        }).catch(handlePromiseException);
+        });
     }
 
     _waterfallPopoverContent()

@@ -58,6 +58,7 @@ namespace WebCore {
     macro(Credential) \
     macro(CredentialsContainer) \
     macro(CSSAnimation) \
+    macro(CSSImageValue) \
     macro(CSSNumericValue) \
     macro(CSSPaintSize) \
     macro(CSSStyleValue) \
@@ -176,6 +177,9 @@ namespace WebCore {
     macro(SpectreGadget) \
     macro(StaticRange) \
     macro(StylePropertyMapReadOnly) \
+    macro(StylePropertyMap) \
+    macro(UndoItem) \
+    macro(UndoManager) \
     macro(VRDisplay) \
     macro(VRDisplayCapabilities) \
     macro(VRDisplayEvent) \
@@ -188,18 +192,26 @@ namespace WebCore {
     macro(WebGLVertexArrayObject) \
     macro(WebGPU) \
     macro(WebGPUAdapter) \
-    macro(WebGPUDevice) \
+    macro(WebGPUBindGroup) \
+    macro(WebGPUBindGroupLayout) \
+    macro(WebGPUBuffer) \
+    macro(WebGPUBufferUsage) \
     macro(WebGPUCommandBuffer) \
+    macro(WebGPUDevice) \
+    macro(WebGPUIndexFormat) \
+    macro(WebGPUInputStepMode) \
     macro(WebGPUQueue) \
+    macro(WebGPUPipelineLayout) \
     macro(WebGPUProgrammablePassEncoder) \
     macro(WebGPURenderingContext) \
     macro(WebGPURenderPassEncoder) \
     macro(WebGPURenderPipeline) \
-    macro(WebGPUShaderStage) \
     macro(WebGPUShaderModule) \
+    macro(WebGPUShaderStageBit) \
     macro(WebGPUSwapChain) \
     macro(WebGPUTexture) \
     macro(WebGPUTextureView) \
+    macro(WebGPUVertexFormat) \
     macro(WebMetalBuffer) \
     macro(WebMetalCommandBuffer) \
     macro(WebMetalCommandQueue) \

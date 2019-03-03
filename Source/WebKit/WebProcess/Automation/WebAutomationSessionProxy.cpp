@@ -477,13 +477,13 @@ void WebAutomationSessionProxy::focusFrame(uint64_t pageID, uint64_t frameID)
     coreDOMWindow->focus(true);
 }
 
-static std::optional<WebCore::FloatPoint> elementInViewClientCenterPoint(WebCore::Element& element, bool& isObscured)
+static Optional<WebCore::FloatPoint> elementInViewClientCenterPoint(WebCore::Element& element, bool& isObscured)
 {
     // §11.1 Element Interactability.
     // https://www.w3.org/TR/webdriver/#dfn-in-view-center-point
     auto* clientRect = element.getClientRects()->item(0);
     if (!clientRect)
-        return std::nullopt;
+        return WTF::nullopt;
 
     auto clientCenterPoint = WebCore::FloatPoint::narrowPrecision(0.5 * (clientRect->left() + clientRect->right()), 0.5 * (clientRect->top() + clientRect->bottom()));
     auto elementList = element.treeScope().elementsFromPoint(clientCenterPoint.x(), clientCenterPoint.y());
@@ -497,7 +497,7 @@ static std::optional<WebCore::FloatPoint> elementInViewClientCenterPoint(WebCore
 
     auto index = elementList.findMatching([&element] (auto& item) { return item.get() == &element; });
     if (index == notFound)
-        return std::nullopt;
+        return WTF::nullopt;
 
     if (index) {
         // Element is not the first one in the list.
@@ -539,7 +539,7 @@ void WebAutomationSessionProxy::computeElementLayout(uint64_t pageID, uint64_t f
     WebPage* page = WebProcess::singleton().webPage(pageID);
     if (!page) {
         String windowNotFoundErrorType = Inspector::Protocol::AutomationHelpers::getEnumConstantValue(Inspector::Protocol::Automation::ErrorMessage::WindowNotFound);
-        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, std::nullopt, false, windowNotFoundErrorType), 0);
+        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, WTF::nullopt, false, windowNotFoundErrorType), 0);
         return;
     }
 
@@ -549,13 +549,13 @@ void WebAutomationSessionProxy::computeElementLayout(uint64_t pageID, uint64_t f
 
     WebFrame* frame = frameID ? WebProcess::singleton().webFrame(frameID) : page->mainWebFrame();
     if (!frame || !frame->coreFrame() || !frame->coreFrame()->view()) {
-        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, std::nullopt, false, frameNotFoundErrorType), 0);
+        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, WTF::nullopt, false, frameNotFoundErrorType), 0);
         return;
     }
 
     WebCore::Element* coreElement = elementForNodeHandle(*frame, nodeHandle);
     if (!coreElement) {
-        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, std::nullopt, false, nodeNotFoundErrorType), 0);
+        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, WTF::nullopt, false, nodeNotFoundErrorType), 0);
         return;
     }
 
@@ -565,11 +565,6 @@ void WebAutomationSessionProxy::computeElementLayout(uint64_t pageID, uint64_t f
         // https://w3c.github.io/webdriver/webdriver-spec.html#element-click
         containerElement->scrollIntoViewIfNeeded(false);
         // FIXME: Wait in an implementation-specific way up to the session implicit wait timeout for the element to become in view.
-    }
-
-    if (coordinateSystem == CoordinateSystem::VisualViewport) {
-        WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidComputeElementLayout(callbackID, { }, std::nullopt, false, notImplementedErrorType), 0);
-        return;
     }
 
     WebCore::FrameView* frameView = frame->coreFrame()->view();
@@ -583,18 +578,18 @@ void WebAutomationSessionProxy::computeElementLayout(uint64_t pageID, uint64_t f
         break;
     case CoordinateSystem::LayoutViewport:
         // The element bounds are already in client coordinates.
-        resultElementBounds = rootElementBounds;
-        break;
-    case CoordinateSystem::VisualViewport:
-        ASSERT_NOT_REACHED();
+        if (frame->coreFrame()->settings().visualViewportEnabled())
+            resultElementBounds = WebCore::IntRect(mainView->clientToLayoutViewportRect(WebCore::FloatRect(rootElementBounds)));
+        else
+            resultElementBounds = rootElementBounds;
         break;
     }
 
-    std::optional<WebCore::IntPoint> resultInViewCenterPoint;
+    Optional<WebCore::IntPoint> resultInViewCenterPoint;
     bool isObscured = false;
     if (containerElement) {
-        std::optional<WebCore::FloatPoint> frameInViewCenterPoint = elementInViewClientCenterPoint(*containerElement, isObscured);
-        if (frameInViewCenterPoint.has_value()) {
+        Optional<WebCore::FloatPoint> frameInViewCenterPoint = elementInViewClientCenterPoint(*containerElement, isObscured);
+        if (frameInViewCenterPoint.hasValue()) {
             WebCore::IntPoint rootInViewCenterPoint = mainView->rootViewToContents(frameView->contentsToRootView(WebCore::IntPoint(frameInViewCenterPoint.value())));
             switch (coordinateSystem) {
             case CoordinateSystem::Page:
@@ -602,10 +597,10 @@ void WebAutomationSessionProxy::computeElementLayout(uint64_t pageID, uint64_t f
                 break;
             case CoordinateSystem::LayoutViewport:
                 // The point is already in client coordinates.
-                resultInViewCenterPoint = rootInViewCenterPoint;
-                break;
-            case CoordinateSystem::VisualViewport:
-                ASSERT_NOT_REACHED();
+                if (frame->coreFrame()->settings().visualViewportEnabled())
+                    resultInViewCenterPoint = WebCore::IntPoint(mainView->clientToLayoutViewportPoint(rootInViewCenterPoint));
+                else
+                    resultInViewCenterPoint = rootInViewCenterPoint;
                 break;
             }
         }
@@ -750,7 +745,7 @@ void WebAutomationSessionProxy::getCookiesForFrame(uint64_t pageID, uint64_t fra
     auto& document = *frame->coreFrame()->document();
     Vector<WebCore::Cookie> foundCookies;
     if (!document.cookieURL().isEmpty())
-        WebCore::getRawCookies(document, document.cookieURL(), foundCookies);
+        page->corePage()->cookieJar().getRawCookies(document, document.cookieURL(), foundCookies);
 
     WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidGetCookiesForFrame(callbackID, foundCookies, String()), 0);
 }
@@ -772,7 +767,7 @@ void WebAutomationSessionProxy::deleteCookie(uint64_t pageID, uint64_t frameID, 
     }
 
     auto& document = *frame->coreFrame()->document();
-    WebCore::deleteCookie(document, document.cookieURL(), cookieName);
+    page->corePage()->cookieJar().deleteCookie(document, document.cookieURL(), cookieName);
 
     WebProcess::singleton().parentProcessConnection()->send(Messages::WebAutomationSession::DidDeleteCookie(callbackID, String()), 0);
 }

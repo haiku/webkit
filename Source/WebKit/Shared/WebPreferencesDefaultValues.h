@@ -208,6 +208,12 @@
 #define DEFAULT_SERVICE_WORKERS_ENABLED false
 #endif
 
+#if PLATFORM(IOS_FAMILY)
+#define DEFAULT_POINTER_EVENTS_ENABLED true
+#else
+#define DEFAULT_POINTER_EVENTS_ENABLED false
+#endif
+
 #if PLATFORM(MAC) || PLATFORM(IOS)
 #define DEFAULT_PROCESS_SWAP_ON_CROSS_SITE_NAVIGATION_ENABLED true
 #else
@@ -222,6 +228,12 @@
 
 bool defaultPassiveTouchListenersAsDefaultOnDocument();
 bool defaultCustomPasteboardDataEnabled();
+
+#if PLATFORM(MAC)
+#define DEFAULT_CAPTURE_AUDIO_IN_UIPROCESS true
+#else
+#define DEFAULT_CAPTURE_AUDIO_IN_UIPROCESS false
+#endif
 
 #if PLATFORM(WATCHOS)
 #define DEFAULT_INPUT_TYPE_COLOR_ENABLED false

@@ -20,7 +20,7 @@
 #ifndef HAIKUFORMDATASTREAM_H
 #define HAIKUFORMDATASTREAM_H
 
-#include "FileSystem.h"
+#include "wtf/FileSystem.h"
 #include "FormData.h"
 
 #include <DataIO.h>
@@ -41,9 +41,9 @@ public:
 private:
     void computeContentLength();
 
-    std::optional<size_t> readFromFile(const FormDataElement::EncodedFileData&, char*, size_t);
-    std::optional<size_t> readFromData(const Vector<char>&, char*, size_t);
-	std::optional<size_t> readFromBlob(const FormDataElement::EncodedBlobData&, char*, size_t);
+    WTF::Optional<size_t> readFromFile(const FormDataElement::EncodedFileData&, char*, size_t);
+    WTF::Optional<size_t> readFromData(const Vector<char>&, char*, size_t);
+	WTF::Optional<size_t> readFromBlob(const FormDataElement::EncodedBlobData&, char*, size_t);
 
     RefPtr<FormData> m_formData;
 

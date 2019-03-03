@@ -98,13 +98,15 @@ WebKitBrowserWindow::WebKitBrowserWindow(HWND mainWnd, HWND urlBarWnd)
     WKPreferencesSetDeveloperExtrasEnabled(prefs, true);
     WKPageConfigurationSetPreferences(conf.get(), prefs);
 
-    m_context = adoptWK(WKContextCreate());
+    m_context = adoptWK(WKContextCreateWithConfiguration(nullptr));
     WKPageConfigurationSetContext(conf.get(), m_context.get());
 
     m_view = adoptWK(WKViewCreate(rect, conf.get(), mainWnd));
     auto page = WKViewGetPage(m_view.get());
 
-    WKPageNavigationClientV0 navigationClient = {{ 0, this }};
+    WKPageNavigationClientV0 navigationClient = { };
+    navigationClient.base.version = 0;
+    navigationClient.base.clientInfo = this;
     navigationClient.didFinishNavigation = didFinishNavigation;
     navigationClient.didCommitNavigation = didCommitNavigation;
     navigationClient.didReceiveAuthenticationChallenge = didReceiveAuthenticationChallenge;

@@ -829,6 +829,26 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
     return _preferences->shouldIgnoreMetaViewport();
 }
 
+- (void)_setNeedsSiteSpecificQuirks:(BOOL)enabled
+{
+    _preferences->setNeedsSiteSpecificQuirks(enabled);
+}
+
+- (BOOL)_needsSiteSpecificQuirks
+{
+    return _preferences->needsSiteSpecificQuirks();
+}
+
+- (void)_setItpDebugModeEnabled:(BOOL)enabled
+{
+    _preferences->setItpDebugModeEnabled(enabled);
+}
+
+- (BOOL)_itpDebugModeEnabled
+{
+    return _preferences->itpDebugModeEnabled();
+}
+
 #if PLATFORM(MAC)
 - (void)_setJavaEnabledForLocalFiles:(BOOL)enabled
 {
@@ -868,16 +888,6 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 - (NSString *)_defaultTextEncodingName
 {
     return _preferences->defaultTextEncodingName();
-}
-
-- (void)_setNeedsSiteSpecificQuirks:(BOOL)enabled
-{
-    _preferences->setNeedsSiteSpecificQuirks(enabled);
-}
-
-- (BOOL)_needsSiteSpecificQuirks
-{
-    return _preferences->needsSiteSpecificQuirks();
 }
 
 - (void)_setAuthorAndUserStylesEnabled:(BOOL)enabled
@@ -1344,6 +1354,22 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 - (BOOL)_webAnimationsCSSIntegrationEnabled
 {
     return _preferences->webAnimationsCSSIntegrationEnabled();
+}
+
+- (void)_setDeviceOrientationEventEnabled:(BOOL)enabled
+{
+#if ENABLE(DEVICE_ORIENTATION)
+    _preferences->setDeviceOrientationEventEnabled(enabled);
+#endif
+}
+
+- (BOOL)_deviceOrientationEventEnabled
+{
+#if ENABLE(DEVICE_ORIENTATION)
+    return _preferences->deviceOrientationEventEnabled();
+#else
+    return false;
+#endif
 }
 
 @end

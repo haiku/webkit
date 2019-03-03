@@ -33,6 +33,7 @@
 #import "FrameLoadState.h"
 #import "Logging.h"
 #import "NativeWebWheelEvent.h"
+#import "ProvisionalPageProxy.h"
 #import "ViewGestureControllerMessages.h"
 #import "ViewGestureGeometryCollectorMessages.h"
 #import "ViewSnapshotStore.h"
@@ -737,18 +738,28 @@ void ViewGestureController::endSwipeGesture(WebBackForwardListItem* targetItem, 
     uint64_t renderTreeSize = 0;
     if (ViewSnapshot* snapshot = targetItem->snapshot())
         renderTreeSize = snapshot->renderTreeSize();
-
-    m_webPageProxy.process().send(Messages::ViewGestureGeometryCollector::SetRenderTreeSizeNotificationThreshold(renderTreeSize * swipeSnapshotRemovalRenderTreeSizeTargetFraction), m_webPageProxy.pageID());
+    auto renderTreeSizeThreshold = renderTreeSize * swipeSnapshotRemovalRenderTreeSizeTargetFraction;
 
     m_webPageProxy.navigationGestureDidEnd(true, *targetItem);
     m_webPageProxy.goToBackForwardItem(*targetItem);
+
+    auto* currentItem = m_webPageProxy.backForwardList().currentItem();
+    // The main frame will not be navigated so hide the snapshot right away.
+    if (currentItem && currentItem->itemIsClone(*targetItem)) {
+        removeSwipeSnapshot();
+        return;
+    }
 
     SnapshotRemovalTracker::Events desiredEvents = SnapshotRemovalTracker::VisuallyNonEmptyLayout
         | SnapshotRemovalTracker::MainFrameLoad
         | SnapshotRemovalTracker::SubresourceLoads
         | SnapshotRemovalTracker::ScrollPositionRestoration;
-    if (renderTreeSize)
+
+    if (renderTreeSizeThreshold) {
         desiredEvents |= SnapshotRemovalTracker::RenderTreeSizeThreshold;
+        m_snapshotRemovalTracker.setRenderTreeSizeThreshold(renderTreeSizeThreshold);
+    }
+
     m_snapshotRemovalTracker.start(desiredEvents, [this] { this->forceRepaintIfNeeded(); });
 
     // FIXME: Like on iOS, we should ensure that even if one of the timeouts fires,
@@ -831,6 +842,17 @@ bool ViewGestureController::completeSimulatedSwipeInDirectionForTesting(SwipeDir
 {
     notImplemented();
     return false;
+}
+
+void ViewGestureController::requestRenderTreeSizeNotificationIfNeeded()
+{
+    if (!m_snapshotRemovalTracker.hasOutstandingEvent(SnapshotRemovalTracker::RenderTreeSizeThreshold))
+        return;
+
+    auto& process = m_webPageProxy.provisionalPageProxy() ? m_webPageProxy.provisionalPageProxy()->process() : m_webPageProxy.process();
+    auto threshold = m_snapshotRemovalTracker.renderTreeSizeThreshold();
+
+    process.send(Messages::ViewGestureGeometryCollector::SetRenderTreeSizeNotificationThreshold(threshold), m_webPageProxy.pageID());
 }
 
 } // namespace WebKit

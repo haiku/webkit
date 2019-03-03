@@ -57,6 +57,7 @@ public:
 
     explicit CtapHidDriver(UniqueRef<HidConnection>&&);
 
+    void setProtocol(fido::ProtocolVersion protocol) { m_protocol = protocol; }
     void transact(Vector<uint8_t>&& data, ResponseCallback&&);
 
 private:
@@ -67,7 +68,7 @@ private:
         WTF_MAKE_FAST_ALLOCATED;
         WTF_MAKE_NONCOPYABLE(Worker);
     public:
-        using MessageCallback = Function<void(std::optional<fido::FidoHidMessage>&&)>;
+        using MessageCallback = Function<void(Optional<fido::FidoHidMessage>&&)>;
 
         enum class State : uint8_t  {
             Idle,
@@ -83,17 +84,17 @@ private:
     private:
         void write(HidConnection::DataSent);
         void read(const Vector<uint8_t>&);
-        void returnMessage(std::optional<fido::FidoHidMessage>&&);
+        void returnMessage(Optional<fido::FidoHidMessage>&&);
 
         UniqueRef<HidConnection> m_connection;
         State m_state { State::Idle };
-        std::optional<fido::FidoHidMessage> m_requestMessage;
-        std::optional<fido::FidoHidMessage> m_responseMessage;
+        Optional<fido::FidoHidMessage> m_requestMessage;
+        Optional<fido::FidoHidMessage> m_responseMessage;
         MessageCallback m_callback;
     };
 
-    void continueAfterChannelAllocated(std::optional<fido::FidoHidMessage>&&);
-    void continueAfterResponseReceived(std::optional<fido::FidoHidMessage>&&);
+    void continueAfterChannelAllocated(Optional<fido::FidoHidMessage>&&);
+    void continueAfterResponseReceived(Optional<fido::FidoHidMessage>&&);
     void returnResponse(Vector<uint8_t>&&);
 
     UniqueRef<Worker> m_worker;
@@ -103,6 +104,7 @@ private:
     Vector<uint8_t> m_requestData;
     ResponseCallback m_responseCallback;
     Vector<uint8_t> m_nonce;
+    fido::ProtocolVersion m_protocol { fido::ProtocolVersion::kCtap };
 };
 
 } // namespace WebKit

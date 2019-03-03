@@ -40,7 +40,7 @@
 #import <AVKit/AVPlayerViewController_WebKitOnly.h>
 #endif
 
-#if !PLATFORM(IOS_FAMILY)
+#if ENABLE(MEDIA_SOURCE)
 #import <AVFoundation/AVStreamDataParser.h>
 #endif
 
@@ -79,7 +79,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 #if !PLATFORM(IOS_FAMILY)
 @interface AVPlayer (AVPlayerExternalPlaybackSupportPrivate)
-@property (nonatomic, retain) AVOutputContext *outputContext;
+@property (nonatomic, retain, nullable) AVOutputContext *outputContext;
 @end
 #else
 typedef NS_ENUM(NSInteger, AVPlayerExternalPlaybackType) {

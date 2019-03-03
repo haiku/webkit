@@ -39,18 +39,13 @@
 #include "NetworkSession.h"
 #include "WebErrors.h"
 #include <WebCore/AsyncFileStream.h>
-#include <WebCore/BlobData.h>
 #include <WebCore/BlobRegistryImpl.h>
-#include <WebCore/FileStream.h>
-#include <WebCore/HTTPHeaderNames.h>
 #include <WebCore/HTTPParsers.h>
 #include <WebCore/ParsedContentRange.h>
 #include <WebCore/ResourceError.h>
 #include <WebCore/ResourceResponse.h>
 #include <WebCore/SharedBuffer.h>
-#include <wtf/MainThread.h>
 #include <wtf/RunLoop.h>
-#include <wtf/URL.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -74,6 +69,7 @@ NetworkDataTaskBlob::NetworkDataTaskBlob(NetworkSession& session, NetworkDataTas
     : NetworkDataTask(session, client, request, StoredCredentialsPolicy::DoNotUse, false, false)
     , m_stream(std::make_unique<AsyncFileStream>(*this))
     , m_fileReferences(fileReferences)
+    , m_networkProcess(session.networkProcess())
 {
     for (auto& fileReference : m_fileReferences)
         fileReference->prepareForFileAccess();
@@ -316,9 +312,6 @@ void NetworkDataTaskBlob::dispatchDidReceiveResponse(Error errorCode)
             m_buffer.resize(bufferSize);
             read();
             break;
-        case PolicyAction::Suspend:
-            LOG_ERROR("PolicyAction::Suspend encountered - Treating as PolicyAction::Ignore for now");
-            FALLTHROUGH;
         case PolicyAction::Ignore:
             break;
         case PolicyAction::Download:
@@ -473,7 +466,7 @@ void NetworkDataTaskBlob::download()
         return;
     }
 
-    auto& downloadManager = NetworkProcess::singleton().downloadManager();
+    auto& downloadManager = m_networkProcess->downloadManager();
     auto download = std::make_unique<Download>(downloadManager, m_pendingDownloadID, *this, m_session->sessionID(), suggestedFilename());
     auto* downloadPtr = download.get();
     downloadManager.dataTaskBecameDownloadTask(m_pendingDownloadID, WTFMove(download));
@@ -495,7 +488,7 @@ bool NetworkDataTaskBlob::writeDownload(const char* data, int bytesRead)
     }
 
     ASSERT(bytesWritten == bytesRead);
-    auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+    auto* download = m_networkProcess->downloadManager().download(m_pendingDownloadID);
     ASSERT(download);
     download->didReceiveData(bytesWritten);
     return true;
@@ -525,7 +518,7 @@ void NetworkDataTaskBlob::didFailDownload(const ResourceError& error)
     if (m_client)
         m_client->didCompleteWithError(error);
     else {
-        auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+        auto* download = m_networkProcess->downloadManager().download(m_pendingDownloadID);
         ASSERT(download);
         download->didFail(error, IPC::DataReference());
     }
@@ -545,7 +538,7 @@ void NetworkDataTaskBlob::didFinishDownload()
     }
 
     clearStream();
-    auto* download = NetworkProcess::singleton().downloadManager().download(m_pendingDownloadID);
+    auto* download = m_networkProcess->downloadManager().download(m_pendingDownloadID);
     ASSERT(download);
     download->didFinish();
 }

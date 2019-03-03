@@ -28,7 +28,6 @@
 
 #if ENABLE(INDEXED_DATABASE)
 
-#include "FileSystem.h"
 #include "IDBBindingUtilities.h"
 #include "IDBGetAllRecordsData.h"
 #include "IDBGetAllResult.h"
@@ -54,7 +53,9 @@
 #include <JavaScriptCore/JSGlobalObject.h>
 #include <JavaScriptCore/StrongInlines.h>
 #include <JavaScriptCore/StructureInlines.h>
+#include <wtf/FileSystem.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebCore {
 using namespace JSC;
@@ -673,7 +674,7 @@ std::unique_ptr<IDBDatabaseInfo> SQLiteIDBBackingStore::extractExistingDatabaseI
             Vector<char> keyPathBuffer;
             sql.getColumnBlobAsVector(2, keyPathBuffer);
 
-            std::optional<IDBKeyPath> objectStoreKeyPath;
+            Optional<IDBKeyPath> objectStoreKeyPath;
             if (!deserializeIDBKeyPath(reinterpret_cast<const uint8_t*>(keyPathBuffer.data()), keyPathBuffer.size(), objectStoreKeyPath)) {
                 LOG_ERROR("Unable to extract key path from database");
                 return nullptr;
@@ -706,7 +707,7 @@ std::unique_ptr<IDBDatabaseInfo> SQLiteIDBBackingStore::extractExistingDatabaseI
             Vector<char> keyPathBuffer;
             sql.getColumnBlobAsVector(3, keyPathBuffer);
 
-            std::optional<IDBKeyPath> indexKeyPath;
+            Optional<IDBKeyPath> indexKeyPath;
             if (!deserializeIDBKeyPath(reinterpret_cast<const uint8_t*>(keyPathBuffer.data()), keyPathBuffer.size(), indexKeyPath)) {
                 LOG_ERROR("Unable to extract key path from database");
                 return nullptr;
@@ -1844,7 +1845,7 @@ IDBError SQLiteIDBBackingStore::addRecord(const IDBResourceIdentifier& transacti
         }
 
         // We don't already have a file for this blobURL, so commit our file as a unique filename
-        String storedFilename = String::format("%" PRId64 ".blob", potentialFileNameInteger);
+        String storedFilename = makeString(potentialFileNameInteger, ".blob");
         {
             auto* sql = cachedStatement(SQL::AddBlobFilename, "INSERT INTO BlobFiles VALUES (?, ?);"_s);
             if (!sql

@@ -42,10 +42,10 @@
 #import "WebProcessProxy.h"
 #import "_WKDownloadDelegate.h"
 #import "_WKDownloadInternal.h"
-#import <WebCore/FileSystem.h>
 #import <WebCore/ResourceError.h>
 #import <WebCore/ResourceResponse.h>
 #import <wtf/BlockPtr.h>
+#import <wtf/FileSystem.h>
 
 namespace WebKit {
 
@@ -123,7 +123,7 @@ void DownloadClient::didReceiveAuthenticationChallenge(WebProcessPool&, Download
         return;
     }
 
-    [m_delegate _download:wrapper(downloadProxy) didReceiveAuthenticationChallenge:wrapper(authenticationChallenge) completionHandler:BlockPtr<void(NSURLSessionAuthChallengeDisposition, NSURLCredential *)>::fromCallable([authenticationChallenge = makeRef(authenticationChallenge), checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:didReceiveAuthenticationChallenge:completionHandler:))] (NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
+    [m_delegate _download:wrapper(downloadProxy) didReceiveAuthenticationChallenge:wrapper(authenticationChallenge) completionHandler:makeBlockPtr([authenticationChallenge = makeRef(authenticationChallenge), checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:didReceiveAuthenticationChallenge:completionHandler:))] (NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential) {
         if (checker->completionHandlerHasBeenCalled())
             return;
         checker->didCallCompletionHandler();
@@ -181,7 +181,7 @@ void DownloadClient::decideDestinationWithSuggestedFilename(WebProcessPool&, Dow
 {
 #if USE(SYSTEM_PREVIEW)
     if (downloadProxy.isSystemPreviewDownload()) {
-        NSString *temporaryDirectory = WebCore::FileSystem::createTemporaryDirectory(@"SystemPreviews");
+        NSString *temporaryDirectory = FileSystem::createTemporaryDirectory(@"SystemPreviews");
         NSString *destination = [temporaryDirectory stringByAppendingPathComponent:filename];
         completionHandler(AllowOverwrite::Yes, destination);
         return;
@@ -198,7 +198,7 @@ void DownloadClient::decideDestinationWithSuggestedFilename(WebProcessPool&, Dow
         ALLOW_DEPRECATED_DECLARATIONS_END
         completionHandler(allowOverwrite ? AllowOverwrite::Yes : AllowOverwrite::No, destination);
     } else {
-        [m_delegate _download:wrapper(downloadProxy) decideDestinationWithSuggestedFilename:filename completionHandler:BlockPtr<void(BOOL, NSString *)>::fromCallable([checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:decideDestinationWithSuggestedFilename:completionHandler:)), completionHandler = WTFMove(completionHandler)] (BOOL allowOverwrite, NSString *destination) {
+        [m_delegate _download:wrapper(downloadProxy) decideDestinationWithSuggestedFilename:filename completionHandler:makeBlockPtr([checker = CompletionHandlerCallChecker::create(m_delegate.get().get(), @selector(_download:decideDestinationWithSuggestedFilename:completionHandler:)), completionHandler = WTFMove(completionHandler)] (BOOL allowOverwrite, NSString *destination) {
             if (checker->completionHandlerHasBeenCalled())
                 return;
             checker->didCallCompletionHandler();

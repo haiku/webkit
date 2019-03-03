@@ -116,6 +116,8 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
             return WI.UIString("JavaScript & Events");
         case WI.TimelineRecord.Type.RenderingFrame:
             return WI.UIString("Rendering Frames");
+        case WI.TimelineRecord.Type.CPU:
+            return WI.UIString("CPU");
         case WI.TimelineRecord.Type.Memory:
             return WI.UIString("Memory");
         case WI.TimelineRecord.Type.HeapAllocations:
@@ -136,6 +138,8 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
             return "network-icon";
         case WI.TimelineRecord.Type.Layout:
             return "layout-icon";
+        case WI.TimelineRecord.Type.CPU:
+            return "cpu-icon";
         case WI.TimelineRecord.Type.Memory:
             return "memory-icon";
         case WI.TimelineRecord.Type.HeapAllocations:
@@ -160,6 +164,8 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
             return "network";
         case WI.TimelineRecord.Type.Layout:
             return "colors";
+        case WI.TimelineRecord.Type.CPU:
+            return "cpu";
         case WI.TimelineRecord.Type.Memory:
             return "memory";
         case WI.TimelineRecord.Type.HeapAllocations:
@@ -207,6 +213,7 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
                 return WI.TimelineRecordTreeElement.EvaluatedRecordIconStyleClass;
             case WI.ScriptTimelineRecord.EventType.MicrotaskDispatched:
             case WI.ScriptTimelineRecord.EventType.EventDispatched:
+            case WI.ScriptTimelineRecord.EventType.ObserverCallback:
                 return WI.TimelineRecordTreeElement.EventRecordIconStyleClass;
             case WI.ScriptTimelineRecord.EventType.ProbeSampleRecorded:
                 return WI.TimelineRecordTreeElement.ProbeRecordIconStyleClass;
@@ -247,6 +254,7 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
 
             break;
 
+        case WI.TimelineRecord.Type.CPU:
         case WI.TimelineRecord.Type.Memory:
             // Not used. Fall through to error just in case.
 
@@ -274,6 +282,7 @@ WI.TimelineTabContentView = class TimelineTabContentView extends WI.ContentBrows
             return WI.UIString("Snapshot %d").format(timelineRecord.heapSnapshot.identifier);
         case WI.TimelineRecord.Type.Media:
             return timelineRecord.displayName;
+        case WI.TimelineRecord.Type.CPU:
         case WI.TimelineRecord.Type.Memory:
             // Not used. Fall through to error just in case.
         default:

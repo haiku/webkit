@@ -25,7 +25,7 @@
 
 #pragma once
 
-#import "ChildProcess.h"
+#import "AuxiliaryProcess.h"
 #import "WebKit2Initialize.h"
 #import <JavaScriptCore/ExecutableAllocator.h>
 #import <wtf/OSObjectPtr.h>
@@ -67,6 +67,12 @@ protected:
     xpc_object_t m_initializerMessage;
 };
 
+template<typename XPCServiceType>
+void initializeAuxiliaryProcess(AuxiliaryProcessInitializationParameters&& parameters)
+{
+    XPCServiceType::singleton().initialize(WTFMove(parameters));
+}
+
 template<typename XPCServiceType, typename XPCServiceInitializerDelegateType>
 void XPCServiceInitializer(OSObjectPtr<xpc_connection_t> connection, xpc_object_t initializerMessage, xpc_object_t priorityBoostMessage)
 {
@@ -86,7 +92,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     if (!delegate.checkEntitlements())
         exit(EXIT_FAILURE);
 
-    ChildProcessInitializationParameters parameters;
+    AuxiliaryProcessInitializationParameters parameters;
     if (priorityBoostMessage)
         parameters.priorityBoostMessage = priorityBoostMessage;
 
@@ -119,7 +125,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
     parameters.processType = XPCServiceType::processType;
 
-    XPCServiceType::singleton().initialize(parameters);
+    initializeAuxiliaryProcess<XPCServiceType>(WTFMove(parameters));
 }
 
 int XPCServiceMain(int, const char**);

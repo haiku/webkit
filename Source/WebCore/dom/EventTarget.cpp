@@ -51,8 +51,6 @@
 
 namespace WebCore {
 
-using namespace WTF;
-
 bool EventTarget::isNode() const
 {
     return false;
@@ -67,7 +65,7 @@ bool EventTarget::addEventListener(const AtomicString& eventType, Ref<EventListe
 {
     auto passive = options.passive;
 
-    if (!passive.has_value() && eventNames().isTouchScrollBlockingEventType(eventType)) {
+    if (!passive.hasValue() && eventNames().isTouchScrollBlockingEventType(eventType)) {
         if (is<DOMWindow>(*this)) {
             auto& window = downcast<DOMWindow>(*this);
             if (auto* document = window.document())
@@ -82,7 +80,7 @@ bool EventTarget::addEventListener(const AtomicString& eventType, Ref<EventListe
     bool listenerCreatedFromScript = listener->type() == EventListener::JSEventListenerType && !listener->wasCreatedFromMarkup();
     auto listenerRef = listener.copyRef();
 
-    if (!ensureEventTargetData().eventListenerMap.add(eventType, WTFMove(listener), { options.capture, passive.value_or(false), options.once }))
+    if (!ensureEventTargetData().eventListenerMap.add(eventType, WTFMove(listener), { options.capture, passive.valueOr(false), options.once }))
         return false;
 
     if (listenerCreatedFromScript)

@@ -267,6 +267,7 @@ void StyleResolver::addKeyframeStyle(Ref<StyleRuleKeyframes>&& rule)
 
 StyleResolver::~StyleResolver()
 {
+    RELEASE_ASSERT(!m_document.isResolvingTreeStyle());
     RELEASE_ASSERT(!m_isDeleted);
     m_isDeleted = true;
 
@@ -1720,13 +1721,14 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value, ApplyCascad
         state.style()->setHasExplicitlyInheritedProperties();
 
 #if ENABLE(CSS_PAINTING_API)
-    if (is<CSSPaintImageValue>(*valueToApply) && document().paintWorkletGlobalScope()) {
-        // FIXME: This should use the "document paint registration map" from the spec, once it is implemented.
-        auto& paintWorklet = *document().paintWorkletGlobalScope();
-        auto locker = holdLock(paintWorklet.paintDefinitionLock());
-        if (auto* registration = paintWorklet.paintDefinitionMap().get(downcast<CSSPaintImageValue>(*valueToApply).name())) {
-            for (auto& property : registration->inputProperties)
-                state.style()->addCustomPaintWatchProperty(property);
+    if (is<CSSPaintImageValue>(*valueToApply)) {
+        auto& name = downcast<CSSPaintImageValue>(*valueToApply).name();
+        if (auto* paintWorklet = document().paintWorkletGlobalScopeForName(name)) {
+            auto locker = holdLock(paintWorklet->paintDefinitionLock());
+            if (auto* registration = paintWorklet->paintDefinitionMap().get(name)) {
+                for (auto& property : registration->inputProperties)
+                    state.style()->addCustomPaintWatchProperty(property);
+            }
         }
     }
 #endif
@@ -1864,7 +1866,7 @@ Color StyleResolver::colorFromPrimitiveValue(const CSSPrimitiveValue& value, boo
     case CSSValueWebkitActivelink:
         return document().activeLinkColor();
     case CSSValueWebkitFocusRingColor:
-        return RenderTheme::focusRingColor(document().styleColorOptions(m_state.style()));
+        return RenderTheme::singleton().focusRingColor(document().styleColorOptions(m_state.style()));
     case CSSValueCurrentcolor:
         // Color is an inherited property so depending on it effectively makes the property inherited.
         // FIXME: Setting the flag as a side effect of calling this function is a bit oblique. Can we do better?
@@ -1979,8 +1981,8 @@ bool StyleResolver::createFilterOperations(const CSSValue& inValue, FilterOperat
             String cssUrl = primitiveValue.stringValue();
             URL url = document().completeURL(cssUrl);
 
-            RefPtr<ReferenceFilterOperation> operation = ReferenceFilterOperation::create(cssUrl, url.fragmentIdentifier());
-            operations.operations().append(operation);
+            auto operation = ReferenceFilterOperation::create(cssUrl, url.fragmentIdentifier());
+            operations.operations().append(WTFMove(operation));
             continue;
         }
 
@@ -2318,6 +2320,7 @@ void StyleResolver::applyCascadedCustomProperty(const String& name, ApplyCascade
         return;
 
     auto property = state.cascade->customProperties().get(name);
+    bool inCycle = state.inProgressPropertiesCustom.contains(name);
 
     for (auto index : { SelectorChecker::MatchDefault, SelectorChecker::MatchLink, SelectorChecker::MatchVisited }) {
         if (!property.cssValue[index])
@@ -2327,19 +2330,18 @@ void StyleResolver::applyCascadedCustomProperty(const String& name, ApplyCascade
 
         Ref<CSSCustomPropertyValue> valueToApply = CSSCustomPropertyValue::create(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
 
-        if (state.inProgressPropertiesCustom.contains(name)) {
-            // We are in a cycle, so reset the value.
-            state.appliedCustomProperties.add(name);
-            // Resolve this value so that we reset its dependencies
-            if (WTF::holds_alternative<Ref<CSSVariableReferenceValue>>(valueToApply->value()))
-                resolvedVariableValue(CSSPropertyCustom, valueToApply.get(), state);
-            valueToApply = CSSCustomPropertyValue::createWithID(name, CSSValueUnset);
+        if (inCycle) {
+            state.appliedCustomProperties.add(name); // Make sure we do not try to apply this property again while resolving it.
+            valueToApply = CSSCustomPropertyValue::createWithID(name, CSSValueInvalid);
         }
 
         state.inProgressPropertiesCustom.add(name);
 
         if (WTF::holds_alternative<Ref<CSSVariableReferenceValue>>(valueToApply->value())) {
             RefPtr<CSSValue> parsedValue = resolvedVariableValue(CSSPropertyCustom, valueToApply.get(), state);
+
+            if (state.appliedCustomProperties.contains(name))
+                return; // There was a cycle and the value was reset, so bail.
 
             if (!parsedValue)
                 parsedValue = CSSCustomPropertyValue::createWithID(name, CSSValueUnset);
@@ -2364,8 +2366,23 @@ void StyleResolver::applyCascadedCustomProperty(const String& name, ApplyCascade
             }
             applyProperty(CSSPropertyCustom, valueToApply.ptr(), state, index);
         }
-        state.inProgressPropertiesCustom.remove(name);
-        state.appliedCustomProperties.add(name);
+    }
+
+    state.inProgressPropertiesCustom.remove(name);
+    state.appliedCustomProperties.add(name);
+
+    for (auto index : { SelectorChecker::MatchDefault, SelectorChecker::MatchLink, SelectorChecker::MatchVisited }) {
+        if (!property.cssValue[index])
+            continue;
+        if (index != SelectorChecker::MatchDefault && this->state().style()->insideLink() == InsideLink::NotInside)
+            continue;
+
+        Ref<CSSCustomPropertyValue> valueToApply = CSSCustomPropertyValue::create(downcast<CSSCustomPropertyValue>(*property.cssValue[index]));
+
+        if (inCycle && WTF::holds_alternative<Ref<CSSVariableReferenceValue>>(valueToApply->value())) {
+            // Resolve this value so that we reset its dependencies.
+            resolvedVariableValue(CSSPropertyCustom, valueToApply.get(), state);
+        }
     }
 }
 

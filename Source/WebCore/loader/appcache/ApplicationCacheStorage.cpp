@@ -30,12 +30,12 @@
 #include "ApplicationCacheGroup.h"
 #include "ApplicationCacheHost.h"
 #include "ApplicationCacheResource.h"
-#include "FileSystem.h"
 #include "SQLiteDatabaseTracker.h"
 #include "SQLiteStatement.h"
 #include "SQLiteTransaction.h"
 #include "SecurityOrigin.h"
 #include "SecurityOriginData.h"
+#include <wtf/FileSystem.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/URL.h>
 #include <wtf/UUID.h>
@@ -1308,18 +1308,18 @@ bool ApplicationCacheStorage::writeDataToUniqueFileInDirectory(SharedBuffer& dat
     return true;
 }
 
-std::optional<Vector<URL>> ApplicationCacheStorage::manifestURLs()
+Optional<Vector<URL>> ApplicationCacheStorage::manifestURLs()
 {
     SQLiteTransactionInProgressAutoCounter transactionCounter;
 
     openDatabase(false);
     if (!m_database.isOpen())
-        return std::nullopt;
+        return WTF::nullopt;
 
     SQLiteStatement selectURLs(m_database, "SELECT manifestURL FROM CacheGroups");
 
     if (selectURLs.prepare() != SQLITE_OK)
-        return std::nullopt;
+        return WTF::nullopt;
 
     Vector<URL> urls;
     while (selectURLs.step() == SQLITE_ROW)

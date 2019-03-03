@@ -164,7 +164,7 @@ DictionaryPopupInfo WebPage::dictionaryPopupInfoForRange(Frame& frame, Range& ra
     if (presentationTransition == TextIndicatorPresentationTransition::BounceAndCrossfade)
         indicatorOptions |= TextIndicatorOptionIncludeSnapshotWithSelectionHighlight;
     
-    RefPtr<TextIndicator> textIndicator = TextIndicator::createWithRange(range, indicatorOptions, presentationTransition);
+    auto textIndicator = TextIndicator::createWithRange(range, indicatorOptions, presentationTransition);
     if (!textIndicator) {
         editor.setIsGettingDictionaryPopupInfo(false);
         return dictionaryPopupInfo;
@@ -174,6 +174,10 @@ DictionaryPopupInfo WebPage::dictionaryPopupInfoForRange(Frame& frame, Range& ra
 #if PLATFORM(MAC)
     dictionaryPopupInfo.attributedString = scaledNSAttributedString;
 #endif // PLATFORM(MAC)
+    
+#if PLATFORM(IOSMAC)
+    dictionaryPopupInfo.attributedString = adoptNS([[NSMutableAttributedString alloc] initWithString:range.text()]);
+#endif // PLATFORM(IOSMAC)
     
     editor.setIsGettingDictionaryPopupInfo(false);
     return dictionaryPopupInfo;

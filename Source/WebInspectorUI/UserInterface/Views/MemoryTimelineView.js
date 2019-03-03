@@ -41,8 +41,7 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         let overviewElement = contentElement.appendChild(document.createElement("div"));
         overviewElement.classList.add("overview");
 
-        function createChartContainer(parentElement, subtitle, tooltip)
-        {
+        function createChartContainer(parentElement, subtitle, tooltip) {
             let chartElement = parentElement.appendChild(document.createElement("div"));
             chartElement.classList.add("chart");
 
@@ -120,11 +119,6 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         this._timelineRuler.updateLayout(WI.View.LayoutReason.Resize);
     }
 
-    hidden()
-    {
-        super.hidden();
-    }
-
     closed()
     {
         console.assert(this.representedObject instanceof WI.Timeline);
@@ -164,6 +158,9 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
 
     layout()
     {
+        if (this.layoutReason === WI.View.LayoutReason.Resize)
+            return;
+
         // Always update timeline ruler.
         this._timelineRuler.zeroTime = this.zeroTime;
         this._timelineRuler.startTime = this.startTime;
@@ -172,8 +169,11 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         if (!this._didInitializeCategories)
             return;
 
+        const memoryCategoryViewHeight = 75; // Keep this in sync with .memory-category-view
+
         let graphStartTime = this.startTime;
         let graphEndTime = this.endTime;
+        let secondsPerPixel = this._timelineRuler.secondsPerPixel;
         let visibleEndTime = Math.min(this.endTime, this.currentTime);
 
         let discontinuities = this._recording.discontinuitiesInTimeRange(graphStartTime, visibleEndTime);
@@ -199,12 +199,6 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         this._maxComparisonCircleChart.values = [lastRecord.totalSize, this._maxSize - lastRecord.totalSize];
         this._maxComparisonCircleChart.updateLayout();
         this._updateMaxComparisonLegend(lastRecord.totalSize);
-
-        // FIXME: <https://webkit.org/b/153758> Web Inspector: Memory Timeline View should be responsive / resizable
-        const categoryViewWidth = 800;
-        const categoryViewHeight = 75;
-
-        let secondsPerPixel = (graphEndTime - graphStartTime) / categoryViewWidth;
 
         let categoryDataMap = {};
         for (let categoryView of this._categoryViews)
@@ -241,9 +235,7 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         if (discontinuities.length)
             visibleEndTime = discontinuities[0].startTime;
 
-        function layoutCategoryView(categoryView, categoryData) {
-            let {dataPoints, min, max} = categoryData;
-
+        function layoutCategoryView(categoryView, {dataPoints, min, max}) {
             if (min === Infinity)
                 min = 0;
             if (max === -Infinity)
@@ -256,11 +248,14 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
             function xScale(time) {
                 return (time - graphStartTime) / secondsPerPixel;
             }
-            function yScale(size) {
-                return categoryViewHeight - (((size - graphMin) / graphMax) * categoryViewHeight);
+
+            let size = new WI.Size(xScale(graphEndTime), memoryCategoryViewHeight);
+
+            function yScale(value) {
+                return size.height - (((value - graphMin) / graphMax) * size.height);
             }
 
-            categoryView.layoutWithDataPoints(dataPoints, visibleEndTime, min, max, xScale, yScale);
+            categoryView.updateChart(dataPoints, size, visibleEndTime, min, max, xScale, yScale);
         }
 
         for (let categoryView of this._categoryViews)
@@ -310,8 +305,10 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
 
     _clearMaxComparisonLegend()
     {
-        this._maxComparisonMaximumSizeElement.textContent = emDash;
-        this._maxComparisonCurrentSizeElement.textContent = emDash;
+        if (this._maxComparisonMaximumSizeElement)
+            this._maxComparisonMaximumSizeElement.textContent = emDash;
+        if (this._maxComparisonCurrentSizeElement)
+            this._maxComparisonCurrentSizeElement.textContent = emDash;
 
         let totalElement = this._maxComparisonCircleChart.centerElement.firstChild;
         if (totalElement)
@@ -353,12 +350,18 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
         function appendLegendRow(legendElement, swatchClass, label, tooltip) {
             let rowElement = legendElement.appendChild(document.createElement("div"));
             rowElement.classList.add("row");
+
             let swatchElement = rowElement.appendChild(document.createElement("div"));
             swatchElement.classList.add("swatch", swatchClass);
-            let labelElement = rowElement.appendChild(document.createElement("p"));
+
+            let valueContainer = rowElement.appendChild(document.createElement("div"));
+            valueContainer.classList.add("value");
+
+            let labelElement = valueContainer.appendChild(document.createElement("div"));
             labelElement.classList.add("label");
             labelElement.textContent = label;
-            let sizeElement = rowElement.appendChild(document.createElement("p"));
+
+            let sizeElement = valueContainer.appendChild(document.createElement("div"));
             sizeElement.classList.add("size");
 
             if (tooltip)
@@ -373,6 +376,7 @@ WI.MemoryTimelineView = class MemoryTimelineView extends WI.TimelineView
             // Per-category graph.
             let categoryView = new WI.MemoryCategoryView(type, WI.MemoryTimelineView.displayNameForCategory(type));
             this._categoryViews.push(categoryView);
+            this.addSubview(categoryView);
             if (!lastCategoryViewElement)
                 this._detailsContainerElement.appendChild(categoryView.element);
             else

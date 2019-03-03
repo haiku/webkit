@@ -48,6 +48,7 @@
 #include "RenderDescendantIterator.h"
 #include "RenderFlexibleBox.h"
 #include "RenderFragmentedFlow.h"
+#include "RenderGrid.h"
 #include "RenderImage.h"
 #include "RenderImageResourceStyleImage.h"
 #include "RenderInline.h"
@@ -78,8 +79,6 @@
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/MathExtras.h>
 #include <wtf/StackStats.h>
-
-#include "RenderGrid.h"
 
 namespace WebCore {
 
@@ -709,14 +708,10 @@ void RenderElement::styleWillChange(StyleDifference diff, const RenderStyle& new
         bool visibilityChanged = m_style.visibility() != newStyle.visibility()
             || m_style.zIndex() != newStyle.zIndex()
             || m_style.hasAutoZIndex() != newStyle.hasAutoZIndex();
-#if ENABLE(DASHBOARD_SUPPORT)
+
         if (visibilityChanged)
-            document().setAnnotatedRegionsDirty(true);
-#endif
-#if PLATFORM(IOS_FAMILY) && ENABLE(TOUCH_EVENTS)
-        if (visibilityChanged)
-            document().setTouchEventRegionsNeedUpdate();
-#endif
+            document().invalidateRenderingDependentRegions();
+
         if (visibilityChanged) {
             if (AXObjectCache* cache = document().existingAXObjectCache())
                 cache->childrenChanged(parent(), this);
@@ -737,6 +732,7 @@ void RenderElement::styleWillChange(StyleDifference diff, const RenderStyle& new
 
         if (m_parent && (newStyle.outlineSize() < m_style.outlineSize() || shouldRepaintForStyleDifference(diff)))
             repaint();
+
         if (isFloating() && m_style.floating() != newStyle.floating()) {
             // For changes in float styles, we need to conceivably remove ourselves
             // from the floating objects list.
@@ -1823,7 +1819,8 @@ void RenderElement::paintFocusRing(PaintInfo& paintInfo, const RenderStyle& styl
         rect.inflate(outlineOffset);
         pixelSnappedFocusRingRects.append(snapRectToDevicePixels(rect, deviceScaleFactor));
     }
-#if PLATFORM(MAC)
+    // FIXME: The following code should only be compiled for Mac. See <https://bugs.webkit.org/show_bug.cgi?id=193591>.
+#if ENABLE(FULL_KEYBOARD_ACCESS)
     bool needsRepaint;
     if (style.hasBorderRadius()) {
         Path path = PathUtilities::pathWithShrinkWrappedRectsForOutline(pixelSnappedFocusRingRects, style.border(), outlineOffset, style.direction(), style.writingMode(),
@@ -1832,9 +1829,9 @@ void RenderElement::paintFocusRing(PaintInfo& paintInfo, const RenderStyle& styl
             for (auto rect : pixelSnappedFocusRingRects)
                 path.addRect(rect);
         }
-        paintInfo.context().drawFocusRing(path, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::focusRingColor(styleColorOptions()));
+        paintInfo.context().drawFocusRing(path, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::singleton().focusRingColor(styleColorOptions()));
     } else
-        paintInfo.context().drawFocusRing(pixelSnappedFocusRingRects, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::focusRingColor(styleColorOptions()));
+        paintInfo.context().drawFocusRing(pixelSnappedFocusRingRects, page().focusController().timeSinceFocusWasSet().seconds(), needsRepaint, RenderTheme::singleton().focusRingColor(styleColorOptions()));
     if (needsRepaint)
         page().focusController().setFocusedElementNeedsRepaint();
 #else

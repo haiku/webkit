@@ -31,18 +31,16 @@
 #include "GPUCommandBuffer.h"
 #include "GPURenderPassDescriptor.h"
 #include "GPURenderPassEncoder.h"
+#include "GPURenderPipeline.h"
 #include "Logging.h"
 #include "WebGPURenderPassDescriptor.h"
 #include "WebGPURenderPassEncoder.h"
 
 namespace WebCore {
 
-RefPtr<WebGPUCommandBuffer> WebGPUCommandBuffer::create(RefPtr<GPUCommandBuffer>&& buffer)
+Ref<WebGPUCommandBuffer> WebGPUCommandBuffer::create(Ref<GPUCommandBuffer>&& buffer)
 {
-    if (!buffer)
-        return nullptr;
-
-    return adoptRef(new WebGPUCommandBuffer(buffer.releaseNonNull()));
+    return adoptRef(*new WebGPUCommandBuffer(WTFMove(buffer)));
 }
 
 WebGPUCommandBuffer::WebGPUCommandBuffer(Ref<GPUCommandBuffer>&& buffer)
@@ -68,12 +66,9 @@ RefPtr<WebGPURenderPassEncoder> WebGPUCommandBuffer::beginRenderPass(WebGPURende
         gpuRenderPassDescriptor.colorAttachments.append(GPURenderPassColorAttachmentDescriptor { colorAttachment.attachment->texture(), colorAttachment.clearColor });
     }
 
-    auto encoder = GPURenderPassEncoder::create(m_commandBuffer.get(), WTFMove(gpuRenderPassDescriptor));
-
-    if (!encoder)
-        return nullptr;
-
-    return WebGPURenderPassEncoder::create(*this, encoder.releaseNonNull());
+    if (auto encoder = GPURenderPassEncoder::create(m_commandBuffer.get(), WTFMove(gpuRenderPassDescriptor)))
+        return WebGPURenderPassEncoder::create(*this, encoder.releaseNonNull());
+    return nullptr;
 }
 
 } // namespace WebCore

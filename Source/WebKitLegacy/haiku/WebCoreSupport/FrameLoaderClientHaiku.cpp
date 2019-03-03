@@ -70,6 +70,7 @@
 #include "WebViewConstants.h"
 
 #include <JavaScriptCore/APICast.h>
+#include <wtf/CompletionHandler.h>
 
 #include <Alert.h>
 #include <Bitmap.h>
@@ -125,12 +126,12 @@ void FrameLoaderClientHaiku::frameLoaderDestroyed()
         // frame loader object is gone!
 }
 
-std::optional<uint64_t> FrameLoaderClientHaiku::pageID() const
+WTF::Optional<uint64_t> FrameLoaderClientHaiku::pageID() const
 {
     return {};
 }
 
-std::optional<uint64_t> FrameLoaderClientHaiku::frameID() const
+WTF::Optional<uint64_t> FrameLoaderClientHaiku::frameID() const
 {
     return {};
 }
@@ -364,7 +365,7 @@ void FrameLoaderClientHaiku::dispatchDidReceiveIcon()
     dispatchMessage(message);
 }
 
-void FrameLoaderClientHaiku::dispatchDidStartProvisionalLoad()
+void FrameLoaderClientHaiku::dispatchDidStartProvisionalLoad(WTF::CompletionHandler<void()>&& handler)
 {
     CALLED();
     if (m_loadingErrorPage) {
@@ -373,7 +374,11 @@ void FrameLoaderClientHaiku::dispatchDidStartProvisionalLoad()
     }
 
     BMessage message(LOAD_NEGOTIATING);
-    message.AddString("url", m_webFrame->Frame()->loader().provisionalDocumentLoader()->request().url().string());
+    message.AddString("url",
+		m_webFrame->Frame()->loader().provisionalDocumentLoader()->request().url().string());
+	WTF::CompletionHandler<void()>* copy
+		= new WTF::CompletionHandler<void()>(std::move(handler));
+	message.AddPointer("completionHandler", copy);
     dispatchMessage(message);
 }
 
@@ -393,7 +398,7 @@ void FrameLoaderClientHaiku::dispatchDidReceiveTitle(const StringWithDirection& 
     dispatchMessage(message);
 }
 
-void FrameLoaderClientHaiku::dispatchDidCommitLoad(std::optional<WebCore::HasInsecureContent>)
+void FrameLoaderClientHaiku::dispatchDidCommitLoad(WTF::Optional<WebCore::HasInsecureContent>)
 {
     CALLED();
     if (m_loadingErrorPage) {
@@ -548,7 +553,7 @@ void FrameLoaderClientHaiku::dispatchDecidePolicyForNewWindowAction(const Naviga
     bool switchTab = false;
 
     // Switch to the new tab, when shift is pressed.
-    if (action.mouseEventData().has_value()) {
+    if (action.mouseEventData().hasValue()) {
         switchTab = action.mouseEventData()->shiftKey;
     }
 
@@ -1030,7 +1035,7 @@ Ref<FrameNetworkingContext> FrameLoaderClientHaiku::createNetworkingContext()
 
 bool FrameLoaderClientHaiku::isTertiaryMouseButton(const NavigationAction& action) const
 {
-    if (action.mouseEventData().has_value()) {
+    if (action.mouseEventData().hasValue()) {
         return (action.mouseEventData()->button == 1);
     }
     return false;

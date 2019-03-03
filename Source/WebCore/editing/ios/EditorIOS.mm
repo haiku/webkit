@@ -83,7 +83,7 @@ void Editor::setTextAlignmentForChangedBaseWritingDirection(WritingDirection dir
     // If the text has left or right alignment, flip left->right and right->left. 
     // Otherwise, do nothing.
 
-    RefPtr<EditingStyle> selectionStyle = EditingStyle::styleAtSelectionStart(m_frame.selection().selection());
+    auto selectionStyle = EditingStyle::styleAtSelectionStart(m_frame.selection().selection());
     if (!selectionStyle || !selectionStyle->style())
          return;
 
@@ -97,13 +97,13 @@ void Editor::setTextAlignmentForChangedBaseWritingDirection(WritingDirection dir
     case TextAlignMode::Start:
     case TextAlignMode::End: {
         switch (direction) {
-        case NaturalWritingDirection:
+        case WritingDirection::Natural:
             // no-op
             break;
-        case LeftToRightWritingDirection:
+        case WritingDirection::LeftToRight:
             newValue = "left";
             break;
-        case RightToLeftWritingDirection:
+        case WritingDirection::RightToLeft:
             newValue = "right";
             break;
         }
@@ -131,24 +131,24 @@ void Editor::setTextAlignmentForChangedBaseWritingDirection(WritingDirection dir
     if (focusedElement && (is<HTMLTextAreaElement>(*focusedElement) || (is<HTMLInputElement>(*focusedElement)
         && (downcast<HTMLInputElement>(*focusedElement).isTextField()
             || downcast<HTMLInputElement>(*focusedElement).isSearchField())))) {
-        if (direction == NaturalWritingDirection)
+        if (direction == WritingDirection::Natural)
             return;
         downcast<HTMLElement>(*focusedElement).setAttributeWithoutSynchronization(alignAttr, newValue);
         m_frame.document()->updateStyleIfNeeded();
         return;
     }
 
-    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
+    auto style = MutableStyleProperties::create();
     style->setProperty(CSSPropertyTextAlign, newValue);
-    applyParagraphStyle(style.get());
+    applyParagraphStyle(style.ptr());
 }
 
 void Editor::removeUnchangeableStyles()
 {
     // This function removes styles that the user cannot modify by applying their default values.
     
-    RefPtr<EditingStyle> editingStyle = EditingStyle::create(m_frame.document()->bodyOrFrameset());
-    RefPtr<MutableStyleProperties> defaultStyle = editingStyle.get()->style()->mutableCopy();
+    auto editingStyle = EditingStyle::create(m_frame.document()->bodyOrFrameset());
+    auto defaultStyle = editingStyle->style()->mutableCopy();
     
     // Text widgets implement background color via the UIView property. Their body element will not have one.
     defaultStyle->setProperty(CSSPropertyBackgroundColor, "rgba(255, 255, 255, 0.0)");
@@ -164,7 +164,7 @@ void Editor::removeUnchangeableStyles()
     defaultStyle->removeProperty(CSSPropertyWebkitTextDecorationsInEffect); // implements underline
 
     // FIXME add EditAction::MatchStlye <rdar://problem/9156507> Undo rich text's paste & match style should say "Undo Match Style"
-    applyStyleToSelection(defaultStyle.get(), EditAction::ChangeAttributes);
+    applyStyleToSelection(defaultStyle.ptr(), EditAction::ChangeAttributes);
 }
 
 static void getImage(Element& imageElement, RefPtr<Image>& image, CachedImage*& cachedImage)
@@ -209,8 +209,8 @@ void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElemen
 
     Position beforeImagePosition(&imageElement, Position::PositionIsBeforeAnchor);
     Position afterImagePosition(&imageElement, Position::PositionIsAfterAnchor);
-    RefPtr<Range> imageRange = Range::create(imageElement.document(), beforeImagePosition, afterImagePosition);
-    client()->getClientPasteboardDataForRange(imageRange.get(), pasteboardImage.clientTypes, pasteboardImage.clientData);
+    auto imageRange = Range::create(imageElement.document(), beforeImagePosition, afterImagePosition);
+    client()->getClientPasteboardDataForRange(imageRange.ptr(), pasteboardImage.clientTypes, pasteboardImage.clientData);
 
     pasteboard.write(pasteboardImage);
 }
@@ -295,13 +295,13 @@ void Editor::setDictationPhrasesAsChildOfElement(const Vector<Vector<String>>& d
         int dictationPhraseEnd = previousDictationPhraseStart + dictationPhraseLength;
         if (interpretations.size() > 1) {
             auto dictationPhraseRange = Range::create(document(), &textNode, previousDictationPhraseStart, &textNode, dictationPhraseEnd);
-            document().markers().addDictationPhraseWithAlternativesMarker(dictationPhraseRange.ptr(), interpretations);
+            document().markers().addDictationPhraseWithAlternativesMarker(dictationPhraseRange, interpretations);
         }
         previousDictationPhraseStart = dictationPhraseEnd;
     }
 
     auto resultRange = Range::create(document(), &textNode, 0, &textNode, textNode.length());
-    document().markers().addDictationResultMarker(resultRange.ptr(), metadata);
+    document().markers().addDictationResultMarker(resultRange, metadata);
 
     client()->respondToChangedContents();
 }

@@ -40,6 +40,12 @@
 
 namespace JSC {
 
+const unsigned opcodeLengths[] = {
+#define OPCODE_LENGTH(opcode, length) length,
+    FOR_EACH_OPCODE_ID(OPCODE_LENGTH)
+#undef OPCODE_LENGTH
+};
+
 const char* const opcodeNames[] = {
 #define OPCODE_NAME_ENTRY(opcode, size) #opcode,
     FOR_EACH_OPCODE_ID(OPCODE_NAME_ENTRY)
@@ -193,7 +199,6 @@ static unsigned metadataSizes[] = {
 
 };
 
-#if CPU(NEEDS_ALIGNED_ACCESS)
 static unsigned metadataAlignments[] = {
 
 #define METADATA_ALIGNMENT(size) size,
@@ -201,19 +206,16 @@ static unsigned metadataAlignments[] = {
 #undef METADATA_ALIGNMENT
 
 };
-#endif
 
 unsigned metadataSize(OpcodeID opcodeID)
 {
     return metadataSizes[opcodeID];
 }
 
-#if CPU(NEEDS_ALIGNED_ACCESS)
 unsigned metadataAlignment(OpcodeID opcodeID)
 {
     return metadataAlignments[opcodeID];
 }
-#endif
 
 } // namespace JSC
 

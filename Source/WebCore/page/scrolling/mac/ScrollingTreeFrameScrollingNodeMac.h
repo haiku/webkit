@@ -29,6 +29,7 @@
 
 #include "ScrollController.h"
 #include "ScrollbarThemeMac.h"
+#include "ScrollingStateFrameScrollingNode.h"
 #include "ScrollingTreeFrameScrollingNode.h"
 #include <wtf/RetainPtr.h>
 
@@ -36,12 +37,12 @@ OBJC_CLASS CALayer;
 
 namespace WebCore {
 
-class ScrollingTreeFrameScrollingNodeMac : public ScrollingTreeFrameScrollingNode, private ScrollControllerClient {
+class WEBCORE_EXPORT ScrollingTreeFrameScrollingNodeMac : public ScrollingTreeFrameScrollingNode, private ScrollControllerClient {
 public:
-    WEBCORE_EXPORT static Ref<ScrollingTreeFrameScrollingNode> create(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
+    static Ref<ScrollingTreeFrameScrollingNode> create(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
     virtual ~ScrollingTreeFrameScrollingNodeMac();
 
-private:
+protected:
     ScrollingTreeFrameScrollingNodeMac(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
 
     void releaseReferencesToScrollerImpsOnTheMainThread();
@@ -50,7 +51,7 @@ private:
     void commitStateBeforeChildren(const ScrollingStateNode&) override;
     void commitStateAfterChildren(const ScrollingStateNode&) override;
 
-    void handleWheelEvent(const PlatformWheelEvent&) override;
+    ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override;
 
     // ScrollController member functions.
     bool allowsHorizontalStretching(const PlatformWheelEvent&) override;
@@ -95,6 +96,7 @@ private:
 
     unsigned exposedUnfilledArea() const;
 
+private:
     ScrollController m_scrollController;
 
     RetainPtr<CALayer> m_scrollLayer;

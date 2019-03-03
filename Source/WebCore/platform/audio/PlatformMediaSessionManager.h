@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2015 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,6 +48,8 @@ public:
 
     static void updateNowPlayingInfoIfNecessary();
 
+    WEBCORE_EXPORT static void setShouldDeactivateAudioSession(bool);
+
     virtual ~PlatformMediaSessionManager() = default;
 
     virtual void scheduleUpdateNowPlayingInfo() { }
@@ -76,6 +78,9 @@ public:
 
     void stopAllMediaPlaybackForDocument(const Document*);
     WEBCORE_EXPORT void stopAllMediaPlaybackForProcess();
+
+    void suspendAllMediaPlaybackForDocument(const Document&);
+    void resumeAllMediaPlaybackForDocument(const Document&);
 
     enum SessionRestrictionFlags {
         NoRestrictions = 0,
@@ -143,6 +148,8 @@ private:
     void systemWillSleep() override;
     void systemDidWake() override;
 
+    static bool shouldDeactivateAudioSession();
+
     SessionRestrictions m_restrictions[PlatformMediaSession::MediaStreamCapturingAudio + 1];
     mutable Vector<PlatformMediaSession*> m_sessions;
     std::unique_ptr<RemoteCommandListener> m_remoteCommandListener;
@@ -158,6 +165,10 @@ private:
     mutable bool m_isApplicationInBackground { false };
     bool m_willIgnoreSystemInterruptions { false };
     mutable int m_iteratingOverSessions { 0 };
+
+#if USE(AUDIO_SESSION)
+    bool m_becameActive { false };
+#endif
 };
 
 }

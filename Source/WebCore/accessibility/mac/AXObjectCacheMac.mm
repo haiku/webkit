@@ -28,6 +28,7 @@
 
 #if HAVE(ACCESSIBILITY) && PLATFORM(MAC)
 
+#import "AXIsolatedTreeNode.h"
 #import "AccessibilityObject.h"
 #import "AccessibilityTable.h"
 #import "RenderObject.h"
@@ -35,7 +36,7 @@
 #import <pal/spi/mac/NSAccessibilitySPI.h>
 
 #if USE(APPLE_INTERNAL_SDK)
-#include <HIServices/AccessibilityPriv.h>
+#include <ApplicationServices/ApplicationServicesPriv.h>
 #endif
 
 #ifndef NSAccessibilityLiveRegionChangedNotification
@@ -237,6 +238,14 @@ void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachm
     obj->setWrapper(nullptr);
 }
 
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+void AXObjectCache::associateIsolatedTreeNode(AccessibilityObject& object, AXIsolatedTreeNode& node, AXIsolatedTreeID treeID)
+{
+    object.wrapper().isolatedTreeIdentifier = treeID;
+    node.setWrapper(object.wrapper());
+}
+#endif
+
 void AXObjectCache::attachWrapper(AccessibilityObject* obj)
 {
     RetainPtr<WebAccessibilityObjectWrapper> wrapper = adoptNS([[WebAccessibilityObjectWrapper alloc] initWithAccessibilityObject:obj]);
@@ -399,9 +408,11 @@ void AXObjectCache::postTextStateChangePlatformNotification(AccessibilityObject*
     if (id wrapper = object->wrapper())
         [userInfo setObject:wrapper forKey:NSAccessibilityTextChangeElement];
 
-    AXPostNotificationWithUserInfo(rootWebArea()->wrapper(), NSAccessibilitySelectedTextChangedNotification, userInfo);
-    if (rootWebArea()->wrapper() != object->wrapper())
-        AXPostNotificationWithUserInfo(object->wrapper(), NSAccessibilitySelectedTextChangedNotification, userInfo);
+    if (auto root = rootWebArea()) {
+        AXPostNotificationWithUserInfo(rootWebArea()->wrapper(), NSAccessibilitySelectedTextChangedNotification, userInfo);
+        if (root->wrapper() != object->wrapper())
+            AXPostNotificationWithUserInfo(object->wrapper(), NSAccessibilitySelectedTextChangedNotification, userInfo);
+    }
 
     [userInfo release];
 }

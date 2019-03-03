@@ -73,7 +73,7 @@ DragImageRef dissolveDragImageToFraction(DragImageRef image, float)
         
 DragImageRef createDragImageIconForCachedImageFilename(const String& filename)
 {
-    SHFILEINFO shfi = {0};
+    SHFILEINFO shfi { };
     String fname = filename;
     if (FAILED(SHGetFileInfo(stringToNullTerminatedWChar(fname).data(), FILE_ATTRIBUTE_NORMAL, &shfi, sizeof(shfi), SHGFI_ICON | SHGFI_USEFILEATTRIBUTES)))
         return 0;
@@ -96,7 +96,6 @@ const float DragLabelBorderY = 2;
 const float DragLabelRadius = 5;
 const float LabelBorderYOffset = 2;
 
-const float MinDragLabelWidthBeforeClip = 120;
 const float MaxDragLabelWidth = 200;
 const float MaxDragLabelStringWidth = (MaxDragLabelWidth - 2 * DragLabelBorderX);
 

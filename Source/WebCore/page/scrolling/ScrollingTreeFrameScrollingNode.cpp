@@ -30,6 +30,7 @@
 
 #include "FrameView.h"
 #include "Logging.h"
+#include "ScrollingStateFrameScrollingNode.h"
 #include "ScrollingStateTree.h"
 #include "ScrollingTree.h"
 #include <wtf/text/TextStream.h>
@@ -123,6 +124,17 @@ FloatRect ScrollingTreeFrameScrollingNode::layoutViewportForScrollPosition(const
 FloatSize ScrollingTreeFrameScrollingNode::viewToContentsOffset(const FloatPoint& scrollPosition) const
 {
     return toFloatSize(scrollPosition) - FloatSize(0, headerHeight() + topContentInset());
+}
+
+LayoutPoint ScrollingTreeFrameScrollingNode::parentToLocalPoint(LayoutPoint point) const
+{
+    return point - LayoutSize(0, headerHeight() + topContentInset());
+}
+
+LayoutPoint ScrollingTreeFrameScrollingNode::localToContentsPoint(LayoutPoint point) const
+{
+    auto scrolledPoint = point + LayoutPoint(scrollPosition());
+    return scrolledPoint.scaled(1 / frameScaleFactor());
 }
 
 void ScrollingTreeFrameScrollingNode::dumpProperties(TextStream& ts, ScrollingStateTreeAsTextBehavior behavior) const

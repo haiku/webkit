@@ -231,7 +231,7 @@ const auto WebEventMouseDown = NSEventTypeLeftMouseDown;
 - (void)forwardContextMenuAction:(id)sender;
 @end
 
-static std::optional<ContextMenuAction> toAction(NSInteger tag)
+static Optional<ContextMenuAction> toAction(NSInteger tag)
 {
     if (tag >= ContextMenuItemBaseCustomTag && tag <= ContextMenuItemLastCustomTag) {
         // Just pass these through.
@@ -406,14 +406,14 @@ static std::optional<ContextMenuAction> toAction(NSInteger tag)
     case WebMenuItemTagDictationAlternative:
         return ContextMenuItemTagDictationAlternative;
     }
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-static std::optional<NSInteger> toTag(ContextMenuAction action)
+static Optional<NSInteger> toTag(ContextMenuAction action)
 {
     switch (action) {
     case ContextMenuItemTagNoAction:
-        return std::nullopt;
+        return WTF::nullopt;
 
     case ContextMenuItemTagOpenLinkInNewWindow:
         return WebMenuItemTagOpenLinkInNewWindow;
@@ -596,7 +596,7 @@ static std::optional<NSInteger> toTag(ContextMenuAction action)
         ASSERT_NOT_REACHED();
     }
 
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 @implementation WebMenuTarget
@@ -1348,7 +1348,7 @@ static NSControlStateValue kit(TriState state)
 {
     // Put HTML on the pasteboard.
     if ([types containsObject:WebArchivePboardType]) {
-        if (RefPtr<LegacyWebArchive> coreArchive = LegacyWebArchive::createFromSelection(core([self _frame]))) {
+        if (auto coreArchive = LegacyWebArchive::createFromSelection(core([self _frame]))) {
             if (RetainPtr<CFDataRef> data = coreArchive ? coreArchive->rawDataRepresentation() : 0)
                 [pasteboard setData:(__bridge NSData *)data.get() forType:WebArchivePboardType];
         }
@@ -3881,7 +3881,7 @@ static BOOL currentScrollIsBlit(NSView *clipView)
     if (Frame* frame = core([self _frame])) {
         if (frame->document() && frame->document()->pageCacheState() != Document::NotInPageCache)
             return;
-        frame->document()->scheduleForcedStyleRecalc();
+        frame->document()->scheduleFullStyleRebuild();
     }
 }
 
@@ -4976,8 +4976,11 @@ static RefPtr<KeyboardEvent> currentKeyboardEvent(Frame* coreFrame)
 
     if (callSuper)
         [super keyDown:event];
-    else
+    else {
+#if PLATFORM(MAC)
         [NSCursor setHiddenUntilMouseMoves:YES];
+#endif
+    }
 }
 
 - (void)keyUp:(WebEvent *)event
@@ -5281,9 +5284,11 @@ IGNORE_WARNINGS_END
         if (Frame* frame = core([self _frame]))
             ret = frame->eventHandler().keyEvent(event);
 
-    if (ret)
+    if (ret) {
+#if PLATFORM(MAC)
         [NSCursor setHiddenUntilMouseMoves:YES];
-    else
+#endif
+    } else
         ret = [self _handleStyleKeyEquivalent:event] || [super performKeyEquivalent:event];
 
     [self release];
@@ -5520,18 +5525,18 @@ IGNORE_WARNINGS_END
     if (!coreFrame)
         return;
 
-    WritingDirection direction = RightToLeftWritingDirection;
+    auto direction = WritingDirection::RightToLeft;
     switch (coreFrame->editor().baseWritingDirectionForSelectionStart()) {
-        case LeftToRightWritingDirection:
-            break;
-        case RightToLeftWritingDirection:
-            direction = LeftToRightWritingDirection;
-            break;
-        // The writingDirectionForSelectionStart method will never return "natural". It
-        // will always return a concrete direction. So, keep the compiler happy, and assert not reached.
-        case NaturalWritingDirection:
-            ASSERT_NOT_REACHED();
-            break;
+    case WritingDirection::LeftToRight:
+        break;
+    case WritingDirection::RightToLeft:
+        direction = WritingDirection::LeftToRight;
+        break;
+    // The writingDirectionForSelectionStart method will never return "natural". It
+    // will always return a concrete direction. So, keep the compiler happy, and assert not reached.
+    case WritingDirection::Natural:
+        ASSERT_NOT_REACHED();
+        break;
     }
 
     if (Frame* coreFrame = core([self _frame]))
@@ -5552,7 +5557,7 @@ IGNORE_WARNINGS_END
     ASSERT(writingDirection != NSWritingDirectionNatural);
 
     if (Frame* coreFrame = core([self _frame]))
-        coreFrame->editor().setBaseWritingDirection(writingDirection == NSWritingDirectionLeftToRight ? LeftToRightWritingDirection : RightToLeftWritingDirection);
+        coreFrame->editor().setBaseWritingDirection(writingDirection == NSWritingDirectionLeftToRight ? WritingDirection::LeftToRight : WritingDirection::RightToLeft);
 }
 
 static BOOL writingDirectionKeyBindingsEnabled()
@@ -5573,7 +5578,7 @@ static BOOL writingDirectionKeyBindingsEnabled()
     }
 
     if (Frame* coreFrame = core([self _frame]))
-        coreFrame->editor().setBaseWritingDirection(direction == NSWritingDirectionLeftToRight ? LeftToRightWritingDirection : RightToLeftWritingDirection);
+        coreFrame->editor().setBaseWritingDirection(direction == NSWritingDirectionLeftToRight ? WritingDirection::LeftToRight : WritingDirection::RightToLeft);
 }
 
 - (void)makeBaseWritingDirectionLeftToRight:(id)sender
@@ -6082,13 +6087,23 @@ static BOOL writingDirectionKeyBindingsEnabled()
         WebEvent *event = platformEvent->event();
         if (event.keyboardFlags & WebEventKeyboardInputModifierFlagsChanged)
             return NO;
-        if (![[self _webView] isEditable] && event.isTabKey) 
+
+        WebView *webView = [self _webView];
+        if (!webView.isEditable && event.isTabKey)
             return NO;
-        
+
+        bool isCharEvent = platformEvent->type() == PlatformKeyboardEvent::Char;
+
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 130000
+        if (!isCharEvent && [webView._UIKitDelegateForwarder handleKeyTextCommandForCurrentEvent])
+            return YES;
+        if (isCharEvent && [webView._UIKitDelegateForwarder handleKeyAppCommandForCurrentEvent])
+            return YES;
+#endif
+
         NSString *s = [event characters];
         if (!s.length)
             return NO;
-        WebView* webView = [self _webView];
         switch ([s characterAtIndex:0]) {
         case kWebBackspaceKey:
         case kWebDeleteKey:
@@ -6096,14 +6111,14 @@ static BOOL writingDirectionKeyBindingsEnabled()
             return YES;
         case kWebEnterKey:
         case kWebReturnKey:
-            if (platformEvent->type() == PlatformKeyboardEvent::Char) {
+            if (isCharEvent) {
                 // Map \r from HW keyboard to \n to match the behavior of the soft keyboard.
                 [[webView _UIKitDelegateForwarder] addInputString:@"\n" withFlags:0];
                 return YES;
             }
             break;
         default:
-            if (platformEvent->type() == PlatformKeyboardEvent::Char) {
+            if (isCharEvent) {
                 [[webView _UIKitDelegateForwarder] addInputString:event.characters withFlags:event.keyboardFlags];
                 return YES;
             }
@@ -6701,13 +6716,11 @@ IGNORE_WARNINGS_END
         return;
 
     BOOL needToRemoveSoftSpace = NO;
-#if HAVE(ADVANCED_SPELL_CHECKING)
+#if PLATFORM(MAC)
     if (_private->softSpaceRange.location != NSNotFound && (replacementRange.location == NSMaxRange(_private->softSpaceRange) || replacementRange.location == NSNotFound) && !replacementRange.length && [[NSSpellChecker sharedSpellChecker] deletesAutospaceBeforeString:text language:nil]) {
         replacementRange = _private->softSpaceRange;
         needToRemoveSoftSpace = YES;
     }
-#endif
-#if PLATFORM(MAC)
     _private->softSpaceRange = NSMakeRange(NSNotFound, 0);
 #endif
 
@@ -7019,6 +7032,13 @@ static CGImageRef selectionImage(Frame* frame, bool forceBlackText)
     LOG(Timing, "creating attributed string from selection took %f seconds.", duration);
 #endif
     return attributedString;
+}
+
+- (NSAttributedString *)_legacyAttributedStringFrom:(DOMNode*)startContainer offset:(int)startOffset to:(DOMNode*)endContainer offset:(int)endOffset
+{
+    return attributedStringBetweenStartAndEnd(
+        Position { core(startContainer), startOffset, Position::PositionIsOffsetInAnchor },
+        Position { core(endContainer), endOffset, Position::PositionIsOffsetInAnchor });
 }
 
 - (NSAttributedString *)attributedString

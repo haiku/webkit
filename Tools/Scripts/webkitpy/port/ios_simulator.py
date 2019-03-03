@@ -24,7 +24,7 @@ import logging
 
 from webkitpy.common.memoized import memoized
 from webkitpy.common.version import Version
-from webkitpy.port.config import apple_additions
+from webkitpy.port.config import apple_additions, Config
 from webkitpy.port.ios import IOSPort
 from webkitpy.xcode.device_type import DeviceType
 from webkitpy.xcode.simulated_device import SimulatedDeviceManager
@@ -42,8 +42,11 @@ class IOSSimulatorPort(IOSPort):
 
     DEVICE_MANAGER = SimulatedDeviceManager
 
-    DEFAULT_DEVICE_TYPE = DeviceType(hardware_family='iPhone', hardware_type='SE')
-    CUSTOM_DEVICE_TYPES = [DeviceType(hardware_family='iPad'), DeviceType(hardware_family='iPhone', hardware_type='7')]
+    DEFAULT_DEVICE_TYPES = [
+        DeviceType(hardware_family='iPhone', hardware_type='SE'),
+        DeviceType(hardware_family='iPad', hardware_type='(5th generation)'),
+        DeviceType(hardware_family='iPhone', hardware_type='7'),
+    ]
     SDK = apple_additions().get_sdk('iphonesimulator') if apple_additions() else 'iphonesimulator'
 
     @staticmethod
@@ -57,19 +60,6 @@ class IOSSimulatorPort(IOSPort):
         if self.get_option('version'):
             return Version.from_string(self.get_option('version'))
         return IOSSimulatorPort._version_from_name(self._name) if IOSSimulatorPort._version_from_name(self._name) else self.host.platform.xcode_sdk_version('iphonesimulator')
-
-    @memoized
-    def default_child_processes(self):
-        def booted_ios_devices_filter(device):
-            if not device.platform_device.is_booted_or_booting():
-                return False
-            return device.platform_device.device_type in DeviceType(software_variant='iOS', software_version=self.device_version())
-
-        if not self.get_option('dedicated_simulators', False):
-            num_booted_sims = len(SimulatedDeviceManager.device_by_filter(booted_ios_devices_filter, host=self.host))
-            if num_booted_sims:
-                return num_booted_sims
-        return SimulatedDeviceManager.max_supported_simulators(self.host)
 
     def clean_up_test_run(self):
         super(IOSSimulatorPort, self).clean_up_test_run()
@@ -102,14 +92,6 @@ class IOSSimulatorPort(IOSPort):
     def operating_system(self):
         return 'ios-simulator'
 
-    def check_sys_deps(self):
-        target_device_type = DeviceType(software_variant='iOS', software_version=self.device_version())
-        for device in SimulatedDeviceManager.available_devices(self.host):
-            if device.platform_device.device_type in target_device_type:
-                return super(IOSSimulatorPort, self).check_sys_deps()
-        _log.error('No Simulated device matching "{}" defined in Xcode iOS SDK'.format(str(target_device_type)))
-        return False
-
     def reset_preferences(self):
         _log.debug("reset_preferences")
         SimulatedDeviceManager.tear_down(self.host)
@@ -127,3 +109,28 @@ class IOSSimulatorPort(IOSPort):
 
     def stderr_patterns_to_strip(self):
         return []
+
+
+class IPhoneSimulatorPort(IOSSimulatorPort):
+    port_name = 'iphone-simulator'
+
+    DEVICE_TYPE = DeviceType(hardware_family='iPhone')
+    DEFAULT_DEVICE_TYPES = [
+        DeviceType(hardware_family='iPhone', hardware_type='SE'),
+        DeviceType(hardware_family='iPhone', hardware_type='7'),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super(IPhoneSimulatorPort, self).__init__(*args, **kwargs)
+        self._config = Config(self._executive, self._filesystem, IOSSimulatorPort.port_name)
+
+
+class IPadSimulatorPort(IOSSimulatorPort):
+    port_name = 'ipad-simulator'
+
+    DEVICE_TYPE = DeviceType(hardware_family='iPad')
+    DEFAULT_DEVICE_TYPES = [DeviceType(hardware_family='iPad', hardware_type='(5th generation)')]
+
+    def __init__(self, *args, **kwargs):
+        super(IPadSimulatorPort, self).__init__(*args, **kwargs)
+        self._config = Config(self._executive, self._filesystem, IOSSimulatorPort.port_name)

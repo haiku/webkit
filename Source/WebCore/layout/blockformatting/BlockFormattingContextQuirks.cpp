@@ -30,7 +30,7 @@
 
 #include "LayoutBox.h"
 #include "LayoutContainer.h"
-#include "LayoutFormattingState.h"
+#include "LayoutState.h"
 
 namespace WebCore {
 namespace Layout {
@@ -48,14 +48,8 @@ static bool isQuirkContainer(const Box& layoutBox)
     return layoutBox.isBodyBox() || layoutBox.isDocumentBox() || layoutBox.isTableCell();
 }
 
-static bool hasMarginTopQuirkValue(const Box& layoutBox)
-{
-    return layoutBox.style().hasMarginBeforeQuirk();
-}
-
 bool BlockFormattingContext::Quirks::needsStretching(const LayoutState& layoutState, const Box& layoutBox)
 {
-    ASSERT(layoutBox.isInFlow());
     // In quirks mode, body stretches to html and html to the initial containing block (height: auto only).
     if (!layoutState.inQuirksMode())
         return false;
@@ -66,47 +60,48 @@ bool BlockFormattingContext::Quirks::needsStretching(const LayoutState& layoutSt
     return layoutBox.style().logicalHeight().isAuto();
 }
 
-HeightAndMargin BlockFormattingContext::Quirks::stretchedHeight(const LayoutState& layoutState, const Box& layoutBox, HeightAndMargin heightAndMargin)
+HeightAndMargin BlockFormattingContext::Quirks::stretchedInFlowHeight(const LayoutState& layoutState, const Box& layoutBox, HeightAndMargin heightAndMargin)
 {
+    ASSERT(layoutBox.isInFlow());
     ASSERT(layoutBox.isDocumentBox() || layoutBox.isBodyBox());
 
     auto& documentBox = layoutBox.isDocumentBox() ? layoutBox : *layoutBox.parent();
     auto& documentBoxDisplayBox = layoutState.displayBoxForLayoutBox(documentBox);
-    auto documentBoxVerticalBorders = documentBoxDisplayBox.borderTop() + documentBoxDisplayBox.borderBottom();
-    auto documentBoxVerticalPaddings = documentBoxDisplayBox.paddingTop().value_or(0) + documentBoxDisplayBox.paddingBottom().value_or(0);
 
     auto strechedHeight = layoutState.displayBoxForLayoutBox(initialContainingBlock(layoutBox)).contentBoxHeight();
-    strechedHeight -= documentBoxVerticalBorders + documentBoxVerticalPaddings;
+    strechedHeight -= documentBoxDisplayBox.verticalBorder() + documentBoxDisplayBox.verticalPadding().valueOr(0);
 
-    LayoutUnit totalVerticalMargins;
-    if (layoutBox.isDocumentBox())
-        totalVerticalMargins = heightAndMargin.margin.top + heightAndMargin.margin.bottom;
-    else if (layoutBox.isBodyBox()) {
+    LayoutUnit totalVerticalMargin;
+    if (layoutBox.isDocumentBox()) {
+        // Document box's margins do not collapse.
+        auto verticalMargin = heightAndMargin.nonCollapsedMargin;
+        totalVerticalMargin = verticalMargin.before + verticalMargin.after;
+    } else if (layoutBox.isBodyBox()) {
         // Here is the quirky part for body box:
         // Stretch the body using the initial containing block's height and shrink it with document box's margin/border/padding.
         // This looks extremely odd when html has non-auto height.
-        auto verticalMargins = Geometry::estimatedMarginTop(layoutState, documentBox) + Geometry::estimatedMarginBottom(layoutState, documentBox);
-        strechedHeight -= verticalMargins;
+        auto documentBoxVerticalMargin = Geometry::computedVerticalMargin(layoutState, documentBox);
+        strechedHeight -= (documentBoxVerticalMargin.before.valueOr(0) + documentBoxVerticalMargin.after.valueOr(0));
 
-        // This quirk happens when the body height is 0 which means its vertical margins collapse through (top and bottom margins are adjoining).
-        // However now that we stretch the body they don't collapse through anymore, so we need to use the non-collapsed values instead.
-        auto bodyBoxVerticalMargins = heightAndMargin.height ? heightAndMargin.usedMarginValues() : heightAndMargin.margin;
-        totalVerticalMargins = bodyBoxVerticalMargins.top + bodyBoxVerticalMargins.bottom;
+        auto& bodyBoxDisplayBox = layoutState.displayBoxForLayoutBox(layoutBox);
+        strechedHeight -= bodyBoxDisplayBox.verticalBorder() + bodyBoxDisplayBox.verticalPadding().valueOr(0);
+
+        auto nonCollapsedMargin = heightAndMargin.nonCollapsedMargin;
+        auto collapsedMargin = MarginCollapse::collapsedVerticalValues(layoutState, layoutBox, nonCollapsedMargin);
+        totalVerticalMargin = collapsedMargin.before.valueOr(nonCollapsedMargin.before);
+        totalVerticalMargin += collapsedMargin.isCollapsedThrough ? nonCollapsedMargin.after : collapsedMargin.after.valueOr(nonCollapsedMargin.after);
     }
 
     // Stretch but never overstretch with the margins.
-    if (heightAndMargin.height + totalVerticalMargins < strechedHeight)
-        heightAndMargin.height = strechedHeight - totalVerticalMargins;
+    if (heightAndMargin.height + totalVerticalMargin < strechedHeight)
+        heightAndMargin.height = strechedHeight - totalVerticalMargin;
 
     return heightAndMargin;
 }
 
-bool BlockFormattingContext::Quirks::shouldIgnoreMarginTop(const LayoutState& layoutState, const Box& layoutBox)
+bool BlockFormattingContext::Quirks::shouldIgnoreCollapsedQuirkMargin(const LayoutState& layoutState, const Box& layoutBox)
 {
-    if (!layoutBox.parent())
-        return false;
-
-    return layoutState.inQuirksMode() && isQuirkContainer(*layoutBox.parent()) && hasMarginTopQuirkValue(layoutBox);
+    return layoutState.inQuirksMode() && isQuirkContainer(layoutBox);
 }
 
 }

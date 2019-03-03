@@ -83,13 +83,15 @@ String URLUtils<T>::toJSON() const
 template <typename T>
 String URLUtils<T>::origin() const
 {
-    RefPtr<SecurityOrigin> origin = SecurityOrigin::create(href());
+    auto origin = SecurityOrigin::create(href());
     return origin->toString();
 }
 
 template <typename T>
 String URLUtils<T>::protocol() const
 {
+    if (WTF::protocolIsJavaScript(href()))
+        return "javascript:"_s;
     return makeString(href().protocol(), ':');
 }
 

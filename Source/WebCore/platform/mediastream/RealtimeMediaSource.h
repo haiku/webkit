@@ -82,7 +82,6 @@ public:
 
         // Called on the main thread.
         virtual void videoSampleAvailable(MediaSample&) { }
-        virtual void remoteVideoSampleAvailable(RemoteVideoSample&) { }
 
         // May be called on a background thread.
         virtual void audioSamplesAvailable(const MediaTime&, const PlatformAudioData&, const AudioStreamDescription&, size_t /*numberOfFrames*/) { }
@@ -119,8 +118,11 @@ public:
     WEBCORE_EXPORT void addObserver(Observer&);
     WEBCORE_EXPORT void removeObserver(Observer&);
 
+    const IntSize size() const;
     void setSize(const IntSize&);
-    const IntSize& size() const { return m_size; }
+
+    const IntSize intrinsicSize() const;
+    void setIntrinsicSize(const IntSize&);
 
     double frameRate() const { return m_frameRate; }
     void setFrameRate(double);
@@ -136,11 +138,11 @@ public:
 
     int sampleRate() const { return m_sampleRate; }
     void setSampleRate(int);
-    virtual std::optional<Vector<int>> discreteSampleRates() const;
+    virtual Optional<Vector<int>> discreteSampleRates() const;
 
     int sampleSize() const { return m_sampleSize; }
     void setSampleSize(int);
-    virtual std::optional<Vector<int>> discreteSampleSizes() const;
+    virtual Optional<Vector<int>> discreteSampleSizes() const;
 
     bool echoCancellation() const { return m_echoCancellation; }
     void setEchoCancellation(bool);
@@ -151,7 +153,7 @@ public:
     using SuccessHandler = WTF::Function<void()>;
     using FailureHandler = WTF::Function<void(const String& badConstraint, const String& errorString)>;
     virtual void applyConstraints(const MediaConstraints&, SuccessHandler&&, FailureHandler&&);
-    std::optional<std::pair<String, String>> applyConstraints(const MediaConstraints&);
+    Optional<std::pair<String, String>> applyConstraints(const MediaConstraints&);
 
     bool supportsConstraints(const MediaConstraints&, String&);
     bool supportsConstraint(const MediaConstraint&);
@@ -159,6 +161,7 @@ public:
     virtual bool isIsolated() const { return false; }
 
     virtual bool isCaptureSource() const { return false; }
+    virtual CaptureDevice::DeviceType deviceType() const { return CaptureDevice::DeviceType::Unknown; }
 
     virtual void monitorOrientation(OrientationNotifier&) { }
 
@@ -187,10 +190,10 @@ protected:
     double fitnessDistance(const MediaConstraint&);
     void applyConstraint(const MediaConstraint&);
     void applyConstraints(const FlattenedConstraint&);
-    bool supportsSizeAndFrameRate(std::optional<IntConstraint> width, std::optional<IntConstraint> height, std::optional<DoubleConstraint>, String&, double& fitnessDistance);
+    bool supportsSizeAndFrameRate(Optional<IntConstraint> width, Optional<IntConstraint> height, Optional<DoubleConstraint>, String&, double& fitnessDistance);
 
-    virtual bool supportsSizeAndFrameRate(std::optional<int> width, std::optional<int> height, std::optional<double>);
-    virtual void setSizeAndFrameRate(std::optional<int> width, std::optional<int> height, std::optional<double>);
+    virtual bool supportsSizeAndFrameRate(Optional<int> width, Optional<int> height, Optional<double>);
+    virtual void setSizeAndFrameRate(Optional<int> width, Optional<int> height, Optional<double>);
 
     void notifyMutedObservers() const;
     void notifyMutedChange(bool muted);
@@ -202,7 +205,6 @@ protected:
 
     void videoSampleAvailable(MediaSample&);
     void audioSamplesAvailable(const MediaTime&, const PlatformAudioData&, const AudioStreamDescription&, size_t);
-    void remoteVideoSampleAvailable(RemoteVideoSample&&);
 
 private:
     virtual void startProducingData() { }
@@ -221,6 +223,7 @@ private:
     mutable RecursiveLock m_observersLock;
     HashSet<Observer*> m_observers;
     IntSize m_size;
+    IntSize m_intrinsicSize;
     double m_frameRate { 30 };
     double m_aspectRatio { 0 };
     double m_volume { 1 };

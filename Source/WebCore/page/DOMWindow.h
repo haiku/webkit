@@ -145,7 +145,7 @@ public:
     Navigator& clientInformation() { return navigator(); }
 
     Location& location();
-    void setLocation(DOMWindow& activeWindow, DOMWindow& firstWindow, const String& location, SetLocationLocking = LockHistoryBasedOnGestureState);
+    void setLocation(DOMWindow& activeWindow, const URL& completedURL, SetLocationLocking = LockHistoryBasedOnGestureState);
 
     DOMSelection* getSelection();
 
@@ -362,7 +362,7 @@ private:
 
     bool m_shouldPrintWhenFinishedLoading { false };
     bool m_suspendedForDocumentSuspension { false };
-    std::optional<bool> m_canShowModalDialogOverride;
+    Optional<bool> m_canShowModalDialogOverride;
 
     HashSet<DOMWindowProperty*> m_properties;
 

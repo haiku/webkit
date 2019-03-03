@@ -26,15 +26,12 @@
 #pragma once
 
 #include "APIObject.h"
+#include <WebCore/FrameLoaderTypes.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Vector.h>
 
 namespace API {
 class WebsitePolicies;
-}
-
-namespace WebCore {
-enum class PolicyAction : uint8_t;
 }
 
 namespace WebKit {
@@ -63,8 +60,8 @@ public:
 private:
     WebFramePolicyListenerProxy(Reply&&, ShouldExpectSafeBrowsingResult);
 
-    std::optional<std::pair<RefPtr<API::WebsitePolicies>, ProcessSwapRequestedByClient>> m_policyResult;
-    std::optional<RefPtr<SafeBrowsingWarning>> m_safeBrowsingWarning;
+    Optional<std::pair<RefPtr<API::WebsitePolicies>, ProcessSwapRequestedByClient>> m_policyResult;
+    Optional<RefPtr<SafeBrowsingWarning>> m_safeBrowsingWarning;
     Reply m_reply;
 };
 

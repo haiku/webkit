@@ -37,7 +37,7 @@
 #include "DFGVariableAccessDataDump.h"
 #include "JSCInlines.h"
 #include "MathCommon.h"
-#include "RegExpConstructor.h"
+#include "RegExpObject.h"
 #include "StringPrototype.h"
 #include <cstdlib>
 #include <wtf/text/StringBuilder.h>
@@ -121,6 +121,15 @@ private:
             }
             break;
             
+        case ValueMul:
+        case ValueBitOr:
+        case ValueBitAnd:
+        case ValueBitXor: {
+            if (m_node->binaryUseKind() == BigIntUse)
+                handleCommutativity();
+            break;
+        }
+
         case ArithMul: {
             handleCommutativity();
             Edge& child2 = m_node->child2();
@@ -204,7 +213,7 @@ private:
             if (m_node->isBinaryUseKind(DoubleRepUse)
                 && m_node->child2()->isNumberConstant()) {
 
-                if (std::optional<double> reciprocal = safeReciprocalForDivByConst(m_node->child2()->asNumber())) {
+                if (Optional<double> reciprocal = safeReciprocalForDivByConst(m_node->child2()->asNumber())) {
                     Node* reciprocalNode = m_insertionSet.insertConstant(m_nodeIndex, m_node->origin, jsDoubleNumber(*reciprocal), DoubleConstant);
                     m_node->setOp(ArithMul);
                     m_node->child2() = Edge(reciprocalNode, DoubleRepUse);
@@ -363,7 +372,12 @@ private:
                 builder.append(rightString);
                 convertToLazyJSValue(m_node, LazyJSValue::newString(m_graph, builder.toString()));
                 m_changed = true;
+                break;
             }
+
+            if (m_node->binaryUseKind() == BigIntUse)
+                handleCommutativity();
+
             break;
         }
 
@@ -606,8 +620,7 @@ private:
                 }
                 m_graph.registerStructure(structure);
 
-                RegExpConstructor* constructor = globalObject->regExpConstructor();
-                FrozenValue* constructorFrozenValue = m_graph.freeze(constructor);
+                FrozenValue* globalObjectFrozenValue = m_graph.freeze(globalObject);
 
                 MatchResult result;
                 Vector<int> ovector;
@@ -722,7 +735,7 @@ private:
                 } else
                     m_graph.convertToConstant(m_node, jsBoolean(!!result));
 
-                // Whether it's Exec or Test, we need to tell the constructor and RegExpObject what's up.
+                // Whether it's Exec or Test, we need to tell the globalObject and RegExpObject what's up.
                 // Because SetRegExpObjectLastIndex may exit and it clobbers exit state, we do that
                 // first.
 
@@ -742,7 +755,7 @@ private:
                     unsigned firstChild = m_graph.m_varArgChildren.size();
                     m_graph.m_varArgChildren.append(
                         m_insertionSet.insertConstantForUse(
-                            m_nodeIndex, origin, constructorFrozenValue, KnownCellUse));
+                            m_nodeIndex, origin, globalObjectFrozenValue, KnownCellUse));
                     m_graph.m_varArgChildren.append(
                         m_insertionSet.insertConstantForUse(
                             m_nodeIndex, origin, regExpFrozenValue, KnownCellUse));
@@ -914,6 +927,9 @@ private:
                 break;
             
             if (FunctionExecutable* functionExecutable = jsDynamicCast<FunctionExecutable*>(vm(), executable)) {
+                if (m_node->op() == Construct && functionExecutable->constructAbility() == ConstructAbility::CannotConstruct)
+                    break;
+
                 // We need to update m_parameterSlots before we get to the backend, but we don't
                 // want to do too much of this.
                 unsigned numAllocatedArgs =

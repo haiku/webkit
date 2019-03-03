@@ -809,6 +809,21 @@ IGNORE_WARNINGS_END
     return _data->_impl->accessibilityAttributeValue(attribute);
 }
 
+IGNORE_WARNINGS_BEGIN("deprecated-implementations")
+- (id)accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter
+IGNORE_WARNINGS_END
+{
+    return _data->_impl->accessibilityAttributeValue(attribute, parameter);
+}
+
+IGNORE_WARNINGS_BEGIN("deprecated-implementations")
+- (NSArray<NSString *> *)accessibilityParameterizedAttributeNames
+IGNORE_WARNINGS_END
+{
+    NSArray<NSString *> *names = [super accessibilityParameterizedAttributeNames];
+    return [names arrayByAddingObject:@"AXConvertRelativeFrame"];
+}
+
 - (NSView *)hitTest:(NSPoint)point
 {
     if (!_data)
@@ -904,7 +919,7 @@ IGNORE_WARNINGS_END
         {
             RetainPtr<_WKLinkIconParameters> parameters = adoptNS([[_WKLinkIconParameters alloc] _initWithLinkIcon:linkIcon]);
 
-            [m_wkView _shouldLoadIconWithParameters:parameters.get() completionHandler:BlockPtr<void(IconLoadCompletionHandler)>::fromCallable([completionHandler = WTFMove(completionHandler)](IconLoadCompletionHandler loadCompletionHandler) mutable {
+            [m_wkView _shouldLoadIconWithParameters:parameters.get() completionHandler:makeBlockPtr([completionHandler = WTFMove(completionHandler)](IconLoadCompletionHandler loadCompletionHandler) mutable {
                 ASSERT(RunLoop::isMain());
                 if (loadCompletionHandler) {
                     completionHandler([loadCompletionHandler = BlockPtr<void (NSData *)>(loadCompletionHandler)](API::Data* data, WebKit::CallbackBase::Error error) {
@@ -1456,7 +1471,7 @@ static WebCore::UserInterfaceLayoutDirection toUserInterfaceLayoutDirection(NSUs
     return _data->_impl->totalHeightOfBanners();
 }
 
-static std::optional<WebCore::ScrollbarOverlayStyle> toCoreScrollbarStyle(_WKOverlayScrollbarStyle scrollbarStyle)
+static Optional<WebCore::ScrollbarOverlayStyle> toCoreScrollbarStyle(_WKOverlayScrollbarStyle scrollbarStyle)
 {
     switch (scrollbarStyle) {
     case _WKOverlayScrollbarStyleDark:
@@ -1470,10 +1485,10 @@ static std::optional<WebCore::ScrollbarOverlayStyle> toCoreScrollbarStyle(_WKOve
         break;
     }
 
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-static _WKOverlayScrollbarStyle toAPIScrollbarStyle(std::optional<WebCore::ScrollbarOverlayStyle> coreScrollbarStyle)
+static _WKOverlayScrollbarStyle toAPIScrollbarStyle(Optional<WebCore::ScrollbarOverlayStyle> coreScrollbarStyle)
 {
     if (!coreScrollbarStyle)
         return _WKOverlayScrollbarStyleAutomatic;

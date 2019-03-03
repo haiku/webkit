@@ -36,8 +36,6 @@
 
 #if ENABLE(YARR_JIT)
 
-using namespace WTF;
-
 namespace JSC { namespace Yarr {
 
 template<YarrJITCompileMode compileMode>
@@ -4140,7 +4138,7 @@ private:
 
     // Used to detect regular expression constructs that are not currently
     // supported in the JIT; fall back to the interpreter when this is detected.
-    std::optional<JITFailureReason> m_failureReason;
+    Optional<JITFailureReason> m_failureReason;
 
     bool m_decodeSurrogatePairs;
     bool m_unicodeIgnoreCase;

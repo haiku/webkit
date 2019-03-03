@@ -35,14 +35,14 @@
 
 namespace WebCore {
 
-static std::optional<Exception> setMethod(ResourceRequest& request, const String& initMethod)
+static Optional<Exception> setMethod(ResourceRequest& request, const String& initMethod)
 {
     if (!isValidHTTPToken(initMethod))
         return Exception { TypeError, "Method is not a valid HTTP token."_s };
     if (isForbiddenMethod(initMethod))
         return Exception { TypeError, "Method is forbidden."_s };
     request.setHTTPMethod(normalizeHTTPMethod(initMethod));
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 static ExceptionOr<String> computeReferrer(ScriptExecutionContext& context, const String& referrer)
@@ -64,7 +64,7 @@ static ExceptionOr<String> computeReferrer(ScriptExecutionContext& context, cons
     return String { referrerURL.string() };
 }
 
-static std::optional<Exception> buildOptions(FetchOptions& options, ResourceRequest& request, String& referrer, ScriptExecutionContext& context, const FetchRequest::Init& init)
+static Optional<Exception> buildOptions(FetchOptions& options, ResourceRequest& request, String& referrer, ScriptExecutionContext& context, const FetchRequest::Init& init)
 {
     if (!init.window.isUndefinedOrNull() && !init.window.isEmpty())
         return Exception { TypeError, "Window can only be null."_s };
@@ -114,7 +114,7 @@ static std::optional<Exception> buildOptions(FetchOptions& options, ResourceRequ
             return exception;
     }
 
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 static bool methodCanHaveBody(const ResourceRequest& request)
@@ -159,6 +159,9 @@ ExceptionOr<void> FetchRequest::initializeWith(const String& url, Init&& init)
     if (optionsResult.hasException())
         return optionsResult.releaseException();
 
+    if (init.signal && init.signal.value())
+        m_signal->follow(*init.signal.value());
+
     if (init.headers) {
         auto fillResult = m_headers->fill(*init.headers);
         if (fillResult.hasException())
@@ -187,6 +190,12 @@ ExceptionOr<void> FetchRequest::initializeWith(FetchRequest& input, Init&& init)
     auto optionsResult = initializeOptions(init);
     if (optionsResult.hasException())
         return optionsResult.releaseException();
+
+    if (init.signal) {
+        if (init.signal.value())
+            m_signal->follow(*init.signal.value());
+    } else
+        m_signal->follow(input.m_signal);
 
     if (init.headers) {
         auto fillResult = m_headers->fill(*init.headers);
@@ -231,7 +240,7 @@ ExceptionOr<void> FetchRequest::setBody(FetchRequest& request)
         if (!methodCanHaveBody(m_request))
             return Exception { TypeError, makeString("Request has method '", m_request.httpMethod(), "' and cannot have a body") };
         // FIXME: If body has a readable stream, we should pipe it to this new body stream.
-        m_body = WTFMove(request.m_body);
+        m_body = WTFMove(*request.m_body);
         request.setDisturbed();
     }
 
@@ -242,7 +251,7 @@ ExceptionOr<void> FetchRequest::setBody(FetchRequest& request)
 
 ExceptionOr<Ref<FetchRequest>> FetchRequest::create(ScriptExecutionContext& context, Info&& input, Init&& init)
 {
-    auto request = adoptRef(*new FetchRequest(context, std::nullopt, FetchHeaders::create(FetchHeaders::Guard::Request), { }, { }, { }));
+    auto request = adoptRef(*new FetchRequest(context, WTF::nullopt, FetchHeaders::create(FetchHeaders::Guard::Request), { }, { }, { }));
 
     if (WTF::holds_alternative<String>(input)) {
         auto result = request->initializeWith(WTF::get<String>(input), WTFMove(init));
@@ -291,8 +300,9 @@ ExceptionOr<Ref<FetchRequest>> FetchRequest::clone(ScriptExecutionContext& conte
     if (isDisturbedOrLocked())
         return Exception { TypeError, "Body is disturbed or locked"_s };
 
-    auto clone = adoptRef(*new FetchRequest(context, std::nullopt, FetchHeaders::create(m_headers.get()), ResourceRequest { m_request }, FetchOptions { m_options}, String { m_referrer }));
+    auto clone = adoptRef(*new FetchRequest(context, WTF::nullopt, FetchHeaders::create(m_headers.get()), ResourceRequest { m_request }, FetchOptions { m_options}, String { m_referrer }));
     clone->cloneBody(*this);
+    clone->m_signal->follow(m_signal);
     return WTFMove(clone);
 }
 

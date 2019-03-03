@@ -72,7 +72,7 @@ MockRealtimeAudioSource::MockRealtimeAudioSource(String&& deviceID, String&& nam
 MockRealtimeAudioSource::~MockRealtimeAudioSource()
 {
 #if PLATFORM(IOS_FAMILY)
-    RealtimeMediaSourceCenter::singleton().audioFactory().unsetActiveSource(*this);
+    RealtimeMediaSourceCenter::singleton().audioCaptureFactory().unsetActiveSource(*this);
 #endif
 }
 
@@ -114,13 +114,13 @@ const RealtimeMediaSourceCapabilities& MockRealtimeAudioSource::capabilities()
 
 void MockRealtimeAudioSource::settingsDidChange(OptionSet<RealtimeMediaSourceSettings::Flag>)
 {
-    m_currentSettings = std::nullopt;
+    m_currentSettings = WTF::nullopt;
 }
 
 void MockRealtimeAudioSource::startProducingData()
 {
 #if PLATFORM(IOS_FAMILY)
-    RealtimeMediaSourceCenter::singleton().audioFactory().setActiveSource(*this);
+    RealtimeMediaSourceCenter::singleton().audioCaptureFactory().setActiveSource(*this);
 #endif
 
     if (!sampleRate())

@@ -60,13 +60,13 @@ Ref<DocumentTimeline> DocumentTimeline::create(Document& document, DocumentTimel
 }
 
 DocumentTimeline::DocumentTimeline(Document& document, Seconds originTime)
-    : AnimationTimeline(DocumentTimelineClass)
-    , m_document(&document)
-    , m_originTime(originTime)
-    , m_tickScheduleTimer(*this, &DocumentTimeline::scheduleAnimationResolutionIfNeeded)
+    : AnimationTimeline()
 #if !USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
     , m_animationResolutionTimer(*this, &DocumentTimeline::animationResolutionTimerFired)
 #endif
+    , m_tickScheduleTimer(*this, &DocumentTimeline::scheduleAnimationResolutionIfNeeded)
+    , m_document(&document)
+    , m_originTime(originTime)
 {
     if (m_document && m_document->page() && !m_document->page()->isVisible())
         suspendAnimations();
@@ -227,7 +227,7 @@ void DocumentTimeline::resumeAnimations()
     if (!animationsAreSuspended())
         return;
 
-    m_cachedCurrentTime = std::nullopt;
+    m_cachedCurrentTime = WTF::nullopt;
 
     m_isSuspended = false;
 
@@ -261,7 +261,7 @@ Seconds DocumentTimeline::liveCurrentTime() const
 #endif
 }
 
-std::optional<Seconds> DocumentTimeline::currentTime()
+Optional<Seconds> DocumentTimeline::currentTime()
 {
     if (!m_document || !m_document->domWindow())
         return AnimationTimeline::currentTime();
@@ -270,7 +270,7 @@ std::optional<Seconds> DocumentTimeline::currentTime()
         if (mainDocumentTimeline != this) {
             if (auto mainDocumentTimelineCurrentTime = mainDocumentTimeline->currentTime())
                 return mainDocumentTimelineCurrentTime.value() - m_originTime;
-            return std::nullopt;
+            return WTF::nullopt;
         }
     }
 
@@ -323,7 +323,7 @@ void DocumentTimeline::maybeClearCachedCurrentTime()
     // we're guaranteed to have a consistent current time reported for all work happening in a given
     // JS frame or throughout updating animations in WebCore.
     if (!m_isSuspended && !m_waitingOnVMIdle && !m_currentTimeClearingTaskQueue.hasPendingTasks())
-        m_cachedCurrentTime = std::nullopt;
+        m_cachedCurrentTime = WTF::nullopt;
 }
 
 void DocumentTimeline::scheduleAnimationResolutionIfNeeded()

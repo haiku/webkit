@@ -46,6 +46,7 @@ class DrawingAreaProxy;
 class RemoteLayerTreeTransaction;
 class WebFrameProxy;
 class WebPageProxy;
+class WebProcessProxy;
 class WebProcessPool;
 }
 
@@ -61,7 +62,7 @@ class WebProcessPool;
 #pragma clang diagnostic pop
 
 @property (nonatomic, readonly) WebKit::WebPageProxy* page;
-@property (nonatomic, readonly) BOOL isAssistingNode;
+@property (nonatomic, readonly) BOOL isFocusingElement;
 @property (nonatomic, getter=isShowingInspectorIndication) BOOL showingInspectorIndication;
 @property (nonatomic, readonly, getter=isResigningFirstResponder) BOOL resigningFirstResponder;
 @property (nonatomic) BOOL sizeChangedSinceLastVisibleContentRectUpdate;
@@ -70,6 +71,7 @@ class WebProcessPool;
 
 - (void)didUpdateVisibleRect:(CGRect)visibleRect
     unobscuredRect:(CGRect)unobscuredRect
+    contentInsets:(UIEdgeInsets)contentInsets
     unobscuredRectInScrollViewCoordinates:(CGRect)unobscuredRectInScrollViewCoordinates
     obscuredInsets:(UIEdgeInsets)obscuredInsets
     unobscuredSafeAreaInsets:(UIEdgeInsets)unobscuredSafeAreaInsets
@@ -86,7 +88,7 @@ class WebProcessPool;
 
 - (void)_webViewDestroyed;
 
-- (std::unique_ptr<WebKit::DrawingAreaProxy>)_createDrawingAreaProxy;
+- (std::unique_ptr<WebKit::DrawingAreaProxy>)_createDrawingAreaProxy:(WebKit::WebProcessProxy&)process;
 - (void)_processDidExit;
 - (void)_processWillSwap;
 - (void)_didRelaunchProcess;

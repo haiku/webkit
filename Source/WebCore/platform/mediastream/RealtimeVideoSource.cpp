@@ -47,7 +47,7 @@ RealtimeVideoSource::RealtimeVideoSource(String&& name, String&& id, String&& ha
 RealtimeVideoSource::~RealtimeVideoSource()
 {
 #if PLATFORM(IOS_FAMILY)
-    RealtimeMediaSourceCenter::singleton().videoFactory().unsetActiveSource(*this);
+    RealtimeMediaSourceCenter::singleton().videoCaptureFactory().unsetActiveSource(*this);
 #endif
 }
 
@@ -56,7 +56,7 @@ void RealtimeVideoSource::prepareToProduceData()
     ASSERT(frameRate());
 
 #if PLATFORM(IOS_FAMILY)
-    RealtimeMediaSourceCenter::singleton().videoFactory().setActiveSource(*this);
+    RealtimeMediaSourceCenter::singleton().videoCaptureFactory().setActiveSource(*this);
 #endif
 
     if (size().isEmpty() && !m_defaultSize.isEmpty())
@@ -191,7 +191,7 @@ void RealtimeVideoSource::updateCapabilities(RealtimeMediaSourceCapabilities& ca
     capabilities.setFrameRate({ minimumFrameRate, maximumFrameRate });
 }
 
-bool RealtimeVideoSource::supportsSizeAndFrameRate(std::optional<int> width, std::optional<int> height, std::optional<double> frameRate)
+bool RealtimeVideoSource::supportsSizeAndFrameRate(Optional<int> width, Optional<int> height, Optional<double> frameRate)
 {
     if (!width && !height && !frameRate)
         return true;
@@ -215,7 +215,7 @@ bool RealtimeVideoSource::presetSupportsFrameRate(RefPtr<VideoPreset> preset, do
     return false;
 }
 
-bool RealtimeVideoSource::supportsCaptureSize(std::optional<int> width, std::optional<int> height, const Function<bool(const IntSize&)>&& function)
+bool RealtimeVideoSource::supportsCaptureSize(Optional<int> width, Optional<int> height, const Function<bool(const IntSize&)>&& function)
 {
     if (width && height)
         return function({ width.value(), height.value() });
@@ -242,7 +242,7 @@ bool RealtimeVideoSource::shouldUsePreset(VideoPreset& current, VideoPreset& can
     return candidate.size.width() <= current.size.width() && candidate.size.height() <= current.size.height() && prefersPreset(candidate);
 }
 
-std::optional<RealtimeVideoSource::CaptureSizeAndFrameRate> RealtimeVideoSource::bestSupportedSizeAndFrameRate(std::optional<int> requestedWidth, std::optional<int> requestedHeight, std::optional<double> requestedFrameRate)
+Optional<RealtimeVideoSource::CaptureSizeAndFrameRate> RealtimeVideoSource::bestSupportedSizeAndFrameRate(Optional<int> requestedWidth, Optional<int> requestedHeight, Optional<double> requestedFrameRate)
 {
     if (!requestedWidth && !requestedHeight && !requestedFrameRate)
         return { };
@@ -350,9 +350,9 @@ std::optional<RealtimeVideoSource::CaptureSizeAndFrameRate> RealtimeVideoSource:
     return result;
 }
 
-void RealtimeVideoSource::setSizeAndFrameRate(std::optional<int> width, std::optional<int> height, std::optional<double> frameRate)
+void RealtimeVideoSource::setSizeAndFrameRate(Optional<int> width, Optional<int> height, Optional<double> frameRate)
 {
-    std::optional<RealtimeVideoSource::CaptureSizeAndFrameRate> match;
+    Optional<RealtimeVideoSource::CaptureSizeAndFrameRate> match;
 
     auto size = this->size();
     if (!width && !height && !size.isEmpty()) {
@@ -388,30 +388,21 @@ void RealtimeVideoSource::dispatchMediaSampleToObservers(MediaSample& sample)
     if (interval > 1)
         m_observedFrameRate = (m_observedFrameTimeStamps.size() / interval);
 
-    if (isRemote()) {
-#if HAVE(IOSURFACE)
-        auto remoteSample = RemoteVideoSample::create(WTFMove(sample));
-        if (remoteSample)
-            remoteVideoSampleAvailable(WTFMove(*remoteSample));
-#else
-        ASSERT_NOT_REACHED();
-#endif
-        return;
-    }
-
     auto mediaSample = makeRefPtr(&sample);
 #if PLATFORM(COCOA)
-    auto size = this->size();
-    if (!size.isEmpty() && size != expandedIntSize(sample.presentationSize())) {
+    if (!isRemote()) {
+        auto size = this->size();
+        if (!size.isEmpty() && size != expandedIntSize(sample.presentationSize())) {
 
-        if (!m_imageTransferSession)
-            m_imageTransferSession = ImageTransferSessionVT::create(sample.videoPixelFormat());
+            if (!m_imageTransferSession || m_imageTransferSession->pixelFormat() != sample.videoPixelFormat())
+                m_imageTransferSession = ImageTransferSessionVT::create(sample.videoPixelFormat());
 
-        if (m_imageTransferSession) {
-            mediaSample = m_imageTransferSession->convertMediaSample(sample, size);
-            if (!mediaSample) {
-                ASSERT_NOT_REACHED();
-                return;
+            if (m_imageTransferSession) {
+                mediaSample = m_imageTransferSession->convertMediaSample(sample, size);
+                if (!mediaSample) {
+                    ASSERT_NOT_REACHED();
+                    return;
+                }
             }
         }
     }

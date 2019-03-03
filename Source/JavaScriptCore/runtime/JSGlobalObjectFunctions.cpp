@@ -57,10 +57,9 @@
 #include <wtf/text/StringBuilder.h>
 #include <wtf/unicode/UTF8Conversion.h>
 
-using namespace WTF;
-using namespace Unicode;
-
 namespace JSC {
+
+using namespace WTF::Unicode;
 
 const ASCIILiteral ObjectProtoCalledOnNullOrUndefinedError { "Object.prototype.__proto__ called on null or undefined"_s };
 
@@ -787,7 +786,7 @@ EncodedJSValue JSC_HOST_CALL globalFuncImportModule(ExecState* exec)
 
     auto* globalObject = exec->lexicalGlobalObject();
 
-    auto* promise = JSPromiseDeferred::create(exec, globalObject);
+    auto* promise = JSPromiseDeferred::tryCreate(exec, globalObject);
     RETURN_IF_EXCEPTION(throwScope, encodedJSValue());
 
     auto catchScope = DECLARE_CATCH_SCOPE(vm);

@@ -39,12 +39,12 @@
 #include <wtf/text/StringHash.h>
 
 #if PLATFORM(COCOA)
-
-#include <objc/runtime.h>
-
+#include "ClassMethodSwizzler.h"
+#include "InstanceMethodSwizzler.h"
 #endif
 
 OBJC_CLASS NSString;
+OBJC_CLASS UIKeyboardInputMode;
 OBJC_CLASS WKWebViewConfiguration;
 
 namespace WTR {
@@ -55,19 +55,6 @@ class PlatformWebView;
 class EventSenderProxy;
 struct TestCommand;
 struct TestOptions;
-
-#if PLATFORM(COCOA)
-// FIXME: This should be shared with TestWebKitAPI.
-class ClassMethodSwizzler {
-    WTF_MAKE_NONCOPYABLE(ClassMethodSwizzler);
-public:
-    ClassMethodSwizzler(Class, SEL, IMP);
-    ~ClassMethodSwizzler();
-    
-    Method m_method;
-    IMP m_originalImplementation;
-};
-#endif // PLATFORM(COCOA)
 
 class AsyncTask {
 public:
@@ -255,12 +242,15 @@ public:
 
     void removeAllSessionCredentials();
 
+    void ClearIndexedDatabases();
+
     void clearServiceWorkerRegistrations();
 
     void clearDOMCache(WKStringRef origin);
     void clearDOMCaches();
     bool hasDOMCache(WKStringRef origin);
     uint64_t domCacheSize(WKStringRef origin);
+    void allowCacheStorageQuotaIncrease();
 
     void setIDBPerOriginQuota(uint64_t);
 
@@ -285,6 +275,15 @@ public:
     RetainPtr<NSString> getOverriddenCalendarIdentifier() const;
     void setDefaultCalendarType(NSString *identifier);
 #endif // PLATFORM(COCOA)
+
+#if PLATFORM(IOS_FAMILY)
+    void setKeyboardInputModeIdentifier(const String&);
+    UIKeyboardInputMode *overriddenKeyboardInputMode() const { return m_overriddenKeyboardInputMode.get(); }
+#endif
+
+    bool canDoServerTrustEvaluationInNetworkProcess() const;
+    uint64_t serverTrustEvaluationCallbackCallsCount() const { return m_serverTrustEvaluationCallbackCallsCount; }
+
 private:
     WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(WKContextConfigurationRef);
     WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration() const;
@@ -456,6 +455,11 @@ private:
     WKRetainPtr<WKContextRef> m_context;
     WKRetainPtr<WKPageGroupRef> m_pageGroup;
 
+#if PLATFORM(IOS_FAMILY)
+    Vector<std::unique_ptr<InstanceMethodSwizzler>> m_inputModeSwizzlers;
+    RetainPtr<UIKeyboardInputMode> m_overriddenKeyboardInputMode;
+#endif
+
     enum State {
         Initial,
         Resetting,
@@ -533,6 +537,8 @@ private:
         { }
     };
     HashMap<uint64_t, AbandonedDocumentInfo> m_abandonedDocumentInfo;
+
+    uint64_t m_serverTrustEvaluationCallbackCallsCount { 0 };
 };
 
 struct TestCommand {

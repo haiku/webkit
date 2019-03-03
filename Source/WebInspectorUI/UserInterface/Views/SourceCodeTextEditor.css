@@ -144,7 +144,7 @@
 }
 
 .popover .debugger-popover-content > .body {
-    border-top: 1px solid hsla(0, 0%, 0%, 0.3);
+    border-top: 1px solid var(--text-color-quaternary);
     overflow: auto;
     padding-top: 2px;
 }
@@ -183,7 +183,7 @@
     }
 }
 
-@media (prefers-dark-interface) {
+@media (prefers-color-scheme: dark) {
     .source-code.text-editor > .CodeMirror .issue-widget {
         color: hsl(0, 0%, var(--foreground-lightness));
     }

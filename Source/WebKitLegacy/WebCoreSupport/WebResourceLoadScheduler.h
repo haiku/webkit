@@ -37,11 +37,6 @@
 
 class WebResourceLoadScheduler;
 
-namespace WebCore {
-struct FetchOptions;
-class SecurityOrigin;
-}
-
 WebResourceLoadScheduler& webResourceLoadScheduler();
 
 class WebResourceLoadScheduler final : public WebCore::LoaderStrategy {
@@ -61,11 +56,9 @@ public:
     void suspendPendingRequests() final;
     void resumePendingRequests() final;
 
-    void startPingLoad(WebCore::Frame&, WebCore::ResourceRequest&, const WebCore::HTTPHeaderMap&, const WebCore::FetchOptions&, PingLoadCompletionHandler&&) final;
+    void startPingLoad(WebCore::Frame&, WebCore::ResourceRequest&, const WebCore::HTTPHeaderMap&, const WebCore::FetchOptions&, WebCore::ContentSecurityPolicyImposition, PingLoadCompletionHandler&&) final;
 
     void preconnectTo(WebCore::FrameLoader&, const URL&, WebCore::StoredCredentialsPolicy, PreconnectCompletionHandler&&) final;
-
-    void storeDerivedDataToCache(const SHA1::Digest&, const String&, const String&, WebCore::SharedBuffer&) final { }
 
     void setCaptureExtraNetworkLoadMetricsEnabled(bool) final { }
 

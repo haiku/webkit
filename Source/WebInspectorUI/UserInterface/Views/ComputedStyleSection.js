@@ -125,9 +125,9 @@ WI.ComputedStyleSection = class ComputedStyleSection extends WI.View
             return properties;
 
         if (this._style._styleSheetTextRange)
-            properties = this._style.allVisibleProperties;
+            properties = this._style.visibleProperties;
         else
-            properties = this._style.allProperties;
+            properties = this._style.properties;
 
         properties.sort((a, b) => a.name.extendedLocaleCompare(b.name));
 
@@ -211,11 +211,11 @@ WI.ComputedStyleSection = class ComputedStyleSection extends WI.View
 
     _createTrace(propertyTrace)
     {
-        let traceElement = document.createElement("div");
+        let traceElement = document.createElement("ul");
         traceElement.className = "property-traces";
 
         for (let property of propertyTrace) {
-            let traceItemElement = document.createElement("div");
+            let traceItemElement = document.createElement("li");
             traceItemElement.className = "property-trace-item";
 
             let leftElement = document.createElement("div");

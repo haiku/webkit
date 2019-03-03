@@ -15,9 +15,11 @@ accessibility/win [ Skip ]
 displaylists [ Skip ]
 editing/mac [ Skip ]
 editing/caret/ios [ Skip ]
+editing/input/ios [ Skip ]
 editing/find [ Skip ]
 editing/pasteboard/gtk [ Skip ]
 editing/selection/ios [ Skip ]
+editing/undo-manager [ Skip ]
 tiled-drawing [ Skip ]
 fast/css/watchos [ Skip ]
 fast/dom/Window/watchos [ Skip ]
@@ -37,11 +39,10 @@ fast/events/touch/ios [ Skip ]
 fast/history/ios [ Skip ]
 fast/scrolling/ios [ Skip ]
 fast/text/mac [ Skip ]
-scrollingcoordinator/ios [ Skip ]
+scrollingcoordinator [ Skip ]
 fast/content-observation [ Skip ]
 media/mac [ Skip ]
 media/ios [ Skip ]
-media/controls/ipad [ Skip ]
 fast/text-autosizing [ Skip ]
 fast/css/variables/env/ios [ Skip ]
 http/tests/events/touch/ios [ Skip ]
@@ -128,6 +129,7 @@ http/tests/storageAccess/ [ Skip ]
 http/tests/navigation/process-swap-window-open.html [ Skip ]
 http/tests/navigation/useragent-reload.php [ Skip ]
 storage/indexeddb/modern/opendatabase-after-storage-crash.html [ Skip ]
+fast/forms/call-text-did-change-in-text-field-when-typing.html [ Skip ]
 
 # Only Mac and iOS have an implementation of UIScriptController::doAsyncTask().
 fast/harness/uiscriptcontroller [ Skip ]
@@ -159,6 +161,7 @@ fast/media/mq-prefers-reduced-motion-live-update.html [ Skip ]
 http/tests/loading/basic-auth-remove-credentials.html [ Skip ]
 http/tests/security/strip-referrer-to-origin-for-third-party-redirects-in-private-mode.html [ Skip ]
 http/tests/security/strip-referrer-to-origin-for-third-party-requests-in-private-mode.html [ Skip ]
+media/deactivate-audio-session.html [ Skip ]
 
 # ApplePay is only available on iOS (greater than iOS 10) and macOS (greater than macOS 10.12) and only for WebKit2.
 http/tests/ssl/applepay/ [ Skip ]
@@ -209,7 +212,6 @@ imported/w3c/web-platform-tests/service-workers/service-worker/worker-client-id.
 imported/w3c/web-platform-tests/cors/remote-origin.htm [ Skip ]
 
 # Skip service worker tests that are timing out.
-imported/w3c/web-platform-tests/fetch/api/abort/general-serviceworker.https.html [ Skip ]
 imported/w3c/web-platform-tests/service-workers/service-worker/performance-timeline.https.html [ Skip ]
 imported/w3c/web-platform-tests/service-workers/service-worker/respond-with-body-accessed-response.https.html [ Skip ]
 imported/w3c/web-platform-tests/service-workers/service-worker/sandboxed-iframe-fetch-event.https.html [ Skip ]
@@ -260,10 +262,7 @@ http/tests/security/frame-loading-via-document-write-async-delegates.html [ Dump
 imported/w3c/web-platform-tests/fetch/api/basic/mode-same-origin.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/fetch/api/basic/scheme-about.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/fetch/api/basic/scheme-about.any.worker.html [ DumpJSConsoleLogInStdErr ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-mode-worker.html [ DumpJSConsoleLogInStdErr ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-to-dataurl.html [ DumpJSConsoleLogInStdErr ]
 
-webkit.org/b/181901 imported/w3c/web-platform-tests/service-workers/service-worker/fetch-cors-xhr.https.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/service-workers/service-worker/fetch-response-taint.https.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/service-workers/service-worker/register-closed-window.https.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/service-workers/service-worker/registration-security-error.https.html [ DumpJSConsoleLogInStdErr ]
@@ -302,7 +301,6 @@ imported/w3c/web-platform-tests/workers/constructors/SharedWorker [ Skip ]
 imported/w3c/web-platform-tests/workers/SharedWorker_blobUrl.html [ Skip ]
 
 imported/w3c/web-platform-tests/beacon/beacon-basic-blob.html [ DumpJSConsoleLogInStdErr ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-mode.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/fetch/api/cors/cors-preflight-redirect.any.worker.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/xhr/access-control-and-redirects.htm [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/xhr/access-control-basic-cors-safelisted-request-headers.htm [ DumpJSConsoleLogInStdErr ]
@@ -379,16 +377,25 @@ imported/w3c/web-platform-tests/mediacapture-fromelement/creation.html [ Pass Fa
 webkit.org/b/180240 imported/w3c/web-platform-tests/resource-timing/single-entry-per-resource.html [ Pass Failure ]
 webkit.org/b/189906 imported/w3c/web-platform-tests/resource-timing/resource_timing_buffer_full_eventually.html [ Skip ]
 webkit.org/b/189905 imported/w3c/web-platform-tests/resource-timing/resource_initiator_types.html [ Pass Failure ]
-webkit.org/b/189910 imported/w3c/web-platform-tests/resource-timing/resource_timing_store_and_clear_during_callback.html [ Pass Failure ]
 webkit.org/b/190523 imported/w3c/web-platform-tests/resource-timing/resource_timing_cross_origin_redirect_chain.html [ Pass Failure ]
 
-# The follow two tests change their output each run
-imported/w3c/web-platform-tests/fetch/api/abort/general.any.html [ Skip ]
-imported/w3c/web-platform-tests/fetch/api/abort/general.any.worker.html [ Skip ]
+# These fetch tests are flaky or fail.
+imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count.any.html [ Pass Failure ]
+imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count.any.worker.html [ Pass Failure ]
+imported/w3c/web-platform-tests/fetch/content-encoding/bad-gzip-body.any.html [ Pass Failure ]
+imported/w3c/web-platform-tests/fetch/http-cache/basic-auth-cache-test.html [ ImageOnlyFailure ]
 
-# These tests time out
+# Fetch fetatures that are not implemented.
+imported/w3c/web-platform-tests/fetch/corb [ Skip ]
+imported/w3c/web-platform-tests/fetch/sec-metadata [ Skip ]
+
+# These fetch tests time out
 imported/w3c/web-platform-tests/fetch/api/request/destination/fetch-destination-no-load-event.https.html [ Skip ]
 imported/w3c/web-platform-tests/fetch/api/request/destination/fetch-destination.https.html [ Skip ]
+imported/w3c/web-platform-tests/fetch/range/sw.https.window.html [ Skip ]
+imported/w3c/web-platform-tests/fetch/content-encoding/bad-gzip-body.any.worker.html [ Skip ]
+imported/w3c/web-platform-tests/fetch/api/request/destination/fetch-destination-prefetch.https.html [ Skip ]
+imported/w3c/web-platform-tests/fetch/content-type/response.window.html [ Skip ]
 
 # Not supported
 imported/w3c/web-platform-tests/background-fetch [ Skip ]
@@ -437,6 +444,10 @@ fast/web-share [ Skip ]
 
 # This test was created to test a mac-wk2 bugfix
 fast/animation/request-animation-frame-in-two-pages.html [ Skip ]
+
+# Only supported on iOS
+imported/w3c/web-platform-tests/pointerevents [ Skip ]
+pointerevents [ Skip ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific tests.
@@ -609,6 +620,9 @@ webkit.org/b/165062 fast/css-grid-layout/grid-baseline-margins.html [ ImageOnlyF
 webkit.org/b/169271 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-items-sizing-alignment-001.html [ ImageOnlyFailure ]
 webkit.org/b/191465 imported/w3c/web-platform-tests/css/css-grid/abspos/absolute-positioning-changing-containing-block-001.html [ ImageOnlyFailure ]
 webkit.org/b/191465 imported/w3c/web-platform-tests/css/css-grid/abspos/grid-item-absolute-positioning-dynamic-001.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-010.html [ Pass Failure ]
+imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-013.html [ Pass Failure ]
+imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-015.html [ Pass Failure ]
 webkit.org/b/191365 imported/w3c/web-platform-tests/css/css-grid/grid-items/item-with-table-with-infinite-max-intrinsic-width.html [ ImageOnlyFailure ]
 webkit.org/b/191365 imported/w3c/web-platform-tests/css/css-grid/grid-items/table-with-infinite-max-intrinsic-width.html [ ImageOnlyFailure ]
 webkit.org/b/191367 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-container-ignores-first-letter-002.html [ ImageOnlyFailure ]
@@ -617,7 +631,6 @@ webkit.org/b/191461 imported/w3c/web-platform-tests/css/css-grid/grid-items/perc
 webkit.org/b/191462 imported/w3c/web-platform-tests/css/css-grid/grid-items/percentage-size-replaced-subitems-001.html [ ImageOnlyFailure ]
 webkit.org/b/191463 imported/w3c/web-platform-tests/css/css-grid/grid-items/explicitly-sized-grid-item-as-table.html
 webkit.org/b/191627 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-self-baseline-not-applied-if-sizing-cyclic-dependency-001.html [ Failure ]
-webkit.org/b/191473 fast/css-grid-layout/grid-crash-out-of-flow-positioned-element.html [ Crash ]
 webkit.org/b/149890 fast/css-grid-layout/grid-shorthands-style-format.html [ Failure ]
 webkit.org/b/191506 fast/css-grid-layout/grid-item-scroll-position.html [ Failure ]
 webkit.org/b/191507 fast/css-grid-layout/positioned-grid-container-percentage-tracks.html [ Failure ]
@@ -755,14 +768,22 @@ imported/w3c/web-platform-tests/fetch/api/cors/cors-preflight-status.any.html [ 
 imported/w3c/web-platform-tests/fetch/api/cors/cors-preflight.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/fetch/api/cors/cors-redirect-preflight.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/fetch/api/request/request-cache-only-if-cached.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/fetch/content-type/script.window.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/fetch/api/request/request-init-stream.any.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/fetch/api/response/response-error-from-stream.html [ DumpJSConsoleLogInStdErr ]
 
-webkit.org/b/161088 imported/w3c/web-platform-tests/resource-timing/resource-timing.html [ Pass Failure ]
 imported/w3c/web-platform-tests/resource-timing/test_resource_timing.html [ Pass Failure ]
+imported/w3c/web-platform-tests/resource-timing/test_resource_timing.https.html [ Pass Failure ]
+imported/w3c/web-platform-tests/resource-timing/buffer-full-add-entries-during-callback-that-drop.html [ Skip ]
+imported/w3c/web-platform-tests/resource-timing/buffer-full-decrease-buffer-during-callback.html [ Skip ]
+
+imported/w3c/web-platform-tests/resource-timing/resource_connection_reuse.html [ Failure ]
+imported/w3c/web-platform-tests/resource-timing/resource_connection_reuse.https.html [ Failure ]
+imported/w3c/web-platform-tests/resource-timing/resource_reparenting.html [ Failure ]
 
 webkit.org/b/168357 http/wpt/resource-timing/rt-initiatorType-media.html [ Failure ]
 webkit.org/b/168448 http/wpt/resource-timing/rt-shared-resource-in-frames.html [ Pass Failure ]
 webkit.org/b/168448 http/wpt/resource-timing/rt-shared-resource-in-workers.html [ Pass Failure ]
-webkit.org/b/171511 http/wpt/resource-timing/rt-revalidate-requests.html [ Pass Failure ]
 
 webkit.org/b/161312 imported/w3c/web-platform-tests/html/semantics/document-metadata/the-link-element/document-without-browsing-context.html [ Failure Pass ]
 
@@ -1204,20 +1225,9 @@ webkit.org/b/173506  ietestcenter/Javascript/15.4.4.14-3-8.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-12.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-25.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-7.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.10_Array_prototype_slice/S15.4.4.10_A3_T3.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.12_Array_prototype_splice/S15.4.4.12_A3_T3.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.13_Array_prototype_unshift/S15.4.4.13_A2_T2.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.13_Array_prototype_unshift/S15.4.4.13_A3_T2.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.6_Array_prototype_pop/S15.4.4.6_A2_T2.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.6_Array_prototype_pop/S15.4.4.6_A3_T3.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.7_Array_prototype_push/S15.4.4.7_A2_T2.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.7_Array_prototype_push/S15.4.4.7_A4_T3.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.8_Array_prototype_reverse/S15.4.4.8_A3_T3.html [ Failure ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.9_Array_prototype_shift/S15.4.4.9_A3_T3.html [ Failure ]
 
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-14.html [ Skip ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-8.html [ Skip ]
-webkit.org/b/173506  sputnik/Conformance/15_Native_Objects/15.4_Array/15.4.4/15.4.4.9_Array_prototype_shift/S15.4.4.9_A2_T2.html [ Skip ]
 
 # IDBVersionChangeEvent tests need to be rewritten to use event constructors instead of createEvent,
 # after we implement the IDBVersionChangeEvent constructor.
@@ -1286,31 +1296,19 @@ imported/w3c/web-platform-tests/css/css-color/lch-005.html [ Skip ]
 imported/w3c/web-platform-tests/css/css-color/lch-006.html [ Skip ]
 imported/w3c/web-platform-tests/css/css-color/lch-007.html [ Skip ]
 
-# New rgb/rgba syntax not supported
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-001.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-002.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-003.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-004.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-005.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-006.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-007.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgb-008.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-001.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-002.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-003.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-004.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-005.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-006.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-007.html [ Skip ]
-webkit.org/b/180209 imported/w3c/web-platform-tests/css/css-color/rgba-008.html [ Skip ]
-
 # Initial failures on the import of css-color
 imported/w3c/web-platform-tests/css/css-color/currentcolor-002.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-color/t31-color-text-a.xht [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/css/css-color/t32-opacity-offscreen-with-alpha-c.xht [ ImageOnlyFailure Pass ]
-imported/w3c/web-platform-tests/css/css-color/t421-rgb-values-meaning-b.xht [ ImageOnlyFailure Pass ]
-imported/w3c/web-platform-tests/css/css-color/t425-hsla-values-b.xht [ ImageOnlyFailure Pass ]
 imported/w3c/web-platform-tests/css/css-color/t44-currentcolor-inherited-c.xht [ ImageOnlyFailure ]
+
+# Need to re-import canvas tests
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgb-1.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgb-2.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgb-5.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgb-7.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgba-1.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgba-2.html [ Failure ]
+webkit.org/b/193042 imported/w3c/canvas/2d.fillStyle.parse.invalid.rgba-4.html [ Failure ]
 
 # Many CSS WG multicol-1 tests fail with 1px differences
 webkit.org/b/148806 imported/w3c/web-platform-tests/css/css-multicol/multicol-count-large-001.xht [ ImageOnlyFailure ]
@@ -1865,12 +1863,6 @@ webkit.org/b/56080 jquery/effects.html [ Skip ]
 webkit.org/b/6547 js/kde/Date.html [ Skip ]
 webkit.org/b/15046 js/string-concatenate-outofmemory.html [ Skip ]
 webkit.org/b/24690 platform/mac/plugins/pluginDocumentView-deallocated-dataSource.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T1.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T2.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T3.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T4.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T5.html [ Skip ]
-webkit.org/b/42625 sputnik/Conformance/15_Native_Objects/15.9_Date/15.9.3/S15.9.3.1_A5_T6.html [ Skip ]
 webkit.org/b/17392 svg/batik/text/textBiDi.svg [ Skip ]
 webkit.org/b/11662 svg/custom/js-font-test.svg [ Skip ]
 webkit.org/b/63186 svg/zoom/page/zoom-svg-through-object-with-text.xhtml [ Skip ]
@@ -1932,24 +1924,6 @@ http/tests/navigation/success200-subframeload-goback.html [ Skip ]
 # Test disabled in r45078
 media/video-canvas.html [ Skip ]
 
-# Tests disabled in r59504 for taking over 10 seconds to run
-sputnik/Conformance/15_Native_Objects/15.1_The_Global_Object/15.1.3/15.1.3.1_decodeURI/S15.1.3.1_A2.5_T1.html [ Skip ]
-sputnik/Conformance/15_Native_Objects/15.1_The_Global_Object/15.1.3/15.1.3.2_decodeURIComponent/S15.1.3.2_A2.5_T1.html [ Skip ]
-sputnik/Unicode/Unicode_218/S7.6_A3.1.html [ Skip ]
-sputnik/Unicode/Unicode_218/S7.6_A3.2.html [ Skip ]
-
-# Tests landed disabled in r58534; never enabled
-sputnik/Unicode/Unicode_218/S7.6_A1.1_T5.html [ Skip ]
-sputnik/Unicode/Unicode_218/S7.6_A5.2_T5.html [ Skip ]
-sputnik/Unicode/Unicode_320/S7.6_A1.1_T5.html [ Skip ]
-sputnik/Unicode/Unicode_320/S7.6_A5.2_T5.html [ Skip ]
-sputnik/Unicode/Unicode_410/S7.6_A1.1_T5.html [ Skip ]
-sputnik/Unicode/Unicode_410/S7.6_A5.2_T5.html [ Skip ]
-sputnik/Unicode/Unicode_500/S7.6_A1.1_T5.html [ Skip ]
-sputnik/Unicode/Unicode_500/S7.6_A5.2_T5.html [ Skip ]
-sputnik/Unicode/Unicode_510/S7.6_A1.1_T5.html [ Skip ]
-sputnik/Unicode/Unicode_510/S7.6_A5.2_T5.html [ Skip ]
-
 # Test disabled in r42921 for flaky failure
 svg/custom/filter-source-alpha.svg [ Skip ]
 
@@ -1988,6 +1962,9 @@ webkit.org/b/3652 fast/dom/HTMLLinkElement/prefetch-too-many-clients.html [ Skip
 webkit.org/b/3652 fast/dom/HTMLLinkElement/subresource.html [ Skip ]
 webkit.org/b/3652 http/tests/misc/link-rel-prefetch-and-subresource.html [ Skip ]
 webkit.org/b/3652 http/tests/misc/prefetch-purpose.html [ Skip ]
+
+# First-party-only cookie policy only supported on Cocoa platforms.
+http/tests/cookies/only-accept-first-party-cookies.html [ Skip ]
 
 # Disabled WPT tests
 webkit.org/b/185939 imported/w3c/web-platform-tests/css/WOFF2 [ Skip ]
@@ -2817,7 +2794,6 @@ imported/w3c/web-platform-tests/css/css-display/run-in/run-in-run-in-between-004
 imported/w3c/web-platform-tests/css/css-text-decor/text-emphasis-position-above-left-001.xht [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-display/run-in/run-in-listitem-between-003.xht [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-display/run-in/run-in-basic-010.xht [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/css/css-scoping/shadow-disabled-sheet-001.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-display/run-in/run-in-run-in-between-003.xht [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-multicol/multicol-breaking-003.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-display/run-in/run-in-contains-table-caption-001.xht [ ImageOnlyFailure ]
@@ -2902,8 +2878,6 @@ fast/gradients/conic-two-hints.html [ Skip ]
 
 webkit.org/b/187773 http/tests/webAPIStatistics [ Skip ]
 
-webkit.org/b/189997 imported/w3c/web-platform-tests/resource-timing/resource_timing.worker.html [ Failure ]
-
 # This is fallout from turning Web Animations on.
 webkit.org/b/190032 animations/animation-playstate-paused-style-resolution.html [ Failure ]
 webkit.org/b/190032 compositing/backing/backing-store-attachment-fill-forwards-animation.html [ Failure ]
@@ -2920,3 +2894,13 @@ webkit.org/b/190032 imported/w3c/web-platform-tests/css/css-scoping/keyframes-00
 fast/mediacapturefromelement/CanvasCaptureMediaStream-imagebitmaprenderingcontext.html [ Skip ]
 fast/mediacapturefromelement/CanvasCaptureMediaStream-framerate-0.html [ Skip ]
 fast/mediacapturefromelement/CanvasCaptureMediaStream-capture-out-of-DOM-element.html [ Skip ]
+
+imported/w3c/web-platform-tests/css/css-lists/content-property/marker-text-matches-circle.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/content-property/marker-text-matches-disc.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-greek.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/content-property/marker-text-matches-lower-latin.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/content-property/marker-text-matches-square.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/counter-increment-inside-display-contents.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/counter-reset-inside-display-contents.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/list-marker-with-lineheight-and-overflow-hidden-001.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-lists/list-with-image-display-changed-001.html [ ImageOnlyFailure ]

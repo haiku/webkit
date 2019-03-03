@@ -96,9 +96,6 @@ TiledCoreAnimationDrawingArea::TiledCoreAnimationDrawingArea(WebPage& webPage, c
 
     updateLayerHostingContext();
     setColorSpace(parameters.colorSpace);
-
-    if (!parameters.shouldDelayAttachingDrawingArea)
-        attach();
 }
 
 TiledCoreAnimationDrawingArea::~TiledCoreAnimationDrawingArea()
@@ -106,11 +103,23 @@ TiledCoreAnimationDrawingArea::~TiledCoreAnimationDrawingArea()
     invalidateLayerFlushRunLoopObserver();
 }
 
-void TiledCoreAnimationDrawingArea::attach()
+void TiledCoreAnimationDrawingArea::sendEnterAcceleratedCompositingModeIfNeeded()
 {
-    LayerTreeContext layerTreeContext;
-    layerTreeContext.contextID = m_layerHostingContext->contextID();
-    m_webPage.send(Messages::DrawingAreaProxy::EnterAcceleratedCompositingMode(0, layerTreeContext));
+    if (!m_rootLayer)
+        return;
+
+    if (!m_needsSendEnterAcceleratedCompositingMode)
+        return;
+    m_needsSendEnterAcceleratedCompositingMode = false;
+
+    // Let the first commit complete before sending.
+    RunLoop::main().dispatch([this, weakThis = makeWeakPtr(*this)] {
+        if (!weakThis)
+            return;
+        LayerTreeContext layerTreeContext;
+        layerTreeContext.contextID = m_layerHostingContext->contextID();
+        m_webPage.send(Messages::DrawingAreaProxy::EnterAcceleratedCompositingMode(0, layerTreeContext));
+    });
 }
 
 void TiledCoreAnimationDrawingArea::setNeedsDisplay()
@@ -315,6 +324,9 @@ void TiledCoreAnimationDrawingArea::scaleViewToFitDocumentIfNeeded()
     LOG(Resize, "TiledCoreAnimationDrawingArea %p scaleViewToFitDocumentIfNeeded", this);
     m_webPage.layoutIfNeeded();
 
+    if (!m_webPage.mainFrameView() || !m_webPage.mainFrameView()->renderView())
+        return;
+
     int viewWidth = m_webPage.size().width();
     int documentWidth = m_webPage.mainFrameView()->renderView()->unscaledDocumentRect().width();
 
@@ -360,6 +372,9 @@ void TiledCoreAnimationDrawingArea::scaleViewToFitDocumentIfNeeded()
     // Lay out at the view size.
     m_webPage.setUseFixedLayout(false);
     m_webPage.layoutIfNeeded();
+
+    if (!m_webPage.mainFrameView() || !m_webPage.mainFrameView()->renderView())
+        return;
 
     IntSize documentSize = m_webPage.mainFrameView()->renderView()->unscaledDocumentRect().size();
     m_lastViewSizeForScaleToFit = m_webPage.size();
@@ -496,8 +511,10 @@ void TiledCoreAnimationDrawingArea::flushLayers()
             m_pendingCallbackIDs.clear();
         }
 
-        if (didFlushAllFrames)
+        if (didFlushAllFrames) {
+            sendEnterAcceleratedCompositingModeIfNeeded();
             invalidateLayerFlushRunLoopObserver();
+        }
 
         if (m_isThrottlingLayerFlushes)
             startLayerFlushThrottlingTimer();
@@ -529,7 +546,7 @@ void TiledCoreAnimationDrawingArea::didUpdateActivityStateTimerFired()
     if (m_activityStateChangeID != ActivityStateChangeAsynchronous)
         m_webPage.send(Messages::WebPageProxy::DidUpdateActivityState());
 
-    for (auto callbackID : m_nextActivityStateChangeCallbackIDs)
+    for (const auto& callbackID : m_nextActivityStateChangeCallbackIDs)
         m_webPage.send(Messages::WebPageProxy::VoidCallback(callbackID));
 
     m_nextActivityStateChangeCallbackIDs.clear();
@@ -558,7 +575,7 @@ void TiledCoreAnimationDrawingArea::resumePainting()
     [[NSNotificationCenter defaultCenter] postNotificationName:@"NSCAViewRenderDidResumeNotification" object:nil userInfo:[NSDictionary dictionaryWithObject:m_hostingLayer.get() forKey:@"layer"]];
 }
 
-void TiledCoreAnimationDrawingArea::setViewExposedRect(std::optional<WebCore::FloatRect> viewExposedRect)
+void TiledCoreAnimationDrawingArea::setViewExposedRect(Optional<WebCore::FloatRect> viewExposedRect)
 {
     m_viewExposedRect = viewExposedRect;
     updateScrolledExposedRect();
@@ -850,7 +867,7 @@ void TiledCoreAnimationDrawingArea::commitTransientZoom(double scale, FloatPoint
     transform.scale(scale);
 
     RetainPtr<CABasicAnimation> renderViewAnimationCA = transientZoomSnapAnimationForKeyPath("transform");
-    RefPtr<PlatformCAAnimation> renderViewAnimation = PlatformCAAnimationCocoa::create(renderViewAnimationCA.get());
+    auto renderViewAnimation = PlatformCAAnimationCocoa::create(renderViewAnimationCA.get());
     renderViewAnimation->setToValue(transform);
 
     RetainPtr<CALayer> shadowCALayer;
@@ -870,7 +887,7 @@ void TiledCoreAnimationDrawingArea::commitTransientZoom(double scale, FloatPoint
             drawingArea->applyTransientZoomToPage(scale, origin);
     }];
 
-    zoomLayer->addAnimationForKey("transientZoomCommit", *renderViewAnimation);
+    zoomLayer->addAnimationForKey("transientZoomCommit", renderViewAnimation.get());
 
     if (shadowCALayer) {
         FloatRect shadowBounds = shadowLayerBoundsForFrame(frameView, scale);

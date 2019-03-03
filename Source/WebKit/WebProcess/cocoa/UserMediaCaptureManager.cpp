@@ -37,6 +37,7 @@
 #include <WebCore/CaptureDevice.h>
 #include <WebCore/ImageTransferSessionVT.h>
 #include <WebCore/MediaConstraints.h>
+#include <WebCore/MockRealtimeMediaSourceCenter.h>
 #include <WebCore/RealtimeMediaSourceCenter.h>
 #include <WebCore/RemoteVideoSample.h>
 #include <WebCore/WebAudioBufferList.h>
@@ -55,11 +56,13 @@ static uint64_t nextSessionID()
 
 class UserMediaCaptureManager::Source : public RealtimeMediaSource {
 public:
-    Source(String&& sourceID, Type type, String&& name, String&& hashSalt, uint64_t id, UserMediaCaptureManager& manager)
+    Source(String&& sourceID, Type type, CaptureDevice::DeviceType deviceType, String&& name, String&& hashSalt, uint64_t id, UserMediaCaptureManager& manager)
         : RealtimeMediaSource(type, WTFMove(name), WTFMove(sourceID), WTFMove(hashSalt))
         , m_id(id)
         , m_manager(manager)
+        , m_deviceType(deviceType)
     {
+        ASSERT(deviceType != CaptureDevice::DeviceType::Unknown);
         if (type == Type::Audio)
             m_ringBuffer = std::make_unique<CARingBuffer>(makeUniqueRef<SharedRingBufferStorage>(nullptr));
     }
@@ -131,11 +134,18 @@ public:
     {
         ASSERT(type() == Type::Video);
 
-        auto videoSampleSize = IntSize(m_settings.width(), m_settings.height());
-        if (videoSampleSize.isEmpty())
-            videoSampleSize = remoteSample.size();
+        auto remoteSampleSize = remoteSample.size();
+        setIntrinsicSize(remoteSampleSize);
 
-        if (!m_imageTransferSession)
+        auto videoSampleSize = IntSize(m_settings.width(), m_settings.height());
+        if (videoSampleSize.isZero())
+            videoSampleSize = remoteSampleSize;
+        else if (!videoSampleSize.height())
+            videoSampleSize.setHeight(videoSampleSize.width() * (remoteSampleSize.height() / static_cast<double>(remoteSampleSize.width())));
+        else if (!videoSampleSize.width())
+            videoSampleSize.setWidth(videoSampleSize.height() * (remoteSampleSize.width() / static_cast<double>(remoteSampleSize.height())));
+
+        if (!m_imageTransferSession || m_imageTransferSession->pixelFormat() != remoteSample.videoFormat())
             m_imageTransferSession = ImageTransferSessionVT::create(remoteSample.videoFormat());
 
         if (!m_imageTransferSession) {
@@ -170,6 +180,7 @@ private:
     void startProducingData() final { m_manager.startProducingData(m_id); }
     void stopProducingData() final { m_manager.stopProducingData(m_id); }
     bool isCaptureSource() const final { return true; }
+    CaptureDevice::DeviceType deviceType() const final { return m_deviceType; }
 
     // RealtimeMediaSource
     void beginConfiguration() final { }
@@ -182,13 +193,14 @@ private:
 
     uint64_t m_id;
     UserMediaCaptureManager& m_manager;
-    mutable std::optional<RealtimeMediaSourceCapabilities> m_capabilities;
+    mutable Optional<RealtimeMediaSourceCapabilities> m_capabilities;
     RealtimeMediaSourceSettings m_settings;
 
     CAAudioStreamDescription m_description;
     std::unique_ptr<CARingBuffer> m_ringBuffer;
 
     std::unique_ptr<ImageTransferSessionVT> m_imageTransferSession;
+    CaptureDevice::DeviceType m_deviceType { CaptureDevice::DeviceType::Unknown };
 
     struct ApplyConstraintsCallback {
         SuccessHandler successHandler;
@@ -205,8 +217,9 @@ UserMediaCaptureManager::UserMediaCaptureManager(WebProcess& process)
 
 UserMediaCaptureManager::~UserMediaCaptureManager()
 {
-    RealtimeMediaSourceCenter::unsetAudioFactory(*this);
-    RealtimeMediaSourceCenter::unsetDisplayCaptureFactory(*this);
+    RealtimeMediaSourceCenter::singleton().unsetAudioCaptureFactory(*this);
+    RealtimeMediaSourceCenter::singleton().unsetDisplayCaptureFactory(*this);
+    RealtimeMediaSourceCenter::singleton().unsetVideoCaptureFactory(*this);
     m_process.removeMessageReceiver(Messages::UserMediaCaptureManager::messageReceiverName());
 }
 
@@ -217,10 +230,16 @@ const char* UserMediaCaptureManager::supplementName()
 
 void UserMediaCaptureManager::initialize(const WebProcessCreationParameters& parameters)
 {
+    MockRealtimeMediaSourceCenter::singleton().setMockAudioCaptureEnabled(!parameters.shouldCaptureAudioInUIProcess);
+    MockRealtimeMediaSourceCenter::singleton().setMockVideoCaptureEnabled(!parameters.shouldCaptureVideoInUIProcess);
+    MockRealtimeMediaSourceCenter::singleton().setMockDisplayCaptureEnabled(!parameters.shouldCaptureDisplayInUIProcess);
+
     if (parameters.shouldCaptureAudioInUIProcess)
-        RealtimeMediaSourceCenter::setAudioFactory(*this);
+        RealtimeMediaSourceCenter::singleton().setAudioCaptureFactory(*this);
+    if (parameters.shouldCaptureVideoInUIProcess)
+        RealtimeMediaSourceCenter::singleton().setVideoCaptureFactory(*this);
     if (parameters.shouldCaptureDisplayInUIProcess)
-        RealtimeMediaSourceCenter::setDisplayCaptureFactory(*this);
+        RealtimeMediaSourceCenter::singleton().setDisplayCaptureFactory(*this);
 }
 
 WebCore::CaptureSourceOrError UserMediaCaptureManager::createCaptureSource(const CaptureDevice& device, String&& hashSalt, const WebCore::MediaConstraints* constraints)
@@ -236,7 +255,7 @@ WebCore::CaptureSourceOrError UserMediaCaptureManager::createCaptureSource(const
         return WTFMove(errorMessage);
 
     auto type = device.type() == CaptureDevice::DeviceType::Microphone ? WebCore::RealtimeMediaSource::Type::Audio : WebCore::RealtimeMediaSource::Type::Video;
-    auto source = adoptRef(*new Source(String::number(id), type, String { settings.label() }, WTFMove(hashSalt), id, *this));
+    auto source = adoptRef(*new Source(String::number(id), type, device.type(), String { settings.label() }, WTFMove(hashSalt), id, *this));
     source->setSettings(WTFMove(settings));
     m_sources.set(id, source.copyRef());
     return WebCore::CaptureSourceOrError(WTFMove(source));

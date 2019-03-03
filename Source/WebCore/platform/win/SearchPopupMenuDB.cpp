@@ -25,9 +25,9 @@
 #include "config.h"
 #include "SearchPopupMenuDB.h"
 
-#include "FileSystem.h"
 #include "SQLiteFileSystem.h"
 #include "SQLiteTransaction.h"
+#include <wtf/FileSystem.h>
 
 namespace WebCore {
 
@@ -284,7 +284,7 @@ std::unique_ptr<SQLiteStatement> SearchPopupMenuDB::createPreparedStatement(cons
 {
     auto statement = std::make_unique<SQLiteStatement>(m_database, sql);
     int ret = statement->prepare();
-    ASSERT(ret == SQLITE_OK);
+    ASSERT_UNUSED(ret, ret == SQLITE_OK);
     return statement;
 }
 

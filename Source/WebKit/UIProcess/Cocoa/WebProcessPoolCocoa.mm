@@ -43,7 +43,6 @@
 #import "WebProcessMessages.h"
 #import "WindowServerConnection.h"
 #import <WebCore/Color.h>
-#import <WebCore/FileSystem.h>
 #import <WebCore/NetworkStorageSession.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PlatformPasteboard.h>
@@ -52,6 +51,7 @@
 #import <pal/spi/cf/CFNetworkSPI.h>
 #import <pal/spi/cocoa/NSKeyedArchiverSPI.h>
 #import <sys/param.h>
+#import <wtf/FileSystem.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/cocoa/Entitlements.h>
 #import <wtf/spi/darwin/dyldSPI.h>
@@ -68,9 +68,6 @@ NSString *WebKitJSCFTLJITEnabledDefaultsKey = @"WebKitJSCFTLJITEnabledDefaultsKe
 #if !PLATFORM(IOS_FAMILY)
 static NSString *WebKitApplicationDidChangeAccessibilityEnhancedUserInterfaceNotification = @"NSApplicationDidChangeAccessibilityEnhancedUserInterfaceNotification";
 #endif
-
-static NSString * const WebKit2HTTPProxyDefaultsKey = @"WebKit2HTTPProxy";
-static NSString * const WebKit2HTTPSProxyDefaultsKey = @"WebKit2HTTPSProxy";
 
 static NSString * const WebKitNetworkCacheEfficacyLoggingEnabledDefaultsKey = @"WebKitNetworkCacheEfficacyLoggingEnabled";
 
@@ -259,14 +256,23 @@ void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationPara
 
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 
-    parameters.httpProxy = [defaults stringForKey:WebKit2HTTPProxyDefaultsKey];
-    parameters.httpsProxy = [defaults stringForKey:WebKit2HTTPSProxyDefaultsKey];
+    {
+        bool isSafari = false;
+#if PLATFORM(IOS_FAMILY)
+        isSafari = WebCore::IOSApplication::isMobileSafari();
+#elif PLATFORM(MAC)
+        isSafari = WebCore::MacApplication::isSafari();
+#endif
+        if (isSafari) {
+            parameters.defaultDataStoreParameters.networkSessionParameters.httpProxy = URL(URL(), [defaults stringForKey:(NSString *)WebKit2HTTPProxyDefaultsKey]);
+            parameters.defaultDataStoreParameters.networkSessionParameters.httpsProxy = URL(URL(), [defaults stringForKey:(NSString *)WebKit2HTTPSProxyDefaultsKey]);
+        }
+    }
+
     parameters.networkATSContext = adoptCF(_CFNetworkCopyATSContext());
 
     parameters.shouldEnableNetworkCacheEfficacyLogging = [defaults boolForKey:WebKitNetworkCacheEfficacyLoggingEnabledDefaultsKey];
 
-    parameters.sourceApplicationBundleIdentifier = m_configuration->sourceApplicationBundleIdentifier();
-    parameters.sourceApplicationSecondaryIdentifier = m_configuration->sourceApplicationSecondaryIdentifier();
 #if PLATFORM(IOS_FAMILY)
     parameters.ctDataConnectionServiceType = m_configuration->ctDataConnectionServiceType();
 #endif

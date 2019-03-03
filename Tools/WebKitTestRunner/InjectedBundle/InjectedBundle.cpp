@@ -119,16 +119,16 @@ void InjectedBundle::didCreatePage(WKBundlePageRef page)
         return;
 
     WKRetainPtr<WKStringRef> messsageName(AdoptWK, WKStringCreateWithUTF8CString("Initialization"));
-    WKTypeRef result = 0;
-    WKBundlePostSynchronousMessage(m_bundle, messsageName.get(), 0, &result);
+    WKTypeRef result = nullptr;
+    WKBundlePostSynchronousMessage(m_bundle, messsageName.get(), nullptr, &result);
     ASSERT(WKGetTypeID(result) == WKDictionaryGetTypeID());
-    WKDictionaryRef initializationDictionary = static_cast<WKDictionaryRef>(result);
+    WKRetainPtr<WKDictionaryRef> initializationDictionary(AdoptWK, static_cast<WKDictionaryRef>(result));
 
     WKRetainPtr<WKStringRef> resumeTestingKey(AdoptWK, WKStringCreateWithUTF8CString("ResumeTesting"));
-    WKTypeRef resumeTestingValue = WKDictionaryGetItemForKey(initializationDictionary, resumeTestingKey.get());
+    WKTypeRef resumeTestingValue = WKDictionaryGetItemForKey(initializationDictionary.get(), resumeTestingKey.get());
     ASSERT(WKGetTypeID(resumeTestingValue) == WKBooleanGetTypeID());
     if (WKBooleanGetValue(static_cast<WKBooleanRef>(resumeTestingValue)))
-        beginTesting(initializationDictionary, BegingTestingMode::Resume);
+        beginTesting(initializationDictionary.get(), BegingTestingMode::Resume);
 }
 
 void InjectedBundle::willDestroyPage(WKBundlePageRef page)
@@ -428,11 +428,15 @@ void InjectedBundle::didReceiveMessageToPage(WKBundlePageRef page, WKStringRef m
 
     if (WKStringIsEqualToUTF8CString(messageName, "ResourceLoadStatisticsTelemetryFinished")) {
         WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
-        
-        unsigned totalPrevalentResources = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, WKStringCreateWithUTF8CString("TotalPrevalentResources"))));
-        unsigned totalPrevalentResourcesWithUserInteraction = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, WKStringCreateWithUTF8CString("TotalPrevalentResourcesWithUserInteraction"))));
-        unsigned top3SubframeUnderTopFrameOrigins = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, WKStringCreateWithUTF8CString("Top3SubframeUnderTopFrameOrigins"))));
-        
+
+        WKRetainPtr<WKStringRef> totalPrevalentResourcesKey(AdoptWK, WKStringCreateWithUTF8CString("TotalPrevalentResources"));
+        WKRetainPtr<WKStringRef> totalPrevalentResourcesWithUserInteractionKey(AdoptWK, WKStringCreateWithUTF8CString("TotalPrevalentResourcesWithUserInteraction"));
+        WKRetainPtr<WKStringRef> top3SubframeUnderTopFrameOriginsKey(AdoptWK, WKStringCreateWithUTF8CString("Top3SubframeUnderTopFrameOrigins"));
+
+        unsigned totalPrevalentResources = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, totalPrevalentResourcesKey.get())));
+        unsigned totalPrevalentResourcesWithUserInteraction = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, totalPrevalentResourcesWithUserInteractionKey.get())));
+        unsigned top3SubframeUnderTopFrameOrigins = (unsigned)WKUInt64GetValue(static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, top3SubframeUnderTopFrameOriginsKey.get())));
+
         m_testRunner->statisticsDidRunTelemetryCallback(totalPrevalentResources, totalPrevalentResourcesWithUserInteraction, top3SubframeUnderTopFrameOrigins);
         return;
     }

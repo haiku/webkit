@@ -206,7 +206,7 @@ bool validatePreflightResponse(const ResourceRequest& request, const ResourceRes
         return false;
 
     auto result = std::make_unique<CrossOriginPreflightResultCacheItem>(storedCredentialsPolicy);
-    if (!result->parse(response, errorDescription)
+    if (!result->parse(response)
         || !result->allowsCrossOriginMethod(request.httpMethod(), errorDescription)
         || !result->allowsCrossOriginHeaders(request.httpHeaderFields(), errorDescription)) {
         return false;
@@ -240,11 +240,11 @@ static inline bool shouldCrossOriginResourcePolicyCancelLoad(const SecurityOrigi
     return false;
 }
 
-std::optional<ResourceError> validateCrossOriginResourcePolicy(const SecurityOrigin& origin, const URL& requestURL, const ResourceResponse& response)
+Optional<ResourceError> validateCrossOriginResourcePolicy(const SecurityOrigin& origin, const URL& requestURL, const ResourceResponse& response)
 {
     if (shouldCrossOriginResourcePolicyCancelLoad(origin, response))
         return ResourceError { errorDomainWebKitInternal, 0, requestURL, makeString("Cancelled load to ", response.url().stringCenterEllipsizedToLength(), " because it violates the resource's Cross-Origin-Resource-Policy response header."), ResourceError::Type::AccessControl };
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 } // namespace WebCore

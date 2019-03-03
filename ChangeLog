@@ -1,3 +1,270 @@
+2019-01-24  Guillaume Emont  <guijemont@igalia.com>
+
+        [JSC] Reenable baseline JIT on mips
+        https://bugs.webkit.org/show_bug.cgi?id=192983
+
+        Reviewed by Mark Lam.
+
+        Use baseline JIT by default on MIPS.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
+2019-01-24  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WPE] Support JPEG 2000 images
+        https://bugs.webkit.org/show_bug.cgi?id=186272
+
+        Reviewed by Žan Doberšek.
+
+        Add USE_OPENJPEG build option.
+
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmake/OptionsWPE.cmake:
+
+2019-01-18  Jer Noble  <jer.noble@apple.com>
+
+        SDK_VARIANT build destinations should be separate from non-SDK_VARIANT builds
+        https://bugs.webkit.org/show_bug.cgi?id=189553
+
+        Reviewed by Tim Horton.
+
+        * Makefile.shared:
+
+2019-01-18  Philippe Normand  <pnormand@igalia.com>
+
+        [WPE] Add Qt extension
+        https://bugs.webkit.org/show_bug.cgi?id=191464
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/cmake/OptionsWPE.cmake: Add ENABLE_WPE_QT_API CMake option. Disabled by default.
+
+2019-01-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, rolling out r240124.
+
+        This commit broke an internal build.
+
+        Reverted changeset:
+
+        "SDK_VARIANT build destinations should be separate from non-
+        SDK_VARIANT builds"
+        https://bugs.webkit.org/show_bug.cgi?id=189553
+        https://trac.webkit.org/changeset/240124
+
+2019-01-17  Jer Noble  <jer.noble@apple.com>
+
+        SDK_VARIANT build destinations should be separate from non-SDK_VARIANT builds
+        https://bugs.webkit.org/show_bug.cgi?id=189553
+
+        Reviewed by Tim Horton.
+
+        * Makefile.shared:
+
+2019-01-17  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win] gperf command not found
+        https://bugs.webkit.org/show_bug.cgi?id=193538
+        <rdar://problem/47250549>
+
+        Reviewed by Brent Fulgham.
+
+        CMake only searches for gperf if ENABLE_WEBCORE is on. ENABLE_WEBCORE needs to be set to ON.
+
+        * Source/cmake/OptionsAppleWin.cmake:
+
+2019-01-14  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update OptionsGTK.cmake and NEWS for 2.23.3 release
+
+        * Source/cmake/OptionsGTK.cmake: Bump version numbers
+
+2019-01-08  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update OptionsGTK.cmake and NEWS for 2.23.2 release
+
+        * Source/cmake/OptionsGTK.cmake: Bump version numbers
+
+2019-01-07  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add ENABLE_CSS_TYPED_OM option
+        https://bugs.webkit.org/show_bug.cgi?id=193216
+
+        Reviewed by Michael Catanzaro.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
+2018-12-30  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
+
+        gperf is only used in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=193061
+
+        Reviewed by Don Olmstead.
+
+        gperf is only used in WebCore. So if the port does not have WebCore,
+        it is not necessary. For example, JSCOnly port does not require it.
+        This patch removes gperf dependency in these ports by checking
+        ENABLE_WEBCORE.
+
+        * Source/cmake/WebKitCommon.cmake:
+
+2018-12-28  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
+
+        Add ENABLE_UNIFIED_BUILDS option to cmake ports
+        https://bugs.webkit.org/show_bug.cgi?id=193045
+
+        Reviewed by Don Olmstead.
+
+        This patch adds ENABLE_UNIFIED_BUILDS option to cmake ports, which allows us to disable Unified Builds in WebKit.
+        This makes `compile_commands.json` sane when the unified builds is disabled, and various tools can use this
+        compilation database. For example, YouCompleteMe completion server can use it.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmake/WebKitMacros.cmake:
+
+2018-12-27  Alex Christensen  <achristensen@webkit.org>
+
+        Resurrect Mac CMake build
+        https://bugs.webkit.org/show_bug.cgi?id=192658
+
+        Reviewed by Yusuke Suzuki.
+
+        * Source/cmake/OptionsMac.cmake:
+
+2018-12-19  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Cannot build with CMake <3.7
+        https://bugs.webkit.org/show_bug.cgi?id=192865
+
+        Reviewed by Michael Catanzaro.
+
+        * Source/cmake/OptionsGTK.cmake: Convert usage of VERSION_GREATER_EQUAL to a
+        combination of VERSION_GREATER + STREQUAL.
+
+2018-12-19  Lucas Stach  <l.stach@pengutronix.de>
+
+        Fix build on 64bit ARM with arm64 SYSTEM_PROCESSOR
+        https://bugs.webkit.org/show_bug.cgi?id=192497
+
+        Reviewed by Philippe Normand.
+
+        Android and some embedded Linux build systems use arm64 instead of
+        aarch64 as the CMAKE_HOST_PROCESSOR. Fix the JIT build for this scenario.
+
+        * CMakeLists.txt:
+
+2018-12-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [FreeType] Add initial implementation of variation fonts
+        https://bugs.webkit.org/show_bug.cgi?id=192151
+
+        Reviewed by Michael Catanzaro.
+
+        Enable variation fonts in GTK+ port when required dependencies are available.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2018-12-12  Michael Catanzaro  <mcatanzaro@igalia.com>
+
+        Unreviewed manual rollout of r239100-r239102 and r239116
+        https://bugs.webkit.org/show_bug.cgi?id=192151
+        <rdar://problem/46655586>
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2018-12-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [FreeType] Add initial implementation of variation fonts
+        https://bugs.webkit.org/show_bug.cgi?id=192151
+
+        Reviewed by Michael Catanzaro.
+
+        Enable variation fonts in GTK+ port when required dependencies are available.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2018-12-10  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add ENABLE_RESOURCE_LOAD_STATISTICS to WebKitFeatures.cmake
+        https://bugs.webkit.org/show_bug.cgi?id=192574
+
+        Reviewed by Michael Catanzaro.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
+2018-12-10  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Add test262-results directory to .gitignore.
+        https://bugs.webkit.org/show_bug.cgi?id=192547
+
+        Reviewed by Dean Jackson.
+
+        * .gitignore:
+
+2018-12-06  Carlos Eduardo Ramalho  <cadubentzen@gmail.com>
+
+        [GStreamer] -DENABLE_VIDEO=ON -DENABLE_OPENGL=OFF still tries to build GstreamerGL
+        https://bugs.webkit.org/show_bug.cgi?id=191998
+
+        Reviewed by Philippe Normand.
+
+        Fix compilation with -DENABLE_VIDEO=ON and -DENABLE_OPENGL=OFF due to GStreamerGL.
+
+        * Source/cmake/GStreamerDependencies.cmake: "DEFINED ENABLE_OPENGL" is always false because ENABLE_OPENGL
+        is not a CMake variable (WEBKIT_OPTION_DEFINE macro does not define ENABLE_OPENGL variable per se, but other
+        variables and appends it to a list).
+        * Source/cmake/OptionsGTK.cmake: GStreamerDefinitions.cmake was included twice by mistake. Second should be GStreamerDependencies.cmake.
+
+2018-12-06  Carlos Eduardo Ramalho  <cadubentzen@gmail.com>
+
+        REGRESSION(r231043): [GTK] Undefined references to WebCore::LayerRepresentation::* with -DENABLE_OPENGL=OFF builds
+        https://bugs.webkit.org/show_bug.cgi?id=191997
+
+        Reviewed by Philippe Normand.
+
+        Fix build with -DENABLE_OPENGL=OFF and -DENABLE_VIDEO=OFF
+
+        * Source/cmake/OptionsGTK.cmake: make ENABLE_ASYNC_SCROLLING depend on ENABLE_OPENGL
+
+2018-12-05  Don Olmstead  <don.olmstead@sony.com>
+
+        [PlayStation] Enable WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=192384
+
+        Reviewed by Brent Fulgham.
+
+        Adds CMake options for building WebCore on PlayStation.
+
+        * Source/cmake/FindLibPSL.cmake:
+        * Source/cmake/FindNghttp2.cmake: Copied from Source/cmake/FindWPE.cmake.
+        * Source/cmake/FindPixman.cmake: Added.
+        * Source/cmake/FindWPE.cmake:
+        * Source/cmake/OptionsPlayStation.cmake:
+
+2018-12-04  Carlos Eduardo Ramalho  <cadubentzen@gmail.com>
+
+        [WPE] Add gtk-doc
+        https://bugs.webkit.org/show_bug.cgi?id=178900
+
+        Reviewed by Michael Catanzaro.
+
+        Add gtk-doc to WPE port. This patch tries to reuse as much code from
+        WebKitGTK+ as possible.
+
+        * Source/PlatformGTK.cmake: include GtkDoc.cmake instead of defining macro.
+        * Source/PlatformWPE.cmake: Added documentation generation.
+        * Source/cmake/GtkDoc.cmake: Added.
+        * Source/cmake/OptionsWPE.cmake: Added ENABLE_GTKDOC build option and added pkg-config path variables.
+
+2018-12-03  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Sync feature defines
+        https://bugs.webkit.org/show_bug.cgi?id=191167
+
+        Reviewed by Michael Catanzaro.
+
+        * Source/cmake/WebKitFeatures.cmake:
+
 2018-12-01  Don Olmstead  <don.olmstead@sony.com>
 
         Cleanup WebKit Features

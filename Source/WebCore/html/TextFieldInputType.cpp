@@ -57,6 +57,7 @@
 #include "TextEvent.h"
 #include "TextIterator.h"
 #include "TextNodeTraversal.h"
+#include "UserTypingGestureIndicator.h"
 #include "WheelEvent.h"
 
 #if ENABLE(DATALIST_ELEMENT)
@@ -168,6 +169,9 @@ void TextFieldInputType::setValue(const String& sanitizedValue, bool valueChange
     // FIXME: Why do we do this when eventBehavior == DispatchNoEvent
     if (!input->focused() || eventBehavior == DispatchNoEvent)
         input->setTextAsOfLastFormControlChangeEvent(sanitizedValue);
+
+    if (UserTypingGestureIndicator::processingUserTypingGesture())
+        didSetValueByUserEdit();
 }
 
 #if ENABLE(DATALIST_ELEMENT)
@@ -295,9 +299,6 @@ RenderPtr<RenderElement> TextFieldInputType::createInputRenderer(RenderStyle&& s
 
 bool TextFieldInputType::needsContainer() const
 {
-#if ENABLE(DATALIST_ELEMENT)
-    return element()->hasAttributeWithoutSynchronization(listAttr);
-#endif
     return false;
 }
 
@@ -354,14 +355,7 @@ void TextFieldInputType::createShadowSubtree()
 
         m_container->appendChild(*m_capsLockIndicator);
     }
-
     updateAutoFillButton();
-
-#if ENABLE(DATALIST_ELEMENT)
-    m_dataListDropdownIndicator = DataListButtonElement::create(element()->document(), *this);
-    m_dataListDropdownIndicator->setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone, true);
-    m_container->appendChild(*m_dataListDropdownIndicator);
-#endif
 }
 
 HTMLElement* TextFieldInputType::containerElement() const
@@ -451,6 +445,18 @@ bool TextFieldInputType::shouldUseInputMethod() const
 {
     return true;
 }
+
+#if ENABLE(DATALIST_ELEMENT)
+void TextFieldInputType::createDataListDropdownIndicator()
+{
+    ASSERT(!m_dataListDropdownIndicator);
+    if (!m_container)
+        createContainer();
+    m_dataListDropdownIndicator = DataListButtonElement::create(element()->document(), *this);
+    m_dataListDropdownIndicator->setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone, true);
+    m_container->appendChild(*m_dataListDropdownIndicator);
+}
+#endif
 
 // FIXME: The name of this function doesn't make clear the two jobs it does:
 // 1) Limits the string to a particular number of grapheme clusters.
@@ -828,7 +834,7 @@ void TextFieldInputType::listAttributeTargetChanged()
     m_cachedSuggestions = std::make_pair(String(), Vector<String>());
 
     if (!m_dataListDropdownIndicator)
-        return;
+        createDataListDropdownIndicator();
 
 #if !PLATFORM(IOS_FAMILY)
     m_dataListDropdownIndicator->setInlineStyleProperty(CSSPropertyDisplay, element()->list() ? CSSValueBlock : CSSValueNone, true);

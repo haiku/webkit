@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Google Inc. All rights reserved.
- * Copyright (C) 2013-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -575,6 +575,7 @@ enum CompositingPolicy {
     [Conditional=WIRELESS_PLAYBACK_TARGET] void setMockMediaPlaybackTargetPickerEnabled(boolean enabled);
     [Conditional=WIRELESS_PLAYBACK_TARGET, MayThrowException] void setMockMediaPlaybackTargetPickerState(DOMString deviceName, DOMString deviceState);
     [Conditional=MEDIA_STREAM] void setMockMediaCaptureDevicesEnabled(boolean enabled);
+    [Conditional=MEDIA_STREAM] void setCustomPrivateRecorderCreator();
 
     [Conditional=WEB_RTC] void emulateRTCPeerConnectionPlatformEvent(RTCPeerConnection connection, DOMString action);
     [Conditional=WEB_RTC] void useMockRTCPeerConnectionFactory(DOMString testCase);
@@ -664,7 +665,6 @@ enum CompositingPolicy {
     [Conditional=MEDIA_STREAM] Promise<ImageData> grabNextMediaStreamTrackFrame();
     [Conditional=MEDIA_STREAM] readonly attribute unsigned long trackAudioSampleCount;
     [Conditional=MEDIA_STREAM] readonly attribute unsigned long trackVideoSampleCount;
-    [Conditional=MEDIA_STREAM, MayThrowException] void setMediaDeviceState(DOMString deviceID, DOMString property, boolean value);
     [Conditional=MEDIA_STREAM] void delayMediaStreamTrackSamples(MediaStreamTrack track, float delay);
     [Conditional=MEDIA_STREAM] void setMediaStreamTrackMuted(MediaStreamTrack track, boolean muted);
     [Conditional=MEDIA_STREAM] void removeMediaStreamTrack(MediaStream stream, MediaStreamTrack track);
@@ -688,6 +688,7 @@ enum CompositingPolicy {
 
     DOMString audioSessionCategory();
     double preferredAudioBufferSize();
+    boolean audioSessionActive();
 
     [Conditional=SERVICE_WORKER] Promise<boolean> hasServiceWorkerRegistration(DOMString scopeURL);
     [Conditional=SERVICE_WORKER] void terminateServiceWorker(ServiceWorker worker);
@@ -699,6 +700,9 @@ enum CompositingPolicy {
     boolean isSystemPreviewImage(Element element);
 
     boolean usingAppleInternalSDK();
+
+    void postTask(VoidCallback callback);
+    void markContextAsInsecure();
 
     [Conditional=VIDEO, MayThrowException] readonly attribute NowPlayingState nowPlayingState;
 

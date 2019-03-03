@@ -94,7 +94,7 @@
 @end
 
 #if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
-@interface NSWindow (WebNSWindowDetails)
+@interface NSWindow (WebNSWindowLayerHostingDetails)
 - (BOOL)_hostsLayersInWindowServer;
 @end
 #endif
@@ -123,9 +123,9 @@ void PageClientImpl::setImpl(WebViewImpl& impl)
     m_impl = makeWeakPtr(impl);
 }
 
-std::unique_ptr<DrawingAreaProxy> PageClientImpl::createDrawingAreaProxy()
+std::unique_ptr<DrawingAreaProxy> PageClientImpl::createDrawingAreaProxy(WebProcessProxy& process)
 {
-    return m_impl->createDrawingAreaProxy();
+    return m_impl->createDrawingAreaProxy(process);
 }
 
 void PageClientImpl::setViewNeedsDisplay(const WebCore::Region&)
@@ -384,9 +384,9 @@ void PageClientImpl::startDrag(const WebCore::DragItem& item, const ShareableBit
 
 void PageClientImpl::setPromisedDataForImage(const String& pasteboardName, Ref<SharedBuffer>&& imageBuffer, const String& filename, const String& extension, const String& title, const String& url, const String& visibleURL, RefPtr<SharedBuffer>&& archiveBuffer)
 {
-    RefPtr<Image> image = BitmapImage::create();
+    auto image = BitmapImage::create();
     image->setData(WTFMove(imageBuffer), true);
-    m_impl->setPromisedDataForImage(image.get(), filename, extension, title, url, visibleURL, archiveBuffer.get(), pasteboardName);
+    m_impl->setPromisedDataForImage(image.ptr(), filename, extension, title, url, visibleURL, archiveBuffer.get(), pasteboardName);
 }
 
 void PageClientImpl::updateSecureInputState()
@@ -496,9 +496,21 @@ void PageClientImpl::showSafeBrowsingWarning(const SafeBrowsingWarning& warning,
     m_impl->showSafeBrowsingWarning(warning, WTFMove(completionHandler));
 }
 
+bool PageClientImpl::hasSafeBrowsingWarning() const
+{
+    if (!m_impl)
+        return false;
+    return !!m_impl->safeBrowsingWarning();
+}
+
 void PageClientImpl::clearSafeBrowsingWarning()
 {
     m_impl->clearSafeBrowsingWarning();
+}
+
+void PageClientImpl::clearSafeBrowsingWarningIfForMainFrameNavigation()
+{
+    m_impl->clearSafeBrowsingWarningIfForMainFrameNavigation();
 }
 
 void PageClientImpl::setTextIndicator(Ref<TextIndicator> textIndicator, WebCore::TextIndicatorWindowLifetime lifetime)
@@ -950,6 +962,11 @@ WebCore::UserInterfaceLayoutDirection PageClientImpl::userInterfaceLayoutDirecti
 bool PageClientImpl::effectiveAppearanceIsDark() const
 {
     return m_impl->effectiveAppearanceIsDark();
+}
+
+void PageClientImpl::takeFocus(WebCore::FocusDirection direction)
+{
+    m_impl->takeFocus(direction);
 }
 
 } // namespace WebKit

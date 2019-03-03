@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  * Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
  *
@@ -594,6 +594,10 @@
 #define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_36
 #endif
 
+#if PLATFORM(WPE)
+#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_40
+#endif
+
 #if PLATFORM(GTK) && !defined(GTK_API_VERSION_2)
 #define GDK_VERSION_MIN_REQUIRED GDK_VERSION_3_6
 #endif
@@ -739,10 +743,6 @@
 
 #endif /* OS(DARWIN) */
 
-#if PLATFORM(COCOA)
-#define ENABLE_RESOURCE_LOAD_STATISTICS 1
-#endif
-
 #if OS(DARWIN) || OS(FUCHSIA) || OS(HAIKU) || ((OS(FREEBSD) || defined(__GLIBC__) || defined(__BIONIC__)) && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(ARM64) || CPU(MIPS)))
 #define HAVE_MACHINE_CONTEXT 1
 #endif
@@ -797,11 +797,15 @@
 #if !defined(ENABLE_JIT)
 #define ENABLE_JIT 1
 #endif
-/* But still disable DFG for now. */
+#elif CPU(MIPS) && OS(LINUX)
+/* Same on MIPS/Linux, but DFG is disabled for now. */
+#if !defined(ENABLE_JIT)
+#define ENABLE_JIT 1
+#endif
 #undef ENABLE_DFG_JIT
 #define ENABLE_DFG_JIT 0
 #else
-/* Disable JIT and force C_LOOP on all 32bit-architectures but ARMv7-Thumb2/Linux. */
+/* Disable JIT and force C_LOOP on all other 32bit architectures. */
 #undef ENABLE_JIT
 #define ENABLE_JIT 0
 #undef ENABLE_C_LOOP
@@ -998,12 +1002,10 @@
 #define JIT_OPERATION
 #endif
 
-#ifndef ENABLE_SEPARATED_WX_HEAP
-#if (!ENABLE(FAST_JIT_PERMISSIONS) || !CPU(ARM64E)) && PLATFORM(IOS_FAMILY) && CPU(ARM64)
+#if PLATFORM(IOS_FAMILY) && CPU(ARM64) && (!ENABLE(FAST_JIT_PERMISSIONS) || !CPU(ARM64E))
 #define ENABLE_SEPARATED_WX_HEAP 1
 #else
 #define ENABLE_SEPARATED_WX_HEAP 0
-#endif
 #endif
 
 /* Configure the interpreter */
@@ -1117,6 +1119,9 @@
 
 #if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV) && !PLATFORM(IOSMAC)
 #define ENABLE_DATA_DETECTION 1
+#endif
+
+#if !PLATFORM(APPLETV) && !PLATFORM(IOSMAC)
 #define HAVE_PARENTAL_CONTROLS 1
 #endif
 
@@ -1383,7 +1388,6 @@
 
 #if PLATFORM(MAC)
 #define HAVE_TOUCH_BAR 1
-#define HAVE_ADVANCED_SPELL_CHECKING 1
 #define USE_DICTATION_ALTERNATIVES 1
 
 #if defined(__LP64__)
@@ -1397,6 +1401,10 @@
 
 #if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300) || PLATFORM(IOS) || PLATFORM(IOSMAC) || USE(GCRYPT)
 #define HAVE_RSA_PSS 1
+#endif
+
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500) || PLATFORM(IOS_FAMILY)
+#define USE_SOURCE_APPLICATION_AUDIT_DATA 1
 #endif
 
 #if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400) || PLATFORM(IOS) || PLATFORM(IOSMAC)
@@ -1453,4 +1461,72 @@
 #if PLATFORM(MAC) || PLATFORM(IOS)
 #define USE_CFNETWORK_AUTO_ADDED_HTTP_HEADER_SUPPRESSION 1
 #endif
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#define HAVE_OS_DARK_MODE_SUPPORT 1
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#define HAVE_CG_FONT_RENDERING_GET_FONT_SMOOTHING_DISABLED 1
+#endif
+
+#ifdef __APPLE__
+#define HAVE_FUNC_USLEEP 1
+#endif
+
+#if PLATFORM(MAC) || PLATFORM(WPE)
+/* FIXME: This really needs a descriptive name, this "new theme" was added in 2008. */
+#define USE_NEW_THEME 1
+#endif
+
+#if PLATFORM(MAC)
+#define HAVE_WINDOW_SERVER_OCCLUSION_NOTIFICATIONS 1
+#endif
+
+#if PLATFORM(COCOA)
+#define HAVE_SEC_ACCESS_CONTROL 1
+#endif
+
+#if PLATFORM(IOS)
+/* FIXME: SafariServices.framework exists on macOS. It is only used by WebKit on iOS, so the behavior is correct, but the name is misleading. */
+#define HAVE_SAFARI_SERVICES_FRAMEWORK 1
+#endif
+
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300 && !defined(__i386__)) || PLATFORM(IOS) || PLATFORM(WATCHOS)
+#define HAVE_SAFE_BROWSING 1
+#endif
+
+#if PLATFORM(IOS)
+#define HAVE_LINK_PREVIEW 1
+#endif
+
+#if PLATFORM(COCOA)
+/* FIXME: This is a USE style macro, as it triggers the use of CFURLConnection framework stubs. */
+/* FIXME: Is this still necessary? CFURLConnection isn't used on Cocoa platforms any more. */
+#define ENABLE_SEC_ITEM_SHIM 1
+#endif
+
+#if (PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400))
+#define HAVE_ACCESSIBILITY_SUPPORT 1
+#endif
+
+#if PLATFORM(MAC)
+#define ENABLE_FULL_KEYBOARD_ACCESS 1
+#endif
+
+#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400)
+#define HAVE_AUTHORIZATION_STATUS_FOR_MEDIA_TYPE 1
+#endif
+
+#if (PLATFORM(MAC) && (__MAC_OS_X_VERSION_MIN_REQUIRED == 101200 || (__MAC_OS_X_VERSION_MIN_REQUIRED >= 101400 && __MAC_OS_X_VERSION_MAX_ALLOWED >= 101404))) || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 120000 && __IPHONE_OS_VERSION_MAX_ALLOWED >= 120200) || (PLATFORM(WATCHOS) && __WATCH_OS_VERSION_MIN_REQUIRED >= 50000 && __WATCH_OS_VERSION_MAX_ALLOWED >= 50200) || (PLATFORM(APPLETV) && __TV_OS_VERSION_MIN_REQUIRED >= 120000 && __TV_OS_VERSION_MAX_ALLOWED >= 120200)
+#define HAVE_CFNETWORK_OVERRIDE_SESSION_COOKIE_ACCEPT_POLICY 1
+#endif
+
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500) || (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 130000)
+#define HAVE_CFNETWORK_NSURLSESSION_STRICTRUSTEVALUATE 1
+#endif
+
+#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500) || (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 130000)
+#define HAVE_CFNETWORK_NEGOTIATED_SSL_PROTOCOL_CIPHER 1
 #endif

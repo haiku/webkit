@@ -39,6 +39,7 @@
 #include "JSDOMWindow.h"
 #include "MessagePort.h"
 #include "Navigator.h"
+#include "Page.h"
 #include "PublicURLManager.h"
 #include "RejectedPromiseTracker.h"
 #include "ResourceRequest.h"
@@ -104,7 +105,7 @@ ScriptExecutionContextIdentifier ScriptExecutionContext::contextIdentifier() con
     if (!m_contextIdentifier) {
         Locker<Lock> locker(allScriptExecutionContextsMapLock);
 
-        m_contextIdentifier = generateObjectIdentifier<ScriptExecutionContextIdentifierType>();
+        m_contextIdentifier = ScriptExecutionContextIdentifier::generate();
 
         ASSERT(!allScriptExecutionContextsMap().contains(m_contextIdentifier));
         allScriptExecutionContextsMap().add(m_contextIdentifier, const_cast<ScriptExecutionContext*>(this));
@@ -392,6 +393,14 @@ void ScriptExecutionContext::reportException(const String& errorMessage, int lin
 
 void ScriptExecutionContext::reportUnhandledPromiseRejection(JSC::ExecState& state, JSC::JSPromise& promise, RefPtr<Inspector::ScriptCallStack>&& callStack)
 {
+    Page* page = nullptr;
+    if (is<Document>(this))
+        page = downcast<Document>(this)->page();
+    // FIXME: allow Workers to mute unhandled promise rejection messages.
+
+    if (page && !page->settings().unhandledPromiseRejectionToConsoleEnabled())
+        return;
+
     JSC::VM& vm = state.vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
 

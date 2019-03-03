@@ -28,6 +28,7 @@
 
 #if ENABLE(WEBGPU)
 
+#import "GPUBuffer.h"
 #import "GPUCommandBuffer.h"
 #import "GPURenderPassDescriptor.h"
 #import "GPURenderPipeline.h"
@@ -79,8 +80,24 @@ PlatformProgrammablePassEncoder *GPURenderPassEncoder::platformPassEncoder() con
 
 void GPURenderPassEncoder::setPipeline(Ref<GPURenderPipeline>&& pipeline)
 {
+    BEGIN_BLOCK_OBJC_EXCEPTIONS;
+
+    if (pipeline->depthStencilState())
+        [m_platformRenderPassEncoder setDepthStencilState:pipeline->depthStencilState()];
+
     [m_platformRenderPassEncoder setRenderPipelineState:pipeline->platformRenderPipeline()];
+
+    END_BLOCK_OBJC_EXCEPTIONS;
+
     m_pipeline = WTFMove(pipeline);
+}
+
+void GPURenderPassEncoder::setVertexBuffers(unsigned long index, Vector<Ref<const GPUBuffer>>&& buffers, Vector<unsigned>&& offsets) 
+{
+    ASSERT(buffers.size() && offsets.size() == buffers.size());
+    // FIXME: Only worry about the first buffer for now, and treat startSlot as the index.
+    // FIXME: Replace with MTLRenderPassEncoder::setVertexBuffers.
+    [m_platformRenderPassEncoder setVertexBuffer:buffers[0]->platformBuffer() offset:offsets[0] atIndex:index];
 }
 
 static MTLPrimitiveType primitiveTypeForGPUPrimitiveTopology(PrimitiveTopology type)
@@ -108,6 +125,25 @@ void GPURenderPassEncoder::draw(unsigned long vertexCount, unsigned long instanc
         instanceCount:instanceCount
         baseInstance:firstInstance];
 }
+
+#if USE(METAL)
+
+void GPURenderPassEncoder::useResource(MTLResource *resource, unsigned long usage)
+{
+    [m_platformRenderPassEncoder useResource:resource usage:usage];
+}
+
+void GPURenderPassEncoder::setVertexBuffer(MTLBuffer *buffer, unsigned long offset, unsigned long index)
+{
+    [m_platformRenderPassEncoder setVertexBuffer:buffer offset:offset atIndex:index];
+}
+
+void GPURenderPassEncoder::setFragmentBuffer(MTLBuffer *buffer, unsigned long offset, unsigned long index)
+{
+    [m_platformRenderPassEncoder setFragmentBuffer:buffer offset:offset atIndex:index];
+}
+
+#endif // USE(METAL)
 
 } // namespace WebCore
 

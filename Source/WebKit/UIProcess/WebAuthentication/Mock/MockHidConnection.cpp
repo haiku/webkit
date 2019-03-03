@@ -31,6 +31,7 @@
 #include <WebCore/AuthenticatorGetInfoResponse.h>
 #include <WebCore/CBORReader.h>
 #include <WebCore/FidoConstants.h>
+#include <WebCore/WebAuthenticationConstants.h>
 #include <wtf/BlockPtr.h>
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/RunLoop.h>
@@ -70,7 +71,7 @@ void MockHidConnection::terminate()
 void MockHidConnection::send(Vector<uint8_t>&& data, DataSentCallback&& callback)
 {
     ASSERT(m_initialized);
-    auto task = BlockPtr<void()>::fromCallable([weakThis = makeWeakPtr(*this), data = WTFMove(data), callback = WTFMove(callback)]() mutable {
+    auto task = makeBlockPtr([weakThis = makeWeakPtr(*this), data = WTFMove(data), callback = WTFMove(callback)]() mutable {
         ASSERT(!RunLoop::isMain());
         RunLoop::main().dispatch([weakThis, data = WTFMove(data), callback = WTFMove(callback)]() mutable {
             if (!weakThis) {
@@ -126,43 +127,48 @@ void MockHidConnection::parseRequest()
         if (previousSubStage == Mock::SubStage::Msg)
             m_stage = Mock::Stage::Request;
     }
-    if (m_requestMessage->cmd() == FidoHidDeviceCommand::kCbor)
+    if (m_requestMessage->cmd() == FidoHidDeviceCommand::kCbor || m_requestMessage->cmd() == FidoHidDeviceCommand::kMsg)
         m_subStage = Mock::SubStage::Msg;
 
-    // Set options.
     if (m_stage == Mock::Stage::Request && m_subStage == Mock::SubStage::Msg) {
-        m_requireResidentKey = false;
-        m_requireUserVerification = false;
+        // Make sure we issue different msg cmd for CTAP and U2F.
+        ASSERT(m_configuration.hid->isU2f ^ (m_requestMessage->cmd() != FidoHidDeviceCommand::kMsg));
 
-        auto payload = m_requestMessage->getMessagePayload();
-        ASSERT(payload.size());
-        auto cmd = static_cast<CtapRequestCommand>(payload[0]);
-        payload.remove(0);
-        auto requestMap = CBORReader::read(payload);
-        ASSERT(requestMap);
+        // Set options.
+        if (m_requestMessage->cmd() == FidoHidDeviceCommand::kCbor) {
+            m_requireResidentKey = false;
+            m_requireUserVerification = false;
 
-        if (cmd == CtapRequestCommand::kAuthenticatorMakeCredential) {
-            auto it = requestMap->getMap().find(CBORValue(CtapMakeCredentialRequestOptionsKey)); // Find options.
-            if (it != requestMap->getMap().end()) {
-                auto& optionMap = it->second.getMap();
+            auto payload = m_requestMessage->getMessagePayload();
+            ASSERT(payload.size());
+            auto cmd = static_cast<CtapRequestCommand>(payload[0]);
+            payload.remove(0);
+            auto requestMap = CBORReader::read(payload);
+            ASSERT(requestMap);
 
-                auto itr = optionMap.find(CBORValue(kResidentKeyMapKey));
-                if (itr != optionMap.end())
-                    m_requireResidentKey = itr->second.getBool();
+            if (cmd == CtapRequestCommand::kAuthenticatorMakeCredential) {
+                auto it = requestMap->getMap().find(CBORValue(CtapMakeCredentialRequestOptionsKey)); // Find options.
+                if (it != requestMap->getMap().end()) {
+                    auto& optionMap = it->second.getMap();
 
-                itr = optionMap.find(CBORValue(kUserVerificationMapKey));
-                if (itr != optionMap.end())
-                    m_requireUserVerification = itr->second.getBool();
+                    auto itr = optionMap.find(CBORValue(kResidentKeyMapKey));
+                    if (itr != optionMap.end())
+                        m_requireResidentKey = itr->second.getBool();
+
+                    itr = optionMap.find(CBORValue(kUserVerificationMapKey));
+                    if (itr != optionMap.end())
+                        m_requireUserVerification = itr->second.getBool();
+                }
             }
-        }
 
-        if (cmd == CtapRequestCommand::kAuthenticatorGetAssertion) {
-            auto it = requestMap->getMap().find(CBORValue(CtapGetAssertionRequestOptionsKey)); // Find options.
-            if (it != requestMap->getMap().end()) {
-                auto& optionMap = it->second.getMap();
-                auto itr = optionMap.find(CBORValue(kUserVerificationMapKey));
-                if (itr != optionMap.end())
-                    m_requireUserVerification = itr->second.getBool();
+            if (cmd == CtapRequestCommand::kAuthenticatorGetAssertion) {
+                auto it = requestMap->getMap().find(CBORValue(CtapGetAssertionRequestOptionsKey)); // Find options.
+                if (it != requestMap->getMap().end()) {
+                    auto& optionMap = it->second.getMap();
+                    auto itr = optionMap.find(CBORValue(kUserVerificationMapKey));
+                    if (itr != optionMap.end())
+                        m_requireUserVerification = itr->second.getBool();
+                }
             }
         }
     }
@@ -174,7 +180,7 @@ void MockHidConnection::parseRequest()
     }
 
     m_currentChannel = m_requestMessage->channelId();
-    m_requestMessage = std::nullopt;
+    m_requestMessage = WTF::nullopt;
     if (m_configuration.hid->fastDataArrival)
         feedReports();
 }
@@ -200,14 +206,18 @@ void MockHidConnection::feedReports()
         return;
     }
 
-    std::optional<FidoHidMessage> message;
+    Optional<FidoHidMessage> message;
     if (m_stage == Mock::Stage::Info && m_subStage == Mock::SubStage::Msg) {
-        auto infoData = encodeAsCBOR(AuthenticatorGetInfoResponse({ ProtocolVersion::kCtap }, Vector<uint8_t>(kAaguidLength, 0u)));
+        auto infoData = encodeAsCBOR(AuthenticatorGetInfoResponse({ ProtocolVersion::kCtap }, Vector<uint8_t>(aaguidLength, 0u)));
         infoData.insert(0, static_cast<uint8_t>(CtapDeviceResponseCode::kSuccess)); // Prepend status code.
         if (stagesMatch() && m_configuration.hid->error == Mock::Error::WrongChannelId)
             message = FidoHidMessage::create(m_currentChannel - 1, FidoHidDeviceCommand::kCbor, infoData);
-        else
-            message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kCbor, infoData);
+        else {
+            if (!m_configuration.hid->isU2f)
+                message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kCbor, infoData);
+            else
+                message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kError, { static_cast<uint8_t>(CtapDeviceResponseCode::kCtap1ErrInvalidCommand) });
+        }
     }
 
     if (m_stage == Mock::Stage::Request && m_subStage == Mock::SubStage::Msg) {
@@ -222,9 +232,14 @@ void MockHidConnection::feedReports()
             message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kCbor, { static_cast<uint8_t>(CtapDeviceResponseCode::kCtap2ErrUnsupportedOption) });
         else {
             Vector<uint8_t> payload;
-            auto status = base64Decode(m_configuration.hid->payloadBase64, payload);
+            ASSERT(!m_configuration.hid->payloadBase64.isEmpty());
+            auto status = base64Decode(m_configuration.hid->payloadBase64[0], payload);
+            m_configuration.hid->payloadBase64.remove(0);
             ASSERT_UNUSED(status, status);
-            message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kCbor, payload);
+            if (!m_configuration.hid->isU2f)
+                message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kCbor, payload);
+            else
+                message = FidoHidMessage::create(m_currentChannel, FidoHidDeviceCommand::kMsg, payload);
         }
     }
 

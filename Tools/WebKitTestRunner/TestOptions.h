@@ -51,6 +51,7 @@ struct TestOptions {
     bool enableModernMediaControls { true };
     bool enablePointerLock { false };
     bool enableWebAuthentication { true };
+    bool enableWebAuthenticationLocalAuthenticator { true };
     bool enableIsSecureContextAttribute { true };
     bool enableInspectorAdditions { false };
     bool shouldShowTouches { false };
@@ -65,6 +66,10 @@ struct TestOptions {
     bool shouldIgnoreMetaViewport { false };
     bool shouldShowSpellCheckingDots { false };
     bool enableEditableImages { false };
+    bool editable { false };
+    bool enableUndoManagerAPI { false };
+
+    double contentInsetTop { 0 };
 
     float deviceScaleFactor { 1 };
     Vector<String> overrideLanguages;
@@ -93,6 +98,7 @@ struct TestOptions {
             || enableModernMediaControls != options.enableModernMediaControls
             || enablePointerLock != options.enablePointerLock
             || enableWebAuthentication != options.enableWebAuthentication
+            || enableWebAuthenticationLocalAuthenticator != options.enableWebAuthenticationLocalAuthenticator
             || enableIsSecureContextAttribute != options.enableIsSecureContextAttribute
             || enableInspectorAdditions != options.enableInspectorAdditions
             || dumpJSConsoleLogInStdErr != options.dumpJSConsoleLogInStdErr
@@ -107,7 +113,10 @@ struct TestOptions {
             || checkForWorldLeaks != options.checkForWorldLeaks
             || shouldShowSpellCheckingDots != options.shouldShowSpellCheckingDots
             || shouldIgnoreMetaViewport != options.shouldIgnoreMetaViewport
-            || enableEditableImages != options.enableEditableImages)
+            || enableEditableImages != options.enableEditableImages
+            || editable != options.editable
+            || enableUndoManagerAPI != options.enableUndoManagerAPI
+            || contentInsetTop != options.contentInsetTop)
             return false;
 
         if (experimentalFeatures != options.experimentalFeatures)

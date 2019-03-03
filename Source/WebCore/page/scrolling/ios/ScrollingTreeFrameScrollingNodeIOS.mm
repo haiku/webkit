@@ -30,8 +30,9 @@
 
 #import "FrameView.h"
 #import "ScrollingCoordinator.h"
-#import "ScrollingTree.h"
+#import "ScrollingStateFrameScrollingNode.h"
 #import "ScrollingStateTree.h"
+#import "ScrollingTree.h"
 #import "TileController.h"
 #import "WebLayer.h"
 #import <QuartzCore/QuartzCore.h>
@@ -95,6 +96,11 @@ void ScrollingTreeFrameScrollingNodeIOS::commitStateAfterChildren(const Scrollin
         setScrollPosition(scrollingStateNode.requestedScrollPosition());
 }
 
+ScrollingEventResult ScrollingTreeFrameScrollingNodeIOS::handleWheelEvent(const PlatformWheelEvent&)
+{
+    return ScrollingEventResult::DidNotHandleEvent;
+}
+
 FloatPoint ScrollingTreeFrameScrollingNodeIOS::scrollPosition() const
 {
     if (shouldUpdateScrollLayerPositionSynchronously())
@@ -103,17 +109,22 @@ FloatPoint ScrollingTreeFrameScrollingNodeIOS::scrollPosition() const
     return -m_scrollLayer.get().position;
 }
 
+void ScrollingTreeFrameScrollingNodeIOS::setScrollPosition(const FloatPoint& scrollPosition)
+{
+    ScrollingTreeFrameScrollingNode::setScrollPosition(scrollPosition);
+}
+
 void ScrollingTreeFrameScrollingNodeIOS::setScrollPositionWithoutContentEdgeConstraints(const FloatPoint& scrollPosition)
 {
     if (shouldUpdateScrollLayerPositionSynchronously()) {
         m_probableMainThreadScrollPosition = scrollPosition;
-        scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, std::nullopt, ScrollingLayerPositionAction::Set);
+        scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, WTF::nullopt, ScrollingLayerPositionAction::Set);
         return;
     }
 
     FloatRect layoutViewport; // FIXME: implement for iOS WK1.
     setScrollLayerPosition(scrollPosition, layoutViewport);
-    scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, std::nullopt);
+    scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, WTF::nullopt);
 }
 
 void ScrollingTreeFrameScrollingNodeIOS::setScrollLayerPosition(const FloatPoint& scrollPosition, const FloatRect&)
@@ -207,6 +218,11 @@ FloatPoint ScrollingTreeFrameScrollingNodeIOS::maximumScrollPosition() const
         position.setY(minimumScrollPosition().y());
 
     return position;
+}
+
+CALayer *ScrollingTreeFrameScrollingNodeIOS::scrollLayer() const
+{
+    return m_scrollLayer.get();
 }
 
 } // namespace WebCore

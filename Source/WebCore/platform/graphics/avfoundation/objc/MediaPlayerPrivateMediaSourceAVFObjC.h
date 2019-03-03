@@ -109,11 +109,11 @@ public:
     void setTextTrackRepresentation(TextTrackRepresentation*) override;
     void syncTextTrackBounds() override;
     
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA)
+#if HAVE(AVSTREAMSESSION) && ENABLE(LEGACY_ENCRYPTED_MEDIA)
     bool hasStreamSession() { return m_streamSession; }
     AVStreamSession *streamSession();
     void setCDMSession(LegacyCDMSession*) override;
-    CDMSessionMediaSourceAVFObjC* cdmSession() const { return m_session; }
+    CDMSessionMediaSourceAVFObjC* cdmSession() const { return m_session.get(); }
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
@@ -121,17 +121,17 @@ public:
     void cdmInstanceDetached(CDMInstance&) final;
     void attemptToDecryptWithInstance(CDMInstance&) final;
     bool waitingForKey() const final;
-
     void waitingForKeyChanged();
 #endif
-
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
-    void keyNeeded(Uint8Array*);
 
     void outputObscuredDueToInsufficientExternalProtectionChanged(bool);
     void beginSimulatedHDCPError() override { outputObscuredDueToInsufficientExternalProtectionChanged(true); }
     void endSimulatedHDCPError() override { outputObscuredDueToInsufficientExternalProtectionChanged(false); }
+
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
+    void keyNeeded(Uint8Array*);
 #endif
+
 #if ENABLE(ENCRYPTED_MEDIA)
     void initializationDataEncountered(const String&, RefPtr<ArrayBuffer>&&);
 #endif
@@ -224,7 +224,7 @@ private:
 
     size_t extraMemoryCost() const override;
 
-    std::optional<VideoPlaybackQualityMetrics> videoPlaybackQualityMetrics() override;
+    Optional<VideoPlaybackQualityMetrics> videoPlaybackQualityMetrics() override;
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
     bool isCurrentPlaybackTargetWireless() const override;
@@ -281,7 +281,9 @@ private:
     RefPtr<WebCoreDecompressionSession> m_decompressionSession;
     Deque<RetainPtr<id>> m_sizeChangeObservers;
     Timer m_seekTimer;
-    CDMSessionMediaSourceAVFObjC* m_session;
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA)
+    WeakPtr<CDMSessionMediaSourceAVFObjC> m_session;
+#endif
     MediaPlayer::NetworkState m_networkState;
     MediaPlayer::ReadyState m_readyState;
     bool m_readyStateIsWaitingForAvailableFrame { false };

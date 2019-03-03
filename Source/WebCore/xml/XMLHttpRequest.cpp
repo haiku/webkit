@@ -197,9 +197,9 @@ ExceptionOr<Document*> XMLHttpRequest::responseXML()
             m_responseDocument = nullptr;
         } else {
             if (isHTML)
-                m_responseDocument = HTMLDocument::create(0, m_url);
+                m_responseDocument = HTMLDocument::create(nullptr, m_url);
             else
-                m_responseDocument = XMLDocument::create(0, m_url);
+                m_responseDocument = XMLDocument::create(nullptr, m_url);
             m_responseDocument->overrideLastModified(m_response.lastModified());
             m_responseDocument->setContent(m_responseBuilder.toStringPreserveCapacity());
             m_responseDocument->setContextDocument(downcast<Document>(*scriptExecutionContext()));
@@ -411,10 +411,10 @@ ExceptionOr<void> XMLHttpRequest::open(const String& method, const String& url, 
     return open(method, urlWithCredentials, async);
 }
 
-std::optional<ExceptionOr<void>> XMLHttpRequest::prepareToSend()
+Optional<ExceptionOr<void>> XMLHttpRequest::prepareToSend()
 {
-    // A return value other than std::nullopt means we should not try to send, and we should return that value to the caller.
-    // std::nullopt means we are ready to send and should continue with the send algorithm.
+    // A return value other than WTF::nullopt means we should not try to send, and we should return that value to the caller.
+    // WTF::nullopt means we are ready to send and should continue with the send algorithm.
 
     if (!scriptExecutionContext())
         return ExceptionOr<void> { };
@@ -429,17 +429,17 @@ std::optional<ExceptionOr<void>> XMLHttpRequest::prepareToSend()
     if (!context.shouldBypassMainWorldContentSecurityPolicy() && !context.contentSecurityPolicy()->allowConnectToSource(m_url)) {
         if (!m_async)
             return ExceptionOr<void> { Exception { NetworkError } };
-        setPendingActivity(this);
+        setPendingActivity(*this);
         m_timeoutTimer.stop();
         m_networkErrorTimer.startOneShot(0_s);
         return ExceptionOr<void> { };
     }
 
     m_error = false;
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
-ExceptionOr<void> XMLHttpRequest::send(std::optional<SendTypes>&& sendType)
+ExceptionOr<void> XMLHttpRequest::send(Optional<SendTypes>&& sendType)
 {
     InspectorInstrumentation::willSendXMLHttpRequest(scriptExecutionContext(), url());
 
@@ -627,7 +627,7 @@ ExceptionOr<void> XMLHttpRequest::createRequest()
         }
     }
 
-    m_exceptionCode = std::nullopt;
+    m_exceptionCode = WTF::nullopt;
     m_error = false;
     m_uploadComplete = !request.httpBody();
     m_sendFlag = true;
@@ -652,7 +652,7 @@ ExceptionOr<void> XMLHttpRequest::createRequest()
         // a request is in progress because we need to keep the listeners alive,
         // and they are referenced by the JavaScript wrapper.
         if (m_loader)
-            setPendingActivity(this);
+            setPendingActivity(*this);
     } else {
         request.setDomainForCachePartition(scriptExecutionContext()->domainForCachePartition());
         InspectorInstrumentation::willLoadXHRSynchronously(scriptExecutionContext());
@@ -715,7 +715,7 @@ bool XMLHttpRequest::internalAbort()
     // Save this information to a local variable since we are going to drop protection.
     bool newLoadStarted = m_loader;
 
-    unsetPendingActivity(this);
+    unsetPendingActivity(*this);
 
     return !newLoadStarted;
 }
@@ -762,7 +762,7 @@ void XMLHttpRequest::networkError()
 void XMLHttpRequest::networkErrorTimerFired()
 {
     networkError();
-    unsetPendingActivity(this);
+    unsetPendingActivity(*this);
 }
     
 void XMLHttpRequest::abortError()
@@ -913,7 +913,7 @@ void XMLHttpRequest::didFail(const ResourceError& error)
     // In case didFail is called synchronously on an asynchronous XHR call, let's dispatch network error asynchronously
     if (m_async && m_sendFlag && !m_loader) {
         m_sendFlag = false;
-        setPendingActivity(this);
+        setPendingActivity(*this);
         m_timeoutTimer.stop();
         m_networkErrorTimer.startOneShot(0_s);
         return;
@@ -946,7 +946,7 @@ void XMLHttpRequest::didFinishLoading(unsigned long)
     m_timeoutTimer.stop();
 
     if (hadLoader)
-        unsetPendingActivity(this);
+        unsetPendingActivity(*this);
 }
 
 void XMLHttpRequest::didSendData(unsigned long long bytesSent, unsigned long long totalBytesToBeSent)

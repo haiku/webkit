@@ -264,7 +264,7 @@ bool WebPaymentCoordinatorProxy::platformCanMakePayments()
 void WebPaymentCoordinatorProxy::platformCanMakePaymentsWithActiveCard(const String& merchantIdentifier, const String& domainName, WTF::Function<void (bool)>&& completionHandler)
 {
 #if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300) || (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000)
-    PKCanMakePaymentsWithMerchantIdentifierDomainAndSourceApplication(merchantIdentifier, domainName, m_webPageProxy.process().processPool().configuration().sourceApplicationSecondaryIdentifier(), BlockPtr<void(BOOL, NSError *)>::fromCallable([completionHandler = WTFMove(completionHandler)](BOOL canMakePayments, NSError *error) mutable {
+    PKCanMakePaymentsWithMerchantIdentifierDomainAndSourceApplication(merchantIdentifier, domainName, m_webPageProxy.websiteDataStore().configuration().sourceApplicationSecondaryIdentifier(), makeBlockPtr([completionHandler = WTFMove(completionHandler)](BOOL canMakePayments, NSError *error) mutable {
         if (error)
             LOG_ERROR("PKCanMakePaymentsWithMerchantIdentifierAndDomain error %@", error);
 
@@ -273,7 +273,7 @@ void WebPaymentCoordinatorProxy::platformCanMakePaymentsWithActiveCard(const Str
         });
     }).get());
 #else
-    PKCanMakePaymentsWithMerchantIdentifierAndDomain(merchantIdentifier, domainName, BlockPtr<void(BOOL, NSError *)>::fromCallable([completionHandler = WTFMove(completionHandler)](BOOL canMakePayments, NSError *error) mutable {
+    PKCanMakePaymentsWithMerchantIdentifierAndDomain(merchantIdentifier, domainName, makeBlockPtr([completionHandler = WTFMove(completionHandler)](BOOL canMakePayments, NSError *error) mutable {
         if (error)
             LOG_ERROR("PKCanMakePaymentsWithMerchantIdentifierAndDomain error %@", error);
 
@@ -287,7 +287,7 @@ void WebPaymentCoordinatorProxy::platformCanMakePaymentsWithActiveCard(const Str
 void WebPaymentCoordinatorProxy::platformOpenPaymentSetup(const String& merchantIdentifier, const String& domainName, WTF::Function<void (bool)>&& completionHandler)
 {
     auto passLibrary = adoptNS([PAL::allocPKPassLibraryInstance() init]);
-    [passLibrary openPaymentSetupForMerchantIdentifier:merchantIdentifier domain:domainName completion:BlockPtr<void (BOOL)>::fromCallable([completionHandler = WTFMove(completionHandler)](BOOL result) mutable {
+    [passLibrary openPaymentSetupForMerchantIdentifier:merchantIdentifier domain:domainName completion:makeBlockPtr([completionHandler = WTFMove(completionHandler)](BOOL result) mutable {
         RunLoop::main().dispatch([completionHandler = WTFMove(completionHandler), result] {
             completionHandler(result);
         });
@@ -506,7 +506,7 @@ RetainPtr<PKPaymentRequest> toPKPaymentRequest(WebPageProxy& webPageProxy, const
 #endif
 
     // FIXME: Instead of using respondsToSelector, this should use a proper #if version check.
-    auto& configuration = webPageProxy.process().processPool().configuration();
+    auto& configuration = webPageProxy.websiteDataStore().configuration();
 
     if (!configuration.sourceApplicationBundleIdentifier().isEmpty() && [result respondsToSelector:@selector(setSourceApplicationBundleIdentifier:)])
         [result setSourceApplicationBundleIdentifier:configuration.sourceApplicationBundleIdentifier()];
@@ -515,8 +515,8 @@ RetainPtr<PKPaymentRequest> toPKPaymentRequest(WebPageProxy& webPageProxy, const
         [result setSourceApplicationSecondaryIdentifier:configuration.sourceApplicationSecondaryIdentifier()];
 
 #if PLATFORM(IOS_FAMILY)
-    if (!configuration.ctDataConnectionServiceType().isEmpty() && [result respondsToSelector:@selector(setCTDataConnectionServiceType:)])
-        [result setCTDataConnectionServiceType:configuration.ctDataConnectionServiceType()];
+    if (!webPageProxy.process().processPool().configuration().ctDataConnectionServiceType().isEmpty() && [result respondsToSelector:@selector(setCTDataConnectionServiceType:)])
+        [result setCTDataConnectionServiceType:webPageProxy.process().processPool().configuration().ctDataConnectionServiceType()];
 #endif
 
     return result;
@@ -636,7 +636,7 @@ static RetainPtr<NSArray> toNSErrors(const Vector<WebCore::PaymentError>& errors
 {
     auto result = adoptNS([[NSMutableArray alloc] init]);
 
-    for (auto error : errors) {
+    for (const auto& error : errors) {
         if (auto nsError = toNSError(error))
             [result addObject:nsError.get()];
     }
@@ -644,7 +644,7 @@ static RetainPtr<NSArray> toNSErrors(const Vector<WebCore::PaymentError>& errors
     return result;
 }
 #else
-static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const std::optional<WebCore::PaymentAuthorizationResult>& result)
+static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const Optional<WebCore::PaymentAuthorizationResult>& result)
 {
     if (!result)
         return PKPaymentAuthorizationStatusSuccess;
@@ -684,7 +684,7 @@ static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const std::op
 }
 #endif
 
-void WebPaymentCoordinatorProxy::platformCompletePaymentSession(const std::optional<WebCore::PaymentAuthorizationResult>& result)
+void WebPaymentCoordinatorProxy::platformCompletePaymentSession(const Optional<WebCore::PaymentAuthorizationResult>& result)
 {
     ASSERT(m_paymentAuthorizationViewController);
     ASSERT(m_paymentAuthorizationViewControllerDelegate);
@@ -710,7 +710,7 @@ void WebPaymentCoordinatorProxy::platformCompleteMerchantValidation(const WebCor
     m_paymentAuthorizationViewControllerDelegate->_sessionBlock = nullptr;
 }
 
-void WebPaymentCoordinatorProxy::platformCompleteShippingMethodSelection(const std::optional<WebCore::ShippingMethodUpdate>& update)
+void WebPaymentCoordinatorProxy::platformCompleteShippingMethodSelection(const Optional<WebCore::ShippingMethodUpdate>& update)
 {
     ASSERT(m_paymentAuthorizationViewController);
     ASSERT(m_paymentAuthorizationViewControllerDelegate);
@@ -728,7 +728,7 @@ void WebPaymentCoordinatorProxy::platformCompleteShippingMethodSelection(const s
 }
 
 #if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101300) || (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED < 110000)
-static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const std::optional<WebCore::ShippingContactUpdate>& update)
+static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const Optional<WebCore::ShippingContactUpdate>& update)
 {
     if (!update || update->errors.isEmpty())
         return PKPaymentAuthorizationStatusSuccess;
@@ -755,7 +755,7 @@ static PKPaymentAuthorizationStatus toPKPaymentAuthorizationStatus(const std::op
 }
 #endif
 
-void WebPaymentCoordinatorProxy::platformCompleteShippingContactSelection(const std::optional<WebCore::ShippingContactUpdate>& update)
+void WebPaymentCoordinatorProxy::platformCompleteShippingContactSelection(const Optional<WebCore::ShippingContactUpdate>& update)
 {
     ASSERT(m_paymentAuthorizationViewController);
     ASSERT(m_paymentAuthorizationViewControllerDelegate);
@@ -779,7 +779,7 @@ void WebPaymentCoordinatorProxy::platformCompleteShippingContactSelection(const 
     m_paymentAuthorizationViewControllerDelegate->_didSelectShippingContactCompletion = nullptr;
 }
 
-void WebPaymentCoordinatorProxy::platformCompletePaymentMethodSelection(const std::optional<WebCore::PaymentMethodUpdate>& update)
+void WebPaymentCoordinatorProxy::platformCompletePaymentMethodSelection(const Optional<WebCore::PaymentMethodUpdate>& update)
 {
     ASSERT(m_paymentAuthorizationViewController);
     ASSERT(m_paymentAuthorizationViewControllerDelegate);

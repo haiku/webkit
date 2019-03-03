@@ -47,6 +47,7 @@
 #include <wtf/Noncopyable.h>
 #include <wtf/Ref.h>
 #include <wtf/UniqueRef.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(COCOA)
@@ -86,6 +87,7 @@ class ChromeClient;
 class Color;
 class ContextMenuClient;
 class ContextMenuController;
+class CookieJar;
 class DOMRect;
 class DOMRectList;
 class DatabaseProvider;
@@ -120,6 +122,7 @@ class PlugInClient;
 class PluginData;
 class PluginInfoProvider;
 class PluginViewBase;
+class PointerCaptureController;
 class PointerLockController;
 class ProgressTracker;
 class ProgressTrackerClient;
@@ -165,7 +168,7 @@ enum class DidWrap : bool;
 enum class RouteSharingPolicy : uint8_t;
 enum class ShouldTreatAsContinuingLoad : bool;
 
-class Page : public Supplementable<Page> {
+class Page : public Supplementable<Page>, public CanMakeWeakPtr<Page> {
     WTF_MAKE_NONCOPYABLE(Page);
     WTF_MAKE_FAST_ALLOCATED;
     friend class SettingsBase;
@@ -242,6 +245,9 @@ public:
 #endif
     UserInputBridge& userInputBridge() const { return *m_userInputBridge; }
     InspectorController& inspectorController() const { return *m_inspectorController; }
+#if ENABLE(POINTER_EVENTS)
+    PointerCaptureController& pointerCaptureController() const { return *m_pointerCaptureController; }
+#endif
 #if ENABLE(POINTER_LOCK)
     PointerLockController& pointerLockController() const { return *m_pointerLockController; }
 #endif
@@ -346,6 +352,9 @@ public:
     const FloatBoxExtent& obscuredInsets() const { return m_obscuredInsets; }
     void setObscuredInsets(const FloatBoxExtent& obscuredInsets) { m_obscuredInsets = obscuredInsets; }
 
+    const FloatBoxExtent& contentInsets() const { return m_contentInsets; }
+    void setContentInsets(const FloatBoxExtent& insets) { m_contentInsets = insets; }
+
     const FloatBoxExtent& unobscuredSafeAreaInsets() const { return m_unobscuredSafeAreaInsets; }
     WEBCORE_EXPORT void setUnobscuredSafeAreaInsets(const FloatBoxExtent&);
 
@@ -360,7 +369,7 @@ public:
     WEBCORE_EXPORT bool useDarkAppearance() const;
     WEBCORE_EXPORT void setUseDarkAppearance(bool);
     bool defaultUseDarkAppearance() const { return m_useDarkAppearance; }
-    void setUseDarkAppearanceOverride(std::optional<bool>);
+    void setUseDarkAppearanceOverride(Optional<bool>);
 
 #if ENABLE(TEXT_AUTOSIZING)
     float textAutosizingWidth() const { return m_textAutosizingWidth; }
@@ -426,7 +435,7 @@ public:
 #endif
 
 #if ENABLE(APPLICATION_MANIFEST)
-    const std::optional<ApplicationManifest>& applicationManifest() const { return m_applicationManifest; }
+    const Optional<ApplicationManifest>& applicationManifest() const { return m_applicationManifest; }
 #endif
 
     // Notifications when the Page starts and stops being presented via a native window.
@@ -574,6 +583,7 @@ public:
     DatabaseProvider& databaseProvider() { return m_databaseProvider; }
     CacheStorageProvider& cacheStorageProvider() { return m_cacheStorageProvider; }
     SocketProvider& socketProvider() { return m_socketProvider; }
+    CookieJar& cookieJar() { return m_cookieJar.get(); }
 
     StorageNamespaceProvider& storageNamespaceProvider() { return m_storageNamespaceProvider.get(); }
     void setStorageNamespaceProvider(Ref<StorageNamespaceProvider>&&);
@@ -599,6 +609,11 @@ public:
     void schedulePlaybackControlsManagerUpdate();
     WEBCORE_EXPORT void setMuted(MediaProducer::MutedStateFlags);
     WEBCORE_EXPORT void stopMediaCapture();
+
+    WEBCORE_EXPORT void stopAllMediaPlayback();
+    WEBCORE_EXPORT void suspendAllMediaPlayback();
+    WEBCORE_EXPORT void resumeAllMediaPlayback();
+    bool mediaPlaybackIsSuspended() { return m_mediaPlaybackIsSuspended; }
 
 #if ENABLE(MEDIA_SESSION)
     WEBCORE_EXPORT void handleMediaEvent(MediaEventType);
@@ -656,11 +671,11 @@ public:
     // Web Inspector can override whatever value is set via WebKit SPI, but only while it is open.
     void setResourceCachingDisabledOverride(bool disabled) { m_resourceCachingDisabledOverride = disabled; }
 
-    std::optional<EventThrottlingBehavior> eventThrottlingBehaviorOverride() const { return m_eventThrottlingBehaviorOverride; }
-    void setEventThrottlingBehaviorOverride(std::optional<EventThrottlingBehavior> throttling) { m_eventThrottlingBehaviorOverride = throttling; }
+    Optional<EventThrottlingBehavior> eventThrottlingBehaviorOverride() const { return m_eventThrottlingBehaviorOverride; }
+    void setEventThrottlingBehaviorOverride(Optional<EventThrottlingBehavior> throttling) { m_eventThrottlingBehaviorOverride = throttling; }
 
-    std::optional<CompositingPolicy> compositingPolicyOverride() const { return m_compositingPolicyOverride; }
-    void setCompositingPolicyOverride(std::optional<CompositingPolicy> policy) { m_compositingPolicyOverride = policy; }
+    Optional<CompositingPolicy> compositingPolicyOverride() const { return m_compositingPolicyOverride; }
+    void setCompositingPolicyOverride(Optional<CompositingPolicy> policy) { m_compositingPolicyOverride = policy; }
 
     WebGLStateTracker* webGLStateTracker() const { return m_webGLStateTracker.get(); }
 
@@ -672,7 +687,7 @@ public:
 #endif
 
     bool isLowPowerModeEnabled() const;
-    WEBCORE_EXPORT void setLowPowerModeEnabledOverrideForTesting(std::optional<bool>);
+    WEBCORE_EXPORT void setLowPowerModeEnabledOverrideForTesting(Optional<bool>);
 
     WEBCORE_EXPORT void applicationWillResignActive();
     WEBCORE_EXPORT void applicationDidEnterBackground();
@@ -705,7 +720,7 @@ private:
 
     unsigned findMatchesForText(const String&, FindOptions, unsigned maxMatchCount, ShouldHighlightMatches, ShouldMarkMatches);
 
-    std::optional<std::pair<MediaCanStartListener&, Document&>> takeAnyMediaCanStartListener();
+    Optional<std::pair<MediaCanStartListener&, Document&>> takeAnyMediaCanStartListener();
 
 #if ENABLE(VIDEO)
     void playbackControlsManagerUpdateTimerFired();
@@ -736,6 +751,9 @@ private:
 #endif
     const std::unique_ptr<UserInputBridge> m_userInputBridge;
     const std::unique_ptr<InspectorController> m_inspectorController;
+#if ENABLE(POINTER_EVENTS)
+    const std::unique_ptr<PointerCaptureController> m_pointerCaptureController;
+#endif
 #if ENABLE(POINTER_LOCK)
     const std::unique_ptr<PointerLockController> m_pointerLockController;
 #endif
@@ -784,6 +802,7 @@ private:
 
     float m_topContentInset { 0 };
     FloatBoxExtent m_obscuredInsets;
+    FloatBoxExtent m_contentInsets;
     FloatBoxExtent m_unobscuredSafeAreaInsets;
     FloatBoxExtent m_fullscreenInsets;
     Seconds m_fullscreenAutoHideDuration { 0_s };
@@ -794,7 +813,7 @@ private:
     
     bool m_useSystemAppearance { false };
     bool m_useDarkAppearance { false };
-    std::optional<bool> m_useDarkAppearanceOverride;
+    Optional<bool> m_useDarkAppearanceOverride;
 
 #if ENABLE(TEXT_AUTOSIZING)
     float m_textAutosizingWidth { 0 };
@@ -811,7 +830,7 @@ private:
     String m_userStyleSheetPath;
     mutable String m_userStyleSheet;
     mutable bool m_didLoadUserStyleSheet { false };
-    mutable std::optional<WallTime> m_userStyleSheetModificationTime;
+    mutable Optional<WallTime> m_userStyleSheetModificationTime;
 
     String m_captionUserPreferencesStyleSheet;
 
@@ -868,6 +887,7 @@ private:
     unsigned m_forbidPromptsDepth { 0 };
 
     Ref<SocketProvider> m_socketProvider;
+    Ref<CookieJar> m_cookieJar;
     Ref<ApplicationCacheStorage> m_applicationCacheStorage;
     Ref<CacheStorageProvider> m_cacheStorageProvider;
     Ref<DatabaseProvider> m_databaseProvider;
@@ -912,14 +932,14 @@ private:
     UserInterfaceLayoutDirection m_userInterfaceLayoutDirection { UserInterfaceLayoutDirection::LTR };
     
     // For testing.
-    std::optional<EventThrottlingBehavior> m_eventThrottlingBehaviorOverride;
-    std::optional<CompositingPolicy> m_compositingPolicyOverride;
+    Optional<EventThrottlingBehavior> m_eventThrottlingBehaviorOverride;
+    Optional<CompositingPolicy> m_compositingPolicyOverride;
 
     std::unique_ptr<PerformanceMonitor> m_performanceMonitor;
     std::unique_ptr<LowPowerModeNotifier> m_lowPowerModeNotifier;
-    std::optional<bool> m_lowPowerModeEnabledOverrideForTesting;
+    Optional<bool> m_lowPowerModeEnabledOverrideForTesting;
 
-    std::optional<Navigation> m_navigationToLogWhenVisible;
+    Optional<Navigation> m_navigationToLogWhenVisible;
 
     std::unique_ptr<PerformanceLogging> m_performanceLogging;
 #if PLATFORM(MAC)
@@ -941,10 +961,11 @@ private:
 #endif
 
 #if ENABLE(APPLICATION_MANIFEST)
-    std::optional<ApplicationManifest> m_applicationManifest;
+    Optional<ApplicationManifest> m_applicationManifest;
 #endif
 
     bool m_shouldEnableICECandidateFilteringByDefault { true };
+    bool m_mediaPlaybackIsSuspended { false };
 };
 
 inline PageGroup& Page::group()

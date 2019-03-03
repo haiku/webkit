@@ -102,9 +102,10 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
         else if (!this._style.ownerRule)
             this._element.classList.add("selector-locked");
 
+        this.element.addEventListener("mousedown", this._handleMouseDown.bind(this));
+
         if (this._style.editable) {
             this.element.addEventListener("click", this._handleClick.bind(this));
-            this.element.addEventListener("mousedown", this._handleMouseDown.bind(this));
 
             new WI.KeyboardShortcut(WI.KeyboardShortcut.Modifier.CommandOrControl, "S", this._save.bind(this), this._element);
             new WI.KeyboardShortcut(WI.KeyboardShortcut.Modifier.CommandOrControl | WI.KeyboardShortcut.Modifier.Shift, "S", this._save.bind(this), this._element);
@@ -406,8 +407,11 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
         else
             this._propertiesEditor.deselectProperties();
 
-        this._mouseDownIndex = propertyIndex;
-        this._element.classList.add("selecting");
+        if (propertyElement.parentNode) {
+            this._mouseDownIndex = propertyIndex;
+            this._element.classList.add("selecting");
+        } else
+            this._stopSelection();
     }
 
     _handleWindowClick(event)
@@ -416,15 +420,13 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
             // Don't start editing name/value if there's selection.
             event.stop();
         }
-
-        this._isMousePressed = false;
-        this._mouseDownIndex = NaN;
-
-        this._element.classList.remove("selecting");
+        this._stopSelection();
     }
 
     _handleClick(event)
     {
+        this._stopSelection();
+
         if (this._wasEditing || this._propertiesEditor.hasSelectedProperties())
             return;
 
@@ -448,6 +450,13 @@ WI.SpreadsheetCSSStyleDeclarationSection = class SpreadsheetCSSStyleDeclarationS
             const appendAfterLast = -1;
             this._propertiesEditor.addBlankProperty(appendAfterLast);
         }
+    }
+
+    _stopSelection()
+    {
+        this._isMousePressed = false;
+        this._mouseDownIndex = NaN;
+        this._element.classList.remove("selecting");
     }
 
     _highlightNodesWithSelector()

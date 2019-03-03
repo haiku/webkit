@@ -50,12 +50,15 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/streams"
     "${WEBCORE_DIR}/Modules/webaudio"
     "${WEBCORE_DIR}/Modules/webauthn"
+    "${WEBCORE_DIR}/Modules/webauthn/cbor"
+    "${WEBCORE_DIR}/Modules/webauthn/fido"
     "${WEBCORE_DIR}/Modules/webdatabase"
     "${WEBCORE_DIR}/Modules/webdriver"
     "${WEBCORE_DIR}/Modules/webgpu"
     "${WEBCORE_DIR}/Modules/websockets"
     "${WEBCORE_DIR}/Modules/webvr"
     "${WEBCORE_DIR}/accessibility"
+    "${WEBCORE_DIR}/accessibility/isolatedtree"
     "${WEBCORE_DIR}/animation"
     "${WEBCORE_DIR}/bindings"
     "${WEBCORE_DIR}/bindings/js"
@@ -85,6 +88,13 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/inspector/agents"
     "${WEBCORE_DIR}/inspector/agents/page"
     "${WEBCORE_DIR}/inspector/agents/worker"
+    "${WEBCORE_DIR}/layout"
+    "${WEBCORE_DIR}/layout/blockformatting"
+    "${WEBCORE_DIR}/layout/displaytree"
+    "${WEBCORE_DIR}/layout/floats"
+    "${WEBCORE_DIR}/layout/inlineformatting"
+    "${WEBCORE_DIR}/layout/inlineformatting/text"
+    "${WEBCORE_DIR}/layout/layouttree"
     "${WEBCORE_DIR}/loader"
     "${WEBCORE_DIR}/loader/appcache"
     "${WEBCORE_DIR}/loader/archive"
@@ -98,18 +108,17 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/page/scrolling"
     "${WEBCORE_DIR}/platform/animation"
     "${WEBCORE_DIR}/platform/audio"
-    "${WEBCORE_DIR}/platform/crypto"
     "${WEBCORE_DIR}/platform/encryptedmedia"
     "${WEBCORE_DIR}/platform/gamepad"
     "${WEBCORE_DIR}/platform/graphics/cpu/arm"
     "${WEBCORE_DIR}/platform/graphics/cpu/arm/filters"
     "${WEBCORE_DIR}/platform/graphics/displaylists"
     "${WEBCORE_DIR}/platform/graphics/filters"
-    "${WEBCORE_DIR}/platform/graphics/harfbuzz"
-    "${WEBCORE_DIR}/platform/graphics/harfbuzz/ng"
     "${WEBCORE_DIR}/platform/graphics/iso"
     "${WEBCORE_DIR}/platform/graphics/opentype"
+    "${WEBCORE_DIR}/platform/mediacapabilities"
     "${WEBCORE_DIR}/platform/mediarecorder"
+    "${WEBCORE_DIR}/platform/mediasession"
     "${WEBCORE_DIR}/platform/mediastream"
     "${WEBCORE_DIR}/platform/mediastream/libwebrtc"
     "${WEBCORE_DIR}/platform/mock"
@@ -461,13 +470,30 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webdriver/NavigatorWebDriver.idl
 
     Modules/webgpu/DOMWindowWebGPU.idl
+    Modules/webgpu/GPUCompareFunction.idl
+    Modules/webgpu/GPUDepthStencilStateDescriptor.idl
     Modules/webgpu/WebGPU.idl
     Modules/webgpu/WebGPUAdapter.idl
     Modules/webgpu/WebGPUAdapterDescriptor.idl
+    Modules/webgpu/WebGPUBindGroup.idl
+    Modules/webgpu/WebGPUBindGroupBinding.idl
+    Modules/webgpu/WebGPUBindGroupDescriptor.idl
+    Modules/webgpu/WebGPUBindGroupLayout.idl
+    Modules/webgpu/WebGPUBindGroupLayoutBinding.idl
+    Modules/webgpu/WebGPUBindGroupLayoutDescriptor.idl
+    Modules/webgpu/WebGPUBuffer.idl
+    Modules/webgpu/WebGPUBufferBinding.idl
+    Modules/webgpu/WebGPUBufferDescriptor.idl
+    Modules/webgpu/WebGPUBufferUsage.idl
     Modules/webgpu/WebGPUColor.idl
     Modules/webgpu/WebGPUCommandBuffer.idl
     Modules/webgpu/WebGPUDevice.idl
+    Modules/webgpu/WebGPUIndexFormat.idl
+    Modules/webgpu/WebGPUInputStateDescriptor.idl
+    Modules/webgpu/WebGPUInputStepMode.idl
     Modules/webgpu/WebGPUPipelineDescriptorBase.idl
+    Modules/webgpu/WebGPUPipelineLayout.idl
+    Modules/webgpu/WebGPUPipelineLayoutDescriptor.idl
     Modules/webgpu/WebGPUPipelineStageDescriptor.idl
     Modules/webgpu/WebGPUProgrammablePassEncoder.idl
     Modules/webgpu/WebGPUQueue.idl
@@ -479,11 +505,14 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webgpu/WebGPURenderingContext.idl
     Modules/webgpu/WebGPUShaderModule.idl
     Modules/webgpu/WebGPUShaderModuleDescriptor.idl
-    Modules/webgpu/WebGPUShaderStage.idl
+    Modules/webgpu/WebGPUShaderStageBit.idl
     Modules/webgpu/WebGPUSwapChain.idl
     Modules/webgpu/WebGPUTexture.idl
     Modules/webgpu/WebGPUTextureFormatEnum.idl
     Modules/webgpu/WebGPUTextureView.idl
+    Modules/webgpu/WebGPUVertexAttributeDescriptor.idl
+    Modules/webgpu/WebGPUVertexFormat.idl
+    Modules/webgpu/WebGPUVertexInputDescriptor.idl
 
     Modules/websockets/CloseEvent.idl
     Modules/websockets/WebSocket.idl
@@ -599,11 +628,13 @@ set(WebCore_NON_SVG_IDL_FILES
     css/StyleSheet.idl
     css/StyleSheetList.idl
 
-    css/typedom/CSSNumericValue.idl
-    css/typedom/CSSStyleValue.idl
-    css/typedom/CSSUnitValue.idl
-    css/typedom/CSSUnparsedValue.idl
+    css/typedom/StylePropertyMap.idl
     css/typedom/StylePropertyMapReadOnly.idl
+    css/typedom/TypedOMCSSImageValue.idl
+    css/typedom/TypedOMCSSNumericValue.idl
+    css/typedom/TypedOMCSSStyleValue.idl
+    css/typedom/TypedOMCSSUnitValue.idl
+    css/typedom/TypedOMCSSUnparsedValue.idl
 
     css/WebKitCSSMatrix.idl
     css/WebKitCSSViewportRule.idl
@@ -868,6 +899,8 @@ set(WebCore_NON_SVG_IDL_FILES
     html/canvas/WebMetalTextureDescriptor.idl
 
     inspector/CommandLineAPIHost.idl
+    inspector/InspectorAuditAccessibilityObject.idl
+    inspector/InspectorAuditDOMObject.idl
     inspector/InspectorFrontendHost.idl
 
     loader/appcache/DOMApplicationCache.idl
@@ -907,6 +940,8 @@ set(WebCore_NON_SVG_IDL_FILES
     page/ScrollLogicalPosition.idl
     page/ScrollToOptions.idl
     page/ShareData.idl
+    page/UndoItem.idl
+    page/UndoManager.idl
     page/VisualViewport.idl
     page/WebKitPoint.idl
     page/WindowEventHandlers.idl
@@ -1827,7 +1862,7 @@ add_custom_command(
     DEPENDS ${WebCore_CSS_VALUE_KEYWORDS}
     WORKING_DIRECTORY ${DERIVED_SOURCES_WEBCORE_DIR}
     COMMAND ${PERL_EXECUTABLE} -ne "print" ${WebCore_CSS_VALUE_KEYWORDS} > ${DERIVED_SOURCES_WEBCORE_DIR}/CSSValueKeywords.in
-    COMMAND ${PERL_EXECUTABLE} ${WEBCORE_DIR}/css/makevalues.pl --defines "${FEATURE_DEFINES_WITH_SPACE_SEPARATOR}" --preprocessor "${CODE_GENERATOR_PREPROCESSOR}" --gperf-executable "${GPERF_EXECUTABLE}"
+    COMMAND ${PERL_EXECUTABLE} ${WEBCORE_DIR}/css/makevalues.pl --defines "${FEATURE_DEFINES_WITH_SPACE_SEPARATOR} ${CSS_VALUE_PLATFORM_DEFINES}" --preprocessor "${CODE_GENERATOR_PREPROCESSOR}" --gperf-executable "${GPERF_EXECUTABLE}"
     VERBATIM)
 list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/CSSValueKeywords.cpp)
 ADD_SOURCE_WEBCORE_DERIVED_DEPENDENCIES(${WEBCORE_DIR}/css/CSSParser.cpp CSSValueKeywords.h)

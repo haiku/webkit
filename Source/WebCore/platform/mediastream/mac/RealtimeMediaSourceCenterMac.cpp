@@ -29,14 +29,11 @@
  */
 
 #include "config.h"
+#include "RealtimeMediaSourceCenter.h"
 
 #if ENABLE(MEDIA_STREAM)
-#include "RealtimeMediaSourceCenterMac.h"
-
-#include "AVAudioSessionCaptureDeviceManager.h"
 #include "AVCaptureDeviceManager.h"
 #include "AVVideoCaptureSource.h"
-#include "CoreAudioCaptureDeviceManager.h"
 #include "CoreAudioCaptureSource.h"
 #include "DisplayCaptureManagerCocoa.h"
 #include "Logging.h"
@@ -55,14 +52,16 @@ public:
         return AVVideoCaptureSource::create(String { device.persistentId() }, WTFMove(hashSalt), constraints);
     }
 
-#if PLATFORM(IOS_FAMILY)
 private:
+#if PLATFORM(IOS_FAMILY)
     void setVideoCapturePageState(bool interrupted, bool pageMuted)
     {
         if (activeSource())
             activeSource()->setInterrupted(interrupted, pageMuted);
     }
 #endif
+
+    CaptureDeviceManager& videoCaptureDeviceManager() { return AVCaptureDeviceManager::singleton(); }
 };
 
 class DisplayCaptureSourceFactoryMac final : public DisplayCaptureFactory {
@@ -82,8 +81,6 @@ public:
 #if PLATFORM(MAC)
             return WindowDisplayCaptureSourceMac::create(String { device.persistentId() }, constraints);
 #endif
-        case CaptureDevice::DeviceType::Application:
-        case CaptureDevice::DeviceType::Browser:
         case CaptureDevice::DeviceType::Microphone:
         case CaptureDevice::DeviceType::Camera:
         case CaptureDevice::DeviceType::Unknown:
@@ -93,59 +90,25 @@ public:
 
         return { };
     }
+private:
+    CaptureDeviceManager& displayCaptureDeviceManager() { return DisplayCaptureManagerCocoa::singleton(); }
 };
 
-RealtimeMediaSourceCenterMac& RealtimeMediaSourceCenterMac::singleton()
-{
-    ASSERT(isMainThread());
-    static NeverDestroyed<RealtimeMediaSourceCenterMac> center;
-    return center;
-}
-
-RealtimeMediaSourceCenter& RealtimeMediaSourceCenter::platformCenter()
-{
-    return RealtimeMediaSourceCenterMac::singleton();
-}
-
-RealtimeMediaSourceCenterMac::RealtimeMediaSourceCenterMac() = default;
-
-RealtimeMediaSourceCenterMac::~RealtimeMediaSourceCenterMac() = default;
-
-
-AudioCaptureFactory& RealtimeMediaSourceCenterMac::audioFactoryPrivate()
+AudioCaptureFactory& RealtimeMediaSourceCenter::defaultAudioCaptureFactory()
 {
     return CoreAudioCaptureSource::factory();
 }
 
-VideoCaptureFactory& RealtimeMediaSourceCenterMac::videoFactoryPrivate()
+VideoCaptureFactory& RealtimeMediaSourceCenter::defaultVideoCaptureFactory()
 {
     static NeverDestroyed<VideoCaptureSourceFactoryMac> factory;
     return factory.get();
 }
 
-DisplayCaptureFactory& RealtimeMediaSourceCenterMac::displayCaptureFactoryPrivate()
+DisplayCaptureFactory& RealtimeMediaSourceCenter::defaultDisplayCaptureFactory()
 {
     static NeverDestroyed<DisplayCaptureSourceFactoryMac> factory;
     return factory.get();
-}
-
-CaptureDeviceManager& RealtimeMediaSourceCenterMac::audioCaptureDeviceManager()
-{
-#if PLATFORM(MAC)
-    return CoreAudioCaptureDeviceManager::singleton();
-#else
-    return AVAudioSessionCaptureDeviceManager::singleton();
-#endif
-}
-
-CaptureDeviceManager& RealtimeMediaSourceCenterMac::videoCaptureDeviceManager()
-{
-    return AVCaptureDeviceManager::singleton();
-}
-
-CaptureDeviceManager& RealtimeMediaSourceCenterMac::displayCaptureDeviceManager()
-{
-    return DisplayCaptureManagerCocoa::singleton();
 }
 
 } // namespace WebCore

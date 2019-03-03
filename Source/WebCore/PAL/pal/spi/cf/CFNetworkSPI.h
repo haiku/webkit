@@ -33,6 +33,7 @@
 #if PLATFORM(WIN) || USE(APPLE_INTERNAL_SDK)
 
 #include <CFNetwork/CFHTTPCookiesPriv.h>
+#include <CFNetwork/CFHTTPStream.h>
 #include <CFNetwork/CFProxySupportPriv.h>
 #include <CFNetwork/CFURLCachePriv.h>
 #include <CFNetwork/CFURLConnectionPriv.h>
@@ -59,6 +60,15 @@ WTF_EXTERN_C_END
 // FIXME: Remove the defined(__OBJC__)-guard once we fix <rdar://problem/19033610>.
 #if defined(__OBJC__) && PLATFORM(COCOA)
 #import <CFNetwork/CFNSURLConnection.h>
+#endif
+
+// This only needs to be declared on macOS 10.12 Sierra because
+// it will never appear in those SDK headers.  See also
+// HAVE(CFNETWORK_OVERRIDE_SESSION_COOKIE_ACCEPT_POLICY).
+#if defined(__OBJC__) && PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED == 101200
+@interface NSHTTPCookieStorage ()
+@property (nonatomic, readwrite) BOOL _overrideSessionCookieAcceptPolicy;
+@end
 #endif
 
 #else // !PLATFORM(WIN) && !USE(APPLE_INTERNAL_SDK)
@@ -124,6 +134,9 @@ typedef void (^CFCachedURLResponseCallBackBlock)(CFCachedURLResponseRef);
 - (void)_saveCookies;
 #if HAVE(FOUNDATION_WITH_SAVE_COOKIES_WITH_COMPLETION_HANDLER)
 - (void)_saveCookies:(dispatch_block_t) completionHandler;
+#endif
+#if HAVE(CFNETWORK_OVERRIDE_SESSION_COOKIE_ACCEPT_POLICY)
+@property (nonatomic, readwrite) BOOL _overrideSessionCookieAcceptPolicy;
 #endif
 @end
 
@@ -211,6 +224,19 @@ typedef NS_ENUM(NSInteger, NSURLSessionCompanionProxyPreference) {
 @end
 #endif
 
+#if HAVE(CFNETWORK_NEGOTIATED_SSL_PROTOCOL_CIPHER)
+@interface NSURLSessionTaskTransactionMetrics ()
+@property (assign) SSLProtocol _negotiatedTLSProtocol;
+@property (assign) SSLCipherSuite _negotiatedTLSCipher;
+@end
+#endif
+
+#if HAVE(CFNETWORK_NSURLSESSION_STRICTRUSTEVALUATE)
+@interface NSURLSession (SPI)
++ (void)_strictTrustEvaluate:(NSURLAuthenticationChallenge *)challenge queue:(dispatch_queue_t)queue completionHandler:(void (^)(NSURLAuthenticationChallenge *challenge, OSStatus trustResult))cb;
+@end
+#endif
+
 extern NSString * const NSURLAuthenticationMethodOAuth;
 
 #endif // defined(__OBJC__)
@@ -265,7 +291,6 @@ typedef void (*CFHTTPCookieStorageChangedProcPtr)(CFHTTPCookieStorageRef, void*)
 void CFHTTPCookieStorageAddObserver(CFHTTPCookieStorageRef, CFRunLoopRef, CFStringRef, CFHTTPCookieStorageChangedProcPtr, void*);
 void CFHTTPCookieStorageRemoveObserver(CFHTTPCookieStorageRef, CFRunLoopRef, CFStringRef, CFHTTPCookieStorageChangedProcPtr, void*);
 
-void _CFNetworkSetOverrideSystemProxySettings(CFDictionaryRef);
 CFURLCredentialStorageRef CFURLCredentialStorageCreate(CFAllocatorRef);
 CFURLCredentialRef CFURLCredentialStorageCopyDefaultCredentialForProtectionSpace(CFURLCredentialStorageRef, CFURLProtectionSpaceRef);
 CFURLRequestPriority CFURLRequestGetRequestPriority(CFURLRequestRef);

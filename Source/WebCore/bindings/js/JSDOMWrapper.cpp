@@ -35,22 +35,21 @@
 #include <JavaScriptCore/Error.h>
 
 namespace WebCore {
-using namespace JSC;
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSDOMObject);
 
 JSDOMObject::JSDOMObject(JSC::Structure* structure, JSC::JSGlobalObject& globalObject)
     : Base(globalObject.vm(), structure)
 {
-    ASSERT(globalObject.classInfo() == JSDOMGlobalObject::info() || scriptExecutionContext() || globalObject.classInfo() == JSRemoteDOMWindow::info());
+    ASSERT(scriptExecutionContext() || globalObject.classInfo() == JSRemoteDOMWindow::info());
 }
 
-CompleteSubspace* outputConstraintSubspaceFor(VM& vm)
+JSC::CompleteSubspace* outputConstraintSubspaceFor(JSC::VM& vm)
 {
     return &static_cast<JSVMClientData*>(vm.clientData)->outputConstraintSpace();
 }
 
-CompleteSubspace* globalObjectOutputConstraintSubspaceFor(VM& vm)
+JSC::CompleteSubspace* globalObjectOutputConstraintSubspaceFor(JSC::VM& vm)
 {
     return &static_cast<JSVMClientData*>(vm.clientData)->globalObjectOutputConstraintSpace();
 }

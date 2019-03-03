@@ -449,7 +449,7 @@ $hostOS = determineOS unless $hostOS
 $architecture = determineArchitecture unless $architecture
 $isFTLPlatform = !($architecture == "x86" || $architecture == "arm" || $architecture == "mips" || $hostOS == "windows")
 
-if ["arm", "mips", "x86"].include?($architecture)
+if ["mips", "x86"].include?($architecture)
     # The JIT is temporarily disabled on these platforms since
     # https://trac.webkit.org/changeset/237547
     $jitTests = false
@@ -655,6 +655,15 @@ def runDefault(*optionalTestSpecificOptions)
     run("default", *(FTL_OPTIONS + optionalTestSpecificOptions))
 end
 
+def runBytecodeCache(*optionalTestSpecificOptions)
+    unless $hostOS == "darwin"
+        skip
+        return
+    end
+    options = BASE_OPTIONS + $testSpecificRequiredOptions + FTL_OPTIONS + optionalTestSpecificOptions
+    addRunCommand("bytecode-cache", ["sh", (pathToHelpers + "bytecode-cache-test-helper.sh").to_s, pathToVM.to_s, $benchmark.to_s] + options, silentOutputHandler, simpleErrorHandler)
+end
+
 def runBigIntEnabled(*optionalTestSpecificOptions)
     # FIXME: <rdar://problem/40331121>
     if $remote or ($architecture !~ /x86/i and $hostOS == "darwin")
@@ -751,6 +760,7 @@ def defaultRun
         defaultQuickRun
     else
         runDefault
+        runBytecodeCache
         if $jitTests
             runNoLLInt
             runNoCJITValidatePhases
@@ -1791,7 +1801,7 @@ def sshRead(cmd, remoteIndex=0)
     remoteHost = $remoteHosts[remoteIndex]
 
     result = ""
-    IO.popen("ssh -p #{remoteHost.port} #{remoteHost.user}@#{remoteHost.host} '#{cmd}'", "r") {
+    IO.popen("ssh -o NoHostAuthenticationForLocalhost=yes -p #{remoteHost.port} #{remoteHost.user}@#{remoteHost.host} '#{cmd}'", "r") {
       | inp |
       inp.each_line {
         | line |
@@ -1908,8 +1918,8 @@ def runTestRunner(remoteIndex=0)
         if !remoteHost.remoteDirectory
             remoteHost.remoteDirectory = JSON::parse(sshRead("cat ~/.bencher", remoteIndex))["tempPath"]
         end
-        mysys("ssh", "-p", remoteHost.port.to_s, "#{remoteHost.user}@#{remoteHost.host}", "mkdir -p #{remoteHost.remoteDirectory}")
-        mysys("scp", "-P", remoteHost.port.to_s, ($outputDir.dirname + $tarFileName).to_s, "#{remoteHost.user}@#{remoteHost.host}:#{remoteHost.remoteDirectory}")
+        mysys("ssh", "-o", "NoHostAuthenticationForLocalhost=yes", "-p", remoteHost.port.to_s, "#{remoteHost.user}@#{remoteHost.host}", "mkdir -p #{remoteHost.remoteDirectory}")
+        mysys("scp", "-o", "NoHostAuthenticationForLocalhost=yes", "-P", remoteHost.port.to_s, ($outputDir.dirname + $tarFileName).to_s, "#{remoteHost.user}@#{remoteHost.host}:#{remoteHost.remoteDirectory}")
         remoteScript = "\""
         remoteScript += "cd #{remoteHost.remoteDirectory} && "
         remoteScript += "rm -rf #{$outputDir.basename} && "
@@ -1920,7 +1930,7 @@ def runTestRunner(remoteIndex=0)
         remoteScript += "export JSCTEST_timeout=#{Shellwords.shellescape(ENV['JSCTEST_timeout'])} && "
         $envVars.each { |var| remoteScript += "export " << var << "\n" }
         remoteScript += "#{testRunnerCommand(remoteIndex)}\""
-        runAndMonitorTestRunnerCommand("ssh", "-p", remoteHost.port.to_s, "#{remoteHost.user}@#{remoteHost.host}", remoteScript)
+        runAndMonitorTestRunnerCommand("ssh", "-o", "NoHostAuthenticationForLocalhost=yes", "-p", remoteHost.port.to_s, "#{remoteHost.user}@#{remoteHost.host}", remoteScript)
     else
         Dir.chdir($runnerDir) {
             runAndMonitorTestRunnerCommand(testRunnerCommand)

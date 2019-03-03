@@ -32,7 +32,7 @@
 #include "WebFullScreenManagerProxy.h"
 #include <wtf/RetainPtr.h>
 
-@class WKEditorUndoTargetObjC;
+@class WKEditorUndoTarget;
 @class WKView;
 
 namespace WebCore {
@@ -61,7 +61,7 @@ public:
 
 private:
     // PageClient
-    std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy() override;
+    std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
     void setViewNeedsDisplay(const WebCore::Region&) override;
     void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin, bool isProgrammaticScroll) override;
     WebCore::FloatPoint viewScrollPosition() override;
@@ -106,6 +106,8 @@ private:
     void selectionDidChange() override;
     void showSafeBrowsingWarning(const SafeBrowsingWarning&, CompletionHandler<void(Variant<WebKit::ContinueUnsafeLoad, URL>&&)>&&) override;
     void clearSafeBrowsingWarning() override;
+    void clearSafeBrowsingWarningIfForMainFrameNavigation() override;
+    bool hasSafeBrowsingWarning() const override;
     
 #if WK_API_ENABLED
     bool showShareSheet(const WebCore::ShareDataWithParsedURL&, WTF::CompletionHandler<void(bool)>&&) override;
@@ -251,6 +253,18 @@ private:
 
     void didFinishProcessingAllPendingMouseEvents() final;
 
+#if ENABLE(WIRELESS_PLAYBACK_TARGET)
+    WebCore::WebMediaSessionManager& mediaSessionManager() override;
+#endif
+
+    void refView() override;
+    void derefView() override;
+
+    void didRestoreScrollPosition() override;
+    bool windowIsFrontWindowUnderMouse(const NativeWebMouseEvent&) override;
+
+    void takeFocus(WebCore::FocusDirection) override;
+
     NSView *m_view;
     WeakPtr<WebViewImpl> m_impl;
 #if USE(AUTOCORRECTION_PANEL)
@@ -261,16 +275,6 @@ private:
 #endif
 
     bool m_shouldSuppressFirstResponderChanges { false };
-
-#if ENABLE(WIRELESS_PLAYBACK_TARGET)
-    WebCore::WebMediaSessionManager& mediaSessionManager() override;
-#endif
-
-    void refView() override;
-    void derefView() override;
-
-    void didRestoreScrollPosition() override;
-    bool windowIsFrontWindowUnderMouse(const NativeWebMouseEvent&) override;
 };
 
 } // namespace WebKit

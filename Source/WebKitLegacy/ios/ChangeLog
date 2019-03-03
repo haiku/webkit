@@ -1,3 +1,106 @@
+2019-01-22  Conrad Shultz  <conrad_shultz@apple.com>
+
+        Clean up USE(WEB_THREAD)
+        https://bugs.webkit.org/show_bug.cgi?id=193698
+
+        Rubber-stamped by Tim Horton.
+
+        * Misc/WebGeolocationProviderIOS.mm:
+        (-[_WebCoreLocationUpdateThreadingProxy geolocationAuthorizationGranted]):
+        (-[_WebCoreLocationUpdateThreadingProxy geolocationAuthorizationDenied]):
+        (-[_WebCoreLocationUpdateThreadingProxy positionChanged:]):
+        (-[_WebCoreLocationUpdateThreadingProxy errorOccurred:]):
+        (-[_WebCoreLocationUpdateThreadingProxy resetGeolocation]):
+        * WebCoreSupport/WebFixedPositionContent.mm:
+        (-[WebFixedPositionContent didFinishScrollingOrZooming]):
+
+2019-01-22  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Interpret text key commands on keydown and app key commands on keypress
+        https://bugs.webkit.org/show_bug.cgi?id=192897
+        <rdar://problem/46857378>
+
+        Reviewed by Brent Fulgham.
+
+        Add stubs for SPI.
+
+        * DefaultDelegates/WebDefaultUIKitDelegate.m:
+        (-[WebDefaultUIKitDelegate handleKeyTextCommandForCurrentEvent]): Added.
+        (-[WebDefaultUIKitDelegate handleKeyAppCommandForCurrentEvent]): Added.
+        (-[WebDefaultUIKitDelegate handleKeyCommandForCurrentEvent]): Deleted.
+        * WebView/WebUIKitDelegate.h:
+
+2019-01-04  Simon Fraser  <simon.fraser@apple.com>
+
+        Factor legacy WK1 code for fixed and scrolling layers into their own helper class
+        https://bugs.webkit.org/show_bug.cgi?id=193165
+
+        Reviewed by Frédéric Wang.
+
+        Make the stickyContainerMap argument const. We WTFMove() values out of the first
+        argument, so it can't be const.
+
+        * WebCoreSupport/WebChromeClientIOS.h:
+        * WebCoreSupport/WebChromeClientIOS.mm:
+        (WebChromeClientIOS::updateViewportConstrainedLayers):
+        * WebCoreSupport/WebFixedPositionContent.mm:
+        (-[WebFixedPositionContent setViewportConstrainedLayers:stickyContainerMap:]):
+        * WebCoreSupport/WebFixedPositionContentInternal.h:
+
+2018-12-20  Yusuke Suzuki  <yusukesuzuki@slowstart.org>
+
+        Use Ref<> as much as possible
+        https://bugs.webkit.org/show_bug.cgi?id=192808
+
+        Reviewed by Alex Christensen.
+
+        * WebCoreSupport/SearchPopupMenuIOS.cpp:
+        (SearchPopupMenuIOS::SearchPopupMenuIOS):
+        (SearchPopupMenuIOS::popupMenu):
+        * WebCoreSupport/SearchPopupMenuIOS.h:
+        * WebCoreSupport/WebVisiblePosition.mm:
+        (-[WebVisiblePosition enclosingRangeWithDictationPhraseAlternatives:]):
+        (-[WebVisiblePosition enclosingRangeWithCorrectionIndicator]):
+        * WebView/WebPDFViewPlaceholder.mm:
+        (-[WebPDFViewPlaceholder simulateClickOnLinkToURL:]):
+
+2018-12-17  Zalan Bujtas  <zalan@apple.com>
+
+        Unreviewed build fix.
+
+        * WebCoreSupport/WebVisiblePosition.mm:
+        (-[WebVisiblePosition enclosingRangeWithDictationPhraseAlternatives:]):
+        (-[WebVisiblePosition enclosingRangeWithCorrectionIndicator]):
+
+2018-12-05  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Turn WritingDirection into an enum class
+        https://bugs.webkit.org/show_bug.cgi?id=192401
+        Work towards <rdar://problem/42075638>
+
+        Reviewed by Dan Bernstein.
+
+        Change WritingDirection from an enum to an enum class. No change in behavior.
+
+        * WebCoreSupport/WebFrameIOS.mm:
+        (-[WebFrame selectionBaseWritingDirection]):
+        (-[WebFrame setBaseWritingDirection:]):
+
+2018-12-03  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Do not handle key events that are key commands
+        https://bugs.webkit.org/show_bug.cgi?id=191608
+        <rdar://problem/46046013>
+
+        Reviewed by Ryosuke Niwa.
+
+        Add default implementation of -handleKeyCommandForCurrentEvent that returns NO - the current
+        event was not handled as a key command.
+
+        * DefaultDelegates/WebDefaultUIKitDelegate.m:
+        (-[WebDefaultUIKitDelegate handleKeyCommandForCurrentEvent]):
+        * WebView/WebUIKitDelegate.h:
+
 2018-11-29  Zalan Bujtas  <zalan@apple.com>
 
         Rename *ObservedContentModifier(s) to *ObservedDOMTimer(s)

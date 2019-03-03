@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "BlockingResponseMap.h"
 #include "CacheStorageEngineConnection.h"
 #include "Connection.h"
 #include "DownloadID.h"
@@ -34,7 +33,6 @@
 #include "NetworkMDNSRegister.h"
 #include "NetworkRTCProvider.h"
 #include <WebCore/NetworkLoadInformation.h>
-#include <WebCore/ResourceLoadPriority.h>
 #include <wtf/RefCounted.h>
 
 namespace PAL {
@@ -43,7 +41,6 @@ class SessionID;
 
 namespace WebCore {
 class BlobDataFileReference;
-class HTTPHeaderMap;
 class ResourceError;
 class ResourceRequest;
 struct SameSiteInfo;
@@ -53,14 +50,11 @@ enum class IncludeSecureCookies : bool;
 
 namespace WebKit {
 
-class NetworkConnectionToWebProcess;
-class NetworkLoadParameters;
+class NetworkProcess;
 class NetworkResourceLoader;
 class NetworkSocketStream;
-class SyncNetworkResourceLoader;
 class WebIDBConnectionToClient;
 class WebSWServerConnection;
-class WebSWServerToContextConnection;
 typedef uint64_t ResourceLoadIdentifier;
 
 namespace NetworkCache {
@@ -69,10 +63,11 @@ struct DataKey;
 
 class NetworkConnectionToWebProcess : public RefCounted<NetworkConnectionToWebProcess>, IPC::Connection::Client {
 public:
-    static Ref<NetworkConnectionToWebProcess> create(IPC::Connection::Identifier);
+    static Ref<NetworkConnectionToWebProcess> create(NetworkProcess&, IPC::Connection::Identifier);
     virtual ~NetworkConnectionToWebProcess();
 
     IPC::Connection& connection() { return m_connection.get(); }
+    NetworkProcess& networkProcess() { return m_networkProcess.get(); }
 
     void didCleanupResourceLoader(NetworkResourceLoader&);
     void setOnLineState(bool);
@@ -123,11 +118,11 @@ public:
         m_networkLoadInformationByID.remove(identifier);
     }
 
-    std::optional<NetworkActivityTracker> startTrackingResourceLoad(uint64_t pageID, ResourceLoadIdentifier resourceID, bool isMainResource, const PAL::SessionID&);
+    Optional<NetworkActivityTracker> startTrackingResourceLoad(uint64_t pageID, ResourceLoadIdentifier resourceID, bool isMainResource, const PAL::SessionID&);
     void stopTrackingResourceLoad(ResourceLoadIdentifier resourceID, NetworkActivityTracker::CompletionCode);
 
 private:
-    NetworkConnectionToWebProcess(IPC::Connection::Identifier);
+    NetworkConnectionToWebProcess(NetworkProcess&, IPC::Connection::Identifier);
 
     void didFinishPreconnection(uint64_t preconnectionIdentifier, const WebCore::ResourceError&);
 
@@ -154,11 +149,11 @@ private:
     void startDownload(PAL::SessionID, DownloadID, const WebCore::ResourceRequest&, const String& suggestedName = { });
     void convertMainResourceLoadToDownload(PAL::SessionID, uint64_t mainResourceLoadIdentifier, DownloadID, const WebCore::ResourceRequest&, const WebCore::ResourceResponse&);
 
-    void cookiesForDOM(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, WebCore::IncludeSecureCookies, String& cookieString, bool& secureCookiesAccessed);
-    void setCookiesFromDOM(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, const String&);
+    void cookiesForDOM(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, Optional<uint64_t> frameID, Optional<uint64_t> pageID, WebCore::IncludeSecureCookies, String& cookieString, bool& secureCookiesAccessed);
+    void setCookiesFromDOM(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, Optional<uint64_t> frameID, Optional<uint64_t> pageID, const String&);
     void cookiesEnabled(PAL::SessionID, bool& result);
-    void cookieRequestHeaderFieldValue(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, WebCore::IncludeSecureCookies, String& cookieString, bool& secureCookiesAccessed);
-    void getRawCookies(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, Vector<WebCore::Cookie>&);
+    void cookieRequestHeaderFieldValue(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, Optional<uint64_t> frameID, Optional<uint64_t> pageID, WebCore::IncludeSecureCookies, String& cookieString, bool& secureCookiesAccessed);
+    void getRawCookies(PAL::SessionID, const URL& firstParty, const WebCore::SameSiteInfo&, const URL&, Optional<uint64_t> frameID, Optional<uint64_t> pageID, Vector<WebCore::Cookie>&);
     void deleteCookie(PAL::SessionID, const URL&, const String& cookieName);
 
     void registerFileBlobURL(const URL&, const String& path, SandboxExtension::Handle&&, const String& contentType);
@@ -169,8 +164,6 @@ private:
     void blobSize(const URL&, uint64_t& resultSize);
     void unregisterBlobURL(const URL&);
     void writeBlobsToTemporaryFiles(const Vector<String>& blobURLs, CompletionHandler<void(Vector<String>&&)>&&);
-
-    void storeDerivedDataToCache(const WebKit::NetworkCache::DataKey&, const IPC::DataReference&);
 
     void setCaptureExtraNetworkLoadMetricsEnabled(bool);
 
@@ -199,8 +192,18 @@ private:
 
     CacheStorageEngineConnection& cacheStorageConnection();
 
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
     void removeStorageAccessForFrame(PAL::SessionID, uint64_t frameID, uint64_t pageID);
     void removeStorageAccessForAllFramesOnPage(PAL::SessionID, uint64_t pageID);
+
+    void logUserInteraction(PAL::SessionID, const String& topLevelOrigin);
+    void logWebSocketLoading(PAL::SessionID, const String& targetPrimaryDomain, const String& mainFramePrimaryDomain, WallTime lastSeen);
+    void logSubresourceLoading(PAL::SessionID, const String& targetPrimaryDomain, const String& mainFramePrimaryDomain, WallTime lastSeen);
+    void logSubresourceRedirect(PAL::SessionID, const String& sourcePrimaryDomain, const String& targetPrimaryDomain);
+    void requestResourceLoadStatisticsUpdate();
+    void hasStorageAccess(PAL::SessionID, const String& subFrameHost, const String& topFrameHost, uint64_t frameID, uint64_t pageID, CompletionHandler<void(bool)>&&);
+    void requestStorageAccess(PAL::SessionID, const String& subFrameHost, const String& topFrameHost, uint64_t frameID, uint64_t pageID, bool prompt, CompletionHandler<void(bool)>&&);
+#endif
 
     void addOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
     void removeOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
@@ -236,6 +239,7 @@ private:
     size_t findNetworkActivityTracker(ResourceLoadIdentifier resourceID);
 
     Ref<IPC::Connection> m_connection;
+    Ref<NetworkProcess> m_networkProcess;
 
     HashMap<uint64_t, RefPtr<NetworkSocketStream>> m_networkSocketStreams;
     HashMap<ResourceLoadIdentifier, Ref<NetworkResourceLoader>> m_networkResourceLoaders;

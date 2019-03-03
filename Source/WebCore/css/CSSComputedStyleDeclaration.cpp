@@ -73,6 +73,7 @@
 #include "StyleResolver.h"
 #include "StyleScope.h"
 #include "StyleScrollSnapPoints.h"
+#include "TouchAction.h"
 #include "WebKitFontFamilyNames.h"
 #include "WillChangeData.h"
 #include <wtf/NeverDestroyed.h>
@@ -812,7 +813,7 @@ static RefPtr<CSSValue> positionOffsetValue(const RenderStyle& style, CSSPropert
     return CSSValuePool::singleton().createIdentifierValue(CSSValueAuto);
 }
 
-RefPtr<CSSPrimitiveValue> ComputedStyleExtractor::currentColorOrValidColor(const RenderStyle* style, const Color& color) const
+Ref<CSSPrimitiveValue> ComputedStyleExtractor::currentColorOrValidColor(const RenderStyle* style, const Color& color) const
 {
     // This function does NOT look at visited information, so that computed style doesn't expose that.
     if (!color.isValid())
@@ -1145,7 +1146,7 @@ void OrderedNamedLinesCollector::appendLines(CSSGridLineNamesValue& lineNamesVal
         return;
 
     auto& cssValuePool = CSSValuePool::singleton();
-    for (auto lineName : iter->value)
+    for (const auto& lineName : iter->value)
         lineNamesValue.append(cssValuePool.createValue(lineName, CSSPrimitiveValue::CSS_STRING));
 }
 
@@ -1746,6 +1747,32 @@ static Ref<CSSPrimitiveValue> valueForFamily(const AtomicString& family)
     return CSSValuePool::singleton().createFontFamilyValue(family);
 }
 
+#if ENABLE(POINTER_EVENTS)
+static Ref<CSSValue> touchActionFlagsToCSSValue(OptionSet<TouchAction> touchActions)
+{
+    auto& cssValuePool = CSSValuePool::singleton();
+
+    if (touchActions & TouchAction::Auto)
+        return cssValuePool.createIdentifierValue(CSSValueAuto);
+    if (touchActions & TouchAction::None)
+        return cssValuePool.createIdentifierValue(CSSValueNone);
+    if (touchActions & TouchAction::Manipulation)
+        return cssValuePool.createIdentifierValue(CSSValueManipulation);
+
+    auto list = CSSValueList::createSpaceSeparated();
+    if (touchActions & TouchAction::PanX)
+        list->append(cssValuePool.createIdentifierValue(CSSValuePanX));
+    if (touchActions & TouchAction::PanY)
+        list->append(cssValuePool.createIdentifierValue(CSSValuePanY));
+    if (touchActions & TouchAction::PinchZoom)
+        list->append(cssValuePool.createIdentifierValue(CSSValuePinchZoom));
+
+    if (!list->length())
+        return cssValuePool.createIdentifierValue(CSSValueAuto);
+    return WTFMove(list);
+}
+#endif
+
 static Ref<CSSValue> renderTextDecorationFlagsToCSSValue(OptionSet<TextDecoration> textDecoration)
 {
     auto& cssValuePool = CSSValuePool::singleton();
@@ -1951,7 +1978,7 @@ static Ref<CSSValue> counterToCSSValue(const RenderStyle& style, CSSPropertyID p
     auto list = CSSValueList::createSpaceSeparated();
     for (auto& keyValue : *map) {
         list->append(cssValuePool.createValue(keyValue.key, CSSPrimitiveValue::CSS_STRING));
-        double number = (propertyID == CSSPropertyCounterIncrement ? keyValue.value.incrementValue : keyValue.value.resetValue).value_or(0);
+        double number = (propertyID == CSSPropertyCounterIncrement ? keyValue.value.incrementValue : keyValue.value.resetValue).valueOr(0);
         list->append(cssValuePool.createValue(number, CSSPrimitiveValue::CSS_NUMBER));
     }
     return WTFMove(list);
@@ -2040,7 +2067,7 @@ Ref<CSSFontStyleValue> ComputedStyleExtractor::fontNonKeywordStyleFromStyleValue
     return CSSFontStyleValue::create(CSSValuePool::singleton().createIdentifierValue(CSSValueOblique), CSSValuePool::singleton().createValue(static_cast<float>(italic), CSSPrimitiveValue::CSS_DEG));
 }
 
-Ref<CSSFontStyleValue> ComputedStyleExtractor::fontStyleFromStyleValue(std::optional<FontSelectionValue> italic, FontStyleAxis fontStyleAxis)
+Ref<CSSFontStyleValue> ComputedStyleExtractor::fontStyleFromStyleValue(Optional<FontSelectionValue> italic, FontStyleAxis fontStyleAxis)
 {
     if (auto keyword = fontStyleKeyword(italic, fontStyleAxis))
         return CSSFontStyleValue::create(CSSValuePool::singleton().createIdentifierValue(keyword.value()));
@@ -2322,6 +2349,10 @@ static bool isLayoutDependent(CSSPropertyID propertyID, const RenderStyle* style
     case CSSPropertyBottom:
     case CSSPropertyLeft:
     case CSSPropertyRight:
+    case CSSPropertyInsetBlockStart:
+    case CSSPropertyInsetBlockEnd:
+    case CSSPropertyInsetInlineStart:
+    case CSSPropertyInsetInlineEnd:
         return positionOffsetValueIsRendererDependent(style, renderer);
     case CSSPropertyWidth:
     case CSSPropertyHeight:
@@ -2434,7 +2465,7 @@ static inline bool hasValidStyleForProperty(Element& element, CSSPropertyID prop
 {
     if (element.styleValidity() != Style::Validity::Valid)
         return false;
-    if (element.document().hasPendingForcedStyleRecalc())
+    if (element.document().hasPendingFullStyleRebuild())
         return false;
     if (!element.document().childNeedsStyleRecalc())
         return true;
@@ -2638,7 +2669,7 @@ RefPtr<CSSValue> ComputedStyleExtractor::customPropertyValue(const String& prope
     if (!value)
         return nullptr;
 
-    auto visitor = WTF::makeVisitor([&](const Ref<CSSVariableReferenceValue>&) {
+    return WTF::switchOn(value->value(), [&](const Ref<CSSVariableReferenceValue>&) {
         ASSERT_NOT_REACHED();
         return RefPtr<CSSValue>();
     }, [&](const CSSValueID&) {
@@ -2647,8 +2678,9 @@ RefPtr<CSSValue> ComputedStyleExtractor::customPropertyValue(const String& prope
         return CSSCustomPropertyValue::create(*value);
     }, [&](const Length& value) {
         return zoomAdjustedPixelValueForLength(value, *style);
+    }, [&](const Ref<StyleImage>&) {
+        return CSSCustomPropertyValue::create(*value);
     });
-    return WTF::visit(visitor, value->value());
 }
 
 String ComputedStyleExtractor::customPropertyText(const String& propertyName)
@@ -3730,8 +3762,10 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyinStyle(const RenderSty
 #if ENABLE(TOUCH_EVENTS)
         case CSSPropertyWebkitTapHighlightColor:
             return currentColorOrValidColor(&style, style.tapHighlightColor());
+#endif
+#if ENABLE(POINTER_EVENTS)
         case CSSPropertyTouchAction:
-            return cssValuePool.createValue(style.touchAction());
+            return touchActionFlagsToCSSValue(style.touchActions());
 #endif
 #if PLATFORM(IOS_FAMILY)
         case CSSPropertyWebkitTouchCallout:
@@ -3901,40 +3935,77 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyinStyle(const RenderSty
             }
             return value;
         }
+        case CSSPropertyBorderBlock: {
+            auto value = propertyValue(CSSPropertyBorderBlockStart, DoNotUpdateLayout);
+            if (!compareCSSValuePtr<CSSValue>(value, propertyValue(CSSPropertyBorderBlockEnd, DoNotUpdateLayout)))
+                return nullptr;
+            return value;
+        }
+        case CSSPropertyBorderBlockColor:
+            return getCSSPropertyValuesFor2SidesShorthand(borderBlockColorShorthand());
+        case CSSPropertyBorderBlockStyle:
+            return getCSSPropertyValuesFor2SidesShorthand(borderBlockStyleShorthand());
+        case CSSPropertyBorderBlockWidth:
+            return getCSSPropertyValuesFor2SidesShorthand(borderBlockWidthShorthand());
         case CSSPropertyBorderBottom:
             return getCSSPropertyValuesForShorthandProperties(borderBottomShorthand());
         case CSSPropertyBorderColor:
-            return getCSSPropertyValuesForSidesShorthand(borderColorShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(borderColorShorthand());
         case CSSPropertyBorderLeft:
             return getCSSPropertyValuesForShorthandProperties(borderLeftShorthand());
         case CSSPropertyBorderImage:
             return valueForNinePieceImage(style.borderImage());
+        case CSSPropertyBorderInline: {
+            auto value = propertyValue(CSSPropertyBorderInlineStart, DoNotUpdateLayout);
+            if (!compareCSSValuePtr<CSSValue>(value, propertyValue(CSSPropertyBorderInlineEnd, DoNotUpdateLayout)))
+                return nullptr;
+            return value;
+        }
+        case CSSPropertyBorderInlineColor:
+            return getCSSPropertyValuesFor2SidesShorthand(borderInlineColorShorthand());
+        case CSSPropertyBorderInlineStyle:
+            return getCSSPropertyValuesFor2SidesShorthand(borderInlineStyleShorthand());
+        case CSSPropertyBorderInlineWidth:
+            return getCSSPropertyValuesFor2SidesShorthand(borderInlineWidthShorthand());
         case CSSPropertyBorderRadius:
             return borderRadiusShorthandValue(style);
         case CSSPropertyBorderRight:
             return getCSSPropertyValuesForShorthandProperties(borderRightShorthand());
         case CSSPropertyBorderStyle:
-            return getCSSPropertyValuesForSidesShorthand(borderStyleShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(borderStyleShorthand());
         case CSSPropertyBorderTop:
             return getCSSPropertyValuesForShorthandProperties(borderTopShorthand());
         case CSSPropertyBorderWidth:
-            return getCSSPropertyValuesForSidesShorthand(borderWidthShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(borderWidthShorthand());
         case CSSPropertyColumnRule:
             return getCSSPropertyValuesForShorthandProperties(columnRuleShorthand());
         case CSSPropertyColumns:
             return getCSSPropertyValuesForShorthandProperties(columnsShorthand());
+        case CSSPropertyInset:
+            return getCSSPropertyValuesFor4SidesShorthand(insetShorthand());
+        case CSSPropertyInsetBlock:
+            return getCSSPropertyValuesFor2SidesShorthand(insetBlockShorthand());
+        case CSSPropertyInsetInline:
+            return getCSSPropertyValuesFor2SidesShorthand(insetInlineShorthand());
         case CSSPropertyListStyle:
             return getCSSPropertyValuesForShorthandProperties(listStyleShorthand());
         case CSSPropertyMargin:
-            return getCSSPropertyValuesForSidesShorthand(marginShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(marginShorthand());
+        case CSSPropertyMarginBlock:
+            return getCSSPropertyValuesFor2SidesShorthand(marginBlockShorthand());
+        case CSSPropertyMarginInline:
+            return getCSSPropertyValuesFor2SidesShorthand(marginInlineShorthand());
         case CSSPropertyOutline:
             return getCSSPropertyValuesForShorthandProperties(outlineShorthand());
         case CSSPropertyPadding:
-            return getCSSPropertyValuesForSidesShorthand(paddingShorthand());
-
+            return getCSSPropertyValuesFor4SidesShorthand(paddingShorthand());
+        case CSSPropertyPaddingBlock:
+            return getCSSPropertyValuesFor2SidesShorthand(paddingBlockShorthand());
+        case CSSPropertyPaddingInline:
+            return getCSSPropertyValuesFor2SidesShorthand(paddingInlineShorthand());
 #if ENABLE(CSS_SCROLL_SNAP)
         case CSSPropertyScrollSnapMargin:
-            return getCSSPropertyValuesForSidesShorthand(scrollSnapMarginShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(scrollSnapMarginShorthand());
         case CSSPropertyScrollSnapMarginBottom:
             return zoomAdjustedPixelValueForLength(style.scrollSnapMarginBottom(), style);
         case CSSPropertyScrollSnapMarginTop:
@@ -3944,7 +4015,7 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyinStyle(const RenderSty
         case CSSPropertyScrollSnapMarginLeft:
             return zoomAdjustedPixelValueForLength(style.scrollSnapMarginLeft(), style);
         case CSSPropertyScrollPadding:
-            return getCSSPropertyValuesForSidesShorthand(scrollPaddingShorthand());
+            return getCSSPropertyValuesFor4SidesShorthand(scrollPaddingShorthand());
         case CSSPropertyScrollPaddingBottom:
             return zoomAdjustedPixelValueForLength(style.scrollPaddingBottom(), style);
         case CSSPropertyScrollPaddingTop:
@@ -4053,6 +4124,10 @@ RefPtr<CSSValue> ComputedStyleExtractor::valueForPropertyinStyle(const RenderSty
         case CSSPropertyBorderInlineStartColor:
         case CSSPropertyBorderInlineStartStyle:
         case CSSPropertyBorderInlineStartWidth:
+        case CSSPropertyInsetBlockEnd:
+        case CSSPropertyInsetBlockStart:
+        case CSSPropertyInsetInlineEnd:
+        case CSSPropertyInsetInlineStart:
         case CSSPropertyMarginBlockEnd:
         case CSSPropertyMarginBlockStart:
         case CSSPropertyMarginInlineEnd:
@@ -4216,15 +4291,36 @@ Ref<MutableStyleProperties> ComputedStyleExtractor::copyProperties()
     return copyPropertiesInSet(computedProperties, numComputedProperties);
 }
 
-RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForShorthandProperties(const StylePropertyShorthand& shorthand)
+Ref<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForShorthandProperties(const StylePropertyShorthand& shorthand)
 {
     auto list = CSSValueList::createSpaceSeparated();
     for (size_t i = 0; i < shorthand.length(); ++i)
         list->append(propertyValue(shorthand.properties()[i], DoNotUpdateLayout).releaseNonNull());
+    return list;
+}
+
+RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesFor2SidesShorthand(const StylePropertyShorthand& shorthand)
+{
+    auto list = CSSValueList::createSpaceSeparated();
+
+    // Assume the properties are in the usual order start, end.
+    auto startValue = propertyValue(shorthand.properties()[0], DoNotUpdateLayout);
+    auto endValue = propertyValue(shorthand.properties()[1], DoNotUpdateLayout);
+
+    // All 2 properties must be specified.
+    if (!startValue || !endValue)
+        return nullptr;
+
+    bool showEnd = !compareCSSValuePtr(startValue, endValue);
+
+    list->append(startValue.releaseNonNull());
+    if (showEnd)
+        list->append(endValue.releaseNonNull());
+
     return WTFMove(list);
 }
 
-RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForSidesShorthand(const StylePropertyShorthand& shorthand)
+RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesFor4SidesShorthand(const StylePropertyShorthand& shorthand)
 {
     auto list = CSSValueList::createSpaceSeparated();
 
@@ -4253,12 +4349,12 @@ RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForSidesShortha
     return WTFMove(list);
 }
 
-RefPtr<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForGridShorthand(const StylePropertyShorthand& shorthand)
+Ref<CSSValueList> ComputedStyleExtractor::getCSSPropertyValuesForGridShorthand(const StylePropertyShorthand& shorthand)
 {
     auto list = CSSValueList::createSlashSeparated();
     for (size_t i = 0; i < shorthand.length(); ++i)
         list->append(propertyValue(shorthand.properties()[i], DoNotUpdateLayout).releaseNonNull());
-    return WTFMove(list);
+    return list;
 }
 
 Ref<MutableStyleProperties> ComputedStyleExtractor::copyPropertiesInSet(const CSSPropertyID* set, unsigned length)
@@ -4353,8 +4449,8 @@ Ref<CSSValueList> ComputedStyleExtractor::getBackgroundShorthandValue()
     static const CSSPropertyID propertiesAfterSlashSeperator[3] = { CSSPropertyBackgroundSize, CSSPropertyBackgroundOrigin, CSSPropertyBackgroundClip };
 
     auto list = CSSValueList::createSlashSeparated();
-    list->append(*getCSSPropertyValuesForShorthandProperties(StylePropertyShorthand(CSSPropertyBackground, propertiesBeforeSlashSeperator)));
-    list->append(*getCSSPropertyValuesForShorthandProperties(StylePropertyShorthand(CSSPropertyBackground, propertiesAfterSlashSeperator)));
+    list->append(getCSSPropertyValuesForShorthandProperties(StylePropertyShorthand(CSSPropertyBackground, propertiesBeforeSlashSeperator)));
+    list->append(getCSSPropertyValuesForShorthandProperties(StylePropertyShorthand(CSSPropertyBackground, propertiesAfterSlashSeperator)));
     return list;
 }
 

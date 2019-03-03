@@ -116,6 +116,10 @@ public:
     WEBCORE_EXPORT static float defaultMinimumZoomFontSize();
     WEBCORE_EXPORT static bool defaultDownloadableBinaryFontsEnabled();
 
+#if ENABLE(MEDIA_SOURCE)
+    static bool platformDefaultMediaSourceEnabled();
+#endif
+
     static const unsigned defaultMaximumHTMLParserDOMTreeDepth = 512;
     static const unsigned defaultMaximumRenderTreeDepth = 512;
 
@@ -188,8 +192,12 @@ protected:
     void hiddenPageDOMTimerThrottlingStateChanged();
     void hiddenPageCSSAnimationSuspensionEnabledChanged();
     void resourceUsageOverlayVisibleChanged();
+    void iceCandidateFilteringEnabledChanged();
 #if ENABLE(TEXT_AUTOSIZING)
     void shouldEnableTextAutosizingBoostChanged();
+#endif
+#if ENABLE(MEDIA_STREAM)
+    void mockCaptureDevicesEnabledChanged();
 #endif
 
     Page* m_page;

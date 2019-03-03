@@ -332,7 +332,7 @@ static InlineCacheAction tryCacheGetByID(ExecState* exec, JSValue baseValue, con
             if (slot.isCacheableGetter())
                 getter = jsDynamicCast<JSFunction*>(vm, slot.getterSetter()->getter());
 
-            std::optional<DOMAttributeAnnotation> domAttribute;
+            Optional<DOMAttributeAnnotation> domAttribute;
             if (slot.isCacheableCustom() && slot.domAttribute())
                 domAttribute = slot.domAttribute();
 
@@ -470,8 +470,7 @@ static InlineCacheAction tryCachePutByID(ExecState* exec, JSValue baseValue, Str
             
                 if (stubInfo.cacheType == CacheType::Unset
                     && InlineAccess::canGenerateSelfPropertyReplace(stubInfo, slot.cachedOffset())
-                    && !structure->needImpurePropertyWatchpoint()
-                    && !structure->inferredTypeFor(ident.impl())) {
+                    && !structure->needImpurePropertyWatchpoint()) {
                     
                     bool generatedCodeInline = InlineAccess::generateSelfPropertyReplace(stubInfo, structure, slot.cachedOffset());
                     if (generatedCodeInline) {

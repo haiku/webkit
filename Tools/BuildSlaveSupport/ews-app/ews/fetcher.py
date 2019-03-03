@@ -21,12 +21,30 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
+import threading
+import time
 
 from ews.common.bugzilla import Bugzilla
 from ews.common.buildbot import Buildbot
 from ews.models.patch import Patch
 
 _log = logging.getLogger(__name__)
+
+
+class FetchLoop():
+    def __init__(self, interval=60):
+        self.interval = interval
+        thread = threading.Thread(target=self.run, args=())
+        thread.daemon = True
+        thread.start()
+
+    def run(self):
+        while True:
+            try:
+                BugzillaPatchFetcher().fetch()
+            except Exception as e:
+                _log.error('Exception in BugzillaPatchFetcher: {}'.format(e))
+            time.sleep(self.interval)
 
 
 class BugzillaPatchFetcher():
@@ -47,7 +65,8 @@ class BugzillaPatchFetcher():
                 _log.warn('Patch is obsolete, skipping')
                 Patch.set_obsolete(patch_id)
                 continue
-            rc = Buildbot.send_patch_to_buildbot(bz_patch['path'], properties=['patch_id={}'.format(patch_id)])
+            rc = Buildbot.send_patch_to_buildbot(bz_patch['path'],
+                     properties=['patch_id={}'.format(patch_id), 'bug_id={}'.format(bz_patch['bug_id']), 'owner={}'.format(bz_patch.get('creator', ''))])
             if rc == 0:
                 Patch.set_bug_id(patch_id, bz_patch['bug_id'])
                 Patch.set_sent_to_buildbot(patch_id)

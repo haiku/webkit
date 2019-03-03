@@ -51,8 +51,13 @@ public:
     FloatingState& floatingState() const { return m_floatingState; }
 
     Point positionForFloat(const Box&) const;
-    std::optional<Point> positionForFloatAvoiding(const Box&) const;
-    std::optional<Position> verticalPositionWithClearance(const Box&) const;
+    Optional<Point> positionForFloatAvoiding(const Box&) const;
+
+    struct ClearancePosition {
+        Optional<Position> position;
+        Optional<LayoutUnit> clearance;
+    };
+    ClearancePosition verticalPositionWithClearance(const Box&) const;
 
 private:
     LayoutState& layoutState() const { return m_floatingState.layoutState(); }

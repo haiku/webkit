@@ -20,12 +20,12 @@
 
 #if ENABLE(BUBBLEWRAP_SANDBOX)
 
-#include <WebCore/FileSystem.h>
 #include <WebCore/PlatformDisplay.h>
 #include <fcntl.h>
 #include <glib.h>
 #include <seccomp.h>
 #include <sys/ioctl.h>
+#include <wtf/FileSystem.h>
 #include <wtf/glib/GLibUtilities.h>
 #include <wtf/glib/GRefPtr.h>
 #include <wtf/glib/GUniquePtr.h>
@@ -306,22 +306,6 @@ static void bindX11(Vector<CString>& args)
         bindIfExists(args, xauthFile.get());
     } else
         bindIfExists(args, xauth);
-}
-
-static void bindDconf(Vector<CString>& args)
-{
-    const char* runtimeDir = g_get_user_runtime_dir();
-    GUniquePtr<char> dconfRuntimeDir(g_build_filename(runtimeDir, "dconf", nullptr));
-    args.appendVector(Vector<CString>({ "--bind", dconfRuntimeDir.get(), dconfRuntimeDir.get() }));
-
-    const char* dconfDir = g_getenv("DCONF_USER_CONFIG_DIR");
-    if (dconfDir)
-        bindIfExists(args, dconfDir);
-    else {
-        const char* configDir = g_get_user_config_dir();
-        GUniquePtr<char> dconfConfigDir(g_build_filename(configDir, "dconf", nullptr));
-        bindIfExists(args, dconfConfigDir.get(), BindFlags::ReadWrite);
-    }
 }
 
 #if PLATFORM(WAYLAND) && USE(EGL)
@@ -775,10 +759,12 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
 #endif
             bindX11(sandboxArgs);
 
-        // NOTE: This is not a great solution but we just assume that applications create this directory
-        // ahead of time if they require it.
-        GUniquePtr<char> configDir(g_build_filename(g_get_user_config_dir(), g_get_prgname(), nullptr));
-        GUniquePtr<char> cacheDir(g_build_filename(g_get_user_cache_dir(), g_get_prgname(), nullptr));
+        for (const auto& pathAndPermission : launchOptions.extraWebProcessSandboxPaths) {
+            sandboxArgs.appendVector(Vector<CString>({
+                pathAndPermission.value == SandboxPermission::ReadOnly ? "--ro-bind-try": "--bind-try",
+                pathAndPermission.key, pathAndPermission.key
+            }));
+        }
 
         Vector<String> extraPaths = { "applicationCacheDirectory", "waylandSocket"};
         for (const auto& path : extraPaths) {
@@ -787,14 +773,7 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
                 sandboxArgs.appendVector(Vector<CString>({ "--bind-try", extraPath.utf8(), extraPath.utf8() }));
         }
 
-        sandboxArgs.appendVector(Vector<CString>({
-            "--ro-bind-try", cacheDir.get(), cacheDir.get(),
-            "--ro-bind-try", configDir.get(), configDir.get(),
-        }));
-
         bindDBusSession(sandboxArgs, proxy);
-        // FIXME: This needs to be restricted, upstream is working on it.
-        bindDconf(sandboxArgs);
         // FIXME: We should move to Pipewire as soon as viable, Pulse doesn't restrict clients atm.
         bindPulse(sandboxArgs);
         bindFonts(sandboxArgs);
@@ -809,8 +788,6 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
 
         if (!proxy.isRunning()) {
             Vector<CString> permissions = {
-                // FIXME: Used by GTK on Wayland.
-                "--talk=ca.desrt.dconf",
                 // GStreamers plugin install helper.
                 "--call=org.freedesktop.PackageKit=org.freedesktop.PackageKit.Modify2.InstallGStreamerResources@/org/freedesktop/PackageKit"
             };

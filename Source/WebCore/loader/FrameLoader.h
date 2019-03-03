@@ -124,7 +124,7 @@ public:
     unsigned long loadResourceSynchronously(const ResourceRequest&, ClientCredentialPolicy, const FetchOptions&, const HTTPHeaderMap&, ResourceError&, ResourceResponse&, RefPtr<SharedBuffer>& data);
 
     void changeLocation(FrameLoadRequest&&);
-    WEBCORE_EXPORT void urlSelected(const URL&, const String& target, Event*, LockHistory, LockBackForwardList, ShouldSendReferrer, ShouldOpenExternalURLsPolicy, std::optional<NewFrameOpenerPolicy> = std::nullopt, const AtomicString& downloadAttribute = nullAtom(), const SystemPreviewInfo& = { });
+    WEBCORE_EXPORT void urlSelected(const URL&, const String& target, Event*, LockHistory, LockBackForwardList, ShouldSendReferrer, ShouldOpenExternalURLsPolicy, Optional<NewFrameOpenerPolicy> = WTF::nullopt, const AtomicString& downloadAttribute = nullAtom(), const SystemPreviewInfo& = { });
     void submitForm(Ref<FormSubmission>&&);
 
     WEBCORE_EXPORT void reload(OptionSet<ReloadOption> = { });
@@ -234,6 +234,8 @@ public:
 
     void dispatchOnloadEvents();
     String userAgent(const URL&) const;
+    String userAgentForJavaScript(const URL&) const;
+    String navigatorPlatform() const;
 
     void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&);
     void dispatchDidClearWindowObjectsInAllWorlds();
@@ -366,7 +368,7 @@ private:
 
     bool shouldReloadToHandleUnreachableURL(DocumentLoader&);
 
-    void dispatchDidCommitLoad(std::optional<HasInsecureContent> initialHasInsecureContent);
+    void dispatchDidCommitLoad(Optional<HasInsecureContent> initialHasInsecureContent);
 
     void urlSelected(FrameLoadRequest&&, Event*);
 
@@ -387,7 +389,7 @@ private:
 
     void loadInSameDocument(const URL&, SerializedScriptValue* stateObject, bool isNewNavigation);
 
-    void prepareForLoadStart();
+    void prepareForLoadStart(CompletionHandler<void()>&&);
     void provisionalLoadStarted();
 
     void willTransitionToCommitted();
@@ -403,6 +405,9 @@ private:
 
     bool isNavigationAllowed() const;
     bool isStopLoadingAllowed() const;
+
+    enum class LoadContinuingState : uint8_t { NotContinuing, ContinuingWithRequest, ContinuingWithHistoryItem };
+    bool shouldTreatCurrentLoadAsContinuingLoad() const { return m_currentLoadContinuingState != LoadContinuingState::NotContinuing; }
 
     Frame& m_frame;
     FrameLoaderClient& m_client;
@@ -469,10 +474,11 @@ private:
 
     RefPtr<FrameNetworkingContext> m_networkingContext;
 
-    std::optional<ResourceRequestCachePolicy> m_overrideCachePolicyForTesting;
-    std::optional<ResourceLoadPriority> m_overrideResourceLoadPriorityForTesting;
+    Optional<ResourceRequestCachePolicy> m_overrideCachePolicyForTesting;
+    Optional<ResourceLoadPriority> m_overrideResourceLoadPriorityForTesting;
     bool m_isStrictRawResourceValidationPolicyDisabledForTesting { false };
-    bool m_currentLoadShouldBeTreatedAsContinuingLoad { false };
+
+    LoadContinuingState m_currentLoadContinuingState { LoadContinuingState::NotContinuing };
 
     bool m_checkingLoadCompleteForDetachment { false };
 

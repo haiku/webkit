@@ -35,15 +35,10 @@
 
 #import "KeyEventCodesIOS.h"
 #import "WAKAppKitStubs.h"
+#import <pal/ios/UIKitSoftLink.h>
 #import <pal/spi/cocoa/IOKitSPI.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
 #import <pal/spi/ios/UIKitSPI.h>
-#import <wtf/SoftLinking.h>
-
-SOFT_LINK_FRAMEWORK(UIKit)
-SOFT_LINK_CLASS(UIKit, UIApplication);
-
-#define UIApplication getUIApplicationClass()
 
 using WebCore::windowsKeyCodeForKeyCode;
 using WebCore::windowsKeyCodeForCharCode;
@@ -153,46 +148,24 @@ static NSString *normalizedStringWithAppKitCompatibilityMapping(NSString *charac
         return @"\x1B";
     case kHIDUsage_KeypadNumLock: // Num Lock / Clear
         return makeNSStringWithCharacter(NSClearLineFunctionKey);
+#if USE(UIKIT_KEYBOARD_ADDITIONS)
+    case kHIDUsage_KeyboardDeleteForward:
+        return makeNSStringWithCharacter(NSDeleteFunctionKey);
+    case kHIDUsage_KeyboardEnd:
+        return makeNSStringWithCharacter(NSEndFunctionKey);
+    case kHIDUsage_KeyboardInsert:
+        return makeNSStringWithCharacter(NSInsertFunctionKey);
+    case kHIDUsage_KeyboardHome:
+        return makeNSStringWithCharacter(NSHomeFunctionKey);
+#endif
     }
+#if USE(UIKIT_KEYBOARD_ADDITIONS)
+    if (keyCode >= kHIDUsage_KeyboardF1 && keyCode <= kHIDUsage_KeyboardF12)
+        return makeNSStringWithCharacter(NSF1FunctionKey + (keyCode - kHIDUsage_KeyboardF1));
+    if (keyCode >= kHIDUsage_KeyboardF13 && keyCode <= kHIDUsage_KeyboardF24)
+        return makeNSStringWithCharacter(NSF13FunctionKey + (keyCode - kHIDUsage_KeyboardF13));
+#endif
     return characters;
-}
-
-// FIXME: to be removed when the adoption of the new initializer is complete.
-- (WebEvent *)initWithKeyEventType:(WebEventType)type
-                         timeStamp:(CFTimeInterval)timeStamp
-                        characters:(NSString *)characters
-       charactersIgnoringModifiers:(NSString *)charactersIgnoringModifiers
-                         modifiers:(WebEventFlags)modifiers
-                       isRepeating:(BOOL)repeating
-                         withFlags:(NSUInteger)flags
-                           keyCode:(uint16_t)keyCode
-                          isTabKey:(BOOL)tabKey
-                      characterSet:(WebEventCharacterSet)characterSet
-{
-    UNUSED_PARAM(characterSet);
-    self = [super init];
-    if (!self)
-        return nil;
-    
-    _type = type;
-    _timestamp = timeStamp;
-    _keyboardFlags = flags;
-    _modifierFlags = modifiers;
-    if (keyCode)
-        _keyCode = windowsKeyCodeForKeyCode(keyCode);
-    else if ([charactersIgnoringModifiers length] == 1) {
-        // This event is likely for a software keyboard-generated event.
-        _keyCode = windowsKeyCodeForCharCodeIOS([charactersIgnoringModifiers characterAtIndex:0]);
-    }
-
-    if (!(_keyboardFlags & WebEventKeyboardInputModifierFlagsChanged)) {
-        _characters = [normalizedStringWithAppKitCompatibilityMapping(characters, keyCode) retain];
-        _charactersIgnoringModifiers = [normalizedStringWithAppKitCompatibilityMapping(charactersIgnoringModifiers, keyCode) retain];
-        _tabKey = tabKey;
-        _keyRepeating = repeating;
-    }
-
-    return self;
 }
 
 - (WebEvent *)initWithKeyEventType:(WebEventType)type
@@ -501,7 +474,7 @@ static NSString *normalizedStringWithAppKitCompatibilityMapping(NSString *charac
 
 + (WebEventFlags)modifierFlags
 {
-    return GSEventIsHardwareKeyboardAttached() ? GSKeyboardGetModifierState([UIApplication sharedApplication]._hardwareKeyboard) : 0;
+    return GSEventIsHardwareKeyboardAttached() ? GSKeyboardGetModifierState([PAL::getUIApplicationClass() sharedApplication]._hardwareKeyboard) : 0;
 }
 
 @end

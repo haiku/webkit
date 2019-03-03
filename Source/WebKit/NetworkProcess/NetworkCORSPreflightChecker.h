@@ -30,7 +30,6 @@
 #include <WebCore/StoredCredentialsPolicy.h>
 #include <pal/SessionID.h>
 #include <wtf/CompletionHandler.h>
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 class ResourceError;
@@ -38,6 +37,8 @@ class SecurityOrigin;
 }
 
 namespace WebKit {
+
+class NetworkProcess;
 
 class NetworkCORSPreflightChecker final : private NetworkDataTaskClient {
     WTF_MAKE_FAST_ALLOCATED;
@@ -54,7 +55,7 @@ public:
     };
     using CompletionCallback = CompletionHandler<void(WebCore::ResourceError&&)>;
 
-    NetworkCORSPreflightChecker(Parameters&&, bool shouldCaptureExtraNetworkLoadMetrics, CompletionCallback&&);
+    NetworkCORSPreflightChecker(NetworkProcess&, Parameters&&, bool shouldCaptureExtraNetworkLoadMetrics, CompletionCallback&&);
     ~NetworkCORSPreflightChecker();
     const WebCore::ResourceRequest& originalRequest() const { return m_parameters.originalRequest; }
 
@@ -73,6 +74,7 @@ private:
     void cannotShowURL() final;
 
     Parameters m_parameters;
+    Ref<NetworkProcess> m_networkProcess;
     WebCore::ResourceResponse m_response;
     CompletionCallback m_completionCallback;
     RefPtr<NetworkDataTask> m_task;

@@ -39,9 +39,9 @@
 #include <WebCore/COMPtr.h>
 #include <WebCore/DatabaseManager.h>
 #include <WebCore/DatabaseTracker.h>
-#include <WebCore/FileSystem.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SecurityOriginData.h>
+#include <wtf/FileSystem.h>
 #include <wtf/MainThread.h>
 
 #if ENABLE(INDEXED_DATABASE)
@@ -57,7 +57,7 @@ static inline bool isEqual(LPCWSTR s1, LPCWSTR s2)
     return !wcscmp(s1, s2);
 }
 
-class DatabaseDetailsPropertyBag : public IPropertyBag {
+class DatabaseDetailsPropertyBag final : public IPropertyBag {
     WTF_MAKE_NONCOPYABLE(DatabaseDetailsPropertyBag);
 public:
     static DatabaseDetailsPropertyBag* createInstance(const DatabaseDetails&);
@@ -436,7 +436,7 @@ static WTF::String databasesDirectory()
         return static_cast<CFStringRef>(directoryPref.get());
 #endif
 
-    return WebCore::FileSystem::pathByAppendingComponent(WebCore::FileSystem::localUserSpecificStorageDirectory(), "Databases");
+    return FileSystem::pathByAppendingComponent(FileSystem::localUserSpecificStorageDirectory(), "Databases");
 }
 
 void WebKitInitializeWebDatabasesIfNecessary()

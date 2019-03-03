@@ -878,7 +878,7 @@ void MediaPlayerPrivateGStreamerBase::paint(GraphicsContext& context, const Floa
     if (m_renderingCanBeAccelerated)
         paintingOptions.m_orientationDescription.setImageOrientationEnum(m_videoSourceOrientation);
 
-    RefPtr<ImageGStreamer> gstImage = ImageGStreamer::createImage(m_sample.get());
+    auto gstImage = ImageGStreamer::createImage(m_sample.get());
     if (!gstImage)
         return;
 
@@ -1252,13 +1252,6 @@ void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithLocalInstance()
 {
     bool eventHandled = gst_element_send_event(pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, gst_structure_new_empty("attempt-to-decrypt")));
     GST_DEBUG("attempting to decrypt, event handled %s", boolForPrinting(eventHandled));
-}
-
-void MediaPlayerPrivateGStreamerBase::dispatchDecryptionKey(GstBuffer* buffer)
-{
-    bool eventHandled = gst_element_send_event(pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-        gst_structure_new("drm-cipher", "key", GST_TYPE_BUFFER, buffer, nullptr)));
-    GST_TRACE("emitted decryption cipher key on pipeline, event handled %s", boolForPrinting(eventHandled));
 }
 
 void MediaPlayerPrivateGStreamerBase::handleProtectionEvent(GstEvent* event)

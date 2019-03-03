@@ -30,6 +30,7 @@
 #include "GraphicsLayer.h"
 #include "GraphicsLayerClient.h"
 #include "RenderLayer.h"
+#include "RenderLayerCompositor.h"
 #include "ScrollingCoordinator.h"
 
 namespace WebCore {
@@ -62,6 +63,9 @@ public:
 #if PLATFORM(IOS_FAMILY)
     void layerWillBeDestroyed();
 #endif
+
+    // Do cleanup while layer->backing() is still valid.
+    void willBeDestroyed();
 
     RenderLayer& owningLayer() const { return m_owningLayer; }
 
@@ -99,38 +103,48 @@ public:
 
     bool requiresBackgroundLayer() const { return m_requiresBackgroundLayer; }
     void setRequiresBackgroundLayer(bool);
-    
+
     bool hasScrollingLayer() const { return m_scrollingLayer != nullptr; }
     GraphicsLayer* scrollingLayer() const { return m_scrollingLayer.get(); }
     GraphicsLayer* scrollingContentsLayer() const { return m_scrollingContentsLayer.get(); }
 
-    void detachFromScrollingCoordinator(OptionSet<LayerScrollCoordinationRole>);
-    
-    ScrollingNodeID scrollingNodeIDForRole(LayerScrollCoordinationRole role) const
+    OptionSet<ScrollCoordinationRole> coordinatedScrollingRoles() const;
+
+    void detachFromScrollingCoordinator(OptionSet<ScrollCoordinationRole>);
+
+    ScrollingNodeID scrollingNodeIDForRole(ScrollCoordinationRole role) const
     {
         switch (role) {
-        case Scrolling:
+        case ScrollCoordinationRole::Scrolling:
             return m_scrollingNodeID;
-        case ViewportConstrained:
+        case ScrollCoordinationRole::FrameHosting:
+            return m_frameHostingNodeID;
+        case ScrollCoordinationRole::ViewportConstrained:
             return m_viewportConstrainedNodeID;
         }
         return 0;
     }
-    
-    void setScrollingNodeIDForRole(ScrollingNodeID nodeID, LayerScrollCoordinationRole role)
+
+    void setScrollingNodeIDForRole(ScrollingNodeID nodeID, ScrollCoordinationRole role)
     {
         switch (role) {
-        case Scrolling:
+        case ScrollCoordinationRole::Scrolling:
             m_scrollingNodeID = nodeID;
             break;
-        case ViewportConstrained:
+        case ScrollCoordinationRole::FrameHosting:
+            m_frameHostingNodeID = nodeID;
+            break;
+        case ScrollCoordinationRole::ViewportConstrained:
             m_viewportConstrainedNodeID = nodeID;
             setIsScrollCoordinatedWithViewportConstrainedRole(nodeID);
             break;
         }
     }
-    
-    ScrollingNodeID scrollingNodeIDForChildren() const { return m_scrollingNodeID ? m_scrollingNodeID : m_viewportConstrainedNodeID; }
+
+    ScrollingNodeID scrollingNodeIDForChildren() const
+    {
+        return m_frameHostingNodeID ? m_frameHostingNodeID : (m_scrollingNodeID ? m_scrollingNodeID : m_viewportConstrainedNodeID);
+    }
 
     void setIsScrollCoordinatedWithViewportConstrainedRole(bool);
 
@@ -207,7 +221,8 @@ public:
 
     float pageScaleFactor() const override;
     float zoomedOutPageScaleFactor() const override;
-    void didCommitChangesForLayer(const GraphicsLayer*) const override;
+
+    void didChangePlatformLayerForLayer(const GraphicsLayer*) override;
     bool getCurrentTransform(const GraphicsLayer*, TransformationMatrix&) const override;
 
     bool isTrackingRepaints() const override;
@@ -376,6 +391,7 @@ private:
 
     ScrollingNodeID m_viewportConstrainedNodeID { 0 };
     ScrollingNodeID m_scrollingNodeID { 0 };
+    ScrollingNodeID m_frameHostingNodeID { 0 };
 
     bool m_artificiallyInflatedBounds { false }; // bounds had to be made non-zero to make transform-origin work
     bool m_isMainFrameRenderViewLayer { false };

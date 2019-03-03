@@ -61,15 +61,16 @@ public:
     };
 
     enum BaseTypeFlag {
-        ContainerFlag         = 1 << 0,
-        BlockContainerFlag    = 1 << 1,
-        InlineBoxFlag         = 1 << 2,
-        InlineContainerFlag   = 1 << 3,
-        LineBreakBoxFlag      = 1 << 4
+        BoxFlag               = 1 << 0,
+        ContainerFlag         = 1 << 1,
+        BlockContainerFlag    = 1 << 2,
+        InlineBoxFlag         = 1 << 3,
+        InlineContainerFlag   = 1 << 4,
+        LineBreakBoxFlag      = 1 << 5
     };
     typedef unsigned BaseTypeFlags;
 
-    Box(std::optional<ElementAttributes>, RenderStyle&&, BaseTypeFlags);
+    Box(Optional<ElementAttributes>, RenderStyle&&);
     virtual ~Box();
 
     bool establishesFormattingContext() const;
@@ -135,9 +136,12 @@ public:
     void setNextSibling(Box& nextSibling) { m_nextSibling = &nextSibling; }
     void setPreviousSibling(Box& previousSibling) { m_previousSibling = &previousSibling; }
 
+protected:
+    Box(Optional<ElementAttributes>, RenderStyle&&, BaseTypeFlags);
+
 private:
     RenderStyle m_style;
-    std::optional<ElementAttributes> m_elementAttributes;
+    Optional<ElementAttributes> m_elementAttributes;
 
     Container* m_parent { nullptr };
     Box* m_previousSibling { nullptr };

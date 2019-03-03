@@ -69,9 +69,9 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #if ENABLE(MEDIA_STREAM)
     encoder << audioCaptureExtensionHandle;
     encoder << shouldCaptureAudioInUIProcess;
+    encoder << shouldCaptureVideoInUIProcess;
     encoder << shouldCaptureDisplayInUIProcess;
 #endif
-    encoder << shouldUseTestingNetworkSession;
     encoder << urlSchemesRegisteredAsEmptyDocument;
     encoder << urlSchemesRegisteredAsSecure;
     encoder << urlSchemesRegisteredAsBypassingContentSecurityPolicy;
@@ -166,13 +166,13 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.injectedBundlePath))
         return false;
     
-    std::optional<SandboxExtension::Handle> injectedBundlePathExtensionHandle;
+    Optional<SandboxExtension::Handle> injectedBundlePathExtensionHandle;
     decoder >> injectedBundlePathExtensionHandle;
     if (!injectedBundlePathExtensionHandle)
         return false;
     parameters.injectedBundlePathExtensionHandle = WTFMove(*injectedBundlePathExtensionHandle);
 
-    std::optional<SandboxExtension::HandleArray> additionalSandboxExtensionHandles;
+    Optional<SandboxExtension::HandleArray> additionalSandboxExtensionHandles;
     decoder >> additionalSandboxExtensionHandles;
     if (!additionalSandboxExtensionHandles)
         return false;
@@ -184,7 +184,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.applicationCacheFlatFileSubdirectoryName))
         return false;
     
-    std::optional<SandboxExtension::Handle> applicationCacheDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> applicationCacheDirectoryExtensionHandle;
     decoder >> applicationCacheDirectoryExtensionHandle;
     if (!applicationCacheDirectoryExtensionHandle)
         return false;
@@ -193,7 +193,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.webSQLDatabaseDirectory))
         return false;
 
-    std::optional<SandboxExtension::Handle> webSQLDatabaseDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> webSQLDatabaseDirectoryExtensionHandle;
     decoder >> webSQLDatabaseDirectoryExtensionHandle;
     if (!webSQLDatabaseDirectoryExtensionHandle)
         return false;
@@ -202,7 +202,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.mediaCacheDirectory))
         return false;
     
-    std::optional<SandboxExtension::Handle> mediaCacheDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> mediaCacheDirectoryExtensionHandle;
     decoder >> mediaCacheDirectoryExtensionHandle;
     if (!mediaCacheDirectoryExtensionHandle)
         return false;
@@ -211,7 +211,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.javaScriptConfigurationDirectory))
         return false;
     
-    std::optional<SandboxExtension::Handle> javaScriptConfigurationDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> javaScriptConfigurationDirectoryExtensionHandle;
     decoder >> javaScriptConfigurationDirectoryExtensionHandle;
     if (!javaScriptConfigurationDirectoryExtensionHandle)
         return false;
@@ -219,19 +219,19 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
 
 #if PLATFORM(IOS_FAMILY)
     
-    std::optional<SandboxExtension::Handle> cookieStorageDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> cookieStorageDirectoryExtensionHandle;
     decoder >> cookieStorageDirectoryExtensionHandle;
     if (!cookieStorageDirectoryExtensionHandle)
         return false;
     parameters.cookieStorageDirectoryExtensionHandle = WTFMove(*cookieStorageDirectoryExtensionHandle);
 
-    std::optional<SandboxExtension::Handle> containerCachesDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> containerCachesDirectoryExtensionHandle;
     decoder >> containerCachesDirectoryExtensionHandle;
     if (!containerCachesDirectoryExtensionHandle)
         return false;
     parameters.containerCachesDirectoryExtensionHandle = WTFMove(*containerCachesDirectoryExtensionHandle);
 
-    std::optional<SandboxExtension::Handle> containerTemporaryDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> containerTemporaryDirectoryExtensionHandle;
     decoder >> containerTemporaryDirectoryExtensionHandle;
     if (!containerTemporaryDirectoryExtensionHandle)
         return false;
@@ -245,7 +245,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.webKitLoggingChannels))
         return false;
     
-    std::optional<SandboxExtension::Handle> mediaKeyStorageDirectoryExtensionHandle;
+    Optional<SandboxExtension::Handle> mediaKeyStorageDirectoryExtensionHandle;
     decoder >> mediaKeyStorageDirectoryExtensionHandle;
     if (!mediaKeyStorageDirectoryExtensionHandle)
         return false;
@@ -253,7 +253,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
 
 #if ENABLE(MEDIA_STREAM)
 
-    std::optional<SandboxExtension::Handle> audioCaptureExtensionHandle;
+    Optional<SandboxExtension::Handle> audioCaptureExtensionHandle;
     decoder >> audioCaptureExtensionHandle;
     if (!audioCaptureExtensionHandle)
         return false;
@@ -261,11 +261,11 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
 
     if (!decoder.decode(parameters.shouldCaptureAudioInUIProcess))
         return false;
+    if (!decoder.decode(parameters.shouldCaptureVideoInUIProcess))
+        return false;
     if (!decoder.decode(parameters.shouldCaptureDisplayInUIProcess))
         return false;
 #endif
-    if (!decoder.decode(parameters.shouldUseTestingNetworkSession))
-        return false;
     if (!decoder.decode(parameters.urlSchemesRegisteredAsEmptyDocument))
         return false;
     if (!decoder.decode(parameters.urlSchemesRegisteredAsSecure))
@@ -334,7 +334,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!decoder.decode(parameters.uiProcessBundleResourcePath))
         return false;
     
-    std::optional<SandboxExtension::Handle> uiProcessBundleResourcePathExtensionHandle;
+    Optional<SandboxExtension::Handle> uiProcessBundleResourcePathExtensionHandle;
     decoder >> uiProcessBundleResourcePathExtensionHandle;
     if (!uiProcessBundleResourcePathExtensionHandle)
         return false;
@@ -412,7 +412,7 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
 #endif
 
 #if PLATFORM(MAC)
-    std::optional<WebCore::ScreenProperties> screenProperties;
+    Optional<WebCore::ScreenProperties> screenProperties;
     decoder >> screenProperties;
     if (!screenProperties)
         return false;

@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Apple Inc. All rights reserved.
+# Copyright (C) 2012-2019 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -34,11 +34,11 @@ messages -> NetworkConnectionToWebProcess LegacyReceiver {
     StartDownload(PAL::SessionID sessionID, WebKit::DownloadID downloadID, WebCore::ResourceRequest request, String suggestedName)
     ConvertMainResourceLoadToDownload(PAL::SessionID sessionID, uint64_t mainResourceLoadIdentifier, WebKit::DownloadID downloadID, WebCore::ResourceRequest request, WebCore::ResourceResponse response)
 
-    CookiesForDOM(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, enum:bool WebCore::IncludeSecureCookies includeSecureCookies) -> (String cookieString, bool didAccessSecureCookies) LegacySync
-    SetCookiesFromDOM(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, String cookieString)
+    CookiesForDOM(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, enum:bool WebCore::IncludeSecureCookies includeSecureCookies) -> (String cookieString, bool didAccessSecureCookies) LegacySync
+    SetCookiesFromDOM(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, String cookieString)
     CookiesEnabled(PAL::SessionID sessionID) -> (bool enabled) LegacySync
-    CookieRequestHeaderFieldValue(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, enum:bool WebCore::IncludeSecureCookies includeSecureCookies) -> (String cookieString, bool didAccessSecureCookies) LegacySync
-    GetRawCookies(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID) -> (Vector<WebCore::Cookie> cookies) LegacySync
+    CookieRequestHeaderFieldValue(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, enum:bool WebCore::IncludeSecureCookies includeSecureCookies) -> (String cookieString, bool didAccessSecureCookies) LegacySync
+    GetRawCookies(PAL::SessionID sessionID, URL firstParty, struct WebCore::SameSiteInfo sameSiteInfo, URL url, Optional<uint64_t> frameID, Optional<uint64_t> pageID) -> (Vector<WebCore::Cookie> cookies) LegacySync
     DeleteCookie(PAL::SessionID sessionID, URL url, String cookieName)
 
     RegisterFileBlobURL(URL url, String path, WebKit::SandboxExtension::Handle extensionHandle, String contentType)
@@ -50,16 +50,23 @@ messages -> NetworkConnectionToWebProcess LegacyReceiver {
     BlobSize(URL url) -> (uint64_t resultSize) LegacySync
     WriteBlobsToTemporaryFiles(Vector<String> blobURLs) -> (Vector<String> fileNames) Async
 
-    StoreDerivedDataToCache(WebKit::NetworkCache::DataKey key, IPC::SharedBufferDataReference data)
-
     SetCaptureExtraNetworkLoadMetricsEnabled(bool enabled)
 
     CreateSocketStream(URL url, PAL::SessionID sessionID, String cachePartition, uint64_t identifier)
 
     EnsureLegacyPrivateBrowsingSession()
 
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
     RemoveStorageAccessForFrame(PAL::SessionID sessionID, uint64_t frameID, uint64_t pageID);
     RemoveStorageAccessForAllFramesOnPage(PAL::SessionID sessionID, uint64_t pageID);
+    LogUserInteraction(PAL::SessionID sessionID, String topLevelOrigin)
+    LogWebSocketLoading(PAL::SessionID sessionID, String targetPrimaryDomain, String mainFramePrimaryDomain, WallTime lastSeen)
+    LogSubresourceLoading(PAL::SessionID sessionID, String targetPrimaryDomain, String mainFramePrimaryDomain, WallTime lastSeen)
+    LogSubresourceRedirect(PAL::SessionID sessionID, String sourcePrimaryDomain, String targetPrimaryDomain)
+    RequestResourceLoadStatisticsUpdate();
+    HasStorageAccess(PAL::SessionID sessionID, String subFrameHost, String topFrameHost, uint64_t frameID, uint64_t pageID) -> (bool hasStorageAccess) Async
+    RequestStorageAccess(PAL::SessionID sessionID, String subFrameHost, String topFrameHost, uint64_t frameID, uint64_t pageID, bool prompt) -> (bool accessGranted) Async
+#endif
 
     AddOriginAccessWhitelistEntry(String sourceOrigin, String destinationProtocol, String destinationHost, bool allowDestinationSubdomains);
     RemoveOriginAccessWhitelistEntry(String sourceOrigin, String destinationProtocol, String destinationHost, bool allowDestinationSubdomains);

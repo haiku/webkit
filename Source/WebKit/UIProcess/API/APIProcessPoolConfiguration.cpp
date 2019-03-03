@@ -41,26 +41,26 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithLegacyOptions(
     auto configuration = ProcessPoolConfiguration::createWithWebsiteDataStoreConfiguration(WebsiteDataStore::legacyDefaultDataStoreConfiguration());
 
     configuration->m_shouldHaveLegacyDataStore = true;
-    configuration->m_maximumProcessCount = 1;
-    configuration->m_cacheModel = WebKit::CacheModelDocumentViewer;
+    configuration->m_cacheModel = WebKit::CacheModel::DocumentViewer;
 
     return configuration;
 }
 
-Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithWebsiteDataStoreConfiguration(const WebKit::WebsiteDataStore::Configuration& legacyConfiguration)
+Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithWebsiteDataStoreConfiguration(const WebKit::WebsiteDataStoreConfiguration& legacyConfiguration)
 {
     auto configuration = ProcessPoolConfiguration::create();
 
-    configuration->m_applicationCacheDirectory = legacyConfiguration.applicationCacheDirectory;
-    configuration->m_applicationCacheFlatFileSubdirectoryName = legacyConfiguration.applicationCacheFlatFileSubdirectoryName;
-    configuration->m_diskCacheDirectory = legacyConfiguration.networkCacheDirectory;
-    configuration->m_mediaCacheDirectory = legacyConfiguration.mediaCacheDirectory;
+    configuration->m_applicationCacheDirectory = legacyConfiguration.applicationCacheDirectory();
+    configuration->m_applicationCacheFlatFileSubdirectoryName = legacyConfiguration.applicationCacheFlatFileSubdirectoryName();
+    configuration->m_diskCacheDirectory = legacyConfiguration.networkCacheDirectory();
+    configuration->m_mediaCacheDirectory = legacyConfiguration.mediaCacheDirectory();
     configuration->m_indexedDBDatabaseDirectory = WebsiteDataStore::legacyDefaultIndexedDBDatabaseDirectory();
-    configuration->m_localStorageDirectory = legacyConfiguration.localStorageDirectory;
-    configuration->m_mediaKeysStorageDirectory = legacyConfiguration.mediaKeysStorageDirectory;
-    configuration->m_resourceLoadStatisticsDirectory = legacyConfiguration.resourceLoadStatisticsDirectory;
-    configuration->m_webSQLDatabaseDirectory = legacyConfiguration.webSQLDatabaseDirectory;
-    configuration->m_javaScriptConfigurationDirectory = legacyConfiguration.javaScriptConfigurationDirectory;
+    configuration->m_localStorageDirectory = legacyConfiguration.localStorageDirectory();
+    configuration->m_deviceIdHashSaltsStorageDirectory = legacyConfiguration.deviceIdHashSaltsStorageDirectory();
+    configuration->m_mediaKeysStorageDirectory = legacyConfiguration.mediaKeysStorageDirectory();
+    configuration->m_resourceLoadStatisticsDirectory = legacyConfiguration.resourceLoadStatisticsDirectory();
+    configuration->m_webSQLDatabaseDirectory = legacyConfiguration.webSQLDatabaseDirectory();
+    configuration->m_javaScriptConfigurationDirectory = legacyConfiguration.javaScriptConfigurationDirectory();
 
     return configuration;
 }
@@ -72,6 +72,7 @@ ProcessPoolConfiguration::ProcessPoolConfiguration()
     , m_mediaCacheDirectory(WebsiteDataStore::defaultMediaCacheDirectory())
     , m_indexedDBDatabaseDirectory(WebsiteDataStore::defaultIndexedDBDatabaseDirectory())
     , m_localStorageDirectory(WebsiteDataStore::defaultLocalStorageDirectory())
+    , m_deviceIdHashSaltsStorageDirectory(WebsiteDataStore::defaultDeviceIdHashSaltsStorageDirectory())
     , m_webSQLDatabaseDirectory(WebsiteDataStore::defaultWebSQLDatabaseDirectory())
     , m_mediaKeysStorageDirectory(WebsiteDataStore::defaultMediaKeysStorageDirectory())
     , m_resourceLoadStatisticsDirectory(WebsiteDataStore::defaultResourceLoadStatisticsDirectory())
@@ -88,17 +89,16 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     auto copy = this->create();
 
     copy->m_shouldHaveLegacyDataStore = this->m_shouldHaveLegacyDataStore;
-    copy->m_maximumProcessCount = this->m_maximumProcessCount;
     copy->m_cacheModel = this->m_cacheModel;
     copy->m_diskCacheDirectory = this->m_diskCacheDirectory;
     copy->m_diskCacheSpeculativeValidationEnabled = this->m_diskCacheSpeculativeValidationEnabled;
-    copy->m_diskCacheSizeOverride = this->m_diskCacheSizeOverride;
     copy->m_applicationCacheDirectory = this->m_applicationCacheDirectory;
     copy->m_applicationCacheFlatFileSubdirectoryName = this->m_applicationCacheFlatFileSubdirectoryName;
     copy->m_mediaCacheDirectory = this->m_mediaCacheDirectory;
     copy->m_indexedDBDatabaseDirectory = this->m_indexedDBDatabaseDirectory;
     copy->m_injectedBundlePath = this->m_injectedBundlePath;
     copy->m_localStorageDirectory = this->m_localStorageDirectory;
+    copy->m_deviceIdHashSaltsStorageDirectory = this->m_deviceIdHashSaltsStorageDirectory;
     copy->m_mediaKeysStorageDirectory = this->m_mediaKeysStorageDirectory;
     copy->m_resourceLoadStatisticsDirectory = this->m_resourceLoadStatisticsDirectory;
     copy->m_javaScriptConfigurationDirectory = this->m_javaScriptConfigurationDirectory;
@@ -110,8 +110,6 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_ignoreSynchronousMessagingTimeoutsForTesting = this->m_ignoreSynchronousMessagingTimeoutsForTesting;
     copy->m_attrStyleEnabled = this->m_attrStyleEnabled;
     copy->m_overrideLanguages = this->m_overrideLanguages;
-    copy->m_sourceApplicationBundleIdentifier = this->m_sourceApplicationBundleIdentifier;
-    copy->m_sourceApplicationSecondaryIdentifier = this->m_sourceApplicationSecondaryIdentifier;
     copy->m_alwaysRunsAtBackgroundPriority = this->m_alwaysRunsAtBackgroundPriority;
     copy->m_shouldTakeUIBackgroundAssertion = this->m_shouldTakeUIBackgroundAssertion;
     copy->m_shouldCaptureAudioInUIProcess = this->m_shouldCaptureAudioInUIProcess;
@@ -133,6 +131,7 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_suppressesConnectionTerminationOnSystemChange = this->m_suppressesConnectionTerminationOnSystemChange;
 #endif
     copy->m_customWebContentServiceBundleIdentifier = this->m_customWebContentServiceBundleIdentifier;
+    copy->m_usesSingleWebProcess = m_usesSingleWebProcess;
 
     return copy;
 }

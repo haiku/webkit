@@ -75,7 +75,7 @@ interface IWebHistoryItemPrivate;
 WebFrame* kit(WebCore::Frame*);
 WEBKIT_API WebCore::Frame* core(WebFrame*);
 
-class DECLSPEC_UUID("{A3676398-4485-4a9d-87DC-CB5A40E6351D}") WebFrame : public IWebFrame2, IWebFramePrivate, IWebDocumentText
+class DECLSPEC_UUID("{A3676398-4485-4a9d-87DC-CB5A40E6351D}") WebFrame final : public IWebFrame2, IWebFramePrivate, IWebDocumentText
 {
 public:
     static WebFrame* createInstance();
@@ -199,7 +199,7 @@ public:
 
 protected:
     void loadHTMLString(_In_ BSTR string, _In_ BSTR baseURL, _In_ BSTR unreachableURL);
-    void loadData(RefPtr<WebCore::SharedBuffer>&&, BSTR mimeType, BSTR textEncodingName, BSTR baseURL, BSTR failingURL);
+    void loadData(Ref<WebCore::SharedBuffer>&&, BSTR mimeType, BSTR textEncodingName, BSTR baseURL, BSTR failingURL);
     const Vector<WebCore::IntRect>& computePageRects(HDC printDC);
     void setPrinting(bool printing, const WebCore::FloatSize& pageSize, const WebCore::FloatSize& originalPageSize, float maximumShrinkRatio, WebCore::AdjustViewSizeOrNot);
     void headerAndFooterHeights(float*, float*);

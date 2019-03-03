@@ -372,14 +372,31 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webdatabase/SQLTransactionErrorCallback.idl \
     $(WebCore)/Modules/webdriver/NavigatorWebDriver.idl \
     $(WebCore)/Modules/webgpu/DOMWindowWebGPU.idl \
+    $(WebCore)/Modules/webgpu/GPUCompareFunction.idl \
+    $(WebCore)/Modules/webgpu/GPUDepthStencilStateDescriptor.idl \
     $(WebCore)/Modules/webgpu/WebGPU.idl \
     $(WebCore)/Modules/webgpu/WebGPUAdapter.idl \
     $(WebCore)/Modules/webgpu/WebGPUAdapterDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroup.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroupBinding.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroupDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroupLayout.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroupLayoutBinding.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBindGroupLayoutDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBuffer.idl \
+	$(WebCore)/Modules/webgpu/WebGPUBufferBinding.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBufferDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUBufferUsage.idl \
     $(WebCore)/Modules/webgpu/WebGPUColor.idl \
     $(WebCore)/Modules/webgpu/WebGPUCommandBuffer.idl \
     $(WebCore)/Modules/webgpu/WebGPUDevice.idl \
+    $(WebCore)/Modules/webgpu/WebGPUIndexFormat.idl \
+    $(WebCore)/Modules/webgpu/WebGPUInputStateDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUInputStepMode.idl \
     $(WebCore)/Modules/webgpu/WebGPUQueue.idl \
     $(WebCore)/Modules/webgpu/WebGPUPipelineDescriptorBase.idl \
+    $(WebCore)/Modules/webgpu/WebGPUPipelineLayout.idl \
+    $(WebCore)/Modules/webgpu/WebGPUPipelineLayoutDescriptor.idl \
     $(WebCore)/Modules/webgpu/WebGPUPipelineStageDescriptor.idl \
     $(WebCore)/Modules/webgpu/WebGPUProgrammablePassEncoder.idl \
     $(WebCore)/Modules/webgpu/WebGPURenderPassColorAttachmentDescriptor.idl \
@@ -390,11 +407,14 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webgpu/WebGPURenderingContext.idl \
     $(WebCore)/Modules/webgpu/WebGPUShaderModule.idl \
     $(WebCore)/Modules/webgpu/WebGPUShaderModuleDescriptor.idl \
-    $(WebCore)/Modules/webgpu/WebGPUShaderStage.idl \
+    $(WebCore)/Modules/webgpu/WebGPUShaderStageBit.idl \
     $(WebCore)/Modules/webgpu/WebGPUSwapChain.idl \
     $(WebCore)/Modules/webgpu/WebGPUTexture.idl \
     $(WebCore)/Modules/webgpu/WebGPUTextureFormatEnum.idl \
     $(WebCore)/Modules/webgpu/WebGPUTextureView.idl \
+	$(WebCore)/Modules/webgpu/WebGPUVertexAttributeDescriptor.idl \
+    $(WebCore)/Modules/webgpu/WebGPUVertexFormat.idl \
+	$(WebCore)/Modules/webgpu/WebGPUVertexInputDescriptor.idl \
     $(WebCore)/Modules/websockets/CloseEvent.idl \
     $(WebCore)/Modules/websockets/WebSocket.idl \
     $(WebCore)/Modules/webvr/DOMWindowWebVR.idl \
@@ -502,11 +522,13 @@ JS_BINDING_IDLS = \
     $(WebCore)/css/StyleMedia.idl \
     $(WebCore)/css/StyleSheet.idl \
     $(WebCore)/css/StyleSheetList.idl \
-    $(WebCore)/css/typedom/CSSNumericValue.idl \
-    $(WebCore)/css/typedom/CSSStyleValue.idl \
-    $(WebCore)/css/typedom/CSSUnitValue.idl \
-    $(WebCore)/css/typedom/CSSUnparsedValue.idl \
+    $(WebCore)/css/typedom/StylePropertyMap.idl \
     $(WebCore)/css/typedom/StylePropertyMapReadOnly.idl \
+	$(WebCore)/css/typedom/TypedOMCSSImageValue.idl \
+    $(WebCore)/css/typedom/TypedOMCSSNumericValue.idl \
+    $(WebCore)/css/typedom/TypedOMCSSStyleValue.idl \
+    $(WebCore)/css/typedom/TypedOMCSSUnitValue.idl \
+    $(WebCore)/css/typedom/TypedOMCSSUnparsedValue.idl \
     $(WebCore)/css/WebKitCSSMatrix.idl \
     $(WebCore)/css/WebKitCSSViewportRule.idl \
     $(WebCore)/dom/AbortController.idl \
@@ -819,6 +841,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/track/VideoTrack.idl \
     $(WebCore)/html/track/VideoTrackList.idl \
     $(WebCore)/inspector/CommandLineAPIHost.idl \
+    $(WebCore)/inspector/InspectorAuditAccessibilityObject.idl \
+    $(WebCore)/inspector/InspectorAuditDOMObject.idl \
     $(WebCore)/inspector/InspectorFrontendHost.idl \
     $(WebCore)/loader/appcache/DOMApplicationCache.idl \
     $(WebCore)/page/BarProp.idl \
@@ -856,6 +880,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/page/ScrollLogicalPosition.idl \
     $(WebCore)/page/ScrollToOptions.idl \
     $(WebCore)/page/ShareData.idl \
+    $(WebCore)/page/UndoItem.idl \
+    $(WebCore)/page/UndoManager.idl \
     $(WebCore)/page/UserMessageHandler.idl \
     $(WebCore)/page/UserMessageHandlersNamespace.idl \
     $(WebCore)/page/VisualViewport.idl \
@@ -1111,6 +1137,10 @@ ifeq ($(shell $(CC) -std=gnu++14 -x c++ -E -P -dM $(SDK_FLAGS) $(TARGET_TRIPLE_F
     ENABLE_ORIENTATION_EVENTS = 1
 endif
 
+ifeq ($(shell $(CC) -std=gnu++14 -x c++ -E -P -dM $(SDK_FLAGS) $(TARGET_TRIPLE_FLAGS) $(FRAMEWORK_FLAGS) $(HEADER_FLAGS) -include "wtf/Platform.h" /dev/null | grep ENABLE_MEDIA_SOURCE | cut -d' ' -f3), 1)
+	ENABLE_MEDIA_SOURCE = 1
+endif
+
 ifeq ($(WTF_PLATFORM_IOS_FAMILY), 1)
 FEATURE_AND_PLATFORM_DEFINES = $(FEATURE_DEFINES) WTF_PLATFORM_IOS_FAMILY
 else ifeq ($(WTF_PLATFORM_MAC), 1)
@@ -1238,12 +1268,20 @@ ifndef ENABLE_ORIENTATION_EVENTS
     ENABLE_ORIENTATION_EVENTS = 0
 endif
 
+ifndef ENABLE_MEDIA_SOURCE
+	ENABLE_MEDIA_SOURCE = 0
+endif
+
 ifeq ($(ENABLE_ORIENTATION_EVENTS), 1)
     ADDITIONAL_IDL_DEFINES := $(ADDITIONAL_IDL_DEFINES) ENABLE_ORIENTATION_EVENTS
 endif
 
 ifeq ($(USE_APPLE_INTERNAL_SDK), 1)
     ADDITIONAL_IDL_DEFINES := $(ADDITIONAL_IDL_DEFINES) USE_APPLE_INTERNAL_SDK
+endif
+
+ifeq ($(ENABLE_MEDIA_SOURCE), 1)
+    ADDITIONAL_IDL_DEFINES := $(ADDITIONAL_IDL_DEFINES) ENABLE_MEDIA_SOURCE
 endif
 
 # CSS property names and value keywords
@@ -1579,6 +1617,15 @@ GENERATE_SETTINGS_PATTERNS = $(subst .,%,$(GENERATE_SETTINGS_FILES))
 all : $(GENERATE_SETTINGS_FILES)
 $(GENERATE_SETTINGS_PATTERNS) : $(WebCore)/Scripts/GenerateSettings.rb $(GENERATE_SETTINGS_TEMPLATES) page/Settings.yaml
 	$(RUBY) $< --input $(WebCore)/page/Settings.yaml
+
+# --------
+
+# WHLSL Standard Library
+
+all : WHLSLStandardLibrary.cpp
+
+WHLSLStandardLibrary.cpp : $(JavaScriptCore_SCRIPTS_DIR)/xxd.pl $(WebCore)/Modules/webgpu/WHLSL/WHLSLStandardLibrary.txt
+	$(PERL) $(JavaScriptCore_SCRIPTS_DIR)/xxd.pl WHLSLStandardLibrary $(WebCore)/Modules/webgpu/WHLSL/WHLSLStandardLibrary.txt WHLSLStandardLibrary.h
 
 # --------
 

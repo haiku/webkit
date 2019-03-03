@@ -31,6 +31,7 @@
 #import "StringFunctions.h"
 #import "TestInvocation.h"
 #import "TestRunnerWKWebView.h"
+#import "TestWebsiteDataStoreDelegate.h"
 #import <Foundation/Foundation.h>
 #import <Security/SecItem.h>
 #import <WebKit/WKContextConfigurationRef.h>
@@ -54,6 +55,10 @@
 namespace WTR {
 
 static WKWebViewConfiguration *globalWebViewConfiguration;
+
+#if WK_API_ENABLED
+static TestWebsiteDataStoreDelegate *globalWebsiteDataStoreDelegateClient;
+#endif
 
 void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injectedBundlePath, WKContextRef context, WKContextConfigurationRef contextConfiguration)
 {
@@ -79,6 +84,12 @@ void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injecte
 
     [globalWebViewConfiguration.websiteDataStore _setResourceLoadStatisticsEnabled:YES];
     [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsSetShouldSubmitTelemetry:NO];
+
+#if WK_API_ENABLED
+    [globalWebsiteDataStoreDelegateClient release];
+    globalWebsiteDataStoreDelegateClient = [[TestWebsiteDataStoreDelegate alloc] init];
+    [globalWebViewConfiguration.websiteDataStore set_delegate:globalWebsiteDataStoreDelegateClient];
+#endif
 
 #if PLATFORM(IOS_FAMILY)
     globalWebViewConfiguration.allowsInlineMediaPlayback = YES;
@@ -161,6 +172,9 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
     if (options.enableEditableImages)
         [copiedConfiguration _setEditableImagesEnabled:YES];
 
+    if (options.enableUndoManagerAPI)
+        [copiedConfiguration _setUndoManagerAPIEnabled:YES];
+
     if (options.applicationManifest.length()) {
         auto manifestPath = [NSString stringWithUTF8String:options.applicationManifest.c_str()];
         NSString *text = [NSString stringWithContentsOfFile:manifestPath usedEncoding:nullptr error:nullptr];
@@ -171,6 +185,9 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
 
     if (options.punchOutWhiteBackgroundsInDarkMode)
         m_mainWebView->setDrawsBackground(false);
+
+    if (options.editable)
+        m_mainWebView->setEditable(true);
 #else
     m_mainWebView = std::make_unique<PlatformWebView>(globalWebViewConfiguration, options);
 #endif
@@ -205,17 +222,6 @@ void TestController::platformRunUntil(bool& done, WTF::Seconds timeout)
         [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:endDate];
 }
 
-ClassMethodSwizzler::ClassMethodSwizzler(Class cls, SEL originalSelector, IMP implementation)
-    : m_method(class_getClassMethod(objc_getMetaClass(NSStringFromClass(cls).UTF8String), originalSelector))
-    , m_originalImplementation(method_setImplementation(m_method, implementation))
-{
-}
-
-ClassMethodSwizzler::~ClassMethodSwizzler()
-{
-    method_setImplementation(m_method, m_originalImplementation);
-}
-    
 static NSCalendar *swizzledCalendar()
 {
     return [NSCalendar calendarWithIdentifier:TestController::singleton().getOverriddenCalendarIdentifier().get()];
@@ -257,6 +263,8 @@ void TestController::cocoaResetStateToConsistentValues(const TestOptions& option
         if (options.shouldShowSpellCheckingDots)
             [platformView toggleContinuousSpellChecking:nil];
     }
+
+    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: false];
 #endif
 }
 
@@ -388,6 +396,22 @@ bool TestController::keyExistsInKeychain(const String& attrLabel, const String& 
     ASSERT(status == errSecItemNotFound);
 #endif
     return false;
+}
+
+void TestController::allowCacheStorageQuotaIncrease()
+{
+#if WK_API_ENABLED
+    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: true];
+#endif
+}
+
+bool TestController::canDoServerTrustEvaluationInNetworkProcess() const
+{
+#if HAVE(CFNETWORK_NSURLSESSION_STRICTRUSTEVALUATE)
+    return true;
+#else
+    return false;
+#endif
 }
 
 } // namespace WTR

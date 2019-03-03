@@ -29,11 +29,14 @@
 
 #include "ProcessLauncher.h"
 
-#include <glib.h>
+#include <wtf/glib/GRefPtr.h>
+
+typedef struct _GSubprocess GSubprocess;
+typedef struct _GSubprocessLauncher GSubprocessLauncher;
 
 namespace WebKit {
 
-GRefPtr<GSubprocess> flatpakSpawn(GSubprocessLauncher*, const WebKit::ProcessLauncher::LaunchOptions&, char** argv, GError**);
+GRefPtr<GSubprocess> flatpakSpawn(GSubprocessLauncher*, const WebKit::ProcessLauncher::LaunchOptions&, char** argv, int childProcessSocket, GError**);
 
 };
 

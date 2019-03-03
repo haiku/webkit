@@ -25,11 +25,11 @@
 
 WI.AuditTestCase = class AuditTestCase extends WI.AuditTestBase
 {
-    constructor(name, test, {description} = {})
+    constructor(name, test, options = {})
     {
         console.assert(typeof test === "string");
 
-        super(name, {description});
+        super(name, options);
 
         this._test = test;
     }
@@ -41,31 +41,44 @@ WI.AuditTestCase = class AuditTestCase extends WI.AuditTestBase
         if (typeof payload !== "object" || payload === null)
             return null;
 
-        let {type, name, test, description} = payload;
-
-        if (type !== WI.AuditTestCase.TypeIdentifier)
+        if (payload.type !== WI.AuditTestCase.TypeIdentifier)
             return null;
 
-        if (typeof name !== "string")
+        if (typeof payload.name !== "string") {
+            WI.AuditManager.synthesizeError(WI.UIString("\u0022%s\u0022 has a non-string \u0022%s\u0022 value").format(payload.name, WI.unlocalizedString("name")));
             return null;
+        }
 
-        if (typeof test !== "string")
+        if (typeof payload.test !== "string") {
+            WI.AuditManager.synthesizeError(WI.UIString("\u0022%s\u0022 has a non-string \u0022%s\u0022 value").format(payload.name, WI.unlocalizedString("test")));
             return null;
+        }
 
         let options = {};
-        if (typeof description === "string")
-            options.description = description;
 
-        return new WI.AuditTestCase(name, test, options);
+        if (typeof payload.description === "string")
+            options.description = payload.description;
+        else if ("description" in payload)
+            WI.AuditManager.synthesizeWarning(WI.UIString("\u0022%s\u0022 has a non-string \u0022%s\u0022 value").format(payload.name, WI.unlocalizedString("description")));
+
+        if (typeof payload.supports === "number")
+            options.supports = payload.supports;
+        else if ("supports" in payload)
+            WI.AuditManager.synthesizeWarning(WI.UIString("\u0022%s\u0022 has a non-number \u0022%s\u0022 value").format(payload.name, WI.unlocalizedString("supports")));
+
+        if (typeof payload.disabled === "boolean")
+            options.disabled = payload.disabled;
+
+        return new WI.AuditTestCase(payload.name, payload.test, options);
     }
 
     // Public
 
     get test() { return this._test; }
 
-    toJSON()
+    toJSON(key)
     {
-        let json = super.toJSON();
+        let json = super.toJSON(key);
         json.test = this._test;
         return json;
     }
@@ -106,19 +119,9 @@ WI.AuditTestCase = class AuditTestCase extends WI.AuditTestBase
             data.errors.push(value);
         }
 
-        let evaluateArguments = {
-            expression: `(function() { "use strict"; return eval(${this._test})(); })()`,
-            objectGroup: "audit",
-            doNotPauseOnExceptionsAndMuteConsole: true,
-        };
-
-        try {
-            metadata.startTimestamp = new Date;
-            let evaluateResponse = await RuntimeAgent.evaluate.invoke(evaluateArguments);
-            metadata.endTimestamp = new Date;
-
-            let remoteObject = WI.RemoteObject.fromPayload(evaluateResponse.result, WI.mainTarget);
-            if (evaluateResponse.wasThrown || (remoteObject.type === "object" && remoteObject.subtype === "error"))
+        async function parseResponse(response) {
+            let remoteObject = WI.RemoteObject.fromPayload(response.result, WI.mainTarget);
+            if (response.wasThrown || (remoteObject.type === "object" && remoteObject.subtype === "error"))
                 addError(remoteObject.description);
             else if (remoteObject.type === "boolean")
                 setLevel(remoteObject.value ? WI.AuditTestCaseResult.Level.Pass : WI.AuditTestCaseResult.Level.Fail);
@@ -234,6 +237,39 @@ WI.AuditTestCase = class AuditTestCase extends WI.AuditTestBase
                 });
             } else
                 addError(WI.UIString("Return value is not an object, string, or boolean"));
+        }
+
+        let agentCommandFunction = null;
+        let agentCommandArguments = {};
+        if (InspectorBackend.domains.Audit) {
+            agentCommandFunction = AuditAgent.run;
+            agentCommandArguments.test = this._test;
+        } else {
+            agentCommandFunction = RuntimeAgent.evaluate;
+            agentCommandArguments.expression = `(function() { "use strict"; return eval(\`(${this._test.replace(/`/g, "\\`")})\`)(); })()`;
+            agentCommandArguments.objectGroup = "audit";
+            agentCommandArguments.doNotPauseOnExceptionsAndMuteConsole = true;
+        }
+
+        try {
+            metadata.startTimestamp = new Date;
+            let response = await agentCommandFunction.invoke(agentCommandArguments);
+            metadata.endTimestamp = new Date;
+
+            if (response.result.type === "object" && response.result.className === "Promise") {
+                if (WI.RuntimeManager.supportsAwaitPromise()) {
+                    metadata.asyncTimestamp = metadata.endTimestamp;
+                    response = await RuntimeAgent.awaitPromise(response.result.objectId);
+                    metadata.endTimestamp = new Date;
+                } else {
+                    response = null;
+                    addError(WI.UIString("Async audits are not supported."));
+                    setLevel(WI.AuditTestCaseResult.Level.Unsupported);
+                }
+            }
+
+            if (response)
+                await parseResponse(response);
         } catch (error) {
             metadata.endTimestamp = new Date;
             addError(error.message);

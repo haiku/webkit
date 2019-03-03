@@ -33,10 +33,9 @@
 #include "CookieJarDB.h"
 #include "CookieRequestHeaderFieldProxy.h"
 #include "CurlContext.h"
-#include "FileSystem.h"
 #include "NetworkingContext.h"
 #include "ResourceHandle.h"
-
+#include <wtf/FileSystem.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/URL.h>
@@ -51,7 +50,12 @@ static String defaultCookieJarPath()
     if (cookieJarPath)
         return cookieJarPath;
 
+#if PLATFORM(WIN)
     return FileSystem::pathByAppendingComponent(FileSystem::localUserSpecificStorageDirectory(), defaultFileName);
+#else
+    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=192417
+    return defaultFileName;
+#endif
 }
 
 NetworkStorageSession::NetworkStorageSession(PAL::SessionID sessionID, NetworkingContext* context)
@@ -82,31 +86,7 @@ CookieJarDB& NetworkStorageSession::cookieDatabase() const
     return m_cookieDatabase;
 }
 
-static std::unique_ptr<NetworkStorageSession>& defaultSession()
-{
-    ASSERT(isMainThread());
-    static std::unique_ptr<NetworkStorageSession> session;
-    return session;
-}
-
-NetworkStorageSession& NetworkStorageSession::defaultStorageSession()
-{
-    if (!defaultSession())
-        defaultSession() = std::make_unique<NetworkStorageSession>(PAL::SessionID::defaultSessionID(), nullptr);
-    return *defaultSession();
-}
-
-void NetworkStorageSession::ensureSession(PAL::SessionID, const String&)
-{
-    // FIXME: Implement for WebKit to use.
-}
-
-void NetworkStorageSession::switchToNewTestingSession()
-{
-    // FIXME: Implement for WebKit to use.
-}
-
-void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, const String& value) const
+void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, const String& value) const
 {
     cookieStorage().setCookiesFromDOM(*this, firstParty, sameSiteInfo, url, frameID, pageID, value);
 }
@@ -116,7 +96,7 @@ bool NetworkStorageSession::cookiesEnabled() const
     return cookieStorage().cookiesEnabled(*this);
 }
 
-std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
+std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
 {
     return cookieStorage().cookiesForDOM(*this, firstParty, sameSiteInfo, url, frameID, pageID, includeSecureCookies);
 }
@@ -173,7 +153,7 @@ Vector<Cookie> NetworkStorageSession::getCookies(const URL&)
     return { };
 }
 
-bool NetworkStorageSession::getRawCookies(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, Vector<Cookie>& rawCookies) const
+bool NetworkStorageSession::getRawCookies(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, Vector<Cookie>& rawCookies) const
 {
     return cookieStorage().getRawCookies(*this, firstParty, sameSiteInfo, url, frameID, pageID, rawCookies);
 }
@@ -183,7 +163,7 @@ void NetworkStorageSession::flushCookieStore()
     // FIXME: Implement for WebKit to use.
 }
 
-std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, std::optional<uint64_t> frameID, std::optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
+std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty, const SameSiteInfo& sameSiteInfo, const URL& url, Optional<uint64_t> frameID, Optional<uint64_t> pageID, IncludeSecureCookies includeSecureCookies) const
 {
     return cookieStorage().cookieRequestHeaderFieldValue(*this, firstParty, sameSiteInfo, url, frameID, pageID, includeSecureCookies);
 }

@@ -113,7 +113,7 @@ public:
     WEBCORE_EXPORT RefPtr<CSSValue> getPropertyCSSValue(CSSPropertyID) const;
     WEBCORE_EXPORT String getPropertyValue(CSSPropertyID) const;
 
-    WEBCORE_EXPORT std::optional<Color> propertyAsColor(CSSPropertyID) const;
+    WEBCORE_EXPORT Optional<Color> propertyAsColor(CSSPropertyID) const;
     WEBCORE_EXPORT CSSValueID propertyAsValueID(CSSPropertyID) const;
 
     bool propertyIsImportant(CSSPropertyID) const;
@@ -162,8 +162,9 @@ private:
     String getShorthandValue(const StylePropertyShorthand&) const;
     String getCommonValue(const StylePropertyShorthand&) const;
     String getAlignmentShorthandValue(const StylePropertyShorthand&) const;
-    String borderPropertyValue() const;
+    String borderPropertyValue(const StylePropertyShorthand&, const StylePropertyShorthand&, const StylePropertyShorthand&) const;
     String getLayeredShorthandValue(const StylePropertyShorthand&) const;
+    String get2Values(const StylePropertyShorthand&) const;
     String get4Values(const StylePropertyShorthand&) const;
     String borderSpacingValue(const StylePropertyShorthand&) const;
     String fontValue() const;

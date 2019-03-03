@@ -51,6 +51,7 @@ void WTFGetBacktrace(void** stack, int* size)
 #elif OS(WINDOWS)
     *size = RtlCaptureStackBackTrace(0, *size, stack, 0);
 #else
+    UNUSED_PARAM(stack);
     *size = 0;
 #endif
 }
@@ -85,7 +86,7 @@ std::unique_ptr<StackTrace> StackTrace::captureStackTrace(int maxFrames, int fra
     return trace;
 }
 
-auto StackTrace::demangle(void* pc) -> std::optional<DemangleEntry>
+auto StackTrace::demangle(void* pc) -> Optional<DemangleEntry>
 {
 #if HAVE(DLADDR)
     const char* mangledName = nullptr;
@@ -100,8 +101,10 @@ auto StackTrace::demangle(void* pc) -> std::optional<DemangleEntry>
     }
     if (mangledName || cxaDemangled)
         return DemangleEntry { mangledName, cxaDemangled };
+#else
+    UNUSED_PARAM(pc);
 #endif
-    return std::nullopt;
+    return WTF::nullopt;
 }
 
 void StackTrace::dump(PrintStream& out, const char* indentString) const

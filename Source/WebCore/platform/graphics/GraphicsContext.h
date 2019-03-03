@@ -414,9 +414,9 @@ public:
     void setTextDrawingMode(TextDrawingModeFlags);
     TextDrawingModeFlags textDrawingMode() const { return m_state.textDrawingMode; }
 
-    float drawText(const FontCascade&, const TextRun&, const FloatPoint&, unsigned from = 0, std::optional<unsigned> to = std::nullopt);
+    float drawText(const FontCascade&, const TextRun&, const FloatPoint&, unsigned from = 0, Optional<unsigned> to = WTF::nullopt);
     void drawGlyphs(const Font&, const GlyphBuffer&, unsigned from, unsigned numGlyphs, const FloatPoint&, FontSmoothingMode);
-    void drawEmphasisMarks(const FontCascade&, const TextRun&, const AtomicString& mark, const FloatPoint&, unsigned from = 0, std::optional<unsigned> to = std::nullopt);
+    void drawEmphasisMarks(const FontCascade&, const TextRun&, const AtomicString& mark, const FloatPoint&, unsigned from = 0, Optional<unsigned> to = WTF::nullopt);
     void drawBidiText(const FontCascade&, const TextRun&, const FloatPoint&, FontCascade::CustomFontNotReadyAction = FontCascade::DoNotPaintIfFontNotReady);
 
     void applyState(const GraphicsContextState&);
@@ -450,7 +450,9 @@ public:
 
     void drawFocusRing(const Vector<FloatRect>&, float width, float offset, const Color&);
     void drawFocusRing(const Path&, float width, float offset, const Color&);
-#if PLATFORM(MAC)
+
+    // FIXME: The following functions should only be compiled for Mac. See <https://bugs.webkit.org/show_bug.cgi?id=193591>.
+#if PLATFORM(COCOA)
     void drawFocusRing(const Path&, double timeOffset, bool& needsRedraw, const Color&);
     void drawFocusRing(const Vector<FloatRect>&, double timeOffset, bool& needsRedraw, const Color&);
 #endif
@@ -701,7 +703,7 @@ public:
             m_graphicsContext.setImageInterpolationQuality(interpolationQualityToUse);
     }
 
-    explicit InterpolationQualityMaintainer(GraphicsContext& graphicsContext, std::optional<InterpolationQuality> interpolationQuality)
+    explicit InterpolationQualityMaintainer(GraphicsContext& graphicsContext, Optional<InterpolationQuality> interpolationQuality)
         : InterpolationQualityMaintainer(graphicsContext, interpolationQuality ? interpolationQuality.value() : graphicsContext.imageInterpolationQuality())
     {
     }

@@ -59,9 +59,17 @@ WI.AuditTestGroupContentView = class AuditTestGroupContentView extends WI.AuditT
         this._levelNavigationBar.element.dataset.prefix = WI.UIString("Showing:");
         this.headerView.addSubview(this._levelNavigationBar);
 
-        this._percentageTextElement = this.headerView.element.appendChild(document.createElement("div"));
-        this._percentageTextElement.classList.add("percentage-pass");
-        this.headerView.element.appendChild(this._percentageTextElement);
+        this._percentageContainer = this.headerView.element.appendChild(document.createElement("div"));
+        this._percentageContainer.classList.add("percentage-pass");
+        this._percentageContainer.hidden = true;
+
+        this._percentageTextElement = document.createElement("span");
+
+        const format = WI.UIString("%s%%", "Percentage (of audits)", "The number of tests that passed expressed as a percentage, followed by a literal %.");
+        String.format(format, [this._percentageTextElement], String.standardFormatters, this._percentageContainer, (a, b) => {
+            a.append(b);
+            return a;
+        });
     }
 
     layout()
@@ -78,6 +86,7 @@ WI.AuditTestGroupContentView = class AuditTestGroupContentView extends WI.AuditT
                 this._levelScopeBar = null;
             }
 
+            this._percentageContainer.hidden = true;
             this._percentageTextElement.textContent = "";
 
             if (this.representedObject.runningState === WI.AuditManager.RunningState.Inactive)
@@ -93,15 +102,17 @@ WI.AuditTestGroupContentView = class AuditTestGroupContentView extends WI.AuditT
         let levelCounts = result.levelCounts;
         let totalCount = Object.values(levelCounts).reduce((accumulator, current) => accumulator + current);
         this._percentageTextElement.textContent = Math.floor(100 * levelCounts[WI.AuditTestCaseResult.Level.Pass] / totalCount);
+        this._percentageContainer.hidden = false;
 
         if (!this._levelScopeBar) {
             let scopeBarItems = [];
 
-            let addScopeBarItem = (level, label) => {
+            let addScopeBarItem = (level, labelSingular, labelPlural) => {
                 let count = levelCounts[level];
                 if (isNaN(count) || count <= 0)
                     return;
 
+                let label = (labelPlural && count !== 1) ? labelPlural : labelSingular;
                 let scopeBarItem = new WI.ScopeBarItem(level, label.format(count), {
                     className: level,
                     exclusive: false,
@@ -111,11 +122,11 @@ WI.AuditTestGroupContentView = class AuditTestGroupContentView extends WI.AuditT
                 scopeBarItems.push(scopeBarItem);
             };
 
-            addScopeBarItem(WI.AuditTestCaseResult.Level.Pass, WI.UIString("%d Pass"));
-            addScopeBarItem(WI.AuditTestCaseResult.Level.Warn, WI.UIString("%d Warn"));
-            addScopeBarItem(WI.AuditTestCaseResult.Level.Fail, WI.UIString("%d Fail"));
-            addScopeBarItem(WI.AuditTestCaseResult.Level.Error, WI.UIString("%d Error"));
-            addScopeBarItem(WI.AuditTestCaseResult.Level.Unsupported, WI.UIString("%d Unsupported"));
+            addScopeBarItem(WI.AuditTestCaseResult.Level.Pass, WI.UIString("%d Passed", "%d Passed (singular)"), WI.UIString("%d Passed", "%d Passed (plural)"));
+            addScopeBarItem(WI.AuditTestCaseResult.Level.Warn, WI.UIString("%d Warning"), WI.UIString("%d Warnings"));
+            addScopeBarItem(WI.AuditTestCaseResult.Level.Fail, WI.UIString("%d Failed", "%d Failed (singular)"), WI.UIString("%d Failed", "%d Failed (plural)"));
+            addScopeBarItem(WI.AuditTestCaseResult.Level.Error, WI.UIString("%d Error"), WI.UIString("%d Errors"));
+            addScopeBarItem(WI.AuditTestCaseResult.Level.Unsupported, WI.UIString("%d Unsupported", "%d Unsupported (singular)"), WI.UIString("%d Unsupported", "%d Unsupported (plural)"));
 
             this._levelScopeBar = new WI.ScopeBar(null, scopeBarItems);
             this._levelScopeBar.addEventListener(WI.ScopeBar.Event.SelectionChanged, this._handleLevelScopeBarSelectionChanged, this);
@@ -138,6 +149,9 @@ WI.AuditTestGroupContentView = class AuditTestGroupContentView extends WI.AuditT
         }
 
         for (let subobject of this._subobjects()) {
+            if (subobject instanceof WI.AuditTestBase && subobject.disabled)
+                continue;
+
             let view = WI.ContentView.contentViewForRepresentedObject(subobject);
             this.contentView.addSubview(view);
             view.shown();

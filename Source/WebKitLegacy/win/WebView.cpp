@@ -33,6 +33,7 @@
 #include "DOMCoreClasses.h"
 #include "FullscreenVideoController.h"
 #include "MarshallingHelpers.h"
+#include "PageStorageSessionProvider.h"
 #include "PluginDatabase.h"
 #include "PluginView.h"
 #include "WebApplicationCache.h"
@@ -85,6 +86,7 @@
 #include <WebCore/Chrome.h>
 #include <WebCore/ContextMenu.h>
 #include <WebCore/ContextMenuController.h>
+#include <WebCore/CookieJar.h>
 #include <WebCore/Cursor.h>
 #include <WebCore/DatabaseManager.h>
 #include <WebCore/DeprecatedGlobalSettings.h>
@@ -95,7 +97,6 @@
 #include <WebCore/Editor.h>
 #include <WebCore/EventHandler.h>
 #include <WebCore/EventNames.h>
-#include <WebCore/FileSystem.h>
 #include <WebCore/FloatQuad.h>
 #include <WebCore/FocusController.h>
 #include <WebCore/Font.h>
@@ -170,6 +171,7 @@
 #include <WebCore/WindowsTouch.h>
 #include <comdef.h>
 #include <d2d1.h>
+#include <wtf/FileSystem.h>
 #include <wtf/MainThread.h>
 #include <wtf/ProcessPrivilege.h>
 #include <wtf/RAMSize.h>
@@ -229,7 +231,6 @@ SOFT_LINK_OPTIONAL(Uxtheme, EndPanningFeedback, BOOL, WINAPI, (HWND, BOOL));
 SOFT_LINK_OPTIONAL(Uxtheme, UpdatePanningFeedback, BOOL, WINAPI, (HWND, LONG, LONG, BOOL));
 
 using namespace WebCore;
-using namespace std;
 using JSC::JSLock;
 
 static String webKitVersionString();
@@ -283,7 +284,7 @@ static String localStorageDatabasePath(WebPreferences* preferences)
     return toString(localStorageDatabasePath);
 }
 
-class PreferencesChangedOrRemovedObserver : public IWebNotificationObserver {
+class PreferencesChangedOrRemovedObserver final : public IWebNotificationObserver {
 public:
     static PreferencesChangedOrRemovedObserver* sharedInstance();
 
@@ -355,7 +356,7 @@ HRESULT PreferencesChangedOrRemovedObserver::notifyPreferencesChanged(WebCacheMo
         hr = WebPreferences::sharedStandardPreferences()->cacheModel(&sharedPreferencesCacheModel);
         if (FAILED(hr))
             return hr;
-        WebView::setCacheModel(max(sharedPreferencesCacheModel, WebView::maxCacheModelInAnyInstance()));
+        WebView::setCacheModel(std::max(sharedPreferencesCacheModel, WebView::maxCacheModelInAnyInstance()));
     }
 
     return hr;
@@ -370,7 +371,7 @@ HRESULT PreferencesChangedOrRemovedObserver::notifyPreferencesRemoved(WebCacheMo
         hr = WebPreferences::sharedStandardPreferences()->cacheModel(&sharedPreferencesCacheModel);
         if (FAILED(hr))
             return hr;
-        WebView::setCacheModel(max(sharedPreferencesCacheModel, WebView::maxCacheModelInAnyInstance()));
+        WebView::setCacheModel(std::max(sharedPreferencesCacheModel, WebView::maxCacheModelInAnyInstance()));
     }
 
     return hr;
@@ -513,7 +514,7 @@ void WebView::setCacheModel(WebCacheModel cacheModel)
         if (preference && (CFStringGetTypeID() == CFGetTypeID(preference.get())))
             cfurlCacheDirectory = adoptCF(static_cast<CFStringRef>(preference.leakRef()));
         else
-            cfurlCacheDirectory = WebCore::FileSystem::localUserSpecificStorageDirectory().createCFString();
+            cfurlCacheDirectory = FileSystem::localUserSpecificStorageDirectory().createCFString();
     }
     cacheDirectory = String(cfurlCacheDirectory.get());
     CFIndex cacheMemoryCapacity = 0;
@@ -643,7 +644,7 @@ void WebView::setCacheModel(WebCacheModel cacheModel)
 
         // This code is here to avoid a PLT regression. We can remove it if we
         // can prove that the overall system gain would justify the regression.
-        cacheMaxDeadCapacity = max(24u, cacheMaxDeadCapacity);
+        cacheMaxDeadCapacity = std::max(24u, cacheMaxDeadCapacity);
 
         deadDecodedDataDeletionInterval = 60_s;
 
@@ -685,7 +686,7 @@ void WebView::setCacheModel(WebCacheModel cacheModel)
 
 #if USE(CFURLCONNECTION)
     // Don't shrink a big disk cache, since that would cause churn.
-    cacheDiskCapacity = max(cacheDiskCapacity, CFURLCacheDiskCapacity(cfurlCache.get()));
+    cacheDiskCapacity = std::max(cacheDiskCapacity, CFURLCacheDiskCapacity(cfurlCache.get()));
 
     CFURLCacheSetMemoryCapacity(cfurlCache.get(), cacheMemoryCapacity);
     CFURLCacheSetDiskCapacity(cfurlCache.get(), cacheDiskCapacity);
@@ -721,7 +722,7 @@ WebCacheModel WebView::maxCacheModelInAnyInstance()
         if (FAILED(pref->cacheModel(&prefCacheModel)))
             continue;
 
-        cacheModel = max(cacheModel, prefCacheModel);
+        cacheModel = std::max(cacheModel, prefCacheModel);
     }
 
     return cacheModel;
@@ -953,6 +954,19 @@ void WebView::addToDirtyRegion(GDIObject<HRGN> newRegion)
 
 void WebView::scrollBackingStore(FrameView* frameView, int logicalDx, int logicalDy, const IntRect& logicalScrollViewRect, const IntRect& logicalClipRect)
 {
+    if (deviceScaleFactor() != static_cast<int>(deviceScaleFactor())) {
+        // Non-integral device scale factors are causing repaint glitches, because the computation of the scroll
+        // delta in pixel coordinates from the scroll delta in logical coordinates will not always be correct.
+        // Instead of blitting the scroll rectangle, repaint the entire region affected by scrolling.
+        // FIXME: This is inefficient, we should be able to blit the scroll rectangle in this case as well,
+        // see https://bugs.webkit.org/show_bug.cgi?id=193542.
+        IntRect repaintRect = logicalScrollViewRect;
+        repaintRect.move(logicalDx, logicalDy);
+        repaintRect.unite(logicalScrollViewRect);
+        repaint(repaintRect, true);
+        return;
+    }
+
     m_needsDisplay = true;
 
     // Dimensions passed to us from WebCore are in logical units. We must convert to pixels:
@@ -1786,7 +1800,7 @@ void WebView::onMenuCommand(WPARAM wParam, LPARAM lParam)
     HMENU hMenu = reinterpret_cast<HMENU>(lParam);
     unsigned index = static_cast<unsigned>(wParam);
 
-    MENUITEMINFO menuItemInfo = { 0 };
+    MENUITEMINFO menuItemInfo { };
     menuItemInfo.cbSize = sizeof(menuItemInfo);
     menuItemInfo.fMask = MIIM_STRING;
     ::GetMenuItemInfo(hMenu, index, true, &menuItemInfo);
@@ -1998,7 +2012,7 @@ bool WebView::gesture(WPARAM wParam, LPARAM lParam)
 
     HGESTUREINFO gestureHandle = reinterpret_cast<HGESTUREINFO>(lParam);
     
-    GESTUREINFO gi = {0};
+    GESTUREINFO gi { };
     gi.cbSize = sizeof(GESTUREINFO);
 
     if (!GetGestureInfoPtr()(gestureHandle, reinterpret_cast<PGESTUREINFO>(&gi)))
@@ -2485,7 +2499,7 @@ void WebView::setShouldInvertColors(bool shouldInvertColors)
         m_layerTreeHost->setShouldInvertColors(shouldInvertColors);
 #endif
 
-    RECT windowRect = {0};
+    RECT windowRect { };
     frameRect(&windowRect);
 
     // repaint expects logical pixels, so rescale here.
@@ -3107,12 +3121,14 @@ HRESULT WebView::initWithFrame(RECT frame, _In_ BSTR frameName, _In_ BSTR groupN
 
     m_inspectorClient = new WebInspectorClient(this);
 
+    auto storageProvider = PageStorageSessionProvider::create();
     PageConfiguration configuration(
         makeUniqueRef<WebEditorClient>(this),
         SocketProvider::create(),
         makeUniqueRef<LibWebRTCProvider>(),
         WebCore::CacheStorageProvider::create(),
-        BackForwardList::create()
+        BackForwardList::create(),
+        CookieJar::create(storageProvider.copyRef())
     );
     configuration.chromeClient = new WebChromeClient(this);
     configuration.contextMenuClient = new WebContextMenuClient(this);
@@ -3128,6 +3144,7 @@ HRESULT WebView::initWithFrame(RECT frame, _In_ BSTR frameName, _In_ BSTR groupN
     configuration.pluginInfoProvider = &WebPluginInfoProvider::singleton();
 
     m_page = new Page(WTFMove(configuration));
+    storageProvider->setPage(*m_page);
     provideGeolocationTo(m_page, *new WebGeolocationClient(this));
 
     m_page->addLayoutMilestones({ DidFirstLayout, DidFirstVisuallyNonEmptyLayout });
@@ -3192,7 +3209,7 @@ void WebView::initializeToolTipWindow()
     if (!m_toolTipHwnd)
         return;
 
-    TOOLINFO info = {0};
+    TOOLINFO info { };
     info.cbSize = sizeof(info);
     info.uFlags = TTF_IDISHWND | TTF_SUBCLASS ;
     info.uId = reinterpret_cast<UINT_PTR>(m_viewWindow);
@@ -3214,7 +3231,7 @@ void WebView::setToolTip(const String& toolTip)
     m_toolTip = toolTip;
 
     if (!m_toolTip.isEmpty()) {
-        TOOLINFO info = {0};
+        TOOLINFO info { };
         info.cbSize = sizeof(info);
         info.uFlags = TTF_IDISHWND;
         info.uId = reinterpret_cast<UINT_PTR>(m_viewWindow);
@@ -6913,8 +6930,6 @@ HRESULT WebView::addUserScriptToGroup(_In_ BSTR groupName, _In_opt_ IWebScriptWo
         return E_FAIL;
 
     auto viewGroup = WebViewGroup::getOrCreate(group, String());
-    if (!viewGroup)
-        return E_FAIL;
 
     if (!iWorld)
         return E_POINTER;
@@ -6942,8 +6957,6 @@ HRESULT WebView::addUserStyleSheetToGroup(_In_ BSTR groupName, _In_opt_ IWebScri
         return E_FAIL;
 
     auto viewGroup = WebViewGroup::getOrCreate(group, String());
-    if (!viewGroup)
-        return E_FAIL;
 
     if (!iWorld)
         return E_POINTER;
@@ -7386,7 +7399,7 @@ void WebView::flushPendingGraphicsLayerChanges()
 }
 #endif
 
-class EnumTextMatches : public IEnumTextMatches
+class EnumTextMatches final : public IEnumTextMatches
 {
     long m_ref;
     UINT m_index;
@@ -7552,13 +7565,13 @@ void WebView::fullScreenClientSetParentWindow(HWND hostWindow)
 void WebView::fullScreenClientWillEnterFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document().webkitWillEnterFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitWillEnterFullScreen(*m_fullScreenElement);
 }
 
 void WebView::fullScreenClientDidEnterFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document().webkitDidEnterFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitDidEnterFullScreen();
 }
 
 void WebView::fullScreenClientWillExitFullScreen()
@@ -7570,14 +7583,14 @@ void WebView::fullScreenClientWillExitFullScreen()
 void WebView::fullScreenClientDidExitFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document().webkitDidExitFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitDidExitFullScreen();
     m_fullScreenElement = nullptr;
 }
 
 void WebView::fullScreenClientForceRepaint()
 {
     ASSERT(m_fullscreenController);
-    RECT windowRect = {0};
+    RECT windowRect { };
     frameRect(&windowRect);
     repaint(windowRect, true /*contentChanged*/, true /*immediate*/, false /*contentOnly*/);
     m_fullscreenController->repaintCompleted();

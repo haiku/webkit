@@ -24,7 +24,17 @@ TestPage.registerInitializer(() => {
     InspectorTest.Audit.createSuite = function(name) {
         suite = InspectorTest.createAsyncSuite(name);
         return suite;
-    }
+    };
+
+    InspectorTest.Audit.setupAudit = async function() {
+        InspectorTest.log("Audit setup...");
+        await AuditAgent.setup();
+    };
+
+    InspectorTest.Audit.teardownAudit = async function() {
+        InspectorTest.log("Audit teardown...");
+        await AuditAgent.teardown();
+    };
 
     InspectorTest.Audit.addTest = function(name, test, level, logs = {}) {
         suite.addTestCase({
@@ -58,8 +68,7 @@ TestPage.registerInitializer(() => {
                         logArray("domAttributes", data.domAttributes);
                     if (data.errors)
                         logArray("errors", data.errors);
-                })
-                .then(resolve, reject);
+                });
 
                 InspectorTest.log("Testing" + (logs.beforeStart || "") + "...");
 
@@ -69,18 +78,22 @@ TestPage.registerInitializer(() => {
         });
     };
 
-    InspectorTest.Audit.addFunctionlessTest = function(name, test, level) {
-        InspectorTest.Audit.addTest(name, `function() { return ${test} }`, level, {
+    InspectorTest.Audit.addFunctionlessTest = function(name, test, level, options = {}) {
+        InspectorTest.Audit.addTest(name, (options.async ? "async " : "") + `function() { return ${test} }`, level, {
             beforeStart: ` value \`${test}\``,
         });
     };
 
-    InspectorTest.Audit.addStringTest = function(name, test, level) {
-        InspectorTest.Audit.addFunctionlessTest(name, `"${test}"`, level);
+    InspectorTest.Audit.addStringTest = function(name, test, level, options = {}) {
+        InspectorTest.Audit.addFunctionlessTest(name, `"${test}"`, level, options);
     };
 
-    InspectorTest.Audit.addObjectTest = function(name, test, level) {
-        InspectorTest.Audit.addFunctionlessTest(name, JSON.stringify(test), level);
+    InspectorTest.Audit.addObjectTest = function(name, test, level, options = {}) {
+        InspectorTest.Audit.addFunctionlessTest(name, JSON.stringify(test), level, options);
+    };
+
+    InspectorTest.Audit.addPromiseTest = function(name, test, level, options = {}) {
+        InspectorTest.Audit.addFunctionlessTest(name, `new Promise((resolve, reject) => ${test})`, level, options);
     };
 
     InspectorTest.Audit.addDOMSelectorTest = function(name, test, level) {

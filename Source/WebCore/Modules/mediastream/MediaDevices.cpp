@@ -110,8 +110,7 @@ void MediaDevices::getUserMedia(const StreamConstraints& constraints, Promise&& 
         videoConstraints.setDefaultVideoConstraints();
 
     auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::UserMedia, WTFMove(audioConstraints), WTFMove(videoConstraints) }, WTFMove(promise));
-    if (request)
-        request->start();
+    request->start();
 
     return;
 }
@@ -123,8 +122,7 @@ ExceptionOr<void> MediaDevices::getDisplayMedia(const StreamConstraints& constra
         return Exception { InvalidStateError };
 
     auto request = UserMediaRequest::create(*document, { MediaStreamRequest::Type::DisplayMedia, { }, createMediaConstraints(constraints.video) }, WTFMove(promise));
-    if (request)
-        request->start();
+    request->start();
 
     return { };
 }
@@ -188,6 +186,16 @@ bool MediaDevices::addEventListener(const AtomicString& eventType, Ref<EventList
             m_deviceChangeToken = controller->addDeviceChangeObserver([weakThis = makeWeakPtr(*this), this]() {
 
                 if (!weakThis || m_scheduledEventTimer.isActive())
+                    return;
+
+                auto* document = this->document();
+                auto* controller = document ? UserMediaController::from(document->page()) : nullptr;
+                if (!controller)
+                    return;
+
+                bool canAccessMicrophone = controller->canCallGetUserMedia(*document, { UserMediaController::CaptureType::Microphone }) == UserMediaController::GetUserMediaAccess::CanCall;
+                bool canAccessCamera = controller->canCallGetUserMedia(*document, { UserMediaController::CaptureType::Camera }) == UserMediaController::GetUserMediaAccess::CanCall;
+                if (!canAccessMicrophone && !canAccessCamera)
                     return;
 
                 m_scheduledEventTimer.startOneShot(Seconds(randomNumber() / 2));
