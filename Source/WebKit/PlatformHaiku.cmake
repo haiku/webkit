@@ -40,6 +40,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/Shared/API/c/haiku"
     "${WEBKIT_DIR}/Shared/CoordinatedGraphics"
     "${WEBKIT_DIR}/Shared/unix"
+    #"${WEBKIT_DIR}/Shared/haiku"
     "${WEBKIT_DIR}/UIProcess/API/C/CoordinatedGraphics"
     "${WEBKIT_DIR}/UIProcess/API/C/haiku"
     "${WEBKIT_DIR}/UIProcess/API/haiku"
@@ -57,6 +58,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform"
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/dom"
+    "${WEBCORE_DIR}/fileapi"
 )
 
 list(APPEND WebKit_LOCAL_INCLUDE_DIRECTORIES

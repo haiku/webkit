@@ -248,7 +248,7 @@ private:
     void platformDestroy();
     static void platformRemoveRecentSearches(WallTime);
 
-#if USE(CURL) || USE(SOUP)
+#if USE(CURL) || USE(SOUP) || PLATFORM(HAIKU)
     void platformSetNetworkParameters(WebsiteDataStoreParameters&);
 #endif
 

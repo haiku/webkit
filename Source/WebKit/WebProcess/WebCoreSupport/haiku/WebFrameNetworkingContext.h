@@ -37,9 +37,9 @@ class WebFrameLoaderClient;
 
 class WebFrameNetworkingContext : public WebCore::FrameNetworkingContext {
 public:
-    static RefPtr<WebFrameNetworkingContext> create(WebFrame* frame)
+    static Ref<WebFrameNetworkingContext> create(WebFrame* frame)
     {
-        return adoptRef(new WebFrameNetworkingContext(frame));
+        return adoptRef(*new WebFrameNetworkingContext(frame));
     }
 
     static void ensurePrivateBrowsingSession(PAL::SessionID);
@@ -47,7 +47,6 @@ public:
 
     WebFrameLoaderClient* webFrameLoaderClient() const;
 
-    BUrlContext* context() override;
 private:
     WebFrameNetworkingContext(WebFrame*);
 
