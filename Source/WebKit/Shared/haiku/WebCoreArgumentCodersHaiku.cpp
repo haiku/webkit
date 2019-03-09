@@ -38,23 +38,23 @@ using namespace WebCore;
 
 namespace IPC {
 
-void ArgumentCoder<ResourceRequest>::encodePlatformData(ArgumentEncoder& encoder, const ResourceRequest& resourceRequest)
+void ArgumentCoder<ResourceRequest>::encodePlatformData(Encoder& encoder, const ResourceRequest& resourceRequest)
 {
     notImplemented();
 }
 
-bool ArgumentCoder<ResourceRequest>::decodePlatformData(ArgumentDecoder& decoder, ResourceRequest& resourceRequest)
+bool ArgumentCoder<ResourceRequest>::decodePlatformData(Decoder& decoder, ResourceRequest& resourceRequest)
 {
     notImplemented();
     return false;
 }
 
-void ArgumentCoder<ResourceResponse>::encodePlatformData(ArgumentEncoder& encoder, const ResourceResponse& resourceResponse)
+/*void ArgumentCoder<ResourceResponse>::encodePlatformData(Encoder& encoder, const ResourceResponse& resourceResponse)
 {
     //encoder << static_cast<uint32_t>(resourceResponse.soupMessageFlags());
 }
 
-bool ArgumentCoder<ResourceResponse>::decodePlatformData(ArgumentDecoder& decoder, ResourceResponse& resourceResponse)
+bool ArgumentCoder<ResourceResponse>::decodePlatformData(Decoder& decoder, ResourceResponse& resourceResponse)
 {
     /*
     uint32_t soupMessageFlags;
@@ -62,23 +62,23 @@ bool ArgumentCoder<ResourceResponse>::decodePlatformData(ArgumentDecoder& decode
         return false;
     resourceResponse.setSoupMessageFlags(static_cast<SoupMessageFlags>(soupMessageFlags));
     return true;
-    */
+    //
 
     return false;
-}
+}*/
 
-void ArgumentCoder<CertificateInfo>::encode(ArgumentEncoder& encoder, const CertificateInfo& certificateInfo)
+void ArgumentCoder<CertificateInfo>::encode(Encoder& encoder, const CertificateInfo& certificateInfo)
 {
     notImplemented();
 }
 
-bool ArgumentCoder<CertificateInfo>::decode(ArgumentDecoder& decoder, CertificateInfo& certificateInfo)
+bool ArgumentCoder<CertificateInfo>::decode(Decoder& decoder, CertificateInfo& certificateInfo)
 {
     notImplemented();
     return false;
 }
 
-void ArgumentCoder<ResourceError>::encodePlatformData(ArgumentEncoder& encoder, const ResourceError& resourceError)
+void ArgumentCoder<ResourceError>::encodePlatformData(Encoder& encoder, const ResourceError& resourceError)
 {
     bool errorIsNull = resourceError.isNull();
     encoder << errorIsNull;
@@ -95,29 +95,29 @@ void ArgumentCoder<ResourceError>::encodePlatformData(ArgumentEncoder& encoder, 
     encoder << CertificateInfo(resourceError);
 }
 
-bool ArgumentCoder<ResourceError>::decodePlatformData(ArgumentDecoder& decoder, ResourceError& resourceError)
+bool ArgumentCoder<ResourceError>::decodePlatformData(Decoder& decoder, ResourceError& resourceError)
 {
     notImplemented();
     return false;
 }
 
-void ArgumentCoder<ProtectionSpace>::encodePlatformData(ArgumentEncoder&, const ProtectionSpace&)
+void ArgumentCoder<ProtectionSpace>::encodePlatformData(Encoder&, const ProtectionSpace&)
 {
     ASSERT_NOT_REACHED();
 }
 
-bool ArgumentCoder<ProtectionSpace>::decodePlatformData(ArgumentDecoder&, ProtectionSpace&)
+bool ArgumentCoder<ProtectionSpace>::decodePlatformData(Decoder&, ProtectionSpace&)
 {
     ASSERT_NOT_REACHED();
     return false;
 }
 
-void ArgumentCoder<Credential>::encodePlatformData(ArgumentEncoder&, const Credential&)
+void ArgumentCoder<Credential>::encodePlatformData(Encoder&, const Credential&)
 {
     ASSERT_NOT_REACHED();
 }
 
-bool ArgumentCoder<Credential>::decodePlatformData(ArgumentDecoder&, Credential&)
+bool ArgumentCoder<Credential>::decodePlatformData(Decoder&, Credential&)
 {
     ASSERT_NOT_REACHED();
     return false;

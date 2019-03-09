@@ -27,9 +27,9 @@
 
 #include <cstdlib>
 
-#if USE(GCRYPT)
+/*#if USE(GCRYPT)
 #include <pal/crypto/gcrypt/Initialization.h>
-#endif
+#endif*/
 
 using namespace WebKit;
 
@@ -45,9 +45,9 @@ int main(int argc, char** argv)
     // WARNING: This needs to be KEPT IN SYNC with WebProcessMain.cpp.
     setenv("G_TLS_GNUTLS_PRIORITY", "NORMAL:%COMPAT:!VERS-SSL3.0:!ARCFOUR-128", 0);
 
-#if USE(GCRYPT)
+/*#if USE(GCRYPT)
     PAL::GCrypt::initialize();
-#endif
+#endif*/
 
     return NetworkProcessMainUnix(argc, argv);
 }

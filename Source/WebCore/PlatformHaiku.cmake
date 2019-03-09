@@ -398,6 +398,8 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
 
     css/parser
 
+    inspector/agents
+
     html/canvas
     html/forms
     html/parser
@@ -408,6 +410,7 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     loader/archive
     loader/cache
     loader/icon
+    loader/archive/mhtml
 
 
     page/animation
@@ -438,7 +441,7 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
 
     platform/text/transcoder
 
-   PAL/pal
+    PAL/pal
 
     rendering/line
     rendering/shapes

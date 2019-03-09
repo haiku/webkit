@@ -14,6 +14,8 @@ list(APPEND WebKit_SOURCES
     Shared/WebCoreArgumentCoders.cpp
 
     Shared/haiku/ProcessExecutablePathHaiku.cpp
+    Shared/haiku/ShareableBitmapHaiku.cpp
+    Shared/haiku/WebCoreArgumentCodersHaiku.cpp
 
     UIProcess/DefaultUndoController.cpp
 
@@ -40,7 +42,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/Shared/API/c/haiku"
     "${WEBKIT_DIR}/Shared/CoordinatedGraphics"
     "${WEBKIT_DIR}/Shared/unix"
-    #"${WEBKIT_DIR}/Shared/haiku"
+    "${WEBKIT_DIR}/Shared/haiku"
     "${WEBKIT_DIR}/UIProcess/API/C/CoordinatedGraphics"
     "${WEBKIT_DIR}/UIProcess/API/C/haiku"
     "${WEBKIT_DIR}/UIProcess/API/haiku"
