@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2019 Haiku Inc.,
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,65 +24,35 @@
  */
 
 #include "config.h"
-#include "WebCookieManagerProxy.h"
-#include "WebContext.h"
+#include "WebProcessPool.h"
 
+#include "WebProcessCreationParameters.h"
 #include "NotImplemented.h"
-#include <WebCore/IconDatabase.h>
 
 namespace WebKit {
 
-void WebContext::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
+void WebProcessPool::platformInitialize()
 {
     notImplemented();
 }
 
-void WebContext::platformInvalidateContext()
+void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationParameters&)
 {
     notImplemented();
 }
 
-String WebContext::platformDefaultWebSQLDatabaseDirectory()
+void WebProcessPool::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
     notImplemented();
-    return "/WebKitEfl/Databases";
 }
 
-String WebContext::platformDefaultIndexedDBDatabaseDirectory()
+void WebProcessPool::platformInvalidateContext()
 {
     notImplemented();
-    return String();
 }
 
-String WebContext::platformDefaultIconDatabasePath() const
+void WebProcessPool::platformResolvePathsForSandboxExtensions()
 {
-    notImplemented();
-    return "/WebKitEfl/IconDatabase/" + WebCore::IconDatabase::defaultDatabaseFilename();
 }
 
-String WebContext::platformDefaultLocalStorageDirectory()
-{
-    notImplemented();
-    return "/WebKitEfl/LocalStorage";
-}
-
-String WebContext::platformDefaultDiskCacheDirectory() const
-{
-    notImplemented();
-    return "/WebKitEfl";
-}
-
-String WebContext::platformDefaultCookieStorageDirectory() const
-{
-    notImplemented();
-    return String();
-}
-
-
-String WebContext::platformDefaultApplicationCacheDirectory() const
-{
-    notImplemented();
-    return "/WebKitEfl/Applications";
-}
-
-}
+} // namespace WebKit

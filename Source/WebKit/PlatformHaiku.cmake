@@ -1,4 +1,7 @@
 list(APPEND WebKit_SOURCES
+    NetworkProcess/haiku/NetworkProcessHaiku.cpp
+    NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
+
     Platform/IPC/unix/AttachmentUnix.cpp
     Platform/IPC/unix/ConnectionUnix.cpp
 
@@ -19,8 +22,19 @@ list(APPEND WebKit_SOURCES
 
     UIProcess/DefaultUndoController.cpp
 
+    UIProcess/haiku/BackingStoreHaiku.cpp
+    UIProcess/haiku/TextCheckerHaiku.cpp
+    UIProcess/haiku/WebProcessPoolHaiku.cpp
+    UIProcess/haiku/WebInspectorProxyHaiku.cpp
+    UIProcess/haiku/WebPageProxyHaiku.cpp
+    UIProcess/haiku/WebPreferencesHaiku.cpp
+    UIProcess/haiku/WebProcessProxyHaiku.cpp
+    #UIProcess/haiku/WebView.cpp
+
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
     UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp
+
+    UIProcess/WebStorage/StorageManager.cpp
 
     WebProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
 
@@ -29,6 +43,10 @@ list(APPEND WebKit_SOURCES
     WebProcess/Plugins/Netscape/unix/PluginProxyUnix.cpp
 
     WebProcess/WebPage/DrawingAreaImpl.cpp
+    WebProcess/WebPage/AcceleratedDrawingArea.cpp
+    WebProcess/WebPage/LayerTreeHost.cpp
+
+    WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
 
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
 )

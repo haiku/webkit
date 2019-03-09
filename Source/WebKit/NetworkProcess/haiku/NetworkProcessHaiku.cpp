@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2019 Haiku Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,20 +24,49 @@
  */
 
 #include "config.h"
-#include "WebProcessProxy.h"
+#include "NetworkProcess.h"
+
+#include "NetworkProcessCreationParameters.h"
+#include <WebCore/NetworkStorageSession.h>
+#include <WebCore/NotImplemented.h>
+
+namespace WebCore
+{
+	class NetworkStorageSession;
+}
 
 namespace WebKit {
 
-void WebProcessProxy::platformGetLaunchOptions(ProcessLauncher::LaunchOptions& launchOptions)
+using namespace WebCore;
+
+void NetworkProcess::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)
 {
-#ifndef NDEBUG
-    const char* webProcessCmdPrefix = getenv("WEB_PROCESS_CMD_PREFIX");
-    if (webProcessCmdPrefix && *webProcessCmdPrefix)
-        launchOptions.processCmdPrefix = String::fromUTF8(webProcessCmdPrefix);
-#else
-    UNUSED_PARAM(launchOptions);
-#endif
+    notImplemented();
+}
+
+std::unique_ptr<WebCore::NetworkStorageSession> NetworkProcess::platformCreateDefaultStorageSession() const
+{
+    return std::make_unique<WebCore::NetworkStorageSession>(PAL::SessionID::defaultSessionID(), nullptr);
+}
+
+void NetworkProcess::platformProcessDidTransitionToForeground()
+{
+    notImplemented();
+}
+
+void NetworkProcess::platformProcessDidTransitionToBackground()
+{
+    notImplemented();
+}
+
+void NetworkProcess::clearCacheForAllOrigins(uint32_t cachesToClear)
+{
+    notImplemented();
+}
+
+void NetworkProcess::platformProcessDidResume()
+{
+    notImplemented();
 }
 
 } // namespace WebKit
-

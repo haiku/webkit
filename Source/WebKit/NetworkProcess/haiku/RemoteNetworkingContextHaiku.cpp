@@ -24,34 +24,25 @@
  */
 
 #include "config.h"
-#include "WebInspectorUI.h"
-#include "RemoteWebInspectorUI.h"
+#include "RemoteNetworkingContext.h"
 
-#if ENABLE(INSPECTOR)
-
-#include "NotImplemented.h"
-#include <wtf/text/WTFString.h>
+#include "NetworkProcess.h"
+#include "NetworkSession.h"
+#include "WebsiteDataStoreParameters.h"
+#include <WebCore/NetworkStorageSession.h>
 
 namespace WebKit {
 
-bool WebInspectorUI::canSave()
+using namespace WebCore;
+
+void RemoteNetworkingContext::ensureWebsiteDataStoreSession(NetworkProcess& networkProcess, WebsiteDataStoreParameters&& parameters)
 {
-    return false;
+    auto sessionID = parameters.networkSessionParameters.sessionID;
+    if (networkProcess.storageSession(sessionID))
+        return;
+
+    networkProcess.ensureSession(sessionID, String::number(sessionID.sessionID()));
+    networkProcess.setSession(sessionID, NetworkSession::create(networkProcess, WTFMove(parameters.networkSessionParameters)));
 }
 
-String WebInspectorUI::localizedStringsURL()
-{
-    notImplemented();
-    return "file:///localizedStrings.js";
 }
-
-String RemoteWebInspectorUI::localizedStringsURL()
-{
-	notImplemented();
-    return "file:///localizedStrings.js";
-}
-	
-} // namespace WebKit
-
-#endif // ENABLE(INSPECTOR)
-

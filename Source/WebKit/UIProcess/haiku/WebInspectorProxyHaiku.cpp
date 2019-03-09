@@ -39,16 +39,6 @@
 
 namespace WebKit {
 
-void WebInspectorProxy::platformOpen()
-{
-    notImplemented();
-}
-
-void WebInspectorProxy::platformDidClose()
-{
-    notImplemented();
-}
-
 void WebInspectorProxy::platformHide()
 {
     notImplemented();
@@ -70,7 +60,7 @@ void WebInspectorProxy::platformInspectedURLChanged(const String& url)
     notImplemented();
 }
 
-String WebInspectorProxy::inspectorPageURL() const
+String WebInspectorProxy::inspectorPageURL()
 {
     StringBuilder builder;
     builder.append(inspectorBaseURL());
@@ -79,7 +69,7 @@ String WebInspectorProxy::inspectorPageURL() const
     return builder.toString();
 }
 
-String WebInspectorProxy::inspectorTestPageURL() const
+String WebInspectorProxy::inspectorTestPageURL()
 {
     StringBuilder builder;
     builder.append(inspectorBaseURL());
@@ -88,7 +78,7 @@ String WebInspectorProxy::inspectorTestPageURL() const
     return builder.toString();
 }
 
-String WebInspectorProxy::inspectorBaseURL() const
+String WebInspectorProxy::inspectorBaseURL()
 {
     notImplemented();
     return "file://" /*+ WebCore::inspectorResourcePath()*/;
@@ -126,11 +116,6 @@ void WebInspectorProxy::platformSetAttachedWindowWidth(unsigned)
     notImplemented();
 }
 
-void WebInspectorProxy::platformSetToolbarHeight(unsigned)
-{
-    notImplemented();
-}
-
 void WebInspectorProxy::platformSave(const String&, const String&, bool, bool)
 {
     notImplemented();
@@ -144,12 +129,6 @@ void WebInspectorProxy::platformAppend(const String&, const String&)
 void WebInspectorProxy::platformAttachAvailabilityChanged(bool)
 {
     notImplemented();
-}
-
-WebPageProxy* WebInspectorProxy::platformCreateInspectorPage()
-{
-    notImplemented();
-    return nullptr;
 }
 
 }

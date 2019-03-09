@@ -59,22 +59,21 @@ String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent
     return applicationNameForUserAgent.isEmpty() ? standardUserAgentString : standardUserAgentString + ' ' + applicationNameForUserAgent;
 }
 
+void WebPageProxy::saveRecentSearches(const String& name, const Vector<WebCore::RecentSearch>& searchItems)
+{
+    notImplemented();
+}
+
+void WebPageProxy::loadRecentSearches(const String& name, Vector<WebCore::RecentSearch>& searchItems)
+{
+    notImplemented();
+}
+
 #if 0
 void WebPageProxy::getEditorCommandsForKeyEvent(Vector<WTF::String>& /*commandsList*/)
 {
     notImplemented();
 }
 #endif
-
-void WebPageProxy::saveRecentSearches(const String&, const Vector<String>&)
-{
-    notImplemented();
-}
-
-void WebPageProxy::loadRecentSearches(const String&, Vector<String>&)
-{
-    notImplemented();
-}
-
 
 }

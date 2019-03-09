@@ -92,7 +92,6 @@ void ArgumentCoder<ResourceError>::encodePlatformData(Encoder& encoder, const Re
     encoder << resourceError.isCancellation();
     encoder << resourceError.isTimeout();
 
-    encoder << CertificateInfo(resourceError);
 }
 
 bool ArgumentCoder<ResourceError>::decodePlatformData(Decoder& decoder, ResourceError& resourceError)
