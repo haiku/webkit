@@ -131,6 +131,42 @@ void WebInspectorProxy::platformAttachAvailabilityChanged(bool)
     notImplemented();
 }
 
+void WebInspectorProxy::platformStartWindowDrag()
+{
+	notImplemented();
+}
+
+void WebInspectorProxy::platformCreateFrontendWindow()
+{
+	notImplemented();
+}
+void WebInspectorProxy::platformCloseFrontendPageAndWindow()
+{
+	notImplemented();
+}
+
+void WebInspectorProxy::platformShowCertificate(const WebCore::CertificateInfo&)
+{
+	notImplemented();
+}
+
+void WebInspectorProxy::platformDidCloseForCrash()
+{
+	notImplemented();
+}
+void WebInspectorProxy::platformInvalidate()
+{
+	notImplemented();
+}
+void WebInspectorProxy::platformBringInspectedPageToFront()
+{
+	notImplemented();
+}
+WebPageProxy* WebInspectorProxy::platformCreateFrontendPage()
+{
+	notImplemented();
+}
+
 }
 
 #endif

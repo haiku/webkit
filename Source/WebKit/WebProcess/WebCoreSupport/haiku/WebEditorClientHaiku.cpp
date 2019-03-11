@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014,2019 Haiku, inc.
+ *  Copyright (C) 2019 Haiku Inc.,
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY MOTOROLA INC. AND ITS CONTRIBUTORS ``AS IS''
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL MOTOROLA INC. OR ITS CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -24,22 +24,19 @@
  */
 
 #include "config.h"
-#include "WebProcess.h"
+#include "WebEditorClient.h"
 
 #include "NotImplemented.h"
 
 namespace WebKit {
+using namespace WebCore;
 
-void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters&& parameters)
+void WebEditorClient::handleKeyboardEvent(KeyboardEvent* event)
 {
     notImplemented();
 }
 
-void WebProcess::platformTerminate()
-{
-}
-
-void WebProcess::platformSetCacheModel(CacheModel cacheModel)
+void WebEditorClient::handleInputMethodKeydown(KeyboardEvent* event)
 {
     notImplemented();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014,2019 Haiku, inc.
+ * Copyright (C) 2019 Haiku Inc.,
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY MOTOROLA INC. AND ITS CONTRIBUTORS ``AS IS''
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL MOTOROLA INC. OR ITS CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -24,24 +24,58 @@
  */
 
 #include "config.h"
-#include "WebProcess.h"
+#include "NetworkCacheData.h"
 
 #include "NotImplemented.h"
 
 namespace WebKit {
+namespace NetworkCache {
 
-void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters&& parameters)
+Data::Data(const uint8_t* data, size_t size)
 {
     notImplemented();
 }
 
-void WebProcess::platformTerminate()
-{
-}
-
-void WebProcess::platformSetCacheModel(CacheModel cacheModel)
+Data Data::empty()
 {
     notImplemented();
+    return { };
 }
 
+const uint8_t* Data::data() const
+{
+    notImplemented();
+    return nullptr;
 }
+
+bool Data::isNull() const
+{
+    notImplemented();
+    return true;
+}
+
+bool Data::apply(const Function<bool(const uint8_t*, size_t)>& applier) const
+{
+    notImplemented();
+    return false;
+}
+
+Data Data::subrange(size_t offset, size_t size) const
+{
+    return { };
+}
+
+Data concatenate(const Data& a, const Data& b)
+{
+    notImplemented();
+    return { };
+}
+
+Data Data::adoptMap(void* map, size_t size, int fd)
+{
+    notImplemented();
+    return { };
+}
+
+} // namespace NetworkCache
+} // namespace WebKit

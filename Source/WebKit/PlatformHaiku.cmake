@@ -1,6 +1,8 @@
 list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/NetworkProcessHaiku.cpp
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
+    NetworkProcess/cache/NetworkCacheIOChannelHaiku.cpp
+    NetworkProcess/cache/NetworkCacheDataHaiku.cpp
 
     Platform/IPC/unix/AttachmentUnix.cpp
     Platform/IPC/unix/ConnectionUnix.cpp
@@ -19,16 +21,18 @@ list(APPEND WebKit_SOURCES
     Shared/haiku/ProcessExecutablePathHaiku.cpp
     Shared/haiku/ShareableBitmapHaiku.cpp
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
+    Shared/haiku/WebMemorySamplerHaiku.cpp
 
     UIProcess/DefaultUndoController.cpp
-
+    UIProcess/LegacySessionStateCodingNone.cpp
+    UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp
+    UIProcess/WebsiteData/haiku/WebsiteDataStoreHaiku.cpp
     UIProcess/haiku/BackingStoreHaiku.cpp
     UIProcess/haiku/TextCheckerHaiku.cpp
     UIProcess/haiku/WebProcessPoolHaiku.cpp
     UIProcess/haiku/WebInspectorProxyHaiku.cpp
     UIProcess/haiku/WebPageProxyHaiku.cpp
     UIProcess/haiku/WebPreferencesHaiku.cpp
-    UIProcess/haiku/WebProcessProxyHaiku.cpp
     #UIProcess/haiku/WebView.cpp
 
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
@@ -36,6 +40,7 @@ list(APPEND WebKit_SOURCES
 
     UIProcess/WebStorage/StorageManager.cpp
 
+    WebProcess/haiku/WebProcessHaiku.cpp
     WebProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
 
     WebProcess/InjectedBundle/haiku/InjectedBundleHaiku.cpp
@@ -47,8 +52,10 @@ list(APPEND WebKit_SOURCES
     WebProcess/WebPage/LayerTreeHost.cpp
 
     WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
-
+    WebProcess/WebPage/haiku/WebPageHaiku.cpp
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
+    WebProcess/WebCoreSupport/haiku/WebContextMenuClientHaiku.cpp
+    WebProcess/WebCoreSupport/haiku/WebEditorClientHaiku.cpp
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES

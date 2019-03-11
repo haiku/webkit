@@ -39,6 +39,11 @@ namespace WebKit {
 
 using namespace WebCore;
 
+void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters& parameters)
+{
+    notImplemented();
+}
+
 void NetworkProcess::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)
 {
     notImplemented();
@@ -65,6 +70,22 @@ void NetworkProcess::clearCacheForAllOrigins(uint32_t cachesToClear)
 }
 
 void NetworkProcess::platformProcessDidResume()
+{
+    notImplemented();
+}
+
+void NetworkProcess::platformTerminate()
+{
+    notImplemented();
+}
+
+void NetworkProcess::platformPrepareToSuspend(CompletionHandler<void()>&& completionHandler)
+{
+    notImplemented();
+    completionHandler();
+}
+
+void NetworkProcess::clearDiskCache(WallTime modifiedSince, CompletionHandler<void()>&& completionHandler)
 {
     notImplemented();
 }
