@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,17 +24,17 @@
  */
 
 #include "config.h"
-#include "ProxyServer.h"
+#include "AuxiliaryProcessMain.h"
 
-#include "wtf/URL.h"
+#include "NotImplemented.h"
 
-namespace WebCore {
 
-Vector<ProxyServer> proxyServersForURL(const URL&)
+namespace WebKit {
+
+bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
 {
-    // FIXME: Implement.
-    return Vector<ProxyServer>();
+	notImplemented();
+    return true;
 }
 
-} // namespace WebCore
-
+} // namespace WebKit

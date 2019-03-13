@@ -24,17 +24,26 @@
  */
 
 #include "config.h"
-#include "ProxyServer.h"
+#include "WebFrameNetworkingContext.h"
 
-#include "wtf/URL.h"
+#include "NotImplemented.h"
+#include <WebCore/NetworkStorageSession.h>
+#include "WebFrame.h"
 
-namespace WebCore {
+using namespace WebCore;
 
-Vector<ProxyServer> proxyServersForURL(const URL&)
+namespace WebKit {
+
+WebFrameNetworkingContext::WebFrameNetworkingContext(WebFrame* frame)
+    : FrameNetworkingContext(frame->coreFrame())
 {
-    // FIXME: Implement.
-    return Vector<ProxyServer>();
+    notImplemented();
 }
 
-} // namespace WebCore
+/*NetworkStorageSession& WebFrameNetworkingContext::storageSession()
+{
+    notImplemented();
+    return NetworkStorageSession::defaultStorageSession();
+}*/
 
+}

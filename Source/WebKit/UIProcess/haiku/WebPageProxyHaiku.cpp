@@ -76,4 +76,9 @@ void WebPageProxy::getEditorCommandsForKeyEvent(Vector<WTF::String>& /*commandsL
 }
 #endif
 
+void WebPageProxy::editorStateChanged(const EditorState& editorState)
+{
+    m_editorState = editorState;
+}
+
 }

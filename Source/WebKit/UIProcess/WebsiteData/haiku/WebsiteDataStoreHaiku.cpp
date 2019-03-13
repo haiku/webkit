@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Haiku Inc.,
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "WebsiteDataStore.h"
+#include "WebsiteDataStoreParameters.h"
 
 #include "NotImplemented.h"
 
@@ -45,4 +46,7 @@ void WebsiteDataStore::platformRemoveRecentSearches(WallTime)
     notImplemented();
 }
 
+void WebsiteDataStore::platformSetNetworkParameters(WebsiteDataStoreParameters&)
+{
+}
 } // namespace WebKit

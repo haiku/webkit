@@ -82,4 +82,9 @@ RefPtr<Image> ShareableBitmap::createImage()
     return BitmapImage::create(surface->nativeImageForCurrentFrame(nullptr));
 }
 
+Checked<unsigned, RecordOverflow> ShareableBitmap::calculateBytesPerRow(WebCore::IntSize, const ShareableBitmap::Configuration&)
+{
+	notImplemented();
+}
+
 }
