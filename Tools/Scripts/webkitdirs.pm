@@ -2906,6 +2906,10 @@ sub runMiniBrowser
         my $webKitLauncherPath = File::Spec->catfile(executableProductDir(), "MiniBrowser.exe");
         return system { $webKitLauncherPath } $webKitLauncherPath, @ARGV;
     }
+    if(isHaiku()){
+       my $webKitLauncherPath = File::Spec->catfile(productDir(), "MiniBrowser");
+       return system {  $webKitLauncherPath } $webKitLauncherPath, @ARGV;
+    }
     return 1;
 }
 

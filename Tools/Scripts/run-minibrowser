@@ -58,6 +58,9 @@ if (isGtk() || isWPE()) {
 } elsif (isAppleCocoaWebKit()) {
     printHelpAndExitForRunAndDebugWebKitAppIfNeeded();
     exit exitStatus(runMiniBrowser());
+} elsif (isHaiku()) {
+    print "Starting MiniBrowser\n";
+    exit exitStatus(runMiniBrowser());
 } else {
     die "Unsupported platform."
 }
