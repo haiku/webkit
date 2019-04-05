@@ -1073,6 +1073,8 @@ WebProcessProxy& WebPageProxy::ensureRunningProcess()
 
 RefPtr<API::Navigation> WebPageProxy::loadRequest(ResourceRequest&& request, ShouldOpenExternalURLsPolicy shouldOpenExternalURLsPolicy, API::Object* userData)
 {
+	fprintf(stderr,"Access:");
+	fprintf(stderr,"loadRequest: %d",m_isClosed);
     if (m_isClosed)
         return nullptr;
 
@@ -1178,9 +1180,9 @@ RefPtr<API::Navigation> WebPageProxy::loadData(const IPC::DataReference& data, c
         return nullptr;
     }
 
-    if (!hasRunningProcess())
-        launchProcess({ });
-
+    if (!isValid())
+        reattachToWebProcess();
+fprintf(stderr,"loadData: webPID = %i, pageID = %" PRIu64, m_process->processIdentifier(), m_pageID);
     auto navigation = m_navigationState->createLoadDataNavigation(std::make_unique<API::SubstituteData>(data.vector(), MIMEType, encoding, baseURL, userData));
     loadDataWithNavigationShared(m_process.copyRef(), navigation, data, MIMEType, encoding, baseURL, userData, ShouldTreatAsContinuingLoad::No);
     return navigation;

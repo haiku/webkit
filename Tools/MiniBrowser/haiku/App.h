@@ -9,15 +9,21 @@
 #include <Button.h>
 #include <String.h>
 #include <TextControl.h>
+<<<<<<< HEAD
 #include <map>
 #include <MessageQueue.h>
 
 #include "WebView.h"
 using namespace std;
+=======
+
+#include "WKRetainPtr.h"
+>>>>>>> f4cd9c312ea... Initial implementation to load blank url and now trying to load html string Note:destructors not handled yet
 
 class App : public BApplication
 {
 public:
+<<<<<<< HEAD
 	App(void);
 	void MessageReceived(BMessage *message);
 	void ReadyToRun();
@@ -32,6 +38,16 @@ private:
     status_t result;
     map<string,BLooper*> looperMapping;
 	map<string,BMessage*> messengerMapping;
+=======
+  App(void);
+  void MessageReceived(BMessage *msg);
+  void testLoader();
+private:
+    int32 fCount;
+    BWindow *myWindow;
+    WKRetainPtr<WKViewRef> fViewPort;
+    WKRetainPtr<WKContextRef> fContext;
+>>>>>>> f4cd9c312ea... Initial implementation to load blank url and now trying to load html string Note:destructors not handled yet
 };
 
 #endif

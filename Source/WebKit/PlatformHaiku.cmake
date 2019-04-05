@@ -96,8 +96,6 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
 )
 
 set(WebKit_LOCAL_INCLUDE_DIRECTORIES
-    "${FORWARDING_HEADERS_DIR}/WebKit"
-    "${FORWARDING_HEADERS_DIR}/WebCore"
     "${WEBCORE_DIR}/css"
     "${WEBCORE_DIR}/platform/graphics"
     "${WEBCORE_DIR}/rendering/shapes"

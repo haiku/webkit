@@ -1,3 +1,4 @@
+SET(CMAKE_BUILD_TYPE Debug)
 SET(MiniBrowser_SOURCES
     ${TOOLS_DIR}/MiniBrowser/haiku/App.cpp
 )

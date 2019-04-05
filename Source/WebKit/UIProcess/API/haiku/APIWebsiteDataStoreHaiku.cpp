@@ -34,6 +34,7 @@ namespace API {
 
 String WebsiteDataStore::defaultApplicationCacheDirectory()
 {
+	fprintf(stderr,"error");
 	notImplemented();
 	return String();
 }
