@@ -26,13 +26,9 @@
 
 namespace WebKit {
 
-class WebView;
-class WebPopupItemHaiku;
-class WebPopupMenuListenerHaiku;
+class WebViewBase;
 
-WK_ADD_API_MAPPING(WKViewRef, WebView)
-WK_ADD_API_MAPPING(WKPopupItemRef, WebPopupItemHaiku)
-WK_ADD_API_MAPPING(WKPopupMenuListenerRef, WebPopupMenuListenerHaiku)
+WK_ADD_API_MAPPING(WKViewRef, WebViewBase)
 
 }
 

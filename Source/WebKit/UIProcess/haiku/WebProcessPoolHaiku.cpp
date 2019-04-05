@@ -33,21 +33,25 @@ namespace WebKit {
 
 void WebProcessPool::platformInitialize()
 {
+	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationParameters&)
 {
+	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInitializeWebProcess(const WebKit::WebProcessProxy&, WebProcessCreationParameters& parameters)
 {
+	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInvalidateContext()
 {
+	fprintf(stderr,"YOLO");
     notImplemented();
 }
 

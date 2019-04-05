@@ -29,15 +29,14 @@
 #define WKView_h
 
 #include <WebKit/WKBase.h>
+#include <Window.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-WK_EXPORT WKViewRef WKViewCreate(WKContextRef context, WKPageGroupRef pageGroup);
-
+WK_EXPORT WKViewRef WKViewCreate(const char*,BRect,BWindow*,WKPageConfigurationRef pageRef);
 WK_EXPORT WKPageRef WKViewGetPage(WKViewRef view);
-
 #ifdef __cplusplus
 }
 #endif

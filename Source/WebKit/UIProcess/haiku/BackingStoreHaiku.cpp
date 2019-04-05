@@ -37,4 +37,11 @@ void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& 
     notImplemented();
 }
 
+void BackingStore::paint(BView* context,const IntRect& rect)
+{
+	fprintf(stderr,"Im drawing");
+	//needs to be filled
+	
+}
+
 }
