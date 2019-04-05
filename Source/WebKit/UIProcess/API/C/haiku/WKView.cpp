@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2012 Samsung Electronics
  * Copyright (C) 2013 Intel Corporation. All rights reserved.
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,21 +22,21 @@
 #include "config.h"
 #include "WKView.h"
 
-#include <WebView.h>
-#include <WebViewPrivate.h>
+#include "WebView.h"
+#include "APIPageConfiguration.h"
 #include "WKAPICast.h"
 
 using namespace WebCore;
 using namespace WebKit;
 
-WKViewRef WKViewCreate(WKContextRef contextRef, WKPageGroupRef pageGroupRef)
+WKViewRef WKViewCreate(const char* name,BRect rect,BWindow* parentWindow,
+	WKPageConfigurationRef pageRef)
 {
-    RefPtr<WebView> webView = WebView::create(toImpl(contextRef), toImpl(pageGroupRef));
-    return toAPI(webView.release().leakRef());
+	fprintf(stderr,"\n create page");
+	return toAPI(BWebView::create(name,rect,parentWindow,*toImpl(pageRef)).leakRef());
 }
-
 WKPageRef WKViewGetPage(WKViewRef viewRef)
 {
-    return toImpl(viewRef)->pageRef();
-}
-
+	fprintf(stderr,"\nget page");
+    return toAPI(toImpl(viewRef)->page());
+}               
