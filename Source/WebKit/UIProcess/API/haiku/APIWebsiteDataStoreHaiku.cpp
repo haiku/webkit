@@ -34,91 +34,123 @@ namespace API {
 
 String WebsiteDataStore::defaultApplicationCacheDirectory()
 {
+	fprintf(stderr,"error");
 	notImplemented();
+	return String();
 }
 
 String WebsiteDataStore::defaultCacheStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultNetworkCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultIndexedDBDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultServiceWorkerRegistrationDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultLocalStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultMediaKeysStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultDeviceIdHashSaltsStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultWebSQLDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultResourceLoadStatisticsDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const String& directoryName)
 {
+	return String();
 }
 
 String WebsiteDataStore::websiteDataDirectoryFileSystemRepresentation(const String& directoryName)
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultApplicationCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultNetworkCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultWebSQLDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultIndexedDBDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultLocalStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaKeysStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultDeviceIdHashSaltsStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultJavaScriptConfigurationDirectory()
 {
+	return String();
 }
 
 Ref<WebKit::WebsiteDataStoreConfiguration> WebsiteDataStore::defaultDataStoreConfiguration()
 {
+	auto configuration = WebKit::WebsiteDataStoreConfiguration::create();
+
+    configuration->setApplicationCacheDirectory(defaultApplicationCacheDirectory());
+    configuration->setNetworkCacheDirectory(defaultNetworkCacheDirectory());
+    configuration->setWebSQLDatabaseDirectory(defaultWebSQLDatabaseDirectory());
+    configuration->setLocalStorageDirectory(defaultLocalStorageDirectory());
+    configuration->setMediaKeysStorageDirectory(defaultMediaKeysStorageDirectory());
+    configuration->setResourceLoadStatisticsDirectory(defaultResourceLoadStatisticsDirectory());
+
+    return configuration;
 }
 
 } // namespace API
