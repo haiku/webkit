@@ -35,90 +35,102 @@ namespace API {
 String WebsiteDataStore::defaultApplicationCacheDirectory()
 {
 	notImplemented();
+	return String();
 }
 
 String WebsiteDataStore::defaultCacheStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultNetworkCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultIndexedDBDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultServiceWorkerRegistrationDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultLocalStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultMediaKeysStorageDirectory()
 {
-}
-
-String WebsiteDataStore::defaultDeviceIdHashSaltsStorageDirectory()
-{
+	return String();
 }
 
 String WebsiteDataStore::defaultWebSQLDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::defaultResourceLoadStatisticsDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const String& directoryName)
 {
+	return String();
 }
 
 String WebsiteDataStore::websiteDataDirectoryFileSystemRepresentation(const String& directoryName)
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultApplicationCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultNetworkCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultWebSQLDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultIndexedDBDatabaseDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultLocalStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaCacheDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaKeysStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultDeviceIdHashSaltsStorageDirectory()
 {
+	return String();
 }
 
 String WebsiteDataStore::legacyDefaultJavaScriptConfigurationDirectory()
 {
-}
-
-Ref<WebKit::WebsiteDataStoreConfiguration> WebsiteDataStore::defaultDataStoreConfiguration()
-{
+	return String();
 }
 
 } // namespace API

@@ -136,6 +136,10 @@ OBJC_CLASS _WKRemoteObjectRegistry;
 #include "ArgumentCodersGtk.h"
 #endif
 
+#if PLATFORM(HAIKU)
+#include <View.h>
+#endif
+
 #if ENABLE(WIRELESS_PLAYBACK_TARGET) && !PLATFORM(IOS_FAMILY)
 #include <WebCore/MediaPlaybackTargetPicker.h>
 #include <WebCore/WebMediaSessionManagerClient.h>
@@ -234,6 +238,10 @@ typedef struct OpaqueJSContext* JSGlobalContextRef;
 
 #if PLATFORM(WIN)
 typedef HWND PlatformWidget;
+#endif
+
+#if PLATFORM(HAIKU)
+typedef BView* PlatformWidget;
 #endif
 
 namespace WebKit {
@@ -819,6 +827,9 @@ public:
 #endif
 #if PLATFORM(WPE)
     struct wpe_view_backend* viewBackend();
+#endif
+#if PLATFORM(HAIKU)
+	PlatformWidget viewWidget();
 #endif
 
     bool isProcessingMouseEvents() const;
