@@ -22,8 +22,14 @@ list(APPEND WebKit_SOURCES
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
     Shared/haiku/WebMemorySamplerHaiku.cpp
 
+    UIProcess/API/C/haiku/WKView.cpp
     UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp
+
     UIProcess/DefaultUndoController.cpp
+    UIProcess/DrawingAreaProxyImpl.cpp
+    UIProcess/BackingStore.cpp
+    UIProcess/AcceleratedDrawingAreaProxy.cpp
+
     UIProcess/Launcher/haiku/ProcessLauncherHaiku.cpp
     UIProcess/LegacySessionStateCodingNone.cpp
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
@@ -36,6 +42,8 @@ list(APPEND WebKit_SOURCES
     UIProcess/haiku/WebPageProxyHaiku.cpp
     UIProcess/haiku/WebPreferencesHaiku.cpp
     UIProcess/haiku/WebProcessPoolHaiku.cpp
+    UIProcess/API/haiku/WebView.cpp
+    UIProcess/API/haiku/PageClientImplHaiku.cpp
 
     WebProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
     WebProcess/InjectedBundle/haiku/InjectedBundleHaiku.cpp
@@ -85,13 +93,14 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/fileapi"
 )
 
-list(APPEND WebKit_LOCAL_INCLUDE_DIRECTORIES
+set(WebKit_LOCAL_INCLUDE_DIRECTORIES
+    "${WEBCORE_DIR}/css"
     "${WEBCORE_DIR}/platform/graphics"
     "${WEBCORE_DIR}/platform/graphics/transforms"
     "${WEBCORE_DIR}/rendering/shapes"
 )
 
-foreach(inc ${WebKitLegacy_LOCAL_INCLUDE_DIRECTORIES})
+foreach(inc ${WebKit_LOCAL_INCLUDE_DIRECTORIES})
     ADD_DEFINITIONS(-iquote ${inc})
 endforeach(inc)
 

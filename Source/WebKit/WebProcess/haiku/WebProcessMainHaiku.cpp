@@ -30,6 +30,8 @@
 #include "WebProcess.h"
 
 #include <Application.h>
+
+using namespace std;
 namespace WebKit {
 using namespace WebCore;
 
