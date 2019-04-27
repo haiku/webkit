@@ -77,7 +77,7 @@ static String keyIdentifierForHaikuKeyCode(char singleByte, int keyCode)
         case B_SCROLL_KEY:
             return ""; // FIXME
         }
-        break;
+    break;
 
     case B_BACKSPACE:
         return "U+0008";
@@ -324,7 +324,7 @@ static int windowsKeyCodeForKeyEvent(char singleByte, int keyCode)
     return singleByte;
 }
 
-static String KeyValueForKeyEvent(unsigned char singleByte, int keyCode)
+static String KeyValueForKeyEvent(BString bytes, int keyCode)
 {
     switch (singleByte) {
         
@@ -366,56 +366,50 @@ static String KeyValueForKeyEvent(unsigned char singleByte, int keyCode)
                 case B_RIGHT_CONTROL_KEY:
                     return "Control";
             }
-            
             break;
+    
+        case B_BACKSPACE:
+            return "Backspace";
+        case B_LEFT_ARROW:
+            return "ArrowLeft";
+        case B_RIGHT_ARROW:
+            return "ArrowRight";
+        case B_UP_ARROW:
+            return "ArrowUp";
+        case B_DOWN_ARROW:
+            return "ArrowDown";
+        case B_INSERT:
+            return "Insert";
+        case B_ENTER:
+            return "Enter";
+        case B_DELETE:
+            return "Delete";
+        case B_HOME:
+            return "Home";
+        case B_END:
+            return "End";
+        case B_PAGE_UP:
+            return "PageUp";
+        case B_PAGE_DOWN:
+            return "PageDown";
+        case B_TAB:
+            return "Tab";
+        case B_SPACE:
+            return " "; // (20) SPACEBAR
             
-                case B_BACKSPACE:
-                    return "Backspace";
-                case B_LEFT_ARROW:
-                    return "ArrowLeft";
-                case B_RIGHT_ARROW:
-                    return "ArrowRight";
-                case B_UP_ARROW:
-                    return "ArrowUp";
-                case B_DOWN_ARROW:
-                    return "ArrowDown";
-                case B_INSERT:
-                    return "Insert";
-                case B_ENTER:
-                    return "Enter";
-                case B_DELETE:
-                    return "Delete";
-                case B_HOME:
-                    return "Home";
-                case B_END:
-                    return "End";
-                case B_PAGE_UP:
-                    return "PageUp";
-                case B_PAGE_DOWN:
-                    return "PageDown";
-                case B_TAB:
-                    return "Tab";
-                case B_SPACE:
-                    return " "; // (20) SPACEBAR
-                    
-                    
-                case B_COMMAND_KEY:
-                    return "Alt";
-                    
-                case B_OPTION_KEY:
-                    return "Compose"; // ?? why compose? fx also said "Process"
-                case B_MENU_KEY:
-                    return "ContextMenu";
-                case B_ESCAPE:
-                    return "Escape";
-                    
-                default: {
-                    String keyVal = String::format("%c", singleByte);
-                    if (keyVal != "") {
-                        return keyVal;
-                    }
-                    
-                }
+        case B_COMMAND_KEY:
+            return "Alt";
+            
+        case B_OPTION_KEY:
+            return "Compose"; // fx also said "Process"
+        case B_MENU_KEY:
+            return "ContextMenu";
+        case B_ESCAPE:
+            return "Escape";
+            
+        default: {
+            return bytes;          
+        }
     }
     return "Unidentified";
 }
@@ -663,7 +657,7 @@ PlatformKeyboardEvent::PlatformKeyboardEvent(BMessage* message)
     m_keyIdentifier = keyIdentifierForHaikuKeyCode(bytes.ByteAt(0), nativeVirtualKeyCode);
 
     m_windowsVirtualKeyCode = windowsKeyCodeForKeyEvent(bytes.ByteAt(0), nativeVirtualKeyCode);
-    m_key = KeyValueForKeyEvent(bytes.ByteAt(0), nativeVirtualKeyCode);
+    m_key = KeyValueForKeyEvent(bytes, nativeVirtualKeyCode);
     m_code = KeyCodeForKeyEvent(nativeVirtualKeyCode);
 
     if (message->what == B_KEY_UP)
