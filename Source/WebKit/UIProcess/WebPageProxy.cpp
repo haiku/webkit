@@ -803,7 +803,7 @@ void WebPageProxy::swapToWebProcess(Ref<WebProcessProxy>&& process, std::unique_
 void WebPageProxy::finishAttachingToWebProcess(ShouldInitializeWebPage shouldInitializePage)
 {
     ASSERT(m_process->state() != AuxiliaryProcessProxy::State::Terminated);
-
+	fprintf(stderr,"step1\n");
     if (m_process->state() == AuxiliaryProcessProxy::State::Running) {
         m_webProcessLifetimeTracker.webPageEnteringWebProcess();
         processDidFinishLaunching();
@@ -811,7 +811,7 @@ void WebPageProxy::finishAttachingToWebProcess(ShouldInitializeWebPage shouldIni
 
     updateActivityState();
     updateThrottleState();
-
+	fprintf(stderr,"step2\n");
 #if ENABLE(FULLSCREEN_API)
     m_fullScreenManager = std::make_unique<WebFullScreenManagerProxy>(*this, pageClient().fullScreenManagerProxyClient());
 #endif
@@ -847,9 +847,10 @@ void WebPageProxy::finishAttachingToWebProcess(ShouldInitializeWebPage shouldIni
 
     clearInspectorTargets();
     createInspectorTargets();
-
+	fprintf(stderr,"step3-1\n");
     pageClient().didRelaunchProcess();
     m_pageLoadState.didSwapWebProcesses();
+    fprintf(stderr,"step3\n");
     m_drawingArea->waitForBackingStoreUpdateOnNextPaint();
 }
 

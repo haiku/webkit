@@ -32,6 +32,7 @@ namespace WebKit {
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters&& parameters)
 {
+	fprintf(stderr,"weprocess initialize\n");
     notImplemented();
 }
 

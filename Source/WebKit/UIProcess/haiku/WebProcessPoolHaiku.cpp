@@ -45,7 +45,7 @@ void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationPara
 
 void WebProcessPool::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
-	fprintf(stderr,"YOLO");
+	fprintf(stderr,"YOLO webprocess\n");
     notImplemented();
 }
 

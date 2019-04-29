@@ -117,7 +117,7 @@ WTF::Optional<size_t> BFormDataIO::readFromFile(const FormDataElement::EncodedFi
         m_fileHandle = FileSystem::openFile(fileData.filename, FileSystem::FileOpenMode::Read);
 
     if (!FileSystem::isHandleValid(m_fileHandle)) {
-        LOG(Network, "Haiku - Failed while trying to open %s for upload\n", fileData.filename.utf8().data());
+        //LOG(Network, "Haiku - Failed while trying to open %s for upload\n", fileData.filename.utf8().data());
         m_fileHandle = FileSystem::invalidPlatformFileHandle;
         return WTF::nullopt;
     }
@@ -126,7 +126,7 @@ WTF::Optional<size_t> BFormDataIO::readFromFile(const FormDataElement::EncodedFi
 	// handle open and read from the current position.
     auto readBytes = FileSystem::readFromFile(m_fileHandle, buffer, size);
     if (readBytes < 0) {
-        LOG(Network, "Haiku - Failed while trying to read %s for upload\n", fileData.filename.utf8().data());
+        //LOG(Network, "Haiku - Failed while trying to read %s for upload\n", fileData.filename.utf8().data());
         FileSystem::closeFile(m_fileHandle);
         m_fileHandle = FileSystem::invalidPlatformFileHandle;
         return WTF::nullopt;
@@ -202,7 +202,7 @@ WTF::Optional<size_t> BFormDataIO::readFromBlob(const FormDataElement::EncodedBl
 
 
 		if (!FileSystem::isHandleValid(m_fileHandle)) {
-			LOG(Network, "Haiku - Failed while trying to open %s for upload\n", fileData.filename.utf8().data());
+			//LOG(Network, "Haiku - Failed while trying to open %s for upload\n", fileData.filename.utf8().data());
 			m_fileHandle = FileSystem::invalidPlatformFileHandle;
 			readBytes = -1;
 		} else {
@@ -210,7 +210,7 @@ WTF::Optional<size_t> BFormDataIO::readFromBlob(const FormDataElement::EncodedBl
 			// handle open and read from the current position.
 			readBytes = FileSystem::readFromFile(m_fileHandle, buffer, size);
 			if (readBytes < 0) {
-				LOG(Network, "Haiku - Failed while trying to read %s for upload\n", fileData.filename.utf8().data());
+				//LOG(Network, "Haiku - Failed while trying to read %s for upload\n", fileData.filename.utf8().data());
 			}
 		}
 

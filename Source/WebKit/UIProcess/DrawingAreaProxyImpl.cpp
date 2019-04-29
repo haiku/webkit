@@ -65,7 +65,8 @@ void DrawingAreaProxyImpl::paint(BackingStore::PlatformGraphicsContext context, 
     unpaintedRegion = rect;
 
     if (isInAcceleratedCompositingMode())
-        return;
+        {fprintf(stderr,"\nExiting impl");
+        	return;}
 
     ASSERT(m_currentBackingStoreStateID <= m_nextBackingStoreStateID);
     if (m_currentBackingStoreStateID < m_nextBackingStoreStateID) {
@@ -75,7 +76,9 @@ void DrawingAreaProxyImpl::paint(BackingStore::PlatformGraphicsContext context, 
 
         // If we haven't yet received our first bits from the WebProcess then don't paint anything.
         if (!m_hasReceivedFirstUpdate)
-            return;
+            {
+            	fprintf(stderr,"not recieved anything\n");return;
+            }
 
         if (m_isWaitingForDidUpdateBackingStoreState) {
             // Wait for a DidUpdateBackingStoreState message that contains the new bits before we paint

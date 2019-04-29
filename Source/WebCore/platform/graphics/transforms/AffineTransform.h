@@ -34,6 +34,7 @@
 #if USE(CG)
 typedef struct CGAffineTransform CGAffineTransform;
 #elif PLATFORM(HAIKU)
+#include "PlatformExportMacros.h"
 #include <AffineTransform.h>
 #endif
 

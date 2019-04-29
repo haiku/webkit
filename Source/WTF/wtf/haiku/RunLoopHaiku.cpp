@@ -58,7 +58,7 @@ class LoopHandler: public BHandler
         void MessageReceived(BMessage* message)
         {
             if (message->what == 'loop')
-                m_loop->iterate();
+                	m_loop->iterate();
 			else if (message->what == 'tmrf') {
 				RunLoop::TimerBase* timer
 					= (RunLoop::TimerBase*)message->GetPointer("timer");
@@ -100,7 +100,7 @@ void RunLoop::run()
 	looper->LockLooper();
 	looper->AddHandler(current().m_handler);
 	looper->UnlockLooper();
-
+	
 	if (newLooper)
 		looper->Loop();
 }
@@ -115,7 +115,8 @@ void RunLoop::stop()
 
 void RunLoop::wakeUp()
 {
-    m_handler->Looper()->PostMessage('loop', m_handler);
+	RunLoop::current().performWork();
+    //m_handler->Looper()->PostMessage('loop', m_handler);
 }
 
 RunLoop::TimerBase::TimerBase(RunLoop& runLoop)
