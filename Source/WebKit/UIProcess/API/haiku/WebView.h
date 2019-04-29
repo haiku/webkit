@@ -34,7 +34,8 @@ using namespace WebKit;
 namespace WebKit
 {
 	class BWebView:public API::ObjectImpl<API::Object::Type::View>,
-	public BView{
+	public BView
+	{
 		public:
 		static RefPtr<BWebView> create(const char*name,BRect rect, 
 		BWindow* parentWindow,const API::PageConfiguration& config)
@@ -48,6 +49,9 @@ namespace WebKit
 		BView* getView() const {return fViewPort;}
 		private:
 		BWebView(const char*,BRect,BWindow*,const API::PageConfiguration&);
+		
+		void paint(const WebCore::IntRect&);
+		
 		BView* fViewPort {nullptr};
 		RefPtr<WebPageProxy> fPage;
 		std::unique_ptr<PageClientImpl> fPageClient;
