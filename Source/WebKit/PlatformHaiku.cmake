@@ -16,7 +16,8 @@ list(APPEND WebKit_SOURCES
     PluginProcess/unix/PluginProcessUnix.cpp
 
     Shared/WebCoreArgumentCoders.cpp
-    Shared/haiku/AuxiliaryProcessMainHaiku.cpp
+    #Shared/haiku/AuxiliaryProcessMainHaiku.cpp
+    Shared/unix/AuxiliaryProcessMain.cpp
     Shared/haiku/ProcessExecutablePathHaiku.cpp
     Shared/haiku/ShareableBitmapHaiku.cpp
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
@@ -26,7 +27,6 @@ list(APPEND WebKit_SOURCES
     UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp
 
     UIProcess/DefaultUndoController.cpp
-    UIProcess/DrawingAreaProxyImpl.cpp
     UIProcess/BackingStore.cpp
 
     UIProcess/CoordinatedGraphics/DrawingAreaProxyCoordinatedGraphics.cpp

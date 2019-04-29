@@ -96,7 +96,7 @@ list(APPEND WebCore_SOURCES
   platform/graphics/texmap/GraphicsLayerTextureMapper.cpp
   platform/graphics/texmap/TextureMapperImageBuffer.cpp
 
-  platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.cpp
+  #platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.cpp
 
   platform/image-decoders/haiku/ImageDecoderHaiku.cpp
 

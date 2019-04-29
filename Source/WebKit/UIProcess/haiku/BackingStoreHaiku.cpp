@@ -34,13 +34,14 @@ namespace WebKit {
 
 void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& updateInfo)
 {
+	fprintf(stderr,"Updater\n");
     notImplemented();
 }
 
 void BackingStore::paint(BView* context,const IntRect& rect)
 {
 	fprintf(stderr,"Im drawing");
-	//needs to be filled
+	
 	
 }
 
