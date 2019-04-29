@@ -27,6 +27,7 @@
 #include "WebProcessPool.h"
 #include "WebPageGroup.h"
 #include "DrawingAreaProxyImpl.h"
+#include <WebCore/IntRect.h>
 
 using namespace WebKit; 
 using namespace WebCore;
@@ -62,6 +63,38 @@ const API::PageConfiguration& pageConfig)
 		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
 		rect.top - rect.bottom));
 	}
+	BRect p(0,0,10,20);
+	paint(WebCore::IntRect(p));
 }
 
+static void drawPageBackground(const WebPageProxy* page,const BRect& rect)
+{
+	if(!page->drawsBackground())
+	return;
+	
+		
+}
+	
+
+void BWebView::paint(const IntRect& dirtyRect)
+{
+	if(dirtyRect.isEmpty())
+	{
+		fprintf(stderr,"its empty\n");
+		return;
+	}
+	fPage->endPrinting();
+	if(DrawingAreaProxyImpl* drawingArea = static_cast <DrawingAreaProxyImpl*>(fPage->drawingArea())) 
+	{
+		fprintf(stderr,"its painting\n");
+		WebCore::Region unpainted;
+		BView* surface = new BView("drawing_surface",B_WILL_DRAW);
+		drawingArea->paint(surface,dirtyRect,unpainted);
+	}
+	else
+	{
+		drawPageBackground(fPage.get(),dirtyRect);
+	}
+}	
+	
 	
