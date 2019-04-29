@@ -39,6 +39,5 @@ int main(int argc, char** argv)
 #if USE(GCRYPT)
     PAL::GCrypt::initialize();
 #endif
-
     return WebProcessMainUnix(argc, argv);
 }

@@ -65,7 +65,7 @@ int AuxiliaryProcessMain(int argc, char** argv)
     initializeAuxiliaryProcess<AuxiliaryProcessType>(auxiliaryMain.takeInitializationParameters());
     RunLoop::run();
     auxiliaryMain.platformFinalize();
-
+	
     return EXIT_SUCCESS;
 }
 

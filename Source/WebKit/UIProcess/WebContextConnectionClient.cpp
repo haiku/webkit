@@ -35,7 +35,6 @@ void WebContextConnectionClient::didCreateConnection(WebProcessPool* processPool
 {
     if (!m_client.didCreateConnection)
         return;
-
     m_client.didCreateConnection(toAPI(processPool), toAPI(connection), m_client.base.clientInfo);
 }
 

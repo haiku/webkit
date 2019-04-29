@@ -39,13 +39,15 @@ class WebProcessMain final : public AuxiliaryProcessMainBase {
 public:
     bool platformInitialize() override
     {
-        BApplication* app = new BApplication("application/x-vnd.haiku-webkit.webprocess");
+    	fprintf(stderr,"webporcess in an application\n");
+        
         return true;
     }
 };
 
 int WebProcessMainUnix(int argc, char** argv)
 {
+	fprintf(stderr,"Aux process call\n");
     return AuxiliaryProcessMain<WebProcess, WebProcessMain>(argc, argv);
 }
 
