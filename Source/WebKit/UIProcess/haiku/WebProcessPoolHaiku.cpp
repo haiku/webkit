@@ -33,26 +33,21 @@ namespace WebKit {
 
 void WebProcessPool::platformInitialize()
 {
-	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInitializeNetworkProcess(NetworkProcessCreationParameters&)
 {
-	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
-	fprintf(stderr,"YOLO");
     notImplemented();
 }
 
 void WebProcessPool::platformInvalidateContext()
 {
-	fprintf(stderr,"YOLO");
-    notImplemented();
 }
 
 void WebProcessPool::platformResolvePathsForSandboxExtensions()
