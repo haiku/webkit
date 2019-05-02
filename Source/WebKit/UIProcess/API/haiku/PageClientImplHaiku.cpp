@@ -27,13 +27,13 @@
 #include "PageClientImplHaiku.h"
 #include "WebProcessProxy.h"
 #include "DrawingAreaProxyImpl.h"
-#include "WebView.h"
+#include "WebViewBase.h"
 
 namespace WebKit
 {
 	using namespace WebCore;
 	
-	PageClientImpl::PageClientImpl(BWebView& view)
+	PageClientImpl::PageClientImpl(WebViewBase& view)
 	:fWebView(view)
 	{
 		//fprintf(stderr,"page client called");	

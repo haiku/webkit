@@ -30,12 +30,12 @@
 
 namespace WebKit
 {
-	class BWebView;
+	class WebViewBase;
 	class DrawingAreaProxy;
 	class PageClientImpl: public PageClient
 	{
 		public:
-		PageClientImpl(BWebView&);
+		PageClientImpl(WebViewBase&);
 		BView* viewWidget();
 		private:
 		//page client def's
@@ -114,7 +114,7 @@ namespace WebKit
 	    DefaultUndoController fUndoController;
 		
 		//haiku def
-		BWebView& fWebView;
+		WebViewBase& fWebView;
 	};	
 	
 	

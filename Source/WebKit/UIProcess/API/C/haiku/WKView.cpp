@@ -22,10 +22,10 @@
 #include "config.h"
 #include "WKView.h"
 
-#include "WebView.h"
+
 #include "APIPageConfiguration.h"
 #include "WKAPICast.h"
-
+#include "WebViewBase.h"
 using namespace WebCore;
 using namespace WebKit;
 
@@ -33,7 +33,7 @@ WKViewRef WKViewCreate(const char* name,BRect rect,BWindow* parentWindow,
 	WKPageConfigurationRef pageRef)
 {
 	fprintf(stderr,"\n create page");
-	return toAPI(BWebView::create(name,rect,parentWindow,*toImpl(pageRef)).leakRef());
+	return toAPI(WebViewBase::create(name,rect,parentWindow,*toImpl(pageRef)).leakRef());
 }
 WKPageRef WKViewGetPage(WKViewRef viewRef)
 {

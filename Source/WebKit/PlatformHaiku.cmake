@@ -43,6 +43,7 @@ list(APPEND WebKit_SOURCES
     UIProcess/haiku/WebPageProxyHaiku.cpp
     UIProcess/haiku/WebPreferencesHaiku.cpp
     UIProcess/haiku/WebProcessPoolHaiku.cpp
+    UIProcess/API/haiku/WebViewBase.cpp
     UIProcess/API/haiku/WebView.cpp
     UIProcess/API/haiku/PageClientImplHaiku.cpp
 

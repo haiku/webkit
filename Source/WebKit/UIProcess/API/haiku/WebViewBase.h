@@ -22,56 +22,39 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include <Window.h>
 #include <View.h>
+#include <Window.h>
+#include <Rect.h>
+#include "APIObject.h"
+#include "APIPageConfiguration.h"
+#include "WebPageProxy.h"
+#include "PageClientImplHaiku.h"
 
-
-#include "WKPageConfigurationRef.h"
-#include "WKPage.h"
-#include "WKView.h"
-#include "WKURL.h"
-#include "WKString.h"
-#include "WKContext.h"
-#include "WKPreferencesRef.h"
-
-#include "wtf/RunLoop.h"
-
-#include "WebView.h"
+using namespace WebKit;
 namespace WebKit
 {
-	WebView::WebView(BRect frame,BWindow* myWindow)
+	class WebViewBase:public API::ObjectImpl<API::Object::Type::View>,
+	public BView
 	{
-	  initializeOnce();
-		//webkit stuff
-	  auto config = adoptWK(WKPageConfigurationCreate());
-	  auto prefs = WKPreferencesCreate();
-	  
-	  
-	  WKPreferencesSetDeveloperExtrasEnabled(prefs, true);
-	  WKPageConfigurationSetPreferences(config.get(),prefs);
-	  
-	  fContext = adoptWK(WKContextCreateWithConfiguration(nullptr));
-	  //fprintf(stderr,"here");
-	  WKPageConfigurationSetContext(config.get(),fContext.get());
-	  
-	  fViewPort=adoptWK(WKViewCreate("Webkit",frame,myWindow,config.get()));
-	  //
-	}
-	void WebView::initializeOnce()
-	{
-		WTF::RunLoop::initializeMainRunLoop();
-		WTF::RunLoop::run();
-	}
-	void WebView::loadHTML()
-	{
-		fprintf(stderr,"\nim loading");
-		auto page = WKViewGetPage( fViewPort.get());
-		WKRetainPtr<WKURLRef> uri;
-		uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
-		WKRetainPtr<WKStringRef> str;
-		str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
-		//WKPageLoadURL(page,uri.get());
-		WKPageLoadHTMLString(page,str.get(),uri.get());
-	}
+		public:
+		static RefPtr<WebViewBase> create(const char*name,BRect rect, 
+		BWindow* parentWindow,const API::PageConfiguration& config)
+		{
+			fprintf(stderr,"yolo");
+			auto fWebView=adoptRef(*new WebViewBase(name,rect,parentWindow,config));
+			fprintf(stderr,"im stuff");
+			return fWebView;
+		}
+		WebPageProxy* page() const { return fPage.get(); }
+		BView* getView() const {return fViewPort;}
+		void initializeOnce();
+		private:
+		WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
+		
+		void paint(const WebCore::IntRect&);
+		
+		BView* fViewPort {nullptr};
+		RefPtr<WebPageProxy> fPage;
+		std::unique_ptr<PageClientImpl> fPageClient;
+	};	
 }

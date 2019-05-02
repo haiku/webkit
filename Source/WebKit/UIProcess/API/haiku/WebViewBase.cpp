@@ -1,0 +1,101 @@
+/*
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#include "WebViewBase.h"
+#include "APIPageConfiguration.h"
+#include "WebProcessPool.h"
+#include "WebPageGroup.h"
+#include "DrawingAreaProxyImpl.h"
+#include <WebCore/IntRect.h>
+
+using namespace WebKit; 
+using namespace WebCore;
+
+WebKit::WebViewBase::WebViewBase(const char*name,BRect rect,BWindow* parentWindow,
+const API::PageConfiguration& pageConfig)
+:BView(name,B_WILL_DRAW),
+ fViewPort(new BView(name,B_WILL_DRAW)),
+ fPageClient(std::make_unique<PageClientImpl>(*this))
+{
+	fprintf(stderr,"Init");
+	parentWindow->AddChild(fViewPort);
+	auto config = pageConfig.copy();
+	auto* preferences = config->preferences();
+	
+	if(!preferences && config->pageGroup())
+	{
+		fprintf(stderr,"config");
+		preferences = &config->pageGroup()->preferences();
+		config->setPreferences(preferences);
+	}
+	if(preferences)
+	{
+		preferences->setAcceleratedCompositingEnabled(false);
+	}
+	
+	WebProcessPool* processPool = config->processPool();
+	fPage = processPool->createWebPage(*fPageClient,WTFMove(config));
+	fPage->initializeWebPage();
+	
+	if(fPage->drawingArea())
+	{
+		fprintf(stderr,"drawing available");
+		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
+		rect.top - rect.bottom));
+	}
+	BRect p(0,0,10,20);
+	paint(WebCore::IntRect(p));
+}
+
+static void drawPageBackground(const WebPageProxy* page,const BRect& rect)
+{
+	if(!page->drawsBackground())
+	return;
+	
+		
+}	
+
+void WebViewBase::paint(const IntRect& dirtyRect)
+{
+	if(dirtyRect.isEmpty())
+	{
+		fprintf(stderr,"its empty\n");
+		return;
+	}
+	fPage->endPrinting();
+	if(DrawingAreaProxyImpl* drawingArea = static_cast <DrawingAreaProxyImpl*>(fPage->drawingArea())) 
+	{
+		fprintf(stderr,"its painting\n");
+		WebCore::Region unpainted;
+		BView* surface = new BView("drawing_surface",B_WILL_DRAW);
+		drawingArea->paint(surface,dirtyRect,unpainted);
+	}
+	else
+	{
+		drawPageBackground(fPage.get(),dirtyRect);
+	}
+}	
+
+	
+	
