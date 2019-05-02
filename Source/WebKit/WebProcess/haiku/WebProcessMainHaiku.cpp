@@ -29,6 +29,7 @@
 #include "AuxiliaryProcessMainHaiku.h"
 #include "WebProcess.h"
 #include <Application.h>
+#include<Message.h>
 
 using namespace WebCore;
 

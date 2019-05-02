@@ -9,28 +9,39 @@
 #include <Button.h>
 #include <String.h>
 #include <TextControl.h>
-<<<<<<< HEAD
 #include <map>
 #include <MessageQueue.h>
 
 #include "WebView.h"
 using namespace std;
-=======
 
-#include "WKRetainPtr.h"
->>>>>>> f4cd9c312ea... Initial implementation to load blank url and now trying to load html string Note:destructors not handled yet
+class BButton;
+class BCheckBox;
+class BLayoutItem;
+class BMenuBar;
+class BStatusBar;
+class BStringView;
+class BTextControl;
+
+enum {
+    NEW_WINDOW = 'nwnd',
+    WINDOW_OPENED = 'wndo',
+    WINDOW_CLOSED = 'wndc',
+};
 
 class App : public BApplication
 {
 public:
-<<<<<<< HEAD
 	App(void);
 	void MessageReceived(BMessage *message);
 	void ReadyToRun();
 	void testLoader();
+	
+private:
 	void LocalMessage(BMessage*);
 	void GlobalMessage(BMessage*);
-private:
+	void SetStatus(const char*);
+	void ChangeUrl(BMessage*);
     int32 fCount;
     BWindow *myWindow;
     BWebView* webView;
@@ -38,16 +49,15 @@ private:
     status_t result;
     map<string,BLooper*> looperMapping;
 	map<string,BMessage*> messengerMapping;
-=======
-  App(void);
-  void MessageReceived(BMessage *msg);
-  void testLoader();
-private:
-    int32 fCount;
-    BWindow *myWindow;
-    WKRetainPtr<WKViewRef> fViewPort;
-    WKRetainPtr<WKContextRef> fContext;
->>>>>>> f4cd9c312ea... Initial implementation to load blank url and now trying to load html string Note:destructors not handled yet
+	//browser widgets
+	BMenuBar* m_menuBar;
+    BButton* m_BackButton;
+    BButton* m_ForwardButton;
+    BButton* m_StopButton;
+    BButton* m_goButton;
+    BTextControl* m_url;
+    BStringView* m_statusText;
+    BStatusBar* m_loadingProgressBar;
 };
 
 #endif
