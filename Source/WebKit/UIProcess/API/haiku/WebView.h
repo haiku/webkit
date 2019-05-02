@@ -22,38 +22,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <View.h>
-#include <Window.h>
-#include <Rect.h>
-#include "APIObject.h"
-#include "APIPageConfiguration.h"
-#include "WebPageProxy.h"
-#include "PageClientImplHaiku.h"
 
+#include "WKPage.h"
+#include "WKView.h"
+#include "WKContext.h"
+#include "WKRetainPtr.h"
 using namespace WebKit;
 namespace WebKit
 {
-	class BWebView:public API::ObjectImpl<API::Object::Type::View>,
-	public BView
+	class WebView
 	{
 		public:
-		static RefPtr<BWebView> create(const char*name,BRect rect, 
-		BWindow* parentWindow,const API::PageConfiguration& config)
-		{
-			fprintf(stderr,"yolo");
-			auto fWebView=adoptRef(*new BWebView(name,rect,parentWindow,config));
-			fprintf(stderr,"im stuff");
-			return fWebView;
-		}
-		WebPageProxy* page() const { return fPage.get(); }
-		BView* getView() const {return fViewPort;}
-		private:
-		BWebView(const char*,BRect,BWindow*,const API::PageConfiguration&);
-		
-		void paint(const WebCore::IntRect&);
-		
-		BView* fViewPort {nullptr};
-		RefPtr<WebPageProxy> fPage;
-		std::unique_ptr<PageClientImpl> fPageClient;
-	};	
+		WebView(BRect,BWindow*);
+		void initializeOnce();
+		void loadHTML();
+		private:	
+		WKRetainPtr<WKViewRef> fViewPort;
+    	WKRetainPtr<WKContextRef> fContext;
+	};
 }
+
+		
