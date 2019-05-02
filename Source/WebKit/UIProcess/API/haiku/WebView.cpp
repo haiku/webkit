@@ -38,40 +38,37 @@
 #include "wtf/RunLoop.h"
 
 #include "WebView.h"
-namespace WebKit
+BWebView::BWebView(BRect frame,BWindow* myWindow)
 {
-	WebView::WebView(BRect frame,BWindow* myWindow)
-	{
-	  initializeOnce();
-		//webkit stuff
-	  auto config = adoptWK(WKPageConfigurationCreate());
-	  auto prefs = WKPreferencesCreate();
-	  
-	  
-	  WKPreferencesSetDeveloperExtrasEnabled(prefs, true);
-	  WKPageConfigurationSetPreferences(config.get(),prefs);
-	  
-	  fContext = adoptWK(WKContextCreateWithConfiguration(nullptr));
-	  //fprintf(stderr,"here");
-	  WKPageConfigurationSetContext(config.get(),fContext.get());
-	  
-	  fViewPort=adoptWK(WKViewCreate("Webkit",frame,myWindow,config.get()));
-	  //
-	}
-	void WebView::initializeOnce()
-	{
-		WTF::RunLoop::initializeMainRunLoop();
-		WTF::RunLoop::run();
-	}
-	void WebView::loadHTML()
-	{
-		fprintf(stderr,"\nim loading");
-		auto page = WKViewGetPage( fViewPort.get());
-		WKRetainPtr<WKURLRef> uri;
-		uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
-		WKRetainPtr<WKStringRef> str;
-		str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
-		//WKPageLoadURL(page,uri.get());
-		WKPageLoadHTMLString(page,str.get(),uri.get());
-	}
+  initializeOnce();
+	//webkit stuff
+  auto config = adoptWK(WKPageConfigurationCreate());
+  auto prefs = WKPreferencesCreate();
+  
+  
+  WKPreferencesSetDeveloperExtrasEnabled(prefs, true);
+  WKPageConfigurationSetPreferences(config.get(),prefs);
+  
+  fContext = adoptWK(WKContextCreateWithConfiguration(nullptr));
+  //fprintf(stderr,"here");
+  WKPageConfigurationSetContext(config.get(),fContext.get());
+  
+  fViewPort=adoptWK(WKViewCreate("Webkit",frame,myWindow,config.get()));
+  //
+}
+void BWebView::initializeOnce()
+{
+	WTF::RunLoop::initializeMainRunLoop();
+	WTF::RunLoop::run();
+}
+void BWebView::loadHTML()
+{
+	fprintf(stderr,"\nim loading");
+	auto page = WKViewGetPage( fViewPort.get());
+	WKRetainPtr<WKURLRef> uri;
+	uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
+	WKRetainPtr<WKStringRef> str;
+	str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
+	//WKPageLoadURL(page,uri.get());
+	WKPageLoadHTMLString(page,str.get(),uri.get());
 }
