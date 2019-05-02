@@ -22,7 +22,7 @@ public:
 private:
     int32 fCount;
     BWindow *myWindow;
-    WebView* webView;
+    BWebView* webView;
     BRect frame;
 };
 
