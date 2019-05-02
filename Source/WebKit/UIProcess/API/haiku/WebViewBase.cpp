@@ -22,21 +22,58 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "WebViewBase.h"
+#include "APIPageConfiguration.h"
+#include "DrawingAreaProxyCoordinatedGraphics.h"
+#include "WebProcessPool.h"
+#include "WebPageGroup.h"
+#include <WebCore/IntRect.h>
 
-#include "WKPage.h"
-#include "WKView.h"
-#include "WKContext.h"
-#include "WKRetainPtr.h"
-using namespace WebKit;
-class BWebView
+using namespace WebKit; 
+using namespace WebCore;
+
+WebKit::WebViewBase::WebViewBase(const char*name,BRect rect,BWindow* parentWindow,
+const API::PageConfiguration& pageConfig)
+:BView(name,B_WILL_DRAW),
+ fViewPort(new BView(name,B_WILL_DRAW)),
+ fPageClient(std::make_unique<PageClientImpl>(*this))
 {
-	public:
-	BWebView(BRect,BWindow*);
-	void initializeOnce();
-	void loadHTML();
-	private:	
-	WKRetainPtr<WKViewRef> fViewPort;
-   	WKRetainPtr<WKContextRef> fContext;
-};
+	parentWindow->AddChild(fViewPort);
+	auto config = pageConfig.copy();
+	auto* preferences = config->preferences();
+	
+	if(!preferences && config->pageGroup())
+	{
+		preferences = &config->pageGroup()->preferences();
+		config->setPreferences(preferences);
+	}
+	if(preferences)
+	{
+		preferences->setAcceleratedCompositingEnabled(false);
+	}
+	
+	WebProcessPool* processPool = config->processPool();
+	fPage = processPool->createWebPage(*fPageClient,WTFMove(config));
+	fPage->initializeWebPage();
+	
+	if(fPage->drawingArea())
+	{
+		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
+		rect.top - rect.bottom));
+	}
+	BRect p(0,0,10,20);
+	paint(WebCore::IntRect(p));
+}
 
-		
+void WebViewBase::paint(const IntRect& dirtyRect)
+{
+	if(dirtyRect.isEmpty())
+	{
+		return;
+	}
+	fPage->endPrinting();
+	// TODO actually paint
+}	
+
+	
+	
