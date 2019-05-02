@@ -25,15 +25,16 @@
 #include "config.h"
 
 #include "PageClientImplHaiku.h"
+
+#include "DrawingAreaProxyCoordinatedGraphics.h"
 #include "WebProcessProxy.h"
-#include "DrawingAreaProxyImpl.h"
-#include "WebView.h"
+#include "WebViewBase.h"
 
 namespace WebKit
 {
 	using namespace WebCore;
 	
-	PageClientImpl::PageClientImpl(BWebView& view)
+	PageClientImpl::PageClientImpl(WebViewBase& view)
 	:fWebView(view)
 	{
 		//fprintf(stderr,"page client called");	
@@ -42,7 +43,7 @@ namespace WebKit
 	WebProcessProxy& process)
 	{
 		//fprintf(stderr,"called drawing area");
-		return std::make_unique<DrawingAreaProxyImpl>(*fWebView.page(),process);
+		return std::make_unique<DrawingAreaProxyCoordinatedGraphics>(*fWebView.page(),process);
 	}
 	void PageClientImpl::setViewNeedsDisplay(const WebCore::Region& region)
 	{
@@ -50,7 +51,7 @@ namespace WebKit
 	    //fWebView.setViewNeedsDisplay(region);
 	}
 	
-	void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&, bool)
+	void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&)
 	{
 	    notImplemented();
 	}
@@ -66,27 +67,32 @@ namespace WebKit
 		notImplemented();
 	    /*if (fWebView.drawingArea())
 	        return fWebView.drawingArea()->size();
-	    return IntSize();*/
+		*/
+	    return IntSize();
 	}
 	
 	bool PageClientImpl::isViewWindowActive()
 	{
 	    //return fWebView.isWindowActive();
+		return false;
 	}
 	
 	bool PageClientImpl::isViewFocused()
 	{
 	    //return fWebView.isFocused();
+		return false;
 	}
 	
 	bool PageClientImpl::isViewVisible()
 	{
 	    //return fWebView.isVisible();
+		return false;
 	}
 	
 	bool PageClientImpl::isViewInWindow()
 	{
 	    //return fWebView.isInWindow();
+		return false;
 	}
 	
 	void PageClientImpl::PageClientImpl::processDidExit()
@@ -219,7 +225,7 @@ namespace WebKit
 	    notImplemented();
 	}
 	
-	void PageClientImpl::handleDownloadRequest(DownloadProxy* download)
+	void PageClientImpl::handleDownloadRequest(DownloadProxy& download)
 	{
 	    notImplemented();
 	}

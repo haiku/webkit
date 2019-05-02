@@ -30,6 +30,7 @@
 #include "WebProcess.h"
 
 #include <Application.h>
+#include<Message.h>
 
 using namespace WebCore;
 
@@ -39,15 +40,16 @@ class WebProcessMain final : public AuxiliaryProcessMainBase {
 public:
     bool platformInitialize() override
     {
-    	fprintf(stderr,"webporcess in an application\n");
-        
-        return true;
+    	WebProcessApp* app= new WebProcessApp();
+		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    	app->Run();
+    	return true;
     }
 };
 
 int WebProcessMainUnix(int argc, char** argv)
 {
-	fprintf(stderr,"Aux process call\n");
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     return AuxiliaryProcessMain<WebProcess, WebProcessMain>(argc, argv);
 }
 

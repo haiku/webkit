@@ -22,79 +22,49 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <Window.h>
+#include <View.h>
+
+
+#include "WKPageConfigurationRef.h"
+#include "WKPage.h"
+#include "WKView.h"
+#include "WKURL.h"
+#include "WKString.h"
+#include "WKContext.h"
+#include "WKPreferencesRef.h"
+
 #include "WebView.h"
-#include "APIPageConfiguration.h"
-#include "WebProcessPool.h"
-#include "WebPageGroup.h"
-#include "DrawingAreaProxyImpl.h"
-#include <WebCore/IntRect.h>
-
-using namespace WebKit; 
-using namespace WebCore;
-BWebView::BWebView(const char*name,BRect rect,BWindow* parentWindow,
-const API::PageConfiguration& pageConfig)
-:BView(name,B_WILL_DRAW),
- fViewPort(new BView(name,B_WILL_DRAW)),
- fPageClient(std::make_unique<PageClientImpl>(*this))
+BWebView::BWebView(BRect frame,BWindow* myWindow)
 {
-	fprintf(stderr,"Init");
-	parentWindow->AddChild(fViewPort);
-	auto config = pageConfig.copy();
-	auto* preferences = config->preferences();
-	
-	if(!preferences && config->pageGroup())
-	{
-		fprintf(stderr,"config");
-		preferences = &config->pageGroup()->preferences();
-		config->setPreferences(preferences);
-	}
-	if(preferences)
-	{
-		preferences->setAcceleratedCompositingEnabled(false);
-	}
-	
-	WebProcessPool* processPool = config->processPool();
-	fPage = processPool->createWebPage(*fPageClient,WTFMove(config));
-	fPage->initializeWebPage();
-	
-	if(fPage->drawingArea())
-	{
-		fprintf(stderr,"drawing available");
-		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
-		rect.top - rect.bottom));
-	}
-	BRect p(0,0,10,20);
-	paint(WebCore::IntRect(p));
+  initializeOnce();
+	//webkit stuff
+  auto config = adoptWK(WKPageConfigurationCreate());
+  auto prefs = WKPreferencesCreate();
+  
+  
+  WKPreferencesSetDeveloperExtrasEnabled(prefs, true);
+  WKPageConfigurationSetPreferences(config.get(),prefs);
+  
+  fContext = adoptWK(WKContextCreateWithConfiguration(nullptr));
+  WKPageConfigurationSetContext(config.get(),fContext.get());
+  
+  fViewPort=adoptWK(WKViewCreate("Webkit",frame,myWindow,config.get()));
+  //
 }
-
-static void drawPageBackground(const WebPageProxy* page,const BRect& rect)
+void BWebView::initializeOnce()
 {
-	if(!page->drawsBackground())
-	return;
-	
-		
+	WTF::RunLoop::initializeMainRunLoop();
+	WTF::RunLoop::run();
 }
-	
-
-void BWebView::paint(const IntRect& dirtyRect)
+void BWebView::loadHTML()
 {
-	if(dirtyRect.isEmpty())
-	{
-		fprintf(stderr,"its empty\n");
-		return;
-	}
-	fPage->endPrinting();
-	if(DrawingAreaProxyImpl* drawingArea = static_cast <DrawingAreaProxyImpl*>(fPage->drawingArea())) 
-	{
-		fprintf(stderr,"its painting\n");
-		WebCore::Region unpainted;
-		BView* surface = new BView("drawing_surface",B_WILL_DRAW);
-		drawingArea->paint(surface,dirtyRect,unpainted);
-	}
-	else
-	{
-		drawPageBackground(fPage.get(),dirtyRect);
-	}
-}	
-	
-	
+	auto page = WKViewGetPage( fViewPort.get());
+	WKRetainPtr<WKURLRef> uri;
+	uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
+	WKRetainPtr<WKStringRef> str;
+	str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
+	//WKPageLoadURL(page,uri.get());
+	WKPageLoadHTMLString(page,str.get(),uri.get());
+}

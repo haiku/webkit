@@ -10,19 +10,20 @@
 #include <String.h>
 #include <TextControl.h>
 
-#include "WKRetainPtr.h"
+#include "WebView.h"
 
 class App : public BApplication
 {
 public:
   App(void);
   void MessageReceived(BMessage *msg);
+  void ReadyToRun();
   void testLoader();
 private:
     int32 fCount;
     BWindow *myWindow;
-    WKRetainPtr<WKViewRef> fViewPort;
-    WKRetainPtr<WKContextRef> fContext;
+    BWebView* webView;
+    BRect frame;
 };
 
 #endif

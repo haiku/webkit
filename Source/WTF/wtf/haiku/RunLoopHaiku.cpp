@@ -97,12 +97,14 @@ void RunLoop::run()
 	} else if (looper != be_app) {
 		fprintf(stderr, "Add handler to existing RunLoop looper\n");
 	}
+	
 	looper->LockLooper();
 	looper->AddHandler(current().m_handler);
 	looper->UnlockLooper();
 
 	if (newLooper)
 		looper->Loop();
+
 }
 
 void RunLoop::stop()
