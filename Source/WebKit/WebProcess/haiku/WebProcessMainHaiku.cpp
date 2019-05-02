@@ -30,18 +30,41 @@
 #include "WebProcess.h"
 
 #include <Application.h>
+#include<Message.h>
 
 using namespace std;
 namespace WebKit {
 using namespace WebCore;
-
+class WebProcessApp: public BApplication
+{
+	public:
+	WebProcessApp(void):BApplication("application/x-vnd.haiku-webkit.webprocess")
+	{
+	}
+	/*void MessageReceived(BMessage* msg)
+	{
+		switch(msg->what)
+		{
+			case 'loop':
+			fprintf(stderr,"\n looper called");
+		}
+	}*/
+	void ReadyToRun()
+	{	
+		fprintf(stderr,"\n Im app\n");
+		RunLoop::initializeMainRunLoop();
+		RunLoop::run();
+	}
+};
 class WebProcessMain final : public AuxiliaryProcessMainBase {
 public:
     bool platformInitialize() override
     {
+    	
+    	WebProcessApp* app= new WebProcessApp();
     	fprintf(stderr,"webporcess in an application\n");
-        
-        return true;
+    	app->Run();
+    	return true;
     }
 };
 
