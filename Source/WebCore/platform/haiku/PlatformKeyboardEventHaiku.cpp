@@ -326,7 +326,7 @@ static int windowsKeyCodeForKeyEvent(char singleByte, int keyCode)
 
 static String KeyValueForKeyEvent(BString bytes, int keyCode)
 {
-    switch (singleByte) {
+    switch (bytes.ByteAt(0)) {
         
         case B_FUNCTION_KEY:
             switch (keyCode) {
