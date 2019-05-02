@@ -28,18 +28,15 @@
 #include "WKContext.h"
 #include "WKRetainPtr.h"
 using namespace WebKit;
-namespace WebKit
+class BWebView
 {
-	class WebView
-	{
-		public:
-		WebView(BRect,BWindow*);
-		void initializeOnce();
-		void loadHTML();
-		private:	
-		WKRetainPtr<WKViewRef> fViewPort;
-    	WKRetainPtr<WKContextRef> fContext;
-	};
-}
+	public:
+	BWebView(BRect,BWindow*);
+	void initializeOnce();
+	void loadHTML();
+	private:	
+	WKRetainPtr<WKViewRef> fViewPort;
+   	WKRetainPtr<WKContextRef> fContext;
+};
 
 		
