@@ -35,7 +35,8 @@
 #include <sys/resource.h>
 
 #include <Looper.h>
-
+#include <Application.h>
+#include <Message.h>
 
 using namespace WebCore;
 
@@ -90,12 +91,14 @@ void ProcessLauncher::launchProcess()
 	char* m_args[]={procName,buff,sockBuff,NULL};
 	if(pid==0)
 	{
+		
 		execvp(name,m_args);
 	}
 	else
 	{
 		fprintf(stderr,"\nChild:%d\n",pid);
 	}
+
 	fprintf(stderr,"\ngoing to send\n");
 	RefPtr<ProcessLauncher> protectedLauncher(this);
 	
