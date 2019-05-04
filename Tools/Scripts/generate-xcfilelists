@@ -210,7 +210,7 @@ function die()
 
 function log_debug()
 {
-    (( "${GX_DEBUG}" > 0 )) && stderr "... $@"
+    (( "${GX_DEBUG}" > 0 )) && stderr "GXCF: $@"
 }
 
 
@@ -235,14 +235,14 @@ function log_callstack_and_parameters()
         local GX_ARGS=("$@")
         local GX_CALLSTACK=("${FUNCNAME[@]}")
         unset GX_CALLSTACK[0]
-        stderr "... (${GX_CALLSTACK[@]}): ${GX_ARGS[@]}"
+        stderr "GXCF: (${GX_CALLSTACK[@]}): ${GX_ARGS[@]}"
     fi
 }
 
 
 function log_progress()
 {
-    stdout "... $@"
+    stdout "GXCF: $@"
 }
 
 
@@ -387,7 +387,6 @@ function set_common_project_settings()
     local GX_BASE_PATH="${GX_EFFECTIVE_PROJECT_DIR}/${GX_PS_XCFILELIST_RELATIVE_PATH}"
     GX_INPUT_DERIVED_XCFILELIST_PROJECT_PATH="${GX_BASE_PATH}/DerivedSources-input.xcfilelist"
     GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_PATH="${GX_BASE_PATH}/DerivedSources-output.xcfilelist"
-    GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH="${GX_BASE_PATH}/UnifiedSources-input.xcfilelist"
     GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH="${GX_BASE_PATH}/UnifiedSources-output.xcfilelist"
 
     # Get the paths to the locations of the temporary .xcfilelist files (the
@@ -395,7 +394,6 @@ function set_common_project_settings()
 
     GX_INPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH="${GX_TEMP}/${GX_INPUT_DERIVED_XCFILELIST_PROJECT_PATH}"
     GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH="${GX_TEMP}/${GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_PATH}"
-    GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH="${GX_TEMP}/${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
     GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH="${GX_TEMP}/${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
 
     # Collect the default per-project commands to execute during the generate,
@@ -459,12 +457,10 @@ function dump_project_settings()
     log_debug
     log_debug_var GX_INPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH
     log_debug_var GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH
-    log_debug_var GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH
     log_debug_var GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH
     log_debug
     log_debug_var GX_INPUT_DERIVED_XCFILELIST_PROJECT_PATH
     log_debug_var GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_PATH
-    log_debug_var GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH
     log_debug_var GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH
     log_debug
     log_debug_var GX_PS_DERIVED_SOURCES_DIR
@@ -611,13 +607,14 @@ function get_canonical_configuration()
     log_callstack_and_parameters "$@"
 
     local GX_PROVISIONAL_CONFIGURATION=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    local GX_RESULT=$2
 
-    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "" ]] && { echo ""; return; }
+    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "" ]]           && { eval $GX_RESULT=""; return; }
 
-    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "debug" ]] && { echo "Debug"; return; }
-    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "release" ]] && { echo "Release"; return; }
-    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "production" ]] && { echo "Production"; return; }
-    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "profiling" ]] && { echo "Profiling"; return; }
+    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "debug" ]]      && { eval $GX_RESULT="Debug"; return; }
+    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "release" ]]    && { eval $GX_RESULT="Release"; return; }
+    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "production" ]] && { eval $GX_RESULT="Production"; return; }
+    [[ "${GX_PROVISIONAL_CONFIGURATION}" == "profiling" ]]  && { eval $GX_RESULT="Profiling"; return; }
 
     die "Unrecognized configuration: $1"
 }
@@ -628,18 +625,28 @@ function get_canonical_platform_name()
     log_callstack_and_parameters "$@"
 
     local GX_PROVISIONAL_PLATFORM_NAME=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    local GX_RESULT=$2
 
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "" ]] && { echo ""; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "" ]]                   && { eval $GX_RESULT=""; return; }
 
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "ios" ]] && { echo "iphoneos"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "iphone" ]] && { echo "iphoneos"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "ipad" ]] && { echo "iphoneos"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "iphoneos" ]] && { echo "iphoneos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "ios" ]]                && { eval $GX_RESULT="iphoneos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "iphone" ]]             && { eval $GX_RESULT="iphoneos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "ipad" ]]               && { eval $GX_RESULT="iphoneos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "iphoneos" ]]           && { eval $GX_RESULT="iphoneos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "iphonesimulator" ]]    && { eval $GX_RESULT="iphonesimulator"; return; }
 
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "mac" ]] && { echo "macosx"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "osx" ]] && { echo "macosx"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "macos" ]] && { echo "macosx"; return; }
-    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "macosx" ]] && { echo "macosx"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "mac" ]]                && { eval $GX_RESULT="macosx"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "osx" ]]                && { eval $GX_RESULT="macosx"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "macos" ]]              && { eval $GX_RESULT="macosx"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "macosx" ]]             && { eval $GX_RESULT="macosx"; return; }
+
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "tvos" ]]               && { eval $GX_RESULT="appletvos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "appletvos" ]]          && { eval $GX_RESULT="appletvos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "tvsimulator" ]]        && { eval $GX_RESULT="appletvsimulator"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "appletvsimulator" ]]   && { eval $GX_RESULT="appletvsimulator"; return; }
+
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "watchos" ]]            && { eval $GX_RESULT="watchos"; return; }
+    [[ "${GX_PROVISIONAL_PLATFORM_NAME}" == "watchsimulator" ]]     && { eval $GX_RESULT="watchsimulator"; return; }
 
     die "Unrecognized platform name: $1"
 }
@@ -649,15 +656,17 @@ function get_sdk_name()
 {
     log_callstack_and_parameters "$@"
 
-    local GX_SDK=$(get_canonical_platform_name "$1")
+    local GX_SDK=$1
+    local GX_RESULT=$2
+    get_canonical_platform_name "${GX_SDK}" GX_SDK
     local GX_INTERNAL_SDK="${GX_SDK}.internal"
 
     get_sdks
 
     # Prefer an internal SDK if one exists.
 
-    [[ " ${GX_SDKS[@]} " =~ " ${GX_INTERNAL_SDK} " ]] && { echo "${GX_INTERNAL_SDK}"; return; }
-    [[ " ${GX_SDKS[@]} " =~ " ${GX_SDK} " ]] && { echo "${GX_SDK}"; return; }
+    [[ " ${GX_SDKS[@]} " =~ " ${GX_INTERNAL_SDK} " ]]   && { eval $GX_RESULT="${GX_INTERNAL_SDK}"; return; }
+    [[ " ${GX_SDKS[@]} " =~ " ${GX_SDK} " ]]            && { eval $GX_RESULT="${GX_SDK}"; return; }
 
     die "Unsupported SDK: ${GX_SDK}."
 }
@@ -756,7 +765,7 @@ function generate_derivedsources_xcfilelists()
 
     if (( ${GX_RESULT} ))
     then
-        sed -E -e 's/^/... /' < "${GX_TEMP}/std.err"
+        sed -E -e 's/^/GXCF: /' < "${GX_TEMP}/std.err"
         die "Error generating derived sources: error = ${GX_RESULT}" ${GX_RESULT}
     fi
 
@@ -793,7 +802,7 @@ function generate_unifiedsources_xcfilelists()
 {
     log_callstack_and_parameters "$@"
 
-    create_empty_files "${GX_TEMP_INPUT_XCFILELIST}" "${GX_TEMP_OUTPUT_XCFILELIST}"
+    create_empty_files "${GX_TEMP_OUTPUT_XCFILELIST}"
 
     [[ -n "${GX_UNIFIEDSOURCES_GENERATOR}" ]] || die "GX_UNIFIEDSOURCES_GENERATOR is not defined."
     [[ -x "${GX_UNIFIEDSOURCES_GENERATOR}" ]] || die "${GX_UNIFIEDSOURCES_GENERATOR} does not exist or is not executable."
@@ -807,18 +816,14 @@ function generate_unifiedsources_xcfilelists()
     BUILD_SCRIPTS_DIR="${GX_BUILD_SCRIPTS_DIR}" \
     "${GX_UNIFIEDSOURCES_GENERATOR}" \
         --generate-xcfilelists \
-        --input-xcfilelist-path "${GX_TEMP_INPUT_XCFILELIST}" \
         --output-xcfilelist-path "${GX_TEMP_OUTPUT_XCFILELIST}"
     GX_RESULT=$?
 
     (( ${GX_RESULT} )) && die "Error generating unified sources: error = ${GX_RESULT}"
-    [[ -f "${GX_TEMP_INPUT_XCFILELIST}" ]] || die "${GX_TEMP_INPUT_XCFILELIST} was not generated."
     [[ -f "${GX_TEMP_OUTPUT_XCFILELIST}" ]] || die "${GX_TEMP_OUTPUT_XCFILELIST} was not generated."
 
-    unexpand "${GX_TEMP_INPUT_XCFILELIST}" BUILT_PRODUCTS_DIR
     unexpand "${GX_TEMP_OUTPUT_XCFILELIST}" BUILT_PRODUCTS_DIR
 
-    merge_xcfilelists_helper "${GX_TEMP_INPUT_XCFILELIST}" "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}"
     merge_xcfilelists_helper "${GX_TEMP_OUTPUT_XCFILELIST}" "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}"
 }
 
@@ -843,7 +848,8 @@ function sublaunch_under_xcode()
     (( ${GX_DEBUG} )) && { for n in $(seq $GX_DEBUG); do GX_ARGS+=("--debug"); done; }
     (( ${GX_QUIET} )) && GX_ARGS+=("--quiet")
 
-    local GX_SDK_NAME=$(get_sdk_name "${GX_PLATFORM_NAME}")
+    local GX_SDK_NAME
+    get_sdk_name "${GX_PLATFORM_NAME}" GX_SDK_NAME
 
     log_debug "Sublaunching for: ${GX_PROJECT_TAG}/${GX_PLATFORM_NAME}/${GX_CONFIGURATION}"
 
@@ -884,7 +890,7 @@ function reset_project_specific_temp_files()
 
     create_empty_files \
         "${GX_INPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_OUTPUT_DERIVED_XCFILELIST_PROJECT_TEMP_PATH}" \
-        "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}"
+        "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}"
 }
 
 
@@ -947,14 +953,10 @@ function merge_unifiedsources_xcfilelists()
 {
     log_callstack_and_parameters "$@"
 
-    log_debug "Merging ${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH} into ${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
     log_debug "Merging ${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH} into ${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
 
     if (( ! ${GX_DRY_RUN} ))
     then
-        merge_xcfilelists_helper "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH}" && GX_DEFERRED_EXIT_CODE=3
-        log_debug "GX_DEFERRED_EXIT_CODE = $GX_DEFERRED_EXIT_CODE"
-
         merge_xcfilelists_helper "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH}" && GX_DEFERRED_EXIT_CODE=3
         log_debug "GX_DEFERRED_EXIT_CODE = $GX_DEFERRED_EXIT_CODE"
     fi
@@ -1016,7 +1018,6 @@ function check_unifiedsources_xcfilelists()
 {
     log_callstack_and_parameters "$@"
 
-    check_xcfilelists_helper "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_INPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
     check_xcfilelists_helper "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_TEMP_PATH}" "${GX_OUTPUT_UNIFIED_XCFILELIST_PROJECT_PATH}"
 }
 
@@ -1236,8 +1237,8 @@ function main()
     fi
 
     [[ -z "${GX_PROJECT_TAG}" || ( " ${GX_PROJECT_TAGS[@]} " =~ " ${GX_PROJECT_TAG} " ) ]] || { die "Unrecognized project: ${GX_PROJECT_TAG}";  }
-    GX_PLATFORM_NAME=$(get_canonical_platform_name "${GX_PLATFORM_NAME}")
-    GX_CONFIGURATION=$(get_canonical_configuration "${GX_CONFIGURATION}")
+    get_canonical_platform_name "${GX_PLATFORM_NAME}" GX_PLATFORM_NAME
+    get_canonical_configuration "${GX_CONFIGURATION}" GX_CONFIGURATION
 
     if (( ${GX_DO_GENERATE} ))
     then

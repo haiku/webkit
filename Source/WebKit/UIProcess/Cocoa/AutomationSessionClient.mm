@@ -26,8 +26,6 @@
 #import "config.h"
 #import "AutomationSessionClient.h"
 
-#if WK_API_ENABLED
-
 #import "WKSharedAPICast.h"
 #import "WKWebViewInternal.h"
 #import "WebAutomationSession.h"
@@ -79,31 +77,40 @@ void AutomationSessionClient::requestNewPageWithOptions(WebAutomationSession& se
         [m_delegate.get() _automationSession:wrapper(session) requestNewWebViewWithOptions:toAPI(options) completionHandler:makeBlockPtr([completionHandler = WTFMove(completionHandler)](WKWebView *webView) mutable {
             completionHandler(webView->_page.get());
         }).get()];
-    }
+    } else
+        completionHandler(nullptr);
 }
 
 void AutomationSessionClient::requestSwitchToPage(WebAutomationSession& session, WebPageProxy& page, CompletionHandler<void()>&& completionHandler)
 {
     if (m_delegateMethods.requestSwitchToWebView)
         [m_delegate.get() _automationSession:wrapper(session) requestSwitchToWebView:fromWebPageProxy(page) completionHandler:makeBlockPtr(WTFMove(completionHandler)).get()];
+    else
+        completionHandler();
 }
 
 void AutomationSessionClient::requestHideWindowOfPage(WebAutomationSession& session, WebPageProxy& page, CompletionHandler<void()>&& completionHandler)
 {
     if (m_delegateMethods.requestHideWindowOfWebView)
         [m_delegate.get() _automationSession:wrapper(session) requestHideWindowOfWebView:fromWebPageProxy(page) completionHandler:makeBlockPtr(WTFMove(completionHandler)).get()];
+    else
+        completionHandler();
 }
 
 void AutomationSessionClient::requestRestoreWindowOfPage(WebAutomationSession& session, WebPageProxy& page, CompletionHandler<void()>&& completionHandler)
 {
     if (m_delegateMethods.requestRestoreWindowOfWebView)
         [m_delegate.get() _automationSession:wrapper(session) requestRestoreWindowOfWebView:fromWebPageProxy(page) completionHandler:makeBlockPtr(WTFMove(completionHandler)).get()];
+    else
+        completionHandler();
 }
 
 void AutomationSessionClient::requestMaximizeWindowOfPage(WebAutomationSession& session, WebPageProxy& page, CompletionHandler<void()>&& completionHandler)
 {
     if (m_delegateMethods.requestMaximizeWindowOfWebView)
         [m_delegate.get() _automationSession:wrapper(session) requestMaximizeWindowOfWebView:fromWebPageProxy(page) completionHandler:makeBlockPtr(WTFMove(completionHandler)).get()];
+    else
+        completionHandler();
 }
 
 bool AutomationSessionClient::isShowingJavaScriptDialogOnPage(WebAutomationSession& session, WebPageProxy& page)
@@ -181,5 +188,3 @@ API::AutomationSessionClient::BrowsingContextPresentation AutomationSessionClien
 }
 
 } // namespace WebKit
-
-#endif // WK_API_ENABLED

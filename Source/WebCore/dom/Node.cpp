@@ -42,6 +42,7 @@
 #include "EventDispatcher.h"
 #include "EventHandler.h"
 #include "FrameView.h"
+#include "HTMLAreaElement.h"
 #include "HTMLBodyElement.h"
 #include "HTMLCollection.h"
 #include "HTMLElement.h"
@@ -316,8 +317,7 @@ void Node::trackForDebugging()
 }
 
 Node::Node(Document& document, ConstructionType type)
-    : m_refCount(1)
-    , m_nodeFlags(type)
+    : m_nodeFlags(type)
     , m_treeScope(&document)
 {
     ASSERT(isMainThread());
@@ -332,7 +332,7 @@ Node::Node(Document& document, ConstructionType type)
 Node::~Node()
 {
     ASSERT(isMainThread());
-    ASSERT(!m_refCount);
+    ASSERT(m_refCountAndParentBit == s_refCountIncrement);
     ASSERT(m_deletionHasBegun);
     ASSERT(!m_adoptionIsRequired);
 
@@ -794,7 +794,11 @@ RenderBoxModelObject* Node::renderBoxModelObject() const
 LayoutRect Node::renderRect(bool* isReplaced)
 {    
     RenderObject* hitRenderer = this->renderer();
-    ASSERT(hitRenderer);
+    if (!hitRenderer && is<HTMLAreaElement>(*this)) {
+        auto& area = downcast<HTMLAreaElement>(*this);
+        if (auto* imageElement = area.imageElement())
+            hitRenderer = imageElement->renderer();
+    }
     RenderObject* renderer = hitRenderer;
     while (renderer && !renderer->isBody() && !renderer->isDocumentElementRenderer()) {
         if (renderer->isRenderBlock() || renderer->isInlineBlockOrInlineTable() || renderer->isReplaced()) {
@@ -1008,21 +1012,15 @@ bool Node::isDescendantOf(const Node& other) const
 
 bool Node::isDescendantOrShadowDescendantOf(const Node* other) const
 {
-    if (!other) 
-        return false;
-    if (isDescendantOf(*other))
-        return true;
-    const Node* shadowAncestorNode = deprecatedShadowAncestorNode();
-    if (!shadowAncestorNode)
-        return false;
-    return shadowAncestorNode == other || shadowAncestorNode->isDescendantOf(*other);
+    // FIXME: This element's shadow tree's host could be inside another shadow tree.
+    // This function doesn't handle that case correctly. Maybe share code with
+    // the containsIncludingShadowDOM function?
+    return other && (isDescendantOf(*other) || other->contains(shadowHost()));
 }
 
 bool Node::contains(const Node* node) const
 {
-    if (!node)
-        return false;
-    return this == node || node->isDescendantOf(*this);
+    return this == node || (node && node->isDescendantOf(*this));
 }
 
 bool Node::containsIncludingShadowDOM(const Node* node) const
@@ -1030,19 +1028,6 @@ bool Node::containsIncludingShadowDOM(const Node* node) const
     for (; node; node = node->parentOrShadowHostNode()) {
         if (node == this)
             return true;
-    }
-    return false;
-}
-
-bool Node::containsIncludingHostElements(const Node* node) const
-{
-    while (node) {
-        if (node == this)
-            return true;
-        if (node->isDocumentFragment() && static_cast<const DocumentFragment*>(node)->isTemplateContent())
-            node = static_cast<const TemplateContentDocumentFragment*>(node)->host();
-        else
-            node = node->parentOrShadowHostNode();
     }
     return false;
 }
@@ -1137,14 +1122,6 @@ Element* Node::shadowHost() const
     if (ShadowRoot* root = containingShadowRoot())
         return root->host();
     return nullptr;
-}
-
-Node* Node::deprecatedShadowAncestorNode() const
-{
-    if (ShadowRoot* root = containingShadowRoot())
-        return root->host();
-
-    return const_cast<Node*>(this);
 }
 
 ShadowRoot* Node::containingShadowRoot() const
@@ -2079,8 +2056,17 @@ void Node::moveNodeToNewDocument(Document& oldDocument, Document& newDocument)
         }
 
         unsigned numTouchEventListeners = 0;
-        for (auto& name : eventNames().touchAndPointerEventNames())
-            numTouchEventListeners += eventListeners(name).size();
+#if ENABLE(TOUCH_EVENTS)
+        if (RuntimeEnabledFeatures::sharedFeatures().mouseEventsSimulationEnabled()) {
+            for (auto& name : eventNames().extendedTouchRelatedEventNames())
+                numTouchEventListeners += eventListeners(name).size();
+        } else {
+#endif
+            for (auto& name : eventNames().touchRelatedEventNames())
+                numTouchEventListeners += eventListeners(name).size();
+#if ENABLE(TOUCH_EVENTS)
+        }
+#endif
 
         for (unsigned i = 0; i < numTouchEventListeners; ++i) {
             oldDocument.didRemoveTouchEventHandler(*this);
@@ -2125,7 +2111,7 @@ static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eve
     targetNode->document().addListenerTypeIfNeeded(eventType);
     if (eventNames().isWheelEventType(eventType))
         targetNode->document().didAddWheelEventHandler(*targetNode);
-    else if (eventNames().isTouchEventType(eventType))
+    else if (eventNames().isTouchRelatedEventType(eventType))
         targetNode->document().didAddTouchEventHandler(*targetNode);
 
 #if PLATFORM(IOS_FAMILY)
@@ -2140,7 +2126,7 @@ static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eve
         targetNode->document().domWindow()->addEventListener(eventType, WTFMove(listener), options);
 
 #if ENABLE(TOUCH_EVENTS)
-    if (eventNames().isTouchEventType(eventType))
+    if (eventNames().isTouchRelatedEventType(eventType))
         targetNode->document().addTouchEventListener(*targetNode);
 #endif
 #endif // PLATFORM(IOS_FAMILY)
@@ -2167,7 +2153,7 @@ static inline bool tryRemoveEventListener(Node* targetNode, const AtomicString& 
     // listeners for each type, not just a bool - see https://bugs.webkit.org/show_bug.cgi?id=33861
     if (eventNames().isWheelEventType(eventType))
         targetNode->document().didRemoveWheelEventHandler(*targetNode);
-    else if (eventNames().isTouchEventType(eventType))
+    else if (eventNames().isTouchRelatedEventType(eventType))
         targetNode->document().didRemoveTouchEventHandler(*targetNode);
 
 #if PLATFORM(IOS_FAMILY)
@@ -2181,7 +2167,7 @@ static inline bool tryRemoveEventListener(Node* targetNode, const AtomicString& 
         targetNode->document().domWindow()->removeEventListener(eventType, listener, options);
 
 #if ENABLE(TOUCH_EVENTS)
-    if (eventNames().isTouchEventType(eventType))
+    if (eventNames().isTouchRelatedEventType(eventType))
         targetNode->document().removeTouchEventListener(*targetNode);
 #endif
 #endif // PLATFORM(IOS_FAMILY)
@@ -2477,7 +2463,7 @@ void Node::defaultEventHandler(Event& event)
             if (Frame* frame = document().frame())
                 frame->eventHandler().defaultWheelEventHandler(startNode, downcast<WheelEvent>(event));
 #if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS_FAMILY)
-    } else if (is<TouchEvent>(event) && eventNames().isTouchEventType(eventType)) {
+    } else if (is<TouchEvent>(event) && eventNames().isTouchRelatedEventType(eventType)) {
         RenderObject* renderer = this->renderer();
         while (renderer && (!is<RenderBox>(*renderer) || !downcast<RenderBox>(*renderer).canBeScrolledAndHasScrollableArea()))
             renderer = renderer->parent();
@@ -2526,6 +2512,8 @@ bool Node::willRespondToMouseWheelEvents()
 // delete a Node at each deref call site.
 void Node::removedLastRef()
 {
+    ASSERT(m_refCountAndParentBit == s_refCountIncrement);
+
     // An explicit check for Document here is better than a virtual function since it is
     // faster for non-Document nodes, and because the call to removedLastRef that is inlined
     // at all deref call sites is smaller if it's a non-virtual function.

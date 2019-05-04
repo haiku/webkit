@@ -54,7 +54,7 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::createWithWebsiteDataSto
     configuration->m_applicationCacheFlatFileSubdirectoryName = legacyConfiguration.applicationCacheFlatFileSubdirectoryName();
     configuration->m_diskCacheDirectory = legacyConfiguration.networkCacheDirectory();
     configuration->m_mediaCacheDirectory = legacyConfiguration.mediaCacheDirectory();
-    configuration->m_indexedDBDatabaseDirectory = WebsiteDataStore::legacyDefaultIndexedDBDatabaseDirectory();
+    configuration->m_indexedDBDatabaseDirectory = legacyConfiguration.indexedDBDatabaseDirectory();
     configuration->m_localStorageDirectory = legacyConfiguration.localStorageDirectory();
     configuration->m_deviceIdHashSaltsStorageDirectory = legacyConfiguration.deviceIdHashSaltsStorageDirectory();
     configuration->m_mediaKeysStorageDirectory = legacyConfiguration.mediaKeysStorageDirectory();
@@ -115,6 +115,7 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_shouldCaptureAudioInUIProcess = this->m_shouldCaptureAudioInUIProcess;
     copy->m_shouldCaptureDisplayInUIProcess = this->m_shouldCaptureDisplayInUIProcess;
     copy->m_isJITEnabled = this->m_isJITEnabled;
+    copy->m_downloadMonitorSpeedMultiplier = this->m_downloadMonitorSpeedMultiplier;
 #if PLATFORM(IOS_FAMILY)
     copy->m_ctDataConnectionServiceType = this->m_ctDataConnectionServiceType;
 #endif
@@ -124,9 +125,7 @@ Ref<ProcessPoolConfiguration> ProcessPoolConfiguration::copy()
     copy->m_alwaysKeepAndReuseSwappedProcesses = this->m_alwaysKeepAndReuseSwappedProcesses;
     copy->m_processSwapsOnWindowOpenWithOpener = this->m_processSwapsOnWindowOpenWithOpener;
     copy->m_isAutomaticProcessWarmingEnabledByClient = this->m_isAutomaticProcessWarmingEnabledByClient;
-#if ENABLE(PROXIMITY_NETWORKING)
-    copy->m_wirelessContextIdentifier = this->m_wirelessContextIdentifier;
-#endif
+    copy->m_usesWebProcessCache = this->m_usesWebProcessCache;
 #if PLATFORM(COCOA)
     copy->m_suppressesConnectionTerminationOnSystemChange = this->m_suppressesConnectionTerminationOnSystemChange;
 #endif

@@ -38,7 +38,7 @@ namespace WHLSL {
 
 namespace Metal {
 
-String generateMetalCode(Program& program)
+static String generateMetalCodeShared(String&& metalTypes, String&& metalFunctions)
 {
     StringBuilder stringBuilder;
     stringBuilder.append("#include <metal_stdlib>\n");
@@ -51,10 +51,27 @@ String generateMetalCode(Program& program)
     stringBuilder.append("using namespace metal;\n");
     stringBuilder.append("\n");
 
-    TypeNamer typeNamer(program);
-    stringBuilder.append(typeNamer.metalTypes());
-    stringBuilder.append(metalFunctions(program, typeNamer));
+    stringBuilder.append(WTFMove(metalTypes));
+    stringBuilder.append(WTFMove(metalFunctions));
     return stringBuilder.toString();
+}
+
+RenderMetalCode generateMetalCode(Program& program, MatchedRenderSemantics&& matchedSemantics, Layout& layout)
+{
+    TypeNamer typeNamer(program);
+    auto metalTypes = typeNamer.metalTypes();
+    auto metalFunctions = Metal::metalFunctions(program, typeNamer, WTFMove(matchedSemantics), layout);
+    auto metalCode = generateMetalCodeShared(WTFMove(metalTypes), WTFMove(metalFunctions.metalSource));
+    return { WTFMove(metalCode), WTFMove(metalFunctions.mangledVertexEntryPointName), WTFMove(metalFunctions.mangledFragmentEntryPointName) };
+}
+
+ComputeMetalCode generateMetalCode(Program& program, MatchedComputeSemantics&& matchedSemantics, Layout& layout)
+{
+    TypeNamer typeNamer(program);
+    auto metalTypes = typeNamer.metalTypes();
+    auto metalFunctions = Metal::metalFunctions(program, typeNamer, WTFMove(matchedSemantics), layout);
+    auto metalCode = generateMetalCodeShared(WTFMove(metalTypes), WTFMove(metalFunctions.metalSource));
+    return { WTFMove(metalCode), WTFMove(metalFunctions.mangledEntryPointName) };
 }
 
 }

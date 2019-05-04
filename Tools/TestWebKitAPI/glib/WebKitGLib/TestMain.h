@@ -78,6 +78,19 @@
         }                                                                \
     } while (0)
 
+#if !defined(g_assert_cmpfloat_with_epsilon)
+#define g_assert_cmpfloat_with_epsilon(n1,n2,epsilon)                   \
+    do {                                                                \
+        double __n1 = (n1);                                             \
+        double __n2 = (n2);                                             \
+        double __epsilon = (epsilon);                                   \
+        if ((((__n1) > (__n2) ? (__n1) - (__n2) : (__n2) - (__n1)) < (__epsilon))) ; \
+        else {                                                          \
+            g_assertion_message_cmpnum (G_LOG_DOMAIN, __FILE__, __LINE__, \
+                G_STRFUNC, #n1 " == " #n2 " (+/- " #epsilon ")", __n1, "==", __n2, 'f'); \
+        }                                                               \
+    } while(0)
+#endif
 
 class Test {
 public:
@@ -143,10 +156,8 @@ public:
     static WebKitWebViewBackend* createWebViewBackend()
     {
         auto* headlessBackend = new WPEToolingBackends::HeadlessViewBackend(800, 600);
-#if defined(WPE_BACKEND_CHECK_VERSION) && WPE_BACKEND_CHECK_VERSION(1, 1, 0)
         // Make the view initially hidden for consistency with GTK+ tests.
         wpe_view_backend_remove_activity_state(headlessBackend->backend(), wpe_view_activity_state_visible | wpe_view_activity_state_focused);
-#endif
         return webkit_web_view_backend_new(headlessBackend->backend(), [](gpointer userData) {
             delete static_cast<WPEToolingBackends::HeadlessViewBackend*>(userData);
         }, headlessBackend);

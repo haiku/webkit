@@ -35,13 +35,16 @@
 #include "DOMWrapperWorld.h"
 #include "EventNames.h"
 #include "HTMLBodyElement.h"
+#include "HTMLHtmlElement.h"
 #include "InspectorInstrumentation.h"
 #include "JSEventListener.h"
+#include "RuntimeEnabledFeatures.h"
 #include "ScriptController.h"
 #include "ScriptDisallowedScope.h"
 #include "Settings.h"
 #include "WebKitAnimationEvent.h"
 #include "WebKitTransitionEvent.h"
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Ref.h>
@@ -50,6 +53,9 @@
 #include <wtf/Vector.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(EventTarget);
+WTF_MAKE_ISO_ALLOCATED_IMPL(EventTargetWithInlineData);
 
 bool EventTarget::isNode() const
 {
@@ -304,7 +310,14 @@ void EventTarget::innerInvokeEventListeners(Event& event, EventListenerVector li
     }
 
     if (contextIsDocument)
-        InspectorInstrumentation::didDispatchEvent(willDispatchEventCookie);
+        InspectorInstrumentation::didDispatchEvent(willDispatchEventCookie, event.defaultPrevented());
+}
+
+Vector<AtomicString> EventTarget::eventTypes()
+{
+    if (auto* data = eventTargetData())
+        return data->eventListenerMap.eventTypes();
+    return { };
 }
 
 const EventListenerVector& EventTarget::eventListeners(const AtomicString& eventType)

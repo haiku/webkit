@@ -23,10 +23,12 @@
 #include "config.h"
 #include "HTMLFormControlsCollection.h"
 
+#include "FormAssociatedElement.h"
 #include "HTMLFormElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLNames.h"
 #include "ScriptDisallowedScope.h"
+#include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
 
@@ -34,6 +36,8 @@ using namespace HTMLNames;
 
 // Since the collections are to be "live", we have to do the
 // calculation every time if anything has changed.
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLFormControlsCollection);
 
 HTMLFormControlsCollection::HTMLFormControlsCollection(ContainerNode& ownerNode)
     : CachedHTMLCollection<HTMLFormControlsCollection, CollectionTypeTraits<FormControls>::traversalType>(ownerNode, FormControls)
@@ -70,11 +74,6 @@ const Vector<FormAssociatedElement*>& HTMLFormControlsCollection::unsafeFormCont
 Vector<Ref<FormAssociatedElement>> HTMLFormControlsCollection::copyFormControlElementsVector() const
 {
     return ownerNode().copyAssociatedElementsVector();
-}
-
-const Vector<HTMLImageElement*>& HTMLFormControlsCollection::formImageElements() const
-{
-    return ownerNode().imageElements();
 }
 
 static unsigned findFormAssociatedElement(const Vector<FormAssociatedElement*>& elements, const Element& element)
@@ -142,7 +141,9 @@ void HTMLFormControlsCollection::updateNamedElementCache() const
         }
     }
 
-    for (auto* elementPtr : formImageElements()) {
+    for (auto& elementPtr : ownerNode().imageElements()) {
+        if (!elementPtr)
+            continue;
         HTMLImageElement& element = *elementPtr;
         const AtomicString& id = element.getIdAttribute();
         if (!id.isEmpty() && !foundInputElements.contains(id.impl()))

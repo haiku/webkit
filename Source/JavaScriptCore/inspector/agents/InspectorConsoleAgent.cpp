@@ -42,16 +42,11 @@ namespace Inspector {
 static const unsigned maximumConsoleMessages = 100;
 static const int expireConsoleMessagesStep = 10;
 
-InspectorConsoleAgent::InspectorConsoleAgent(AgentContext& context, InspectorHeapAgent* heapAgent)
+InspectorConsoleAgent::InspectorConsoleAgent(AgentContext& context)
     : InspectorAgentBase("Console"_s)
     , m_injectedScriptManager(context.injectedScriptManager)
     , m_frontendDispatcher(std::make_unique<ConsoleFrontendDispatcher>(context.frontendRouter))
     , m_backendDispatcher(ConsoleBackendDispatcher::create(context.backendDispatcher, this))
-    , m_heapAgent(heapAgent)
-{
-}
-
-InspectorConsoleAgent::~InspectorConsoleAgent()
 {
 }
 
@@ -133,6 +128,9 @@ void InspectorConsoleAgent::addMessageToConsole(std::unique_ptr<ConsoleMessage> 
 
 void InspectorConsoleAgent::startTiming(const String& title)
 {
+    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
+        return;
+
     ASSERT(!title.isNull());
     if (title.isNull())
         return;
@@ -148,6 +146,9 @@ void InspectorConsoleAgent::startTiming(const String& title)
 
 void InspectorConsoleAgent::stopTiming(const String& title, Ref<ScriptCallStack>&& callStack)
 {
+    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
+        return;
+
     ASSERT(!title.isNull());
     if (title.isNull())
         return;
@@ -164,13 +165,16 @@ void InspectorConsoleAgent::stopTiming(const String& title, Ref<ScriptCallStack>
     m_times.remove(it);
 
     Seconds elapsed = MonotonicTime::now() - startTime;
-    String message = title + String::format(": %.3fms", elapsed.milliseconds());
+    String message = makeString(title, ": ", FormattedNumber::fixedWidth(elapsed.milliseconds(), 3), "ms");
     addMessageToConsole(std::make_unique<ConsoleMessage>(MessageSource::ConsoleAPI, MessageType::Timing, MessageLevel::Debug, message, WTFMove(callStack)));
 }
 
 void InspectorConsoleAgent::takeHeapSnapshot(const String& title)
 {
     if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
+        return;
+
+    if (!m_heapAgent)
         return;
 
     ErrorString ignored;
@@ -183,6 +187,9 @@ void InspectorConsoleAgent::takeHeapSnapshot(const String& title)
 
 void InspectorConsoleAgent::count(JSC::ExecState* state, Ref<ScriptArguments>&& arguments)
 {
+    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
+        return;
+
     Ref<ScriptCallStack> callStack = createScriptCallStackForConsole(state);
 
     String title;
@@ -203,7 +210,7 @@ void InspectorConsoleAgent::count(JSC::ExecState* state, Ref<ScriptArguments>&& 
 
     // FIXME: Web Inspector should have a better UI for counters, but for now we just log an updated counter value.
 
-    String message = makeString(title, ": ", String::number(result.iterator->value));
+    String message = makeString(title, ": ", result.iterator->value);
     addMessageToConsole(std::make_unique<ConsoleMessage>(MessageSource::ConsoleAPI, MessageType::Log, MessageLevel::Debug, message, WTFMove(callStack)));
 }
 
@@ -216,7 +223,9 @@ static bool isGroupMessage(MessageType type)
 
 void InspectorConsoleAgent::addConsoleMessage(std::unique_ptr<ConsoleMessage> consoleMessage)
 {
-    ASSERT(m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled());
+    if (!m_injectedScriptManager.inspectorEnvironment().developerExtrasEnabled())
+        return;
+
     ASSERT_ARG(consoleMessage, consoleMessage);
 
     ConsoleMessage* previousMessage = m_consoleMessages.isEmpty() ? nullptr : m_consoleMessages.last().get();

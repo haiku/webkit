@@ -55,14 +55,10 @@
 namespace WTR {
 
 static WKWebViewConfiguration *globalWebViewConfiguration;
-
-#if WK_API_ENABLED
 static TestWebsiteDataStoreDelegate *globalWebsiteDataStoreDelegateClient;
-#endif
 
 void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injectedBundlePath, WKContextRef context, WKContextConfigurationRef contextConfiguration)
 {
-#if WK_API_ENABLED
     [globalWebViewConfiguration release];
     globalWebViewConfiguration = [[WKWebViewConfiguration alloc] init];
 
@@ -85,11 +81,9 @@ void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injecte
     [globalWebViewConfiguration.websiteDataStore _setResourceLoadStatisticsEnabled:YES];
     [globalWebViewConfiguration.websiteDataStore _resourceLoadStatisticsSetShouldSubmitTelemetry:NO];
 
-#if WK_API_ENABLED
     [globalWebsiteDataStoreDelegateClient release];
     globalWebsiteDataStoreDelegateClient = [[TestWebsiteDataStoreDelegate alloc] init];
     [globalWebViewConfiguration.websiteDataStore set_delegate:globalWebsiteDataStoreDelegateClient];
-#endif
 
 #if PLATFORM(IOS_FAMILY)
     globalWebViewConfiguration.allowsInlineMediaPlayback = YES;
@@ -99,7 +93,6 @@ void initializeWebViewConfiguration(const char* libraryPath, WKStringRef injecte
     globalWebViewConfiguration.requiresUserActionForMediaPlayback = NO;
 #endif
     globalWebViewConfiguration.mediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypeNone;
-#endif
 
 #if USE(SYSTEM_PREVIEW)
     globalWebViewConfiguration._systemPreviewEnabled = YES;
@@ -123,33 +116,24 @@ void TestController::cocoaPlatformInitialize()
 
 WKContextRef TestController::platformContext()
 {
-#if WK_API_ENABLED
     return (__bridge WKContextRef)globalWebViewConfiguration.processPool;
-#else
-    return nullptr;
-#endif
 }
 
 WKPreferencesRef TestController::platformPreferences()
 {
-#if WK_API_ENABLED
     return (__bridge WKPreferencesRef)globalWebViewConfiguration.preferences;
-#else
-    return nullptr;
-#endif
 }
 
 void TestController::platformAddTestOptions(TestOptions& options) const
 {
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableProcessSwapOnNavigation"])
-        options.enableProcessSwapOnNavigation = true;
+        options.contextOptions.enableProcessSwapOnNavigation = true;
     if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableProcessSwapOnWindowOpen"])
-        options.enableProcessSwapOnWindowOpen = true;
+        options.contextOptions.enableProcessSwapOnWindowOpen = true;
 }
 
 void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOptions& options)
 {
-#if WK_API_ENABLED
     RetainPtr<WKWebViewConfiguration> copiedConfiguration = adoptNS([globalWebViewConfiguration copy]);
 
 #if PLATFORM(IOS_FAMILY)
@@ -182,36 +166,39 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
     }
 
     m_mainWebView = std::make_unique<PlatformWebView>(copiedConfiguration.get(), options);
+    finishCreatingPlatformWebView(m_mainWebView.get(), options);
 
     if (options.punchOutWhiteBackgroundsInDarkMode)
         m_mainWebView->setDrawsBackground(false);
 
     if (options.editable)
         m_mainWebView->setEditable(true);
-#else
-    m_mainWebView = std::make_unique<PlatformWebView>(globalWebViewConfiguration, options);
-#endif
 }
 
 PlatformWebView* TestController::platformCreateOtherPage(PlatformWebView* parentView, WKPageConfigurationRef, const TestOptions& options)
 {
-#if WK_API_ENABLED
     WKWebViewConfiguration *newConfiguration = [[globalWebViewConfiguration copy] autorelease];
     newConfiguration._relatedWebView = static_cast<WKWebView*>(parentView->platformView());
-    return new PlatformWebView(newConfiguration, options);
-#else
-    return nullptr;
+    PlatformWebView* view = new PlatformWebView(newConfiguration, options);
+    finishCreatingPlatformWebView(view, options);
+    return view;
+}
+
+// Code that needs to run after TestController::m_mainWebView is initialized goes into this function.
+void TestController::finishCreatingPlatformWebView(PlatformWebView* view, const TestOptions& options)
+{
+#if PLATFORM(MAC)
+    if (options.shouldShowWebView)
+        [view->platformWindow() orderFront:nil];
+    else
+        [view->platformWindow() orderBack:nil];
 #endif
 }
 
 WKContextRef TestController::platformAdjustContext(WKContextRef context, WKContextConfigurationRef contextConfiguration)
 {
-#if WK_API_ENABLED
     initializeWebViewConfiguration(libraryPathForTesting(), injectedBundlePath(), context, contextConfiguration);
     return (__bridge WKContextRef)globalWebViewConfiguration.processPool;
-#else
-    return nullptr;
-#endif
 }
 
 void TestController::platformRunUntil(bool& done, WTF::Seconds timeout)
@@ -238,10 +225,9 @@ void TestController::setDefaultCalendarType(NSString *identifier)
     if (!m_calendarSwizzler)
         m_calendarSwizzler = std::make_unique<ClassMethodSwizzler>([NSCalendar class], @selector(currentCalendar), reinterpret_cast<IMP>(swizzledCalendar));
 }
-    
-void TestController::cocoaResetStateToConsistentValues(const TestOptions& options)
+
+void TestController::resetContentExtensions()
 {
-#if WK_API_ENABLED
     __block bool doneRemoving = false;
     [[_WKUserContentExtensionStore defaultStore] removeContentExtensionForIdentifier:@"TestContentExtensions" completionHandler:^(NSError *error) {
         doneRemoving = true;
@@ -249,13 +235,19 @@ void TestController::cocoaResetStateToConsistentValues(const TestOptions& option
     platformRunUntil(doneRemoving, noTimeout);
     [[_WKUserContentExtensionStore defaultStore] _removeAllContentExtensions];
 
+    if (auto* webView = mainWebView()) {
+        TestRunnerWKWebView *platformView = webView->platformView();
+        [platformView.configuration.userContentController _removeAllUserContentFilters];
+    }
+}
 
+void TestController::cocoaResetStateToConsistentValues(const TestOptions& options)
+{
     m_calendarSwizzler = nullptr;
     m_overriddenCalendarIdentifier = nil;
     
     if (auto* webView = mainWebView()) {
         TestRunnerWKWebView *platformView = webView->platformView();
-        [platformView.configuration.userContentController _removeAllUserContentFilters];
         platformView._viewScale = 1;
         platformView._minimumEffectiveDeviceWidth = 0;
 
@@ -264,8 +256,7 @@ void TestController::cocoaResetStateToConsistentValues(const TestOptions& option
             [platformView toggleContinuousSpellChecking:nil];
     }
 
-    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: false];
-#endif
+    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: true];
 }
 
 void TestController::platformWillRunTest(const TestInvocation& testInvocation)
@@ -306,17 +297,14 @@ unsigned TestController::imageCountInGeneralPasteboard() const
 
 void TestController::removeAllSessionCredentials()
 {
-#if WK_API_ENABLED
     auto types = adoptNS([[NSSet alloc] initWithObjects:_WKWebsiteDataTypeCredentials, nil]);
     [globalWebViewConfiguration.websiteDataStore removeDataOfTypes:types.get() modifiedSince:[NSDate distantPast] completionHandler:^() {
         m_currentInvocation->didRemoveAllSessionCredentials();
     }];
-#endif
 }
 
 void TestController::getAllStorageAccessEntries()
 {
-#if WK_API_ENABLED
     auto* parentView = mainWebView();
     if (!parentView)
         return;
@@ -328,16 +316,13 @@ void TestController::getAllStorageAccessEntries()
             domains.uncheckedAppend(domain);
         m_currentInvocation->didReceiveAllStorageAccessEntries(domains);
     }];
-#endif
 }
 
 void TestController::injectUserScript(WKStringRef script)
 {
-#if WK_API_ENABLED
     auto userScript = adoptNS([[WKUserScript alloc] initWithSource: toWTFString(script) injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:NO]);
 
     [[globalWebViewConfiguration userContentController] addUserScript: userScript.get()];
-#endif
 }
 
 void TestController::addTestKeyToKeychain(const String& privateKeyBase64, const String& attrLabel, const String& applicationTagBase64)
@@ -398,11 +383,9 @@ bool TestController::keyExistsInKeychain(const String& attrLabel, const String& 
     return false;
 }
 
-void TestController::allowCacheStorageQuotaIncrease()
+void TestController::setAllowStorageQuotaIncrease(bool value)
 {
-#if WK_API_ENABLED
-    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: true];
-#endif
+    [globalWebsiteDataStoreDelegateClient setAllowRaisingQuota: value];
 }
 
 bool TestController::canDoServerTrustEvaluationInNetworkProcess() const
@@ -412,6 +395,11 @@ bool TestController::canDoServerTrustEvaluationInNetworkProcess() const
 #else
     return false;
 #endif
+}
+
+bool TestController::isDoingMediaCapture() const
+{
+    return m_mainWebView->platformView()._mediaCaptureState != _WKMediaCaptureStateNone;
 }
 
 } // namespace WTR

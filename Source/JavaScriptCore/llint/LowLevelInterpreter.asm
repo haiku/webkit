@@ -204,6 +204,11 @@ else
     const LowestTag = constexpr JSValue::LowestTag
 end
 
+if JSVALUE64
+    const NumberOfStructureIDEntropyBits = constexpr StructureIDTable::s_numberOfEntropyBits
+    const StructureEntropyBitsShift = constexpr StructureIDTable::s_entropyBitsShiftForStructurePointer
+end
+
 const CallOpCodeSize = constexpr op_call_length
 
 const maxFrameExtentForSlowPathCall = constexpr maxFrameExtentForSlowPathCall
@@ -477,6 +482,7 @@ const ModuleCode = constexpr ModuleCode
 const LLIntReturnPC = ArgumentCount + TagOffset
 
 # String flags.
+const isRopeInPointer = constexpr JSString::isRopeInPointer
 const HashFlags8BitBuffer = constexpr StringImpl::s_hashFlag8BitBuffer
 
 # Copied from PropertyOffset.h
@@ -841,13 +847,6 @@ macro preserveReturnAddressAfterCall(destinationRegister)
     end
 end
 
-macro unpoison(poison, fieldReg, scratch)
-    if POISON
-        loadp poison, scratch
-        xorp scratch, fieldReg
-    end
-end
-
 macro functionPrologue()
     tagReturnAddress sp
     if X86 or X86_WIN or X86_64 or X86_64_WIN
@@ -949,7 +948,7 @@ macro prepareForTailCall(callee, temp1, temp2, temp3, callPtrTag)
         storep temp3, [sp]
     end
 
-    if POINTER_PROFILING
+    if ARM64E
         addp 16, cfr, temp3
         untagReturnAddress temp3
     end
@@ -1027,31 +1026,29 @@ macro assertNotConstant(size, index)
     end)
 end
 
-macro functionForCallCodeBlockGetter(targetRegister, scratch)
+macro functionForCallCodeBlockGetter(targetRegister)
     if JSVALUE64
         loadp Callee[cfr], targetRegister
     else
         loadp Callee + PayloadOffset[cfr], targetRegister
     end
     loadp JSFunction::m_executable[targetRegister], targetRegister
-    unpoison(_g_JSFunctionPoison, targetRegister, scratch)
     loadp FunctionExecutable::m_codeBlockForCall[targetRegister], targetRegister
     loadp ExecutableToCodeBlockEdge::m_codeBlock[targetRegister], targetRegister
 end
 
-macro functionForConstructCodeBlockGetter(targetRegister, scratch)
+macro functionForConstructCodeBlockGetter(targetRegister)
     if JSVALUE64
         loadp Callee[cfr], targetRegister
     else
         loadp Callee + PayloadOffset[cfr], targetRegister
     end
     loadp JSFunction::m_executable[targetRegister], targetRegister
-    unpoison(_g_JSFunctionPoison, targetRegister, scratch)
     loadp FunctionExecutable::m_codeBlockForConstruct[targetRegister], targetRegister
     loadp ExecutableToCodeBlockEdge::m_codeBlock[targetRegister], targetRegister
 end
 
-macro notFunctionCodeBlockGetter(targetRegister, ignored)
+macro notFunctionCodeBlockGetter(targetRegister)
     loadp CodeBlock[cfr], targetRegister
 end
 
@@ -1075,7 +1072,7 @@ macro prologue(codeBlockGetter, codeBlockSetter, osrSlowPath, traceSlowPath)
         callSlowPath(traceSlowPath)
         addp maxFrameExtentForSlowPathCall, sp
     end
-    codeBlockGetter(t1, t2)
+    codeBlockGetter(t1)
     if not C_LOOP
         baddis 5, CodeBlock::m_llintExecuteCounter + BaselineExecutionCounter::m_counter[t1], .continue
         if JSVALUE64
@@ -1105,7 +1102,7 @@ macro prologue(codeBlockGetter, codeBlockSetter, osrSlowPath, traceSlowPath)
         end
         jmp r0, JSEntryPtrTag
     .recover:
-        codeBlockGetter(t1, t2)
+        codeBlockGetter(t1)
     .continue:
     end
 
@@ -1116,7 +1113,6 @@ macro prologue(codeBlockGetter, codeBlockSetter, osrSlowPath, traceSlowPath)
     # Set up the PC.
     if JSVALUE64
         loadp CodeBlock::m_instructionsRawPointer[t1], PB
-        unpoison(_g_CodeBlockPoison, PB, t3)
         move 0, PC
     else
         loadp CodeBlock::m_instructionsRawPointer[t1], PC
@@ -1126,8 +1122,7 @@ macro prologue(codeBlockGetter, codeBlockSetter, osrSlowPath, traceSlowPath)
     getFrameRegisterSizeForCodeBlock(t1, t0)
     subp cfr, t0, t0
     bpa t0, cfr, .needStackCheck
-    loadp CodeBlock::m_poisonedVM[t1], t2
-    unpoison(_g_CodeBlockPoison, t2, t3)
+    loadp CodeBlock::m_vm[t1], t2
     if C_LOOP
         bpbeq VM::m_cloopStackLimit[t2], t0, .stackHeightOK
     else
@@ -1152,7 +1147,7 @@ macro prologue(codeBlockGetter, codeBlockSetter, osrSlowPath, traceSlowPath)
 .stackHeightOKGetCodeBlock:
     # Stack check slow path returned that the stack was ok.
     # Since they were clobbered, need to get CodeBlock and new sp
-    codeBlockGetter(t1, t2)
+    codeBlockGetter(t1)
     getFrameRegisterSizeForCodeBlock(t1, t0)
     subp cfr, t0, t0
 
@@ -1640,8 +1635,7 @@ end)
 
 llintOp(op_check_traps, OpCheckTraps, macro (unused, unused, dispatch)
     loadp CodeBlock[cfr], t1
-    loadp CodeBlock::m_poisonedVM[t1], t1
-    unpoison(_g_CodeBlockPoison, t1, t2)
+    loadp CodeBlock::m_vm[t1], t1
     loadb VM::m_traps+VMTraps::m_needTrapHandling[t1], t0
     btpnz t0, .handleTraps
 .afterHandlingTraps:
@@ -1657,8 +1651,7 @@ end)
 # Returns the packet pointer in t0.
 macro acquireShadowChickenPacket(slow)
     loadp CodeBlock[cfr], t1
-    loadp CodeBlock::m_poisonedVM[t1], t1
-    unpoison(_g_CodeBlockPoison, t1, t2)
+    loadp CodeBlock::m_vm[t1], t1
     loadp VM::m_shadowChicken[t1], t2
     loadp ShadowChicken::m_logCursor[t2], t0
     bpaeq t0, ShadowChicken::m_logEnd[t2], slow
@@ -1803,6 +1796,11 @@ end)
 
 
 llintOp(op_yield, OpYield, macro (unused, unused, unused)
+    notSupported()
+end)
+
+
+llintOp(op_create_generator_frame_environment, OpYield, macro (unused, unused, unused)
     notSupported()
 end)
 

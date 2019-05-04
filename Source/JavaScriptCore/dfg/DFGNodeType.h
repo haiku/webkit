@@ -111,7 +111,8 @@ namespace JSC { namespace DFG {
     macro(InvalidationPoint, NodeMustGenerate) \
     \
     /* Nodes for bitwise operations. */\
-    macro(ArithBitNot, NodeResultInt32 | NodeMustGenerate) \
+    macro(ValueBitNot, NodeResultJS | NodeMustGenerate) \
+    macro(ArithBitNot, NodeResultInt32) \
     macro(ValueBitAnd, NodeResultJS | NodeMustGenerate) \
     macro(ArithBitAnd, NodeResultInt32) \
     macro(ValueBitOr, NodeResultJS | NodeMustGenerate) \
@@ -258,7 +259,7 @@ namespace JSC { namespace DFG {
     macro(CheckNotEmpty, NodeMustGenerate) \
     macro(AssertNotEmpty, NodeMustGenerate) \
     macro(CheckBadCell, NodeMustGenerate) \
-    macro(CheckInBounds, NodeMustGenerate) \
+    macro(CheckInBounds, NodeMustGenerate | NodeResultJS) \
     macro(CheckStringIdent, NodeMustGenerate) \
     macro(CheckTypeInfoFlags, NodeMustGenerate) /* Takes an OpInfo with the flags you want to test are set */\
     macro(CheckSubClass, NodeMustGenerate) \
@@ -452,7 +453,7 @@ namespace JSC { namespace DFG {
     \
     /* For-in enumeration opcodes */\
     macro(GetEnumerableLength, NodeMustGenerate | NodeResultJS) \
-    macro(HasIndexedProperty, NodeResultBoolean) \
+    macro(HasIndexedProperty, NodeResultBoolean | NodeHasVarArgs) \
     macro(HasStructureProperty, NodeResultBoolean) \
     macro(HasGenericProperty, NodeResultBoolean) \
     macro(GetDirectPname, NodeMustGenerate | NodeHasVarArgs | NodeResultJS) \

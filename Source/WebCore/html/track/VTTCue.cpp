@@ -30,9 +30,9 @@
  */
 
 #include "config.h"
+#include "VTTCue.h"
 
 #if ENABLE(VIDEO_TRACK)
-#include "VTTCue.h"
 
 #include "CSSPropertyNames.h"
 #include "CSSValueKeywords.h"
@@ -55,10 +55,12 @@
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/MathExtras.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(VTTCueBox);
+WTF_MAKE_ISO_ALLOCATED_IMPL(VTTCue);
 
 // This constant should correspond with the percentage returned by CaptionUserPreferences::captionFontSizeScaleAndImportance.
 const static double DEFAULTCAPTIONFONTSIZEPERCENTAGE = 5;
@@ -227,7 +229,7 @@ void VTTCueBox::applyCSSProperties(const IntSize& videoSize)
         // maintaining the relative positions of the boxes in boxes to each
         // other.
         setInlineStyleProperty(CSSPropertyTransform,
-            String::format("translate(-%.2f%%, -%.2f%%)", position.first, position.second));
+            makeString("translate(", FormattedNumber::fixedWidth(-position.first, 2), "%, ", FormattedNumber::fixedWidth(-position.second, 2), "%)"));
 
         setInlineStyleProperty(CSSPropertyWhiteSpace, CSSValuePre);
     }
@@ -541,7 +543,7 @@ RefPtr<DocumentFragment> VTTCue::getCueAsHTML()
 
     auto clonedFragment = DocumentFragment::create(ownerDocument());
     copyWebVTTNodeToDOMTree(m_webVTTNodeTree.get(), clonedFragment.ptr());
-    return WTFMove(clonedFragment);
+    return clonedFragment;
 }
 
 RefPtr<DocumentFragment> VTTCue::createCueRenderingTree()
@@ -556,7 +558,7 @@ RefPtr<DocumentFragment> VTTCue::createCueRenderingTree()
     ScriptDisallowedScope::EventAllowedScope allowedScope(clonedFragment);
 
     m_webVTTNodeTree->cloneChildNodes(clonedFragment);
-    return WTFMove(clonedFragment);
+    return clonedFragment;
 }
 
 void VTTCue::setRegionId(const String& regionId)

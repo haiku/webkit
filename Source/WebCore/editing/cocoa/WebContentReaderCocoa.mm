@@ -220,9 +220,20 @@ static bool shouldReplaceRichContentWithAttachments()
 
 #if ENABLE(ATTACHMENT_ELEMENT)
 
+static String mimeTypeFromContentType(const String& contentType)
+{
+    if (contentType == String(kUTTypeVCard)) {
+        // CoreServices erroneously reports that "public.vcard" maps to "text/directory", rather
+        // than either "text/vcard" or "text/x-vcard". Work around this by special casing the
+        // "public.vcard" UTI type. See <rdar://problem/49478229> for more detail.
+        return "text/vcard"_s;
+    }
+    return isDeclaredUTI(contentType) ? MIMETypeFromUTI(contentType) : contentType;
+}
+
 static bool contentTypeIsSuitableForInlineImageRepresentation(const String& contentType)
 {
-    return MIMETypeRegistry::isSupportedImageMIMEType(isDeclaredUTI(contentType) ? MIMETypeFromUTI(contentType) : contentType);
+    return MIMETypeRegistry::isSupportedImageMIMEType(mimeTypeFromContentType(contentType));
 }
 
 static bool supportsClientSideAttachmentData(const Frame& frame)
@@ -370,31 +381,6 @@ static void replaceRichContentWithAttachments(Frame& frame, DocumentFragment& fr
 #endif
 }
 
-static void replaceSubresourceURLsWithURLsFromClient(DocumentFragment& fragment, const Vector<Ref<ArchiveResource>>& subresources, Vector<Ref<ArchiveResource>>& outUnreplacedResources)
-{
-    ASSERT(fragment.document().frame());
-    auto& frame = *fragment.document().frame();
-    HashMap<AtomicString, AtomicString> subresourceURLToClientURLMap;
-    for (auto& subresource : subresources) {
-        auto& originalURL = subresource->url();
-        if (!shouldReplaceSubresourceURL(originalURL)) {
-            outUnreplacedResources.append(subresource.copyRef());
-            continue;
-        }
-
-        auto replacementURL = frame.editor().clientReplacementURLForResource(subresource->data(), subresource->mimeType());
-        if (replacementURL.isEmpty()) {
-            outUnreplacedResources.append(subresource.copyRef());
-            continue;
-        }
-
-        subresourceURLToClientURLMap.set(originalURL.string(), replacementURL);
-    }
-
-    if (!subresourceURLToClientURLMap.isEmpty())
-        replaceSubresourceURLs(fragment, WTFMove(subresourceURLToClientURLMap));
-}
-
 RefPtr<DocumentFragment> createFragmentAndAddResources(Frame& frame, NSAttributedString *string)
 {
     if (!frame.page() || !frame.document())
@@ -417,16 +403,13 @@ RefPtr<DocumentFragment> createFragmentAndAddResources(Frame& frame, NSAttribute
         return WTFMove(fragmentAndResources.fragment);
     }
 
-    Vector<Ref<ArchiveResource>> unreplacedResources;
-    replaceSubresourceURLsWithURLsFromClient(*fragmentAndResources.fragment, fragmentAndResources.resources, unreplacedResources);
-
     if (shouldReplaceRichContentWithAttachments()) {
-        replaceRichContentWithAttachments(frame, *fragmentAndResources.fragment, unreplacedResources);
+        replaceRichContentWithAttachments(frame, *fragmentAndResources.fragment, fragmentAndResources.resources);
         return WTFMove(fragmentAndResources.fragment);
     }
 
     HashMap<AtomicString, AtomicString> blobURLMap;
-    for (const Ref<ArchiveResource>& subresource : unreplacedResources) {
+    for (const Ref<ArchiveResource>& subresource : fragmentAndResources.resources) {
         auto blob = Blob::create(subresource->data(), subresource->mimeType());
         String blobURL = DOMURL::createObjectURL(document, blob);
         blobURLMap.set(subresource->url().string(), blobURL);
@@ -466,16 +449,13 @@ static String sanitizeMarkupWithArchive(Frame& frame, Document& destinationDocum
     ASSERT(stagingDocument);
     auto fragment = createFragmentFromMarkup(*stagingDocument, markupAndArchive.markup, markupAndArchive.mainResource->url(), DisallowScriptingAndPluginContent);
 
-    Vector<Ref<ArchiveResource>> unreplacedResources;
-    replaceSubresourceURLsWithURLsFromClient(fragment, markupAndArchive.archive->subresources(), unreplacedResources);
-
     if (shouldReplaceRichContentWithAttachments()) {
-        replaceRichContentWithAttachments(frame, fragment, unreplacedResources);
+        replaceRichContentWithAttachments(frame, fragment, markupAndArchive.archive->subresources());
         return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, msoListQuirks, markupAndArchive.markup);
     }
 
     HashMap<AtomicString, AtomicString> blobURLMap;
-    for (const Ref<ArchiveResource>& subresource : unreplacedResources) {
+    for (const Ref<ArchiveResource>& subresource : markupAndArchive.archive->subresources()) {
         auto& subresourceURL = subresource->url();
         if (!shouldReplaceSubresourceURL(subresourceURL))
             continue;
@@ -700,13 +680,6 @@ bool WebContentReader::readImage(Ref<SharedBuffer>&& buffer, const String& type)
 {
     ASSERT(frame.document());
     auto& document = *frame.document();
-
-    auto replacementURL = frame.editor().clientReplacementURLForResource(buffer.copyRef(), isDeclaredUTI(type) ? MIMETypeFromUTI(type) : type);
-    if (!replacementURL.isEmpty()) {
-        addFragment(createFragmentForImageAndURL(document, replacementURL));
-        return true;
-    }
-
     if (shouldReplaceRichContentWithAttachments())
         addFragment(createFragmentForImageAttachment(frame, document, WTFMove(buffer), type));
     else
@@ -723,7 +696,7 @@ static Ref<HTMLElement> attachmentForFilePath(Frame& frame, const String& path)
     auto attachment = HTMLAttachmentElement::create(HTMLNames::attachmentTag, document);
     if (!supportsClientSideAttachmentData(frame)) {
         attachment->setFile(File::create(path), HTMLAttachmentElement::UpdateDisplayAttributes::Yes);
-        return attachment.get();
+        return attachment;
     }
 
     String contentType;
@@ -745,11 +718,45 @@ static Ref<HTMLElement> attachmentForFilePath(Frame& frame, const String& path)
         auto image = HTMLImageElement::create(document);
         image->setAttributeWithoutSynchronization(HTMLNames::srcAttr, DOMURL::createObjectURL(document, File::create(path)));
         image->setAttachmentElement(WTFMove(attachment));
-        return image.get();
+        return image;
     }
 
     attachment->updateAttributes(WTFMove(fileSizeForDisplay), contentType, FileSystem::pathGetFileName(path));
-    return attachment.get();
+    return attachment;
+}
+
+static Ref<HTMLElement> attachmentForData(Frame& frame, SharedBuffer& buffer, const String& contentType, const String& name)
+{
+    auto document = makeRef(*frame.document());
+    auto attachment = HTMLAttachmentElement::create(HTMLNames::attachmentTag, document);
+    auto mimeType = mimeTypeFromContentType(contentType);
+    auto typeForAttachmentElement = mimeType.isEmpty() ? contentType : mimeType;
+
+    // FIXME: We should instead ask CoreServices for a preferred name corresponding to the given content type.
+    static const char* defaultAttachmentName = "file";
+
+    String fileName;
+    if (name.isEmpty())
+        fileName = defaultAttachmentName;
+    else
+        fileName = name;
+
+    if (!supportsClientSideAttachmentData(frame)) {
+        attachment->setFile(File::create(Blob::create(buffer, WTFMove(typeForAttachmentElement)), fileName));
+        return attachment;
+    }
+
+    frame.editor().registerAttachmentIdentifier(attachment->ensureUniqueIdentifier(), typeForAttachmentElement, fileName, buffer);
+
+    if (contentTypeIsSuitableForInlineImageRepresentation(typeForAttachmentElement)) {
+        auto image = HTMLImageElement::create(document);
+        image->setAttributeWithoutSynchronization(HTMLNames::srcAttr, DOMURL::createObjectURL(document, File::create(Blob::create(buffer, WTFMove(typeForAttachmentElement)), WTFMove(fileName))));
+        image->setAttachmentElement(WTFMove(attachment));
+        return image;
+    }
+
+    attachment->updateAttributes({ buffer.size() }, WTFMove(typeForAttachmentElement), WTFMove(fileName));
+    return attachment;
 }
 
 #endif // ENABLE(ATTACHMENT_ELEMENT)
@@ -768,28 +775,6 @@ bool WebContentReader::readFilePaths(const Vector<String>& paths)
         for (auto& path : paths)
             fragment->appendChild(attachmentForFilePath(frame, path));
     }
-#endif
-
-    return true;
-}
-
-bool WebContentReader::readVirtualContactFile(const String& filePath, const URL& url, const String& urlTitle)
-{
-    if (filePath.isEmpty() || !frame.document())
-        return false;
-
-    auto& document = *frame.document();
-    if (!fragment)
-        fragment = document.createDocumentFragment();
-
-#if ENABLE(ATTACHMENT_ELEMENT)
-    if (!url.isEmpty())
-        readURL(url, urlTitle);
-
-    auto attachmentContainer = HTMLDivElement::create(*frame.document());
-    attachmentContainer->setInlineStyleProperty(CSSPropertyDisplay, CSSValueBlock, true);
-    attachmentContainer->appendChild(attachmentForFilePath(frame, filePath));
-    fragment->appendChild(WTFMove(attachmentContainer));
 #endif
 
     return true;
@@ -823,6 +808,30 @@ bool WebContentReader::readURL(const URL& url, const String& title)
         newFragment->appendChild(HTMLBRElement::create(document.get()));
     newFragment->appendChild(anchor);
     addFragment(WTFMove(newFragment));
+    return true;
+}
+
+bool WebContentReader::readDataBuffer(SharedBuffer& buffer, const String& type, const String& name)
+{
+    if (buffer.isEmpty())
+        return false;
+
+    if (!shouldReplaceRichContentWithAttachments())
+        return false;
+
+    auto document = makeRefPtr(frame.document());
+    if (!document)
+        return false;
+
+    if (!fragment)
+        fragment = document->createDocumentFragment();
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+    fragment->appendChild(attachmentForData(frame, buffer, type, name));
+#else
+    UNUSED_PARAM(type);
+    UNUSED_PARAM(name);
+#endif
     return true;
 }
 

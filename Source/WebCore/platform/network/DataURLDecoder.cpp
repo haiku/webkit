@@ -32,6 +32,7 @@
 #include "SharedBuffer.h"
 #include "TextEncoding.h"
 #include <wtf/MainThread.h>
+#include <wtf/Optional.h>
 #include <wtf/RunLoop.h>
 #include <wtf/URL.h>
 #include <wtf/WorkQueue.h>
@@ -49,7 +50,7 @@ static WorkQueue& decodeQueue()
 static Result parseMediaType(const String& mediaType)
 {
     if (Optional<ParsedContentType> parsedContentType = ParsedContentType::create(mediaType))
-        return { parsedContentType->mimeType(), parsedContentType->charset(), mediaType, nullptr };
+        return { parsedContentType->mimeType(), parsedContentType->charset(), parsedContentType->serialize(), nullptr };
     return { "text/plain"_s, "US-ASCII"_s, "text/plain;charset=US-ASCII"_s, nullptr };
 }
 

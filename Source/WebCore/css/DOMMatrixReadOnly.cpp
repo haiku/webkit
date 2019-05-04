@@ -36,9 +36,12 @@
 #include <JavaScriptCore/GenericTypedArrayViewInlines.h>
 #include <JavaScriptCore/HeapInlines.h>
 #include <JavaScriptCore/JSGenericTypedArrayViewInlines.h>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(DOMMatrixReadOnly);
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-dommatrixreadonly
 ExceptionOr<Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create(ScriptExecutionContext& scriptExecutionContext, Optional<Variant<String, Vector<double>>>&& init)
@@ -245,7 +248,7 @@ ExceptionOr<DOMMatrixReadOnly::AbstractMatrix> DOMMatrixReadOnly::parseStringInt
             matrix.is2D = false;
     }
 
-    return WTFMove(matrix);
+    return matrix;
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-setmatrixvalue
@@ -404,50 +407,50 @@ ExceptionOr<String> DOMMatrixReadOnly::toString() const
     StringBuilder builder;
     if (is2D()) {
         builder.appendLiteral("matrix(");
-        builder.append(String::numberToStringECMAScript(m_matrix.a()));
+        builder.appendECMAScriptNumber(m_matrix.a());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.b()));
+        builder.appendECMAScriptNumber(m_matrix.b());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.c()));
+        builder.appendECMAScriptNumber(m_matrix.c());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.d()));
+        builder.appendECMAScriptNumber(m_matrix.d());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.e()));
+        builder.appendECMAScriptNumber(m_matrix.e());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.f()));
+        builder.appendECMAScriptNumber(m_matrix.f());
     } else {
         builder.appendLiteral("matrix3d(");
-        builder.append(String::numberToStringECMAScript(m_matrix.m11()));
+        builder.appendECMAScriptNumber(m_matrix.m11());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m12()));
+        builder.appendECMAScriptNumber(m_matrix.m12());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m13()));
+        builder.appendECMAScriptNumber(m_matrix.m13());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m14()));
+        builder.appendECMAScriptNumber(m_matrix.m14());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m21()));
+        builder.appendECMAScriptNumber(m_matrix.m21());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m22()));
+        builder.appendECMAScriptNumber(m_matrix.m22());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m23()));
+        builder.appendECMAScriptNumber(m_matrix.m23());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m24()));
+        builder.appendECMAScriptNumber(m_matrix.m24());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m31()));
+        builder.appendECMAScriptNumber(m_matrix.m31());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m32()));
+        builder.appendECMAScriptNumber(m_matrix.m32());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m33()));
+        builder.appendECMAScriptNumber(m_matrix.m33());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m34()));
+        builder.appendECMAScriptNumber(m_matrix.m34());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m41()));
+        builder.appendECMAScriptNumber(m_matrix.m41());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m42()));
+        builder.appendECMAScriptNumber(m_matrix.m42());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m43()));
+        builder.appendECMAScriptNumber(m_matrix.m43());
         builder.appendLiteral(", ");
-        builder.append(String::numberToStringECMAScript(m_matrix.m44()));
+        builder.appendECMAScriptNumber(m_matrix.m44());
     }
     builder.append(')');
     return builder.toString();

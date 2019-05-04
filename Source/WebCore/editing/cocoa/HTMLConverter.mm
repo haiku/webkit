@@ -98,6 +98,7 @@ SOFT_LINK_CLASS(UIFoundation, NSTextTab)
 #define PlatformNSColorClass        getNSColorClass()
 #define PlatformFont                UIFont
 #define PlatformFontClass           PAL::getUIFontClass()
+#define PlatformImageClass          PAL::getUIImageClass()
 
 #else
 
@@ -113,6 +114,7 @@ SOFT_LINK_CLASS(UIFoundation, NSTextTab)
 #define PlatformNSColorClass        NSColor
 #define PlatformFont                NSFont
 #define PlatformFontClass           NSFont
+#define PlatformImageClass          NSImage
 
 #endif
 
@@ -239,6 +241,7 @@ static const CGFloat defaultFontSize = 12;
 static const CGFloat minimumFontSize = 1;
 
 class HTMLConverterCaches {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     String propertyValueForNode(Node&, CSSPropertyID );
     bool floatPropertyValueForNode(Node&, CSSPropertyID, float&);
@@ -275,9 +278,9 @@ class HTMLConverter {
 public:
     HTMLConverter(const Position&, const Position&);
     ~HTMLConverter();
-    
-    NSAttributedString* convert();
-    
+
+    NSAttributedString* convert(NSDictionary** documentAttributes = nullptr);
+
 private:
     Position m_start;
     Position m_end;
@@ -395,7 +398,7 @@ HTMLConverter::~HTMLConverter()
     [_writingDirectionArray release];
 }
 
-NSAttributedString *HTMLConverter::convert()
+NSAttributedString *HTMLConverter::convert(NSDictionary** documentAttributes)
 {
     if (comparePositions(m_start, m_end) > 0)
         return nil;
@@ -407,10 +410,19 @@ NSAttributedString *HTMLConverter::convert()
     if (!m_dataSource)
         return nil;
 
+    Document& document = commonAncestorContainer->document();
+    if (auto* body = document.bodyOrFrameset()) {
+        if (PlatformColor *backgroundColor = _colorForElement(*body, CSSPropertyBackgroundColor))
+            [_documentAttrs setObject:backgroundColor forKey:NSBackgroundColorDocumentAttribute];
+    }
+
     _domRangeStartIndex = 0;
     _traverseNode(*commonAncestorContainer, 0, false /* embedded */);
     if (_domRangeStartIndex > 0 && _domRangeStartIndex <= [_attrStr length])
         [_attrStr deleteCharactersInRange:NSMakeRange(0, _domRangeStartIndex)];
+
+    if (documentAttributes)
+        *documentAttributes = [[_documentAttrs retain] autorelease];
 
     return [[_attrStr retain] autorelease];
 }
@@ -761,28 +773,6 @@ bool HTMLConverterCaches::floatPropertyValueForNode(Node& node, CSSPropertyID pr
 
     return false;
 }
-
-#if PLATFORM(IOS_FAMILY)
-static NSString *_NSFirstPathForDirectoriesInDomains(NSSearchPathDirectory directory, NSSearchPathDomainMask domainMask, BOOL expandTilde)
-{
-    NSArray *array = NSSearchPathForDirectoriesInDomains(directory, domainMask, expandTilde);
-    return [array count] >= 1 ? [array objectAtIndex:0] : nil;
-}
-
-static NSString *_NSSystemLibraryPath(void)
-{
-    return _NSFirstPathForDirectoriesInDomains(NSLibraryDirectory, NSSystemDomainMask, YES);
-}
-
-static NSBundle *_webKitBundle()
-{
-    // FIXME: This should probably use the WebCore bundle to avoid the layering violation.
-    NSBundle *bundle = [NSBundle bundleWithIdentifier:@"com.apple.WebKit"];
-    if (!bundle)
-        bundle = [NSBundle bundleWithPath:[_NSSystemLibraryPath() stringByAppendingPathComponent:@"Frameworks/WebKit.framework"]];
-    return bundle;
-}
-#endif
 
 static inline NSShadow *_shadowForShadowStyle(NSString *shadowStyle)
 {
@@ -1349,19 +1339,15 @@ BOOL HTMLConverter::_addAttachmentForElement(Element& element, NSURL *url, BOOL 
                 [attachment setIgnoresOrientation:YES];
 #endif
         } else {
+            NSBundle *webCoreBundle = [NSBundle bundleWithIdentifier:@"com.apple.WebCore"];
 #if PLATFORM(IOS_FAMILY)
-            [attachment release];
-            NSURL *missingImageURL = [_webKitBundle() URLForResource:@"missing_image" withExtension:@"tiff"];
-            ASSERT_WITH_MESSAGE(missingImageURL != nil, "Unable to find missing_image.tiff!");
-            NSFileWrapper *missingImageFileWrapper = [[[NSFileWrapper alloc] initWithURL:missingImageURL options:0 error:NULL] autorelease];
-            attachment = [[PlatformNSTextAttachment alloc] initWithFileWrapper:missingImageFileWrapper];
+            UIImage *missingImage = [PlatformImageClass imageNamed:@"missingImage" inBundle:webCoreBundle compatibleWithTraitCollection:nil];
 #else
-            static NSImage *missingImage = nil;
-            NSTextAttachmentCell *cell;
-            cell = [[NSTextAttachmentCell alloc] initImageCell:missingImage];
-            [attachment setAttachmentCell:cell];
-            [cell release];
+            NSImage *missingImage = [webCoreBundle imageForResource:@"missingImage"];
 #endif
+            ASSERT_WITH_MESSAGE(missingImage != nil, "Unable to find missingImage.");
+            attachment = adoptNS([[PlatformNSTextAttachment alloc] initWithData:nil ofType:nil]);
+            attachment.get().image = missingImage;
         }
         [_attrStr replaceCharactersInRange:rangeToReplace withString:string.get()];
         rangeToReplace.length = [string length];
@@ -2374,23 +2360,23 @@ static RetainPtr<NSFileWrapper> fileWrapperForElement(HTMLImageElement& element)
 #endif
 
 namespace WebCore {
-    
+
 // This function supports more HTML features than the editing variant below, such as tables.
-NSAttributedString *attributedStringFromRange(Range& range)
+NSAttributedString *attributedStringFromRange(Range& range, NSDictionary** documentAttributes)
 {
-    return HTMLConverter { range.startPosition(), range.endPosition() }.convert();
+    return HTMLConverter { range.startPosition(), range.endPosition() }.convert(documentAttributes);
 }
 
-NSAttributedString *attributedStringFromSelection(const VisibleSelection& selection)
+NSAttributedString *attributedStringFromSelection(const VisibleSelection& selection, NSDictionary** documentAttributes)
 {
-    return attributedStringBetweenStartAndEnd(selection.start(), selection.end());
+    return attributedStringBetweenStartAndEnd(selection.start(), selection.end(), documentAttributes);
 }
 
-NSAttributedString *attributedStringBetweenStartAndEnd(const Position& start, const Position& end)
+NSAttributedString *attributedStringBetweenStartAndEnd(const Position& start, const Position& end, NSDictionary** documentAttributes)
 {
-    return HTMLConverter { start, end }.convert();
+    return HTMLConverter { start, end }.convert(documentAttributes);
 }
-    
+
 #if !PLATFORM(IOS_FAMILY)
 
 // This function uses TextIterator, which makes offsets in its result compatible with HTML editing.

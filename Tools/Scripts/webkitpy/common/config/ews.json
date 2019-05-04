@@ -42,16 +42,17 @@
         "style": "debug",
         "runTests": true
     },
-    "Mac 32-bit EWS": {
-        "port": "mac",
-        "name": "mac-32bit-ews",
-        "architecture": "i386"
-    },
     "JSC EWS": {
         "port": "mac",
         "name": "jsc-ews",
         "group": "jsc",
         "runTests": true
+    },
+	"JSC i386 EWS": {
+        "port": "jsc-only",
+        "name": "jsc-i386-ews",
+        "group": "jsc",
+        "runTests": false
     },
     "JSC MIPS32el EWS": {
         "port": "jsc-only",

@@ -388,7 +388,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return nil;
     
     // Try a fuzzy hit test first to find an accessible element.
-    RefPtr<AccessibilityObject> axObject;
+    AccessibilityObjectInterface *axObject = nullptr;
     {
         AXAttributeCacheEnabler enableCache(m_object->axObjectCache());
         axObject = m_object->accessibilityHitTest(IntPoint(point));
@@ -526,7 +526,6 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     case AccessibilityRole::Document:
     case AccessibilityRole::DocumentArticle:
     case AccessibilityRole::DocumentNote:
-    case AccessibilityRole::Footer:
     case AccessibilityRole::LandmarkBanner:
     case AccessibilityRole::LandmarkComplementary:
     case AccessibilityRole::LandmarkContentInfo:
@@ -865,6 +864,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     case AccessibilityRole::Image:
     case AccessibilityRole::ImageMapLink:
     case AccessibilityRole::ProgressIndicator:
+    case AccessibilityRole::Meter:
     case AccessibilityRole::MenuItem:
     case AccessibilityRole::MenuItemCheckbox:
     case AccessibilityRole::MenuItemRadio:
@@ -1054,11 +1054,6 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return NO;
 
     return YES;
-}
-
-- (BOOL)fileUploadButtonReturnsValueInTitle
-{
-    return NO;
 }
 
 static void appendStringToResult(NSMutableString *result, NSString *string)
@@ -1520,7 +1515,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     
     auto floatPoint = FloatPoint(point);
     auto floatRect = FloatRect(floatPoint, FloatSize());
-    return [self convertRectToSpace:floatRect space:ScreenSpace].origin;
+    return [self convertRectToSpace:floatRect space:AccessibilityConversionSpace::Screen].origin;
 }
 
 - (BOOL)accessibilityPerformEscape
@@ -1584,7 +1579,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
 - (CGRect)_accessibilityRelativeFrame
 {
     auto rect = FloatRect(snappedIntRect(m_object->elementRect()));
-    return [self convertRectToSpace:rect space:PageSpace];
+    return [self convertRectToSpace:rect space:AccessibilityConversionSpace::Page];
 }
 
 // Used by UIKit accessibility bundle to help determine distance during a hit-test.
@@ -1606,7 +1601,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!document || !document->view())
         return CGRectZero;
     auto rect = FloatRect(snappedIntRect(document->view()->unobscuredContentRect()));
-    return [self convertRectToSpace:rect space:ScreenSpace];
+    return [self convertRectToSpace:rect space:AccessibilityConversionSpace::Screen];
 }
 
 // The "center point" is where VoiceOver will "press" an object. This may not be the actual
@@ -1617,7 +1612,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
         return CGPointZero;
     
     auto rect = FloatRect(snappedIntRect(m_object->boundingBoxRect()));
-    CGRect cgRect = [self convertRectToSpace:rect space:ScreenSpace];
+    CGRect cgRect = [self convertRectToSpace:rect space:AccessibilityConversionSpace::Screen];
     return CGPointMake(CGRectGetMidX(cgRect), CGRectGetMidY(cgRect));
 }
 
@@ -1627,7 +1622,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
         return CGRectZero;
     
     auto rect = FloatRect(snappedIntRect(m_object->elementRect()));
-    return [self convertRectToSpace:rect space:ScreenSpace];
+    return [self convertRectToSpace:rect space:AccessibilityConversionSpace::Screen];
 }
 
 // Checks whether a link contains only static text and images (and has been divided unnaturally by <spans> and other nefarious mechanisms).
@@ -1690,7 +1685,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (![self _prepareAccessibilityCall])
         return nil;
     
-    AccessibilityObject* focusedObj = m_object->focusedUIElement();
+    AccessibilityObject* focusedObj = downcast<AccessibilityObject>(m_object->focusedUIElement());
     
     if (!focusedObj)
         return nil;
@@ -1832,12 +1827,12 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     return nil;
 }
 
-- (void)_accessibilityActivate
+- (BOOL)_accessibilityActivate
 {
     if (![self _prepareAccessibilityCall])
-        return;
+        return NO;
 
-    m_object->press();
+    return m_object->press();
 }
 
 - (id)attachmentView
@@ -1997,7 +1992,7 @@ static RenderObject* rendererForView(WAKView* view)
     AccessibilitySearchCriteria criteria = accessibilitySearchCriteriaForSearchPredicateParameterizedAttribute(parameters);
     AccessibilityObject::AccessibilityChildrenVector results;
     m_object->findMatchingObjects(&criteria, results);
-    return convertToNSArray(results);
+    return (NSArray *)convertToNSArray(results);
 }
 
 - (void)accessibilityElementDidBecomeFocused
@@ -2081,7 +2076,7 @@ static RenderObject* rendererForView(WAKView* view)
     if ([array containsObject:wrapper])
         return YES;
     
-    // Explicity set that this is now an element (in case other logic tries to override).
+    // Explicitly set that this is now an element (in case other logic tries to override).
     [wrapper setValue:@YES forKey:@"isAccessibilityElement"];    
     [array addObject:wrapper];
     return YES;
@@ -2672,7 +2667,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
         return CGRectZero;
     
     auto rect = FloatRect(m_object->boundsForRange(range));
-    return [self convertRectToSpace:rect space:ScreenSpace];
+    return [self convertRectToSpace:rect space:AccessibilityConversionSpace::Screen];
 }
 
 - (RefPtr<Range>)rangeFromMarkers:(NSArray *)markers withText:(NSString *)text
@@ -2718,7 +2713,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     for (unsigned i = 0; i < size; i++) {
         const WebCore::SelectionRect& coreRect = selectionRects[i];
         auto selectionRect = FloatRect(coreRect.rect());
-        CGRect rect = [self convertRectToSpace:selectionRect space:ScreenSpace];
+        CGRect rect = [self convertRectToSpace:selectionRect space:AccessibilityConversionSpace::Screen];
         [rects addObject:[NSValue valueWithRect:rect]];
     }
     

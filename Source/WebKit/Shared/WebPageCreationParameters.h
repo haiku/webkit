@@ -71,9 +71,9 @@ struct WebPageCreationParameters {
     
     WebPreferencesStore store;
     DrawingAreaType drawingAreaType;
+    DrawingAreaIdentifier drawingAreaIdentifier;
     WebPageGroupData pageGroupData;
 
-    bool drawsBackground;
     bool isEditable;
 
     WebCore::Color underlayColor;
@@ -105,6 +105,9 @@ struct WebPageCreationParameters {
 
     float deviceScaleFactor;
     float viewScaleFactor;
+
+    double textZoomFactor { 1 };
+    double pageZoomFactor { 1 };
 
     float topContentInset;
     
@@ -145,13 +148,18 @@ struct WebPageCreationParameters {
     bool ignoresViewportScaleLimits;
     WebCore::FloatSize viewportConfigurationViewLayoutSize;
     double viewportConfigurationLayoutSizeScaleFactor;
+    double viewportConfigurationMinimumEffectiveDeviceWidth;
     WebCore::FloatSize viewportConfigurationViewSize;
     WebCore::FloatSize maximumUnobscuredSize;
     int32_t deviceOrientation { 0 };
+    bool keyboardIsAttached { false };
 #endif
 #if PLATFORM(COCOA)
     bool smartInsertDeleteEnabled;
     Vector<String> additionalSupportedImageTypes;
+#endif
+#if PLATFORM(WPE)
+    IPC::Attachment hostFileDescriptor;
 #endif
     bool appleMailPaginationQuirkEnabled;
     bool appleMailLinesClampEnabled;
@@ -187,6 +195,8 @@ struct WebPageCreationParameters {
 #if ENABLE(CONTENT_EXTENSIONS)
     Vector<std::pair<String, WebCompiledContentRuleListData>> contentRuleLists;
 #endif
+
+    Optional<WebCore::Color> backgroundColor;
 };
 
 } // namespace WebKit

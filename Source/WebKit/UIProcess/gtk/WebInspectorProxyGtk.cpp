@@ -338,7 +338,7 @@ void WebInspectorProxy::platformInspectedURLChanged(const String& url)
         updateInspectorWindowTitle();
 }
 
-void WebInspectorProxy::platformShowCertificate(const CertificateInfo&)
+void WebInspectorProxy::platformShowCertificate(const WebCore::CertificateInfo&)
 {
     notImplemented();
 }
@@ -399,7 +399,7 @@ void WebInspectorProxy::platformAttach()
 
 void WebInspectorProxy::platformDetach()
 {
-    if (!inspectedPage()->isValid())
+    if (!inspectedPage()->hasRunningProcess())
         return;
 
     GRefPtr<GtkWidget> inspectorView = m_inspectorView;

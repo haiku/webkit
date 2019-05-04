@@ -48,8 +48,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         this._subtreeBreakpointCount = 0;
 
         this._highlightedAttributes = new Set;
-        this._recentlyModifiedAttributes = [];
-        this._boundNodeChangedAnimationEnd = this._nodeChangedAnimationEnd.bind(this);
+        this._recentlyModifiedAttributes = new Map;
 
         node.addEventListener(WI.DOMNode.Event.EnabledPseudoClassesChanged, this._nodePseudoClassesDidChange, this);
 
@@ -72,6 +71,11 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
     }
 
     // Public
+
+    get hasBreakpoint()
+    {
+        return this._breakpointStatus !== WI.DOMTreeElement.BreakpointStatus.None || this._subtreeBreakpointCount > 0;
+    }
 
     get breakpointStatus()
     {
@@ -266,7 +270,15 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
 
     attributeDidChange(name)
     {
-        this._recentlyModifiedAttributes.push({name});
+        if (this._recentlyModifiedAttributes.has(name))
+            return;
+
+        this._recentlyModifiedAttributes.set(name, {
+            value: null,
+            timestamp: NaN,
+            element: null,
+            listener: null,
+        });
     }
 
     highlightAttribute(name)
@@ -646,8 +658,10 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
             return false;
 
         // Prevent selecting the nearest word on double click.
-        if (event.detail >= 2)
+        if (event.detail >= 2) {
+            event.preventDefault();
             return false;
+        }
 
         return true;
     }
@@ -694,15 +708,15 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         if (this.representedObject.nodeType() !== Node.ELEMENT_NODE && this.representedObject.nodeType() !== Node.TEXT_NODE)
             return false;
 
-        var textNode = eventTarget.enclosingNodeOrSelfWithClass("html-text-node");
+        var textNode = eventTarget.closest(".html-text-node");
         if (textNode)
             return this._startEditingTextNode(textNode);
 
-        var attribute = eventTarget.enclosingNodeOrSelfWithClass("html-attribute");
+        var attribute = eventTarget.closest(".html-attribute");
         if (attribute)
             return this._startEditingAttribute(attribute, eventTarget);
 
-        var tagName = eventTarget.enclosingNodeOrSelfWithClass("html-tag-name");
+        var tagName = eventTarget.closest(".html-tag-name");
         if (tagName)
             return this._startEditingTagName(tagName);
 
@@ -713,6 +727,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
     {
         let node = this.representedObject;
         let isNonShadowEditable = !node.isInUserAgentShadowTree() && this.editable;
+        let attached = node.attached;
 
         if (event.target && event.target.tagName === "A") {
             let url = event.target.href;
@@ -736,7 +751,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
 
         subMenus.add.appendItem(WI.UIString("Attribute"), this._addNewAttribute.bind(this), !isNonShadowEditable);
 
-        let attribute = event.target.enclosingNodeOrSelfWithClass("html-attribute");
+        let attribute = event.target.closest(".html-attribute");
         subMenus.edit.appendItem(WI.UIString("Attribute"), this._startEditingAttribute.bind(this, attribute, event.target), !attribute || ! isNonShadowEditable);
 
         let attributeName = null;
@@ -746,7 +761,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
                 attributeName = attributeNameElement.textContent.trim();
         }
 
-        let attributeValue = this.representedObject.getAttribute(attributeName);
+        let attributeValue = node.getAttribute(attributeName);
         subMenus.copy.appendItem(WI.UIString("Attribute"), () => {
             let text = attributeName;
             if (attributeValue)
@@ -755,7 +770,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         }, !attribute || !isNonShadowEditable);
 
         subMenus.delete.appendItem(WI.UIString("Attribute"), () => {
-            this.representedObject.removeAttribute(attributeName);
+            node.removeAttribute(attributeName);
         }, !attribute || !isNonShadowEditable);
 
         subMenus.edit.appendItem(WI.UIString("Tag"), () => {
@@ -764,14 +779,14 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
 
         contextMenu.appendSeparator();
 
-        if (WI.cssManager.canForcePseudoClasses()) {
+        if (WI.cssManager.canForcePseudoClasses() && attached) {
             let pseudoSubMenu = contextMenu.appendSubMenuItem(WI.UIString("Forced Pseudo-Classes"));
 
-            let enabledPseudoClasses = this.representedObject.enabledPseudoClasses;
+            let enabledPseudoClasses = node.enabledPseudoClasses;
             WI.CSSManager.ForceablePseudoClasses.forEach((pseudoClass) => {
                 let enabled = enabledPseudoClasses.includes(pseudoClass);
                 pseudoSubMenu.appendCheckboxItem(pseudoClass.capitalize(), () => {
-                    this.representedObject.setPseudoClassEnabled(pseudoClass, !enabled);
+                    node.setPseudoClassEnabled(pseudoClass, !enabled);
                 }, enabled);
             });
 
@@ -1310,10 +1325,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         if (hasText)
             attrSpanElement.append("\"");
 
-        for (let attribute of this._recentlyModifiedAttributes) {
-            if (attribute.name === name)
-                attribute.element = hasText ? attrValueElement : attrNameElement;
-        }
+        this._createModifiedAnimation(name, value, hasText ? attrValueElement : attrNameElement);
 
         if (this._highlightedAttributes.has(name))
             attrSpanElement.classList.add("highlight");
@@ -1705,7 +1717,7 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         }
 
         var text = this.title.textContent;
-        var searchRegex = new RegExp(this._searchQuery.escapeForRegExp(), "gi");
+        let searchRegex = WI.SearchUtilities.regExpForString(this._searchQuery, WI.SearchUtilities.defaultSettings);
 
         var match = searchRegex.exec(text);
         var matchRanges = [];
@@ -1722,29 +1734,40 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
         WI.highlightRangesWithStyleClass(this.title, matchRanges, WI.DOMTreeElement.SearchHighlightStyleClassName, this._highlightResult);
     }
 
-    _markNodeChanged()
+    _createModifiedAnimation(key, value, element)
     {
-        for (let attribute of this._recentlyModifiedAttributes) {
-            let element = attribute.element;
-            if (!element)
-                continue;
+        let existing = this._recentlyModifiedAttributes.get(key);
+        if (!existing)
+            return;
 
+        if (existing.element) {
+            if (existing.listener)
+                existing.element.removeEventListener("animationend", existing.listener);
+
+            existing.element.classList.remove("node-state-changed");
+            existing.element.style.removeProperty("animation-delay");
+        }
+
+        existing.listener = (event) => {
             element.classList.remove("node-state-changed");
-            element.addEventListener("animationend", this._boundNodeChangedAnimationEnd);
-            element.classList.add("node-state-changed");
-        }
-    }
+            element.style.removeProperty("animation-delay");
 
-    _nodeChangedAnimationEnd(event)
-    {
-        let element = event.target;
+            this._recentlyModifiedAttributes.delete(key);
+        };
+
         element.classList.remove("node-state-changed");
-        element.removeEventListener("animationend", this._boundNodeChangedAnimationEnd);
+        element.style.removeProperty("animation-delay");
 
-        for (let i = this._recentlyModifiedAttributes.length - 1; i >= 0; --i) {
-            if (this._recentlyModifiedAttributes[i].element === element)
-                this._recentlyModifiedAttributes.splice(i, 1);
-        }
+        if (existing.value === value)
+            element.style.setProperty("animation-delay", "-" + (performance.now() - existing.timestamp) + "ms");
+        else
+            existing.timestamp = performance.now();
+
+        existing.value = value;
+        existing.element = element;
+
+        element.addEventListener("animationend", existing.listener, {once: true});
+        element.classList.add("node-state-changed");
     }
 
     get pseudoClassesEnabled()
@@ -1765,13 +1788,6 @@ WI.DOMTreeElement = class DOMTreeElement extends WI.TreeElement
 
         this.updateSelectionArea();
         this.listItemElement.classList.toggle("pseudo-class-enabled", !!this.representedObject.enabledPseudoClasses.length);
-    }
-
-    _fireDidChange()
-    {
-        super._fireDidChange();
-
-        this._markNodeChanged();
     }
 
     handleEvent(event)

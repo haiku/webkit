@@ -45,6 +45,7 @@ public:
     WEBCORE_EXPORT static SWContextManager& singleton();
 
     class Connection {
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         virtual ~Connection() { }
 
@@ -86,13 +87,14 @@ private:
     SWContextManager() = default;
 
     void startedServiceWorker(Optional<ServiceWorkerJobDataIdentifier>, ServiceWorkerIdentifier, const String& exceptionMessage);
-    void serviceWorkerFailedToTerminate(ServiceWorkerIdentifier);
+    NO_RETURN_DUE_TO_CRASH void serviceWorkerFailedToTerminate(ServiceWorkerIdentifier);
 
     HashMap<ServiceWorkerIdentifier, RefPtr<ServiceWorkerThreadProxy>> m_workerMap;
     std::unique_ptr<Connection> m_connection;
     ServiceWorkerCreationCallback* m_serviceWorkerCreationCallback { nullptr };
 
     class ServiceWorkerTerminationRequest {
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         ServiceWorkerTerminationRequest(SWContextManager&, ServiceWorkerIdentifier, Seconds timeout);
 

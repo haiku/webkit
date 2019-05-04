@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2019 Haiku Inc .,
+ * Copyright (C) 2011 Samsung Electronics
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

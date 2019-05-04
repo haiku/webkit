@@ -93,14 +93,49 @@ WI.Timeline = class Timeline extends WI.Object
         this.dispatchEventToListeners(WI.Timeline.Event.Refreshed);
     }
 
+    closestRecordTo(timestamp)
+    {
+        let lowerIndex = this._records.lowerBound(timestamp, (time, record) => time - record.endTime);
+
+        let recordBefore = this._records[lowerIndex - 1];
+        let recordAfter = this._records[lowerIndex];
+        if (!recordBefore && !recordAfter)
+            return null;
+        if (!recordBefore && recordAfter)
+            return recordAfter;
+        if (!recordAfter && recordBefore)
+            return recordBefore;
+
+        let before = Math.abs(recordBefore.endTime - timestamp);
+        let after = Math.abs(recordAfter.startTime - timestamp);
+        return (before < after) ? recordBefore : recordAfter;
+    }
+
+    recordsOverlappingTimeRange(startTime, endTime)
+    {
+        let lowerIndex = this._records.lowerBound(startTime, (time, record) => time - record.endTime);
+        let upperIndex = this._records.upperBound(endTime, (time, record) => time - record.startTime);
+
+        return this._records.slice(lowerIndex, upperIndex);
+    }
+
     recordsInTimeRange(startTime, endTime, includeRecordBeforeStart)
     {
-        let lowerIndex = this._records.lowerBound(startTime, (time, record) => time - record.timestamp);
-        let upperIndex = this._records.upperBound(endTime, (time, record) => time - record.timestamp);
+        let lowerIndex = this._records.lowerBound(startTime, (time, record) => time - record.startTime);
+        let upperIndex = this._records.upperBound(endTime, (time, record) => time - record.startTime);
 
         // Include the record right before the start time.
-        if (includeRecordBeforeStart && lowerIndex > 0)
+        if (includeRecordBeforeStart && lowerIndex > 0) {
             lowerIndex--;
+
+            // If the record right before is a child of the same type of record, then use the parent as the before index.
+            let recordBefore = this._records[lowerIndex];
+            if (recordBefore.parent && recordBefore.parent.type === recordBefore.type) {
+                lowerIndex--;
+                while (this._records[lowerIndex] !== recordBefore.parent)
+                    lowerIndex--;
+            }
+        }
 
         return this._records.slice(lowerIndex, upperIndex);
     }

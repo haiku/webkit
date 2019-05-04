@@ -25,8 +25,6 @@
 
 #import <WebKit/WKFoundation.h>
 
-#if WK_API_ENABLED
-
 #import <Foundation/Foundation.h>
 #import <WebKit/WKPreviewActionItem.h>
 
@@ -36,6 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class WKNavigationAction;
 @class WKOpenPanelParameters;
 @class WKPreviewElementInfo;
+@class WKSecurityOrigin;
 @class WKWebView;
 @class WKWebViewConfiguration;
 @class WKWindowFeatures;
@@ -66,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
   @discussion Your app should remove the web view from the view hierarchy and update
   the UI as needed, such as by closing the containing browser tab or window.
   */
-- (void)webViewDidClose:(WKWebView *)webView WK_API_AVAILABLE(macosx(10.11), ios(9.0));
+- (void)webViewDidClose:(WKWebView *)webView WK_API_AVAILABLE(macos(10.11), ios(9.0));
 
 /*! @abstract Displays a JavaScript alert panel.
  @param webView The web view invoking the delegate method.
@@ -165,12 +164,10 @@ NS_ASSUME_NONNULL_BEGIN
 
  If you do not implement this method, the web view will behave as if the user selected the Cancel button.
  */
-- (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSArray<NSURL *> * _Nullable URLs))completionHandler WK_API_AVAILABLE(macosx(10.12));
+- (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSArray<NSURL *> * _Nullable URLs))completionHandler WK_API_AVAILABLE(macos(10.12));
 
 #endif
 
 @end
 
 NS_ASSUME_NONNULL_END
-
-#endif

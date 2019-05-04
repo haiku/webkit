@@ -2,7 +2,7 @@
  * Copyright (C) 2004, 2005, 2008 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) 2004, 2005 Rob Buis <buis@kde.org>
  * Copyright (C) 2007 Eric Seidel <eric@webkit.org>
- * Copyright (C) 2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2018-2019 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -33,17 +33,15 @@ class SVGAElement final : public SVGGraphicsElement, public SVGExternalResources
 public:
     static Ref<SVGAElement> create(const QualifiedName&, Document&);
 
-    String target() const final { return m_target.currentValue(attributeOwnerProxy()); }
-    RefPtr<SVGAnimatedString> targetAnimated() { return m_target.animatedProperty(attributeOwnerProxy()); }
+    String target() const final { return m_target->currentValue(); }
+    Ref<SVGAnimatedString>& targetAnimated() { return m_target; }
 
 private:
     SVGAElement(const QualifiedName&, Document&);
 
-    using AttributeOwnerProxy = SVGAttributeOwnerProxyImpl<SVGAElement, SVGGraphicsElement, SVGExternalResourcesRequired, SVGURIReference>;
-    static AttributeOwnerProxy::AttributeRegistry& attributeRegistry() { return AttributeOwnerProxy::attributeRegistry(); }
-    static void registerAttributes();
+    using PropertyRegistry = SVGPropertyOwnerRegistry<SVGAElement, SVGGraphicsElement, SVGExternalResourcesRequired, SVGURIReference>;
+    const SVGPropertyRegistry& propertyRegistry() const final { return m_propertyRegistry; }
 
-    const SVGAttributeOwnerProxy& attributeOwnerProxy() const final { return m_attributeOwnerProxy; }
     void parseAttribute(const QualifiedName&, const AtomicString&) final;
     void svgAttributeChanged(const QualifiedName&) final;
 
@@ -63,8 +61,8 @@ private:
 
     bool willRespondToMouseClickEvents() final;
 
-    AttributeOwnerProxy m_attributeOwnerProxy { *this };
-    SVGAnimatedStringAttribute m_target;
+    PropertyRegistry m_propertyRegistry { *this };
+    Ref<SVGAnimatedString> m_target { SVGAnimatedString::create(this) };
 };
 
 } // namespace WebCore

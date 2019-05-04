@@ -32,11 +32,15 @@
 namespace WebKit {
 
 class NetworkProcess;
+class WebProcess;
 
 class WebSQLiteDatabaseTracker : public WebCore::SQLiteDatabaseTrackerClient {
     WTF_MAKE_NONCOPYABLE(WebSQLiteDatabaseTracker)
 public:
+    explicit WebSQLiteDatabaseTracker(WebProcess&);
     explicit WebSQLiteDatabaseTracker(NetworkProcess&);
+
+    ~WebSQLiteDatabaseTracker();
 
     // WebCore::SQLiteDatabaseTrackerClient
     void willBeginFirstTransaction() override;
@@ -45,7 +49,8 @@ public:
 private:
     void hysteresisUpdated(PAL::HysteresisState);
 
-    NetworkProcess& m_process;
+    AuxiliaryProcess& m_process;
+    AuxiliaryProcess::ProcessType m_processType;
     PAL::HysteresisActivity m_hysteresis;
 };
 

@@ -31,6 +31,10 @@ WI.ShaderProgramContentView = class ShaderProgramContentView extends WI.ContentV
 
         super(shaderProgram);
 
+        let contentDidChangeDebouncer = new Debouncer((event) => {
+            this._contentDidChange(event);
+        });
+
         this.element.classList.add("shader-program");
 
         let createEditor = (shaderType) => {
@@ -38,7 +42,9 @@ WI.ShaderProgramContentView = class ShaderProgramContentView extends WI.ContentV
             textEditor.readOnly = false;
             textEditor.addEventListener(WI.TextEditor.Event.Focused, this._editorFocused, this);
             textEditor.addEventListener(WI.TextEditor.Event.NumberOfSearchResultsDidChange, this._numberOfSearchResultsDidChange, this);
-            textEditor.addEventListener(WI.TextEditor.Event.ContentDidChange, this.debounce(250)._contentDidChange, this);
+            textEditor.addEventListener(WI.TextEditor.Event.ContentDidChange, (event) => {
+                contentDidChangeDebouncer.delayForTime(250, event);
+            }, this);
             textEditor.element.classList.add("shader");
 
             let shaderTypeContainer = textEditor.element.insertAdjacentElement("afterbegin", document.createElement("div"));
@@ -115,7 +121,7 @@ WI.ShaderProgramContentView = class ShaderProgramContentView extends WI.ContentV
             filename = WI.UIString("Fragment");
 
         return {
-            url: `web-inspector:///${filename}.glsl`,
+            url: WI.FileUtilities.inspectorURLForFilename(filename + ".glsl"),
             content: this._lastActiveEditor.string,
             forceSaveAs: true,
         };

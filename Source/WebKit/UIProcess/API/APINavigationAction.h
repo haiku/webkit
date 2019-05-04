@@ -33,6 +33,10 @@
 #include <WebCore/ResourceRequest.h>
 #include <wtf/URL.h>
 
+#if USE(APPLE_INTERNAL_SDK)
+#include <WebKitAdditions/APINavigationActionAdditions.h>
+#endif
+
 namespace API {
 
 class NavigationAction final : public ObjectImpl<Object::Type::NavigationAction> {
@@ -50,7 +54,7 @@ public:
     const WTF::URL& originalURL() const { return !m_originalURL.isNull() ? m_originalURL : m_request.url(); }
 
     WebCore::NavigationType navigationType() const { return m_navigationActionData.navigationType; }
-    WebKit::WebEvent::Modifiers modifiers() const { return m_navigationActionData.modifiers; }
+    OptionSet<WebKit::WebEvent::Modifier> modifiers() const { return m_navigationActionData.modifiers; }
     WebKit::WebMouseEvent::Button mouseButton() const { return m_navigationActionData.mouseButton; }
     WebKit::WebMouseEvent::SyntheticClickType syntheticClickType() const { return m_navigationActionData.syntheticClickType; }
     WebCore::FloatPoint clickLocationInRootViewCoordinates() const { return m_navigationActionData.clickLocationInRootViewCoordinates; }
@@ -64,6 +68,10 @@ public:
     UserInitiatedAction* userInitiatedAction() const { return m_userInitiatedAction.get(); }
 
     Navigation* mainFrameNavigation() const { return m_mainFrameNavigation.get(); }
+
+#if HAVE(LOAD_OPTIMIZER)
+APINAVIGATIONACTION_LOADOPTIMIZER_ADDITIONS_1
+#endif
 
 private:
     NavigationAction(WebKit::NavigationActionData&& navigationActionData, API::FrameInfo* sourceFrame, API::FrameInfo* targetFrame, Optional<WTF::String> targetFrameName, WebCore::ResourceRequest&& request, const WTF::URL& originalURL, bool shouldOpenAppLinks, RefPtr<UserInitiatedAction>&& userInitiatedAction, API::Navigation* mainFrameNavigation)
@@ -92,6 +100,9 @@ private:
     WTF::URL m_originalURL;
 
     bool m_shouldOpenAppLinks;
+#if HAVE(LOAD_OPTIMIZER)
+APINAVIGATIONACTION_LOADOPTIMIZER_ADDITIONS_2
+#endif
 
     RefPtr<UserInitiatedAction> m_userInitiatedAction;
 

@@ -26,7 +26,7 @@
 #import "config.h"
 #import "TiledCoreAnimationDrawingArea.h"
 
-#if !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
 
 #import "ColorSpaceData.h"
 #import "DrawingAreaProxyMessages.h"
@@ -74,13 +74,10 @@ namespace WebKit {
 using namespace WebCore;
 
 TiledCoreAnimationDrawingArea::TiledCoreAnimationDrawingArea(WebPage& webPage, const WebPageCreationParameters& parameters)
-    : DrawingArea(DrawingAreaTypeTiledCoreAnimation, webPage)
-    , m_layerTreeStateIsFrozen(false)
-    , m_isPaintingSuspended(!(parameters.activityState & ActivityState::IsVisible))
-    , m_transientZoomScale(1)
-    , m_sendDidUpdateActivityStateTimer(RunLoop::main(), this, &TiledCoreAnimationDrawingArea::didUpdateActivityStateTimerFired)
-    , m_viewOverlayRootLayer(nullptr)
+    : DrawingArea(DrawingAreaTypeTiledCoreAnimation, parameters.drawingAreaIdentifier, webPage)
     , m_layerFlushThrottlingTimer(*this, &TiledCoreAnimationDrawingArea::layerFlushThrottlingTimerFired)
+    , m_sendDidUpdateActivityStateTimer(RunLoop::main(), this, &TiledCoreAnimationDrawingArea::didUpdateActivityStateTimerFired)
+    , m_isPaintingSuspended(!(parameters.activityState & ActivityState::IsVisible))
 {
     m_webPage.corePage()->settings().setForceCompositingMode(true);
 
@@ -118,7 +115,7 @@ void TiledCoreAnimationDrawingArea::sendEnterAcceleratedCompositingModeIfNeeded(
             return;
         LayerTreeContext layerTreeContext;
         layerTreeContext.contextID = m_layerHostingContext->contextID();
-        m_webPage.send(Messages::DrawingAreaProxy::EnterAcceleratedCompositingMode(0, layerTreeContext));
+        send(Messages::DrawingAreaProxy::EnterAcceleratedCompositingMode(0, layerTreeContext));
     });
 }
 
@@ -270,18 +267,15 @@ void TiledCoreAnimationDrawingArea::updateRootLayers()
         [m_hostingLayer addSublayer:m_debugInfoLayer.get()];
 }
 
-void TiledCoreAnimationDrawingArea::attachViewOverlayGraphicsLayer(Frame* frame, GraphicsLayer* viewOverlayRootLayer)
+void TiledCoreAnimationDrawingArea::attachViewOverlayGraphicsLayer(GraphicsLayer* viewOverlayRootLayer)
 {
-    if (!frame->isMainFrame())
-        return;
-
     m_viewOverlayRootLayer = viewOverlayRootLayer;
     updateRootLayers();
+    scheduleCompositingLayerFlush();
 }
 
 void TiledCoreAnimationDrawingArea::mainFrameContentSizeChanged(const IntSize& size)
 {
-
 }
 
 void TiledCoreAnimationDrawingArea::updateIntrinsicContentSizeIfNeeded()
@@ -301,7 +295,7 @@ void TiledCoreAnimationDrawingArea::updateIntrinsicContentSizeIfNeeded()
         return;
 
     m_lastSentIntrinsicContentSize = contentSize;
-    m_webPage.send(Messages::DrawingAreaProxy::IntrinsicContentSizeDidChange(contentSize));
+    send(Messages::DrawingAreaProxy::IntrinsicContentSizeDidChange(contentSize));
 }
 
 void TiledCoreAnimationDrawingArea::setShouldScaleViewToFitDocument(bool shouldScaleView)
@@ -457,7 +451,7 @@ void TiledCoreAnimationDrawingArea::addTransactionCallbackID(CallbackID callback
     scheduleCompositingLayerFlush();
 }
 
-void TiledCoreAnimationDrawingArea::flushLayers()
+void TiledCoreAnimationDrawingArea::flushLayers(FlushType flushType)
 {
     if (layerTreeStateIsFrozen())
         return;
@@ -497,8 +491,11 @@ void TiledCoreAnimationDrawingArea::flushLayers()
         bool didFlushAllFrames = m_webPage.mainFrameView()->flushCompositingStateIncludingSubframes();
 
 #if ENABLE(ASYNC_SCROLLING)
-        if (ScrollingCoordinator* scrollingCoordinator = m_webPage.corePage()->scrollingCoordinator())
+        if (auto* scrollingCoordinator = m_webPage.corePage()->scrollingCoordinator()) {
             scrollingCoordinator->commitTreeStateIfNeeded();
+            if (flushType == FlushType::Normal)
+                scrollingCoordinator->applyScrollingTreeLayerPositions();
+        }
 #endif
 
         // If we have an active transient zoom, we want the zoom to win over any changes
@@ -507,7 +504,7 @@ void TiledCoreAnimationDrawingArea::flushLayers()
             applyTransientZoomToLayers(m_transientZoomScale, m_transientZoomOrigin);
 
         if (!m_pendingCallbackIDs.isEmpty()) {
-            m_webPage.send(Messages::DrawingAreaProxy::DispatchPresentationCallbacksAfterFlushingLayers(m_pendingCallbackIDs));
+            send(Messages::DrawingAreaProxy::DispatchPresentationCallbacksAfterFlushingLayers(m_pendingCallbackIDs));
             m_pendingCallbackIDs.clear();
         }
 
@@ -633,7 +630,7 @@ void TiledCoreAnimationDrawingArea::updateGeometry(const IntSize& viewSize, bool
     if (flushSynchronously)
         [CATransaction flush];
 
-    m_webPage.send(Messages::DrawingAreaProxy::DidUpdateGeometry());
+    send(Messages::DrawingAreaProxy::DidUpdateGeometry());
 
     m_inUpdateGeometry = false;
 
@@ -652,7 +649,7 @@ void TiledCoreAnimationDrawingArea::setLayerHostingMode(LayerHostingMode)
     // Finally, inform the UIProcess that the context has changed.
     LayerTreeContext layerTreeContext;
     layerTreeContext.contextID = m_layerHostingContext->contextID();
-    m_webPage.send(Messages::DrawingAreaProxy::UpdateAcceleratedCompositingMode(0, layerTreeContext));
+    send(Messages::DrawingAreaProxy::UpdateAcceleratedCompositingMode(0, layerTreeContext));
 }
 
 void TiledCoreAnimationDrawingArea::setColorSpace(const ColorSpaceData& colorSpace)
@@ -699,7 +696,6 @@ void TiledCoreAnimationDrawingArea::setRootCompositingLayer(CALayer *layer)
 
     bool hadRootLayer = !!m_rootLayer;
     m_rootLayer = layer;
-    [m_rootLayer setSublayerTransform:m_transform];
 
     updateRootLayers();
 
@@ -928,7 +924,7 @@ void TiledCoreAnimationDrawingArea::applyTransientZoomToPage(double scale, Float
     unscrolledOrigin.moveBy(-unobscuredContentRect.location());
     m_webPage.scalePage(scale / m_webPage.viewScaleFactor(), roundedIntPoint(-unscrolledOrigin));
     m_transientZoomScale = 1;
-    flushLayers();
+    flushLayers(FlushType::TransientZoom);
 }
 
 void TiledCoreAnimationDrawingArea::addFence(const MachSendRight& fencePort)
@@ -1002,4 +998,4 @@ void TiledCoreAnimationDrawingArea::layerFlushThrottlingTimerFired()
 
 } // namespace WebKit
 
-#endif // !PLATFORM(IOS_FAMILY)
+#endif // PLATFORM(MAC)

@@ -173,8 +173,8 @@ private:
 #endif
 
     HTMLImageLoader m_imageLoader;
-    HTMLFormElement* m_form;
-    HTMLFormElement* m_formSetByParser;
+    WeakPtr<HTMLFormElement> m_form;
+    WeakPtr<HTMLFormElement> m_formSetByParser;
 
     CompositeOperator m_compositeOperator;
     AtomicString m_bestFitImageURL;
@@ -185,6 +185,8 @@ private:
     bool m_hadNameBeforeAttributeChanged { false }; // FIXME: We only need this because parseAttribute() can't see the old value.
 
     RefPtr<EditableImageReference> m_editableImage;
+    WeakPtr<HTMLPictureElement> m_pictureElement;
+
 #if ENABLE(ATTACHMENT_ELEMENT)
     String m_pendingClonedAttachmentID;
 #endif

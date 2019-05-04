@@ -26,8 +26,6 @@
 #import "config.h"
 #import "APIObject.h"
 
-#if WK_API_ENABLED
-
 #import "WKBackForwardListInternal.h"
 #import "WKBackForwardListItemInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
@@ -65,11 +63,13 @@
 #import "WKWebProcessPlugInPageGroupInternal.h"
 #import "WKWebProcessPlugInRangeHandleInternal.h"
 #import "WKWebProcessPlugInScriptWorldInternal.h"
+#import "WKWebpagePreferencesInternal.h"
 #import "WKWebsiteDataRecordInternal.h"
 #import "WKWebsiteDataStoreInternal.h"
 #import "WKWindowFeaturesInternal.h"
 #import "_WKAttachmentInternal.h"
 #import "_WKAutomationSessionInternal.h"
+#import "_WKContentRuleListActionInternal.h"
 #import "_WKDownloadInternal.h"
 #import "_WKExperimentalFeatureInternal.h"
 #import "_WKFrameHandleInternal.h"
@@ -83,7 +83,6 @@
 #import "_WKUserStyleSheetInternal.h"
 #import "_WKVisitedLinkStoreInternal.h"
 #import "_WKWebsiteDataStoreConfigurationInternal.h"
-#import "_WKWebsitePoliciesInternal.h"
 
 #if ENABLE(APPLICATION_MANIFEST)
 #import "_WKApplicationManifestInternal.h"
@@ -257,9 +256,7 @@ void* Object::newObject(size_t size, Type type)
         break;
 
     case Type::NavigationData:
-        ALLOW_DEPRECATED_DECLARATIONS_BEGIN
         wrapper = [WKNavigationData alloc];
-        ALLOW_DEPRECATED_DECLARATIONS_END
         break;
 
     case Type::NavigationResponse:
@@ -306,6 +303,10 @@ void* Object::newObject(size_t size, Type type)
         wrapper = [WKContentRuleList alloc];
         break;
 
+    case Type::ContentRuleListAction:
+        wrapper = [_WKContentRuleListAction alloc];
+        break;
+
     case Type::ContentRuleListStore:
         wrapper = [WKContentRuleListStore alloc];
         break;
@@ -343,7 +344,7 @@ void* Object::newObject(size_t size, Type type)
         break;
 
     case Type::WebsitePolicies:
-        wrapper = [_WKWebsitePolicies alloc];
+        wrapper = [WKWebpagePreferences alloc];
         break;
 
     case Type::WindowFeatures:
@@ -402,5 +403,3 @@ API::Object* Object::unwrap(void* object)
 }
 
 } // namespace API
-
-#endif // WK_API_ENABLED

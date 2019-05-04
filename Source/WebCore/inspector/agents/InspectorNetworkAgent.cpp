@@ -368,7 +368,7 @@ RefPtr<Inspector::Protocol::Network::Response> InspectorNetworkAgent::buildObjec
         responseObject->setSecurity(WTFMove(securityPayload));
     }
 
-    return WTFMove(responseObject);
+    return responseObject;
 }
 
 Ref<Inspector::Protocol::Network::CachedResource> InspectorNetworkAgent::buildObjectForCachedResource(CachedResource* cachedResource)
@@ -500,8 +500,8 @@ void InspectorNetworkAgent::didReceiveResponse(unsigned long identifier, Documen
     bool isNotModified = response.httpStatusCode() == 304;
 
     CachedResource* cachedResource = nullptr;
-    if (resourceLoader && resourceLoader->isSubresourceLoader() && !isNotModified)
-        cachedResource = static_cast<SubresourceLoader*>(resourceLoader)->cachedResource();
+    if (is<SubresourceLoader>(resourceLoader) && !isNotModified)
+        cachedResource = downcast<SubresourceLoader>(resourceLoader)->cachedResource();
     if (!cachedResource && loader)
         cachedResource = InspectorPageAgent::cachedResource(loader->frame(), response.url());
 

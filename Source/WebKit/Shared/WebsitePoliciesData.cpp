@@ -37,8 +37,8 @@ namespace WebKit {
 void WebsitePoliciesData::encode(IPC::Encoder& encoder) const
 {
     encoder << contentBlockersEnabled;
-    encoder << deviceOrientationEventEnabled;
     encoder << autoplayPolicy;
+    encoder << deviceOrientationAndMotionAccessState;
     encoder << allowedAutoplayQuirks;
     encoder << customHeaderFields;
     encoder << popUpPolicy;
@@ -46,6 +46,7 @@ void WebsitePoliciesData::encode(IPC::Encoder& encoder) const
     encoder << customUserAgent;
     encoder << customJavaScriptUserAgentAsSiteSpecificQuirks;
     encoder << customNavigatorPlatform;
+    encoder << metaViewportPolicy;
 }
 
 Optional<WebsitePoliciesData> WebsitePoliciesData::decode(IPC::Decoder& decoder)
@@ -54,15 +55,15 @@ Optional<WebsitePoliciesData> WebsitePoliciesData::decode(IPC::Decoder& decoder)
     decoder >> contentBlockersEnabled;
     if (!contentBlockersEnabled)
         return WTF::nullopt;
-
-    Optional<bool> deviceOrientationEventEnabled;
-    decoder >> deviceOrientationEventEnabled;
-    if (!deviceOrientationEventEnabled)
-        return WTF::nullopt;
     
     Optional<WebsiteAutoplayPolicy> autoplayPolicy;
     decoder >> autoplayPolicy;
     if (!autoplayPolicy)
+        return WTF::nullopt;
+
+    Optional<Optional<bool>> deviceOrientationAndMotionAccessState;
+    decoder >> deviceOrientationAndMotionAccessState;
+    if (!deviceOrientationAndMotionAccessState)
         return WTF::nullopt;
     
     Optional<OptionSet<WebsiteAutoplayQuirk>> allowedAutoplayQuirks;
@@ -99,18 +100,24 @@ Optional<WebsitePoliciesData> WebsitePoliciesData::decode(IPC::Decoder& decoder)
     decoder >> customNavigatorPlatform;
     if (!customNavigatorPlatform)
         return WTF::nullopt;
+
+    Optional<WebsiteMetaViewportPolicy> metaViewportPolicy;
+    decoder >> metaViewportPolicy;
+    if (!metaViewportPolicy)
+        return WTF::nullopt;
     
     return { {
         WTFMove(*contentBlockersEnabled),
-        WTFMove(*deviceOrientationEventEnabled),
         WTFMove(*allowedAutoplayQuirks),
         WTFMove(*autoplayPolicy),
+        WTFMove(*deviceOrientationAndMotionAccessState),
         WTFMove(*customHeaderFields),
         WTFMove(*popUpPolicy),
         WTFMove(*websiteDataStoreParameters),
         WTFMove(*customUserAgent),
         WTFMove(*customJavaScriptUserAgentAsSiteSpecificQuirks),
         WTFMove(*customNavigatorPlatform),
+        WTFMove(*metaViewportPolicy),
     } };
 }
 
@@ -120,7 +127,7 @@ void WebsitePoliciesData::applyToDocumentLoader(WebsitePoliciesData&& websitePol
     documentLoader.setCustomUserAgent(websitePolicies.customUserAgent);
     documentLoader.setCustomJavaScriptUserAgentAsSiteSpecificQuirks(websitePolicies.customJavaScriptUserAgentAsSiteSpecificQuirks);
     documentLoader.setCustomNavigatorPlatform(websitePolicies.customNavigatorPlatform);
-    documentLoader.setDeviceOrientationEventEnabled(websitePolicies.deviceOrientationEventEnabled);
+    documentLoader.setDeviceOrientationAndMotionAccessState(websitePolicies.deviceOrientationAndMotionAccessState);
     
     // Only setUserContentExtensionsEnabled if it hasn't already been disabled by reloading without content blockers.
     if (documentLoader.userContentExtensionsEnabled())
@@ -167,6 +174,18 @@ void WebsitePoliciesData::applyToDocumentLoader(WebsitePoliciesData&& websitePol
         break;
     case WebsitePopUpPolicy::Block:
         documentLoader.setPopUpPolicy(WebCore::PopUpPolicy::Block);
+        break;
+    }
+
+    switch (websitePolicies.metaViewportPolicy) {
+    case WebsiteMetaViewportPolicy::Default:
+        documentLoader.setMetaViewportPolicy(WebCore::MetaViewportPolicy::Default);
+        break;
+    case WebsiteMetaViewportPolicy::Respect:
+        documentLoader.setMetaViewportPolicy(WebCore::MetaViewportPolicy::Respect);
+        break;
+    case WebsiteMetaViewportPolicy::Ignore:
+        documentLoader.setMetaViewportPolicy(WebCore::MetaViewportPolicy::Ignore);
         break;
     }
 

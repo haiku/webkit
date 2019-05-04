@@ -342,7 +342,8 @@ void CompositeEditCommand::apply()
         case EditAction::TypingInsertFinalComposition:
         case EditAction::Paste:
         case EditAction::DeleteByDrag:
-        case EditAction::SetWritingDirection:
+        case EditAction::SetInlineWritingDirection:
+        case EditAction::SetBlockWritingDirection:
         case EditAction::Cut:
         case EditAction::Unspecified:
         case EditAction::Insert:
@@ -780,6 +781,18 @@ void CompositeEditCommand::replaceTextInNodePreservingMarkers(Text& node, unsign
             continue;
         }
 #endif
+#if ENABLE(PLATFORM_DRIVEN_TEXT_CHECKING)
+        if (marker.type() == DocumentMarker::PlatformTextChecking) {
+            if (!WTF::holds_alternative<DocumentMarker::PlatformTextCheckingData>(marker.data())) {
+                ASSERT_NOT_REACHED();
+                continue;
+            }
+
+            auto& textCheckingData = WTF::get<DocumentMarker::PlatformTextCheckingData>(marker.data());
+            markerController.addPlatformTextCheckingMarker(newRange, textCheckingData.key, textCheckingData.value);
+            continue;
+        }
+#endif
         markerController.addMarker(newRange, marker.type(), marker.description());
     }
 }
@@ -1107,7 +1120,7 @@ RefPtr<Node> CompositeEditCommand::insertBlockPlaceholder(const Position& pos)
 
     auto placeholder = createBlockPlaceholderElement(document());
     insertNodeAt(placeholder.copyRef(), pos);
-    return WTFMove(placeholder);
+    return placeholder;
 }
 
 RefPtr<Node> CompositeEditCommand::addBlockPlaceholderIfNeeded(Element* container)
@@ -1214,7 +1227,7 @@ RefPtr<Node> CompositeEditCommand::moveParagraphContentsToNewBlockIfNecessary(co
     if (newBlock->lastChild() && newBlock->lastChild()->hasTagName(brTag) && !endWasBr)
         removeNode(*newBlock->lastChild());
 
-    return WTFMove(newBlock);
+    return newBlock;
 }
 
 void CompositeEditCommand::pushAnchorElementDown(Element& anchorElement)

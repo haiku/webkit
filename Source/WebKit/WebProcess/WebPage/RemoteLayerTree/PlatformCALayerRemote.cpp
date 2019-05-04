@@ -32,12 +32,14 @@
 #import "RemoteLayerTreeContext.h"
 #import "RemoteLayerTreePropertyApplier.h"
 #import <WebCore/AnimationUtilities.h>
+#import <WebCore/EventRegion.h>
 #import <WebCore/GraphicsContext.h>
 #import <WebCore/GraphicsLayerCA.h>
 #import <WebCore/LengthFunctions.h>
 #import <WebCore/PlatformCAFilters.h>
 #import <WebCore/PlatformCALayerCocoa.h>
 #import <WebCore/TiledBacking.h>
+#import <wtf/PointerComparison.h>
 
 namespace WebKit {
 using namespace WebCore;
@@ -51,7 +53,7 @@ Ref<PlatformCALayerRemote> PlatformCALayerRemote::create(LayerType layerType, Pl
     else
         layer = adoptRef(new PlatformCALayerRemote(layerType, owner, context));
 
-    context.layerWasCreated(*layer, layerType);
+    context.layerDidEnterContext(*layer, layerType);
 
     return layer.releaseNonNull();
 }
@@ -64,7 +66,7 @@ Ref<PlatformCALayerRemote> PlatformCALayerRemote::create(PlatformLayer *platform
 Ref<PlatformCALayerRemote> PlatformCALayerRemote::createForEmbeddedView(LayerType layerType, GraphicsLayer::EmbeddedViewID embeddedViewID, PlatformCALayerClient* owner, RemoteLayerTreeContext& context)
 {
     RefPtr<PlatformCALayerRemote> layer = adoptRef(new PlatformCALayerRemote(layerType, embeddedViewID, owner, context));
-    context.layerWasCreated(*layer, layerType);
+    context.layerDidEnterContext(*layer, layerType);
     return layer.releaseNonNull();
 }
 
@@ -72,7 +74,7 @@ Ref<PlatformCALayerRemote> PlatformCALayerRemote::create(const PlatformCALayerRe
 {
     auto layer = adoptRef(*new PlatformCALayerRemote(other, owner, context));
 
-    context.layerWasCreated(layer.get(), other.layerType());
+    context.layerDidEnterContext(layer.get(), other.layerType());
 
     return layer;
 }
@@ -116,7 +118,19 @@ PlatformCALayerRemote::~PlatformCALayerRemote()
         downcast<PlatformCALayerRemote>(*layer).m_superlayer = nullptr;
 
     if (m_context)
-        m_context->layerWillBeDestroyed(*this);
+        m_context->layerWillLeaveContext(*this);
+}
+
+void PlatformCALayerRemote::moveToContext(RemoteLayerTreeContext& context)
+{
+    if (m_context)
+        m_context->layerWillLeaveContext(*this);
+
+    m_context = &context;
+
+    context.layerDidEnterContext(*this, layerType());
+
+    m_properties.notePropertiesChanged(m_properties.everChangedProperties);
 }
 
 void PlatformCALayerRemote::updateClonedLayerProperties(PlatformCALayerRemote& clone, bool copyContents) const
@@ -156,7 +170,7 @@ void PlatformCALayerRemote::updateClonedLayerProperties(PlatformCALayerRemote& c
 void PlatformCALayerRemote::recursiveBuildTransaction(RemoteLayerTreeContext& context, RemoteLayerTreeTransaction& transaction)
 {
     ASSERT(!m_properties.backingStore || owner());
-    ASSERT_WITH_SECURITY_IMPLICATION(&context == m_context);
+    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(&context == m_context);
     
     if (m_properties.backingStore && (!owner() || !owner()->platformCALayerDrawsContent())) {
         m_properties.backingStore = nullptr;
@@ -856,6 +870,15 @@ void PlatformCALayerRemote::updateCustomAppearance(GraphicsLayer::CustomAppearan
 {
     m_properties.customAppearance = customAppearance;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::CustomAppearanceChanged);
+}
+
+void PlatformCALayerRemote::setEventRegion(const WebCore::EventRegion& eventRegion)
+{
+    if (m_properties.eventRegion == eventRegion)
+        return;
+
+    m_properties.eventRegion = eventRegion;
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::EventRegionChanged);
 }
 
 GraphicsLayer::EmbeddedViewID PlatformCALayerRemote::embeddedViewID() const

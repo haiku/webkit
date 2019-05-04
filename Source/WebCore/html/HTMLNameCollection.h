@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
- * Copyright (C) 2003, 2004, 2005, 2006, 2007 Apple Inc. All rights reserved.
+ * Copyright (C) 2003-2019 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -24,6 +24,7 @@
 
 #include "CachedHTMLCollection.h"
 #include "NodeRareData.h"
+#include <wtf/IsoMalloc.h>
 #include <wtf/text/AtomicString.h>
 
 namespace WebCore {
@@ -32,6 +33,7 @@ class Document;
 
 template <typename HTMLCollectionClass, CollectionTraversalType traversalType>
 class HTMLNameCollection : public CachedHTMLCollection<HTMLCollectionClass, traversalType> {
+    WTF_MAKE_ISO_NONALLOCATABLE(HTMLNameCollection);
 public:
     virtual ~HTMLNameCollection();
 
@@ -59,6 +61,7 @@ HTMLNameCollection<HTMLCollectionClass, traversalType>::~HTMLNameCollection()
 }
 
 class WindowNameCollection final : public HTMLNameCollection<WindowNameCollection, CollectionTraversalType::Descendants> {
+    WTF_MAKE_ISO_ALLOCATED(WindowNameCollection);
 public:
     static Ref<WindowNameCollection> create(Document& document, CollectionType type, const AtomicString& name)
     {
@@ -81,6 +84,7 @@ private:
 };
 
 class DocumentNameCollection final : public HTMLNameCollection<DocumentNameCollection, CollectionTraversalType::Descendants> {
+    WTF_MAKE_ISO_ALLOCATED(DocumentNameCollection);
 public:
     static Ref<DocumentNameCollection> create(Document& document, CollectionType type, const AtomicString& name)
     {

@@ -1,16 +1,34 @@
 include(GNUInstallDirs)
 include(VersioningUtils)
 
-SET_PROJECT_VERSION(2 23 0)
-set(WPE_API_VERSION 0.1)
+SET_PROJECT_VERSION(2 25 0)
+set(WPE_API_VERSION 1.0)
 
-CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 4 0 2)
+CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 6 0 3)
 
 # These are shared variables, but we special case their definition so that we can use the
 # CMAKE_INSTALL_* variables that are populated by the GNUInstallDirs macro.
 set(LIB_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBDIR}" CACHE PATH "Absolute path to library installation directory")
 set(EXEC_INSTALL_DIR "${CMAKE_INSTALL_FULL_BINDIR}" CACHE PATH "Absolute path to executable installation directory")
 set(LIBEXEC_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/wpe-webkit-${WPE_API_VERSION}" CACHE PATH "Absolute path to install executables executed by the library")
+
+find_package(Cairo 1.10.2 REQUIRED)
+find_package(Fontconfig 2.8.0 REQUIRED)
+find_package(Freetype 2.4.2 REQUIRED)
+find_package(GLIB 2.40.0 REQUIRED COMPONENTS gio gio-unix gobject gthread gmodule)
+find_package(HarfBuzz 0.9.18 REQUIRED)
+find_package(ICU REQUIRED)
+find_package(JPEG REQUIRED)
+find_package(LibEpoxy 1.4.0 REQUIRED)
+find_package(LibGcrypt 1.6.0 REQUIRED)
+find_package(LibSoup 2.42.0 REQUIRED)
+find_package(LibXml2 2.8.0 REQUIRED)
+find_package(PNG REQUIRED)
+find_package(Sqlite REQUIRED)
+find_package(Threads REQUIRED)
+find_package(WebP REQUIRED)
+find_package(WPE REQUIRED)
+find_package(ZLIB REQUIRED)
 
 WEBKIT_OPTION_BEGIN()
 
@@ -29,7 +47,7 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_XSLT PUBLIC ON)
 # we need a value different from the default defined in WebKitFeatures.cmake.
 # Changing these options is completely unsupported.
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_ASYNC_SCROLLING PRIVATE ON)
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_GEOLOCATION PRIVATE OFF)
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_CONTENT_EXTENSIONS PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_MHTML PRIVATE ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_NETSCAPE_PLUGIN_API PRIVATE OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_NOTIFICATIONS PRIVATE OFF)
@@ -49,7 +67,9 @@ WEBKIT_OPTION_DEFINE(USE_WOFF2 "Whether to enable support for WOFF2 Web Fonts." 
 WEBKIT_OPTION_DEFINE(ENABLE_WPE_QT_API "Whether to enable support for the Qt5/QML plugin" PUBLIC OFF)
 
 # Private options specific to the WPE port.
-WEBKIT_OPTION_DEFINE(USE_OPENVR "Whether to use OpenVR as WebVR backend." PRIVATE ${ENABLE_EXPERIMENTAL_FEATURES})
+WEBKIT_OPTION_DEFINE(USE_OPENVR "Whether to use OpenVR as WebVR backend." PRIVATE OFF)
+WEBKIT_OPTION_DEFINE(USE_GSTREAMER_HOLEPUNCH "Whether to enable GStreamer holepunch" PRIVATE OFF)
+WEBKIT_OPTION_DEFINE(USE_EXTERNAL_HOLEPUNCH "Whether to enable external holepunch" PRIVATE OFF)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_MEMORY_SAMPLER PRIVATE ON)
@@ -65,27 +85,26 @@ if (DEVELOPER_MODE)
     WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_MINIBROWSER PUBLIC ON)
 endif ()
 
+if (CMAKE_SYSTEM_NAME MATCHES "Linux" AND NOT EXISTS "/.flatpak-info")
+    WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_BUBBLEWRAP_SANDBOX PUBLIC ON)
+else ()
+    WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_BUBBLEWRAP_SANDBOX PUBLIC OFF)
+endif ()
+
+# Enable variation fonts when cairo >= 1.16, fontconfig >= 2.13.0, freetype >= 2.9.0 and harfbuzz >= 1.4.2.
+if (("${PC_CAIRO_VERSION}" VERSION_GREATER "1.16.0" OR "${PC_CAIRO_VERSION}" STREQUAL "1.16.0")
+    AND ("${PC_FONTCONFIG_VERSION}" VERSION_GREATER "2.13.0" OR "${PC_FONTCONFIG_VERSION}" STREQUAL "2.13.0")
+    AND ("${FREETYPE_VERSION_STRING}" VERSION_GREATER "2.9.0" OR "${FREETYPE_VERSION_STRING}" STREQUAL "2.9.0")
+    AND ("${PC_HARFBUZZ_VERSION}" VERSION_GREATER "1.4.2" OR "${PC_HARFBUZZ_VERSION}" STREQUAL "1.4.2"))
+    WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VARIATION_FONTS PRIVATE ON)
+endif ()
+
+WEBKIT_OPTION_DEPEND(USE_GSTREAMER_HOLEPUNCH ENABLE_VIDEO)
+WEBKIT_OPTION_DEPEND(USE_EXTERNAL_HOLEPUNCH ENABLE_VIDEO)
+
 include(GStreamerDependencies)
 
 WEBKIT_OPTION_END()
-
-find_package(Cairo 1.10.2 REQUIRED)
-find_package(Fontconfig 2.8.0 REQUIRED)
-find_package(Freetype 2.4.2 REQUIRED)
-find_package(GLIB 2.40.0 REQUIRED COMPONENTS gio gio-unix gobject gthread gmodule)
-find_package(HarfBuzz 0.9.18 REQUIRED)
-find_package(ICU REQUIRED)
-find_package(JPEG REQUIRED)
-find_package(LibEpoxy 1.4.0 REQUIRED)
-find_package(LibGcrypt 1.6.0 REQUIRED)
-find_package(LibSoup 2.42.0 REQUIRED)
-find_package(LibXml2 2.8.0 REQUIRED)
-find_package(PNG REQUIRED)
-find_package(Sqlite REQUIRED)
-find_package(Threads REQUIRED)
-find_package(WebP REQUIRED)
-find_package(WPE REQUIRED)
-find_package(ZLIB REQUIRED)
 
 if (USE_OPENJPEG)
     find_package(OpenJPEG)
@@ -126,7 +145,7 @@ if (ENABLE_WPE_QT_API)
     find_package(Qt5 REQUIRED COMPONENTS Core Quick Gui)
     find_package(Qt5Test REQUIRED)
     find_package(PkgConfig)
-    pkg_check_modules(WPE_BACKEND_FDO REQUIRED wpebackend-fdo-0.1)
+    pkg_check_modules(WPE_BACKEND_FDO REQUIRED wpebackend-fdo-1.0)
 endif ()
 
 add_definitions(-DBUILDING_WPE__=1)
@@ -151,7 +170,6 @@ SET_AND_EXPOSE_TO_BUILD(USE_TEXTURE_MAPPER TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_TEXTURE_MAPPER_GL TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_TILED_BACKING_STORE TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS TRUE)
-SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS_THREADED TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_NICOSIA TRUE)
 
 # Override the cached variable, gtk-doc does not really work when cross-building or building on Mac.
@@ -170,4 +188,5 @@ set(DERIVED_SOURCES_WPE_API_DIR ${DERIVED_SOURCES_WEBKIT_DIR}/wpe)
 set(WPE_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/wpe-webkit-${WPE_API_VERSION}.pc)
 set(WPEWebExtension_PKGCONFIG_FILE ${CMAKE_BINARY_DIR}/wpe-web-extension-${WPE_API_VERSION}.pc)
 
+include(BubblewrapSandboxChecks)
 include(GStreamerChecks)

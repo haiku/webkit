@@ -122,6 +122,7 @@ NSString *WebConsoleMessageContentBlockerMessageSource = @"ContentBlockerMessage
 NSString *WebConsoleMessageOtherMessageSource = @"OtherMessageSource";
 NSString *WebConsoleMessageMediaMessageSource = @"MediaMessageSource";
 NSString *WebConsoleMessageWebRTCMessageSource = @"WebRTCMessageSource";
+NSString *WebConsoleMessageMediaSourceMessageSource = @"MediaSourceMessageSource";
 
 NSString *WebConsoleMessageDebugMessageLevel = @"DebugMessageLevel";
 NSString *WebConsoleMessageLogMessageLevel = @"LogMessageLevel";
@@ -397,6 +398,8 @@ inline static NSString *stringForMessageSource(MessageSource source)
         return WebConsoleMessageMediaMessageSource;
     case MessageSource::WebRTC:
         return WebConsoleMessageWebRTCMessageSource;
+    case MessageSource::MediaSource:
+        return WebConsoleMessageMediaSourceMessageSource;
     }
     ASSERT_NOT_REACHED();
     return @"";
@@ -596,17 +599,15 @@ IntRect WebChromeClient::rootViewToScreen(const IntRect& r) const
     return r;
 }
 
-#if PLATFORM(IOS_FAMILY)
 IntPoint WebChromeClient::accessibilityScreenToRootView(const IntPoint& p) const
 {
-    return p;
+    return screenToRootView(p);
 }
 
 IntRect WebChromeClient::rootViewToAccessibilityScreen(const IntRect& r) const
 {
-    return r;
+    return rootViewToScreen(r);
 }
-#endif
 
 PlatformPageClient WebChromeClient::platformPageClient() const
 {
@@ -948,7 +949,7 @@ void WebChromeClient::attachRootGraphicsLayer(Frame& frame, GraphicsLayer* graph
 #endif
 }
 
-void WebChromeClient::attachViewOverlayGraphicsLayer(Frame&, GraphicsLayer*)
+void WebChromeClient::attachViewOverlayGraphicsLayer(GraphicsLayer*)
 {
     // FIXME: If we want view-relative page overlays in Legacy WebKit, this would be the place to hook them up.
 }

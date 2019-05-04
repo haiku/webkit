@@ -26,17 +26,17 @@
 #pragma once
 
 #include "ExecutableToCodeBlockEdge.h"
-#include "ScriptExecutable.h"
+#include "GlobalExecutable.h"
 
 namespace JSC {
 
-class ProgramExecutable final : public ScriptExecutable {
+class ProgramExecutable final : public GlobalExecutable {
     friend class LLIntOffsetsExtractor;
 public:
-    typedef ScriptExecutable Base;
+    using Base = GlobalExecutable;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
-    template<typename CellType>
+    template<typename CellType, SubspaceAccess>
     static IsoSubspace* subspaceFor(VM& vm)
     {
         return &vm.programExecutableSpace.space;

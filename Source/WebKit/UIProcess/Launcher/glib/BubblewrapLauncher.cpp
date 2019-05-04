@@ -555,7 +555,7 @@ static int setupSeccomp()
     //  https://git.gnome.org/browse/linux-user-chroot
     //    in src/setup-seccomp.c
     struct scmp_arg_cmp cloneArg = SCMP_A0(SCMP_CMP_MASKED_EQ, CLONE_NEWUSER, CLONE_NEWUSER);
-    struct scmp_arg_cmp ttyArg = SCMP_A1(SCMP_CMP_EQ, static_cast<scmp_datum_t>(TIOCSTI), static_cast<scmp_datum_t>(0));
+    struct scmp_arg_cmp ttyArg = SCMP_A1(SCMP_CMP_MASKED_EQ, 0xFFFFFFFFu, TIOCSTI);
     struct {
         int scall;
         struct scmp_arg_cmp* arg;
@@ -641,9 +641,6 @@ static int createFlatpakInfo()
 {
     GUniquePtr<GKeyFile> keyFile(g_key_file_new());
 
-    const char* sharedPermissions[] = { "network", nullptr };
-    g_key_file_set_string_list(keyFile.get(), "Context", "shared", sharedPermissions, sizeof(sharedPermissions));
-
     // xdg-desktop-portal relates your name to certain permissions so we want
     // them to be application unique which is best done via GApplication.
     GApplication* app = g_application_get_default();
@@ -668,11 +665,13 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
 {
     ASSERT(launcher);
 
+#if ENABLE(NETSCAPE_PLUGIN_API)
     // It is impossible to know what access arbitrary plugins need and since it is for legacy
     // reasons lets just leave it unsandboxed.
     if (launchOptions.processType == ProcessLauncher::ProcessType::Plugin64
         || launchOptions.processType == ProcessLauncher::ProcessType::Plugin32)
         return adoptGRef(g_subprocess_launcher_spawnv(launcher, argv, error));
+#endif
 
     // For now we are just considering the network process trusted as it
     // requires a lot of access but doesn't execute arbitrary code like
@@ -684,6 +683,7 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
         "--die-with-parent",
         "--unshare-pid",
         "--unshare-uts",
+        "--unshare-net",
 
         // We assume /etc has safe permissions.
         // At a later point we can start masking privacy-concerning files.
@@ -746,7 +746,6 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
         }));
     }
 
-    // NOTE: This has network access for HLS via GStreamer.
     if (launchOptions.processType == ProcessLauncher::ProcessType::Web) {
         static XDGDBusProxyLauncher proxy;
 
@@ -766,7 +765,7 @@ GRefPtr<GSubprocess> bubblewrapSpawn(GSubprocessLauncher* launcher, const Proces
             }));
         }
 
-        Vector<String> extraPaths = { "applicationCacheDirectory", "waylandSocket"};
+        Vector<String> extraPaths = { "applicationCacheDirectory", "mediaKeysDirectory", "waylandSocket", "webSQLDatabaseDirectory" };
         for (const auto& path : extraPaths) {
             String extraPath = launchOptions.extraInitializationData.get(path);
             if (!extraPath.isEmpty())

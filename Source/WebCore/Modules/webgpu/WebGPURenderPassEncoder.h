@@ -28,7 +28,6 @@
 #if ENABLE(WEBGPU)
 
 #include "WebGPUProgrammablePassEncoder.h"
-
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 
@@ -37,21 +36,28 @@ namespace WebCore {
 class GPUProgrammablePassEncoder;
 class GPURenderPassEncoder;
 class WebGPUBuffer;
+class WebGPURenderPipeline;
+
+struct GPUColor;
 
 class WebGPURenderPassEncoder final : public WebGPUProgrammablePassEncoder {
 public:
-    static Ref<WebGPURenderPassEncoder> create(Ref<WebGPUCommandBuffer>&&, Ref<GPURenderPassEncoder>&&);
+    static Ref<WebGPURenderPassEncoder> create(RefPtr<GPURenderPassEncoder>&&);
 
-    // FIXME: Last argument should be Vector<unsigned long>. Why is the generated code incorrectly assuming the IDL wants a sequence<unsigned int>?
-    void setVertexBuffers(unsigned long, Vector<RefPtr<WebGPUBuffer>>&&, Vector<unsigned>&&);
-    void draw(unsigned long vertexCount, unsigned long instanceCount, unsigned long firstVertex, unsigned long firstInstance);
+    void setPipeline(const WebGPURenderPipeline&);
+    void setBlendColor(const GPUColor&);
+    void setViewport(float x, float y, float width, float height, float minDepth, float maxDepth);
+    void setScissorRect(unsigned x, unsigned y, unsigned width, unsigned height);
+    void setVertexBuffers(unsigned, Vector<RefPtr<WebGPUBuffer>>&&, Vector<uint64_t>&&);
+    void draw(unsigned vertexCount, unsigned instanceCount, unsigned firstVertex, unsigned firstInstance);
 
 private:
-    WebGPURenderPassEncoder(Ref<WebGPUCommandBuffer>&&, Ref<GPURenderPassEncoder>&&);
+    WebGPURenderPassEncoder(RefPtr<GPURenderPassEncoder>&&);
 
-    GPUProgrammablePassEncoder& passEncoder() const final;
+    GPUProgrammablePassEncoder* passEncoder() final;
+    const GPUProgrammablePassEncoder* passEncoder() const final;
 
-    Ref<GPURenderPassEncoder> m_passEncoder;
+    RefPtr<GPURenderPassEncoder> m_passEncoder;
 };
 
 } // namespace WebCore

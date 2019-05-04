@@ -41,6 +41,7 @@
 #include <wtf/MathExtras.h>
 #include <wtf/MemoryFootprint.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 using WebCore::ResourceUsageOverlay;
 @interface WebOverlayLayer : CALayer {
@@ -426,11 +427,11 @@ static void drawMemoryPie(CGContextRef context, FloatRect& rect, HistoricResourc
 static String formatByteNumber(size_t number)
 {
     if (number >= 1024 * 1048576)
-        return String::format("%.3f GB", static_cast<double>(number) / (1024 * 1048576));
+        return makeString(FormattedNumber::fixedWidth(number / (1024. * 1048576), 3), " GB");
     if (number >= 1048576)
-        return String::format("%.2f MB", static_cast<double>(number) / 1048576);
+        return makeString(FormattedNumber::fixedWidth(number / 1048576., 2), " MB");
     if (number >= 1024)
-        return String::format("%.1f kB", static_cast<double>(number) / 1024);
+        return makeString(FormattedNumber::fixedWidth(number / 1024, 1), " kB");
     return String::number(number);
 }
 
@@ -438,7 +439,7 @@ static String gcTimerString(MonotonicTime timerFireDate, MonotonicTime now)
 {
     if (std::isnan(timerFireDate))
         return "[not scheduled]"_s;
-    return String::format("%g", (timerFireDate - now).seconds());
+    return String::numberToStringFixedPrecision((timerFireDate - now).seconds());
 }
 
 void ResourceUsageOverlay::platformDraw(CGContextRef context)
@@ -457,7 +458,7 @@ void ResourceUsageOverlay::platformDraw(CGContextRef context)
     CGContextClearRect(context, viewBounds);
 
     static CGColorRef colorForLabels = createColor(0.9, 0.9, 0.9, 1);
-    showText(context, 10, 20, colorForLabels, String::format("        CPU: %g", data.cpu.last()));
+    showText(context, 10, 20, colorForLabels, makeString("        CPU: ", FormattedNumber::fixedPrecision(data.cpu.last(), 6, KeepTrailingZeros)));
     showText(context, 10, 30, colorForLabels, "  Footprint: " + formatByteNumber(memoryFootprint()));
     showText(context, 10, 40, colorForLabels, "   External: " + formatByteNumber(data.totalExternalSize.last()));
 
@@ -467,7 +468,7 @@ void ResourceUsageOverlay::platformDraw(CGContextRef context)
         size_t reclaimable = category.reclaimableSize.last();
         size_t external = category.externalSize.last();
         
-        String label = String::format("% 11s: %s", category.name.ascii().data(), formatByteNumber(dirty).ascii().data());
+        String label = makeString(pad(' ', 11, category.name), ": ", formatByteNumber(dirty));
         if (external)
             label = label + makeString(" + ", formatByteNumber(external));
         if (reclaimable)

@@ -1363,6 +1363,16 @@ private:
         m_token.m_type = m_lexer->lex(&m_token, lexerFlags, strictMode());
     }
 
+    ALWAYS_INLINE void nextWithoutClearingLineTerminator(unsigned lexerFlags = 0)
+    {
+        int lastLine = m_token.m_location.line;
+        int lastTokenEnd = m_token.m_location.endOffset;
+        int lastTokenLineStart = m_token.m_location.lineStartOffset;
+        m_lastTokenEndPosition = JSTextPosition(lastLine, lastTokenEnd, lastTokenLineStart);
+        m_lexer->setLastLineNumber(lastLine);
+        m_token.m_type = m_lexer->lexWithoutClearingLineTerminator(&m_token, lexerFlags, strictMode());
+    }
+
     ALWAYS_INLINE void nextExpectIdentifier(unsigned lexerFlags = 0)
     {
         int lastLine = m_token.m_location.line;
@@ -1371,6 +1381,12 @@ private:
         m_lastTokenEndPosition = JSTextPosition(lastLine, lastTokenEnd, lastTokenLineStart);
         m_lexer->setLastLineNumber(lastLine);
         m_token.m_type = m_lexer->lexExpectIdentifier(&m_token, lexerFlags, strictMode());
+    }
+
+    ALWAYS_INLINE void lexCurrentTokenAgainUnderCurrentContext()
+    {
+        auto savePoint = createSavePoint();
+        restoreSavePoint(savePoint);
     }
 
     ALWAYS_INLINE bool nextTokenIsColon()
@@ -1762,6 +1778,7 @@ private:
         unsigned oldLineStartOffset;
         unsigned oldLastLineNumber;
         unsigned oldLineNumber;
+        bool hasLineTerminatorBeforeToken;
     };
 
     // If you're using this directly, you probably should be using
@@ -1775,6 +1792,7 @@ private:
         result.oldLineStartOffset = m_token.m_location.lineStartOffset;
         result.oldLastLineNumber = m_lexer->lastLineNumber();
         result.oldLineNumber = m_lexer->lineNumber();
+        result.hasLineTerminatorBeforeToken = m_lexer->hasLineTerminatorBeforeToken();
         ASSERT(static_cast<unsigned>(result.startOffset) >= result.oldLineStartOffset);
         return result;
     }
@@ -1784,7 +1802,8 @@ private:
         // setOffset clears lexer errors.
         m_lexer->setOffset(lexerState.startOffset, lexerState.oldLineStartOffset);
         m_lexer->setLineNumber(lexerState.oldLineNumber);
-        next();
+        m_lexer->setHasLineTerminatorBeforeToken(lexerState.hasLineTerminatorBeforeToken);
+        nextWithoutClearingLineTerminator();
         m_lexer->setLastLineNumber(lexerState.oldLastLineNumber);
     }
 
@@ -1938,8 +1957,8 @@ std::unique_ptr<ParsedNode> Parser<LexerType>::parse(ParserError& error, const I
         result->setEndOffset(m_lexer->currentOffset());
 
         if (!isFunctionParseMode(parseMode)) {
-            m_source->provider()->setSourceURLDirective(m_lexer->sourceURL());
-            m_source->provider()->setSourceMappingURLDirective(m_lexer->sourceMappingURL());
+            m_source->provider()->setSourceURLDirective(m_lexer->sourceURLDirective());
+            m_source->provider()->setSourceMappingURLDirective(m_lexer->sourceMappingURLDirective());
         }
     } else {
         // We can never see a syntax error when reparsing a function, since we should have

@@ -5372,6 +5372,10 @@ class WebKitStyleTest(CppStyleTestBase):
         # There is an exception for GTK+ API.
         self.assert_lint('void webkit_web_view_load(int var1, int var2)', '', 'Source/Webkit/gtk/webkit/foo.cpp')
         self.assert_lint('void webkit_web_view_load(int var1, int var2)', '', 'Source/Webkit2/UIProcess/gtk/foo.cpp')
+        self.assert_lint('void my_function(int variable_1)',
+                         ['my_function' + name_underscore_error_message,
+                          'variable_1' + name_underscore_error_message],
+                         'Source/Webkit2/UIProcess/gtk/foo.cpp')
 
         # Test that this doesn't also apply to files not in a 'gtk' directory.
         self.assert_lint('void webkit_web_view_load(int var1, int var2)',
@@ -5685,10 +5689,19 @@ class WebKitStyleTest(CppStyleTestBase):
         self.assert_lint('MYMACRO(a ? b() : c);', '')
 
     def test_min_versions_of_wk_api_available(self):
-        self.assert_lint('WK_API_AVAILABLE(macosx(1.2.3), ios(3.4.5))', '')  # version numbers are OK.
-        self.assert_lint('WK_API_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))', '')  # WK_MAC_TBA and WK_IOS_TBA are OK.
-        self.assert_lint('WK_API_AVAILABLE(macosx(WK_IOS_TBA), ios(3.4.5))', 'WK_IOS_TBA is neither a version number nor WK_MAC_TBA  [build/wk_api_available] [5]')
-        self.assert_lint('WK_API_AVAILABLE(macosx(1.2.3), ios(WK_MAC_TBA))', 'WK_MAC_TBA is neither a version number nor WK_IOS_TBA  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macosx(1.2.3))', 'macosx() is deprecated; use macos() instead  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macosx(WK_MAC_TBA))', 'macosx() is deprecated; use macos() instead  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macos(1.2.3), ios(3.4.5))', '')  # version numbers are OK.
+        self.assert_lint('WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA))', '')  # WK_MAC_TBA and WK_IOS_TBA are OK.
+        self.assert_lint('WK_API_AVAILABLE(macos(WK_IOS_TBA), ios(3.4.5))', 'macos(WK_IOS_TBA) is invalid; expected WK_MAC_TBA or a number  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macos(1.2.3), ios(WK_MAC_TBA))', 'ios(WK_MAC_TBA) is invalid; expected WK_IOS_TBA or a number  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macos(1.2.3))', '')  # version numbers are OK.
+        self.assert_lint('WK_API_AVAILABLE(macos(WK_MAC_TBA))', '')  # WK_MAC_TBA is OK.
+        self.assert_lint('WK_API_AVAILABLE(ios(3.4.5))', '')  # version numbers are OK.
+        self.assert_lint('WK_API_AVAILABLE(ios(WK_IOS_TBA))', '')  # WK_IOS_TBA is OK.
+        self.assert_lint('WK_API_AVAILABLE(macos(WK_IOS_TBA))', 'macos(WK_IOS_TBA) is invalid; expected WK_MAC_TBA or a number  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(macos(WK_IOS_TBA))', 'macos(WK_IOS_TBA) is invalid; expected WK_MAC_TBA or a number  [build/wk_api_available] [5]')
+        self.assert_lint('WK_API_AVAILABLE(ios(WK_MAC_TBA))', 'ios(WK_MAC_TBA) is invalid; expected WK_IOS_TBA or a number  [build/wk_api_available] [5]')
 
     def test_os_version_checks(self):
         self.assert_lint('#if PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED < 110000', 'Misplaced OS version check. Please use a named macro in wtf/Platform.h, wtf/FeatureDefines.h, or an appropriate internal file.  [build/version_check] [5]')

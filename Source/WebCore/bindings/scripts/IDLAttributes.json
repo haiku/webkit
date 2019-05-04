@@ -85,6 +85,9 @@
         "ConstructorMayThrowException": {
             "contextsAllowed": ["interface"]
         },
+        "ContextAllowsMediaDevices": {
+            "contextsAllowed": ["attribute"]
+        },
         "ContextHasServiceWorkerScheme": {
             "contextsAllowed": ["attribute"]
         },
@@ -178,10 +181,14 @@
             "values": ["*"]
         },
         "EnabledBySetting": {
-            "contextsAllowed": ["interface", "dictionary", "enum", "attribute", "operation", "constant"],
+            "contextsAllowed": ["interface", "dictionary", "enum", "attribute", "operation", "constant", "dictionary-member"],
             "values": ["*"]
         },
         "DisabledByQuirk": {
+            "contextsAllowed": ["interface", "dictionary", "enum", "attribute", "operation", "constant"],
+            "values": ["*"]
+        },
+        "EnabledByQuirk": {
             "contextsAllowed": ["interface", "dictionary", "enum", "attribute", "operation", "constant"],
             "values": ["*"]
         },

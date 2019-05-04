@@ -84,14 +84,14 @@ private:
     // FIXME: This function should not deal with url or serviceType
     // so that we can better share code between <object> and <embed>.
     void parametersForPlugin(Vector<String>& paramNames, Vector<String>& paramValues, String& url, String& serviceType);
-    
-    bool shouldAllowQuickTimeClassIdQuirk();
+
     bool hasValidClassId();
 
     void refFormAssociatedElement() final { ref(); }
     void derefFormAssociatedElement() final { deref(); }
 
     FormNamedItem* asFormNamedItem() final { return this; }
+    FormAssociatedElement* asFormAssociatedElement() final { return this; }
     HTMLObjectElement& asHTMLElement() final { return *this; }
     const HTMLObjectElement& asHTMLElement() const final { return *this; }
 

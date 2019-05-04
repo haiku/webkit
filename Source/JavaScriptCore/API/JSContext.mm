@@ -27,6 +27,7 @@
 
 #import "APICast.h"
 #import "Completion.h"
+#import "JSBaseInternal.h"
 #import "JSCInlines.h"
 #import "JSContextInternal.h"
 #import "JSContextPrivate.h"
@@ -84,13 +85,15 @@
     };
 
     [self ensureWrapperMap];
-    [m_virtualMachine addContext:self forGlobalContextRef:m_context];
+
+    toJSGlobalObject(m_context)->setAPIWrapper((__bridge void*)self);
 
     return self;
 }
 
 - (void)dealloc
 {
+    toJSGlobalObject(m_context)->setAPIWrapper((__bridge void*)nil);
     m_exception.clear();
     JSGlobalContextRelease(m_context);
     [m_virtualMachine release];
@@ -112,8 +115,37 @@
 
     if (exceptionValue)
         return [self valueFromNotifyException:exceptionValue];
-
     return [JSValue valueWithJSValueRef:result inContext:self];
+}
+
+- (JSValue *)evaluateJSScript:(JSScript *)script
+{
+    JSC::ExecState* exec = toJS(m_context);
+    JSC::VM& vm = exec->vm();
+    JSC::JSLockHolder locker(vm);
+
+    if (script.type == kJSScriptTypeProgram) {
+        JSValueRef exceptionValue = nullptr;
+        JSC::SourceCode sourceCode = [script sourceCode];
+        JSValueRef result = JSEvaluateScriptInternal(locker, exec, m_context, nullptr, sourceCode, &exceptionValue);
+
+        if (exceptionValue)
+            return [self valueFromNotifyException:exceptionValue];
+        return [JSValue valueWithJSValueRef:result inContext:self];
+    }
+
+    auto* globalObject = JSC::jsDynamicCast<JSC::JSAPIGlobalObject*>(vm, exec->lexicalGlobalObject());
+    if (!globalObject)
+        return [JSValue valueWithNewPromiseRejectedWithReason:[JSValue valueWithNewErrorFromMessage:@"Context does not support module loading" inContext:self] inContext:self];
+
+    auto scope = DECLARE_CATCH_SCOPE(vm);
+    JSC::JSValue result = globalObject->loadAndEvaluateJSScriptModule(locker, script);
+    if (scope.exception()) {
+        JSValueRef exceptionValue = toRef(exec, scope.exception()->value());
+        scope.clearException();
+        return [JSValue valueWithNewPromiseRejectedWithReason:[JSValue valueWithJSValueRef:exceptionValue inContext:self] inContext:self];
+    }
+    return [JSValue valueWithJSValueRef:toRef(vm, result) inContext:self];
 }
 
 - (void)setException:(JSValue *)value
@@ -278,7 +310,7 @@
         context.exception = exceptionValue;
     };
 
-    [m_virtualMachine addContext:self forGlobalContextRef:m_context];
+    toJSGlobalObject(m_context)->setAPIWrapper((__bridge void*)self);
 
     return self;
 }
@@ -328,7 +360,7 @@
 
 - (JSWrapperMap *)wrapperMap
 {
-    return toJS(m_context)->lexicalGlobalObject()->wrapperMap();
+    return toJSGlobalObject(m_context)->wrapperMap();
 }
 
 - (JSValue *)wrapperForJSObject:(JSValueRef)value
@@ -337,10 +369,14 @@
     return [[self wrapperMap] objcWrapperForJSValueRef:value inContext:self];
 }
 
+- (void)removeWrapper:(JSValue *)value
+{
+    return [[self wrapperMap] removeWrapper:value];
+}
+
 + (JSContext *)contextWithJSGlobalContextRef:(JSGlobalContextRef)globalContext
 {
-    JSVirtualMachine *virtualMachine = [JSVirtualMachine virtualMachineWithContextGroupRef:toRef(&toJS(globalContext)->vm())];
-    JSContext *context = [virtualMachine contextForGlobalContextRef:globalContext];
+    JSContext *context = (__bridge JSContext *)toJSGlobalObject(globalContext)->apiWrapper();
     if (!context)
         context = [[[JSContext alloc] initWithGlobalContextRef:globalContext] autorelease];
     return context;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -75,6 +75,8 @@
 #define DEFAULT_TEMPORARY_TILE_COHORT_RETENTION_ENABLED false
 #define DEFAULT_REQUIRES_USER_GESTURE_FOR_AUDIO_PLAYBACK true
 #define DEFAULT_INTERACTIVE_MEDIA_CAPTURE_STREAM_REPROMPT_INTERVAL_IN_MINUTES 1
+#define DEFAULT_ASYNC_FRAME_SCROLLING_ENABLED true
+#define DEFAULT_ASYNC_OVERFLOW_SCROLLING_ENABLED true
 #define EXPERIMENTAL_FULLSCREEN_API_HIDDEN false
 #else
 #define DEFAULT_ALLOWS_PICTURE_IN_PICTURE_MEDIA_PLAYBACK false
@@ -94,6 +96,8 @@
 #define DEFAULT_TEMPORARY_TILE_COHORT_RETENTION_ENABLED true
 #define DEFAULT_REQUIRES_USER_GESTURE_FOR_AUDIO_PLAYBACK false
 #define DEFAULT_INTERACTIVE_MEDIA_CAPTURE_STREAM_REPROMPT_INTERVAL_IN_MINUTES 10
+#define DEFAULT_ASYNC_FRAME_SCROLLING_ENABLED false
+#define DEFAULT_ASYNC_OVERFLOW_SCROLLING_ENABLED false
 #define EXPERIMENTAL_FULLSCREEN_API_HIDDEN true
 #endif
 
@@ -227,6 +231,7 @@
 #endif
 
 bool defaultPassiveTouchListenersAsDefaultOnDocument();
+bool defaultDeviceOrientationPermissionAPIEnabled();
 bool defaultCustomPasteboardDataEnabled();
 
 #if PLATFORM(MAC)
@@ -241,4 +246,24 @@ bool defaultCustomPasteboardDataEnabled();
 #else
 #define DEFAULT_INPUT_TYPE_COLOR_ENABLED true
 #define DEFAULT_DATALIST_ELEMENT_ENABLED true
+#endif
+
+#if PLATFORM(IOS)
+#define DEFAULT_DOM_PASTE_ACCESS_REQUESTS_ENABLED true
+#else
+#define DEFAULT_DOM_PASTE_ACCESS_REQUESTS_ENABLED false
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+#if PLATFORM(WATCHOS)
+#define DEFAULT_FAST_CLICKS_EVERYWHERE false
+#else
+#define DEFAULT_FAST_CLICKS_EVERYWHERE true
+#endif
+#endif
+
+#if ENABLE(APPLE_PAY_REMOTE_UI)
+#define DEFAULT_APPLE_PAY_ENABLED true
+#else
+#define DEFAULT_APPLE_PAY_ENABLED false
 #endif

@@ -31,6 +31,7 @@
 #include "RemoteCommandListener.h"
 #include "Timer.h"
 #include <pal/system/SystemSleepListener.h>
+#include <wtf/AggregateLogger.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -40,7 +41,14 @@ class HTMLMediaElement;
 class PlatformMediaSession;
 class RemoteCommandListener;
 
-class PlatformMediaSessionManager : private RemoteCommandListenerClient, private PAL::SystemSleepListener::Client, private AudioHardwareListener::Client {
+class PlatformMediaSessionManager
+    : private RemoteCommandListenerClient
+    , private PAL::SystemSleepListener::Client
+    , private AudioHardwareListener::Client
+#if !RELEASE_LOG_DISABLED
+    , private LoggerHelper
+#endif
+{
     WTF_MAKE_FAST_ALLOCATED;
 public:
     WEBCORE_EXPORT static PlatformMediaSessionManager* sharedManagerIfExists();
@@ -49,6 +57,7 @@ public:
     static void updateNowPlayingInfoIfNecessary();
 
     WEBCORE_EXPORT static void setShouldDeactivateAudioSession(bool);
+    WEBCORE_EXPORT static bool shouldDeactivateAudioSession();
 
     virtual ~PlatformMediaSessionManager() = default;
 
@@ -64,6 +73,7 @@ public:
     virtual double lastUpdatedNowPlayingElapsedTime() const { return NAN; }
     virtual uint64_t lastUpdatedNowPlayingInfoUniqueIdentifier() const { return 0; }
     virtual bool registeredAsNowPlayingApplication() const { return false; }
+    virtual void prepareToSendUserMediaPermissionRequest() { }
 
     bool willIgnoreSystemInterruptions() const { return m_willIgnoreSystemInterruptions; }
     void setWillIgnoreSystemInterruptions(bool ignore) { m_willIgnoreSystemInterruptions = ignore; }
@@ -75,12 +85,16 @@ public:
     WEBCORE_EXPORT void applicationDidBecomeActive() const;
     WEBCORE_EXPORT void applicationWillEnterForeground(bool suspendedUnderLock) const;
     WEBCORE_EXPORT void applicationDidEnterBackground(bool suspendedUnderLock) const;
+    WEBCORE_EXPORT void processWillSuspend();
+    WEBCORE_EXPORT void processDidResume();
 
     void stopAllMediaPlaybackForDocument(const Document*);
     WEBCORE_EXPORT void stopAllMediaPlaybackForProcess();
 
     void suspendAllMediaPlaybackForDocument(const Document&);
     void resumeAllMediaPlaybackForDocument(const Document&);
+    void suspendAllMediaBufferingForDocument(const Document&);
+    void resumeAllMediaBufferingForDocument(const Document&);
 
     enum SessionRestrictionFlags {
         NoRestrictions = 0,
@@ -130,6 +144,15 @@ protected:
 
     AudioHardwareListener* audioHardwareListener() { return m_audioHardwareListener.get(); }
 
+    bool processIsSuspended() const { return m_processIsSuspended; }
+
+#if !RELEASE_LOG_DISABLED
+    const Logger& logger() const final { return m_logger; }
+    const void* logIdentifier() const final { return nullptr; }
+    const char* logClassName() const override { return "PlatformMediaSessionManager"; }
+    WTFLogChannel& logChannel() const final;
+#endif
+
 private:
     friend class Internals;
 
@@ -148,8 +171,6 @@ private:
     void systemWillSleep() override;
     void systemDidWake() override;
 
-    static bool shouldDeactivateAudioSession();
-
     SessionRestrictions m_restrictions[PlatformMediaSession::MediaStreamCapturingAudio + 1];
     mutable Vector<PlatformMediaSession*> m_sessions;
     std::unique_ptr<RemoteCommandListener> m_remoteCommandListener;
@@ -165,9 +186,14 @@ private:
     mutable bool m_isApplicationInBackground { false };
     bool m_willIgnoreSystemInterruptions { false };
     mutable int m_iteratingOverSessions { 0 };
+    bool m_processIsSuspended { false };
 
 #if USE(AUDIO_SESSION)
     bool m_becameActive { false };
+#endif
+
+#if !RELEASE_LOG_DISABLED
+    Ref<AggregateLogger> m_logger;
 #endif
 };
 

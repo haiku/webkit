@@ -7,7 +7,8 @@ list(APPEND JavaScriptCore_UNIFIED_SOURCE_LIST_FILES
 )
 
 set(JavaScriptCore_INCLUDE_DIRECTORIES
-    "${FORWARDING_HEADERS_DIR}"
+    "${WTF_FRAMEWORK_HEADERS_DIR}"
+    "${JavaScriptCore_FRAMEWORK_HEADERS_DIR}"
 )
 
 set(JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES
@@ -59,7 +60,7 @@ set(JavaScriptCore_SYSTEM_INCLUDE_DIRECTORIES
 
 set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/ArrayConstructor.cpp
-    runtime/ArrayIteratorPrototype.cpp
+    runtime/AsyncFromSyncIteratorPrototype.cpp
     runtime/AsyncGeneratorPrototype.cpp
     runtime/BigIntConstructor.cpp
     runtime/BigIntPrototype.cpp
@@ -94,13 +95,15 @@ set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/RegExpPrototype.cpp
     runtime/SetPrototype.cpp
     runtime/StringConstructor.cpp
-    runtime/StringIteratorPrototype.cpp
     runtime/StringPrototype.cpp
     runtime/SymbolConstructor.cpp
     runtime/SymbolPrototype.cpp
 
+    wasm/js/JSWebAssembly.cpp
+    wasm/js/JSToWasmICCallee.cpp
     wasm/js/WebAssemblyCompileErrorConstructor.cpp
     wasm/js/WebAssemblyCompileErrorPrototype.cpp
+    wasm/js/WebAssemblyFunctionHeapCellType.cpp
     wasm/js/WebAssemblyInstanceConstructor.cpp
     wasm/js/WebAssemblyInstancePrototype.cpp
     wasm/js/WebAssemblyLinkErrorConstructor.cpp
@@ -227,9 +230,19 @@ add_custom_command(
     COMMAND ${RUBY_EXECUTABLE} ${JAVASCRIPTCORE_DIR}/generator/main.rb --bytecodes_h ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Bytecodes.h --init_bytecodes_asm ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/InitBytecodes.asm --bytecode_structs_h ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/BytecodeStructs.h --bytecode_indices_h ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/BytecodeIndices.h ${JAVASCRIPTCORE_DIR}/bytecode/BytecodeList.rb
     VERBATIM)
 
+
+if (WTF_OS_MAC_OS_X)
+    execute_process(COMMAND bash -c "date +'%s'" OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)
+else ()
+    set(BUILD_TIME 0)
+endif ()
+
+file(WRITE ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/BytecodeCacheVersion.h "#define JSC_BYTECODE_CACHE_VERSION ${BUILD_TIME}\n")
+
 list(APPEND JavaScriptCore_HEADERS
-    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Bytecodes.h
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/BytecodeCacheVersion.h
     ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/BytecodeStructs.h
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Bytecodes.h
 )
 
 if (WIN32)
@@ -288,9 +301,9 @@ add_executable(LLIntOffsetsExtractor
 )
 
 target_link_libraries(LLIntSettingsExtractor WTF)
-add_dependencies(LLIntSettingsExtractor JavaScriptCoreForwardingHeaders)
+add_dependencies(LLIntSettingsExtractor JavaScriptCoreFrameworkHeaders)
 target_link_libraries(LLIntOffsetsExtractor WTF)
-add_dependencies(LLIntOffsetsExtractor JavaScriptCoreForwardingHeaders)
+add_dependencies(LLIntOffsetsExtractor JavaScriptCoreFrameworkHeaders)
 
 # The build system will execute asm.rb every time LLIntOffsetsExtractor's mtime is newer than
 # LLIntAssembly.h's mtime. The problem we have here is: asm.rb has some built-in optimization
@@ -389,6 +402,13 @@ set(JavaScriptCore_PUBLIC_FRAMEWORK_HEADERS
 )
 
 set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Bytecodes.h
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/JSCBuiltins.h
+
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/inspector/InspectorBackendDispatchers.h
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/inspector/InspectorFrontendDispatchers.h
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/inspector/InspectorProtocolObjects.h
+
     API/APICallbackFunction.h
     API/APICast.h
     API/APIUtils.h
@@ -781,6 +801,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/ExceptionHelpers.h
     runtime/ExceptionScope.h
     runtime/ExecutableBase.h
+    runtime/ExecutableBaseInlines.h
     runtime/Float32Array.h
     runtime/Float64Array.h
     runtime/FunctionConstructor.h
@@ -788,10 +809,12 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/FunctionHasExecutedCache.h
     runtime/FunctionPrototype.h
     runtime/FunctionRareData.h
+    runtime/FuzzerAgent.h
     runtime/GenericOffset.h
     runtime/GenericTypedArrayView.h
     runtime/GenericTypedArrayViewInlines.h
     runtime/GetPutInfo.h
+    runtime/GlobalExecutable.h
     runtime/HashMapImpl.h
     runtime/Identifier.h
     runtime/IdentifierInlines.h
@@ -818,7 +841,6 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/JSCInlines.h
     runtime/JSCJSValue.h
     runtime/JSCJSValueInlines.h
-    runtime/JSCPoison.h
     runtime/JSCPtrTag.h
     runtime/JSCallee.h
     runtime/JSCast.h
@@ -847,6 +869,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/JSModuleLoader.h
     runtime/JSModuleRecord.h
     runtime/JSNativeStdFunction.h
+    runtime/JSNonDestructibleProxy.h
     runtime/JSONObject.h
     runtime/JSObject.h
     runtime/JSObjectInlines.h
@@ -860,7 +883,6 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/JSScriptFetchParameters.h
     runtime/JSScriptFetcher.h
     runtime/JSSegmentedVariableObject.h
-    runtime/JSSegmentedVariableObjectHeapCellType.h
     runtime/JSSet.h
     runtime/JSSetIterator.h
     runtime/JSSourceCode.h
@@ -936,6 +958,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/StructureRareData.h
     runtime/StructureRareDataInlines.h
     runtime/StructureTransitionTable.h
+    runtime/SubspaceAccess.h
     runtime/Symbol.h
     runtime/SymbolPrototype.h
     runtime/SymbolTable.h
@@ -966,6 +989,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/WriteBarrier.h
     runtime/WriteBarrierInlines.h
 
+    wasm/WasmCapabilities.h
     wasm/WasmCodeBlock.h
     wasm/WasmContext.h
     wasm/WasmEmbedder.h
@@ -987,6 +1011,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     yarr/RegularExpression.h
     yarr/Yarr.h
     yarr/YarrErrorCode.h
+    yarr/YarrFlags.h
     yarr/YarrInterpreter.h
     yarr/YarrJIT.h
     yarr/YarrParser.h
@@ -1082,7 +1107,6 @@ set(JavaScriptCore_INSPECTOR_DOMAINS
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/Inspector.json
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/LayerTree.json
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/Network.json
-    ${JAVASCRIPTCORE_DIR}/inspector/protocol/OverlayTypes.json
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/Page.json
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/Recording.json
     ${JAVASCRIPTCORE_DIR}/inspector/protocol/Runtime.json
@@ -1175,7 +1199,6 @@ set(JavaScriptCore_BUILTINS_SOURCES
     ${JAVASCRIPTCORE_DIR}/builtins/MapPrototype.js
     ${JAVASCRIPTCORE_DIR}/builtins/ModuleLoader.js
     ${JAVASCRIPTCORE_DIR}/builtins/NumberConstructor.js
-    ${JAVASCRIPTCORE_DIR}/builtins/NumberPrototype.js
     ${JAVASCRIPTCORE_DIR}/builtins/ObjectConstructor.js
     ${JAVASCRIPTCORE_DIR}/builtins/PromiseConstructor.js
     ${JAVASCRIPTCORE_DIR}/builtins/PromiseOperations.js
@@ -1249,20 +1272,19 @@ if (COMPILER_IS_GCC_OR_CLANG)
     # Avoid using fused multiply-add instructions since this could give different results
     # for e.g. parseInt depending on the platform and compilation flags.
     WEBKIT_ADD_TARGET_CXX_FLAGS(JavaScriptCore -ffp-contract=off)
-
-    # Avoid "variable tracking size limit exceeded"
-    set_source_files_properties(builtins/BuiltinNames.cpp PROPERTIES COMPILE_FLAGS -fno-var-tracking-assignments)
 endif ()
 
 WEBKIT_MAKE_FORWARDING_HEADERS(JavaScriptCore
+    TARGET_NAME JavaScriptCoreFrameworkHeaders
+    DESTINATION ${JavaScriptCore_FRAMEWORK_HEADERS_DIR}/JavaScriptCore
     FILES ${JavaScriptCore_PUBLIC_FRAMEWORK_HEADERS}
     FLATTENED
 )
 
 WEBKIT_MAKE_FORWARDING_HEADERS(JavaScriptCore
-    TARGET_NAME JavaScriptCorePrivateForwardingHeaders
+    TARGET_NAME JavaScriptCorePrivateFrameworkHeaders
+    DESTINATION ${JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS_DIR}/JavaScriptCore
     FILES ${JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS}
-    DERIVED_SOURCE_DIRECTORIES ${DERIVED_SOURCES_DIR}/JavaScriptCore ${DERIVED_SOURCES_DIR}/JavaScriptCore/inspector
     FLATTENED
 )
 

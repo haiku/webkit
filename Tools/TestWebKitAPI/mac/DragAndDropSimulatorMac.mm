@@ -26,7 +26,7 @@
 #import "config.h"
 #import "DragAndDropSimulator.h"
 
-#if ENABLE(DRAG_SUPPORT) && PLATFORM(MAC) && WK_API_ENABLED
+#if ENABLE(DRAG_SUPPORT) && PLATFORM(MAC)
 
 #import "PlatformUtilities.h"
 #import "TestDraggingInfo.h"
@@ -122,6 +122,7 @@ static NSImage *defaultExternalDragImage()
         _webView = adoptNS([[DragAndDropTestWKWebView alloc] initWithFrame:frame configuration:configuration ?: [[[WKWebViewConfiguration alloc] init] autorelease] simulator:self]);
         _filePromiseDestinationURLs = adoptNS([NSMutableArray new]);
         [_webView setUIDelegate:self];
+        self.dragDestinationAction = WKDragDestinationActionAny & ~WKDragDestinationActionLoad;
     }
     return self;
 }
@@ -470,6 +471,11 @@ static BOOL getFilePathsAndTypeIdentifiers(NSArray<NSURL *> *fileURLs, NSArray<N
     _doneWaitingForDrop = true;
 }
 
+- (WKDragDestinationAction)_webView:(WKWebView *)webView dragDestinationActionMaskForDraggingInfo:(id)draggingInfo
+{
+    return self.dragDestinationAction;
+}
+
 @end
 
-#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(MAC) && WK_API_ENABLED
+#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(MAC)

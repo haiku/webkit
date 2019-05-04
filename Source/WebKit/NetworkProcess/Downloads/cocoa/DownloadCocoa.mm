@@ -58,7 +58,7 @@ void Download::resume(const IPC::DataReference& resumeData, const String& path, 
     });
     auto unarchiver = adoptNS([[NSKeyedUnarchiver alloc] initForReadingFromData:nsData.get() error:nil]);
     [unarchiver setDecodingFailurePolicy:NSDecodingFailurePolicyRaiseException];
-    auto dictionary = retainPtr([unarchiver decodeObjectOfClasses:plistClasses forKey:@"NSKeyedArchiveRootObjectKey"]);
+    auto dictionary = adoptNS(static_cast<NSMutableDictionary *>([[unarchiver decodeObjectOfClasses:plistClasses forKey:@"NSKeyedArchiveRootObjectKey"] mutableCopy]));
     [unarchiver finishDecoding];
     [dictionary setObject:static_cast<NSString*>(path) forKey:@"NSURLSessionResumeInfoLocalPath"];
     auto encoder = adoptNS([[NSKeyedArchiver alloc] initRequiringSecureCoding:YES]);
@@ -100,7 +100,6 @@ void Download::platformDestroyDownload()
 
 void Download::publishProgress(const URL& url, SandboxExtension::Handle&& sandboxExtensionHandle)
 {
-#if WK_API_ENABLED
     ASSERT(!m_progress);
     ASSERT(url.isValid());
 
@@ -114,10 +113,6 @@ void Download::publishProgress(const URL& url, SandboxExtension::Handle&& sandbo
 #else
     [m_progress publish];
 #endif
-#else
-    UNUSED_PARAM(url);
-    UNUSED_PARAM(sandboxExtensionHandle);
-#endif // not WK_API_ENABLED
 }
 
 }

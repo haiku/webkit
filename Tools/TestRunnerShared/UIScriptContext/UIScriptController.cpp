@@ -205,6 +205,50 @@ JSValueRef UIScriptController::didHideKeyboardCallback() const
     return m_context->callbackWithID(CallbackTypeDidHideKeyboard);
 }
 
+void UIScriptController::setDidShowMenuCallback(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeDidShowMenu);
+    platformSetDidShowMenuCallback();
+}
+
+JSValueRef UIScriptController::didShowMenuCallback() const
+{
+    return m_context->callbackWithID(CallbackTypeDidShowMenu);
+}
+
+void UIScriptController::setDidHideMenuCallback(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeDidHideMenu);
+    platformSetDidHideMenuCallback();
+}
+
+JSValueRef UIScriptController::didHideMenuCallback() const
+{
+    return m_context->callbackWithID(CallbackTypeDidHideMenu);
+}
+
+void UIScriptController::setWillPresentPopoverCallback(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeWillPresentPopover);
+    platformSetWillPresentPopoverCallback();
+}
+
+JSValueRef UIScriptController::willPresentPopoverCallback() const
+{
+    return m_context->callbackWithID(CallbackTypeWillPresentPopover);
+}
+
+void UIScriptController::setDidDismissPopoverCallback(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeDidDismissPopover);
+    platformSetDidDismissPopoverCallback();
+}
+
+JSValueRef UIScriptController::didDismissPopoverCallback() const
+{
+    return m_context->callbackWithID(CallbackTypeDidDismissPopover);
+}
+
 #if !PLATFORM(COCOA)
 
 void UIScriptController::zoomToScale(double, JSValueRef)
@@ -216,6 +260,10 @@ void UIScriptController::setViewScale(double)
 }
 
 void UIScriptController::setMinimumEffectiveWidth(double)
+{
+}
+
+void UIScriptController::setAllowsViewportShrinkToFit(bool)
 {
 }
 
@@ -265,6 +313,10 @@ void UIScriptController::singleTapAtPoint(long x, long y, JSValueRef)
 {
 }
 
+void UIScriptController::singleTapAtPointWithModifiers(long x, long y, JSValueRef modifierArray, JSValueRef callback)
+{
+}
+
 void UIScriptController::doubleTapAtPoint(long x, long y, JSValueRef)
 {
 }
@@ -293,6 +345,10 @@ void UIScriptController::stylusTapAtPoint(long x, long y, float azimuthAngle, fl
 {
 }
 
+void UIScriptController::stylusTapAtPointWithModifiers(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef modifierArray, JSValueRef callback)
+{
+}
+
 void UIScriptController::sendEventStream(JSStringRef eventsJSON, JSValueRef callback)
 {
 }
@@ -310,6 +366,10 @@ void UIScriptController::keyDown(JSStringRef, JSValueRef)
 }
 
 void UIScriptController::dismissFormAccessoryView()
+{
+}
+
+void UIScriptController::dismissFilePicker(JSValueRef)
 {
 }
 
@@ -336,6 +396,11 @@ JSRetainPtr<JSStringRef> UIScriptController::formInputLabel() const
     return nullptr;
 }
 
+bool UIScriptController::isPresentingModally() const
+{
+    return false;
+}
+
 double UIScriptController::contentOffsetX() const
 {
     return 0;
@@ -346,11 +411,24 @@ double UIScriptController::contentOffsetY() const
     return 0;
 }
 
+bool UIScriptController::scrollUpdatesDisabled() const
+{
+    return false;
+}
+
+void UIScriptController::setScrollUpdatesDisabled(bool)
+{
+}
+
 void UIScriptController::scrollToOffset(long x, long y)
 {
 }
 
 void UIScriptController::immediateScrollToOffset(long x, long y)
+{
+}
+
+void UIScriptController::immediateScrollElementAtContentPointToOffset(long x, long y, long xScrollOffset, long yScrollOffset)
 {
 }
 
@@ -487,6 +565,42 @@ void UIScriptController::platformSetDidShowKeyboardCallback()
 
 void UIScriptController::platformSetDidHideKeyboardCallback()
 {
+}
+
+void UIScriptController::platformSetDidShowMenuCallback()
+{
+}
+
+void UIScriptController::platformSetDidHideMenuCallback()
+{
+}
+
+bool UIScriptController::isShowingPopover() const
+{
+    return false;
+}
+
+void UIScriptController::platformSetWillPresentPopoverCallback()
+{
+}
+
+void UIScriptController::platformSetDidDismissPopoverCallback()
+{
+}
+
+JSObjectRef UIScriptController::menuRect() const
+{
+    return nullptr;
+}
+
+JSObjectRef UIScriptController::rectForMenuAction(JSStringRef) const
+{
+    return nullptr;
+}
+
+bool UIScriptController::isShowingMenu() const
+{
+    return false;
 }
 
 void UIScriptController::platformClearAllCallbacks()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  * Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
  * Copyright (C) 2013 Samsung Electronics. All rights reserved.
@@ -56,6 +56,12 @@
 #if !defined(ENABLE_AIRPLAY_PICKER)
 #if !PLATFORM(IOSMAC)
 #define ENABLE_AIRPLAY_PICKER 1
+#endif
+#endif
+
+#if !defined(ENABLE_APPLE_PAY_REMOTE_UI)
+#if !PLATFORM(APPLETV) && !PLATFORM(IOSMAC) && !PLATFORM(WATCHOS)
+#define ENABLE_APPLE_PAY_REMOTE_UI 1
 #endif
 #endif
 
@@ -165,15 +171,15 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 #define ENABLE_DOWNLOAD_ATTRIBUTE 1
 #endif
 
-#if !defined(ENABLE_WKLEGACYPDFVIEW)
-#if PLATFORM(IOS_FAMILY) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV) && !PLATFORM(IOSMAC) && __IPHONE_OS_VERSION_MIN_REQUIRED < 120000
-#define ENABLE_WKLEGACYPDFVIEW 1
-#endif
-#endif
-
 #if !defined(ENABLE_WKPDFVIEW)
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV) && !PLATFORM(IOSMAC) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 120000
 #define ENABLE_WKPDFVIEW 1
+#endif
+#endif
+
+#if !defined(HAVE_VISIBILITY_PROPAGATION_VIEW)
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 130000
+#define HAVE_VISIBILITY_PROPAGATION_VIEW 1
 #endif
 #endif
 
@@ -185,16 +191,18 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 #define ENABLE_MEDIA_SOURCE 0
 #endif
 
+#if !defined(HAVE_PASSKIT_GRANULAR_ERRORS)
+#define HAVE_PASSKIT_GRANULAR_ERRORS 1
+#endif
+
+#if !defined(HAVE_PASSKIT_API_TYPE)
+#define HAVE_PASSKIT_API_TYPE 1
+#endif
+
 #endif /* PLATFORM(IOS_FAMILY) */
 
 /* --------- Apple WATCHOS port --------- */
 #if PLATFORM(WATCHOS)
-
-#if !defined(ENABLE_PROXIMITY_NETWORKING)
-#if !TARGET_OS_SIMULATOR && __WATCH_OS_VERSION_MIN_REQUIRED < 60000
-#define ENABLE_PROXIMITY_NETWORKING 1
-#endif
-#endif
 
 #endif /* PLATFORM(WATCHOS) */
 
@@ -269,6 +277,14 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 
 #if !defined(ENABLE_MEDIA_SOURCE)
 #define ENABLE_MEDIA_SOURCE 1
+#endif
+
+#if !defined(HAVE_PASSKIT_GRANULAR_ERRORS)
+#define HAVE_PASSKIT_GRANULAR_ERRORS __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300
+#endif
+
+#if !defined(HAVE_PASSKIT_API_TYPE)
+#define HAVE_PASSKIT_API_TYPE __MAC_OS_X_VERSION_MIN_REQUIRED >= 101300 && __MAC_OS_X_VERSION_MAX_ALLOWED >= 101304
 #endif
 
 #endif /* PLATFORM(MAC) */
@@ -351,7 +367,7 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 #endif /* PLATFORM(WIN_CAIRO) */
 
 /* --------- Gtk port (Unix, Windows, Mac) and WPE --------- */
-#if PLATFORM(GTK) || PLATFORM(WPE)
+#if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU)
 #if !defined(ENABLE_KEYBOARD_KEY_ATTRIBUTE)
 #define ENABLE_KEYBOARD_KEY_ATTRIBUTE 1
 #endif
@@ -359,7 +375,7 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 #if !defined(ENABLE_KEYBOARD_CODE_ATTRIBUTE)
 #define ENABLE_KEYBOARD_CODE_ATTRIBUTE 1
 #endif
-#endif /* PLATFORM(GTK) || PLATFORM(WPE) */
+#endif /* PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU) */
 
 /* ENABLE macro defaults for WebCore */
 /* Do not use PLATFORM() tests in this section ! */
@@ -372,8 +388,8 @@ the public iOS SDK. See <https://webkit.org/b/179167>. */
 #define ENABLE_ACCELERATED_2D_CANVAS 0
 #endif
 
-#if !defined(ENABLE_ACCELERATED_OVERFLOW_SCROLLING)
-#define ENABLE_ACCELERATED_OVERFLOW_SCROLLING 0
+#if !defined(ENABLE_OVERFLOW_SCROLLING_TOUCH)
+#define ENABLE_OVERFLOW_SCROLLING_TOUCH 0
 #endif
 
 #if !defined(ENABLE_APNG)

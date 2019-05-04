@@ -83,7 +83,7 @@ public:
     // Update contents and clipping structure.
     void updateDrawsContent();
     
-    void updateAfterLayout(bool needsFullRepaint);
+    void updateAfterLayout(bool needsClippingUpdate, bool needsFullRepaint);
     
     GraphicsLayer* graphicsLayer() const { return m_graphicsLayer.get(); }
 
@@ -104,9 +104,9 @@ public:
     bool requiresBackgroundLayer() const { return m_requiresBackgroundLayer; }
     void setRequiresBackgroundLayer(bool);
 
-    bool hasScrollingLayer() const { return m_scrollingLayer != nullptr; }
-    GraphicsLayer* scrollingLayer() const { return m_scrollingLayer.get(); }
-    GraphicsLayer* scrollingContentsLayer() const { return m_scrollingContentsLayer.get(); }
+    bool hasScrollingLayer() const { return m_scrollContainerLayer != nullptr; }
+    GraphicsLayer* scrollContainerLayer() const { return m_scrollContainerLayer.get(); }
+    GraphicsLayer* scrolledContentsLayer() const { return m_scrolledContentsLayer.get(); }
 
     OptionSet<ScrollCoordinationRole> coordinatedScrollingRoles() const;
 
@@ -121,6 +121,8 @@ public:
             return m_frameHostingNodeID;
         case ScrollCoordinationRole::ViewportConstrained:
             return m_viewportConstrainedNodeID;
+        case ScrollCoordinationRole::Positioning:
+            return m_positioningNodeID;
         }
         return 0;
     }
@@ -138,12 +140,24 @@ public:
             m_viewportConstrainedNodeID = nodeID;
             setIsScrollCoordinatedWithViewportConstrainedRole(nodeID);
             break;
+        case ScrollCoordinationRole::Positioning:
+            m_positioningNodeID = nodeID;
+            break;
         }
     }
 
     ScrollingNodeID scrollingNodeIDForChildren() const
     {
-        return m_frameHostingNodeID ? m_frameHostingNodeID : (m_scrollingNodeID ? m_scrollingNodeID : m_viewportConstrainedNodeID);
+        if (m_frameHostingNodeID)
+            return m_frameHostingNodeID;
+
+        if (m_scrollingNodeID)
+            return m_scrollingNodeID;
+
+        if (m_viewportConstrainedNodeID)
+            return m_viewportConstrainedNodeID;
+
+        return m_positioningNodeID;
     }
 
     void setIsScrollCoordinatedWithViewportConstrainedRole(bool);
@@ -180,7 +194,7 @@ public:
     void transitionPaused(double timeOffset, CSSPropertyID);
     void transitionFinished(CSSPropertyID);
 
-    bool startAnimation(double timeOffset, const Animation* anim, const KeyframeList& keyframes);
+    bool startAnimation(double timeOffset, const Animation&, const KeyframeList&);
     void animationPaused(double timeOffset, const String& name);
     void animationSeeked(double timeOffset, const String& name);
     void animationFinished(const String& name);
@@ -227,7 +241,7 @@ public:
 
     bool isTrackingRepaints() const override;
     bool shouldSkipLayerInDump(const GraphicsLayer*, LayerTreeAsTextBehavior) const override;
-    bool shouldDumpPropertyForLayer(const GraphicsLayer*, const char* propertyName) const override;
+    bool shouldDumpPropertyForLayer(const GraphicsLayer*, const char* propertyName, LayerTreeAsTextBehavior) const override;
 
     bool shouldAggressivelyRetainTiles(const GraphicsLayer*) const override;
     bool shouldTemporarilyRetainTileCohorts(const GraphicsLayer*) const override;
@@ -298,6 +312,9 @@ private:
     bool requiresVerticalScrollbarLayer() const;
     bool requiresScrollCornerLayer() const;
     bool updateScrollingLayers(bool scrollingLayers);
+    
+    void updateScrollOffset(ScrollOffset);
+    void setLocationOfScrolledContents(ScrollOffset, ScrollingLayerPositionAction);
 
     void updateChildClippingStrategy(bool needsDescendantsClippingLayer);
 
@@ -309,7 +326,7 @@ private:
 
     GraphicsLayerPaintingPhase paintingPhaseForPrimaryLayer() const;
     
-    LayoutSize contentOffsetInCompostingLayer() const;
+    LayoutSize contentOffsetInCompositingLayer() const;
     // Result is transform origin in device pixels.
     FloatPoint3D computeTransformOriginForPainting(const LayoutRect& borderBox) const;
 
@@ -335,6 +352,7 @@ private:
     bool paintsContent(RenderLayer::PaintedContentRequest&) const;
 
     void updateDrawsContent(PaintedContentsInfo&);
+    void updateEventRegion();
 
     // Returns true if this compositing layer has no visible content.
     bool isSimpleContainerCompositingLayer(PaintedContentsInfo&) const;
@@ -382,8 +400,8 @@ private:
     RefPtr<GraphicsLayer> m_layerForVerticalScrollbar;
     RefPtr<GraphicsLayer> m_layerForScrollCorner;
 
-    RefPtr<GraphicsLayer> m_scrollingLayer; // Only used if the layer is using composited scrolling.
-    RefPtr<GraphicsLayer> m_scrollingContentsLayer; // Only used if the layer is using composited scrolling.
+    RefPtr<GraphicsLayer> m_scrollContainerLayer; // Only used if the layer is using composited scrolling.
+    RefPtr<GraphicsLayer> m_scrolledContentsLayer; // Only used if the layer is using composited scrolling.
 
     LayoutRect m_compositedBounds;
     LayoutSize m_subpixelOffsetFromRenderer; // This is the subpixel distance between the primary graphics layer and the associated renderer's bounds.
@@ -392,6 +410,7 @@ private:
     ScrollingNodeID m_viewportConstrainedNodeID { 0 };
     ScrollingNodeID m_scrollingNodeID { 0 };
     ScrollingNodeID m_frameHostingNodeID { 0 };
+    ScrollingNodeID m_positioningNodeID { 0 };
 
     bool m_artificiallyInflatedBounds { false }; // bounds had to be made non-zero to make transform-origin work
     bool m_isMainFrameRenderViewLayer { false };

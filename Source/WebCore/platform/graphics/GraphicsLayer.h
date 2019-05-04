@@ -27,6 +27,7 @@
 
 #include "Animation.h"
 #include "Color.h"
+#include "EventRegion.h"
 #include "FilterOperations.h"
 #include "FloatPoint.h"
 #include "FloatPoint3D.h"
@@ -35,6 +36,7 @@
 #include "GraphicsLayerClient.h"
 #include "Path.h"
 #include "PlatformLayer.h"
+#include "Region.h"
 #include "ScrollableArea.h"
 #include "TransformOperations.h"
 #include "WindRule.h"
@@ -237,7 +239,7 @@ public:
     enum class Type : uint8_t {
         Normal,
         PageTiledBacking,
-        Scrolling,
+        ScrollContainer,
         Shape
     };
 
@@ -451,6 +453,9 @@ public:
 
     WindRule shapeLayerWindRule() const;
     virtual void setShapeLayerWindRule(WindRule);
+
+    const EventRegion& eventRegion() const { return m_eventRegion; }
+    virtual void setEventRegion(EventRegion&&);
 
     // Transitions are identified by a special animation name that cannot clash with a keyframe identifier.
     static String animationNameForTransition(AnimatedPropertyID);
@@ -726,6 +731,7 @@ protected:
     FloatRoundedRect m_backdropFiltersRect;
     Optional<FloatRect> m_animationExtent;
 
+    EventRegion m_eventRegion;
 #if USE(CA)
     WindRule m_shapeLayerWindRule { WindRule::NonZero };
     Path m_shapeLayerPath;

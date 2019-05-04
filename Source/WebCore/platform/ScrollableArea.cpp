@@ -66,7 +66,8 @@ ScrollableArea::ScrollableArea()
     , m_horizontalScrollElasticity(ScrollElasticityNone)
     , m_scrollbarOverlayStyle(ScrollbarOverlayStyleDefault)
     , m_scrollOriginChanged(false)
-    , m_scrolledProgrammatically(false)
+    , m_currentScrollType(static_cast<unsigned>(ScrollType::User))
+    , m_scrollShouldClearLatchedState(false)
 {
 }
 
@@ -667,6 +668,11 @@ bool ScrollableArea::scrolledToRight() const
 void ScrollableArea::scrollbarStyleChanged(ScrollbarStyle, bool)
 {
     availableContentSizeChanged(AvailableSizeChangeReason::ScrollbarsChanged);
+}
+
+IntSize ScrollableArea::reachableTotalContentsSize() const
+{
+    return totalContentsSize();
 }
 
 IntSize ScrollableArea::totalContentsSize() const

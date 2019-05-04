@@ -32,7 +32,6 @@
 #import "DownloadProxyMessages.h"
 #import "Logging.h"
 #import "NetworkProcess.h"
-#import "NetworkProximityManager.h"
 #import "NetworkSessionCocoa.h"
 #import "WebCoreArgumentCoders.h"
 #import <WebCore/AuthenticationChallenge.h>
@@ -145,7 +144,7 @@ void NetworkDataTaskCocoa::applyCookieBlockingPolicy(bool shouldBlock)
 
 bool NetworkDataTaskCocoa::isThirdPartyRequest(const WebCore::ResourceRequest& request)
 {
-    return !WebCore::registrableDomainsAreEqual(request.url(), request.firstPartyForCookies());
+    return !WebCore::areRegistrableDomainsEqual(request.url(), request.firstPartyForCookies());
 }
 
 static void updateTaskWithFirstPartyForSameSiteCookies(NSURLSessionDataTask* task, const WebCore::ResourceRequest& request)
@@ -200,9 +199,6 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
 
     NSURLRequest *nsRequest = request.nsURLRequest(WebCore::HTTPBodyUpdatePolicy::UpdateHTTPBody);
     applySniffingPoliciesAndBindRequestToInferfaceIfNeeded(nsRequest, shouldContentSniff == WebCore::ContentSniffingPolicy::SniffContent && !url.isLocalFile(), shouldContentEncodingSniff == WebCore::ContentEncodingSniffingPolicy::Sniff);
-#if ENABLE(PROXIMITY_NETWORKING)
-    m_session->networkProcess().proximityManager().applyProperties(request, *this, nsRequest);
-#endif
 
     auto& cocoaSession = static_cast<NetworkSessionCocoa&>(m_session.get());
     if (storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use) {
@@ -263,7 +259,7 @@ NetworkDataTaskCocoa::~NetworkDataTaskCocoa()
     }
 }
 
-void NetworkDataTaskCocoa::restrictRequestReferrerToOriginIfNeeded(ResourceRequest& request, bool shouldBlockCookies)
+void NetworkDataTaskCocoa::restrictRequestReferrerToOriginIfNeeded(WebCore::ResourceRequest& request, bool shouldBlockCookies)
 {
     if (shouldBlockCookies || (m_session->sessionID().isEphemeral() && isThirdPartyRequest(request)))
         request.setExistingHTTPReferrerToOriginString();
@@ -375,7 +371,9 @@ void NetworkDataTaskCocoa::willPerformHTTPRedirection(WebCore::ResourceResponse&
     updateTaskWithFirstPartyForSameSiteCookies(m_task.get(), request);
 
     if (m_client)
-        m_client->willPerformHTTPRedirection(WTFMove(redirectResponse), WTFMove(request), [completionHandler = WTFMove(completionHandler), this, protectedThis = makeRef(*this)] (auto&& request) mutable {
+        m_client->willPerformHTTPRedirection(WTFMove(redirectResponse), WTFMove(request), [completionHandler = WTFMove(completionHandler), this, weakThis = makeWeakPtr(*this)] (auto&& request) mutable {
+            if (!weakThis)
+                return completionHandler({ });
             if (!request.isNull()) {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
                 bool shouldBlockCookies = m_session->networkStorageSession().shouldBlockCookies(request, m_frameID, m_pageID);
@@ -474,13 +472,6 @@ void NetworkDataTaskCocoa::resume()
     if (m_scheduledFailureType != NoFailure)
         m_failureTimer.startOneShot(0_s);
     [m_task resume];
-}
-
-void NetworkDataTaskCocoa::suspend()
-{
-    if (m_failureTimer.isActive())
-        m_failureTimer.stop();
-    [m_task suspend];
 }
 
 NetworkDataTask::State NetworkDataTaskCocoa::state() const

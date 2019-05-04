@@ -37,8 +37,6 @@
 #import <WebKit/_WKProcessPoolConfiguration.h>
 #import <wtf/RetainPtr.h>
 
-#if WK_API_ENABLED
-
 static bool wasPrompted = false;
 
 static bool receivedScriptMessage = false;
@@ -131,4 +129,15 @@ TEST_F(MediaCaptureDisabledTest, EnableAndDisable)
     loadTestAndWaitForMessage("allowed");
     EXPECT_TRUE(wasPrompted);
 }
-#endif
+
+TEST_F(MediaCaptureDisabledTest, UnsecureContext)
+{
+    auto preferences = [m_webView configuration].preferences;
+    preferences._mediaCaptureRequiresSecureConnection = YES;
+
+    receivedScriptMessage = false;
+    [m_webView loadHTMLString:@"<html><body><script>window.webkit.messageHandlers.testHandler.postMessage(Navigator.prototype.hasOwnProperty('mediaDevices') ? 'has' : 'none');</script></body></html>" baseURL: [[NSURL alloc] initWithString:@"http://test.org"]];
+
+    TestWebKitAPI::Util::run(&receivedScriptMessage);
+    EXPECT_STREQ([(NSString *)[lastScriptMessage body] UTF8String], "none");
+}

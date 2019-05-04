@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2018 Apple Inc. All rights reserved.
+# Copyright (C) 2014-2019 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -67,7 +67,7 @@ class IOSDevicePort(IOSPort):
         log_list = {}
         for device in self.devices():
             crash_log = CrashLogs(device, self.path_to_crash_logs(), crash_logs_to_skip=self._crash_logs_to_skip_for_host.get(device, []))
-            log_list.update(crash_log.find_all_logs(include_errors=True, newer_than=newer_than))
+            log_list.update(crash_log.find_all_logs(newer_than=newer_than))
         return log_list
 
     def _get_crash_log(self, name, pid, stdout, stderr, newer_than, time_fn=None, sleep_fn=None, wait_for_log=True, target_host=None):
@@ -103,7 +103,7 @@ class IOSDevicePort(IOSPort):
         return version
 
     # FIXME: These need device implementations <rdar://problem/30497991>.
-    def check_for_leaks(self, process_name, process_pid):
+    def check_for_leaks(self, process_name, process_id):
         pass
 
     def operating_system(self):

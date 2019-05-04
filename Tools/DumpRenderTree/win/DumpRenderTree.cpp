@@ -65,6 +65,7 @@
 #include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 #include <wtf/text/StringHash.h>
 
 #if USE(CFURLCONNECTION)
@@ -786,6 +787,7 @@ static void enableExperimentalFeatures(IWebPreferences* preferences)
     // FIXME: SubtleCrypto
     prefsPrivate->setVisualViewportAPIEnabled(TRUE);
     prefsPrivate->setCSSOMViewScrollingAPIEnabled(TRUE);
+    prefsPrivate->setResizeObserverEnabled(TRUE);
     prefsPrivate->setWebAnimationsEnabled(TRUE);
     prefsPrivate->setServerTimingEnabled(TRUE);
     // FIXME: WebGL2
@@ -904,8 +906,7 @@ static void setWebPreferencesForTestOptions(IWebPreferences* preferences, const 
 
 static String applicationId()
 {
-    DWORD processId = ::GetCurrentProcessId();
-    return String::format("com.apple.DumpRenderTree.%d", processId);
+    return makeString("com.apple.DumpRenderTree.", ::GetCurrentProcessId());
 }
 
 static void setApplicationId()
@@ -914,7 +915,7 @@ static void setApplicationId()
     if (SUCCEEDED(WebKitCreateInstance(CLSID_WebPreferences, 0, IID_IWebPreferences, (void**)&preferences))) {
         COMPtr<IWebPreferencesPrivate4> prefsPrivate4(Query, preferences);
         ASSERT(prefsPrivate4);
-        _bstr_t fileName = applicationId().charactersWithNullTermination().data();
+        _bstr_t fileName = applicationId().wideCharacters().data();
         prefsPrivate4->setApplicationId(fileName);
     }
 }
@@ -1038,7 +1039,7 @@ static String findFontFallback(const char* pathOrUrl)
     String pathToFontFallback = FileSystem::directoryName(pathOrUrl);
 
     wchar_t fullPath[_MAX_PATH];
-    if (!_wfullpath(fullPath, pathToFontFallback.charactersWithNullTermination().data(), _MAX_PATH))
+    if (!_wfullpath(fullPath, pathToFontFallback.wideCharacters().data(), _MAX_PATH))
         return emptyString();
 
     if (!::PathIsDirectoryW(fullPath))
@@ -1069,7 +1070,7 @@ static String findFontFallback(const char* pathOrUrl)
     for (Vector<String>::iterator pos = possiblePaths.begin(); pos != possiblePaths.end(); ++pos) {
         pathToFontFallback = FileSystem::pathByAppendingComponent(*pos, "resources\\");
 
-        if (::PathIsDirectoryW(pathToFontFallback.charactersWithNullTermination().data()))
+        if (::PathIsDirectoryW(pathToFontFallback.wideCharacters().data()))
             return pathToFontFallback;
     }
 
@@ -1083,7 +1084,7 @@ static void addFontFallbackIfPresent(const String& fontFallbackPath)
 
     String fontFallback = FileSystem::pathByAppendingComponent(fontFallbackPath, "Mac-compatible-font-fallback.css");
 
-    if (!::PathFileExistsW(fontFallback.charactersWithNullTermination().data()))
+    if (!::PathFileExistsW(fontFallback.wideCharacters().data()))
         return;
 
     ::setPersistentUserStyleSheetLocation(fontFallback.createCFString().get());
@@ -1096,7 +1097,7 @@ static void removeFontFallbackIfPresent(const String& fontFallbackPath)
 
     String fontFallback = FileSystem::pathByAppendingComponent(fontFallbackPath, "Mac-compatible-font-fallback.css");
 
-    if (!::PathFileExistsW(fontFallback.charactersWithNullTermination().data()))
+    if (!::PathFileExistsW(fontFallback.wideCharacters().data()))
         return;
 
     ::setPersistentUserStyleSheetLocation(nullptr);
@@ -1173,7 +1174,7 @@ static void runTest(const string& inputLine)
 
     ::gTestRunner = TestRunner::create(testURL.data(), command.expectedPixelHash);
     ::gTestRunner->setCustomTimeout(command.timeout);
-    ::gTestRunner->setDumpJSConsoleLogInStdErr(command.dumpJSConsoleLogInStdErr);
+    ::gTestRunner->setDumpJSConsoleLogInStdErr(command.dumpJSConsoleLogInStdErr || options.dumpJSConsoleLogInStdErr);
 
     topLoadingFrame = nullptr;
     done = false;
@@ -1537,16 +1538,16 @@ int main(int argc, const char* argv[])
     // Tests involving the clipboard are flaky when running with multiple DRTs, since the clipboard is global.
     // We can fix this by assigning each DRT a separate window station (each window station has its own clipboard).
     DWORD processId = ::GetCurrentProcessId();
-    String windowStationName = String::format("windowStation%d", processId);
-    String desktopName = String::format("desktop%d", processId);
+    String windowStationName = makeString("windowStation", processId);
+    String desktopName = makeString("desktop", processId);
     HDESK desktop = nullptr;
 
-    auto windowsStation = ::CreateWindowStation(windowStationName.charactersWithNullTermination().data(), CWF_CREATE_ONLY, WINSTA_ALL_ACCESS, nullptr);
+    auto windowsStation = ::CreateWindowStation(windowStationName.wideCharacters().data(), CWF_CREATE_ONLY, WINSTA_ALL_ACCESS, nullptr);
     if (windowsStation) {
         if (!::SetProcessWindowStation(windowsStation))
             fprintf(stderr, "SetProcessWindowStation failed with error %lu\n", ::GetLastError());
 
-        desktop = ::CreateDesktop(desktopName.charactersWithNullTermination().data(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
+        desktop = ::CreateDesktop(desktopName.wideCharacters().data(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
         if (!desktop)
             fprintf(stderr, "Failed to create desktop with error %lu\n", ::GetLastError());
     } else {

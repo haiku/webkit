@@ -403,7 +403,7 @@ void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty, const SameS
 #endif
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    RetainPtr<NSArray> filteredCookies = filterCookies(unfilteredCookies, m_ageCapForClientSideCookies);
+    RetainPtr<NSArray> filteredCookies = filterCookies(unfilteredCookies, clientSideCookieCap(RegistrableDomain { firstParty }, pageID));
 #else
     RetainPtr<NSArray> filteredCookies = filterCookies(unfilteredCookies, WTF::nullopt);
 #endif
@@ -500,6 +500,11 @@ void NetworkStorageSession::deleteAllCookies()
 
 void NetworkStorageSession::deleteCookiesForHostnames(const Vector<String>& hostnames)
 {
+    deleteCookiesForHostnames(hostnames, IncludeHttpOnlyCookies::Yes);
+}
+
+void NetworkStorageSession::deleteCookiesForHostnames(const Vector<String>& hostnames, IncludeHttpOnlyCookies includeHttpOnlyCookies)
+{
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies));
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
@@ -511,7 +516,7 @@ void NetworkStorageSession::deleteCookiesForHostnames(const Vector<String>& host
 
     HashMap<String, Vector<RetainPtr<NSHTTPCookie>>> cookiesByDomain;
     for (NSHTTPCookie *cookie in cookies) {
-        if (!cookie.domain)
+        if (!cookie.domain || (includeHttpOnlyCookies == IncludeHttpOnlyCookies::No && cookie.isHTTPOnly))
             continue;
         cookiesByDomain.ensure(cookie.domain, [] {
             return Vector<RetainPtr<NSHTTPCookie>>();

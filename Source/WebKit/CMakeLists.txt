@@ -3,6 +3,8 @@ include(WebKitCommon)
 set_property(DIRECTORY . PROPERTY FOLDER "WebKit")
 
 set(WebKit_INCLUDE_DIRECTORIES
+    "${WebCore_PRIVATE_FRAMEWORK_HEADERS_DIR}"
+    "${WebKit_FRAMEWORK_HEADERS_DIR}"
     "${WEBKIT_DIR}"
     "${WEBKIT_DIR}/NetworkProcess"
     "${WEBKIT_DIR}/NetworkProcess/Classifier"
@@ -21,6 +23,7 @@ set(WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/Shared"
     "${WEBKIT_DIR}/Shared/API"
     "${WEBKIT_DIR}/Shared/API/c"
+    "${WEBKIT_DIR}/Shared/ApplePay"
     "${WEBKIT_DIR}/Shared/Authentication"
     "${WEBKIT_DIR}/Shared/CoreIPCSupport"
     "${WEBKIT_DIR}/Shared/Databases"
@@ -36,7 +39,6 @@ set(WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/UIProcess/API"
     "${WEBKIT_DIR}/UIProcess/API/C"
     "${WEBKIT_DIR}/UIProcess/API/cpp"
-    "${WEBKIT_DIR}/UIProcess/ApplePay"
     "${WEBKIT_DIR}/UIProcess/Authentication"
     "${WEBKIT_DIR}/UIProcess/Automation"
     "${WEBKIT_DIR}/UIProcess/Downloads"
@@ -115,6 +117,7 @@ set(WebKit_MESSAGES_IN_FILES
     NetworkProcess/NetworkResourceLoader.messages.in
     NetworkProcess/NetworkSocketStream.messages.in
 
+    NetworkProcess/ServiceWorker/ServiceWorkerFetchTask.messages.in
     NetworkProcess/ServiceWorker/WebSWServerConnection.messages.in
     NetworkProcess/ServiceWorker/WebSWServerToContextConnection.messages.in
 
@@ -147,7 +150,6 @@ set(WebKit_MESSAGES_IN_FILES
     UIProcess/WebPasteboardProxy.messages.in
     UIProcess/WebProcessPool.messages.in
     UIProcess/WebProcessProxy.messages.in
-    UIProcess/WebResourceLoadStatisticsStore.messages.in
 
     UIProcess/Automation/WebAutomationSession.messages.in
 

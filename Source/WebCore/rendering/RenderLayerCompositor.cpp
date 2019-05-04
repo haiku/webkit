@@ -60,6 +60,7 @@
 #include "Settings.h"
 #include "TiledBacking.h"
 #include "TransformState.h"
+#include <wtf/HexNumber.h>
 #include <wtf/MemoryPressureHandler.h>
 #include <wtf/SetForScope.h>
 #include <wtf/text/CString.h>
@@ -272,7 +273,7 @@ struct RenderLayerCompositor::OverlapExtent {
 #if !LOG_DISABLED
 static inline bool compositingLogEnabled()
 {
-    return LogCompositing.state == WTFLogChannelOn;
+    return LogCompositing.state == WTFLogChannelState::On;
 }
 #endif
 
@@ -290,8 +291,27 @@ RenderLayerCompositor::RenderLayerCompositor(RenderView& renderView)
 RenderLayerCompositor::~RenderLayerCompositor()
 {
     // Take care that the owned GraphicsLayers are deleted first as their destructors may call back here.
-    m_clipLayer = nullptr;
-    m_scrollLayer = nullptr;
+    GraphicsLayer::unparentAndClear(m_rootContentsLayer);
+    
+    GraphicsLayer::unparentAndClear(m_clipLayer);
+    GraphicsLayer::unparentAndClear(m_scrollContainerLayer);
+    GraphicsLayer::unparentAndClear(m_scrolledContentsLayer);
+
+    GraphicsLayer::unparentAndClear(m_overflowControlsHostLayer);
+
+    GraphicsLayer::unparentAndClear(m_layerForHorizontalScrollbar);
+    GraphicsLayer::unparentAndClear(m_layerForVerticalScrollbar);
+    GraphicsLayer::unparentAndClear(m_layerForScrollCorner);
+
+#if ENABLE(RUBBER_BANDING)
+    GraphicsLayer::unparentAndClear(m_layerForOverhangAreas);
+    GraphicsLayer::unparentAndClear(m_contentShadowLayer);
+    GraphicsLayer::unparentAndClear(m_layerForTopOverhangArea);
+    GraphicsLayer::unparentAndClear(m_layerForBottomOverhangArea);
+    GraphicsLayer::unparentAndClear(m_layerForHeader);
+    GraphicsLayer::unparentAndClear(m_layerForFooter);
+#endif
+
     ASSERT(m_rootLayerAttachment == RootLayerUnattached);
 }
 
@@ -411,7 +431,7 @@ bool RenderLayerCompositor::didRecalcStyleWithNoPendingLayout()
 
 void RenderLayerCompositor::customPositionForVisibleRectComputation(const GraphicsLayer* graphicsLayer, FloatPoint& position) const
 {
-    if (graphicsLayer != m_scrollLayer.get())
+    if (graphicsLayer != m_scrolledContentsLayer.get())
         return;
 
     FloatPoint scrollPosition = -position;
@@ -453,8 +473,8 @@ FloatRect RenderLayerCompositor::visibleRectForLayerFlushing() const
 #if PLATFORM(IOS_FAMILY)
     return frameView.exposedContentRect();
 #else
-    // Having a m_scrollLayer indicates that we're doing scrolling via GraphicsLayers.
-    FloatRect visibleRect = m_scrollLayer ? FloatRect({ }, frameView.sizeForVisibleContent()) : frameView.visibleContentRect();
+    // Having a m_scrolledContentsLayer indicates that we're doing scrolling via GraphicsLayers.
+    FloatRect visibleRect = m_scrolledContentsLayer ? FloatRect({ }, frameView.sizeForVisibleContent()) : frameView.visibleContentRect();
 
     if (frameView.viewExposedRect())
         visibleRect.intersect(frameView.viewExposedRect().value());
@@ -543,19 +563,17 @@ void RenderLayerCompositor::didChangePlatformLayerForLayer(RenderLayer& layer, c
         return;
 
     auto* backing = layer.backing();
-    if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::ViewportConstrained))
-        scrollingCoordinator->setNodeLayers(nodeID, backing->graphicsLayer());
+    if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling))
+        updateScrollingNodeLayers(nodeID, layer, *scrollingCoordinator);
 
-    if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling)) {
-        // FIXME: would be nice to not have to special-case the root.
-        if (layer.isRenderViewLayer())
-            scrollingCoordinator->setNodeLayers(nodeID, m_scrollLayer.get(), m_rootContentLayer.get(), fixedRootBackgroundLayer(), clipLayer());
-        else
-            scrollingCoordinator->setNodeLayers(nodeID, backing->scrollingLayer(), backing->scrollingContentsLayer());
-    }
+    if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::ViewportConstrained))
+        scrollingCoordinator->setNodeLayers(nodeID, { backing->graphicsLayer() });
 
     if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::FrameHosting))
-        scrollingCoordinator->setNodeLayers(nodeID, backing->graphicsLayer());
+        scrollingCoordinator->setNodeLayers(nodeID, { backing->graphicsLayer() });
+
+    if (auto nodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::Positioning))
+        scrollingCoordinator->setNodeLayers(nodeID, { backing->graphicsLayer() });
 }
 
 void RenderLayerCompositor::didPaintBacking(RenderLayerBacking*)
@@ -670,8 +688,10 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
 
     // Avoid updating the layers with old values. Compositing layers will be updated after the layout is finished.
     // This happens when m_updateCompositingLayersTimer fires before layout is updated.
-    if (m_renderView.needsLayout())
+    if (m_renderView.needsLayout()) {
+        LOG_WITH_STREAM(Compositing, stream << "RenderLayerCompositor " << this << " updateCompositingLayers " << updateType << " - m_renderView.needsLayout, bailing ");
         return false;
+    }
 
     if (!m_compositing && (m_forceCompositingMode || (isMainFrameCompositor() && page().pageOverlayController().overlayCount())))
         enableCompositingMode(true);
@@ -694,6 +714,11 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         updateRoot->setDescendantsNeedCompositingRequirementsTraversal();
     }
 
+    if (updateType == CompositingUpdateType::AfterLayout) {
+        // Ensure that post-layout updates push new scroll position and viewport rects onto the root node.
+        rootRenderLayer().setNeedsScrollingTreeUpdate();
+    }
+
     if (!updateRoot->hasDescendantNeedingCompositingRequirementsTraversal() && !m_compositing) {
         LOG_WITH_STREAM(Compositing, stream << " no compositing work to do");
         return true;
@@ -704,7 +729,6 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         return true;
     }
 
-    bool isFullUpdate = true;
     ++m_compositingUpdateCount;
 
     AnimationUpdateBlock animationUpdateBlock(&m_renderView.frameView().frame().animation());
@@ -754,15 +778,13 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         updateBackingAndHierarchy(*updateRoot, childList, scrollingTreeState);
 
         // Host the document layer in the RenderView's root layer.
-        if (isFullUpdate) {
-            appendDocumentOverlayLayers(childList);
-            // Even when childList is empty, don't drop out of compositing mode if there are
-            // composited layers that we didn't hit in our traversal (e.g. because of visibility:hidden).
-            if (childList.isEmpty() && !needsCompositingForContentOrOverlays())
-                destroyRootLayer();
-            else if (m_rootContentLayer)
-                m_rootContentLayer->setChildren(WTFMove(childList));
-        }
+        appendDocumentOverlayLayers(childList);
+        // Even when childList is empty, don't drop out of compositing mode if there are
+        // composited layers that we didn't hit in our traversal (e.g. because of visibility:hidden).
+        if (childList.isEmpty() && !needsCompositingForContentOrOverlays())
+            destroyRootLayer();
+        else if (m_rootContentsLayer)
+            m_rootContentsLayer->setChildren(WTFMove(childList));
     }
 
 #if !LOG_DISABLED
@@ -784,7 +806,7 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         LOG(Compositing, "RenderLayerCompositor::updateCompositingLayers - post");
         showPaintOrderTree(m_renderView.layer());
         LOG(Compositing, "RenderLayerCompositor::updateCompositingLayers - GraphicsLayers post, contentLayersCount %d", m_contentLayersCount);
-        showGraphicsLayerTree(m_rootContentLayer.get());
+        showGraphicsLayerTree(m_rootContentsLayer.get());
     }
 #endif
 
@@ -933,9 +955,10 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
     // Now check for reasons to become composited that depend on the state of descendant layers.
     RenderLayer::IndirectCompositingReason indirectCompositingReason;
     if (!willBeComposited && canBeComposited(layer)
-        && requiresCompositingForIndirectReason(layer.renderer(), childState.subtreeIsCompositing, anyDescendantHas3DTransform, indirectCompositingReason)) {
+        && requiresCompositingForIndirectReason(layer.renderer(), compositingState.compositingAncestor, childState.subtreeIsCompositing, anyDescendantHas3DTransform, indirectCompositingReason)) {
         layer.setIndirectCompositingReason(indirectCompositingReason);
         childState.compositingAncestor = &layer;
+        childState.subtreeIsCompositing = true;
         overlapMap.pushCompositingContainer();
         addToOverlapMapRecursive(overlapMap, layer);
         willBeComposited = true;
@@ -945,10 +968,6 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
         // FIXME: Shouldn't we call computeCompositingRequirements to handle a reflection overlapping with another renderer?
         layer.reflectionLayer()->setIndirectCompositingReason(willBeComposited ? RenderLayer::IndirectCompositingReason::Stacking : RenderLayer::IndirectCompositingReason::None);
     }
-
-    // Subsequent layers in the parent stacking context also need to composite.
-    compositingState.subtreeIsCompositing |= childState.subtreeIsCompositing;
-    compositingState.fullPaintOrderTraversalRequired |= childState.fullPaintOrderTraversalRequired;
 
     // Set the flag to say that this layer has compositing children.
     layer.setHasCompositingDescendant(childState.subtreeIsCompositing);
@@ -965,6 +984,7 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
     if (isCompositedClippingLayer) {
         if (!willBeComposited) {
             childState.compositingAncestor = &layer;
+            childState.subtreeIsCompositing = true;
             overlapMap.pushCompositingContainer();
             addToOverlapMapRecursive(overlapMap, layer);
             willBeComposited = true;
@@ -972,8 +992,7 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
     }
 
 #if ENABLE(CSS_COMPOSITING)
-    if ((willBeComposited && layer.hasBlendMode())
-        || (layer.hasNotIsolatedCompositedBlendingDescendants() && !layer.isolatesCompositedBlending()))
+    if ((willBeComposited && layer.hasBlendMode()) || (layer.hasNotIsolatedCompositedBlendingDescendants() && !layer.isolatesCompositedBlending()))
         compositingState.hasNotIsolatedCompositedBlendingDescendants = true;
 #endif
 
@@ -991,7 +1010,11 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
         willBeComposited = false;
 #endif
     }
-    
+
+    // Subsequent layers in the parent stacking context also need to composite.
+    compositingState.subtreeIsCompositing |= childState.subtreeIsCompositing;
+    compositingState.fullPaintOrderTraversalRequired |= childState.fullPaintOrderTraversalRequired;
+
     ASSERT(willBeComposited == needsToBeComposited(layer, queryData));
 
     // Create or destroy backing here. However, we can't update geometry because layers above us may become composited
@@ -1167,8 +1190,12 @@ void RenderLayerCompositor::updateBackingAndHierarchy(RenderLayer& layer, Vector
             layerBacking->updateDebugIndicators(m_showDebugBorders, m_showRepaintCounter);
         }
         
-        if (layerNeedsUpdate || layer.needsCompositingGeometryUpdate() || layer.needsScrollingTreeUpdate())
+        OptionSet<ScrollingNodeChangeFlags> scrollingNodeChanges = { ScrollingNodeChangeFlags::Layer };
+        if (layerNeedsUpdate || layer.needsCompositingGeometryUpdate()) {
             layerBacking->updateGeometry();
+            scrollingNodeChanges.add(ScrollingNodeChangeFlags::LayerGeometry);
+        } else if (layer.needsScrollingTreeUpdate())
+            scrollingNodeChanges.add(ScrollingNodeChangeFlags::LayerGeometry);
 
         if (auto* reflection = layer.reflectionLayer()) {
             if (auto* reflectionBacking = reflection->backing()) {
@@ -1183,7 +1210,7 @@ void RenderLayerCompositor::updateBackingAndHierarchy(RenderLayer& layer, Vector
 
         // FIXME: do based on dirty flags. Need to do this for changes of geometry, configuration and hierarchy.
         // Need to be careful to do the right thing when a scroll-coordinated layer loses a scroll-coordinated ancestor.
-        stateForDescendants.parentNodeID = updateScrollCoordinationForLayer(layer, scrollingTreeState, layerBacking->coordinatedScrollingRoles(), { ScrollingNodeChangeFlags::Layer, ScrollingNodeChangeFlags::LayerGeometry });
+        stateForDescendants.parentNodeID = updateScrollCoordinationForLayer(layer, scrollingTreeState, layerBacking->coordinatedScrollingRoles(), scrollingNodeChanges);
         stateForDescendants.nextChildIndex = 0;
 
 #if !LOG_DISABLED
@@ -1268,6 +1295,9 @@ void RenderLayerCompositor::appendDocumentOverlayLayers(Vector<Ref<GraphicsLayer
     if (!isMainFrameCompositor() || !m_compositing)
         return;
 
+    if (!page().pageOverlayController().hasDocumentOverlays())
+        return;
+
     Ref<GraphicsLayer> overlayHost = page().pageOverlayController().layerWithDocumentOverlays();
     childList.append(WTFMove(overlayHost));
 }
@@ -1315,10 +1345,8 @@ void RenderLayerCompositor::logLayerInfo(const RenderLayer& layer, const char* p
     absoluteBounds.move(layer.offsetFromAncestor(m_renderView.layer()));
     
     StringBuilder logString;
-    logString.append(String::format("%*p id %" PRIu64 " (%.3f,%.3f-%.3f,%.3f) %.2fKB", 12 + depth * 2, &layer, backing->graphicsLayer()->primaryLayerID(),
-        absoluteBounds.x().toFloat(), absoluteBounds.y().toFloat(), absoluteBounds.maxX().toFloat(), absoluteBounds.maxY().toFloat(),
-        backing->backingStoreMemoryEstimate() / 1024));
-    
+    logString.append(makeString(pad(' ', 12 + depth * 2, hex(reinterpret_cast<uintptr_t>(&layer))), " id ", backing->graphicsLayer()->primaryLayerID(), " (", FormattedNumber::fixedWidth(absoluteBounds.x().toFloat(), 3), ',', FormattedNumber::fixedWidth(absoluteBounds.y().toFloat(), 3), '-', FormattedNumber::fixedWidth(absoluteBounds.maxX().toFloat(), 3), ',', FormattedNumber::fixedWidth(absoluteBounds.maxY().toFloat(), 3), ") ", FormattedNumber::fixedWidth(backing->backingStoreMemoryEstimate() / 1024, 2), "KB"));
+
     if (!layer.renderer().style().hasAutoZIndex())
         logString.append(makeString(" z-index: ", layer.renderer().style().zIndex()));
 
@@ -1515,7 +1543,7 @@ static RenderLayerModelObject& rendererForCompositingTests(const RenderLayer& la
 
 void RenderLayerCompositor::updateRootContentLayerClipping()
 {
-    m_rootContentLayer->setMasksToBounds(!m_renderView.settings().backgroundShouldExtendBeyondPage());
+    m_rootContentsLayer->setMasksToBounds(!m_renderView.settings().backgroundShouldExtendBeyondPage());
 }
 
 bool RenderLayerCompositor::updateBacking(RenderLayer& layer, RequiresCompositingData& queryData, CompositingChangeRepaint shouldRepaint, BackingRequired backingRequired)
@@ -1539,16 +1567,17 @@ bool RenderLayerCompositor::updateBacking(RenderLayer& layer, RequiresCompositin
             layer.ensureBacking();
 
             if (layer.isRenderViewLayer() && useCoordinatedScrollingForLayer(layer)) {
+                auto& frameView = m_renderView.frameView();
                 if (auto* scrollingCoordinator = this->scrollingCoordinator())
-                    scrollingCoordinator->frameViewRootLayerDidChange(m_renderView.frameView());
+                    scrollingCoordinator->frameViewRootLayerDidChange(frameView);
 #if ENABLE(RUBBER_BANDING)
-                updateLayerForHeader(page().headerHeight());
-                updateLayerForFooter(page().footerHeight());
+                updateLayerForHeader(frameView.headerHeight());
+                updateLayerForFooter(frameView.footerHeight());
 #endif
                 updateRootContentLayerClipping();
 
                 if (auto* tiledBacking = layer.backing()->tiledBacking())
-                    tiledBacking->setTopContentInset(m_renderView.frameView().topContentInset());
+                    tiledBacking->setTopContentInset(frameView.topContentInset());
             }
 
             // This layer and all of its descendants have cached repaints rects that are relative to
@@ -1796,7 +1825,7 @@ void RenderLayerCompositor::frameViewDidChangeSize()
     if (auto* layer = m_renderView.layer())
         layer->setNeedsCompositingGeometryUpdate();
 
-    if (m_scrollLayer) {
+    if (m_scrolledContentsLayer) {
         updateScrollLayerClipping();
         frameViewDidScroll();
         updateOverflowControlsLayers();
@@ -1819,12 +1848,13 @@ bool RenderLayerCompositor::hasCoordinatedScrolling() const
 
 void RenderLayerCompositor::updateScrollLayerPosition()
 {
-    ASSERT(m_scrollLayer);
+    ASSERT(!hasCoordinatedScrolling());
+    ASSERT(m_scrolledContentsLayer);
 
     auto& frameView = m_renderView.frameView();
     IntPoint scrollPosition = frameView.scrollPosition();
 
-    m_scrollLayer->setPosition(FloatPoint(-scrollPosition.x(), -scrollPosition.y()));
+    m_scrolledContentsLayer->setPosition(FloatPoint(-scrollPosition.x(), -scrollPosition.y()));
 
     if (auto* fixedBackgroundLayer = fixedRootBackgroundLayer())
         fixedBackgroundLayer->setPosition(frameView.scrollPositionForFixedPosition());
@@ -1851,7 +1881,7 @@ FloatPoint RenderLayerCompositor::positionForClipLayer() const
 
 void RenderLayerCompositor::frameViewDidScroll()
 {
-    if (!m_scrollLayer)
+    if (!m_scrolledContentsLayer)
         return;
 
     // If there's a scrolling coordinator that manages scrolling for this frame view,
@@ -1889,7 +1919,7 @@ String RenderLayerCompositor::layerTreeAsText(LayerTreeFlags flags)
 {
     updateCompositingLayers(CompositingUpdateType::AfterLayout);
 
-    if (!m_rootContentLayer)
+    if (!m_rootContentsLayer)
         return String();
 
     flushPendingLayerChanges(true);
@@ -1911,14 +1941,18 @@ String RenderLayerCompositor::layerTreeAsText(LayerTreeFlags flags)
         layerTreeBehavior |= LayerTreeAsTextIncludeAcceleratesDrawing;
     if (flags & LayerTreeFlagsIncludeBackingStoreAttached)
         layerTreeBehavior |= LayerTreeAsTextIncludeBackingStoreAttached;
+    if (flags & LayerTreeFlagsIncludeRootLayerProperties)
+        layerTreeBehavior |= LayerTreeAsTextIncludeRootLayerProperties;
+    if (flags & LayerTreeFlagsIncludeEventRegion)
+        layerTreeBehavior |= LayerTreeAsTextIncludeEventRegion;
 
     // We skip dumping the scroll and clip layers to keep layerTreeAsText output
     // similar between platforms.
-    String layerTreeText = m_rootContentLayer->layerTreeAsText(layerTreeBehavior);
+    String layerTreeText = m_rootContentsLayer->layerTreeAsText(layerTreeBehavior);
 
     // Dump an empty layer tree only if the only composited layer is the main frame's tiled backing,
     // so that tests expecting us to drop out of accelerated compositing when there are no layers succeed.
-    if (!hasContentCompositingLayers() && documentUsesTiledBacking() && !(layerTreeBehavior & LayerTreeAsTextIncludeTileCaches))
+    if (!hasContentCompositingLayers() && documentUsesTiledBacking() && !(layerTreeBehavior & LayerTreeAsTextIncludeTileCaches) && !(layerTreeBehavior & LayerTreeAsTextIncludeRootLayerProperties))
         layerTreeText = emptyString();
 
     // The true root layer is not included in the dump, so if we want to report
@@ -1965,7 +1999,7 @@ bool RenderLayerCompositor::parentFrameContentLayers(RenderWidget& renderer)
 
     if (auto frameHostingNodeID = backing->scrollingNodeIDForRole(ScrollCoordinationRole::FrameHosting)) {
         auto* contentsRenderView = frameContentsRenderView(renderer);
-        if (auto frameRootScrollingNodeID = contentsRenderView->frameView().scrollLayerID()) {
+        if (auto frameRootScrollingNodeID = contentsRenderView->frameView().scrollingNodeID()) {
             if (auto* scrollingCoordinator = this->scrollingCoordinator())
                 scrollingCoordinator->insertNode(ScrollingNodeType::Subframe, frameRootScrollingNodeID, frameHostingNodeID, 0);
         }
@@ -1982,6 +2016,8 @@ void RenderLayerCompositor::repaintCompositedLayers()
 
 void RenderLayerCompositor::recursiveRepaintLayer(RenderLayer& layer)
 {
+    layer.updateLayerListsIfNeeded();
+
     // FIXME: This method does not work correctly with transforms.
     if (layer.isComposited() && !layer.backing()->paintsIntoCompositedAncestor())
         layer.setBackingNeedsRepaint();
@@ -2011,7 +2047,7 @@ GraphicsLayer* RenderLayerCompositor::rootGraphicsLayer() const
 {
     if (m_overflowControlsHostLayer)
         return m_overflowControlsHostLayer.get();
-    return m_rootContentLayer.get();
+    return m_rootContentsLayer.get();
 }
 
 void RenderLayerCompositor::setIsInWindow(bool isInWindow)
@@ -2069,18 +2105,18 @@ void RenderLayerCompositor::clearBackingForAllLayers()
 
 void RenderLayerCompositor::updateRootLayerPosition()
 {
-    if (m_rootContentLayer) {
-        m_rootContentLayer->setSize(m_renderView.frameView().contentsSize());
-        m_rootContentLayer->setPosition(m_renderView.frameView().positionForRootContentLayer());
-        m_rootContentLayer->setAnchorPoint(FloatPoint3D());
+    if (m_rootContentsLayer) {
+        m_rootContentsLayer->setSize(m_renderView.frameView().contentsSize());
+        m_rootContentsLayer->setPosition(m_renderView.frameView().positionForRootContentLayer());
+        m_rootContentsLayer->setAnchorPoint(FloatPoint3D());
     }
 
     updateScrollLayerClipping();
 
 #if ENABLE(RUBBER_BANDING)
-    if (m_contentShadowLayer && m_rootContentLayer) {
-        m_contentShadowLayer->setPosition(m_rootContentLayer->position());
-        m_contentShadowLayer->setSize(m_rootContentLayer->size());
+    if (m_contentShadowLayer && m_rootContentsLayer) {
+        m_contentShadowLayer->setPosition(m_rootContentsLayer->position());
+        m_contentShadowLayer->setSize(m_rootContentsLayer->size());
     }
 
     updateLayerForTopOverhangArea(m_layerForTopOverhangArea != nullptr);
@@ -2185,6 +2221,7 @@ bool RenderLayerCompositor::requiresOwnBackingStore(const RenderLayer& layer, co
         || requiresCompositingForPlugin(renderer, queryData)
         || requiresCompositingForEditableImage(renderer)
         || requiresCompositingForOverflowScrolling(layer, queryData)
+        || needsContentsCompositingLayer(layer)
         || renderer.isTransparent()
         || renderer.hasMask()
         || renderer.hasReflection()
@@ -2195,6 +2232,7 @@ bool RenderLayerCompositor::requiresOwnBackingStore(const RenderLayer& layer, co
     if (layer.mustCompositeForIndirectReasons()) {
         RenderLayer::IndirectCompositingReason reason = layer.indirectCompositingReason();
         return reason == RenderLayer::IndirectCompositingReason::Overlap
+            || reason == RenderLayer::IndirectCompositingReason::OverflowScrollPositioning
             || reason == RenderLayer::IndirectCompositingReason::Stacking
             || reason == RenderLayer::IndirectCompositingReason::BackgroundLayer
             || reason == RenderLayer::IndirectCompositingReason::GraphicalEffect
@@ -2251,13 +2289,16 @@ OptionSet<CompositingReason> RenderLayerCompositor::reasonsForCompositing(const 
         reasons.add(renderer.isFixedPositioned() ? CompositingReason::PositionFixed : CompositingReason::PositionSticky);
 
     if (requiresCompositingForOverflowScrolling(*renderer.layer(), queryData))
-        reasons.add(CompositingReason::OverflowScrollingTouch);
+        reasons.add(CompositingReason::OverflowScrolling);
 
     switch (renderer.layer()->indirectCompositingReason()) {
     case RenderLayer::IndirectCompositingReason::None:
         break;
     case RenderLayer::IndirectCompositingReason::Stacking:
         reasons.add(CompositingReason::Stacking);
+        break;
+    case RenderLayer::IndirectCompositingReason::OverflowScrollPositioning:
+        reasons.add(CompositingReason::OverflowScrollPositioning);
         break;
     case RenderLayer::IndirectCompositingReason::Overlap:
         reasons.add(CompositingReason::Overlap);
@@ -2341,8 +2382,8 @@ const char* RenderLayerCompositor::logReasonsForCompositing(const RenderLayer& l
     if (reasons & CompositingReason::PositionSticky)
         return "position: sticky";
 
-    if (reasons & CompositingReason::OverflowScrollingTouch)
-        return "-webkit-overflow-scrolling: touch";
+    if (reasons & CompositingReason::OverflowScrolling)
+        return "async overflow scrolling";
 
     if (reasons & CompositingReason::Stacking)
         return "stacking";
@@ -2733,9 +2774,9 @@ bool RenderLayerCompositor::requiresCompositingForOverflowScrolling(const Render
 }
 
 // FIXME: why doesn't this handle the clipping cases?
-bool RenderLayerCompositor::requiresCompositingForIndirectReason(RenderLayerModelObject& renderer, bool hasCompositedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason& reason) const
+bool RenderLayerCompositor::requiresCompositingForIndirectReason(RenderLayerModelObject& renderer, const RenderLayer* compositingAncestor, bool hasCompositedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason& reason) const
 {
-    auto& layer = *downcast<RenderBoxModelObject>(renderer).layer();
+    auto& layer = *renderer.layer();
 
     // When a layer has composited descendants, some effects, like 2d transforms, filters, masks etc must be implemented
     // via compositing so that they also apply to those composited descendants.
@@ -2754,6 +2795,13 @@ bool RenderLayerCompositor::requiresCompositingForIndirectReason(RenderLayerMode
     
         if (renderer.style().hasPerspective()) {
             reason = RenderLayer::IndirectCompositingReason::Perspective;
+            return true;
+        }
+    }
+
+    if (renderer.isAbsolutelyPositioned() && compositingAncestor) {
+        if (layerContainingBlockCrossesCoordinatedScrollingBoundary(layer, *compositingAncestor)) {
+            reason = RenderLayer::IndirectCompositingReason::OverflowScrollPositioning;
             return true;
         }
     }
@@ -2786,15 +2834,12 @@ bool RenderLayerCompositor::isAsyncScrollableStickyLayer(const RenderLayer& laye
 
     auto* enclosingOverflowLayer = layer.enclosingOverflowClipLayer(ExcludeSelf);
 
-#if PLATFORM(IOS_FAMILY)
     if (enclosingOverflowLayer && enclosingOverflowLayer->hasCompositedScrollableOverflow()) {
         if (enclosingAcceleratedOverflowLayer)
             *enclosingAcceleratedOverflowLayer = enclosingOverflowLayer;
         return true;
     }
-#else
-    UNUSED_PARAM(enclosingAcceleratedOverflowLayer);
-#endif
+
     // If the layer is inside normal overflow, it's not async-scrollable.
     if (enclosingOverflowLayer)
         return false;
@@ -2856,6 +2901,122 @@ bool RenderLayerCompositor::useCoordinatedScrollingForLayer(const RenderLayer& l
         return scrollingCoordinator->coordinatesScrollingForOverflowLayer(layer);
 
     return false;
+}
+
+// Is this layer's containingBlock an ancestor of scrollable overflow, and is the layer's compositing ancestor inside that overflow?
+bool RenderLayerCompositor::layerContainingBlockCrossesCoordinatedScrollingBoundary(const RenderLayer& layer, const RenderLayer& compositedAncestor)
+{
+    ASSERT(layer.renderer().isAbsolutelyPositioned());
+
+    bool sawCompositingAncestor = false;
+    for (const auto* currLayer = layer.parent(); currLayer; currLayer = currLayer->parent()) {
+        if (currLayer->renderer().canContainAbsolutelyPositionedObjects())
+            return false;
+
+        if (currLayer == &compositedAncestor)
+            sawCompositingAncestor = true;
+
+        if (currLayer->hasCompositedScrollableOverflow())
+            return sawCompositingAncestor;
+    }
+
+    return false;
+}
+
+// Is there scrollable overflow between this layer and its composited ancestor, and the containing block is the scroller or inside the scroller.
+static bool layerParentedAcrossCoordinatedScrollingBoundary(const RenderLayer& layer, const RenderLayer& compositedAncestor, bool checkContainingBlock, bool& containingBlockIsInsideOverflow)
+{
+    ASSERT(layer.isComposited());
+
+    for (const auto* currLayer = layer.parent(); currLayer != &compositedAncestor; currLayer = currLayer->parent()) {
+        if (checkContainingBlock && currLayer->renderer().canContainAbsolutelyPositionedObjects())
+            containingBlockIsInsideOverflow = true;
+
+        if (currLayer->hasCompositedScrollableOverflow())
+            return true;
+    }
+
+    return false;
+}
+
+ScrollPositioningBehavior RenderLayerCompositor::computeCoordinatedPositioningForLayer(const RenderLayer& layer) const
+{
+    if (layer.isRenderViewLayer())
+        return ScrollPositioningBehavior::None;
+
+    if (layer.renderer().isFixedPositioned())
+        return ScrollPositioningBehavior::None;
+
+    auto* scrollingCoordinator = this->scrollingCoordinator();
+    if (!scrollingCoordinator)
+        return ScrollPositioningBehavior::None;
+
+    // There are two cases we have to deal with here:
+    // 1. There's a composited overflow:scroll in the parent chain between the renderer and its containing block, and the layer's
+    //    composited (z-order) ancestor is inside the scroller or is the scroller. In this case, we have to compensate for scroll position
+    //    changes to make the positioned layer stay in the same place. This only applies to position:absolute (since we handle fixed elsewhere).
+    auto* compositedAncestor = layer.ancestorCompositingLayer();
+
+    auto& renderer = layer.renderer();
+    bool containingBlockCanSkipOverflow = renderer.isOutOfFlowPositioned() && renderer.style().position() == PositionType::Absolute;
+    if (containingBlockCanSkipOverflow) {
+        if (layerContainingBlockCrossesCoordinatedScrollingBoundary(layer, *compositedAncestor))
+            return ScrollPositioningBehavior::Stationary;
+    }
+
+    // 2. The layer's containing block is the overflow or inside the overflow:scroll, but its z-order ancestor is
+    //    outside the overflow:scroll. In that case, we have to move the layer via the scrolling tree to make
+    //    it move along with the overflow scrolling.
+    bool containingBlockIsInsideOverflow = !containingBlockCanSkipOverflow;
+    if (layerParentedAcrossCoordinatedScrollingBoundary(layer, *compositedAncestor, containingBlockCanSkipOverflow, containingBlockIsInsideOverflow) && containingBlockIsInsideOverflow)
+        return ScrollPositioningBehavior::Moves;
+
+    return ScrollPositioningBehavior::None;
+}
+
+static Vector<ScrollingNodeID> collectRelatedCoordinatedScrollingNodes(const RenderLayer& layer, ScrollPositioningBehavior positioningBehavior)
+{
+    Vector<ScrollingNodeID> overflowNodeData;
+
+    switch (positioningBehavior) {
+    case ScrollPositioningBehavior::Moves: {
+        // Collect all the composited scrollers between this layer and its composited ancestor.
+        auto* compositedAncestor = layer.ancestorCompositingLayer();
+        for (const auto* currLayer = layer.parent(); currLayer != compositedAncestor; currLayer = currLayer->parent()) {
+            if (currLayer->hasCompositedScrollableOverflow()) {
+                auto scrollingNodeID = currLayer->isComposited() ? currLayer->backing()->scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling) : 0;
+                if (scrollingNodeID)
+                    overflowNodeData.append(scrollingNodeID);
+                else
+                    LOG(Scrolling, "Layer %p isn't composited or doesn't have scrolling node ID yet", &layer);
+            }
+        }
+        break;
+    }
+    case ScrollPositioningBehavior::Stationary: {
+        // Collect all the composited scrollers between this layer and its containing block.
+        ASSERT(layer.renderer().style().position() == PositionType::Absolute);
+        for (const auto* currLayer = layer.parent(); currLayer; currLayer = currLayer->parent()) {
+            if (currLayer->renderer().canContainAbsolutelyPositionedObjects())
+                break;
+
+            if (currLayer->hasCompositedScrollableOverflow()) {
+                auto scrollingNodeID = currLayer->backing()->scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling);
+                if (scrollingNodeID)
+                    overflowNodeData.append(scrollingNodeID);
+                else
+                    LOG(Scrolling, "Layer %p doesn't have scrolling node ID yet", &layer);
+            }
+        }
+        // Don't need to do anything because the layer is a descendant of the overflow in stacking.
+        break;
+    }
+    case ScrollPositioningBehavior::None:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+
+    return overflowNodeData;
 }
 
 bool RenderLayerCompositor::isLayerForIFrameWithScrollCoordinatedContents(const RenderLayer& layer) const
@@ -3049,7 +3210,7 @@ bool RenderLayerCompositor::shouldCompositeOverflowControls() const
     if (m_overflowControlsHostLayer && isMainFrameCompositor())
         return true;
 
-#if !USE(COORDINATED_GRAPHICS_THREADED)
+#if !USE(COORDINATED_GRAPHICS)
     if (!frameView.hasOverlayScrollbars())
         return false;
 #endif
@@ -3119,7 +3280,7 @@ GraphicsLayer* RenderLayerCompositor::updateLayerForTopOverhangArea(bool wantsLa
     if (!m_layerForTopOverhangArea) {
         m_layerForTopOverhangArea = GraphicsLayer::create(graphicsLayerFactory(), *this);
         m_layerForTopOverhangArea->setName("top overhang");
-        m_scrollLayer->addChildBelow(*m_layerForTopOverhangArea, m_rootContentLayer.get());
+        m_scrolledContentsLayer->addChildBelow(*m_layerForTopOverhangArea, m_rootContentsLayer.get());
     }
 
     return m_layerForTopOverhangArea.get();
@@ -3138,10 +3299,10 @@ GraphicsLayer* RenderLayerCompositor::updateLayerForBottomOverhangArea(bool want
     if (!m_layerForBottomOverhangArea) {
         m_layerForBottomOverhangArea = GraphicsLayer::create(graphicsLayerFactory(), *this);
         m_layerForBottomOverhangArea->setName("bottom overhang");
-        m_scrollLayer->addChildBelow(*m_layerForBottomOverhangArea, m_rootContentLayer.get());
+        m_scrolledContentsLayer->addChildBelow(*m_layerForBottomOverhangArea, m_rootContentsLayer.get());
     }
 
-    m_layerForBottomOverhangArea->setPosition(FloatPoint(0, m_rootContentLayer->size().height() + m_renderView.frameView().headerHeight()
+    m_layerForBottomOverhangArea->setPosition(FloatPoint(0, m_rootContentsLayer->size().height() + m_renderView.frameView().headerHeight()
         + m_renderView.frameView().footerHeight() + m_renderView.frameView().topContentInset()));
     return m_layerForBottomOverhangArea.get();
 }
@@ -3166,7 +3327,7 @@ GraphicsLayer* RenderLayerCompositor::updateLayerForHeader(bool wantsLayer)
     if (!m_layerForHeader) {
         m_layerForHeader = GraphicsLayer::create(graphicsLayerFactory(), *this);
         m_layerForHeader->setName("header");
-        m_scrollLayer->addChildAbove(*m_layerForHeader, m_rootContentLayer.get());
+        m_scrolledContentsLayer->addChildAbove(*m_layerForHeader, m_rootContentsLayer.get());
         m_renderView.frameView().addPaintPendingMilestones(DidFirstFlushForHeaderLayer);
     }
 
@@ -3203,10 +3364,10 @@ GraphicsLayer* RenderLayerCompositor::updateLayerForFooter(bool wantsLayer)
     if (!m_layerForFooter) {
         m_layerForFooter = GraphicsLayer::create(graphicsLayerFactory(), *this);
         m_layerForFooter->setName("footer");
-        m_scrollLayer->addChildAbove(*m_layerForFooter, m_rootContentLayer.get());
+        m_scrolledContentsLayer->addChildAbove(*m_layerForFooter, m_rootContentsLayer.get());
     }
 
-    float totalContentHeight = m_rootContentLayer->size().height() + m_renderView.frameView().headerHeight() + m_renderView.frameView().footerHeight();
+    float totalContentHeight = m_rootContentsLayer->size().height() + m_renderView.frameView().headerHeight() + m_renderView.frameView().footerHeight();
     m_layerForFooter->setPosition(FloatPoint(0, FrameView::yPositionForFooterLayer(m_renderView.frameView().scrollPosition(),
         m_renderView.frameView().topContentInset(), totalContentHeight, m_renderView.frameView().footerHeight())));
     m_layerForFooter->setAnchorPoint(FloatPoint3D());
@@ -3332,12 +3493,12 @@ void RenderLayerCompositor::updateOverflowControlsLayers()
         if (!m_contentShadowLayer) {
             m_contentShadowLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
             m_contentShadowLayer->setName("content shadow");
-            m_contentShadowLayer->setSize(m_rootContentLayer->size());
-            m_contentShadowLayer->setPosition(m_rootContentLayer->position());
+            m_contentShadowLayer->setSize(m_rootContentsLayer->size());
+            m_contentShadowLayer->setPosition(m_rootContentsLayer->position());
             m_contentShadowLayer->setAnchorPoint(FloatPoint3D());
             m_contentShadowLayer->setCustomAppearance(GraphicsLayer::CustomAppearance::ScrollingShadow);
 
-            m_scrollLayer->addChildBelow(*m_contentShadowLayer, m_rootContentLayer.get());
+            m_scrolledContentsLayer->addChildBelow(*m_contentShadowLayer, m_rootContentsLayer.get());
         }
     } else
         GraphicsLayer::unparentAndClear(m_contentShadowLayer);
@@ -3408,18 +3569,18 @@ void RenderLayerCompositor::ensureRootLayer()
     if (expectedAttachment == m_rootLayerAttachment)
          return;
 
-    if (!m_rootContentLayer) {
-        m_rootContentLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
-        m_rootContentLayer->setName("content root");
+    if (!m_rootContentsLayer) {
+        m_rootContentsLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
+        m_rootContentsLayer->setName("content root");
         IntRect overflowRect = snappedIntRect(m_renderView.layoutOverflowRect());
-        m_rootContentLayer->setSize(FloatSize(overflowRect.maxX(), overflowRect.maxY()));
-        m_rootContentLayer->setPosition(FloatPoint());
+        m_rootContentsLayer->setSize(FloatSize(overflowRect.maxX(), overflowRect.maxY()));
+        m_rootContentsLayer->setPosition(FloatPoint());
 
 #if PLATFORM(IOS_FAMILY)
         // Page scale is applied above this on iOS, so we'll just say that our root layer applies it.
         auto& frame = m_renderView.frameView().frame();
         if (frame.isMainFrame())
-            m_rootContentLayer->setAppliesPageScale();
+            m_rootContentsLayer->setAppliesPageScale();
 #endif
 
         // Need to clip to prevent transformed content showing outside this frame
@@ -3428,36 +3589,40 @@ void RenderLayerCompositor::ensureRootLayer()
 
     if (requiresScrollLayer(expectedAttachment)) {
         if (!m_overflowControlsHostLayer) {
-            ASSERT(!m_scrollLayer);
+            ASSERT(!m_scrolledContentsLayer);
             ASSERT(!m_clipLayer);
 
             // Create a layer to host the clipping layer and the overflow controls layers.
             m_overflowControlsHostLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
             m_overflowControlsHostLayer->setName("overflow controls host");
 
-            auto scrollLayerType = GraphicsLayer::Type::Normal;
-#if PLATFORM(IOS_FAMILY)
-            if (m_renderView.settings().asyncFrameScrollingEnabled())
-                scrollLayerType = GraphicsLayer::Type::Scrolling;
-#endif
-            m_scrollLayer = GraphicsLayer::create(graphicsLayerFactory(), *this, scrollLayerType);
-            m_scrollLayer->setName("frame scrolling");
-            m_scrollLayer->setAnchorPoint({ });
+            m_scrolledContentsLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
+            m_scrolledContentsLayer->setName("scrolled contents");
+            m_scrolledContentsLayer->setAnchorPoint({ });
 
-            if (scrollLayerType == GraphicsLayer::Type::Scrolling) {
-                // Scroll layer clips so there is no need for a separate clipping layer.
-                m_overflowControlsHostLayer->addChild(*m_scrollLayer);
-            } else {
+#if PLATFORM(IOS_FAMILY)
+            if (m_renderView.settings().asyncFrameScrollingEnabled()) {
+                m_scrollContainerLayer = GraphicsLayer::create(graphicsLayerFactory(), *this, GraphicsLayer::Type::ScrollContainer);
+
+                m_scrollContainerLayer->setName("scroll container");
+                m_scrollContainerLayer->setMasksToBounds(true);
+                m_scrollContainerLayer->setAnchorPoint({ });
+
+                m_scrollContainerLayer->addChild(*m_scrolledContentsLayer);
+                m_overflowControlsHostLayer->addChild(*m_scrollContainerLayer);
+            }
+#endif
+            if (!m_scrollContainerLayer) {
                 m_clipLayer = GraphicsLayer::create(graphicsLayerFactory(), *this);
                 m_clipLayer->setName("frame clipping");
                 m_clipLayer->setMasksToBounds(true);
                 m_clipLayer->setAnchorPoint({ });
 
-                m_clipLayer->addChild(*m_scrollLayer);
+                m_clipLayer->addChild(*m_scrolledContentsLayer);
                 m_overflowControlsHostLayer->addChild(*m_clipLayer);
             }
 
-            m_scrollLayer->addChild(*m_rootContentLayer);
+            m_scrolledContentsLayer->addChild(*m_rootContentsLayer);
 
             updateScrollLayerClipping();
             updateOverflowControlsLayers();
@@ -3471,7 +3636,8 @@ void RenderLayerCompositor::ensureRootLayer()
         if (m_overflowControlsHostLayer) {
             GraphicsLayer::unparentAndClear(m_overflowControlsHostLayer);
             GraphicsLayer::unparentAndClear(m_clipLayer);
-            GraphicsLayer::unparentAndClear(m_scrollLayer);
+            GraphicsLayer::unparentAndClear(m_scrollContainerLayer);
+            GraphicsLayer::unparentAndClear(m_scrolledContentsLayer);
         }
     }
 
@@ -3484,7 +3650,7 @@ void RenderLayerCompositor::ensureRootLayer()
 
 void RenderLayerCompositor::destroyRootLayer()
 {
-    if (!m_rootContentLayer)
+    if (!m_rootContentsLayer)
         return;
 
     detachRootLayer();
@@ -3517,17 +3683,18 @@ void RenderLayerCompositor::destroyRootLayer()
     if (m_overflowControlsHostLayer) {
         GraphicsLayer::unparentAndClear(m_overflowControlsHostLayer);
         GraphicsLayer::unparentAndClear(m_clipLayer);
-        GraphicsLayer::unparentAndClear(m_scrollLayer);
+        GraphicsLayer::unparentAndClear(m_scrollContainerLayer);
+        GraphicsLayer::unparentAndClear(m_scrolledContentsLayer);
     }
-    ASSERT(!m_scrollLayer);
-    GraphicsLayer::unparentAndClear(m_rootContentLayer);
+    ASSERT(!m_scrolledContentsLayer);
+    GraphicsLayer::unparentAndClear(m_rootContentsLayer);
 
     m_layerUpdater = nullptr;
 }
 
 void RenderLayerCompositor::attachRootLayer(RootLayerAttachment attachment)
 {
-    if (!m_rootContentLayer)
+    if (!m_rootContentsLayer)
         return;
 
     LOG(Compositing, "RenderLayerCompositor %p attachRootLayer %d", this, attachment);
@@ -3539,8 +3706,6 @@ void RenderLayerCompositor::attachRootLayer(RootLayerAttachment attachment)
         case RootLayerAttachedViaChromeClient: {
             auto& frame = m_renderView.frameView().frame();
             page().chrome().client().attachRootGraphicsLayer(frame, rootGraphicsLayer());
-            if (frame.isMainFrame())
-                page().chrome().client().attachViewOverlayGraphicsLayer(frame, &page().pageOverlayController().layerWithViewOverlays());
             break;
         }
         case RootLayerAttachedViaEnclosingFrame: {
@@ -3563,7 +3728,7 @@ void RenderLayerCompositor::attachRootLayer(RootLayerAttachment attachment)
 
 void RenderLayerCompositor::detachRootLayer()
 {
-    if (!m_rootContentLayer || m_rootLayerAttachment == RootLayerUnattached)
+    if (!m_rootContentsLayer || m_rootLayerAttachment == RootLayerUnattached)
         return;
 
     switch (m_rootLayerAttachment) {
@@ -3573,12 +3738,12 @@ void RenderLayerCompositor::detachRootLayer()
         if (m_overflowControlsHostLayer)
             m_overflowControlsHostLayer->removeFromParent();
         else
-            m_rootContentLayer->removeFromParent();
+            m_rootContentsLayer->removeFromParent();
 
         if (auto* ownerElement = m_renderView.document().ownerElement())
             ownerElement->scheduleInvalidateStyleAndLayerComposition();
 
-        if (auto frameRootScrollingNodeID = m_renderView.frameView().scrollLayerID()) {
+        if (auto frameRootScrollingNodeID = m_renderView.frameView().scrollingNodeID()) {
             if (auto* scrollingCoordinator = this->scrollingCoordinator())
                 scrollingCoordinator->unparentNode(frameRootScrollingNodeID);
         }
@@ -3587,10 +3752,6 @@ void RenderLayerCompositor::detachRootLayer()
     case RootLayerAttachedViaChromeClient: {
         auto& frame = m_renderView.frameView().frame();
         page().chrome().client().attachRootGraphicsLayer(frame, nullptr);
-        if (frame.isMainFrame()) {
-            page().chrome().client().attachViewOverlayGraphicsLayer(frame, nullptr);
-            page().pageOverlayController().willDetachRootLayer();
-        }
     }
     break;
     case RootLayerUnattached:
@@ -3626,7 +3787,7 @@ void RenderLayerCompositor::rootLayerAttachmentChanged()
         return;
 
     Ref<GraphicsLayer> overlayHost = page().pageOverlayController().layerWithDocumentOverlays();
-    m_rootContentLayer->addChild(WTFMove(overlayHost));
+    m_rootContentsLayer->addChild(WTFMove(overlayHost));
 }
 
 void RenderLayerCompositor::notifyIFramesOfCompositingChange()
@@ -3683,7 +3844,7 @@ void RenderLayerCompositor::removeFromScrollCoordinatedLayers(RenderLayer& layer
         m_legacyScrollingLayerCoordinator->removeLayer(layer);
 #endif
 
-    detachScrollCoordinatedLayer(layer, { ScrollCoordinationRole::Scrolling, ScrollCoordinationRole::ViewportConstrained, ScrollCoordinationRole::FrameHosting });
+    detachScrollCoordinatedLayer(layer, { ScrollCoordinationRole::Scrolling, ScrollCoordinationRole::ViewportConstrained, ScrollCoordinationRole::FrameHosting, ScrollCoordinationRole::Positioning });
 }
 
 FixedPositionViewportConstraints RenderLayerCompositor::computeFixedViewportConstraints(RenderLayer& layer) const
@@ -3724,11 +3885,6 @@ FixedPositionViewportConstraints RenderLayerCompositor::computeFixedViewportCons
 StickyPositionViewportConstraints RenderLayerCompositor::computeStickyViewportConstraints(RenderLayer& layer) const
 {
     ASSERT(layer.isComposited());
-#if !PLATFORM(IOS_FAMILY)
-    // We should never get here for stickies constrained by an enclosing clipping layer.
-    // FIXME: Why does this assertion fail on iOS?
-    ASSERT(!layer.enclosingOverflowClipLayer(ExcludeSelf));
-#endif
 
     auto& renderer = downcast<RenderBoxModelObject>(layer.renderer());
 
@@ -3755,6 +3911,8 @@ static inline ScrollCoordinationRole scrollCoordinationRoleForNodeType(Scrolling
     case ScrollingNodeType::Fixed:
     case ScrollingNodeType::Sticky:
         return ScrollCoordinationRole::ViewportConstrained;
+    case ScrollingNodeType::Positioned:
+        return ScrollCoordinationRole::Positioning;
     }
     ASSERT_NOT_REACHED();
     return ScrollCoordinationRole::Scrolling;
@@ -3781,8 +3939,15 @@ ScrollingNodeID RenderLayerCompositor::attachScrollingNode(RenderLayer& layer, S
 
     if (nodeType == ScrollingNodeType::Subframe && !treeState.parentNodeID)
         nodeID = scrollingCoordinator->createNode(nodeType, nodeID);
-    else
-        nodeID = scrollingCoordinator->insertNode(nodeType, nodeID, treeState.parentNodeID.valueOr(0), treeState.nextChildIndex);
+    else {
+        auto newNodeID = scrollingCoordinator->insertNode(nodeType, nodeID, treeState.parentNodeID.valueOr(0), treeState.nextChildIndex);
+        if (newNodeID != nodeID) {
+            // We'll get a new nodeID if the type changed (and not if the node is new).
+            scrollingCoordinator->unparentChildrenAndDestroyNode(nodeID);
+            m_scrollingNodeToLayerMap.remove(nodeID);
+        }
+        nodeID = newNodeID;
+    }
 
     ASSERT(nodeID);
     if (!nodeID)
@@ -3828,6 +3993,9 @@ void RenderLayerCompositor::detachScrollCoordinatedLayer(RenderLayer& layer, Opt
     if (roles.contains(ScrollCoordinationRole::ViewportConstrained))
         detachScrollCoordinatedLayerWithRole(layer, *scrollingCoordinator, ScrollCoordinationRole::ViewportConstrained);
 
+    if (roles.contains(ScrollCoordinationRole::Positioning))
+        detachScrollCoordinatedLayerWithRole(layer, *scrollingCoordinator, ScrollCoordinationRole::Positioning);
+
     backing->detachFromScrollingCoordinator(roles);
 }
 
@@ -3853,17 +4021,25 @@ ScrollingNodeID RenderLayerCompositor::updateScrollCoordinationForLayer(RenderLa
 
     auto newNodeID = treeState.parentNodeID.valueOr(0);
 
-    ScrollingTreeState viewportConstrainedChildTreeState;
+    ScrollingTreeState childTreeState;
     ScrollingTreeState* currentTreeState = &treeState;
 
-    // If a node plays both roles, fixed/sticky is always the ancestor node of scrolling/frame hosting.
+    // If is fixed or sticky, it's the parent scrolling node for scrolling/frame hosting.
     if (roles.contains(ScrollCoordinationRole::ViewportConstrained)) {
         newNodeID = updateScrollingNodeForViewportConstrainedRole(layer, *currentTreeState, changes);
         // ViewportConstrained nodes are the parent of same-layer scrolling nodes, so adjust the ScrollingTreeState.
-        viewportConstrainedChildTreeState.parentNodeID = newNodeID;
-        currentTreeState = &viewportConstrainedChildTreeState;
+        childTreeState.parentNodeID = newNodeID;
+        currentTreeState = &childTreeState;
     } else
         detachScrollCoordinatedLayer(layer, ScrollCoordinationRole::ViewportConstrained);
+
+    // If there's a positioning node, it's the parent scrolling node for scrolling/frame hosting.
+    if (roles.contains(ScrollCoordinationRole::Positioning)) {
+        newNodeID = updateScrollingNodeForPositioningRole(layer, *currentTreeState, changes);
+        childTreeState.parentNodeID = newNodeID;
+        currentTreeState = &childTreeState;
+    } else
+        detachScrollCoordinatedLayer(layer, ScrollCoordinationRole::Positioning);
 
     if (roles.contains(ScrollCoordinationRole::Scrolling))
         newNodeID = updateScrollingNodeForScrollingRole(layer, *currentTreeState, changes);
@@ -3897,20 +4073,17 @@ ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForViewportConstrained
     LOG_WITH_STREAM(Compositing, stream << "Registering ViewportConstrained " << nodeType << " node " << newNodeID << " (layer " << layer.backing()->graphicsLayer()->primaryLayerID() << ") as child of " << treeState.parentNodeID.valueOr(0));
 
     if (changes & ScrollingNodeChangeFlags::Layer)
-        scrollingCoordinator->setNodeLayers(newNodeID, layer.backing()->graphicsLayer());
+        scrollingCoordinator->setNodeLayers(newNodeID, { layer.backing()->graphicsLayer() });
 
     if (changes & ScrollingNodeChangeFlags::LayerGeometry) {
         switch (nodeType) {
         case ScrollingNodeType::Fixed:
-            scrollingCoordinator->setViewportConstraintedNodeGeometry(newNodeID, computeFixedViewportConstraints(layer));
+            scrollingCoordinator->setViewportConstraintedNodeConstraints(newNodeID, computeFixedViewportConstraints(layer));
             break;
         case ScrollingNodeType::Sticky:
-            scrollingCoordinator->setViewportConstraintedNodeGeometry(newNodeID, computeStickyViewportConstraints(layer));
+            scrollingCoordinator->setViewportConstraintedNodeConstraints(newNodeID, computeStickyViewportConstraints(layer));
             break;
-        case ScrollingNodeType::MainFrame:
-        case ScrollingNodeType::Subframe:
-        case ScrollingNodeType::FrameHosting:
-        case ScrollingNodeType::Overflow:
+        default:
             break;
         }
     }
@@ -3918,69 +4091,46 @@ ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForViewportConstrained
     return newNodeID;
 }
 
-void RenderLayerCompositor::computeFrameScrollingGeometry(ScrollingCoordinator::ScrollingGeometry& scrollingGeometry) const
+LayoutRect RenderLayerCompositor::rootParentRelativeScrollableRect() const
 {
     auto& frameView = m_renderView.frameView();
 
     if (m_renderView.frame().isMainFrame())
-        scrollingGeometry.parentRelativeScrollableRect = frameView.frameRect();
-    else
-        scrollingGeometry.parentRelativeScrollableRect = LayoutRect({ }, LayoutSize(frameView.size()));
-
-    scrollingGeometry.scrollOrigin = frameView.scrollOrigin();
-    scrollingGeometry.scrollableAreaSize = frameView.visibleContentRect().size();
-    scrollingGeometry.contentSize = frameView.totalContentsSize();
-    scrollingGeometry.reachableContentSize = frameView.totalContentsSize();
-#if ENABLE(CSS_SCROLL_SNAP)
-    frameView.updateSnapOffsets();
-    updateScrollSnapPropertiesWithFrameView(frameView);
-#endif
+        return frameView.frameRect();
+    
+    return LayoutRect({ }, LayoutSize(frameView.size()));
 }
 
-void RenderLayerCompositor::computeFrameHostingGeometry(const RenderLayer& layer, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry& scrollingGeometry) const
+LayoutRect RenderLayerCompositor::parentRelativeScrollableRect(const RenderLayer& layer, const RenderLayer* ancestorLayer) const
 {
     // FIXME: ancestorLayer needs to be always non-null, so should become a reference.
-    if (ancestorLayer) {
-        LayoutRect scrollableRect;
-        if (is<RenderBox>(layer.renderer()))
-            scrollableRect = downcast<RenderBox>(layer.renderer()).paddingBoxRect();
+    if (!ancestorLayer)
+        return LayoutRect({ }, LayoutSize(layer.visibleSize()));
 
-        auto offset = layer.convertToLayerCoords(ancestorLayer, scrollableRect.location()); // FIXME: broken for columns.
-        scrollableRect.setLocation(offset);
-        scrollingGeometry.parentRelativeScrollableRect = scrollableRect;
-    }
+    LayoutRect scrollableRect;
+    if (is<RenderBox>(layer.renderer()))
+        scrollableRect = downcast<RenderBox>(layer.renderer()).paddingBoxRect();
+
+    auto offset = layer.convertToLayerCoords(ancestorLayer, scrollableRect.location()); // FIXME: broken for columns.
+    scrollableRect.setLocation(offset);
+    return scrollableRect;
 }
 
-void RenderLayerCompositor::computeOverflowScrollingGeometry(const RenderLayer& layer, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry& scrollingGeometry) const
+void RenderLayerCompositor::updateScrollingNodeLayers(ScrollingNodeID nodeID, RenderLayer& layer, ScrollingCoordinator& scrollingCoordinator)
 {
-    // FIXME: ancestorLayer needs to be always non-null, so should become a reference.
-    if (ancestorLayer) {
-        LayoutRect scrollableRect;
-        if (is<RenderBox>(layer.renderer()))
-            scrollableRect = downcast<RenderBox>(layer.renderer()).paddingBoxRect();
-
-        auto offset = layer.convertToLayerCoords(ancestorLayer, scrollableRect.location()); // FIXME: broken for columns.
-        scrollableRect.setLocation(offset);
-        scrollingGeometry.parentRelativeScrollableRect = scrollableRect;
+    if (layer.isRenderViewLayer()) {
+        FrameView& frameView = m_renderView.frameView();
+        scrollingCoordinator.setNodeLayers(nodeID, { nullptr,
+            scrollContainerLayer(), scrolledContentsLayer(),
+            fixedRootBackgroundLayer(), clipLayer(), rootContentsLayer(),
+            frameView.layerForHorizontalScrollbar(), frameView.layerForVerticalScrollbar() });
+    } else {
+        auto& backing = *layer.backing();
+        scrollingCoordinator.setNodeLayers(nodeID, { backing.graphicsLayer(),
+            backing.scrollContainerLayer(), backing.scrolledContentsLayer(),
+            nullptr, nullptr, nullptr,
+            layer.layerForHorizontalScrollbar(), layer.layerForVerticalScrollbar() });
     }
-
-    scrollingGeometry.scrollOrigin = layer.scrollOrigin();
-    scrollingGeometry.scrollPosition = layer.scrollPosition();
-    scrollingGeometry.scrollableAreaSize = layer.visibleSize();
-    scrollingGeometry.contentSize = layer.contentsSize();
-    scrollingGeometry.reachableContentSize = layer.scrollableContentsSize();
-#if ENABLE(CSS_SCROLL_SNAP)
-    if (auto* offsets = layer.horizontalSnapOffsets())
-        scrollingGeometry.horizontalSnapOffsets = *offsets;
-    if (auto* offsets = layer.verticalSnapOffsets())
-        scrollingGeometry.verticalSnapOffsets = *offsets;
-    if (auto* ranges = layer.horizontalSnapOffsetRanges())
-        scrollingGeometry.horizontalSnapOffsetRanges = *ranges;
-    if (auto* ranges = layer.verticalSnapOffsetRanges())
-        scrollingGeometry.verticalSnapOffsetRanges = *ranges;
-    scrollingGeometry.currentHorizontalSnapPointIndex = layer.currentHorizontalSnapPointIndex();
-    scrollingGeometry.currentVerticalSnapPointIndex = layer.currentVerticalSnapPointIndex();
-#endif
 }
 
 ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForScrollingRole(RenderLayer& layer, ScrollingTreeState& treeState, OptionSet<ScrollingNodeChangeFlags> changes)
@@ -4001,12 +4151,12 @@ ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForScrollingRole(Rende
         }
 
         if (changes & ScrollingNodeChangeFlags::Layer)
-            scrollingCoordinator->setNodeLayers(newNodeID, m_scrollLayer.get(), m_rootContentLayer.get(), fixedRootBackgroundLayer(), clipLayer());
+            updateScrollingNodeLayers(newNodeID, layer, *scrollingCoordinator);
 
         if (changes & ScrollingNodeChangeFlags::LayerGeometry) {
-            ScrollingCoordinator::ScrollingGeometry scrollingGeometry;
-            computeFrameScrollingGeometry(scrollingGeometry);
-            scrollingCoordinator->setScrollingNodeGeometry(newNodeID, scrollingGeometry);
+            scrollingCoordinator->setRectRelativeToParentNode(newNodeID, rootParentRelativeScrollableRect());
+            scrollingCoordinator->setScrollingNodeScrollableAreaGeometry(newNodeID, frameView);
+            scrollingCoordinator->setFrameScrollingNodeState(newNodeID, frameView);
         }
     } else {
         newNodeID = attachScrollingNode(layer, ScrollingNodeType::Overflow, treeState);
@@ -4016,13 +4166,12 @@ ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForScrollingRole(Rende
         }
         
         if (changes & ScrollingNodeChangeFlags::Layer)
-            scrollingCoordinator->setNodeLayers(newNodeID, layer.backing()->scrollingLayer(), layer.backing()->scrollingContentsLayer());
+            updateScrollingNodeLayers(newNodeID, layer, *scrollingCoordinator);
 
         if (changes & ScrollingNodeChangeFlags::LayerGeometry && treeState.parentNodeID) {
             RenderLayer* scrollingAncestorLayer = m_scrollingNodeToLayerMap.get(treeState.parentNodeID.value());
-            ScrollingCoordinator::ScrollingGeometry scrollingGeometry;
-            computeOverflowScrollingGeometry(layer, scrollingAncestorLayer, scrollingGeometry);
-            scrollingCoordinator->setScrollingNodeGeometry(newNodeID, scrollingGeometry);
+            scrollingCoordinator->setRectRelativeToParentNode(newNodeID, parentRelativeScrollableRect(layer, scrollingAncestorLayer));
+            scrollingCoordinator->setScrollingNodeScrollableAreaGeometry(newNodeID, layer);
         }
     }
 
@@ -4040,13 +4189,43 @@ ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForFrameHostingRole(Re
     }
 
     if (changes & ScrollingNodeChangeFlags::Layer)
-        scrollingCoordinator->setNodeLayers(newNodeID, layer.backing()->graphicsLayer());
+        scrollingCoordinator->setNodeLayers(newNodeID, { layer.backing()->graphicsLayer() });
 
     if (changes & ScrollingNodeChangeFlags::LayerGeometry && treeState.parentNodeID) {
         RenderLayer* scrollingAncestorLayer = m_scrollingNodeToLayerMap.get(treeState.parentNodeID.value());
-        ScrollingCoordinator::ScrollingGeometry scrollingGeometry;
-        computeFrameHostingGeometry(layer, scrollingAncestorLayer, scrollingGeometry);
-        scrollingCoordinator->setScrollingNodeGeometry(newNodeID, scrollingGeometry);
+        scrollingCoordinator->setRectRelativeToParentNode(newNodeID, parentRelativeScrollableRect(layer, scrollingAncestorLayer));
+    }
+
+    return newNodeID;
+}
+
+ScrollingNodeID RenderLayerCompositor::updateScrollingNodeForPositioningRole(RenderLayer& layer, ScrollingTreeState& treeState, OptionSet<ScrollingNodeChangeFlags> changes)
+{
+    auto* scrollingCoordinator = this->scrollingCoordinator();
+
+    auto newNodeID = attachScrollingNode(layer, ScrollingNodeType::Positioned, treeState);
+    if (!newNodeID) {
+        ASSERT_NOT_REACHED();
+        return treeState.parentNodeID.valueOr(0);
+    }
+
+    if (changes & ScrollingNodeChangeFlags::Layer) {
+        auto& backing = *layer.backing();
+        scrollingCoordinator->setNodeLayers(newNodeID, { backing.graphicsLayer() });
+    }
+
+    if (changes & ScrollingNodeChangeFlags::LayerGeometry && treeState.parentNodeID) {
+        // Would be nice to avoid calling computeCoordinatedPositioningForLayer() again.
+        auto positioningBehavior = computeCoordinatedPositioningForLayer(layer);
+        auto relatedNodeIDs = collectRelatedCoordinatedScrollingNodes(layer, positioningBehavior);
+        scrollingCoordinator->setRelatedOverflowScrollingNodes(newNodeID, WTFMove(relatedNodeIDs));
+
+        auto* graphicsLayer = layer.backing()->graphicsLayer();
+        LayoutConstraints constraints;
+        constraints.setAlignmentOffset(graphicsLayer->pixelAlignmentOffset());
+        constraints.setLayerPositionAtLastLayout(graphicsLayer->position());
+        constraints.setScrollPositioningBehavior(positioningBehavior);
+        scrollingCoordinator->setPositionedNodeGeometry(newNodeID, constraints);
     }
 
     return newNodeID;
@@ -4224,7 +4403,8 @@ void LegacyWebKitScrollingLayerCoordinator::registerAllViewportConstrainedLayers
             const RenderLayer* enclosingTouchScrollableLayer = nullptr;
             if (compositor.isAsyncScrollableStickyLayer(*layer, &enclosingTouchScrollableLayer) && enclosingTouchScrollableLayer) {
                 ASSERT(enclosingTouchScrollableLayer->isComposited());
-                stickyContainerMap.add(layer->backing()->graphicsLayer()->platformLayer(), enclosingTouchScrollableLayer->backing()->scrollingLayer()->platformLayer());
+                // what
+                stickyContainerMap.add(layer->backing()->graphicsLayer()->platformLayer(), enclosingTouchScrollableLayer->backing()->scrollContainerLayer()->platformLayer());
             }
         } else if (layer->renderer().isFixedPositioned())
             constraints = std::make_unique<FixedPositionViewportConstraints>(compositor.computeFixedViewportConstraints(*layer));
@@ -4246,24 +4426,15 @@ void LegacyWebKitScrollingLayerCoordinator::unregisterAllViewportConstrainedLaye
     m_chromeClient.updateViewportConstrainedLayers(layerMap, { });
 }
 
-static bool scrollbarHasDisplayNone(Scrollbar* scrollbar)
-{
-    if (!scrollbar || !scrollbar->isCustomScrollbar())
-        return false;
-
-    std::unique_ptr<RenderStyle> scrollbarStyle = static_cast<RenderScrollbar*>(scrollbar)->getScrollbarPseudoStyle(ScrollbarBGPart, PseudoId::Scrollbar);
-    return scrollbarStyle && scrollbarStyle->display() == DisplayType::None;
-}
-
 void LegacyWebKitScrollingLayerCoordinator::updateScrollingLayer(RenderLayer& layer)
 {
     auto* backing = layer.backing();
     ASSERT(backing);
 
-    bool allowHorizontalScrollbar = !scrollbarHasDisplayNone(layer.horizontalScrollbar());
-    bool allowVerticalScrollbar = !scrollbarHasDisplayNone(layer.verticalScrollbar());
-    m_chromeClient.addOrUpdateScrollingLayer(layer.renderer().element(), backing->scrollingLayer()->platformLayer(), backing->scrollingContentsLayer()->platformLayer(),
-        layer.scrollableContentsSize(), allowHorizontalScrollbar, allowVerticalScrollbar);
+    bool allowHorizontalScrollbar = !layer.horizontalScrollbarHiddenByStyle();
+    bool allowVerticalScrollbar = !layer.verticalScrollbarHiddenByStyle();
+    m_chromeClient.addOrUpdateScrollingLayer(layer.renderer().element(), backing->scrollContainerLayer()->platformLayer(), backing->scrolledContentsLayer()->platformLayer(),
+        layer.reachableTotalContentsSize(), allowHorizontalScrollbar, allowVerticalScrollbar);
 }
 
 void LegacyWebKitScrollingLayerCoordinator::registerAllScrollingLayers()
@@ -4285,7 +4456,7 @@ void LegacyWebKitScrollingLayerCoordinator::unregisterAllScrollingLayers()
     for (auto* layer : m_scrollingLayers) {
         auto* backing = layer->backing();
         ASSERT(backing);
-        m_chromeClient.removeScrollingLayer(layer->renderer().element(), backing->scrollingLayer()->platformLayer(), backing->scrollingContentsLayer()->platformLayer());
+        m_chromeClient.removeScrollingLayer(layer->renderer().element(), backing->scrollContainerLayer()->platformLayer(), backing->scrolledContentsLayer()->platformLayer());
     }
 }
 
@@ -4299,9 +4470,9 @@ void LegacyWebKitScrollingLayerCoordinator::removeScrollingLayer(RenderLayer& la
 {
     m_scrollingLayersNeedingUpdate.remove(&layer);
     if (m_scrollingLayers.remove(&layer)) {
-        auto* scrollingLayer = backing.scrollingLayer()->platformLayer();
-        auto* contentsLayer = backing.scrollingContentsLayer()->platformLayer();
-        m_chromeClient.removeScrollingLayer(layer.renderer().element(), scrollingLayer, contentsLayer);
+        auto* scrollContainerLayer = backing.scrollContainerLayer()->platformLayer();
+        auto* scrolledContentsLayer = backing.scrolledContentsLayer()->platformLayer();
+        m_chromeClient.removeScrollingLayer(layer.renderer().element(), scrollContainerLayer, scrolledContentsLayer);
     }
 }
 

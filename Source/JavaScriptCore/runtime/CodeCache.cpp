@@ -70,8 +70,10 @@ UnlinkedCodeBlockType* CodeCache::getUnlinkedGlobalCodeBlock(VM& vm, ExecutableT
         bool endColumnIsOnStartLine = !lineCount;
         unsigned endColumn = unlinkedCodeBlock->endColumn() + (endColumnIsOnStartLine ? startColumn : 1);
         executable->recordParse(unlinkedCodeBlock->codeFeatures(), unlinkedCodeBlock->hasCapturedVariables(), source.firstLine().oneBasedInt() + lineCount, endColumn);
-        source.provider()->setSourceURLDirective(unlinkedCodeBlock->sourceURLDirective());
-        source.provider()->setSourceMappingURLDirective(unlinkedCodeBlock->sourceMappingURLDirective());
+        if (!unlinkedCodeBlock->sourceURLDirective().isNull())
+            source.provider()->setSourceURLDirective(unlinkedCodeBlock->sourceURLDirective());
+        if (!unlinkedCodeBlock->sourceMappingURLDirective().isNull())
+            source.provider()->setSourceMappingURLDirective(unlinkedCodeBlock->sourceMappingURLDirective());
         return unlinkedCodeBlock;
     }
 
@@ -115,8 +117,10 @@ UnlinkedFunctionExecutable* CodeCache::getUnlinkedGlobalFunctionExecutable(VM& v
         functionConstructorParametersEndPosition);
     UnlinkedFunctionExecutable* executable = m_sourceCode.findCacheAndUpdateAge<UnlinkedFunctionExecutable>(vm, key);
     if (executable && Options::useCodeCache()) {
-        source.provider()->setSourceURLDirective(executable->sourceURLDirective());
-        source.provider()->setSourceMappingURLDirective(executable->sourceMappingURLDirective());
+        if (!executable->sourceURLDirective().isNull())
+            source.provider()->setSourceURLDirective(executable->sourceURLDirective());
+        if (!executable->sourceMappingURLDirective().isNull())
+            source.provider()->setSourceMappingURLDirective(executable->sourceMappingURLDirective());
         return executable;
     }
 
@@ -145,12 +149,13 @@ UnlinkedFunctionExecutable* CodeCache::getUnlinkedGlobalFunctionExecutable(VM& v
     metadata->setEndPosition(positionBeforeLastNewline);
     // The Function constructor only has access to global variables, so no variables will be under TDZ unless they're
     // in the global lexical environment, which we always TDZ check accesses from.
-    VariableEnvironment emptyTDZVariables;
     ConstructAbility constructAbility = constructAbilityForParseMode(metadata->parseMode());
-    UnlinkedFunctionExecutable* functionExecutable = UnlinkedFunctionExecutable::create(&vm, source, metadata, UnlinkedNormalFunction, constructAbility, JSParserScriptMode::Classic, emptyTDZVariables, DerivedContextType::None);
+    UnlinkedFunctionExecutable* functionExecutable = UnlinkedFunctionExecutable::create(&vm, source, metadata, UnlinkedNormalFunction, constructAbility, JSParserScriptMode::Classic, WTF::nullopt, DerivedContextType::None);
 
-    functionExecutable->setSourceURLDirective(source.provider()->sourceURL());
-    functionExecutable->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
+    if (!source.provider()->sourceURLDirective().isNull())
+        functionExecutable->setSourceURLDirective(source.provider()->sourceURLDirective());
+    if (!source.provider()->sourceMappingURLDirective().isNull())
+        functionExecutable->setSourceMappingURLDirective(source.provider()->sourceMappingURLDirective());
 
     if (Options::useCodeCache())
         m_sourceCode.addCache(key, SourceCodeValue(vm, functionExecutable, m_sourceCode.age()));
@@ -159,8 +164,12 @@ UnlinkedFunctionExecutable* CodeCache::getUnlinkedGlobalFunctionExecutable(VM& v
 
 void CodeCache::write(VM& vm)
 {
-    for (const auto& it : m_sourceCode)
+    for (auto& it : m_sourceCode) {
+        if (it.value.written)
+            continue;
+        it.value.written = true;
         writeCodeBlock(vm, it.key, it.value);
+    }
 }
 
 void generateUnlinkedCodeBlockForFunctions(VM& vm, UnlinkedCodeBlock* unlinkedCodeBlock, const SourceCode& parentSource, DebuggerMode debuggerMode, ParserError& error)
@@ -169,8 +178,7 @@ void generateUnlinkedCodeBlockForFunctions(VM& vm, UnlinkedCodeBlock* unlinkedCo
         if (constructorKind == CodeForConstruct && SourceParseModeSet(SourceParseMode::AsyncArrowFunctionMode, SourceParseMode::AsyncMethodMode, SourceParseMode::AsyncFunctionMode).contains(unlinkedExecutable->parseMode()))
             return;
 
-        FunctionExecutable* executable = unlinkedExecutable->link(vm, parentSource);
-        const SourceCode& source = executable->source();
+        SourceCode source = unlinkedExecutable->linkedSourceCode(parentSource);
         UnlinkedFunctionCodeBlock* unlinkedFunctionCodeBlock = unlinkedExecutable->unlinkedCodeBlockFor(vm, source, constructorKind, debuggerMode, error, unlinkedExecutable->parseMode());
         if (unlinkedFunctionCodeBlock)
             generateUnlinkedCodeBlockForFunctions(vm, unlinkedFunctionCodeBlock, source, debuggerMode, error);
@@ -186,41 +194,46 @@ void generateUnlinkedCodeBlockForFunctions(VM& vm, UnlinkedCodeBlock* unlinkedCo
 
 void writeCodeBlock(VM& vm, const SourceCodeKey& key, const SourceCodeValue& value)
 {
-#if OS(DARWIN)
-    const char* cachePath = Options::diskCachePath();
-    if (LIKELY(!cachePath))
-        return;
-
     UnlinkedCodeBlock* codeBlock = jsDynamicCast<UnlinkedCodeBlock*>(vm, value.cell.get());
     if (!codeBlock)
         return;
 
-    std::pair<MallocPtr<uint8_t>, size_t> result = encodeCodeBlock(vm, key, codeBlock);
-
-    String filename = makeString(cachePath, '/', key.hash(), ".cache");
-    int fd = open(filename.utf8().data(), O_CREAT | O_WRONLY, 0666);
-    if (fd == -1)
-        return;
-    int rc = flock(fd, LOCK_EX | LOCK_NB);
-    if (!rc)
-        ::write(fd, result.first.get(), result.second);
-    close(fd);
-#else
-    UNUSED_PARAM(vm);
-    UNUSED_PARAM(key);
-    UNUSED_PARAM(value);
-#endif
+    key.source().provider().cacheBytecode([&] {
+        std::pair<MallocPtr<uint8_t>, size_t> result = encodeCodeBlock(vm, key, codeBlock);
+        return CachedBytecode { WTFMove(result.first), result.second };
+    });
 }
 
-CachedBytecode serializeBytecode(VM& vm, UnlinkedCodeBlock* codeBlock, const SourceCode& source, SourceCodeType codeType, JSParserStrictMode strictMode, JSParserScriptMode scriptMode, DebuggerMode debuggerMode)
+static SourceCodeKey sourceCodeKeyForSerializedBytecode(VM& vm, const SourceCode& sourceCode, SourceCodeType codeType, JSParserStrictMode strictMode, JSParserScriptMode scriptMode, DebuggerMode debuggerMode)
 {
-    SourceCodeKey key(
-        source, String(), codeType, strictMode, scriptMode,
+    return SourceCodeKey(
+        sourceCode, String(), codeType, strictMode, scriptMode,
         DerivedContextType::None, EvalContextType::None, false, debuggerMode,
         vm.typeProfiler() ? TypeProfilerEnabled::Yes : TypeProfilerEnabled::No,
         vm.controlFlowProfiler() ? ControlFlowProfilerEnabled::Yes : ControlFlowProfilerEnabled::No,
         WTF::nullopt);
-    std::pair<MallocPtr<uint8_t>, size_t> result = encodeCodeBlock(vm, key, codeBlock);
+}
+
+SourceCodeKey sourceCodeKeyForSerializedProgram(VM& vm, const SourceCode& sourceCode)
+{
+    JSParserStrictMode strictMode = JSParserStrictMode::NotStrict;
+    JSParserScriptMode scriptMode = JSParserScriptMode::Classic;
+    DebuggerMode debuggerMode = DebuggerOff;
+    return sourceCodeKeyForSerializedBytecode(vm, sourceCode, SourceCodeType::ProgramType, strictMode, scriptMode, debuggerMode);
+}
+
+SourceCodeKey sourceCodeKeyForSerializedModule(VM& vm, const SourceCode& sourceCode)
+{
+    JSParserStrictMode strictMode = JSParserStrictMode::Strict;
+    JSParserScriptMode scriptMode = JSParserScriptMode::Module;
+    DebuggerMode debuggerMode = DebuggerOff;
+    return sourceCodeKeyForSerializedBytecode(vm, sourceCode, SourceCodeType::ModuleType, strictMode, scriptMode, debuggerMode);
+}
+
+CachedBytecode serializeBytecode(VM& vm, UnlinkedCodeBlock* codeBlock, const SourceCode& source, SourceCodeType codeType, JSParserStrictMode strictMode, JSParserScriptMode scriptMode, DebuggerMode debuggerMode)
+{
+    std::pair<MallocPtr<uint8_t>, size_t> result = encodeCodeBlock(vm,
+        sourceCodeKeyForSerializedBytecode(vm, source, codeType, strictMode, scriptMode, debuggerMode), codeBlock);
     return CachedBytecode { WTFMove(result.first), result.second };
 }
 

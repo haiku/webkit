@@ -224,7 +224,7 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
                 return;
             }
 
-            var queryRegex = new RegExp(query.escapeForRegExp(), "gi");
+            let queryRegex = WI.SearchUtilities.regExpForString(query, WI.SearchUtilities.defaultSettings);
             var searchResults = [];
 
             for (var i = 0; i < matches.length; ++i) {
@@ -499,9 +499,7 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
         if (this._supportsDebugging) {
             this._breakpointMap = {};
 
-            var breakpoints = WI.debuggerManager.breakpointsForSourceCode(this._sourceCode);
-            for (var i = 0; i < breakpoints.length; ++i) {
-                var breakpoint = breakpoints[i];
+            for (let breakpoint of WI.debuggerManager.breakpointsForSourceCode(this._sourceCode)) {
                 console.assert(this._matchesBreakpoint(breakpoint));
                 var lineInfo = this._editorLineInfoForSourceCodeLocation(breakpoint.sourceCodeLocation);
                 this._addBreakpointWithEditorLineInfo(breakpoint, lineInfo);
@@ -562,8 +560,7 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
     {
         console.assert(this._supportsDebugging);
 
-        var breakpoints = WI.debuggerManager.breakpointsForSourceCode(this._sourceCode);
-        for (var breakpoint of breakpoints)
+        for (let breakpoint of WI.debuggerManager.breakpointsForSourceCode(this._sourceCode))
             this._updateBreakpointStatus(breakpoint);
     }
 
@@ -1245,11 +1242,20 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
         if (breakpoints.length === 1) {
             WI.breakpointPopoverController.appendContextMenuItems(contextMenu, breakpoints[0], event.target);
 
-            if (!WI.isShowingDebuggerTab()) {
-                contextMenu.appendSeparator();
-                contextMenu.appendItem(WI.UIString("Reveal in Debugger Tab"), () => {
-                    WI.showDebuggerTab({breakpointToSelect: breakpoints[0]});
-                });
+            if (WI.settings.experimentalEnableSourcesTab.value) {
+                if (!WI.isShowingSourcesTab()) {
+                    contextMenu.appendSeparator();
+                    contextMenu.appendItem(WI.UIString("Reveal in Sources Tab"), () => {
+                        WI.showSourcesTab({breakpointToSelect: breakpoints[0]});
+                    });
+                }
+            } else {
+                if (!WI.isShowingDebuggerTab()) {
+                    contextMenu.appendSeparator();
+                    contextMenu.appendItem(WI.UIString("Reveal in Debugger Tab"), () => {
+                        WI.showDebuggerTab({breakpointToSelect: breakpoints[0]});
+                    });
+                }
             }
 
             return;

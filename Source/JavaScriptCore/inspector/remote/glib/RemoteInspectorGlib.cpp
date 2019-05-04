@@ -57,7 +57,7 @@ RemoteInspector::RemoteInspector()
 
 void RemoteInspector::start()
 {
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
 
     if (m_enabled)
         return;
@@ -79,7 +79,7 @@ void RemoteInspector::start()
             if (GRefPtr<GDBusConnection> connection = adoptGRef(g_dbus_connection_new_for_address_finish(result, &error.outPtr())))
                 inspector->setupConnection(WTFMove(connection));
             else if (!g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
-                WTFLogAlways("RemoteInspector failed to connect to inspector server at: %s: %s", g_getenv("WEBKIT_INSPECTOR_SERVER"), error->message);
+                g_warning("RemoteInspector failed to connect to inspector server at: %s: %s", g_getenv("WEBKIT_INSPECTOR_SERVER"), error->message);
     }, this);
 }
 
@@ -156,7 +156,7 @@ const GDBusInterfaceVTable RemoteInspector::s_interfaceVTable = {
 
 void RemoteInspector::setupConnection(GRefPtr<GDBusConnection>&& connection)
 {
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
 
     ASSERT(connection);
     ASSERT(!m_dbusConnection);
@@ -178,7 +178,7 @@ static void dbusConnectionCallAsyncReadyCallback(GObject* source, GAsyncResult* 
     GUniqueOutPtr<GError> error;
     GRefPtr<GVariant> resultVariant = adoptGRef(g_dbus_connection_call_finish(G_DBUS_CONNECTION(source), result, &error.outPtr()));
     if (!resultVariant && !g_error_matches(error.get(), G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        WTFLogAlways("RemoteInspector failed to send DBus message: %s", error->message);
+        g_warning("RemoteInspector failed to send DBus message: %s", error->message);
 }
 
 TargetListing RemoteInspector::listingForInspectionTarget(const RemoteInspectionTarget& target) const
@@ -234,7 +234,7 @@ void RemoteInspector::pushListingsSoon()
     m_pushScheduled = true;
 
     RunLoop::current().dispatch([this] {
-        std::lock_guard<Lock> lock(m_mutex);
+        LockHolder lock(m_mutex);
         if (m_pushScheduled)
             pushListingsNow();
     });
@@ -242,7 +242,7 @@ void RemoteInspector::pushListingsSoon()
 
 void RemoteInspector::updateAutomaticInspectionCandidate(RemoteInspectionTarget* target)
 {
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
 
     ASSERT(target);
     unsigned targetIdentifier = target->targetIdentifier();
@@ -274,7 +274,7 @@ void RemoteInspector::sendAutomaticInspectionCandidateMessage()
 
 void RemoteInspector::sendMessageToRemote(unsigned targetIdentifier, const String& message)
 {
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
     if (!m_dbusConnection)
         return;
 
@@ -287,7 +287,7 @@ void RemoteInspector::sendMessageToRemote(unsigned targetIdentifier, const Strin
 
 void RemoteInspector::receivedGetTargetListMessage()
 {
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
     pushListingsNow();
 }
 
@@ -300,7 +300,7 @@ void RemoteInspector::receivedDataMessage(unsigned targetIdentifier, const char*
 {
     RefPtr<RemoteConnectionToTarget> connectionToTarget;
     {
-        std::lock_guard<Lock> lock(m_mutex);
+        LockHolder lock(m_mutex);
         connectionToTarget = m_targetConnectionMap.get(targetIdentifier);
         if (!connectionToTarget)
             return;
@@ -312,7 +312,7 @@ void RemoteInspector::receivedCloseMessage(unsigned targetIdentifier)
 {
     RefPtr<RemoteConnectionToTarget> connectionToTarget;
     {
-        std::lock_guard<Lock> lock(m_mutex);
+        LockHolder lock(m_mutex);
         RemoteControllableTarget* target = m_targetMap.get(targetIdentifier);
         if (!target)
             return;
@@ -329,7 +329,7 @@ void RemoteInspector::setup(unsigned targetIdentifier)
 {
     RemoteControllableTarget* target;
     {
-        std::lock_guard<Lock> lock(m_mutex);
+        LockHolder lock(m_mutex);
         target = m_targetMap.get(targetIdentifier);
         if (!target)
             return;
@@ -342,7 +342,7 @@ void RemoteInspector::setup(unsigned targetIdentifier)
         return;
     }
 
-    std::lock_guard<Lock> lock(m_mutex);
+    LockHolder lock(m_mutex);
     m_targetConnectionMap.set(targetIdentifier, WTFMove(connectionToTarget));
 
     updateHasActiveDebugSession();

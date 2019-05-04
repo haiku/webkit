@@ -32,6 +32,7 @@
 #include "Pagination.h"
 #include "RTCController.h"
 #include "Region.h"
+#include "RegistrableDomain.h"
 #include "ScrollTypes.h"
 #include "Supplementable.h"
 #include "Timer.h"
@@ -41,6 +42,7 @@
 #include "WheelEventTestTrigger.h"
 #include <memory>
 #include <pal/SessionID.h>
+#include <wtf/Assertions.h>
 #include <wtf/Forward.h>
 #include <wtf/Function.h>
 #include <wtf/HashSet.h>
@@ -144,6 +146,7 @@ class ValidationMessageClient;
 class ActivityStateChangeObserver;
 class VisitedLinkStore;
 class WebGLStateTracker;
+class SpeechSynthesisClient;
 class WheelEventDeltaFilter;
 
 typedef uint64_t SharedStringHash;
@@ -293,6 +296,9 @@ public:
 
     WEBCORE_EXPORT void unmarkAllTextMatches();
 
+    WEBCORE_EXPORT void dispatchBeforePrintEvent();
+    WEBCORE_EXPORT void dispatchAfterPrintEvent();
+
     // find all the Ranges for the matching text.
     // Upon return, indexForSelection will be one of the following:
     // 0 if there is no user selection
@@ -418,6 +424,7 @@ public:
 #if ENABLE(SERVICE_CONTROLS) || ENABLE(TELEPHONE_NUMBER_DETECTION)
     ServicesOverlayController& servicesOverlayController() { return *m_servicesOverlayController; }
 #endif // ENABLE(SERVICE_CONTROLS) || ENABLE(TELEPHONE_NUMBER_DETECTION)
+
     ScrollLatchingState* latchingState();
     void pushNewLatchingState();
     void popLatchingState();
@@ -465,6 +472,17 @@ public:
     void addDocumentNeedingIntersectionObservationUpdate(Document&);
     void scheduleForcedIntersectionObservationUpdate(Document&);
     void updateIntersectionObservations();
+#endif
+
+#if ENABLE(RESIZE_OBSERVER)
+    WEBCORE_EXPORT void checkResizeObservations();
+    bool hasResizeObservers() const;
+    void gatherDocumentsNeedingResizeObservationCheck(Vector<WeakPtr<Document>>&);
+    void scheduleResizeObservations();
+    void notifyResizeObservers(WeakPtr<Document>);
+    void setNeedsCheckResizeObservations(bool check) { m_needsCheckResizeObservations = check; }
+    bool needsCheckResizeObservations() const { return m_needsCheckResizeObservations; }
+
 #endif
 
     WEBCORE_EXPORT void suspendScriptedAnimations();
@@ -519,10 +537,8 @@ public:
     WEBCORE_EXPORT void removeLayoutMilestones(OptionSet<LayoutMilestone>);
     OptionSet<LayoutMilestone> requestedLayoutMilestones() const { return m_requestedLayoutMilestones; }
 
-#if ENABLE(RUBBER_BANDING)
-    WEBCORE_EXPORT void addHeaderWithHeight(int);
-    WEBCORE_EXPORT void addFooterWithHeight(int);
-#endif
+    WEBCORE_EXPORT void setHeaderHeight(int);
+    WEBCORE_EXPORT void setFooterHeight(int);
 
     int headerHeight() const { return m_headerHeight; }
     int footerHeight() const { return m_footerHeight; }
@@ -605,7 +621,7 @@ public:
     void updateIsPlayingMedia(uint64_t);
     MediaProducer::MutedStateFlags mutedState() const { return m_mutedState; }
     bool isAudioMuted() const { return m_mutedState & MediaProducer::AudioIsMuted; }
-    bool isMediaCaptureMuted() const { return m_mutedState & MediaProducer::CaptureDevicesAreMuted; };
+    bool isMediaCaptureMuted() const { return m_mutedState & MediaProducer::MediaStreamCaptureIsMuted; };
     void schedulePlaybackControlsManagerUpdate();
     WEBCORE_EXPORT void setMuted(MediaProducer::MutedStateFlags);
     WEBCORE_EXPORT void stopMediaCapture();
@@ -613,7 +629,10 @@ public:
     WEBCORE_EXPORT void stopAllMediaPlayback();
     WEBCORE_EXPORT void suspendAllMediaPlayback();
     WEBCORE_EXPORT void resumeAllMediaPlayback();
-    bool mediaPlaybackIsSuspended() { return m_mediaPlaybackIsSuspended; }
+    bool mediaPlaybackIsSuspended() const { return m_mediaPlaybackIsSuspended; }
+    WEBCORE_EXPORT void suspendAllMediaBuffering();
+    WEBCORE_EXPORT void resumeAllMediaBuffering();
+    bool mediaBufferingIsSuspended() const { return m_mediaBufferingIsSuspended; }
 
 #if ENABLE(MEDIA_SESSION)
     WEBCORE_EXPORT void handleMediaEvent(MediaEventType);
@@ -679,6 +698,10 @@ public:
 
     WebGLStateTracker* webGLStateTracker() const { return m_webGLStateTracker.get(); }
 
+#if ENABLE(SPEECH_SYNTHESIS)
+    SpeechSynthesisClient* speechSynthesisClient() const { return m_speechSynthesisClient.get(); }
+#endif
+
     bool isOnlyNonUtilityPage() const;
     bool isUtilityPage() const { return m_isUtilityPage; }
 
@@ -696,9 +719,11 @@ public:
 
     PerformanceLogging& performanceLogging() const { return *m_performanceLogging; }
 
+    void configureLoggingChannel(const String&, WTFLogChannelState, WTFLogLevel);
+
 private:
     struct Navigation {
-        String domain;
+        RegistrableDomain domain;
         FrameLoadType type;
     };
     void logNavigation(const Navigation&);
@@ -774,6 +799,10 @@ private:
     std::unique_ptr<PerformanceLoggingClient> m_performanceLoggingClient;
     
     std::unique_ptr<WebGLStateTracker> m_webGLStateTracker;
+
+#if ENABLE(SPEECH_SYNTHESIS)
+    std::unique_ptr<SpeechSynthesisClient> m_speechSynthesisClient;
+#endif
 
     UniqueRef<LibWebRTCProvider> m_libWebRTCProvider;
     RTCController m_rtcController;
@@ -922,6 +951,11 @@ private:
     Timer m_playbackControlsManagerUpdateTimer;
 #endif
 
+#if ENABLE(RESIZE_OBSERVER)
+    Timer m_resizeObserverTimer;
+    bool m_needsCheckResizeObservations { false };
+#endif
+
     bool m_allowsMediaDocumentInlinePlayback { false };
     bool m_allowsPlaybackControlsForAutoplayingAudio { false };
     bool m_showAllPlugins { false };
@@ -966,6 +1000,7 @@ private:
 
     bool m_shouldEnableICECandidateFilteringByDefault { true };
     bool m_mediaPlaybackIsSuspended { false };
+    bool m_mediaBufferingIsSuspended { false };
 };
 
 inline PageGroup& Page::group()

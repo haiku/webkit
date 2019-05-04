@@ -31,6 +31,7 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
         this._ownerStyle = null;
         this._index = index;
+        this._overridingProperty = null;
         this._initialState = null;
 
         this.update(text, name, value, priority, enabled, overridden, implicit, anonymous, valid, styleSheetTextRange, true);
@@ -100,6 +101,9 @@ WI.CSSProperty = class CSSProperty extends WI.Object
         else
             this._overridden = overridden;
 
+        if (!overridden)
+            this._overridingProperty = null;
+
         this._text = text;
         this._name = name;
         this._rawValue = value;
@@ -143,7 +147,6 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
     commentOut(disabled)
     {
-        console.assert(this._enabled === disabled, "CSS property is already " + (disabled ? "disabled" : "enabled"));
         if (this._enabled === !disabled)
             return;
 
@@ -230,6 +233,10 @@ WI.CSSProperty = class CSSProperty extends WI.Object
 
         this._markModified();
 
+        let suffix = WI.CSSCompletions.completeUnbalancedValue(value);
+        if (suffix)
+            value += suffix;
+
         this._rawValue = value;
         this._value = undefined;
         this._updateStyleText();
@@ -258,6 +265,9 @@ WI.CSSProperty = class CSSProperty extends WI.Object
         if (this._overridden === overridden)
             return;
 
+        if (!overridden)
+            this._overridingProperty = null;
+
         var previousOverridden = this._overridden;
 
         this._overridden = overridden;
@@ -276,6 +286,20 @@ WI.CSSProperty = class CSSProperty extends WI.Object
         }
 
         this._overriddenStatusChangedTimeout = setTimeout(delayed.bind(this), 0);
+    }
+
+    get overridingProperty()
+    {
+        console.assert(this._overridden);
+        return this._overridingProperty;
+    }
+
+    set overridingProperty(effectiveProperty)
+    {
+        if (!WI.settings.experimentalEnableStylesJumpToEffective.value)
+            return;
+
+        this._overridingProperty = effectiveProperty || null;
     }
 
     get implicit() { return this._implicit; }
@@ -379,6 +403,10 @@ WI.CSSProperty = class CSSProperty extends WI.Object
             }
             return;
         }
+
+        console.assert(this._ownerStyle);
+        if (!this._ownerStyle)
+            return;
 
         this._prependSemicolonIfNeeded();
 

@@ -381,11 +381,11 @@ void MediaPlayerPrivateMediaStreamAVFObjC::enqueueVideoSample(MediaStreamTrackPr
         INFO_LOG(LOGIDENTIFIER, "timeline offset for track ", track.id(), " set to ", timelineOffset);
     }
 
-    DEBUG_LOG(LOGIDENTIFIER, "original sample = ", toString(sample));
+    DEBUG_LOG(LOGIDENTIFIER, "original sample = ", sample);
     sample.offsetTimestampsBy(timelineOffset);
-    DEBUG_LOG(LOGIDENTIFIER, "updated sample = ", toString(sample));
+    DEBUG_LOG(LOGIDENTIFIER, "updated sample = ", sample);
 
-    if (WILL_LOG(WTFLogLevelDebug)) {
+    if (WILL_LOG(WTFLogLevel::Debug)) {
         MediaTime now = streamTime();
         double delta = (sample.presentationTime() - now).toDouble();
         if (delta < 0)

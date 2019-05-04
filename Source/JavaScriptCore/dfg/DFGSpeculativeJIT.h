@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -147,13 +147,6 @@ public:
         {     
             graph.m_plan.weakReferences().addLazily(cell);
             return TrustedImmPtr(bitwise_cast<size_t>(cell));
-        }
-
-        template<typename Key>
-        static TrustedImmPtr weakPoisonedPointer(Graph& graph, JSCell* cell)
-        {     
-            graph.m_plan.weakReferences().addLazily(cell);
-            return TrustedImmPtr(bitwise_cast<size_t>(cell) ^ Key::key());
         }
 
         operator MacroAssembler::TrustedImmPtr() const { return m_value; }
@@ -584,6 +577,8 @@ public:
     bool isKnownNotNumber(Node* node) { return !(m_state.forNode(node).m_type & SpecFullNumber); }
     bool isKnownNotCell(Node* node) { return !(m_state.forNode(node).m_type & SpecCell); }
     bool isKnownNotOther(Node* node) { return !(m_state.forNode(node).m_type & SpecOther); }
+
+    bool canBeRope(Edge&);
     
     UniquedStringImpl* identifierUID(unsigned index)
     {
@@ -1236,9 +1231,9 @@ public:
         BasicBlock* target;
     };
     
-    void emitSwitchIntJump(SwitchData*, GPRReg value, GPRReg scratch, GPRReg scratch2);
+    void emitSwitchIntJump(SwitchData*, GPRReg value, GPRReg scratch);
     void emitSwitchImm(Node*, SwitchData*);
-    void emitSwitchCharStringJump(SwitchData*, GPRReg value, GPRReg scratch, GPRReg scratch2);
+    void emitSwitchCharStringJump(SwitchData*, GPRReg value, GPRReg scratch);
     void emitSwitchChar(Node*, SwitchData*);
     void emitBinarySwitchStringRecurse(
         SwitchData*, const Vector<StringSwitchCase>&, unsigned numChecked,
@@ -1330,6 +1325,7 @@ public:
     void compileUInt32ToNumber(Node*);
     void compileDoubleAsInt32(Node*);
 
+    void compileValueBitNot(Node*);
     void compileBitwiseNot(Node*);
 
     template<typename SnippetGenerator, J_JITOperation_EJJ slowPathFunction>
@@ -1549,7 +1545,7 @@ public:
     void emitGetLength(CodeOrigin, GPRReg lengthGPR, bool includeThis = false);
     void emitGetCallee(CodeOrigin, GPRReg calleeGPR);
     void emitGetArgumentStart(CodeOrigin, GPRReg startGPR);
-    void emitPopulateSliceIndex(Edge&, GPRReg length, GPRReg result);
+    void emitPopulateSliceIndex(Edge&, Optional<GPRReg> indexGPR, GPRReg lengthGPR, GPRReg resultGPR);
     
     // Generate an OSR exit fuzz check. Returns Jump() if OSR exit fuzz is not enabled, or if
     // it's in training mode.
@@ -1656,12 +1652,6 @@ public:
     
     void cageTypedArrayStorage(GPRReg);
     
-    // It is possible, during speculative generation, to reach a situation in which we
-    // can statically determine a speculation will fail (for example, when two nodes
-    // will make conflicting speculations about the same operand). In such cases this
-    // flag is cleared, indicating no further code generation should take place.
-    bool m_compileOkay;
-    
     void recordSetLocal(
         VirtualRegister bytecodeReg, VirtualRegister machineReg, DataFormat format)
     {
@@ -1703,6 +1693,12 @@ public:
     Vector<GenerationInfo, 32> m_generationInfo;
     RegisterBank<GPRInfo> m_gprs;
     RegisterBank<FPRInfo> m_fprs;
+
+    // It is possible, during speculative generation, to reach a situation in which we
+    // can statically determine a speculation will fail (for example, when two nodes
+    // will make conflicting speculations about the same operand). In such cases this
+    // flag is cleared, indicating no further code generation should take place.
+    bool m_compileOkay;
 
     Vector<MacroAssembler::Label> m_osrEntryHeads;
     

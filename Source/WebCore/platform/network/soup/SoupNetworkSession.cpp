@@ -98,9 +98,11 @@ private:
     HashSet<String> m_certificates;
 };
 
-static HashMap<String, HostTLSCertificateSet, ASCIICaseInsensitiveHash>& clientCertificates()
+using AllowedCertificatesMap = HashMap<String, HostTLSCertificateSet, ASCIICaseInsensitiveHash>;
+
+static AllowedCertificatesMap& allowedCertificates()
 {
-    static NeverDestroyed<HashMap<String, HostTLSCertificateSet, ASCIICaseInsensitiveHash>> certificates;
+    static NeverDestroyed<AllowedCertificatesMap> certificates;
     return certificates;
 }
 
@@ -154,7 +156,7 @@ SoupNetworkSession::~SoupNetworkSession() = default;
 void SoupNetworkSession::setupLogger()
 {
 #if !LOG_DISABLED
-    if (LogNetwork.state != WTFLogChannelOn || soup_session_get_feature(m_soupSession.get(), SOUP_TYPE_LOGGER))
+    if (LogNetwork.state != WTFLogChannelState::On || soup_session_get_feature(m_soupSession.get(), SOUP_TYPE_LOGGER))
         return;
 
     GRefPtr<SoupLogger> logger = adoptGRef(soup_logger_new(SOUP_LOGGER_LOG_BODY, -1));
@@ -284,8 +286,8 @@ Optional<ResourceError> SoupNetworkSession::checkTLSErrors(const URL& requestURL
     if (!tlsErrors)
         return WTF::nullopt;
 
-    auto it = clientCertificates().find(requestURL.host().toString());
-    if (it != clientCertificates().end() && it->value.contains(certificate))
+    auto it = allowedCertificates().find(requestURL.host().toStringWithoutCopying());
+    if (it != allowedCertificates().end() && it->value.contains(certificate))
         return WTF::nullopt;
 
     return ResourceError::tlsError(requestURL, tlsErrors, certificate);
@@ -293,7 +295,7 @@ Optional<ResourceError> SoupNetworkSession::checkTLSErrors(const URL& requestURL
 
 void SoupNetworkSession::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)
 {
-    clientCertificates().add(host, HostTLSCertificateSet()).iterator->value.add(certificateInfo.certificate());
+    allowedCertificates().add(host, HostTLSCertificateSet()).iterator->value.add(certificateInfo.certificate());
 }
 
 } // namespace WebCore

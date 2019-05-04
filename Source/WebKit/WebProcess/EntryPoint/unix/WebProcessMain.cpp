@@ -24,6 +24,7 @@
  */
 
 #include "WebProcessMainUnix.h"
+#include "wtf/Platform.h"
 
 #include <cstdlib>
 
@@ -45,8 +46,5 @@ int main(int argc, char** argv)
     // WARNING: This needs to be KEPT IN SYNC with WebProcessMain.cpp.
     setenv("G_TLS_GNUTLS_PRIORITY", "NORMAL:%COMPAT:!VERS-SSL3.0:!ARCFOUR-128", 0);
 
-/*#if USE(GCRYPT)
-    PAL::GCrypt::initialize();
-#endif*/
     return WebProcessMainUnix(argc, argv);
 }

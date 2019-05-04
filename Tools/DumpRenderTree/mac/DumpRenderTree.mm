@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2005-2019 Apple Inc. All rights reserved.
  *           (C) 2007 Graham Dennis (graham.dennis@gmail.com)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -377,6 +377,7 @@ static NSSet *allowedFontFamilySet()
         @"Hiragino Maru Gothic ProN",
         @"Hiragino Mincho Pro",
         @"Hiragino Mincho ProN",
+        @"Hiragino Sans",
         @"Hiragino Sans GB",
         @"Hoefler Text",
         @"Impact",
@@ -386,6 +387,7 @@ static NSSet *allowedFontFamilySet()
         @"Kokonor",
         @"Krungthep",
         @"KufiStandardGK",
+        @"Lao Sangam MN",
         @"LastResort",
         @"LiHei Pro",
         @"LiSong Pro",
@@ -403,11 +405,15 @@ static NSSet *allowedFontFamilySet()
         @"Papyrus",
         @"PCMyungjo",
         @"PilGi",
+        @"PingFang HK",
+        @"PingFang SC",
+        @"PingFang TC",
         @"Plantagenet Cherokee",
         @"Raanana",
         @"Sathu",
         @"Silom",
         @"Skia",
+        @"Snell Roundhand",
         @"Songti SC",
         @"Songti TC",
         @"STFangsong",
@@ -854,7 +860,6 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setFetchAPIKeepAliveEnabled:YES];
     [preferences setWebAnimationsEnabled:YES];
     [preferences setWebGL2Enabled:YES];
-    [preferences setWebMetalEnabled:YES];
     // FIXME: AsyncFrameScrollingEnabled
     [preferences setCacheAPIEnabled:NO];
     [preferences setReadableByteStreamAPIEnabled:YES];
@@ -869,6 +874,7 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     preferences.sourceBufferChangeTypeEnabled = YES;
     [preferences setCSSOMViewScrollingAPIEnabled:YES];
     [preferences setMediaRecorderEnabled:YES];
+    [preferences setReferrerPolicyAttributeEnabled:YES];
 }
 
 // Called before each test.
@@ -931,6 +937,7 @@ static void resetWebPreferencesToConsistentValues()
         [preferences setUserStyleSheetEnabled:NO];
 
     [preferences setMediaPlaybackAllowsInline:YES];
+    [preferences setMediaPlaybackRequiresUserGesture:NO];
     [preferences setVideoPlaybackRequiresUserGesture:NO];
     [preferences setAudioPlaybackRequiresUserGesture:NO];
     [preferences setMediaDataLoadsAutomatically:YES];
@@ -970,7 +977,6 @@ static void resetWebPreferencesToConsistentValues()
     [preferences setCustomPasteboardDataEnabled:YES];
 
     [preferences setWebGL2Enabled:YES];
-    [preferences setWebMetalEnabled:YES];
 
     [preferences setDownloadAttributeEnabled:YES];
     [preferences setDirectoryUploadEnabled:YES];
@@ -1012,6 +1018,7 @@ static void setWebPreferencesForTestOptions(const TestOptions& options)
     preferences.webGPUEnabled = options.enableWebGPU;
     preferences.CSSLogicalEnabled = options.enableCSSLogical;
     preferences.adClickAttributionEnabled = options.adClickAttributionEnabled;
+    preferences.resizeObserverEnabled = options.enableResizeObserver;
 }
 
 // Called once on DumpRenderTree startup.
@@ -1160,12 +1167,13 @@ static bool useLongRunningServerMode(int argc, const char *argv[])
 
 static bool handleControlCommand(const char* command)
 {
-    if (!strcmp("#CHECK FOR WORLD LEAKS", command)) {
-        // DumpRenderTree does not support checking for world leaks.
+    if (!strncmp("#CHECK FOR WORLD LEAKS", command, 22) || !strncmp("#LIST CHILD PROCESSES", command, 21)) {
+        // DumpRenderTree does not support checking for world leaks or listing child processes.
         WTF::String result("\n");
+        unsigned resultLength = result.length();
         printf("Content-Type: text/plain\n");
-        printf("Content-Length: %u\n", result.length());
-        fwrite(result.utf8().data(), 1, result.length(), stdout);
+        printf("Content-Length: %u\n", resultLength);
+        fwrite(result.utf8().data(), 1, resultLength, stdout);
         printf("#EOF\n");
         fprintf(stderr, "#EOF\n");
         fflush(stdout);

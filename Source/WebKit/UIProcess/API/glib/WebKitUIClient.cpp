@@ -50,10 +50,9 @@ public:
     }
 
 private:
-    void createNewPage(WebPageProxy& page, Ref<API::FrameInfo>&& frameInfo, WebCore::ResourceRequest&& resourceRequest, WebCore::WindowFeatures&& windowFeatures, NavigationActionData&& navigationActionData, CompletionHandler<void(RefPtr<WebPageProxy>&&)>&& completionHandler) final
+    void createNewPage(WebPageProxy& page, WebCore::WindowFeatures&& windowFeatures, Ref<API::NavigationAction>&& apiNavigationAction, CompletionHandler<void(RefPtr<WebPageProxy>&&)>&& completionHandler) final
     {
-        auto userInitiatedActivity = page.process().userInitiatedActivity(navigationActionData.userGestureTokenIdentifier);
-        WebKitNavigationAction navigationAction(API::NavigationAction::create(WTFMove(navigationActionData), frameInfo.ptr(), nullptr, WTF::nullopt, WTFMove(resourceRequest), URL { }, false, WTFMove(userInitiatedActivity)));
+        WebKitNavigationAction navigationAction(WTFMove(apiNavigationAction));
         completionHandler(webkitWebViewCreateNewPage(m_webView, windowFeatures, &navigationAction));
     }
 
@@ -89,7 +88,7 @@ private:
         webkitWebViewRunJavaScriptBeforeUnloadConfirm(m_webView, message.utf8(), WTFMove(completionHandler));
     }
 
-    void mouseDidMoveOverElement(WebPageProxy&, const WebHitTestResultData& data, WebEvent::Modifiers modifiers, API::Object*) final
+    void mouseDidMoveOverElement(WebPageProxy&, const WebHitTestResultData& data, OptionSet<WebEvent::Modifier> modifiers, API::Object*) final
     {
         webkitWebViewMouseTargetChanged(m_webView, data, modifiers);
     }

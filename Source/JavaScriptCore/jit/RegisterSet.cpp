@@ -58,7 +58,7 @@ RegisterSet RegisterSet::reservedHardwareRegisters()
 #endif
 }
 
-RegisterSet RegisterSet::runtimeRegisters()
+RegisterSet RegisterSet::runtimeTagRegisters()
 {
 #if USE(JSVALUE64)
     return RegisterSet(GPRInfo::tagTypeNumberRegister, GPRInfo::tagMaskRegister);
@@ -70,7 +70,7 @@ RegisterSet RegisterSet::runtimeRegisters()
 RegisterSet RegisterSet::specialRegisters()
 {
     return RegisterSet(
-        stackRegisters(), reservedHardwareRegisters(), runtimeRegisters());
+        stackRegisters(), reservedHardwareRegisters(), runtimeTagRegisters());
 }
 
 RegisterSet RegisterSet::volatileRegistersForJSCall()
@@ -154,6 +154,7 @@ RegisterSet RegisterSet::calleeSaveRegisters()
         reg = static_cast<ARM64Registers::FPRegisterID>(reg + 1))
         result.set(reg);
 #elif CPU(MIPS)
+    result.set(MIPSRegisters::s0);
 #else
     UNREACHABLE_FOR_PLATFORM();
 #endif

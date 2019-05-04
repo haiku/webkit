@@ -43,6 +43,7 @@
 #include "Page.h"
 #include "PlatformStrategies.h"
 #include "RenderElement.h"
+#include "RenderStyle.h"
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
@@ -157,9 +158,9 @@ static void resetStyleForNonRenderedDescendants(Element& current)
 
 static bool affectsRenderedSubtree(Element& element, const RenderStyle& newStyle)
 {
-    if (element.renderer())
-        return true;
     if (newStyle.display() != DisplayType::None)
+        return true;
+    if (element.renderOrDisplayContentsStyle())
         return true;
     if (element.rendererIsNeeded(newStyle))
         return true;
@@ -236,7 +237,7 @@ ElementUpdates TreeResolver::resolveElement(Element& element)
     auto beforeUpdate = resolvePseudoStyle(element, update, PseudoId::Before);
     auto afterUpdate = resolvePseudoStyle(element, update, PseudoId::After);
 
-#if ENABLE(POINTER_EVENTS)
+#if ENABLE(POINTER_EVENTS) && PLATFORM(IOS_FAMILY)
     if (RuntimeEnabledFeatures::sharedFeatures().pointerEventsEnabled())
         m_document.updateTouchActionElements(element, *update.style.get());
 #endif
@@ -252,7 +253,7 @@ ElementUpdate TreeResolver::resolvePseudoStyle(Element& element, const ElementUp
         return { };
 
     auto pseudoStyle = scope().styleResolver.pseudoStyleForElement(element, { pseudoId }, *elementUpdate.style, &scope().selectorFilter);
-    if (!pseudoStyle)
+    if (!pseudoElementRendererIsNeeded(pseudoStyle.get()))
         return { };
 
     PseudoElement* pseudoElement = pseudoId == PseudoId::Before ? element.beforePseudoElement() : element.afterPseudoElement();

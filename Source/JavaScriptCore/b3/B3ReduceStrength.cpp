@@ -33,6 +33,7 @@
 #include "B3BlockInsertionSet.h"
 #include "B3ComputeDivisionMagic.h"
 #include "B3Dominators.h"
+#include "B3EliminateDeadCode.h"
 #include "B3InsertionSetInlines.h"
 #include "B3MemoryValueInlines.h"
 #include "B3PhaseScope.h"
@@ -440,7 +441,7 @@ public:
             // "hoist" @thing. On the other hand, if we run DCE before CSE, we will kill @dead and
             // keep @thing. That's better, since we usually want things to stay wherever the client
             // put them. We're not actually smart enough to move things around at random.
-            killDeadCode();
+            m_changed |= eliminateDeadCodeImpl(m_proc);
             
             simplifySSA();
             
@@ -499,7 +500,7 @@ private:
         case Add:
             handleCommutativity();
             
-            if (m_value->child(0)->opcode() == Add && isInt(m_value->type())) {
+            if (m_value->child(0)->opcode() == Add && m_value->isInteger()) {
                 // Turn this: Add(Add(value, constant1), constant2)
                 // Into this: Add(value, constant1 + constant2)
                 Value* newSum = m_value->child(1)->addConstant(m_proc, m_value->child(0)->child(1));
@@ -532,7 +533,7 @@ private:
             
             // Turn this: Add(otherValue, Add(value, constant))
             // Into this: Add(Add(value, otherValue), constant)
-            if (isInt(m_value->type())
+            if (m_value->isInteger()
                 && !m_value->child(0)->hasInt()
                 && m_value->child(1)->opcode() == Add
                 && m_value->child(1)->child(1)->hasInt()) {
@@ -579,14 +580,32 @@ private:
                 break;
             }
 
-            // Turn this: Integer Add(Sub(0, value), -1)
-            // Into this: BitXor(value, -1)
-            if (m_value->isInteger()
-                && m_value->child(0)->opcode() == Sub
-                && m_value->child(1)->isInt(-1)
-                && m_value->child(0)->child(0)->isInt(0)) {
-                replaceWithNewValue(m_proc.add<Value>(BitXor, m_value->origin(), m_value->child(0)->child(1), m_value->child(1)));
-                break;
+            if (m_value->isInteger()) {
+                // Turn this: Integer Add(value, Neg(otherValue))
+                // Into this: Sub(value, otherValue)
+                if (m_value->child(1)->opcode() == Neg) {
+                    replaceWithNew<Value>(Sub, m_value->origin(), m_value->child(0), m_value->child(1)->child(0));
+                    break;
+                }
+
+                // Turn this: Integer Add(Neg(value), otherValue)
+                // Into this: Sub(otherValue, value)
+                if (m_value->child(0)->opcode() == Neg) {
+                    replaceWithNew<Value>(Sub, m_value->origin(), m_value->child(1), m_value->child(0)->child(0));
+                    break;
+                }
+
+                // Turn this: Integer Add(Sub(0, value), -1)
+                // Into this: BitXor(value, -1)
+                if (m_value->child(0)->opcode() == Sub
+                    && m_value->child(1)->isInt(-1)
+                    && m_value->child(0)->child(0)->isInt(0)) {
+                    replaceWithNew<Value>(BitXor, m_value->origin(), m_value->child(0)->child(1), m_value->child(1));
+                    break;
+                }
+
+                if (handleMulDistributivity())
+                    break;
             }
 
             break;
@@ -599,7 +618,7 @@ private:
                 break;
             }
 
-            if (isInt(m_value->type())) {
+            if (m_value->isInteger()) {
                 // Turn this: Sub(value, constant)
                 // Into this: Add(value, -constant)
                 if (Value* negatedConstant = m_value->child(1)->negConstant(m_proc)) {
@@ -615,6 +634,23 @@ private:
                     replaceWithNew<Value>(Neg, m_value->origin(), m_value->child(1));
                     break;
                 }
+
+                // Turn this: Sub(value, value)
+                // Into this: 0
+                if (m_value->child(0) == m_value->child(1)) {
+                    replaceWithNewValue(m_proc.addIntConstant(m_value, 0));
+                    break;
+                }
+
+                // Turn this: Sub(value, Neg(otherValue))
+                // Into this: Add(value, otherValue)
+                if (m_value->child(1)->opcode() == Neg) {
+                    replaceWithNew<Value>(Add, m_value->origin(), m_value->child(0), m_value->child(1)->child(0));
+                    break;
+                }
+
+                if (handleMulDistributivity())
+                    break;
             }
 
             break;
@@ -633,7 +669,30 @@ private:
                 replaceWithIdentity(m_value->child(0)->child(0));
                 break;
             }
-            
+
+            if (m_value->isInteger()) {
+                // Turn this: Integer Neg(Sub(value, otherValue))
+                // Into this: Sub(otherValue, value)
+                if (m_value->child(0)->opcode() == Sub) {
+                    replaceWithNew<Value>(Sub, m_value->origin(), m_value->child(0)->child(1), m_value->child(0)->child(0));
+                    break;
+                }
+
+                // Turn this: Integer Neg(Mul(value, c))
+                // Into this: Mul(value, -c), as long as -c does not overflow
+                if (m_value->child(0)->opcode() == Mul && m_value->child(0)->child(1)->hasInt()) {
+                    int64_t factor = m_value->child(0)->child(1)->asInt();
+                    if (m_value->type() == Int32 && factor != std::numeric_limits<int32_t>::min()) {
+                        Value* newFactor = m_insertionSet.insert<Const32Value>(m_index, m_value->child(0)->child(1)->origin(), -factor);
+                        replaceWithNew<Value>(Mul, m_value->origin(), m_value->child(0)->child(0), newFactor);
+                    } else if (m_value->type() == Int64 && factor != std::numeric_limits<int64_t>::min()) {
+                        Value* newFactor = m_insertionSet.insert<Const64Value>(m_index, m_value->child(0)->child(1)->origin(), -factor);
+                        replaceWithNew<Value>(Mul, m_value->origin(), m_value->child(0)->child(0), newFactor);
+                    }
+                }
+            }
+
+
             break;
 
         case Mul:
@@ -666,13 +725,9 @@ private:
                 }
 
                 // Turn this: Mul(value, -1)
-                // Into this: Sub(0, value)
+                // Into this: Neg(value)
                 if (factor == -1) {
-                    replaceWithNewValue(
-                        m_proc.add<Value>(
-                            Sub, m_value->origin(),
-                            m_insertionSet.insertIntConstant(m_index, m_value, 0),
-                            m_value->child(0)));
+                    replaceWithNew<Value>(Neg, m_value->origin(), m_value->child(0));
                     break;
                 }
                 
@@ -694,6 +749,23 @@ private:
                 // Into this: value
                 if (factor == 1) {
                     replaceWithIdentity(m_value->child(0));
+                    break;
+                }
+            }
+
+            if (m_value->isInteger()) {
+                // Turn this: Integer Mul(value, Neg(otherValue))
+                // Into this: Neg(Mul(value, otherValue))
+                if (m_value->child(1)->opcode() == Neg) {
+                    Value* newMul = m_insertionSet.insert<Value>(m_index, Mul, m_value->origin(), m_value->child(0), m_value->child(1)->child(0));
+                    replaceWithNew<Value>(Neg, m_value->origin(), newMul);
+                    break;
+                }
+                // Turn this: Integer Mul(Neg(value), otherValue)
+                // Into this: Neg(Mul(value, value2))
+                if (m_value->child(0)->opcode() == Neg) {
+                    Value* newMul = m_insertionSet.insert<Value>(m_index, Mul, m_value->origin(), m_value->child(0)->child(0), m_value->child(1));
+                    replaceWithNew<Value>(Neg, m_value->origin(), newMul);
                     break;
                 }
             }
@@ -926,8 +998,8 @@ private:
 
             // Turn this: BitAnd(value, all-ones)
             // Into this: value.
-            if ((m_value->type() == Int64 && m_value->child(1)->isInt(0xffffffffffffffff))
-                || (m_value->type() == Int32 && m_value->child(1)->isInt(0xffffffff))) {
+            if ((m_value->type() == Int64 && m_value->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                || (m_value->type() == Int32 && m_value->child(1)->isInt(std::numeric_limits<uint32_t>::max()))) {
                 replaceWithIdentity(m_value->child(0));
                 break;
             }
@@ -948,6 +1020,7 @@ private:
                 && !(m_value->child(1)->asInt32() & 0xffffff00)) {
                 m_value->child(0) = m_value->child(0)->child(0);
                 m_changed = true;
+                break;
             }
 
             // Turn this: BitAnd(SExt16(value), mask) where (mask & 0xffff0000) == 0
@@ -956,6 +1029,7 @@ private:
                 && !(m_value->child(1)->asInt32() & 0xffff0000)) {
                 m_value->child(0) = m_value->child(0)->child(0);
                 m_changed = true;
+                break;
             }
 
             // Turn this: BitAnd(SExt32(value), mask) where (mask & 0xffffffff00000000) == 0
@@ -966,6 +1040,7 @@ private:
                     m_index, ZExt32, m_value->origin(),
                     m_value->child(0)->child(0), m_value->child(0)->child(1));
                 m_changed = true;
+                break;
             }
 
             // Turn this: BitAnd(Op(value, constant1), constant2)
@@ -987,7 +1062,40 @@ private:
                 default:
                     break;
                 }
+                break;
             }
+
+            // Turn this: BitAnd(BitXor(x1, allOnes), BitXor(x2, allOnes)
+            // Into this: BitXor(BitOr(x1, x2), allOnes)
+            // By applying De Morgan laws
+            if (m_value->child(0)->opcode() == BitXor
+                && m_value->child(1)->opcode() == BitXor
+                && ((m_value->type() == Int64
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint64_t>::max())
+                        && m_value->child(1)->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                    || (m_value->type() == Int32
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint32_t>::max())
+                        && m_value->child(1)->child(1)->isInt(std::numeric_limits<uint32_t>::max())))) {
+                Value* bitOr = m_insertionSet.insert<Value>(m_index, BitOr, m_value->origin(), m_value->child(0)->child(0), m_value->child(1)->child(0));
+                replaceWithNew<Value>(BitXor, m_value->origin(), bitOr, m_value->child(1)->child(1));
+                break;
+            }
+
+            // Turn this: BitAnd(BitXor(x, allOnes), c)
+            // Into this: BitXor(BitOr(x, ~c), allOnes)
+            // This is a variation on the previous optimization, treating c as if it were BitXor(~c, allOnes)
+            // It does not reduce the number of operations, but provides some normalization (we try to get BitXor by allOnes at the outermost point), and some chance to float Xors to a place where they might get eliminated.
+            if (m_value->child(0)->opcode() == BitXor
+                && m_value->child(1)->hasInt()
+                && ((m_value->type() == Int64
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                    || (m_value->type() == Int32
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint32_t>::max())))) {
+                Value* bitOr = m_insertionSet.insert<Value>(m_index, BitOr, m_value->origin(), m_value->child(0)->child(0), m_value->child(1)->bitXorConstant(m_proc, m_value->child(0)->child(1)));
+                replaceWithNew<Value>(BitXor, m_value->origin(), bitOr, m_value->child(0)->child(1));
+                break;
+            }
+
             break;
 
         case BitOr:
@@ -1028,11 +1136,45 @@ private:
 
             // Turn this: BitOr(value, all-ones)
             // Into this: all-ones.
-            if ((m_value->type() == Int64 && m_value->child(1)->isInt(0xffffffffffffffff))
-                || (m_value->type() == Int32 && m_value->child(1)->isInt(0xffffffff))) {
+            if ((m_value->type() == Int64 && m_value->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                || (m_value->type() == Int32 && m_value->child(1)->isInt(std::numeric_limits<uint32_t>::max()))) {
                 replaceWithIdentity(m_value->child(1));
                 break;
             }
+
+            // Turn this: BitOr(BitXor(x1, allOnes), BitXor(x2, allOnes)
+            // Into this: BitXor(BitAnd(x1, x2), allOnes)
+            // By applying De Morgan laws
+            if (m_value->child(0)->opcode() == BitXor
+                && m_value->child(1)->opcode() == BitXor
+                && ((m_value->type() == Int64
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint64_t>::max())
+                        && m_value->child(1)->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                    || (m_value->type() == Int32
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint32_t>::max())
+                        && m_value->child(1)->child(1)->isInt(std::numeric_limits<uint32_t>::max())))) {
+                Value* bitAnd = m_insertionSet.insert<Value>(m_index, BitAnd, m_value->origin(), m_value->child(0)->child(0), m_value->child(1)->child(0));
+                replaceWithNew<Value>(BitXor, m_value->origin(), bitAnd, m_value->child(1)->child(1));
+                break;
+            }
+
+            // Turn this: BitOr(BitXor(x, allOnes), c)
+            // Into this: BitXor(BitAnd(x, ~c), allOnes)
+            // This is a variation on the previous optimization, treating c as if it were BitXor(~c, allOnes)
+            // It does not reduce the number of operations, but provides some normalization (we try to get BitXor by allOnes at the outermost point), and some chance to float Xors to a place where they might get eliminated.
+            if (m_value->child(0)->opcode() == BitXor
+                && m_value->child(1)->hasInt()
+                && ((m_value->type() == Int64
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint64_t>::max()))
+                    || (m_value->type() == Int32
+                        && m_value->child(0)->child(1)->isInt(std::numeric_limits<uint32_t>::max())))) {
+                Value* bitAnd = m_insertionSet.insert<Value>(m_index, BitAnd, m_value->origin(), m_value->child(0)->child(0), m_value->child(1)->bitXorConstant(m_proc, m_value->child(0)->child(1)));
+                replaceWithNew<Value>(BitXor, m_value->origin(), bitAnd, m_value->child(0)->child(1));
+                break;
+            }
+
+            if (handleBitAndDistributivity())
+                break;
 
             break;
 
@@ -1080,6 +1222,9 @@ private:
                 replaceWithIdentity(m_value->child(0));
                 break;
             }
+                
+            if (handleBitAndDistributivity())
+                break;
 
             break;
 
@@ -1088,6 +1233,19 @@ private:
             // Into this: constant1 << constant2
             if (Value* constant = m_value->child(0)->shlConstant(m_proc, m_value->child(1))) {
                 replaceWithNewValue(constant);
+                break;
+            }
+
+            // Turn this: Shl(<S|Z>Shr(@x, @const), @const)
+            // Into this: BitAnd(@x, -(1<<@const))
+            if ((m_value->child(0)->opcode() == SShr || m_value->child(0)->opcode() == ZShr)
+                && m_value->child(0)->child(1)->hasInt()
+                && m_value->child(1)->hasInt()
+                && m_value->child(0)->child(1)->asInt() == m_value->child(1)->asInt()) {
+                int shiftAmount = m_value->child(1)->asInt() & (m_value->type() == Int32 ? 31 : 63);
+                Value* newConst = m_proc.addIntConstant(m_value, - static_cast<int64_t>(1ull << shiftAmount));
+                m_insertionSet.insertValue(m_index, newConst);
+                replaceWithNew<Value>(BitAnd, m_value->origin(), m_value->child(0)->child(0), newConst);
                 break;
             }
 
@@ -1199,6 +1357,14 @@ private:
             // Into this: Abs(value)
             if (m_value->child(0)->opcode() == Abs) {
                 replaceWithIdentity(m_value->child(0));
+                break;
+            }
+                
+            // Turn this: Abs(Neg(value))
+            // Into this: Abs(value)
+            if (m_value->child(0)->opcode() == Neg) {
+                m_value->child(0) = m_value->child(0)->child(0);
+                m_changed = true;
                 break;
             }
 
@@ -2166,6 +2332,114 @@ private:
         }
     }
 
+    // For Op==Add or Sub, turn any of these:
+    //      Op(Mul(x1, x2), Mul(x1, x3))
+    //      Op(Mul(x2, x1), Mul(x1, x3))
+    //      Op(Mul(x1, x2), Mul(x3, x1))
+    //      Op(Mul(x2, x1), Mul(x3, x1))
+    // Into this: Mul(x1, Op(x2, x3))
+    bool handleMulDistributivity()
+    {
+        ASSERT(m_value->opcode() == Add || m_value->opcode() == Sub);
+        Value* x1 = nullptr;
+        Value* x2 = nullptr;
+        Value* x3 = nullptr;
+        if (m_value->child(0)->opcode() == Mul && m_value->child(1)->opcode() == Mul) {
+            if (m_value->child(0)->child(0) == m_value->child(1)->child(0)) {
+                // Op(Mul(x1, x2), Mul(x1, x3))
+                x1 = m_value->child(0)->child(0);
+                x2 = m_value->child(0)->child(1);
+                x3 = m_value->child(1)->child(1);
+            } else if (m_value->child(0)->child(1) == m_value->child(1)->child(0)) {
+                // Op(Mul(x2, x1), Mul(x1, x3))
+                x1 = m_value->child(0)->child(1);
+                x2 = m_value->child(0)->child(0);
+                x3 = m_value->child(1)->child(1);
+            } else if (m_value->child(0)->child(0) == m_value->child(1)->child(1)) {
+                // Op(Mul(x1, x2), Mul(x3, x1))
+                x1 = m_value->child(0)->child(0);
+                x2 = m_value->child(0)->child(1);
+                x3 = m_value->child(1)->child(0);
+            } else if (m_value->child(0)->child(1) == m_value->child(1)->child(1)) {
+                // Op(Mul(x2, x1), Mul(x3, x1))
+                x1 = m_value->child(0)->child(1);
+                x2 = m_value->child(0)->child(0);
+                x3 = m_value->child(1)->child(0);
+            }
+        }
+        if (x1 != nullptr) {
+            ASSERT(x2 != nullptr && x3 != nullptr);
+            Value* newOp = m_insertionSet.insert<Value>(m_index, m_value->opcode(), m_value->origin(), x2, x3);
+            replaceWithNew<Value>(Mul, m_value->origin(), x1, newOp);
+            return true;
+        }
+        return false;
+    }
+
+    // For Op==BitOr or BitXor, turn any of these:
+    //      Op(BitAnd(x1, x2), BitAnd(x1, x3))
+    //      Op(BitAnd(x2, x1), BitAnd(x1, x3))
+    //      Op(BitAnd(x1, x2), BitAnd(x3, x1))
+    //      Op(BitAnd(x2, x1), BitAnd(x3, x1))
+    // Into this: BitAnd(Op(x2, x3), x1)
+    // And any of these:
+    //      Op(BitAnd(x1, x2), x1)
+    //      Op(BitAnd(x2, x1), x1)
+    //      Op(x1, BitAnd(x1, x2))
+    //      Op(x1, BitAnd(x2, x1))
+    // Into this: BitAnd(Op(x2, x1), x1)
+    // This second set is equivalent to doing x1 => BitAnd(x1, x1), and then applying the first set.
+    // It does not reduce the number of operations executed, but provides some useful normalization: we prefer to have BitAnd at the outermost, then BitXor, and finally BitOr at the innermost
+    bool handleBitAndDistributivity()
+    {
+        ASSERT(m_value->opcode() == BitOr || m_value->opcode() == BitXor);
+        Value* x1 = nullptr;
+        Value* x2 = nullptr;
+        Value* x3 = nullptr;
+        if (m_value->child(0)->opcode() == BitAnd && m_value->child(1)->opcode() == BitAnd) {
+            if (m_value->child(0)->child(0) == m_value->child(1)->child(0)) {
+                x1 = m_value->child(0)->child(0);
+                x2 = m_value->child(0)->child(1);
+                x3 = m_value->child(1)->child(1);
+            } else if (m_value->child(0)->child(1) == m_value->child(1)->child(0)) {
+                x1 = m_value->child(0)->child(1);
+                x2 = m_value->child(0)->child(0);
+                x3 = m_value->child(1)->child(1);
+            } else if (m_value->child(0)->child(0) == m_value->child(1)->child(1)) {
+                x1 = m_value->child(0)->child(0);
+                x2 = m_value->child(0)->child(1);
+                x3 = m_value->child(1)->child(0);
+            } else if (m_value->child(0)->child(1) == m_value->child(1)->child(1)) {
+                x1 = m_value->child(0)->child(1);
+                x2 = m_value->child(0)->child(0);
+                x3 = m_value->child(1)->child(0);
+            }
+        } else if (m_value->child(0)->opcode() == BitAnd) {
+            if (m_value->child(0)->child(0) == m_value->child(1)) {
+                x1 = x3 = m_value->child(1);
+                x2 = m_value->child(0)->child(1);
+            } else if (m_value->child(0)->child(1) == m_value->child(1)) {
+                x1 = x3 = m_value->child(1);
+                x2 = m_value->child(0)->child(0);
+            }
+        } else if (m_value->child(1)->opcode() == BitAnd) {
+            if (m_value->child(1)->child(0) == m_value->child(0)) {
+                x1 = x3 = m_value->child(0);
+                x2 = m_value->child(1)->child(1);
+            } else if (m_value->child(1)->child(1) == m_value->child(0)) {
+                x1 = x3 = m_value->child(0);
+                x2 = m_value->child(1)->child(0);
+            }
+        }
+        if (x1 != nullptr) {
+            ASSERT(x2 != nullptr && x3 != nullptr);
+            Value* bitOp = m_insertionSet.insert<Value>(m_index, m_value->opcode(), m_value->origin(), x2, x3);
+            replaceWithNew<Value>(BitAnd, m_value->origin(), x1, bitOp);
+            return true;
+        }
+        return false;
+    }
+
     struct CanonicalizedComparison {
         Opcode opcode;
         Value* operands[2];
@@ -2332,7 +2606,7 @@ private:
         // predecessors during strength reduction since that minimizes the total number of fixpoint
         // iterations needed to kill a lot of code.
 
-        for (BasicBlock* block : m_proc) {
+        for (BasicBlock* block : m_proc.blocksInPostOrder()) {
             if (B3ReduceStrengthInternal::verbose)
                 dataLog("Considering block ", *block, ":\n");
 
@@ -2453,70 +2727,6 @@ private:
         for (BasicBlock* block : m_proc) {
             for (BasicBlock* successor : block->successorBlocks())
                 RELEASE_ASSERT(successor->containsPredecessor(block));
-        }
-    }
-
-    void killDeadCode()
-    {
-        GraphNodeWorklist<Value*, IndexSet<Value*>> worklist;
-        Vector<UpsilonValue*, 64> upsilons;
-        for (BasicBlock* block : m_proc) {
-            for (Value* value : *block) {
-                Effects effects;
-                // We don't care about effects of SSA operations, since we model them more
-                // accurately than the effects() method does.
-                if (value->opcode() != Phi && value->opcode() != Upsilon)
-                    effects = value->effects();
-                
-                if (effects.mustExecute())
-                    worklist.push(value);
-                
-                if (UpsilonValue* upsilon = value->as<UpsilonValue>())
-                    upsilons.append(upsilon);
-            }
-        }
-        for (;;) {
-            while (Value* value = worklist.pop()) {
-                for (Value* child : value->children())
-                    worklist.push(child);
-            }
-            
-            bool didPush = false;
-            for (size_t upsilonIndex = 0; upsilonIndex < upsilons.size(); ++upsilonIndex) {
-                UpsilonValue* upsilon = upsilons[upsilonIndex];
-                if (worklist.saw(upsilon->phi())) {
-                    worklist.push(upsilon);
-                    upsilons[upsilonIndex--] = upsilons.last();
-                    upsilons.takeLast();
-                    didPush = true;
-                }
-            }
-            if (!didPush)
-                break;
-        }
-
-        IndexSet<Variable*> liveVariables;
-        
-        for (BasicBlock* block : m_proc) {
-            size_t sourceIndex = 0;
-            size_t targetIndex = 0;
-            while (sourceIndex < block->size()) {
-                Value* value = block->at(sourceIndex++);
-                if (worklist.saw(value)) {
-                    if (VariableValue* variableValue = value->as<VariableValue>())
-                        liveVariables.add(variableValue->variable());
-                    block->at(targetIndex++) = value;
-                } else {
-                    m_proc.deleteValue(value);
-                    m_changed = true;
-                }
-            }
-            block->values().resize(targetIndex);
-        }
-
-        for (Variable* variable : m_proc.variables()) {
-            if (!liveVariables.contains(variable))
-                m_proc.deleteVariable(variable);
         }
     }
 

@@ -32,8 +32,9 @@
 
 namespace JSC {
 
-JITCode::JITCode(JITType jitType)
+JITCode::JITCode(JITType jitType, ShareAttribute shareAttribute)
     : m_jitType(jitType)
+    , m_shareAttribute(shareAttribute)
 {
 }
 
@@ -95,8 +96,8 @@ JITCodeWithCodeRef::JITCodeWithCodeRef(JITType jitType)
 {
 }
 
-JITCodeWithCodeRef::JITCodeWithCodeRef(CodeRef<JSEntryPtrTag> ref, JITType jitType)
-    : JITCode(jitType)
+JITCodeWithCodeRef::JITCodeWithCodeRef(CodeRef<JSEntryPtrTag> ref, JITType jitType, JITCode::ShareAttribute shareAttribute)
+    : JITCode(jitType, shareAttribute)
     , m_ref(ref)
 {
 }
@@ -151,10 +152,19 @@ DirectJITCode::DirectJITCode(JITType jitType)
 {
 }
 
-DirectJITCode::DirectJITCode(JITCode::CodeRef<JSEntryPtrTag> ref, JITCode::CodePtr<JSEntryPtrTag> withArityCheck, JITType jitType)
-    : JITCodeWithCodeRef(ref, jitType)
+DirectJITCode::DirectJITCode(JITCode::CodeRef<JSEntryPtrTag> ref, JITCode::CodePtr<JSEntryPtrTag> withArityCheck, JITType jitType, JITCode::ShareAttribute shareAttribute)
+    : JITCodeWithCodeRef(ref, jitType, shareAttribute)
     , m_withArityCheck(withArityCheck)
 {
+    ASSERT(m_ref);
+    ASSERT(m_withArityCheck);
+}
+
+DirectJITCode::DirectJITCode(JITCode::CodeRef<JSEntryPtrTag> ref, JITCode::CodePtr<JSEntryPtrTag> withArityCheck, JITType jitType, Intrinsic intrinsic, JITCode::ShareAttribute shareAttribute)
+    : JITCodeWithCodeRef(ref, jitType, shareAttribute)
+    , m_withArityCheck(withArityCheck)
+{
+    m_intrinsic = intrinsic;
     ASSERT(m_ref);
     ASSERT(m_withArityCheck);
 }
@@ -163,7 +173,7 @@ DirectJITCode::~DirectJITCode()
 {
 }
 
-void DirectJITCode::initializeCodeRef(JITCode::CodeRef<JSEntryPtrTag> ref, JITCode::CodePtr<JSEntryPtrTag> withArityCheck)
+void DirectJITCode::initializeCodeRefForDFG(JITCode::CodeRef<JSEntryPtrTag> ref, JITCode::CodePtr<JSEntryPtrTag> withArityCheck)
 {
     RELEASE_ASSERT(!m_ref);
     m_ref = ref;
@@ -191,19 +201,14 @@ NativeJITCode::NativeJITCode(JITType jitType)
 {
 }
 
-NativeJITCode::NativeJITCode(CodeRef<JSEntryPtrTag> ref, JITType jitType)
-    : JITCodeWithCodeRef(ref, jitType)
+NativeJITCode::NativeJITCode(CodeRef<JSEntryPtrTag> ref, JITType jitType, Intrinsic intrinsic, JITCode::ShareAttribute shareAttribute)
+    : JITCodeWithCodeRef(ref, jitType, shareAttribute)
 {
+    m_intrinsic = intrinsic;
 }
 
 NativeJITCode::~NativeJITCode()
 {
-}
-
-void NativeJITCode::initializeCodeRef(CodeRef<JSEntryPtrTag> ref)
-{
-    ASSERT(!m_ref);
-    m_ref = ref;
 }
 
 JITCode::CodePtr<JSEntryPtrTag> NativeJITCode::addressForCall(ArityCheckMode arity)
@@ -217,6 +222,12 @@ JITCode::CodePtr<JSEntryPtrTag> NativeJITCode::addressForCall(ArityCheckMode ari
     }
     RELEASE_ASSERT_NOT_REACHED();
     return CodePtr<JSEntryPtrTag>();
+}
+
+NativeDOMJITCode::NativeDOMJITCode(CodeRef<JSEntryPtrTag> ref, JITType type, Intrinsic intrinsic, const DOMJIT::Signature* signature)
+    : NativeJITCode(ref, type, intrinsic)
+    , m_signature(signature)
+{
 }
 
 #if ENABLE(JIT)

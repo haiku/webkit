@@ -36,6 +36,10 @@
 
 namespace JSC {
 
+namespace Yarr {
+enum class Flags : uint8_t;
+}
+
 class RegExpCache : private WeakHandleOwner {
     WTF_MAKE_FAST_ALLOCATED;
 
@@ -46,9 +50,12 @@ public:
     RegExpCache(VM* vm);
     void deleteAllCode();
 
-    void initialize(VM&);
-
-    RegExp* emptyRegExp() const { return m_emptyRegExp.get(); }
+    RegExp* ensureEmptyRegExp(VM& vm)
+    {
+        if (LIKELY(m_emptyRegExp))
+            return m_emptyRegExp.get();
+        return ensureEmptyRegExpSlow(vm);
+    }
 
 private:
     
@@ -58,7 +65,9 @@ private:
 
     void finalize(Handle<Unknown>, void* context) override;
 
-    RegExp* lookupOrCreate(const WTF::String& patternString, RegExpFlags);
+    RegExp* ensureEmptyRegExpSlow(VM&);
+
+    RegExp* lookupOrCreate(const WTF::String& patternString, OptionSet<Yarr::Flags>);
     void addToStrongCache(RegExp*);
     RegExpCacheMap m_weakCache; // Holds all regular expressions currently live.
     int m_nextEntryInStrongCache;

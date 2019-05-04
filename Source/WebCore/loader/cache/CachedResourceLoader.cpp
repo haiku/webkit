@@ -40,6 +40,7 @@
 #include "ChromeClient.h"
 #include "ContentExtensionError.h"
 #include "ContentExtensionRule.h"
+#include "ContentRuleListResults.h"
 #include "ContentSecurityPolicy.h"
 #include "CrossOriginAccessControl.h"
 #include "DOMWindow.h"
@@ -161,8 +162,6 @@ CachedResourceLoader::~CachedResourceLoader()
     m_document = nullptr;
 
     clearPreloads(ClearPreloadsMode::ClearAllPreloads);
-    for (auto& resource : m_documentResources.values())
-        resource->setOwningCachedResourceLoader(nullptr);
 
     // Make sure no requests still point to this CachedResourceLoader
     ASSERT(m_requestCount == 0);
@@ -258,7 +257,6 @@ CachedResourceHandle<CachedCSSStyleSheet> CachedResourceLoader::requestUserCSSSt
 
     if (userSheet->allowsCaching())
         memoryCache.add(*userSheet);
-    // FIXME: loadResource calls setOwningCachedResourceLoader() if the resource couldn't be added to cache. Does this function need to call it, too?
 
     userSheet->load(*this);
     return userSheet;
@@ -580,7 +578,7 @@ bool CachedResourceLoader::canRequestInContentDispositionAttachmentSandbox(Cache
         }
         return true;
     case CachedResource::Type::CSSStyleSheet:
-        document = m_document;
+        document = m_document.get();
         break;
     default:
         return true;
@@ -641,7 +639,7 @@ bool CachedResourceLoader::shouldUpdateCachedResourceWithCurrentRequest(const Ca
         break;
     }
 
-    if (resource.options().mode != request.options().mode || !originsMatch(request.origin(), resource.origin()))
+    if (resource.options().mode != request.options().mode || !serializedOriginsMatch(request.origin(), resource.origin()))
         return true;
 
     if (resource.options().redirect != request.options().redirect && resource.hasRedirections())
@@ -811,20 +809,22 @@ ResourceErrorOr<CachedResourceHandle<CachedResource>> CachedResourceLoader::requ
     if (frame() && frame()->page() && m_documentLoader) {
         const auto& resourceRequest = request.resourceRequest();
         auto* page = frame()->page();
-        auto blockedStatus = page->userContentProvider().processContentExtensionRulesForLoad(resourceRequest.url(), toResourceType(type), *m_documentLoader);
-        request.applyBlockedStatus(blockedStatus, page);
-        if (blockedStatus.blockedLoad) {
+        auto results = page->userContentProvider().processContentRuleListsForLoad(resourceRequest.url(), toResourceType(type), *m_documentLoader);
+        bool blockedLoad = results.summary.blockedLoad;
+        bool madeHTTPS = results.summary.madeHTTPS;
+        request.applyResults(WTFMove(results), page);
+        if (blockedLoad) {
             RELEASE_LOG_IF_ALLOWED("requestResource: Resource blocked by content blocker (frame = %p)", frame());
             if (type == CachedResource::Type::MainResource) {
                 CachedResourceHandle<CachedResource> resource = createResource(type, WTFMove(request), page->sessionID(), &page->cookieJar());
                 ASSERT(resource);
                 resource->error(CachedResource::Status::LoadError);
                 resource->setResourceError(ResourceError(ContentExtensions::WebKitContentBlockerDomain, 0, resourceRequest.url(), WEB_UI_STRING("The URL was blocked by a content blocker", "WebKitErrorBlockedByContentBlocker description")));
-                return WTFMove(resource);
+                return resource;
             }
             return makeUnexpected(ResourceError { errorDomainWebKitInternal, 0, url, "Resource blocked by content blocker"_s, ResourceError::Type::AccessControl });
         }
-        if (blockedStatus.madeHTTPS
+        if (madeHTTPS
             && type == CachedResource::Type::MainResource
             && m_documentLoader->isLoadingMainResource()) {
             // This is to make sure the correct 'new' URL shows in the location bar.
@@ -861,10 +861,8 @@ ResourceErrorOr<CachedResourceHandle<CachedResource>> CachedResourceLoader::requ
         updateHTTPRequestHeaders(type, request);
 
     auto& memoryCache = MemoryCache::singleton();
-    if (request.allowsCaching() && memoryCache.disabled()) {
-        if (auto handle = m_documentResources.take(url.string()))
-            handle->setOwningCachedResourceLoader(nullptr);
-    }
+    if (request.allowsCaching() && memoryCache.disabled())
+        m_documentResources.remove(url.string());
 
     // See if we can use an existing resource from the cache.
     CachedResourceHandle<CachedResource> resource;
@@ -961,7 +959,7 @@ ResourceErrorOr<CachedResourceHandle<CachedResource>> CachedResourceLoader::requ
 
     ASSERT(resource->url() == url.string());
     m_documentResources.set(resource->url(), resource);
-    return WTFMove(resource);
+    return resource;
 }
 
 void CachedResourceLoader::documentDidFinishLoadEvent()
@@ -1013,8 +1011,8 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::loadResource(CachedRe
 
     CachedResourceHandle<CachedResource> resource = createResource(type, WTFMove(request), sessionID(), cookieJar);
 
-    if (resource->allowsCaching() && !memoryCache.add(*resource))
-        resource->setOwningCachedResourceLoader(this);
+    if (resource->allowsCaching())
+        memoryCache.add(*resource);
 
     if (RuntimeEnabledFeatures::sharedFeatures().resourceTimingEnabled())
         m_resourceTimingInfo.storeResourceTimingInitiatorInformation(resource, resource->initiatorName(), frame());
@@ -1302,17 +1300,10 @@ CachePolicy CachedResourceLoader::cachePolicy(CachedResource::Type type, const U
     }
 }
 
-void CachedResourceLoader::removeCachedResource(CachedResource& resource)
-{
-    if (m_documentResources.contains(resource.url()) && m_documentResources.get(resource.url()).get() != &resource)
-        return;
-    m_documentResources.remove(resource.url());
-}
-
 void CachedResourceLoader::loadDone(LoadCompletionType type, bool shouldPerformPostLoadActions)
 {
     RefPtr<DocumentLoader> protectDocumentLoader(m_documentLoader);
-    RefPtr<Document> protectDocument(m_document);
+    RefPtr<Document> protectDocument(m_document.get());
 
     ASSERT(shouldPerformPostLoadActions || type == LoadCompletionType::Cancel);
 
@@ -1342,10 +1333,8 @@ void CachedResourceLoader::garbageCollectDocumentResources()
     for (auto& resource : m_documentResources) {
         LOG(ResourceLoading, "  cached resource %p - hasOneHandle %d", resource.value.get(), resource.value->hasOneHandle());
 
-        if (resource.value->hasOneHandle()) {
+        if (resource.value->hasOneHandle())
             resourcesToDelete.append(resource.key);
-            resource.value->setOwningCachedResourceLoader(nullptr);
-        }
     }
 
     for (auto& resource : resourcesToDelete)

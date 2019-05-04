@@ -75,6 +75,19 @@ WI.CookieStorageContentView = class CookieStorageContentView extends WI.ContentV
 
     // Table dataSource
 
+    tableIndexForRepresentedObject(table, object)
+    {
+        let index = this._cookies.indexOf(object);
+        console.assert(index >= 0);
+        return index;
+    }
+
+    tableRepresentedObjectForIndex(table, index)
+    {
+        console.assert(index >= 0 && index < this._cookies.length);
+        return this._cookies[index];
+    }
+
     tableNumberOfRows(table)
     {
         return this._cookies.length;
@@ -166,25 +179,25 @@ WI.CookieStorageContentView = class CookieStorageContentView extends WI.ContentV
             hideable: false,
         });
 
-        this._domainColumn = new WI.TableColumn("domain", WI.unlocalizedString("Domain"), {
+        this._domainColumn = new WI.TableColumn("domain", WI.UIString("Domain"), {
             minWidth: 100,
             maxWidth: 200,
             initialWidth: 120,
         });
 
-        this._pathColumn = new WI.TableColumn("path", WI.unlocalizedString("Path"), {
+        this._pathColumn = new WI.TableColumn("path", WI.UIString("Path"), {
             minWidth: 50,
             maxWidth: 300,
             initialWidth: 100,
         });
 
-        this._expiresColumn = new WI.TableColumn("expires", WI.unlocalizedString("Expires"), {
+        this._expiresColumn = new WI.TableColumn("expires", WI.UIString("Expires"), {
             minWidth: 100,
             maxWidth: 200,
             initialWidth: 150,
         });
 
-        this._sizeColumn = new WI.TableColumn("size", WI.unlocalizedString("Size"), {
+        this._sizeColumn = new WI.TableColumn("size", WI.UIString("Size"), {
             minWidth: 50,
             maxWidth: 80,
             initialWidth: 65,

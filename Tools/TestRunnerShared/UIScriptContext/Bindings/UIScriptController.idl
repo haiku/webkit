@@ -52,10 +52,11 @@ interface UIScriptController {
 
     // Interaction.
     // These functions post events asynchronously. The callback is fired when the events have been dispatched, but any
-    // resulting behavior may also be asynchronous.
+    // resulting behavior may also be asynchronous. Points are in "global" (WKWebView) coordinates.
     void touchDownAtPoint(long x, long y, long touchCount, object callback);
     void liftUpAtPoint(long x, long y, long touchCount, object callback);
     void singleTapAtPoint(long x, long y, object callback);
+    void singleTapAtPointWithModifiers(long x, long y, object modifierArray, object callback);
     void doubleTapAtPoint(long x, long y, object callback);
     void dragFromPointToPoint(long startX, long startY, long endX, long endY, double durationSeconds, object callback);
 
@@ -65,6 +66,7 @@ interface UIScriptController {
     void stylusMoveToPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, object callback);
     void stylusUpAtPoint(long x, long y, object callback);
     void stylusTapAtPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, object callback);
+    void stylusTapAtPointWithModifiers(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, object modifierArray, object callback);
 
     void enterText(DOMString text);
     void typeCharacterUsingHardwareKeyboard(DOMString character, object callback);
@@ -185,6 +187,8 @@ interface UIScriptController {
     // Equivalent of pressing the Done button in the form accessory bar.
     void dismissFormAccessoryView();
 
+    void dismissFilePicker(object callback);
+
     readonly attribute DOMString textContentType;
 
     // Form control handling
@@ -221,6 +225,16 @@ interface UIScriptController {
     attribute object didHideKeyboardCallback;
     readonly attribute boolean isShowingKeyboard;
 
+    attribute object didShowMenuCallback;
+    attribute object didHideMenuCallback;
+    readonly attribute boolean isShowingMenu;
+    readonly attribute object menuRect;
+    object rectForMenuAction(DOMString action);
+
+    readonly attribute boolean isShowingPopover;
+    attribute object willPresentPopoverCallback;
+    attribute object didDismissPopoverCallback;
+
     attribute object willBeginZoomingCallback;
     attribute object didEndZoomingCallback;
 
@@ -228,17 +242,24 @@ interface UIScriptController {
 
     void setViewScale(double scale);
     void setMinimumEffectiveWidth(double effectiveWidth);
+    void setAllowsViewportShrinkToFit(boolean allows);
 
     void resignFirstResponder();
+    readonly attribute boolean isPresentingModally;
 
     readonly attribute double contentOffsetX;
     readonly attribute double contentOffsetY;
+
+    attribute boolean scrollUpdatesDisabled; // Turns off notifications back to the web process after scrolls (used for testing scrolling tree).
 
     void scrollToOffset(long x, long y); // Initiate an animated scroll in the UI process.
     attribute object didEndScrollingCallback;
 
     void immediateScrollToOffset(long x, long y); // Set the scroll position in the UI process without animation.
     void immediateZoomToScale(double scale); // Set the zoom scale in the UI process without animation.
+
+    // Find the scroller for the given point in content ("absolute") coordinates, and do an immediate scroll.
+    void immediateScrollElementAtContentPointToOffset(long x, long y, long xOffset, long yOffset);
 
     // View state
     readonly attribute double zoomScale;

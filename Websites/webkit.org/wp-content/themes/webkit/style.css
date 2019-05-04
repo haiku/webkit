@@ -262,7 +262,7 @@ footer, header, hgroup, menu, nav, section {
     display: block;
 }
 html {
-    font-family: "SF Hello", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    font-family: -apple-system, "SF Pro Text", Helvetica, sans-serif;
     font-size: 62.5%;
     font-synthesis: none;
 }
@@ -397,6 +397,7 @@ h4,
 h5,
 h6 {
     text-rendering: optimizeLegibility;
+    font-family: -apple-system, "SF Pro Display", Helvetica, sans-serif;
 }
 
 h1 a[name],
@@ -557,7 +558,7 @@ a.download {
     border-radius: 4px;
     box-shadow: inset hsla(0, 0%, 0%, 0.07) 0 0 0 1px;
     box-shadow: var(--pagination-button-shadow);
-    height: 2rem;
+    min-height: 2rem;
     font-size: 1.7rem;
     line-height: 1.29412;
     font-weight: 400;
@@ -693,6 +694,7 @@ a.download {
     font-weight: 500;
     line-height: 1.09375;
     letter-spacing: 0.011rem;
+    font-family: -apple-system, "SF Pro Display", Helvetica, sans-serif;
 }
 
 .nextrouter .label {
@@ -2511,7 +2513,7 @@ header .menu-item { /* add bottom dimension to main menu items */
     }
 }
 
-@media only screen and (max-height: 415px) {
+@media only screen and (max-height: 415px) and (max-width: 920px) {
 
     .home .site-logo {
         opacity: 1;

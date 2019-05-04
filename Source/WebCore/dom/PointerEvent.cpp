@@ -28,7 +28,66 @@
 
 #if ENABLE(POINTER_EVENTS)
 
+#import "EventNames.h"
+
 namespace WebCore {
+
+const String& PointerEvent::mousePointerType()
+{
+    static NeverDestroyed<const String> mouseType(MAKE_STATIC_STRING_IMPL("mouse"));
+    return mouseType;
+}
+
+const String& PointerEvent::penPointerType()
+{
+    static NeverDestroyed<const String> penType(MAKE_STATIC_STRING_IMPL("pen"));
+    return penType;
+}
+
+const String& PointerEvent::touchPointerType()
+{
+    static NeverDestroyed<const String> touchType(MAKE_STATIC_STRING_IMPL("touch"));
+    return touchType;
+}
+
+static AtomicString pointerEventType(const AtomicString& mouseEventType)
+{
+    auto& names = eventNames();
+    if (mouseEventType == names.mousedownEvent)
+        return names.pointerdownEvent;
+    if (mouseEventType == names.mouseoverEvent)
+        return names.pointeroverEvent;
+    if (mouseEventType == names.mouseenterEvent)
+        return names.pointerenterEvent;
+    if (mouseEventType == names.mousemoveEvent)
+        return names.pointermoveEvent;
+    if (mouseEventType == names.mouseleaveEvent)
+        return names.pointerleaveEvent;
+    if (mouseEventType == names.mouseoutEvent)
+        return names.pointeroutEvent;
+    if (mouseEventType == names.mouseupEvent)
+        return names.pointerupEvent;
+
+    return nullAtom();
+}
+
+RefPtr<PointerEvent> PointerEvent::create(const MouseEvent& mouseEvent)
+{
+    auto type = pointerEventType(mouseEvent.type());
+    if (type.isEmpty())
+        return nullptr;
+
+    auto isEnterOrLeave = type == eventNames().pointerenterEvent || type == eventNames().pointerleaveEvent;
+    auto canBubble = isEnterOrLeave ? CanBubble::No : CanBubble::Yes;
+    auto isCancelable = isEnterOrLeave ? IsCancelable::No : IsCancelable::Yes;
+    auto isComposed = isEnterOrLeave ? IsComposed::No : IsComposed::Yes;
+    return adoptRef(*new PointerEvent(type, canBubble, isCancelable, isComposed, mouseEvent));
+}
+
+Ref<PointerEvent> PointerEvent::createPointerCancelEvent(PointerID pointerId, const String& pointerType)
+{
+    return adoptRef(*new PointerEvent(eventNames().pointercancelEvent, CanBubble::Yes, IsCancelable::No, IsComposed::Yes, pointerId, pointerType));
+}
 
 PointerEvent::PointerEvent() = default;
 
@@ -44,6 +103,19 @@ PointerEvent::PointerEvent(const AtomicString& type, Init&& initializer)
     , m_twist(initializer.twist)
     , m_pointerType(initializer.pointerType)
     , m_isPrimary(initializer.isPrimary)
+{
+}
+
+PointerEvent::PointerEvent(const AtomicString& type, CanBubble canBubble, IsCancelable isCancelable, IsComposed isComposed, const MouseEvent& mouseEvent)
+    : MouseEvent(type, canBubble, isCancelable, isComposed, mouseEvent.view(), mouseEvent.detail(), mouseEvent.screenLocation(), { mouseEvent.clientX(), mouseEvent.clientY() }, mouseEvent.modifierKeys(), mouseEvent.button(), mouseEvent.buttons(), mouseEvent.syntheticClickType(), mouseEvent.relatedTarget())
+    , m_isPrimary(true)
+{
+}
+
+PointerEvent::PointerEvent(const AtomicString& type, CanBubble canBubble, IsCancelable isCancelable, IsComposed isComposed, PointerID pointerId, const String& pointerType)
+    : MouseEvent(type, canBubble, isCancelable, isComposed, nullptr, 0, { }, { }, { }, 0, 0, 0, nullptr)
+    , m_pointerId(pointerId)
+    , m_pointerType(pointerType)
 {
 }
 

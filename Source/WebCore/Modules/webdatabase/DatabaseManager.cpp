@@ -183,7 +183,7 @@ ExceptionOr<Ref<Database>> DatabaseManager::tryToOpenDatabaseBackend(ScriptExecu
 
     // FIXME: What guarantees backendContext.securityOrigin() is non-null?
     DatabaseTracker::singleton().setDatabaseDetails(backendContext->securityOrigin(), name, displayName, estimatedSize);
-    return WTFMove(database);
+    return database;
 }
 
 void DatabaseManager::addProposedDatabase(ProposedDatabase& database)
@@ -211,7 +211,7 @@ ExceptionOr<Ref<Database>> DatabaseManager::openDatabase(ScriptExecutionContext&
 
     auto databaseContext = this->databaseContext(context);
     databaseContext->setHasOpenDatabases();
-    InspectorInstrumentation::didOpenDatabase(&context, database.copyRef(), context.securityOrigin()->host(), name, expectedVersion);
+    InspectorInstrumentation::didOpenDatabase(*database);
 
     if (database->isNew() && creationCallback.get()) {
         LOG(StorageAPI, "Scheduling DatabaseCreationCallbackTask for database %p\n", database.get());

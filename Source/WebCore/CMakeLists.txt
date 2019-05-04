@@ -17,6 +17,8 @@ list(APPEND WebCore_UNIFIED_SOURCE_LIST_FILES
 
 set(WebCore_INCLUDE_DIRECTORIES
     "${CMAKE_BINARY_DIR}"
+    "${JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS_DIR}"
+    "${PAL_FRAMEWORK_HEADERS_DIR}"
     "${WEBCORE_DIR}"
     "${WEBCORE_DIR}/Modules/airplay"
     "${WEBCORE_DIR}/Modules/applepay"
@@ -290,6 +292,8 @@ set(WebCore_NON_SVG_IDL_FILES
 
     Modules/mediacapabilities/AudioConfiguration.idl
     Modules/mediacapabilities/MediaCapabilities.idl
+    Modules/mediacapabilities/MediaCapabilitiesDecodingInfo.idl
+    Modules/mediacapabilities/MediaCapabilitiesEncodingInfo.idl
     Modules/mediacapabilities/MediaCapabilitiesInfo.idl
     Modules/mediacapabilities/MediaConfiguration.idl
     Modules/mediacapabilities/MediaDecodingConfiguration.idl
@@ -370,8 +374,6 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediastream/RTCStatsReport.idl
     Modules/mediastream/RTCTrackEvent.idl
 
-    Modules/navigatorcontentutils/NavigatorContentUtils.idl
-
     Modules/notifications/Notification.idl
     Modules/notifications/NotificationPermission.idl
     Modules/notifications/NotificationPermissionCallback.idl
@@ -444,6 +446,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/ScriptProcessorNode.idl
     Modules/webaudio/WaveShaperNode.idl
 
+    Modules/webauthn/AuthenticationExtensionsClientInputs.idl
     Modules/webauthn/AuthenticatorAssertionResponse.idl
     Modules/webauthn/AuthenticatorAttestationResponse.idl
     Modules/webauthn/AuthenticatorResponse.idl
@@ -470,49 +473,60 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webdriver/NavigatorWebDriver.idl
 
     Modules/webgpu/DOMWindowWebGPU.idl
+    Modules/webgpu/GPUBindGroupLayoutBinding.idl
+    Modules/webgpu/GPUBindGroupLayoutDescriptor.idl
+    Modules/webgpu/GPUBlendDescriptor.idl
+    Modules/webgpu/GPUBufferDescriptor.idl
+    Modules/webgpu/GPUBufferUsage.idl
+    Modules/webgpu/GPUCanvasContext.idl
+    Modules/webgpu/GPUColor.idl
+    Modules/webgpu/GPUColorStateDescriptor.idl
+    Modules/webgpu/GPUColorWriteBits.idl
     Modules/webgpu/GPUCompareFunction.idl
     Modules/webgpu/GPUDepthStencilStateDescriptor.idl
+    Modules/webgpu/GPUExtent3D.idl
+    Modules/webgpu/GPUInputStateDescriptor.idl
+    Modules/webgpu/GPULoadOp.idl
+    Modules/webgpu/GPUOrigin3D.idl
+    Modules/webgpu/GPURequestAdapterOptions.idl
+    Modules/webgpu/GPUSamplerDescriptor.idl
+    Modules/webgpu/GPUShaderStageBit.idl
+    Modules/webgpu/GPUStoreOp.idl
+    Modules/webgpu/GPUTextureDescriptor.idl
+    Modules/webgpu/GPUTextureFormat.idl
+    Modules/webgpu/GPUTextureUsage.idl
+    Modules/webgpu/GPUVertexAttributeDescriptor.idl
+    Modules/webgpu/GPUVertexInputDescriptor.idl
     Modules/webgpu/WebGPU.idl
     Modules/webgpu/WebGPUAdapter.idl
-    Modules/webgpu/WebGPUAdapterDescriptor.idl
     Modules/webgpu/WebGPUBindGroup.idl
     Modules/webgpu/WebGPUBindGroupBinding.idl
     Modules/webgpu/WebGPUBindGroupDescriptor.idl
     Modules/webgpu/WebGPUBindGroupLayout.idl
-    Modules/webgpu/WebGPUBindGroupLayoutBinding.idl
-    Modules/webgpu/WebGPUBindGroupLayoutDescriptor.idl
     Modules/webgpu/WebGPUBuffer.idl
     Modules/webgpu/WebGPUBufferBinding.idl
-    Modules/webgpu/WebGPUBufferDescriptor.idl
-    Modules/webgpu/WebGPUBufferUsage.idl
-    Modules/webgpu/WebGPUColor.idl
     Modules/webgpu/WebGPUCommandBuffer.idl
+    Modules/webgpu/WebGPUCommandEncoder.idl
+    Modules/webgpu/WebGPUComputePassEncoder.idl
+    Modules/webgpu/WebGPUComputePipeline.idl
+    Modules/webgpu/WebGPUComputePipelineDescriptor.idl
     Modules/webgpu/WebGPUDevice.idl
-    Modules/webgpu/WebGPUIndexFormat.idl
-    Modules/webgpu/WebGPUInputStateDescriptor.idl
-    Modules/webgpu/WebGPUInputStepMode.idl
     Modules/webgpu/WebGPUPipelineDescriptorBase.idl
     Modules/webgpu/WebGPUPipelineLayout.idl
     Modules/webgpu/WebGPUPipelineLayoutDescriptor.idl
     Modules/webgpu/WebGPUPipelineStageDescriptor.idl
     Modules/webgpu/WebGPUProgrammablePassEncoder.idl
     Modules/webgpu/WebGPUQueue.idl
-    Modules/webgpu/WebGPURenderPassColorAttachmentDescriptor.idl
     Modules/webgpu/WebGPURenderPassDescriptor.idl
     Modules/webgpu/WebGPURenderPassEncoder.idl
     Modules/webgpu/WebGPURenderPipeline.idl
     Modules/webgpu/WebGPURenderPipelineDescriptor.idl
-    Modules/webgpu/WebGPURenderingContext.idl
+    Modules/webgpu/WebGPUSampler.idl
     Modules/webgpu/WebGPUShaderModule.idl
     Modules/webgpu/WebGPUShaderModuleDescriptor.idl
-    Modules/webgpu/WebGPUShaderStageBit.idl
     Modules/webgpu/WebGPUSwapChain.idl
     Modules/webgpu/WebGPUTexture.idl
-    Modules/webgpu/WebGPUTextureFormatEnum.idl
     Modules/webgpu/WebGPUTextureView.idl
-    Modules/webgpu/WebGPUVertexAttributeDescriptor.idl
-    Modules/webgpu/WebGPUVertexFormat.idl
-    Modules/webgpu/WebGPUVertexInputDescriptor.idl
 
     Modules/websockets/CloseEvent.idl
     Modules/websockets/WebSocket.idl
@@ -671,6 +685,8 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/DataTransferItemList.idl
     dom/DeviceMotionEvent.idl
     dom/DeviceOrientationEvent.idl
+    dom/DeviceOrientationOrMotionEvent.idl
+    dom/DeviceOrientationOrMotionPermissionState.idl
     dom/Document.idl
     dom/DocumentAndElementEventHandlers.idl
     dom/DocumentFragment.idl
@@ -875,32 +891,11 @@ set(WebCore_NON_SVG_IDL_FILES
     html/canvas/OffscreenCanvasRenderingContext2D.idl
     html/canvas/PaintRenderingContext2D.idl
     html/canvas/Path2D.idl
-    html/canvas/WebMetalBuffer.idl
-    html/canvas/WebMetalCommandBuffer.idl
-    html/canvas/WebMetalCommandQueue.idl
-    html/canvas/WebMetalComputeCommandEncoder.idl
-    html/canvas/WebMetalComputePipelineState.idl
-    html/canvas/WebMetalDepthStencilDescriptor.idl
-    html/canvas/WebMetalDepthStencilState.idl
-    html/canvas/WebMetalDrawable.idl
-    html/canvas/WebMetalFunction.idl
-    html/canvas/WebMetalLibrary.idl
-    html/canvas/WebMetalRenderCommandEncoder.idl
-    html/canvas/WebMetalRenderPassAttachmentDescriptor.idl
-    html/canvas/WebMetalRenderPassColorAttachmentDescriptor.idl
-    html/canvas/WebMetalRenderPassDepthAttachmentDescriptor.idl
-    html/canvas/WebMetalRenderPassDescriptor.idl
-    html/canvas/WebMetalRenderPipelineColorAttachmentDescriptor.idl
-    html/canvas/WebMetalRenderPipelineDescriptor.idl
-    html/canvas/WebMetalRenderPipelineState.idl
-    html/canvas/WebMetalRenderingContext.idl
-    html/canvas/WebMetalSize.idl
-    html/canvas/WebMetalTexture.idl
-    html/canvas/WebMetalTextureDescriptor.idl
 
     inspector/CommandLineAPIHost.idl
     inspector/InspectorAuditAccessibilityObject.idl
     inspector/InspectorAuditDOMObject.idl
+    inspector/InspectorAuditResourcesObject.idl
     inspector/InspectorFrontendHost.idl
 
     loader/appcache/DOMApplicationCache.idl
@@ -935,6 +930,9 @@ set(WebCore_NON_SVG_IDL_FILES
     page/PerformanceServerTiming.idl
     page/PerformanceTiming.idl
     page/RemoteDOMWindow.idl
+    page/ResizeObserver.idl
+    page/ResizeObserverCallback.idl
+    page/ResizeObserverEntry.idl
     page/Screen.idl
     page/ScrollIntoViewOptions.idl
     page/ScrollLogicalPosition.idl
@@ -1378,6 +1376,7 @@ if (ENABLE_VIDEO_TRACK)
         html/track/DataCue.idl
         html/track/TextTrack.idl
         html/track/TextTrackCue.idl
+        html/track/TextTrackCueGeneric.idl
         html/track/TextTrackCueList.idl
         html/track/TextTrackList.idl
         html/track/TrackEvent.idl
@@ -1764,17 +1763,6 @@ set(PAINTWORKLETGLOBALSCOPE_CONSTRUCTORS_FILE ${DERIVED_SOURCES_WEBCORE_DIR}/Pai
 
 WEBKIT_FRAMEWORK_DECLARE(WebCore)
 WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
-
-# Generate InspectorOverlayPage.h
-add_custom_command(
-    OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.h ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.combined.html
-    MAIN_DEPENDENCY inspector/InspectorOverlayPage.html
-    DEPENDS ${JavaScriptCore_SCRIPTS_DIR}/xxd.pl ${JavaScriptCore_SCRIPTS_DIR}/inline-and-minify-stylesheets-and-scripts.py
-    DEPENDS inspector/InspectorOverlayPage.css inspector/InspectorOverlayPage.js
-    COMMAND ${PYTHON_EXECUTABLE} ${JavaScriptCore_SCRIPTS_DIR}/inline-and-minify-stylesheets-and-scripts.py ${WEBCORE_DIR}/inspector/InspectorOverlayPage.html ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.combined.html
-    COMMAND ${PERL_EXECUTABLE} ${JavaScriptCore_SCRIPTS_DIR}/xxd.pl InspectorOverlayPage_html ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.combined.html ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.h
-    VERBATIM)
-list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorOverlayPage.h)
 
 
 # Generate CommandLineAPIModuleSource.h

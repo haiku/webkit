@@ -40,11 +40,10 @@ namespace WebKit {
 
 void WebPage::platformInitialize()
 {
-#if HAVE(ACCESSIBILITY)
-    m_accessibilityObject = adoptGRef(webPageAccessibilityObjectNew(this));
-#else
-    notImplemented();
-#endif
+}
+
+void WebPage::platformReinitialize()
+{
 }
 
 void WebPage::platformDetach()

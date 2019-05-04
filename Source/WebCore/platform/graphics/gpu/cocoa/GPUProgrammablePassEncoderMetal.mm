@@ -29,7 +29,6 @@
 #if ENABLE(WEBGPU)
 
 #import "GPUBindGroup.h"
-#import "GPUBindGroupLayoutBinding.h"
 #import "Logging.h"
 #import <Metal/Metal.h>
 #import <wtf/BlockObjCExceptions.h>
@@ -38,88 +37,38 @@ namespace WebCore {
 
 void GPUProgrammablePassEncoder::endPass()
 {
-    if (!m_isEncoding)
+    if (!platformPassEncoder())
         return;
 
+    BEGIN_BLOCK_OBJC_EXCEPTIONS;
     [platformPassEncoder() endEncoding];
-    m_isEncoding = false;
-}
-
-void GPUProgrammablePassEncoder::setResourceAsBufferOnEncoder(MTLArgumentEncoder *argumentEncoder, const GPUBindingResource& resource, unsigned long index, const char* const functionName)
-{
-#if LOG_DISABLED
-    UNUSED_PARAM(functionName);
-#endif
-    if (!argumentEncoder) {
-        LOG(WebGPU, "%s: No argument encoder for requested stage found!", functionName);
-        return;
-    }
-
-    if (!WTF::holds_alternative<GPUBufferBinding>(resource)) {
-        LOG(WebGPU, "%s: Resource is not a buffer type!", functionName);
-        return;
-    }
-
-    auto& bufferBinding = WTF::get<GPUBufferBinding>(resource);
-    auto buffer = bufferBinding.buffer->platformBuffer();
-
-    if (!buffer) {
-        LOG(WebGPU, "%s: Invalid MTLBuffer in GPUBufferBinding!", functionName);
-        return;
-    }
-
-    BEGIN_BLOCK_OBJC_EXCEPTIONS;
-
-    [argumentEncoder setBuffer:buffer offset:bufferBinding.offset atIndex:index];
-    useResource(buffer, MTLResourceUsageRead);
-
-    END_BLOCK_OBJC_EXCEPTIONS;
-}
-
-void GPUProgrammablePassEncoder::setBindGroup(unsigned long index, const GPUBindGroup& bindGroup)
-{
-    const char* const functionName = "GPUProgrammablePassEncoder::setBindGroup()";
-#if LOG_DISABLED
-    UNUSED_PARAM(functionName);
-#endif
-
-    const auto& vertexArgs = bindGroup.layout().vertexArguments();
-    const auto& fragmentArgs = bindGroup.layout().fragmentArguments();
-    // FIXME: Finish support for compute.
-
-    BEGIN_BLOCK_OBJC_EXCEPTIONS;
-
-    if (vertexArgs.buffer)
-        setVertexBuffer(vertexArgs.buffer.get(), 0, index);
-    if (fragmentArgs.buffer)
-        setFragmentBuffer(fragmentArgs.buffer.get(), 0, index);
-
     END_BLOCK_OBJC_EXCEPTIONS;
 
-    // Set each resource on each MTLArgumentEncoder it should be visible on.
-    const auto& bindingsMap = bindGroup.layout().bindingsMap();
-    for (const auto& binding : bindGroup.bindings()) {
-        auto iterator = bindingsMap.find(binding.binding);
-        if (iterator == bindingsMap.end()) {
-            LOG(WebGPU, "%s: GPUBindGroupBinding %lu not found in GPUBindGroupLayout!", functionName, binding.binding);
-            return;
-        }
-        auto bindGroupLayoutBinding = iterator->value;
+    invalidateEncoder();
+    m_commandBuffer->setIsEncodingPass(false);
+}
 
-        switch (bindGroupLayoutBinding.type) {
-        // FIXME: Support more resource types.
-        case GPUBindGroupLayoutBinding::BindingType::UniformBuffer:
-        case GPUBindGroupLayoutBinding::BindingType::StorageBuffer: {
-            if (bindGroupLayoutBinding.visibility & GPUShaderStageBit::VERTEX)
-                setResourceAsBufferOnEncoder(vertexArgs.encoder.get(), binding.resource, binding.binding, functionName);
-            if (bindGroupLayoutBinding.visibility & GPUShaderStageBit::FRAGMENT)
-                setResourceAsBufferOnEncoder(fragmentArgs.encoder.get(), binding.resource, binding.binding, functionName);
-            break;
-        }
-        default:
-            LOG(WebGPU, "%s: Resource type not yet implemented.", functionName);
-            return;
-        }
+void GPUProgrammablePassEncoder::setBindGroup(unsigned index, GPUBindGroup& bindGroup)
+{
+    if (!platformPassEncoder()) {
+        LOG(WebGPU, "GPUProgrammablePassEncoder::setBindGroup(): Invalid operation: Encoding is ended!");
+        return;
+    }
+    
+    if (bindGroup.vertexArgsBuffer())
+        setVertexBuffer(bindGroup.vertexArgsBuffer(), 0, index);
+    if (bindGroup.fragmentArgsBuffer())
+        setFragmentBuffer(bindGroup.fragmentArgsBuffer(), 0, index);
+    if (bindGroup.computeArgsBuffer())
+        setComputeBuffer(bindGroup.computeArgsBuffer(), 0, index);
+
+    for (auto& bufferRef : bindGroup.boundBuffers()) {
+        useResource(bufferRef->platformBuffer(), bufferRef->isReadOnly() ? MTLResourceUsageRead : MTLResourceUsageRead | MTLResourceUsageWrite);
+        m_commandBuffer->useBuffer(bufferRef.copyRef());
+    }
+    for (auto& textureRef : bindGroup.boundTextures()) {
+        useResource(textureRef->platformTexture(), textureRef->isReadOnly() ? MTLResourceUsageRead : MTLResourceUsageRead | MTLResourceUsageWrite);
+        m_commandBuffer->useTexture(textureRef.copyRef());
     }
 }
 

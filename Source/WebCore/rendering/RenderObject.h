@@ -165,6 +165,7 @@ public:
     // Convenience function for getting to the nearest enclosing box of a RenderObject.
     WEBCORE_EXPORT RenderBox& enclosingBox() const;
     RenderBoxModelObject& enclosingBoxModelObject() const;
+    const RenderBox* enclosingScrollableContainerForSnapping() const;
 
     // Function to return our enclosing flow thread if we are contained inside one. This
     // function follows the containing block chain.
@@ -797,8 +798,6 @@ public:
     void initializeFragmentedFlowStateOnInsertion();
     virtual void insertedIntoTree();
 
-    WEBCORE_EXPORT bool isTransparentOrFullyClippedRespectingParentFrames() const;
-
 protected:
     //////////////////////////////////////////
     // Helper functions. Dangerous to use!
@@ -980,6 +979,7 @@ private:
 
     // FIXME: This should be RenderElementRareData.
     class RenderObjectRareData {
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         RenderObjectRareData()
             : m_isDragging(false)

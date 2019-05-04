@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,9 +49,14 @@
 #import <pal/spi/cf/CFNetworkSPI.h>
 #import <wtf/MainThread.h>
 #import <wtf/NeverDestroyed.h>
+#import <wtf/ObjCRuntimeExtras.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/URL.h>
 #import <wtf/text/WTFString.h>
+
+#if USE(APPLE_INTERNAL_SDK)
+#include <WebKitAdditions/NetworkSessionCocoaAdditions.h>
+#endif
 
 using namespace WebKit;
 
@@ -61,6 +66,11 @@ CFStringRef const WebKit2HTTPSProxyDefaultsKey = static_cast<CFStringRef>(@"WebK
 static NSURLSessionResponseDisposition toNSURLSessionResponseDisposition(WebCore::PolicyAction disposition)
 {
     switch (disposition) {
+    case WebCore::PolicyAction::StopAllLoads:
+        ASSERT_NOT_REACHED();
+#if ASSERT_DISABLED
+        FALLTHROUGH;
+#endif
     case WebCore::PolicyAction::Ignore:
         return NSURLSessionResponseCancel;
     case WebCore::PolicyAction::Use:
@@ -96,6 +106,7 @@ static WebCore::NetworkLoadPriority toNetworkLoadPriority(float priority)
 #if HAVE(CFNETWORK_NEGOTIATED_SSL_PROTOCOL_CIPHER)
 static String stringForSSLProtocol(SSLProtocol protocol)
 {
+    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     switch (protocol) {
     case kDTLSProtocol1:
         return "DTLS 1.0"_s;
@@ -124,6 +135,7 @@ static String stringForSSLProtocol(SSLProtocol protocol)
         ASSERT_NOT_REACHED();
         return emptyString();
     }
+    ALLOW_DEPRECATED_DECLARATIONS_END
 }
 
 static String stringForSSLCipher(SSLCipherSuite cipher)
@@ -374,7 +386,10 @@ static String stringForSSLCipher(SSLCipherSuite cipher)
         return;
     }
 
-    completionHandler(WebCore::createHTTPBodyNSInputStream(*body).get());
+    // FIXME: Call the completionHandler immediately once rdar://problem/28233746 is fixed.
+    RunLoop::main().dispatch([body = makeRef(*body), completionHandler = makeBlockPtr(completionHandler)] {
+        completionHandler(WebCore::createHTTPBodyNSInputStream(body.get()).get());
+    });
 }
 
 #if HAVE(CFNETWORK_WITH_IGNORE_HSTS) && ENABLE(RESOURCE_LOAD_STATISTICS)
@@ -592,6 +607,14 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa *session, NS
         return;
 
     LOG(NetworkSession, "%llu didCompleteWithError %@", task.taskIdentifier, error);
+
+    if (error) {
+        NSDictionary *oldUserInfo = [error userInfo];
+        NSMutableDictionary *newUserInfo = oldUserInfo ? [NSMutableDictionary dictionaryWithDictionary:oldUserInfo] : [NSMutableDictionary dictionary];
+        newUserInfo[@"networkTaskDescription"] = [task description];
+        error = [NSError errorWithDomain:[error domain] code:[error code] userInfo:newUserInfo];
+    }
+
     if (auto* networkDataTask = [self existingTask:task])
         networkDataTask->didCompleteWithError(error, networkDataTask->networkLoadMetrics());
     else if (error) {
@@ -786,9 +809,22 @@ static NSURLSessionConfiguration *configurationForSessionID(const PAL::SessionID
     if (session.isEphemeral()) {
         NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         configuration._shouldSkipPreferredClientCertificateLookup = YES;
+#if HAVE(ALLOWS_SENSITIVE_LOGGING)
+        configuration._allowsSensitiveLogging = NO;
+#endif
         return configuration;
     }
     return [NSURLSessionConfiguration defaultSessionConfiguration];
+}
+
+const String& NetworkSessionCocoa::sourceApplicationBundleIdentifier() const
+{
+    return m_sourceApplicationBundleIdentifier;
+}
+
+const String& NetworkSessionCocoa::sourceApplicationSecondaryIdentifier() const
+{
+    return m_sourceApplicationSecondaryIdentifier;
 }
 
 #if PLATFORM(IOS_FAMILY)
@@ -797,9 +833,12 @@ static String& globalCTDataConnectionServiceType()
     static NeverDestroyed<String> ctDataConnectionServiceType;
     return ctDataConnectionServiceType.get();
 }
-#endif
 
-#if PLATFORM(IOS_FAMILY)
+const String& NetworkSessionCocoa::ctDataConnectionServiceType() const
+{
+    return globalCTDataConnectionServiceType();
+}
+
 void NetworkSessionCocoa::setCTDataConnectionServiceType(const String& type)
 {
     ASSERT(!sessionsCreated);
@@ -838,6 +877,8 @@ static NSDictionary *proxyDictionary(const URL& httpProxy, const URL& httpsProxy
 NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, NetworkSessionCreationParameters&& parameters)
     : NetworkSession(networkProcess, parameters.sessionID)
     , m_boundInterfaceIdentifier(parameters.boundInterfaceIdentifier)
+    , m_sourceApplicationBundleIdentifier(parameters.sourceApplicationBundleIdentifier)
+    , m_sourceApplicationSecondaryIdentifier(parameters.sourceApplicationSecondaryIdentifier)
     , m_proxyConfiguration(parameters.proxyConfiguration)
     , m_shouldLogCookieInformation(parameters.shouldLogCookieInformation)
     , m_loadThrottleLatency(parameters.loadThrottleLatency)
@@ -851,6 +892,10 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
 #endif
 
     NSURLSessionConfiguration *configuration = configurationForSessionID(m_sessionID);
+
+#if HAVE(LOAD_OPTIMIZER)
+    NETWORKSESSIONCOCOA_LOADOPTIMIZER_ADDITIONS
+#endif
 
 #if USE(CFNETWORK_AUTO_ADDED_HTTP_HEADER_SUPPRESSION)
     // Without this, CFNetwork would sometimes add a Content-Type header to our requests (rdar://problem/34748470).
@@ -866,13 +911,13 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
     if (auto data = networkProcess.sourceApplicationAuditData())
         configuration._sourceApplicationAuditTokenData = (__bridge NSData *)data.get();
 
-    if (!parameters.sourceApplicationBundleIdentifier.isEmpty()) {
-        configuration._sourceApplicationBundleIdentifier = parameters.sourceApplicationBundleIdentifier;
+    if (!m_sourceApplicationBundleIdentifier.isEmpty()) {
+        configuration._sourceApplicationBundleIdentifier = m_sourceApplicationBundleIdentifier;
         configuration._sourceApplicationAuditTokenData = nil;
     }
 
-    if (!parameters.sourceApplicationSecondaryIdentifier.isEmpty())
-        configuration._sourceApplicationSecondaryIdentifier = parameters.sourceApplicationSecondaryIdentifier;
+    if (!m_sourceApplicationSecondaryIdentifier.isEmpty())
+        configuration._sourceApplicationSecondaryIdentifier = m_sourceApplicationSecondaryIdentifier;
 
     configuration.connectionProxyDictionary = proxyDictionary(parameters.httpProxy, parameters.httpsProxy);
 
@@ -901,6 +946,10 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
 #if PLATFORM(WATCHOS) && __WATCH_OS_VERSION_MIN_REQUIRED >= 60000
     configuration._companionProxyPreference = NSURLSessionCompanionProxyPreferencePreferDirectToCloud;
 #endif
+
+    static SEL allowsTLSFallbackSetter = NSSelectorFromString(@"set_allowsTLSFallback:");
+    if (parameters.allowsTLSFallback == AllowsTLSFallback::No && [configuration respondsToSelector:allowsTLSFallbackSetter])
+        wtfObjCMsgSend<void>(configuration, allowsTLSFallbackSetter, NO);
 
     auto* storageSession = networkProcess.storageSession(parameters.sessionID);
     RELEASE_ASSERT(storageSession);
@@ -934,7 +983,14 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     m_resourceLoadStatisticsDirectory = parameters.resourceLoadStatisticsDirectory;
+    m_shouldIncludeLocalhostInResourceLoadStatistics = parameters.shouldIncludeLocalhostInResourceLoadStatistics ? ShouldIncludeLocalhost::Yes : ShouldIncludeLocalhost::No;
+    m_enableResourceLoadStatisticsDebugMode = parameters.enableResourceLoadStatisticsDebugMode ? EnableResourceLoadStatisticsDebugMode::Yes : EnableResourceLoadStatisticsDebugMode::No;
+    m_resourceLoadStatisticsManualPrevalentResource = parameters.resourceLoadStatisticsManualPrevalentResource;
     setResourceLoadStatisticsEnabled(parameters.enableResourceLoadStatistics);
+#endif
+
+#if HAVE(SESSION_CLEANUP)
+    activateSessionCleanup(*this);
 #endif
 }
 

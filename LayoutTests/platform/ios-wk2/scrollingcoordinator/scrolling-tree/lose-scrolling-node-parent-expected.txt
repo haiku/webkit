@@ -11,7 +11,6 @@ Inner scrolling content
     (vertical scroll elasticity 1)
     (horizontal scrollbar mode 0)
     (vertical scrollbar mode 0))
-  (visual viewport enabled 1)
   (layout viewport at (0,0) size 800x600)
   (min layout viewport origin (0,0))
   (max layout viewport origin (0,0))
@@ -25,7 +24,9 @@ Inner scrolling content
         (horizontal scroll elasticity 1)
         (vertical scroll elasticity 1)
         (horizontal scrollbar mode 0)
-        (vertical scrollbar mode 0))
+        (vertical scrollbar mode 0)
+        (has enabled horizontal scrollbar 1)
+        (has enabled vertical scrollbar 1))
       (children 1
         (Overflow scrolling node
           (scrollable area size 420 320)
@@ -35,7 +36,8 @@ Inner scrolling content
             (horizontal scroll elasticity 1)
             (vertical scroll elasticity 1)
             (horizontal scrollbar mode 0)
-            (vertical scrollbar mode 0))
+            (vertical scrollbar mode 0)
+            (has enabled vertical scrollbar 1))
         )
       )
     )

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -78,6 +78,10 @@ public:
 #if PLATFORM(MAC)
     static bool isSystemWebKit();
 #endif
+    
+#if PLATFORM(COCOA)
+    bool parentProcessHasEntitlement(const char* entitlement);
+#endif
 
 protected:
     explicit AuxiliaryProcess();
@@ -114,8 +118,8 @@ private:
     virtual bool shouldOverrideQuarantine() { return true; }
 
     // IPC::MessageSender
-    IPC::Connection* messageSenderConnection() override;
-    uint64_t messageSenderDestinationID() override;
+    IPC::Connection* messageSenderConnection() const override;
+    uint64_t messageSenderDestinationID() const override;
 
     // IPC::Connection::Client.
     void didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference messageReceiverName, IPC::StringReference messageName) final;

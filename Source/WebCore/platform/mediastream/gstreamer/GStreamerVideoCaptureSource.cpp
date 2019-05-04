@@ -102,16 +102,15 @@ CaptureSourceOrError GStreamerVideoCaptureSource::create(String&& deviceID, Stri
 {
     auto device = GStreamerVideoCaptureDeviceManager::singleton().gstreamerDeviceWithUID(deviceID);
     if (!device) {
-        auto errorMessage = String::format("GStreamerVideoCaptureSource::create(): GStreamer did not find the device: %s.", deviceID.utf8().data());
+        auto errorMessage = makeString("GStreamerVideoCaptureSource::create(): GStreamer did not find the device: ", deviceID, '.');
         return CaptureSourceOrError(WTFMove(errorMessage));
     }
 
     auto source = adoptRef(*new GStreamerVideoCaptureSource(device.value(), WTFMove(hashSalt)));
 
     if (constraints) {
-        auto result = source->applyConstraints(*constraints);
-        if (result)
-            return WTFMove(result.value().first);
+        if (auto result = source->applyConstraints(*constraints))
+            return WTFMove(result->badConstraint);
     }
     return CaptureSourceOrError(WTFMove(source));
 }

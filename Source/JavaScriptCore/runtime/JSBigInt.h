@@ -124,6 +124,7 @@ public:
     static JSBigInt* bitwiseAnd(ExecState*, JSBigInt* x, JSBigInt* y);
     static JSBigInt* bitwiseOr(ExecState*, JSBigInt* x, JSBigInt* y);
     static JSBigInt* bitwiseXor(ExecState*, JSBigInt* x, JSBigInt* y);
+    static JSBigInt* bitwiseNot(ExecState*, JSBigInt* x);
 
     static JSBigInt* leftShift(ExecState*, JSBigInt* x, JSBigInt* y);
     static JSBigInt* signedRightShift(ExecState*, JSBigInt* x, JSBigInt* y);
@@ -236,7 +237,7 @@ private:
 
     inline Digit* dataStorage()
     {
-        return reinterpret_cast<Digit*>(reinterpret_cast<char*>(this) + offsetOfData());
+        return bitwise_cast<Digit*>(reinterpret_cast<char*>(this) + offsetOfData());
     }
 
     Digit digit(unsigned);

@@ -107,12 +107,13 @@ Shared/soup/WebErrorsSoup.cpp
 
 Shared/unix/AuxiliaryProcessMain.cpp @no-unify
 
-UIProcess/AcceleratedDrawingAreaProxy.cpp
 UIProcess/BackingStore.cpp
 UIProcess/DefaultUndoController.cpp
-UIProcess/DrawingAreaProxyImpl.cpp
 UIProcess/LegacySessionStateCodingNone.cpp
+UIProcess/ViewGestureController.cpp
+UIProcess/ViewSnapshotStore.cpp @no-unify
 UIProcess/WebGrammarDetail.cpp
+UIProcess/WebMemoryPressureHandler.cpp @no-unify
 UIProcess/WebTextChecker.cpp
 UIProcess/WebTextCheckerClient.cpp
 UIProcess/WebViewportAttributes.cpp
@@ -123,6 +124,7 @@ UIProcess/API/C/WKViewportAttributes.cpp
 UIProcess/API/C/gtk/WKTextCheckerGtk.cpp
 UIProcess/API/C/gtk/WKView.cpp
 
+UIProcess/API/glib/APIContentRuleListStoreGLib.cpp @no-unify
 UIProcess/API/glib/APIWebsiteDataStoreGLib.cpp @no-unify
 UIProcess/API/glib/IconDatabase.cpp @no-unify
 UIProcess/API/glib/WebKitApplicationInfo.cpp @no-unify
@@ -144,8 +146,8 @@ UIProcess/API/glib/WebKitFileChooserRequest.cpp @no-unify
 UIProcess/API/glib/WebKitFindController.cpp @no-unify
 UIProcess/API/glib/WebKitFormClient.cpp @no-unify
 UIProcess/API/glib/WebKitFormSubmissionRequest.cpp @no-unify
+UIProcess/API/glib/WebKitGeolocationManager.cpp @no-unify
 UIProcess/API/glib/WebKitGeolocationPermissionRequest.cpp @no-unify
-UIProcess/API/glib/WebKitGeolocationProvider.cpp @no-unify
 UIProcess/API/glib/WebKitIconLoadingClient.cpp @no-unify
 UIProcess/API/glib/WebKitInjectedBundleClient.cpp @no-unify
 UIProcess/API/glib/WebKitInstallMissingMediaPluginsPermissionRequest.cpp @no-unify
@@ -169,7 +171,9 @@ UIProcess/API/glib/WebKitSecurityOrigin.cpp @no-unify
 UIProcess/API/glib/WebKitSettings.cpp @no-unify
 UIProcess/API/glib/WebKitUIClient.cpp @no-unify
 UIProcess/API/glib/WebKitURISchemeRequest.cpp @no-unify
+UIProcess/API/glib/WebKitURIUtilities.cpp @no-unify
 UIProcess/API/glib/WebKitUserContent.cpp @no-unify
+UIProcess/API/glib/WebKitUserContentFilterStore.cpp @no-unify
 UIProcess/API/glib/WebKitUserContentManager.cpp @no-unify
 UIProcess/API/glib/WebKitUserMediaPermissionRequest.cpp @no-unify
 UIProcess/API/glib/WebKitVersion.cpp @no-unify
@@ -203,6 +207,10 @@ UIProcess/Automation/cairo/WebAutomationSessionCairo.cpp
 
 UIProcess/Automation/gtk/WebAutomationSessionGtk.cpp
 
+UIProcess/CoordinatedGraphics/DrawingAreaProxyCoordinatedGraphics.cpp
+
+UIProcess/geoclue/GeoclueGeolocationProvider.cpp
+
 UIProcess/Launcher/glib/ProcessLauncherGLib.cpp @no-unify
 UIProcess/Launcher/glib/BubblewrapLauncher.cpp @no-unify
 UIProcess/Launcher/glib/FlatpakLauncher.cpp @no-unify
@@ -224,6 +232,7 @@ UIProcess/WebsiteData/unix/WebsiteDataStoreUnix.cpp
 UIProcess/cairo/BackingStoreCairo.cpp @no-unify
 
 UIProcess/glib/RemoteInspectorClient.cpp
+UIProcess/glib/WebProcessPoolGLib.cpp
 UIProcess/glib/WebProcessProxyGLib.cpp
 
 UIProcess/gstreamer/InstallMissingMediaPluginsPermissionRequest.cpp
@@ -239,6 +248,8 @@ UIProcess/gtk/InputMethodFilter.cpp @no-unify
 UIProcess/gtk/KeyBindingTranslator.cpp
 UIProcess/gtk/RemoteWebInspectorProxyGtk.cpp @no-unify
 UIProcess/gtk/TextCheckerGtk.cpp @no-unify
+UIProcess/gtk/ViewGestureControllerGtk.cpp @no-unify
+UIProcess/gtk/ViewSnapshotStoreGtk.cpp @no-unify
 UIProcess/gtk/WaylandCompositor.cpp @no-unify
 UIProcess/gtk/WebColorPickerGtk.cpp @no-unify
 UIProcess/gtk/WebContextMenuProxyGtk.cpp
@@ -248,7 +259,6 @@ UIProcess/gtk/WebPageProxyGtk.cpp @no-unify
 UIProcess/gtk/WebPasteboardProxyGtk.cpp
 UIProcess/gtk/WebPopupMenuProxyGtk.cpp
 UIProcess/gtk/WebPreferencesGtk.cpp
-UIProcess/gtk/WebProcessPoolGtk.cpp @no-unify
 
 UIProcess/soup/WebCookieManagerProxySoup.cpp
 UIProcess/soup/WebProcessPoolSoup.cpp
@@ -393,17 +403,14 @@ WebProcess/WebCoreSupport/gtk/WebPopupMenuGtk.cpp
 
 WebProcess/WebCoreSupport/soup/WebFrameNetworkingContext.cpp
 
-WebProcess/WebPage/AcceleratedDrawingArea.cpp
 WebProcess/WebPage/AcceleratedSurface.cpp
-WebProcess/WebPage/LayerTreeHost.cpp
+WebProcess/WebPage/ViewGestureGeometryCollector.cpp
 
 WebProcess/WebPage/CoordinatedGraphics/CompositingCoordinator.cpp
-WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
-WebProcess/WebPage/CoordinatedGraphics/ThreadedCoordinatedLayerTreeHost.cpp
+WebProcess/WebPage/CoordinatedGraphics/DrawingAreaCoordinatedGraphics.cpp
+WebProcess/WebPage/CoordinatedGraphics/LayerTreeHost.cpp
 
-WebProcess/WebPage/DrawingAreaImpl.cpp
-
-WebProcess/WebPage/atk/WebPageAccessibilityObjectAtk.cpp
+WebProcess/WebPage/atk/WebKitWebPageAccessibilityObject.cpp
 
 WebProcess/WebPage/gstreamer/WebPageGStreamer.cpp
 

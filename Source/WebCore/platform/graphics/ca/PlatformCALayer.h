@@ -75,7 +75,7 @@ public:
         LayerTypeShapeLayer,
         LayerTypeLightSystemBackdropLayer,
         LayerTypeDarkSystemBackdropLayer,
-        LayerTypeScrollingLayer,
+        LayerTypeScrollContainerLayer,
         LayerTypeEditableImageLayer,
         LayerTypeCustom,
     };
@@ -233,6 +233,8 @@ public:
 
     virtual WindRule shapeWindRule() const = 0;
     virtual void setShapeWindRule(WindRule) = 0;
+
+    virtual void setEventRegion(const EventRegion&) = 0;
     
     virtual GraphicsLayer::CustomAppearance customAppearance() const = 0;
     virtual void updateCustomAppearance(GraphicsLayer::CustomAppearance) = 0;

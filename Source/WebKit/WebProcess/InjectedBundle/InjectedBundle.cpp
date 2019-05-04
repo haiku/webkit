@@ -97,7 +97,7 @@ RefPtr<InjectedBundle> InjectedBundle::create(WebProcessCreationParameters& para
     if (!bundle->initialize(parameters, initializationUserData))
         return nullptr;
 
-    return WTFMove(bundle);
+    return bundle;
 }
 
 InjectedBundle::InjectedBundle(const WebProcessCreationParameters& parameters)
@@ -215,11 +215,6 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
         RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled(enabled);
 #endif
 
-#if ENABLE(WEBMETAL)
-    if (preference == "WebKitWebMetalEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setWebMetalEnabled(enabled);
-#endif
-
     if (preference == "WebKitModernMediaControlsEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setModernMediaControlsEnabled(enabled);
 
@@ -281,7 +276,6 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
     macro(WebKitXSSAuditorEnabled, XSSAuditorEnabled, xssAuditorEnabled) \
     macro(WebKitShouldRespectImageOrientation, ShouldRespectImageOrientation, shouldRespectImageOrientation) \
     macro(WebKitDisplayImagesKey, LoadsImagesAutomatically, loadsImagesAutomatically) \
-    macro(WebKitVisualViewportEnabled, VisualViewportEnabled, visualViewportEnabled) \
     macro(WebKitLargeImageAsyncDecodingEnabled, LargeImageAsyncDecodingEnabled, largeImageAsyncDecodingEnabled) \
     macro(WebKitAnimatedImageAsyncDecodingEnabled, AnimatedImageAsyncDecodingEnabled, animatedImageAsyncDecodingEnabled) \
     \

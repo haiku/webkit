@@ -26,7 +26,7 @@
 #include "config.h"
 #include "DragAndDropSimulator.h"
 
-#if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY) && WK_API_ENABLED
+#if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)
 
 #import "InstanceMethodSwizzler.h"
 #import "PlatformUtilities.h"
@@ -343,9 +343,11 @@ static NSArray *dragAndDropEventNames()
     if (self = [super init]) {
         _webView = webView;
         _shouldEnsureUIApplication = NO;
+        _shouldBecomeFirstResponder = YES;
         _shouldAllowMoveOperation = YES;
         [_webView setUIDelegate:self];
         [_webView _setInputDelegate:self];
+        self.dragDestinationAction = WKDragDestinationActionAny & ~WKDragDestinationActionLoad;
     }
     return self;
 }
@@ -413,6 +415,9 @@ static NSArray *dragAndDropEventNames()
 
     if (_shouldEnsureUIApplication)
         UIApplicationInstantiateSingleton([DragAndDropSimulatorApplication class]);
+
+    if (_shouldBecomeFirstResponder)
+        [_webView becomeFirstResponder];
 
     [self _resetSimulatedState];
 
@@ -503,7 +508,7 @@ static NSArray *dragAndDropEventNames()
     [_queuedAdditionalItemRequestLocations removeObjectAtIndex:0];
 
     auto requestLocation = [[_webView window] convertPoint:[requestLocationValue CGPointValue] toView:_webView.get()];
-    [(id <UIDragInteractionDelegate_Proposed_SPI_33146803>)[_webView dragInteractionDelegate] _dragInteraction:[_webView dragInteraction] itemsForAddingToSession:_dragSession.get() withTouchAtPoint:requestLocation completion:[dragSession = _dragSession, dropSession = _dropSession] (NSArray *items) {
+    [(id <UIDragInteractionDelegate_ForWebKitOnly>)[_webView dragInteractionDelegate] _dragInteraction:[_webView dragInteraction] itemsForAddingToSession:_dragSession.get() withTouchAtPoint:requestLocation completion:[dragSession = _dragSession, dropSession = _dropSession] (NSArray *items) {
         [dragSession addItems:items];
         [dropSession addItems:items];
     }];
@@ -768,6 +773,11 @@ static NSArray *dragAndDropEventNames()
     [_removedAttachments addObject:attachment];
 }
 
+- (WKDragDestinationAction)_webView:(WKWebView *)webView dragDestinationActionMaskForDraggingInfo:(id)draggingInfo
+{
+    return self.dragDestinationAction;
+}
+
 #pragma mark - _WKInputDelegate
 
 - (BOOL)_webView:(WKWebView *)webView focusShouldStartInputSession:(id <_WKFocusedElementInfo>)info
@@ -782,4 +792,4 @@ static NSArray *dragAndDropEventNames()
 
 @end
 
-#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY) && WK_API_ENABLED
+#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)

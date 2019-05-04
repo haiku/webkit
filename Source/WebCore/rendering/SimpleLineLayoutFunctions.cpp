@@ -28,6 +28,7 @@
 
 #include "BidiRun.h"
 #include "BidiRunList.h"
+#include "EventRegion.h"
 #include "FontCache.h"
 #include "Frame.h"
 #include "GraphicsContext.h"
@@ -76,6 +77,18 @@ FloatRect computeOverflow(const RenderBlockFlow& flow, const FloatRect& layoutRe
 
 void paintFlow(const RenderBlockFlow& flow, const Layout& layout, PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
+    if (paintInfo.phase == PaintPhase::EventRegion) {
+        if (!flow.visibleToHitTesting())
+            return;
+        auto paintRect = paintInfo.rect;
+        paintRect.moveBy(-paintOffset);
+        for (auto run : layout.runResolver().rangeForRect(paintRect)) {
+            FloatRect visualOverflowRect = computeOverflow(flow, run.rect());
+            paintInfo.eventRegion->unite(enclosingIntRect(visualOverflowRect), flow.style());
+        }
+        return;
+    }
+
     if (paintInfo.phase != PaintPhase::Foreground)
         return;
 
@@ -273,6 +286,10 @@ void simpleLineLayoutWillBeDeleted(const Layout& layout)
 
 bool canUseForLineBoxTree(RenderBlockFlow& flow, const Layout& layout)
 {
+    // Line breaking requires some context that SLL can't provide at the moment (see RootInlineBox::setLineBreakInfo).
+    if (layout.lineCount() > 1)
+        return false;
+
     if (layout.isPaginated())
         return false;
     

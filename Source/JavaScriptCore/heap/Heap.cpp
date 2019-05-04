@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2003-2018 Apple Inc. All rights reserved.
+ *  Copyright (C) 2003-2019 Apple Inc. All rights reserved.
  *  Copyright (C) 2007 Eric Seidel <eric@webkit.org>
  *
  *  This library is free software; you can redistribute it and/or
@@ -22,6 +22,7 @@
 #include "Heap.h"
 
 #include "BlockDirectoryInlines.h"
+#include "BuiltinExecutables.h"
 #include "CodeBlock.h"
 #include "CodeBlockSetInlines.h"
 #include "CollectingScope.h"
@@ -300,14 +301,6 @@ Heap::Heap(VM* vm, HeapType heapType)
     , m_threadCondition(AutomaticThreadCondition::create())
 {
     m_worldState.store(0);
-
-    for (unsigned i = 0, numberOfParallelThreads = heapHelperPool().numberOfThreads(); i < numberOfParallelThreads; ++i) {
-        std::unique_ptr<SlotVisitor> visitor = std::make_unique<SlotVisitor>(*this, toCString("P", i + 1));
-        if (Options::optimizeParallelSlotVisitorsForStoppedMutator())
-            visitor->optimizeForStoppedMutator();
-        m_availableParallelSlotVisitors.append(visitor.get());
-        m_parallelSlotVisitors.append(WTFMove(visitor));
-    }
     
     if (Options::useConcurrentGC()) {
         if (Options::useStochasticMutatorScheduler())
@@ -349,6 +342,30 @@ Heap::~Heap()
 bool Heap::isPagedOut(MonotonicTime deadline)
 {
     return m_objectSpace.isPagedOut(deadline);
+}
+
+void Heap::dumpHeapStatisticsAtVMDestruction()
+{
+    unsigned counter = 0;
+    m_objectSpace.forEachBlock([&] (MarkedBlock::Handle* block) {
+        unsigned live = 0;
+        block->forEachCell([&] (HeapCell* cell, HeapCell::Kind) {
+            if (cell->isLive())
+                live++;
+            return IterationStatus::Continue;
+        });
+        dataLogLn("[", counter++, "] ", block->cellSize(), ", ", live, " / ", block->cellsPerBlock(), " ", static_cast<double>(live) / block->cellsPerBlock() * 100, "% ", block->attributes(), " ", block->subspace()->name());
+        block->forEachCell([&] (HeapCell* heapCell, HeapCell::Kind kind) {
+            if (heapCell->isLive() && kind == HeapCell::Kind::JSCell) {
+                auto* cell = static_cast<JSCell*>(heapCell);
+                if (cell->isObject())
+                    dataLogLn("    ", JSValue((JSObject*)cell));
+                else
+                    dataLogLn("    ", *cell);
+            }
+            return IterationStatus::Continue;
+        });
+    });
 }
 
 // The VM is being destroyed and the collector will never run again.
@@ -430,6 +447,9 @@ void Heap::lastChanceToFinalize()
     
     if (Options::logGC())
         dataLog("5 ");
+
+    if (UNLIKELY(Options::dumpHeapStatisticsAtVMDestruction()))
+        dumpHeapStatisticsAtVMDestruction();
     
     m_arrayBuffers.lastChanceToFinalize();
     m_objectSpace.stopAllocatingForGood();
@@ -567,18 +587,25 @@ void Heap::finalizeMarkedUnconditionalFinalizers(CellSet& cellSet)
 
 void Heap::finalizeUnconditionalFinalizers()
 {
-    finalizeMarkedUnconditionalFinalizers<InferredValue>(vm()->inferredValuesWithFinalizers);
+    vm()->builtinExecutables()->finalizeUnconditionally();
+    if (vm()->m_inferredValueSpace)
+        finalizeMarkedUnconditionalFinalizers<InferredValue>(vm()->m_inferredValueSpace->space);
     vm()->forEachCodeBlockSpace(
         [&] (auto& space) {
-            this->finalizeMarkedUnconditionalFinalizers<CodeBlock>(space.finalizerSet);
+            this->finalizeMarkedUnconditionalFinalizers<CodeBlock>(space.set);
         });
     finalizeMarkedUnconditionalFinalizers<ExecutableToCodeBlockEdge>(vm()->executableToCodeBlockEdgesWithFinalizers);
-    finalizeMarkedUnconditionalFinalizers<JSWeakSet>(vm()->weakSetSpace);
-    finalizeMarkedUnconditionalFinalizers<JSWeakMap>(vm()->weakMapSpace);
-    finalizeMarkedUnconditionalFinalizers<ErrorInstance>(vm()->errorInstanceSpace);
+    finalizeMarkedUnconditionalFinalizers<StructureRareData>(vm()->structureRareDataSpace);
+    if (vm()->m_weakSetSpace)
+        finalizeMarkedUnconditionalFinalizers<JSWeakSet>(*vm()->m_weakSetSpace);
+    if (vm()->m_weakMapSpace)
+        finalizeMarkedUnconditionalFinalizers<JSWeakMap>(*vm()->m_weakMapSpace);
+    if (vm()->m_errorInstanceSpace)
+        finalizeMarkedUnconditionalFinalizers<ErrorInstance>(*vm()->m_errorInstanceSpace);
 
 #if ENABLE(WEBASSEMBLY)
-    finalizeMarkedUnconditionalFinalizers<JSWebAssemblyCodeBlock>(vm()->webAssemblyCodeBlockSpace);
+    if (vm()->m_webAssemblyCodeBlockSpace)
+        finalizeMarkedUnconditionalFinalizers<JSWebAssemblyCodeBlock>(*vm()->m_webAssemblyCodeBlockSpace);
 #endif
 }
 
@@ -594,8 +621,10 @@ void Heap::didFinishIterating()
 
 void Heap::completeAllJITPlans()
 {
+    if (!VM::canUseJIT())
+        return;
 #if ENABLE(JIT)
-    JITWorklist::instance()->completeAllForVM(*m_vm);
+    JITWorklist::ensureGlobalWorklist().completeAllForVM(*m_vm);
 #endif // ENABLE(JIT)
     DFG::completeAllPlansForVM(*m_vm);
 }
@@ -604,7 +633,8 @@ template<typename Func>
 void Heap::iterateExecutingAndCompilingCodeBlocks(const Func& func)
 {
     m_codeBlocks->iterateCurrentlyExecuting(func);
-    DFG::iterateCodeBlocksForGC(*m_vm, func);
+    if (VM::canUseJIT())
+        DFG::iterateCodeBlocksForGC(*m_vm, func);
 }
 
 template<typename Func>
@@ -662,7 +692,9 @@ void Heap::gatherJSStackRoots(ConservativeRoots& roots)
 void Heap::gatherScratchBufferRoots(ConservativeRoots& roots)
 {
 #if ENABLE(DFG_JIT)
-    m_vm->gatherConservativeRoots(roots);
+    if (!VM::canUseJIT())
+        return;
+    m_vm->gatherScratchBufferRoots(roots);
 #else
     UNUSED_PARAM(roots);
 #endif
@@ -679,6 +711,8 @@ void Heap::beginMarking()
 void Heap::removeDeadCompilerWorklistEntries()
 {
 #if ENABLE(DFG_JIT)
+    if (!VM::canUseJIT())
+        return;
     for (unsigned i = DFG::numberOfWorklists(); i--;)
         DFG::existingWorklistForIndex(i).removeDeadPlans(*m_vm);
 #endif
@@ -880,11 +914,11 @@ void Heap::deleteAllCodeBlocks(DeleteAllCodeEffort effort)
     vm.forEachScriptExecutableSpace(
         [&] (auto& spaceAndSet) {
             HeapIterationScope heapIterationScope(*this);
-            auto& clearableCodeSet = spaceAndSet.clearableCodeSet;
-            clearableCodeSet.forEachLiveCell(
+            auto& set = spaceAndSet.set;
+            set.forEachLiveCell(
                 [&] (HeapCell* cell, HeapCell::Kind) {
                     ScriptExecutable* executable = static_cast<ScriptExecutable*>(cell);
-                    executable->clearCode(clearableCodeSet);
+                    executable->clearCode(set);
                 });
         });
 
@@ -896,11 +930,13 @@ void Heap::deleteAllCodeBlocks(DeleteAllCodeEffort effort)
         // points into a CodeBlock that could be dead. The IC will still succeed because
         // it uses a callee check, but then it will call into dead code.
         HeapIterationScope heapIterationScope(*this);
-        vm.webAssemblyCodeBlockSpace.forEachLiveCell([&] (HeapCell* cell, HeapCell::Kind kind) {
-            ASSERT_UNUSED(kind, kind == HeapCell::JSCell);
-            JSWebAssemblyCodeBlock* codeBlock = static_cast<JSWebAssemblyCodeBlock*>(cell);
-            codeBlock->clearJSCallICs(vm);
-        });
+        if (vm.m_webAssemblyCodeBlockSpace) {
+            vm.m_webAssemblyCodeBlockSpace->forEachLiveCell([&] (HeapCell* cell, HeapCell::Kind kind) {
+                ASSERT_UNUSED(kind, kind == HeapCell::JSCell);
+                JSWebAssemblyCodeBlock* codeBlock = static_cast<JSWebAssemblyCodeBlock*>(cell);
+                codeBlock->clearJSCallICs(vm);
+            });
+        }
     }
 #endif
 }
@@ -916,7 +952,7 @@ void Heap::deleteAllUnlinkedCodeBlocks(DeleteAllCodeEffort effort)
     RELEASE_ASSERT(!m_collectionScope);
 
     HeapIterationScope heapIterationScope(*this);
-    vm.unlinkedFunctionExecutableSpace.clearableCodeSet.forEachLiveCell(
+    vm.unlinkedFunctionExecutableSpace.set.forEachLiveCell(
         [&] (HeapCell* cell, HeapCell::Kind) {
             UnlinkedFunctionExecutable* executable = static_cast<UnlinkedFunctionExecutable*>(cell);
             executable->clearCode(vm);
@@ -975,7 +1011,7 @@ void Heap::addToRememberedSet(const JSCell* constCell)
             return;
         }
     } else
-        ASSERT(Heap::isMarked(cell));
+        ASSERT(isMarked(cell));
     // It could be that the object was *just* marked. This means that the collector may set the
     // state to DefinitelyGrey and then to PossiblyOldOrBlack at any time. It's OK for us to
     // race with the collector here. If we win then this is accurate because the object _will_
@@ -1015,6 +1051,9 @@ void Heap::collect(Synchronousness synchronousness, GCRequest request)
 
 void Heap::collectNow(Synchronousness synchronousness, GCRequest request)
 {
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
+
     switch (synchronousness) {
     case Async: {
         collectAsync(request);
@@ -1047,6 +1086,9 @@ void Heap::collectNow(Synchronousness synchronousness, GCRequest request)
 
 void Heap::collectAsync(GCRequest request)
 {
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
+
     if (!m_isSafeToCollect)
         return;
 
@@ -1068,9 +1110,12 @@ void Heap::collectAsync(GCRequest request)
 
 void Heap::collectSync(GCRequest request)
 {
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
+
     if (!m_isSafeToCollect)
         return;
-    
+
     waitForCollection(requestCollection(request));
 }
 
@@ -1238,8 +1283,19 @@ NEVER_INLINE bool Heap::runBeginPhase(GCConductor conn)
             SlotVisitor* slotVisitor;
             {
                 LockHolder locker(m_parallelSlotVisitorLock);
-                RELEASE_ASSERT_WITH_MESSAGE(!m_availableParallelSlotVisitors.isEmpty(), "Parallel SlotVisitors are allocated apriori");
-                slotVisitor = m_availableParallelSlotVisitors.takeLast();
+                if (m_availableParallelSlotVisitors.isEmpty()) {
+                    std::unique_ptr<SlotVisitor> newVisitor = std::make_unique<SlotVisitor>(
+                        *this, toCString("P", m_parallelSlotVisitors.size() + 1));
+                    
+                    if (Options::optimizeParallelSlotVisitorsForStoppedMutator())
+                        newVisitor->optimizeForStoppedMutator();
+                    
+                    newVisitor->didStartMarking();
+                    
+                    slotVisitor = newVisitor.get();
+                    m_parallelSlotVisitors.append(WTFMove(newVisitor));
+                } else
+                    slotVisitor = m_availableParallelSlotVisitors.takeLast();
             }
 
             WTF::registerGCThread(GCThreadType::Helper);
@@ -1439,11 +1495,8 @@ NEVER_INLINE bool Heap::runEndPhase(GCConductor conn)
     }
         
     if (vm()->typeProfiler())
-        vm()->typeProfiler()->invalidateTypeSetCache();
+        vm()->typeProfiler()->invalidateTypeSetCache(*vm());
 
-    if (ValueProfile* profile = vm()->noJITValueProfileSingleton.get())
-        *profile = ValueProfile(0);
-        
     reapWeakHandles();
     pruneStaleEntriesFromWeakGCMaps();
     sweepArrayBuffers();
@@ -1579,9 +1632,9 @@ void Heap::stopThePeriphery(GCConductor conn)
         });
 
 #if ENABLE(JIT)
-    {
+    if (VM::canUseJIT()) {
         DeferGCForAWhile awhile(*this);
-        if (JITWorklist::instance()->completeAllForVM(*m_vm)
+        if (JITWorklist::ensureGlobalWorklist().completeAllForVM(*m_vm)
             && conn == GCConductor::Collector)
             setGCDidJIT();
     }
@@ -1723,6 +1776,9 @@ NEVER_INLINE void Heap::resumeTheMutator()
 
 void Heap::stopIfNecessarySlow()
 {
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
+
     while (stopIfNecessarySlow(m_worldState.load())) { }
     
     RELEASE_ASSERT(m_worldState.load() & hasAccessBit);
@@ -1735,6 +1791,9 @@ void Heap::stopIfNecessarySlow()
 
 bool Heap::stopIfNecessarySlow(unsigned oldState)
 {
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
+
     RELEASE_ASSERT(oldState & hasAccessBit);
     RELEASE_ASSERT(!(oldState & stoppedBit));
     
@@ -2086,6 +2145,8 @@ void Heap::suspendCompilerThreads()
     // We ensure the worklists so that it's not possible for the mutator to start a new worklist
     // after we have suspended the ones that he had started before. That's not very expensive since
     // the worklists use AutomaticThreads anyway.
+    if (!VM::canUseJIT())
+        return;
     for (unsigned i = DFG::numberOfWorklists(); i--;)
         DFG::ensureWorklistForIndex(i).suspendAllThreads();
 #endif
@@ -2152,7 +2213,7 @@ void Heap::pruneStaleEntriesFromWeakGCMaps()
 
 void Heap::sweepArrayBuffers()
 {
-    m_arrayBuffers.sweep();
+    m_arrayBuffers.sweep(*vm());
 }
 
 void Heap::snapshotUnswept()
@@ -2303,6 +2364,8 @@ void Heap::didFinishCollection()
 void Heap::resumeCompilerThreads()
 {
 #if ENABLE(DFG_JIT)
+    if (!VM::canUseJIT())
+        return;
     for (unsigned i = DFG::numberOfWorklists(); i--;)
         DFG::existingWorklistForIndex(i).resumeAllThreads();
 #endif
@@ -2520,9 +2583,12 @@ void Heap::reportExternalMemoryVisited(size_t size)
 void Heap::collectIfNecessaryOrDefer(GCDeferralContext* deferralContext)
 {
     ASSERT(deferralContext || isDeferred() || !DisallowGC::isInEffectOnCurrentThread());
+    if (validateDFGDoesGC)
+        RELEASE_ASSERT(expectDoesGC());
 
     if (!m_isSafeToCollect)
         return;
+
     switch (mutatorState()) {
     case MutatorState::Running:
     case MutatorState::Allocating:
@@ -2633,7 +2699,7 @@ void Heap::addCoreConstraints()
                 SetRootMarkReasonScope rootScope(slotVisitor, SlotVisitor::RootMarkReason::ConservativeScan);
                 slotVisitor.append(conservativeRoots);
             }
-            {
+            if (VM::canUseJIT()) {
                 // JITStubRoutines must be visited after scanning ConservativeRoots since JITStubRoutines depend on the hook executed during gathering ConservativeRoots.
                 SetRootMarkReasonScope rootScope(slotVisitor, SlotVisitor::RootMarkReason::JITStubRoutines);
                 m_jitStubRoutines->traceMarkedStubRoutines(slotVisitor);
@@ -2730,32 +2796,35 @@ void Heap::addCoreConstraints()
             };
             
             add(vm.executableToCodeBlockEdgesWithConstraints);
-            add(vm.weakMapSpace);
+            if (vm.m_weakMapSpace)
+                add(*vm.m_weakMapSpace);
         },
         ConstraintVolatility::GreyedByMarking,
         ConstraintParallelism::Parallel);
     
 #if ENABLE(DFG_JIT)
-    m_constraintSet->add(
-        "Dw", "DFG Worklists",
-        [this] (SlotVisitor& slotVisitor) {
-            SetRootMarkReasonScope rootScope(slotVisitor, SlotVisitor::RootMarkReason::DFGWorkLists);
+    if (VM::canUseJIT()) {
+        m_constraintSet->add(
+            "Dw", "DFG Worklists",
+            [this] (SlotVisitor& slotVisitor) {
+                SetRootMarkReasonScope rootScope(slotVisitor, SlotVisitor::RootMarkReason::DFGWorkLists);
 
-            for (unsigned i = DFG::numberOfWorklists(); i--;)
-                DFG::existingWorklistForIndex(i).visitWeakReferences(slotVisitor);
-            
-            // FIXME: This is almost certainly unnecessary.
-            // https://bugs.webkit.org/show_bug.cgi?id=166829
-            DFG::iterateCodeBlocksForGC(
-                *m_vm,
-                [&] (CodeBlock* codeBlock) {
-                    slotVisitor.appendUnbarriered(codeBlock);
-                });
-            
-            if (Options::logGC() == GCLogging::Verbose)
-                dataLog("DFG Worklists:\n", slotVisitor);
-        },
-        ConstraintVolatility::GreyedByMarking);
+                for (unsigned i = DFG::numberOfWorklists(); i--;)
+                    DFG::existingWorklistForIndex(i).visitWeakReferences(slotVisitor);
+                
+                // FIXME: This is almost certainly unnecessary.
+                // https://bugs.webkit.org/show_bug.cgi?id=166829
+                DFG::iterateCodeBlocksForGC(
+                    *m_vm,
+                    [&] (CodeBlock* codeBlock) {
+                        slotVisitor.appendUnbarriered(codeBlock);
+                    });
+                
+                if (Options::logGC() == GCLogging::Verbose)
+                    dataLog("DFG Worklists:\n", slotVisitor);
+            },
+            ConstraintVolatility::GreyedByMarking);
+    }
 #endif
     
     m_constraintSet->add(
@@ -2765,7 +2834,7 @@ void Heap::addCoreConstraints()
             iterateExecutingAndCompilingCodeBlocksWithoutHoldingLocks(
                 [&] (CodeBlock* codeBlock) {
                     // Visit the CodeBlock as a constraint only if it's black.
-                    if (Heap::isMarked(codeBlock)
+                    if (isMarked(codeBlock)
                         && codeBlock->cellState() == CellState::PossiblyBlack)
                         slotVisitor.visitAsConstraint(codeBlock);
                 });
@@ -2864,6 +2933,9 @@ void Heap::setMutatorShouldBeFenced(bool value)
 void Heap::performIncrement(size_t bytes)
 {
     if (!m_objectSpace.isMarking())
+        return;
+
+    if (isDeferred())
         return;
 
     m_incrementBalance += bytes * Options::gcIncrementScale();

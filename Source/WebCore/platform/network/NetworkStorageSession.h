@@ -26,6 +26,7 @@
 #pragma once
 
 #include "CredentialStorage.h"
+#include "RegistrableDomain.h"
 #include <pal/SessionID.h>
 #include <wtf/Function.h>
 #include <wtf/HashMap.h>
@@ -72,6 +73,7 @@ struct CookieRequestHeaderFieldProxy;
 struct SameSiteInfo;
 
 enum class IncludeSecureCookies : bool;
+enum class IncludeHttpOnlyCookies : bool;
 
 class NetworkStorageSession {
     WTF_MAKE_NONCOPYABLE(NetworkStorageSession); WTF_MAKE_FAST_ALLOCATED;
@@ -107,13 +109,13 @@ public:
     void getCredentialFromPersistentStorage(const ProtectionSpace&, GCancellable*, Function<void (Credential&&)>&& completionHandler);
     void saveCredentialToPersistentStorage(const ProtectionSpace&, const Credential&);
 #elif USE(HAIKU)
-    NetworkStorageSession(PAL::SessionID, BUrlContext*);
+    WEBCORE_EXPORT NetworkStorageSession(PAL::SessionID);
     ~NetworkStorageSession();
 
     BUrlContext& platformSession() const;
     void setPlatformSession(BUrlContext*);
 #elif USE(CURL)
-    WEBCORE_EXPORT NetworkStorageSession(PAL::SessionID, NetworkingContext*);
+    WEBCORE_EXPORT NetworkStorageSession(PAL::SessionID);
     ~NetworkStorageSession();
 
     const CookieJarCurl& cookieStorage() const { return m_cookieStorage; };
@@ -121,8 +123,6 @@ public:
     WEBCORE_EXPORT void setCookieDatabase(UniqueRef<CookieJarDB>&&);
 
     WEBCORE_EXPORT void setProxySettings(CurlProxySettings&&);
-
-    NetworkingContext* context() const;
 #else
     WEBCORE_EXPORT NetworkStorageSession(PAL::SessionID, NetworkingContext*);
     ~NetworkStorageSession();
@@ -139,6 +139,7 @@ public:
     WEBCORE_EXPORT void deleteAllCookies();
     WEBCORE_EXPORT void deleteAllCookiesModifiedSince(WallTime);
     WEBCORE_EXPORT void deleteCookiesForHostnames(const Vector<String>& cookieHostNames);
+    WEBCORE_EXPORT void deleteCookiesForHostnames(const Vector<String>& cookieHostNames, IncludeHttpOnlyCookies);
     WEBCORE_EXPORT Vector<Cookie> getAllCookies();
     WEBCORE_EXPORT Vector<Cookie> getCookies(const URL&);
     WEBCORE_EXPORT bool getRawCookies(const URL& firstParty, const SameSiteInfo&, const URL&, Optional<uint64_t> frameID, Optional<uint64_t> pageID, Vector<Cookie>&) const;
@@ -151,18 +152,20 @@ public:
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     WEBCORE_EXPORT bool shouldBlockCookies(const ResourceRequest&, Optional<uint64_t> frameID, Optional<uint64_t> pageID) const;
     WEBCORE_EXPORT bool shouldBlockCookies(const URL& firstPartyForCookies, const URL& resource, Optional<uint64_t> frameID, Optional<uint64_t> pageID) const;
-    WEBCORE_EXPORT void setPrevalentDomainsToBlockCookiesFor(const Vector<String>&);
+    WEBCORE_EXPORT void setPrevalentDomainsToBlockCookiesFor(const Vector<RegistrableDomain>&);
     WEBCORE_EXPORT void setAgeCapForClientSideCookies(Optional<Seconds>);
-    WEBCORE_EXPORT void removePrevalentDomains(const Vector<String>& domains);
-    WEBCORE_EXPORT bool hasStorageAccess(const String& resourceDomain, const String& firstPartyDomain, Optional<uint64_t> frameID, uint64_t pageID) const;
+    WEBCORE_EXPORT void removePrevalentDomains(const Vector<RegistrableDomain>& domains);
+    WEBCORE_EXPORT bool hasStorageAccess(const RegistrableDomain& resourceDomain, const RegistrableDomain& firstPartyDomain, Optional<uint64_t> frameID, uint64_t pageID) const;
     WEBCORE_EXPORT Vector<String> getAllStorageAccessEntries() const;
-    WEBCORE_EXPORT void grantStorageAccess(const String& resourceDomain, const String& firstPartyDomain, Optional<uint64_t> frameID, uint64_t pageID);
+    WEBCORE_EXPORT void grantStorageAccess(const RegistrableDomain& resourceDomain, const RegistrableDomain& firstPartyDomain, Optional<uint64_t> frameID, uint64_t pageID);
     WEBCORE_EXPORT void removeStorageAccessForFrame(uint64_t frameID, uint64_t pageID);
-    WEBCORE_EXPORT void removeStorageAccessForAllFramesOnPage(uint64_t pageID);
+    WEBCORE_EXPORT void clearPageSpecificDataForResourceLoadStatistics(uint64_t pageID);
     WEBCORE_EXPORT void removeAllStorageAccess();
     WEBCORE_EXPORT void setCacheMaxAgeCapForPrevalentResources(Seconds);
     WEBCORE_EXPORT void resetCacheMaxAgeCapForPrevalentResources();
     WEBCORE_EXPORT Optional<Seconds> maxAgeCacheCap(const ResourceRequest&);
+    WEBCORE_EXPORT void committedCrossSiteLoadWithLinkDecoration(const RegistrableDomain& fromDomain, const RegistrableDomain& toDomain, uint64_t pageID);
+    WEBCORE_EXPORT void resetCrossSiteLoadsWithLinkDecorationForTesting();
 #endif
 
 private:
@@ -179,8 +182,6 @@ private:
 #elif USE(HAIKU)
     BUrlContext* m_context;
 #elif USE(CURL)
-    RefPtr<NetworkingContext> m_context;
-
     UniqueRef<CookieJarCurl> m_cookieStorage;
     mutable UniqueRef<CookieJarDB> m_cookieDatabase;
 #else
@@ -190,12 +191,16 @@ private:
     CredentialStorage m_credentialStorage;
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    bool shouldBlockThirdPartyCookies(const String& topPrivatelyControlledDomain) const;
-    HashSet<String> m_topPrivatelyControlledDomainsToBlock;
-    HashMap<uint64_t, HashMap<uint64_t, String, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>>, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_framesGrantedStorageAccess;
-    HashMap<uint64_t, HashMap<String, String>, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_pagesGrantedStorageAccess;
+    bool shouldBlockThirdPartyCookies(const RegistrableDomain&) const;
+    Optional<Seconds> clientSideCookieCap(const RegistrableDomain& firstParty, Optional<uint64_t> pageID) const;
+    HashSet<RegistrableDomain> m_registrableDomainsToBlockCookieFor;
+    HashMap<uint64_t, HashMap<uint64_t, RegistrableDomain, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>>, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_framesGrantedStorageAccess;
+    HashMap<uint64_t, HashMap<RegistrableDomain, RegistrableDomain>, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_pagesGrantedStorageAccess;
     Optional<Seconds> m_cacheMaxAgeCapForPrevalentResources { };
     Optional<Seconds> m_ageCapForClientSideCookies { };
+    Optional<Seconds> m_ageCapForClientSideCookiesShort { };
+    HashMap<uint64_t, RegistrableDomain, DefaultHash<uint64_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> m_navigatedToWithLinkDecorationByPrevalentResource;
+    bool m_navigationWithLinkDecorationTestMode = false;
 #endif
 
 #if PLATFORM(COCOA)

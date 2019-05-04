@@ -27,8 +27,6 @@
 
 #import "WKFoundation.h"
 
-#if WK_API_ENABLED
-
 #import "APIHistoryClient.h"
 #import "APINavigationClient.h"
 #import "PageLoadState.h"
@@ -56,6 +54,7 @@ namespace WebKit {
 struct WebNavigationDataStore;
 
 class NavigationState final : private PageLoadState::Observer {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit NavigationState(WKWebView *);
     ~NavigationState();
@@ -134,7 +133,7 @@ private:
         bool didChangeBackForwardList(WebPageProxy&, WebBackForwardListItem*, const Vector<Ref<WebBackForwardListItem>>&) final;
 #endif
 
-        void contentRuleListNotification(WebPageProxy&, URL&&, Vector<String>&&, Vector<String>&&) final;
+        void contentRuleListNotification(WebPageProxy&, URL&&, WebCore::ContentRuleListResults&&) final;
         void decidePolicyForNavigationAction(WebPageProxy&, Ref<API::NavigationAction>&&, Ref<WebFramePolicyListenerProxy>&&, API::Object* userData) override;
         void decidePolicyForNavigationResponse(WebPageProxy&, Ref<API::NavigationResponse>&&, Ref<WebFramePolicyListenerProxy>&&, API::Object* userData) override;
 
@@ -187,6 +186,7 @@ private:
 
     struct {
         bool webViewDecidePolicyForNavigationActionDecisionHandler : 1;
+        bool webViewDecidePolicyForNavigationActionWithPreferencesDecisionHandler : 1;
         bool webViewDecidePolicyForNavigationActionDecisionHandlerWebsitePolicies : 1;
         bool webViewDecidePolicyForNavigationActionUserInfoDecisionHandlerWebsitePolicies : 1;
         bool webViewDecidePolicyForNavigationResponseDecisionHandler : 1;
@@ -220,6 +220,7 @@ private:
         bool webViewWillSnapshotBackForwardListItem : 1;
         bool webViewNavigationGestureSnapshotWasRemoved : 1;
         bool webViewURLContentRuleListIdentifiersNotifications : 1;
+        bool webViewContentRuleListWithIdentifierPerformedActionForURL : 1;
 #if USE(QUICK_LOOK)
         bool webViewDidStartLoadForQuickLookDocumentInMainFrame : 1;
         bool webViewDidFinishLoadForQuickLookDocumentInMainFrame : 1;
@@ -252,5 +253,3 @@ private:
 };
 
 } // namespace WebKit
-
-#endif

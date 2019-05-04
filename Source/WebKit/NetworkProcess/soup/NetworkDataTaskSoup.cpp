@@ -235,16 +235,6 @@ void NetworkDataTaskSoup::resume()
     }
 }
 
-void NetworkDataTaskSoup::suspend()
-{
-    ASSERT(m_state != State::Suspended);
-    if (m_state == State::Canceling || m_state == State::Completed)
-        return;
-    m_state = State::Suspended;
-
-    stopTimeout();
-}
-
 void NetworkDataTaskSoup::cancel()
 {
     if (m_state == State::Canceling || m_state == State::Completed)
@@ -390,6 +380,9 @@ void NetworkDataTaskSoup::dispatchDidReceiveResponse()
             break;
         case PolicyAction::Download:
             download();
+            break;
+        case PolicyAction::StopAllLoads:
+            ASSERT_NOT_REACHED();
             break;
         }
     });

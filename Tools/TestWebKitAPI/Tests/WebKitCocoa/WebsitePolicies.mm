@@ -26,6 +26,7 @@
 #include "config.h"
 
 #import "PlatformUtilities.h"
+#import "TestNavigationDelegate.h"
 #import "TestWKWebView.h"
 #import <WebKit/WKNavigationDelegatePrivate.h>
 #import <WebKit/WKPagePrivate.h>
@@ -36,6 +37,7 @@
 #import <WebKit/WKUserContentControllerPrivate.h>
 #import <WebKit/WKWebViewPrivate.h>
 #import <WebKit/WKWebsiteDataStorePrivate.h>
+#import <WebKit/WKWebsitePolicies.h>
 #import <WebKit/_WKUserContentExtensionStorePrivate.h>
 #import <WebKit/_WKWebsiteDataStoreConfiguration.h>
 #import <WebKit/_WKWebsitePolicies.h>
@@ -49,8 +51,6 @@
 #if PLATFORM(IOS_FAMILY)
 #import <WebKit/WKWebViewConfigurationPrivate.h>
 #endif
-
-#if WK_API_ENABLED
 
 @interface WKWebView ()
 - (WKPageRef)_pageForTesting;
@@ -238,6 +238,22 @@ TEST(WebKit, WebsitePoliciesContentBlockersEnabled)
     receivedAutoplayEvent = event;
 }
 #endif
+
+@end
+
+@interface WebsitePoliciesNavigationDelegate : TestNavigationDelegate <WKNavigationDelegatePrivate>
+@property (nonatomic, copy) void (^decidePolicyForNavigationActionWithWebsitePolicies)(WKNavigationAction *, id <NSSecureCoding>, void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *));
+@end
+
+@implementation WebsitePoliciesNavigationDelegate
+
+- (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
+{
+    if (_decidePolicyForNavigationActionWithWebsitePolicies)
+        _decidePolicyForNavigationActionWithWebsitePolicies(navigationAction, userInfo, decisionHandler);
+    else
+        decisionHandler(WKNavigationActionPolicyAllow, nil);
+}
 
 @end
 
@@ -514,6 +530,46 @@ TEST(WebKit, WebsitePoliciesUserInterferenceWithPlaying)
     [webView mouseUpAtPoint:playButtonClickPoint];
     runUntilReceivesAutoplayEvent(kWKAutoplayEventUserDidInterfereWithPlayback);
     ASSERT_TRUE(*receivedAutoplayEventFlags & kWKAutoplayEventFlagsHasAudio);
+}
+
+TEST(WebKit, WebsitePoliciesWithBridgingCast)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
+    auto delegate = adoptNS([[WebsitePoliciesNavigationDelegate alloc] init]);
+
+    __block bool didInvokeDecisionHandler = false;
+    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, id <NSSecureCoding>, void (^decisionHandler)(WKNavigationActionPolicy, _WKWebsitePolicies *)) {
+        auto policies = adoptWK(WKWebsitePoliciesCreate());
+        decisionHandler(WKNavigationActionPolicyAllow, (__bridge _WKWebsitePolicies *)policies.get());
+        didInvokeDecisionHandler = true;
+    }];
+
+    [webView setNavigationDelegate:delegate.get()];
+    [webView loadTestPageNamed:@"simple"];
+    [delegate waitForDidFinishNavigation];
+    EXPECT_TRUE(didInvokeDecisionHandler);
+}
+
+TEST(WebKit, WebsitePoliciesWithUnexpectedType)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 336, 276) configuration:configuration.get()]);
+    auto delegate = adoptNS([[WebsitePoliciesNavigationDelegate alloc] init]);
+
+    __block bool didCatchException = false;
+    [delegate setDecidePolicyForNavigationActionWithWebsitePolicies:^(WKNavigationAction *, id <NSSecureCoding>, void (^decisionHandler)(WKNavigationActionPolicy, _WKWebsitePolicies *)) {
+        @try {
+            id fakePolicies = @"Hello";
+            decisionHandler(WKNavigationActionPolicyAllow, (_WKWebsitePolicies *)fakePolicies);
+        } @catch (NSException *exception) {
+            didCatchException = true;
+        }
+    }];
+
+    [webView setNavigationDelegate:delegate.get()];
+    [webView loadTestPageNamed:@"simple"];
+    TestWebKitAPI::Util::run(&didCatchException);
 }
 
 struct ParsedRange {
@@ -1248,24 +1304,24 @@ addEventListener("deviceorientation", (event) => {
 )TESTRESOURCE";
 
 @interface WebsitePoliciesDeviceOrientationDelegate : NSObject <WKNavigationDelegate> {
-    BOOL _deviceOrientationEventEnabled;
+    _WKWebsiteDeviceOrientationAndMotionAccessPolicy _accessPolicy;
 }
-- (instancetype)initWithDeviceOrientationEventEnabled:(BOOL)enabled;
+- (instancetype)initWithDeviceOrientationAccessPolicy:(_WKWebsiteDeviceOrientationAndMotionAccessPolicy)accessPolicy;
 @end
 
 @implementation WebsitePoliciesDeviceOrientationDelegate
 
-- (instancetype)initWithDeviceOrientationEventEnabled:(BOOL)enabled
+- (instancetype)initWithDeviceOrientationAccessPolicy:(_WKWebsiteDeviceOrientationAndMotionAccessPolicy)accessPolicy
 {
     self = [super init];
-    _deviceOrientationEventEnabled = enabled;
+    _accessPolicy = accessPolicy;
     return self;
 }
 
 - (void)_webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction userInfo:(id <NSSecureCoding>)userInfo decisionHandler:(void (^)(WKNavigationActionPolicy, _WKWebsitePolicies *))decisionHandler
 {
     _WKWebsitePolicies *websitePolicies = [[[_WKWebsitePolicies alloc] init] autorelease];
-    [websitePolicies setDeviceOrientationEventEnabled:_deviceOrientationEventEnabled];
+    [websitePolicies setDeviceOrientationAndMotionAccessPolicy:_accessPolicy];
 
     decisionHandler(WKNavigationActionPolicyAllow, websitePolicies);
 }
@@ -1277,7 +1333,23 @@ addEventListener("deviceorientation", (event) => {
 
 @end
 
-static void runWebsitePoliciesDeviceOrientationEventTest(bool websitePolicyValue)
+static bool calledShouldAllowDeviceOrientationAndMotionAccessDelegate = false;
+
+@interface WebsitePoliciesDeviceOrientationUIDelegate : NSObject <WKUIDelegatePrivate> {
+}
+@end
+
+@implementation WebsitePoliciesDeviceOrientationUIDelegate
+
+- (void)_webView:(WKWebView *)webView shouldAllowDeviceOrientationAndMotionAccessRequestedByFrame:(WKFrameInfo *)requestingFrame decisionHandler:(void (^)(BOOL))decisionHandler
+{
+    calledShouldAllowDeviceOrientationAndMotionAccessDelegate = true;
+    decisionHandler(YES);
+}
+
+@end
+
+static void runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicy accessPolicy)
 {
     auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
 
@@ -1287,13 +1359,21 @@ static void runWebsitePoliciesDeviceOrientationEventTest(bool websitePolicyValue
 
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
 
-    auto delegate = adoptNS([[WebsitePoliciesDeviceOrientationDelegate alloc] initWithDeviceOrientationEventEnabled:websitePolicyValue]);
+    auto delegate = adoptNS([[WebsitePoliciesDeviceOrientationDelegate alloc] initWithDeviceOrientationAccessPolicy:accessPolicy]);
     [webView setNavigationDelegate:delegate.get()];
+    auto uiDelegate = adoptNS([[WebsitePoliciesDeviceOrientationUIDelegate alloc] init]);
+    [webView setUIDelegate:uiDelegate.get()];
 
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:@"test://localhost/main.html"]];
     [webView loadRequest:request];
     TestWebKitAPI::Util::run(&finishedNavigation);
     finishedNavigation = false;
+
+    bool askedForPermission = false;
+    [webView evaluateJavaScript:@"DeviceOrientationEvent.requestPermission()" completionHandler: [&] (id result, NSError *error) {
+        askedForPermission = true;
+    }];
+    TestWebKitAPI::Util::run(&askedForPermission);
 
     __block bool didReceiveMessage = false;
     [webView performAfterReceivingMessage:@"received-device-orientation-event" action:^{
@@ -1302,7 +1382,12 @@ static void runWebsitePoliciesDeviceOrientationEventTest(bool websitePolicyValue
 
     [webView _simulateDeviceOrientationChangeWithAlpha:1.0 beta:2.0 gamma:3.0];
 
-    if (websitePolicyValue)
+    if (accessPolicy == _WKWebsiteDeviceOrientationAndMotionAccessPolicyAsk)
+        EXPECT_TRUE(calledShouldAllowDeviceOrientationAndMotionAccessDelegate);
+    else
+        EXPECT_FALSE(calledShouldAllowDeviceOrientationAndMotionAccessDelegate);
+
+    if (accessPolicy != _WKWebsiteDeviceOrientationAndMotionAccessPolicyDeny)
         TestWebKitAPI::Util::run(&didReceiveMessage);
     else {
         TestWebKitAPI::Util::sleep(0.1);
@@ -1310,14 +1395,19 @@ static void runWebsitePoliciesDeviceOrientationEventTest(bool websitePolicyValue
     }
 }
 
-TEST(WebKit, WebsitePoliciesDeviceOrientationEventEnabled)
+TEST(WebKit, WebsitePoliciesDeviceOrientationGrantAccess)
 {
-    runWebsitePoliciesDeviceOrientationEventTest(true);
+    runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyGrant);
 }
 
-TEST(WebKit, WebsitePoliciesDeviceOrientationEventDisabled)
+TEST(WebKit, WebsitePoliciesDeviceOrientationDenyAccess)
 {
-    runWebsitePoliciesDeviceOrientationEventTest(false);
+    runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyDeny);
+}
+
+TEST(WebKit, WebsitePoliciesDeviceOrientationAskAccess)
+{
+    runWebsitePoliciesDeviceOrientationEventTest(_WKWebsiteDeviceOrientationAndMotionAccessPolicyAsk);
 }
 
 #endif // PLATFORM(IOS_FAMILY)
@@ -1488,8 +1578,11 @@ TEST(WebKit, WebsitePoliciesDataStore)
     [cookieWebView loadHTMLString:alertOldCookie baseURL:[NSURL URLWithString:@"http://example.com/checkCookies"]];
     TestWebKitAPI::Util::run(&done);
     done = false;
+
+    auto pid1 = [cookieWebView _webProcessIdentifier];
+
     [cookieWebView loadHTMLString:alertOldCookie baseURL:[NSURL URLWithString:@"http://example.com/checkCookies"]];
     TestWebKitAPI::Util::run(&done);
-}
 
-#endif // WK_API_ENABLED
+    EXPECT_NE(pid1, [cookieWebView _webProcessIdentifier]);
+}

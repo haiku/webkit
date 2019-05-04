@@ -358,8 +358,8 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
     };
     WKBundlePageSetUIClient(m_page, &uiClient.base);
 
-    WKBundlePageEditorClientV2 editorClient = {
-        { 2, this },
+    WKBundlePageEditorClientV1 editorClient = {
+        { 1, this },
         shouldBeginEditing,
         shouldEndEditing,
         shouldInsertNode,
@@ -375,7 +375,6 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         0, /* getPasteboardDataForRange */
         0, /* didWriteToPasteboard */
         0, /* performTwoStepDrop */
-        0, /* replacementURLForResource */
     };
     WKBundlePageSetEditorClient(m_page, &editorClient.base);
 
@@ -1211,7 +1210,8 @@ WKURLRequestRef InjectedBundlePage::willSendRequestForFrame(WKBundlePageRef page
         String body = injectedBundle.testRunner()->willSendRequestHTTPBody();
         if (!body.isEmpty()) {
             CString cBody = body.utf8();
-            return WKURLRequestCopySettingHTTPBody(request, WKDataCreate(reinterpret_cast<const unsigned char*>(cBody.data()), cBody.length()));
+            WKRetainPtr<WKDataRef> body = adoptWK(WKDataCreate(reinterpret_cast<const unsigned char*>(cBody.data()), cBody.length()));
+            return WKURLRequestCopySettingHTTPBody(request, body.get());
         }
     }
 

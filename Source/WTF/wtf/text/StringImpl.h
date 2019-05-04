@@ -127,6 +127,12 @@ struct StringStats {
 
 #endif
 
+template<typename CharacterType> inline bool isLatin1(CharacterType character)
+{
+    using UnsignedCharacterType = typename std::make_unsigned<CharacterType>::type;
+    return static_cast<UnsignedCharacterType>(character) <= static_cast<UnsignedCharacterType>(0xFF);
+}
+
 class StringImplShape {
     WTF_MAKE_NONCOPYABLE(StringImplShape);
 public:
@@ -194,8 +200,8 @@ private:
     static constexpr const unsigned s_hashFlagStringKindIsAtomic = 1u << (s_flagStringKindCount);
     static constexpr const unsigned s_hashFlagStringKindIsSymbol = 1u << (s_flagStringKindCount + 1);
     static constexpr const unsigned s_hashMaskStringKind = s_hashFlagStringKindIsAtomic | s_hashFlagStringKindIsSymbol;
-    static constexpr const unsigned s_hashFlag8BitBuffer = 1u << 3;
-    static constexpr const unsigned s_hashFlagDidReportCost = 1u << 2;
+    static constexpr const unsigned s_hashFlagDidReportCost = 1u << 3;
+    static constexpr const unsigned s_hashFlag8BitBuffer = 1u << 2;
     static constexpr const unsigned s_hashMaskBufferOwnership = (1u << 0) | (1u << 1);
 
     enum StringKind {
@@ -258,10 +264,10 @@ public:
     static Expected<Ref<StringImpl>, UTF8ConversionError> tryReallocate(Ref<StringImpl>&& originalString, unsigned length, UChar*& data);
 
     static unsigned flagsOffset() { return OBJECT_OFFSETOF(StringImpl, m_hashAndFlags); }
-    static unsigned flagIs8Bit() { return s_hashFlag8BitBuffer; }
-    static unsigned flagIsAtomic() { return s_hashFlagStringKindIsAtomic; }
-    static unsigned flagIsSymbol() { return s_hashFlagStringKindIsSymbol; }
-    static unsigned maskStringKind() { return s_hashMaskStringKind; }
+    static constexpr unsigned flagIs8Bit() { return s_hashFlag8BitBuffer; }
+    static constexpr unsigned flagIsAtomic() { return s_hashFlagStringKindIsAtomic; }
+    static constexpr unsigned flagIsSymbol() { return s_hashFlagStringKindIsSymbol; }
+    static constexpr unsigned maskStringKind() { return s_hashMaskStringKind; }
     static unsigned dataOffset() { return OBJECT_OFFSETOF(StringImpl, m_data8); }
 
     template<typename CharacterType, size_t inlineCapacity, typename OverflowHandler, size_t minCapacity>
@@ -291,9 +297,7 @@ public:
     
     bool isExternal() const { return bufferOwnership() == BufferExternal; }
 
-#if STRING_STATS
     bool isSubString() const { return bufferOwnership() == BufferSubstring; }
-#endif
 
     static WTF_EXPORT_PRIVATE Expected<CString, UTF8ConversionError> utf8ForCharacters(const LChar* characters, unsigned length);
     static WTF_EXPORT_PRIVATE Expected<CString, UTF8ConversionError> utf8ForCharacters(const UChar* characters, unsigned length, ConversionMode = LenientConversion);
@@ -481,6 +485,8 @@ public:
 #endif
 
     BufferOwnership bufferOwnership() const { return static_cast<BufferOwnership>(m_hashAndFlags & s_hashMaskBufferOwnership); }
+
+    template<typename T> static size_t headerSize() { return tailOffset<T>(); }
     
 protected:
     ~StringImpl();
@@ -931,10 +937,20 @@ ALWAYS_INLINE Ref<StringImpl> StringImpl::createSubstringSharingImpl(StringImpl&
     if (!length)
         return *empty();
 
+    // Coyping the thing would save more memory sometimes, largely due to the size of pointer.
+    size_t substringSize = allocationSize<StringImpl*>(1);
+    if (rep.is8Bit()) {
+        if (substringSize >= allocationSize<LChar>(length))
+            return create(rep.m_data8 + offset, length);
+    } else {
+        if (substringSize >= allocationSize<UChar>(length))
+            return create(rep.m_data16 + offset, length);
+    }
+
     auto* ownerRep = ((rep.bufferOwnership() == BufferSubstring) ? rep.substringBuffer() : &rep);
 
     // We allocate a buffer that contains both the StringImpl struct as well as the pointer to the owner string.
-    auto* stringImpl = static_cast<StringImpl*>(fastMalloc(allocationSize<StringImpl*>(1)));
+    auto* stringImpl = static_cast<StringImpl*>(fastMalloc(substringSize));
     if (rep.is8Bit())
         return adoptRef(*new (NotNull, stringImpl) StringImpl(rep.m_data8 + offset, length, *ownerRep));
     return adoptRef(*new (NotNull, stringImpl) StringImpl(rep.m_data16 + offset, length, *ownerRep));
@@ -1226,3 +1242,4 @@ template<unsigned length> inline bool equalLettersIgnoringASCIICase(const String
 using WTF::StaticStringImpl;
 using WTF::StringImpl;
 using WTF::equal;
+using WTF::isLatin1;

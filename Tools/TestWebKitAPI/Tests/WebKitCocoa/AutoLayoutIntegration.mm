@@ -30,7 +30,7 @@
 #import <WebKit/WKWebViewPrivate.h>
 #import <wtf/RetainPtr.h>
 
-#if WK_API_ENABLED && PLATFORM(MAC)
+#if PLATFORM(MAC)
 
 static bool didInvalidateIntrinsicContentSize;
 static bool didEvaluateJavaScript;
@@ -145,8 +145,8 @@ TEST(WebKit, AutoLayoutIntegration)
     // Changing the width to 100 should result in one rows of ten; with the constraint (width >= 100) -> 100x10
     [webView layoutAtMinimumWidth:100 andExpectContentSizeChange:NSMakeSize(100, 10) resettingWidth:YES];
 
-    // One 100x100 rect and ten 10x10 rects, inline; with the constraint (width >= 20) -> 100x110
-    [webView load:@"<div class='large'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div>" withWidth:20 expectingContentSize:NSMakeSize(100, 110)];
+    // One 100x100 rect and ten 10x10 rects, inline; with the constraint (width >= 20) -> 100x150
+    [webView load:@"<div class='large'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div><div class='small inline'></div>" withWidth:20 expectingContentSize:NSMakeSize(100, 150)];
 
     // With _shouldExpandContentToViewHeightForAutoLayout off (the default), the page should lay out to the intrinsic height
     // of the content.

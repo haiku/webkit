@@ -28,7 +28,8 @@
 #include "Connection.h"
 #include "ProcessThrottler.h"
 #include "WebBackForwardListItem.h"
-#include <WebCore/SecurityOriginData.h>
+#include "WebPageProxyMessages.h"
+#include <WebCore/RegistrableDomain.h>
 #include <wtf/RefCounted.h>
 #include <wtf/WeakPtr.h>
 
@@ -40,13 +41,12 @@ class WebProcessProxy;
 class SuspendedPageProxy final: public IPC::MessageReceiver, public CanMakeWeakPtr<SuspendedPageProxy> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    SuspendedPageProxy(WebPageProxy&, Ref<WebProcessProxy>&&, WebBackForwardListItem&, uint64_t mainFrameID);
+    SuspendedPageProxy(WebPageProxy&, Ref<WebProcessProxy>&&, uint64_t mainFrameID);
     ~SuspendedPageProxy();
 
     WebPageProxy& page() const { return m_page; }
     WebProcessProxy& process() { return m_process.get(); }
     uint64_t mainFrameID() const { return m_mainFrameID; }
-    const String& registrableDomain() const { return m_registrableDomain; }
 
     bool failedToSuspend() const { return m_suspensionState == SuspensionState::FailedToSuspend; }
 
@@ -61,6 +61,7 @@ public:
 private:
     enum class SuspensionState : uint8_t { Suspending, FailedToSuspend, Suspended, Resumed };
     void didProcessRequestToSuspend(SuspensionState);
+    void suspensionTimedOut();
 
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
@@ -69,11 +70,12 @@ private:
     WebPageProxy& m_page;
     Ref<WebProcessProxy> m_process;
     uint64_t m_mainFrameID;
-    String m_registrableDomain;
+    WebCore::RegistrableDomain m_registrableDomain;
     bool m_isClosed { false };
 
     SuspensionState m_suspensionState { SuspensionState::Suspending };
     CompletionHandler<void(SuspendedPageProxy*)> m_readyToUnsuspendHandler;
+    RunLoop::Timer<SuspendedPageProxy> m_suspensionTimeoutTimer;
 #if PLATFORM(IOS_FAMILY)
     ProcessThrottler::BackgroundActivityToken m_suspensionToken;
 #endif

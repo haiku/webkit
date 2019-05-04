@@ -43,6 +43,9 @@ namespace FTL {
 class ForOSREntryJITCode;
 class JITCode;
 }
+namespace DOMJIT {
+class Signature;
+}
 
 struct ProtoCallFrame;
 class TrackedReferences;
@@ -152,9 +155,16 @@ public:
     {
         return jitType == InterpreterThunk || jitType == BaselineJIT;
     }
+
+    virtual const DOMJIT::Signature* signature() const { return nullptr; }
     
+    enum class ShareAttribute : uint8_t {
+        NotShared,
+        Shared
+    };
+
 protected:
-    JITCode(JITType);
+    JITCode(JITType, JITCode::ShareAttribute = JITCode::ShareAttribute::NotShared);
     
 public:
     virtual ~JITCode();
@@ -198,14 +208,21 @@ public:
     virtual Optional<CodeOrigin> findPC(CodeBlock*, void* pc) { UNUSED_PARAM(pc); return WTF::nullopt; }
 #endif
 
+    Intrinsic intrinsic() { return m_intrinsic; }
+
+    bool isShared() const { return m_shareAttribute == ShareAttribute::Shared; }
+
 private:
     JITType m_jitType;
+    ShareAttribute m_shareAttribute;
+protected:
+    Intrinsic m_intrinsic { NoIntrinsic }; // Effective only in NativeExecutable.
 };
 
 class JITCodeWithCodeRef : public JITCode {
 protected:
     JITCodeWithCodeRef(JITType);
-    JITCodeWithCodeRef(CodeRef<JSEntryPtrTag>, JITType);
+    JITCodeWithCodeRef(CodeRef<JSEntryPtrTag>, JITType, JITCode::ShareAttribute);
 
 public:
     virtual ~JITCodeWithCodeRef();
@@ -223,12 +240,14 @@ protected:
 class DirectJITCode : public JITCodeWithCodeRef {
 public:
     DirectJITCode(JITType);
-    DirectJITCode(CodeRef<JSEntryPtrTag>, CodePtr<JSEntryPtrTag> withArityCheck, JITType);
+    DirectJITCode(CodeRef<JSEntryPtrTag>, CodePtr<JSEntryPtrTag> withArityCheck, JITType, JITCode::ShareAttribute = JITCode::ShareAttribute::NotShared);
+    DirectJITCode(CodeRef<JSEntryPtrTag>, CodePtr<JSEntryPtrTag> withArityCheck, JITType, Intrinsic, JITCode::ShareAttribute = JITCode::ShareAttribute::NotShared); // For generated thunk.
     virtual ~DirectJITCode();
     
-    void initializeCodeRef(CodeRef<JSEntryPtrTag>, CodePtr<JSEntryPtrTag> withArityCheck);
-
     CodePtr<JSEntryPtrTag> addressForCall(ArityCheckMode) override;
+
+protected:
+    void initializeCodeRefForDFG(CodeRef<JSEntryPtrTag>, CodePtr<JSEntryPtrTag> withArityCheck);
 
 private:
     CodePtr<JSEntryPtrTag> m_withArityCheck;
@@ -237,12 +256,21 @@ private:
 class NativeJITCode : public JITCodeWithCodeRef {
 public:
     NativeJITCode(JITType);
-    NativeJITCode(CodeRef<JSEntryPtrTag>, JITType);
+    NativeJITCode(CodeRef<JSEntryPtrTag>, JITType, Intrinsic, JITCode::ShareAttribute = JITCode::ShareAttribute::NotShared);
     virtual ~NativeJITCode();
-    
-    void initializeCodeRef(CodeRef<JSEntryPtrTag>);
 
     CodePtr<JSEntryPtrTag> addressForCall(ArityCheckMode) override;
+};
+
+class NativeDOMJITCode final : public NativeJITCode {
+public:
+    NativeDOMJITCode(CodeRef<JSEntryPtrTag>, JITType, Intrinsic, const DOMJIT::Signature*);
+    virtual ~NativeDOMJITCode() = default;
+
+    const DOMJIT::Signature* signature() const override { return m_signature; }
+
+private:
+    const DOMJIT::Signature* m_signature;
 };
 
 } // namespace JSC

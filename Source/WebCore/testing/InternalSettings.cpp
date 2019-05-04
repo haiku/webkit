@@ -36,6 +36,7 @@
 #include "LocaleToScriptMapping.h"
 #include "Page.h"
 #include "PageGroup.h"
+#include "PlatformMediaSessionManager.h"
 #include "RenderTheme.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
@@ -97,6 +98,7 @@ InternalSettings::Backup::Backup(Settings& settings)
 #if ENABLE(ACCESSIBILITY_EVENTS)
     , m_accessibilityEventsEnabled(settings.accessibilityEventsEnabled())
 #endif
+    , m_shouldDeactivateAudioSession(PlatformMediaSessionManager::shouldDeactivateAudioSession())
     , m_userInterfaceDirectionPolicy(settings.userInterfaceDirectionPolicy())
     , m_systemLayoutDirection(settings.systemLayoutDirection())
     , m_pdfImageCachingPolicy(settings.pdfImageCachingPolicy())
@@ -111,9 +113,6 @@ InternalSettings::Backup::Backup(Settings& settings)
 #if ENABLE(WEBGL2)
     , m_webGL2Enabled(RuntimeEnabledFeatures::sharedFeatures().webGL2Enabled())
 #endif
-#if ENABLE(WEBMETAL)
-    , m_webMetalEnabled(RuntimeEnabledFeatures::sharedFeatures().webMetalEnabled())
-#endif
     , m_webVREnabled(RuntimeEnabledFeatures::sharedFeatures().webVREnabled())
 #if ENABLE(MEDIA_STREAM)
     , m_setScreenCaptureEnabled(RuntimeEnabledFeatures::sharedFeatures().screenCaptureEnabled())
@@ -123,7 +122,6 @@ InternalSettings::Backup::Backup(Settings& settings)
     , m_shouldManageAudioSessionCategory(DeprecatedGlobalSettings::shouldManageAudioSessionCategory())
 #endif
     , m_customPasteboardDataEnabled(RuntimeEnabledFeatures::sharedFeatures().customPasteboardDataEnabled())
-    , m_promptForStorageAccessAPIEnabled(RuntimeEnabledFeatures::sharedFeatures().storageAccessPromptsEnabled())
 {
 }
 
@@ -206,6 +204,7 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     FontCache::singleton().setShouldMockBoldSystemFontForAccessibility(m_shouldMockBoldSystemFontForAccessibility);
     settings.setFrameFlattening(m_frameFlattening);
     settings.setIncompleteImageBorderEnabled(m_incompleteImageBorderEnabled);
+    PlatformMediaSessionManager::setShouldDeactivateAudioSession(m_shouldDeactivateAudioSession);
 #if ENABLE(ACCESSIBILITY_EVENTS)
     settings.setAccessibilityEventsEnabled(m_accessibilityEventsEnabled);
 #endif
@@ -216,9 +215,6 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
 #if ENABLE(WEBGL2)
     RuntimeEnabledFeatures::sharedFeatures().setWebGL2Enabled(m_webGL2Enabled);
 #endif
-#if ENABLE(WEBMETAL)
-    RuntimeEnabledFeatures::sharedFeatures().setWebMetalEnabled(m_webMetalEnabled);
-#endif
     RuntimeEnabledFeatures::sharedFeatures().setWebVREnabled(m_webVREnabled);
 #if ENABLE(MEDIA_STREAM)
     RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(m_setScreenCaptureEnabled);
@@ -228,8 +224,6 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
 #if USE(AUDIO_SESSION)
     DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(m_shouldManageAudioSessionCategory);
 #endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setStorageAccessPromptsEnabled(m_promptForStorageAccessAPIEnabled);
 }
 
 class InternalSettingsWrapper : public Supplement<Page> {
@@ -767,10 +761,10 @@ void InternalSettings::setWebGL2Enabled(bool enabled)
 #endif
 }
 
-void InternalSettings::setWebMetalEnabled(bool enabled)
+void InternalSettings::setWebGPUEnabled(bool enabled)
 {
-#if ENABLE(WEBMETAL)
-    RuntimeEnabledFeatures::sharedFeatures().setWebMetalEnabled(enabled);
+#if ENABLE(WEBGPU)
+    RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled(enabled);
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -790,11 +784,6 @@ void InternalSettings::setScreenCaptureEnabled(bool enabled)
 #endif
 }
 
-void InternalSettings::setStorageAccessPromptsEnabled(bool enabled)
-{
-    RuntimeEnabledFeatures::sharedFeatures().setStorageAccessPromptsEnabled(enabled);
-}
-    
 ExceptionOr<String> InternalSettings::userInterfaceDirectionPolicy()
 {
     if (!m_page)
@@ -984,6 +973,11 @@ void InternalSettings::setForcedPrefersReducedMotionAccessibilityValue(InternalS
 bool InternalSettings::webAnimationsCSSIntegrationEnabled()
 {
     return RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled();
+}
+
+void InternalSettings::setShouldDeactivateAudioSession(bool should)
+{
+    PlatformMediaSessionManager::setShouldDeactivateAudioSession(should);
 }
 
 // If you add to this class, make sure that you update the Backup class for test reproducability!

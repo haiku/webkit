@@ -28,7 +28,6 @@
 #include "NetworkActivityTracker.h"
 #include "NetworkDataTask.h"
 #include "NetworkLoadParameters.h"
-#include "NetworkProximityAssertion.h"
 #include <WebCore/NetworkLoadMetrics.h>
 #include <wtf/RetainPtr.h>
 
@@ -37,6 +36,7 @@ OBJC_CLASS NSURLSessionDataTask;
 
 namespace WebKit {
 
+class Download;
 class NetworkSessionCocoa;
 
 class NetworkDataTaskCocoa final : public NetworkDataTask {
@@ -59,7 +59,6 @@ public:
     void willPerformHTTPRedirection(WebCore::ResourceResponse&&, WebCore::ResourceRequest&&, RedirectCompletionHandler&&);
     void transferSandboxExtensionToDownload(Download&);
 
-    void suspend() override;
     void cancel() override;
     void resume() override;
     void invalidateAndCancel() override { }
@@ -72,14 +71,6 @@ public:
 
     uint64_t frameID() const { return m_frameID; };
     uint64_t pageID() const { return m_pageID; };
-
-#if ENABLE(PROXIMITY_NETWORKING)
-    void holdProximityAssertion(NetworkProximityAssertion& assertion)
-    {
-        ASSERT(!m_proximityAssertionToken);
-        m_proximityAssertionToken.emplace(assertion);
-    }
-#endif
 
     String description() const override;
 
@@ -106,10 +97,6 @@ private:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     bool m_hasBeenSetToUseStatelessCookieStorage { false };
-#endif
-
-#if ENABLE(PROXIMITY_NETWORKING)
-    Optional<NetworkProximityAssertion::Token> m_proximityAssertionToken;
 #endif
 };
 

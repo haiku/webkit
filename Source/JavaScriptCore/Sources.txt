@@ -56,6 +56,7 @@ assembler/Printer.cpp
 assembler/ProbeContext.cpp
 assembler/ProbeStack.cpp
 
+b3/air/AirAllocateRegistersAndStackAndGenerateCode.cpp
 b3/air/AirAllocateRegistersAndStackByLinearScan.cpp
 b3/air/AirAllocateRegistersByGraphColoring.cpp
 b3/air/AirAllocateStackByGraphColoring.cpp
@@ -123,6 +124,7 @@ b3/B3DataSection.cpp
 b3/B3DuplicateTails.cpp
 b3/B3Effects.cpp
 b3/B3EliminateCommonSubexpressions.cpp
+b3/B3EliminateDeadCode.cpp
 b3/B3EnsureLoopPreHeaders.cpp
 b3/B3FenceValue.cpp
 b3/B3FixSSA.cpp
@@ -142,6 +144,7 @@ b3/B3MemoryValue.cpp
 b3/B3MoveConstants.cpp
 b3/B3OpaqueByproducts.cpp
 b3/B3Opcode.cpp
+b3/B3OptimizeAssociativeExpressionTrees.cpp
 b3/B3Origin.cpp
 b3/B3OriginDump.cpp
 b3/B3PatchpointSpecial.cpp
@@ -415,6 +418,7 @@ dfg/DFGTypeCheckHoistingPhase.cpp
 dfg/DFGUnificationPhase.cpp
 dfg/DFGUseKind.cpp
 dfg/DFGValidate.cpp
+dfg/DFGValueRepReductionPhase.cpp
 dfg/DFGValueSource.cpp
 dfg/DFGValueStrength.cpp
 dfg/DFGVarargsForwardingPhase.cpp
@@ -691,7 +695,7 @@ profiler/ProfilerUID.cpp
 runtime/AbstractModuleRecord.cpp
 runtime/ArgList.cpp
 runtime/ArrayBuffer.cpp
-runtime/ArrayBufferNeuteringWatchpoint.cpp
+runtime/ArrayBufferNeuteringWatchpointSet.cpp
 runtime/ArrayBufferView.cpp
 runtime/ArrayConstructor.cpp
 runtime/ArrayConventions.cpp
@@ -741,6 +745,7 @@ runtime/DirectArguments.cpp
 runtime/DirectArgumentsOffset.cpp
 runtime/DirectEvalExecutable.cpp
 runtime/DisallowVMReentry.cpp
+runtime/DoublePredictionFuzzerAgent.cpp
 runtime/DumpContext.cpp
 runtime/ECMAScriptSpecInternalFunctions.cpp
 runtime/Error.cpp
@@ -762,11 +767,13 @@ runtime/FunctionExecutableDump.cpp
 runtime/FunctionHasExecutedCache.cpp
 runtime/FunctionPrototype.cpp
 runtime/FunctionRareData.cpp
+runtime/FuzzerAgent.cpp
 runtime/GeneratorFunctionConstructor.cpp
 runtime/GeneratorFunctionPrototype.cpp
 runtime/GeneratorPrototype.cpp
 runtime/GetPutInfo.cpp
 runtime/GetterSetter.cpp
+runtime/GlobalExecutable.cpp
 runtime/HashMapImpl.cpp
 runtime/Identifier.cpp
 runtime/IndexingType.cpp
@@ -801,7 +808,7 @@ runtime/JSAsyncGeneratorFunction.cpp
 runtime/JSBigInt.cpp
 runtime/JSBoundFunction.cpp
 runtime/JSCJSValue.cpp
-runtime/JSCPoison.cpp
+runtime/JSCPtrTag.cpp
 runtime/JSCallee.cpp
 runtime/JSCell.cpp
 runtime/JSCustomGetterSetterFunction.cpp
@@ -831,6 +838,7 @@ runtime/JSModuleLoader.cpp
 runtime/JSModuleNamespaceObject.cpp
 runtime/JSModuleRecord.cpp
 runtime/JSNativeStdFunction.cpp
+runtime/JSNonDestructibleProxy.cpp
 runtime/JSONObject.cpp
 runtime/JSObject.cpp
 runtime/JSPromise.cpp
@@ -844,7 +852,6 @@ runtime/JSScope.cpp
 runtime/JSScriptFetcher.cpp
 runtime/JSScriptFetchParameters.cpp
 runtime/JSSegmentedVariableObject.cpp
-runtime/JSSegmentedVariableObjectHeapCellType.cpp
 runtime/JSSet.cpp
 runtime/JSSetIterator.cpp
 runtime/JSSourceCode.cpp
@@ -897,6 +904,7 @@ runtime/PropertyTable.cpp
 runtime/ProxyConstructor.cpp
 runtime/ProxyObject.cpp
 runtime/ProxyRevoke.cpp
+runtime/RandomizingFuzzerAgent.cpp
 runtime/ReflectObject.cpp
 runtime/RegExp.cpp
 runtime/RegExpCache.cpp
@@ -1007,6 +1015,7 @@ wasm/WasmWorklist.cpp
 
 wasm/js/JSToWasm.cpp
 wasm/js/JSToWasm.h
+wasm/js/JSToWasmICCallee.cpp
 wasm/js/JSWebAssembly.cpp
 wasm/js/JSWebAssemblyCodeBlock.cpp
 wasm/js/JSWebAssemblyCodeBlockHeapCellType.cpp
@@ -1023,6 +1032,7 @@ wasm/js/WebAssemblyCompileErrorConstructor.cpp
 wasm/js/WebAssemblyCompileErrorPrototype.cpp
 wasm/js/WebAssemblyFunction.cpp
 wasm/js/WebAssemblyFunctionBase.cpp
+wasm/js/WebAssemblyFunctionHeapCellType.cpp
 wasm/js/WebAssemblyInstanceConstructor.cpp
 wasm/js/WebAssemblyInstancePrototype.cpp
 wasm/js/WebAssemblyLinkErrorConstructor.cpp
@@ -1044,6 +1054,7 @@ yarr/RegularExpression.cpp
 yarr/YarrCanonicalizeUCS2.cpp
 yarr/YarrDisassembler.cpp
 yarr/YarrErrorCode.cpp
+yarr/YarrFlags.cpp
 yarr/YarrInterpreter.cpp
 yarr/YarrJIT.cpp
 yarr/YarrPattern.cpp

@@ -112,6 +112,12 @@ enum class PopUpPolicy {
     Block,
 };
 
+enum class MetaViewportPolicy {
+    Default,
+    Respect,
+    Ignore,
+};
+
 class DocumentLoader
     : public RefCounted<DocumentLoader>
     , public FrameDestructionObserver
@@ -262,8 +268,8 @@ public:
     bool userContentExtensionsEnabled() const { return m_userContentExtensionsEnabled; }
     void setUserContentExtensionsEnabled(bool enabled) { m_userContentExtensionsEnabled = enabled; }
 
-    bool deviceOrientationEventEnabled() const { return m_deviceOrientationEventEnabled; }
-    void setDeviceOrientationEventEnabled(bool enabled) { m_deviceOrientationEventEnabled = enabled; }
+    const Optional<bool>& deviceOrientationAndMotionAccessState() const { return m_deviceOrientationAndMotionAccessState; }
+    void setDeviceOrientationAndMotionAccessState(const Optional<bool>& state) { m_deviceOrientationAndMotionAccessState = state; }
 
     AutoplayPolicy autoplayPolicy() const { return m_autoplayPolicy; }
     void setAutoplayPolicy(AutoplayPolicy policy) { m_autoplayPolicy = policy; }
@@ -282,6 +288,9 @@ public:
 
     PopUpPolicy popUpPolicy() const { return m_popUpPolicy; }
     void setPopUpPolicy(PopUpPolicy popUpPolicy) { m_popUpPolicy = popUpPolicy; }
+
+    MetaViewportPolicy metaViewportPolicy() const { return m_metaViewportPolicy; }
+    void setMetaViewportPolicy(MetaViewportPolicy policy) { m_metaViewportPolicy = policy; }
 
     void addSubresourceLoader(ResourceLoader*);
     void removeSubresourceLoader(LoadCompletionType, ResourceLoader*);
@@ -343,7 +352,10 @@ public:
 
     WEBCORE_EXPORT void setCustomHeaderFields(Vector<HTTPHeaderField>&& fields);
     const Vector<HTTPHeaderField>& customHeaderFields() { return m_customHeaderFields; }
-    
+
+    void setAllowsWebArchiveForMainFrame(bool allowsWebArchiveForMainFrame) { m_allowsWebArchiveForMainFrame = allowsWebArchiveForMainFrame; }
+    bool allowsWebArchiveForMainFrame() const { return m_allowsWebArchiveForMainFrame; }
+
 protected:
     WEBCORE_EXPORT DocumentLoader(const ResourceRequest&, const SubstituteData&);
 
@@ -549,10 +561,11 @@ private:
     String m_customJavaScriptUserAgentAsSiteSpecificQuirks;
     String m_customNavigatorPlatform;
     bool m_userContentExtensionsEnabled { true };
-    bool m_deviceOrientationEventEnabled { true };
+    Optional<bool> m_deviceOrientationAndMotionAccessState;
     AutoplayPolicy m_autoplayPolicy { AutoplayPolicy::Default };
     OptionSet<AutoplayQuirk> m_allowedAutoplayQuirks;
     PopUpPolicy m_popUpPolicy { PopUpPolicy::Default };
+    MetaViewportPolicy m_metaViewportPolicy { MetaViewportPolicy::Default };
 
 #if ENABLE(SERVICE_WORKER)
     Optional<ServiceWorkerRegistrationData> m_serviceWorkerRegistrationData;
@@ -566,6 +579,8 @@ private:
 #ifndef NDEBUG
     bool m_hasEverBeenAttached { false };
 #endif
+
+    bool m_allowsWebArchiveForMainFrame { false };
 };
 
 inline void DocumentLoader::recordMemoryCacheLoadForFutureClientNotification(const ResourceRequest& request)

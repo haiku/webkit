@@ -28,11 +28,12 @@ from buildbot.steps.source import git
 from buildbot.steps.worker import CompositeStepMixin
 from twisted.internet import defer
 
+import json
 import re
 import requests
 
 BUG_SERVER_URL = 'https://bugs.webkit.org/'
-EWS_URL = 'https://ews-build.webkit-uat.org/'
+EWS_URL = 'https://ews-build.webkit.org/'
 WithProperties = properties.WithProperties
 Interpolate = properties.Interpolate
 
@@ -40,7 +41,7 @@ Interpolate = properties.Interpolate
 class ConfigureBuild(buildstep.BuildStep):
     name = "configure-build"
     description = ["configuring build"]
-    descriptionDone = ["configured build"]
+    descriptionDone = ["Configured build"]
 
     def __init__(self, platform, configuration, architectures, buildOnly, additionalArguments):
         super(ConfigureBuild, self).__init__()
@@ -95,11 +96,17 @@ class CheckOutSource(git.Git):
                                                 progress=True,
                                                 **kwargs)
 
+    def getResultSummary(self):
+        if self.results != SUCCESS:
+            return {u'step': u'Failed to updated working directory'}
+        else:
+            return {u'step': u'Cleaned and updated working directory'}
+
 
 class CleanWorkingDirectory(shell.ShellCommand):
     name = 'clean-working-directory'
     description = ['clean-working-directory running']
-    descriptionDone = ['clean-working-directory']
+    descriptionDone = ['Cleaned working directory']
     flunkOnFailure = True
     haltOnFailure = True
     command = ['Tools/Scripts/clean-webkit']
@@ -108,7 +115,7 @@ class CleanWorkingDirectory(shell.ShellCommand):
 class ApplyPatch(shell.ShellCommand, CompositeStepMixin):
     name = 'apply-patch'
     description = ['applying-patch']
-    descriptionDone = ['apply-patch']
+    descriptionDone = ['Applied patch']
     flunkOnFailure = True
     haltOnFailure = True
     command = ['Tools/Scripts/svn-apply', '--force', '.buildbot-diff']
@@ -129,11 +136,16 @@ class ApplyPatch(shell.ShellCommand, CompositeStepMixin):
         d.addCallback(lambda _: self.downloadFileContentToWorker('.buildbot-patched', 'patched\n'))
         d.addCallback(lambda res: shell.ShellCommand.start(self))
 
+    def getResultSummary(self):
+        if self.results != SUCCESS:
+            return {u'step': u'Patch does not apply'}
+        return super(ApplyPatch, self).getResultSummary()
+
 
 class CheckPatchRelevance(buildstep.BuildStep):
     name = 'check-patch-relevance'
     description = ['check-patch-relevance running']
-    descriptionDone = ['check-patch-relevance']
+    descriptionDone = ['Checked patch relevance']
     flunkOnFailure = True
     haltOnFailure = True
 
@@ -224,7 +236,7 @@ class CheckPatchRelevance(buildstep.BuildStep):
 class ValidatePatch(buildstep.BuildStep):
     name = 'validate-patch'
     description = ['validate-patch running']
-    descriptionDone = ['validate-patch']
+    descriptionDone = ['Validated patch']
     flunkOnFailure = True
     haltOnFailure = True
     bug_open_statuses = ["UNCONFIRMED", "NEW", "ASSIGNED", "REOPENED"]
@@ -362,9 +374,10 @@ class ValidatePatch(buildstep.BuildStep):
 
 class UnApplyPatchIfRequired(CleanWorkingDirectory):
     name = 'unapply-patch'
+    descriptionDone = ['Unapplied patch']
 
     def doStepIf(self, step):
-        return self.getProperty('patchFailedToBuild') or self.getProperty('patchFailedJSCTests')
+        return self.getProperty('patchFailedToBuild') or self.getProperty('patchFailedJSCTests') or self.getProperty('patchFailedAPITests')
 
     def hideStepIf(self, results, step):
         return not self.doStepIf(step)
@@ -473,7 +486,7 @@ def appendCustomBuildFlags(step, platform, fullPlatform):
 class CompileWebKit(shell.Compile):
     name = "compile-webkit"
     description = ["compiling"]
-    descriptionDone = ["compiled"]
+    descriptionDone = ["Compiled WebKit"]
     env = {'MFLAGS': ''}
     warningPattern = ".*arning: .*"
     haltOnFailure = False
@@ -505,6 +518,10 @@ class CompileWebKit(shell.Compile):
     def evaluateCommand(self, cmd):
         if cmd.didFail():
             self.setProperty('patchFailedToBuild', True)
+            self.build.addStepsAfterCurrentStep([UnApplyPatchIfRequired(), CompileWebKitToT()])
+        else:
+            self.build.addStepsAfterCurrentStep([ArchiveBuiltProduct(), UploadBuiltProduct()])
+
 
         return super(CompileWebKit, self).evaluateCommand(cmd)
 
@@ -514,14 +531,18 @@ class CompileWebKitToT(CompileWebKit):
     haltOnFailure = True
 
     def doStepIf(self, step):
-        return self.getProperty('patchFailedToBuild')
+        return self.getProperty('patchFailedToBuild') or self.getProperty('patchFailedAPITests')
 
     def hideStepIf(self, results, step):
         return not self.doStepIf(step)
 
+    def evaluateCommand(self, cmd):
+        return shell.Compile.evaluateCommand(self, cmd)
+
 
 class CompileJSCOnly(CompileWebKit):
     name = "build-jsc"
+    descriptionDone = ["Compiled JSC"]
     command = ["perl", "Tools/Scripts/build-jsc", WithProperties("--%(configuration)s")]
 
 
@@ -584,14 +605,14 @@ class RunJavaScriptCoreTestsToT(RunJavaScriptCoreTests):
 class CleanBuild(shell.Compile):
     name = "delete-WebKitBuild-directory"
     description = ["deleting WebKitBuild directory"]
-    descriptionDone = ["deleted WebKitBuild directory"]
+    descriptionDone = ["Deleted WebKitBuild directory"]
     command = ["python", "Tools/BuildSlaveSupport/clean-build", WithProperties("--platform=%(fullPlatform)s"), WithProperties("--%(configuration)s")]
 
 
 class KillOldProcesses(shell.Compile):
     name = "kill-old-processes"
     description = ["killing old processes"]
-    descriptionDone = ["killed old processes"]
+    descriptionDone = ["Killed old processes"]
     command = ["python", "Tools/BuildSlaveSupport/kill-old-processes", "buildbot"]
 
     def __init__(self, **kwargs):
@@ -636,7 +657,7 @@ class ArchiveBuiltProduct(shell.ShellCommand):
                WithProperties('--platform=%(fullPlatform)s'), WithProperties('--%(configuration)s'), 'archive']
     name = 'archive-built-product'
     description = ['archiving built product']
-    descriptionDone = ['archived built product']
+    descriptionDone = ['Archived built product']
     haltOnFailure = True
 
 
@@ -660,7 +681,7 @@ class DownloadBuiltProduct(shell.ShellCommand):
         WithProperties(EWS_URL + 'archives/%(fullPlatform)s-%(architecture)s-%(configuration)s/%(patch_id)s.zip')]
     name = 'download-built-product'
     description = ['downloading built product']
-    descriptionDone = ['downloaded built product']
+    descriptionDone = ['Downloaded built product']
     haltOnFailure = True
     flunkOnFailure = True
 
@@ -670,7 +691,7 @@ class ExtractBuiltProduct(shell.ShellCommand):
                WithProperties('--platform=%(fullPlatform)s'), WithProperties('--%(configuration)s'), 'extract']
     name = 'extract-built-product'
     description = ['extracting built product']
-    descriptionDone = ['extracted built product']
+    descriptionDone = ['Extracted built product']
     haltOnFailure = True
     flunkOnFailure = True
 
@@ -697,18 +718,152 @@ class RunAPITests(TestWithFailureCount):
             return 0
         return int(match.group('ran')) - int(match.group('passed'))
 
+    def evaluateCommand(self, cmd):
+        rc = super(RunAPITests, self).evaluateCommand(cmd)
+        if rc == SUCCESS:
+            message = 'Passed API tests'
+            self.descriptionDone = message
+            self.build.results = SUCCESS
+            self.build.buildFinished([message], SUCCESS)
+        else:
+            self.build.addStepsAfterCurrentStep([ReRunAPITests()])
+        return rc
+
+
+class ReRunAPITests(RunAPITests):
+    name = 're-run-api-tests'
+
+    def evaluateCommand(self, cmd):
+        rc = TestWithFailureCount.evaluateCommand(self, cmd)
+        if rc == SUCCESS:
+            message = 'Passed API tests'
+            self.descriptionDone = message
+            self.build.results = SUCCESS
+            self.build.buildFinished([message], SUCCESS)
+        else:
+            self.setProperty('patchFailedAPITests', True)
+            self.build.addStepsAfterCurrentStep([UnApplyPatchIfRequired(), CompileWebKitToT(), RunAPITestsWithoutPatch(), AnalyzeAPITestsResults()])
+        return rc
+
+
+class RunAPITestsWithoutPatch(RunAPITests):
+    name = 'run-api-tests-without-patch'
+
+    def evaluateCommand(self, cmd):
+        return TestWithFailureCount.evaluateCommand(self, cmd)
+
+
+class AnalyzeAPITestsResults(buildstep.BuildStep):
+    name = 'analyze-api-tests-results'
+    description = ['analyze-api-test-results']
+    descriptionDone = ['analyze-api-tests-results']
+
+    def start(self):
+        self.results = {}
+        d = self.getTestsResults(RunAPITests.name)
+        d.addCallback(lambda res: self.getTestsResults(ReRunAPITests.name))
+        d.addCallback(lambda res: self.getTestsResults(RunAPITestsWithoutPatch.name))
+        d.addCallback(lambda res: self.analyzeResults())
+        return defer.succeed(None)
+
+    def analyzeResults(self):
+        if not self.results or len(self.results) == 0:
+            self._addToLog('stderr', 'Unable to parse API test results: {}'.format(self.results))
+            self.finished(RETRY)
+            self.build.buildFinished(['Unable to parse API test results'], RETRY)
+            return -1
+
+        first_run_results = self.results.get(RunAPITests.name)
+        second_run_results = self.results.get(ReRunAPITests.name)
+        clean_tree_results = self.results.get(RunAPITestsWithoutPatch.name)
+
+        if not (first_run_results and second_run_results and clean_tree_results):
+            self.finished(RETRY)
+            self.build.buildFinished(['Unable to parse API test results'], RETRY)
+            return -1
+
+        def getAPITestFailures(result):
+            # TODO: Analyze Time-out, Crash and Failure independently
+            return set([failure.get('name') for failure in result.get('Timedout', [])] +
+                [failure.get('name') for failure in result.get('Crashed', [])] +
+                [failure.get('name') for failure in result.get('Failed', [])])
+
+        first_run_failures = getAPITestFailures(first_run_results)
+        second_run_failures = getAPITestFailures(second_run_results)
+        clean_tree_failures = getAPITestFailures(clean_tree_results)
+
+        self._addToLog('stderr', '\nFailures in API Test first run: {}'.format(first_run_failures))
+        self._addToLog('stderr', '\nFailures in API Test second run: {}'.format(first_run_failures))
+        self._addToLog('stderr', '\nFailures in API Test on clean tree: {}'.format(clean_tree_failures))
+        failures_with_patch = first_run_failures.intersection(second_run_failures)
+        new_failures = failures_with_patch - clean_tree_failures
+        new_failures_string = ', '.join([failure_name.replace('TestWebKitAPI.', '') for failure_name in new_failures])
+
+        if new_failures:
+            self._addToLog('stderr', '\nNew failures: {}\n'.format(new_failures))
+            self.finished(FAILURE)
+            self.build.results = FAILURE
+            message = 'Found {} new API Tests failures: {}'.format(len(new_failures), new_failures_string)
+            self.descriptionDone = message
+            self.build.buildFinished([message], FAILURE)
+        else:
+            self._addToLog('stderr', '\nNo new failures\n')
+            self.finished(SUCCESS)
+            self.build.results = SUCCESS
+            self.descriptionDone = 'Passed API tests'
+            message = 'Found {} pre-existing API tests failures'.format(len(clean_tree_failures))
+            self.build.buildFinished([message], SUCCESS)
+
+    @defer.inlineCallbacks
+    def _addToLog(self, logName, message):
+        try:
+            log = self.getLog(logName)
+        except KeyError:
+            log = yield self.addLog(logName)
+        log.addStdout(message)
+
+    def getBuildStepByName(self, name):
+        for step in self.build.executedSteps:
+            if step.name == name:
+                return step
+        return None
+
+    @defer.inlineCallbacks
+    def getTestsResults(self, name):
+        step = self.getBuildStepByName(name)
+        if not step:
+            self._addToLog('stderr', 'ERROR: step not found: {}'.format(step))
+            defer.returnValue(None)
+
+        logs = yield self.master.db.logs.getLogs(step.stepid)
+        log = next((log for log in logs if log['name'] == u'json'), None)
+        if not log:
+            self._addToLog('stderr', 'ERROR: log for step not found: {}'.format(step))
+            defer.returnValue(None)
+
+        lastline = int(max(0, log['num_lines'] - 1))
+        logLines = yield self.master.db.logs.getLogLines(log['id'], 0, lastline)
+        if log['type'] == 's':
+            logLines = ''.join([line[1:] for line in logLines.splitlines()])
+
+        try:
+            self.results[name] = json.loads(logLines)
+        except Exception as ex:
+            self._addToLog('stderr', 'ERROR: unable to parse data, exception: {}'.format(ex))
+
 
 class ArchiveTestResults(shell.ShellCommand):
     command = ['python', 'Tools/BuildSlaveSupport/test-result-archive',
                Interpolate('--platform=%(prop:platform)s'), Interpolate('--%(prop:configuration)s'), 'archive']
     name = 'archive-test-results'
     description = ['archiving test results']
-    descriptionDone = ['archived test results']
+    descriptionDone = ['Archived test results']
     haltOnFailure = True
 
 
 class UploadTestResults(transfer.FileUpload):
     name = 'upload-test-results'
+    descriptionDone = ['Uploaded test results']
     workersrc = 'layout-test-results.zip'
     masterdest = Interpolate('public_html/results/%(prop:buildername)s/r%(prop:patch_id)s-%(prop:buildnumber)s.zip')
     haltOnFailure = True
@@ -726,7 +881,7 @@ class ExtractTestResults(master.MasterShellCommand):
     zipFile = Interpolate('public_html/results/%(prop:buildername)s/r%(prop:patch_id)s-%(prop:buildnumber)s.zip')
     resultDirectory = Interpolate('public_html/results/%(prop:buildername)s/r%(prop:patch_id)s-%(prop:buildnumber)s')
 
-    descriptionDone = ['uploaded results']
+    descriptionDone = ['Extracted test results']
     command = ['unzip', zipFile, '-d', resultDirectory]
     renderables = ['resultDirectory']
 
@@ -747,10 +902,10 @@ class ExtractTestResults(master.MasterShellCommand):
 class PrintConfiguration(steps.ShellSequence):
     name = 'configuration'
     description = ['configuration']
-    descriptionDone = ['configuration']
     haltOnFailure = False
     flunkOnFailure = False
     warnOnFailure = False
+    logEnviron = False
     command_list = [['hostname'],
                     ['df', '-hl'],
                     ['date'],
@@ -760,6 +915,51 @@ class PrintConfiguration(steps.ShellSequence):
     def __init__(self, **kwargs):
         super(PrintConfiguration, self).__init__(timeout=60, **kwargs)
         self.commands = []
+        self.log_observer = logobserver.BufferLogObserver(wantStderr=True)
+        self.addLogObserver('stdio', self.log_observer)
         # FIXME: Check platform before running platform specific commands.
         for command in self.command_list:
-            self.commands.append(util.ShellArg(command=command, logfile=command[0]))
+            self.commands.append(util.ShellArg(command=command, logfile='stdio'))
+
+    def convert_build_to_os_name(self, build):
+        if not build:
+            return 'Unknown'
+
+        build_to_name_mapping = {
+            '10.14': 'Mojave',
+            '10.13': 'High Sierra',
+            '10.12': 'Sierra',
+            '10.11': 'El Capitan',
+            '10.10': 'Yosemite',
+            '10.9': 'Maverick',
+            '10.8': 'Mountain Lion',
+            '10.7': 'Lion',
+            '10.6': 'Snow Leopard',
+            '10.5': 'Leopard',
+        }
+
+        for key, value in build_to_name_mapping.iteritems():
+            if build.startswith(key):
+                return value
+        return 'Unknown'
+
+    def getResultSummary(self):
+        if self.results != SUCCESS:
+            return {u'step': u'Failed to print configuration'}
+        logText = self.log_observer.getStdout() + self.log_observer.getStderr()
+        configuration = u''
+        match = re.search('ProductVersion:[ \t]*(.+?)\n', logText)
+        if match:
+            os_version = match.group(1).strip()
+            os_name = self.convert_build_to_os_name(os_version)
+            configuration = u'OS: {} ({})'.format(os_name, os_version)
+
+        sdk_re = 'MacOSX[\s\S]*?SDKVersion:[ \t]*(.+?)\n'
+        is_ios_builder = 'iOS' in self.getProperty('buildername', '')
+        if is_ios_builder:
+            sdk_re = 'iPhoneSimulator[\s\S]*?SDKVersion:[ \t]*(.+?)\n'
+        match = re.search(sdk_re, logText)
+        if match:
+            xcode_version = match.group(1).strip()
+            configuration += u', Xcode: {}'.format(xcode_version)
+        return {u'step': configuration}

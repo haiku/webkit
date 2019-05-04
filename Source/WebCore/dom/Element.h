@@ -31,7 +31,6 @@
 #include "KeyframeAnimationOptions.h"
 #include "ScrollToOptions.h"
 #include "ScrollTypes.h"
-#include "ScrollingCoordinator.h"
 #include "ShadowRootMode.h"
 #include "SimulatedClickOptions.h"
 #include "StyleChange.h"
@@ -64,23 +63,21 @@ struct ScrollIntoViewOptions;
 struct IntersectionObserverData;
 #endif
 
+#if ENABLE(RESIZE_OBSERVER)
+struct ResizeObserverData;
+#endif
+
 enum SpellcheckAttributeState {
     SpellcheckAttributeTrue,
     SpellcheckAttributeFalse,
     SpellcheckAttributeDefault
 };
 
-enum class SelectionRevealMode {
-    Reveal,
-    RevealUpToMainFrame, // Scroll overflow and iframes, but not the main frame.
-    DoNotReveal
-};
-
 #if ENABLE(POINTER_EVENTS)
 enum class TouchAction : uint8_t;
 #endif
 
-class Element : public ContainerNode {
+class Element : public ContainerNode , public CanMakeWeakPtr<Element> {
     WTF_MAKE_ISO_ALLOCATED(Element);
 public:
     static Ref<Element> create(const QualifiedName&, Document&);
@@ -594,14 +591,21 @@ public:
     IntersectionObserverData* intersectionObserverData();
 #endif
 
+#if ENABLE(RESIZE_OBSERVER)
+    ResizeObserverData& ensureResizeObserverData();
+    ResizeObserverData* resizeObserverData();
+#endif
+
     Element* findAnchorElementForLink(String& outAnchorName);
 
     ExceptionOr<Ref<WebAnimation>> animate(JSC::ExecState&, JSC::Strong<JSC::JSObject>&&, Optional<Variant<double, KeyframeAnimationOptions>>&&);
     Vector<RefPtr<WebAnimation>> getAnimations();
 
+    ElementIdentifier createElementIdentifier();
+
 #if ENABLE(POINTER_EVENTS)
     OptionSet<TouchAction> computedTouchActions() const;
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
     ScrollingNodeID nearestScrollingNodeIDUsingTouchOverflowScrolling() const;
 #endif
 #endif
@@ -685,6 +689,10 @@ private:
 
 #if ENABLE(INTERSECTION_OBSERVER)
     void disconnectFromIntersectionObservers();
+#endif
+
+#if ENABLE(RESIZE_OBSERVER)
+    void disconnectFromResizeObservers();
 #endif
 
     // The cloneNode function is private so that non-virtual cloneElementWith/WithoutChildren are used instead.

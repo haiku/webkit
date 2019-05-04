@@ -204,9 +204,11 @@
 #import <WebCore/Settings.h>
 #import <WebCore/ShouldTreatAsContinuingLoad.h>
 #import <WebCore/SocketProvider.h>
+#import <WebCore/StringUtilities.h>
 #import <WebCore/StyleProperties.h>
 #import <WebCore/TextResourceDecoder.h>
 #import <WebCore/ThreadCheck.h>
+#import <WebCore/UTIRegistry.h>
 #import <WebCore/UserAgent.h>
 #import <WebCore/UserContentController.h>
 #import <WebCore/UserGestureIndicator.h>
@@ -2487,6 +2489,20 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     return newWindowWebView;
 }
 
+- (BOOL)_useDarkAppearance
+{
+    if (!_private || !_private->page)
+        return NO;
+    return _private->page->useDarkAppearance();
+}
+
+- (void)_setUseDarkAppearance:(BOOL)useDarkAppearance
+{
+    if (!_private || !_private->page)
+        return;
+    _private->page->setUseDarkAppearance(useDarkAppearance);
+}
+
 + (void)_setIconLoadingEnabled:(BOOL)enabled
 {
     iconLoadingEnabled = enabled;
@@ -2865,6 +2881,9 @@ static bool needsSelfRetainWhileLoadingQuirk()
     settings.setStandardFontFamily([preferences standardFontFamily]);
     settings.setLoadsImagesAutomatically([preferences loadsImagesAutomatically]);
     settings.setLoadsSiteIconsIgnoringImageLoadingSetting([preferences loadsSiteIconsIgnoringImageLoadingPreference]);
+
+    WebCore::setAdditionalSupportedImageTypes(WebCore::webCoreStringVectorFromNSStringArray([preferences additionalSupportedImageTypes]));
+
 #if PLATFORM(IOS_FAMILY)
     settings.setShouldPrintBackgrounds(true);
 #else
@@ -2951,7 +2970,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
 
     settings.setJavaScriptCanOpenWindowsAutomatically([preferences javaScriptCanOpenWindowsAutomatically] || shouldAllowWindowOpenWithoutUserGesture());
 
-    settings.setVisualViewportEnabled([preferences visualViewportEnabled]);
     settings.setVisualViewportAPIEnabled([preferences visualViewportAPIEnabled]);
     settings.setCSSOMViewScrollingAPIEnabled([preferences CSSOMViewScrollingAPIEnabled]);
     settings.setMediaContentTypesRequiringHardwareSupport([preferences mediaContentTypesRequiringHardwareSupport]);
@@ -2986,12 +3004,15 @@ static bool needsSelfRetainWhileLoadingQuirk()
     settings.setAllowsAirPlayForMediaPlayback([preferences allowsAirPlayForMediaPlayback]);
 #endif
 #if PLATFORM(IOS_FAMILY)
+    settings.setVisualViewportEnabled(false);
+    settings.setVisualViewportAPIEnabled(false);
     settings.setStandalone([preferences _standalone]);
     settings.setTelephoneNumberParsingEnabled([preferences _telephoneNumberParsingEnabled]);
     settings.setAllowMultiElementImplicitSubmission([preferences _allowMultiElementImplicitFormSubmission]);
     settings.setLayoutInterval(Seconds::fromMilliseconds([preferences _layoutInterval]));
     settings.setMaxParseDuration([preferences _maxParseDuration]);
     settings.setAlwaysUseAcceleratedOverflowScroll([preferences _alwaysUseAcceleratedOverflowScroll]);
+    settings.setContentChangeObserverEnabled([preferences contentChangeObserverEnabled]);
     DeprecatedGlobalSettings::setAudioSessionCategoryOverride([preferences audioSessionCategoryOverride]);
     DeprecatedGlobalSettings::setNetworkDataUsageTrackingEnabled([preferences networkDataUsageTrackingEnabled]);
     DeprecatedGlobalSettings::setNetworkInterfaceName([preferences networkInterfaceName]);
@@ -3122,15 +3143,15 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled([preferences webGPUEnabled]);
 #endif
 
-#if ENABLE(WEBMETAL)
-    RuntimeEnabledFeatures::sharedFeatures().setWebMetalEnabled([preferences webMetalEnabled]);
-#endif
-
 #if ENABLE(DOWNLOAD_ATTRIBUTE)
     RuntimeEnabledFeatures::sharedFeatures().setDownloadAttributeEnabled([preferences downloadAttributeEnabled]);
 #endif
 
     RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled([preferences webAnimationsEnabled]);
+
+#if ENABLE(POINTER_EVENTS)
+    RuntimeEnabledFeatures::sharedFeatures().setPointerEventsEnabled([preferences pointerEventsEnabled]);
+#endif
 
 #if ENABLE(INTERSECTION_OBSERVER)
     RuntimeEnabledFeatures::sharedFeatures().setIntersectionObserverEnabled(preferences.intersectionObserverEnabled);
@@ -3147,6 +3168,7 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setAccessibilityObjectModelEnabled([preferences accessibilityObjectModelEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setAriaReflectionEnabled([preferences ariaReflectionEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setFetchAPIKeepAliveEnabled([preferences fetchAPIKeepAliveEnabled]);
+    RuntimeEnabledFeatures::sharedFeatures().setReferrerPolicyAttributeEnabled([preferences referrerPolicyAttributeEnabled]);
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     RuntimeEnabledFeatures::sharedFeatures().setLegacyEncryptedMediaAPIEnabled(preferences.legacyEncryptedMediaAPIEnabled);
@@ -3195,6 +3217,10 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setServerTimingEnabled([preferences serverTimingEnabled]);
 
     settings.setSelectionAcrossShadowBoundariesEnabled(preferences.selectionAcrossShadowBoundariesEnabled);
+
+#if ENABLE(RESIZE_OBSERVER)
+    settings.setResizeObserverEnabled([preferences resizeObserverEnabled]);
+#endif
 }
 
 static inline IMP getMethod(id o, SEL s)
@@ -9362,6 +9388,11 @@ bool LayerFlushController::flushLayers()
 
 - (BOOL)_flushCompositingChanges
 {
+#if ENABLE(RESIZE_OBSERVER)
+    if (_private->page)
+        _private->page->checkResizeObservations();
+#endif
+
     Frame* frame = [self _mainCoreFrame];
     if (frame && frame->view())
         return frame->view()->flushCompositingStateIncludingSubframes();

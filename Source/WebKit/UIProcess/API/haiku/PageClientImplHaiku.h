@@ -27,6 +27,8 @@
 #include "PageClient.h"
 #include "WebPageProxy.h"
 #include "DefaultUndoController.h"
+#include "IntPoint.h"
+#include "IntRect.h"
 
 namespace WebKit
 {
@@ -41,7 +43,7 @@ namespace WebKit
 		//page client def's
 		std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
 		void setViewNeedsDisplay(const WebCore::Region&) override;
-	    void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin, bool isProgrammaticScroll) override;
+	    void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin) override;
 	    WebCore::FloatPoint viewScrollPosition() override;
 	    WebCore::IntSize viewSize() override;
 	    bool isViewWindowActive() override;
@@ -77,7 +79,7 @@ namespace WebKit
 	    void exitAcceleratedCompositingMode() override;
 	    void updateAcceleratedCompositingMode(const LayerTreeContext&) override;
 	
-	    void handleDownloadRequest(DownloadProxy*) override;
+	    void handleDownloadRequest(DownloadProxy&) override;
 	    void didChangeContentSize(const WebCore::IntSize&) override;
 	    void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) override;
 	    void didFailLoadForMainFrame() override { }
@@ -109,8 +111,12 @@ namespace WebKit
 	    WebCore::UserInterfaceLayoutDirection userInterfaceLayoutDirection() override { return WebCore::UserInterfaceLayoutDirection::LTR; }
 	
 	    void didFinishProcessingAllPendingMouseEvents() final { }
+
+		WebCore::IntPoint accessibilityScreenToRootView(const WebCore::IntPoint& point) final { return point; }
+		WebCore::IntRect rootViewToAccessibilityScreen(const WebCore::IntRect& rect) final { return rect; }
+		void requestDOMPasteAccess(const WebCore::IntRect& elementRect, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final {}
 	
-	    
+	private:
 	    DefaultUndoController fUndoController;
 		
 		//haiku def

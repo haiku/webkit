@@ -64,6 +64,7 @@
 
         // WebInspector
         "AsyncTestSuite": true,
+        "Debouncer": true,
         "Formatter": true,
         "FormatterContentBuilder": true,
         "FrontendTestHarness": true,
@@ -75,11 +76,13 @@
         "InspectorTest": true,
         "LinkedList": true,
         "ListMultimap": true,
+        "Multimap": true,
         "ProtocolTest": true,
         "ProtocolTestHarness": true,
         "SyncTestSuite": true,
         "TestHarness": true,
         "TestSuite": true,
+        "Throttler": true,
 
         // Externals
         "CodeMirror": true,

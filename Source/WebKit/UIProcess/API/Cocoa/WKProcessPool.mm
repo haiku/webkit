@@ -26,8 +26,6 @@
 #import "config.h"
 #import "WKProcessPoolInternal.h"
 
-#if WK_API_ENABLED
-
 #import "AutomationClient.h"
 #import "CacheModel.h"
 #import "DownloadClient.h"
@@ -39,6 +37,7 @@
 #import "WKWebViewInternal.h"
 #import "WebCertificateInfo.h"
 #import "WebCookieManagerProxy.h"
+#import "WebProcessCache.h"
 #import "WebProcessMessages.h"
 #import "WebProcessPool.h"
 #import "_WKAutomationDelegate.h"
@@ -390,7 +389,7 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 
 - (void)_warmInitialProcess
 {
-    _processPool->prewarmProcess(WebKit::WebProcessPool::MayCreateDefaultDataStore::Yes);
+    _processPool->prewarmProcess();
 }
 
 - (void)_automationCapabilitiesDidChange
@@ -426,6 +425,16 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     _processPool->terminateNetworkProcess();
 }
 
+- (void)_sendNetworkProcessWillSuspendImminently
+{
+    _processPool->sendNetworkProcessWillSuspendImminently();
+}
+
+- (void)_sendNetworkProcessDidResume
+{
+    _processPool->sendNetworkProcessDidResume();
+}
+
 - (void)_terminateServiceWorkerProcesses
 {
     _processPool->terminateServiceWorkerProcesses();
@@ -440,6 +449,12 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 {
     return _processPool->networkProcessIdentifier();
 }
+
+- (pid_t)_prewarmedProcessIdentifier
+{
+    return _processPool->prewarmedProcessIdentifier();
+}
+
 
 - (void)_syncNetworkProcessCookies
 {
@@ -475,6 +490,16 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     return [self _webProcessCount] - ([self _hasPrewarmedWebProcess] ? 1 : 0);
 }
 
+- (size_t)_webProcessCountIgnoringPrewarmedAndCached
+{
+    size_t count = 0;
+    for (auto& process : _processPool->processes()) {
+        if (!process->isInProcessCache() && !process->isPrewarmed())
+            ++count;
+    }
+    return count;
+}
+
 - (size_t)_webPageContentProcessCount
 {
     auto allWebProcesses = _processPool->processes();
@@ -506,6 +531,16 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 - (NSUInteger)_maximumSuspendedPageCount
 {
     return _processPool->maxSuspendedPageCount();
+}
+
+- (NSUInteger)_processCacheCapacity
+{
+    return _processPool->webProcessCache().capacity();
+}
+
+- (NSUInteger)_processCacheSize
+{
+    return _processPool->webProcessCache().size();
 }
 
 - (size_t)_serviceWorkerProcessCount
@@ -544,6 +579,11 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     _processPool->setStorageAccessAPIEnabled(enabled);
 }
 
+- (void)_synthesizeAppIsBackground:(BOOL)background
+{
+    _processPool->synthesizeAppIsBackground(background);
+}
+
 - (void)_setAllowsAnySSLCertificateForServiceWorker:(BOOL) allows
 {
 #if ENABLE(SERVICE_WORKER)
@@ -568,7 +608,7 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 
 - (_WKDownload *)_downloadURLRequest:(NSURLRequest *)request originatingWebView:(WKWebView *)webView
 {
-    return (_WKDownload *)_processPool->download([webView _page], request)->wrapper();
+    return (_WKDownload *)_processPool->download([webView _page], request).wrapper();
 }
 
 - (_WKDownload *)_resumeDownloadFromData:(NSData *)resumeData path:(NSString *)path originatingWebView:(WKWebView *)webView
@@ -592,5 +632,3 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 }
 
 @end
-
-#endif // WK_API_ENABLED

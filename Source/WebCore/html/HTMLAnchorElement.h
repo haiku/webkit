@@ -31,6 +31,7 @@
 
 namespace WebCore {
 
+class AdClickAttribution;
 class DOMTokenList;
 
 // Link relation bitmask values.
@@ -94,6 +95,8 @@ private:
     String effectiveTarget() const;
 
     void sendPings(const URL& destinationURL);
+
+    Optional<AdClickAttribution> parseAdClickAttribution() const;
 
     void handleClick(Event&);
 

@@ -26,8 +26,6 @@
 #import "config.h"
 #import "_WKProcessPoolConfigurationInternal.h"
 
-#if WK_API_ENABLED
-
 #import <wtf/RetainPtr.h>
 
 @implementation _WKProcessPoolConfiguration
@@ -139,15 +137,14 @@
     _processPoolConfiguration->setAdditionalReadAccessAllowedPaths(WTFMove(paths));
 }
 
-#if ENABLE(PROXIMITY_NETWORKING)
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(IOS_FAMILY_SIMULATOR)
 - (NSUInteger)wirelessContextIdentifier
 {
-    return _processPoolConfiguration->wirelessContextIdentifier();
+    return 0;
 }
 
 - (void)setWirelessContextIdentifier:(NSUInteger)identifier
 {
-    _processPoolConfiguration->setWirelessContextIdentifier(identifier);
 }
 #endif
 
@@ -258,6 +255,16 @@
     return _processPoolConfiguration->isAutomaticProcessWarmingEnabled();
 }
 
+- (void)setUsesWebProcessCache:(BOOL)value
+{
+    _processPoolConfiguration->setUsesWebProcessCache(value);
+}
+
+- (BOOL)usesWebProcessCache
+{
+    return _processPoolConfiguration->usesWebProcessCache();
+}
+
 - (void)setAlwaysKeepAndReuseSwappedProcesses:(BOOL)swaps
 {
     _processPoolConfiguration->setAlwaysKeepAndReuseSwappedProcesses(swaps);
@@ -314,6 +321,16 @@
 - (void)setJITEnabled:(BOOL)enabled
 {
     _processPoolConfiguration->setJITEnabled(enabled);
+}
+
+- (NSUInteger)downloadMonitorSpeedMultiplierForTesting
+{
+    return _processPoolConfiguration->downloadMonitorSpeedMultiplier();
+}
+
+- (void)setDownloadMonitorSpeedMultiplierForTesting:(NSUInteger)multiplier
+{
+    _processPoolConfiguration->setDownloadMonitorSpeedMultiplier(multiplier);
 }
 
 - (void)setSuppressesConnectionTerminationOnSystemChange:(BOOL)suppressesConnectionTerminationOnSystemChange
@@ -386,5 +403,3 @@
 }
 
 @end
-
-#endif

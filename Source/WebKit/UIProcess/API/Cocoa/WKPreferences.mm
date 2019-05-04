@@ -26,8 +26,6 @@
 #import "config.h"
 #import "WKPreferencesInternal.h"
 
-#if WK_API_ENABLED
-
 #import "APIArray.h"
 #import "PluginProcessManager.h"
 #import "WKNSArray.h"
@@ -128,26 +126,6 @@
 - (void)setJavaScriptCanOpenWindowsAutomatically:(BOOL)javaScriptCanOpenWindowsAutomatically
 {
     _preferences->setJavaScriptCanOpenWindowsAutomatically(javaScriptCanOpenWindowsAutomatically);
-}
-
-- (BOOL)_storageAccessPromptsEnabled
-{
-    return _preferences->storageAccessPromptsEnabled();
-}
-
-- (void)_setStorageAccessPromptsEnabled:(BOOL)enabled
-{
-    _preferences->setStorageAccessPromptsEnabled(enabled);
-}
-
-- (void)setSafeBrowsingEnabled:(BOOL)enabled
-{
-    _preferences->setSafeBrowsingEnabled(enabled);
-}
-
-- (BOOL)isSafeBrowsingEnabled
-{
-    return _preferences->safeBrowsingEnabled();
 }
 
 #pragma mark OS X-specific methods
@@ -347,6 +325,16 @@ static _WKStorageBlockingPolicy toAPI(WebCore::SecurityOrigin::StorageBlockingPo
     _preferences->setSimpleLineLayoutDebugBordersEnabled(simpleLineLayoutDebugBordersEnabled);
 }
 
+- (BOOL)_contentChangeObserverEnabled
+{
+    return _preferences->contentChangeObserverEnabled();
+}
+
+- (void)_setContentChangeObserverEnabled:(BOOL)contentChangeObserverEnabled
+{
+    _preferences->setContentChangeObserverEnabled(contentChangeObserverEnabled);
+}
+
 - (BOOL)_acceleratedDrawingEnabled
 {
     return _preferences->acceleratedDrawingEnabled();
@@ -365,16 +353,6 @@ static _WKStorageBlockingPolicy toAPI(WebCore::SecurityOrigin::StorageBlockingPo
 - (void)_setDisplayListDrawingEnabled:(BOOL)displayListDrawingEnabled
 {
     _preferences->setDisplayListDrawingEnabled(displayListDrawingEnabled);
-}
-
-- (BOOL)_visualViewportEnabled
-{
-    return _preferences->visualViewportEnabled();
-}
-
-- (void)_setVisualViewportEnabled:(BOOL)_visualViewportEnabled
-{
-    _preferences->setVisualViewportEnabled(_visualViewportEnabled);
 }
 
 - (BOOL)_largeImageAsyncDecodingEnabled
@@ -849,6 +827,16 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
     return _preferences->itpDebugModeEnabled();
 }
 
+- (void)_setMediaSourceEnabled:(BOOL)enabled
+{
+    _preferences->setMediaSourceEnabled(enabled);
+}
+
+- (BOOL)_mediaSourceEnabled
+{
+    return _preferences->mediaSourceEnabled();
+}
+
 #if PLATFORM(MAC)
 - (void)_setJavaEnabledForLocalFiles:(BOOL)enabled
 {
@@ -1051,16 +1039,6 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 - (BOOL)_subpixelCSSOMElementMetricsEnabled
 {
     return _preferences->subpixelCSSOMElementMetricsEnabled();
-}
-
-- (void)_setMediaSourceEnabled:(BOOL)enabled
-{
-    _preferences->setMediaSourceEnabled(enabled);
-}
-
-- (BOOL)_mediaSourceEnabled
-{
-    return _preferences->mediaSourceEnabled();
 }
 
 - (void)_setViewGestureDebuggingEnabled:(BOOL)enabled
@@ -1336,6 +1314,16 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 #endif
 }
 
+- (BOOL)_isSafeBrowsingEnabled
+{
+    return _preferences->safeBrowsingEnabled();
+}
+
+- (void)_setSafeBrowsingEnabled:(BOOL)enabled
+{
+    _preferences->setSafeBrowsingEnabled(enabled);
+}
+
 - (void)_setVideoQualityIncludesDisplayCompositingEnabled:(BOOL)videoQualityIncludesDisplayCompositingEnabled
 {
     _preferences->setVideoQualityIncludesDisplayCompositingEnabled(videoQualityIncludesDisplayCompositingEnabled);
@@ -1373,5 +1361,3 @@ static WebCore::EditableLinkBehavior toEditableLinkBehavior(_WKEditableLinkBehav
 }
 
 @end
-
-#endif // WK_API_ENABLED

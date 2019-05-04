@@ -44,6 +44,7 @@ class WebPage;
 class WebPageProxy;
 
 class RemoteObjectRegistry final : public IPC::MessageReceiver {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     RemoteObjectRegistry(_WKRemoteObjectRegistry *, WebPage&);
     RemoteObjectRegistry(_WKRemoteObjectRegistry *, WebPageProxy&);
@@ -66,6 +67,7 @@ private:
     _WKRemoteObjectRegistry *m_remoteObjectRegistry;
     IPC::MessageSender& m_messageSender;
     WTF::Function<ProcessThrottler::BackgroundActivityToken()> m_takeBackgroundActivityToken;
+    WTF::Function<void()> m_launchInitialProcessIfNecessary;
     HashMap<uint64_t, ProcessThrottler::BackgroundActivityToken> m_pendingReplies;
 };
 

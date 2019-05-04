@@ -29,6 +29,7 @@
 
 #include "WHLSLNameContext.h"
 #include "WHLSLVisitor.h"
+#include <wtf/HashSet.h>
 
 namespace WebCore {
 
@@ -64,7 +65,8 @@ private:
     void visit(AST::CallExpression&) override;
     void visit(AST::EnumerationMemberLiteral&) override;
 
-    NameContext m_nameContext;
+    NameContext& m_nameContext;
+    HashSet<AST::TypeReference*> m_typeReferences;
     AST::FunctionDefinition* m_currentFunction { nullptr };
 };
 

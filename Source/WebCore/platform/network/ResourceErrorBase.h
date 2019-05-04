@@ -39,7 +39,7 @@ WEBCORE_EXPORT extern const char* const errorDomainWebKitServiceWorker; // Used 
 
 class ResourceErrorBase {
 public:
-    ResourceError isolatedCopy() const;
+    WEBCORE_EXPORT ResourceError isolatedCopy() const;
 
     const String& domain() const { lazyInit(); return m_domain; }
     int errorCode() const { lazyInit(); return m_errorCode; }

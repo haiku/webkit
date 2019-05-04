@@ -80,12 +80,16 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/SecItemShimProxyMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/SecItemShimProxyMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/ServiceWorkerClientFetchMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/ServiceWorkerClientFetchMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/ServiceWorkerFetchTaskMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/ServiceWorkerFetchTaskMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/SmartMagnificationControllerMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/SmartMagnificationControllerMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/StorageAreaMapMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/StorageAreaMapMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/StorageManagerMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/StorageManagerMessages.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/TextCheckingControllerProxyMessageReceiver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/TextCheckingControllerProxyMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/UserMediaCaptureManagerMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/UserMediaCaptureManagerMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/UserMediaCaptureManagerProxyMessageReceiver.cpp
@@ -179,8 +183,6 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebRTCResolverMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebRTCResolverMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebRTCSocketMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebRTCSocketMessages.h
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebResourceLoadStatisticsStoreMessageReceiver.cpp
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebResourceLoadStatisticsStoreMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebResourceLoaderMessageReceiver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebResourceLoaderMessages.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebKit2/WebSWClientConnectionMessageReceiver.cpp

@@ -213,16 +213,16 @@ struct SwitchData {
     // constructing this should make sure to initialize everything they
     // care about manually.
     SwitchData()
-        : kind(static_cast<SwitchKind>(-1))
-        , switchTableIndex(UINT_MAX)
+        : switchTableIndex(UINT_MAX)
+        , kind(static_cast<SwitchKind>(-1))
         , didUseJumpTable(false)
     {
     }
     
     Vector<SwitchCase> cases;
     BranchTarget fallThrough;
-    SwitchKind kind;
     size_t switchTableIndex;
+    SwitchKind kind;
     bool didUseJumpTable;
 };
 
@@ -710,7 +710,7 @@ public:
 
     void convertToCompareEqPtr(FrozenValue* cell, Edge node)
     {
-        ASSERT(m_op == CompareStrictEq);
+        ASSERT(m_op == CompareStrictEq || m_op == SameValue);
         setOpAndDefaultFlags(CompareEqPtr);
         children.setChild1(node);
         children.setChild2(Edge());
@@ -1693,6 +1693,7 @@ public:
         case ValueBitAnd:
         case ValueBitOr:
         case ValueBitXor:
+        case ValueBitNot:
         case CallObjectConstructor:
         case LoadKeyFromMapBucket:
         case LoadValueFromMapBucket:
@@ -2345,9 +2346,9 @@ public:
         return isInt32OrBooleanSpeculationExpectingDefined(prediction());
     }
     
-    bool shouldSpeculateAnyInt()
+    bool shouldSpeculateInt52()
     {
-        return isAnyIntSpeculation(prediction());
+        return enableInt52() && isAnyInt52Speculation(prediction());
     }
     
     bool shouldSpeculateDouble()
@@ -2608,9 +2609,9 @@ public:
             && op2->shouldSpeculateInt32OrBooleanExpectingDefined();
     }
     
-    static bool shouldSpeculateAnyInt(Node* op1, Node* op2)
+    static bool shouldSpeculateInt52(Node* op1, Node* op2)
     {
-        return op1->shouldSpeculateAnyInt() && op2->shouldSpeculateAnyInt();
+        return enableInt52() && op1->shouldSpeculateInt52() && op2->shouldSpeculateInt52();
     }
     
     static bool shouldSpeculateNumber(Node* op1, Node* op2)
@@ -2886,8 +2887,6 @@ public:
             return;
         out.printf(", @%u", child3()->index());
     }
-    
-    // NB. This class must have a trivial destructor.
 
     NodeOrigin origin;
 
@@ -2987,7 +2986,7 @@ private:
             return static_cast<T>(u.constPointer);
         }
         template <typename T>
-        ALWAYS_INLINE auto as() const -> typename std::enable_if<(std::is_integral<T>::value || std::is_enum<T>::value) && sizeof(T) == 4, T>::type
+        ALWAYS_INLINE auto as() const -> typename std::enable_if<(std::is_integral<T>::value || std::is_enum<T>::value) && sizeof(T) <= 4, T>::type
         {
             return static_cast<T>(u.int32);
         }

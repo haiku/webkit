@@ -77,7 +77,7 @@ private:
     bool readRTF(SharedBuffer&) override;
     bool readImage(Ref<SharedBuffer>&&, const String& type) override;
     bool readURL(const URL&, const String& title) override;
-    bool readVirtualContactFile(const String& filePath, const URL&, const String& urlTitle) override;
+    bool readDataBuffer(SharedBuffer&, const String& type, const String& name) override;
 #endif
     bool readPlainText(const String&) override;
 };
@@ -95,12 +95,12 @@ private:
 #if PLATFORM(COCOA)
     bool readWebArchive(SharedBuffer&) override;
     bool readFilePaths(const Vector<String>&) override { return false; }
-    bool readVirtualContactFile(const String&, const URL&, const String&) override { return false; }
     bool readHTML(const String&) override;
     bool readRTFD(SharedBuffer&) override;
     bool readRTF(SharedBuffer&) override;
     bool readImage(Ref<SharedBuffer>&&, const String&) override { return false; }
     bool readURL(const URL&, const String&) override { return false; }
+    bool readDataBuffer(SharedBuffer&, const String&, const String&) override { return false; }
 #endif
     bool readPlainText(const String&) override { return false; }
 };

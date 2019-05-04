@@ -26,23 +26,26 @@
 #import "config.h"
 #import <WebKit/WKFoundation.h>
 
-#if WK_API_ENABLED
 #if PLATFORM(MAC) || PLATFORM(IOS)
 
 #import "PlatformUtilities.h"
+#import "TCPServer.h"
 #import "Test.h"
 #import "TestProtocol.h"
 #import "TestWKWebView.h"
-#import <WebKit/_WKDownload.h>
-#import <WebKit/_WKDownloadDelegate.h>
 #import <WebKit/WKNavigationDelegatePrivate.h>
 #import <WebKit/WKProcessPoolPrivate.h>
 #import <WebKit/WKUIDelegatePrivate.h>
 #import <WebKit/WKWebView.h>
 #import <WebKit/WKWebViewConfiguration.h>
+#import <WebKit/_WKDownload.h>
+#import <WebKit/_WKDownloadDelegate.h>
+#import <WebKit/_WKProcessPoolConfiguration.h>
 #import <wtf/FileSystem.h>
 #import <wtf/MainThread.h>
+#import <wtf/MonotonicTime.h>
 #import <wtf/RetainPtr.h>
+#import <wtf/WeakObjCPtr.h>
 #import <wtf/text/WTFString.h>
 
 static bool isDone;
@@ -654,5 +657,261 @@ TEST(_WKDownload, SystemPreviewUSDZBlobNaming)
     runTest(adoptNS([[DownloadBlobURLNavigationDelegate alloc] init]).get(), adoptNS([[BlobWithUSDZExtensionDownloadDelegate alloc] init]).get(), originalURL);
 }
 
-#endif
-#endif
+@interface DownloadAttributeTestDelegate : NSObject <WKNavigationDelegate, _WKDownloadDelegate>
+@property (nonatomic, readonly) bool didFinishNavigation;
+@property (nonatomic, readonly) bool didStartProvisionalNavigation;
+@property (nonatomic, readonly) bool downloadDidStart;
+@property (nonatomic) WKNavigationActionPolicy navigationActionPolicy;
+@end
+
+@implementation DownloadAttributeTestDelegate
+
+- (instancetype)init
+{
+    if ((self = [super init]))
+        _navigationActionPolicy = WKNavigationActionPolicyAllow;
+
+    return self;
+}
+
+- (void)waitForDidFinishNavigation
+{
+    TestWebKitAPI::Util::run(&_didFinishNavigation);
+    _didStartProvisionalNavigation = false;
+    _didFinishNavigation = false;
+}
+
+- (void)waitForDownloadDidStart
+{
+    TestWebKitAPI::Util::run(&_downloadDidStart);
+}
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
+{
+    _didFinishNavigation = true;
+}
+
+- (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation
+{
+    _didStartProvisionalNavigation = true;
+}
+
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
+{
+    decisionHandler(_navigationActionPolicy);
+}
+
+- (void)_downloadDidStart:(_WKDownload *)download
+{
+    _downloadDidStart = true;
+}
+
+@end
+
+TEST(_WKDownload, DownloadAttributeDoesNotStartDownloads)
+{
+    auto delegate = adoptNS([[DownloadAttributeTestDelegate alloc] init]);
+    auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
+    [webView setNavigationDelegate:delegate.get()];
+    [webView configuration].processPool._downloadDelegate = delegate.get();
+
+    [webView loadHTMLString:@"<a id='link' href='data:,test' download>Click me!</a>" baseURL:nil];
+    [delegate waitForDidFinishNavigation];
+
+    [webView evaluateJavaScript:@"document.getElementById('link').click();" completionHandler:nil];
+    [delegate waitForDidFinishNavigation];
+    EXPECT_FALSE([delegate downloadDidStart]);
+}
+
+TEST(_WKDownload, StartDownloadWithDownloadAttribute)
+{
+    auto delegate = adoptNS([[DownloadAttributeTestDelegate alloc] init]);
+    auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
+    [webView setNavigationDelegate:delegate.get()];
+    [webView configuration].processPool._downloadDelegate = delegate.get();
+
+    [webView loadHTMLString:@"<a id='link' href='data:,test' download>Click me!</a>" baseURL:nil];
+    [delegate waitForDidFinishNavigation];
+
+    [delegate setNavigationActionPolicy:_WKNavigationActionPolicyDownload];
+    [webView evaluateJavaScript:@"document.getElementById('link').click();" completionHandler:nil];
+    [delegate waitForDownloadDidStart];
+    EXPECT_FALSE([delegate didStartProvisionalNavigation]);
+}
+
+static bool didDownloadStart;
+
+@interface WaitUntilDownloadCanceledDelegate : NSObject <_WKDownloadDelegate>
+@end
+
+@implementation WaitUntilDownloadCanceledDelegate
+
+- (void)_downloadDidStart:(_WKDownload *)download
+{
+    didDownloadStart = true;
+}
+
+- (void)_downloadDidCancel:(_WKDownload *)download
+{
+    isDone = true;
+}
+
+@end
+
+TEST(_WKDownload, CrashAfterDownloadDidFinishWhenDownloadProxyHoldsTheLastRefOnWebProcessPool)
+{
+    auto navigationDelegate = adoptNS([[DownloadNavigationDelegate alloc] init]);
+    auto downloadDelegate = adoptNS([[WaitUntilDownloadCanceledDelegate alloc] init]);
+    WeakObjCPtr<WKProcessPool> processPool;
+    @autoreleasepool {
+        RetainPtr<WKWebView> webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
+        [webView setNavigationDelegate:navigationDelegate.get()];
+        processPool = [webView configuration].processPool;
+        [webView configuration].processPool._downloadDelegate = downloadDelegate.get();
+        [webView loadRequest:[NSURLRequest requestWithURL:sourceURL]];
+
+        didDownloadStart = false;
+        TestWebKitAPI::Util::run(&didDownloadStart);
+    }
+
+    isDone = false;
+    TestWebKitAPI::Util::run(&isDone);
+    EXPECT_NULL(processPool.get());
+}
+
+static bool receivedData;
+static bool didCancel;
+static RetainPtr<NSString> destination;
+
+@interface DownloadMonitorTestDelegate : NSObject <_WKDownloadDelegate>
+@end
+
+@implementation DownloadMonitorTestDelegate
+
+- (void)_downloadDidStart:(_WKDownload *)download
+{
+    didDownloadStart = true;
+}
+
+- (void)_downloadDidCancel:(_WKDownload *)download
+{
+    didCancel = true;
+}
+
+- (void)_download:(_WKDownload *)download decideDestinationWithSuggestedFilename:(NSString *)filename completionHandler:(void (^)(BOOL allowOverwrite, NSString *destination))completionHandler
+{
+    EXPECT_TRUE([filename isEqualToString:@"filename.dat"]);
+    destination = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+    completionHandler(YES, destination.get());
+}
+
+- (void)_download:(_WKDownload *)download didReceiveData:(uint64_t)length
+{
+    receivedData = true;
+}
+
+@end
+
+namespace TestWebKitAPI {
+
+void respondSlowly(int socket, double kbps, bool& terminateServer)
+{
+    EXPECT_FALSE(isMainThread());
+    char readBuffer[1000];
+    auto bytesRead = ::read(socket, readBuffer, sizeof(readBuffer));
+    EXPECT_GT(bytesRead, 0);
+    EXPECT_TRUE(static_cast<size_t>(bytesRead) < sizeof(readBuffer));
+    
+    const char* responseHeader =
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Disposition: attachment; filename=\"filename.dat\"\r\n"
+    "Content-Length: 100000000\r\n\r\n";
+    auto bytesWritten = ::write(socket, responseHeader, strlen(responseHeader));
+    EXPECT_EQ(static_cast<size_t>(bytesWritten), strlen(responseHeader));
+    
+    const double writesPerSecond = 100;
+    Vector<char> writeBuffer(static_cast<size_t>(1024 * kbps / writesPerSecond));
+    while (!terminateServer) {
+        auto before = MonotonicTime::now();
+        ::write(socket, writeBuffer.data(), writeBuffer.size());
+        double writeDuration = (MonotonicTime::now() - before).seconds();
+        double desiredSleep = 1.0 / writesPerSecond;
+        if (writeDuration < desiredSleep)
+            usleep(USEC_PER_SEC * (desiredSleep - writeDuration));
+    }
+}
+
+RetainPtr<WKWebView> webViewWithDownloadMonitorSpeedMultiplier(size_t multiplier)
+{
+    static auto navigationDelegate = adoptNS([DownloadNavigationDelegate new]);
+    static auto downloadDelegate = adoptNS([DownloadMonitorTestDelegate new]);
+    auto processPoolConfiguration = adoptNS([_WKProcessPoolConfiguration new]);
+    [processPoolConfiguration setDownloadMonitorSpeedMultiplierForTesting:multiplier];
+    auto processPool = adoptNS([[WKProcessPool alloc] _initWithConfiguration:processPoolConfiguration.get()]);
+    auto webViewConfiguration = adoptNS([WKWebViewConfiguration new]);
+    [webViewConfiguration setProcessPool:processPool.get()];
+    auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:webViewConfiguration.get()]);
+    [webView setNavigationDelegate:navigationDelegate.get()];
+    [webView configuration].processPool._downloadDelegate = downloadDelegate.get();
+    return webView;
+}
+
+enum class AppReturnsToForeground { No, Yes };
+    
+void downloadAtRate(double desiredKbps, unsigned speedMultiplier, AppReturnsToForeground returnToForeground = AppReturnsToForeground::No)
+{
+    bool terminateServer = false;
+    TCPServer server([&](auto socket) {
+        respondSlowly(socket, desiredKbps, terminateServer);
+    });
+    
+    auto webView = webViewWithDownloadMonitorSpeedMultiplier(speedMultiplier);
+    [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[NSString stringWithFormat:@"http://127.0.0.1:%d/", server.port()]]]];
+    receivedData = false;
+    Util::run(&receivedData);
+    // Start the DownloadMonitor's timer.
+    [[webView configuration].processPool _synthesizeAppIsBackground:YES];
+    if (returnToForeground == AppReturnsToForeground::Yes)
+        [[webView configuration].processPool _synthesizeAppIsBackground:NO];
+    didCancel = false;
+    Util::run(&didCancel);
+    terminateServer = true;
+    [[NSFileManager defaultManager] removeItemAtURL:[NSURL fileURLWithPath:destination.get() isDirectory:NO] error:nil];
+}
+
+TEST(_WKDownload, DownloadMonitorCancel)
+{
+    downloadAtRate(0.5, 120); // Should cancel in ~0.5 seconds
+    downloadAtRate(1.5, 120); // Should cancel in ~2.5 seconds
+}
+
+TEST(_WKDownload, DISABLED_DownloadMonitorSurvive)
+{
+    __block BOOL timeoutReached = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        EXPECT_FALSE(didCancel);
+        didCancel = true;
+        timeoutReached = YES;
+    });
+
+    // Simulates an hour of downloading 150kb/s in 1 second.
+    // Timeout should be reached before this is cancelled because the download rate is high enough.
+    downloadAtRate(150.0, 3600);
+    EXPECT_TRUE(timeoutReached);
+}
+
+TEST(_WKDownload, DownloadMonitorReturnToForeground)
+{
+    __block BOOL timeoutReached = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        EXPECT_FALSE(didCancel);
+        didCancel = true;
+        timeoutReached = YES;
+    });
+    downloadAtRate(0.5, 120, AppReturnsToForeground::Yes);
+    EXPECT_TRUE(timeoutReached);
+}
+
+} // namespace TestWebKitAPI
+
+#endif // PLATFORM(MAC) || PLATFORM(IOS)

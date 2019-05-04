@@ -36,9 +36,13 @@
 #include "KeyframeEffect.h"
 #include "Microtasks.h"
 #include "WebAnimationUtilities.h"
+#include <wtf/IsoMallocInlines.h>
+#include <wtf/Optional.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(WebAnimation);
 
 Ref<WebAnimation> WebAnimation::create(Document& document, AnimationEffect* effect)
 {
@@ -58,7 +62,7 @@ Ref<WebAnimation> WebAnimation::create(Document& document, AnimationEffect* effe
 }
 
 WebAnimation::WebAnimation(Document& document)
-    : ActiveDOMObject(&document)
+    : ActiveDOMObject(document)
     , m_readyPromise(makeUniqueRef<ReadyPromise>(*this, &WebAnimation::readyPromiseResolve))
     , m_finishedPromise(makeUniqueRef<FinishedPromise>(*this, &WebAnimation::finishedPromiseResolve))
 {
@@ -527,7 +531,7 @@ auto WebAnimation::playState() const -> PlayState
     // animation's effective playback rate > 0 and current time ≥ target effect end; or
     // animation's effective playback rate < 0 and current time ≤ 0,
     // → finished
-    if (animationCurrentTime && ((effectivePlaybackRate() > 0 && animationCurrentTime.value() >= effectEndTime()) || (effectivePlaybackRate() < 0 && animationCurrentTime.value() <= 0_s)))
+    if (animationCurrentTime && ((effectivePlaybackRate() > 0 && (*animationCurrentTime + timeEpsilon) >= effectEndTime()) || (effectivePlaybackRate() < 0 && (*animationCurrentTime - timeEpsilon) <= 0_s)))
         return PlayState::Finished;
 
     // Otherwise → running
@@ -1153,13 +1157,23 @@ const char* WebAnimation::activeDOMObjectName() const
 
 bool WebAnimation::canSuspendForDocumentSuspension() const
 {
-    return !hasPendingActivity();
+    // Use the base class's implementation of hasPendingActivity() since we wouldn't want the custom implementation
+    // in this class designed to keep JS wrappers alive to interfere with the ability for a page using animations
+    // to enter the page cache.
+    return !ActiveDOMObject::hasPendingActivity();
 }
 
 void WebAnimation::stop()
 {
+    ActiveDOMObject::stop();
     m_isStopped = true;
     removeAllEventListeners();
+}
+
+bool WebAnimation::hasPendingActivity() const
+{
+    // Keep the JS wrapper alive if the animation is considered relevant or could become relevant again by virtue of having a timeline.
+    return m_timeline || m_isRelevant || ActiveDOMObject::hasPendingActivity();
 }
 
 void WebAnimation::updateRelevance()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +37,7 @@
 
 namespace WebCore {
 
+class Document;
 class PaymentMerchantSession;
 struct PaymentAuthorizationResult;
 struct PaymentMethodUpdate;
@@ -45,11 +46,12 @@ struct ShippingMethodUpdate;
 
 class PaymentCoordinatorClient {
 public:
-    virtual bool supportsVersion(unsigned version) = 0;
+    bool supportsVersion(unsigned version);
+
     virtual Optional<String> validatedPaymentNetwork(const String&) = 0;
     virtual bool canMakePayments() = 0;
-    virtual void canMakePaymentsWithActiveCard(const String& merchantIdentifier, const String& domainName, WTF::Function<void (bool)>&& completionHandler) = 0;
-    virtual void openPaymentSetup(const String& merchantIdentifier, const String& domainName, WTF::Function<void (bool)>&& completionHandler) = 0;
+    virtual void canMakePaymentsWithActiveCard(const String& merchantIdentifier, const String& domainName, CompletionHandler<void(bool)>&&) = 0;
+    virtual void openPaymentSetup(const String& merchantIdentifier, const String& domainName, CompletionHandler<void(bool)>&&) = 0;
 
     virtual bool showPaymentUI(const URL& originatingURL, const Vector<URL>& linkIconURLs, const ApplePaySessionPaymentRequest&) = 0;
     virtual void completeMerchantValidation(const PaymentMerchantSession&) = 0;
@@ -62,6 +64,10 @@ public:
     virtual void paymentCoordinatorDestroyed() = 0;
 
     virtual bool isMockPaymentCoordinator() const { return false; }
+    virtual bool isWebPaymentCoordinator() const { return false; }
+
+    virtual bool isAlwaysOnLoggingAllowed() const { return false; }
+    virtual bool supportsUnrestrictedApplePay() const { return true; }
 
 protected:
     virtual ~PaymentCoordinatorClient() = default;

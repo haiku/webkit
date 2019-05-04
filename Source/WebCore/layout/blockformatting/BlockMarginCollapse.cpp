@@ -392,6 +392,10 @@ bool BlockFormattingContext::MarginCollapse::marginsCollapseThrough(const Layout
     if (!layoutBox.style().minHeight().isAuto())
         return false;
 
+    // FIXME: Block replaced boxes clearly don't collapse through their margins, but I couldn't find it in the spec yet (and no, it's not a quirk).
+    if (layoutBox.isReplaced())
+        return false;
+
     if (!is<Container>(layoutBox))
         return true;
 
@@ -519,7 +523,8 @@ PositiveAndNegativeVerticalMargin::Values BlockFormattingContext::MarginCollapse
         return marginType == MarginType::Before ? positiveAndNegativeVerticalMargin.before : positiveAndNegativeVerticalMargin.after; 
     }
     // This is the estimate path. We don't yet have positive/negative margin computed.
-    auto computedVerticalMargin = Geometry::computedVerticalMargin(layoutState, layoutBox);
+    auto usedValues = UsedHorizontalValues { layoutState.displayBoxForLayoutBox(*layoutBox.containingBlock()).contentBoxWidth() };
+    auto computedVerticalMargin = Geometry::computedVerticalMargin(layoutBox, usedValues);
     auto nonCollapsedMargin = UsedVerticalMargin::NonCollapsedValues { computedVerticalMargin.before.valueOr(0), computedVerticalMargin.after.valueOr(0) }; 
 
     if (marginType == MarginType::Before)
@@ -586,7 +591,8 @@ EstimatedMarginBefore BlockFormattingContext::MarginCollapse::estimatedMarginBef
     ASSERT(layoutBox.isInFlow() || layoutBox.isFloatingPositioned());
     ASSERT(!layoutBox.replaced());
     
-    auto computedVerticalMargin = Geometry::computedVerticalMargin(layoutState, layoutBox);
+    auto usedValues = UsedHorizontalValues { layoutState.displayBoxForLayoutBox(*layoutBox.containingBlock()).contentBoxWidth() };
+    auto computedVerticalMargin = Geometry::computedVerticalMargin(layoutBox, usedValues);
     auto nonCollapsedMargin = UsedVerticalMargin::NonCollapsedValues { computedVerticalMargin.before.valueOr(0), computedVerticalMargin.after.valueOr(0) };
     auto marginsCollapseThrough = MarginCollapse::marginsCollapseThrough(layoutState, layoutBox);
     auto positiveNegativeMarginBefore = MarginCollapse::positiveNegativeMarginBefore(layoutState, layoutBox, nonCollapsedMargin);

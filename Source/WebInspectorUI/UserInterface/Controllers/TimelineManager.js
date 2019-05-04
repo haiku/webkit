@@ -39,6 +39,8 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         WI.heapManager.addEventListener(WI.HeapManager.Event.GarbageCollected, this._garbageCollected, this);
         WI.memoryManager.addEventListener(WI.MemoryManager.Event.MemoryPressure, this._memoryPressure, this);
 
+        WI.settings.timelinesAutoStop.addEventListener(WI.Setting.Event.Changed, this._handleTimelinesAutoStopSettingChanged, this);
+
         this._enabledTimelineTypesSetting = new WI.Setting("enabled-instrument-types", WI.TimelineManager.defaultTimelineTypes());
 
         this._isCapturing = false;
@@ -105,6 +107,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
             WI.TimelineRecord.Type.Script,
         ];
 
+        if (WI.CPUInstrument.supported())
+            defaultTypes.push(WI.TimelineRecord.Type.CPU);
+
         if (WI.FPSInstrument.supported())
             defaultTypes.push(WI.TimelineRecord.Type.RenderingFrame);
 
@@ -116,9 +121,6 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         let types = WI.TimelineManager.defaultTimelineTypes();
         if (WI.sharedApp.debuggableType === WI.DebuggableType.JavaScript || WI.sharedApp.debuggableType === WI.DebuggableType.ServiceWorker)
             return types;
-
-        if (WI.CPUInstrument.supported())
-            types.push(WI.TimelineRecord.Type.CPU);
 
         if (WI.MemoryInstrument.supported())
             types.push(WI.TimelineRecord.Type.Memory);
@@ -132,6 +134,21 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         }
 
         return types;
+    }
+
+    static synthesizeImportError(message)
+    {
+        message = WI.UIString("Timeline Recording Import Error: %s").format(message);
+
+        if (window.InspectorTest) {
+            console.error(message);
+            return;
+        }
+
+        let consoleMessage = new WI.ConsoleMessage(WI.mainTarget, WI.ConsoleMessage.MessageSource.Other, WI.ConsoleMessage.MessageLevel.Error, message);
+        consoleMessage.shouldRevealConsole = true;
+
+        WI.consoleLogViewController.appendConsoleMessage(consoleMessage);
     }
 
     // Public
@@ -201,6 +218,24 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         return this._isCapturingPageReload;
     }
 
+    willAutoStop()
+    {
+        return !!this._stopCapturingTimeout;
+    }
+
+    relaxAutoStop()
+    {
+        if (this._stopCapturingTimeout) {
+            clearTimeout(this._stopCapturingTimeout);
+            this._stopCapturingTimeout = undefined;
+        }
+
+        if (this._deadTimeTimeout) {
+            clearTimeout(this._deadTimeTimeout);
+            this._deadTimeTimeout = undefined;
+        }
+    }
+
     startCapturing(shouldCreateRecording)
     {
         console.assert(!this._isCapturing, "TimelineManager is already capturing.");
@@ -237,6 +272,52 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
         this._activeRecording.unloaded();
         this._activeRecording = null;
+    }
+
+    processJSON({filename, json, error})
+    {
+        if (error) {
+            WI.TimelineManager.synthesizeImportError(error);
+            return;
+        }
+
+        if (typeof json !== "object" || json === null) {
+            WI.TimelineManager.synthesizeImportError(WI.UIString("invalid JSON"));
+            return;
+        }
+
+        if (!json.recording  || typeof json.recording !== "object" || !json.overview || typeof json.overview !== "object" || typeof json.version !== "number") {
+            WI.TimelineManager.synthesizeImportError(WI.UIString("invalid JSON"));
+            return;
+        }
+
+        if (json.version !== WI.TimelineRecording.SerializationVersion) {
+            WI.NetworkManager.synthesizeImportError(WI.UIString("unsupported version"));
+            return;
+        }
+
+        let recordingData = json.recording;
+        let overviewData = json.overview;
+
+        let identifier = this._nextRecordingIdentifier++;
+        let newRecording = WI.TimelineRecording.import(identifier, recordingData, filename);
+        this._recordings.push(newRecording);
+
+        this.dispatchEventToListeners(WI.TimelineManager.Event.RecordingCreated, {recording: newRecording});
+
+        if (this._isCapturing)
+            this.stopCapturing();
+
+        let oldRecording = this._activeRecording;
+        if (oldRecording) {
+            const importing = true;
+            oldRecording.unloaded(importing);
+        }
+
+        this._activeRecording = newRecording;
+
+        this.dispatchEventToListeners(WI.TimelineManager.Event.RecordingLoaded, {oldRecording});
+        this.dispatchEventToListeners(WI.TimelineManager.Event.RecordingImported, {overviewData});
     }
 
     computeElapsedTime(timestamp)
@@ -286,15 +367,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
         WI.DOMNode.removeEventListener(null, null, this);
 
-        if (this._stopCapturingTimeout) {
-            clearTimeout(this._stopCapturingTimeout);
-            this._stopCapturingTimeout = undefined;
-        }
-
-        if (this._deadTimeTimeout) {
-            clearTimeout(this._deadTimeTimeout);
-            this._deadTimeTimeout = undefined;
-        }
+        this.relaxAutoStop();
 
         this._isCapturing = false;
         this._isCapturingPageReload = false;
@@ -444,7 +517,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         if (!this._isCapturing)
             return;
 
-        this._addRecord(new WI.CPUTimelineRecord(event.timestamp, event.usage));
+        this._addRecord(new WI.CPUTimelineRecord(event));
     }
 
     cpuProfilerTrackingCompleted()
@@ -624,7 +697,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.TimerFired, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.timerId, profileData);
                 break;
             case TimelineAgent.EventType.EventDispatch:
-                record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.EventDispatched, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData);
+                record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.EventDispatched, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData, parentRecordPayload.data);
                 break;
             case TimelineAgent.EventType.ObserverCallback:
                 record = new WI.ScriptTimelineRecord(WI.ScriptTimelineRecord.EventType.ObserverCallback, startTime, endTime, callFrames, sourceCodeLocation, parentRecordPayload.data.type, profileData);
@@ -829,6 +902,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
     _stopAutoRecordingSoon()
     {
+        if (!WI.settings.timelinesAutoStop.value)
+            return;
+
         // Only auto stop when auto capturing.
         if (!this._isCapturing || !this._mainResourceForAutoCapturing)
             return;
@@ -840,6 +916,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
     _resetAutoRecordingMaxTimeTimeout()
     {
+        if (!WI.settings.timelinesAutoStop.value)
+            return;
+
         if (this._stopCapturingTimeout)
             clearTimeout(this._stopCapturingTimeout);
         this._stopCapturingTimeout = setTimeout(this._boundStopCapturing, WI.TimelineManager.MaximumAutoRecordDuration);
@@ -847,6 +926,9 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 
     _resetAutoRecordingDeadTimeTimeout()
     {
+        if (!WI.settings.timelinesAutoStop.value)
+            return;
+
         // Only monitor dead time when auto capturing.
         if (!this._isCapturing || !this._mainResourceForAutoCapturing)
             return;
@@ -930,6 +1012,21 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         this.activeRecording.addMemoryPressureEvent(event.data.memoryPressureEvent);
     }
 
+    _handleTimelinesAutoStopSettingChanged(event)
+    {
+        if (!this._isCapturing)
+            return;
+
+        if (WI.settings.timelinesAutoStop.value) {
+            if (this._mainResourceForAutoCapturing && !isNaN(this._mainResourceForAutoCapturing.parentFrame.loadEventTimestamp))
+                this._stopAutoRecordingSoon();
+            else
+                this._resetAutoRecordingMaxTimeTimeout();
+            this._resetAutoRecordingDeadTimeTimeout();
+        } else
+            this.relaxAutoStop();
+    }
+
     _scriptProfilerTypeToScriptTimelineRecordType(type)
     {
         switch (type) {
@@ -990,9 +1087,6 @@ WI.TimelineManager = class TimelineManager extends WI.Object
         if (samples) {
             let {stackTraces} = samples;
             let topDownCallingContextTree = this.activeRecording.topDownCallingContextTree;
-            let bottomUpCallingContextTree = this.activeRecording.bottomUpCallingContextTree;
-            let topFunctionsTopDownCallingContextTree = this.activeRecording.topFunctionsTopDownCallingContextTree;
-            let topFunctionsBottomUpCallingContextTree = this.activeRecording.topFunctionsBottomUpCallingContextTree;
 
             // Calculate a per-sample duration.
             let timestampIndex = 0;
@@ -1026,12 +1120,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
             if (timestampIndex < timestampCount)
                 sampleDurations.fill(defaultDuration, sampleDurationIndex);
 
-            for (let i = 0; i < stackTraces.length; i++) {
-                topDownCallingContextTree.updateTreeWithStackTrace(stackTraces[i], sampleDurations[i]);
-                bottomUpCallingContextTree.updateTreeWithStackTrace(stackTraces[i], sampleDurations[i]);
-                topFunctionsTopDownCallingContextTree.updateTreeWithStackTrace(stackTraces[i], sampleDurations[i]);
-                topFunctionsBottomUpCallingContextTree.updateTreeWithStackTrace(stackTraces[i], sampleDurations[i]);
-            }
+            this.activeRecording.initializeCallingContextTrees(stackTraces, sampleDurations);
 
             // FIXME: This transformation should not be needed after introducing ProfileView.
             // Once we eliminate ProfileNodeTreeElements and ProfileNodeDataGridNodes.
@@ -1177,6 +1266,7 @@ WI.TimelineManager = class TimelineManager extends WI.Object
 WI.TimelineManager.Event = {
     RecordingCreated: "timeline-manager-recording-created",
     RecordingLoaded: "timeline-manager-recording-loaded",
+    RecordingImported: "timeline-manager-recording-imported",
     CapturingWillStart: "timeline-manager-capturing-will-start",
     CapturingStarted: "timeline-manager-capturing-started",
     CapturingStopped: "timeline-manager-capturing-stopped"

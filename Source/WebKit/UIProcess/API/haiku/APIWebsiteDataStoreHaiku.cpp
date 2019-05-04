@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Haiku Inc.,
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,11 +69,6 @@ String WebsiteDataStore::defaultMediaKeysStorageDirectory()
 	return String();
 }
 
-String WebsiteDataStore::defaultDeviceIdHashSaltsStorageDirectory()
-{
-	return String();
-}
-
 String WebsiteDataStore::defaultWebSQLDatabaseDirectory()
 {
 	return String();
@@ -137,20 +132,6 @@ String WebsiteDataStore::legacyDefaultDeviceIdHashSaltsStorageDirectory()
 String WebsiteDataStore::legacyDefaultJavaScriptConfigurationDirectory()
 {
 	return String();
-}
-
-Ref<WebKit::WebsiteDataStoreConfiguration> WebsiteDataStore::defaultDataStoreConfiguration()
-{
-	auto configuration = WebKit::WebsiteDataStoreConfiguration::create();
-
-    configuration->setApplicationCacheDirectory(defaultApplicationCacheDirectory());
-    configuration->setNetworkCacheDirectory(defaultNetworkCacheDirectory());
-    configuration->setWebSQLDatabaseDirectory(defaultWebSQLDatabaseDirectory());
-    configuration->setLocalStorageDirectory(defaultLocalStorageDirectory());
-    configuration->setMediaKeysStorageDirectory(defaultMediaKeysStorageDirectory());
-    configuration->setResourceLoadStatisticsDirectory(defaultResourceLoadStatisticsDirectory());
-
-    return configuration;
 }
 
 } // namespace API

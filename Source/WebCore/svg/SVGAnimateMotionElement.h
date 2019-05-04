@@ -36,8 +36,8 @@ public:
 private:
     SVGAnimateMotionElement(const QualifiedName&, Document&);
 
-    bool hasValidAttributeType() override;
-    bool hasValidAttributeName() override;
+    bool hasValidAttributeType() const override;
+    bool hasValidAttributeName() const override;
 
     void parseAttribute(const QualifiedName&, const AtomicString&) override;
 
@@ -48,7 +48,7 @@ private:
     bool calculateFromAndByValues(const String& fromString, const String& byString) override;
     void calculateAnimatedValue(float percentage, unsigned repeatCount, SVGSMILElement* resultElement) override;
     void applyResultsToTarget() override;
-    float calculateDistance(const String& fromString, const String& toString) override;
+    Optional<float> calculateDistance(const String& fromString, const String& toString) override;
 
     enum RotateMode {
         RotateAngle,

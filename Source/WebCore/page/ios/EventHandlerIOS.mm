@@ -32,6 +32,7 @@
 #import "AutoscrollController.h"
 #import "Chrome.h"
 #import "ChromeClient.h"
+#import "ContentChangeObserver.h"
 #import "DataTransfer.h"
 #import "DragState.h"
 #import "FocusController.h"
@@ -490,18 +491,16 @@ void EventHandler::mouseMoved(WebEvent *event)
         return;
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
-
-    m_frame.document()->updateStyleIfNeeded();
-
-    WKStartObservingContentChanges();
-    WKStartObservingDOMTimerScheduling();
+    auto& document = *m_frame.document();
+    // Ensure we start mouse move event dispatching on a clear tree.
+    document.updateStyleIfNeeded();
     CurrentEventScope scope(event);
-    event.wasHandled = mouseMoved(currentPlatformMouseEvent());
-    
-    // FIXME: Why is this here?
-    m_frame.document()->updateStyleIfNeeded();
-    WKStopObservingDOMTimerScheduling();
-    WKStopObservingContentChanges();
+    {
+        ContentChangeObserver::MouseMovedScope observingScope(document);
+        event.wasHandled = mouseMoved(currentPlatformMouseEvent());
+        // Run style recalc to be able to capture content changes as the result of the mouse move event.
+        document.updateStyleIfNeeded();
+    }
 
     END_BLOCK_OBJC_EXCEPTIONS;
 }
@@ -514,6 +513,16 @@ static bool frameHasPlatformWidget(const Frame& frame)
     }
 
     return false;
+}
+
+void EventHandler::dispatchSyntheticMouseOut(const PlatformMouseEvent& platformMouseEvent)
+{
+    updateMouseEventTargetNode(nullptr, platformMouseEvent, FireMouseOverOut::Yes);
+}
+
+void EventHandler::dispatchSyntheticMouseMove(const PlatformMouseEvent& platformMouseEvent)
+{
+    mouseMoved(platformMouseEvent);
 }
 
 bool EventHandler::passMousePressEventToSubframe(MouseEventWithHitTestResults& mev, Frame* subframe)
@@ -554,9 +563,9 @@ OptionSet<PlatformEvent::Modifier> EventHandler::accessKeyModifiers()
     // So, we use Control in this case, even though it conflicts with Emacs-style key bindings.
     // See <https://bugs.webkit.org/show_bug.cgi?id=21107> for more detail.
     if (AXObjectCache::accessibilityEnhancedUserInterfaceEnabled())
-        return PlatformEvent::Modifier::CtrlKey;
+        return PlatformEvent::Modifier::ControlKey;
 
-    return { PlatformEvent::Modifier::CtrlKey, PlatformEvent::Modifier::AltKey };
+    return { PlatformEvent::Modifier::ControlKey, PlatformEvent::Modifier::AltKey };
 }
 
 PlatformMouseEvent EventHandler::currentPlatformMouseEvent() const

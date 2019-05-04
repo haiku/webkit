@@ -91,9 +91,9 @@ WebLoaderStrategy::~WebLoaderStrategy()
 
 void WebLoaderStrategy::loadResource(Frame& frame, CachedResource& resource, ResourceRequest&& request, const ResourceLoaderOptions& options, CompletionHandler<void(RefPtr<SubresourceLoader>&&)>&& completionHandler)
 {
-    SubresourceLoader::create(frame, resource, WTFMove(request), options, [this, completionHandler = WTFMove(completionHandler), resource = CachedResourceHandle<CachedResource>(&resource), frame = makeRef(frame)] (RefPtr<SubresourceLoader>&& loader) mutable {
+    SubresourceLoader::create(frame, resource, WTFMove(request), options, [this, referrerPolicy = options.referrerPolicy, completionHandler = WTFMove(completionHandler), resource = CachedResourceHandle<CachedResource>(&resource), frame = makeRef(frame)] (RefPtr<SubresourceLoader>&& loader) mutable {
         if (loader)
-            scheduleLoad(*loader, resource.get(), frame->document()->referrerPolicy() == ReferrerPolicy::NoReferrerWhenDowngrade);
+            scheduleLoad(*loader, resource.get(), referrerPolicy == ReferrerPolicy::NoReferrerWhenDowngrade);
         else
             RELEASE_LOG_IF_ALLOWED(frame.get(), "loadResource: Unable to create SubresourceLoader (frame = %p", &frame);
         completionHandler(WTFMove(loader));
@@ -207,7 +207,7 @@ void WebLoaderStrategy::scheduleLoad(ResourceLoader& resourceLoader, CachedResou
 #endif
 
 #if ENABLE(SERVICE_WORKER)
-    WebServiceWorkerProvider::singleton().handleFetch(resourceLoader, resource, sessionID, shouldClearReferrerOnHTTPSToHTTPRedirect, [this, trackingParameters, identifier, sessionID, shouldClearReferrerOnHTTPSToHTTPRedirect, maximumBufferingTime = maximumBufferingTime(resource), resourceLoader = makeRef(resourceLoader)] (ServiceWorkerClientFetch::Result result) mutable {
+    WebServiceWorkerProvider::singleton().handleFetch(resourceLoader, sessionID, shouldClearReferrerOnHTTPSToHTTPRedirect, [this, trackingParameters, identifier, sessionID, shouldClearReferrerOnHTTPSToHTTPRedirect, maximumBufferingTime = maximumBufferingTime(resource), resourceLoader = makeRef(resourceLoader)] (ServiceWorkerClientFetch::Result result) mutable {
         if (result != ServiceWorkerClientFetch::Result::Unhandled) {
             LOG(NetworkScheduling, "(WebProcess) WebLoaderStrategy::scheduleLoad, url '%s' will be scheduled through ServiceWorker handle fetch algorithm", resourceLoader->url().string().latin1().data());
             RELEASE_LOG_IF_ALLOWED(resourceLoader.get(), "scheduleLoad: URL will be scheduled through ServiceWorker handle fetch algorithm (frame = %p, pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", resourceLoader->frame(), trackingParameters.pageID, trackingParameters.frameID, identifier);
@@ -277,7 +277,6 @@ void WebLoaderStrategy::scheduleLoadFromNetworkProcess(ResourceLoader& resourceL
     // If there is no WebFrame then this resource cannot be authenticated with the client.
     loadParameters.clientCredentialPolicy = (loadParameters.webFrameID && loadParameters.webPageID && resourceLoader.isAllowedToAskUserForCredentials()) ? ClientCredentialPolicy::MayAskClientForCredentials : ClientCredentialPolicy::CannotAskClientForCredentials;
     loadParameters.shouldClearReferrerOnHTTPSToHTTPRedirect = shouldClearReferrerOnHTTPSToHTTPRedirect;
-    loadParameters.defersLoading = resourceLoader.defersLoading();
     loadParameters.needsCertificateInfo = resourceLoader.shouldIncludeCertificateInfo();
     loadParameters.maximumBufferingTime = maximumBufferingTime;
     loadParameters.options = resourceLoader.options();
@@ -290,11 +289,6 @@ void WebLoaderStrategy::scheduleLoadFromNetworkProcess(ResourceLoader& resourceL
     else if (document && !document->shouldBypassMainWorldContentSecurityPolicy()) {
         if (auto* contentSecurityPolicy = document->contentSecurityPolicy())
             loadParameters.cspResponseHeaders = contentSecurityPolicy->responseHeaders();
-    }
-
-    if (resourceLoader.isSubresourceLoader()) {
-        if (auto* headers = static_cast<SubresourceLoader&>(resourceLoader).originalHeaders())
-            loadParameters.originalRequestHeaders = *headers;
     }
 
 #if ENABLE(CONTENT_EXTENSIONS)
@@ -311,8 +305,13 @@ void WebLoaderStrategy::scheduleLoadFromNetworkProcess(ResourceLoader& resourceL
 
     // FIXME: All loaders should provide their origin if navigation mode is cors/no-cors/same-origin.
     // As a temporary approach, we use the document origin if available or the HTTP Origin header otherwise.
-    if (resourceLoader.isSubresourceLoader())
-        loadParameters.sourceOrigin = static_cast<SubresourceLoader&>(resourceLoader).origin();
+    if (is<SubresourceLoader>(resourceLoader)) {
+        auto& loader = downcast<SubresourceLoader>(resourceLoader);
+        loadParameters.sourceOrigin = loader.origin();
+
+        if (auto* headers = loader.originalHeaders())
+            loadParameters.originalRequestHeaders = *headers;
+    }
 
     if (!loadParameters.sourceOrigin && document)
         loadParameters.sourceOrigin = &document->securityOrigin();
@@ -426,10 +425,8 @@ void WebLoaderStrategy::remove(ResourceLoader* resourceLoader)
     loader->detachFromCoreLoader();
 }
 
-void WebLoaderStrategy::setDefersLoading(ResourceLoader& resourceLoader, bool defers)
+void WebLoaderStrategy::setDefersLoading(ResourceLoader&, bool)
 {
-    ResourceLoadIdentifier identifier = resourceLoader.identifier();
-    WebProcess::singleton().ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::SetDefersLoading(identifier, defers), 0);
 }
 
 void WebLoaderStrategy::crossOriginRedirectReceived(ResourceLoader*, const URL&)
@@ -500,7 +497,7 @@ Optional<WebLoaderStrategy::SyncLoadResult> WebLoaderStrategy::tryLoadingSynchro
     SyncLoadResult result;
     handler->loadSynchronously(identifier, request, result.response, result.error, result.data);
 
-    return WTFMove(result);
+    return result;
 }
 
 void WebLoaderStrategy::loadResourceSynchronously(FrameLoader& frameLoader, unsigned long resourceLoadIdentifier, const ResourceRequest& request, ClientCredentialPolicy clientCredentialPolicy,  const FetchOptions& options, const HTTPHeaderMap& originalRequestHeaders, ResourceError& error, ResourceResponse& response, Vector<char>& data)

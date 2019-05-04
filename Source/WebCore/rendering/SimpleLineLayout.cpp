@@ -201,7 +201,7 @@ static AvoidanceReasonFlags canUseForStyle(const RenderStyle& style, IncludeReas
     AvoidanceReasonFlags reasons = { };
     if (style.textOverflow() == TextOverflow::Ellipsis)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasTextOverflow, reasons, includeReasons);
-    if ((style.textDecorationsInEffect() & TextDecoration::Underline) && (style.textUnderlinePosition() != TextUnderlinePosition::Auto || !style.textUnderlineOffset().isAuto() || !style.textDecorationThickness().isAuto()))
+    if (style.textUnderlinePosition() != TextUnderlinePosition::Auto || !style.textUnderlineOffset().isAuto() || !style.textDecorationThickness().isAuto())
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedUnderlineDecoration, reasons, includeReasons);
     // Non-visible overflow should be pretty easy to support.
     if (style.overflowX() != Overflow::Visible || style.overflowY() != Overflow::Visible)
@@ -240,10 +240,6 @@ static AvoidanceReasonFlags canUseForStyle(const RenderStyle& style, IncludeReas
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonAutoLineBreak, reasons, includeReasons);
     if (style.nbspMode() != NBSPMode::Normal)
         SET_REASON_AND_RETURN_IF_NEEDED(FlowHasWebKitNBSPMode, reasons, includeReasons);
-#if ENABLE(CSS_TRAILING_WORD)
-    if (style.trailingWord() != TrailingWord::Auto)
-        SET_REASON_AND_RETURN_IF_NEEDED(FlowHasNonAutoTrailingWord, reasons, includeReasons);
-#endif
     if (style.hyphens() == Hyphens::Auto) {
         auto textReasons = canUseForText(style.hyphenString(), style.fontCascade(), WTF::nullopt, false, includeReasons);
         if (textReasons != NoReason)
@@ -426,7 +422,8 @@ public:
     float availableWidth() const { return m_availableWidth; }
     float logicalLeftOffset() const { return m_logicalLeftOffset; }
     const TextFragmentIterator::TextFragment& overflowedFragment() const { return m_overflowedFragment; }
-    bool hasTrailingWhitespace() const { return m_lastFragment.type() == TextFragmentIterator::TextFragment::Whitespace; }
+    bool hasTrailingWhitespace() const { return m_lastFragment.type() == TextFragmentIterator::TextFragment::Whitespace && m_lastFragment.length() > 0; }
+    bool hasWhitespaceFragments() const { return m_lastWhitespaceFragment != WTF::nullopt; }
     TextFragmentIterator::TextFragment lastFragment() const { return m_lastFragment; }
     bool isWhitespaceOnly() const { return m_trailingWhitespaceWidth && m_runsWidth == m_trailingWhitespaceWidth; }
     bool fits(float extra) const { return m_availableWidth >= m_runsWidth + extra; }
@@ -509,9 +506,10 @@ public:
         if (m_fragments)
             (*m_fragments).append(fragment);
 
-        if (fragment.type() == TextFragmentIterator::TextFragment::Whitespace)
+        if (fragment.type() == TextFragmentIterator::TextFragment::Whitespace) {
             m_trailingWhitespaceWidth += fragment.width();
-        else {
+            m_lastWhitespaceFragment = fragment;
+        } else {
             m_trailingWhitespaceWidth = 0;
             m_lastNonWhitespaceFragment = fragment;
         }
@@ -571,6 +569,7 @@ private:
     TextFragmentIterator::TextFragment m_overflowedFragment;
     TextFragmentIterator::TextFragment m_lastFragment;
     Optional<TextFragmentIterator::TextFragment> m_lastNonWhitespaceFragment;
+    Optional<TextFragmentIterator::TextFragment> m_lastWhitespaceFragment;
     TextFragmentIterator::TextFragment m_lastCompleteFragment;
     float m_uncompletedWidth { 0 };
     float m_trailingWhitespaceWidth { 0 }; // Use this to remove trailing whitespace without re-mesuring the text.
@@ -594,7 +593,7 @@ static void removeTrailingWhitespace(LineState& lineState, Layout::RunVector& ru
     // Remove collapsed whitespace, or non-collapsed pre-wrap whitespace, unless it's the only content on the line -so removing the whitesapce
     // would produce an empty line.
     const auto& style = textFragmentIterator.style();
-    bool collapseWhitespace = style.collapseWhitespace | preWrap(style);
+    bool collapseWhitespace = style.collapseWhitespace || (!style.breakSpaces && preWrap(style));
     if (!collapseWhitespace)
         return;
     if (preWrap(style) && lineState.isWhitespaceOnly())
@@ -751,6 +750,12 @@ static TextFragmentIterator::TextFragment firstFragment(TextFragmentIterator& te
 
     // Leading whitespace handling.
     auto& style = textFragmentIterator.style();
+    if (style.breakSpaces) {
+        // Leading whitespace created after breaking the previous line.
+        // Breaking before the first space after a word is only allowed in combination with break-all or break-word.
+        if (style.breakFirstWordOnOverflow || previousLine.hasTrailingWhitespace())
+            return overflowedFragment;
+    }
     // Special overflow pre-wrap whitespace handling: skip the overflowed whitespace (even when style says not-collapsible)
     // if we manage to fit at least one character on the previous line.
     auto preWrapIsOn = preWrap(style);
@@ -814,6 +819,11 @@ static bool createLineRuns(LineState& line, const LineState& previousLine, Layou
                 if (style.collapseWhitespace) {
                     // Push collapased whitespace to the next line.
                     line.setOverflowedFragment(fragment);
+                    break;
+                }
+                if (style.breakSpaces && style.breakWordOnOverflow && line.hasWhitespaceFragments() && fragment.length() == 1) {
+                    // Breaking before the first space after a word is not allowed if there are previous breaking opportunities in the line.
+                    textFragmentIterator.revertToEndOfFragment(line.revertToLastCompleteFragment(runs));
                     break;
                 }
                 // Split the whitespace; left part stays on this line, right is pushed to next line.

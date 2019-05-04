@@ -27,6 +27,7 @@
 
 #include "DownloadID.h"
 #include "DownloadManager.h"
+#include "DownloadMonitor.h"
 #include "MessageSender.h"
 #include "NetworkDataTask.h"
 #include "SandboxExtension.h"
@@ -58,6 +59,7 @@ class ResourceResponse;
 
 namespace WebKit {
 
+class DownloadMonitor;
 class NetworkDataTask;
 class NetworkSession;
 class WebPage;
@@ -89,15 +91,19 @@ public:
     void didFail(const WebCore::ResourceError&, const IPC::DataReference& resumeData);
     void didCancel(const IPC::DataReference& resumeData);
 
+    bool isAlwaysOnLoggingAllowed() const;
+
+    void applicationDidEnterBackground() { m_monitor.applicationDidEnterBackground(); }
+    void applicationWillEnterForeground() { m_monitor.applicationWillEnterForeground(); }
+    DownloadManager& manager() const { return m_downloadManager; }
+
 private:
     // IPC::MessageSender
-    IPC::Connection* messageSenderConnection() override;
-    uint64_t messageSenderDestinationID() override;
+    IPC::Connection* messageSenderConnection() const override;
+    uint64_t messageSenderDestinationID() const override;
 
     void platformCancelNetworkLoad();
     void platformDestroyDownload();
-
-    bool isAlwaysOnLoggingAllowed() const;
 
     DownloadManager& m_downloadManager;
     DownloadID m_downloadID;
@@ -114,6 +120,7 @@ private:
     PAL::SessionID m_sessionID;
     String m_suggestedName;
     bool m_hasReceivedData { false };
+    DownloadMonitor m_monitor { *this };
 };
 
 } // namespace WebKit

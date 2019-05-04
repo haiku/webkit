@@ -28,6 +28,12 @@
 #include "DownloadID.h"
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/RetainPtr.h>
+#include <wtf/WeakPtr.h>
+
+#if PLATFORM(IOS_FAMILY)
+#include <objc/objc.h>
+#endif
 
 namespace WebCore {
 class ResourceRequest;
@@ -37,25 +43,40 @@ namespace WebKit {
 
 class DownloadProxy;
 class NetworkProcessProxy;
+class ProcessAssertion;
 class WebProcessPool;
 
-class DownloadProxyMap {
+class DownloadProxyMap : public CanMakeWeakPtr<DownloadProxyMap> {
+    WTF_MAKE_FAST_ALLOCATED;
     WTF_MAKE_NONCOPYABLE(DownloadProxyMap);
 
 public:
     explicit DownloadProxyMap(NetworkProcessProxy&);
     ~DownloadProxyMap();
 
-    DownloadProxy* createDownloadProxy(WebProcessPool&, const WebCore::ResourceRequest&);
-    void downloadFinished(DownloadProxy*);
+    DownloadProxy& createDownloadProxy(WebProcessPool&, const WebCore::ResourceRequest&);
+    void downloadFinished(DownloadProxy&);
 
     bool isEmpty() const { return m_downloads.isEmpty(); }
 
     void processDidClose();
 
+    void applicationDidEnterBackground();
+    void applicationWillEnterForeground();
+
 private:
-    NetworkProcessProxy* m_process;
+    void platformCreate();
+    void platformDestroy();
+
+    WeakPtr<NetworkProcessProxy> m_process;
     HashMap<DownloadID, RefPtr<DownloadProxy>> m_downloads;
+
+    bool m_shouldTakeAssertion { false };
+    std::unique_ptr<ProcessAssertion> m_downloadAssertion;
+#if PLATFORM(IOS_FAMILY)
+    RetainPtr<id> m_backgroundObserver;
+    RetainPtr<id> m_foregroundObserver;
+#endif
 };
 
 } // namespace WebKit

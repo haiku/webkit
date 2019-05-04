@@ -123,7 +123,7 @@ WebSocketHandshake::WebSocketHandshake(const URL& url, const String& protocol, D
     : m_url(url)
     , m_clientProtocol(protocol)
     , m_secure(m_url.protocolIs("wss"))
-    , m_document(document)
+    , m_document(makeWeakPtr(document))
     , m_mode(Incomplete)
     , m_allowCookies(allowCookies)
 {
@@ -302,7 +302,7 @@ int WebSocketHandshake::readServerHandshake(const char* header, size_t len)
 
     if (statusCode != 101) {
         m_mode = Failed;
-        m_failureReason = makeString("Unexpected response code: ", String::number(statusCode));
+        m_failureReason = makeString("Unexpected response code: ", statusCode);
         return len;
     }
     m_mode = Normal;

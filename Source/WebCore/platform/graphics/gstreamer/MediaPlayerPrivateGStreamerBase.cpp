@@ -29,7 +29,6 @@
 
 #include "GStreamerCommon.h"
 #include "GraphicsContext.h"
-#include "GraphicsContext3D.h"
 #include "ImageGStreamer.h"
 #include "ImageOrientation.h"
 #include "IntRect.h"
@@ -37,6 +36,7 @@
 #include "MediaPlayer.h"
 #include "NotImplemented.h"
 #include "VideoSinkGStreamer.h"
+#include "WebKitWebSourceGStreamer.h"
 #include <wtf/glib/GUniquePtr.h>
 #include <wtf/text/AtomicString.h>
 #include <wtf/text/CString.h>
@@ -117,8 +117,8 @@
 #if USE(TEXTURE_MAPPER_GL)
 #include "BitmapTextureGL.h"
 #include "BitmapTexturePool.h"
+#include "GraphicsContext3D.h"
 #include "TextureMapperContextAttributes.h"
-#include "TextureMapperGL.h"
 #include "TextureMapperPlatformLayerBuffer.h"
 #include "TextureMapperPlatformLayerProxy.h"
 #if USE(CAIRO) && ENABLE(ACCELERATED_2D_CANVAS)
@@ -133,6 +133,10 @@ GST_DEBUG_CATEGORY(webkit_media_player_debug);
 namespace WebCore {
 using namespace std;
 
+#if USE(GSTREAMER_HOLEPUNCH)
+static const FloatSize s_holePunchDefaultFrameSize(1280, 720);
+#endif
+
 static int greatestCommonDivisor(int a, int b)
 {
     while (b) {
@@ -143,26 +147,6 @@ static int greatestCommonDivisor(int a, int b)
 
     return ABS(a);
 }
-
-#if USE(TEXTURE_MAPPER_GL)
-static inline TextureMapperGL::Flags texMapFlagFromOrientation(const ImageOrientation& orientation)
-{
-    switch (orientation) {
-    case DefaultImageOrientation:
-        return 0;
-    case OriginRightTop:
-        return TextureMapperGL::ShouldRotateTexture90;
-    case OriginBottomRight:
-        return TextureMapperGL::ShouldRotateTexture180;
-    case OriginLeftBottom:
-        return TextureMapperGL::ShouldRotateTexture270;
-    default:
-        ASSERT_NOT_REACHED();
-    }
-
-    return 0;
-}
-#endif
 
 #if USE(TEXTURE_MAPPER_GL)
 class GstVideoFrameHolder : public TextureMapperPlatformLayerBuffer::UnmanagedBufferDataHolder {
@@ -180,13 +164,16 @@ public:
             return;
 
 #if USE(GSTREAMER_GL)
-        m_flags = flags | (m_hasAlphaChannel ? TextureMapperGL::ShouldBlend : 0) | TEXTURE_MAPPER_COLOR_CONVERT_FLAG;
+        m_flags = flags | (m_hasAlphaChannel ? TextureMapperGL::ShouldBlend : 0);
 
         if (gstGLEnabled) {
             m_isMapped = gst_video_frame_map(&m_videoFrame, &videoInfo, m_buffer, static_cast<GstMapFlags>(GST_MAP_READ | GST_MAP_GL));
             if (m_isMapped)
                 m_textureID = *reinterpret_cast<GLuint*>(m_videoFrame.data[0]);
         } else
+#else
+        UNUSED_PARAM(flags);
+        UNUSED_PARAM(gstGLEnabled);
 #endif // USE(GSTREAMER_GL)
 
         {
@@ -265,6 +252,10 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
 
 MediaPlayerPrivateGStreamerBase::~MediaPlayerPrivateGStreamerBase()
 {
+#if USE(GSTREAMER_GL)
+    if (m_videoDecoderPlatform == WebKitGstVideoDecoderPlatform::Video4Linux)
+        flushCurrentBuffer();
+#endif
 #if USE(TEXTURE_MAPPER_GL) && USE(NICOSIA)
     downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).invalidateClient();
 #endif
@@ -325,6 +316,16 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
     const gchar* contextType;
     gst_message_parse_context_type(message, &contextType);
     GST_DEBUG_OBJECT(pipeline(), "Handling %s need-context message for %s", contextType, GST_MESSAGE_SRC_NAME(message));
+
+    if (!g_strcmp0(contextType, WEBKIT_WEB_SRC_PLAYER_CONTEXT_TYPE_NAME)) {
+        GRefPtr<GstContext> context = adoptGRef(gst_context_new(WEBKIT_WEB_SRC_PLAYER_CONTEXT_TYPE_NAME, FALSE));
+        GstStructure* contextStructure = gst_context_writable_structure(context.get());
+
+        ASSERT(m_player);
+        gst_structure_set(contextStructure, "player", G_TYPE_POINTER, m_player, nullptr);
+        gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(message)), context.get());
+        return true;
+    }
 
 #if USE(GSTREAMER_GL)
     GRefPtr<GstContext> elementContext = adoptGRef(requestGLContext(contextType));
@@ -415,7 +416,7 @@ bool MediaPlayerPrivateGStreamerBase::ensureGstGLContext()
     auto& sharedDisplay = PlatformDisplay::sharedDisplayForCompositing();
 
     // The floating ref removal support was added in https://bugzilla.gnome.org/show_bug.cgi?id=743062.
-    bool shouldAdoptRef = webkitGstCheckVersion(1, 13, 1);
+    bool shouldAdoptRef = webkitGstCheckVersion(1, 14, 0);
     if (!m_glDisplay) {
 #if PLATFORM(X11)
 #if USE(GLX)
@@ -487,6 +488,13 @@ bool MediaPlayerPrivateGStreamerBase::ensureGstGLContext()
 // Returns the size of the video
 FloatSize MediaPlayerPrivateGStreamerBase::naturalSize() const
 {
+#if USE(GSTREAMER_HOLEPUNCH)
+    // When using the holepuch we may not be able to get the video frames size, so we can't use
+    // it. But we need to report some non empty naturalSize for the player's GraphicsLayer
+    // to be properly created.
+    return s_holePunchDefaultFrameSize;
+#endif
+
     if (!hasVideo())
         return FloatSize();
 
@@ -672,6 +680,9 @@ PlatformLayer* MediaPlayerPrivateGStreamerBase::platformLayer() const
 #if USE(NICOSIA)
 void MediaPlayerPrivateGStreamerBase::swapBuffersIfNeeded()
 {
+#if USE(GSTREAMER_HOLEPUNCH)
+    pushNextHolePunchBuffer();
+#endif
 }
 #else
 RefPtr<TextureMapperPlatformLayerProxy> MediaPlayerPrivateGStreamerBase::proxy() const
@@ -681,6 +692,9 @@ RefPtr<TextureMapperPlatformLayerProxy> MediaPlayerPrivateGStreamerBase::proxy()
 
 void MediaPlayerPrivateGStreamerBase::swapBuffersIfNeeded()
 {
+#if USE(GSTREAMER_HOLEPUNCH)
+    pushNextHolePunchBuffer();
+#endif
 }
 #endif
 
@@ -698,7 +712,7 @@ void MediaPlayerPrivateGStreamerBase::pushTextureToCompositor()
             if (!proxy.isActive())
                 return;
 
-            std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), texMapFlagFromOrientation(m_videoSourceOrientation), !m_usingFallbackVideoSink);
+            std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), m_textureMapperFlags, !m_usingFallbackVideoSink);
 
             GLuint textureID = frameHolder->textureID();
             std::unique_ptr<TextureMapperPlatformLayerBuffer> layerBuffer;
@@ -713,7 +727,7 @@ void MediaPlayerPrivateGStreamerBase::pushTextureToCompositor()
                     layerBuffer = std::make_unique<TextureMapperPlatformLayerBuffer>(WTFMove(texture));
                 }
                 frameHolder->updateTexture(layerBuffer->textureGL());
-                layerBuffer->setExtraFlags(texMapFlagFromOrientation(m_videoSourceOrientation) | (frameHolder->hasAlphaChannel() ? TextureMapperGL::ShouldBlend : 0));
+                layerBuffer->setExtraFlags(m_textureMapperFlags | (frameHolder->hasAlphaChannel() ? TextureMapperGL::ShouldBlend : 0));
             }
             proxy.pushNextBuffer(WTFMove(layerBuffer));
         };
@@ -829,7 +843,6 @@ GstFlowReturn MediaPlayerPrivateGStreamerBase::newPrerollCallback(GstElement* si
 
 void MediaPlayerPrivateGStreamerBase::flushCurrentBuffer()
 {
-    GST_DEBUG_OBJECT(pipeline(), "Flushing video sample");
     auto sampleLocker = holdLock(m_sampleMutex);
 
     if (m_sample) {
@@ -840,14 +853,14 @@ void MediaPlayerPrivateGStreamerBase::flushCurrentBuffer()
             gst_sample_get_segment(m_sample.get()), info ? gst_structure_copy(info) : nullptr));
     }
 
-    auto proxyOperation =
-        [](TextureMapperPlatformLayerProxy& proxy)
-        {
-            LockHolder locker(proxy.lock());
+    bool shouldWait = m_videoDecoderPlatform == WebKitGstVideoDecoderPlatform::Video4Linux;
+    auto proxyOperation = [shouldWait, pipeline = pipeline()](TextureMapperPlatformLayerProxy& proxy) {
+        GST_DEBUG_OBJECT(pipeline, "Flushing video sample %s", shouldWait ? "synchronously" : "");
+        LockHolder locker(!shouldWait ? &proxy.lock() : nullptr);
 
-            if (proxy.isActive())
-                proxy.dropCurrentBufferWhilePreservingTexture();
-        };
+        if (proxy.isActive())
+            proxy.dropCurrentBufferWhilePreservingTexture(shouldWait);
+    };
 
 #if USE(NICOSIA)
     proxyOperation(downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).proxy());
@@ -901,7 +914,7 @@ bool MediaPlayerPrivateGStreamerBase::copyVideoTextureToPlatformTexture(Graphics
     if (!GST_IS_SAMPLE(m_sample.get()))
         return false;
 
-    std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), texMapFlagFromOrientation(m_videoSourceOrientation), true);
+    std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), m_textureMapperFlags, true);
 
     auto textureID = frameHolder->textureID();
     if (!textureID)
@@ -928,7 +941,7 @@ NativeImagePtr MediaPlayerPrivateGStreamerBase::nativeImageForCurrentTime()
     if (!GST_IS_SAMPLE(m_sample.get()))
         return nullptr;
 
-    std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), texMapFlagFromOrientation(m_videoSourceOrientation), true);
+    std::unique_ptr<GstVideoFrameHolder> frameHolder = std::make_unique<GstVideoFrameHolder>(m_sample.get(), m_textureMapperFlags, true);
 
     auto textureID = frameHolder->textureID();
     if (!textureID)
@@ -960,7 +973,42 @@ void MediaPlayerPrivateGStreamerBase::setVideoSourceOrientation(const ImageOrien
         return;
 
     m_videoSourceOrientation = orientation;
+#if USE(TEXTURE_MAPPER_GL)
+    updateTextureMapperFlags();
+#endif
 }
+
+#if USE(TEXTURE_MAPPER_GL)
+void MediaPlayerPrivateGStreamerBase::updateTextureMapperFlags()
+{
+    switch (m_videoSourceOrientation) {
+    case DefaultImageOrientation:
+        m_textureMapperFlags = 0;
+        break;
+    case OriginRightTop:
+        m_textureMapperFlags = TextureMapperGL::ShouldRotateTexture90;
+        break;
+    case OriginBottomRight:
+        m_textureMapperFlags = TextureMapperGL::ShouldRotateTexture180;
+        break;
+    case OriginLeftBottom:
+        m_textureMapperFlags = TextureMapperGL::ShouldRotateTexture270;
+        break;
+    default:
+        // FIXME: Handle OriginTopRight, OriginBottomLeft, OriginLeftTop and OriginRightBottom?
+        m_textureMapperFlags = 0;
+        break;
+    }
+
+#if USE(GSTREAMER_GL)
+    // When the imxvpudecoder is used, the texture sampling of the
+    // directviv-uploaded texture returns an RGB value, so there's no need to
+    // convert it.
+    if (m_videoDecoderPlatform != WebKitGstVideoDecoderPlatform::ImxVPU)
+        m_textureMapperFlags |= TEXTURE_MAPPER_COLOR_CONVERT_FLAG;
+#endif
+}
+#endif
 
 bool MediaPlayerPrivateGStreamerBase::supportsFullscreen() const
 {
@@ -993,7 +1041,7 @@ GstElement* MediaPlayerPrivateGStreamerBase::createGLAppSink()
     g_signal_connect(appsink, "new-preroll", G_CALLBACK(newPrerollCallback), this);
 
     GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(appsink, "sink"));
-    gst_pad_add_probe(pad.get(), static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM | GST_PAD_PROBE_TYPE_EVENT_FLUSH), [] (GstPad*, GstPadProbeInfo* info,  gpointer userData) -> GstPadProbeReturn {
+    gst_pad_add_probe(pad.get(), static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_PUSH | GST_PAD_PROBE_TYPE_QUERY_DOWNSTREAM | GST_PAD_PROBE_TYPE_EVENT_FLUSH), [] (GstPad*, GstPadProbeInfo* info,  gpointer userData) -> GstPadProbeReturn {
         // In some platforms (e.g. OpenMAX on the Raspberry Pi) when a resolution change occurs the
         // pipeline has to be drained before a frame with the new resolution can be decoded.
         // In this context, it's important that we don't hold references to any previous frame
@@ -1078,9 +1126,61 @@ void MediaPlayerPrivateGStreamerBase::ensureGLVideoSinkContext()
 }
 #endif // USE(GSTREAMER_GL)
 
+#if USE(GSTREAMER_HOLEPUNCH)
+static void setRectangleToVideoSink(GstElement* videoSink, const IntRect& rect)
+{
+    // Here goes the platform-dependant code to set to the videoSink the size
+    // and position of the video rendering window. Mark them unused as default.
+    UNUSED_PARAM(videoSink);
+    UNUSED_PARAM(rect);
+}
+
+class GStreamerHolePunchClient : public TextureMapperPlatformLayerBuffer::HolePunchClient {
+public:
+    GStreamerHolePunchClient(GRefPtr<GstElement>&& videoSink) : m_videoSink(WTFMove(videoSink)) { };
+    void setVideoRectangle(const IntRect& rect) final { setRectangleToVideoSink(m_videoSink.get(), rect); }
+private:
+    GRefPtr<GstElement> m_videoSink;
+};
+
+GstElement* MediaPlayerPrivateGStreamerBase::createHolePunchVideoSink()
+{
+    // Here goes the platform-dependant code to create the videoSink. As a default
+    // we use a fakeVideoSink so nothing is drawn to the page.
+    GstElement* videoSink =  gst_element_factory_make("fakevideosink", nullptr);
+
+    return videoSink;
+}
+
+void MediaPlayerPrivateGStreamerBase::pushNextHolePunchBuffer()
+{
+    auto proxyOperation =
+        [this](TextureMapperPlatformLayerProxy& proxy)
+        {
+            LockHolder holder(proxy.lock());
+            std::unique_ptr<TextureMapperPlatformLayerBuffer> layerBuffer = std::make_unique<TextureMapperPlatformLayerBuffer>(0, m_size, TextureMapperGL::ShouldNotBlend, GL_DONT_CARE);
+            std::unique_ptr<GStreamerHolePunchClient> holePunchClient = std::make_unique<GStreamerHolePunchClient>(m_videoSink.get());
+            layerBuffer->setHolePunchClient(WTFMove(holePunchClient));
+            proxy.pushNextBuffer(WTFMove(layerBuffer));
+        };
+
+#if USE(NICOSIA)
+    proxyOperation(downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).proxy());
+#else
+    proxyOperation(*m_platformLayerProxy);
+#endif
+}
+#endif
+
 GstElement* MediaPlayerPrivateGStreamerBase::createVideoSink()
 {
     acceleratedRenderingStateChanged();
+
+#if USE(GSTREAMER_HOLEPUNCH)
+    m_videoSink = createHolePunchVideoSink();
+    pushNextHolePunchBuffer();
+    return m_videoSink.get();
+#endif
 
 #if USE(GSTREAMER_GL)
     if (m_renderingCanBeAccelerated)

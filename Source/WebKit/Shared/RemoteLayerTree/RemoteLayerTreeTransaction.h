@@ -50,8 +50,6 @@ class Encoder;
 
 namespace WebKit {
 
-class PlatformCALayerRemote;
-
 class RemoteLayerTreeTransaction {
 public:
     enum LayerChange {
@@ -92,6 +90,7 @@ public:
         EdgeAntialiasingMaskChanged     = 1LLU << 35,
         CustomAppearanceChanged         = 1LLU << 36,
         UserInteractionEnabledChanged   = 1LLU << 37,
+        EventRegionChanged              = 1LLU << 38,
     };
 
     struct LayerCreationProperties {
@@ -119,6 +118,7 @@ public:
         void notePropertiesChanged(OptionSet<LayerChange> changeFlags)
         {
             changedProperties.add(changeFlags);
+            everChangedProperties.add(changeFlags);
         }
 
         void resetChangedProperties()
@@ -127,6 +127,7 @@ public:
         }
 
         OptionSet<LayerChange> changedProperties;
+        OptionSet<LayerChange> everChangedProperties;
 
         String name;
         std::unique_ptr<WebCore::TransformationMatrix> transform;
@@ -169,10 +170,13 @@ public:
         bool opaque;
         bool contentsHidden;
         bool userInteractionEnabled;
+        WebCore::EventRegion eventRegion;
     };
 
     explicit RemoteLayerTreeTransaction();
     ~RemoteLayerTreeTransaction();
+    RemoteLayerTreeTransaction(RemoteLayerTreeTransaction&&);
+    RemoteLayerTreeTransaction& operator=(RemoteLayerTreeTransaction&&);
 
     void encode(IPC::Encoder&) const;
     static bool decode(IPC::Decoder&, RemoteLayerTreeTransaction&);

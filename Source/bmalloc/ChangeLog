@@ -1,3 +1,576 @@
+2019-04-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [WebCore] Put most of derived classes of ScriptWrappable into IsoHeap
+        https://bugs.webkit.org/show_bug.cgi?id=196475
+
+        Reviewed by Saam Barati.
+
+        Add MAKE_BISO_MALLOCED_IMPL_TEMPLATE, which can be used for explicit specialization for template classes.
+
+        * bmalloc/IsoHeap.h:
+        * bmalloc/IsoHeapInlines.h:
+
+2019-03-22  Keith Rollin  <krollin@apple.com>
+
+        Enable ThinLTO support in Production builds
+        https://bugs.webkit.org/show_bug.cgi?id=190758
+        <rdar://problem/45413233>
+
+        Reviewed by Daniel Bates.
+
+        Enable building with Thin LTO in Production when using Xcode 10.2 or
+        later. This change results in a 1.45% progression in PLT5. Full
+        Production build times increase about 2-3%. Incremental build times
+        are more severely affected, and so LTO is not enabled for local
+        engineering builds.
+
+        LTO is enabled only on macOS for now, until rdar://problem/49013399,
+        which affects ARM builds, is fixed.
+
+        To change the LTO setting when building locally:
+
+        - If building with `make`, specify WK_LTO_MODE={none,thin,full} on the
+          command line.
+        - If building with `build-webkit`, specify --lto-mode={none,thin,full}
+          on the command line.
+        - If building with `build-root`, specify --lto={none,thin,full} on the
+          command line.
+        - If building with Xcode, create a LocalOverrides.xcconfig file at the
+          top level of your repository directory (if needed) and define
+          WK_LTO_MODE to full, thin, or none.
+
+        * Configurations/Base.xcconfig:
+
+2019-03-21  Michael Saboff  <msaboff@apple.com>
+
+        [BMalloc] No need to delay deallocating chunks based on recent use
+        https://bugs.webkit.org/show_bug.cgi?id=196121
+
+        Reviewed by Mark Lam.
+
+        The "used since last scavenge" logic is not needed for small chunks since their memory isn't decommitted directly.
+        We can deallocate small chunks immediately as that adds them to the LargeRange free list.  That free list employs the
+        "used since last scavenge" logic before the scavenger decommits the backing memory.
+
+        * bmalloc/Chunk.h:
+        (bmalloc::Chunk::usedSinceLastScavenge): Deleted.
+        (bmalloc::Chunk::clearUsedSinceLastScavenge): Deleted.
+        (bmalloc::Chunk::setUsedSinceLastScavenge): Deleted.
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::scavenge):
+        (bmalloc::Heap::allocateSmallPage):
+
+2019-03-21  Brady Eidson  <beidson@apple.com>
+
+        Certain WebProcesses should opt-out of the freezer.
+        <rdar://problem/42846139> and https://bugs.webkit.org/show_bug.cgi?id=196062
+
+        Reviewed by Andy Estes.
+
+        * bmalloc.xcodeproj/project.pbxproj:
+        * bmalloc/darwin/MemoryStatusSPI.h:
+
+2019-03-19  Michael Catanzaro  <mcatanzaro@igalia.com>
+
+        Unreviewed, fix -Wformat warning
+        https://bugs.webkit.org/show_bug.cgi?id=195895
+        <rdar://problem/48517629>
+
+        * bmalloc/Scavenger.cpp:
+        (bmalloc::Scavenger::threadRunLoop):
+
+2019-03-18  Michael Saboff  <msaboff@apple.com>
+
+        [BMalloc] Scavenger should react to recent memory activity
+        https://bugs.webkit.org/show_bug.cgi?id=195895
+
+        Reviewed by Geoffrey Garen.
+
+        This change adds a recently used bit to objects that are scavenged.  When an object is allocated, that bit is set.
+        When we scavenge, if the bit is set, we clear it.  If the bit was already clear, we decommit the object.  The timing
+        to scavenging has been changed as well.  We perform our first scavne almost immediately after bmalloc is initialized
+        (10ms later).  Subsequent scavenging is done as a multiple of the time it took to scavenge.  We bound this computed
+        time between a minimum and maximum.  Through empirical testing, the multiplier, minimum and maximum are
+        150x, 100ms and 10,000ms respectively.  For mini-mode, when the JIT is disabled, we use much more aggressive values of
+        50x, 25ms and 500ms.
+
+        Eliminated partial scavenging since this change allows for any scavenge to be partial or full based on recent use of
+        the objects on the various free lists.
+
+        * bmalloc/Chunk.h:
+        (bmalloc::Chunk::usedSinceLastScavenge):
+        (bmalloc::Chunk::clearUsedSinceLastScavenge):
+        (bmalloc::Chunk::setUsedSinceLastScavenge):
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::scavenge):
+        (bmalloc::Heap::allocateSmallChunk):
+        (bmalloc::Heap::allocateSmallPage):
+        (bmalloc::Heap::splitAndAllocate):
+        (bmalloc::Heap::tryAllocateLarge):
+        (bmalloc::Heap::scavengeToHighWatermark): Deleted.
+        * bmalloc/Heap.h:
+        * bmalloc/IsoDirectory.h:
+        * bmalloc/IsoDirectoryInlines.h:
+        (bmalloc::passedNumPages>::takeFirstEligible):
+        (bmalloc::passedNumPages>::scavenge):
+        (bmalloc::passedNumPages>::scavengeToHighWatermark): Deleted.
+        * bmalloc/IsoHeapImpl.h:
+        * bmalloc/IsoHeapImplInlines.h:
+        (bmalloc::IsoHeapImpl<Config>::scavengeToHighWatermark): Deleted.
+        * bmalloc/LargeRange.h:
+        (bmalloc::LargeRange::LargeRange):
+        (bmalloc::LargeRange::usedSinceLastScavenge):
+        (bmalloc::LargeRange::clearUsedSinceLastScavenge):
+        (bmalloc::LargeRange::setUsedSinceLastScavenge):
+        (): Deleted.
+        * bmalloc/Scavenger.cpp:
+        (bmalloc::Scavenger::Scavenger):
+        (bmalloc::Scavenger::threadRunLoop):
+        (bmalloc::Scavenger::timeSinceLastPartialScavenge): Deleted.
+        (bmalloc::Scavenger::partialScavenge): Deleted.
+        * bmalloc/Scavenger.h:
+        * bmalloc/SmallPage.h:
+        (bmalloc::SmallPage::usedSinceLastScavenge):
+        (bmalloc::SmallPage::clearUsedSinceLastScavenge):
+        (bmalloc::SmallPage::setUsedSinceLastScavenge):
+
+2019-03-14  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] Add StaticPerProcess for known types to save pages
+        https://bugs.webkit.org/show_bug.cgi?id=195691
+
+        Reviewed by Mark Lam.
+
+        As initial memory footprint of VM + JSGlobalObject becomes 488KB dirty size in fast malloc memory (w/ JSC_useJIT=0 and Malloc=1), pages for PerProcess is costly.
+        For example, under Malloc=1 mode, we still need to allocate PerProcess<DebugHeap> and PerProcess<Environment>. And sizeof(Environment) is only 1 (bool flag), and
+        sizeof(DebugHeap) is 120. But we are allocating 1 pages for them. Since page size in iOS is 16KB, this 121B consumes 16KB dirty memory, and it is not negligible
+        size if we keep in mind that the current fast malloc heap size is 488KB. Putting them into the __DATA section, close to the other mutable data, we can avoid allocating
+        this page.
+
+        This patch revives the SafePerProcess concept in r228107. We add "StaticPerProcess<T>", which allocates underlying storage statically in the __DATA section instead of
+        allocating it at runtime. And we use this StaticPerProcess<T> for types where (1) T is known a priori, and (2) sizeof(T) is not huge.
+
+        * bmalloc.xcodeproj/project.pbxproj:
+        * bmalloc/AllIsoHeaps.cpp:
+        * bmalloc/AllIsoHeaps.h:
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::Allocator):
+        * bmalloc/Cache.cpp:
+        (bmalloc::Cache::Cache):
+        * bmalloc/CryptoRandom.cpp:
+        (bmalloc::cryptoRandom):
+        * bmalloc/Deallocator.cpp:
+        (bmalloc::Deallocator::Deallocator):
+        * bmalloc/DebugHeap.cpp:
+        * bmalloc/DebugHeap.h:
+        (bmalloc::DebugHeap::tryGet):
+        * bmalloc/Environment.cpp:
+        * bmalloc/Environment.h:
+        * bmalloc/Gigacage.cpp:
+        (Gigacage::Callback::Callback):
+        (Gigacage::Callback::function):
+        (bmalloc::PrimitiveDisableCallbacks::PrimitiveDisableCallbacks):
+        (Gigacage::disablePrimitiveGigacage):
+        (Gigacage::addPrimitiveDisableCallback):
+        (Gigacage::removePrimitiveDisableCallback):
+        (Gigacage::shouldBeEnabled):
+        (Gigacage::bmalloc::Callback::Callback): Deleted.
+        (Gigacage::bmalloc::Callback::function): Deleted.
+        (Gigacage::bmalloc::PrimitiveDisableCallbacks::PrimitiveDisableCallbacks): Deleted.
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::Heap):
+        (bmalloc::Heap::tryAllocateLarge):
+        * bmalloc/IsoDirectoryInlines.h:
+        (bmalloc::passedNumPages>::takeFirstEligible):
+        (bmalloc::passedNumPages>::didBecome):
+        * bmalloc/IsoHeapImpl.cpp:
+        (bmalloc::IsoHeapImplBase::addToAllIsoHeaps):
+        * bmalloc/IsoPage.cpp:
+        (bmalloc::IsoPageBase::allocatePageMemory):
+        * bmalloc/IsoTLS.cpp:
+        (bmalloc::IsoTLS::IsoTLS):
+        (bmalloc::IsoTLS::ensureEntries):
+        (bmalloc::IsoTLS::forEachEntry):
+        * bmalloc/IsoTLSEntry.cpp:
+        (bmalloc::IsoTLSEntry::IsoTLSEntry):
+        * bmalloc/IsoTLSInlines.h:
+        (bmalloc::IsoTLS::allocateSlow):
+        (bmalloc::IsoTLS::deallocateSlow):
+        * bmalloc/IsoTLSLayout.cpp:
+        * bmalloc/IsoTLSLayout.h:
+        * bmalloc/Scavenger.cpp:
+        (bmalloc::Scavenger::Scavenger):
+        (bmalloc::dumpStats):
+        (bmalloc::Scavenger::scavenge):
+        (bmalloc::Scavenger::partialScavenge):
+        (bmalloc::Scavenger::freeableMemory):
+        (bmalloc::Scavenger::footprint):
+        * bmalloc/Scavenger.h:
+        * bmalloc/StaticPerProcess.h: Added.
+        * bmalloc/VMHeap.cpp:
+        * bmalloc/VMHeap.h:
+        * bmalloc/Zone.h:
+        * bmalloc/bmalloc.cpp:
+        (bmalloc::api::scavenge):
+        (bmalloc::api::isEnabled):
+        (bmalloc::api::setScavengerThreadQOSClass):
+        (bmalloc::api::enableMiniMode):
+        * test/testbmalloc.cpp:
+        (assertEmptyPointerSet):
+        (assertHasObjects):
+        (assertHasOnlyObjects):
+        (assertClean):
+
+2019-03-13  Yoshiaki Jitsukawa  <yoshiaki.jitsukawa@sony.com>
+
+        [bmalloc] Use MADV_FREE on FreeBSD
+        https://bugs.webkit.org/show_bug.cgi?id=195665
+
+        Reviewed by Geoffrey Garen.
+
+        * bmalloc/BPlatform.h:
+
+        Introduce BOS_FREEBSD, which is equivalent to WTF_OS_FREEBSD
+
+        * bmalloc/VMAllocate.h:
+        (bmalloc::vmDeallocatePhysicalPages):
+
+        Use MADV_FREE instead of MADV_DONTNEED if BOS(FREEBSD), since on FreeBSD,
+        unlike on Linux, MADV_DONTNEED doesn't let the OS discard the contents of
+        the pages.
+
+2019-03-13  Sam Weinig  <sam@webkit.org>
+
+        Fix testbmalloc build
+        https://bugs.webkit.org/show_bug.cgi?id=195660
+
+        Reviewed by Geoffrey Garen.
+
+        * bmalloc.xcodeproj/project.pbxproj:
+        Link Foundation in when building testbmalloc. Since bmalloc requires Foundation, and is a static
+        library, all clients of bmalloc are required to link it themselves.
+        
+        * bmalloc/IsoPageInlines.h:
+        * bmalloc/StdLibExtras.h: Added.
+        (bmalloc::bitwise_cast):
+        Add bitwise_cast implementation, and use it in IsoPageInlines.h. It is a layering violation
+        to expect the one from WTF to be available, as seems to have been the case.
+
+2019-03-12  Robin Morisset  <rmorisset@apple.com>
+
+        A lot more classes have padding that can be reduced by reordering their fields
+        https://bugs.webkit.org/show_bug.cgi?id=195579
+
+        Reviewed by Mark Lam.
+
+        * bmalloc/Heap.h:
+        * bmalloc/Scavenger.h:
+
+2019-03-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] Bmalloc DebugHeap should have dump and scavenge features
+        https://bugs.webkit.org/show_bug.cgi?id=195305
+
+        Reviewed by Saam Barati.
+
+        As the same to bmalloc, bmalloc::DebugHeap should have scavenge feature to make it scavengable if we want.
+        We also add DebugHeap::dump feature which dumps system malloc data in the WebKit Malloc zone.
+
+        * bmalloc/DebugHeap.cpp:
+        (bmalloc::DebugHeap::scavenge):
+        (bmalloc::DebugHeap::dump):
+        * bmalloc/DebugHeap.h:
+        * bmalloc/bmalloc.cpp:
+        (bmalloc::api::scavenge):
+
+2019-02-23  Keith Miller  <keith_miller@apple.com>
+
+        Add new mac target numbers
+        https://bugs.webkit.org/show_bug.cgi?id=194955
+
+        Reviewed by Tim Horton.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+
+2019-02-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] bmalloc::Heap is allocated even though we use system malloc mode
+        https://bugs.webkit.org/show_bug.cgi?id=194836
+
+        Reviewed by Mark Lam.
+
+        Previously, bmalloc::Heap holds DebugHeap, and delegates allocation and deallocation to debug heap.
+        However, bmalloc::Heap is large. We would like to avoid initialization of bmalloc::Heap under the
+        system malloc mode.
+
+        This patch extracts out DebugHeap from bmalloc::Heap, and logically puts this in a boundary of
+        bmalloc::api. bmalloc::api delegates allocation and deallocation to DebugHeap if DebugHeap is enabled.
+        Otherwise, using bmalloc's usual mechanism. The challenge is that we would like to keep bmalloc fast
+        path fast.
+
+        1. For IsoHeaps, we use the similar techniques done in Cache. If the debug mode is enabled, we always go
+           to the slow path of the IsoHeap allocation, and keep IsoTLS::get() returning nullptr. In the slow path,
+           we just fallback to the usual bmalloc::api::tryMalloc implementation. This is efficient because bmalloc
+           continues using the fast path.
+
+        2. For the other APIs, like freeLargeVirtual, we just put DebugHeap check because this API itself takes fair
+           amount of time. Then debug heap check does not matter.
+
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::reallocateImpl):
+        * bmalloc/Cache.cpp:
+        (bmalloc::Cache::tryAllocateSlowCaseNullCache):
+        (bmalloc::Cache::allocateSlowCaseNullCache):
+        (bmalloc::Cache::deallocateSlowCaseNullCache):
+        (bmalloc::Cache::tryReallocateSlowCaseNullCache):
+        (bmalloc::Cache::reallocateSlowCaseNullCache):
+        (): Deleted.
+        (bmalloc::debugHeap): Deleted.
+        * bmalloc/DebugHeap.cpp:
+        * bmalloc/DebugHeap.h:
+        (bmalloc::DebugHeap::tryGet):
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::Heap):
+        (bmalloc::Heap::footprint):
+        (bmalloc::Heap::tryAllocateLarge):
+        (bmalloc::Heap::deallocateLarge):
+        * bmalloc/Heap.h:
+        (bmalloc::Heap::debugHeap): Deleted.
+        * bmalloc/IsoTLS.cpp:
+        (bmalloc::IsoTLS::IsoTLS):
+        (bmalloc::IsoTLS::isUsingDebugHeap): Deleted.
+        (bmalloc::IsoTLS::debugMalloc): Deleted.
+        (bmalloc::IsoTLS::debugFree): Deleted.
+        * bmalloc/IsoTLS.h:
+        * bmalloc/IsoTLSInlines.h:
+        (bmalloc::IsoTLS::allocateSlow):
+        (bmalloc::IsoTLS::deallocateSlow):
+        * bmalloc/ObjectType.cpp:
+        (bmalloc::objectType):
+        * bmalloc/ObjectType.h:
+        * bmalloc/Scavenger.cpp:
+        (bmalloc::Scavenger::Scavenger):
+        * bmalloc/bmalloc.cpp:
+        (bmalloc::api::tryLargeZeroedMemalignVirtual):
+        (bmalloc::api::freeLargeVirtual):
+        (bmalloc::api::scavenge):
+        (bmalloc::api::isEnabled):
+        (bmalloc::api::setScavengerThreadQOSClass):
+        (bmalloc::api::commitAlignedPhysical):
+        (bmalloc::api::decommitAlignedPhysical):
+        (bmalloc::api::enableMiniMode):
+
+2019-02-20  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Add SDKVariant.xcconfig to various Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=194869
+
+        Rubber-stamped by Jer Noble.
+
+        * bmalloc.xcodeproj/project.pbxproj:
+
+2019-02-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] DebugHeap::malloc does not have "try" version.
+        https://bugs.webkit.org/show_bug.cgi?id=194837
+
+        Reviewed by Mark Lam.
+
+        Since DebugHeap::malloc does not have "try" version, our tryAllocate implementation does not work well with DebugHeap.
+        This patch adds crashOnFailure flag to DebugHeap::malloc.
+
+        * bmalloc/Cache.cpp:
+        (bmalloc::Cache::tryAllocateSlowCaseNullCache):
+        (bmalloc::Cache::allocateSlowCaseNullCache):
+        * bmalloc/DebugHeap.cpp:
+        (bmalloc::DebugHeap::malloc):
+        * bmalloc/DebugHeap.h:
+        * bmalloc/IsoTLS.cpp:
+        (bmalloc::IsoTLS::debugMalloc):
+
+2019-02-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] bmalloc::Cache should not be instantiated if we are using system malloc
+        https://bugs.webkit.org/show_bug.cgi?id=194811
+
+        Reviewed by Mark Lam.
+
+        bmalloc::Cache is very large. It is 13KB. Since it exists per HeapKind, it takes 40KB.
+        But this is meaningless if we are under the system malloc mode by using "Malloc=1". We
+        found that it continues using so much dirty memory region even under the system malloc mode.
+        This patch avoids instantiation of bmalloc::Cache under the system malloc mode.
+
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::Allocator):
+        (bmalloc::Allocator::tryAllocate):
+        (bmalloc::Allocator::allocateImpl):
+        (bmalloc::Allocator::reallocateImpl):
+        (bmalloc::Allocator::allocateSlowCase):
+        Allocator is a per Cache object. So we no longer need to keep m_debugHeap. If debug heap is enabled,
+        Allocator is never created.
+
+        * bmalloc/Allocator.h:
+        * bmalloc/Cache.cpp:
+        (bmalloc::debugHeap):
+        (bmalloc::Cache::Cache):
+        (bmalloc::Cache::tryAllocateSlowCaseNullCache):
+        (bmalloc::Cache::allocateSlowCaseNullCache):
+        (bmalloc::Cache::deallocateSlowCaseNullCache):
+        (bmalloc::Cache::tryReallocateSlowCaseNullCache):
+        (bmalloc::Cache::reallocateSlowCaseNullCache):
+        * bmalloc/Cache.h:
+        (bmalloc::Cache::tryAllocate):
+        (bmalloc::Cache::tryReallocate):
+        If the debug heap mode is enabled, we keep Cache::getFast() returning nullptr. And in the slow path case, we use debugHeap.
+        This makes bmalloc fast path fast, while we avoid Cache instantiation.
+
+        * bmalloc/Deallocator.cpp:
+        (bmalloc::Deallocator::Deallocator):
+        (bmalloc::Deallocator::scavenge):
+        (bmalloc::Deallocator::deallocateSlowCase):
+        * bmalloc/Deallocator.h:
+        Ditto for Deallocator.
+
+        * bmalloc/bmalloc.cpp:
+        (bmalloc::api::isEnabled):
+        We used `getFastCase()` for Heap. But it is basically wrong since we do not have any guarantee that someone already initializes
+        Heap when this is called. Previously, luckily, Cache is initialized, and Cache initialized Heap. But Cache initialization is removed
+        for system malloc mode and now PerProcess<PerHeapKind<Heap>>::getFastCase() returns nullptr at an early phase. This patch just uses
+        Environment::isDebugHeapEnabled() instead.
+
+2019-02-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r241789.
+        https://bugs.webkit.org/show_bug.cgi?id=194856
+
+        GuardMalloc crashes (Requested by yusukesuzuki on #webkit).
+
+        Reverted changeset:
+
+        "[bmalloc] bmalloc::Cache should not be instantiated if we are
+        using system malloc"
+        https://bugs.webkit.org/show_bug.cgi?id=194811
+        https://trac.webkit.org/changeset/241789
+
+2019-02-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] bmalloc::Cache should not be instantiated if we are using system malloc
+        https://bugs.webkit.org/show_bug.cgi?id=194811
+
+        Reviewed by Mark Lam.
+
+        bmalloc::Cache is very large. It is 13KB. Since it exists per HeapKind, it takes 40KB.
+        But this is meaningless if we are under the system malloc mode by using "Malloc=1". We
+        found that it continues using so much dirty memory region even under the system malloc mode.
+        This patch avoids instantiation of bmalloc::Cache under the system malloc mode.
+
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::Allocator):
+        (bmalloc::Allocator::tryAllocate):
+        (bmalloc::Allocator::allocateImpl):
+        (bmalloc::Allocator::reallocateImpl):
+        (bmalloc::Allocator::allocateSlowCase):
+        Allocator is a per Cache object. So we no longer need to keep m_debugHeap. If debug heap is enabled,
+        Allocator is never created.
+
+        * bmalloc/Allocator.h:
+        * bmalloc/Cache.cpp:
+        (bmalloc::debugHeap):
+        (bmalloc::Cache::Cache):
+        (bmalloc::Cache::tryAllocateSlowCaseNullCache):
+        (bmalloc::Cache::allocateSlowCaseNullCache):
+        (bmalloc::Cache::deallocateSlowCaseNullCache):
+        (bmalloc::Cache::tryReallocateSlowCaseNullCache):
+        (bmalloc::Cache::reallocateSlowCaseNullCache):
+        * bmalloc/Cache.h:
+        (bmalloc::Cache::tryAllocate):
+        (bmalloc::Cache::tryReallocate):
+        If the debug heap mode is enabled, we keep Cache::getFast() returning nullptr. And in the slow path case, we use debugHeap.
+        This makes bmalloc fast path fast, while we avoid Cache instantiation.
+
+        * bmalloc/Deallocator.cpp:
+        (bmalloc::Deallocator::Deallocator):
+        (bmalloc::Deallocator::scavenge):
+        (bmalloc::Deallocator::deallocateSlowCase):
+        * bmalloc/Deallocator.h:
+        Ditto for Deallocator.
+
+2019-02-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] NSBundle-based application name check should be executed after debug-heap environment variable check
+        https://bugs.webkit.org/show_bug.cgi?id=194694
+
+        Reviewed by Mark Lam.
+
+        Interestingly, NSBundle allocates fair amount of memory and keeps it for a process-long time. For example, it
+        allocates global NSConcreteHashTable, which takes 2.5KB. This patch changes the order of gigacage-check, we
+        first check "Malloc=1" status, and then check the process name through NSBundle. This allows us to remove NSBundle
+        related allocation in JSC initialization in the system malloc mode.
+
+        * bmalloc/Gigacage.cpp:
+        (Gigacage::shouldBeEnabled):
+
+2019-02-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [bmalloc] Do not start scavenger thread if we use system malloc
+        https://bugs.webkit.org/show_bug.cgi?id=194674
+
+        Reviewed by Mark Lam.
+
+        We always start the scavenger thread even if system malloc is used by the environment variable like "Malloc=1".
+        Because bmalloc allocation goes to the system malloc if "Malloc=1" is set, we do not need to scavenge. This patch
+        changes it not to start the scavenger thread.
+
+        * bmalloc/Scavenger.cpp:
+        (bmalloc::Scavenger::Scavenger):
+
+2019-02-12  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r241182.
+        https://bugs.webkit.org/show_bug.cgi?id=194547
+
+        causes a 2-3% Speedometer2 regression. (Requested by
+        keith_miller on #webkit).
+
+        Reverted changeset:
+
+        "bmalloc uses more memory on iOS compared to macOS due to
+        physical page size differences"
+        https://bugs.webkit.org/show_bug.cgi?id=192389
+        https://trac.webkit.org/changeset/241182
+
+2019-02-07  Michael Saboff  <msaboff@apple.com>
+
+        bmalloc uses more memory on iOS compared to macOS due to physical page size differences
+        https://bugs.webkit.org/show_bug.cgi?id=192389
+
+        Reviewed by Geoffrey Garen.
+
+        Changed small line allocations to be in smallPageSize "virtual page" multiples instead of physical
+        page size increments for sizes less that the physical page size.  This required changing the small
+        page commit / decommit code to work in full physical page increments.  For page classes that are
+        physical page size and larger, there isn't any functional change.
+
+        When scavenging page classes smaller than the physical page size, we need to consider whether or
+        not the adjacent small pages on the same physical page are also free before decommiting that
+        containing page.  When we need to commit more memory, we commit the whole page, and add any
+        adjacent virtual pages that were fully committed as well.
+
+        * bmalloc/Chunk.h:
+        (bmalloc::forEachPage):
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::initializeLineMetadata):
+        (bmalloc::Heap::initializePageMetadata):
+        (bmalloc::Heap::scavenge):
+        (bmalloc::__attribute__):
+        (bmalloc::Heap::commitSmallPagesInPhysicalPage):
+        (bmalloc::Heap::allocateSmallPage):
+        (bmalloc::Heap::allocateSmallBumpRangesByMetadata):
+        * bmalloc/Heap.h:
+        * bmalloc/SmallPage.h:
+        (bmalloc::SmallPage::refCount):
+
 2019-01-18  Keith Miller  <keith_miller@apple.com>
 
         gigacage slide should randomize both start and end

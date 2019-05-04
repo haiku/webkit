@@ -94,6 +94,7 @@
         "kCFPreferencesAnyApplication"
         "com.apple.DownloadAssessment"
         "com.apple.WebFoundation"
+        "com.apple.ist.ds.appleconnect2.uat" ;; Remove after <rdar://problem/35542803> ships
         "com.apple.networkConnect"))
 (allow file-read*
     ;; Basic system paths
@@ -142,7 +143,9 @@
 (allow ipc-posix-shm-read-data
     (ipc-posix-name "FNetwork.defaultStorageSession")
     (ipc-posix-name-regex #"\.PrivateBrowsing-")
-    (ipc-posix-name-regex #"^WebKit Test-"))
+    (ipc-posix-name-regex #"^WebKit Test-")
+    (ipc-posix-name "/com.apple.AppSSO.version")
+)
 
 ;; Various services required by CFNetwork and other frameworks
 (allow mach-lookup
@@ -158,6 +161,8 @@
     (global-name "com.apple.ist.ds.appleconnect2.service.kdctunnelcontroller")
     (global-name "com.apple.lsd.mapdb")
     (global-name "com.apple.nesessionmanager.flow-divert-token")
+    (global-name "com.apple.nesessionmanager.content-filter") ;; <rdar://problem/47598758>
+    (global-name "com.apple.AppSSO.service-xpc")
 )
 
 ;; Security framework
@@ -222,6 +227,7 @@
 (allow mach-lookup
     (global-name "org.h5l.kcm")
     (global-name "com.apple.GSSCred")
+    (global-name "com.apple.ist.ds.appleconnect.service.kdctunnel") ;; Remove after <rdar://problem/35542803> ships
     (global-name "com.apple.system.logger")
     (global-name "com.apple.system.notification_center"))
 (allow network-outbound
@@ -234,7 +240,7 @@
 (allow file-read*
     (literal "/private/etc/krb5.conf")
     (literal "/private/etc/services")
-    (literal "/private/etc/host")
+    (literal "/private/etc/hosts")
     (subpath "/Library/KerberosPlugins/GSSAPI")
     (subpath "/Library/KerberosPlugins/KerberosFrameworkPlugins"))
 

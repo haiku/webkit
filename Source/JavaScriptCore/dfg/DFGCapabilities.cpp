@@ -44,32 +44,32 @@ bool isSupported()
 
 bool isSupportedForInlining(CodeBlock* codeBlock)
 {
-    return codeBlock->ownerScriptExecutable()->isInliningCandidate();
+    return codeBlock->ownerExecutable()->isInliningCandidate();
 }
 
 bool mightCompileEval(CodeBlock* codeBlock)
 {
     return isSupported()
         && codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount()
-        && codeBlock->ownerScriptExecutable()->isOkToOptimize();
+        && codeBlock->ownerExecutable()->isOkToOptimize();
 }
 bool mightCompileProgram(CodeBlock* codeBlock)
 {
     return isSupported()
         && codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount()
-        && codeBlock->ownerScriptExecutable()->isOkToOptimize();
+        && codeBlock->ownerExecutable()->isOkToOptimize();
 }
 bool mightCompileFunctionForCall(CodeBlock* codeBlock)
 {
     return isSupported()
         && codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount()
-        && codeBlock->ownerScriptExecutable()->isOkToOptimize();
+        && codeBlock->ownerExecutable()->isOkToOptimize();
 }
 bool mightCompileFunctionForConstruct(CodeBlock* codeBlock)
 {
     return isSupported()
         && codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount()
-        && codeBlock->ownerScriptExecutable()->isOkToOptimize();
+        && codeBlock->ownerExecutable()->isOkToOptimize();
 }
 
 bool mightInlineFunctionForCall(CodeBlock* codeBlock)
@@ -89,7 +89,7 @@ bool mightInlineFunctionForConstruct(CodeBlock* codeBlock)
 }
 bool canUseOSRExitFuzzing(CodeBlock* codeBlock)
 {
-    return codeBlock->ownerScriptExecutable()->canUseOSRExitFuzzing();
+    return codeBlock->ownerExecutable()->canUseOSRExitFuzzing();
 }
 
 static bool verboseCapabilities()
@@ -281,6 +281,7 @@ CapabilityLevel capabilityLevel(OpcodeID opcodeID, CodeBlock* codeBlock, const I
         return CanCompile;
 
     case op_yield:
+    case op_create_generator_frame_environment:
     case llint_program_prologue:
     case llint_eval_prologue:
     case llint_module_program_prologue:

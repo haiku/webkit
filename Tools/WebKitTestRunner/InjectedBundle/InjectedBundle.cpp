@@ -416,12 +416,12 @@ void InjectedBundle::didReceiveMessageToPage(WKBundlePageRef page, WKStringRef m
         return;
     }
 
-    if (WKStringIsEqualToUTF8CString(messageName, "WebsiteDataDeletionForTopPrivatelyOwnedDomainsFinished")) {
+    if (WKStringIsEqualToUTF8CString(messageName, "WebsiteDataDeletionForRegistrableDomainsFinished")) {
         m_testRunner->statisticsDidModifyDataRecordsCallback();
         return;
     }
 
-    if (WKStringIsEqualToUTF8CString(messageName, "WebsiteDataScanForTopPrivatelyControlledDomainsFinished")) {
+    if (WKStringIsEqualToUTF8CString(messageName, "WebsiteDataScanForRegistrableDomainsFinished")) {
         m_testRunner->statisticsDidScanDataRecordsCallback();
         return;
     }
@@ -477,13 +477,13 @@ void InjectedBundle::beginTesting(WKDictionaryRef settings, BegingTestingMode te
     m_accessibilityController = AccessibilityController::create();
 #endif
 
+    // Don't change experimental or internal features here; those should be set in TestController::resetPreferencesToConsistentValues().
     WKBundleSetAllowUniversalAccessFromFileURLs(m_bundle, m_pageGroup, true);
     WKBundleSetJavaScriptCanAccessClipboard(m_bundle, m_pageGroup, true);
     WKBundleSetPrivateBrowsingEnabled(m_bundle, m_pageGroup, false);
     WKBundleSetUseDashboardCompatibilityMode(m_bundle, m_pageGroup, false);
     WKBundleSetAuthorAndUserStylesEnabled(m_bundle, m_pageGroup, true);
     WKBundleSetFrameFlatteningEnabled(m_bundle, m_pageGroup, false);
-    WKBundleSetAsyncFrameScrollingEnabled(m_bundle, m_pageGroup, false);
     WKBundleSetMinimumLogicalFontSize(m_bundle, m_pageGroup, 9);
     WKBundleSetSpatialNavigationEnabled(m_bundle, m_pageGroup, false);
     WKBundleSetAllowFileAccessFromFileURLs(m_bundle, m_pageGroup, true);
@@ -500,7 +500,6 @@ void InjectedBundle::beginTesting(WKDictionaryRef settings, BegingTestingMode te
     m_testRunner->setXSSAuditorEnabled(false);
 
     m_testRunner->setWebGL2Enabled(true);
-    m_testRunner->setWebMetalEnabled(true);
 
     m_testRunner->setWritableStreamAPIEnabled(true);
     m_testRunner->setReadableByteStreamAPIEnabled(true);

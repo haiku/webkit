@@ -121,7 +121,7 @@ public:
 #if ENABLE(POINTER_EVENTS)
     static OptionSet<TouchAction> convertTouchAction(StyleResolver&, const CSSValue&);
 #endif
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
     static bool convertOverflowScrolling(StyleResolver&, const CSSValue&);
 #endif
     static FontFeatureSettings convertFontFeatureSettings(StyleResolver&, const CSSValue&);
@@ -746,7 +746,7 @@ inline RefPtr<StyleReflection> StyleBuilderConverter::convertReflection(StyleRes
     styleResolver.styleMap()->mapNinePieceImage(CSSPropertyWebkitBoxReflect, reflectValue.mask(), mask);
     reflection->setMask(mask);
 
-    return WTFMove(reflection);
+    return reflection;
 }
 
 inline IntSize StyleBuilderConverter::convertInitialLetter(StyleResolver&, const CSSValue& value)
@@ -1373,7 +1373,7 @@ inline OptionSet<TouchAction> StyleBuilderConverter::convertTouchAction(StyleRes
 }
 #endif
 
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
 inline bool StyleBuilderConverter::convertOverflowScrolling(StyleResolver&, const CSSValue& value)
 {
     return downcast<CSSPrimitiveValue>(value).valueID() == CSSValueTouch;

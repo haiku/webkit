@@ -42,7 +42,7 @@ Box::Box(Optional<ElementAttributes> attributes, RenderStyle&& style, BaseTypeFl
     , m_elementAttributes(attributes)
     , m_baseTypeFlags(baseTypeFlags)
 {
-    if (m_elementAttributes && m_elementAttributes.value().elementType == ElementType::Replaced)
+    if (isReplaced())
         m_replaced = std::make_unique<Replaced>(*this);
 }
 
@@ -109,16 +109,23 @@ bool Box::isFixedPositioned() const
 
 bool Box::isFloatingPositioned() const
 {
+    // FIXME: Rendering code caches values like this. (style="position: absolute; float: left")
+    if (isOutOfFlowPositioned())
+        return false;
     return m_style.floating() != Float::No;
 }
 
 bool Box::isLeftFloatingPositioned() const
 {
+    if (!isFloatingPositioned())
+        return false;
     return m_style.floating() == Float::Left;
 }
 
 bool Box::isRightFloatingPositioned() const
 {
+    if (!isFloatingPositioned())
+        return false;
     return m_style.floating() == Float::Right;
 }
 

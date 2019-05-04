@@ -29,9 +29,9 @@ initialState:
     fillStyle: "#000000"
     imageSmoothingEnabled: true
     imageSmoothingQuality: "low"
-    setPath: [{}]
+    setPath: [""]
   parameters:
-  content: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAAAtJREFUCB1jYEAHAAASAAGAFMrMAAAAAElFTkSuQmCC"
+  content: <filtered>
 frames:
   0: (duration)
     0: arc(1, 2, 3, 4, 5, false)
@@ -88,9 +88,9 @@ initialState:
     fillStyle: "#000000"
     imageSmoothingEnabled: true
     imageSmoothingQuality: "low"
-    setPath: [{}]
+    setPath: [""]
   parameters:
-  content: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAAAtJREFUCB1jYEAHAAASAAGAFMrMAAAAAElFTkSuQmCC"
+  content: <filtered>
 frames:
   0: (duration)
     0: arc(1, 2, 3, 4, 5, false)
@@ -1115,9 +1115,9 @@ initialState:
     fillStyle: "#000000"
     imageSmoothingEnabled: true
     imageSmoothingQuality: "low"
-    setPath: [{}]
+    setPath: [""]
   parameters:
-  content: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAAAtJREFUCB1jYEAHAAASAAGAFMrMAAAAAElFTkSuQmCC"
+  content: <filtered>
 frames:
   0: (duration) (incomplete)
     0: arc(1, 2, 3, 4, 5, false)

@@ -40,10 +40,13 @@
 #include "WorkerThread.h"
 #include <JavaScriptCore/IdentifiersFactory.h>
 #include <wtf/HashSet.h>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(Worker);
 
 static HashSet<Worker*>& allWorkers()
 {
@@ -110,7 +113,7 @@ ExceptionOr<Ref<Worker>> Worker::create(ScriptExecutionContext& context, JSC::Ru
     fetchOptions.redirect = FetchOptions::Redirect::Follow;
     fetchOptions.destination = FetchOptions::Destination::Worker;
     worker->m_scriptLoader->loadAsynchronously(context, WTFMove(request), WTFMove(fetchOptions), contentSecurityPolicyEnforcement, ServiceWorkersMode::All, worker);
-    return WTFMove(worker);
+    return worker;
 }
 
 Worker::~Worker()

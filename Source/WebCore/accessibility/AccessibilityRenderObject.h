@@ -106,7 +106,7 @@ public:
     bool ariaRoleHasPresentationalChildren() const override;
     
     // Should be called on the root accessibility object to kick off a hit test.
-    AccessibilityObject* accessibilityHitTest(const IntPoint&) const override;
+    AccessibilityObjectInterface* accessibilityHitTest(const IntPoint&) const override;
 
     Element* anchorElement() const override;
     
@@ -200,6 +200,7 @@ public:
     AccessibilityRole roleValueForMSAA() const override;
 
     String passwordFieldValue() const override;
+    void titleElementText(Vector<AccessibilityText>&) const override;
 
 protected:
     explicit AccessibilityRenderObject(RenderObject*);
@@ -239,17 +240,18 @@ private:
     AccessibilityObject* internalLinkElement() const;
     AccessibilityObject* accessibilityImageMapHitTest(HTMLAreaElement*, const IntPoint&) const;
     AccessibilityObject* accessibilityParentForImageMap(HTMLMapElement*) const;
-    AccessibilityObject* elementAccessibilityHitTest(const IntPoint&) const override;
+    AccessibilityObjectInterface* elementAccessibilityHitTest(const IntPoint&) const override;
 
     bool renderObjectIsObservable(RenderObject&) const;
     RenderObject* renderParentObject() const;
     bool isDescendantOfElementType(const QualifiedName& tagName) const;
-    
+    bool isDescendantOfElementType(const HashSet<QualifiedName>&) const;
+
     bool isSVGImage() const;
     void detachRemoteSVGRoot();
     enum CreationChoice { Create, Retrieve };
     AccessibilitySVGRoot* remoteSVGRootElement(CreationChoice createIfNecessary) const;
-    AccessibilityObject* remoteSVGElementHitTest(const IntPoint&) const;
+    AccessibilityObjectInterface* remoteSVGElementHitTest(const IntPoint&) const;
     void offsetBoundingBoxForRemoteSVGElement(LayoutRect&) const;
     bool supportsPath() const override;
 
@@ -281,6 +283,12 @@ private:
     bool inheritsPresentationalRole() const override;
 
     bool shouldGetTextFromNode(AccessibilityTextUnderElementMode) const;
+
+#if ENABLE(APPLE_PAY)
+    bool isApplePayButton() const;
+    ApplePayButtonType applePayButtonType() const;
+    String applePayButtonDescription() const;
+#endif
 
     RenderObject* targetElementForActiveDescendant(const QualifiedName&, AccessibilityObject*) const;
     bool canHavePlainText() const;

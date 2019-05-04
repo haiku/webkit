@@ -180,6 +180,7 @@ WI.TextEditor = class TextEditor extends WI.View
     set readOnly(readOnly)
     {
         this._codeMirror.setOption("readOnly", readOnly);
+        this._codeMirror.getWrapperElement().classList.toggle("read-only", !!readOnly);
     }
 
     get formatted()
@@ -338,7 +339,7 @@ WI.TextEditor = class TextEditor extends WI.View
         }
 
         // Go down the slow patch for all other text content.
-        var queryRegex = new RegExp(query.escapeForRegExp(), "gi");
+        let queryRegex = WI.SearchUtilities.regExpForString(query, WI.SearchUtilities.defaultSettings);
         var searchCursor = this._codeMirror.getSearchCursor(queryRegex, {line: 0, ch: 0}, false);
         var boundBatchSearch = batchSearch.bind(this);
         var numberOfSearchResultsDidChangeTimeout = null;
@@ -1687,6 +1688,9 @@ WI.TextEditor = class TextEditor extends WI.View
 
     _openClickedLinks(event)
     {
+        if (!this.readOnly && !event.commandOrControlKey)
+            return;
+
         // Get the position in the text and the token at that position.
         var position = this._codeMirror.coordsChar({left: event.pageX, top: event.pageY});
         var tokenInfo = this._codeMirror.getTokenAt(position);

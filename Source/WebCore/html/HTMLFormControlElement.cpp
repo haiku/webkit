@@ -38,8 +38,10 @@
 #include "HTMLInputElement.h"
 #include "HTMLLegendElement.h"
 #include "HTMLTextAreaElement.h"
+#include "Quirks.h"
 #include "RenderBox.h"
 #include "RenderTheme.h"
+#include "ScriptDisallowedScope.h"
 #include "Settings.h"
 #include "StyleTreeResolver.h"
 #include "ValidationMessage.h"
@@ -280,7 +282,9 @@ static void removeInvalidElementToAncestorFromInsertionPoint(const HTMLFormContr
 
 Node::InsertedIntoAncestorResult HTMLFormControlElement::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
-    m_dataListAncestorState = Unknown;
+    if (m_dataListAncestorState == NotInsideDataList)
+        m_dataListAncestorState = Unknown;
+
     setNeedsWillValidateCheck();
     if (willValidate() && !isValidFormControlElement())
         addInvalidElementToAncestorFromInsertionPoint(*this, &parentOfInsertedTree);
@@ -303,12 +307,21 @@ void HTMLFormControlElement::removedFromAncestor(RemovalType removalType, Contai
     m_validationMessage = nullptr;
     if (m_disabledByAncestorFieldset)
         setAncestorDisabled(computeIsDisabledByFieldsetAncestor());
-    m_dataListAncestorState = Unknown;
+
+    bool wasInsideDataList = false;
+    if (m_dataListAncestorState == InsideDataList) {
+        m_dataListAncestorState = Unknown;
+        wasInsideDataList = true;
+    }
+
     HTMLElement::removedFromAncestor(removalType, oldParentOfRemovedTree);
     FormAssociatedElement::removedFromAncestor(removalType, oldParentOfRemovedTree);
 
     if (wasMatchingInvalidPseudoClass)
         removeInvalidElementToAncestorFromInsertionPoint(*this, &oldParentOfRemovedTree);
+
+    if (wasInsideDataList)
+        setNeedsWillValidateCheck();
 }
 
 void HTMLFormControlElement::setChangedSinceLastFormControlChangeEvent(bool changed)
@@ -545,8 +558,10 @@ void HTMLFormControlElement::willChangeForm()
 
 void HTMLFormControlElement::didChangeForm()
 {
+    ScriptDisallowedScope::InMainThread scriptDisallowedScope;
+
     FormAssociatedElement::didChangeForm();
-    if (RefPtr<HTMLFormElement> form = this->form()) {
+    if (auto* form = this->form()) {
         if (m_willValidateInitialized && m_willValidate && !isValidFormControlElement())
             form->registerInvalidAssociatedFormControl(*this);
     }
@@ -661,15 +676,7 @@ AutofillData HTMLFormControlElement::autofillData() const
 // FIXME: We should remove the quirk once <rdar://problem/47334655> is fixed.
 bool HTMLFormControlElement::needsMouseFocusableQuirk() const
 {
-#if PLATFORM(MAC)
-    if (!document().settings().needsSiteSpecificQuirks())
-        return false;
-
-    auto host = document().url().host();
-    return equalLettersIgnoringASCIICase(host, "ceac.state.gov") || host.endsWithIgnoringASCIICase(".ceac.state.gov");
-#else
-    return false;
-#endif
+    return document().quirks().needsFormControlToBeMouseFocusable();
 }
 
 } // namespace Webcore

@@ -28,7 +28,7 @@
 
 #if USE(REDIRECTED_XCOMPOSITE_WINDOW)
 
-#include "DrawingAreaProxyImpl.h"
+#include "DrawingAreaProxyCoordinatedGraphics.h"
 #include "LayerTreeContext.h"
 #include "WebPageProxy.h"
 #include <WebCore/CairoUtilities.h>
@@ -157,7 +157,7 @@ void AcceleratedBackingStoreX11::update(const LayerTreeContext& layerTreeContext
     if (!pixmap)
         return;
 
-    DrawingAreaProxyImpl* drawingArea = static_cast<DrawingAreaProxyImpl*>(m_webPage.drawingArea());
+    auto* drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(m_webPage.drawingArea());
     if (!drawingArea)
         return;
 
@@ -186,7 +186,6 @@ bool AcceleratedBackingStoreX11::paint(cairo_t* cr, const IntRect& clipRect)
         return false;
 
     cairo_save(cr);
-    AcceleratedBackingStore::paint(cr, clipRect);
 
     // The surface can be modified by the web process at any time, so we mark it
     // as dirty to ensure we always render the updated contents as soon as possible.

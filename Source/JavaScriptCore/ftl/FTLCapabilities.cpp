@@ -91,6 +91,7 @@ inline CapabilityLevel canCompile(Node* node)
     case ValueBitAnd:
     case ValueBitXor:
     case ValueBitOr:
+    case ValueBitNot:
     case ValueNegate:
     case ValueAdd:
     case ValueSub:
@@ -405,7 +406,7 @@ CapabilityLevel canCompile(Graph& graph)
         return CannotCompile;
     }
     
-    if (UNLIKELY(graph.m_codeBlock->ownerScriptExecutable()->neverFTLOptimize())) {
+    if (UNLIKELY(graph.m_codeBlock->ownerExecutable()->neverFTLOptimize())) {
         if (verboseCapabilities())
             dataLog("FTL rejecting ", *graph.m_codeBlock, " because it is marked as never FTL compile.\n");
         return CannotCompile;

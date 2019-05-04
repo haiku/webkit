@@ -15,13 +15,13 @@ set(TestWebKitAPI_LIBRARIES
 )
 
 set(TestWebKitAPI_DEPENDENCIES
-    JavaScriptCoreForwardingHeaders
-    JavaScriptCorePrivateForwardingHeaders
-    WTFForwardingHeaders
+    JavaScriptCoreFrameworkHeaders
+    JavaScriptCorePrivateFrameworkHeaders
+    WTFFrameworkHeaders
 )
 
 if (ENABLE_WEBCORE)
-    list(APPEND TestWebKitAPI_DEPENDENCIES PALForwardingHeaders)
+    list(APPEND TestWebKitAPI_DEPENDENCIES PALFrameworkHeaders)
 endif ()
 
 if (ENABLE_WEBKIT)
@@ -129,6 +129,7 @@ set(TestWTF_SOURCES
     ${TESTWEBKITAPI_DIR}/Tests/WTF/HashSet.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/Hasher.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/IntegerToStringConversion.cpp
+    ${TESTWEBKITAPI_DIR}/Tests/WTF/IteratorRange.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/JSONValue.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/LEBDecoder.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/LifecycleLogger.cpp
@@ -147,18 +148,13 @@ set(TestWTF_SOURCES
     ${TESTWEBKITAPI_DIR}/Tests/WTF/Optional.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/OptionSet.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/ParkingLot.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/Poisoned.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/PoisonedRef.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/PoisonedRefPtr.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/PoisonedUniquePtr.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/PoisonedUniquePtrForNonTriviallyDestructibleArrays.cpp
-    ${TESTWEBKITAPI_DIR}/Tests/WTF/PoisonedUniquePtrForTriviallyDestructibleArrays.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/PriorityQueue.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/RedBlackTree.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/Ref.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/RefCounter.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/RefLogger.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/RefPtr.cpp
+    ${TESTWEBKITAPI_DIR}/Tests/WTF/RunLoop.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/SHA1.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/SaturatedArithmeticOperations.cpp
     ${TESTWEBKITAPI_DIR}/Tests/WTF/Scope.cpp
@@ -192,7 +188,6 @@ set(TestWTF_SOURCES
 if (NOT WIN32)
     list(APPEND TestWTF_SOURCES
         ${TESTWEBKITAPI_DIR}/Tests/WTF/FileSystem.cpp
-        ${TESTWEBKITAPI_DIR}/Tests/WTF/RunLoop.cpp
     )
 endif ()
 

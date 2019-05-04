@@ -31,7 +31,7 @@
 #include "EditorState.h"
 #include "WebEvent.h"
 #include "WebFrame.h"
-#include "WebPageAccessibilityObject.h"
+#include "WebKitWebPageAccessibilityObject.h"
 #include "WebPageProxyMessages.h"
 #include "WebProcess.h"
 #include <WebCore/BackForwardController.h>
@@ -61,10 +61,14 @@ void WebPage::platformInitialize()
     // entry point to the Web process, and send a message to the UI
     // process to connect the two worlds through the accessibility
     // object there specifically placed for that purpose (the socket).
-    m_accessibilityObject = adoptGRef(webPageAccessibilityObjectNew(this));
+    m_accessibilityObject = adoptGRef(webkitWebPageAccessibilityObjectNew(this));
     GUniquePtr<gchar> plugID(atk_plug_get_id(ATK_PLUG(m_accessibilityObject.get())));
     send(Messages::WebPageProxy::BindAccessibilityTree(String(plugID.get())));
 #endif
+}
+
+void WebPage::platformReinitialize()
+{
 }
 
 void WebPage::platformDetach()
@@ -113,7 +117,7 @@ void WebPage::updateAccessibilityTree()
     if (!m_accessibilityObject)
         return;
 
-    webPageAccessibilityObjectRefresh(m_accessibilityObject.get());
+    webkitWebPageAccessibilityObjectRefresh(WEBKIT_WEB_PAGE_ACCESSIBILITY_OBJECT(m_accessibilityObject.get()));
 }
 #endif
 
@@ -172,11 +176,12 @@ String WebPage::platformUserAgent(const URL& url) const
 }
 
 #if HAVE(GTK_GESTURES)
-void WebPage::getCenterForZoomGesture(const IntPoint& centerInViewCoordinates, IntPoint& result)
+void WebPage::getCenterForZoomGesture(const IntPoint& centerInViewCoordinates, CompletionHandler<void(WebCore::IntPoint&&)>&& completionHandler)
 {
-    result = mainFrameView()->rootViewToContents(centerInViewCoordinates);
+    IntPoint result = mainFrameView()->rootViewToContents(centerInViewCoordinates);
     double scale = m_page->pageScaleFactor();
     result.scale(1 / scale, 1 / scale);
+    completionHandler(WTFMove(result));
 }
 #endif
 

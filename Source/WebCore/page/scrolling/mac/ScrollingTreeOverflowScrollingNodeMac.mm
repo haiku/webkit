@@ -28,52 +28,70 @@
 
 #if ENABLE(ASYNC_SCROLLING) && PLATFORM(MAC)
 
+#import "Logging.h"
+#import "ScrollingStateOverflowScrollingNode.h"
+#import "ScrollingTree.h"
+#import <wtf/text/TextStream.h>
+
 namespace WebCore {
 
-Ref<ScrollingTreeOverflowScrollingNodeMac> ScrollingTreeOverflowScrollingNodeMac::create(WebCore::ScrollingTree& scrollingTree, WebCore::ScrollingNodeID nodeID)
+Ref<ScrollingTreeOverflowScrollingNodeMac> ScrollingTreeOverflowScrollingNodeMac::create(ScrollingTree& scrollingTree, ScrollingNodeID nodeID)
 {
     return adoptRef(*new ScrollingTreeOverflowScrollingNodeMac(scrollingTree, nodeID));
 }
 
-ScrollingTreeOverflowScrollingNodeMac::ScrollingTreeOverflowScrollingNodeMac(WebCore::ScrollingTree& scrollingTree, WebCore::ScrollingNodeID nodeID)
+ScrollingTreeOverflowScrollingNodeMac::ScrollingTreeOverflowScrollingNodeMac(ScrollingTree& scrollingTree, ScrollingNodeID nodeID)
     : ScrollingTreeOverflowScrollingNode(scrollingTree, nodeID)
+    , m_delegate(*this)
 {
 }
 
-ScrollingTreeOverflowScrollingNodeMac::~ScrollingTreeOverflowScrollingNodeMac()
-{
-}
+ScrollingTreeOverflowScrollingNodeMac::~ScrollingTreeOverflowScrollingNodeMac() = default;
 
-void ScrollingTreeOverflowScrollingNodeMac::commitStateBeforeChildren(const WebCore::ScrollingStateNode& stateNode)
+void ScrollingTreeOverflowScrollingNodeMac::commitStateBeforeChildren(const ScrollingStateNode& stateNode)
 {
     ScrollingTreeOverflowScrollingNode::commitStateBeforeChildren(stateNode);
+    m_delegate.updateFromStateNode(downcast<ScrollingStateOverflowScrollingNode>(stateNode));
 }
 
 void ScrollingTreeOverflowScrollingNodeMac::commitStateAfterChildren(const ScrollingStateNode& stateNode)
 {
     ScrollingTreeOverflowScrollingNode::commitStateAfterChildren(stateNode);
+    
+    // FIXME: RequestedScrollPosition etc.
 }
 
-void ScrollingTreeOverflowScrollingNodeMac::updateLayersAfterAncestorChange(const ScrollingTreeNode& changedNode, const FloatRect& fixedPositionRect, const FloatSize& cumulativeDelta)
+ScrollingEventResult ScrollingTreeOverflowScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
-    UNUSED_PARAM(changedNode);
-    UNUSED_PARAM(fixedPositionRect);
-    UNUSED_PARAM(cumulativeDelta);
+    if (!canHaveScrollbars())
+        return ScrollingEventResult::DidNotHandleEvent;
+
+    m_delegate.handleWheelEvent(wheelEvent);
+
+    // FIXME: Scroll snap
+
+    scrollingTree().setOrClearLatchedNode(wheelEvent, scrollingNodeID());
+    scrollingTree().handleWheelEventPhase(wheelEvent.phase());
+    
+    // FIXME: This needs to return whether the event was handled.
+    return ScrollingEventResult::DidHandleEvent;
 }
 
-FloatPoint ScrollingTreeOverflowScrollingNodeMac::scrollPosition() const
+FloatPoint ScrollingTreeOverflowScrollingNodeMac::adjustedScrollPosition(const FloatPoint& position, ScrollPositionClamp clamp) const
 {
-    return { };
+    FloatPoint scrollPosition(roundf(position.x()), roundf(position.y()));
+    return ScrollingTreeOverflowScrollingNode::adjustedScrollPosition(scrollPosition, clamp);
 }
 
-void ScrollingTreeOverflowScrollingNodeMac::setScrollLayerPosition(const FloatPoint& scrollPosition, const FloatRect&)
+void ScrollingTreeOverflowScrollingNodeMac::repositionScrollingLayers()
 {
-    UNUSED_PARAM(scrollPosition);
+    auto scrollPosition = currentScrollPosition();
+    scrolledContentsLayer().position = -scrollPosition;
 }
 
-void ScrollingTreeOverflowScrollingNodeMac::updateLayersAfterDelegatedScroll(const FloatPoint& scrollPosition)
+void ScrollingTreeOverflowScrollingNodeMac::repositionRelatedLayers()
 {
-    UNUSED_PARAM(scrollPosition);
+    m_delegate.updateScrollbarPainters();
 }
 
 } // namespace WebCore

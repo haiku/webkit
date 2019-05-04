@@ -56,6 +56,9 @@ public:
     const BackForwardListItemState& itemState() { return m_itemState; }
     uint64_t pageID() const { return m_pageID; }
 
+    WebCore::ProcessIdentifier lastProcessIdentifier() const { return m_lastProcessIdentifier; }
+    void setLastProcessIdentifier(const WebCore::ProcessIdentifier& identifier) { m_lastProcessIdentifier = identifier; }
+
     void setPageState(PageState pageState) { m_itemState.pageState = WTFMove(pageState); }
     const PageState& pageState() const { return m_itemState.pageState; }
 
@@ -66,7 +69,7 @@ public:
     bool itemIsInSameDocument(const WebBackForwardListItem&) const;
     bool itemIsClone(const WebBackForwardListItem&);
 
-#if PLATFORM(COCOA)
+#if PLATFORM(COCOA) || PLATFORM(GTK)
     ViewSnapshot* snapshot() const { return m_itemState.snapshot.get(); }
     void setSnapshot(RefPtr<ViewSnapshot>&& snapshot) { m_itemState.snapshot = WTFMove(snapshot); }
 #endif
@@ -84,6 +87,7 @@ private:
 
     BackForwardListItemState m_itemState;
     uint64_t m_pageID;
+    WebCore::ProcessIdentifier m_lastProcessIdentifier;
     WeakPtr<SuspendedPageProxy> m_suspendedPage;
 };
 

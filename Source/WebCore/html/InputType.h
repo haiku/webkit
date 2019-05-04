@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include "HTMLInputElement.h"
 #include "HTMLTextFormControlElement.h"
 #include "RenderPtr.h"
 #include "StepRange.h"
@@ -55,7 +56,6 @@ class Event;
 class FileList;
 class HTMLElement;
 class HTMLFormElement;
-class HTMLInputElement;
 class Icon;
 class KeyboardEvent;
 class MouseEvent;
@@ -182,7 +182,10 @@ public:
     virtual void willDispatchClick(InputElementClickState&);
     virtual void didDispatchClick(Event&, const InputElementClickState&);
     virtual void handleDOMActivateEvent(Event&);
-    virtual void handleKeydownEvent(KeyboardEvent&);
+
+    enum ShouldCallBaseEventHandler { No, Yes };
+    virtual ShouldCallBaseEventHandler handleKeydownEvent(KeyboardEvent&);
+
     virtual void handleKeypressEvent(KeyboardEvent&);
     virtual void handleKeyupEvent(KeyboardEvent&);
     virtual void handleBeforeTextInsertedEvent(BeforeTextInsertedEvent&);

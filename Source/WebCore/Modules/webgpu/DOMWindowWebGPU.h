@@ -36,17 +36,18 @@ class DOMWindow;
 class WebGPU;
 
 class DOMWindowWebGPU : public Supplement<DOMWindow>, public DOMWindowProperty {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit DOMWindowWebGPU(DOMWindow*);
     virtual ~DOMWindowWebGPU() = default;
     static DOMWindowWebGPU* from(DOMWindow*);
-    static WebGPU* webgpu(DOMWindow&);
-    WebGPU* webgpu() const;
+    static WebGPU* gpu(DOMWindow&);
+    WebGPU* gpu() const;
 
 private:
     static const char* supplementName();
 
-    mutable RefPtr<WebGPU> m_webgpu;
+    mutable RefPtr<WebGPU> m_gpu;
 };
 
 } // namespace WebCore

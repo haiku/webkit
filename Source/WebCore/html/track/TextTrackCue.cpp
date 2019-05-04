@@ -44,10 +44,15 @@
 #include "TextTrackCueList.h"
 #include "VTTCue.h"
 #include "VTTRegionList.h"
+#include <wtf/HexNumber.h>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/MathExtras.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(TextTrackCue);
 
 const AtomicString& TextTrackCue::cueShadowPseudoId()
 {
@@ -243,6 +248,14 @@ String TextTrackCue::toJSONString() const
     toJSON(object.get());
 
     return object->toJSONString();
+}
+
+String TextTrackCue::debugString() const
+{
+    String text;
+    if (isRenderable())
+        text = toVTTCue(this)->text();
+    return makeString("0x", hex(reinterpret_cast<uintptr_t>(this)), " id=", id(), " interval=", startTime(), "-->", endTime(), " cue=", text, ')');
 }
 
 } // namespace WebCore

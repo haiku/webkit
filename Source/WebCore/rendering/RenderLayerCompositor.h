@@ -65,28 +65,30 @@ enum class CompositingReason {
     Filters                                = 1 << 8,
     PositionFixed                          = 1 << 9,
     PositionSticky                         = 1 << 10,
-    OverflowScrollingTouch                 = 1 << 11,
+    OverflowScrolling                      = 1 << 11,
     Stacking                               = 1 << 12,
     Overlap                                = 1 << 13,
-    NegativeZIndexChildren                 = 1 << 14,
-    TransformWithCompositedDescendants     = 1 << 15,
-    OpacityWithCompositedDescendants       = 1 << 16,
-    MaskWithCompositedDescendants          = 1 << 17,
-    ReflectionWithCompositedDescendants    = 1 << 18,
-    FilterWithCompositedDescendants        = 1 << 19,
-    BlendingWithCompositedDescendants      = 1 << 20,
-    Perspective                            = 1 << 21,
-    Preserve3D                             = 1 << 22,
-    WillChange                             = 1 << 23,
-    Root                                   = 1 << 24,
-    IsolatesCompositedBlendingDescendants  = 1 << 25,
-    EmbeddedView                           = 1 << 26,
+    OverflowScrollPositioning              = 1 << 14,
+    NegativeZIndexChildren                 = 1 << 15,
+    TransformWithCompositedDescendants     = 1 << 16,
+    OpacityWithCompositedDescendants       = 1 << 17,
+    MaskWithCompositedDescendants          = 1 << 18,
+    ReflectionWithCompositedDescendants    = 1 << 19,
+    FilterWithCompositedDescendants        = 1 << 20,
+    BlendingWithCompositedDescendants      = 1 << 21,
+    Perspective                            = 1 << 22,
+    Preserve3D                             = 1 << 23,
+    WillChange                             = 1 << 24,
+    Root                                   = 1 << 25,
+    IsolatesCompositedBlendingDescendants  = 1 << 26,
+    EmbeddedView                           = 1 << 27,
 };
 
 enum class ScrollCoordinationRole {
     ViewportConstrained = 1 << 0,
     Scrolling           = 1 << 1,
     FrameHosting        = 1 << 2,
+    Positioning         = 1 << 3,
 };
 
 #if PLATFORM(IOS_FAMILY)
@@ -241,11 +243,12 @@ public:
     WEBCORE_EXPORT RenderLayer& rootRenderLayer() const;
     GraphicsLayer* rootGraphicsLayer() const;
 
-    GraphicsLayer* scrollLayer() const { return m_scrollLayer.get(); }
+    GraphicsLayer* scrollContainerLayer() const { return m_scrollContainerLayer.get(); }
+    GraphicsLayer* scrolledContentsLayer() const { return m_scrolledContentsLayer.get(); }
     GraphicsLayer* clipLayer() const { return m_clipLayer.get(); }
-    GraphicsLayer* rootContentLayer() const { return m_rootContentLayer.get(); }
+    GraphicsLayer* rootContentsLayer() const { return m_rootContentsLayer.get(); }
 
-    GraphicsLayer* layerForClipping() const {  return m_clipLayer ? m_clipLayer.get() : m_scrollLayer.get();  }
+    GraphicsLayer* layerForClipping() const {  return m_clipLayer ? m_clipLayer.get() : m_scrollContainerLayer.get();  }
 
 #if ENABLE(RUBBER_BANDING)
     GraphicsLayer* headerLayer() const { return m_layerForHeader.get(); }
@@ -324,6 +327,7 @@ public:
     // FIXME: make the coordinated/async terminology consistent.
     bool isViewportConstrainedFixedOrStickyLayer(const RenderLayer&) const;
     bool useCoordinatedScrollingForLayer(const RenderLayer&) const;
+    ScrollPositioningBehavior computeCoordinatedPositioningForLayer(const RenderLayer&) const;
     bool isLayerForIFrameWithScrollCoordinatedContents(const RenderLayer&) const;
 
     ScrollableArea* scrollableAreaForScrollLayerID(ScrollingNodeID) const;
@@ -472,7 +476,9 @@ private:
     bool requiresCompositingForPosition(RenderLayerModelObject&, const RenderLayer&, RequiresCompositingData&) const;
     bool requiresCompositingForOverflowScrolling(const RenderLayer&, RequiresCompositingData&) const;
     bool requiresCompositingForEditableImage(RenderLayerModelObject&) const;
-    bool requiresCompositingForIndirectReason(RenderLayerModelObject&, bool hasCompositedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason&) const;
+    bool requiresCompositingForIndirectReason(RenderLayerModelObject&, const RenderLayer* compositingAncestor, bool hasCompositedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason&) const;
+
+    static bool layerContainingBlockCrossesCoordinatedScrollingBoundary(const RenderLayer&, const RenderLayer& compositedAncestor);
 
     static bool styleChangeMayAffectIndirectCompositingReasons(const RenderStyle& oldStyle, const RenderStyle& newStyle);
 
@@ -490,6 +496,9 @@ private:
     ScrollingNodeID updateScrollingNodeForViewportConstrainedRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
     ScrollingNodeID updateScrollingNodeForScrollingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
     ScrollingNodeID updateScrollingNodeForFrameHostingRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
+    ScrollingNodeID updateScrollingNodeForPositioningRole(RenderLayer&, struct ScrollingTreeState&, OptionSet<ScrollingNodeChangeFlags>);
+
+    void updateScrollingNodeLayers(ScrollingNodeID, RenderLayer&, ScrollingCoordinator&);
 
     void detachScrollCoordinatedLayer(RenderLayer&, OptionSet<ScrollCoordinationRole>);
     void detachScrollCoordinatedLayerWithRole(RenderLayer&, ScrollingCoordinator&, ScrollCoordinationRole);
@@ -497,9 +506,8 @@ private:
     FixedPositionViewportConstraints computeFixedViewportConstraints(RenderLayer&) const;
     StickyPositionViewportConstraints computeStickyViewportConstraints(RenderLayer&) const;
 
-    void computeFrameScrollingGeometry(ScrollingCoordinator::ScrollingGeometry&) const;
-    void computeFrameHostingGeometry(const RenderLayer&, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry&) const;
-    void computeOverflowScrollingGeometry(const RenderLayer&, const RenderLayer* ancestorLayer, ScrollingCoordinator::ScrollingGeometry&) const;
+    LayoutRect rootParentRelativeScrollableRect() const;
+    LayoutRect parentRelativeScrollableRect(const RenderLayer&, const RenderLayer* ancestorLayer) const;
 
     bool requiresScrollLayer(RootLayerAttachment) const;
     bool requiresHorizontalScrollbarLayer() const;
@@ -534,7 +542,6 @@ private:
     
 private:
     RenderView& m_renderView;
-    RefPtr<GraphicsLayer> m_rootContentLayer;
     Timer m_updateCompositingLayersTimer;
 
     ChromeClient::CompositingTriggerFlags m_compositingTriggers { static_cast<ChromeClient::CompositingTriggerFlags>(ChromeClient::AllTriggers) };
@@ -562,9 +569,12 @@ private:
 
     RootLayerAttachment m_rootLayerAttachment { RootLayerUnattached };
 
+    RefPtr<GraphicsLayer> m_rootContentsLayer;
+
     // Enclosing clipping layer for iframe content
     RefPtr<GraphicsLayer> m_clipLayer;
-    RefPtr<GraphicsLayer> m_scrollLayer;
+    RefPtr<GraphicsLayer> m_scrollContainerLayer;
+    RefPtr<GraphicsLayer> m_scrolledContentsLayer;
 
     // Enclosing layer for overflow controls and the clipping layer
     RefPtr<GraphicsLayer> m_overflowControlsHostLayer;

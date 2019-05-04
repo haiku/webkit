@@ -1,3 +1,216 @@
+2019-04-03  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        -apple-trailing-word is needed for browser detection
+        https://bugs.webkit.org/show_bug.cgi?id=196575
+
+        Unreviewed.
+
+        * MotionMark/resources/debug-runner/motionmark.css:
+        (#intro .start-benchmark p):
+
+2019-03-27  Ryan Haddad  <ryanhaddad@apple.com>
+
+        REGRESSION (r242911?): High Sierra Release WK2 Perf bot timing out while running IndexedDB/large-number-of-inserts.html
+        https://bugs.webkit.org/show_bug.cgi?id=195952
+
+        Unreviewed test gardening.
+
+        * Skipped: Skip the affected test so the bot will finish the run.
+
+2019-03-27  Saam Barati  <sbarati@apple.com>
+
+        JetStream 2 should not report time values as scores
+        https://bugs.webkit.org/show_bug.cgi?id=196334
+
+        Reviewed by Yusuke Suzuki.
+
+        * JetStream2/JetStreamDriver.js:
+        (toTimeValue):
+        (Driver.prototype.async.reportScoreToRunBenchmarkRunner):
+
+2019-03-27  Saam barati  <sbarati@apple.com>
+
+        Unreviewed. Fix individual benchmark description urls to go to in-depth.html instead of about.html
+
+        * JetStream2/JetStreamDriver.js:
+        (Driver.prototype.prepareToRun.text.div.id.string_appeared_here.h3):
+
+2019-03-25  Saam barati  <sbarati@apple.com>
+
+        Update the blurb describing JetStream2 and fix a broken link in the in-depth page.
+
+        Rubber-stamped by Filip Pizlo.
+
+        * JetStream2/in-depth.html:
+        * JetStream2/index.html:
+
+2019-03-18  Saam Barati  <sbarati@apple.com>
+
+        Add a plan file for JetStream 2
+        https://bugs.webkit.org/show_bug.cgi?id=190734
+
+        Reviewed by Mark Lam.
+
+        Make the delay when starting via run-benchmark longer to allow
+        the page's animation to finish.
+
+        * JetStream2/JetStreamDriver.js:
+        (Driver.prototype.async.initialize):
+
+2019-03-15  Jon Davis  <jond@apple.com>
+
+        Fixed a bug preventing the overall sore to be displayed on JetStream2
+        https://bugs.webkit.org/show_bug.cgi?id=195817
+
+        Rubber-stamped by Saam Barati.
+
+        * JetStream2/JetStreamDriver.js:
+        (Driver.prototype.async.start):
+
+2019-03-14  Jon Davis  <jond@apple.com>
+
+        Implement a new design for JetStream2
+        https://bugs.webkit.org/show_bug.cgi?id=195492
+
+        Reviewed by Saam Barati.
+
+        * JetStream2/JetStream.css:
+        (html):
+        (body):
+        (::selection):
+        (main):
+        (.logo):
+        (.logo .logo-image):
+        (#jetstreams):
+        (#jetstreams svg):
+        (.summary):
+        (.summary + .summary):
+        (.summary:empty):
+        (article, .summary):
+        (h1):
+        (h2, h3, h4, h5, h6):
+        (h4, h5, h6):
+        (p):
+        (h5, h6):
+        (h6):
+        (a:link,):
+        (a:hover,):
+        (#status):
+        (#status label,):
+        (a.button):
+        (#status.loading):
+        (#status.error):
+        (.error h2, .error p):
+        (.error h2):
+        (#result-summary):
+        (#result-summary label):
+        (#result-summary .score):
+        (#result-summary .score .interval):
+        (#results):
+        (.benchmark):
+        (.benchmark h3, .benchmark h4, .benchmark .result, .benchmark label):
+        (.benchmark-running h4, .benchmark-running .result, .benchmark-running label):
+        (.benchmark-done h3, .benchmark-done h4, .benchmark-done .result, .benchmark-done label):
+        (.benchmark h3):
+        (.benchmark-running h3):
+        (.benchmark-done h3):
+        (.benchmark h3 a,):
+        (.benchmark-done h3 a:hover):
+        (.benchmark h4):
+        (.benchmark-done h4):
+        (.benchmark p,):
+        (.benchmark .result):
+        (.benchmark-done .result):
+        (.benchmark label):
+        (.benchmark-done label):
+        (@keyframes fadein):
+        (to):
+        (@keyframes scaledown):
+        (@keyframes shine):
+        (100%):
+        (@keyframes swingin):
+        (@media (max-width: 415px)):
+        (#logo): Deleted.
+        (p.summary): Deleted.
+        (p.summary + p.summary): Deleted.
+        (p.summary:empty): Deleted.
+        (p:first-of-type): Deleted.
+        (#status a:link): Deleted.
+        (.interval): Deleted.
+        (a:link, a:visited): Deleted.
+        (a:link:hover): Deleted.
+        (table): Deleted.
+        (td, th): Deleted.
+        (th): Deleted.
+        (tr:first-child > th:nth-child(even)): Deleted.
+        (tr:nth-child(even):not(:first-child, .benchmark-running)): Deleted.
+        (.result): Deleted.
+        (.benchmark-running): Deleted.
+        (:not(.benchmark-running) .result): Deleted.
+        (.benchmark-running .result): Deleted.
+        (.benchmark-name): Deleted.
+        (.result.category,): Deleted.
+        (.benchmark-name:not(.category):not(.geometric-mean)): Deleted.
+        (.geometric-mean): Deleted.
+        (.benchmark-name:not(:first-child)): Deleted.
+        (.benchmark-name a:link,): Deleted.
+        (.highlighted-result): Deleted.
+        * JetStream2/JetStream2Logo.svg: Added.
+        * JetStream2/JetStreamDriver.js:
+        (updateUI):
+        (Driver.prototype.async.start):
+        (Driver.prototype.prepareToRun.text.div.id.string_appeared_here.h3):
+        (Driver.prototype.prepareToRun.text.span):
+        (Driver.prototype.prepareToRun.a.h3.h4):
+        (Driver.prototype.prepareToRun.text.div):
+        (Driver.prototype.async.initialize):
+        (Driver.prototype.async.fetchResources.prototype.statusElement.onclick):
+        (prototype.fetchResources):
+        (prototype.updateUIBeforeRun):
+        (prototype.updateUIAfterRun):
+        (Driver.prototype.async.fetchResources.statusElement.innerHTML.a.href.string_appeared_here):
+        (Driver.prototype.async.fetchResources):
+        (Driver.prototype.prepareToRun.text.tr.id.string_appeared_here.FIXME.link.to.benchmark.explanation.td): Deleted.
+        * JetStream2/clouds.svg: Added.
+        * JetStream2/in-depth.html:
+        * JetStream2/index.html:
+        * JetStream2/jetstreams.svg: Added.
+
+2019-03-11  Caio Lima  <ticaiolima@gmail.com>
+
+        [ESNext][BigInt] Implement "~" unary operation
+        https://bugs.webkit.org/show_bug.cgi?id=182216
+
+        Reviewed by Keith Miller.
+
+        * BigIntBench/big-int-simple-bit-not.js: Added.
+
+2019-03-04  Saam Barati  <sbarati@apple.com>
+
+        Add a detailed summary page for JetStream 2
+        https://bugs.webkit.org/show_bug.cgi?id=195014
+
+        Rubber-stamped by Darin Adler.
+
+        * JetStream2/JetStream.css:
+        (a:link, a:visited):
+        * JetStream2/in-depth.html: Added.
+
+2019-02-08  Saam barati  <sbarati@apple.com>
+
+        Update JetStream2 CLI to not print "ms" since we now just print the score values
+        https://bugs.webkit.org/show_bug.cgi?id=193981
+
+        Reviewed by Yusuke Suzuki.
+
+        * JetStream2/JetStreamDriver.js:
+        (DefaultBenchmark.prototype.updateUIAfterRun):
+        (DefaultBenchmark):
+        (WSLBenchmark.prototype.updateUIAfterRun):
+        (WSLBenchmark):
+        (WasmBenchmark.prototype.updateUIAfterRun):
+        (WasmBenchmark):
+
 2019-01-31  Sihui Liu  <sihui_liu@apple.com>
 
         REGRESSION (r240358): IndexedDB/large-binary-keys.html and IndexedDB/large-string-keys.html perf tests failing

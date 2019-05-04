@@ -228,12 +228,12 @@ CSSRule* CSSStyleSheet::item(unsigned index)
 {
     unsigned ruleCount = length();
     if (index >= ruleCount)
-        return 0;
+        return nullptr;
 
-    if (m_childRuleCSSOMWrappers.isEmpty())
+    ASSERT(m_childRuleCSSOMWrappers.isEmpty() || m_childRuleCSSOMWrappers.size() == ruleCount);
+    if (m_childRuleCSSOMWrappers.size() < ruleCount)
         m_childRuleCSSOMWrappers.grow(ruleCount);
-    ASSERT(m_childRuleCSSOMWrappers.size() == ruleCount);
-    
+
     RefPtr<CSSRule>& cssRule = m_childRuleCSSOMWrappers[index];
     if (!cssRule)
         cssRule = m_contents->ruleAt(index)->createCSSOMWrapper(this);
@@ -263,7 +263,7 @@ RefPtr<CSSRuleList> CSSStyleSheet::rules()
     unsigned ruleCount = length();
     for (unsigned i = 0; i < ruleCount; ++i)
         ruleList->rules().append(item(i));
-    return WTFMove(ruleList);
+    return ruleList;
 }
 
 ExceptionOr<unsigned> CSSStyleSheet::insertRule(const String& ruleString, unsigned index)

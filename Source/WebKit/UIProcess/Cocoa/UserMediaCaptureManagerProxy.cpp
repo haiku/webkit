@@ -39,6 +39,8 @@
 #include <WebCore/WebAudioBufferList.h>
 #include <wtf/UniqueRef.h>
 
+#define MESSAGE_CHECK_CONTEXTID(id) MESSAGE_CHECK_BASE(m_proxies.isValidKey(id), m_process.connection())
+
 namespace WebKit {
 using namespace WebCore;
 
@@ -137,8 +139,10 @@ UserMediaCaptureManagerProxy::~UserMediaCaptureManagerProxy()
     m_process.removeMessageReceiver(Messages::UserMediaCaptureManagerProxy::messageReceiverName());
 }
 
-void UserMediaCaptureManagerProxy::createMediaSourceForCaptureDeviceWithConstraints(uint64_t id, const CaptureDevice& device, String&& hashSalt, const MediaConstraints& constraints, bool& succeeded, String& invalidConstraints, WebCore::RealtimeMediaSourceSettings& settings)
+void UserMediaCaptureManagerProxy::createMediaSourceForCaptureDeviceWithConstraints(uint64_t id, const CaptureDevice& device, String&& hashSalt, const MediaConstraints& constraints, CompletionHandler<void(bool succeeded, String invalidConstraints, WebCore::RealtimeMediaSourceSettings&&)>&& completionHandler)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
+
     CaptureSourceOrError sourceOrError;
     switch (device.type()) {
     case WebCore::CaptureDevice::DeviceType::Microphone:
@@ -156,18 +160,23 @@ void UserMediaCaptureManagerProxy::createMediaSourceForCaptureDeviceWithConstrai
         break;
     }
 
-    succeeded = !!sourceOrError;
+    bool succeeded = !!sourceOrError;
+    String invalidConstraints;
+    WebCore::RealtimeMediaSourceSettings settings;
     if (sourceOrError) {
         auto source = sourceOrError.source();
         source->setIsRemote(true);
         settings = source->settings();
-        m_proxies.set(id, std::make_unique<SourceProxy>(id, *this, WTFMove(source)));
+        ASSERT(!m_proxies.contains(id));
+        m_proxies.add(id, std::make_unique<SourceProxy>(id, *this, WTFMove(source)));
     } else
         invalidConstraints = WTFMove(sourceOrError.errorMessage);
+    completionHandler(succeeded, invalidConstraints, WTFMove(settings));
 }
 
 void UserMediaCaptureManagerProxy::startProducingData(uint64_t id)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
     auto iter = m_proxies.find(id);
     if (iter != m_proxies.end())
         iter->value->source().start();
@@ -175,20 +184,31 @@ void UserMediaCaptureManagerProxy::startProducingData(uint64_t id)
 
 void UserMediaCaptureManagerProxy::stopProducingData(uint64_t id)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
     auto iter = m_proxies.find(id);
     if (iter != m_proxies.end())
         iter->value->source().stop();
 }
 
-void UserMediaCaptureManagerProxy::capabilities(uint64_t id, WebCore::RealtimeMediaSourceCapabilities& capabilities)
+void UserMediaCaptureManagerProxy::end(uint64_t id)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
+    m_proxies.remove(id);
+}
+
+void UserMediaCaptureManagerProxy::capabilities(uint64_t id, CompletionHandler<void(WebCore::RealtimeMediaSourceCapabilities&&)>&& completionHandler)
+{
+    MESSAGE_CHECK_CONTEXTID(id);
+    WebCore::RealtimeMediaSourceCapabilities capabilities;
     auto iter = m_proxies.find(id);
     if (iter != m_proxies.end())
         capabilities = iter->value->source().capabilities();
+    completionHandler(WTFMove(capabilities));
 }
 
 void UserMediaCaptureManagerProxy::setMuted(uint64_t id, bool muted)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
     auto iter = m_proxies.find(id);
     if (iter != m_proxies.end())
         iter->value->source().setMuted(muted);
@@ -196,6 +216,7 @@ void UserMediaCaptureManagerProxy::setMuted(uint64_t id, bool muted)
 
 void UserMediaCaptureManagerProxy::applyConstraints(uint64_t id, const WebCore::MediaConstraints& constraints)
 {
+    MESSAGE_CHECK_CONTEXTID(id);
     auto iter = m_proxies.find(id);
     if (iter == m_proxies.end())
         return;
@@ -205,9 +226,16 @@ void UserMediaCaptureManagerProxy::applyConstraints(uint64_t id, const WebCore::
     if (!result)
         m_process.send(Messages::UserMediaCaptureManager::ApplyConstraintsSucceeded(id, source.settings()), 0);
     else
-        m_process.send(Messages::UserMediaCaptureManager::ApplyConstraintsFailed(id, result.value().first, result.value().second), 0);
+        m_process.send(Messages::UserMediaCaptureManager::ApplyConstraintsFailed(id, result->badConstraint, result->message), 0);
+}
+
+void UserMediaCaptureManagerProxy::clear()
+{
+    m_proxies.clear();
 }
 
 }
+
+#undef MESSAGE_CHECK_CONTEXTID
 
 #endif

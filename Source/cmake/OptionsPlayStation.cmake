@@ -1,5 +1,7 @@
 set(PORT PlayStation)
 
+include(Sign)
+
 add_definitions(-DWTF_PLATFORM_PLAYSTATION=1)
 
 WEBKIT_OPTION_BEGIN()
@@ -8,9 +10,6 @@ WEBKIT_OPTION_BEGIN()
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_JIT PRIVATE OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_FTL_JIT PRIVATE OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_DFG_JIT PRIVATE OFF)
-
-# Disable Remote Inspector until implementation lands
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_REMOTE_INSPECTOR PRIVATE OFF)
 
 # Enabled features
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_ASYNC_SCROLLING PRIVATE ON)
@@ -113,7 +112,6 @@ SET_AND_EXPOSE_TO_BUILD(USE_LIBWPE ON)
 # Rendering options
 SET_AND_EXPOSE_TO_BUILD(ENABLE_GRAPHICS_CONTEXT_3D ON)
 SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS ON)
-SET_AND_EXPOSE_TO_BUILD(USE_COORDINATED_GRAPHICS_THREADED ON)
 SET_AND_EXPOSE_TO_BUILD(USE_EGL ON)
 SET_AND_EXPOSE_TO_BUILD(USE_NICOSIA TRUE)
 SET_AND_EXPOSE_TO_BUILD(USE_OPENGL_ES ON)
@@ -135,3 +133,33 @@ set(ENABLE_WEBKIT_LEGACY OFF)
 if (NOT ${CMAKE_GENERATOR} MATCHES "Ninja")
     add_definitions(/MP)
 endif ()
+
+find_library(DL_LIBRARY NAMES dl PATHS ${WEBKIT_LIBRARIES_DIR}/lib)
+if (DL_LIBRARY)
+    add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:${DL_LIBRARY}>")
+    add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--wrap=dlopen>")
+    add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--wrap=dlclose>")
+    add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--wrap=dlerror>")
+    add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--wrap=dlsym>")
+endif ()
+
+function(add_library target type)
+    _add_library(${ARGV})
+    if ("${type}" STREQUAL "SHARED")
+        sign(${target})
+    endif ()
+endfunction()
+
+function(add_executable target)
+    _add_executable(${ARGV})
+    playstation_setup_libc(${target})
+    playstation_setup_fp(${target})
+    if (NOT ${target} MATCHES "^LLInt")
+        sign(${target})
+    endif ()
+    if (PLAYSTATION_${target}_WRAP)
+        foreach (WRAP ${PLAYSTATION_${target}_WRAP})
+            target_link_options(${target} PRIVATE -Wl,--wrap=${WRAP})
+        endforeach ()
+    endif ()
+endfunction()

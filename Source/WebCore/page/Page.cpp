@@ -89,11 +89,11 @@
 #include "PointerCaptureController.h"
 #include "PointerLockController.h"
 #include "ProgressTracker.h"
-#include "PublicSuffix.h"
 #include "RenderLayerCompositor.h"
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
+#include "ResizeObserver.h"
 #include "ResourceUsageOverlay.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SVGDocumentExtensions.h"
@@ -122,6 +122,9 @@
 #include "WebGLStateTracker.h"
 #include "WheelEventDeltaFilter.h"
 #include "Widget.h"
+#if ENABLE(RESIZE_OBSERVER)
+#include <JavaScriptCore/ScriptCallStack.h>
+#endif
 #include <wtf/FileSystem.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
@@ -216,7 +219,7 @@ Page::Page(PageConfiguration&& pageConfiguration)
     , m_userInputBridge(std::make_unique<UserInputBridge>(*this))
     , m_inspectorController(std::make_unique<InspectorController>(*this, pageConfiguration.inspectorClient))
 #if ENABLE(POINTER_EVENTS)
-    , m_pointerCaptureController(std::make_unique<PointerCaptureController>())
+    , m_pointerCaptureController(std::make_unique<PointerCaptureController>(*this))
 #endif
 #if ENABLE(POINTER_LOCK)
     , m_pointerLockController(std::make_unique<PointerLockController>(*this))
@@ -231,6 +234,9 @@ Page::Page(PageConfiguration&& pageConfiguration)
     , m_diagnosticLoggingClient(WTFMove(pageConfiguration.diagnosticLoggingClient))
     , m_performanceLoggingClient(WTFMove(pageConfiguration.performanceLoggingClient))
     , m_webGLStateTracker(WTFMove(pageConfiguration.webGLStateTracker))
+#if ENABLE(SPEECH_SYNTHESIS)
+    , m_speechSynthesisClient(WTFMove(pageConfiguration.speechSynthesisClient))
+#endif
     , m_libWebRTCProvider(WTFMove(pageConfiguration.libWebRTCProvider))
     , m_verticalScrollElasticity(ScrollElasticityAllowed)
     , m_horizontalScrollElasticity(ScrollElasticityAllowed)
@@ -257,6 +263,9 @@ Page::Page(PageConfiguration&& pageConfiguration)
     , m_sessionID(PAL::SessionID::defaultSessionID())
 #if ENABLE(VIDEO)
     , m_playbackControlsManagerUpdateTimer(*this, &Page::playbackControlsManagerUpdateTimerFired)
+#endif
+#if ENABLE(RESIZE_OBSERVER)
+    , m_resizeObserverTimer(*this, &Page::checkResizeObservations)
 #endif
     , m_isUtilityPage(isUtilityPageChromeClient(chrome().client()))
     , m_performanceMonitor(isUtilityPage() ? nullptr : std::make_unique<PerformanceMonitor>(*this))
@@ -309,6 +318,10 @@ Page::Page(PageConfiguration&& pageConfiguration)
 
 #if PLATFORM(COCOA)
     platformInitialize();
+#endif
+
+#if USE(LIBWEBRTC)
+    m_libWebRTCProvider->supportsVP8(RuntimeEnabledFeatures::sharedFeatures().webRTCVP8CodecEnabled());
 #endif
 }
 
@@ -1005,11 +1018,8 @@ void Page::setPageScaleFactor(float scale, const IntPoint& origin, bool inStable
     m_pageScaleFactor = scale;
 
     if (!m_settings->delegatesPageScaling()) {
-        if (auto* renderView = document->renderView()) {
-            renderView->setNeedsLayout();
-            if (renderView->hasLayer() && renderView->layer()->isComposited())
-                renderView->layer()->setNeedsCompositingGeometryUpdate();
-        }
+        view->setNeedsLayoutAfterViewConfigurationChange();
+        view->setNeedsCompositingGeometryUpdate();
 
         document->resolveStyle(Document::ResolveStyleType::Rebuild);
 
@@ -1113,6 +1123,10 @@ void Page::didFinishLoad()
 
 void Page::willDisplayPage()
 {
+#if ENABLE(RESIZE_OBSERVER)
+    checkResizeObservations();
+#endif
+
 #if ENABLE(INTERSECTION_OBSERVER)
     updateIntersectionObservations();
 #endif
@@ -1282,6 +1296,80 @@ void Page::scheduleForcedIntersectionObservationUpdate(Document& document)
     if (m_intersectionObservationUpdateTimer.isActive())
         return;
     m_intersectionObservationUpdateTimer.startOneShot(0_s);
+}
+#endif
+
+#if ENABLE(RESIZE_OBSERVER)
+bool Page::hasResizeObservers() const
+{
+    for (const Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        auto doc = frame->document();
+        if (doc && doc->hasResizeObservers())
+            return true;
+    }
+    return false;
+}
+
+void Page::gatherDocumentsNeedingResizeObservationCheck(Vector<WeakPtr<Document>>& documentsNeedingResizeObservationCheck)
+{
+    forEachDocument([&] (Document& document) {
+        if (document.hasResizeObservers())
+            documentsNeedingResizeObservationCheck.append(makeWeakPtr(document));
+    });
+}
+
+void Page::checkResizeObservations()
+{
+    if (!needsCheckResizeObservations())
+        return;
+    setNeedsCheckResizeObservations(false);
+    m_resizeObserverTimer.stop();
+
+    Vector<WeakPtr<Document>> documentsNeedingResizeObservationCheck;
+    gatherDocumentsNeedingResizeObservationCheck(documentsNeedingResizeObservationCheck);
+    for (const auto& document : documentsNeedingResizeObservationCheck)
+        notifyResizeObservers(document);
+    documentsNeedingResizeObservationCheck.clear();
+}
+
+void Page::scheduleResizeObservations()
+{
+    setNeedsCheckResizeObservations(true);
+    if (m_resizeObserverTimer.isActive())
+        return;
+    m_resizeObserverTimer.startOneShot(0_s);
+}
+
+void Page::notifyResizeObservers(WeakPtr<Document> document)
+{
+    if (!document)
+        return;
+
+    // We need layout the whole frame tree here. Because ResizeObserver could observe element in other frame,
+    // and it could change other frame in deliverResizeObservations().
+    if (mainFrame().view())
+        mainFrame().view()->updateLayoutAndStyleIfNeededRecursive();
+
+    // Start check resize obervers;
+    for (size_t depth = document->gatherResizeObservations(0); depth != ResizeObserver::maxElementDepth(); depth = document->gatherResizeObservations(depth)) {
+        document->deliverResizeObservations();
+        if (!document)
+            return;
+        if (mainFrame().view())
+            mainFrame().view()->updateLayoutAndStyleIfNeededRecursive();
+    }
+
+    if (document->hasSkippedResizeObservations()) {
+        document->setHasSkippedResizeObservations(false);
+        String url;
+        unsigned line = 0;
+        unsigned column = 0;
+        document->getParserLocation(url, line, column);
+        document->reportException("ResizeObserver loop completed with undelivered notifications.", line, column, url, nullptr, nullptr);
+        // TODO: We are starting a timer to schedule the next round of notify.
+        // However, this should be in synchrony with the next requestAnimationFrame.
+        scheduleResizeObservations();
+    }
 }
 #endif
 
@@ -1763,6 +1851,35 @@ void Page::resumeAllMediaPlayback()
 #endif
 }
 
+void Page::suspendAllMediaBuffering()
+{
+#if ENABLE(VIDEO)
+    ASSERT(!m_mediaBufferingIsSuspended);
+    if (m_mediaBufferingIsSuspended)
+        return;
+    m_mediaBufferingIsSuspended = true;
+
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (auto* document = frame->document())
+            document->suspendAllMediaBuffering();
+    }
+#endif
+}
+
+void Page::resumeAllMediaBuffering()
+{
+#if ENABLE(VIDEO)
+    if (!m_mediaBufferingIsSuspended)
+        return;
+    m_mediaBufferingIsSuspended = false;
+
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (auto* document = frame->document())
+            document->resumeAllMediaBuffering();
+    }
+#endif
+}
+
 #if ENABLE(MEDIA_SESSION)
 void Page::handleMediaEvent(MediaEventType eventType)
 {
@@ -1968,9 +2085,11 @@ VisibilityState Page::visibilityState() const
     return VisibilityState::Hidden;
 }
 
-#if ENABLE(RUBBER_BANDING)
-void Page::addHeaderWithHeight(int headerHeight)
+void Page::setHeaderHeight(int headerHeight)
 {
+    if (headerHeight == m_headerHeight)
+        return;
+
     m_headerHeight = headerHeight;
 
     FrameView* frameView = mainFrame().view();
@@ -1981,12 +2100,15 @@ void Page::addHeaderWithHeight(int headerHeight)
     if (!renderView)
         return;
 
-    frameView->setHeaderHeight(m_headerHeight);
-    renderView->compositor().updateLayerForHeader(m_headerHeight);
+    frameView->setNeedsLayoutAfterViewConfigurationChange();
+    frameView->setNeedsCompositingGeometryUpdate();
 }
 
-void Page::addFooterWithHeight(int footerHeight)
+void Page::setFooterHeight(int footerHeight)
 {
+    if (footerHeight == m_footerHeight)
+        return;
+
     m_footerHeight = footerHeight;
 
     FrameView* frameView = mainFrame().view();
@@ -1997,10 +2119,9 @@ void Page::addFooterWithHeight(int footerHeight)
     if (!renderView)
         return;
 
-    frameView->setFooterHeight(m_footerHeight);
-    renderView->compositor().updateLayerForFooter(m_footerHeight);
+    frameView->setNeedsLayoutAfterViewConfigurationChange();
+    frameView->setNeedsCompositingGeometryUpdate();
 }
-#endif
 
 void Page::incrementNestedRunLoopCount()
 {
@@ -2364,19 +2485,12 @@ void Page::logNavigation(const Navigation& navigation)
     diagnosticLoggingClient().logDiagnosticMessage(DiagnosticLoggingKeys::navigationKey(), navigationDescription, ShouldSample::No);
 
     if (!navigation.domain.isEmpty())
-        diagnosticLoggingClient().logDiagnosticMessageWithEnhancedPrivacy(DiagnosticLoggingKeys::domainVisitedKey(), navigation.domain, ShouldSample::No);
+        diagnosticLoggingClient().logDiagnosticMessageWithEnhancedPrivacy(DiagnosticLoggingKeys::domainVisitedKey(), navigation.domain.string(), ShouldSample::Yes);
 }
 
 void Page::mainFrameLoadStarted(const URL& destinationURL, FrameLoadType type)
 {
-    String domain;
-#if ENABLE(PUBLIC_SUFFIX_LIST)
-    domain = topPrivatelyControlledDomain(destinationURL.host().toString());
-#else
-    UNUSED_PARAM(destinationURL);
-#endif
-
-    Navigation navigation = { domain, type };
+    Navigation navigation = { RegistrableDomain { destinationURL }, type };
 
     // To avoid being too verbose, we only log navigations if the page is or becomes visible. This avoids logging non-user observable loads.
     if (!isVisible()) {
@@ -2874,11 +2988,49 @@ void Page::removeLatchingStateForTarget(Element& targetNode)
 }
 #endif // PLATFORM(MAC)
 
+static void dispatchPrintEvent(Frame& mainFrame, const AtomicString& eventType)
+{
+    Vector<Ref<Frame>> frames;
+    for (auto* frame = &mainFrame; frame; frame = frame->tree().traverseNext())
+        frames.append(*frame);
+
+    for (auto& frame : frames) {
+        if (auto* window = frame->window())
+            window->dispatchEvent(Event::create(eventType, Event::CanBubble::No, Event::IsCancelable::No), window->document());
+    }
+}
+
+void Page::dispatchBeforePrintEvent()
+{
+    dispatchPrintEvent(m_mainFrame, eventNames().beforeprintEvent);
+}
+
+void Page::dispatchAfterPrintEvent()
+{
+    dispatchPrintEvent(m_mainFrame, eventNames().afterprintEvent);
+}
+
 #if ENABLE(APPLE_PAY)
 void Page::setPaymentCoordinator(std::unique_ptr<PaymentCoordinator>&& paymentCoordinator)
 {
     m_paymentCoordinator = WTFMove(paymentCoordinator);
 }
 #endif
+
+void Page::configureLoggingChannel(const String& channelName, WTFLogChannelState state, WTFLogLevel level)
+{
+#if !RELEASE_LOG_DISABLED
+    if (auto* channel = getLogChannel(channelName)) {
+        channel->state = state;
+        channel->level = level;
+    }
+
+    chrome().client().configureLoggingChannel(channelName, state, level);
+#else
+    UNUSED_PARAM(channelName);
+    UNUSED_PARAM(state);
+    UNUSED_PARAM(level);
+#endif
+}
 
 } // namespace WebCore

@@ -31,26 +31,34 @@ WI.CanvasManager = class CanvasManager extends WI.Object
     {
         super();
 
-        WI.Frame.addEventListener(WI.Frame.Event.MainResourceDidChange, this._mainResourceDidChange, this);
-
+        this._enabled = false;
         this._canvasIdentifierMap = new Map;
         this._shaderProgramIdentifierMap = new Map;
         this._importedRecordings = new Set;
+
+        WI.Frame.addEventListener(WI.Frame.Event.MainResourceDidChange, this._mainResourceDidChange, this);
     }
 
     // Target
 
     initializeTarget(target)
     {
-        if (target.CanvasAgent)
+        if (!this._enabled)
+            return;
+
+        if (target.CanvasAgent) {
             target.CanvasAgent.enable();
+
+            if (target.CanvasAgent.setRecordingAutoCaptureFrameCount && WI.settings.canvasRecordingAutoCaptureEnabled.value && WI.settings.canvasRecordingAutoCaptureFrameCount.value)
+                target.CanvasAgent.setRecordingAutoCaptureFrameCount(WI.settings.canvasRecordingAutoCaptureFrameCount.value);
+        }
     }
 
     // Static
 
     static supportsRecordingAutoCapture()
     {
-        return window.CanvasAgent && CanvasAgent.setRecordingAutoCaptureFrameCount;
+        return InspectorBackend.domains.Canvas && InspectorBackend.domains.Canvas.setRecordingAutoCaptureFrameCount;
     }
 
     // Public
@@ -93,18 +101,43 @@ WI.CanvasManager = class CanvasManager extends WI.Object
         this.dispatchEventToListeners(WI.CanvasManager.Event.RecordingImported, {recording, initiatedByUser: true});
     }
 
+    enable()
+    {
+        console.assert(!this._enabled);
+
+        this._enabled = true;
+
+        for (let target of WI.targets)
+            this.initializeTarget(target);
+    }
+
+    disable()
+    {
+        console.assert(this._enabled);
+
+        for (let target of WI.targets) {
+            if (target.CanvasAgent)
+                target.CanvasAgent.disable();
+        }
+
+        this._canvasIdentifierMap.clear();
+        this._shaderProgramIdentifierMap.clear();
+        this._importedRecordings.clear();
+
+        this._enabled = false;
+    }
+
     setRecordingAutoCaptureFrameCount(enabled, count)
     {
         console.assert(!isNaN(count) && count >= 0);
 
-        return CanvasAgent.setRecordingAutoCaptureFrameCount(enabled ? count : 0)
-        .then(() => {
-            WI.settings.canvasRecordingAutoCaptureEnabled.value = enabled && count;
-            WI.settings.canvasRecordingAutoCaptureFrameCount.value = count;
-        })
-        .catch((error) => {
-            console.error(error);
-        });
+        for (let target of WI.targets) {
+            if (target.CanvasAgent)
+                target.CanvasAgent.setRecordingAutoCaptureFrameCount(enabled ? count : 0);
+        }
+
+        WI.settings.canvasRecordingAutoCaptureEnabled.value = enabled && count;
+        WI.settings.canvasRecordingAutoCaptureFrameCount.value = count;
     }
 
     canvasAdded(canvasPayload)

@@ -132,19 +132,19 @@ Vector<RefPtr<WebAnimation>> DocumentTimeline::getAnimations() const
 
     // First, let's get all qualifying animations in their right group.
     for (const auto& animation : m_allAnimations) {
-        if (!animation->isRelevant() || animation->timeline() != this || !is<KeyframeEffect>(animation->effect()))
+        if (!animation || !animation->isRelevant() || animation->timeline() != this || !is<KeyframeEffect>(animation->effect()))
             continue;
 
         auto* target = downcast<KeyframeEffect>(animation->effect())->target();
         if (!target || !target->isDescendantOf(*m_document))
             continue;
 
-        if (is<CSSTransition>(animation) && downcast<CSSTransition>(animation)->owningElement())
-            cssTransitions.append(animation);
-        else if (is<CSSAnimation>(animation) && downcast<CSSAnimation>(animation)->owningElement())
-            cssAnimations.append(animation);
+        if (is<CSSTransition>(animation.get()) && downcast<CSSTransition>(animation.get())->owningElement())
+            cssTransitions.append(animation.get());
+        else if (is<CSSAnimation>(animation.get()) && downcast<CSSAnimation>(animation.get())->owningElement())
+            cssAnimations.append(animation.get());
         else
-            webAnimations.append(animation);
+            webAnimations.append(animation.get());
     }
 
     // Now sort CSS Transitions by their composite order.
@@ -266,12 +266,11 @@ Optional<Seconds> DocumentTimeline::currentTime()
     if (!m_document || !m_document->domWindow())
         return AnimationTimeline::currentTime();
 
-    if (auto* mainDocumentTimeline = m_document->existingTimeline()) {
-        if (mainDocumentTimeline != this) {
-            if (auto mainDocumentTimelineCurrentTime = mainDocumentTimeline->currentTime())
-                return mainDocumentTimelineCurrentTime.value() - m_originTime;
-            return WTF::nullopt;
-        }
+    auto& mainDocumentTimeline = m_document->timeline();
+    if (&mainDocumentTimeline != this) {
+        if (auto mainDocumentTimelineCurrentTime = mainDocumentTimeline.currentTime())
+            return *mainDocumentTimelineCurrentTime - m_originTime;
+        return WTF::nullopt;
     }
 
     auto currentTime = liveCurrentTime();

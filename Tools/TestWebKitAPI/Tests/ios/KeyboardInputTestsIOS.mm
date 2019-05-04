@@ -25,8 +25,9 @@
 
 #include "config.h"
 
-#if WK_API_ENABLED && PLATFORM(IOS_FAMILY)
+#if PLATFORM(IOS_FAMILY)
 
+#import "IPadUserInterfaceSwizzler.h"
 #import "PlatformUtilities.h"
 #import "TestInputDelegate.h"
 #import "TestWKWebView.h"
@@ -140,6 +141,11 @@ static CGRect rounded(CGRect rect)
     }
 }
 
+- (UIBarButtonItemGroup *)lastTrailingBarButtonGroup
+{
+    return self.firstResponder.inputAssistantItem.trailingBarButtonGroups.lastObject;
+}
+
 @end
 
 static RetainPtr<TestWKWebView> webViewWithAutofocusedInput(const RetainPtr<TestInputDelegate>& inputDelegate)
@@ -166,6 +172,34 @@ static RetainPtr<TestWKWebView> webViewWithAutofocusedInput()
 }
 
 namespace TestWebKitAPI {
+
+TEST(KeyboardInputTests, FormNavigationAssistantBarButtonItems)
+{
+    IPadUserInterfaceSwizzler iPadUserInterface;
+
+    auto inputDelegate = adoptNS([TestInputDelegate new]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    [webView _setInputDelegate:inputDelegate.get()];
+    [inputDelegate setFocusStartsInputSessionPolicyHandler:[&] (WKWebView *, id <_WKFocusedElementInfo>) -> _WKFocusStartsInputSessionPolicy {
+        return _WKFocusStartsInputSessionPolicyAllow;
+    }];
+    [webView synchronouslyLoadHTMLString:@"<body contenteditable>"];
+    [webView evaluateJavaScriptAndWaitForInputSessionToChange:@"document.body.focus()"];
+
+    EXPECT_EQ(2U, [webView lastTrailingBarButtonGroup].barButtonItems.count);
+    EXPECT_FALSE([webView lastTrailingBarButtonGroup].hidden);
+
+    if (![UIWebFormAccessory instancesRespondToSelector:@selector(setNextPreviousItemsVisible:)]) {
+        // The rest of this test requires UIWebFormAccessory to be able to show or hide its next and previous items.
+        return;
+    }
+
+    [webView _setEditable:YES];
+    EXPECT_TRUE([webView lastTrailingBarButtonGroup].hidden);
+
+    [webView _setEditable:NO];
+    EXPECT_FALSE([webView lastTrailingBarButtonGroup].hidden);
+}
 
 TEST(KeyboardInputTests, ModifyInputAssistantItemBarButtonGroups)
 {
@@ -274,7 +308,7 @@ TEST(KeyboardInputTests, CanHandleKeyEventInCompletionHandler)
     EXPECT_WK_STREQ("a", [webView stringByEvaluatingJavaScript:@"document.querySelector('input').value"]);
 }
 
-TEST(KeyboardInputTests, CaretSelectionRectAfterRestoringFirstResponder)
+TEST(KeyboardInputTests, CaretSelectionRectAfterRestoringFirstResponderWithRetainActiveFocusedState)
 {
     auto expectedCaretRect = CGRectMake(16, 13, 2, 15);
     auto webView = webViewWithAutofocusedInput();
@@ -290,7 +324,7 @@ TEST(KeyboardInputTests, CaretSelectionRectAfterRestoringFirstResponder)
     [webView waitForCaretViewFrameToBecome:expectedCaretRect];
 }
 
-TEST(KeyboardInputTests, RangedSelectionRectAfterRestoringFirstResponder)
+TEST(KeyboardInputTests, RangedSelectionRectAfterRestoringFirstResponderWithRetainActiveFocusedState)
 {
     NSArray *expectedSelectionRects = @[ [NSValue valueWithCGRect:CGRectMake(16, 13, 24, 15)] ];
 
@@ -309,7 +343,38 @@ TEST(KeyboardInputTests, RangedSelectionRectAfterRestoringFirstResponder)
     [webView waitForSelectionViewRectsToBecome:expectedSelectionRects];
 }
 
-TEST(KeyboardInputTests, KeyboardTypeForInput)
+TEST(KeyboardInputTests, CaretSelectionRectAfterRestoringFirstResponder)
+{
+    auto expectedCaretRect = CGRectMake(16, 13, 2, 15);
+    auto webView = webViewWithAutofocusedInput();
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    [webView waitForCaretViewFrameToBecome:expectedCaretRect];
+
+    [webView resignFirstResponder];
+    [webView waitForCaretViewFrameToBecome:CGRectZero];
+
+    [webView becomeFirstResponder];
+    [webView waitForCaretViewFrameToBecome:expectedCaretRect];
+}
+
+TEST(KeyboardInputTests, RangedSelectionRectAfterRestoringFirstResponder)
+{
+    NSArray *expectedSelectionRects = @[ [NSValue valueWithCGRect:CGRectMake(16, 13, 24, 15)] ];
+
+    auto webView = webViewWithAutofocusedInput();
+    [[webView textInputContentView] insertText:@"hello"];
+    [webView selectAll:nil];
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    [webView waitForSelectionViewRectsToBecome:expectedSelectionRects];
+
+    [webView resignFirstResponder];
+    [webView waitForSelectionViewRectsToBecome:@[ ]];
+
+    [webView becomeFirstResponder];
+    [webView waitForSelectionViewRectsToBecome:expectedSelectionRects];
+}
+
+TEST(KeyboardInputTests, DISABLED_KeyboardTypeForInput)
 {
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
     auto inputDelegate = adoptNS([[TestInputDelegate alloc] init]);
@@ -387,4 +452,4 @@ TEST(KeyboardInputTests, KeyboardTypeForInput)
 
 } // namespace TestWebKitAPI
 
-#endif // WK_API_ENABLED && PLATFORM(IOS_FAMILY)
+#endif // PLATFORM(IOS_FAMILY)

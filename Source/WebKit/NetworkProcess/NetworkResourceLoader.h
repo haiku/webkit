@@ -72,8 +72,6 @@ public:
     void start();
     void abort();
 
-    void setDefersLoading(bool);
-
     // Message handlers.
     void didReceiveNetworkResourceLoaderMessage(IPC::Connection&, IPC::Decoder&);
 
@@ -81,7 +79,7 @@ public:
 
     const WebCore::ResourceResponse& response() const { return m_response; }
 
-    NetworkConnectionToWebProcess& connectionToWebProcess() { return m_connection; }
+    NetworkConnectionToWebProcess& connectionToWebProcess() const { return m_connection; }
     PAL::SessionID sessionID() const { return m_parameters.sessionID; }
     ResourceLoadIdentifier identifier() const { return m_parameters.identifier; }
     uint64_t frameID() const { return m_parameters.webFrameID; }
@@ -119,8 +117,8 @@ private:
     NetworkResourceLoader(NetworkResourceLoadParameters&&, NetworkConnectionToWebProcess&, Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply&&);
 
     // IPC::MessageSender
-    IPC::Connection* messageSenderConnection() override;
-    uint64_t messageSenderDestinationID() override { return m_parameters.identifier; }
+    IPC::Connection* messageSenderConnection() const override;
+    uint64_t messageSenderDestinationID() const override { return m_parameters.identifier; }
 
     bool canUseCache(const WebCore::ResourceRequest&) const;
     bool canUseCachedRedirect(const WebCore::ResourceRequest&) const;
@@ -191,7 +189,6 @@ private:
 
     bool m_wasStarted { false };
     bool m_didConsumeSandboxExtensions { false };
-    bool m_defersLoading { false };
     bool m_isAllowedToAskUserForCredentials { false };
     size_t m_numBytesReceived { 0 };
 

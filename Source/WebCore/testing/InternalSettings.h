@@ -123,13 +123,13 @@ public:
     // RuntimeEnabledFeatures.
     static void setIndexedDBWorkersEnabled(bool);
     static void setWebGL2Enabled(bool);
-    static void setWebMetalEnabled(bool);
+    static void setWebGPUEnabled(bool);
     static void setWebVREnabled(bool);
     static void setScreenCaptureEnabled(bool);
 
     static bool webAnimationsCSSIntegrationEnabled();
 
-    static void setStorageAccessPromptsEnabled(bool);
+    void setShouldDeactivateAudioSession(bool);
 
 private:
     explicit InternalSettings(Page*);
@@ -198,6 +198,7 @@ private:
 #if ENABLE(ACCESSIBILITY_EVENTS)
         bool m_accessibilityEventsEnabled;
 #endif
+        bool m_shouldDeactivateAudioSession;
         UserInterfaceDirectionPolicy m_userInterfaceDirectionPolicy;
         TextDirection m_systemLayoutDirection;
         PDFImageCachingPolicy m_pdfImageCachingPolicy;
@@ -210,7 +211,6 @@ private:
         // Runtime enabled settings.
         bool m_indexedDBWorkersEnabled;
         bool m_webGL2Enabled;
-        bool m_webMetalEnabled;
         bool m_webVREnabled;
         bool m_setScreenCaptureEnabled;
         
@@ -219,7 +219,6 @@ private:
         bool m_shouldManageAudioSessionCategory;
 #endif
         bool m_customPasteboardDataEnabled;
-        bool m_promptForStorageAccessAPIEnabled { false };
     };
 
     Page* m_page;

@@ -56,7 +56,6 @@ struct NetworkProcessCreationParameters {
 
     String diskCacheDirectory;
     SandboxExtension::Handle diskCacheDirectoryExtensionHandle;
-    bool shouldEnableNetworkCacheEfficacyLogging { false };
 #if ENABLE(NETWORK_CACHE_SPECULATIVE_REVALIDATION)
     bool shouldEnableNetworkCacheSpeculativeRevalidation { false };
 #endif
@@ -101,16 +100,15 @@ struct NetworkProcessCreationParameters {
     Vector<String> urlSchemesRegisteredAsCanDisplayOnlyIfCanRequest;
     Vector<String> urlSchemesRegisteredAsCORSEnabled;
 
-#if ENABLE(PROXIMITY_NETWORKING)
-    unsigned wirelessContextIdentifier { 0 };
-#endif
-
 #if ENABLE(SERVICE_WORKER)
     String serviceWorkerRegistrationDirectory;
     SandboxExtension::Handle serviceWorkerRegistrationDirectoryExtensionHandle;
     Vector<String> urlSchemesServiceWorkersCanHandle;
     bool shouldDisableServiceWorkerProcessTerminationDelay { false };
 #endif
+    bool shouldEnableITPDatabase { false };
+    bool isITPFirstPartyWebsiteDataRemovalEnabled { true };
+    uint32_t downloadMonitorSpeedMultiplier { 1 };
 };
 
 } // namespace WebKit

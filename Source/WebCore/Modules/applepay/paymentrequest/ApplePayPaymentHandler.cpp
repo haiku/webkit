@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -129,16 +129,6 @@ static ExceptionOr<Vector<ApplePaySessionPaymentRequest::LineItem>> convertAndVa
     return { WTFMove(result) };
 }
 
-static ApplePaySessionPaymentRequest::ContactFields convert(const PaymentOptions& options)
-{
-    ApplePaySessionPaymentRequest::ContactFields result;
-    result.email = options.requestPayerEmail;
-    result.name = options.requestPayerName;
-    result.phone = options.requestPayerPhone;
-    result.postalAddress = options.requestShipping;
-    return result;
-}
-
 static ApplePaySessionPaymentRequest::ShippingType convert(PaymentShippingType type)
 {
     switch (type) {
@@ -182,9 +172,22 @@ ExceptionOr<void> ApplePayPaymentHandler::convertData(JSC::JSValue&& data)
     return { };
 }
 
-ExceptionOr<void> ApplePayPaymentHandler::show()
+static void mergePaymentOptions(const PaymentOptions& options, ApplePaySessionPaymentRequest& request)
 {
-    auto validatedRequest = convertAndValidate(m_applePayRequest->version, *m_applePayRequest, paymentCoordinator());
+    auto requiredShippingContactFields = request.requiredShippingContactFields();
+    requiredShippingContactFields.email |= options.requestPayerEmail;
+    requiredShippingContactFields.name |= options.requestPayerName;
+    requiredShippingContactFields.phone |= options.requestPayerPhone;
+    requiredShippingContactFields.postalAddress |= options.requestShipping;
+    request.setRequiredShippingContactFields(requiredShippingContactFields);
+
+    if (options.requestShipping)
+        request.setShippingType(convert(options.shippingType));
+}
+
+ExceptionOr<void> ApplePayPaymentHandler::show(Document& document)
+{
+    auto validatedRequest = convertAndValidate(document, m_applePayRequest->version, *m_applePayRequest, paymentCoordinator());
     if (validatedRequest.hasException())
         return validatedRequest.releaseException();
 
@@ -203,9 +206,7 @@ ExceptionOr<void> ApplePayPaymentHandler::show()
         return convertedLineItems.releaseException();
     request.setLineItems(convertedLineItems.releaseReturnValue());
 
-    request.setRequiredShippingContactFields(convert(m_paymentRequest->paymentOptions()));
-    if (m_paymentRequest->paymentOptions().requestShipping)
-        request.setShippingType(convert(m_paymentRequest->paymentOptions().shippingType));
+    mergePaymentOptions(m_paymentRequest->paymentOptions(), request);
 
     auto shippingMethods = computeShippingMethods();
     if (shippingMethods.hasException())
@@ -216,11 +217,9 @@ ExceptionOr<void> ApplePayPaymentHandler::show()
     if (exception.hasException())
         return exception.releaseException();
 
-    Vector<URL> linkIconURLs;
-    for (auto& icon : LinkIconCollector { document() }.iconsOfTypes({ LinkIconType::TouchIcon, LinkIconType::TouchPrecomposedIcon }))
-        linkIconURLs.append(icon.url);
+    if (!paymentCoordinator().beginPaymentSession(document, *this, request))
+        return Exception { AbortError };
 
-    paymentCoordinator().beginPaymentSession(*this, document().url(), linkIconURLs, request);
     return { };
 }
 
@@ -229,9 +228,9 @@ void ApplePayPaymentHandler::hide()
     paymentCoordinator().abortPaymentSession();
 }
 
-void ApplePayPaymentHandler::canMakePayment(Function<void(bool)>&& completionHandler)
+void ApplePayPaymentHandler::canMakePayment(Document& document, Function<void(bool)>&& completionHandler)
 {
-    completionHandler(paymentCoordinator().canMakePayments());
+    completionHandler(paymentCoordinator().canMakePayments(document));
 }
 
 ExceptionOr<Vector<ApplePaySessionPaymentRequest::ShippingMethod>> ApplePayPaymentHandler::computeShippingMethods()
@@ -531,12 +530,7 @@ ExceptionOr<void> ApplePayPaymentHandler::retry(PaymentValidationErrors&& valida
 
 unsigned ApplePayPaymentHandler::version() const
 {
-    if (!m_applePayRequest)
-        return 0;
-    
-    auto version = m_applePayRequest->version;
-    ASSERT(paymentCoordinator().supportsVersion(version));
-    return version;
+    return m_applePayRequest ? m_applePayRequest->version : 0;
 }
 
 void ApplePayPaymentHandler::validateMerchant(URL&& validationURL)

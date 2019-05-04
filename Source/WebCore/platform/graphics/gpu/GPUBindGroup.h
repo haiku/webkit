@@ -27,11 +27,14 @@
 
 #if ENABLE(WEBGPU)
 
-#include "GPUBindGroupBinding.h"
-#include "GPUBindGroupLayout.h"
-#include <wtf/Ref.h>
+#include "GPUBuffer.h"
+#include "GPUTexture.h"
 #include <wtf/RefCounted.h>
+#include <wtf/RefPtr.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
+
+OBJC_PROTOCOL(MTLBuffer);
 
 namespace WebCore {
 
@@ -39,16 +42,26 @@ struct GPUBindGroupDescriptor;
 
 class GPUBindGroup : public RefCounted<GPUBindGroup> {
 public:
-    static Ref<GPUBindGroup> create(GPUBindGroupDescriptor&&);
-
-    const GPUBindGroupLayout& layout() const { return m_layout.get(); }
-    const Vector<GPUBindGroupBinding>& bindings() const { return m_bindings; }
+    static RefPtr<GPUBindGroup> tryCreate(const GPUBindGroupDescriptor&);
+    
+#if USE(METAL)
+    const MTLBuffer *vertexArgsBuffer() const { return m_vertexArgsBuffer.get(); }
+    const MTLBuffer *fragmentArgsBuffer() const { return m_fragmentArgsBuffer.get(); }
+    const MTLBuffer *computeArgsBuffer() const { return m_computeArgsBuffer.get(); }
+#endif
+    const Vector<Ref<GPUBuffer>>& boundBuffers() const { return m_boundBuffers; }
+    const Vector<Ref<GPUTexture>>& boundTextures() const { return m_boundTextures; }
 
 private:
-    explicit GPUBindGroup(GPUBindGroupDescriptor&&);
-
-    Ref<GPUBindGroupLayout> m_layout;
-    Vector<GPUBindGroupBinding> m_bindings;
+#if USE(METAL)
+    GPUBindGroup(RetainPtr<MTLBuffer>&& vertexBuffer, RetainPtr<MTLBuffer>&& fragmentBuffer, RetainPtr<MTLBuffer>&& computeArgsBuffer, Vector<Ref<GPUBuffer>>&&, Vector<Ref<GPUTexture>>&&);
+    
+    RetainPtr<MTLBuffer> m_vertexArgsBuffer;
+    RetainPtr<MTLBuffer> m_fragmentArgsBuffer;
+    RetainPtr<MTLBuffer> m_computeArgsBuffer;
+#endif
+    Vector<Ref<GPUBuffer>> m_boundBuffers;
+    Vector<Ref<GPUTexture>> m_boundTextures;
 };
 
 } // namespace WebCore

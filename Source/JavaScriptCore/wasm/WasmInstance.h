@@ -31,8 +31,6 @@
 #include "WasmMemory.h"
 #include "WasmModule.h"
 #include "WasmTable.h"
-#include <wtf/Optional.h>
-#include <wtf/Ref.h>
 #include <wtf/RefPtr.h>
 #include <wtf/ThreadSafeRefCounted.h>
 
@@ -117,7 +115,7 @@ public:
         Instance* targetInstance { nullptr };
         WasmToWasmImportableFunction::LoadLocation wasmEntrypointLoadLocation { nullptr };
         MacroAssemblerCodePtr<WasmEntryPtrTag> wasmToEmbedderStub;
-        void* importFunction { nullptr }; // In a JS embedding, this is a PoisonedBarrier<JSObject>.
+        void* importFunction { nullptr }; // In a JS embedding, this is a WriteBarrier<JSObject>.
     };
     unsigned numImportFunctions() const { return m_numImportFunctions; }
     ImportFunctionInfo* importFunctionInfo(size_t importFunctionNum)

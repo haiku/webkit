@@ -42,6 +42,7 @@
 #if PLATFORM(IOS_FAMILY)
 #import "Color.h"
 #import "WKGraphics.h"
+#import <pal/ios/UIKitSoftLink.h>
 #import <pal/spi/ios/UIKitSPI.h>
 #endif
 
@@ -74,9 +75,9 @@ static bool drawFocusRingAtTime(CGContextRef context, NSTimeInterval timeOffset,
     focusRingStyle.version = 0;
     focusRingStyle.tint = kCGFocusRingTintBlue;
     focusRingStyle.ordering = kCGFocusRingOrderingNone;
-    focusRingStyle.alpha = kCGFocusRingAlphaDefault;
-    focusRingStyle.radius = kCGFocusRingRadiusDefault;
-    focusRingStyle.threshold = kCGFocusRingThresholdDefault;
+    focusRingStyle.alpha = [PAL::getUIFocusRingStyleClass() maxAlpha];
+    focusRingStyle.radius = [PAL::getUIFocusRingStyleClass() cornerRadius];
+    focusRingStyle.threshold = [PAL::getUIFocusRingStyleClass() alphaThreshold];
     focusRingStyle.bounds = CGRectZero;
 #endif
 
@@ -95,7 +96,7 @@ static bool drawFocusRingAtTime(CGContextRef context, NSTimeInterval timeOffset,
     return needsRepaint;
 }
 
-static void drawFocusRing(CGContextRef context, const Color& color)
+inline static void drawFocusRing(CGContextRef context, const Color& color)
 {
     drawFocusRingAtTime(context, std::numeric_limits<double>::max(), color);
 }
@@ -105,14 +106,6 @@ static void drawFocusRingToContext(CGContextRef context, CGPathRef focusRingPath
     CGContextBeginPath(context);
     CGContextAddPath(context, focusRingPath);
     drawFocusRing(context, color);
-}
-
-static bool drawFocusRingToContextAtTime(CGContextRef context, CGPathRef focusRingPath, double timeOffset, const Color& color)
-{
-    UNUSED_PARAM(timeOffset);
-    CGContextBeginPath(context);
-    CGContextAddPath(context, focusRingPath);
-    return drawFocusRingAtTime(context, std::numeric_limits<double>::max(), color);
 }
 
 #endif // ENABLE(FULL_KEYBOARD_ACCESS)
@@ -137,8 +130,15 @@ void GraphicsContext::drawFocusRing(const Path& path, float width, float offset,
 #endif
 }
 
-// FIXME: The following functions should only be compiled for Mac. See <https://bugs.webkit.org/show_bug.cgi?id=193591>.
-#if ENABLE(FULL_KEYBOARD_ACCESS)
+#if PLATFORM(MAC)
+
+static bool drawFocusRingToContextAtTime(CGContextRef context, CGPathRef focusRingPath, double timeOffset, const Color& color)
+{
+    UNUSED_PARAM(timeOffset);
+    CGContextBeginPath(context);
+    CGContextAddPath(context, focusRingPath);
+    return drawFocusRingAtTime(context, std::numeric_limits<double>::max(), color);
+}
 
 void GraphicsContext::drawFocusRing(const Path& path, double timeOffset, bool& needsRedraw, const Color& color)
 {
@@ -166,7 +166,7 @@ void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, double timeO
     needsRedraw = drawFocusRingToContextAtTime(platformContext(), focusRingPath.get(), timeOffset, color);
 }
 
-#endif
+#endif // PLATFORM(MAC)
 
 void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, float width, float offset, const Color& color)
 {

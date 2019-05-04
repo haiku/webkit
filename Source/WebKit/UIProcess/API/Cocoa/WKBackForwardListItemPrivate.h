@@ -25,13 +25,11 @@
 
 #import <WebKit/WKBackForwardListItem.h>
 
-#if WK_API_ENABLED
-
 @interface WKBackForwardListItem (WKPrivate)
 
 // For testing only.
-- (CGImageRef)_copySnapshotForTesting WK_API_AVAILABLE(macosx(10.12.3), ios(10.3));
+- (CGImageRef)_copySnapshotForTesting WK_API_AVAILABLE(macos(10.12.3), ios(10.3));
+
+@property (nonatomic) CGPoint _scrollPosition WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 
 @end
-
-#endif

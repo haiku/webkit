@@ -10,11 +10,31 @@ window.UIHelper = class UIHelper {
         return window.testRunner.isWebKit2;
     }
 
-    static tapAt(x, y)
+    static doubleClickAt(x, y)
+    {
+        eventSender.mouseMoveTo(x, y);
+        eventSender.mouseDown();
+        eventSender.mouseUp();
+        eventSender.mouseDown();
+        eventSender.mouseUp();
+    }
+
+    static doubleClickAtThenDragTo(x1, y1, x2, y2)
+    {
+        eventSender.mouseMoveTo(x1, y1);
+        eventSender.mouseDown();
+        eventSender.mouseUp();
+        eventSender.mouseDown();
+        eventSender.mouseMoveTo(x2, y2);
+        eventSender.mouseUp();
+    }
+
+    static tapAt(x, y, modifiers=[])
     {
         console.assert(this.isIOS());
 
         if (!this.isWebKit2()) {
+            console.assert(!modifiers || !modifiers.length);
             eventSender.addTouchPoint(x, y);
             eventSender.touchStart();
             eventSender.releaseTouchPoint(0);
@@ -24,7 +44,7 @@ window.UIHelper = class UIHelper {
 
         return new Promise((resolve) => {
             testRunner.runUIScript(`
-                uiController.singleTapAtPoint(${x}, ${y}, function() {
+                uiController.singleTapAtPointWithModifiers(${x}, ${y}, ${JSON.stringify(modifiers)}, function() {
                     uiController.uiScriptComplete();
                 });`, resolve);
         });
@@ -51,6 +71,63 @@ window.UIHelper = class UIHelper {
                 uiController.doubleTapAtPoint(${x}, ${y}, function() {
                     uiController.uiScriptComplete();
                 });`, resolve);
+        });
+    }
+
+    static humanSpeedDoubleTapAt(x, y)
+    {
+        console.assert(this.isIOS());
+
+        if (!this.isWebKit2()) {
+            // FIXME: Add a sleep in here.
+            eventSender.addTouchPoint(x, y);
+            eventSender.touchStart();
+            eventSender.releaseTouchPoint(0);
+            eventSender.touchEnd();
+            eventSender.addTouchPoint(x, y);
+            eventSender.touchStart();
+            eventSender.releaseTouchPoint(0);
+            eventSender.touchEnd();
+            return Promise.resolve();
+        }
+
+        return new Promise(async (resolve) => {
+            await UIHelper.tapAt(x, y);
+            await new Promise(resolveAfterDelay => setTimeout(resolveAfterDelay, 120));
+            await UIHelper.tapAt(x, y);
+            resolve();
+        });
+    }
+
+    static humanSpeedZoomByDoubleTappingAt(x, y)
+    {
+        console.assert(this.isIOS());
+
+        if (!this.isWebKit2()) {
+            // FIXME: Add a sleep in here.
+            eventSender.addTouchPoint(x, y);
+            eventSender.touchStart();
+            eventSender.releaseTouchPoint(0);
+            eventSender.touchEnd();
+            eventSender.addTouchPoint(x, y);
+            eventSender.touchStart();
+            eventSender.releaseTouchPoint(0);
+            eventSender.touchEnd();
+            return Promise.resolve();
+        }
+
+        return new Promise(async (resolve) => {
+            await UIHelper.tapAt(x, y);
+            await new Promise(resolveAfterDelay => setTimeout(resolveAfterDelay, 120));
+            await new Promise((resolveAfterZoom) => {
+                testRunner.runUIScript(`
+                    uiController.didEndZoomingCallback = () => {
+                        uiController.didEndZoomingCallback = null;
+                        uiController.uiScriptComplete(uiController.zoomScale);
+                    };
+                    uiController.singleTapAtPoint(${x}, ${y}, () => {});`, resolveAfterZoom);
+            });
+            resolve();
         });
     }
 
@@ -104,6 +181,45 @@ window.UIHelper = class UIHelper {
         return UIHelper.activateAt(x, y);
     }
 
+    static async doubleActivateAt(x, y)
+    {
+        if (this.isIOS())
+            await UIHelper.doubleTapAt(x, y);
+        else
+            await UIHelper.doubleClickAt(x, y);
+    }
+
+    static async doubleActivateAtSelectionStart()
+    {
+        const rects = window.getSelection().getRangeAt(0).getClientRects();
+        const x = rects[0].left;
+        const y = rects[0].top;
+        if (this.isIOS()) {
+            await UIHelper.activateAndWaitForInputSessionAt(x, y);
+            await UIHelper.doubleTapAt(x, y);
+            // This is only here to deal with async/sync copy/paste calls, so
+            // once <rdar://problem/16207002> is resolved, should be able to remove for faster tests.
+            await new Promise(resolve => testRunner.runUIScript("uiController.uiScriptComplete()", resolve));
+        } else
+            await UIHelper.doubleClickAt(x, y);
+    }
+
+    static async selectWordByDoubleTapOrClick(element, relativeX = 5, relativeY = 5)
+    {
+        const boundingRect = element.getBoundingClientRect();
+        const x = boundingRect.x + relativeX;
+        const y = boundingRect.y + relativeY;
+        if (this.isIOS()) {
+            await UIHelper.activateAndWaitForInputSessionAt(x, y);
+            await UIHelper.doubleTapAt(x, y);
+            // This is only here to deal with async/sync copy/paste calls, so
+            // once <rdar://problem/16207002> is resolved, should be able to remove for faster tests.
+            await new Promise(resolve => testRunner.runUIScript("uiController.uiScriptComplete()", resolve));
+        } else {
+            await UIHelper.doubleClickAt(x, y);
+        }
+    }
+
     static keyDown(key, modifiers=[])
     {
         if (!this.isWebKit2() || !this.isIOS()) {
@@ -138,6 +254,50 @@ window.UIHelper = class UIHelper {
         });
     }
 
+    static delayFor(ms)
+    {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    static immediateScrollTo(x, y)
+    {
+        if (!this.isWebKit2()) {
+            window.scrollTo(x, y);
+            return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                uiController.immediateScrollToOffset(${x}, ${y});`, resolve);
+        });
+    }
+
+    static immediateUnstableScrollTo(x, y)
+    {
+        if (!this.isWebKit2()) {
+            window.scrollTo(x, y);
+            return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                uiController.stableStateOverride = false;
+                uiController.immediateScrollToOffset(${x}, ${y});`, resolve);
+        });
+    }
+
+    static immediateScrollElementAtContentPointToOffset(x, y, scrollX, scrollY, scrollUpdatesDisabled = false)
+    {
+        if (!this.isWebKit2())
+            return Promise.resolve();
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                uiController.scrollUpdatesDisabled = ${scrollUpdatesDisabled};
+                uiController.immediateScrollElementAtContentPointToOffset(${x}, ${y}, ${scrollX}, ${scrollY});`, resolve);
+        });
+    }
+
     static ensureVisibleContentRectUpdate()
     {
         if (!this.isWebKit2())
@@ -165,6 +325,13 @@ window.UIHelper = class UIHelper {
         });
     }
 
+    static activateElementAndWaitForInputSession(element)
+    {
+        const x = element.offsetLeft + element.offsetWidth / 2;
+        const y = element.offsetTop + element.offsetHeight / 2;
+        return this.activateAndWaitForInputSessionAt(x, y);
+    }
+
     static activateFormControl(element)
     {
         if (!this.isWebKit2() || !this.isIOS())
@@ -180,6 +347,69 @@ window.UIHelper = class UIHelper {
                         uiController.uiScriptComplete();
                     };
                     uiController.singleTapAtPoint(${x}, ${y}, function() { });
+                })()`, resolve);
+        });
+    }
+
+    static isShowingKeyboard()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript("uiController.isShowingKeyboard", result => resolve(result === "true"));
+        });
+    }
+
+    static isPresentingModally()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript("uiController.isPresentingModally", result => resolve(result === "true"));
+        });
+    }
+
+    static deactivateFormControl(element)
+    {
+        if (!this.isWebKit2() || !this.isIOS()) {
+            element.blur();
+            return Promise.resolve();
+        }
+
+        return new Promise(async resolve => {
+            element.blur();
+            while (await this.isPresentingModally())
+                continue;
+            while (await this.isShowingKeyboard())
+                continue;
+            resolve();
+        });
+    }
+
+    static waitForPopoverToPresent()
+    {
+        if (!this.isWebKit2() || !this.isIOS())
+            return Promise.resolve();
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    if (uiController.isShowingPopover)
+                        uiController.uiScriptComplete();
+                    else
+                        uiController.willPresentPopoverCallback = () => uiController.uiScriptComplete();
+                })()`, resolve);
+        });
+    }
+
+    static waitForPopoverToDismiss()
+    {
+        if (!this.isWebKit2() || !this.isIOS())
+            return Promise.resolve();
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    if (uiController.isShowingPopover)
+                        uiController.didDismissPopoverCallback = () => uiController.uiScriptComplete();
+                    else
+                        uiController.uiScriptComplete();
                 })()`, resolve);
         });
     }
@@ -383,7 +613,7 @@ window.UIHelper = class UIHelper {
         return new Promise(resolve => {
             testRunner.runUIScript(`(() => {
                 uiController.uiScriptComplete(uiController.isShowingDataListSuggestions);
-            })()`, result => resolve(result === "true" ? true : false));
+            })()`, result => resolve(result === "true"));
         });
     }
 
@@ -499,14 +729,14 @@ window.UIHelper = class UIHelper {
         return new Promise(resolve => testRunner.runUIScript(`uiController.drawSquareInEditableImage()`, resolve));
     }
 
-    static stylusTapAt(x, y)
+    static stylusTapAt(x, y, modifiers=[])
     {
         if (!this.isWebKit2())
             return Promise.resolve();
 
         return new Promise((resolve) => {
             testRunner.runUIScript(`
-                uiController.stylusTapAtPoint(${x}, ${y}, 2, 1, 0.5, function() {
+                uiController.stylusTapAtPointWithModifiers(${x}, ${y}, 2, 1, 0.5, ${JSON.stringify(modifiers)}, function() {
                     uiController.uiScriptComplete();
                 });`, resolve);
         });
@@ -546,6 +776,14 @@ window.UIHelper = class UIHelper {
         return new Promise(resolve => testRunner.runUIScript(`uiController.setMinimumEffectiveWidth(${effectiveWidth})`, resolve));
     }
 
+    static setAllowsViewportShrinkToFit(allows)
+    {
+        if (!this.isWebKit2())
+            return Promise.resolve();
+
+        return new Promise(resolve => testRunner.runUIScript(`uiController.setAllowsViewportShrinkToFit(${allows})`, resolve));
+    }
+
     static setKeyboardInputModeIdentifier(identifier)
     {
         if (!this.isWebKit2())
@@ -574,5 +812,25 @@ window.UIHelper = class UIHelper {
 
         const script = "JSON.stringify([uiController.lastUndoLabel, uiController.firstRedoLabel])";
         return new Promise(resolve => testRunner.runUIScript(script, result => resolve(JSON.parse(result))));
+    }
+
+    static waitForMenuToShow()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    if (!uiController.isShowingMenu)
+                        uiController.didShowMenuCallback = () => uiController.uiScriptComplete();
+                    else
+                        uiController.uiScriptComplete();
+                })()`, resolve);
+        });
+    }
+
+    static menuRect()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript("JSON.stringify(uiController.menuRect)", result => resolve(JSON.parse(result)));
+        });
     }
 }

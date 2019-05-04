@@ -32,6 +32,10 @@
 #include "ScrollingCoordinator.h"
 #include "ScrollingStateNode.h"
 
+#if PLATFORM(COCOA)
+OBJC_CLASS NSScrollerImp;
+#endif
+
 namespace WebCore {
 
 class ScrollingStateScrollingNode : public ScrollingStateNode {
@@ -56,7 +60,11 @@ public:
         CurrentVerticalSnapOffsetIndex,
 #endif
         ExpectsWheelEventTestTrigger,
+        ScrollContainerLayer,
         ScrolledContentsLayer,
+        HorizontalScrollbarLayer,
+        VerticalScrollbarLayer,
+        PainterForScrollbar,
         NumScrollingStateNodeBits // This must remain at the last position.
     };
 
@@ -108,9 +116,24 @@ public:
     bool expectsWheelEventTestTrigger() const { return m_expectsWheelEventTestTrigger; }
     WEBCORE_EXPORT void setExpectsWheelEventTestTrigger(bool);
 
+    const LayerRepresentation& scrollContainerLayer() const { return m_scrollContainerLayer; }
+    WEBCORE_EXPORT void setScrollContainerLayer(const LayerRepresentation&);
+
     // This is a layer with the contents that move.
     const LayerRepresentation& scrolledContentsLayer() const { return m_scrolledContentsLayer; }
     WEBCORE_EXPORT void setScrolledContentsLayer(const LayerRepresentation&);
+
+    const LayerRepresentation& horizontalScrollbarLayer() const { return m_horizontalScrollbarLayer; }
+    WEBCORE_EXPORT void setHorizontalScrollbarLayer(const LayerRepresentation&);
+
+    const LayerRepresentation& verticalScrollbarLayer() const { return m_verticalScrollbarLayer; }
+    WEBCORE_EXPORT void setVerticalScrollbarLayer(const LayerRepresentation&);
+
+#if PLATFORM(MAC)
+    NSScrollerImp *verticalScrollerImp() const { return m_verticalScrollerImp.get(); }
+    NSScrollerImp *horizontalScrollerImp() const { return m_horizontalScrollerImp.get(); }
+#endif
+    void setScrollerImpsFromScrollbars(Scrollbar* verticalScrollbar, Scrollbar* horizontalScrollbar);
 
 protected:
     ScrollingStateScrollingNode(ScrollingStateTree&, ScrollingNodeType, ScrollingNodeID);
@@ -128,13 +151,25 @@ private:
     FloatPoint m_scrollPosition;
     FloatPoint m_requestedScrollPosition;
     IntPoint m_scrollOrigin;
+
 #if ENABLE(CSS_SCROLL_SNAP)
     ScrollSnapOffsetsInfo<float> m_snapOffsetsInfo;
     unsigned m_currentHorizontalSnapPointIndex { 0 };
     unsigned m_currentVerticalSnapPointIndex { 0 };
 #endif
-    ScrollableAreaParameters m_scrollableAreaParameters;
+
+    LayerRepresentation m_scrollContainerLayer;
     LayerRepresentation m_scrolledContentsLayer;
+    LayerRepresentation m_horizontalScrollbarLayer;
+    LayerRepresentation m_verticalScrollbarLayer;
+
+#if PLATFORM(MAC)
+    RetainPtr<NSScrollerImp> m_verticalScrollerImp;
+    RetainPtr<NSScrollerImp> m_horizontalScrollerImp;
+#endif
+
+    ScrollableAreaParameters m_scrollableAreaParameters;
+
     bool m_requestedScrollPositionRepresentsProgrammaticScroll { false };
     bool m_expectsWheelEventTestTrigger { false };
 };

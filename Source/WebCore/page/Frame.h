@@ -106,14 +106,16 @@ using NodeQualifier = Function<Node* (const HitTestResult&, Node* terminationNod
 #endif
 
 enum {
-    LayerTreeFlagsIncludeDebugInfo = 1 << 0,
-    LayerTreeFlagsIncludeVisibleRects = 1 << 1,
-    LayerTreeFlagsIncludeTileCaches = 1 << 2,
-    LayerTreeFlagsIncludeRepaintRects = 1 << 3,
-    LayerTreeFlagsIncludePaintingPhases = 1 << 4,
-    LayerTreeFlagsIncludeContentLayers = 1 << 5,
-    LayerTreeFlagsIncludeAcceleratesDrawing = 1 << 6,
-    LayerTreeFlagsIncludeBackingStoreAttached = 1 << 7,
+    LayerTreeFlagsIncludeDebugInfo              = 1 << 0,
+    LayerTreeFlagsIncludeVisibleRects           = 1 << 1,
+    LayerTreeFlagsIncludeTileCaches             = 1 << 2,
+    LayerTreeFlagsIncludeRepaintRects           = 1 << 3,
+    LayerTreeFlagsIncludePaintingPhases         = 1 << 4,
+    LayerTreeFlagsIncludeContentLayers          = 1 << 5,
+    LayerTreeFlagsIncludeAcceleratesDrawing     = 1 << 6,
+    LayerTreeFlagsIncludeBackingStoreAttached   = 1 << 7,
+    LayerTreeFlagsIncludeRootLayerProperties    = 1 << 8,
+    LayerTreeFlagsIncludeEventRegion            = 1 << 9,
 };
 typedef unsigned LayerTreeFlags;
 
@@ -128,7 +130,7 @@ public:
     WEBCORE_EXPORT void initWithSimpleHTMLDocument(const String& style, const URL&);
 #endif
     WEBCORE_EXPORT void setView(RefPtr<FrameView>&&);
-    WEBCORE_EXPORT void createView(const IntSize&, bool transparent,
+    WEBCORE_EXPORT void createView(const IntSize&, const Optional<Color>& backgroundColor,
         const IntSize& fixedLayoutSize, const IntRect& fixedVisibleContentRect,
         bool useFixedLayout = false, ScrollbarMode = ScrollbarAuto, bool horizontalLock = false,
         ScrollbarMode = ScrollbarAuto, bool verticalLock = false);
@@ -174,6 +176,8 @@ public:
 
     bool hasHadUserInteraction() const { return m_hasHadUserInteraction; }
     void setHasHadUserInteraction() { m_hasHadUserInteraction = true; }
+
+    bool requestDOMPasteAccess();
 
 // ======== All public functions below this point are candidates to move out of Frame into another class. ========
 
@@ -254,9 +258,6 @@ public:
     String matchLabelsAgainstElement(const Vector<String>& labels, Element*);
 
 #if PLATFORM(IOS_FAMILY)
-    // Scroll the selection in an overflow layer.
-    void scrollOverflowLayer(RenderLayer*, const IntRect& visibleRect, const IntRect& exposeRect);
-
     WEBCORE_EXPORT int preferredHeight() const;
     WEBCORE_EXPORT void updateLayout() const;
     WEBCORE_EXPORT NSRect caretRect();
@@ -329,17 +330,10 @@ private:
     bool hitTestResultAtViewportLocation(const FloatPoint& viewportLocation, HitTestResult&, IntPoint& center);
     Node* qualifyingNodeAtViewportLocation(const FloatPoint& viewportLocation, FloatPoint& adjustedViewportLocation, const NodeQualifier&, bool shouldApproximate);
 
-    void overflowAutoScrollTimerFired();
-    void startOverflowAutoScroll(const IntPoint&);
-    int checkOverflowScroll(OverflowScrollAction);
-
     void setTimersPausedInternal(bool);
 
-    Timer m_overflowAutoScrollTimer;
-    float m_overflowAutoScrollDelta;
-    IntPoint m_overflowAutoScrollPos;
     ViewportArguments m_viewportArguments;
-    bool m_selectionChangeCallbacksDisabled;
+    bool m_selectionChangeCallbacksDisabled { false };
     VisibleSelection m_rangedSelectionBase;
     VisibleSelection m_rangedSelectionInitialExtent;
 #endif
@@ -347,7 +341,7 @@ private:
     float m_pageZoomFactor;
     float m_textZoomFactor;
 
-    int m_activeDOMObjectsAndAnimationsSuspendedCount;
+    int m_activeDOMObjectsAndAnimationsSuspendedCount { 0 };
     bool m_documentIsBeingReplaced { false };
     unsigned m_navigationDisableCount { 0 };
     unsigned m_selfOnlyRefCount { 0 };

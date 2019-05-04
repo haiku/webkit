@@ -40,34 +40,36 @@ enum class Mode {
     Rfc2045,
     MimeSniff
 };
-// <index, length>
-typedef std::pair<unsigned, unsigned> SubstringRange;
 WEBCORE_EXPORT bool isValidContentType(const String&, Mode = Mode::MimeSniff);
 
 // FIXME: add support for comments.
 class ParsedContentType {
 public:
-    static Optional<ParsedContentType> create(const String&, Mode = Mode::MimeSniff);
+    WEBCORE_EXPORT static Optional<ParsedContentType> create(const String&, Mode = Mode::MimeSniff);
     ParsedContentType(ParsedContentType&&) = default;
 
     String mimeType() const { return m_mimeType; }
     String charset() const;
+    void setCharset(String&&);
 
     // Note that in the case of multiple values for the same name, the last value is returned.
     String parameterValueForName(const String&) const;
     size_t parameterCount() const;
+
+    WEBCORE_EXPORT String serialize() const;
 
 private:
     ParsedContentType(const String&);
     ParsedContentType(const ParsedContentType&) = delete;
     ParsedContentType& operator=(ParsedContentType const&) = delete;
     bool parseContentType(Mode);
-    void setContentType(const SubstringRange&, Mode);
+    void setContentType(StringView, Mode);
     void setContentTypeParameter(const String&, const String&, Mode);
 
     typedef HashMap<String, String> KeyValuePairs;
     String m_contentType;
-    KeyValuePairs m_parameters;
+    KeyValuePairs m_parameterValues;
+    Vector<String> m_parameterNames;
     String m_mimeType;
 };
 

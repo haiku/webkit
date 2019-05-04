@@ -45,6 +45,7 @@
 #include "ScheduledAction.h"
 #include "Settings.h"
 #include "WebCoreJSClientData.h"
+#include <JavaScriptCore/BuiltinNames.h>
 #include <JavaScriptCore/HeapSnapshotBuilder.h>
 #include <JavaScriptCore/JSCInlines.h>
 #include <JavaScriptCore/JSMicrotask.h>
@@ -322,15 +323,15 @@ void JSDOMWindow::heapSnapshot(JSCell* cell, HeapSnapshotBuilder& builder)
 template <CrossOriginObject objectType>
 static void addCrossOriginPropertyNames(VM& vm, PropertyNameArray& propertyNames)
 {
+    auto& builtinNames = static_cast<JSVMClientData*>(vm.clientData)->builtinNames();
     switch (objectType) {
     case CrossOriginObject::Location: {
-        static const Identifier* const properties[] = { &vm.propertyNames->href, &vm.propertyNames->replace };
+        static const Identifier* const properties[] = { &builtinNames.hrefPublicName(), &vm.propertyNames->replace };
         for (auto* property : properties)
             propertyNames.add(*property);
         break;
     }
     case CrossOriginObject::Window: {
-        auto& builtinNames = static_cast<JSVMClientData*>(vm.clientData)->builtinNames();
         static const Identifier* const properties[] = {
             &builtinNames.blurPublicName(), &builtinNames.closePublicName(), &builtinNames.closedPublicName(),
             &builtinNames.focusPublicName(), &builtinNames.framesPublicName(), &vm.propertyNames->length,
@@ -546,6 +547,21 @@ void JSDOMWindow::setOpener(JSC::ExecState& state, JSC::JSValue value)
         return;
     }
     replaceStaticPropertySlot(state.vm(), this, Identifier::fromString(&state.vm(), "opener"), value);
+}
+
+JSValue JSDOMWindow::self(JSC::ExecState&) const
+{
+    return globalThis();
+}
+
+JSValue JSDOMWindow::window(JSC::ExecState&) const
+{
+    return globalThis();
+}
+
+JSValue JSDOMWindow::frames(JSC::ExecState&) const
+{
+    return globalThis();
 }
 
 } // namespace WebCore

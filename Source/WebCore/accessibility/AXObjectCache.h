@@ -40,6 +40,10 @@
 #include <wtf/ListHashSet.h>
 #include <wtf/RefPtr.h>
 
+#if PLATFORM(GTK)
+#include <wtf/glib/GRefPtr.h>
+#endif
+
 namespace WebCore {
 
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
@@ -91,6 +95,7 @@ struct CharacterOffset {
 };
 
 class AXComputedObjectAttributeCache {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     AccessibilityObjectInclusion getIgnored(AXID) const;
     void setIgnored(AXID, AccessibilityObjectInclusion);
@@ -290,6 +295,8 @@ public:
         AXRowExpanded,
         AXExpandedChanged,
         AXInvalidStatusChanged,
+        AXPressDidSucceed,
+        AXPressDidFail,
         AXPressedStateChanged,
         AXReadOnlyStatusChanged,
         AXRequiredStatusChanged,
@@ -351,6 +358,8 @@ public:
 protected:
     void postPlatformNotification(AccessibilityObject*, AXNotification);
     void platformHandleFocusedUIElementChanged(Node* oldFocusedNode, Node* newFocusedNode);
+
+    void platformPerformDeferredCacheUpdate();
 
 #if PLATFORM(COCOA)
     void postTextStateChangePlatformNotification(AccessibilityObject*, const AXTextStateChangeIntent&, const VisibleSelection&);
@@ -466,11 +475,18 @@ private:
     ListHashSet<Element*> m_deferredRecomputeIsIgnoredList;
     ListHashSet<Node*> m_deferredTextChangedList;
     ListHashSet<Element*> m_deferredSelectedChildredChangedList;
+    ListHashSet<RefPtr<AccessibilityObject>> m_deferredChildredChangedList;
+    ListHashSet<Node*> m_deferredChildrenChangedNodeList;
     HashMap<Element*, String> m_deferredTextFormControlValue;
     HashMap<Element*, QualifiedName> m_deferredAttributeChange;
     Vector<std::pair<Node*, Node*>> m_deferredFocusedNodeChange;
     bool m_isSynchronizingSelection { false };
     bool m_performingDeferredCacheUpdate { false };
+
+#if PLATFORM(GTK)
+    ListHashSet<RefPtr<AccessibilityObject>> m_deferredAttachedWrapperObjectList;
+    ListHashSet<GRefPtr<AccessibilityObjectWrapper>> m_deferredDetachedWrapperList;
+#endif
 };
 
 class AXAttributeCacheEnabler

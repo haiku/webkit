@@ -340,7 +340,9 @@ private:
                 JSValue right = m_state.forNode(node->child2()).value();
                 if (left && right && left.isInt32() && right.isInt32()
                     && static_cast<uint32_t>(left.asInt32()) < static_cast<uint32_t>(right.asInt32())) {
-                    node->remove(m_graph);
+
+                    Node* zero = m_insertionSet.insertConstant(indexInBlock, node->origin, jsNumber(0));
+                    node->convertToIdentityOn(zero);
                     eliminated = true;
                     break;
                 }
@@ -361,7 +363,7 @@ private:
                 
                 unsigned index = checkedIndex.unsafeGet();
                 Node* arguments = node->child1().node();
-                InlineCallFrame* inlineCallFrame = arguments->origin.semantic.inlineCallFrame;
+                InlineCallFrame* inlineCallFrame = arguments->origin.semantic.inlineCallFrame();
                 
                 // Don't try to do anything if the index is known to be outside our static bounds. Note
                 // that our static bounds are usually strictly larger than the dynamic bounds. The
@@ -409,10 +411,11 @@ private:
                 
                 Node* length = emitCodeToGetArgumentsArrayLength(
                     m_insertionSet, arguments, indexInBlock, node->origin);
-                m_insertionSet.insertNode(
+                Node* check = m_insertionSet.insertNode(
                     indexInBlock, SpecNone, CheckInBounds, node->origin,
                     node->child2(), Edge(length, Int32Use));
                 node->convertToGetStack(data);
+                node->child1() = Edge(check, UntypedUse);
                 eliminated = true;
                 break;
             }
@@ -692,7 +695,7 @@ private:
             }
 
             case ToThis: {
-                ToThisResult result = isToThisAnIdentity(m_graph.m_vm, m_graph.executableFor(node->origin.semantic)->isStrictMode(), m_state.forNode(node->child1()));
+                ToThisResult result = isToThisAnIdentity(m_graph.m_vm, m_graph.isStrictModeFor(node->origin.semantic), m_state.forNode(node->child1()));
                 if (result == ToThisResult::Identity) {
                     node->convertToIdentity();
                     changed = true;

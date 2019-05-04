@@ -25,8 +25,6 @@
 
 #import "WK2BrowserWindowController.h"
 
-#if WK_API_ENABLED
-
 #import "AppDelegate.h"
 #import "AppKitCompatibilityDeclarations.h"
 #import "SettingsController.h"
@@ -406,7 +404,6 @@ static BOOL areEssentiallyEqual(double a, double b)
     preferences._resourceUsageOverlayVisible = settings.resourceUsageOverlayVisible;
     preferences._displayListDrawingEnabled = settings.displayListDrawingEnabled;
     preferences._subpixelAntialiasedLayerTextEnabled = settings.subpixelAntialiasedLayerTextEnabled;
-    preferences._visualViewportEnabled = settings.visualViewportEnabled;
     preferences._largeImageAsyncDecodingEnabled = settings.largeImageAsyncDecodingEnabled;
     preferences._animatedImageAsyncDecodingEnabled = settings.animatedImageAsyncDecodingEnabled;
     preferences._colorFilterEnabled = settings.appleColorFilterEnabled;
@@ -674,12 +671,6 @@ static NSSet *dataTypes()
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
 {
     LOG(@"didFinishNavigation: %@", navigation);
-    
-    // Banner heights don't persist across page loads (oddly, since Page stores them), so reset on every page load.
-    if ([[SettingsController shared] isSpaceReservedForBanners]) {
-        [_webView _setHeaderBannerHeight:testHeaderBannerHeight];
-        [_webView _setFooterBannerHeight:testFooterBannerHeight];
-    }
 }
 
 - (void)webView:(WKWebView *)webView didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *__nullable credential))completionHandler
@@ -802,5 +793,3 @@ static NSSet *dataTypes()
 }
 
 @end
-
-#endif // WK_API_ENABLED

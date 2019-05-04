@@ -259,6 +259,7 @@ typedef enum {
 @end
 
 @interface UIKeyboardImpl : UIView <UIKeyboardCandidateListDelegate>
+- (BOOL)smartInsertDeleteIsEnabled;
 @end
 
 @interface UIKeyboardImpl ()
@@ -320,6 +321,8 @@ typedef enum {
 @interface UIResponder ()
 - (void)_handleKeyUIEvent:(UIEvent *)event;
 - (void)_wheelChangedWithEvent:(UIEvent *)event;
+- (void)_beginPinningInputViews;
+- (void)_endPinningInputViews;
 @end
 
 @class FBSDisplayConfiguration;
@@ -765,6 +768,7 @@ struct _UIWebTouchEvent {
 @property (nonatomic, readonly) CGPoint locationInWindow;
 @property (nonatomic, readonly) UIWebTouchEventType type;
 @property (nonatomic, readonly) const struct _UIWebTouchEvent *lastTouchEvent;
+@property (nonatomic, readonly) NSMapTable<NSNumber *, UITouch *> *activeTouchesByIdentifier;
 @end
 
 typedef NS_ENUM(NSInteger, _UIBackdropViewStylePrivate) {
@@ -977,7 +981,14 @@ typedef NS_OPTIONS(NSUInteger, UIDragOperation)
 -(void)remove;
 @end
 
+@interface UIURLDragPreviewView : UIView
++ (instancetype)viewWithTitle:(NSString *)title URL:(NSURL *)url;
+@end
+
+#endif
+
 @interface UICalloutBar : UIView
++ (UICalloutBar *)activeCalloutBar;
 + (void)fadeSharedCalloutBar;
 @end
 
@@ -987,12 +998,6 @@ typedef NS_OPTIONS(NSUInteger, UIDragOperation)
 @interface UITextEffectsWindow : UIAutoRotatingWindow
 + (UITextEffectsWindow *)sharedTextEffectsWindow;
 @end
-
-@interface UIURLDragPreviewView : UIView
-+ (instancetype)viewWithTitle:(NSString *)title URL:(NSURL *)url;
-@end
-
-#endif
 
 @interface _UIVisualEffectLayerConfig : NSObject
 + (instancetype)layerWithFillColor:(UIColor *)fillColor opacity:(CGFloat)opacity filterType:(NSString *)filterType;
@@ -1029,7 +1034,41 @@ typedef NSInteger UICompositingMode;
 @property (assign, nonatomic, setter=_setCentersPopoverIfSourceViewNotSet:, getter=_centersPopoverIfSourceViewNotSet) BOOL _centersPopoverIfSourceViewNotSet;
 @end
 
+@interface UIWKDocumentContext : NSObject
+
+@property (nonatomic, copy) NSObject *contextBefore;
+@property (nonatomic, copy) NSObject *selectedText;
+@property (nonatomic, copy) NSObject *contextAfter;
+@property (nonatomic, copy) NSObject *markedText;
+@property (nonatomic, assign) NSRange selectedRangeInMarkedText;
+@property (nonatomic, copy) NSAttributedString *annotatedText;
+
+- (void)addTextRect:(CGRect)rect forCharacterRange:(NSRange)range;
+
+@end
+
+typedef NS_OPTIONS(NSInteger, UIWKDocumentRequestFlags) {
+    UIWKDocumentRequestNone = 0,
+    UIWKDocumentRequestText = 1 << 0,
+    UIWKDocumentRequestAttributed = 1 << 1,
+    UIWKDocumentRequestRects = 1 << 2,
+    UIWKDocumentRequestSpatial = 1 << 3,
+    UIWKDocumentRequestAnnotation = 1 << 4,
+};
+
+@interface UIWKDocumentRequest : NSObject
+@property (nonatomic, assign) UIWKDocumentRequestFlags flags;
+@property (nonatomic, assign) UITextGranularity surroundingGranularity;
+@property (nonatomic, assign) NSInteger granularityCount;
+@property (nonatomic, assign) CGRect documentRect;
+@property (nonatomic, retain) id <NSCopying> inputElementIdentifier;
+@end
+
 #endif // USE(APPLE_INTERNAL_SDK)
+
+@interface UIGestureRecognizer (Staging_45970040)
+@property (nonatomic, readonly, getter=_modifierFlags) UIKeyModifierFlags modifierFlags;
+@end
 
 @interface UIPhysicalKeyboardEvent : UIPressesEvent
 @end
@@ -1068,9 +1107,6 @@ typedef NSInteger UICompositingMode;
 @end
 
 @interface UIPeripheralHost (IPI)
-- (void)_beginIgnoringReloadInputViews;
-- (int)_endIgnoringReloadInputViews;
-- (void)forceReloadInputViews;
 - (CGFloat)getVerticalOverlapForView:(UIView *)view usingKeyboardInfo:(NSDictionary *)info;
 @end
 
@@ -1083,6 +1119,7 @@ typedef NSInteger UICompositingMode;
 @end
 
 @interface _UILayerHostView : UIView
+- (instancetype)initWithFrame:(CGRect)frame pid:(pid_t)pid contextID:(uint32_t)contextID;
 @end
 
 @interface _UIRemoteView : _UILayerHostView
@@ -1118,6 +1155,10 @@ typedef NSInteger UICompositingMode;
 @end
 #endif
 
+@interface UIDevice ()
+@property (nonatomic, setter=_setBacklightLevel:) float _backlightLevel;
+@end
+
 static inline bool currentUserInterfaceIdiomIsPad()
 {
     // This inline function exists to thwart unreachable code
@@ -1130,10 +1171,15 @@ static inline bool currentUserInterfaceIdiomIsPad()
 #endif
 }
 
+@interface UIWebFormAccessory (Staging_49666643)
+- (void)setNextPreviousItemsVisible:(BOOL)visible;
+@end
+
 WTF_EXTERN_C_BEGIN
 
 BOOL UIKeyboardEnabledInputModesAllowOneToManyShortcuts(void);
 BOOL UIKeyboardEnabledInputModesAllowChineseTransliterationForText(NSString *);
+BOOL UIKeyboardIsRightToLeftInputModeActive(void);
 
 extern const float UITableCellDefaultFontSize;
 extern const float UITableViewCellDefaultFontSize;
@@ -1179,5 +1225,14 @@ extern NSString * const UIPreviewDataAttachmentListIsContentManaged;
 #endif
 
 UIEdgeInsets UIEdgeInsetsAdd(UIEdgeInsets lhs, UIEdgeInsets rhs, UIRectEdge);
+
+extern NSString *const UIBacklightLevelChangedNotification;
+
+extern NSString * const NSTextEncodingNameDocumentOption;
+extern NSString * const NSBaseURLDocumentOption;
+extern NSString * const NSTimeoutDocumentOption;
+extern NSString * const NSWebPreferencesDocumentOption;
+extern NSString * const NSWebResourceLoadDelegateDocumentOption;
+extern NSString * const NSTextSizeMultiplierDocumentOption;
 
 WTF_EXTERN_C_END

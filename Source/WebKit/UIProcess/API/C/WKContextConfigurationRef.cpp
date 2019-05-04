@@ -138,6 +138,16 @@ void WKContextConfigurationSetFullySynchronousModeIsAllowedForTesting(WKContextC
     toImpl(configuration)->setFullySynchronousModeIsAllowedForTesting(allowed);
 }
 
+bool WKContextConfigurationIgnoreSynchronousMessagingTimeoutsForTesting(WKContextConfigurationRef configuration)
+{
+    return toImpl(configuration)->ignoreSynchronousMessagingTimeoutsForTesting();
+}
+
+void WKContextConfigurationSetIgnoreSynchronousMessagingTimeoutsForTesting(WKContextConfigurationRef configuration, bool ignore)
+{
+    toImpl(configuration)->setIgnoreSynchronousMessagingTimeoutsForTesting(ignore);
+}
+
 WKArrayRef WKContextConfigurationCopyOverrideLanguages(WKContextConfigurationRef configuration)
 {
     return toAPI(&API::Array::createStringArray(toImpl(configuration)->overrideLanguages()).leakRef());
@@ -176,6 +186,16 @@ bool WKContextConfigurationPrewarmsProcessesAutomatically(WKContextConfiguration
 void WKContextConfigurationSetPrewarmsProcessesAutomatically(WKContextConfigurationRef configuration, bool prewarms)
 {
     toImpl(configuration)->setIsAutomaticProcessWarmingEnabled(prewarms);
+}
+
+bool WKContextConfigurationUsesWebProcessCache(WKContextConfigurationRef configuration)
+{
+    return toImpl(configuration)->usesWebProcessCache();
+}
+
+void WKContextConfigurationSetUsesWebProcessCache(WKContextConfigurationRef configuration, bool uses)
+{
+    toImpl(configuration)->setUsesWebProcessCache(uses);
 }
 
 bool WKContextConfigurationAlwaysKeepAndReuseSwappedProcesses(WKContextConfigurationRef configuration)

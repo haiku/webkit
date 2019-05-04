@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,6 +30,7 @@
 #include "ApplePayLineItem.h"
 #include "ApplePayShippingMethod.h"
 #include "MockPaymentAddress.h"
+#include "MockPaymentContactFields.h"
 #include "MockPaymentError.h"
 #include "PaymentCoordinatorClient.h"
 #include <wtf/HashSet.h>
@@ -56,16 +57,20 @@ public:
     const Vector<ApplePayLineItem>& lineItems() const { return m_lineItems; }
     const Vector<MockPaymentError>& errors() const { return m_errors; }
     const Vector<ApplePayShippingMethod>& shippingMethods() const { return m_shippingMethods; }
+    const MockPaymentContactFields& requiredBillingContactFields() const { return m_requiredBillingContactFields; }
+    const MockPaymentContactFields& requiredShippingContactFields() const { return m_requiredShippingContactFields; }
+
+    bool supportsUnrestrictedApplePay() const final { return m_supportsUnrestrictedApplePay; }
+    void setSupportsUnrestrictedApplePay(bool supports) { m_supportsUnrestrictedApplePay = supports; }
 
     void ref() const { }
     void deref() const { }
 
 private:
-    bool supportsVersion(unsigned) final;
     Optional<String> validatedPaymentNetwork(const String&) final;
     bool canMakePayments() final;
-    void canMakePaymentsWithActiveCard(const String&, const String&, WTF::Function<void(bool)>&&);
-    void openPaymentSetup(const String&, const String&, WTF::Function<void(bool)>&&);
+    void canMakePaymentsWithActiveCard(const String&, const String&, CompletionHandler<void(bool)>&&) final;
+    void openPaymentSetup(const String&, const String&, CompletionHandler<void(bool)>&&) final;
     bool showPaymentUI(const URL&, const Vector<URL>&, const ApplePaySessionPaymentRequest&) final;
     void completeMerchantValidation(const PaymentMerchantSession&) final;
     void completeShippingMethodSelection(Optional<ShippingMethodUpdate>&&) final;
@@ -78,6 +83,8 @@ private:
 
     bool isMockPaymentCoordinator() const final { return true; }
 
+    bool isAlwaysOnLoggingAllowed() const final { return true; }
+
     void updateTotalAndLineItems(const ApplePaySessionPaymentRequest::TotalAndLineItems&);
 
     Page& m_page;
@@ -89,6 +96,9 @@ private:
     Vector<MockPaymentError> m_errors;
     Vector<ApplePayShippingMethod> m_shippingMethods;
     HashSet<String, ASCIICaseInsensitiveHash> m_availablePaymentNetworks;
+    MockPaymentContactFields m_requiredBillingContactFields;
+    MockPaymentContactFields m_requiredShippingContactFields;
+    bool m_supportsUnrestrictedApplePay { true };
 };
 
 } // namespace WebCore

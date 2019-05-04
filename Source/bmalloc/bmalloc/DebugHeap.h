@@ -25,7 +25,9 @@
 
 #pragma once
 
+#include "Environment.h"
 #include "Mutex.h"
+#include "StaticPerProcess.h"
 #include <mutex>
 #include <unordered_map>
 
@@ -35,17 +37,22 @@
 
 namespace bmalloc {
     
-class DebugHeap {
+class DebugHeap : private StaticPerProcess<DebugHeap> {
 public:
     DebugHeap(std::lock_guard<Mutex>&);
     
-    void* malloc(size_t);
+    void* malloc(size_t, bool crashOnFailure);
     void* memalign(size_t alignment, size_t, bool crashOnFailure);
     void* realloc(void*, size_t, bool crashOnFailure);
     void free(void*);
     
     void* memalignLarge(size_t alignment, size_t);
     void freeLarge(void* base);
+
+    void scavenge();
+    void dump();
+
+    static DebugHeap* tryGet();
 
 private:
 #if BOS(DARWIN)
@@ -57,5 +64,18 @@ private:
     std::mutex m_lock;
     std::unordered_map<void*, size_t> m_sizeMap;
 };
+DECLARE_STATIC_PER_PROCESS_STORAGE(DebugHeap);
+
+extern BEXPORT DebugHeap* debugHeapCache;
+BINLINE DebugHeap* DebugHeap::tryGet()
+{
+    if (debugHeapCache)
+        return debugHeapCache;
+    if (Environment::get()->isDebugHeapEnabled()) {
+        debugHeapCache = DebugHeap::get();
+        return debugHeapCache;
+    }
+    return nullptr;
+}
 
 } // namespace bmalloc

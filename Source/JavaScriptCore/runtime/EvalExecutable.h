@@ -26,15 +26,15 @@
 #pragma once
 
 #include "ExecutableToCodeBlockEdge.h"
-#include "ScriptExecutable.h"
+#include "GlobalExecutable.h"
 #include "UnlinkedEvalCodeBlock.h"
 
 namespace JSC {
 
-class EvalExecutable : public ScriptExecutable {
+class EvalExecutable : public GlobalExecutable {
     friend class LLIntOffsetsExtractor;
 public:
-    typedef ScriptExecutable Base;
+    using Base = GlobalExecutable;
     static const unsigned StructureFlags = Base::StructureFlags | StructureIsImmortal;
 
     static void destroy(JSCell*);
@@ -52,6 +52,12 @@ public:
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
     {
         return Structure::create(vm, globalObject, proto, TypeInfo(EvalExecutableType, StructureFlags), info());
+    }
+
+    template<typename CellType, SubspaceAccess mode>
+    static IsoSubspace* subspaceFor(VM& vm)
+    {
+        return vm.evalExecutableSpace<mode>();
     }
 
     DECLARE_INFO;

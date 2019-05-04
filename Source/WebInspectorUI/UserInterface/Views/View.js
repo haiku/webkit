@@ -108,6 +108,7 @@ WI.View = class View extends WI.Object
 
         this._subviews.insertAtIndex(view, beforeIndex);
 
+        console.assert(!view.element.parentNode || this._element.contains(view.element.parentNode), "Subview DOM element must be a descendant of the parent view element.");
         if (!view.element.parentNode)
             this._element.insertBefore(view.element, referenceView ? referenceView.element : null);
 
@@ -117,7 +118,7 @@ WI.View = class View extends WI.Object
     removeSubview(view)
     {
         console.assert(view instanceof WI.View);
-        console.assert(view.element.parentNode === this._element, "Subview DOM element must be a child of the parent view element.");
+        console.assert(this._element.contains(view.element), "Subview DOM element must be a child of the parent view element.");
 
         let index = this._subviews.lastIndexOf(view);
         if (index === -1) {
@@ -126,7 +127,7 @@ WI.View = class View extends WI.Object
         }
 
         this._subviews.splice(index, 1);
-        this._element.removeChild(view.element);
+        view.element.remove();
 
         view._didMoveToParent(null);
     }

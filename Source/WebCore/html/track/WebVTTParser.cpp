@@ -39,6 +39,9 @@
 #include "HTMLParserIdioms.h"
 #include "ISOVTTCue.h"
 #include "ProcessingInstruction.h"
+#include "StyleRule.h"
+#include "StyleRuleImport.h"
+#include "StyleSheetContents.h"
 #include "Text.h"
 #include "VTTScanner.h"
 #include "WebVTTElement.h"
@@ -368,7 +371,38 @@ bool WebVTTParser::checkAndStoreStyleSheet(const String& line)
     if (!line.isEmpty() && !line.contains("-->"))
         return false;
     
-    m_styleSheets.append(WTFMove(m_currentStyleSheet));
+    auto styleSheet = WTFMove(m_currentStyleSheet);
+    
+    auto contents = StyleSheetContents::create();
+    if (!contents->parseString(styleSheet))
+        return true;
+
+    auto& namespaceRules = contents->namespaceRules();
+    if (namespaceRules.size())
+        return true;
+
+    auto& importRules = contents->importRules();
+    if (importRules.size())
+        return true;
+
+    auto& childRules = contents->childRules();
+    if (!childRules.size())
+        return true;
+    
+    for (auto rule : childRules) {
+        if (!rule->isStyleRule())
+            return true;
+        const auto& styleRule = downcast<StyleRule>(rule.get());
+
+        const auto& selectorList = styleRule->selectorList();
+        if (selectorList.listSize() != 1)
+            return true;
+        auto selector = selectorList.selectorAt(0);
+        if (selector->selectorText() != "::cue")
+            return true;
+    }
+
+    m_styleSheets.append(styleSheet);
     return true;
 }
 

@@ -52,14 +52,22 @@
 #include <WebCore/CurlProxySettings.h>
 #endif
 
+#if USE(APPLE_INTERNAL_SDK)
+#include <WebKitAdditions/WebsiteDataStoreAdditions.h>
+#endif
+
+namespace API {
+class HTTPCookieStore;
+}
+
 namespace WebCore {
+class RegistrableDomain;
 class SecurityOrigin;
 }
 
 namespace WebKit {
 
 class AuthenticatorManager;
-class LoadOptimizer;
 class SecKeyProxyStore;
 class StorageManager;
 class DeviceIdHashSaltStorage;
@@ -99,8 +107,9 @@ public:
     void setResourceLoadStatisticsDebugMode(bool);
     void setResourceLoadStatisticsDebugMode(bool, CompletionHandler<void()>&&);
 
-    uint64_t cacheStoragePerOriginQuota() const { return m_resolvedConfiguration->cacheStoragePerOriginQuota(); }
-    void setCacheStoragePerOriginQuota(uint64_t quota) { m_resolvedConfiguration->setCacheStoragePerOriginQuota(quota); }
+    uint64_t perOriginStorageQuota() const { return m_resolvedConfiguration->perOriginStorageQuota(); }
+    uint64_t perThirdPartyOriginStorageQuota() const;
+    void setPerOriginStorageQuota(uint64_t quota) { m_resolvedConfiguration->setPerOriginStorageQuota(quota); }
     const String& cacheStorageDirectory() const { return m_resolvedConfiguration->cacheStorageDirectory(); }
     void setCacheStorageDirectory(String&& directory) { m_resolvedConfiguration->setCacheStorageDirectory(WTFMove(directory)); }
     const String& serviceWorkerRegistrationDirectory() const { return m_resolvedConfiguration->serviceWorkerRegistrationDirectory(); }
@@ -118,8 +127,7 @@ public:
     void removeData(OptionSet<WebsiteDataType>, const Vector<WebsiteDataRecord>&, Function<void()>&& completionHandler);
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    void fetchDataForTopPrivatelyControlledDomains(OptionSet<WebsiteDataType>, OptionSet<WebsiteDataFetchOption>, const Vector<String>& topPrivatelyControlledDomains, Function<void(Vector<WebsiteDataRecord>&&, HashSet<String>&&)>&& completionHandler);
-
+    void fetchDataForRegistrableDomains(OptionSet<WebsiteDataType>, OptionSet<WebsiteDataFetchOption>, const Vector<WebCore::RegistrableDomain>&, CompletionHandler<void(Vector<WebsiteDataRecord>&&, HashSet<WebCore::RegistrableDomain>&&)>&&);
     void clearPrevalentResource(const URL&, CompletionHandler<void()>&&);
     void clearUserInteraction(const URL&, CompletionHandler<void()>&&);
     void dumpResourceLoadStatistics(CompletionHandler<void(const String&)>&&);
@@ -142,9 +150,10 @@ public:
     void setGrandfatheringTime(Seconds, CompletionHandler<void()>&&);
     void setLastSeen(const URL&, Seconds, CompletionHandler<void()>&&);
     void setNotifyPagesWhenDataRecordsWereScanned(bool, CompletionHandler<void()>&&);
+    void setIsRunningResourceLoadStatisticsTest(bool, CompletionHandler<void()>&&);
     void setPruneEntriesDownTo(size_t, CompletionHandler<void()>&&);
-    void setSubframeUnderTopFrameOrigin(const URL& subframe, const URL& topFrame, CompletionHandler<void()>&&);
-    void setSubresourceUnderTopFrameOrigin(const URL& subresource, const URL& topFrame, CompletionHandler<void()>&&);
+    void setSubframeUnderTopFrameDomain(const URL& subframe, const URL& topFrame, CompletionHandler<void()>&&);
+    void setSubresourceUnderTopFrameDomain(const URL& subresource, const URL& topFrame, CompletionHandler<void()>&&);
     void setSubresourceUniqueRedirectTo(const URL& subresource, const URL& hostNameRedirectedTo, CompletionHandler<void()>&&);
     void setSubresourceUniqueRedirectFrom(const URL& subresource, const URL& hostNameRedirectedFrom, CompletionHandler<void()>&&);
     void setTimeToLiveUserInteraction(Seconds, CompletionHandler<void()>&&);
@@ -158,10 +167,14 @@ public:
     void setShouldClassifyResourcesBeforeDataRecordsRemoval(bool, CompletionHandler<void()>&&);
     void setStatisticsTestingCallback(WTF::Function<void(const String&)>&& callback) { m_statisticsTestingCallback = WTFMove(callback); }
     void setVeryPrevalentResource(const URL&, CompletionHandler<void()>&&);
-    void hasStorageAccess(String&& subFrameHost, String&& topFrameHost, uint64_t frameID, uint64_t pageID, CompletionHandler<void(bool)>&&);
-    void requestStorageAccess(String&& subFrameHost, String&& topFrameHost, uint64_t frameID, uint64_t pageID, bool promptEnabled, CompletionHandler<void(StorageAccessStatus)>&&);
+    void hasStorageAccess(const String& subFrameHost, const String& topFrameHost, uint64_t frameID, uint64_t pageID, CompletionHandler<void(bool)>&&);
+    void requestStorageAccess(const String& subFrameHost, const String& topFrameHost, uint64_t frameID, uint64_t pageID, CompletionHandler<void(StorageAccessStatus)>&&);
     void grantStorageAccess(String&& subFrameHost, String&& topFrameHost, uint64_t frameID, uint64_t pageID, bool userWasPrompted, CompletionHandler<void(bool)>&&);
-    void setSubframeUnderTopFrameOrigin(const URL& subframe, const URL& topFrame);
+    void setSubframeUnderTopFrameDomain(const URL& subframe, const URL& topFrame);
+    void setCrossSiteLoadWithLinkDecorationForTesting(const URL& fromURL, const URL& toURL, CompletionHandler<void()>&&);
+    void resetCrossSiteLoadsWithLinkDecorationForTesting(CompletionHandler<void()>&&);
+    void deleteCookiesForTesting(const URL&, bool includeHttpOnlyCookies, CompletionHandler<void()>&&);
+    void hasLocalStorageForTesting(const URL&, CompletionHandler<void(bool)>&&) const;
 #endif
     void setCacheMaxAgeCapForPrevalentResources(Seconds, CompletionHandler<void()>&&);
     void resetCacheMaxAgeCapForPrevalentResources(CompletionHandler<void()>&&);
@@ -194,6 +207,17 @@ public:
 
     void setBoundInterfaceIdentifier(String&& identifier) { m_boundInterfaceIdentifier = WTFMove(identifier); }
     const String& boundInterfaceIdentifier() { return m_boundInterfaceIdentifier; }
+
+    const String& sourceApplicationBundleIdentifier() const { return m_sourceApplicationBundleIdentifier; }
+    bool setSourceApplicationBundleIdentifier(String&&);
+
+    const String& sourceApplicationSecondaryIdentifier() const { return m_sourceApplicationSecondaryIdentifier; }
+    bool setSourceApplicationSecondaryIdentifier(String&&);
+
+    bool allowsTLSFallback() const { return m_allowsTLSFallback; }
+    bool setAllowsTLSFallback(bool);
+
+    void networkingHasBegun() { m_networkingHasBegun = true; }
     
     void setAllowsCellularAccess(AllowsCellularAccess allows) { m_allowsCellularAccess = allows; }
     AllowsCellularAccess allowsCellularAccess() { return m_allowsCellularAccess; }
@@ -226,8 +250,10 @@ public:
     WebsiteDataStoreClient& client() { return m_client.get(); }
     void setClient(UniqueRef<WebsiteDataStoreClient>&& client) { m_client = WTFMove(client); }
 
+    API::HTTPCookieStore& cookieStore();
+
 #if HAVE(LOAD_OPTIMIZER)
-    LoadOptimizer& loadOptimizer() { return m_loadOptimizer.get(); }
+WEBSITEDATASTORE_LOADOPTIMIZER_ADDITIONS_1
 #endif
 
 private:
@@ -296,6 +322,10 @@ private:
 
     String m_boundInterfaceIdentifier;
     AllowsCellularAccess m_allowsCellularAccess { AllowsCellularAccess::Yes };
+    String m_sourceApplicationBundleIdentifier;
+    String m_sourceApplicationSecondaryIdentifier;
+    bool m_allowsTLSFallback { true };
+    bool m_networkingHasBegun { false };
 
 #if HAVE(SEC_KEY_PROXY)
     Vector<Ref<SecKeyProxyStore>> m_secKeyProxyStores;
@@ -307,9 +337,7 @@ private:
 
     UniqueRef<WebsiteDataStoreClient> m_client;
 
-#if HAVE(LOAD_OPTIMIZER)
-    UniqueRef<LoadOptimizer> m_loadOptimizer;
-#endif
+    RefPtr<API::HTTPCookieStore> m_cookieStore;
 };
 
 }

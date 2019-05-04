@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Apple Inc. All rights reserved.
+# Copyright (C) 2014-2019 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -56,11 +56,12 @@ class DarwinPort(ApplePort):
     def _port_specific_expectations_files(self, device_type=None):
         return list(reversed([self._filesystem.join(self._webkit_baseline_path(p), 'TestExpectations') for p in self.baseline_search_path(device_type=device_type)]))
 
-    def check_for_leaks(self, process_name, process_pid):
+    def check_for_leaks(self, process_name, process_id):
         if not self.get_option('leaks'):
             return
+
         # We could use http://code.google.com/p/psutil/ to get the process_name from the pid.
-        self._leak_detector.check_for_leaks(process_name, process_pid)
+        self._leak_detector.check_for_leaks(process_name, process_id)
 
     def print_leaks_summary(self):
         if not self.get_option('leaks'):
@@ -113,7 +114,7 @@ class DarwinPort(ApplePort):
 
     def _look_for_all_crash_logs_in_log_dir(self, newer_than):
         crash_log = CrashLogs(self.host, self.path_to_crash_logs(), crash_logs_to_skip=self._crash_logs_to_skip_for_host.get(self.host, []))
-        return crash_log.find_all_logs(include_errors=True, newer_than=newer_than)
+        return crash_log.find_all_logs(newer_than=newer_than)
 
     def _get_crash_log(self, name, pid, stdout, stderr, newer_than, time_fn=None, sleep_fn=None, wait_for_log=True, target_host=None):
         # Note that we do slow-spin here and wait, since it appears the time

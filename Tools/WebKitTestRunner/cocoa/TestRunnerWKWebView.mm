@@ -45,16 +45,17 @@
 @end
 #endif
 
-#if WK_API_ENABLED
-
 @interface TestRunnerWKWebView () <WKUIDelegatePrivate> {
     RetainPtr<NSNumber> m_stableStateOverride;
-    BOOL m_isInteractingWithFormControl;
+    BOOL _isInteractingWithFormControl;
+    BOOL _scrollingUpdatesDisabled;
 }
 
 @property (nonatomic, copy) void (^zoomToScaleCompletionHandler)(void);
 @property (nonatomic, copy) void (^retrieveSpeakSelectionContentCompletionHandler)(void);
 @property (nonatomic, getter=isShowingKeyboard, setter=setIsShowingKeyboard:) BOOL showingKeyboard;
+@property (nonatomic, getter=isShowingMenu, setter=setIsShowingMenu:) BOOL showingMenu;
+@property (nonatomic, getter=isShowingPopover, setter=setIsShowingPopover:) BOOL showingPopover;
 
 @end
 
@@ -77,7 +78,10 @@ IGNORE_WARNINGS_END
         NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
         [center addObserver:self selector:@selector(_invokeShowKeyboardCallbackIfNecessary) name:UIKeyboardDidShowNotification object:nil];
         [center addObserver:self selector:@selector(_invokeHideKeyboardCallbackIfNecessary) name:UIKeyboardDidHideNotification object:nil];
-
+        [center addObserver:self selector:@selector(_didShowMenu) name:UIMenuControllerDidShowMenuNotification object:nil];
+        [center addObserver:self selector:@selector(_didHideMenu) name:UIMenuControllerDidHideMenuNotification object:nil];
+        [center addObserver:self selector:@selector(_willPresentPopover) name:@"UIPopoverControllerWillPresentPopoverNotification" object:nil];
+        [center addObserver:self selector:@selector(_didDismissPopover) name:@"UIPopoverControllerDidDismissPopoverNotification" object:nil];
         self.UIDelegate = self;
     }
     return self;
@@ -87,16 +91,7 @@ IGNORE_WARNINGS_END
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 
-    self.didStartFormControlInteractionCallback = nil;
-    self.didEndFormControlInteractionCallback = nil;
-    self.didShowForcePressPreviewCallback = nil;
-    self.didDismissForcePressPreviewCallback = nil;
-    self.willBeginZoomingCallback = nil;
-    self.didEndZoomingCallback = nil;
-    self.didShowKeyboardCallback = nil;
-    self.didHideKeyboardCallback = nil;
-    self.didEndScrollingCallback = nil;
-    self.rotationDidEndCallback = nil;
+    [self resetInteractionCallbacks];
 
     self.zoomToScaleCompletionHandler = nil;
     self.retrieveSpeakSelectionContentCompletionHandler = nil;
@@ -106,7 +101,7 @@ IGNORE_WARNINGS_END
 
 - (void)didStartFormControlInteraction
 {
-    m_isInteractingWithFormControl = YES;
+    _isInteractingWithFormControl = YES;
 
     if (self.didStartFormControlInteractionCallback)
         self.didStartFormControlInteractionCallback();
@@ -114,7 +109,7 @@ IGNORE_WARNINGS_END
 
 - (void)didEndFormControlInteraction
 {
-    m_isInteractingWithFormControl = NO;
+    _isInteractingWithFormControl = NO;
 
     if (self.didEndFormControlInteractionCallback)
         self.didEndFormControlInteractionCallback();
@@ -122,7 +117,7 @@ IGNORE_WARNINGS_END
 
 - (BOOL)isInteractingWithFormControl
 {
-    return m_isInteractingWithFormControl;
+    return _isInteractingWithFormControl;
 }
 
 - (void)_didShowForcePressPreview
@@ -135,6 +130,24 @@ IGNORE_WARNINGS_END
 {
     if (self.didDismissForcePressPreviewCallback)
         self.didDismissForcePressPreviewCallback();
+}
+
+- (void)resetInteractionCallbacks
+{
+    self.didStartFormControlInteractionCallback = nil;
+    self.didEndFormControlInteractionCallback = nil;
+    self.didShowForcePressPreviewCallback = nil;
+    self.didDismissForcePressPreviewCallback = nil;
+    self.willBeginZoomingCallback = nil;
+    self.didEndZoomingCallback = nil;
+    self.didShowKeyboardCallback = nil;
+    self.didHideKeyboardCallback = nil;
+    self.didShowMenuCallback = nil;
+    self.didHideMenuCallback = nil;
+    self.willPresentPopoverCallback = nil;
+    self.didDismissPopoverCallback = nil;
+    self.didEndScrollingCallback = nil;
+    self.rotationDidEndCallback = nil;
 }
 
 - (void)zoomToScale:(double)scale animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler
@@ -170,6 +183,46 @@ IGNORE_WARNINGS_END
     self.showingKeyboard = NO;
     if (self.didHideKeyboardCallback)
         self.didHideKeyboardCallback();
+}
+
+- (void)_didShowMenu
+{
+    if (self.showingMenu)
+        return;
+
+    self.showingMenu = YES;
+    if (self.didShowMenuCallback)
+        self.didShowMenuCallback();
+}
+
+- (void)_didHideMenu
+{
+    if (!self.showingMenu)
+        return;
+
+    self.showingMenu = NO;
+    if (self.didHideMenuCallback)
+        self.didHideMenuCallback();
+}
+
+- (void)_willPresentPopover
+{
+    if (self.showingPopover)
+        return;
+
+    self.showingPopover = YES;
+    if (self.willPresentPopoverCallback)
+        self.willPresentPopoverCallback();
+}
+
+- (void)_didDismissPopover
+{
+    if (!self.showingPopover)
+        return;
+
+    self.showingPopover = NO;
+    if (self.didDismissPopoverCallback)
+        self.didDismissPopoverCallback();
 }
 
 - (void)scrollViewWillBeginZooming:(UIScrollView *)scrollView withView:(UIView *)view
@@ -210,6 +263,16 @@ IGNORE_WARNINGS_END
 {
     m_stableStateOverride = overrideBoolean;
     [self _scheduleVisibleContentRectUpdate];
+}
+
+- (BOOL)_scrollingUpdatesDisabledForTesting
+{
+    return _scrollingUpdatesDisabled;
+}
+
+- (void)_setScrollingUpdatesDisabledForTesting:(BOOL)disabled
+{
+    _scrollingUpdatesDisabled = disabled;
 }
 
 - (void)_didEndRotation
@@ -261,5 +324,3 @@ IGNORE_WARNINGS_END
 #endif // PLATFORM(IOS_FAMILY)
 
 @end
-
-#endif // WK_API_ENABLED

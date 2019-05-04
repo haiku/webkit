@@ -25,21 +25,27 @@
 
 #pragma once
 
+#include "WebResourceLoadStatisticsStore.h"
+#include <WebCore/AdClickAttribution.h>
+#include <WebCore/RegistrableDomain.h>
 #include <pal/SessionID.h>
 #include <wtf/HashSet.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 #include <wtf/Seconds.h>
+#include <wtf/UniqueRef.h>
 #include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 class NetworkStorageSession;
+enum class IncludeHttpOnlyCookies : bool;
 enum class ShouldSample : bool;
 }
 
 namespace WebKit {
 
+class NetworkAdClickAttribution;
 class NetworkDataTask;
 class NetworkProcess;
 class WebResourceLoadStatisticsStore;
@@ -68,11 +74,15 @@ public:
     WebResourceLoadStatisticsStore* resourceLoadStatistics() const { return m_resourceLoadStatistics.get(); }
     void setResourceLoadStatisticsEnabled(bool);
     void notifyResourceLoadStatisticsProcessed();
-    void deleteWebsiteDataForTopPrivatelyControlledDomainsInAllPersistentDataStores(OptionSet<WebsiteDataType>, Vector<String>&& topPrivatelyControlledDomains, bool shouldNotifyPage, CompletionHandler<void(const HashSet<String>&)>&&);
-    void topPrivatelyControlledDomainsWithWebsiteData(OptionSet<WebsiteDataType>, bool shouldNotifyPage, CompletionHandler<void(HashSet<String>&&)>&&);
+    void deleteWebsiteDataForRegistrableDomains(OptionSet<WebsiteDataType>, HashMap<WebCore::RegistrableDomain, WebsiteDataToRemove>&&, bool shouldNotifyPage, CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&&);
+    void registrableDomainsWithWebsiteData(OptionSet<WebsiteDataType>, bool shouldNotifyPage, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&&);
     void logDiagnosticMessageWithValue(const String& message, const String& description, unsigned value, unsigned significantFigures, WebCore::ShouldSample);
     void notifyPageStatisticsTelemetryFinished(unsigned totalPrevalentResources, unsigned totalPrevalentResourcesWithUserInteraction, unsigned top3SubframeUnderTopFrameOrigins);
 #endif
+    void storeAdClickAttribution(WebCore::AdClickAttribution&&);
+    void convertAdClickAttribution(const WebCore::AdClickAttribution::Source&, const WebCore::AdClickAttribution::Destination&, WebCore::AdClickAttribution::Conversion&&);
+    void dumpAdClickAttribution(CompletionHandler<void(String)>&&);
+    void clearAdClickAttribution(CompletionHandler<void()>&&);
 
 protected:
     NetworkSession(NetworkProcess&, PAL::SessionID);
@@ -83,7 +93,11 @@ protected:
     String m_resourceLoadStatisticsDirectory;
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     RefPtr<WebResourceLoadStatisticsStore> m_resourceLoadStatistics;
+    ShouldIncludeLocalhost m_shouldIncludeLocalhostInResourceLoadStatistics { ShouldIncludeLocalhost::Yes };
+    EnableResourceLoadStatisticsDebugMode m_enableResourceLoadStatisticsDebugMode { EnableResourceLoadStatisticsDebugMode::No };
+    WebCore::RegistrableDomain m_resourceLoadStatisticsManualPrevalentResource;
 #endif
+    UniqueRef<NetworkAdClickAttribution> m_adClickAttribution;
 };
 
 } // namespace WebKit

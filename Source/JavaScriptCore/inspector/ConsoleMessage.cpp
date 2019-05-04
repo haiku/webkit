@@ -170,6 +170,7 @@ static Protocol::Console::ChannelSource messageSourceValue(MessageSource source)
     case MessageSource::Other: return Protocol::Console::ChannelSource::Other;
     case MessageSource::Media: return Protocol::Console::ChannelSource::Media;
     case MessageSource::WebRTC: return Protocol::Console::ChannelSource::WebRTC;
+    case MessageSource::MediaSource: return Protocol::Console::ChannelSource::MediaSource;
     }
     return Protocol::Console::ChannelSource::Other;
 }
@@ -190,6 +191,7 @@ static Protocol::Console::ConsoleMessage::Type messageTypeValue(MessageType type
     case MessageType::Timing: return Protocol::Console::ConsoleMessage::Type::Timing;
     case MessageType::Profile: return Protocol::Console::ConsoleMessage::Type::Profile;
     case MessageType::ProfileEnd: return Protocol::Console::ConsoleMessage::Type::ProfileEnd;
+    case MessageType::Image: return Protocol::Console::ConsoleMessage::Type::Image;
     }
     return Protocol::Console::ConsoleMessage::Type::Log;
 }

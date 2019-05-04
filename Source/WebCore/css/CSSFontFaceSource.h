@@ -28,6 +28,7 @@
 #include "CachedFontClient.h"
 #include "CachedResourceHandle.h"
 #include <JavaScriptCore/ArrayBufferView.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/text/AtomicString.h>
 
 namespace WebCore {
@@ -93,11 +94,14 @@ private:
     std::unique_ptr<FontCustomPlatformData> m_immediateFontCustomPlatformData;
 
 #if ENABLE(SVG_FONTS)
-    RefPtr<SVGFontFaceElement> m_svgFontFaceElement;
+    WeakPtr<SVGFontFaceElement> m_svgFontFaceElement;
 #endif
     std::unique_ptr<FontCustomPlatformData> m_inDocumentCustomPlatformData;
 
     Status m_status { Status::Pending };
+#if ENABLE(SVG_FONTS)
+    bool m_hasSVGFontFaceElement;
+#endif
 };
 
 } // namespace WebCore

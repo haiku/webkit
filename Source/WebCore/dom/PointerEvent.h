@@ -28,6 +28,7 @@
 #if ENABLE(POINTER_EVENTS)
 
 #include "MouseEvent.h"
+#include "PointerID.h"
 #include <wtf/text/WTFString.h>
 
 #if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS_FAMILY)
@@ -39,7 +40,7 @@ namespace WebCore {
 class PointerEvent final : public MouseEvent {
 public:
     struct Init : MouseEventInit {
-        int32_t pointerId { 0 };
+        PointerID pointerId { PointerEvent::defaultMousePointerIdentifier() };
         double width { 1 };
         double height { 1 };
         float pressure { 0 };
@@ -47,7 +48,7 @@ public:
         long tiltX { 0 };
         long tiltY { 0 };
         long twist { 0 };
-        String pointerType { "mouse"_s };
+        String pointerType { PointerEvent::mousePointerType() };
         bool isPrimary { false };
     };
 
@@ -56,7 +57,6 @@ public:
         return adoptRef(*new PointerEvent(type, WTFMove(initializer)));
     }
 
-#if ENABLE(POINTER_EVENTS)
     static Ref<PointerEvent> createForPointerCapture(const AtomicString& type, const PointerEvent& pointerEvent)
     {
         Init initializer;
@@ -66,20 +66,28 @@ public:
         initializer.pointerType = pointerEvent.pointerType();
         return adoptRef(*new PointerEvent(type, WTFMove(initializer)));
     }
-#endif
 
     static Ref<PointerEvent> createForBindings()
     {
         return adoptRef(*new PointerEvent);
     }
 
+    static RefPtr<PointerEvent> create(const MouseEvent&);
+    static Ref<PointerEvent> createPointerCancelEvent(PointerID, const String& pointerType);
+
 #if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS_FAMILY)
     static Ref<PointerEvent> create(const PlatformTouchEvent&, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&);
+    static Ref<PointerEvent> create(const String& type, const PlatformTouchEvent&, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&);
 #endif
+
+    static const String& mousePointerType();
+    static const String& penPointerType();
+    static const String& touchPointerType();
+    static PointerID defaultMousePointerIdentifier() { return 1; }
 
     virtual ~PointerEvent();
 
-    int32_t pointerId() const { return m_pointerId; }
+    PointerID pointerId() const { return m_pointerId; }
     double width() const { return m_width; }
     double height() const { return m_height; }
     float pressure() const { return m_pressure; }
@@ -97,11 +105,13 @@ public:
 private:
     PointerEvent();
     PointerEvent(const AtomicString&, Init&&);
+    PointerEvent(const AtomicString& type, CanBubble, IsCancelable, IsComposed, const MouseEvent&);
+    PointerEvent(const AtomicString& type, CanBubble, IsCancelable, IsComposed, PointerID, const String& pointerType);
 #if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS_FAMILY)
     PointerEvent(const AtomicString& type, const PlatformTouchEvent&, IsCancelable isCancelable, unsigned touchIndex, bool isPrimary, Ref<WindowProxy>&&);
 #endif
 
-    int32_t m_pointerId { 0 };
+    PointerID m_pointerId { PointerEvent::defaultMousePointerIdentifier() };
     double m_width { 1 };
     double m_height { 1 };
     float m_pressure { 0 };
@@ -109,7 +119,7 @@ private:
     long m_tiltX { 0 };
     long m_tiltY { 0 };
     long m_twist { 0 };
-    String m_pointerType { "mouse"_s };
+    String m_pointerType { PointerEvent::mousePointerType() };
     bool m_isPrimary { false };
 };
 

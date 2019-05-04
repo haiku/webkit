@@ -28,6 +28,7 @@
 
 #if JSC_OBJC_API_ENABLED
 #import "APICast.h"
+#import "APIUtils.h"
 #import "JSAPIWrapperObject.h"
 #import "JSCInlines.h"
 #import "JSCallbackObject.h"
@@ -178,14 +179,31 @@ static NSMutableDictionary *createRenameMap(Protocol *protocol, BOOL isInstanceM
     return renameMap;
 }
 
-inline void putNonEnumerable(JSValue *base, NSString *propertyName, JSValue *value)
+inline void putNonEnumerable(JSContext *context, JSValue *base, NSString *propertyName, JSValue *value)
 {
-    [base defineProperty:propertyName descriptor:@{
-        JSPropertyDescriptorValueKey: value,
-        JSPropertyDescriptorWritableKey: @YES,
-        JSPropertyDescriptorEnumerableKey: @NO,
-        JSPropertyDescriptorConfigurableKey: @YES
-    }];
+    if (![base isObject])
+        return;
+    JSC::ExecState* exec = toJS([context JSGlobalContextRef]);
+    JSC::VM& vm = exec->vm();
+    JSC::JSLockHolder locker(vm);
+    auto scope = DECLARE_CATCH_SCOPE(vm);
+
+    JSC::JSObject* baseObject = JSC::asObject(toJS(exec, [base JSValueRef]));
+    auto name = OpaqueJSString::tryCreate(propertyName);
+    if (!name)
+        return;
+
+    JSC::PropertyDescriptor descriptor;
+    descriptor.setValue(toJS(exec, [value JSValueRef]));
+    descriptor.setEnumerable(false);
+    descriptor.setConfigurable(true);
+    descriptor.setWritable(true);
+    bool shouldThrow = false;
+    baseObject->methodTable(vm)->defineOwnProperty(baseObject, exec, name->identifier(&vm), descriptor, shouldThrow);
+
+    JSValueRef exception = 0;
+    if (handleExceptionIfNeeded(scope, exec, &exception) == ExceptionStatus::DidThrow)
+        [context valueFromNotifyException:exception];
 }
 
 static bool isInitFamilyMethod(NSString *name)
@@ -254,7 +272,7 @@ static void copyMethodsToObject(JSContext *context, Class objcClass, Protocol *p
                 return;
             JSObjectRef method = objCCallbackFunctionForMethod(context, objcClass, protocol, isInstanceMethod, sel, types);
             if (method)
-                putNonEnumerable(object, name, [JSValue valueWithJSValueRef:method inContext:context]);
+                putNonEnumerable(context, object, name, [JSValue valueWithJSValueRef:method inContext:context]);
         }
     });
 
@@ -484,8 +502,9 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
 
         JSValue* prototype = [JSValue valueWithJSValueRef:toRef(jsPrototype) inContext:context];
         JSValue* constructor = [JSValue valueWithJSValueRef:toRef(jsConstructor) inContext:context];
-        putNonEnumerable(prototype, @"constructor", constructor);
-        putNonEnumerable(constructor, @"prototype", prototype);
+
+        putNonEnumerable(context, prototype, @"constructor", constructor);
+        putNonEnumerable(context, constructor, @"prototype", prototype);
 
         Protocol *exportProtocol = getJSExportProtocol();
         forEachProtocolImplementingProtocol(m_class, exportProtocol, ^(Protocol *protocol, bool&){
@@ -511,8 +530,8 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
         if (JSObjectRef method = objCCallbackFunctionForBlock(context, object)) {
             JSValue *constructor = [JSValue valueWithJSValueRef:method inContext:context];
             JSValue *prototype = [JSValue valueWithNewObjectInContext:context];
-            putNonEnumerable(constructor, @"prototype", prototype);
-            putNonEnumerable(prototype, @"constructor", constructor);
+            putNonEnumerable(context, constructor, @"prototype", prototype);
+            putNonEnumerable(context, prototype, @"constructor", constructor);
             return toJS(method);
         }
     }
@@ -562,10 +581,77 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
 
 @end
 
+struct WrapperKey {
+    static constexpr uintptr_t hashTableDeletedValue() { return 1; }
+
+    WrapperKey() = default;
+
+    explicit WrapperKey(WTF::HashTableDeletedValueType)
+        : m_wrapper(reinterpret_cast<JSValue *>(hashTableDeletedValue()))
+    {
+    }
+
+    explicit WrapperKey(JSValue *wrapper)
+        : m_wrapper(wrapper)
+    {
+    }
+
+    bool isHashTableDeletedValue() const
+    {
+        return reinterpret_cast<uintptr_t>(m_wrapper) == hashTableDeletedValue();
+    }
+
+    __unsafe_unretained JSValue *m_wrapper { nil };
+
+    struct Hash {
+        static unsigned hash(const WrapperKey& key)
+        {
+            return DefaultHash<JSValueRef>::Hash::hash([key.m_wrapper JSValueRef]);
+        }
+
+        static bool equal(const WrapperKey& lhs, const WrapperKey& rhs)
+        {
+            return lhs.m_wrapper == rhs.m_wrapper;
+        }
+
+        static const bool safeToCompareToEmptyOrDeleted = false;
+    };
+
+    struct Traits : public SimpleClassHashTraits<WrapperKey> {
+        static const bool hasIsEmptyValueFunction = true;
+        static bool isEmptyValue(const WrapperKey& key)
+        {
+            return key.m_wrapper == nullptr;
+        }
+    };
+
+    struct Translator {
+        struct ValueAndContext {
+            __unsafe_unretained JSContext *m_context;
+            JSValueRef m_value;
+        };
+
+        static unsigned hash(const ValueAndContext& value)
+        {
+            return DefaultHash<JSValueRef>::Hash::hash(value.m_value);
+        }
+
+        static bool equal(const WrapperKey& lhs, const ValueAndContext& value)
+        {
+            return [lhs.m_wrapper JSValueRef] == value.m_value;
+        }
+
+        static void translate(WrapperKey& result, const ValueAndContext& value, unsigned)
+        {
+            result = WrapperKey([[[JSValue alloc] initWithValue:value.m_value inContext:value.m_context] autorelease]);
+        }
+    };
+};
+
 @implementation JSWrapperMap {
     NSMutableDictionary *m_classMap;
     std::unique_ptr<JSC::WeakGCMap<__unsafe_unretained id, JSC::JSObject>> m_cachedJSWrappers;
-    NSMapTable *m_cachedObjCWrappers;
+    HashSet<WrapperKey, WrapperKey::Hash, WrapperKey::Traits> m_cachedObjCWrappers;
 }
 
 - (instancetype)initWithGlobalContextRef:(JSGlobalContextRef)context
@@ -573,10 +659,6 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
     self = [super init];
     if (!self)
         return nil;
-
-    NSPointerFunctionsOptions keyOptions = NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality;
-    NSPointerFunctionsOptions valueOptions = NSPointerFunctionsWeakMemory | NSPointerFunctionsObjectPersonality;
-    m_cachedObjCWrappers = [[NSMapTable alloc] initWithKeyOptions:keyOptions valueOptions:valueOptions capacity:0];
 
     m_cachedJSWrappers = std::make_unique<JSC::WeakGCMap<__unsafe_unretained id, JSC::JSObject>>(toJS(context)->vm());
 
@@ -588,7 +670,6 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
 
 - (void)dealloc
 {
-    [m_cachedObjCWrappers release];
     [m_classMap release];
     [super dealloc];
 }
@@ -643,12 +724,14 @@ typedef std::pair<JSC::JSObject*, JSC::JSObject*> ConstructorPrototypePair;
 - (JSValue *)objcWrapperForJSValueRef:(JSValueRef)value inContext:context
 {
     ASSERT(toJSGlobalObject([context JSGlobalContextRef])->wrapperMap() == self);
-    JSValue *wrapper = (__bridge JSValue *)NSMapGet(m_cachedObjCWrappers, value);
-    if (!wrapper) {
-        wrapper = [[[JSValue alloc] initWithValue:value inContext:context] autorelease];
-        NSMapInsert(m_cachedObjCWrappers, value, (__bridge void*)wrapper);
-    }
-    return wrapper;
+    WrapperKey::Translator::ValueAndContext valueAndContext { context, value };
+    auto addResult = m_cachedObjCWrappers.add<WrapperKey::Translator>(valueAndContext);
+    return addResult.iterator->m_wrapper;
+}
+
+- (void)removeWrapper:(JSValue *)wrapper
+{
+    m_cachedObjCWrappers.remove(WrapperKey(wrapper));
 }
 
 @end

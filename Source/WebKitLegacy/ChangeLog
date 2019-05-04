@@ -1,3 +1,101 @@
+2019-04-08  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake][WinCairo] Separate copied headers into different directories
+        https://bugs.webkit.org/show_bug.cgi?id=196655
+
+        Reviewed by Michael Catanzaro.
+
+        * CMakeLists.txt:
+        * PlatformWin.cmake:
+
+2019-04-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r243833.
+        https://bugs.webkit.org/show_bug.cgi?id=196645
+
+        This change breaks build of WPE and GTK ports (Requested by
+        annulen on #webkit).
+
+        Reverted changeset:
+
+        "[CMake][WTF] Mirror XCode header directories"
+        https://bugs.webkit.org/show_bug.cgi?id=191662
+        https://trac.webkit.org/changeset/243833
+
+2019-04-03  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake][WTF] Mirror XCode header directories
+        https://bugs.webkit.org/show_bug.cgi?id=191662
+
+        Reviewed by Konstantin Tokarev.
+
+        Use WTFFramework as a dependency and include frameworks/WTF.cmake for AppleWin internal
+        builds.
+
+        * CMakeLists.txt:
+        * PlatformWin.cmake:
+
+2019-04-02  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [CMake] WEBKIT_MAKE_FORWARDING_HEADERS shouldn't use POST_BUILD to copy generated headers
+        https://bugs.webkit.org/show_bug.cgi?id=182757
+
+        Reviewed by Don Olmstead.
+
+        * PlatformWin.cmake: Do not use DERIVED_SOURCE_DIRECTORIES
+        parameter of WEBKIT_MAKE_FORWARDING_HEADERS. Added
+        WebKitLegacyGUID_PRIVATE_FRAMEWORK_HEADERS.
+
+2019-03-13  Youenn Fablet  <youenn@apple.com>
+
+        Check IDB quota usage through QuotaManager
+        https://bugs.webkit.org/show_bug.cgi?id=195302
+
+        Reviewed by Chris Dumez.
+
+        * Storage/WebDatabaseProvider.cpp:
+        (WebDatabaseProvider::idbConnectionToServerForSession):
+
+2019-03-06  Sam Weinig  <sam@webkit.org>
+
+        WebKitLegacy does not need to generate an export file for i386 anymore
+        https://bugs.webkit.org/show_bug.cgi?id=195380
+
+        Reviewed by Dan Bernstein.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+        Update and simplify the "Generate Export Files" phase now that we don't need
+        separate export files for i386 and x86_64.
+
+2019-03-01  Tim Horton  <timothy_horton@apple.com>
+
+        Remove unused code in WebKitLegacy
+        https://bugs.webkit.org/show_bug.cgi?id=189614
+
+        Reviewed by Simon Fraser.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
+2019-02-20  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Add SDKVariant.xcconfig to various Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=194869
+
+        Rubber-stamped by Jer Noble.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj:
+
+2019-01-31  Takashi Komori  <Takashi.Komori@sony.com>
+
+        [Curl] Remove unnecessary member from NetworkStorageSession.
+        https://bugs.webkit.org/show_bug.cgi?id=194137
+
+        Reviewed by Don Olmstead.
+
+        * WebCoreSupport/NetworkStorageSessionMap.cpp:
+        (NetworkStorageSessionMap::defaultStorageSession):
+        (NetworkStorageSessionMap::ensureSession):
+
 2019-01-31  Takashi Komori  <Takashi.Komori@sony.com>
 
         [Curl] Fix DRT crash related to private browsing.

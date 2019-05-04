@@ -1,18 +1,40 @@
 async function getBasicDevice() {
-    // FIXME: requestAdapter should take a WebGPUAdapterDescriptor.
-    const adapter = await window.webgpu.requestAdapter({});
-    const device = adapter.createDevice();
+    const adapter = await gpu.requestAdapter({ powerPreference: "low-power" });
+    const device = await adapter.requestDevice();
     return device;
 }
 
-function createBasicContext(canvas, device) {
-    const context = canvas.getContext("webgpu");
-    // FIXME: Implement and specify a WebGPUTextureUsageEnum.
-    context.configure({ device: device, format:"B8G8R8A8Unorm", width: canvas.width, height: canvas.height });
-    return context;
+function createBasicSwapChain(canvas, device) {
+    const context = canvas.getContext("gpu");
+    return device.createSwapChain({ context: context, format: "bgra8unorm" });
 }
 
-function createBasicPipeline(shaderModule, device, pipelineLayout, inputStateDescriptor, primitiveTopology = "triangleStrip") {
+function createBasicDepthStateDescriptor() {
+    return {
+        depthWriteEnabled: true,
+        depthCompare: "less"
+    };
+}
+
+function createBasicDepthTexture(canvas, device) {
+    const depthSize = {
+        width: canvas.width,
+        height: canvas.height,
+        depth: 1
+    };
+
+    return device.createTexture({
+        size: depthSize,
+        arrayLayerCount: 1,
+        mipLevelCount: 1,
+        sampleCount: 1,
+        dimension: "2d",
+        format: "depth32float-stencil8",
+        usage: GPUTextureUsage.OUTPUT_ATTACHMENT
+    });
+}
+
+function createBasicPipeline(shaderModule, device, colorStates, pipelineLayout, inputStateDescriptor, depthStateDescriptor, primitiveTopology = "triangle-strip") {
     const vertexStageDescriptor = {
         module: shaderModule,
         entryPoint: "vertex_main" 
@@ -23,10 +45,28 @@ function createBasicPipeline(shaderModule, device, pipelineLayout, inputStateDes
         entryPoint: "fragment_main"
     };
 
+    if (!colorStates) {
+        colorStates = [{ 
+            format: "bgra8unorm",
+            alphaBlend: {
+                srcFactor: "one",
+                dstFactor: "zero",
+                operation: "add"
+            },
+            colorBlend: {
+                srcFactor: "one",
+                dstFactor: "zero",
+                operation: "add"
+            },
+            writeMask: GPUColorWriteBits.ALL
+        }];
+    }
+
     const pipelineDescriptor = {
         vertexStage: vertexStageDescriptor,
         fragmentStage: fragmentStageDescriptor,
-        primitiveTopology: primitiveTopology
+        primitiveTopology: primitiveTopology,
+        colorStates: colorStates
     };
 
     if (pipelineLayout)
@@ -35,17 +75,22 @@ function createBasicPipeline(shaderModule, device, pipelineLayout, inputStateDes
     if (inputStateDescriptor)
         pipelineDescriptor.inputState = inputStateDescriptor;
 
+    if (depthStateDescriptor)
+        pipelineDescriptor.depthStencilState = depthStateDescriptor;
+
     return device.createRenderPipeline(pipelineDescriptor);
 }
 
-function beginBasicRenderPass(context, commandBuffer) {
+function beginBasicRenderPass(swapChain, commandEncoder) {
     const basicAttachment = {
-        attachment: context.getNextTexture().createDefaultTextureView(),
+        attachment: swapChain.getCurrentTexture().createDefaultView(),
+        loadOp: "clear",
+        storeOp: "store",
         clearColor: { r: 1.0, g: 0, b: 0, a: 1.0 }
-    }
+    };
 
     // FIXME: Flesh out the rest of WebGPURenderPassDescriptor. 
-    return commandBuffer.beginRenderPass({ colorAttachments : [basicAttachment] });
+    return commandEncoder.beginRenderPass({ colorAttachments : [basicAttachment] });
 }
 
 function encodeBasicCommands(renderPassEncoder, renderPipeline, vertexBuffer) {
@@ -53,5 +98,5 @@ function encodeBasicCommands(renderPassEncoder, renderPipeline, vertexBuffer) {
         renderPassEncoder.setVertexBuffers(0, [vertexBuffer], [0]);
     renderPassEncoder.setPipeline(renderPipeline);
     renderPassEncoder.draw(4, 1, 0, 0);
-    return renderPassEncoder.endPass();
+    renderPassEncoder.endPass();
 }

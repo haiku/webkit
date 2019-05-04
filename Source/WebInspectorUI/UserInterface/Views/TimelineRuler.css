@@ -110,7 +110,7 @@ body[dir=rtl] .timeline-ruler > .header > .divider > .label {
     width: 1px;
     top: 1px;
     bottom: 0;
-    background-color: hsla(0, 0%, 0%, 0.05);
+    background-color: hsla(0, 0%, var(--foreground-lightness), 0.07);
 }
 
 .timeline-ruler > .markers > .marker {
@@ -197,6 +197,10 @@ body[dir=rtl] .timeline-ruler > .markers > .marker::after {
     color: hsl(119, 100%, 21%);
 }
 
+.timeline-ruler > .markers > .marker.scanner {
+    color: var(--timeline-scanner-color);
+}
+
 .timeline-ruler > .selection-drag {
     position: absolute;
     top: 0;
@@ -280,4 +284,10 @@ body[dir=rtl] .timeline-ruler > .shaded-area.right {
 body[dir=ltr] .timeline-ruler > .shaded-area.right,
 body[dir=rtl] .timeline-ruler > .shaded-area.left {
     right: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .timeline-ruler > .markers > .marker.dom-content-event {
+        color: hsl(240, 100%, 70%);
+    }
 }

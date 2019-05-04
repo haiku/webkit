@@ -29,6 +29,8 @@
 #include "AutomationBackendDispatchers.h"
 #include "AutomationFrontendDispatchers.h"
 #include "Connection.h"
+#include "MessageReceiver.h"
+#include "MessageSender.h"
 #include "ShareableBitmap.h"
 #include "SimulatedInputDispatcher.h"
 #include "WebEvent.h"
@@ -186,7 +188,7 @@ public:
     void acceptCurrentJavaScriptDialog(Inspector::ErrorString&, const String& browsingContextHandle) override;
     void messageOfCurrentJavaScriptDialog(Inspector::ErrorString&, const String& browsingContextHandle, String* text) override;
     void setUserInputForCurrentJavaScriptPrompt(Inspector::ErrorString&, const String& browsingContextHandle, const String& text) override;
-    void setFilesToSelectForFileUpload(Inspector::ErrorString&, const String& browsingContextHandle, const JSON::Array& filenames) override;
+    void setFilesToSelectForFileUpload(Inspector::ErrorString&, const String& browsingContextHandle, const JSON::Array& filenames, const JSON::Array* optionalFileContents) override;
     void getAllCookies(const String& browsingContextHandle, Ref<GetAllCookiesCallback>&&) override;
     void deleteSingleCookie(const String& browsingContextHandle, const String& cookieName, Ref<DeleteSingleCookieCallback>&&) override;
     void addSingleCookie(const String& browsingContextHandle, const JSON::Object& cookie, Ref<AddSingleCookieCallback>&&) override;
@@ -232,22 +234,16 @@ private:
     void maximizeWindowForPage(WebPageProxy&, WTF::CompletionHandler<void()>&&);
     void hideWindowForPage(WebPageProxy&, WTF::CompletionHandler<void()>&&);
 
-    // Implemented in generated WebAutomationSessionMessageReceiver.cpp.
+    // IPC::MessageReceiver (Implemented by generated code in WebAutomationSessionMessageReceiver.cpp).
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
 
     // Called by WebAutomationSession messages.
     void didEvaluateJavaScriptFunction(uint64_t callbackID, const String& result, const String& errorType);
-    void didResolveChildFrame(uint64_t callbackID, uint64_t frameID, const String& errorType);
-    void didResolveParentFrame(uint64_t callbackID, uint64_t frameID, const String& errorType);
-    void didComputeElementLayout(uint64_t callbackID, WebCore::IntRect, Optional<WebCore::IntPoint>, bool isObscured, const String& errorType);
-    void didSelectOptionElement(uint64_t callbackID, const String& errorType);
     void didTakeScreenshot(uint64_t callbackID, const ShareableBitmap::Handle&, const String& errorType);
-    void didGetCookiesForFrame(uint64_t callbackID, Vector<WebCore::Cookie>, const String& errorType);
-    void didDeleteCookie(uint64_t callbackID, const String& errorType);
 
     // Platform-dependent implementations.
 #if ENABLE(WEBDRIVER_MOUSE_INTERACTIONS)
-    void platformSimulateMouseInteraction(WebPageProxy&, MouseInteraction, WebMouseEvent::Button, const WebCore::IntPoint& locationInView, WebEvent::Modifiers keyModifiers);
+    void platformSimulateMouseInteraction(WebPageProxy&, MouseInteraction, WebMouseEvent::Button, const WebCore::IntPoint& locationInView, OptionSet<WebEvent::Modifier>);
 #endif
 #if ENABLE(WEBDRIVER_TOUCH_INTERACTIONS)
     // Simulates a single touch point being pressed, moved, and released.
@@ -260,8 +256,12 @@ private:
     void platformSimulateKeySequence(WebPageProxy&, const String&);
 #endif // ENABLE(WEBDRIVER_KEYBOARD_INTERACTIONS)
 
-    // Get base64 encoded PNG data from a bitmap.
+    // Get base64-encoded PNG data from a bitmap.
     Optional<String> platformGetBase64EncodedPNGData(const ShareableBitmap::Handle&);
+
+    // Save base64-encoded file contents to a local file path and return the path.
+    // This reuses the basename of the remote file path so that the filename exposed to DOM API remains the same.
+    Optional<String> platformGenerateLocalFilePathForRemoteFile(const String& remoteFilePath, const String& base64EncodedFileContents);
 
 #if PLATFORM(COCOA)
     // The type parameter of the NSArray argument is platform-dependent.
@@ -301,31 +301,8 @@ private:
     uint64_t m_nextEvaluateJavaScriptCallbackID { 1 };
     HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::EvaluateJavaScriptFunctionCallback>> m_evaluateJavaScriptFunctionCallbacks;
 
-    uint64_t m_nextResolveFrameCallbackID { 1 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::ResolveChildFrameHandleCallback>> m_resolveChildFrameHandleCallbacks;
-
-    uint64_t m_nextResolveParentFrameCallbackID { 1 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::ResolveParentFrameHandleCallback>> m_resolveParentFrameHandleCallbacks;
-
-    // Start at 2 and use only even numbers to not conflict with m_nextViewportInViewCenterPointOfElementCallbackID.
-    uint64_t m_nextComputeElementLayoutCallbackID { 2 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::ComputeElementLayoutCallback>> m_computeElementLayoutCallbacks;
-
-    // Start at 3 and use only odd numbers to not conflict with m_nextComputeElementLayoutCallbackID.
-    uint64_t m_nextViewportInViewCenterPointOfElementCallbackID { 3 };
-    HashMap<uint64_t, Function<void(Optional<WebCore::IntPoint>, Optional<AutomationCommandError>)>> m_viewportInViewCenterPointOfElementCallbacks;
-
     uint64_t m_nextScreenshotCallbackID { 1 };
     HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::TakeScreenshotCallback>> m_screenshotCallbacks;
-
-    uint64_t m_nextGetCookiesCallbackID { 1 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::GetAllCookiesCallback>> m_getCookieCallbacks;
-
-    uint64_t m_nextDeleteCookieCallbackID { 1 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::DeleteSingleCookieCallback>> m_deleteCookieCallbacks;
-
-    uint64_t m_nextSelectOptionElementCallbackID { 1 };
-    HashMap<uint64_t, RefPtr<Inspector::AutomationBackendDispatcherHandler::SelectOptionElementCallback>> m_selectOptionElementCallbacks;
 
     enum class WindowTransitionedToState {
         Fullscreen,

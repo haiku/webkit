@@ -85,10 +85,9 @@ list(APPEND PAL_PUBLIC_HEADERS
     spi/mac/NSWindowSPI.h
     spi/mac/PIPSPI.h
     spi/mac/QTKitSPI.h
-    spi/mac/QuickDrawSPI.h
     spi/mac/QuickLookMacSPI.h
     spi/mac/SpeechSynthesisSPI.h
-    spi/mac/TUCallSPI.h
+    spi/mac/TelephonyUtilitiesSPI.h
 
     system/cocoa/SleepDisablerCocoa.h
 
@@ -124,7 +123,6 @@ list(APPEND PAL_SOURCES
 )
 
 list(APPEND PAL_PRIVATE_INCLUDE_DIRECTORIES
-    "${DERIVED_SOURCES_WTF_DIR}"
     "${PAL_DIR}/pal/avfoundation"
     "${PAL_DIR}/pal/cf"
     "${PAL_DIR}/pal/cocoa"

@@ -735,7 +735,7 @@ void PDFPlugin::updateScrollbars()
         else
             frameView->removeScrollableArea(this);
 
-        frameView->setNeedsLayout();
+        frameView->setNeedsLayoutAfterViewConfigurationChange();
     }
     
     if (m_verticalScrollbarLayer) {
@@ -1124,6 +1124,9 @@ void PDFPlugin::runScriptsInPDFDocument()
 
 void PDFPlugin::createPasswordEntryForm()
 {
+    if (!supportsForms())
+        return;
+
     m_passwordField = PDFPluginPasswordField::create(m_pdfLayerController.get(), this);
     m_passwordField->attach(m_annotationContainer.get());
 }
@@ -1586,7 +1589,7 @@ bool PDFPlugin::showContextMenuAtPoint(const IntPoint& point)
 {
     FrameView* frameView = webFrame()->coreFrame()->view();
     IntPoint contentsPoint = frameView->contentsToRootView(point);
-    WebMouseEvent event(WebEvent::MouseDown, WebMouseEvent::RightButton, 0, contentsPoint, contentsPoint, 0, 0, 0, 1, static_cast<WebEvent::Modifiers>(0), WallTime::now(), WebCore::ForceAtClick);
+    WebMouseEvent event(WebEvent::MouseDown, WebMouseEvent::RightButton, 0, contentsPoint, contentsPoint, 0, 0, 0, 1, OptionSet<WebEvent::Modifier> { }, WallTime::now(), WebCore::ForceAtClick);
     return handleContextMenuEvent(event);
 }
 

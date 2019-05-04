@@ -182,6 +182,7 @@ NSString *WebPluginContainerKey = @"WebPluginContainer";
 
 @interface WebFramePolicyListener : NSObject <WebPolicyDecisionListener, WebFormSubmissionListener> {
     RefPtr<Frame> _frame;
+    PolicyCheckIdentifier _identifier;
     FramePolicyFunction _policyFunction;
 #if HAVE(APP_LINKS)
     RetainPtr<NSURL> _appLinkURL;
@@ -189,9 +190,9 @@ NSString *WebPluginContainerKey = @"WebPluginContainer";
     PolicyAction _defaultPolicy;
 }
 
-- (id)initWithFrame:(Frame*)frame policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy;
+- (id)initWithFrame:(Frame*)frame identifier:(PolicyCheckIdentifier)identifier policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy;
 #if HAVE(APP_LINKS)
-- (id)initWithFrame:(Frame*)frame policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy appLinkURL:(NSURL *)url;
+- (id)initWithFrame:(Frame*)frame identifier:(PolicyCheckIdentifier)identifier policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy appLinkURL:(NSURL *)url;
 #endif
 
 - (void)invalidate;
@@ -670,7 +671,7 @@ void WebFrameLoaderClient::dispatchWillClose()
 #endif
 }
 
-void WebFrameLoaderClient::dispatchDidStartProvisionalLoad(CompletionHandler<void()>&& completionHandler)
+void WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
 {
     ASSERT(!m_webFrame->_private->provisionalURL);
     m_webFrame->_private->provisionalURL = core(m_webFrame.get())->loader().provisionalDocumentLoader()->url().string();
@@ -687,7 +688,6 @@ void WebFrameLoaderClient::dispatchDidStartProvisionalLoad(CompletionHandler<voi
     WebFrameLoadDelegateImplementationCache* implementations = WebViewGetFrameLoadDelegateImplementations(webView);
     if (implementations->didStartProvisionalLoadForFrameFunc)
         CallFrameLoadDelegate(implementations->didStartProvisionalLoadForFrameFunc, webView, @selector(webView:didStartProvisionalLoadForFrame:), m_webFrame.get());
-    completionHandler();
 }
 
 static constexpr unsigned maxTitleLength = 1000; // Closest power of 10 above the W3C recommendation for Title length.
@@ -866,7 +866,7 @@ void WebFrameLoaderClient::dispatchShow()
     [[webView _UIDelegateForwarder] webViewShow:webView];
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest& request, FramePolicyFunction&& function)
+void WebFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest& request, WebCore::PolicyCheckIdentifier identifier, FramePolicyFunction&& function)
 {
     WebView *webView = getWebView(m_webFrame.get());
 
@@ -874,7 +874,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceRespons
                         decidePolicyForMIMEType:response.mimeType()
                                         request:request.nsURLRequest(HTTPBodyUpdatePolicy::UpdateHTTPBody)
                                           frame:m_webFrame.get()
-                               decisionListener:setUpPolicyListener(WTFMove(function), PolicyAction::Use).get()];
+                               decisionListener:setUpPolicyListener(identifier, WTFMove(function), PolicyAction::Use).get()];
 }
 
 
@@ -897,7 +897,7 @@ static BOOL shouldTryAppLink(WebView *webView, const NavigationAction& action, F
 #endif
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const NavigationAction& action, const ResourceRequest& request, FormState* formState, const String& frameName, FramePolicyFunction&& function)
+void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const NavigationAction& action, const ResourceRequest& request, FormState* formState, const String& frameName, WebCore::PolicyCheckIdentifier identifier, FramePolicyFunction&& function)
 {
     WebView *webView = getWebView(m_webFrame.get());
     BOOL tryAppLink = shouldTryAppLink(webView, action, nullptr);
@@ -906,10 +906,10 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const Navigati
             decidePolicyForNewWindowAction:actionDictionary(action, formState)
                                    request:request.nsURLRequest(HTTPBodyUpdatePolicy::UpdateHTTPBody)
                               newFrameName:frameName
-                          decisionListener:setUpPolicyListener(WTFMove(function), PolicyAction::Ignore, tryAppLink ? (NSURL *)request.url() : nil).get()];
+                          decisionListener:setUpPolicyListener(identifier, WTFMove(function), PolicyAction::Ignore, tryAppLink ? (NSURL *)request.url() : nil).get()];
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const NavigationAction& action, const ResourceRequest& request, const ResourceResponse&, FormState* formState, PolicyDecisionMode, FramePolicyFunction&& function)
+void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const NavigationAction& action, const ResourceRequest& request, const ResourceResponse&, FormState* formState, PolicyDecisionMode, WebCore::PolicyCheckIdentifier identifier, FramePolicyFunction&& function)
 {
     WebView *webView = getWebView(m_webFrame.get());
     BOOL tryAppLink = shouldTryAppLink(webView, action, core(m_webFrame.get()));
@@ -918,7 +918,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
                 decidePolicyForNavigationAction:actionDictionary(action, formState)
                                         request:request.nsURLRequest(HTTPBodyUpdatePolicy::UpdateHTTPBody)
                                           frame:m_webFrame.get()
-                               decisionListener:setUpPolicyListener(WTFMove(function), PolicyAction::Ignore, tryAppLink ? (NSURL *)request.url() : nil).get()];
+                               decisionListener:setUpPolicyListener(identifier, WTFMove(function), PolicyAction::Ignore, tryAppLink ? (NSURL *)request.url() : nil).get()];
 }
 
 void WebFrameLoaderClient::cancelPolicyCheck()
@@ -966,7 +966,9 @@ void WebFrameLoaderClient::dispatchWillSubmitForm(FormState& formState, Completi
     }
 
     NSDictionary *values = makeFormFieldValuesDictionary(formState);
-    CallFormDelegate(getWebView(m_webFrame.get()), @selector(frame:sourceFrame:willSubmitForm:withValues:submissionListener:), m_webFrame.get(), kit(formState.sourceDocument().frame()), kit(&formState.form()), values, setUpPolicyListener([completionHandler = WTFMove(completionHandler)](PolicyAction) mutable { completionHandler(); }, PolicyAction::Ignore).get());
+    CallFormDelegate(getWebView(m_webFrame.get()), @selector(frame:sourceFrame:willSubmitForm:withValues:submissionListener:), m_webFrame.get(), kit(formState.sourceDocument().frame()), kit(&formState.form()), values, setUpPolicyListener(PolicyCheckIdentifier { },
+        [completionHandler = WTFMove(completionHandler)](PolicyAction, PolicyCheckIdentifier) mutable { completionHandler(); },
+        PolicyAction::Ignore).get());
 }
 
 void WebFrameLoaderClient::revertToProvisionalState(DocumentLoader* loader)
@@ -1519,7 +1521,7 @@ void WebFrameLoaderClient::dispatchDidBecomeFrameset(bool)
 {
 }
 
-RetainPtr<WebFramePolicyListener> WebFrameLoaderClient::setUpPolicyListener(FramePolicyFunction&& function, PolicyAction defaultPolicy, NSURL *appLinkURL)
+RetainPtr<WebFramePolicyListener> WebFrameLoaderClient::setUpPolicyListener(PolicyCheckIdentifier identifier, FramePolicyFunction&& function, PolicyAction defaultPolicy, NSURL *appLinkURL)
 {
     // FIXME: <rdar://5634381> We need to support multiple active policy listeners.
     [m_policyListener invalidate];
@@ -1527,10 +1529,10 @@ RetainPtr<WebFramePolicyListener> WebFrameLoaderClient::setUpPolicyListener(Fram
     RetainPtr<WebFramePolicyListener> policyListener;
 #if HAVE(APP_LINKS)
     if (appLinkURL)
-        policyListener = adoptNS([[WebFramePolicyListener alloc] initWithFrame:core(m_webFrame.get()) policyFunction:WTFMove(function) defaultPolicy:defaultPolicy appLinkURL:appLinkURL]);
+        policyListener = adoptNS([[WebFramePolicyListener alloc] initWithFrame:core(m_webFrame.get()) identifier:identifier policyFunction:WTFMove(function) defaultPolicy:defaultPolicy appLinkURL:appLinkURL]);
     else
 #endif
-        policyListener = adoptNS([[WebFramePolicyListener alloc] initWithFrame:core(m_webFrame.get()) policyFunction:WTFMove(function) defaultPolicy:defaultPolicy]);
+        policyListener = adoptNS([[WebFramePolicyListener alloc] initWithFrame:core(m_webFrame.get()) identifier:identifier policyFunction:WTFMove(function) defaultPolicy:defaultPolicy]);
 
     m_policyListener = policyListener.get();
 
@@ -1918,29 +1920,13 @@ RefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize& size, HTMLPlugI
     int errorCode = 0;
 
     WebView *webView = getWebView(m_webFrame.get());
-#if !PLATFORM(IOS_FAMILY)
-    SEL selector = @selector(webView:plugInViewWithArguments:);
-#endif
-
     Document* document = core(m_webFrame.get())->document();
     NSURL *baseURL = document->baseURL();
     NSURL *pluginURL = url;
-    
-    // <rdar://problem/8366089>: AppleConnect has a bug where it does not
-    // understand the parameter names specified in the <object> element that
-    // embeds its plug-in. This site-specific hack works around the issue by
-    // converting the parameter names to lowercase before passing them to the
-    // plug-in.
-#if !PLATFORM(IOS_FAMILY)
-    Frame* frame = core(m_webFrame.get());
-#endif
     NSMutableArray *attributeKeys = kit(paramNames);
+
 #if !PLATFORM(IOS_FAMILY)
-    if (frame && frame->settings().needsSiteSpecificQuirks() && equalLettersIgnoringASCIICase(mimeType, "application/x-snkp")) {
-        for (NSUInteger i = 0; i < [attributeKeys count]; ++i)
-            [attributeKeys replaceObjectAtIndex:i withObject:[[attributeKeys objectAtIndex:i] lowercaseString]];
-    }
-    
+    SEL selector = @selector(webView:plugInViewWithArguments:);
     if ([[webView UIDelegate] respondsToSelector:selector]) {
         NSMutableDictionary *attributes = [[NSMutableDictionary alloc] initWithObjects:kit(paramValues) forKeys:attributeKeys];
         NSDictionary *arguments = [[NSDictionary alloc] initWithObjectsAndKeys:
@@ -2049,10 +2035,6 @@ RefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize& size, HTMLPlugI
     END_BLOCK_OBJC_EXCEPTIONS;
 
     return nullptr;
-}
-
-void WebFrameLoaderClient::recreatePlugin(Widget*)
-{
 }
 
 void WebFrameLoaderClient::redirectDataToPlugin(Widget& pluginWidget)
@@ -2261,8 +2243,11 @@ RefPtr<PreviewLoaderClient> WebFrameLoaderClient::createPreviewLoaderClient(cons
     if (!filePath)
         return nullptr;
 
+    auto documentWriter = adoptRef(*new QuickLookDocumentWriter(filePath));
+
     [m_webFrame provisionalDataSource]._quickLookContent = @{ WebQuickLookFileNameKey : filePath, WebQuickLookUTIKey : uti };
-    return adoptRef(*new QuickLookDocumentWriter(filePath));
+    [m_webFrame provisionalDataSource]._quickLookPreviewLoaderClient = documentWriter.ptr();
+    return documentWriter;
 }
 #endif
 
@@ -2384,12 +2369,13 @@ void WebFrameLoaderClient::finishedLoadingIcon(uint64_t callbackID, SharedBuffer
 #endif
 }
 
-- (id)initWithFrame:(Frame*)frame policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy
+- (id)initWithFrame:(Frame*)frame identifier:(PolicyCheckIdentifier)identifier policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy
 {
     self = [self init];
     if (!self)
         return nil;
 
+    _identifier = identifier;
     _frame = frame;
     _policyFunction = WTFMove(policyFunction);
     _defaultPolicy = defaultPolicy;
@@ -2398,9 +2384,9 @@ void WebFrameLoaderClient::finishedLoadingIcon(uint64_t callbackID, SharedBuffer
 }
 
 #if HAVE(APP_LINKS)
-- (id)initWithFrame:(Frame*)frame policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy appLinkURL:(NSURL *)appLinkURL
+- (id)initWithFrame:(Frame*)frame identifier:(PolicyCheckIdentifier)identifier policyFunction:(FramePolicyFunction&&)policyFunction defaultPolicy:(PolicyAction)defaultPolicy appLinkURL:(NSURL *)appLinkURL
 {
-    self = [self initWithFrame:frame policyFunction:WTFMove(policyFunction) defaultPolicy:defaultPolicy];
+    self = [self initWithFrame:frame identifier:identifier policyFunction:WTFMove(policyFunction) defaultPolicy:defaultPolicy];
     if (!self)
         return nil;
 
@@ -2414,7 +2400,7 @@ void WebFrameLoaderClient::finishedLoadingIcon(uint64_t callbackID, SharedBuffer
 {
     _frame = nullptr;
     if (auto policyFunction = std::exchange(_policyFunction, nullptr))
-        policyFunction(PolicyAction::Ignore);
+        policyFunction(PolicyAction::Ignore, _identifier);
 }
 
 - (void)dealloc
@@ -2427,7 +2413,7 @@ void WebFrameLoaderClient::finishedLoadingIcon(uint64_t callbackID, SharedBuffer
     _frame = nullptr;
     if (auto policyFunction = std::exchange(_policyFunction, nullptr)) {
         RELEASE_LOG_ERROR(Loading, "Client application failed to make a policy decision via WebPolicyDecisionListener, using defaultPolicy %hhu", _defaultPolicy);
-        policyFunction(_defaultPolicy);
+        policyFunction(_defaultPolicy, _identifier);
     }
 
     [super dealloc];
@@ -2440,7 +2426,7 @@ void WebFrameLoaderClient::finishedLoadingIcon(uint64_t callbackID, SharedBuffer
         return;
 
     if (auto policyFunction = std::exchange(_policyFunction, nullptr))
-        policyFunction(action);
+        policyFunction(action, _identifier);
 }
 
 - (void)ignore

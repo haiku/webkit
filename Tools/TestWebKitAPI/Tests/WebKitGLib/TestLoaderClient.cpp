@@ -240,6 +240,34 @@ static void testWebViewLoadTwiceAndReload(LoadTwiceAndReloadTest* test, gconstpo
     test->waitUntilFinished();
 }
 
+static void uriChanged(WebKitWebView* webView, GParamSpec*, LoadTrackingTest* test)
+{
+    const char* uri = webkit_web_view_get_uri(webView);
+    if (g_str_has_suffix(uri, "/normal"))
+        test->m_activeURI = uri;
+}
+
+static void testUnfinishedSubresourceLoad(LoadTrackingTest* test, gconstpointer)
+{
+    // Verify that LoadFinished occurs even if the next load starts before the
+    // previous load actually finishes.
+    test->loadURI(kServer->getURIForPath("/unfinished-subresource-load").data());
+    auto signalID = g_signal_connect(test->m_webView, "notify::uri", G_CALLBACK(uriChanged), test);
+    test->waitUntilLoadFinished();
+    test->waitUntilLoadFinished();
+    g_signal_handler_disconnect(test->m_webView, signalID);
+
+    Vector<LoadTrackingTest::LoadEvents>& events = test->m_loadEvents;
+    g_assert_cmpint(events.size(), ==, 7);
+    g_assert_cmpint(events[0], ==, LoadTrackingTest::ProvisionalLoadStarted);
+    g_assert_cmpint(events[1], ==, LoadTrackingTest::LoadCommitted);
+    g_assert_cmpint(events[2], ==, LoadTrackingTest::LoadFailed);
+    g_assert_cmpint(events[3], ==, LoadTrackingTest::LoadFinished);
+    g_assert_cmpint(events[4], ==, LoadTrackingTest::ProvisionalLoadStarted);
+    g_assert_cmpint(events[5], ==, LoadTrackingTest::LoadCommitted);
+    g_assert_cmpint(events[6], ==, LoadTrackingTest::LoadFinished);
+}
+
 class ViewURITrackingTest: public LoadTrackingTest {
 public:
     MAKE_GLIB_TEST_FIXTURE(ViewURITrackingTest);
@@ -337,6 +365,55 @@ static void testWebViewActiveURI(ViewURITrackingTest* test, gconstpointer)
     test->loadURI(kServer->getURIForPath("/redirect-to-change-request").data());
     test->waitUntilLoadFinished();
     test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-to-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, "/normal-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/request-changed-on-redirect");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/request-changed-on-redirect");
+
+    // Non-API request loads.
+    test->loadURI(kServer->getURIForPath("/redirect-js/normal").data());
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/redirect-js/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/redirect-js/normal");
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/normal");
+
+    test->loadURI(kServer->getURIForPath("/redirect-js/redirect").data());
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/redirect");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/redirect-js/redirect");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/redirect-js/redirect");
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/redirect");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, "/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/normal");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/normal");
+
+    test->loadURI(kServer->getURIForPath("/redirect-js/normal-change-request").data());
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/normal-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/redirect-js/normal-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/redirect-js/normal-change-request");
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/normal-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/request-changed");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/request-changed");
+
+    test->loadURI(kServer->getURIForPath("/redirect-js/redirect-to-change-request").data());
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/redirect-to-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, nullptr);
+    test->checkURIAtState(ViewURITrackingTest::State::Commited, "/redirect-js/redirect-to-change-request");
+    test->checkURIAtState(ViewURITrackingTest::State::Finished, "/redirect-js/redirect-to-change-request");
+    test->waitUntilLoadFinished();
+    test->checkURIAtState(ViewURITrackingTest::State::Provisional, "/redirect-js/redirect-to-change-request");
     test->checkURIAtState(ViewURITrackingTest::State::ProvisionalAfterRedirect, "/normal-change-request");
     test->checkURIAtState(ViewURITrackingTest::State::Commited, "/request-changed-on-redirect");
     test->checkURIAtState(ViewURITrackingTest::State::Finished, "/request-changed-on-redirect");
@@ -607,6 +684,10 @@ static void serverCallback(SoupServer* server, SoupMessage* message, const char*
     } else if (g_str_equal(path, "/redirect-to-change-request")) {
         soup_message_set_status(message, SOUP_STATUS_MOVED_PERMANENTLY);
         soup_message_headers_append(message->response_headers, "Location", "/normal-change-request");
+    } else if (g_str_has_prefix(path, "/redirect-js/")) {
+        static const char* redirectJSFormat = "<html><body><script>location = '%s';</script></body></html>";
+        char* redirectJS = g_strdup_printf(redirectJSFormat, g_strrstr(path, "/"));
+        soup_message_body_append(message->response_body, SOUP_MEMORY_TAKE, redirectJS, strlen(redirectJS));
     } else if (g_str_equal(path, "/cancelled")) {
         soup_message_headers_set_encoding(message->response_headers, SOUP_ENCODING_CHUNKED);
         soup_message_body_append(message->response_body, SOUP_MEMORY_STATIC, responseString, strlen(responseString));
@@ -625,6 +706,21 @@ static void serverCallback(SoupServer* server, SoupMessage* message, const char*
     } else if (g_str_equal(path, "/redirect-to-data")) {
         soup_message_set_status(message, SOUP_STATUS_MOVED_PERMANENTLY);
         soup_message_headers_append(message->response_headers, "Location", "data:text/plain;charset=utf-8,data-uri");
+    } else if (g_str_equal(path, "/unfinished-subresource-load")) {
+        static const char* unfinishedSubresourceLoadResponseString = "<html><body>"
+            "<img src=\"/stall\"/>"
+            "<script>"
+            "  function run() {"
+            "      location = '/normal';"
+            "  }"
+            "  setInterval(run(), 50);"
+            "</script>"
+            "</body></html>";
+        soup_message_body_append(message->response_body, SOUP_MEMORY_STATIC, unfinishedSubresourceLoadResponseString, strlen(unfinishedSubresourceLoadResponseString));
+    } else if (g_str_equal(path, "/stall")) {
+        // This request is never unpaused and stalls forever.
+        soup_server_pause_message(server, message);
+        return;
     } else
         soup_message_set_status(message, SOUP_STATUS_NOT_FOUND);
 
@@ -655,6 +751,7 @@ void beforeAll()
     LoadTrackingTest::add("WebKitWebView", "reload", testWebViewReload);
     LoadTrackingTest::add("WebKitWebView", "history-load", testWebViewHistoryLoad);
     LoadTwiceAndReloadTest::add("WebKitWebView", "load-twice-and-reload", testWebViewLoadTwiceAndReload);
+    LoadTrackingTest::add("WebKitWebView", "unfinished-subresource-load", testUnfinishedSubresourceLoad);
 
     // This test checks that web view notify::uri signal is correctly emitted
     // and the uri is already updated when loader client signals are emitted.

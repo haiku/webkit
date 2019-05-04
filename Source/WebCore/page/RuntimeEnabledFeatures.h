@@ -148,6 +148,12 @@ public:
     void setItpDebugModeEnabled(bool isEnabled) { m_itpDebugMode = isEnabled; }
     bool itpDebugModeEnabled() const { return m_itpDebugMode; }
 
+    void setIsITPDatabaseEnabled(bool isEnabled) { m_isITPDatabaseEnabled = isEnabled; }
+    bool isITPDatabaseEnabled() const { return m_isITPDatabaseEnabled; }
+    
+    void setIsITPFirstPartyWebsiteDataRemovalEnabled(bool isEnabled) { m_isITPFirstPartyWebsiteDataRemovalEnabled = isEnabled; }
+    bool isITPFirstPartyWebsiteDataRemovalEnabled() const { return m_isITPFirstPartyWebsiteDataRemovalEnabled; }
+
     void setRestrictedHTTPResponseAccess(bool isEnabled) { m_isRestrictedHTTPResponseAccess = isEnabled; }
     bool restrictedHTTPResponseAccess() const { return m_isRestrictedHTTPResponseAccess; }
 
@@ -156,9 +162,6 @@ public:
 
     void setWebGLCompressedTextureASTCSupportEnabled(bool isEnabled) { m_isWebGLCompressedTextureASTCSupportEnabled = isEnabled; }
     bool webGLCompressedTextureASTCSupportEnabled() const { return m_isWebGLCompressedTextureASTCSupportEnabled; }
-
-    void setStorageAccessPromptsEnabled(bool isEnabled)  { m_promptForStorageAccessAPIEnabled = isEnabled; }
-    bool storageAccessPromptsEnabled() const { return m_promptForStorageAccessAPIEnabled; }
 
     void setServerTimingEnabled(bool isEnabled) { m_isServerTimingEnabled = isEnabled; }
     bool serverTimingEnabled() const { return m_isServerTimingEnabled; }
@@ -293,11 +296,6 @@ public:
     bool webGPUEnabled() const { return m_isWebGPUEnabled; }
 #endif
 
-#if ENABLE(WEBMETAL)
-    void setWebMetalEnabled(bool isEnabled) { m_isWebMetalEnabled = isEnabled; }
-    bool webMetalEnabled() const { return m_isWebMetalEnabled; }
-#endif
-
 #if ENABLE(STREAMS_API)
     void setReadableByteStreamAPIEnabled(bool isEnabled) { m_isReadableByteStreamAPIEnabled = isEnabled; }
     bool readableByteStreamAPIEnabled() const { return m_isReadableByteStreamAPIEnabled; }
@@ -344,6 +342,14 @@ public:
     bool adClickAttributionEnabled() const { return m_adClickAttributionEnabled; }
     void setAdClickAttributionEnabled(bool isEnabled) { m_adClickAttributionEnabled = isEnabled; }
 
+#if ENABLE(TOUCH_EVENTS)
+    bool mouseEventsSimulationEnabled() const { return m_mouseEventsSimulationEnabled; }
+    void setMouseEventsSimulationEnabled(bool isEnabled) { m_mouseEventsSimulationEnabled = isEnabled; }
+#endif
+    
+    bool referrerPolicyAttributeEnabled() const { return m_referrerPolicyAttributeEnabled; }
+    void setReferrerPolicyAttributeEnabled(bool isEnabled) { m_referrerPolicyAttributeEnabled = isEnabled; }
+
     WEBCORE_EXPORT static RuntimeEnabledFeatures& sharedFeatures();
 
 private:
@@ -385,14 +391,13 @@ private:
     bool m_isRestrictedHTTPResponseAccess { true };
     bool m_crossOriginResourcePolicyEnabled { true };
     bool m_isWebGLCompressedTextureASTCSupportEnabled { false };
-    bool m_promptForStorageAccessAPIEnabled { false };
     bool m_isServerTimingEnabled { false };
     bool m_experimentalPlugInSandboxProfilesEnabled { false };
     bool m_disabledAdaptationsMetaTagEnabled { false };
     bool m_attrStyleEnabled { false };
     bool m_webAPIStatisticsEnabled { false };
     bool m_CSSCustomPropertiesAndValuesEnabled { false };
-    bool m_pointerEventsEnabled { false };
+    bool m_pointerEventsEnabled { true };
     bool m_webSQLEnabled { true };
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
@@ -487,10 +492,6 @@ private:
     bool m_isWebGPUEnabled { false };
 #endif
 
-#if ENABLE(WEBMETAL)
-    bool m_isWebMetalEnabled { false };
-#endif
-
 #if ENABLE(DOWNLOAD_ATTRIBUTE)
     bool m_isDownloadAttributeEnabled { false };
 #endif
@@ -520,6 +521,15 @@ private:
     bool m_CSSLogicalEnabled { false };
 
     bool m_adClickAttributionEnabled { false };
+
+#if ENABLE(TOUCH_EVENTS)
+    bool m_mouseEventsSimulationEnabled { false };
+#endif
+
+    bool m_isITPDatabaseEnabled { false };
+    bool m_isITPFirstPartyWebsiteDataRemovalEnabled { false };
+
+    bool m_referrerPolicyAttributeEnabled { false };
 
     friend class WTF::NeverDestroyed<RuntimeEnabledFeatures>;
 };

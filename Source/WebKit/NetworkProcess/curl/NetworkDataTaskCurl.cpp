@@ -96,18 +96,6 @@ void NetworkDataTaskCurl::resume()
         m_curlRequest->resume();
 }
 
-void NetworkDataTaskCurl::suspend()
-{
-    ASSERT(m_state != State::Suspended);
-    if (m_state == State::Canceling || m_state == State::Completed)
-        return;
-
-    m_state = State::Suspended;
-
-    if (m_curlRequest)
-        m_curlRequest->suspend();
-}
-
 void NetworkDataTaskCurl::cancel()
 {
     if (m_state == State::Canceling || m_state == State::Completed)
@@ -161,7 +149,7 @@ void NetworkDataTaskCurl::curlDidReceiveResponse(CurlRequest& request, const Cur
     m_response = ResourceResponse(receivedResponse);
     m_response.setDeprecatedNetworkLoadMetrics(request.networkLoadMetrics().isolatedCopy());
 
-    handleCookieHeaders(receivedResponse);
+    handleCookieHeaders(request.resourceRequest(), receivedResponse);
 
     if (m_response.shouldRedirect()) {
         willPerformHTTPRedirection();
@@ -201,10 +189,15 @@ void NetworkDataTaskCurl::curlDidComplete(CurlRequest& request)
     m_client->didCompleteWithError({ }, m_response.deprecatedNetworkLoadMetrics());
 }
 
-void NetworkDataTaskCurl::curlDidFailWithError(CurlRequest&, const ResourceError& resourceError)
+void NetworkDataTaskCurl::curlDidFailWithError(CurlRequest& request, const ResourceError& resourceError)
 {
     if (state() == State::Canceling || state() == State::Completed || (!m_client && !isDownload()))
         return;
+
+    if (resourceError.isSSLCertVerificationError()) {
+        tryServerTrustEvaluation(AuthenticationChallenge(request.resourceRequest().url(), request.certificateInfo(), resourceError));
+        return;
+    }
 
     m_client->didCompleteWithError(resourceError);
 }
@@ -242,7 +235,7 @@ void NetworkDataTaskCurl::invokeDidReceiveResponse()
             break;
         case PolicyAction::Ignore:
             break;
-        case PolicyAction::Download:
+        default:
             notImplemented();
             break;
         }
@@ -371,13 +364,7 @@ void NetworkDataTaskCurl::tryHttpAuthentication(AuthenticationChallenge&& challe
             return;
         }
 
-        if (disposition == AuthenticationChallengeDisposition::UseCredential && (!credential.isEmpty() || !m_didChallengeEmptyCredentialForAuth)) {
-            // When "isAllowedToAskUserForCredentials" is false, an empty credential, which might cause
-            // an infinite authentication loop. To avoid such infinite loop, a HTTP authentication with empty
-            // user and password is processed only once.
-            if (credential.isEmpty())
-                m_didChallengeEmptyCredentialForAuth = true;
-
+        if (disposition == AuthenticationChallengeDisposition::UseCredential && !credential.isEmpty()) {
             if (m_storedCredentialsPolicy == StoredCredentialsPolicy::Use) {
                 if (credential.persistence() == CredentialPersistenceForSession || credential.persistence() == CredentialPersistencePermanent)
                     m_session->networkStorageSession().credentialStorage().set(m_partition, credential, challenge.protectionSpace(), challenge.failureResponse().url());
@@ -403,10 +390,7 @@ void NetworkDataTaskCurl::tryProxyAuthentication(WebCore::AuthenticationChalleng
             return;
         }
 
-        if (disposition == AuthenticationChallengeDisposition::UseCredential && (!credential.isEmpty() || !m_didChallengeEmptyCredentialForProxyAuth)) {
-            if (credential.isEmpty())
-                m_didChallengeEmptyCredentialForProxyAuth = true;
-
+        if (disposition == AuthenticationChallengeDisposition::UseCredential && !credential.isEmpty()) {
             CurlContext::singleton().setProxyUserPass(credential.user(), credential.password());
             CurlContext::singleton().setDefaultProxyAuthMethod();
 
@@ -416,6 +400,23 @@ void NetworkDataTaskCurl::tryProxyAuthentication(WebCore::AuthenticationChalleng
         }
 
         invokeDidReceiveResponse();
+    });
+}
+
+void NetworkDataTaskCurl::tryServerTrustEvaluation(AuthenticationChallenge&& challenge)
+{
+    m_client->didReceiveChallenge(AuthenticationChallenge(challenge), [this, protectedThis = makeRef(*this), challenge](AuthenticationChallengeDisposition disposition, const Credential& credential) {
+        if (m_state == State::Canceling || m_state == State::Completed)
+            return;
+
+        if (disposition == AuthenticationChallengeDisposition::UseCredential && !credential.isEmpty()) {
+            auto requestCredential = m_curlRequest ? Credential(m_curlRequest->user(), m_curlRequest->password(), CredentialPersistenceNone) : Credential();
+            restartWithCredential(challenge.protectionSpace(), requestCredential);
+            return;
+        }
+
+        cancel();
+        m_client->didCompleteWithError(challenge.error());
     });
 }
 
@@ -429,6 +430,8 @@ void NetworkDataTaskCurl::restartWithCredential(const ProtectionSpace& protectio
     m_curlRequest = createCurlRequest(WTFMove(previousRequest), RequestStatus::ReusedRequest);
     m_curlRequest->setAuthenticationScheme(protectionSpace.authenticationScheme());
     m_curlRequest->setUserPass(credential.user(), credential.password());
+    if (protectionSpace.authenticationScheme() == ProtectionSpaceAuthenticationSchemeServerTrustEvaluationRequested)
+        m_curlRequest->disableServerTrustEvaluation();
     m_curlRequest->setStartTime(m_startTime);
     m_curlRequest->start();
 
@@ -448,7 +451,7 @@ void NetworkDataTaskCurl::appendCookieHeader(WebCore::ResourceRequest& request)
         request.addHTTPHeaderField(HTTPHeaderName::Cookie, cookieHeaderField);
 }
 
-void NetworkDataTaskCurl::handleCookieHeaders(const CurlResponse& response)
+void NetworkDataTaskCurl::handleCookieHeaders(const WebCore::ResourceRequest& request, const CurlResponse& response)
 {
     static const auto setCookieHeader = "set-cookie: ";
 
@@ -457,7 +460,7 @@ void NetworkDataTaskCurl::handleCookieHeaders(const CurlResponse& response)
     for (auto header : response.headers) {
         if (header.startsWithIgnoringASCIICase(setCookieHeader)) {
             String setCookieString = header.right(header.length() - strlen(setCookieHeader));
-            cookieJar.setCookiesFromHTTPResponse(storageSession, response.url, setCookieString);
+            cookieJar.setCookiesFromHTTPResponse(storageSession, request.firstPartyForCookies(), response.url, setCookieString);
         }
     }
 }

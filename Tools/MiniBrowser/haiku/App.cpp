@@ -46,7 +46,7 @@ App::MessageReceived(BMessage *msg)
 }
 void App::ReadyToRun()
 {
-	webView = new WebView(frame,myWindow);
+	webView = new BWebView(frame,myWindow);
 	this->testLoader();
 }
 void 

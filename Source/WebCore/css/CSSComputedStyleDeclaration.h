@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2004 Zack Rusin <zack@kde.org>
- * Copyright (C) 2004, 2005, 2006, 2008, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2019 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,6 +24,7 @@
 #include "RenderStyleConstants.h"
 #include "SVGRenderStyleDefs.h"
 #include "TextFlags.h"
+#include <wtf/IsoMalloc.h>
 #include <wtf/RefPtr.h>
 #include <wtf/text/WTFString.h>
 
@@ -50,6 +51,7 @@ enum EUpdateLayout { DoNotUpdateLayout = false, UpdateLayout = true };
 enum AdjustPixelValuesForComputedStyle { AdjustPixelValues, DoNotAdjustPixelValues };
 
 class ComputedStyleExtractor {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     ComputedStyleExtractor(Node*, bool allowVisitedStyle = false, PseudoId = PseudoId::None);
     ComputedStyleExtractor(Element*, bool allowVisitedStyle = false, PseudoId = PseudoId::None);
@@ -103,6 +105,7 @@ private:
 };
 
 class CSSComputedStyleDeclaration final : public CSSStyleDeclaration {
+    WTF_MAKE_ISO_ALLOCATED_EXPORT(CSSComputedStyleDeclaration, WEBCORE_EXPORT);
 public:
     static Ref<CSSComputedStyleDeclaration> create(Element& element, bool allowVisitedStyle = false, const String& pseudoElementName = String())
     {

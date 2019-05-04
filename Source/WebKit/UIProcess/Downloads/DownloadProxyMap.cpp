@@ -30,39 +30,84 @@
 #include "DownloadProxy.h"
 #include "DownloadProxyMessages.h"
 #include "MessageReceiverMap.h"
+#include "ProcessAssertion.h"
 #include <wtf/StdLibExtras.h>
+
+#if PLATFORM(COCOA)
+#include <wtf/cocoa/Entitlements.h>
+#endif
 
 namespace WebKit {
 
 DownloadProxyMap::DownloadProxyMap(NetworkProcessProxy& process)
-    : m_process(&process)
+    : m_process(makeWeakPtr(process))
+#if PLATFORM(COCOA)
+    , m_shouldTakeAssertion(WTF::processHasEntitlement("com.apple.multitasking.systemappassertions"))
+#endif
 {
+    platformCreate();
 }
 
 DownloadProxyMap::~DownloadProxyMap()
 {
     ASSERT(m_downloads.isEmpty());
+    platformDestroy();
 }
 
-DownloadProxy* DownloadProxyMap::createDownloadProxy(WebProcessPool& processPool, const WebCore::ResourceRequest& resourceRequest)
+#if !PLATFORM(COCOA)
+void DownloadProxyMap::platformCreate()
+{
+}
+
+void DownloadProxyMap::platformDestroy()
+{
+}
+#endif
+
+void DownloadProxyMap::applicationDidEnterBackground()
+{
+    if (m_process)
+        m_process->send(Messages::NetworkProcess::ApplicationDidEnterBackground(), 0);
+}
+
+void DownloadProxyMap::applicationWillEnterForeground()
+{
+    if (m_process)
+        m_process->send(Messages::NetworkProcess::ApplicationWillEnterForeground(), 0);
+}
+
+DownloadProxy& DownloadProxyMap::createDownloadProxy(WebProcessPool& processPool, const WebCore::ResourceRequest& resourceRequest)
 {
     auto downloadProxy = DownloadProxy::create(*this, processPool, resourceRequest);
     m_downloads.set(downloadProxy->downloadID(), downloadProxy.copyRef());
 
+    if (m_downloads.size() == 1 && m_shouldTakeAssertion) {
+        ASSERT(!m_downloadAssertion);
+        m_downloadAssertion = std::make_unique<ProcessAssertion>(getCurrentProcessID(), "WebKit downloads"_s, AssertionState::UnboundedNetworking);
+    }
+
     m_process->addMessageReceiver(Messages::DownloadProxy::messageReceiverName(), downloadProxy->downloadID().downloadID(), downloadProxy.get());
 
-    return downloadProxy.ptr();
+    return downloadProxy;
 }
 
-void DownloadProxyMap::downloadFinished(DownloadProxy* downloadProxy)
+void DownloadProxyMap::downloadFinished(DownloadProxy& downloadProxy)
 {
-    auto downloadID = downloadProxy->downloadID();
+    auto downloadID = downloadProxy.downloadID();
+
+    // The DownloadProxy may be holding the last reference to the process pool.
+    auto protectedProcessPool = makeRefPtr(m_process->processPool());
 
     ASSERT(m_downloads.contains(downloadID));
 
     m_process->removeMessageReceiver(Messages::DownloadProxy::messageReceiverName(), downloadID.downloadID());
-    downloadProxy->invalidate();
+    downloadProxy.invalidate();
     m_downloads.remove(downloadID);
+
+    if (m_downloads.isEmpty() && m_shouldTakeAssertion) {
+        ASSERT(m_downloadAssertion);
+        m_downloadAssertion = nullptr;
+    }
 }
 
 void DownloadProxyMap::processDidClose()
@@ -75,6 +120,7 @@ void DownloadProxyMap::processDidClose()
     }
 
     m_downloads.clear();
+    m_downloadAssertion = nullptr;
     m_process = nullptr;
 }
 

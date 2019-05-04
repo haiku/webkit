@@ -341,7 +341,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                 value.setNonCellType(SpecBoolean);
                 break;
             case FlushedCell:
-                value.setType(m_graph, SpecCell);
+                value.setType(m_graph, SpecCellCheck);
                 break;
             case FlushedJSValue:
                 value.makeBytecodeTop();
@@ -376,13 +376,26 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         break;
     }
 
-    case ArithBitNot: {
-        if (node->child1().useKind() == UntypedUse) {
-            clobberWorld();
-            setNonCellTypeForNode(node, SpecInt32Only);
+    case ValueBitNot: {
+        JSValue operand = forNode(node->child1()).value();
+        if (operand && operand.isInt32()) {
+            didFoldClobberWorld();
+            int32_t a = operand.asInt32();
+            setConstant(node, JSValue(~a));
             break;
         }
 
+        if (node->child1().useKind() == BigIntUse)
+            setTypeForNode(node, SpecBigInt);
+        else {
+            clobberWorld();
+            setTypeForNode(node, SpecInt32Only | SpecBigInt);
+        }
+
+        break;
+    }
+
+    case ArithBitNot: {
         JSValue operand = forNode(node->child1()).value();
         if (operand && operand.isInt32()) {
             int32_t a = operand.asInt32();
@@ -401,7 +414,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             setTypeForNode(node, SpecBigInt);
         else {
             clobberWorld();
-            setTypeForNode(node, SpecBoolInt32 | SpecBigInt);
+            setTypeForNode(node, SpecInt32Only | SpecBigInt);
         }
         break;
             
@@ -468,7 +481,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     setConstant(node, jsNumber(static_cast<uint32_t>(machineInt)));
                     break;
                 }
-                setNonCellTypeForNode(node, SpecAnyInt);
+                setNonCellTypeForNode(node, SpecInt52Any);
                 break;
             }
             if (child && child.isInt32()) {
@@ -594,8 +607,9 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             setConstant(node, child);
             break;
         }
-        
-        setNonCellTypeForNode(node, SpecAnyInt);
+
+        setTypeForNode(node, forNode(node->child1()).m_type);
+        forNode(node).fixTypeForRepresentation(m_graph, node);
         break;
     }
         
@@ -654,7 +668,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     break;
                 }
             }
-            setNonCellTypeForNode(node, SpecAnyInt);
+            setNonCellTypeForNode(node, SpecInt52Any);
             break;
         case DoubleRepUse:
             if (left && right && left.isNumber() && right.isNumber()) {
@@ -691,7 +705,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                 break;
             }
             uint32_t value = toUInt32(*number);
-            setConstant(node, jsNumber(clz32(value)));
+            setConstant(node, jsNumber(clz(value)));
             break;
         }
         switch (node->child1().useKind()) {
@@ -707,45 +721,23 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     }
 
     case MakeRope: {
-        unsigned numberOfChildren = 0;
         unsigned numberOfRemovedChildren = 0;
-        Optional<unsigned> nonEmptyIndex;
         for (unsigned i = 0; i < AdjacencyList::Size; ++i) {
             Edge& edge = node->children.child(i);
             if (!edge)
                 break;
-            ++numberOfChildren;
-
             JSValue childConstant = m_state.forNode(edge).value();
-            if (!childConstant) {
-                nonEmptyIndex = i;
+            if (!childConstant)
                 continue;
-            }
-            if (!childConstant.isString()) {
-                nonEmptyIndex = i;
+            if (!childConstant.isString())
                 continue;
-            }
-            if (asString(childConstant)->length()) {
-                nonEmptyIndex = i;
+            if (asString(childConstant)->length())
                 continue;
-            }
-
             ++numberOfRemovedChildren;
         }
 
-        if (numberOfRemovedChildren) {
+        if (numberOfRemovedChildren)
             m_state.setFoundConstants(true);
-            if (numberOfRemovedChildren == numberOfChildren) {
-                // Propagate the last child. This is the way taken in the constant folding phase.
-                setForNode(node, forNode(node->children.child(numberOfChildren - 1)));
-                break;
-            }
-            if ((numberOfRemovedChildren + 1) == numberOfChildren) {
-                ASSERT(nonEmptyIndex);
-                setForNode(node, forNode(node->children.child(nonEmptyIndex.value())));
-                break;
-            }
-        }
         setForNode(node, m_vm.stringStructure.get());
         break;
     }
@@ -776,7 +768,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     break;
                 }
             }
-            setNonCellTypeForNode(node, SpecAnyInt);
+            setNonCellTypeForNode(node, SpecInt52Any);
             break;
         case DoubleRepUse:
             if (left && right && left.isNumber() && right.isNumber()) {
@@ -839,7 +831,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     break;
                 }
             }
-            setNonCellTypeForNode(node, SpecAnyInt);
+            setNonCellTypeForNode(node, SpecInt52Any);
             break;
         case DoubleRepUse:
             if (child && child.isNumber()) {
@@ -899,7 +891,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     break;
                 }
             }
-            setNonCellTypeForNode(node, SpecAnyInt);
+            setNonCellTypeForNode(node, SpecInt52Any);
             break;
         case DoubleRepUse:
             if (left && right && left.isNumber() && right.isNumber()) {
@@ -2139,8 +2131,8 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         case Array::Uint32Array:
             if (node->shouldSpeculateInt32())
                 setNonCellTypeForNode(node, SpecInt32Only);
-            else if (enableInt52() && node->shouldSpeculateAnyInt())
-                setNonCellTypeForNode(node, SpecAnyInt);
+            else if (node->shouldSpeculateInt52())
+                setNonCellTypeForNode(node, SpecInt52Any);
             else
                 setNonCellTypeForNode(node, SpecAnyIntAsDouble);
             break;
@@ -2222,7 +2214,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     case GetMyArgumentByVal:
     case GetMyArgumentByValOutOfBounds: {
         JSValue index = forNode(node->child2()).m_value;
-        InlineCallFrame* inlineCallFrame = node->child1()->origin.semantic.inlineCallFrame;
+        InlineCallFrame* inlineCallFrame = node->child1()->origin.semantic.inlineCallFrame();
 
         if (index && index.isUInt32()) {
             // This pretends to return TOP for accesses that are actually proven out-of-bounds because
@@ -2540,7 +2532,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     case ToThis: {
         AbstractValue& source = forNode(node->child1());
         AbstractValue& destination = forNode(node);
-        bool strictMode = m_graph.executableFor(node->origin.semantic)->isStrictMode();
+        bool strictMode = m_graph.isStrictModeFor(node->origin.semantic);
 
         ToThisResult result = isToThisAnIdentity(m_vm, strictMode, source);
         switch (result) {
@@ -2739,7 +2731,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                 break;
             }
         }
-        setTypeForNode(node, SpecFunction);
+        setTypeForNode(node, SpecFunction | SpecObjectOther);
         break;
         
     case GetArgumentCountIncludingThis:
@@ -3458,11 +3450,16 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     case CheckInBounds: {
         JSValue left = forNode(node->child1()).value();
         JSValue right = forNode(node->child2()).value();
-        if (left && right && left.isInt32() && right.isInt32()
-            && static_cast<uint32_t>(left.asInt32()) < static_cast<uint32_t>(right.asInt32())) {
+        if (left && right && left.isInt32() && right.isInt32() && static_cast<uint32_t>(left.asInt32()) < static_cast<uint32_t>(right.asInt32()))
             m_state.setFoundConstants(true);
-            break;
-        }
+
+        // We claim we result in Int32. It's not really important what our result is (though we
+        // don't want to claim we may result in the empty value), other nodes with data flow edges
+        // to us just do that to maintain the invariant that they can't be hoisted higher than us.
+        // So we just arbitrarily pick Int32. In some ways, StorageResult may be the more correct
+        // thing to do here. We pick NodeResultJS because it makes converting this to an identity
+        // easier.
+        setNonCellTypeForNode(node, SpecInt32Only);
         break;
     }
         
@@ -3879,7 +3876,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             if (data.isSigned)
                 setNonCellTypeForNode(node, SpecInt32Only);
             else
-                setNonCellTypeForNode(node, SpecAnyInt);
+                setNonCellTypeForNode(node, SpecInt52Any);
         }
         break;
     }

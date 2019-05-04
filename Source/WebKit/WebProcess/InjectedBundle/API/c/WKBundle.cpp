@@ -161,11 +161,6 @@ void WKBundleSetFrameFlatteningEnabled(WKBundleRef bundleRef, WKBundlePageGroupR
     WebKit::toImpl(bundleRef)->setFrameFlatteningEnabled(WebKit::toImpl(pageGroupRef), enabled);
 }
 
-void WKBundleSetAsyncFrameScrollingEnabled(WKBundleRef bundleRef, WKBundlePageGroupRef pageGroupRef, bool enabled)
-{
-    WebKit::toImpl(bundleRef)->setAsyncFrameScrollingEnabled(WebKit::toImpl(pageGroupRef), enabled);
-}
-
 void WKBundleSetJavaScriptCanAccessClipboard(WKBundleRef bundleRef, WKBundlePageGroupRef pageGroupRef, bool enabled)
 {
     WebKit::toImpl(bundleRef)->setJavaScriptCanAccessClipboard(WebKit::toImpl(pageGroupRef), enabled);
@@ -323,13 +318,13 @@ void WKBundleClearResourceLoadStatistics(WKBundleRef)
 
 void WKBundleResourceLoadStatisticsNotifyObserver(WKBundleRef)
 {
-    WebCore::ResourceLoadObserver::shared().notifyObserver();
+    WebCore::ResourceLoadObserver::shared().updateCentralStatisticsStore();
 }
 
 
 void WKBundleExtendClassesForParameterCoder(WKBundleRef bundle, WKArrayRef classes)
 {
-#if PLATFORM(COCOA) && WK_API_ENABLED
+#if PLATFORM(COCOA)
     auto classList = WebKit::toImpl(classes);
     if (!classList)
         return;

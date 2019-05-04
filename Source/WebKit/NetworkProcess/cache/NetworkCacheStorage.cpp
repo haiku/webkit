@@ -37,6 +37,7 @@
 #include <wtf/RandomNumber.h>
 #include <wtf/RunLoop.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringConcatenateNumbers.h>
 
 namespace WebKit {
 namespace NetworkCache {
@@ -144,7 +145,7 @@ public:
 
 static String makeVersionedDirectoryPath(const String& baseDirectoryPath)
 {
-    String versionSubdirectory = versionDirectoryPrefix + String::number(Storage::version);
+    String versionSubdirectory = makeString(versionDirectoryPrefix, Storage::version);
     return FileSystem::pathByAppendingComponent(baseDirectoryPath, versionSubdirectory);
 }
 
@@ -175,7 +176,8 @@ RefPtr<Storage> Storage::open(const String& cachePath, Mode mode)
     return adoptRef(new Storage(cachePath, mode, *salt));
 }
 
-void traverseRecordsFiles(const String& recordsPath, const String& expectedType, const RecordFileTraverseFunction& function)
+using RecordFileTraverseFunction = Function<void (const String& fileName, const String& hashString, const String& type, bool isBlob, const String& recordDirectoryPath)>;
+static void traverseRecordsFiles(const String& recordsPath, const String& expectedType, const RecordFileTraverseFunction& function)
 {
     traverseDirectory(recordsPath, [&](const String& partitionName, DirectoryEntryType entryType) {
         if (entryType != DirectoryEntryType::Directory)

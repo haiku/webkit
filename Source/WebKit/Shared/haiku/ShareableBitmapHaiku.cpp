@@ -39,11 +39,11 @@ namespace WebKit {
 
 static inline RefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
 {
-    /*RefPtr<StillImage> image = StillImage::createForRendering(adoptRef(new BBitmap(
-            BRect(B_ORIGIN, size), B_RGBA32,
-        static_cast<unsigned char*>(data), B_BITMAP_ACCEPTS_VIEWS)));*/
-    NativeImagePtr imageptr;    
-    RefPtr<StillImage> image = StillImage::createForRendering(imageptr);
+	BitmapRef* bitmap = new BitmapRef(BRect(B_ORIGIN, size), B_RGBA32, false);
+
+    bitmap->ImportBits(static_cast<unsigned char*>(data),
+		size.width() * size.height() * 4, 32 * size.height(), 0, B_RGB32);
+    RefPtr<StillImage> image = StillImage::create(adoptRef(bitmap));
     return image;
 }
 

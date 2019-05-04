@@ -183,6 +183,10 @@ private:
     RetainPtr<WKInspectorIndicationView> _inspectorIndicationView;
     RetainPtr<WKInspectorHighlightView> _inspectorHighlightView;
 
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    RetainPtr<_UILayerHostView> _visibilityPropagationView;
+#endif
+
     WebKit::HistoricalVelocityData _historicalKinematicData;
 
     RetainPtr<NSUndoManager> _undoManager;
@@ -201,7 +205,7 @@ private:
     _page->setUseFixedLayout(true);
     _page->setDelegatesScrolling(true);
 
-#if ENABLE(FULLSCREEN_API) && WK_API_ENABLED
+#if ENABLE(FULLSCREEN_API)
     _page->setFullscreenClient(std::make_unique<WebKit::FullscreenClient>(_webView));
 #endif
 
@@ -226,11 +230,37 @@ private:
 
     self.layer.hitTestsAsOpaque = YES;
 
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    [self _setupVisibilityPropagationView];
+#endif
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationWillResignActive:) name:UIApplicationWillResignActiveNotification object:[UIApplication sharedApplication]];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:[UIApplication sharedApplication]];
 
     return self;
 }
+
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+- (void)_setupVisibilityPropagationView
+{
+    auto processIdentifier = _page->process().processIdentifier();
+    auto contextID = _page->process().contextIDForVisibilityPropagation();
+    if (!processIdentifier || !contextID)
+        return;
+
+    ASSERT(!_visibilityPropagationView);
+    // Propagate the view's visibility state to the WebContent process so that it is marked as "Foreground Running" when necessary.
+    _visibilityPropagationView = adoptNS([[_UILayerHostView alloc] initWithFrame:CGRectZero pid:processIdentifier contextID:contextID]);
+    RELEASE_LOG(Process, "Created visibility propagation view %p for WebContent process with PID %d", _visibilityPropagationView.get(), processIdentifier);
+    [self addSubview:_visibilityPropagationView.get()];
+}
+
+- (void)_removeVisibilityPropagationView
+{
+    [_visibilityPropagationView removeFromSuperview];
+    _visibilityPropagationView = nullptr;
+}
+#endif
 
 - (instancetype)initWithFrame:(CGRect)frame processPool:(WebKit::WebProcessPool&)processPool configuration:(Ref<API::PageConfiguration>&&)configuration webView:(WKWebView *)webView
 {
@@ -405,7 +435,7 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
     WebKit::RemoteScrollingCoordinatorProxy* scrollingCoordinator = _page->scrollingCoordinatorProxy();
 
     CGRect unobscuredContentRectRespectingInputViewBounds = [self _computeUnobscuredContentRectRespectingInputViewBounds:unobscuredContentRect inputViewBounds:inputViewBounds];
-    WebCore::FloatRect fixedPositionRectForLayout = _page->computeCustomFixedPositionRect(unobscuredContentRect, unobscuredContentRectRespectingInputViewBounds, _page->customFixedPositionRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::ConstrainedToDocumentRect, scrollingCoordinator->visualViewportEnabled());
+    WebCore::FloatRect fixedPositionRectForLayout = _page->computeCustomFixedPositionRect(unobscuredContentRect, unobscuredContentRectRespectingInputViewBounds, _page->customFixedPositionRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::ConstrainedToDocumentRect);
 
     WebKit::VisibleContentRectUpdateInfo visibleContentRectUpdateInfo(
         visibleContentRect,
@@ -435,12 +465,12 @@ static WebCore::FloatBoxExtent floatBoxExtent(UIEdgeInsets insets)
 
     _sizeChangedSinceLastVisibleContentRectUpdate = NO;
 
-    WebCore::FloatRect fixedPositionRect = _page->computeCustomFixedPositionRect(_page->unobscuredContentRect(), _page->unobscuredContentRectRespectingInputViewBounds(), _page->customFixedPositionRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::Unconstrained, scrollingCoordinator->visualViewportEnabled());
-    scrollingCoordinator->viewportChangedViaDelegatedScrolling(scrollingCoordinator->rootScrollingNodeID(), fixedPositionRect, zoomScale);
+    WebCore::FloatRect layoutViewport = _page->computeCustomFixedPositionRect(_page->unobscuredContentRect(), _page->unobscuredContentRectRespectingInputViewBounds(), _page->customFixedPositionRect(), zoomScale, WebCore::FrameView::LayoutViewportConstraint::Unconstrained);
+    scrollingCoordinator->viewportChangedViaDelegatedScrolling(_page->unobscuredContentRect().location(), layoutViewport, zoomScale);
 
     drawingArea->updateDebugIndicator();
     
-    [self updateFixedClippingView:fixedPositionRect];
+    [self updateFixedClippingView:layoutViewport];
 
     if (wasStableState && !isStableState)
         [self _didExitStableState];
@@ -538,6 +568,10 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 
     [self setShowingInspectorIndication:NO];
     [self _hideInspectorHighlight];
+
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    [self _removeVisibilityPropagationView];
+#endif
 }
 
 - (void)_processWillSwap
@@ -550,7 +584,17 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 {
     [self _accessibilityRegisterUIProcessTokens];
     [self setupInteraction];
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    [self _setupVisibilityPropagationView];
+#endif
 }
+
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+- (void)_processDidCreateContextForVisibilityPropagation
+{
+    [self _setupVisibilityPropagationView];
+}
+#endif
 
 - (void)_didCommitLoadForMainFrame
 {
@@ -639,6 +683,21 @@ static void storeAccessibilityRemoteConnectionInformation(id element, pid_t pid,
 - (void)_zoomToInitialScaleWithOrigin:(CGPoint)origin
 {
     return [_webView _zoomToInitialScaleWithOrigin:origin animated:YES];
+}
+
+- (double)_initialScaleFactor
+{
+    return [_webView _initialScaleFactor];
+}
+
+- (double)_contentZoomScale
+{
+    return [_webView _contentZoomScale];
+}
+
+- (double)_targetContentZoomScaleForRect:(const WebCore::FloatRect&)targetRect currentScale:(double)currentScale fitEntireRect:(BOOL)fitEntireRect minimumScale:(double)minimumScale maximumScale:(double)maximumScale
+{
+    return [_webView _targetContentZoomScaleForRect:targetRect currentScale:currentScale fitEntireRect:fitEntireRect minimumScale:minimumScale maximumScale:maximumScale];
 }
 
 - (void)_applicationWillResignActive:(NSNotification*)notification

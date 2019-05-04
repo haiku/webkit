@@ -48,6 +48,7 @@
 #include "Parser.h"
 #include "PropertyNameArray.h"
 #include "StackVisitor.h"
+#include "WebAssemblyFunction.h"
 
 namespace JSC {
 
@@ -84,7 +85,7 @@ JSFunction* JSFunction::create(VM& vm, FunctionExecutable* executable, JSScope* 
 JSFunction* JSFunction::create(VM& vm, FunctionExecutable* executable, JSScope* scope, Structure* structure)
 {
     JSFunction* result = createImpl(vm, executable, scope, structure);
-    executable->singletonFunction()->notifyWrite(vm, result, "Allocating a function");
+    executable->notifyCreation(vm, result, "Allocating a function");
     return result;
 }
 
@@ -627,9 +628,13 @@ ConstructType JSFunction::getConstructData(JSCell* cell, ConstructData& construc
 
 String getCalculatedDisplayName(VM& vm, JSObject* object)
 {
+#if ENABLE(WEBASSEMBLY)
+    if (jsDynamicCast<JSToWasmICCallee*>(vm, object))
+        return "wasm-stub"_s;
+#endif
+
     if (!jsDynamicCast<JSFunction*>(vm, object) && !jsDynamicCast<InternalFunction*>(vm, object))
         return emptyString();
-
 
     Structure* structure = object->structure(vm);
     unsigned attributes;
@@ -669,7 +674,8 @@ void JSFunction::setFunctionName(ExecState* exec, JSValue value)
     ASSERT(jsExecutable()->ecmaName().isNull());
     String name;
     if (value.isSymbol()) {
-        SymbolImpl& uid = asSymbol(value)->privateName().uid();
+        PrivateName privateName = asSymbol(value)->privateName();
+        SymbolImpl& uid = privateName.uid();
         if (uid.isNullSymbol())
             name = emptyString();
         else

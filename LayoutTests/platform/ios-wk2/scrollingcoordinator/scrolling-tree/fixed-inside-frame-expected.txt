@@ -9,7 +9,6 @@
     (vertical scroll elasticity 1)
     (horizontal scrollbar mode 0)
     (vertical scrollbar mode 0))
-  (visual viewport enabled 1)
   (layout viewport at (0,0) size 800x600)
   (min layout viewport origin (0,0))
   (max layout viewport origin (0,57))
@@ -19,6 +18,7 @@
       (parent relative scrollable rect at (110,110) size 480x400)
       (children 1
         (Frame scrolling node
+          (scroll position 0 120)
           (scrollable area size 480 400)
           (contents size 480 1016)
           (requested scroll position 0 120)
@@ -29,7 +29,6 @@
             (vertical scroll elasticity 1)
             (horizontal scrollbar mode 0)
             (vertical scrollbar mode 0))
-          (visual viewport enabled 1)
           (layout viewport at (0,120) size 480x400)
           (min layout viewport origin (0,0))
           (max layout viewport origin (0,616))
@@ -68,7 +67,6 @@
                   (bounds 480.00 400.00)
                   (children 1
                     (GraphicsLayer
-                      (position 0.00 -120.00)
                       (anchor 0.00 0.00)
                       (children 1
                         (GraphicsLayer

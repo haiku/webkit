@@ -42,10 +42,10 @@ NetworkSessionCreationParameters NetworkSessionCreationParameters::privateSessio
 {
     return { sessionID, { }, AllowsCellularAccess::Yes
 #if PLATFORM(COCOA)
-        , { }, { }, { }, false, { }, { }, { }
+        , { }, { }, { }, AllowsTLSFallback::Yes, false, { }, { }, { }
 #endif
 #if USE(SOUP)
-        , { }, 0
+        , { }, SoupCookiePersistentStorageType::Text
 #endif
 #if USE(CURL)
         , { }, { }
@@ -63,6 +63,7 @@ void NetworkSessionCreationParameters::encode(IPC::Encoder& encoder) const
     IPC::encode(encoder, proxyConfiguration.get());
     encoder << sourceApplicationBundleIdentifier;
     encoder << sourceApplicationSecondaryIdentifier;
+    encoder << allowsTLSFallback;
     encoder << shouldLogCookieInformation;
     encoder << loadThrottleLatency;
     encoder << httpProxy;
@@ -79,6 +80,9 @@ void NetworkSessionCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << resourceLoadStatisticsDirectory;
     encoder << resourceLoadStatisticsDirectoryExtensionHandle;
     encoder << enableResourceLoadStatistics;
+    encoder << shouldIncludeLocalhostInResourceLoadStatistics;
+    encoder << enableResourceLoadStatisticsDebugMode;
+    encoder << resourceLoadStatisticsManualPrevalentResource;
 }
 
 Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::decode(IPC::Decoder& decoder)
@@ -111,7 +115,12 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
     decoder >> sourceApplicationSecondaryIdentifier;
     if (!sourceApplicationSecondaryIdentifier)
         return WTF::nullopt;
-    
+
+    Optional<AllowsTLSFallback> allowsTLSFallback;
+    decoder >> allowsTLSFallback;
+    if (!allowsTLSFallback)
+        return WTF::nullopt;
+
     Optional<bool> shouldLogCookieInformation;
     decoder >> shouldLogCookieInformation;
     if (!shouldLogCookieInformation)
@@ -139,7 +148,7 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
     if (!cookiePersistentStoragePath)
         return WTF::nullopt;
 
-    Optional<uint32_t> cookiePersistentStorageType;
+    Optional<SoupCookiePersistentStorageType> cookiePersistentStorageType;
     decoder >> cookiePersistentStorageType;
     if (!cookiePersistentStorageType)
         return WTF::nullopt;
@@ -172,6 +181,21 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
     if (!enableResourceLoadStatistics)
         return WTF::nullopt;
 
+    Optional<bool> shouldIncludeLocalhostInResourceLoadStatistics;
+    decoder >> shouldIncludeLocalhostInResourceLoadStatistics;
+    if (!shouldIncludeLocalhostInResourceLoadStatistics)
+        return WTF::nullopt;
+
+    Optional<bool> enableResourceLoadStatisticsDebugMode;
+    decoder >> enableResourceLoadStatisticsDebugMode;
+    if (!enableResourceLoadStatisticsDebugMode)
+        return WTF::nullopt;
+
+    Optional<WebCore::RegistrableDomain> resourceLoadStatisticsManualPrevalentResource;
+    decoder >> resourceLoadStatisticsManualPrevalentResource;
+    if (!resourceLoadStatisticsManualPrevalentResource)
+        return WTF::nullopt;
+
     return {{
         sessionID
         , WTFMove(*boundInterfaceIdentifier)
@@ -180,6 +204,7 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
         , WTFMove(proxyConfiguration)
         , WTFMove(*sourceApplicationBundleIdentifier)
         , WTFMove(*sourceApplicationSecondaryIdentifier)
+        , WTFMove(*allowsTLSFallback)
         , WTFMove(*shouldLogCookieInformation)
         , WTFMove(*loadThrottleLatency)
         , WTFMove(*httpProxy)
@@ -196,6 +221,9 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
         , WTFMove(*resourceLoadStatisticsDirectory)
         , WTFMove(*resourceLoadStatisticsDirectoryExtensionHandle)
         , WTFMove(*enableResourceLoadStatistics)
+        , WTFMove(*shouldIncludeLocalhostInResourceLoadStatistics)
+        , WTFMove(*enableResourceLoadStatisticsDebugMode)
+        , WTFMove(*resourceLoadStatisticsManualPrevalentResource)
     }};
 }
 

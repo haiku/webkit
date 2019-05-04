@@ -27,8 +27,6 @@
 #import "WKWebViewConfigurationInternal.h"
 #import <pal/spi/cocoa/NSKeyedArchiverSPI.h>
 
-#if WK_API_ENABLED
-
 #import "APIPageConfiguration.h"
 #import "VersionChecks.h"
 #import "WKPreferences.h"
@@ -101,6 +99,16 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     return _WKDragLiftDelayShort;
 }
 
+static bool defaultShouldDecidePolicyBeforeLoadingQuickLookPreview()
+{
+#if USE(QUICK_LOOK)
+    static bool shouldDecide = linkedOnOrAfter(WebKit::SDKVersion::FirstThatDecidesPolicyBeforeLoadingQuickLookPreview);
+    return shouldDecide;
+#else
+    return false;
+#endif
+}
+
 #endif
 
 @implementation WKWebViewConfiguration {
@@ -110,6 +118,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     LazyInitialized<RetainPtr<WKUserContentController>> _userContentController;
     LazyInitialized<RetainPtr<_WKVisitedLinkStore>> _visitedLinkStore;
     LazyInitialized<RetainPtr<WKWebsiteDataStore>> _websiteDataStore;
+    LazyInitialized<RetainPtr<WKWebpagePreferences>> _defaultWebpagePreferences;
     WeakObjCPtr<WKWebView> _relatedWebView;
     WeakObjCPtr<WKWebView> _alternateWebViewForNavigationGestures;
     RetainPtr<NSString> _groupIdentifier;
@@ -131,6 +140,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     BOOL _textInteractionGesturesEnabled;
     BOOL _longPressActionsEnabled;
     BOOL _systemPreviewEnabled;
+    BOOL _shouldDecidePolicyBeforeLoadingQuickLookPreview;
 #endif
 
     BOOL _invisibleAutoplayNotPermitted;
@@ -238,6 +248,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     _longPressActionsEnabled = YES;
 #endif
     _systemPreviewEnabled = NO;
+    _shouldDecidePolicyBeforeLoadingQuickLookPreview = defaultShouldDecidePolicyBeforeLoadingQuickLookPreview();
 #endif // PLATFORM(IOS_FAMILY)
 
     _mediaContentTypesRequiringHardwareSupport = WebCore::Settings::defaultMediaContentTypesRequiringHardwareSupport();
@@ -250,6 +261,10 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
 
     _editableImagesEnabled = NO;
     _undoManagerAPIEnabled = NO;
+
+#if ENABLE(APPLE_PAY)
+    _applePayEnabled = DEFAULT_APPLE_PAY_ENABLED;
+#endif
 
     return self;
 }
@@ -289,6 +304,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     [coder encodeBool:self._textInteractionGesturesEnabled forKey:@"textInteractionGesturesEnabled"];
     [coder encodeBool:self._longPressActionsEnabled forKey:@"longPressActionsEnabled"];
     [coder encodeBool:self._systemPreviewEnabled forKey:@"systemPreviewEnabled"];
+    [coder encodeBool:self._shouldDecidePolicyBeforeLoadingQuickLookPreview forKey:@"shouldDecidePolicyBeforeLoadingQuickLookPreview"];
 #else
     [coder encodeInteger:self.userInterfaceDirectionPolicy forKey:@"userInterfaceDirectionPolicy"];
 #endif
@@ -323,6 +339,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     self._textInteractionGesturesEnabled = [coder decodeBoolForKey:@"textInteractionGesturesEnabled"];
     self._longPressActionsEnabled = [coder decodeBoolForKey:@"longPressActionsEnabled"];
     self._systemPreviewEnabled = [coder decodeBoolForKey:@"systemPreviewEnabled"];
+    self._shouldDecidePolicyBeforeLoadingQuickLookPreview = [coder decodeBoolForKey:@"shouldDecidePolicyBeforeLoadingQuickLookPreview"];
 #else
     auto userInterfaceDirectionPolicyCandidate = static_cast<WKUserInterfaceDirectionPolicy>([coder decodeIntegerForKey:@"userInterfaceDirectionPolicy"]);
     if (userInterfaceDirectionPolicyCandidate == WKUserInterfaceDirectionPolicyContent || userInterfaceDirectionPolicyCandidate == WKUserInterfaceDirectionPolicySystem)
@@ -341,6 +358,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     configuration.preferences = self.preferences;
     configuration.userContentController = self.userContentController;
     configuration.websiteDataStore = self.websiteDataStore;
+    configuration.defaultWebpagePreferences = self.defaultWebpagePreferences;
     configuration._visitedLinkStore = self._visitedLinkStore;
     configuration._relatedWebView = _relatedWebView.get().get();
     configuration._alternateWebViewForNavigationGestures = _alternateWebViewForNavigationGestures.get().get();
@@ -379,6 +397,7 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
     configuration->_textInteractionGesturesEnabled = self->_textInteractionGesturesEnabled;
     configuration->_longPressActionsEnabled = self->_longPressActionsEnabled;
     configuration->_systemPreviewEnabled = self->_systemPreviewEnabled;
+    configuration->_shouldDecidePolicyBeforeLoadingQuickLookPreview = self->_shouldDecidePolicyBeforeLoadingQuickLookPreview;
 #endif
 #if PLATFORM(MAC)
     configuration->_userInterfaceDirectionPolicy = self->_userInterfaceDirectionPolicy;
@@ -454,6 +473,18 @@ static _WKDragLiftDelay toDragLiftDelay(NSUInteger value)
 - (void)setWebsiteDataStore:(WKWebsiteDataStore *)websiteDataStore
 {
     _websiteDataStore.set(websiteDataStore);
+}
+
+- (WKWebpagePreferences *)defaultWebpagePreferences
+{
+    return _defaultWebpagePreferences.get([] {
+        return WKWebpagePreferences.defaultPreferences;
+    });
+}
+
+- (void)setDefaultWebpagePreferences:(WKWebpagePreferences *)defaultWebpagePreferences
+{
+    _defaultWebpagePreferences.set(defaultWebpagePreferences ?: WKWebpagePreferences.defaultPreferences);
 }
 
 static NSString *defaultApplicationNameForUserAgent()
@@ -728,6 +759,16 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 - (void)_setSystemPreviewEnabled:(BOOL)enabled
 {
     _systemPreviewEnabled = enabled;
+}
+
+- (BOOL)_shouldDecidePolicyBeforeLoadingQuickLookPreview
+{
+    return _shouldDecidePolicyBeforeLoadingQuickLookPreview;
+}
+
+- (void)_setShouldDecidePolicyBeforeLoadingQuickLookPreview:(BOOL)shouldDecide
+{
+    _shouldDecidePolicyBeforeLoadingQuickLookPreview = shouldDecide;
 }
 
 #endif // PLATFORM(IOS_FAMILY)
@@ -1102,5 +1143,3 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 }
 
 @end
-
-#endif // WK_API_ENABLED

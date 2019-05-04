@@ -76,7 +76,7 @@
               (contentsScale 2.00)
               (children 1
                 (GraphicsLayer
-                  (offsetFromRenderer width=-5 height=-5)
+                  (offsetFromRenderer width=5 height=5)
                   (position 5.00 5.00)
                   (bounds 200.00 200.00)
                   (visible rect 0.00, 0.00 200.00 x 200.00)
@@ -108,7 +108,7 @@
               (contentsScale 2.00)
               (children 1
                 (GraphicsLayer
-                  (offsetFromRenderer width=-5 height=-5)
+                  (offsetFromRenderer width=5 height=5)
                   (position 5.00 5.00)
                   (bounds 200.00 200.00)
                   (visible rect 0.00, 0.00 200.00 x 200.00)
@@ -148,7 +148,6 @@
     (vertical scroll elasticity 1)
     (horizontal scrollbar mode 0)
     (vertical scrollbar mode 0))
-  (visual viewport enabled 1)
   (layout viewport at (0,0) size 800x600)
   (min layout viewport origin (0,0))
   (max layout viewport origin (0,0))
@@ -162,7 +161,8 @@
         (horizontal scroll elasticity 1)
         (vertical scroll elasticity 1)
         (horizontal scrollbar mode 0)
-        (vertical scrollbar mode 0))
+        (vertical scrollbar mode 0)
+        (has enabled vertical scrollbar 1))
     )
     (Overflow scrolling node
       (scrollable area size 200 200)
@@ -172,7 +172,8 @@
         (horizontal scroll elasticity 1)
         (vertical scroll elasticity 1)
         (horizontal scrollbar mode 0)
-        (vertical scrollbar mode 0))
+        (vertical scrollbar mode 0)
+        (has enabled vertical scrollbar 1))
     )
   )
 )

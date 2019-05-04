@@ -55,9 +55,14 @@
 #include "SerializedScriptValue.h"
 #include "TransactionOperation.h"
 #include <wtf/CompletionHandler.h>
+#include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
 using namespace JSC;
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(IDBTransaction);
+
+std::atomic<unsigned> IDBTransaction::numberOfIDBTransactions { 0 };
 
 Ref<IDBTransaction> IDBTransaction::create(IDBDatabase& database, const IDBTransactionInfo& info)
 {
@@ -82,6 +87,8 @@ IDBTransaction::IDBTransaction(IDBDatabase& database, const IDBTransactionInfo& 
     LOG(IndexedDB, "IDBTransaction::IDBTransaction - %s", m_info.loggingString().utf8().data());
     ASSERT(&m_database->originThread() == &Thread::current());
 
+    ++numberOfIDBTransactions;
+
     if (m_info.mode() == IDBTransactionMode::Versionchange) {
         ASSERT(m_openDBRequest);
         m_openDBRequest->setVersionChangeTransaction(*this);
@@ -105,6 +112,7 @@ IDBTransaction::IDBTransaction(IDBDatabase& database, const IDBTransactionInfo& 
 
 IDBTransaction::~IDBTransaction()
 {
+    --numberOfIDBTransactions;
     ASSERT(&m_database->originThread() == &Thread::current());
 }
 
@@ -1434,6 +1442,7 @@ void IDBTransaction::connectionClosedFromServer(const IDBError& error)
 {
     LOG(IndexedDB, "IDBTransaction::connectionClosedFromServer - %s", error.message().utf8().data());
 
+    m_database->willAbortTransaction(*this);
     m_state = IndexedDB::TransactionState::Aborting;
 
     abortInProgressOperations(error);
@@ -1445,8 +1454,10 @@ void IDBTransaction::connectionClosedFromServer(const IDBError& error)
         ASSERT(m_transactionOperationsInProgressQueue.first() == operation.get());
         operation->doComplete(IDBResultData::error(operation->identifier(), error));
     }
+    m_currentlyCompletingRequest = nullptr;
 
     connectionProxy().forgetActiveOperations(operations);
+    connectionProxy().forgetTransaction(*this);
 
     m_pendingTransactionOperationQueue.clear();
     m_abortQueue.clear();
@@ -1454,6 +1465,7 @@ void IDBTransaction::connectionClosedFromServer(const IDBError& error)
 
     m_idbError = error;
     m_domError = error.toDOMException();
+    m_database->didAbortTransaction(*this);
     fireOnAbort();
 }
 

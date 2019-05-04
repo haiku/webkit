@@ -33,6 +33,8 @@ namespace WebCore {
 
 namespace WHLSL {
 
+class Intrinsics;
+
 namespace AST {
 
 class NativeFunctionDeclaration;
@@ -43,7 +45,7 @@ namespace Metal {
 
 class TypeNamer;
 
-String writeNativeFunction(AST::NativeFunctionDeclaration&, String& outputFunctionName, TypeNamer&);
+String writeNativeFunction(AST::NativeFunctionDeclaration&, String& outputFunctionName, Intrinsics&, TypeNamer&);
 
 }
 

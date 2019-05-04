@@ -29,6 +29,7 @@
 
 #include "MessageReceiver.h"
 #include "MessageSender.h"
+#include "ServiceWorkerFetchTask.h"
 #include <WebCore/FetchIdentifier.h>
 #include <WebCore/SWServer.h>
 #include <pal/SessionID.h>
@@ -63,13 +64,6 @@ public:
 
     PAL::SessionID sessionID() const { return m_sessionID; }
 
-    void didReceiveFetchResponse(WebCore::FetchIdentifier, const WebCore::ResourceResponse&);
-    void didReceiveFetchData(WebCore::FetchIdentifier, const IPC::DataReference&, int64_t encodedDataLength);
-    void didReceiveFetchFormData(WebCore::FetchIdentifier, const IPC::FormDataReference&);
-    void didFinishFetch(WebCore::FetchIdentifier);
-    void didFailFetch(WebCore::FetchIdentifier, const WebCore::ResourceError&);
-    void didNotHandleFetch(WebCore::FetchIdentifier);
-
     void postMessageToServiceWorkerClient(WebCore::DocumentIdentifier destinationContextIdentifier, WebCore::MessageWithMessagePorts&&, WebCore::ServiceWorkerIdentifier sourceServiceWorkerIdentifier, const String& sourceOrigin);
     void postMessageToServiceWorker(WebCore::ServiceWorkerIdentifier destination, WebCore::MessageWithMessagePorts&&, const WebCore::ServiceWorkerOrClientIdentifier& source);
 
@@ -91,15 +85,17 @@ private:
 
     void startFetch(WebCore::ServiceWorkerRegistrationIdentifier, WebCore::FetchIdentifier, WebCore::ResourceRequest&&, WebCore::FetchOptions&&, IPC::FormDataReference&&, String&& referrer);
     void cancelFetch(WebCore::ServiceWorkerRegistrationIdentifier, WebCore::FetchIdentifier);
+    void continueDidReceiveFetchResponse(WebCore::ServiceWorkerRegistrationIdentifier, WebCore::FetchIdentifier);
 
     void matchRegistration(uint64_t registrationMatchRequestIdentifier, const WebCore::SecurityOriginData& topOrigin, const URL& clientURL);
     void getRegistrations(uint64_t registrationMatchRequestIdentifier, const WebCore::SecurityOriginData& topOrigin, const URL& clientURL);
 
     void registerServiceWorkerClient(WebCore::SecurityOriginData&& topOrigin, WebCore::ServiceWorkerClientData&&, const Optional<WebCore::ServiceWorkerRegistrationIdentifier>&, String&& userAgent);
     void unregisterServiceWorkerClient(const WebCore::ServiceWorkerClientIdentifier&);
+    void syncTerminateWorkerFromClient(WebCore::ServiceWorkerIdentifier&&, CompletionHandler<void()>&&);
 
-    IPC::Connection* messageSenderConnection() final { return m_contentConnection.ptr(); }
-    uint64_t messageSenderDestinationID() final { return identifier().toUInt64(); }
+    IPC::Connection* messageSenderConnection() const final { return m_contentConnection.ptr(); }
+    uint64_t messageSenderDestinationID() const final { return identifier().toUInt64(); }
     
     template<typename U> static void sendToContextProcess(WebCore::SWServerToContextConnection&, U&& message);
 

@@ -1978,7 +1978,7 @@ bool EventHandler::handleMouseMoveEvent(const PlatformMouseEvent& platformMouseE
 #endif
         if (onlyUpdateScrollbars) {
             if (shouldSendMouseEventsToInactiveWindows())
-                updateMouseEventTargetNode(mouseEvent.targetNode(), platformMouseEvent, true);
+                updateMouseEventTargetNode(mouseEvent.targetNode(), platformMouseEvent, FireMouseOverOut::Yes);
 
             return true;
         }
@@ -1993,7 +1993,7 @@ bool EventHandler::handleMouseMoveEvent(const PlatformMouseEvent& platformMouseE
 
     if (newSubframe) {
         // Update over/out state before passing the event to the subframe.
-        updateMouseEventTargetNode(mouseEvent.targetNode(), platformMouseEvent, true);
+        updateMouseEventTargetNode(mouseEvent.targetNode(), platformMouseEvent, FireMouseOverOut::Yes);
         
         // Event dispatch in updateMouseEventTargetNode may have caused the subframe of the target
         // node to be detached from its FrameView, in which case the event should not be passed.
@@ -2467,16 +2467,16 @@ MouseEventWithHitTestResults EventHandler::prepareMouseEvent(const HitTestReques
     return m_frame.document()->prepareMouseEvent(request, documentPointForWindowPoint(m_frame, mouseEvent.position()), mouseEvent);
 }
 
-static bool hierarchyHasCapturingEventListeners(Element* element, const AtomicString& eventName)
+static bool hierarchyHasCapturingEventListeners(Element* element, const AtomicString& pointerEventName, const AtomicString& compatibilityMouseEventName)
 {
     for (ContainerNode* curr = element; curr; curr = curr->parentInComposedTree()) {
-        if (curr->hasCapturingEventListeners(eventName))
+        if (curr->hasCapturingEventListeners(pointerEventName) || curr->hasCapturingEventListeners(compatibilityMouseEventName))
             return true;
     }
     return false;
 }
 
-void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMouseEvent& platformMouseEvent, bool fireMouseOverOut)
+void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMouseEvent& platformMouseEvent, FireMouseOverOut fireMouseOverOut)
 {
     Ref<Frame> protectedFrame(m_frame);
     Element* targetElement = nullptr;
@@ -2494,7 +2494,7 @@ void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMo
     m_elementUnderMouse = targetElement;
 
     // Fire mouseout/mouseover if the mouse has shifted to a different node.
-    if (fireMouseOverOut) {
+    if (fireMouseOverOut == FireMouseOverOut::Yes) {
         auto scrollableAreaForLastNode = enclosingScrollableArea(m_lastElementUnderMouse.get());
         auto scrollableAreaForNodeUnderMouse = enclosingScrollableArea(m_elementUnderMouse.get());
         Page* page = m_frame.page();
@@ -2540,8 +2540,8 @@ void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMo
             // mouseenter and mouseleave events are only dispatched if there is a capturing eventhandler on an ancestor
             // or a normal eventhandler on the element itself (they don't bubble).
             // This optimization is necessary since these events can cause O(n^2) capturing event-handler checks.
-            bool hasCapturingMouseEnterListener = hierarchyHasCapturingEventListeners(m_elementUnderMouse.get(), eventNames().mouseenterEvent);
-            bool hasCapturingMouseLeaveListener = hierarchyHasCapturingEventListeners(m_lastElementUnderMouse.get(), eventNames().mouseleaveEvent);
+            bool hasCapturingMouseEnterListener = hierarchyHasCapturingEventListeners(m_elementUnderMouse.get(), eventNames().pointerenterEvent, eventNames().mouseenterEvent);
+            bool hasCapturingMouseLeaveListener = hierarchyHasCapturingEventListeners(m_lastElementUnderMouse.get(), eventNames().pointerleaveEvent, eventNames().mouseleaveEvent);
 
             Vector<Ref<Element>, 32> leftElementsChain;
             for (Element* element = m_lastElementUnderMouse.get(); element; element = element->parentElementInComposedTree())
@@ -2565,7 +2565,7 @@ void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMo
                 m_lastElementUnderMouse->dispatchMouseEvent(platformMouseEvent, eventNames().mouseoutEvent, 0, m_elementUnderMouse.get());
 
             for (auto& chain : leftElementsChain) {
-                if (hasCapturingMouseLeaveListener || chain->hasEventListeners(eventNames().mouseleaveEvent))
+                if (hasCapturingMouseLeaveListener || chain->hasEventListeners(eventNames().pointerleaveEvent) || chain->hasEventListeners(eventNames().mouseleaveEvent))
                     chain->dispatchMouseEvent(platformMouseEvent, eventNames().mouseleaveEvent, 0, m_elementUnderMouse.get());
             }
 
@@ -2573,7 +2573,7 @@ void EventHandler::updateMouseEventTargetNode(Node* targetNode, const PlatformMo
                 m_elementUnderMouse->dispatchMouseEvent(platformMouseEvent, eventNames().mouseoverEvent, 0, m_lastElementUnderMouse.get());
 
             for (auto& chain : enteredElementsChain) {
-                if (hasCapturingMouseEnterListener || chain->hasEventListeners(eventNames().mouseenterEvent))
+                if (hasCapturingMouseEnterListener || chain->hasEventListeners(eventNames().pointerenterEvent) || chain->hasEventListeners(eventNames().mouseenterEvent))
                     chain->dispatchMouseEvent(platformMouseEvent, eventNames().mouseenterEvent, 0, m_lastElementUnderMouse.get());
             }
         }
@@ -2588,7 +2588,7 @@ bool EventHandler::dispatchMouseEvent(const AtomicString& eventType, Node* targe
     if (auto* view = m_frame.view())
         view->disableLayerFlushThrottlingTemporarilyForInteraction();
 
-    updateMouseEventTargetNode(targetNode, platformMouseEvent, setUnder);
+    updateMouseEventTargetNode(targetNode, platformMouseEvent, setUnder ? FireMouseOverOut::Yes : FireMouseOverOut::No);
 
     if (m_elementUnderMouse && !m_elementUnderMouse->dispatchMouseEvent(platformMouseEvent, eventType, clickCount))
         return false;
@@ -2749,7 +2749,7 @@ bool EventHandler::completeWidgetWheelEvent(const PlatformWheelEvent& event, con
         return false;
     
     if (scrollableArea)
-        scrollableArea->setScrolledProgrammatically(false);
+        scrollableArea->setScrollShouldClearLatchedState(false);
 
     platformNotifyIfEndGesture(event, scrollableArea);
 
@@ -2812,10 +2812,10 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& event)
 
         if (!element->dispatchWheelEvent(adjustedEvent)) {
             m_isHandlingWheelEvent = false;
-            if (scrollableArea && scrollableArea->isScrolledProgrammatically()) {
+            if (scrollableArea && scrollableArea->scrollShouldClearLatchedState()) {
                 // Web developer is controlling scrolling, so don't attempt to latch.
                 clearLatchedState();
-                scrollableArea->setScrolledProgrammatically(false);
+                scrollableArea->setScrollShouldClearLatchedState(false);
             }
 
             platformNotifyIfEndGesture(adjustedEvent, scrollableArea);
@@ -2824,7 +2824,7 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& event)
     }
 
     if (scrollableArea)
-        scrollableArea->setScrolledProgrammatically(false);
+        scrollableArea->setScrollShouldClearLatchedState(false);
 
     bool handledEvent = platformCompleteWheelEvent(adjustedEvent, scrollableContainer.get(), scrollableArea);
     platformNotifyIfEndGesture(adjustedEvent, scrollableArea);
@@ -3116,7 +3116,7 @@ bool EventHandler::handleAccessKey(const PlatformKeyboardEvent& event)
 
     if ((event.modifiers() - PlatformEvent::Modifier::ShiftKey) != accessKeyModifiers())
         return false;
-    Element* element = m_frame.document()->getElementByAccessKey(event.unmodifiedText());
+    auto* element = m_frame.document()->elementForAccessKey(event.unmodifiedText());
     if (!element)
         return false;
     element->accessKeyAction(false);

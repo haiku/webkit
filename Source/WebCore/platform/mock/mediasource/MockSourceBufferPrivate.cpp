@@ -49,7 +49,7 @@ public:
 private:
     MockMediaSample(const MockSampleBox& box)
         : m_box(box)
-        , m_id(String::number(box.trackID()))
+        , m_id(AtomicString::number(box.trackID()))
     {
     }
 
@@ -100,7 +100,7 @@ Ref<MediaSample> MockMediaSample::createNonDisplayingCopy() const
 {
     auto copy = MockMediaSample::create(m_box);
     copy->m_box.setFlag(MockSampleBox::IsNonDisplaying);
-    return WTFMove(copy);
+    return copy;
 }
 
 class MockMediaDescription final : public MediaDescription {
@@ -288,6 +288,18 @@ MediaTime MockSourceBufferPrivate::fastSeekTimeForMediaTime(const MediaTime& tim
         return m_client->sourceBufferPrivateFastSeekTimeForMediaTime(time, negativeThreshold, positiveThreshold);
     return time;
 }
+
+#if !RELEASE_LOG_DISABLED
+const Logger& MockSourceBufferPrivate::sourceBufferLogger() const
+{
+    return m_mediaSource->mediaSourceLogger();
+}
+
+const void* MockSourceBufferPrivate::sourceBufferLogIdentifier()
+{
+    return m_mediaSource->mediaSourceLogIdentifier();
+}
+#endif
 
 }
 

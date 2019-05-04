@@ -33,8 +33,13 @@
 #include "StyleProperties.h"
 #include "StyleSheetContents.h"
 #include "StyledElement.h"
+#include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(PropertySetCSSStyleDeclaration);
+WTF_MAKE_ISO_ALLOCATED_IMPL(StyleRuleCSSStyleDeclaration);
+WTF_MAKE_ISO_ALLOCATED_IMPL(InlineCSSStyleDeclaration);
 
 class StyleAttributeMutationScope {
     WTF_MAKE_NONCOPYABLE(StyleAttributeMutationScope);
@@ -283,7 +288,7 @@ ExceptionOr<String> PropertySetCSSStyleDeclaration::removeProperty(const String&
 
     if (changed)
         mutationScope.enqueueMutationRecord();
-    return WTFMove(result);
+    return result;
 }
 
 RefPtr<CSSValue> PropertySetCSSStyleDeclaration::getPropertyCSSValueInternal(CSSPropertyID propertyID)

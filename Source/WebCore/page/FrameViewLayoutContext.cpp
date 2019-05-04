@@ -59,7 +59,7 @@ static void layoutUsingFormattingContext(const RenderView& renderView)
     if (!RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled())
         return;
     auto initialContainingBlock = Layout::TreeBuilder::createLayoutTree(renderView);
-    auto layoutState = std::make_unique<Layout::LayoutState>(*initialContainingBlock, renderView.size());
+    auto layoutState = std::make_unique<Layout::LayoutState>(*initialContainingBlock);
     layoutState->setInQuirksMode(renderView.document().inQuirksMode());
     layoutState->updateLayout();
     layoutState->verifyAndOutputMismatchingLayoutTree(renderView);
@@ -116,21 +116,21 @@ public:
         : m_view(layoutContext.view())
         , m_nestedState(layoutContext.m_layoutNestedState, layoutContext.m_layoutNestedState == FrameViewLayoutContext::LayoutNestedState::NotInLayout ? FrameViewLayoutContext::LayoutNestedState::NotNested : FrameViewLayoutContext::LayoutNestedState::Nested)
         , m_schedulingIsEnabled(layoutContext.m_layoutSchedulingIsEnabled, false)
-        , m_inProgrammaticScroll(layoutContext.view().inProgrammaticScroll())
+        , m_previousScrollType(layoutContext.view().currentScrollType())
     {
-        m_view.setInProgrammaticScroll(true);
+        m_view.setCurrentScrollType(ScrollType::Programmatic);
     }
         
     ~LayoutScope()
     {
-        m_view.setInProgrammaticScroll(m_inProgrammaticScroll);
+        m_view.setCurrentScrollType(m_previousScrollType);
     }
         
 private:
     FrameView& m_view;
     SetForScope<FrameViewLayoutContext::LayoutNestedState> m_nestedState;
     SetForScope<bool> m_schedulingIsEnabled;
-    bool m_inProgrammaticScroll { false };
+    ScrollType m_previousScrollType;
 };
 
 FrameViewLayoutContext::FrameViewLayoutContext(FrameView& frameView)
@@ -148,7 +148,7 @@ void FrameViewLayoutContext::layout()
 {
     LOG_WITH_STREAM(Layout, stream << "FrameView " << &view() << " FrameViewLayoutContext::layout() with size " << view().layoutSize());
 
-    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!frame().document()->inRenderTreeUpdate() || ScriptDisallowedScope::LayoutAssertionDisableScope::shouldDisable());
+    RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!frame().document()->inRenderTreeUpdate());
     ASSERT(LayoutDisallowedScope::isLayoutAllowed());
     ASSERT(!view().isPainting());
     ASSERT(frame().view() == &view());
@@ -313,7 +313,7 @@ bool FrameViewLayoutContext::needsLayout() const
         || (m_disableSetNeedsLayoutCount && m_setNeedsLayoutWasDeferred);
 }
 
-void FrameViewLayoutContext::setNeedsLayout()
+void FrameViewLayoutContext::setNeedsLayoutAfterViewConfigurationChange()
 {
     if (m_disableSetNeedsLayoutCount) {
         m_setNeedsLayoutWasDeferred = true;
@@ -323,6 +323,7 @@ void FrameViewLayoutContext::setNeedsLayout()
     if (auto* renderView = this->renderView()) {
         ASSERT(!renderView->inHitTesting());
         renderView->setNeedsLayout();
+        scheduleLayout();
     }
 }
 
@@ -455,6 +456,14 @@ void FrameViewLayoutContext::layoutTimerFired()
         LOG(Layout, "FrameView %p layout timer fired at %.3fs", this, frame().document()->timeSinceDocumentCreation().value());
 #endif
     layout();
+
+#if ENABLE(RESIZE_OBSERVER)
+    // After this layout, it might not trigger display timer. E.g.: Running layout test for WK1.
+    // So scheduleResizeObservations() here to make sure ResizeObserver could be fired properly.
+    auto page = frame().page();
+    if (page && page->needsCheckResizeObservations())
+        page->scheduleResizeObservations();
+#endif
 }
 
 void FrameViewLayoutContext::convertSubtreeLayoutToFullLayout()
@@ -623,7 +632,7 @@ void FrameViewLayoutContext::popLayoutState()
 {
     m_layoutStateStack.removeLast();
 }
-    
+
 #ifndef NDEBUG
 void FrameViewLayoutContext::checkLayoutState()
 {

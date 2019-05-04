@@ -45,10 +45,7 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
     : m_client(std::make_unique<API::ViewClient>())
     , m_pageClient(std::make_unique<PageClientImpl>(*this))
     , m_size { 800, 600 }
-#if !defined(WPE_BACKEND_CHECK_VERSION) || !WPE_BACKEND_CHECK_VERSION(1, 1, 0)
     , m_viewStateFlags { WebCore::ActivityState::WindowIsActive, WebCore::ActivityState::IsFocused, WebCore::ActivityState::IsVisible, WebCore::ActivityState::IsInWindow }
-#endif
-    , m_compositingManagerProxy(*this)
     , m_backend(backend)
 {
     ASSERT(m_backend);
@@ -75,8 +72,6 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
         pool->startMemorySampler(0);
 #endif
 
-    m_compositingManagerProxy.initialize();
-
     static struct wpe_view_backend_client s_backendClient = {
         // set_size
         [](void* data, uint32_t width, uint32_t height)
@@ -90,7 +85,6 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
             auto& view = *reinterpret_cast<View*>(data);
             view.frameDisplayed();
         },
-#if defined(WPE_BACKEND_CHECK_VERSION) && WPE_BACKEND_CHECK_VERSION(1, 1, 0)
         // activity_state_changed
         [](void* data, uint32_t state)
         {
@@ -106,9 +100,6 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
                 flags.add(WebCore::ActivityState::IsInWindow);
             view.setViewState(flags);
         },
-#else
-        nullptr,
-#endif
         // padding
         nullptr,
         nullptr,
@@ -162,11 +153,6 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
     m_pageProxy->initializeWebPage();
 }
 
-View::~View()
-{
-    m_compositingManagerProxy.finalize();
-}
-
 void View::setClient(std::unique_ptr<API::ViewClient>&& client)
 {
     if (!client)
@@ -183,6 +169,11 @@ void View::frameDisplayed()
 void View::handleDownloadRequest(DownloadProxy& download)
 {
     m_client->handleDownloadRequest(*this, download);
+}
+
+void View::willStartLoad()
+{
+    m_client->willStartLoad(*this);
 }
 
 void View::setSize(const WebCore::IntSize& size)

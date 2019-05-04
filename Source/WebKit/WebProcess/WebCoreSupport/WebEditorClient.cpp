@@ -38,6 +38,7 @@
 #include "WebProcess.h"
 #include "WebUndoStep.h"
 #include <WebCore/ArchiveResource.h>
+#include <WebCore/DOMPasteAccess.h>
 #include <WebCore/DocumentFragment.h>
 #include <WebCore/FocusController.h>
 #include <WebCore/Frame.h>
@@ -297,11 +298,6 @@ bool WebEditorClient::performTwoStepDrop(DocumentFragment& fragment, Range& dest
     return m_page->injectedBundleEditorClient().performTwoStepDrop(*m_page, fragment, destination, isMove);
 }
 
-String WebEditorClient::replacementURLForResource(Ref<WebCore::SharedBuffer>&& resourceData, const String& mimeType)
-{
-    return m_page->injectedBundleEditorClient().replacementURLForResource(*m_page, WTFMove(resourceData), mimeType);
-}
-
 void WebEditorClient::registerUndoStep(UndoStep& step)
 {
     // FIXME: Add assertion that the command being reapplied is the same command that is
@@ -357,6 +353,11 @@ void WebEditorClient::undo()
 void WebEditorClient::redo()
 {
     m_page->sendSync(Messages::WebPageProxy::ExecuteUndoRedo(UndoOrRedo::Redo), Messages::WebPageProxy::ExecuteUndoRedo::Reply());
+}
+
+WebCore::DOMPasteAccessResponse WebEditorClient::requestDOMPasteAccess(const String& originIdentifier)
+{
+    return m_page->requestDOMPasteAccess(originIdentifier);
 }
 
 #if PLATFORM(WIN)

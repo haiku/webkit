@@ -64,7 +64,7 @@ public:
         Plugin32,
         Plugin64,
 #endif
-        Network,
+        Network
     };
 
     struct LaunchOptions {

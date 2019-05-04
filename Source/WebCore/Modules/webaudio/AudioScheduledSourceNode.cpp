@@ -35,6 +35,7 @@
 #include "ScriptController.h"
 #include "ScriptExecutionContext.h"
 #include <algorithm>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/MathExtras.h>
 
 #if PLATFORM(IOS_FAMILY)
@@ -42,6 +43,8 @@
 #endif
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(AudioScheduledSourceNode);
 
 const double AudioScheduledSourceNode::UnknownTime = -1;
 
@@ -132,6 +135,7 @@ void AudioScheduledSourceNode::updateSchedulingInfo(size_t quantumFrameSize, Aud
 ExceptionOr<void> AudioScheduledSourceNode::start(double when)
 {
     ASSERT(isMainThread());
+    ALWAYS_LOG(LOGIDENTIFIER, when);
 
     context().nodeWillBeginPlayback();
 
@@ -149,6 +153,7 @@ ExceptionOr<void> AudioScheduledSourceNode::start(double when)
 ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 {
     ASSERT(isMainThread());
+    ALWAYS_LOG(LOGIDENTIFIER, when);
 
     if (m_playbackState == UNSCHEDULED_STATE || m_endTime != UnknownTime)
         return Exception { InvalidStateError };

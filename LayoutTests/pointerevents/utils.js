@@ -44,18 +44,40 @@ class EventTracker
             target.addEventListener(eventName, this);
     }
 
+    clear()
+    {
+        this.events = [];
+    }
+
     handleEvent(event)
+    {
+        if (event instanceof PointerEvent)
+            this._handlePointerEvent(event);
+        else if (event instanceof MouseEvent)
+            this._handleMouseEvent(event);
+    }
+
+    _handlePointerEvent(event)
     {
         if (!this.pointerIdToTouchIdMap[event.pointerId])
             this.pointerIdToTouchIdMap[event.pointerId] = Object.keys(this.pointerIdToTouchIdMap).length + 1;
 
-        const id = this.pointerIdToTouchIdMap[event.pointerId];
         this.events.push({
-            id,
+            id: this.pointerIdToTouchIdMap[event.pointerId],
             type: event.type,
             x: event.clientX,
             y: event.clientY,
-            isPrimary: event.isPrimary
+            isPrimary: event.isPrimary,
+            isTrusted: event.isTrusted
+        });
+    }
+
+    _handleMouseEvent(event)
+    {
+        this.events.push({
+            type: event.type,
+            x: event.clientX,
+            y: event.clientY,
         });
     }
 
@@ -94,6 +116,11 @@ const ui = new (class UIController {
     {
         const durationInSeconds = 0.5;
         return this._run(`uiController.dragFromPointToPoint(${from.x}, ${from.y}, ${to.x}, ${to.y}, ${durationInSeconds})`);
+    }
+
+    tap(options)
+    {
+        return this._run(`uiController.singleTapAtPoint(${options.x}, ${options.y})`);
     }
 
     pinchOut(options)

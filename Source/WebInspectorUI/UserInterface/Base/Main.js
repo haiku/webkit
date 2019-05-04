@@ -228,6 +228,11 @@ WI.terminatePageTarget = function(target)
     console.assert(WI.pageTarget === target);
     console.assert(WI.sharedApp.debuggableType === WI.DebuggableType.Web);
 
+    // Remove any Worker targets associated with this page.
+    let workerTargets = WI.targets.filter((x) => x.type === WI.Target.Type.Worker);
+    for (let workerTarget of workerTargets)
+        WI.workerManager.workerTerminated(workerTarget.identifier);
+
     WI.pageTarget = null;
 
     WI.redirectGlobalAgentsToConnection(WI.backendConnection);
@@ -510,6 +515,7 @@ WI.contentLoaded = function()
     let productionTabClasses = [
         WI.ElementsTabContentView,
         WI.NetworkTabContentView,
+        WI.SourcesTabContentView,
         WI.DebuggerTabContentView,
         WI.ResourcesTabContentView,
         WI.TimelineTabContentView,
@@ -616,10 +622,19 @@ WI.initializeTarget = function(target)
                 target.PageAgent.overrideSetting(setting, value);
         }
 
+        // COMPATIBILITY (iOS 11.3)
+        if (target.PageAgent.setShowRulers && WI.settings.showRulers.value)
+            target.PageAgent.setShowRulers(true);
+
         // COMPATIBILITY (iOS 8): Page.setShowPaintRects did not exist.
         if (target.PageAgent.setShowPaintRects && WI.settings.showPaintRects.value)
             target.PageAgent.setShowPaintRects(true);
     }
+};
+
+WI.targetsAvailable = function()
+{
+    return this._targetsAvailablePromise.settled;
 };
 
 WI.whenTargetsAvailable = function()
@@ -698,7 +713,8 @@ WI._openDefaultTab = function(event)
 
 WI._showSettingsTab = function(event)
 {
-    this.tabBrowser.showTabForContentView(this.settingsTabContentView);
+    if (event.keyIdentifier === "U+002C") // ","
+        this.tabBrowser.showTabForContentView(this.settingsTabContentView);
 };
 
 WI._tryToRestorePendingTabs = function()
@@ -896,7 +912,7 @@ WI.updateVisibilityState = function(visible)
 
 WI.handlePossibleLinkClick = function(event, frame, options = {})
 {
-    let anchorElement = event.target.enclosingNodeOrSelfWithNodeName("a");
+    let anchorElement = event.target.closest("a");
     if (!anchorElement || !anchorElement.href)
         return false;
 
@@ -1056,6 +1072,26 @@ WI.isShowingElementsTab = function()
     return this.tabBrowser.selectedTabContentView instanceof WI.ElementsTabContentView;
 };
 
+WI.showSourcesTab = function(options = {})
+{
+    let tabContentView = this.tabBrowser.bestTabContentViewForClass(WI.SourcesTabContentView);
+    if (!tabContentView)
+        tabContentView = new WI.SourcesTabContentView;
+
+    if (options.breakpointToSelect instanceof WI.Breakpoint)
+        tabContentView.revealAndSelectBreakpoint(options.breakpointToSelect);
+
+    if (options.showScopeChainSidebar)
+        tabContentView.showScopeChainDetailsSidebarPanel();
+
+    this.tabBrowser.showTabForContentView(tabContentView);
+};
+
+WI.isShowingSourcesTab = function()
+{
+    return this.tabBrowser.selectedTabContentView instanceof WI.SourcesTabContentView;
+};
+
 WI.showDebuggerTab = function(options)
 {
     var tabContentView = this.tabBrowser.bestTabContentViewForClass(WI.DebuggerTabContentView);
@@ -1212,23 +1248,35 @@ WI.tabContentViewClassForRepresentedObject = function(representedObject)
     if (representedObject === this._consoleRepresentedObject)
         return WI.ConsoleTabContentView;
 
-    if (WI.debuggerManager.paused) {
-        if (representedObject instanceof WI.Script)
-            return WI.DebuggerTabContentView;
+    if (WI.settings.experimentalEnableSourcesTab.value) {
+        if (representedObject instanceof WI.Frame
+            || representedObject instanceof WI.FrameCollection
+            || representedObject instanceof WI.Resource
+            || representedObject instanceof WI.ResourceCollection
+            || representedObject instanceof WI.Script
+            || representedObject instanceof WI.ScriptCollection
+            || representedObject instanceof WI.CSSStyleSheet
+            || representedObject instanceof WI.CSSStyleSheetCollection)
+            return WI.SourcesTabContentView;
+    } else {
+        if (WI.debuggerManager.paused) {
+            if (representedObject instanceof WI.Script)
+                return WI.DebuggerTabContentView;
 
-        if (representedObject instanceof WI.Resource && (representedObject.type === WI.Resource.Type.Document || representedObject.type === WI.Resource.Type.Script))
-            return WI.DebuggerTabContentView;
+            if (representedObject instanceof WI.Resource && (representedObject.type === WI.Resource.Type.Document || representedObject.type === WI.Resource.Type.Script))
+                return WI.DebuggerTabContentView;
+        }
+
+        if (representedObject instanceof WI.Frame
+            || representedObject instanceof WI.FrameCollection
+            || representedObject instanceof WI.Resource
+            || representedObject instanceof WI.ResourceCollection
+            || representedObject instanceof WI.Script
+            || representedObject instanceof WI.ScriptCollection
+            || representedObject instanceof WI.CSSStyleSheet
+            || representedObject instanceof WI.CSSStyleSheetCollection)
+            return WI.ResourcesTabContentView;
     }
-
-    if (representedObject instanceof WI.Frame
-        || representedObject instanceof WI.FrameCollection
-        || representedObject instanceof WI.Resource
-        || representedObject instanceof WI.ResourceCollection
-        || representedObject instanceof WI.Script
-        || representedObject instanceof WI.ScriptCollection
-        || representedObject instanceof WI.CSSStyleSheet
-        || representedObject instanceof WI.CSSStyleSheetCollection)
-        return WI.ResourcesTabContentView;
 
     if (representedObject instanceof WI.DOMStorageObject || representedObject instanceof WI.CookieStorageObject ||
         representedObject instanceof WI.DatabaseTableObject || representedObject instanceof WI.DatabaseObject ||
@@ -1489,7 +1537,10 @@ WI._dragOver = function(event)
 
 WI._debuggerDidPause = function(event)
 {
-    this.showDebuggerTab({showScopeChainSidebar: WI.settings.showScopeChainOnPause.value});
+    if (WI.settings.experimentalEnableSourcesTab.value)
+        WI.showSourcesTab({showScopeChainSidebar: WI.settings.showScopeChainOnPause.value});
+    else
+        WI.showDebuggerTab({showScopeChainSidebar: WI.settings.showScopeChainOnPause.value});
 
     this._dashboardContainer.showDashboardViewForRepresentedObject(this._dashboards.debugger);
 
@@ -1600,15 +1651,23 @@ WI._windowResized = function(event)
 
 WI._updateModifierKeys = function(event)
 {
-    let metaKeyDidChange = this.modifierKeys.metaKey !== event.metaKey;
-    let didChange = this.modifierKeys.altKey !== event.altKey || metaKeyDidChange || this.modifierKeys.shiftKey !== event.shiftKey;
+    let keys = {
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+    };
 
-    this.modifierKeys = {altKey: event.altKey, metaKey: event.metaKey, shiftKey: event.shiftKey};
+    let changed = !Object.shallowEqual(this.modifierKeys, keys);
 
-    if (metaKeyDidChange)
-        document.body.classList.toggle("meta-key-pressed", this.modifierKeys.metaKey);
+    this.modifierKeys = keys;
 
-    if (didChange)
+    document.body.classList.toggle("alt-key-pressed", this.modifierKeys.altKey);
+    document.body.classList.toggle("ctrl-key-pressed", this.modifierKeys.ctrlKey);
+    document.body.classList.toggle("meta-key-pressed", this.modifierKeys.metaKey);
+    document.body.classList.toggle("shift-key-pressed", this.modifierKeys.shiftKey);
+
+    if (changed)
         this.notifications.dispatchEventToListeners(WI.Notification.GlobalModifierKeysDidChange, event);
 };
 
@@ -2066,8 +2125,11 @@ WI._handleDeviceSettingsToolbarButtonClicked = function(event)
             { name: WI.UIString("Default"), value: "default" },
         ],
         [
+            { name: "Safari 12.2", value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.2 Safari/605.1.15" },
+        ],
+        [
             { name: `Safari ${emDash} iOS 12.1.3 ${emDash} iPhone`, value: "Mozilla/5.0 (iPhone; CPU iPhone OS 12_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1" },
-            { name: `Safari ${emDash} iOS 12.1.3 ${emDash} iPod Touch`, value: "Mozilla/5.0 (iPod; CPU iPhone OS 12_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1" },
+            { name: `Safari ${emDash} iOS 12.1.3 ${emDash} iPod touch`, value: "Mozilla/5.0 (iPod; CPU iPhone OS 12_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1" },
             { name: `Safari ${emDash} iOS 12.1.3 ${emDash} iPad`, value: "Mozilla/5.0 (iPad; CPU iPhone OS 12_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1" },
         ],
         [
@@ -2207,19 +2269,25 @@ WI._downloadWebArchive = function(event)
     this.archiveMainFrame();
 };
 
+WI._reloadInspectedInspector = function()
+{
+    const options = {};
+    WI.runtimeManager.evaluateInInspectedWindow(`InspectorFrontendHost.reopen()`, options, function(){});
+};
+
 WI._reloadPage = function(event)
 {
     if (!window.PageAgent)
         return;
 
-    PageAgent.reload();
     event.preventDefault();
-};
 
-WI._reloadToolbarButtonClicked = function(event)
-{
-    // Reload page from origin if the button is clicked while the shift key is pressed down.
-    PageAgent.reload.invoke({ignoreCache: this.modifierKeys.shiftKey});
+    if (InspectorFrontendHost.inspectionLevel() > 1) {
+        WI._reloadInspectedInspector();
+        return;
+    }
+
+    PageAgent.reload();
 };
 
 WI._reloadPageFromOrigin = function(event)
@@ -2227,8 +2295,25 @@ WI._reloadPageFromOrigin = function(event)
     if (!window.PageAgent)
         return;
 
-    PageAgent.reload.invoke({ignoreCache: true});
     event.preventDefault();
+
+    if (InspectorFrontendHost.inspectionLevel() > 1) {
+        WI._reloadInspectedInspector();
+        return;
+    }
+
+    PageAgent.reload.invoke({ignoreCache: true});
+};
+
+WI._reloadToolbarButtonClicked = function(event)
+{
+    if (InspectorFrontendHost.inspectionLevel() > 1) {
+        WI._reloadInspectedInspector();
+        return;
+    }
+
+    // Reload page from origin if the button is clicked while the shift key is pressed down.
+    PageAgent.reload.invoke({ignoreCache: this.modifierKeys.shiftKey});
 };
 
 WI._updateReloadToolbarButton = function()
@@ -2284,7 +2369,7 @@ WI._focusConsolePrompt = function(event)
 WI._focusedContentBrowser = function()
 {
     if (this.currentFocusElement) {
-        let contentBrowserElement = this.currentFocusElement.enclosingNodeOrSelfWithClass("content-browser");
+        let contentBrowserElement = this.currentFocusElement.closest(".content-browser");
         if (contentBrowserElement && contentBrowserElement.__view && contentBrowserElement.__view instanceof WI.ContentBrowser)
             return contentBrowserElement.__view;
     }
@@ -2659,7 +2744,7 @@ WI.elementDragEnd = function(event)
 
 WI.createMessageTextView = function(message, isError)
 {
-    var messageElement = document.createElement("div");
+    let messageElement = document.createElement("div");
     messageElement.className = "message-text-view";
     if (isError)
         messageElement.classList.add("error");
@@ -3001,7 +3086,7 @@ WI.archiveMainFrame = function()
 
         let mainFrame = WI.networkManager.mainFrame;
         let archiveName = mainFrame.mainResource.urlComponents.host || mainFrame.mainResource.displayName || "Archive";
-        let url = "web-inspector:///" + encodeURI(archiveName) + ".webarchive";
+        let url = WI.FileUtilities.inspectorURLForFilename(archiveName + ".webarchive");
 
         InspectorFrontendHost.save(url, data, true, true);
     });

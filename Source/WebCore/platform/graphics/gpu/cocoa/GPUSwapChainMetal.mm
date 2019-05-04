@@ -29,128 +29,141 @@
 #if ENABLE(WEBGPU)
 
 #import "GPUDevice.h"
-#import "GPUTexture.h"
-#import "GPUTextureFormatEnum.h"
+#import "GPUSwapChainDescriptor.h"
+#import "GPUTextureFormat.h"
+#import "GPUUtils.h"
 #import "Logging.h"
 #import "WebGPULayer.h"
-
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #import <wtf/BlockObjCExceptions.h>
+#import <wtf/Optional.h>
 
 namespace WebCore {
 
-RefPtr<GPUSwapChain> GPUSwapChain::create()
+static Optional<MTLPixelFormat> tryGetSupportedPixelFormat(GPUTextureFormat format)
 {
-    PlatformSwapLayerSmartPtr platformLayer;
+    auto mtlFormat = static_cast<MTLPixelFormat>(platformTextureFormatForGPUTextureFormat(format));
+
+    switch (mtlFormat) {
+    case MTLPixelFormatBGRA8Unorm:
+    case MTLPixelFormatBGRA8Unorm_sRGB:
+    case MTLPixelFormatRGBA16Float:
+        return mtlFormat;
+    default: {
+        LOG(WebGPU, "GPUSwapChain::tryCreate(): Unsupported MTLPixelFormat!");
+        return WTF::nullopt;
+    }
+    }
+}
+
+static void setLayerShape(WebGPULayer *layer, int width, int height)
+{
+    [layer setBounds:CGRectMake(0, 0, width, height)];
+    [layer setDrawableSize:CGSizeMake(width, height)];
+}
+
+static RetainPtr<WebGPULayer> tryCreateWebGPULayer(MTLDevice *device, MTLPixelFormat format, OptionSet<GPUTextureUsage::Flags> usage)
+{
+
+    RetainPtr<WebGPULayer> layer;
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
+    layer = adoptNS([WebGPULayer new]);
 
-    platformLayer = adoptNS([[WebGPULayer alloc] init]);
+    [layer setName:@"Web GPU Layer"];
+    [layer setOpaque:0];
 
-    [platformLayer setOpaque:0];
-    [platformLayer setName:@"WebGPU Layer"];
-
-    // FIXME: For now, default to this usage flag.
-    [platformLayer setFramebufferOnly:YES];
-
+    [layer setDevice:device];
+    [layer setFramebufferOnly:(usage == GPUTextureUsage::Flags::OutputAttachment)];
+    [layer setPixelFormat:format];
     END_BLOCK_OBJC_EXCEPTIONS;
 
-    if (!platformLayer) {
-        LOG(WebGPU, "GPUSwapChain::create(): Unable to create CAMetalLayer!");
-        return nullptr;
-    }
+    if (!layer)
+        LOG(WebGPU, "GPUSwapChain::tryCreate(): Unable to create CAMetalLayer!");
 
-    return adoptRef(new GPUSwapChain(WTFMove(platformLayer)));
+    return layer;
 }
 
-GPUSwapChain::GPUSwapChain(PlatformSwapLayerSmartPtr&& platformLayer)
-    : m_platformSwapLayer(WTFMove(platformLayer))
-{
-    platformLayer.get().swapChain = this;
-}
-
-void GPUSwapChain::setDevice(const GPUDevice& device)
+RefPtr<GPUSwapChain> GPUSwapChain::tryCreate(const GPUDevice& device, const GPUSwapChainDescriptor& descriptor, int width, int height)
 {
     if (!device.platformDevice()) {
         LOG(WebGPU, "GPUSwapChain::setDevice(): Invalid GPUDevice!");
-        return;
+        return nullptr;
     }
 
-    [m_platformSwapLayer setDevice:device.platformDevice()];
-}
+    auto pixelFormat = tryGetSupportedPixelFormat(descriptor.format);
+    if (!pixelFormat)
+        return nullptr;
 
-static Optional<PlatformTextureFormat> platformTextureFormatForGPUTextureFormat(GPUTextureFormatEnum format)
-{
-    switch (format) {
-    case GPUTextureFormatEnum::R8G8B8A8Unorm:
-        return MTLPixelFormatRGBA8Unorm;
-    case GPUTextureFormatEnum::R8G8B8A8Uint:
-        return MTLPixelFormatRGBA8Uint;
-    case GPUTextureFormatEnum::B8G8R8A8Unorm:
-        return MTLPixelFormatBGRA8Unorm;
-    case GPUTextureFormatEnum::D32FloatS8Uint:
-        return MTLPixelFormatDepth32Float_Stencil8;
-    default:
-        LOG(WebGPU, "GPUSwapChain::setFormat(): Invalid texture format specified!");
-        return WTF::nullopt;
+    auto usageOptions = OptionSet<GPUTextureUsage::Flags>::fromRaw(descriptor.usage);
+    if (!usageOptions.contains(GPUTextureUsage::Flags::OutputAttachment)) {
+        LOG(WebGPU, "GPUSwapChain::tryCreate(): Swap chain usage must include OUTPUT_ATTACHMENT!");
+        return nullptr;
     }
+
+    auto layer = tryCreateWebGPULayer(device.platformDevice(), *pixelFormat, usageOptions);
+    if (!layer)
+        return nullptr;
+
+    setLayerShape(layer.get(), width, height);
+
+    return adoptRef(new GPUSwapChain(WTFMove(layer), usageOptions));
 }
 
-void GPUSwapChain::setFormat(GPUTextureFormatEnum format)
+GPUSwapChain::GPUSwapChain(RetainPtr<WebGPULayer>&& platformLayer, OptionSet<GPUTextureUsage::Flags> usageOptions)
+    : m_platformSwapLayer(WTFMove(platformLayer))
+    , m_usage(usageOptions)
 {
-    auto result = platformTextureFormatForGPUTextureFormat(format);
-    if (!result)
-        return;
-
-    auto mtlResult = static_cast<MTLPixelFormat>(result.value());
-
-    switch (mtlResult) {
-    case MTLPixelFormatBGRA8Unorm:
-    // FIXME: Add the other supported swap layer formats as they are added to GPU spec.
-    //  MTLPixelFormatBGRA8Unorm_sRGB, MTLPixelFormatRGBA16Float, MTLPixelFormatBGRA10_XR, and MTLPixelFormatBGRA10_XR_sRGB.
-        [m_platformSwapLayer setPixelFormat:mtlResult];
-        return;
-    default:
-        LOG(WebGPU, "GPUSwapChain::setFormat(): Unsupported MTLPixelFormat!");
-    }
+    [m_platformSwapLayer setSwapChain:this];
 }
 
-void GPUSwapChain::reshape(int width, int height)
-{
-    [m_platformSwapLayer setBounds:CGRectMake(0, 0, width, height)];
-    [m_platformSwapLayer setDrawableSize:CGSizeMake(width, height)];
-}
-
-RefPtr<GPUTexture> GPUSwapChain::getNextTexture()
+RefPtr<GPUTexture> GPUSwapChain::tryGetCurrentTexture()
 {
     RetainPtr<MTLTexture> mtlTexture;
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
-
-    m_currentDrawable = retainPtr([m_platformSwapLayer nextDrawable]);
-    mtlTexture = retainPtr([m_currentDrawable texture]);
+    if (!m_currentDrawable)
+        m_currentDrawable = retainPtr([m_platformSwapLayer nextDrawable]);
+    mtlTexture = [m_currentDrawable texture];
 
     END_BLOCK_OBJC_EXCEPTIONS;
 
     if (!mtlTexture) {
-        LOG(WebGPU, "GPUSwapChain::getNextTexture(): Unable to get next MTLTexture!");
+        LOG(WebGPU, "GPUSwapChain::getCurrentTexture(): Unable to get current MTLTexture!");
         return nullptr;
     }
 
-    return GPUTexture::create(WTFMove(mtlTexture));
+    return GPUTexture::create(WTFMove(mtlTexture), m_usage);
 }
 
 void GPUSwapChain::present()
 {
+    if (!m_currentDrawable)
+        return;
+
     [m_currentDrawable present];
     m_currentDrawable = nullptr;
+}
+
+void GPUSwapChain::reshape(int width, int height)
+{
+    setLayerShape(m_platformSwapLayer.get(), width, height);
 }
 
 PlatformLayer* GPUSwapChain::platformLayer() const
 {
     return m_platformSwapLayer.get();
 }
+
+#if USE(METAL)
+RetainPtr<CAMetalDrawable> GPUSwapChain::takeDrawable()
+{
+    RetainPtr<CAMetalDrawable> ptr;
+    ptr.swap(m_currentDrawable);
+    return ptr;
+}
+#endif
 
 } // namespace WebCore
 

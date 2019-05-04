@@ -30,7 +30,6 @@
 #import "Logging.h"
 #import "NetworkCache.h"
 #import "NetworkProcessCreationParameters.h"
-#import "NetworkProximityManager.h"
 #import "NetworkResourceLoader.h"
 #import "NetworkSessionCocoa.h"
 #import "SandboxExtension.h"
@@ -112,8 +111,6 @@ void NetworkProcess::platformInitializeNetworkProcessCocoa(const NetworkProcessC
 
     SandboxExtension::consumePermanently(parameters.diskCacheDirectoryExtensionHandle);
     OptionSet<NetworkCache::Cache::Option> cacheOptions { NetworkCache::Cache::Option::RegisterNotify };
-    if (parameters.shouldEnableNetworkCacheEfficacyLogging)
-        cacheOptions.add(NetworkCache::Cache::Option::EfficacyLogging);
     if (parameters.shouldUseTestingNetworkSession)
         cacheOptions.add(NetworkCache::Cache::Option::TestingMode);
 #if ENABLE(NETWORK_CACHE_SPECULATIVE_REVALIDATION)
@@ -152,7 +149,18 @@ RetainPtr<CFDataRef> NetworkProcess::sourceApplicationAuditData() const
 
 static void filterPreloadHSTSEntry(const void* key, const void* value, void* context)
 {
-    HashSet<String>* hostnames = static_cast<HashSet<String>*>(context);
+    RELEASE_ASSERT(context);
+
+    ASSERT(key);
+    ASSERT(value);
+    if (!key || !value)
+        return;
+
+    ASSERT(key != kCFNull);
+    if (key == kCFNull)
+        return;
+    
+    auto* hostnames = static_cast<HashSet<String>*>(context);
     auto val = static_cast<CFDictionaryRef>(value);
     if (CFDictionaryGetValue(val, _kCFNetworkHSTSPreloaded) != kCFBooleanTrue)
         hostnames->add((CFStringRef)key);
@@ -160,8 +168,8 @@ static void filterPreloadHSTSEntry(const void* key, const void* value, void* con
 
 void NetworkProcess::getHostNamesWithHSTSCache(WebCore::NetworkStorageSession& session, HashSet<String>& hostNames)
 {
-    auto HSTSPolicies = adoptCF(_CFNetworkCopyHSTSPolicies(session.platformSession()));
-    CFDictionaryApplyFunction(HSTSPolicies.get(), filterPreloadHSTSEntry, &hostNames);
+    if (auto HSTSPolicies = adoptCF(_CFNetworkCopyHSTSPolicies(session.platformSession())))
+        CFDictionaryApplyFunction(HSTSPolicies.get(), filterPreloadHSTSEntry, &hostNames);
 }
 
 void NetworkProcess::deleteHSTSCacheForHostNames(WebCore::NetworkStorageSession& session, const Vector<String>& hostNames)
@@ -249,32 +257,19 @@ void NetworkProcess::platformSyncAllCookies(CompletionHandler<void()>&& completi
 
 void NetworkProcess::platformPrepareToSuspend(CompletionHandler<void()>&& completionHandler)
 {
-#if ENABLE(PROXIMITY_NETWORKING)
-    proximityManager().suspend(SuspensionReason::ProcessSuspending, WTFMove(completionHandler));
-#else
     completionHandler();
-#endif
 }
 
 void NetworkProcess::platformProcessDidResume()
 {
-#if ENABLE(PROXIMITY_NETWORKING)
-    proximityManager().resume(ResumptionReason::ProcessResuming);
-#endif
 }
 
 void NetworkProcess::platformProcessDidTransitionToBackground()
 {
-#if ENABLE(PROXIMITY_NETWORKING)
-    proximityManager().suspend(SuspensionReason::ProcessBackgrounding, [] { });
-#endif
 }
 
 void NetworkProcess::platformProcessDidTransitionToForeground()
 {
-#if ENABLE(PROXIMITY_NETWORKING)
-    proximityManager().resume(ResumptionReason::ProcessForegrounding);
-#endif
 }
 
 } // namespace WebKit

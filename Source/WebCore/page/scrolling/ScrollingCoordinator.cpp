@@ -47,7 +47,7 @@
 
 namespace WebCore {
 
-#if !PLATFORM(COCOA) && !USE(COORDINATED_GRAPHICS)
+#if !PLATFORM(MAC) && !USE(COORDINATED_GRAPHICS)
 Ref<ScrollingCoordinator> ScrollingCoordinator::create(Page* page)
 {
     return adoptRef(*new ScrollingCoordinator(page));
@@ -224,15 +224,17 @@ void ScrollingCoordinator::frameViewFixedObjectsDidChange(FrameView& frameView)
     updateSynchronousScrollingReasons(frameView);
 }
 
-GraphicsLayer* ScrollingCoordinator::scrollLayerForScrollableArea(ScrollableArea& scrollableArea)
-{
-    return scrollableArea.layerForScrolling();
-}
-
-GraphicsLayer* ScrollingCoordinator::scrollLayerForFrameView(FrameView& frameView)
+GraphicsLayer* ScrollingCoordinator::scrollContainerLayerForFrameView(FrameView& frameView)
 {
     if (auto* renderView = frameView.frame().contentRenderer())
-        return renderView->compositor().scrollLayer();
+        return renderView->compositor().scrollContainerLayer();
+    return nullptr;
+}
+
+GraphicsLayer* ScrollingCoordinator::scrolledContentsLayerForFrameView(FrameView& frameView)
+{
+    if (auto* renderView = frameView.frame().contentRenderer())
+        return renderView->compositor().scrolledContentsLayer();
     return nullptr;
 }
 
@@ -287,10 +289,10 @@ GraphicsLayer* ScrollingCoordinator::contentShadowLayerForFrameView(FrameView& f
 #endif
 }
 
-GraphicsLayer* ScrollingCoordinator::rootContentLayerForFrameView(FrameView& frameView)
+GraphicsLayer* ScrollingCoordinator::rootContentsLayerForFrameView(FrameView& frameView)
 {
     if (auto* renderView = frameView.frame().contentRenderer())
-        return renderView->compositor().rootContentLayer();
+        return renderView->compositor().rootContentsLayer();
     return nullptr;
 }
 
@@ -433,10 +435,16 @@ TextStream& operator<<(TextStream& ts, ScrollableAreaParameters scrollableAreaPa
     ts.dumpProperty("vertical scroll elasticity", scrollableAreaParameters.verticalScrollElasticity);
     ts.dumpProperty("horizontal scrollbar mode", scrollableAreaParameters.horizontalScrollbarMode);
     ts.dumpProperty("vertical scrollbar mode", scrollableAreaParameters.verticalScrollbarMode);
+
     if (scrollableAreaParameters.hasEnabledHorizontalScrollbar)
         ts.dumpProperty("has enabled horizontal scrollbar", scrollableAreaParameters.hasEnabledHorizontalScrollbar);
     if (scrollableAreaParameters.hasEnabledVerticalScrollbar)
         ts.dumpProperty("has enabled vertical scrollbar", scrollableAreaParameters.hasEnabledVerticalScrollbar);
+
+    if (scrollableAreaParameters.horizontalScrollbarHiddenByStyle)
+        ts.dumpProperty("horizontal scrollbar hidden by style", scrollableAreaParameters.horizontalScrollbarHiddenByStyle);
+    if (scrollableAreaParameters.verticalScrollbarHiddenByStyle)
+        ts.dumpProperty("vertical scrollbar hidden by style", scrollableAreaParameters.verticalScrollbarHiddenByStyle);
 
     return ts;
 }
@@ -461,6 +469,9 @@ TextStream& operator<<(TextStream& ts, ScrollingNodeType nodeType)
         break;
     case ScrollingNodeType::Sticky:
         ts << "sticky";
+        break;
+    case ScrollingNodeType::Positioned:
+        ts << "positioned";
         break;
     }
     return ts;
@@ -494,6 +505,15 @@ TextStream& operator<<(TextStream& ts, ViewportRectStability stability)
     case ViewportRectStability::ChangingObscuredInsetsInteractively:
         ts << "changing obscured insets interactively";
         break;
+    }
+    return ts;
+}
+
+TextStream& operator<<(TextStream& ts, ScrollType scrollType)
+{
+    switch (scrollType) {
+    case ScrollType::User: ts << "user"; break;
+    case ScrollType::Programmatic: ts << "programmatic"; break;
     }
     return ts;
 }

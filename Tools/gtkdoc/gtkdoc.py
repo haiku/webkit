@@ -199,18 +199,27 @@ class GTKDoc(object):
         if print_output:
             if stdout:
                 try:
-                    sys.stdout.write(stdout.encode("utf-8"))
+                    if sys.version_info.major == 2:
+                        sys.stdout.write(stdout.encode("utf-8"))
+                    else:
+                        sys.stdout.buffer.write(stdout.encode("utf-8"))
                 except UnicodeDecodeError:
                     sys.stdout.write(stdout)
             if stderr:
                 try:
-                    sys.stderr.write(stderr.encode("utf-8"))
+                    if sys.version_info.major == 2:
+                        sys.stderr.write(stderr.encode("utf-8"))
+                    else:
+                        sys.stderr.buffer.write(stderr.encode("utf-8"))
                 except UnicodeDecodeError:
                     sys.stderr.write(stderr)
 
         if process.returncode != 0:
-            raise Exception('%s produced a non-zero return code %i'
-                             % (args[0], process.returncode))
+            raise Exception(('%s produced a non-zero return code %i\n'
+                             'Command:\n  %s\n'
+                             'Error output:\n  %s\n')
+                             % (args[0], process.returncode, " ".join(args),
+                                "\n  ".join(stderr.splitlines())))
 
         if not ignore_warnings and ('warning' in stderr or 'warning' in stdout):
             self.saw_warnings = True

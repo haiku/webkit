@@ -380,6 +380,7 @@ bool AccessibilityNodeObject::canHaveChildren() const
     case AccessibilityRole::MenuItemCheckbox:
     case AccessibilityRole::MenuItemRadio:
     case AccessibilityRole::Splitter:
+    case AccessibilityRole::Meter:
         return false;
     case AccessibilityRole::DocumentMath:
 #if ENABLE(MATHML)
@@ -560,7 +561,7 @@ bool AccessibilityNodeObject::isInputImage() const
 
 bool AccessibilityNodeObject::isProgressIndicator() const
 {
-    return roleValue() == AccessibilityRole::ProgressIndicator;
+    return roleValue() == AccessibilityRole::ProgressIndicator || roleValue() == AccessibilityRole::Meter;
 }
 
 bool AccessibilityNodeObject::isSlider() const
@@ -885,7 +886,7 @@ bool AccessibilityNodeObject::isControl() const
     if (!node)
         return false;
 
-    return is<HTMLFormControlElement>(*node) || AccessibilityObject::isARIAControl(ariaRoleAttribute());
+    return is<HTMLFormControlElement>(*node) || AccessibilityObject::isARIAControl(ariaRoleAttribute()) || roleValue() == AccessibilityRole::Button;
 }
 
 bool AccessibilityNodeObject::isFieldset() const
@@ -1063,6 +1064,10 @@ void AccessibilityNodeObject::alterSliderValue(bool increase)
 {
     if (roleValue() != AccessibilityRole::Slider)
         return;
+    
+    auto element = this->element();
+    if (!element || element->isDisabledFormControl())
+        return;
 
     if (!getAttribute(stepAttr).isEmpty())
         changeValueByStep(increase);
@@ -1093,7 +1098,7 @@ void AccessibilityNodeObject::changeValueByStep(bool increase)
 
     value += increase ? step : -step;
 
-    setValue(String::number(value));
+    setValue(String::numberToStringFixedPrecision(value));
 
     axObjectCache()->postNotification(node(), AXObjectCache::AXValueChanged);
 }
@@ -1105,11 +1110,11 @@ void AccessibilityNodeObject::changeValueByPercent(float percentChange)
     float value = valueForRange();
 
     // Make sure the specified percent will cause a change of one integer step or larger.
-    if (fabs(step) < 1)
-        step = fabs(percentChange) * (1 / percentChange);
+    if (std::abs(step) < 1)
+        step = std::abs(percentChange) * (1 / percentChange);
 
     value += step;
-    setValue(String::number(value));
+    setValue(String::numberToStringFixedPrecision(value));
 
     axObjectCache()->postNotification(node(), AXObjectCache::AXValueChanged);
 }
@@ -1469,7 +1474,7 @@ void AccessibilityNodeObject::helpText(Vector<AccessibilityText>& textOrder) con
     }
 }
 
-void AccessibilityNodeObject::accessibilityText(Vector<AccessibilityText>& textOrder)
+void AccessibilityNodeObject::accessibilityText(Vector<AccessibilityText>& textOrder) const
 {
     titleElementText(textOrder);
     alternativeText(textOrder);

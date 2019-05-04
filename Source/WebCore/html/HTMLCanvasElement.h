@@ -51,8 +51,7 @@ class ImageData;
 class MediaSample;
 class MediaStream;
 class WebGLRenderingContextBase;
-class WebGPURenderingContext;
-class WebMetalRenderingContext;
+class GPUCanvasContext;
 struct UncachedString;
 
 namespace DisplayList {
@@ -100,13 +99,8 @@ public:
 #endif
 #if ENABLE(WEBGPU)
     static bool isWebGPUType(const String&);
-    WebGPURenderingContext* createContextWebGPU(const String&);
-    WebGPURenderingContext* getContextWebGPU(const String&);
-#endif
-#if ENABLE(WEBMETAL)
-    static bool isWebMetalType(const String&);
-    WebMetalRenderingContext* createContextWebMetal(const String&);
-    WebMetalRenderingContext* getContextWebMetal(const String&);
+    GPUCanvasContext* createContextWebGPU(const String&);
+    GPUCanvasContext* getContextWebGPU(const String&);
 #endif
 
     static bool isBitmapRendererType(const String&);
@@ -184,6 +178,8 @@ private:
 
     void refCanvasBase() final { HTMLElement::ref(); }
     void derefCanvasBase() final { HTMLElement::deref(); }
+
+    ScriptExecutionContext* canvasBaseScriptExecutionContext() const final { return HTMLElement::scriptExecutionContext(); }
 
     FloatRect m_dirtyRect;
     mutable IntSize m_size;

@@ -107,7 +107,6 @@ public:
     void setXSSAuditorEnabled(bool);
     void setModernMediaControlsEnabled(bool);
     void setWebGL2Enabled(bool);
-    void setWebMetalEnabled(bool);
     void setWritableStreamAPIEnabled(bool);
     void setReadableByteStreamAPIEnabled(bool);
 
@@ -178,7 +177,7 @@ public:
     void clearDOMCaches();
     bool hasDOMCache(JSStringRef origin);
     uint64_t domCacheSize(JSStringRef origin);
-    void allowCacheStorageQuotaIncrease();
+    void setAllowStorageQuotaIncrease(bool);
 
     // IndexedDB
     void setIDBPerOriginQuota(uint64_t);
@@ -266,8 +265,6 @@ public:
 
     void setShouldStayOnPageAfterHandlingBeforeUnload(bool);
 
-    void setDefersLoading(bool);
-
     void setStopProvisionalFrameLoads() { m_shouldStopProvisionalFrameLoads = true; }
     bool shouldStopProvisionalFrameLoads() const { return m_shouldStopProvisionalFrameLoads; }
     
@@ -322,6 +319,7 @@ public:
     void setUserMediaPersistentPermissionForOrigin(bool permission, JSStringRef origin, JSStringRef parentOrigin);
     unsigned userMediaPermissionRequestCountForOrigin(JSStringRef origin, JSStringRef parentOrigin) const;
     void resetUserMediaPermissionRequestCountForOrigin(JSStringRef origin, JSStringRef parentOrigin);
+    bool isDoingMediaCapture() const;
 
     void setPageVisibility(JSStringRef state);
     void resetPageVisibility();
@@ -352,6 +350,7 @@ public:
     void setNavigationGesturesEnabled(bool);
     void setIgnoresViewportScaleLimits(bool);
     void setShouldDownloadUndisplayableMIMETypes(bool);
+    void setShouldAllowDeviceOrientationAndMotionAccess(bool);
 
     bool didCancelClientRedirect() const { return m_didCancelClientRedirect; }
     void setDidCancelClientRedirect(bool value) { m_didCancelClientRedirect = value; }
@@ -419,8 +418,10 @@ public:
     void setStatisticsSubresourceUniqueRedirectFrom(JSStringRef hostName, JSStringRef hostNameRedirectedFrom);
     void setStatisticsTopFrameUniqueRedirectTo(JSStringRef hostName, JSStringRef hostNameRedirectedTo);
     void setStatisticsTopFrameUniqueRedirectFrom(JSStringRef hostName, JSStringRef hostNameRedirectedFrom);
+    void setStatisticsCrossSiteLoadWithLinkDecoration(JSStringRef fromHost, JSStringRef toHost);
     void setStatisticsTimeToLiveUserInteraction(double seconds);
     void setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool);
+    void setStatisticsIsRunningTest(bool);
     void setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool);
     void setStatisticsNotifyPagesWhenTelemetryWasCaptured(bool value);
     void setStatisticsMinimumTimeBetweenDataRecordsRemoval(double);
@@ -430,7 +431,9 @@ public:
     void statisticsClearInMemoryAndPersistentStore(JSValueRef callback);
     void statisticsClearInMemoryAndPersistentStoreModifiedSinceHours(unsigned hours, JSValueRef callback);
     void statisticsClearThroughWebsiteDataRemoval(JSValueRef callback);
+    void statisticsDeleteCookiesForHost(JSStringRef hostName, bool includeHttpOnlyCookies);
     void statisticsCallClearThroughWebsiteDataRemovalCallback();
+    bool isStatisticsHasLocalStorage(JSStringRef hostName);
     void setStatisticsCacheMaxAgeCap(double seconds);
     void statisticsResetToConsistentState(JSValueRef completionHandler);
     void statisticsCallDidResetToConsistentStateCallback();
@@ -450,6 +453,9 @@ public:
 
     // Open panel
     void setOpenPanelFiles(JSValueRef);
+
+    // Modal alerts
+    void setShouldDismissJavaScriptAlertsAsynchronously(bool);
 
     void terminateNetworkProcess();
     void terminateServiceWorkerProcess();
@@ -487,6 +493,10 @@ public:
     void setCanHandleHTTPSServerTrustEvaluation(bool canHandle);
     bool canDoServerTrustEvaluationInNetworkProcess();
     unsigned long serverTrustEvaluationCallbackCallsCount();
+
+    // Ad Click Attribution.
+    void dumpAdClickAttribution();
+    void clearAdClickAttribution();
 
 private:
     TestRunner();

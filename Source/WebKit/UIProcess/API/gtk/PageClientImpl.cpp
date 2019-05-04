@@ -28,10 +28,11 @@
 #include "config.h"
 #include "PageClientImpl.h"
 
-#include "DrawingAreaProxyImpl.h"
+#include "DrawingAreaProxyCoordinatedGraphics.h"
 #include "NativeWebKeyboardEvent.h"
 #include "NativeWebMouseEvent.h"
 #include "NativeWebWheelEvent.h"
+#include "ViewSnapshotStore.h"
 #include "WebColorPickerGtk.h"
 #include "WebContextMenuProxyGtk.h"
 #include "WebEventFactory.h"
@@ -43,6 +44,7 @@
 #include "WebProcessPool.h"
 #include <WebCore/CairoUtilities.h>
 #include <WebCore/Cursor.h>
+#include <WebCore/DOMPasteAccess.h>
 #include <WebCore/EventNames.h>
 #include <WebCore/GtkUtilities.h>
 #include <WebCore/NotImplemented.h>
@@ -62,15 +64,25 @@ PageClientImpl::PageClientImpl(GtkWidget* viewWidget)
 // PageClient's pure virtual functions
 std::unique_ptr<DrawingAreaProxy> PageClientImpl::createDrawingAreaProxy(WebProcessProxy& process)
 {
-    return std::make_unique<DrawingAreaProxyImpl>(*webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(m_viewWidget)), process);
+    return std::make_unique<DrawingAreaProxyCoordinatedGraphics>(*webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(m_viewWidget)), process);
 }
 
 void PageClientImpl::setViewNeedsDisplay(const WebCore::Region& region)
 {
+    WebPageProxy* pageProxy = webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
+    ASSERT(pageProxy);
+
+    // During the gesture, the page may be displayed with an offset.
+    // To avoid visual glitches, redraw the whole page.
+    if (pageProxy->isShowingNavigationGestureSnapshot()) {
+        gtk_widget_queue_draw(m_viewWidget);
+        return;
+    }
+
     gtk_widget_queue_draw_region(m_viewWidget, toCairoRegion(region).get());
 }
 
-void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&, bool)
+void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&)
 {
     notImplemented();
 }
@@ -82,7 +94,7 @@ WebCore::FloatPoint PageClientImpl::viewScrollPosition()
 
 WebCore::IntSize PageClientImpl::viewSize()
 {
-    auto* drawingArea = static_cast<DrawingAreaProxyImpl*>(webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(m_viewWidget))->drawingArea());
+    auto* drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(m_viewWidget))->drawingArea());
     return drawingArea ? drawingArea->size() : IntSize();
 }
 
@@ -192,6 +204,16 @@ IntRect PageClientImpl::rootViewToScreen(const IntRect& rect)
     return IntRect(convertWidgetPointToScreenPoint(m_viewWidget, rect.location()), rect.size());
 }
 
+WebCore::IntPoint PageClientImpl::accessibilityScreenToRootView(const WebCore::IntPoint& point)
+{
+    return screenToRootView(point);
+}
+
+WebCore::IntRect PageClientImpl::rootViewToAccessibilityScreen(const WebCore::IntRect& rect)    
+{
+    return rootViewToScreen(rect);
+}
+
 void PageClientImpl::doneWithKeyEvent(const NativeWebKeyboardEvent& event, bool wasEventHandled)
 {
     if (wasEventHandled)
@@ -255,6 +277,11 @@ void PageClientImpl::selectionDidChange()
         webkitWebViewSelectionDidChange(WEBKIT_WEB_VIEW(m_viewWidget));
 }
 
+RefPtr<ViewSnapshot> PageClientImpl::takeViewSnapshot()
+{
+    return webkitWebViewBaseTakeViewSnapshot(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
+}
+
 void PageClientImpl::didChangeContentSize(const IntSize& size)
 {
     webkitWebViewBaseSetContentsSize(WEBKIT_WEB_VIEW_BASE(m_viewWidget), size);
@@ -272,10 +299,10 @@ void PageClientImpl::startDrag(Ref<SelectionData>&& selection, DragOperation dra
 }
 #endif
 
-void PageClientImpl::handleDownloadRequest(DownloadProxy* download)
+void PageClientImpl::handleDownloadRequest(DownloadProxy& download)
 {
     if (WEBKIT_IS_WEB_VIEW(m_viewWidget))
-        webkitWebViewHandleDownloadRequest(WEBKIT_WEB_VIEW(m_viewWidget), download);
+        webkitWebViewHandleDownloadRequest(WEBKIT_WEB_VIEW(m_viewWidget), &download);
 }
 
 void PageClientImpl::didCommitLoadForMainFrame(const String& /* mimeType */, bool /* useCustomContentProvider */ )
@@ -404,6 +431,12 @@ void PageClientImpl::doneWithTouchEvent(const NativeWebTouchEvent& event, bool w
 
 void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
 {
+    ViewGestureController& controller = webkitWebViewBaseViewGestureController(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
+    if (controller.isSwipeGestureEnabled()) {
+        controller.wheelEventWasNotHandledByWebCore(&event.nativeEvent()->scroll);
+        return;
+    }
+
     webkitWebViewBaseForwardNextWheelEvent(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
     gtk_main_do_event(event.nativeEvent());
 }
@@ -434,18 +467,40 @@ void PageClientImpl::willRecordNavigationSnapshot(WebBackForwardListItem&)
 
 void PageClientImpl::didRemoveNavigationGestureSnapshot()
 {
+    gtk_widget_queue_draw(m_viewWidget);
+}
+
+void PageClientImpl::didStartProvisionalLoadForMainFrame()
+{
+    if (WEBKIT_IS_WEB_VIEW(m_viewWidget))
+        webkitWebViewWillStartLoad(WEBKIT_WEB_VIEW(m_viewWidget));
+
+    webkitWebViewBaseDidStartProvisionalLoadForMainFrame(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
 void PageClientImpl::didFirstVisuallyNonEmptyLayoutForMainFrame()
 {
+    webkitWebViewBaseDidFirstVisuallyNonEmptyLayoutForMainFrame(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
 void PageClientImpl::didFinishLoadForMainFrame()
 {
+    webkitWebViewBaseDidFinishLoadForMainFrame(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
-void PageClientImpl::didSameDocumentNavigationForMainFrame(SameDocumentNavigationType)
+void PageClientImpl::didFailLoadForMainFrame()
 {
+    webkitWebViewBaseDidFailLoadForMainFrame(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
+}
+
+void PageClientImpl::didSameDocumentNavigationForMainFrame(SameDocumentNavigationType type)
+{
+    webkitWebViewBaseDidSameDocumentNavigationForMainFrame(WEBKIT_WEB_VIEW_BASE(m_viewWidget), type);
+}
+
+void PageClientImpl::didRestoreScrollPosition()
+{
+    webkitWebViewBaseDidRestoreScrollPosition(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
 void PageClientImpl::didChangeBackgroundColor()
@@ -472,5 +527,10 @@ bool PageClientImpl::decidePolicyForInstallMissingMediaPluginsPermissionRequest(
     return true;
 }
 #endif
+
+void PageClientImpl::requestDOMPasteAccess(const IntRect&, const String&, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&& completionHandler)
+{
+    completionHandler(WebCore::DOMPasteAccessResponse::DeniedForGesture);
+}
 
 } // namespace WebKit

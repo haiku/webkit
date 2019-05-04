@@ -54,17 +54,29 @@ public:
     {
     }
 
+    enum class Stage { Start, EstablishedHandle, Initialized };
+    Stage stage { Stage::Start };
     const char* name;
     Function<void()> entryPoint;
     Ref<Thread> thread;
     Mutex mutex;
-    enum class Stage { Start, EstablishedHandle, Initialized };
-    Stage stage { Stage::Start };
 
 #if !HAVE(STACK_BOUNDS_FOR_NEW_THREAD)
     ThreadCondition condition;
 #endif
 };
+
+HashSet<Thread*>& Thread::allThreads(const LockHolder&)
+{
+    static NeverDestroyed<HashSet<Thread*>> allThreads;
+    return allThreads;
+}
+
+Lock& Thread::allThreadsMutex()
+{
+    static Lock mutex;
+    return mutex;
+}
 
 const char* Thread::normalizeThreadName(const char* threadName)
 {
@@ -164,6 +176,11 @@ Ref<Thread> Thread::create(const char* name, Function<void()>&& entryPoint)
 #endif
     }
 
+    {
+        LockHolder lock(allThreadsMutex());
+        allThreads(lock).add(&thread.get());
+    }
+
     ASSERT(!thread->stack().isEmpty());
     return thread;
 }
@@ -184,6 +201,11 @@ static bool shouldRemoveThreadFromThreadGroup()
 
 void Thread::didExit()
 {
+    {
+        LockHolder lock(allThreadsMutex());
+        allThreads(lock).remove(this);
+    }
+
     if (shouldRemoveThreadFromThreadGroup()) {
         {
             Vector<std::shared_ptr<ThreadGroup>> threadGroups;

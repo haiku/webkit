@@ -53,10 +53,6 @@
 
 using namespace WebCore;
 
-#if HAVE(AUDIO_TOOLBOX_AUDIO_SESSION)
-#import <AudioToolbox/AudioSession.h>
-#endif
-
 #if PLATFORM(IOS_FAMILY)
 #import <WebCore/Device.h>
 #import <WebCore/GraphicsContext.h>
@@ -582,6 +578,7 @@ public:
         [NSNumber numberWithBool:NO],   WebKitPlugInSnapshottingEnabledPreferenceKey,
 
 #if PLATFORM(IOS_FAMILY)
+        [NSNumber numberWithBool:YES],  WebKitContentChangeObserverEnabledPreferenceKey,
         [NSNumber numberWithBool:NO],   WebKitTelephoneParsingEnabledPreferenceKey,
         [NSNumber numberWithInt:-1],      WebKitLayoutIntervalPreferenceKey,
         [NSNumber numberWithFloat:-1.0f], WebKitMaxParseDurationPreferenceKey,
@@ -634,9 +631,6 @@ public:
 #if ENABLE(WEBGPU)
         [NSNumber numberWithBool:NO], WebKitWebGPUEnabledPreferenceKey,
 #endif
-#if ENABLE(WEBMETAL)
-        [NSNumber numberWithBool:NO], WebKitWebMetalEnabledPreferenceKey,
-#endif
         [NSNumber numberWithBool:NO], WebKitCacheAPIEnabledPreferenceKey,
         [NSNumber numberWithBool:YES], WebKitFetchAPIEnabledPreferenceKey,
 
@@ -649,13 +643,13 @@ public:
 #endif
         [NSNumber numberWithBool:NO], WebKitDirectoryUploadEnabledPreferenceKey,
         [NSNumber numberWithBool:YES], WebKitWebAnimationsEnabledPreferenceKey,
+        [NSNumber numberWithBool:YES], WebKitPointerEventsEnabledPreferenceKey,
 
 #if PLATFORM(IOS_FAMILY)
-        [NSNumber numberWithBool:NO], WebKitVisualViewportEnabledPreferenceKey,
+        @NO, WebKitVisualViewportAPIEnabledPreferenceKey,
 #else
-        [NSNumber numberWithBool:YES], WebKitVisualViewportEnabledPreferenceKey,
+        @YES, WebKitVisualViewportAPIEnabledPreferenceKey,
 #endif
-        [NSNumber numberWithBool:YES], WebKitVisualViewportAPIEnabledPreferenceKey,
 
         [NSNumber numberWithBool:NO], WebKitCSSOMViewScrollingAPIEnabledPreferenceKey,
         [NSNumber numberWithBool:YES], WebKitNeedsStorageAccessFromFileURLsQuirkKey,
@@ -693,6 +687,10 @@ public:
         @NO, WebKitMediaCapabilitiesEnabledPreferenceKey,
         @NO, WebKitFetchAPIKeepAliveEnabledPreferenceKey,
         @NO, WebKitServerTimingEnabledPreferenceKey,
+        @NO, WebKitReferrerPolicyAttributeEnabledPreferenceKey,
+#if ENABLE(RESIZE_OBSERVER)
+        @NO, WebKitResizeObserverEnabledPreferenceKey,
+#endif
         nil];
 
 #if !PLATFORM(IOS_FAMILY)
@@ -749,6 +747,36 @@ public:
     dispatch_barrier_sync(_private->readWriteQueue, ^{
 #endif
     [_private->values.get() setObject:value forKey:_key];
+#if PLATFORM(IOS_FAMILY)
+    });
+#endif
+    if (_private->autosaves)
+        [[NSUserDefaults standardUserDefaults] setObject:value forKey:_key];
+    [self _postPreferencesChangedNotification];
+}
+
+- (NSArray<NSString *> *)_stringArrayValueForKey:(NSString *)key
+{
+    id value = [self _valueForKey:key];
+    if (![value isKindOfClass:[NSArray class]])
+        return nil;
+
+    NSArray *array = (NSArray *)value;
+    for (id object in array) {
+        if (![object isKindOfClass:[NSString class]])
+            return nil;
+    }
+
+    return (NSArray<NSString *> *)array;
+}
+
+- (void)_setStringArrayValueForKey:(NSArray<NSString *> *)value forKey:(NSString *)key
+{
+    NSString *_key = KEY(key);
+#if PLATFORM(IOS_FAMILY)
+    dispatch_barrier_sync(_private->readWriteQueue, ^{
+#endif
+        [_private->values.get() setObject:value forKey:_key];
 #if PLATFORM(IOS_FAMILY)
     });
 #endif
@@ -1159,6 +1187,16 @@ public:
     return [self _boolValueForKey: WebKitDisplayImagesKey];
 }
 
+- (void)setAdditionalSupportedImageTypes:(NSArray<NSString*> *)imageTypes
+{
+    [self _setStringArrayValueForKey:imageTypes forKey:WebKitAdditionalSupportedImageTypesKey];
+}
+
+- (NSArray<NSString *> *)additionalSupportedImageTypes
+{
+    return [self _stringArrayValueForKey:WebKitAdditionalSupportedImageTypesKey];
+}
+
 - (void)setAutosaves:(BOOL)flag
 {
     _private->autosaves = flag;
@@ -1555,6 +1593,16 @@ public:
 - (BOOL)_telephoneNumberParsingEnabled
 {
     return [self _boolValueForKey:WebKitTelephoneParsingEnabledPreferenceKey];
+}
+
+- (BOOL)contentChangeObserverEnabled
+{
+    return [self _boolValueForKey:WebKitContentChangeObserverEnabledPreferenceKey];
+}
+
+- (void)setContentChangeObserverEnabled:(BOOL)enabled
+{
+    [self _setBoolValue:enabled forKey:WebKitContentChangeObserverEnabledPreferenceKey];
 }
 #endif
 
@@ -2124,16 +2172,6 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:enabled forKey:WebKitWebGPUEnabledPreferenceKey];
 }
 
-- (BOOL)webMetalEnabled
-{
-    return [self _boolValueForKey:WebKitWebMetalEnabledPreferenceKey];
-}
-
-- (void)setWebMetalEnabled:(BOOL)enabled
-{
-    [self _setBoolValue:enabled forKey:WebKitWebMetalEnabledPreferenceKey];
-}
-
 - (BOOL)accelerated2dCanvasEnabled
 {
     return [self _boolValueForKey:WebKitAccelerated2dCanvasEnabledPreferenceKey];
@@ -2342,27 +2380,26 @@ static NSString *classIBCreatorID = nil;
 
 - (void)setAudioSessionCategoryOverride:(unsigned)override
 {
-#if HAVE(AUDIO_TOOLBOX_AUDIO_SESSION)
     if (override > AudioSession::AudioProcessing) {
         // Clients are passing us OSTypes values from AudioToolbox/AudioSession.h,
         // which need to be translated into AudioSession::CategoryType:
         switch (override) {
-        case kAudioSessionCategory_AmbientSound:
+        case WebKitAudioSessionCategoryAmbientSound:
             override = AudioSession::AmbientSound;
             break;
-        case kAudioSessionCategory_SoloAmbientSound:
+        case WebKitAudioSessionCategorySoloAmbientSound:
             override = AudioSession::SoloAmbientSound;
             break;
-        case kAudioSessionCategory_MediaPlayback:
+        case WebKitAudioSessionCategoryMediaPlayback:
             override = AudioSession::MediaPlayback;
             break;
-        case kAudioSessionCategory_RecordAudio:
+        case WebKitAudioSessionCategoryRecordAudio:
             override = AudioSession::RecordAudio;
             break;
-        case kAudioSessionCategory_PlayAndRecord:
+        case WebKitAudioSessionCategoryPlayAndRecord:
             override = AudioSession::PlayAndRecord;
             break;
-        case kAudioSessionCategory_AudioProcessing:
+        case WebKitAudioSessionCategoryAudioProcessing:
             override = AudioSession::AudioProcessing;
             break;
         default:
@@ -2370,7 +2407,6 @@ static NSString *classIBCreatorID = nil;
             break;
         }
     }
-#endif
 
     [self _setUnsignedIntValue:override forKey:WebKitAudioSessionCategoryOverride];
 }
@@ -3079,16 +3115,6 @@ static NSString *classIBCreatorID = nil;
     return [self _boolValueForKey:WebKitDirectoryUploadEnabledPreferenceKey];
 }
 
-- (BOOL)visualViewportEnabled
-{
-    return [self _boolValueForKey:WebKitVisualViewportEnabledPreferenceKey];
-}
-
-- (void)setVisualViewportEnabled:(BOOL)flag
-{
-    [self _setBoolValue:flag forKey:WebKitVisualViewportEnabledPreferenceKey];
-}
-
 - (BOOL)visualViewportAPIEnabled
 {
     return [self _boolValueForKey:WebKitVisualViewportAPIEnabledPreferenceKey];
@@ -3117,6 +3143,16 @@ static NSString *classIBCreatorID = nil;
 - (void)setWebAnimationsEnabled:(BOOL)flag
 {
     [self _setBoolValue:flag forKey:WebKitWebAnimationsEnabledPreferenceKey];
+}
+
+- (BOOL)pointerEventsEnabled
+{
+    return [self _boolValueForKey:WebKitPointerEventsEnabledPreferenceKey];
+}
+
+- (void)setPointerEventsEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitPointerEventsEnabledPreferenceKey];
 }
 
 - (BOOL)fetchAPIKeepAliveEnabled
@@ -3401,6 +3437,25 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitAdClickAttributionEnabledPreferenceKey];
 }
 
+- (BOOL)referrerPolicyAttributeEnabled
+{
+    return [self _boolValueForKey:WebKitReferrerPolicyAttributeEnabledPreferenceKey];
+}
+
+- (void)setReferrerPolicyAttributeEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitReferrerPolicyAttributeEnabledPreferenceKey];
+}
+
+- (BOOL)resizeObserverEnabled
+{
+    return [self _boolValueForKey:WebKitResizeObserverEnabledPreferenceKey];
+}
+
+- (void)setResizeObserverEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitResizeObserverEnabledPreferenceKey];
+}
 @end
 
 @implementation WebPreferences (WebInternal)

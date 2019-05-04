@@ -45,6 +45,7 @@
 #include "DisplayListRecorder.h"
 #include "DisplayListReplayer.h"
 #include "FloatQuad.h"
+#include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLVideoElement.h"
 #include "ImageBitmap.h"
@@ -63,6 +64,7 @@
 #include "TextRun.h"
 #include "TypedOMCSSImageValue.h"
 #include <wtf/CheckedArithmetic.h>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/MathExtras.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/StringBuilder.h>
@@ -71,6 +73,8 @@
 namespace WebCore {
 
 using namespace HTMLNames;
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(CanvasRenderingContext2DBase);
 
 #if USE(CG)
 const ImageSmoothingQuality defaultSmoothingQuality = ImageSmoothingQuality::Low;
@@ -1643,8 +1647,15 @@ ExceptionOr<void> CanvasRenderingContext2DBase::drawImage(HTMLCanvasElement& sou
         fullCanvasCompositedDrawImage(*buffer, dstRect, srcRect, state().globalComposite);
         didDrawEntireCanvas();
     } else if (state().globalComposite == CompositeCopy) {
-        clearCanvas();
-        c->drawImageBuffer(*buffer, dstRect, srcRect, ImagePaintingOptions(state().globalComposite, state().globalBlend));
+        if (&sourceCanvas == &canvasBase()) {
+            if (auto copy = buffer->copyRectToBuffer(srcRect, ColorSpaceSRGB, *c)) {
+                clearCanvas();
+                c->drawImageBuffer(*copy, dstRect, { { }, srcRect.size() }, ImagePaintingOptions(state().globalComposite, state().globalBlend));
+            }
+        } else {
+            clearCanvas();
+            c->drawImageBuffer(*buffer, dstRect, srcRect, ImagePaintingOptions(state().globalComposite, state().globalBlend));
+        }
         didDrawEntireCanvas();
     } else {
         c->drawImageBuffer(*buffer, dstRect, srcRect, ImagePaintingOptions(state().globalComposite, state().globalBlend));
@@ -1922,7 +1933,7 @@ ExceptionOr<Ref<CanvasGradient>> CanvasRenderingContext2DBase::createLinearGradi
 
     auto gradient = CanvasGradient::create(FloatPoint(x0, y0), FloatPoint(x1, y1));
     prepareGradientForDashboard(gradient.get());
-    return WTFMove(gradient);
+    return gradient;
 }
 
 ExceptionOr<Ref<CanvasGradient>> CanvasRenderingContext2DBase::createRadialGradient(float x0, float y0, float r0, float x1, float y1, float r1)
@@ -1935,7 +1946,7 @@ ExceptionOr<Ref<CanvasGradient>> CanvasRenderingContext2DBase::createRadialGradi
 
     auto gradient = CanvasGradient::create(FloatPoint(x0, y0), r0, FloatPoint(x1, y1), r1);
     prepareGradientForDashboard(gradient.get());
-    return WTFMove(gradient);
+    return gradient;
 }
 
 ExceptionOr<RefPtr<CanvasPattern>> CanvasRenderingContext2DBase::createPattern(CanvasImageSource&& image, const String& repetition)

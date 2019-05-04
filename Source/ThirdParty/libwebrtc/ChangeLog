@@ -1,3 +1,180 @@
+2019-04-08  Justin Fan  <justin_fan@apple.com>
+
+        [Web GPU] Fix Web GPU experimental feature on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=196632
+
+        Reviewed by Myles C. Maxfield.
+
+        Add conditionals for iOS 11.
+
+        * Configurations/WebKitTargetConditionals.xcconfig:
+
+2019-04-04  Youenn Fablet  <youenn@apple.com>
+
+        Log the error if VideoProcessing library cannot be dlopen
+        https://bugs.webkit.org/show_bug.cgi?id=196609
+
+        Reviewed by Eric Carlson.
+
+        * Source/webrtc/sdk/WebKit/VideoProcessingSoftLink.cpp:
+        (webrtc::initVideoProcessingVPModuleInitialize):
+
+2019-04-03  Youenn Fablet  <youenn@apple.com>
+
+        Add logging and ASSERTs to investigate issue with VPModuleInitialize
+        https://bugs.webkit.org/show_bug.cgi?id=196573
+
+        Reviewed by Eric Carlson.
+
+        Expand macros directly to add some logging.
+        Removed the dispatch_once since VPModuleInitialize is already called in one.
+
+        * Source/webrtc/sdk/WebKit/VideoProcessingSoftLink.cpp:
+        (webrtc::initVideoProcessingVPModuleInitialize):
+
+2019-04-03  Youenn Fablet  <youenn@apple.com>
+
+        Remove unneeded libwebrtc files
+        https://bugs.webkit.org/show_bug.cgi?id=196553
+
+        Reviewed by Eric Carlson.
+
+        * Source/third_party/boringssl/src/fuzz: Removed.
+        * Source/third_party/protobuf/csharp/keys: Removed.
+
+2019-04-03  Youenn Fablet  <youenn@apple.com>
+
+        Adopt new VCP SPI
+        https://bugs.webkit.org/show_bug.cgi?id=193357
+        <rdar://problem/43656651>
+
+        Reviewed by Eric Carlson.
+
+       Enable VCP through VTB API with specific encoder id.
+
+        * Source/webrtc/sdk/WebKit/VideoProcessingSoftLink.cpp:
+        * Source/webrtc/sdk/WebKit/VideoProcessingSoftLink.h:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.mm:
+        (webrtc::setApplicationStatus):
+        * Source/webrtc/sdk/objc/components/video_codec/RTCVideoEncoderH264.mm:
+        (-[RTCSingleVideoEncoderH264 resetCompressionSessionWithPixelFormat:]):
+
+2019-04-02  Thibault Saunier  <tsaunier@igalia.com>
+
+        [GSteamer][WebRTC] Fix building libwebrtc on ARM
+        https://bugs.webkit.org/show_bug.cgi?id=196157
+
+        Reviewed by Philippe Normand.
+
+        Making sure neon files are built as required
+
+        * CMakeLists.txt:
+
+2019-03-22  Keith Rollin  <krollin@apple.com>
+
+        Enable ThinLTO support in Production builds
+        https://bugs.webkit.org/show_bug.cgi?id=190758
+        <rdar://problem/45413233>
+
+        Reviewed by Daniel Bates.
+
+        Enable building with Thin LTO in Production when using Xcode 10.2 or
+        later. This change results in a 1.45% progression in PLT5. Full
+        Production build times increase about 2-3%. Incremental build times
+        are more severely affected, and so LTO is not enabled for local
+        engineering builds.
+
+        LTO is enabled only on macOS for now, until rdar://problem/49013399,
+        which affects ARM builds, is fixed.
+
+        To change the LTO setting when building locally:
+
+        - If building with `make`, specify WK_LTO_MODE={none,thin,full} on the
+          command line.
+        - If building with `build-webkit`, specify --lto-mode={none,thin,full}
+          on the command line.
+        - If building with `build-root`, specify --lto={none,thin,full} on the
+          command line.
+        - If building with Xcode, create a LocalOverrides.xcconfig file at the
+          top level of your repository directory (if needed) and define
+          WK_LTO_MODE to full, thin, or none.
+
+        * Configurations/Base.xcconfig:
+
+2019-03-13  Keith Rollin  <krollin@apple.com>
+
+        Add support for new StagedFrameworks layout
+        https://bugs.webkit.org/show_bug.cgi?id=195543
+
+        Reviewed by Alexey Proskuryakov.
+
+        When creating the WebKit layout for out-of-band Safari/WebKit updates,
+        use an optional path prefix when called for.
+
+        * Configurations/Base.xcconfig:
+
+2019-03-13  Youenn Fablet  <youenn@apple.com>
+
+        Enable libwebrtc logging control through WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=195658
+
+        Reviewed by Eric Carlson.
+
+        Add a callback to get access to libwebrtc log messages.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Source/webrtc/rtc_base/logging.cc:
+        * Source/webrtc/rtc_base/logging.h:
+
+2019-03-07  Youenn Fablet  <youenn@apple.com>
+
+        Skip compilation of unused audio device files for Mac and iOS
+        https://bugs.webkit.org/show_bug.cgi?id=195412
+
+        Reviewed by Eric Carlson.
+
+        Stop compiling audio_device_mac.cc, audio_mixer_manager_mac.cc and voice_processing_audio_unit.mm
+        as unused in WebKit.
+        * libwebrtc.xcodeproj/project.pbxproj:
+
+2019-02-23  Keith Miller  <keith_miller@apple.com>
+
+        Add new mac target numbers
+        https://bugs.webkit.org/show_bug.cgi?id=194955
+
+        Reviewed by Tim Horton.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+
+2019-02-20  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Add SDKVariant.xcconfig to various Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=194869
+
+        Rubber-stamped by Jer Noble.
+
+        * libwebrtc.xcodeproj/project.pbxproj:
+
+2019-02-04  David Kilzer  <ddkilzer@apple.com>
+
+        vp8e_mr_alloc_mem() leaks LOWER_RES_FRAME_INFO if second memory allocation fails
+        <https://webkit.org/b/194265>
+
+        Reviewed by Youenn Fablet.
+
+        * Source/third_party/libvpx/source/libvpx/vp8/vp8_cx_iface.c:
+        (vp8e_mr_alloc_mem):
+        - Initialize `res` to VPX_CODEC_OK instead of 0.
+        - Return early if first calloc() fails instead of trying the
+          second calloc().  The function would crash dereferencing
+          nullptr in `shared_mem_loc->mb_info` otherwise.
+        - Call free(shared_mem_loc) if the second call to calloc()
+          fails.  This fixes the leak.
+        * WebKit/0003-libwebrtc-fix-vp8e_mr_alloc_mem-leak.diff: Add.
+
 2019-01-30  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, rolling out r240665.

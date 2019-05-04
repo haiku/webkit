@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include "AdClickAttribution.h"
 #include "BackForwardItemIdentifier.h"
 #include "FrameLoaderTypes.h"
 #include "LayoutPoint.h"
@@ -35,6 +36,7 @@
 #include "SecurityOrigin.h"
 #include "UserGestureIndicator.h"
 #include <wtf/Forward.h>
+#include <wtf/Optional.h>
 
 namespace WebCore {
 
@@ -127,11 +129,17 @@ public:
     void setTargetBackForwardItem(HistoryItem&);
     const Optional<BackForwardItemIdentifier>& targetBackForwardItemIdentifier() const { return m_targetBackForwardItemIdentifier; }
 
+    void setSourceBackForwardItem(HistoryItem*);
+    const Optional<BackForwardItemIdentifier>& sourceBackForwardItemIdentifier() const { return m_sourceBackForwardItemIdentifier; }
+
     LockHistory lockHistory() const { return m_lockHistory; }
     void setLockHistory(LockHistory lockHistory) { m_lockHistory = lockHistory; }
 
     LockBackForwardList lockBackForwardList() const { return m_lockBackForwardList; }
     void setLockBackForwardList(LockBackForwardList lockBackForwardList) { m_lockBackForwardList = lockBackForwardList; }
+
+    const Optional<AdClickAttribution>& adClickAttribution() const { return m_adClickAttribution; };
+    void setAdClickAttribution(AdClickAttribution&& adClickAttribution) { m_adClickAttribution = adClickAttribution; };
 
 private:
     // Do not add a strong reference to the originating document or a subobject that holds the
@@ -149,8 +157,10 @@ private:
     bool m_hasOpenedFrames { false };
     bool m_openedByDOMWithOpener { false };
     Optional<BackForwardItemIdentifier> m_targetBackForwardItemIdentifier;
+    Optional<BackForwardItemIdentifier> m_sourceBackForwardItemIdentifier;
     LockHistory m_lockHistory { LockHistory::No };
     LockBackForwardList m_lockBackForwardList { LockBackForwardList::No };
+    Optional<AdClickAttribution> m_adClickAttribution;
 };
 
 } // namespace WebCore

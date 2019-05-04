@@ -26,8 +26,6 @@
 #pragma once
 
 #include "AllDescendantsCollection.h"
-#include <wtf/Optional.h>
-#include <wtf/Variant.h>
 
 namespace WebCore {
 
@@ -41,8 +39,10 @@ public:
 private:
     HTMLAllCollection(Document&, CollectionType);
 };
+static_assert(sizeof(HTMLAllCollection) == sizeof(AllDescendantsCollection), "");
 
 class HTMLAllNamedSubCollection final : public CachedHTMLCollection<HTMLAllNamedSubCollection, CollectionTraversalType::Descendants> {
+    WTF_MAKE_ISO_ALLOCATED(HTMLAllNamedSubCollection);
 public:
     static Ref<HTMLAllNamedSubCollection> create(Document& document, CollectionType type, const AtomicString& name)
     {

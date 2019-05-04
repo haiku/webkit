@@ -39,6 +39,7 @@ namespace WebCore {
 
 #define WEBCORE_LOG_CHANNELS(M) \
     M(Animations) \
+    M(ApplePay) \
     M(Archives) \
     M(Compositing) \
     M(ContentFiltering) \
@@ -102,7 +103,6 @@ namespace WebCore {
     M(WebAudio) \
     M(WebGL) \
     M(WebGPU) \
-    M(WebMetal) \
     M(WebRTC) \
     M(WebRTCStats) \
     M(WheelEventTestTriggers) \

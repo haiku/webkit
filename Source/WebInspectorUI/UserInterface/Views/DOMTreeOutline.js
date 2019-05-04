@@ -49,6 +49,7 @@ WI.DOMTreeOutline = class DOMTreeOutline extends WI.TreeOutline
         this._excludeRevealElementContextMenu = excludeRevealElementContextMenu;
         this._rootDOMNode = null;
         this._selectedDOMNode = null;
+        this._treeElementsToRemove = null;
 
         this._editable = false;
         this._editing = false;
@@ -244,10 +245,10 @@ WI.DOMTreeOutline = class DOMTreeOutline extends WI.TreeOutline
 
     populateContextMenu(contextMenu, event, treeElement)
     {
-        let tag = event.target.enclosingNodeOrSelfWithClass("html-tag");
-        let textNode = event.target.enclosingNodeOrSelfWithClass("html-text-node");
-        let commentNode = event.target.enclosingNodeOrSelfWithClass("html-comment");
-        let pseudoElement = event.target.enclosingNodeOrSelfWithClass("html-pseudo-element");
+        let tag = event.target.closest(".html-tag");
+        let textNode = event.target.closest(".html-text-node");
+        let commentNode = event.target.closest(".html-comment");
+        let pseudoElement = event.target.closest(".html-pseudo-element");
 
         let subMenus = {
             add: new WI.ContextSubMenuItem(contextMenu, WI.UIString("Add")),
@@ -284,7 +285,7 @@ WI.DOMTreeOutline = class DOMTreeOutline extends WI.TreeOutline
         if (!this._editable)
             return false;
 
-        let selectedTreeElements = this.selectedTreeElements;
+        this._treeElementsToRemove = this.selectedTreeElements;
         this._selectionController.removeSelectedItems();
 
         let levelMap = new Map;
@@ -303,20 +304,55 @@ WI.DOMTreeOutline = class DOMTreeOutline extends WI.TreeOutline
 
         // Sort in descending order by node level. This ensures that child nodes
         // are removed before their ancestors.
-        selectedTreeElements.sort((a, b) => getLevel(b) - getLevel(a));
+        this._treeElementsToRemove.sort((a, b) => getLevel(b) - getLevel(a));
 
         // Track removed elements, since the opening and closing tags for the
         // same WI.DOMNode can both be selected.
         let removedTreeElements = new Set;
 
-        for (let treeElement of selectedTreeElements) {
+        for (let treeElement of this._treeElementsToRemove) {
             if (removedTreeElements.has(treeElement))
                 continue;
             removedTreeElements.add(treeElement)
             treeElement.remove();
         }
 
+        this._treeElementsToRemove = null;
+
         return true;
+    }
+
+    // Protected
+
+    canSelectTreeElement(treeElement)
+    {
+        if (!super.canSelectTreeElement(treeElement))
+            return false;
+
+        let willRemoveAncestorOrSelf = false;
+        if (this._treeElementsToRemove) {
+            while (treeElement && !willRemoveAncestorOrSelf) {
+                willRemoveAncestorOrSelf = this._treeElementsToRemove.includes(treeElement);
+                treeElement = treeElement.parent;
+            }
+        }
+
+        return !willRemoveAncestorOrSelf;
+    }
+
+    objectForSelection(treeElement)
+    {
+        if (treeElement instanceof WI.DOMTreeElement && treeElement.isCloseTag()) {
+            // SelectionController requires every selectable item to be unique.
+            // The DOMTreeElement for a close tag has the same represented object
+            // as it's parent (the open tag). Return a proxy object associated
+            // with the tree element for the close tag so it can be selected.
+            if (!treeElement.__closeTagProxyObject)
+                treeElement.__closeTagProxyObject = {__proxyObjectTreeElement: treeElement};
+            return treeElement.__closeTagProxyObject;
+        }
+
+        return super.objectForSelection(treeElement);
     }
 
     // Private

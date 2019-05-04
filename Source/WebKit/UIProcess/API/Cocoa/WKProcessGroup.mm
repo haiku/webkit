@@ -26,8 +26,6 @@
 #import "config.h"
 #import "WKProcessGroupPrivate.h"
 
-#if WK_API_ENABLED
-
 #import "APINavigationData.h"
 #import "APIProcessPoolConfiguration.h"
 #import "ObjCObjectGraph.h"
@@ -217,6 +215,11 @@ static void setUpHistoryClient(WKProcessGroup *processGroup, WKContextRef contex
 - (void)setDelegate:(id <WKProcessGroupDelegate>)delegate
 {
     _delegate = delegate;
+
+    // If the client can observe when the connection to the WebProcess injected bundle is established, then we cannot
+    // safely delay the launch of the WebProcess until something is loaded in the web view.
+    if ([delegate respondsToSelector:@selector(processGroup:didCreateConnectionToWebProcessPlugIn:)])
+        _processPool->disableDelayedWebProcessLaunch();
 }
 
 @end
@@ -247,5 +250,3 @@ IGNORE_WARNINGS_END
 
 @end
 ALLOW_DEPRECATED_DECLARATIONS_END
-
-#endif // WK_API_ENABLED

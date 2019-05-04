@@ -45,6 +45,7 @@
 #include "SearchPopupMenu.h"
 #include "WebCoreKeyboardUIMode.h"
 #include <JavaScriptCore/ConsoleTypes.h>
+#include <wtf/Assertions.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Forward.h>
 #include <wtf/Seconds.h>
@@ -101,6 +102,7 @@ class Widget;
 class MediaPlayerRequestInstallMissingPluginsCallback;
 #endif
 
+struct ContentRuleListResults;
 struct DateTimeChooserParameters;
 struct GraphicsDeviceAdapter;
 struct ShareDataWithParsedURL;
@@ -174,11 +176,8 @@ public:
 
     virtual IntPoint screenToRootView(const IntPoint&) const = 0;
     virtual IntRect rootViewToScreen(const IntRect&) const = 0;
-
-#if PLATFORM(IOS_FAMILY)
     virtual IntPoint accessibilityScreenToRootView(const IntPoint&) const = 0;
     virtual IntRect rootViewToAccessibilityScreen(const IntRect&) const = 0;
-#endif    
 
     virtual PlatformPageClient platformPageClient() const = 0;
 
@@ -245,7 +244,6 @@ public:
     virtual void didReceiveMobileDocType(bool) = 0;
     virtual void setNeedsScrollNotifications(Frame&, bool) = 0;
     virtual void observedContentChange(Frame&) = 0;
-    virtual void clearContentChangeObservers(Frame&) = 0;
     virtual void notifyRevealedSelectionByScrollingFrame(Frame&) = 0;
 
     enum LayoutType { NormalLayout, Scroll };
@@ -308,7 +306,7 @@ public:
 
     // Pass nullptr as the GraphicsLayer to detatch the root layer.
     virtual void attachRootGraphicsLayer(Frame&, GraphicsLayer*) = 0;
-    virtual void attachViewOverlayGraphicsLayer(Frame&, GraphicsLayer*) = 0;
+    virtual void attachViewOverlayGraphicsLayer(GraphicsLayer*) = 0;
     // Sets a flag to specify that the next time content is drawn to the window,
     // the changes appear on the screen in synchrony with updates to GraphicsLayers.
     virtual void setNeedsOneShotDrawingSynchronization() = 0;
@@ -387,7 +385,7 @@ public:
     virtual void enableSuddenTermination() { }
     virtual void disableSuddenTermination() { }
 
-    virtual void contentRuleListNotification(const URL&, const HashSet<std::pair<String, String>>&) { };
+    virtual void contentRuleListNotification(const URL&, const ContentRuleListResults&) { };
 
 #if PLATFORM(WIN)
     virtual void setLastSetCursorToCurrentCursor() = 0;
@@ -406,7 +404,7 @@ public:
     virtual void notifyScrollerThumbIsVisibleInRect(const IntRect&) { }
     virtual void recommendedScrollbarStyleDidChange(ScrollbarStyle) { }
 
-    virtual Optional<ScrollbarOverlayStyle> preferredScrollbarOverlayStyle() { return ScrollbarOverlayStyleDefault; }
+    virtual Optional<ScrollbarOverlayStyle> preferredScrollbarOverlayStyle() { return WTF::nullopt; }
 
     virtual void wheelEventHandlersChanged(bool hasHandlers) = 0;
         
@@ -486,6 +484,10 @@ public:
     virtual void hasStorageAccess(String&& /*subFrameHost*/, String&& /*topFrameHost*/, uint64_t /*frameID*/, uint64_t /*pageID*/, WTF::CompletionHandler<void (bool)>&& callback) { callback(false); }
     virtual void requestStorageAccess(String&& /*subFrameHost*/, String&& /*topFrameHost*/, uint64_t /*frameID*/, uint64_t /*pageID*/, WTF::CompletionHandler<void (bool)>&& callback) { callback(false); }
 
+#if ENABLE(DEVICE_ORIENTATION)
+    virtual void shouldAllowDeviceOrientationAndMotionAccess(Frame&, WTF::CompletionHandler<void(bool)>&& callback) { callback(true); }
+#endif
+
     virtual void didInsertMenuElement(HTMLMenuElement&) { }
     virtual void didRemoveMenuElement(HTMLMenuElement&) { }
     virtual void didInsertMenuItemElement(HTMLMenuItemElement&) { }
@@ -496,6 +498,8 @@ public:
     virtual void associateEditableImageWithAttachment(GraphicsLayer::EmbeddedViewID, const String&) { }
     virtual void didCreateEditableImage(GraphicsLayer::EmbeddedViewID) { }
     virtual void didDestroyEditableImage(GraphicsLayer::EmbeddedViewID) { }
+
+    virtual void configureLoggingChannel(const String&, WTFLogChannelState, WTFLogLevel) { }
 
 protected:
     virtual ~ChromeClient() = default;

@@ -93,6 +93,17 @@ void ScrollingTreeScrollingNode::commitStateBeforeChildren(const ScrollingStateN
 
     if (state.hasChangedProperty(ScrollingStateScrollingNode::ScrollableAreaParams))
         m_scrollableAreaParameters = state.scrollableAreaParameters();
+
+    if (state.hasChangedProperty(ScrollingStateScrollingNode::ExpectsWheelEventTestTrigger))
+        m_expectsWheelEventTestTrigger = state.expectsWheelEventTestTrigger();
+
+#if PLATFORM(COCOA)
+    if (state.hasChangedProperty(ScrollingStateScrollingNode::ScrollContainerLayer))
+        m_scrollContainerLayer = state.scrollContainerLayer();
+
+    if (state.hasChangedProperty(ScrollingStateScrollingNode::ScrolledContentsLayer))
+        m_scrolledContentsLayer = state.scrolledContentsLayer();
+#endif
 }
 
 void ScrollingTreeScrollingNode::commitStateAfterChildren(const ScrollingStateNode& stateNode)
@@ -102,30 +113,19 @@ void ScrollingTreeScrollingNode::commitStateAfterChildren(const ScrollingStateNo
         scrollingTree().scrollingTreeNodeRequestsScroll(scrollingNodeID(), scrollingStateNode.requestedScrollPosition(), scrollingStateNode.requestedScrollPositionRepresentsProgrammaticScroll());
 }
 
-void ScrollingTreeScrollingNode::updateLayersAfterAncestorChange(const ScrollingTreeNode& changedNode, const FloatRect& fixedPositionRect, const FloatSize& cumulativeDelta)
+ScrollingEventResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
 {
-    if (!m_children)
-        return;
-
-    for (auto& child : *m_children)
-        child->updateLayersAfterAncestorChange(changedNode, fixedPositionRect, cumulativeDelta);
+    return ScrollingEventResult::DidNotHandleEvent;
 }
 
-void ScrollingTreeScrollingNode::setScrollPosition(const FloatPoint& scrollPosition)
+FloatPoint ScrollingTreeScrollingNode::clampScrollPosition(const FloatPoint& scrollPosition) const
 {
-    FloatPoint newScrollPosition = scrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
-    setScrollPositionWithoutContentEdgeConstraints(newScrollPosition);
-}
-
-void ScrollingTreeScrollingNode::setScrollPositionWithoutContentEdgeConstraints(const FloatPoint& scrollPosition)
-{
-    setScrollLayerPosition(scrollPosition, { });
-    scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, WTF::nullopt);
+    return scrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
 }
 
 FloatPoint ScrollingTreeScrollingNode::minimumScrollPosition() const
 {
-    return FloatPoint();
+    return { };
 }
 
 FloatPoint ScrollingTreeScrollingNode::maximumScrollPosition() const
@@ -136,10 +136,78 @@ FloatPoint ScrollingTreeScrollingNode::maximumScrollPosition() const
 
 bool ScrollingTreeScrollingNode::scrollLimitReached(const PlatformWheelEvent& wheelEvent) const
 {
-    FloatPoint oldScrollPosition = scrollPosition();
+    FloatPoint oldScrollPosition = currentScrollPosition();
     FloatPoint newScrollPosition = oldScrollPosition + FloatSize(wheelEvent.deltaX(), -wheelEvent.deltaY());
     newScrollPosition = newScrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
     return newScrollPosition == oldScrollPosition;
+}
+
+FloatPoint ScrollingTreeScrollingNode::adjustedScrollPosition(const FloatPoint& scrollPosition, ScrollPositionClamp clamp) const
+{
+    if (clamp == ScrollPositionClamp::ToContentEdges)
+        return clampScrollPosition(scrollPosition);
+
+    return scrollPosition;
+}
+
+void ScrollingTreeScrollingNode::scrollBy(const FloatSize& delta, ScrollPositionClamp clamp)
+{
+    scrollTo(currentScrollPosition() + delta, ScrollType::User, clamp);
+}
+
+void ScrollingTreeScrollingNode::scrollTo(const FloatPoint& position, ScrollType scrollType, ScrollPositionClamp clamp)
+{
+    if (position == m_currentScrollPosition)
+        return;
+
+    scrollingTree().setIsHandlingProgrammaticScroll(scrollType == ScrollType::Programmatic);
+    
+    m_currentScrollPosition = adjustedScrollPosition(position, clamp);
+    
+    LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeScrollingNode " << scrollingNodeID() << " scrollTo " << position << " (delta from last committed position " << (m_lastCommittedScrollPosition - m_currentScrollPosition) << ")");
+
+    updateViewportForCurrentScrollPosition();
+    currentScrollPositionChanged();
+
+    scrollingTree().setIsHandlingProgrammaticScroll(false);
+}
+
+void ScrollingTreeScrollingNode::currentScrollPositionChanged()
+{
+    repositionScrollingLayers();
+    repositionRelatedLayers();
+
+    scrollingTree().notifyRelatedNodesAfterScrollPositionChange(*this);
+    scrollingTree().scrollingTreeNodeDidScroll(*this);
+}
+
+bool ScrollingTreeScrollingNode::scrollPositionAndLayoutViewportMatch(const FloatPoint& position, Optional<FloatRect>)
+{
+    return position == m_currentScrollPosition;
+}
+
+void ScrollingTreeScrollingNode::applyLayerPositions(const FloatRect&, FloatSize&)
+{
+    repositionScrollingLayers();
+    repositionRelatedLayers();
+}
+
+void ScrollingTreeScrollingNode::wasScrolledByDelegatedScrolling(const FloatPoint& position, Optional<FloatRect> overrideLayoutViewport)
+{
+    // Even if position and overrideLayoutViewport haven't changed for this node, other nodes may have received new constraint data
+    // via a commit, so the call to notifyRelatedNodesAfterScrollPositionChange() is necessary. We could avoid this if we knew that
+    // no commits had happened.
+    bool scrollPositionChanged = !scrollPositionAndLayoutViewportMatch(position, overrideLayoutViewport);
+
+    m_currentScrollPosition = adjustedScrollPosition(position, ScrollPositionClamp::None);
+    updateViewportForCurrentScrollPosition(overrideLayoutViewport);
+
+    repositionRelatedLayers();
+
+    scrollingTree().notifyRelatedNodesAfterScrollPositionChange(*this);
+    
+    if (scrollPositionChanged)
+        scrollingTree().scrollingTreeNodeDidScroll(*this);
 }
 
 LayoutPoint ScrollingTreeScrollingNode::parentToLocalPoint(LayoutPoint point) const
@@ -149,7 +217,7 @@ LayoutPoint ScrollingTreeScrollingNode::parentToLocalPoint(LayoutPoint point) co
 
 LayoutPoint ScrollingTreeScrollingNode::localToContentsPoint(LayoutPoint point) const
 {
-    return point + LayoutPoint(scrollPosition());
+    return point + LayoutPoint(currentScrollPosition());
 }
 
 ScrollingTreeScrollingNode* ScrollingTreeScrollingNode::scrollingNodeForPoint(LayoutPoint parentPoint) const

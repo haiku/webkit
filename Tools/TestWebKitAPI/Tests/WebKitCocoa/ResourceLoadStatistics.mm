@@ -33,8 +33,6 @@
 #import <WebKit/WKWebsiteDataStorePrivate.h>
 #import <wtf/RetainPtr.h>
 
-#if WK_API_ENABLED
-
 static bool finishedNavigation = false;
 
 @interface DisableITPDuringNavigationDelegate : NSObject <WKNavigationDelegate>
@@ -76,6 +74,7 @@ TEST(ResourceLoadStatistics, GrandfatherCallback)
     // We need an active NetworkProcess to perform ResourceLoadStatistics operations.
     auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
     [dataStore _setResourceLoadStatisticsEnabled:YES];
+    [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
 
     TestWebKitAPI::Util::run(&grandfatheredFlag);
 
@@ -141,6 +140,7 @@ TEST(ResourceLoadStatistics, ShouldNotGrandfatherOnStartup)
     // We need an active NetworkProcess to perform ResourceLoadStatistics operations.
     auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
     [dataStore _setResourceLoadStatisticsEnabled:YES];
+    [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
 
     TestWebKitAPI::Util::run(&callbackFlag);
 }
@@ -172,6 +172,7 @@ TEST(ResourceLoadStatistics, ChildProcessesNotLaunched)
     // We need an active NetworkProcess to perform ResourceLoadStatistics operations.
     auto webView = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)]);
     [dataStore _setResourceLoadStatisticsEnabled:YES];
+    [webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"about:blank"]]];
 
     TestWebKitAPI::Util::run(&doneFlag);
 
@@ -203,6 +204,3 @@ TEST(ResourceLoadStatistics, IPCAfterStoreDestruction)
 
     TestWebKitAPI::Util::run(&finishedNavigation);
 }
-
-#endif
-

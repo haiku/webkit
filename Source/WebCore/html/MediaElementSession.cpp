@@ -41,6 +41,7 @@
 #include "Logging.h"
 #include "Page.h"
 #include "PlatformMediaSessionManager.h"
+#include "Quirks.h"
 #include "RenderMedia.h"
 #include "RenderView.h"
 #include "ScriptController.h"
@@ -84,7 +85,6 @@ static String restrictionNames(MediaElementSession::BehaviorRestrictions restric
     CASE(RequireUserGestureToShowPlaybackTargetPicker)
     CASE(WirelessVideoPlaybackDisabled)
     CASE(RequireUserGestureToAutoplayToExternalDevice)
-    CASE(MetadataPreloadingNotPermitted)
     CASE(AutoPreloadingNotPermitted)
     CASE(InvisibleAutoplayNotPermitted)
     CASE(OverrideUserGestureRequirementForMainContent)
@@ -244,26 +244,6 @@ void MediaElementSession::removeBehaviorRestriction(BehaviorRestrictions restric
     m_restrictions &= ~restriction;
 }
 
-#if PLATFORM(MAC)
-static bool needsArbitraryUserGestureAutoplayQuirk(const Document& document)
-{
-    if (!document.settings().needsSiteSpecificQuirks())
-        return false;
-
-    auto loader = makeRefPtr(document.loader());
-    return loader && loader->allowedAutoplayQuirks().contains(AutoplayQuirk::ArbitraryUserGestures);
-}
-#endif // PLATFORM(MAC)
-
-static bool needsPerDocumentAutoplayBehaviorQuirk(const Document& document)
-{
-    if (!document.settings().needsSiteSpecificQuirks())
-        return false;
-
-    auto loader = makeRefPtr(document.loader());
-    return loader && loader->allowedAutoplayQuirks().contains(AutoplayQuirk::PerDocumentAutoplayBehavior);
-}
-
 SuccessOr<MediaPlaybackDenialReason> MediaElementSession::playbackPermitted() const
 {
     if (m_element.isSuspended()) {
@@ -273,8 +253,10 @@ SuccessOr<MediaPlaybackDenialReason> MediaElementSession::playbackPermitted() co
 
     auto& document = m_element.document();
     auto* page = document.page();
-    if (!page || page->mediaPlaybackIsSuspended())
+    if (!page || page->mediaPlaybackIsSuspended()) {
+        ALWAYS_LOG(LOGIDENTIFIER, "Returning FALSE because media playback is suspended");
         return MediaPlaybackDenialReason::PageConsentRequired;
+    }
 
     if (document.isMediaDocument() && !document.ownerElement())
         return { };
@@ -299,14 +281,13 @@ SuccessOr<MediaPlaybackDenialReason> MediaElementSession::playbackPermitted() co
     }
 #endif
 
+    // FIXME: Why are we checking top-level document only for PerDocumentAutoplayBehavior?
     const auto& topDocument = document.topDocument();
-    if (topDocument.mediaState() & MediaProducer::HasUserInteractedWithMediaElement && needsPerDocumentAutoplayBehaviorQuirk(topDocument))
+    if (topDocument.mediaState() & MediaProducer::HasUserInteractedWithMediaElement && topDocument.quirks().needsPerDocumentAutoplayBehavior())
         return { };
 
-#if PLATFORM(MAC)
-    if (document.hasHadUserInteraction() && needsArbitraryUserGestureAutoplayQuirk(document))
+    if (document.hasHadUserInteraction() && document.quirks().shouldAutoplayForArbitraryUserGesture())
         return { };
-#endif
 
     if (m_restrictions & RequireUserGestureForVideoRateChange && m_element.isVideo() && !document.processingUserGestureForMedia()) {
         ALWAYS_LOG(LOGIDENTIFIER, "Returning FALSE because a user gesture is required for video rate change restriction");
@@ -377,6 +358,9 @@ bool MediaElementSession::dataLoadingPermitted() const
 bool MediaElementSession::dataBufferingPermitted() const
 {
     if (isSuspended())
+        return false;
+
+    if (bufferingSuspended())
         return false;
 
     if (state() == PlatformMediaSession::Playing)
@@ -705,9 +689,6 @@ MediaPlayer::Preload MediaElementSession::effectivePreloadForElement() const
     if (pageExplicitlyAllowsElementToAutoplayInline(m_element))
         return preload;
 
-    if (m_restrictions & MetadataPreloadingNotPermitted)
-        return MediaPlayer::None;
-
     if (m_restrictions & AutoPreloadingNotPermitted) {
         if (preload > MediaPlayer::MetaData)
             return MediaPlayer::MetaData;
@@ -783,6 +764,23 @@ void MediaElementSession::resetPlaybackSessionState()
 {
     m_mostRecentUserInteractionTime = MonotonicTime();
     addBehaviorRestriction(RequireUserGestureToControlControlsManager | RequirePlaybackToControlControlsManager);
+}
+
+void MediaElementSession::suspendBuffering()
+{
+    updateClientDataBuffering();
+}
+
+void MediaElementSession::resumeBuffering()
+{
+    updateClientDataBuffering();
+}
+
+bool MediaElementSession::bufferingSuspended() const
+{
+    if (auto* page = m_element.document().page())
+        return page->mediaBufferingIsSuspended();
+    return true;
 }
 
 bool MediaElementSession::allowsPictureInPicture() const
@@ -977,6 +975,22 @@ bool MediaElementSession::allowsPlaybackControlsForAutoplayingAudio() const
     return page && page->allowsPlaybackControlsForAutoplayingAudio();
 }
 
+String convertEnumerationToString(const MediaPlaybackDenialReason enumerationValue)
+{
+    static const NeverDestroyed<String> values[] = {
+        MAKE_STATIC_STRING_IMPL("UserGestureRequired"),
+        MAKE_STATIC_STRING_IMPL("FullscreenRequired"),
+        MAKE_STATIC_STRING_IMPL("PageConsentRequired"),
+        MAKE_STATIC_STRING_IMPL("InvalidState"),
+    };
+    static_assert(static_cast<size_t>(MediaPlaybackDenialReason::UserGestureRequired) == 0, "MediaPlaybackDenialReason::UserGestureRequired is not 0 as expected");
+    static_assert(static_cast<size_t>(MediaPlaybackDenialReason::FullscreenRequired) == 1, "MediaPlaybackDenialReason::FullscreenRequired is not 1 as expected");
+    static_assert(static_cast<size_t>(MediaPlaybackDenialReason::PageConsentRequired) == 2, "MediaPlaybackDenialReason::PageConsentRequired is not 2 as expected");
+    static_assert(static_cast<size_t>(MediaPlaybackDenialReason::InvalidState) == 3, "MediaPlaybackDenialReason::InvalidState is not 3 as expected");
+    ASSERT(static_cast<size_t>(enumerationValue) < WTF_ARRAY_LENGTH(values));
+    return values[static_cast<size_t>(enumerationValue)];
+}
+    
 }
 
 #endif // ENABLE(VIDEO)

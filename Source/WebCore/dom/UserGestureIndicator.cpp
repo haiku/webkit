@@ -31,6 +31,7 @@
 #include "ResourceLoadObserver.h"
 #include <wtf/MainThread.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/Optional.h>
 
 namespace WebCore {
 
@@ -87,6 +88,9 @@ UserGestureIndicator::~UserGestureIndicator()
     if (!isMainThread())
         return;
     
+    if (auto token = currentToken())
+        token->resetDOMPasteAccess();
+
     currentToken() = m_previousToken;
 }
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2004, 2005, 2006, 2007, 2008 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) 2004, 2005, 2006, 2008 Rob Buis <buis@kde.org>
- * Copyright (C) 2008-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2008-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Alp Toker <alp@atoker.com>
  * Copyright (C) 2009 Cameron McCormack <cam@mcc.id.au>
  * Copyright (C) 2013 Samsung Electronics. All rights reserved.
@@ -44,6 +44,7 @@
 #include "SVGGraphicsElement.h"
 #include "SVGImageElement.h"
 #include "SVGNames.h"
+#include "SVGPropertyAnimatorFactory.h"
 #include "SVGRenderStyle.h"
 #include "SVGRenderSupport.h"
 #include "SVGSVGElement.h"
@@ -157,126 +158,15 @@ static NEVER_INLINE HashMap<AtomicStringImpl*, CSSPropertyID> createAttributeNam
     return map;
 }
 
-static NEVER_INLINE HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType> createAttributeNameToAnimatedPropertyTypeMap()
-{
-    using namespace HTMLNames;
-    using namespace SVGNames;
-
-    struct TableEntry {
-        const QualifiedName& attributeName;
-        AnimatedPropertyType type;
-    };
-
-    static const TableEntry table[] = {
-        { alignment_baselineAttr, AnimatedString },
-        { baseline_shiftAttr, AnimatedString },
-        { buffered_renderingAttr, AnimatedString },
-        { clipAttr, AnimatedRect },
-        { clip_pathAttr, AnimatedString },
-        { clip_ruleAttr, AnimatedString },
-        { SVGNames::colorAttr, AnimatedColor },
-        { color_interpolationAttr, AnimatedString },
-        { color_interpolation_filtersAttr, AnimatedString },
-        { color_profileAttr, AnimatedString },
-        { color_renderingAttr, AnimatedString },
-        { cursorAttr, AnimatedString },
-        { displayAttr, AnimatedString },
-        { dominant_baselineAttr, AnimatedString },
-        { fillAttr, AnimatedColor },
-        { fill_opacityAttr, AnimatedNumber },
-        { fill_ruleAttr, AnimatedString },
-        { filterAttr, AnimatedString },
-        { flood_colorAttr, AnimatedColor },
-        { flood_opacityAttr, AnimatedNumber },
-        { font_familyAttr, AnimatedString },
-        { font_sizeAttr, AnimatedLength },
-        { font_stretchAttr, AnimatedString },
-        { font_styleAttr, AnimatedString },
-        { font_variantAttr, AnimatedString },
-        { font_weightAttr, AnimatedString },
-        { image_renderingAttr, AnimatedString },
-        { kerningAttr, AnimatedLength },
-        { letter_spacingAttr, AnimatedLength },
-        { lighting_colorAttr, AnimatedColor },
-        { marker_endAttr, AnimatedString },
-        { marker_midAttr, AnimatedString },
-        { marker_startAttr, AnimatedString },
-        { maskAttr, AnimatedString },
-        { mask_typeAttr, AnimatedString },
-        { opacityAttr, AnimatedNumber },
-        { overflowAttr, AnimatedString },
-        { paint_orderAttr, AnimatedString },
-        { pointer_eventsAttr, AnimatedString },
-        { shape_renderingAttr, AnimatedString },
-        { stop_colorAttr, AnimatedColor },
-        { stop_opacityAttr, AnimatedNumber },
-        { strokeAttr, AnimatedColor },
-        { stroke_dasharrayAttr, AnimatedLengthList },
-        { stroke_dashoffsetAttr, AnimatedLength },
-        { stroke_linecapAttr, AnimatedString },
-        { stroke_linejoinAttr, AnimatedString },
-        { stroke_miterlimitAttr, AnimatedNumber },
-        { stroke_opacityAttr, AnimatedNumber },
-        { stroke_widthAttr, AnimatedLength },
-        { text_anchorAttr, AnimatedString },
-        { text_decorationAttr, AnimatedString },
-        { text_renderingAttr, AnimatedString },
-        { vector_effectAttr, AnimatedString },
-        { visibilityAttr, AnimatedString },
-        { word_spacingAttr, AnimatedLength },
-    };
-
-    HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType> map;
-    for (auto& entry : table)
-        map.add(entry.attributeName.impl(), entry.type);
-    return map;
-}
-
-static const HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType>& attributeNameToAnimatedPropertyTypeMap()
-{
-    static const auto map = makeNeverDestroyed(createAttributeNameToAnimatedPropertyTypeMap());
-    return map;
-}
-
-static NEVER_INLINE HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType> createCSSPropertyWithSVGDOMNameToAnimatedPropertyTypeMap()
-{
-    using namespace HTMLNames;
-    using namespace SVGNames;
-
-    struct TableEntry {
-        const QualifiedName& attributeName;
-        AnimatedPropertyType type;
-    };
-
-    static const TableEntry table[] = {
-        { cxAttr, AnimatedLength },
-        { cyAttr, AnimatedLength },
-        { rAttr, AnimatedLength },
-        { rxAttr, AnimatedLength },
-        { ryAttr, AnimatedLength },
-        { SVGNames::heightAttr, AnimatedLength },
-        { SVGNames::widthAttr, AnimatedLength },
-        { xAttr, AnimatedLength },
-        { yAttr, AnimatedLength },
-    };
-
-    HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType> map;
-    for (auto& entry : table)
-        map.add(entry.attributeName.impl(), entry.type);
-    return map;
-}
-
-static inline const HashMap<QualifiedName::QualifiedNameImpl*, AnimatedPropertyType>& cssPropertyWithSVGDOMNameToAnimatedPropertyTypeMap()
-{
-    static const auto map = makeNeverDestroyed(createCSSPropertyWithSVGDOMNameToAnimatedPropertyTypeMap());
-    return map;
-}
-
 SVGElement::SVGElement(const QualifiedName& tagName, Document& document)
     : StyledElement(tagName, document, CreateSVGElement)
     , SVGLangSpace(this)
+    , m_propertyAnimatorFactory(std::make_unique<SVGPropertyAnimatorFactory>())
 {
-    registerAttributes();
+    static std::once_flag onceFlag;
+    std::call_once(onceFlag, [] {
+        PropertyRegistry::registerProperty<HTMLNames::classAttr, &SVGElement::m_className>();
+    });
 }
 
 SVGElement::~SVGElement()
@@ -451,18 +341,10 @@ void SVGElement::setCorrespondingElement(SVGElement* correspondingElement)
         correspondingElement->ensureSVGRareData().instances().add(this);
 }
 
-void SVGElement::registerAttributes()
-{
-    auto& registry = attributeRegistry();
-    if (!registry.isEmpty())
-        return;
-    registry.registerAttribute<HTMLNames::classAttr, &SVGElement::m_className>();
-}
-
 void SVGElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
     if (name == HTMLNames::classAttr) {
-        m_className.setValue(value);
+        m_className->setBaseValInternal(value);
         return;
     }
 
@@ -481,33 +363,6 @@ void SVGElement::parseAttribute(const QualifiedName& name, const AtomicString& v
     }
 
     SVGLangSpace::parseAttribute(name, value);
-}
-
-Vector<AnimatedPropertyType> SVGElement::animatedPropertyTypesForAttribute(const QualifiedName& attributeName)
-{
-    auto types = animatedTypes(attributeName);
-    if (!types.isEmpty())
-        return types;
-
-    {
-        auto& map = attributeNameToAnimatedPropertyTypeMap();
-        auto it = map.find(attributeName.impl());
-        if (it != map.end()) {
-            types.append(it->value);
-            return types;
-        }
-    }
-
-    {
-        auto& map = cssPropertyWithSVGDOMNameToAnimatedPropertyTypeMap();
-        auto it = map.find(attributeName.impl());
-        if (it != map.end()) {
-            types.append(it->value);
-            return types;
-        }
-    }
-
-    return types;
 }
 
 bool SVGElement::haveLoadedRequiredResources()
@@ -693,25 +548,86 @@ void SVGElement::attributeChanged(const QualifiedName& name, const AtomicString&
         svgAttributeChanged(name);
 }
 
-void SVGElement::synchronizeAllAnimatedSVGAttribute(SVGElement* svgElement)
+void SVGElement::synchronizeAttribute(const QualifiedName& name)
 {
-    ASSERT(svgElement->elementData());
-    ASSERT(svgElement->elementData()->animatedSVGAttributesAreDirty());
-
-    svgElement->synchronizeAttributes();
-    svgElement->elementData()->setAnimatedSVGAttributesAreDirty(false);
+    // If the value of the property has changed, serialize the new value to the attribute.
+    if (auto value = propertyRegistry().synchronize(name))
+        setSynchronizedLazyAttribute(name, *value);
+}
+    
+void SVGElement::synchronizeAllAttributes()
+{
+    // SVGPropertyRegistry::synchronizeAllAttributes() returns the new values of
+    // the properties which have changed but not committed yet.
+    auto map = propertyRegistry().synchronizeAllAttributes();
+    for (const auto& entry : map)
+        setSynchronizedLazyAttribute(entry.key, entry.value);
 }
 
-void SVGElement::synchronizeAnimatedSVGAttribute(const QualifiedName& name) const
+void SVGElement::synchronizeAllAnimatedSVGAttribute(SVGElement& svgElement)
 {
-    if (!elementData() || !elementData()->animatedSVGAttributesAreDirty())
-        return;
+    svgElement.synchronizeAllAttributes();
+}
 
-    SVGElement* nonConstThis = const_cast<SVGElement*>(this);
-    if (name == anyQName())
-        synchronizeAllAnimatedSVGAttribute(nonConstThis);
+void SVGElement::commitPropertyChange(SVGProperty* property)
+{
+    // We want to dirty the top-level property when a descendant changes. For example
+    // a change in an SVGLength item in SVGLengthList should set the dirty flag on
+    // SVGLengthList and not the SVGLength.
+    property->setDirty();
+
+    invalidateSVGAttributes();
+    svgAttributeChanged(propertyRegistry().propertyAttributeName(*property));
+}
+
+void SVGElement::commitPropertyChange(SVGAnimatedProperty& animatedProperty)
+{
+    QualifiedName attributeName = propertyRegistry().animatedPropertyAttributeName(animatedProperty);
+
+    // A change in a style property, e.g SVGRectElement::x should be serialized to
+    // the attribute immediately. Otherwise it is okay to be lazy in this regard.
+    if (!propertyRegistry().isAnimatedStylePropertyAttribute(attributeName))
+        animatedProperty.setDirty();
     else
-        nonConstThis->synchronizeAttribute(name);
+        setSynchronizedLazyAttribute(attributeName, animatedProperty.baseValAsString());
+
+    invalidateSVGAttributes();
+    svgAttributeChanged(attributeName);
+}
+
+bool SVGElement::isAnimatedPropertyAttribute(const QualifiedName& attributeName) const
+{
+    return propertyRegistry().isAnimatedPropertyAttribute(attributeName);
+}
+
+bool SVGElement::isAnimatedAttribute(const QualifiedName& attributeName) const
+{
+    return SVGPropertyAnimatorFactory::isKnownAttribute(attributeName) || isAnimatedPropertyAttribute(attributeName);
+}
+
+bool SVGElement::isAnimatedStyleAttribute(const QualifiedName& attributeName) const
+{
+    return SVGPropertyAnimatorFactory::isKnownAttribute(attributeName) || propertyRegistry().isAnimatedStylePropertyAttribute(attributeName);
+}
+
+std::unique_ptr<SVGAttributeAnimator> SVGElement::createAnimator(const QualifiedName& attributeName, AnimationMode animationMode, CalcMode calcMode, bool isAccumulated, bool isAdditive)
+{
+    // Property animator, e.g. "fill" or "fill-opacity".
+    if (auto animator = propertyAnimatorFactory().createAnimator(attributeName, animationMode, calcMode, isAccumulated, isAdditive))
+        return animator;
+    
+    // Animated property animator.
+    auto animator = propertyRegistry().createAnimator(attributeName, animationMode, calcMode, isAccumulated, isAdditive);
+    if (!animator)
+        return animator;
+    for (auto* instance : instances())
+        instance->propertyRegistry().appendAnimatedInstance(attributeName, *animator);
+    return animator;
+}
+    
+void SVGElement::animatorWillBeDeleted(const QualifiedName& attributeName)
+{
+    propertyAnimatorFactory().animatorWillBeDeleted(attributeName);
 }
 
 Optional<ElementStyle> SVGElement::resolveCustomStyle(const RenderStyle& parentStyle, const RenderStyle*)
@@ -913,17 +829,6 @@ CSSPropertyID SVGElement::cssPropertyIdForSVGAttributeName(const QualifiedName& 
 
     static const auto properties = makeNeverDestroyed(createAttributeNameToCSSPropertyIDMap());
     return properties.get().get(attrName.localName().impl());
-}
-
-bool SVGElement::isAnimatableCSSProperty(const QualifiedName& attributeName)
-{
-    return attributeNameToAnimatedPropertyTypeMap().contains(attributeName.impl())
-        || cssPropertyWithSVGDOMNameToAnimatedPropertyTypeMap().contains(attributeName.impl());
-}
-
-bool SVGElement::isPresentationAttributeWithSVGDOM(const QualifiedName& attributeName)
-{
-    return !animatedTypes(attributeName).isEmpty();
 }
 
 bool SVGElement::isPresentationAttribute(const QualifiedName& name) const

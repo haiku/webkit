@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -252,7 +252,6 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(bool, dumpSizeClasses, false, Normal, nullptr) \
     v(bool, useBumpAllocator, true, Normal, nullptr) \
     v(bool, stealEmptyBlocksFromOtherAllocators, true, Normal, nullptr) \
-    v(bool, tradeDestructorBlocks, true, Normal, nullptr) \
     v(bool, eagerlyUpdateTopCallFrame, false, Normal, nullptr) \
     \
     v(bool, useOSREntryToDFG, true, Normal, nullptr) \
@@ -284,6 +283,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(bool, useMovHintRemoval, true, Normal, nullptr) \
     v(bool, usePutStackSinking, true, Normal, nullptr) \
     v(bool, useObjectAllocationSinking, true, Normal, nullptr) \
+    v(bool, useValueRepElimination, true, Normal, nullptr) \
     v(bool, useArityFixupInlining, true, Normal, nullptr) \
     v(bool, logExecutableAllocation, false, Normal, nullptr) \
     \
@@ -395,7 +395,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(unsigned, gcMaxHeapSize, 0, Normal, nullptr) \
     v(unsigned, forceRAMSize, 0, Normal, nullptr) \
     v(bool, recordGCPauseTimes, false, Normal, nullptr) \
-    v(bool, logHeapStatisticsAtExit, false, Normal, nullptr) \
+    v(bool, dumpHeapStatisticsAtVMDestruction, false, Normal, nullptr) \
     v(bool, forceCodeBlockToJettisonDueToOldAge, false, Normal, "If true, this means that anytime we can jettison a CodeBlock due to old age, we do.") \
     v(bool, useEagerCodeBlockJettisonTiming, false, Normal, "If true, the time slices for jettisoning a CodeBlock due to old age are shrunk significantly.") \
     \
@@ -433,6 +433,11 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(unsigned, fireOSRExitFuzzAtStatic, 0, Normal, nullptr) \
     v(unsigned, fireOSRExitFuzzAt, 0, Normal, nullptr) \
     v(unsigned, fireOSRExitFuzzAtOrAfter, 0, Normal, nullptr) \
+    \
+    v(bool, useRandomizingFuzzerAgent, false, Normal, nullptr) \
+    v(unsigned, seedOfRandomizingFuzzerAgent, 1, Normal, nullptr) \
+    v(bool, dumpRandomizingFuzzerAgentPredictions, false, Normal, nullptr) \
+    v(bool, useDoublePredictionFuzzerAgent, false, Normal, nullptr) \
     \
     v(bool, logPhaseTimes, false, Normal, nullptr) \
     v(double, rareBlockPenalty, 0.001, Normal, nullptr) \
@@ -475,12 +480,11 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     \
     v(bool, enableSpectreMitigations, true, Restricted, "Enable Spectre mitigations.") \
     v(bool, enableSpectreGadgets, false, Restricted, "enable gadgets to test Spectre mitigations.") \
-    v(bool, usePoisoning, true, Normal, "Poison is randomized at load time when true, and initialized to 0 if false which defeats some Spectre and type confusion mitigations, but allows tools such as leak detectors to function better.") \
     v(bool, zeroStackFrame, false, Normal, "Zero stack frame on entry to a function.") \
     \
     v(bool, failToCompileWebAssemblyCode, false, Normal, "If true, no Wasm::Plan will sucessfully compile a function.") \
     v(size, webAssemblyPartialCompileLimit, 5000, Normal, "Limit on the number of bytes a Wasm::Plan::compile should attempt before checking for other work.") \
-    v(unsigned, webAssemblyBBQOptimizationLevel, 1, Normal, "B3 Optimization level for BBQ Web Assembly module compilations.") \
+    v(unsigned, webAssemblyBBQOptimizationLevel, 0, Normal, "B3 Optimization level for BBQ Web Assembly module compilations.") \
     v(unsigned, webAssemblyOMGOptimizationLevel, Options::defaultB3OptLevel(), Normal, "B3 Optimization level for OMG Web Assembly module compilations.") \
     \
     v(bool, useBBQTierUpChecks, true, Normal, "Enables tier up checks for our BBQ code.") \
@@ -512,6 +516,8 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(unsigned, thresholdForGlobalLexicalBindingEpoch, UINT_MAX, Normal, "Threshold for global lexical binding epoch. If the epoch reaches to this value, CodeBlock metadata for scope operations will be revised globally. It needs to be greater than 1.") \
     v(optionString, diskCachePath, nullptr, Restricted, nullptr) \
     v(bool, forceDiskCache, false, Restricted, nullptr) \
+    v(bool, validateAbstractInterpreterState, false, Restricted, nullptr) \
+    v(double, validateAbstractInterpreterStateProbability, 0.5, Normal, nullptr) \
 
 
 enum OptionEquivalence {

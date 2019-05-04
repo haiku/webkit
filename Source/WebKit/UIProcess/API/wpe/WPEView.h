@@ -26,7 +26,6 @@
 #pragma once
 
 #include "APIObject.h"
-#include "CompositingManagerProxy.h"
 #include "PageClientImpl.h"
 #include "WebPageProxy.h"
 #include <WebCore/ActivityState.h>
@@ -55,12 +54,12 @@ public:
     {
         return new View(backend, configuration);
     }
-    virtual ~View();
 
     // Client methods
     void setClient(std::unique_ptr<API::ViewClient>&&);
     void frameDisplayed();
     void handleDownloadRequest(WebKit::DownloadProxy&);
+    void willStartLoad();
 
     WebKit::WebPageProxy& page() { return *m_pageProxy; }
 
@@ -90,7 +89,6 @@ private:
     WebCore::IntSize m_size;
     OptionSet<WebCore::ActivityState::Flag> m_viewStateFlags;
 
-    WebKit::CompositingManagerProxy m_compositingManagerProxy;
     struct wpe_view_backend* m_backend;
 
 #if ENABLE(FULLSCREEN_API)

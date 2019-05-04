@@ -491,12 +491,7 @@ static bool tryApplyCachedSandbox(const SandboxInfo& info)
 
 static inline const NSBundle *webKit2Bundle()
 {
-#if WK_API_ENABLED
     const static NSBundle *bundle = [NSBundle bundleForClass:NSClassFromString(@"WKWebView")];
-#else
-    const static NSBundle *bundle = [NSBundle bundleForClass:NSClassFromString(@"WKView")];
-#endif
-
     return bundle;
 }
 
@@ -700,13 +695,6 @@ void AuxiliaryProcess::stopNSRunLoop()
 }
 #endif
 
-#if PLATFORM(IOSMAC)
-void AuxiliaryProcess::platformStopRunLoop()
-{
-    XPCServiceExit(WTFMove(m_priorityBoostMessage));
-}
-#endif
-
 void AuxiliaryProcess::setQOS(int latencyQOS, int throughputQOS)
 {
     if (!latencyQOS && !throughputQOS)
@@ -723,7 +711,11 @@ void AuxiliaryProcess::setQOS(int latencyQOS, int throughputQOS)
 #if PLATFORM(MAC)
 bool AuxiliaryProcess::isSystemWebKit()
 {
-    static bool isSystemWebKit = [] {
+    static bool isSystemWebKit = []() -> bool {
+#if HAVE(ALTERNATE_SYSTEM_LAYOUT)
+        if ([[webKit2Bundle() bundlePath] hasPrefix:@"/Library/Apple/System/"])
+            return true;
+#endif
         return [[webKit2Bundle() bundlePath] hasPrefix:@"/System/"];
     }();
     return isSystemWebKit;

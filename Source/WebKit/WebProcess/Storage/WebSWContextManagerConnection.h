@@ -79,6 +79,7 @@ private:
     void installServiceWorker(const WebCore::ServiceWorkerContextData&, PAL::SessionID, String&& userAgent);
     void startFetch(WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::FetchIdentifier, WebCore::ResourceRequest&&, WebCore::FetchOptions&&, IPC::FormDataReference&&, String&& referrer);
     void cancelFetch(WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::FetchIdentifier);
+    void continueDidReceiveFetchResponse(WebCore::SWServerConnectionIdentifier, WebCore::ServiceWorkerIdentifier, WebCore::FetchIdentifier);
     void postMessageToServiceWorker(WebCore::ServiceWorkerIdentifier destinationIdentifier, WebCore::MessageWithMessagePorts&&, WebCore::ServiceWorkerOrClientData&& sourceData);
     void fireInstallEvent(WebCore::ServiceWorkerIdentifier);
     void fireActivateEvent(WebCore::ServiceWorkerIdentifier);
@@ -89,7 +90,7 @@ private:
     void claimCompleted(uint64_t claimRequestIdentifier);
     void didFinishSkipWaiting(uint64_t callbackID);
     void setUserAgent(String&& userAgent);
-    void terminateProcess();
+    NO_RETURN void terminateProcess();
 
     Ref<IPC::Connection> m_connectionToNetworkProcess;
     uint64_t m_pageGroupID;

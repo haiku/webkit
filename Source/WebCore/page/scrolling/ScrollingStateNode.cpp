@@ -51,7 +51,7 @@ ScrollingStateNode::ScrollingStateNode(const ScrollingStateNode& stateNode, Scro
     , m_changedProperties(stateNode.changedProperties())
     , m_scrollingStateTree(adoptiveTree)
 {
-    if (hasChangedProperty(ScrollLayer))
+    if (hasChangedProperty(Layer))
         setLayer(stateNode.layer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
     scrollingStateTree().addNode(*this);
 }
@@ -69,7 +69,7 @@ void ScrollingStateNode::setPropertyChanged(unsigned propertyBit)
 
 void ScrollingStateNode::setAllPropertiesChanged()
 {
-    setPropertyChangedBit(ScrollLayer);
+    setPropertyChangedBit(Layer);
     setPropertyChangedBit(ChildNodes);
     m_scrollingStateTree.setHasChangedProperties();
 }
@@ -151,15 +151,6 @@ size_t ScrollingStateNode::indexOfChild(ScrollingStateNode& childNode) const
     return m_children->find(&childNode);
 }
 
-void ScrollingStateNode::reconcileLayerPositionForViewportRect(const LayoutRect& viewportRect, ScrollingLayerPositionAction action)
-{
-    if (!m_children)
-        return;
-
-    for (auto& child : *m_children)
-        child->reconcileLayerPositionForViewportRect(viewportRect, action);
-}
-
 void ScrollingStateNode::setLayer(const LayerRepresentation& layerRepresentation)
 {
     if (layerRepresentation == m_layer)
@@ -167,7 +158,7 @@ void ScrollingStateNode::setLayer(const LayerRepresentation& layerRepresentation
     
     m_layer = layerRepresentation;
 
-    setPropertyChanged(ScrollLayer);
+    setPropertyChanged(Layer);
 }
 
 void ScrollingStateNode::dumpProperties(TextStream& ts, ScrollingStateTreeAsTextBehavior behavior) const

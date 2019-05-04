@@ -94,7 +94,15 @@ elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "^mips64")
 elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "^mips")
     set(WTF_CPU_MIPS 1)
 elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "(x64|x86_64|amd64)")
-    set(WTF_CPU_X86_64 1)
+    # FORCE_32BIT is set in the build script when --32-bit is passed
+    # on a Linux/intel 64bit host. This allows us to produce 32bit
+    # binaries without setting the build up as a crosscompilation,
+    # which is the only way to modify CMAKE_SYSTEM_PROCESSOR.
+    if (FORCE_32BIT)
+        set(WTF_CPU_X86 1)
+    else ()
+        set(WTF_CPU_X86_64 1)
+    endif ()
 elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "(i[3-6]86|x86)")
     set(WTF_CPU_X86 1)
 elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "ppc")
@@ -105,6 +113,16 @@ elseif (LOWERCASE_CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
     set(WTF_CPU_PPC64LE 1)
 else ()
     set(WTF_CPU_UNKNOWN 1)
+endif ()
+
+#---------------------------
+# Make sure SSE2 is present.
+#---------------------------
+if (WTF_CPU_X86)
+    include(FindSSE2)
+    if (NOT SSE2_SUPPORT_FOUND)
+        message(FATAL_ERROR "SSE2 support is required to compile WebKit")
+    endif ()
 endif ()
 
 # -----------------------------------------------------------------------------

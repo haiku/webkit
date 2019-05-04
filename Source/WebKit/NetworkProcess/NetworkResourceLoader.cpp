@@ -29,7 +29,6 @@
 #include "DataReference.h"
 #include "FormDataReference.h"
 #include "Logging.h"
-#include "NetworkBlobRegistry.h"
 #include "NetworkCache.h"
 #include "NetworkConnectionToWebProcess.h"
 #include "NetworkLoad.h"
@@ -42,6 +41,7 @@
 #include "WebPageMessages.h"
 #include "WebResourceLoaderMessages.h"
 #include "WebsiteDataStoreParameters.h"
+#include <WebCore/AdClickAttribution.h>
 #include <WebCore/BlobDataFileReference.h>
 #include <WebCore/CertificateInfo.h>
 #include <WebCore/ContentSecurityPolicy.h>
@@ -49,13 +49,14 @@
 #include <WebCore/HTTPParsers.h>
 #include <WebCore/NetworkLoadMetrics.h>
 #include <WebCore/NetworkStorageSession.h>
+#include <WebCore/RegistrableDomain.h>
 #include <WebCore/SameSiteInfo.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SharedBuffer.h>
 #include <wtf/RunLoop.h>
 
 #if USE(QUICK_LOOK)
-#include <WebCore/PreviewLoader.h>
+#include <WebCore/PreviewConverter.h>
 #endif
 
 #define RELEASE_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), Network, "%p - NetworkResourceLoader::" fmt, this, ##__VA_ARGS__)
@@ -65,6 +66,8 @@ namespace WebKit {
 using namespace WebCore;
 
 struct NetworkResourceLoader::SynchronousLoadData {
+    WTF_MAKE_STRUCT_FAST_ALLOCATED;
+
     SynchronousLoadData(Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply&& reply)
         : delayedReply(WTFMove(reply))
     {
@@ -92,7 +95,7 @@ static void sendReplyToSynchronousRequest(NetworkResourceLoader::SynchronousLoad
 NetworkResourceLoader::NetworkResourceLoader(NetworkResourceLoadParameters&& parameters, NetworkConnectionToWebProcess& connection, Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply&& synchronousReply)
     : m_parameters { WTFMove(parameters) }
     , m_connection { connection }
-    , m_defersLoading { parameters.defersLoading }
+    , m_fileReferences(connection.resolveBlobReferences(m_parameters))
     , m_isAllowedToAskUserForCredentials { m_parameters.clientCredentialPolicy == ClientCredentialPolicy::MayAskClientForCredentials }
     , m_bufferingTimer { *this, &NetworkResourceLoader::bufferingTimerFired }
     , m_cache { sessionID().isEphemeral() ? nullptr : connection.networkProcess().cache() }
@@ -102,13 +105,6 @@ NetworkResourceLoader::NetworkResourceLoader(NetworkResourceLoadParameters&& par
     // FIXME: This is necessary because of the existence of EmptyFrameLoaderClient in WebCore.
     //        Once bug 116233 is resolved, this ASSERT can just be "m_webPageID && m_webFrameID"
     ASSERT((m_parameters.webPageID && m_parameters.webFrameID) || m_parameters.clientCredentialPolicy == ClientCredentialPolicy::CannotAskClientForCredentials);
-
-    if (originalRequest().httpBody()) {
-        for (const auto& element : originalRequest().httpBody()->elements()) {
-            if (auto* blobData = WTF::get_if<FormDataElement::EncodedBlobData>(element.data))
-                m_fileReferences.appendVector(NetworkBlobRegistry::singleton().filesInBlob(connection, blobData->url));
-        }
-    }
 
     if (synchronousReply || parameters.shouldRestrictHTTPResponseAccess) {
         NetworkLoadChecker::LoadType requestLoadType = isMainFrameLoad() ? NetworkLoadChecker::LoadType::MainFrame : NetworkLoadChecker::LoadType::Other;
@@ -128,6 +124,7 @@ NetworkResourceLoader::~NetworkResourceLoader()
     ASSERT(RunLoop::isMain());
     ASSERT(!m_networkLoad);
     ASSERT(!isSynchronous() || !m_synchronousLoadData->delayedReply);
+    ASSERT(m_fileReferences.isEmpty());
     if (m_responseCompletionHandler)
         m_responseCompletionHandler(PolicyAction::Ignore);
 }
@@ -169,11 +166,6 @@ void NetworkResourceLoader::start()
     ASSERT(RunLoop::isMain());
 
     m_networkActivityTracker = m_connection->startTrackingResourceLoad(m_parameters.webPageID, m_parameters.identifier, isMainResource(), sessionID());
-
-    if (m_defersLoading) {
-        RELEASE_LOG_IF_ALLOWED("start: Loading is deferred (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ", isMainResource = %d, isSynchronous = %d, parentPID = %d)", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier, isMainResource(), isSynchronous(), m_parameters.parentPID);
-        return;
-    }
 
     ASSERT(!m_wasStarted);
     m_wasStarted = true;
@@ -276,13 +268,12 @@ void NetworkResourceLoader::startNetworkLoad(ResourceRequest&& request, FirstLoa
     }
 
     NetworkLoadParameters parameters = m_parameters;
-    parameters.defersLoading = m_defersLoading;
     parameters.networkActivityTracker = m_networkActivityTracker;
     if (m_networkLoadChecker)
         parameters.storedCredentialsPolicy = m_networkLoadChecker->storedCredentialsPolicy();
 
     if (request.url().protocolIsBlob())
-        parameters.blobFileReferences = NetworkBlobRegistry::singleton().filesInBlob(m_connection, originalRequest().url());
+        parameters.blobFileReferences = m_connection->filesInBlob(originalRequest().url());
 
     auto* networkSession = m_connection->networkProcess().networkSession(parameters.sessionID);
     if (!networkSession && parameters.sessionID.isEphemeral()) {
@@ -298,36 +289,9 @@ void NetworkResourceLoader::startNetworkLoad(ResourceRequest&& request, FirstLoa
     }
 
     parameters.request = WTFMove(request);
-    m_networkLoad = std::make_unique<NetworkLoad>(*this, WTFMove(parameters), *networkSession);
+    m_networkLoad = std::make_unique<NetworkLoad>(*this, &m_connection->blobRegistry(), WTFMove(parameters), *networkSession);
 
     RELEASE_LOG_IF_ALLOWED("startNetworkLoad: (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ", description = %{public}s)", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier, m_networkLoad->description().utf8().data());
-
-    if (m_defersLoading) {
-        RELEASE_LOG_IF_ALLOWED("startNetworkLoad: Created, but deferred (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")",
-            m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
-    }
-}
-
-void NetworkResourceLoader::setDefersLoading(bool defers)
-{
-    if (m_defersLoading == defers)
-        return;
-    m_defersLoading = defers;
-
-    if (defers)
-        RELEASE_LOG_IF_ALLOWED("setDefersLoading: Deferring resource load (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
-    else
-        RELEASE_LOG_IF_ALLOWED("setDefersLoading: Resuming deferred resource load (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
-
-    if (m_networkLoad) {
-        m_networkLoad->setDefersLoading(defers);
-        return;
-    }
-
-    if (!m_defersLoading && !m_wasStarted)
-        start();
-    else
-        RELEASE_LOG_IF_ALLOWED("setDefersLoading: defers = %d, but nothing to do (pageID = %" PRIu64 ", frameID = %" PRIu64 ", resourceID = %" PRIu64 ")", m_defersLoading, m_parameters.webPageID, m_parameters.webFrameID, m_parameters.identifier);
 }
 
 void NetworkResourceLoader::cleanup(LoadResult result)
@@ -353,13 +317,13 @@ void NetworkResourceLoader::convertToDownload(DownloadID downloadID, const Resou
 {
     // This can happen if the resource came from the disk cache.
     if (!m_networkLoad) {
-        m_connection->networkProcess().downloadManager().startDownload(m_connection.ptr(), m_parameters.sessionID, downloadID, request);
+        m_connection->networkProcess().downloadManager().startDownload(m_parameters.sessionID, downloadID, request);
         abort();
         return;
     }
 
-    ASSERT(m_responseCompletionHandler);
-    m_connection->networkProcess().downloadManager().convertNetworkLoadToDownload(downloadID, std::exchange(m_networkLoad, nullptr), WTFMove(m_responseCompletionHandler), WTFMove(m_fileReferences), request, response);
+    if (m_responseCompletionHandler)
+        m_connection->networkProcess().downloadManager().convertNetworkLoadToDownload(downloadID, std::exchange(m_networkLoad, nullptr), WTFMove(m_responseCompletionHandler), WTFMove(m_fileReferences), request, response);
 }
 
 void NetworkResourceLoader::abort()
@@ -423,7 +387,7 @@ bool NetworkResourceLoader::shouldInterruptLoadForCSPFrameAncestorsOrXFrameOptio
     ASSERT(isMainResource());
 
 #if USE(QUICK_LOOK)
-    if (PreviewLoader::shouldCreateForMIMEType(response.mimeType()))
+    if (PreviewConverter::supportsMIMEType(response.mimeType()))
         return false;
 #endif
 
@@ -619,6 +583,16 @@ Optional<Seconds> NetworkResourceLoader::validateCacheEntryForMaxAgeCapValidatio
 void NetworkResourceLoader::willSendRedirectedRequest(ResourceRequest&& request, ResourceRequest&& redirectRequest, ResourceResponse&& redirectResponse)
 {
     ++m_redirectCount;
+
+    auto& redirectURL = redirectRequest.url();
+    if (auto adClickConversion = AdClickAttribution::parseConversionRequest(redirectURL)) {
+        RegistrableDomain redirectDomain { redirectURL };
+        auto& firstPartyURL = redirectRequest.firstPartyForCookies();
+        NetworkSession* networkSession;
+        // The redirect has to be done by the same registrable domain and it has to be a third-party request.
+        if (redirectDomain.matches(request.url()) && !redirectDomain.matches(firstPartyURL) && (networkSession = m_connection->networkProcess().networkSession(sessionID())))
+            networkSession->convertAdClickAttribution(AdClickAttribution::Source { WTFMove(redirectDomain) }, AdClickAttribution::Destination { firstPartyURL }, WTFMove(*adClickConversion));
+    }
 
     auto maxAgeCap = validateCacheEntryForMaxAgeCapValidation(request, redirectRequest, redirectResponse);
     if (redirectResponse.source() == ResourceResponse::Source::Network && canUseCachedRedirect(request))
@@ -898,7 +872,7 @@ void NetworkResourceLoader::dispatchWillSendRequestForCacheEntry(ResourceRequest
     willSendRedirectedRequest(WTFMove(request), ResourceRequest { *entry->redirectRequest() }, ResourceResponse { entry->response() });
 }
 
-IPC::Connection* NetworkResourceLoader::messageSenderConnection()
+IPC::Connection* NetworkResourceLoader::messageSenderConnection() const
 {
     return &connectionToWebProcess().connection();
 }
@@ -963,7 +937,7 @@ static String escapeForJSON(String s)
 
 static String escapeIDForJSON(const Optional<uint64_t>& value)
 {
-    return value ? String::number(value.value()) : String("None");
+    return value ? String::number(value.value()) : String("None"_s);
 };
 
 void NetworkResourceLoader::logCookieInformation() const
@@ -1017,7 +991,7 @@ static void logCookieInformationInternal(NetworkConnectionToWebProcess& connecti
     auto escapedFrameID = escapeIDForJSON(frameID);
     auto escapedPageID = escapeIDForJSON(pageID);
     auto escapedIdentifier = escapeIDForJSON(identifier);
-    bool hasStorageAccess = (frameID && pageID) ? networkStorageSession.hasStorageAccess(url.string(), firstParty.string(), frameID.value(), pageID.value()) : false;
+    bool hasStorageAccess = (frameID && pageID) ? networkStorageSession.hasStorageAccess(WebCore::RegistrableDomain { url }, WebCore::RegistrableDomain { firstParty }, frameID.value(), pageID.value()) : false;
 
 #define LOCAL_LOG_IF_ALLOWED(fmt, ...) RELEASE_LOG_IF(networkStorageSession.sessionID().isAlwaysOnLoggingAllowed(), Network, "%p - %s::" fmt, loggedObject, label.utf8().data(), ##__VA_ARGS__)
 #define LOCAL_LOG(str, ...) \

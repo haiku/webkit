@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
  * Copyright (C) 2011, 2015 Ericsson AB. All rights reserved.
- * Copyright (C) 2013-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
  * Copyright (C) 2013 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,12 @@
 #include "Page.h"
 #include "RealtimeMediaSourceCenter.h"
 #include "ScriptExecutionContext.h"
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(MediaStreamTrack);
 
 Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, Ref<MediaStreamTrackPrivate>&& privateTrack)
 {
@@ -54,14 +57,25 @@ Ref<MediaStreamTrack> MediaStreamTrack::create(ScriptExecutionContext& context, 
 MediaStreamTrack::MediaStreamTrack(ScriptExecutionContext& context, Ref<MediaStreamTrackPrivate>&& privateTrack)
     : ActiveDOMObject(&context)
     , m_private(WTFMove(privateTrack))
+#if !RELEASE_LOG_DISABLED
+    , m_logger(document()->logger())
+    , m_logIdentifier(uniqueLogIdentifier())
+#endif
     , m_taskQueue(context)
 {
+    ALWAYS_LOG(LOGIDENTIFIER);
     suspendIfNeeded();
 
+#if !RELEASE_LOG_DISABLED
+    m_private->setLogger(logger(), logIdentifier());
+#endif
     m_private->addObserver(*this);
 
-    if (auto document = this->document())
+    if (auto document = this->document()) {
         document->addAudioProducer(*this);
+        if (isCaptureTrack() && document->page() && document->page()->mutedState())
+            setMuted(document->page()->mutedState());
+    }
 }
 
 MediaStreamTrack::~MediaStreamTrack()
@@ -158,6 +172,26 @@ void MediaStreamTrack::setEnabled(bool enabled)
 bool MediaStreamTrack::muted() const
 {
     return m_private->muted();
+}
+
+void MediaStreamTrack::setMuted(MediaProducer::MutedStateFlags state)
+{
+    bool trackMuted = false;
+    switch (source().deviceType()) {
+    case CaptureDevice::DeviceType::Microphone:
+    case CaptureDevice::DeviceType::Camera:
+        trackMuted = state & AudioAndVideoCaptureIsMuted;
+        break;
+    case CaptureDevice::DeviceType::Screen:
+    case CaptureDevice::DeviceType::Window:
+        trackMuted = state & ScreenCaptureIsMuted;
+        break;
+    case CaptureDevice::DeviceType::Unknown:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+
+    m_private->setMuted(trackMuted);
 }
 
 auto MediaStreamTrack::readyState() const -> State
@@ -330,19 +364,17 @@ void MediaStreamTrack::applyConstraints(const Optional<MediaTrackConstraints>& c
 {
     m_promise = WTFMove(promise);
 
-    auto weakThis = makeWeakPtr(*this);
-    auto failureHandler = [weakThis] (const String& failedConstraint, const String& message) {
-        if (!weakThis || !weakThis->m_promise)
+    auto completionHandler = [this, weakThis = makeWeakPtr(*this), constraints](auto&& error) mutable {
+        if (!weakThis || !m_promise)
             return;
-        weakThis->m_promise->rejectType<IDLInterface<OverconstrainedError>>(OverconstrainedError::create(failedConstraint, message).get());
-    };
-    auto successHandler = [weakThis, constraints] () {
-        if (!weakThis || !weakThis->m_promise)
+        if (error) {
+            m_promise->rejectType<IDLInterface<OverconstrainedError>>(OverconstrainedError::create(WTFMove(error->badConstraint), WTFMove(error->message)));
             return;
-        weakThis->m_promise->resolve();
-        weakThis->m_constraints = constraints.valueOr(MediaTrackConstraints { });
+        }
+        m_promise->resolve();
+        m_constraints = constraints.valueOr(MediaTrackConstraints { });
     };
-    m_private->applyConstraints(createMediaConstraints(constraints), WTFMove(successHandler), WTFMove(failureHandler));
+    m_private->applyConstraints(createMediaConstraints(constraints), WTFMove(completionHandler));
 }
 
 void MediaStreamTrack::addObserver(Observer& observer)
@@ -364,7 +396,7 @@ void MediaStreamTrack::pageMutedStateDidChange()
     if (!document || !document->page())
         return;
 
-    m_private->setMuted(document->page()->isMediaCaptureMuted());
+    setMuted(document->page()->mutedState());
 }
 
 MediaProducer::MediaStateFlags MediaStreamTrack::mediaState() const
@@ -376,10 +408,8 @@ MediaProducer::MediaStateFlags MediaStreamTrack::mediaState() const
     if (!document || !document->page())
         return IsNotPlaying;
 
-    bool pageCaptureMuted = document->page()->isMediaCaptureMuted();
-
     if (source().type() == RealtimeMediaSource::Type::Audio) {
-        if (source().interrupted() && !pageCaptureMuted)
+        if (source().interrupted() && !source().muted())
             return HasInterruptedAudioCaptureDevice;
         if (muted())
             return HasMutedAudioCaptureDevice;
@@ -388,7 +418,7 @@ MediaProducer::MediaStateFlags MediaStreamTrack::mediaState() const
     } else {
         auto deviceType = source().deviceType();
         ASSERT(deviceType == CaptureDevice::DeviceType::Camera || deviceType == CaptureDevice::DeviceType::Screen || deviceType == CaptureDevice::DeviceType::Window);
-        if (source().interrupted() && !pageCaptureMuted)
+        if (source().interrupted() && !source().muted())
             return deviceType == CaptureDevice::DeviceType::Camera ? HasInterruptedVideoCaptureDevice : HasInterruptedDisplayCaptureDevice;
         if (muted())
             return deviceType == CaptureDevice::DeviceType::Camera ? HasMutedVideoCaptureDevice : HasMutedDisplayCaptureDevice;
@@ -433,8 +463,10 @@ void MediaStreamTrack::trackMutedChanged(MediaStreamTrackPrivate&)
     if (scriptExecutionContext()->activeDOMObjectsAreSuspended() || scriptExecutionContext()->activeDOMObjectsAreStopped() || m_ended)
         return;
 
-    AtomicString eventType = muted() ? eventNames().muteEvent : eventNames().unmuteEvent;
-    dispatchEvent(Event::create(eventType, Event::CanBubble::No, Event::IsCancelable::No));
+    m_eventTaskQueue.enqueueTask([this, muted = this->muted()] {
+        AtomicString eventType = muted ? eventNames().muteEvent : eventNames().unmuteEvent;
+        dispatchEvent(Event::create(eventType, Event::CanBubble::No, Event::IsCancelable::No));
+    });
 
     configureTrackRendering();
 }
@@ -490,6 +522,13 @@ Document* MediaStreamTrack::document() const
 {
     return downcast<Document>(scriptExecutionContext());
 }
+
+#if !RELEASE_LOG_DISABLED
+WTFLogChannel& MediaStreamTrack::logChannel() const
+{
+    return LogWebRTC;
+}
+#endif
 
 } // namespace WebCore
 

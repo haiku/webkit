@@ -48,7 +48,7 @@ using namespace NetworkCache;
 
 String Engine::cachesRootPath(const WebCore::ClientOrigin& origin)
 {
-    if (!shouldPersist())
+    if (!shouldPersist() || !m_salt)
         return { };
 
     Key key(origin.topOrigin.toString(), origin.clientOrigin.toString(), { }, { }, salt());
@@ -80,9 +80,9 @@ void Engine::from(NetworkProcess& networkProcess, PAL::SessionID sessionID, Func
         return;
     }
 
-    networkProcess.cacheStorageParameters(sessionID, [networkProcess = makeRef(networkProcess), sessionID, callback = WTFMove(callback)] (auto&& rootPath, auto quota) mutable {
+    networkProcess.cacheStorageRootPath(sessionID, [networkProcess = makeRef(networkProcess), sessionID, callback = WTFMove(callback)] (auto&& rootPath) mutable {
         callback(networkProcess->ensureCacheEngine(sessionID, [&] {
-            return adoptRef(*new Engine { sessionID, networkProcess.get(), String { rootPath }, quota });
+            return adoptRef(*new Engine { sessionID, networkProcess.get(), WTFMove(rootPath) });
         }));
     });
 }
@@ -185,11 +185,19 @@ void Engine::clearCachesForOrigin(NetworkProcess& networkProcess, PAL::SessionID
     });
 }
 
-Engine::Engine(PAL::SessionID sessionID, NetworkProcess& process, String&& rootPath, uint64_t quota)
+void Engine::initializeQuotaUser(NetworkProcess& networkProcess, PAL::SessionID sessionID, const WebCore::ClientOrigin& clientOrigin, CompletionHandler<void()>&& completionHandler)
+{
+    from(networkProcess, sessionID, [clientOrigin, completionHandler = WTFMove(completionHandler)](auto& engine) mutable {
+        engine.readCachesFromDisk(clientOrigin, [completionHandler = WTFMove(completionHandler)](auto&& cachesOrError) mutable {
+            completionHandler();
+        });
+    });
+}
+
+Engine::Engine(PAL::SessionID sessionID, NetworkProcess& process, String&& rootPath)
     : m_sessionID(sessionID)
     , m_networkProcess(makeWeakPtr(process))
     , m_rootPath(WTFMove(rootPath))
-    , m_quota(quota)
 {
     if (!m_rootPath.isNull())
         m_ioQueue = WorkQueue::create("com.apple.WebKit.CacheStorageEngine.serialBackground", WorkQueue::Type::Serial, WorkQueue::QOS::Background);
@@ -310,18 +318,18 @@ void Engine::initialize(CompletionCallback&& callback)
 void Engine::readCachesFromDisk(const WebCore::ClientOrigin& origin, CachesCallback&& callback)
 {
     initialize([this, origin, callback = WTFMove(callback)](Optional<Error>&& error) mutable {
+        if (error) {
+            callback(makeUnexpected(error.value()));
+            return;
+        }
+
         auto& caches = m_caches.ensure(origin, [&origin, this] {
             auto path = cachesRootPath(origin);
-            return Caches::create(*this, WebCore::ClientOrigin { origin }, WTFMove(path), m_quota);
+            return Caches::create(*this, WebCore::ClientOrigin { origin }, WTFMove(path), m_networkProcess->storageQuotaManager(m_sessionID, origin));
         }).iterator->value;
 
         if (caches->isInitialized()) {
             callback(std::reference_wrapper<Caches> { *caches });
-            return;
-        }
-
-        if (error) {
-            callback(makeUnexpected(error.value()));
             return;
         }
 
@@ -648,15 +656,6 @@ String Engine::representation()
     }
     builder.append("]}");
     return builder.toString();
-}
-
-void Engine::requestSpace(const WebCore::ClientOrigin& origin, uint64_t quota, uint64_t currentSize, uint64_t spaceRequired, RequestSpaceCallback&& callback)
-{
-    if (!m_networkProcess) {
-        callback({ });
-        return;
-    }
-    m_networkProcess->requestCacheStorageSpace(m_sessionID, origin, quota, currentSize, spaceRequired, WTFMove(callback));
 }
 
 } // namespace CacheStorage

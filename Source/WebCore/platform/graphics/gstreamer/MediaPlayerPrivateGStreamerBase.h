@@ -38,6 +38,7 @@
 #include <wtf/WeakPtr.h>
 
 #if USE(TEXTURE_MAPPER_GL)
+#include "TextureMapperGL.h"
 #if USE(NICOSIA)
 #include "NicosiaContentLayerTextureMapperImpl.h"
 #else
@@ -173,6 +174,12 @@ protected:
     MediaPlayerPrivateGStreamerBase(MediaPlayer*);
     virtual GstElement* createVideoSink();
 
+#if USE(GSTREAMER_HOLEPUNCH)
+    GstElement* createHolePunchVideoSink();
+    void pushNextHolePunchBuffer();
+    bool shouldIgnoreIntrinsicSize() final { return true; }
+#endif
+
 #if USE(GSTREAMER_GL)
     static GstFlowReturn newSampleCallback(GstElement*, MediaPlayerPrivateGStreamerBase*);
     static GstFlowReturn newPrerollCallback(GstElement*, MediaPlayerPrivateGStreamerBase*);
@@ -214,6 +221,11 @@ protected:
 
     static void volumeChangedCallback(MediaPlayerPrivateGStreamerBase*);
     static void muteChangedCallback(MediaPlayerPrivateGStreamerBase*);
+
+#if USE(TEXTURE_MAPPER_GL)
+    void updateTextureMapperFlags();
+    TextureMapperGL::Flags m_textureMapperFlags;
+#endif
 
     enum MainThreadNotification {
         VideoChanged = 1 << 0,
@@ -276,6 +288,10 @@ protected:
     HashSet<uint32_t> m_handledProtectionEvents;
     bool m_waitingForKey { false };
 #endif
+
+    enum class WebKitGstVideoDecoderPlatform { ImxVPU, Video4Linux };
+
+    WebKitGstVideoDecoderPlatform m_videoDecoderPlatform;
 };
 
 }

@@ -25,11 +25,9 @@
 
 #import <WebKit/WKFoundation.h>
 
-#if WK_API_ENABLED
-
 #import <Foundation/Foundation.h>
 
-WK_CLASS_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))
+WK_CLASS_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA))
 @interface _WKInternalDebugFeature : NSObject
 
 @property (nonatomic, readonly, copy) NSString *key;
@@ -39,5 +37,3 @@ WK_CLASS_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))
 @property (nonatomic, readonly, getter=isHidden) BOOL hidden;
 
 @end
-
-#endif

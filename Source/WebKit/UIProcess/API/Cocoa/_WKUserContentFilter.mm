@@ -26,8 +26,6 @@
 #import "config.h"
 #import "_WKUserContentFilterInternal.h"
 
-#if WK_API_ENABLED
-
 #include "WKContentRuleListInternal.h"
 #include "WebCompiledContentRuleList.h"
 #include <WebCore/ContentExtensionCompiler.h>
@@ -58,6 +56,9 @@
     return self;
 }
 
-@end
+- (BOOL)usesCopiedMemory
+{
+    return _contentRuleList->_contentRuleList->usesCopiedMemory();
+}
 
-#endif // WK_API_ENABLED
+@end

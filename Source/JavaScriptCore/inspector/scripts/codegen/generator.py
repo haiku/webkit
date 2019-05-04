@@ -50,9 +50,11 @@ _ENUM_IDENTIFIER_RENAME_MAP = {
     'canvas-webgl': 'CanvasWebGL',  # Recording.Type.canvas-webgl
     'webgl': 'WebGL',  # Canvas.ContextType.webgl
     'webgl2': 'WebGL2',  # Canvas.ContextType.webgl2
-    'webmetal': 'WebMetal',  # Canvas.ContextType.webmetal
+    'webgpu': 'WebGPU',  # Canvas.ContextType.gpu
     'bitmaprenderer': 'BitmapRenderer',  # Canvas.ContextType.bitmaprenderer
     'webrtc': 'WebRTC',  # Console.ChannelSource.webrtc
+    'mediasource': 'MediaSource',  # Console.ChannelSource.mediasource
+    'webkit': 'WebKit',  # CPUProfiler.ThreadInfo.type
 }
 
 # These objects are built manually by creating and setting JSON::Value instances.

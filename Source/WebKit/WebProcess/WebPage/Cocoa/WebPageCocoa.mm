@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,11 @@
 #import "WebPage.h"
 
 
+#import "AttributedString.h"
 #import "LoadParameters.h"
 #import "PluginView.h"
 #import "WebPageProxyMessages.h"
+#import "WebPaymentCoordinator.h"
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/Editor.h>
 #import <WebCore/EventHandler.h>
@@ -37,9 +39,11 @@
 #import <WebCore/HTMLConverter.h>
 #import <WebCore/HitTestResult.h>
 #import <WebCore/NodeRenderStyle.h>
+#import <WebCore/PaymentCoordinator.h>
 #import <WebCore/PlatformMediaSessionManager.h>
 #import <WebCore/RenderElement.h>
 #import <WebCore/RenderObject.h>
+#import <WebCore/TextIterator.h>
 
 #if PLATFORM(COCOA)
 
@@ -181,6 +185,41 @@ DictionaryPopupInfo WebPage::dictionaryPopupInfoForRange(Frame& frame, Range& ra
     
     editor.setIsGettingDictionaryPopupInfo(false);
     return dictionaryPopupInfo;
+}
+
+void WebPage::accessibilityTransferRemoteToken(RetainPtr<NSData> remoteToken)
+{
+    IPC::DataReference dataToken = IPC::DataReference(reinterpret_cast<const uint8_t*>([remoteToken bytes]), [remoteToken length]);
+    send(Messages::WebPageProxy::RegisterWebProcessAccessibilityToken(dataToken));
+}
+
+#if ENABLE(APPLE_PAY)
+WebPaymentCoordinator* WebPage::paymentCoordinator()
+{
+    if (!m_page)
+        return nullptr;
+    auto& client = m_page->paymentCoordinator().client();
+    return is<WebPaymentCoordinator>(client) ? downcast<WebPaymentCoordinator>(&client) : nullptr;
+}
+#endif
+
+void WebPage::getContentsAsAttributedString(CompletionHandler<void(const AttributedString&)>&& completionHandler)
+{
+    Frame& frame = m_page->mainFrame();
+
+    RefPtr<Range> range = TextIterator::rangeFromLocationAndLength(frame.document()->documentElement(), 0, INT_MAX);
+    if (!range) {
+        completionHandler({ });
+        return;
+    }
+
+    NSDictionary* documentAttributes = nil;
+
+    AttributedString result;
+    result.string = attributedStringFromRange(*range, &documentAttributes);
+    result.documentAttributes = documentAttributes;
+
+    completionHandler({ result });
 }
 
 } // namespace WebKit

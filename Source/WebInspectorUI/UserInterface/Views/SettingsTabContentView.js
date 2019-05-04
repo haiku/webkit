@@ -208,6 +208,17 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
         generalSettingsView.addSetting(WI.UIString("Debugger:"), WI.settings.showScopeChainOnPause, WI.UIString("Show Scope Chain on pause"));
         generalSettingsView.addSetting(WI.UIString("Source maps:"), WI.settings.sourceMapsEnabled, WI.UIString("Enable source maps"));
+        generalSettingsView.addSetting(WI.UIString("Console:"), WI.settings.consoleAutoExpandTrace, WI.UIString("Auto-expand Traces"));
+
+        generalSettingsView.addSeparator();
+
+        let searchGroup = generalSettingsView.addGroup(WI.UIString("Search:", "Search: @ Settings", "Settings tab label for search related settings"));
+        searchGroup.addSetting(WI.settings.searchCaseSensitive, WI.UIString("Case Sensitive", "Case Sensitive @ Settings", "Settings tab checkbox label for whether searches should be case sensitive."));
+        searchGroup.addSetting(WI.settings.searchRegularExpression, WI.UIString("Regular Expression", "Regular Expression @ Settings", "Settings tab checkbox label for whether searches should be treated as regular expressions."));
+
+        generalSettingsView.addSeparator();
+
+        generalSettingsView.addSetting(WI.UIString("CSS Changes:"), WI.settings.cssChangesPerNode, WI.UIString("Show only for selected node"));
 
         generalSettingsView.addSeparator();
 
@@ -227,6 +238,7 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
             ];
             const editorLabels = {
                 media: WI.UIString("Media Logging:"),
+                mediasource: WI.UIString("MSE Logging:"),
                 webrtc: WI.UIString("WebRTC Logging:"),
             };
 
@@ -246,12 +258,12 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
 
     _createExperimentalSettingsView()
     {
-        if (!(window.CanvasAgent || window.NetworkAgent || window.LayerTreeAgent))
-            return;
-
         let experimentalSettingsView = new WI.SettingsView("experimental", WI.UIString("Experimental"));
 
         let initialValues = new Map;
+
+        experimentalSettingsView.addSetting(WI.UIString("Sources:"), WI.settings.experimentalEnableSourcesTab, WI.UIString("Enable Sources Tab"));
+        experimentalSettingsView.addSeparator();
 
         if (window.LayerTreeAgent) {
             experimentalSettingsView.addSetting(WI.UIString("Layers:"), WI.settings.experimentalEnableLayersTab, WI.UIString("Enable Layers Tab"));
@@ -261,11 +273,16 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
         experimentalSettingsView.addSetting(WI.UIString("User Interface:"), WI.settings.experimentalEnableNewTabBar, WI.UIString("Enable New Tab Bar"));
         experimentalSettingsView.addSeparator();
 
+        experimentalSettingsView.addSetting(WI.UIString("Styles:"), WI.settings.experimentalEnableStylesJumpToEffective, WI.UIString("Show Jump to Effective Property Button"));
+        experimentalSettingsView.addSeparator();
+
         let reloadInspectorButton = document.createElement("button");
         reloadInspectorButton.textContent = WI.UIString("Reload Web Inspector");
         reloadInspectorButton.addEventListener("click", (event) => {
             // Force a copy so that WI.Setting sees it as a new value.
             let newTabs = WI._openTabsSetting.value.slice();
+            if (!initialValues.get(WI.settings.experimentalEnableSourcesTab) && WI.settings.experimentalEnableSourcesTab.value)
+                newTabs.push(WI.SourcesTabContentView.Type);
             if (!initialValues.get(WI.settings.experimentalEnableLayersTab) && window.LayerTreeAgent && WI.settings.experimentalEnableLayersTab.value)
                 newTabs.push(WI.LayersTabContentView.Type);
             WI._openTabsSetting.value = newTabs;
@@ -283,8 +300,10 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
             });
         }
 
+        listenForChange(WI.settings.experimentalEnableSourcesTab);
         listenForChange(WI.settings.experimentalEnableLayersTab);
         listenForChange(WI.settings.experimentalEnableNewTabBar);
+        listenForChange(WI.settings.experimentalEnableStylesJumpToEffective);
 
         this.addSettingsView(experimentalSettingsView);
     }
@@ -314,6 +333,10 @@ WI.SettingsTabContentView = class SettingsTabContentView extends WI.TabContentVi
         this._debugSettingsView.addSeparator();
 
         this._debugSettingsView.addSetting(WI.unlocalizedString("Styles:"), WI.settings.enableStyleEditingDebugMode, WI.unlocalizedString("Enable style editing debug mode"));
+
+        this._debugSettingsView.addSeparator();
+
+        this._debugSettingsView.addSetting(WI.unlocalizedString("Heap Snapshot:"), WI.settings.debugShowInternalObjectsInHeapSnapshot, WI.unlocalizedString("Show Internal Objects"));
 
         this._debugSettingsView.addSeparator();
 

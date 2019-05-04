@@ -28,6 +28,10 @@
 #include <WebCore/EditorClient.h>
 #include <WebCore/TextCheckerClient.h>
 
+namespace WebCore {
+enum class DOMPasteAccessResponse : uint8_t;
+}
+
 namespace WebKit {
 
 class WebPage;
@@ -83,11 +87,12 @@ private:
     void willWriteSelectionToPasteboard(WebCore::Range*) final;
     void didWriteSelectionToPasteboard() final;
     void getClientPasteboardDataForRange(WebCore::Range*, Vector<String>& pasteboardTypes, Vector<RefPtr<WebCore::SharedBuffer>>& pasteboardData) final;
-    String replacementURLForResource(Ref<WebCore::SharedBuffer>&& resourceData, const String& mimeType) final;
     
     void registerUndoStep(WebCore::UndoStep&) final;
     void registerRedoStep(WebCore::UndoStep&) final;
     void clearUndoRedoOperations() final;
+
+    WebCore::DOMPasteAccessResponse requestDOMPasteAccess(const String& originIdentifier) final;
 
     bool canCopyCut(WebCore::Frame*, bool defaultValue) const final;
     bool canPaste(WebCore::Frame*, bool defaultValue) const final;

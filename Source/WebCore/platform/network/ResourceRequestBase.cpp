@@ -70,10 +70,9 @@ void ResourceRequestBase::setAsIsolatedCopy(const ResourceRequest& other)
     if (auto inspectorInitiatorNodeIdentifier = other.inspectorInitiatorNodeIdentifier())
         setInspectorInitiatorNodeIdentifier(*inspectorInitiatorNodeIdentifier);
 
-    if (!other.isSameSiteUnspecified()) {
+    if (!other.isSameSiteUnspecified())
         setIsSameSite(other.isSameSite());
-        setIsTopSite(other.isTopSite());
-    }
+    setIsTopSite(other.isTopSite());
 
     updateResourceRequest();
     m_httpHeaderFields = other.httpHeaderFields().isolatedCopy();
@@ -487,6 +486,18 @@ FormData* ResourceRequestBase::httpBody() const
     updateResourceRequest(HTTPBodyUpdatePolicy::UpdateHTTPBody);
 
     return m_httpBody.get();
+}
+
+bool ResourceRequestBase::hasUpload() const
+{
+    if (auto* body = httpBody()) {
+        for (auto& element : body->elements()) {
+            if (WTF::holds_alternative<WebCore::FormDataElement::EncodedFileData>(element.data) || WTF::holds_alternative<WebCore::FormDataElement::EncodedBlobData>(element.data))
+                return true;
+        }
+    }
+    
+    return false;
 }
 
 void ResourceRequestBase::setHTTPBody(RefPtr<FormData>&& httpBody)

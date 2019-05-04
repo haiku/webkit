@@ -1788,15 +1788,15 @@ llintOpWithJump(op_switch_char, OpSwitchChar, macro (size, get, jump, dispatch)
     addp t3, t2
     bineq t1, CellTag, .opSwitchCharFallThrough
     bbneq JSCell::m_type[t0], StringType, .opSwitchCharFallThrough
-    bineq JSString::m_length[t0], 1, .opSwitchCharFallThrough
-    loadp JSString::m_value[t0], t0
-    btpz  t0, .opSwitchOnRope
-    loadp StringImpl::m_data8[t0], t1
-    btinz StringImpl::m_hashAndFlags[t0], HashFlags8BitBuffer, .opSwitchChar8Bit
-    loadh [t1], t0
+    loadp JSString::m_fiber[t0], t1
+    btpnz t1, isRopeInPointer, .opSwitchOnRope
+    bineq StringImpl::m_length[t1], 1, .opSwitchCharFallThrough
+    loadp StringImpl::m_data8[t1], t0
+    btinz StringImpl::m_hashAndFlags[t1], HashFlags8BitBuffer, .opSwitchChar8Bit
+    loadh [t0], t0
     jmp .opSwitchCharReady
 .opSwitchChar8Bit:
-    loadb [t1], t0
+    loadb [t0], t0
 .opSwitchCharReady:
     subi SimpleJumpTable::min[t2], t0
     biaeq t0, SimpleJumpTable::branchOffsets + VectorSizeOffset[t2], .opSwitchCharFallThrough
@@ -1809,6 +1809,9 @@ llintOpWithJump(op_switch_char, OpSwitchChar, macro (size, get, jump, dispatch)
     jump(m_defaultOffset)
 
 .opSwitchOnRope:
+    bineq JSRopeString::m_compactFibers + JSRopeString::CompactFibers::m_length[t0], 1, .opSwitchCharFallThrough
+
+.opSwitchOnRopeChar:
     callSlowPath(_llint_slow_path_switch_char)
     nextInstruction()
 end)
@@ -2274,7 +2277,9 @@ llintOpWithMetadata(op_put_to_scope, OpPutToScope, macro (size, get, dispatch, m
         get(m_value, t0)
         loadConstantOrVariable(size, t0, t1, t2)
         loadp OpPutToScope::Metadata::m_watchpointSet[t5], t3
+        btpz t3, .noVariableWatchpointSet
         notifyWrite(t3, .pDynamic)
+    .noVariableWatchpointSet:
         loadp OpPutToScope::Metadata::m_operand[t5], t0
         storei t1, TagOffset[t0]
         storei t2, PayloadOffset[t0]
@@ -2300,6 +2305,16 @@ llintOpWithMetadata(op_put_to_scope, OpPutToScope, macro (size, get, dispatch, m
         storei t3, JSLexicalEnvironment_variables + PayloadOffset[t0, t1, 8]
     end
 
+    macro checkTDZInGlobalPutToScopeIfNecessary()
+        loadi OpPutToScope::Metadata::m_getPutInfo + GetPutInfo::m_operand[t5], t0
+        andi InitializationModeMask, t0
+        rshifti InitializationModeShift, t0
+        bineq t0, NotInitialization, .noNeedForTDZCheck
+        loadp OpPutToScope::Metadata::m_operand[t5], t0
+        loadi TagOffset[t0], t0
+        bieq t0, EmptyValueTag, .pDynamic
+    .noNeedForTDZCheck:
+    end
 
     metadata(t5, t0)
     loadi OpPutToScope::Metadata::m_getPutInfo + GetPutInfo::m_operand[t5], t0
@@ -2327,6 +2342,7 @@ llintOpWithMetadata(op_put_to_scope, OpPutToScope, macro (size, get, dispatch, m
 
 .pGlobalLexicalVar:
     bineq t0, GlobalLexicalVar, .pClosureVar
+    checkTDZInGlobalPutToScopeIfNecessary()
     putGlobalVariable()
     writeBarrierOnGlobalLexicalEnvironment(size, get, m_value)
     dispatch()
@@ -2355,6 +2371,7 @@ llintOpWithMetadata(op_put_to_scope, OpPutToScope, macro (size, get, dispatch, m
 .pGlobalLexicalVarWithVarInjectionChecks:
     bineq t0, GlobalLexicalVarWithVarInjectionChecks, .pClosureVarWithVarInjectionChecks
     varInjectionCheck(.pDynamic)
+    checkTDZInGlobalPutToScopeIfNecessary()
     putGlobalVariable()
     writeBarrierOnGlobalLexicalEnvironment(size, get, m_value)
     dispatch()
@@ -2411,8 +2428,7 @@ end)
 
 llintOpWithMetadata(op_profile_type, OpProfileType, macro (size, get, dispatch, metadata, return)
     loadp CodeBlock[cfr], t1
-    loadp CodeBlock::m_poisonedVM[t1], t1
-    unpoison(_g_CodeBlockPoison, t1, t2)
+    loadp CodeBlock::m_vm[t1], t1
     # t1 is holding the pointer to the typeProfilerLog.
     loadp VM::m_typeProfilerLog[t1], t1
 

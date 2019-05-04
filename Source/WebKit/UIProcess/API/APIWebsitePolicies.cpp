@@ -42,6 +42,28 @@ WebsitePolicies::WebsitePolicies(bool contentBlockersEnabled, OptionSet<WebKit::
     , m_websiteDataStore(WTFMove(websiteDataStore))
 { }
 
+Ref<WebsitePolicies> WebsitePolicies::copy() const
+{
+    auto policies = WebsitePolicies::create();
+    policies->setContentBlockersEnabled(m_contentBlockersEnabled);
+    policies->setAllowedAutoplayQuirks(m_allowedAutoplayQuirks);
+    policies->setAutoplayPolicy(m_autoplayPolicy);
+    policies->setDeviceOrientationAndMotionAccessState(m_deviceOrientationAndMotionAccessState);
+    policies->setPopUpPolicy(m_popUpPolicy);
+    policies->setWebsiteDataStore(m_websiteDataStore.get());
+    policies->setCustomUserAgent(m_customUserAgent);
+    policies->setCustomJavaScriptUserAgentAsSiteSpecificQuirks(m_customJavaScriptUserAgentAsSiteSpecificQuirks);
+    policies->setCustomNavigatorPlatform(m_customNavigatorPlatform);
+    policies->setPreferredCompatibilityMode(m_preferredCompatibilityMode);
+    policies->setMetaViewportPolicy(m_metaViewportPolicy);
+    Vector<WebCore::HTTPHeaderField> customHeaderFields;
+    customHeaderFields.reserveInitialCapacity(m_customHeaderFields.size());
+    for (auto& field : m_customHeaderFields)
+        customHeaderFields.append(WebCore::HTTPHeaderField(field));
+    policies->setCustomHeaderFields(WTFMove(customHeaderFields));
+    return policies;
+}
+
 WebsitePolicies::~WebsitePolicies()
 {
 }
@@ -53,11 +75,19 @@ void WebsitePolicies::setWebsiteDataStore(RefPtr<WebsiteDataStore>&& websiteData
 
 WebKit::WebsitePoliciesData WebsitePolicies::data()
 {
-    Optional<WebKit::WebsiteDataStoreParameters> parameters;
-    if (m_websiteDataStore)
-        parameters = m_websiteDataStore->websiteDataStore().parameters();
-    return { contentBlockersEnabled(), deviceOrientationEventEnabled(), allowedAutoplayQuirks(), autoplayPolicy(),
-        customHeaderFields(), popUpPolicy(), WTFMove(parameters), m_customUserAgent, m_customJavaScriptUserAgentAsSiteSpecificQuirks, m_customNavigatorPlatform };
+    return {
+        contentBlockersEnabled(),
+        allowedAutoplayQuirks(),
+        autoplayPolicy(),
+        deviceOrientationAndMotionAccessState(),
+        customHeaderFields(),
+        popUpPolicy(),
+        m_websiteDataStore ? Optional<WebKit::WebsiteDataStoreParameters> { m_websiteDataStore->websiteDataStore().parameters() } : WTF::nullopt,
+        m_customUserAgent,
+        m_customJavaScriptUserAgentAsSiteSpecificQuirks,
+        m_customNavigatorPlatform,
+        m_metaViewportPolicy,
+    };
 }
 
 }

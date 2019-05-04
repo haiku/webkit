@@ -30,7 +30,6 @@
 namespace WebCore {
 
 typedef unsigned SynchronousScrollingReasons;
-typedef uint64_t ScrollingNodeID;
 
 enum class ScrollingNodeType : uint8_t {
     MainFrame,
@@ -38,7 +37,8 @@ enum class ScrollingNodeType : uint8_t {
     FrameHosting,
     Overflow,
     Fixed,
-    Sticky
+    Sticky,
+    Positioned,
 };
 
 enum ScrollingStateTreeAsTextBehaviorFlags {
@@ -65,6 +65,9 @@ struct ScrollableAreaParameters {
 
     bool hasEnabledHorizontalScrollbar { false };
     bool hasEnabledVerticalScrollbar { false };
+
+    bool horizontalScrollbarHiddenByStyle { false };
+    bool verticalScrollbarHiddenByStyle { false };
 
     bool useDarkAppearanceForScrollbars { false };
 

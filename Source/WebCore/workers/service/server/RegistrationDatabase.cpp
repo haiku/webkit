@@ -72,7 +72,7 @@ static const String recordsTableSchemaAlternate()
 
 static inline String databaseFilenameFromVersion(uint64_t version)
 {
-    return makeString("ServiceWorkerRegistrations-", String::number(version), ".sqlite3");
+    return makeString("ServiceWorkerRegistrations-", version, ".sqlite3");
 }
 
 static const String& databaseFilename()
@@ -118,6 +118,8 @@ RegistrationDatabase::~RegistrationDatabase()
 
 void RegistrationDatabase::postTaskToWorkQueue(Function<void()>&& task)
 {
+    ASSERT(isMainThread());
+
     m_workQueue->dispatch([protectedThis = makeRef(*this), task = WTFMove(task)]() mutable {
         task();
     });
@@ -133,7 +135,7 @@ void RegistrationDatabase::openSQLiteDatabase(const String& fullFilename)
     LOG(ServiceWorker, "ServiceWorker RegistrationDatabase opening file %s", fullFilename.utf8().data());
 
     String errorMessage;
-    auto scopeExit = makeScopeExit([&, errorMessage = &errorMessage] {
+    auto scopeExit = makeScopeExit([this, protectedThis = makeRef(*this), errorMessage = &errorMessage] {
         ASSERT_UNUSED(errorMessage, !errorMessage->isNull());
 
 #if RELEASE_LOG_DISABLED
@@ -143,7 +145,7 @@ void RegistrationDatabase::openSQLiteDatabase(const String& fullFilename)
 #endif
 
         m_database = nullptr;
-        callOnMainThread([protectedThis = makeRef(*this)] {
+        callOnMainThread([protectedThis = protectedThis.copyRef()] {
             protectedThis->databaseFailedToOpen();
         });
     });
@@ -279,6 +281,14 @@ void RegistrationDatabase::pushChanges(Vector<ServiceWorkerContextData>&& datas,
         if (!completionHandler)
             return;
 
+        callOnMainThread(WTFMove(completionHandler));
+    });
+}
+
+void RegistrationDatabase::close(CompletionHandler<void()>&& completionHandler)
+{
+    postTaskToWorkQueue([this, completionHandler = WTFMove(completionHandler)]() mutable {
+        m_database = nullptr;
         callOnMainThread(WTFMove(completionHandler));
     });
 }

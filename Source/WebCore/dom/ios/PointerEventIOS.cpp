@@ -32,7 +32,7 @@
 
 namespace WebCore {
 
-static AtomicString eventType(PlatformTouchPoint::TouchPhaseType phase)
+static AtomicString pointerEventType(PlatformTouchPoint::TouchPhaseType phase)
 {
     switch (phase) {
     case PlatformTouchPoint::TouchPhaseBegan:
@@ -60,7 +60,12 @@ static PointerEvent::IsCancelable phaseIsCancelable(PlatformTouchPoint::TouchPha
 Ref<PointerEvent> PointerEvent::create(const PlatformTouchEvent& event, unsigned index, bool isPrimary, Ref<WindowProxy>&& view)
 {
     auto phase = event.touchPhaseAtIndex(index);
-    return adoptRef(*new PointerEvent(eventType(phase), event, phaseIsCancelable(phase), index, isPrimary, WTFMove(view)));
+    return adoptRef(*new PointerEvent(pointerEventType(phase), event, phaseIsCancelable(phase), index, isPrimary, WTFMove(view)));
+}
+
+Ref<PointerEvent> PointerEvent::create(const String& type, const PlatformTouchEvent& event, unsigned index, bool isPrimary, Ref<WindowProxy>&& view)
+{
+    return adoptRef(*new PointerEvent(type, event, phaseIsCancelable(event.touchPhaseAtIndex(index)), index, isPrimary, WTFMove(view)));
 }
 
 PointerEvent::PointerEvent(const AtomicString& type, const PlatformTouchEvent& event, IsCancelable isCancelable, unsigned index, bool isPrimary, Ref<WindowProxy>&& view)
@@ -69,7 +74,7 @@ PointerEvent::PointerEvent(const AtomicString& type, const PlatformTouchEvent& e
     , m_width(2 * event.radiusXAtIndex(index))
     , m_height(2 * event.radiusYAtIndex(index))
     , m_pressure(event.forceAtIndex(index))
-    , m_pointerType(event.touchTypeAtIndex(index) == PlatformTouchPoint::TouchType::Stylus ? "pen"_s : "touch"_s)
+    , m_pointerType(event.touchTypeAtIndex(index) == PlatformTouchPoint::TouchType::Stylus ? PointerEvent::penPointerType() : PointerEvent::touchPointerType())
     , m_isPrimary(isPrimary)
 {
     // See https://github.com/w3c/pointerevents/issues/274. We might expose the azimuth and altitude

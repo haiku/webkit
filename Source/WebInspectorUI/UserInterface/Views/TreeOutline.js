@@ -56,12 +56,60 @@ WI.TreeOutline = class TreeOutline extends WI.Object
 
         this._cachedNumberOfDescendents = 0;
         this._previousSelectedTreeElement = null;
-        this._selectionController = new WI.SelectionController(this);
+
+        let comparator = (a, b) => {
+            function getLevel(treeElement) {
+                let level = 0;
+                while (treeElement = treeElement.parent)
+                    level++;
+                return level;
+            }
+
+            function compareSiblings(s, t) {
+                return s.parent.children.indexOf(s) - s.parent.children.indexOf(t);
+            }
+
+            // Translate represented objects to TreeElements, which have the
+            // hierarchical information needed to perform the comparison.
+            a = this.getCachedTreeElement(a);
+            b = this.getCachedTreeElement(b);
+            if (!a || !b)
+                return 0;
+
+            if (a.parent === b.parent)
+                return compareSiblings(a, b);
+
+            let aLevel = getLevel(a);
+            let bLevel = getLevel(b);
+            while (aLevel > bLevel) {
+                if (a.parent === b)
+                    return 1;
+                a = a.parent;
+                aLevel--;
+            }
+            while (bLevel > aLevel) {
+                if (b.parent === a)
+                    return -1;
+                b = b.parent;
+                bLevel--;
+            }
+
+            while (a.parent !== b.parent) {
+                a = a.parent;
+                b = b.parent;
+            }
+
+            console.assert(a.parent === b.parent, "Missing common ancestor for TreeElements.", a, b);
+            return compareSiblings(a, b);
+        };
+
+        this._selectionController = new WI.SelectionController(this, comparator);
 
         this._itemWasSelectedByUser = false;
         this._processingSelectionChange = false;
         this._suppressNextSelectionDidChangeEvent = false;
 
+        this._virtualizedDebouncer = null;
         this._virtualizedVisibleTreeElements = null;
         this._virtualizedAttachedTreeElements = null;
         this._virtualizedScrollContainer = null;
@@ -103,16 +151,14 @@ WI.TreeOutline = class TreeOutline extends WI.Object
 
     get selectedTreeElement()
     {
-        let selectedIndex = this._selectionController.lastSelectedItem;
-        return this._treeElementAtIndex(selectedIndex) || null;
+        return this.getCachedTreeElement(this._selectionController.lastSelectedItem);
     }
 
     set selectedTreeElement(treeElement)
     {
-        if (treeElement) {
-            let index = this._indexOfTreeElement(treeElement);
-            this._selectionController.selectItem(index);
-        } else
+        if (treeElement)
+            this._selectionController.selectItem(this.objectForSelection(treeElement));
+        else
             this._selectionController.deselectAll();
     }
 
@@ -120,8 +166,8 @@ WI.TreeOutline = class TreeOutline extends WI.Object
     {
         if (this.allowsMultipleSelection) {
             let treeElements = [];
-            for (let index of this._selectionController.selectedItems)
-                treeElements.push(this._treeElementAtIndex(index));
+            for (let representedObject of this._selectionController.selectedItems)
+                treeElements.push(this.getCachedTreeElement(representedObject));
             return treeElements;
         }
 
@@ -323,13 +369,10 @@ WI.TreeOutline = class TreeOutline extends WI.Object
                 parent.select(true, false);
         }
 
-        let removedIndexes = null;
-
         let treeOutline = child.treeOutline;
         if (treeOutline) {
             treeOutline._forgetTreeElement(child);
             treeOutline._forgetChildrenRecursive(child);
-            removedIndexes = treeOutline._indexesForSubtree(child);
         }
 
         if (child.previousSibling)
@@ -345,10 +388,8 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         child.nextSibling = null;
         child.previousSibling = null;
 
-        if (treeOutline) {
-            treeOutline._selectionController.didRemoveItems(removedIndexes);
+        if (treeOutline)
             treeOutline.dispatchEventToListeners(WI.TreeOutline.Event.ElementRemoved, {element: child});
-        }
     }
 
     removeChild(child, suppressOnDeselect, suppressSelectSibling)
@@ -383,8 +424,6 @@ WI.TreeOutline = class TreeOutline extends WI.Object
                 treeOutline._forgetChildrenRecursive(child);
             }
 
-            let removedIndexes = treeOutline._indexesForSubtree(child);
-
             child._detach();
             child.treeOutline = null;
             child.parent = null;
@@ -393,10 +432,8 @@ WI.TreeOutline = class TreeOutline extends WI.Object
 
             this.children.shift();
 
-            if (treeOutline) {
-                treeOutline._selectionController.didRemoveItems(removedIndexes);
+            if (treeOutline)
                 treeOutline.dispatchEventToListeners(WI.TreeOutline.Event.ElementRemoved, {element: child});
-            }
         }
     }
 
@@ -405,20 +442,14 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         if (!this._knownTreeElements[element.identifier])
             this._knownTreeElements[element.identifier] = [];
 
-        // check if the element is already known
         var elements = this._knownTreeElements[element.identifier];
-        if (elements.indexOf(element) !== -1)
-            return;
-
-        // add the element
-        elements.push(element);
-        this._cachedNumberOfDescendents++;
-
-        let index = this._indexOfTreeElement(element);
-        if (index >= 0) {
-            console.assert(!element.selected, "TreeElement should not be selected before being inserted.");
-            this._selectionController.didInsertItem(index);
+        if (!elements.includes(element)) {
+            elements.push(element);
+            this._cachedNumberOfDescendents++;
         }
+
+        if (this.virtualized)
+            this._virtualizedDebouncer.delayForFrame();
     }
 
     _forgetTreeElement(element)
@@ -427,10 +458,14 @@ WI.TreeOutline = class TreeOutline extends WI.Object
             element.deselect(true);
             this.selectedTreeElement = null;
         }
+
         if (this._knownTreeElements[element.identifier]) {
-            this._knownTreeElements[element.identifier].remove(element, true);
-            this._cachedNumberOfDescendents--;
+            if (this._knownTreeElements[element.identifier].remove(element))
+                this._cachedNumberOfDescendents--;
         }
+
+        if (this.virtualized)
+            this._virtualizedDebouncer.delayForFrame();
     }
 
     _forgetChildrenRecursive(parentElement)
@@ -446,6 +481,13 @@ WI.TreeOutline = class TreeOutline extends WI.Object
     {
         if (!representedObject)
             return null;
+
+        // SelectionController requires every selectable object to be unique.
+        // A TreeOutline subclass where multiple TreeElements may be associated
+        // with one represented object can override objectForSelection, and return
+        // a proxy object that is associated with a single TreeElement.
+        if (representedObject.__proxyObjectTreeElement)
+            return representedObject.__proxyObjectTreeElement;
 
         if (representedObject.__treeElementIdentifier) {
             // If this representedObject has a tree element identifier, and it is a known TreeElement
@@ -536,7 +578,7 @@ WI.TreeOutline = class TreeOutline extends WI.Object
 
     treeElementFromNode(node)
     {
-        var listNode = node.enclosingNodeOrSelfWithNodeNameInArray(["ol", "li"]);
+        var listNode = node.closest("ol, li");
         if (listNode)
             return listNode.parentTreeElement || listNode.treeElement;
         return null;
@@ -623,6 +665,9 @@ WI.TreeOutline = class TreeOutline extends WI.Object
             this._itemWasSelectedByUser = true;
             handled = this._selectionController.handleKeyDown(event);
             this._itemWasSelectedByUser = false;
+
+            if (handled)
+                nextSelectedElement = this.selectedTreeElement;
         }
 
         if (nextSelectedElement) {
@@ -686,8 +731,15 @@ WI.TreeOutline = class TreeOutline extends WI.Object
 
     registerScrollVirtualizer(scrollContainer, treeItemHeight)
     {
+        console.assert(scrollContainer);
         console.assert(!isNaN(treeItemHeight));
+        console.assert(!this.virtualized);
 
+        let boundUpdateVirtualizedElements = (focusedTreeElement) => {
+            this._updateVirtualizedElements(focusedTreeElement);
+        };
+
+        this._virtualizedDebouncer = new Debouncer(boundUpdateVirtualizedElements);
         this._virtualizedVisibleTreeElements = new Set;
         this._virtualizedAttachedTreeElements = new Set;
         this._virtualizedScrollContainer = scrollContainer;
@@ -695,104 +747,17 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         this._virtualizedTopSpacer = document.createElement("div");
         this._virtualizedBottomSpacer = document.createElement("div");
 
-        let throttler = this.throttle(1000 / 16);
+        let throttler = new Throttler(boundUpdateVirtualizedElements, 1000 / 16);
         this._virtualizedScrollContainer.addEventListener("scroll", (event) => {
-            throttler.updateVirtualizedElements();
+            throttler.fire();
         });
+
+        this._updateVirtualizedElements();
     }
 
-    updateVirtualizedElements(focusedTreeElement)
+    get updateVirtualizedElementsDebouncer()
     {
-        if (!this.virtualized)
-            return;
-
-        function walk(parent, callback, count = 0) {
-            let shouldReturn = false;
-            for (let child of parent.children) {
-                if (!child.revealed(false))
-                    continue;
-
-                shouldReturn = callback(child, count);
-                if (shouldReturn)
-                    break;
-
-                ++count;
-                if (child.expanded) {
-                    let result = walk(child, callback, count);
-                    count = result.count;
-                    if (result.shouldReturn)
-                        break;
-                }
-            }
-            return {count, shouldReturn};
-        }
-
-        let {numberVisible, extraRows, firstItem, lastItem} = this._calculateVirtualizedValues();
-
-        let shouldScroll = false;
-        if (focusedTreeElement && focusedTreeElement.revealed(false)) {
-            let index = walk(this, (treeElement) => treeElement === focusedTreeElement).count;
-            if (index < firstItem) {
-                firstItem = index - extraRows;
-                lastItem = index + numberVisible + extraRows;
-            } else if (index > lastItem) {
-                firstItem = index - numberVisible - extraRows;
-                lastItem = index + extraRows;
-            }
-
-            // Only scroll if the `focusedTreeElement` is outside the visible items, not including
-            // the added buffer `extraRows`.
-            shouldScroll = (index < firstItem + extraRows) || (index > lastItem - extraRows);
-        }
-
-        console.assert(firstItem < lastItem);
-
-        let visibleTreeElements = new Set;
-        let treeElementsToAttach = new Set;
-        let treeElementsToDetach = new Set;
-        let totalItems = walk(this, (treeElement, count) => {
-            if (count >= firstItem && count <= lastItem) {
-                treeElementsToAttach.add(treeElement);
-                if (count >= firstItem + extraRows && count <= lastItem - extraRows)
-                    visibleTreeElements.add(treeElement);
-            } else if (treeElement.element.parentNode)
-                treeElementsToDetach.add(treeElement);
-
-            return false;
-        }).count;
-
-        // Redraw if we are about to scroll.
-        if (!shouldScroll) {
-            // Redraw if all of the previously centered `WI.TreeElement` are no longer centered.
-            if (visibleTreeElements.intersects(this._virtualizedVisibleTreeElements)) {
-                // Redraw if there is a `WI.TreeElement` that should be shown that isn't attached.
-                if (visibleTreeElements.isSubsetOf(this._virtualizedAttachedTreeElements))
-                    return;
-            }
-        }
-
-        this._virtualizedVisibleTreeElements = visibleTreeElements;
-        this._virtualizedAttachedTreeElements = treeElementsToAttach;
-
-        for (let treeElement of treeElementsToDetach)
-            treeElement.element.remove();
-
-        for (let treeElement of treeElementsToAttach) {
-            treeElement.parent._childrenListNode.appendChild(treeElement.element);
-            if (treeElement._childrenListNode)
-                treeElement.parent._childrenListNode.appendChild(treeElement._childrenListNode);
-        }
-
-        this._virtualizedTopSpacer.style.height = (Math.max(firstItem, 0) * this._virtualizedTreeItemHeight) + "px";
-        if (this.element.previousElementSibling !== this._virtualizedTopSpacer)
-            this.element.parentNode.insertBefore(this._virtualizedTopSpacer, this.element);
-
-        this._virtualizedBottomSpacer.style.height = (Math.max(totalItems - lastItem, 0) * this._virtualizedTreeItemHeight) + "px";
-        if (this.element.nextElementSibling !== this._virtualizedBottomSpacer)
-            this.element.parentNode.insertBefore(this._virtualizedBottomSpacer, this.element.nextElementSibling);
-
-        if (shouldScroll)
-            this._virtualizedScrollContainer.scrollTop = (firstItem + extraRows) * this._virtualizedTreeItemHeight;
+        return this._virtualizedDebouncer;
     }
 
     // SelectionController delegate
@@ -806,26 +771,27 @@ WI.TreeOutline = class TreeOutline extends WI.Object
     {
         this._processingSelectionChange = true;
 
-        for (let index of deselectedItems) {
-            let treeElement = this._treeElementAtIndex(index);
-            console.assert(treeElement, "Missing TreeElement for deselected index " + index);
-            if (treeElement) {
-                if (treeElement.listItemElement)
-                    treeElement.listItemElement.classList.remove("selected");
-                if (!this._suppressNextSelectionDidChangeEvent)
-                    treeElement.deselect();
-            }
+        for (let representedObject of deselectedItems) {
+            let treeElement = this.getCachedTreeElement(representedObject);
+            if (!treeElement)
+                continue;
+
+            if (treeElement.listItemElement)
+                treeElement.listItemElement.classList.remove("selected");
+
+            treeElement.deselect();
         }
 
-        for (let index of selectedItems) {
-            let treeElement = this._treeElementAtIndex(index);
-            console.assert(treeElement, "Missing TreeElement for selected index " + index);
-            if (treeElement) {
-                if (treeElement.listItemElement)
-                    treeElement.listItemElement.classList.add("selected");
-                if (!this._suppressNextSelectionDidChangeEvent)
-                    treeElement.select();
-            }
+        for (let representedObject of selectedItems) {
+            let treeElement = this.getCachedTreeElement(representedObject);
+            if (!treeElement)
+                continue;
+
+            if (treeElement.listItemElement)
+                treeElement.listItemElement.classList.add("selected");
+
+            const omitFocus = true;
+            treeElement.select(omitFocus);
         }
 
         let selectedTreeElement = this.selectedTreeElement;
@@ -844,43 +810,77 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         this._processingSelectionChange = false;
     }
 
-    selectionControllerNextSelectableIndex(controller, index)
+    selectionControllerFirstSelectableItem(controller)
     {
-        let treeElement = this._treeElementAtIndex(index);
-        if (!treeElement)
-            return NaN;
-
-        const skipUnrevealed = true;
-        const stayWithin = null;
-        const dontPopulate = true;
-
-        while (treeElement = treeElement.traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate)) {
-            if (treeElement.selectable)
-                return this._indexOfTreeElement(treeElement);
-        }
-
-        return NaN;
+        let firstChild = this.children[0];
+        if (firstChild.selectable)
+            return firstChild.representedObject;
+        return this.selectionControllerNextSelectableItem(controller, firstChild.representedObject);
     }
 
-    selectionControllerPreviousSelectableIndex(controller, index)
+    selectionControllerLastSelectableItem(controller)
     {
-        let treeElement = this._treeElementAtIndex(index);
+        let treeElement = this.children.lastValue;
+        while (treeElement.expanded && treeElement.children.length)
+            treeElement = treeElement.children.lastValue;
+
+        let item = this.objectForSelection(treeElement);
+        if (this.canSelectTreeElement(treeElement))
+            return item;
+        return this.selectionControllerPreviousSelectableItem(controller, item);
+    }
+
+    selectionControllerPreviousSelectableItem(controller, item)
+    {
+        let treeElement = this.getCachedTreeElement(item);
+        console.assert(treeElement, "Missing TreeElement for representedObject.", item);
         if (!treeElement)
-            return NaN;
+            return null;
 
         const skipUnrevealed = true;
         const stayWithin = null;
         const dontPopulate = true;
 
         while (treeElement = treeElement.traversePreviousTreeElement(skipUnrevealed, stayWithin, dontPopulate)) {
-            if (treeElement.selectable)
-                return this._indexOfTreeElement(treeElement);
+            if (this.canSelectTreeElement(treeElement))
+                return this.objectForSelection(treeElement);
         }
 
-        return NaN;
+        return null;
+    }
+
+    selectionControllerNextSelectableItem(controller, item)
+    {
+        let treeElement = this.getCachedTreeElement(item);
+        console.assert(treeElement, "Missing TreeElement for representedObject.", item);
+        if (!treeElement)
+            return null;
+
+        const skipUnrevealed = true;
+        const stayWithin = null;
+        const dontPopulate = true;
+
+        while (treeElement = treeElement.traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate)) {
+            if (this.canSelectTreeElement(treeElement))
+                return this.objectForSelection(treeElement);
+        }
+
+        return null;
     }
 
     // Protected
+
+    canSelectTreeElement(treeElement)
+    {
+        // Can be overridden by subclasses.
+
+        return treeElement.selectable;
+    }
+
+    objectForSelection(treeElement)
+    {
+        return treeElement.representedObject;
+    }
 
     selectTreeElementInternal(treeElement, suppressNotification = false, selectedByUser = false)
     {
@@ -954,7 +954,6 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         WI.TreeOutline._styleElement = document.createElement("style");
 
         let maximumTreeDepth = 32;
-        let baseLeftPadding = 5; // Matches the padding in TreeOutline.css for the item class. Keep in sync.
         let depthPadding = 10;
 
         let styleText = "";
@@ -963,13 +962,8 @@ WI.TreeOutline = class TreeOutline extends WI.Object
             // Keep all the elements at the same depth once the maximum is reached.
             childrenSubstring += i === maximumTreeDepth ? " .children" : " > .children";
             styleText += `.${WI.TreeOutline.ElementStyleClassName}:not(.${WI.TreeOutline.CustomIndentStyleClassName})${childrenSubstring} > .item { `;
-
-            if (WI.resolvedLayoutDirection() === WI.LayoutDirection.RTL)
-                styleText += "padding-right: ";
-            else
-                styleText += "padding-left: ";
-
-            styleText += (baseLeftPadding + (depthPadding * i)) + "px; }\n";
+            styleText += `-webkit-padding-start: calc(var(--tree-outline-item-padding) + ${depthPadding * i}px);`;
+            styleText += ` }\n`;
         }
 
         WI.TreeOutline._styleElement.textContent = styleText;
@@ -977,18 +971,114 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         document.head.appendChild(WI.TreeOutline._styleElement);
     }
 
-    _calculateVirtualizedValues()
+    _updateVirtualizedElements(focusedTreeElement)
     {
-        let numberVisible = Math.ceil(this._virtualizedScrollContainer.offsetHeight / this._virtualizedTreeItemHeight);
+        console.assert(this.virtualized);
+
+        this._virtualizedDebouncer.cancel();
+
+        function walk(parent, callback, count = 0) {
+            let shouldReturn = false;
+            for (let child of parent.children) {
+                if (!child.revealed(false))
+                    continue;
+
+                shouldReturn = callback(child, count);
+                if (shouldReturn)
+                    break;
+
+                ++count;
+                if (child.expanded) {
+                    let result = walk(child, callback, count);
+                    count = result.count;
+                    if (result.shouldReturn)
+                        break;
+                }
+            }
+            return {count, shouldReturn};
+        }
+
+        function calculateOffsetFromContainer(node, target) {
+            let top = 0;
+            while (node !== target) {
+                top += node.offsetTop;
+                node = node.offsetParent;
+                if (!node)
+                    return 0;
+            }
+            return top;
+        }
+
+        let offsetFromContainer = calculateOffsetFromContainer(this._virtualizedTopSpacer.parentNode ? this._virtualizedTopSpacer : this.element, this._virtualizedScrollContainer);
+        let numberVisible = Math.ceil(Math.max(0, this._virtualizedScrollContainer.offsetHeight - offsetFromContainer) / this._virtualizedTreeItemHeight);
         let extraRows = Math.max(numberVisible * 5, 50);
-        let firstItem = Math.floor(this._virtualizedScrollContainer.scrollTop / this._virtualizedTreeItemHeight) - extraRows;
+        let firstItem = Math.floor((this._virtualizedScrollContainer.scrollTop - offsetFromContainer) / this._virtualizedTreeItemHeight) - extraRows;
         let lastItem = firstItem + numberVisible + (extraRows * 2);
-        return {
-            numberVisible,
-            extraRows,
-            firstItem,
-            lastItem,
-        };
+
+        let shouldScroll = false;
+        if (focusedTreeElement && focusedTreeElement.revealed(false)) {
+            let index = walk(this, (treeElement) => treeElement === focusedTreeElement).count;
+            if (index < firstItem) {
+                firstItem = index - extraRows;
+                lastItem = index + numberVisible + extraRows;
+            } else if (index > lastItem) {
+                firstItem = index - numberVisible - extraRows;
+                lastItem = index + extraRows;
+            }
+
+            // Only scroll if the `focusedTreeElement` is outside the visible items, not including
+            // the added buffer `extraRows`.
+            shouldScroll = (index < firstItem + extraRows) || (index > lastItem - extraRows);
+        }
+
+        console.assert(firstItem < lastItem);
+
+        let visibleTreeElements = new Set;
+        let treeElementsToAttach = new Set;
+        let treeElementsToDetach = new Set;
+        let totalItems = walk(this, (treeElement, count) => {
+            if (count >= firstItem && count <= lastItem) {
+                treeElementsToAttach.add(treeElement);
+                if (count >= firstItem + extraRows && count <= lastItem - extraRows)
+                    visibleTreeElements.add(treeElement);
+            } else if (treeElement._listItemNode.parentNode)
+                treeElementsToDetach.add(treeElement);
+
+            return false;
+        }).count;
+
+        // Redraw if we are about to scroll.
+        if (!shouldScroll) {
+            // Redraw if all of the previously centered `WI.TreeElement` are no longer centered.
+            if (visibleTreeElements.intersects(this._virtualizedVisibleTreeElements)) {
+                // Redraw if there is a `WI.TreeElement` that should be shown that isn't attached.
+                if (visibleTreeElements.isSubsetOf(this._virtualizedAttachedTreeElements))
+                    return;
+            }
+        }
+
+        this._virtualizedVisibleTreeElements = visibleTreeElements;
+        this._virtualizedAttachedTreeElements = treeElementsToAttach;
+
+        for (let treeElement of treeElementsToDetach)
+            treeElement._listItemNode.remove();
+
+        for (let treeElement of treeElementsToAttach) {
+            treeElement.parent._childrenListNode.appendChild(treeElement._listItemNode);
+            if (treeElement._childrenListNode)
+                treeElement.parent._childrenListNode.appendChild(treeElement._childrenListNode);
+        }
+
+        this._virtualizedTopSpacer.style.height = (Number.constrain(firstItem, 0, totalItems) * this._virtualizedTreeItemHeight) + "px";
+        if (this.element.previousElementSibling !== this._virtualizedTopSpacer)
+            this.element.parentNode.insertBefore(this._virtualizedTopSpacer, this.element);
+
+        this._virtualizedBottomSpacer.style.height = (Number.constrain(totalItems - lastItem, 0, totalItems) * this._virtualizedTreeItemHeight) + "px";
+        if (this.element.nextElementSibling !== this._virtualizedBottomSpacer)
+            this.element.parentNode.insertBefore(this._virtualizedBottomSpacer, this.element.nextElementSibling);
+
+        if (shouldScroll)
+            this._virtualizedScrollContainer.scrollTop = offsetFromContainer + ((firstItem + extraRows) * this._virtualizedTreeItemHeight);
     }
 
     _handleContextmenu(event)
@@ -1012,57 +1102,20 @@ WI.TreeOutline = class TreeOutline extends WI.Object
             return;
         }
 
-        if (!treeElement.canSelectOnMouseDown(event)) {
-            event.preventDefault();
+        if (!treeElement.canSelectOnMouseDown(event))
+            return;
+
+        if (this.allowsRepeatSelection && treeElement.selected && this._selectionController.selectedItems.size === 1) {
+            // Special case for dispatching a selection event for an already selected
+            // item in single-selection mode.
+            this._itemWasSelectedByUser = true;
+            this._dispatchSelectionDidChangeEvent();
             return;
         }
-
-        let index = this._indexOfTreeElement(treeElement);
-        if (isNaN(index))
-            return;
 
         this._itemWasSelectedByUser = true;
-        this._selectionController.handleItemMouseDown(index, event);
+        this._selectionController.handleItemMouseDown(this.objectForSelection(treeElement), event);
         this._itemWasSelectedByUser = false;
-    }
-
-    _indexOfTreeElement(treeElement)
-    {
-        const skipUnrevealed = false;
-        const stayWithin = null;
-        const dontPopulate = true;
-
-        let index = 0;
-        let current = this.children[0];
-        while (current) {
-            if (treeElement === current)
-                return index;
-
-            current = current.traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate);
-            ++index;
-        }
-
-        console.assert(false, "Unable to get index for tree element.", treeElement);
-        return NaN;
-    }
-
-    _treeElementAtIndex(index)
-    {
-        const skipUnrevealed = false;
-        const stayWithin = null;
-        const dontPopulate = true;
-
-        let current = 0;
-        let treeElement = this.children[0];
-        while (treeElement) {
-            if (current === index)
-                return treeElement;
-
-            treeElement = treeElement.traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate);
-            ++current;
-        }
-
-        return null;
     }
 
     _dispatchSelectionDidChangeEvent()
@@ -1076,35 +1129,6 @@ WI.TreeOutline = class TreeOutline extends WI.Object
         }
 
         this.dispatchEventToListeners(WI.TreeOutline.Event.SelectionDidChange, {selectedByUser});
-    }
-
-    _indexesForSubtree(treeElement)
-    {
-        let treeOutline = treeElement.treeOutline;
-        if (!treeOutline)
-            return null;
-
-        let firstChild = treeElement.children[0];
-        if (treeElement.root && !firstChild)
-            return null;
-
-        let current = firstChild || treeElement;
-        let startIndex = treeOutline._indexOfTreeElement(current);
-        let endIndex = startIndex;
-
-        const skipUnrevealed = false;
-        const stayWithin = treeElement;
-        const dontPopulate = true;
-
-        while (current = current.traverseNextTreeElement(skipUnrevealed, stayWithin, dontPopulate))
-            endIndex++;
-
-        let count = endIndex - startIndex + 1;
-
-        let indexes = new WI.IndexSet;
-        indexes.addRange(startIndex, count);
-
-        return indexes;
     }
 };
 

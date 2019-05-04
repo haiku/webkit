@@ -30,6 +30,7 @@
 #include "DatePrototype.h"
 #include "ErrorConstructor.h"
 #include "Exception.h"
+#include "GCDeferralContextInlines.h"
 #include "GetterSetter.h"
 #include "HeapSnapshotBuilder.h"
 #include "IndexingHeaderInlines.h"
@@ -46,6 +47,7 @@
 #include "ProxyObject.h"
 #include "SlotVisitorInlines.h"
 #include "TypeError.h"
+#include "VMInlines.h"
 #include <math.h>
 #include <wtf/Assertions.h>
 
@@ -524,35 +526,61 @@ String JSObject::toStringName(const JSObject* object, ExecState* exec)
 
 String JSObject::calculatedClassName(JSObject* object)
 {
-    String prototypeFunctionName;
-    auto globalObject = object->globalObject();
+    String constructorFunctionName;
+    auto* structure = object->structure();
+    auto* globalObject = structure->globalObject();
     VM& vm = globalObject->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
+    auto* exec = globalObject->globalExec();
 
-    ExecState* exec = globalObject->globalExec();
-    PropertySlot slot(object->getPrototypeDirect(vm), PropertySlot::InternalMethodType::VMInquiry);
-    PropertyName constructor(vm.propertyNames->constructor);
-    if (object->getPropertySlot(exec, constructor, slot)) {
+    // Check for a display name of obj.constructor.
+    // This is useful to get `Foo` for the `(class Foo).prototype` object.
+    PropertySlot slot(object, PropertySlot::InternalMethodType::VMInquiry);
+    if (object->getOwnPropertySlot(object, exec, vm.propertyNames->constructor, slot)) {
         EXCEPTION_ASSERT(!scope.exception());
         if (slot.isValue()) {
-            JSValue constructorValue = slot.getValue(exec, constructor);
-            if (constructorValue.isCell()) {
-                if (JSCell* constructorCell = constructorValue.asCell()) {
-                    if (JSObject* ctorObject = constructorCell->getObject()) {
-                        if (JSFunction* constructorFunction = jsDynamicCast<JSFunction*>(vm, ctorObject))
-                            prototypeFunctionName = constructorFunction->calculatedDisplayName(vm);
-                        else if (InternalFunction* constructorFunction = jsDynamicCast<InternalFunction*>(vm, ctorObject))
-                            prototypeFunctionName = constructorFunction->calculatedDisplayName(vm);
+            if (JSObject* ctorObject = jsDynamicCast<JSObject*>(vm, slot.getValue(exec, vm.propertyNames->constructor))) {
+                if (JSFunction* constructorFunction = jsDynamicCast<JSFunction*>(vm, ctorObject))
+                    constructorFunctionName = constructorFunction->calculatedDisplayName(vm);
+                else if (InternalFunction* constructorFunction = jsDynamicCast<InternalFunction*>(vm, ctorObject))
+                    constructorFunctionName = constructorFunction->calculatedDisplayName(vm);
+            }
+        }
+    }
+
+    EXCEPTION_ASSERT(!scope.exception() || constructorFunctionName.isNull());
+    if (UNLIKELY(scope.exception()))
+        scope.clearException();
+
+    // Get the display name of obj.__proto__.constructor.
+    // This is useful to get `Foo` for a `new Foo` object.
+    if (constructorFunctionName.isNull()) {
+        MethodTable::GetPrototypeFunctionPtr defaultGetPrototype = JSObject::getPrototype;
+        if (LIKELY(structure->classInfo()->methodTable.getPrototype == defaultGetPrototype)) {
+            JSValue protoValue = object->getPrototypeDirect(vm);
+            if (protoValue.isObject()) {
+                JSObject* protoObject = asObject(protoValue);
+                PropertySlot slot(protoValue, PropertySlot::InternalMethodType::VMInquiry);
+                if (protoObject->getPropertySlot(exec, vm.propertyNames->constructor, slot)) {
+                    EXCEPTION_ASSERT(!scope.exception());
+                    if (slot.isValue()) {
+                        if (JSObject* ctorObject = jsDynamicCast<JSObject*>(vm, slot.getValue(exec, vm.propertyNames->constructor))) {
+                            if (JSFunction* constructorFunction = jsDynamicCast<JSFunction*>(vm, ctorObject))
+                                constructorFunctionName = constructorFunction->calculatedDisplayName(vm);
+                            else if (InternalFunction* constructorFunction = jsDynamicCast<InternalFunction*>(vm, ctorObject))
+                                constructorFunctionName = constructorFunction->calculatedDisplayName(vm);
+                        }
                     }
                 }
             }
         }
     }
-    EXCEPTION_ASSERT(!scope.exception() || prototypeFunctionName.isNull());
+
+    EXCEPTION_ASSERT(!scope.exception() || constructorFunctionName.isNull());
     if (UNLIKELY(scope.exception()))
         scope.clearException();
 
-    if (prototypeFunctionName.isNull() || prototypeFunctionName == "Object") {
+    if (constructorFunctionName.isNull() || constructorFunctionName == "Object") {
         String tableClassName = object->methodTable(vm)->className(object, vm);
         if (!tableClassName.isNull() && tableClassName != "Object")
             return tableClassName;
@@ -561,11 +589,11 @@ String JSObject::calculatedClassName(JSObject* object)
         if (!classInfoName.isNull())
             return classInfoName;
 
-        if (prototypeFunctionName.isNull())
+        if (constructorFunctionName.isNull())
             return "Object"_s;
     }
 
-    return prototypeFunctionName;
+    return constructorFunctionName;
 }
 
 bool JSObject::getOwnPropertySlotByIndex(JSObject* thisObject, ExecState* exec, unsigned i, PropertySlot& slot)
@@ -1742,7 +1770,7 @@ void JSObject::setPrototypeDirect(VM& vm, JSValue prototype)
 {
     ASSERT(prototype);
     if (prototype.isObject())
-        prototype.asCell()->didBecomePrototype();
+        asObject(prototype)->didBecomePrototype();
     
     if (structure(vm)->hasMonoProto()) {
         DeferredStructureTransitionWatchpointFire deferred(vm, structure(vm));
@@ -1894,6 +1922,19 @@ bool JSObject::putDirectNonIndexAccessor(VM& vm, PropertyName propertyName, Gett
 
     structure->setHasGetterSetterPropertiesWithProtoCheck(propertyName == vm.propertyNames->underscoreProto);
     return result;
+}
+
+void JSObject::putDirectNonIndexAccessorWithoutTransition(VM& vm, PropertyName propertyName, GetterSetter* accessor, unsigned attributes)
+{
+    ASSERT(attributes & PropertyAttribute::Accessor);
+    StructureID structureID = this->structureID();
+    Structure* structure = vm.heap.structureIDTable().get(structureID);
+    PropertyOffset offset = prepareToPutDirectWithoutTransition(vm, propertyName, attributes, structureID, structure);
+    putDirect(vm, offset, accessor);
+    if (attributes & PropertyAttribute::ReadOnly)
+        structure->setContainsReadOnlyProperties();
+
+    structure->setHasGetterSetterPropertiesWithProtoCheck(propertyName == vm.propertyNames->underscoreProto);
 }
 
 // HasProperty(O, P) from Section 7.3.10 of the spec.
@@ -2206,8 +2247,13 @@ bool JSObject::hasInstance(ExecState* exec, JSValue value, JSValue hasInstanceVa
         RETURN_IF_EXCEPTION(scope, false);
         RELEASE_AND_RETURN(scope, defaultHasInstance(exec, value, prototype));
     }
-    if (info.implementsHasInstance())
+    if (info.implementsHasInstance()) {
+        if (UNLIKELY(!vm.isSafeToRecurseSoft())) {
+            throwStackOverflowError(exec, scope);
+            return false;
+        }
         RELEASE_AND_RETURN(scope, methodTable(vm)->customHasInstance(this, exec, value));
+    }
 
     throwException(exec, scope, createInvalidInstanceofParameterErrorNotFunction(exec, this));
     return false;
@@ -2390,7 +2436,7 @@ JSString* JSObject::toString(ExecState* exec) const
     auto scope = DECLARE_THROW_SCOPE(vm);
     JSValue primitive = toPrimitive(exec, PreferString);
     RETURN_IF_EXCEPTION(scope, jsEmptyString(exec));
-    return primitive.toString(exec);
+    RELEASE_AND_RETURN(scope, primitive.toString(exec));
 }
 
 JSValue JSObject::toThis(JSCell* cell, ExecState*, ECMAMode)
@@ -3010,7 +3056,7 @@ bool JSObject::putDirectIndexSlowOrBeyondVectorLength(ExecState* exec, unsigned 
                 exec, i, value, attributes, mode,
                 ensureArrayStorageExistsAndEnterDictionaryIndexingMode(vm));
         }
-        if (i >= MIN_SPARSE_ARRAY_INDEX) {
+        if (indexIsSufficientlyBeyondLengthForSparseMap(i, 0) || i >= MIN_SPARSE_ARRAY_INDEX) {
             return putDirectIndexBeyondVectorLengthWithArrayStorage(
                 exec, i, value, attributes, mode, createArrayStorage(vm, 0, 0));
         }
@@ -3084,6 +3130,13 @@ bool JSObject::putDirectNativeIntrinsicGetter(VM& vm, JSGlobalObject* globalObje
     JSFunction* function = JSFunction::create(vm, globalObject, 0, makeString("get ", name.string()), nativeFunction, intrinsic);
     GetterSetter* accessor = GetterSetter::create(vm, globalObject, function, nullptr);
     return putDirectNonIndexAccessor(vm, name, accessor, attributes);
+}
+
+void JSObject::putDirectNativeIntrinsicGetterWithoutTransition(VM& vm, JSGlobalObject* globalObject, Identifier name, NativeFunction nativeFunction, Intrinsic intrinsic, unsigned attributes)
+{
+    JSFunction* function = JSFunction::create(vm, globalObject, 0, makeString("get ", name.string()), nativeFunction, intrinsic);
+    GetterSetter* accessor = GetterSetter::create(vm, globalObject, function, nullptr);
+    putDirectNonIndexAccessorWithoutTransition(vm, name, accessor, attributes);
 }
 
 bool JSObject::putDirectNativeFunction(VM& vm, JSGlobalObject* globalObject, const PropertyName& propertyName, unsigned functionLength, NativeFunction nativeFunction, Intrinsic intrinsic, unsigned attributes)
@@ -3305,6 +3358,8 @@ bool JSObject::ensureLengthSlow(VM& vm, unsigned length)
     Structure* structure = this->structure(vm);
     unsigned propertyCapacity = structure->outOfLineCapacity();
     
+    GCDeferralContext deferralContext(vm.heap);
+    DisallowGC disallowGC;
     unsigned availableOldLength =
         Butterfly::availableContiguousVectorLength(propertyCapacity, oldVectorLength);
     Butterfly* newButterfly = nullptr;
@@ -3316,8 +3371,8 @@ bool JSObject::ensureLengthSlow(VM& vm, unsigned length)
     } else {
         newVectorLength = Butterfly::optimalContiguousVectorLength(
             propertyCapacity, std::min(length * 2, MAX_STORAGE_VECTOR_LENGTH));
-        butterfly = butterfly->growArrayRight(
-            vm, this, structure, propertyCapacity, true,
+        butterfly = butterfly->reallocArrayRightIfPossible(
+            vm, deferralContext, this, structure, propertyCapacity, true,
             oldVectorLength * sizeof(EncodedJSValue),
             newVectorLength * sizeof(EncodedJSValue));
         if (!butterfly)

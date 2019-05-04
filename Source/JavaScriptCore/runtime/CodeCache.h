@@ -39,9 +39,6 @@
 #include "UnlinkedFunctionCodeBlock.h"
 #include "UnlinkedModuleProgramCodeBlock.h"
 #include "UnlinkedProgramCodeBlock.h"
-#include <sys/stat.h>
-#include <wtf/Forward.h>
-#include <wtf/text/WTFString.h>
 
 namespace JSC {
 
@@ -75,14 +72,16 @@ struct SourceCodeValue {
     {
     }
 
-    SourceCodeValue(VM& vm, JSCell* cell, int64_t age)
+    SourceCodeValue(VM& vm, JSCell* cell, int64_t age, bool written = false)
         : cell(vm, cell)
         , age(age)
+        , written(written)
     {
     }
 
     Strong<JSCell> cell;
     int64_t age;
+    bool written;
 };
 
 class CodeCacheMap {
@@ -103,79 +102,6 @@ public:
 
     iterator begin() { return m_map.begin(); }
     iterator end() { return m_map.end(); }
-
-    template<typename UnlinkedCodeBlockType>
-    UnlinkedCodeBlockType* fetchFromDiskImpl(VM& vm, const SourceCodeKey& key)
-    {
-        {
-            const auto* cachedBytecode = key.source().provider().cachedBytecode();
-            if (cachedBytecode && cachedBytecode->size()) {
-                VERBOSE_LOG("Found cached CodeBlock in the SourceProvider");
-                UnlinkedCodeBlockType* unlinkedCodeBlock = decodeCodeBlock<UnlinkedCodeBlockType>(vm, key, cachedBytecode->data(), cachedBytecode->size());
-                if (unlinkedCodeBlock)
-                    return unlinkedCodeBlock;
-            }
-        }
-
-#if OS(DARWIN)
-        const char* cachePath = Options::diskCachePath();
-        if (!cachePath)
-            return nullptr;
-
-        unsigned hash = key.hash();
-        char filename[512];
-        int count = snprintf(filename, 512, "%s/%u.cache", cachePath, hash);
-        if (count < 0 || count > 512)
-            return nullptr;
-
-        int fd = open(filename, O_RDONLY);
-        if (fd == -1)
-            return nullptr;
-
-        int rc = flock(fd, LOCK_SH | LOCK_NB);
-        if (rc) {
-            close(fd);
-            return nullptr;
-        }
-
-        struct stat sb;
-        int res = fstat(fd, &sb);
-        size_t size = static_cast<size_t>(sb.st_size);
-        if (res || !size) {
-            close(fd);
-            return nullptr;
-        }
-
-        void* buffer = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
-        UnlinkedCodeBlockType* unlinkedCodeBlock = decodeCodeBlock<UnlinkedCodeBlockType>(vm, key, buffer, size);
-        munmap(buffer, size);
-
-        if (!unlinkedCodeBlock)
-            return nullptr;
-
-        VERBOSE_LOG("Found cached CodeBlock on disk");
-        addCache(key, SourceCodeValue(vm, unlinkedCodeBlock, m_age));
-        return unlinkedCodeBlock;
-#else
-        UNUSED_PARAM(vm);
-        UNUSED_PARAM(key);
-        return nullptr;
-#endif
-    }
-
-    template<typename UnlinkedCodeBlockType>
-    std::enable_if_t<std::is_base_of<UnlinkedCodeBlock, UnlinkedCodeBlockType>::value && !std::is_same<UnlinkedCodeBlockType, UnlinkedEvalCodeBlock>::value, UnlinkedCodeBlockType*>
-    fetchFromDisk(VM& vm, const SourceCodeKey& key)
-    {
-        UnlinkedCodeBlockType* codeBlock = fetchFromDiskImpl<UnlinkedCodeBlockType>(vm, key);
-        if (UNLIKELY(Options::forceDiskCache()))
-            RELEASE_ASSERT(codeBlock);
-        return codeBlock;
-    }
-
-    template<typename T>
-    std::enable_if_t<!std::is_base_of<UnlinkedCodeBlock, T>::value || std::is_same<T, UnlinkedEvalCodeBlock>::value, T*>
-    fetchFromDisk(VM&, const SourceCodeKey&) { return nullptr; }
 
     template<typename UnlinkedCodeBlockType>
     UnlinkedCodeBlockType* findCacheAndUpdateAge(VM& vm, const SourceCodeKey& key)
@@ -237,6 +163,33 @@ public:
     int64_t age() { return m_age; }
 
 private:
+    template<typename UnlinkedCodeBlockType>
+    UnlinkedCodeBlockType* fetchFromDiskImpl(VM& vm, const SourceCodeKey& key)
+    {
+        const CachedBytecode* cachedBytecode = key.source().provider().cachedBytecode();
+        if (cachedBytecode && cachedBytecode->size()) {
+            VERBOSE_LOG("Found cached CodeBlock in the SourceProvider");
+            UnlinkedCodeBlockType* unlinkedCodeBlock = decodeCodeBlock<UnlinkedCodeBlockType>(vm, key, cachedBytecode->data(), cachedBytecode->size());
+            if (unlinkedCodeBlock)
+                return unlinkedCodeBlock;
+        }
+        return nullptr;
+    }
+
+    template<typename UnlinkedCodeBlockType>
+    std::enable_if_t<std::is_base_of<UnlinkedCodeBlock, UnlinkedCodeBlockType>::value && !std::is_same<UnlinkedCodeBlockType, UnlinkedEvalCodeBlock>::value, UnlinkedCodeBlockType*>
+    fetchFromDisk(VM& vm, const SourceCodeKey& key)
+    {
+        UnlinkedCodeBlockType* codeBlock = fetchFromDiskImpl<UnlinkedCodeBlockType>(vm, key);
+        if (UNLIKELY(Options::forceDiskCache()))
+            RELEASE_ASSERT(codeBlock);
+        return codeBlock;
+    }
+
+    template<typename T>
+    std::enable_if_t<!std::is_base_of<UnlinkedCodeBlock, T>::value || std::is_same<T, UnlinkedEvalCodeBlock>::value, T*>
+    fetchFromDisk(VM&, const SourceCodeKey&) { return nullptr; }
+
     // This constant factor biases cache capacity toward allowing a minimum
     // working set to enter the cache before it starts evicting.
     static const Seconds workingSetTime;
@@ -341,8 +294,10 @@ UnlinkedCodeBlockType* generateUnlinkedCodeBlockImpl(VM& vm, const SourceCode& s
 
     UnlinkedCodeBlockType* unlinkedCodeBlock = UnlinkedCodeBlockType::create(&vm, executableInfo, debuggerMode);
     unlinkedCodeBlock->recordParse(rootNode->features(), rootNode->hasCapturedVariables(), lineCount, unlinkedEndColumn);
-    unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURL());
-    unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURL());
+    if (!source.provider()->sourceURLDirective().isNull())
+        unlinkedCodeBlock->setSourceURLDirective(source.provider()->sourceURLDirective());
+    if (!source.provider()->sourceMappingURLDirective().isNull())
+        unlinkedCodeBlock->setSourceMappingURLDirective(source.provider()->sourceMappingURLDirective());
 
     error = BytecodeGenerator::generate(vm, rootNode.get(), source, unlinkedCodeBlock, debuggerMode, variablesUnderTDZ);
 
@@ -375,5 +330,7 @@ recursivelyGenerateUnlinkedCodeBlock(VM& vm, const SourceCode& source, JSParserS
 
 void writeCodeBlock(VM&, const SourceCodeKey&, const SourceCodeValue&);
 CachedBytecode serializeBytecode(VM&, UnlinkedCodeBlock*, const SourceCode&, SourceCodeType, JSParserStrictMode, JSParserScriptMode, DebuggerMode);
+SourceCodeKey sourceCodeKeyForSerializedProgram(VM&, const SourceCode&);
+SourceCodeKey sourceCodeKeyForSerializedModule(VM&, const SourceCode&);
 
 } // namespace JSC

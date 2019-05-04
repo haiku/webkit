@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1999-2001 Harri Porten (porten@kde.org)
  *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
- *  Copyright (C) 2006-2017 Apple Inc. All rights reserved.
+ *  Copyright (C) 2006-2019 Apple Inc. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -44,6 +44,7 @@
 #include "Page.h"
 #include "PageConsoleClient.h"
 #include "PageGroup.h"
+#include "PaymentCoordinator.h"
 #include "PluginViewBase.h"
 #include "RuntimeApplicationChecks.h"
 #include "ScriptDisallowedScope.h"
@@ -278,8 +279,11 @@ void ScriptController::setupModuleScriptHandlers(LoadableModuleScript& moduleScr
 
     RefPtr<LoadableModuleScript> moduleScript(&moduleScriptRef);
 
-    auto& fulfillHandler = *JSNativeStdFunction::create(state.vm(), proxy.window(), 1, String(), [moduleScript](ExecState* exec) {
+    auto& fulfillHandler = *JSNativeStdFunction::create(state.vm(), proxy.window(), 1, String(), [moduleScript](ExecState* exec) -> JSC::EncodedJSValue {
+        VM& vm = exec->vm();
+        auto scope = DECLARE_THROW_SCOPE(vm);
         Identifier moduleKey = jsValueToModuleKey(exec, exec->argument(0));
+        RETURN_IF_EXCEPTION(scope, { });
         moduleScript->notifyLoadCompleted(*moduleKey.impl());
         return JSValue::encode(jsUndefined());
     });
@@ -549,6 +553,27 @@ JSValue ScriptController::executeScriptInWorld(DOMWrapperWorld& world, const Str
         return { };
 
     return evaluateInWorld(sourceCode, world, exceptionDetails);
+}
+
+JSValue ScriptController::executeUserAgentScriptInWorld(DOMWrapperWorld& world, const String& script, bool forceUserGesture, ExceptionDetails* exceptionDetails)
+{
+    auto& document = *m_frame.document();
+    if (!shouldAllowUserAgentScripts(document))
+        return { };
+
+    document.setHasEvaluatedUserAgentScripts();
+    return executeScriptInWorld(world, script, forceUserGesture, exceptionDetails);
+}
+
+bool ScriptController::shouldAllowUserAgentScripts(Document& document) const
+{
+#if ENABLE(APPLE_PAY)
+    if (auto page = m_frame.page())
+        return page->paymentCoordinator().shouldAllowUserAgentScripts(document);
+#else
+    UNUSED_PARAM(document);
+#endif
+    return true;
 }
 
 bool ScriptController::canExecuteScripts(ReasonForCallingCanExecuteScripts reason)

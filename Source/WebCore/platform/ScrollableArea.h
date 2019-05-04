@@ -95,7 +95,6 @@ public:
     virtual void didEndScroll() { }
     virtual void didUpdateScroll() { }
 #endif
-    virtual void setIsUserScroll(bool) { }
 
     // Functions for controlling if you can scroll past the end of the document.
     bool constrainsScrollingToContentEdge() const { return m_constrainsScrollingToContentEdge; }
@@ -106,6 +105,12 @@ public:
 
     void setHorizontalScrollElasticity(ScrollElasticity scrollElasticity) { m_horizontalScrollElasticity = scrollElasticity; }
     ScrollElasticity horizontalScrollElasticity() const { return static_cast<ScrollElasticity>(m_horizontalScrollElasticity); }
+
+    virtual ScrollbarMode horizontalScrollbarMode() const { return ScrollbarAuto; }
+    virtual ScrollbarMode verticalScrollbarMode() const { return ScrollbarAuto; }
+
+    virtual bool horizontalScrollbarHiddenByStyle() const { return false; }
+    virtual bool verticalScrollbarHiddenByStyle() const { return false; }
 
     bool inLiveResize() const { return m_inLiveResize; }
     WEBCORE_EXPORT virtual void willStartLiveResize();
@@ -143,7 +148,7 @@ public:
     ScrollbarOverlayStyle scrollbarOverlayStyle() const { return static_cast<ScrollbarOverlayStyle>(m_scrollbarOverlayStyle); }
     bool useDarkAppearanceForScrollbars() const;
 
-    virtual uint64_t scrollLayerID() const { return 0; }
+    virtual ScrollingNodeID scrollingNodeID() const { return 0; }
 
     // This getter will create a ScrollAnimator if it doesn't already exist.
     WEBCORE_EXPORT ScrollAnimator& scrollAnimator() const;
@@ -222,8 +227,11 @@ public:
     WEBCORE_EXPORT virtual bool scrolledToLeft() const;
     WEBCORE_EXPORT virtual bool scrolledToRight() const;
 
-    bool isScrolledProgrammatically() const { return m_scrolledProgrammatically; }
-    void setScrolledProgrammatically(bool state) { m_scrolledProgrammatically = state; }
+    ScrollType currentScrollType() const { return static_cast<ScrollType>(m_currentScrollType); }
+    void setCurrentScrollType(ScrollType scrollType) { m_currentScrollType = static_cast<unsigned>(scrollType); }
+
+    bool scrollShouldClearLatchedState() const { return m_scrollShouldClearLatchedState; }
+    void setScrollShouldClearLatchedState(bool shouldClear) { m_scrollShouldClearLatchedState = shouldClear; }
 
     enum VisibleContentRectIncludesScrollbars { ExcludeScrollbars, IncludeScrollbars };
     enum VisibleContentRectBehavior {
@@ -253,6 +261,7 @@ public:
 
     // The totalContentsSize() is equivalent to the contentsSize() plus the header and footer heights.
     WEBCORE_EXPORT IntSize totalContentsSize() const;
+    WEBCORE_EXPORT virtual IntSize reachableTotalContentsSize() const;
 
     virtual bool useDarkAppearance() const { return false; }
 
@@ -333,7 +342,6 @@ protected:
     virtual void invalidateScrollCornerRect(const IntRect&) = 0;
 
     friend class ScrollingCoordinator;
-    virtual GraphicsLayer* layerForScrolling() const { return nullptr; }
     virtual GraphicsLayer* layerForScrollCorner() const { return nullptr; }
 #if ENABLE(RUBBER_BANDING)
     virtual GraphicsLayer* layerForOverhangAreas() const { return nullptr; }
@@ -385,7 +393,8 @@ private:
     unsigned m_scrollbarOverlayStyle : 2; // ScrollbarOverlayStyle
 
     unsigned m_scrollOriginChanged : 1;
-    unsigned m_scrolledProgrammatically : 1;
+    unsigned m_currentScrollType : 1; // ScrollType
+    unsigned m_scrollShouldClearLatchedState : 1;
 };
 
 } // namespace WebCore

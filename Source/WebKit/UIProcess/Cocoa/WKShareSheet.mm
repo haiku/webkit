@@ -26,7 +26,7 @@
 #import "config.h"
 #import "WKShareSheet.h"
 
-#if PLATFORM(COCOA) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV) && WK_API_ENABLED
+#if PLATFORM(COCOA) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
 
 #import "WKWebViewInternal.h"
 #import "WebPageProxy.h"
@@ -100,6 +100,9 @@
 #if PLATFORM(MAC)
     _sharingServicePicker = adoptNS([[NSSharingServicePicker alloc] initWithItems:shareDataArray.get()]);
     _sharingServicePicker.get().delegate = self;
+    
+    // WKShareSheet can be released under NSSharingServicePicker delegate callbacks.
+    RetainPtr<WKShareSheet> protector(self);
     
     NSPoint location = [NSEvent mouseLocation];
     NSRect mouseLocationRect = NSMakeRect(location.x, location.y, 1.0, 1.0);
@@ -194,4 +197,4 @@
 
 @end
 
-#endif // PLATFORM(COCOA) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV) && WK_API_ENABLED
+#endif // PLATFORM(COCOA) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)

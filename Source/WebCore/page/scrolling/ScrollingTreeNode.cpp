@@ -29,6 +29,7 @@
 #if ENABLE(ASYNC_SCROLLING)
 
 #include "ScrollingStateTree.h"
+#include "ScrollingTree.h"
 #include "ScrollingTreeFrameScrollingNode.h"
 #include <wtf/text/TextStream.h>
 
@@ -71,6 +72,16 @@ void ScrollingTreeNode::removeChild(ScrollingTreeNode& node)
         child->removeChild(node);
 }
 
+bool ScrollingTreeNode::isRootNode() const
+{
+    return m_scrollingTree.rootNode() == this;
+}
+
+void ScrollingTreeNode::relatedNodeScrollPositionDidChange(const ScrollingTreeScrollingNode&, const FloatRect& layoutViewport, FloatSize& cumulativeDelta)
+{
+    applyLayerPositions(layoutViewport, cumulativeDelta);
+}
+
 void ScrollingTreeNode::dumpProperties(TextStream& ts, ScrollingStateTreeAsTextBehavior behavior) const
 {
     if (behavior & ScrollingStateTreeAsTextBehaviorIncludeNodeIDs)
@@ -84,6 +95,15 @@ ScrollingTreeFrameScrollingNode* ScrollingTreeNode::enclosingFrameNodeIncludingS
         node = node->parent();
 
     return downcast<ScrollingTreeFrameScrollingNode>(node);
+}
+
+ScrollingTreeScrollingNode* ScrollingTreeNode::enclosingScrollingNodeIncludingSelf()
+{
+    auto* node = this;
+    while (node && !node->isScrollingNode())
+        node = node->parent();
+
+    return downcast<ScrollingTreeScrollingNode>(node);
 }
 
 void ScrollingTreeNode::dump(TextStream& ts, ScrollingStateTreeAsTextBehavior behavior) const

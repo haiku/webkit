@@ -29,6 +29,7 @@
 #include "CodeBlock.h"
 #include "Debugger.h"
 #include "FunctionCodeBlock.h"
+#include "FunctionOverrides.h"
 #include "JIT.h"
 #include "JSCInlines.h"
 #include "LLIntEntrypoint.h"
@@ -41,24 +42,23 @@ namespace JSC {
 
 const ClassInfo FunctionExecutable::s_info = { "FunctionExecutable", &ScriptExecutable::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(FunctionExecutable) };
 
-FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, unsigned lastLine, unsigned endColumn, Intrinsic intrinsic)
+FunctionExecutable::FunctionExecutable(VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, Intrinsic intrinsic)
     : ScriptExecutable(vm.functionExecutableStructure.get(), vm, source, unlinkedExecutable->isInStrictContext(), unlinkedExecutable->derivedContextType(), false, EvalContextType::None, intrinsic)
     , m_unlinkedExecutable(vm, this, unlinkedExecutable)
 {
     RELEASE_ASSERT(!source.isNull());
     ASSERT(source.length());
-    m_lastLine = lastLine;
-    ASSERT(endColumn != UINT_MAX);
-    m_endColumn = endColumn;
-    m_parametersStartOffset = unlinkedExecutable->parametersStartOffset();
-    m_typeProfilingStartOffset = unlinkedExecutable->typeProfilingStartOffset();
-    m_typeProfilingEndOffset = unlinkedExecutable->typeProfilingEndOffset();
+    if (VM::canUseJIT())
+        new (&m_singletonFunction) WriteBarrier<InferredValue>();
+    else
+        m_singletonFunctionState = ClearWatchpoint;
 }
 
 void FunctionExecutable::finishCreation(VM& vm)
 {
     Base::finishCreation(vm);
-    m_singletonFunction.set(vm, this, InferredValue::create(vm));
+    if (VM::canUseJIT())
+        m_singletonFunction.set(vm, this, InferredValue::create(vm));
 }
 
 void FunctionExecutable::destroy(JSCell* cell)
@@ -88,7 +88,8 @@ void FunctionExecutable::visitChildren(JSCell* cell, SlotVisitor& visitor)
     visitor.append(thisObject->m_codeBlockForCall);
     visitor.append(thisObject->m_codeBlockForConstruct);
     visitor.append(thisObject->m_unlinkedExecutable);
-    visitor.append(thisObject->m_singletonFunction);
+    if (VM::canUseJIT())
+        visitor.append(thisObject->m_singletonFunction);
     visitor.append(thisObject->m_cachedPolyProtoStructure);
 }
 
@@ -103,6 +104,30 @@ FunctionExecutable* FunctionExecutable::fromGlobalCode(
         return nullptr;
 
     return unlinkedExecutable->link(exec.vm(), source, overrideLineNumber);
+}
+
+FunctionExecutable::RareData& FunctionExecutable::ensureRareDataSlow()
+{
+    ASSERT(!m_rareData);
+    auto rareData = std::make_unique<RareData>();
+    rareData->m_lineCount = lineCount();
+    rareData->m_endColumn = endColumn();
+    rareData->m_parametersStartOffset = parametersStartOffset();
+    rareData->m_typeProfilingStartOffset = typeProfilingStartOffset();
+    rareData->m_typeProfilingEndOffset = typeProfilingEndOffset();
+    m_rareData = WTFMove(rareData);
+    return *m_rareData;
+}
+
+void FunctionExecutable::overrideInfo(const FunctionOverrideInfo& overrideInfo)
+{
+    auto& rareData = ensureRareData();
+    m_source = overrideInfo.sourceCode;
+    rareData.m_lineCount = overrideInfo.lineCount;
+    rareData.m_endColumn = overrideInfo.endColumn;
+    rareData.m_parametersStartOffset = overrideInfo.parametersStartOffset;
+    rareData.m_typeProfilingStartOffset = overrideInfo.typeProfilingStartOffset;
+    rareData.m_typeProfilingEndOffset = overrideInfo.typeProfilingEndOffset;
 }
 
 } // namespace JSC

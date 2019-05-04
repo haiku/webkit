@@ -109,7 +109,7 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     void dispatchDidPopStateWithinPage() override;
     void dispatchWillClose() override;
     void dispatchDidReceiveIcon() override;
-    void dispatchDidStartProvisionalLoad(WTF::CompletionHandler<void()>&&) override;
+    void dispatchDidStartProvisionalLoad() override;
     void dispatchDidReceiveTitle(const StringWithDirection&) override;
     void dispatchDidFailProvisionalLoad(const ResourceError&) override;
     void dispatchDidFailLoad(const ResourceError&) override;
@@ -119,11 +119,14 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
     Frame* dispatchCreatePage(const NavigationAction&) override;
     void dispatchShow() override;
 
-    void dispatchDecidePolicyForResponse(const ResourceResponse&, const ResourceRequest&, FramePolicyFunction&&) override;
+    void dispatchDecidePolicyForResponse(const ResourceResponse&,
+		const ResourceRequest&, PolicyCheckIdentifier, FramePolicyFunction&&) override;
     void dispatchDecidePolicyForNewWindowAction(const NavigationAction&,
-        const ResourceRequest&, FormState*, const String&, FramePolicyFunction&&) override;
+        const ResourceRequest&, FormState*, const String& formName,
+		PolicyCheckIdentifier, FramePolicyFunction&&) override;
     void dispatchDecidePolicyForNavigationAction(const NavigationAction&,
-                                                 const ResourceRequest&, const WebCore::ResourceResponse&, FormState*, PolicyDecisionMode, FramePolicyFunction&&) override;
+        const ResourceRequest&, const WebCore::ResourceResponse&, FormState*,
+		PolicyDecisionMode, PolicyCheckIdentifier, FramePolicyFunction&&) override;
     void cancelPolicyCheck() override;
 
     void dispatchUnableToImplementPolicy(const ResourceError&) override;
@@ -202,7 +205,6 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
         const String& referrer) override;
     RefPtr<Widget> createPlugin(const IntSize&, HTMLPlugInElement&, const URL&, const Vector<String>&,
         const Vector<String>&, const String&, bool) override;
-    void recreatePlugin(Widget*) override { }
     void redirectDataToPlugin(Widget& pluginWidget) override;
 
     RefPtr<Widget> createJavaAppletWidget(const IntSize&, HTMLAppletElement&, const URL& baseURL,

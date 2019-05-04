@@ -25,8 +25,6 @@
 
 #import "config.h"
 
-#if WK_API_ENABLED
-
 #import "BundleEditingDelegateProtocol.h"
 #import "PlatformUtilities.h"
 #import <WebKit/WKWebProcessPlugIn.h>
@@ -47,7 +45,6 @@
     RetainPtr<id <BundleEditingDelegateProtocol>> _remoteObject;
     BOOL _editingDelegateShouldInsertText;
     BOOL _shouldOverridePerformTwoStepDrop;
-    RetainPtr<NSDictionary<NSString *, NSString *>> _mimeTypeToReplacementURLMap;
 }
 
 - (void)webProcessPlugIn:(WKWebProcessPlugInController *)plugInController didCreateBrowserContextController:(WKWebProcessPlugInBrowserContextController *)browserContextController
@@ -64,7 +61,6 @@
         _editingDelegateShouldInsertText = YES;
 
     _shouldOverridePerformTwoStepDrop = [[plugInController.parameters valueForKey:@"BundleOverridePerformTwoStepDrop"] boolValue];
-    _mimeTypeToReplacementURLMap = [plugInController.parameters valueForKey:@"MIMETypeToReplacementURLMap"];
 
     _WKRemoteObjectInterface *interface = [_WKRemoteObjectInterface remoteObjectInterfaceWithProtocol:@protocol(BundleEditingDelegateProtocol)];
     _remoteObject = [browserContextController._remoteObjectRegistry remoteObjectProxyWithInterface:interface];
@@ -100,12 +96,4 @@
     return _shouldOverridePerformTwoStepDrop;
 }
 
-- (NSString *)_webProcessPlugInBrowserContextController:(WKWebProcessPlugInBrowserContextController *)controller replacementURLForResource:(NSData *)resourceData mimeType:(NSString *)mimeType
-{
-    assert(!!resourceData);
-    return [_mimeTypeToReplacementURLMap objectForKey:mimeType];
-}
-
 @end
-
-#endif // WK_API_ENABLED

@@ -43,7 +43,7 @@ namespace WebCore {
 
 MediaResourceLoader::MediaResourceLoader(Document& document, HTMLMediaElement& mediaElement, const String& crossOriginMode)
     : ContextDestructionObserver(&document)
-    , m_document(&document)
+    , m_document(makeWeakPtr(document))
     , m_mediaElement(makeWeakPtr(mediaElement))
     , m_crossOriginMode(crossOriginMode)
 {
@@ -106,7 +106,7 @@ RefPtr<PlatformMediaResource> MediaResourceLoader::requestResource(ResourceReque
     Ref<MediaResource> mediaResource = MediaResource::create(*this, resource);
     m_resources.add(mediaResource.ptr());
 
-    return WTFMove(mediaResource);
+    return mediaResource;
 }
 
 void MediaResourceLoader::removeResource(MediaResource& mediaResource)
@@ -151,12 +151,6 @@ void MediaResource::stop()
     m_resource = nullptr;
 }
 
-void MediaResource::setDefersLoading(bool defersLoading)
-{
-    if (m_resource)
-        m_resource->setDefersLoading(defersLoading);
-}
-
 void MediaResource::responseReceived(CachedResource& resource, const ResourceResponse& response, CompletionHandler<void()>&& completionHandler)
 {
     ASSERT_UNUSED(resource, &resource == m_resource);
@@ -178,7 +172,12 @@ void MediaResource::responseReceived(CachedResource& resource, const ResourceRes
 
     m_didPassAccessControlCheck = m_resource->options().mode == FetchOptions::Mode::Cors;
     if (m_client)
-        m_client->responseReceived(*this, response);
+        m_client->responseReceived(*this, response, [this, protectedThis = makeRef(*this), completionHandler = completionHandlerCaller.release()] (ShouldContinue shouldContinue) mutable {
+            if (completionHandler)
+                completionHandler();
+            if (shouldContinue == ShouldContinue::No)
+                stop();
+        });
 
     m_loader->addResponseForTesting(response);
 }

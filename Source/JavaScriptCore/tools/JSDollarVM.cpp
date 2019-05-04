@@ -1461,7 +1461,7 @@ static CodeBlock* codeBlockFromArg(ExecState* exec)
             else
                 candidateCodeBlock = func->jsExecutable()->eitherCodeBlock();
         } else
-            candidateCodeBlock = reinterpret_cast<CodeBlock*>(value.asCell());
+            candidateCodeBlock = static_cast<CodeBlock*>(value.asCell());
     }
 
     if (candidateCodeBlock && VMInspector::isValidCodeBlock(exec, candidateCodeBlock))
@@ -1721,6 +1721,13 @@ static EncodedJSValue JSC_HOST_CALL functionCreateRuntimeArray(ExecState* exec)
     return JSValue::encode(array);
 }
 
+static EncodedJSValue JSC_HOST_CALL functionCreateNullRopeString(ExecState* exec)
+{
+    VM& vm = exec->vm();
+    JSLockHolder lock(vm);
+    return JSValue::encode(JSRopeString::createNullForTesting(vm));
+}
+
 static EncodedJSValue JSC_HOST_CALL functionCreateImpureGetter(ExecState* exec)
 {
     VM& vm = exec->vm();
@@ -1854,11 +1861,11 @@ static EncodedJSValue JSC_HOST_CALL functionGetPrivateProperty(ExecState* exec)
 
     String str = asString(exec->argument(1))->value(exec);
 
-    const Identifier* ident = vm.propertyNames->lookUpPrivateName(Identifier::fromString(exec, str));
-    if (!ident)
+    SymbolImpl* symbol = vm.propertyNames->lookUpPrivateName(Identifier::fromString(exec, str));
+    if (!symbol)
         return throwVMError(exec, scope, "Unknown private name.");
 
-    RELEASE_AND_RETURN(scope, JSValue::encode(exec->argument(0).get(exec, *ident)));
+    RELEASE_AND_RETURN(scope, JSValue::encode(exec->argument(0).get(exec, symbol)));
 }
 
 static EncodedJSValue JSC_HOST_CALL functionCreateRoot(ExecState* exec)
@@ -1932,8 +1939,10 @@ static EncodedJSValue JSC_HOST_CALL functionShadowChickenFunctionsOnStack(ExecSt
 {
     VM& vm = exec->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    if (auto* shadowChicken = vm.shadowChicken())
+    if (auto* shadowChicken = vm.shadowChicken()) {
+        scope.release();
         return JSValue::encode(shadowChicken->functionsOnStack(exec));
+    }
 
     JSArray* result = constructEmptyArray(exec, 0);
     RETURN_IF_EXCEPTION(scope, { });
@@ -1946,6 +1955,7 @@ static EncodedJSValue JSC_HOST_CALL functionShadowChickenFunctionsOnStack(ExecSt
         scope.releaseAssertNoException(); // This function is only called from tests.
         return StackVisitor::Continue;
     });
+    RETURN_IF_EXCEPTION(scope, { });
     return JSValue::encode(result);
 }
 
@@ -1985,7 +1995,7 @@ static EncodedJSValue JSC_HOST_CALL functionReturnTypeFor(ExecState* exec)
     RELEASE_ASSERT(functionValue.isFunction(vm));
     FunctionExecutable* executable = (jsDynamicCast<JSFunction*>(vm, functionValue.asCell()->getObject()))->jsExecutable();
 
-    unsigned offset = executable->typeProfilingStartOffset();
+    unsigned offset = executable->typeProfilingStartOffset(vm);
     String jsonString = vm.typeProfiler()->typeInformationForExpressionAtOffset(TypeProfilerSearchDescriptorFunctionReturn, offset, executable->sourceID(), vm);
     return JSValue::encode(JSONParse(exec, jsonString));
 }
@@ -2093,6 +2103,9 @@ static EncodedJSValue JSC_HOST_CALL functionGlobalObjectForObject(ExecState* exe
 
 static EncodedJSValue JSC_HOST_CALL functionGetGetterSetter(ExecState* exec)
 {
+    VM& vm = exec->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
     JSValue value = exec->argument(0);
     if (!value.isObject())
         return JSValue::encode(jsUndefined());
@@ -2101,8 +2114,12 @@ static EncodedJSValue JSC_HOST_CALL functionGetGetterSetter(ExecState* exec)
     if (!property.isString())
         return JSValue::encode(jsUndefined());
 
+    auto propertyName = asString(property)->toIdentifier(exec);
+    RETURN_IF_EXCEPTION(scope, { });
+
     PropertySlot slot(value, PropertySlot::InternalMethodType::VMInquiry);
-    value.getPropertySlot(exec, asString(property)->toIdentifier(exec), slot);
+    value.getPropertySlot(exec, propertyName, slot);
+    RETURN_IF_EXCEPTION(scope, { });
 
     JSValue result;
     if (slot.isCacheableGetter())
@@ -2217,6 +2234,7 @@ void JSDollarVM::finishCreation(VM& vm)
     addFunction(vm, "createGlobalObject", functionCreateGlobalObject, 0);
     addFunction(vm, "createProxy", functionCreateProxy, 1);
     addFunction(vm, "createRuntimeArray", functionCreateRuntimeArray, 0);
+    addFunction(vm, "createNullRopeString", functionCreateNullRopeString, 0);
 
     addFunction(vm, "createImpureGetter", functionCreateImpureGetter, 1);
     addFunction(vm, "createCustomGetterObject", functionCreateCustomGetterObject, 0);

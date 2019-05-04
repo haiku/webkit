@@ -77,13 +77,12 @@ public:
     virtual ~NetworkDataTaskClient() { }
 };
 
-class NetworkDataTask : public RefCounted<NetworkDataTask> {
+class NetworkDataTask : public RefCounted<NetworkDataTask>, public CanMakeWeakPtr<NetworkDataTask> {
 public:
     static Ref<NetworkDataTask> create(NetworkSession&, NetworkDataTaskClient&, const NetworkLoadParameters&);
 
     virtual ~NetworkDataTask();
 
-    virtual void suspend() = 0;
     virtual void cancel() = 0;
     virtual void resume() = 0;
     virtual void invalidateAndCancel() = 0;

@@ -170,6 +170,7 @@ JSCell* JIT_OPERATION operationSubBigInt(ExecState*, JSCell* op1, JSCell* op2) W
 JSCell* JIT_OPERATION operationMulBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationDivBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationBitAndBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
+JSCell* JIT_OPERATION operationBitNotBigInt(ExecState*, JSCell* op1) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationBitOrBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationAddBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationBitXorBigInt(ExecState*, JSCell* op1, JSCell* op2) WTF_INTERNAL;
@@ -203,6 +204,7 @@ StringImpl* JIT_OPERATION operationResolveRope(ExecState*, JSString*);
 JSString* JIT_OPERATION operationSingleCharacterString(ExecState*, int32_t);
 
 JSCell* JIT_OPERATION operationStringSubstr(ExecState*, JSCell*, int32_t, int32_t);
+JSCell* JIT_OPERATION operationStringSlice(ExecState*, JSCell*, int32_t, int32_t);
 JSString* JIT_OPERATION operationStringValueOf(ExecState*, EncodedJSValue);
 JSString* JIT_OPERATION operationToLowerCase(ExecState*, JSString*, uint32_t);
 
@@ -266,7 +268,8 @@ JSCell* JIT_OPERATION operationCreateFixedArray(ExecState*, unsigned length);
 JSCell* JIT_OPERATION operationResolveScope(ExecState*, JSScope*, UniquedStringImpl*);
 EncodedJSValue JIT_OPERATION operationResolveScopeForHoistingFuncDeclInEval(ExecState*, JSScope*, UniquedStringImpl*);
 EncodedJSValue JIT_OPERATION operationGetDynamicVar(ExecState*, JSObject* scope, UniquedStringImpl*, unsigned);
-void JIT_OPERATION operationPutDynamicVar(ExecState*, JSObject* scope, EncodedJSValue, UniquedStringImpl*, unsigned);
+void JIT_OPERATION operationPutDynamicVarStrict(ExecState*, JSObject* scope, EncodedJSValue, UniquedStringImpl*, unsigned);
+void JIT_OPERATION operationPutDynamicVarNonStrict(ExecState*, JSObject* scope, EncodedJSValue, UniquedStringImpl*, unsigned);
 
 int64_t JIT_OPERATION operationConvertBoxedDoubleToInt52(EncodedJSValue);
 int64_t JIT_OPERATION operationConvertDoubleToInt52(double);

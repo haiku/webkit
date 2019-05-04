@@ -16,6 +16,7 @@ configure_file(wpe/wpe-web-extension.pc.in ${WPEWebExtension_PKGCONFIG_FILE} @ON
 
 add_definitions(-DWEBKIT2_COMPILATION)
 
+add_definitions(-DLIBDIR="${LIB_INSTALL_DIR}")
 add_definitions(-DPKGLIBDIR="${LIB_INSTALL_DIR}/wpe-webkit-${WPE_API_VERSION}")
 add_definitions(-DPKGLIBEXECDIR="${LIBEXEC_INSTALL_DIR}")
 add_definitions(-DDATADIR="${CMAKE_INSTALL_FULL_DATADIR}")
@@ -77,8 +78,6 @@ list(APPEND WebKit_UNIFIED_SOURCE_LIST_FILES
 list(APPEND WebKit_MESSAGES_IN_FILES
     NetworkProcess/CustomProtocols/LegacyCustomProtocolManager.messages.in
 
-    UIProcess/API/wpe/CompositingManagerProxy.messages.in
-
     UIProcess/Network/CustomProtocols/LegacyCustomProtocolManagerProxy.messages.in
 )
 
@@ -94,10 +93,12 @@ set(WPE_API_INSTALLED_HEADERS
     ${DERIVED_SOURCES_WPE_API_DIR}/WebKitVersion.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitApplicationInfo.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitAuthenticationRequest.h
+    ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitAutocleanups.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitAutomationSession.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitBackForwardList.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitBackForwardListItem.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitCredential.h
+    ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitColor.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitContextMenu.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitContextMenuActions.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitContextMenuItem.h
@@ -112,6 +113,7 @@ set(WPE_API_INSTALLED_HEADERS
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitFileChooserRequest.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitFindController.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitFormSubmissionRequest.h
+    ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitGeolocationManager.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitGeolocationPermissionRequest.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitHitTestResult.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitInstallMissingMediaPluginsPermissionRequest.h
@@ -133,7 +135,9 @@ set(WPE_API_INSTALLED_HEADERS
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitURIRequest.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitURIResponse.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitURISchemeRequest.h
+    ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitURIUtilities.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitUserContent.h
+    ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitUserContentFilterStore.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitUserContentManager.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitUserMediaPermissionRequest.h
     ${WEBKIT_DIR}/UIProcess/API/wpe/WebKitWebContext.h
@@ -154,6 +158,7 @@ set(WPE_WEB_EXTENSION_API_INSTALLED_HEADERS
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitScriptWorld.h
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitWebEditor.h
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitWebExtension.h
+    ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitWebExtensionAutocleanups.h
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitWebHitTestResult.h
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/WebKitWebPage.h
     ${WEBKIT_DIR}/WebProcess/InjectedBundle/API/wpe/webkit-web-extension.h
@@ -250,7 +255,9 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/UIProcess/API/C/wpe"
     "${WEBKIT_DIR}/UIProcess/API/glib"
     "${WEBKIT_DIR}/UIProcess/API/wpe"
+    "${WEBKIT_DIR}/UIProcess/CoordinatedGraphics"
     "${WEBKIT_DIR}/UIProcess/Network/CustomProtocols/soup"
+    "${WEBKIT_DIR}/UIProcess/geoclue"
     "${WEBKIT_DIR}/UIProcess/gstreamer"
     "${WEBKIT_DIR}/UIProcess/linux"
     "${WEBKIT_DIR}/UIProcess/soup"
@@ -275,6 +282,7 @@ list(APPEND WebKit_SYSTEM_INCLUDE_DIRECTORIES
     ${GLIB_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
     ${HARFBUZZ_INCLUDE_DIRS}
+    ${LIBSECCOMP_INCLUDE_DIRS}
     ${LIBSOUP_INCLUDE_DIRS}
     ${WPE_INCLUDE_DIRS}
 )
@@ -287,6 +295,7 @@ list(APPEND WebKit_LIBRARIES
         ${GLIB_GMODULE_LIBRARIES}
         ${GSTREAMER_LIBRARIES}
         ${HARFBUZZ_LIBRARIES}
+        ${LIBSECCOMP_LIBRARIES}
         ${LIBSOUP_LIBRARIES}
         ${WPE_LIBRARIES}
 )

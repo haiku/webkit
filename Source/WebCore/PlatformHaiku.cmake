@@ -14,6 +14,7 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
   "${WEBCORE_DIR}/platform/mediacapabilities"
   "${WEBCORE_DIR}/platform/network/haiku"
   "${WTF_DIR}"
+  "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
 )
 
 list(APPEND WebCore_SOURCES
@@ -354,7 +355,6 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     bridge
     contentextensions
     crypto
-    css
     dom
     editing
     fileapi
@@ -376,18 +376,18 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
 
     dom/messageports/
 
+    Modules/applicationmanifest
     Modules/cache
     Modules/fetch
     Modules/geolocation
-    Modules/indexeddb
     Modules/mediastream
     Modules/websockets
 
-    Modules/applicationmanifest
+    Modules/indexeddb
+
     Modules/indexeddb/client
-    Modules/indexeddb/legacy
-    Modules/indexeddb/server
     Modules/indexeddb/shared
+    Modules/indexeddb/server
     Modules/notifications
     Modules/webdatabase
 
@@ -420,7 +420,6 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
 
     platform/animation
     platform/audio
-    platform/graphics
     platform/mediacapabilities
     platform/mock
     platform/network
@@ -434,7 +433,6 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
     platform/graphics/opengl
     platform/graphics/opentype
     platform/graphics/texmap
-    platform/graphics/transforms
     platform/graphics/haiku
 
     platform/mediastream/libwebrtc
@@ -459,6 +457,40 @@ set(WebCore_FORWARDING_HEADERS_DIRECTORIES
 )
 
 set(WebCore_FORWARDING_HEADERS_FILES
+	# As individual files to avoid conflicts with system includes...
+	css/CSSStyleDeclaration.h
+	css/StyleProperties.h
+
+	platform/graphics/BitmapImage.h
+	platform/graphics/Color.h
+	platform/graphics/ColorSpace.h
+	platform/graphics/DisplayRefreshMonitor.h
+	platform/graphics/FloatPoint.h
+	platform/graphics/FloatRect.h
+	platform/graphics/FloatSize.h
+	platform/graphics/FloatQuad.h
+	platform/graphics/FontCache.h
+	platform/graphics/FontCascade.h
+	platform/graphics/GlyphPage.h
+	platform/graphics/GraphicsContext.h
+	platform/graphics/GraphicsContext3D.h
+	platform/graphics/GraphicsLayer.h
+	platform/graphics/Icon.h
+	platform/graphics/Image.h
+	platform/graphics/ImageBuffer.h
+	platform/graphics/IntPoint.h
+	platform/graphics/IntRect.h
+	platform/graphics/IntSize.h
+	platform/graphics/IntSizeHash.h
+	platform/graphics/LayoutPoint.h
+	platform/graphics/LayoutSize.h
+	platform/graphics/MediaPlaybackTargetContext.h
+	platform/graphics/Path.h
+	platform/graphics/PathUtilities.h
+	platform/graphics/Region.h
+
+	platform/graphics/transforms/TransformationMatrix.h
+
     platform/PlatformExportMacros.h
     fileapi/Blob.h
 )

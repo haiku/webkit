@@ -915,6 +915,7 @@ sub XcodeOptions
     my @options;
     push @options, "-UseNewBuildSystem=NO";
     push @options, "-UseSanitizedBuildSystemEnvironment=YES";
+    push @options, "-ShowBuildOperationDuration=YES";
     push @options, ("-configuration", $configuration);
     push @options, ("-xcconfig", sourceDir() . "/Tools/asan/asan.xcconfig", "ASAN_IGNORE=" . sourceDir() . "/Tools/asan/webkit-asan-ignore.txt") if $asanIsEnabled;
     push @options, "WK_LTO_MODE=$ltoMode" if $ltoMode;
@@ -1107,7 +1108,7 @@ sub builtDylibPathForName
         }
     }
     if (isWPE()) {
-        return "$configurationProductDir/lib/libWPEWebKit-0.1.so";
+        return "$configurationProductDir/lib/libWPEWebKit-1.0.so";
     }
 
     die "Unsupported platform, can't determine built library locations.\nTry `build-webkit --help` for more information.\n";
@@ -2258,7 +2259,7 @@ sub generateBuildSystemFromCMakeProject
         push @args, "-DCMAKE_BUILD_TYPE=Debug";
     }
 
-    push @args, "-DENABLE_ADDRESS_SANITIZER=ON" if asanIsEnabled();
+    push @args, "-DENABLE_SANITIZERS=address" if asanIsEnabled();
 
     push @args, '-DCMAKE_TOOLCHAIN_FILE=Platform/PlayStation' if isPlayStation();
 
@@ -2283,15 +2284,26 @@ sub generateBuildSystemFromCMakeProject
     # Some ports have production mode, but build-webkit should always use developer mode.
     push @args, "-DDEVELOPER_MODE=ON" if isGtk() || isJSCOnly() || isWPE() || isWinCairo();
 
+    if (architecture() eq "x86_64" && shouldBuild32Bit()) {
+        # CMAKE_LIBRARY_ARCHITECTURE is needed to get the right .pc
+        # files in Debian-based systems, for the others
+        # CMAKE_PREFIX_PATH will get us /usr/lib, which should be the
+        # right path for 32bit. See FindPkgConfig.cmake.
+        push @cmakeArgs, '-DFORCE_32BIT=ON -DCMAKE_PREFIX_PATH="/usr" -DCMAKE_LIBRARY_ARCHITECTURE=x86';
+        $ENV{"CFLAGS"} =  "-m32" . ($ENV{"CFLAGS"} || "");
+        $ENV{"CXXFLAGS"} = "-m32" . ($ENV{"CXXFLAGS"} || "");
+    }
     push @args, @cmakeArgs if @cmakeArgs;
 
     my $cmakeSourceDir = isCygwin() ? windowsSourceDir() : sourceDir();
     push @args, '"' . $cmakeSourceDir . '"';
 
     # Compiler options to keep floating point values consistent
-    # between 32-bit and 64-bit architectures.
-    determineArchitecture();
-    if ($architecture eq "i686" && !isCrossCompilation() && !isAnyWindows() && !isHaiku()) {
+    # between 32-bit and 64-bit architectures. This makes us use SSE
+    # when our architecture is 32-bit ('i686') or when it's not but
+    # the user has requested a 32-bit build.
+    if ((architecture() eq "i686" || architecture() eq "x86" || (architecture() eq "x86_64" && shouldBuild32Bit())) && !isCrossCompilation() && !isAnyWindows()) {
+        $ENV{'CFLAGS'} = "-march=pentium4 -msse2 -mfpmath=sse " . ($ENV{'CFLAGS'} || "");
         $ENV{'CXXFLAGS'} = "-march=pentium4 -msse2 -mfpmath=sse " . ($ENV{'CXXFLAGS'} || "");
     }
 

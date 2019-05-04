@@ -35,6 +35,7 @@ OBJC_CLASS WKContentView;
 OBJC_CLASS WKEditorUndoTarget;
 
 namespace WebCore {
+enum class DOMPasteAccessResponse : uint8_t;
 struct PromisedAttachmentInfo;
 }
 
@@ -55,7 +56,7 @@ private:
     // PageClient
     std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
     void setViewNeedsDisplay(const WebCore::Region&) override;
-    void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin, bool isProgrammaticScroll) override;
+    void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin) override;
     WebCore::FloatPoint viewScrollPosition() override;
     WebCore::IntSize viewSize() override;
     bool isViewWindowActive() override;
@@ -67,6 +68,9 @@ private:
     void processDidExit() override;
     void processWillSwap() override;
     void didRelaunchProcess() override;
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+    void didCreateContextForVisibilityPropagation(LayerHostingContextID) override;
+#endif
     void pageClosed() override;
     void preferencesDidChange() override;
     void toolTipChanged(const String&, const String&) override;
@@ -74,7 +78,7 @@ private:
     void didStartProvisionalLoadForMainFrame() override;
     void didFailProvisionalLoadForMainFrame() override;
     void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) override;
-    void handleDownloadRequest(DownloadProxy*) override;
+    void handleDownloadRequest(DownloadProxy&) override;
     void didChangeContentSize(const WebCore::IntSize&) override;
     void setCursor(const WebCore::Cursor&) override;
     void setCursorHiddenUntilMouseMoves(bool) override;
@@ -160,6 +164,8 @@ private:
     bool showShareSheet(const WebCore::ShareDataWithParsedURL&, WTF::CompletionHandler<void(bool)>&&) override;
     
     void disableDoubleTapGesturesDuringTapIfNecessary(uint64_t requestID) override;
+    void handleSmartMagnificationInformationForPotentialTap(uint64_t requestID, const WebCore::FloatRect& renderRect, bool fitEntireRect, double viewportMinimumScale, double viewportMaximumScale) override;
+
     double minimumZoomScale() const override;
     WebCore::FloatRect documentRect() const override;
 
@@ -224,6 +230,8 @@ private:
     void requestPasswordForQuickLookDocument(const String& fileName, WTF::Function<void(const String&)>&&) override;
 #endif
 
+    void requestDOMPasteAccess(const WebCore::IntRect& elementRect, const String&, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final;
+
 #if ENABLE(DATA_INTERACTION)
     void didPerformDragOperation(bool handled) override;
     void didHandleDragStartRequest(bool started) override;
@@ -233,10 +241,16 @@ private:
     void didChangeDragCaretRect(const WebCore::IntRect& previousCaretRect, const WebCore::IntRect& caretRect) override;
 #endif
 
+    void handleAutocorrectionContext(const WebAutocorrectionContext&) final;
+
     void didFinishProcessingAllPendingMouseEvents() final { }
 
 #if HAVE(PENCILKIT)
     RetainPtr<WKDrawingView> createDrawingView(WebCore::GraphicsLayer::EmbeddedViewID) override;
+#endif
+
+#if ENABLE(POINTER_EVENTS)
+    void cancelPointersForGestureRecognizer(UIGestureRecognizer*) override;
 #endif
 
     WKContentView *m_contentView;

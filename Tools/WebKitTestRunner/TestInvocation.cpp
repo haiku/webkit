@@ -259,6 +259,9 @@ void TestInvocation::dumpResults()
     if (m_shouldDumpResourceLoadStatistics)
         m_textOutput.append(m_savedResourceLoadStatistics.isNull() ? TestController::singleton().dumpResourceLoadStatistics() : m_savedResourceLoadStatistics);
 
+    if (m_shouldDumpAdClickAttribution)
+        m_textOutput.append(TestController::singleton().dumpAdClickAttribution());
+    
     if (m_textOutput.length() || !m_audioResult)
         dump(m_textOutput.toString().utf8().data());
     else
@@ -744,6 +747,13 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         return;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "SetShouldAllowDeviceOrientationAndMotionAccess")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
+        TestController::singleton().setShouldAllowDeviceOrientationAndMotionAccess(WKBooleanGetValue(value));
+        return;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "RunUIProcessScript")) {
         WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
         WKRetainPtr<WKStringRef> scriptKey(AdoptWK, WKStringCreateWithUTF8CString("Script"));
@@ -1034,6 +1044,10 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         WKRetainPtr<WKUInt64Ref> result(AdoptWK, WKUInt64Create(count));
         return result;
     }
+    if (WKStringIsEqualToUTF8CString(messageName, "IsDoingMediaCapture")) {
+        WKRetainPtr<WKTypeRef> result(AdoptWK, WKBooleanCreate(TestController::singleton().isDoingMediaCapture()));
+        return result;
+    }
 
     if (WKStringIsEqualToUTF8CString(messageName, "SetStatisticsDebugMode")) {
         ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
@@ -1290,6 +1304,20 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return nullptr;
     }
     
+    if (WKStringIsEqualToUTF8CString(messageName, "SetStatisticsCrossSiteLoadWithLinkDecoration")) {
+        ASSERT(WKGetTypeID(messageBody) == WKDictionaryGetTypeID());
+        
+        WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
+        auto fromHostKey = adoptWK(WKStringCreateWithUTF8CString("FromHost"));
+        auto toHostKey = adoptWK(WKStringCreateWithUTF8CString("ToHost"));
+
+        WKStringRef fromHost = static_cast<WKStringRef>(WKDictionaryGetItemForKey(messageBodyDictionary, fromHostKey.get()));
+        WKStringRef toHost = static_cast<WKStringRef>(WKDictionaryGetItemForKey(messageBodyDictionary, toHostKey.get()));
+        
+        TestController::singleton().setStatisticsCrossSiteLoadWithLinkDecoration(fromHost, toHost);
+        return nullptr;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "SetStatisticsTimeToLiveUserInteraction")) {
         ASSERT(WKGetTypeID(messageBody) == WKDoubleGetTypeID());
         WKDoubleRef seconds = static_cast<WKDoubleRef>(messageBody);
@@ -1319,6 +1347,13 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return nullptr;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "StatisticsSetIsRunningTest")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
+        TestController::singleton().setStatisticsIsRunningTest(WKBooleanGetValue(value));
+        return nullptr;
+    }
+    
     if (WKStringIsEqualToUTF8CString(messageName, "StatisticsNotifyPagesWhenTelemetryWasCaptured")) {
         ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
         WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
@@ -1377,7 +1412,30 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         TestController::singleton().statisticsClearThroughWebsiteDataRemoval();
         return nullptr;
     }
-    
+
+    if (WKStringIsEqualToUTF8CString(messageName, "StatisticsDeleteCookiesForHost")) {
+        ASSERT(WKGetTypeID(messageBody) == WKDictionaryGetTypeID());
+        
+        WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
+        WKRetainPtr<WKStringRef> hostNameKey(AdoptWK, WKStringCreateWithUTF8CString("HostName"));
+        WKRetainPtr<WKStringRef> valueKey(AdoptWK, WKStringCreateWithUTF8CString("IncludeHttpOnlyCookies"));
+        
+        WKStringRef hostName = static_cast<WKStringRef>(WKDictionaryGetItemForKey(messageBodyDictionary, hostNameKey.get()));
+        WKBooleanRef includeHttpOnlyCookies = static_cast<WKBooleanRef>(WKDictionaryGetItemForKey(messageBodyDictionary, valueKey.get()));
+        
+        TestController::singleton().statisticsDeleteCookiesForHost(hostName, WKBooleanGetValue(includeHttpOnlyCookies));
+        return nullptr;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "IsStatisticsHasLocalStorage")) {
+        ASSERT(WKGetTypeID(messageBody) == WKStringGetTypeID());
+        
+        WKStringRef hostName = static_cast<WKStringRef>(messageBody);
+        bool hasLocalStorage = TestController::singleton().isStatisticsHasLocalStorage(hostName);
+        auto result = adoptWK(WKBooleanCreate(hasLocalStorage));
+        return result;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "SetStatisticsCacheMaxAgeCap")) {
         ASSERT(WKGetTypeID(messageBody) == WKDoubleGetTypeID());
         WKDoubleRef seconds = static_cast<WKDoubleRef>(messageBody);
@@ -1428,8 +1486,10 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return result;
     }
 
-    if (WKStringIsEqualToUTF8CString(messageName, "AllowCacheStorageQuotaIncrease")) {
-        TestController::singleton().allowCacheStorageQuotaIncrease();
+    if (WKStringIsEqualToUTF8CString(messageName, "SetAllowStorageQuotaIncrease")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        auto canIncrease = WKBooleanGetValue(static_cast<WKBooleanRef>(messageBody));
+        TestController::singleton().setAllowStorageQuotaIncrease(canIncrease);
         return nullptr;
     }
 
@@ -1539,6 +1599,23 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return result;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "ShouldDismissJavaScriptAlertsAsynchronously")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
+        TestController::singleton().setShouldDismissJavaScriptAlertsAsynchronously(WKBooleanGetValue(value));
+        return nullptr;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "dumpAdClickAttribution")) {
+        dumpAdClickAttribution();
+        return nullptr;
+    }
+    
+    if (WKStringIsEqualToUTF8CString(messageName, "clearAdClickAttribution")) {
+        TestController::singleton().clearAdClickAttribution();
+        return nullptr;
+    }
+    
     ASSERT_NOT_REACHED();
     return nullptr;
 }
@@ -1687,6 +1764,11 @@ void TestInvocation::didRemoveAllSessionCredentials()
 void TestInvocation::dumpResourceLoadStatistics()
 {
     m_shouldDumpResourceLoadStatistics = true;
+}
+
+void TestInvocation::dumpAdClickAttribution()
+{
+    m_shouldDumpAdClickAttribution = true;
 }
 
 } // namespace WTR

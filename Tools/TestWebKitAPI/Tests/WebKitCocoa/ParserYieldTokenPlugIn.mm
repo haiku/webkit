@@ -26,8 +26,6 @@
 
 #import "config.h"
 
-#if WK_API_ENABLED
-
 #import "ParserYieldTokenTests.h"
 #import <WebKit/WKDOMDocument.h>
 #import <WebKit/WKWebProcessPlugIn.h>
@@ -36,8 +34,6 @@
 #import <WebKit/_WKRemoteObjectInterface.h>
 #import <WebKit/_WKRemoteObjectRegistry.h>
 #import <wtf/RetainPtr.h>
-
-static bool willStartProvisionalLoadForFrameCalled = false;
 
 @interface ParserYieldTokenPlugIn : NSObject <WKWebProcessPlugIn, WKWebProcessPlugInLoadDelegate, ParserYieldTokenTestBundle>
 @end
@@ -66,16 +62,8 @@ static bool willStartProvisionalLoadForFrameCalled = false;
         --_numberOfTokensToTakeAfterComittingLoad;
 }
 
-- (void)webProcessPlugInBrowserContextController:(WKWebProcessPlugInBrowserContextController*)controller willStartProvisionalLoadForFrame:(WKWebProcessPlugInFrame *)frame completionHandler:(void(^)(void))completionHandler
-{
-    willStartProvisionalLoadForFrameCalled = true;
-    completionHandler();
-}
-
 - (void)webProcessPlugInBrowserContextController:(WKWebProcessPlugInBrowserContextController *)controller didCommitLoadForFrame:(WKWebProcessPlugInFrame *)frame
 {
-    ASSERT(willStartProvisionalLoadForFrameCalled);
-
     _loadCommitted = YES;
     while (_numberOfTokensToTakeAfterComittingLoad) {
         [self takeDocumentParserTokenAfterCommittingLoad];
@@ -103,6 +91,4 @@ static bool willStartProvisionalLoadForFrameCalled = false;
 }
 
 @end
-
-#endif // WK_API_ENABLED
 

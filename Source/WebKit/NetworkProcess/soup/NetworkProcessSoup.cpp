@@ -82,9 +82,10 @@ static CString buildAcceptLanguages(const Vector<String>& languages)
 
         int quality = 100 - i * delta;
         if (quality > 0 && quality < 100) {
+            builder.appendLiteral(";q=");
             char buffer[8];
             g_ascii_formatd(buffer, 8, "%.2f", quality / 100.0);
-            builder.append(String::format(";q=%s", buffer));
+            builder.append(buffer);
         }
     }
 
@@ -111,8 +112,6 @@ void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreati
     SoupNetworkSession::clearOldSoupCache(FileSystem::directoryName(m_diskCacheDirectory));
 
     OptionSet<NetworkCache::Cache::Option> cacheOptions { NetworkCache::Cache::Option::RegisterNotify };
-    if (parameters.shouldEnableNetworkCacheEfficacyLogging)
-        cacheOptions.add(NetworkCache::Cache::Option::EfficacyLogging);
 #if ENABLE(NETWORK_CACHE_SPECULATIVE_REVALIDATION)
     if (parameters.shouldEnableNetworkCacheSpeculativeRevalidation)
         cacheOptions.add(NetworkCache::Cache::Option::SpeculativeRevalidation);

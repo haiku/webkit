@@ -174,7 +174,7 @@ static RefPtr<DocumentFragment> documentFragmentFromDragData(const DragData& dra
                 anchor->appendChild(document.createTextNode(title));
                 auto fragment = document.createDocumentFragment();
                 fragment->appendChild(anchor);
-                return WTFMove(fragment);
+                return fragment;
             }
         }
     }
@@ -284,7 +284,9 @@ bool DragController::performDragOperation(const DragData& dragData)
         return false;
 
     m_client.willPerformDragDestinationAction(DragDestinationActionLoad, dragData);
-    m_page.mainFrame().loader().load(FrameLoadRequest(m_page.mainFrame(), { urlString }, shouldOpenExternalURLsPolicy));
+    FrameLoadRequest frameLoadRequest { m_page.mainFrame(), { urlString }, shouldOpenExternalURLsPolicy };
+    frameLoadRequest.setIsRequestFromClientOrUserInput();
+    m_page.mainFrame().loader().load(WTFMove(frameLoadRequest));
     return true;
 }
 
@@ -339,17 +341,21 @@ static HTMLInputElement* asFileInput(Node& node)
 }
 
 #if ENABLE(INPUT_TYPE_COLOR)
-static bool isEnabledColorInput(Node& node, bool setToShadowAncestor)
-{
-    Node* candidate = setToShadowAncestor ? node.deprecatedShadowAncestorNode() : &node;
-    if (is<HTMLInputElement>(*candidate)) {
-        auto& input = downcast<HTMLInputElement>(*candidate);
-        if (input.isColorControl() && !input.isDisabledFormControl())
-            return true;
-    }
 
-    return false;
+static bool isEnabledColorInput(Node& node)
+{
+    if (!is<HTMLInputElement>(node))
+        return false;
+    auto& input = downcast<HTMLInputElement>(node);
+    return input.isColorControl() && !input.isDisabledFormControl();
 }
+
+static bool isInShadowTreeOfEnabledColorInput(Node& node)
+{
+    auto* host = node.shadowHost();
+    return host && isEnabledColorInput(*host);
+}
+
 #endif
 
 // This can return null if an empty document is loaded.
@@ -362,13 +368,13 @@ static Element* elementUnderMouse(Document* documentUnderMouse, const IntPoint& 
     HitTestResult result(point);
     documentUnderMouse->renderView()->hitTest(HitTestRequest(), result);
 
-    Node* node = result.innerNode();
-    while (node && !is<Element>(*node))
-        node = node->parentNode();
-    if (node)
-        node = node->deprecatedShadowAncestorNode();
-
-    return downcast<Element>(node);
+    auto* node = result.innerNode();
+    if (!node)
+        return nullptr;
+    // FIXME: Use parentElementInComposedTree here.
+    auto* element = is<Element>(*node) ? &downcast<Element>(*node) : node->parentElement();
+    auto* host = element->shadowHost();
+    return host ? host : element;
 }
 
 #if !ENABLE(DATA_INTERACTION)
@@ -436,7 +442,6 @@ DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, Dra
 
         Frame* innerFrame = element->document().frame();
         dragOperation = dragIsMove(innerFrame->selection(), dragData) ? DragOperationMove : DragOperationCopy;
-        m_numberOfItemsToBeAccepted = 0;
 
         unsigned numberOfFiles = dragData.numberOfFiles();
         if (m_fileInputElementUnderMouse) {
@@ -453,9 +458,9 @@ DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, Dra
                 dragOperation = DragOperationNone;
             m_fileInputElementUnderMouse->setCanReceiveDroppedFiles(m_numberOfItemsToBeAccepted);
         } else {
-            // We are not over a file input element. The dragged item(s) will only
-            // be loaded into the view the number of dragged items is 1.
-            m_numberOfItemsToBeAccepted = numberOfFiles != 1 ? 0 : 1;
+            // We are not over a file input element. The dragged item(s) will loaded into the view,
+            // dropped as text paths on other input elements, or handled by script on the page.
+            m_numberOfItemsToBeAccepted = numberOfFiles;
         }
 
         if (m_fileInputElementUnderMouse)
@@ -549,7 +554,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         if (!color.isValid())
             return false;
 #if ENABLE(INPUT_TYPE_COLOR)
-        if (isEnabledColorInput(*element, false)) {
+        if (isEnabledColorInput(*element)) {
             auto& input = downcast<HTMLInputElement>(*element);
             input.setValue(color.serialized(), DispatchInputAndChangeEvent);
             return true;
@@ -653,14 +658,15 @@ bool DragController::canProcessDrag(const DragData& dragData)
 
     result = m_page.mainFrame().eventHandler().hitTestResultAtPoint(point, HitTestRequest::ReadOnly | HitTestRequest::Active);
 
-    if (!result.innerNonSharedNode())
+    auto* dragNode = result.innerNonSharedNode();
+    if (!dragNode)
         return false;
 
     DragData::DraggingPurpose dragPurpose = DragData::DraggingPurpose::ForEditing;
-    if (asFileInput(*result.innerNonSharedNode()))
+    if (asFileInput(*dragNode))
         dragPurpose = DragData::DraggingPurpose::ForFileUpload;
 #if ENABLE(INPUT_TYPE_COLOR)
-    else if (isEnabledColorInput(*result.innerNonSharedNode(), true))
+    else if (isEnabledColorInput(*dragNode) || isInShadowTreeOfEnabledColorInput(*dragNode))
         dragPurpose = DragData::DraggingPurpose::ForColorControl;
 #endif
 
@@ -675,10 +681,10 @@ bool DragController::canProcessDrag(const DragData& dragData)
         return true;
 #endif
 
-    if (is<HTMLPlugInElement>(*result.innerNonSharedNode())) {
-        if (!downcast<HTMLPlugInElement>(result.innerNonSharedNode())->canProcessDrag() && !result.innerNonSharedNode()->hasEditableStyle())
+    if (is<HTMLPlugInElement>(*dragNode)) {
+        if (!downcast<HTMLPlugInElement>(*dragNode).canProcessDrag() && !dragNode->hasEditableStyle())
             return false;
-    } else if (!result.innerNonSharedNode()->hasEditableStyle())
+    } else if (!dragNode->hasEditableStyle())
         return false;
 
     if (m_didInitiateDrag && m_documentUnderMouse == m_dragInitiator && result.isSelected())
@@ -811,8 +817,7 @@ Element* DragController::draggableElement(const Frame* sourceFrame, Element* sta
             }
 #endif
 #if ENABLE(INPUT_TYPE_COLOR)
-            if ((m_dragSourceAction & DragSourceActionColor)
-                && isEnabledColorInput(*element, false)) {
+            if ((m_dragSourceAction & DragSourceActionColor) && isEnabledColorInput(*element)) {
                 state.type = static_cast<DragSourceAction>(state.type | DragSourceActionColor);
                 return element;
             }
@@ -821,7 +826,10 @@ Element* DragController::draggableElement(const Frame* sourceFrame, Element* sta
     }
 
     // We either have nothing to drag or we have a selection and we're not over a draggable element.
-    return (state.type & DragSourceActionSelection) ? startElement : nullptr;
+    if (state.type & DragSourceActionSelection && m_dragSourceAction & DragSourceActionSelection)
+        return startElement;
+
+    return nullptr;
 }
 
 static CachedImage* getCachedImage(Element& element)

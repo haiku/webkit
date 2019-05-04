@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -131,10 +131,10 @@ String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent
     return standardUserAgentWithApplicationName(applicationNameForUserAgent);
 }
 
-void WebPageProxy::getIsSpeaking(bool& isSpeaking)
+void WebPageProxy::getIsSpeaking(CompletionHandler<void(bool)>&& completionHandler)
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanCommunicateWithWindowServer));
-    isSpeaking = [NSApp isSpeaking];
+    completionHandler([NSApp isSpeaking]);
 }
 
 void WebPageProxy::speak(const String& string)
@@ -165,7 +165,7 @@ void WebPageProxy::searchTheWeb(const String& string)
 
 void WebPageProxy::windowAndViewFramesChanged(const FloatRect& viewFrameInWindowCoordinates, const FloatPoint& accessibilityViewCoordinates)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
 
     // In case the UI client overrides getWindowFrame(), we call it here to make sure we send the appropriate window frame.
@@ -177,7 +177,7 @@ void WebPageProxy::windowAndViewFramesChanged(const FloatRect& viewFrameInWindow
 
 void WebPageProxy::setMainFrameIsScrollable(bool isScrollable)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
 
     process().send(Messages::WebPage::SetMainFrameIsScrollable(isScrollable), m_pageID);
@@ -186,7 +186,7 @@ void WebPageProxy::setMainFrameIsScrollable(bool isScrollable)
 void WebPageProxy::insertDictatedTextAsync(const String& text, const EditingRange& replacementRange, const Vector<TextAlternativeWithRange>& dictationAlternativesWithRange, bool registerUndoGroup)
 {
 #if USE(DICTATION_ALTERNATIVES)
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
 
     Vector<DictationAlternative> dictationAlternatives;
@@ -210,7 +210,7 @@ void WebPageProxy::insertDictatedTextAsync(const String& text, const EditingRang
 
 void WebPageProxy::attributedSubstringForCharacterRangeAsync(const EditingRange& range, WTF::Function<void (const AttributedString&, const EditingRange&, CallbackBase::Error)>&& callbackFunction)
 {
-    if (!isValid()) {
+    if (!hasRunningProcess()) {
         callbackFunction(AttributedString(), EditingRange(), CallbackBase::Error::Unknown);
         return;
     }
@@ -236,7 +236,7 @@ void WebPageProxy::attributedStringForCharacterRangeCallback(const AttributedStr
 
 void WebPageProxy::fontAtSelection(WTF::Function<void (const String&, double, bool, CallbackBase::Error)>&& callbackFunction)
 {
-    if (!isValid()) {
+    if (!hasRunningProcess()) {
         callbackFunction(String(), 0, false, CallbackBase::Error::Unknown);
         return;
     }
@@ -261,7 +261,7 @@ void WebPageProxy::fontAtSelectionCallback(const String& fontName, double fontSi
 String WebPageProxy::stringSelectionForPasteboard()
 {
     String value;
-    if (!isValid())
+    if (!hasRunningProcess())
         return value;
     
     const Seconds messageTimeout(20);
@@ -271,7 +271,7 @@ String WebPageProxy::stringSelectionForPasteboard()
 
 RefPtr<WebCore::SharedBuffer> WebPageProxy::dataSelectionForPasteboard(const String& pasteboardType)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return nullptr;
     SharedMemory::Handle handle;
     uint64_t size = 0;
@@ -286,7 +286,7 @@ RefPtr<WebCore::SharedBuffer> WebPageProxy::dataSelectionForPasteboard(const Str
 
 bool WebPageProxy::readSelectionFromPasteboard(const String& pasteboardName)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return false;
 
     bool result = false;
@@ -325,7 +325,7 @@ void WebPageProxy::setPromisedDataForImage(const String& pasteboardName, const S
 // Complex text input support for plug-ins.
 void WebPageProxy::sendComplexTextInputToPlugin(uint64_t pluginComplexTextInputIdentifier, const String& textInput)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
     
     process().send(Messages::WebPage::SendComplexTextInputToPlugin(pluginComplexTextInputIdentifier, textInput), m_pageID);
@@ -363,7 +363,7 @@ void WebPageProxy::didPerformDictionaryLookup(const DictionaryPopupInfo& diction
     
 void WebPageProxy::registerWebProcessAccessibilityToken(const IPC::DataReference& data)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
     
     pageClient().accessibilityWebProcessTokenReceived(data);
@@ -386,7 +386,7 @@ ColorSpaceData WebPageProxy::colorSpace()
 
 void WebPageProxy::registerUIProcessAccessibilityTokens(const IPC::DataReference& elementToken, const IPC::DataReference& windowToken)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return;
 
     process().send(Messages::WebPage::RegisterUIProcessAccessibilityTokens(elementToken, windowToken), m_pageID);
@@ -404,11 +404,11 @@ void WebPageProxy::setPluginComplexTextInputState(uint64_t pluginComplexTextInpu
     pageClient().setPluginComplexTextInputState(pluginComplexTextInputIdentifier, static_cast<PluginComplexTextInputState>(pluginComplexTextInputState));
 }
 
-void WebPageProxy::executeSavedCommandBySelector(const String& selector, bool& handled)
+void WebPageProxy::executeSavedCommandBySelector(const String& selector, CompletionHandler<void(bool)>&& completionHandler)
 {
     MESSAGE_CHECK(isValidKeypressCommandName(selector));
 
-    handled = pageClient().executeSavedCommandBySelector(selector);
+    completionHandler(pageClient().executeSavedCommandBySelector(selector));
 }
 
 bool WebPageProxy::shouldDelayWindowOrderingForEvent(const WebKit::WebMouseEvent& event)
@@ -424,7 +424,7 @@ bool WebPageProxy::shouldDelayWindowOrderingForEvent(const WebKit::WebMouseEvent
 
 bool WebPageProxy::acceptsFirstMouse(int eventNumber, const WebKit::WebMouseEvent& event)
 {
-    if (!isValid())
+    if (!hasRunningProcess())
         return false;
 
     bool result = false;
@@ -548,10 +548,10 @@ void WebPageProxy::openPDFFromTemporaryFolderWithNativeApplication(const String&
 }
 
 #if ENABLE(PDFKIT_PLUGIN)
-void WebPageProxy::showPDFContextMenu(const WebKit::PDFContextMenu& contextMenu, Optional<int32_t>& selectedIndex)
+void WebPageProxy::showPDFContextMenu(const WebKit::PDFContextMenu& contextMenu, CompletionHandler<void(Optional<int32_t>&&)>&& completionHandler)
 {
     if (!contextMenu.m_items.size())
-        return;
+        return completionHandler(WTF::nullopt);
     
     RetainPtr<WKPDFMenuTarget> menuTarget = adoptNS([[WKPDFMenuTarget alloc] init]);
     RetainPtr<NSMenu> nsMenu = adoptNS([[NSMenu alloc] init]);
@@ -584,7 +584,8 @@ void WebPageProxy::showPDFContextMenu(const WebKit::PDFContextMenu& contextMenu,
     [NSMenu popUpContextMenu:nsMenu.get() withEvent:event forView:view];
 
     if (auto selectedMenuItem = [menuTarget selectedMenuItem])
-        selectedIndex = [selectedMenuItem tag];
+        return completionHandler([selectedMenuItem tag]);
+    completionHandler(WTF::nullopt);
 }
 #endif
 
@@ -649,7 +650,6 @@ void WebPageProxy::showValidationMessage(const IntRect& anchorClientRect, const 
     m_validationBubble->showRelativeTo(anchorClientRect);
 }
 
-#if WK_API_ENABLED
 NSView *WebPageProxy::inspectorAttachmentView()
 {
     return pageClient().inspectorAttachmentView();
@@ -659,6 +659,14 @@ _WKRemoteObjectRegistry *WebPageProxy::remoteObjectRegistry()
 {
     return pageClient().remoteObjectRegistry();
 }
+
+#if ENABLE(APPLE_PAY)
+
+NSWindow *WebPageProxy::paymentCoordinatorPresentingWindow(const WebPaymentCoordinatorProxy&)
+{
+    return platformWindow();
+}
+
 #endif
 
 } // namespace WebKit

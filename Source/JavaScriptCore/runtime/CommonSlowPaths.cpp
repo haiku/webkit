@@ -517,19 +517,11 @@ SLOW_PATH_DECL(slow_path_add)
     auto bytecode = pc->as<OpAdd>();
     JSValue v1 = GET_C(bytecode.m_lhs).jsValue();
     JSValue v2 = GET_C(bytecode.m_rhs).jsValue();
-    JSValue result;
 
     ArithProfile& arithProfile = *exec->codeBlock()->arithProfileForPC(pc);
     arithProfile.observeLHSAndRHS(v1, v2);
 
-    if (v1.isString() && !v2.isObject()) {
-        JSString* v2String = v2.toString(exec);
-        if (LIKELY(!throwScope.exception()))
-            result = jsString(exec, asString(v1), v2String);
-    } else if (v1.isNumber() && v2.isNumber())
-        result = jsNumber(v1.asNumber() + v2.asNumber());
-    else
-        result = jsAddSlowCase(exec, v1, v2);
+    JSValue result = jsAdd(exec, v1, v2);
 
     RETURN_WITH_PROFILING(result, {
         updateArithProfileForBinaryArithOp(exec, pc, result, v1, v2);
@@ -723,9 +715,16 @@ SLOW_PATH_DECL(slow_path_bitnot)
 {
     BEGIN();
     auto bytecode = pc->as<OpBitnot>();
-    int32_t operand = GET_C(bytecode.m_operand).jsValue().toInt32(exec);
+    auto operandNumeric = GET_C(bytecode.m_operand).jsValue().toBigIntOrInt32(exec);
     CHECK_EXCEPTION();
-    RETURN_PROFILED(jsNumber(~operand));
+
+    if (WTF::holds_alternative<JSBigInt*>(operandNumeric)) {
+        JSBigInt* result = JSBigInt::bitwiseNot(exec, WTF::get<JSBigInt*>(operandNumeric));
+        CHECK_EXCEPTION();
+        RETURN_PROFILED(result);
+    }
+
+    RETURN_PROFILED(jsNumber(~WTF::get<int32_t>(operandNumeric)));
 }
 
 SLOW_PATH_DECL(slow_path_bitand)
@@ -996,7 +995,12 @@ SLOW_PATH_DECL(slow_path_to_index_string)
 {
     BEGIN();
     auto bytecode = pc->as<OpToIndexString>();
-    RETURN(jsString(exec, Identifier::from(exec, GET(bytecode.m_index).jsValue().asUInt32()).string()));
+    JSValue indexValue = GET(bytecode.m_index).jsValue();
+    ASSERT(indexValue.isAnyInt());
+    ASSERT(indexValue.asAnyInt() <= UINT32_MAX);
+    ASSERT(indexValue.asAnyInt() >= 0);
+    uint32_t index = static_cast<uint32_t>(indexValue.asAnyInt());
+    RETURN(jsString(exec, Identifier::from(exec, index).string()));
 }
 
 SLOW_PATH_DECL(slow_path_profile_type_clear_log)
@@ -1133,7 +1137,9 @@ SLOW_PATH_DECL(slow_path_get_by_val_with_this)
     if (LIKELY(baseValue.isCell() && subscript.isString())) {
         Structure& structure = *baseValue.asCell()->structure(vm);
         if (JSCell::canUseFastGetOwnProperty(structure)) {
-            if (RefPtr<AtomicStringImpl> existingAtomicString = asString(subscript)->toExistingAtomicString(exec)) {
+            RefPtr<AtomicStringImpl> existingAtomicString = asString(subscript)->toExistingAtomicString(exec);
+            CHECK_EXCEPTION();
+            if (existingAtomicString) {
                 if (JSValue result = baseValue.asCell()->fastGetOwnProperty(vm, structure, existingAtomicString.get()))
                     RETURN_PROFILED(result);
             }
@@ -1257,6 +1263,9 @@ SLOW_PATH_DECL(slow_path_new_array_with_spread)
         THROW(createOutOfMemoryError(exec));
 
     unsigned arraySize = checkedArraySize.unsafeGet();
+    if (UNLIKELY(arraySize >= MIN_ARRAY_STORAGE_CONSTRUCTION_LENGTH))
+        THROW(createOutOfMemoryError(exec));
+
     JSGlobalObject* globalObject = exec->lexicalGlobalObject();
     Structure* structure = globalObject->arrayStructureForIndexingTypeDuringAllocation(ArrayWithContiguous);
 

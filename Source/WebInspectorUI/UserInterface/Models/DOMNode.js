@@ -48,7 +48,7 @@ WI.DOMNode = class DOMNode extends WI.Object
         this._nodeValue = payload.nodeValue;
         this._pseudoType = payload.pseudoType;
         this._shadowRootType = payload.shadowRootType;
-        this._computedRole = payload.role;
+        this._computedRole = null;
         this._contentSecurityPolicyHash = payload.contentSecurityPolicyHash;
 
         if (this._nodeType === Node.DOCUMENT_NODE)
@@ -156,6 +156,26 @@ WI.DOMNode = class DOMNode extends WI.Object
         }, []);
     }
 
+    static isPlayEvent(eventName)
+    {
+        return eventName === "play"
+            || eventName === "playing";
+    }
+
+    static isPauseEvent(eventName)
+    {
+        return eventName === "pause"
+            || eventName === "stall";
+    }
+
+    static isStopEvent(eventName)
+    {
+        return eventName === "emptied"
+            || eventName === "ended"
+            || eventName === "suspend";
+    }
+
+
     // Public
 
     get domEvents() { return this._domEvents; }
@@ -171,6 +191,15 @@ WI.DOMNode = class DOMNode extends WI.Object
         if (!this._frame)
             this._frame = WI.networkManager.frameForIdentifier(this.frameIdentifier);
         return this._frame;
+    }
+
+    get attached()
+    {
+        for (let node = this; node; node = node.parentNode) {
+            if (node.ownerDocument === node)
+                return true;
+        }
+        return false;
     }
 
     get children()
@@ -566,6 +595,8 @@ WI.DOMNode = class DOMNode extends WI.Object
         function accessibilityPropertiesCallback(error, accessibilityProperties)
         {
             if (!error && callback && accessibilityProperties) {
+                this._computedRole = accessibilityProperties.role;
+
                 callback({
                     activeDescendantNodeId: accessibilityProperties.activeDescendantNodeId,
                     busy: accessibilityProperties.busy,

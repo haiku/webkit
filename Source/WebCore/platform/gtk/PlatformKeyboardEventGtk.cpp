@@ -37,6 +37,7 @@
 #include "WindowsKeyboardCodes.h"
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
+#include <wtf/HexNumber.h>
 #include <wtf/glib/GUniquePtr.h>
 
 namespace WebCore {
@@ -874,7 +875,7 @@ String PlatformKeyboardEvent::keyIdentifierForGdkKeyCode(unsigned keyCode)
         case GDK_Tab:
             return "U+0009";
         default:
-            return String::format("U+%04X", gdk_keyval_to_unicode(gdk_keyval_to_upper(keyCode)));
+            return makeString("U+", hex(gdk_keyval_to_unicode(gdk_keyval_to_upper(keyCode)), 4));
     }
 }
 
@@ -1332,7 +1333,7 @@ static OptionSet<PlatformEvent::Modifier> modifiersForGdkKeyEvent(GdkEventKey* e
     if (event->state & GDK_SHIFT_MASK || event->keyval == GDK_3270_BackTab)
         modifiers.add(PlatformEvent::Modifier::ShiftKey);
     if (event->state & GDK_CONTROL_MASK)
-        modifiers.add(PlatformEvent::Modifier::CtrlKey);
+        modifiers.add(PlatformEvent::Modifier::ControlKey);
     if (event->state & GDK_MOD1_MASK)
         modifiers.add(PlatformEvent::Modifier::AltKey);
     if (event->state & GDK_META_MASK)

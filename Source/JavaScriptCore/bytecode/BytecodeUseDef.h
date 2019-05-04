@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "BytecodeStructs.h"
 #include "CodeBlock.h"
 #include "Instruction.h"
 #include <wtf/Forward.h>
@@ -156,7 +157,8 @@ void computeUsesForBytecodeOffset(Block* codeBlock, OpcodeID opcodeID, const Ins
     USES(OpNewGeneratorFuncExp, scope)
     USES(OpNewAsyncFuncExp, scope)
     USES(OpToIndexString, index)
-    USES(OpCreateLexicalEnvironment, scope)
+    USES(OpCreateLexicalEnvironment, scope, symbolTable, initialValue)
+    USES(OpCreateGeneratorFrameEnvironment, scope, symbolTable, initialValue)
     USES(OpResolveScope, scope)
     USES(OpResolveScopeForHoistingFuncDeclInEval, scope)
     USES(OpGetFromScope, scope)
@@ -295,6 +297,7 @@ void computeDefsForBytecodeOffset(Block* codeBlock, OpcodeID opcodeID, const Ins
     case op_end:
     case op_throw:
     case op_throw_static_error:
+    case op_check_tdz:
     case op_debug:
     case op_ret:
     case op_jmp:
@@ -363,6 +366,7 @@ void computeDefsForBytecodeOffset(Block* codeBlock, OpcodeID opcodeID, const Ins
     DEFS(OpGetParentScope, dst)
     DEFS(OpPushWithScope, dst)
     DEFS(OpCreateLexicalEnvironment, dst)
+    DEFS(OpCreateGeneratorFrameEnvironment, dst)
     DEFS(OpResolveScope, dst)
     DEFS(OpResolveScopeForHoistingFuncDeclInEval, dst)
     DEFS(OpStrcat, dst)
@@ -448,7 +452,6 @@ void computeDefsForBytecodeOffset(Block* codeBlock, OpcodeID opcodeID, const Ins
     DEFS(OpMov, dst)
     DEFS(OpNewObject, dst)
     DEFS(OpToThis, srcDst)
-    DEFS(OpCheckTdz, targetVirtualRegister)
     DEFS(OpGetScope, dst)
     DEFS(OpCreateDirectArguments, dst)
     DEFS(OpCreateScopedArguments, dst)

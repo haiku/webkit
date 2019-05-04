@@ -241,8 +241,10 @@ void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachm
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
 void AXObjectCache::associateIsolatedTreeNode(AccessibilityObject& object, AXIsolatedTreeNode& node, AXIsolatedTreeID treeID)
 {
-    object.wrapper().isolatedTreeIdentifier = treeID;
-    node.setWrapper(object.wrapper());
+    auto wrapper = object.wrapper();
+    ASSERT(wrapper);
+    wrapper.isolatedTreeIdentifier = treeID;
+    node.setWrapper(wrapper);
 }
 #endif
 
@@ -259,22 +261,27 @@ void AXObjectCache::setShouldRepostNotificationsForTests(bool value)
     axShouldRepostNotificationsForTests = value;
 }
 
-static void AXPostNotificationWithUserInfo(AccessibilityObjectWrapper *object, NSString *notification, id userInfo)
+static void AXPostNotificationWithUserInfo(AccessibilityObjectWrapper *object, NSString *notification, id userInfo, bool skipSystemNotification = false)
 {
     if (id associatedPluginParent = [object associatedPluginParent])
         object = associatedPluginParent;
-    
-    NSAccessibilityPostNotificationWithUserInfo(object, notification, userInfo);
+
     // To simplify monitoring for notifications in tests, repost as a simple NSNotification instead of forcing test infrastucture to setup an IPC client and do all the translation between WebCore types and platform specific IPC types and back
     if (UNLIKELY(axShouldRepostNotificationsForTests))
         [object accessibilityPostedNotification:notification userInfo:userInfo];
+
+    if (skipSystemNotification)
+        return;
+
+    NSAccessibilityPostNotificationWithUserInfo(object, notification, userInfo);
 }
 
 void AXObjectCache::postPlatformNotification(AccessibilityObject* obj, AXNotification notification)
 {
     if (!obj)
         return;
-    
+
+    bool skipSystemNotification = false;
     // Some notifications are unique to Safari and do not have NSAccessibility equivalents.
     NSString *macNotification;
     switch (notification) {
@@ -302,6 +309,11 @@ void AXObjectCache::postPlatformNotification(AccessibilityObject* obj, AXNotific
             break;
         case AXLoadComplete:
             macNotification = @"AXLoadComplete";
+            // Frame loading events are handled by the UIProcess on macOS to improve reliability.
+            // On macOS, before notifications are allowed by AppKit to be sent to clients, you need to have a client (e.g. VoiceOver)
+            // register for that notification. Because these new processes appear before VO has a chance to register, it will often
+            // miss AXLoadComplete notifications. By moving them to the UIProcess, we can eliminate that issue.
+            skipSystemNotification = true;
             break;
         case AXInvalidStatusChanged:
             macNotification = @"AXInvalidStatusChanged";
@@ -346,6 +358,12 @@ void AXObjectCache::postPlatformNotification(AccessibilityObject* obj, AXNotific
         case AXMenuListItemSelected:
             macNotification = (id)kAXMenuItemSelectedNotification;
             break;
+        case AXPressDidSucceed:
+            macNotification = @"AXPressDidSucceed";
+            break;
+        case AXPressDidFail:
+            macNotification = @"AXPressDidFail";
+            break;
         case AXMenuOpened:
             macNotification = (id)kAXMenuOpenedNotification;
             break;
@@ -359,7 +377,7 @@ void AXObjectCache::postPlatformNotification(AccessibilityObject* obj, AXNotific
     ASSERT([obj->wrapper() accessibilityIsIgnored] || true);
     ALLOW_DEPRECATED_DECLARATIONS_END
 
-    AXPostNotificationWithUserInfo(obj->wrapper(), macNotification, nil);
+    AXPostNotificationWithUserInfo(obj->wrapper(), macNotification, nil, skipSystemNotification);
 }
 
 void AXObjectCache::postTextStateChangePlatformNotification(AccessibilityObject* object, const AXTextStateChangeIntent& intent, const VisibleSelection& selection)
@@ -526,6 +544,10 @@ void AXObjectCache::platformHandleFocusedUIElementChanged(Node*, Node*)
 }
 
 void AXObjectCache::handleScrolledToAnchor(const Node*)
+{
+}
+
+void AXObjectCache::platformPerformDeferredCacheUpdate()
 {
 }
 

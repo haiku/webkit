@@ -26,8 +26,6 @@
 #import "config.h"
 #import "TestWKWebView.h"
 
-#if WK_API_ENABLED
-
 #import "ClassMethodSwizzler.h"
 #import "TestNavigationDelegate.h"
 #import "Utilities.h"
@@ -65,6 +63,29 @@ SOFT_LINK_CLASS(UIKit, UIWindow)
 #endif
 
 @implementation WKWebView (TestWebKitAPI)
+
+- (void)loadTestPageNamed:(NSString *)pageName
+{
+    NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:pageName withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
+    [self loadRequest:request];
+}
+
+- (void)synchronouslyLoadHTMLString:(NSString *)html baseURL:(NSURL *)url
+{
+    [self loadHTMLString:html baseURL:url];
+    [self _test_waitForDidFinishNavigation];
+}
+
+- (void)synchronouslyLoadHTMLString:(NSString *)html
+{
+    [self synchronouslyLoadHTMLString:html baseURL:[[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
+}
+
+- (void)synchronouslyLoadTestPageNamed:(NSString *)pageName
+{
+    [self loadTestPageNamed:pageName];
+    [self _test_waitForDidFinishNavigation];
+}
 
 - (BOOL)_synchronouslyExecuteEditCommand:(NSString *)command argument:(NSString *)argument
 {
@@ -345,29 +366,6 @@ static UICalloutBar *suppressUICalloutBar()
     [_testHandler addMessage:message withHandler:action];
 }
 
-- (void)loadTestPageNamed:(NSString *)pageName
-{
-    NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:pageName withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
-    [self loadRequest:request];
-}
-
-- (void)synchronouslyLoadHTMLString:(NSString *)html baseURL:(NSURL *)url
-{
-    [self loadHTMLString:html baseURL:url];
-    [self _test_waitForDidFinishNavigation];
-}
-
-- (void)synchronouslyLoadHTMLString:(NSString *)html
-{
-    [self synchronouslyLoadHTMLString:html baseURL:[[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
-}
-
-- (void)synchronouslyLoadTestPageNamed:(NSString *)pageName
-{
-    [self loadTestPageNamed:pageName];
-    [self _test_waitForDidFinishNavigation];
-}
-
 - (void)waitForMessage:(NSString *)message
 {
     __block bool isDoneWaiting = false;
@@ -511,6 +509,25 @@ static UICalloutBar *suppressUICalloutBar()
     return info.autorelease();
 }
 
+static WKContentView *recursiveFindWKContentView(UIView *view)
+{
+    if ([view isKindOfClass:NSClassFromString(@"WKContentView")])
+        return (WKContentView *)view;
+
+    for (UIView *subview in view.subviews) {
+        WKContentView *contentView = recursiveFindWKContentView(subview);
+        if (contentView)
+            return contentView;
+    }
+
+    return nil;
+}
+
+- (WKContentView *)wkContentView
+{
+    return recursiveFindWKContentView(self);
+}
+
 @end
 
 #endif
@@ -582,5 +599,3 @@ static UICalloutBar *suppressUICalloutBar()
 
 @end
 #endif
-
-#endif // WK_API_ENABLED

@@ -30,12 +30,8 @@
 #include "EventTarget.h"
 #include "ExceptionOr.h"
 #include "WebAnimationUtilities.h"
-#include <wtf/Forward.h>
 #include <wtf/Markable.h>
-#include <wtf/Optional.h>
-#include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
-#include <wtf/RefPtr.h>
 #include <wtf/Seconds.h>
 #include <wtf/UniqueRef.h>
 #include <wtf/WeakPtr.h>
@@ -50,6 +46,7 @@ class Element;
 class RenderStyle;
 
 class WebAnimation : public RefCounted<WebAnimation>, public CanMakeWeakPtr<WebAnimation>, public EventTargetWithInlineData, public ActiveDOMObject {
+    WTF_MAKE_ISO_ALLOCATED(WebAnimation);
 public:
     static Ref<WebAnimation> create(Document&, AnimationEffect*);
     static Ref<WebAnimation> create(Document&, AnimationEffect*, AnimationTimeline*);
@@ -120,6 +117,8 @@ public:
     void setSuspended(bool);
     bool isSuspended() const { return m_isSuspended; }
     virtual void remove();
+
+    bool hasPendingActivity() const final;
 
     using RefCounted::ref;
     using RefCounted::deref;

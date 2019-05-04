@@ -37,6 +37,7 @@
 #include "ComposedTreeIterator.h"
 #include "ContentExtensionActions.h"
 #include "ContentExtensionRule.h"
+#include "ContentRuleListResults.h"
 #include "Crypto.h"
 #include "CustomElementRegistry.h"
 #include "DOMApplicationCache.h"
@@ -45,8 +46,10 @@
 #include "DOMTimer.h"
 #include "DOMTokenList.h"
 #include "DOMURL.h"
-#include "DOMWindowExtension.h"
 #include "DeviceMotionController.h"
+#include "DeviceMotionData.h"
+#include "DeviceMotionEvent.h"
+#include "DeviceOrientationAndMotionAccessController.h"
 #include "DeviceOrientationController.h"
 #include "Document.h"
 #include "DocumentLoader.h"
@@ -112,11 +115,13 @@
 #include <JavaScriptCore/ScriptCallStackFactory.h>
 #include <algorithm>
 #include <memory>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/Language.h>
 #include <wtf/MainThread.h>
 #include <wtf/MathExtras.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Ref.h>
+#include <wtf/SetForScope.h>
 #include <wtf/Variant.h>
 #include <wtf/text/WTFString.h>
 
@@ -138,14 +143,10 @@
 #include "PointerLockController.h"
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-#include "WKContentObservation.h"
-#include "WKContentObservationInternal.h"
-#endif
-
-
 namespace WebCore {
 using namespace Inspector;
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(DOMWindow);
 
 class PostMessageTimer : public TimerBase {
 public:
@@ -454,18 +455,22 @@ void DOMWindow::frameDestroyed()
 
 void DOMWindow::willDestroyCachedFrame()
 {
-    // It is necessary to copy m_properties to a separate vector because the DOMWindowProperties may
+    // It is necessary to copy m_observers to a separate vector because the Observer may
     // unregister themselves from the DOMWindow as a result of the call to willDestroyGlobalObjectInCachedFrame.
-    for (auto& property : copyToVector(m_properties))
-        property->willDestroyGlobalObjectInCachedFrame();
+    for (auto* observer : copyToVector(m_observers)) {
+        if (m_observers.contains(observer))
+            observer->willDestroyGlobalObjectInCachedFrame();
+    }
 }
 
 void DOMWindow::willDestroyDocumentInFrame()
 {
-    // It is necessary to copy m_properties to a separate vector because the DOMWindowProperties may
+    // It is necessary to copy m_observers to a separate vector because the Observer may
     // unregister themselves from the DOMWindow as a result of the call to willDestroyGlobalObjectInFrame.
-    for (auto& property : copyToVector(m_properties))
-        property->willDestroyGlobalObjectInFrame();
+    for (auto* observer : copyToVector(m_observers)) {
+        if (m_observers.contains(observer))
+            observer->willDestroyGlobalObjectInFrame();
+    }
 }
 
 void DOMWindow::willDetachDocumentFromFrame()
@@ -473,13 +478,20 @@ void DOMWindow::willDetachDocumentFromFrame()
     if (!frame())
         return;
 
-    // It is necessary to copy m_properties to a separate vector because the DOMWindowProperties may
+    RELEASE_ASSERT(!m_isSuspendingObservers);
+
+    // It is necessary to copy m_observers to a separate vector because the Observer may
     // unregister themselves from the DOMWindow as a result of the call to willDetachGlobalObjectFromFrame.
-    for (auto& property : copyToVector(m_properties))
-        property->willDetachGlobalObjectFromFrame();
+    for (auto& observer : copyToVector(m_observers)) {
+        if (m_observers.contains(observer))
+            observer->willDetachGlobalObjectFromFrame();
+    }
 
     if (m_performance)
         m_performance->clearResourceTimings();
+
+    JSDOMWindowBase::fireFrameClearedWatchpointsForWindow(this);
+    InspectorInstrumentation::frameWindowDiscarded(*frame(), this);
 }
 
 #if ENABLE(GAMEPAD)
@@ -500,14 +512,14 @@ void DOMWindow::decrementGamepadEventListenerCount()
 
 #endif
 
-void DOMWindow::registerProperty(DOMWindowProperty& property)
+void DOMWindow::registerObserver(Observer& observer)
 {
-    m_properties.add(&property);
+    m_observers.add(&observer);
 }
 
-void DOMWindow::unregisterProperty(DOMWindowProperty& property)
+void DOMWindow::unregisterObserver(Observer& observer)
 {
-    m_properties.remove(&property);
+    m_observers.remove(&observer);
 }
 
 void DOMWindow::resetUnlessSuspendedForDocumentSuspension()
@@ -515,47 +527,30 @@ void DOMWindow::resetUnlessSuspendedForDocumentSuspension()
     if (m_suspendedForDocumentSuspension)
         return;
     willDestroyDocumentInFrame();
-    resetDOMWindowProperties();
 }
 
 void DOMWindow::suspendForPageCache()
 {
-    for (auto& property : copyToVector(m_properties))
-        property->suspendForPageCache();
+    SetForScope<bool> isSuspendingObservers(m_isSuspendingObservers, true);
+    RELEASE_ASSERT(frame());
+
+    for (auto* observer : copyToVector(m_observers)) {
+        if (m_observers.contains(observer))
+            observer->suspendForPageCache();
+    }
+    RELEASE_ASSERT(frame());
 
     m_suspendedForDocumentSuspension = true;
 }
 
 void DOMWindow::resumeFromPageCache()
 {
-    for (auto& property : copyToVector(m_properties))
-        property->resumeFromPageCache();
+    for (auto* observer : copyToVector(m_observers)) {
+        if (m_observers.contains(observer))
+            observer->resumeFromPageCache();
+    }
 
     m_suspendedForDocumentSuspension = false;
-}
-
-void DOMWindow::resetDOMWindowProperties()
-{
-    m_properties.clear();
-
-    m_applicationCache = nullptr;
-    m_crypto = nullptr;
-    m_history = nullptr;
-    m_localStorage = nullptr;
-    m_location = nullptr;
-    m_locationbar = nullptr;
-    m_media = nullptr;
-    m_menubar = nullptr;
-    m_navigator = nullptr;
-    m_personalbar = nullptr;
-    m_screen = nullptr;
-    m_scrollbars = nullptr;
-    m_selection = nullptr;
-    m_sessionStorage = nullptr;
-    m_statusbar = nullptr;
-    m_toolbar = nullptr;
-    m_performance = nullptr;
-    m_visualViewport = nullptr;
 }
 
 bool DOMWindow::isCurrentlyDisplayedInFrame() const
@@ -948,8 +943,9 @@ Element* DOMWindow::frameElement() const
 
 void DOMWindow::focus(DOMWindow& incumbentWindow)
 {
-    auto* opener = this->opener();
-    focus(opener && opener != self() && incumbentWindow.self() == opener);
+    auto* frame = this->frame();
+    auto* openerFrame = frame ? frame->loader().opener() : nullptr;
+    focus(openerFrame && openerFrame != frame && incumbentWindow.frame() == openerFrame);
 }
 
 void DOMWindow::focus(bool allowFocus)
@@ -1322,7 +1318,12 @@ int DOMWindow::scrollY() const
 
 bool DOMWindow::closed() const
 {
-    return !frame();
+    auto* frame = this->frame();
+    if (!frame)
+        return true;
+
+    auto* page = frame->page();
+    return !page || page->isClosing();
 }
 
 unsigned DOMWindow::length() const
@@ -1381,15 +1382,6 @@ void DOMWindow::setDefaultStatus(const String& string)
 
     ASSERT(frame->document()); // Client calls shouldn't be made when the frame is in inconsistent state.
     page->chrome().setStatusbarText(*frame, m_defaultStatus);
-}
-
-WindowProxy* DOMWindow::self() const
-{
-    auto* frame = this->frame();
-    if (!frame)
-        return nullptr;
-
-    return &frame->windowProxy();
 }
 
 WindowProxy* DOMWindow::opener() const
@@ -1494,7 +1486,7 @@ RefPtr<CSSRuleList> DOMWindow::getMatchedCSSRules(Element* element, const String
     if (ruleList->rules().isEmpty())
         return nullptr;
 
-    return WTFMove(ruleList);
+    return ruleList;
 }
 
 RefPtr<WebKitPoint> DOMWindow::webkitConvertPointFromNodeToPage(Node* node, const WebKitPoint* p) const
@@ -1673,23 +1665,6 @@ ExceptionOr<int> DOMWindow::setTimeout(JSC::ExecState& state, std::unique_ptr<Sc
 
 void DOMWindow::clearTimeout(int timeoutId)
 {
-#if PLATFORM(IOS_FAMILY)
-    if (auto* frame = this->frame()) {
-        Document* document = frame->document();
-        if (timeoutId > 0 && document) {
-            DOMTimer* timer = document->findTimeout(timeoutId);
-            if (timer && WebThreadContainsObservedDOMTimer(timer)) {
-                LOG_WITH_STREAM(ContentObservation, stream << "DOMWindow::clearTimeout: remove registered timer (" << timer << ")");
-                WebThreadRemoveObservedDOMTimer(timer);
-
-                if (!WebThreadCountOfObservedDOMTimers()) {
-                    if (Page* page = frame->page())
-                        page->chrome().client().observedContentChange(*frame);
-                }
-            }
-        }
-    }
-#endif
     ScriptExecutionContext* context = scriptExecutionContext();
     if (!context)
         return;
@@ -1723,7 +1698,6 @@ void DOMWindow::clearInterval(int timeoutId)
 
 int DOMWindow::requestAnimationFrame(Ref<RequestAnimationFrameCallback>&& callback)
 {
-    callback->m_useLegacyTimeBase = false;
     auto* document = this->document();
     if (!document)
         return 0;
@@ -1732,11 +1706,12 @@ int DOMWindow::requestAnimationFrame(Ref<RequestAnimationFrameCallback>&& callba
 
 int DOMWindow::webkitRequestAnimationFrame(Ref<RequestAnimationFrameCallback>&& callback)
 {
-    callback->m_useLegacyTimeBase = true;
-    auto* document = this->document();
-    if (!document)
-        return 0;
-    return document->requestAnimationFrame(WTFMove(callback));
+    static bool firstTime = true;
+    if (firstTime && document()) {
+        document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "webkitRequestAnimationFrame() is deprecated and will be removed. Please use requestAnimationFrame() instead."_s);
+        firstTime = false;
+    }
+    return requestAnimationFrame(WTFMove(callback));
 }
 
 void DOMWindow::cancelAnimationFrame(int id)
@@ -1811,7 +1786,7 @@ bool DOMWindow::addEventListener(const AtomicString& eventType, Ref<EventListene
         document->addListenerTypeIfNeeded(eventType);
         if (eventNames().isWheelEventType(eventType))
             document->didAddWheelEventHandler(*document);
-        else if (eventNames().isTouchEventType(eventType))
+        else if (eventNames().isTouchRelatedEventType(eventType))
             document->didAddTouchEventHandler(*document);
         else if (eventType == eventNames().storageEvent)
             didAddStorageEventListener(*this);
@@ -1826,7 +1801,7 @@ bool DOMWindow::addEventListener(const AtomicString& eventType, Ref<EventListene
         incrementScrollEventListenersCount();
 #endif
 #if ENABLE(IOS_TOUCH_EVENTS)
-    else if (eventNames().isTouchEventType(eventType))
+    else if (eventNames().isTouchRelatedEventType(eventType))
         ++m_touchAndGestureEventListenerCount;
 #endif
 #if ENABLE(IOS_GESTURE_EVENTS)
@@ -1837,47 +1812,155 @@ bool DOMWindow::addEventListener(const AtomicString& eventType, Ref<EventListene
     else if (eventNames().isGamepadEventType(eventType))
         incrementGamepadEventListenerCount();
 #endif
-
 #if ENABLE(DEVICE_ORIENTATION)
-    if (frame() && frame()->settings().deviceOrientationEventEnabled() && document() && document()->loader() && document()->loader()->deviceOrientationEventEnabled()) {
-#if PLATFORM(IOS_FAMILY)
-        if ((eventType == eventNames().devicemotionEvent || eventType == eventNames().deviceorientationEvent)) {
-            if (isSameSecurityOriginAsMainFrame() && isSecureContext()) {
-                if (eventType == eventNames().deviceorientationEvent)
-                    document()->deviceOrientationController().addDeviceEventListener(*this);
-                else
-                    document()->deviceMotionController().addDeviceEventListener(*this);
-            } else if (document()) {
-                if (isSecureContext())
-                    document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "Blocked attempt to add a device motion or orientation listener from child frame that wasn't the same security origin as the main page."_s);
-                else
-                    document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "Blocked attempt to add a device motion or orientation listener because the browsing context is not secure."_s);
-            }
-        }
-#else
-        if (eventType == eventNames().devicemotionEvent) {
-            if (isSameSecurityOriginAsMainFrame() && isSecureContext()) {
-                if (DeviceMotionController* controller = DeviceMotionController::from(page()))
-                    controller->addDeviceEventListener(*this);
-            } else
-                document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "Blocked attempt to add a device motion listener from child frame that wasn't the same security origin as the main page."_s);
-        } else if (eventType == eventNames().deviceorientationEvent) {
-            if (isSameSecurityOriginAsMainFrame() && isSecureContext()) {
-                if (DeviceOrientationController* controller = DeviceOrientationController::from(page()))
-                    controller->addDeviceEventListener(*this);
-            } else {
-                if (isSecureContext())
-                    document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "Blocked attempt to add a device orientation listener from child frame that wasn't the same security origin as the main page."_s);
-                else
-                    document()->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, "Blocked attempt to add a device motion or orientation listener because the browsing context is not secure."_s);
-            }
-        }
-#endif // PLATFORM(IOS_FAMILY)
-    }
-#endif // ENABLE(DEVICE_ORIENTATION)
+    else if (eventType == eventNames().deviceorientationEvent)
+        startListeningForDeviceOrientationIfNecessary();
+    else if (eventType == eventNames().devicemotionEvent)
+        startListeningForDeviceMotionIfNecessary();
+#endif
 
     return true;
 }
+
+#if ENABLE(DEVICE_ORIENTATION)
+
+DeviceOrientationController* DOMWindow::deviceOrientationController() const
+{
+#if PLATFORM(IOS_FAMILY)
+    return document() ? &document()->deviceOrientationController() : nullptr;
+#else
+    return DeviceOrientationController::from(page());
+#endif
+}
+
+DeviceMotionController* DOMWindow::deviceMotionController() const
+{
+#if PLATFORM(IOS_FAMILY)
+    return document() ? &document()->deviceMotionController() : nullptr;
+#else
+    return DeviceMotionController::from(page());
+#endif
+}
+
+bool DOMWindow::isAllowedToUseDeviceMotionOrientation(String& message) const
+{
+    if (!frame() || !frame()->settings().deviceOrientationEventEnabled()) {
+        message = "API is disabled"_s;
+        return false;
+    }
+
+    if (!isSecureContext()) {
+        message = "Browsing context is not secure"_s;
+        return false;
+    }
+
+    if (!isSameSecurityOriginAsMainFrame()) {
+        message = "Source frame did not have the same security origin as the main page"_s;
+        return false;
+    }
+    return true;
+}
+
+bool DOMWindow::isAllowedToAddDeviceMotionOrientationListener(String& message) const
+{
+    String innerMessage;
+    if (!isAllowedToUseDeviceMotionOrientation(innerMessage)) {
+        message = makeString("Blocked attempt to add a device motion or orientation event listener, reason: ", innerMessage, ".");
+        return false;
+    }
+
+    if (frame()->settings().deviceOrientationPermissionAPIEnabled()) {
+        auto accessState = document()->deviceOrientationAndMotionAccessController().accessState();
+        if (accessState && !*accessState) {
+            message = "No device motion or orientation events will be fired because permission to use the API was denied."_s;
+            return false;
+        }
+        if (!accessState) {
+            message = "No device motion or orientation events will be fired until permission has been requested and granted."_s;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void DOMWindow::startListeningForDeviceOrientationIfNecessary()
+{
+    if (!hasEventListeners(eventNames().deviceorientationEvent))
+        return;
+
+    auto* deviceController = deviceOrientationController();
+    if (!deviceController || deviceController->hasDeviceEventListener(*this))
+        return;
+
+    String errorMessage;
+    if (!isAllowedToAddDeviceMotionOrientationListener(errorMessage)) {
+        if (auto* document = this->document())
+            document->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, errorMessage);
+        return;
+    }
+
+    deviceController->addDeviceEventListener(*this);
+}
+
+void DOMWindow::stopListeningForDeviceOrientationIfNecessary()
+{
+    if (hasEventListeners(eventNames().deviceorientationEvent))
+        return;
+
+    if (auto* deviceController = deviceOrientationController())
+        deviceController->removeDeviceEventListener(*this);
+}
+
+void DOMWindow::startListeningForDeviceMotionIfNecessary()
+{
+    if (!hasEventListeners(eventNames().devicemotionEvent))
+        return;
+
+    auto* deviceController = deviceMotionController();
+    if (!deviceController || deviceController->hasDeviceEventListener(*this))
+        return;
+
+    String errorMessage;
+    if (!isAllowedToAddDeviceMotionOrientationListener(errorMessage)) {
+        failedToRegisterDeviceMotionEventListener();
+        if (auto* document = this->document())
+            document->addConsoleMessage(MessageSource::JS, MessageLevel::Warning, errorMessage);
+        return;
+    }
+
+    deviceController->addDeviceEventListener(*this);
+}
+
+void DOMWindow::stopListeningForDeviceMotionIfNecessary()
+{
+    if (hasEventListeners(eventNames().devicemotionEvent))
+        return;
+
+    if (auto* deviceController = deviceMotionController())
+        deviceController->removeDeviceEventListener(*this);
+}
+
+void DOMWindow::failedToRegisterDeviceMotionEventListener()
+{
+#if PLATFORM(IOS_FAMILY)
+    if (!isSameSecurityOriginAsMainFrame() || !isSecureContext())
+        return;
+
+    // FIXME: This is a quirk for chase.com on iPad (<rdar://problem/48423023>).
+    if (RegistrableDomain::uncheckedCreateFromRegistrableDomainString("chase.com"_s).matches(document()->url())) {
+        // Fire a fake DeviceMotionEvent with acceleration data to unblock the site's login flow.
+        document()->postTask([](auto& context) {
+            if (auto* window = downcast<Document>(context).domWindow()) {
+                auto acceleration = DeviceMotionData::Acceleration::create();
+                window->dispatchEvent(DeviceMotionEvent::create(eventNames().devicemotionEvent, DeviceMotionData::create(acceleration.copyRef(), acceleration.copyRef(), DeviceMotionData::RotationRate::create(), WTF::nullopt).ptr()));
+            }
+        });
+    }
+#endif // PLATFORM(IOS_FAMILY)
+}
+
+#endif // ENABLE(DEVICE_ORIENTATION)
 
 #if PLATFORM(IOS_FAMILY)
 
@@ -1920,7 +2003,7 @@ bool DOMWindow::removeEventListener(const AtomicString& eventType, EventListener
     if (Document* document = this->document()) {
         if (eventNames().isWheelEventType(eventType))
             document->didRemoveWheelEventHandler(*document);
-        else if (eventNames().isTouchEventType(eventType))
+        else if (eventNames().isTouchRelatedEventType(eventType))
             document->didRemoveTouchEventHandler(*document);
     }
 
@@ -1928,28 +2011,12 @@ bool DOMWindow::removeEventListener(const AtomicString& eventType, EventListener
         removeUnloadEventListener(this);
     else if (eventType == eventNames().beforeunloadEvent && allowsBeforeUnloadListeners(this))
         removeBeforeUnloadEventListener(this);
-#if ENABLE(DEVICE_ORIENTATION)
-#if PLATFORM(IOS_FAMILY)
-    else if (eventType == eventNames().devicemotionEvent && document())
-        document()->deviceMotionController().removeDeviceEventListener(*this);
-    else if (eventType == eventNames().deviceorientationEvent && document())
-        document()->deviceOrientationController().removeDeviceEventListener(*this);
-#else
-    else if (eventType == eventNames().devicemotionEvent) {
-        if (DeviceMotionController* controller = DeviceMotionController::from(page()))
-            controller->removeDeviceEventListener(*this);
-    } else if (eventType == eventNames().deviceorientationEvent) {
-        if (DeviceOrientationController* controller = DeviceOrientationController::from(page()))
-            controller->removeDeviceEventListener(*this);
-    }
-#endif // PLATFORM(IOS_FAMILY)
-#endif // ENABLE(DEVICE_ORIENTATION)
 #if PLATFORM(IOS_FAMILY)
     else if (eventType == eventNames().scrollEvent)
         decrementScrollEventListenersCount();
 #endif
 #if ENABLE(IOS_TOUCH_EVENTS)
-    else if (eventNames().isTouchEventType(eventType)) {
+    else if (eventNames().isTouchRelatedEventType(eventType)) {
         ASSERT(m_touchAndGestureEventListenerCount > 0);
         --m_touchAndGestureEventListenerCount;
     }
@@ -1963,6 +2030,12 @@ bool DOMWindow::removeEventListener(const AtomicString& eventType, EventListener
 #if ENABLE(GAMEPAD)
     else if (eventNames().isGamepadEventType(eventType))
         decrementGamepadEventListenerCount();
+#endif
+#if ENABLE(DEVICE_ORIENTATION)
+    else if (eventType == eventNames().deviceorientationEvent)
+        stopListeningForDeviceOrientationIfNecessary();
+    else if (eventType == eventNames().devicemotionEvent)
+        stopListeningForDeviceMotionIfNecessary();
 #endif
 
     return true;
@@ -2037,7 +2110,7 @@ void DOMWindow::dispatchEvent(Event& event, EventTarget* target)
     // FIXME: We should use EventDispatcher everywhere.
     fireEventListeners(event, EventInvokePhase::Capturing);
     fireEventListeners(event, EventInvokePhase::Bubbling);
-    InspectorInstrumentation::didDispatchEventOnWindow(cookie);
+    InspectorInstrumentation::didDispatchEventOnWindow(cookie, event.defaultPrevented());
     event.resetAfterDispatch();
 }
 
@@ -2046,18 +2119,9 @@ void DOMWindow::removeAllEventListeners()
     EventTarget::removeAllEventListeners();
 
 #if ENABLE(DEVICE_ORIENTATION)
-#if PLATFORM(IOS_FAMILY)
-    if (Document* document = this->document()) {
-        document->deviceMotionController().removeAllDeviceEventListeners(*this);
-        document->deviceOrientationController().removeAllDeviceEventListeners(*this);
-    }
-#else
-    if (DeviceMotionController* controller = DeviceMotionController::from(page()))
-        controller->removeAllDeviceEventListeners(*this);
-    if (DeviceOrientationController* controller = DeviceOrientationController::from(page()))
-        controller->removeAllDeviceEventListeners(*this);
-#endif // PLATFORM(IOS_FAMILY)
-#endif // ENABLE(DEVICE_ORIENTATION)
+        stopListeningForDeviceOrientationIfNecessary();
+        stopListeningForDeviceMotionIfNecessary();
+#endif
 
 #if PLATFORM(IOS_FAMILY)
     if (m_scrollEventListenerCount) {
@@ -2227,7 +2291,7 @@ ExceptionOr<RefPtr<Frame>> DOMWindow::createWindow(const String& urlString, cons
         return Exception { SyntaxError };
 
     // For whatever reason, Firefox uses the first frame to determine the outgoingReferrer. We replicate that behavior here.
-    String referrer = SecurityPolicy::generateReferrerHeader(firstFrame.document()->referrerPolicy(), completedURL, firstFrame.loader().outgoingReferrer());
+    String referrer = windowFeatures.noreferrer ? String() : SecurityPolicy::generateReferrerHeader(firstFrame.document()->referrerPolicy(), completedURL, firstFrame.loader().outgoingReferrer());
     auto initiatedByMainFrame = activeFrame->isMainFrame() ? InitiatedByMainFrame::Yes : InitiatedByMainFrame::Unknown;
 
     ResourceRequest resourceRequest { completedURL, referrer };
@@ -2241,14 +2305,15 @@ ExceptionOr<RefPtr<Frame>> DOMWindow::createWindow(const String& urlString, cons
     if (!newFrame)
         return RefPtr<Frame> { nullptr };
 
-    if (!windowFeatures.noopener)
+    bool noopener = windowFeatures.noopener || windowFeatures.noreferrer;
+    if (!noopener)
         newFrame->loader().setOpener(&openerFrame);
 
     if (created)
         newFrame->page()->setOpenedByDOM();
 
     if (newFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL))
-        return windowFeatures.noopener ? RefPtr<Frame> { nullptr } : newFrame;
+        return noopener ? RefPtr<Frame> { nullptr } : newFrame;
 
     if (prepareDialogFunction)
         prepareDialogFunction(*newFrame->document()->domWindow());
@@ -2267,7 +2332,7 @@ ExceptionOr<RefPtr<Frame>> DOMWindow::createWindow(const String& urlString, cons
     if (!newFrame->page())
         return RefPtr<Frame> { nullptr };
 
-    return windowFeatures.noopener ? RefPtr<Frame> { nullptr } : newFrame;
+    return noopener ? RefPtr<Frame> { nullptr } : newFrame;
 }
 
 ExceptionOr<RefPtr<WindowProxy>> DOMWindow::open(DOMWindow& activeWindow, DOMWindow& firstWindow, const String& urlString, const AtomicString& frameName, const String& windowFeaturesString)
@@ -2288,11 +2353,9 @@ ExceptionOr<RefPtr<WindowProxy>> DOMWindow::open(DOMWindow& activeWindow, DOMWin
         && firstFrame->page()
         && firstFrame->mainFrame().document()
         && firstFrame->mainFrame().document()->loader()) {
-        ResourceLoadInfo resourceLoadInfo { firstFrame->document()->completeURL(urlString), firstFrame->mainFrame().document()->url(), ResourceType::Popup };
-        for (auto& action : firstFrame->page()->userContentProvider().actionsForResourceLoad(resourceLoadInfo, *firstFrame->mainFrame().document()->loader()).first) {
-            if (action.type() == ContentExtensions::ActionType::BlockLoad)
-                return RefPtr<WindowProxy> { nullptr };
-        }
+        auto results = firstFrame->page()->userContentProvider().processContentRuleListsForLoad(firstFrame->document()->completeURL(urlString), ResourceType::Popup, *firstFrame->mainFrame().document()->loader());
+        if (results.summary.blockedLoad)
+            return RefPtr<WindowProxy> { nullptr };
     }
 #endif
 

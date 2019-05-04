@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -198,8 +198,8 @@ void SlotVisitor::appendJSCellOrAuxiliary(HeapCell* heapCell)
         
 #if USE(JSVALUE64)
         // This detects the worst of the badness.
-        if (structureID >= heap()->structureIDTable().size())
-            die("GC scan found corrupt object: structureID is out of bounds!\n");
+        if (!heap()->structureIDTable().isValid(structureID))
+            die("GC scan found corrupt object: structureID is invalid!\n");
 #endif
     };
     
@@ -285,7 +285,7 @@ void SlotVisitor::appendToMarkStack(JSCell* cell)
 template<typename ContainerType>
 ALWAYS_INLINE void SlotVisitor::appendToMarkStack(ContainerType& container, JSCell* cell)
 {
-    ASSERT(Heap::isMarked(cell));
+    ASSERT(m_heap.isMarked(cell));
     ASSERT(!cell->isZapped());
     
     container.noteMarked();
@@ -354,7 +354,7 @@ private:
 
 ALWAYS_INLINE void SlotVisitor::visitChildren(const JSCell* cell)
 {
-    ASSERT(Heap::isMarked(cell));
+    ASSERT(m_heap.isMarked(cell));
     
     SetCurrentCellScope currentCellScope(*this, cell);
     

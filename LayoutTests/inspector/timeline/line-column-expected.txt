@@ -45,7 +45,7 @@ PASS: Capturing started.
           "functionName": "",
           "url": "",
           "scriptId": "<filtered>",
-          "lineNumber": 134,
+          "lineNumber": 138,
           "columnNumber": 97
         }
       ],
@@ -57,7 +57,8 @@ PASS: Capturing started.
       "startTime": "<filtered>",
       "frameId": "<filtered>",
       "data": {
-        "type": "click"
+        "type": "click",
+        "defaultPrevented": false
       },
       "children": [],
       "endTime": "<filtered>",
@@ -67,7 +68,8 @@ PASS: Capturing started.
       "startTime": "<filtered>",
       "frameId": "<filtered>",
       "data": {
-        "type": "click"
+        "type": "click",
+        "defaultPrevented": false
       },
       "children": [
         {
@@ -105,7 +107,7 @@ PASS: Capturing started.
               "functionName": "",
               "url": "",
               "scriptId": "<filtered>",
-              "lineNumber": 134,
+              "lineNumber": 138,
               "columnNumber": 97
             }
           ],
@@ -158,7 +160,7 @@ PASS: Capturing started.
           "functionName": "",
           "url": "",
           "scriptId": "<filtered>",
-          "lineNumber": 134,
+          "lineNumber": 138,
           "columnNumber": 97
         }
       ],
@@ -218,7 +220,7 @@ PASS: Capturing started.
           "functionName": "",
           "url": "",
           "scriptId": "<filtered>",
-          "lineNumber": 134,
+          "lineNumber": 138,
           "columnNumber": 97
         }
       ],

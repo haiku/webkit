@@ -71,7 +71,7 @@ public:
     void deleteAllCookies(PAL::SessionID);
     void deleteAllCookiesModifiedSince(PAL::SessionID, WallTime, Function<void (CallbackBase::Error)>&&);
 
-    void setCookie(PAL::SessionID, const WebCore::Cookie&, Function<void (CallbackBase::Error)>&&);
+    void setCookies(PAL::SessionID, const Vector<WebCore::Cookie>&, Function<void(CallbackBase::Error)>&&);
     void setCookies(PAL::SessionID, const Vector<WebCore::Cookie>&, const URL&, const URL& mainDocumentURL, Function<void(CallbackBase::Error)>&&);
 
     void getAllCookies(PAL::SessionID, Function<void (const Vector<WebCore::Cookie>&, CallbackBase::Error)>&& completionHandler);
@@ -98,8 +98,8 @@ public:
     void unregisterObserver(PAL::SessionID, Observer&);
 
 #if USE(SOUP)
-    void setCookiePersistentStorage(PAL::SessionID, const String& storagePath, uint32_t storageType);
-    void getCookiePersistentStorage(PAL::SessionID, String& storagePath, uint32_t& storageType) const;
+    void setCookiePersistentStorage(PAL::SessionID, const String& storagePath, SoupCookiePersistentStorageType);
+    void getCookiePersistentStorage(PAL::SessionID, String& storagePath, SoupCookiePersistentStorageType&) const;
 #endif
 
     using API::Object::ref;

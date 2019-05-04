@@ -165,11 +165,15 @@ HTMLInputElement::~HTMLInputElement()
 
     // Need to remove form association while this is still an HTMLInputElement
     // so that virtual functions are called correctly.
-    setForm(0);
-    // setForm(0) may register this to a document-level radio button group.
-    // We should unregister it to avoid accessing a deleted object.
+    setForm(nullptr);
+
+    // This is needed for a radio button that was not in a form, and also for
+    // a radio button that was in a form. The call to setForm(nullptr) above
+    // actually adds the button to the document groups in the latter case.
+    // That is inelegant, but harmless since we remove it here.
     if (isRadioButton())
         document().formController().radioButtonGroups().removeButton(*this);
+
 #if ENABLE(TOUCH_EVENTS)
     if (m_hasTouchEventHandler)
         document().didRemoveEventTargetNode(*this);
@@ -469,14 +473,13 @@ void HTMLInputElement::updateFocusAppearance(SelectionRestorationMode restoratio
 void HTMLInputElement::setDefaultSelectionAfterFocus(SelectionRevealMode revealMode)
 {
     ASSERT(isTextField());
-#if PLATFORM(IOS_FAMILY)
-    // We don't want to select all the text on iOS when focusing a field. Instead, match platform behavior by going to the end of the line.
-    int start = std::numeric_limits<int>::max();
-    auto direction = SelectionHasForwardDirection;
-#else
     int start = 0;
     auto direction = SelectionHasNoDirection;
-#endif
+    auto* frame = document().frame();
+    if (frame && frame->editor().behavior().shouldMoveSelectionToEndWhenFocusingTextInput()) {
+        start = std::numeric_limits<int>::max();
+        direction = SelectionHasForwardDirection;
+    }
     setSelectionRange(start, std::numeric_limits<int>::max(), direction, revealMode, Element::defaultFocusTextStateChangeIntent());
 }
 
@@ -1031,22 +1034,6 @@ void HTMLInputElement::setValueForUser(const String& value)
     setValue(value, DispatchChangeEvent);
 }
 
-void HTMLInputElement::setEditingValue(const String& value)
-{
-    if (!renderer() || !isTextField())
-        return;
-    setInnerTextValue(value);
-    subtreeHasChanged();
-
-    unsigned max = value.length();
-    if (focused())
-        setSelectionRange(max, max);
-    else
-        cacheSelectionInResponseToSetValue(max);
-
-    dispatchInputEvent();
-}
-
 ExceptionOr<void> HTMLInputElement::setValue(const String& value, TextFieldEventBehavior eventBehavior)
 {
     if (isFileUpload() && !value.isEmpty())
@@ -1166,8 +1153,8 @@ void HTMLInputElement::defaultEventHandler(Event& event)
 #endif
 
     if (is<KeyboardEvent>(event) && event.type() == eventNames().keydownEvent) {
-        m_inputType->handleKeydownEvent(downcast<KeyboardEvent>(event));
-        if (event.defaultHandled())
+        auto shouldCallBaseEventHandler = m_inputType->handleKeydownEvent(downcast<KeyboardEvent>(event));
+        if (event.defaultHandled() || shouldCallBaseEventHandler == InputType::ShouldCallBaseEventHandler::No)
             return;
     }
 
@@ -1564,8 +1551,12 @@ void HTMLInputElement::didMoveToNewDocument(Document& oldDocument, Document& new
         oldDocument.unregisterForDocumentSuspensionCallbacks(*this);
         newDocument.registerForDocumentSuspensionCallbacks(*this);
     }
+
+    // We call this even for radio buttons in forms; it's harmless because the
+    // removeButton function is written to be safe for buttons not in any group.
     if (isRadioButton())
         oldDocument.formController().radioButtonGroups().removeButton(*this);
+
 #if ENABLE(TOUCH_EVENTS)
     if (m_hasTouchEventHandler) {
         oldDocument.didRemoveEventTargetNode(*this);
@@ -1893,12 +1884,12 @@ Vector<HTMLInputElement*> HTMLInputElement::radioButtonGroup() const
         return { };
     return buttons->groupMembers(*this);
 }
-    
+
 HTMLInputElement* HTMLInputElement::checkedRadioButtonForGroup() const
 {
     if (RadioButtonGroups* buttons = radioButtonGroups())
         return buttons->checkedButtonForGroup(name());
-    return 0;
+    return nullptr;
 }
 
 RadioButtonGroups* HTMLInputElement::radioButtonGroups() const

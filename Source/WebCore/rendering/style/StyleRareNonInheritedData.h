@@ -29,6 +29,7 @@
 #include "CounterDirectives.h"
 #include "DataRef.h"
 #include "FillLayer.h"
+#include "GapLength.h"
 #include "LengthPoint.h"
 #include "LineClampValue.h"
 #include "NinePieceImage.h"
@@ -44,6 +45,7 @@ namespace WebCore {
 class AnimationList;
 class ContentData;
 class ShadowData;
+class StyleCustomPropertyData;
 class StyleDeprecatedFlexibleBoxData;
 class StyleFilterData;
 class StyleFlexibleBoxData;
@@ -175,7 +177,7 @@ public:
     std::unique_ptr<HashSet<String>> customPaintWatchedProperties;
 
 #if ENABLE(POINTER_EVENTS)
-    unsigned touchActions : 5; // TouchAction
+    unsigned touchActions : 6; // TouchAction
 #endif
 
     unsigned pageSizeType : 2; // PageSizeType

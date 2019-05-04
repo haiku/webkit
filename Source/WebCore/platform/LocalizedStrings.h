@@ -213,7 +213,16 @@ namespace WebCore {
     String AXMeterGaugeRegionLessGoodText();
 #endif
 #endif
-    
+#if ENABLE(APPLE_PAY)
+    String AXApplePayPlainLabel();
+    String AXApplePayBuyLabel();
+    String AXApplePaySetupLabel();
+    String AXApplePayDonateLabel();
+    String AXApplePayCheckOutLabel();
+    String AXApplePayBookLabel();
+    String AXApplePaySubscribeLabel();
+#endif
+
     String AXAutoFillCredentialsLabel();
     String AXAutoFillContactsLabel();
     String AXAutoFillStrongPasswordLabel();
@@ -225,6 +234,7 @@ namespace WebCore {
     String blockedPluginByContentSecurityPolicyText();
     String insecurePluginVersionText();
     String unsupportedPluginText();
+    WEBCORE_EXPORT String pluginTooSmallText();
 
     String multipleFileUploadText(unsigned numberOfFiles);
     String unknownFileSizeText();

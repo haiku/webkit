@@ -31,9 +31,12 @@
 #include "AudioContext.h"
 #include "AudioNodeOutput.h"
 #include "Logging.h"
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/Locker.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(MediaStreamAudioSourceNode);
 
 Ref<MediaStreamAudioSourceNode> MediaStreamAudioSourceNode::create(AudioContext& context, MediaStream& mediaStream, MediaStreamTrack& audioTrack)
 {
@@ -45,6 +48,8 @@ MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(AudioContext& context, Me
     , m_mediaStream(mediaStream)
     , m_audioTrack(audioTrack)
 {
+    setNodeType(NodeTypeMediaStreamAudioSource);
+    
     AudioSourceProvider* audioSourceProvider = m_audioTrack->audioSourceProvider();
     ASSERT(audioSourceProvider);
 
@@ -52,8 +57,6 @@ MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(AudioContext& context, Me
     
     // Default to stereo. This could change depending on the format of the MediaStream's audio track.
     addOutput(std::make_unique<AudioNodeOutput>(this, 2));
-
-    setNodeType(NodeTypeMediaStreamAudioSource);
 
     initialize();
 }

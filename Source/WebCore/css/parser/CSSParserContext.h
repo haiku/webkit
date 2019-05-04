@@ -49,7 +49,9 @@ public:
 #if ENABLE(TEXT_AUTOSIZING)
     bool textAutosizingEnabled { false };
 #endif
-    bool needsSiteSpecificQuirks { false };
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
+    bool legacyOverflowScrollingTouchEnabled { false };
+#endif
     bool enforcesCSSMIMETypeInNoQuirksMode { true };
     bool useLegacyBackgroundSizeShorthandBehavior { false };
     bool springTimingFunctionEnabled { false };
@@ -94,7 +96,9 @@ struct CSSParserContextHash {
 #if ENABLE(TEXT_AUTOSIZING)
             & key.textAutosizingEnabled                     << 1
 #endif
-            & key.needsSiteSpecificQuirks                   << 2
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
+            & key.legacyOverflowScrollingTouchEnabled       << 2
+#endif
             & key.enforcesCSSMIMETypeInNoQuirksMode         << 3
             & key.useLegacyBackgroundSizeShorthandBehavior  << 4
             & key.springTimingFunctionEnabled               << 5

@@ -25,28 +25,26 @@
 
 #pragma once
 
-#include "PublicSuffix.h"
-#include <wtf/Noncopyable.h>
+#include "RegistrableDomain.h"
+#include <wtf/CompletionHandler.h>
 #include <wtf/Optional.h>
+#include <wtf/URL.h>
 #include <wtf/WallTime.h>
+#include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
-
-namespace WTF {
-class URL;
-}
 
 namespace WebCore {
 
-constexpr unsigned short maxEntropy = 64;
-
 class AdClickAttribution {
-    WTF_MAKE_NONCOPYABLE(AdClickAttribution);
 public:
-    using CampaignId = unsigned short;
-    using ConversionData = unsigned short;
-    using PriorityValue = unsigned short;
+    using CampaignId = uint32_t;
+    using ConversionData = uint32_t;
+    using PriorityValue = uint32_t;
+
+    static constexpr uint32_t MaxEntropy = 63;
 
     struct Campaign {
+        Campaign() = default;
         explicit Campaign(CampaignId id)
             : id { id }
         {
@@ -54,36 +52,145 @@ public:
         
         bool isValid() const
         {
-            return id < maxEntropy;
+            return id <= MaxEntropy;
         }
         
-        CampaignId id;
+        CampaignId id { 0 };
     };
 
     struct Source {
-        explicit Source(const String& host)
-#if ENABLE(PUBLIC_SUFFIX_LIST)
-            : registrableDomain { WebCore::topPrivatelyControlledDomain(host) }
-#else
-            : registrableDomain { emptyString() }
-#endif
+        Source() = default;
+        explicit Source(const URL& url)
+            : registrableDomain { url }
         {
         }
 
-        String registrableDomain;
+        explicit Source(const RegistrableDomain& domain)
+            : registrableDomain { domain }
+        {
+        }
+
+        explicit Source(WTF::HashTableDeletedValueType)
+            : registrableDomain(WTF::HashTableDeletedValue)
+        {
+        }
+
+        bool operator==(const Source& other) const
+        {
+            return registrableDomain == other.registrableDomain;
+        }
+
+        bool matches(const URL& url) const
+        {
+            return registrableDomain.matches(url);
+        }
+
+        bool isHashTableDeletedValue() const
+        {
+            return registrableDomain.isHashTableDeletedValue();
+        }
+
+        static Source deletedValue()
+        {
+            return Source { WTF::HashTableDeletedValue };
+        }
+
+        static void constructDeletedValue(Source& source)
+        {
+            new (&source) Source;
+            source = Source::deletedValue();
+        }
+
+        void deleteValue()
+        {
+            registrableDomain = RegistrableDomain { WTF::HashTableDeletedValue };
+        }
+
+        bool isDeletedValue() const
+        {
+            return isHashTableDeletedValue();
+        }
+
+        RegistrableDomain registrableDomain;
+    };
+
+    struct SourceHash {
+        static unsigned hash(const Source& source)
+        {
+            return source.registrableDomain.hash();
+        }
+        
+        static bool equal(const Source& a, const Source& b)
+        {
+            return a == b;
+        }
+
+        static const bool safeToCompareToEmptyOrDeleted = false;
     };
 
     struct Destination {
-        explicit Destination(const String& host)
-#if ENABLE(PUBLIC_SUFFIX_LIST)
-            : registrableDomain { WebCore::topPrivatelyControlledDomain(host) }
-#else
-            : registrableDomain { emptyString() }
-#endif
+        Destination() = default;
+        explicit Destination(const URL& url)
+            : registrableDomain { RegistrableDomain { url } }
         {
         }
 
-        String registrableDomain;
+        explicit Destination(const RegistrableDomain& domain)
+            : registrableDomain { domain }
+        {
+        }
+
+        bool operator==(const Destination& other) const
+        {
+            return registrableDomain == other.registrableDomain;
+        }
+
+        bool matches(const URL& url) const
+        {
+            return registrableDomain == RegistrableDomain { url };
+        }
+        
+        bool isHashTableDeletedValue() const
+        {
+            return registrableDomain.isHashTableDeletedValue();
+        }
+
+        static Destination deletedValue()
+        {
+            return Destination { WTF::HashTableDeletedValue };
+        }
+
+        static void constructDeletedValue(Destination& destination)
+        {
+            new (&destination) Destination;
+            destination = Destination::deletedValue();
+        }
+
+        void deleteValue()
+        {
+            registrableDomain = RegistrableDomain { WTF::HashTableDeletedValue };
+        }
+
+        bool isDeletedValue() const
+        {
+            return isHashTableDeletedValue();
+        }
+
+        RegistrableDomain registrableDomain;
+    };
+
+    struct DestinationHash {
+        static unsigned hash(const Destination& destination)
+        {
+            return destination.registrableDomain.hash();
+        }
+        
+        static bool equal(const Destination& a, const Destination& b)
+        {
+            return a == b;
+        }
+
+        static const bool safeToCompareToEmptyOrDeleted = false;
     };
 
     struct Priority {
@@ -104,13 +211,17 @@ public:
 
         bool isValid() const
         {
-            return data < maxEntropy && priority < maxEntropy;
+            return data <= MaxEntropy && priority <= MaxEntropy;
         }
         
         ConversionData data;
         PriorityValue priority;
+
+        template<class Encoder> void encode(Encoder&) const;
+        template<class Decoder> static Optional<Conversion> decode(Decoder&);
     };
 
+    AdClickAttribution() = default;
     AdClickAttribution(Campaign campaign, const Source& source, const Destination& destination)
         : m_campaign { campaign }
         , m_source { source }
@@ -119,10 +230,18 @@ public:
     {
     }
 
+    WEBCORE_EXPORT static Optional<Conversion> parseConversionRequest(const URL& redirectURL);
     WEBCORE_EXPORT void setConversion(Conversion&&);
     WEBCORE_EXPORT URL url() const;
     WEBCORE_EXPORT URL referrer() const;
+    const Source& source() const { return m_source; };
+    const Destination& destination() const { return m_destination; };
     Optional<WallTime> earliestTimeToSend() const { return m_earliestTimeToSend; };
+
+    WEBCORE_EXPORT String toString() const;
+
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static Optional<AdClickAttribution> decode(Decoder&);
 
 private:
     bool isValid() const;
@@ -135,5 +254,95 @@ private:
     Optional<Conversion> m_conversion;
     Optional<WallTime> m_earliestTimeToSend;
 };
+
+template<class Encoder>
+void AdClickAttribution::encode(Encoder& encoder) const
+{
+    encoder << m_campaign.id << m_source.registrableDomain << m_destination.registrableDomain << m_timeOfAdClick << m_conversion << m_earliestTimeToSend;
+}
+
+template<class Decoder>
+Optional<AdClickAttribution> AdClickAttribution::decode(Decoder& decoder)
+{
+    Optional<CampaignId> campaignId;
+    decoder >> campaignId;
+    if (!campaignId)
+        return WTF::nullopt;
     
+    Optional<RegistrableDomain> sourceRegistrableDomain;
+    decoder >> sourceRegistrableDomain;
+    if (!sourceRegistrableDomain)
+        return WTF::nullopt;
+    
+    Optional<RegistrableDomain> destinationRegistrableDomain;
+    decoder >> destinationRegistrableDomain;
+    if (!destinationRegistrableDomain)
+        return WTF::nullopt;
+    
+    Optional<WallTime> timeOfAdClick;
+    decoder >> timeOfAdClick;
+    if (!timeOfAdClick)
+        return WTF::nullopt;
+    
+    Optional<Optional<Conversion>> conversion;
+    decoder >> conversion;
+    if (!conversion)
+        return WTF::nullopt;
+    
+    Optional<Optional<WallTime>> earliestTimeToSend;
+    decoder >> earliestTimeToSend;
+    if (!earliestTimeToSend)
+        return WTF::nullopt;
+    
+    AdClickAttribution attribution { Campaign { WTFMove(*campaignId) }, Source { WTFMove(*sourceRegistrableDomain) }, Destination { WTFMove(*destinationRegistrableDomain) } };
+    attribution.m_conversion = WTFMove(*conversion);
+    attribution.m_earliestTimeToSend = WTFMove(*earliestTimeToSend);
+    
+    return attribution;
+}
+
+template<class Encoder>
+void AdClickAttribution::Conversion::encode(Encoder& encoder) const
+{
+    encoder << data << priority;
+}
+
+template<class Decoder>
+Optional<AdClickAttribution::Conversion> AdClickAttribution::Conversion::decode(Decoder& decoder)
+{
+    Optional<ConversionData> data;
+    decoder >> data;
+    if (!data)
+        return WTF::nullopt;
+    
+    Optional<PriorityValue> priority;
+    decoder >> priority;
+    if (!priority)
+        return WTF::nullopt;
+    
+    return Conversion { WTFMove(*data), Priority { WTFMove(*priority) } };
+}
+
 } // namespace WebCore
+
+namespace WTF {
+template<typename T> struct DefaultHash;
+
+template<> struct DefaultHash<WebCore::AdClickAttribution::Source> {
+    typedef WebCore::AdClickAttribution::SourceHash Hash;
+};
+template<> struct HashTraits<WebCore::AdClickAttribution::Source> : GenericHashTraits<WebCore::AdClickAttribution::Source> {
+    static WebCore::AdClickAttribution::Source emptyValue() { return { }; }
+    static void constructDeletedValue(WebCore::AdClickAttribution::Source& slot) { WebCore::AdClickAttribution::Source::constructDeletedValue(slot); }
+    static bool isDeletedValue(const WebCore::AdClickAttribution::Source& slot) { return slot.isDeletedValue(); }
+};
+
+template<> struct DefaultHash<WebCore::AdClickAttribution::Destination> {
+    typedef WebCore::AdClickAttribution::DestinationHash Hash;
+};
+template<> struct HashTraits<WebCore::AdClickAttribution::Destination> : GenericHashTraits<WebCore::AdClickAttribution::Destination> {
+    static WebCore::AdClickAttribution::Destination emptyValue() { return { }; }
+    static void constructDeletedValue(WebCore::AdClickAttribution::Destination& slot) { WebCore::AdClickAttribution::Destination::constructDeletedValue(slot); }
+    static bool isDeletedValue(const WebCore::AdClickAttribution::Destination& slot) { return slot.isDeletedValue(); }
+};
+}

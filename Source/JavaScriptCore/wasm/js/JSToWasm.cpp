@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@
 #if ENABLE(WEBASSEMBLY)
 
 #include "CCallHelpers.h"
+#include "JSCInlines.h"
 #include "JSWebAssemblyInstance.h"
 #include "JSWebAssemblyRuntimeError.h"
 #include "MaxFrameExtentForSlowPathCall.h"
@@ -116,9 +117,7 @@ std::unique_ptr<InternalFunction> createJSToWasmWrapper(CompilationContext& comp
             // instance as the first JS argument when we're not using fast TLS to hold the
             // Wasm::Context*'s instance.
             jit.loadPtr(CCallHelpers::Address(GPRInfo::callFrameRegister, CallFrameSlot::thisArgument * sizeof(EncodedJSValue)), GPRInfo::argumentGPR2);
-            jit.loadPtr(CCallHelpers::Address(GPRInfo::argumentGPR2, JSWebAssemblyInstance::offsetOfPoisonedInstance()), GPRInfo::argumentGPR2);
-            jit.move(CCallHelpers::TrustedImm64(JSWebAssemblyInstancePoison::key()), GPRInfo::argumentGPR0);
-            jit.xor64(GPRInfo::argumentGPR0, GPRInfo::argumentGPR2);
+            jit.loadPtr(CCallHelpers::Address(GPRInfo::argumentGPR2, JSWebAssemblyInstance::offsetOfInstance()), GPRInfo::argumentGPR2);
         }
 
         jit.loadPtr(CCallHelpers::Address(GPRInfo::argumentGPR2, Instance::offsetOfPointerToTopEntryFrame()), GPRInfo::argumentGPR0);
@@ -155,9 +154,7 @@ std::unique_ptr<InternalFunction> createJSToWasmWrapper(CompilationContext& comp
         // Wasm::Context*'s instance.
         if (!Context::useFastTLS()) {
             jit.loadPtr(CCallHelpers::Address(GPRInfo::callFrameRegister, jsOffset), wasmContextInstanceGPR);
-            jit.loadPtr(CCallHelpers::Address(wasmContextInstanceGPR, JSWebAssemblyInstance::offsetOfPoisonedInstance()), wasmContextInstanceGPR);
-            jit.move(CCallHelpers::TrustedImm64(JSWebAssemblyInstancePoison::key()), scratchReg);
-            jit.xor64(scratchReg, wasmContextInstanceGPR);
+            jit.loadPtr(CCallHelpers::Address(wasmContextInstanceGPR, JSWebAssemblyInstance::offsetOfInstance()), wasmContextInstanceGPR);
             jsOffset += sizeof(EncodedJSValue);
         }
 
@@ -217,14 +214,8 @@ std::unique_ptr<InternalFunction> createJSToWasmWrapper(CompilationContext& comp
             jit.loadWasmContextInstance(baseMemory);
 
         GPRReg currentInstanceGPR = Context::useFastTLS() ? baseMemory : wasmContextInstanceGPR;
-        if (mode != MemoryMode::Signaling) {
-            const auto& sizeRegs = pinnedRegs.sizeRegisters;
-            ASSERT(sizeRegs.size() >= 1);
-            ASSERT(!sizeRegs[0].sizeOffset); // The following code assumes we start at 0, and calculates subsequent size registers relative to 0.
-            jit.loadPtr(CCallHelpers::Address(currentInstanceGPR, Wasm::Instance::offsetOfCachedMemorySize()), sizeRegs[0].sizeRegister);
-            for (unsigned i = 1; i < sizeRegs.size(); ++i)
-                jit.add64(CCallHelpers::TrustedImm32(-sizeRegs[i].sizeOffset), sizeRegs[0].sizeRegister, sizeRegs[i].sizeRegister);
-        }
+        if (mode != MemoryMode::Signaling)
+            jit.loadPtr(CCallHelpers::Address(currentInstanceGPR, Wasm::Instance::offsetOfCachedMemorySize()), pinnedRegs.sizeRegister);
 
         jit.loadPtr(CCallHelpers::Address(currentInstanceGPR, Wasm::Instance::offsetOfCachedMemory()), baseMemory);
     }

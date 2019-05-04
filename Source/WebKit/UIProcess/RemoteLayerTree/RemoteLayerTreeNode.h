@@ -27,6 +27,7 @@
 
 #include <WebCore/GraphicsLayer.h>
 #include <wtf/RetainPtr.h>
+#include <wtf/Vector.h>
 
 OBJC_CLASS CALayer;
 #if PLATFORM(IOS_FAMILY)
@@ -53,18 +54,37 @@ public:
     UIView *uiView() const { return m_uiView.get(); }
 #endif
 
+    WebCore::GraphicsLayer::PlatformLayerID layerID() const { return m_layerID; }
+
+    const WebCore::EventRegion& eventRegion() const { return m_eventRegion; }
+    void setEventRegion(const WebCore::EventRegion&);
+
+    // If empty the layer is scrolled normally by an ancestor scroller.
+    const auto& relatedScrollContainerIDs() const { return m_relatedScrollContainerIDs; }
+    WebCore::ScrollPositioningBehavior relatedScrollContainerPositioningBehavior() const { return m_relatedScrollContainerPositioningBehavior; }
+    void setRelatedScrollContainerBehaviorAndIDs(WebCore::ScrollPositioningBehavior, Vector<WebCore::GraphicsLayer::PlatformLayerID>&&);
+
     void detachFromParent();
 
     static WebCore::GraphicsLayer::PlatformLayerID layerID(CALayer *);
+    static RemoteLayerTreeNode* forCALayer(CALayer *);
+
     static NSString *appendLayerDescription(NSString *description, CALayer *);
 
 private:
-    void setLayerID(WebCore::GraphicsLayer::PlatformLayerID);
+    void initializeLayer();
+
+    WebCore::GraphicsLayer::PlatformLayerID m_layerID;
 
     RetainPtr<CALayer> m_layer;
 #if PLATFORM(IOS_FAMILY)
     RetainPtr<UIView> m_uiView;
 #endif
+
+    WebCore::EventRegion m_eventRegion;
+
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> m_relatedScrollContainerIDs;
+    WebCore::ScrollPositioningBehavior m_relatedScrollContainerPositioningBehavior { WebCore::ScrollPositioningBehavior::None };
 };
 
 }

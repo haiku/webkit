@@ -42,8 +42,11 @@
 #include "NotificationController.h"
 #include "NotificationPermissionCallback.h"
 #include "WindowFocusAllowedIndicator.h"
+#include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(Notification);
 
 Ref<Notification> Notification::create(Document& context, const String& title, const Options& options)
 {
@@ -53,7 +56,7 @@ Ref<Notification> Notification::create(Document& context, const String& title, c
 }
 
 Notification::Notification(Document& document, const String& title, const Options& options)
-    : ActiveDOMObject(&document)
+    : ActiveDOMObject(document)
     , m_title(title)
     , m_direction(options.dir)
     , m_lang(options.lang)

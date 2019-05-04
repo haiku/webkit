@@ -64,7 +64,7 @@ void WebPageProxy::saveRecentSearches(const String& name, const Vector<WebCore::
     notImplemented();
 }
 
-void WebPageProxy::loadRecentSearches(const String& name, Vector<WebCore::RecentSearch>& searchItems)
+void WebPageProxy::loadRecentSearches(const String& name, CompletionHandler<void(Vector<WebCore::RecentSearch>&&)>&&)
 {
     notImplemented();
 }

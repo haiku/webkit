@@ -41,8 +41,20 @@ bool doesGC(Graph& graph, Node* node)
         return true;
     
     // Now consider nodes that don't clobber the world but that still may GC. This includes all
-    // nodes. By convention we put world-clobbering nodes in the block of "false" cases but we can
-    // put them anywhere.
+    // nodes. By default, we should assume every node can GC and return true. This includes the
+    // world-clobbering nodes. We should only return false if we have proven that the node cannot
+    // GC. Typical examples of how a node can GC is if the code emitted for the node does any of the
+    // following:
+    //     1. Allocates any objects.
+    //     2. Resolves a rope string, which allocates a string.
+    //     3. Produces a string (which allocates the string) except when we can prove that
+    //        the string will always be one of the pre-allcoated SmallStrings.
+    //     4. Triggers a structure transition (which can allocate a new structure)
+    //        unless it is a known transition between previously allocated structures
+    //        such as between Array types.
+    //     5. Calls to a JS function, which can execute arbitrary code including allocating objects.
+    //     6. Calls operations that uses DeferGC, because it may GC in its destructor.
+
     switch (node->op()) {
     case JSConstant:
     case DoubleConstant:
@@ -97,27 +109,6 @@ bool doesGC(Graph& graph, Node* node)
     case ArithTrunc:
     case ArithFRound:
     case ArithUnary:
-    case ValueNegate:
-    case TryGetById:
-    case GetById:
-    case GetByIdFlush:
-    case GetByIdWithThis:
-    case GetByIdDirect:
-    case GetByIdDirectFlush:
-    case PutById:
-    case PutByIdFlush:
-    case PutByIdWithThis:
-    case PutByValWithThis:
-    case PutByIdDirect:
-    case PutGetterById:
-    case PutSetterById:
-    case PutGetterSetterById:
-    case PutGetterByVal:
-    case PutSetterByVal:
-    case DefineDataProperty:
-    case DefineAccessorProperty:
-    case DeleteById:
-    case DeleteByVal:
     case CheckStructure:
     case CheckStructureOrEmpty:
     case CheckStructureImmediate:
@@ -141,41 +132,11 @@ bool doesGC(Graph& graph, Node* node)
     case CheckNotEmpty:
     case AssertNotEmpty:
     case CheckStringIdent:
-    case RegExpExec:
-    case RegExpExecNonGlobalOrSticky:
-    case RegExpTest:
-    case RegExpMatchFast:
-    case RegExpMatchFastGlobal:
-    case CompareLess:
-    case CompareLessEq:
-    case CompareGreater:
-    case CompareGreaterEq:
     case CompareBelow:
     case CompareBelowEq:
-    case CompareEq:
-    case CompareStrictEq:
     case CompareEqPtr:
-    case SameValue:
-    case Call:
-    case DirectCall:
-    case TailCallInlinedCaller:
-    case DirectTailCallInlinedCaller:
-    case Construct:
-    case DirectConstruct:
-    case CallVarargs:
-    case CallEval:
-    case TailCallVarargsInlinedCaller:
-    case ConstructVarargs:
-    case LoadVarargs:
-    case CallForwardVarargs:
-    case ConstructForwardVarargs:
-    case TailCallForwardVarargs:
-    case TailCallForwardVarargsInlinedCaller:
-    case ProfileType:
     case ProfileControlFlow:
     case OverridesHasInstance:
-    case InstanceOf:
-    case InstanceOfCustom:
     case IsEmpty:
     case IsUndefined:
     case IsUndefinedOrNull:
@@ -189,31 +150,14 @@ bool doesGC(Graph& graph, Node* node)
     case IsTypedArrayView:
     case TypeOf:
     case LogicalNot:
-    case ToPrimitive:
-    case ToNumber:
-    case NumberToStringWithRadix:
-    case NumberToStringWithValidRadixConstant:
-    case InByVal:
-    case InById:
-    case HasOwnProperty:
     case Jump:
     case Branch:
-    case Switch:
     case EntrySwitch:
-    case Return:
-    case TailCall:
-    case DirectTailCall:
-    case TailCallVarargs:
-    case Throw:
     case CountExecution:
     case SuperSamplerBegin:
     case SuperSamplerEnd:
-    case ForceOSRExit:
     case CPUIntrinsic:
-    case CheckTraps:
-    case StringFromCharCode:
     case NormalizeMapKey:
-    case GetMapBucket:
     case GetMapBucketHead:
     case GetMapBucketNext:
     case LoadKeyFromMapBucket:
@@ -226,9 +170,6 @@ bool doesGC(Graph& graph, Node* node)
     case ExtractOSREntryLocal:
     case ExtractCatchLocal:
     case ClearCatchLocals:
-    case CheckTierUpInLoop:
-    case CheckTierUpAtReturn:
-    case CheckTierUpAndOSREnter:
     case LoopHint:
     case StoreBarrier:
     case FencedStoreBarrier:
@@ -245,28 +186,15 @@ bool doesGC(Graph& graph, Node* node)
     case Int52Rep:
     case GetGetter:
     case GetSetter:
-    case GetByVal:
-    case GetByValWithThis:
     case GetArrayLength:
     case GetVectorLength:
-    case ArrayPush:
-    case ArrayPop:
-    case StringCharAt:
     case StringCharCodeAt:
     case GetTypedArrayByteOffset:
     case GetPrototypeOf:
-    case PutByValDirect:
-    case PutByVal:
-    case PutByValAlias:
     case PutStructure:
     case GetByOffset:
     case GetGetterSetterByOffset:
-    case PutByOffset:
     case GetEnumerableLength:
-    case HasGenericProperty:
-    case HasStructureProperty:
-    case HasIndexedProperty:
-    case GetDirectPname:
     case FiatInt52:
     case BooleanToNumber:
     case CheckBadCell:
@@ -288,18 +216,12 @@ bool doesGC(Graph& graph, Node* node)
     case GetMyArgumentByValOutOfBounds:
     case ForwardVarargs:
     case PutHint:
-    case PutStack:
     case KillStack:
     case GetStack:
     case GetFromArguments:
-    case PutToArguments:
     case GetArgument:
     case LogShadowChickenPrologue:
     case LogShadowChickenTail:
-    case GetDynamicVar:
-    case PutDynamicVar:
-    case ResolveScopeForHoistingFuncDeclInEval:
-    case ResolveScope:
     case NukeStructureAndSetButterfly:
     case AtomicsAdd:
     case AtomicsAnd:
@@ -321,14 +243,90 @@ bool doesGC(Graph& graph, Node* node)
     case DataViewSet:
         return false;
 
+#if !ASSERT_DISABLED
+    case ArrayPush:
+    case ArrayPop:
     case PushWithScope:
     case CreateActivation:
     case CreateDirectArguments:
     case CreateScopedArguments:
     case CreateClonedArguments:
+    case Call:
+    case CallEval:
+    case CallForwardVarargs:
     case CallObjectConstructor:
+    case CallVarargs:
+    case CheckTierUpAndOSREnter:
+    case CheckTierUpAtReturn:
+    case CheckTierUpInLoop:
+    case Construct:
+    case ConstructForwardVarargs:
+    case ConstructVarargs:
+    case DefineDataProperty:
+    case DefineAccessorProperty:
+    case DeleteById:
+    case DeleteByVal:
+    case DirectCall:
+    case DirectConstruct:
+    case DirectTailCall:
+    case DirectTailCallInlinedCaller:
+    case ForceOSRExit:
+    case GetById:
+    case GetByIdDirect:
+    case GetByIdDirectFlush:
+    case GetByIdFlush:
+    case GetByIdWithThis:
+    case GetByValWithThis:
+    case GetDirectPname:
+    case GetDynamicVar:
+    case GetMapBucket:
+    case HasGenericProperty:
+    case HasIndexedProperty:
+    case HasOwnProperty:
+    case HasStructureProperty:
+    case InById:
+    case InByVal:
+    case InstanceOf:
+    case InstanceOfCustom:
+    case LoadVarargs:
+    case NumberToStringWithRadix:
+    case NumberToStringWithValidRadixConstant:
+    case ProfileType:
+    case PutById:
+    case PutByIdDirect:
+    case PutByIdFlush:
+    case PutByIdWithThis:
+    case PutByOffset:
+    case PutByValWithThis:
+    case PutDynamicVar:
+    case PutGetterById:
+    case PutGetterByVal:
+    case PutGetterSetterById:
+    case PutSetterById:
+    case PutSetterByVal:
+    case PutStack:
+    case PutToArguments:
+    case RegExpExec:
+    case RegExpExecNonGlobalOrSticky:
+    case RegExpMatchFast:
+    case RegExpMatchFastGlobal:
+    case RegExpTest:
+    case ResolveScope:
+    case ResolveScopeForHoistingFuncDeclInEval:
+    case Return:
+    case StringCharAt:
+    case TailCall:
+    case TailCallForwardVarargs:
+    case TailCallForwardVarargsInlinedCaller:
+    case TailCallInlinedCaller:
+    case TailCallVarargs:
+    case TailCallVarargsInlinedCaller:
+    case Throw:
+    case ToNumber:
     case ToObject:
+    case ToPrimitive:
     case ToThis:
+    case TryGetById:
     case CreateThis:
     case ObjectCreate:
     case ObjectKeys:
@@ -380,6 +378,13 @@ bool doesGC(Graph& graph, Node* node)
     case ValueSub:
     case ValueMul:
     case ValueDiv:
+    case ValueBitNot:
+    case ValueNegate:
+#else
+    // See comment at the top for why be default for all nodes should be to
+    // return true.
+    default:
+#endif
         return true;
 
     case CallStringConstructor:
@@ -393,9 +398,74 @@ bool doesGC(Graph& graph, Node* node)
         }
         return true;
 
+    case CheckTraps:
+        // FIXME: https://bugs.webkit.org/show_bug.cgi?id=194323
+        ASSERT(Options::usePollingTraps());
+        return true;
+
+    case CompareEq:
+    case CompareLess:
+    case CompareLessEq:
+    case CompareGreater:
+    case CompareGreaterEq:
+        if (node->isBinaryUseKind(Int32Use)
+#if USE(JSVALUE64)
+            || node->isBinaryUseKind(Int52RepUse)
+#endif
+            || node->isBinaryUseKind(DoubleRepUse)
+            || node->isBinaryUseKind(StringIdentUse)
+            )
+            return false;
+        if (node->op() == CompareEq) {
+            if (node->isBinaryUseKind(BooleanUse)
+                || node->isBinaryUseKind(SymbolUse)
+                || node->isBinaryUseKind(ObjectUse)
+                || node->isBinaryUseKind(ObjectUse, ObjectOrOtherUse) || node->isBinaryUseKind(ObjectOrOtherUse, ObjectUse))
+                return false;
+        }
+        return true;
+
+    case CompareStrictEq:
+        if (node->isBinaryUseKind(BooleanUse)
+            || node->isBinaryUseKind(Int32Use)
+#if USE(JSVALUE64)
+            || node->isBinaryUseKind(Int52RepUse)
+#endif
+            || node->isBinaryUseKind(DoubleRepUse)
+            || node->isBinaryUseKind(SymbolUse)
+            || node->isBinaryUseKind(SymbolUse, UntypedUse)
+            || node->isBinaryUseKind(UntypedUse, SymbolUse)
+            || node->isBinaryUseKind(StringIdentUse)
+            || node->isBinaryUseKind(ObjectUse, UntypedUse) || node->isBinaryUseKind(UntypedUse, ObjectUse)
+            || node->isBinaryUseKind(ObjectUse)
+            || node->isBinaryUseKind(MiscUse, UntypedUse) || node->isBinaryUseKind(UntypedUse, MiscUse)
+            || node->isBinaryUseKind(StringIdentUse, NotStringVarUse) || node->isBinaryUseKind(NotStringVarUse, StringIdentUse))
+            return false;
+        return true;
+
     case GetIndexedPropertyStorage:
+    case GetByVal:
         if (node->arrayMode().type() == Array::String)
             return true;
+        return false;
+
+    case PutByValDirect:
+    case PutByVal:
+    case PutByValAlias:
+        if (!graph.m_plan.isFTL()) {
+            switch (node->arrayMode().modeForPut().type()) {
+            case Array::Int8Array:
+            case Array::Int16Array:
+            case Array::Int32Array:
+            case Array::Uint8Array:
+            case Array::Uint8ClampedArray:
+            case Array::Uint16Array:
+            case Array::Uint32Array:
+                return true;
+            default:
+                break;
+            }
+        }
         return false;
 
     case MapHash:
@@ -413,13 +483,40 @@ bool doesGC(Graph& graph, Node* node)
     case MultiPutByOffset:
         return node->multiPutByOffsetData().reallocatesStorage();
 
+    case SameValue:
+        if (node->isBinaryUseKind(DoubleRepUse))
+            return false;
+        return true;
+
+    case StringFromCharCode:
+        // FIXME: Should we constant fold this case?
+        // https://bugs.webkit.org/show_bug.cgi?id=194308
+        if (node->child1()->isInt32Constant() && (node->child1()->asUInt32() <= maxSingleCharacterString))
+            return false;
+        return true;
+
+    case Switch:
+        switch (node->switchData()->kind) {
+        case SwitchCell:
+            ASSERT(graph.m_plan.isFTL());
+            FALLTHROUGH;
+        case SwitchImm:
+            return false;
+        case SwitchChar:
+            return true;
+        case SwitchString:
+            if (node->child1().useKind() == StringIdentUse)
+                return false;
+            ASSERT(node->child1().useKind() == StringUse || node->child1().useKind() == UntypedUse);
+            return true;
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+
     case LastNodeType:
         RELEASE_ASSERT_NOT_REACHED();
-        return true;
     }
     
     RELEASE_ASSERT_NOT_REACHED();
-    return true;
 }
 
 } } // namespace JSC::DFG

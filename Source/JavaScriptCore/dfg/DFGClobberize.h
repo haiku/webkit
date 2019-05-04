@@ -110,7 +110,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
     // by calls into the runtime. For debugging we might replace the implementation of any node with a call
     // to the runtime, and that call may walk stack. Therefore, each node must read() anything that a stack
     // scan would read. That's what this does.
-    for (InlineCallFrame* inlineCallFrame = node->origin.semantic.inlineCallFrame; inlineCallFrame; inlineCallFrame = inlineCallFrame->directCaller.inlineCallFrame) {
+    for (InlineCallFrame* inlineCallFrame = node->origin.semantic.inlineCallFrame(); inlineCallFrame; inlineCallFrame = inlineCallFrame->directCaller.inlineCallFrame()) {
         if (inlineCallFrame->isClosureCall)
             read(AbstractHeap(Stack, inlineCallFrame->stackOffset + CallFrameSlot::callee));
         if (inlineCallFrame->isVarargs())
@@ -123,7 +123,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
     // The debugger's machinery is free to take a stack trace and try to read from
     // a scope which is expected to be flushed to the stack.
     if (graph.hasDebuggerEnabled()) {
-        ASSERT(!node->origin.semantic.inlineCallFrame);
+        ASSERT(!node->origin.semantic.inlineCallFrame());
         read(AbstractHeap(Stack, graph.m_codeBlock->scopeRegister()));
     }
     
@@ -259,6 +259,15 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         def(PureValue(node, node->queriedType()));
         return;
 
+    case ValueBitNot:
+        if (node->child1().useKind() == BigIntUse) {
+            def(PureValue(node));
+            return;
+        }
+        read(World);
+        write(Heap);
+        return;
+
     case ArithBitNot:
         if (node->child1().useKind() == UntypedUse) {
             read(World);
@@ -312,7 +321,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
             if (mode.isInBounds()) {
                 read(Butterfly_publicLength);
                 read(IndexedInt32Properties);
-                def(HeapLocation(HasIndexedPropertyLoc, IndexedInt32Properties, node->child1(), node->child2()), LazyNode(node));
+                def(HeapLocation(HasIndexedPropertyLoc, IndexedInt32Properties, graph.varArgChild(node, 0), graph.varArgChild(node, 1)), LazyNode(node));
                 return;
             }
             read(Heap);
@@ -323,7 +332,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
             if (mode.isInBounds()) {
                 read(Butterfly_publicLength);
                 read(IndexedDoubleProperties);
-                def(HeapLocation(HasIndexedPropertyLoc, IndexedDoubleProperties, node->child1(), node->child2()), LazyNode(node));
+                def(HeapLocation(HasIndexedPropertyLoc, IndexedDoubleProperties, graph.varArgChild(node, 0), graph.varArgChild(node, 1)), LazyNode(node));
                 return;
             }
             read(Heap);
@@ -334,7 +343,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
             if (mode.isInBounds()) {
                 read(Butterfly_publicLength);
                 read(IndexedContiguousProperties);
-                def(HeapLocation(HasIndexedPropertyLoc, IndexedContiguousProperties, node->child1(), node->child2()), LazyNode(node));
+                def(HeapLocation(HasIndexedPropertyLoc, IndexedContiguousProperties, graph.varArgChild(node, 0), graph.varArgChild(node, 1)), LazyNode(node));
                 return;
             }
             read(Heap);
@@ -701,7 +710,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
     }
 
     case CallEval:
-        ASSERT(!node->origin.semantic.inlineCallFrame);
+        ASSERT(!node->origin.semantic.inlineCallFrame());
         read(AbstractHeap(Stack, graph.m_codeBlock->scopeRegister()));
         read(AbstractHeap(Stack, virtualRegisterForArgument(0)));
         read(World);

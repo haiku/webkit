@@ -32,6 +32,8 @@
 #include <wtf/Ref.h>
 
 OBJC_CLASS NSUndoManager;
+OBJC_CLASS NSView;
+OBJC_CLASS UIView;
 
 namespace WebCore {
 class FloatRect;
@@ -70,6 +72,7 @@ public:
     void zoomToScale(double scale, JSValueRef callback);
     void setViewScale(double);
     void setMinimumEffectiveWidth(double);
+    void setAllowsViewportShrinkToFit(bool);
 
     void resignFirstResponder();
 
@@ -78,6 +81,7 @@ public:
     void touchDownAtPoint(long x, long y, long touchCount, JSValueRef callback);
     void liftUpAtPoint(long x, long y, long touchCount, JSValueRef callback);
     void singleTapAtPoint(long x, long y, JSValueRef callback);
+    void singleTapAtPointWithModifiers(long x, long y, JSValueRef modifierArray, JSValueRef callback);
     void doubleTapAtPoint(long x, long y, JSValueRef callback);
     void dragFromPointToPoint(long startX, long startY, long endX, long endY, double durationSeconds, JSValueRef callback);
 
@@ -85,6 +89,7 @@ public:
     void stylusMoveToPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef callback);
     void stylusUpAtPoint(long x, long y, JSValueRef callback);
     void stylusTapAtPoint(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef callback);
+    void stylusTapAtPointWithModifiers(long x, long y, float azimuthAngle, float altitudeAngle, float pressure, JSValueRef modifierArray, JSValueRef callback);
 
     void longPressAtPoint(long x, long y, JSValueRef callback);
 
@@ -101,6 +106,7 @@ public:
 
     void applyAutocorrection(JSStringRef newString, JSStringRef oldString, JSValueRef callback);
     
+    void dismissFilePicker(JSValueRef callback);
     void dismissFormAccessoryView();
     void selectFormAccessoryPickerRow(long);
     JSRetainPtr<JSStringRef> textContentType() const;
@@ -114,13 +120,19 @@ public:
 
     JSObjectRef contentsOfUserInterfaceItem(JSStringRef) const;
     void overridePreference(JSStringRef preference, JSStringRef value);
+
+    bool isPresentingModally() const;
     
     double contentOffsetX() const;
     double contentOffsetY() const;
 
+    bool scrollUpdatesDisabled() const;
+    void setScrollUpdatesDisabled(bool);
+
     void scrollToOffset(long x, long y);
 
     void immediateScrollToOffset(long x, long y);
+    void immediateScrollElementAtContentPointToOffset(long x, long y, long xScrollOffset, long yScrollOffset);
     void immediateZoomToScale(double scale);
 
     void beginBackSwipe(JSValueRef callback);
@@ -151,6 +163,21 @@ public:
     JSValueRef didHideKeyboardCallback() const;
 
     bool isShowingKeyboard() const;
+
+    void setDidHideMenuCallback(JSValueRef);
+    JSValueRef didHideMenuCallback() const;
+    void setDidShowMenuCallback(JSValueRef);
+    JSValueRef didShowMenuCallback() const;
+
+    bool isShowingPopover() const;
+    void setDidDismissPopoverCallback(JSValueRef);
+    JSValueRef didDismissPopoverCallback() const;
+    void setWillPresentPopoverCallback(JSValueRef);
+    JSValueRef willPresentPopoverCallback() const;
+
+    bool isShowingMenu() const;
+    JSObjectRef rectForMenuAction(JSStringRef action) const;
+    JSObjectRef menuRect() const;
 
     void setDidEndScrollingCallback(JSValueRef);
     JSValueRef didEndScrollingCallback() const;
@@ -226,12 +253,23 @@ private:
     void platformSetDidEndZoomingCallback();
     void platformSetDidShowKeyboardCallback();
     void platformSetDidHideKeyboardCallback();
+    void platformSetDidShowMenuCallback();
+    void platformSetDidHideMenuCallback();
+    void platformSetWillPresentPopoverCallback();
+    void platformSetDidDismissPopoverCallback();
     void platformSetDidEndScrollingCallback();
     void platformClearAllCallbacks();
     void platformPlayBackEventStream(JSStringRef, JSValueRef);
 
 #if PLATFORM(COCOA)
     NSUndoManager *platformUndoManager() const;
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+    UIView *platformContentView() const;
+#endif
+#if PLATFORM(MAC)
+    NSView *platformContentView() const;
 #endif
 
     JSClassRef wrapperClass() final;

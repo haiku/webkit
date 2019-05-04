@@ -130,7 +130,7 @@ void TextureMapperLayer::paintSelf(const TextureMapperPaintOptions& options)
     transform.multiply(m_layerTransforms.combined);
 
     if (m_state.solidColor.isValid() && !m_state.contentsRect.isEmpty() && m_state.solidColor.isVisible()) {
-        options.textureMapper.drawSolidColor(m_state.contentsRect, transform, blendWithOpacity(m_state.solidColor, options.opacity));
+        options.textureMapper.drawSolidColor(m_state.contentsRect, transform, blendWithOpacity(m_state.solidColor, options.opacity), true);
         if (m_state.showDebugBorders)
             options.textureMapper.drawBorder(m_state.debugBorderColor, m_state.debugBorderWidth, layerRect(), transform);
         return;
@@ -335,7 +335,7 @@ void TextureMapperLayer::paintUsingOverlapRegions(const TextureMapperPaintOption
     }
 
     nonOverlapRegion.translate(options.offset);
-    Vector<IntRect> rects = nonOverlapRegion.rects();
+    auto rects = nonOverlapRegion.rects();
 
     for (auto& rect : rects) {
         if (!rect.intersects(options.textureMapper.clipBounds()))

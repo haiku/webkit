@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <string.h>
 #include <wtf/Assertions.h>
+#include <wtf/HexNumber.h>
 #include <wtf/Variant.h>
 #include <wtf/dtoa.h>
 
@@ -530,7 +531,7 @@ String Lexer<T>::invalidCharacterMessage() const
     case 96:
         return "Invalid character: '`'"_s;
     default:
-        return String::format("Invalid character '\\u%04x'", static_cast<unsigned>(m_current));
+        return makeString("Invalid character '\\u", hex(m_current, 4, Lowercase), '\'');
     }
 }
 
@@ -732,21 +733,6 @@ ALWAYS_INLINE void Lexer<T>::skipWhitespace()
 static NEVER_INLINE bool isNonLatin1IdentStart(UChar c)
 {
     return u_hasBinaryProperty(c, UCHAR_ID_START);
-}
-
-static ALWAYS_INLINE bool isLatin1(LChar)
-{
-    return true;
-}
-
-static ALWAYS_INLINE bool isLatin1(UChar c)
-{
-    return c < 256;
-}
-
-static ALWAYS_INLINE bool isLatin1(UChar32 c)
-{
-    return !(c & ~0xFF);
 }
 
 static inline bool isIdentStart(LChar c)
@@ -975,9 +961,9 @@ template <bool shouldCreateIdentifier> ALWAYS_INLINE JSTokenType Lexer<LChar>::p
                 return ERRORTOK;
             }
             if (isPrivateName)
-                ident = m_vm->propertyNames->lookUpPrivateName(*ident);
+                ident = &m_arena->makeIdentifier(m_vm, m_vm->propertyNames->lookUpPrivateName(*ident));
             else if (*ident == m_vm->propertyNames->undefinedKeyword)
-                tokenData->ident = &m_vm->propertyNames->builtinNames().undefinedPrivateName();
+                tokenData->ident = &m_vm->propertyNames->undefinedPrivateName;
             if (!ident)
                 return INVALID_PRIVATE_NAME_ERRORTOK;
         }
@@ -1053,9 +1039,9 @@ template <bool shouldCreateIdentifier> ALWAYS_INLINE JSTokenType Lexer<UChar>::p
                 return ERRORTOK;
             }
             if (isPrivateName)
-                ident = m_vm->propertyNames->lookUpPrivateName(*ident);
+                ident = &m_arena->makeIdentifier(m_vm, m_vm->propertyNames->lookUpPrivateName(*ident));
             else if (*ident == m_vm->propertyNames->undefinedKeyword)
-                tokenData->ident = &m_vm->propertyNames->builtinNames().undefinedPrivateName();
+                tokenData->ident = &m_vm->propertyNames->undefinedPrivateName;
             if (!ident)
                 return INVALID_PRIVATE_NAME_ERRORTOK;
         }
@@ -1705,7 +1691,7 @@ ALWAYS_INLINE bool Lexer<T>::parseMultilineComment()
 
         if (isLineTerminator(m_current)) {
             shiftLineTerminator();
-            m_terminator = true;
+            m_hasLineTerminatorBeforeToken = true;
         } else
             shift();
     }
@@ -1784,7 +1770,7 @@ void Lexer<T>::fillTokenInfo(JSToken* tokenRecord, JSTokenType token, int lineNu
 }
 
 template <typename T>
-JSTokenType Lexer<T>::lex(JSToken* tokenRecord, unsigned lexerFlags, bool strictMode)
+JSTokenType Lexer<T>::lexWithoutClearingLineTerminator(JSToken* tokenRecord, unsigned lexerFlags, bool strictMode)
 {
     JSTokenData* tokenData = &tokenRecord->m_data;
     JSTokenLocation* tokenLocation = &tokenRecord->m_location;
@@ -1795,17 +1781,18 @@ JSTokenType Lexer<T>::lex(JSToken* tokenRecord, unsigned lexerFlags, bool strict
     ASSERT(m_buffer16.isEmpty());
 
     JSTokenType token = ERRORTOK;
-    m_terminator = false;
 
 start:
     skipWhitespace();
 
-    if (atEnd())
-        return EOFTOK;
-    
     tokenLocation->startOffset = currentOffset();
     ASSERT(currentOffset() >= currentLineStartOffset());
     tokenRecord->m_startPosition = currentPosition();
+
+    if (atEnd()) {
+        token = EOFTOK;
+        goto returnToken;
+    }
 
     CharacterType type;
     if (LIKELY(isLatin1(m_current)))
@@ -1916,7 +1903,7 @@ start:
         shift();
         if (m_current == '+') {
             shift();
-            token = (!m_terminator) ? PLUSPLUS : AUTOPLUSPLUS;
+            token = (!m_hasLineTerminatorBeforeToken) ? PLUSPLUS : AUTOPLUSPLUS;
             break;
         }
         if (m_current == '=') {
@@ -1930,13 +1917,13 @@ start:
         shift();
         if (m_current == '-') {
             shift();
-            if ((m_atLineStart || m_terminator) && m_current == '>') {
+            if ((m_atLineStart || m_hasLineTerminatorBeforeToken) && m_current == '>') {
                 if (m_scriptMode == JSParserScriptMode::Classic) {
                     shift();
                     goto inSingleLineComment;
                 }
             }
-            token = (!m_terminator) ? MINUSMINUS : AUTOMINUSMINUS;
+            token = (!m_hasLineTerminatorBeforeToken) ? MINUSMINUS : AUTOMINUSMINUS;
             break;
         }
         if (m_current == '=') {
@@ -2307,7 +2294,7 @@ start:
         ASSERT(isLineTerminator(m_current));
         shiftLineTerminator();
         m_atLineStart = true;
-        m_terminator = true;
+        m_hasLineTerminatorBeforeToken = true;
         m_lineStart = m_code;
         goto start;
     case CharacterPrivateIdentifierStart:
@@ -2347,13 +2334,16 @@ inSingleLineComment:
         auto endPosition = currentPosition();
 
         while (!isLineTerminator(m_current)) {
-            if (atEnd())
-                return EOFTOK;
+            if (atEnd()) {
+                token = EOFTOK;
+                fillTokenInfo(tokenRecord, token, lineNumber, endOffset, lineStartOffset, endPosition);
+                return token;
+            }
             shift();
         }
         shiftLineTerminator();
         m_atLineStart = true;
-        m_terminator = true;
+        m_hasLineTerminatorBeforeToken = true;
         m_lineStart = m_code;
         if (!lastTokenWasRestrKeyword())
             goto start;

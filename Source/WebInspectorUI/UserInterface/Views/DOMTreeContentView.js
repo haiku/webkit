@@ -95,8 +95,8 @@ WI.DOMTreeContentView = class DOMTreeContentView extends WI.ContentView
             WI.domDebuggerManager.addEventListener(WI.DOMDebuggerManager.Event.DOMBreakpointAdded, this._domBreakpointAddedOrRemoved, this);
             WI.domDebuggerManager.addEventListener(WI.DOMDebuggerManager.Event.DOMBreakpointRemoved, this._domBreakpointAddedOrRemoved, this);
 
-            WI.DOMBreakpoint.addEventListener(WI.DOMBreakpoint.Event.DisabledStateDidChange, this._domBreakpointDisabledStateDidChange, this);
-            WI.DOMBreakpoint.addEventListener(WI.DOMBreakpoint.Event.ResolvedStateDidChange, this._domBreakpointResolvedStateDidChange, this);
+            WI.DOMBreakpoint.addEventListener(WI.DOMBreakpoint.Event.DisabledStateChanged, this._handleDOMBreakpointDisabledStateChanged, this);
+            WI.DOMBreakpoint.addEventListener(WI.DOMBreakpoint.Event.DOMNodeChanged, this._handleDOMBreakpointDOMNodeChanged, this);
 
             this._breakpointsEnabledDidChange();
         }
@@ -302,7 +302,15 @@ WI.DOMTreeContentView = class DOMTreeContentView extends WI.ContentView
 
         function contextNodesReady(nodeIds)
         {
-            DOMAgent.performSearch(query, nodeIds, searchResultsReady.bind(this));
+            if (this._searchQuery !== query)
+                return;
+
+            let commandArguments = {
+                query: this._searchQuery,
+                nodeIds,
+                caseSensitive: WI.SearchUtilities.defaultSettings.caseSensitive.value,
+            };
+            DOMAgent.performSearch.invoke(commandArguments, searchResultsReady.bind(this));
         }
 
         this.getSearchContextNodes(contextNodesReady.bind(this));
@@ -502,7 +510,7 @@ WI.DOMTreeContentView = class DOMTreeContentView extends WI.ContentView
 
     _mouseWasClicked(event)
     {
-        var anchorElement = event.target.enclosingNodeOrSelfWithNodeName("a");
+        var anchorElement = event.target.closest("a");
         if (!anchorElement || !anchorElement.href)
             return;
 
@@ -745,13 +753,13 @@ WI.DOMTreeContentView = class DOMTreeContentView extends WI.ContentView
         this._updateBreakpointStatus(breakpoint.domNodeIdentifier);
     }
 
-    _domBreakpointDisabledStateDidChange(event)
+    _handleDOMBreakpointDisabledStateChanged(event)
     {
         let breakpoint = event.target;
         this._updateBreakpointStatus(breakpoint.domNodeIdentifier);
     }
 
-    _domBreakpointResolvedStateDidChange(event)
+    _handleDOMBreakpointDOMNodeChanged(event)
     {
         let breakpoint = event.target;
         let nodeIdentifier = breakpoint.domNodeIdentifier || event.data.oldNodeIdentifier;
@@ -771,15 +779,15 @@ WI.DOMTreeContentView = class DOMTreeContentView extends WI.ContentView
         }
 
         let breakpoints = WI.domDebuggerManager.domBreakpointsForNode(domNode);
-        if (!breakpoints.length) {
+        if (breakpoints.length) {
+            if (breakpoints.some((item) => item.disabled))
+                treeElement.breakpointStatus = WI.DOMTreeElement.BreakpointStatus.DisabledBreakpoint;
+            else
+                treeElement.breakpointStatus = WI.DOMTreeElement.BreakpointStatus.Breakpoint;
+        } else
             treeElement.breakpointStatus = WI.DOMTreeElement.BreakpointStatus.None;
-            return;
-        }
 
-        this.breakpointGutterEnabled = true;
-
-        let disabled = breakpoints.some((item) => item.disabled);
-        treeElement.breakpointStatus = disabled ? WI.DOMTreeElement.BreakpointStatus.DisabledBreakpoint : WI.DOMTreeElement.BreakpointStatus.Breakpoint;
+        this.breakpointGutterEnabled = this._domTreeOutline.children.some((child) => child.hasBreakpoint);
     }
 
     _restoreBreakpointsAfterUpdate()

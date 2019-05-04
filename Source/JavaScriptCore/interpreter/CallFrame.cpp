@@ -156,11 +156,11 @@ unsigned CallFrame::bytecodeOffset()
     if (callSiteBitsAreCodeOriginIndex()) {
         ASSERT(codeBlock());
         CodeOrigin codeOrigin = this->codeOrigin();
-        for (InlineCallFrame* inlineCallFrame = codeOrigin.inlineCallFrame; inlineCallFrame;) {
+        for (InlineCallFrame* inlineCallFrame = codeOrigin.inlineCallFrame(); inlineCallFrame;) {
             codeOrigin = inlineCallFrame->directCaller;
-            inlineCallFrame = codeOrigin.inlineCallFrame;
+            inlineCallFrame = codeOrigin.inlineCallFrame();
         }
-        return codeOrigin.bytecodeIndex;
+        return codeOrigin.bytecodeIndex();
     }
 #endif
     ASSERT(callSiteBitsAreBytecodeOffset());
@@ -253,14 +253,14 @@ SourceOrigin CallFrame::callerSourceOrigin()
             // In the above case, the eval function will be interpreted as the indirect call to eval inside forEach function.
             // At that time, the generated eval code should have the source origin to the original caller of the forEach function
             // instead of the source origin of the forEach function.
-            if (static_cast<FunctionExecutable*>(visitor->codeBlock()->ownerScriptExecutable())->isBuiltinFunction())
+            if (static_cast<FunctionExecutable*>(visitor->codeBlock()->ownerExecutable())->isBuiltinFunction())
                 return StackVisitor::Status::Continue;
             FALLTHROUGH;
 
         case StackVisitor::Frame::CodeType::Eval:
         case StackVisitor::Frame::CodeType::Module:
         case StackVisitor::Frame::CodeType::Global:
-            sourceOrigin = visitor->codeBlock()->ownerScriptExecutable()->sourceOrigin();
+            sourceOrigin = visitor->codeBlock()->ownerExecutable()->sourceOrigin();
             return StackVisitor::Status::Done;
 
         case StackVisitor::Frame::CodeType::Native:

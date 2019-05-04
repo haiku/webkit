@@ -30,6 +30,7 @@
 #include "NavigationAction.h"
 
 #include "Document.h"
+#include "Frame.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
 #include "HistoryItem.h"
@@ -142,6 +143,11 @@ NavigationAction NavigationAction::copyWithShouldOpenExternalURLsPolicy(ShouldOp
 void NavigationAction::setTargetBackForwardItem(HistoryItem& item)
 {
     m_targetBackForwardItemIdentifier = item.identifier();
+}
+
+void NavigationAction::setSourceBackForwardItem(HistoryItem* item)
+{
+    m_sourceBackForwardItemIdentifier = item ? makeOptional(item->identifier()) : WTF::nullopt;
 }
 
 }

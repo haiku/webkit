@@ -1,5 +1,6 @@
 set(WTF_PUBLIC_HEADERS
     ASCIICType.h
+    AggregateLogger.h
     Algorithms.h
     Assertions.h
     Atomics.h
@@ -45,7 +46,6 @@ set(WTF_PUBLIC_HEADERS
     DataLog.h
     DateMath.h
     DebugUtilities.h
-    DecimalNumber.h
     DeferrableRefCounted.h
     DeprecatedOptional.h
     Deque.h
@@ -165,8 +165,6 @@ set(WTF_PUBLIC_HEADERS
     PlatformRegisters.h
     PointerComparison.h
     PointerPreparations.h
-    Poisoned.h
-    PoisonedUniquePtr.h
     PrintStream.h
     PriorityQueue.h
     ProcessID.h
@@ -209,6 +207,7 @@ set(WTF_PUBLIC_HEADERS
     SixCharacterHash.h
     SmallPtrSet.h
     SoftLinking.h
+    SpanningTree.h
     Spectrum.h
     StackBounds.h
     StackPointer.h
@@ -243,6 +242,7 @@ set(WTF_PUBLIC_HEADERS
     TriState.h
     TypeCasts.h
     URL.h
+    URLHelpers.h
     URLHash.h
     URLParser.h
     UUID.h
@@ -260,6 +260,7 @@ set(WTF_PUBLIC_HEADERS
     VectorTraits.h
     WTFSemaphore.h
     WallTime.h
+    WeakHashSet.h
     WeakPtr.h
     WeakRandom.h
     WindowsExtras.h
@@ -273,9 +274,9 @@ set(WTF_PUBLIC_HEADERS
     dtoa/cached-powers.h
     dtoa/diy-fp.h
     dtoa/double-conversion.h
-    dtoa/double.h
     dtoa/fast-dtoa.h
     dtoa/fixed-dtoa.h
+    dtoa/ieee.h
     dtoa/strtod.h
     dtoa/utils.h
 
@@ -352,7 +353,6 @@ set(WTF_SOURCES
     CurrentTime.cpp
     DataLog.cpp
     DateMath.cpp
-    DecimalNumber.cpp
     FastBitVector.cpp
     FastMalloc.cpp
     FilePrintStream.cpp
@@ -362,11 +362,13 @@ set(WTF_SOURCES
     GlobalVersion.cpp
     GregorianDateTime.cpp
     HashTable.cpp
+    HexNumber.cpp
     JSONValues.cpp
     JSValueMalloc.cpp
     Language.cpp
     Lock.cpp
     LockedPrintStream.cpp
+    Logger.cpp
     MD5.cpp
     MainThread.cpp
     MediaTime.cpp
@@ -380,7 +382,6 @@ set(WTF_SOURCES
     ParallelHelperPool.cpp
     ParallelJobsGeneric.cpp
     ParkingLot.cpp
-    Poisoned.cpp
     PrintStream.cpp
     ProcessPrivilege.cpp
     RAMSize.cpp
@@ -403,6 +404,7 @@ set(WTF_SOURCES
     TimeWithDynamicClockType.cpp
     TimingScope.cpp
     URL.cpp
+    URLHelpers.cpp
     URLParser.cpp
     UUID.cpp
     WTFAssertions.cpp
@@ -455,12 +457,15 @@ set(WTF_SOURCES
 
 set(WTF_INCLUDE_DIRECTORIES
     "${BMALLOC_DIR}"
+    # FIXME: https://bugs.webkit.org/show_bug.cgi?id=196734#c1
     "${CMAKE_BINARY_DIR}"
     "${DERIVED_SOURCES_DIR}"
     "${THIRDPARTY_DIR}"
 )
 
 set(WTF_PRIVATE_INCLUDE_DIRECTORIES
+    "${CMAKE_BINARY_DIR}"
+    "${WTF_DERIVED_SOURCES_DIR}"
     "${WTF_DIR}"
     "${WTF_DIR}/wtf/dtoa"
     "${WTF_DIR}/wtf/persistence"
@@ -504,7 +509,8 @@ WEBKIT_WRAP_SOURCELIST(${WTF_SOURCES})
 WEBKIT_FRAMEWORK(WTF)
 
 WEBKIT_MAKE_FORWARDING_HEADERS(WTF
-    DESTINATION ${FORWARDING_HEADERS_DIR}/wtf
+    TARGET_NAME WTFFrameworkHeaders
+    DESTINATION ${WTF_FRAMEWORK_HEADERS_DIR}/wtf
     FILES ${WTF_PUBLIC_HEADERS}
 )
 
@@ -515,13 +521,13 @@ if (MSVC)
     add_custom_command(
         TARGET WTF
         PRE_BUILD
-        COMMAND ${PERL_EXECUTABLE} ${WEBKIT_LIBRARIES_DIR}/tools/scripts/auto-version.pl ${DERIVED_SOURCES_DIR}
+        COMMAND ${PERL_EXECUTABLE} ${WEBKIT_LIBRARIES_DIR}/tools/scripts/auto-version.pl ${WTF_DERIVED_SOURCES_DIR}
         VERBATIM)
 
     add_custom_command(
         TARGET WTF
         POST_BUILD
-        COMMAND ${PERL_EXECUTABLE} ${WEBKIT_LIBRARIES_DIR}/tools/scripts/version-stamp.pl ${DERIVED_SOURCES_DIR} $<TARGET_FILE:WTF>
+        COMMAND ${PERL_EXECUTABLE} ${WEBKIT_LIBRARIES_DIR}/tools/scripts/version-stamp.pl ${WTF_DERIVED_SOURCES_DIR} $<TARGET_FILE:WTF>
         VERBATIM)
 endif ()
 

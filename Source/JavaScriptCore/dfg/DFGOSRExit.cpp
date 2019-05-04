@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,7 +80,7 @@ static void restoreCalleeSavesFor(Context& context, CodeBlock* codeBlock)
 {
     ASSERT(codeBlock);
 
-    RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
+    const RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
     RegisterSet dontRestoreRegisters = RegisterSet(RegisterSet::stackRegisters(), RegisterSet::allFPRs());
     unsigned registerCount = calleeSaves->size();
 
@@ -103,7 +103,7 @@ static void saveCalleeSavesFor(Context& context, CodeBlock* codeBlock)
     auto& stack = context.stack();
     ASSERT(codeBlock);
 
-    RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
+    const RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
     RegisterSet dontSaveRegisters = RegisterSet(RegisterSet::stackRegisters(), RegisterSet::allFPRs());
     unsigned registerCount = calleeSaves->size();
 
@@ -182,7 +182,7 @@ static void saveOrCopyCalleeSavesFor(Context& context, CodeBlock* codeBlock, Vir
     Frame frame(context.fp(), context.stack());
     ASSERT(codeBlock);
 
-    RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
+    const RegisterAtOffsetList* calleeSaves = codeBlock->calleeSaveRegisters();
     RegisterSet dontSaveRegisters = RegisterSet(RegisterSet::stackRegisters(), RegisterSet::allFPRs());
     unsigned registerCount = calleeSaves->size();
 
@@ -338,6 +338,12 @@ void OSRExit::executeOSRExit(Context& context)
     ASSERT(&exec->vm() == &vm);
     auto& cpu = context.cpu;
 
+    if (validateDFGDoesGC) {
+        // We're about to exit optimized code. So, there's no longer any optimized
+        // code running that expects no GC.
+        vm.heap.setExpectDoesGC(true);
+    }
+
     if (vm.callFrameForCatch) {
         exec = vm.callFrameForCatch;
         context.fp() = exec;
@@ -387,7 +393,7 @@ void OSRExit::executeOSRExit(Context& context)
             if (exit.m_kind == BadCache || exit.m_kind == BadIndexingType) {
                 CodeOrigin codeOrigin = exit.m_codeOriginForExitProfile;
                 CodeBlock* profiledCodeBlock = baselineCodeBlockForOriginAndBaselineCodeBlock(codeOrigin, baselineCodeBlock);
-                arrayProfile = profiledCodeBlock->getArrayProfile(codeOrigin.bytecodeIndex);
+                arrayProfile = profiledCodeBlock->getArrayProfile(codeOrigin.bytecodeIndex());
                 if (arrayProfile)
                     extraInitializationLevel = std::max(extraInitializationLevel, ExtraInitializationLevel::ArrayProfileUpdate);
             }
@@ -400,7 +406,7 @@ void OSRExit::executeOSRExit(Context& context)
 
         CodeBlock* codeBlockForExit = baselineCodeBlockForOriginAndBaselineCodeBlock(exit.m_codeOrigin, baselineCodeBlock);
         const JITCodeMap& codeMap = codeBlockForExit->jitCodeMap();
-        CodeLocationLabel<JSEntryPtrTag> codeLocation = codeMap.find(exit.m_codeOrigin.bytecodeIndex);
+        CodeLocationLabel<JSEntryPtrTag> codeLocation = codeMap.find(exit.m_codeOrigin.bytecodeIndex());
         ASSERT(codeLocation);
 
         void* jumpTarget = codeLocation.executableAddress();
@@ -463,6 +469,14 @@ void OSRExit::executeOSRExit(Context& context)
             switch (recovery->type()) {
             case SpeculativeAdd:
                 cpu.gpr(recovery->dest()) = cpu.gpr<uint32_t>(recovery->dest()) - cpu.gpr<uint32_t>(recovery->src());
+#if USE(JSVALUE64)
+                ASSERT(!(cpu.gpr(recovery->dest()) >> 32));
+                cpu.gpr(recovery->dest()) |= TagTypeNumber;
+#endif
+                break;
+
+            case SpeculativeAddSelf:
+                cpu.gpr(recovery->dest()) = static_cast<uint32_t>(cpu.gpr<int32_t>(recovery->dest()) >> 1) ^ 0x80000000U;
 #if USE(JSVALUE64)
                 ASSERT(!(cpu.gpr(recovery->dest()) >> 32));
                 cpu.gpr(recovery->dest()) |= TagTypeNumber;
@@ -742,8 +756,8 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
     frame.setOperand<CodeBlock*>(CallFrameSlot::codeBlock, outermostBaselineCodeBlock);
 
     const CodeOrigin* codeOrigin;
-    for (codeOrigin = &exit.m_codeOrigin; codeOrigin && codeOrigin->inlineCallFrame; codeOrigin = codeOrigin->inlineCallFrame->getCallerSkippingTailCalls()) {
-        InlineCallFrame* inlineCallFrame = codeOrigin->inlineCallFrame;
+    for (codeOrigin = &exit.m_codeOrigin; codeOrigin && codeOrigin->inlineCallFrame(); codeOrigin = codeOrigin->inlineCallFrame()->getCallerSkippingTailCalls()) {
+        InlineCallFrame* inlineCallFrame = codeOrigin->inlineCallFrame();
         CodeBlock* baselineCodeBlock = baselineCodeBlockForOriginAndBaselineCodeBlock(*codeOrigin, outermostBaselineCodeBlock);
         InlineCallFrame::Kind trueCallerCallKind;
         CodeOrigin* trueCaller = inlineCallFrame->getCallerSkippingTailCalls(&trueCallerCallKind);
@@ -752,7 +766,7 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
         if (!trueCaller) {
             ASSERT(inlineCallFrame->isTail());
             void* returnPC = frame.get<void*>(CallFrame::returnPCOffset());
-#if USE(POINTER_PROFILING)
+#if CPU(ARM64E)
             void* oldEntrySP = cpu.fp<uint8_t*>() + sizeof(CallerFrameAndPC);
             void* newEntrySP = cpu.fp<uint8_t*>() + inlineCallFrame->returnPCOffset() + sizeof(void*);
             returnPC = retagCodePtr(returnPC, bitwise_cast<PtrTag>(oldEntrySP), bitwise_cast<PtrTag>(newEntrySP));
@@ -761,7 +775,7 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
             callerFrame = frame.get<void*>(CallFrame::callerFrameOffset());
         } else {
             CodeBlock* baselineCodeBlockForCaller = baselineCodeBlockForOriginAndBaselineCodeBlock(*trueCaller, outermostBaselineCodeBlock);
-            unsigned callBytecodeIndex = trueCaller->bytecodeIndex;
+            unsigned callBytecodeIndex = trueCaller->bytecodeIndex();
             MacroAssemblerCodePtr<JSInternalPtrTag> jumpTarget;
 
             switch (trueCallerCallKind) {
@@ -793,11 +807,11 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
                 RELEASE_ASSERT_NOT_REACHED();
             }
 
-            if (trueCaller->inlineCallFrame)
-                callerFrame = cpu.fp<uint8_t*>() + trueCaller->inlineCallFrame->stackOffset * sizeof(EncodedJSValue);
+            if (trueCaller->inlineCallFrame())
+                callerFrame = cpu.fp<uint8_t*>() + trueCaller->inlineCallFrame()->stackOffset * sizeof(EncodedJSValue);
 
             void* targetAddress = jumpTarget.executableAddress();
-#if USE(POINTER_PROFILING)
+#if CPU(ARM64E)
             void* newEntrySP = cpu.fp<uint8_t*>() + inlineCallFrame->returnPCOffset() + sizeof(void*);
             targetAddress = retagCodePtr(targetAddress, JSInternalPtrTag, bitwise_cast<PtrTag>(newEntrySP));
 #endif
@@ -816,12 +830,12 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
         ASSERT(callerFrame);
         frame.set<void*>(inlineCallFrame->callerFrameOffset(), callerFrame);
 #if USE(JSVALUE64)
-        uint32_t locationBits = CallSiteIndex(codeOrigin->bytecodeIndex).bits();
+        uint32_t locationBits = CallSiteIndex(codeOrigin->bytecodeIndex()).bits();
         frame.setOperand<uint32_t>(inlineCallFrame->stackOffset + CallFrameSlot::argumentCount, TagOffset, locationBits);
         if (!inlineCallFrame->isClosureCall)
             frame.setOperand(inlineCallFrame->stackOffset + CallFrameSlot::callee, JSValue(inlineCallFrame->calleeConstant()));
 #else // USE(JSVALUE64) // so this is the 32-bit part
-        const Instruction* instruction = baselineCodeBlock->instructions().at(codeOrigin->bytecodeIndex).ptr();
+        const Instruction* instruction = baselineCodeBlock->instructions().at(codeOrigin->bytecodeIndex()).ptr();
         uint32_t locationBits = CallSiteIndex(instruction).bits();
         frame.setOperand<uint32_t>(inlineCallFrame->stackOffset + CallFrameSlot::argumentCount, TagOffset, locationBits);
         frame.setOperand<uint32_t>(inlineCallFrame->stackOffset + CallFrameSlot::callee, TagOffset, static_cast<uint32_t>(JSValue::CellTag));
@@ -833,9 +847,9 @@ static void reifyInlinedCallFrames(Context& context, CodeBlock* outermostBaselin
     // Don't need to set the toplevel code origin if we only did inline tail calls
     if (codeOrigin) {
 #if USE(JSVALUE64)
-        uint32_t locationBits = CallSiteIndex(codeOrigin->bytecodeIndex).bits();
+        uint32_t locationBits = CallSiteIndex(codeOrigin->bytecodeIndex()).bits();
 #else
-        const Instruction* instruction = outermostBaselineCodeBlock->instructions().at(codeOrigin->bytecodeIndex).ptr();
+        const Instruction* instruction = outermostBaselineCodeBlock->instructions().at(codeOrigin->bytecodeIndex()).ptr();
         uint32_t locationBits = CallSiteIndex(instruction).bits();
 #endif
         frame.setOperand<uint32_t>(CallFrameSlot::argumentCount, TagOffset, locationBits);
@@ -862,8 +876,9 @@ static void adjustAndJumpToTarget(Context& context, VM& vm, CodeBlock* codeBlock
             vm.heap.writeBarrier(inlineCallFrame->baselineCodeBlock.get());
     }
 
-    if (exit.m_codeOrigin.inlineCallFrame)
-        context.fp() = context.fp<uint8_t*>() + exit.m_codeOrigin.inlineCallFrame->stackOffset * sizeof(EncodedJSValue);
+    auto* exitInlineCallFrame = exit.m_codeOrigin.inlineCallFrame();
+    if (exitInlineCallFrame)
+        context.fp() = context.fp<uint8_t*>() + exitInlineCallFrame->stackOffset * sizeof(EncodedJSValue);
 
     void* jumpTarget = exitState->jumpTarget;
     ASSERT(jumpTarget);
@@ -883,7 +898,7 @@ static void printOSRExit(Context& context, uint32_t osrExitIndex, const OSRExit&
     CodeBlock* codeBlock = exec->codeBlock();
     CodeBlock* alternative = codeBlock->alternative();
     ExitKind kind = exit.m_kind;
-    unsigned bytecodeOffset = exit.m_codeOrigin.bytecodeIndex;
+    unsigned bytecodeOffset = exit.m_codeOrigin.bytecodeIndex();
 
     dataLog("Speculation failure in ", *codeBlock);
     dataLog(" @ exit #", osrExitIndex, " (bc#", bytecodeOffset, ", ", exitKindToString(kind), ") with ");
@@ -1009,6 +1024,12 @@ void JIT_OPERATION OSRExit::compileOSRExit(ExecState* exec)
     VM* vm = &exec->vm();
     auto scope = DECLARE_THROW_SCOPE(*vm);
 
+    if (validateDFGDoesGC) {
+        // We're about to exit optimized code. So, there's no longer any optimized
+        // code running that expects no GC.
+        vm->heap.setExpectDoesGC(true);
+    }
+
     if (vm->callFrameForCatch)
         RELEASE_ASSERT(vm->callFrameForCatch == exec);
 
@@ -1087,7 +1108,7 @@ void OSRExit::compileExit(CCallHelpers& jit, VM& vm, const OSRExit& exit, const 
         SpeculationFailureDebugInfo* debugInfo = new SpeculationFailureDebugInfo;
         debugInfo->codeBlock = jit.codeBlock();
         debugInfo->kind = exit.m_kind;
-        debugInfo->bytecodeOffset = exit.m_codeOrigin.bytecodeIndex;
+        debugInfo->bytecodeOffset = exit.m_codeOrigin.bytecodeIndex();
 
         jit.debugCall(vm, debugOperationPrintSpeculationFailure, debugInfo);
     }
@@ -1099,6 +1120,15 @@ void OSRExit::compileExit(CCallHelpers& jit, VM& vm, const OSRExit& exit, const 
         switch (recovery->type()) {
         case SpeculativeAdd:
             jit.sub32(recovery->src(), recovery->dest());
+#if USE(JSVALUE64)
+            jit.or64(GPRInfo::tagTypeNumberRegister, recovery->dest());
+#endif
+            break;
+
+        case SpeculativeAddSelf:
+            // If A + A = A (int32_t) overflows, A can be recovered by ((static_cast<int32_t>(A) >> 1) ^ 0x8000000).
+            jit.rshift32(AssemblyHelpers::TrustedImm32(1), recovery->dest());
+            jit.xor32(AssemblyHelpers::TrustedImm32(0x80000000), recovery->dest());
 #if USE(JSVALUE64)
             jit.or64(GPRInfo::tagTypeNumberRegister, recovery->dest());
 #endif
@@ -1136,7 +1166,7 @@ void OSRExit::compileExit(CCallHelpers& jit, VM& vm, const OSRExit& exit, const 
             // property access, or due to an array profile).
 
             CodeOrigin codeOrigin = exit.m_codeOriginForExitProfile;
-            if (ArrayProfile* arrayProfile = jit.baselineCodeBlockFor(codeOrigin)->getArrayProfile(codeOrigin.bytecodeIndex)) {
+            if (ArrayProfile* arrayProfile = jit.baselineCodeBlockFor(codeOrigin)->getArrayProfile(codeOrigin.bytecodeIndex())) {
 #if USE(JSVALUE64)
                 GPRReg usedRegister;
                 if (exit.m_jsValueSource.isAddress())
@@ -1387,6 +1417,18 @@ void OSRExit::compileExit(CCallHelpers& jit, VM& vm, const OSRExit& exit, const 
         default:
             break;
         }
+    }
+
+    if (validateDFGDoesGC) {
+        // We're about to exit optimized code. So, there's no longer any optimized
+        // code running that expects no GC. We need to set this before arguments
+        // materialization below (see emitRestoreArguments()).
+
+        // Even though we set Heap::m_expectDoesGC in compileOSRExit(), we also need
+        // to set it here because compileOSRExit() is only called on the first time
+        // we exit from this site, but all subsequent exits will take this compiled
+        // ramp without calling compileOSRExit() first.
+        jit.store8(CCallHelpers::TrustedImm32(true), vm.heap.addressOfExpectDoesGC());
     }
 
     // Need to ensure that the stack pointer accounts for the worst-case stack usage at exit. This

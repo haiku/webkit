@@ -27,11 +27,19 @@
 
 #if ENABLE(WEBGPU)
 
+#include "DeferrableTask.h"
+#include "GPUBufferUsage.h"
+#include <wtf/Function.h>
+#include <wtf/OptionSet.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RetainPtr.h>
+#include <wtf/Vector.h>
 
+#if USE(METAL)
 OBJC_PROTOCOL(MTLBuffer);
+OBJC_PROTOCOL(MTLCommandBuffer);
+#endif
 
 namespace JSC {
 class ArrayBuffer;
@@ -43,24 +51,89 @@ class GPUDevice;
 
 struct GPUBufferDescriptor;
 
+#if USE(METAL)
 using PlatformBuffer = MTLBuffer;
-using PlatformBufferSmartPtr = RetainPtr<MTLBuffer>;
+#else
+using PlatformBuffer = void;
+#endif
+using PlatformBufferSmartPtr = RetainPtr<PlatformBuffer>;
 
 class GPUBuffer : public RefCounted<GPUBuffer> {
 public:
+    enum class State {
+        Mapped,
+        Unmapped,
+        Destroyed
+    };
+
     ~GPUBuffer();
 
-    static RefPtr<GPUBuffer> create(const GPUDevice&, GPUBufferDescriptor&&);
+    static RefPtr<GPUBuffer> tryCreate(Ref<GPUDevice>&&, const GPUBufferDescriptor&);
 
     PlatformBuffer *platformBuffer() const { return m_platformBuffer.get(); }
+    uint64_t byteLength() const { return m_byteLength; }
+    bool isTransferSource() const { return m_usage.contains(GPUBufferUsage::Flags::TransferSource); }
+    bool isTransferDestination() const { return m_usage.contains(GPUBufferUsage::Flags::TransferDestination); }
+    bool isVertex() const { return m_usage.contains(GPUBufferUsage::Flags::Vertex); }
+    bool isUniform() const { return m_usage.contains(GPUBufferUsage::Flags::Uniform); }
+    bool isStorage() const { return m_usage.contains(GPUBufferUsage::Flags::Storage); }
+    bool isReadOnly() const;
+    bool isMappable() const { return m_usage.containsAny({ GPUBufferUsage::Flags::MapWrite, GPUBufferUsage::Flags::MapRead }); }
+    State state() const;
 
-    JSC::ArrayBuffer* mapping() const { return m_mapping.get(); }
+#if USE(METAL)
+    void commandBufferCommitted(MTLCommandBuffer *);
+    void commandBufferCompleted();
+
+    void reuseSubDataBuffer(RetainPtr<MTLBuffer>&&);
+#endif
+
+    void setSubData(uint64_t, const JSC::ArrayBuffer&);
+    using MappingCallback = WTF::Function<void(JSC::ArrayBuffer*)>;
+    void registerMappingCallback(MappingCallback&&, bool);
+    void unmap();
+    void destroy();
 
 private:
-    explicit GPUBuffer(PlatformBufferSmartPtr&&, RefPtr<JSC::ArrayBuffer>&&);
+    struct PendingMappingCallback : public RefCounted<PendingMappingCallback> {
+        static Ref<PendingMappingCallback> create(MappingCallback&& callback)
+        {
+            return adoptRef(*new PendingMappingCallback(WTFMove(callback)));
+        }
+
+        MappingCallback callback;
+
+    private:
+        PendingMappingCallback(MappingCallback&&);
+    };
+
+    static bool validateBufferUsage(const GPUDevice&, OptionSet<GPUBufferUsage::Flags>);
+
+    GPUBuffer(PlatformBufferSmartPtr&&, uint64_t, OptionSet<GPUBufferUsage::Flags>, Ref<GPUDevice>&&);
+
+    JSC::ArrayBuffer* stagingBufferForRead();
+    JSC::ArrayBuffer* stagingBufferForWrite();
+    void runMappingCallback();
+
+    bool isMapWrite() const { return m_usage.contains(GPUBufferUsage::Flags::MapWrite); }
+    bool isMapRead() const { return m_usage.contains(GPUBufferUsage::Flags::MapRead); }
+    bool isMapWriteable() const { return isMapWrite() && state() == State::Unmapped; }
+    bool isMapReadable() const { return isMapRead() && state() == State::Unmapped; }
 
     PlatformBufferSmartPtr m_platformBuffer;
-    RefPtr<JSC::ArrayBuffer> m_mapping;
+    Ref<GPUDevice> m_device;
+
+#if USE(METAL)
+    Vector<RetainPtr<MTLBuffer>> m_subDataBuffers;
+#endif
+
+    RefPtr<JSC::ArrayBuffer> m_stagingBuffer;
+    RefPtr<PendingMappingCallback> m_mappingCallback;
+    DeferrableTask<Timer> m_mappingCallbackTask;
+
+    uint64_t m_byteLength;
+    OptionSet<GPUBufferUsage::Flags> m_usage;
+    unsigned m_numScheduledCommandBuffers { 0 };
 };
 
 } // namespace WebCore

@@ -28,30 +28,32 @@
 #if ENABLE(ASYNC_SCROLLING) && PLATFORM(MAC)
 
 #include "ScrollingTreeOverflowScrollingNode.h"
+#include "ScrollingTreeScrollingNodeDelegateMac.h"
+
+OBJC_CLASS CALayer;
 
 namespace WebCore {
 
-class ScrollingTreeOverflowScrollingNodeMac : public WebCore::ScrollingTreeOverflowScrollingNode {
+class WEBCORE_EXPORT ScrollingTreeOverflowScrollingNodeMac : public ScrollingTreeOverflowScrollingNode {
 public:
-    static Ref<ScrollingTreeOverflowScrollingNodeMac> create(WebCore::ScrollingTree&, WebCore::ScrollingNodeID);
+    static Ref<ScrollingTreeOverflowScrollingNodeMac> create(ScrollingTree&, ScrollingNodeID);
     virtual ~ScrollingTreeOverflowScrollingNodeMac();
 
-private:
-    ScrollingTreeOverflowScrollingNodeMac(WebCore::ScrollingTree&, WebCore::ScrollingNodeID);
+protected:
+    ScrollingTreeOverflowScrollingNodeMac(ScrollingTree&, ScrollingNodeID);
 
-    void commitStateBeforeChildren(const WebCore::ScrollingStateNode&) override;
-    void commitStateAfterChildren(const WebCore::ScrollingStateNode&) override;
+    void commitStateBeforeChildren(const ScrollingStateNode&) override;
+    void commitStateAfterChildren(const ScrollingStateNode&) override;
     
-    WebCore::FloatPoint scrollPosition() const override;
+    FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollPositionClamp) const override;
 
-    void setScrollLayerPosition(const WebCore::FloatPoint&, const WebCore::FloatRect& layoutViewport) override;
+    void repositionScrollingLayers() override;
+    void repositionRelatedLayers() override;
 
-    void updateLayersAfterViewportChange(const WebCore::FloatRect&, double) override { }
-    void updateLayersAfterDelegatedScroll(const WebCore::FloatPoint& scrollPosition) override;
+    ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override;
 
-    void updateLayersAfterAncestorChange(const WebCore::ScrollingTreeNode& changedNode, const WebCore::FloatRect& fixedPositionRect, const WebCore::FloatSize& cumulativeDelta) override;
-
-    ScrollingEventResult handleWheelEvent(const WebCore::PlatformWheelEvent&) override { return ScrollingEventResult::DidNotHandleEvent; }
+private:
+    ScrollingTreeScrollingNodeDelegateMac m_delegate;
 };
 
 } // namespace WebKit

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +35,7 @@
 #include "DFGSpeculativeJIT.h"
 #include "DOMJITGetterSetter.h"
 #include "DirectArguments.h"
+#include "ExecutableBaseInlines.h"
 #include "FTLThunks.h"
 #include "FullCodeOrigin.h"
 #include "FunctionCodeBlock.h"
@@ -209,7 +210,7 @@ static InlineCacheAction tryCacheGetByID(ExecState* exec, JSValue baseValue, con
 
                 newCase = AccessCase::create(vm, codeBlock, AccessCase::ArrayLength);
             } else if (isJSString(baseCell)) {
-                if (stubInfo.cacheType == CacheType::Unset) {
+                if (stubInfo.cacheType == CacheType::Unset && InlineAccess::isCacheableStringLength(stubInfo)) {
                     bool generatedCodeInline = InlineAccess::generateStringLength(stubInfo);
                     if (generatedCodeInline) {
                         ftlThunkAwareRepatchCall(codeBlock, stubInfo.slowPathCallLocation(), appropriateOptimizingGetByIdFunction(kind));
@@ -843,6 +844,7 @@ void linkFor(
 
     ASSERT(!callLinkInfo.isLinked());
     callLinkInfo.setCallee(vm, owner, callee);
+    MacroAssembler::repatchPointer(callLinkInfo.hotPathBegin(), callee);
     callLinkInfo.setLastSeenCallee(vm, owner, callee);
     if (shouldDumpDisassemblyFor(callerCodeBlock))
         dataLog("Linking call in ", FullCodeOrigin(callerCodeBlock, callLinkInfo.codeOrigin()), " to ", pointerDump(calleeCodeBlock), ", entrypoint at ", codePtr, "\n");
@@ -896,15 +898,20 @@ static void revertCall(VM* vm, CallLinkInfo& callLinkInfo, MacroAssemblerCodeRef
 {
     if (callLinkInfo.isDirect()) {
         callLinkInfo.clearCodeBlock();
-        if (callLinkInfo.callType() == CallLinkInfo::DirectTailCall)
-            MacroAssembler::repatchJump(callLinkInfo.patchableJump(), callLinkInfo.slowPathStart());
-        else
-            MacroAssembler::repatchNearCall(callLinkInfo.hotPathOther(), callLinkInfo.slowPathStart());
+        if (!callLinkInfo.clearedByJettison()) {
+            if (callLinkInfo.callType() == CallLinkInfo::DirectTailCall)
+                MacroAssembler::repatchJump(callLinkInfo.patchableJump(), callLinkInfo.slowPathStart());
+            else
+                MacroAssembler::repatchNearCall(callLinkInfo.hotPathOther(), callLinkInfo.slowPathStart());
+        }
     } else {
-        MacroAssembler::revertJumpReplacementToBranchPtrWithPatch(
-            MacroAssembler::startOfBranchPtrWithPatchOnRegister(callLinkInfo.hotPathBegin()),
-            static_cast<MacroAssembler::RegisterID>(callLinkInfo.calleeGPR()), 0);
-        linkSlowFor(vm, callLinkInfo, codeRef);
+        if (!callLinkInfo.clearedByJettison()) {
+            MacroAssembler::revertJumpReplacementToBranchPtrWithPatch(
+                MacroAssembler::startOfBranchPtrWithPatchOnRegister(callLinkInfo.hotPathBegin()),
+                static_cast<MacroAssembler::RegisterID>(callLinkInfo.calleeGPR()), 0);
+            linkSlowFor(vm, callLinkInfo, codeRef);
+            MacroAssembler::repatchPointer(callLinkInfo.hotPathBegin(), nullptr);
+        }
         callLinkInfo.clearCallee();
     }
     callLinkInfo.clearSeen();
@@ -972,7 +979,7 @@ void linkPolymorphicCall(
     if (PolymorphicCallStubRoutine* stub = callLinkInfo.stub())
         list = stub->variants();
     else if (JSObject* oldCallee = callLinkInfo.callee())
-        list = CallVariantList{ CallVariant(oldCallee) };
+        list = CallVariantList { CallVariant(oldCallee) };
     
     list = variantListWithVariant(list, newVariant);
 
@@ -1063,7 +1070,6 @@ void linkPolymorphicCall(
         stubJit.loadPtr(
             CCallHelpers::Address(calleeGPR, JSFunction::offsetOfExecutable()),
             scratchGPR);
-        stubJit.xorPtr(CCallHelpers::TrustedImmPtr(JSFunctionPoison::key()), scratchGPR);
         
         comparisonValueGPR = scratchGPR;
     } else
@@ -1135,7 +1141,10 @@ void linkPolymorphicCall(
         MacroAssemblerCodePtr<JSEntryPtrTag> codePtr;
         if (variant.executable()) {
             ASSERT(variant.executable()->hasJITCodeForCall());
-            codePtr = variant.executable()->generatedJITCodeForCall()->addressForCall(ArityCheckNotRequired);
+            
+            codePtr = jsToWasmICCodePtr(vm, callLinkInfo.specializationKind(), variant.function());
+            if (!codePtr)
+                codePtr = variant.executable()->generatedJITCodeForCall()->addressForCall(ArityCheckNotRequired);
         } else {
             ASSERT(variant.internalFunction());
             codePtr = vm.getCTIInternalFunctionTrampolineFor(CodeForCall);
@@ -1273,6 +1282,23 @@ void resetInByID(CodeBlock* codeBlock, StructureStubInfo& stubInfo)
 void resetInstanceOf(StructureStubInfo& stubInfo)
 {
     resetPatchableJump(stubInfo);
+}
+
+MacroAssemblerCodePtr<JSEntryPtrTag> jsToWasmICCodePtr(VM& vm, CodeSpecializationKind kind, JSObject* callee)
+{
+#if ENABLE(WEBASSEMBLY)
+    if (!callee)
+        return nullptr;
+    if (kind != CodeForCall)
+        return nullptr;
+    if (auto* wasmFunction = jsDynamicCast<WebAssemblyFunction*>(vm, callee))
+        return wasmFunction->jsCallEntrypoint();
+#else
+    UNUSED_PARAM(vm);
+    UNUSED_PARAM(kind);
+    UNUSED_PARAM(callee);
+#endif
+    return nullptr;
 }
 
 } // namespace JSC

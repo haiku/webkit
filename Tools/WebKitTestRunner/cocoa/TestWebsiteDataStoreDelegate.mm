@@ -26,8 +26,6 @@
 #import "config.h"
 #import "TestWebsiteDataStoreDelegate.h"
 
-#if WK_API_ENABLED
-
 @implementation TestWebsiteDataStoreDelegate { }
 - (instancetype)init
 {
@@ -35,9 +33,9 @@
     return self;
 }
 
-- (void)requestCacheStorageSpace:(NSURL *)mainFrameURL frameOrigin:(NSURL *)frameURL quota:(NSUInteger)quota currentSize:(NSUInteger)currentSize spaceRequired:(NSUInteger)spaceRequired decisionHandler:(void (^)(unsigned long long quota))decisionHandler
+- (void)requestStorageSpace:(NSURL *)mainFrameURL frameOrigin:(NSURL *)frameURL quota:(NSUInteger)quota currentSize:(NSUInteger)currentSize spaceRequired:(NSUInteger)spaceRequired decisionHandler:(void (^)(unsigned long long))decisionHandler
 {
-    decisionHandler(_shouldAllowRaisingQuota ? 2 * quota : quota);
+    decisionHandler(_shouldAllowRaisingQuota ? quota + currentSize + spaceRequired : quota);
 }
 
 - (void)setAllowRaisingQuota:(BOOL)shouldAllowRaisingQuota
@@ -45,5 +43,3 @@
     _shouldAllowRaisingQuota = shouldAllowRaisingQuota;
 }
 @end
-
-#endif

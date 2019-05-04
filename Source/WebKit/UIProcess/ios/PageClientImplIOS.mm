@@ -54,6 +54,7 @@
 #import "WebEditCommandProxy.h"
 #import "WebProcessProxy.h"
 #import "_WKDownloadInternal.h"
+#import <WebCore/DOMPasteAccess.h>
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PlatformScreen.h>
@@ -91,9 +92,8 @@ void PageClientImpl::setViewNeedsDisplay(const Region&)
     ASSERT_NOT_REACHED();
 }
 
-void PageClientImpl::requestScroll(const FloatPoint& scrollPosition, const IntPoint& scrollOrigin, bool isProgrammaticScroll)
+void PageClientImpl::requestScroll(const FloatPoint& scrollPosition, const IntPoint& scrollOrigin)
 {
-    UNUSED_PARAM(isProgrammaticScroll);
     [m_webView _scrollToContentScrollPosition:scrollPosition scrollOrigin:scrollOrigin];
 }
 
@@ -175,6 +175,13 @@ void PageClientImpl::didRelaunchProcess()
     [m_webView _didRelaunchProcess];
 }
 
+#if HAVE(VISIBILITY_PROPAGATION_VIEW)
+void PageClientImpl::didCreateContextForVisibilityPropagation(LayerHostingContextID)
+{
+    [m_contentView _processDidCreateContextForVisibilityPropagation];
+}
+#endif
+
 void PageClientImpl::pageClosed()
 {
     notImplemented();
@@ -223,7 +230,7 @@ void PageClientImpl::didCommitLoadForMainFrame(const String& mimeType, bool useC
     [m_contentView _didCommitLoadForMainFrame];
 }
 
-void PageClientImpl::handleDownloadRequest(DownloadProxy*)
+void PageClientImpl::handleDownloadRequest(DownloadProxy&)
 {
 }
 
@@ -235,6 +242,11 @@ void PageClientImpl::didChangeContentSize(const WebCore::IntSize&)
 void PageClientImpl::disableDoubleTapGesturesDuringTapIfNecessary(uint64_t requestID)
 {
     [m_contentView _disableDoubleTapGesturesDuringTapIfNecessary:requestID];
+}
+
+void PageClientImpl::handleSmartMagnificationInformationForPotentialTap(uint64_t requestID, const WebCore::FloatRect& renderRect, bool fitEntireRect, double viewportMinimumScale, double viewportMaximumScale)
+{
+    [m_contentView _handleSmartMagnificationInformationForPotentialTap:requestID renderRect:renderRect fitEntireRect:fitEntireRect viewportMinimumScale:viewportMinimumScale viewportMaximumScale:viewportMaximumScale];
 }
 
 double PageClientImpl::minimumZoomScale() const
@@ -837,12 +849,29 @@ void PageClientImpl::requestPasswordForQuickLookDocument(const String& fileName,
 }
 #endif
 
+void PageClientImpl::requestDOMPasteAccess(const WebCore::IntRect& elementRect, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&& completionHandler)
+{
+    [m_contentView _requestDOMPasteAccessWithElementRect:elementRect originIdentifier:originIdentifier completionHandler:WTFMove(completionHandler)];
+}
+
 #if HAVE(PENCILKIT)
 RetainPtr<WKDrawingView> PageClientImpl::createDrawingView(WebCore::GraphicsLayer::EmbeddedViewID embeddedViewID)
 {
     return adoptNS([[WKDrawingView alloc] initWithEmbeddedViewID:embeddedViewID contentView:m_contentView]);
 }
 #endif
+
+#if ENABLE(POINTER_EVENTS)
+void PageClientImpl::cancelPointersForGestureRecognizer(UIGestureRecognizer* gestureRecognizer)
+{
+    [m_contentView cancelPointersForGestureRecognizer:gestureRecognizer];
+}
+#endif
+
+void PageClientImpl::handleAutocorrectionContext(const WebAutocorrectionContext& context)
+{
+    [m_contentView _handleAutocorrectionContext:context];
+}
 
 } // namespace WebKit
 

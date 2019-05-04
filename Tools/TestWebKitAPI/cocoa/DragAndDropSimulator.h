@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if ENABLE(DRAG_SUPPORT) && WK_API_ENABLED
+#if ENABLE(DRAG_SUPPORT)
 
 #import "TestWKWebView.h"
 #import <WebKit/WKUIDelegatePrivate.h>
@@ -84,6 +84,7 @@ typedef NSDictionary<NSNumber *, NSValue *> *ProgressToCGPointValueMap;
 @property (nonatomic, readonly) NSArray<_WKAttachment *> *insertedAttachments;
 @property (nonatomic, readonly) NSArray<_WKAttachment *> *removedAttachments;
 @property (nonatomic, readonly) TestWKWebView *webView;
+@property (nonatomic) WKDragDestinationAction dragDestinationAction;
 
 #if PLATFORM(IOS_FAMILY)
 
@@ -94,6 +95,7 @@ typedef NSDictionary<NSNumber *, NSValue *> *ProgressToCGPointValueMap;
 @property (nonatomic, readonly) DragAndDropPhase phase;
 @property (nonatomic) BOOL allowsFocusToStartInputSession;
 @property (nonatomic) BOOL shouldEnsureUIApplication;
+@property (nonatomic) BOOL shouldBecomeFirstResponder;
 @property (nonatomic) BOOL shouldAllowMoveOperation;
 @property (nonatomic, strong) NSArray *externalItemProviders;
 @property (nonatomic, readonly) UIDropProposal *lastKnownDropProposal;
@@ -131,4 +133,4 @@ typedef NSDictionary<NSNumber *, NSValue *> *ProgressToCGPointValueMap;
 
 @end
 
-#endif // ENABLE(DRAG_SUPPORT) && WK_API_ENABLED
+#endif // ENABLE(DRAG_SUPPORT)

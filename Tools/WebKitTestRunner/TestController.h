@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2015-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,7 @@
 #pragma once
 
 #include "GeolocationProviderMock.h"
+#include "TestOptions.h"
 #include "WebNotificationProvider.h"
 #include "WorkQueueManager.h"
 #include <WebKit/WKRetainPtr.h>
@@ -107,6 +108,7 @@ public:
 
     PlatformWebView* mainWebView() { return m_mainWebView.get(); }
     WKContextRef context() { return m_context.get(); }
+    WKUserContentControllerRef userContentController() { return m_userContentController.get(); }
 
     EventSenderProxy* eventSenderProxy() { return m_eventSenderProxy.get(); }
 
@@ -147,6 +149,13 @@ public:
     OriginSettings& settingsForOrigin(const String&);
     unsigned userMediaPermissionRequestCountForOrigin(WKStringRef userMediaDocumentOriginString, WKStringRef topLevelDocumentOriginString);
     void resetUserMediaPermissionRequestCountForOrigin(WKStringRef userMediaDocumentOriginString, WKStringRef topLevelDocumentOriginString);
+
+    // Device Orientation / Motion.
+    bool handleDeviceOrientationAndMotionAccessRequest(WKSecurityOriginRef);
+
+    // Content Extensions.
+    void configureContentExtensionForTest(const TestInvocation&);
+    void resetContentExtensions();
 
     // Policy delegate.
     void setCustomPolicyDelegate(bool enabled, bool permissive);
@@ -193,6 +202,7 @@ public:
     void setIgnoresViewportScaleLimits(bool);
 
     void setShouldDownloadUndisplayableMIMETypes(bool value) { m_shouldDownloadUndisplayableMIMETypes = value; }
+    void setShouldAllowDeviceOrientationAndMotionAccess(bool value) { m_shouldAllowDeviceOrientationAndMotionAccess = value; }
 
     void setStatisticsDebugMode(bool value);
     void setStatisticsPrevalentResourceForDebugMode(WKStringRef hostName);
@@ -215,11 +225,13 @@ public:
     void setStatisticsSubresourceUniqueRedirectFrom(WKStringRef host, WKStringRef hostRedirectedFrom);
     void setStatisticsTopFrameUniqueRedirectTo(WKStringRef host, WKStringRef hostRedirectedTo);
     void setStatisticsTopFrameUniqueRedirectFrom(WKStringRef host, WKStringRef hostRedirectedFrom);
+    void setStatisticsCrossSiteLoadWithLinkDecoration(WKStringRef fromHost, WKStringRef toHost);
     void setStatisticsTimeToLiveUserInteraction(double seconds);
     void statisticsProcessStatisticsAndDataRecords();
     void statisticsUpdateCookieBlocking();
     void statisticsSubmitTelemetry();
     void setStatisticsNotifyPagesWhenDataRecordsWereScanned(bool);
+    void setStatisticsIsRunningTest(bool);
     void setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool);
     void setStatisticsNotifyPagesWhenTelemetryWasCaptured(bool value);
     void setStatisticsMinimumTimeBetweenDataRecordsRemoval(double);
@@ -229,6 +241,8 @@ public:
     void statisticsClearInMemoryAndPersistentStore();
     void statisticsClearInMemoryAndPersistentStoreModifiedSinceHours(unsigned);
     void statisticsClearThroughWebsiteDataRemoval();
+    void statisticsDeleteCookiesForHost(WKStringRef host, bool includeHttpOnlyCookies);
+    bool isStatisticsHasLocalStorage(WKStringRef hostName);
     void setStatisticsCacheMaxAgeCap(double seconds);
     void statisticsResetToConsistentState();
 
@@ -250,7 +264,8 @@ public:
     void clearDOMCaches();
     bool hasDOMCache(WKStringRef origin);
     uint64_t domCacheSize(WKStringRef origin);
-    void allowCacheStorageQuotaIncrease();
+
+    void setAllowStorageQuotaIncrease(bool);
 
     void setIDBPerOriginQuota(uint64_t);
 
@@ -284,9 +299,17 @@ public:
     bool canDoServerTrustEvaluationInNetworkProcess() const;
     uint64_t serverTrustEvaluationCallbackCallsCount() const { return m_serverTrustEvaluationCallbackCallsCount; }
 
+    void setShouldDismissJavaScriptAlertsAsynchronously(bool);
+    void handleJavaScriptAlert(WKPageRunJavaScriptAlertResultListenerRef);
+
+    bool isDoingMediaCapture() const;
+
+    String dumpAdClickAttribution();
+    void clearAdClickAttribution();
+
 private:
-    WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(WKContextConfigurationRef);
-    WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration() const;
+    WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(const TestOptions&);
+    WKRetainPtr<WKContextConfigurationRef> generateContextConfiguration(const TestOptions::ContextOptions&) const;
     void initialize(int argc, const char* argv[]);
     void createWebViewWithOptions(const TestOptions&);
     void run();
@@ -332,6 +355,8 @@ private:
     void checkForWorldLeaks();
 
     void didReceiveLiveDocumentsList(WKArrayRef);
+    void dumpResponse(const String&);
+    void findAndDumpWebKitProcessIdentifiers();
     void findAndDumpWorldLeaks();
 
     void decidePolicyForGeolocationPermissionRequestIfPossible();
@@ -407,7 +432,7 @@ private:
     void didReceiveAuthenticationChallenge(WKPageRef, WKAuthenticationChallengeRef);
 
     static void decidePolicyForNavigationAction(WKPageRef, WKNavigationActionRef, WKFramePolicyListenerRef, WKTypeRef, const void*);
-    void decidePolicyForNavigationAction(WKFramePolicyListenerRef);
+    void decidePolicyForNavigationAction(WKNavigationActionRef, WKFramePolicyListenerRef);
 
     static void decidePolicyForNavigationResponse(WKPageRef, WKNavigationResponseRef, WKFramePolicyListenerRef, WKTypeRef, const void*);
     void decidePolicyForNavigationResponse(WKNavigationResponseRef, WKFramePolicyListenerRef);
@@ -431,6 +456,10 @@ private:
     static void runModal(WKPageRef, const void* clientInfo);
     static void runModal(PlatformWebView*);
 
+#if PLATFORM(COCOA)
+    static void finishCreatingPlatformWebView(PlatformWebView*, const TestOptions&);
+#endif
+
     static const char* libraryPathForTesting();
     static const char* platformLibraryPathForTesting();
 
@@ -453,11 +482,14 @@ private:
 
     std::unique_ptr<PlatformWebView> m_mainWebView;
     WKRetainPtr<WKContextRef> m_context;
+    Optional<TestOptions::ContextOptions> m_contextOptions;
     WKRetainPtr<WKPageGroupRef> m_pageGroup;
+    WKRetainPtr<WKUserContentControllerRef> m_userContentController;
 
 #if PLATFORM(IOS_FAMILY)
     Vector<std::unique_ptr<InstanceMethodSwizzler>> m_inputModeSwizzlers;
     RetainPtr<UIKeyboardInputMode> m_overriddenKeyboardInputMode;
+    Vector<std::unique_ptr<InstanceMethodSwizzler>> m_presentPopoverSwizzlers;
 #endif
 
     enum State {
@@ -492,6 +524,7 @@ private:
     bool m_policyDelegateEnabled { false };
     bool m_policyDelegatePermissive { false };
     bool m_shouldDownloadUndisplayableMIMETypes { false };
+    bool m_shouldAllowDeviceOrientationAndMotionAccess { false };
 
     bool m_rejectsProtectionSpaceAndContinueForAuthenticationChallenges { false };
     bool m_handlesAuthenticationChallenges { false };
@@ -539,6 +572,7 @@ private:
     HashMap<uint64_t, AbandonedDocumentInfo> m_abandonedDocumentInfo;
 
     uint64_t m_serverTrustEvaluationCallbackCallsCount { 0 };
+    bool m_shouldDismissJavaScriptAlertsAsynchronously { false };
 };
 
 struct TestCommand {

@@ -113,7 +113,7 @@ StyleRareInheritedData::StyleRareInheritedData()
     , imageRendering(static_cast<unsigned>(RenderStyle::initialImageRendering()))
     , lineSnap(static_cast<unsigned>(RenderStyle::initialLineSnap()))
     , lineAlign(static_cast<unsigned>(RenderStyle::initialLineAlign()))
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
     , useTouchOverflowScrolling(RenderStyle::initialUseTouchOverflowScrolling())
 #endif
 #if ENABLE(CSS_IMAGE_RESOLUTION)
@@ -131,15 +131,15 @@ StyleRareInheritedData::StyleRareInheritedData()
 #if PLATFORM(IOS_FAMILY)
     , touchCalloutEnabled(RenderStyle::initialTouchCalloutEnabled())
 #endif
-#if ENABLE(CSS_TRAILING_WORD)
-    , trailingWord(static_cast<unsigned>(RenderStyle::initialTrailingWord()))
-#endif
     , hangingPunctuation(RenderStyle::initialHangingPunctuation().toRaw())
     , paintOrder(static_cast<unsigned>(RenderStyle::initialPaintOrder()))
     , capStyle(RenderStyle::initialCapStyle())
     , joinStyle(RenderStyle::initialJoinStyle())
     , hasSetStrokeWidth(false)
     , hasSetStrokeColor(false)
+#if ENABLE(POINTER_EVENTS)
+    , effectiveTouchActions(static_cast<unsigned>(RenderStyle::initialTouchActions()))
+#endif
     , strokeWidth(RenderStyle::initialStrokeWidth())
     , strokeColor(RenderStyle::initialStrokeColor())
     , miterLimit(RenderStyle::initialStrokeMiterLimit())
@@ -211,7 +211,7 @@ inline StyleRareInheritedData::StyleRareInheritedData(const StyleRareInheritedDa
     , imageRendering(o.imageRendering)
     , lineSnap(o.lineSnap)
     , lineAlign(o.lineAlign)
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
     , useTouchOverflowScrolling(o.useTouchOverflowScrolling)
 #endif
 #if ENABLE(CSS_IMAGE_RESOLUTION)
@@ -229,15 +229,15 @@ inline StyleRareInheritedData::StyleRareInheritedData(const StyleRareInheritedDa
 #if PLATFORM(IOS_FAMILY)
     , touchCalloutEnabled(o.touchCalloutEnabled)
 #endif
-#if ENABLE(CSS_TRAILING_WORD)
-    , trailingWord(o.trailingWord)
-#endif
     , hangingPunctuation(o.hangingPunctuation)
     , paintOrder(o.paintOrder)
     , capStyle(o.capStyle)
     , joinStyle(o.joinStyle)
     , hasSetStrokeWidth(o.hasSetStrokeWidth)
     , hasSetStrokeColor(o.hasSetStrokeColor)
+#if ENABLE(POINTER_EVENTS)
+    , effectiveTouchActions(o.effectiveTouchActions)
+#endif
     , strokeWidth(o.strokeWidth)
     , strokeColor(o.strokeColor)
     , visitedLinkStrokeColor(o.visitedLinkStrokeColor)
@@ -302,7 +302,7 @@ bool StyleRareInheritedData::operator==(const StyleRareInheritedData& o) const
         && overflowWrap == o.overflowWrap
         && nbspMode == o.nbspMode
         && lineBreak == o.lineBreak
-#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+#if ENABLE(OVERFLOW_SCROLLING_TOUCH)
         && useTouchOverflowScrolling == o.useTouchOverflowScrolling
 #endif
 #if ENABLE(TEXT_AUTOSIZING)
@@ -354,15 +354,15 @@ bool StyleRareInheritedData::operator==(const StyleRareInheritedData& o) const
         && textZoom == o.textZoom
         && lineSnap == o.lineSnap
         && lineAlign == o.lineAlign
-#if ENABLE(CSS_TRAILING_WORD)
-        && trailingWord == o.trailingWord
-#endif
         && hangingPunctuation == o.hangingPunctuation
         && paintOrder == o.paintOrder
         && capStyle == o.capStyle
         && joinStyle == o.joinStyle
         && hasSetStrokeWidth == o.hasSetStrokeWidth
         && hasSetStrokeColor == o.hasSetStrokeColor
+#if ENABLE(POINTER_EVENTS)
+        && effectiveTouchActions == o.effectiveTouchActions
+#endif
         && strokeWidth == o.strokeWidth
         && strokeColor == o.strokeColor
         && visitedLinkStrokeColor == o.visitedLinkStrokeColor

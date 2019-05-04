@@ -108,11 +108,8 @@ class EmptyChromeClient : public ChromeClient {
 
     IntPoint screenToRootView(const IntPoint& p) const final { return p; }
     IntRect rootViewToScreen(const IntRect& r) const final { return r; }
-
-#if PLATFORM(IOS_FAMILY)
     IntPoint accessibilityScreenToRootView(const IntPoint& p) const final { return p; };
     IntRect rootViewToAccessibilityScreen(const IntRect& r) const final { return r; };
-#endif
 
     PlatformPageClient platformPageClient() const final { return 0; }
     void contentsSizeChanged(Frame&, const IntSize&) const final { }
@@ -151,7 +148,7 @@ class EmptyChromeClient : public ChromeClient {
     void scrollRectIntoView(const IntRect&) const final { }
 
     void attachRootGraphicsLayer(Frame&, GraphicsLayer*) final { }
-    void attachViewOverlayGraphicsLayer(Frame&, GraphicsLayer*) final { }
+    void attachViewOverlayGraphicsLayer(GraphicsLayer*) final { }
     void setNeedsOneShotDrawingSynchronization() final { }
     void scheduleCompositingLayerFlush() final { }
 
@@ -169,7 +166,6 @@ class EmptyChromeClient : public ChromeClient {
     void didReceiveMobileDocType(bool) final { }
     void setNeedsScrollNotifications(Frame&, bool) final { }
     void observedContentChange(Frame&) final { }
-    void clearContentChangeObservers(Frame&) final { }
     void notifyRevealedSelectionByScrollingFrame(Frame&) final { }
     void didLayout(LayoutType) final { }
     void didStartOverflowScroll() final { }

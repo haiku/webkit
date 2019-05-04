@@ -30,6 +30,7 @@
 #if USE(APPLE_INTERNAL_SDK)
 
 #import <UIKit/UIApplication_Private.h>
+#import <UIKit/UIBarButtonItemGroup_Private.h>
 #import <UIKit/UICalloutBar.h>
 #import <UIKit/UIKeyboard_Private.h>
 #import <UIKit/UIResponder_Private.h>
@@ -37,14 +38,16 @@
 #import <UIKit/UITextInputTraits_Private.h>
 #import <UIKit/UITextInput_Private.h>
 #import <UIKit/UIViewController_Private.h>
+#import <UIKit/UIWKTextInteractionAssistant.h>
+#import <UIKit/UIWebFormAccessory.h>
 
-#if ENABLE(DRAG_SUPPORT)
+#if PLATFORM(IOS)
 @protocol UIDragSession;
 @class UIDragInteraction;
 @class UIDragItem;
 #import <UIKit/NSItemProvider+UIKitAdditions_Private.h>
 #import <UIKit/UIDragInteraction_Private.h>
-#endif // ENABLE(DRAG_SUPPORT)
+#endif // PLATFORM(IOS)
 
 #else
 
@@ -64,6 +67,7 @@ WTF_EXTERN_C_END
 @protocol UIDragInteractionDelegate_ForWebKitOnly <UIDragInteractionDelegate>
 @optional
 - (void)_dragInteraction:(UIDragInteraction *)interaction prepareForSession:(id<UIDragSession>)session completion:(void(^)(void))completion;
+- (void)_dragInteraction:(UIDragInteraction *)interaction itemsForAddingToSession:(id <UIDragSession>)session withTouchAtPoint:(CGPoint)point completion:(void(^)(NSArray<UIDragItem *> *))completion;
 @end
 
 @protocol UITextInputTraits_Private <NSObject, UITextInputTraits>
@@ -78,6 +82,14 @@ WTF_EXTERN_C_END
 - (void)insertTextSuggestion:(UITextSuggestion *)textSuggestion;
 - (void)handleKeyWebEvent:(WebEvent *)theEvent withCompletionHandler:(void (^)(WebEvent *, BOOL))completionHandler;
 - (BOOL)_shouldSuppressSelectionCommands;
+- (NSDictionary *)_autofillContext;
+@end
+
+@interface UIWebFormAccessory : UIInputView
+@end
+
+@interface UIBarButtonItemGroup ()
+@property (nonatomic, readwrite, assign, getter=_isHidden, setter=_setHidden:) BOOL hidden;
 @end
 
 @protocol UITextInputMultiDocument <NSObject>
@@ -98,16 +110,38 @@ WTF_EXTERN_C_END
 + (UICalloutBar *)sharedCalloutBar;
 @end
 
-#endif
+@interface UIWKDocumentContext : NSObject
 
-@protocol UITextInputTraits_Private_Proposed_SPI_34583628 <UITextInputPrivate>
-- (NSDictionary *)_autofillContext;
+@property (nonatomic, copy) NSObject *contextBefore;
+@property (nonatomic, copy) NSObject *selectedText;
+@property (nonatomic, copy) NSObject *contextAfter;
+@property (nonatomic, copy) NSObject *markedText;
+@property (nonatomic, assign) NSRange selectedRangeInMarkedText;
+@property (nonatomic, copy) NSAttributedString *annotatedText;
+
+- (NSArray<NSValue *> *)characterRectsForCharacterRange:(NSRange)range;
+
 @end
 
-#if ENABLE(DRAG_SUPPORT)
-@protocol UIDragInteractionDelegate_Proposed_SPI_33146803 <UIDragInteractionDelegate>
-- (void)_dragInteraction:(UIDragInteraction *)interaction itemsForAddingToSession:(id <UIDragSession>)session withTouchAtPoint:(CGPoint)point completion:(void(^)(NSArray<UIDragItem *> *))completion;
+typedef NS_OPTIONS(NSInteger, UIWKDocumentRequestFlags) {
+    UIWKDocumentRequestNone = 0,
+    UIWKDocumentRequestText = 1 << 0,
+    UIWKDocumentRequestAttributed = 1 << 1,
+    UIWKDocumentRequestRects = 1 << 2,
+    UIWKDocumentRequestSpatial = 1 << 3,
+    UIWKDocumentRequestAnnotation = 1 << 4,
+};
+
+@interface UIWKDocumentRequest : NSObject
+
+@property (nonatomic, assign) UIWKDocumentRequestFlags flags;
+@property (nonatomic, assign) UITextGranularity surroundingGranularity;
+@property (nonatomic, assign) NSInteger granularityCount;
+@property (nonatomic, assign) CGRect documentRect;
+@property (nonatomic, retain) id <NSCopying> inputElementIdentifier;
+
 @end
+
 #endif
 
 #if __has_include(<UIKit/UITextAutofillSuggestion.h>)
@@ -139,6 +173,14 @@ WTF_EXTERN_C_END
 
 @interface UIKeyboard ()
 + (BOOL)isInHardwareKeyboardMode;
+@end
+
+@protocol UIWKInteractionViewProtocol_Staging_49236384
+- (void)pasteWithCompletionHandler:(void (^)(void))completionHandler;
+@end
+
+@interface UIWebFormAccessory (Staging_49666643)
+- (void)setNextPreviousItemsVisible:(BOOL)visible;
 @end
 
 #endif // PLATFORM(IOS_FAMILY)

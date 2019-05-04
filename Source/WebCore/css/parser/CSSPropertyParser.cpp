@@ -156,12 +156,18 @@ static bool isAppleLegacyCssValueKeyword(const char* valueKeyword, unsigned leng
     static const char applePrefix[] = "-apple-";
     static const char appleSystemPrefix[] = "-apple-system";
     static const char applePayPrefix[] = "-apple-pay";
+
+#if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)
     static const char* appleWirelessPlaybackTargetActive = getValueName(CSSValueAppleWirelessPlaybackTargetActive);
-    
+#endif
+
     return hasPrefix(valueKeyword, length, applePrefix)
     && !hasPrefix(valueKeyword, length, appleSystemPrefix)
     && !hasPrefix(valueKeyword, length, applePayPrefix)
-    && !WTF::equal(reinterpret_cast<const LChar*>(valueKeyword), reinterpret_cast<const LChar*>(appleWirelessPlaybackTargetActive), length);
+#if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)
+    && !WTF::equal(reinterpret_cast<const LChar*>(valueKeyword), reinterpret_cast<const LChar*>(appleWirelessPlaybackTargetActive), length)
+#endif
+    ;
 }
 
 template <typename CharacterType>
@@ -569,7 +575,7 @@ static RefPtr<CSSValue> consumeFontVariationSettings(CSSParserTokenRange& range)
     if (!settings->length())
         return nullptr;
 
-    return WTFMove(settings);
+    return settings;
 }
 #endif // ENABLE(VARIATION_FONTS)
 
@@ -1067,16 +1073,13 @@ static RefPtr<CSSValueList> consumeFontFamily(CSSParserTokenRange& range)
 {
     RefPtr<CSSValueList> list = CSSValueList::createCommaSeparated();
     do {
-        RefPtr<CSSValue> parsedValue = consumeGenericFamily(range);
-        if (parsedValue) {
+        if (auto parsedValue = consumeGenericFamily(range))
             list->append(parsedValue.releaseNonNull());
-        } else {
-            parsedValue = consumeFamilyName(range);
-            if (parsedValue) {
+        else {
+            if (auto parsedValue = consumeFamilyName(range))
                 list->append(parsedValue.releaseNonNull());
-            } else {
+            else
                 return nullptr;
-            }
         }
     } while (consumeCommaIncludingWhitespace(range));
     return list;
@@ -1084,7 +1087,7 @@ static RefPtr<CSSValueList> consumeFontFamily(CSSParserTokenRange& range)
 
 static RefPtr<CSSValueList> consumeFontFamilyDescriptor(CSSParserTokenRange& range)
 {
-    // FIXME-NEWPARSER: For compatibility with the old parser, we have to make
+    // FIXME-NEWPARSER: https://bugs.webkit.org/show_bug.cgi?id=196381 For compatibility with the old parser, we have to make
     // a list here, even though the list always contains only a single family name.
     // Once the old parser is gone, we can delete this function, make the caller
     // use consumeFamilyName instead, and then patch the @font-face code to
@@ -2459,7 +2462,7 @@ static RefPtr<CSSBasicShapePath> consumeBasicShapePath(CSSParserTokenRange& args
     auto shape = CSSBasicShapePath::create(WTFMove(byteStream));
     shape->setWindRule(windRule);
     
-    return WTFMove(shape);
+    return shape;
 }
 
 static void complete4Sides(RefPtr<CSSPrimitiveValue> side[4])
@@ -3906,8 +3909,9 @@ static RefPtr<CSSValue> consumeWebkitDashboardRegion(CSSParserTokenRange& range,
 RefPtr<CSSValue> CSSPropertyParser::parseSingleValue(CSSPropertyID property, CSSPropertyID currentShorthand)
 {
     if (CSSParserFastPaths::isKeywordPropertyID(property)) {
-        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(property, m_range.peek().id(), m_context.mode))
+        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(property, m_range.peek().id(), m_context))
             return nullptr;
+
         return consumeIdent(m_range);
     }
     switch (property) {
@@ -5528,7 +5532,7 @@ static RefPtr<CSSValue> consumeImplicitGridAutoFlow(CSSParserTokenRange& range, 
         list->append(CSSValuePool::singleton().createIdentifierValue(CSSValueDense));
     }
     
-    return WTFMove(list);
+    return list;
 }
 
 bool CSSPropertyParser::consumeGridShorthand(bool important)
@@ -5695,7 +5699,7 @@ bool CSSPropertyParser::parseShorthand(CSSPropertyID property, bool important)
     switch (property) {
     case CSSPropertyWebkitMarginCollapse: {
         CSSValueID id = m_range.consumeIncludingWhitespace().id();
-        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyWebkitMarginBeforeCollapse, id, m_context.mode))
+        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyWebkitMarginBeforeCollapse, id, m_context))
             return false;
         addProperty(CSSPropertyWebkitMarginBeforeCollapse, CSSPropertyWebkitMarginCollapse, CSSValuePool::singleton().createIdentifierValue(id), important);
         if (m_range.atEnd()) {
@@ -5703,14 +5707,14 @@ bool CSSPropertyParser::parseShorthand(CSSPropertyID property, bool important)
             return true;
         }
         id = m_range.consumeIncludingWhitespace().id();
-        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyWebkitMarginAfterCollapse, id, m_context.mode))
+        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyWebkitMarginAfterCollapse, id, m_context))
             return false;
         addProperty(CSSPropertyWebkitMarginAfterCollapse, CSSPropertyWebkitMarginCollapse, CSSValuePool::singleton().createIdentifierValue(id), important);
         return true;
     }
     case CSSPropertyOverflow: {
         CSSValueID id = m_range.consumeIncludingWhitespace().id();
-        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyOverflowY, id, m_context.mode))
+        if (!CSSParserFastPaths::isValidKeywordPropertyAndValue(CSSPropertyOverflowY, id, m_context))
             return false;
         if (!m_range.atEnd())
             return false;

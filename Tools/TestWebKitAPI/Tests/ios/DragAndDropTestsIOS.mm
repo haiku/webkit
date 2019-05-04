@@ -25,7 +25,7 @@
 
 #include "config.h"
 
-#if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY) && WK_API_ENABLED
+#if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)
 
 #import "ClassMethodSwizzler.h"
 #import "DragAndDropSimulator.h"
@@ -414,7 +414,7 @@ TEST(DragAndDropTests, ContentEditableToTextarea)
     EXPECT_TRUE([observedEventNames containsObject:@"dragenter"]);
     EXPECT_TRUE([observedEventNames containsObject:@"dragover"]);
     EXPECT_TRUE([observedEventNames containsObject:@"drop"]);
-    checkSelectionRectsWithLogging(@[ makeCGRectValue(6, 203, 990, 232) ], [simulator finalSelectionRects]);
+    checkSelectionRectsWithLogging(@[ makeCGRectValue(101, 203, 990, 232) ], [simulator finalSelectionRects]);
     checkRichTextTypePrecedesPlainTextType(simulator.get());
     EXPECT_TRUE([simulator lastKnownDropProposal].precise);
 }
@@ -428,6 +428,31 @@ TEST(DragAndDropTests, NonEditableTextSelectionToTextarea)
     [simulator runFrom:CGPointMake(160, 100) to:CGPointMake(160, 300)];
 
     EXPECT_WK_STREQ("Hello world", [webView stringByEvaluatingJavaScript:@"destination.value"]);
+}
+
+TEST(DragAndDropTests, DoNotPerformSelectionDragWhenNotFirstResponder)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setShouldBecomeFirstResponder:NO];
+
+    [webView synchronouslyLoadTestPageNamed:@"selected-text-and-textarea"];
+    [simulator runFrom:CGPointMake(160, 100) to:CGPointMake(160, 300)];
+
+    EXPECT_WK_STREQ("", [webView stringByEvaluatingJavaScript:@"destination.value"]);
+}
+
+TEST(DragAndDropTests, CanDragImageWhenNotFirstResponder)
+{
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:CGRectMake(0, 0, 320, 500)]);
+    auto simulator = adoptNS([[DragAndDropSimulator alloc] initWithWebView:webView.get()]);
+    [simulator setShouldBecomeFirstResponder:NO];
+
+    [webView synchronouslyLoadTestPageNamed:@"image-and-contenteditable"];
+    [simulator runFrom:CGPointMake(100, 50) to:CGPointMake(100, 250)];
+
+    NSURL *droppedImageURL = [NSURL URLWithString:[webView stringByEvaluatingJavaScript:@"editor.querySelector('img').src"]];
+    EXPECT_WK_STREQ("blob", droppedImageURL.scheme);
 }
 
 TEST(DragAndDropTests, ContentEditableMoveParagraphs)
@@ -2084,4 +2109,4 @@ TEST(DragAndDropTests, DataTransferSanitizeHTML)
 
 } // namespace TestWebKitAPI
 
-#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY) && WK_API_ENABLED
+#endif // ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)

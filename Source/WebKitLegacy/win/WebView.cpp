@@ -390,8 +390,6 @@ static const int maxToolTipWidth = 250;
 
 static const int delayBeforeDeletingBackingStoreMsec = 5000;
 
-static ATOM registerWebView();
-
 static void initializeStaticObservers();
 
 static HRESULT updateSharedSettingsFromPreferencesIfNeeded(IWebPreferences*);
@@ -1599,13 +1597,13 @@ static HMENU createContextMenuFromItems(const Vector<ContextMenuItem>& items)
         switch (item.type()) {
         case ActionType:
         case CheckableActionType:
-            ::AppendMenu(menu, flags | MF_STRING, item.action(), item.title().charactersWithNullTermination().data());
+            ::AppendMenu(menu, flags | MF_STRING, item.action(), item.title().wideCharacters().data());
             break;
         case SeparatorType:
             ::AppendMenu(menu, flags | MF_SEPARATOR, item.action(), nullptr);
             break;
         case SubmenuType:
-            ::AppendMenu(menu, flags | MF_POPUP, (UINT_PTR)createContextMenuFromItems(item.subMenuItems()), item.title().charactersWithNullTermination().data());
+            ::AppendMenu(menu, flags | MF_POPUP, (UINT_PTR)createContextMenuFromItems(item.subMenuItems()), item.title().wideCharacters().data());
             break;
         }
     }
@@ -2419,9 +2417,9 @@ bool WebView::keyDown(WPARAM virtualKeyCode, LPARAM keyData, bool systemKeyDown)
     // We need to handle back/forward using either Ctrl+Left/Right Arrow keys.
     // FIXME: This logic should probably be in EventHandler::defaultArrowEventHandler().
     // FIXME: Should check that other modifiers aren't pressed.
-    if (virtualKeyCode == VK_RIGHT && keyEvent.ctrlKey())
+    if (virtualKeyCode == VK_RIGHT && keyEvent.controlKey())
         return m_page->backForward().goForward();
-    if (virtualKeyCode == VK_LEFT && keyEvent.ctrlKey())
+    if (virtualKeyCode == VK_LEFT && keyEvent.controlKey())
         return m_page->backForward().goBack();
 
     // Need to scroll the page if the arrow keys, pgup/dn, or home/end are hit.
@@ -2875,7 +2873,7 @@ static String webKitVersionString()
     if (::LoadStringW(gInstance, BUILD_NUMBER, reinterpret_cast<LPWSTR>(&buildNumberStringPtr), 0) && buildNumberStringPtr)
         return buildNumberStringPtr;
 #endif
-    return String::format("%d.%d", WEBKIT_MAJOR_VERSION, WEBKIT_MINOR_VERSION);
+    return makeString(WEBKIT_MAJOR_VERSION, '.', WEBKIT_MINOR_VERSION);
 }
 
 const String& WebView::userAgentForKURL(const URL&)
@@ -3235,8 +3233,8 @@ void WebView::setToolTip(const String& toolTip)
         info.cbSize = sizeof(info);
         info.uFlags = TTF_IDISHWND;
         info.uId = reinterpret_cast<UINT_PTR>(m_viewWindow);
-        Vector<UChar> toolTipCharacters = m_toolTip.charactersWithNullTermination(); // Retain buffer long enough to make the SendMessage call
-        info.lpszText = const_cast<UChar*>(toolTipCharacters.data());
+        Vector<wchar_t> toolTipCharacters = m_toolTip.wideCharacters(); // Retain buffer long enough to make the SendMessage call
+        info.lpszText = const_cast<wchar_t*>(toolTipCharacters.data());
         ::SendMessage(m_toolTipHwnd, TTM_UPDATETIPTEXT, 0, reinterpret_cast<LPARAM>(&info));
     }
 
@@ -5600,6 +5598,11 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     RuntimeEnabledFeatures::sharedFeatures().setServerTimingEnabled(!!enabled);
 
+    hr = prefsPrivate->resizeObserverEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setResizeObserverEnabled(!!enabled);
+
     return S_OK;
 }
 
@@ -7108,8 +7111,6 @@ HRESULT WebView::historyDelegate(_COM_Outptr_opt_ IWebHistoryDelegate** historyD
 HRESULT WebView::addVisitedLinks(__inout_ecount_full(visitedURLCount) BSTR* visitedURLs, unsigned visitedURLCount)
 {
     auto& visitedLinkStore = m_webViewGroup->visitedLinkStore();
-    PageGroup& group = core(this)->group();
-    
     for (unsigned i = 0; i < visitedURLCount; ++i) {
         BSTR url = visitedURLs[i];
         unsigned length = SysStringLen(url);
@@ -7405,7 +7406,9 @@ class EnumTextMatches final : public IEnumTextMatches
     UINT m_index;
     Vector<IntRect> m_rects;
 public:
-    EnumTextMatches(Vector<IntRect>* rects) : m_index(0), m_ref(1)
+    EnumTextMatches(Vector<IntRect>* rects)
+        : m_ref(1)
+        , m_index(0)
     {
         m_rects = *rects;
     }

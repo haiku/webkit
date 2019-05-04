@@ -50,9 +50,14 @@ static BOOL overrideIsInHardwareKeyboardMode()
     return NO;
 }
 
+static void overridePresentViewControllerOrPopover()
+{
+}
+
 namespace WTR {
 
 static bool isDoneWaitingForKeyboardToDismiss = true;
+static bool isDoneWaitingForMenuToDismiss = true;
 
 static void handleKeyboardWillHideNotification(CFNotificationCenterRef, void*, CFStringRef, const void*, CFDictionaryRef)
 {
@@ -62,6 +67,16 @@ static void handleKeyboardWillHideNotification(CFNotificationCenterRef, void*, C
 static void handleKeyboardDidHideNotification(CFNotificationCenterRef, void*, CFStringRef, const void*, CFDictionaryRef)
 {
     isDoneWaitingForKeyboardToDismiss = true;
+}
+
+static void handleMenuWillHideNotification(CFNotificationCenterRef, void*, CFStringRef, const void*, CFDictionaryRef)
+{
+    isDoneWaitingForMenuToDismiss = false;
+}
+
+static void handleMenuDidHideNotification(CFNotificationCenterRef, void*, CFStringRef, const void*, CFDictionaryRef)
+{
+    isDoneWaitingForMenuToDismiss = true;
 }
 
 void TestController::notifyDone()
@@ -79,6 +94,8 @@ void TestController::platformInitialize()
     auto center = CFNotificationCenterGetLocalCenter();
     CFNotificationCenterAddObserver(center, this, handleKeyboardWillHideNotification, (CFStringRef)UIKeyboardWillHideNotification, nullptr, CFNotificationSuspensionBehaviorDeliverImmediately);
     CFNotificationCenterAddObserver(center, this, handleKeyboardDidHideNotification, (CFStringRef)UIKeyboardDidHideNotification, nullptr, CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver(center, this, handleMenuWillHideNotification, (CFStringRef)UIMenuControllerWillHideMenuNotification, nullptr, CFNotificationSuspensionBehaviorDeliverImmediately);
+    CFNotificationCenterAddObserver(center, this, handleMenuDidHideNotification, (CFStringRef)UIMenuControllerDidHideMenuNotification, nullptr, CFNotificationSuspensionBehaviorDeliverImmediately);
 
     // Override the implementation of +[UIKeyboard isInHardwareKeyboardMode] to ensure that test runs are deterministic
     // regardless of whether a hardware keyboard is attached. We intentionally never restore the original implementation.
@@ -92,6 +109,8 @@ void TestController::platformDestroy()
     auto center = CFNotificationCenterGetLocalCenter();
     CFNotificationCenterRemoveObserver(center, this, (CFStringRef)UIKeyboardWillHideNotification, nullptr);
     CFNotificationCenterRemoveObserver(center, this, (CFStringRef)UIKeyboardDidHideNotification, nullptr);
+    CFNotificationCenterRemoveObserver(center, this, (CFStringRef)UIMenuControllerWillHideMenuNotification, nullptr);
+    CFNotificationCenterRemoveObserver(center, this, (CFStringRef)UIMenuControllerDidHideMenuNotification, nullptr);
 }
 
 void TestController::initializeInjectedBundlePath()
@@ -105,10 +124,15 @@ void TestController::initializeTestPluginDirectory()
     m_testPluginDirectory.adopt(WKStringCreateWithCFString((CFStringRef)[[NSBundle mainBundle] bundlePath]));
 }
 
+void TestController::configureContentExtensionForTest(const TestInvocation&)
+{
+}
+
 void TestController::platformResetPreferencesToConsistentValues()
 {
     WKPreferencesRef preferences = platformPreferences();
     WKPreferencesSetTextAutosizingEnabled(preferences, false);
+    WKPreferencesSetContentChangeObserverEnabled(preferences, false);
 }
 
 void TestController::platformResetStateToConsistentValues(const TestOptions& options)
@@ -120,15 +144,23 @@ void TestController::platformResetStateToConsistentValues(const TestOptions& opt
 
     m_inputModeSwizzlers.clear();
     m_overriddenKeyboardInputMode = nil;
+
+    m_presentPopoverSwizzlers.clear();
+    if (!options.shouldPresentPopovers) {
+        m_presentPopoverSwizzlers.append(std::make_unique<InstanceMethodSwizzler>([UIViewController class], @selector(presentViewController:animated:completion:), reinterpret_cast<IMP>(overridePresentViewControllerOrPopover)));
+        m_presentPopoverSwizzlers.append(std::make_unique<InstanceMethodSwizzler>([UIPopoverController class], @selector(presentPopoverFromRect:inView:permittedArrowDirections:animated:), reinterpret_cast<IMP>(overridePresentViewControllerOrPopover)));
+    }
     
     BOOL shouldRestoreFirstResponder = NO;
     if (PlatformWebView* platformWebView = mainWebView()) {
         TestRunnerWKWebView *webView = platformWebView->platformView();
         webView._stableStateOverride = nil;
+        webView._scrollingUpdatesDisabledForTesting = NO;
         webView.usesSafariLikeRotation = NO;
         webView.overrideSafeAreaInsets = UIEdgeInsetsZero;
         [webView _clearOverrideLayoutParameters];
         [webView _clearInterfaceOrientationOverride];
+        [webView resetInteractionCallbacks];
 
         UIScrollView *scrollView = webView.scrollView;
         [scrollView _removeAllAnimations:YES];
@@ -140,7 +172,10 @@ void TestController::platformResetStateToConsistentValues(const TestOptions& opt
             shouldRestoreFirstResponder = [webView resignFirstResponder];
     }
 
+    UIMenuController.sharedMenuController.menuVisible = NO;
+
     runUntil(isDoneWaitingForKeyboardToDismiss, m_currentInvocation->shortTimeout());
+    runUntil(isDoneWaitingForMenuToDismiss, m_currentInvocation->shortTimeout());
 
     if (shouldRestoreFirstResponder)
         [mainWebView()->platformView() becomeFirstResponder];
@@ -153,8 +188,7 @@ void TestController::platformConfigureViewForTest(const TestInvocation& test)
         
     TestRunnerWKWebView *webView = mainWebView()->platformView();
 
-    if (test.options().shouldIgnoreMetaViewport)
-        webView.configuration.preferences._shouldIgnoreMetaViewport = YES;
+    webView.configuration.preferences._shouldIgnoreMetaViewport = test.options().shouldIgnoreMetaViewport;
 
     CGRect screenBounds = [UIScreen mainScreen].bounds;
     CGSize oldSize = webView.bounds.size;

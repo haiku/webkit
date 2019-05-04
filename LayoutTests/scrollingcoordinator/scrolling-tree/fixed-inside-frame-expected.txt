@@ -10,7 +10,6 @@
     (horizontal scrollbar mode 0)
     (vertical scrollbar mode 0)
     (has enabled vertical scrollbar 1))
-  (visual viewport enabled 1)
   (layout viewport at (0,0) size 785x600)
   (min layout viewport origin (0,0))
   (max layout viewport origin (0,57))
@@ -20,6 +19,7 @@
       (parent relative scrollable rect at (110,110) size 480x400)
       (children 1
         (Frame scrolling node
+          (scroll position 0 120)
           (scrollable area size 465 400)
           (contents size 465 1016)
           (requested scroll position 0 120)
@@ -31,7 +31,6 @@
             (horizontal scrollbar mode 0)
             (vertical scrollbar mode 0)
             (has enabled vertical scrollbar 1))
-          (visual viewport enabled 1)
           (layout viewport at (0,120) size 465x400)
           (min layout viewport origin (0,0))
           (max layout viewport origin (0,616))

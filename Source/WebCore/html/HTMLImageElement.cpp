@@ -46,6 +46,7 @@
 #include "MIMETypeRegistry.h"
 #include "MediaList.h"
 #include "MediaQueryEvaluator.h"
+#include "MouseEvent.h"
 #include "NodeTraversal.h"
 #include "PlatformMouseEvent.h"
 #include "RenderImage.h"
@@ -67,19 +68,14 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(HTMLImageElement);
 
 using namespace HTMLNames;
 
-typedef HashMap<const HTMLImageElement*, WeakPtr<HTMLPictureElement>> PictureOwnerMap;
-static PictureOwnerMap* gPictureOwnerMap = nullptr;
-
 HTMLImageElement::HTMLImageElement(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
     : HTMLElement(tagName, document)
     , m_imageLoader(*this)
     , m_form(nullptr)
-    , m_formSetByParser(form)
+    , m_formSetByParser(makeWeakPtr(form))
     , m_compositeOperator(CompositeSourceOver)
     , m_imageDevicePixelRatio(1.0f)
-#if ENABLE(SERVICE_CONTROLS)
     , m_experimentalImageMenuEnabled(false)
-#endif
 {
     ASSERT(hasTagName(imgTag));
     setHasCustomStyleResolveCallbacks();
@@ -333,8 +329,7 @@ void HTMLImageElement::didAttachRenderers()
 Node::InsertedIntoAncestorResult HTMLImageElement::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
     if (m_formSetByParser) {
-        m_form = m_formSetByParser;
-        m_formSetByParser = nullptr;
+        m_form = WTFMove(m_formSetByParser);
         m_form->registerImgElement(this);
     }
 
@@ -344,9 +339,10 @@ Node::InsertedIntoAncestorResult HTMLImageElement::insertedIntoAncestor(Insertio
     }
 
     if (!m_form) {
-        m_form = HTMLFormElement::findClosestFormAncestor(*this);
-        if (m_form)
-            m_form->registerImgElement(this);
+        if (auto* newForm = HTMLFormElement::findClosestFormAncestor(*this)) {
+            m_form = makeWeakPtr(newForm);
+            newForm->registerImgElement(this);
+        }
     }
 
     // Insert needs to complete first, before we start updating the loader. Loader dispatches events which could result
@@ -454,25 +450,12 @@ void HTMLImageElement::updateEditableImage()
 
 HTMLPictureElement* HTMLImageElement::pictureElement() const
 {
-    if (!gPictureOwnerMap || !gPictureOwnerMap->contains(this))
-        return nullptr;
-    auto result = gPictureOwnerMap->get(this);
-    if (!result)
-        gPictureOwnerMap->remove(this);
-    return result.get();
+    return m_pictureElement.get();
 }
     
 void HTMLImageElement::setPictureElement(HTMLPictureElement* pictureElement)
 {
-    if (!pictureElement) {
-        if (gPictureOwnerMap)
-            gPictureOwnerMap->remove(this);
-        return;
-    }
-    
-    if (!gPictureOwnerMap)
-        gPictureOwnerMap = new PictureOwnerMap();
-    gPictureOwnerMap->add(this, makeWeakPtr(*pictureElement));
+    m_pictureElement = makeWeakPtr(pictureElement);
 }
     
 unsigned HTMLImageElement::width(bool ignorePendingStylesheets)
@@ -567,7 +550,7 @@ String HTMLImageElement::completeURLsInAttributeValue(const URL& base, const Att
             result.append(URL(base, candidate.string.toString()).string());
             if (candidate.density != UninitializedDescriptor) {
                 result.append(' ');
-                result.appendNumber(candidate.density);
+                result.appendFixedPrecisionNumber(candidate.density);
                 result.append('x');
             }
             if (candidate.resourceWidth != UninitializedDescriptor) {
@@ -806,7 +789,7 @@ bool HTMLImageElement::childShouldCreateRenderer(const Node& child) const
 #endif // ENABLE(SERVICE_CONTROLS)
 
 #if PLATFORM(IOS_FAMILY)
-// FIXME: This is a workaround for <rdar://problem/7725158>. We should find a better place for the touchCalloutEnabled() logic.
+// FIXME: We should find a better place for the touch callout logic. See rdar://problem/48937767.
 bool HTMLImageElement::willRespondToMouseClickEvents()
 {
     auto renderer = this->renderer();

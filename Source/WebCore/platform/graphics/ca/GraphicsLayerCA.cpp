@@ -39,6 +39,7 @@
 #include "PlatformCAFilters.h"
 #include "PlatformCALayer.h"
 #include "PlatformScreen.h"
+#include "Region.h"
 #include "RotateTransformOperation.h"
 #include "ScaleTransformOperation.h"
 #include "TiledBacking.h"
@@ -48,8 +49,10 @@
 #include <limits.h>
 #include <pal/spi/cf/CFUtilitiesSPI.h>
 #include <wtf/CheckedArithmetic.h>
+#include <wtf/HexNumber.h>
 #include <wtf/MathExtras.h>
 #include <wtf/NeverDestroyed.h>
+#include <wtf/PointerComparison.h>
 #include <wtf/SetForScope.h>
 #include <wtf/SystemTracing.h>
 #include <wtf/text/StringConcatenateNumbers.h>
@@ -268,7 +271,7 @@ static ASCIILiteral propertyIdToString(AnimatedPropertyID property)
 
 static String animationIdentifier(const String& animationName, AnimatedPropertyID property, int index, int subIndex)
 {
-    return animationName + '_' + String::number(property) + '_' + String::number(index) + '_' + String::number(subIndex);
+    return makeString(animationName, '_', static_cast<unsigned>(property), '_', index, '_', subIndex);
 }
 
 static bool animationHasStepsTimingFunction(const KeyframeValueList& valueList, const Animation* anim)
@@ -300,7 +303,7 @@ bool GraphicsLayer::supportsLayerType(Type type)
     switch (type) {
     case Type::Normal:
     case Type::PageTiledBacking:
-    case Type::Scrolling:
+    case Type::ScrollContainer:
         return true;
     case Type::Shape:
 #if PLATFORM(COCOA)
@@ -417,8 +420,8 @@ void GraphicsLayerCA::initialize(Type layerType)
     case Type::PageTiledBacking:
         platformLayerType = PlatformCALayer::LayerType::LayerTypePageTiledBackingLayer;
         break;
-    case Type::Scrolling:
-        platformLayerType = PlatformCALayer::LayerType::LayerTypeScrollingLayer;
+    case Type::ScrollContainer:
+        platformLayerType = PlatformCALayer::LayerType::LayerTypeScrollContainerLayer;
         break;
     case Type::Shape:
         platformLayerType = PlatformCALayer::LayerType::LayerTypeShapeLayer;
@@ -477,11 +480,9 @@ void GraphicsLayerCA::setName(const String& name)
 {
 #if ENABLE(TREE_DEBUGGING)
     String caLayerDescription;
-
     if (!m_layer->isPlatformCALayerRemote())
-        caLayerDescription = String::format("CALayer(%p) ", m_layer->platformLayer());
-
-    GraphicsLayer::setName(caLayerDescription + String::format("GraphicsLayer(%p, %llu) ", this, primaryLayerID()) + name);
+        caLayerDescription = makeString("CALayer(0x", hex(reinterpret_cast<uintptr_t>(m_layer->platformLayer()), Lowercase), ") ");
+    GraphicsLayer::setName(makeString(caLayerDescription, "GraphicsLayer(0x", hex(reinterpret_cast<uintptr_t>(this), Lowercase), ", ", primaryLayerID(), ") ", name));
 #else
     GraphicsLayer::setName(name);
 #endif
@@ -981,6 +982,15 @@ void GraphicsLayerCA::setShapeLayerWindRule(WindRule windRule)
 
     GraphicsLayer::setShapeLayerWindRule(windRule);
     noteLayerPropertyChanged(WindRuleChanged);
+}
+
+void GraphicsLayerCA::setEventRegion(EventRegion&& eventRegion)
+{
+    if (eventRegion == m_eventRegion)
+        return;
+
+    GraphicsLayer::setEventRegion(WTFMove(eventRegion));
+    noteLayerPropertyChanged(EventRegionChanged, m_isCommittingChanges ? DontScheduleFlush : ScheduleFlush);
 }
 
 bool GraphicsLayerCA::shouldRepaintOnSizeChange() const
@@ -1533,7 +1543,7 @@ void GraphicsLayerCA::recursiveCommitChanges(CommitState& commitState, const Tra
         static NeverDestroyed<Color> washBorderColor(255, 0, 0, 100);
         
         m_visibleTileWashLayer = createPlatformCALayer(PlatformCALayer::LayerTypeLayer, this);
-        String name = String::format("Visible Tile Wash Layer %p", m_visibleTileWashLayer->platformLayer());
+        String name = makeString("Visible Tile Wash Layer 0x", hex(reinterpret_cast<uintptr_t>(m_visibleTileWashLayer->platformLayer()), Lowercase));
         m_visibleTileWashLayer->setName(name);
         m_visibleTileWashLayer->setAnchorPoint(FloatPoint3D(0, 0, 0));
         m_visibleTileWashLayer->setBorderColor(washBorderColor);
@@ -1845,6 +1855,9 @@ void GraphicsLayerCA::commitLayerChangesBeforeSublayers(CommitState& commitState
     if (m_uncommittedChanges & MasksToBoundsRectChanged) // Needs to happen before ChildrenChanged
         updateMasksToBoundsRect();
 
+    if (m_uncommittedChanges & EventRegionChanged)
+        updateEventRegion();
+
     if (m_uncommittedChanges & MaskLayerChanged) {
         updateMaskLayer();
         // If the mask layer becomes tiled it can set this flag again. Clear the flag so that
@@ -1854,7 +1867,7 @@ void GraphicsLayerCA::commitLayerChangesBeforeSublayers(CommitState& commitState
 
     if (m_uncommittedChanges & ContentsNeedsDisplay)
         updateContentsNeedsDisplay();
-    
+
     if (m_uncommittedChanges & SupportsSubpixelAntialiasedTextChanged)
         updateSupportsSubpixelAntialiasedText();
 
@@ -2756,6 +2769,11 @@ void GraphicsLayerCA::updateMasksToBoundsRect()
     }
 }
 
+void GraphicsLayerCA::updateEventRegion()
+{
+    m_layer->setEventRegion(eventRegion());
+}
+
 void GraphicsLayerCA::updateMaskLayer()
 {
     PlatformCALayer* maskCALayer = m_maskLayer ? downcast<GraphicsLayerCA>(*m_maskLayer).primaryLayer() : nullptr;
@@ -3087,7 +3105,12 @@ bool GraphicsLayerCA::createAnimationFromKeyframes(const KeyframeValueList& valu
 bool GraphicsLayerCA::appendToUncommittedAnimations(const KeyframeValueList& valueList, const TransformOperations* operations, const Animation* animation, const String& animationName, const FloatSize& boxSize, int animationIndex, Seconds timeOffset, bool isMatrixAnimation)
 {
     TransformOperation::OperationType transformOp = isMatrixAnimation ? TransformOperation::MATRIX_3D : operations->operations().at(animationIndex)->type();
+#if !PLATFORM(WIN) && !HAVE(CA_WHERE_ADDITIVE_TRANSFORMS_ARE_REVERSED)
     bool additive = animationIndex > 0;
+#else
+    int numAnimations = isMatrixAnimation ? 1 : operations->size();
+    bool additive = animationIndex < numAnimations - 1;
+#endif
     bool isKeyframe = valueList.size() > 2;
 
     RefPtr<PlatformCAAnimation> caAnimation;
@@ -3124,10 +3147,10 @@ bool GraphicsLayerCA::createTransformAnimationsFromKeyframes(const KeyframeValue
     bool isMatrixAnimation = listIndex < 0;
     int numAnimations = isMatrixAnimation ? 1 : operations->size();
 
-#if !PLATFORM(WIN)
+#if !PLATFORM(WIN) && !HAVE(CA_WHERE_ADDITIVE_TRANSFORMS_ARE_REVERSED)
     for (int animationIndex = 0; animationIndex < numAnimations; ++animationIndex) {
 #else
-    // QuartzCore on Windows expects animation lists to be applied in reverse order (<rdar://problem/9112233>).
+    // Some versions of CA require animation lists to be applied in reverse order (<rdar://problem/43908047> and <rdar://problem/9112233>).
     for (int animationIndex = numAnimations - 1; animationIndex >= 0; --animationIndex) {
 #endif
         if (!appendToUncommittedAnimations(valueList, operations, animation, animationName, boxSize, animationIndex, timeOffset, isMatrixAnimation)) {

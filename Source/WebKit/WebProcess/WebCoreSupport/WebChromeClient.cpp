@@ -58,6 +58,7 @@
 #include <WebCore/ApplicationCacheStorage.h>
 #include <WebCore/AXObjectCache.h>
 #include <WebCore/ColorChooser.h>
+#include <WebCore/ContentRuleListResults.h>
 #include <WebCore/DataListSuggestionPicker.h>
 #include <WebCore/DatabaseTracker.h>
 #include <WebCore/DocumentLoader.h>
@@ -285,14 +286,15 @@ Page* WebChromeClient::createWindow(Frame& frame, const FrameLoadRequest& reques
     WebFrame* webFrame = WebFrame::fromCoreFrame(frame);
 
     uint64_t newPageID = 0;
-    WebPageCreationParameters parameters;
+    Optional<WebPageCreationParameters> parameters;
     if (!webProcess.parentProcessConnection()->sendSync(Messages::WebPageProxy::CreateNewPage(webFrame->info(), webFrame->page()->pageID(), request.resourceRequest(), windowFeatures, navigationActionData), Messages::WebPageProxy::CreateNewPage::Reply(newPageID, parameters), m_page.pageID()))
         return nullptr;
 
     if (!newPageID)
         return nullptr;
+    ASSERT(parameters);
 
-    webProcess.createWebPage(newPageID, WTFMove(parameters));
+    webProcess.createWebPage(newPageID, WTFMove(*parameters));
     return webProcess.webPage(newPageID)->corePage();
 }
 
@@ -405,7 +407,7 @@ bool WebChromeClient::runBeforeUnloadConfirmPanel(const String& message, Frame& 
 
     HangDetectionDisabler hangDetectionDisabler;
 
-    if (!WebProcess::singleton().parentProcessConnection()->sendSync(Messages::WebPageProxy::RunBeforeUnloadConfirmPanel(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message), Messages::WebPageProxy::RunBeforeUnloadConfirmPanel::Reply(shouldClose), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend))
+    if (!m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::RunBeforeUnloadConfirmPanel(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message), Messages::WebPageProxy::RunBeforeUnloadConfirmPanel::Reply(shouldClose)))
         return false;
 
     return shouldClose;
@@ -451,7 +453,7 @@ void WebChromeClient::runJavaScriptAlert(Frame& frame, const String& alertText)
 
     HangDetectionDisabler hangDetectionDisabler;
 
-    WebProcess::singleton().parentProcessConnection()->sendSync(Messages::WebPageProxy::RunJavaScriptAlert(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), alertText), Messages::WebPageProxy::RunJavaScriptAlert::Reply(), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend);
+    m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::RunJavaScriptAlert(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), alertText), Messages::WebPageProxy::RunJavaScriptAlert::Reply());
 }
 
 bool WebChromeClient::runJavaScriptConfirm(Frame& frame, const String& message)
@@ -468,7 +470,7 @@ bool WebChromeClient::runJavaScriptConfirm(Frame& frame, const String& message)
     HangDetectionDisabler hangDetectionDisabler;
 
     bool result = false;
-    if (!WebProcess::singleton().parentProcessConnection()->sendSync(Messages::WebPageProxy::RunJavaScriptConfirm(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message), Messages::WebPageProxy::RunJavaScriptConfirm::Reply(result), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend))
+    if (!m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::RunJavaScriptConfirm(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message), Messages::WebPageProxy::RunJavaScriptConfirm::Reply(result)))
         return false;
 
     return result;
@@ -487,7 +489,7 @@ bool WebChromeClient::runJavaScriptPrompt(Frame& frame, const String& message, c
 
     HangDetectionDisabler hangDetectionDisabler;
 
-    if (!WebProcess::singleton().parentProcessConnection()->sendSync(Messages::WebPageProxy::RunJavaScriptPrompt(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message, defaultValue), Messages::WebPageProxy::RunJavaScriptPrompt::Reply(result), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend))
+    if (!m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::RunJavaScriptPrompt(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), message, defaultValue), Messages::WebPageProxy::RunJavaScriptPrompt::Reply(result)))
         return false;
 
     return !result.isNull();
@@ -570,7 +572,6 @@ IntRect WebChromeClient::rootViewToScreen(const IntRect& rect) const
     return m_page.rootViewToScreen(rect);
 }
     
-#if PLATFORM(IOS_FAMILY)
 IntPoint WebChromeClient::accessibilityScreenToRootView(const IntPoint& point) const
 {
     return m_page.accessibilityScreenToRootView(point);
@@ -580,7 +581,6 @@ IntRect WebChromeClient::rootViewToAccessibilityScreen(const IntRect& rect) cons
 {
     return m_page.rootViewToAccessibilityScreen(rect);
 }
-#endif
 
 PlatformPageClient WebChromeClient::platformPageClient() const
 {
@@ -638,6 +638,7 @@ bool WebChromeClient::shouldUnavailablePluginMessageBeButton(RenderEmbeddedObjec
     case RenderEmbeddedObject::PluginCrashed:
     case RenderEmbeddedObject::PluginBlockedByContentSecurityPolicy:
     case RenderEmbeddedObject::UnsupportedPlugin:
+    case RenderEmbeddedObject::PluginTooSmall:
         return false;
     }
 
@@ -671,7 +672,7 @@ void WebChromeClient::mouseDidMoveOverElement(const HitTestResult& hitTestResult
     RefPtr<API::Object> userData;
 
     // Notify the bundle client.
-    m_page.injectedBundleUIClient().mouseDidMoveOverElement(&m_page, hitTestResult, static_cast<WebEvent::Modifiers>(modifierFlags), userData);
+    m_page.injectedBundleUIClient().mouseDidMoveOverElement(&m_page, hitTestResult, OptionSet<WebEvent::Modifier>::fromRaw(modifierFlags), userData);
 
     // Notify the UIProcess.
     WebHitTestResultData webHitTestResultData(hitTestResult);
@@ -714,7 +715,7 @@ void WebChromeClient::print(Frame& frame)
     }
 #endif
 
-    m_page.sendSync(Messages::WebPageProxy::PrintFrame(webFrame->frameID()), Messages::WebPageProxy::PrintFrame::Reply(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend);
+    m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::PrintFrame(webFrame->frameID()), Messages::WebPageProxy::PrintFrame::Reply());
 }
 
 void WebChromeClient::exceededDatabaseQuota(Frame& frame, const String& databaseName, DatabaseDetails details)
@@ -731,11 +732,8 @@ void WebChromeClient::exceededDatabaseQuota(Frame& frame, const String& database
     auto securityOrigin = API::SecurityOrigin::create(SecurityOriginData::fromDatabaseIdentifier(originData.databaseIdentifier())->securityOrigin());
     newQuota = m_page.injectedBundleUIClient().didExceedDatabaseQuota(&m_page, securityOrigin.ptr(), databaseName, details.displayName(), currentQuota, currentOriginUsage, details.currentUsage(), details.expectedUsage());
 
-    if (!newQuota) {
-        WebProcess::singleton().parentProcessConnection()->sendSync(
-            Messages::WebPageProxy::ExceededDatabaseQuota(webFrame->frameID(), originData.databaseIdentifier(), databaseName, details.displayName(), currentQuota, currentOriginUsage, details.currentUsage(), details.expectedUsage()),
-            Messages::WebPageProxy::ExceededDatabaseQuota::Reply(newQuota), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend);
-    }
+    if (!newQuota)
+        m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::ExceededDatabaseQuota(webFrame->frameID(), originData.databaseIdentifier(), databaseName, details.displayName(), currentQuota, currentOriginUsage, details.currentUsage(), details.expectedUsage()), Messages::WebPageProxy::ExceededDatabaseQuota::Reply(newQuota));
 
     tracker.setQuota(originData, newQuota);
 }
@@ -757,9 +755,7 @@ void WebChromeClient::reachedApplicationCacheOriginQuota(SecurityOrigin& origin,
         return;
 
     uint64_t newQuota = 0;
-    WebProcess::singleton().parentProcessConnection()->sendSync(
-        Messages::WebPageProxy::ReachedApplicationCacheOriginQuota(origin.data().databaseIdentifier(), currentQuota, totalBytesNeeded),
-        Messages::WebPageProxy::ReachedApplicationCacheOriginQuota::Reply(newQuota), m_page.pageID(), Seconds::infinity(), IPC::SendSyncOption::InformPlatformProcessWillSuspend);
+    m_page.sendSyncWithDelayedReply(Messages::WebPageProxy::ReachedApplicationCacheOriginQuota(origin.data().databaseIdentifier(), currentQuota, totalBytesNeeded), Messages::WebPageProxy::ReachedApplicationCacheOriginQuota::Reply(newQuota));
 
     cacheStorage.storeUpdatedQuotaForOrigin(&origin, newQuota);
 }
@@ -897,10 +893,10 @@ void WebChromeClient::attachRootGraphicsLayer(Frame&, GraphicsLayer* layer)
         m_page.exitAcceleratedCompositingMode();
 }
 
-void WebChromeClient::attachViewOverlayGraphicsLayer(Frame& frame, GraphicsLayer* graphicsLayer)
+void WebChromeClient::attachViewOverlayGraphicsLayer(GraphicsLayer* graphicsLayer)
 {
     if (auto drawingArea = m_page.drawingArea())
-        drawingArea->attachViewOverlayGraphicsLayer(&frame, graphicsLayer);
+        drawingArea->attachViewOverlayGraphicsLayer(graphicsLayer);
 }
 
 void WebChromeClient::setNeedsOneShotDrawingSynchronization()
@@ -914,18 +910,12 @@ void WebChromeClient::scheduleCompositingLayerFlush()
         m_page.drawingArea()->scheduleCompositingLayerFlush();
 }
 
-void WebChromeClient::contentRuleListNotification(const URL& url, const HashSet<std::pair<String, String>>& notificationPairs)
+void WebChromeClient::contentRuleListNotification(const URL& url, const ContentRuleListResults& results)
 {
-    Vector<String> identifiers;
-    Vector<String> notifications;
-    identifiers.reserveInitialCapacity(notificationPairs.size());
-    notifications.reserveInitialCapacity(notificationPairs.size());
-    for (auto& notification : notificationPairs) {
-        identifiers.uncheckedAppend(notification.first);
-        notifications.uncheckedAppend(notification.second);
-    }
-
-    m_page.send(Messages::WebPageProxy::ContentRuleListNotification(url, identifiers, notifications));
+#if ENABLE(CONTENT_EXTENSIONS)
+    ASSERT(results.shouldNotifyApplication());
+    m_page.send(Messages::WebPageProxy::ContentRuleListNotification(url, results));
+#endif
 }
 
 bool WebChromeClient::adjustLayerFlushThrottling(LayerFlushThrottleState::Flags flags)
@@ -1325,5 +1315,19 @@ void WebChromeClient::requestStorageAccess(String&& subFrameHost, String&& topFr
     m_page.requestStorageAccess(WTFMove(subFrameHost), WTFMove(topFrameHost), frameID, WTFMove(callback));
 }
 #endif
+
+#if ENABLE(DEVICE_ORIENTATION)
+void WebChromeClient::shouldAllowDeviceOrientationAndMotionAccess(Frame& frame, CompletionHandler<void(bool)>&& callback)
+{
+    auto* webFrame = WebFrame::fromCoreFrame(frame);
+    ASSERT(webFrame);
+    m_page.shouldAllowDeviceOrientationAndMotionAccess(webFrame->frameID(), SecurityOriginData::fromFrame(&frame), WTFMove(callback));
+}
+#endif
+
+void WebChromeClient::configureLoggingChannel(const String& channelName, WTFLogChannelState state, WTFLogLevel level)
+{
+    m_page.configureLoggingChannel(channelName, state, level);
+}
 
 } // namespace WebKit

@@ -33,8 +33,9 @@
 
 namespace WTF {
 
-template<typename T> class WeakPtr;
-template<typename T> class WeakPtrFactory;
+template<typename> class WeakHashSet;
+template<typename> class WeakPtr;
+template<typename> class WeakPtrFactory;
 
 // Note: WeakReference is an implementation detail, and should not be used directly.
 template<typename T>
@@ -42,6 +43,8 @@ class WeakReference : public ThreadSafeRefCounted<WeakReference<T>> {
     WTF_MAKE_NONCOPYABLE(WeakReference<T>);
     WTF_MAKE_FAST_ALLOCATED;
 public:
+    ~WeakReference() { } // So that we can use a template specialization for testing purposes to detect leaks.
+
     T* get() const { return m_ptr; }
 
     void clear() { m_ptr = nullptr; }
@@ -83,7 +86,8 @@ public:
     void clear() { m_ref = nullptr; }
 
 private:
-    template<typename U> friend class WeakPtr;
+    template<typename> friend class WeakHashSet;
+    template<typename> friend class WeakPtr;
     template<typename U> friend WeakPtr<U> makeWeakPtr(U&);
 
     RefPtr<WeakReference<T>> m_ref;
@@ -127,6 +131,8 @@ public:
     }
 
 private:
+    template<typename> friend class WeakHashSet;
+
     mutable RefPtr<WeakReference<T>> m_ref;
 };
 

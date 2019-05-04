@@ -124,7 +124,7 @@ static Optional<Vector<CDMInstanceClearKey::Key>> parseLicenseFormat(const JSON:
         });
     if (!validFormat)
         return WTF::nullopt;
-    return WTFMove(decodedKeys);
+    return decodedKeys;
 }
 
 static bool parseLicenseReleaseAcknowledgementFormat(const JSON::Object& root)
@@ -507,6 +507,7 @@ const Vector<CDMInstanceClearKey::Key> CDMInstanceClearKey::keys() const
 {
     // Return the keys of all sessions.
     Vector<CDMInstanceClearKey::Key> allKeys { };
+    auto locker = holdLock(m_keysMutex);
     size_t initialCapacity = 0;
     for (auto& key : ClearKeyState::singleton().keys().values())
         initialCapacity += key.size();

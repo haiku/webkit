@@ -29,6 +29,8 @@
 
 #include "NotImplemented.h"
 #include <WebCore/CertificateInfo.h>
+#include <WebCore/DictionaryPopupInfo.h>
+#include <WebCore/FontAttributes.h>
 #include <WebCore/ResourceError.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/ResourceResponse.h>
@@ -49,7 +51,8 @@ bool ArgumentCoder<ResourceRequest>::decodePlatformData(Decoder& decoder, Resour
     return false;
 }
 
-/*void ArgumentCoder<ResourceResponse>::encodePlatformData(Encoder& encoder, const ResourceResponse& resourceResponse)
+#if 0
+void ArgumentCoder<ResourceResponse>::encodePlatformData(Encoder& encoder, const ResourceResponse& resourceResponse)
 {
     //encoder << static_cast<uint32_t>(resourceResponse.soupMessageFlags());
 }
@@ -65,7 +68,8 @@ bool ArgumentCoder<ResourceResponse>::decodePlatformData(Decoder& decoder, Resou
     //
 
     return false;
-}*/
+}
+#endif
 
 void ArgumentCoder<CertificateInfo>::encode(Encoder& encoder, const CertificateInfo& certificateInfo)
 {
@@ -117,6 +121,18 @@ void ArgumentCoder<Credential>::encodePlatformData(Encoder&, const Credential&)
 }
 
 bool ArgumentCoder<Credential>::decodePlatformData(Decoder&, Credential&)
+{
+    ASSERT_NOT_REACHED();
+    return false;
+}
+
+Optional<FontAttributes> ArgumentCoder<FontAttributes>::decodePlatformData(Decoder&, FontAttributes&)
+{
+    ASSERT_NOT_REACHED();
+    return WTF::nullopt;
+}
+
+bool ArgumentCoder<DictionaryPopupInfo>::decodePlatformData(Decoder&, DictionaryPopupInfo&)
 {
     ASSERT_NOT_REACHED();
     return false;

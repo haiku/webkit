@@ -30,6 +30,7 @@
 
 #include "ExceptionData.h"
 #include "SWServer.h"
+#include "SWServerRegistration.h"
 #include "SWServerWorker.h"
 #include "SchemeRegistry.h"
 #include "SecurityOrigin.h"
@@ -234,6 +235,10 @@ void SWServerJobQueue::runNextJob()
 
 void SWServerJobQueue::runNextJobSynchronously()
 {
+    ASSERT(!m_jobQueue.isEmpty());
+    if (m_jobQueue.isEmpty())
+        return;
+
     auto& job = firstJob();
     switch (job.type) {
     case ServiceWorkerJobType::Register:
@@ -247,7 +252,7 @@ void SWServerJobQueue::runNextJobSynchronously()
         return;
     }
 
-    RELEASE_ASSERT_NOT_REACHED();
+    ASSERT_NOT_REACHED();
 }
 
 // https://w3c.github.io/ServiceWorker/#register-algorithm

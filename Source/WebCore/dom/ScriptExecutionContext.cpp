@@ -46,6 +46,7 @@
 #include "SWClientConnection.h"
 #include "SWContextManager.h"
 #include "SchemeRegistry.h"
+#include "ScriptController.h"
 #include "ScriptDisallowedScope.h"
 #include "ScriptState.h"
 #include "ServiceWorker.h"
@@ -554,7 +555,19 @@ String ScriptExecutionContext::domainForCachePartition() const
     return m_domainForCachePartition.isNull() ? topOrigin().domainForCachePartition() : m_domainForCachePartition;
 }
 
-bool ScriptExecutionContext::hasServiceWorkerScheme()
+bool ScriptExecutionContext::allowsMediaDevices() const
+{
+#if ENABLE(MEDIA_STREAM)
+    if (!is<Document>(*this))
+        return false;
+    auto page = downcast<Document>(*this).page();
+    return page ? !page->settings().mediaCaptureRequiresSecureConnection() : false;
+#else
+    return false;
+#endif
+}
+
+bool ScriptExecutionContext::hasServiceWorkerScheme() const
 {
     ASSERT(securityOrigin());
     return SchemeRegistry::isServiceWorkerContainerCustomScheme(securityOrigin()->protocol());

@@ -1,3 +1,54 @@
+2019-03-23  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Remove build time dependency on Geoclue2
+        https://bugs.webkit.org/show_bug.cgi?id=195994
+
+        Reviewed by Michael Catanzaro.
+
+        * POTFILES.in: Add GeoclueGeolocationProvider.cpp.
+
+2019-03-21  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WPE] Add API to provide geolocation information
+        https://bugs.webkit.org/show_bug.cgi?id=195940
+
+        Reviewed by Michael Catanzaro.
+
+        * POTFILES.in: Add WebKitGeolocationManager.cpp.
+
+2019-03-13  Milo Casagrande <milo@milo.name>
+
+        [l10n] Updated Italian translation of WebKitGTK+
+        https://bugs.webkit.org/show_bug.cgi?id=195620
+
+        Rubber-stamped by Carlos Garcia Campos.
+
+        * it.po:
+
+2019-03-05  Piotr Drąg  <piotrdrag@gmail.com>
+
+        [GTK][l10n] Updated Polish translation of WebKitGTK for 2.24
+        https://bugs.webkit.org/show_bug.cgi?id=194859
+
+        Rubber-stamped by Carlos Garcia Campos.
+
+        * pl.po:
+
+2019-03-04  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update POTFILES.in after r239627.
+
+        * POTFILES.in:
+
+2019-02-14  Milo Casagrande  <milo@milo.name>
+
+        [l10n] Updated Italian translation of WebKitGTK+
+        https://bugs.webkit.org/show_bug.cgi?id=194652
+
+        Rubber-stamped by Michael Catanzaro.
+
+        * it.po:
+
 2019-01-24  Carlos Garcia Campos  <cgarcia@igalia.com>
 
         [GLIB] Expose JavaScriptCore options in GLib public API

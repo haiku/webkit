@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,11 +47,14 @@
 #include <JavaScriptCore/JSONObject.h>
 #include <JavaScriptCore/ThrowScope.h>
 #include <wtf/ASCIICType.h>
+#include <wtf/IsoMallocInlines.h>
 #include <wtf/RunLoop.h>
 #include <wtf/Scope.h>
 #include <wtf/UUID.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(PaymentRequest);
 
 // Implements the IsWellFormedCurrencyCode abstract operation from ECMA 402
 // https://tc39.github.io/ecma402/#sec-iswellformedcurrencycode
@@ -349,7 +352,7 @@ ExceptionOr<Ref<PaymentRequest>> PaymentRequest::create(Document& document, Vect
 }
 
 PaymentRequest::PaymentRequest(Document& document, PaymentOptions&& options, PaymentDetailsInit&& details, Vector<String>&& serializedModifierData, Vector<Method>&& serializedMethodData, String&& selectedShippingOption)
-    : ActiveDOMObject { &document }
+    : ActiveDOMObject { document }
     , m_options { WTFMove(options) }
     , m_details { WTFMove(details) }
     , m_serializedModifierData { WTFMove(serializedModifierData) }
@@ -428,7 +431,7 @@ void PaymentRequest::show(Document& document, RefPtr<DOMPromise>&& detailsPromis
         return;
     }
 
-    auto exception = selectedPaymentHandler->show();
+    auto exception = selectedPaymentHandler->show(document);
     if (exception.hasException()) {
         settleShowPromise(exception.releaseException());
         return;
@@ -506,7 +509,7 @@ void PaymentRequest::canMakePayment(Document& document, CanMakePaymentPromise&& 
         if (!handler)
             continue;
 
-        handler->canMakePayment([promise = WTFMove(promise)](bool canMakePayment) mutable {
+        handler->canMakePayment(document, [promise = WTFMove(promise)](bool canMakePayment) mutable {
             promise.resolve(canMakePayment);
         });
         return;

@@ -31,12 +31,14 @@
 #import "Logging.h"
 #import "MediaPlayer.h"
 #import "PlatformMediaSession.h"
+#import "RuntimeApplicationChecks.h"
 #import "SystemMemory.h"
 #import "WebCoreThreadRun.h"
 #import <AVFoundation/AVAudioSession.h>
 #import <AVFoundation/AVRouteDetector.h>
 #import <objc/runtime.h>
 #import <pal/ios/UIKitSoftLink.h>
+#import <pal/spi/ios/CelestialSPI.h>
 #import <pal/spi/ios/UIKitSPI.h>
 #import <wtf/BlockObjCExceptions.h>
 #import <wtf/MainThread.h>
@@ -49,6 +51,12 @@ SOFT_LINK_CONSTANT(AVFoundation, AVAudioSessionInterruptionNotification, NSStrin
 SOFT_LINK_CONSTANT(AVFoundation, AVAudioSessionInterruptionTypeKey, NSString *)
 SOFT_LINK_CONSTANT(AVFoundation, AVAudioSessionInterruptionOptionKey, NSString *)
 SOFT_LINK_CONSTANT(AVFoundation, AVRouteDetectorMultipleRoutesDetectedDidChangeNotification, NSString *)
+
+#if HAVE(CELESTIAL)
+SOFT_LINK_PRIVATE_FRAMEWORK_OPTIONAL(Celestial)
+SOFT_LINK_CLASS_OPTIONAL(Celestial, AVSystemController)
+SOFT_LINK_CONSTANT_MAY_FAIL(Celestial, AVSystemController_PIDToInheritApplicationStateFrom, NSString *)
+#endif
 
 #if HAVE(MEDIA_PLAYER) && !PLATFORM(WATCHOS)
 SOFT_LINK_CLASS(AVFoundation, AVRouteDetector)
@@ -129,12 +137,12 @@ void MediaSessionManageriOS::resetRestrictions()
 {
     static const size_t systemMemoryRequiredForVideoInBackgroundTabs = 1024 * 1024 * 1024;
 
-    LOG(Media, "MediaSessionManageriOS::resetRestrictions");
+    ALWAYS_LOG(LOGIDENTIFIER);
 
     PlatformMediaSessionManager::resetRestrictions();
 
     if (ramSize() < systemMemoryRequiredForVideoInBackgroundTabs) {
-        LOG(Media, "MediaSessionManageriOS::resetRestrictions - restricting video in background tabs because system memory = %zul", ramSize());
+        ALWAYS_LOG(LOGIDENTIFIER, "restricting video in background tabs because system memory = ", ramSize());
         addRestriction(PlatformMediaSession::Video, BackgroundTabPlaybackRestricted);
     }
 
@@ -156,7 +164,7 @@ void MediaSessionManageriOS::configureWireLessTargetMonitoring()
         return session.requiresPlaybackTargetRouteMonitoring();
     });
 
-    LOG(Media, "MediaSessionManageriOS::configureWireLessTargetMonitoring - requiresMonitoring = %s", requiresMonitoring ? "true" : "false");
+    ALWAYS_LOG(LOGIDENTIFIER, "requiresMonitoring = ", requiresMonitoring);
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS
 
@@ -166,6 +174,23 @@ void MediaSessionManageriOS::configureWireLessTargetMonitoring()
         [m_objcObserver stopMonitoringAirPlayRoutes];
 
     END_BLOCK_OBJC_EXCEPTIONS
+#endif
+}
+
+void MediaSessionManageriOS::providePresentingApplicationPIDIfNecessary()
+{
+#if HAVE(CELESTIAL)
+    if (m_havePresentedApplicationPID)
+        return;
+    m_havePresentedApplicationPID = true;
+
+    if (!canLoadAVSystemController_PIDToInheritApplicationStateFrom())
+        return;
+
+    NSError *error = nil;
+    [[getAVSystemControllerClass() sharedAVSystemController] setAttribute:@(presentingApplicationPID()) forKey:getAVSystemController_PIDToInheritApplicationStateFrom() error:&error];
+    if (error)
+        WTFLogAlways("Failed to set up PID proxying: %s", error.localizedDescription.UTF8String);
 #endif
 }
 

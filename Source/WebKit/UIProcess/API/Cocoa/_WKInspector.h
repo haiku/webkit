@@ -26,14 +26,12 @@
 #import <Foundation/Foundation.h>
 #import <WebKit/WKFoundation.h>
 
-#if WK_API_ENABLED
-
 @class WKWebView;
 @class _WKFrameHandle;
 
 NS_ASSUME_NONNULL_BEGIN
 
-WK_CLASS_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))
+WK_CLASS_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA))
 @interface _WKInspector : NSObject
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -62,5 +60,3 @@ WK_CLASS_AVAILABLE(macosx(WK_MAC_TBA), ios(WK_IOS_TBA))
 @end
 
 NS_ASSUME_NONNULL_END
-
-#endif

@@ -63,6 +63,7 @@ void Value::replaceWithIdentity(Value* value)
     // previous value in place, and then we construct the Identity Value in place.
 
     ASSERT(m_type == value->m_type);
+    ASSERT(value != this);
 
     if (m_type == Void) {
         replaceWithNopIgnoringType();
@@ -499,8 +500,14 @@ bool Value::returnsBool() const
     case Const32:
         return asInt32() == 0 || asInt32() == 1;
     case BitAnd:
-        return child(1)->isInt32(1)
-            || (child(0)->returnsBool() && child(1)->hasInt() && child(1)->asInt() & 1);
+        return child(0)->returnsBool() || child(1)->returnsBool();
+    case BitOr:
+    case BitXor:
+        return child(0)->returnsBool() && child(1)->returnsBool();
+    case Select:
+        return child(1)->returnsBool() && child(2)->returnsBool();
+    case Identity:
+        return child(0)->returnsBool();
     case Equal:
     case NotEqual:
     case LessThan:

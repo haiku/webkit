@@ -26,8 +26,6 @@
 #import "config.h"
 #import "_WKAttachment.h"
 
-#if WK_API_ENABLED
-
 #import "APIAttachment.h"
 #import "WKErrorPrivate.h"
 #import "_WKAttachmentInternal.h"
@@ -125,7 +123,8 @@ static const NSInteger InvalidAttachmentErrorCode = 2;
 - (void)setFileWrapper:(NSFileWrapper *)fileWrapper contentType:(NSString *)contentType completion:(void (^)(NSError *))completionHandler
 {
     if (!_attachment->isValid()) {
-        completionHandler([NSError errorWithDomain:WKErrorDomain code:InvalidAttachmentErrorCode userInfo:nil]);
+        if (completionHandler)
+            completionHandler([NSError errorWithDomain:WKErrorDomain code:InvalidAttachmentErrorCode userInfo:nil]);
         return;
     }
 
@@ -168,5 +167,3 @@ static const NSInteger InvalidAttachmentErrorCode = 2;
 }
 
 @end
-
-#endif // WK_API_ENABLED

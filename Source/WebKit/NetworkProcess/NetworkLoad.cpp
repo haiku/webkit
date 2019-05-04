@@ -27,8 +27,11 @@
 #include "NetworkLoad.h"
 
 #include "AuthenticationChallengeDisposition.h"
+#include "AuthenticationManager.h"
+#include "NetworkDataTaskBlob.h"
 #include "NetworkProcess.h"
 #include "NetworkSession.h"
+#include "WebErrors.h"
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/SharedBuffer.h>
 #include <wtf/Seconds.h>
@@ -38,6 +41,8 @@ namespace WebKit {
 using namespace WebCore;
 
 struct NetworkLoad::Throttle {
+    WTF_MAKE_STRUCT_FAST_ALLOCATED;
+
     Throttle(NetworkLoad& load, Seconds delay, ResourceResponse&& response, ResponseCompletionHandler&& handler)
         : timer(load, &NetworkLoad::throttleDelayCompleted)
         , response(WTFMove(response))
@@ -50,21 +55,24 @@ struct NetworkLoad::Throttle {
     ResponseCompletionHandler responseCompletionHandler;
 };
 
-NetworkLoad::NetworkLoad(NetworkLoadClient& client, NetworkLoadParameters&& parameters, NetworkSession& networkSession)
+NetworkLoad::NetworkLoad(NetworkLoadClient& client, BlobRegistryImpl* blobRegistry, NetworkLoadParameters&& parameters, NetworkSession& networkSession)
     : m_client(client)
     , m_networkProcess(networkSession.networkProcess())
     , m_parameters(WTFMove(parameters))
     , m_loadThrottleLatency(networkSession.loadThrottleLatency())
     , m_currentRequest(m_parameters.request)
 {
-    initialize(networkSession);
+    initialize(networkSession, blobRegistry);
 }
 
-void NetworkLoad::initialize(NetworkSession& networkSession)
+void NetworkLoad::initialize(NetworkSession& networkSession, WebCore::BlobRegistryImpl* blobRegistry)
 {
-    m_task = NetworkDataTask::create(networkSession, *this, m_parameters);
-    if (!m_parameters.defersLoading)
-        m_task->resume();
+    if (blobRegistry && m_parameters.request.url().protocolIsBlob())
+        m_task = NetworkDataTaskBlob::create(networkSession, *blobRegistry, *this, m_parameters.request, m_parameters.contentSniffingPolicy, m_parameters.blobFileReferences);
+    else
+        m_task = NetworkDataTask::create(networkSession, *this, m_parameters);
+
+    m_task->resume();
 }
 
 NetworkLoad::~NetworkLoad()
@@ -74,16 +82,6 @@ NetworkLoad::~NetworkLoad()
         m_redirectCompletionHandler({ });
     if (m_task)
         m_task->clearClient();
-}
-
-void NetworkLoad::setDefersLoading(bool defers)
-{
-    if (m_task) {
-        if (defers)
-            m_task->suspend();
-        else
-            m_task->resume();
-    }
 }
 
 void NetworkLoad::cancel()

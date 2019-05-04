@@ -24,6 +24,7 @@ include_directories(SYSTEM
     ${CAIRO_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
+    ${GSTREAMER_AUDIO_INCLUDE_DIRS}
     ${LIBSOUP_INCLUDE_DIRS}
     ${WPE_INCLUDE_DIRS}
     ${WPEBACKEND_FDO_INCLUDE_DIRS}
@@ -92,10 +93,7 @@ set_tests_properties(TestWebKit PROPERTIES TIMEOUT 60)
 set_target_properties(TestWebKit PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TESTWEBKITAPI_RUNTIME_OUTPUT_DIRECTORY}/WebKit)
 
 # TestWebKitAPIBase
-list(APPEND TestWebKitAPIBase_LIBRARIES
-    WPEBackend-fdo-0.1
-)
-find_package(WPEBackend-fdo REQUIRED)
+list(APPEND TestWebKitAPIBase_LIBRARIES ${WPEBACKEND_FDO_LIBRARIES})
 list(APPEND TestWebKitAPI_LIBRARIES ${WPEBACKEND_FDO_LIBRARIES})
 list(APPEND TestWebKitAPIBase_SOURCES
     ${TOOLS_DIR}/wpe/backends/ViewBackend.cpp
@@ -115,10 +113,6 @@ add_test(TestJSC ${TESTWEBKITAPI_RUNTIME_OUTPUT_DIRECTORY}/JavaScriptCore/TestJS
 add_dependencies(TestJSC ${TestWebKitAPI_DEPENDENCIES})
 set_tests_properties(TestJSC PROPERTIES TIMEOUT 60)
 set_target_properties(TestJSC PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TESTWEBKITAPI_RUNTIME_OUTPUT_DIRECTORY}/JavaScriptCore)
-
-# Add an intermediate target between TestJSC and JavaScriptCore to ensure derived headers are copied into the forwarding header directory.
-add_custom_target(pre-TestJSC DEPENDS JavaScriptCore)
-add_dependencies(TestJSC pre-TestJSC)
 
 if (COMPILER_IS_GCC_OR_CLANG)
     WEBKIT_ADD_TARGET_CXX_FLAGS(TestWebCore -Wno-sign-compare

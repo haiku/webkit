@@ -7,6 +7,7 @@
 
 editing/find [ Pass ]
 editing/undo-manager [ Pass ]
+fast/forms/select/mac-wk2 [ Pass ]
 fast/visual-viewport/tiled-drawing [ Pass ]
 fast/web-share [ Pass ]
 scrollingcoordinator [ Pass ]
@@ -32,9 +33,11 @@ fast/media/mq-prefers-reduced-motion-live-update.html [ Pass ]
 [ Sierra ] http/tests/ssl/applepay/ApplePaySessionV5.html [ Skip ]
 [ Sierra ] http/tests/ssl/applepay/ApplePayRequestShippingContactV3.https.html [ Skip ]
 [ Sierra ] http/tests/ssl/applepay/ApplePayShippingAddressChangeEventErrorsV3.https.html [ Skip ]
+[ Sierra ] accessibility/mac/apple-pay-labels.html [ Skip ]
 [ HighSierra ] http/tests/ssl/applepay/ApplePayButtonV4.html [ Skip ]
 [ HighSierra ] http/tests/ssl/applepay/ApplePaySessionV4.html [ Skip ]
 [ HighSierra ] http/tests/ssl/applepay/ApplePaySessionV5.html [ Skip ]
+[ HighSierra ] accessibility/mac/apple-pay-session-v4.html [ Skip ]
 
 fast/visual-viewport/rubberbanding-viewport-rects.html [ Pass ]
 fast/visual-viewport/rubberbanding-viewport-rects-header-footer.html  [ Pass ]
@@ -74,7 +77,7 @@ webkit.org/b/184569 storage/indexeddb/modern/transactions-stop-on-navigation.htm
 [ Mojave+ ] fast/forms/auto-fill-button/caps-lock-indicator-should-be-visible-after-hiding-auto-fill-strong-password-button.html [ Pass ]
 [ Mojave+ ] fast/forms/auto-fill-button/caps-lock-indicator-should-not-be-visible-when-auto-fill-strong-password-button-is-visible.html [ Pass ]
 [ Mojave+ ] fast/forms/password-scrolled-after-caps-lock-toggled.html [ Pass ]
-[ Mojave+ ] fast/repaint/placeholder-after-caps-lock-hidden.html [ Pass ]
+webkit.org/b/194170 [ Mojave+ Release ] fast/repaint/placeholder-after-caps-lock-hidden.html [ Pass Failure ]
 
 fast/events/inactive-window-no-mouse-event.html [ Pass ]
 
@@ -320,7 +323,7 @@ webkit.org/b/167661 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-ma
 webkit.org/b/148407 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-mainframe-slow-horizontal.html [ Pass Failure ]
 webkit.org/b/148407 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-mainframe-slow-vertical.html [ Pass Failure ]
 webkit.org/b/165196 tiled-drawing/scrolling/scroll-snap/scroll-snap-iframe.html [ Pass Failure ]
-webkit.org/b/167321 tiled-drawing/scrolling/scroll-snap/scroll-snap-proximity-mainframe.html [ Pass Failure ]
+webkit.org/b/196115 tiled-drawing/scrolling/scroll-snap/scroll-snap-proximity-mainframe.html [ Skip ]
 
 webkit.org/b/148408 tiled-drawing/scrolling/root-overflow-with-mousewheel.html [ Pass Failure Timeout ]
 
@@ -518,6 +521,7 @@ webkit.org/b/141085 http/tests/media/video-query-url.html [ Pass Timeout ]
 
 # Content Extensions tests must be enabled explicitly on mac-wk2.
 http/tests/contentextensions [ Pass ]
+http/tests/inspector/network/contentextensions [ Pass ]
 http/tests/websocket/tests/hybi/contentextensions [ Pass ]
 [ Sierra+ ] http/wpt/beacon/contentextensions [ Pass ]
 
@@ -763,8 +767,8 @@ webkit.org/b/176122 media/video-controls-drop-and-restore-timeline.html [ Pass F
 webkit.org/b/185962 media/video-play-require-user-gesture.html [ Pass Failure ]
 webkit.org/b/185962 media/video-play-audio-require-user-gesture.html [ Pass Failure ]
 
-webkit.org/b/185994 [ Debug ] fast/text/user-installed-fonts/shadow-family.html [ Pass ImageOnlyFailure ]
-webkit.org/b/185994 [ Debug ] fast/text/user-installed-fonts/shadow-postscript-family.html [ Pass ImageOnlyFailure ]
+webkit.org/b/185994 fast/text/user-installed-fonts/shadow-family.html [ Pass ImageOnlyFailure ]
+webkit.org/b/185994 fast/text/user-installed-fonts/shadow-postscript-family.html [ Pass ImageOnlyFailure ]
 
 # <rdar://problem/25010307>
 [ HighSierra+ ] http/tests/ssl/applepay/ApplePayError.html [ Pass ]
@@ -773,6 +777,8 @@ webkit.org/b/185994 [ Debug ] fast/text/user-installed-fonts/shadow-postscript-f
 [ Mojave+ ] http/tests/ssl/applepay/ApplePaySessionV5.html [ Pass ]
 [ HighSierra+ ] http/tests/ssl/applepay/ApplePayRequestShippingContactV3.https.html [ Pass ]
 [ HighSierra+ ] http/tests/ssl/applepay/ApplePayShippingAddressChangeEventErrorsV3.https.html [ Pass ]
+[ HighSierra+ ] accessibility/mac/apple-pay-labels.html [ Pass ]
+[ Mojave+ ] accessibility/mac/apple-pay-session-v4.html [ Pass ]
 # <rdar://problem/31634451>
 [ HighSierra+ ] http/tests/resourceLoadStatistics/cookies-with-and-without-user-interaction.html [ Pass ]
 [ HighSierra+ ] http/tests/resourceLoadStatistics/cookie-deletion.html [ Pass ]
@@ -848,8 +854,6 @@ webkit.org/b/183860 [ Sierra Release ] http/wpt/service-workers/third-party-regi
 
 webkit.org/b/184245 http/tests/workers/service/service-worker-cache-api.https.html [ Pass Failure ]
 
-webkit.org/b/177380 http/tests/cache-storage/cache-records-persistency.https.html [ Pass Failure ]
-
 webkit.org/b/184937 transitions/opacity-transition-zindex.html [ Skip ]
 
 webkit.org/b/186362 [ Release ] http/tests/resourceLoadStatistics/prevalent-resource-with-user-interaction.html [ Skip ]
@@ -911,4 +915,38 @@ webkit.org/b/191644 [ Sierra ] fast/workers/worker-cloneport.html [ Pass Failure
 
 webkit.org/b/191658 [ Sierra Release ] fast/layers/no-clipping-overflow-hidden-added-after-transform.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/193976 http/tests/cache-storage/cache-clearing-origin.https.html [ Pass Failure ]
+webkit.org/b/194826 http/tests/resourceLoadStatistics/do-not-block-top-level-navigation-redirect.html [ Pass Timeout ]
+
+webkit.org/b/194368 http/tests/workers/service/basic-register-exceptions.html [ Pass Failure ]
+
+webkit.org/b/194253 scrollingcoordinator/scrolling-tree/fixed-inside-frame.html [ Pass Failure ]
+
+webkit.org/b/194916 fast/mediastream/MediaStream-video-element.html [ Pass Failure ]
+
+webkit.org/b/195719 fast/events/wheel-event-destroys-overflow.html [ Pass Timeout ]
+webkit.org/b/195719 fast/events/wheelevent-mousewheel-interaction.html  [ Pass Timeout ]
+webkit.org/b/195719 fast/events/wheel-event-destroys-frame.html  [ Pass Timeout ]
+webkit.org/b/195719 fast/events/wheelevent-basic.html  [ Pass Timeout ]
+webkit.org/b/195719 fast/events/wheelevent-in-text-node.html [ Pass Timeout ]
+
+webkit.org/b/196307 http/tests/resourceLoadStatistics/website-data-removal-for-site-navigated-to-with-link-decoration.html [ Pass Failure ]
+
+webkit.org/b/196376 storage/domstorage/localstorage/private-browsing-affects-storage.html [ Pass Failure ]
+
+webkit.org/b/194780 http/wpt/webauthn/public-key-credential-create-success-hid.https.html [ Pass Failure ]
+webkit.org/b/196377 http/wpt/webauthn/public-key-credential-get-success-hid.https.html [ Pass Failure ]
+
+webkit.org/b/196400 fast/mediastream/MediaStreamTrack-getSettings.html [ Pass Failure ]
+
+webkit.org/b/196403 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-stop.html [ Pass Failure ]
+
+webkit.org/b/187391 accessibility/mac/async-increment-decrement-action.html [ Skip ]
+
+webkit.org/b/196448 [ Debug ] inspector/audit/basic.html [ Pass Timeout ]
+
+webkit.org/b/194164 http/tests/storageAccess/request-and-grant-access-cross-origin-sandboxed-iframe-from-prevalent-domain-with-user-interaction-but-access-from-wrong-frame.html [ Pass Timeout ]
+
+webkit.org/b/196633 imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getSynchronizationSources.https.html [ Pass Failure ]
+
+webkit.org/b/195961 [ Debug ] imported/w3c/IndexedDB-private-browsing/idbobjectstore_createIndex7-event_order.html [ Pass Failure ]
+webkit.org/b/195961 [ Debug ] imported/w3c/IndexedDB-private-browsing/idbobjectstore_createIndex6-event_order.html [ Pass Failure ]

@@ -43,12 +43,6 @@ class BackendDispatcher;
 class FrontendChannel;
 class FrontendRouter;
 class InspectorAgent;
-
-namespace Protocol {
-namespace OverlayTypes {
-class NodeHighlightData;
-}
-}
 }
 
 #include "InspectorOverlay.h"
@@ -59,7 +53,6 @@ class DOMWrapperWorld;
 class Frame;
 class GraphicsContext;
 class InspectorClient;
-class InspectorDOMAgent;
 class InspectorFrontendClient;
 class InspectorInstrumentation;
 class InspectorPageAgent;
@@ -104,8 +97,6 @@ public:
 
     WEBCORE_EXPORT void setIndicating(bool);
 
-    WEBCORE_EXPORT Ref<JSON::ArrayOf<Inspector::Protocol::OverlayTypes::NodeHighlightData>> buildObjectForHighlightedNodes() const;
-
     WEBCORE_EXPORT void didComposite(Frame&);
 
     bool isUnderTest() const { return m_isUnderTest; }
@@ -146,7 +137,6 @@ private:
     InspectorFrontendClient* m_inspectorFrontendClient { nullptr };
 
     Inspector::InspectorAgent* m_inspectorAgent { nullptr };
-    InspectorDOMAgent* m_domAgent { nullptr };
     InspectorPageAgent* m_pageAgent { nullptr };
 
     bool m_isUnderTest { false };

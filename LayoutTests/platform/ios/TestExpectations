@@ -13,6 +13,7 @@ media/ios [ Pass ]
 quicklook [ Pass ]
 swipe [ Pass ]
 
+fast/forms/textarea/ios [ Pass ]
 fast/text-autosizing/ios [ Pass ]
 fast/zooming/ios [ Pass ]
 http/tests/preload/viewport [ Pass ]
@@ -21,6 +22,10 @@ http/tests/gzip-content-encoding [ Pass ]
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
 #//////////////////////////////////////////////////////////////////////////////////////////
+
+# iPad-specific tests skipped here and re-enabled in platform/ipad
+fast/events/ios/ipad [ Skip ]
+fast/forms/ios/ipad [ Skip ]
 
 ###
 # Unsupported and disabled features
@@ -35,11 +40,10 @@ fullscreen
 http/tests/fullscreen
 compositing/no-compositing-when-fulll-screen-is-present.html
 
-# WebMetal and WebGPU are not enabled on iOS Simulator.
-fast/canvas/webmetal
-inspector/canvas/create-context-webmetal.html [ Skip ]
-inspector/canvas/resolveCanvasContext-webmetal.html [ Skip ]
+# WebGPU is not enabled on iOS Simulator.
 webgpu [ Skip ]
+inspector/canvas/create-context-webgpu.html [ Skip ]
+inspector/canvas/resolveCanvasContext-webgpu.html [ Skip ]
 
 # Encrypted Media Extensions are not enabled
 media/encrypted-media/
@@ -266,6 +270,12 @@ fast/images/animated-webp-expected.html
 editing/pasteboard/datatransfer-items-drop-plaintext-file.html [ Skip ]
 editing/pasteboard/drag-link-with-data-transfer-adds-trusted-link-to-pasteboard.html [ Skip ]
 editing/selection/drag-to-contenteditable-iframe.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-mixed-editability-1.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-mixed-editability-2.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-mixed-editability-3.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-mixed-editability-4.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-mixed-editability-5.html [ Skip ]
+editing/selection/selection-across-shadow-boundaries-user-select-all-1.html [ Skip ]
 fast/events/bogus-dropEffect-effectAllowed.html [ Skip ]
 fast/events/clear-drag-state.html [ Skip ]
 fast/events/clear-edit-drag-state.html [ Skip ]
@@ -899,6 +909,7 @@ fast/events/tab-focus-link-in-canvas.html [ Skip ]
 fast/events/tab-imagemap.html [ Skip ]
 fast/events/tab-test-not-visible-imagemap.html [ Skip ]
 fast/events/tabindex-focus-chain.html [ Skip ]
+fast/forms/access-key-shadow-and-ordering.html [ Skip ]
 fast/forms/access-key-case-insensitive.html [ Skip ]
 fast/forms/access-key-for-all-elements.html [ Skip ]
 fast/forms/access-key-mutated.html [ Skip ]
@@ -1340,7 +1351,6 @@ webkit.org/b/178963 fast/css/sticky/sticky-writing-mode-vertical-rl.html [ Image
 # editing/deleting tests to triage
 editing/deleting/delete-all-text-in-text-field-assertion.html [ Failure ]
 editing/deleting/delete-cell-contents.html [ Failure ]
-editing/deleting/smart-delete-002.html [ Failure ]
 editing/deleting/smart-delete-across-editable-boundaries.html [ Failure ]
 editing/deleting/smart-editing-disabled-mac.html [ Failure ]
 
@@ -1383,11 +1393,6 @@ scrollbars/scrolling-by-page-on-keyboard-spacebar.html [ Failure ]
 
 # JavaScript tests that fail:
 js/dom/dom-static-property-for-in-iteration.html [ Failure ]
-
-# Page overlay tests that fail:
-pageoverlay/overlay-large-document-scrolled.html [ Failure ]
-pageoverlay/overlay-large-document.html [ Failure ]
-webkit.org/b/153337 pageoverlay/overlay-installation.html [ Pass Failure ]
 
 # These tests require an OpenType MATH font on the Apple bots.
 webkit.org/b/160161 mathml/opentype/vertical.html [ Skip ]
@@ -1601,7 +1606,6 @@ fast/dom/HTMLHeadElement/textInHead5.html [ Failure ]
 fast/dom/HTMLImageElement/sizes/image-sizes-1x.html [ Failure ]
 fast/dom/HTMLInputElement/input-slider-update-styled.html [ Failure ]
 fast/dom/HTMLInputElement/input-slider-update.html [ Failure ]
-fast/dom/NavigatorContentUtils/is-protocol-handler-registered.html [ Failure ]
 fast/dom/Range/getBoundingClientRect.html [ Failure ]
 fast/dom/Range/getClientRects.html [ Failure ]
 fast/dom/Range/range-expand.html [ Failure ]
@@ -1684,7 +1688,6 @@ fast/forms/input-baseline.html [ Failure ]
 fast/forms/input-live-pseudo-selectors.html [ Failure ]
 fast/forms/input-no-renderer.html [ Failure ]
 fast/forms/input-set-composition-scroll.html [ Failure ]
-fast/forms/input-textarea-padding-match.html [ ImageOnlyFailure ]
 fast/forms/listbox-clip.html [ Failure ]
 fast/forms/listbox-selection-2.html [ Failure ]
 fast/forms/listbox-selection-3.html [ Failure ]
@@ -1710,7 +1713,6 @@ fast/forms/select/option-selecting.html [ Failure ]
 fast/forms/textarea-input-event.html [ Failure ]
 fast/forms/textarea-live-pseudo-selectors.html [ Failure ]
 fast/forms/textarea-metrics.html [ Failure ]
-fast/forms/textarea-placeholder-wrapping.html [ ImageOnlyFailure ]
 fast/forms/textfield-overflow-by-value-update.html [ Failure ]
 fast/frames/calculate-fixed.html [ Failure ]
 fast/frames/calculate-order.html [ Failure ]
@@ -1967,8 +1969,6 @@ fast/parser/residual-style-hang.html
 # <rdar://problem/19226623> ASSERT(isIdentifierStart<CharacterType>()) fails in CSSParser::parseIdentifier()
 fast/css/css-selector-text.html
 
-webkit.org/b/190620 fast/forms/datalist/datalist-child-validation.html [ Skip ]
-
 # <rdar://problem/19227549> ASSERT(!m_webFrame->_private->provisionalURL) fails in WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
 fast/forms/validation-message-user-modify.html
 
@@ -2107,6 +2107,9 @@ editing/pasteboard/paste-noscript.html [ Failure ]
 editing/pasteboard/paste-visible-script.html [ Failure ]
 editing/pasteboard/paste-wrapped-blockquote-into-nonblockquote.html [ Failure ]
 
+# Not able to select select element on iOS
+editing/pasteboard/4944770-2.html [ Failure ]
+
 # Failing pasteboard to triage
 editing/pasteboard/4242293-1.html [ Failure ]
 editing/pasteboard/5780697-2.html [ Failure ]
@@ -2138,13 +2141,7 @@ editing/pasteboard/paste-plaintext-user-select-none.html [ Failure ]
 editing/pasteboard/paste-sanitize-crash-1.html [ Failure ]
 editing/pasteboard/paste-sanitize-crash-2.html [ Failure ]
 editing/pasteboard/paste-text-events.html [ Failure ]
-editing/pasteboard/smart-paste-001.html [ Failure ]
-editing/pasteboard/smart-paste-002.html [ Failure ]
-editing/pasteboard/smart-paste-003.html [ Failure ]
-editing/pasteboard/smart-paste-004.html [ Failure ]
-editing/pasteboard/smart-paste-005.html [ Failure ]
-editing/pasteboard/smart-paste-007.html [ Failure ]
-editing/pasteboard/smart-paste-008.html [ Failure ]
+
 
 # Local pasteboard is not implemented on iOS, so pasteboard tests used to be all disabled.
 
@@ -2777,6 +2774,9 @@ fast/canvas/webgl/texImage2D-mse-flipY-true.html [ Skip ]
 fast/canvas/webgl/texImage2D-video-flipY-false.html [ Skip ]
 fast/canvas/webgl/texImage2D-video-flipY-true.html [ Skip ]
 
+# rendering to floating point FBOs not supported on iOS
+fast/canvas/webgl/readPixels-float.html [ Skip ]
+
 # Skipped on iOS since UIHelper.activateAt() doesn't produce a user gesture that ITP captures on iOS
 webkit.org/b/174120 http/tests/resourceLoadStatistics/user-interaction-in-cross-origin-sub-frame.html [ Skip ]
 http/tests/resourceLoadStatistics/user-interaction-only-reported-once-within-short-period-of-time.html [ Skip ]
@@ -3041,9 +3041,9 @@ webkit.org/b/182592 webgl/webgl-texture-image-buffer-reuse.html [ Skip ]
 
 webkit.org/b/181612 [ Debug ] webanimations/animation-opacity-animation-crash.html [ Pass Failure ]
 
-webkit.org/b/182850 [ Release ] editing/pasteboard/data-transfer-set-data-sanitizes-html-when-copying-in-null-origin.html [ Skip ]
+webkit.org/b/182850 editing/pasteboard/data-transfer-set-data-sanitizes-html-when-copying-in-null-origin.html [ Skip ]
 
-webkit.org/b/183219 [ Release ] editing/pasteboard/data-transfer-get-data-on-pasting-html-uses-blob-url.html [ Skip ]
+webkit.org/b/183219 editing/pasteboard/data-transfer-get-data-on-pasting-html-uses-blob-url.html [ Skip ]
 
 webkit.org/b/173928 storage/websql/database-lock-after-reload.html [ Pass Failure ]
 
@@ -3067,6 +3067,7 @@ webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/i18n/css3-text-
 webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/i18n/css3-text-line-break-opclns-115.html [ ImageOnlyFailure ]
 webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/i18n/css3-text-line-break-opclns-116.html [ ImageOnlyFailure ]
 webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/word-break/word-break-break-all-006.html [ ImageOnlyFailure ]
+webkit.org/b/196169 imported/w3c/web-platform-tests/css/css-text/overflow-wrap/overflow-wrap-break-word-003.html [ ImageOnlyFailure ]
 
 # unsupported
 fast/dynamic/mail-autosize-viewport-unit.html [ Failure ]
@@ -3214,3 +3215,41 @@ webkit.org/b/192398 imported/w3c/web-platform-tests/service-workers/service-work
 webkit.org/b/191704 imported/w3c/web-platform-tests/service-workers/service-worker/windowclient-navigate.https.html [ Pass Failure ]
 
 webkit.org/b/193955 compositing/iframes/remove-reinsert-webview-with-iframe.html [ Skip ]
+
+webkit.org/b/153337 pageoverlay/overlay-installation.html [ Pass Failure ]
+webkit.org/b/153337 pageoverlay/overlay-large-document-scrolled.html [ Pass Failure ]
+webkit.org/b/153337 pageoverlay/overlay-large-document.html [ Pass Failure ]
+
+# FIXME: Unskip the following test once we have the fix for <rdar://problem/45970040>.
+fast/events/touch/ios/touch-events-with-modifiers.html [ Skip ]
+fast/events/touch/ios/mouse-events-with-modifiers.html [ Skip ]
+fast/events/touch/ios/pointer-events-with-modifiers.html [ Skip ]
+
+# FIXME: Unskip the following test once we have the fix for <rdar://problem/44928156>.
+fast/events/ios/key-command-delete-to-end-of-paragraph.html [ Skip ]
+fast/events/ios/key-command-transpose.html [ Skip ]
+
+# FIXME: Unskip the following tests once we ENABLE(FULL_KEYBOARD_ACCESS) is enabled by default on iOS
+fast/forms/ios/focus-button.html [ Skip ]
+fast/forms/ios/focus-checkbox.html [ Skip ]
+fast/forms/ios/focus-checked-checkbox.html [ Skip ]
+fast/forms/ios/focus-checked-radio.html [ Skip ]
+fast/forms/ios/focus-radio.html [ Skip ]
+fast/forms/ios/focus-reset-button.html [ Skip ]
+fast/forms/ios/focus-search-field.html [ Skip ]
+fast/forms/ios/focus-submit-button.html [ Skip ]
+fast/forms/ios/focus-text-field.html [ Skip ]
+fast/forms/ios/focus-textarea.html [ Skip ]
+fast/events/ios/activating-button-should-not-scroll-page.html [ Skip ]
+fast/events/ios/activating-checkbox-should-not-scroll-page.html [ Skip ]
+fast/events/ios/activating-radio-button-should-not-scroll-page.html [ Skip ]
+fast/events/ios/activating-reset-button-should-not-scroll-page.html [ Skip ]
+fast/events/ios/activating-submit-button-should-not-scroll-page.html [ Skip ]
+
+# FIXME: Unskip the following test once we have the fix for <rdar://problem/45892362>.
+fast/events/ios/key-command-select-all-prevent-default.html [ Skip ]
+
+webkit.org/b/191707 imported/w3c/web-platform-tests/webrtc/simplecall-no-ssrcs.https.html [ Skip ]
+webkit.org/b/191707 imported/w3c/web-platform-tests/webrtc/simplecall.https.html [ Skip ]
+
+webkit.org/b/191711 quicklook/numbers.html [ ImageOnlyFailure ]

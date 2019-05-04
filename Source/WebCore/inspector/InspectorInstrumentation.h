@@ -35,6 +35,7 @@
 #include "CallTracerTypes.h"
 #include "CanvasBase.h"
 #include "CanvasRenderingContext.h"
+#include "Database.h"
 #include "DocumentThreadableLoader.h"
 #include "Element.h"
 #include "EventTarget.h"
@@ -68,7 +69,6 @@ class CachedResource;
 class CharacterData;
 class DOMWindow;
 class DOMWrapperWorld;
-class Database;
 class Document;
 class DocumentLoader;
 class EventListener;
@@ -98,7 +98,7 @@ enum class StorageType;
 
 struct WebSocketFrame;
 
-#define FAST_RETURN_IF_NO_FRONTENDS(value) if (LIKELY(!hasFrontends())) return value;
+#define FAST_RETURN_IF_NO_FRONTENDS(value) if (LIKELY(!InspectorInstrumentation::hasFrontends())) return value;
 
 class InspectorInstrumentation {
 public:
@@ -152,11 +152,11 @@ public:
     static void willRemoveEventListener(EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static bool isEventListenerDisabled(EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static InspectorInstrumentationCookie willDispatchEvent(Document&, const Event&, bool hasEventListeners);
-    static void didDispatchEvent(const InspectorInstrumentationCookie&);
-    static void willHandleEvent(ScriptExecutionContext&, const Event&, const RegisteredEventListener&);
+    static void didDispatchEvent(const InspectorInstrumentationCookie&, bool defaultPrevented);
+    static void willHandleEvent(ScriptExecutionContext&, Event&, const RegisteredEventListener&);
     static void didHandleEvent(ScriptExecutionContext&);
     static InspectorInstrumentationCookie willDispatchEventOnWindow(Frame*, const Event&, DOMWindow&);
-    static void didDispatchEventOnWindow(const InspectorInstrumentationCookie&);
+    static void didDispatchEventOnWindow(const InspectorInstrumentationCookie&, bool defaultPrevented);
     static void eventDidResetAfterDispatch(const Event&);
     static InspectorInstrumentationCookie willEvaluateScript(Frame&, const String& url, int lineNumber, int columnNumber);
     static void didEvaluateScript(const InspectorInstrumentationCookie&, Frame&);
@@ -240,7 +240,7 @@ public:
     static InspectorInstrumentationCookie willFireObserverCallback(ScriptExecutionContext&, const String& callbackType);
     static void didFireObserverCallback(const InspectorInstrumentationCookie&);
 
-    static void didOpenDatabase(ScriptExecutionContext*, RefPtr<Database>&&, const String& domain, const String& name, const String& version);
+    static void didOpenDatabase(Database&);
 
     static void didDispatchDOMStorageEvent(Page&, const String& key, const String& oldValue, const String& newValue, StorageType, SecurityOrigin*);
 
@@ -345,11 +345,11 @@ private:
     static void willRemoveEventListenerImpl(InstrumentingAgents&, EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static bool isEventListenerDisabledImpl(InstrumentingAgents&, EventTarget&, const AtomicString& eventType, EventListener&, bool capture);
     static InspectorInstrumentationCookie willDispatchEventImpl(InstrumentingAgents&, Document&, const Event&, bool hasEventListeners);
-    static void willHandleEventImpl(InstrumentingAgents&, const Event&, const RegisteredEventListener&);
+    static void willHandleEventImpl(InstrumentingAgents&, Event&, const RegisteredEventListener&);
     static void didHandleEventImpl(InstrumentingAgents&);
-    static void didDispatchEventImpl(const InspectorInstrumentationCookie&);
+    static void didDispatchEventImpl(const InspectorInstrumentationCookie&, bool defaultPrevented);
     static InspectorInstrumentationCookie willDispatchEventOnWindowImpl(InstrumentingAgents&, const Event&, DOMWindow&);
-    static void didDispatchEventOnWindowImpl(const InspectorInstrumentationCookie&);
+    static void didDispatchEventOnWindowImpl(const InspectorInstrumentationCookie&, bool defaultPrevented);
     static void eventDidResetAfterDispatchImpl(InstrumentingAgents&, const Event&);
     static InspectorInstrumentationCookie willEvaluateScriptImpl(InstrumentingAgents&, Frame&, const String& url, int lineNumber, int columnNumber);
     static void didEvaluateScriptImpl(const InspectorInstrumentationCookie&, Frame&);
@@ -417,7 +417,7 @@ private:
     static InspectorInstrumentationCookie willFireObserverCallbackImpl(InstrumentingAgents&, const String&, ScriptExecutionContext&);
     static void didFireObserverCallbackImpl(const InspectorInstrumentationCookie&);
 
-    static void didOpenDatabaseImpl(InstrumentingAgents&, RefPtr<Database>&&, const String& domain, const String& name, const String& version);
+    static void didOpenDatabaseImpl(InstrumentingAgents&, Database&);
 
     static void didDispatchDOMStorageEventImpl(InstrumentingAgents&, const String& key, const String& oldValue, const String& newValue, StorageType, SecurityOrigin*);
 
@@ -475,6 +475,7 @@ private:
 
 inline void InspectorInstrumentation::didClearWindowObjectInWorld(Frame& frame, DOMWrapperWorld& world)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         didClearWindowObjectInWorldImpl(*instrumentingAgents, frame, world);
 }
@@ -793,14 +794,14 @@ inline InspectorInstrumentationCookie InspectorInstrumentation::willDispatchEven
     return InspectorInstrumentationCookie();
 }
 
-inline void InspectorInstrumentation::didDispatchEvent(const InspectorInstrumentationCookie& cookie)
+inline void InspectorInstrumentation::didDispatchEvent(const InspectorInstrumentationCookie& cookie, bool defaultPrevented)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (cookie.isValid())
-        didDispatchEventImpl(cookie);
+        didDispatchEventImpl(cookie, defaultPrevented);
 }
 
-inline void InspectorInstrumentation::willHandleEvent(ScriptExecutionContext& context, const Event& event, const RegisteredEventListener& listener)
+inline void InspectorInstrumentation::willHandleEvent(ScriptExecutionContext& context, Event& event, const RegisteredEventListener& listener)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
@@ -822,11 +823,11 @@ inline InspectorInstrumentationCookie InspectorInstrumentation::willDispatchEven
     return InspectorInstrumentationCookie();
 }
 
-inline void InspectorInstrumentation::didDispatchEventOnWindow(const InspectorInstrumentationCookie& cookie)
+inline void InspectorInstrumentation::didDispatchEventOnWindow(const InspectorInstrumentationCookie& cookie, bool defaultPrevented)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (cookie.isValid())
-        didDispatchEventOnWindowImpl(cookie);
+        didDispatchEventOnWindowImpl(cookie, defaultPrevented);
 }
 
 inline void InspectorInstrumentation::eventDidResetAfterDispatch(const Event& event)
@@ -1088,6 +1089,7 @@ inline void InspectorInstrumentation::scriptImported(ScriptExecutionContext& con
 
 inline void InspectorInstrumentation::scriptExecutionBlockedByCSP(ScriptExecutionContext* context, const String& directiveText)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
         scriptExecutionBlockedByCSPImpl(*instrumentingAgents, directiveText);
 }
@@ -1101,18 +1103,21 @@ inline void InspectorInstrumentation::didReceiveScriptResponse(ScriptExecutionCo
 
 inline void InspectorInstrumentation::domContentLoadedEventFired(Frame& frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         domContentLoadedEventFiredImpl(*instrumentingAgents, frame);
 }
 
 inline void InspectorInstrumentation::loadEventFired(Frame* frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         loadEventFiredImpl(*instrumentingAgents, frame);
 }
 
 inline void InspectorInstrumentation::frameDetachedFromParent(Frame& frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         frameDetachedFromParentImpl(*instrumentingAgents, frame);
 }
@@ -1132,30 +1137,35 @@ inline void InspectorInstrumentation::frameDocumentUpdated(Frame& frame)
 
 inline void InspectorInstrumentation::loaderDetachedFromFrame(Frame& frame, DocumentLoader& loader)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         loaderDetachedFromFrameImpl(*instrumentingAgents, loader);
 }
 
 inline void InspectorInstrumentation::frameStartedLoading(Frame& frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         frameStartedLoadingImpl(*instrumentingAgents, frame);
 }
 
 inline void InspectorInstrumentation::frameStoppedLoading(Frame& frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         frameStoppedLoadingImpl(*instrumentingAgents, frame);
 }
 
 inline void InspectorInstrumentation::frameScheduledNavigation(Frame& frame, Seconds delay)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         frameScheduledNavigationImpl(*instrumentingAgents, frame, delay);
 }
 
 inline void InspectorInstrumentation::frameClearedScheduledNavigation(Frame& frame)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForFrame(frame))
         frameClearedScheduledNavigationImpl(*instrumentingAgents, frame);
 }
@@ -1172,10 +1182,11 @@ inline void InspectorInstrumentation::willDestroyCachedResource(CachedResource& 
     willDestroyCachedResourceImpl(cachedResource);
 }
 
-inline void InspectorInstrumentation::didOpenDatabase(ScriptExecutionContext* context, RefPtr<Database>&& database, const String& domain, const String& name, const String& version)
+inline void InspectorInstrumentation::didOpenDatabase(Database& database)
 {
-    if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context))
-        didOpenDatabaseImpl(*instrumentingAgents, WTFMove(database), domain, name, version);
+    FAST_RETURN_IF_NO_FRONTENDS(void());
+    if (auto* instrumentingAgents = instrumentingAgentsForContext(database.scriptExecutionContext()))
+        didOpenDatabaseImpl(*instrumentingAgents, database);
 }
 
 inline void InspectorInstrumentation::didDispatchDOMStorageEvent(Page& page, const String& key, const String& oldValue, const String& newValue, StorageType storageType, SecurityOrigin* securityOrigin)
@@ -1272,6 +1283,7 @@ inline void InspectorInstrumentation::didChangeCSSCanvasClientNodes(CanvasBase& 
 
 inline void InspectorInstrumentation::didCreateCanvasRenderingContext(CanvasRenderingContext& context)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(context.canvasBase().scriptExecutionContext()))
         didCreateCanvasRenderingContextImpl(*instrumentingAgents, context);
 }
@@ -1307,12 +1319,14 @@ inline void InspectorInstrumentation::didEnableExtension(WebGLRenderingContextBa
 
 inline void InspectorInstrumentation::didCreateProgram(WebGLRenderingContextBase& contextWebGLBase, WebGLProgram& program)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(contextWebGLBase.canvasBase().scriptExecutionContext()))
         didCreateProgramImpl(*instrumentingAgents, contextWebGLBase, program);
 }
 
 inline void InspectorInstrumentation::willDeleteProgram(WebGLRenderingContextBase& contextWebGLBase, WebGLProgram& program)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForContext(contextWebGLBase.canvasBase().scriptExecutionContext()))
         willDeleteProgramImpl(*instrumentingAgents, program);
 }
@@ -1405,11 +1419,13 @@ inline void InspectorInstrumentation::consoleTimeStamp(Frame& frame, Ref<Inspect
 
 inline void InspectorInstrumentation::startProfiling(Page& page, JSC::ExecState* exec, const String &title)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     startProfilingImpl(instrumentingAgentsForPage(page), exec, title);
 }
 
 inline void InspectorInstrumentation::stopProfiling(Page& page, JSC::ExecState* exec, const String &title)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     stopProfilingImpl(instrumentingAgentsForPage(page), exec, title);
 }
 
@@ -1422,12 +1438,14 @@ inline void InspectorInstrumentation::consoleStartRecordingCanvas(CanvasRenderin
 
 inline void InspectorInstrumentation::didRequestAnimationFrame(Document& document, int callbackId)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForDocument(document))
         didRequestAnimationFrameImpl(*instrumentingAgents, callbackId, document);
 }
 
 inline void InspectorInstrumentation::didCancelAnimationFrame(Document& document, int callbackId)
 {
+    FAST_RETURN_IF_NO_FRONTENDS(void());
     if (InstrumentingAgents* instrumentingAgents = instrumentingAgentsForDocument(document))
         didCancelAnimationFrameImpl(*instrumentingAgents, callbackId, document);
 }

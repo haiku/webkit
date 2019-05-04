@@ -35,7 +35,7 @@
 
 namespace JSC {
 
-RegExp* RegExpCache::lookupOrCreate(const String& patternString, RegExpFlags flags)
+RegExp* RegExpCache::lookupOrCreate(const String& patternString, OptionSet<Yarr::Flags> flags)
 {
     RegExpKey key(flags, patternString);
     if (RegExp* regExp = m_weakCache.get(key))
@@ -56,9 +56,11 @@ RegExpCache::RegExpCache(VM* vm)
 {
 }
 
-void RegExpCache::initialize(VM& vm)
+RegExp* RegExpCache::ensureEmptyRegExpSlow(VM& vm)
 {
-    m_emptyRegExp.set(vm, RegExp::create(vm, "", NoFlags));
+    RegExp* regExp = RegExp::create(vm, "", { });
+    m_emptyRegExp.set(vm, regExp);
+    return regExp;
 }
 
 void RegExpCache::finalize(Handle<Unknown> handle, void*)

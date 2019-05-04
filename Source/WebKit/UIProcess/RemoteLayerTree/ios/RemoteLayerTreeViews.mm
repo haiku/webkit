@@ -29,10 +29,88 @@
 #if PLATFORM(IOS_FAMILY)
 
 #import "RemoteLayerTreeHost.h"
+#import "RemoteLayerTreeNode.h"
 #import "UIKitSPI.h"
 #import "WKDrawingView.h"
+#import <WebCore/Region.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/SoftLinking.h>
+
+namespace WebKit {
+
+static void collectDescendantViewsAtPoint(Vector<UIView *, 16>& viewsAtPoint, UIView *parent, CGPoint point, UIEvent *event)
+{
+    if (parent.clipsToBounds && ![parent pointInside:point withEvent:event])
+        return;
+
+    for (UIView *view in [parent subviews]) {
+        CGPoint subviewPoint = [view convertPoint:point fromView:parent];
+
+        auto handlesEvent = [&] {
+            if (![view pointInside:subviewPoint withEvent:event])
+                return false;
+            if (![view isKindOfClass:[WKCompositingView class]])
+                return true;
+            auto* node = RemoteLayerTreeNode::forCALayer(view.layer);
+            return node->eventRegion().contains(WebCore::IntPoint(subviewPoint));
+        }();
+
+        if (handlesEvent)
+            viewsAtPoint.append(view);
+
+        if (![view subviews])
+            return;
+
+        collectDescendantViewsAtPoint(viewsAtPoint, view, subviewPoint, event);
+    };
+}
+
+static bool isScrolledBy(WKChildScrollView* scrollView, UIView *hitView)
+{
+    auto scrollLayerID = RemoteLayerTreeNode::layerID(scrollView.layer);
+
+    for (UIView *view = hitView; view; view = [view superview]) {
+        if (view == scrollView)
+            return true;
+
+        auto* node = RemoteLayerTreeNode::forCALayer(view.layer);
+        if (node && scrollLayerID && node->relatedScrollContainerIDs().contains(scrollLayerID)) {
+            switch (node->relatedScrollContainerPositioningBehavior()) {
+            case WebCore::ScrollPositioningBehavior::Moves:
+                return true;
+            case WebCore::ScrollPositioningBehavior::Stationary:
+                return false;
+            case WebCore::ScrollPositioningBehavior::None:
+                ASSERT_NOT_REACHED();
+            }
+        }
+    }
+
+    return false;
+}
+
+#if ENABLE(POINTER_EVENTS)
+OptionSet<WebCore::TouchAction> touchActionsForPoint(UIView *rootView, const WebCore::IntPoint& point)
+{
+    Vector<UIView *, 16> viewsAtPoint;
+    collectDescendantViewsAtPoint(viewsAtPoint, rootView, point, nil);
+
+    if (viewsAtPoint.isEmpty())
+        return { WebCore::TouchAction::Auto };
+
+    auto *hitView = viewsAtPoint.last();
+
+    CGPoint hitViewPoint = [hitView convertPoint:point fromView:rootView];
+
+    auto* node = RemoteLayerTreeNode::forCALayer(hitView.layer);
+    if (!node)
+        return { WebCore::TouchAction::Auto };
+
+    return node->eventRegion().touchActionsForPoint(WebCore::IntPoint(hitViewPoint));
+}
+#endif
+
+}
 
 @interface UIView (WKHitTesting)
 - (UIView *)_web_findDescendantViewAtPoint:(CGPoint)point withEvent:(UIEvent *)event;
@@ -40,44 +118,26 @@
 
 @implementation UIView (WKHitTesting)
 
-// UIView hit testing assumes that views should only hit test subviews that are entirely contained
-// in the view. This is not true of web content.
-// We only want to find views that allow native interaction here. Other views are ignored.
-- (UIView *)_web_recursiveFindDescendantInteractibleViewAtPoint:(CGPoint)point withEvent:(UIEvent *)event
-{
-    if (self.clipsToBounds && ![self pointInside:point withEvent:event])
-        return nil;
-
-    __block UIView *foundView = nil;
-    [[self subviews] enumerateObjectsUsingBlock:^(UIView *view, NSUInteger idx, BOOL *stop) {
-        CGPoint subviewPoint = [view convertPoint:point fromView:self];
-
-        if (view.isUserInteractionEnabled && [view pointInside:subviewPoint withEvent:event]) {
-            if ([view conformsToProtocol:@protocol(WKNativelyInteractible)]) {
-                foundView = view;
-
-                if (![view subviews])
-                    return;
-
-                if (UIView *hitView = [view hitTest:subviewPoint withEvent:event])
-                    foundView = hitView;
-            } else if ([view isKindOfClass:[WKChildScrollView class]])
-                foundView = view;
-        }
-
-        if (![view subviews])
-            return;
-
-        if (UIView *hitView = [view _web_recursiveFindDescendantInteractibleViewAtPoint:subviewPoint withEvent:event])
-            foundView = hitView;
-    }];
-
-    return foundView;
-}
-
 - (UIView *)_web_findDescendantViewAtPoint:(CGPoint)point withEvent:(UIEvent *)event
 {
-    return [self _web_recursiveFindDescendantInteractibleViewAtPoint:point withEvent:event];
+    Vector<UIView *, 16> viewsAtPoint;
+    WebKit::collectDescendantViewsAtPoint(viewsAtPoint, self, point, event);
+
+    for (auto *view : WTF::makeReversedRange(viewsAtPoint)) {
+        if (!view.isUserInteractionEnabled)
+            continue;
+
+        if ([view conformsToProtocol:@protocol(WKNativelyInteractible)]) {
+            CGPoint subviewPoint = [view convertPoint:point fromView:self];
+            return [view hitTest:subviewPoint withEvent:event];
+        }
+
+        if ([view isKindOfClass:[WKChildScrollView class]]) {
+            if (WebKit::isScrolledBy((WKChildScrollView *)view, viewsAtPoint.last()))
+                return view;
+        }
+    }
+    return nil;
 }
 
 @end

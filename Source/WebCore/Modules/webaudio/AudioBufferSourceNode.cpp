@@ -36,8 +36,11 @@
 #include "FloatConversion.h"
 #include "PannerNode.h"
 #include "ScriptExecutionContext.h"
+#include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
+
+WTF_MAKE_ISO_ALLOCATED_IMPL(AudioBufferSourceNode);
 
 const double DefaultGrainDuration = 0.020; // 20ms
 
@@ -407,7 +410,8 @@ void AudioBufferSourceNode::reset()
 void AudioBufferSourceNode::setBuffer(RefPtr<AudioBuffer>&& buffer)
 {
     ASSERT(isMainThread());
-    
+    DEBUG_LOG(LOGIDENTIFIER);
+
     // The context must be locked since changing the buffer can re-configure the number of channels that are output.
     AudioContext::AutoLocker contextLocker(context());
     
@@ -451,6 +455,7 @@ ExceptionOr<void> AudioBufferSourceNode::start(double when, double grainOffset, 
 ExceptionOr<void> AudioBufferSourceNode::startPlaying(BufferPlaybackMode playbackMode, double when, double grainOffset, double grainDuration)
 {
     ASSERT(isMainThread());
+    ALWAYS_LOG(LOGIDENTIFIER, "when = ", when, ", offset = ", grainOffset, ", duration = ", grainDuration);
 
     context().nodeWillBeginPlayback();
 
