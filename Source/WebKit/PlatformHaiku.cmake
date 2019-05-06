@@ -28,7 +28,6 @@ list(APPEND WebKit_SOURCES
 
     UIProcess/DefaultUndoController.cpp
     UIProcess/BackingStore.cpp
-    UIProcess/AcceleratedDrawingAreaProxy.cpp
 
     UIProcess/Launcher/haiku/ProcessLauncherHaiku.cpp
     UIProcess/LegacySessionStateCodingNone.cpp
@@ -54,10 +53,7 @@ list(APPEND WebKit_SOURCES
     WebProcess/WebCoreSupport/haiku/WebEditorClientHaiku.cpp
     WebProcess/WebCoreSupport/haiku/WebFrameNetworkingContext.cpp
     WebProcess/WebCoreSupport/haiku/WebPopupMenuHaiku.cpp    
-    WebProcess/WebPage/AcceleratedDrawingArea.cpp
-    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
-    WebProcess/WebPage/DrawingAreaImpl.cpp
-    WebProcess/WebPage/LayerTreeHost.cpp
+	WebProcess/WebPage/CoordinatedGraphics/LayerTreeHost.cpp
     WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
     WebProcess/WebPage/haiku/WebPageHaiku.cpp
     WebProcess/haiku/WebProcessHaiku.cpp
