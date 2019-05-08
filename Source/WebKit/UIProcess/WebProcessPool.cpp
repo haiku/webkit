@@ -257,7 +257,6 @@ WebProcessPool::WebProcessPool(API::ProcessPoolConfiguration& configuration)
 #endif
     , m_webProcessCache(makeUniqueRef<WebProcessCache>(*this))
 {
-	fprintf(stderr,"initwebprocesspool\n");
     static std::once_flag onceFlag;
     std::call_once(onceFlag, [] {
         WTF::setProcessPrivileges(allPrivileges());
@@ -1198,9 +1197,8 @@ WebProcessProxy& WebProcessPool::processForRegistrableDomain(WebsiteDataStore& w
 
 Ref<WebPageProxy> WebProcessPool::createWebPage(PageClient& pageClient, Ref<API::PageConfiguration>&& pageConfiguration)
 {
-	if (!pageConfiguration->pageGroup())
+    if (!pageConfiguration->pageGroup())
         pageConfiguration->setPageGroup(m_defaultPageGroup.ptr());
-    fprintf(stderr,"Hey inside webprocesspool");
     if (!pageConfiguration->preferences())
         pageConfiguration->setPreferences(&pageConfiguration->pageGroup()->preferences());
     if (!pageConfiguration->userContentController())
