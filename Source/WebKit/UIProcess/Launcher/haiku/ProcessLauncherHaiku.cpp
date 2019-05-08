@@ -26,90 +26,103 @@
 #include "config.h"
 #include "ProcessLauncher.h"
 
-#define __STDC_FORMAT_MACROS
-#include <unistd.h>
-#include <string>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/resource.h>
+#include "ProcessExecutablePath.h"
 
-#include <Looper.h>
-#include <Application.h>
-#include <Message.h>
+#include <Roster.h>
+#include <StackOrHeapArray.h>
+#include <String.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-static const char* processName(ProcessLauncher::ProcessType type)
+status_t processRef(BString path, entry_ref* pathRef)
 {
-	switch(type)
-	{
-		case ProcessLauncher::ProcessType::Web:
-		//debug later will be taken system based absolute path
-		return "/WebKit/webkit/WebKitBuild/Release/bin/WebProcess";
-		case ProcessLauncher::ProcessType::Network:
-		return "/WebKit/webkit/WebKitBuild/Release/bin/NetworkProcess";
-	}
+	BEntry pathEntry(path);
+	if(!pathEntry.Exists())
+	return B_BAD_VALUE;
+	
+	status_t result = pathEntry.GetRef(pathRef);
+	if(result != B_OK)
+	return result;
+	
+	return B_OK;
 }
 
 void ProcessLauncher::launchProcess()
 {
-	const char* name=processName(m_launchOptions.processType);
-	char* procName;
-	switch(m_launchOptions.processType)
-	{
-		case ProcessLauncher::ProcessType::Web:
-		procName="WebProcess";
-		break;
-		case ProcessLauncher::ProcessType::Network:
-		procName="NetworkProcess";
-		break;
-	}
-	//process identifier
-	uint64_t prID = m_launchOptions.processIdentifier.toUInt64();
-	fprintf(stderr,"\nlaunch%d\n",prID);
-	char buff[21];
-	snprintf(buff,sizeof(buff),"%"PRIu64,prID);
-	//
-	
-	//socket
-	int sockets[2];
-	if(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets)==-1)
-	{
-		fprintf(stderr,":(%s\n",strerror(errno));
-	}
-	//1-> client 0-> server is taken convention
-	
-	std::string sock = std::to_string(sockets[1]);
-	char* sockBuff = new char[sock.length()+1];
-	strcpy(sockBuff,sock.c_str());
-	//
-	
-	pid_t pid=fork();
-	char* m_args[]={procName,buff,sockBuff,NULL};
-	if(pid==0)
-	{
-		
-		execvp(name,m_args);
-	}
-	else
-	{
-		fprintf(stderr,"\nChild:%d\n",pid);
-	}
+    BString executablePath;
 
-	fprintf(stderr,"\ngoing to send\n");
-	RefPtr<ProcessLauncher> protectedLauncher(this);
-	
-	RunLoop::main().dispatch([protectedLauncher,pid,sockets]{
-			fprintf(stderr,"Messaged function executing now\n");
-			protectedLauncher->didFinishLaunchingProcess(pid,sockets[0]);
-		});
+    switch (m_launchOptions.processType) {
+    case ProcessLauncher::ProcessType::Web:
+        executablePath = executablePathOfWebProcess();
+        break;
+#if ENABLE(NETWORK_PROCESS)
+    case ProcessLauncher::ProcessType::Network:
+        executablePath = executablePathOfNetworkProcess();
+        break;
+#endif
+    default:
+        ASSERT_NOT_REACHED();
+        return;
+    }
+
+	BString processIdentifier;
+	processIdentifier.SetToFormat("%" PRIu64, m_launchOptions.processIdentifier.toUInt64());
+    unsigned nargs = 5; // size of the argv array for g_spawn_async()
+
+#if ENABLE(DEVELOPER_MODE)
+    Vector<CString> prefixArgs;
+    if (!m_launchOptions.processCmdPrefix.isNull()) {
+        for (auto& arg : m_launchOptions.processCmdPrefix.split(' '))
+            prefixArgs.append(arg.utf8());
+        nargs += prefixArgs.size();
+    }
+#endif
+
+	entry_ref executableRef;
+	if(processRef(executablePath,&executableRef)!=B_OK)
+	{
+		return;
+	}
+    BStackOrHeapArray<const char*, 10> argv(nargs);
+    unsigned i = 0;
+#if ENABLE(DEVELOPER_MODE)
+    // If there's a prefix command, put it before the rest of the args.
+	// FIXME this won't work with lauching using BRoster...
+    for (auto& arg : prefixArgs)
+        argv[i++] = const_cast<char*>(arg.data());
+#endif
+    argv[i++] = executablePath.String();
+    argv[i++] = processIdentifier.String();
+	// TODO pass our team_id so the web process can message us?
+    argv[i++] = nullptr;
+
+	assert(i <= nargs);
+
+	team_id child_id; // TODO do we need to store this somewhere?
+	status_t result = be_roster->Launch(&executableRef, i-1, argv, &child_id);
+
+	fprintf(stderr, "%s: %s\n", __PRETTY_FUNCTION__, strerror(result));
+
+    // We've finished launching the process, message back to the main run loop.
+    RunLoop::main().dispatch([protectedThis = makeRef(*this), this, child_id] {
+        didFinishLaunchingProcess(m_processIdentifier, child_id);
+    });
 }
 
 void ProcessLauncher::terminateProcess()
 {
+    if (m_isLaunching) {
+        invalidate();
+        return;
+    }
+
+    if (!m_processIdentifier)
+        return;
+
+    kill(m_processIdentifier, SIGKILL);
+    m_processIdentifier = 0;
 }
 
 void ProcessLauncher::platformInvalidate()
