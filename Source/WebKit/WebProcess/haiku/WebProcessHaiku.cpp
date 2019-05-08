@@ -32,20 +32,23 @@ namespace WebKit {
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
-	fprintf(stderr,"weprocess initialize\n");
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     notImplemented();
 }
 
 void WebProcess::platformSetWebsiteDataStoreParameters(WebProcessDataStoreParameters&&)
 {
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 }
 
 void WebProcess::platformTerminate()
 {
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 }
 
 void WebProcess::platformSetCacheModel(CacheModel cacheModel)
 {
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     notImplemented();
 }
 
