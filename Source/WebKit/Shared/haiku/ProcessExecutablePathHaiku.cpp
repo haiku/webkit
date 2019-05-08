@@ -37,58 +37,24 @@
 
 namespace WebKit {
 
-// We initially look for the process in WEBKIT_EXEC_PATH, then proceed to try the working
-// directory of the running process, and finally we try LIBEXECDIR (usually /usr/local/bin).
-static String findProcessPath(const char* processName)
-{
-    String executablePath;
-    static const char* execDirectory = getenv("WEBKIT_EXEC_PATH");
-    if (execDirectory) {
-        executablePath = FileSystem::pathByAppendingComponent(String::fromUTF8(execDirectory), processName);
-        if (FileSystem::fileExists(executablePath))
-            return executablePath;
-    }
-
-#if OS(UNIX)
-    char readLinkBuffer[PATH_MAX] = {0};
-
-    notImplemented();
-#if OS(LINUX)
-    ssize_t result = readlink("/proc/self/exe", readLinkBuffer, PATH_MAX);
-#else
-    ssize_t result = readlink("/proc/curproc/file", readLinkBuffer, PATH_MAX);
-#endif
-    if (result > 0) {
-        char* executablePathPtr = dirname(readLinkBuffer);
-        executablePath = FileSystem::pathByAppendingComponent(String::fromUTF8(executablePathPtr), processName);
-        if (FileSystem::fileExists(executablePath))
-            return executablePath;
-    }
-#endif
-    executablePath = FileSystem::pathByAppendingComponent(String(LIBEXECDIR), processName);
-    ASSERT(FileSystem::fileExists(executablePath));
-    return executablePath;
-}
+// On Haiku, processes are actually launched by MIME type, no need to worry about the path.
 
 String executablePathOfWebProcess()
 {
-    static NeverDestroyed<const String> webKitWebProcessName(findProcessPath(WEBPROCESSNAME));
-
+    static NeverDestroyed<const String> webKitWebProcessName("application/x-vnd.haiku-webkit.webprocess");
     return webKitWebProcessName;
 }
 
 String executablePathOfPluginProcess()
 {
-    static NeverDestroyed<const String> webKitPluginProcessName(findProcessPath(PLUGINPROCESSNAME));
-
+    static NeverDestroyed<const String> webKitPluginProcessName("application/x-vnd.haiku-webkit.pluginprocess");
     return webKitPluginProcessName;
 }
 
 #if ENABLE(NETWORK_PROCESS)
 String executablePathOfNetworkProcess()
 {
-    static NeverDestroyed<const String> webKitNetworkProcessName(findProcessPath(NETWORKPROCESSNAME));
-
+    static NeverDestroyed<const String> webKitNetworkProcessName("application/x-vnd.haiku-webkit.networkprocess");
     return webKitNetworkProcessName;
 }
 #endif
