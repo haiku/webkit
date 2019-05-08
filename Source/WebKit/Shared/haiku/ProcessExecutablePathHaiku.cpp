@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Samsung Electronics
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2014,2019 Haiku, inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,69 +27,25 @@
 #include "config.h"
 #include "ProcessExecutablePath.h"
 
-#include "NotImplemented.h"
-#include <libgen.h>
-#include <unistd.h>
-#include <wtf/FileSystem.h>
-#include <wtf/NeverDestroyed.h>
-#include <wtf/StdLibExtras.h>
-#include <wtf/text/CString.h>
+#include <Entry.h>
+#include <String.h>
 
 namespace WebKit {
 
-// We initially look for the process in WEBKIT_EXEC_PATH, then proceed to try the working
-// directory of the running process, and finally we try LIBEXECDIR (usually /usr/local/bin).
-static String findProcessPath(const char* processName)
-{
-    String executablePath;
-    static const char* execDirectory = getenv("WEBKIT_EXEC_PATH");
-    if (execDirectory) {
-        executablePath = FileSystem::pathByAppendingComponent(String::fromUTF8(execDirectory), processName);
-        if (FileSystem::fileExists(executablePath))
-            return executablePath;
-    }
-
-#if OS(UNIX)
-    char readLinkBuffer[PATH_MAX] = {0};
-
-    notImplemented();
-#if OS(LINUX)
-    ssize_t result = readlink("/proc/self/exe", readLinkBuffer, PATH_MAX);
-#else
-    ssize_t result = readlink("/proc/curproc/file", readLinkBuffer, PATH_MAX);
-#endif
-    if (result > 0) {
-        char* executablePathPtr = dirname(readLinkBuffer);
-        executablePath = FileSystem::pathByAppendingComponent(String::fromUTF8(executablePathPtr), processName);
-        if (FileSystem::fileExists(executablePath))
-            return executablePath;
-    }
-#endif
-    executablePath = FileSystem::pathByAppendingComponent(String(LIBEXECDIR), processName);
-    ASSERT(FileSystem::fileExists(executablePath));
-    return executablePath;
-}
-
 String executablePathOfWebProcess()
 {
-    static NeverDestroyed<const String> webKitWebProcessName(findProcessPath(WEBPROCESSNAME));
-
-    return webKitWebProcessName;
+    return BString("./bin/WebProcess");
 }
 
 String executablePathOfPluginProcess()
 {
-    static NeverDestroyed<const String> webKitPluginProcessName(findProcessPath(PLUGINPROCESSNAME));
-
-    return webKitPluginProcessName;
+    return BString("./bin/PluginProcess");
 }
 
 #if ENABLE(NETWORK_PROCESS)
 String executablePathOfNetworkProcess()
 {
-    static NeverDestroyed<const String> webKitNetworkProcessName(findProcessPath(NETWORKPROCESSNAME));
-
-    return webKitNetworkProcessName;
+    return BString("./bin/NetworkProcess");
 }
 #endif
 
