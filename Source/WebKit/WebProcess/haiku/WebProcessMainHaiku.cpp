@@ -33,36 +33,38 @@
 #include<Message.h>
 
 using namespace std;
-namespace WebKit {
 using namespace WebCore;
+
+namespace WebKit {
+
 class WebProcessApp: public BApplication
 {
 	public:
 	WebProcessApp(void):BApplication("application/x-vnd.haiku-webkit.webprocess")
 	{
 	}
-	/*void MessageReceived(BMessage* msg)
+
+	void MessageReceived(BMessage* msg)
 	{
-		switch(msg->what)
-		{
-			case 'loop':
-			fprintf(stderr,"\n looper called");
-		}
-	}*/
+		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+		msg->PrintToStream();
+	}
+
 	void ReadyToRun()
 	{	
-		fprintf(stderr,"\n Im app\n");
+		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 		RunLoop::initializeMainRunLoop();
 		RunLoop::run();
 	}
 };
+
+
 class WebProcessMain final : public AuxiliaryProcessMainBase {
 public:
     bool platformInitialize() override
     {
-    	
     	WebProcessApp* app= new WebProcessApp();
-    	fprintf(stderr,"webporcess in an application\n");
+		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     	app->Run();
     	return true;
     }
@@ -70,7 +72,7 @@ public:
 
 int WebProcessMainUnix(int argc, char** argv)
 {
-	fprintf(stderr,"Aux process call\n");
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     return AuxiliaryProcessMain<WebProcess, WebProcessMain>(argc, argv);
 }
 
