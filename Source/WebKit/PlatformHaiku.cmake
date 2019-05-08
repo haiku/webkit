@@ -66,12 +66,15 @@ list(APPEND WebKit_SOURCES
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES
+    "${CMAKE_SOURCE_DIR}/Source"
+    #"${WEBCORE_DIR}/platform/graphics/opentype"
+    #"${WEBCORE_DIR}/platform/network/haiku"
     "${WEBKIT_DIR}/NetworkProcess/unix"
     "${WEBKIT_DIR}/Platform"
     "${WEBKIT_DIR}/Platform/IPC/unix"
     "${WEBKIT_DIR}/Shared/API/c/haiku"
     "${WEBKIT_DIR}/Shared/CoordinatedGraphics"
-    "${WEBKIT_DIR}/Shared/CoordinatedGraphics/threadedcompositor"
+	"${WEBKIT_DIR}/Shared/CoordinatedGraphics/threadedcompositor"
     "${WEBKIT_DIR}/Shared/unix"
     "${WEBKIT_DIR}/Shared/haiku"
     "${WEBKIT_DIR}/UIProcess/API/C/CoordinatedGraphics"
@@ -92,6 +95,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/dom"
     "${WEBCORE_DIR}/fileapi"
+    "${FORWARDING_HEADERS_DIR}/WebCore"
     "${DERIVED_SOURCES_WEBCORE_DIR}"
 )
 
