@@ -430,6 +430,15 @@ ADD_WEBKIT_PREFIX_HEADER(WebProcess)
 target_link_libraries(WebProcess ${WebProcess_LIBRARIES})
 target_include_directories(WebProcess PRIVATE ${WebProcess_INCLUDE_DIRECTORIES})
 
+if (WebProcess_RESOURCES)
+	add_custom_command(TARGET WebProcess POST_BUILD
+		COMMAND rc -o WebProcess.rsrc ${WEBKIT_DIR}/haiku/WebProcess.rdef	
+		COMMAND xres -o ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebProcess WebProcess.rsrc
+		COMMAND mimeset -f ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/WebProcess
+		DEPENDS ${WebProcess_RESOURCES}
+		VERBATIM)
+endif()
+
 if (WebKit_WebProcess_OUTPUT_NAME)
     set_target_properties(WebProcess PROPERTIES OUTPUT_NAME ${WebKit_WebProcess_OUTPUT_NAME})
 endif ()
