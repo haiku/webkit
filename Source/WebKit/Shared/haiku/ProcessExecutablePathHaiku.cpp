@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Samsung Electronics
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2014,2019 Haiku, inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,35 +27,25 @@
 #include "config.h"
 #include "ProcessExecutablePath.h"
 
-#include "NotImplemented.h"
-#include <libgen.h>
-#include <unistd.h>
-#include <wtf/FileSystem.h>
-#include <wtf/NeverDestroyed.h>
-#include <wtf/StdLibExtras.h>
-#include <wtf/text/CString.h>
+#include <Entry.h>
+#include <String.h>
 
 namespace WebKit {
 
-// On Haiku, processes are actually launched by MIME type, no need to worry about the path.
-
 String executablePathOfWebProcess()
 {
-    static NeverDestroyed<const String> webKitWebProcessName("application/x-vnd.haiku-webkit.webprocess");
-    return webKitWebProcessName;
+    return BString("./bin/WebProcess");
 }
 
 String executablePathOfPluginProcess()
 {
-    static NeverDestroyed<const String> webKitPluginProcessName("application/x-vnd.haiku-webkit.pluginprocess");
-    return webKitPluginProcessName;
+    return BString("./bin/PluginProcess");
 }
 
 #if ENABLE(NETWORK_PROCESS)
 String executablePathOfNetworkProcess()
 {
-    static NeverDestroyed<const String> webKitNetworkProcessName("application/x-vnd.haiku-webkit.networkprocess");
-    return webKitNetworkProcessName;
+    return BString("./bin/NetworkProcess");
 }
 #endif
 

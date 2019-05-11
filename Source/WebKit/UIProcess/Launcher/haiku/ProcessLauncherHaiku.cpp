@@ -36,6 +36,19 @@ using namespace WebCore;
 
 namespace WebKit {
 
+status_t processRef(BString path, entry_ref* pathRef)
+{
+	BEntry pathEntry(path);
+	if(!pathEntry.Exists())
+	return B_BAD_VALUE;
+	
+	status_t result = pathEntry.GetRef(pathRef);
+	if(result != B_OK)
+	return result;
+	
+	return B_OK;
+}
+
 void ProcessLauncher::launchProcess()
 {
     BString executablePath;
@@ -67,6 +80,11 @@ void ProcessLauncher::launchProcess()
     }
 #endif
 
+	entry_ref executableRef;
+	if(processRef(executablePath,&executableRef)!=B_OK)
+	{
+		return;
+	}
     BStackOrHeapArray<const char*, 10> argv(nargs);
     unsigned i = 0;
 #if ENABLE(DEVELOPER_MODE)
@@ -83,7 +101,7 @@ void ProcessLauncher::launchProcess()
 	assert(i <= nargs);
 
 	team_id child_id; // TODO do we need to store this somewhere?
-	status_t result = be_roster->Launch(executablePath, i-1, argv, &child_id);
+	status_t result = be_roster->Launch(&executableRef, i-1, argv, &child_id);
 
 	fprintf(stderr, "%s: %s\n", __PRETTY_FUNCTION__, strerror(result));
 
