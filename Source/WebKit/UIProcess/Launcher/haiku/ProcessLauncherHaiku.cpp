@@ -83,7 +83,7 @@ void ProcessLauncher::launchProcess()
 	assert(i <= nargs);
 
 	team_id child_id; // TODO do we need to store this somewhere?
-	status_t result = be_roster->Launch(executablePath, i, argv, &child_id);
+	status_t result = be_roster->Launch(executablePath, i-1, argv, &child_id);
 
 	fprintf(stderr, "%s: %s\n", __PRETTY_FUNCTION__, strerror(result));
 
