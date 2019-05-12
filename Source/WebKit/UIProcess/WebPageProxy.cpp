@@ -805,7 +805,6 @@ void WebPageProxy::swapToWebProcess(Ref<WebProcessProxy>&& process, std::unique_
 void WebPageProxy::finishAttachingToWebProcess(IsProcessSwap isProcessSwap)
 {
     ASSERT(m_process->state() != AuxiliaryProcessProxy::State::Terminated);
-	fprintf(stderr,"step1\n");
     if (m_process->state() == AuxiliaryProcessProxy::State::Running) {
         // In the process-swap case, the ProvisionalPageProxy constructor already took care of calling webPageEnteringWebProcess()
         // when the process was provisional.
@@ -946,7 +945,6 @@ void WebPageProxy::initializeWebPage()
 
     setDrawingArea(pageClient().createDrawingAreaProxy(m_process));
     ASSERT(m_drawingArea);
-
     process().send(Messages::WebProcess::CreateWebPage(m_pageID, creationParameters(m_process, *m_drawingArea)), 0);
 
     m_process->addVisitedLinkStoreUser(visitedLinkStore(), m_pageID);
@@ -1075,8 +1073,6 @@ WebProcessProxy& WebPageProxy::ensureRunningProcess()
 
 RefPtr<API::Navigation> WebPageProxy::loadRequest(ResourceRequest&& request, ShouldOpenExternalURLsPolicy shouldOpenExternalURLsPolicy, API::Object* userData)
 {
-	fprintf(stderr,"Access:");
-	fprintf(stderr,"loadRequest: %d",m_isClosed);
     if (m_isClosed)
         return nullptr;
 

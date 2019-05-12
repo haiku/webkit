@@ -1,5 +1,5 @@
 /*
- * Copyright 2014,2019 Haiku, Inc.
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,33 +24,35 @@
  */
 
 #include "config.h"
-#include "WebProcessMainUnix.h"
+#include "Attachment.h"
 
-#include "AuxiliaryProcessMainHaiku.h"
-#include "WebProcess.h"
-#include <Application.h>
+#include "Decoder.h"
+#include "Encoder.h"
+#include <OS.h>
 
-using namespace WebCore;
+namespace IPC {
 
-namespace WebKit {
-class WebProcessMainBase: public AuxiliaryProcessMainBase
+void Attachment::encode(Encoder& encoder) const
 {
-	public:
-	ProcessApp* app = nullptr;
-	bool platformInitialize(char* sign) override
-	{
-		app = new ProcessApp(sign);
-		return true;
-	}
-	void runApp()
-	{
-		app->Run();
-	}	
-};
-
-int WebProcessMainUnix(int argc, char** argv)
-{
-    return AuxiliaryProcessMain<WebProcess,WebProcessMainBase>(argc,argv);
+    //int encoding is easier
+    encoder << (int64_t)m_connectionID;
+	encoder << m_key;
 }
 
-} // namespace WebKit
+bool Attachment::decode(Decoder& decoder, Attachment& attachment)
+{
+
+    int64_t sourceID;
+    if (!decoder.decode(sourceID))
+        return false;
+
+    uint32_t sourceKey;
+    if (!decoder.decode(sourceKey))
+        return false;
+
+    attachment.m_connectionID = (team_id)sourceID;
+    attachment.m_key = sourceKey;
+    return true;
+}
+
+} // namespace IPC

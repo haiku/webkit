@@ -30,6 +30,11 @@
 #include <WebCore/NetworkStorageSession.h>
 #include <WebCore/NotImplemented.h>
 
+#include "NetworkConnectionToWebProcess.h"
+#include "NetworkProcessProxyMessages.h"
+#include <OS.h>
+#include <String.h>
+#include <wtf/RandomNumber.h>
 namespace WebCore
 {
 	class NetworkStorageSession;
@@ -89,5 +94,25 @@ void NetworkProcess::clearDiskCache(WallTime modifiedSince, CompletionHandler<vo
 {
     notImplemented();
 }
+
+void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWorkerProcess, WebCore::RegistrableDomain&& registrableDomain,int64_t webPID)
+{
+	team_id webID = (team_id)webPID; 
+	fprintf(stderr,"\n %s %ld",__PRETTY_FUNCTION__,webID);
+	//FIXME:should avoid collision
+	uint32_t connectionRandkey = WTF::weakRandomUint32();
+	BString key;
+	key.SetToFormat("%u",connectionRandkey);
+	
+	/* Network Process creates random key for workqueue identification and shares its pid and key to webprocess
+	So a connection can be established*/
+	auto connection = NetworkConnectionToWebProcess::create(*this,{webID,key});
+	m_webProcessConnections.append(WTFMove(connection));
+	
+	IPC::Attachment clientConnector(getpid(),connectionRandkey);
+	parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientConnector), 0);
+	createNetworkConnectionToWebProcess(isServiceWorkerProcess,std::move(registrableDomain));
+}
+
 
 } // namespace WebKit

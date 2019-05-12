@@ -50,6 +50,10 @@
 #include "NetworkSessionCurl.h"
 #endif
 
+#if PLATFORM(HAIKU)
+#include "NetworkSessionHaiku.h"
+#endif
+
 namespace WebKit {
 using namespace WebCore;
 
@@ -63,6 +67,9 @@ Ref<NetworkSession> NetworkSession::create(NetworkProcess& networkProcess, Netwo
 #endif
 #if USE(CURL)
     return NetworkSessionCurl::create(networkProcess, WTFMove(parameters));
+#endif
+#if PLATFORM(HAIKU)
+	return NetworkSessionHaiku::create(networkProcess, WTFMove(parameters));
 #endif
 }
 
