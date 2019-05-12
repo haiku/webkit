@@ -37,6 +37,10 @@ public:
     virtual bool parseCommandLine(int argc, char** argv);
     virtual void platformFinalize() { }
 
+#if PLATFORM(HAIKU)
+	virtual void runApp() {};
+#endif
+
     AuxiliaryProcessInitializationParameters&& takeInitializationParameters() { return WTFMove(m_parameters); }
 
 protected:

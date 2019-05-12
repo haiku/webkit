@@ -29,13 +29,17 @@
 #include "AuxiliaryProcessMainHaiku.h"
 #include "WebProcess.h"
 #include <Application.h>
-#include<Message.h>
+#include <Message.h>
+#include <Messenger.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 class WebProcessMainBase: public AuxiliaryProcessMainBase
 {
+	private:
+	int argc;
+	char** argv;
 	public:
 	ProcessApp* app = nullptr;
 	bool platformInitialize(char* sign) override
