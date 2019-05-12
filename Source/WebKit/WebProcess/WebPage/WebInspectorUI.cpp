@@ -97,12 +97,15 @@ void WebInspectorUI::updateConnection()
     IPC::Connection::Identifier connectionIdentifier, connClient;
     IPC::Connection::createServerAndClientIdentifiers(connectionIdentifier, connClient);
     IPC::Attachment connectionClientPort(connClient);
+#elif PLATFORM(HAIKU)
+	IPC::Connection::Identifier connectionIdentifier;
+	IPC::Attachment connectionClientPort;
 #else
     notImplemented();
     return;
 #endif
 
-#if USE(UNIX_DOMAIN_SOCKETS) || OS(DARWIN) || PLATFORM(WIN)
+#if USE(UNIX_DOMAIN_SOCKETS) || OS(DARWIN) || PLATFORM(WIN) || PLATFORM(HAIKU)
     m_backendConnection = IPC::Connection::createServerConnection(connectionIdentifier, *this);
     m_backendConnection->open();
 #endif

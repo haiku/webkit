@@ -272,7 +272,7 @@ void WebProcess::initializeConnection(IPC::Connection* connection)
 void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters)
 {    
     TraceScope traceScope(InitializeWebProcessStart, InitializeWebProcessEnd);
-
+fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
     ASSERT(m_pageMap.isEmpty());
 
     if (parameters.websiteDataStoreParameters)
@@ -1073,7 +1073,7 @@ void WebProcess::mainThreadPing()
 }
 
 void WebProcess::backgroundResponsivenessPing()
-{
+{fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
     parentProcessConnection()->send(Messages::WebProcessProxy::DidReceiveBackgroundResponsivenessPing(), 0);
 }
 
@@ -1145,6 +1145,7 @@ static NetworkProcessConnectionInfo getNetworkProcessConnection(IPC::Connection&
         // See https://bugs.webkit.org/show_bug.cgi?id=183348.
         exit(0);
 #else
+fprintf(stderr,"%s outside crashing 2\n",__PRETTY_FUNCTION__);
         CRASH();
 #endif
     }

@@ -69,6 +69,10 @@
 #include <wtf/spi/darwin/XPCSPI.h>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <String.h>
+#endif
+
 #define MESSAGE_CHECK(assertion) MESSAGE_CHECK_BASE(assertion, connection())
 
 namespace WebKit {
@@ -280,7 +284,6 @@ void NetworkProcessProxy::didReceiveMessage(IPC::Connection& connection, IPC::De
 
     if (m_processPool.dispatchMessage(connection, decoder))
         return;
-
     didReceiveNetworkProcessProxyMessage(connection, decoder);
 }
 

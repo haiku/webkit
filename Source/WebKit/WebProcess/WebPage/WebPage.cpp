@@ -1584,9 +1584,9 @@ void WebPage::loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLo
 }
 
 void WebPage::loadData(LoadParameters&& loadParameters)
-{
+{fprintf(stderr,"\n$$$$$$$$$ %s -- %d $$$$$$$$$$$\n",__PRETTY_FUNCTION__,loadParameters.baseURLString.isEmpty());
     platformDidReceiveLoadParameters(loadParameters);
-
+fprintf(stderr,"\n$$$$$$$$$ %s -- %d $$$$$$$$$$$\n",__PRETTY_FUNCTION__,loadParameters.baseURLString.isEmpty());
     auto sharedBuffer = SharedBuffer::create(reinterpret_cast<const char*>(loadParameters.data.data()), loadParameters.data.size());
     URL baseURL = loadParameters.baseURLString.isEmpty() ? WTF::blankURL() : URL(URL(), loadParameters.baseURLString);
     loadDataImpl(loadParameters.navigationID, loadParameters.shouldTreatAsContinuingLoad, WTFMove(loadParameters.websitePolicies), WTFMove(sharedBuffer), loadParameters.MIMEType, loadParameters.encodingName, baseURL, URL(), loadParameters.userData, loadParameters.shouldOpenExternalURLsPolicy);

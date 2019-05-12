@@ -149,7 +149,6 @@ bool AuxiliaryProcessProxy::send(T&& message, uint64_t destinationID, OptionSet<
 
     auto encoder = makeUnique<IPC::Encoder>(T::receiverName(), T::name(), destinationID);
     encoder->encode(message.arguments());
-
     return sendMessage(WTFMove(encoder), sendOptions);
 }
 

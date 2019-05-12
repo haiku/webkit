@@ -79,7 +79,7 @@ void AuxiliaryProcess::initialize(const AuxiliaryProcessInitializationParameters
 
     // In WebKit2, only the UI process should ever be generating non-default PAL::SessionIDs.
     PAL::SessionID::enableGenerationProtection();
-
+fprintf(stderr,"%ld %ld\n",getpid(),parameters.connectionIdentifier);
     m_connection = IPC::Connection::createClientConnection(parameters.connectionIdentifier, *this);
     initializeConnection(m_connection.get());
     m_connection->open();

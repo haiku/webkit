@@ -90,6 +90,8 @@ void WebInspector::setFrontendConnection(IPC::Attachment encodedConnectionIdenti
     IPC::Connection::Identifier connectionIdentifier(encodedConnectionIdentifier.port());
 #elif OS(WINDOWS)
     IPC::Connection::Identifier connectionIdentifier(encodedConnectionIdentifier.handle());
+#elif PLATFORM(HAIKU)
+	IPC::Connection::Identifier connectionIdentifier({NULL,NULL});
 #else
     notImplemented();
     return;

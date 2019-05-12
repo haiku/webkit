@@ -42,8 +42,10 @@
 #endif
 
 #if USE(HAIKU_EVENT_LOOP)
+#include <Handler.h>
 class BHandler;
 class BMessageRunner;
+class BLooper;
 #endif
 
 namespace WTF {
@@ -75,6 +77,10 @@ public:
 
 #if USE(GLIB_EVENT_LOOP)
     WTF_EXPORT_PRIVATE GMainContext* mainContext() const { return m_mainContext.get(); }
+#endif
+
+#if USE(HAIKU_EVENT_LOOP)
+	WTF_EXPORT_PRIVATE BLooper* runLoopLooper() const { return m_handler->Looper(); }
 #endif
 
 #if USE(GENERIC_EVENT_LOOP) || USE(HAIKU_EVENT_LOOP) || USE(WINDOWS_EVENT_LOOP)

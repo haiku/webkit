@@ -345,10 +345,10 @@ bool Decoder::decode(double& result)
 }
 
 bool Decoder::removeAttachment(Attachment& attachment)
-{
+{fprintf(stderr,"\n%s\n",__PRETTY_FUNCTION__);
     if (m_attachments.isEmpty())
         return false;
-
+fprintf(stderr,"\n%s\n",__PRETTY_FUNCTION__);
     attachment = m_attachments.takeLast();
     return true;
 }

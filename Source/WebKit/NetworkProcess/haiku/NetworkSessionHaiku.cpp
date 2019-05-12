@@ -1,5 +1,6 @@
 /*
- * Copyright 2014,2019 Haiku, Inc.
+ * Copyright (C) 2018 Sony Interactive Entertainment Inc.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,33 +25,26 @@
  */
 
 #include "config.h"
-#include "WebProcessMainUnix.h"
+#include "NetworkSessionHaiku.h"
 
-#include "AuxiliaryProcessMainHaiku.h"
-#include "WebProcess.h"
-#include <Application.h>
+#include "NetworkProcess.h"
+#include "NetworkSessionCreationParameters.h"
+#include "WebCookieManager.h"
+#include "NotImplemented.h"
+
+namespace WebKit {
 
 using namespace WebCore;
 
-namespace WebKit {
-class WebProcessMainBase: public AuxiliaryProcessMainBase
+NetworkSessionHaiku::NetworkSessionHaiku(NetworkProcess& networkProcess, NetworkSessionCreationParameters&& parameters)
+    : NetworkSession(networkProcess, parameters)
 {
-	public:
-	ProcessApp* app = nullptr;
-	bool platformInitialize(char* sign) override
-	{
-		app = new ProcessApp(sign);
-		return true;
-	}
-	void runApp()
-	{
-		app->Run();
-	}	
-};
+    notImplemented();
+}
 
-int WebProcessMainUnix(int argc, char** argv)
+NetworkSessionHaiku::~NetworkSessionHaiku()
 {
-    return AuxiliaryProcessMain<WebProcess,WebProcessMainBase>(argc,argv);
+
 }
 
 } // namespace WebKit

@@ -32,17 +32,69 @@ App::App(void)
   myWindow->Show();
 }
 
-void
-App::MessageReceived(BMessage *msg)
+void App::LocalMessage(BMessage* message)
 {
-  switch(msg->what)
-  {
-    default:
-    {
-      BApplication::MessageReceived(msg);
-      break;
-    }
-  }
+	const char* idTempStr;
+	BLooper* looperTemp;
+	message->FindString("identifier",&idTempStr);
+	message->FindPointer("looper",(void**)&looperTemp);
+	string id(idTempStr);
+	message = DetachCurrentMessage();
+	if(messengerMapping[id])
+	{
+		/* 
+		We have recieved the other process's BMessenger data just send it to our workqueue
+		*/
+		looperTemp->PostMessage(messengerMapping[id],looperTemp->PreferredHandler());
+	}
+	else
+	{
+		/*
+		Messenger is not yet known save it for later use
+		*/
+		looperMapping[id] = looperTemp;
+	}
+	
+}
+void App::GlobalMessage(BMessage* message)
+{
+	const char* idTempStr;
+	message->FindString("identifier",&idTempStr);
+	string id(idTempStr);
+	message = DetachCurrentMessage();
+	if(looperMapping[id])
+	{
+		/*
+		We know about the looper so send the message directly then
+		*/
+		BLooper* temp = looperMapping[id];
+		temp->PostMessage(message,temp->PreferredHandler());
+	}
+	else
+	{
+		/* 
+		We dont know about the looper yet so put in the mapping of messengers
+		*/
+		messengerMapping[id] = message;
+	}
+}
+
+void
+App::MessageReceived(BMessage *message)
+{
+	switch(message->what)
+	{
+		case 'inil':
+		LocalMessage(message);
+		break;
+		case 'inig':
+		GlobalMessage(message);
+		break;
+		
+		default:
+		BApplication::MessageReceived(message);
+		
+	}
 }
 void App::ReadyToRun()
 {

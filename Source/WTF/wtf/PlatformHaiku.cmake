@@ -1,5 +1,6 @@
 LIST(APPEND WTF_SOURCES
     generic/WorkQueueGeneric.cpp
+	#haiku/WorkQueueHaiku.cpp
 	haiku/RunLoopHaiku.cpp
     generic/MainThreadGeneric.cpp
     haiku/CurrentProcessMemoryStatus.cpp

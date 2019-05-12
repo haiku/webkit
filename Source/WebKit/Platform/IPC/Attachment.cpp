@@ -50,9 +50,9 @@ void Attachment::release()
 }
 #endif
 
-#if !OS(WINDOWS)
+#if !OS(WINDOWS) && !PLATFORM(HAIKU)
 void Attachment::encode(Encoder& encoder) const
-{
+{fprintf(stderr,"\n%s-%ld\n",__PRETTY_FUNCTION__,m_connectionID);
     encoder.addAttachment(WTFMove(*const_cast<Attachment*>(this)));
 }
 
@@ -60,6 +60,7 @@ bool Attachment::decode(Decoder& decoder, Attachment& attachment)
 {
     if (!decoder.removeAttachment(attachment))
         return false;
+        fprintf(stderr,"\n%s\n",__PRETTY_FUNCTION__);
     return true;
 }
 #endif

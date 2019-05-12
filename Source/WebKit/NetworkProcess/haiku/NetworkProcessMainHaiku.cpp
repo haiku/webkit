@@ -26,11 +26,25 @@
 #include "config.h"
 #include "NetworkProcessMainUnix.h"
 
-#include "AuxiliaryProcessMain.h"
+#include "AuxiliaryProcessMainHaiku.h"
 #include "NetworkProcess.h"
+#include <Application.h>
 
 namespace WebKit {
-
+class NetworkProcessMainBase: public AuxiliaryProcessMainBase
+{
+	public:
+	ProcessApp* app = nullptr;
+	bool platformInitialize(char* sign) override
+	{
+		app = new ProcessApp(sign);
+		return true;
+	}
+	void runApp()
+	{
+		app->Run();
+	}	
+};
 template<>
 void initializeAuxiliaryProcess<NetworkProcess>(AuxiliaryProcessInitializationParameters&& parameters)
 {
@@ -39,7 +53,7 @@ void initializeAuxiliaryProcess<NetworkProcess>(AuxiliaryProcessInitializationPa
 
 int NetworkProcessMainUnix(int argc, char** argv)
 {
-    return AuxiliaryProcessMain<NetworkProcess, AuxiliaryProcessMainBase>(argc, argv);
+    return AuxiliaryProcessMain<NetworkProcess,NetworkProcessMainBase>(argc, argv);
 }
 
 } // namespace WebKit
