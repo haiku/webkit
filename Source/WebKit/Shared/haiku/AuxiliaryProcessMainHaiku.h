@@ -10,7 +10,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS''
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
@@ -23,24 +23,40 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "NetworkProcessMainUnix.h"
+#pragma once
 
-#include "AuxiliaryProcessMain.h"
-#include "NetworkProcess.h"
+#include "AuxiliaryProcess.h"
+#include "WebKit2Initialize.h"
+#include <wtf/RunLoop.h>
 
 namespace WebKit {
 
-template<>
-void initializeAuxiliaryProcess<NetworkProcess>(AuxiliaryProcessInitializationParameters&& parameters)
+struct AuxiliaryProcessSettings 
 {
-    static NeverDestroyed<NetworkProcess> networkProcess(WTFMove(parameters));
+    AuxiliaryProcessInitializationParameters&& takeInitializationParameters() { return WTFMove(m_parameters); }
+    AuxiliaryProcessInitializationParameters m_parameters;
+};
+
+template<typename AuxiliaryProcessType>
+void initializeAuxiliaryProcess(AuxiliaryProcessInitializationParameters&& parameters)
+{
+    AuxiliaryProcessType::singleton().initialize(WTFMove(parameters));
 }
 
-int NetworkProcessMainUnix(int argc, char** argv)
-{
-    //return AuxiliaryProcessMain<NetworkProcess, AuxiliaryProcessMainBase>(argc, argv);
-    return 0;
+template<typename AuxiliaryProcessType>
+int AuxiliaryProcessMain(int argc, char** argv)
+{     
+    InitializeWebKit2();
+
+	AuxiliaryProcessSettings auxMain;
+	
+	auxMain.m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
+	auxMain.m_parameters.connectionIdentifier = atol(argv[3]);
+    initializeAuxiliaryProcess<AuxiliaryProcessType>(auxMain.takeInitializationParameters());
+    
+    RunLoop::run();
+	
+    return EXIT_SUCCESS;
 }
 
 } // namespace WebKit

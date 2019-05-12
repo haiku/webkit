@@ -35,14 +35,11 @@ App::App(void)
 void
 App::MessageReceived(BMessage *msg)
 {
-  switch(msg->what)
-  {
-    default:
-    {
-      BApplication::MessageReceived(msg);
-      break;
-    }
-  }
+	switch(msg->what)
+	{
+		default:
+		BApplication::MessageReceived(msg);
+	}
 }
 void App::ReadyToRun()
 {

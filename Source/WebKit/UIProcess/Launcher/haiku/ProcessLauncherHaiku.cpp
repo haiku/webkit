@@ -31,6 +31,7 @@
 #include <Roster.h>
 #include <StackOrHeapArray.h>
 #include <String.h>
+#include <unistd.h>
 
 using namespace WebCore;
 
@@ -67,7 +68,9 @@ void ProcessLauncher::launchProcess()
         return;
     }
 
-	BString processIdentifier;
+	BString processIdentifier,processID;
+	team_id UIProcessID = getpid();
+	processID.SetToFormat("%ld",UIProcessID);
 	processIdentifier.SetToFormat("%" PRIu64, m_launchOptions.processIdentifier.toUInt64());
     unsigned nargs = 5; // size of the argv array for g_spawn_async()
 
@@ -95,6 +98,7 @@ void ProcessLauncher::launchProcess()
 #endif
     argv[i++] = executablePath.String();
     argv[i++] = processIdentifier.String();
+    argv[i++] = processID.String();
 	// TODO pass our team_id so the web process can message us?
     argv[i++] = nullptr;
 
@@ -103,7 +107,7 @@ void ProcessLauncher::launchProcess()
 	team_id child_id; // TODO do we need to store this somewhere?
 	status_t result = be_roster->Launch(&executableRef, i-1, argv, &child_id);
 
-	fprintf(stderr, "%s: %s\n", __PRETTY_FUNCTION__, strerror(result));
+	fprintf(stderr, "%s: %s %ld\n", __PRETTY_FUNCTION__, strerror(result),child_id);
 
     // We've finished launching the process, message back to the main run loop.
     RunLoop::main().dispatch([protectedThis = makeRef(*this), this, child_id] {

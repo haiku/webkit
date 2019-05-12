@@ -33,7 +33,7 @@ namespace WebKit {
 using namespace WebCore;
 
 Ref<WebConnectionToUIProcess> WebConnectionToUIProcess::create(WebProcess* process)
-{
+{fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
     return adoptRef(*new WebConnectionToUIProcess(process));
 }
 

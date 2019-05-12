@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Haiku, Inc.
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,17 +24,65 @@
  */
 
 #include "config.h"
-#include "AuxiliaryProcessMain.h"
+#include "SharedMemory.h"
 
-#include "NotImplemented.h"
-
+#include "Decoder.h"
+#include "Encoder.h"
 
 namespace WebKit {
 
-bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
+SharedMemory::Handle::Handle()
 {
-	notImplemented();
-    return true;
+}
+
+SharedMemory::Handle::~Handle()
+{
+}
+
+SharedMemory::Handle::Handle(Handle&&) = default;
+SharedMemory::Handle& SharedMemory::Handle::operator=(Handle&& other) = default;
+
+void SharedMemory::Handle::clear()
+{
+}
+
+bool SharedMemory::Handle::isNull() const
+{
+}
+
+void SharedMemory::Handle::encode(IPC::Encoder& encoder) const
+{
+}
+
+bool SharedMemory::Handle::decode(IPC::Decoder& decoder, Handle& handle)
+{
+}
+
+static int createSharedMemory()
+{
+}
+
+RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
+{
+}
+
+RefPtr<SharedMemory> SharedMemory::map(const Handle& handle, Protection protection)
+{
+
+}
+
+SharedMemory::~SharedMemory()
+{
+}
+
+bool SharedMemory::createHandle(Handle& handle, Protection)
+{
+}
+
+unsigned SharedMemory::systemPageSize()
+{
 }
 
 } // namespace WebKit
+
+

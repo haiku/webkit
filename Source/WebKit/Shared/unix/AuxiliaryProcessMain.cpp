@@ -33,12 +33,17 @@ namespace WebKit {
 
 bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
 {
-	fprintf(stderr,"\naux:%s\n",argv[1]);
     ASSERT(argc >= 3);
     if (argc < 3)
         return false;
-    m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[1]));
+#if PLATFORM(HAIKU)
+	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
+	m_parameters.connectionIdentifier = atol(argv[3]);
+#else
+	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[1]));
     m_parameters.connectionIdentifier = atoi(argv[2]);
+#endif
+    
     return true;
 }
 

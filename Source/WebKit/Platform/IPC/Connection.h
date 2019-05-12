@@ -55,6 +55,11 @@
 #include "GSocketMonitor.h"
 #endif
 
+#if PLATFORM(HAIKU)
+#include <Handler.h>
+#include <Messenger.h>
+#endif
+
 namespace IPC {
 
 enum class SendOption {
@@ -143,6 +148,9 @@ public:
     typedef HANDLE Identifier;
     static bool createServerAndClientIdentifiers(Identifier& serverIdentifier, Identifier& clientIdentifier);
     static bool identifierIsValid(Identifier identifier) { return !!identifier; }
+#elif PLATFORM(HAIKU)
+    typedef team_id Identifier;
+    static bool identifierIsValid(Identifier identifier) { return BMessenger(NULL,identifier).IsValid(); }
 #endif
 
     static Ref<Connection> createServerConnection(Identifier, Client&);
@@ -398,6 +406,12 @@ private:
     std::unique_ptr<Encoder> m_pendingWriteEncoder;
     EventListener m_writeListener;
     HANDLE m_connectionPipe { INVALID_HANDLE_VALUE };
+#elif PLATFORM(HAIKU)
+	Identifier m_connectedProcess;
+	BHandler* m_readHandler;
+    BMessenger m_messenger;
+    void runReadEventLoop();
+    void runWriteEventLoop();
 #endif
 };
 
