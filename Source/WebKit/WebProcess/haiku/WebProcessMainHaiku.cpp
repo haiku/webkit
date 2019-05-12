@@ -26,11 +26,12 @@
 #include "config.h"
 #include "WebProcessMainUnix.h"
 
-#include "AuxiliaryProcessMain.h"
+#include "AuxiliaryProcessMainHaiku.h"
 #include "WebProcess.h"
 
 #include <Application.h>
-#include<Message.h>
+#include <Message.h>
+#include <Messenger.h>
 
 using namespace std;
 using namespace WebCore;
@@ -39,41 +40,37 @@ namespace WebKit {
 
 class WebProcessApp: public BApplication
 {
+	private:
+	int argc;
+	char** argv;
 	public:
-	WebProcessApp(void):BApplication("application/x-vnd.haiku-webkit.webprocess")
+	WebProcessApp(int argc,char** argv):BApplication("application/x-vnd.haiku-webkit.webprocess")
 	{
+		this->argc = argc;
+		this->argv = argv;
 	}
 
 	void MessageReceived(BMessage* msg)
 	{
-		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-		msg->PrintToStream();
+		//msg->PrintToStream();
+		switch(msg->what)
+		{
+			default:
+			BApplication::MessageReceived(msg);
+		}
 	}
 
 	void ReadyToRun()
 	{	
-		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-		RunLoop::initializeMainRunLoop();
-		RunLoop::run();
+		AuxiliaryProcessMain<WebProcess>(argc,argv);
 	}
-};
-
-
-class WebProcessMain final : public AuxiliaryProcessMainBase {
-public:
-    bool platformInitialize() override
-    {
-    	WebProcessApp* app= new WebProcessApp();
-		fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-    	app->Run();
-    	return true;
-    }
 };
 
 int WebProcessMainUnix(int argc, char** argv)
 {
 	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-    return AuxiliaryProcessMain<WebProcess, WebProcessMain>(argc, argv);
+	WebProcessApp* app = new WebProcessApp(argc,argv);
+    return app->Run();
 }
 
 } // namespace WebKit

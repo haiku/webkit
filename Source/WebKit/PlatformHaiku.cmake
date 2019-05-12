@@ -5,19 +5,16 @@ list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/NetworkProcessMainHaiku.cpp
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
 
-    Platform/IPC/unix/AttachmentUnix.cpp
-    Platform/IPC/unix/ConnectionUnix.cpp
+    Platform/IPC/haiku/ConnectionHaiku.cpp
     Platform/haiku/LoggingHaiku.cpp
     Platform/haiku/ModuleHaiku.cpp
-    Platform/unix/SharedMemoryUnix.cpp
+    Platform/haiku/SharedMemoryHaiku.cpp
 
     PluginProcess/unix/PluginControllerProxyUnix.cpp
     PluginProcess/unix/PluginProcessMainUnix.cpp
     PluginProcess/unix/PluginProcessUnix.cpp
 
     Shared/WebCoreArgumentCoders.cpp
-    #Shared/haiku/AuxiliaryProcessMainHaiku.cpp
-    Shared/unix/AuxiliaryProcessMain.cpp
     Shared/haiku/ProcessExecutablePathHaiku.cpp
     Shared/haiku/ShareableBitmapHaiku.cpp
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
