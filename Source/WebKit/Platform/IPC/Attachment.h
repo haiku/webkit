@@ -35,6 +35,10 @@
 #include <windows.h>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <OS.h>
+#include <String.h>
+#endif
 namespace IPC {
 
 class Decoder;
@@ -66,6 +70,12 @@ public:
     Attachment(HANDLE handle)
         : m_handle(handle)
     { }
+#elif PLATFORM(HAIKU)
+	Attachment(team_id connectionInfo,uint32_t key)
+		: m_connectionID(connectionInfo),
+		m_key(key)
+	{
+	}    
 #endif
 
     Type type() const { return m_type; }
@@ -83,6 +93,9 @@ public:
     mach_msg_type_name_t disposition() const { return m_disposition; }
 #elif OS(WINDOWS)
     HANDLE handle() const { return m_handle; }
+#elif PLATFORM(HAIKU)
+	team_id connectionID () const { return m_connectionID; }
+	uint32_t key () const { return m_key; }
 #endif
 
     void encode(Encoder&) const;
@@ -99,6 +112,9 @@ private:
     mach_msg_type_name_t m_disposition;
 #elif OS(WINDOWS)
     HANDLE m_handle { INVALID_HANDLE_VALUE };
+#elif PLATFORM(HAIKU)
+	team_id m_connectionID;
+	uint32_t m_key;
 #endif
 };
 

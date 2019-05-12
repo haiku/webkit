@@ -586,12 +586,12 @@ std::unique_ptr<Decoder> Connection::waitForSyncReply(uint64_t syncRequestID, Se
     WallTime absoluteTime = WallTime::now() + timeout;
 
     willSendSyncMessage(sendSyncOptions);
-    
-    bool timedOut = false;
+  
+    bool timedOut = false;sleep(15);
     while (!timedOut) {
         // First, check if we have any messages that we need to process.
         SyncMessageState::singleton().dispatchMessages(nullptr);
-        
+
         {
             LockHolder locker(m_syncReplyStateMutex);
 
@@ -622,6 +622,7 @@ std::unique_ptr<Decoder> Connection::waitForSyncReply(uint64_t syncRequestID, Se
         // This allows the WebProcess to still serve clients while waiting for the message to return.
         // Notably, it can continue to process accessibility requests, which are on the main thread.
         timedOut = !SyncMessageState::singleton().wait(absoluteTime);
+
     }
 
     RELEASE_LOG_ERROR(IPC, "Connection::waitForSyncReply: Timed-out while waiting for reply, id = %" PRIu64, syncRequestID);

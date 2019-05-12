@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2014,2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,13 +42,12 @@ namespace IPC {
 
 void ArgumentCoder<ResourceRequest>::encodePlatformData(Encoder& encoder, const ResourceRequest& resourceRequest)
 {
-    notImplemented();
+    resourceRequest.encodePlatformData(encoder);
 }
 
 bool ArgumentCoder<ResourceRequest>::decodePlatformData(Decoder& decoder, ResourceRequest& resourceRequest)
 {
-    notImplemented();
-    return false;
+    return resourceRequest.decodePlatformData(decoder);
 }
 
 #if 0
@@ -73,13 +72,13 @@ bool ArgumentCoder<ResourceResponse>::decodePlatformData(Decoder& decoder, Resou
 
 void ArgumentCoder<CertificateInfo>::encode(Encoder& encoder, const CertificateInfo& certificateInfo)
 {
-    notImplemented();
+    //nothing to encode ceriticateinfo is null
 }
 
 bool ArgumentCoder<CertificateInfo>::decode(Decoder& decoder, CertificateInfo& certificateInfo)
 {
-    notImplemented();
-    return false;
+    //nothing to decode just return true
+    return true;
 }
 
 void ArgumentCoder<ResourceError>::encodePlatformData(Encoder& encoder, const ResourceError& resourceError)

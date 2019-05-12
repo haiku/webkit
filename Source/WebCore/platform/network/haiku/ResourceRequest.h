@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003, 2006 Apple Computer, Inc.  All rights reserved.
  * Copyright (C) 2006 Samuel Weinig <sam.weinig@gmail.com>
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,6 +65,9 @@ namespace WebCore {
 
         void setCredentials(const char* username, const char* password);
         void updateFromDelegatePreservingOldProperties(const ResourceRequest& delegateProvidedRequest) { *this = delegateProvidedRequest; }
+        
+        template<class Encoder> void encodePlatformData(Encoder&) const;
+        template<class Decoder> bool decodePlatformData(Decoder&);
 
     private:
         friend class ResourceRequestBase;
@@ -78,6 +82,24 @@ namespace WebCore {
         BString fUsername;
         BString fPassword;
     };
+    
+template<class Encoder>
+void ResourceRequest::encodePlatformData(Encoder& encoder) const
+{
+	encodeBase(encoder);	
+}
+
+template<class Decoder>
+bool ResourceRequest::decodePlatformData(Decoder& decoder)
+{
+	if(!decodeBase(decoder))
+	{
+		return false;
+	}
+	
+	return true;
+}
+
 } // namespace WebCore
 
 #endif // ResourceRequest_h

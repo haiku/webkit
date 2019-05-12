@@ -30,7 +30,7 @@
 #include "MessageFlags.h"
 #include <algorithm>
 #include <stdio.h>
-
+#include<unistd.h>
 #if OS(DARWIN)
 #include <sys/mman.h>
 #endif
