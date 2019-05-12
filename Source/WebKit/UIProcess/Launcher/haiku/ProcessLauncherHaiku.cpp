@@ -31,6 +31,7 @@
 #include <Roster.h>
 #include <StackOrHeapArray.h>
 #include <String.h>
+#include <unistd.h>
 
 using namespace WebCore;
 
@@ -51,24 +52,30 @@ status_t processRef(BString path, entry_ref* pathRef)
 
 void ProcessLauncher::launchProcess()
 {
-    BString executablePath;
+    BString executablePath,executableSignature;
 
     switch (m_launchOptions.processType) {
     case ProcessLauncher::ProcessType::Web:
         executablePath = executablePathOfWebProcess();
+        executableSignature = "application/x-vnd.haiku-webkit.webprocess";
         break;
-#if ENABLE(NETWORK_PROCESS)
     case ProcessLauncher::ProcessType::Network:
         executablePath = executablePathOfNetworkProcess();
+        executableSignature = "application/x-vnd.haiku-webkit.networkprocess";
         break;
-#endif
     default:
         ASSERT_NOT_REACHED();
         return;
     }
 
-	BString processIdentifier;
+	BString processIdentifier,connectionIdentifier;
+	IPC::Connection::Identifier processInit;
+	team_id connectionID = getpid();
+	
+	connectionIdentifier.SetToFormat("%ld",connectionID);
 	processIdentifier.SetToFormat("%" PRIu64, m_launchOptions.processIdentifier.toUInt64());
+	processInit.key = processIdentifier;
+	
     unsigned nargs = 5; // size of the argv array for g_spawn_async()
 
 #if ENABLE(DEVELOPER_MODE)
@@ -93,21 +100,20 @@ void ProcessLauncher::launchProcess()
     for (auto& arg : prefixArgs)
         argv[i++] = const_cast<char*>(arg.data());
 #endif
-    argv[i++] = executablePath.String();
+    argv[i++] = executableSignature.String();
     argv[i++] = processIdentifier.String();
-	// TODO pass our team_id so the web process can message us?
-    argv[i++] = nullptr;
+    argv[i++] = connectionIdentifier.String();
 
 	assert(i <= nargs);
 
 	team_id child_id; // TODO do we need to store this somewhere?
-	status_t result = be_roster->Launch(&executableRef, i-1, argv, &child_id);
-
-	fprintf(stderr, "%s: %s\n", __PRETTY_FUNCTION__, strerror(result));
+	status_t result = be_roster->Launch(&executableRef, i, argv, &child_id);
 
     // We've finished launching the process, message back to the main run loop.
-    RunLoop::main().dispatch([protectedThis = makeRef(*this), this, child_id] {
-        didFinishLaunchingProcess(m_processIdentifier, child_id);
+    processInit.connectedProcess = child_id;
+    
+    RunLoop::main().dispatch([protectedThis = makeRef(*this), this, processInit] {
+        didFinishLaunchingProcess(m_processIdentifier, processInit);
     });
 }
 

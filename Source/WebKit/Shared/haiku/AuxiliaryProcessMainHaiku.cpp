@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2014 Igalia S.L.
  * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,14 +27,20 @@
 #include "config.h"
 #include "AuxiliaryProcessMain.h"
 
-#include "NotImplemented.h"
-
+#include <WebCore/ProcessIdentifier.h>
+#include <stdlib.h>
 
 namespace WebKit {
 
 bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
 {
-	notImplemented();
+    ASSERT(argc >= 3);
+    if (argc < 3)
+        return false;
+	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
+    m_parameters.connectionIdentifier.connectedProcess = atoi(argv[3]);
+    m_parameters.connectionIdentifier.key = argv[2];
+    
     return true;
 }
 

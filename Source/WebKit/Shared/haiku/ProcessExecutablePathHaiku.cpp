@@ -29,25 +29,28 @@
 
 #include <Entry.h>
 #include <String.h>
+#include <wtf/NeverDestroyed.h>
 
 namespace WebKit {
+using namespace std;
 
 String executablePathOfWebProcess()
 {
-    return BString("./bin/WebProcess");
+	static NeverDestroyed<const String> WebKitWebProcessName("./bin/WebProcess");
+	return WebKitWebProcessName;
 }
 
 String executablePathOfPluginProcess()
 {
-    return BString("./bin/PluginProcess");
+	static NeverDestroyed<const String> WebKitPluginProcessName("./bin/PluginProcess");
+	return WebKitPluginProcessName;
 }
 
-#if ENABLE(NETWORK_PROCESS)
 String executablePathOfNetworkProcess()
 {
-    return BString("./bin/NetworkProcess");
+	static NeverDestroyed<const String> WebKitNetworkProcessName("./bin/NetworkProcess");
+	return WebKitNetworkProcessName;
 }
-#endif
 
 } // namespace WebKit
 
