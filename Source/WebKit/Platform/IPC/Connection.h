@@ -151,6 +151,7 @@ public:
 #elif PLATFORM(HAIKU)
     typedef team_id Identifier;
     static bool identifierIsValid(Identifier identifier) { return BMessenger(NULL,identifier).IsValid(); }
+    void prepareIncomingMessage(BMessage*);
 #endif
 
     static Ref<Connection> createServerConnection(Identifier, Client&);
@@ -412,6 +413,8 @@ private:
     BMessenger m_messenger;
     void runReadEventLoop();
     void runWriteEventLoop();
+    Vector<uint8_t> m_readBuffer;
+    std::unique_ptr<Encoder> m_pendingWriteEncoder;
 #endif
 };
 
@@ -503,19 +506,19 @@ template<typename T> bool Connection::sendSync(T&& message, typename T::Reply&& 
 
     // Encode the rest of the input arguments.
     encoder->encode(message.arguments());
-
+fprintf(stderr,"\n%s place 1\n",__PRETTY_FUNCTION__);
     // Now send the message and wait for a reply.
     std::unique_ptr<Decoder> replyDecoder = sendSyncMessage(syncRequestID, WTFMove(encoder), timeout, sendSyncOptions);
     if (!replyDecoder)
         return false;
-
+fprintf(stderr,"\n%s place 2\n",__PRETTY_FUNCTION__);
     // Decode the reply.
     Optional<typename T::ReplyArguments> replyArguments;
     *replyDecoder >> replyArguments;
     if (!replyArguments)
-        return false;
+        return false;fprintf(stderr,"\n%s place 3\n",__PRETTY_FUNCTION__);
     moveTuple(WTFMove(*replyArguments), reply);
-    return true;
+    return true;fprintf(stderr,"\n%s place 4\n",__PRETTY_FUNCTION__);
 }
 
 template<typename T> bool Connection::waitForAndDispatchImmediately(uint64_t destinationID, Seconds timeout, OptionSet<WaitForOption> waitForOptions)

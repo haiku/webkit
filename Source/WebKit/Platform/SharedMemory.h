@@ -39,6 +39,10 @@
 #include <windows.h>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <OS.h>
+#endif
+
 namespace IPC {
 class Decoder;
 class Encoder;
@@ -88,6 +92,9 @@ public:
 #elif OS(WINDOWS)
         mutable HANDLE m_handle;
         size_t m_size;
+#elif PLATFORM(HAIKU)
+		mutable area_id m_areaid;
+		size_t m_size;
 #endif
     };
 
@@ -101,6 +108,8 @@ public:
 #endif
 #if OS(WINDOWS)
     static RefPtr<SharedMemory> adopt(HANDLE, size_t, Protection);
+#elif PLATFORM(HAIKU)
+	static RefPtr<SharedMemory> adopt(area_id, size_t , Protection);
 #endif
 
     ~SharedMemory();
@@ -139,6 +148,8 @@ private:
     mach_port_t m_port { MACH_PORT_NULL };
 #elif OS(WINDOWS)
     HANDLE m_handle;
+#elif PLATFORM(HAIKU)
+	area_id m_areaid;
 #endif
 };
 

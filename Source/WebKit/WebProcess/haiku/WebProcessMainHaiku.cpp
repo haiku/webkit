@@ -28,49 +28,30 @@
 
 #include "AuxiliaryProcessMainHaiku.h"
 #include "WebProcess.h"
-
 #include <Application.h>
-#include <Message.h>
-#include <Messenger.h>
 
 using namespace std;
 using namespace WebCore;
 
 namespace WebKit {
-
-class WebProcessApp: public BApplication
+class WebProcessMainBase: public AuxiliaryProcessMainBase
 {
-	private:
-	int argc;
-	char** argv;
 	public:
-	WebProcessApp(int argc,char** argv):BApplication("application/x-vnd.haiku-webkit.webprocess")
+	ProcessApp* app = nullptr;
+	bool platformInitialize(char* sign) override
 	{
-		this->argc = argc;
-		this->argv = argv;
+		app = new ProcessApp(sign);
+		return true;
 	}
-
-	void MessageReceived(BMessage* msg)
+	void runApp()
 	{
-		//msg->PrintToStream();
-		switch(msg->what)
-		{
-			default:
-			BApplication::MessageReceived(msg);
-		}
-	}
-
-	void ReadyToRun()
-	{	
-		AuxiliaryProcessMain<WebProcess>(argc,argv);
-	}
+		app->Run();
+	}	
 };
 
 int WebProcessMainUnix(int argc, char** argv)
 {
-	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-	WebProcessApp* app = new WebProcessApp(argc,argv);
-    return app->Run();
+    return AuxiliaryProcessMain<WebProcess,WebProcessMainBase>(argc,argv);
 }
 
 } // namespace WebKit

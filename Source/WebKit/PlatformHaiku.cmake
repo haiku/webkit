@@ -19,6 +19,7 @@ list(APPEND WebKit_SOURCES
     Shared/haiku/ShareableBitmapHaiku.cpp
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
     Shared/haiku/WebMemorySamplerHaiku.cpp
+    Shared/haiku/AuxiliaryProcessMainHaiku.cpp
 
     UIProcess/API/C/haiku/WKView.cpp
     UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp

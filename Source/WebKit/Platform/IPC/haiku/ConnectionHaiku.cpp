@@ -39,9 +39,16 @@ namespace IPC{
 			}
 			void MessageReceived(BMessage* message)
 			{
-				
-				fprintf(stderr,"%s %ld\n",__PRETTY_FUNCTION__,getpid());
-				message->PrintToStream();
+				switch(message->what)
+				{
+					case 'ipcm':
+					connection->prepareIncomingMessage(message);
+					break;
+					
+					default:
+					BHandler::MessageReceived(message);
+					
+				}
 			}
 		private:
 			IPC::Connection* connection;
@@ -55,31 +62,58 @@ namespace IPC{
     {
 
     }
+    void Connection::prepareIncomingMessage(BMessage* message)
+    {
+    	size_t size;
+    	const uint8_t* Buffer;
+    	status_t result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
+    	
+    	if(result == B_OK)
+    	{
+    		Vector<Attachment> attachments(0);
+    		auto decoder = std::make_unique<Decoder>(Buffer,size,nullptr,WTFMove(attachments));
+    		processIncomingMessage(WTFMove(decoder));
+    	}
+    	else
+    	return;
+    }
     void Connection::runReadEventLoop()
     {
     	BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
-    	looper->Lock();
-    	looper->AddHandler(m_readHandler);
-    	looper->SetPreferredHandler(m_readHandler);
-    	looper->Unlock();
-    	
+    	if(looper)
+    	{
+	    	looper->Lock();
+	    	looper->AddHandler(m_readHandler);
+	    	looper->SetPreferredHandler(m_readHandler);
+	    	looper->Unlock();
+	    	BMessenger hostProcess(NULL,getpid());
+    		BMessage init('init');
+	    	init.AddInt32("threadID",looper->Thread());
+	    	hostProcess.SendMessage(&init);
+    	}
+    	else
+    	fprintf(stderr,"\n looper is not active\n");
     }
     void Connection::runWriteEventLoop()
     {
     }
     bool Connection::open()
     {
-    	m_isConnected = true;
     	status_t result = m_messenger.SetTo(NULL,m_connectedProcess);
     	m_readHandler = new ReadLoop(this);
-    	runReadEventLoop();
+    	m_connectionQueue->dispatch([this,protectedThis = makeRef(*this)]{
+    		this->runReadEventLoop();
+    	});
     	if(result == B_OK)
     	{
-    		fprintf(stderr,"%s %ld %ld\n",__PRETTY_FUNCTION__,m_connectedProcess,getpid());
+    		m_isConnected = true;
     		return true;
     	}
-    	
-    	return false;
+    	else
+    	{
+    		m_isConnected = false;
+    		return false;
+    	}
     }
     bool Connection::platformCanSendOutgoingMessages() const
     {
@@ -89,9 +123,18 @@ namespace IPC{
     bool Connection::sendOutgoingMessage(std::unique_ptr<Encoder> encoder)
     {
     	BMessage processMessage('ipcm');
-    	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,encoder->buffer(),encoder->bufferSize());
+    	processMessage.AddInt32("pid",getpid());
+    	const uint8_t* Buffer= encoder->buffer();
+    	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
     	result = m_messenger.SendMessage(&processMessage);
     	//fprintf(stderr,"%s %s\n",__PRETTY_FUNCTION__,strerror(result));
+    	if(result == B_OK)
+    	return true;
+    	else
+    	{
+    		fprintf(stderr,"\n not success:%s\n",strerror(result));
+    		return false;
+    	}
     }
     void Connection::willSendSyncMessage(OptionSet<SendSyncOption> )
     {

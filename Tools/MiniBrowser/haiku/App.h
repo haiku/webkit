@@ -16,7 +16,7 @@ class App : public BApplication
 {
 public:
   App(void);
-  void MessageReceived(BMessage *msg);
+  void MessageReceived(BMessage *message);
   void ReadyToRun();
   void testLoader();
 private:
@@ -24,6 +24,9 @@ private:
     BWindow *myWindow;
     BWebView* webView;
     BRect frame;
+    thread_id workQueueLooperID;
+    BLooper* messageForward;
+    status_t result;
 };
 
 #endif

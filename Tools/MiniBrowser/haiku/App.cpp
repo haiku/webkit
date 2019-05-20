@@ -33,12 +33,23 @@ App::App(void)
 }
 
 void
-App::MessageReceived(BMessage *msg)
+App::MessageReceived(BMessage *message)
 {
-	switch(msg->what)
+	switch(message->what)
 	{
+		case 'init':
+		message->FindInt32("threadID",&workQueueLooperID);
+		messageForward = BLooper::LooperForThread(workQueueLooperID);
+		break;
+		
+		case 'ipcm':
+		message = DetachCurrentMessage();
+		result = messageForward->PostMessage(message,messageForward->PreferredHandler());
+		break;
+		
 		default:
-		BApplication::MessageReceived(msg);
+		BApplication::MessageReceived(message);
+		
 	}
 }
 void App::ReadyToRun()

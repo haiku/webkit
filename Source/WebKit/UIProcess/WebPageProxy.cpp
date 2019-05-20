@@ -951,7 +951,7 @@ void WebPageProxy::initializeWebPage()
 
     setDrawingArea(pageClient().createDrawingAreaProxy(m_process));
     ASSERT(m_drawingArea);
-
+fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
     process().send(Messages::WebProcess::CreateWebPage(m_pageID, creationParameters(m_process, *m_drawingArea)), 0);
 
     m_process->addVisitedLinkStoreUser(visitedLinkStore(), m_pageID);

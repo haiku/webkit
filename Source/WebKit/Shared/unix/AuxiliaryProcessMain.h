@@ -37,10 +37,6 @@ public:
     virtual bool parseCommandLine(int argc, char** argv);
     virtual void platformFinalize() { }
 
-#if PLATFORM(HAIKU)
-	virtual void runApp() {};
-#endif
-
     AuxiliaryProcessInitializationParameters&& takeInitializationParameters() { return WTFMove(m_parameters); }
 
 protected:
@@ -67,11 +63,9 @@ int AuxiliaryProcessMain(int argc, char** argv)
         return EXIT_FAILURE;
 
     initializeAuxiliaryProcess<AuxiliaryProcessType>(auxiliaryMain.takeInitializationParameters());
-#if PLATFORM(HAIKU)
-	auxiliaryMain.runApp();
-#else
+
     RunLoop::run();
-#endif
+
     auxiliaryMain.platformFinalize();
 	
     return EXIT_SUCCESS;

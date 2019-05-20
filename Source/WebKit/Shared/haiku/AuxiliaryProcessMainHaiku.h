@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2019 Haiku, Inc.
+ * Copyright (C) 2014 Igalia S.L.
+ * Copyright (C) 2019 Haiku, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,13 +29,71 @@
 #include "AuxiliaryProcess.h"
 #include "WebKit2Initialize.h"
 #include <wtf/RunLoop.h>
+#include <Application.h>
+#include <Looper.h>
+#include <MessageQueue.h>
 
 namespace WebKit {
 
-struct AuxiliaryProcessSettings 
-{
+class AuxiliaryProcessMainBase {
+public:
+    virtual bool platformInitialize(char* sig) { return true; }
+    virtual bool parseCommandLine(int argc, char** argv);
+    virtual void platformFinalize() { }
+	
     AuxiliaryProcessInitializationParameters&& takeInitializationParameters() { return WTFMove(m_parameters); }
+
+protected:
     AuxiliaryProcessInitializationParameters m_parameters;
+};
+
+class ProcessApp : public BApplication
+{
+	public:
+	BLooper* messageForward ;
+	status_t result;
+	thread_id workQueueLooperID;
+	BMessageQueue stash;
+	ProcessApp(char* signature):BApplication(signature)
+	{
+		messageForward = nullptr;
+	}
+	void MessageReceived(BMessage* message)
+	{
+		switch(message->what)
+		{
+			case 'init':
+			fprintf(stderr,"\n Initialize man\n");
+			message->FindInt32("threadID",&workQueueLooperID);
+			messageForward = BLooper::LooperForThread(workQueueLooperID);
+			while(!stash.IsEmpty())
+			{
+				messageForward->PostMessage(stash.NextMessage(),messageForward->PreferredHandler());
+			}
+			break;
+			
+			case 'ipcm':
+			message = DetachCurrentMessage();
+			//stash the message until the looper is ready
+			if(messageForward == NULL)
+			{
+				stash.AddMessage(message);
+			}
+			else
+			{
+				result = messageForward->PostMessage(message,messageForward->PreferredHandler());
+			}
+			break;
+			
+			default:
+			BApplication::MessageReceived(message);
+			
+		}
+	}
+	void ReadyToRun()
+	{
+		RunLoop::run();
+	}	
 };
 
 template<typename AuxiliaryProcessType>
@@ -43,18 +102,24 @@ void initializeAuxiliaryProcess(AuxiliaryProcessInitializationParameters&& param
     AuxiliaryProcessType::singleton().initialize(WTFMove(parameters));
 }
 
-template<typename AuxiliaryProcessType>
+template<typename AuxiliaryProcessType, typename AuxiliaryProcessMainType>
 int AuxiliaryProcessMain(int argc, char** argv)
-{     
+{
+    AuxiliaryProcessMainType auxiliaryMain;
+
+    if (!auxiliaryMain.platformInitialize(argv[1]))
+        return EXIT_FAILURE;
+        
     InitializeWebKit2();
 
-	AuxiliaryProcessSettings auxMain;
-	
-	auxMain.m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
-	auxMain.m_parameters.connectionIdentifier = atol(argv[3]);
-    initializeAuxiliaryProcess<AuxiliaryProcessType>(auxMain.takeInitializationParameters());
-    
-    RunLoop::run();
+    if (!auxiliaryMain.parseCommandLine(argc, argv))
+        return EXIT_FAILURE;
+
+    initializeAuxiliaryProcess<AuxiliaryProcessType>(auxiliaryMain.takeInitializationParameters());
+
+    auxiliaryMain.runApp();
+
+    auxiliaryMain.platformFinalize();
 	
     return EXIT_SUCCESS;
 }

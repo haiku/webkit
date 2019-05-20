@@ -545,7 +545,7 @@ std::unique_ptr<Decoder> Connection::sendSyncMessage(uint64_t syncRequestID, std
         didFailToSendSyncMessage();
         return nullptr;
     }
-
+fprintf(stderr,"\n %s place 1",__PRETTY_FUNCTION__);
     // Push the pending sync reply information on our stack.
     {
         LockHolder locker(m_syncReplyStateMutex);
@@ -553,20 +553,20 @@ std::unique_ptr<Decoder> Connection::sendSyncMessage(uint64_t syncRequestID, std
             didFailToSendSyncMessage();
             return nullptr;
         }
-
+fprintf(stderr,"\n %s place 2",__PRETTY_FUNCTION__);
         m_pendingSyncReplies.append(PendingSyncReply(syncRequestID));
     }
 
     ++m_inSendSyncCount;
-
+fprintf(stderr,"\n %s place 3 %ld",__PRETTY_FUNCTION__,encoder->bufferSize());
     // First send the message.
     sendMessage(WTFMove(encoder), IPC::SendOption::DispatchMessageEvenWhenWaitingForSyncReply);
-
+fprintf(stderr,"\n %s place 4",__PRETTY_FUNCTION__);
     // Then wait for a reply. Waiting for a reply could involve dispatching incoming sync messages, so
     // keep an extra reference to the connection here in case it's invalidated.
     Ref<Connection> protect(*this);
     std::unique_ptr<Decoder> reply = waitForSyncReply(syncRequestID, timeout, sendSyncOptions);
-
+fprintf(stderr,"\n %s place 5",__PRETTY_FUNCTION__);
     --m_inSendSyncCount;
 
     // Finally, pop the pending sync reply information.
@@ -575,10 +575,10 @@ std::unique_ptr<Decoder> Connection::sendSyncMessage(uint64_t syncRequestID, std
         ASSERT(m_pendingSyncReplies.last().syncRequestID == syncRequestID);
         m_pendingSyncReplies.removeLast();
     }
-
+fprintf(stderr,"\n %s place 6",__PRETTY_FUNCTION__);
     if (!reply)
         didFailToSendSyncMessage();
-
+fprintf(stderr,"\n %s place 7",__PRETTY_FUNCTION__);
     return reply;
 }
 
@@ -586,14 +586,14 @@ std::unique_ptr<Decoder> Connection::waitForSyncReply(uint64_t syncRequestID, Se
 {
     timeout = timeoutRespectingIgnoreTimeoutsForTesting(timeout);
     WallTime absoluteTime = WallTime::now() + timeout;
-
+fprintf(stderr,"\n %s place 1",__PRETTY_FUNCTION__);
     willSendSyncMessage(sendSyncOptions);
-    
+fprintf(stderr,"\n %s place 2",__PRETTY_FUNCTION__);    
     bool timedOut = false;
     while (!timedOut) {
         // First, check if we have any messages that we need to process.
         SyncMessageState::singleton().dispatchMessages(nullptr);
-        
+        fprintf(stderr,"\n %s place 3",__PRETTY_FUNCTION__);
         {
             LockHolder locker(m_syncReplyStateMutex);
 
@@ -619,16 +619,17 @@ std::unique_ptr<Decoder> Connection::waitForSyncReply(uint64_t syncRequestID, Se
             didReceiveSyncReply(sendSyncOptions);
             return nullptr;
         }
-
+fprintf(stderr,"\n %s place 4 %ld %ld",__PRETTY_FUNCTION__,getpid(),m_connectedProcess);
         // We didn't find a sync reply yet, keep waiting.
         // This allows the WebProcess to still serve clients while waiting for the message to return.
         // Notably, it can continue to process accessibility requests, which are on the main thread.
         timedOut = !SyncMessageState::singleton().wait(absoluteTime);
+        fprintf(stderr,"\n %s place 6",__PRETTY_FUNCTION__);
     }
 
     RELEASE_LOG_ERROR(IPC, "Connection::waitForSyncReply: Timed-out while waiting for reply, id = %" PRIu64, syncRequestID);
     didReceiveSyncReply(sendSyncOptions);
-
+fprintf(stderr,"\n %s place 5",__PRETTY_FUNCTION__);
     return nullptr;
 }
 

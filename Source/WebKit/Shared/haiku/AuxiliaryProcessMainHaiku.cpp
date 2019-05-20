@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2012 Samsung Electronics
- * Copyright (C) 2014,2019 Haiku, inc.
+ * Copyright (C) 2014 Igalia S.L.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,32 +25,22 @@
  */
 
 #include "config.h"
-#include "ProcessExecutablePath.h"
+#include "AuxiliaryProcessMain.h"
 
-#include <Entry.h>
-#include <String.h>
-#include <wtf/NeverDestroyed.h>
+#include <WebCore/ProcessIdentifier.h>
+#include <stdlib.h>
 
 namespace WebKit {
-using namespace std;
 
-String executablePathOfWebProcess()
+bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
 {
-	static NeverDestroyed<const String> WebKitWebProcessName("./bin/WebProcess");
-	return WebKitWebProcessName;
-}
-
-String executablePathOfPluginProcess()
-{
-	static NeverDestroyed<const String> WebKitPluginProcessName("./bin/PluginProcess");
-	return WebKitPluginProcessName;
-}
-
-String executablePathOfNetworkProcess()
-{
-	static NeverDestroyed<const String> WebKitNetworkProcessName("./bin/NetworkProcess");
-	return WebKitNetworkProcessName;
+    ASSERT(argc >= 3);
+    if (argc < 3)
+        return false;
+	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
+    m_parameters.connectionIdentifier = atoi(argv[3]);
+    
+    return true;
 }
 
 } // namespace WebKit
-

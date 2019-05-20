@@ -353,7 +353,7 @@ void NetworkProcess::initializeNetworkProcess(NetworkProcessCreationParameters&&
         registerURLSchemeAsCanDisplayOnlyIfCanRequest(scheme);
     
     m_downloadMonitorSpeedMultiplier = parameters.downloadMonitorSpeedMultiplier;
-
+fprintf(stderr,"%p - NetworkProcess::initializeNetworkProcess: Presenting process = %d\n", this, WebCore::presentingApplicationPID());
     RELEASE_LOG(Process, "%p - NetworkProcess::initializeNetworkProcess: Presenting process = %d", this, WebCore::presentingApplicationPID());
 }
 
@@ -411,6 +411,7 @@ void NetworkProcess::createNetworkConnectionToWebProcess(bool isServiceWorkerPro
     IPC::Attachment clientSocket(clientIdentifier);
     parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientSocket), 0);
 #else
+fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     notImplemented();
 #endif
 
