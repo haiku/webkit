@@ -30,6 +30,8 @@
 #include "Decoder.h"
 #include "Encoder.h"
 
+#include<OS.h>
+
 namespace WebKit {
 
 SharedMemory::Handle::Handle()
@@ -59,17 +61,42 @@ bool SharedMemory::Handle::decode(IPC::Decoder& decoder, Handle& handle)
 {
 }
 
-static int createSharedMemory()
+static uint32 protectionMode(SharedMemory::Protection protection)
 {
+	switch(protection)
+	{
+		case SharedMemory::Protection::ReadOnly:
+		return B_READ_AREA;
+		case SharedMemory::Protection::ReadWrite:
+		return B_READ_AREA | B_WRITE_AREA;
+	}
 }
 
 RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 {
+	void* baseAddress;
+	fprintf(stderr,"%s %ld\n",__PRETTY_FUNCTION__,size);
+	//size = ROUND_UP_TO_PAGE(size); if its not a multiple of a page then do this
+	area_id sharedArea = create_area("WebKit-Shared-Memory",&baseAddress,B_ANY_ADDRESS,
+		size,B_NO_LOCK,B_READ_AREA | B_WRITE_AREA);
+	
+	if(sharedArea<0)
+	return nullptr;
+	
+	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
+	memory->m_size = size;
+	memory->m_data = baseAddress;
+	memory->m_areaid = sharedArea;
 }
 
 RefPtr<SharedMemory> SharedMemory::map(const Handle& handle, Protection protection)
 {
 
+}
+
+RefPtr<SharedMemory> SharedMemory::adopt(area_id area, size_t size, Protection protection)
+{
+	
 }
 
 SharedMemory::~SharedMemory()
@@ -82,6 +109,7 @@ bool SharedMemory::createHandle(Handle& handle, Protection)
 
 unsigned SharedMemory::systemPageSize()
 {
+	return B_PAGE_SIZE;
 }
 
 } // namespace WebKit

@@ -557,9 +557,9 @@ template<typename T> bool Connection::sendSync(T&& message, typename T::Reply&& 
     Optional<typename T::ReplyArguments> replyArguments;
     *replyDecoder >> replyArguments;
     if (!replyArguments)
-        return false;
+        return false;fprintf(stderr,"\n%s place 3\n",__PRETTY_FUNCTION__);
     moveTuple(WTFMove(*replyArguments), reply);
-    return true;
+    return true;fprintf(stderr,"\n%s place 4\n",__PRETTY_FUNCTION__);
 }
 
 template<typename T> bool Connection::waitForAndDispatchImmediately(uint64_t destinationID, Seconds timeout, OptionSet<WaitForOption> waitForOptions)

@@ -1205,7 +1205,6 @@ static IPC::Connection::Identifier getNetworkProcessConnection(IPC::Connection& 
 {
     IPC::Attachment encodedConnectionIdentifier;
     fprintf(stderr,"%s outside crashing 0\n",__PRETTY_FUNCTION__);
-
     if (!connection.sendSync(Messages::WebProcessProxy::GetNetworkProcessConnection(), Messages::WebProcessProxy::GetNetworkProcessConnection::Reply(encodedConnectionIdentifier), 0)) {
     	fprintf(stderr,"%s outside crashing 1\n",__PRETTY_FUNCTION__);
 #if PLATFORM(GTK) || PLATFORM(WPE)
@@ -1234,7 +1233,9 @@ fprintf(stderr,"%s outside crashing 2\n",__PRETTY_FUNCTION__);
 	conn.key.SetToFormat("%u",encodedConnectionIdentifier.key());
 	return conn;
 #else
+fprintf(stderr,"%s inside crash 3\n",__PRETTY_FUNCTION__);
     ASSERT_NOT_REACHED();
+    fprintf(stderr,"%s inside crash 4\n",__PRETTY_FUNCTION__);
     return IPC::Connection::Identifier();
 #endif
 }

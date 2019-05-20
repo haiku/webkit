@@ -1,5 +1,6 @@
 /*
- * Copyright 2014,2019 Haiku, Inc.
+ * Copyright (C) 2014 Igalia S.L.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,33 +25,22 @@
  */
 
 #include "config.h"
-#include "WebProcessMainUnix.h"
+#include "AuxiliaryProcessMain.h"
 
-#include "AuxiliaryProcessMainHaiku.h"
-#include "WebProcess.h"
-#include <Application.h>
-
-using namespace WebCore;
+#include <WebCore/ProcessIdentifier.h>
+#include <stdlib.h>
 
 namespace WebKit {
-class WebProcessMainBase: public AuxiliaryProcessMainBase
-{
-	public:
-	ProcessApp* app = nullptr;
-	bool platformInitialize(char* sign) override
-	{
-		app = new ProcessApp(sign);
-		return true;
-	}
-	void runApp()
-	{
-		app->Run();
-	}	
-};
 
-int WebProcessMainUnix(int argc, char** argv)
+bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
 {
-    return AuxiliaryProcessMain<WebProcess,WebProcessMainBase>(argc,argv);
+    ASSERT(argc >= 3);
+    if (argc < 3)
+        return false;
+	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
+    m_parameters.connectionIdentifier = atoi(argv[3]);
+    
+    return true;
 }
 
 } // namespace WebKit

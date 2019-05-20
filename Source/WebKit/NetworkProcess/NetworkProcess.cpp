@@ -423,6 +423,7 @@ void NetworkProcess::createNetworkConnectionToWebProcess(bool isServiceWorkerPro
 #elif PLATFORM(HAIKU)
 	//do nothing
 #else
+fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     notImplemented();
 #endif
 

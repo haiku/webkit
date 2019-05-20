@@ -139,6 +139,10 @@ bool AuxiliaryProcessProxy::send(T&& message, uint64_t destinationID, OptionSet<
 
     auto encoder = std::make_unique<IPC::Encoder>(T::receiverName(), T::name(), destinationID);
     encoder->encode(message.arguments());
+<<<<<<< HEAD
+=======
+fprintf(stderr,"%s %ld\n",__PRETTY_FUNCTION__,encoder->bufferSize());
+>>>>>>> 09c34e3a25c... Message Listener attached to Workqueue thread first iteration
     return sendMessage(WTFMove(encoder), sendOptions);
 }
 

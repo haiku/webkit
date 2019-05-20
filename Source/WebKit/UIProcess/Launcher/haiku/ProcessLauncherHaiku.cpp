@@ -69,9 +69,13 @@ void ProcessLauncher::launchProcess()
     }
 
 	BString processIdentifier,connectionIdentifier;
+<<<<<<< HEAD
 	IPC::Connection::Identifier processInit;
 	team_id connectionID = getpid();
 	
+=======
+	team_id connectionID = getpid();
+>>>>>>> 09c34e3a25c... Message Listener attached to Workqueue thread first iteration
 	connectionIdentifier.SetToFormat("%ld",connectionID);
 	processIdentifier.SetToFormat("%" PRIu64, m_launchOptions.processIdentifier.toUInt64());
 	processInit.key = processIdentifier;
@@ -108,6 +112,11 @@ void ProcessLauncher::launchProcess()
 
 	team_id child_id; // TODO do we need to store this somewhere?
 	status_t result = be_roster->Launch(&executableRef, i, argv, &child_id);
+<<<<<<< HEAD
+=======
+
+	fprintf(stderr, "%s: %s %ld\n", __PRETTY_FUNCTION__, strerror(result),child_id);
+>>>>>>> 09c34e3a25c... Message Listener attached to Workqueue thread first iteration
 
     // We've finished launching the process, message back to the main run loop.
     processInit.connectedProcess = child_id;
