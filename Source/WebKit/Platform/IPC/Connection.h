@@ -58,6 +58,7 @@
 #if PLATFORM(HAIKU)
 #include <Handler.h>
 #include <Messenger.h>
+#include <String.h>
 #endif
 
 namespace IPC {
@@ -149,8 +150,13 @@ public:
     static bool createServerAndClientIdentifiers(Identifier& serverIdentifier, Identifier& clientIdentifier);
     static bool identifierIsValid(Identifier identifier) { return !!identifier; }
 #elif PLATFORM(HAIKU)
-    typedef team_id Identifier;
-    static bool identifierIsValid(Identifier identifier) { return BMessenger(NULL,identifier).IsValid(); }
+	struct connectionData
+	{
+		team_id connectedProcess;
+		BString key;	
+	};
+    typedef connectionData Identifier;
+    static bool identifierIsValid(Identifier identifier) { return BMessenger(NULL,identifier.connectedProcess).IsValid(); }//FIXME: make this less expensive
     void prepareIncomingMessage(BMessage*);
 #endif
 

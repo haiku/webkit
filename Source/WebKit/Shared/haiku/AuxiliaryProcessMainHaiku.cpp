@@ -38,7 +38,8 @@ bool AuxiliaryProcessMainBase::parseCommandLine(int argc, char** argv)
     if (argc < 3)
         return false;
 	m_parameters.processIdentifier = makeObjectIdentifier<WebCore::ProcessIdentifierType>(atoll(argv[2]));
-    m_parameters.connectionIdentifier = atoi(argv[3]);
+    m_parameters.connectionIdentifier.connectedProcess = atoi(argv[3]);
+    m_parameters.connectionIdentifier.key = argv[2];
     
     return true;
 }

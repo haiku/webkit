@@ -292,13 +292,14 @@ void NetworkProcessProxy::didReceiveInvalidMessage(IPC::Connection&, IPC::String
 }
 
 void NetworkProcessProxy::didCreateNetworkConnectionToWebProcess(const IPC::Attachment& connectionIdentifier)
-{
+{fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     ASSERT(!m_pendingConnectionReplies.isEmpty());
 
     // Grab the first pending connection reply.
     auto reply = m_pendingConnectionReplies.takeFirst().second;
 
-#if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS)
+#if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS) || PLATFORM(HAIKU)
+	fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     reply(connectionIdentifier);
 #elif OS(DARWIN)
     MESSAGE_CHECK(MACH_PORT_VALID(connectionIdentifier.port()));

@@ -9,8 +9,11 @@
 #include <Button.h>
 #include <String.h>
 #include <TextControl.h>
+#include <map>
+#include <MessageQueue.h>
 
 #include "WebView.h"
+using namespace std;
 
 class App : public BApplication
 {
@@ -19,14 +22,16 @@ public:
   void MessageReceived(BMessage *message);
   void ReadyToRun();
   void testLoader();
+  void AttachAndSend(BMessage*);
+  void ProcessMessage(BMessage*);
 private:
     int32 fCount;
     BWindow *myWindow;
     BWebView* webView;
     BRect frame;
-    thread_id workQueueLooperID;
-    BLooper* messageForward;
+    map<string,BLooper*> proxy;
     status_t result;
+    BMessageQueue stash;
 };
 
 #endif

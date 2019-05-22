@@ -274,7 +274,7 @@ void WebProcess::initializeConnection(IPC::Connection* connection)
 void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters)
 {    
     TraceScope traceScope(InitializeWebProcessStart, InitializeWebProcessEnd);
-
+fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
     ASSERT(m_pageMap.isEmpty());
 
     WebCore::setPresentingApplicationPID(parameters.presentingApplicationPID);

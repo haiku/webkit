@@ -32,21 +32,50 @@ App::App(void)
   myWindow->Show();
 }
 
+void App::ProcessMessage(BMessage* message)
+{
+	const char* tempStr;
+	BLooper* tempLooper;
+	
+	message->FindString("identifier",&tempStr);
+	message->FindPointer("looper",(void**)&tempLooper);
+	string temp(tempStr);
+	proxy[temp]=tempLooper;
+
+	while(!stash.IsEmpty())
+	{
+		BMessage* msg = stash.NextMessage();
+		tempLooper->PostMessage(msg,tempLooper->PreferredHandler());
+	}
+}
+void App::AttachAndSend(BMessage* message)
+{
+	const char* tempStr;
+	message->FindString("identifier",&tempStr);
+	string temp(tempStr);
+	BLooper *looper = proxy[temp];
+	message = DetachCurrentMessage();
+	if(!looper)
+	{
+		stash.AddMessage(message);
+	}
+	else
+	{
+		looper->PostMessage(message,looper->PreferredHandler());
+	}
+}
+
 void
 App::MessageReceived(BMessage *message)
 {
 	switch(message->what)
 	{
 		case 'init':
-		message->FindInt32("threadID",&workQueueLooperID);
-		messageForward = BLooper::LooperForThread(workQueueLooperID);
+		ProcessMessage(message);
 		break;
-		
 		case 'ipcm':
-		message = DetachCurrentMessage();
-		result = messageForward->PostMessage(message,messageForward->PreferredHandler());
+		AttachAndSend(message);
 		break;
-		
 		default:
 		BApplication::MessageReceived(message);
 		

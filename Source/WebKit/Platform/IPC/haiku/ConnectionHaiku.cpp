@@ -66,7 +66,21 @@ namespace IPC{
     {
     	size_t size;
     	const uint8_t* Buffer;
-    	status_t result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
+    	type_code type;
+    	int32 count;
+    	status_t result;
+    	message->GetInfo("bufferData",&type,&count);
+    	fprintf(stderr,"\n******** %ld ---- ",getpid());
+    	message->PrintToStream();
+    	fprintf(stderr,"*********\n");
+    	if(count == 1)
+    	result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
+    	else
+    	{
+    		result = message->FindData("bufferData",B_ANY_TYPE,1,(const void**)&Buffer,(ssize_t*)&size);
+    		fprintf(stderr,"\n{%ld}\n",size);
+    	}
+    	
     	
     	if(result == B_OK)
     	{
@@ -80,30 +94,30 @@ namespace IPC{
     void Connection::runReadEventLoop()
     {
     	BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
-    	if(looper)
-    	{
-	    	looper->Lock();
-	    	looper->AddHandler(m_readHandler);
-	    	looper->SetPreferredHandler(m_readHandler);
-	    	looper->Unlock();
-	    	BMessenger hostProcess(NULL,getpid());
-    		BMessage init('init');
-	    	init.AddInt32("threadID",looper->Thread());
-	    	hostProcess.SendMessage(&init);
-    	}
-    	else
-    	fprintf(stderr,"\n looper is not active\n");
+    	if(!looper)
+    		return;
+    	looper->Lock();
+    	looper->AddHandler(m_readHandler);
+    	looper->SetPreferredHandler(m_readHandler);
+    	looper->Unlock();
+    	BMessage init('init');
+    	init.AddString("identifier",m_connectedProcess.key.String());
+    	init.AddPointer("looper",(const void*)looper);
+    	//
+    	BMessenger hostProcess(NULL,getpid());
+    	hostProcess.SendMessage(&init);
     }
     void Connection::runWriteEventLoop()
     {
     }
     bool Connection::open()
     {
-    	status_t result = m_messenger.SetTo(NULL,m_connectedProcess);
+    	status_t result = m_messenger.SetTo(NULL,m_connectedProcess.connectedProcess);
     	m_readHandler = new ReadLoop(this);
     	m_connectionQueue->dispatch([this,protectedThis = makeRef(*this)]{
     		this->runReadEventLoop();
     	});
+    	//runReadEventLoop();
     	if(result == B_OK)
     	{
     		m_isConnected = true;
@@ -123,11 +137,11 @@ namespace IPC{
     bool Connection::sendOutgoingMessage(std::unique_ptr<Encoder> encoder)
     {
     	BMessage processMessage('ipcm');
-    	processMessage.AddInt32("pid",getpid());
+    	processMessage.AddString("identifier",m_connectedProcess.key.String());
     	const uint8_t* Buffer= encoder->buffer();
     	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
     	result = m_messenger.SendMessage(&processMessage);
-    	//fprintf(stderr,"%s %s\n",__PRETTY_FUNCTION__,strerror(result));
+
     	if(result == B_OK)
     	return true;
     	else

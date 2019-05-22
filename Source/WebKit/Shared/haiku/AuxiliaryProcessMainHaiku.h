@@ -32,6 +32,10 @@
 #include <Application.h>
 #include <Looper.h>
 #include <MessageQueue.h>
+#include <String.h>
+#include <map>
+
+using namespace std;
 
 namespace WebKit {
 
@@ -52,39 +56,52 @@ class ProcessApp : public BApplication
 	public:
 	BLooper* messageForward ;
 	status_t result;
-	thread_id workQueueLooperID;
+	map<string,BLooper*> proxy;
 	BMessageQueue stash;
 	ProcessApp(char* signature):BApplication(signature)
 	{
 		messageForward = nullptr;
+	}
+	void ProcessMessage(BMessage* message)
+	{
+		const char* tempStr;
+		BLooper* tempLooper;
+		message->FindString("identifier",&tempStr);
+		message->FindPointer("looper",(void**)&tempLooper);
+		string temp(tempStr);
+		proxy[temp] = tempLooper;
+		while(!stash.IsEmpty())
+		{
+			tempLooper->PostMessage(stash.NextMessage(),tempLooper->PreferredHandler());
+		}
+	}
+	void AttachAndSend(BMessage* message)
+	{
+		const char* tempStr;
+		message->FindString("identifier",&tempStr);
+		string temp(tempStr);
+		BLooper *looper = proxy[temp];
+
+		message = DetachCurrentMessage();
+		if(!looper)
+		{
+			stash.AddMessage(message);
+		}
+		else
+		{
+			looper->PostMessage(message,looper->PreferredHandler());
+		}
 	}
 	void MessageReceived(BMessage* message)
 	{
 		switch(message->what)
 		{
 			case 'init':
-			fprintf(stderr,"\n Initialize man\n");
-			message->FindInt32("threadID",&workQueueLooperID);
-			messageForward = BLooper::LooperForThread(workQueueLooperID);
-			while(!stash.IsEmpty())
-			{
-				messageForward->PostMessage(stash.NextMessage(),messageForward->PreferredHandler());
-			}
+			ProcessMessage(message);
 			break;
-			
 			case 'ipcm':
-			message = DetachCurrentMessage();
-			//stash the message until the looper is ready
-			if(messageForward == NULL)
-			{
-				stash.AddMessage(message);
-			}
-			else
-			{
-				result = messageForward->PostMessage(message,messageForward->PreferredHandler());
-			}
+			AttachAndSend(message);
 			break;
-			
 			default:
 			BApplication::MessageReceived(message);
 			
