@@ -302,7 +302,7 @@ void NetworkProcessProxy::didReceiveInvalidMessage(IPC::Connection&, IPC::String
 }
 
 void NetworkProcessProxy::didCreateNetworkConnectionToWebProcess(const IPC::Attachment& connectionIdentifier)
-{
+{fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     ASSERT(!m_pendingConnectionReplies.isEmpty());
 
     // Grab the first pending connection reply.

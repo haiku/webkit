@@ -107,6 +107,36 @@ class ProcessApp : public BApplication
 			messengerMapping[id] = message;
 		}
 	}
+	void ProcessMessage(BMessage* message)
+	{
+		const char* tempStr;
+		BLooper* tempLooper;
+		message->FindString("identifier",&tempStr);
+		message->FindPointer("looper",(void**)&tempLooper);
+		string temp(tempStr);
+		proxy[temp] = tempLooper;
+		while(!stash.IsEmpty())
+		{
+			tempLooper->PostMessage(stash.NextMessage(),tempLooper->PreferredHandler());
+		}
+	}
+	void AttachAndSend(BMessage* message)
+	{
+		const char* tempStr;
+		message->FindString("identifier",&tempStr);
+		string temp(tempStr);
+		BLooper *looper = proxy[temp];
+
+		message = DetachCurrentMessage();
+		if(!looper)
+		{
+			stash.AddMessage(message);
+		}
+		else
+		{
+			looper->PostMessage(message,looper->PreferredHandler());
+		}
+	}
 	void MessageReceived(BMessage* message)
 	{
 		switch(message->what)

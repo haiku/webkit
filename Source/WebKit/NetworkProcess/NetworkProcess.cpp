@@ -421,9 +421,17 @@ void NetworkProcess::createNetworkConnectionToWebProcess(bool isServiceWorkerPro
     IPC::Attachment clientSocket(clientIdentifier);
     parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientSocket), 0);
 #elif PLATFORM(HAIKU)
+<<<<<<< HEAD
 	//do nothing
+=======
+	fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
+	auto connection = NetworkConnectionToWebProcess::create(*this,{getpid(),"123"});
+	m_webProcessConnections.append(WTFMove(connection));
+	
+	IPC::Attachment clientConnector;
+	parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientConnector), 0);
+>>>>>>> 8ac4b295ac5... Fixed the worqueue ambiguity
 #else
-fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
     notImplemented();
 #endif
 

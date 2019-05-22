@@ -90,7 +90,6 @@ App::MessageReceived(BMessage *message)
 		case 'inig':
 		GlobalMessage(message);
 		break;
-		
 		default:
 		BApplication::MessageReceived(message);
 		

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 Haiku, Inc.
+ * Copyright (C) 2010, 2012 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,123 +26,46 @@
 #include "config.h"
 #include "ProcessLauncher.h"
 
-#include "ProcessExecutablePath.h"
-
-#include <Roster.h>
-#include <StackOrHeapArray.h>
-#include <String.h>
-#include <unistd.h>
-
-using namespace WebCore;
+#include <wtf/StdLibExtras.h>
+#include <wtf/SystemTracing.h>
+#include <wtf/WorkQueue.h>
 
 namespace WebKit {
 
-status_t processRef(BString path, entry_ref* pathRef)
+ProcessLauncher::ProcessLauncher(Client* client, const LaunchOptions& launchOptions)
+    : m_client(client)
+    , m_launchOptions(launchOptions)
+    , m_processIdentifier(0)
 {
-	BEntry pathEntry(path);
-	if(!pathEntry.Exists())
-	return B_BAD_VALUE;
-	
-	status_t result = pathEntry.GetRef(pathRef);
-	if(result != B_OK)
-	return result;
-	
-	return B_OK;
+    m_isLaunching = true;
+    tracePoint(ProcessLaunchStart);
+    launchProcess();
 }
 
-void ProcessLauncher::launchProcess()
+void ProcessLauncher::didFinishLaunchingProcess(ProcessID processIdentifier, IPC::Connection::Identifier identifier)
 {
-    BString executablePath,executableSignature;
-
-    switch (m_launchOptions.processType) {
-    case ProcessLauncher::ProcessType::Web:
-        executablePath = executablePathOfWebProcess();
-        executableSignature = "application/x-vnd.haiku-webkit.webprocess";
-        break;
-    case ProcessLauncher::ProcessType::Network:
-        executablePath = executablePathOfNetworkProcess();
-        executableSignature = "application/x-vnd.haiku-webkit.networkprocess";
-        break;
-    default:
-        ASSERT_NOT_REACHED();
-        return;
-    }
-
-	BString processIdentifier,connectionIdentifier;
-<<<<<<< HEAD
-	IPC::Connection::Identifier processInit;
-	team_id connectionID = getpid();
-	
-=======
-	team_id connectionID = getpid();
->>>>>>> 09c34e3a25c... Message Listener attached to Workqueue thread first iteration
-	connectionIdentifier.SetToFormat("%ld",connectionID);
-	processIdentifier.SetToFormat("%" PRIu64, m_launchOptions.processIdentifier.toUInt64());
-	processInit.key = processIdentifier;
-	
-    unsigned nargs = 5; // size of the argv array for g_spawn_async()
-
-#if ENABLE(DEVELOPER_MODE)
-    Vector<CString> prefixArgs;
-    if (!m_launchOptions.processCmdPrefix.isNull()) {
-        for (auto& arg : m_launchOptions.processCmdPrefix.split(' '))
-            prefixArgs.append(arg.utf8());
-        nargs += prefixArgs.size();
-    }
-#endif
-
-	entry_ref executableRef;
-	if(processRef(executablePath,&executableRef)!=B_OK)
-	{
-		return;
-	}
-    BStackOrHeapArray<const char*, 10> argv(nargs);
-    unsigned i = 0;
-#if ENABLE(DEVELOPER_MODE)
-    // If there's a prefix command, put it before the rest of the args.
-	// FIXME this won't work with lauching using BRoster...
-    for (auto& arg : prefixArgs)
-        argv[i++] = const_cast<char*>(arg.data());
-#endif
-    argv[i++] = executableSignature.String();
-    argv[i++] = processIdentifier.String();
-    argv[i++] = connectionIdentifier.String();
-
-	assert(i <= nargs);
-
-	team_id child_id; // TODO do we need to store this somewhere?
-	status_t result = be_roster->Launch(&executableRef, i, argv, &child_id);
-<<<<<<< HEAD
-=======
-
-	fprintf(stderr, "%s: %s %ld\n", __PRETTY_FUNCTION__, strerror(result),child_id);
->>>>>>> 09c34e3a25c... Message Listener attached to Workqueue thread first iteration
-
-    // We've finished launching the process, message back to the main run loop.
-    processInit.connectedProcess = child_id;
+    tracePoint(ProcessLaunchEnd);
+    m_processIdentifier = processIdentifier;
+    m_isLaunching = false;
     
-    RunLoop::main().dispatch([protectedThis = makeRef(*this), this, processInit] {
-        didFinishLaunchingProcess(m_processIdentifier, processInit);
-    });
-}
-
-void ProcessLauncher::terminateProcess()
-{
-    if (m_isLaunching) {
-        invalidate();
+    
+    if (!m_client) {
+        // FIXME: Make Identifier a move-only object and release port rights/connections in the destructor.
+#if OS(DARWIN) && !PLATFORM(GTK)
+        // FIXME: Should really be something like USE(MACH)
+        if (identifier.port)
+            mach_port_mod_refs(mach_task_self(), identifier.port, MACH_PORT_RIGHT_RECEIVE, -1);
+#endif
         return;
     }
 
-    if (!m_processIdentifier)
-        return;
-
-    kill(m_processIdentifier, SIGKILL);
-    m_processIdentifier = 0;
+    m_client->didFinishLaunching(this, identifier);
 }
 
-void ProcessLauncher::platformInvalidate()
+void ProcessLauncher::invalidate()
 {
+    m_client = 0;
+    platformInvalidate();
 }
 
 } // namespace WebKit
-
