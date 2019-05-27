@@ -463,7 +463,7 @@ private:
 
 template<typename T>
 bool Connection::send(T&& message, uint64_t destinationID, OptionSet<SendOption> sendOptions)
-{
+{fprintf(stderr,"(%s-%ld)",__PRETTY_FUNCTION__,m_connectedProcess.connectedProcess);
     COMPILE_ASSERT(!T::isSync, AsyncMessageExpected);
 
     auto encoder = std::make_unique<Encoder>(T::receiverName(), T::name(), destinationID);

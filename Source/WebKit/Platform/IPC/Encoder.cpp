@@ -70,6 +70,7 @@ Encoder::Encoder(StringReference messageReceiverName, StringReference messageNam
     , m_bufferSize(0)
     , m_bufferCapacity(sizeof(m_inlineBuffer))
 {
+	fprintf(stderr,"####%ld---%s#####\n",getpid(),messageName);
     encodeHeader();
 }
 

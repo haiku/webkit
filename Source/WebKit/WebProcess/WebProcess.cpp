@@ -1205,6 +1205,7 @@ static IPC::Connection::Identifier getNetworkProcessConnection(IPC::Connection& 
 {
     IPC::Attachment encodedConnectionIdentifier;
     fprintf(stderr,"%s outside crashing 0\n",__PRETTY_FUNCTION__);
+
     if (!connection.sendSync(Messages::WebProcessProxy::GetNetworkProcessConnection(), Messages::WebProcessProxy::GetNetworkProcessConnection::Reply(encodedConnectionIdentifier), 0)) {
     	fprintf(stderr,"%s outside crashing 1\n",__PRETTY_FUNCTION__);
 #if PLATFORM(GTK) || PLATFORM(WPE)
