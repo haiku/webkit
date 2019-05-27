@@ -30,7 +30,7 @@
 #include "MessageFlags.h"
 #include <algorithm>
 #include <stdio.h>
-
+#include<unistd.h>
 #if OS(DARWIN)
 #include <sys/mman.h>
 #endif
@@ -70,6 +70,7 @@ Encoder::Encoder(StringReference messageReceiverName, StringReference messageNam
     , m_bufferSize(0)
     , m_bufferCapacity(sizeof(m_inlineBuffer))
 {
+	fprintf(stderr,"####%ld---%s#####\n",getpid(),messageName);
     encodeHeader();
 }
 

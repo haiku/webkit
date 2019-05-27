@@ -60,6 +60,10 @@
 #include <wtf/spi/darwin/XPCSPI.h>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <String.h>
+#endif
+
 #define MESSAGE_CHECK(assertion) MESSAGE_CHECK_BASE(assertion, connection())
 
 namespace WebKit {
@@ -134,7 +138,7 @@ void NetworkProcessProxy::getNetworkProcessConnection(WebProcessProxy& webProces
         m_numPendingConnectionRequests++;
         return;
     }
-
+fprintf(stderr,"\n%s-%ld\n",__PRETTY_FUNCTION__,webProcessProxy.connection()->getConnection());
     bool isServiceWorkerProcess = false;
     RegistrableDomain registrableDomain;
 #if ENABLE(SERVICE_WORKER)
@@ -143,8 +147,13 @@ void NetworkProcessProxy::getNetworkProcessConnection(WebProcessProxy& webProces
         registrableDomain = downcast<ServiceWorkerProcessProxy>(webProcessProxy).registrableDomain();
     }
 #endif
-
+#if PLATFORM(HAIKU)
+	int64_t pid = webProcessProxy.connection()->getConnection();
+	connection()->send(Messages::NetworkProcess::CreateNetworkConnectionToWebProcessHaiku(isServiceWorkerProcess, registrableDomain,pid),
+	 0, IPC::SendOption::DispatchMessageEvenWhenWaitingForSyncReply);
+#else
     connection()->send(Messages::NetworkProcess::CreateNetworkConnectionToWebProcess(isServiceWorkerProcess, registrableDomain), 0, IPC::SendOption::DispatchMessageEvenWhenWaitingForSyncReply);
+#endif
 }
 
 void NetworkProcessProxy::synthesizeAppIsBackground(bool background)
@@ -256,7 +265,7 @@ void NetworkProcessProxy::didReceiveMessage(IPC::Connection& connection, IPC::De
 
     if (m_processPool.dispatchMessage(connection, decoder))
         return;
-
+fprintf(stderr,"\n%s-%s\n",__PRETTY_FUNCTION__,decoder.messageName());
     didReceiveNetworkProcessProxyMessage(connection, decoder);
 }
 
@@ -292,18 +301,24 @@ void NetworkProcessProxy::didReceiveInvalidMessage(IPC::Connection&, IPC::String
 }
 
 void NetworkProcessProxy::didCreateNetworkConnectionToWebProcess(const IPC::Attachment& connectionIdentifier)
-{fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
+{
     ASSERT(!m_pendingConnectionReplies.isEmpty());
 
     // Grab the first pending connection reply.
     auto reply = m_pendingConnectionReplies.takeFirst().second;
-
-#if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS) || PLATFORM(HAIKU)
-	fprintf(stderr,"\n %s",__PRETTY_FUNCTION__);
+    
+#if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS)
     reply(connectionIdentifier);
 #elif OS(DARWIN)
     MESSAGE_CHECK(MACH_PORT_VALID(connectionIdentifier.port()));
     reply(IPC::Attachment(connectionIdentifier.port(), MACH_MSG_TYPE_MOVE_SEND));
+#elif PLATFORM(HAIKU)
+	BString tempKey;
+	tempKey.SetToFormat("%u",connectionIdentifier.key());
+	fprintf(stderr,"\n %s -- %ld %s\n",__PRETTY_FUNCTION__,connectionIdentifier.connectionID(),tempKey.String());
+	/* Reply is alias for DelayedReply; this is where it is stuck now (this is same as other platforms so it will be under their bracket)*/
+	reply(connectionIdentifier);
+	fprintf(stderr,"\n %s - %ld\n",__PRETTY_FUNCTION__);
 #else
     notImplemented();
 #endif

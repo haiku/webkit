@@ -5,6 +5,7 @@ list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/NetworkProcessMainHaiku.cpp
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
 
+    Platform/IPC/haiku/AttachmentHaiku.cpp
     Platform/IPC/haiku/ConnectionHaiku.cpp
     Platform/haiku/LoggingHaiku.cpp
     Platform/haiku/ModuleHaiku.cpp

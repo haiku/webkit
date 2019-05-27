@@ -66,21 +66,12 @@ namespace IPC{
     {
     	size_t size;
     	const uint8_t* Buffer;
-    	type_code type;
-    	int32 count;
     	status_t result;
-    	message->GetInfo("bufferData",&type,&count);
-    	fprintf(stderr,"\n******** %ld ---- ",getpid());
+    	/*fprintf(stderr,"\n******** %ld ---- ",getpid());
     	message->PrintToStream();
-    	fprintf(stderr,"*********\n");
-    	if(count == 1)
+    	fprintf(stderr,"*********\n");*/
+
     	result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
-    	else
-    	{
-    		result = message->FindData("bufferData",B_ANY_TYPE,1,(const void**)&Buffer,(ssize_t*)&size);
-    		fprintf(stderr,"\n{%ld}\n",size);
-    	}
-    	
     	
     	if(result == B_OK)
     	{
@@ -89,7 +80,9 @@ namespace IPC{
     		processIncomingMessage(WTFMove(decoder));
     	}
     	else
-    	return;
+    	{
+    		//m_pendingWriteEncoder = WTFMove(encoder);
+    	}
     }
     void Connection::runReadEventLoop()
     {
@@ -131,7 +124,7 @@ namespace IPC{
     }
     bool Connection::platformCanSendOutgoingMessages() const
     {
-    	//write with encoder
+    	//return !m_pendingWriteEncoder;
     	return true;
     }
     bool Connection::sendOutgoingMessage(std::unique_ptr<Encoder> encoder)
@@ -140,8 +133,10 @@ namespace IPC{
     	processMessage.AddString("identifier",m_connectedProcess.key.String());
     	const uint8_t* Buffer= encoder->buffer();
     	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
+    	//
+    	processMessage.AddInt32("sender",getpid());
     	result = m_messenger.SendMessage(&processMessage);
-
+		
     	if(result == B_OK)
     	return true;
     	else

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2019 Haiku, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,41 +28,32 @@
 
 #include "Decoder.h"
 #include "Encoder.h"
+#include <OS.h>
 
 namespace IPC {
 
-Attachment::Attachment()
-    : m_type(Uninitialized)
-{
-}
-
-#if OS(DARWIN) && !USE(UNIX_DOMAIN_SOCKETS)
-Attachment::Attachment(mach_port_name_t port, mach_msg_type_name_t disposition)
-    : m_type(MachPortType)
-    , m_port(port)
-    , m_disposition(disposition)
-{
-}
-
-void Attachment::release()
-{
-    m_type = Uninitialized;
-}
-#endif
-
-#if !OS(WINDOWS) && !PLATFORM(HAIKU)
 void Attachment::encode(Encoder& encoder) const
-{fprintf(stderr,"\n%s-%ld\n",__PRETTY_FUNCTION__,m_connectionID);
-    encoder.addAttachment(WTFMove(*const_cast<Attachment*>(this)));
+{
+    //int encoding is easier
+    encoder << (int64_t)m_connectionID;
+	encoder << m_key;
 }
 
 bool Attachment::decode(Decoder& decoder, Attachment& attachment)
 {
-    if (!decoder.removeAttachment(attachment))
+    ASSERT_ARG(attachment, attachment.m_handle == INVALID_HANDLE_VALUE);
+
+    int64_t sourceID;
+    if (!decoder.decode(sourceID))
         return false;
-        fprintf(stderr,"\n%s\n",__PRETTY_FUNCTION__);
+
+    uint32_t sourceKey;
+    if (!decoder.decode(sourceKey))
+        return false;
+
+    attachment.m_connectionID = (team_id)sourceID;
+    attachment.m_key = sourceKey;
     return true;
 }
-#endif
 
 } // namespace IPC
