@@ -1221,10 +1221,14 @@ fprintf(stderr,"%s outside crashing 2\n",__PRETTY_FUNCTION__);
     return encodedConnectionIdentifier.port();
 #elif OS(WINDOWS)
     return encodedConnectionIdentifier.handle();
+#elif PLATFORM(HAIKU)
+	//Maybe try cut shorting down
+	IPC::Connection::Identifier conn;
+	conn.connectedProcess = encodedConnectionIdentifier.connectionID();
+	conn.key.SetToFormat("%u",encodedConnectionIdentifier.key());
+	return conn;
 #else
-fprintf(stderr,"%s inside crash 3\n",__PRETTY_FUNCTION__);
     ASSERT_NOT_REACHED();
-    fprintf(stderr,"%s inside crash 4\n",__PRETTY_FUNCTION__);
     return IPC::Connection::Identifier();
 #endif
 }

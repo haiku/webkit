@@ -100,7 +100,7 @@ void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWork
 	team_id webID = (team_id)webPID; 
 	fprintf(stderr,"\n %s %ld",__PRETTY_FUNCTION__,webID);
 	//FIXME:should avoid collision
-	uint32_t connectionRandkey =WTF::weakRandomUint32();
+	uint32_t connectionRandkey = 123;//WTF::weakRandomUint32();
 	BString key;
 	key.SetToFormat("%u",connectionRandkey);
 	fprintf(stderr,"\n^^^%u^^^\n",connectionRandkey);
@@ -111,6 +111,7 @@ void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWork
 	
 	IPC::Attachment clientConnector(getpid(),connectionRandkey);
 	parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientConnector), 0);
+	createNetworkConnectionToWebProcess(isServiceWorkerProcess,std::move(registrableDomain));
 }
 
 

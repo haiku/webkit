@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <Message.h>
 #include <Looper.h>
+#include <stdlib.h>
 namespace IPC{
 	class ReadLoop: public BHandler
 	{
@@ -39,12 +40,15 @@ namespace IPC{
 			}
 			void MessageReceived(BMessage* message)
 			{
+				
 				switch(message->what)
 				{
 					case 'ipcm':
 					connection->prepareIncomingMessage(message);
 					break;
-					
+					case 'inig':
+					connection->finalizeConnection(message);
+					break;
 					default:
 					BHandler::MessageReceived(message);
 					
@@ -54,6 +58,14 @@ namespace IPC{
 			IPC::Connection* connection;
 			
 	};
+	void Connection::finalizeConnection(BMessage* message)
+	{
+		
+		//unwrap the message
+		status_t result = message->FindMessenger("target",&targetMessenger);	
+		if(result == B_OK)
+			m_isConnected = true;
+	}
     void Connection::platformInitialize(Identifier identifier)
     {
     	m_connectedProcess = identifier;
@@ -67,9 +79,6 @@ namespace IPC{
     	size_t size;
     	const uint8_t* Buffer;
     	status_t result;
-    	/*fprintf(stderr,"\n******** %ld ---- ",getpid());
-    	message->PrintToStream();
-    	fprintf(stderr,"*********\n");*/
 
     	result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
     	
@@ -86,19 +95,31 @@ namespace IPC{
     }
     void Connection::runReadEventLoop()
     {
-    	BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
-    	if(!looper)
-    		return;
+    	status_t result;
+    	BLooper* looper = m_connectionQueue->runLoop().runLoopLooper();
+    	
     	looper->Lock();
     	looper->AddHandler(m_readHandler);
     	looper->SetPreferredHandler(m_readHandler);
     	looper->Unlock();
-    	BMessage init('init');
+    	/*
+    	notify the mainloop about our workqueue
+    	*/
+    	BMessage init('inil');
     	init.AddString("identifier",m_connectedProcess.key.String());
     	init.AddPointer("looper",(const void*)looper);
-    	//
     	BMessenger hostProcess(NULL,getpid());
-    	hostProcess.SendMessage(&init);
+    	result = hostProcess.SendMessage(&init);
+    	/*
+    	notify the other process  about our workqueue
+    	*/
+    	BMessenger target(looper->PreferredHandler(),looper,&result);
+    	BMessage inig('inig');
+    	inig.AddString("identifier",m_connectedProcess.key.String());
+    	inig.AddMessenger("target",target);
+    	BMessage reply;
+    	m_messenger.SendMessage(&inig);
+    	//sent to the other process
     }
     void Connection::runWriteEventLoop()
     {
@@ -110,17 +131,7 @@ namespace IPC{
     	m_connectionQueue->dispatch([this,protectedThis = makeRef(*this)]{
     		this->runReadEventLoop();
     	});
-    	//runReadEventLoop();
-    	if(result == B_OK)
-    	{
-    		m_isConnected = true;
-    		return true;
-    	}
-    	else
-    	{
-    		m_isConnected = false;
-    		return false;
-    	}
+    	return true;
     }
     bool Connection::platformCanSendOutgoingMessages() const
     {
@@ -135,7 +146,7 @@ namespace IPC{
     	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
     	//
     	processMessage.AddInt32("sender",getpid());
-    	result = m_messenger.SendMessage(&processMessage);
+    	result = targetMessenger.SendMessage(&processMessage);
 		
     	if(result == B_OK)
     	return true;

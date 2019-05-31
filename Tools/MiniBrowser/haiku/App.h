@@ -18,20 +18,20 @@ using namespace std;
 class App : public BApplication
 {
 public:
-  App(void);
-  void MessageReceived(BMessage *message);
-  void ReadyToRun();
-  void testLoader();
-  void AttachAndSend(BMessage*);
-  void ProcessMessage(BMessage*);
+	App(void);
+	void MessageReceived(BMessage *message);
+	void ReadyToRun();
+	void testLoader();
+	void LocalMessage(BMessage*);
+	void GlobalMessage(BMessage*);
 private:
     int32 fCount;
     BWindow *myWindow;
     BWebView* webView;
     BRect frame;
-    map<string,BLooper*> proxy;
     status_t result;
-    BMessageQueue stash;
+    map<string,BLooper*> looperMapping;
+	map<string,BMessage*> messengerMapping;
 };
 
 #endif
