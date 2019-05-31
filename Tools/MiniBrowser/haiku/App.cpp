@@ -82,6 +82,7 @@ void App::GlobalMessage(BMessage* message)
 void
 App::MessageReceived(BMessage *message)
 {
+	message->PrintToStream();
 	switch(message->what)
 	{
 		case 'inil':
@@ -90,6 +91,7 @@ App::MessageReceived(BMessage *message)
 		case 'inig':
 		GlobalMessage(message);
 		break;
+		
 		default:
 		BApplication::MessageReceived(message);
 		

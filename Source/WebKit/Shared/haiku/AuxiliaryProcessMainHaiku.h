@@ -107,38 +107,55 @@ class ProcessApp : public BApplication
 			messengerMapping[id] = message;
 		}
 	}
-	void ProcessMessage(BMessage* message)
+	void LocalMessage(BMessage* message)
 	{
-		const char* tempStr;
-		BLooper* tempLooper;
-		message->FindString("identifier",&tempStr);
-		message->FindPointer("looper",(void**)&tempLooper);
-		string temp(tempStr);
-		proxy[temp] = tempLooper;
-		while(!stash.IsEmpty())
-		{
-			tempLooper->PostMessage(stash.NextMessage(),tempLooper->PreferredHandler());
-		}
-	}
-	void AttachAndSend(BMessage* message)
-	{
-		const char* tempStr;
-		message->FindString("identifier",&tempStr);
-		string temp(tempStr);
-		BLooper *looper = proxy[temp];
-
+		const char* idTempStr;
+		BLooper* looperTemp;
+		message->FindString("identifier",&idTempStr);
+		message->FindPointer("looper",(void**)&looperTemp);
+		string id(idTempStr);
 		message = DetachCurrentMessage();
-		if(!looper)
-		{
-			stash.AddMessage(message);
+		if(messengerMapping[id])
+		{fprintf(stderr,"\n ajhsdkdhf \n");
+			/* 
+			We have recieved the other process's BMessenger data just send it to our workqueue
+			*/
+			looperTemp->PostMessage(messengerMapping[id],looperTemp->PreferredHandler());
 		}
 		else
 		{
-			looper->PostMessage(message,looper->PreferredHandler());
+			/*
+			Messenger is not yet known save it for later use
+			*/
+			looperMapping[id] = looperTemp;
+		}
+		
+	}
+	void GlobalMessage(BMessage* message)
+	{
+		const char* idTempStr;
+		message->FindString("identifier",&idTempStr);
+		string id(idTempStr);
+		message = DetachCurrentMessage();
+		if(looperMapping[id])
+		{
+			/*
+			We know about the looper so send the message directly then
+			*/
+			BLooper* temp = looperMapping[id];
+			temp->PostMessage(message,temp->PreferredHandler());
+		}
+		else
+		{
+			/* 
+			We dont know about the looper yet so put in the mapping of messengers
+			*/
+			messengerMapping[id] = message;
 		}
 	}
 	void MessageReceived(BMessage* message)
 	{
+		message->PrintToStream();
 		switch(message->what)
 		{
 			case 'inil':

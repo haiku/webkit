@@ -595,7 +595,7 @@ fprintf(stderr,"\n %s place 1",__PRETTY_FUNCTION__);
 
 =======
 fprintf(stderr,"\n %s place 2",__PRETTY_FUNCTION__);    
-    bool timedOut = false;
+    bool timedOut = false;sleep(15);
     while (!timedOut) {
         // First, check if we have any messages that we need to process.
         SyncMessageState::singleton().dispatchMessages(nullptr);
@@ -626,7 +626,7 @@ fprintf(stderr,"\n %s place 2",__PRETTY_FUNCTION__);
             didReceiveSyncReply(sendSyncOptions);
             return nullptr;
         }
-fprintf(stderr,"\n %s place 4 %ld %ld",__PRETTY_FUNCTION__,getpid(),m_connectedProcess);
+fprintf(stderr,"\n %s place 4 %ld %ld",__PRETTY_FUNCTION__,getpid(),m_connectedProcess.connectedProcess);
         // We didn't find a sync reply yet, keep waiting.
         // This allows the WebProcess to still serve clients while waiting for the message to return.
         // Notably, it can continue to process accessibility requests, which are on the main thread.
@@ -875,7 +875,7 @@ void Connection::sendOutgoingMessages()
 {
     if (!canSendOutgoingMessages())
         return;
-
+fprintf(stderr,"\n(%s - %ld)\n",__PRETTY_FUNCTION__,getpid());
     while (true) {
         std::unique_ptr<Encoder> message;
 
