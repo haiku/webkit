@@ -109,14 +109,14 @@ struct CodingType<std::tuple<Ts...>> {
 
 template<typename T, typename C, typename MF>
 void handleMessage(Decoder& decoder, C* object, MF function)
-{fprintf(stderr,"\n%s-%s- place1\n",__PRETTY_FUNCTION__,decoder.messageName());
+{fprintf(stderr,"\n%s-%s\n",__PRETTY_FUNCTION__,decoder.messageName());
     Optional<typename CodingType<typename T::Arguments>::Type> arguments;
     decoder >> arguments;
-    if (!arguments) {fprintf(stderr,"\n%s-%s- place2\n",__PRETTY_FUNCTION__,decoder.messageName());
+    if (!arguments) {fprintf(stderr,"\n%s-%s -- failed\n",__PRETTY_FUNCTION__,decoder.messageName());
         ASSERT(decoder.isInvalid());
         return;
     }
-fprintf(stderr,"\n%s-%s- place3\n",__PRETTY_FUNCTION__,decoder.messageName());
+
     callMemberFunction(WTFMove(*arguments), object, function);
 }
 

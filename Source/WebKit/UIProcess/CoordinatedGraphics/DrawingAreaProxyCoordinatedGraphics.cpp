@@ -54,7 +54,7 @@ DrawingAreaProxyCoordinatedGraphics::DrawingAreaProxyCoordinatedGraphics(WebPage
 #if !PLATFORM(WPE)
     , m_discardBackingStoreTimer(RunLoop::current(), this, &DrawingAreaProxyCoordinatedGraphics::discardBackingStore)
 #endif
-{
+{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
 #if USE(GLIB_EVENT_LOOP) && !PLATFORM(WPE)
     m_discardBackingStoreTimer.setPriority(RunLoopSourcePriority::ReleaseUnusedResourcesTimer);
 #endif
