@@ -4,6 +4,7 @@ list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/NetworkProcessHaiku.cpp
     NetworkProcess/haiku/NetworkProcessMainHaiku.cpp
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
+    NetworkProcess/haiku/NetworkSessionHaiku.cpp
 
     Platform/IPC/haiku/AttachmentHaiku.cpp
     Platform/IPC/haiku/ConnectionHaiku.cpp
@@ -85,6 +86,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/WebProcess/unix"
     "${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
     "${WEBKIT_DIR}/WebProcess/WebPage/CoordinatedGraphics"
+    "${WEBKIT_DIR}/NetworkProcess/haiku"
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIRS}
     ${SQLITE_INCLUDE_DIRS}
@@ -166,4 +168,3 @@ set(WebKit_FORWARDING_HEADERS_FILES
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
 ${WebKit_FORWARDING_HEADERS_DIRECTORIES})
 
-set(WebProcess_RESOURCES DEPENDS ${WEBKIT_DIR}/haiku/WebProcess.rdef)

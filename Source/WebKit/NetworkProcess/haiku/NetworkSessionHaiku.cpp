@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2019 Haiku, Inc. All rights reserved.
+ * Copyright (C) 2018 Sony Interactive Entertainment Inc.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,35 +25,26 @@
  */
 
 #include "config.h"
-#include "Attachment.h"
+#include "NetworkSessionHaiku.h"
 
-#include "Decoder.h"
-#include "Encoder.h"
-#include <OS.h>
+#include "NetworkProcess.h"
+#include "NetworkSessionCreationParameters.h"
+#include "WebCookieManager.h"
+#include "NotImplemented.h"
 
-namespace IPC {
+namespace WebKit {
 
-void Attachment::encode(Encoder& encoder) const
+using namespace WebCore;
+
+NetworkSessionHaiku::NetworkSessionHaiku(NetworkProcess& networkProcess, NetworkSessionCreationParameters&& parameters)
+    : NetworkSession(networkProcess, parameters.sessionID)
 {
-    //int encoding is easier
-    encoder << (int64_t)m_connectionID;
-	encoder << m_key;
+    notImplemented();
 }
 
-bool Attachment::decode(Decoder& decoder, Attachment& attachment)
+NetworkSessionHaiku::~NetworkSessionHaiku()
 {
 
-    int64_t sourceID;
-    if (!decoder.decode(sourceID))
-        return false;
-
-    uint32_t sourceKey;
-    if (!decoder.decode(sourceKey))
-        return false;
-
-    attachment.m_connectionID = (team_id)sourceID;
-    attachment.m_key = sourceKey;
-    return true;
 }
 
-} // namespace IPC
+} // namespace WebKit

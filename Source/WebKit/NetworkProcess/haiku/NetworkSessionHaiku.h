@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2019 Haiku, Inc. All rights reserved.
+ * Copyright (C) 2018 Sony Interactive Entertainment Inc.
+ * Copyright (C) 2019 Haiku, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,36 +24,24 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "Attachment.h"
+#pragma once
 
-#include "Decoder.h"
-#include "Encoder.h"
-#include <OS.h>
+#include "NetworkSession.h"
 
-namespace IPC {
+namespace WebKit {
 
-void Attachment::encode(Encoder& encoder) const
-{
-    //int encoding is easier
-    encoder << (int64_t)m_connectionID;
-	encoder << m_key;
-}
+struct NetworkSessionCreationParameters;
 
-bool Attachment::decode(Decoder& decoder, Attachment& attachment)
-{
+class NetworkSessionHaiku final : public NetworkSession {
+public:
+    static Ref<NetworkSession> create(NetworkProcess& networkProcess, NetworkSessionCreationParameters&& parameters)
+    {
+        return adoptRef(*new NetworkSessionHaiku(networkProcess, WTFMove(parameters)));
+    }
+    ~NetworkSessionHaiku();
 
-    int64_t sourceID;
-    if (!decoder.decode(sourceID))
-        return false;
+private:
+    NetworkSessionHaiku(NetworkProcess&, NetworkSessionCreationParameters&&);
+};
 
-    uint32_t sourceKey;
-    if (!decoder.decode(sourceKey))
-        return false;
-
-    attachment.m_connectionID = (team_id)sourceID;
-    attachment.m_key = sourceKey;
-    return true;
-}
-
-} // namespace IPC
+} // namespace WebKit

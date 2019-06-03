@@ -40,7 +40,7 @@ namespace WebKit {
 static inline RefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
 {
 	BitmapRef* bitmap = new BitmapRef(BRect(B_ORIGIN, size), B_RGBA32, false);
-
+	
     bitmap->ImportBits(static_cast<unsigned char*>(data),
 		size.width() * size.height() * 4, 32 * size.height(), 0, B_RGB32);
     RefPtr<StillImage> image = StillImage::create(adoptRef(bitmap));
@@ -58,6 +58,7 @@ std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
 
 void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const IntPoint& dstPoint, const IntRect& srcRect)
 {
+	fprintf(stderr,"\n(((( %s ))))\n",__PRETTY_FUNCTION__);
     FloatRect destRect(dstPoint, srcRect.size());
     FloatRect srcRectScaled(srcRect);
     srcRectScaled.scale(scaleFactor);

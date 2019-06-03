@@ -90,7 +90,7 @@ namespace IPC{
     	}
     	else
     	{
-    		//m_pendingWriteEncoder = WTFMove(encoder);
+    		//return
     	}
     }
     void Connection::runReadEventLoop()
@@ -123,6 +123,8 @@ namespace IPC{
     }
     void Connection::runWriteEventLoop()
     {
+    	// write the pending encoding but do we need this will messaging fail
+    	//probably when the message queue is full
     }
     bool Connection::open()
     {
@@ -135,8 +137,7 @@ namespace IPC{
     }
     bool Connection::platformCanSendOutgoingMessages() const
     {
-    	//return !m_pendingWriteEncoder;
-    	return true;
+    	return !m_pendingWriteEncoder;
     }
     bool Connection::sendOutgoingMessage(std::unique_ptr<Encoder> encoder)
     {
@@ -152,7 +153,7 @@ namespace IPC{
     	return true;
     	else
     	{
-    		fprintf(stderr,"\n not success:%s\n",strerror(result));
+    		m_pendingWriteEncoder = WTFMove(encoder);
     		return false;
     	}
     }

@@ -100,10 +100,10 @@ void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWork
 	team_id webID = (team_id)webPID; 
 	fprintf(stderr,"\n %s %ld",__PRETTY_FUNCTION__,webID);
 	//FIXME:should avoid collision
-	uint32_t connectionRandkey = 123;//WTF::weakRandomUint32();
+	uint32_t connectionRandkey = WTF::weakRandomUint32();
 	BString key;
 	key.SetToFormat("%u",connectionRandkey);
-	fprintf(stderr,"\n^^^%u^^^\n",connectionRandkey);
+	
 	/* Network Process creates random key for workqueue identification and shares its pid and key to webprocess
 	So a connection can be established*/
 	auto connection = NetworkConnectionToWebProcess::create(*this,{webID,key});

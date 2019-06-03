@@ -109,7 +109,6 @@ class ProcessApp : public BApplication
 	}
 	void MessageReceived(BMessage* message)
 	{
-		message->PrintToStream();
 		switch(message->what)
 		{
 			case 'inil':

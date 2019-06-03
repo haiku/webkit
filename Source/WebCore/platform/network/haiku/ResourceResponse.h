@@ -43,6 +43,9 @@ public:
     }
 
     void setSuggestedFilename(String name) { m_resourceName = name;}
+    
+    template<class Encoder> void encodePlatformData(Encoder&) const;
+    template<class Decoder> bool decodePlatformData(Decoder&);
 
 private:
     friend class ResourceResponseBase;
@@ -51,6 +54,26 @@ private:
 
     String m_resourceName;
 };
+
+template<class Encoder>
+void ResourceResponse::encodePlatformData(Encoder& encoder) const
+{
+	fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
+	encodeBase(encoder);	
+}
+
+template<class Decoder>
+bool ResourceResponse::decodePlatformData(Decoder& decoder)
+{
+	fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
+	if(!decodeBase(decoder))
+	{
+		fprintf(stderr,"%s -- failed\n",__PRETTY_FUNCTION__);
+		return false;
+	}
+	
+	return true;
+}
 
 } // namespace WebCore
 
