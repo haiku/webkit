@@ -27,15 +27,28 @@
 #define NotImplemented_h
 
 #include <wtf/Assertions.h>
+#include "BeDC.h"
+#include <Application.h>
+#include <Roster.h>
 
 #if PLATFORM(GTK)
     #define suppressNotImplementedWarning() getenv("DISABLE_NI_WARNING")
 #else
     #define suppressNotImplementedWarning() false
 #endif
-
 #if LOG_DISABLED
-    #define notImplemented() ((void)0)
+namespace WebCore {
+WEBCORE_EXPORT int LogColor(char* string);
+}
+    #define notImplemented() do { \
+    	app_info* randomName = new app_info(); \
+    	be_app->GetAppInfo(randomName); \
+    	BeDC dc(randomName->signature,WebCore::LogColor(randomName->signature)); \
+    	char randomString[1024]; \
+    	sprintf(randomString, "%s %d %s",__FILE__,__LINE__,__PRETTY_FUNCTION__); \
+    	dc.SendMessage(randomString); \
+    } while (0)
+    //#define notImplemented() fprintf(stderr,"yolo");
 #else
 
 namespace WebCore {

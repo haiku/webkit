@@ -27,6 +27,8 @@
 #include "NotImplemented.h"
 
 #include "Logging.h"
+#include "BeDC.h"
+#include <string>
 
 namespace WebCore {
 
@@ -39,4 +41,18 @@ WTFLogChannel* notImplementedLoggingChannel()
 
 #endif
 
+#if LOG_DISABLED
+
+int LogColor(char* string)
+{
+    std::string temp(string);
+    if(temp == "application/x-vnd.lh-MiniBrowser")
+    return DC_GREEN;
+    else if(temp == "application/x-vnd.haiku-webkit.webprocess")
+    return DC_RED;
+    else
+    return DC_BLUE;
+}
+
+#endif
 }
