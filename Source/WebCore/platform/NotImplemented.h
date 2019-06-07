@@ -27,6 +27,9 @@
 #define NotImplemented_h
 
 #include <wtf/Assertions.h>
+#include "BeDC.h"
+#include <Application.h>
+#include <Roster.h>
 
 #if PLATFORM(HAIKU)
 #include "BeDC.h"
