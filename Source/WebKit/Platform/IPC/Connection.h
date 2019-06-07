@@ -456,7 +456,7 @@ private:
 
 template<typename T>
 bool Connection::send(T&& message, uint64_t destinationID, OptionSet<SendOption> sendOptions)
-{fprintf(stderr,"(%s-%ld)",__PRETTY_FUNCTION__,m_connectedProcess.connectedProcess);
+{
     COMPILE_ASSERT(!T::isSync, AsyncMessageExpected);
 
     auto encoder = makeUnique<Encoder>(T::receiverName(), T::name(), destinationID);
@@ -520,19 +520,17 @@ template<typename T> bool Connection::sendSync(T&& message, typename T::Reply&& 
 
     // Encode the rest of the input arguments.
     encoder->encode(message.arguments());
-fprintf(stderr,"\n%s place 1\n",__PRETTY_FUNCTION__);
     // Now send the message and wait for a reply.
     std::unique_ptr<Decoder> replyDecoder = sendSyncMessage(syncRequestID, WTFMove(encoder), timeout, sendSyncOptions);
     if (!replyDecoder)
         return false;
-fprintf(stderr,"\n%s place 2\n",__PRETTY_FUNCTION__);
     // Decode the reply.
     Optional<typename T::ReplyArguments> replyArguments;
     *replyDecoder >> replyArguments;
     if (!replyArguments)
-        return false;fprintf(stderr,"\n%s place 3\n",__PRETTY_FUNCTION__);
+        return false;
     moveTuple(WTFMove(*replyArguments), reply);
-    return true;fprintf(stderr,"\n%s place 4\n",__PRETTY_FUNCTION__);
+    return true;
 }
 
 template<typename T> bool Connection::waitForAndDispatchImmediately(uint64_t destinationID, Seconds timeout, OptionSet<WaitForOption> waitForOptions)

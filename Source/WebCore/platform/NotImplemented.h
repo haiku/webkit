@@ -28,14 +28,35 @@
 
 #include <wtf/Assertions.h>
 
+#if PLATFORM(HAIKU)
+#include "BeDC.h"
+#include <Application.h>
+#include <Roster.h>
+#endif
+
 #if PLATFORM(GTK)
     #define suppressNotImplementedWarning() getenv("DISABLE_NI_WARNING")
 #else
     #define suppressNotImplementedWarning() false
 #endif
-
 #if LOG_DISABLED
-    #define notImplemented() ((void)0)
+
+#if PLATFORM(HAIKU)
+namespace WebCore {
+WEBCORE_EXPORT int LogColor(char* string);
+}
+    #define notImplemented() do { \
+        static bool havePrinted = false; \
+		if (!havePrinted) { \
+    		app_info* appInfo = new app_info(); \
+    		be_app->GetAppInfo(appInfo); \
+    		BeDC dc(appInfo->signature,WebCore::LogColor(appInfo->signature)); \
+    		dc.SendFormat("UNIMPLEMENTED: %s %d %s",__FILE__,__LINE__,__PRETTY_FUNCTION__); \
+            havePrinted = true; \
+		} \
+    } while (0)
+#endif
+
 #else
 
 namespace WebCore {
