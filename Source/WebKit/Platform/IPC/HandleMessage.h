@@ -28,6 +28,7 @@
 #include "ArgumentCoders.h"
 #include <wtf/CompletionHandler.h>
 #include <wtf/StdLibExtras.h>
+#include "NotImplemented.h"
 
 namespace IPC {
 
@@ -109,7 +110,7 @@ struct CodingType<std::tuple<Ts...>> {
 
 template<typename T, typename C, typename MF>
 void handleMessage(Decoder& decoder, C* object, MF function)
-{fprintf(stderr,"\n%s-%s\n",__PRETTY_FUNCTION__,decoder.messageName());
+{notImplemented();
     Optional<typename CodingType<typename T::Arguments>::Type> arguments;
     decoder >> arguments;
     if (!arguments) {fprintf(stderr,"\n%s-%s -- failed\n",__PRETTY_FUNCTION__,decoder.messageName());
@@ -122,7 +123,7 @@ void handleMessage(Decoder& decoder, C* object, MF function)
 
 template<typename T, typename C, typename MF>
 void handleMessage(Connection& connection, Decoder& decoder, C* object, MF function)
-{
+{notImplemented();
     Optional<typename CodingType<typename T::Arguments>::Type> arguments;
     decoder >> arguments;
     if (!arguments) {
