@@ -1075,7 +1075,7 @@ RefPtr<API::Navigation> WebPageProxy::loadRequest(ResourceRequest&& request, Sho
 	fprintf(stderr,"loadRequest: %d",m_isClosed);
     if (m_isClosed)
         return nullptr;
-        
+
     RELEASE_LOG_IF_ALLOWED(Loading, "loadRequest: webPID = %i, pageID = %" PRIu64, m_process->processIdentifier(), m_pageID);
 
     if (!hasRunningProcess())

@@ -39,7 +39,8 @@ const API::PageConfiguration& pageConfig)
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
 	fprintf(stderr,"Init");
-	parentWindow->AddChild(fViewPort);
+	fViewPort->SetLowColor(255,0,0,255);
+	fViewPort->SetViewColor(255,0,0,255);
 	auto config = pageConfig.copy();
 	auto* preferences = config->preferences();
 	

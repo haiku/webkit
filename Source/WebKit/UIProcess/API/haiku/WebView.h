@@ -22,11 +22,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include "config.h"
 #include "WKPage.h"
 #include "WKView.h"
 #include "WKContext.h"
 #include "WKRetainPtr.h"
+#include "WKAPICast.h"
+#include "WebViewBase.h"
+
 using namespace WebKit;
 class BWebView
 {
@@ -34,6 +37,8 @@ class BWebView
 	BWebView(BRect,BWindow*);
 	void initializeOnce();
 	void loadHTML();
+	void loadURI(const char*);
+	BView* getRenderView() { return toImpl(fViewPort.get())->getView(); }
 	private:	
 	WKRetainPtr<WKViewRef> fViewPort;
    	WKRetainPtr<WKContextRef> fContext;

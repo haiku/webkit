@@ -43,6 +43,11 @@ namespace WebKit
 	WebProcessProxy& process)
 	{
 		//fprintf(stderr,"called drawing area");
+		/*BView* temp = fWebView.getView();
+		temp->LockLooper();
+		temp->SetFontSize(50.3);
+		temp->DrawString("Hello",5);
+		temp->UnlockLooper();*/
 		return std::make_unique<DrawingAreaProxyCoordinatedGraphics>(*fWebView.page(),process);
 	}
 	void PageClientImpl::setViewNeedsDisplay(const WebCore::Region& region)
@@ -316,6 +321,7 @@ namespace WebKit
 	
 	BView* PageClientImpl::viewWidget()
 	{
+		fprintf(stderr,"&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n");
 	    return fWebView.getView();
 	}
 
