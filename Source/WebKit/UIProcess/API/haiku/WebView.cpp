@@ -68,3 +68,12 @@ void BWebView::loadHTML()
 	//WKPageLoadURL(page,uri.get());
 	WKPageLoadHTMLString(page,str.get(),uri.get());
 }
+
+void BWebView::loadURI(const char* uri)
+{
+	auto page = WKViewGetPage( fViewPort.get());
+	WKRetainPtr<WKURLRef> wuri;
+	wuri = adoptWK(WKURLCreateWithUTF8CString(uri));
+	WKPageLoadURL(page,wuri.get());
+}
+	
