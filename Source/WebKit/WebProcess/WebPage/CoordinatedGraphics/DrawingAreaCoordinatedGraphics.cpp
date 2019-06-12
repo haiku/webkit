@@ -521,7 +521,7 @@ void DrawingAreaCoordinatedGraphics::resumePainting()
 }
 
 void DrawingAreaCoordinatedGraphics::enterAcceleratedCompositingMode(GraphicsLayer* graphicsLayer)
-{
+{fprintf(stderr,"\n$$$$ %s $$$$ \n",__PRETTY_FUNCTION__);
     m_discardPreviousLayerTreeHostTimer.stop();
 
     m_exitCompositingTimer.stop();
