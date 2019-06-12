@@ -38,7 +38,7 @@ class BWebView
 	void initializeOnce();
 	void loadHTML();
 	void loadURI(const char*);
-	BView* getRenderView() { return toImpl(fViewPort.get())->getView(); }
+	WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
 	private:	
 	WKRetainPtr<WKViewRef> fViewPort;
    	WKRetainPtr<WKContextRef> fContext;

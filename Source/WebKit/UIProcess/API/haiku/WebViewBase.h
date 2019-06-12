@@ -47,14 +47,16 @@ namespace WebKit
 			return fWebView;
 		}
 		WebPageProxy* page() const { return fPage.get(); }
-		BView* getView() const {return fViewPort;}
+		BView* getView() {return this;}
 		void initializeOnce();
+		
+		//hook methods
+		virtual void MouseMoved(BPoint,uint32,const BMessage*);
 		private:
 		WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
 		
 		void paint(const WebCore::IntRect&);
 		
-		BView* fViewPort {nullptr};
 		RefPtr<WebPageProxy> fPage;
 		std::unique_ptr<PageClientImpl> fPageClient;
 	};	
