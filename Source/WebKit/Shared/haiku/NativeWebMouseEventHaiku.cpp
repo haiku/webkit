@@ -23,23 +23,15 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef WebEventFactory_h
-#define WebEventFactory_h
+#include "config.h"
+#include "WebEventFactory.h"
+#include "NativeWebMouseEvent.h"
 
-#include "WebEvent.h"
-
-class BMessage;
-
-namespace WebKit {
-
-class WebEventFactory {
-public:
-    static WebMouseEvent createWebMouseEvent(const BMessage*);
-    static WebWheelEvent createWebWheelEvent(const BMessage*);
-    static WebKeyboardEvent createWebKeyboardEvent(const BMessage*);
-
-};
-
-} // namespace WebKit
-
-#endif // WebEventFactory_h
+namespace WebKit
+{
+	NativeWebMouseEvent::NativeWebMouseEvent(BMessage* mouseEvent)
+	:WebMouseEvent(WebEventFactory::createWebMouseEvent(mouseEvent)),
+	m_nativeEvent(mouseEvent)
+	{
+	}
+}
