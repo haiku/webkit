@@ -35,12 +35,9 @@ using namespace WebCore;
 WebKit::WebViewBase::WebViewBase(const char*name,BRect rect,BWindow* parentWindow,
 const API::PageConfiguration& pageConfig)
 :BView(name,B_WILL_DRAW),
- fViewPort(new BView(name,B_WILL_DRAW)),
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
 	fprintf(stderr,"Init");
-	fViewPort->SetLowColor(255,0,0,255);
-	fViewPort->SetViewColor(255,0,0,255);
 	auto config = pageConfig.copy();
 	auto* preferences = config->preferences();
 	
@@ -80,5 +77,10 @@ void WebViewBase::paint(const IntRect& dirtyRect)
 	// TODO actually paint
 }	
 
+void WebViewBase::MouseMoved(BPoint where,uint32 code,const BMessage* dragMessage)
+{
+	/*BMessage* temp = Looper()->CurrentMessage();
+	temp->PrintToStream();*/
+}
 	
 	
