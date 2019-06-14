@@ -93,14 +93,14 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/dom"
     "${WEBCORE_DIR}/fileapi"
-    "${FORWARDING_HEADERS_DIR}/WebCore"
     "${DERIVED_SOURCES_WEBCORE_DIR}"
 )
 
 set(WebKit_LOCAL_INCLUDE_DIRECTORIES
+    "${FORWARDING_HEADERS_DIR}/WebKit"
+    "${FORWARDING_HEADERS_DIR}/WebCore"
     "${WEBCORE_DIR}/css"
     "${WEBCORE_DIR}/platform/graphics"
-    "${WEBCORE_DIR}/platform/graphics/transforms"
     "${WEBCORE_DIR}/rendering/shapes"
 )
 
@@ -158,8 +158,13 @@ set(WebKit_FORWARDING_HEADERS_DIRECTORIES
    WebProcess/InjectedBundle/API/c
 )
 set(WebKit_FORWARDING_HEADERS_FILES
+	WebProcess/WebPage/EventDispatcher.h
+
+	Platform/Logging.h
     #Platform/classifier/ResourceLoadStatisticsClassifier.h
     Platform/IPC/unix/UnixMessage.h
+
+	UIProcess/VisitedLinkStore.h
 )
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
