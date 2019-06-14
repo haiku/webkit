@@ -31,12 +31,12 @@
 namespace WebKit {
 using namespace WebCore;
 
-void WebEditorClient::handleKeyboardEvent(KeyboardEvent* event)
+void WebEditorClient::handleKeyboardEvent(KeyboardEvent& event)
 {
     notImplemented();
 }
 
-void WebEditorClient::handleInputMethodKeydown(KeyboardEvent* event)
+void WebEditorClient::handleInputMethodKeydown(KeyboardEvent& event)
 {
     notImplemented();
 }

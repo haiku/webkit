@@ -6084,7 +6084,9 @@ bool ValidateSamplerParameterBase(Context *context,
 }
 
 template bool ValidateSamplerParameterBase(Context *, GLuint, GLenum, GLsizei, bool, GLfloat *);
+template bool ValidateSamplerParameterBase(Context *, GLuint, GLenum, GLsizei, bool, const GLfloat *);
 template bool ValidateSamplerParameterBase(Context *, GLuint, GLenum, GLsizei, bool, GLint *);
+template bool ValidateSamplerParameterBase(Context *, GLuint, GLenum, GLsizei, bool, const GLint *);
 template bool ValidateSamplerParameterBase(Context *,
                                            GLuint,
                                            GLenum,
