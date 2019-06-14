@@ -36,9 +36,12 @@ public:
 	void MessageReceived(BMessage *message);
 	void ReadyToRun();
 	void testLoader();
+	
+private:
 	void LocalMessage(BMessage*);
 	void GlobalMessage(BMessage*);
-private:
+	void SetStatus(const char*);
+	void ChangeUrl(BMessage*);
     int32 fCount;
     BWindow *myWindow;
     BWebView* webView;

@@ -40,7 +40,8 @@ const API::PageConfiguration& pageConfig)
 	fprintf(stderr,"Init");
 	auto config = pageConfig.copy();
 	auto* preferences = config->preferences();
-	
+	SetLowColor(255,255,255,255);
+	SetViewColor(255,255,255,255);
 	if(!preferences && config->pageGroup())
 	{
 		preferences = &config->pageGroup()->preferences();
@@ -60,8 +61,6 @@ const API::PageConfiguration& pageConfig)
 		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
 		rect.top - rect.bottom));
 	}
-	BRect p(0,0,10,20);
-	paint(WebCore::IntRect(p));
 }
 
 void WebViewBase::paint(const IntRect& dirtyRect)
