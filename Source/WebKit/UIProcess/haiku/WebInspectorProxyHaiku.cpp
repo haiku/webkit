@@ -28,6 +28,7 @@
 
 #if ENABLE(INSPECTOR)
 
+#include "FloatRect.h"
 #include "WebProcessProxy.h"
 #include <WebCore/NotImplemented.h>
 #include <WebKit/WKPage.h>
@@ -136,6 +137,11 @@ void WebInspectorProxy::platformAttachAvailabilityChanged(bool)
     notImplemented();
 }
 
+void WebInspectorProxy::platformSetSheetRect(const WebCore::FloatRect&)
+{
+    notImplemented();
+}
+
 void WebInspectorProxy::platformStartWindowDrag()
 {
 	notImplemented();
@@ -170,6 +176,7 @@ void WebInspectorProxy::platformBringInspectedPageToFront()
 WebPageProxy* WebInspectorProxy::platformCreateFrontendPage()
 {
 	notImplemented();
+	return nullptr;
 }
 
 }

@@ -18,6 +18,8 @@ add_definitions(-D_GLIBCXX_USE_C99_MATH)
 set(ENABLE_WEBKIT OFF)
 set(ENABLE_WEBKIT_LEGACY ON)
 
+set(USE_ANGLE_EGL ON)
+
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "debug" AND NOT SHARED_CORE)
     message(FATAL_ERROR "Turn on the SHARED_CORE flag to make a debug build - e.g.\n build-webkit --haiku --debug --cmakeargs=\"-DSHARED_CORE=ON\".\n")
 endif ()

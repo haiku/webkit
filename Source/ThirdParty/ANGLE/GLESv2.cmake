@@ -79,6 +79,7 @@ set(angle_system_utils_sources
 set(angle_system_utils_sources_linux src/common/system_utils_linux.cpp)
 set(angle_system_utils_sources_posix src/common/system_utils_posix.cpp)
 set(angle_system_utils_sources_mac src/common/system_utils_mac.cpp)
+set(angle_system_utils_sources_haiku src/common/system_utils_haiku.cpp)
 set(angle_system_utils_sources_win src/common/system_utils_win.cpp)
 set(angle_system_utils_sources_android
     src/common/android_util.cpp
