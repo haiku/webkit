@@ -22,40 +22,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "config.h"
-#include "WKPage.h"
-#include "WKView.h"
-#include "WKContext.h"
-#include "WKRetainPtr.h"
-#include "WKAPICast.h"
-#include "WebViewBase.h"
+#ifndef _H
+#define _H
 
-using namespace WebKit;
-class BWebView
-{
-	public:
-	BWebView(BRect,BWindow*);
-	void initializeOnce();
-	void loadHTML();
-	void loadURI(const char*);
-	void goForward();
-	void goBackward();
-	void stop();
-	WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
-	const char* getCurrentURL() { return getRenderView()->currentURL(); }
-	
-	void navigationCallbacks(BLooper* app);
-	private:	
-	WKRetainPtr<WKViewRef> fViewPort;
-   	WKRetainPtr<WKContextRef> fContext;
-   	static void didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-   	static void didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-	static void didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-	static void didFinishProgress(WKPageRef,const void*);
-	static void didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo);
-	static void didFailNavigation(WKPageRef page, WKNavigationRef navigation, WKErrorRef,WKTypeRef userData,const void* clientInfo);
-	
-
+enum{	
+	DID_COMMIT_NAVIGATION = 'dcna',
+	DID_FINISH_NAVIGATION = 'dfna',
+	URL_CHANGE = 'urlc',
 };
 
-		
+#endif // _H
