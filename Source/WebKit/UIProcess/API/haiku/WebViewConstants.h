@@ -22,41 +22,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <View.h>
-#include <Window.h>
-#include <Rect.h>
-#include "APIObject.h"
-#include "APIPageConfiguration.h"
-#include "WebPageProxy.h"
-#include "PageClientImplHaiku.h"
+#ifndef _H
+#define _H
 
-using namespace WebKit;
-namespace WebKit
-{
-	class WebViewBase:public API::ObjectImpl<API::Object::Type::View>,
-	public BView
-	{
-		public:
-		static RefPtr<WebViewBase> create(const char*name,BRect rect, 
-		BWindow* parentWindow,const API::PageConfiguration& config)
-		{
-			fprintf(stderr,"yolo");
-			auto fWebView=adoptRef(*new WebViewBase(name,rect,parentWindow,config));
-			fprintf(stderr,"im stuff");
-			return fWebView;
-		}
-		WebPageProxy* page() const { return fPage.get(); }
-		BView* getView() {return this;}
-		void initializeOnce();
-		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
-		//hook methods
-		virtual void MouseMoved(BPoint,uint32,const BMessage*);
-		private:
-		WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
-		
-		void paint(const WebCore::IntRect&);
-		
-		RefPtr<WebPageProxy> fPage;
-		std::unique_ptr<PageClientImpl> fPageClient;
-	};	
-}
+enum{	
+	DID_COMMIT_NAVIGATION = 'dcna',
+	DID_FINISH_NAVIGATION = 'dfna',
+	URL_CHANGE = 'urlc',
+};
+
+#endif // _H

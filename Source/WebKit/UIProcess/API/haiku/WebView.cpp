@@ -25,6 +25,7 @@
 
 #include <Window.h>
 #include <View.h>
+#include <Looper.h>
 
 
 #include "WKPageConfigurationRef.h"
@@ -34,10 +35,14 @@
 #include "WKString.h"
 #include "WKContext.h"
 #include "WKPreferencesRef.h"
+#include "WKPageNavigationClient.h"
+#include "WKPageLoaderClient.h"
 
 #include "wtf/RunLoop.h"
 
 #include "WebView.h"
+#include "WebViewConstants.h"
+
 BWebView::BWebView(BRect frame,BWindow* myWindow)
 {
   initializeOnce();
@@ -53,8 +58,25 @@ BWebView::BWebView(BRect frame,BWindow* myWindow)
   //fprintf(stderr,"here");
   WKPageConfigurationSetContext(config.get(),fContext.get());
   
+  
   fViewPort=adoptWK(WKViewCreate("Webkit",frame,myWindow,config.get()));
-  //
+
+}
+
+void BWebView::navigationCallbacks(BLooper* app)
+{
+	auto page = WKViewGetPage( fViewPort.get());
+	WKPageNavigationClientV0 navigationClient={};
+	
+	navigationClient.base.version = 0;
+	navigationClient.base.clientInfo = app;
+	
+	navigationClient.didCommitNavigation = didCommitNavigation;
+	navigationClient.didFinishDocumentLoad = didFinishDocumentLoad;
+	navigationClient.didFailNavigation = didFailNavigation;
+	navigationClient.didFinishNavigation = didFinishNavigation;
+	navigationClient.didReceiveServerRedirectForProvisionalNavigation = didReceiveServerRedirectForProvisionalNavigation;
+	WKPageSetPageNavigationClient(page,&navigationClient.base);
 }
 void BWebView::initializeOnce()
 {
@@ -63,13 +85,11 @@ void BWebView::initializeOnce()
 }
 void BWebView::loadHTML()
 {
-	fprintf(stderr,"\nim loading");
 	auto page = WKViewGetPage( fViewPort.get());
 	WKRetainPtr<WKURLRef> uri;
 	uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
 	WKRetainPtr<WKStringRef> str;
 	str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
-	//WKPageLoadURL(page,uri.get());
 	WKPageLoadHTMLString(page,str.get(),uri.get());
 }
 
@@ -79,5 +99,55 @@ void BWebView::loadURI(const char* uri)
 	WKRetainPtr<WKURLRef> wuri;
 	wuri = adoptWK(WKURLCreateWithUTF8CString(uri));
 	WKPageLoadURL(page,wuri.get());
+	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }
-	
+void BWebView::goForward()
+{
+	auto page = WKViewGetPage(fViewPort.get());
+	WKPageGoForward(page);
+	BMessage message(URL_CHANGE);
+	message.AddString("url",BString(getCurrentURL()));
+	be_app->PostMessage(&message);
+}
+void BWebView::goBackward()
+{
+	auto page = WKViewGetPage(fViewPort.get());
+	WKPageGoBack(page);	
+	BMessage message(URL_CHANGE);
+	message.AddString("url",BString(getCurrentURL()));
+	be_app->PostMessage(&message);
+}
+void BWebView::stop()
+{
+	auto page = WKViewGetPage(fViewPort.get());
+	WKPageClose(page);
+}
+void BWebView::didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
+{
+	BMessage message(DID_COMMIT_NAVIGATION);
+	be_app->PostMessage(&message);
+}
+void BWebView::didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
+{
+	//this wont work for now as we need to make network process work
+	//fprintf(stderr,"\n %s %s\n",__PRETTY_FUNCTION__,((BWebView*)clientInfo)->getCurrentURL());
+}
+void BWebView::didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
+{
+	fprintf(stderr,"\n %s %s\n",__PRETTY_FUNCTION__);
+}
+void BWebView::didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo)
+{
+	BMessage message(DID_FINISH_NAVIGATION);
+	be_app->PostMessage(&message);
+}
+
+void BWebView::didFailNavigation(WKPageRef page, WKNavigationRef navigation,WKErrorRef, WKTypeRef userData,const void* clientInfo)
+{
+	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
+}
+
+void BWebView::didFinishProgress(WKPageRef page,const void* clientInfo)
+{
+	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
+}	
