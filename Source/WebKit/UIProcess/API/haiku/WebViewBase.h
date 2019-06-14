@@ -49,7 +49,7 @@ namespace WebKit
 		WebPageProxy* page() const { return fPage.get(); }
 		BView* getView() {return this;}
 		void initializeOnce();
-		
+		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
 		//hook methods
 		virtual void MouseMoved(BPoint,uint32,const BMessage*);
 		private:

@@ -4035,7 +4035,7 @@ void WebPageProxy::didStartProgress()
 }
 
 void WebPageProxy::didChangeProgress(double value)
-{
+{fprintf(stderr,"!!!!!! %s %.2f !!!!!",__PRETTY_FUNCTION__,value);
     PageClientProtector protector(pageClient());
 
     auto transaction = m_pageLoadState.transaction();
