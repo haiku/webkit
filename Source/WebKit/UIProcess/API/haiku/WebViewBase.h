@@ -25,6 +25,9 @@
 #include <View.h>
 #include <Window.h>
 #include <Rect.h>
+
+#include "config.h"
+
 #include "APIObject.h"
 #include "APIPageConfiguration.h"
 #include "WebPageProxy.h"

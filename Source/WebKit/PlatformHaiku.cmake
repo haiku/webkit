@@ -35,7 +35,6 @@ list(APPEND WebKit_SOURCES
     UIProcess/LegacySessionStateCodingNone.cpp
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
     UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp
-    UIProcess/WebStorage/StorageManager.cpp
     UIProcess/WebsiteData/haiku/WebsiteDataStoreHaiku.cpp
     UIProcess/haiku/BackingStoreHaiku.cpp
     UIProcess/haiku/TextCheckerHaiku.cpp
