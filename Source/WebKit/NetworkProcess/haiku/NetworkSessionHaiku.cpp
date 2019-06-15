@@ -37,7 +37,7 @@ namespace WebKit {
 using namespace WebCore;
 
 NetworkSessionHaiku::NetworkSessionHaiku(NetworkProcess& networkProcess, NetworkSessionCreationParameters&& parameters)
-    : NetworkSession(networkProcess, parameters.sessionID)
+    : NetworkSession(networkProcess, parameters.sessionID, parameters.localStorageDirectory, parameters.localStorageDirectoryExtensionHandle)
 {
     notImplemented();
 }
