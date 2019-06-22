@@ -26,6 +26,7 @@
 #ifndef ResourceError_h
 #define ResourceError_h
 
+#include "PlatformExportMacros.h"
 #include "ResourceErrorBase.h"
 
 namespace WebCore {
