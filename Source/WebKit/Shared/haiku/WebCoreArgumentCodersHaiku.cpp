@@ -50,26 +50,6 @@ bool ArgumentCoder<ResourceRequest>::decodePlatformData(Decoder& decoder, Resour
     return resourceRequest.decodePlatformData(decoder);
 }
 
-#if 0
-void ArgumentCoder<ResourceResponse>::encodePlatformData(Encoder& encoder, const ResourceResponse& resourceResponse)
-{
-    //encoder << static_cast<uint32_t>(resourceResponse.soupMessageFlags());
-}
-
-bool ArgumentCoder<ResourceResponse>::decodePlatformData(Decoder& decoder, ResourceResponse& resourceResponse)
-{
-    /*
-    uint32_t soupMessageFlags;
-    if (!decoder.decode(soupMessageFlags))
-        return false;
-    resourceResponse.setSoupMessageFlags(static_cast<SoupMessageFlags>(soupMessageFlags));
-    return true;
-    */
-
-    return false;
-}
-#endif
-
 void ArgumentCoder<CertificateInfo>::encode(Encoder& encoder, const CertificateInfo& certificateInfo)
 {
     //nothing to encode ceriticateinfo is null
@@ -83,24 +63,32 @@ bool ArgumentCoder<CertificateInfo>::decode(Decoder& decoder, CertificateInfo& c
 
 void ArgumentCoder<ResourceError>::encodePlatformData(Encoder& encoder, const ResourceError& resourceError)
 {
-    bool errorIsNull = resourceError.isNull();
-    encoder << errorIsNull;
-    if (errorIsNull)
-        return;
-
     encoder << resourceError.domain();
     encoder << resourceError.errorCode();
-    encoder << resourceError.failingURL();
+    encoder << resourceError.failingURL().string();
     encoder << resourceError.localizedDescription();
-    encoder << resourceError.isCancellation();
-    encoder << resourceError.isTimeout();
-
 }
 
 bool ArgumentCoder<ResourceError>::decodePlatformData(Decoder& decoder, ResourceError& resourceError)
 {
-    notImplemented();
-    return false;
+    String domain;
+    if (!decoder.decode(domain))
+        return false;
+
+    int errorCode;
+    if (!decoder.decode(errorCode))
+        return false;
+
+    String failingURL;
+    if (!decoder.decode(failingURL))
+        return false;
+
+    String localizedDescription;
+    if (!decoder.decode(localizedDescription))
+        return false;
+
+    resourceError = ResourceError(domain, errorCode, URL(URL(), failingURL), localizedDescription);
+    return true;
 }
 
 void ArgumentCoder<ProtectionSpace>::encodePlatformData(Encoder&, const ProtectionSpace&)
