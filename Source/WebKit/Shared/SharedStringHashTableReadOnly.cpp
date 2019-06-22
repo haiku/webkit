@@ -68,7 +68,7 @@ void SharedStringHashTableReadOnly::setSharedMemory(RefPtr<SharedMemory>&& share
         m_table = static_cast<SharedStringHash*>(m_sharedMemory->data());
         m_tableSize = m_sharedMemory->size() / sizeof(SharedStringHash);
         ASSERT(isPowerOf2(m_tableSize));
-        m_tableSizeMask = m_tableSize - 1;
+        m_tableSizeMask = m_tableSize - 1;fprintf(stderr,"\n %s place1 $$$$ %d %d\n",__PRETTY_FUNCTION__,m_tableSizeMask,m_tableSize);
     } else {
         m_table = nullptr;
         m_tableSize = 0;
@@ -83,27 +83,27 @@ bool SharedStringHashTableReadOnly::contains(SharedStringHash sharedStringHash) 
 }
 
 SharedStringHash* SharedStringHashTableReadOnly::findSlot(SharedStringHash sharedStringHash) const
-{fprintf(stderr,"\n %s place1 \n",__PRETTY_FUNCTION__);
+{
     if (!m_sharedMemory)
         return nullptr;
-fprintf(stderr,"\n %s place2 \n",__PRETTY_FUNCTION__);
+
     int k = 0;
     SharedStringHash* table = m_table;
     int sizeMask = m_tableSizeMask;
     unsigned h = static_cast<unsigned>(sharedStringHash);
     int i = h & sizeMask;
-fprintf(stderr,"\n %s place3 \n",__PRETTY_FUNCTION__);
-    SharedStringHash* entry;fprintf(stderr,"\n %s place1 \n",__PRETTY_FUNCTION__);
+
+    SharedStringHash* entry;
     while (1) {
         entry = table + i;
-fprintf(stderr,"\n %s place4 %d %d %d\n",__PRETTY_FUNCTION__,i,h,sizeMask);
+
         // Check if we've reached the end of the table.
         if (!*entry)
             return entry;
-fprintf(stderr,"\n %s place5 \n",__PRETTY_FUNCTION__);
+
         if (*entry == sharedStringHash)
             return entry;
-fprintf(stderr,"\n %s place6 \n",__PRETTY_FUNCTION__);
+
         if (!k)
             k = 1 | doubleHash(h);
         i = (i + k) & sizeMask;

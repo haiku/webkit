@@ -36,7 +36,7 @@ namespace WebKit {
 SharedMemory::Handle::Handle()
 :m_areaid(0),
 m_size(0)
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
+{
 }
 
 SharedMemory::Handle::~Handle()
@@ -44,15 +44,13 @@ SharedMemory::Handle::~Handle()
 	clear();
 }
 
-SharedMemory::Handle::Handle(Handle&&) = default;
+SharedMemory::Handle::Handle(Handle&& other) = default;
 SharedMemory::Handle& SharedMemory::Handle::operator=(Handle&& other) = default;
-
 void SharedMemory::Handle::clear()
 {
 	if(!m_areaid)
 	return;
 	
-	delete_area(m_areaid);
 	m_areaid = 0;
 }
 
@@ -62,13 +60,13 @@ bool SharedMemory::Handle::isNull() const
 }
 
 void SharedMemory::Handle::encode(IPC::Encoder& encoder) const
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
+{
 	encoder << (uint64_t)m_size;
 	encoder << (int64_t)m_areaid;
 }
 
 bool SharedMemory::Handle::decode(IPC::Decoder& decoder, Handle& handle)
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
+{
 	uint64_t size;
 	if(!decoder.decode(size))
 	return false;
@@ -79,7 +77,7 @@ bool SharedMemory::Handle::decode(IPC::Decoder& decoder, Handle& handle)
 	
 	handle.m_areaid = (area_id)areaid;
 	handle.m_size = size;
-	
+
 	return true;
 }
 
@@ -98,12 +96,12 @@ RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 {
 	void* baseAddress;
 	
-	area_id sharedArea = create_area("WebKit-Shared-Memory",&baseAddress,B_ANY_ADDRESS,
+	area_id sharedArea = create_area("WebKit-shared-memory",&baseAddress,B_ANY_ADDRESS,
 		size,B_NO_LOCK,B_READ_AREA | B_WRITE_AREA);
 	
 	if(sharedArea<0)
 	return nullptr;
-	fprintf(stderr,"%s %ld\n",__PRETTY_FUNCTION__,size);
+	
 	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
 	memory->m_size = size;
 	memory->m_data = baseAddress;
@@ -113,7 +111,7 @@ RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 }
 
 RefPtr<SharedMemory> SharedMemory::map(const Handle& handle, Protection protection)
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);//not completed
+{
 	RefPtr<SharedMemory> memory = adopt(handle.m_areaid, handle.m_size, protection);
 	if(!memory)
 	return nullptr;
@@ -123,15 +121,17 @@ RefPtr<SharedMemory> SharedMemory::map(const Handle& handle, Protection protecti
 }
 
 RefPtr<SharedMemory> SharedMemory::adopt(area_id area, size_t size, Protection protection)
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
-	//not completed
+{
 	if(!area)
 	return nullptr;
 	
 	void* baseAddress;
 	
-	area_id clonedArea = clone_area("WebKit-Shared-Memory",&baseAddress,B_CLONE_ADDRESS,
+	area_id clonedArea = clone_area("WebKit-cloned-memory",&baseAddress,B_ANY_ADDRESS,
 	protectionMode(protection),area);
+	
+	if(clonedArea<0)
+	return nullptr;
 	
 	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
 	memory->m_size = size;
@@ -143,13 +143,21 @@ RefPtr<SharedMemory> SharedMemory::adopt(area_id area, size_t size, Protection p
 
 SharedMemory::~SharedMemory()
 {
+	if(!m_areaid)
+	return;
+	//unset
 	delete_area(m_areaid);
 	m_areaid = 0;
 }
 
 bool SharedMemory::createHandle(Handle& handle, Protection)
-{fprintf(stderr,"%s \n",__PRETTY_FUNCTION__);
-	//todo
+{
+	ASSERT_ARG(handle,handle.isNull());
+	ASSERT(m_areaid);
+	
+	handle.m_areaid = m_areaid;
+	handle.m_size = m_size;
+	return true;
 }
 
 unsigned SharedMemory::systemPageSize()

@@ -28,7 +28,7 @@
 
 #include <wtf/FileSystem.h>
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 
 namespace API {
 
