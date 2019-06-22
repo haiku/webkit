@@ -5,6 +5,7 @@ list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/NetworkProcessMainHaiku.cpp
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
     NetworkProcess/haiku/NetworkSessionHaiku.cpp
+    NetworkProcess/haiku/NetworkDataTaskHaiku.cpp
 
     Platform/IPC/haiku/AttachmentHaiku.cpp
     Platform/IPC/haiku/ConnectionHaiku.cpp
@@ -95,8 +96,8 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/dom"
     "${WEBCORE_DIR}/fileapi"
-    "${FORWARDING_HEADERS_DIR}/WebCore"
     "${DERIVED_SOURCES_WEBCORE_DIR}"
+    "${FORWARDING_HEADERS}"
 )
 
 set(WebKit_LOCAL_INCLUDE_DIRECTORIES
