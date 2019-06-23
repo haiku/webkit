@@ -47,7 +47,6 @@ namespace WebKit
 			return fWebView;
 		}
 		WebPageProxy* page() const { return fPage.get(); }
-		BView* getView() {return this;}
 		void initializeOnce();
 		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
 		//hook methods

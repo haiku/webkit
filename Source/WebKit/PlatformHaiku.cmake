@@ -67,6 +67,7 @@ list(APPEND WebKit_SOURCES
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES
+    "${CMAKE_SOURCE_DIR}/Source"
     "${WEBKIT_DIR}/NetworkProcess/unix"
     "${WEBKIT_DIR}/Platform"
     "${WEBKIT_DIR}/Platform/IPC/unix"

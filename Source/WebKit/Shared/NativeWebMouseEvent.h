@@ -51,9 +51,6 @@ struct wpe_input_pointer_event;
 #include <windows.h>
 #endif
 
-#if PLATFORM(HAIKU)
-#endif
-
 namespace WebKit {
 
 class NativeWebMouseEvent : public WebMouseEvent {

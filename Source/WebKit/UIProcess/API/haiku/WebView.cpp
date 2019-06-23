@@ -96,7 +96,6 @@ void BWebView::loadURI(const char* uri)
 	WKRetainPtr<WKURLRef> wuri;
 	wuri = adoptWK(WKURLCreateWithUTF8CString(uri));
 	WKPageLoadURL(page,wuri.get());
-	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }
 void BWebView::goForward()
 {
