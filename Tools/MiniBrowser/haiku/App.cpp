@@ -29,19 +29,19 @@ enum {
 	OPEN_LOCATION = 'open',
 	OPEN_INSPECTOR = 'insp',
 	SAVE_PAGE = 'save',
-    GO_BACK = 'goba',
-    GO_FORWARD = 'gofo',
-    STOP = 'stop',
-    GOTO_URL = 'goul',
-    RELOAD = 'reld',
+	GO_BACK = 'goba',
+	GO_FORWARD = 'gofo',
+	STOP = 'stop',
+	GOTO_URL = 'goul',
+	RELOAD = 'reld',
 
-    TEXT_SIZE_INCREASE = 'tsin',
-    TEXT_SIZE_DECREASE = 'tsdc',
-    TEXT_SIZE_RESET = 'tsrs',
+	TEXT_SIZE_INCREASE = 'tsin',
+	TEXT_SIZE_DECREASE = 'tsdc',
+	TEXT_SIZE_RESET = 'tsrs',
 };
 
 App::App(void)
-    :    BApplication("application/x-vnd.lh-MiniBrowser")
+	:    BApplication("application/x-vnd.lh-MiniBrowser")
 {
 	//initialize counter
 	fCount = 0;
@@ -49,13 +49,13 @@ App::App(void)
 	//create window
 	frame.Set(100,100,800,800);
 	myWindow = new BWindow(frame,"MiniBrowser"
-	                               , B_DOCUMENT_WINDOW_LOOK,B_NORMAL_WINDOW_FEEL
-	                               , B_AUTO_UPDATE_SIZE_LIMITS | B_ASYNCHRONOUS_CONTROLS
-	                                 | B_QUIT_ON_WINDOW_CLOSE );
-	                                 
+								   , B_DOCUMENT_WINDOW_LOOK,B_NORMAL_WINDOW_FEEL
+								   , B_AUTO_UPDATE_SIZE_LIMITS | B_ASYNCHRONOUS_CONTROLS
+									 | B_QUIT_ON_WINDOW_CLOSE );
+									 
 	myWindow->SetLayout(new BGroupLayout(B_HORIZONTAL));
 	
-	                                 
+									 
 	m_menuBar = new BMenuBar("Main menu");
 	BMenu* menu = new BMenu("Window");
 	BMessage* newWindowMessage = new BMessage(NEW_WINDOW);
@@ -81,8 +81,8 @@ App::App(void)
 	
 	
 	m_BackButton = new BButton("","Back",new BMessage(GO_BACK));
-    m_ForwardButton = new BButton("","Forward", new BMessage(GO_FORWARD));
-    m_StopButton = new BButton("","Stop", new BMessage(STOP));
+	m_ForwardButton = new BButton("","Forward", new BMessage(GO_FORWARD));
+	m_StopButton = new BButton("","Stop", new BMessage(STOP));
 	
 	m_url = new BTextControl("url", "", "", NULL);
 	
@@ -94,19 +94,19 @@ App::App(void)
 	m_StopButton->SetTarget(this);
 	
 	m_statusText = new BStringView("status", "");
-    m_statusText->SetAlignment(B_ALIGN_LEFT);
-    m_statusText->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
-    m_statusText->SetExplicitMinSize(BSize(150, 12));
-    
-    BFont font(be_plain_font);
-    font.SetSize(ceilf(font.Size() * 0.8));
-    m_statusText->SetFont(&font, B_FONT_SIZE);
-    
+	m_statusText->SetAlignment(B_ALIGN_LEFT);
+	m_statusText->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
+	m_statusText->SetExplicitMinSize(BSize(150, 12));
+	
+	BFont font(be_plain_font);
+	font.SetSize(ceilf(font.Size() * 0.8));
+	m_statusText->SetFont(&font, B_FONT_SIZE);
+	
 	m_loadingProgressBar = new BStatusBar("progress");
-    m_loadingProgressBar->SetMaxValue(100);
-    m_loadingProgressBar->Hide();
-    m_loadingProgressBar->SetBarHeight(12);
-    
+	m_loadingProgressBar->SetMaxValue(100);
+	m_loadingProgressBar->Hide();
+	m_loadingProgressBar->SetBarHeight(12);
+	
 }
 
 void App::LocalMessage(BMessage* message)
@@ -208,30 +208,30 @@ void App::ReadyToRun()
 	webView = new BWebView(frame,myWindow);
 	webView->navigationCallbacks(Looper());
 	const float kInsetSpacing = 5;
-    const float kElementSpacing = 7;
+	const float kElementSpacing = 7;
 	myWindow->AddChild(BGroupLayoutBuilder(B_VERTICAL)
-        .Add(m_menuBar)
-        .Add(BGridLayoutBuilder(kElementSpacing, kElementSpacing)
-            .Add(m_BackButton, 0, 0)
-            .Add(m_ForwardButton, 1, 0)
-            .Add(m_StopButton, 2, 0)
-            .Add(m_url, 3, 0)
-            .Add(m_goButton, 4, 0)
-            .SetInsets(kInsetSpacing, kInsetSpacing, kInsetSpacing, kInsetSpacing)
-        )
-        .Add(new BSeparatorView(B_HORIZONTAL, B_PLAIN_BORDER))
-        .Add(new BSeparatorView(B_HORIZONTAL, B_PLAIN_BORDER))
-        .Add(webView->getRenderView())//this is the view be it mail or anywhere can be added
-        .Add(BGroupLayoutBuilder(B_HORIZONTAL, kElementSpacing)
-            .Add(m_statusText)
-            .Add(m_loadingProgressBar, 0.2)
-            .AddStrut(12 - kElementSpacing)
-            .SetInsets(kInsetSpacing, 0, kInsetSpacing, 0)
-        )
-    );
+		.Add(m_menuBar)
+		.Add(BGridLayoutBuilder(kElementSpacing, kElementSpacing)
+			.Add(m_BackButton, 0, 0)
+			.Add(m_ForwardButton, 1, 0)
+			.Add(m_StopButton, 2, 0)
+			.Add(m_url, 3, 0)
+			.Add(m_goButton, 4, 0)
+			.SetInsets(kInsetSpacing, kInsetSpacing, kInsetSpacing, kInsetSpacing)
+		)
+		.Add(new BSeparatorView(B_HORIZONTAL, B_PLAIN_BORDER))
+		.Add(new BSeparatorView(B_HORIZONTAL, B_PLAIN_BORDER))
+		.Add(webView->getRenderView())//this is the view be it mail or anywhere can be added
+		.Add(BGroupLayoutBuilder(B_HORIZONTAL, kElementSpacing)
+			.Add(m_statusText)
+			.Add(m_loadingProgressBar, 0.2)
+			.AddStrut(12 - kElementSpacing)
+			.SetInsets(kInsetSpacing, 0, kInsetSpacing, 0)
+		)
+	);
 
-    m_url->MakeFocus(true);
-    myWindow->Show();
+	m_url->MakeFocus(true);
+	myWindow->Show();
 }
 void App::SetStatus(const char* str)
 {

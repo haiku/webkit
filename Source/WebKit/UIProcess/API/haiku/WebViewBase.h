@@ -40,13 +40,10 @@ namespace WebKit
 		static RefPtr<WebViewBase> create(const char*name,BRect rect, 
 		BWindow* parentWindow,const API::PageConfiguration& config)
 		{
-			fprintf(stderr,"yolo");
 			auto fWebView=adoptRef(*new WebViewBase(name,rect,parentWindow,config));
-			fprintf(stderr,"im stuff");
 			return fWebView;
 		}
 		WebPageProxy* page() const { return fPage.get(); }
-		BView* getView() {return this;}
 		void initializeOnce();
 		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
 		//hook methods
