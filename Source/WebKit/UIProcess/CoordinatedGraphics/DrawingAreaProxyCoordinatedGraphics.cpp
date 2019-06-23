@@ -69,7 +69,7 @@ DrawingAreaProxyCoordinatedGraphics::~DrawingAreaProxyCoordinatedGraphics()
 
 #if !PLATFORM(WPE)
 void DrawingAreaProxyCoordinatedGraphics::paint(BackingStore::PlatformGraphicsContext context, const IntRect& rect, Region& unpaintedRegion)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     unpaintedRegion = rect;
 
     if (isInAcceleratedCompositingMode())
@@ -113,22 +113,22 @@ void DrawingAreaProxyCoordinatedGraphics::paint(BackingStore::PlatformGraphicsCo
 #endif
 
 void DrawingAreaProxyCoordinatedGraphics::sizeDidChange()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     backingStoreStateDidChange(RespondImmediately);
 }
 
 void DrawingAreaProxyCoordinatedGraphics::deviceScaleFactorDidChange()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     backingStoreStateDidChange(RespondImmediately);
 }
 
 void DrawingAreaProxyCoordinatedGraphics::waitForBackingStoreUpdateOnNextPaint()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     m_hasReceivedFirstUpdate = true;
 }
 
 void DrawingAreaProxyCoordinatedGraphics::setBackingStoreIsDiscardable(bool isBackingStoreDiscardable)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
 #if !PLATFORM(WPE)
     if (m_isBackingStoreDiscardable == isBackingStoreDiscardable)
         return;
@@ -142,7 +142,7 @@ void DrawingAreaProxyCoordinatedGraphics::setBackingStoreIsDiscardable(bool isBa
 }
 
 void DrawingAreaProxyCoordinatedGraphics::update(uint64_t backingStoreStateID, const UpdateInfo& updateInfo)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT_ARG(backingStoreStateID, backingStoreStateID <= m_currentBackingStoreStateID);
     if (backingStoreStateID < m_currentBackingStoreStateID)
         return;
@@ -156,7 +156,7 @@ void DrawingAreaProxyCoordinatedGraphics::update(uint64_t backingStoreStateID, c
 }
 
 void DrawingAreaProxyCoordinatedGraphics::didUpdateBackingStoreState(uint64_t backingStoreStateID, const UpdateInfo& updateInfo, const LayerTreeContext& layerTreeContext)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT_ARG(backingStoreStateID, backingStoreStateID <= m_nextBackingStoreStateID);
     ASSERT_ARG(backingStoreStateID, backingStoreStateID > m_currentBackingStoreStateID);
     m_currentBackingStoreStateID = backingStoreStateID;
@@ -198,7 +198,7 @@ void DrawingAreaProxyCoordinatedGraphics::didUpdateBackingStoreState(uint64_t ba
 }
 
 void DrawingAreaProxyCoordinatedGraphics::enterAcceleratedCompositingMode(uint64_t backingStoreStateID, const LayerTreeContext& layerTreeContext)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT_ARG(backingStoreStateID, backingStoreStateID <= m_currentBackingStoreStateID);
     if (backingStoreStateID < m_currentBackingStoreStateID)
         return;
@@ -207,7 +207,7 @@ void DrawingAreaProxyCoordinatedGraphics::enterAcceleratedCompositingMode(uint64
 }
 
 void DrawingAreaProxyCoordinatedGraphics::exitAcceleratedCompositingMode(uint64_t backingStoreStateID, const UpdateInfo& updateInfo)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT_ARG(backingStoreStateID, backingStoreStateID <= m_currentBackingStoreStateID);
     if (backingStoreStateID < m_currentBackingStoreStateID)
         return;
@@ -219,7 +219,7 @@ void DrawingAreaProxyCoordinatedGraphics::exitAcceleratedCompositingMode(uint64_
 }
 
 void DrawingAreaProxyCoordinatedGraphics::updateAcceleratedCompositingMode(uint64_t backingStoreStateID, const LayerTreeContext& layerTreeContext)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT_ARG(backingStoreStateID, backingStoreStateID <= m_currentBackingStoreStateID);
     if (backingStoreStateID < m_currentBackingStoreStateID)
         return;
@@ -251,12 +251,12 @@ void DrawingAreaProxyCoordinatedGraphics::incorporateUpdate(const UpdateInfo& up
 #endif
 
 bool DrawingAreaProxyCoordinatedGraphics::alwaysUseCompositing() const
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     return m_webPageProxy.preferences().acceleratedCompositingEnabled() && m_webPageProxy.preferences().forceCompositingMode();
 }
 
 void DrawingAreaProxyCoordinatedGraphics::enterAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT(!isInAcceleratedCompositingMode());
 #if !PLATFORM(WPE)
     m_backingStore = nullptr;
@@ -266,7 +266,7 @@ void DrawingAreaProxyCoordinatedGraphics::enterAcceleratedCompositingMode(const 
 }
 
 void DrawingAreaProxyCoordinatedGraphics::exitAcceleratedCompositingMode()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT(isInAcceleratedCompositingMode());
 
     m_layerTreeContext = { };
@@ -274,7 +274,7 @@ void DrawingAreaProxyCoordinatedGraphics::exitAcceleratedCompositingMode()
 }
 
 void DrawingAreaProxyCoordinatedGraphics::updateAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT(isInAcceleratedCompositingMode());
 
     m_layerTreeContext = layerTreeContext;
@@ -282,13 +282,13 @@ void DrawingAreaProxyCoordinatedGraphics::updateAcceleratedCompositingMode(const
 }
 
 void DrawingAreaProxyCoordinatedGraphics::backingStoreStateDidChange(RespondImmediatelyOrNot respondImmediatelyOrNot)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ++m_nextBackingStoreStateID;
     sendUpdateBackingStoreState(respondImmediatelyOrNot);
 }
 
 void DrawingAreaProxyCoordinatedGraphics::sendUpdateBackingStoreState(RespondImmediatelyOrNot respondImmediatelyOrNot)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT(m_currentBackingStoreStateID < m_nextBackingStoreStateID);
 
     if (!m_webPageProxy.hasRunningProcess())
@@ -319,7 +319,7 @@ void DrawingAreaProxyCoordinatedGraphics::sendUpdateBackingStoreState(RespondImm
 }
 
 void DrawingAreaProxyCoordinatedGraphics::waitForAndDispatchDidUpdateBackingStoreState()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     ASSERT(m_isWaitingForDidUpdateBackingStoreState);
 
     if (!m_webPageProxy.hasRunningProcess())
@@ -346,7 +346,7 @@ void DrawingAreaProxyCoordinatedGraphics::waitForAndDispatchDidUpdateBackingStor
 
 #if !PLATFORM(WPE)
 void DrawingAreaProxyCoordinatedGraphics::discardBackingStoreSoon()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     if (!m_backingStore || !m_isBackingStoreDiscardable || m_discardBackingStoreTimer.isActive())
         return;
 
@@ -358,32 +358,11 @@ void DrawingAreaProxyCoordinatedGraphics::discardBackingStoreSoon()
 }
 
 void DrawingAreaProxyCoordinatedGraphics::discardBackingStore()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     if (!m_backingStore)
         return;
     m_backingStore = nullptr;
     backingStoreStateDidChange(DoNotRespondImmediately);
-}
-#endif
-
-#if USE(TEXTURE_MAPPER_GL) && PLATFORM(GTK) && PLATFORM(X11) && !USE(REDIRECTED_XCOMPOSITE_WINDOW)
-void DrawingAreaProxyCoordinatedGraphics::setNativeSurfaceHandleForCompositing(uint64_t handle)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
-    if (!m_hasReceivedFirstUpdate) {
-        m_pendingNativeSurfaceHandleForCompositing = handle;
-        return;
-    }
-    send(Messages::DrawingArea::SetNativeSurfaceHandleForCompositing(handle), IPC::SendOption::DispatchMessageEvenWhenWaitingForSyncReply);
-}
-
-void DrawingAreaProxyCoordinatedGraphics::destroyNativeSurfaceHandleForCompositing()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
-    if (m_pendingNativeSurfaceHandleForCompositing) {
-        m_pendingNativeSurfaceHandleForCompositing = 0;
-        return;
-    }
-    bool handled;
-    sendSync(Messages::DrawingArea::DestroyNativeSurfaceHandleForCompositing(), Messages::DrawingArea::DestroyNativeSurfaceHandleForCompositing::Reply(handled));
 }
 #endif
 
@@ -398,7 +377,7 @@ DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::DrawingMonitor(WebPageProxy
     // Give redraws more priority.
     m_timer.setPriority(GDK_PRIORITY_REDRAW - 10);
 #else
-fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+
     m_timer.setPriority(RunLoopSourcePriority::RunLoopDispatcher);
 #endif
 #endif
@@ -417,7 +396,7 @@ int DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::webViewDrawCallback(Dra
 }
 
 void DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::start(WTF::Function<void(CallbackBase::Error)>&& callback)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     m_startTime = MonotonicTime::now();
     m_callback = WTFMove(callback);
 #if PLATFORM(GTK)
@@ -442,7 +421,7 @@ void DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::stop()
 }
 
 void DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::didDraw()
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     // We wait up to 1 second for draw events. If there are several draw events queued quickly,
     // we want to wait until all of them have been processed, so after receiving a draw, we wait
     // up to 100ms for the next one or stop.
@@ -453,7 +432,7 @@ void DrawingAreaProxyCoordinatedGraphics::DrawingMonitor::didDraw()
 }
 
 void DrawingAreaProxyCoordinatedGraphics::dispatchAfterEnsuringDrawing(WTF::Function<void(CallbackBase::Error)>&& callbackFunction)
-{fprintf(stderr,"\n&&&& %s &&& \n",__PRETTY_FUNCTION__);
+{
     if (!m_webPageProxy.hasRunningProcess()) {
         callbackFunction(CallbackBase::Error::OwnerWasInvalidated);
         return;
