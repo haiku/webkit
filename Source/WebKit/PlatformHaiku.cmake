@@ -67,7 +67,9 @@ list(APPEND WebKit_SOURCES
 )
 
 list(APPEND WebKit_INCLUDE_DIRECTORIES
-    "${CMAKE_SOURCE_DIR}/Source"
+     "${CMAKE_SOURCE_DIR}/Source"
+    "${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}"
+"${DERIVED_SOURCES_WEBCORE_DIR}"
     "${WEBKIT_DIR}/NetworkProcess/unix"
     "${WEBKIT_DIR}/Platform"
     "${WEBKIT_DIR}/Platform/IPC/unix"
@@ -85,25 +87,29 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/WebProcess/WebCoreSupport/haiku"
     "${WEBKIT_DIR}/WebProcess/WebPage/CoordinatedGraphics"
     "${WEBKIT_DIR}/NetworkProcess/haiku"
+    
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIRS}
     ${SQLITE_INCLUDE_DIRS}
-    ${WTF_DIR}
-    ${WTF_DIR}
     "${WEBCORE_DIR}/platform"
+    "${WEBCORE_DIR}/platform/network"
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/dom"
     "${WEBCORE_DIR}/fileapi"
     "${DERIVED_SOURCES_WEBCORE_DIR}"
-    "${FORWARDING_HEADERS}"
+    #"${FORWARDING_HEADERS_DIR}"
+   # "${FORWARDING_HEADERS_DIR}/WebCore"
 )
 
 set(WebKit_LOCAL_INCLUDE_DIRECTORIES
-    "${FORWARDING_HEADERS_DIR}/WebKit"
-    "${FORWARDING_HEADERS_DIR}/WebCore"
-    "${WEBCORE_DIR}/css"
-    "${WEBCORE_DIR}/platform/graphics"
-    "${WEBCORE_DIR}/rendering/shapes"
+    "${FORWARDING_HEADERS_DIR}"
+    "${WEBCORE_DIR}/css" # Rect.h
+    "${WEBCORE_DIR}/dom" # Node.h
+    "${WEBCORE_DIR}/Modules/notifications" # Notification.h
+    "${WEBCORE_DIR}/platform" # Language.h
+    "${WEBCORE_DIR}/platform/graphics" # Region.h
+    "${WEBCORE_DIR}/platform/graphics/transforms" # AffineTransform.h
+    "${WEBCORE_DIR}/platform/text" # DateTimeFormat.h
 )
 
 foreach(inc ${WebKit_LOCAL_INCLUDE_DIRECTORIES})
@@ -160,15 +166,9 @@ set(WebKit_FORWARDING_HEADERS_DIRECTORIES
    WebProcess/InjectedBundle/API/c
 )
 set(WebKit_FORWARDING_HEADERS_FILES
-	WebProcess/WebPage/EventDispatcher.h
-
-	Platform/Logging.h
     #Platform/classifier/ResourceLoadStatisticsClassifier.h
     Platform/IPC/unix/UnixMessage.h
-
-	UIProcess/VisitedLinkStore.h
 )
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 
 ${WebKit_FORWARDING_HEADERS_DIRECTORIES})
-
