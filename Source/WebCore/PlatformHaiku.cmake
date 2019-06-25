@@ -351,4 +351,12 @@ list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/network/haiku/ResourceRequest.h
     platform/network/haiku/ResourceResponse.h
     platform/network/haiku/SocketStreamHandleImpl.h
+
+	html/InputTypeNames.h
+	platform/DateTimeChooser.h
+	platform/DateTimeChooserClient.h
+
+	platform/graphics/haiku/StillImageHaiku.h
+	platform/graphics/haiku/ImageBufferDataHaiku.h
+	platform/graphics/Image.h
 )

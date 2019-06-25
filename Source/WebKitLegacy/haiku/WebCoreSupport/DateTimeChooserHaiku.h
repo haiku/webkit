@@ -25,6 +25,10 @@
  */
 #include "config.h"
 
+#include <WebCore/DateTimeChooser.h>
+#include <WebCore/DateTimeChooserClient.h>
+#include <WebCore/InputTypeNames.h>
+
 #include <support/Locker.h>
 #include <locale/Collator.h>
 #include <private/shared/CalendarView.h>
