@@ -40,7 +40,7 @@
 #endif
 
 #if PLATFORM(HAIKU)
-#include "StillImageHaiku.h"
+#include <WebCore/StillImageHaiku.h>
 #endif
 
 #if USE(DIRECT2D)

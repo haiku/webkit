@@ -167,7 +167,11 @@
 #include <WebCore/FrameLoaderTypes.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/FullscreenManager.h>
+
+#if ENABLE(GRAPHICS_CONTEXT_3D)
 #include <WebCore/GraphicsContext3D.h>
+#endif
+
 #include <WebCore/HTMLAttachmentElement.h>
 #include <WebCore/HTMLFormElement.h>
 #include <WebCore/HTMLImageElement.h>

@@ -20,7 +20,6 @@ SET(MiniBrowser_LIBRARIES
 
 set(MiniBrowser_LOCAL_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/css"
-    "${WEBCORE_DIR}/platform/graphics"
     "${WEBCORE_DIR}/platform/graphics/transforms"
     "${WEBCORE_DIR}/rendering/shapes"
 )
