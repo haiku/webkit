@@ -41,7 +41,7 @@
 #endif
 
 #if PLATFORM(HAIKU)
-#include "StillImageHaiku.h"
+#include <WebCore/StillImageHaiku.h>
 #endif
 
 namespace WebCore {

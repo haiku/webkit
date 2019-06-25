@@ -27,8 +27,8 @@
 #include "PageClient.h"
 #include "WebPageProxy.h"
 #include "DefaultUndoController.h"
-#include "IntPoint.h"
-#include "IntRect.h"
+#include <WebCore/IntPoint.h>
+#include <WebCore/IntRect.h>
 
 namespace WebKit
 {
