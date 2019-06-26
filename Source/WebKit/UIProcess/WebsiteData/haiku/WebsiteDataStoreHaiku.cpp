@@ -27,7 +27,7 @@
 #include "WebsiteDataStore.h"
 #include "WebsiteDataStoreParameters.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 
 namespace WebKit {
 
