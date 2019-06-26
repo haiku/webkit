@@ -26,9 +26,9 @@
 #include "config.h"
 #include "WebPage.h"
 
-#include "EventHandler.h"
-#include "NotImplemented.h"
-#include "WindowsKeyboardCodes.h"
+#include <WebCore/EventHandler.h>
+#include <WebCore/NotImplemented.h>
+#include <WebCore/WindowsKeyboardCodes.h>
 #include <WebCore/BackForwardController.h>
 #include <WebCore/KeyboardEvent.h>
 #include <WebCore/PlatformKeyboardEvent.h>

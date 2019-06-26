@@ -28,7 +28,7 @@
 
 #if ENABLE(INSPECTOR)
 
-#include "FloatRect.h"
+#include <WebCore/FloatRect.h>
 #include "WebProcessProxy.h"
 #include <WebCore/NotImplemented.h>
 #include <WebKit/WKPage.h>

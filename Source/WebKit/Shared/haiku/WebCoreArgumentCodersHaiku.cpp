@@ -27,7 +27,7 @@
 #include "DataReference.h"
 #include "WebCoreArgumentCoders.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 #include <WebCore/CertificateInfo.h>
 #include <WebCore/DictionaryPopupInfo.h>
 #include <WebCore/FontAttributes.h>

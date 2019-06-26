@@ -26,8 +26,8 @@
 #pragma once
 
 #include "config.h"
-#include "HaikuFormDataStream.h"
 #include "NetworkDataTask.h"
+#include <WebCore/HaikuFormDataStream.h>
 #include <WebCore/ResourceResponse.h>
 #include <WebCore/ResourceRequest.h>
 
