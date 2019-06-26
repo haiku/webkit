@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebCookieManager.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 #include <WebCore/CookieJar.h>
 
 using namespace WebCore;

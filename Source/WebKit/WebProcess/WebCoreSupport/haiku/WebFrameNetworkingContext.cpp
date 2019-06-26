@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebFrameNetworkingContext.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 #include <WebCore/NetworkStorageSession.h>
 #include "WebFrame.h"
 

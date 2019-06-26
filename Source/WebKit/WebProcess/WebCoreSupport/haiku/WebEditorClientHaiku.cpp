@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebEditorClient.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 
 namespace WebKit {
 using namespace WebCore;

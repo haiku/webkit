@@ -30,7 +30,7 @@
 #include "NetworkProcess.h"
 #include "NetworkSessionCreationParameters.h"
 #include "WebCookieManager.h"
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 
 namespace WebKit {
 

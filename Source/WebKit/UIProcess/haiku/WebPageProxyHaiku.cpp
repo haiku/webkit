@@ -26,7 +26,7 @@
 #include "config.h"
 #include "WebPageProxy.h"
 
-#include "NotImplemented.h"
+#include <WebCore/NotImplemented.h>
 #include "WebKitVersion.h"
 
 #include <sys/utsname.h>
