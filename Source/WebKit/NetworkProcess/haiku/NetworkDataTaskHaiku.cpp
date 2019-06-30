@@ -34,7 +34,6 @@
 #include <WebCore/SameSiteInfo.h>
 #include <WebCore/SharedBuffer.h>
 #include <WebCore/HTTPParsers.h>
-
 #include <wtf/text/CString.h>
 
 #include <Url.h>
@@ -167,7 +166,7 @@ NetworkDataTask::State NetworkDataTaskHaiku::state() const
 	return m_state;	
 }
 
-void NetworkDataTaskHaiku::ConnectionOpened(BUrlRequest* caller)
+void NetworkDataTaskHaiku::runOnMainThread(Function<void()>&& task)
 {
 	m_responseDataSent = false;
 }

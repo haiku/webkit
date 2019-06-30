@@ -40,8 +40,8 @@
 namespace WebKit {
 using namespace WebCore;
 
-class NetworkDataTaskHaiku final : public NetworkDataTask,
-	public BUrlProtocolAsynchronousListener
+class NetworkDataTaskHaiku final : public NetworkDataTask
+	,public BUrlProtocolAsynchronousListener
 {
 public:
     static Ref<NetworkDataTask> create(NetworkSession& session, NetworkDataTaskClient& client, const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::ContentSniffingPolicy shouldContentSniff, WebCore::ContentEncodingSniffingPolicy shouldContentEncodingSniff, 
@@ -59,6 +59,8 @@ private:
     void resume() override;
     void invalidateAndCancel() override;
     NetworkDataTask::State state() const override;
+    
+    void runOnMainThread(Function<void()>&&);
     
     void ConnectionOpened(BUrlRequest* caller) override;
     void HeadersReceived(BUrlRequest* caller, const BUrlResult& result) override;
