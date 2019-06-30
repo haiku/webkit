@@ -42,6 +42,8 @@ private:
 	void GlobalMessage(BMessage*);
 	void SetStatus(const char*);
 	void ChangeUrl(BMessage*);
+	void LoadingProgress(double value);
+	void ChangeTitle(const char* title);
     int32 fCount;
     BWindow *myWindow;
     BWebView* webView;
