@@ -187,10 +187,19 @@ App::MessageReceived(BMessage *message)
 		
 		case DID_FINISH_NAVIGATION:
 		SetStatus("finished");
+		LoadingProgress(1);
 		break;
 		
 		case URL_CHANGE:
 		ChangeUrl(message);
+		break;
+		
+		case DID_CHANGE_PROGRESS:
+		LoadingProgress(webView->didChangeProgress());
+		break;
+		
+		case DID_CHANGE_TITLE:
+		ChangeTitle(webView->title());
 		break;
 		
 		case STOP:
@@ -206,7 +215,7 @@ App::MessageReceived(BMessage *message)
 void App::ReadyToRun()
 {
 	webView = new BWebView(frame,myWindow);
-	webView->navigationCallbacks(Looper());
+	webView->navigationCallbacks(webView);
 	const float kInsetSpacing = 5;
 	const float kElementSpacing = 7;
 	myWindow->AddChild(BGroupLayoutBuilder(B_VERTICAL)
@@ -248,8 +257,24 @@ void App::ChangeUrl(BMessage* message)
 	m_url->SetText(str.String());
 	m_url->Looper()->Unlock();
 }
-void 
-App::testLoader()
+
+void App::LoadingProgress(double value)
+{
+	m_loadingProgressBar->Looper()->Lock();
+	
+	if(value*100<100 && m_loadingProgressBar->IsHidden())
+	m_loadingProgressBar->Show();
+
+	m_loadingProgressBar->SetTo(value*100);
+	m_loadingProgressBar->Looper()->Unlock();
+}
+
+void App::ChangeTitle(const char* title)
+{
+	myWindow->SetTitle(title);
+}
+	
+void App::testLoader()
 {
 	 webView->loadHTML();
 }
