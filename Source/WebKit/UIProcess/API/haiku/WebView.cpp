@@ -60,7 +60,7 @@ BWebView::BWebView(BRect frame,BWindow* myWindow)
 
 }
 
-void BWebView::navigationCallbacks(BLooper* app)
+void BWebView::navigationCallbacks(BWebView* app)
 {
 	auto page = WKViewGetPage( fViewPort.get());
 	WKPageNavigationClientV0 navigationClient={};
@@ -74,6 +74,10 @@ void BWebView::navigationCallbacks(BLooper* app)
 	navigationClient.didFinishNavigation = didFinishNavigation;
 	navigationClient.didReceiveServerRedirectForProvisionalNavigation = didReceiveServerRedirectForProvisionalNavigation;
 	WKPageSetPageNavigationClient(page,&navigationClient.base);
+	
+	observer = new PageLoadStateObserver();
+	getRenderView()->page()->pageLoadState().addObserver(*observer);
+	
 }
 void BWebView::initializeOnce()
 {
@@ -81,13 +85,14 @@ void BWebView::initializeOnce()
 	WTF::RunLoop::run();
 }
 void BWebView::loadHTML()
-{
+{		
 	auto page = WKViewGetPage( fViewPort.get());
 	WKRetainPtr<WKURLRef> uri;
 	uri = adoptWK(WKURLCreateWithUTF8CString("about:blank"));
 	WKRetainPtr<WKStringRef> str;
 	str = adoptWK(WKStringCreateWithUTF8CString("<body>Hello world</body>"));
 	WKPageLoadHTMLString(page,str.get(),uri.get());
+	
 }
 
 void BWebView::loadURI(const char* uri)
@@ -125,8 +130,9 @@ void BWebView::didCommitNavigation(WKPageRef page, WKNavigationRef navigation, W
 }
 void BWebView::didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
-	//this wont work for now as we need to make network process work
-	//fprintf(stderr,"\n %s %s\n",__PRETTY_FUNCTION__,((BWebView*)clientInfo)->getCurrentURL());
+	BMessage message(URL_CHANGE);
+	message.AddString("url",BString(((BWebView*)clientInfo)->getCurrentURL()));
+	be_app->PostMessage(&message);
 }
 void BWebView::didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
@@ -147,3 +153,13 @@ void BWebView::didFinishProgress(WKPageRef page,const void* clientInfo)
 {
 	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }	
+
+double BWebView::didChangeProgress()
+{
+	auto page = WKViewGetPage(fViewPort.get());
+	return WKPageGetEstimatedProgress(page);
+}
+const char* BWebView::title()
+{
+	return getRenderView()->page()->pageLoadState().title().utf8().data();
+}

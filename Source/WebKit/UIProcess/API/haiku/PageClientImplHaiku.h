@@ -38,7 +38,7 @@ namespace WebKit
 	{
 		public:
 		PageClientImpl(WebViewBase&);
-		BView* viewWidget();
+		WebViewBase* viewWidget();
 		private:
 		//page client def's
 		std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
