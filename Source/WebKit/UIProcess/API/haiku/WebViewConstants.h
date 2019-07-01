@@ -30,7 +30,8 @@ enum{
 	DID_FINISH_NAVIGATION = 'dfna',
 	URL_CHANGE = 'urlc',
 	DID_CHANGE_PROGRESS = 'dcpr',
-	DID_CHANGE_TITLE = 'dctt'
+	DID_CHANGE_TITLE = 'dctt',
+	URL_LOAD_HANDLE = 'urlh'
 };
 
 #endif // _H
