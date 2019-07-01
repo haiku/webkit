@@ -1,5 +1,6 @@
 SET(MiniBrowser_SOURCES
-    ${TOOLS_DIR}/MiniBrowser/haiku/App.cpp
+    ${TOOLS_DIR}/MiniBrowser/haiku/BrowserApp.cpp
+    ${TOOLS_DIR}/MiniBrowser/haiku/BrowserWindow.cpp
 )
 
 INCLUDE_DIRECTORIES(

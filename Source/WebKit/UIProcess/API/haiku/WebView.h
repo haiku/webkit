@@ -39,16 +39,19 @@ class BWebView
 	BWebView(BRect,BWindow*);
 	void initializeOnce();
 	void loadHTML();
-	void loadURI(const char*);
+	void loadURIRequest(const char*);//use this in app to load a url
+	void loadURI(BMessage*);
 	void goForward();
 	void goBackward();
 	void stop();
 	WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
 	const char* getCurrentURL() { return getRenderView()->currentURL(); }
+	BLooper* getAppLooper() { return fAppLooper; }
 	
-	void navigationCallbacks(BWebView* app);
+	void navigationCallbacks();
 	double didChangeProgress();
 	const char* title();
+	
 	private:	
 	WKRetainPtr<WKViewRef> fViewPort;
    	WKRetainPtr<WKContextRef> fContext;
@@ -58,7 +61,8 @@ class BWebView
 	static void didFinishProgress(WKPageRef,const void*);
 	static void didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo);
 	static void didFailNavigation(WKPageRef page, WKNavigationRef navigation, WKErrorRef,WKTypeRef userData,const void* clientInfo);
-	PageLoadStateObserver* observer;
+	PageLoadStateObserver* fObserver;
+	BLooper* fAppLooper;
 };
 
 		

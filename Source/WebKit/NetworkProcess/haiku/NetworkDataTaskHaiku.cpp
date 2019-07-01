@@ -261,7 +261,6 @@ void NetworkDataTaskHaiku::HeadersReceived(BUrlRequest* caller, const BUrlResult
         ResourceRequest request = m_currentRequest;
         ResourceResponse responseCopy = response;
         request.setURL(url);
-    	fprintf(stderr,"((((((( redirecting to %s)))))))\n",request.url().string().utf8().data());
     	m_client->willPerformHTTPRedirection(WTFMove(responseCopy),WTFMove(request), [this](const ResourceRequest& newRequest){
     		
 	    	if(newRequest.isNull() || m_state == State::Canceling)
@@ -324,7 +323,6 @@ void NetworkDataTaskHaiku::RequestCompleted(BUrlRequest* caller, bool success)
 }
 bool NetworkDataTaskHaiku::CertificateVerificationFailed(BUrlRequest* caller, BCertificate& certificate, const char* message)
 {
-
 }
 void NetworkDataTaskHaiku::DebugMessage(BUrlRequest* caller,BUrlProtocolDebugMessage type,const char* text)
 {

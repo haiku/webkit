@@ -31,6 +31,7 @@
 #include <WebCore/ResourceResponse.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/NetworkLoadMetrics.h>
+#include <WebCore/HaikuFormDataStream.h>
 
 #include <UrlProtocolAsynchronousListener.h>
 #include <Referenceable.h>
@@ -39,8 +40,8 @@
 namespace WebKit {
 using namespace WebCore;
 
-class NetworkDataTaskHaiku final : public NetworkDataTask
-	,public BUrlProtocolAsynchronousListener
+class NetworkDataTaskHaiku final : public NetworkDataTask,
+	public BUrlProtocolAsynchronousListener
 {
 public:
     static Ref<NetworkDataTask> create(NetworkSession& session, NetworkDataTaskClient& client, const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::ContentSniffingPolicy shouldContentSniff, WebCore::ContentEncodingSniffingPolicy shouldContentEncodingSniff, 
@@ -81,7 +82,7 @@ private:
     URL m_baseUrl;
     bool m_responseDataSent;
     bool m_redirected;
-   	off_t m_position;
+    off_t m_position;
     
     int m_redirectionTries;
 };

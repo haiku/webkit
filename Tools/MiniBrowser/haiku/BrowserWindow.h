@@ -7,12 +7,42 @@
 
 #include <Window.h>
 #include <View.h>
-#include <WebKit/WebView.h>
+#include <Button.h>
+#include <String.h>
+#include <TextControl.h>
 
-class BrowserWindow:public BWindow{
+class BButton;
+class BCheckBox;
+class BLayoutItem;
+class BMenuBar;
+class BStatusBar;
+class BStringView;
+class BTextControl;
+class BWebView;
+
+class BrowserWindow:public BWindow
+{
 public:
-	BWebView* webView;
+	BrowserWindow();
+	~BrowserWindow();
+	void MessageReceived(BMessage*);
+	void Construct(BWebView*);
+private:
+	void SetStatus(const char*);
+	void ChangeUrl(BMessage*);
+	void LoadingProgress(double value);
+	void ChangeTitle(const char* title);	
 	
+	BWebView* fWebView;
+	
+	BMenuBar* m_menuBar;
+    BButton* m_BackButton;
+    BButton* m_ForwardButton;
+    BButton* m_StopButton;
+    BButton* m_goButton;
+    BTextControl* m_url;
+    BStringView* m_statusText;
+    BStatusBar* m_loadingProgressBar;
 };
 
 
