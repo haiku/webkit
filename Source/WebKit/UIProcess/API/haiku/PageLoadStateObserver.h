@@ -34,7 +34,10 @@ namespace WebKit{
 class PageLoadStateObserver final :public PageLoadState::Observer
 {
 	public:
-	PageLoadStateObserver(){}
+	PageLoadStateObserver(BLooper* looper)
+	:m_looper(looper)
+	{
+	}
 	void willChangeIsLoading() override{}
 	void didChangeIsLoading() override{}
 	
@@ -44,7 +47,7 @@ class PageLoadStateObserver final :public PageLoadState::Observer
 	void didChangeTitle() override
 	{
 		BMessage message(DID_CHANGE_TITLE);
-		be_app->PostMessage(&message);
+		m_looper->PostMessage(&message);
 	}
 	
 	void willChangeActiveURL() override{}
@@ -59,7 +62,7 @@ class PageLoadStateObserver final :public PageLoadState::Observer
 	void didChangeEstimatedProgress() override
 	{
 		BMessage message(DID_CHANGE_PROGRESS);
-		be_app->PostMessage(&message);
+		m_looper->PostMessage(&message);
 	}
 	
 	void willChangeCanGoBack() override{}
@@ -78,6 +81,8 @@ class PageLoadStateObserver final :public PageLoadState::Observer
 	void didChangeWebProcessIsResponsive() override{}
 	
 	void didSwapWebProcesses() override{}
+	private:
+	BLooper* m_looper;
 };
 }
 
