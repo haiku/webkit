@@ -27,37 +27,44 @@
  */
 
 #include "config.h"
-#include "NicosiaPaintingContext.h"
-
-#if USE(CAIRO)
-#include "NicosiaPaintingContextCairo.h"
-#endif
+#include "NicosiaPaintingContextHaiku.h"
 
 #if PLATFORM(HAIKU)
-#include "NicosiaPaintingContextHaiku.h"
-#endif
+#include "NicosiaBuffer.h"
 
 namespace Nicosia {
 
-#if USE(CAIRO)
-using ForPaintingClass = PaintingContextCairo::ForPainting;
-using ForRecordingClass = PaintingContextCairo::ForRecording;
-#elif PLATFORM(HAIKU)
-using ForPaintingClass = PaintingContextHaiku::ForPainting;
-using ForRecordingClass = PaintingContextHaiku::ForRecording;
-#else
-#error A Nicosia::PaintingContext implementation is required.
-#endif
-
-
-std::unique_ptr<PaintingContext> PaintingContext::createForPainting(Buffer& buffer)
+PaintingContextHaiku::ForPainting::ForPainting(Nicosia::Buffer& buffer)
 {
-    return std::unique_ptr<PaintingContext>(new ForPaintingClass(buffer));
 }
 
-std::unique_ptr<PaintingContext> PaintingContext::createForRecording(PaintingOperations& paintingOperations)
+PaintingContextHaiku::ForPainting::~ForPainting()
 {
-    return std::unique_ptr<PaintingContext>(new ForRecordingClass(paintingOperations));
+    
+}
+
+WebCore::GraphicsContext& PaintingContextHaiku::ForPainting::graphicsContext()
+{
+}
+
+void PaintingContextHaiku::ForPainting::replay(const PaintingOperations& paintingOperations)
+{
+}
+
+PaintingContextHaiku::ForRecording::ForRecording(PaintingOperations& paintingOperations)
+{
+}
+
+PaintingContextHaiku::ForRecording::~ForRecording() = default;
+
+WebCore::GraphicsContext& PaintingContextHaiku::ForRecording::graphicsContext()
+{
+}
+
+void PaintingContextHaiku::ForRecording::replay(const PaintingOperations&)
+{
 }
 
 } // namespace Nicosia
+
+#endif // USE(CAIRO)

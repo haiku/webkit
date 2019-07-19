@@ -72,6 +72,7 @@ if (USE_COORDINATED_GRAPHICS)
     # FIXME: Move this into Nicosia.cmake once the component is set for long-term use.
     list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES
         "${WEBCORE_DIR}/platform/graphics/nicosia/cairo"
+        "${WEBCORE_DIR}/platform/graphics/nicosia/haiku"
         "${WEBCORE_DIR}/platform/graphics/nicosia/texmap"
     )
     list(APPEND WebCore_SOURCES
@@ -86,6 +87,8 @@ if (USE_COORDINATED_GRAPHICS)
 
         platform/graphics/nicosia/cairo/NicosiaCairoOperationRecorder.cpp
         platform/graphics/nicosia/cairo/NicosiaPaintingContextCairo.cpp
+
+        platform/graphics/nicosia/haiku/NicosiaPaintingContextHaiku.cpp
 
         platform/graphics/nicosia/texmap/NicosiaBackingStoreTextureMapperImpl.cpp
         platform/graphics/nicosia/texmap/NicosiaCompositionLayerTextureMapperImpl.cpp

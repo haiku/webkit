@@ -50,7 +50,9 @@ namespace WebKit
 		void initializeOnce();
 		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
 		//hook methods
-		virtual void MouseMoved(BPoint,uint32,const BMessage*);
+		virtual void FrameResized(float,float);
+		virtual void Draw (BRect);
+		virtual void MouseMoved (BPoint,uint32,const BMessage*);
 		private:
 		WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
 		
@@ -58,6 +60,8 @@ namespace WebKit
 		
 		RefPtr<WebPageProxy> fPage;
 		std::unique_ptr<PageClientImpl> fPageClient;
+		
+		bool setSize {false};
 	};	
 }
 

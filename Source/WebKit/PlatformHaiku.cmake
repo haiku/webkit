@@ -18,6 +18,11 @@ list(APPEND WebKit_SOURCES
     PluginProcess/unix/PluginProcessUnix.cpp
 
     Shared/WebCoreArgumentCoders.cpp
+    Shared/CoordinatedGraphics/CoordinatedGraphicsScene.cpp
+    Shared/CoordinatedGraphics/SimpleViewportController.cpp
+    Shared/CoordinatedGraphics/threadedcompositor/ThreadedCompositor.cpp
+    Shared/CoordinatedGraphics/threadedcompositor/CompositingRunLoop.cpp
+    Shared/CoordinatedGraphics/threadedcompositor/ThreadedDisplayRefreshMonitor.cpp
     Shared/haiku/ProcessExecutablePathHaiku.cpp
     Shared/haiku/ShareableBitmapHaiku.cpp
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
@@ -58,9 +63,11 @@ list(APPEND WebKit_SOURCES
 
     WebProcess/WebPage/CoordinatedGraphics/DrawingAreaCoordinatedGraphics.cpp
     WebProcess/WebPage/CoordinatedGraphics/LayerTreeHost.cpp
+    WebProcess/WebPage/CoordinatedGraphics/CompositingCoordinator.cpp
 
     WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
     WebProcess/WebPage/haiku/WebPageHaiku.cpp
+    WebProcess/WebPage/AcceleratedSurface.cpp
 	
     WebProcess/haiku/WebProcessHaiku.cpp
     WebProcess/haiku/WebProcessMainHaiku.cpp

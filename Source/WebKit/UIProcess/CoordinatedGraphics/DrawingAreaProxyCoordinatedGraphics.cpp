@@ -84,6 +84,7 @@ void DrawingAreaProxyCoordinatedGraphics::paint(BackingStore::PlatformGraphicsCo
     if (m_currentBackingStoreStateID < m_nextBackingStoreStateID) {
         // Tell the web process to do a full backing store update now, in case we previously told
         // it about our next state but didn't request an immediate update.
+
         sendUpdateBackingStoreState(RespondImmediately);
 
         // If we haven't yet received our first bits from the WebProcess then don't paint anything.

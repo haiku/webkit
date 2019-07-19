@@ -28,6 +28,8 @@
 
 namespace WebCore {
 
+TextureMapper::TextureMapper() = default;
+
 TextureMapper::~TextureMapper() = default;
 
 RefPtr<BitmapTexture> TextureMapper::acquireTextureFromPool(const IntSize& size, const BitmapTexture::Flags flags)

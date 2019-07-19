@@ -41,6 +41,9 @@ class BitmapTexturePool {
 public:
 #if USE(TEXTURE_MAPPER_GL)
     explicit BitmapTexturePool(const TextureMapperContextAttributes&);
+    #if PLATFORM(HAIKU)
+    explicit BitmapTexturePool();
+    #endif
 #else
     explicit BitmapTexturePool();
 #endif

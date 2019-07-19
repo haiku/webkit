@@ -25,24 +25,42 @@
 
 #include "config.h"
 #include "BackingStore.h"
+#include "ShareableBitmap.h"
 
-#include <WebCore/NotImplemented.h>
+#include <WebCore/IntRect.h>
+#include <WebCore/GraphicsContext.h>
+#include "UpdateInfo.h"
 
+#include <Bitmap.h>
+#include <View.h>
 using namespace WebCore;
 
 namespace WebKit {
 
 void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& updateInfo)
 {
-	fprintf(stderr,"Updater\n");
-    notImplemented();
+	if(!m_bitmap)
+	{
+		m_bitmap = new BitmapRef(BRect(BPoint(0,0),BSize(m_size)),B_RGBA32,true);
+		BView* m_surface = new BView(m_bitmap->Bounds(),"view surface",0,0);
+		m_bitmap->AddChild(m_surface);
+	}
+		
+	IntPoint updateRectLocation = updateInfo.updateRectBounds.location();
+	
+	GraphicsContext graphicsContext(m_surface);
+	
+	for(auto const& updateRect : updateInfo.updateRects)
+	{
+		IntRect srcRect = updateRect;
+		srcRect.move(-updateRectLocation.x(), -updateRectLocation.y());
+		bitmap->paint(graphicsContext,updateRect.location(),srcRect);
+	}
 }
 
 void BackingStore::paint(BView* context,const IntRect& rect)
 {
-	fprintf(stderr,"Im drawing");
-	
-	
+	context->DrawBitmap(m_bitmap);
 }
 
 }

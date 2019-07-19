@@ -34,14 +34,14 @@ using namespace WebCore;
 
 WebKit::WebViewBase::WebViewBase(const char*name,BRect rect,BWindow* parentWindow,
 const API::PageConfiguration& pageConfig)
-:BView(name,B_WILL_DRAW),
+:BView(rect,name,B_FOLLOW_ALL_SIDES,B_WILL_DRAW),
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
 	fprintf(stderr,"Init");
 	auto config = pageConfig.copy();
 	auto* preferences = config->preferences();
-	SetLowColor(255,255,255,255);
-	SetViewColor(255,255,255,255);
+	SetLowColor(255,0,255,255);
+	SetViewColor(255,0,255,255);
 	if(!preferences && config->pageGroup())
 	{
 		preferences = &config->pageGroup()->preferences();
@@ -58,25 +58,42 @@ const API::PageConfiguration& pageConfig)
 	
 	if(fPage->drawingArea())
 	{
+		setSize = true;
 		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
-		rect.top - rect.bottom));
+		rect.bottom - rect.top));
 	}
 }
 
 void WebViewBase::paint(const IntRect& dirtyRect)
 {
-	if(dirtyRect.isEmpty())
-	{
-		return;
-	}
-	fPage->endPrinting();
-	// TODO actually paint
+	
+}
+void WebViewBase::FrameResized(float newWidth, float newHeight)
+{
+	auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
+	if(!drawingArea)
+	return;
+	drawingArea->setSize(IntSize(newWidth,
+		newHeight));
 }	
-
+void WebViewBase::Draw(BRect update)
+{
+	auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
+	if(!drawingArea)
+	return;
+	if(!setSize)
+	{
+		setSize = true;
+		BRect rect = Frame();
+		drawingArea->setSize(IntSize(rect.right - rect.left,
+		rect.bottom - rect.top));
+	}
+	IntRect updateArea(update);
+	WebCore::Region unpainted;
+	drawingArea->paint(this,updateArea,unpainted);
+}
 void WebViewBase::MouseMoved(BPoint where,uint32 code,const BMessage* dragMessage)
 {
-	/*BMessage* temp = Looper()->CurrentMessage();
-	temp->PrintToStream();*/
 }
 	
 	

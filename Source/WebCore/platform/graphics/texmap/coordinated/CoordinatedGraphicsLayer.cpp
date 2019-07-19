@@ -430,16 +430,9 @@ void CoordinatedGraphicsLayer::setContentsTilePhase(const FloatSize& p)
     notifyFlushRequired();
 }
 
-static bool s_shouldSupportContentsTiling = false;
-
-void CoordinatedGraphicsLayer::setShouldSupportContentsTiling(bool s)
-{
-    s_shouldSupportContentsTiling = s;
-}
-
 bool GraphicsLayer::supportsContentsTiling()
 {
-    return s_shouldSupportContentsTiling;
+    return true;
 }
 
 void CoordinatedGraphicsLayer::setContentsNeedsDisplay()

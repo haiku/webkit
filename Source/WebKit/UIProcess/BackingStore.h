@@ -42,6 +42,7 @@ interface ID3D11Texture2D;
 #endif
 
 #if USE(HAIKU)
+#include <WebCore/BitmapImage.h>
 #include <View.h>
 #endif
 
@@ -95,6 +96,10 @@ private:
     std::unique_ptr<WebCore::BackingStoreBackendCairo> m_backend;
 #elif USE(DIRECT2D)
     std::unique_ptr<WebCore::BackingStoreBackendDirect2D> m_backend;
+#endif
+#if PLATFORM(HAIKU)
+	WebCore::BitmapRef* m_bitmap;
+	BView* m_surface;
 #endif
 };
 

@@ -29,6 +29,7 @@
 #include <WebCore/BitmapImage.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/GraphicsContext.h>
+#include <WebCore/IntRect.h>
 
 #include <Bitmap.h>
 #include <View.h>
@@ -39,31 +40,35 @@ namespace WebKit {
 
 static inline RefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
 {
-	BitmapRef* bitmap = new BitmapRef(BRect(B_ORIGIN, size), B_RGBA32, false);
+	BitmapRef* bitmap = new BitmapRef(BRect(0,0,size.width()-1,size.height()-1), B_RGBA32, true);
 	
-    bitmap->ImportBits(static_cast<unsigned char*>(data),
+    bitmap->ImportBits(data,
 		size.width() * size.height() * 4, 32 * size.height(), 0, B_RGB32);
-    RefPtr<StillImage> image = StillImage::create(adoptRef(bitmap));
+		
+    RefPtr<StillImage> image = StillImage::create(bitmap);
     return image;
 }
 
 std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
 {
     RefPtr<StillImage> image = createBitmapSurface();
-    BView* v = new BView(image->nativeImageForCurrentFrame(nullptr)->Bounds(),
+    BView* surface = new BView(image->nativeImageForCurrentFrame(nullptr)->Bounds(),
         "Shareable", 0, 0);
-    image->nativeImageForCurrentFrame(nullptr)->AddChild(v);
-    return std::make_unique<GraphicsContext>(v);
+    image->nativeImageForCurrentFrame(nullptr)->AddChild(surface);
+    surface->LockLooper();
+    return std::make_unique<GraphicsContext>(surface);
 }
-
+void ShareableBitmap::paint(GraphicsContext& context, const IntPoint& dstPoint, const IntRect& srcRect)
+{
+	RefPtr<StillImage> bitmapImage = createBitmapSurface();
+	context.platformContext()->DrawBitmap(bitmapImage->nativeImageForCurrentFrame(nullptr).get(),BPoint(dstPoint));	
+}
 void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const IntPoint& dstPoint, const IntRect& srcRect)
 {
-	fprintf(stderr,"\n(((( %s ))))\n",__PRETTY_FUNCTION__);
     FloatRect destRect(dstPoint, srcRect.size());
     FloatRect srcRectScaled(srcRect);
     srcRectScaled.scale(scaleFactor);
     notImplemented();
-    //context.platformContext()->DrawBitmap(surface.get(), destRect, srcRectScaled);
 }
 
 RefPtr<StillImage> ShareableBitmap::createBitmapSurface()
@@ -83,9 +88,15 @@ RefPtr<Image> ShareableBitmap::createImage()
     return BitmapImage::create(surface->nativeImageForCurrentFrame(nullptr));
 }
 
-Checked<unsigned, RecordOverflow> ShareableBitmap::calculateBytesPerRow(WebCore::IntSize, const ShareableBitmap::Configuration&)
+Checked<unsigned, RecordOverflow> ShareableBitmap::calculateBytesPerRow(WebCore::IntSize size, const ShareableBitmap::Configuration& config)
 {
-	notImplemented();
+	unsigned bytes = calculateBytesPerPixel(config)*size.width();
+	
+	return bytes;
 }
 
+unsigned ShareableBitmap::calculateBytesPerPixel(const Configuration&)
+{
+	return 8;	
+}
 }
