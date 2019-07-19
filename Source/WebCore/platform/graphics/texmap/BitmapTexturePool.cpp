@@ -44,6 +44,12 @@ BitmapTexturePool::BitmapTexturePool(const TextureMapperContextAttributes& conte
     , m_releaseUnusedTexturesTimer(RunLoop::current(), this, &BitmapTexturePool::releaseUnusedTexturesTimerFired)
 {
 }
+#if PLATFORM(HAIKU)
+BitmapTexturePool::BitmapTexturePool()
+    : m_releaseUnusedTexturesTimer(RunLoop::current(), this, &BitmapTexturePool::releaseUnusedTexturesTimerFired)
+{
+}
+#endif
 #else
 BitmapTexturePool::BitmapTexturePool()
     : m_releaseUnusedTexturesTimer(RunLoop::current(), this, &BitmapTexturePool::releaseUnusedTexturesTimerFired)

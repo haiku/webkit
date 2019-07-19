@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2017 Metrological Group B.V.
  * Copyright (C) 2017 Igalia S.L.
+ * Copyright (C) 2019 Haiku,Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,38 +27,35 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#pragma once
+
 #include "NicosiaPaintingContext.h"
-
-#if USE(CAIRO)
-#include "NicosiaPaintingContextCairo.h"
-#endif
-
 #if PLATFORM(HAIKU)
-#include "NicosiaPaintingContextHaiku.h"
-#endif
-
 namespace Nicosia {
 
-#if USE(CAIRO)
-using ForPaintingClass = PaintingContextCairo::ForPainting;
-using ForRecordingClass = PaintingContextCairo::ForRecording;
-#elif PLATFORM(HAIKU)
-using ForPaintingClass = PaintingContextHaiku::ForPainting;
-using ForRecordingClass = PaintingContextHaiku::ForRecording;
-#else
-#error A Nicosia::PaintingContext implementation is required.
-#endif
+class PaintingContextHaiku final {
+public:
+    class ForPainting final : public PaintingContext {
+    public:
+        explicit ForPainting(Buffer&);
+        virtual ~ForPainting();
 
+    private:
+        WebCore::GraphicsContext& graphicsContext() override;
+        void replay(const PaintingOperations&) override;
+    };
 
-std::unique_ptr<PaintingContext> PaintingContext::createForPainting(Buffer& buffer)
-{
-    return std::unique_ptr<PaintingContext>(new ForPaintingClass(buffer));
-}
+    class ForRecording final : public PaintingContext {
+    public:
+        ForRecording(PaintingOperations&);
+        virtual ~ForRecording();
 
-std::unique_ptr<PaintingContext> PaintingContext::createForRecording(PaintingOperations& paintingOperations)
-{
-    return std::unique_ptr<PaintingContext>(new ForRecordingClass(paintingOperations));
-}
+    private:
+        WebCore::GraphicsContext& graphicsContext() override;
+        void replay(const PaintingOperations&) override;
+    };
+};
 
 } // namespace Nicosia
+
+#endif // USE(CAIRO)

@@ -98,7 +98,7 @@ RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 	
 	area_id sharedArea = create_area("WebKit-shared-memory",&baseAddress,B_ANY_ADDRESS,
 		size,B_NO_LOCK,B_READ_AREA | B_WRITE_AREA);
-	
+
 	if(sharedArea<0)
 	return nullptr;
 	

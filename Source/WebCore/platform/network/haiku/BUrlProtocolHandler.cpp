@@ -395,5 +395,4 @@ void BUrlProtocolHandler::UploadProgress(BUrlRequest* caller, ssize_t bytesSent,
     client->didSendData(m_resourceHandle, bytesSent, bytesTotal);
 }
 
-
 }
