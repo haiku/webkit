@@ -34,7 +34,7 @@
 #include <WebCore/SameSiteInfo.h>
 #include <WebCore/SharedBuffer.h>
 #include <WebCore/HTTPParsers.h>
-#include <wtf/MainThread.h>
+
 #include <wtf/text/CString.h>
 
 #include <Url.h>
@@ -53,6 +53,7 @@ NetworkDataTaskHaiku::NetworkDataTaskHaiku(NetworkSession& session, NetworkDataT
    StoredCredentialsPolicy storedCredentialsPolicy, ContentSniffingPolicy shouldContentSniff, ContentEncodingSniffingPolicy, 
       bool shouldClearReferrerOnHTTPSToHTTPRedirect, bool dataTaskIsForMainFrameNavigation)
     : NetworkDataTask(session, client, requestWithCredentials, storedCredentialsPolicy, shouldClearReferrerOnHTTPSToHTTPRedirect, dataTaskIsForMainFrameNavigation)
+    , BUrlProtocolAsynchronousListener(true)
     , m_postData(NULL)
     , m_responseDataSent(false)
     , m_redirected(false)
@@ -112,7 +113,7 @@ void NetworkDataTaskHaiku::createRequest(ResourceRequest&& request)
         httpRequest->SetMethod(method.String());
     }
 
-    if(this->SynchronousListener()) {
+    if(this->SynchronousListener()){
         m_request->SetListener(this->SynchronousListener());
     } else {
         m_request->SetListener(this);
@@ -165,15 +166,6 @@ NetworkDataTask::State NetworkDataTaskHaiku::state() const
 {
 	return m_state;	
 }
-
-void NetworkDataTaskHaiku::runOnMainThread(Function<void()>&& task)
-{
-	if(isMainThread())
-	task();
-	else
-	callOnMainThreadAndWait(WTFMove(task));
-}
-
 
 void NetworkDataTaskHaiku::ConnectionOpened(BUrlRequest* caller)
 {
@@ -301,14 +293,10 @@ void NetworkDataTaskHaiku::DataReceived(BUrlRequest* caller, const char* data, o
         debugger("bad redirect");
         return;
     }
-
+    
     if (size > 0) {
         m_responseDataSent = true;
-        
-        
-        runOnMainThread([this,data = data, size = size]{
-			m_client->didReceiveData(SharedBuffer::create(data,size));
-		});
+		m_client->didReceiveData(SharedBuffer::create(data,size));
     }
 
     m_position += size;
@@ -319,13 +307,31 @@ void NetworkDataTaskHaiku::UploadProgress(BUrlRequest* caller, ssize_t bytesSent
 }
 void NetworkDataTaskHaiku::RequestCompleted(BUrlRequest* caller, bool success)
 {
-
 }
 bool NetworkDataTaskHaiku::CertificateVerificationFailed(BUrlRequest* caller, BCertificate& certificate, const char* message)
 {
+	//TODO
+	return true;
 }
 void NetworkDataTaskHaiku::DebugMessage(BUrlRequest* caller,BUrlProtocolDebugMessage type,const char* text)
 {
+	int8 color;
+	switch(type)
+	{
+		case B_URL_PROTOCOL_DEBUG_TEXT:
+		case B_URL_PROTOCOL_DEBUG_HEADER_IN:
+		case B_URL_PROTOCOL_DEBUG_TRANSFER_IN:
+		color = DC_GREEN;
+		break;
+		case B_URL_PROTOCOL_DEBUG_HEADER_OUT:
+		case B_URL_PROTOCOL_DEBUG_TRANSFER_OUT:
+		color = DC_BLUE;
+		break;
+		case B_URL_PROTOCOL_DEBUG_ERROR:
+		color = DC_RED;
+	}
+	BeDC dc("network-request",type);
+	dc.SendMessage((char*)text);
 }
 
 }

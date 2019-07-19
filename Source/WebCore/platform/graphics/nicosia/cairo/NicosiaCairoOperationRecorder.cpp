@@ -27,6 +27,9 @@
  */
 
 #include "config.h"
+
+#if USE(CAIRO)
+
 #include "NicosiaCairoOperationRecorder.h"
 
 #include "CairoOperations.h"
@@ -1091,3 +1094,4 @@ void CairoOperationRecorder::append(std::unique_ptr<PaintingOperation>&& command
 }
 
 } // namespace Nicosia
+#endif
