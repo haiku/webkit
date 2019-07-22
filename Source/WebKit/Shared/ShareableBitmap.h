@@ -42,6 +42,7 @@
 
 #if PLATFORM(HAIKU)
 #include <WebCore/StillImageHaiku.h>
+#include <WebCore/BitmapImage.h>
 #endif
 
 namespace WebCore {
@@ -153,6 +154,9 @@ private:
     static void releaseSurfaceData(void* typelessBitmap);
 #endif
 
+#if PLATFORM(HAIKU)
+	WebCore::BitmapRef* bitmapObject() const;
+#endif
     void* data() const;
     size_t sizeInBytes() const { return numBytesForSize(m_size, m_configuration).unsafeGet(); }
 
