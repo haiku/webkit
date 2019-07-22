@@ -29,13 +29,18 @@
 #include "Decoder.h"
 #include "Encoder.h"
 
-#include<OS.h>
+#include <OS.h>
+#include <WebCore/BitmapImage.h>
+#include <WebCore/IntSize.h>
+#include <Bitmap.h>
 
+using namespace WebCore;
 namespace WebKit {
 
 SharedMemory::Handle::Handle()
 :m_areaid(0),
-m_size(0)
+m_size(0),
+m_bitmap(NULL)
 {
 }
 
@@ -106,6 +111,23 @@ RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 	memory->m_size = size;
 	memory->m_data = baseAddress;
 	memory->m_areaid = sharedArea;
+	memory->m_bitmap = NULL;
+	
+	return memory;
+}
+
+RefPtr<SharedMemory> SharedMemory::bitmapAllocate(WebCore::IntSize bounds)
+{
+	BitmapRef* sharedBitmap = new BitmapRef(BRect(0,0,bounds.width()-1,bounds.height()-1),B_RGBA32,true);
+	
+	if(!sharedBitmap->IsValid())
+	return nullptr;
+
+	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
+	memory->m_size = sharedBitmap->BitsLength();
+	memory->m_data = sharedBitmap->Bits();
+	memory->m_areaid = sharedBitmap->Area();
+	memory->m_bitmap = sharedBitmap;
 	
 	return memory;
 }
@@ -137,6 +159,7 @@ RefPtr<SharedMemory> SharedMemory::adopt(area_id area, size_t size, Protection p
 	memory->m_size = size;
 	memory->m_data = baseAddress;
 	memory->m_areaid = clonedArea;
+	memory->m_bitmap = NULL;
 	
 	return memory;
 }
@@ -157,6 +180,10 @@ bool SharedMemory::createHandle(Handle& handle, Protection)
 	
 	handle.m_areaid = m_areaid;
 	handle.m_size = m_size;
+	
+	if(handle.m_bitmap)
+	handle.m_bitmap = m_bitmap;
+	
 	return true;
 }
 

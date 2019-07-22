@@ -38,15 +38,18 @@ using namespace WebCore;
 
 namespace WebKit {
 
-static inline RefPtr<StillImage> createSurfaceFromData(void* data, const WebCore::IntSize& size)
+static inline RefPtr<StillImage> createSurfaceFromBitmap(BitmapRef* bitmap)
 {
-	BitmapRef* bitmap = new BitmapRef(BRect(0,0,size.width()-1,size.height()-1), B_RGBA32, true);
-	
-    bitmap->ImportBits(data,
-		size.width() * size.height() * 4, 32 * size.height(), 0, B_RGB32);
-		
     RefPtr<StillImage> image = StillImage::create(bitmap);
     return image;
+}
+
+BitmapRef* ShareableBitmap::bitmapObject() const
+{
+	if(isBackedBySharedMemory())
+	return m_sharedMemory->bitmap();
+	
+	return NULL;
 }
 
 std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
@@ -56,13 +59,21 @@ std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
         "Shareable", 0, 0);
     image->nativeImageForCurrentFrame(nullptr)->AddChild(surface);
     surface->LockLooper();
+    
     return std::make_unique<GraphicsContext>(surface);
 }
+
 void ShareableBitmap::paint(GraphicsContext& context, const IntPoint& dstPoint, const IntRect& srcRect)
 {
 	RefPtr<StillImage> bitmapImage = createBitmapSurface();
-	context.platformContext()->DrawBitmap(bitmapImage->nativeImageForCurrentFrame(nullptr).get(),BPoint(dstPoint));	
+	BView* viewSurface = context.platformContext();
+	viewSurface->LockLooper();
+	viewSurface->SetHighColor(255,0,0,255);
+	viewSurface->FillRect(BRect(10,10,40,40));
+	//viewSurface->DrawBitmap(bitmapImage->nativeImageForCurrentFrame(nullptr).get(),BPoint(dstPoint));
+	viewSurface->UnlockLooper();	
 }
+
 void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const IntPoint& dstPoint, const IntRect& srcRect)
 {
     FloatRect destRect(dstPoint, srcRect.size());
@@ -73,7 +84,7 @@ void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const I
 
 RefPtr<StillImage> ShareableBitmap::createBitmapSurface()
 {
-    RefPtr<StillImage> image = createSurfaceFromData(data(), m_size);
+    RefPtr<StillImage> image = createSurfaceFromBitmap(bitmapObject());
 
     ref(); // Balanced by deref in releaseSurfaceData.
     return image;
@@ -97,6 +108,6 @@ Checked<unsigned, RecordOverflow> ShareableBitmap::calculateBytesPerRow(WebCore:
 
 unsigned ShareableBitmap::calculateBytesPerPixel(const Configuration&)
 {
-	return 8;	
+	return 4;	
 }
 }
