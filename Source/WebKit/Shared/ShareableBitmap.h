@@ -41,6 +41,7 @@
 
 #if PLATFORM(HAIKU)
 #include <WebCore/StillImageHaiku.h>
+#include <WebCore/BitmapImage.h>
 #endif
 
 #if USE(DIRECT2D)
