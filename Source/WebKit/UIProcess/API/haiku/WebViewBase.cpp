@@ -91,6 +91,7 @@ void WebViewBase::Draw(BRect update)
 	IntRect updateArea(update);
 	WebCore::Region unpainted;
 	drawingArea->paint(this,updateArea,unpainted);
+	
 }
 void WebViewBase::MouseMoved(BPoint where,uint32 code,const BMessage* dragMessage)
 {

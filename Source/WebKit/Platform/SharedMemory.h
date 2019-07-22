@@ -41,6 +41,8 @@
 
 #if PLATFORM(HAIKU)
 #include <OS.h>
+#include <WebCore/IntSize.h>
+#include <WebCore/BitmapImage.h>
 #endif
 
 namespace IPC {
@@ -95,6 +97,7 @@ public:
 #elif PLATFORM(HAIKU)
 		mutable area_id m_areaid;
 		size_t m_size;
+		WebCore::BitmapRef* m_bitmap;
 #endif
     };
 
@@ -109,6 +112,7 @@ public:
 #if OS(WINDOWS)
     static RefPtr<SharedMemory> adopt(HANDLE, size_t, Protection);
 #elif PLATFORM(HAIKU)
+	static RefPtr<SharedMemory> bitmapAllocate(WebCore::IntSize);
 	static RefPtr<SharedMemory> adopt(area_id, size_t , Protection);
 #endif
 
@@ -125,6 +129,10 @@ public:
 
 #if OS(WINDOWS)
     HANDLE handle() const { return m_handle; }
+#endif
+
+#if PLATFORM(HAIKU)
+	WebCore::BitmapRef* bitmap() const { return ((m_bitmap) ? m_bitmap : NULL); }
 #endif
 
     // Return the system page size in bytes.
@@ -150,6 +158,7 @@ private:
     HANDLE m_handle;
 #elif PLATFORM(HAIKU)
 	area_id m_areaid;
+	WebCore::BitmapRef* m_bitmap;
 #endif
 };
 
