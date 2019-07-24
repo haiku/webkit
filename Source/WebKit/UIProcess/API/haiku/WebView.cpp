@@ -134,7 +134,7 @@ void BWebView::stop()
 	WKPageClose(page);
 }
 void BWebView::didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
-{
+{fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 	BView* view = ((BWebView*)clientInfo)->getRenderView();
 	view->LockLooper();
 	view->Invalidate();
@@ -152,10 +152,10 @@ void BWebView::didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, 
 }
 void BWebView::didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
-
+	fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }
 void BWebView::didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo)
-{
+{fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 	BLooper* looper = ((BWebView*)clientInfo)->getAppLooper();
 	BMessage message(DID_FINISH_NAVIGATION);
 	looper->PostMessage(&message);
@@ -163,16 +163,16 @@ void BWebView::didFinishNavigation(WKPageRef page, WKNavigationRef navigation, W
 
 void BWebView::didFailNavigation(WKPageRef page, WKNavigationRef navigation,WKErrorRef, WKTypeRef userData,const void* clientInfo)
 {
-
+fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }
 
 void BWebView::didFinishProgress(WKPageRef page,const void* clientInfo)
 {
-
+fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 }	
 
 double BWebView::didChangeProgress()
-{
+{fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
 	auto page = WKViewGetPage(fViewPort.get());
 	return WKPageGetEstimatedProgress(page);
 }
