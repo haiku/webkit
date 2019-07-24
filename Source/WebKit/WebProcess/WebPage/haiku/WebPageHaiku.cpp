@@ -112,7 +112,7 @@ bool WebPage::performDefaultBehaviorForKeyEvent(const WebKeyboardEvent& keyboard
 bool WebPage::platformCanHandleRequest(const ResourceRequest&)
 {
     notImplemented();
-    return true;
+    return false;
 }
 
 const char* WebPage::interpretKeyEvent(const KeyboardEvent* event)
@@ -121,8 +121,9 @@ const char* WebPage::interpretKeyEvent(const KeyboardEvent* event)
     return 0;
 }
 
-String WebPage::platformUserAgent(const URL&) const
+String WebPage::platformUserAgent(const URL& url) const
 {
+	notImplemented();
     return String();
 }
 

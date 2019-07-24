@@ -40,6 +40,7 @@ namespace WebKit {
 
 static inline RefPtr<StillImage> createSurfaceFromBitmap(BitmapRef* bitmap)
 {
+	
     RefPtr<StillImage> image = StillImage::create(bitmap);
     return image;
 }
@@ -47,23 +48,26 @@ static inline RefPtr<StillImage> createSurfaceFromBitmap(BitmapRef* bitmap)
 std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
 {
     RefPtr<StillImage> image = createBitmapSurface();
+    
     BView* surface = new BView(image->nativeImageForCurrentFrame(nullptr)->Bounds(),
         "Shareable", 0, 0);
     image->nativeImageForCurrentFrame(nullptr)->AddChild(surface);
     surface->LockLooper();
-    
+
     return std::make_unique<GraphicsContext>(surface);
 }
 
 void ShareableBitmap::paint(GraphicsContext& context, const IntPoint& dstPoint, const IntRect& srcRect)
 {
-	RefPtr<StillImage> bitmapImage = createBitmapSurface();
+	BitmapRef* bitmap = new BitmapRef(BRect(B_ORIGIN,m_size),B_RGBA32,true);
+	status_t result = bitmap->ImportBits(data(),m_size.width()*m_size.height()*4, 4*m_size.width(),0,B_RGBA32);
+	
 	BView* viewSurface = context.platformContext();
+	
 	viewSurface->LockLooper();
-	viewSurface->SetHighColor(255,0,0,255);
-	viewSurface->FillRect(BRect(10,10,40,40));
-	//viewSurface->DrawBitmap(bitmapImage->nativeImageForCurrentFrame(nullptr).get(),BPoint(dstPoint));
-	viewSurface->UnlockLooper();	
+	viewSurface->DrawBitmap(bitmap);
+	viewSurface->Sync();
+	viewSurface->UnlockLooper();
 }
 
 void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const IntPoint& dstPoint, const IntRect& srcRect)
