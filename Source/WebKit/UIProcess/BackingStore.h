@@ -35,6 +35,7 @@
 
 #if USE(HAIKU)
 #include <WebCore/BitmapImage.h>
+#include <WebCore/NativeImage.h>
 #include <View.h>
 #endif
 
@@ -80,7 +81,7 @@ private:
     std::unique_ptr<WebCore::BackingStoreBackendCairo> m_backend;
 #endif
 #if PLATFORM(HAIKU)
-	WebCore::BitmapRef* m_bitmap;
+	WebCore::NativeImagePtr m_bitmap;
 	BView* m_surface;
 #endif
 };
