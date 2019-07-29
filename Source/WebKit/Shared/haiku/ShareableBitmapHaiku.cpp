@@ -40,7 +40,6 @@ namespace WebKit {
 
 static inline RefPtr<StillImage> createSurfaceFromBitmap(BitmapRef* bitmap)
 {
-	
     RefPtr<StillImage> image = StillImage::create(bitmap);
     return image;
 }
@@ -59,13 +58,13 @@ std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
 
 void ShareableBitmap::paint(GraphicsContext& context, const IntPoint& dstPoint, const IntRect& srcRect)
 {
-	BitmapRef* bitmap = new BitmapRef(BRect(B_ORIGIN,m_size),B_RGBA32,true);
-	status_t result = bitmap->ImportBits(data(),m_size.width()*m_size.height()*4, 4*m_size.width(),0,B_RGBA32);
+	BBitmap bitmap(BRect(B_ORIGIN,m_size),B_RGBA32,true);
+	status_t result = bitmap.ImportBits(data(),m_size.width()*m_size.height()*4, 4*m_size.width(),0,B_RGBA32);
 	
 	BView* viewSurface = context.platformContext();
 	
 	viewSurface->LockLooper();
-	viewSurface->DrawBitmap(bitmap);
+	viewSurface->DrawBitmap(&bitmap);
 	viewSurface->Sync();
 	viewSurface->UnlockLooper();
 }
