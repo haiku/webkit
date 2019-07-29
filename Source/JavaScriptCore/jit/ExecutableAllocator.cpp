@@ -91,7 +91,7 @@ namespace JSC {
 
 using namespace WTF;
     
-#if defined(__HAIKU__) && !CPU(
+#if defined(__HAIKU__)
 #define FIXED_EXECUTABLE_MEMORY_POOL_SIZE_IN_MB 32
 #endif
 
