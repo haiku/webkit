@@ -166,7 +166,7 @@ NetworkDataTask::State NetworkDataTaskHaiku::state() const
 	return m_state;	
 }
 
-void NetworkDataTaskHaiku::runOnMainThread(Function<void()>&& task)
+void NetworkDataTaskHaiku::ConnectionOpened(BUrlRequest*)
 {
 	m_responseDataSent = false;
 }

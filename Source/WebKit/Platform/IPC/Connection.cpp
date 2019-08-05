@@ -580,7 +580,7 @@ std::unique_ptr<Decoder> Connection::waitForSyncReply(uint64_t syncRequestID, Se
 
     willSendSyncMessage(sendSyncOptions);
   
-    bool timedOut = false;sleep(15);
+    bool timedOut = false;
     while (!timedOut) {
         // First, check if we have any messages that we need to process.
         SyncMessageState::singleton().dispatchMessages(nullptr);
