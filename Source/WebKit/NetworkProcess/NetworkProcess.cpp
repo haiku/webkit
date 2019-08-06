@@ -363,7 +363,7 @@ void NetworkProcess::initializeNetworkProcess(NetworkProcessCreationParameters&&
         registerURLSchemeAsCanDisplayOnlyIfCanRequest(scheme);
     
     m_downloadMonitorSpeedMultiplier = parameters.downloadMonitorSpeedMultiplier;
-fprintf(stderr,"%p - NetworkProcess::initializeNetworkProcess: Presenting process = %d\n", this, WebCore::presentingApplicationPID());
+
     RELEASE_LOG(Process, "%p - NetworkProcess::initializeNetworkProcess: Presenting process = %d", this, WebCore::presentingApplicationPID());
 }
 
