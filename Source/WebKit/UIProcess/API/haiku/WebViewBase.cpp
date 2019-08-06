@@ -37,11 +37,9 @@ const API::PageConfiguration& pageConfig)
 :BView(name,B_WILL_DRAW|B_FRAME_EVENTS|B_FULL_UPDATE_ON_RESIZE),
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
-	fprintf(stderr,"Init");
 	auto config = pageConfig.copy();
 	auto* preferences = config->preferences();
-	SetLowColor(255,0,255,255);
-	SetViewColor(255,0,255,255);
+
 	if(!preferences && config->pageGroup())
 	{
 		preferences = &config->pageGroup()->preferences();

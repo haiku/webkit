@@ -41,7 +41,7 @@
 #include <HttpRequest.h>
 #include <assert.h>
 #include "BeDC.h"
-
+#include <wtf/MainThread.h>
 static const int gMaxRecursionLimit = 10;
 
 namespace WebKit {
@@ -52,7 +52,7 @@ NetworkDataTaskHaiku::NetworkDataTaskHaiku(NetworkSession& session, NetworkDataT
    StoredCredentialsPolicy storedCredentialsPolicy, ContentSniffingPolicy shouldContentSniff, ContentEncodingSniffingPolicy, 
       bool shouldClearReferrerOnHTTPSToHTTPRedirect, bool dataTaskIsForMainFrameNavigation)
     : NetworkDataTask(session, client, requestWithCredentials, storedCredentialsPolicy, shouldClearReferrerOnHTTPSToHTTPRedirect, dataTaskIsForMainFrameNavigation)
-    , BUrlProtocolAsynchronousListener(true)
+    //, BUrlProtocolAsynchronousListener(true)
     , m_postData(NULL)
     , m_responseDataSent(false)
     , m_redirected(false)
@@ -158,7 +158,6 @@ void NetworkDataTaskHaiku::resume()
 
 void NetworkDataTaskHaiku::invalidateAndCancel()
 {
-
 }
 
 NetworkDataTask::State NetworkDataTaskHaiku::state() const
@@ -295,14 +294,15 @@ void NetworkDataTaskHaiku::DataReceived(BUrlRequest* caller, const char* data, o
     
     if (size > 0) {
         m_responseDataSent = true;
+        runOnMainThread([this,data=data,size=size]{
 		m_client->didReceiveData(SharedBuffer::create(data,size));
+        });
     }
 
     m_position += size;
 }
 void NetworkDataTaskHaiku::UploadProgress(BUrlRequest* caller, ssize_t bytesSent, ssize_t bytesTotal)
 {
-	
 }
 void NetworkDataTaskHaiku::RequestCompleted(BUrlRequest* caller, bool success)
 {
@@ -332,5 +332,11 @@ void NetworkDataTaskHaiku::DebugMessage(BUrlRequest* caller,BUrlProtocolDebugMes
 	BeDC dc("network-request",type);
 	dc.SendMessage((char*)text);
 }
-
+void NetworkDataTaskHaiku::runOnMainThread(Function<void()>&& task)
+{
+	if(isMainThread())
+	task();
+	else
+	callOnMainThreadAndWait(WTFMove(task));
+}
 }

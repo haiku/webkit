@@ -98,8 +98,6 @@ void NetworkProcess::clearDiskCache(WallTime modifiedSince, CompletionHandler<vo
 void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWorkerProcess, WebCore::RegistrableDomain&& registrableDomain,int64_t webPID)
 {
 	team_id webID = (team_id)webPID; 
-	fprintf(stderr,"\n %s %ld",__PRETTY_FUNCTION__,webID);
-	//FIXME:should avoid collision
 	uint32_t connectionRandkey = WTF::weakRandomUint32();
 	BString key;
 	key.SetToFormat("%u",connectionRandkey);

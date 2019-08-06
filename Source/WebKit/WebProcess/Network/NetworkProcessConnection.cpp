@@ -218,7 +218,7 @@ void NetworkProcessConnection::didFinishPreconnection(uint64_t preconnectionIden
 }
 
 void NetworkProcessConnection::setOnLineState(bool isOnLine)
-{fprintf(stderr,"\n$$$$$$$$$$$$ %s $$$$$$$$$$$$ \n",__PRETTY_FUNCTION__);
+{
     WebProcess::singleton().webLoaderStrategy().setOnLineState(isOnLine);
 }
 

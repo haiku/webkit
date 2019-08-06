@@ -677,7 +677,7 @@ void WebProcessProxy::getPluginProcessConnection(uint64_t pluginProcessToken, Me
 #endif
 
 void WebProcessProxy::getNetworkProcessConnection(Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply&& reply)
-{fprintf(stderr,"\n%s",__PRETTY_FUNCTION__);
+{
     m_processPool->getNetworkProcessConnection(*this, WTFMove(reply));
 }
 
