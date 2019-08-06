@@ -278,7 +278,7 @@ void WebProcess::initializeConnection(IPC::Connection* connection)
 void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters)
 {    
     TraceScope traceScope(InitializeWebProcessStart, InitializeWebProcessEnd);
-fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
+
     ASSERT(m_pageMap.isEmpty());
 
     WebCore::setPresentingApplicationPID(parameters.presentingApplicationPID);
@@ -395,7 +395,7 @@ fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
     setShouldUseFontSmoothing(parameters.shouldUseFontSmoothing);
 
     ensureNetworkProcessConnection();
-fprintf(stderr,"%p - WebProcess::initializeWebProcess: Presenting process = %d\n", this, WebCore::presentingApplicationPID());
+
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     ResourceLoadObserver::shared().setLogUserInteractionNotificationCallback([this] (PAL::SessionID sessionID, const RegistrableDomain& domain) {
         ensureNetworkProcessConnection().connection().send(Messages::NetworkConnectionToWebProcess::LogUserInteraction(sessionID, domain), 0);
@@ -459,7 +459,7 @@ fprintf(stderr,"%p - WebProcess::initializeWebProcess: Presenting process = %d\n
 }
 
 void WebProcess::setWebsiteDataStoreParameters(WebProcessDataStoreParameters&& parameters)
-{fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
+{
     auto& databaseManager = DatabaseManager::singleton();
     databaseManager.initialize(parameters.webSQLDatabaseDirectory);
 
@@ -1126,7 +1126,7 @@ void WebProcess::mainThreadPing()
 }
 
 void WebProcess::backgroundResponsivenessPing()
-{fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
+{
     parentProcessConnection()->send(Messages::WebProcessProxy::DidReceiveBackgroundResponsivenessPing(), 0);
 }
 
@@ -1204,10 +1204,8 @@ void WebProcess::setInjectedBundleParameters(const IPC::DataReference& value)
 static IPC::Connection::Identifier getNetworkProcessConnection(IPC::Connection& connection)
 {
     IPC::Attachment encodedConnectionIdentifier;
-    fprintf(stderr,"%s outside crashing 0\n",__PRETTY_FUNCTION__);
 
     if (!connection.sendSync(Messages::WebProcessProxy::GetNetworkProcessConnection(), Messages::WebProcessProxy::GetNetworkProcessConnection::Reply(encodedConnectionIdentifier), 0)) {
-    	fprintf(stderr,"%s outside crashing 1\n",__PRETTY_FUNCTION__);
 #if PLATFORM(GTK) || PLATFORM(WPE)
         // GTK+ and WPE ports don't exit on send sync message failure.
         // In this particular case, the network process can be terminated by the UI process while the
@@ -1216,7 +1214,6 @@ static IPC::Connection::Identifier getNetworkProcessConnection(IPC::Connection& 
         // See https://bugs.webkit.org/show_bug.cgi?id=183348.
         exit(0);
 #else
-fprintf(stderr,"%s outside crashing 2\n",__PRETTY_FUNCTION__);
         CRASH();
 #endif
     }
@@ -1244,7 +1241,7 @@ NetworkProcessConnection& WebProcess::ensureNetworkProcessConnection()
     RELEASE_ASSERT(RunLoop::isMain());
 
     // If we've lost our connection to the network process (e.g. it crashed) try to re-establish it.
-    if (!m_networkProcessConnection) {fprintf(stderr,"%s\n",__PRETTY_FUNCTION__);
+    if (!m_networkProcessConnection) {
         IPC::Connection::Identifier connectionIdentifier = getNetworkProcessConnection(*parentProcessConnection());
 
         // Retry once if the IPC to get the connectionIdentifier succeeded but the connectionIdentifier we received
