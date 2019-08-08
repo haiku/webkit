@@ -421,7 +421,7 @@ void NetworkProcess::createNetworkConnectionToWebProcess(bool isServiceWorkerPro
     IPC::Attachment clientSocket(clientIdentifier);
     parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientSocket), 0);
 #elif PLATFORM(HAIKU)
-	//do nothing
+    //do nothing
 #else
     notImplemented();
 #endif

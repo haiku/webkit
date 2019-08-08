@@ -36,33 +36,33 @@
 using namespace WebKit;
 namespace WebKit
 {
-	class WebViewBase:public API::ObjectImpl<API::Object::Type::View>,
-	public BView
-	{
-		public:
-		static RefPtr<WebViewBase> create(const char*name,BRect rect, 
-		BWindow* parentWindow,const API::PageConfiguration& config)
-		{
-			auto fWebView=adoptRef(*new WebViewBase(name,rect,parentWindow,config));
-			return fWebView;
-		}
-		WebPageProxy* page() const { return fPage.get(); }
-		void initializeOnce();
-		const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
-		//hook methods
-		virtual void FrameResized(float,float);
-		virtual void Draw (BRect);
-		virtual void MouseMoved (BPoint,uint32,const BMessage*);
-		private:
-		WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
-		
-		void paint(const WebCore::IntRect&);
-		
-		RefPtr<WebPageProxy> fPage;
-		std::unique_ptr<PageClientImpl> fPageClient;
-		
-		bool setSize {false};
-	};	
+    class WebViewBase:public API::ObjectImpl<API::Object::Type::View>,
+    public BView
+    {
+        public:
+        static RefPtr<WebViewBase> create(const char*name,BRect rect, 
+        BWindow* parentWindow,const API::PageConfiguration& config)
+        {
+            auto fWebView=adoptRef(*new WebViewBase(name,rect,parentWindow,config));
+            return fWebView;
+        }
+        WebPageProxy* page() const { return fPage.get(); }
+        void initializeOnce();
+        const char* currentURL() { return page()->pageLoadState().activeURL().utf8().data(); }
+        //hook methods
+        virtual void FrameResized(float,float);
+        virtual void Draw (BRect);
+        virtual void MouseMoved (BPoint,uint32,const BMessage*);
+        private:
+        WebViewBase(const char*,BRect,BWindow*,const API::PageConfiguration&);
+        
+        void paint(const WebCore::IntRect&);
+        
+        RefPtr<WebPageProxy> fPage;
+        std::unique_ptr<PageClientImpl> fPageClient;
+        
+        bool setSize {false};
+    };
 }
 
 

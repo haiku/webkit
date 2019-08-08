@@ -36,20 +36,20 @@ using namespace std;
 
 String executablePathOfWebProcess()
 {
-	static NeverDestroyed<const String> WebKitWebProcessName("./bin/WebProcess");
-	return WebKitWebProcessName;
+    static NeverDestroyed<const String> WebKitWebProcessName("./bin/WebProcess");
+    return WebKitWebProcessName;
 }
 
 String executablePathOfPluginProcess()
 {
-	static NeverDestroyed<const String> WebKitPluginProcessName("./bin/PluginProcess");
-	return WebKitPluginProcessName;
+    static NeverDestroyed<const String> WebKitPluginProcessName("./bin/PluginProcess");
+    return WebKitPluginProcessName;
 }
 
 String executablePathOfNetworkProcess()
 {
-	static NeverDestroyed<const String> WebKitNetworkProcessName("./bin/NetworkProcess");
-	return WebKitNetworkProcessName;
+    static NeverDestroyed<const String> WebKitNetworkProcessName("./bin/NetworkProcess");
+    return WebKitNetworkProcessName;
 }
 
 } // namespace WebKit

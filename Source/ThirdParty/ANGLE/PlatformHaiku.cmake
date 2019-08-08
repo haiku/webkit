@@ -3,5 +3,5 @@ list(APPEND ANGLE_DEFINITIONS USE_SYSTEM_EGL)
 
 list(APPEND ANGLE_SOURCES
     ${angle_system_utils_sources_posix}
-	src/common/system_utils_haiku.cpp
+    src/common/system_utils_haiku.cpp
 )

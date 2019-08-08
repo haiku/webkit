@@ -69,7 +69,7 @@ Ref<NetworkSession> NetworkSession::create(NetworkProcess& networkProcess, Netwo
     return NetworkSessionCurl::create(networkProcess, WTFMove(parameters));
 #endif
 #if PLATFORM(HAIKU)
-	return NetworkSessionHaiku::create(networkProcess, WTFMove(parameters));
+    return NetworkSessionHaiku::create(networkProcess, WTFMove(parameters));
 #endif
 }
 
