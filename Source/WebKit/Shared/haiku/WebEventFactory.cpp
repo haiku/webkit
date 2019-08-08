@@ -27,93 +27,93 @@
 #include <WebCore/IntPoint.h>
 
 enum {
-	BUTTON_PRESS = 'btps',
-	BUTTON_RELEASE = 'btrl',
-	MOUSE_MOVEMENT = 'mmmv',
+    BUTTON_PRESS = 'btps',
+    BUTTON_RELEASE = 'btrl',
+    MOUSE_MOVEMENT = 'mmmv',
 }
 namespace WebKit
 {
-	static inline int clickCount(WebEvent::Type type, WebMouseEvent::Button button, const POINT& position, int64_t timeStampSeconds)
-	{
-	    static int gLastClickCount;
-	    static int64_t gLastClickTime;
-	    static POINT lastClickPosition;
-	    static WebMouseEvent::Button lastClickButton = WebMouseEvent::LeftButton;
-	
-	    bool cancelPreviousClick = 0;
-	
-	    if (type == WebEvent::MouseDown) {
-	        if (!cancelPreviousClick && (button == lastClickButton))
-	            ++gLastClickCount;
-	        else {
-	            gLastClickCount = 1;
-	            lastClickPosition = position;
-	        }
-	        gLastClickTime = timeStampSeconds;
-	        lastClickButton = button;
-	    } else if (type == WebEvent::MouseMove) {
-	        if (cancelPreviousClick) {
-	            gLastClickCount = 0;
-	            lastClickPosition.x = 0;
-	            lastClickPosition.y = 0;
-	            gLastClickTime = 0;
-	        }
-	    }
-	
-	    return gLastClickCount;
-	}
-	static inline WebMouseEvent::Button buttonForEvent(const BMessage* message)
-	{
-		int32_t buttonType;
-		unsigned button = 0;
-		message->FindInt32("button",&buttonType);
-		switch(buttonType)
-		{
-			case B_PRIMARY_MOUSE_BUTTON:
-			button = WebMouseEvent::LeftButton;
-			break;
-			case B_SECONDARY_MOUSE_BUTTON:
-			button = WebMouseEvent::RightButton;
-			break;
-			case B_TERTIARY_MOUSE_BUTTON:
-			button = WebMouseEvent::MiddleButton;
-			break;
-		}
-		
-		return static_cast<WebMouseEvent::Button>(button);
-	}
-	static WebMouseEvent createWebMouseEvent(const BMessage* message)
-	{
-		WebEvent::Type type = static_cast<WebEvent::Type>(0);
-		int32_t mouseEventType;
-		message->FindInt32("type",&mouseEventType);
-		switch(mouseEventType)
-		{
-			case BUTTON_PRESS:
-			type = WebEvent::MouseDown;
-			break;
-			case BUTTON_RELEASE:
-			type = WebEvent::MouseUp;
-			break;
-			case MOUSE_MOVEMENT:
-			type = WebEvent::MouseMove;
-			break;
-			default:
-			ASSERT_NOT_REACHED();
-		}
-		
-		BPoint where;
-		message->FindPoint("where",&where);
-		
-		int64_t when;
-		message->FindInt64("when",&when);
-		
-		/*return WebMouseEvent(
-		type,buttonForEvent(message),0,IntPoint(where),IntPoint(where),
-		0,0,0,
-		)*/
-		//it says some deltax delta y should it be added from be_deltax?
-		
-	}
-	
+    static inline int clickCount(WebEvent::Type type, WebMouseEvent::Button button, const POINT& position, int64_t timeStampSeconds)
+    {
+        static int gLastClickCount;
+        static int64_t gLastClickTime;
+        static POINT lastClickPosition;
+        static WebMouseEvent::Button lastClickButton = WebMouseEvent::LeftButton;
+    
+        bool cancelPreviousClick = 0;
+    
+        if (type == WebEvent::MouseDown) {
+            if (!cancelPreviousClick && (button == lastClickButton))
+                ++gLastClickCount;
+            else {
+                gLastClickCount = 1;
+                lastClickPosition = position;
+            }
+            gLastClickTime = timeStampSeconds;
+            lastClickButton = button;
+        } else if (type == WebEvent::MouseMove) {
+            if (cancelPreviousClick) {
+                gLastClickCount = 0;
+                lastClickPosition.x = 0;
+                lastClickPosition.y = 0;
+                gLastClickTime = 0;
+            }
+        }
+    
+        return gLastClickCount;
+    }
+    static inline WebMouseEvent::Button buttonForEvent(const BMessage* message)
+    {
+        int32_t buttonType;
+        unsigned button = 0;
+        message->FindInt32("button",&buttonType);
+        switch(buttonType)
+        {
+            case B_PRIMARY_MOUSE_BUTTON:
+            button = WebMouseEvent::LeftButton;
+            break;
+            case B_SECONDARY_MOUSE_BUTTON:
+            button = WebMouseEvent::RightButton;
+            break;
+            case B_TERTIARY_MOUSE_BUTTON:
+            button = WebMouseEvent::MiddleButton;
+            break;
+        }
+        
+        return static_cast<WebMouseEvent::Button>(button);
+    }
+    static WebMouseEvent createWebMouseEvent(const BMessage* message)
+    {
+        WebEvent::Type type = static_cast<WebEvent::Type>(0);
+        int32_t mouseEventType;
+        message->FindInt32("type",&mouseEventType);
+        switch(mouseEventType)
+        {
+            case BUTTON_PRESS:
+            type = WebEvent::MouseDown;
+            break;
+            case BUTTON_RELEASE:
+            type = WebEvent::MouseUp;
+            break;
+            case MOUSE_MOVEMENT:
+            type = WebEvent::MouseMove;
+            break;
+            default:
+            ASSERT_NOT_REACHED();
+        }
+        
+        BPoint where;
+        message->FindPoint("where",&where);
+        
+        int64_t when;
+        message->FindInt64("when",&when);
+        
+        /*return WebMouseEvent(
+        type,buttonForEvent(message),0,IntPoint(where),IntPoint(where),
+        0,0,0,
+        )*/
+        //it says some deltax delta y should it be added from be_deltax?
+        
+    }
+    
 }

@@ -68,7 +68,7 @@ list(APPEND WebKit_SOURCES
     WebProcess/WebPage/haiku/WebInspectorHaiku.cpp
     WebProcess/WebPage/haiku/WebPageHaiku.cpp
     WebProcess/WebPage/AcceleratedSurface.cpp
-	
+    
     WebProcess/haiku/WebProcessHaiku.cpp
     WebProcess/haiku/WebProcessMainHaiku.cpp
 )
@@ -149,13 +149,13 @@ set(WebKit_FORWARDING_HEADERS_DIRECTORIES
    WebProcess/InjectedBundle/API/c
 )
 set(WebKit_FORWARDING_HEADERS_FILES
-	WebProcess/WebPage/EventDispatcher.h
+    WebProcess/WebPage/EventDispatcher.h
 
-	Platform/Logging.h
+    Platform/Logging.h
     #Platform/classifier/ResourceLoadStatisticsClassifier.h
     Platform/IPC/unix/UnixMessage.h
 
-	UIProcess/VisitedLinkStore.h
+    UIProcess/VisitedLinkStore.h
 )
 
 WEBKIT_CREATE_FORWARDING_HEADERS(WebKit FILES ${WebKit_FORWARDING_HEADERS_FILES} DIRECTORIES 

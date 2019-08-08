@@ -46,150 +46,150 @@ m_bitmap(NULL)
 
 SharedMemory::Handle::~Handle()
 {
-	clear();
+    clear();
 }
 
 SharedMemory::Handle::Handle(Handle&& other) = default;
 SharedMemory::Handle& SharedMemory::Handle::operator=(Handle&& other) = default;
 void SharedMemory::Handle::clear()
 {
-	if(!m_areaid)
-	return;
-	
-	m_areaid = 0;
+    if(!m_areaid)
+    return;
+    
+    m_areaid = 0;
 }
 
 bool SharedMemory::Handle::isNull() const
 {
-	return !m_areaid;
+    return !m_areaid;
 }
 
 void SharedMemory::Handle::encode(IPC::Encoder& encoder) const
 {
-	encoder << (uint64_t)m_size;
-	encoder << (int64_t)m_areaid;
+    encoder << (uint64_t)m_size;
+    encoder << (int64_t)m_areaid;
 }
 
 bool SharedMemory::Handle::decode(IPC::Decoder& decoder, Handle& handle)
 {
-	uint64_t size;
-	if(!decoder.decode(size))
-	return false;
-	
-	int64_t areaid;
-	if(!decoder.decode(areaid))
-	return false;
-	
-	handle.m_areaid = (area_id)areaid;
-	handle.m_size = size;
+    uint64_t size;
+    if(!decoder.decode(size))
+    return false;
+    
+    int64_t areaid;
+    if(!decoder.decode(areaid))
+    return false;
+    
+    handle.m_areaid = (area_id)areaid;
+    handle.m_size = size;
 
-	return true;
+    return true;
 }
 
 static uint32 protectionMode(SharedMemory::Protection protection)
 {
-	switch(protection)
-	{
-		case SharedMemory::Protection::ReadOnly:
-		return B_READ_AREA;
-		case SharedMemory::Protection::ReadWrite:
-		return B_READ_AREA | B_WRITE_AREA;
-	}
+    switch(protection)
+    {
+        case SharedMemory::Protection::ReadOnly:
+        return B_READ_AREA;
+        case SharedMemory::Protection::ReadWrite:
+        return B_READ_AREA | B_WRITE_AREA;
+    }
 }
 
 RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 {
-	void* baseAddress;
-	
-	area_id sharedArea = create_area("WebKit-shared-memory",&baseAddress,B_ANY_ADDRESS,
-		size,B_NO_LOCK,B_READ_AREA | B_WRITE_AREA);
+    void* baseAddress;
+    
+    area_id sharedArea = create_area("WebKit-shared-memory",&baseAddress,B_ANY_ADDRESS,
+        size,B_NO_LOCK,B_READ_AREA | B_WRITE_AREA);
 
-	if(sharedArea<0)
-	return nullptr;
-	
-	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
-	memory->m_size = size;
-	memory->m_data = baseAddress;
-	memory->m_areaid = sharedArea;
-	memory->m_bitmap = NULL;
-	
-	return memory;
+    if(sharedArea<0)
+    return nullptr;
+    
+    RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
+    memory->m_size = size;
+    memory->m_data = baseAddress;
+    memory->m_areaid = sharedArea;
+    memory->m_bitmap = NULL;
+    
+    return memory;
 }
 
 RefPtr<SharedMemory> SharedMemory::bitmapAllocate(WebCore::IntSize bounds)
 {
-	BitmapRef* sharedBitmap = new BitmapRef(BRect(0,0,bounds.width()-1,bounds.height()-1),B_RGBA32,true);
-	
-	if(!sharedBitmap->IsValid())
-	return nullptr;
+    BitmapRef* sharedBitmap = new BitmapRef(BRect(0,0,bounds.width()-1,bounds.height()-1),B_RGBA32,true);
+    
+    if(!sharedBitmap->IsValid())
+    return nullptr;
 
-	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
-	memory->m_size = sharedBitmap->BitsLength();
-	memory->m_data = sharedBitmap->Bits();
-	memory->m_areaid = sharedBitmap->Area();
-	memory->m_bitmap = sharedBitmap;
-	
-	return memory;
+    RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
+    memory->m_size = sharedBitmap->BitsLength();
+    memory->m_data = sharedBitmap->Bits();
+    memory->m_areaid = sharedBitmap->Area();
+    memory->m_bitmap = sharedBitmap;
+    
+    return memory;
 }
 
 RefPtr<SharedMemory> SharedMemory::map(const Handle& handle, Protection protection)
 {
-	RefPtr<SharedMemory> memory = adopt(handle.m_areaid, handle.m_size, protection);
-	if(!memory)
-	return nullptr;
-	
-	handle.m_areaid = 0;
-	return memory;
+    RefPtr<SharedMemory> memory = adopt(handle.m_areaid, handle.m_size, protection);
+    if(!memory)
+    return nullptr;
+    
+    handle.m_areaid = 0;
+    return memory;
 }
 
 RefPtr<SharedMemory> SharedMemory::adopt(area_id area, size_t size, Protection protection)
 {
-	if(!area)
-	return nullptr;
-	
-	void* baseAddress;
-	
-	area_id clonedArea = clone_area("WebKit-cloned-memory",&baseAddress,B_ANY_ADDRESS,
-	protectionMode(protection),area);
-	
-	if(clonedArea<0)
-	return nullptr;
-	
-	RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
-	memory->m_size = size;
-	memory->m_data = baseAddress;
-	memory->m_areaid = clonedArea;
-	memory->m_bitmap = NULL;
-	
-	return memory;
+    if(!area)
+    return nullptr;
+    
+    void* baseAddress;
+    
+    area_id clonedArea = clone_area("WebKit-cloned-memory",&baseAddress,B_ANY_ADDRESS,
+    protectionMode(protection),area);
+    
+    if(clonedArea<0)
+    return nullptr;
+    
+    RefPtr<SharedMemory> memory = adoptRef(new SharedMemory);
+    memory->m_size = size;
+    memory->m_data = baseAddress;
+    memory->m_areaid = clonedArea;
+    memory->m_bitmap = NULL;
+    
+    return memory;
 }
 
 SharedMemory::~SharedMemory()
 {
-	if(!m_areaid)
-	return;
-	//unset
-	delete_area(m_areaid);
-	m_areaid = 0;
+    if(!m_areaid)
+    return;
+    //unset
+    delete_area(m_areaid);
+    m_areaid = 0;
 }
 
 bool SharedMemory::createHandle(Handle& handle, Protection)
 {
-	ASSERT_ARG(handle,handle.isNull());
-	ASSERT(m_areaid);
-	
-	handle.m_areaid = m_areaid;
-	handle.m_size = m_size;
-	
-	if(handle.m_bitmap)
-	handle.m_bitmap = m_bitmap;
-	
-	return true;
+    ASSERT_ARG(handle,handle.isNull());
+    ASSERT(m_areaid);
+    
+    handle.m_areaid = m_areaid;
+    handle.m_size = m_size;
+    
+    if(handle.m_bitmap)
+    handle.m_bitmap = m_bitmap;
+    
+    return true;
 }
 
 unsigned SharedMemory::systemPageSize()
 {
-	return B_PAGE_SIZE;
+    return B_PAGE_SIZE;
 }
 
 } // namespace WebKit

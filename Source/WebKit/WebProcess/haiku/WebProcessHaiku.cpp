@@ -37,12 +37,12 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 
 void WebProcess::platformSetWebsiteDataStoreParameters(WebProcessDataStoreParameters&&)
 {
-	notImplemented();
+    notImplemented();
 }
 
 void WebProcess::platformTerminate()
 {
-	notImplemented();
+    notImplemented();
 }
 
 void WebProcess::platformSetCacheModel(CacheModel cacheModel)

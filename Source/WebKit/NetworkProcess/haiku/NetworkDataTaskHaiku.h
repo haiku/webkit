@@ -41,7 +41,7 @@ namespace WebKit {
 using namespace WebCore;
 
 class NetworkDataTaskHaiku final : public NetworkDataTask
-	,public BUrlProtocolAsynchronousListener
+    ,public BUrlProtocolAsynchronousListener
 {
 public:
     static Ref<NetworkDataTask> create(NetworkSession& session, NetworkDataTaskClient& client, const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, WebCore::ContentSniffingPolicy shouldContentSniff, WebCore::ContentEncodingSniffingPolicy shouldContentEncodingSniff, 
@@ -52,10 +52,10 @@ public:
 
     ~NetworkDataTaskHaiku();
 private:
-	NetworkDataTaskHaiku(NetworkSession&, NetworkDataTaskClient&, const WebCore::ResourceRequest&, WebCore::StoredCredentialsPolicy, WebCore::ContentSniffingPolicy, WebCore::ContentEncodingSniffingPolicy, bool shouldClearReferrerOnHTTPSToHTTPRedirect, bool dataTaskIsForMainFrameNavigation);
-	void createRequest(WebCore::ResourceRequest&&);
-	State m_state{State::Suspended};
-	void cancel() override;
+    NetworkDataTaskHaiku(NetworkSession&, NetworkDataTaskClient&, const WebCore::ResourceRequest&, WebCore::StoredCredentialsPolicy, WebCore::ContentSniffingPolicy, WebCore::ContentEncodingSniffingPolicy, bool shouldClearReferrerOnHTTPSToHTTPRedirect, bool dataTaskIsForMainFrameNavigation);
+    void createRequest(WebCore::ResourceRequest&&);
+    State m_state{State::Suspended};
+    void cancel() override;
     void resume() override;
     void invalidateAndCancel() override;
     NetworkDataTask::State state() const override;
@@ -70,10 +70,10 @@ private:
     void RequestCompleted(BUrlRequest* caller, bool success) override;
     bool CertificateVerificationFailed(BUrlRequest* caller, BCertificate& certificate, const char* message) override;
     void DebugMessage(BUrlRequest* caller,BUrlProtocolDebugMessage type,const char* text) override;
-	
-	WebCore::ResourceResponse m_response;
-	WebCore::ResourceRequest m_currentRequest;
-	WebCore::NetworkLoadMetrics m_networkLoadMetrics;
+    
+    WebCore::ResourceResponse m_response;
+    WebCore::ResourceRequest m_currentRequest;
+    WebCore::NetworkLoadMetrics m_networkLoadMetrics;
     unsigned m_redirectCount { 0 };
     unsigned m_authFailureCount { 0 };
     MonotonicTime m_startTime;

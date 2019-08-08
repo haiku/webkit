@@ -33,56 +33,56 @@
 namespace WebKit{
 class PageLoadStateObserver final :public PageLoadState::Observer
 {
-	public:
-	PageLoadStateObserver(BLooper* looper)
-	:m_looper(looper)
-	{
-	}
-	void willChangeIsLoading() override{}
-	void didChangeIsLoading() override{}
-	
-	void willChangeTitle() override
-	{
-	}
-	void didChangeTitle() override
-	{
-		BMessage message(DID_CHANGE_TITLE);
-		m_looper->PostMessage(&message);
-	}
-	
-	void willChangeActiveURL() override{}
-	void didChangeActiveURL() override{}
-	
-	void willChangeHasOnlySecureContent() override{}
-	void didChangeHasOnlySecureContent() override{}
-	
-	void willChangeEstimatedProgress() override
-	{
-	}
-	void didChangeEstimatedProgress() override
-	{
-		BMessage message(DID_CHANGE_PROGRESS);
-		m_looper->PostMessage(&message);
-	}
-	
-	void willChangeCanGoBack() override{}
-	void didChangeCanGoBack() override{}
-	
-	void willChangeCanGoForward() override{}
-	void didChangeCanGoForward() override{}
-	
-	void willChangeNetworkRequestsInProgress() override{}
-	void didChangeNetworkRequestsInProgress() override{}
-	
-	void willChangeCertificateInfo() override{}
-	void didChangeCertificateInfo() override{}
-	
-	void willChangeWebProcessIsResponsive() override{}
-	void didChangeWebProcessIsResponsive() override{}
-	
-	void didSwapWebProcesses() override{}
-	private:
-	BLooper* m_looper;
+    public:
+    PageLoadStateObserver(BLooper* looper)
+    :m_looper(looper)
+    {
+    }
+    void willChangeIsLoading() override{}
+    void didChangeIsLoading() override{}
+    
+    void willChangeTitle() override
+    {
+    }
+    void didChangeTitle() override
+    {
+        BMessage message(DID_CHANGE_TITLE);
+        m_looper->PostMessage(&message);
+    }
+    
+    void willChangeActiveURL() override{}
+    void didChangeActiveURL() override{}
+    
+    void willChangeHasOnlySecureContent() override{}
+    void didChangeHasOnlySecureContent() override{}
+    
+    void willChangeEstimatedProgress() override
+    {
+    }
+    void didChangeEstimatedProgress() override
+    {
+        BMessage message(DID_CHANGE_PROGRESS);
+        m_looper->PostMessage(&message);
+    }
+    
+    void willChangeCanGoBack() override{}
+    void didChangeCanGoBack() override{}
+    
+    void willChangeCanGoForward() override{}
+    void didChangeCanGoForward() override{}
+    
+    void willChangeNetworkRequestsInProgress() override{}
+    void didChangeNetworkRequestsInProgress() override{}
+    
+    void willChangeCertificateInfo() override{}
+    void didChangeCertificateInfo() override{}
+    
+    void willChangeWebProcessIsResponsive() override{}
+    void didChangeWebProcessIsResponsive() override{}
+    
+    void didSwapWebProcesses() override{}
+    private:
+    BLooper* m_looper;
 };
 }
 
