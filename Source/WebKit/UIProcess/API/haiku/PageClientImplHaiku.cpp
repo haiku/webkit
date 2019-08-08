@@ -32,293 +32,293 @@
 
 namespace WebKit
 {
-	using namespace WebCore;
-	
-	PageClientImpl::PageClientImpl(WebViewBase& view)
-	:fWebView(view)
-	{
-	}
-	std::unique_ptr<DrawingAreaProxy> PageClientImpl::createDrawingAreaProxy(
-	WebProcessProxy& process)
-	{
-		return std::make_unique<DrawingAreaProxyCoordinatedGraphics>(*fWebView.page(),process);
-	}
-	void PageClientImpl::setViewNeedsDisplay(const WebCore::Region& region)
-	{
+    using namespace WebCore;
+    
+    PageClientImpl::PageClientImpl(WebViewBase& view)
+    :fWebView(view)
+    {
+    }
+    std::unique_ptr<DrawingAreaProxy> PageClientImpl::createDrawingAreaProxy(
+    WebProcessProxy& process)
+    {
+        return std::make_unique<DrawingAreaProxyCoordinatedGraphics>(*fWebView.page(),process);
+    }
+    void PageClientImpl::setViewNeedsDisplay(const WebCore::Region& region)
+    {
 
-	    //fWebView.setViewNeedsDisplay(region);
-	}
-	
-	void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&)
-	{
-	    notImplemented();
-	}
-	
-	WebCore::FloatPoint PageClientImpl::viewScrollPosition()
-	{
-	    notImplemented();
-	    return { };
-	}
-	
-	WebCore::IntSize PageClientImpl::viewSize()
-	{
-		WebCore::IntSize stuff;
-	    if (fWebView.page()->drawingArea())
+        //fWebView.setViewNeedsDisplay(region);
+    }
+    
+    void PageClientImpl::requestScroll(const WebCore::FloatPoint&, const WebCore::IntPoint&)
+    {
+        notImplemented();
+    }
+    
+    WebCore::FloatPoint PageClientImpl::viewScrollPosition()
+    {
+        notImplemented();
+        return { };
+    }
+    
+    WebCore::IntSize PageClientImpl::viewSize()
+    {
+        WebCore::IntSize stuff;
+        if (fWebView.page()->drawingArea())
         {
-        	return fWebView.page()->drawingArea()->size();
+            return fWebView.page()->drawingArea()->size();
         }
-		
-	    return IntSize();
-	}
-	
-	bool PageClientImpl::isViewWindowActive()
-	{
-	    //return fWebView.isWindowActive();
-		return false;
-	}
-	
-	bool PageClientImpl::isViewFocused()
-	{
-	    //return fWebView.isFocused();
-		return false;
-	}
-	
-	bool PageClientImpl::isViewVisible()
-	{
-	    //return fWebView.isVisible();
-		return false;
-	}
-	
-	bool PageClientImpl::isViewInWindow()
-	{
-	    //return fWebView.isInWindow();
-		return false;
-	}
-	
-	void PageClientImpl::PageClientImpl::processDidExit()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didRelaunchProcess()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::toolTipChanged(const String&, const String& newToolTip)
-	{
-	    //fWebView.setToolTip(newToolTip);
-	}
-	
-	void PageClientImpl::setCursor(const WebCore::Cursor& cursor)
-	{
-	    //fWebView.setCursor(cursor);
-	}
-	
-	void PageClientImpl::setCursorHiddenUntilMouseMoves(bool /* hiddenUntilMouseMoves */)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didChangeViewportProperties(const WebCore::ViewportAttributes&)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::registerEditCommand(Ref<WebEditCommandProxy>&& command, UndoOrRedo undoOrRedo)
-	{
-	    fUndoController.registerEditCommand(WTFMove(command), undoOrRedo);
-	}
-	
-	void PageClientImpl::clearAllEditCommands()
-	{
-	    fUndoController.clearAllEditCommands();
-	}
-	
-	bool PageClientImpl::canUndoRedo(UndoOrRedo undoOrRedo)
-	{
-	    return fUndoController.canUndoRedo(undoOrRedo);
-	}
-	
-	void PageClientImpl::executeUndoRedo(UndoOrRedo undoOrRedo)
-	{
-	    fUndoController.executeUndoRedo(undoOrRedo);
-	}
-	
-	FloatRect PageClientImpl::convertToDeviceSpace(const FloatRect& viewRect)
-	{
-	    notImplemented();
-	    return viewRect;
-	}
-	
-	FloatRect PageClientImpl::convertToUserSpace(const FloatRect& viewRect)
-	{
-	    notImplemented();
-	    return viewRect;
-	}
-	
-	IntPoint PageClientImpl::screenToRootView(const IntPoint& point)
-	{
-	    return IntPoint();
-	}
-	
-	IntRect PageClientImpl::rootViewToScreen(const IntRect& rect)
-	{
-	    return IntRect();
-	}
-	
-	void PageClientImpl::doneWithKeyEvent(const NativeWebKeyboardEvent& event, bool wasEventHandled)
-	{
-	    notImplemented();
-	}
-	
-	RefPtr<WebPopupMenuProxy> PageClientImpl::createPopupMenuProxy(WebPageProxy& page)
-	{
-		fprintf(stderr,"context menu");
-		notImplemented();
-	    //return WebPopupMenuProxyWin::create(&fWebView, page);
-	}
-	
-	#if ENABLE(CONTEXT_MENUS)
-	Ref<WebContextMenuProxy> PageClientImpl::createContextMenuProxy(WebPageProxy& page, ContextMenuContextData&& context, const UserData& userData)
-	{
-		notImplemented();
-	    //return WebContextMenuProxyWin::create(page, WTFMove(context), userData);
-	}
-	#endif
-	
-	//#if ENABLE(INPUT_TYPE_COLOR)
-	RefPtr<WebColorPicker> PageClientImpl::createColorPicker(WebPageProxy*, const WebCore::Color& intialColor, 
-	const WebCore::IntRect&, Vector<WebCore::Color>&&)
-	{
-	    return nullptr;
-	}
-	//#endif
-	
-	void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
-	{
-		fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
-	    notImplemented();
-	}
-	
-	void PageClientImpl::exitAcceleratedCompositingMode()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::updateAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::pageClosed()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::preferencesDidChange()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didChangeContentSize(const IntSize& size)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::handleDownloadRequest(DownloadProxy& download)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didCommitLoadForMainFrame(const String& /* mimeType */, bool /* useCustomContentProvider */ )
-	{
-	    notImplemented();
-	}
-	void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didFinishLoadingDataForCustomContentProvider(const String&, const IPC::DataReference&)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::navigationGestureDidBegin()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::navigationGestureWillEnd(bool, WebBackForwardListItem&)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::navigationGestureDidEnd(bool, WebBackForwardListItem&)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::navigationGestureDidEnd()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::willRecordNavigationSnapshot(WebBackForwardListItem&)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didRemoveNavigationGestureSnapshot()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didFirstVisuallyNonEmptyLayoutForMainFrame()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didFinishLoadForMainFrame()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didSameDocumentNavigationForMainFrame(SameDocumentNavigationType)
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::didChangeBackgroundColor()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::isPlayingAudioWillChange()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::isPlayingAudioDidChange()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::refView()
-	{
-	    notImplemented();
-	}
-	
-	void PageClientImpl::derefView()
-	{
-	    notImplemented();
-	}
-	
-	WebViewBase* PageClientImpl::viewWidget()
-	{
-	    return &fWebView;
-	}
+        
+        return IntSize();
+    }
+    
+    bool PageClientImpl::isViewWindowActive()
+    {
+        //return fWebView.isWindowActive();
+        return false;
+    }
+    
+    bool PageClientImpl::isViewFocused()
+    {
+        //return fWebView.isFocused();
+        return false;
+    }
+    
+    bool PageClientImpl::isViewVisible()
+    {
+        //return fWebView.isVisible();
+        return false;
+    }
+    
+    bool PageClientImpl::isViewInWindow()
+    {
+        //return fWebView.isInWindow();
+        return false;
+    }
+    
+    void PageClientImpl::PageClientImpl::processDidExit()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didRelaunchProcess()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::toolTipChanged(const String&, const String& newToolTip)
+    {
+        //fWebView.setToolTip(newToolTip);
+    }
+    
+    void PageClientImpl::setCursor(const WebCore::Cursor& cursor)
+    {
+        //fWebView.setCursor(cursor);
+    }
+    
+    void PageClientImpl::setCursorHiddenUntilMouseMoves(bool /* hiddenUntilMouseMoves */)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didChangeViewportProperties(const WebCore::ViewportAttributes&)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::registerEditCommand(Ref<WebEditCommandProxy>&& command, UndoOrRedo undoOrRedo)
+    {
+        fUndoController.registerEditCommand(WTFMove(command), undoOrRedo);
+    }
+    
+    void PageClientImpl::clearAllEditCommands()
+    {
+        fUndoController.clearAllEditCommands();
+    }
+    
+    bool PageClientImpl::canUndoRedo(UndoOrRedo undoOrRedo)
+    {
+        return fUndoController.canUndoRedo(undoOrRedo);
+    }
+    
+    void PageClientImpl::executeUndoRedo(UndoOrRedo undoOrRedo)
+    {
+        fUndoController.executeUndoRedo(undoOrRedo);
+    }
+    
+    FloatRect PageClientImpl::convertToDeviceSpace(const FloatRect& viewRect)
+    {
+        notImplemented();
+        return viewRect;
+    }
+    
+    FloatRect PageClientImpl::convertToUserSpace(const FloatRect& viewRect)
+    {
+        notImplemented();
+        return viewRect;
+    }
+    
+    IntPoint PageClientImpl::screenToRootView(const IntPoint& point)
+    {
+        return IntPoint();
+    }
+    
+    IntRect PageClientImpl::rootViewToScreen(const IntRect& rect)
+    {
+        return IntRect();
+    }
+    
+    void PageClientImpl::doneWithKeyEvent(const NativeWebKeyboardEvent& event, bool wasEventHandled)
+    {
+        notImplemented();
+    }
+    
+    RefPtr<WebPopupMenuProxy> PageClientImpl::createPopupMenuProxy(WebPageProxy& page)
+    {
+        fprintf(stderr,"context menu");
+        notImplemented();
+        //return WebPopupMenuProxyWin::create(&fWebView, page);
+    }
+    
+    #if ENABLE(CONTEXT_MENUS)
+    Ref<WebContextMenuProxy> PageClientImpl::createContextMenuProxy(WebPageProxy& page, ContextMenuContextData&& context, const UserData& userData)
+    {
+        notImplemented();
+        //return WebContextMenuProxyWin::create(page, WTFMove(context), userData);
+    }
+    #endif
+    
+    //#if ENABLE(INPUT_TYPE_COLOR)
+    RefPtr<WebColorPicker> PageClientImpl::createColorPicker(WebPageProxy*, const WebCore::Color& intialColor, 
+    const WebCore::IntRect&, Vector<WebCore::Color>&&)
+    {
+        return nullptr;
+    }
+    //#endif
+    
+    void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
+    {
+        fprintf(stderr,"\n %s \n",__PRETTY_FUNCTION__);
+        notImplemented();
+    }
+    
+    void PageClientImpl::exitAcceleratedCompositingMode()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::updateAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::pageClosed()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::preferencesDidChange()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didChangeContentSize(const IntSize& size)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::handleDownloadRequest(DownloadProxy& download)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didCommitLoadForMainFrame(const String& /* mimeType */, bool /* useCustomContentProvider */ )
+    {
+        notImplemented();
+    }
+    void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didFinishLoadingDataForCustomContentProvider(const String&, const IPC::DataReference&)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::navigationGestureDidBegin()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::navigationGestureWillEnd(bool, WebBackForwardListItem&)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::navigationGestureDidEnd(bool, WebBackForwardListItem&)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::navigationGestureDidEnd()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::willRecordNavigationSnapshot(WebBackForwardListItem&)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didRemoveNavigationGestureSnapshot()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didFirstVisuallyNonEmptyLayoutForMainFrame()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didFinishLoadForMainFrame()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didSameDocumentNavigationForMainFrame(SameDocumentNavigationType)
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::didChangeBackgroundColor()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::isPlayingAudioWillChange()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::isPlayingAudioDidChange()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::refView()
+    {
+        notImplemented();
+    }
+    
+    void PageClientImpl::derefView()
+    {
+        notImplemented();
+    }
+    
+    WebViewBase* PageClientImpl::viewWidget()
+    {
+        return &fWebView;
+    }
 
 }
-	
+    

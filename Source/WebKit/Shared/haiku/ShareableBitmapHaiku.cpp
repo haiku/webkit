@@ -58,15 +58,15 @@ std::unique_ptr<GraphicsContext> ShareableBitmap::createGraphicsContext()
 
 void ShareableBitmap::paint(GraphicsContext& context, const IntPoint& dstPoint, const IntRect& srcRect)
 {
-	BBitmap bitmap(BRect(B_ORIGIN,m_size),B_RGBA32,true);
-	status_t result = bitmap.ImportBits(data(),m_size.width()*m_size.height()*4, 4*m_size.width(),0,B_RGBA32);
-	
-	BView* viewSurface = context.platformContext();
-	
-	viewSurface->LockLooper();
-	viewSurface->DrawBitmap(&bitmap);
-	viewSurface->Sync();
-	viewSurface->UnlockLooper();
+    BBitmap bitmap(BRect(B_ORIGIN,m_size),B_RGBA32,true);
+    status_t result = bitmap.ImportBits(data(),m_size.width()*m_size.height()*4, 4*m_size.width(),0,B_RGBA32);
+    
+    BView* viewSurface = context.platformContext();
+    
+    viewSurface->LockLooper();
+    viewSurface->DrawBitmap(&bitmap);
+    viewSurface->Sync();
+    viewSurface->UnlockLooper();
 }
 
 void ShareableBitmap::paint(GraphicsContext& context, float scaleFactor, const IntPoint& dstPoint, const IntRect& srcRect)
@@ -96,13 +96,13 @@ RefPtr<Image> ShareableBitmap::createImage()
 
 Checked<unsigned, RecordOverflow> ShareableBitmap::calculateBytesPerRow(WebCore::IntSize size, const ShareableBitmap::Configuration& config)
 {
-	unsigned bytes = calculateBytesPerPixel(config)*size.width();
-	
-	return bytes;
+    unsigned bytes = calculateBytesPerPixel(config)*size.width();
+    
+    return bytes;
 }
 
 unsigned ShareableBitmap::calculateBytesPerPixel(const Configuration&)
 {
-	return 4;	
+    return 4;	
 }
 }

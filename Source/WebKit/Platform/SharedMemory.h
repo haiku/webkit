@@ -103,9 +103,9 @@ public:
         mutable HANDLE m_handle;
         size_t m_size;
 #elif PLATFORM(HAIKU)
-		mutable area_id m_areaid;
-		size_t m_size;
-		WebCore::BitmapRef* m_bitmap;
+        mutable area_id m_areaid;
+        size_t m_size;
+        WebCore::BitmapRef* m_bitmap;
 #endif
     };
 
@@ -121,8 +121,8 @@ public:
 #if OS(WINDOWS)
     static RefPtr<SharedMemory> adopt(HANDLE, size_t, Protection);
 #elif PLATFORM(HAIKU)
-	static RefPtr<SharedMemory> bitmapAllocate(WebCore::IntSize);
-	static RefPtr<SharedMemory> adopt(area_id, size_t , Protection);
+    static RefPtr<SharedMemory> bitmapAllocate(WebCore::IntSize);
+    static RefPtr<SharedMemory> adopt(area_id, size_t , Protection);
 #endif
 
     ~SharedMemory();
@@ -141,7 +141,7 @@ public:
 #endif
 
 #if PLATFORM(HAIKU)
-	WebCore::BitmapRef* bitmap() const { return ((m_bitmap) ? m_bitmap : NULL); }
+    WebCore::BitmapRef* bitmap() const { return ((m_bitmap) ? m_bitmap : NULL); }
 #endif
 
     // Return the system page size in bytes.
@@ -166,8 +166,8 @@ private:
 #elif OS(WINDOWS)
     HANDLE m_handle;
 #elif PLATFORM(HAIKU)
-	area_id m_areaid;
-	WebCore::BitmapRef* m_bitmap;
+    area_id m_areaid;
+    WebCore::BitmapRef* m_bitmap;
 #endif
 };
 

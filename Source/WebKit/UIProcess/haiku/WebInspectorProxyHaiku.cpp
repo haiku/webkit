@@ -144,39 +144,39 @@ void WebInspectorProxy::platformSetSheetRect(const WebCore::FloatRect&)
 
 void WebInspectorProxy::platformStartWindowDrag()
 {
-	notImplemented();
+    notImplemented();
 }
 
 void WebInspectorProxy::platformCreateFrontendWindow()
 {
-	notImplemented();
+    notImplemented();
 }
 void WebInspectorProxy::platformCloseFrontendPageAndWindow()
 {
-	notImplemented();
+    notImplemented();
 }
 
 void WebInspectorProxy::platformShowCertificate(const WebCore::CertificateInfo&)
 {
-	notImplemented();
+    notImplemented();
 }
 
 void WebInspectorProxy::platformDidCloseForCrash()
 {
-	notImplemented();
+    notImplemented();
 }
 void WebInspectorProxy::platformInvalidate()
 {
-	notImplemented();
+    notImplemented();
 }
 void WebInspectorProxy::platformBringInspectedPageToFront()
 {
-	notImplemented();
+    notImplemented();
 }
 WebPageProxy* WebInspectorProxy::platformCreateFrontendPage()
 {
-	notImplemented();
-	return nullptr;
+    notImplemented();
+    return nullptr;
 }
 
 }

@@ -32,96 +32,96 @@
 
 namespace WebKit
 {
-	class WebViewBase;
-	class DrawingAreaProxy;
-	class PageClientImpl: public PageClient
-	{
-		public:
-		PageClientImpl(WebViewBase&);
-		WebViewBase* viewWidget();
-		private:
-		//page client def's
-		std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
-		void setViewNeedsDisplay(const WebCore::Region&) override;
-	    void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin) override;
-	    WebCore::FloatPoint viewScrollPosition() override;
-	    WebCore::IntSize viewSize() override;
-	    bool isViewWindowActive() override;
-	    bool isViewFocused() override;
-	    bool isViewVisible() override;
-	    bool isViewInWindow() override;
-	    void processDidExit() override;
-	    void didRelaunchProcess() override;
-	    void pageClosed() override;
-	    void preferencesDidChange() override;
-	    void toolTipChanged(const WTF::String&, const WTF::String&) override;
-	    void setCursor(const WebCore::Cursor&) override;
-	    void setCursorHiddenUntilMouseMoves(bool) override;
-	    void didChangeViewportProperties(const WebCore::ViewportAttributes&) override;
-	    void registerEditCommand(Ref<WebEditCommandProxy>&&, UndoOrRedo) override;
-	    void clearAllEditCommands() override;
-	    bool canUndoRedo(UndoOrRedo) override;
-	    void executeUndoRedo(UndoOrRedo) override;
-	    WebCore::FloatRect convertToDeviceSpace(const WebCore::FloatRect&) override;
-	    WebCore::FloatRect convertToUserSpace(const WebCore::FloatRect&) override;
-	    WebCore::IntPoint screenToRootView(const WebCore::IntPoint&) override;
-	    WebCore::IntRect rootViewToScreen(const WebCore::IntRect&) override;
-	    void doneWithKeyEvent(const NativeWebKeyboardEvent&, bool wasEventHandled) override;
-	    RefPtr<WebPopupMenuProxy> createPopupMenuProxy(WebPageProxy&) override;
-	    Ref<WebContextMenuProxy> createContextMenuProxy(WebPageProxy&, ContextMenuContextData&&, const UserData&) override;
-		
-		#if ENABLE(INPUT_TYPE_COLOR)
-    		RefPtr<WebColorPicker> createColorPicker(WebPageProxy*, const WebCore::Color& intialColor, 
-    		const WebCore::IntRect&,Vector<WebCore::Color>&&) override;
-		#endif
-		
-		void enterAcceleratedCompositingMode(const LayerTreeContext&) override;
-	    void exitAcceleratedCompositingMode() override;
-	    void updateAcceleratedCompositingMode(const LayerTreeContext&) override;
-	
-	    void handleDownloadRequest(DownloadProxy&) override;
-	    void didChangeContentSize(const WebCore::IntSize&) override;
-	    void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) override;
-	    void didFailLoadForMainFrame() override { }
-	    
-	    
-	    void didFinishLoadingDataForCustomContentProvider(const String& suggestedFilename, const IPC::DataReference&) override;
-	    void navigationGestureDidBegin() override;
-	    void navigationGestureWillEnd(bool, WebBackForwardListItem&) override;
-	    void navigationGestureDidEnd(bool, WebBackForwardListItem&) override;
-	    void navigationGestureDidEnd() override;
-	    void willRecordNavigationSnapshot(WebBackForwardListItem&) override;
-	    void didRemoveNavigationGestureSnapshot() override;
-	
-	    void didFirstVisuallyNonEmptyLayoutForMainFrame() override;
-	    void didFinishLoadForMainFrame() override;
-	    void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType) override;
-	    
-	    void wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent&) override;
+    class WebViewBase;
+    class DrawingAreaProxy;
+    class PageClientImpl: public PageClient
+    {
+        public:
+        PageClientImpl(WebViewBase&);
+        WebViewBase* viewWidget();
+        private:
+        //page client def's
+        std::unique_ptr<DrawingAreaProxy> createDrawingAreaProxy(WebProcessProxy&) override;
+        void setViewNeedsDisplay(const WebCore::Region&) override;
+        void requestScroll(const WebCore::FloatPoint& scrollPosition, const WebCore::IntPoint& scrollOrigin) override;
+        WebCore::FloatPoint viewScrollPosition() override;
+        WebCore::IntSize viewSize() override;
+        bool isViewWindowActive() override;
+        bool isViewFocused() override;
+        bool isViewVisible() override;
+        bool isViewInWindow() override;
+        void processDidExit() override;
+        void didRelaunchProcess() override;
+        void pageClosed() override;
+        void preferencesDidChange() override;
+        void toolTipChanged(const WTF::String&, const WTF::String&) override;
+        void setCursor(const WebCore::Cursor&) override;
+        void setCursorHiddenUntilMouseMoves(bool) override;
+        void didChangeViewportProperties(const WebCore::ViewportAttributes&) override;
+        void registerEditCommand(Ref<WebEditCommandProxy>&&, UndoOrRedo) override;
+        void clearAllEditCommands() override;
+        bool canUndoRedo(UndoOrRedo) override;
+        void executeUndoRedo(UndoOrRedo) override;
+        WebCore::FloatRect convertToDeviceSpace(const WebCore::FloatRect&) override;
+        WebCore::FloatRect convertToUserSpace(const WebCore::FloatRect&) override;
+        WebCore::IntPoint screenToRootView(const WebCore::IntPoint&) override;
+        WebCore::IntRect rootViewToScreen(const WebCore::IntRect&) override;
+        void doneWithKeyEvent(const NativeWebKeyboardEvent&, bool wasEventHandled) override;
+        RefPtr<WebPopupMenuProxy> createPopupMenuProxy(WebPageProxy&) override;
+        Ref<WebContextMenuProxy> createContextMenuProxy(WebPageProxy&, ContextMenuContextData&&, const UserData&) override;
+        
+        #if ENABLE(INPUT_TYPE_COLOR)
+            RefPtr<WebColorPicker> createColorPicker(WebPageProxy*, const WebCore::Color& intialColor, 
+            const WebCore::IntRect&,Vector<WebCore::Color>&&) override;
+        #endif
+        
+        void enterAcceleratedCompositingMode(const LayerTreeContext&) override;
+        void exitAcceleratedCompositingMode() override;
+        void updateAcceleratedCompositingMode(const LayerTreeContext&) override;
+    
+        void handleDownloadRequest(DownloadProxy&) override;
+        void didChangeContentSize(const WebCore::IntSize&) override;
+        void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) override;
+        void didFailLoadForMainFrame() override { }
+        
+        
+        void didFinishLoadingDataForCustomContentProvider(const String& suggestedFilename, const IPC::DataReference&) override;
+        void navigationGestureDidBegin() override;
+        void navigationGestureWillEnd(bool, WebBackForwardListItem&) override;
+        void navigationGestureDidEnd(bool, WebBackForwardListItem&) override;
+        void navigationGestureDidEnd() override;
+        void willRecordNavigationSnapshot(WebBackForwardListItem&) override;
+        void didRemoveNavigationGestureSnapshot() override;
+    
+        void didFirstVisuallyNonEmptyLayoutForMainFrame() override;
+        void didFinishLoadForMainFrame() override;
+        void didSameDocumentNavigationForMainFrame(SameDocumentNavigationType) override;
+        
+        void wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent&) override;
 
-	    void didChangeBackgroundColor() override;
-	    void isPlayingAudioWillChange() override;
-	    void isPlayingAudioDidChange() override;
-	
-	    void refView() override;
-	    void derefView() override;
-	
-	    void didRestoreScrollPosition() override { }
-	
-	    WebCore::UserInterfaceLayoutDirection userInterfaceLayoutDirection() override { return WebCore::UserInterfaceLayoutDirection::LTR; }
-	
-	    void didFinishProcessingAllPendingMouseEvents() final { }
+        void didChangeBackgroundColor() override;
+        void isPlayingAudioWillChange() override;
+        void isPlayingAudioDidChange() override;
+    
+        void refView() override;
+        void derefView() override;
+    
+        void didRestoreScrollPosition() override { }
+    
+        WebCore::UserInterfaceLayoutDirection userInterfaceLayoutDirection() override { return WebCore::UserInterfaceLayoutDirection::LTR; }
+    
+        void didFinishProcessingAllPendingMouseEvents() final { }
 
-		WebCore::IntPoint accessibilityScreenToRootView(const WebCore::IntPoint& point) final { return point; }
-		WebCore::IntRect rootViewToAccessibilityScreen(const WebCore::IntRect& rect) final { return rect; }
-		void requestDOMPasteAccess(const WebCore::IntRect& elementRect, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final {}
-	
-	private:
-	    DefaultUndoController fUndoController;
-		
-		//haiku def
-		WebViewBase& fWebView;
-	};	
-	
-	
+        WebCore::IntPoint accessibilityScreenToRootView(const WebCore::IntPoint& point) final { return point; }
+        WebCore::IntRect rootViewToAccessibilityScreen(const WebCore::IntRect& rect) final { return rect; }
+        void requestDOMPasteAccess(const WebCore::IntRect& elementRect, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&) final {}
+    
+    private:
+        DefaultUndoController fUndoController;
+        
+        //haiku def
+        WebViewBase& fWebView;
+    };	
+    
+    
 }

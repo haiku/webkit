@@ -23,9 +23,9 @@ public:
 private:
 	void LocalMessage(BMessage*);
 	void GlobalMessage(BMessage*);
-    BWebView* webView;
-    status_t result;
-    map<string,BLooper*> looperMapping;
+	BWebView* webView;
+	status_t result;
+	map<string,BLooper*> looperMapping;
 	map<string,BMessage*> messengerMapping;
 	BrowserWindow* fWindow;
 };

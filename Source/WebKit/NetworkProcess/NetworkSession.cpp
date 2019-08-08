@@ -71,7 +71,7 @@ std::unique_ptr<NetworkSession> NetworkSession::create(NetworkProcess& networkPr
     return NetworkSessionCurl::create(networkProcess, WTFMove(parameters));
 #endif
 #if PLATFORM(HAIKU)
-	return NetworkSessionHaiku::create(networkProcess, WTFMove(parameters));
+    return NetworkSessionHaiku::create(networkProcess, WTFMove(parameters));
 #endif
 }
 

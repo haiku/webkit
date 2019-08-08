@@ -56,7 +56,7 @@ String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent
     /*standardUserAgentString = "Mozilla/5.0 (" + platform + "; " + osVersion + ") AppleWebKit/" + version
         + " (KHTML, like Gecko) Version/5.0 Safari/" + version;*/
     //needs to be latest- FIXME    
-	standardUserAgentString = "Mozilla/5.0 (Macintosh; Intel Haiku R1 x86) AppleWebKit/608.1.30 (KHTML, like Gecko) WebPositive/1.2 Version/11.1 Safari/608.1.30";
+    standardUserAgentString = "Mozilla/5.0 (Macintosh; Intel Haiku R1 x86) AppleWebKit/608.1.30 (KHTML, like Gecko) WebPositive/1.2 Version/11.1 Safari/608.1.30";
     return applicationNameForUserAgent.isEmpty() ? standardUserAgentString : standardUserAgentString + ' ' + applicationNameForUserAgent;
 }
 

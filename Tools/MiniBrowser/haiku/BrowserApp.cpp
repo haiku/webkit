@@ -15,8 +15,8 @@
 
 
 BrowserApp::BrowserApp(void)
-	:    BApplication("application/x-vnd.lh-MiniBrowser")
-{	
+	:	BApplication("application/x-vnd.lh-MiniBrowser")
+{
 	fWindow = new BrowserWindow();
 	webView = new BWebView(BRect(100,100,800,800),fWindow);
 }
@@ -96,9 +96,9 @@ void BrowserApp::ReadyToRun()
 
 int main (void)
 {
-  BrowserApp *app = new BrowserApp();
-  app->Run();
-  delete app;
-  return 0;
+	BrowserApp *app = new BrowserApp();
+	app->Run();
+	delete app;
+	return 0;
 }
 

@@ -35,34 +35,33 @@ using namespace WebKit;
 
 class BWebView
 {
-	public:
-	BWebView(BRect,BWindow*);
-	void initializeOnce();
-	void loadHTML();
-	void loadURIRequest(const char*);//use this in app to load a url
-	void loadURI(BMessage*);
-	void goForward();
-	void goBackward();
-	void stop();
-	WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
-	const char* getCurrentURL() { return getRenderView()->currentURL(); }
-	BLooper* getAppLooper() { return fAppLooper; }
-	
-	void navigationCallbacks();
-	double didChangeProgress();
-	const char* title();
-	
-	private:	
-	WKRetainPtr<WKViewRef> fViewPort;
-   	WKRetainPtr<WKContextRef> fContext;
-   	static void didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-   	static void didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-	static void didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
-	static void didFinishProgress(WKPageRef,const void*);
-	static void didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo);
-	static void didFailNavigation(WKPageRef page, WKNavigationRef navigation, WKErrorRef,WKTypeRef userData,const void* clientInfo);
-	PageLoadStateObserver* fObserver;
-	BLooper* fAppLooper;
+    public:
+    BWebView(BRect,BWindow*);
+    void initializeOnce();
+    void loadHTML();
+    void loadURIRequest(const char*);//use this in app to load a url
+    void loadURI(BMessage*);
+    void goForward();
+    void goBackward();
+    void stop();
+    WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
+    const char* getCurrentURL() { return getRenderView()->currentURL(); }
+    BLooper* getAppLooper() { return fAppLooper; }
+    
+    void navigationCallbacks();
+    double didChangeProgress();
+    const char* title();
+    
+    private:
+    WKRetainPtr<WKViewRef> fViewPort;
+    WKRetainPtr<WKContextRef> fContext;
+    static void didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
+    static void didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
+    static void didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo);
+    static void didFinishProgress(WKPageRef,const void*);
+    static void didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo);
+    static void didFailNavigation(WKPageRef page, WKNavigationRef navigation, WKErrorRef,WKTypeRef userData,const void* clientInfo);
+    PageLoadStateObserver* fObserver;
+    BLooper* fAppLooper;
 };
 
-		

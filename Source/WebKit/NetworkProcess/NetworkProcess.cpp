@@ -390,6 +390,8 @@ static inline Optional<std::pair<IPC::Connection::Identifier, IPC::Attachment>> 
         CRASH();
     }
     return std::make_pair(serverIdentifier, IPC::Attachment { clientIdentifier });
+#elif PLATFORM(HAIKU)
+    //do nothing
 #else
     notImplemented();
     return { };

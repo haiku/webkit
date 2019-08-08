@@ -155,11 +155,11 @@ public:
     static bool createServerAndClientIdentifiers(Identifier& serverIdentifier, Identifier& clientIdentifier);
     static bool identifierIsValid(Identifier identifier) { return !!identifier; }
 #elif PLATFORM(HAIKU)
-	struct connectionData
-	{
-		team_id connectedProcess;
-		BString key;	
-	};
+    struct connectionData
+    {
+        team_id connectedProcess;
+        BString key;
+    };
     typedef connectionData Identifier;
     static bool identifierIsValid(Identifier identifier) { return BMessenger(NULL,identifier.connectedProcess).IsValid(); }//FIXME: make this less expensive
     void prepareIncomingMessage(BMessage*);
@@ -443,8 +443,8 @@ private:
     EventListener m_writeListener;
     HANDLE m_connectionPipe { INVALID_HANDLE_VALUE };
 #elif PLATFORM(HAIKU)
-	Identifier m_connectedProcess;
-	BHandler* m_readHandler;
+    Identifier m_connectedProcess;
+    BHandler* m_readHandler;
     BMessenger m_messenger;
     BMessenger targetMessenger;
     void runReadEventLoop();

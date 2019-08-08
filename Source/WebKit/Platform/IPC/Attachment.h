@@ -71,11 +71,11 @@ public:
         : m_handle(handle)
     { }
 #elif PLATFORM(HAIKU)
-	Attachment(team_id connectionInfo,uint32_t key)
-		: m_connectionID(connectionInfo),
-		m_key(key)
-	{
-	}    
+    Attachment(team_id connectionInfo,uint32_t key)
+        : m_connectionID(connectionInfo),
+        m_key(key)
+    {
+    }
 #endif
 
     Type type() const { return m_type; }
@@ -94,8 +94,8 @@ public:
 #elif OS(WINDOWS)
     HANDLE handle() const { return m_handle; }
 #elif PLATFORM(HAIKU)
-	team_id connectionID () const { return m_connectionID; }
-	uint32_t key () const { return m_key; }
+    team_id connectionID () const { return m_connectionID; }
+    uint32_t key () const { return m_key; }
 #endif
 
     void encode(Encoder&) const;
@@ -113,8 +113,8 @@ private:
 #elif OS(WINDOWS)
     HANDLE m_handle { INVALID_HANDLE_VALUE };
 #elif PLATFORM(HAIKU)
-	team_id m_connectionID;
-	uint32_t m_key;
+    team_id m_connectionID;
+    uint32_t m_key;
 #endif
 };
 

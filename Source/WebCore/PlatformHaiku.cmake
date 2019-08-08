@@ -3,19 +3,19 @@ include(platform/ImageDecoders.cmake)
 include(platform/TextureMapper.cmake)
 
 list(APPEND WebCore_INCLUDE_DIRECTORIES
-  "${THIRDPARTY_DIR}/ANGLE/"
-  "${THIRDPARTY_DIR}/ANGLE/include/KHR"
-  "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
-  "${WEBCORE_DIR}/page/scrolling/coordinatedgraphics"
-  "${WEBCORE_DIR}/platform/haiku"
-  "${WEBCORE_DIR}/platform/graphics/haiku"
-  "${WEBCORE_DIR}/platform/graphics/opentype"
-  "${WEBCORE_DIR}/platform/graphics/texmap/coordinated"
-  "${WEBCORE_DIR}/platform/mediacapabilities"
-  "${WEBCORE_DIR}/platform/network/haiku"
-  "${WEBCORE_DIR}/platform/graphics/opengl"
-  "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
-  "${CMAKE_SOURCE_DIR}/Source"
+    "${THIRDPARTY_DIR}/ANGLE/"
+    "${THIRDPARTY_DIR}/ANGLE/include/KHR"
+    "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
+    "${WEBCORE_DIR}/page/scrolling/coordinatedgraphics"
+    "${WEBCORE_DIR}/platform/haiku"
+    "${WEBCORE_DIR}/platform/graphics/haiku"
+    "${WEBCORE_DIR}/platform/graphics/opentype"
+    "${WEBCORE_DIR}/platform/graphics/texmap/coordinated"
+    "${WEBCORE_DIR}/platform/mediacapabilities"
+    "${WEBCORE_DIR}/platform/network/haiku"
+    "${WEBCORE_DIR}/platform/graphics/opengl"
+    "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
+    "${CMAKE_SOURCE_DIR}/Source"
 )
 
 list(APPEND WebCore_SOURCES
@@ -121,17 +121,17 @@ list(APPEND WebCore_SOURCES
   platform/text/haiku/StringHaiku.cpp
 )
 if(ENABLE_GRAPHICS_CONTEXT_3D)
-	list(APPEND WebCore_SOURCES
-		platform/graphics/haiku/GraphicsContext3DHaiku.cpp
-		platform/graphics/opengl/Extensions3DOpenGL.cpp
-		platform/graphics/opengl/Extensions3DOpenGLCommon.cpp
-		platform/graphics/GLContext.cpp
-		platform/graphics/OpenGLShims.cpp
-		platform/graphics/PlatformDisplay.cpp
-		platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
-		platform/graphics/opengl/GraphicsContext3DOpenGL.cpp
-		platform/graphics/opengl/TemporaryOpenGLSetting.cpp
-	)
+    list(APPEND WebCore_SOURCES
+        platform/graphics/haiku/GraphicsContext3DHaiku.cpp
+        platform/graphics/opengl/Extensions3DOpenGL.cpp
+        platform/graphics/opengl/Extensions3DOpenGLCommon.cpp
+        platform/graphics/GLContext.cpp
+        platform/graphics/OpenGLShims.cpp
+        platform/graphics/PlatformDisplay.cpp
+        platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
+        platform/graphics/opengl/GraphicsContext3DOpenGL.cpp
+        platform/graphics/opengl/TemporaryOpenGLSetting.cpp
+    )
 endif()
 if (ENABLE_WEB_CRYPTO)
     list(APPEND WebCore_SOURCES
@@ -189,8 +189,8 @@ endif ()
 
 if (ENABLE_WEB_AUDIO)
     list(APPEND WebCore_SOURCES
-		platform/audio/haiku/AudioDestinationHaiku.cpp
-	)
+        platform/audio/haiku/AudioDestinationHaiku.cpp
+    )
 endif ()
 
 list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
@@ -212,36 +212,36 @@ set(WebCore_USER_AGENT_SCRIPTS
 
 add_custom_command(
     OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/WebKitVersion.h
-	MAIN_DEPENDENCY ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl
-	DEPENDS ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig
-	COMMAND ${PERL_EXECUTABLE} ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl --config ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig --outputDir ${DERIVED_SOURCES_WEBCORE_DIR}
+    MAIN_DEPENDENCY ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl
+    DEPENDS ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig
+    COMMAND ${PERL_EXECUTABLE} ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl --config ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig --outputDir ${DERIVED_SOURCES_WEBCORE_DIR}
     VERBATIM)
 list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/WebKitVersion.h)
 
 set(WebCore_USER_AGENT_SCRIPTS_DEPENDENCIES ${WEBCORE_DIR}/platform/haiku/RenderThemeHaiku.cpp)
 
 list(APPEND WebCore_LIBRARIES
-  ${ICU_LIBRARIES}
-  ${JPEG_LIBRARY}
-  ${LIBGCRYPT_LIBRARIES}
-  ${LIBTASN1_LIBRARIES}
-  ${LIBXML2_LIBRARIES}
-  ${LIBXSLT_LIBRARIES}
-  ${PNG_LIBRARY}
-  ${SQLITE_LIBRARIES}
-  ${WEBP_LIBRARIES}
-  ${ZLIB_LIBRARIES}
-  be bsd network bnetapi textencoding translation execinfo
+    ${ICU_LIBRARIES}
+    ${JPEG_LIBRARY}
+    ${LIBGCRYPT_LIBRARIES}
+    ${LIBTASN1_LIBRARIES}
+    ${LIBXML2_LIBRARIES}
+    ${LIBXSLT_LIBRARIES}
+    ${PNG_LIBRARY}
+    ${SQLITE_LIBRARIES}
+    ${WEBP_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    be bsd network bnetapi textencoding translation execinfo
 )
 
 list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES
-  ${GNUTLS_INCLUDE_DIRS}
-  ${ICU_INCLUDE_DIRS}
-  ${LIBXML2_INCLUDE_DIR}
-  ${LIBXSLT_INCLUDE_DIR}
-  ${SQLITE_INCLUDE_DIR}
-  ${WEBP_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIRS}
+    ${GNUTLS_INCLUDE_DIRS}
+    ${ICU_INCLUDE_DIRS}
+    ${LIBXML2_INCLUDE_DIR}
+    ${LIBXSLT_INCLUDE_DIR}
+    ${SQLITE_INCLUDE_DIR}
+    ${WEBP_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
 )
 
 if (ENABLE_WEB_AUDIO)

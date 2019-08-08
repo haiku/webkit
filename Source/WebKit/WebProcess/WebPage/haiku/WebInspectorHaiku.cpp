@@ -48,10 +48,10 @@ String WebInspectorUI::localizedStringsURL()
 
 String RemoteWebInspectorUI::localizedStringsURL()
 {
-	notImplemented();
+    notImplemented();
     return "file:///localizedStrings.js";
 }
-	
+    
 } // namespace WebKit
 
 #endif // ENABLE(INSPECTOR)
