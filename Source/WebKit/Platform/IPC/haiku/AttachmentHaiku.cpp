@@ -36,7 +36,7 @@ void Attachment::encode(Encoder& encoder) const
 {
     //int encoding is easier
     encoder << (int64_t)m_connectionID;
-	encoder << m_key;
+    encoder << m_key;
 }
 
 bool Attachment::decode(Decoder& decoder, Attachment& attachment)

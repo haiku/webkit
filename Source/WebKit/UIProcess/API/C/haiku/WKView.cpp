@@ -32,9 +32,9 @@ using namespace WebKit;
 
 
 WKViewRef WKViewCreate(const char* name,BRect rect,BWindow* parentWindow,
-	WKPageConfigurationRef pageRef)
+    WKPageConfigurationRef pageRef)
 {
-	return toAPI(WebViewBase::create(name,rect,parentWindow,*toImpl(pageRef)).leakRef());
+    return toAPI(WebViewBase::create(name,rect,parentWindow,*toImpl(pageRef)).leakRef());
 }
 
 

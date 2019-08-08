@@ -35,17 +35,17 @@ using namespace WebCore;
 namespace WebKit {
 class WebProcessMainBase: public AuxiliaryProcessMainBase
 {
-	public:
-	ProcessApp* app = nullptr;
-	bool platformInitialize(char* sign) override
-	{
-		app = new ProcessApp(sign);
-		return true;
-	}
-	void runApp()
-	{
-		app->Run();
-	}	
+    public:
+    ProcessApp* app = nullptr;
+    bool platformInitialize(char* sign) override
+    {
+        app = new ProcessApp(sign);
+        return true;
+    }
+    void runApp()
+    {
+        app->Run();
+    }	
 };
 
 int WebProcessMainUnix(int argc, char** argv)

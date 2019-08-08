@@ -89,10 +89,10 @@ public:
     typedef std::unique_ptr<WebSoupRequestAsyncData> CustomProtocol;
 #endif
 #if USE(HAIKU)
-	class HaikuCustomProtocolImpl {
-		// TODO
-	};
-	typedef std::unique_ptr<HaikuCustomProtocolImpl> CustomProtocol;
+    class HaikuCustomProtocolImpl {
+        // TODO
+    };
+    typedef std::unique_ptr<HaikuCustomProtocolImpl> CustomProtocol;
 #endif
 
     uint64_t addCustomProtocol(CustomProtocol&&);

@@ -40,10 +40,4 @@ WebFrameNetworkingContext::WebFrameNetworkingContext(WebFrame* frame)
     notImplemented();
 }
 
-/*NetworkStorageSession& WebFrameNetworkingContext::storageSession()
-{
-    notImplemented();
-    return NetworkStorageSession::defaultStorageSession();
-}*/
-
 }

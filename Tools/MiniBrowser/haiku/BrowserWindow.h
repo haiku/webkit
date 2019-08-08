@@ -36,13 +36,13 @@ private:
 	BWebView* fWebView;
 	
 	BMenuBar* m_menuBar;
-    BButton* m_BackButton;
-    BButton* m_ForwardButton;
-    BButton* m_StopButton;
-    BButton* m_goButton;
-    BTextControl* m_url;
-    BStringView* m_statusText;
-    BStatusBar* m_loadingProgressBar;
+	BButton* m_BackButton;
+	BButton* m_ForwardButton;
+	BButton* m_StopButton;
+	BButton* m_goButton;
+	BTextControl* m_url;
+	BStringView* m_statusText;
+	BStatusBar* m_loadingProgressBar;
 };
 
 

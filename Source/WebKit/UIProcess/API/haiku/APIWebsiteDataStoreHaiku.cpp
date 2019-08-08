@@ -34,103 +34,103 @@ namespace API {
 
 String WebsiteDataStore::defaultApplicationCacheDirectory()
 {
-	notImplemented();
-	return String();
+    notImplemented();
+    return String();
 }
 
 String WebsiteDataStore::defaultCacheStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultNetworkCacheDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultIndexedDBDatabaseDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultServiceWorkerRegistrationDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultLocalStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultMediaKeysStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultWebSQLDatabaseDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::defaultResourceLoadStatisticsDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const String& directoryName)
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::websiteDataDirectoryFileSystemRepresentation(const String& directoryName)
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultApplicationCacheDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultNetworkCacheDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultWebSQLDatabaseDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultIndexedDBDatabaseDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultLocalStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaCacheDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultMediaKeysStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultDeviceIdHashSaltsStorageDirectory()
 {
-	return String();
+    return String();
 }
 
 String WebsiteDataStore::legacyDefaultJavaScriptConfigurationDirectory()
 {
-	return String();
+    return String();
 }
 
 } // namespace API

@@ -30,48 +30,48 @@
 #include <Looper.h>
 #include <stdlib.h>
 namespace IPC{
-	class ReadLoop: public BHandler
-	{
-		public:
-			ReadLoop(IPC::Connection* con)
-			:BHandler("Read Message Loop"),
-			connection(con)
-			{
-			}
-			void MessageReceived(BMessage* message)
-			{
-				
-				switch(message->what)
-				{
-					case 'ipcm':
-					connection->prepareIncomingMessage(message);
-					break;
-					case 'inig':
-					connection->finalizeConnection(message);
-					break;
-					default:
-					BHandler::MessageReceived(message);
-					
-				}
-			}
-		private:
-			IPC::Connection* connection;
-			
-	};
-	void Connection::finalizeConnection(BMessage* message)
-	{
-		//unwrap the message
-		status_t result = message->FindMessenger("target",&targetMessenger);	
-		if(result == B_OK)
-			m_isConnected = true;
-			
-		m_connectionQueue->dispatch([protectedThis = makeRef(*this)]() mutable {
+    class ReadLoop: public BHandler
+    {
+        public:
+            ReadLoop(IPC::Connection* con)
+            :BHandler("Read Message Loop"),
+            connection(con)
+            {
+            }
+            void MessageReceived(BMessage* message)
+            {
+                
+                switch(message->what)
+                {
+                    case 'ipcm':
+                    connection->prepareIncomingMessage(message);
+                    break;
+                    case 'inig':
+                    connection->finalizeConnection(message);
+                    break;
+                    default:
+                    BHandler::MessageReceived(message);
+                    
+                }
+            }
+        private:
+            IPC::Connection* connection;
+            
+    };
+    void Connection::finalizeConnection(BMessage* message)
+    {
+        //unwrap the message
+        status_t result = message->FindMessenger("target",&targetMessenger);	
+        if(result == B_OK)
+            m_isConnected = true;
+            
+        m_connectionQueue->dispatch([protectedThis = makeRef(*this)]() mutable {
         protectedThis->sendOutgoingMessages();
-    	});
-	}
+        });
+    }
     void Connection::platformInitialize(Identifier identifier)
     {
-    	m_connectedProcess = identifier;
+        m_connectedProcess = identifier;
     }
     void Connection::platformInvalidate()
     {
@@ -79,86 +79,86 @@ namespace IPC{
     }
     void Connection::prepareIncomingMessage(BMessage* message)
     {
-    	size_t size;
-    	const uint8_t* Buffer;
-    	status_t result;
+        size_t size;
+        const uint8_t* Buffer;
+        status_t result;
 
-    	result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
-    	
-    	if(result == B_OK)
-    	{
-    		Vector<Attachment> attachments(0);
-    		auto decoder = std::make_unique<Decoder>(Buffer,size,nullptr,WTFMove(attachments));
-    		processIncomingMessage(WTFMove(decoder));
-    	}
-    	else
-    	{
-    		//return
-    	}
+        result = message->FindData("bufferData",B_ANY_TYPE,(const void**)&Buffer,(ssize_t*)&size);
+        
+        if(result == B_OK)
+        {
+            Vector<Attachment> attachments(0);
+            auto decoder = std::make_unique<Decoder>(Buffer,size,nullptr,WTFMove(attachments));
+            processIncomingMessage(WTFMove(decoder));
+        }
+        else
+        {
+            //return
+        }
     }
     void Connection::runReadEventLoop()
     {
-    	status_t result;
-    	BLooper* looper = m_connectionQueue->runLoop().runLoopLooper();
-    	
-    	looper->Lock();
-    	looper->AddHandler(m_readHandler);
-    	looper->SetPreferredHandler(m_readHandler);
-    	looper->Unlock();
-    	/*
-    	notify the mainloop about our workqueue
-    	*/
-    	BMessage init('inil');
-    	init.AddString("identifier",m_connectedProcess.key.String());
-    	init.AddPointer("looper",(const void*)looper);
-    	BMessenger hostProcess(NULL,getpid());
-    	result = hostProcess.SendMessage(&init);
-    	/*
-    	notify the other process  about our workqueue
-    	*/
-    	BMessenger target(looper->PreferredHandler(),looper,&result);
-    	BMessage inig('inig');
-    	inig.AddString("identifier",m_connectedProcess.key.String());
-    	inig.AddMessenger("target",target);
-    	BMessage reply;
-    	m_messenger.SendMessage(&inig);
-    	//sent to the other process
+        status_t result;
+        BLooper* looper = m_connectionQueue->runLoop().runLoopLooper();
+        
+        looper->Lock();
+        looper->AddHandler(m_readHandler);
+        looper->SetPreferredHandler(m_readHandler);
+        looper->Unlock();
+        /*
+        notify the mainloop about our workqueue
+        */
+        BMessage init('inil');
+        init.AddString("identifier",m_connectedProcess.key.String());
+        init.AddPointer("looper",(const void*)looper);
+        BMessenger hostProcess(NULL,getpid());
+        result = hostProcess.SendMessage(&init);
+        /*
+        notify the other process  about our workqueue
+        */
+        BMessenger target(looper->PreferredHandler(),looper,&result);
+        BMessage inig('inig');
+        inig.AddString("identifier",m_connectedProcess.key.String());
+        inig.AddMessenger("target",target);
+        BMessage reply;
+        m_messenger.SendMessage(&inig);
+        //sent to the other process
     }
     void Connection::runWriteEventLoop()
     {
-    	// write the pending encoding but do we need this will messaging fail
-    	//probably when the message queue is full
+        // write the pending encoding but do we need this will messaging fail
+        //probably when the message queue is full
     }
     bool Connection::open()
     {
-    	status_t result = m_messenger.SetTo(NULL,m_connectedProcess.connectedProcess);
-    	m_readHandler = new ReadLoop(this);
-    	m_connectionQueue->dispatch([this,protectedThis = makeRef(*this)]{
-    		this->runReadEventLoop();
-    	});
-    	return true;
+        status_t result = m_messenger.SetTo(NULL,m_connectedProcess.connectedProcess);
+        m_readHandler = new ReadLoop(this);
+        m_connectionQueue->dispatch([this,protectedThis = makeRef(*this)]{
+            this->runReadEventLoop();
+        });
+        return true;
     }
     bool Connection::platformCanSendOutgoingMessages() const
     {
-    	return true;
+        return true;
     }
     bool Connection::sendOutgoingMessage(std::unique_ptr<Encoder> encoder)
     {
-    	BMessage processMessage('ipcm');
-    	processMessage.AddString("identifier",m_connectedProcess.key.String());
-    	const uint8_t* Buffer= encoder->buffer();
-    	status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
-    	//
-    	processMessage.AddInt32("sender",getpid());
-    	result = targetMessenger.SendMessage(&processMessage);
-		
-    	if(result == B_OK)
-    	return true;
-    	else
-    	{
-    		m_pendingWriteEncoder = WTFMove(encoder);
-    		return false;
-    	}
+        BMessage processMessage('ipcm');
+        processMessage.AddString("identifier",m_connectedProcess.key.String());
+        const uint8_t* Buffer= encoder->buffer();
+        status_t result = processMessage.AddData("bufferData",B_ANY_TYPE,(void*)Buffer,encoder->bufferSize());
+        //
+        processMessage.AddInt32("sender",getpid());
+        result = targetMessenger.SendMessage(&processMessage);
+        
+        if(result == B_OK)
+        return true;
+        else
+        {
+            m_pendingWriteEncoder = WTFMove(encoder);
+            return false;
+        }
     }
     void Connection::willSendSyncMessage(OptionSet<SendSyncOption> )
     {

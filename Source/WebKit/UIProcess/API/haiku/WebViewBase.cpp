@@ -37,62 +37,61 @@ const API::PageConfiguration& pageConfig)
 :BView(name, B_WILL_DRAW | B_FRAME_EVENTS | B_FULL_UPDATE_ON_RESIZE),
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
-	auto config = pageConfig.copy();
-	auto* preferences = config->preferences();
+    auto config = pageConfig.copy();
+    auto* preferences = config->preferences();
 
-	if(!preferences && config->pageGroup())
-	{
-		preferences = &config->pageGroup()->preferences();
-		config->setPreferences(preferences);
-	}
-	if(preferences)
-	{
-		preferences->setAcceleratedCompositingEnabled(false);
-	}
-	
-	WebProcessPool* processPool = config->processPool();
-	fPage = processPool->createWebPage(*fPageClient,WTFMove(config));
-	fPage->initializeWebPage();
-	
-	if(fPage->drawingArea())
-	{
-		setSize = true;
-		fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
-		rect.bottom - rect.top));
-	}
+    if(!preferences && config->pageGroup())
+    {
+        preferences = &config->pageGroup()->preferences();
+        config->setPreferences(preferences);
+    }
+    if(preferences)
+    {
+        preferences->setAcceleratedCompositingEnabled(false);
+    }
+    
+    WebProcessPool* processPool = config->processPool();
+    fPage = processPool->createWebPage(*fPageClient,WTFMove(config));
+    fPage->initializeWebPage();
+    
+    if(fPage->drawingArea())
+    {
+        setSize = true;
+        fPage->drawingArea()->setSize(IntSize(rect.right - rect.left,
+        rect.bottom - rect.top));
+    }
 }
 
 void WebViewBase::paint(const IntRect& dirtyRect)
 {
-	
+    
 }
 void WebViewBase::FrameResized(float newWidth, float newHeight)
 {
-	auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
-	if(!drawingArea)
-	return;
-	drawingArea->setSize(IntSize(newWidth,
-		newHeight));
+    auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
+    if(!drawingArea)
+    return;
+    drawingArea->setSize(IntSize(newWidth,
+        newHeight));
 }	
 void WebViewBase::Draw(BRect update)
 {
-	auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
-	if(!drawingArea)
-	return;
-	if(!setSize)
-	{
-		setSize = true;
-		BRect rect = Frame();
-		drawingArea->setSize(IntSize(rect.right - rect.left,
-		rect.bottom - rect.top));
-	}
-	IntRect updateArea(update);
-	WebCore::Region unpainted;
-	drawingArea->paint(this,updateArea,unpainted);
-	
+    auto drawingArea = static_cast<DrawingAreaProxyCoordinatedGraphics*>(page()->drawingArea());
+    if(!drawingArea)
+    return;
+    if(!setSize)
+    {
+        setSize = true;
+        BRect rect = Frame();
+        drawingArea->setSize(IntSize(rect.right - rect.left,
+        rect.bottom - rect.top));
+    }
+    IntRect updateArea(update);
+    WebCore::Region unpainted;
+    drawingArea->paint(this,updateArea,unpainted);
+    
 }
 void WebViewBase::MouseMoved(BPoint where,uint32 code,const BMessage* dragMessage)
 {
 }
-	
-	
+

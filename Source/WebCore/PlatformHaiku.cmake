@@ -3,136 +3,136 @@ include(platform/ImageDecoders.cmake)
 include(platform/TextureMapper.cmake)
 
 list(APPEND WebCore_INCLUDE_DIRECTORIES
-  "${THIRDPARTY_DIR}/ANGLE/"
-  "${THIRDPARTY_DIR}/ANGLE/include/KHR"
-  "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
-  "${WEBCORE_DIR}/page/scrolling/coordinatedgraphics"
-  "${WEBCORE_DIR}/platform/haiku"
-  "${WEBCORE_DIR}/platform/graphics/haiku"
-  "${WEBCORE_DIR}/platform/graphics/opentype"
-  "${WEBCORE_DIR}/platform/graphics/texmap/coordinated"
-  "${WEBCORE_DIR}/platform/mediacapabilities"
-  "${WEBCORE_DIR}/platform/network/haiku"
-  "${WEBCORE_DIR}/platform/graphics/opengl"
-  "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
-  "${CMAKE_SOURCE_DIR}/Source"
+    "${THIRDPARTY_DIR}/ANGLE/"
+    "${THIRDPARTY_DIR}/ANGLE/include/KHR"
+    "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
+    "${WEBCORE_DIR}/page/scrolling/coordinatedgraphics"
+    "${WEBCORE_DIR}/platform/haiku"
+    "${WEBCORE_DIR}/platform/graphics/haiku"
+    "${WEBCORE_DIR}/platform/graphics/opentype"
+    "${WEBCORE_DIR}/platform/graphics/texmap/coordinated"
+    "${WEBCORE_DIR}/platform/mediacapabilities"
+    "${WEBCORE_DIR}/platform/network/haiku"
+    "${WEBCORE_DIR}/platform/graphics/opengl"
+    "${FORWARDING_HEADERS_DIR}/JavaScriptCore"
+    "${CMAKE_SOURCE_DIR}/Source"
 )
 
 list(APPEND WebCore_SOURCES
-  bindings/js/ScriptControllerHaiku.cpp
+    bindings/js/ScriptControllerHaiku.cpp
 
-  editing/haiku/EditorHaiku.cpp
+    editing/haiku/EditorHaiku.cpp
 
-  platform/Cursor.cpp
+    platform/Cursor.cpp
 
-  page/haiku/DragControllerHaiku.cpp
-  page/haiku/EventHandlerHaiku.cpp
+    page/haiku/DragControllerHaiku.cpp
+    page/haiku/EventHandlerHaiku.cpp
 
-  page/PointerLockController.cpp
+    page/PointerLockController.cpp
 
-  platform/audio/FFTFrameStub.cpp
+    platform/audio/FFTFrameStub.cpp
 
-  platform/haiku/CursorHaiku.cpp
-  platform/haiku/DragImageHaiku.cpp
-  platform/haiku/DragDataHaiku.cpp
-  platform/haiku/ErrorsHaiku.cpp
-  platform/haiku/EventLoopHaiku.cpp
-  platform/haiku/FileSystemHaiku.cpp
-  platform/haiku/KeyboardUtilities.cpp
-  platform/haiku/KeyedDecoderHaiku.cpp
-  platform/haiku/KeyedEncoderHaiku.cpp
-  platform/haiku/KURLHaiku.cpp
-  platform/haiku/LocalizedStringsHaiku.cpp
-  platform/haiku/LoggingHaiku.cpp
-  platform/haiku/MIMETypeRegistryHaiku.cpp
-  platform/haiku/MainThreadSharedTimerHaiku.cpp
-  platform/haiku/PasteboardHaiku.cpp
-  platform/haiku/PlatformKeyboardEventHaiku.cpp
-  platform/haiku/PlatformMouseEventHaiku.cpp
-  platform/haiku/PlatformScreenHaiku.cpp
-  platform/haiku/PlatformWheelEventHaiku.cpp
-  platform/haiku/PopupMenuHaiku.cpp
-  platform/haiku/RenderThemeHaiku.cpp
-  platform/haiku/ScrollbarThemeHaiku.cpp
-  platform/haiku/SearchPopupMenuHaiku.cpp
-  platform/haiku/SharedTimerHaiku.cpp
-  platform/haiku/SoundHaiku.cpp
-  platform/haiku/TemporaryLinkStubs.cpp
-  platform/haiku/WidgetHaiku.cpp
+    platform/haiku/CursorHaiku.cpp
+    platform/haiku/DragImageHaiku.cpp
+    platform/haiku/DragDataHaiku.cpp
+    platform/haiku/ErrorsHaiku.cpp
+    platform/haiku/EventLoopHaiku.cpp
+    platform/haiku/FileSystemHaiku.cpp
+    platform/haiku/KeyboardUtilities.cpp
+    platform/haiku/KeyedDecoderHaiku.cpp
+    platform/haiku/KeyedEncoderHaiku.cpp
+    platform/haiku/KURLHaiku.cpp
+    platform/haiku/LocalizedStringsHaiku.cpp
+    platform/haiku/LoggingHaiku.cpp
+    platform/haiku/MIMETypeRegistryHaiku.cpp
+    platform/haiku/MainThreadSharedTimerHaiku.cpp
+    platform/haiku/PasteboardHaiku.cpp
+    platform/haiku/PlatformKeyboardEventHaiku.cpp
+    platform/haiku/PlatformMouseEventHaiku.cpp
+    platform/haiku/PlatformScreenHaiku.cpp
+    platform/haiku/PlatformWheelEventHaiku.cpp
+    platform/haiku/PopupMenuHaiku.cpp
+    platform/haiku/RenderThemeHaiku.cpp
+    platform/haiku/ScrollbarThemeHaiku.cpp
+    platform/haiku/SearchPopupMenuHaiku.cpp
+    platform/haiku/SharedTimerHaiku.cpp
+    platform/haiku/SoundHaiku.cpp
+    platform/haiku/TemporaryLinkStubs.cpp
+    platform/haiku/WidgetHaiku.cpp
 
-  platform/posix/SharedBufferPOSIX.cpp
+    platform/posix/SharedBufferPOSIX.cpp
 
-  platform/graphics/WOFFFileFormat.cpp
+    platform/graphics/WOFFFileFormat.cpp
 
-  platform/graphics/haiku/AffineTransformHaiku.cpp
-  platform/graphics/haiku/BitmapImageHaiku.cpp
-  platform/graphics/haiku/ColorHaiku.cpp
-  platform/graphics/haiku/ComplexTextControllerHaiku.cpp
-  platform/graphics/haiku/FontCacheHaiku.cpp
-  platform/graphics/haiku/FontCustomPlatformData.cpp
-  platform/graphics/haiku/FontPlatformDataHaiku.cpp
-  platform/graphics/haiku/FloatPointHaiku.cpp
-  platform/graphics/haiku/FloatRectHaiku.cpp
-  platform/graphics/haiku/FloatSizeHaiku.cpp
-  platform/graphics/haiku/FontHaiku.cpp
-  platform/graphics/haiku/FontPlatformDataHaiku.cpp
-  platform/graphics/haiku/GlyphPageTreeNodeHaiku.cpp
-  platform/graphics/haiku/GradientHaiku.cpp
-  platform/graphics/haiku/GraphicsContextHaiku.cpp
-  platform/graphics/haiku/IconHaiku.cpp
-  platform/graphics/haiku/ImageBufferHaiku.cpp
-  platform/graphics/haiku/ImageHaiku.cpp
-  platform/graphics/haiku/IntPointHaiku.cpp
-  platform/graphics/haiku/IntRectHaiku.cpp
-  platform/graphics/haiku/IntSizeHaiku.cpp
-  platform/graphics/haiku/MediaPlayerPrivateHaiku.cpp
-  platform/graphics/haiku/PathHaiku.cpp
-  platform/graphics/haiku/SimpleFontDataHaiku.cpp
-  platform/graphics/haiku/StillImageHaiku.cpp
-  platform/graphics/haiku/TileHaiku.cpp
-  platform/graphics/haiku/TiledBackingStoreHaiku.cpp
+    platform/graphics/haiku/AffineTransformHaiku.cpp
+    platform/graphics/haiku/BitmapImageHaiku.cpp
+    platform/graphics/haiku/ColorHaiku.cpp
+    platform/graphics/haiku/ComplexTextControllerHaiku.cpp
+    platform/graphics/haiku/FontCacheHaiku.cpp
+    platform/graphics/haiku/FontCustomPlatformData.cpp
+    platform/graphics/haiku/FontPlatformDataHaiku.cpp
+    platform/graphics/haiku/FloatPointHaiku.cpp
+    platform/graphics/haiku/FloatRectHaiku.cpp
+    platform/graphics/haiku/FloatSizeHaiku.cpp
+    platform/graphics/haiku/FontHaiku.cpp
+    platform/graphics/haiku/FontPlatformDataHaiku.cpp
+    platform/graphics/haiku/GlyphPageTreeNodeHaiku.cpp
+    platform/graphics/haiku/GradientHaiku.cpp
+    platform/graphics/haiku/GraphicsContextHaiku.cpp
+    platform/graphics/haiku/IconHaiku.cpp
+    platform/graphics/haiku/ImageBufferHaiku.cpp
+    platform/graphics/haiku/ImageHaiku.cpp
+    platform/graphics/haiku/IntPointHaiku.cpp
+    platform/graphics/haiku/IntRectHaiku.cpp
+    platform/graphics/haiku/IntSizeHaiku.cpp
+    platform/graphics/haiku/MediaPlayerPrivateHaiku.cpp
+    platform/graphics/haiku/PathHaiku.cpp
+    platform/graphics/haiku/SimpleFontDataHaiku.cpp
+    platform/graphics/haiku/StillImageHaiku.cpp
+    platform/graphics/haiku/TileHaiku.cpp
+    platform/graphics/haiku/TiledBackingStoreHaiku.cpp
 
-  platform/graphics/texmap/BitmapTexture.cpp
-  platform/graphics/texmap/BitmapTextureImageBuffer.cpp
-  platform/graphics/texmap/BitmapTexturePool.cpp
-  platform/graphics/texmap/GraphicsLayerTextureMapper.cpp
-  platform/graphics/texmap/TextureMapperImageBuffer.cpp
+    platform/graphics/texmap/BitmapTexture.cpp
+    platform/graphics/texmap/BitmapTextureImageBuffer.cpp
+    platform/graphics/texmap/BitmapTexturePool.cpp
+    platform/graphics/texmap/GraphicsLayerTextureMapper.cpp
+    platform/graphics/texmap/TextureMapperImageBuffer.cpp
 
-  platform/image-decoders/haiku/ImageDecoderHaiku.cpp
+    platform/image-decoders/haiku/ImageDecoderHaiku.cpp
 
-  platform/mock/GeolocationClientMock.cpp
+    platform/mock/GeolocationClientMock.cpp
 
-  platform/network/haiku/BUrlProtocolHandler.cpp
-  platform/network/haiku/CertificateInfo.cpp
-  platform/network/haiku/CookieJarHaiku.cpp
-  platform/network/haiku/DNSHaiku.cpp
-  platform/network/haiku/HaikuFormDataStream.cpp
-  platform/network/haiku/ProxyServerHaiku.cpp
-  platform/network/haiku/ResourceHandleHaiku.cpp
-  platform/network/haiku/ResourceRequestHaiku.cpp
+    platform/network/haiku/BUrlProtocolHandler.cpp
+    platform/network/haiku/CertificateInfo.cpp
+    platform/network/haiku/CookieJarHaiku.cpp
+    platform/network/haiku/DNSHaiku.cpp
+    platform/network/haiku/HaikuFormDataStream.cpp
+    platform/network/haiku/ProxyServerHaiku.cpp
+    platform/network/haiku/ResourceHandleHaiku.cpp
+    platform/network/haiku/ResourceRequestHaiku.cpp
 
-  platform/network/haiku/CredentialStorageHaiku.cpp
-  platform/network/haiku/SocketStreamHandleHaiku.cpp
-  platform/network/haiku/NetworkStateNotifierHaiku.cpp
-  platform/network/haiku/NetworkStorageSessionHaiku.cpp
+    platform/network/haiku/CredentialStorageHaiku.cpp
+    platform/network/haiku/SocketStreamHandleHaiku.cpp
+    platform/network/haiku/NetworkStateNotifierHaiku.cpp
+    platform/network/haiku/NetworkStorageSessionHaiku.cpp
 
-  platform/text/Hyphenation.cpp
-  platform/text/LocaleICU.cpp
+    platform/text/Hyphenation.cpp
+    platform/text/LocaleICU.cpp
 
-  platform/text/haiku/StringHaiku.cpp
+    platform/text/haiku/StringHaiku.cpp
 )
 if(ENABLE_GRAPHICS_CONTEXT_3D)
-	list(APPEND WebCore_SOURCES
-		platform/graphics/haiku/GraphicsContext3DHaiku.cpp
-		platform/graphics/opengl/Extensions3DOpenGL.cpp
-		platform/graphics/opengl/Extensions3DOpenGLCommon.cpp
-		platform/graphics/GLContext.cpp
-		platform/graphics/OpenGLShims.cpp
-		platform/graphics/PlatformDisplay.cpp
-		platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
-		platform/graphics/opengl/GraphicsContext3DOpenGL.cpp
-		platform/graphics/opengl/TemporaryOpenGLSetting.cpp
-	)
+    list(APPEND WebCore_SOURCES
+        platform/graphics/haiku/GraphicsContext3DHaiku.cpp
+        platform/graphics/opengl/Extensions3DOpenGL.cpp
+        platform/graphics/opengl/Extensions3DOpenGLCommon.cpp
+        platform/graphics/GLContext.cpp
+        platform/graphics/OpenGLShims.cpp
+        platform/graphics/PlatformDisplay.cpp
+        platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
+        platform/graphics/opengl/GraphicsContext3DOpenGL.cpp
+        platform/graphics/opengl/TemporaryOpenGLSetting.cpp
+    )
 endif()
 if (ENABLE_WEB_CRYPTO)
     list(APPEND WebCore_SOURCES
@@ -190,8 +190,8 @@ endif ()
 
 if (ENABLE_WEB_AUDIO)
     list(APPEND WebCore_SOURCES
-		platform/audio/haiku/AudioDestinationHaiku.cpp
-	)
+        platform/audio/haiku/AudioDestinationHaiku.cpp
+    )
 endif ()
 
 list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
@@ -213,36 +213,36 @@ set(WebCore_USER_AGENT_SCRIPTS
 
 add_custom_command(
     OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/WebKitVersion.h
-	MAIN_DEPENDENCY ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl
-	DEPENDS ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig
-	COMMAND ${PERL_EXECUTABLE} ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl --config ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig --outputDir ${DERIVED_SOURCES_WEBCORE_DIR}
+    MAIN_DEPENDENCY ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl
+    DEPENDS ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig
+    COMMAND ${PERL_EXECUTABLE} ${WEBKITLEGACY_DIR}/scripts/generate-webkitversion.pl --config ${WEBKITLEGACY_DIR}/mac/Configurations/Version.xcconfig --outputDir ${DERIVED_SOURCES_WEBCORE_DIR}
     VERBATIM)
 list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/WebKitVersion.h)
 
 set(WebCore_USER_AGENT_SCRIPTS_DEPENDENCIES ${WEBCORE_DIR}/platform/haiku/RenderThemeHaiku.cpp)
 
 list(APPEND WebCore_LIBRARIES
-  ${ICU_LIBRARIES}
-  ${JPEG_LIBRARY}
-  ${LIBGCRYPT_LIBRARIES}
-  ${LIBTASN1_LIBRARIES}
-  ${LIBXML2_LIBRARIES}
-  ${LIBXSLT_LIBRARIES}
-  ${PNG_LIBRARY}
-  ${SQLITE_LIBRARIES}
-  ${WEBP_LIBRARIES}
-  ${ZLIB_LIBRARIES}
-  be bsd network bnetapi textencoding translation execinfo
+    ${ICU_LIBRARIES}
+    ${JPEG_LIBRARY}
+    ${LIBGCRYPT_LIBRARIES}
+    ${LIBTASN1_LIBRARIES}
+    ${LIBXML2_LIBRARIES}
+    ${LIBXSLT_LIBRARIES}
+    ${PNG_LIBRARY}
+    ${SQLITE_LIBRARIES}
+    ${WEBP_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    be bsd network bnetapi textencoding translation execinfo
 )
 
 list(APPEND WebCore_SYSTEM_INCLUDE_DIRECTORIES
-  ${GNUTLS_INCLUDE_DIRS}
-  ${ICU_INCLUDE_DIRS}
-  ${LIBXML2_INCLUDE_DIR}
-  ${LIBXSLT_INCLUDE_DIR}
-  ${SQLITE_INCLUDE_DIR}
-  ${WEBP_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIRS}
+    ${GNUTLS_INCLUDE_DIRS}
+    ${ICU_INCLUDE_DIRS}
+    ${LIBXML2_INCLUDE_DIR}
+    ${LIBXSLT_INCLUDE_DIR}
+    ${SQLITE_INCLUDE_DIR}
+    ${WEBP_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
 )
 
 if (ENABLE_WEB_AUDIO)
