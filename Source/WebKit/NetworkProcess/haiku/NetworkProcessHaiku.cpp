@@ -34,7 +34,7 @@
 #include "NetworkProcessProxyMessages.h"
 #include <OS.h>
 #include <String.h>
-#include <wtf/RandomNumber.h>
+
 namespace WebCore
 {
 	class NetworkStorageSession;
@@ -98,11 +98,11 @@ void NetworkProcess::clearDiskCache(WallTime modifiedSince, CompletionHandler<vo
 void NetworkProcess::createNetworkConnectionToWebProcessHaiku(bool isServiceWorkerProcess, WebCore::RegistrableDomain&& registrableDomain,int64_t webPID)
 {
 	team_id webID = (team_id)webPID; 
-	uint32_t connectionRandkey = WTF::weakRandomUint32();
+	uint32_t connectionRandkey = (uint32_t)find_thread(NULL);
 	BString key;
 	key.SetToFormat("%u",connectionRandkey);
 	
-	/* Network Process creates random key for workqueue identification and shares its pid and key to webprocess
+	/* Network Process uses current thread id as key for workqueue identification and shares its pid and key to webprocess
 	So a connection can be established*/
 	auto connection = NetworkConnectionToWebProcess::create(*this,{webID,key});
 	m_webProcessConnections.append(WTFMove(connection));

@@ -34,7 +34,7 @@ using namespace WebCore;
 
 WebKit::WebViewBase::WebViewBase(const char*name,BRect rect,BWindow* parentWindow,
 const API::PageConfiguration& pageConfig)
-:BView(name,B_WILL_DRAW|B_FRAME_EVENTS|B_FULL_UPDATE_ON_RESIZE),
+:BView(name, B_WILL_DRAW | B_FRAME_EVENTS | B_FULL_UPDATE_ON_RESIZE),
  fPageClient(std::make_unique<PageClientImpl>(*this))
 {
 	auto config = pageConfig.copy();
