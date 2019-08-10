@@ -44,6 +44,7 @@ class BWebView
     void goForward();
     void goBackward();
     void stop();
+    void paintContent();
     WebViewBase* getRenderView() { return toImpl(fViewPort.get()); }
     const char* getCurrentURL() { return getRenderView()->currentURL(); }
     BLooper* getAppLooper() { return fAppLooper; }
