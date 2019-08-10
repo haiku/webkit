@@ -26,6 +26,7 @@
 #include "config.h"
 #include "BackingStore.h"
 #include "ShareableBitmap.h"
+#include "WebViewConstants.h"
 
 #include <WebCore/IntRect.h>
 #include <WebCore/GraphicsContext.h>
@@ -33,6 +34,8 @@
 
 #include <Bitmap.h>
 #include <View.h>
+#include <Application.h>
+#include <Message.h>
 using namespace WebCore;
 
 namespace WebKit {
@@ -60,6 +63,8 @@ void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& 
         bitmap->paint(graphicsContext,updateRect.location(),srcRect);
     }
     
+    BMessage sig(READY_TO_PAINT);
+    be_app->PostMessage(&sig);
 }
 
 void BackingStore::paint(BView* context,const IntRect& rect)
