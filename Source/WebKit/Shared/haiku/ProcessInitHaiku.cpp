@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Haiku, Inc. All rights reserved.
+ * Copyright (C) 2019 Haiku Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,17 +22,3 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _H
-#define _H
-
-enum{	
-    DID_COMMIT_NAVIGATION = 'dcna',
-    DID_FINISH_NAVIGATION = 'dfna',
-    URL_CHANGE = 'urlc',
-    DID_CHANGE_PROGRESS = 'dcpr',
-    DID_CHANGE_TITLE = 'dctt',
-    URL_LOAD_HANDLE = 'urlh',
-    READY_TO_PAINT = 'retp'
-};
-
-#endif // _H

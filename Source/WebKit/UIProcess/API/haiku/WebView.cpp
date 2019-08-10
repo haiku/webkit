@@ -42,6 +42,7 @@
 
 #include "WebView.h"
 #include "WebViewConstants.h"
+#include "ProcessInitHaiku.h"
 
 BWebView::BWebView(BRect frame,BWindow* myWindow)
 :fAppLooper(NULL)
@@ -84,6 +85,10 @@ void BWebView::initializeOnce()
 {
     WTF::RunLoop::initializeMainRunLoop();
     WTF::RunLoop::run();
+    BHandler* handle = new ProcessInitHaiku();
+    BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
+    looper->AddHandler(handle);
+    looper->SetNextHandler(handle);
 }
 void BWebView::loadHTML()
 {		
@@ -101,6 +106,13 @@ void BWebView::loadURIRequest(const char* uri)
     BMessage message(URL_LOAD_HANDLE);
     message.AddString("url",uri);
     be_app->PostMessage(&message);
+}
+
+void BWebView::paintContent()
+{
+	getRenderView()->LockLooper();
+	getRenderView()->Invalidate();
+	getRenderView()->UnlockLooper();
 }
     
 void BWebView::loadURI(BMessage* message)
@@ -135,10 +147,6 @@ void BWebView::stop()
 }
 void BWebView::didCommitNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
-    BView* view = ((BWebView*)clientInfo)->getRenderView();
-    view->LockLooper();
-    view->Invalidate();
-    view->UnlockLooper();
     BLooper* looper = ((BWebView*)clientInfo)->getAppLooper();
     BMessage message(DID_COMMIT_NAVIGATION);
     looper->PostMessage(&message);
@@ -152,6 +160,10 @@ void BWebView::didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, 
 }
 void BWebView::didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
+	/*BView* view = ((BWebView*)clientInfo)->getRenderView();
+	view->LockLooper();
+    view->Invalidate();
+    view->UnlockLooper();*/
 }
 void BWebView::didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo)
 {
