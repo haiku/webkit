@@ -29,11 +29,11 @@
 #include "AuxiliaryProcess.h"
 #include "WebKit2Initialize.h"
 #include <wtf/RunLoop.h>
+#include "ProcessInitHaiku.h"
+
 #include <Application.h>
 #include <Looper.h>
-#include <MessageQueue.h>
 #include <String.h>
-#include <map>
 
 using namespace std;
 
@@ -53,70 +53,15 @@ protected:
 
 class ProcessApp : public BApplication
 {
-    /* one time relying we could resuse this if connection is last*/
-    map<string,BLooper*> looperMapping;
-    map<string,BMessage*> messengerMapping;
     public:
     
     ProcessApp(char* signature):BApplication(signature)
     {
     }
-    void LocalMessage(BMessage* message)
-    {
-        const char* idTempStr;
-        BLooper* looperTemp;
-        message->FindString("identifier",&idTempStr);
-        message->FindPointer("looper",(void**)&looperTemp);
-        string id(idTempStr);
-        message = DetachCurrentMessage();
-        if(messengerMapping[id])
-        {
-            /*
-            We have recieved the other process's BMessenger data just send it to our workqueue
-            */
-            looperTemp->PostMessage(messengerMapping[id],looperTemp->PreferredHandler());
-        }
-        else
-        {
-            /*
-            Messenger is not yet known save it for later use
-            */
-            looperMapping[id] = looperTemp;
-        }
-        
-    }
-    void GlobalMessage(BMessage* message)
-    {
-        const char* idTempStr;
-        message->FindString("identifier",&idTempStr);
-        string id(idTempStr);
-        message = DetachCurrentMessage();
-        if(looperMapping[id])
-        {
-            /*
-            We know about the looper so send the message directly then
-            */
-            BLooper* temp = looperMapping[id];
-            temp->PostMessage(message,temp->PreferredHandler());
-        }
-        else
-        {
-            /* 
-            We dont know about the looper yet so put in the mapping of messengers
-            */
-            messengerMapping[id] = message;
-        }
-    }
     void MessageReceived(BMessage* message)
     {
         switch(message->what)
         {
-            case 'inil':
-            LocalMessage(message);
-            break;
-            case 'inig':
-            GlobalMessage(message);
-            break;
             default:
             BApplication::MessageReceived(message);
             
@@ -125,6 +70,10 @@ class ProcessApp : public BApplication
     void ReadyToRun()
     {
         RunLoop::run();
+        BHandler* handle = new ProcessInitHaiku();
+        BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
+        looper->AddHandler(handle);
+        looper->SetNextHandler(handle);
     }	
 };
 
