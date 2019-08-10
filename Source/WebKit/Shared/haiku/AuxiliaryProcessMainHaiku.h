@@ -71,9 +71,9 @@ class ProcessApp : public BApplication
     {
         RunLoop::run();
         BHandler* handle = new ProcessInitHaiku();
-	    BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
-	    looper->AddHandler(handle);
-	    looper->SetNextHandler(handle);
+        BLooper* looper = BLooper::LooperForThread(find_thread(NULL));
+        looper->AddHandler(handle);
+        looper->SetNextHandler(handle);
     }	
 };
 

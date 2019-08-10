@@ -32,75 +32,75 @@ using namespace std;
 namespace WebKit{
 class ProcessInitHaiku: public BHandler
 {
-	public:
-	ProcessInitHaiku()
-	:BHandler("process-init")
-	{
-	}
-	void MessageReceived(BMessage* message)
-	{
-		switch(message->what)
-		{
-			case 'inil':
-			LocalMessage(message);
-			break;
-			case 'inig':
-			GlobalMessage(message);
-			break;
-			default:
-			BHandler::MessageReceived(message);
-		}
-	}
-	
-	private:
-	void LocalMessage(BMessage* message)
-	{
-		const char* idTempStr;
-		BLooper* looperTemp;
-		message->FindString("identifier",&idTempStr);
-		message->FindPointer("looper",(void**)&looperTemp);
-		string id(idTempStr);
-		message = Looper()->DetachCurrentMessage();
-		if(messengerMapping[id])
-		{
-			/* 
-			We have recieved the other process's BMessenger data just send it to our workqueue
-			*/
-			looperTemp->PostMessage(messengerMapping[id],looperTemp->PreferredHandler());
-		}
-		else
-		{
-			/*
-			Messenger is not yet known save it for later use
-			*/
-			looperMapping[id] = looperTemp;
-		}
-		
-	}
-	void GlobalMessage(BMessage* message)
-	{
-		const char* idTempStr;
-		message->FindString("identifier",&idTempStr);
-		string id(idTempStr);
-		message = Looper()->DetachCurrentMessage();
-		if(looperMapping[id])
-		{
-			/*
-			We know about the looper so send the message directly then
-			*/
-			BLooper* temp = looperMapping[id];
-			temp->PostMessage(message,temp->PreferredHandler());
-		}
-		else
-		{
-			/* 
-			We dont know about the looper yet so put in the mapping of messengers
-			*/
-			messengerMapping[id] = message;
-		}
-	}
-	map<string,BLooper*> looperMapping;
-	map<string,BMessage*> messengerMapping;
-		
+    public:
+    ProcessInitHaiku()
+    :BHandler("process-init")
+    {
+    }
+    void MessageReceived(BMessage* message)
+    {
+        switch(message->what)
+        {
+            case 'inil':
+            LocalMessage(message);
+            break;
+            case 'inig':
+            GlobalMessage(message);
+            break;
+            default:
+            BHandler::MessageReceived(message);
+        }
+    }
+    
+    private:
+    void LocalMessage(BMessage* message)
+    {
+        const char* idTempStr;
+        BLooper* looperTemp;
+        message->FindString("identifier",&idTempStr);
+        message->FindPointer("looper",(void**)&looperTemp);
+        string id(idTempStr);
+        message = Looper()->DetachCurrentMessage();
+        if(messengerMapping[id])
+        {
+            /* 
+            We have recieved the other process's BMessenger data just send it to our workqueue
+            */
+            looperTemp->PostMessage(messengerMapping[id],looperTemp->PreferredHandler());
+        }
+        else
+        {
+            /*
+            Messenger is not yet known save it for later use
+            */
+            looperMapping[id] = looperTemp;
+        }
+        
+    }
+    void GlobalMessage(BMessage* message)
+    {
+        const char* idTempStr;
+        message->FindString("identifier",&idTempStr);
+        string id(idTempStr);
+        message = Looper()->DetachCurrentMessage();
+        if(looperMapping[id])
+        {
+            /*
+            We know about the looper so send the message directly then
+            */
+            BLooper* temp = looperMapping[id];
+            temp->PostMessage(message,temp->PreferredHandler());
+        }
+        else
+        {
+            /* 
+            We dont know about the looper yet so put in the mapping of messengers
+            */
+            messengerMapping[id] = message;
+        }
+    }
+    map<string,BLooper*> looperMapping;
+    map<string,BMessage*> messengerMapping;
+        
 };
 }
