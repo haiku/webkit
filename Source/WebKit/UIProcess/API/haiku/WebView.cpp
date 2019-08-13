@@ -160,10 +160,6 @@ void BWebView::didReceiveServerRedirectForProvisionalNavigation(WKPageRef page, 
 }
 void BWebView::didFinishDocumentLoad(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData, const void* clientInfo)
 {
-	/*BView* view = ((BWebView*)clientInfo)->getRenderView();
-	view->LockLooper();
-    view->Invalidate();
-    view->UnlockLooper();*/
 }
 void BWebView::didFinishNavigation(WKPageRef page, WKNavigationRef navigation, WKTypeRef userData,const void* clientInfo)
 {
