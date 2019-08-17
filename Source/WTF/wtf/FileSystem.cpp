@@ -40,6 +40,10 @@
 #include <unistd.h>
 #endif
 
+#ifndef MAP_FILE
+#define MAP_FILE 0
+#endif
+
 namespace WTF {
 
 namespace FileSystemImpl {
