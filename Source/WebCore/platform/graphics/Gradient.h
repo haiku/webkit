@@ -46,6 +46,9 @@ typedef ID2D1Brush* PlatformGradient;
 #elif USE(CAIRO)
 typedef struct _cairo_pattern cairo_pattern_t;
 typedef cairo_pattern_t* PlatformGradient;
+#elif PLATFORM(HAIKU)
+class BGradient;
+typedef BGradient* PlatformGradient;
 #else
 typedef void* PlatformGradient;
 #endif
@@ -132,7 +135,7 @@ public:
     void paint(CGContextRef);
 #elif USE(DIRECT2D)
     PlatformGradient createPlatformGradientIfNecessary(ID2D1RenderTarget*);
-#elif USE(CAIRO)
+#elif USE(CAIRO) || USE(HAIKU)
     PlatformGradient createPlatformGradient(float globalAlpha);
 #endif
 

@@ -43,6 +43,11 @@
 #include <wtf/MonotonicTime.h>
 #endif
 
+#if PLATFORM(HAIKU)
+#include <String.h>
+class BUrlProtocolHandler;
+#endif
+
 #if PLATFORM(COCOA)
 OBJC_CLASS NSURLAuthenticationChallenge;
 OBJC_CLASS NSURLConnection;
@@ -72,6 +77,9 @@ public:
         , m_shouldContentEncodingSniff(shouldContentEncodingSniff)
 #if USE(CFURLCONNECTION)
         , m_currentRequest(request)
+#endif
+#if PLATFORM(HAIKU)
+		, m_urlrequest(0)
 #endif
         , m_failureTimer(*loader, &ResourceHandle::failureTimerFired)
     {
@@ -127,6 +135,11 @@ public:
     RefPtr<CurlRequest> m_curlRequest;
     MessageQueue<WTF::Function<void()>>* m_messageQueue { };
     MonotonicTime m_startTime;
+#endif
+
+#if PLATFORM(HAIKU)
+		BUrlProtocolHandler* m_urlrequest;
+		BString	m_url;
 #endif
 
 #if PLATFORM(COCOA)

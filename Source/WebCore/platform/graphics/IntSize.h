@@ -59,6 +59,8 @@ typedef D2D_SIZE_U D2D1_SIZE_U;
 
 struct D2D_SIZE_F;
 typedef D2D_SIZE_F D2D1_SIZE_F;
+#elif PLATFORM(HAIKU)
+class BSize;
 #endif
 
 namespace WTF {
@@ -172,6 +174,11 @@ public:
     explicit IntSize(const D2D1_SIZE_F&); // don't do this implicitly since it's lossy;
     operator D2D1_SIZE_U() const;
     operator D2D1_SIZE_F() const;
+#endif
+
+#if PLATFORM(HAIKU)
+    explicit IntSize(const BSize&);
+    operator BSize() const;
 #endif
 
     String toJSONString() const;

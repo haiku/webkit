@@ -43,7 +43,7 @@ struct CCRSACryptorRefDeleter {
 typedef std::unique_ptr<typename std::remove_pointer<CCRSACryptorRef>::type, WebCore::CCRSACryptorRefDeleter> PlatformRSAKeyContainer;
 #endif
 
-#if PLATFORM(GTK) || PLATFORM(WPE)
+#if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU)
 #include <pal/crypto/gcrypt/Handle.h>
 
 typedef gcry_sexp_t PlatformRSAKey;

@@ -46,6 +46,10 @@ OBJC_CLASS NSImage;
 typedef struct HBITMAP__ *HBITMAP;
 #endif
 
+#if PLATFORM(HAIKU)
+class BBitmap;
+#endif
+
 namespace WebCore {
 
 class Settings;
@@ -130,6 +134,11 @@ public:
 
 #if PLATFORM(GTK)
     GdkPixbuf* getGdkPixbuf() override;
+#endif
+
+#if PLATFORM(HAIKU)
+    virtual NativeImagePtr getBBitmap();
+    virtual NativeImagePtr getFirstBBitmapOfSize(const IntSize&);
 #endif
 
     WEBCORE_EXPORT NativeImagePtr nativeImage(const GraphicsContext* = nullptr) override;

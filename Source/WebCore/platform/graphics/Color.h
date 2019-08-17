@@ -55,6 +55,10 @@ typedef struct _GdkRGBA GdkRGBA;
 #endif
 #endif
 
+#if PLATFORM(HAIKU)
+struct rgb_color;
+#endif
+
 namespace WTF {
 class TextStream;
 }
@@ -263,6 +267,11 @@ public:
 #if USE(CG)
     WEBCORE_EXPORT Color(CGColorRef);
     WEBCORE_EXPORT Color(CGColorRef, SemanticTag);
+#endif
+
+#if PLATFORM(HAIKU)
+    Color(const rgb_color&);
+    operator rgb_color() const;
 #endif
 
 #if PLATFORM(WIN)

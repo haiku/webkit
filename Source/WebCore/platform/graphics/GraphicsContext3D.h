@@ -64,6 +64,10 @@ typedef void* PlatformGraphicsContext3D;
 #endif // __OBJC__
 #endif // USE(OPENGL_ES)
 
+#if PLATFORM(HAIKU)
+class BView;
+#endif
+
 #if !USE(OPENGL_ES)
 typedef struct _CGLContextObject *CGLContextObj;
 typedef CGLContextObj PlatformGraphicsContext3D;

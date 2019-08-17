@@ -48,6 +48,15 @@
 #include "ArchiveFactory.h"
 #endif
 
+#if PLATFORM(HAIKU)
+#include <Entry.h>
+#include <Node.h>
+#include <NodeInfo.h>
+#include <String.h>
+#include <TranslatorFormats.h>
+#include <TranslatorRoster.h>
+#endif
+
 #if HAVE(AVASSETREADER)
 #include "ContentType.h"
 #include "ImageDecoderAVFObjC.h"
@@ -181,8 +190,45 @@ static const HashSet<String, ASCIICaseInsensitiveHash>& supportedImageMIMETypesF
         }
         return supportedImageMIMETypesForEncoding;
     }());
+#elif PLATFORM(HAIKU)
+    static const auto supportedImageMIMETypesForEncoding = makeNeverDestroyed([] {
+        HashSet<String, ASCIICaseInsensitiveHash> supportedImageMIMETypesForEncoding;
+
+		BTranslatorRoster* roster = BTranslatorRoster::Default();
+		translator_id* translators;
+		int32 translatorCount;
+		roster->GetAllTranslators(&translators, &translatorCount);
+		for (int32 i = 0; i < translatorCount; i++) {
+			// Skip translators that don't support archived BBitmaps as input data.
+			const translation_format* inputFormats;
+			int32 formatCount;
+			roster->GetInputFormats(translators[i], &inputFormats, &formatCount);
+			bool supportsBitmaps = false;
+			for (int32 j = 0; j < formatCount; j++) {
+				if (inputFormats[j].type == B_TRANSLATOR_BITMAP) {
+					supportsBitmaps = true;
+					break;
+				}
+			}
+			if (!supportsBitmaps)
+				continue;
+
+			// Add all MIME types of output formats in the bitmap group.
+			const translation_format* outputFormats;
+			roster->GetOutputFormats(translators[i], &outputFormats, &formatCount);
+			for (int32 j = 0; j < formatCount; j++) {
+				if (outputFormats[j].group == B_TRANSLATOR_BITMAP)
+					supportedImageMIMETypesForEncoding.add(outputFormats[j].MIME);
+			}
+		}
+		// Remove archived BBitmaps from supported formats, since it's likely rather
+		// useless for our purposes.
+		supportedImageMIMETypesForEncoding.remove("image/x-be-bitmap");
+
+        return supportedImageMIMETypesForEncoding;
+    }());
 #else
-    static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> supportedImageMIMETypesForEncoding =std::initializer_list<String> {
+    static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> supportedImageMIMETypesForEncoding = std::initializer_list<String> {
 #if USE(CG)
         // FIXME: Add Windows support for all the supported UTI's when a way to convert from MIMEType to UTI reliably is found.
         // For now, only support PNG, JPEG and GIF. See <rdar://problem/6095286>.
@@ -200,6 +246,7 @@ static const HashSet<String, ASCIICaseInsensitiveHash>& supportedImageMIMETypesF
 #endif
     };
 #endif
+
     return supportedImageMIMETypesForEncoding;
 }
 
@@ -439,6 +486,23 @@ Vector<String> MIMETypeRegistry::getMediaMIMETypesForExtension(const String& ext
 
 String MIMETypeRegistry::getMIMETypeForPath(const String& path)
 {
+#if PLATFORM(HAIKU)
+    // On Haiku, files don't usually have an extension. But files usually
+    // have a mime type file attribute.
+    // If this is a local path, get an entry while also resolving symbolic
+    // links and get the mime type info.
+    BString localPath(path);
+    if (localPath.FindFirst("file://") == 0 && localPath.Length() > 7) {
+        BEntry entry(localPath.String() + 7, true);
+        if (entry.Exists()) {
+            BNode node(&entry);
+            BNodeInfo nodeInfo(&node);
+            char mimeType[B_MIME_TYPE_LENGTH];
+            if (nodeInfo.GetType(mimeType) == B_OK)
+                return mimeType;
+        }
+    }
+#endif
     size_t pos = path.reverseFind('.');
     if (pos != notFound) {
         String extension = path.substring(pos + 1);

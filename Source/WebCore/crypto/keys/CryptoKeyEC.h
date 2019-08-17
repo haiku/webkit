@@ -43,7 +43,7 @@ struct CCECCryptorRefDeleter {
 typedef std::unique_ptr<typename std::remove_pointer<CCECCryptorRef>::type, WebCore::CCECCryptorRefDeleter> PlatformECKeyContainer;
 #endif
 
-#if PLATFORM(GTK) || PLATFORM(WPE)
+#if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU)
 #include <pal/crypto/gcrypt/Handle.h>
 
 typedef gcry_sexp_t PlatformECKey;

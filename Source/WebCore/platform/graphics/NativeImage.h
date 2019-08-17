@@ -37,6 +37,11 @@ typedef struct CGImage* CGImageRef;
 #include "RefPtrCairo.h"
 #elif USE(WINGDI)
 #include "SharedBitmap.h"
+#elif USE(HAIKU)
+#include <interface/Rect.h>
+#include <interface/Bitmap.h>
+#include <wtf/RefCounted.h>
+#include <wtf/RefPtr.h>
 #endif
 
 #if USE(DIRECT2D)
@@ -59,6 +64,33 @@ typedef COMPtr<ID2D1Bitmap> NativeImagePtr;
 typedef RefPtr<cairo_surface_t> NativeImagePtr;
 #elif USE(WINGDI)
 typedef RefPtr<SharedBitmap> NativeImagePtr;
+#elif USE(HAIKU)
+class BitmapRef: public BBitmap, public RefCounted<BitmapRef>
+{
+       public:
+               BitmapRef(BRect r, uint32 f, color_space c, int32 b)
+                       : BBitmap(r, f, c, b)
+               {
+               }
+
+               BitmapRef(BRect r, color_space c, bool v)
+                       : BBitmap(r, c, v)
+               {
+               }
+
+               BitmapRef(const BBitmap& other)
+                       : BBitmap(other)
+               {
+               }
+
+               BitmapRef(const BitmapRef& other) = delete;
+
+               ~BitmapRef()
+               {
+               }
+};
+
+typedef RefPtr<BitmapRef> NativeImagePtr;
 #endif
 
 IntSize nativeImageSize(const NativeImagePtr&);

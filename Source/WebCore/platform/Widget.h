@@ -54,6 +54,9 @@ typedef HWND PlatformWidget;
 typedef struct _GtkWidget GtkWidget;
 typedef struct _GtkContainer GtkContainer;
 typedef GtkWidget* PlatformWidget;
+#elif PLATFORM(HAIKU)
+class BView;
+typedef BView* PlatformWidget;
 #else
 typedef void* PlatformWidget;
 #endif
@@ -94,6 +97,14 @@ public:
 
     WEBCORE_EXPORT PlatformWidget platformWidget() const;
     WEBCORE_EXPORT void setPlatformWidget(PlatformWidget);
+
+#if PLATFORM(HAIKU)
+    PlatformWidget topLevelPlatformWidget() const { return m_topLevelPlatformWidget; }
+    void setTopLevelPlatformWidget(PlatformWidget widget)
+    {
+        m_topLevelPlatformWidget = widget;
+    }
+#endif
 
     int x() const { return frameRect().x(); }
     int y() const { return frameRect().y(); }
@@ -220,6 +231,10 @@ private:
     PlatformWidget m_widget;
 #else
     RetainPtr<NSView> m_widget;
+#endif
+
+#if PLATFORM(HAIKU)
+    PlatformWidget m_topLevelPlatformWidget;
 #endif
 
     IntRect m_frame; // Not used when a native widget exists.

@@ -93,6 +93,10 @@ struct PasteboardWebContent {
     String text;
     String markup;
 #endif
+#if PLATFORM(HAIKU)
+    String text;
+    String markup;
+#endif
 };
 
 struct PasteboardURL {
@@ -239,7 +243,7 @@ public:
     virtual void setDragImage(DragImage, const IntPoint& hotSpot);
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) || PLATFORM(HAIKU)
     RefPtr<DocumentFragment> documentFragment(Frame&, Range&, bool allowPlainText, bool& chosePlainText); // FIXME: Layering violation.
     void writeImage(Element&, const URL&, const String& title); // FIXME: Layering violation.
     void writeSelection(Range&, bool canSmartCopyOrDelete, Frame&, ShouldSerializeSelectedTextForDataTransfer = DefaultSelectedTextType); // FIXME: Layering violation.

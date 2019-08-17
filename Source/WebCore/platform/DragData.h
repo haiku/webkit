@@ -50,6 +50,9 @@ namespace WebCore {
 class SelectionData;
 }
 typedef WebCore::SelectionData* DragDataRef;
+#elif PLATFORM(HAIKU)
+class BMessage;
+typedef class BMessage* DragDataRef;
 #else
 typedef void* DragDataRef;
 #endif

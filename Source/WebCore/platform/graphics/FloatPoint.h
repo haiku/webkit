@@ -46,6 +46,10 @@ typedef struct _NSPoint NSPoint;
 #endif
 #endif // PLATFORM(MAC)
 
+#if PLATFORM(HAIKU)
+class BPoint;
+#endif
+
 #if PLATFORM(WIN)
 struct D2D_POINT_2F;
 typedef D2D_POINT_2F D2D1_POINT_2F;
@@ -178,6 +182,11 @@ public:
 #if PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)
     WEBCORE_EXPORT FloatPoint(const NSPoint&);
     WEBCORE_EXPORT operator NSPoint() const;
+#endif
+
+#if PLATFORM(HAIKU)
+    FloatPoint(const BPoint&);
+    operator BPoint() const;
 #endif
 
 #if PLATFORM(WIN)
