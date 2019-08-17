@@ -388,6 +388,11 @@
 #define WTF_OS_FREEBSD 1
 #endif
 
+/* OS(HAIKU) - Haiku */
+#ifdef __HAIKU__
+#define WTF_OS_HAIKU 1
+#endif
+
 /* OS(FUCHSIA) - Fuchsia */
 #ifdef __Fuchsia__
 #define WTF_OS_FUCHSIA 1
@@ -426,6 +431,7 @@
     || OS(DARWIN)           \
     || OS(FREEBSD)          \
     || OS(FUCHSIA)          \
+    || OS(HAIKU)            \
     || OS(HURD)             \
     || OS(LINUX)            \
     || OS(NETBSD)           \
@@ -511,6 +517,7 @@
 
 /* FIXME: these are all mixes of OS, operating environment and policy choices. */
 /* PLATFORM(GTK) */
+/* PLATFORM(HAIKU) */
 /* PLATFORM(MAC) */
 /* PLATFORM(IOS) */
 /* PLATFORM(IOS_FAMILY) */
@@ -519,6 +526,8 @@
 /* PLATFORM(WIN) */
 #if defined(BUILDING_GTK__)
 #define WTF_PLATFORM_GTK 1
+#elif defined(BUILDING_HAIKU__)
+#define WTF_PLATFORM_HAIKU 1
 #elif defined(BUILDING_WPE__)
 #define WTF_PLATFORM_WPE 1
 #elif defined(BUILDING_JSCONLY__)
@@ -649,6 +658,30 @@
 
 #endif /* PLATFORM(IOS_FAMILY) */
 
+#if PLATFORM(HAIKU)
+#define USE_HAIKU 1
+#define USE_PTHREADS 1
+#define USE_WEBP 1
+
+#define HAVE_ERRNO_H 1
+#define HAVE_LANGINFO_H 1
+#define HAVE_MMAP 1
+#define HAVE_MERGESORT 1
+#define HAVE_POSIX_MEMALIGN 1
+#define HAVE_PTHREAD_RWLOCK 1
+#define HAVE_SIGNAL_H 1
+#define HAVE_STRINGS_H 1
+#define HAVE_SYS_PARAM_H 1
+#define HAVE_SYS_TIME_H 1
+#define HAVE_TIMEGM 1
+#define HAVE_TM_GMTOFF 1
+#define HAVE_TM_ZONE 1
+#define HAVE_SYS_TIME_H 1
+
+#define ENABLE_INSPECTOR 1
+#define ENABLE_JAVASCRIPT_DEBUGGER 1
+#endif
+
 #if !defined(HAVE_ACCESSIBILITY)
 #if PLATFORM(COCOA) || PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(WPE)
 #define HAVE_ACCESSIBILITY 1
@@ -710,7 +743,7 @@
 
 #endif /* OS(DARWIN) */
 
-#if OS(DARWIN) || OS(FUCHSIA) || ((OS(FREEBSD) || defined(__GLIBC__) || defined(__BIONIC__)) && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(ARM64) || CPU(MIPS)))
+#if OS(DARWIN) || OS(FUCHSIA) || OS(HAIKU) || ((OS(FREEBSD) || defined(__GLIBC__) || defined(__BIONIC__)) && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(ARM64) || CPU(MIPS)))
 #define HAVE_MACHINE_CONTEXT 1
 #endif
 
@@ -718,7 +751,7 @@
 #define HAVE_BACKTRACE 1
 #endif
 
-#if OS(DARWIN) || OS(LINUX)
+#if OS(DARWIN) || OS(LINUX) || OS(HAIKU)
 #if PLATFORM(GTK)
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
 #define HAVE_BACKTRACE_SYMBOLS 1
@@ -826,7 +859,7 @@
 
 #if !defined(ENABLE_DFG_JIT) && ENABLE(JIT)
 /* Enable the DFG JIT on X86 and X86_64. */
-#if (CPU(X86) || CPU(X86_64)) && (OS(DARWIN) || OS(LINUX) || OS(FREEBSD) || OS(HURD) || OS(WINDOWS))
+#if (CPU(X86) || CPU(X86_64)) && (OS(DARWIN) || OS(LINUX) || OS(FREEBSD) || OS(HAIKU) || OS(HURD) || OS(WINDOWS))
 #define ENABLE_DFG_JIT 1
 #endif
 /* Enable the DFG JIT on ARMv7.  Only tested on iOS, Linux, and FreeBSD. */
@@ -1056,7 +1089,7 @@
 
 /* CSS Selector JIT Compiler */
 #if !defined(ENABLE_CSS_SELECTOR_JIT)
-#if (CPU(X86_64) || CPU(ARM64) || (CPU(ARM_THUMB2) && PLATFORM(IOS_FAMILY))) && ENABLE(JIT) && (OS(DARWIN) || PLATFORM(GTK) || PLATFORM(WPE))
+#if (CPU(X86_64) || CPU(ARM64) || (CPU(ARM_THUMB2) && PLATFORM(IOS_FAMILY))) && ENABLE(JIT) && (OS(DARWIN) || PLATFORM(GTK) || PLATFORM(HAIKU) || PLATFORM(WPE))
 #define ENABLE_CSS_SELECTOR_JIT 1
 #else
 #define ENABLE_CSS_SELECTOR_JIT 0
@@ -1156,7 +1189,7 @@
 #define USE_EXPORT_MACROS 1
 #endif
 
-#if PLATFORM(GTK) || PLATFORM(WPE)
+#if PLATFORM(GTK) || PLATFORM(WPE) || PLATFORM(HAIKU)
 #define USE_UNIX_DOMAIN_SOCKETS 1
 #endif
 
@@ -1292,7 +1325,7 @@
 /* Disable SharedArrayBuffers until Spectre security concerns are mitigated. */
 #define ENABLE_SHARED_ARRAY_BUFFER 0
 
-#if (OS(DARWIN) && USE(CG)) || (USE(FREETYPE) && !PLATFORM(GTK)) || (PLATFORM(WIN) && (USE(CG) || USE(CAIRO)))
+#if (OS(DARWIN) && USE(CG)) || (USE(FREETYPE) && !PLATFORM(GTK)) || (PLATFORM(WIN) && (USE(CG) || USE(CAIRO)) || PLATFORM(HAIKU))
 #undef ENABLE_OPENTYPE_MATH
 #define ENABLE_OPENTYPE_MATH 1
 #endif
@@ -1337,6 +1370,9 @@
 #elif PLATFORM(COCOA)
 /* OS X and IOS. Use CoreFoundation & GCD abstraction. */
 #define USE_COCOA_EVENT_LOOP 1
+#elif PLATFORM(HAIKU)
+/* BHandler-based implementation to cooperate with BApplication native events */
+#define USE_HAIKU_EVENT_LOOP 1
 #else
 #define USE_GENERIC_EVENT_LOOP 1
 #endif

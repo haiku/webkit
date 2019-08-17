@@ -37,6 +37,10 @@ typedef const struct __CFURL* CFURLRef;
 OBJC_CLASS NSURL;
 #endif
 
+#if PLATFORM(HAIKU)
+class BUrl;
+#endif
+
 namespace WTF {
 class TextStream;
 
@@ -182,6 +186,11 @@ public:
 #endif
 #ifdef __OBJC__
     operator NSString*() const { return string(); }
+#endif
+
+#if PLATFORM(HAIKU)
+    explicit URL(const BUrl&);
+    operator BUrl() const;
 #endif
 
 #ifndef NDEBUG

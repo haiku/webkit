@@ -32,7 +32,9 @@
 #if OS(WINDOWS)
 #include <windows.h>
 #elif defined(USE_SYSTEM_MALLOC) && USE_SYSTEM_MALLOC
-#if OS(LINUX)
+#if OS(HAIKU)
+#include <OS.h>
+#elif OS(LINUX)
 #include <sys/sysinfo.h>
 #endif // OS(LINUX)
 #else
@@ -59,6 +61,10 @@ static size_t computeRAMSize()
     struct sysinfo si;
     sysinfo(&si);
     return si.totalram * si.mem_unit;
+#elif OS(HAIKU)
+    system_info si;
+    get_system_info(&si);
+    return si.max_pages * B_PAGE_SIZE;
 #else
 #error "Missing a platform specific way of determining the available RAM"
 #endif // OS(LINUX)
