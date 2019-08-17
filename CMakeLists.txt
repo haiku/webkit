@@ -38,6 +38,7 @@ set(ALL_PORTS
     AppleWin
     Efl
     GTK
+    Haiku
     JSCOnly
     Mac
     PlayStation
