@@ -51,6 +51,12 @@ if (APPLE)
     set_target_properties(WebKitLegacy PROPERTIES LINK_FLAGS "-umbrella WebKit")
 endif ()
 
+if (HAIKU)
+	WEBKIT_POPULATE_LIBRARY_VERSION(WEBKIT)
+	set_target_properties(WebKitLegacy PROPERTIES VERSION ${WEBKIT_VERSION} SOVERSION ${WEBKIT_VERSION_MAJOR})
+	install(TARGETS WebKitLegacy DESTINATION "${LIB_INSTALL_DIR}")
+endif ()
+
 if (MSVC)
     add_custom_command(
         TARGET WebKitLegacy
