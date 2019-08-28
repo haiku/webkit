@@ -27,7 +27,11 @@
 #include "DrawingAreaProxyCoordinatedGraphics.h"
 #include "WebProcessPool.h"
 #include "WebPageGroup.h"
+
+#include "NativeWebMouseEvent.h"
+
 #include <WebCore/IntRect.h>
+#include <Looper.h>
 
 using namespace WebKit; 
 using namespace WebCore;
@@ -93,5 +97,7 @@ void WebViewBase::Draw(BRect update)
 }
 void WebViewBase::MouseMoved(BPoint where,uint32 code,const BMessage* dragMessage)
 {
+	BMessage* mouseMessage = Looper()->DetachCurrentMessage();
+	NativeWebMouseEvent mouseEvent = NativeWebMouseEvent(mouseMessage);
 }
 
