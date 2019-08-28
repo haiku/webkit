@@ -22,22 +22,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "config.h"
 
 #include "WebEventFactory.h"
 #include <WebCore/IntPoint.h>
+#include <wtf/WallTime.h>
+
+#include <Message.h>
+#include <View.h>
+#include <Point.h>
 
 enum {
     BUTTON_PRESS = 'btps',
     BUTTON_RELEASE = 'btrl',
     MOUSE_MOVEMENT = 'mmmv',
-}
+};
 namespace WebKit
 {
-    static inline int clickCount(WebEvent::Type type, WebMouseEvent::Button button, const POINT& position, int64_t timeStampSeconds)
+    static inline int clickCount(WebEvent::Type type, WebMouseEvent::Button button, const BPoint& position, int64 timeStampSeconds)
     {
         static int gLastClickCount;
-        static int64_t gLastClickTime;
-        static POINT lastClickPosition;
+        static int64 gLastClickTime;
+        static BPoint lastClickPosition;
         static WebMouseEvent::Button lastClickButton = WebMouseEvent::LeftButton;
     
         bool cancelPreviousClick = 0;
@@ -62,9 +68,14 @@ namespace WebKit
     
         return gLastClickCount;
     }
+    static inline OptionSet<WebEvent::Modifier> modifiersForEvent()
+    {
+    	OptionSet<WebEvent::Modifier> modifier;
+    	return modifier;
+    }
     static inline WebMouseEvent::Button buttonForEvent(const BMessage* message)
     {
-        int32_t buttonType;
+        int32 buttonType;
         unsigned button = 0;
         message->FindInt32("button",&buttonType);
         switch(buttonType)
@@ -82,10 +93,10 @@ namespace WebKit
         
         return static_cast<WebMouseEvent::Button>(button);
     }
-    static WebMouseEvent createWebMouseEvent(const BMessage* message)
+    WebMouseEvent WebEventFactory::createWebMouseEvent(const BMessage* message)
     {
         WebEvent::Type type = static_cast<WebEvent::Type>(0);
-        int32_t mouseEventType;
+        int32 mouseEventType;
         message->FindInt32("type",&mouseEventType);
         switch(mouseEventType)
         {
@@ -105,13 +116,15 @@ namespace WebKit
         BPoint where;
         message->FindPoint("where",&where);
         
-        int64_t when;
+        int64 when;
         message->FindInt64("when",&when);
         
-        /*return WebMouseEvent(
-        type,buttonForEvent(message),0,IntPoint(where),IntPoint(where),
-        0,0,0,
-        )*/
+        WebMouseEvent::Button button = buttonForEvent(message);
+        
+        return WebMouseEvent(
+        type,button,0,WebCore::IntPoint(where),WebCore::IntPoint(where),
+        0,0,0,clickCount(type,button,where,when),modifiersForEvent(),WTF::WallTime::now()
+        );
         //it says some deltax delta y should it be added from be_deltax?
         
     }

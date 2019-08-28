@@ -28,6 +28,8 @@ list(APPEND WebKit_SOURCES
     Shared/haiku/WebCoreArgumentCodersHaiku.cpp
     Shared/haiku/WebMemorySamplerHaiku.cpp
     Shared/haiku/AuxiliaryProcessMainHaiku.cpp
+    Shared/haiku/NativeWebMouseEventHaiku.cpp
+    Shared/haiku/WebEventFactory.cpp
 
     UIProcess/API/C/haiku/WKView.cpp
     UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp
