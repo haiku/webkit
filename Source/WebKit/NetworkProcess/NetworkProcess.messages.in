@@ -27,9 +27,6 @@ messages -> NetworkProcess LegacyReceiver {
     # Creates a connection for communication with a WebProcess
     CreateNetworkConnectionToWebProcess(WebCore::ProcessIdentifier processIdentifier, PAL::SessionID sessionID) -> (Optional<IPC::Attachment> connectionIdentifier) Async
 
-#if PLATFORM(HAIKU)
-	CreateNetworkConnectionToWebProcessHaiku(bool isServiceWorkerProcess, WebCore::RegistrableDomain registrableDomain,int64_t webPID)
-#endif
 #if USE(SOUP)
     SetIgnoreTLSErrors(bool ignoreTLSErrors)
     UserPreferredLanguagesChanged(Vector<String> languages)
