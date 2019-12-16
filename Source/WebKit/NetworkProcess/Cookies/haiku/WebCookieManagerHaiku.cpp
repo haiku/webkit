@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Haiku, inc.
+ * Copyright (C) 2019 Haiku, inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,22 +26,19 @@
 #include "config.h"
 #include "WebCookieManager.h"
 
-#include <WebCore/NotImplemented.h>
-#include <WebCore/CookieJar.h>
-
-using namespace WebCore;
+#include "HTTPCookieAcceptPolicy.h"
 
 namespace WebKit {
 
 void WebCookieManager::platformSetHTTPCookieAcceptPolicy(HTTPCookieAcceptPolicy policy)
 {
-    notImplemented();
+	// TODO
 }
 
 HTTPCookieAcceptPolicy WebCookieManager::platformGetHTTPCookieAcceptPolicy()
 {
-    notImplemented();
-    return HTTPCookieAcceptPolicyAlways;
+	// TODO
+    return HTTPCookieAcceptPolicy::OnlyFromMainDocumentDomain;
 }
 
-}
+};
