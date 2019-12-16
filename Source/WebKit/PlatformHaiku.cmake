@@ -6,6 +6,7 @@ list(APPEND WebKit_SOURCES
     NetworkProcess/haiku/RemoteNetworkingContextHaiku.cpp
     NetworkProcess/haiku/NetworkSessionHaiku.cpp
     NetworkProcess/haiku/NetworkDataTaskHaiku.cpp
+	NetworkProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
 
     Platform/IPC/haiku/AttachmentHaiku.cpp
     Platform/IPC/haiku/ConnectionHaiku.cpp
@@ -30,7 +31,6 @@ list(APPEND WebKit_SOURCES
     Shared/haiku/AuxiliaryProcessMainHaiku.cpp
 
     UIProcess/API/C/haiku/WKView.cpp
-    UIProcess/API/haiku/APIWebsiteDataStoreHaiku.cpp
 
     UIProcess/DefaultUndoController.cpp
     UIProcess/BackingStore.cpp
@@ -52,7 +52,8 @@ list(APPEND WebKit_SOURCES
     UIProcess/API/haiku/WebView.cpp
     UIProcess/API/haiku/PageClientImplHaiku.cpp
 
-    WebProcess/Cookies/haiku/WebCookieManagerHaiku.cpp
+	UIProcess/haiku/RemoteWebInspectorProxyHaiku.cpp
+
     WebProcess/InjectedBundle/haiku/InjectedBundleHaiku.cpp
     WebProcess/InjectedBundle/haiku/InjectedBundleHaiku.cpp
     WebProcess/Plugins/Netscape/unix/PluginProxyUnix.cpp
