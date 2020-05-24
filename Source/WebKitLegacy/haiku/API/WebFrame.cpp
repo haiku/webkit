@@ -411,6 +411,7 @@ BWebFrame* BWebFrame::AddChild(BWebPage* page, BString name,
     WebFramePrivate* data = new WebFramePrivate();
     data->name = name;
     data->ownerElement = ownerElement;
+    data->page = page->page();
 
     BWebFrame* frame = new(std::nothrow) BWebFrame(page, this, data);
 
