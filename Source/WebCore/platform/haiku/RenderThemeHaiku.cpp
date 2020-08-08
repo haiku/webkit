@@ -246,9 +246,9 @@ bool RenderThemeHaiku::paintRadio(const RenderObject& object, const PaintInfo& i
     BView* view = info.context().platformContext();
     unsigned flags = flagsForObject(object);
 
-	view->PushState();
+    view->PushState();
     be_control_look->DrawRadioButton(view, rect, rect, base, flags);
-	view->PopState();
+    view->PopState();
     return false;
 }
 
@@ -268,16 +268,16 @@ bool RenderThemeHaiku::paintButton(const RenderObject& object, const PaintInfo& 
 
     rgb_color base = ui_color(B_PANEL_BACKGROUND_COLOR);
     rgb_color background = base;
-    	// TODO: From PaintInfo?
+        // TODO: From PaintInfo?
     BRect rect = intRect;
     BView* view = info.context().platformContext();
     unsigned flags = flagsForObject(object);
     if (isPressed(object))
-    	flags |= BControlLook::B_ACTIVATED;
+        flags |= BControlLook::B_ACTIVATED;
     if (isDefault(object))
-    	flags |= BControlLook::B_DEFAULT_BUTTON;
+        flags |= BControlLook::B_DEFAULT_BUTTON;
 
-	view->PushState();
+    view->PushState();
     be_control_look->DrawButtonFrame(view, rect, rect, base, background, flags);
     be_control_look->DrawButtonBackground(view, rect, rect, base, flags);
     view->PopState();
@@ -299,12 +299,12 @@ bool RenderThemeHaiku::paintTextField(const RenderObject& object, const PaintInf
 
     rgb_color base = ui_color(B_PANEL_BACKGROUND_COLOR);
     //rgb_color background = base;
-    	// TODO: From PaintInfo?
+        // TODO: From PaintInfo?
     BRect rect(intRect);
     BView* view(info.context().platformContext());
     unsigned flags = flagsForObject(object) & ~BControlLook::B_CLICKED;
 
-	view->PushState();
+    view->PushState();
     be_control_look->DrawTextControlBorder(view, rect, rect, base, flags);
     view->PopState();
     return false;
@@ -330,7 +330,7 @@ void RenderThemeHaiku::adjustMenuListButtonStyle(RenderStyle& style, const Eleme
     style.resetBorder();
     style.resetBorderRadius();
 
-	int labelSpacing = be_control_look ? static_cast<int>(be_control_look->DefaultLabelSpacing()) : 3;
+    int labelSpacing = be_control_look ? static_cast<int>(be_control_look->DefaultLabelSpacing()) : 3;
     // Position the text correctly within the select box and make the box wide enough to fit the dropdown button
     style.setPaddingTop(Length(3, Fixed));
     style.setPaddingLeft(Length(3 + labelSpacing, Fixed));
@@ -348,13 +348,7 @@ void RenderThemeHaiku::adjustMenuListButtonStyle(RenderStyle& style, const Eleme
     style.setMinHeight(Length(minHeight, Fixed));
 }
 
-bool RenderThemeHaiku::paintMenuListButtonDecorations(const RenderBox& object, const PaintInfo& info, const FloatRect& rect)
-{
-    // FIXME should it look more like a BMenuField instead?
-    return true; //paintButton(object, info, IntRect(rect));
-}
-
-bool RenderThemeHaiku::paintMenuList(const RenderObject& object, const PaintInfo& info, const FloatRect& intRect)
+bool RenderThemeHaiku::paintMenuListButtonDecorations(const RenderBox& object, const PaintInfo& info, const FloatRect& floatRect)
 {
     if (info.context().paintingDisabled())
         return true;
@@ -363,17 +357,24 @@ bool RenderThemeHaiku::paintMenuList(const RenderObject& object, const PaintInfo
         return true;
 
     rgb_color base = ui_color(B_PANEL_BACKGROUND_COLOR);
-    //rgb_color background = base;
-    	// TODO: From PaintInfo?
-    BRect rect = intRect;
+        // TODO get the color from PaintInfo?
+    BRect rect = floatRect;
     BView* view = info.context().platformContext();
-    unsigned flags = flagsForObject(object) & ~BControlLook::B_CLICKED;
+    unsigned flags = BControlLook::B_BLEND_FRAME;
+        // TODO unfortunately we don't get access to the RenderObject here so
+        // we can't use flagsForObject(object) & ~BControlLook::B_CLICKED;
 
-	view->PushState();
+    view->PushState();
     be_control_look->DrawMenuFieldFrame(view, rect, rect, base, base, flags);
     be_control_look->DrawMenuFieldBackground(view, rect, rect, base, true, flags);
     view->PopState();
     return false;
+}
+
+bool RenderThemeHaiku::paintMenuList(const RenderObject& object, const PaintInfo& info, const FloatRect& intRect)
+{
+    // This is never called: the list is handled natively as a BMenu.
+    return true;
 }
 
 unsigned RenderThemeHaiku::flagsForObject(const RenderObject& object) const
