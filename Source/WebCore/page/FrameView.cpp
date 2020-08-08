@@ -103,13 +103,13 @@
 #include "VelocityData.h"
 #include "VisualViewport.h"
 #include "WheelEventTestMonitor.h"
-#include <wtf/text/TextStream.h>
-
+#include <wtf/HexNumber.h>
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/MemoryPressureHandler.h>
 #include <wtf/Ref.h>
 #include <wtf/SetForScope.h>
 #include <wtf/SystemTracing.h>
+#include <wtf/text/TextStream.h>
 
 #if USE(COORDINATED_GRAPHICS)
 #include "TiledBackingStore.h"
@@ -1423,9 +1423,13 @@ void FrameView::logMockScrollAnimatorMessage(const String& message) const
     StringBuilder builder;
     if (frame().isMainFrame())
         builder.appendLiteral("Main");
-    builder.appendLiteral("FrameView: ");
-    builder.append(message);
+    builder.append("FrameView: ", message);
     document->addConsoleMessage(MessageSource::Other, MessageLevel::Debug, builder.toString());
+}
+
+String FrameView::debugDescription() const
+{
+    return makeString("FrameView 0x", hex(reinterpret_cast<uintptr_t>(this), Lowercase), ' ', frame().debugDescription());
 }
 
 bool FrameView::styleHidesScrollbarWithOrientation(ScrollbarOrientation orientation) const
@@ -3800,8 +3804,22 @@ void FrameView::setVisibleScrollerThumbRect(const IntRect& scrollerThumb)
 
 ScrollableArea* FrameView::enclosingScrollableArea() const
 {
-    // FIXME: Walk up the frame tree and look for a scrollable parent frame or RenderLayer.
-    return nullptr;
+    if (frame().isMainFrame())
+        return nullptr;
+
+    auto* ownerElement = frame().ownerElement();
+    if (!ownerElement)
+        return nullptr;
+
+    auto* ownerRenderer = ownerElement->renderer();
+    if (!ownerRenderer)
+        return nullptr;
+
+    auto* layer = ownerRenderer->enclosingLayer();
+    if (!layer)
+        return nullptr;
+
+    return layer->enclosingScrollableLayer(IncludeSelfOrNot::IncludeSelf, CrossFrameBoundaries::No);
 }
 
 IntRect FrameView::scrollableAreaBoundingBox(bool*) const
@@ -4265,9 +4283,7 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
     RenderObject* renderer = m_nodeToDraw ? m_nodeToDraw->renderer() : nullptr;
     RenderLayer* rootLayer = renderView->layer();
 
-#ifndef NDEBUG
-    RenderElement::SetLayoutNeededForbiddenScope forbidSetNeedsLayout(&rootLayer->renderer());
-#endif
+    RenderObject::SetLayoutNeededForbiddenScope forbidSetNeedsLayout(rootLayer->renderer());
 
     // To work around http://webkit.org/b/135106, ensure that the paint root isn't an inline with culled line boxes.
     // FIXME: This can cause additional content to be included in the snapshot, so remove this once that bug is fixed.
@@ -5446,7 +5462,7 @@ bool FrameView::shouldPlaceBlockDirectionScrollbarOnLeft() const
 
 TextStream& operator<<(TextStream& ts, const FrameView& view)
 {
-    ts << "FrameView " << &view << " frame " << view.frame();
+    ts << view.debugDescription();
     return ts;
 }
 

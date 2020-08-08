@@ -501,6 +501,8 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     bytecode/CodeType.h
     bytecode/DFGExitProfile.h
     bytecode/DataFormat.h
+    bytecode/DeleteByIdVariant.h
+    bytecode/DeleteByStatus.h
     bytecode/DirectEvalCodeCache.h
     bytecode/ExecutableInfo.h
     bytecode/ExecutableToCodeBlockEdge.h
@@ -820,6 +822,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/DisallowScope.h
     runtime/DisallowVMReentry.h
     runtime/DumpContext.h
+    runtime/EnsureStillAliveHere.h
     runtime/EnumerationMode.h
     runtime/Error.h
     runtime/ErrorHandlingScope.h

@@ -1219,6 +1219,15 @@ test/built-ins/Proxy/construct/return-not-object-throws-undefined-realm.js:
 test/built-ins/Proxy/construct/trap-is-not-callable-realm.js:
   default: 'Test262Error: Expected a TypeError but got a TypeError'
   strict mode: 'Test262Error: Expected a TypeError but got a TypeError'
+test/built-ins/Proxy/create-handler-is-revoked-proxy.js:
+  default: "TypeError: A Proxy's 'handler' shouldn't be a revoked Proxy"
+  strict mode: "TypeError: A Proxy's 'handler' shouldn't be a revoked Proxy"
+test/built-ins/Proxy/create-target-is-revoked-function-proxy.js:
+  default: "TypeError: A Proxy's 'target' shouldn't be a revoked Proxy"
+  strict mode: "TypeError: A Proxy's 'target' shouldn't be a revoked Proxy"
+test/built-ins/Proxy/create-target-is-revoked-proxy.js:
+  default: "TypeError: A Proxy's 'target' shouldn't be a revoked Proxy"
+  strict mode: "TypeError: A Proxy's 'target' shouldn't be a revoked Proxy"
 test/built-ins/Proxy/defineProperty/trap-is-undefined-target-is-proxy.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
@@ -1234,6 +1243,12 @@ test/built-ins/Proxy/getOwnPropertyDescriptor/trap-is-undefined-target-is-proxy.
 test/built-ins/Proxy/ownKeys/trap-is-undefined-target-is-proxy.js:
   default: 'Test262Error: Expected [length, foo, 0, Symbol()] and [Symbol(), length, foo, 0] to have the same contents. '
   strict mode: 'Test262Error: Expected [length, foo, 0, Symbol()] and [Symbol(), length, foo, 0] to have the same contents. '
+test/built-ins/Proxy/set/trap-is-missing-receiver-multiple-calls-index.js:
+  default: 'Test262Error: Expected [0] and [0, 0, 0] to have the same contents. getOwnPropertyDescriptor: key present on [[ProxyTarget]]'
+  strict mode: 'TypeError: Attempted to assign to readonly property.'
+test/built-ins/Proxy/set/trap-is-missing-receiver-multiple-calls.js:
+  default: 'Test262Error: Expected [foo] and [foo, foo, foo] to have the same contents. getOwnPropertyDescriptor: key present on [[ProxyTarget]]'
+  strict mode: 'TypeError: Attempted to assign to readonly property.'
 test/built-ins/Proxy/set/trap-is-missing-target-is-proxy.js:
   default: 'Test262Error: Expected SameValue(«0», «1») to be true'
   strict mode: 'TypeError: Attempting to change configurable attribute of unconfigurable property.'
@@ -1684,9 +1699,6 @@ test/built-ins/RegExp/prototype/unicode/cross-realm.js:
 test/built-ins/RegExp/quantifier-integer-limit.js:
   default: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
   strict mode: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
-test/built-ins/RegExp/unicode_restricted_octal_escape.js:
-  default: 'Test262Error: RegExp("[\1]", "u"):  Expected a SyntaxError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: RegExp("[\1]", "u"):  Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/built-ins/Set/proto-from-ctor-realm.js:
   default: 'Test262Error: Expected SameValue(«[object Set]», «[object Set]») to be true'
   strict mode: 'Test262Error: Expected SameValue(«[object Set]», «[object Set]») to be true'
@@ -1836,27 +1848,12 @@ test/built-ins/TypedArrayConstructors/from/new-instance-using-custom-ctor.js:
 test/built-ins/TypedArrayConstructors/from/set-value-abrupt-completion.js:
   default: 'Test262Error: interrupted source iteration Expected SameValue(«1», «[object Object]») to be true (Testing with Float64Array.)'
   strict mode: 'Test262Error: interrupted source iteration Expected SameValue(«1», «[object Object]») to be true (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/conversion-operation-consistent-nan.js:
-  default: 'TypeError: Attempting to store non-enumerable or non-writable property on a typed array at index: 0 (Testing with Float32Array.)'
-  strict mode: 'TypeError: Attempting to store non-enumerable or non-writable property on a typed array at index: 0 (Testing with Float32Array.)'
-test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/conversion-operation.js:
-  default: 'TypeError: Attempting to store non-enumerable or non-writable property on a typed array at index: 0 (Testing with Float64Array.)'
-  strict mode: 'TypeError: Attempting to store non-enumerable or non-writable property on a typed array at index: 0 (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/desc-value-throws.js:
-  default: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
 test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer-realm.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
 test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer.js:
   default: 'Test262Error: Throws TypeError on valid numeric index if instance has a detached buffer Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
   strict mode: 'Test262Error: Throws TypeError on valid numeric index if instance has a detached buffer Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/set-value.js:
-  default: 'Test262Error: set value for sample[0] returns true Expected SameValue(«false», «true») to be true (Testing with Float64Array.)'
-  strict mode: 'Test262Error: set value for sample[0] returns true Expected SameValue(«false», «true») to be true (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer.js:
-  default: 'Test262Error: detaching a ArrayBuffer during defining an element of a typed array viewing it should throw Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: detaching a ArrayBuffer during defining an element of a typed array viewing it should throw Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
 test/built-ins/TypedArrayConstructors/internals/Get/key-is-not-integer.js:
   default: 'Test262Error: OrdinaryGet was called! Ref: 9.1.8.1 3.c (Testing with Float64Array.)'
   strict mode: 'Test262Error: OrdinaryGet was called! Ref: 9.1.8.1 3.c (Testing with Float64Array.)'
@@ -1941,9 +1938,12 @@ test/intl402/Collator/usage-de.js:
 test/intl402/DateTimeFormat/constructor-calendar-numberingSystem-order.js:
   default: 'Test262Error: Expected [localeMatcher, hour12] and [localeMatcher, calendar, numberingSystem, hour12] to have the same contents. '
   strict mode: 'Test262Error: Expected [localeMatcher, hour12] and [localeMatcher, calendar, numberingSystem, hour12] to have the same contents. '
-test/intl402/DateTimeFormat/invalid-numbering-system-calendar-options.js:
-  default: 'Test262Error: Invalid numberingSystem value ab was not rejected. Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Invalid numberingSystem value ab was not rejected. Expected a RangeError to be thrown but no exception was thrown at all'
+test/intl402/DateTimeFormat/constructor-options-calendar-invalid.js:
+  default: 'Test262Error: new Intl.DateTimeFormat("en", {calendar: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: new Intl.DateTimeFormat("en", {calendar: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
+test/intl402/DateTimeFormat/constructor-options-numberingSystem-invalid.js:
+  default: 'Test262Error: new Intl.DateTimeFormat("en", {numberingSystem: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: new Intl.DateTimeFormat("en", {numberingSystem: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/DateTimeFormat/numbering-system-calendar-options.js:
   default: "Test262Error: Options value for property numberingSystem doesn't override locale extension key nu. Expected SameValue(«arab», «latn») to be true"
   strict mode: "Test262Error: Options value for property numberingSystem doesn't override locale extension key nu. Expected SameValue(«arab», «latn») to be true"
@@ -1986,12 +1986,12 @@ test/intl402/Intl/getCanonicalLocales/preferred-variant.js:
 test/intl402/NumberFormat/constructor-numberingSystem-order.js:
   default: 'Test262Error: Expected [localeMatcher, style] and [localeMatcher, numberingSystem, style] to have the same contents. '
   strict mode: 'Test262Error: Expected [localeMatcher, style] and [localeMatcher, numberingSystem, style] to have the same contents. '
+test/intl402/NumberFormat/constructor-options-numberingSystem-invalid.js:
+  default: 'Test262Error: new Intl.NumberFormat("en", {numberingSystem: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: new Intl.NumberFormat("en", {numberingSystem: ""}) throws RangeError Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/NumberFormat/constructor-options-throwing-getters.js:
   default: 'Test262Error: Exception from numberingSystem getter should be propagated Expected a CustomError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Exception from numberingSystem getter should be propagated Expected a CustomError to be thrown but no exception was thrown at all'
-test/intl402/NumberFormat/invalid-numbering-system-options.js:
-  default: 'Test262Error: Invalid numberingSystem value ab was not rejected. Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Invalid numberingSystem value ab was not rejected. Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/NumberFormat/numbering-system-options.js:
   default: "Test262Error: Options value for property numberingSystem doesn't override locale extension key nu. Expected SameValue(«arab», «latn») to be true"
   strict mode: "Test262Error: Options value for property numberingSystem doesn't override locale extension key nu. Expected SameValue(«arab», «latn») to be true"
@@ -2143,9 +2143,6 @@ test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-f
   default: 'Test262: This statement should not be evaluated.'
 test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-generator.js:
   default: 'Test262: This statement should not be evaluated.'
-test/language/eval-code/direct/new.target-arrow.js:
-  default: 'Test262Error: Expected SameValue(«function ReferenceError() {'
-  strict mode: 'Test262Error: Expected SameValue(«function ReferenceError() {'
 test/language/eval-code/direct/non-definable-function-with-function.js:
   default: 'Test262Error: Expected SameValue(«[object Object]», «undefined») to be true'
 test/language/eval-code/direct/non-definable-function-with-variable.js:
@@ -3626,6 +3623,9 @@ test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:
 test/language/statements/for-of/head-var-no-expr.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
+test/language/statements/for-of/iterator-close-throw-get-method-abrupt.js:
+  default: 'Test262Error: Expected a Test262Error but got a Object'
+  strict mode: 'Test262Error: Expected a Test262Error but got a Object'
 test/language/statements/for-of/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for/head-lhs-let.js:

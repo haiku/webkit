@@ -221,6 +221,7 @@
 #import <WebCore/ValidationBubble.h>
 #import <WebCore/WebCoreObjCExtras.h>
 #import <WebCore/WebCoreView.h>
+#import <WebCore/WebViewVisualIdentificationOverlay.h>
 #import <WebCore/Widget.h>
 #import <WebKitLegacy/DOM.h>
 #import <WebKitLegacy/DOMExtensions.h>
@@ -1227,7 +1228,7 @@ static NSString *leakOutlookQuirksUserScriptContents()
 -(void)_injectOutlookQuirksScript
 {
     static NSString *outlookQuirksScriptContents = leakOutlookQuirksUserScriptContents();
-    _private->group->userContentController().addUserScript(*core([WebScriptWorld world]), makeUnique<WebCore::UserScript>(outlookQuirksScriptContents, URL(), Vector<String>(), Vector<String>(), WebCore::InjectAtDocumentEnd, WebCore::InjectInAllFrames));
+    _private->group->userContentController().addUserScript(*core([WebScriptWorld world]), makeUnique<WebCore::UserScript>(outlookQuirksScriptContents, URL(), Vector<String>(), Vector<String>(), WebCore::UserScriptInjectionTime::DocumentEnd, WebCore::UserContentInjectedFrames::InjectInAllFrames, WebCore::WaitForNotificationBeforeInjecting::No));
 
 }
 #endif
@@ -1600,6 +1601,10 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 #endif
 
     _private->page->settings().setContentDispositionAttachmentSandboxEnabled(true);
+
+#if PLATFORM(MAC)
+    [WebViewVisualIdentificationOverlay installForWebViewIfNeeded:self kind:@"WebView" deprecated:YES];
+#endif
 }
 
 - (id)_initWithFrame:(NSRect)f frameName:(NSString *)frameName groupName:(NSString *)groupName
@@ -4676,7 +4681,7 @@ static Vector<String> toStringVector(NSArray* patterns)
     if (!world)
         return;
 
-    auto userScript = makeUnique<WebCore::UserScript>(source, url, toStringVector(whitelist), toStringVector(blacklist), injectionTime == WebInjectAtDocumentStart ? WebCore::InjectAtDocumentStart : WebCore::InjectAtDocumentEnd, injectedFrames == WebInjectInAllFrames ? WebCore::InjectInAllFrames : WebCore::InjectInTopFrameOnly);
+    auto userScript = makeUnique<WebCore::UserScript>(source, url, toStringVector(whitelist), toStringVector(blacklist), injectionTime == WebInjectAtDocumentStart ? WebCore::UserScriptInjectionTime::DocumentStart : WebCore::UserScriptInjectionTime::DocumentEnd, injectedFrames == WebInjectInAllFrames ? WebCore::UserContentInjectedFrames::InjectInAllFrames : WebCore::UserContentInjectedFrames::InjectInTopFrameOnly, WebCore::WaitForNotificationBeforeInjecting::No);
     viewGroup->userContentController().addUserScript(*core(world), WTFMove(userScript));
 }
 
@@ -4699,7 +4704,7 @@ static Vector<String> toStringVector(NSArray* patterns)
     if (!world)
         return;
 
-    auto styleSheet = makeUnique<WebCore::UserStyleSheet>(source, url, toStringVector(whitelist), toStringVector(blacklist), injectedFrames == WebInjectInAllFrames ? WebCore::InjectInAllFrames : WebCore::InjectInTopFrameOnly, WebCore::UserStyleUserLevel);
+    auto styleSheet = makeUnique<WebCore::UserStyleSheet>(source, url, toStringVector(whitelist), toStringVector(blacklist), injectedFrames == WebInjectInAllFrames ? WebCore::UserContentInjectedFrames::InjectInAllFrames : WebCore::UserContentInjectedFrames::InjectInTopFrameOnly, WebCore::UserStyleUserLevel);
     viewGroup->userContentController().addUserStyleSheet(*core(world), WTFMove(styleSheet), WebCore::InjectInExistingDocuments);
 }
 
@@ -9331,12 +9336,11 @@ bool LayerFlushController::flushLayers()
 
         // First exit Fullscreen for the old videoElement.
         [_private->fullscreenController videoElement]->exitFullscreen();
-        // This previous call has to trigger _exitFullscreen,
-        // which has to clear _private->fullscreenController.
-        ASSERT(!_private->fullscreenController);
+        _private->fullscreenControllersExiting.append(std::exchange(_private->fullscreenController, nil));
     }
+
     if (!_private->fullscreenController) {
-        _private->fullscreenController = [[WebVideoFullscreenController alloc] init];
+        _private->fullscreenController = adoptNS([[WebVideoFullscreenController alloc] init]);
         [_private->fullscreenController setVideoElement:videoElement];
 #if PLATFORM(IOS_FAMILY)
         [_private->fullscreenController enterFullscreen:(UIView *)[[[self window] hostLayer] delegate] mode:mode];
@@ -9350,11 +9354,21 @@ bool LayerFlushController::flushLayers()
 
 - (void)_exitVideoFullscreen
 {
-    if (!_private->fullscreenController)
+    if (!_private->fullscreenController && _private->fullscreenControllersExiting.isEmpty())
         return;
-    [_private->fullscreenController exitFullscreen];
-    [_private->fullscreenController release];
+
+    if (!_private->fullscreenControllersExiting.isEmpty()) {
+        auto controller = _private->fullscreenControllersExiting.first();
+        _private->fullscreenControllersExiting.remove(0);
+
+        [controller exitFullscreen];
+        return;
+    }
+
+    auto fullscreenController = _private->fullscreenController;
     _private->fullscreenController = nil;
+
+    [fullscreenController exitFullscreen];
 }
 
 #if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
@@ -10218,6 +10232,11 @@ static NSTextAlignment nsTextAlignmentFromRenderStyle(const WebCore::RenderStyle
 {
     if (auto* page = core(self))
         page->revealCurrentSelection();
+}
+
+- (void)_installVisualIdentificationOverlayForViewIfNeeded:(id)view kind:(NSString *)kind
+{
+    [WebViewVisualIdentificationOverlay installForWebViewIfNeeded:static_cast<UIView *>(view) kind:kind deprecated:YES];
 }
 
 @end

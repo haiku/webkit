@@ -1,3 +1,447 @@
+2020-04-06  Jack Lee  <shihchieh_lee@apple.com>
+
+        Nullptr crash in CompositeEditCommand::splitTreeToNode when inserting image in anchor element that has uneditable parent
+        https://bugs.webkit.org/show_bug.cgi?id=210004
+        <rdar://problem/61206583>
+
+        Reviewed by Ryosuke Niwa.
+
+        Added a regression test for the crash.
+
+        * editing/inserting/insert-img-anchor-uneditable-parent-expected.txt: Added.
+        * editing/inserting/insert-img-anchor-uneditable-parent.html: Added.
+
+2020-04-06  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Gardening EXIF orientation failure.
+
+        Unreviewed test gardening.
+
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-04-06  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] REGRESSION(r254389): fast/text/international/system-language/declarative-language.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=208023
+        <rdar://problem/59461792>
+
+        Reviewed by Simon Fraser.
+
+        minimizedLanguagesFromLanguages() is supposed to minimize the language list;
+        that's its whole raison d'être
+
+        * fast/text/international/system-language/declarative-language-expected.txt:
+        * fast/text/international/system-language/declarative-language.html:
+        * platform/mac/TestExpectations:
+
+2020-04-06  Jack Lee  <shihchieh_lee@apple.com>
+
+        Nullptr crash in WebCore::lastPositionInNode when indenting text node that has user-select:all parent.
+        https://bugs.webkit.org/show_bug.cgi?id=210016
+        <rdar://problem/61014577>
+
+        Reviewed by Ryosuke Niwa.
+
+        Added a regression test for the crash.
+
+        * fast/editing/indent-pre-user-select-all-crash-expected.txt: Added.
+        * fast/editing/indent-pre-user-select-all-crash.html: Added.
+
+2020-04-06  Jason Lawrence  <lawrence.j@apple.com>
+
+        [ Mac wk1 Debug ] inspector/debugger/evaluateOnCallFrame-errors.html is flaky failing.
+        https://bugs.webkit.org/show_bug.cgi?id=210079
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+
+2020-04-06  Jason Lawrence  <lawrence.j@apple.com>
+
+        storage/indexeddb/value-cursor-cycle.html is flaky failing because it incorrectly thinks our JS GC is precise.
+        https://bugs.webkit.org/show_bug.cgi?id=210046
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-04-06  Jack Lee  <shihchieh_lee@apple.com>
+
+        Nullptr crash in CompositeEditCommand::moveParagraphContentsToNewBlockIfNecessary with draggable text
+        https://bugs.webkit.org/show_bug.cgi?id=209999
+        <rdar://problem/58978340>
+
+        Reviewed by Ryosuke Niwa.
+
+        Added a regression test for the crash.
+
+        * fast/css/style-change-draggable-text-expected.txt: Added.
+        * fast/css/style-change-draggable-text.html: Added.
+
+2020-04-06  Jer Noble  <jer.noble@apple.com>
+
+        [ Mac wk2 ] http/tests/media/track-in-band-hls-metadata.html is flaky crashing.
+        https://bugs.webkit.org/show_bug.cgi?id=209490
+        <rdar://problem/60837555>
+
+        Reviewed by Darin Adler.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-04-06  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        [GTK][WPE] Re-enable WPT web-animations animation-types tests and updating baselines
+        https://bugs.webkit.org/show_bug.cgi?id=186139
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        These tests are no longer timing out, so this patch unflags them from TestExpectations.
+        Apart from that the -expected.txt baselines are updated too.
+
+        * platform/gtk/TestExpectations:
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-expected.txt:
+        * platform/wpe/TestExpectations:
+        * platform/wpe/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-expected.txt:
+
+
+2020-04-06  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r259469.
+        https://bugs.webkit.org/show_bug.cgi?id=210066
+
+        Introduced media playback regression (Requested by perarne on
+        #webkit).
+
+        Reverted changeset:
+
+        "[iOS] Deny mach lookup access to the runningboard service in
+        the WebContent process"
+        https://bugs.webkit.org/show_bug.cgi?id=209933
+        https://trac.webkit.org/changeset/259469
+
+2020-04-06  Jacob Uphoff  <jacob_uphoff@apple.com>
+
+        [ macOS ] inspector/debugger/break-in-constructor-before-super.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=210062
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-04-06  Antti Koivisto  <antti@apple.com>
+
+        'currentcolor' doesn't need setHasExplicitlyInheritedProperties marking anymore
+        https://bugs.webkit.org/show_bug.cgi?id=210017
+
+        Reviewed by Darin Adler.
+
+        * fast/css/currentColor-initial-style-update-expected.txt: Added.
+        * fast/css/currentColor-initial-style-update.html: Added.
+
+2020-04-06  Cathie Chen  <cathiechen@igalia.com>
+
+        The change of zoom shouldn't affect ResizeObserverSize
+        https://bugs.webkit.org/show_bug.cgi?id=209947
+
+        Reviewed by Simon Fraser.
+
+        Add test for resizeObserver with zoom. The ResizeObserverSize shouldn't be effected by zooms.
+
+        * resize-observer/resize-observer-with-zoom-expected.txt: Added.
+        * resize-observer/resize-observer-with-zoom.html: Added.
+
+2020-04-04  Darin Adler  <darin@apple.com>
+
+        Stop using live ranges in DocumentMarkerController
+        https://bugs.webkit.org/show_bug.cgi?id=209985
+
+        Reviewed by Antti Koivisto.
+
+        * fast/scrolling/scrollbar-tickmarks-hittest-expected.txt: Removed.
+        * fast/scrolling/scrollbar-tickmarks-hittest.html: Removed.
+        * fast/scrolling/scrollbar-tickmarks-styled-expected.txt: Removed.
+        * fast/scrolling/scrollbar-tickmarks-styled.html: Removed.
+        * platform/gtk/fast/scrolling/scrollbar-tickmarks-styled-expected.png: Removed.
+        * platform/ios/TestExpectations: Removed expectation for scrollbar-tickmarks.
+        These were Chromium-specific tests.
+
+        * platform/mac-wk1/TestExpectations: Updated to expect flakiness instead of
+        repeatable failures for tests that passed locally.
+        * platform/mac/TestExpectations: Ditto.
+
+2020-04-06  Jacob Uphoff  <jacob_uphoff@apple.com>
+
+        [ macOS debug ] REGRESSION (r259463): http/tests/media/clearkey/collect-webkit-media-session.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=209989
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+        * platform/mac-wk2/TestExpectations:
+
+2020-04-06  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        CanvasRenderingContext2D.drawImage should ignore the EXIF orientation if the image-orientation is none
+        https://bugs.webkit.org/show_bug.cgi?id=209849
+
+        Reviewed by Darin Adler.
+
+        * fast/images/image-orientation-none-canvas-expected.html: Added.
+        * fast/images/image-orientation-none-canvas.html: Added.
+
+2020-04-05  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        Computed style for "outline-offset" is wrong when "outline-style" is "none"
+        https://bugs.webkit.org/show_bug.cgi?id=209913
+
+        Reviewed by Daniel Bates.
+
+        Update baselines for web-animations tests.
+
+        * platform/ios/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property-expected.txt:
+        * platform/ios/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/addition-per-property-expected.txt:
+        * platform/ios/imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property-expected.txt:
+
+2020-04-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Octal escapes should be max 3 digits and syntax errors in Unicode patterns
+        https://bugs.webkit.org/show_bug.cgi?id=167067
+
+        Reviewed by Ross Kirsling.
+
+        * fast/regex/script-tests/pcre-test-1.js:
+        * js/regexp-unicode-expected.txt:
+        * js/script-tests/regexp-unicode.js:
+
+2020-04-04  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK] Update test baseline after r259438 and garden crashes
+
+        Unreviewed test gardening.
+
+        * platform/gtk/TestExpectations:
+        * platform/gtk/accessibility/menu-list-sends-change-notification-expected.txt:
+
+2020-04-04  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        '\u' should throw an early SyntaxError exception, but instead evaluates to 'u'
+        https://bugs.webkit.org/show_bug.cgi?id=198790
+
+        Reviewed by Yusuke Suzuki.
+
+        * js/script-tests/unicode-escape-sequences.js:
+        * js/unicode-escape-sequences-expected.txt:
+
+2020-04-04  Antti Koivisto  <antti@apple.com>
+
+        Implement the css-color-4 behavior for inheritance of currentColor
+        https://bugs.webkit.org/show_bug.cgi?id=193171
+        <rdar://problem/47287516>
+
+        Reviewed by Simon Fraser.
+
+        * TestExpectations:
+        * fast/borders/border-color-inherit-expected.html: Copied from LayoutTests/fast/borders/border-color-inherit.html.
+        * fast/borders/border-color-inherit.html:
+
+        Fix for the new behavior and make it a reftest.
+
+        * fast/css/webkit-text-fill-color-inherit.html:
+        * platform/gtk/fast/borders/border-color-inherit-expected.png: Removed.
+        * platform/gtk/fast/borders/border-color-inherit-expected.txt: Removed.
+        * platform/ios/fast/borders/border-color-inherit-expected.txt: Removed.
+        * platform/mac/fast/borders/border-color-inherit-expected.png: Removed.
+        * platform/mac/fast/borders/border-color-inherit-expected.txt: Removed.
+        * platform/win/fast/borders/border-color-inherit-expected.txt: Removed.
+        * platform/wincairo/fast/borders/border-color-inherit-expected.txt: Removed.
+        * platform/wpe/fast/borders/border-color-inherit-expected.txt: Removed.
+
+2020-04-04  Peng Liu  <peng.liu6@apple.com>
+
+        REGRESSION (r259095): ASSERTION FAILED: m_videoFullscreenMode != VideoFullscreenModeNone seen with TestWebKitAPI.WebKitLegacy.AudioSessionCategoryIOS
+        https://bugs.webkit.org/show_bug.cgi?id=209680
+
+        Reviewed by Jer Noble.
+
+        Remove the crashing expectation for media/media-fullscreen-return-to-inline.html
+
+        * platform/mac/TestExpectations:
+
+2020-04-03  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r259440.
+
+        Introduced 2 failing tests on Mac and iOS
+
+        Reverted changeset:
+
+        "Add SPI to configure WebsiteDataStores with a URL for
+        standalone web applications and use it to disable first-party
+        website data removal in ITP"
+        https://bugs.webkit.org/show_bug.cgi?id=209634
+        https://trac.webkit.org/changeset/259440
+
+2020-04-03  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Move Intl tests from LayoutTests to JSTests
+        https://bugs.webkit.org/show_bug.cgi?id=209922
+
+        Reviewed by Yusuke Suzuki.
+
+        * js/array-toLocaleString-expected.txt: Removed.
+        * js/array-toLocaleString.html: Removed.
+        * js/date-toLocaleString-expected.txt: Removed.
+        * js/date-toLocaleString.html: Removed.
+        * js/intl-collator-expected.txt: Removed.
+        * js/intl-collator.html: Removed.
+        * js/intl-datetimeformat-expected.txt: Removed.
+        * js/intl-datetimeformat.html: Removed.
+        * js/intl-default-locale-expected.txt: Removed.
+        * js/intl-default-locale.html: Removed.
+        * js/intl-expected.txt: Removed.
+        * js/intl-numberformat-expected.txt: Removed.
+        * js/intl-numberformat-format-to-parts-expected.txt: Removed.
+        * js/intl-numberformat-format-to-parts.html: Removed.
+        * js/intl-numberformat.html: Removed.
+        * js/intl-pluralrules-expected.txt: Removed.
+        * js/intl-pluralrules.html: Removed.
+        * js/intl.html: Removed.
+        * js/number-toLocaleString-expected.txt: Removed.
+        * js/number-toLocaleString.html: Removed.
+        * js/script-tests/array-toLocaleString.js: Removed.
+        * js/script-tests/date-toLocaleString.js: Removed.
+        * js/script-tests/intl-collator.js: Removed.
+        * js/script-tests/intl-datetimeformat.js: Removed.
+        * js/script-tests/intl-numberformat-format-to-parts.js: Removed.
+        * js/script-tests/intl-numberformat.js: Removed.
+        * js/script-tests/intl-pluralrules.js: Removed.
+        * js/script-tests/intl.js: Removed.
+        * js/script-tests/number-toLocaleString.js: Removed.
+        * js/script-tests/string-localeCompare.js: Removed.
+        * js/script-tests/string-toLocaleLowerCase.js: Removed.
+        * js/script-tests/string-toLocaleUpperCase.js: Removed.
+        * js/string-localeCompare-expected.txt: Removed.
+        * js/string-localeCompare.html: Removed.
+        * js/string-toLocaleLowerCase-expected.txt: Removed.
+        * js/string-toLocaleLowerCase.html: Removed.
+        * js/string-toLocaleUpperCase-expected.txt: Removed.
+        * js/string-toLocaleUpperCase.html: Removed.
+        * platform/ios-simulator/TestExpectations: Removed expectations.
+        * platform/ios/TestExpectations: Removed expectations.
+        * platform/mac/TestExpectations: Removed expectations.
+        * platform/win/TestExpectations: Removed expectations.
+
+2020-04-03  Eric Carlson  <eric.carlson@apple.com>
+
+        Filter some capture device names
+        https://bugs.webkit.org/show_bug.cgi?id=209941
+        <rdar://problem/59141886>
+
+        Reviewed by Youenn Fablet.
+
+        * fast/mediastream/anonymize-device-name-expected.txt: Added.
+        * fast/mediastream/anonymize-device-name.html: Added.
+
+2020-04-03  Per Arne Vollan  <pvollan@apple.com>
+
+        [iOS] Deny mach lookup access to the runningboard service in the WebContent process
+        https://bugs.webkit.org/show_bug.cgi?id=209933
+
+        Reviewed by Brent Fulgham.
+
+        * fast/sandbox/ios/sandbox-mach-lookup-expected.txt:
+        * fast/sandbox/ios/sandbox-mach-lookup.html:
+
+2020-04-03  Sihui Liu  <sihui_liu@apple.com>
+
+        Flaky Test: storage/indexeddb/cursor-request-cycle.html
+        https://bugs.webkit.org/show_bug.cgi?id=209796
+        <rdar://problem/60171737>
+
+        Reviewed by Geoffrey Garen.
+
+        gc() does not guarantee all objects to be collected in our current implementation. So, instead of verifying all
+        cursor and request objects are released, we now only check if any of them is collected, which is enough to show
+        there is no ref cycle.
+
+        * storage/indexeddb/cursor-request-cycle-expected.txt:
+        * storage/indexeddb/cursor-request-cycle-private-expected.txt:
+        * storage/indexeddb/resources/cursor-request-cycle.js:
+        (checkCursor):
+        (isAnyCollected):
+        (onOpen.otherRequest.onsuccess.otherRequestSuccess.finalRequest.onsuccess):
+        (onOpen.otherRequest.onsuccess):
+        (onOpen):
+        (onOpen.cursorRequest.onsuccess): Deleted.
+        (onOpen.otherRequest.onsuccess.otherRequestSuccess.cursorRequest.onsuccess): Deleted.
+
+2020-04-03  Zalan Bujtas  <zalan@apple.com>
+
+        [MultiColumn] Infinite loop in RenderBlockFlow::pushToNextPageWithMinimumLogicalHeight
+        https://bugs.webkit.org/show_bug.cgi?id=209948
+        <rdar://problem/59331899>
+
+        Reviewed by Antti Koivisto.
+
+        * fast/multicol/infinite-loop-with-unbalanced-column-expected.txt: Added.
+        * fast/multicol/infinite-loop-with-unbalanced-column.html: Added.
+
+2020-04-03  youenn fablet  <youenn@apple.com>
+
+        Add initial support for WebRTC HEVC
+        https://bugs.webkit.org/show_bug.cgi?id=204283
+
+        Reviewed by Eric Carlson.
+
+        * TestExpectations:
+        * webrtc/h265-expected.txt: Added.
+        * webrtc/h265.html: Added.
+
+2020-04-02  John Wilander  <wilander@apple.com>
+
+        Add SPI to configure WebsiteDataStores with a URL for standalone web applications and use it to disable first-party website data removal in ITP
+        https://bugs.webkit.org/show_bug.cgi?id=209634
+        <rdar://problem/60943970>
+
+        Reviewed by Alex Christensen.
+
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database-expected.txt: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database.html: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-expected.txt: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion.html: Added.
+
+2020-04-02  John Wilander  <wilander@apple.com>
+
+        Rebase expectation files for anchor tag tests with line number output
+        https://bugs.webkit.org/show_bug.cgi?id=209945
+        <rdar://problem/61237662>
+
+        Unreviewed test gardening.
+
+        * http/tests/adClickAttribution/anchor-tag-attributes-validation-expected.txt:
+            Rebased since the lines of the console output have changed.
+        * http/tests/security/anchor-download-block-crossorigin-expected.txt:
+            Rebased since the lines of the console output have changed.
+
+2020-04-02  Andres Gonzalez  <andresg_22@apple.com>
+
+        Crash in RenderMenuList::didUpdateActiveOption.
+        https://bugs.webkit.org/show_bug.cgi?id=208867
+        <rdar://problem/60035390>
+
+        Reviewed by Chris Fleizach.
+
+        Enabled accessibility/menu-list-sends-change-notification.html test
+        and added the expected.txt file for it.
+
+        * accessibility/menu-list-sends-change-notification-expected.txt: Added.
+        * accessibility/menu-list-sends-change-notification.html:
+
 2020-04-02  Said Abou-Hallawa  <sabouhallawa@apple.com>
 
         [ iOS wk2 ] fast/images/exif-orientation-background-image-repeat.html is flaky failing.

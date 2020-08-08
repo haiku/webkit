@@ -77,6 +77,7 @@
 #include "XMLNSNames.h"
 #include "XMLNames.h"
 #include <JavaScriptCore/HeapInlines.h>
+#include <wtf/HexNumber.h>
 #include <wtf/IsoMallocInlines.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/SHA1.h>
@@ -1751,6 +1752,13 @@ FloatPoint Node::convertFromPage(const FloatPoint& p) const
     return p;
 }
 
+String Node::debugDescription() const
+{
+    StringBuilder builder;
+    builder.append(nodeName(), " 0x"_s, hex(reinterpret_cast<uintptr_t>(this), Lowercase));
+    return builder.toString();
+}
+
 #if ENABLE(TREE_DEBUGGING)
 
 static void appendAttributeDesc(const Node* node, StringBuilder& stringBuilder, const QualifiedName& name, const char* attrDesc)
@@ -2619,15 +2627,7 @@ void* Node::opaqueRootSlow() const
 
 TextStream& operator<<(TextStream& ts, const Node& node)
 {
-#if ENABLE(TREE_DEBUGGING)
-    const size_t FormatBufferSize = 512;
-    char s[FormatBufferSize];
-    node.formatForDebugger(s, FormatBufferSize);
-    ts << "node " << &node << " " << s;
-#else
-    ts << "node " << &node << " " << node.nodeName();
-#endif
-
+    ts << "node " << &node << " " << node.debugDescription();
     return ts;
 }
 

@@ -1389,15 +1389,7 @@ IntRect Element::boundsInRootViewSpace()
             renderBoxModelObject()->absoluteQuads(quads);
     }
 
-    if (quads.isEmpty())
-        return IntRect();
-
-    IntRect result = quads[0].enclosingBoundingBox();
-    for (size_t i = 1; i < quads.size(); ++i)
-        result.unite(quads[i].enclosingBoundingBox());
-
-    result = view->contentsToRootView(result);
-    return result;
+    return view->contentsToRootView(enclosingIntRect(unitedBoundingBoxes(quads)));
 }
 
 static bool layoutOverflowRectContainsAllDescendants(const RenderBox& renderBox)
@@ -1464,11 +1456,7 @@ LayoutRect Element::absoluteEventBounds(bool& boundsIncludeAllDescendantElements
                 Vector<FloatQuad> quads;
                 FloatRect localRect(0, 0, box.width(), box.height());
                 if (fragmentedFlow->absoluteQuadsForBox(quads, &wasFixed, &box, localRect.y(), localRect.maxY())) {
-                    FloatRect quadBounds = quads[0].boundingBox();
-                    for (size_t i = 1; i < quads.size(); ++i)
-                        quadBounds.unite(quads[i].boundingBox());
-                    
-                    result = LayoutRect(quadBounds);
+                    result = LayoutRect(unitedBoundingBoxes(quads));
                     computedBounds = true;
                 } else {
                     // Probably columns. Just return the bounds of the multicol block for now.
@@ -1603,11 +1591,7 @@ Optional<std::pair<RenderObject*, FloatRect>> Element::boundingAbsoluteRectWitho
     if (quads.isEmpty())
         return WTF::nullopt;
 
-    FloatRect result = quads[0].boundingBox();
-    for (size_t i = 1; i < quads.size(); ++i)
-        result.unite(quads[i].boundingBox());
-
-    return std::make_pair(renderer, result);
+    return std::make_pair(renderer, unitedBoundingBoxes(quads));
 }
 
 FloatRect Element::boundingClientRect()
@@ -2639,6 +2623,38 @@ void Element::finishParsingChildren()
     ContainerNode::finishParsingChildren();
     setIsParsingChildrenFinished();
     checkForSiblingStyleChanges(*this, FinishedParsingChildren, ElementTraversal::lastChild(*this), nullptr);
+}
+
+String Element::debugDescription() const
+{
+    StringBuilder builder;
+
+    builder.append(ContainerNode::debugDescription());
+
+    if (hasID())
+        builder.append(" id=\'", getIdAttribute(), '\'');
+
+    if (hasClass()) {
+        builder.appendLiteral(" class=\'");
+        size_t classNamesToDump = classNames().size();
+        constexpr size_t maxNumClassNames = 7;
+        bool addEllipsis = false;
+        if (classNamesToDump > maxNumClassNames) {
+            classNamesToDump = maxNumClassNames;
+            addEllipsis = true;
+        }
+        
+        for (size_t i = 0; i < classNamesToDump; ++i) {
+            if (i > 0)
+                builder.append(' ');
+            builder.append(classNames()[i]);
+        }
+        if (addEllipsis)
+            builder.append(" ...");
+        builder.append('\'');
+    }
+
+    return builder.toString();
 }
 
 #if ENABLE(TREE_DEBUGGING)
@@ -4515,19 +4531,11 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(Optional<GetAnimationsOption
     // animations targeting that are not registered on this element, one of its pseudo elements or a child's
     // pseudo element.
     if (options && options->subtree) {
-        Vector<RefPtr<WebAnimation>> animations;
-        for (auto& animation : document().getAnimations()) {
-            auto* effect = animation->effect();
-            ASSERT(is<KeyframeEffect>(animation->effect()));
-            auto* target = downcast<KeyframeEffect>(*effect).target();
-            ASSERT(target);
-            if (is<PseudoElement>(target)) {
-                if (contains(downcast<PseudoElement>(*target).hostElement()))
-                    animations.append(animation);
-            } else if (contains(target))
-                animations.append(animation);
-        }
-        return animations;
+        return document().matchingAnimations([&] (Element& target) -> bool {
+            if (is<PseudoElement>(target))
+                return contains(downcast<PseudoElement>(target).hostElement());
+            return contains(&target);
+        });
     }
 
     // For the list of animations to be current, we need to account for any pending CSS changes,

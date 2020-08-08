@@ -1,3 +1,250 @@
+2020-04-06  Rick Waldron  <waldron.rick@gmail.com> and Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove unnecessary Test262 harness file and implement $262.IsHTMLDDA
+        https://bugs.webkit.org/show_bug.cgi?id=187526
+
+        Reviewed by Darin Adler.
+
+        * stress/optional-chaining.js: Adjust test for callable masquerader.
+
+2020-04-06  Justin Michaud  <justin_michaud@apple.com>
+
+        Allow deleteById to be cached in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=208664
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/delete-property-allocation-sinking.js: Added.
+        (assert):
+        (noInline.assert.blackbox):
+        (noInline.blackbox.doAlloc1):
+        (noInline.doAlloc1):
+        * microbenchmarks/polyvariant-delete-property.js: Added.
+        (assert):
+        (blackbox):
+        (noInline.blackbox.polyvariant):
+        (doAlloc1):
+        (noInline.doAlloc1.doAlloc2):
+        (noInline.doAlloc2):
+        * stress/delete-property-dfg-inline.js: Added.
+        (assert):
+        (noInline.assert.assert_throws):
+        (noInline.assert_throws.blackbox):
+        (noInline.blackbox.testSingleStructure.doAlloc1):
+        (noInline.blackbox.testSingleStructure):
+        (noInline.testSingleStructure.testInlineSingleStructure.doDelete2):
+        (noInline.testSingleStructure.testInlineSingleStructure.doAlloc2):
+        (noInline.testSingleStructure.testInlineSingleStructure):
+        (noInline.testInlineSingleStructure.testExit.doDelete3):
+        (noInline.testInlineSingleStructure.testExit):
+        (noInline.testExit.testSingleStructureMiss.doAlloc4):
+        (noInline.testExit.testSingleStructureMiss):
+        (noInline.testSingleStructureMiss.testSingleStructureMissStrict.string_appeared_here.doAlloc5):
+        (noInline.testSingleStructureMiss.testSingleStructureMissStrict):
+        (noInline.testSingleStructureMissStrict.testSingleStructureMissNonConfigurable.doAlloc6):
+        (noInline.testSingleStructureMissStrict.testSingleStructureMissNonConfigurable):
+        (noInline.testSingleStructureMissNonConfigurable.testSingleStructureEmpty.doAlloc7):
+        (noInline.testSingleStructureMissNonConfigurable.testSingleStructureEmpty):
+        (noInline.testSingleStructureEmpty.testPolymorphic.doDelete8):
+        (noInline.testSingleStructureEmpty.testPolymorphic):
+        (noInline.testPolymorphic.testPolyvariant.doDelete9):
+        (noInline.testPolymorphic.testPolyvariant.polyvariant):
+        (noInline.testPolymorphic.testPolyvariant):
+        (noInline.testPolyvariant.testConstantFolding.doDelete10):
+        (noInline.testPolyvariant.testConstantFolding):
+        (noInline.testConstantFolding.testObjectSinking.doAlloc11):
+        (noInline.testConstantFolding.testObjectSinking):
+        (noInline.testObjectSinking.testProxy.doAlloc12):
+        (noInline.testObjectSinking.testProxy.noInline.doDelete12):
+        (noInline.testObjectSinking.testProxy):
+        (noInline.testProxy.testTypedArray.doDelete12):
+        (noInline.testProxy.testTypedArray):
+        (noInline.testTypedArray.testMissMixed.doDelete13):
+        (noInline.testTypedArray.testMissMixed):
+        (noInline.testMissMixed.testMissNonMixed.doDelete14):
+        (noInline.testMissMixed.testMissNonMixed):
+        (noInline.testMissNonMixed.testByVal.doDelete15):
+        (noInline.testMissNonMixed.testByVal):
+
+2020-04-06  Saam Barati  <sbarati@apple.com>
+
+        Implement 1GB of executable memory on arm64
+        https://bugs.webkit.org/show_bug.cgi?id=208490
+        <rdar://problem/60797127>
+
+        Reviewed by Keith Miller.
+
+        Run JetStream2 wasm tests.
+
+        * wasm.yaml:
+        * wasm/lowExecutableMemory/executable-memory-oom.js:
+
+2020-04-06  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Since ArrayBufferViewWatchpointAdaptor::add can fire watchpoints, DFG::Plan should check validity of CodeBlock after executing reallyAdd
+        https://bugs.webkit.org/show_bug.cgi?id=210055
+        <rdar://problem/61331962>
+
+        Reviewed by Keith Miller.
+
+        * stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js: Added.
+        (xxx.foo):
+
+2020-04-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        JSC shell shouldn't treat NUL as a terminator when printing a JS string
+        https://bugs.webkit.org/show_bug.cgi?id=210037
+
+        Reviewed by Darin Adler.
+
+        * .gitattributes:
+        * ChakraCore.yaml:
+        * ChakraCore/test/es5/hasItem.baseline-jsc: Added.
+        Update baseline and mark it diffable (as plaintext) in spite of containing \0.
+
+2020-04-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Octal escapes should be max 3 digits and syntax errors in Unicode patterns
+        https://bugs.webkit.org/show_bug.cgi?id=167067
+
+        Reviewed by Ross Kirsling.
+
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-04-04  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        '\u' should throw an early SyntaxError exception, but instead evaluates to 'u'
+        https://bugs.webkit.org/show_bug.cgi?id=198790
+
+        Reviewed by Yusuke Suzuki.
+
+        * mozilla/ecma/Array/15.4.5.1-1.js:
+        * mozilla/ecma/LexicalConventions/7.7.4.js:
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-04-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, skip stress/typed-array-subarray-can-throw-oom-error.js on memory-limited archs, and mark it slow
+        https://bugs.webkit.org/show_bug.cgi?id=209974
+
+        * stress/typed-array-subarray-can-throw-oom-error.js:
+
+2020-04-04  Mark Lam  <mark.lam@apple.com>
+
+        Gardening: skip test for ARMv7 and MIPS to green the bots until the failure can be investigated.
+        https://bugs.webkit.org/show_bug.cgi?id=210003
+
+        Not reviewed.
+
+        * stress/typed-array-subarray-can-throw-oom-error.js:
+
+2020-04-03  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Update test262 to commit 62b8fce38971
+        https://bugs.webkit.org/show_bug.cgi?id=209979
+
+        Reviewed by Ross Kirsling.
+
+        * .gitattributes: Added.
+        * test262/config.yaml: Skip "logical-assignment-operators" and "Promise.any" features.
+        * test262/expectations.yaml:
+        * test262/harness/*: Updated.
+        * test262/latest-changes-summary.txt:
+        * test262/test/*: Updated.
+        * test262/test262-Revision.txt:
+
+2020-04-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] canonicalizeLocaleList should gracefully throw OOM error if input + error message is too large
+        https://bugs.webkit.org/show_bug.cgi?id=209971
+        <rdar://problem/61258621>
+
+        Reviewed by Mark Lam.
+
+        * stress/intl-canonicalize-locale-list-error-oom.js: Added.
+        (shouldThrow):
+
+2020-04-03  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Move Intl tests from LayoutTests to JSTests
+        https://bugs.webkit.org/show_bug.cgi?id=209922
+
+        Reviewed by Yusuke Suzuki.
+
+        Intl doesn't depend on WebCore, so these tests shouldn't be layout tests.
+        (They do, however, require one method to be added to $vm.)
+
+        Since LayoutTests/js has its own test harness, I've also migrated each test case to use simpler assertions.
+
+        * stress/array-to-locale-string.js: Removed -- subsumed by the following test.
+        * stress/array-toLocaleString.js: Added.
+        * stress/date-toLocaleString.js: Added.
+        * stress/intl-collator.js: Added.
+        * stress/intl-datetimeformat.js: Added.
+        * stress/intl-default-locale.js: Added.
+        * stress/intl-numberformat-format-to-parts.js: Added.
+        * stress/intl-numberformat.js: Added.
+        * stress/intl-object.js: Added.
+        * stress/intl-pluralrules.js: Added.
+        * stress/number-toLocaleString.js: Added.
+        * stress/string-localeCompare.js: Added.
+        * stress/string-toLocaleLowerCase.js: Added.
+        * stress/string-toLocaleUpperCase.js: Added.
+
+2020-04-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] TypedArray#subarray should throw OOM error gracefully
+        https://bugs.webkit.org/show_bug.cgi?id=209974
+        <rdar://problem/61253901>
+
+        Reviewed by Mark Lam.
+
+        * stress/typed-array-subarray-can-throw-oom-error.js: Added.
+        (foo):
+        (canThrow):
+        (bar):
+        (get bar):
+
+2020-04-03  Paulo Matos  <pmatos@igalia.com>
+
+        Re-enable previously skipped arm tests
+        https://bugs.webkit.org/show_bug.cgi?id=209958
+
+        Reviewed by Adrian Perez de Castro.
+
+        In the past year, some arm tests were skipped to keep the bots green.
+        All known issues affecting these tests were fixed and now can be unskipped.
+
+        * stress/JSArrayBufferView-byteOffset-is-racy-from-compiler-thread.js:
+        * stress/dont-range-based-iterate-vector-that-is-mutated.js:
+        * stress/generator-cell-with-type.js:
+        * stress/incremental-marking-should-not-dead-lock-in-new-property-transition.js:
+        * stress/racy-slow-put-cloned-arguments-when-having-a-bad-time.js:
+        * stress/sampling-profiler-should-not-sample-beyond-stack-bounds.js:
+        * stress/symbol-is-destructed-before-refing-underlying-symbol-impl.js:
+        * stress/toctou-having-a-bad-time-new-array.js:
+
+2020-04-03  Paulo Matos  <pmatos@igalia.com>
+
+        stress/ftl-gettypedarrayoffset-wasteful.js times out on arm/linux
+        https://bugs.webkit.org/show_bug.cgi?id=198754
+
+        Reviewed by Žan Doberšek.
+
+        Unskip test.
+
+        * stress/ftl-gettypedarrayoffset-wasteful.js:
+
+2020-04-02  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        TypedArray's [[DefineOwnProperty]] is incorrect with partial descriptors
+        https://bugs.webkit.org/show_bug.cgi?id=188875
+
+        Reviewed by Ross Kirsling.
+
+        * stress/typedarray-configure-index.js:
+        * test262/expectations.yaml: Mark 10 test cases as passing.
+
 2020-04-01  Ross Kirsling  <ross.kirsling@sony.com>
 
         Intl.NumberFormat.prototype.format must preserve sign of -0

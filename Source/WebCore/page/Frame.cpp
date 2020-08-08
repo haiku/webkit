@@ -103,6 +103,7 @@
 #include "npruntime_impl.h"
 #include "runtime_root.h"
 #include <JavaScriptCore/RegularExpression.h>
+#include <wtf/HexNumber.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuilder.h>
@@ -619,9 +620,14 @@ void Frame::injectUserScripts(UserScriptInjectionTime injectionTime)
     if (loader().stateMachine().creatingInitialEmptyDocument() && !settings().shouldInjectUserScriptsInInitialEmptyDocument())
         return;
 
-    m_page->userContentProvider().forEachUserScript([this, protectedThis = makeRef(*this), injectionTime](DOMWrapperWorld& world, const UserScript& script) {
-        if (script.injectionTime() == injectionTime)
-            injectUserScriptImmediately(world, script);
+    bool pageWasNotified = m_page->hasBeenNotifiedToInjectUserScripts();
+    m_page->userContentProvider().forEachUserScript([this, protectedThis = makeRef(*this), injectionTime, pageWasNotified] (DOMWrapperWorld& world, const UserScript& script) {
+        if (script.injectionTime() == injectionTime) {
+            if (script.waitForNotificationBeforeInjecting() == WaitForNotificationBeforeInjecting::Yes && !pageWasNotified)
+                m_page->addUserScriptAwaitingNotification(world, script);
+            else
+                injectUserScriptImmediately(world, script);
+        }
     });
 }
 
@@ -637,7 +643,7 @@ void Frame::injectUserScriptImmediately(DOMWrapperWorld& world, const UserScript
     auto* document = this->document();
     if (!document)
         return;
-    if (script.injectedFrames() == InjectInTopFrameOnly && !isMainFrame())
+    if (script.injectedFrames() == UserContentInjectedFrames::InjectInTopFrameOnly && !isMainFrame())
         return;
     if (!UserContentURLPattern::matchesPatterns(document->url(), script.whitelist(), script.blacklist()))
         return;
@@ -1053,9 +1059,23 @@ void Frame::selfOnlyDeref()
     deref();
 }
 
+String Frame::debugDescription() const
+{
+    StringBuilder builder;
+
+    builder.append("Frame 0x"_s, hex(reinterpret_cast<uintptr_t>(this), Lowercase));
+    if (isMainFrame())
+        builder.append(" (main frame)"_s);
+
+    if (auto document = this->document())
+        builder.append(' ', document->documentURI());
+    
+    return builder.toString();
+}
+
 TextStream& operator<<(TextStream& ts, const Frame& frame)
 {
-    ts << "Frame " << &frame << " view " << frame.view() << " (is main frame " << frame.isMainFrame() << ") " << (frame.document() ? frame.document()->documentURI() : emptyString());
+    ts << frame.debugDescription();
     return ts;
 }
 

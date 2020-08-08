@@ -2007,16 +2007,11 @@ bool JSObject::deleteProperty(JSCell* cell, JSGlobalObject* globalObject, Proper
 
         PropertyOffset offset = invalidOffset;
         if (structure->isUncacheableDictionary())
-            offset = structure->removePropertyWithoutTransition(vm, propertyName, [](const GCSafeConcurrentJSCellLocker&, PropertyOffset, PropertyOffset) { });
+            offset = structure->removePropertyWithoutTransition(vm, propertyName, [] (const GCSafeConcurrentJSLocker&, PropertyOffset, PropertyOffset) { });
         else {
             structure = Structure::removePropertyTransition(vm, structure, propertyName, offset, &deferredWatchpointFire);
             slot.setHit(offset);
-            if (!structure->outOfLineCapacity() && thisObject->structure(vm)->outOfLineCapacity() && !structure->hasIndexingHeader(thisObject)) {
-                ASSERT(thisObject->m_butterfly);
-                thisObject->nukeStructureAndSetButterfly(vm, thisObject->structureID(), nullptr);
-                offset = invalidOffset;
-                ASSERT(structure->maxOffset() == invalidOffset);
-            }
+            ASSERT(structure->outOfLineCapacity() || !thisObject->structure(vm)->outOfLineCapacity());
             thisObject->setStructure(vm, structure);
         }
 
@@ -3776,7 +3771,7 @@ void JSObject::convertToDictionary(VM& vm)
         vm, Structure::toCacheableDictionaryTransition(vm, structure(vm), &deferredWatchpointFire));
 }
 
-void JSObject::shiftButterflyAfterFlattening(const GCSafeConcurrentJSCellLocker&, VM& vm, Structure* structure, size_t outOfLineCapacityAfter)
+void JSObject::shiftButterflyAfterFlattening(const GCSafeConcurrentJSLocker&, VM& vm, Structure* structure, size_t outOfLineCapacityAfter)
 {
     // This could interleave visitChildren because some old structure could have been a non
     // dictionary structure. We have to be crazy careful. But, we are guaranteed to be holding

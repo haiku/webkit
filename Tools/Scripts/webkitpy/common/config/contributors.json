@@ -2641,6 +2641,15 @@
          "jamesr"
       ]
    },
+   "James Savage" : {
+      "emails" : [
+         "james.savage@apple.com"
+      ],
+      "nicks" : [
+         "axiixc"
+      ],
+      "status" : "committer"
+   },
    "James Simonsen" : {
       "emails" : [
          "simonjam@chromium.org"
@@ -3354,7 +3363,8 @@
       "nicks" : [
          "kbr_google",
          "kbrgg"
-      ]
+      ],
+      "status" : "committer"
    },
    "Kent Hansen" : {
       "emails" : [

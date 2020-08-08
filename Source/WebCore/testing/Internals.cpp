@@ -553,7 +553,7 @@ void Internals::resetToConsistentState(Page& page)
     auto& rtcProvider = page.libWebRTCProvider();
     WebCore::useRealRTCPeerConnectionFactory(rtcProvider);
     rtcProvider.disableNonLocalhostConnections();
-    RuntimeEnabledFeatures::sharedFeatures().setWebRTCVP8CodecEnabled(true);
+    RuntimeEnabledFeatures::sharedFeatures().setWebRTCH265CodecEnabled(true);
     page.settings().setWebRTCEncryptionEnabled(true);
 #endif
 
@@ -1753,12 +1753,6 @@ ExceptionOr<String> Internals::dumpMarkerRects(const String& markerTypeString)
     for (const auto& rect : rects)
         rectString.append('(', rect.x(), ", ", rect.y(), ", ", FormattedNumber::fixedPrecision(rect.width()), ", ", rect.height(), ") ");
     return rectString.toString();
-}
-
-void Internals::addTextMatchMarker(const Range& range, bool isActive)
-{
-    range.ownerDocument().updateLayoutIgnorePendingStylesheets();
-    range.ownerDocument().markers().addTextMatchMarker(range, isActive);
 }
 
 ExceptionOr<void> Internals::setMarkedTextMatchesAreHighlighted(bool flag)

@@ -529,6 +529,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #endif
 
     pageConfiguration.corsDisablingPatterns = WTFMove(parameters.corsDisablingPatterns);
+    pageConfiguration.userScriptsShouldWaitUntilNotification = parameters.userScriptsShouldWaitUntilNotification;
     pageConfiguration.loadsSubresources = parameters.loadsSubresources;
     pageConfiguration.loadsFromNetwork = parameters.loadsFromNetwork;
 
@@ -3665,6 +3666,10 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     if (m_drawingArea)
         m_drawingArea->updatePreferences(store);
 
+#if USE(LIBWEBRTC)
+    m_page->libWebRTCProvider().supportsH265(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
+#endif
+
 #if ENABLE(GPU_PROCESS)
     // FIXME: useGPUProcessForMedia should be a RuntimeEnabledFeature since it's global.
     static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMedia());
@@ -6280,6 +6285,14 @@ void WebPage::updateWebsitePolicies(WebsitePoliciesData&& websitePolicies)
 #endif
 }
 
+void WebPage::notifyUserScripts()
+{
+    if (!m_page)
+        return;
+
+    m_page->notifyToInjectUserScripts();
+}
+
 unsigned WebPage::extendIncrementalRenderingSuppression()
 {
     unsigned token = m_maximumRenderingSuppressionToken + 1;
@@ -6432,7 +6445,7 @@ void WebPage::imageOrMediaDocumentSizeChanged(const IntSize& newSize)
 
 void WebPage::addUserScript(String&& source, InjectedBundleScriptWorld& world, WebCore::UserContentInjectedFrames injectedFrames, WebCore::UserScriptInjectionTime injectionTime)
 {
-    WebCore::UserScript userScript { WTFMove(source), URL(aboutBlankURL()), Vector<String>(), Vector<String>(), injectionTime, injectedFrames };
+    WebCore::UserScript userScript { WTFMove(source), URL(aboutBlankURL()), Vector<String>(), Vector<String>(), injectionTime, injectedFrames, WebCore::WaitForNotificationBeforeInjecting::No };
 
     m_userContentController->addUserScript(world, WTFMove(userScript));
 }
@@ -7033,12 +7046,6 @@ bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)
     UNUSED_PARAM(purpose);
 #endif
     return false;
-}
-
-void WebPage::setIsNavigatingToAppBoundDomainTesting(bool isNavigatingToAppBoundDomain, CompletionHandler<void()>&& completionHandler)
-{
-    m_isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No;
-    completionHandler();
 }
 
 } // namespace WebKit

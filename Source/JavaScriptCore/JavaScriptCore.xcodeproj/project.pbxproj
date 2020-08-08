@@ -1178,7 +1178,9 @@
 		70ECA6061AFDBEA200449739 /* JSTemplateObjectDescriptor.h in Headers */ = {isa = PBXBuildFile; fileRef = 70ECA6011AFDBEA200449739 /* JSTemplateObjectDescriptor.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		70ECA6091AFDBEA200449739 /* TemplateObjectDescriptor.h in Headers */ = {isa = PBXBuildFile; fileRef = 70ECA6041AFDBEA200449739 /* TemplateObjectDescriptor.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		72AAF7CE1D0D31B3005E60BE /* JSCustomGetterSetterFunction.h in Headers */ = {isa = PBXBuildFile; fileRef = 72AAF7CC1D0D318B005E60BE /* JSCustomGetterSetterFunction.h */; };
+		7311FA32240DB1D3003D48DB /* DeleteByIdVariant.h in Headers */ = {isa = PBXBuildFile; fileRef = 7311FA31240DB1D3003D48DB /* DeleteByIdVariant.h */; };
 		734B655523F5C10400A069D1 /* DeletePropertySlot.h in Headers */ = {isa = PBXBuildFile; fileRef = 734B655423F4A33100A069D1 /* DeletePropertySlot.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		73AD062923FF662600F53593 /* DeleteByStatus.h in Headers */ = {isa = PBXBuildFile; fileRef = 73AD062823FF662600F53593 /* DeleteByStatus.h */; };
 		73E3799422E0EF6500933565 /* B3ReduceLoopStrength.h in Headers */ = {isa = PBXBuildFile; fileRef = 73E3799322E0EF4F00933565 /* B3ReduceLoopStrength.h */; };
 		7593C898BE714A64BE93A6E7 /* WasmContextInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = A27958D7FA1142B0AC9E364D /* WasmContextInlines.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		790081391E95A8EC0052D7CD /* WasmModule.h in Headers */ = {isa = PBXBuildFile; fileRef = 790081371E95A8EC0052D7CD /* WasmModule.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -1888,6 +1890,7 @@
 		FE3022D71E42857300BAC493 /* VMInspector.h in Headers */ = {isa = PBXBuildFile; fileRef = FE3022D51E42856700BAC493 /* VMInspector.h */; };
 		FE318FE01CAC982F00DFCC54 /* ECMAScriptSpecInternalFunctions.h in Headers */ = {isa = PBXBuildFile; fileRef = FE318FDE1CAC8C5300DFCC54 /* ECMAScriptSpecInternalFunctions.h */; };
 		FE3422121D6B81C30032BE88 /* ThrowScope.h in Headers */ = {isa = PBXBuildFile; fileRef = FE3422111D6B818C0032BE88 /* ThrowScope.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		FE34EE2124398AAE00AA2E7C /* EnsureStillAliveHere.h in Headers */ = {isa = PBXBuildFile; fileRef = FE34EE2024398A9A00AA2E7C /* EnsureStillAliveHere.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		FE3842332324D51B009DD445 /* OptionsList.h in Headers */ = {isa = PBXBuildFile; fileRef = FE3842312324D51B009DD445 /* OptionsList.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		FE384EE61ADDB7AD0055DE2C /* JSDollarVM.h in Headers */ = {isa = PBXBuildFile; fileRef = FE384EE21ADDB7AD0055DE2C /* JSDollarVM.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		FE3A06A61C10B72D00390FDD /* JITBitOrGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = FE3A06A41C10B70800390FDD /* JITBitOrGenerator.h */; };
@@ -3973,7 +3976,11 @@
 		70ECA6041AFDBEA200449739 /* TemplateObjectDescriptor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemplateObjectDescriptor.h; sourceTree = "<group>"; };
 		72AAF7CB1D0D318B005E60BE /* JSCustomGetterSetterFunction.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSCustomGetterSetterFunction.cpp; sourceTree = "<group>"; };
 		72AAF7CC1D0D318B005E60BE /* JSCustomGetterSetterFunction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSCustomGetterSetterFunction.h; sourceTree = "<group>"; };
+		7311FA31240DB1D3003D48DB /* DeleteByIdVariant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DeleteByIdVariant.h; sourceTree = "<group>"; };
+		7311FA33240DB249003D48DB /* DeleteByIdVariant.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DeleteByIdVariant.cpp; sourceTree = "<group>"; };
+		73190D962400934900F891C9 /* DeleteByStatus.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DeleteByStatus.cpp; sourceTree = "<group>"; };
 		734B655423F4A33100A069D1 /* DeletePropertySlot.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DeletePropertySlot.h; sourceTree = "<group>"; };
+		73AD062823FF662600F53593 /* DeleteByStatus.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DeleteByStatus.h; sourceTree = "<group>"; };
 		73E3799322E0EF4F00933565 /* B3ReduceLoopStrength.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = B3ReduceLoopStrength.h; path = b3/B3ReduceLoopStrength.h; sourceTree = "<group>"; };
 		73E3799522E0EF9100933565 /* B3ReduceLoopStrength.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = B3ReduceLoopStrength.cpp; path = b3/B3ReduceLoopStrength.cpp; sourceTree = "<group>"; };
 		77B25CB2C3094A92A38E1DB3 /* JSModuleLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSModuleLoader.h; sourceTree = "<group>"; };
@@ -4072,8 +4079,6 @@
 		860161E00F3A83C100F84710 /* MacroAssemblerX86.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacroAssemblerX86.h; sourceTree = "<group>"; };
 		860161E10F3A83C100F84710 /* MacroAssemblerX86_64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacroAssemblerX86_64.h; sourceTree = "<group>"; };
 		860161E20F3A83C100F84710 /* MacroAssemblerX86Common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacroAssemblerX86Common.h; sourceTree = "<group>"; };
-		8603CEF214C7546400AE59E3 /* CodeProfiling.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CodeProfiling.cpp; sourceTree = "<group>"; };
-		8603CEF314C7546400AE59E3 /* CodeProfiling.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CodeProfiling.h; sourceTree = "<group>"; };
 		8604F4F2143A6C4400B295F5 /* ChangeLog */ = {isa = PBXFileReference; lastKnownFileType = text; lineEnding = 0; path = ChangeLog; sourceTree = "<group>"; };
 		8606DDE918DA44AB00A383D0 /* IdentifierInlines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IdentifierInlines.h; sourceTree = "<group>"; };
 		8612E4CB1522918400C836BE /* MatchResult.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MatchResult.h; sourceTree = "<group>"; };
@@ -4119,8 +4124,6 @@
 		86ADD1430FDDEA980006FFCC /* ARMv7Registers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ARMv7Registers.h; sourceTree = "<group>"; };
 		86ADD1440FDDEA980006EEC2 /* MacroAssemblerARMv7.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacroAssemblerARMv7.h; sourceTree = "<group>"; };
 		86B5822C14D22F5F00A9C306 /* ProfileTreeNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ProfileTreeNode.h; sourceTree = "<group>"; };
-		86B5822E14D2373B00A9C306 /* CodeProfile.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CodeProfile.cpp; sourceTree = "<group>"; };
-		86B5822F14D2373B00A9C306 /* CodeProfile.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CodeProfile.h; sourceTree = "<group>"; };
 		86B5826A14D35D5100A9C306 /* TieredMMapArray.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TieredMMapArray.h; sourceTree = "<group>"; };
 		86BF642A148DB2B5004DE36A /* Intrinsic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Intrinsic.h; sourceTree = "<group>"; };
 		86C36EE90EE1289D00B3DF59 /* MacroAssembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MacroAssembler.h; sourceTree = "<group>"; };
@@ -5122,6 +5125,8 @@
 		FE318FDD1CAC8C5300DFCC54 /* ECMAScriptSpecInternalFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ECMAScriptSpecInternalFunctions.cpp; sourceTree = "<group>"; };
 		FE318FDE1CAC8C5300DFCC54 /* ECMAScriptSpecInternalFunctions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ECMAScriptSpecInternalFunctions.h; sourceTree = "<group>"; };
 		FE3422111D6B818C0032BE88 /* ThrowScope.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThrowScope.h; sourceTree = "<group>"; };
+		FE34EE2024398A9A00AA2E7C /* EnsureStillAliveHere.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EnsureStillAliveHere.h; sourceTree = "<group>"; };
+		FE34EE2224398B8500AA2E7C /* EnsureStillAliveHere.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = EnsureStillAliveHere.cpp; sourceTree = "<group>"; };
 		FE35C2F021B1E6C5000F4CA8 /* Template.rb */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.ruby; path = Template.rb; sourceTree = "<group>"; };
 		FE35C2F121B1E6C6000F4CA8 /* Fits.rb */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.ruby; path = Fits.rb; sourceTree = "<group>"; };
 		FE35C2F221B1E6C6000F4CA8 /* GeneratedFile.rb */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.ruby; path = GeneratedFile.rb; sourceTree = "<group>"; };
@@ -7111,6 +7116,8 @@
 				A70447EC17A0BD7000F5898E /* DumpContext.h */,
 				FE318FDD1CAC8C5300DFCC54 /* ECMAScriptSpecInternalFunctions.cpp */,
 				FE318FDE1CAC8C5300DFCC54 /* ECMAScriptSpecInternalFunctions.h */,
+				FE34EE2224398B8500AA2E7C /* EnsureStillAliveHere.cpp */,
+				FE34EE2024398A9A00AA2E7C /* EnsureStillAliveHere.h */,
 				2AD2EDFA19799E38004D6478 /* EnumerationMode.h */,
 				BC337BEA0E1B00CB0076918A /* Error.cpp */,
 				BC3046060E1F497F003232CF /* Error.h */,
@@ -7682,10 +7689,6 @@
 				FE1BD01B1E72002100134BC9 /* CellList.cpp */,
 				FE1BD01C1E72002100134BC9 /* CellList.h */,
 				FE1BD0201E72027000134BC9 /* CellProfile.h */,
-				86B5822E14D2373B00A9C306 /* CodeProfile.cpp */,
-				86B5822F14D2373B00A9C306 /* CodeProfile.h */,
-				8603CEF214C7546400AE59E3 /* CodeProfiling.cpp */,
-				8603CEF314C7546400AE59E3 /* CodeProfiling.h */,
 				0F4F11E7209BCDA100709654 /* CompilerTimingScope.cpp */,
 				0F4F11E6209BCDA100709654 /* CompilerTimingScope.h */,
 				FE4BFF291AD476E700088F87 /* FunctionOverrides.cpp */,
@@ -8246,6 +8249,10 @@
 				0FC712DD17CD8778008CC93C /* DeferredCompilationCallback.h */,
 				FE5068661AE25E280009DAB7 /* DeferredSourceDump.cpp */,
 				FE5068641AE246390009DAB7 /* DeferredSourceDump.h */,
+				7311FA33240DB249003D48DB /* DeleteByIdVariant.cpp */,
+				7311FA31240DB1D3003D48DB /* DeleteByIdVariant.h */,
+				73190D962400934900F891C9 /* DeleteByStatus.cpp */,
+				73AD062823FF662600F53593 /* DeleteByStatus.h */,
 				0FBC0AE41496C7C100D4FBDD /* DFGExitProfile.cpp */,
 				0FBC0AE51496C7C100D4FBDD /* DFGExitProfile.h */,
 				0F2EBBAA1DEDF94E00990369 /* DirectEvalCodeCache.cpp */,
@@ -9219,6 +9226,8 @@
 				FE5068651AE246390009DAB7 /* DeferredSourceDump.h in Headers */,
 				473DA4A4764C45FE871B0485 /* DefinePropertyAttributes.h in Headers */,
 				0FBB73BB1DEF8645002C009E /* DeleteAllCodeEffort.h in Headers */,
+				7311FA32240DB1D3003D48DB /* DeleteByIdVariant.h in Headers */,
+				73AD062923FF662600F53593 /* DeleteByStatus.h in Headers */,
 				734B655523F5C10400A069D1 /* DeletePropertySlot.h in Headers */,
 				0F96303C1D4192CD005609D9 /* DestructionMode.h in Headers */,
 				A77A423E17A0BBFD00A8DB81 /* DFGAbstractHeap.h in Headers */,
@@ -9422,6 +9431,7 @@
 				A70447EE17A0BD7000F5898E /* DumpContext.h in Headers */,
 				FE318FE01CAC982F00DFCC54 /* ECMAScriptSpecInternalFunctions.h in Headers */,
 				2A83638618D7D0EE0000EBCC /* EdenGCActivityCallback.h in Headers */,
+				FE34EE2124398AAE00AA2E7C /* EnsureStillAliveHere.h in Headers */,
 				FE086BCA2123DEFB003F2929 /* EntryFrame.h in Headers */,
 				2AD2EDFB19799E38004D6478 /* EnumerationMode.h in Headers */,
 				BC3046070E1F497F003232CF /* Error.h in Headers */,

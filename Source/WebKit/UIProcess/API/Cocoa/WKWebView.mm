@@ -127,6 +127,7 @@
 #import <WebCore/StringUtilities.h>
 #import <WebCore/TextManipulationController.h>
 #import <WebCore/ViewportArguments.h>
+#import <WebCore/WebViewVisualIdentificationOverlay.h>
 #import <WebCore/WritingMode.h>
 #import <wtf/BlockPtr.h>
 #import <wtf/HashMap.h>
@@ -403,6 +404,8 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
         _page->setURLSchemeHandlerForScheme(WebKit::WebURLSchemeHandlerCocoa::create(static_cast<WebKit::WebURLSchemeHandlerCocoa&>(pair.value.get()).apiHandler()), pair.key);
 
     pageToViewMap().add(_page.get(), self);
+
+    [WebViewVisualIdentificationOverlay installForWebViewIfNeeded:self kind:@"WKWebView" deprecated:NO];
 
 #if PLATFORM(IOS_FAMILY)
     auto timeNow = MonotonicTime::now();
@@ -2323,6 +2326,16 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
     _page->updateWebsitePolicies(WTFMove(data));
 }
 
+- (void)_notifyUserScripts
+{
+    _page->notifyUserScripts();
+}
+
+- (BOOL)_deferrableUserScriptsNeedNotification
+{
+    return _page->userScriptsNeedNotification();
+}
+
 - (BOOL)_allowsRemoteInspection
 {
 #if ENABLE(REMOTE_INSPECTOR)
@@ -2699,13 +2712,6 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
 {
     _page->isNavigatingToAppBoundDomainTesting([completionHandler = makeBlockPtr(completionHandler)] (bool isAppBound) {
         completionHandler(isAppBound);
-    });
-}
-
-- (void)_setIsNavigatingToAppBoundDomain:(BOOL)isNavigatingToAppBoundDomain completionHandler:(void (^)(void))completionHandler
-{
-    _page->setIsNavigatingToAppBoundDomainTesting(isNavigatingToAppBoundDomain, [completionHandler = makeBlockPtr(completionHandler)]() {
-        completionHandler();
     });
 }
 

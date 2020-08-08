@@ -1947,77 +1947,105 @@ void RenderStyle::getShadowVerticalExtent(const ShadowData* shadow, LayoutUnit &
     }
 }
 
-Color RenderStyle::colorIncludingFallback(CSSPropertyID colorProperty, bool visitedLink) const
+Color RenderStyle::unresolvedColorForProperty(CSSPropertyID colorProperty, bool visitedLink) const
 {
-    Color result;
-    BorderStyle borderStyle = BorderStyle::None;
     switch (colorProperty) {
-    case CSSPropertyBackgroundColor:
-        return visitedLink ? visitedLinkBackgroundColor() : backgroundColor(); // Background color doesn't fall back.
-    case CSSPropertyBorderLeftColor:
-        result = visitedLink ? visitedLinkBorderLeftColor() : borderLeftColor();
-        borderStyle = borderLeftStyle();
-        break;
-    case CSSPropertyBorderRightColor:
-        result = visitedLink ? visitedLinkBorderRightColor() : borderRightColor();
-        borderStyle = borderRightStyle();
-        break;
-    case CSSPropertyBorderTopColor:
-        result = visitedLink ? visitedLinkBorderTopColor() : borderTopColor();
-        borderStyle = borderTopStyle();
-        break;
-    case CSSPropertyBorderBottomColor:
-        result = visitedLink ? visitedLinkBorderBottomColor() : borderBottomColor();
-        borderStyle = borderBottomStyle();
-        break;
-    case CSSPropertyCaretColor:
-        result = visitedLink ? visitedLinkCaretColor() : caretColor();
-        break;
     case CSSPropertyColor:
-        result = visitedLink ? visitedLinkColor() : color();
-        break;
+        return visitedLink ? visitedLinkColor() : color();
+    case CSSPropertyBackgroundColor:
+        return visitedLink ? visitedLinkBackgroundColor() : backgroundColor();
+    case CSSPropertyBorderBottomColor:
+        return visitedLink ? visitedLinkBorderBottomColor() : borderBottomColor();
+    case CSSPropertyBorderLeftColor:
+        return visitedLink ? visitedLinkBorderLeftColor() : borderLeftColor();
+    case CSSPropertyBorderRightColor:
+        return visitedLink ? visitedLinkBorderRightColor() : borderRightColor();
+    case CSSPropertyBorderTopColor:
+        return visitedLink ? visitedLinkBorderTopColor() : borderTopColor();
+    case CSSPropertyFill:
+        return fillPaintColor();
+    case CSSPropertyFloodColor:
+        return floodColor();
+    case CSSPropertyLightingColor:
+        return lightingColor();
     case CSSPropertyOutlineColor:
-        result = visitedLink ? visitedLinkOutlineColor() : outlineColor();
-        break;
-    case CSSPropertyColumnRuleColor:
-        result = visitedLink ? visitedLinkColumnRuleColor() : columnRuleColor();
-        break;
-    case CSSPropertyTextDecorationColor:
-        // Text decoration color fallback is handled in RenderObject::decorationColor.
-        return visitedLink ? visitedLinkTextDecorationColor() : textDecorationColor();
-    case CSSPropertyWebkitTextEmphasisColor:
-        result = visitedLink ? visitedLinkTextEmphasisColor() : textEmphasisColor();
-        break;
-    case CSSPropertyWebkitTextFillColor:
-        result = visitedLink ? visitedLinkTextFillColor() : textFillColor();
-        break;
-    case CSSPropertyWebkitTextStrokeColor:
-        result = visitedLink ? visitedLinkTextStrokeColor() : textStrokeColor();
-        break;
+        return visitedLink ? visitedLinkOutlineColor() : outlineColor();
+    case CSSPropertyStopColor:
+        return stopColor();
+    case CSSPropertyStroke:
+        return strokePaintColor();
     case CSSPropertyStrokeColor:
-        result = visitedLink ? visitedLinkStrokeColor() : strokeColor();
-        break;
+        return visitedLink ? visitedLinkStrokeColor() : strokeColor();
+    case CSSPropertyBorderBlockEndColor:
+    case CSSPropertyBorderBlockStartColor:
+    case CSSPropertyBorderInlineEndColor:
+    case CSSPropertyBorderInlineStartColor:
+        return unresolvedColorForProperty(CSSProperty::resolveDirectionAwareProperty(colorProperty, direction(), writingMode()));
+    case CSSPropertyColumnRuleColor:
+        return visitedLink ? visitedLinkColumnRuleColor() : columnRuleColor();
+    case CSSPropertyWebkitTextEmphasisColor:
+        return visitedLink ? visitedLinkTextEmphasisColor() : textEmphasisColor();
+    case CSSPropertyWebkitTextFillColor:
+        return visitedLink ? visitedLinkTextFillColor() : textFillColor();
+    case CSSPropertyWebkitTextStrokeColor:
+        return visitedLink ? visitedLinkTextStrokeColor() : textStrokeColor();
+    case CSSPropertyTextDecorationColor:
+        return visitedLink ? visitedLinkTextDecorationColor() : textDecorationColor();
+    case CSSPropertyCaretColor:
+        return visitedLink ? visitedLinkCaretColor() : caretColor();
     default:
         ASSERT_NOT_REACHED();
         break;
     }
 
-    if (!result.isValid()) {
+    return { };
+}
+
+Color RenderStyle::colorResolvingCurrentColor(CSSPropertyID colorProperty, bool visitedLink) const
+{
+    auto computeBorderStyle = [&] {
+        switch (colorProperty) {
+        case CSSPropertyBorderLeftColor:
+            return borderLeftStyle();
+        case CSSPropertyBorderRightColor:
+            return borderRightStyle();
+        case CSSPropertyBorderTopColor:
+            return borderTopStyle();
+        case CSSPropertyBorderBottomColor:
+            return borderBottomStyle();
+        default:
+            return BorderStyle::None;
+        }
+    };
+
+    auto result = unresolvedColorForProperty(colorProperty, visitedLink);
+
+    if (isCurrentColor(result)) {
+        auto borderStyle = computeBorderStyle();
         if (!visitedLink && (borderStyle == BorderStyle::Inset || borderStyle == BorderStyle::Outset || borderStyle == BorderStyle::Ridge || borderStyle == BorderStyle::Groove))
-            result = Color(238, 238, 238);
-        else
-            result = visitedLink ? visitedLinkColor() : color();
+            return Color(238, 238, 238);
+
+        return visitedLink ? visitedLinkColor() : color();
     }
+
     return result;
+}
+
+Color RenderStyle::colorResolvingCurrentColor(const Color& color) const
+{
+    if (isCurrentColor(color))
+        return this->color();
+
+    return color;
 }
 
 Color RenderStyle::visitedDependentColor(CSSPropertyID colorProperty) const
 {
-    Color unvisitedColor = colorIncludingFallback(colorProperty, false);
+    Color unvisitedColor = colorResolvingCurrentColor(colorProperty, false);
     if (insideLink() != InsideLink::InsideVisited)
         return unvisitedColor;
 
-    Color visitedColor = colorIncludingFallback(colorProperty, true);
+    Color visitedColor = colorResolvingCurrentColor(colorProperty, true);
 
     // Text decoration color validity is preserved (checked in RenderObject::decorationColor).
     if (colorProperty == CSSPropertyTextDecorationColor)
@@ -2444,8 +2472,6 @@ float RenderStyle::outlineWidth() const
 
 float RenderStyle::outlineOffset() const
 {
-    if (m_backgroundData->outline.style() == BorderStyle::None)
-        return 0;
     if (outlineStyleIsAuto() == OutlineIsAuto::On)
         return (m_backgroundData->outline.offset() + RenderTheme::platformFocusRingOffset(outlineWidth()));
     return m_backgroundData->outline.offset();

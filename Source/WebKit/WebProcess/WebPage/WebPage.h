@@ -1300,7 +1300,6 @@ public:
 
     void getAllFrames(CompletionHandler<void(FrameTreeNodeData&&)>&&);
 
-    void setIsNavigatingToAppBoundDomainTesting(bool, CompletionHandler<void()>&&);
     void setIsNavigatingToAppBoundDomain(NavigatingToAppBoundDomain isNavigatingToAppBoundDomain) { m_isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain; }
     NavigatingToAppBoundDomain isNavigatingToAppBoundDomain() const { return m_isNavigatingToAppBoundDomain; }
     NavigatedAwayFromAppBoundDomain hasNavigatedAwayFromAppBoundDomain() const { return m_hasNavigatedAwayFromAppBoundDomain; }
@@ -1616,6 +1615,7 @@ private:
     void reportUsedFeatures();
 
     void updateWebsitePolicies(WebsitePoliciesData&&);
+    void notifyUserScripts();
 
     void changeFont(WebCore::FontChanges&&);
     void changeFontAttributes(WebCore::FontAttributeChanges&&);

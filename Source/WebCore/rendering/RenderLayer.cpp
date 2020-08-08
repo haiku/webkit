@@ -127,6 +127,7 @@
 #include "TranslateTransformOperation.h"
 #include "WheelEventTestMonitor.h"
 #include <stdio.h>
+#include <wtf/HexNumber.h>
 #include <wtf/MonotonicTime.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/CString.h>
@@ -830,39 +831,7 @@ void RenderLayer::updateLayerListsIfNeeded()
 String RenderLayer::name() const
 {
     StringBuilder name;
-
-    if (Element* element = renderer().element()) {
-        name.append(" <");
-        name.append(element->tagName().convertToLowercaseWithoutLocale());
-        name.append('>');
-
-        if (element->hasID()) {
-            name.appendLiteral(" id=\'");
-            name.append(element->getIdAttribute());
-            name.append('\'');
-        }
-
-        if (element->hasClass()) {
-            name.appendLiteral(" class=\'");
-            size_t classNamesToDump = element->classNames().size();
-            const size_t maxNumClassNames = 7;
-            bool addEllipsis = false;
-            if (classNamesToDump > maxNumClassNames) {
-                classNamesToDump = maxNumClassNames;
-                addEllipsis = true;
-            }
-            
-            for (size_t i = 0; i < classNamesToDump; ++i) {
-                if (i > 0)
-                    name.append(' ');
-                name.append(element->classNames()[i]);
-            }
-            if (addEllipsis)
-                name.append("...");
-            name.append('\'');
-        }
-    } else
-        name.append(renderer().renderName());
+    name.append(renderer().debugDescription());
 
     if (isReflection())
         name.appendLiteral(" (reflection)");
@@ -3598,12 +3567,10 @@ void RenderLayer::setHasVerticalScrollbar(bool hasScrollbar)
 
 ScrollableArea* RenderLayer::enclosingScrollableArea() const
 {
-    if (RenderLayer* scrollableLayer = enclosingScrollableLayer(IncludeSelfOrNot::ExcludeSelf, CrossFrameBoundaries::Yes))
+    if (auto* scrollableLayer = enclosingScrollableLayer(IncludeSelfOrNot::ExcludeSelf, CrossFrameBoundaries::No))
         return scrollableLayer;
 
-    // FIXME: We should return the frame view here (or possibly an ancestor frame view,
-    // if the frame view isn't scrollable.
-    return nullptr;
+    return &renderer().view().frameView();
 }
 
 bool RenderLayer::isScrollableOrRubberbandable()
@@ -3657,6 +3624,36 @@ bool RenderLayer::usesMockScrollAnimator() const
 void RenderLayer::logMockScrollAnimatorMessage(const String& message) const
 {
     renderer().document().addConsoleMessage(MessageSource::Other, MessageLevel::Debug, "RenderLayer: " + message);
+}
+
+String RenderLayer::debugDescription() const
+{
+    StringBuilder builder;
+    builder.append("RenderLayer 0x"_s, hex(reinterpret_cast<uintptr_t>(this), Lowercase), ' ', size().width(), 'x', size().height());
+
+    if (transform())
+        builder.append(" has transform"_s);
+
+    if (hasFilter())
+        builder.append(" has filter"_s);
+
+    if (hasBackdropFilter())
+        builder.append(" has backdrop filter"_s);
+
+    if (hasBlendMode())
+        builder.append(" has blend mode"_s);
+
+    if (isolatesBlending())
+        builder.append(" isolates blending"_s);
+
+    if (isComposited()) {
+        // Oh for better StringBuilder/TextStream integration.
+        TextStream stream;
+        stream << *backing();
+        builder.append(stream.release());
+    }
+
+    return builder.toString();
 }
 
 int RenderLayer::verticalScrollbarWidth(OverlayScrollbarSizeRelevancy relevancy) const
@@ -7045,19 +7042,7 @@ TextStream& operator<<(WTF::TextStream& ts, ClipRectsType clipRectsType)
 
 TextStream& operator<<(TextStream& ts, const RenderLayer& layer)
 {
-    ts << "RenderLayer " << &layer << " " << layer.size();
-    if (layer.transform())
-        ts << " has transform";
-    if (layer.hasFilter())
-        ts << " has filter";
-    if (layer.hasBackdropFilter())
-        ts << " has backdrop filter";
-    if (layer.hasBlendMode())
-        ts << " has blend mode";
-    if (layer.isolatesBlending())
-        ts << " isolates blending";
-    if (layer.isComposited())
-        ts << " " << *layer.backing();
+    ts << layer.debugDescription();
     return ts;
 }
 

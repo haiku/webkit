@@ -1485,7 +1485,8 @@ public:
     WEBCORE_EXPORT DocumentTimeline& timeline();
     DocumentTimeline* existingTimeline() const { return m_timeline.get(); }
     Vector<RefPtr<WebAnimation>> getAnimations();
-        
+    Vector<RefPtr<WebAnimation>> matchingAnimations(const WTF::Function<bool(Element&)>&);
+
 #if ENABLE(ATTACHMENT_ELEMENT)
     void registerAttachmentIdentifier(const String&);
     void didInsertAttachmentElement(HTMLAttachmentElement&);
@@ -1825,7 +1826,7 @@ private:
 
     RenderPtr<RenderView> m_renderView;
 
-    HashSet<MediaCanStartListener*> m_mediaCanStartListeners;
+    WeakHashSet<MediaCanStartListener> m_mediaCanStartListeners;
 
 #if ENABLE(FULLSCREEN_API)
     UniqueRef<FullscreenManager> m_fullscreenManager;

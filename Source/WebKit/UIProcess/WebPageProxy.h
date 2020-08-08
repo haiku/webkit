@@ -476,7 +476,7 @@ public:
 
     void resourceLoadDidSendRequest(ResourceLoadInfo&&, WebCore::ResourceRequest&&);
     void resourceLoadDidPerformHTTPRedirection(ResourceLoadInfo&&, WebCore::ResourceResponse&&, WebCore::ResourceRequest&&);
-    void resourceLoadDidReceiveChallenge(ResourceLoadInfo&&, WebKit::AuthenticationChallengeProxy&);
+    void resourceLoadDidReceiveChallenge(ResourceLoadInfo&&, WebCore::AuthenticationChallenge&&);
     void resourceLoadDidReceiveResponse(ResourceLoadInfo&&, WebCore::ResourceResponse&&);
     void resourceLoadDidCompleteWithError(ResourceLoadInfo&&, WebCore::ResourceResponse&&, WebCore::ResourceError&&);
 
@@ -611,6 +611,8 @@ public:
     bool willHandleHorizontalScrollEvents() const;
 
     void updateWebsitePolicies(WebsitePoliciesData&&);
+    void notifyUserScripts();
+    bool userScriptsNeedNotification() const;
 
     bool canShowMIMEType(const String& mimeType);
 
@@ -1713,7 +1715,6 @@ public:
 
     void setShouldFireResizeEvents(bool);
 
-    void setIsNavigatingToAppBoundDomainTesting(bool, CompletionHandler<void()>&&);
     void isNavigatingToAppBoundDomainTesting(CompletionHandler<void(bool)>&&);
     NavigatingToAppBoundDomain isNavigatingToAppBoundDomain() const { return m_isNavigatingToAppBoundDomain; }
 
@@ -2773,6 +2774,7 @@ private:
     NavigatingToAppBoundDomain m_isNavigatingToAppBoundDomain { NavigatingToAppBoundDomain::No };
     NavigatedAwayFromAppBoundDomain m_hasNavigatedAwayFromAppBoundDomain { NavigatedAwayFromAppBoundDomain::No };
     bool m_ignoresAppBoundDomains { false };
+    bool m_userScriptsNotified { false };
 };
 
 } // namespace WebKit

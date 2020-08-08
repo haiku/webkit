@@ -1,3 +1,511 @@
+2020-04-06  Peng Liu  <peng.liu6@apple.com>
+
+        REGRESSION (r259531?): [iOS] TestWebKitAPI.WebKitLegacy.ScrollingDoesNotPauseMedia is timing out
+        https://bugs.webkit.org/show_bug.cgi?id=210013
+
+        Reviewed by Daniel Bates.
+
+        Fix mistakes in the test and make it more reliable.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/ScrollingDoesNotPauseMedia.mm:
+        (-[ScrollingDoesNotPauseMediaDelegate handleEvent:]):
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/one-video.html: Added.
+
+2020-04-06  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in DumpRenderTree
+        https://bugs.webkit.org/show_bug.cgi?id=210059
+
+        Reviewed by Fujii Hironori.
+
+        Modify CMake code to use WEBKIT_EXECUTABLE when creating DumpRenderTree.
+
+        * DumpRenderTree/CMakeLists.txt:
+        * DumpRenderTree/PlatformWin.cmake:
+
+2020-04-06  Jonathan Bedard  <jbedard@apple.com>
+
+        ImageDiff: Don't build with ASan in automation
+        https://bugs.webkit.org/show_bug.cgi?id=210057
+        <rdar://problem/61234753>
+
+        Reviewed by David Kilzer.
+
+        * ImageDiff/cg/Configurations/ImageDiff.xcconfig: Disable ASan.
+
+2020-04-06  Kenneth Russell  <kbr@chromium.org>
+
+        Update my committer status
+        https://bugs.webkit.org/show_bug.cgi?id=210072
+
+        Reviewed by Dean Jackson.
+
+        Update contributors.json to reflect that my lapsed committer
+        status was recently reinstated.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-04-06  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update minimum ICU version to 60.2
+        https://bugs.webkit.org/show_bug.cgi?id=209694
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WTF/StringConcatenate.cpp:
+        Remove obsoleted compile-time version checks.
+
+        * DumpRenderTree/TestRunner.cpp:
+        (TestRunner::runUIScript):
+        * TestWebKitAPI/Tests/WebCore/LineBreaking.mm:
+        (breakingLocationsFromICU):
+        Manually convert between UChar and UniChar/unichar where needed.
+
+2020-04-06  Rick Waldron  <waldron.rick@gmail.com> and Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove unnecessary Test262 harness file and implement $262.IsHTMLDDA
+        https://bugs.webkit.org/show_bug.cgi?id=187526
+
+        Reviewed by Darin Adler.
+
+        Removed file duplicates functionality of jsc.cpp's GlobalObject::finishCreation.
+
+        * Scripts/test262/Runner.pm:
+        * Scripts/test262/agent.js: Removed.
+
+2020-04-06  Saam Barati  <sbarati@apple.com>
+
+        Implement 1GB of executable memory on arm64
+        https://bugs.webkit.org/show_bug.cgi?id=208490
+        <rdar://problem/60797127>
+
+        Reviewed by Keith Miller.
+
+        * Scripts/run-jsc-stress-tests:
+        * TestWebKitAPI/Tests/WTF/MetaAllocator.cpp:
+        (TestWebKitAPI::TEST_F):
+        * TestWebKitAPI/Tests/WTF/RedBlackTree.cpp:
+        (TestWebKitAPI::TEST_F):
+
+2020-04-04  Darin Adler  <darin@apple.com>
+
+        Stop using live ranges in DocumentMarkerController
+        https://bugs.webkit.org/show_bug.cgi?id=209985
+
+        Reviewed by Antti Koivisto.
+
+        * TestWebKitAPI/Tests/WebCore/MarkedText.cpp:
+        (TestWebKitAPI::TEST): Update for change to DocumentMarker constructor.
+
+2020-04-06  Jonathan Bedard  <jbedard@apple.com>
+
+        run-api-tests spew "setup_environ_for_server" in verbose mode
+        https://bugs.webkit.org/show_bug.cgi?id=210012
+        <rdar://problem/61306056>
+
+        Reviewed by Aakash Jain.
+
+        * Scripts/webkitpy/port/ios_simulator.py:
+        (IOSSimulatorPort.setup_environ_for_server): Do not log this function when called.
+
+2020-04-06  Antoine Quint  <graouts@apple.com>
+
+        [macOS] TestWebKitAPI.WKUserContentController.UserStyleSheetAffectingOnlySpecificWebViewSharedConfiguration is a flaky timeout
+        https://bugs.webkit.org/show_bug.cgi?id=209934
+        <rdar://problem/61229832>
+
+        Reviewed by Antti Koivisto.
+
+        Fix a couple of tests which would use `-[WKWebView _test_waitForDidFinishNavigation]` in a way where the navigation may have finished before the method was called.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/UserContentController.mm:
+        (TEST):
+
+2020-04-05  Gus Caplan  <me@gus.host> and Ross Kirsling  <ross.kirsling@sony.com>
+
+        DLLLauncherMain print to console instead of opening window on fatal error
+        https://bugs.webkit.org/show_bug.cgi?id=206537
+
+        Reviewed by Fujii Hironori.
+
+        * win/DLLLauncher/DLLLauncherMain.cpp:
+        (fatalError):
+
+2020-04-05  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in MiniBrowser
+        https://bugs.webkit.org/show_bug.cgi?id=206894
+
+        Reviewed by Adrian Perez de Castro.
+
+        Modify CMake ports to use WEBKIT_EXECUTABLE when creating their respective
+        MiniBrowsers.
+
+        * MiniBrowser/gtk/CMakeLists.txt:
+        * MiniBrowser/win/CMakeLists.txt:
+        * MiniBrowser/wpe/CMakeLists.txt:
+
+2020-04-05  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add WebKit::WebKit target
+        https://bugs.webkit.org/show_bug.cgi?id=210033
+
+        Reviewed by Fujii Hironori.
+
+        Use the WebKit::WebKit target for MiniBrowser and TestWebKit. This removes
+        the need to have WebProcess and NetworkProcess as dependencies since they are
+        attached to the WebKit::WebKit target.
+
+        Remove references to WebKitFrameworkHeaders as it is now WebKit_CopyHeaders.
+        It is also a dependency of WebKit::WebKit so it does not need to be listed
+        as a dependency.
+
+        * MiniBrowser/win/CMakeLists.txt:
+        * TestWebKitAPI/CMakeLists.txt:
+        * TestWebKitAPI/PlatformPlayStation.cmake:
+        * TestWebKitAPI/PlatformWin.cmake:
+        * WebKitTestRunner/CMakeLists.txt:
+
+2020-04-05  Daniel Bates  <dabates@apple.com>
+
+        RequestTextInputContext.Simple iframe sub-tests may sometimes fail
+        https://bugs.webkit.org/show_bug.cgi?id=210010
+        <rdar://problem/61303697>
+
+        Reviewed by Simon Fraser and Darin Adler.
+
+        Make the iframe sub tests wait until the DOM Load event has fired in the main frame.
+        When it fires this means that all immediate child frames (like the one added by these
+        sub tests) have fired their DOM Load event. This ensures deterministic results.
+
+        Also while I am here, extract out the iframe sub-tests into their own TEST() method
+        for testing and debugging convenience. I also fixed up -performAfterLoading so that
+        it wouldn't leak the user script string and made it work if called more than once in the
+        same TEST() by caching this script and only adding it to the user content controller
+        once. Moreover, removed duplication by writing it in terms of -performAfterReceivingMessage.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/RequestTextInputContext.mm:
+        (TEST):
+        (webViewLoadHTMLStringAndWaitForDOMLoadEvent): Helper function to load an HTML string
+        into a web view and wait until a DOM Load event is fired at the main frame.
+        * TestWebKitAPI/cocoa/TestWKWebView.h:
+        * TestWebKitAPI/cocoa/TestWKWebView.mm:
+        (-[TestWKWebView performAfterLoading:]): Modernized and simplified. Modified user script
+        to use addEventListener() instead of onload as the latter overrides any existing load handler.
+        This user script is also added only to the main frame since all existing callers just
+        want to know that all main frame and immediate child frames loaded. Also listen for the load
+        event during the capture phase, which is a tiny bit faster to receive, instead of the bubbling
+        phase. See second paragraph above for more details on the changes I made to this function.
+
+
+2020-04-04  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add a fourth round of logging to help diagnose <webkit.org/b/209685>
+        https://bugs.webkit.org/show_bug.cgi?id=210011
+
+        Reviewed by Darin Adler.
+
+        Remove all logging previously added to DragAndDropSimulator.
+
+        * TestWebKitAPI/ios/DragAndDropSimulatorIOS.mm:
+        (-[DragAndDropSimulator _webView:adjustedDataInteractionItemProvidersForItemProvider:representingObjects:additionalData:]):
+
+2020-04-04  Chris Dumez  <cdumez@apple.com>
+
+        [iOS] Simplify ProcessAssertion class in preparation for switch to RunningBoard
+        https://bugs.webkit.org/show_bug.cgi?id=209984
+        <rdar://problem/61273941>
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ServiceWorkerBasic.mm:
+
+2020-04-04  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add even more logging to try and diagnose <webkit.org/b/209685>
+        https://bugs.webkit.org/show_bug.cgi?id=210008
+
+        Reviewed by Tim Horton.
+
+        Replace old logging with new logging (in different places).
+
+        * TestWebKitAPI/ios/DragAndDropSimulatorIOS.mm:
+        (-[DragAndDropSimulator runFrom:to:additionalItemRequestLocations:]):
+        (-[DragAndDropSimulator _advanceProgress]):
+        (-[DragAndDropSimulator _webView:adjustedDataInteractionItemProvidersForItemProvider:representingObjects:additionalData:]):
+
+        Rule out the possibility that the WebKit client (in this case, the drag and drop simulator) is overriding the
+        list of drag items by logging the given NSItemProvider that will be used to start the drag.
+
+2020-04-04  Peng Liu  <peng.liu6@apple.com>
+
+        REGRESSION (r259095): ASSERTION FAILED: m_videoFullscreenMode != VideoFullscreenModeNone seen with TestWebKitAPI.WebKitLegacy.AudioSessionCategoryIOS
+        https://bugs.webkit.org/show_bug.cgi?id=209680
+
+        Reviewed by Jer Noble.
+
+        Add an API test for the video fullscreen support of WebKitLegacy on iOS.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/PreemptVideoFullscreen.mm: Added.
+        (-[VideoFullscreenStressUIWebViewDelegate webViewDidFinishLoad:]):
+        (-[VideoFullscreenStressUIWebViewDelegate uiWebView:didCommitLoadForFrame:]):
+        (-[VideoFullscreenStressUIWebViewDelegate handleEvent:]):
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/two-videos.html: Added.
+
+2020-04-03  Alex Christensen  <achristensen@webkit.org>
+
+        Add SPI to make WKUserScripts wait for a notification
+        https://bugs.webkit.org/show_bug.cgi?id=209845
+        <rdar://problem/60342299>
+
+        Reviewed by Chris Dumez.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/UserContentController.mm:
+        (TEST):
+
+2020-04-03  Kate Cheney  <katherine_cheney@apple.com>
+
+        Prevent non app-bound domain cookies from being read or set using API calls
+        https://bugs.webkit.org/show_bug.cgi?id=209926
+        <rdar://problem/61071428>
+
+        Reviewed by Brady Eidson.
+
+        Added 3 new API tests to test that non app-bound cookies are not being
+        set or returned via API calls. Also added a function to reset state
+        between tests for internal debugging.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/InAppBrowserPrivacy.mm:
+        (setUpCookieTest):
+        (TEST):
+
+2020-04-03  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add more logging to help diagnose <webkit.org/b/209685>
+        https://bugs.webkit.org/show_bug.cgi?id=209988
+
+        Reviewed by Timothy Hatcher.
+
+        * TestWebKitAPI/Tests/ios/DragAndDropTestsIOS.mm:
+
+        Fix a few stray style mistakes (unnecessary `.get()`s).
+
+        * TestWebKitAPI/ios/DragAndDropSimulatorIOS.mm:
+        (-[DragAndDropSimulator runFrom:to:additionalItemRequestLocations:]):
+        (-[DragAndDropSimulator _advanceProgress]):
+
+2020-04-03  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r259440.
+
+        Introduced 2 failing tests on Mac and iOS
+
+        Reverted changeset:
+
+        "Add SPI to configure WebsiteDataStores with a URL for
+        standalone web applications and use it to disable first-party
+        website data removal in ITP"
+        https://bugs.webkit.org/show_bug.cgi?id=209634
+        https://trac.webkit.org/changeset/259440
+
+2020-04-03  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove _setIsNavigatingToAppBoundDomain testing SPI
+        https://bugs.webkit.org/show_bug.cgi?id=209973
+        <rdar://problem/61264350>
+
+        Reviewed by David Kilzer.
+
+        This SPI is no longer needed to set a webView as navigating to an
+        app-bound domain. We can now load a local file instead.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/InAppBrowserPrivacy.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/in-app-browser-privacy-local-file.html:
+
+2020-04-03  David Kilzer  <ddkilzer@apple.com>
+
+        [Xcode] Replace ASAN_OTHER_CFLAGS and ASAN_OTHER_CPLUSPLUSFLAGS with $(inherited)
+        <https://webkit.org/b/209963>
+        <rdar://problem/61257504>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * asan/asan.xcconfig:
+        - Use $(inherited) to get rid of custom ASAN_OTHER_CFLAGS and
+          ASAN_OTHER_CPLUSPLUSFLAGS.  Note that ASAN_OTHER_LDFLAGS had
+          been previously removed in r179312, but not in the other
+          *.xcconfig files.
+
+        * ContentExtensionTester/Configurations/Base.xcconfig:
+        * DumpRenderTree/mac/Configurations/Base.xcconfig:
+        * ImageDiff/cg/Configurations/Base.xcconfig:
+        * MiniBrowser/Configurations/Base.xcconfig:
+        * MobileMiniBrowser/Configurations/Base.xcconfig:
+        * TestWebKitAPI/Configurations/Base.xcconfig:
+        * WebEditingTester/Configurations/Base.xcconfig:
+        * WebKitLauncher/Configurations/Base.xcconfig:
+        * WebKitTestRunner/Configurations/Base.xcconfig:
+        * lldb/lldbWebKitTester/Configurations/Base.xcconfig:
+        - Remove ASAN_OTHER_CFLAGS, ASAN_OTHER_CPLUSPLUSFLAGS and
+          ASAN_OTHER_LDFLAGS.
+
+2020-04-03  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] Improve error message when patch fails to apply to trunk
+        https://bugs.webkit.org/show_bug.cgi?id=209965
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (ApplyPatch.getResultSummary): Improved error message.
+        (ApplyPatch.evaluateCommand): Ditto.
+        * BuildSlaveSupport/ews-build/steps_unittest.py: Updated unit-tests.
+
+2020-04-03  Sihui Liu  <sihui_liu@apple.com>
+
+        ASSERTION FAILED: m_delegate in IDBConnectionToClient::identifier()
+        https://bugs.webkit.org/show_bug.cgi?id=209891
+        <rdar://problem/59293891>
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitCocoa/KillWebProcessWithOpenConnection-1.html: Added.
+        * TestWebKitAPI/Tests/WebKitCocoa/KillWebProcessWithOpenConnection-2.html: Added.
+        * TestWebKitAPI/Tests/WebKitCocoa/WebProcessKillIDBCleanup.mm:
+        (TEST):
+
+2020-04-03  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] Display list of test failures along-with the layout-test build step
+        https://bugs.webkit.org/show_bug.cgi?id=209912
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (RunWebKitTests._addToLog):
+        (RunWebKitTests.commandComplete): Add list of test failures to 'test-failures' log which is displayed in UI.
+        (ReRunWebKitTests.commandComplete): Ditto.
+        (RunWebKitTestsWithoutPatch.commandComplete): Ditto.
+
+2020-04-03  Philippe Normand  <pnormand@igalia.com>
+
+        REGRESSION(r259453): [Flatpak SDK] Build directory no longer bind-mounted when running tests
+        https://bugs.webkit.org/show_bug.cgi?id=209960
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        The bind-mount is always needed, not only when running build-webkit.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox):
+
+2020-04-03  Diego Pino Garcia  <dpino@igalia.com>
+
+        [Flatpak SDK] Create platform/Release directory only when build-webkit is called
+        https://bugs.webkit.org/show_bug.cgi?id=209954
+
+        Reviewed by Philippe Normand.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.clean_args): Remove creation of self.build_path.
+        (WebkitFlatpak.run_in_sandbox): Create self.build_path if command is
+        build-webkit.
+
+2020-04-03  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] build-webkit --flatpak-cmakeargs option is ignored
+        https://bugs.webkit.org/show_bug.cgi?id=209648
+
+        Reviewed by Žan Doberšek.
+
+        This patch removes redundant options from webkit-flatpak,
+        correctly handles the cmakeargs option and reduces the amount of
+        `flatpak list` calls performed.
+
+        * flatpak/flatpakutils.py:
+        (check_flatpak):
+        (FlatpakPackages.__init__):
+        (FlatpakPackage.is_installed):
+        (WebkitFlatpak.load_from_args):
+        (WebkitFlatpak.__init__):
+        (WebkitFlatpak.clean_args):
+        (WebkitFlatpak.run_in_sandbox):
+        (WebkitFlatpak.main):
+        (WebkitFlatpak.setup_dev_env):
+        (WebkitFlatpak.run_gdb):
+
+2020-04-03  Diego Pino Garcia  <dpino@igalia.com>
+
+        [Flatpak SDK] Call setup_icecc only if use_icecream is defined
+        https://bugs.webkit.org/show_bug.cgi?id=209956
+
+        Reviewed by Philippe Normand.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.setup_dev_env):
+
+2020-04-03  Antti Koivisto  <antti@apple.com>
+
+        [Windows] Ignore render tree dump based results on Windows
+        https://bugs.webkit.org/show_bug.cgi?id=209897
+
+        Reviewed by Darin Adler.
+
+        Render tree dumps are port specific and so difficult to maintain. They are mostly very old and
+        have been superseded by more modern ref and text dump tests. They rarely reveal any port specific bugs.
+
+        This patch adds --ignore-render-tree-dump-results option to run-webkit-tests and enables it by
+        default on Apple Windows port.
+
+        With the option set the render tree dump tests are still run (so crashes are detected) but their
+        output is treated as if it always passed. Missing results are not written to disk.
+
+        * Scripts/webkitpy/layout_tests/controllers/single_test_runner.py:
+        (SingleTestRunner._compare_text):
+        * Scripts/webkitpy/layout_tests/run_webkit_tests.py:
+        (parse_args):
+        (_set_up_derived_options):
+
+2020-04-02  James Savage  <james.savage@apple.com>
+
+        Add myself, as a committer, to contributors.json.
+        https://bugs.webkit.org/show_bug.cgi?id=209952.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-04-02  James Savage  <james.savage@apple.com>
+
+        Add myself to contributors.json.
+        https://bugs.webkit.org/show_bug.cgi?id=209952.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-04-02  John Wilander  <wilander@apple.com>
+
+        Add SPI to configure WebsiteDataStores with a URL for standalone web applications and use it to disable first-party website data removal in ITP
+        https://bugs.webkit.org/show_bug.cgi?id=209634
+        <rdar://problem/60943970>
+
+        Reviewed by Alex Christensen.
+
+        Added a new test option called standaloneWebApplicationURL so that layout tests can
+        configure the website data store accordingly. Picking it up and using it requires
+        creating a new website data store with a configuration that has the standalone web
+        application URL.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::parseStringTestHeaderValueAsURL):
+        (WTR::updateTestOptionsFromTestHeader):
+        * WebKitTestRunner/TestOptions.h:
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::TestController::platformCreateWebView):
+
 2020-04-02  David Kilzer  <ddkilzer@apple.com>
 
         REGRESSION (r234685): Leak of CALayer in createCoreAnimationLayer() in PluginObjectMac.mm

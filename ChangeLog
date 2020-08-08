@@ -1,3 +1,56 @@
+2020-04-06  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in DumpRenderTree
+        https://bugs.webkit.org/show_bug.cgi?id=210059
+
+        Reviewed by Fujii Hironori.
+
+        Add a DumpRenderTree derived sources directory.
+
+        * Source/cmake/WebKitFS.cmake:
+
+2020-04-06  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update minimum ICU version to 60.2
+        https://bugs.webkit.org/show_bug.cgi?id=209694
+
+        Reviewed by Darin Adler.
+
+        * Source/cmake/OptionsAppleWin.cmake:
+        * Source/cmake/OptionsCommon.cmake:
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmake/OptionsJSCOnly.cmake:
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/OptionsPlayStation.cmake:
+        * Source/cmake/OptionsWPE.cmake:
+        * Source/cmake/OptionsWinCairo.cmake:
+        Indicate 60.2 as minimum version (as required by GTK for supporting Ubuntu 18.04 LTS).
+        Also ensure that the C++ API is hidden for all platforms.
+
+2020-04-05  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in MiniBrowser
+        https://bugs.webkit.org/show_bug.cgi?id=206894
+
+        Reviewed by Adrian Perez de Castro.
+
+        Add a MiniBrowser derived sources directory.
+
+        * Source/cmake/WebKitFS.cmake:
+
+2020-04-05  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add WebKit::WebKit target
+        https://bugs.webkit.org/show_bug.cgi?id=210033
+
+        Reviewed by Fujii Hironori.
+
+        Use SET_AND_EXPOSE_TO_BUILD for the Plugin process since ENABLE(PLUGIN_PROCESS)
+        is used in the source code.
+
+        * Source/cmake/OptionsGTK.cmake:
+
 2020-04-02  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, reverting r259390.

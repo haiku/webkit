@@ -105,17 +105,15 @@ static RetainPtr<DDActionContext> detectItemAtPositionWithRange(VisiblePosition 
     if (!mainResult)
         return nil;
 
-    RetainPtr<DDActionContext> actionContext = adoptNS([allocDDActionContextInstance() init]);
+    auto view = mainResultRange->ownerDocument().view();
+    if (!view)
+        return nil;
+
+    auto actionContext = adoptNS([allocDDActionContextInstance() init]);
     [actionContext setAllResults:@[ (__bridge id)mainResult ]];
     [actionContext setMainResult:mainResult];
 
-    Vector<FloatQuad> quads;
-    mainResultRange->absoluteTextQuads(quads);
-    detectedDataBoundingBox = FloatRect();
-    FrameView* frameView = mainResultRange->ownerDocument().view();
-    for (const auto& quad : quads)
-        detectedDataBoundingBox.unite(frameView->contentsToWindow(quad.enclosingBoundingBox()));
-
+    detectedDataBoundingBox = view->contentsToWindow(enclosingIntRect(unitedBoundingBoxes(RenderObject::absoluteTextQuads(*mainResultRange))));
     detectedDataRange = mainResultRange;
 
     return actionContext;
@@ -377,7 +375,7 @@ static void buildQuery(DDScanQueryRef scanQuery, const SimpleRange& contextRange
         }
         // Test for white space nodes, we're coalescing them.
         auto currentTextUpconvertedCharacters = currentText.upconvertedCharacters();
-        const UniChar* currentCharPtr = currentTextUpconvertedCharacters.get();
+        auto currentCharPtr = currentTextUpconvertedCharacters.get();
         
         bool containsOnlyWhiteSpace = true;
         bool hasTab = false;
@@ -416,7 +414,7 @@ static void buildQuery(DDScanQueryRef scanQuery, const SimpleRange& contextRange
             continue;
         }
         
-        auto currentTextCFString = adoptCF(CFStringCreateWithCharacters(kCFAllocatorDefault, currentTextUpconvertedCharacters.get(), currentTextLength));
+        auto currentTextCFString = adoptCF(CFStringCreateWithCharacters(kCFAllocatorDefault, reinterpret_cast<const UniChar*>(currentTextUpconvertedCharacters.get()), currentTextLength));
         softLink_DataDetectorsCore_DDScanQueryAddTextFragment(scanQuery, currentTextCFString.get(), CFRangeMake(0, currentTextLength), (void *)iteratorCount, (DDTextFragmentMode)0, DDTextCoalescingTypeNone);
         fragmentCount++;
     }

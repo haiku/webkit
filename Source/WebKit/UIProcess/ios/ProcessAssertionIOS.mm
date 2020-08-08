@@ -265,110 +265,161 @@ static const Seconds releaseBackgroundTaskAfterExpirationDelay { 2_s };
 
 @end
 
+typedef void(^RBSAssertionInvalidationCallbackType)();
+
+@interface WKRBSAssertionDelegate : NSObject<RBSAssertionObserving>
+@property (copy) RBSAssertionInvalidationCallbackType invalidationCallback;
+@end
+
+@implementation WKRBSAssertionDelegate
+- (void)assertionWillInvalidate:(RBSAssertion *)assertion
+{
+    RELEASE_LOG(ProcessSuspension, "%p - WKRBSAssertionDelegate: assertionWillInvalidate", self);
+}
+
+- (void)assertion:(RBSAssertion *)assertion didInvalidateWithError:(NSError *)error
+{
+    RELEASE_LOG(ProcessSuspension, "%p - WKRBSAssertionDelegate: assertion was invalidated, error: %{public}@", error, self);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (_invalidationCallback)
+            _invalidationCallback();
+    });
+}
+@end
+
 namespace WebKit {
+
+static NSString *runningBoardNameForAssertionType(ProcessAssertionType assertionType)
+{
+#if HAVE(RUNNINGBOARD_WEBKIT_ASSERTIONS)
+    switch (assertionType) {
+    case ProcessAssertionType::Suspended:
+        return @"Suspended";
+    case ProcessAssertionType::Background:
+        return @"Background";
+    case ProcessAssertionType::UnboundedNetworking:
+        return @"UnboundedNetworking";
+    case ProcessAssertionType::Foreground:
+        return @"Foreground";
+    case ProcessAssertionType::MediaPlayback:
+        return nil; // FIXME: Name to be defined in <rdar://problem/61263147>.
+    }
+#else
+    UNUSED_PARAM(assertionType);
+    return nil;
+#endif
+}
 
 const BKSProcessAssertionFlags suspendedTabFlags = (BKSProcessAssertionAllowIdleSleep);
 const BKSProcessAssertionFlags backgroundTabFlags = (BKSProcessAssertionPreventTaskSuspend);
 const BKSProcessAssertionFlags foregroundTabFlags = (BKSProcessAssertionPreventTaskSuspend | BKSProcessAssertionWantsForegroundResourcePriority | BKSProcessAssertionPreventTaskThrottleDown);
 
-static BKSProcessAssertionFlags flagsForState(AssertionState assertionState)
+static BKSProcessAssertionFlags flagsForAssertionType(ProcessAssertionType assertionType)
 {
-    switch (assertionState) {
-    case AssertionState::Suspended:
+    switch (assertionType) {
+    case ProcessAssertionType::Suspended:
         return suspendedTabFlags;
-    case AssertionState::Background:
-    case AssertionState::UnboundedNetworking:
+    case ProcessAssertionType::Background:
+    case ProcessAssertionType::UnboundedNetworking:
         return backgroundTabFlags;
-    case AssertionState::Foreground:
+    case ProcessAssertionType::Foreground:
+    case ProcessAssertionType::MediaPlayback:
         return foregroundTabFlags;
     }
 }
 
-static AssertionReason reasonForState(AssertionState assertionState)
+static BKSProcessAssertionReason toBKSProcessAssertionReason(ProcessAssertionType assertionType)
 {
-    switch (assertionState) {
-    case AssertionState::UnboundedNetworking:
-        return AssertionReason::FinishTaskUnbounded;
-    case AssertionState::Suspended:
-    case AssertionState::Background:
-    case AssertionState::Foreground:
-        return AssertionReason::Extension;
-    }
-}
-
-static BKSProcessAssertionReason toBKSProcessAssertionReason(AssertionReason reason)
-{
-    switch (reason) {
-    case AssertionReason::Extension:
+    switch (assertionType) {
+    case ProcessAssertionType::Suspended:
+    case ProcessAssertionType::Background:
+    case ProcessAssertionType::Foreground:
         return BKSProcessAssertionReasonExtension;
-    case AssertionReason::FinishTask:
-        return BKSProcessAssertionReasonFinishTask;
-    case AssertionReason::FinishTaskUnbounded:
+    case ProcessAssertionType::UnboundedNetworking:
         return BKSProcessAssertionReasonFinishTaskUnbounded;
-    case AssertionReason::MediaPlayback:
+    case ProcessAssertionType::MediaPlayback:
         return BKSProcessAssertionReasonMediaPlayback;
     }
 }
 
-ProcessAssertion::ProcessAssertion(pid_t pid, const String& name, AssertionState assertionState)
-    : ProcessAssertion(pid, name, assertionState, reasonForState(assertionState))
-{
-}
-
-ProcessAssertion::ProcessAssertion(pid_t pid, const String& name, AssertionState assertionState, AssertionReason assertionReason)
-    : m_assertionState(assertionState)
+ProcessAssertion::ProcessAssertion(pid_t pid, ASCIILiteral reason, ProcessAssertionType assertionType)
+    : m_assertionType(assertionType)
+    , m_pid(pid)
 {
     auto weakThis = makeWeakPtr(*this);
-    BKSProcessAssertionAcquisitionHandler handler = ^(BOOL acquired) {
-        if (!acquired) {
-            RELEASE_LOG_ERROR(ProcessSuspension, " %p - ProcessAssertion() PID %d Unable to acquire assertion for process with PID %d", this, getpid(), pid);
+    NSString *nsReason = [NSString stringWithCString:reason.characters() encoding:NSASCIIStringEncoding];
+    NSString *runningBoardAssertionName = runningBoardNameForAssertionType(assertionType);
+    if (runningBoardAssertionName) {
+        RBSTarget *target = [RBSTarget targetWithPid:pid];
+        RBSDomainAttribute *domainAttribute = [RBSDomainAttribute attributeWithDomain:@"com.apple.webkit" name:runningBoardAssertionName];
+        m_rbsAssertion = adoptNS([[RBSAssertion alloc] initWithExplanation:nsReason target:target attributes:@[domainAttribute]]);
+
+        m_delegate = adoptNS([[WKRBSAssertionDelegate alloc] init]);
+        [m_rbsAssertion addObserver:m_delegate.get()];
+        m_delegate.get().invalidationCallback = ^{
+            RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion() RBS %{public}@ assertion for process with PID %d was invalidated", this, runningBoardAssertionName, pid);
+            processAssertionWasInvalidated();
+        };
+
+        NSError *acquisitionError = nil;
+        if (![m_rbsAssertion acquireWithError:&acquisitionError]) {
+            RELEASE_LOG_ERROR(ProcessSuspension, "%p - ProcessAssertion: Failed to acquire RBS %{public}@ assertion '%{public}s' for process with PID %d, error: %{public}@", this, runningBoardAssertionName, reason.characters(), pid, acquisitionError);
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (weakThis)
                     processAssertionWasInvalidated();
             });
-        }
-    };
-    RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion() PID %d acquiring assertion for process with PID %d, name '%s'", this, getpid(), pid, name.utf8().data());
-    
-    m_assertion = adoptNS([[BKSProcessAssertion alloc] initWithPID:pid flags:flagsForState(assertionState) reason:toBKSProcessAssertionReason(assertionReason) name:(NSString *)name withHandler:handler]);
-    m_assertion.get().invalidationHandler = ^() {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion() Process assertion for process with PID %d was invalidated", this, pid);
-            if (weakThis)
-                processAssertionWasInvalidated();
-        });
-    };
+        } else
+            RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion: Successfully took RBS %{public}@ assertion '%{public}s' for process with PID %d", this, runningBoardAssertionName, reason.characters(), pid);
+    } else {
+        // Legacy code path.
+        BKSProcessAssertionAcquisitionHandler handler = ^(BOOL acquired) {
+            if (!acquired) {
+                RELEASE_LOG_ERROR(ProcessSuspension, " %p - ProcessAssertion() PID %d Unable to acquire BKS assertion for process with PID %d", this, getpid(), pid);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (weakThis)
+                        processAssertionWasInvalidated();
+                });
+            }
+        };
+        RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion() PID %d acquiring BKS assertion for process with PID %d, name '%s'", this, getpid(), pid, reason.characters());
+
+        m_bksAssertion = adoptNS([[BKSProcessAssertion alloc] initWithPID:pid flags:flagsForAssertionType(assertionType) reason:toBKSProcessAssertionReason(assertionType) name:nsReason withHandler:handler]);
+
+        m_bksAssertion.get().invalidationHandler = ^() {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion() BKS Process assertion for process with PID %d was invalidated", this, pid);
+                if (weakThis)
+                    processAssertionWasInvalidated();
+            });
+        };
+    }
+    ASSERT(m_rbsAssertion || m_bksAssertion);
 }
 
 ProcessAssertion::~ProcessAssertion()
 {
-    m_assertion.get().invalidationHandler = nil;
+    RELEASE_LOG(ProcessSuspension, "%p - ~ProcessAssertion() Releasing process assertion for process with PID %d", this, m_pid);
 
-    RELEASE_LOG(ProcessSuspension, "%p - ~ProcessAssertion() Releasing process assertion", this);
-    [m_assertion invalidate];
+    if (m_rbsAssertion) {
+        [m_rbsAssertion removeObserver:m_delegate.get()];
+        [m_rbsAssertion invalidate];
+    } else {
+        m_bksAssertion.get().invalidationHandler = nil;
+        [m_bksAssertion invalidate];
+    }
 }
 
 void ProcessAssertion::processAssertionWasInvalidated()
 {
     ASSERT(RunLoop::isMain());
-    RELEASE_LOG_ERROR(ProcessSuspension, "%p - ProcessAssertion::processAssertionWasInvalidated()", this);
+    RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion::processAssertionWasInvalidated() PID: %d", this, m_pid);
 
     m_validity = Validity::No;
 }
 
-void ProcessAssertion::setState(AssertionState assertionState)
-{
-    if (m_assertionState == assertionState)
-        return;
-
-    RELEASE_LOG(ProcessSuspension, "%p - ProcessAssertion::setState(%u) previousState: %u", this, static_cast<unsigned>(assertionState), static_cast<unsigned>(m_assertionState));
-    m_assertionState = assertionState;
-    [m_assertion setFlags:flagsForState(assertionState)];
-}
-
 void ProcessAndUIAssertion::updateRunInBackgroundCount()
 {
-    bool shouldHoldBackgroundTask = validity() != Validity::No && state() != AssertionState::Suspended;
+    bool shouldHoldBackgroundTask = validity() != Validity::No && type() != ProcessAssertionType::Suspended;
     if (m_isHoldingBackgroundTask == shouldHoldBackgroundTask)
         return;
 
@@ -380,8 +431,8 @@ void ProcessAndUIAssertion::updateRunInBackgroundCount()
     m_isHoldingBackgroundTask = shouldHoldBackgroundTask;
 }
 
-ProcessAndUIAssertion::ProcessAndUIAssertion(pid_t pid, const String& reason, AssertionState assertionState)
-    : ProcessAssertion(pid, reason, assertionState)
+ProcessAndUIAssertion::ProcessAndUIAssertion(pid_t pid, ASCIILiteral reason, ProcessAssertionType assertionType)
+    : ProcessAssertion(pid, reason, assertionType)
 {
     updateRunInBackgroundCount();
 }
@@ -390,12 +441,6 @@ ProcessAndUIAssertion::~ProcessAndUIAssertion()
 {
     if (m_isHoldingBackgroundTask)
         [[WKProcessAssertionBackgroundTaskManager shared] removeAssertionNeedingBackgroundTask:*this];
-}
-
-void ProcessAndUIAssertion::setState(AssertionState assertionState)
-{
-    ProcessAssertion::setState(assertionState);
-    updateRunInBackgroundCount();
 }
 
 void ProcessAndUIAssertion::uiAssertionWillExpireImminently()

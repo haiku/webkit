@@ -1,3 +1,857 @@
+2020-04-06  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: `console.log(...)` appear as `CONSOLE LOG LOG` in the system console
+        https://bugs.webkit.org/show_bug.cgi?id=210083
+
+        Reviewed by Timothy Hatcher.
+
+        * runtime/ConsoleClient.cpp:
+        (JSC::appendMessagePrefix):
+
+2020-04-06  Mark Lam  <mark.lam@apple.com>
+
+        REGRESSION: 68000 JSC tests failing.
+        https://bugs.webkit.org/show_bug.cgi?id=210078
+        <rdar://problem/61364513>
+
+        Reviewed by Yusuke Suzuki.
+
+        The missing exception check is in jsc shell's GlobalObject::finishCreation().
+        Since this is just a debugging tool, and this exception will never be thrown in
+        practice, I've placated the validator by RELEASE_ASSERT'ing that the exception
+        will never be thrown.
+
+        * jsc.cpp:
+
+2020-04-06  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update minimum ICU version to 60.2
+        https://bugs.webkit.org/show_bug.cgi?id=209694
+
+        Reviewed by Darin Adler.
+
+        * icu/LICENSE: Deleted.
+        * icu/README: Deleted.
+        Remove leftover files following r219155.
+
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::UFieldPositionIteratorDeleter::operator() const):
+        (JSC::IntlDateTimeFormat::partTypeString):
+        (JSC::IntlDateTimeFormat::formatToParts):
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlDateTimeFormatPrototype.cpp:
+        (JSC::IntlDateTimeFormatPrototype::finishCreation):
+        (JSC::IntlDateTimeFormatPrototypeFuncFormatToParts):
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::partTypeString):
+        (JSC::IntlNumberFormat::formatToParts):
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlNumberFormatPrototype.cpp:
+        (JSC::IntlNumberFormatPrototype::finishCreation):
+        (JSC::IntlNumberFormatPrototypeFuncFormatToParts):
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::resolvedOptions):
+        (JSC::IntlPluralRules::select):
+        * runtime/IntlPluralRules.h:
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::decode):
+        Remove obsoleted compile-time version checks.
+
+2020-04-06  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [Clang 10] Fix -Wimplicit-int-float-conversion compilation warnings in JavaScriptCore
+        https://bugs.webkit.org/show_bug.cgi?id=210038
+
+        Reviewed by Darin Adler.
+
+        Clang 10 reports a compilation warning in JavaScriptCore:
+        > ..\..\Source\JavaScriptCore\bytecode/CodeBlock.cpp(3002,24): warning: implicit conversion from 'unsigned long long' to 'double' changes value from 18446744073709551615 to 18446744073709551616 [-Wimplicit-int-float-conversion]
+        >     if (doubleResult > std::numeric_limits<size_t>::max())
+        >                      ~ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        Use a template variable maxPlusOne<T> which was added by r259537
+        for the purpose.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::predictedMachineCodeSize): Replaced '>' with '>=',
+        and std::numeric_limits<size_t>::max() with maxPlusOne<size_t>.
+
+2020-04-06  Rick Waldron  <waldron.rick@gmail.com> and Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove unnecessary Test262 harness file and implement $262.IsHTMLDDA
+        https://bugs.webkit.org/show_bug.cgi?id=187526
+
+        Reviewed by Darin Adler.
+
+        Test262 harness requires [1] $262.IsHTMLDDA to be an object with [[IsHTMLDDA]] slot [2],
+        much like `document.all`. It is used in a few tests to make sure that runtimes strictly
+        compare values with `null` and `undefined`.
+
+        With this change, `makeMasquerader` returns callable masquerader to mimic `document.all`
+        in the wild. In order to avoid `masqueradesAsUndefinedWatchpoint` being fired during
+        initialization of JSC shell, $262.IsHTMLDDA is a getter.
+
+        [1]: https://github.com/tc39/test262/blob/master/INTERPRETING.md#host-defined-functions
+        [2]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
+
+        * jsc.cpp:
+        (functionMakeMasquerader):
+        (functionCallMasquerader):
+        (JSC::Masquerader::Masquerader): Deleted.
+        (JSC::Masquerader::subspaceFor): Deleted.
+        (JSC::Masquerader::create): Deleted.
+        (JSC::Masquerader::createStructure): Deleted.
+        * runtime/JSObject.h:
+
+2020-04-06  Justin Michaud  <justin_michaud@apple.com>
+
+        Allow deleteById to be cached in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=208664
+
+        Reviewed by Saam Barati.
+
+        When we see that the deleteById inline cache only saw one structure, we inline it into the DFG. This involves
+        creating a new node, FilterDeleteByStatus, and then turning these DeleteById nodes into a FilterDeleteByStatus,
+        CheckStructure, PutByOffset, then PutStructure (or just a CheckStructure in the case of a miss). The logic for 
+        pessimising this optimization is the same as for PutById, giving inlined functions the opportunity to use only 
+        the DFG profiling information, while everything else uses the DFG+Baseline information.
+
+        This also adds a MultiDeleteByOffset node, for the case when there are multiple structures seen by the delete. If
+        all of the cases are the same kind of miss, then we only emit a CheckStructure and constant.
+
+        Finally, if we see a delete by val with a single identifier, we inline that too.
+
+        This patch removes a dead code path from deleteProperty that checks if we need to nuke the object's butterfly. 
+        This also fixes a bug where we were checking the neutering status of typed arrays for named properties when we should
+        only check for indexed properties. The behavior of this now matches for all tiers including when cached.
+
+        The benchmark shows a 2x improvement on polyvariant-delete-property, and a 50% improvement on delete-property-allocation-sinking.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::createDelete):
+        (JSC::AccessCase::generateImpl):
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::getICStatusMap):
+        * bytecode/DeleteByIdVariant.cpp: Added.
+        (JSC::DeleteByIdVariant::DeleteByIdVariant):
+        (JSC::DeleteByIdVariant::~DeleteByIdVariant):
+        (JSC::DeleteByIdVariant::operator=):
+        (JSC::DeleteByIdVariant::attemptToMerge):
+        (JSC::DeleteByIdVariant::writesStructures const):
+        (JSC::DeleteByIdVariant::visitAggregate):
+        (JSC::DeleteByIdVariant::markIfCheap):
+        (JSC::DeleteByIdVariant::dump const):
+        (JSC::DeleteByIdVariant::finalize):
+        (JSC::DeleteByIdVariant::dumpInContext const):
+        * bytecode/DeleteByIdVariant.h: Added.
+        (JSC::DeleteByIdVariant::oldStructure const):
+        (JSC::DeleteByIdVariant::newStructure const):
+        (JSC::DeleteByIdVariant::result const):
+        (JSC::DeleteByIdVariant::offset const):
+        (JSC::DeleteByIdVariant::isPropertyUnset const):
+        (JSC::DeleteByIdVariant::identifier const):
+        (JSC::DeleteByIdVariant::overlaps):
+        * bytecode/DeleteByStatus.cpp: Added.
+        (JSC::DeleteByStatus::appendVariant):
+        (JSC::DeleteByStatus::computeForBaseline):
+        (JSC::DeleteByStatus::DeleteByStatus):
+        (JSC::DeleteByStatus::computeForStubInfoWithoutExitSiteFeedback):
+        (JSC::DeleteByStatus::computeFor):
+        (JSC::DeleteByStatus::slowVersion const):
+        (JSC::DeleteByStatus::merge):
+        (JSC::DeleteByStatus::filter):
+        (JSC::DeleteByStatus::singleIdentifier const):
+        (JSC::DeleteByStatus::visitAggregate):
+        (JSC::DeleteByStatus::markIfCheap):
+        (JSC::DeleteByStatus::finalize):
+        (JSC::DeleteByStatus::dump const):
+        * bytecode/DeleteByStatus.h: Added.
+        * bytecode/ICStatusMap.h:
+        * bytecode/RecordedStatuses.cpp:
+        (JSC::RecordedStatuses::operator=):
+        (JSC::RecordedStatuses::addDeleteByStatus):
+        (JSC::RecordedStatuses::visitAggregate):
+        (JSC::RecordedStatuses::markIfCheap):
+        * bytecode/RecordedStatuses.h:
+        (JSC::RecordedStatuses::forEachVector):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::filterICStatus):
+        * dfg/DFGArgumentsEliminationPhase.cpp:
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleDeleteById):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGClobbersExitState.cpp:
+        (JSC::DFG::clobbersExitState):
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+        (JSC::DFG::ConstantFoldingPhase::emitDeleteByOffset):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::dump):
+        * dfg/DFGGraph.h:
+        * dfg/DFGMayExit.cpp:
+        * dfg/DFGNode.cpp:
+        (JSC::DFG::MultiDeleteByOffsetData::writesStructures const):
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::hasMultiDeleteByOffsetData):
+        (JSC::DFG::Node::multiDeleteByOffsetData):
+        (JSC::DFG::Node::hasDeleteByStatus):
+        (JSC::DFG::Node::deleteByStatus):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGObjectAllocationSinkingPhase.cpp:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGTypeCheckHoistingPhase.cpp:
+        (JSC::DFG::TypeCheckHoistingPhase::identifyRedundantStructureChecks):
+        (JSC::DFG::TypeCheckHoistingPhase::identifyRedundantArrayChecks):
+        * dfg/DFGValidate.cpp:
+        * dfg/DFGVarargsForwardingPhase.cpp:
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileMultiDeleteByOffset):
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::deleteProperty):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::deleteProperty):
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::mayHaveIndexingHeader const): Deleted.
+        (JSC::Structure::canCacheDeleteIC const): Deleted.
+
+2020-04-06  Saam Barati  <sbarati@apple.com>
+
+        Implement 1GB of executable memory on arm64
+        https://bugs.webkit.org/show_bug.cgi?id=208490
+        <rdar://problem/60797127>
+
+        Reviewed by Keith Miller.
+
+        This patch implements the 1GB executable memory space on arm64. To make this
+        work, we implement jumps larger than +/-128MB to use jump islands. Jump islands
+        work by splitting up the ~1GB region into 9 112MB chunks (1008 MB total). Each
+        chunk is split into two: 96MB of executable region, and 16MB of jump island region.
+        With this split, any jump inside a jump island region can get to the adjacent
+        island (forwards or backwards) in a single +/-128MB jump. When linking a jump
+        from A to B, where |A - B| > 128MB, we instead point the jump to an island,
+        where this island has a potential series of jumps that finally lands at B.
+        
+        To allocate executable memory, use a MetaAllocator for each 96MB chunk. To
+        allocate islands, we have a bit vector we use to track used and freed islands.
+        We only grow this bit vector as islands are allocated, so it frequently
+        remains empty or very small.
+        
+        The goal of this patch is to have minimal perf impact when not using islands,
+        so the data structures are designed to only incur overhead when actually using
+        islands. We expect the use of islands to be minimal. We use a red black tree
+        to track all island locations. This allows us to deallocate all islands when
+        an executable memory handle is freed. Typically, this red black tree is empty,
+        so freeing an executable memory handle incurs no extra overhead.
+        
+        To make islands work for Wasm, we now have to link tier up code in two phases.
+        Previously, we would just patch jumps concurrently to Wasm threads running after
+        resetting the icache, knowing that we would be able to atomically update the jump
+        instruction to point to the new destination. However, now when repatching these
+        jumps in a world with jump islands, we might need to allocate islands depending
+        on the jump location and its target. So we now allocate and collect the set of islands,
+        then reset the icache, then atomically update the branch to point to the destination
+        (or an island that jumps to the destination). One important implementation detail
+        here is that for normal island repatching, if we have a jump from A to B, and it
+        allocates a set if islands X, we usually can deallocate X when repatching A to go to B'.
+        This is because the typical repatch scenario in JS happens when that code is not being
+        executed. For Wasm though, those islands X might be running while we want to repatch
+        A to go to B'. So instead of deallocating X, we just append to X in this scenario, and
+        we free the new set X' when the code itself is freed.
+        
+        (This patch also fixes a bug in the Wasm LLInt to BBQ tier up that I spotted,
+        where we would publish a LLInt callee's BBQ replacement before we finished
+        linking the outgoing calls of the BBQ replacement.)
+        
+        This patch also removes the old "CodeProfiling" code that has been unused for
+        a long time.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * assembler/ARM64Assembler.h:
+        (JSC::ARM64Assembler::b):
+        (JSC::ARM64Assembler::bl):
+        (JSC::ARM64Assembler::replaceWithJump):
+        (JSC::ARM64Assembler::prepareForAtomicRelinkJumpConcurrently):
+        (JSC::ARM64Assembler::prepareForAtomicRelinkCallConcurrently):
+        (JSC::ARM64Assembler::computeJumpType):
+        (JSC::ARM64Assembler::canEmitJump):
+        (JSC::ARM64Assembler::linkJumpOrCall):
+        (JSC::ARM64Assembler::linkCompareAndBranch):
+        (JSC::ARM64Assembler::linkConditionalBranch):
+        (JSC::ARM64Assembler::linkTestAndBranch):
+        * assembler/AbstractMacroAssembler.h:
+        (JSC::AbstractMacroAssembler::prepareForAtomicRepatchNearCallConcurrently):
+        * assembler/LinkBuffer.cpp:
+        (JSC::LinkBuffer::copyCompactAndLinkCode):
+        (JSC::LinkBuffer::linkCode):
+        (JSC::LinkBuffer::allocate):
+        (JSC::LinkBuffer::performFinalization):
+        * assembler/LinkBuffer.h:
+        (JSC::LinkBuffer::LinkBuffer):
+        (JSC::LinkBuffer::setIsJumpIsland):
+        * assembler/MacroAssemblerCodeRef.h:
+        (JSC::MacroAssemblerCodeRef::MacroAssemblerCodeRef):
+        * jit/ExecutableAllocator.cpp:
+        (JSC::initializeJITPageReservation):
+        (JSC::ExecutableAllocator::initializeUnderlyingAllocator):
+        (JSC::ExecutableAllocator::isValid const):
+        (JSC::ExecutableAllocator::allocate):
+        (JSC::ExecutableAllocator::getJumpIslandTo):
+        (JSC::ExecutableAllocator::getJumpIslandToConcurrently):
+        (JSC::FixedVMPoolExecutableAllocator::~FixedVMPoolExecutableAllocator): Deleted.
+        * jit/ExecutableAllocator.h:
+        (JSC::ExecutableAllocatorBase::allocate):
+        * runtime/CommonSlowPaths.cpp:
+        * runtime/Completion.cpp:
+        (JSC::evaluate):
+        * runtime/JSModuleLoader.cpp:
+        (JSC::moduleLoaderParseModule):
+        * runtime/OptionsList.h:
+        * tools/CodeProfile.cpp:
+        (JSC::truncateTrace): Deleted.
+        (JSC::CodeProfile::sample): Deleted.
+        (JSC::CodeProfile::report): Deleted.
+        * tools/CodeProfile.h:
+        (JSC::CodeProfile::CodeProfile): Deleted.
+        (JSC::CodeProfile::parent): Deleted.
+        (JSC::CodeProfile::addChild): Deleted.
+        (): Deleted.
+        (JSC::CodeProfile::CodeRecord::CodeRecord): Deleted.
+        * tools/CodeProfiling.cpp:
+        (JSC::setProfileTimer): Deleted.
+        (JSC::profilingTimer): Deleted.
+        (JSC::CodeProfiling::sample): Deleted.
+        (JSC::CodeProfiling::notifyAllocator): Deleted.
+        (JSC::CodeProfiling::getOwnerUIDForPC): Deleted.
+        (JSC::CodeProfiling::begin): Deleted.
+        (JSC::CodeProfiling::end): Deleted.
+        * tools/CodeProfiling.h:
+        (): Deleted.
+        (JSC::CodeProfiling::CodeProfiling): Deleted.
+        (JSC::CodeProfiling::~CodeProfiling): Deleted.
+        (JSC::CodeProfiling::enabled): Deleted.
+        (JSC::CodeProfiling::beVerbose): Deleted.
+        (JSC::CodeProfiling::beVeryVerbose): Deleted.
+        * wasm/WasmBBQPlan.cpp:
+        (JSC::Wasm::BBQPlan::work):
+        * wasm/WasmCodeBlock.h:
+        * wasm/WasmOMGForOSREntryPlan.cpp:
+        (JSC::Wasm::OMGForOSREntryPlan::work):
+        * wasm/WasmOMGPlan.cpp:
+        (JSC::Wasm::OMGPlan::work):
+        * wasm/WasmPlan.cpp:
+        (JSC::Wasm::Plan::updateCallSitesToCallUs):
+        * wasm/WasmPlan.h:
+
+2020-04-06  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Since ArrayBufferViewWatchpointAdaptor::add can fire watchpoints, DFG::Plan should check validity of CodeBlock after executing reallyAdd
+        https://bugs.webkit.org/show_bug.cgi?id=210055
+        <rdar://problem/61331962>
+
+        Reviewed by Keith Miller.
+
+        Since ArrayBufferViewWatchpointAdaptor::add can fire watchpoints, it is possible that the DFG CodeBlock is already invalidated after executing DFG::Plan::reallyAdd.
+        We should check CodeBlock's validity again and terminate DFG::Plan::finalizeWithoutNotifyingCallback with CompilationInvalidated if CodeBlock got invalidated.
+
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::finalizeWithoutNotifyingCallback):
+
+2020-04-06  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Put ensureStillAliveHere for Integer TypedArrays in GetByVal
+        https://bugs.webkit.org/show_bug.cgi?id=210047
+
+        Reviewed by Mark Lam.
+
+        While r258381 puts ensureStillAliveHere in FTL to keep base alive for float/double TypedArrays,
+        we need to do the same thing for integer TypedArrays too. This patch places it.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileGetByVal):
+
+2020-04-05  Gus Caplan  <me@gus.host> and Ross Kirsling  <ross.kirsling@sony.com>
+
+        DLLLauncherMain print to console instead of opening window on fatal error
+        https://bugs.webkit.org/show_bug.cgi?id=206537
+
+        Reviewed by Fujii Hironori.
+
+        * shell/DLLLauncherMain.cpp:
+        (fatalError):
+
+2020-04-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        JSC shell shouldn't treat NUL as a terminator when printing a JS string
+        https://bugs.webkit.org/show_bug.cgi?id=210037
+
+        Reviewed by Darin Adler.
+
+        Since JS strings aren't null-terminated, it's probably a better experience to not stop printing when we see \0.
+        That is, 'abc\0def' should be printed as `abcdef` and not `abc`.
+
+        This patch updates our printing of evaluation results as well as the print / printErr / debug functions.
+
+        * jsc.cpp:
+        (printInternal):
+        (functionDebug):
+        (runInteractive):
+
+2020-04-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Putting "memory" back to ensureStillAliveHere
+        https://bugs.webkit.org/show_bug.cgi?id=210028
+
+        Reviewed by Keith Miller.
+
+        We put "memory" back to make ensureStillAliveHere compiler-barrier.
+
+        * runtime/EnsureStillAliveHere.h:
+        (JSC::ensureStillAliveHere):
+        * runtime/JSCJSValue.h:
+        (JSC::ensureStillAliveHere):
+
+2020-04-05  Mark Lam  <mark.lam@apple.com>
+
+        ARM64 moveConditionallyDouble() for DoubleNotEqualAndOrdered is wrong.
+        https://bugs.webkit.org/show_bug.cgi?id=210039
+        <rdar://problem/61321778>
+
+        Reviewed by Yusuke Suzuki.
+
+        For the scenario where the dest register is same as the then case register, there
+        is one csel instruction that should be checking the overflow condition to test
+        for unordered operands.  Instead, we were testing for the not equal condition.
+        This patch fixes it to check for the overflow condition.
+
+        This bug was caught by testmasm.
+
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::moveConditionallyAfterFloatingPointCompare):
+
+2020-04-05  David Kilzer  <ddkilzer@apple.com>
+
+        Sort JavaScriptCore Xcode project file
+
+        * JavaScriptCore.xcodeproj/project.pbxproj: Sort the project
+        file to try to force buildbots to rebuild and resign
+        JavaScriptCore.framework.  Some bots are stuck with a codesign
+        error after r259545.
+
+2020-04-05  Keith Miller  <keith_miller@apple.com>
+
+        ensureStillAliveHere can take the value in any location
+        https://bugs.webkit.org/show_bug.cgi?id=210028
+
+        Reviewed by Mark Lam.
+
+        It shouldn't matter if the value is on the stack or in a register
+        because we're not going to do anything with it. Also, there's no
+        reason to clobber memory.
+
+        * runtime/EnsureStillAliveHere.h:
+        (JSC::ensureStillAliveHere):
+
+2020-04-05  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed, adding missing header inclusions to get
+        non-unified build building.
+
+        * heap/HeapSnapshotBuilder.h:
+        * tools/Integrity.h:
+
+2020-04-05  Mark Lam  <mark.lam@apple.com>
+
+        Change s_entropyBitsShiftForStructurePointer to 48 bits.
+        https://bugs.webkit.org/show_bug.cgi?id=210022
+        <rdar://problem/61310696>
+
+        Reviewed by Keith Miller.
+
+        This is ok because the top 16 bits of the 64-bit address is not used.  We can
+        fill out the top 16-bits of the encodedStructureBits  with the lowest 16-bits of
+        the StructureID (which includes the 7-bits of entropy).
+
+        * runtime/StructureIDTable.h:
+
+2020-04-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSArrayIterator's size is wrong
+        https://bugs.webkit.org/show_bug.cgi?id=210020
+
+        Reviewed by Mark Lam.
+
+        Internal-size of JSArrayIterator should be 3, not 4.
+
+        * runtime/JSArrayIterator.h:
+
+2020-04-05  Mark Lam  <mark.lam@apple.com>
+
+        Rolling out r259545: causing CodeSigning error in jsc EWS bot.
+        https://bugs.webkit.org/show_bug.cgi?id=210018
+
+        Not reviewed.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-04-05  Mark Lam  <mark.lam@apple.com>
+
+        Add some structureID integrity checks to various runtime functions.
+        https://bugs.webkit.org/show_bug.cgi?id=210015
+        <rdar://problem/58116514>
+
+        Reviewed by Keith Miller.
+
+        Specifically, implementations of toString(), toValue(), and a few others.
+        I also moved the HeapCell version of ensureStillAliveHere() into the new
+        EnsureStillAliveHere.h/cpp since it's useful for any pointers, not just HeapCells.
+
+        This change is performance neutral on JetStream 2.0, Speedometer-2, and PLT5.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * heap/HeapCell.cpp:
+        (JSC::ensureStillAliveHere): Deleted.
+        * heap/HeapCell.h:
+        (JSC::ensureStillAliveHere): Deleted.
+        * heap/SlotVisitor.cpp:
+        (JSC::SlotVisitor::appendJSCellOrAuxiliary):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::arrayProtoFuncToString):
+        * runtime/BigIntPrototype.cpp:
+        (JSC::bigIntProtoFuncToStringImpl):
+        (JSC::bigIntProtoFuncValueOf):
+        * runtime/BooleanPrototype.cpp:
+        (JSC::booleanProtoFuncToString):
+        (JSC::booleanProtoFuncValueOf):
+        * runtime/DatePrototype.cpp:
+        (JSC::formatLocaleDate):
+        (JSC::formateDateInstance):
+        (JSC::dateProtoFuncToISOString):
+        (JSC::dateProtoFuncToPrimitiveSymbol):
+        * runtime/EnsureStillAliveHere.cpp: Added.
+        (JSC::ensureStillAliveHere):
+        * runtime/EnsureStillAliveHere.h: Added.
+        (JSC::ensureStillAliveHere):
+        * runtime/ErrorInstance.cpp:
+        (JSC::ErrorInstance::sanitizedToString):
+        * runtime/ErrorPrototype.cpp:
+        (JSC::errorProtoFuncToString):
+        * runtime/FunctionPrototype.cpp:
+        (JSC::functionProtoFuncToString):
+        * runtime/JSCell.cpp:
+        (JSC::JSCell::toObjectSlow const):
+        * runtime/NumberPrototype.cpp:
+        (JSC::toThisNumber):
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectProtoFuncValueOf):
+        (JSC::objectProtoFuncToString):
+        * runtime/RegExpPrototype.cpp:
+        (JSC::regExpProtoFuncToString):
+        * runtime/StringPrototype.cpp:
+        (JSC::stringProtoFuncToString):
+        * runtime/StructureIDTable.h:
+        (JSC::StructureIDTable::validate):
+        (JSC::StructureIDTable::isValid): Deleted.
+        * runtime/SymbolPrototype.cpp:
+        (JSC::symbolProtoGetterDescription):
+        (JSC::symbolProtoFuncToString):
+        (JSC::symbolProtoFuncValueOf):
+        * tools/Integrity.h:
+        * tools/IntegrityInlines.h:
+        (JSC::Integrity::auditStructureID):
+        * wasm/js/WebAssemblyGlobalPrototype.cpp:
+        (JSC::getGlobal):
+
+2020-04-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Octal escapes should be max 3 digits and syntax errors in Unicode patterns
+        https://bugs.webkit.org/show_bug.cgi?id=167067
+
+        Reviewed by Ross Kirsling.
+
+        This patch:
+
+        a) Adds SyntaxError for octal escapes in Unicode patterns, while preserving /\0/u
+        being parsed as null character escape. Grammar: https://tc39.es/ecma262/#prod-CharacterEscape
+
+        b) Limits consumeOctal() to 3 digits only, preventing it from consuming leading zeros.
+        Grammar: https://tc39.es/ecma262/#prod-annexB-LegacyOctalEscapeSequence
+
+        Both changes align JSC with V8 and SpiderMonkey.
+
+        * yarr/YarrErrorCode.cpp:
+        (JSC::Yarr::errorMessage):
+        (JSC::Yarr::errorToThrow):
+        * yarr/YarrErrorCode.h:
+        * yarr/YarrParser.h:
+        (JSC::Yarr::Parser::parseEscape):
+        (JSC::Yarr::Parser::consumeOctal):
+
+2020-04-04  Keith Miller  <keith_miller@apple.com>
+
+        copy jsc CLI into JavaScriptCore.framework earlier
+        https://bugs.webkit.org/show_bug.cgi?id=210018
+
+        Reviewed by Mark Lam.
+
+        Some of our test scripts only copy the JavaScriptCore.framework
+        into the test directory and try to run jsc from there. We should
+        copy the jsc CLI ASAP so we don't need to build all the other test
+        binaries unless we actually need them.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-04-04  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        '\u' should throw an early SyntaxError exception, but instead evaluates to 'u'
+        https://bugs.webkit.org/show_bug.cgi?id=198790
+
+        Reviewed by Yusuke Suzuki.
+
+        This change removes special-case for '\u', invoking parseUnicodeEscape() right away,
+        aligning string literals with ES6 template literals. parseComplexEscape() method
+        signature is greatly simplified, JSC is aligned with V8 and SpiderMonkey.
+
+        Grammar: https://tc39.es/ecma262/#prod-UnicodeEscapeSequence
+        (Hex4Digits or '{' is required, otherwise parsing fails)
+
+        * parser/Lexer.cpp:
+        (JSC::Lexer<T>::parseComplexEscape):
+        (JSC::Lexer<T>::parseStringSlowCase):
+        (JSC::Lexer<T>::parseTemplateLiteral):
+        * parser/Lexer.h:
+
+2020-04-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] canonicalizeLocaleList should gracefully throw OOM error if input + error message is too large
+        https://bugs.webkit.org/show_bug.cgi?id=209971
+        <rdar://problem/61258621>
+
+        Reviewed by Mark Lam.
+
+        canonicalizeLocaleList generates error-message with input. If input is too large, error-message string
+        generation could fail due to OOM. We should gracefully throw OOM error instead of crashing. This strategy
+        follows to `createError`'s error-message generation: if error-message generation fails, throwing OOM error.
+
+        * runtime/IntlObject.cpp:
+        (JSC::canonicalizeLocaleList):
+
+2020-04-03  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Move Intl tests from LayoutTests to JSTests
+        https://bugs.webkit.org/show_bug.cgi?id=209922
+
+        Reviewed by Yusuke Suzuki.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionSetUserPreferredLanguages):
+        (JSC::JSDollarVM::finishCreation):
+        Add $vm.setUserPreferredLanguages, as needed by stress/intl-default-locale.js.
+
+2020-04-03  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: increase the auto-inspect debugger timeout delay to account for slower networks/devices
+        https://bugs.webkit.org/show_bug.cgi?id=209940
+        <rdar://problem/61120919>
+
+        Reviewed by Joseph Pecoraro.
+
+        * inspector/remote/cocoa/RemoteInspectorCocoa.mm:
+        (Inspector::RemoteInspector::updateAutomaticInspectionCandidate):
+
+2020-04-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] TypedArray#subarray should throw OOM error gracefully
+        https://bugs.webkit.org/show_bug.cgi?id=209974
+        <rdar://problem/61253901>
+
+        Reviewed by Mark Lam.
+
+        After r259069 change, possiblySharedBuffer can return nullptr if OOM happens.
+        However, TypedArray#subarray didn't handle this case properly. This patch throws
+        an OOM error appropriately if possiblySharedBuffer returns nullptr in TypedArray#subarray.
+
+        * runtime/JSGenericTypedArrayViewPrototypeFunctions.h:
+        (JSC::genericTypedArrayViewPrivateFuncSubarrayCreate):
+
+2020-04-03  David Kilzer  <ddkilzer@apple.com>
+
+        [Xcode] Replace ASAN_OTHER_CFLAGS and ASAN_OTHER_CPLUSPLUSFLAGS with $(inherited)
+        <https://webkit.org/b/209963>
+        <rdar://problem/61257504>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/ToolExecutable.xcconfig:
+        - Remove ASAN_OTHER_CFLAGS, ASAN_OTHER_CPLUSPLUSFLAGS and
+          ASAN_OTHER_LDFLAGS.
+
+2020-04-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, partially reverting Structure change due to Speedometer2 regression
+        https://bugs.webkit.org/show_bug.cgi?id=207827
+
+        Not reverting WTF changes.
+
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::createTransition):
+        (JSC::AccessCase::createDelete):
+        (JSC::AccessCase::propagateTransitions const):
+        * bytecode/AccessCase.h:
+        (JSC::AccessCase::structure const):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileCheckSubClass):
+        (JSC::DFG::SpeculativeJIT::compileObjectKeys):
+        (JSC::DFG::SpeculativeJIT::compileCreateThis):
+        (JSC::DFG::SpeculativeJIT::compileCreatePromise):
+        (JSC::DFG::SpeculativeJIT::compileCreateInternalFieldObject):
+        * ftl/FTLAbstractHeapRepository.h:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileObjectKeys):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreatePromise):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreateInternalFieldObject):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckSubClass):
+        (JSC::FTL::DFG::LowerDFGToB3::loadStructureClassInfo): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::loadStructureCachedPrototypeChainOrRareData): Deleted.
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::emitLoadClassInfoFromStructure): Deleted.
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_create_this):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_create_this):
+        * jit/Repatch.cpp:
+        (JSC::tryCachePutByID):
+        (JSC::tryCacheDeleteBy):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * runtime/ClonedArguments.cpp:
+        (JSC::ClonedArguments::createStructure):
+        * runtime/ConcurrentJSLock.h:
+        (JSC::ConcurrentJSLockerBase::ConcurrentJSLockerBase):
+        (JSC::GCSafeConcurrentJSLocker::GCSafeConcurrentJSLocker):
+        (JSC::GCSafeConcurrentJSLocker::~GCSafeConcurrentJSLocker):
+        (JSC::ConcurrentJSLocker::ConcurrentJSLocker):
+        (JSC::GCSafeConcurrentJSLockerImpl::GCSafeConcurrentJSLockerImpl): Deleted.
+        (JSC::GCSafeConcurrentJSLockerImpl::~GCSafeConcurrentJSLockerImpl): Deleted.
+        (JSC::ConcurrentJSLockerImpl::ConcurrentJSLockerImpl): Deleted.
+        * runtime/JSCell.h:
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::deleteProperty):
+        (JSC::JSObject::shiftButterflyAfterFlattening):
+        * runtime/JSObject.h:
+        (JSC::JSObject::getDirectConcurrently const):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::prepareToPutDirectWithoutTransition):
+        * runtime/JSType.cpp:
+        (WTF::printInternal):
+        * runtime/JSType.h:
+        * runtime/Structure.cpp:
+        (JSC::StructureTransitionTable::contains const):
+        (JSC::StructureTransitionTable::get const):
+        (JSC::StructureTransitionTable::add):
+        (JSC::Structure::dumpStatistics):
+        (JSC::Structure::Structure):
+        (JSC::Structure::create):
+        (JSC::Structure::findStructuresAndMapForMaterialization):
+        (JSC::Structure::materializePropertyTable):
+        (JSC::Structure::addPropertyTransitionToExistingStructureImpl):
+        (JSC::Structure::addPropertyTransitionToExistingStructureConcurrently):
+        (JSC::Structure::addNewPropertyTransition):
+        (JSC::Structure::removePropertyTransitionFromExistingStructureConcurrently):
+        (JSC::Structure::removeNewPropertyTransition):
+        (JSC::Structure::changePrototypeTransition):
+        (JSC::Structure::attributeChangeTransition):
+        (JSC::Structure::toDictionaryTransition):
+        (JSC::Structure::takePropertyTableOrCloneIfPinned):
+        (JSC::Structure::nonPropertyTransitionSlow):
+        (JSC::Structure::flattenDictionaryStructure):
+        (JSC::Structure::pin):
+        (JSC::Structure::pinForCaching):
+        (JSC::Structure::allocateRareData):
+        (JSC::Structure::ensurePropertyReplacementWatchpointSet):
+        (JSC::Structure::copyPropertyTableForPinning):
+        (JSC::Structure::add):
+        (JSC::Structure::remove):
+        (JSC::Structure::visitChildren):
+        (JSC::Structure::canCachePropertyNameEnumerator const):
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::get):
+        (JSC::Structure::forEachPropertyConcurrently):
+        (JSC::Structure::transitivelyTransitionedFrom):
+        (JSC::Structure::prototypeChain const):
+        (JSC::Structure::propertyReplacementWatchpointSet):
+        (JSC::Structure::checkOffsetConsistency const):
+        (JSC::Structure::add):
+        (JSC::Structure::remove):
+        (JSC::Structure::removePropertyWithoutTransition):
+        (JSC::Structure::setPropertyTable):
+        (JSC::Structure::setPreviousID):
+        (JSC::Structure::ruleOutUnseenProperty const): Deleted.
+        (JSC::Structure::seenProperties const): Deleted.
+        (JSC::Structure::addPropertyHashAndSeenProperty): Deleted.
+        (JSC::Structure::cachedPrototypeChain const): Deleted.
+        (JSC::Structure::setCachedPrototypeChain): Deleted.
+        (JSC::Structure::clearPropertyTable): Deleted.
+        (JSC::Structure::setOutOfLineTypeFlags): Deleted.
+        (JSC::Structure::setInlineCapacity): Deleted.
+        (JSC::Structure::setClassInfo): Deleted.
+        (JSC::Structure::clearPreviousID): Deleted.
+        * runtime/StructureRareData.cpp:
+        (JSC::StructureRareData::createStructure):
+        (JSC::StructureRareData::create):
+        (JSC::StructureRareData::StructureRareData):
+        (JSC::StructureRareData::visitChildren):
+        * runtime/StructureRareData.h:
+        * runtime/StructureRareDataInlines.h:
+        (JSC::StructureRareData::setPreviousID):
+        (JSC::StructureRareData::clearPreviousID):
+        (JSC::StructureRareData::setCachedPrototypeChain): Deleted.
+        * runtime/StructureTransitionTable.h:
+        * tools/JSDollarVM.cpp:
+        (JSC::JSDollarVMHelper::functionGetStructureTransitionList):
+        * wasm/js/WebAssemblyFunction.cpp:
+        (JSC::WebAssemblyFunction::jsCallEntrypointSlow):
+
+2020-04-02  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        TypedArray's [[DefineOwnProperty]] is incorrect with partial descriptors
+        https://bugs.webkit.org/show_bug.cgi?id=188875
+
+        Reviewed by Ross Kirsling.
+
+        This change implements steps 3.b.iv-v of TypedArray's [[DefineOwnProperty]] method [1],
+        preventing type errors from being thrown if descriptor lacks [[Enumerable]] or [[Writable]]
+        field and aligning JSC with V8 and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::defineOwnProperty):
+
 2020-04-02  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, reverting r259390.

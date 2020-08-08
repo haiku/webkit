@@ -36,22 +36,19 @@
 
 #if PLATFORM(IOS_FAMILY)
 #include <wtf/RetainPtr.h>
+
+OBJC_CLASS RBSAssertion;
+OBJC_CLASS WKRBSAssertionDelegate;
 OBJC_CLASS BKSProcessAssertion;
-#endif
+#endif // PLATFORM(IOS_FAMILY)
 
 namespace WebKit {
-    
-enum class AssertionState {
+
+enum class ProcessAssertionType {
     Suspended,
     Background,
     UnboundedNetworking,
     Foreground,
-};
-
-enum class AssertionReason {
-    Extension,
-    FinishTask,
-    FinishTaskUnbounded,
     MediaPlayback,
 };
 
@@ -64,15 +61,13 @@ public:
         virtual void uiAssertionWillExpireImminently() = 0;
     };
 
-    ProcessAssertion(ProcessID, const String& reason, AssertionState);
-    ProcessAssertion(ProcessID, const String& reason, AssertionState, AssertionReason);
+    ProcessAssertion(ProcessID, ASCIILiteral reason, ProcessAssertionType);
     virtual ~ProcessAssertion();
 
     void setClient(Client& client) { m_client = &client; }
     Client* client() { return m_client; }
 
-    AssertionState state() const { return m_assertionState; }
-    virtual void setState(AssertionState);
+    ProcessAssertionType type() const { return m_assertionType; }
 
 #if PLATFORM(IOS_FAMILY)
 protected:
@@ -83,11 +78,14 @@ protected:
 #endif
 
 private:
+    const ProcessAssertionType m_assertionType;
 #if PLATFORM(IOS_FAMILY)
-    RetainPtr<BKSProcessAssertion> m_assertion;
+    const ProcessID m_pid;
+    RetainPtr<RBSAssertion> m_rbsAssertion;
+    RetainPtr<WKRBSAssertionDelegate> m_delegate;
+    RetainPtr<BKSProcessAssertion> m_bksAssertion; // Legacy.
     Validity m_validity { Validity::Unset };
 #endif
-    AssertionState m_assertionState;
     Client* m_client { nullptr };
 };
 
@@ -95,10 +93,9 @@ private:
 
 class ProcessAndUIAssertion final : public ProcessAssertion {
 public:
-    ProcessAndUIAssertion(ProcessID, const String& reason, AssertionState);
+    ProcessAndUIAssertion(ProcessID, ASCIILiteral reason, ProcessAssertionType);
     ~ProcessAndUIAssertion();
 
-    void setState(AssertionState) final;
     void uiAssertionWillExpireImminently();
 
 private:

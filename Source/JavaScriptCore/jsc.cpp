@@ -196,40 +196,6 @@ NO_RETURN_WITH_VALUE static void jscExit(int status)
     exit(status);
 }
 
-class Masquerader : public JSNonFinalObject {
-public:
-    Masquerader(VM& vm, Structure* structure)
-        : Base(vm, structure)
-    {
-    }
-
-    typedef JSNonFinalObject Base;
-    static constexpr unsigned StructureFlags = Base::StructureFlags | JSC::MasqueradesAsUndefined;
-
-    template<typename CellType, SubspaceAccess>
-    static CompleteSubspace* subspaceFor(VM& vm)
-    {
-        return &vm.cellSpace;
-    }
-
-    static Masquerader* create(VM& vm, JSGlobalObject* globalObject)
-    {
-        globalObject->masqueradesAsUndefinedWatchpoint()->fireAll(vm, "Masquerading object allocated");
-        Structure* structure = createStructure(vm, globalObject, jsNull());
-        Masquerader* result = new (NotNull, allocateCell<Masquerader>(vm.heap)) Masquerader(vm, structure);
-        result->finishCreation(vm);
-        return result;
-    }
-
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
-    {
-        return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
-    }
-
-    DECLARE_INFO;
-};
-
-const ClassInfo Masquerader::s_info = { "Masquerader", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(Masquerader) };
 static unsigned asyncTestPasses { 0 };
 static unsigned asyncTestExpectedPasses { 0 };
 
@@ -348,6 +314,7 @@ static EncodedJSValue JSC_HOST_CALL functionIsPureNaN(JSGlobalObject*, CallFrame
 static EncodedJSValue JSC_HOST_CALL functionEffectful42(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionIdentity(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionMakeMasquerader(JSGlobalObject*, CallFrame*);
+static EncodedJSValue JSC_HOST_CALL functionCallMasquerader(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionDumpTypesForAllVariables(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionDrainMicrotasks(JSGlobalObject*, CallFrame*);
@@ -519,6 +486,7 @@ public:
 protected:
     void finishCreation(VM& vm, const Vector<String>& arguments)
     {
+        auto catchScope = DECLARE_CATCH_SCOPE(vm);
         Base::finishCreation(vm);
 
         addFunction(vm, "debug", functionDebug, 1);
@@ -629,7 +597,11 @@ protected:
         addFunction(vm, dollar, "evalScript", functionDollarEvalScript, 1);
         
         dollar->putDirect(vm, Identifier::fromString(vm, "global"), this);
-        
+
+        JSFunction* IsHTMLDDAGetter = JSFunction::create(vm, this, 0, "IsHTMLDDA"_s, functionMakeMasquerader);
+        dollar->putGetter(this, Identifier::fromString(vm, "IsHTMLDDA"), IsHTMLDDAGetter, static_cast<unsigned>(PropertyAttribute::Accessor));
+        catchScope.releaseAssertNoException();
+
         JSObject* agent = JSFinalObject::create(vm, plainObjectStructure);
         dollar->putDirect(vm, Identifier::fromString(vm, "agent"), agent);
         
@@ -1268,7 +1240,8 @@ static EncodedJSValue printInternal(JSGlobalObject* globalObject, CallFrame* cal
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
         auto string = cStringFromViewWithString(globalObject, scope, viewWithString);
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
-        if (fprintf(out, "%s", string.data()) < 0)
+        fwrite(string.data(), sizeof(char), string.length(), out);
+        if (ferror(out))
             goto fail;
     }
 
@@ -1289,7 +1262,9 @@ EncodedJSValue JSC_HOST_CALL functionDebug(JSGlobalObject* globalObject, CallFra
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     auto string = cStringFromViewWithString(globalObject, scope, viewWithString);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
-    fprintf(stderr, "--> %s\n", string.data());
+    fputs("--> ", stderr);
+    fwrite(string.data(), sizeof(char), string.length(), stderr);
+    fputc('\n', stderr);
     return JSValue::encode(jsUndefined());
 }
 
@@ -2216,7 +2191,12 @@ EncodedJSValue JSC_HOST_CALL functionEffectful42(JSGlobalObject*, CallFrame*)
 EncodedJSValue JSC_HOST_CALL functionMakeMasquerader(JSGlobalObject* globalObject, CallFrame*)
 {
     VM& vm = globalObject->vm();
-    return JSValue::encode(Masquerader::create(vm, globalObject));
+    return JSValue::encode(JSFunction::createFunctionThatMasqueradesAsUndefined(vm, globalObject, 0, "IsHTMLDDA"_s, functionCallMasquerader));
+}
+
+EncodedJSValue JSC_HOST_CALL functionCallMasquerader(JSGlobalObject*, CallFrame*)
+{
+    return JSValue::encode(jsNull());
 }
 
 EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject* globalObject, CallFrame* callFrame)
@@ -2795,10 +2775,14 @@ static void runInteractive(GlobalObject* globalObject)
         NakedPtr<Exception> evaluationException;
         JSValue returnValue = evaluate(globalObject, jscSource(line, sourceOrigin, sourceOrigin.string()), JSValue(), evaluationException);
 #endif
-        if (evaluationException)
-            printf("Exception: %s\n", evaluationException->value().toWTFString(globalObject).utf8().data());
-        else
-            printf("%s\n", returnValue.toWTFString(globalObject).utf8().data());
+        CString result;
+        if (evaluationException) {
+            fputs("Exception: ", stdout);
+            result = evaluationException->value().toWTFString(globalObject).utf8();
+        } else
+            result = returnValue.toWTFString(globalObject).utf8();
+        fwrite(result.data(), sizeof(char), result.length(), stdout);
+        putchar('\n');
 
         scope.clearException();
         vm.drainMicrotasks();

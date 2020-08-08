@@ -2625,6 +2625,8 @@ webkit.org/b/198830 media/track/track-mode-not-changed-by-new-track.html [ Crash
 webkit.org/b/198830 media/video-buffering-allowed.html [ Crash Pass ]
 webkit.org/b/198830 media/video-dom-autoplay.html [ Crash Pass ]
 webkit.org/b/198830 userscripts/user-script-audio-document.html [ Crash Pass ]
+webkit.org/b/198830 http/tests/media/user-gesture-preserved-across-xmlhttprequest.html [ Crash Pass ]
+webkit.org/b/198830 compositing/overflow/overflow-compositing-descendant.html [ Crash Pass ]
 
 webkit.org/b/205110 imported/w3c/web-platform-tests/media-source/mediasource-changetype-play.html [ Failure Crash Pass ]
 webkit.org/b/205110 media/media-source/media-source-canplaythrough.html [ Crash Pass ]
@@ -4089,9 +4091,6 @@ webkit.org/b/183611 webkit.org/b/198830 media/context-menu-actions.html [ Failur
 
 webkit.org/b/183902 fast/dom/frame-loading-via-document-write.html [ Failure ]
 
-webkit.org/b/184086 imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/accumulation-per-property.html [ Failure Timeout ]
-webkit.org/b/184086 imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/interpolation-per-property.html [ Failure Timeout ]
-
 webkit.org/b/184504 imported/w3c/web-platform-tests/fetch/api/request/request-keepalive-quota.html [ Failure ]
 
 webkit.org/b/180645 imported/w3c/web-platform-tests/html/semantics/forms/the-input-element/type-change-state.html [ Failure ]
@@ -4157,8 +4156,6 @@ webkit.org/b/185913 fast/dom/HTMLAnchorElement/anchor-file-blob-download-then-re
 webkit.org/b/186099 editing/caret/caret-in-empty-cell.html [ ImageOnlyFailure ]
 webkit.org/b/186100 css3/color-filters/color-filter-color-property-list-item.html [ ImageOnlyFailure ]
 webkit.org/b/186100 fast/hidpi/filters-turbulence.html [ ImageOnlyFailure ]
-
-webkit.org/b/186139 imported/w3c/web-platform-tests/web-animations/animation-model/animation-types/addition-per-property.html [ Failure Timeout ]
 
 webkit.org/b/186141 svg/dom/SVGGeometry-isPointInStroke.xhtml [ Failure ]
 webkit.org/b/186141 svg/dom/SVGGeometry-line.xhtml [ Failure ]
@@ -4438,6 +4435,7 @@ webkit.org/b/201982 fast/images/exif-orientation-border-image.html [ ImageOnlyFa
 webkit.org/b/201982 fast/images/image-orientation-dynamic-from-image.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/image-orientation-dynamic-none.html [ ImageOnlyFailure ]
 webkit.org/b/201982 fast/images/image-orientation-none.html [ ImageOnlyFailure ]
+webkit.org/b/201982 fast/images/image-orientation-none-canvas.html [ ImageOnlyFailure ]
 
 webkit.org/b/202225 accessibility/misspelling-range.html [ Failure ]
 webkit.org/b/202227 compositing/backing/layer-outside-tiled-parent.html [ Failure ]

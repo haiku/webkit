@@ -1500,6 +1500,8 @@ void CodeBlock::getICStatusMap(const ConcurrentJSLocker&, ICStatusMap& result)
                 result.add(pair.first, ICStatus()).iterator->value.putStatus = pair.second.get();
             for (auto& pair : dfgCommon->recordedStatuses.ins)
                 result.add(pair.first, ICStatus()).iterator->value.inStatus = pair.second.get();
+            for (auto& pair : dfgCommon->recordedStatuses.deletes)
+                result.add(pair.first, ICStatus()).iterator->value.deleteStatus = pair.second.get();
         }
 #endif
     }
@@ -2999,7 +3001,7 @@ size_t CodeBlock::predictedMachineCodeSize()
     // the function is so huge that we can't even fit it into virtual memory then we
     // should probably have some other guards in place to prevent us from even getting
     // to this point.
-    if (doubleResult > std::numeric_limits<size_t>::max())
+    if (doubleResult >= maxPlusOne<size_t>)
         return 0;
     
     return static_cast<size_t>(doubleResult);

@@ -220,6 +220,8 @@ bytecode/DFGExitProfile.cpp
 bytecode/DataFormat.cpp
 bytecode/DeferredCompilationCallback.cpp
 bytecode/DeferredSourceDump.cpp
+bytecode/DeleteByStatus.cpp
+bytecode/DeleteByIdVariant.cpp
 bytecode/DirectEvalCodeCache.cpp
 bytecode/EvalCodeBlock.cpp
 bytecode/ExecutableToCodeBlockEdge.cpp
@@ -764,6 +766,7 @@ runtime/DisallowVMReentry.cpp
 runtime/DoublePredictionFuzzerAgent.cpp
 runtime/DumpContext.cpp
 runtime/ECMAScriptSpecInternalFunctions.cpp
+runtime/EnsureStillAliveHere.cpp
 runtime/Error.cpp
 runtime/ErrorConstructor.cpp
 runtime/ErrorHandlingScope.cpp
@@ -996,8 +999,6 @@ runtime/WideningNumberPredictionFuzzerAgent.cpp
 JSCBuiltins.cpp
 
 tools/CellList.cpp
-tools/CodeProfile.cpp
-tools/CodeProfiling.cpp
 tools/CompilerTimingScope.cpp
 tools/FunctionOverrides.cpp
 tools/FunctionWhitelist.cpp

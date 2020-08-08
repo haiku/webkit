@@ -222,16 +222,17 @@ class ApplyPatch(shell.ShellCommand, CompositeStepMixin):
 
     def getResultSummary(self):
         if self.results != SUCCESS:
-            return {u'step': u'Patch does not apply'}
+            return {u'step': u'svn-apply failed to apply patch to trunk'}
         return super(ApplyPatch, self).getResultSummary()
 
     def evaluateCommand(self, cmd):
         rc = shell.ShellCommand.evaluateCommand(self, cmd)
         patch_id = self.getProperty('patch_id', '')
         if rc == FAILURE:
-            message = 'Patch {} does not apply'.format(patch_id)
+            message = 'Tools/Scripts/svn-apply failed to apply patch {} to trunk'.format(patch_id)
             if self.getProperty('buildername', '').lower() == 'commit-queue':
-                self.setProperty('bugzilla_comment_text', message.replace('Patch', 'Attachment'))
+                comment_text = '{}.\nPlease resolve the conflicts and upload a new patch.'.format(message.replace('patch', 'attachment'))
+                self.setProperty('bugzilla_comment_text', comment_text)
                 self.setProperty('build_finish_summary', message)
                 self.build.addStepsAfterCurrentStep([CommentOnBug(), SetCommitQueueMinusFlagOnPatch()])
             else:
@@ -1621,6 +1622,7 @@ class RunWebKitTests(shell.Test):
     resultDirectory = 'layout-test-results'
     jsonFileName = 'layout-test-results/full_results.json'
     logfiles = {'json': jsonFileName}
+    test_failures_log_name = 'test-failures'
     command = ['python', 'Tools/Scripts/run-webkit-tests',
                '--no-build',
                '--no-show-results',
@@ -1667,6 +1669,14 @@ class RunWebKitTests(shell.Test):
             return match_object.group('message')
         return line
 
+    @defer.inlineCallbacks
+    def _addToLog(self, logName, message):
+        try:
+            log = self.getLog(logName)
+        except KeyError:
+            log = yield self.addLog(logName)
+        log.addStdout(message)
+
     def _parseRunWebKitTestsOutput(self, logText):
         incorrectLayoutLines = []
         expressions = [
@@ -1705,6 +1715,8 @@ class RunWebKitTests(shell.Test):
         if first_results:
             self.setProperty('first_results_exceed_failure_limit', first_results.did_exceed_test_failure_limit)
             self.setProperty('first_run_failures', first_results.failing_tests)
+            if first_results.failing_tests:
+                self._addToLog(self.test_failures_log_name, '\n'.join(first_results.failing_tests))
         self._parseRunWebKitTestsOutput(logText)
 
     def evaluateResult(self, cmd):
@@ -1804,6 +1816,8 @@ class ReRunWebKitTests(RunWebKitTests):
         if second_results:
             self.setProperty('second_results_exceed_failure_limit', second_results.did_exceed_test_failure_limit)
             self.setProperty('second_run_failures', second_results.failing_tests)
+            if second_results.failing_tests:
+                self._addToLog(self.test_failures_log_name, '\n'.join(second_results.failing_tests))
         self._parseRunWebKitTestsOutput(logText)
 
 
@@ -1825,6 +1839,8 @@ class RunWebKitTestsWithoutPatch(RunWebKitTests):
         if clean_tree_results:
             self.setProperty('clean_tree_results_exceed_failure_limit', clean_tree_results.did_exceed_test_failure_limit)
             self.setProperty('clean_tree_run_failures', clean_tree_results.failing_tests)
+            if clean_tree_results.failing_tests:
+                self._addToLog(self.test_failures_log_name, '\n'.join(clean_tree_results.failing_tests))
         self._parseRunWebKitTestsOutput(logText)
 
 

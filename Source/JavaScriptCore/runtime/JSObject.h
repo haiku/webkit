@@ -607,7 +607,7 @@ public:
     bool putDirectAccessor(JSGlobalObject*, PropertyName, GetterSetter*, unsigned attributes);
     JS_EXPORT_PRIVATE bool putDirectCustomAccessor(VM&, PropertyName, JSValue, unsigned attributes);
 
-    bool putGetter(JSGlobalObject*, PropertyName, JSValue, unsigned attributes);
+    JS_EXPORT_PRIVATE bool putGetter(JSGlobalObject*, PropertyName, JSValue, unsigned attributes);
     bool putSetter(JSGlobalObject*, PropertyName, JSValue, unsigned attributes);
 
     JS_EXPORT_PRIVATE bool hasProperty(JSGlobalObject*, PropertyName) const;
@@ -810,7 +810,7 @@ public:
     {
         structure(vm)->flattenDictionaryStructure(vm, this);
     }
-    void shiftButterflyAfterFlattening(const GCSafeConcurrentJSCellLocker&, VM&, Structure*, size_t outOfLineCapacityAfter);
+    void shiftButterflyAfterFlattening(const GCSafeConcurrentJSLocker&, VM&, Structure* structure, size_t outOfLineCapacityAfter);
 
     JSGlobalObject* globalObject() const
     {
@@ -1326,7 +1326,7 @@ inline JSValue JSObject::getPrototype(VM& vm, JSGlobalObject* globalObject)
 // flatten an object.
 inline JSValue JSObject::getDirectConcurrently(Structure* structure, PropertyOffset offset) const
 {
-    ConcurrentJSCellLocker locker(structure->cellLock());
+    ConcurrentJSLocker locker(structure->lock());
     if (!structure->isValidOffset(offset))
         return { };
     return getDirect(offset);

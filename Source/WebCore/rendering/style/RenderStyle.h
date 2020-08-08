@@ -1440,6 +1440,9 @@ public:
     bool lastChildState() const { return m_nonInheritedFlags.lastChildState; }
     void setLastChildState() { setUnique(); m_nonInheritedFlags.lastChildState = true; }
 
+    Color unresolvedColorForProperty(CSSPropertyID colorProperty, bool visitedLink = false) const;
+    Color colorResolvingCurrentColor(const Color&) const;
+
     WEBCORE_EXPORT Color visitedDependentColor(CSSPropertyID) const;
     WEBCORE_EXPORT Color visitedDependentColorWithColorFilter(CSSPropertyID) const;
 
@@ -1584,7 +1587,7 @@ public:
     static Length initialPerspectiveOriginX() { return Length(50.0f, Percent); }
     static Length initialPerspectiveOriginY() { return Length(50.0f, Percent); }
     static Color initialBackgroundColor() { return Color::transparent; }
-    static Color initialTextEmphasisColor() { return Color(); }
+    static Color initialTextEmphasisColor() { return currentColor(); }
     static TextEmphasisFill initialTextEmphasisFill() { return TextEmphasisFill::Filled; }
     static TextEmphasisMark initialTextEmphasisMark() { return TextEmphasisMark::None; }
     static const AtomString& initialTextEmphasisCustomMark() { return nullAtom(); }
@@ -1731,7 +1734,10 @@ public:
     void getShadowInlineDirectionExtent(const ShadowData*, LayoutUnit& logicalLeft, LayoutUnit& logicalRight) const;
     void getShadowBlockDirectionExtent(const ShadowData*, LayoutUnit& logicalTop, LayoutUnit& logicalBottom) const;
 
-    static Color invalidColor() { return Color(); }
+    // In RenderStyle invalid color value is used to signify 'currentcolor' which resolves to color().
+    static Color currentColor() { return { }; }
+    static bool isCurrentColor(const Color& color) { return !color.isValid(); }
+
     const Color& borderLeftColor() const { return m_surroundData->border.left().color(); }
     const Color& borderRightColor() const { return m_surroundData->border.right().color(); }
     const Color& borderTopColor() const { return m_surroundData->border.top().color(); }
@@ -1864,7 +1870,7 @@ private:
     static bool isDisplayGridBox(DisplayType);
     static bool isDisplayFlexibleOrGridBox(DisplayType);
 
-    Color colorIncludingFallback(CSSPropertyID colorProperty, bool visitedLink) const;
+    Color colorResolvingCurrentColor(CSSPropertyID colorProperty, bool visitedLink) const;
 
     bool changeAffectsVisualOverflow(const RenderStyle&) const;
     bool changeRequiresLayout(const RenderStyle&, OptionSet<StyleDifferenceContextSensitiveProperty>& changedContextSensitiveProperties) const;

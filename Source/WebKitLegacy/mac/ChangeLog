@@ -1,3 +1,93 @@
+2020-04-06  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update minimum ICU version to 60.2
+        https://bugs.webkit.org/show_bug.cgi?id=209694
+
+        Reviewed by Darin Adler.
+
+        * Misc/WebKitNSStringExtras.mm:
+        (-[NSString _web_drawAtPoint:font:textColor:]):
+        (-[NSString _web_widthWithFont:]):
+        * WebCoreSupport/WebVisitedLinkStore.mm:
+        (WebVisitedLinkStore::addVisitedLink):
+        * WebView/WebTextIterator.mm:
+        (-[WebTextIterator currentTextPointer]):
+        Manually convert between UChar and UniChar/unichar where needed.
+
+2020-04-04  Darin Adler  <darin@apple.com>
+
+        Stop using live ranges in DocumentMarkerController
+        https://bugs.webkit.org/show_bug.cgi?id=209985
+
+        Reviewed by Antti Koivisto.
+
+        * DOM/DOM.mm:
+        (-[DOMNode absoluteQuadAndInsideFixedPosition:]): Use unitedBoundingBoxes.
+        * WebCoreSupport/WebEditorClient.mm:
+        (WebEditorClient::handleRequestedCandidates): Use RenderObject::absoluteTextQuads.
+        * WebView/WebFrame.mm:
+        (-[WebFrame getDictationResultRanges:andMetadatas:]): Updated since DocumentMarker no
+        longer has a dedicated metadata member function.
+        (-[WebFrame dictationResultMetadataForRange:]):
+        * WebView/WebImmediateActionController.mm:
+        (+[WebImmediateActionController _dictionaryPopupInfoForRange:inFrame:withLookupOptions:indicatorOptions:transition:]):
+        Use RenderObject::absoluteTextQuads.
+
+2020-04-04  Peng Liu  <peng.liu6@apple.com>
+
+        REGRESSION (r259095): ASSERTION FAILED: m_videoFullscreenMode != VideoFullscreenModeNone seen with TestWebKitAPI.WebKitLegacy.AudioSessionCategoryIOS
+        https://bugs.webkit.org/show_bug.cgi?id=209680
+
+        Reviewed by Jer Noble.
+
+        With this patch, the WebKit-Legacy can support multiple video elements request
+        to enter video fullscreen almost at the same time, and only the last one will succeed.
+        Also, this patch fixes webkit.org/b/209610 for WebKit-Legacy.
+
+        * WebView/WebView.mm:
+        * WebView/WebViewData.h:
+
+2020-04-03  Alex Christensen  <achristensen@webkit.org>
+
+        Add SPI to make WKUserScripts wait for a notification
+        https://bugs.webkit.org/show_bug.cgi?id=209845
+        <rdar://problem/60342299>
+
+        Reviewed by Chris Dumez.
+
+        * WebView/WebView.mm:
+        (-[WebView _injectOutlookQuirksScript]):
+
+2020-04-03  Tim Horton  <timothy_horton@apple.com>
+
+        Add a visual debug indicator for locating and identifying all kinds of WebViews
+        https://bugs.webkit.org/show_bug.cgi?id=209982
+        <rdar://problem/60339870>
+
+        Reviewed by Simon Fraser.
+
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        Adopt for WebView on macOS (UIWebView will install it itself on iOS).
+
+        * WebView/WebViewPrivate.h:
+        Expose _installVisualIdentificationOverlayForViewIfNeeded:kind: for UIWebView's use.
+        It is slightly unfortunate to expose SPI that uses UIView from a framework
+        underneath UIKit, but there is no other single place where this code can live
+        and not be a minor layering problem. Since it's debug UI, it seems passable.
+
+2020-04-03  David Kilzer  <ddkilzer@apple.com>
+
+        [Xcode] Replace ASAN_OTHER_CFLAGS and ASAN_OTHER_CPLUSPLUSFLAGS with $(inherited)
+        <https://webkit.org/b/209963>
+        <rdar://problem/61257504>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Configurations/Base.xcconfig:
+        - Remove ASAN_OTHER_CFLAGS, ASAN_OTHER_CPLUSPLUSFLAGS and
+          ASAN_OTHER_LDFLAGS.
+
 2020-04-01  Darin Adler  <darin@apple.com>
 
         Remove all uses of live ranges from TextIterator

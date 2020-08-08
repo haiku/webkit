@@ -878,8 +878,11 @@ bool RenderListBox::forceUpdateScrollbarsOnMainThreadForPerformanceTesting() con
 
 ScrollableArea* RenderListBox::enclosingScrollableArea() const
 {
-    // FIXME: Return a RenderLayer that's scrollable.
-    return nullptr;
+    auto* layer = enclosingLayer();
+    if (!layer)
+        return nullptr;
+
+    return layer->enclosingScrollableLayer(IncludeSelfOrNot::ExcludeSelf, CrossFrameBoundaries::No);
 }
 
 bool RenderListBox::isScrollableOrRubberbandable()
@@ -905,6 +908,11 @@ bool RenderListBox::usesMockScrollAnimator() const
 void RenderListBox::logMockScrollAnimatorMessage(const String& message) const
 {
     document().addConsoleMessage(MessageSource::Other, MessageLevel::Debug, "RenderListBox: " + message);
+}
+
+String RenderListBox::debugDescription() const
+{
+    return RenderObject::debugDescription();
 }
 
 Ref<Scrollbar> RenderListBox::createScrollbar()

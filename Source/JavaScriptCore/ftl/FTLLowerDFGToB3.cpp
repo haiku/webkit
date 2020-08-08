@@ -1177,6 +1177,9 @@ private:
         case MultiPutByOffset:
             compileMultiPutByOffset();
             break;
+        case MultiDeleteByOffset:
+            compileMultiDeleteByOffset();
+            break;
         case MatchStructure:
             compileMatchStructure();
             break;
@@ -1569,6 +1572,7 @@ private:
         case FilterGetByStatus:
         case FilterPutByIdStatus:
         case FilterInByIdStatus:
+        case FilterDeleteByStatus:
             compileFilterICStatus();
             break;
         case DateGetInt32OrNaN:
@@ -4706,6 +4710,8 @@ private:
                 
                 if (isInt(type)) {
                     LValue result = loadFromIntTypedArray(pointer, type);
+                    // We have to keep base alive since that keeps storage alive.
+                    ensureStillAliveHere(base);
                     bool canSpeculate = true;
                     setIntTypedArrayLoadResult(result, type, canSpeculate);
                     return;
@@ -6251,17 +6257,17 @@ private:
 
                 LValue object = lowObject(m_node->child1());
                 LValue structure = loadStructure(object);
-                LValue cachedPrototypeChainOrRareData = loadStructureCachedPrototypeChainOrRareData(structure);
-                m_out.branch(m_out.notNull(cachedPrototypeChainOrRareData), unsure(notNullCase), unsure(slowCase));
+                LValue previousOrRareData = m_out.loadPtr(structure, m_heaps.Structure_previousOrRareData);
+                m_out.branch(m_out.notNull(previousOrRareData), unsure(notNullCase), unsure(slowCase));
 
                 LBasicBlock lastNext = m_out.appendTo(notNullCase, rareDataCase);
                 m_out.branch(
-                    m_out.equal(m_out.load32(cachedPrototypeChainOrRareData, m_heaps.JSCell_structureID), m_out.constInt32(m_graph.m_vm.structureRareDataStructure->structureID())),
+                    m_out.notEqual(m_out.load32(previousOrRareData, m_heaps.JSCell_structureID), m_out.constInt32(m_graph.m_vm.structureStructure->structureID())),
                     unsure(rareDataCase), unsure(slowCase));
 
                 m_out.appendTo(rareDataCase, useCacheCase);
                 ASSERT(bitwise_cast<uintptr_t>(StructureRareData::cachedOwnKeysSentinel()) == 1);
-                LValue cachedOwnKeys = m_out.loadPtr(cachedPrototypeChainOrRareData, m_heaps.StructureRareData_cachedOwnKeys);
+                LValue cachedOwnKeys = m_out.loadPtr(previousOrRareData, m_heaps.StructureRareData_cachedOwnKeys);
                 m_out.branch(m_out.belowOrEqual(cachedOwnKeys, m_out.constIntPtr(bitwise_cast<void*>(StructureRareData::cachedOwnKeysSentinel()))), unsure(slowCase), unsure(useCacheCase));
 
                 m_out.appendTo(useCacheCase, slowButArrayBufferCase);
@@ -6835,8 +6841,7 @@ private:
         m_out.branch(m_out.isZero64(structure), rarely(slowCase), usually(hasStructure));
 
         m_out.appendTo(hasStructure, checkGlobalObjectCase);
-        LValue classInfo = loadStructureClassInfo(structure);
-        m_out.branch(m_out.equal(classInfo, m_out.constIntPtr(m_node->isInternalPromise() ? JSInternalPromise::info() : JSPromise::info())), usually(checkGlobalObjectCase), rarely(slowCase));
+        m_out.branch(m_out.equal(m_out.loadPtr(structure, m_heaps.Structure_classInfo), m_out.constIntPtr(m_node->isInternalPromise() ? JSInternalPromise::info() : JSPromise::info())), usually(checkGlobalObjectCase), rarely(slowCase));
 
         m_out.appendTo(checkGlobalObjectCase, fastAllocationCase);
         ValueFromBlock derivedStructure = m_out.anchor(structure);
@@ -6891,8 +6896,7 @@ private:
         m_out.branch(m_out.isZero64(structure), rarely(slowCase), usually(hasStructure));
 
         m_out.appendTo(hasStructure, checkGlobalObjectCase);
-        LValue classInfo = loadStructureClassInfo(structure);
-        m_out.branch(m_out.equal(classInfo, m_out.constIntPtr(JSClass::info())), usually(checkGlobalObjectCase), rarely(slowCase));
+        m_out.branch(m_out.equal(m_out.loadPtr(structure, m_heaps.Structure_classInfo), m_out.constIntPtr(JSClass::info())), usually(checkGlobalObjectCase), rarely(slowCase));
 
         m_out.appendTo(checkGlobalObjectCase, fastAllocationCase);
         m_out.branch(m_out.equal(m_out.loadPtr(structure, m_heaps.Structure_globalObject), weakPointer(globalObject)), usually(fastAllocationCase), rarely(slowCase));
@@ -8129,6 +8133,106 @@ private:
         m_out.unreachable();
         
         m_out.appendTo(continuation, lastNext);
+    }
+
+    void compileMultiDeleteByOffset()
+    {
+        LValue base = lowCell(m_node->child1());
+        MultiDeleteByOffsetData& data = m_node->multiDeleteByOffsetData();
+
+        unsigned missConfigurable = 0;
+        unsigned missNonconfigurable = 0;
+
+        for (unsigned i = data.variants.size(); i--;) {
+            DeleteByIdVariant variant = data.variants[i];
+            if (!variant.newStructure()) {
+                if (variant.result())
+                    ++missConfigurable;
+                else
+                    ++missNonconfigurable;
+            }
+        }
+
+        unsigned uniqueCaseCount = data.variants.size();
+        if (missConfigurable)
+            uniqueCaseCount -= missConfigurable - 1;
+        if (missNonconfigurable)
+            uniqueCaseCount -= missNonconfigurable - 1;
+        int trueBlock = missConfigurable ? uniqueCaseCount - 1 : -1;
+        int falseBlock = missNonconfigurable ? uniqueCaseCount - 1 - !!missConfigurable : -1;
+
+        Vector<LBasicBlock, 2> blocks(uniqueCaseCount);
+        for (unsigned i = blocks.size(); i--;)
+            blocks[i] = m_out.newBlock();
+        LBasicBlock exit = m_out.newBlock();
+        LBasicBlock continuation = m_out.newBlock();
+
+        Vector<SwitchCase, 2> cases;
+        RegisteredStructureSet baseSet;
+        for (unsigned i = data.variants.size(), block = 0; i--;) {
+            DeleteByIdVariant variant = data.variants[i];
+            RegisteredStructure structure = m_graph.registerStructure(variant.oldStructure());
+            baseSet.add(structure);
+            if (variant.newStructure())
+                cases.append(SwitchCase(weakStructureID(structure), blocks[block++], Weight(1)));
+            else
+                cases.append(SwitchCase(weakStructureID(structure), blocks[variant.result() ? trueBlock : falseBlock], Weight(1)));
+        }
+        bool structuresChecked = m_interpreter.forNode(m_node->child1()).m_structure.isSubsetOf(baseSet);
+        emitSwitchForMultiByOffset(base, structuresChecked, cases, exit);
+
+        LBasicBlock lastNext = m_out.m_nextBlock;
+
+        Vector<ValueFromBlock, 2> results;
+
+        for (unsigned i = data.variants.size(), block = 0; i--;) {
+            DeleteByIdVariant variant = data.variants[i];
+            if (!variant.newStructure())
+                continue;
+
+            m_out.appendTo(blocks[block], block + 1 < blocks.size() ? blocks[block + 1] : exit);
+
+            if (variant.newStructure()) {
+                LValue storage;
+
+                if (isInlineOffset(variant.offset()))
+                    storage = base;
+                else
+                    storage = m_out.loadPtr(base, m_heaps.JSObject_butterfly);
+
+                storeProperty(m_out.int64Zero, storage, data.identifierNumber, variant.offset());
+
+                ASSERT(variant.oldStructure()->indexingType() == variant.newStructure()->indexingType());
+                ASSERT(variant.oldStructure()->typeInfo().inlineTypeFlags() == variant.newStructure()->typeInfo().inlineTypeFlags());
+                ASSERT(variant.oldStructure()->typeInfo().type() == variant.newStructure()->typeInfo().type());
+                m_out.store32(
+                    weakStructureID(m_graph.registerStructure(variant.newStructure())), base, m_heaps.JSCell_structureID);
+            }
+
+            results.append(m_out.anchor(variant.result() ? m_out.booleanTrue : m_out.booleanFalse));
+            m_out.jump(continuation);
+            ++block;
+        }
+
+        if (missNonconfigurable) {
+            m_out.appendTo(blocks[falseBlock]);
+            results.append(m_out.anchor(m_out.booleanFalse));
+            m_out.jump(continuation);
+        }
+
+        if (missConfigurable) {
+            m_out.appendTo(blocks[trueBlock], exit);
+            results.append(m_out.anchor(m_out.booleanTrue));
+            m_out.jump(continuation);
+        }
+
+        m_out.appendTo(exit, continuation);
+        if (!structuresChecked)
+            speculate(BadCache, noValue(), nullptr, m_out.booleanTrue);
+        m_out.unreachable();
+
+        m_out.appendTo(continuation, lastNext);
+        setBoolean(m_out.phi(Int32, results));
     }
     
     void compileMatchStructure()
@@ -13382,7 +13486,7 @@ private:
             LBasicBlock continuation = m_out.newBlock();
 
             LValue structure = loadStructure(cell);
-            LValue classInfo = loadStructureClassInfo(structure);
+            LValue classInfo = m_out.loadPtr(structure, m_heaps.Structure_classInfo);
             ValueFromBlock otherAtStart = m_out.anchor(classInfo);
             m_out.jump(loop);
 
@@ -18396,26 +18500,6 @@ private:
         TypedPointer address = m_out.baseIndex(m_heaps.structureTable, tableBase, m_out.zeroExtPtr(tableIndex));
         LValue encodedStructureBits = m_out.loadPtr(address);
         return m_out.bitXor(encodedStructureBits, entropyBits);
-    }
-
-    LValue loadStructureClassInfo(LValue structure)
-    {
-        LValue result = m_out.loadPtr(structure, m_heaps.Structure_classInfo);
-#if CPU(ADDRESS64)
-        return m_out.bitAnd(m_out.constIntPtr(Structure::classInfoMask), result);
-#else
-        return result;
-#endif
-    }
-
-    LValue loadStructureCachedPrototypeChainOrRareData(LValue structure)
-    {
-        LValue result = m_out.loadPtr(structure, m_heaps.Structure_cachedPrototypeChainOrRareData);
-#if CPU(ADDRESS64)
-        return m_out.bitAnd(m_out.constIntPtr(Structure::cachedPrototypeChainOrRareDataMask), result);
-#else
-        return result;
-#endif
     }
 
     LValue weakPointer(JSCell* pointer)

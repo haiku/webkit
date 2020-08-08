@@ -113,6 +113,9 @@
 		1CF59AE221E68925006E37EC /* ForceLightAppearanceInBundle_Bundle.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CF59AE021E68925006E37EC /* ForceLightAppearanceInBundle_Bundle.mm */; };
 		1CF59AE321E68932006E37EC /* ForceLightAppearanceInBundle.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1CF59ADF21E68925006E37EC /* ForceLightAppearanceInBundle.mm */; };
 		1CF59AE521E6977D006E37EC /* dark-mode.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 1CF59AE421E696FB006E37EC /* dark-mode.html */; };
+		1D67BFDC2433E0A7006B5047 /* PreemptVideoFullscreen.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1D67BFDB2433E0A7006B5047 /* PreemptVideoFullscreen.mm */; };
+		1D67BFDD2433EE66006B5047 /* two-videos.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 1D67BFD92433DFD8006B5047 /* two-videos.html */; };
+		1DAA52CC243BE805001A3159 /* one-video.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 1DAA52CB243BE621001A3159 /* one-video.html */; };
 		1F83571B1D3FFB2300E3967B /* WKBackForwardList.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1F83571A1D3FFB0E00E3967B /* WKBackForwardList.mm */; };
 		26DF5A6315A2A27E003689C2 /* CancelLoadFromResourceLoadDelegate.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 26DF5A6115A2A22B003689C2 /* CancelLoadFromResourceLoadDelegate.html */; };
 		26F52EAD1828827B0023D412 /* geolocationGetCurrentPosition.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 26F52EAC1828820E0023D412 /* geolocationGetCurrentPosition.html */; };
@@ -762,6 +765,8 @@
 		9368A25F229EFB4700A829CA /* local-storage-process-suspends-2.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9368A25C229EFB3A00A829CA /* local-storage-process-suspends-2.html */; };
 		936F72801CD7D9EC0068A0FB /* large-video-with-audio.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 936F727E1CD7D9D00068A0FB /* large-video-with-audio.html */; };
 		936F72811CD7D9EC0068A0FB /* large-video-with-audio.mp4 in Copy Resources */ = {isa = PBXBuildFile; fileRef = 936F727F1CD7D9D00068A0FB /* large-video-with-audio.mp4 */; };
+		937A6C8A24357C1700C3A6B0 /* KillWebProcessWithOpenConnection-1.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 937A6C8824357BF300C3A6B0 /* KillWebProcessWithOpenConnection-1.html */; };
+		937A6C8B24357C1700C3A6B0 /* KillWebProcessWithOpenConnection-2.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 937A6C8924357BF300C3A6B0 /* KillWebProcessWithOpenConnection-2.html */; };
 		937B569E23CD23DB002AE640 /* IDBObjectStoreInfoUpgrade.sqlite3 in Copy Resources */ = {isa = PBXBuildFile; fileRef = 93BCBC8123CC6EF500CA2221 /* IDBObjectStoreInfoUpgrade.sqlite3 */; };
 		9399BA0423711140008392BF /* IndexedDBInPageCache.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9399BA01237110AE008392BF /* IndexedDBInPageCache.mm */; };
 		9399BA052371114F008392BF /* IndexedDBInPageCache.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 9399BA02237110BF008392BF /* IndexedDBInPageCache.html */; };
@@ -1381,6 +1386,8 @@
 				C99B675D1E39722000FC6C80 /* js-play-with-controls.html in Copy Resources */,
 				C2CF975B16CEC71B0054E99D /* JSContextBackForwardCache1.html in Copy Resources */,
 				C2CF975A16CEC7140054E99D /* JSContextBackForwardCache2.html in Copy Resources */,
+				937A6C8A24357C1700C3A6B0 /* KillWebProcessWithOpenConnection-1.html in Copy Resources */,
+				937A6C8B24357C1700C3A6B0 /* KillWebProcessWithOpenConnection-2.html in Copy Resources */,
 				F42DA5161D8CEFE400336F40 /* large-input-field-focus-onload.html in Copy Resources */,
 				55226A2F1EBA44B900C36AD0 /* large-red-square-image.html in Copy Resources */,
 				F4538EF71E8473E600B5C953 /* large-red-square.png in Copy Resources */,
@@ -1448,6 +1455,7 @@
 				CDB5DFFF213610FA00D3E189 /* now-playing.html in Copy Resources */,
 				93E2D2761ED7D53200FA76F6 /* offscreen-iframe-of-media-document.html in Copy Resources */,
 				074994421EA5034B000DA44F /* ondevicechange.html in Copy Resources */,
+				1DAA52CC243BE805001A3159 /* one-video.html in Copy Resources */,
 				CEA6CF2819CCF69D0064F5A7 /* open-and-close-window.html in Copy Resources */,
 				7CCB99231D3B4A46003922F6 /* open-multiple-external-url.html in Copy Resources */,
 				468BC45522653A1000A36C96 /* open-window-then-write-to-it.html in Copy Resources */,
@@ -1514,6 +1522,7 @@
 				F41AB9AA1EF4696B0083FA08 /* textarea-to-input.html in Copy Resources */,
 				C22FA32D228F8AEB009D7988 /* TextWidth.html in Copy Resources */,
 				F4451C761EB8FD890020C5DA /* two-paragraph-contenteditable.html in Copy Resources */,
+				1D67BFDD2433EE66006B5047 /* two-videos.html in Copy Resources */,
 				C540F784152E5A9A00A40C8C /* verboseMarkup.html in Copy Resources */,
 				CD57779D211CE91F001B371E /* video-with-audio-and-web-audio.html in Copy Resources */,
 				CDC8E4941BC6F10800594FEC /* video-with-audio.html in Copy Resources */,
@@ -1660,6 +1669,9 @@
 		1CF59ADF21E68925006E37EC /* ForceLightAppearanceInBundle.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ForceLightAppearanceInBundle.mm; sourceTree = "<group>"; };
 		1CF59AE021E68925006E37EC /* ForceLightAppearanceInBundle_Bundle.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ForceLightAppearanceInBundle_Bundle.mm; sourceTree = "<group>"; };
 		1CF59AE421E696FB006E37EC /* dark-mode.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "dark-mode.html"; sourceTree = "<group>"; };
+		1D67BFD92433DFD8006B5047 /* two-videos.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "two-videos.html"; sourceTree = "<group>"; };
+		1D67BFDB2433E0A7006B5047 /* PreemptVideoFullscreen.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PreemptVideoFullscreen.mm; sourceTree = "<group>"; };
+		1DAA52CB243BE621001A3159 /* one-video.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "one-video.html"; sourceTree = "<group>"; };
 		1F83571A1D3FFB0E00E3967B /* WKBackForwardList.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = WKBackForwardList.mm; path = Tests/WebKit/WKBackForwardList.mm; sourceTree = SOURCE_ROOT; };
 		260BA5781B1D2E7B004FA07C /* DFACombiner.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DFACombiner.cpp; sourceTree = "<group>"; };
 		260BA57A1B1D2EE2004FA07C /* DFAHelpers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DFAHelpers.h; sourceTree = "<group>"; };
@@ -2242,6 +2254,8 @@
 		9368A25D229EFB3A00A829CA /* local-storage-process-suspends-1.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "local-storage-process-suspends-1.html"; sourceTree = "<group>"; };
 		936F727E1CD7D9D00068A0FB /* large-video-with-audio.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "large-video-with-audio.html"; sourceTree = "<group>"; };
 		936F727F1CD7D9D00068A0FB /* large-video-with-audio.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "large-video-with-audio.mp4"; sourceTree = "<group>"; };
+		937A6C8824357BF300C3A6B0 /* KillWebProcessWithOpenConnection-1.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "KillWebProcessWithOpenConnection-1.html"; sourceTree = "<group>"; };
+		937A6C8924357BF300C3A6B0 /* KillWebProcessWithOpenConnection-2.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "KillWebProcessWithOpenConnection-2.html"; sourceTree = "<group>"; };
 		9399BA01237110AE008392BF /* IndexedDBInPageCache.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = IndexedDBInPageCache.mm; sourceTree = "<group>"; };
 		9399BA02237110BF008392BF /* IndexedDBInPageCache.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = IndexedDBInPageCache.html; sourceTree = "<group>"; };
 		9399BA03237110BF008392BF /* IndexedDBNotInPageCache.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = IndexedDBNotInPageCache.html; sourceTree = "<group>"; };
@@ -3542,6 +3556,8 @@
 				5110FCF21E01CD77006F8D0B /* IndexUpgrade.blob */,
 				5110FCF31E01CD77006F8D0B /* IndexUpgrade.sqlite3 */,
 				2EFF06CC1D8A42910004BB30 /* input-field-in-scrollable-document.html */,
+				937A6C8824357BF300C3A6B0 /* KillWebProcessWithOpenConnection-1.html */,
+				937A6C8924357BF300C3A6B0 /* KillWebProcessWithOpenConnection-2.html */,
 				F4538EF01E846B4100B5C953 /* large-red-square.png */,
 				2E1B7B011D41B1B3007558B4 /* large-video-hides-controls-after-seek-to-end.html */,
 				2E54F40C1D7BC83900921ADF /* large-video-mutes-onplaying.html */,
@@ -4318,6 +4334,7 @@
 				CDC8E49A1BC728FE00594FEC /* Resources */,
 				CDC8E4851BC5B19400594FEC /* AudioSessionCategoryIOS.mm */,
 				E35FC7B122B82A6D00F32F98 /* JSLockTakesWebThreadLock.mm */,
+				1D67BFDB2433E0A7006B5047 /* PreemptVideoFullscreen.mm */,
 				CDC0932A21C872C10030C4B0 /* ScrollingDoesNotPauseMedia.mm */,
 				F434CA1922E65BCA005DDB26 /* ScrollToRevealSelection.mm */,
 				0F4FFA9D1ED3AA8500F7111F /* SnapshotViaRenderInContext.mm */,
@@ -4329,6 +4346,8 @@
 			isa = PBXGroup;
 			children = (
 				CD9E292D1C90C1BA000BB800 /* audio-only.html */,
+				1DAA52CB243BE621001A3159 /* one-video.html */,
+				1D67BFD92433DFD8006B5047 /* two-videos.html */,
 				CDC8E4891BC5C96200594FEC /* video-with-audio.html */,
 				CDC8E48A1BC5C96200594FEC /* video-with-audio.mp4 */,
 				CD321B031E3A84B700EB21C8 /* video-with-muted-audio-and-webaudio.html */,
@@ -4994,6 +5013,7 @@
 				7CCE7EA61A411A0F00447C4C /* PlatformUtilitiesMac.mm in Sources */,
 				7CCE7EA71A411A1300447C4C /* PlatformWebViewMac.mm in Sources */,
 				83BAEE8D1EF4625500DDE894 /* PluginLoadClientPolicies.mm in Sources */,
+				1D67BFDC2433E0A7006B5047 /* PreemptVideoFullscreen.mm in Sources */,
 				C15CBB3F23FB177A00300CC7 /* PreferenceChanges.mm in Sources */,
 				7CCE7F261A411AF600447C4C /* Preferences.mm in Sources */,
 				CD227E44211A4D5D00D285AF /* PreferredAudioBufferSize.mm in Sources */,

@@ -56,6 +56,7 @@
 #include <wtf/Atomics.h>
 #include <wtf/CPUTime.h>
 #include <wtf/DataLog.h>
+#include <wtf/Language.h>
 #include <wtf/ProcessID.h>
 #include <wtf/StringPrintStream.h>
 
@@ -2874,7 +2875,7 @@ EncodedJSValue JSC_HOST_CALL JSDollarVMHelper::functionGetStructureTransitionLis
         return JSValue::encode(jsNull());
     Vector<Structure*, 8> structures;
 
-    for (auto* structure = obj->structure(); structure; structure = structure->previousID(vm))
+    for (auto* structure = obj->structure(); structure; structure = structure->previousID())
         structures.append(structure);
 
     JSArray* result = JSArray::tryCreate(vm, globalObject->arrayStructureForIndexingTypeDuringAllocation(ArrayWithContiguous), 0);
@@ -2888,8 +2889,8 @@ EncodedJSValue JSC_HOST_CALL JSDollarVMHelper::functionGetStructureTransitionLis
         RETURN_IF_EXCEPTION(scope, { });
         result->push(globalObject, JSValue(structure->maxOffset()));
         RETURN_IF_EXCEPTION(scope, { });
-        if (auto* transitionPropertyName = structure->transitionPropertyName())
-            result->push(globalObject, jsString(vm, String(*transitionPropertyName)));
+        if (structure->m_transitionPropertyName)
+            result->push(globalObject, jsString(vm, String(*structure->m_transitionPropertyName)));
         else
             result->push(globalObject, jsNull());
         RETURN_IF_EXCEPTION(scope, { });
@@ -2934,6 +2935,27 @@ static EncodedJSValue JSC_HOST_CALL functionRejectPromiseAsHandled(JSGlobalObjec
     JSPromise* promise = jsCast<JSPromise*>(callFrame->uncheckedArgument(0));
     JSValue reason = callFrame->uncheckedArgument(1);
     promise->rejectAsHandled(globalObject, reason);
+    return JSValue::encode(jsUndefined());
+}
+
+static EncodedJSValue JSC_HOST_CALL functionSetUserPreferredLanguages(JSGlobalObject* globalObject, CallFrame* callFrame)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    JSArray* array = jsDynamicCast<JSArray*>(vm, callFrame->argument(0));
+    if (!array)
+        return throwVMTypeError(globalObject, scope, "Expected first argument to be an array"_s);
+
+    Vector<String> languages;
+    unsigned length = array->length();
+    for (size_t i = 0; i < length; i++) {
+        String language = array->get(globalObject, i).toWTFString(globalObject);
+        RETURN_IF_EXCEPTION(scope, encodedJSValue());
+        languages.append(language);
+    }
+
+    overrideUserPreferredLanguages(languages);
     return JSValue::encode(jsUndefined());
 }
 
@@ -3072,6 +3094,8 @@ void JSDollarVM::finishCreation(VM& vm)
 
     addFunction(vm, "hasOwnLengthProperty", functionHasOwnLengthProperty, 1);
     addFunction(vm, "rejectPromiseAsHandled", functionRejectPromiseAsHandled, 1);
+
+    addFunction(vm, "setUserPreferredLanguages", functionSetUserPreferredLanguages, 1);
 
     m_objectDoingSideEffectPutWithoutCorrectSlotStatusStructure.set(vm, this, ObjectDoingSideEffectPutWithoutCorrectSlotStatus::createStructure(vm, globalObject, jsNull()));
 }

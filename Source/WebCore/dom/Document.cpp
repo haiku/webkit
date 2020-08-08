@@ -4641,7 +4641,7 @@ void Document::textInserted(Node& text, unsigned offset, unsigned length)
 
 #if ENABLE(PLATFORM_DRIVEN_TEXT_CHECKING)
     // Freshly inserted text is expected to not inherit PlatformTextChecking markers.
-    m_markers->removeMarkers(text, offset, length, DocumentMarker::PlatformTextChecking);
+    m_markers->removeMarkers(text, { offset, offset + length }, DocumentMarker::PlatformTextChecking);
 #endif
 }
 
@@ -4653,7 +4653,7 @@ void Document::textRemoved(Node& text, unsigned offset, unsigned length)
     }
 
     // Update the markers for spelling and grammar checking.
-    m_markers->removeMarkers(text, offset, length);
+    m_markers->removeMarkers(text, { offset, offset + length });
     m_markers->shiftMarkers(text, offset + length, 0 - length);
 }
 
@@ -6422,19 +6422,25 @@ void Document::dispatchPopstateEvent(RefPtr<SerializedScriptValue>&& stateObject
 
 void Document::addMediaCanStartListener(MediaCanStartListener& listener)
 {
-    ASSERT(!m_mediaCanStartListeners.contains(&listener));
-    m_mediaCanStartListeners.add(&listener);
+    ASSERT(!m_mediaCanStartListeners.contains(listener));
+    m_mediaCanStartListeners.add(listener);
 }
 
 void Document::removeMediaCanStartListener(MediaCanStartListener& listener)
 {
-    ASSERT(m_mediaCanStartListeners.contains(&listener));
-    m_mediaCanStartListeners.remove(&listener);
+    ASSERT(m_mediaCanStartListeners.contains(listener));
+    m_mediaCanStartListeners.remove(listener);
 }
 
 MediaCanStartListener* Document::takeAnyMediaCanStartListener()
 {
-    return m_mediaCanStartListeners.takeAny();
+    if (m_mediaCanStartListeners.computesEmpty())
+        return nullptr;
+
+    MediaCanStartListener* listener = m_mediaCanStartListeners.begin().get();
+    m_mediaCanStartListeners.remove(*listener);
+
+    return listener;
 }
 
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS_FAMILY)
@@ -8097,13 +8103,30 @@ DocumentTimeline& Document::timeline()
 
 Vector<RefPtr<WebAnimation>> Document::getAnimations()
 {
+    return matchingAnimations([] (Element& target) -> bool {
+        return !target.containingShadowRoot();
+    });
+}
+
+Vector<RefPtr<WebAnimation>> Document::matchingAnimations(const WTF::Function<bool(Element&)>& function)
+{
     // For the list of animations to be current, we need to account for any pending CSS changes,
     // such as updates to CSS Animations and CSS Transitions.
     updateStyleIfNeeded();
 
-    if (m_timeline)
-        return m_timeline->getAnimations();
-    return { };
+    if (!m_timeline)
+        return { };
+
+    Vector<RefPtr<WebAnimation>> animations;
+    for (auto& animation : m_timeline->getAnimations()) {
+        auto* effect = animation->effect();
+        ASSERT(is<KeyframeEffect>(animation->effect()));
+        auto* target = downcast<KeyframeEffect>(*effect).target();
+        ASSERT(target);
+        if (function(*target))
+            animations.append(animation);
+    }
+    return animations;
 }
 
 #if ENABLE(ATTACHMENT_ELEMENT)

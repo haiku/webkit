@@ -58,7 +58,7 @@
     (subpath "/System/Library/Frameworks")
     (subpath "/System/Library/PrivateFrameworks")
     (subpath "/usr/lib")
-    (literal "/usr/local/lib/sanitizers") ;; FIXME(209820)
+    (subpath "/usr/local/lib/sanitizers") ;; FIXME(209820)
     (subpath "/usr/appleinternal/lib/sanitizers"))
 
 (allow file-read-metadata
@@ -72,7 +72,12 @@
 (allow file-read*
     (literal "/dev/autofs_nowait")
     (literal "/dev/random")
-    (literal "/dev/urandom")
+    (literal "/dev/urandom"))
+
+(deny file-read*
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101600
+    (with telemetry-backtrace)
+#endif
     (literal "/private/etc/master.passwd")
     (literal "/private/etc/passwd"))
 
@@ -1077,5 +1082,6 @@
 #if __MAC_OS_X_VERSION_MIN_REQUIRED > 101500
         (syscall-number SYS_objc_bp_assist_cfg_np) ;; <rdar://problem/55924791>
 #endif
+        (syscall-number SYS_fstat64_extended) ;; <rdar://problem/61310019>
     )
 )

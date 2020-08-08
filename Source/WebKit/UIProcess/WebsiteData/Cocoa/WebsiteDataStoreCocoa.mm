@@ -457,17 +457,23 @@ void WebsiteDataStore::beginAppBoundDomainCheck(const URL& requestURL, WebFrameP
     ASSERT(RunLoop::isMain());
 
     if (shouldTreatURLProtocolAsAppBound(requestURL)) {
-        listener.didReceiveAppBoundDomainResult(true);
+        listener.didReceiveAppBoundDomainResult(NavigatingToAppBoundDomain::Yes);
         return;
     }
 
     ensureAppBoundDomains([domain = WebCore::RegistrableDomain(requestURL), listener = makeRef(listener)] (auto& domains) mutable {
-        listener->didReceiveAppBoundDomainResult(domains.contains(domain));
+        if (domains.isEmpty()) {
+            listener->didReceiveAppBoundDomainResult(WTF::nullopt);
+            return;
+        }
+        listener->didReceiveAppBoundDomainResult(domains.contains(domain) ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No);
     });
 }
 
-void WebsiteDataStore::appBoundDomainsForTesting(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&& completionHandler) const
+void WebsiteDataStore::getAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&& completionHandler) const
 {
+    ASSERT(RunLoop::isMain());
+
     ensureAppBoundDomains([completionHandler = WTFMove(completionHandler)] (auto& domains) mutable {
         completionHandler(domains);
     });
