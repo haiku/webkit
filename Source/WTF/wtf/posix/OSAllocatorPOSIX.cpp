@@ -31,12 +31,6 @@
 #include <wtf/Assertions.h>
 #include <wtf/PageAllocation.h>
 
-#if OS(HAIKU)
-#define madvise posix_madvise
-#define MADV_DONTNEED POSIX_MADV_DONTNEED
-#define MADV_WILLNEED POSIX_MADV_WILLNEED
-#endif
-
 namespace WTF {
 
 void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
