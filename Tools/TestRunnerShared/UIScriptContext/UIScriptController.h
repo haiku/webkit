@@ -117,6 +117,12 @@ public:
     virtual void removeViewFromWindow(JSValueRef) { notImplemented(); }
     virtual void addViewToWindow(JSValueRef) { notImplemented(); }
 
+    virtual void installTapGestureOnWindow(JSValueRef) { notImplemented(); }
+
+    // Editable region
+
+    virtual bool mayContainEditableElementsInRect(unsigned, unsigned, unsigned, unsigned) { notImplemented(); return false; }
+
     // Compositing
 
     virtual JSObjectRef propertiesOfLayerWithID(uint64_t layerID) const { notImplemented(); return nullptr; }

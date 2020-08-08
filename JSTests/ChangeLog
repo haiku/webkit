@@ -1,3 +1,230 @@
+2020-04-13  Michael Saboff  <msaboff@apple.com>
+
+        [YARR] Allow for Unicode named capture group identifiers in non-Unicode regular expressions
+        https://bugs.webkit.org/show_bug.cgi?id=210309
+
+        Reviewed by Ross Kirsling.
+
+        * stress/regexp-named-capture-groups.js: New test added.
+        (shouldBe):
+        (shouldThrowInvalidGroupSpecifierName):
+        * test262/expectations.yaml: Updated for now failing tests.
+        When test262 gets updated for this change, this can be reverted.
+
+2020-04-12  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] WebKit Intl does not allow calendar and numberingSystem options
+        https://bugs.webkit.org/show_bug.cgi?id=209784
+
+        Reviewed by Myles C. Maxfield.
+
+        * stress/intl-datetimeformat.js:
+        Fix two test cases for old behavior.
+
+        * test262/expectations.yaml:
+        Mark 16 test cases as passing.
+
+2020-04-10  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Properly implement BigInt.prototype.toLocaleString
+        https://bugs.webkit.org/show_bug.cgi?id=209782
+
+        Reviewed by Darin Adler.
+
+        * stress/bigint-toLocaleString.js: Added.
+        * stress/intl-numberformat.js: Add test cases.
+        * test262/expectations.yaml: Mark 10 test cases as passing.
+
+2020-04-10  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed gardening for JSTests/stress. Remove skips that were forgotten in r259658.
+
+        * stress/array-toLocaleString.js:
+        * stress/date-toLocaleString.js:
+        * stress/number-toLocaleString.js:
+        * stress/string-localeCompare.js:
+        * stress/string-toLocaleLowerCase.js:
+        * stress/string-toLocaleUpperCase.js:
+
+2020-04-10  Devin Rousso  <drousso@apple.com>
+
+        The rhs in `ReadModifyResolveNode` should be evaluated before throwing an exception if the lhs is read-only
+        https://bugs.webkit.org/show_bug.cgi?id=210317
+
+        Reviewed by Ross Kirsling.
+
+        * stress/const-read-modify-assignment-eval-rhs-before-exception.js: Added.
+
+2020-04-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] ModuleEnvironment do not have JSGlobalLexicalEnvironment as its upper scope
+        https://bugs.webkit.org/show_bug.cgi?id=193347
+
+        Reviewed by Tadeu Zagallo.
+
+        * stress/global-lexical-environment-access-from-module.js: Added.
+        (shouldBe):
+        (import.string_appeared_here.then):
+        * stress/resources/global-lexical-environment-access-from-module-child.js: Added.
+        (export.read):
+        (export.write):
+
+2020-04-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, skip JSTests/stress/intl-canonicalize-locale-list-error-oom.js if memoryLimited
+        <rdar://problem/61533598>
+
+        * stress/intl-canonicalize-locale-list-error-oom.js:
+
+2020-04-09  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        ProxyObject::defineOwnProperty() should conditionally throw on falsy trap result
+        https://bugs.webkit.org/show_bug.cgi?id=210267
+
+        Reviewed by Ross Kirsling.
+
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-04-09  Saam Barati  <sbarati@apple.com>
+
+        We can still cache delete in strict mode as long as the property is not "non-configurable"
+        https://bugs.webkit.org/show_bug.cgi?id=210148
+
+        Reviewed by Tadeu Zagallo.
+
+        * microbenchmarks/delete-cache-strict-mode.js: Added.
+        (assert):
+        (doDel):
+        (doDelByVal):
+
+2020-04-09  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        getOwnPropertyDescriptor() is incorrect with Proxy of exotic object
+        https://bugs.webkit.org/show_bug.cgi?id=200560
+
+        Reviewed by Yusuke Suzuki.
+
+        * test262/expectations.yaml: Mark 14 test cases as passing.
+
+2020-04-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] MultiDeleteByOffset should tell correct result AbstractValue in AI
+        https://bugs.webkit.org/show_bug.cgi?id=210175
+        <rdar://problem/61433817>
+
+        Reviewed by Saam Barati.
+
+        * stress/multi-delete-by-offset-ai-result.js: Added.
+        (foo):
+
+2020-04-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Collect-continuously thread should take m_collectContinuouslyLock while it is waking up concurrent collector thread
+        https://bugs.webkit.org/show_bug.cgi?id=210163
+
+        Reviewed by Saam Barati.
+
+        * stress/collect-continuously-should-not-wake-concurrent-collector-after-prevent-collection-is-called.js: Added.
+        (let.theCode):
+
+2020-04-07  Saam Barati  <sbarati@apple.com>
+
+        Delete ICs can't cache dictionaries
+        https://bugs.webkit.org/show_bug.cgi?id=210147
+        <rdar://problem/61382405>
+
+        Reviewed by Tadeu Zagallo.
+
+        * stress/dont-cache-delete-ic-on-dictionary-2.js: Added.
+        (assert):
+        (makeDictionary):
+        (foo):
+        * stress/dont-cache-delete-ic-on-dictionary.js: Added.
+        (assert):
+        (foo):
+
+2020-04-07  Tadeu Zagallo  <tzagallo@apple.com>
+
+        Not using strict mode within ClassDeclaration statement
+        https://bugs.webkit.org/show_bug.cgi?id=205578
+        <rdar://problem/58194589>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/inline-strict-delete.js: Added.
+        (assert):
+        (bar):
+        (foo):
+        * stress/superclass-expression-strictness.js: Added.
+        (f.try.c):
+        (f):
+
+2020-04-07  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        test262/Runner.pm ignores "async" flag
+        https://bugs.webkit.org/show_bug.cgi?id=210127
+
+        Reviewed by Ross Kirsling.
+
+        * test262/expectations.yaml: Mark 56 test cases as failing.
+
+2020-04-07  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Update JSTests to assume ICU 60+
+        https://bugs.webkit.org/show_bug.cgi?id=210085
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/intl-collator.js:
+        * stress/intl-constructors-with-proxy.js:
+        * stress/intl-datetimeformat.js:
+        * stress/intl-default-locale.js:
+        * stress/intl-numberformat-format-to-parts.js:
+        * stress/intl-numberformat.js: Ensure a test case doesn't depend on behavior changed in ICU 64.
+        * stress/intl-object.js:
+        * stress/intl-pluralrules.js: Correct two invalid test cases.
+        * test262/config.yaml:
+        Remove skips.
+
+2020-04-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] ScopedArgumentsTable should handle OOM in tolerant manner
+        https://bugs.webkit.org/show_bug.cgi?id=210126
+
+        Reviewed by Mark Lam.
+
+        * stress/scoped-arguments-table-should-be-tolerant-for-oom.js: Added.
+        (canThrow):
+        (bar):
+        (get bar):
+        (foo):
+        (i.canThrow):
+
+2020-04-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Inlined IC should get right JSGlobalObject
+        https://bugs.webkit.org/show_bug.cgi?id=210092
+
+        Reviewed by Tadeu Zagallo.
+
+        * stress/getter-setter-globalobject-in-ic.js: Added.
+        (shouldBe):
+        (valueFunc):
+        (accessorFunc):
+        (valueTest):
+        (accessorTest):
+
+2020-04-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] $.evalScript should check exception when accessing "global"
+        https://bugs.webkit.org/show_bug.cgi?id=210114
+        <rdar://problem/61388482>
+
+        Reviewed by Keith Miller.
+
+        * stress/eval-script-global-access-exception-check.js: Added.
+        (shouldThrow):
+
 2020-04-06  Rick Waldron  <waldron.rick@gmail.com> and Alexey Shvayka  <shvaikalesh@gmail.com>
 
         Remove unnecessary Test262 harness file and implement $262.IsHTMLDDA

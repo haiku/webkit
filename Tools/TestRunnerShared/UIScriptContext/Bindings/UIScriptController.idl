@@ -308,6 +308,8 @@ interface UIScriptController {
 
     readonly attribute DOMString scrollingTreeAsText;
 
+    boolean mayContainEditableElementsInRect(unsigned long x, unsigned long y, unsigned long width, unsigned long height);
+
     object propertiesOfLayerWithID(unsigned long long layerID);
 
     void retrieveSpeakSelectionContent(object callback);
@@ -321,6 +323,8 @@ interface UIScriptController {
     // Unparent and parent the web view, simulating, for example, tab switching.
     void removeViewFromWindow(object callback);
     void addViewToWindow(object callback);
+
+    void installTapGestureOnWindow(object callback);
 
     void overridePreference(DOMString preference, DOMString value);
 

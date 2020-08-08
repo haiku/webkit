@@ -247,9 +247,9 @@ public:
     virtual int scrollTop() const;
     virtual int scrollWidth() const;
     virtual int scrollHeight() const;
-    virtual void setScrollLeft(int, ScrollType, ScrollClamping = ScrollClamping::Clamped, bool animated = false);
-    virtual void setScrollTop(int, ScrollType, ScrollClamping = ScrollClamping::Clamped, bool animated = false);
-    void setScrollPosition(const ScrollPosition&, ScrollType, ScrollClamping = ScrollClamping::Clamped, bool animated = false);
+    virtual void setScrollLeft(int, ScrollType, ScrollClamping = ScrollClamping::Clamped, AnimatedScroll = AnimatedScroll::No);
+    virtual void setScrollTop(int, ScrollType, ScrollClamping = ScrollClamping::Clamped, AnimatedScroll = AnimatedScroll::No);
+    void setScrollPosition(const ScrollPosition&, ScrollType, ScrollClamping = ScrollClamping::Clamped, AnimatedScroll = AnimatedScroll::No);
 
     LayoutUnit marginTop() const override { return m_marginBox.top(); }
     LayoutUnit marginBottom() const override { return m_marginBox.bottom(); }
@@ -689,6 +689,8 @@ protected:
     void paintRootBoxFillLayers(const PaintInfo&);
 
     bool skipContainingBlockForPercentHeightCalculation(const RenderBox& containingBlock, bool isPerpendicularWritingMode) const;
+
+    void incrementVisuallyNonEmptyPixelCountIfNeeded(const IntSize&);
 
 private:
     bool replacedMinMaxLogicalHeightComputesAsNone(SizeType) const;

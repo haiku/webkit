@@ -49,6 +49,7 @@ private:
     public:
         ContentHeightAndMargin tableCellHeightAndMargin(const Box&) const;
         Optional<LayoutUnit> computedColumnWidth(const Box& columnBox) const;
+        FormattingContext::IntrinsicWidthConstraints intrinsicWidthConstraintsForCell(const ContainerBox& cellBox);
 
     private:
         friend class TableFormattingContext;
@@ -59,16 +60,14 @@ private:
     TableFormattingContext::Geometry geometry() const { return Geometry(*this); }
 
     IntrinsicWidthConstraints computedIntrinsicWidthConstraints() override;
-    void layoutTableCellBox(const TableGrid::CellInfo&, InvalidationState&, const HorizontalConstraints&);
+    void layoutCell(const TableGrid::Cell&, InvalidationState&, const HorizontalConstraints&);
     void positionTableCells();
     void setComputedGeometryForRows();
     void setComputedGeometryForSections();
 
     void ensureTableGrid();
-    void computePreferredWidthForColumns();
+    IntrinsicWidthConstraints computedPreferredWidthForColumns();
     void computeAndDistributeExtraHorizontalSpace(LayoutUnit containingBlockWidth);
-    enum class WidthConstraintsType { Minimum, Maximum };
-    void useAsContentLogicalWidth(WidthConstraintsType);
 
     void initializeDisplayBoxToBlank(Display::Box&) const;
 

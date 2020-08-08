@@ -393,6 +393,8 @@ class WebkitFlatpak:
                              dest="user_command")
         general.add_argument('--available', action='store_true', dest="check_available", help='Check if required dependencies are available.'),
         general.add_argument("--use-icecream", dest="use_icecream", help="Use the distributed icecream (icecc) compiler.", action="store_true")
+        general.add_argument("-r", "--regenerate-toolchains", dest="regenerate_toolchains", action="store_true",
+                             help="Regenerate IceCC distribuable toolchain archives")
 
         debugoptions = parser.add_argument_group("Debugging")
         debugoptions.add_argument("--gdb", nargs="?", help="Activate gdb, passing extra args to it if wanted.")
@@ -444,7 +446,24 @@ class WebkitFlatpak:
         self.cmakeargs = ""
 
         self.use_icecream = False
-        self.icc_version = None
+        self.icc_version = {}
+        self.regenerate_toolchains = False
+
+    def execute_command(self, args, stdout=None, stderr=None):
+        _log.debug('Running in sandbox: %s\n' % ' '.join(args))
+        result = 0
+        try:
+            result = subprocess.check_call(args, stdout=stdout, stderr=stderr)
+        except subprocess.CalledProcessError as err:
+            if self.verbose:
+                cmd = ' '.join(err.cmd)
+                message = "'%s' returned a non-zero exit code." % cmd
+                if stderr:
+                    with open(stderr.name, 'r') as stderrf:
+                        message += " Stderr: %s" % stderrf.read()
+                Console.error_message(message)
+            return err.returncode
+        return result
 
     def clean_args(self):
         os.environ["FLATPAK_USER_DIR"] = os.environ.get("WEBKIT_FLATPAK_USER_DIR", FLATPAK_USER_DIR_PATH)
@@ -469,8 +488,8 @@ class WebkitFlatpak:
 
         self.flatpak_build_path = os.environ["FLATPAK_USER_DIR"]
 
-        build_root = os.path.join(self.source_root, 'WebKitBuild')
-        self.build_path = os.path.join(build_root, self.platform, self.build_type)
+        self.build_root = os.path.join(self.source_root, 'WebKitBuild')
+        self.build_path = os.path.join(self.build_root, self.platform, self.build_type)
         self.config_file = os.path.join(self.flatpak_build_path, 'webkit_flatpak_config.json')
 
         Console.quiet = self.quiet
@@ -519,7 +538,7 @@ class WebkitFlatpak:
             raise RuntimeError('GST_BUILD_PATH set to %s but it doesn\'t seem to be a valid `gst-build` checkout.' % gst_dir)
 
         gst_builddir = os.path.join(self.sandbox_source_root, "WebKitBuild", 'gst-build')
-        if not os.path.exists(os.path.join(self.source_root, 'WebKitBuild', 'gst-build', 'build.ninja')):
+        if not os.path.exists(os.path.join(self.build_root, 'gst-build', 'build.ninja')):
             if not building:
                 raise RuntimeError('Trying to enter gst-build env from %s but it is not built, make sure to rebuild webkit.' % gst_dir)
 
@@ -537,6 +556,19 @@ class WebkitFlatpak:
             raise RuntimeError('Error while building gst-build.')
 
         return [os.path.join(gst_dir, 'gst-env.py'), '--builddir', gst_builddir, '--srcdir', gst_dir]
+
+    def is_branch_build(self):
+        git_branch_name = subprocess.check_output(("git", "rev-parse", "--abbrev-ref", "HEAD")).decode("utf-8").strip()
+        for option_name in ("branch.%s.webKitBranchBuild" % git_branch_name,
+                            "webKitBranchBuild"):
+            try:
+                output = subprocess.check_output(("git", "config", "--bool", option_name)).strip()
+            except subprocess.CalledProcessError:
+                continue
+
+            if output == "true":
+                return True
+        return False
 
     def run_in_sandbox(self, *args, **kwargs):
         self.setup_builddir(stdout=kwargs.get("stdout", sys.stdout))
@@ -577,7 +609,7 @@ class WebkitFlatpak:
                            "--bind-mount=/run/systemd/journal=/run/systemd/journal",
                            "--bind-mount=%s=%s" % (self.sandbox_source_root, self.source_root)]
 
-        if args and args[0].endswith("build-webkit"):
+        if args and args[0].endswith("build-webkit") and not self.is_branch_build():
             # Ensure self.build_path exists.
             try:
                 os.makedirs(self.build_path)
@@ -587,8 +619,9 @@ class WebkitFlatpak:
 
         # We mount WebKitBuild/PORTNAME/BuildType to /app/webkit/WebKitBuild/BuildType
         # so we can build WPE and GTK in a same source tree.
-        # The bind-mount is always needed, not only when running build-webkit.
-        flatpak_command.append("--bind-mount=%s=%s" % (sandbox_build_path, self.build_path))
+        # The bind-mount is always needed, excepted during the initial setup (SDK install/updates).
+        if os.path.isdir(self.build_path):
+            flatpak_command.append("--bind-mount=%s=%s" % (sandbox_build_path, self.build_path))
 
         forwarded = {
             "WEBKIT_TOP_LEVEL": "/app/",
@@ -624,6 +657,7 @@ class WebkitFlatpak:
             "GTK",
             "ICECC",
             "JSC",
+            "SCCACHE",
             "WEBKIT",
             "WEBKIT2",
             "WPE",
@@ -662,16 +696,30 @@ class WebkitFlatpak:
             if var_tokens[0] in env_var_prefixes_to_keep or envvar in env_vars_to_keep or var_tokens[-1] in env_var_suffixes_to_keep:
                 forwarded[envvar] = value
 
-        if self.use_icecream:
+        share_network_option = "--share=network"
+        remote_sccache_configs = set(["SCCACHE_REDIS", "SCCACHE_BUCKET", "SCCACHE_MEMCACHED",
+                                      "SCCACHE_GCS_BUCKET", "SCCACHE_AZURE_CONNECTION_STRING",
+                                      "WEBKIT_USE_SCCACHE"])
+        if remote_sccache_configs.intersection(set(os.environ.keys())):
+            _log.debug("Enabling network access for the remote sccache")
+            flatpak_command.append(share_network_option)
+
+        if self.use_icecream and not self.regenerate_toolchains:
             _log.debug('Enabling the icecream compiler')
-            flatpak_command.extend(["--share=network",
-                                    "--bind-mount=/var/run/icecc=/var/run/icecc"])
+            if share_network_option not in flatpak_command:
+                flatpak_command.append(share_network_option)
+            flatpak_command.append("--bind-mount=/var/run/icecc=/var/run/icecc")
 
             n_cores = multiprocessing.cpu_count() * 3
             _log.debug('Following icecream recommendation for the number of cores to use: %d' % n_cores)
+            toolchain_name = os.environ.get("CC", "gcc")
+            toolchain_path = self.icc_version[toolchain_name]
+            if not os.path.isfile(toolchain_path):
+                Console.error_message("%s is not a valid IceCC toolchain. Please run webkit-flatpak -r")
+                return 1
             forwarded.update({
                 "CCACHE_PREFIX": "icecc",
-                "ICECC_VERSION": self.icc_version,
+                "ICECC_VERSION": toolchain_path,
                 "NUMBER_OF_PROCESSORS": n_cores,
             })
 
@@ -683,13 +731,9 @@ class WebkitFlatpak:
             gst_env = self.setup_gstbuild(building)
 
         flatpak_command += extra_flatpak_args + [self.flatpak_build_path] + gst_env + args
-        _log.debug('Running in sandbox: %s\n' % ' '.join(flatpak_command))
 
         try:
-            subprocess.check_call(flatpak_command, stdout=stdout)
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(str(e) + "\n")
-            return e.returncode
+            return self.execute_command(flatpak_command, stdout=stdout)
         except KeyboardInterrupt:
             return 0
 
@@ -735,19 +779,32 @@ class WebkitFlatpak:
             json_config = {'icecc_version': self.icc_version}
             json.dump(json_config, config)
 
-    def setup_icecc(self):
+    def setup_icecc(self, name):
         with tempfile.NamedTemporaryFile() as tmpfile:
-            self.run_in_sandbox('icecc', '--build-native', stdout=tmpfile, cwd=self.source_root)
+            toolchain_path = "/usr/bin/%s" % name
+            self.run_in_sandbox('icecc', '--build-native', toolchain_path, stdout=tmpfile, cwd=self.source_root)
             tmpfile.flush()
             tmpfile.seek(0)
             icc_version_filename, = re.findall(r'.*creating (.*)', tmpfile.read())
-            self.icc_version = os.path.join(self.source_root, icc_version_filename)
+            toolchains_directory = os.path.join(self.build_root, "Toolchains")
+            if not os.path.isdir(toolchains_directory):
+                os.makedirs(toolchains_directory)
+            archive_filename = os.path.join(toolchains_directory, "webkit-sdk-%s-%s" % (name, icc_version_filename))
+            os.rename(icc_version_filename, archive_filename)
+            self.icc_version[name] = archive_filename
+            Console.message("Created %s self-contained toolchain archive", archive_filename)
 
     def setup_dev_env(self):
         if not os.path.exists(os.path.join(self.flatpak_build_path, "runtime", "org.webkit.Sdk")) or self.update:
             self.install_all()
-            if self.use_icecream:
-                self.setup_icecc()
+            regenerate_toolchains = True
+        else:
+            regenerate_toolchains = self.regenerate_toolchains
+
+        if regenerate_toolchains:
+            self.icc_version = {}
+            self.setup_icecc("gcc")
+            self.setup_icecc("clang")
             self.save_config()
 
         if not self.update:
@@ -817,14 +874,10 @@ class WebkitFlatpak:
                     cmd = ["coredumpctl", "--since=%s" % self.gdb_stack_trace, "dump"]
                 else:
                     cmd = ["coredumpctl", "dump"] + shlex.split(self.coredumpctl_matches)
-                try:
-                    subprocess.check_call(cmd, stdout=coredump, stderr=stderr)
-                except subprocess.CalledProcessError as err:
-                    with open(stderr.name, 'r') as stderrf:
-                        stderr = stderrf.read()
-                    cmd = ' '.join(err.cmd)
-                    Console.message("'%s' returned a non-zero exit code. Stderr: %s", cmd, stderr)
-                    return err.returncode
+
+                result = self.execute_command(cmd, stdout=coredump, stderr=stderr)
+                if result != 0:
+                    return result
 
                 with open(stderr.name, 'r') as stderrf:
                     stderr = stderrf.read()
@@ -845,6 +898,9 @@ def is_sandboxed():
 
 
 def run_in_sandbox_if_available(args):
+    if os.environ.get('WEBKIT_JHBUILD', '0') == '1':
+        return None
+
     if not os.path.isdir(FLATPAK_USER_DIR_PATH):
         return None
 

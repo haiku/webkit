@@ -1237,10 +1237,8 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
     m_subpixelOffsetFromRenderer = primaryGraphicsLayerOffsetFromRenderer.m_subpixelOffset;
     m_hasSubpixelRounding = !m_subpixelOffsetFromRenderer.isZero() || compositedBounds().size() != primaryGraphicsLayerRect.size();
 
-    if (primaryGraphicsLayerOffsetFromRenderer.m_devicePixelOffset != m_graphicsLayer->offsetFromRenderer()) {
+    if (primaryGraphicsLayerOffsetFromRenderer.m_devicePixelOffset != m_graphicsLayer->offsetFromRenderer())
         m_graphicsLayer->setOffsetFromRenderer(primaryGraphicsLayerOffsetFromRenderer.m_devicePixelOffset);
-        positionOverflowControlsLayers();
-    }
 
     // If we have a layer that clips children, position it.
     LayoutRect clippingBox;
@@ -1402,6 +1400,8 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
     updateBackdropFiltersGeometry();
 #endif
     updateAfterWidgetResize();
+
+    positionOverflowControlsLayers();
 
     if (subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor()) && canIssueSetNeedsDisplay())
         setContentsNeedDisplay();
@@ -1618,11 +1618,16 @@ void RenderLayerBacking::updateEventRegion()
     if (paintsIntoCompositedAncestor())
         return;
 
+    bool needsEventRegionUpdateForNonCompositedFrame = renderer().view().needsEventRegionUpdateForNonCompositedFrame();
     bool hasTouchActionElements = false;
+    bool hasEditableElements = false;
 #if PLATFORM(IOS_FAMILY)
     hasTouchActionElements = renderer().document().mayHaveElementsWithNonAutoTouchAction();
 #endif
-    if (!hasTouchActionElements) {
+#if ENABLE(EDITABLE_REGION)
+    hasEditableElements = renderer().document().mayHaveEditableElements();
+#endif
+    if (!hasTouchActionElements && !hasEditableElements && !needsEventRegionUpdateForNonCompositedFrame) {
         if (m_owningLayer.isRenderViewLayer())
             return;
 
@@ -1666,6 +1671,9 @@ void RenderLayerBacking::updateEventRegion()
 
     if (m_scrolledContentsLayer)
         updateEventRegionForLayer(*m_scrolledContentsLayer);
+
+    if (needsEventRegionUpdateForNonCompositedFrame)
+        renderer().view().setNeedsEventRegionUpdateForNonCompositedFrame(false);
 }
 #endif
 
@@ -1771,25 +1779,33 @@ void RenderLayerBacking::setRequiresBackgroundLayer(bool requiresBackgroundLayer
     m_owningLayer.setNeedsCompositingConfigurationUpdate();
 }
 
+bool RenderLayerBacking::requiresLayerForScrollbar(Scrollbar* scrollbar) const
+{
+    return scrollbar && (scrollbar->isOverlayScrollbar()
+#if !PLATFORM(IOS_FAMILY) // FIXME: This should be an #if ENABLE(): webkit.org/b/210460
+        || renderer().settings().asyncOverflowScrollingEnabled()
+#endif
+        );
+}
+
 bool RenderLayerBacking::requiresHorizontalScrollbarLayer() const
 {
-    if (!m_owningLayer.hasOverlayScrollbars())
-        return false;
-    return m_owningLayer.horizontalScrollbar();
+    return requiresLayerForScrollbar(m_owningLayer.horizontalScrollbar());
 }
 
 bool RenderLayerBacking::requiresVerticalScrollbarLayer() const
 {
-    if (!m_owningLayer.hasOverlayScrollbars())
-        return false;
-    return m_owningLayer.verticalScrollbar();
+    return requiresLayerForScrollbar(m_owningLayer.verticalScrollbar());
 }
 
 bool RenderLayerBacking::requiresScrollCornerLayer() const
 {
-    if (!m_owningLayer.hasOverlayScrollbars())
+    if (m_owningLayer.scrollCornerAndResizerRect().isEmpty())
         return false;
-    return !m_owningLayer.scrollCornerAndResizerRect().isEmpty();
+
+    auto verticalScrollbar = m_owningLayer.verticalScrollbar();
+    auto scrollbar = verticalScrollbar ? verticalScrollbar : m_owningLayer.horizontalScrollbar();
+    return requiresLayerForScrollbar(scrollbar);
 }
 
 bool RenderLayerBacking::updateOverflowControlsLayers(bool needsHorizontalScrollbarLayer, bool needsVerticalScrollbarLayer, bool needsScrollCornerLayer)
@@ -2781,7 +2797,7 @@ void RenderLayerBacking::setContentsNeedDisplay(GraphicsLayer::ShouldClipToLayer
     if (!m_owningLayer.isRenderViewLayer())
         m_owningLayer.setNeedsCompositingConfigurationUpdate();
 
-    m_owningLayer.invalidateEventRegion();
+    m_owningLayer.invalidateEventRegion(RenderLayer::EventRegionInvalidationReason::Paint);
 
     auto& frameView = renderer().view().frameView();
     if (m_isMainFrameRenderViewLayer && frameView.isTrackingRepaints())
@@ -2821,7 +2837,7 @@ void RenderLayerBacking::setContentsNeedDisplayInRect(const LayoutRect& r, Graph
     if (!m_owningLayer.isRenderViewLayer())
         m_owningLayer.setNeedsCompositingConfigurationUpdate();
 
-    m_owningLayer.invalidateEventRegion();
+    m_owningLayer.invalidateEventRegion(RenderLayer::EventRegionInvalidationReason::Paint);
 
     FloatRect pixelSnappedRectForPainting = snapRectToDevicePixels(r, deviceScaleFactor());
     auto& frameView = renderer().view().frameView();
@@ -3064,6 +3080,7 @@ void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, 
     context.translate(-contentOffset);
 
     // The interactive part.
+    // Paint rects for touch action.
     auto& eventRegion = graphicsLayer->eventRegion();
     Color regionColor(0, 0, 255, 50);
     context.setFillColor(regionColor);
@@ -3091,6 +3108,13 @@ void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, 
         for (auto rect : actionRegion->rects())
             context.fillRect(rect);
     }
+
+#if ENABLE(EDITABLE_REGION)
+    // Paint rects for editable elements.
+    context.setFillColor({ 128, 0, 128, 50 });
+    for (auto rect : eventRegion.rectsForEditableElements())
+        context.fillRect(rect);
+#endif
 }
 
 // Up-call from compositing layer drawing callback.

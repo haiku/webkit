@@ -274,9 +274,9 @@ void HTMLAnchorElement::parseAttribute(const QualifiedName& name, const AtomStri
         HTMLElement::parseAttribute(name, value);
 }
 
-void HTMLAnchorElement::accessKeyAction(bool sendMouseEvents)
+bool HTMLAnchorElement::accessKeyAction(bool sendMouseEvents)
 {
-    dispatchSimulatedClick(0, sendMouseEvents ? SendMouseUpDownEvents : SendNoEvents);
+    return dispatchSimulatedClick(0, sendMouseEvents ? SendMouseUpDownEvents : SendNoEvents);
 }
 
 bool HTMLAnchorElement::isURLAttribute(const Attribute& attribute) const
@@ -488,7 +488,7 @@ void HTMLAnchorElement::handleClick(Event& event)
     if (systemPreviewInfo.isPreview) {
         systemPreviewInfo.element.elementIdentifier = document().identifierForElement(*this);
         systemPreviewInfo.element.documentIdentifier = document().identifier();
-        systemPreviewInfo.element.webPageIdentifier = document().frame()->loader().client().pageID().valueOr(PageIdentifier { });
+        systemPreviewInfo.element.webPageIdentifier = document().frame()->loader().pageID().valueOr(PageIdentifier { });
         if (auto* child = firstElementChild())
             systemPreviewInfo.previewRect = child->boundsInRootViewSpace();
     }

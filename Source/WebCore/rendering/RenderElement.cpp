@@ -26,6 +26,7 @@
 #include "RenderElement.h"
 
 #include "AXObjectCache.h"
+#include "CachedResourceLoader.h"
 #if PLATFORM(IOS_FAMILY)
 #include "ContentChangeObserver.h"
 #endif
@@ -117,6 +118,7 @@ inline RenderElement::RenderElement(ContainerNode& elementOrDocument, RenderStyl
     , m_renderBlockFlowLineLayoutPath(RenderBlockFlow::UndeterminedPath)
     , m_isRegisteredForVisibleInViewportCallback(false)
     , m_visibleInViewportState(static_cast<unsigned>(VisibleInViewportState::Unknown))
+    , m_didContributeToVisuallyNonEmptyPixelCount(false)
     , m_firstChild(nullptr)
     , m_lastChild(nullptr)
     , m_style(WTFMove(style))
@@ -739,13 +741,19 @@ void RenderElement::styleWillChange(StyleDifference diff, const RenderStyle& new
                 return true;
             if (m_style.effectiveTouchActions() != newStyle.effectiveTouchActions())
                 return true;
+#if ENABLE(EDITABLE_REGION)
+            bool wasEditable = m_style.userModify() != UserModify::ReadOnly;
+            bool isEditable = newStyle.userModify() != UserModify::ReadOnly;
+            if (wasEditable != isEditable)
+                return true;
+#endif
             return false;
         };
 
         if (needsInvalidateEventRegion()) {
             // Usually the event region gets updated as a result of paint invalidation. Here we need to request an update explicitly.
             if (auto* layer = enclosingLayer())
-                layer->invalidateEventRegion();
+                layer->invalidateEventRegion(RenderLayer::EventRegionInvalidationReason::Style);
         }
 
         if (m_parent && (newStyle.outlineSize() < m_style.outlineSize() || shouldRepaintForStyleDifference(diff)))
@@ -1318,10 +1326,21 @@ VisibleInViewportState RenderElement::imageFrameAvailable(CachedImage& image, Im
     return isVisible ? VisibleInViewportState::Yes : VisibleInViewportState::No;
 }
 
+void RenderElement::notifyFinished(CachedResource& resource)
+{
+    document().cachedResourceLoader().notifyFinished(resource);
+}
+
 void RenderElement::didRemoveCachedImageClient(CachedImage& cachedImage)
 {
     if (hasPausedImageAnimations())
         view().removeRendererWithPausedImageAnimations(*this, cachedImage);
+}
+
+void RenderElement::scheduleTimedRenderingUpdate()
+{
+    if (auto* page = document().page())
+        page->scheduleTimedRenderingUpdate();
 }
 
 bool RenderElement::repaintForPausedImageAnimationsIfNeeded(const IntRect& visibleRect, CachedImage& cachedImage)

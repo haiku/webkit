@@ -136,6 +136,7 @@
 #import <wtf/Optional.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/UUID.h>
+#import <wtf/cocoa/VectorCocoa.h>
 #import <wtf/spi/darwin/dyldSPI.h>
 #import <wtf/text/TextStream.h>
 
@@ -149,6 +150,7 @@
 
 #if PLATFORM(IOS_FAMILY)
 #import "RemoteLayerTreeDrawingAreaProxy.h"
+#import "RemoteLayerTreeViews.h"
 #import "RemoteScrollingCoordinatorProxy.h"
 #import "UIKitSPI.h"
 #import "WKContentViewInteraction.h"
@@ -437,7 +439,7 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
             pageConfiguration->setPageGroup(WebKit::WebPageGroup::create(groupIdentifier).ptr());
     }
 
-    pageConfiguration->setAdditionalSupportedImageTypes(WebCore::webCoreStringVectorFromNSStringArray([_configuration _additionalSupportedImageTypes]));
+    pageConfiguration->setAdditionalSupportedImageTypes(makeVector<String>([_configuration _additionalSupportedImageTypes]));
 
     pageConfiguration->preferences()->setSuppressesIncrementalRendering(!![_configuration suppressesIncrementalRendering]);
 
@@ -2091,6 +2093,20 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
 #endif
 }
 
+- (BOOL)_mayContainEditableElementsInRect:(CGRect)rect
+{
+#if ENABLE(EDITABLE_REGION)
+#if PLATFORM(IOS_FAMILY)
+    if (![self usesStandardContentView])
+        return NO;
+#endif
+    CGRect rectInRootViewCoordinates = [self _convertRectToRootViewCoordinates:rect];
+    return WebKit::mayContainEditableElementsInRect(_contentView.get(), rectInRootViewCoordinates);
+#else
+    return NO;
+#endif
+}
+
 - (void)_requestTextInputContextsInRect:(CGRect)rectInWebViewCoordinates completionHandler:(void(^)(NSArray<_WKTextInputContext *> *))completionHandler
 {
 #if PLATFORM(IOS_FAMILY)
@@ -2099,8 +2115,15 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
         return;
     }
 #endif
+#if ENABLE(EDITABLE_REGION)
+    if (![self _mayContainEditableElementsInRect:rectInWebViewCoordinates]) {
+        completionHandler(@[]);
+        return;
+    }
+#endif
 
     CGRect rectInRootViewCoordinates = [self _convertRectToRootViewCoordinates:rectInWebViewCoordinates];
+
     auto weakSelf = WeakObjCPtr<WKWebView>(self);
     _page->textInputContextsInRect(rectInRootViewCoordinates, [weakSelf, capturedCompletionHandler = makeBlockPtr(completionHandler)] (const Vector<WebCore::ElementContext>& contexts) {
         RetainPtr<NSMutableArray> elements = adoptNS([[NSMutableArray alloc] initWithCapacity:contexts.size()]);

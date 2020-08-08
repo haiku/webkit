@@ -76,6 +76,67 @@ static void collectDescendantViewsAtPoint(Vector<UIView *, 16>& viewsAtPoint, UI
     };
 }
 
+#if ENABLE(EDITABLE_REGION)
+
+static void collectDescendantViewsInRect(Vector<UIView *, 16>& viewsInRect, UIView *parent, CGRect rect)
+{
+    if (parent.clipsToBounds && !CGRectIntersectsRect(parent.bounds, rect))
+        return;
+
+    for (UIView *view in parent.subviews) {
+        CGRect subviewRect = [view convertRect:rect fromView:parent];
+
+        auto intersectsRect = [&] {
+            // FIXME: isUserInteractionEnabled is mostly redundant with event regions for web content layers.
+            //        It is currently only needed for scroll views.
+            if (!view.isUserInteractionEnabled)
+                return false;
+
+            if (CGRectIsEmpty(view.frame))
+                return false;
+
+            if (!CGRectIntersectsRect(subviewRect, view.bounds))
+                return false;
+
+            if (![view isKindOfClass:WKCompositingView.class])
+                return true;
+            auto* node = RemoteLayerTreeNode::forCALayer(view.layer);
+            return node->eventRegion().intersects(WebCore::IntRect { subviewRect });
+        }();
+
+        if (intersectsRect)
+            viewsInRect.append(view);
+
+        if (!view.subviews)
+            return;
+
+        collectDescendantViewsInRect(viewsInRect, view, subviewRect);
+    };
+}
+
+bool mayContainEditableElementsInRect(UIView *rootView, const WebCore::FloatRect& rect)
+{
+    Vector<UIView *, 16> viewsInRect;
+    collectDescendantViewsInRect(viewsInRect, rootView, rect);
+    if (viewsInRect.isEmpty())
+        return false;
+    for (auto *view : WTF::makeReversedRange(viewsInRect)) {
+        if (![view isKindOfClass:WKCompositingView.class])
+            continue;
+        auto* node = RemoteLayerTreeNode::forCALayer(view.layer);
+        if (!node)
+            continue;
+        WebCore::IntRect rectToTest { [view convertRect:rect fromView:rootView] };
+        if (node->eventRegion().containsEditableElementsInRect(rectToTest))
+            return true;
+        if (node->eventRegion().contains(rectToTest))
+            return false;
+    }
+    return false;
+}
+
+#endif // ENABLE(EDITABLE_REGION)
+
 static bool isScrolledBy(WKChildScrollView* scrollView, UIView *hitView)
 {
     auto scrollLayerID = RemoteLayerTreeNode::layerID(scrollView.layer);

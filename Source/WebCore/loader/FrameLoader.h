@@ -91,6 +91,7 @@ enum class NewLoadInProgress : bool;
 enum class NavigationPolicyDecision : uint8_t;
 enum class ShouldTreatAsContinuingLoad : bool;
 enum class UsedLegacyTLS : bool;
+enum class IsMainResource : bool { No, Yes };
 
 struct WindowFeatures;
 
@@ -154,7 +155,7 @@ public:
     void stopForBackForwardCache();
     void stop();
     void stopLoading(UnloadEventPolicy);
-    bool closeURL();
+    void closeURL();
     void cancelAndClear();
     void clearProvisionalLoadForPolicyCheck();
     // FIXME: clear() is trying to do too many things. We should break it down into smaller functions (ideally with fewer raw Boolean parameters).
@@ -168,7 +169,6 @@ public:
     ReferrerPolicy effectiveReferrerPolicy() const;
     String referrer() const;
     WEBCORE_EXPORT String outgoingReferrer() const;
-    String outgoingOrigin() const;
 
     WEBCORE_EXPORT DocumentLoader* activeDocumentLoader() const;
     DocumentLoader* documentLoader() const { return m_documentLoader.get(); }
@@ -221,8 +221,6 @@ public:
     WEBCORE_EXPORT void detachFromParent();
     void detachViewsAndDocumentLoader();
 
-    void addExtraFieldsToSubresourceRequest(ResourceRequest&);
-    
     static void addSameSiteInfoToRequestIfNeeded(ResourceRequest&, const Document* initiator = nullptr);
 
     const FrameLoaderClient& client() const { return m_client.get(); }
@@ -331,6 +329,9 @@ public:
     void setAlwaysAllowLocalWebarchive(bool alwaysAllowLocalWebarchive) { m_alwaysAllowLocalWebarchive = alwaysAllowLocalWebarchive; }
     bool alwaysAllowLocalWebarchive() const { return m_alwaysAllowLocalWebarchive; }
 
+    // For subresource requests the FrameLoadType parameter has no effect and can be skipped.
+    void addExtraFieldsToRequest(ResourceRequest&, IsMainResource, FrameLoadType = FrameLoadType::Standard);
+
 private:
     enum FormSubmissionCacheLoadPolicy {
         MayAttemptCacheOnlyLoadForFormSubmissionItem,
@@ -350,7 +351,6 @@ private:
     void updateFirstPartyForCookies();
     void setFirstPartyForCookies(const URL&);
 
-    void addExtraFieldsToRequest(ResourceRequest&, FrameLoadType, bool isMainResource);
     ResourceRequestCachePolicy defaultRequestCachingPolicy(const ResourceRequest&, FrameLoadType, bool isMainResource);
 
     void clearProvisionalLoad();

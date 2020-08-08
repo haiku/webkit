@@ -80,7 +80,6 @@
 #include "FormController.h"
 #include "Frame.h"
 #include "FrameLoader.h"
-#include "FrameLoaderClient.h"
 #include "FrameView.h"
 #include "FullscreenManager.h"
 #include "GCObservation.h"
@@ -467,8 +466,10 @@ Ref<Internals> Internals::create(Document& document)
 Internals::~Internals()
 {
 #if ENABLE(MEDIA_STREAM)
-    if (m_track)
-        m_track->source().removeObserver(*this);
+    if (m_trackSource) {
+        m_trackSource->removeObserver(*this);
+        m_trackSource->removeAudioSampleObserver(*this);
+    }
 #endif
 }
 
@@ -1640,9 +1641,9 @@ void Internals::setMediaCaptureRequiresSecureConnection(bool enabled)
         page->settings().setMediaCaptureRequiresSecureConnection(enabled);
 }
 
-static std::unique_ptr<MediaRecorderPrivate> createRecorderMockSource()
+static std::unique_ptr<MediaRecorderPrivate> createRecorderMockSource(MediaStreamPrivate& stream)
 {
-    return std::unique_ptr<MediaRecorderPrivateMock>(new MediaRecorderPrivateMock);
+    return std::unique_ptr<MediaRecorderPrivateMock>(new MediaRecorderPrivateMock(stream));
 }
 
 void Internals::setCustomPrivateRecorderCreator()
@@ -2583,7 +2584,7 @@ uint64_t Internals::elementIdentifier(Element& element) const
 uint64_t Internals::frameIdentifier(const Document& document) const
 {
     if (auto* page = document.page())
-        return page->mainFrame().loader().client().frameID().valueOr(FrameIdentifier { }).toUInt64();
+        return page->mainFrame().loader().frameID().valueOr(FrameIdentifier { }).toUInt64();
     return 0;
 }
 
@@ -4926,8 +4927,9 @@ void Internals::setCameraMediaStreamTrackOrientation(MediaStreamTrack& track, in
 
 void Internals::observeMediaStreamTrack(MediaStreamTrack& track)
 {
-    m_track = &track;
-    m_track->source().addObserver(*this);
+    m_trackSource = &track.source();
+    m_trackSource->addObserver(*this);
+    m_trackSource->addAudioSampleObserver(*this);
 }
 
 void Internals::grabNextMediaStreamTrackFrame(TrackFramePromise&& promise)
@@ -4941,7 +4943,7 @@ void Internals::videoSampleAvailable(MediaSample& sample)
     if (!m_nextTrackFramePromise)
         return;
 
-    auto& videoSettings = m_track->source().settings();
+    auto& videoSettings = m_trackSource->settings();
     if (!videoSettings.width() || !videoSettings.height())
         return;
     
@@ -5145,10 +5147,10 @@ void Internals::terminateServiceWorker(ServiceWorker& worker, DOMPromiseDeferred
     });
 }
 
-void Internals::isServiceWorkerRunning(ServiceWorker& worker, DOMPromiseDeferred<IDLBoolean>&& promise)
+void Internals::whenServiceWorkerIsTerminated(ServiceWorker& worker, DOMPromiseDeferred<void>&& promise)
 {
-    return ServiceWorkerProvider::singleton().serviceWorkerConnection().isServiceWorkerRunning(worker.identifier(), [promise = WTFMove(promise)](bool result) mutable {
-        promise.resolve(result);
+    return ServiceWorkerProvider::singleton().serviceWorkerConnection().whenServiceWorkerIsTerminatedForTesting(worker.identifier(), [promise = WTFMove(promise)]() mutable {
+        promise.resolve();
     });
 }
 #endif

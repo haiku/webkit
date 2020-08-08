@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1344,6 +1344,16 @@ static EncodedJSValue customGetValue(JSGlobalObject* globalObject, EncodedJSValu
     return slotValue;
 }
 
+static EncodedJSValue customGetAccessorGlobalObject(JSGlobalObject* globalObject, EncodedJSValue, PropertyName)
+{
+    return JSValue::encode(globalObject);
+}
+
+static EncodedJSValue customGetValueGlobalObject(JSGlobalObject* globalObject, EncodedJSValue, PropertyName)
+{
+    return JSValue::encode(globalObject);
+}
+
 static bool customSetAccessor(JSGlobalObject* globalObject, EncodedJSValue thisObject, EncodedJSValue encodedValue)
 {
     DollarVMAssertScope assertScope;
@@ -1383,6 +1393,11 @@ void JSTestCustomGetterSetter::finishCreation(VM& vm)
         CustomGetterSetter::create(vm, customGetValue, customSetValue), 0);
     putDirectCustomAccessor(vm, Identifier::fromString(vm, "customAccessor"),
         CustomGetterSetter::create(vm, customGetAccessor, customSetAccessor), static_cast<unsigned>(PropertyAttribute::CustomAccessor));
+    putDirectCustomAccessor(vm, Identifier::fromString(vm, "customValueGlobalObject"),
+        CustomGetterSetter::create(vm, customGetValueGlobalObject, nullptr), 0);
+    putDirectCustomAccessor(vm, Identifier::fromString(vm, "customAccessorGlobalObject"),
+        CustomGetterSetter::create(vm, customGetAccessorGlobalObject, nullptr), static_cast<unsigned>(PropertyAttribute::CustomAccessor));
+
 }
 
 const ClassInfo Element::s_info = { "Element", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(Element) };
@@ -2121,7 +2136,10 @@ static EncodedJSValue JSC_HOST_CALL functionIsHavingABadTime(JSGlobalObject* glo
 static void callWithStackSizeProbeFunction(Probe::State* state)
 {
     JSGlobalObject* globalObject = bitwise_cast<JSGlobalObject*>(state->arg);
-    JSFunction* function = bitwise_cast<JSFunction*>(state->probeFunction);
+    // The bits loaded from state->probeFunction will be tagged like
+    // a C function. So, we'll need to untag it to extract the bits
+    // for the JSFunction*.
+    JSFunction* function = bitwise_cast<JSFunction*>(untagCodePtr<CFunctionPtrTag>(state->probeFunction));
     state->initializeStackFunction = nullptr;
     state->initializeStackArg = nullptr;
 

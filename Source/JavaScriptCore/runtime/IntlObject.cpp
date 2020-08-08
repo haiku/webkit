@@ -28,8 +28,6 @@
 #include "config.h"
 #include "IntlObject.h"
 
-#if ENABLE(INTL)
-
 #include "Error.h"
 #include "FunctionPrototype.h"
 #include "IntlCanonicalizeLanguage.h"
@@ -323,6 +321,23 @@ unsigned intlDefaultNumberOption(JSGlobalObject* globalObject, JSValue value, Pr
         return static_cast<unsigned>(doubleValue);
     }
     return fallback;
+}
+
+// http://www.unicode.org/reports/tr35/#Unicode_locale_identifier
+bool isUnicodeLocaleIdentifierType(StringView string)
+{
+    ASSERT(!string.isNull());
+
+    auto length = string.length();
+    if (length < 3 || length > 8)
+        return false;
+
+    for (auto character : string.codeUnits()) {
+        if (!isASCIIAlphanumeric(character))
+            return false;
+    }
+
+    return true;
 }
 
 static String privateUseLangTag(const Vector<String>& parts, size_t startIndex)
@@ -1038,5 +1053,3 @@ EncodedJSValue JSC_HOST_CALL intlObjectFuncGetCanonicalLocales(JSGlobalObject* g
 }
 
 } // namespace JSC
-
-#endif // ENABLE(INTL)

@@ -243,7 +243,7 @@ class ApplyPatch(shell.ShellCommand, CompositeStepMixin):
 class CheckPatchRelevance(buildstep.BuildStep):
     name = 'check-patch-relevance'
     description = ['check-patch-relevance running']
-    descriptionDone = ['Checked patch relevance']
+    descriptionDone = ['Patch contains relevant changes']
     flunkOnFailure = True
     haltOnFailure = True
 
@@ -280,6 +280,19 @@ class CheckPatchRelevance(buildstep.BuildStep):
         'Tools/Scripts/webkitdirs.pm',
     ]
 
+    wk1_paths = [
+        'Source/WebKitLegacy',
+        'Source/WebCore',
+        'Source/WebInspectorUI',
+        'Source/WebDriver',
+        'Source/WTF',
+        'Source/bmalloc',
+        'Source/JavaScriptCore',
+        'Source/ThirdParty',
+        'LayoutTests',
+        'Tools',
+    ]
+
     webkitpy_paths = [
         'Tools/Scripts/webkitpy/',
         'Tools/QueueStatusServer/',
@@ -290,6 +303,7 @@ class CheckPatchRelevance(buildstep.BuildStep):
         'services-ews': services_paths,
         'jsc': jsc_paths,
         'webkitpy': webkitpy_paths,
+        'wk1-tests': wk1_paths,
     }
 
     def _patch_is_relevant(self, patch, builderName):
@@ -338,6 +352,10 @@ class CheckPatchRelevance(buildstep.BuildStep):
         self.build.buildFinished(['Patch {} doesn\'t have relevant changes'.format(self.getProperty('patch_id', ''))], SKIPPED)
         return None
 
+    def getResultSummary(self):
+        if self.results == FAILURE:
+            return {u'step': u'Patch doesn\'t have relevant changes'}
+        return super(CheckPatchRelevance, self).getResultSummary()
 
 class BugzillaMixin(object):
     addURLs = False
@@ -1290,9 +1308,9 @@ class CompileWebKit(shell.Compile):
             elif platform == 'gtk':
                 steps_to_add.append(InstallGtkDependencies())
             if self.getProperty('group') == 'jsc':
-                steps_to_add.append(CompileJSCToT())
+                steps_to_add.append(CompileJSCWithoutPatch())
             else:
-                steps_to_add.append(CompileWebKitToT())
+                steps_to_add.append(CompileWebKitWithoutPatch())
             steps_to_add.append(AnalyzeCompileWebKitResults())
             # Using a single addStepsAfterCurrentStep because of https://github.com/buildbot/buildbot/issues/4874
             self.build.addStepsAfterCurrentStep(steps_to_add)
@@ -1309,8 +1327,8 @@ class CompileWebKit(shell.Compile):
         return shell.Compile.getResultSummary(self)
 
 
-class CompileWebKitToT(CompileWebKit):
-    name = 'compile-webkit-tot'
+class CompileWebKitWithoutPatch(CompileWebKit):
+    name = 'compile-webkit-without-patch'
     haltOnFailure = False
 
     def doStepIf(self, step):
@@ -1329,12 +1347,12 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
     descriptionDone = ['analyze-compile-webkit-results']
 
     def start(self):
-        compile_tot_step = CompileWebKitToT.name
+        compile_without_patch_step = CompileWebKitWithoutPatch.name
         if self.getProperty('group') == 'jsc':
-            compile_tot_step = CompileJSCToT.name
-        compile_webkit_tot_result = self.getStepResult(compile_tot_step)
+            compile_without_patch_step = CompileJSCWithoutPatch.name
+        compile_without_patch_result = self.getStepResult(compile_without_patch_step)
 
-        if compile_webkit_tot_result == FAILURE:
+        if compile_without_patch_result == FAILURE:
             self.finished(FAILURE)
             message = 'Unable to build WebKit without patch, retrying build'
             self.descriptionDone = message
@@ -1376,8 +1394,8 @@ class CompileJSC(CompileWebKit):
         return shell.Compile.getResultSummary(self)
 
 
-class CompileJSCToT(CompileJSC):
-    name = 'compile-jsc-tot'
+class CompileJSCWithoutPatch(CompileJSC):
+    name = 'compile-jsc-without-patch'
 
     def evaluateCommand(self, cmd):
         return shell.Compile.evaluateCommand(self, cmd)
@@ -1496,7 +1514,7 @@ class ReRunJavaScriptCoreTests(RunJavaScriptCoreTests):
             self.setProperty('patchFailedTests', True)
             self.build.addStepsAfterCurrentStep([UnApplyPatchIfRequired(),
                                                 ValidatePatch(verifyBugClosed=False, addURLs=False),
-                                                CompileJSCToT(),
+                                                CompileJSCWithoutPatch(),
                                                 ValidatePatch(verifyBugClosed=False, addURLs=False),
                                                 KillOldProcesses(),
                                                 RunJSCTestsWithoutPatch(),
@@ -1612,6 +1630,36 @@ class KillOldProcesses(shell.Compile):
     def getResultSummary(self):
         if self.results in [FAILURE, EXCEPTION]:
             return {u'step': u'Failed to kill old processes'}
+        return shell.Compile.getResultSummary(self)
+
+
+class TriggerCrashLogSubmission(shell.Compile):
+    name = 'trigger-crash-log-submission'
+    description = ['triggering crash log submission']
+    descriptionDone = ['Triggered crash log submission']
+    command = ['python', 'Tools/BuildSlaveSupport/trigger-crash-log-submission']
+
+    def __init__(self, **kwargs):
+        super(TriggerCrashLogSubmission, self).__init__(timeout=60, logEnviron=False, **kwargs)
+
+    def getResultSummary(self):
+        if self.results in [FAILURE, EXCEPTION]:
+            return {u'step': u'Failed to trigger crash log submission'}
+        return shell.Compile.getResultSummary(self)
+
+
+class WaitForCrashCollection(shell.Compile):
+    name = 'wait-for-crash-collection'
+    description = ['waiting-for-crash-collection-to-quiesce']
+    descriptionDone = ['Crash collection has quiesced']
+    command = ['python', 'Tools/BuildSlaveSupport/wait-for-crash-collection', '--timeout', str(5 * 60)]
+
+    def __init__(self, **kwargs):
+        super(WaitForCrashCollection, self).__init__(timeout=6 * 60, logEnviron=False, **kwargs)
+
+    def getResultSummary(self):
+        if self.results in [FAILURE, EXCEPTION]:
+            return {u'step': u'Crash log collection process still running'}
         return shell.Compile.getResultSummary(self)
 
 
@@ -1800,7 +1848,7 @@ class ReRunWebKitTests(RunWebKitTests):
                                                 ExtractTestResults(identifier='rerun'),
                                                 UnApplyPatchIfRequired(),
                                                 ValidatePatch(verifyBugClosed=False, addURLs=False),
-                                                CompileWebKitToT(),
+                                                CompileWebKitWithoutPatch(),
                                                 ValidatePatch(verifyBugClosed=False, addURLs=False),
                                                 KillOldProcesses(),
                                                 RunWebKitTestsWithoutPatch()])
@@ -2156,7 +2204,7 @@ class ReRunAPITests(RunAPITests):
                 steps_to_add.append(InstallWpeDependencies())
             elif platform == 'gtk':
                 steps_to_add.append(InstallGtkDependencies())
-            steps_to_add.append(CompileWebKitToT())
+            steps_to_add.append(CompileWebKitWithoutPatch())
             steps_to_add.append(ValidatePatch(verifyBugClosed=False, addURLs=False))
             steps_to_add.append(KillOldProcesses())
             steps_to_add.append(RunAPITestsWithoutPatch())

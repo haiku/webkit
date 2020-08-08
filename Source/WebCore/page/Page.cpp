@@ -29,6 +29,7 @@
 #include "BackForwardController.h"
 #include "CSSAnimationController.h"
 #include "CacheStorageProvider.h"
+#include "CachedResourceLoader.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "ConstantPropertyMap.h"
@@ -104,6 +105,7 @@
 #include "ResourceUsageOverlay.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SVGDocumentExtensions.h"
+#include "SVGImage.h"
 #include "ScriptController.h"
 #include "ScriptDisallowedScope.h"
 #include "ScriptedAnimationController.h"
@@ -291,6 +293,7 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS_FAMILY)
     , m_deviceOrientationUpdateProvider(WTFMove(pageConfiguration.deviceOrientationUpdateProvider))
 #endif
+    , m_corsDisablingPatterns(WTFMove(pageConfiguration.corsDisablingPatterns))
     , m_loadsSubresources(pageConfiguration.loadsSubresources)
     , m_loadsFromNetwork(pageConfiguration.loadsFromNetwork)
 {
@@ -330,14 +333,6 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #if USE(LIBWEBRTC)
     m_libWebRTCProvider->supportsH265(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
 #endif
-
-    m_corsDisablingPatterns.reserveInitialCapacity(pageConfiguration.corsDisablingPatterns.size());
-    for (auto&& pattern : WTFMove(pageConfiguration.corsDisablingPatterns)) {
-        UserContentURLPattern parsedPattern(WTFMove(pattern));
-        if (parsedPattern.isValid())
-            m_corsDisablingPatterns.uncheckedAppend(WTFMove(parsedPattern));
-    }
-    m_corsDisablingPatterns.shrinkToFit();
     
     if (!pageConfiguration.userScriptsShouldWaitUntilNotification)
         m_hasBeenNotifiedToInjectUserScripts = true;
@@ -1305,6 +1300,13 @@ void Page::scheduleRenderingUpdate()
     renderingUpdateScheduler().scheduleRenderingUpdate();
 }
 
+void Page::scheduleTimedRenderingUpdate()
+{
+    if (chrome().client().scheduleTimedRenderingUpdate())
+        return;
+    renderingUpdateScheduler().scheduleTimedRenderingUpdate();
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void Page::updateRendering()
 {
@@ -1356,6 +1358,13 @@ void Page::updateRendering()
         document.updateResizeObservations(*this);
     });
 #endif
+
+    forEachDocument([] (Document& document) {
+        for (auto& image : document.cachedResourceLoader().allCachedSVGImages()) {
+            if (auto* page = image->internalPage())
+                page->updateRendering();
+        }
+    });
 
     layoutIfNeeded();
     doAfterUpdateRendering();
@@ -2479,10 +2488,13 @@ UserContentProvider& Page::userContentProvider()
 
 void Page::notifyToInjectUserScripts()
 {
+    m_hasBeenNotifiedToInjectUserScripts = true;
+
     for (auto* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
         for (const auto& pair : m_userScriptsAwaitingNotification)
             frame->injectUserScriptImmediately(pair.first, pair.second.get());
     }
+
     m_userScriptsAwaitingNotification.clear();
 }
 
@@ -2645,18 +2657,26 @@ bool Page::isMonitoringWheelEvents() const
     return !!m_wheelEventTestMonitor;
 }
 
-WheelEventTestMonitor& Page::ensureWheelEventTestMonitor()
+void Page::startMonitoringWheelEvents()
 {
-    if (!m_wheelEventTestMonitor) {
-        m_wheelEventTestMonitor = adoptRef(new WheelEventTestMonitor(*this));
-        // We need to update the scrolling coordinator so that the mainframe scrolling node can expect wheel event test triggers.
-        if (auto* frameView = mainFrame().view()) {
-            if (m_scrollingCoordinator) {
-                m_scrollingCoordinator->startMonitoringWheelEvents();
-                m_scrollingCoordinator->updateIsMonitoringWheelEventsForFrameView(*frameView);
-            }
+    ensureWheelEventTestMonitor().clearAllTestDeferrals();
+
+#if ENABLE(WHEEL_EVENT_LATCHING)
+    resetLatchingState();
+#endif
+
+    if (auto* frameView = mainFrame().view()) {
+        if (m_scrollingCoordinator) {
+            m_scrollingCoordinator->startMonitoringWheelEvents();
+            m_scrollingCoordinator->updateIsMonitoringWheelEventsForFrameView(*frameView);
         }
     }
+}
+
+WheelEventTestMonitor& Page::ensureWheelEventTestMonitor()
+{
+    if (!m_wheelEventTestMonitor)
+        m_wheelEventTestMonitor = adoptRef(new WheelEventTestMonitor(*this));
 
     return *m_wheelEventTestMonitor;
 }

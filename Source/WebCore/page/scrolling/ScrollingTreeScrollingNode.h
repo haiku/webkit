@@ -28,6 +28,7 @@
 #if ENABLE(ASYNC_SCROLLING)
 
 #include "IntRect.h"
+#include "RectEdges.h"
 #include "ScrollSnapOffsetsInfo.h"
 #include "ScrollTypes.h"
 #include "ScrollableArea.h"
@@ -52,12 +53,16 @@ public:
     void commitStateBeforeChildren(const ScrollingStateNode&) override;
     void commitStateAfterChildren(const ScrollingStateNode&) override;
 
+    virtual bool canScrollWithWheelEvent(const PlatformWheelEvent&) const;
     virtual ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&);
 
     FloatPoint currentScrollPosition() const { return m_currentScrollPosition; }
     FloatPoint currentScrollOffset() const { return ScrollableArea::scrollOffsetFromPosition(m_currentScrollPosition, toFloatSize(m_scrollOrigin)); }
     FloatPoint lastCommittedScrollPosition() const { return m_lastCommittedScrollPosition; }
     FloatSize scrollDeltaSinceLastCommit() const { return m_currentScrollPosition - m_lastCommittedScrollPosition; }
+    
+    RectEdges<bool> edgePinnedState() const;
+    bool isRubberBanding() const;
 
     // These are imperative; they adjust the scrolling layers.
     void scrollTo(const FloatPoint&, ScrollType = ScrollType::User, ScrollClamping = ScrollClamping::Clamped);
@@ -120,6 +125,8 @@ protected:
 
     const FloatSize& reachableContentsSize() const { return m_reachableContentsSize; }
     const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
+    
+    bool isLatchedNode() const;
 
     // If the totalContentsSize changes in the middle of a rubber-band, we still want to use the old totalContentsSize for the sake of
     // computing the stretchAmount(). Using the old value will keep the animation smooth. When there is no rubber-band in progress at

@@ -277,7 +277,7 @@ void PageClientImpl::toolTipChanged(const String& oldToolTip, const String& newT
     m_impl->toolTipChanged(oldToolTip, newToolTip);
 }
 
-void PageClientImpl::didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider)
+void PageClientImpl::didCommitLoadForMainFrame(const String&, bool)
 {
     m_impl->updateSupportsArbitraryLayoutModes();
     m_impl->dismissContentRelativeChildWindowsWithAnimation(true);
@@ -531,6 +531,14 @@ void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& lay
 
     CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
     m_impl->setAcceleratedCompositingRootLayer(renderLayer);
+}
+
+void PageClientImpl::didFirstLayerFlush(const LayerTreeContext& layerTreeContext)
+{
+    ASSERT(!layerTreeContext.isEmpty());
+
+    CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
+    m_impl->setAcceleratedCompositingRootLayerAfterFlush(renderLayer);
 }
 
 void PageClientImpl::exitAcceleratedCompositingMode()

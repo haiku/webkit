@@ -126,6 +126,7 @@
 #import <wtf/SetForScope.h>
 #import <wtf/SoftLinking.h>
 #import <wtf/cf/TypeCastsCF.h>
+#import <wtf/cocoa/VectorCocoa.h>
 #import <wtf/text/StringConcatenate.h>
 
 #if HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
@@ -3668,7 +3669,7 @@ id WebViewImpl::accessibilityAttributeValue(NSString *attribute, id parameter)
 
             if (!child)
                 return nil;
-        return [NSArray arrayWithObject:child];
+        return @[child];
     }
     if ([attribute isEqualToString:NSAccessibilityRoleAttribute])
         return NSAccessibilityGroupRole;
@@ -3811,7 +3812,25 @@ void WebViewImpl::setAcceleratedCompositingRootLayer(CALayer *rootLayer)
 {
     [rootLayer web_disableAllActions];
 
+    // This is the process-swap case. We add the new layer behind the existing root layer and mark it as hidden.
+    // This way, the new layer gets accelerated compositing but won't be visible until
+    // setAcceleratedCompositingRootLayerAfterFlush() is called, in order to prevent flashing.
+    if (m_rootLayer && rootLayer) {
+        if (m_thumbnailView)
+            return;
+
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+
+        rootLayer.hidden = YES;
+        [[m_layerHostingView layer] insertSublayer:rootLayer atIndex:0];
+
+        [CATransaction commit];
+        return;
+    }
+
     m_rootLayer = rootLayer;
+    rootLayer.hidden = NO;
 
     if (m_thumbnailView) {
         updateThumbnailViewLayer();
@@ -3824,6 +3843,12 @@ void WebViewImpl::setAcceleratedCompositingRootLayer(CALayer *rootLayer)
     [m_layerHostingView layer].sublayers = rootLayer ? @[ rootLayer ] : nil;
 
     [CATransaction commit];
+}
+
+void WebViewImpl::setAcceleratedCompositingRootLayerAfterFlush(CALayer *rootLayer)
+{
+    m_rootLayer = nullptr; // Make sure we replace the existing layer.
+    setAcceleratedCompositingRootLayer(rootLayer);
 }
 
 void WebViewImpl::setThumbnailView(_WKThumbnailView *thumbnailView)
@@ -4043,11 +4068,7 @@ bool WebViewImpl::performDragOperation(id <NSDraggingInfo> draggingInfo)
             return false;
         }
 
-        Vector<String> fileNames;
-
-        for (NSString *file in files)
-            fileNames.append(file);
-        m_page->createSandboxExtensionsIfNeeded(fileNames, sandboxExtensionHandle, sandboxExtensionForUpload);
+        m_page->createSandboxExtensionsIfNeeded(makeVector<String>(files), sandboxExtensionHandle, sandboxExtensionForUpload);
     }
 
     String draggingPasteboardName = draggingInfo.draggingPasteboard.name;
@@ -4335,7 +4356,7 @@ NSArray *WebViewImpl::namesOfPromisedFilesDroppedAtDestination(NSURL *dropDestin
     if (!m_promisedURL.isEmpty())
         FileSystem::setMetadataURL(String(path), m_promisedURL);
 
-    return [NSArray arrayWithObject:[path lastPathComponent]];
+    return @[[path lastPathComponent]];
 }
 
 void WebViewImpl::requestDOMPasteAccess(const WebCore::IntRect&, const String& originIdentifier, CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&& completion)
@@ -4749,7 +4770,7 @@ Vector<WebCore::KeypressCommand> WebViewImpl::collectKeyboardLayoutCommandsForEv
     if (NSTextInputContext *context = inputContext())
         [context handleEventByKeyboardLayout:event];
     else
-        [m_view interpretKeyEvents:[NSArray arrayWithObject:event]];
+        [m_view interpretKeyEvents:@[event]];
 
     m_collectedKeypressCommands = nullptr;
 

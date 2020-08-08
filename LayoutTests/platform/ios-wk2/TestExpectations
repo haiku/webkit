@@ -1314,8 +1314,6 @@ webkit.org/b/203637 fast/css-custom-paint/simple-hidpi.html [ Pass ImageOnlyFail
 
 webkit.org/b/205308 accessibility/smart-invert-reference.html [ ImageOnlyFailure ]
 
-webkit.org/b/206616 [ Release ] http/tests/security/contentSecurityPolicy/module-eval-blocked-in-external-script.html [ Pass Timeout ]
-
 webkit.org/b/206630 [ Release ] fast/forms/validationMessage.html [ Pass Timeout ]
 
 webkit.org/b/206687 imported/w3c/web-platform-tests/beacon/idlharness.any.html [ Pass Timeout ]
@@ -1354,8 +1352,6 @@ webkit.org/b/190852 imported/w3c/web-platform-tests/service-workers/service-work
 
 webkit.org/b/207583 http/wpt/beacon/cors/crossorigin-arraybufferview-no-preflight.html [ Pass Failure ]
 
-webkit.org/b/207596 fast/viewport/ios/width-is-device-width-overflowing-body-overflow-hidden-tall.html [ Pass Failure ]
-
 webkit.org/b/207665 http/tests/cache-storage/cache-representation.https.html [ Slow ]
 
 webkit.org/b/209514 http/tests/cache-storage/page-cache-domcache-pending-promise.html [ Pass Timeout DumpJSConsoleLogInStdErr ]
@@ -1372,8 +1368,6 @@ webkit.org/b/207866 imported/w3c/IndexedDB-private-browsing [ Pass Timeout ]
 
 # skip LFC regression tests on iOS for now.
 fast/layoutformattingcontext/ [ Skip ]
-
-webkit.org/b/208010 crypto/subtle/rsa-indexeddb.html [ Slow ]
 
 webkit.org/b/208018 [ Release ] perf/clone-with-focus.html [ Pass Failure ]
 
@@ -1760,3 +1754,11 @@ webkit.org/b/209812 fast/forms/input-text-scroll-left-on-blur.html [ Pass Failur
 webkit.org/b/209869 crypto/subtle/rsa-indexeddb-non-exportable-private.html [ Pass Timeout ]
 
 webkit.org/b/209908 svg/custom/animate-initial-pause-unpause.html [ Pass Timeout ]
+
+webkit.org/b/206750 http/tests/security/appcache-in-private-browsing.html [ Pass Timeout ]
+
+webkit.org/b/210201 [ Debug ] editing/editability/empty-document-delete.html [ Pass Crash ]
+
+webkit.org/b/210205 [ Debug ] fast/text/firstline/001.html [ Pass Crash ]
+
+webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Crash ]

@@ -1609,14 +1609,15 @@ WKDebugOverlayRegions WKPreferencesGetVisibleDebugOverlayRegions(WKPreferencesRe
     return toImpl(preferencesRef)->visibleDebugOverlayRegions();
 }
 
-void WKPreferencesSetIgnoreViewportScalingConstraints(WKPreferencesRef preferencesRef, bool enabled)
+void WKPreferencesSetIgnoreViewportScalingConstraints(WKPreferencesRef, bool)
 {
-    toImpl(preferencesRef)->setIgnoreViewportScalingConstraints(enabled);
+    // This preference is no longer supported.
 }
 
-bool WKPreferencesGetIgnoreViewportScalingConstraints(WKPreferencesRef preferencesRef)
+bool WKPreferencesGetIgnoreViewportScalingConstraints(WKPreferencesRef)
 {
-    return toImpl(preferencesRef)->ignoreViewportScalingConstraints();
+    // This preference is no longer supported.
+    return false;
 }
 
 void WKPreferencesSetMetaRefreshEnabled(WKPreferencesRef preferencesRef, bool enabled)

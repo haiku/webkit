@@ -8,33 +8,46 @@ function testAlert(str) {
     alert(str);
 }
 
-function entry1() {
+function testStatements() {
     debugger;
     let x = 1;
     let y = 2;
 }
 
-function entry2() {
+function testFunctions() {
     debugger;
     let before = 1;
-    testAlert("log 1");
+    a();
     let after = 2;
 }
 
-function entry3() {
+function testEval() {
     debugger;
     let before = 1;
     eval("1 + 1");
     let after = 2;
 }
 
-function entry4() {
+function testLocalFunction() {
     (function() {
         debugger;
         let inner = 1;
     })();
     let outer = 2;
 }
+
+function testCommas() {
+    debugger;
+    let x = 1,
+        y = 2,
+        z = 3;
+    a(), b(), c();
+    true && (a(), b(), c());
+}
+
+function a() { }
+function b() { }
+function c() { }
 
 // ---------
 
@@ -69,25 +82,31 @@ function test()
     addTestCase({
         name: "Debugger.stepOver.statements",
         description: "step-over should step over statements.",
-        expression: "setTimeout(entry1)",
+        expression: "setTimeout(testStatements)",
     });
 
     addTestCase({
         name: "Debugger.stepOver.function",
         description: "step-over should step over function calls.",
-        expression: "setTimeout(entry2)",
+        expression: "setTimeout(testFunctions)",
     });
 
     addTestCase({
         name: "Debugger.stepOver.eval",
         description: "step-over should step over an eval program.",
-        expression: "setTimeout(entry3)",
+        expression: "setTimeout(testEval)",
     });
 
     addTestCase({
         name: "Debugger.stepOver.innerFunction",
         description: "step-over should step out of a function to its caller.",
-        expression: "setTimeout(entry4)",
+        expression: "setTimeout(testLocalFunction)",
+    });
+
+    addTestCase({
+        name: "Debugger.stepOver.commas",
+        description: "step-over should step over comma expressions, treating them as statements.",
+        expression: "setTimeout(testCommas)",
     });
 
     loadMainPageContent().then(() => {

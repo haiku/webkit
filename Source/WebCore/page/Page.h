@@ -478,6 +478,7 @@ public:
     WEBCORE_EXPORT void updateRendering();
     
     WEBCORE_EXPORT void scheduleRenderingUpdate();
+    void scheduleTimedRenderingUpdate();
 
     WEBCORE_EXPORT void suspendScriptedAnimations();
     WEBCORE_EXPORT void resumeScriptedAnimations();
@@ -652,8 +653,8 @@ public:
 #endif
 
     WEBCORE_EXPORT RefPtr<WheelEventTestMonitor> wheelEventTestMonitor() const;
-    WEBCORE_EXPORT WheelEventTestMonitor& ensureWheelEventTestMonitor();
     WEBCORE_EXPORT void clearWheelEventTestMonitor();
+    WEBCORE_EXPORT void startMonitoringWheelEvents();
     WEBCORE_EXPORT bool isMonitoringWheelEvents() const;
 
 #if ENABLE(VIDEO)
@@ -777,6 +778,8 @@ private:
     void domTimerAlignmentIntervalIncreaseTimerFired();
 
     void doAfterUpdateRendering();
+
+    WheelEventTestMonitor& ensureWheelEventTestMonitor();
 
     const std::unique_ptr<Chrome> m_chrome;
     const std::unique_ptr<DragCaretController> m_dragCaretController;

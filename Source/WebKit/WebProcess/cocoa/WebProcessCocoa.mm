@@ -88,6 +88,7 @@
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/cocoa/NSURLExtras.h>
 #import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
+#import <wtf/cocoa/VectorCocoa.h>
 
 #if ENABLE(REMOTE_INSPECTOR)
 #include <JavaScriptCore/RemoteInspector.h>
@@ -110,7 +111,6 @@
 #import "WKAccessibilityWebPageObjectIOS.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <UIKit/UIAccessibility.h>
-#import <WebCore/UTTypeRecordSwizzler.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
 #endif
 
@@ -175,6 +175,22 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
         ok = extension->revoke();
         ASSERT_UNUSED(ok, ok);
     }
+
+
+#if PLATFORM(IOS_FAMILY)
+    auto extension = SandboxExtension::create(WTFMove(*parameters.runningboardExtensionHandle));
+    bool consumed = extension->consume();
+    ASSERT_UNUSED(consumed, consumed);
+
+    ASSERT(!m_uiProcessDependencyProcessAssertion);
+    if (auto remoteProcessID = parentProcessConnection()->remoteProcessID())
+        m_uiProcessDependencyProcessAssertion = makeUnique<ProcessAssertion>(remoteProcessID, "WebContent process dependency on UIProcess"_s, ProcessAssertionType::DependentProcessLink);
+    else
+        RELEASE_LOG_ERROR_IF_ALLOWED(ProcessSuspension, "Unable to create a process dependency assertion on UIProcess because remoteProcessID is 0");
+
+    bool revoked = extension->revoke();
+    ASSERT_UNUSED(revoked, revoked);
+#endif
 
 #if !LOG_DISABLED || !RELEASE_LOG_DISABLED
     WebCore::initializeLogChannelsIfNecessary(parameters.webCoreLoggingChannels);
@@ -304,13 +320,6 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     }
 #endif
         
-#if USE(UTTYPE_SWIZZLER)
-    if (!parameters.vectorOfUTTypeItem.isEmpty()) {
-        swizzleUTTypeRecord();
-        setVectorOfUTTypeItem(WTFMove(parameters.vectorOfUTTypeItem));
-    }
-#endif
-
     WebCore::sleepDisablerClient() = makeUnique<WebSleepDisablerClient>();
 
     updateProcessName();
@@ -648,12 +657,7 @@ void WebProcess::updateActivePages(const String& overrideDisplayName)
 void WebProcess::getActivePagesOriginsForTesting(CompletionHandler<void(Vector<String>&&)>&& completionHandler)
 {
 #if PLATFORM(MAC)
-    auto activeOriginsAsNSStrings = activePagesOrigins(m_pageMap);
-    Vector<String> activeOrigins;
-    activeOrigins.reserveInitialCapacity([activeOriginsAsNSStrings count]);
-    for (NSString* activeOrigin in activeOriginsAsNSStrings.get())
-        activeOrigins.uncheckedAppend(activeOrigin);
-    completionHandler(WTFMove(activeOrigins));
+    completionHandler(makeVector<String>(activePagesOrigins(m_pageMap).get()));
 #else
     completionHandler({ });
 #endif

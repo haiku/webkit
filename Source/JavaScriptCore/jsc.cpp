@@ -486,7 +486,6 @@ public:
 protected:
     void finishCreation(VM& vm, const Vector<String>& arguments)
     {
-        auto catchScope = DECLARE_CATCH_SCOPE(vm);
         Base::finishCreation(vm);
 
         addFunction(vm, "debug", functionDebug, 1);
@@ -597,10 +596,12 @@ protected:
         addFunction(vm, dollar, "evalScript", functionDollarEvalScript, 1);
         
         dollar->putDirect(vm, Identifier::fromString(vm, "global"), this);
-
-        JSFunction* IsHTMLDDAGetter = JSFunction::create(vm, this, 0, "IsHTMLDDA"_s, functionMakeMasquerader);
-        dollar->putGetter(this, Identifier::fromString(vm, "IsHTMLDDA"), IsHTMLDDAGetter, static_cast<unsigned>(PropertyAttribute::Accessor));
-        catchScope.releaseAssertNoException();
+        dollar->putDirectCustomAccessor(vm, Identifier::fromString(vm, "IsHTMLDDA"),
+            CustomGetterSetter::create(vm, [](JSGlobalObject* globalObject, EncodedJSValue, PropertyName) {
+                return functionMakeMasquerader(globalObject, nullptr);
+            }, nullptr),
+            static_cast<unsigned>(PropertyAttribute::CustomValue)
+        );
 
         JSObject* agent = JSFinalObject::create(vm, plainObjectStructure);
         dollar->putDirect(vm, Identifier::fromString(vm, "agent"), agent);
@@ -1859,8 +1860,9 @@ EncodedJSValue JSC_HOST_CALL functionDollarEvalScript(JSGlobalObject* globalObje
     String sourceCode = callFrame->argument(0).toWTFString(globalObject);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     
-    GlobalObject* realm = jsDynamicCast<GlobalObject*>(vm,
-        callFrame->thisValue().get(globalObject, Identifier::fromString(vm, "global")));
+    JSValue global = callFrame->thisValue().get(globalObject, Identifier::fromString(vm, "global"));
+    RETURN_IF_EXCEPTION(scope, encodedJSValue());
+    GlobalObject* realm = jsDynamicCast<GlobalObject*>(vm, global);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     if (!realm)
         return JSValue::encode(throwException(globalObject, scope, createError(globalObject, "Expected global to point to a global object"_s)));
@@ -2527,6 +2529,12 @@ int main(int argc, char** argv)
         res = jscmain(argc, argv);
     EXCEPT(res = 3)
     finalizeStatsAtEndOfTesting();
+    if (getenv("JS_SHELL_WAIT_FOR_INPUT_TO_EXIT")) {
+        WTF::fastDisableScavenger();
+        fprintf(stdout, "\njs shell waiting for input to exit\n");
+        fflush(stdout);
+        getc(stdin);
+    }
 
     jscExit(res);
 }

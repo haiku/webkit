@@ -98,7 +98,6 @@ struct ServiceWorkerContextData;
 
 namespace WebKit {
 
-class DependencyProcessAssertion;
 class EventDispatcher;
 class GamepadData;
 class GPUProcessConnection;
@@ -107,6 +106,7 @@ class LibWebRTCCodecs;
 class LibWebRTCNetwork;
 class NetworkProcessConnection;
 class ObjCObjectGraph;
+class ProcessAssertion;
 struct ServiceWorkerInitializationData;
 class StorageAreaMap;
 class UserData;
@@ -503,6 +503,10 @@ private:
     void sendMessageToWebExtension(UserMessage&&);
 #endif
 
+#if PLATFORM(GTK) && !USE(GTK4)
+    void setUseSystemAppearanceForScrollbars(bool);
+#endif
+
     bool isAlwaysOnLoggingAllowed() { return m_sessionID ? m_sessionID->isAlwaysOnLoggingAllowed() : true; }
 
     RefPtr<WebConnectionToUIProcess> m_webConnection;
@@ -577,7 +581,7 @@ private:
 
 #if PLATFORM(IOS_FAMILY)
     WebSQLiteDatabaseTracker m_webSQLiteDatabaseTracker;
-    std::unique_ptr<DependencyProcessAssertion> m_uiProcessDependencyProcessAssertion;
+    std::unique_ptr<ProcessAssertion> m_uiProcessDependencyProcessAssertion;
 #endif
 
     enum PageMarkingLayersAsVolatileCounterType { };

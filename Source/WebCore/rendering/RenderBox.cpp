@@ -581,7 +581,7 @@ static void setupWheelEventMonitor(RenderLayer& layer)
     layer.scrollAnimator().setWheelEventTestMonitor(page.wheelEventTestMonitor());
 }
 
-void RenderBox::setScrollLeft(int newLeft, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderBox::setScrollLeft(int newLeft, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
     if (!hasOverflowClip() || !layer())
         return;
@@ -589,7 +589,7 @@ void RenderBox::setScrollLeft(int newLeft, ScrollType scrollType, ScrollClamping
     layer()->scrollToXPosition(newLeft, scrollType, clamping, animated);
 }
 
-void RenderBox::setScrollTop(int newTop, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderBox::setScrollTop(int newTop, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
     if (!hasOverflowClip() || !layer())
         return;
@@ -597,12 +597,12 @@ void RenderBox::setScrollTop(int newTop, ScrollType scrollType, ScrollClamping c
     layer()->scrollToYPosition(newTop, scrollType, clamping, animated);
 }
 
-void RenderBox::setScrollPosition(const ScrollPosition& position, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderBox::setScrollPosition(const ScrollPosition& position, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
     if (!hasOverflowClip() || !layer())
         return;
     setupWheelEventMonitor(*layer());
-    layer()->scrollToPosition(position, scrollType, clamping, animated);
+    layer()->setScrollPosition(position, scrollType, clamping, animated);
 }
 
 void RenderBox::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
@@ -1688,13 +1688,13 @@ void RenderBox::paintFillLayer(const PaintInfo& paintInfo, const Color& c, const
     paintFillLayerExtended(paintInfo, c, fillLayer, rect, bleedAvoidance, nullptr, LayoutSize(), op, backgroundObject, baseBgColorUsage);
 }
 
-static bool layersUseImage(WrappedImagePtr image, const FillLayer& layers)
+static StyleImage* findLayerUsedImage(WrappedImagePtr image, const FillLayer& layers)
 {
     for (auto* layer = &layers; layer; layer = layer->next()) {
         if (layer->image() && image == layer->image()->data())
-            return true;
+            return layer->image();
     }
-    return false;
+    return nullptr;
 }
 
 void RenderBox::imageChanged(WrappedImagePtr image, const IntRect*)
@@ -1721,10 +1721,22 @@ void RenderBox::imageChanged(WrappedImagePtr image, const IntRect*)
     if (!isComposited())
         return;
 
-    if (layer()->hasCompositedMask() && layersUseImage(image, style().maskLayers()))
+    if (layer()->hasCompositedMask() && findLayerUsedImage(image, style().maskLayers()))
         layer()->contentChanged(MaskImageChanged);
-    if (layersUseImage(image, style().backgroundLayers()))
+    
+    if (auto* styleImage = findLayerUsedImage(image, style().backgroundLayers())) {
         layer()->contentChanged(BackgroundImageChanged);
+        incrementVisuallyNonEmptyPixelCountIfNeeded(flooredIntSize(styleImage->imageSize(this, style().effectiveZoom())));
+    }
+}
+
+void RenderBox::incrementVisuallyNonEmptyPixelCountIfNeeded(const IntSize& size)
+{
+    if (didContibuteToVisuallyNonEmptyPixelCount())
+        return;
+
+    view().frameView().incrementVisuallyNonEmptyPixelCount(size);
+    setDidContibuteToVisuallyNonEmptyPixelCount();
 }
 
 bool RenderBox::repaintLayerRectsForImage(WrappedImagePtr image, const FillLayer& layers, bool drawingBackground)

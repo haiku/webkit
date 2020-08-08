@@ -239,6 +239,9 @@ static bool isAttributeForTextManipulation(const QualifiedName& nameToCheck)
 
 void TextManipulationController::observeParagraphs(const Position& start, const Position& end)
 {
+    if (start.isNull() || end.isNull())
+        return;
+
     auto document = makeRefPtr(start.document());
     ASSERT(document);
     ParagraphContentIterator iterator { start, end };
@@ -373,6 +376,9 @@ void TextManipulationController::scheduleObservartionUpdate()
             auto start = startOfParagraph(firstPositionInOrBeforeNode(element.ptr()));
             auto end = endOfParagraph(lastPositionInOrAfterNode(element.ptr()));
 
+            if (start.isNull() || end.isNull())
+                continue;
+
             auto key = makeHashablePositionRange(start, end);
             if (!paragraphSets.add(key).isNewEntry)
                 continue;
@@ -487,6 +493,7 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
     ParagraphContentIterator iterator { item.start, item.end };
     HashSet<Ref<Node>> excludedNodes;
     HashSet<Ref<Node>> nodesToRemove;
+    RefPtr<Node> nodeToInsertBackAtEnd;
     for (; !iterator.atEnd(); iterator.advance()) {
         auto content = iterator.currentContent();
         
@@ -496,8 +503,13 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
         if (!content.isReplacedContent && !content.isTextContent)
             continue;
 
-        if (currentTokenIndex >= item.tokens.size())
+        if (currentTokenIndex >= item.tokens.size()) {
+            if (content.node && !nodeToInsertBackAtEnd && content.isTextContent && content.text == "\n") { // br
+                nodeToInsertBackAtEnd = content.node;
+                continue;
+            }
             return ManipulationFailureType::ContentChanged;
+        }
 
         auto& currentToken = item.tokens[currentTokenIndex];
         if (!content.isReplacedContent && content.text != currentToken.content)
@@ -578,6 +590,8 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
             insertions.append(NodeInsertion { currentElementStack.size() ? currentElementStack.last().ptr() : nullptr, contentNode.releaseNonNull() });
         }
     }
+    if (nodeToInsertBackAtEnd)
+        insertions.append(NodeInsertion { nullptr, nodeToInsertBackAtEnd.releaseNonNull() });
 
     Position insertionPoint = positionBeforeNode(firstContentNode.get()).parentAnchoredEquivalent();
     while (insertionPoint.containerNode() != commonAncestor)

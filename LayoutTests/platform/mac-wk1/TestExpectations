@@ -603,7 +603,7 @@ webkit.org/b/172807 imported/w3c/web-platform-tests/css/selectors/focus-within-d
 webkit.org/b/168409 media/modern-media-controls/airplay-button/airplay-button.html [ Pass Timeout ]
 webkit.org/b/175195 media/modern-media-controls/css/webkit-cursor-visibility-auto-hide.html [ Pass Failure ]
 webkit.org/b/168265 media/modern-media-controls/forward-button/forward-button.html [ Pass Timeout ]
-webkit.org/b/182571 media/modern-media-controls/tracks-support/tracks-support-show-panel-fullscreen.html [ Pass Timeout ]
+
 
 # Requires WK2 loading support
 http/wpt/fetch/dnt-header-after-redirection.html [ Skip ]
@@ -703,6 +703,7 @@ webkit.org/b/186581 [ Debug ] fast/parser/xml-error-adopted.xml [ Timeout Pass ]
 webkit.org/b/187557 [ Debug ] media/media-fragments/TC0005.html [ Pass Failure ]
 webkit.org/b/187522 [ Debug ] media/media-fragments/TC0015.html [ Pass Failure ]
 webkit.org/b/187557 [ Debug ] media/media-fragments/TC0024.html [ Pass Failure ]
+webkit.org/b/187557 [ Debug ] media/media-fragments/TC0036.html [ Pass Failure ]
 webkit.org/b/187557 [ Debug ] media/media-fragments/TC0037.html [ Pass Failure ]
 webkit.org/b/187557 [ Debug ] media/media-fragments/TC0078.html [ Pass Failure ]
 webkit.org/b/187557 [ Debug ] media/media-fragments/TC0079.html [ Pass Failure ]
@@ -869,8 +870,6 @@ webkit.org/b/207059 imported/w3c/web-platform-tests/IndexedDB/interleaved-cursor
 
 webkit.org/b/207066 editing/execCommand/insert-nested-lists.html [ Pass Failure ]
 
-webkit.org/b/206950 fast/images/animated-gif-restored-from-bfcache.html [ Pass Failure ]
-
 webkit.org/b/207124 compositing/backing/animate-into-view.html [ Pass Timeout ]
 
 webkit.org/b/207125 transitions/start-transform-transition.html [ Pass Failure ]
@@ -883,11 +882,7 @@ webkit.org/b/185332 animations/duplicate-keys.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/207157 inspector/debugger/tail-deleted-frames/tail-deleted-frames-scopes.html [ Pass Timeout ]
 
-webkit.org/b/207160 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Failure ]
-
 webkit.org/b/207167 inspector/unit-tests/server-timing-entry.html [ Pass Timeout ]
-
-webkit.org/b/207237 http/tests/notifications/event-listener-crash.html [ Pass Crash ]
 
 webkit.org/b/207469 [ Debug ] imported/w3c/web-platform-tests/svg/animations/slider-switch.html [ Pass Failure ]
 
@@ -956,3 +951,10 @@ webkit.org/b/209882 [ Debug ] inspector/page/overrideSetting-ICECandidateFilteri
 webkit.org/b/209921 [ Debug ] inspector/css/add-css-property.html [ Pass Timeout ]
 
 webkit.org/b/210079 [ Debug ] inspector/debugger/evaluateOnCallFrame-errors.html [ Pass Failure ]
+
+webkit.org/b/210134 media/track/track-css-user-override.html [ Pass Failure ]
+
+webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.html [ Slow ]
+webkit.org/b/210198 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Slow ]
+
+webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Timeout ]

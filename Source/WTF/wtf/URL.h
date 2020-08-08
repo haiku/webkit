@@ -201,7 +201,7 @@ public:
 #endif
 
     template <class Encoder> void encode(Encoder&) const;
-    template <class Decoder> static bool decode(Decoder&, URL&);
+    template <class Decoder> static WARN_UNUSED_RETURN bool decode(Decoder&, URL&);
     template <class Decoder> static Optional<URL> decode(Decoder&);
 
 private:
@@ -257,10 +257,11 @@ bool URL::decode(Decoder& decoder, URL& url)
 template <class Decoder>
 Optional<URL> URL::decode(Decoder& decoder)
 {
-    String string;
-    if (!decoder.decode(string))
+    Optional<String> string;
+    decoder >> string;
+    if (!string)
         return WTF::nullopt;
-    return URL(URL(), string);
+    return URL(URL(), WTFMove(*string));
 }
 
 WTF_EXPORT_PRIVATE bool equalIgnoringFragmentIdentifier(const URL&, const URL&);

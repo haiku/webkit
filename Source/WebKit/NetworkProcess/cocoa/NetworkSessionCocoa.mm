@@ -52,7 +52,6 @@
 #import <wtf/MainThread.h>
 #import <wtf/NakedRef.h>
 #import <wtf/NeverDestroyed.h>
-#import <wtf/ObjCRuntimeExtras.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/SoftLinking.h>
 #import <wtf/URL.h>
@@ -63,7 +62,6 @@
 #include <WebKitAdditions/NetworkSessionCocoaAdditions.h>
 #else
 #define NETWORK_SESSION_COCOA_ADDITIONS_1
-#define NETWORK_SESSION_COCOA_ADDITIONS_2 false
 #endif
 
 #import "DeviceManagementSoftLink.h"
@@ -646,7 +644,7 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
     
     // Proxy authentication is handled by CFNetwork internally. We can get here if the user cancels
     // CFNetwork authentication dialog, and we shouldn't ask the client to display another one in that case.
-    if (challenge.protectionSpace.isProxy) {
+    if (challenge.protectionSpace.isProxy && !sessionCocoa->preventsSystemHTTPProxyAuthentication()) {
         completionHandler(NSURLSessionAuthChallengeUseCredential, nil);
         return;
     }
@@ -1076,6 +1074,7 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
     , m_fastServerTrustEvaluationEnabled(parameters.fastServerTrustEvaluationEnabled)
     , m_dataConnectionServiceType(parameters.dataConnectionServiceType)
     , m_isInAppBrowserPrivacyEnabled(parameters.isInAppBrowserPrivacyEnabled)
+    , m_preventsSystemHTTPProxyAuthentication(parameters.preventsSystemHTTPProxyAuthentication)
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies));
 
@@ -1118,7 +1117,9 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
     configuration._allowsHTTP3 = parameters.http3Enabled;
 #endif
 
-    configuration.connectionProxyDictionary = proxyDictionary(parameters.httpProxy, parameters.httpsProxy);
+    configuration._preventsSystemHTTPProxyAuthentication = parameters.preventsSystemHTTPProxyAuthentication;
+    configuration._requiresSecureHTTPSProxyConnection = parameters.requiresSecureHTTPSProxyConnection;
+    configuration.connectionProxyDictionary = (NSDictionary *)parameters.proxyConfiguration.get() ?: proxyDictionary(parameters.httpProxy, parameters.httpsProxy);
 
 #if PLATFORM(IOS_FAMILY)
     if (!m_dataConnectionServiceType.isEmpty())
@@ -1200,21 +1201,20 @@ void NetworkSessionCocoa::initializeEphemeralStatelessSession(NavigatingToAppBou
     m_ephemeralStatelessSession.initialize(configuration, *this, WebCore::StoredCredentialsPolicy::EphemeralStateless, isNavigatingToAppBoundDomain);
 }
 
-SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, NavigatingToAppBoundDomain isNavigatingToAppBoundDomain)
+SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
+    auto shouldBeConsideredAppBound = isNavigatingToAppBoundDomain ? *isNavigatingToAppBoundDomain : NavigatingToAppBoundDomain::Yes;
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     if (auto* storageSession = networkStorageSession()) {
         auto firstParty = WebCore::RegistrableDomain(request.firstPartyForCookies());
         if (storageSession->shouldBlockThirdPartyCookiesButKeepFirstPartyCookiesFor(firstParty))
-            return isolatedSession(storedCredentialsPolicy, firstParty, isNavigatingToAppBoundDomain);
+            return isolatedSession(storedCredentialsPolicy, firstParty, shouldBeConsideredAppBound);
     } else
         ASSERT_NOT_REACHED();
 #endif
 
-    if (isNavigatingToAppBoundDomain == NavigatingToAppBoundDomain::Yes) {
-        if (m_isInAppBrowserPrivacyEnabled || NETWORK_SESSION_COCOA_ADDITIONS_2)
-            return appBoundSession(storedCredentialsPolicy);
-    }
+    if (shouldBeConsideredAppBound == NavigatingToAppBoundDomain::Yes)
+        return appBoundSession(storedCredentialsPolicy);
 
     switch (storedCredentialsPolicy) {
     case WebCore::StoredCredentialsPolicy::Use:

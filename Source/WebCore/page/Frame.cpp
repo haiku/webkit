@@ -305,6 +305,26 @@ void Frame::setDocument(RefPtr<Document>&& newDocument)
     m_documentIsBeingReplaced = false;
 }
 
+void Frame::invalidateContentEventRegionsIfNeeded()
+{
+    if (!m_page || !m_doc || !m_doc->renderView())
+        return;
+    bool hasTouchActionElements = false;
+    bool hasEditableElements = false;
+#if PLATFORM(IOS)
+    hasTouchActionElements = m_doc->mayHaveElementsWithNonAutoTouchAction();
+#endif
+#if ENABLE(EDITABLE_REGION)
+    hasEditableElements = m_doc->mayHaveEditableElements();
+#endif
+    if (!hasTouchActionElements && !hasEditableElements)
+        return;
+    if (!m_doc->renderView()->compositor().viewNeedsToInvalidateEventRegionOfEnclosingCompositingLayerForRepaint())
+        return;
+    if (m_ownerElement)
+        m_ownerElement->document().invalidateEventRegionsForFrame(*m_ownerElement);
+}
+
 #if ENABLE(ORIENTATION_EVENTS)
 void Frame::orientationChanged()
 {

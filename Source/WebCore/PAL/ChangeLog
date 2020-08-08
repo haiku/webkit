@@ -1,3 +1,54 @@
+2020-04-13  Per Arne Vollan  <pvollan@apple.com>
+
+        [iOS] Remove unused UTType swizzler code
+        https://bugs.webkit.org/show_bug.cgi?id=210435
+
+        Unreviewed rollout of r258120.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/spi/cocoa/NSUTTypeRecordSPI.h: Removed.
+
+2020-04-10  Alex Christensen  <achristensen@webkit.org>
+
+        Add SPI to handle proxy authentication and require secure proxy connections
+        https://bugs.webkit.org/show_bug.cgi?id=210343
+        <rdar://problem/61546396> <rdar://problem/61546519> and <rdar://problem/61546658>
+
+        Reviewed by Geoffrey Garen.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-04-08  Daniel Bates  <dabates@apple.com>
+
+        Track editable elements on screen
+        https://bugs.webkit.org/show_bug.cgi?id=209888
+        <rdar://problem/61196886>
+
+        Reviewed by Simon Fraser.
+
+        Add feature define to track editable elements on screen (enabled by default on iOS and iOS Simulator).
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-04-08  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK4] Make PAL::systemBeep() work
+        https://bugs.webkit.org/show_bug.cgi?id=210158
+
+        Reviewed by Carlos Garcia Campos.
+
+        * pal/system/gtk/SoundGtk.cpp:
+        (PAL::systemBeep): Use gdk_display_beep(), which works both with GTK3 and GTK4.
+
+2020-04-07  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] CMake find module for GTK4
+        https://bugs.webkit.org/show_bug.cgi?id=210110
+
+        Reviewed by Don Olmstead.
+
+        * pal/PlatformGTK.cmake: Use the GTK::GTK imported target.
+
 2020-04-05  Peng Liu  <peng.liu6@apple.com>
 
         The value of [AVPlayerViewController isPictureInPicturePossible] is NO in the first attempt to enter PiP

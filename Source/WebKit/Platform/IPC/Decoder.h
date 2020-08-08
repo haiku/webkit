@@ -78,36 +78,36 @@ public:
     }
     void markInvalid() { m_bufferPos = nullptr; }
 
-    bool decodeFixedLengthData(uint8_t*, size_t, unsigned alignment) WARN_UNUSED_RETURN;
+    WARN_UNUSED_RETURN bool decodeFixedLengthData(uint8_t*, size_t, unsigned alignment);
 
     // The data in the data reference here will only be valid for the lifetime of the ArgumentDecoder object.
-    bool decodeVariableLengthByteArray(DataReference&);
+    WARN_UNUSED_RETURN bool decodeVariableLengthByteArray(DataReference&);
 
-    bool decode(bool&);
+    WARN_UNUSED_RETURN bool decode(bool&);
     Decoder& operator>>(Optional<bool>&);
-    bool decode(uint8_t&);
+    WARN_UNUSED_RETURN bool decode(uint8_t&);
     Decoder& operator>>(Optional<uint8_t>&);
-    bool decode(uint16_t&);
+    WARN_UNUSED_RETURN bool decode(uint16_t&);
     Decoder& operator>>(Optional<uint16_t>&);
-    bool decode(uint32_t&);
+    WARN_UNUSED_RETURN bool decode(uint32_t&);
     Decoder& operator>>(Optional<uint32_t>&);
-    bool decode(uint64_t&);
+    WARN_UNUSED_RETURN bool decode(uint64_t&);
     Decoder& operator>>(Optional<uint64_t>&);
-    bool decode(int16_t&);
+    WARN_UNUSED_RETURN bool decode(int16_t&);
     Decoder& operator>>(Optional<int16_t>&);
-    bool decode(int32_t&);
+    WARN_UNUSED_RETURN bool decode(int32_t&);
     Decoder& operator>>(Optional<int32_t>&);
-    bool decode(int64_t&);
+    WARN_UNUSED_RETURN bool decode(int64_t&);
     Decoder& operator>>(Optional<int64_t>&);
-    bool decode(float&);
+    WARN_UNUSED_RETURN bool decode(float&);
     Decoder& operator>>(Optional<float>&);
-    bool decode(double&);
+    WARN_UNUSED_RETURN bool decode(double&);
     Decoder& operator>>(Optional<double>&);
 
-    template<typename E>
-    auto decode(E& e) -> std::enable_if_t<std::is_enum<E>::value, bool>
+    template<typename E, typename = std::enable_if_t<std::is_enum<E>::value>> WARN_UNUSED_RETURN
+    bool decode(E& e)
     {
-        uint64_t value;
+        typename std::underlying_type<E>::type value;
         if (!decode(value))
             return false;
         if (!isValidEnum<E>(value))
@@ -117,24 +117,23 @@ public:
         return true;
     }
 
-    template<typename E, std::enable_if_t<std::is_enum<E>::value>* = nullptr>
+    template<typename E, typename = std::enable_if_t<std::is_enum<E>::value>>
     Decoder& operator>>(Optional<E>& optional)
     {
-        Optional<uint64_t> value;
+        Optional<typename std::underlying_type<E>::type> value;
         *this >> value;
         if (value && isValidEnum<E>(*value))
             optional = static_cast<E>(*value);
         return *this;
     }
 
-    template<typename T> bool decodeEnum(T& result)
+    template<typename T> WARN_UNUSED_RETURN
+    bool decodeEnum(T& result)
     {
-        static_assert(sizeof(T) <= 8, "Enum type T must not be larger than 64 bits!");
-
-        uint64_t value;
+        typename std::underlying_type<T>::type value;
         if (!decode(value))
             return false;
-        
+
         result = static_cast<T>(value);
         return true;
     }
@@ -150,13 +149,13 @@ public:
         return bufferIsLargeEnoughToContain(alignof(T), numElements * sizeof(T));
     }
 
-    template<typename T, std::enable_if_t<!std::is_enum<T>::value && UsesLegacyDecoder<T>::value>* = nullptr>
+    template<typename T, std::enable_if_t<!std::is_enum<T>::value && UsesLegacyDecoder<T>::value>* = nullptr> WARN_UNUSED_RETURN
     bool decode(T& t)
     {
         return ArgumentCoder<T>::decode(*this, t);
     }
 
-    template<typename T, std::enable_if_t<!std::is_enum<T>::value && !UsesLegacyDecoder<T>::value>* = nullptr>
+    template<typename T, std::enable_if_t<!std::is_enum<T>::value && !UsesLegacyDecoder<T>::value>* = nullptr> WARN_UNUSED_RETURN
     bool decode(T& t)
     {
         Optional<T> optional;

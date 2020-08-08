@@ -535,6 +535,17 @@ bool ResourceLoadStatisticsStore::hasStatisticsExpired(const ResourceLoadStatist
     return hasStatisticsExpired(resourceStatistic.mostRecentUserInteractionTime, operatingDatesWindow);
 }
 
+bool ResourceLoadStatisticsStore::shouldEnforceSameSiteStrictForSpecificDomain(const RegistrableDomain& domain) const
+{
+    static NeverDestroyed<HashSet<RegistrableDomain>> domains = [] {
+        HashSet<RegistrableDomain> set;
+        set.add(RegistrableDomain::uncheckedCreateFromRegistrableDomainString("yahoo.co.jp"_s));
+        return set;
+    }();
+
+    return domains.get().contains(domain);
+}
+
 void ResourceLoadStatisticsStore::setMaxStatisticsEntries(size_t maximumEntryCount)
 {
     ASSERT(!RunLoop::isMain());
@@ -604,18 +615,20 @@ void ResourceLoadStatisticsStore::debugBroadcastConsoleMessage(MessageSource sou
 
 void ResourceLoadStatisticsStore::debugLogDomainsInBatches(const char* action, const RegistrableDomainsToBlockCookiesFor& domainsToBlock)
 {
+    ASSERT(debugLoggingEnabled());
+
     Vector<RegistrableDomain> domains;
     domains.appendVector(domainsToBlock.domainsToBlockAndDeleteCookiesFor);
     domains.appendVector(domainsToBlock.domainsToBlockButKeepCookiesFor);
     if (domains.isEmpty())
         return;
 
-    debugBroadcastConsoleMessage(MessageSource::ITPDebug, MessageLevel::Info, makeString("[ITP] About to "_s, action, "cookies in third-party contexts for: ["_s, domainsToString(domains), "]."_s));
+    debugBroadcastConsoleMessage(MessageSource::ITPDebug, MessageLevel::Info, makeString("[ITP] "_s, action, " to: ["_s, domainsToString(domains), "]."_s));
 
     static const auto maxNumberOfDomainsInOneLogStatement = 50;
 
     if (domains.size() <= maxNumberOfDomainsInOneLogStatement) {
-        RELEASE_LOG_INFO(ITPDebug, "About to %" PUBLIC_LOG_STRING " cookies in third-party contexts for: %" PUBLIC_LOG_STRING ".", action, domainsToString(domains).utf8().data());
+        RELEASE_LOG_INFO(ITPDebug, "%" PUBLIC_LOG_STRING " to: %" PUBLIC_LOG_STRING ".", action, domainsToString(domains).utf8().data());
         return;
     }
 
@@ -626,14 +639,14 @@ void ResourceLoadStatisticsStore::debugLogDomainsInBatches(const char* action, c
 
     for (auto& domain : domains) {
         if (batch.size() == maxNumberOfDomainsInOneLogStatement) {
-            RELEASE_LOG_INFO(ITPDebug, "About to %" PUBLIC_LOG_STRING " cookies in third-party contexts for (%{public}d of %u): %" PUBLIC_LOG_STRING ".", action, batchNumber, numberOfBatches, domainsToString(batch).utf8().data());
+            RELEASE_LOG_INFO(ITPDebug, "%" PUBLIC_LOG_STRING " to (%{public}d of %u): %" PUBLIC_LOG_STRING ".", action, batchNumber, numberOfBatches, domainsToString(batch).utf8().data());
             batch.shrink(0);
             ++batchNumber;
         }
         batch.append(domain);
     }
     if (!batch.isEmpty())
-        RELEASE_LOG_INFO(ITPDebug, "About to %" PUBLIC_LOG_STRING " cookies in third-party contexts for (%{public}d of %u): %" PUBLIC_LOG_STRING ".", action, batchNumber, numberOfBatches, domainsToString(batch).utf8().data());
+        RELEASE_LOG_INFO(ITPDebug, "%" PUBLIC_LOG_STRING " to (%{public}d of %u): %" PUBLIC_LOG_STRING ".", action, batchNumber, numberOfBatches, domainsToString(batch).utf8().data());
 }
 
 } // namespace WebKit

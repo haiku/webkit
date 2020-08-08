@@ -30,8 +30,7 @@
 #include <wtf/Box.h>
 #include <wtf/Optional.h>
 #include <wtf/Seconds.h>
-#include <wtf/persistence/PersistentDecoder.h>
-#include <wtf/persistence/PersistentEncoder.h>
+#include <wtf/persistence/PersistentCoder.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(COCOA)
@@ -140,7 +139,7 @@ public:
     }
 
     template<class Encoder> void encode(Encoder&) const;
-    template<class Decoder> static bool decode(Decoder&, NetworkLoadMetrics&);
+    template<class Decoder> static WARN_UNUSED_RETURN bool decode(Decoder&, NetworkLoadMetrics&);
 
     String remoteAddress;
     String connectionIdentifier;

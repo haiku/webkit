@@ -163,6 +163,7 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 
 #if PLATFORM(IOS_FAMILY)
     encoder << diagnosticsExtensionHandle;
+    encoder << runningboardExtensionHandle;
     encoder << dynamicMachExtensionHandles;
 #endif
 
@@ -180,9 +181,6 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << cssValueToSystemColorMap;
     encoder << focusRingColor;
     encoder << localizedDeviceModel;
-#if USE(UTTYPE_SWIZZLER)
-    encoder << vectorOfUTTypeItem;
-#endif
 #endif
 
 #if PLATFORM(COCOA)
@@ -191,6 +189,10 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #if ENABLE(CFPREFS_DIRECT_MODE)
     encoder << preferencesExtensionHandle;
 #endif
+#endif
+
+#if PLATFORM(GTK)
+    encoder << useSystemAppearanceForScrollbars;
 #endif
 }
 
@@ -437,6 +439,12 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
         return false;
     parameters.diagnosticsExtensionHandle = WTFMove(*diagnosticsExtensionHandle);
 
+    Optional<Optional<SandboxExtension::Handle>> runningboardExtensionHandle;
+    decoder >> runningboardExtensionHandle;
+    if (!runningboardExtensionHandle)
+        return false;
+    parameters.runningboardExtensionHandle = WTFMove(*runningboardExtensionHandle);
+
     Optional<SandboxExtension::HandleArray> dynamicMachExtensionHandles;
     decoder >> dynamicMachExtensionHandles;
     if (!dynamicMachExtensionHandles)
@@ -497,14 +505,6 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     
     if (!decoder.decode(parameters.localizedDeviceModel))
         return false;
-    
-#if USE(UTTYPE_SWIZZLER)
-    Optional<Vector<WebCore::UTTypeItem>> vectorOfUTTypeItem;
-    decoder >> vectorOfUTTypeItem;
-    if (!vectorOfUTTypeItem)
-        return false;
-    parameters.vectorOfUTTypeItem = WTFMove(*vectorOfUTTypeItem);
-#endif
 #endif
 
 #if PLATFORM(COCOA)
@@ -523,6 +523,14 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
         return false;
     parameters.preferencesExtensionHandle = WTFMove(*preferencesExtensionHandle);
 #endif
+#endif
+
+#if PLATFORM(GTK)
+    Optional<bool> useSystemAppearanceForScrollbars;
+    decoder >> useSystemAppearanceForScrollbars;
+    if (!useSystemAppearanceForScrollbars)
+        return false;
+    parameters.useSystemAppearanceForScrollbars = WTFMove(*useSystemAppearanceForScrollbars);
 #endif
 
     return true;

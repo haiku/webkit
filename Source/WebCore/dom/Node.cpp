@@ -1102,12 +1102,6 @@ const RenderStyle* Node::computedStyle(PseudoId pseudoElementSpecifier)
     return composedParent->computedStyle(pseudoElementSpecifier);
 }
 
-int Node::maxCharacterOffset() const
-{
-    ASSERT_NOT_REACHED();
-    return 0;
-}
-
 // FIXME: Shouldn't these functions be in the editing code?  Code that asks questions about HTML in the core DOM class
 // is obviously misplaced.
 bool Node::canStartSelection() const
@@ -2558,13 +2552,6 @@ void Node::removedLastRef()
     m_deletionHasBegun = true;
 #endif
     delete this;
-}
-
-void Node::textRects(Vector<IntRect>& rects) const
-{
-    auto range = Range::create(document());
-    range->selectNodeContents(const_cast<Node&>(*this));
-    range->absoluteTextRects(rects);
 }
 
 unsigned Node::connectedSubframeCount() const

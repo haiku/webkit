@@ -1042,6 +1042,7 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     WKContextSetUseSeparateServiceWorkerProcess(TestController::singleton().context(), false);
 
     WKPageSetMockCameraOrientation(m_mainWebView->page(), 0);
+    resetMockMediaDevices();
 
     // FIXME: This function should also ensure that there is only one page open.
 
@@ -1512,6 +1513,8 @@ static void updateTestOptionsFromTestHeader(TestOptions& testOptions, const std:
             testOptions.enableCaptureAudioInGPUProcess = parseBooleanTestHeaderValue(value);
         else if (key == "allowTopNavigationToDataURLs")
             testOptions.allowTopNavigationToDataURLs = parseBooleanTestHeaderValue(value);
+        else if (key == "enableInAppBrowserPrivacy")
+            testOptions.enableInAppBrowserPrivacy = parseBooleanTestHeaderValue(value);
         
         pairStart = pairEnd + 1;
     }
@@ -3110,7 +3113,12 @@ PlatformWebView* TestController::platformCreateOtherPage(PlatformWebView* parent
 
 WKContextRef TestController::platformAdjustContext(WKContextRef context, WKContextConfigurationRef contextConfiguration)
 {
+#if PLATFORM(GTK) || PLATFORM(WPE)
+    WKWebsiteDataStoreSetResourceLoadStatisticsEnabled(defaultWebsiteDataStore(), true);
+    WKContextSetPrimaryWebsiteDataStore(context, defaultWebsiteDataStore());
+#else
     WKWebsiteDataStoreSetResourceLoadStatisticsEnabled(WKContextGetWebsiteDataStore(context), true);
+#endif
     return context;
 }
 

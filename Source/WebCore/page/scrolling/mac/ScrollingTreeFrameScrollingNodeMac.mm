@@ -57,28 +57,6 @@ ScrollingTreeFrameScrollingNodeMac::ScrollingTreeFrameScrollingNodeMac(Scrolling
 
 ScrollingTreeFrameScrollingNodeMac::~ScrollingTreeFrameScrollingNodeMac() = default;
 
-#if ENABLE(CSS_SCROLL_SNAP)
-static inline Vector<LayoutUnit> convertToLayoutUnits(const Vector<float>& snapOffsetsAsFloat)
-{
-    Vector<LayoutUnit> snapOffsets;
-    snapOffsets.reserveInitialCapacity(snapOffsetsAsFloat.size());
-    for (auto offset : snapOffsetsAsFloat)
-        snapOffsets.uncheckedAppend(offset);
-
-    return snapOffsets;
-}
-
-static inline Vector<ScrollOffsetRange<LayoutUnit>> convertToLayoutUnits(const Vector<ScrollOffsetRange<float>>& snapOffsetRangesAsFloat)
-{
-    Vector<ScrollOffsetRange<LayoutUnit>> snapOffsetRanges;
-    snapOffsetRanges.reserveInitialCapacity(snapOffsetRangesAsFloat.size());
-    for (auto range : snapOffsetRangesAsFloat)
-        snapOffsetRanges.uncheckedAppend({ LayoutUnit(range.start), LayoutUnit(range.end) });
-
-    return snapOffsetRanges;
-}
-#endif
-
 void ScrollingTreeFrameScrollingNodeMac::commitStateBeforeChildren(const ScrollingStateNode& stateNode)
 {
     ScrollingTreeFrameScrollingNode::commitStateBeforeChildren(stateNode);
@@ -111,21 +89,6 @@ void ScrollingTreeFrameScrollingNodeMac::commitStateBeforeChildren(const Scrolli
 
     m_delegate.updateFromStateNode(scrollingStateNode);
 
-#if ENABLE(CSS_SCROLL_SNAP)
-    // FIXME: this should move to the delegate and be shared with overflow.
-    if (scrollingStateNode.hasChangedProperty(ScrollingStateFrameScrollingNode::HorizontalSnapOffsets) || scrollingStateNode.hasChangedProperty(ScrollingStateFrameScrollingNode::HorizontalSnapOffsetRanges))
-        m_delegate.updateScrollSnapPoints(ScrollEventAxis::Horizontal, convertToLayoutUnits(scrollingStateNode.horizontalSnapOffsets()), convertToLayoutUnits(scrollingStateNode.horizontalSnapOffsetRanges()));
-
-    if (scrollingStateNode.hasChangedProperty(ScrollingStateFrameScrollingNode::VerticalSnapOffsets) || scrollingStateNode.hasChangedProperty(ScrollingStateFrameScrollingNode::VerticalSnapOffsetRanges))
-        m_delegate.updateScrollSnapPoints(ScrollEventAxis::Vertical, convertToLayoutUnits(scrollingStateNode.verticalSnapOffsets()), convertToLayoutUnits(scrollingStateNode.verticalSnapOffsetRanges()));
-
-    if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::CurrentHorizontalSnapOffsetIndex))
-        m_delegate.setActiveScrollSnapIndexForAxis(ScrollEventAxis::Horizontal, scrollingStateNode.currentHorizontalSnapPointIndex());
-    
-    if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::CurrentVerticalSnapOffsetIndex))
-        m_delegate.setActiveScrollSnapIndexForAxis(ScrollEventAxis::Vertical, scrollingStateNode.currentVerticalSnapPointIndex());
-#endif
-
     m_hadFirstUpdate = true;
 }
 
@@ -150,10 +113,10 @@ void ScrollingTreeFrameScrollingNodeMac::commitStateAfterChildren(const Scrollin
 
 ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
-    if (!canHaveScrollbars())
+    if (!canScrollWithWheelEvent(wheelEvent))
         return ScrollingEventResult::DidNotHandleEvent;
 
-    m_delegate.handleWheelEvent(wheelEvent);
+    bool handled = m_delegate.handleWheelEvent(wheelEvent);
 
 #if ENABLE(CSS_SCROLL_SNAP)
     if (isRootNode())
@@ -162,11 +125,9 @@ ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const 
     if (m_delegate.activeScrollSnapIndexDidChange())
         scrollingTree().setActiveScrollSnapIndices(scrollingNodeID(), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Horizontal), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Vertical));
 #endif
-    scrollingTree().setOrClearLatchedNode(wheelEvent, scrollingNodeID());
     scrollingTree().handleWheelEventPhase(wheelEvent.phase());
     
-    // FIXME: This needs to return whether the event was handled.
-    return ScrollingEventResult::DidHandleEvent;
+    return handled ? ScrollingEventResult::DidHandleEvent : ScrollingEventResult::DidNotHandleEvent;
 }
 
 FloatPoint ScrollingTreeFrameScrollingNodeMac::adjustedScrollPosition(const FloatPoint& position, ScrollClamping clamp) const
@@ -260,20 +221,8 @@ void ScrollingTreeFrameScrollingNodeMac::updateMainFramePinAndRubberbandState()
 {
     ASSERT(isRootNode());
 
-    auto scrollPosition = currentScrollPosition();
-    bool pinnedToTheLeft = scrollPosition.x() <= minimumScrollPosition().x();
-    bool pinnedToTheRight = scrollPosition.x() >= maximumScrollPosition().x();
-    bool pinnedToTheTop = scrollPosition.y() <= minimumScrollPosition().y();
-    bool pinnedToTheBottom = scrollPosition.y() >= maximumScrollPosition().y();
-
-    scrollingTree().setMainFramePinState(pinnedToTheLeft, pinnedToTheRight, pinnedToTheTop, pinnedToTheBottom);
-
-    bool rubberbanding = scrollPosition.x() < minimumScrollPosition().x()
-        || scrollPosition.x() > maximumScrollPosition().x()
-        || scrollPosition.y() < minimumScrollPosition().y()
-        || scrollPosition.y() > maximumScrollPosition().y();
-    
-    scrollingTree().setMainFrameIsRubberBanding(rubberbanding);
+    scrollingTree().setMainFramePinnedState(edgePinnedState());
+    scrollingTree().setMainFrameIsRubberBanding(isRubberBanding());
 }
 
 unsigned ScrollingTreeFrameScrollingNodeMac::exposedUnfilledArea() const

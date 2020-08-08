@@ -87,7 +87,16 @@
 
 (define-once (framebuffer-access)
     (allow iokit-open
-           (iokit-user-client-class "IOMobileFramebufferUserClient"))
+        (iokit-user-client-class "IOMobileFramebufferUserClient")
+        (when (defined? 'iokit-external-method)
+            (apply-message-filter
+                (allow (with report) (with telemetry)
+                    iokit-async-external-method
+                    iokit-external-method
+                    iokit-external-trap)
+            )
+        )
+    )
 
     ; IOMobileFramebuffer
     (with-filter (iokit-registry-entry-class "IOMobileFramebuffer")
@@ -205,7 +214,7 @@
 ;;;
 (define-once (opengl)
     ;; Items not seen in testing
-    (allow iokit-open (with report) (with telemetry)
+    (deny iokit-open (with telemetry-backtrace)
            (iokit-connection "IOGPU")
            (iokit-user-client-class
                 "AGXCommandQueue"
@@ -222,9 +231,17 @@
     ;; Items with known uses
     (allow iokit-open
         (iokit-connection "IOGPU")
-        (iokit-user-client-class
-            "AGXDeviceUserClient" ;; Used by WebGL
-    ))
+        (iokit-user-client-class "AGXDeviceUserClient") ;; Used by WebGL
+        (when (defined? 'iokit-external-method)
+            (apply-message-filter
+                (allow (with report) (with telemetry)
+                    iokit-async-external-method
+                    iokit-external-trap)
+                (allow (with telemetry)
+                    iokit-external-method)
+            )
+        )
+    )
 
     (allow iokit-get-properties
         (iokit-property "IOGLBundleName")
@@ -357,16 +374,46 @@
     (allow mach-lookup
         (global-name "com.apple.CARenderServer"))
 
-    ; UIKit-required IOKit nodes.
-    (allow iokit-open  (with report) (with telemetry)
-        (iokit-user-client-class "AppleJPEGDriverUserClient")
+    (deny iokit-open (with telemetry-backtrace)
         (iokit-user-client-class "IOSurfaceSendRight")
+    )
+
+    (allow iokit-open
+        (iokit-user-client-class "AppleJPEGDriverUserClient")
+        (when (defined? 'iokit-external-method)
+            (apply-message-filter
+                (allow (with report) (with telemetry)
+                    iokit-async-external-method
+                    iokit-external-method
+                    iokit-external-trap)
+            )
+        )
     )
 
     ; WebKit-required IOKit classes
     (allow iokit-open
         (iokit-user-client-class "IOSurfaceAcceleratorClient") ;; Media rendering into pixel buffers
+        (when (defined? 'iokit-external-method)
+            (apply-message-filter
+                (allow (with report) (with telemetry)
+                    iokit-async-external-method
+                    iokit-external-method
+                    iokit-external-trap)
+            )
+        )
+    )
+
+    (allow iokit-open
         (iokit-user-client-class "IOSurfaceRootUserClient") ;; Needed by Tiled Grid code.
+        (when (defined? 'iokit-external-method)
+            (apply-message-filter
+                (allow (with report) (with telemetry)
+                    iokit-async-external-method
+                    iokit-external-trap)
+                (allow (with telemetry)
+                    iokit-external-method)
+            )
+        )
     )
 
     ;; Silence sandbox violations from apps trying to create the empty plist if it doesn't exist.
@@ -554,8 +601,8 @@
     (deny ipc-posix-sem-create ipc-posix-sem-post ipc-posix-sem-unlink ipc-posix-sem-wait)
     (allow ipc-posix-sem-open))
 
-(allow mach-lookup (with telemetry)
-    (global-name "com.apple.runningboard") ;; Needed by process assertion code (ProcessTaskStateObserver).
+(deny mach-lookup (with telemetry-backtrace)
+    (global-name "com.apple.runningboard")
 )
 
 (allow system-sched
@@ -859,7 +906,7 @@
             "com.apple.coremedia.routediscoverer.xpc" "com.apple.coremedia.routingcontext.xpc" "com.apple.coremedia.routingsessionmanager.xpc"
             "com.apple.coremedia.samplebufferaudiorenderer.xpc" "com.apple.coremedia.samplebufferrendersynchronizer.xpc" "com.apple.coremedia.sandboxserver.xpc"
             "com.apple.coremedia.sts" "com.apple.coremedia.systemcontroller.xpc" "com.apple.coremedia.videoqueue" "com.apple.coremedia.volumecontroller.xpc"
-            "com.apple.coremedia.visualcontext.xpc" "com.apple.mediaremoted.xpc"
+            "com.apple.coremedia.visualcontext.xpc" "com.apple.mediaremoted.xpc" "com.apple.accessibility.mediaaccessibilityd"
             ;;; FIXME(207716): End services to remove.
 )))
 
@@ -869,7 +916,6 @@
         (xpc-service-name
             ;;; FIXME(207716): The following should be removed when the GPU process is complete
             "com.apple.MediaPlayer.RemotePlayerService"
-            "com.apple.accessibility.mediaaccessibilityd"
             "com.apple.audio.toolbox.reporting.service"
             ;;; FIXME(207716): End services to remove.
         )
@@ -1070,6 +1116,7 @@
             (allow xpc-message-send (message-number 712))
             (allow xpc-message-send (message-number 718))
             (allow xpc-message-send (message-number 800))
+            (allow xpc-message-send (message-number 802))
             (allow xpc-message-send (message-number 803))
             (allow xpc-message-send (message-number 804))
             (allow xpc-message-send (message-number 805))
@@ -1102,6 +1149,7 @@
         (machtrap-number MSC_mach_generate_activity_id)
         (machtrap-number MSC_mach_msg_trap)
         (machtrap-number MSC_mach_reply_port)
+        (machtrap-number MSC_mach_timebase_info_trap)
         (machtrap-number MSC_mach_voucher_extract_attr_recipe_trap)
         (machtrap-number MSC_mk_timer_arm)
         (machtrap-number MSC_mk_timer_arm_leeway)
@@ -1113,6 +1161,9 @@
         (machtrap-number MSC_semaphore_timedwait_trap)
         (machtrap-number MSC_semaphore_wait_trap)
         (machtrap-number MSC_swtch_pri)
+        (machtrap-number MSC_syscall_thread_switch)
+        (machtrap-number MSC_task_name_for_pid)
+        (machtrap-number MSC_task_self_trap)
         (machtrap-number MSC_thread_get_special_reply_port)
         (machtrap-number MSC_thread_self_trap)
     )
@@ -1122,17 +1173,50 @@
     (allow mach-kernel-endpoint
         (apply-message-filter
             (allow mach-message-send (with report) (with telemetry))
-        )
-    )
-)
-
-(when (defined? 'iokit-external-method)
-    (allow iokit-open
-        (apply-message-filter (with report) (with telemetry)
-            (allow
-             iokit-external-method
-             iokit-async-external-method
-             iokit-external-trap)
+            (allow mach-message-send (kernel-mig-routine
+                _mach_make_memory_entry
+                host_get_clock_service
+                host_get_io_master
+                host_get_special_port
+                host_info
+                host_request_notification
+                io_connect_async_method
+                io_connect_method
+                io_connect_set_notification_port_64
+                io_iterator_next
+                io_registry_entry_from_path
+                io_registry_entry_get_property_bin_buf
+                io_registry_entry_get_property_bytes
+                io_registry_entry_get_registry_entry_id
+                io_server_version
+                io_service_add_notification_bin_64
+                io_service_close
+                io_service_get_matching_service_bin
+                io_service_get_matching_services_bin
+                io_service_open_extended
+                mach_port_get_context_from_user
+                mach_port_request_notification
+                mach_port_set_attributes
+                mach_vm_copy
+                mach_vm_map_external
+                mach_vm_region
+                mach_vm_remap_external
+                semaphore_create
+                semaphore_destroy
+                task_get_special_port_from_user
+                task_info_from_user
+                task_restartable_ranges_register
+                task_restartable_ranges_synchronize
+                task_set_special_port
+                thread_get_state_to_user
+                thread_info
+                thread_policy
+                thread_policy_set
+                thread_resume
+                thread_set_exception_ports
+                thread_suspend
+                )
+            )
         )
     )
 )

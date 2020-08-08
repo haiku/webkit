@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2019 Adobe. All rights reserved.
  *
  * Portions are Copyright (C) 1998 Netscape Communications Corporation.
@@ -2590,21 +2590,21 @@ void RenderLayer::applyPostLayoutScrollPositionIfNeeded()
     m_postLayoutScrollPosition = WTF::nullopt;
 }
 
-void RenderLayer::scrollToXPosition(int x, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderLayer::scrollToXPosition(int x, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
     ScrollPosition position(x, m_scrollPosition.y());
-    scrollToPosition(position, scrollType, clamping, animated);
+    setScrollPosition(position, scrollType, clamping, animated);
 }
 
-void RenderLayer::scrollToYPosition(int y, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderLayer::scrollToYPosition(int y, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
     ScrollPosition position(m_scrollPosition.x(), y);
-    scrollToPosition(position, scrollType, clamping, animated);
+    setScrollPosition(position, scrollType, clamping, animated);
 }
 
-void RenderLayer::scrollToPosition(const ScrollPosition& position, ScrollType scrollType, ScrollClamping clamping, bool animated)
+void RenderLayer::setScrollPosition(const ScrollPosition& position, ScrollType scrollType, ScrollClamping clamping, AnimatedScroll animated)
 {
-    if (animated)
+    if (animated == AnimatedScroll::Yes)
         scrollToOffsetWithAnimation(scrollOffsetFromPosition(position), scrollType, clamping);
     else
         scrollToOffset(scrollOffsetFromPosition(position), scrollType, clamping);
@@ -2805,13 +2805,14 @@ bool RenderLayer::allowsCurrentScroll() const
     return box->hasHorizontalOverflow() || box->hasVerticalOverflow();
 }
 
-void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insideFixed, const ScrollRectToVisibleOptions& options, AutoscrollStatus autoscrollStatus)
+void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insideFixed, const ScrollRectToVisibleOptions& options)
 {
     LOG_WITH_STREAM(Scrolling, stream << "Layer " << this << " scrollRectToVisible " << absoluteRect);
 
     LayoutRect newRect = absoluteRect;
     FrameView& frameView = renderer().view().frameView();
     auto* parentLayer = enclosingContainingBlockLayer(*this, CrossFrameBoundaries::No);
+    bool autoscrollNotInProgress = !renderer().frame().eventHandler().autoscrollInProgress();
 
     if (allowsCurrentScroll()) {
         // Don't scroll to reveal an overflow layer that is restricted by the -webkit-line-clamp property.
@@ -2830,8 +2831,10 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insid
         ScrollOffset clampedScrollOffset = clampScrollOffset(scrollOffset() + toIntSize(roundedIntRect(revealRect).location()));
         if (clampedScrollOffset != scrollOffset() || currentScrollBehaviorStatus() != ScrollBehaviorStatus::NotInAnimation) {
             ScrollOffset oldScrollOffset = scrollOffset();
-            bool animated = autoscrollStatus == AutoscrollStatus::NotInProgress && useSmoothScrolling(options.behavior, box->element());
-            scrollToPosition(scrollPositionFromOffset(clampedScrollOffset), ScrollType::Programmatic, ScrollClamping::Clamped, animated);
+            AnimatedScroll animated = AnimatedScroll::No;
+            if (autoscrollNotInProgress && useSmoothScrolling(options.behavior, box->element()))
+                animated = AnimatedScroll::Yes;
+            setScrollPosition(scrollPositionFromOffset(clampedScrollOffset), ScrollType::Programmatic, ScrollClamping::Clamped, animated);
             IntSize scrollOffsetDifference = clampedScrollOffset - oldScrollOffset;
             localExposeRect.move(-scrollOffsetDifference);
             newRect = LayoutRect(box->localToAbsoluteQuad(FloatQuad(FloatRect(localExposeRect)), UseTransforms).boundingBox());
@@ -2857,7 +2860,11 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insid
                 scrollPosition = scrollPosition.constrainedBetween(IntPoint(), IntPoint(frameView.contentsSize()));
                 // FIXME: Should we use contentDocument()->scrollingElement()?
                 // See https://bugs.webkit.org/show_bug.cgi?id=205059
-                bool animated = autoscrollStatus == AutoscrollStatus::NotInProgress && ownerElement->contentDocument() && useSmoothScrolling(options.behavior, ownerElement->contentDocument()->documentElement());
+                AnimatedScroll animated = AnimatedScroll::No;
+                if (autoscrollNotInProgress
+                    && ownerElement->contentDocument()
+                    && useSmoothScrolling(options.behavior, ownerElement->contentDocument()->documentElement()))
+                    animated = AnimatedScroll::Yes;
                 frameView.setScrollPosition(scrollPosition, ScrollClamping::Clamped, animated);
 
                 if (options.shouldAllowCrossOriginScrolling == ShouldAllowCrossOriginScrolling::Yes || frameView.safeToPropagateScrollToParent()) {
@@ -2900,7 +2907,9 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& absoluteRect, bool insid
                 ScrollOffset clampedScrollPosition = roundedIntPoint(revealRect.location()).constrainedBetween(minScrollPosition, maxScrollPosition);
                 // FIXME: Should we use document()->scrollingElement()?
                 // See https://bugs.webkit.org/show_bug.cgi?id=205059
-                bool animated = autoscrollStatus == AutoscrollStatus::NotInProgress && useSmoothScrolling(options.behavior, renderer().document().documentElement());
+                AnimatedScroll animated = AnimatedScroll::No;
+                if (autoscrollNotInProgress && useSmoothScrolling(options.behavior, renderer().document().documentElement()))
+                    animated = AnimatedScroll::Yes;
                 frameView.setScrollPosition(clampedScrollPosition, ScrollClamping::Clamped, animated);
             }
 
@@ -3040,7 +3049,7 @@ LayoutRect RenderLayer::getRectToExpose(const LayoutRect& visibleRect, const Lay
 void RenderLayer::autoscroll(const IntPoint& positionInWindow)
 {
     IntPoint currentDocumentPosition = renderer().view().frameView().windowToContents(positionInWindow);
-    scrollRectToVisible(LayoutRect(currentDocumentPosition, LayoutSize(1, 1)), false, { SelectionRevealMode::Reveal, ScrollAlignment::alignToEdgeIfNeeded, ScrollAlignment::alignToEdgeIfNeeded, ShouldAllowCrossOriginScrolling::Yes }, AutoscrollStatus::InProgress);
+    scrollRectToVisible(LayoutRect(currentDocumentPosition, LayoutSize(1, 1)), false, { SelectionRevealMode::Reveal, ScrollAlignment::alignToEdgeIfNeeded, ScrollAlignment::alignToEdgeIfNeeded, ShouldAllowCrossOriginScrolling::Yes });
 }
 
 bool RenderLayer::canResize() const
@@ -3721,9 +3730,6 @@ void RenderLayer::positionOverflowControls(const IntSize& offsetFromRoot)
         m_scrollCorner->setFrameRect(scrollCorner);
     if (m_resizer)
         m_resizer->setFrameRect(resizerCornerRect(*this, borderBox));
-
-    if (isComposited())
-        backing()->positionOverflowControlsLayers();
 }
 
 int RenderLayer::scrollWidth() const
@@ -4203,11 +4209,15 @@ bool RenderLayer::scroll(ScrollDirection direction, ScrollGranularity granularit
     return ScrollableArea::scroll(direction, granularity, multiplier);
 }
 
-void RenderLayer::paint(GraphicsContext& context, const LayoutRect& damageRect, const LayoutSize& subpixelOffset, OptionSet<PaintBehavior> paintBehavior, RenderObject* subtreePaintRoot, OptionSet<PaintLayerFlag> paintFlags, SecurityOriginPaintPolicy paintPolicy)
+void RenderLayer::paint(GraphicsContext& context, const LayoutRect& damageRect, const LayoutSize& subpixelOffset, OptionSet<PaintBehavior> paintBehavior, RenderObject* subtreePaintRoot, OptionSet<PaintLayerFlag> paintFlags, SecurityOriginPaintPolicy paintPolicy, EventRegionContext* eventRegionContext)
 {
     OverlapTestRequestMap overlapTestRequests;
 
     LayerPaintingInfo paintingInfo(this, enclosingIntRect(damageRect), paintBehavior, subpixelOffset, subtreePaintRoot, &overlapTestRequests, paintPolicy == SecurityOriginPaintPolicy::AccessibleOriginOnly);
+    if (eventRegionContext) {
+        paintingInfo.eventRegionContext = eventRegionContext;
+        paintFlags.add(RenderLayer::PaintLayerCollectingEventRegion);
+    }
     paintLayer(context, paintingInfo, paintFlags);
 
     for (auto& widget : overlapTestRequests.keys())
@@ -7001,12 +7011,13 @@ bool RenderLayer::isTransparentRespectingParentFrames() const
     return false;
 }
 
-void RenderLayer::invalidateEventRegion()
+bool RenderLayer::invalidateEventRegion(EventRegionInvalidationReason reason)
 {
+    // FIXME: This should not be conditioned on PLATFORM(IOS_FAMILY). See <https://webkit.org/b/210216>.
 #if PLATFORM(IOS_FAMILY)
     auto* compositingLayer = enclosingCompositingLayerForRepaint();
     if (!compositingLayer)
-        return;
+        return false;
 
     auto maintainsEventRegion = [&] {
         // UI side scroll overlap testing.
@@ -7015,13 +7026,30 @@ void RenderLayer::invalidateEventRegion()
         // UI side touch-action resolution.
         if (renderer().document().mayHaveElementsWithNonAutoTouchAction())
             return true;
+#if ENABLE(EDITABLE_REGION)
+        // UI side editable elements resolution.
+        if (renderer().document().mayHaveEditableElements())
+            return true;
+#endif
         return false;
     };
 
-    if (!maintainsEventRegion())
-        return;
+    if (reason != EventRegionInvalidationReason::NonCompositedFrame && !maintainsEventRegion())
+        return false;
 
     compositingLayer->setNeedsCompositingConfigurationUpdate();
+
+    if (reason == EventRegionInvalidationReason::NonCompositedFrame) {
+        auto& view = renderer().view();
+        view.setNeedsEventRegionUpdateForNonCompositedFrame();
+        if (renderer().settings().visibleDebugOverlayRegions() & NonFastScrollableRegion)
+            view.setNeedsRepaintHackAfterCompositingLayerUpdateForDebugOverlaysOnly();
+        view.compositor().scheduleCompositingLayerUpdate();
+    }
+    return true;
+#else
+    UNUSED_PARAM(reason);
+    return false;
 #endif
 }
 

@@ -339,7 +339,7 @@ void DocumentTimeline::scheduleAnimationResolution()
     if (!shouldRunUpdateAnimationsAndSendEventsIgnoringSuspensionState())
         return;
 
-    m_document->page()->renderingUpdateScheduler().scheduleTimedRenderingUpdate();
+    m_document->page()->scheduleTimedRenderingUpdate();
     m_animationResolutionScheduled = true;
 }
 
@@ -364,7 +364,6 @@ void DocumentTimeline::updateCurrentTime(DOMHighResTimeStamp timestamp)
 
 void DocumentTimeline::updateAnimationsAndSendEvents()
 {
-
     // Updating animations and sending events may invalidate the timing of some animations, so we must set the m_animationResolutionScheduled
     // flag to false prior to running that procedure to allow animation with timing model updates to schedule updates.
     m_animationResolutionScheduled = false;
@@ -546,7 +545,7 @@ void DocumentTimeline::transitionDidComplete(RefPtr<CSSTransition> transition)
     ASSERT(transition);
     removeAnimation(*transition);
     if (is<KeyframeEffect>(transition->effect())) {
-        if (auto* target = downcast<KeyframeEffect>(transition->effect())->target())
+        if (auto* target = downcast<KeyframeEffect>(transition->effect())->targetElementOrPseudoElement())
             target->ensureCompletedTransitionsByProperty().set(transition->property(), transition);
     }
 }
@@ -670,7 +669,7 @@ void DocumentTimeline::animationAcceleratedRunningStateDidChange(WebAnimation& a
     m_acceleratedAnimationsPendingRunningStateChange.add(&animation);
 
     if (is<KeyframeEffect>(animation.effect())) {
-        if (auto* target = downcast<KeyframeEffect>(animation.effect())->target())
+        if (auto* target = downcast<KeyframeEffect>(animation.effect())->targetElementOrPseudoElement())
             updateListOfElementsWithRunningAcceleratedAnimationsForElement(*target);
     }
 

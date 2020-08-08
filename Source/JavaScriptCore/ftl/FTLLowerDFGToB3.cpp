@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2124,7 +2124,7 @@ private:
         
         m_out.appendTo(slowCase, continuation);
         J_JITOperation_GJ function;
-        if (m_graph.isStrictModeFor(m_node->origin.semantic))
+        if (m_node->ecmaMode().isStrict())
             function = operationToThisStrict;
         else
             function = operationToThis;
@@ -3686,7 +3686,7 @@ private:
         LValue thisValue = lowJSValue(m_node->child2());
         LValue value = lowJSValue(m_node->child3());
 
-        vmCall(Void, m_graph.isStrictModeFor(m_node->origin.semantic) ? operationPutByIdWithThisStrict : operationPutByIdWithThis,
+        vmCall(Void, m_node->ecmaMode().isStrict() ? operationPutByIdWithThisStrict : operationPutByIdWithThis,
             weakPointer(globalObject), base, thisValue, value, m_out.constIntPtr(m_node->cacheableIdentifier().rawBits()));
     }
 
@@ -3698,7 +3698,7 @@ private:
         LValue property = lowJSValue(m_graph.varArgChild(m_node, 2));
         LValue value = lowJSValue(m_graph.varArgChild(m_node, 3));
 
-        vmCall(Void, m_graph.isStrictModeFor(m_node->origin.semantic) ? operationPutByValWithThisStrict : operationPutByValWithThis,
+        vmCall(Void, m_node->ecmaMode().isStrict() ? operationPutByValWithThisStrict : operationPutByValWithThis,
             weakPointer(globalObject), base, thisValue, property, value);
     }
     
@@ -3971,7 +3971,7 @@ private:
             preparePatchpointForExceptions(patchpoint);
 
         State* state = &m_ftlState;
-        ECMAMode ecmaMode = m_graph.executableFor(node->origin.semantic)->ecmaMode();
+        ECMAMode ecmaMode = node->ecmaMode();
         
         patchpoint->setGenerator(
             [=] (CCallHelpers& jit, const StackmapGenerationParams& params) {
@@ -4831,12 +4831,12 @@ private:
                 V_JITOperation_GCCJ operation = nullptr;
                 if (child2.useKind() == StringUse) {
                     if (m_node->op() == PutByValDirect) {
-                        if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                        if (m_node->ecmaMode().isStrict())
                             operation = operationPutByValDirectCellStringStrict;
                         else
                             operation = operationPutByValDirectCellStringNonStrict;
                     } else {
-                        if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                        if (m_node->ecmaMode().isStrict())
                             operation = operationPutByValCellStringStrict;
                         else
                             operation = operationPutByValCellStringNonStrict;
@@ -4847,12 +4847,12 @@ private:
 
                 if (child2.useKind() == SymbolUse) {
                     if (m_node->op() == PutByValDirect) {
-                        if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                        if (m_node->ecmaMode().isStrict())
                             operation = operationPutByValDirectCellSymbolStrict;
                         else
                             operation = operationPutByValDirectCellSymbolNonStrict;
                     } else {
-                        if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                        if (m_node->ecmaMode().isStrict())
                             operation = operationPutByValCellSymbolStrict;
                         else
                             operation = operationPutByValCellSymbolNonStrict;
@@ -4864,12 +4864,12 @@ private:
 
             V_JITOperation_GJJJ operation;
             if (m_node->op() == PutByValDirect) {
-                if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                if (m_node->ecmaMode().isStrict())
                     operation = operationPutByValDirectStrict;
                 else
                     operation = operationPutByValDirectNonStrict;
             } else {
-                if (m_graph.isStrictModeFor(m_node->origin.semantic))
+                if (m_node->ecmaMode().isStrict())
                     operation = operationPutByValStrict;
                 else
                     operation = operationPutByValNonStrict;
@@ -4915,7 +4915,7 @@ private:
                 }
                 
                 contiguousPutByValOutOfBounds(
-                    m_graph.isStrictModeFor(m_node->origin.semantic)
+                    m_node->ecmaMode().isStrict()
                         ? (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsStrict : operationPutByValBeyondArrayBoundsStrict)
                         : (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsNonStrict : operationPutByValBeyondArrayBoundsNonStrict),
                     base, storage, index, value, continuation);
@@ -4941,7 +4941,7 @@ private:
                 }
                 
                 contiguousPutByValOutOfBounds(
-                    m_graph.isStrictModeFor(m_node->origin.semantic)
+                    m_node->ecmaMode().isStrict()
                         ? (m_node->op() == PutByValDirect ? operationPutDoubleByValDirectBeyondArrayBoundsStrict : operationPutDoubleByValBeyondArrayBoundsStrict)
                         : (m_node->op() == PutByValDirect ? operationPutDoubleByValDirectBeyondArrayBoundsNonStrict : operationPutDoubleByValBeyondArrayBoundsNonStrict),
                     base, storage, index, value, continuation);
@@ -4981,7 +4981,7 @@ private:
             LValue isOutOfBounds = m_out.aboveOrEqual(
                 index, m_out.load32NonNegative(storage, m_heaps.ArrayStorage_vectorLength));
 
-            auto slowPathFunction = m_graph.isStrictModeFor(m_node->origin.semantic)
+            auto slowPathFunction = m_node->ecmaMode().isStrict()
                 ? (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsStrict : operationPutByValBeyondArrayBoundsStrict)
                 : (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsNonStrict : operationPutByValBeyondArrayBoundsNonStrict);
             if (!arrayMode.isOutOfBounds()) {
@@ -5246,7 +5246,7 @@ private:
                             exceptions.get(), optimizationFunction, returnGPR,
                             jit.codeBlock()->globalObjectFor(node->origin.semantic),
                             CCallHelpers::TrustedImmPtr(generator->stubInfo()), base,
-                            subscript).call();
+                            subscript, CCallHelpers::TrustedImm32(node->ecmaMode().value())).call();
                         jit.jump().linkTo(done, &jit);
 
                         generator->reportSlowPathCall(slowPathBegin, slowPathCall);
@@ -5275,7 +5275,7 @@ private:
             // https://bugs.webkit.org/show_bug.cgi?id=209397
             JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
             LValue base = lowJSValue(m_node->child1());
-            setBoolean(m_out.notZero64(vmCall(Int64, operationDeleteByIdGeneric, weakPointer(globalObject), m_out.intPtrZero, base, m_out.constIntPtr(m_node->cacheableIdentifier().rawBits()))));
+            setBoolean(m_out.notZero64(vmCall(Int64, operationDeleteByIdGeneric, weakPointer(globalObject), m_out.intPtrZero, base, m_out.constIntPtr(m_node->cacheableIdentifier().rawBits()), m_out.constInt32(m_node->ecmaMode().value()))));
             break;
         }
 
@@ -5316,7 +5316,7 @@ private:
             JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
             LValue base = lowJSValue(m_node->child1());
             LValue subscript = lowJSValue(m_node->child2());
-            setBoolean(m_out.notZero64(vmCall(Int64, operationDeleteByValGeneric, weakPointer(globalObject), m_out.intPtrZero, base, subscript)));
+            setBoolean(m_out.notZero64(vmCall(Int64, operationDeleteByValGeneric, weakPointer(globalObject), m_out.intPtrZero, base, subscript, m_out.constInt32(m_node->ecmaMode().value()))));
             return;
         }
 
@@ -6398,6 +6398,8 @@ private:
 
     void compileNewStringObject()
     {
+        // FIXME: We should handle this as JSInternalFieldObject allocation.
+        // https://bugs.webkit.org/show_bug.cgi?id=209453
         RegisteredStructure structure = m_node->structure();
         LValue string = lowString(m_node->child1());
 
@@ -6407,7 +6409,6 @@ private:
         LBasicBlock lastNext = m_out.insertNewBlocksBefore(slowCase);
 
         LValue fastResultValue = allocateObject<StringObject>(structure, m_out.intPtrZero, slowCase);
-        m_out.storePtr(m_out.constIntPtr(StringObject::info()), fastResultValue, m_heaps.JSDestructibleObject_classInfo);
         m_out.store64(string, fastResultValue, m_heaps.JSWrapperObject_internalValue);
         mutatorFence();
         ValueFromBlock fastResult = m_out.anchor(fastResultValue);
@@ -7405,6 +7406,8 @@ private:
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
         switch (m_node->child1().useKind()) {
         case StringObjectUse: {
+            // FIXME: We should convert this to GetInternalField(0).
+            // https://bugs.webkit.org/show_bug.cgi?id=209453
             LValue cell = lowCell(m_node->child1());
             speculateStringObjectForCell(m_node->child1(), cell);
             setJSValue(m_out.loadPtr(cell, m_heaps.JSWrapperObject_internalValue));
@@ -9377,8 +9380,8 @@ private:
                     jit.move(rep.gpr(), result);
                 };
 
-                auto callWithExceptionCheck = [&] (void* callee) {
-                    jit.move(CCallHelpers::TrustedImmPtr(tagCFunctionPtr<OperationPtrTag>(callee)), GPRInfo::nonPreservedNonArgumentGPR0);
+                auto callWithExceptionCheck = [&] (void(*callee)(JSGlobalObject*)) {
+                    jit.move(CCallHelpers::TrustedImmPtr(tagCFunction<OperationPtrTag>(callee)), GPRInfo::nonPreservedNonArgumentGPR0);
                     jit.call(GPRInfo::nonPreservedNonArgumentGPR0, OperationPtrTag);
                     exceptions->append(jit.emitExceptionCheck(*vm, AssemblyHelpers::NormalExceptionCheck, AssemblyHelpers::FarJumpWidth));
                 };
@@ -9475,7 +9478,7 @@ private:
                     slowCase.link(&jit);
                     jit.setupArguments<decltype(operationThrowStackOverflowForVarargs)>(jit.codeBlock()->globalObjectFor(node->origin.semantic));
                     jit.prepareCallOperation(jit.vm());
-                    callWithExceptionCheck(bitwise_cast<void*>(operationThrowStackOverflowForVarargs));
+                    callWithExceptionCheck(operationThrowStackOverflowForVarargs);
                     jit.abortWithReason(DFGVarargsThrowingPathDidNotThrow);
                     
                     dontThrow.link(&jit);
@@ -9717,8 +9720,8 @@ private:
                 GPRReg scratchGPR3 = forwarding ? allocator.allocateScratchGPR() : InvalidGPRReg;
                 RELEASE_ASSERT(!allocator.numberOfReusedRegisters());
 
-                auto callWithExceptionCheck = [&] (void* callee) {
-                    jit.move(CCallHelpers::TrustedImmPtr(tagCFunctionPtr<OperationPtrTag>(callee)), GPRInfo::nonPreservedNonArgumentGPR0);
+                auto callWithExceptionCheck = [&] (void(*callee)()) {
+                    jit.move(CCallHelpers::TrustedImmPtr(tagCFunction<OperationPtrTag>(callee)), GPRInfo::nonPreservedNonArgumentGPR0);
                     jit.call(GPRInfo::nonPreservedNonArgumentGPR0, OperationPtrTag);
                     exceptions->append(jit.emitExceptionCheck(*vm, AssemblyHelpers::NormalExceptionCheck, AssemblyHelpers::FarJumpWidth));
                 };
@@ -9742,7 +9745,7 @@ private:
                     slowCase.link(&jit);
                     jit.setupArguments<decltype(operationThrowStackOverflowForVarargs)>(jit.codeBlock()->globalObjectFor(node->origin.semantic));
                     jit.prepareCallOperation(jit.vm());
-                    callWithExceptionCheck(bitwise_cast<void*>(operationThrowStackOverflowForVarargs));
+                    callWithExceptionCheck(bitwise_cast<void(*)()>(operationThrowStackOverflowForVarargs));
                     jit.abortWithReason(DFGVarargsThrowingPathDidNotThrow);
                     
                     done.link(&jit);
@@ -9750,7 +9753,7 @@ private:
                     jit.move(CCallHelpers::TrustedImm32(originalStackHeight / sizeof(EncodedJSValue)), scratchGPR1);
                     jit.setupArguments<decltype(operationSizeFrameForVarargs)>(jit.codeBlock()->globalObjectFor(node->origin.semantic), argumentsGPR, scratchGPR1, CCallHelpers::TrustedImm32(data->firstVarArgOffset));
                     jit.prepareCallOperation(jit.vm());
-                    callWithExceptionCheck(bitwise_cast<void*>(operationSizeFrameForVarargs));
+                    callWithExceptionCheck(bitwise_cast<void(*)()>(operationSizeFrameForVarargs));
 
                     jit.move(GPRInfo::returnValueGPR, scratchGPR1);
                     jit.move(CCallHelpers::TrustedImm32(originalStackHeight / sizeof(EncodedJSValue)), scratchGPR2);
@@ -9759,7 +9762,7 @@ private:
                     jit.addPtr(CCallHelpers::TrustedImm32(-minimumJSCallAreaSize), scratchGPR2, CCallHelpers::stackPointerRegister);
                     jit.setupArguments<decltype(operationSetupVarargsFrame)>(jit.codeBlock()->globalObjectFor(node->origin.semantic), scratchGPR2, argumentsGPR, CCallHelpers::TrustedImm32(data->firstVarArgOffset), scratchGPR1);
                     jit.prepareCallOperation(jit.vm());
-                    callWithExceptionCheck(bitwise_cast<void*>(operationSetupVarargsFrame));
+                    callWithExceptionCheck(bitwise_cast<void(*)()>(operationSetupVarargsFrame));
                     
                     jit.addPtr(CCallHelpers::TrustedImm32(sizeof(CallerFrameAndPC)), GPRInfo::returnValueGPR, CCallHelpers::stackPointerRegister);
 
@@ -9909,9 +9912,10 @@ private:
                 unsigned requiredBytes = sizeof(CallerFrameAndPC) + sizeof(CallFrame*) * 2;
                 requiredBytes = WTF::roundUpToMultipleOf(stackAlignmentBytes(), requiredBytes);
                 jit.subPtr(CCallHelpers::TrustedImm32(requiredBytes), CCallHelpers::stackPointerRegister);
-                jit.setupArguments<decltype(operationCallEval)>(globalObject, GPRInfo::regT1);
+                jit.move(CCallHelpers::TrustedImm32(node->ecmaMode().value()), GPRInfo::regT2);
+                jit.setupArguments<decltype(operationCallEval)>(globalObject, GPRInfo::regT1, GPRInfo::regT2);
                 jit.prepareCallOperation(vm);
-                jit.move(CCallHelpers::TrustedImmPtr(tagCFunctionPtr<OperationPtrTag>(operationCallEval)), GPRInfo::nonPreservedNonArgumentGPR0);
+                jit.move(CCallHelpers::TrustedImmPtr(tagCFunction<OperationPtrTag>(operationCallEval)), GPRInfo::nonPreservedNonArgumentGPR0);
                 jit.call(GPRInfo::nonPreservedNonArgumentGPR0, OperationPtrTag);
                 exceptions->append(jit.emitExceptionCheck(state->vm(), AssemblyHelpers::NormalExceptionCheck, AssemblyHelpers::FarJumpWidth));
                 
@@ -13455,7 +13459,7 @@ private:
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
         UniquedStringImpl* uid = m_graph.identifiers()[m_node->identifierNumber()];
-        setJSValue(vmCall(Void, m_graph.isStrictModeFor(m_node->origin.semantic) ? operationPutDynamicVarStrict : operationPutDynamicVarNonStrict,
+        setJSValue(vmCall(Void, m_node->ecmaMode().isStrict() ? operationPutDynamicVarStrict : operationPutDynamicVarNonStrict,
             weakPointer(globalObject), lowCell(m_node->child1()), lowJSValue(m_node->child2()), m_out.constIntPtr(uid), m_out.constInt32(m_node->getPutInfo())));
     }
     

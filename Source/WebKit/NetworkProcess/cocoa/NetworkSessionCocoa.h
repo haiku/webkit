@@ -95,9 +95,10 @@ public:
 
     bool hasAppBoundSession() const override { return !!m_appBoundSession; }
 
-    SessionWrapper& sessionWrapperForTask(const WebCore::ResourceRequest&, WebCore::StoredCredentialsPolicy, NavigatingToAppBoundDomain);
+    SessionWrapper& sessionWrapperForTask(const WebCore::ResourceRequest&, WebCore::StoredCredentialsPolicy, Optional<NavigatingToAppBoundDomain>);
     void setInAppBrowserPrivacyEnabled(bool enabled) override { m_isInAppBrowserPrivacyEnabled = enabled; }
     bool isInAppBrowserPrivacyEnabled() const { return m_isInAppBrowserPrivacyEnabled; }
+    bool preventsSystemHTTPProxyAuthentication() const { return m_preventsSystemHTTPProxyAuthentication; }
     
 private:
     void invalidateAndCancel() override;
@@ -144,6 +145,7 @@ private:
     bool m_fastServerTrustEvaluationEnabled { false };
     String m_dataConnectionServiceType;
     bool m_isInAppBrowserPrivacyEnabled { false };
+    bool m_preventsSystemHTTPProxyAuthentication { false };
 };
 
 } // namespace WebKit

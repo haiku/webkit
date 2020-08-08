@@ -388,6 +388,10 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         SandboxExtension::createHandleForMachLookup("com.apple.diagnosticd", WTF::nullopt, diagnosticsExtensionHandle, SandboxExtension::Flags::NoReport);
         parameters.diagnosticsExtensionHandle = WTFMove(diagnosticsExtensionHandle);
     }
+
+    SandboxExtension::Handle runningboardExtensionHandle;
+    SandboxExtension::createHandleForMachLookup("com.apple.runningboard", WTF::nullopt, runningboardExtensionHandle, SandboxExtension::Flags::NoReport);
+    parameters.runningboardExtensionHandle = WTFMove(runningboardExtensionHandle);
 #endif
     
 #if PLATFORM(COCOA)
@@ -407,8 +411,8 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     parameters.mimeTypesMap = commonMimeTypesMap();
 
     SandboxExtension::Handle mapDBHandle;
-    SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb", WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport);
-    parameters.mapDBExtensionHandle = WTFMove(mapDBHandle);
+    if (SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb", WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport))
+        parameters.mapDBExtensionHandle = WTFMove(mapDBHandle);
 #endif
     
 #if PLATFORM(IOS)
@@ -425,10 +429,6 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     parameters.cssValueToSystemColorMap = RenderThemeIOS::cssValueToSystemColorMap();
     parameters.focusRingColor = RenderTheme::singleton().focusRingColor(OptionSet<StyleColor::Options>());
     parameters.localizedDeviceModel = localizedDeviceModel();
-#if USE(UTTYPE_SWIZZLER)
-    if (WebCore::IOSApplication::isMobileSafari())
-        parameters.vectorOfUTTypeItem = createVectorOfUTTypeItem();
-#endif
 #endif
     
     // Allow microphone access if either preference is set because WebRTC requires microphone access.

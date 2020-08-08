@@ -66,7 +66,7 @@
         auto* validationBubble = _page->validationBubble();
         String message = validationBubble ? validationBubble->message() : emptyString();
         double fontSize = validationBubble ? validationBubble->fontSize() : 0;
-        return @{ userInterfaceItem: @{ @"message": (NSString *)message, @"fontSize": [NSNumber numberWithDouble:fontSize] } };
+        return @{ userInterfaceItem: @{ @"message": (NSString *)message, @"fontSize": @(fontSize) } };
     }
 
 #if PLATFORM(IOS_FAMILY)
@@ -140,6 +140,17 @@
     if (!_gestureController)
         return NO;
     return _gestureController->completeSimulatedSwipeInDirectionForTesting(WebKit::ViewGestureController::SwipeDirection::Back);
+#endif
+}
+
+- (void)_resetNavigationGestureStateForTesting
+{
+#if PLATFORM(MAC)
+    if (auto gestureController = _impl->gestureController())
+        gestureController->reset();
+#else
+    if (_gestureController)
+        _gestureController->reset();
 #endif
 }
 

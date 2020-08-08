@@ -2308,7 +2308,7 @@ void WebPage::replaceDictatedText(const String& oldText, const String& newText)
     for (size_t i = 0; i < oldText.length(); ++i)
         position = position.previous();
     if (position.isNull())
-        position = startOfDocument(static_cast<Node*>(frame.document()->documentElement()));
+        position = startOfDocument(frame.document());
     auto range = Range::create(*frame.document(), position, frame.selection().selection().start());
 
     if (plainTextForContext(range.ptr()) != oldText)
@@ -2416,7 +2416,7 @@ bool WebPage::applyAutocorrectionInternal(const String& correction, const String
             for (size_t i = 0; i < originalText.length(); ++i)
                 position = position.previous();
             if (position.isNull())
-                position = startOfDocument(static_cast<Node*>(frame.document()->documentElement()));
+                position = startOfDocument(frame.document());
             range = Range::create(*frame.document(), position, frame.selection().selection().start());
             textForRange = plainTextForContext(range.get());
             unsigned loopCount = 0;
@@ -3710,7 +3710,7 @@ void WebPage::applicationWillResignActive()
 
 void WebPage::applicationDidEnterBackground(bool isSuspendedUnderLock)
 {
-    [[NSNotificationCenter defaultCenter] postNotificationName:WebUIApplicationDidEnterBackgroundNotification object:nil userInfo:@{@"isSuspendedUnderLock": [NSNumber numberWithBool:isSuspendedUnderLock]}];
+    [[NSNotificationCenter defaultCenter] postNotificationName:WebUIApplicationDidEnterBackgroundNotification object:nil userInfo:@{@"isSuspendedUnderLock": @(isSuspendedUnderLock)}];
 
     m_isSuspendedUnderLock = isSuspendedUnderLock;
     freezeLayerTree(LayerTreeFreezeReason::BackgroundApplication);
@@ -3877,7 +3877,7 @@ void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo& visi
     if (scrollPosition != frameView.scrollPosition())
         m_dynamicSizeUpdateHistory.clear();
 
-    if (m_viewportConfiguration.setCanIgnoreScalingConstraints(m_ignoreViewportScalingConstraints || visibleContentRectUpdateInfo.allowShrinkToFit()))
+    if (m_viewportConfiguration.setCanIgnoreScalingConstraints(visibleContentRectUpdateInfo.allowShrinkToFit()))
         viewportConfigurationChanged();
 
     frameView.setUnobscuredContentSize(visibleContentRectUpdateInfo.unobscuredContentRect().size());

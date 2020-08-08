@@ -3645,11 +3645,6 @@ void Document::processHttpEquiv(const String& equiv, const String& content, bool
             contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicyHeaderType::Enforce, ContentSecurityPolicy::PolicyFrom::HTTPEquivMeta, referrer(), httpStatusCode);
         break;
 
-    case HTTPHeaderName::XWebKitCSP:
-        if (isInDocumentHead)
-            contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicyHeaderType::PrefixedEnforce, ContentSecurityPolicy::PolicyFrom::HTTPEquivMeta, referrer(), httpStatusCode);
-        break;
-
     default:
         break;
     }
@@ -4232,6 +4227,19 @@ void Document::elementInActiveChainDidDetach(Element& element)
     m_activeElement = element.parentElement();
     while (m_activeElement && !m_activeElement->renderer())
         m_activeElement = m_activeElement->parentElement();
+}
+
+void Document::invalidateEventRegionsForFrame(HTMLFrameOwnerElement& element)
+{
+    auto* renderer = element.renderer();
+    if (!renderer)
+        return;
+    if (auto* layer = renderer->enclosingLayer()) {
+        if (layer->invalidateEventRegion(RenderLayer::EventRegionInvalidationReason::NonCompositedFrame))
+            return;
+    }
+    if (auto* ownerElement = this->ownerElement())
+        ownerElement->document().invalidateEventRegionsForFrame(*ownerElement);
 }
 
 void Document::invalidateRenderingDependentRegions()
@@ -7961,12 +7969,12 @@ Logger& Document::logger()
     
 Optional<PageIdentifier> Document::pageID() const
 {
-    return m_frame->loader().client().pageID();
+    return m_frame->loader().pageID();
 }
 
 Optional<FrameIdentifier> Document::frameID() const
 {
-    return m_frame->loader().client().frameID();
+    return m_frame->loader().frameID();
 }
 
 void Document::registerArticleElement(Element& article)
@@ -8121,7 +8129,7 @@ Vector<RefPtr<WebAnimation>> Document::matchingAnimations(const WTF::Function<bo
     for (auto& animation : m_timeline->getAnimations()) {
         auto* effect = animation->effect();
         ASSERT(is<KeyframeEffect>(animation->effect()));
-        auto* target = downcast<KeyframeEffect>(*effect).target();
+        auto* target = downcast<KeyframeEffect>(*effect).targetElementOrPseudoElement();
         ASSERT(target);
         if (function(*target))
             animations.append(animation);

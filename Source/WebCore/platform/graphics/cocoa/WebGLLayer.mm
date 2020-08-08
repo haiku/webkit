@@ -158,12 +158,16 @@ static void freeData(void *, const void *data, size_t /* size */)
 #elif USE(OPENGL_ES)
     _context->presentRenderbuffer();
 #elif HAVE(IOSURFACE) && USE(ANGLE)
+    if (!_context->makeContextCurrent()) {
+        // Context is likely being torn down.
+        return;
+    }
     _context->prepareTexture();
     if (_drawingBuffer) {
         if (_latchedPbuffer) {
 
             GCGLenum texture = _context->platformTexture();
-            gl::BindTexture(GraphicsContextGL::IOSurfaceTextureTarget, texture);
+            gl::BindTexture(WebCore::GraphicsContextGL::IOSurfaceTextureTarget, texture);
             if (!EGL_ReleaseTexImage(_eglDisplay, _latchedPbuffer, EGL_BACK_BUFFER)) {
                 // FIXME: report error.
                 notImplemented();
@@ -191,12 +195,19 @@ static void freeData(void *, const void *data, size_t /* size */)
     _eglConfig = config;
 }
 
-- (void)dealloc
+- (void)releaseGLResources
 {
+    if (!_context)
+        return;
+
+    if (_context->makeContextCurrent() && _latchedPbuffer) {
+        EGL_ReleaseTexImage(_eglDisplay, _latchedPbuffer, EGL_BACK_BUFFER);
+        _latchedPbuffer = nullptr;
+    }
+
     EGL_DestroySurface(_eglDisplay, _contentsPbuffer);
     EGL_DestroySurface(_eglDisplay, _drawingPbuffer);
     EGL_DestroySurface(_eglDisplay, _sparePbuffer);
-    [super dealloc];
 }
 #endif
 
@@ -222,7 +233,7 @@ static void freeData(void *, const void *data, size_t /* size */)
         EGL_WIDTH, size.width(),
         EGL_HEIGHT, size.height(),
         EGL_IOSURFACE_PLANE_ANGLE, 0,
-        EGL_TEXTURE_TARGET, GraphicsContextGL::EGLIOSurfaceTextureTarget,
+        EGL_TEXTURE_TARGET, WebCore::GraphicsContextGL::EGLIOSurfaceTextureTarget,
         EGL_TEXTURE_INTERNAL_FORMAT_ANGLE, usingAlpha ? GL_BGRA_EXT : GL_RGB,
         EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
         EGL_TEXTURE_TYPE_ANGLE, GL_UNSIGNED_BYTE,
@@ -256,7 +267,7 @@ static void freeData(void *, const void *data, size_t /* size */)
 #elif USE(ANGLE)
     GCGLenum texture = _context->platformTexture();
 
-    gl::BindTexture(GraphicsContextGL::IOSurfaceTextureTarget, texture);
+    gl::BindTexture(WebCore::GraphicsContextGL::IOSurfaceTextureTarget, texture);
 
     if (_latchedPbuffer) {
         if (!EGL_ReleaseTexImage(_eglDisplay, _latchedPbuffer, EGL_BACK_BUFFER)) {

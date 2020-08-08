@@ -372,7 +372,7 @@ TEST(WKHTTPCookieStore, CreationTime)
     [cookieProperties setObject:@"cookieValue" forKey:NSHTTPCookieValue];
     [cookieProperties setObject:@".www.webkit.org" forKey:NSHTTPCookieDomain];
     [cookieProperties setObject:@"/path" forKey:NSHTTPCookiePath];
-    RetainPtr<NSNumber> creationTime = [NSNumber numberWithDouble:100000];
+    RetainPtr<NSNumber> creationTime = @(100000);
     [cookieProperties setObject:creationTime.get() forKey:@"Created"];
     RetainPtr<NSHTTPCookie> cookie = [NSHTTPCookie cookieWithProperties:cookieProperties];
 
@@ -634,6 +634,27 @@ static bool areCookiesEqual(NSHTTPCookie *first, NSHTTPCookie *second)
     return [first.name isEqual:second.name] && [first.domain isEqual:second.domain] && [first.path isEqual:second.path] && [first.value isEqual:second.value];
 }
 
+static void clearCookies(WKHTTPCookieStore* cookieStore)
+{
+    finished = false;
+    [cookieStore getAllCookies:^(NSArray<NSHTTPCookie *> *cookies) {
+        if (!cookies || !cookies.count) {
+            finished = true;
+            return;
+        }
+
+        unsigned cookiesCount = cookies.count;
+        __block unsigned deletedCount = 0;
+        for (NSHTTPCookie* cookie in cookies) {
+            [cookieStore deleteCookie:cookie completionHandler:^{
+                if (++deletedCount == cookiesCount)
+                    finished = true;
+            }];
+        }
+    }];
+    TestWebKitAPI::Util::run(&finished);
+}
+
 TEST(WKHTTPCookieStore, WithoutProcessPoolDuplicates)
 {
     RetainPtr<WKHTTPCookieStore> httpCookieStore = [WKWebsiteDataStore defaultDataStore].httpCookieStore;
@@ -650,7 +671,9 @@ TEST(WKHTTPCookieStore, WithoutProcessPoolDuplicates)
     properties.get()[NSHTTPCookieValue] = @"OtherCookieValue";
     RetainPtr<NSHTTPCookie> sessionCookieDifferentValue = [NSHTTPCookie cookieWithProperties:properties.get()];
     finished = false;
-    
+
+    clearCookies(httpCookieStore.get());
+
     [httpCookieStore.get() setCookie:sessionCookie.get() completionHandler:^{
         finished = true;
     }];

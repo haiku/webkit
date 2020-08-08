@@ -418,6 +418,8 @@ void RenderImage::notifyFinished(CachedResource& newImage)
 
     if (is<HTMLImageElement>(element()))
         page().didFinishLoadingImageForElement(downcast<HTMLImageElement>(*element()));
+
+    RenderReplaced::notifyFinished(newImage);
 }
 
 void RenderImage::setImageDevicePixelRatio(float factor)
@@ -905,15 +907,6 @@ RenderBox* RenderImage::embeddedContentBox() const
         return downcast<SVGImage>(*cachedImage->image()).embeddedContentBox();
 
     return nullptr;
-}
-
-void RenderImage::incrementVisuallyNonEmptyPixelCountIfNeeded(const IntSize& size)
-{
-    if (m_didIncrementVisuallyNonEmptyPixelCount)
-        return;
-
-    view().frameView().incrementVisuallyNonEmptyPixelCount(size);
-    m_didIncrementVisuallyNonEmptyPixelCount = true;
 }
 
 } // namespace WebCore

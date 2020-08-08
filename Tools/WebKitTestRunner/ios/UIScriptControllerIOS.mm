@@ -836,6 +836,11 @@ JSObjectRef UIScriptControllerIOS::propertiesOfLayerWithID(uint64_t layerID) con
     return JSValueToObject(m_context->jsContext(), [JSValue valueWithObject:[webView() _propertiesOfLayerWithID:layerID] inContext:[JSContext contextWithJSGlobalContextRef:m_context->jsContext()]].JSValueRef, nullptr);
 }
 
+bool UIScriptControllerIOS::mayContainEditableElementsInRect(unsigned x, unsigned y, unsigned width, unsigned height)
+{
+    return [webView() _mayContainEditableElementsInRect:CGRectMake(x, y, width, height)];
+}
+
 static UIDeviceOrientation toUIDeviceOrientation(DeviceOrientation* orientation)
 {
     if (!orientation)
@@ -1261,6 +1266,16 @@ void UIScriptControllerIOS::doAfterDoubleTapDelay(JSValueRef callback)
 void UIScriptControllerIOS::copyText(JSStringRef text)
 {
     UIPasteboard.generalPasteboard.string = text->string();
+}
+
+void UIScriptControllerIOS::installTapGestureOnWindow(JSValueRef callback)
+{
+    m_context->registerCallback(callback, CallbackTypeWindowTapRecognized);
+    webView().windowTapRecognizedCallback = makeBlockPtr([this, strongThis = makeRef(*this)] {
+        if (!m_context)
+            return;
+        m_context->fireCallback(CallbackTypeWindowTapRecognized);
+    }).get();
 }
 
 }

@@ -50,7 +50,6 @@
 
 #if PLATFORM(IOS_FAMILY)
 #include <WebCore/RenderThemeIOS.h>
-#include <WebCore/UTTypeRecordSwizzler.h>
 #endif
 
 namespace API {
@@ -71,7 +70,7 @@ struct WebProcessCreationParameters {
     WebProcessCreationParameters& operator=(WebProcessCreationParameters&&);
 
     void encode(IPC::Encoder&) const;
-    static bool decode(IPC::Decoder&, WebProcessCreationParameters&);
+    static WARN_UNUSED_RETURN bool decode(IPC::Decoder&, WebProcessCreationParameters&);
 
     String injectedBundlePath;
     SandboxExtension::Handle injectedBundlePathExtensionHandle;
@@ -204,6 +203,7 @@ struct WebProcessCreationParameters {
 
 #if PLATFORM(IOS_FAMILY)
     Optional<SandboxExtension::Handle> diagnosticsExtensionHandle;
+    Optional<SandboxExtension::Handle> runningboardExtensionHandle;
     SandboxExtension::HandleArray dynamicMachExtensionHandles;
 #endif
 
@@ -221,9 +221,6 @@ struct WebProcessCreationParameters {
     WebCore::RenderThemeIOS::CSSValueToSystemColorMap cssValueToSystemColorMap;
     WebCore::Color focusRingColor;
     String localizedDeviceModel;
-#if USE(UTTYPE_SWIZZLER)
-    Vector<WebCore::UTTypeItem> vectorOfUTTypeItem;
-#endif
 #endif
 
 #if PLATFORM(COCOA)
@@ -231,6 +228,10 @@ struct WebProcessCreationParameters {
 #if ENABLE(CFPREFS_DIRECT_MODE)
     Optional<SandboxExtension::Handle> preferencesExtensionHandle;
 #endif
+#endif
+
+#if PLATFORM(GTK)
+    bool useSystemAppearanceForScrollbars { false };
 #endif
 };
 

@@ -26,8 +26,6 @@
 
 #pragma once
 
-#if ENABLE(INTL)
-
 #include "JSCJSValueInlines.h"
 #include "JSObject.h"
 
@@ -80,6 +78,6 @@ String removeUnicodeLocaleExtension(const String& locale);
 String bestAvailableLocale(const HashSet<String>& availableLocales, const String& requestedLocale);
 Vector<String> numberingSystemsForLocale(const String& locale);
 
-} // namespace JSC
+bool isUnicodeLocaleIdentifierType(StringView);
 
-#endif // ENABLE(INTL)
+} // namespace JSC

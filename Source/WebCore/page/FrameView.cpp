@@ -1261,12 +1261,15 @@ void FrameView::didLayout(WeakPtr<RenderElement> layoutRoot)
 
     updateCompositingLayersAfterLayout();
 
+    auto document = makeRef(*frame().document());
+
 #if PLATFORM(COCOA) || PLATFORM(WIN) || PLATFORM(GTK)
-    if (auto* cache = frame().document()->existingAXObjectCache())
+    if (auto* cache = document->existingAXObjectCache())
         cache->postNotification(layoutRoot.get(), AXObjectCache::AXLayoutComplete);
 #endif
 
-    frame().document()->invalidateRenderingDependentRegions();
+    frame().invalidateContentEventRegionsIfNeeded();
+    document->invalidateRenderingDependentRegions();
 
     updateCanBlitOnScrollRecursively();
 
@@ -1274,10 +1277,10 @@ void FrameView::didLayout(WeakPtr<RenderElement> layoutRoot)
 
     handleDeferredScrollbarsUpdateAfterDirectionChange();
 
-    if (frame().document()->hasListenerType(Document::OVERFLOWCHANGED_LISTENER))
+    if (document->hasListenerType(Document::OVERFLOWCHANGED_LISTENER))
         updateOverflowStatus(layoutWidth() < contentsWidth(), layoutHeight() < contentsHeight());
 
-    frame().document()->markers().invalidateRectsForAllMarkers();
+    document->markers().invalidateRectsForAllMarkers();
 }
 
 bool FrameView::shouldDeferScrollUpdateAfterContentSizeChange()
@@ -2279,7 +2282,7 @@ void FrameView::scrollElementToRect(const Element& element, const IntRect& rect)
     setScrollPosition(IntPoint(bounds.x() - centeringOffsetX - rect.x(), bounds.y() - centeringOffsetY - rect.y()));
 }
 
-void FrameView::setScrollPosition(const ScrollPosition& scrollPosition, ScrollClamping clamping, bool animated)
+void FrameView::setScrollPosition(const ScrollPosition& scrollPosition, ScrollClamping clamping, AnimatedScroll animated)
 {
     LOG_WITH_STREAM(Scrolling, stream << "FrameView::setScrollPosition " << scrollPosition << " , clearing anchor");
 
@@ -2292,7 +2295,7 @@ void FrameView::setScrollPosition(const ScrollPosition& scrollPosition, ScrollCl
     Page* page = frame().page();
     if (page && page->isMonitoringWheelEvents())
         scrollAnimator().setWheelEventTestMonitor(page->wheelEventTestMonitor());
-    if (animated)
+    if (animated == AnimatedScroll::Yes)
         scrollToOffsetWithAnimation(scrollOffsetFromPosition(scrollPosition), currentScrollType(), clamping);
     else
         ScrollView::setScrollPosition(scrollPosition, clamping);
@@ -4229,7 +4232,7 @@ void FrameView::didPaintContents(GraphicsContext& context, const IntRect& dirtyR
     }
 }
 
-void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect, SecurityOriginPaintPolicy securityOriginPaintPolicy)
+void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect, SecurityOriginPaintPolicy securityOriginPaintPolicy, EventRegionContext* eventRegionContext)
 {
 #ifndef NDEBUG
     bool fillWithWarningColor;
@@ -4290,8 +4293,8 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
     while (is<RenderInline>(renderer) && !downcast<RenderInline>(*renderer).firstLineBox())
         renderer = renderer->parent();
 
-    rootLayer->paint(context, dirtyRect, LayoutSize(), m_paintBehavior, renderer, { }, securityOriginPaintPolicy == SecurityOriginPaintPolicy::AnyOrigin ? RenderLayer::SecurityOriginPaintPolicy::AnyOrigin : RenderLayer::SecurityOriginPaintPolicy::AccessibleOriginOnly);
-    if (rootLayer->containsDirtyOverlayScrollbars())
+    rootLayer->paint(context, dirtyRect, LayoutSize(), m_paintBehavior, renderer, { }, securityOriginPaintPolicy == SecurityOriginPaintPolicy::AnyOrigin ? RenderLayer::SecurityOriginPaintPolicy::AnyOrigin : RenderLayer::SecurityOriginPaintPolicy::AccessibleOriginOnly, eventRegionContext);
+    if (rootLayer->containsDirtyOverlayScrollbars() && !eventRegionContext)
         rootLayer->paintOverlayScrollbars(context, dirtyRect, m_paintBehavior, renderer);
 
     didPaintContents(context, dirtyRect, paintingState);

@@ -25,8 +25,6 @@
 
 #pragma once
 
-#if ENABLE(INTL)
-
 #include "JSObject.h"
 #include <unicode/unum.h>
 #include <unicode/uvernum.h>
@@ -59,7 +57,8 @@ public:
     DECLARE_INFO;
 
     void initializeNumberFormat(JSGlobalObject*, JSValue locales, JSValue optionsValue);
-    JSValue formatNumber(JSGlobalObject*, double number);
+    JSValue format(JSGlobalObject*, double);
+    JSValue format(JSGlobalObject*, JSBigInt*);
     JSValue formatToParts(JSGlobalObject*, double value);
     JSObject* resolvedOptions(JSGlobalObject*);
 
@@ -114,5 +113,3 @@ private:
 };
 
 } // namespace JSC
-
-#endif // ENABLE(INTL)

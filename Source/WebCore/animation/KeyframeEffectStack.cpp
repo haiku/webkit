@@ -46,7 +46,7 @@ bool KeyframeEffectStack::addEffect(KeyframeEffect& effect)
 {
     // To qualify for membership in an effect stack, an effect must have a target, an animation, a timeline and be relevant.
     // This method will be called in WebAnimation and KeyframeEffect as those properties change.
-    if (!effect.target() || !effect.animation() || !effect.animation()->timeline() || !effect.animation()->isRelevant())
+    if (!effect.targetElementOrPseudoElement() || !effect.animation() || !effect.animation()->timeline() || !effect.animation()->isRelevant())
         return false;
 
     m_effects.append(makeWeakPtr(&effect));
@@ -80,11 +80,14 @@ void KeyframeEffectStack::ensureEffectsAreSorted()
         return;
 
     std::sort(m_effects.begin(), m_effects.end(), [&](auto& lhs, auto& rhs) {
+        RELEASE_ASSERT(lhs.get());
+        RELEASE_ASSERT(rhs.get());
+        
         auto* lhsAnimation = lhs->animation();
         auto* rhsAnimation = rhs->animation();
 
-        ASSERT(lhsAnimation);
-        ASSERT(rhsAnimation);
+        RELEASE_ASSERT(lhsAnimation);
+        RELEASE_ASSERT(rhsAnimation);
 
         return compareAnimationsByCompositeOrder(*lhsAnimation, *rhsAnimation, m_cssAnimationList.get());
     });

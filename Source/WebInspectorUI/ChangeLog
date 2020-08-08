@@ -1,3 +1,216 @@
+2020-04-12  Darin Adler  <darin@apple.com>
+
+        Fix a few mispellings of descendant and propagation
+        https://bugs.webkit.org/show_bug.cgi?id=210409
+
+        Reviewed by Mark Lam.
+
+        * UserInterface/Views/TreeOutline.js:
+        (WI.TreeOutline.prototype._rememberTreeElement):
+        (WI.TreeOutline.prototype._forgetTreeElement):
+        (WI.TreeOutline.prototype.selectionControllerNumberOfItems):
+
+2020-04-11  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: CSS: variables should have a go-to arrow to quickly jump to the definition
+        https://bugs.webkit.org/show_bug.cgi?id=195775
+        <rdar://problem/48905785>
+
+        Reviewed by Timothy Hatcher.
+
+        Often when debugging/editing styles that use CSS variables, the desired workflow is to
+        modify the variable itself, not that specific usage. This is especially helpful when editing
+        colors saved in CSS variables.
+
+        Add an always visible go-to arrow immediately after the variable (e.g. `--XYZ (->)`) that
+        will jump to the declaration of the variable elsewhere in the style cascade.
+
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+        (WI.SpreadsheetStyleProperty.prototype._addVariableTokens):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationEditor.css:
+        (.spreadsheet-style-declaration-editor .property .select-variable-property): Added.
+
+        * UserInterface/Base/Setting.js:
+        * UserInterface/Views/SettingsTabContentView.js:
+        (WI.SettingsTabContentView.prototype._createExperimentalSettingsView):
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-04-09  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Storage: should be able to set a cookie with no value
+        https://bugs.webkit.org/show_bug.cgi?id=210237
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/CookiePopover.js:
+        (WI.CookiePopover.prototype.get serializedData):
+        Require an explicitly set `name` instead of falling back to the `placeholder`. Allow the
+        `value` to be an empty string.
+
+        (WI.CookiePopover.prototype.show):
+        Don't have default placeholder values for `name` or `value` for the reasons above.
+        Drive-by: if an existing `WI.Cookie` is provided, use its `SameSite` value.
+
+        * UserInterface/Views/CookiePopover.css: Added.
+        (.popover .cookie-popover-content > table > tr > td > input:matches([type="text"], [type="datetime-local"]):matches(:invalid, .invalid)): Added.
+        (.popover .cookie-popover-content > table > tr > td > input:matches([type="text"], [type="datetime-local"]).invalid): Deleted.
+        Instead of changing the text color, change the border color.
+
+2020-04-09  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Debugger: debug hooks should also be emitted for the first sub-expression in a comma expression
+        https://bugs.webkit.org/show_bug.cgi?id=210253
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Workers/Formatter/JSFormatter.js:
+        (JSFormatter.prototype._handleTokenAtNode):
+        (JSFormatter.prototype._isLikelyToHaveNewline): Deleted.
+        If an arrow function wraps it's body with `{` and `}`, always add newlines to make setting
+        breakpoints inside the function body easier.
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Debugger: treat comma sub-expressions as separate statements
+        https://bugs.webkit.org/show_bug.cgi?id=209998
+
+        Reviewed by Joseph Pecoraro.
+
+        Minifiers sometimes use `,` instead of `;` as a way of compressing multiple statements into
+        a single statement (e.g. inside an `if` conditional). This makes stepping through minified
+        code much less useful, as our current stepping logic is based on expressions (not including
+        step in or step out). In most cases, we do actually want to treat each sub-expression in a
+        comma expression as a statement so as to emulate the behaviour as if there were `;` instead.
+
+        * UserInterface/Workers/Formatter/JSFormatter.js:
+        (JSFormatter.prototype._isLikelyToHaveNewline):
+        (JSFormatter.prototype._handleTokenAtNode):
+        Put each sub-expression in a comma expression on it's own line.
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Search: populate the search field with the current selection when using the global search shortcut
+        https://bugs.webkit.org/show_bug.cgi?id=210207
+
+        Reviewed by Timothy Hatcher.
+
+        Add a setting to control whether the global search (⇧⌘F) should be populated by the current
+        selection (if it exists), allowing for a quicker flow for "show me everywhere this exists".
+
+        * UserInterface/Base/Setting.js:
+        * UserInterface/Views/SettingsTabContentView.js:
+        (WI.SettingsTabContentView.prototype._createGeneralSettingsView):
+
+        * UserInterface/Base/Main.js:
+        (WI._focusSearchField)
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Storage: cannot clear out multiple or all local storage entries
+        https://bugs.webkit.org/show_bug.cgi?id=209867
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Models/DOMStorageObject.js:
+        (WI.DOMStorageObject.prototype.removeItem):
+        (WI.DOMStorageObject.prototype.setItem):
+        (WI.DOMStorageObject.prototype.clear): Added.
+        (WI.DOMStorageObject.prototype.itemsCleared):
+        (WI.DOMStorageObject.prototype.itemRemoved):
+        (WI.DOMStorageObject.prototype.itemAdded):
+        (WI.DOMStorageObject.prototype.itemUpdated):
+        Add some assertions.
+
+        * UserInterface/Views/DOMStorageContentView.js:
+        (WI.DOMStorageContentView):
+        (WI.DOMStorageContentView.prototype.get navigationItems):
+        (WI.DOMStorageContentView.prototype._handleClearNavigationItemClicked): Added.
+        Add a "Clear" navigation item that calls the new `DOMStorage.clearDOMStorageItems`.
+
+        * UserInterface/Views/DataGrid.js:
+        (WI.DataGrid.prototype.removeChild):
+        If the removed item was selected, select the next (or previous if there is no next) item.
+
+        * UserInterface/Views/CookieStorageContentView.js:
+        (WI.CookieStorageContentView):
+        (WI.CookieStorageContentView.prototype.get navigationItems):
+        (WI.CookieStorageContentView.prototype._handleClearNavigationItemClicked): Added.
+        Drive-by: also add a "Clear" navigation item that calls `Page.deleteCookie` for each row.
+
+        * UserInterface/Protocol/DOMStorageObserver.js:
+        (WI.DOMStorageObserver.prototype.domStorageItemUpdated):
+        * UserInterface/Controllers/DOMStorageManager.js:
+        (WI.DOMStorageManager.prototype.itemUpdated):
+        Drive-by: rename `value` to `newValue` to match the protocol.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Uncaught Exception: undefined is not an object (evaluating 'this._target.NetworkAgent.getResponseBody')
+        https://bugs.webkit.org/show_bug.cgi?id=210168
+
+        Reviewed by Timothy Hatcher.
+
+        If a script is loaded by the main page and a `Worker`, the `WI.Script` from the `Worker`
+        will be associated with the `WI.Resource` from the main page, the call stack in the Sources
+        Tab will use the `WI.Resource` over the `WI.Script`, but the `WI.Target` for a `Worker` does
+        not have a `NetworkAgent` or `PageAgent`. As such, inside `WI.Resource`, if the `_target` is
+        a `WI.TargetType.Worker`, use the `DebuggerAgent`.
+
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.prototype.requestContentFromBackend):
+
+        * UserInterface/Main.html:
+        Drive-by: remove unnecessary `<script>`.
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: don't reveal the prototype methods when using the "Expand All" context menu item for property-only object trees
+        https://bugs.webkit.org/show_bug.cgi?id=210123
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/ObjectTreeView.css:
+        (.object-tree.properties-only.json-only .object-tree-property.prototype-property, .object-tree.properties-only.json-only .object-tree-property.prototype-property + .children): Added.
+        (.object-tree.properties-only.json-only .object-tree-property.prototype-property): Deleted.
+
+2020-04-08  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Sources: support copying selected call frame(s) in the Call Stack
+        https://bugs.webkit.org/show_bug.cgi?id=210172
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/SourcesTabContentView.js:
+        (WI.SourcesTabContentView.prototype.handleCopyEvent): Added.
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype.handleCopyEvent): Added.
+        Copy the function name and source location for each selected call frame. If the selected
+        call frames span an async boundary, include the async boundary in the form `--- <name> ---`
+        where name is the reason for the async behavior (e.g. `addEventListener`). If the selected
+        call frames span multiple threads (e.g. `Worker`), include the thread name and indent all
+        of the call frames for that thread.
+
+        * UserInterface/Views/CallFrameTreeElement.js:
+        (WI.CallFrameTreeElement):
+        (WI.CallFrameTreeElement.prototype.get isAsyncBoundaryCallFrame): Added.
+
+2020-04-07  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: focus outline of scope bar is clipped
+        https://bugs.webkit.org/show_bug.cgi?id=209877
+        <rdar://problem/61173598>
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/ScopeBar.css:
+        (.scope-bar):
+
 2020-04-03  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: Sources: disclosure arrows should be shown if a folder is added to the navigation sidebar

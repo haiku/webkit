@@ -959,14 +959,14 @@ static Ref<CSSValue> valueForGridPosition(const GridPosition& position)
 
 static Ref<CSSValue> createTransitionPropertyValue(const Animation& animation)
 {
-    switch (animation.animationMode()) {
-    case Animation::AnimateNone:
+    switch (animation.property().mode) {
+    case Animation::TransitionMode::None:
         return CSSValuePool::singleton().createIdentifierValue(CSSValueNone);
-    case Animation::AnimateAll:
+    case Animation::TransitionMode::All:
         return CSSValuePool::singleton().createIdentifierValue(CSSValueAll);
-    case Animation::AnimateSingleProperty:
-        return CSSValuePool::singleton().createValue(getPropertyNameString(animation.property()), CSSUnitType::CSS_STRING);
-    case Animation::AnimateUnknownProperty:
+    case Animation::TransitionMode::SingleProperty:
+        return CSSValuePool::singleton().createValue(getPropertyNameString(animation.property().id), CSSUnitType::CSS_STRING);
+    case Animation::TransitionMode::UnknownProperty:
         return CSSValuePool::singleton().createValue(animation.unknownProperty(), CSSUnitType::CSS_STRING);
     }
     ASSERT_NOT_REACHED();
@@ -2194,8 +2194,8 @@ static bool updateStyleIfNeededForProperty(Element& element, CSSPropertyID prope
     auto hasValidStyle = [&] {
         auto shorthand = shorthandForProperty(propertyID);
         if (shorthand.length()) {
-            for (size_t i = 0; i < shorthand.length(); ++i) {
-                if (!hasValidStyleForProperty(element, shorthand.properties()[i]))
+            for (auto longhand : shorthand) {
+                if (!hasValidStyleForProperty(element, longhand))
                     return false;
             }
             return true;

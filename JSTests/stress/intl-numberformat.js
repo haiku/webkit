@@ -1,4 +1,4 @@
-//@ skip if $hostOS == "windows" or $hostOS == "darwin" or $hostOS == "linux"
+//@ runBigIntEnabled
 
 function shouldBe(actual, expected) {
     if (actual !== expected)
@@ -341,9 +341,9 @@ shouldBe(Intl.NumberFormat('en').format(Number.MIN_VALUE), '0');
 shouldBe(Intl.NumberFormat('en', { maximumSignificantDigits: 15 }).format(Number.MAX_VALUE), '179,769,313,486,232,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000');
 
 // Test locales.
-shouldBe(Intl.NumberFormat('en').format(1234.567), '1,234.567');
-shouldBe(Intl.NumberFormat('es').format(1234.567), '1234,567');
-shouldBe(Intl.NumberFormat('de').format(1234.567), '1.234,567');
+shouldBe(Intl.NumberFormat('en').format(12345.678), '12,345.678');
+shouldBe(Intl.NumberFormat('es').format(12345.678), '12.345,678');
+shouldBe(Intl.NumberFormat('de').format(12345.678), '12.345,678');
 
 // Test numbering systems.
 shouldBe(Intl.NumberFormat('en-u-nu-latn').format(1234.567), '1,234.567');
@@ -441,3 +441,10 @@ shouldThrow(() => Intl.NumberFormat.prototype.resolvedOptions.call(5), TypeError
     shouldBe(Intl.NumberFormat.call(legacy, 'en-u-nu-arab').format(1.2345), '١٫٢٣٥');
     shouldBe(Intl.NumberFormat.apply(incompat) !== incompat, true);
 }
+
+// BigInt tests
+shouldBe(Intl.NumberFormat().format(0n), '0');
+shouldBe(Intl.NumberFormat().format(BigInt(1)), '1');
+shouldBe(Intl.NumberFormat('ar').format(123456789n), '١٢٣٬٤٥٦٬٧٨٩');
+shouldBe(Intl.NumberFormat('zh-Hans-CN-u-nu-hanidec').format(123456789n), '一二三,四五六,七八九');
+shouldBe(Intl.NumberFormat('en', { maximumSignificantDigits: 3 }).format(123456n), '123,000');

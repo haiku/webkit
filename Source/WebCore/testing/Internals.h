@@ -123,6 +123,7 @@ struct MockWebAuthenticationConfiguration;
 class Internals final : public RefCounted<Internals>, private ContextDestructionObserver
 #if ENABLE(MEDIA_STREAM)
     , private RealtimeMediaSource::Observer
+    , private RealtimeMediaSource::AudioSampleObserver
 #endif
     {
 public:
@@ -784,7 +785,7 @@ public:
     using HasRegistrationPromise = DOMPromiseDeferred<IDLBoolean>;
     void hasServiceWorkerRegistration(const String& clientURL, HasRegistrationPromise&&);
     void terminateServiceWorker(ServiceWorker&, DOMPromiseDeferred<void>&&);
-    void isServiceWorkerRunning(ServiceWorker&, DOMPromiseDeferred<IDLBoolean>&&);
+    void whenServiceWorkerIsTerminated(ServiceWorker&, DOMPromiseDeferred<void>&&);
 #endif
 
 #if ENABLE(APPLE_PAY)
@@ -969,15 +970,16 @@ private:
 
     ExceptionOr<RenderedDocumentMarker*> markerAt(Node&, const String& markerType, unsigned index);
 
-    // RealtimeMediaSource::Observer API
 #if ENABLE(MEDIA_STREAM)
+    // RealtimeMediaSource::Observer API
     void videoSampleAvailable(MediaSample&) final;
+    // RealtimeMediaSource::AudioSampleObserver API
     void audioSamplesAvailable(const MediaTime&, const PlatformAudioData&, const AudioStreamDescription&, size_t) final { m_trackAudioSampleCount++; }
 
     OrientationNotifier m_orientationNotifier;
     unsigned long m_trackVideoSampleCount { 0 };
     unsigned long m_trackAudioSampleCount { 0 };
-    RefPtr<MediaStreamTrack> m_track;
+    RefPtr<RealtimeMediaSource> m_trackSource;
     std::unique_ptr<TrackFramePromise> m_nextTrackFramePromise;
 #endif
 

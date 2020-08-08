@@ -110,7 +110,7 @@ public:
 
     void getLocalStorageDetails(PAL::SessionID, CompletionHandler<void(Vector<LocalStorageDatabaseTracker::OriginDetails>&&)>&&);
 
-    void preconnectTo(PAL::SessionID, const URL&, const String&, WebCore::StoredCredentialsPolicy, NavigatingToAppBoundDomain);
+    void preconnectTo(PAL::SessionID, const URL&, const String&, WebCore::StoredCredentialsPolicy, Optional<NavigatingToAppBoundDomain>);
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     void clearPrevalentResource(PAL::SessionID, const RegistrableDomain&, CompletionHandler<void()>&&);
@@ -286,18 +286,9 @@ private:
     // ProcessLauncher::Client
     void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier) override;
 
-    void openNetworkProcessConnection(uint64_t connectionRequestIdentifier, WebProcessProxy&);
-
     void processAuthenticationChallenge(PAL::SessionID, Ref<AuthenticationChallengeProxy>&&);
 
     WebProcessPool& m_processPool;
-
-    struct ConnectionRequest {
-        WeakPtr<WebProcessProxy> webProcess;
-        Messages::WebProcessProxy::GetNetworkProcessConnectionDelayedReply reply;
-    };
-    uint64_t m_connectionRequestIdentifier { 0 };
-    HashMap<uint64_t, ConnectionRequest> m_connectionRequests;
 
     HashMap<uint64_t, CompletionHandler<void(WebsiteData)>> m_pendingFetchWebsiteDataCallbacks;
     HashMap<uint64_t, CompletionHandler<void()>> m_pendingDeleteWebsiteDataCallbacks;

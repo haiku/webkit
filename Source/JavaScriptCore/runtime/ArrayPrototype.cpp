@@ -600,7 +600,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncToString(JSGlobalObject* globalObject
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    JSValue thisValue = callFrame->thisValue().toThis(globalObject, StrictMode);
+    JSValue thisValue = callFrame->thisValue().toThis(globalObject, ECMAMode::strict());
 
     // 1. Let array be the result of calling ToObject on the this value.
     JSObject* thisObject = thisValue.toObject(globalObject);
@@ -683,7 +683,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncToLocaleString(JSGlobalObject* global
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    JSValue thisValue = callFrame->thisValue().toThis(globalObject, StrictMode);
+    JSValue thisValue = callFrame->thisValue().toThis(globalObject, ECMAMode::strict());
 
     JSObject* thisObject = thisValue.toObject(globalObject);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
@@ -698,9 +698,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncToLocaleString(JSGlobalObject* global
     JSStringJoiner stringJoiner(globalObject, ',', length);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
 
-#if ENABLE(INTL)
     ArgList arguments(callFrame);
-#endif
     for (unsigned i = 0; i < length; ++i) {
         JSValue element = thisObject->getIndex(globalObject, i);
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
@@ -712,11 +710,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncToLocaleString(JSGlobalObject* global
             CallData callData;
             CallType callType = getCallData(vm, conversionFunction, callData);
             if (callType != CallType::None) {
-#if ENABLE(INTL)
                 element = call(globalObject, conversionFunction, callType, callData, element, arguments);
-#else
-                element = call(globalObject, conversionFunction, callType, callData, element, *vm.emptyList);
-#endif
                 RETURN_IF_EXCEPTION(scope, encodedJSValue());
             }
         }
@@ -781,7 +775,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncJoin(JSGlobalObject* globalObject, Ca
     auto scope = DECLARE_THROW_SCOPE(vm);
 
     // 1. Let O be ? ToObject(this value).
-    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObject);
     if (UNLIKELY(!thisObject))
         return encodedJSValue();
@@ -866,7 +860,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncPop(JSGlobalObject* globalObject, Cal
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    JSValue thisValue = callFrame->thisValue().toThis(globalObject, StrictMode);
+    JSValue thisValue = callFrame->thisValue().toThis(globalObject, ECMAMode::strict());
 
     if (isJSArray(thisValue))
         RELEASE_AND_RETURN(scope, JSValue::encode(asArray(thisValue)->pop(globalObject)));
@@ -901,7 +895,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncPush(JSGlobalObject* globalObject, Ca
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    JSValue thisValue = callFrame->thisValue().toThis(globalObject, StrictMode);
+    JSValue thisValue = callFrame->thisValue().toThis(globalObject, ECMAMode::strict());
 
     if (LIKELY(isJSArray(thisValue) && callFrame->argumentCount() == 1)) {
         JSArray* array = asArray(thisValue);
@@ -942,7 +936,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncReverse(JSGlobalObject* globalObject,
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObject);
     if (UNLIKELY(!thisObject))
         return encodedJSValue();
@@ -1039,7 +1033,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncShift(JSGlobalObject* globalObject, C
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObj);
     if (UNLIKELY(!thisObj))
         return encodedJSValue();
@@ -1066,7 +1060,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSlice(JSGlobalObject* globalObject, C
     // https://tc39.github.io/ecma262/#sec-array.prototype.slice
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObj);
     if (UNLIKELY(!thisObj))
         return { };
@@ -1126,7 +1120,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSplice(JSGlobalObject* globalObject, 
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObj);
     if (UNLIKELY(!thisObj))
         return encodedJSValue();
@@ -1224,7 +1218,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncUnShift(JSGlobalObject* globalObject,
     auto scope = DECLARE_THROW_SCOPE(vm);
     // 15.4.4.13
 
-    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObj = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObj);
     if (UNLIKELY(!thisObj))
         return encodedJSValue();
@@ -1356,7 +1350,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncIndexOf(JSGlobalObject* globalObject,
     auto scope = DECLARE_THROW_SCOPE(vm);
 
     // 15.4.4.14
-    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObject);
     if (UNLIKELY(!thisObject))
         return { };
@@ -1394,7 +1388,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncLastIndexOf(JSGlobalObject* globalObj
     auto scope = DECLARE_THROW_SCOPE(vm);
 
     // 15.4.4.15
-    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, StrictMode).toObject(globalObject);
+    JSObject* thisObject = callFrame->thisValue().toThis(globalObject, ECMAMode::strict()).toObject(globalObject);
     EXCEPTION_ASSERT(!!scope.exception() == !thisObject);
     if (UNLIKELY(!thisObject))
         return { };

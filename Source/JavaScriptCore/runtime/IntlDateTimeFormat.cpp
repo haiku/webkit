@@ -27,8 +27,6 @@
 #include "config.h"
 #include "IntlDateTimeFormat.h"
 
-#if ENABLE(INTL)
-
 #include "DateInstance.h"
 #include "Error.h"
 #include "IntlDateTimeFormatConstructor.h"
@@ -450,6 +448,26 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     String localeMatcher = intlStringOption(globalObject, options, vm.propertyNames->localeMatcher, { "lookup", "best fit" }, "localeMatcher must be either \"lookup\" or \"best fit\"", "best fit");
     RETURN_IF_EXCEPTION(scope, void());
     opt.add(vm.propertyNames->localeMatcher.string(), localeMatcher);
+
+    String calendar = intlStringOption(globalObject, options, vm.propertyNames->calendar, { }, nullptr, nullptr);
+    RETURN_IF_EXCEPTION(scope, void());
+    if (!calendar.isNull()) {
+        if (!isUnicodeLocaleIdentifierType(calendar)) {
+            throwRangeError(globalObject, scope, "calendar is not a well-formed calendar value"_s);
+            return;
+        }
+        opt.add("ca"_s, calendar);
+    }
+
+    String numberingSystem = intlStringOption(globalObject, options, vm.propertyNames->numberingSystem, { }, nullptr, nullptr);
+    RETURN_IF_EXCEPTION(scope, void());
+    if (!numberingSystem.isNull()) {
+        if (!isUnicodeLocaleIdentifierType(numberingSystem)) {
+            throwRangeError(globalObject, scope, "numberingSystem is not a well-formed numbering system value"_s);
+            return;
+        }
+        opt.add("nu"_s, numberingSystem);
+    }
 
     bool isHour12Undefined;
     bool hour12 = intlBooleanOption(globalObject, options, vm.propertyNames->hour12, isHour12Undefined);
@@ -1038,5 +1056,3 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
 }
 
 } // namespace JSC
-
-#endif // ENABLE(INTL)

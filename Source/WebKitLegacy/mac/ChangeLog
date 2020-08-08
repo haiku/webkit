@@ -1,3 +1,302 @@
+2020-04-13  Tim Horton  <timothy_horton@apple.com>
+
+        REGRESSION (r259843): "Missing Plug-In" when dragging an image into Mail Compose
+        https://bugs.webkit.org/show_bug.cgi?id=210458
+        <rdar://problem/61735361>
+
+        Reviewed by Wenson Hsieh.
+
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (WebFrameLoaderClient::createPlugin):
+        r259843 changed this code from making a dictionary with a set of key->object mappings
+        to making a dictionary with an array of keys as its only key and an array of objects
+        as that key's value. Not quite the same thing.
+
+        Go back to dictionaryWithObjects:forKeys:.
+
+2020-04-13  David Kilzer  <ddkilzer@apple.com>
+
+        Fix clang static analyzer warnings about unused instance variables in WebIconDatabase, WKView
+        <https://webkit.org/b/210427>
+
+        Reviewed by Alex Christensen.
+
+        * Misc/WebIconDatabase.h:
+        (WebIconDatabase._private):
+        - Use WK_UNUSED_INSTANCE_VARIABLE to ignore unused instance
+          variable.
+
+2020-04-11  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [macOS] [WK1] Touch Bar flashes when typing in Vietnamese in Mail
+        https://bugs.webkit.org/show_bug.cgi?id=210394
+        <rdar://problem/60099560>
+
+        Reviewed by Tim Horton.
+
+        In recent versions of macOS, changes to the animation of the candidate list touch bar item when it is expanded
+        or collapsed using -updateWithInsertionPointVisibility: mean that back-to-back calls to hide and show the
+        candidate list during the same runloop now result in a visible flicker, whereas it would remain still in prior
+        releases.
+
+        Combined with how `-[WebHTMLView insertText:]` in WebKitLegacy causes multiple selection change updates if the
+        argument is an attributed string with the text replacement attribute, this means that there is now a visible
+        flicker in the touch bar when using input methods that rely on the `NSTextInputReplacementRangeAttributeName`
+        attribute. One such input method is Simple Telex (Vietnamese), when typing causes characters in other parts of
+        the word to gain diacritics.
+
+        To fix this, we make two small adjustments in WebKitLegacy (see below).
+
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView insertText:]):
+
+        While inserting text (which may be an NSAttibutedString or NSString), we may come across an attribute indicating
+        which part of the document to replace. In this case, we will select this range in the document before inserting
+        the given text.
+
+        This selection change is propagated to the client layer, which makes us briefly think that we have a ranged
+        selection, causing the flicker described above. Address this by suppressing selection change notifications while
+        we're selecting the range to replace, using the new `IgnoreSelectionChangeForScope` RAII object (see WebCore
+        changes for more detail).
+
+        * WebView/WebView.mm:
+        (-[WebView updateTextTouchBar]):
+
+        When updating the text touch bar (which contains the candidate list item) after a selection change, we currently
+        handle the case where selection changes are ignored by hiding the candidate list; this doesn't seem right, since
+        selection changes that are ignored should simply be ignored by the client. To fix this, push the
+        `ignoreSelectionChanges()` check into the if statement.
+
+2020-04-10  Darin Adler  <darin@apple.com>
+
+        Move more from live range to SimpleRange: callers of absoluteTextRects
+        https://bugs.webkit.org/show_bug.cgi?id=210369
+
+        Reviewed by Anders Carlsson.
+
+        * DOM/DOM.mm:
+        (-[DOMNode textRects]): Moved implementation here. There's no reason for Node
+        to have a textRects function, since it's a layout/rendering operation and a
+        single node is also an unusual special case, but for now we will keep this
+        legacy method for compatibility with old clients.
+        (-[DOMRange textRects]): Changed to call RenderObject::absoluteTextRects
+        instead of Range::absoluteTextRects.
+
+        * WebView/WebFrame.mm:
+        (-[WebFrame _rectsForRange:]): Changed to call -[DOMRange textRects] instead
+        of Range::absoluteTextRects. Don't really need two identical methods but
+        probably need to keep this around for compatiblitiy.
+
+2020-04-08  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Simplify NSArray, NSDictionary, and NSNumber idioms throughout WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=210138
+
+        Reviewed by Alex Christensen.
+
+        * DOM/DOM.mm:
+        (kit): Deleted overload that takes Vector<IntRect>.
+        (-[DOMNode textRects]): Use createNSArray.
+        (-[DOMRange textRects]): Ditto.
+
+        * DOM/ExceptionHandlers.mm:
+        (raiseDOMErrorException): Use @().
+
+        * History/WebBackForwardList.mm:
+        (-[WebBackForwardList dictionaryRepresentation]): Use @{}.
+
+        * History/WebHistory.mm:
+        (+[WebHistoryPrivate initialize]): Use @{}.
+        (-[WebHistory _sendNotification:entries:]): Use @{}.
+
+        * History/WebHistoryItem.mm:
+        (-[WebHistoryItem initFromDictionaryRepresentation:]): Use makeVector<String>.
+        (-[WebHistoryItem dictionaryRepresentation:]): Use createNSArray and @().
+
+        * History/WebURLsWithTitles.m:
+        (+[WebURLsWithTitles arrayWithIFURLsWithTitlesPboardType]): Use @[].
+        (+[WebURLsWithTitles writeURLs:andTitles:toPasteboard:]): Use @[].
+
+        * Misc/WebCache.mm:
+        (+[WebCache statistics]): Use @[], @{}, and @().
+        * Misc/WebCoreStatistics.mm:
+        (+[WebCoreStatistics memoryStatistics]): Ditto.
+
+        * Misc/WebKitErrors.m:
+        (-[NSError _webkit_initWithDomain:code:URL:]): Use @().
+        (+[NSError _registerWebKitErrors]): Use @().
+        (-[NSError _initWithPluginErrorCode:contentURL:pluginPageURL:pluginName:MIMEType:]): Use @().
+
+        * Misc/WebKitNSStringExtras.mm:
+        (-[NSString _web_drawAtPoint:font:textColor:]): Use @{}.
+        (-[NSString _web_widthWithFont:]): Use @{}.
+
+        * Misc/WebNSFileManagerExtras.mm: Removed unneeded include.
+
+        * Misc/WebNSPasteboardExtras.mm:
+        (+[NSPasteboard _web_dragTypesForURL]): Use @[].
+        (-[NSPasteboard _web_writeURL:andTitle:types:]): Use @[].
+        (+[NSPasteboard _web_setFindPasteboardString:withOwner:]): Use @[].
+
+        * Misc/WebNSURLExtras.mm: Removed unneeded include.
+
+        * Plugins/Hosted/NetscapePluginHostManager.mm:
+        (WebKit::NetscapePluginHostManager::spawnPluginHost): Use @{}.
+
+        * Plugins/Hosted/NetscapePluginHostProxy.mm:
+        (WKPCIdentifierInfo): Use @().
+
+        * Plugins/Hosted/NetscapePluginInstanceProxy.mm:
+        (WebKit::NetscapePluginInstanceProxy::addValueToArray): Use @().
+
+        * Plugins/Hosted/WebHostedNetscapePluginView.mm: Removed unneeded include.
+        * Plugins/WebBasePluginPackage.mm: Ditto.
+
+        * Plugins/WebPluginContainerCheck.mm:
+        (-[WebPluginContainerCheck _actionInformationWithURL:]): Use @{}.
+
+        * Plugins/WebPluginDatabase.mm:
+        (+[WebPluginDatabase _defaultPlugInPaths]): Use @[].
+
+        * Storage/WebDatabaseManager.mm:
+        (-[WebDatabaseManager databasesWithOrigin:]): Use createNSArray.
+
+        * WebCoreSupport/CorrectionPanel.mm:
+        (CorrectionPanel::show): Use createNSArray.
+
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::addMessageToConsole): Use @().
+
+        * WebCoreSupport/WebEditorClient.mm:
+        (attributesForAttributedStringConversion): Use @().
+        (WebEditorClient::getGuessesForWord): Use makeVector<String>.
+
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (WebFrameLoaderClient::actionDictionary const): Use @().
+        (kit): Deleted overload that takes Vector<String>.
+        (pluginView): Use @{}.
+        (WebFrameLoaderClient::createPlugin): Use createNSArray, @{}, and @().
+        (WebFrameLoaderClient::createJavaAppletWidget): Use createNSArray.
+
+        * WebCoreSupport/WebOpenPanelResultListener.mm:
+        (-[WebOpenPanelResultListener chooseFilenames:]): Use makeVector<String>.
+        (-[WebOpenPanelResultListener chooseFilename:displayString:iconImage:]): Use @[].
+        (-[WebOpenPanelResultListener chooseFilenames:displayString:iconImage:]): Use makeVector<String>.
+
+        * WebCoreSupport/WebSelectionServiceController.mm:
+        (WebSelectionServiceController::handleSelectionServiceClick):
+        Comment out an unused argument.
+
+        * WebView/WebFrame.mm:
+        (-[WebFrame _rectsForRange:]): Use createNSArrray.
+        (-[WebFrame _computePageRectsWithPrintScaleFactor:pageSize:]): Use createNSArray and @[].
+        (-[WebFrame childFrames]): Use @[].
+
+        * WebView/WebHTMLView.mm:
+        (+[WebHTMLView _selectionPasteboardTypes]): Use @[].
+        (-[WebHTMLView namesOfPromisedFilesDroppedAtDestination:]): Use @[].
+        (-[WebHTMLView knowsPageRange:]): Use @[].
+        (-[WebHTMLView accessibilityAttributeValue:]): Use @[].
+        (-[WebHTMLView copyFont:]): Use @[].
+        (-[WebHTMLView _interpretKeyEvent:savingCommands:]): Use @[].
+        (-[WebHTMLView selectionTextRects]): Use createNSArray.
+        (-[WebHTMLView rectsForTextMatches]): Use createNSArray and @[].
+
+        * WebView/WebPDFRepresentation.mm: Removed unneeded include.
+        (+[WebPDFRepresentation postScriptMIMETypes]): Use @[].
+        (+[WebPDFRepresentation supportedMIMETypes]): Use @[].
+
+        * WebView/WebPDFView.mm:
+        (-[WebPDFView elementAtPoint:]): Use @{} and @().
+        (-[WebPDFView viewState]): Use @().
+        (-[WebPDFView selectionTextRects]): Use @[].
+        (-[WebPDFView pasteboardTypesForSelection]): Use @[].
+        (-[WebPDFView _menuItemsFromPDFKitForEvent:]): Use @().
+        (-[WebPDFView _openWithFinder:]): Use @{} and @().
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]): Use @().
+        (-[WebPreferences _setUnsignedIntValue:forKey:]): Use @().
+        (+[WebPreferences _setInitialDefaultTextEncodingToSystemEncoding]): Use @().
+        (-[WebPreferences setStorageBlockingPolicy:]): Use @{} and @().
+
+        * WebView/WebScriptDebugger.mm:
+        (WebScriptDebugger::sourceParsed): Use @().
+
+        * WebView/WebTextCompletionController.mm:
+        (-[WebTextCompletionController _placePopupWindow:]): Use @{}.
+
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]): Use makeVector<String>.
+        (-[WebView _contentsOfUserInterfaceItem:]): Use @().
+        (toStringVector): Deleted.
+        (+[WebView _addUserScriptToGroup:world:source:url:whitelist:blacklist:injectionTime:injectedFrames:]):
+        Use makeVector<String>.
+        (+[WebView _addUserStyleSheetToGroup:world:source:url:whitelist:blacklist:injectedFrames:]):
+        Use makeVector<String>.
+        (-[WebView _elementAtWindowPoint:]): Use @{}.
+        (-[WebView pasteboardTypesForSelection]): Use @[].
+        (-[WebView pasteboardTypesForElement:]): Use @[].
+        (-[WebView rectsForTextMatches]): Use @[].
+        (-[WebView _searchWithGoogleFromMenu:]): Use @[].
+        (-[WebView _setFontWhitelist:]): Use makeVector<String>.
+
+2020-04-08  Daniel Bates  <dabates@apple.com>
+
+        Track editable elements on screen
+        https://bugs.webkit.org/show_bug.cgi?id=209888
+        <rdar://problem/61196886>
+
+        Reviewed by Simon Fraser.
+
+        Add feature define to track editable elements on screen (enabled by default on iOS and iOS Simulator).
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-04-08  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r259708.
+
+        Broke the iOS device Build
+
+        Reverted changeset:
+
+        "Enable the use of XCBuild by default in Apple builds"
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        https://trac.webkit.org/changeset/259708
+
+2020-04-08  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * Configurations/WebKitLegacy.xcconfig:
+
 2020-04-06  Ross Kirsling  <ross.kirsling@sony.com>
 
         Update minimum ICU version to 60.2

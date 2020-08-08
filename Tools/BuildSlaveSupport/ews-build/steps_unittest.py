@@ -20,6 +20,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import inspect
 import operator
 import os
 import shutil
@@ -29,6 +30,7 @@ from buildbot.process import remotetransfer
 from buildbot.process.results import Results, SUCCESS, FAILURE, WARNINGS, SKIPPED, EXCEPTION, RETRY
 from buildbot.test.fake.remotecommand import Expect, ExpectRemoteRef, ExpectShell
 from buildbot.test.util.steps import BuildStepMixin
+from buildbot.util import identifiers as buildbot_identifiers
 from mock import call
 from twisted.internet import error, reactor
 from twisted.python import failure, log
@@ -37,8 +39,8 @@ from twisted.trial import unittest
 from steps import (AnalyzeAPITestsResults, AnalyzeCompileWebKitResults, AnalyzeJSCTestsResults,
                    AnalyzeLayoutTestsResults, ApplyPatch, ApplyWatchList, ArchiveBuiltProduct, ArchiveTestResults,
                    CheckOutSource, CheckOutSpecificRevision, CheckPatchRelevance, CheckPatchStatusOnEWSQueues, CheckStyle,
-                   CleanBuild, CleanUpGitIndexLock, CleanWorkingDirectory, CompileJSC, CompileJSCToT, CompileWebKit,
-                   CompileWebKitToT, ConfigureBuild, CreateLocalGITCommit,
+                   CleanBuild, CleanUpGitIndexLock, CleanWorkingDirectory, CompileJSC, CompileJSCWithoutPatch, CompileWebKit,
+                   CompileWebKitWithoutPatch, ConfigureBuild, CreateLocalGITCommit,
                    DownloadBuiltProduct, DownloadBuiltProductFromMaster, ExtractBuiltProduct, ExtractTestResults,
                    FindModifiedChangeLogs, InstallGtkDependencies, InstallWpeDependencies, KillOldProcesses,
                    PrintConfiguration, PushCommitToWebKitRepo, ReRunAPITests, ReRunJavaScriptCoreTests, ReRunWebKitPerlTests,
@@ -202,6 +204,17 @@ def uploadFileWithContentsOfString(string, timestamp=None):
         if timestamp:
             writer.remote_utime(timestamp)
     return behavior
+
+
+class TestStepNameShouldBeValidIdentifier(BuildStepMixinAdditions, unittest.TestCase):
+    def test_step_names_are_valid(self):
+        import steps
+        build_step_classes = inspect.getmembers(steps, inspect.isclass)
+        for build_step in build_step_classes:
+            if 'name' in vars(build_step[1]):
+                name = build_step[1].name
+                self.assertFalse(' ' in name, 'step name "{}" contain space.'.format(name))
+                self.assertTrue(buildbot_identifiers.ident_re.match(name), 'step name "{}" is not a valid buildbot identifier.'.format(name))
 
 
 class TestCheckStyle(BuildStepMixinAdditions, unittest.TestCase):
@@ -999,7 +1012,7 @@ class TestCompileWebKit(BuildStepMixinAdditions, unittest.TestCase):
         return self.runStep()
 
 
-class TestCompileWebKitToT(BuildStepMixinAdditions, unittest.TestCase):
+class TestCompileWebKitWithoutPatch(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):
         self.longMessage = True
         return self.setUpBuildStep()
@@ -1008,7 +1021,7 @@ class TestCompileWebKitToT(BuildStepMixinAdditions, unittest.TestCase):
         return self.tearDownBuildStep()
 
     def test_success(self):
-        self.setupStep(CompileWebKitToT())
+        self.setupStep(CompileWebKitWithoutPatch())
         self.setProperty('fullPlatform', 'ios-simulator-11')
         self.setProperty('configuration', 'release')
         self.setProperty('patchFailedToBuild', True)
@@ -1023,7 +1036,7 @@ class TestCompileWebKitToT(BuildStepMixinAdditions, unittest.TestCase):
         return self.runStep()
 
     def test_failure(self):
-        self.setupStep(CompileWebKitToT())
+        self.setupStep(CompileWebKitWithoutPatch())
         self.setProperty('fullPlatform', 'mac-sierra')
         self.setProperty('configuration', 'debug')
         self.setProperty('patchFailedTests', True)
@@ -1039,7 +1052,7 @@ class TestCompileWebKitToT(BuildStepMixinAdditions, unittest.TestCase):
         return self.runStep()
 
     def test_skip(self):
-        self.setupStep(CompileWebKitToT())
+        self.setupStep(CompileWebKitWithoutPatch())
         self.setProperty('fullPlatform', 'ios-simulator-11')
         self.setProperty('configuration', 'release')
         self.expectHidden(True)
@@ -1058,7 +1071,7 @@ class TestAnalyzeCompileWebKitResults(BuildStepMixinAdditions, unittest.TestCase
     def test_patch_with_build_failure(self):
         previous_steps = [
             mock_step(CompileWebKit(), results=FAILURE),
-            mock_step(CompileWebKitToT(), results=SUCCESS),
+            mock_step(CompileWebKitWithoutPatch(), results=SUCCESS),
         ]
         self.setupStep(AnalyzeCompileWebKitResults(), previous_steps=previous_steps)
         self.setProperty('patch_id', '1234')
@@ -1071,7 +1084,7 @@ class TestAnalyzeCompileWebKitResults(BuildStepMixinAdditions, unittest.TestCase
     def test_patch_with_build_failure_on_commit_queue(self):
         previous_steps = [
             mock_step(CompileWebKit(), results=FAILURE),
-            mock_step(CompileWebKitToT(), results=SUCCESS),
+            mock_step(CompileWebKitWithoutPatch(), results=SUCCESS),
         ]
         self.setupStep(AnalyzeCompileWebKitResults(), previous_steps=previous_steps)
         self.setProperty('patch_id', '1234')
@@ -1082,10 +1095,10 @@ class TestAnalyzeCompileWebKitResults(BuildStepMixinAdditions, unittest.TestCase
         self.assertEqual(self.getProperty('build_finish_summary'), 'Patch 1234 does not build')
         return rc
 
-    def test_patch_with_ToT_failure(self):
+    def test_patch_with_trunk_failure(self):
         previous_steps = [
             mock_step(CompileWebKit(), results=FAILURE),
-            mock_step(CompileWebKitToT(), results=FAILURE),
+            mock_step(CompileWebKitWithoutPatch(), results=FAILURE),
         ]
         self.setupStep(AnalyzeCompileWebKitResults(), previous_steps=previous_steps)
         self.expectOutcome(result=FAILURE, state_string='Unable to build WebKit without patch, retrying build (failure)')
@@ -1130,7 +1143,7 @@ class TestCompileJSC(BuildStepMixinAdditions, unittest.TestCase):
         return self.runStep()
 
 
-class TestCompileJSCToT(BuildStepMixinAdditions, unittest.TestCase):
+class TestCompileJSCWithoutPatch(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):
         self.longMessage = True
         return self.setUpBuildStep()
@@ -1139,7 +1152,7 @@ class TestCompileJSCToT(BuildStepMixinAdditions, unittest.TestCase):
         return self.tearDownBuildStep()
 
     def test_success(self):
-        self.setupStep(CompileJSCToT())
+        self.setupStep(CompileJSCWithoutPatch())
         self.setProperty('fullPlatform', 'jsc-only')
         self.setProperty('configuration', 'release')
         self.setProperty('patchFailedToBuild', 'True')
@@ -1154,7 +1167,7 @@ class TestCompileJSCToT(BuildStepMixinAdditions, unittest.TestCase):
         return self.runStep()
 
     def test_failure(self):
-        self.setupStep(CompileJSCToT())
+        self.setupStep(CompileJSCWithoutPatch())
         self.setProperty('fullPlatform', 'jsc-only')
         self.setProperty('configuration', 'debug')
         self.expectRemoteCommands(
@@ -2148,6 +2161,51 @@ class TestUnApplyPatchIfRequired(BuildStepMixinAdditions, unittest.TestCase):
         self.setupStep(UnApplyPatchIfRequired())
         self.expectHidden(True)
         self.expectOutcome(result=SKIPPED, state_string='Unapplied patch (skipped)')
+        return self.runStep()
+
+
+class TestCheckPatchRelevance(BuildStepMixinAdditions, unittest.TestCase):
+    def setUp(self):
+        self.longMessage = True
+        return self.setUpBuildStep()
+
+    def tearDown(self):
+        return self.tearDownBuildStep()
+
+    def test_relevant_jsc_patch(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch; file: JSTests/'
+        self.setupStep(CheckPatchRelevance())
+        self.setProperty('buildername', 'JSC-Tests-EWS')
+        self.assertEqual(CheckPatchRelevance.haltOnFailure, True)
+        self.assertEqual(CheckPatchRelevance.flunkOnFailure, True)
+        self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
+        return self.runStep()
+
+    def test_relevant_wk1_patch(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch; file: Source/WebKitLegacy'
+        self.setupStep(CheckPatchRelevance())
+        self.setProperty('buildername', 'macOS-Mojave-Release-WK1-Tests-EWS')
+        self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
+        return self.runStep()
+
+    def test_queues_without_relevance_info(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch'
+        queues = ['Commit-Queue', 'Style-EWS', 'Apply-WatchList-EWS', 'GTK-Build-EWS', 'GTK-WK2-Tests-EWS',
+                  'iOS-13-Build-EWS', 'iOS-13-Simulator-Build-EWS', 'iOS-13-Simulator-WK2-Tests-EWS',
+                  'macOS-Mojave-Release-Build-EWS', 'macOS-Mojave-Release-WK2-Tests-EWS', 'macOS-Mojave-Debug-Build-EWS',
+                  'Windows-EWS', 'WinCairo-EWS', 'WPE-EWS', 'WebKitPerl-Tests-EWS']
+        for queue in queues:
+            self.setupStep(CheckPatchRelevance())
+            self.setProperty('buildername', queue)
+            self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
+        return self.runStep()
+
+    def test_non_relevant_patch(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch'
+        self.setupStep(CheckPatchRelevance())
+        self.setProperty('buildername', 'JSC-Tests-EWS')
+        self.setProperty('patch_id', '1234')
+        self.expectOutcome(result=FAILURE, state_string='Patch doesn\'t have relevant changes')
         return self.runStep()
 
 

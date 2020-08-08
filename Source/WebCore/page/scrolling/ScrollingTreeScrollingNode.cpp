@@ -120,6 +120,20 @@ void ScrollingTreeScrollingNode::commitStateAfterChildren(const ScrollingStateNo
     m_isFirstCommit = false;
 }
 
+bool ScrollingTreeScrollingNode::isLatchedNode() const
+{
+    return scrollingTree().latchedNodeID() == scrollingNodeID();
+}
+
+bool ScrollingTreeScrollingNode::canScrollWithWheelEvent(const PlatformWheelEvent& wheelEvent) const
+{
+    if (!canHaveScrollbars())
+        return false;
+
+    // We always rubber-band the latched node, or the root node.
+    return isLatchedNode() || isRootNode() || !scrollLimitReached(wheelEvent);
+}
+
 ScrollingEventResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
 {
     return ScrollingEventResult::DidNotHandleEvent;
@@ -146,9 +160,36 @@ FloatPoint ScrollingTreeScrollingNode::maximumScrollPosition() const
 bool ScrollingTreeScrollingNode::scrollLimitReached(const PlatformWheelEvent& wheelEvent) const
 {
     FloatPoint oldScrollPosition = currentScrollPosition();
-    FloatPoint newScrollPosition = oldScrollPosition + FloatSize(wheelEvent.deltaX(), -wheelEvent.deltaY());
+    FloatPoint newScrollPosition = oldScrollPosition + FloatSize(-wheelEvent.deltaX(), -wheelEvent.deltaY());
     newScrollPosition = newScrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
     return newScrollPosition == oldScrollPosition;
+}
+
+RectEdges<bool> ScrollingTreeScrollingNode::edgePinnedState() const
+{
+    auto scrollPosition = currentScrollPosition();
+    auto minScrollPosition = minimumScrollPosition();
+    auto maxScrollPosition = maximumScrollPosition();
+
+    // Top, right, bottom, left.
+    return {
+        scrollPosition.y() <= minScrollPosition.y(),
+        scrollPosition.x() >= maxScrollPosition.x(),
+        scrollPosition.y() >= maxScrollPosition.y(),
+        scrollPosition.x() <= minScrollPosition.x()
+    };
+}
+
+bool ScrollingTreeScrollingNode::isRubberBanding() const
+{
+    auto scrollPosition = currentScrollPosition();
+    auto minScrollPosition = minimumScrollPosition();
+    auto maxScrollPosition = maximumScrollPosition();
+
+    return scrollPosition.x() < minScrollPosition.x()
+        || scrollPosition.x() > maxScrollPosition.x()
+        || scrollPosition.y() < minScrollPosition.y()
+        || scrollPosition.y() > maxScrollPosition.y();
 }
 
 FloatPoint ScrollingTreeScrollingNode::adjustedScrollPosition(const FloatPoint& scrollPosition, ScrollClamping clamping) const

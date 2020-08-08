@@ -878,8 +878,6 @@ webkit.org/b/206708 fast/animation/request-animation-frame-iframe.html [ Pass Fa
 
 webkit.org/b/206961 [ Mojave ] media/media-fragments/TC0035.html [ Pass Failure ]
 
-webkit.org/b/207003 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-overflow.html [ Pass Failure ]
-
 webkit.org/b/207060 imported/w3c/web-platform-tests/html/webappapis/timers/type-long-setinterval.html [ Pass Failure ]
 
 webkit.org/b/207078 webgpu/whlsl/textures-sample-level.html [ Pass ImageOnlyFailure Crash ]
@@ -891,8 +889,6 @@ webkit.org/b/207127 webgpu/whlsl/buffer-vertex.html [ Pass ImageOnlyFailure ]
 webkit.org/b/206903 inspector/heap/getRemoteObject.html [ Pass Crash ]
 
 webkit.org/b/207141 [ Release ] inspector/canvas/create-context-bitmaprenderer.html [ Pass Failure ]
-
-webkit.org/b/207143 [ Mojave ] media/media-fragments/TC0087.html [ Pass Failure ]
 
 webkit.org/b/207149  [ Mojave ] imported/w3c/web-platform-tests/webrtc/RTCDtlsTransport-state.html [ Pass Failure ]
 
@@ -959,6 +955,7 @@ webkit.org/b/207728 [ Release ] accessibility/press-targets-center-point.html [ 
 webkit.org/b/206699 http/tests/media/now-playing-info.html [ Pass Failure ]
 
 webkit.org/b/209989 [ Mojave Debug ] http/tests/media/clearkey/collect-webkit-media-session.html [ Failure ]
+webkit.org/b/209989 [ Mojave Debug ] http/tests/media/media-stream/collect-media-devices.https.html [ Pass Failure ]
 
 webkit.org/b/207779 webgpu/whlsl/dereference-pointer-should-type-check.html [ Pass ImageOnlyFailure ]
 
@@ -1013,6 +1010,8 @@ webkit.org/b/209077 svg/custom/object-sizing-explicit-width.xhtml [ Pass Failure
 
 webkit.org/b/209052 fast/scrolling/mac/absolute-in-overflow-scroll-dynamic.html [ Pass ImageOnlyFailure ]
 
+webkit.org/b/210348 fast/scrolling/latching/iframe-latch-small-deltas.html [ Pass Failure ]
+
 webkit.org/b/209148 imported/w3c/web-platform-tests/mediacapture-streams/MediaStream-MediaElement-srcObject.https.html [ Pass Failure ]
 webkit.org/b/209148 imported/w3c/web-platform-tests/mediacapture-streams/MediaStream-removetrack.https.html [ Pass Failure ]
 webkit.org/b/209148 imported/w3c/web-platform-tests/mediacapture-streams/MediaStream-MediaElement-firstframe.https.html [ Pass Failure ]
@@ -1042,3 +1041,9 @@ webkit.org/b/209672 http/wpt/service-workers/service-worker-spinning-fetch.https
 webkit.org/b/209769 [ Catalina ] tiled-drawing/scrolling/frames/frameset-nested-frame-scrollability.html [ Pass Failure ]
 
 webkit.org/b/209878  [ Debug ] webrtc/datachannel/multiple-connections.html [ Slow ]
+
+webkit.org/b/210165 [ Catalina ] webrtc/peer-connection-audio-mute2.html [ Pass Timeout Failure ]
+
+webkit.org/b/210349 [ Debug ] media/modern-media-controls/media-controller/media-controller-auto-hide.html [ Pass Timeout ]
+
+webkit.org/b/210433 swipe/basic-cached-back-swipe.html [ Pass Crash Timeout ]

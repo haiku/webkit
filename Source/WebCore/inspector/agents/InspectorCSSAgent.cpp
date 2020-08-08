@@ -679,7 +679,7 @@ void InspectorCSSAgent::setRuleSelector(ErrorString& errorString, const JSON::Ob
         return;
     }
 
-    result = inspectorStyleSheet->buildObjectForRule(inspectorStyleSheet->ruleForId(compoundId), nullptr);
+    result = inspectorStyleSheet->buildObjectForRule(inspectorStyleSheet->ruleForId(compoundId));
 }
 
 void InspectorCSSAgent::createStyleSheet(ErrorString& errorString, const String& frameId, String* styleSheetId)
@@ -772,7 +772,7 @@ void InspectorCSSAgent::addRule(ErrorString& errorString, const String& styleShe
 
     InspectorCSSId ruleId = rawAction.newRuleId();
     CSSStyleRule* rule = inspectorStyleSheet->ruleForId(ruleId);
-    result = inspectorStyleSheet->buildObjectForRule(rule, nullptr);
+    result = inspectorStyleSheet->buildObjectForRule(rule);
 }
 
 void InspectorCSSAgent::getSupportedCSSProperties(ErrorString&, RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::CSSPropertyInfo>>& cssProperties)
@@ -795,13 +795,12 @@ void InspectorCSSAgent::getSupportedCSSProperties(ErrorString&, RefPtr<JSON::Arr
             property->setAliases(WTFMove(aliasesArray));
         }
 
-        const StylePropertyShorthand& shorthand = shorthandForProperty(propertyID);
+        auto shorthand = shorthandForProperty(propertyID);
         if (shorthand.length()) {
             auto longhands = JSON::ArrayOf<String>::create();
-            for (unsigned j = 0; j < shorthand.length(); ++j) {
-                CSSPropertyID longhandID = shorthand.properties()[j];
-                if (isEnabledCSSProperty(longhandID))
-                    longhands->addItem(getPropertyNameString(longhandID));
+            for (auto longhand : shorthand) {
+                if (isEnabledCSSProperty(longhand))
+                    longhands->addItem(getPropertyNameString(longhand));
             }
             property->setLonghands(WTFMove(longhands));
         }
@@ -964,7 +963,7 @@ RefPtr<Inspector::Protocol::CSS::CSSRule> InspectorCSSAgent::buildObjectForRule(
         return nullptr;
 
     InspectorStyleSheet* inspectorStyleSheet = bindStyleSheet(cssomWrapper->parentStyleSheet());
-    return inspectorStyleSheet ? inspectorStyleSheet->buildObjectForRule(cssomWrapper, &element) : nullptr;
+    return inspectorStyleSheet ? inspectorStyleSheet->buildObjectForRule(cssomWrapper) : nullptr;
 }
 
 RefPtr<Inspector::Protocol::CSS::CSSRule> InspectorCSSAgent::buildObjectForRule(CSSStyleRule* rule)
@@ -974,7 +973,7 @@ RefPtr<Inspector::Protocol::CSS::CSSRule> InspectorCSSAgent::buildObjectForRule(
 
     ASSERT(rule->parentStyleSheet());
     InspectorStyleSheet* inspectorStyleSheet = bindStyleSheet(rule->parentStyleSheet());
-    return inspectorStyleSheet ? inspectorStyleSheet->buildObjectForRule(rule, nullptr) : nullptr;
+    return inspectorStyleSheet ? inspectorStyleSheet->buildObjectForRule(rule) : nullptr;
 }
 
 RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>> InspectorCSSAgent::buildArrayForMatchedRuleList(const Vector<RefPtr<const StyleRule>>& matchedRules, Style::Resolver& styleResolver, Element& element, PseudoId pseudoId)
@@ -994,8 +993,7 @@ RefPtr<JSON::ArrayOf<Inspector::Protocol::CSS::RuleMatch>> InspectorCSSAgent::bu
         const CSSSelectorList& selectorList = matchedRule->selectorList();
         int index = 0;
         for (const CSSSelector* selector = selectorList.first(); selector; selector = CSSSelectorList::next(selector)) {
-            unsigned ignoredSpecificity;
-            bool matched = selectorChecker.match(*selector, element, context, ignoredSpecificity);
+            bool matched = selectorChecker.match(*selector, element, context);
             if (matched)
                 matchingSelectors->addItem(index);
             ++index;

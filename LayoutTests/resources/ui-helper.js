@@ -28,13 +28,23 @@ window.UIHelper = class UIHelper {
         eventSender.mouseMoveTo(x2, y2);
         eventSender.mouseUp();
     }
-    
-    static async mouseWheelScrollAt(x, y)
+
+    static async mouseWheelScrollAt(x, y, beginX, beginY, deltaX, deltaY)
     {
+        if (beginX === undefined)
+            beginX = 0;
+        if (beginY === undefined)
+            beginY = -1;
+
+        if (deltaX === undefined)
+            deltaX = 0;
+        if (deltaY === undefined)
+            deltaY = -10;
+
         eventSender.monitorWheelEvents();
         eventSender.mouseMoveTo(x, y);
-        eventSender.mouseScrollByWithWheelAndMomentumPhases(0, -1, "began", "none");
-        eventSender.mouseScrollByWithWheelAndMomentumPhases(0, -10, "changed", "none");
+        eventSender.mouseScrollByWithWheelAndMomentumPhases(beginX, beginY, "began", "none");
+        eventSender.mouseScrollByWithWheelAndMomentumPhases(deltaX, deltaY, "changed", "none");
         eventSender.mouseScrollByWithWheelAndMomentumPhases(0, 0, "ended", "none");
         return new Promise(resolve => {
             eventSender.callAfterScrollingCompletes(() => {
@@ -1146,6 +1156,42 @@ window.UIHelper = class UIHelper {
                         uiController.uiScriptComplete();
                     });
                 })();`, resolve);
+        });
+    }
+
+    static async activateElementAfterInstallingTapGestureOnWindow(element)
+    {
+        if (!this.isWebKit2() || !this.isIOSFamily())
+            return activateElement(element);
+
+        const x = element.offsetLeft + element.offsetWidth / 2;
+        const y = element.offsetTop + element.offsetHeight / 2;
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    let progress = 0;
+                    function incrementProgress() {
+                        if (++progress == 2)
+                            uiController.uiScriptComplete();
+                    }
+                    uiController.installTapGestureOnWindow(incrementProgress);
+                    uiController.singleTapAtPoint(${x}, ${y}, incrementProgress);
+                })();`, resolve);
+        });
+    }
+
+    static mayContainEditableElementsInRect(x, y, width, height)
+    {
+        if (!this.isWebKit2() || !this.isIOSFamily())
+            return Promise.resolve(false);
+
+        return new Promise(resolve => {
+            testRunner.runUIScript(`
+                (function() {
+                    uiController.doAfterPresentationUpdate(function() {
+                        uiController.uiScriptComplete(uiController.mayContainEditableElementsInRect(${x}, ${y}, ${width}, ${height}));
+                    })
+                })();`, result => resolve(result === "true"));
         });
     }
 }

@@ -1472,19 +1472,6 @@ public:
         return codeBlock()->globalObjectFor(codeOrigin);
     }
     
-    bool isStrictModeFor(CodeOrigin codeOrigin)
-    {
-        auto* inlineCallFrame = codeOrigin.inlineCallFrame();
-        if (!inlineCallFrame)
-            return codeBlock()->isStrictMode();
-        return inlineCallFrame->isStrictMode();
-    }
-    
-    ECMAMode ecmaModeFor(CodeOrigin codeOrigin)
-    {
-        return isStrictModeFor(codeOrigin) ? StrictMode : NotStrictMode;
-    }
-    
     ExecutableBase* executableFor(const CodeOrigin& codeOrigin);
     
     CodeBlock* baselineCodeBlockFor(const CodeOrigin& codeOrigin)
@@ -1870,14 +1857,6 @@ public:
         return branchIfValue(vm, value, scratch, scratchIfShouldCheckMasqueradesAsUndefined, scratchFPR0, scratchFPR1, shouldCheckMasqueradesAsUndefined, globalObject, true);
     }
     void emitConvertValueToBoolean(VM&, JSValueRegs, GPRReg result, GPRReg scratchIfShouldCheckMasqueradesAsUndefined, FPRReg, FPRReg, bool shouldCheckMasqueradesAsUndefined, JSGlobalObject*, bool negateResult = false);
-    
-    template<typename ClassType>
-    void emitAllocateDestructibleObject(VM& vm, GPRReg resultGPR, Structure* structure, GPRReg scratchGPR1, GPRReg scratchGPR2, JumpList& slowPath)
-    {
-        auto butterfly = TrustedImmPtr(nullptr);
-        emitAllocateJSObject<ClassType>(vm, resultGPR, TrustedImmPtr(structure), butterfly, scratchGPR1, scratchGPR2, slowPath);
-        storePtr(TrustedImmPtr(structure->classInfo()), Address(resultGPR, JSDestructibleObject::classInfoOffset()));
-    }
     
     void emitInitializeInlineStorage(GPRReg baseGPR, unsigned inlineCapacity)
     {

@@ -817,7 +817,7 @@ TEST(WKUserContentController, InjectUserScriptImmediately)
 
 TEST(WKUserContentController, UserScriptNotification)
 {
-    WKUserScript *waitsForNotification = [[[WKUserScript alloc] _initWithSource:@"alert('waited for notification')" injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES legacyWhitelist:[NSArray array] legacyBlacklist:[NSArray array] associatedURL:[NSURL URLWithString:@"test:///script"] contentWorld:[WKContentWorld defaultClientWorld] deferRunningUntilNotification:YES] autorelease];
+    WKUserScript *waitsForNotification = [[[WKUserScript alloc] _initWithSource:@"alert('waited for notification')" injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES legacyWhitelist:@[] legacyBlacklist:@[] associatedURL:[NSURL URLWithString:@"test:///script"] contentWorld:[WKContentWorld defaultClientWorld] deferRunningUntilNotification:YES] autorelease];
     WKUserScript *documentEnd = [[[WKUserScript alloc] initWithSource:@"alert('document parsing ended')" injectionTime:WKUserScriptInjectionTimeAtDocumentEnd forMainFrameOnly:YES] autorelease];
 
     TestWKWebView *webView1 = [[TestWKWebView new] autorelease];
@@ -841,6 +841,17 @@ TEST(WKUserContentController, UserScriptNotification)
     [webView2.configuration.userContentController addUserScript:documentEnd];
     webView2.UIDelegate = delegate;
     [webView2 loadTestPageNamed:@"simple"];
+    EXPECT_WK_STREQ([delegate waitForAlert], "waited for notification");
+    EXPECT_WK_STREQ([delegate waitForAlert], "document parsing ended");
+
+    TestWKWebView *webView3 = [[TestWKWebView new] autorelease];
+    EXPECT_TRUE(webView3._deferrableUserScriptsNeedNotification);
+    [webView3.configuration.userContentController addUserScript:waitsForNotification];
+    [webView3.configuration.userContentController addUserScript:documentEnd];
+    webView3.UIDelegate = delegate;
+    [webView3 loadTestPageNamed:@"simple"];
+    [webView3 _notifyUserScripts];
+    EXPECT_FALSE(webView3._deferrableUserScriptsNeedNotification);
     EXPECT_WK_STREQ([delegate waitForAlert], "waited for notification");
     EXPECT_WK_STREQ([delegate waitForAlert], "document parsing ended");
 }

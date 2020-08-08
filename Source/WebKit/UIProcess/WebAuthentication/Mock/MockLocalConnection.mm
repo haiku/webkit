@@ -38,22 +38,31 @@
 #import "LocalAuthenticationSoftLink.h"
 
 namespace WebKit {
+using namespace WebCore;
 
-MockLocalConnection::MockLocalConnection(const WebCore::MockWebAuthenticationConfiguration& configuration)
+MockLocalConnection::MockLocalConnection(const MockWebAuthenticationConfiguration& configuration)
     : m_configuration(configuration)
 {
 }
 
-void MockLocalConnection::verifyUser(const String&, WebCore::ClientDataType, SecAccessControlRef, UserVerificationCallback&& callback) const
+void MockLocalConnection::verifyUser(const String&, ClientDataType, SecAccessControlRef, UserVerificationCallback&& callback) const
 {
     // Mock async operations.
     RunLoop::main().dispatch([configuration = m_configuration, callback = WTFMove(callback)]() mutable {
         ASSERT(configuration.local);
-        if (!configuration.local->acceptAuthentication) {
-            callback(UserVerification::No, nil);
-            return;
+
+        UserVerification userVerification = UserVerification::No;
+        switch (configuration.local->userVerification) {
+        case MockWebAuthenticationConfiguration::UserVerification::No:
+            break;
+        case MockWebAuthenticationConfiguration::UserVerification::Yes:
+            userVerification = UserVerification::Yes;
+            break;
+        case MockWebAuthenticationConfiguration::UserVerification::Cancel:
+            userVerification = UserVerification::Cancel;
         }
-        callback(UserVerification::Yes, adoptNS([allocLAContextInstance() init]).get());
+
+        callback(userVerification, adoptNS([allocLAContextInstance() init]).get());
     });
 }
 
@@ -109,11 +118,11 @@ void MockLocalConnection::getAttestation(SecKeyRef, NSData *, NSData *, Attestat
 
         auto attestationCertificate = adoptCF(SecCertificateCreateWithData(NULL, (__bridge CFDataRef)adoptNS([[NSData alloc] initWithBase64EncodedString:configuration.local->userCertificateBase64 options:NSDataBase64DecodingIgnoreUnknownCharacters]).get()));
         auto attestationIssuingCACertificate = adoptCF(SecCertificateCreateWithData(NULL, (__bridge CFDataRef)adoptNS([[NSData alloc] initWithBase64EncodedString:configuration.local->intermediateCACertificateBase64 options:NSDataBase64DecodingIgnoreUnknownCharacters]).get()));
-        callback([NSArray arrayWithObjects: (__bridge id)attestationCertificate.get(), (__bridge id)attestationIssuingCACertificate.get(), nil], NULL);
+        callback(@[ (__bridge id)attestationCertificate.get(), (__bridge id)attestationIssuingCACertificate.get()], NULL);
     });
 }
 
-void MockLocalConnection::filterResponses(HashSet<Ref<WebCore::AuthenticatorAssertionResponse>>& responses) const
+void MockLocalConnection::filterResponses(HashSet<Ref<AuthenticatorAssertionResponse>>& responses) const
 {
     const auto& preferredCredentialIdBase64 = m_configuration.local->preferredCredentialIdBase64;
     if (preferredCredentialIdBase64.isEmpty())

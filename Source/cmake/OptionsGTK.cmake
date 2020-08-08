@@ -1,10 +1,21 @@
 include(GNUInstallDirs)
 include(VersioningUtils)
 
-SET_PROJECT_VERSION(2 29 0)
-set(WEBKITGTK_API_VERSION 4.0)
+WEBKIT_OPTION_BEGIN()
+WEBKIT_OPTION_DEFINE(USE_GTK4 "Whether to enable usage of GTK4 instead of GTK3." PUBLIC OFF)
 
-CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 82 0 45)
+SET_PROJECT_VERSION(2 29 0)
+
+if (USE_GTK4)
+    set(WEBKITGTK_API_VERSION 5.0)
+    set(GTK_MINIMUM_VERSION 3.98.2)
+    CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 0 0 0)
+else ()
+    set(WEBKITGTK_API_VERSION 4.0)
+    set(GTK_MINIMUM_VERSION 3.22.0)
+    CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 82 0 45)
+endif ()
+
 CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(JAVASCRIPTCORE 35 0 17)
 
 # These are shared variables, but we special case their definition so that we can use the
@@ -27,8 +38,7 @@ find_package(Fontconfig 2.8.0 REQUIRED)
 find_package(Freetype 2.4.2 REQUIRED)
 find_package(LibGcrypt 1.6.0 REQUIRED)
 find_package(GLIB 2.44.0 REQUIRED COMPONENTS gio gio-unix gobject gthread gmodule)
-find_package(GTK3 3.22.0 REQUIRED)
-find_package(GDK3 3.22.0 REQUIRED)
+find_package(GTK ${GTK_MINIMUM_VERSION} REQUIRED)
 find_package(HarfBuzz 0.9.18 REQUIRED COMPONENTS ICU)
 find_package(ICU 60.2 REQUIRED COMPONENTS data i18n uc)
 find_package(JPEG REQUIRED)
@@ -45,8 +55,6 @@ find_package(EGL)
 find_package(GTKUnixPrint)
 find_package(OpenGL)
 find_package(OpenGLES2)
-
-WEBKIT_OPTION_BEGIN()
 
 include(GStreamerDefinitions)
 
@@ -83,16 +91,16 @@ WEBKIT_OPTION_DEFINE(ENABLE_GLES2 "Whether to enable OpenGL ES 2.0." PUBLIC ${EN
 WEBKIT_OPTION_DEFINE(ENABLE_GTKDOC "Whether or not to use generate gtkdoc." PUBLIC OFF)
 WEBKIT_OPTION_DEFINE(ENABLE_INTROSPECTION "Whether to enable GObject introspection." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(ENABLE_OPENGL "Whether to use OpenGL." PUBLIC ON)
-WEBKIT_OPTION_DEFINE(ENABLE_QUARTZ_TARGET "Whether to enable support for the Quartz windowing target." PUBLIC ${GTK3_SUPPORTS_QUARTZ})
-WEBKIT_OPTION_DEFINE(ENABLE_X11_TARGET "Whether to enable support for the X11 windowing target." PUBLIC ${GTK3_SUPPORTS_X11})
-WEBKIT_OPTION_DEFINE(ENABLE_WAYLAND_TARGET "Whether to enable support for the Wayland windowing target." PUBLIC ${GTK3_SUPPORTS_WAYLAND})
+WEBKIT_OPTION_DEFINE(ENABLE_QUARTZ_TARGET "Whether to enable support for the Quartz windowing target." PUBLIC ${GTK_SUPPORTS_QUARTZ})
+WEBKIT_OPTION_DEFINE(ENABLE_X11_TARGET "Whether to enable support for the X11 windowing target." PUBLIC ${GTK_SUPPORTS_X11})
+WEBKIT_OPTION_DEFINE(ENABLE_WAYLAND_TARGET "Whether to enable support for the Wayland windowing target." PUBLIC ${GTK_SUPPORTS_WAYLAND})
 WEBKIT_OPTION_DEFINE(USE_LIBNOTIFY "Whether to enable the default web notification implementation." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_LIBHYPHEN "Whether to enable the default automatic hyphenation implementation." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_LIBSECRET "Whether to enable the persistent credential storage using libsecret." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_OPENJPEG "Whether to enable support for JPEG2000 images." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_WOFF2 "Whether to enable support for WOFF2 Web Fonts." PUBLIC ON)
 WEBKIT_OPTION_DEFINE(USE_WPE_RENDERER "Whether to enable WPE rendering" PUBLIC ON)
-WEBKIT_OPTION_DEFINE(USE_SYSTEMD "Whether to enable journald logging" PUBLIC OFF)
+WEBKIT_OPTION_DEFINE(USE_SYSTEMD "Whether to enable journald logging" PUBLIC ON)
 
 # Private options specific to the GTK port. Changing these options is
 # completely unsupported. They are intended for use only by WebKit developers.
@@ -211,11 +219,6 @@ else ()
 endif ()
 add_definitions(-DSVN_REVISION="${SVN_REVISION}")
 
-set(GTK_LIBRARIES ${GTK3_LIBRARIES})
-set(GTK_INCLUDE_DIRS ${GTK3_INCLUDE_DIRS})
-set(GDK_LIBRARIES ${GDK3_LIBRARIES})
-set(GDK_INCLUDE_DIRS ${GDK3_INCLUDE_DIRS})
-
 SET_AND_EXPOSE_TO_BUILD(HAVE_GTK_UNIX_PRINTING ${GTKUnixPrint_FOUND})
 
 if (USE_WPE_RENDERER)
@@ -329,13 +332,13 @@ if (ENABLE_SPELLCHECK)
 endif ()
 
 if (ENABLE_QUARTZ_TARGET)
-    if (NOT GTK3_SUPPORTS_QUARTZ)
+    if (NOT GTK_SUPPORTS_QUARTZ)
         message(FATAL_ERROR "Recompile GTK with Quartz backend to use ENABLE_QUARTZ_TARGET")
     endif ()
 endif ()
 
 if (ENABLE_X11_TARGET)
-    if (NOT GTK3_SUPPORTS_X11)
+    if (NOT GTK_SUPPORTS_X11)
         message(FATAL_ERROR "Recompile GTK with X11 backend to use ENABLE_X11_TARGET")
     endif ()
 
@@ -352,7 +355,7 @@ if (ENABLE_X11_TARGET)
 endif ()
 
 if (ENABLE_WAYLAND_TARGET)
-    if (NOT GTK3_SUPPORTS_WAYLAND)
+    if (NOT GTK_SUPPORTS_WAYLAND)
         message(FATAL_ERROR "Recompile GTK with Wayland backend to use ENABLE_WAYLAND_TARGET")
     endif ()
 

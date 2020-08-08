@@ -1140,6 +1140,7 @@ public:
     WEBCORE_EXPORT String displayStringModifiedByEncoding(const String&) const;
 
     void invalidateRenderingDependentRegions();
+    void invalidateEventRegionsForFrame(HTMLFrameOwnerElement&);
 
     void removeAllEventListeners() final;
 
@@ -1249,6 +1250,10 @@ public:
 #if PLATFORM(IOS_FAMILY)
     bool mayHaveElementsWithNonAutoTouchAction() const { return m_mayHaveElementsWithNonAutoTouchAction; }
     void setMayHaveElementsWithNonAutoTouchAction() { m_mayHaveElementsWithNonAutoTouchAction = true; }
+#endif
+#if ENABLE(EDITABLE_REGION)
+    bool mayHaveEditableElements() const { return m_mayHaveEditableElements; }
+    void setMayHaveEditableElements() { m_mayHaveEditableElements = true; }
 #endif
 
     void didAddTouchEventHandler(Node&);
@@ -1861,6 +1866,9 @@ private:
 #endif
 #if PLATFORM(IOS_FAMILY)
     bool m_mayHaveElementsWithNonAutoTouchAction { false };
+#endif
+#if ENABLE(EDITABLE_REGION)
+    bool m_mayHaveEditableElements { false };
 #endif
     std::unique_ptr<EventTargetSet> m_wheelEventTargets;
 
