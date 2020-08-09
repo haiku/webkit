@@ -440,7 +440,7 @@ void CoordinatedGraphicsLayer::setContentsClippingRect(const FloatRoundedRect& r
 
 bool GraphicsLayer::supportsContentsTiling()
 {
-    return s_shouldSupportContentsTiling;
+    return true;
 }
 
 void CoordinatedGraphicsLayer::setContentsNeedsDisplay()
