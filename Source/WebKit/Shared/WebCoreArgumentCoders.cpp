@@ -1526,84 +1526,6 @@ bool ArgumentCoder<WindowFeatures>::decode(Decoder& decoder, WindowFeatures& win
     return true;
 }
 
-
-void ArgumentCoder<Color>::encode(Encoder& encoder, const Color& color)
-{
-    if (color.isExtended()) {
-        encoder << true;
-        encoder << color.asExtended().red();
-        encoder << color.asExtended().green();
-        encoder << color.asExtended().blue();
-        encoder << color.asExtended().alpha();
-        encoder << color.asExtended().colorSpace();
-        return;
-    }
-
-    encoder << false;
-
-    if (!color.isValid()) {
-        encoder << false;
-        return;
-    }
-
-    uint32_t value = color.rgb().value();
-
-    encoder << true;
-    encoder << value;
-}
-
-bool ArgumentCoder<Color>::decode(Decoder& decoder, Color& color)
-{
-    bool isExtended;
-    if (!decoder.decode(isExtended))
-        return false;
-
-    if (isExtended) {
-        float red;
-        float green;
-        float blue;
-        float alpha;
-        ColorSpace colorSpace;
-        if (!decoder.decode(red))
-            return false;
-        if (!decoder.decode(green))
-            return false;
-        if (!decoder.decode(blue))
-            return false;
-        if (!decoder.decode(alpha))
-            return false;
-        if (!decoder.decode(colorSpace))
-            return false;
-        color = Color(red, green, blue, alpha, colorSpace);
-        return true;
-    }
-
-    bool isValid;
-    if (!decoder.decode(isValid))
-        return false;
-
-    if (!isValid) {
-        color = Color();
-        return true;
-    }
-
-    uint32_t value;
-    if (!decoder.decode(value))
-        return false;
-
-    color = SimpleColor { value };
-    return true;
-}
-
-Optional<Color> ArgumentCoder<Color>::decode(Decoder& decoder)
-{
-    Color color;
-    if (!decode(decoder, color))
-        return WTF::nullopt;
-
-    return color;
-}
-
 #if ENABLE(DRAG_SUPPORT)
 void ArgumentCoder<DragData>::encode(Encoder& encoder, const DragData& dragData)
 {
@@ -1615,7 +1537,7 @@ void ArgumentCoder<DragData>::encode(Encoder& encoder, const DragData& dragData)
     encoder << dragData.pasteboardName();
     encoder << dragData.fileNames();
 #endif
-    encoder.encodeEnum(dragData.dragDestinationAction());
+    encoder << dragData.dragDestinationActionMask();
 }
 
 bool ArgumentCoder<DragData>::decode(Decoder& decoder, DragData& dragData)
@@ -1646,11 +1568,11 @@ bool ArgumentCoder<DragData>::decode(Decoder& decoder, DragData& dragData)
         return false;
 #endif
 
-    DragDestinationAction destinationAction;
-    if (!decoder.decodeEnum(destinationAction))
+    OptionSet<DragDestinationAction> dragDestinationActionMask;
+    if (!decoder.decode(dragDestinationActionMask))
         return false;
 
-    dragData = DragData(pasteboardName, clientPosition, globalPosition, draggingSourceOperationMask, applicationFlags, destinationAction);
+    dragData = DragData(pasteboardName, clientPosition, globalPosition, draggingSourceOperationMask, applicationFlags, dragDestinationActionMask);
     dragData.setFileNames(fileNames);
 
     return true;
@@ -1962,31 +1884,24 @@ bool ArgumentCoder<PasteboardWebContent>::decode(Decoder& decoder, PasteboardWeb
 }
 #endif // USE(LIBWPE)
 
-void ArgumentCoder<DictationAlternative>::encode(Encoder& encoder, const DictationAlternative& dictationAlternative)
+void ArgumentCoder<DictationAlternative>::encode(Encoder& encoder, const DictationAlternative& alternative)
 {
-    encoder << dictationAlternative.rangeStart;
-    encoder << dictationAlternative.rangeLength;
-    encoder << dictationAlternative.dictationContext;
+    encoder << alternative.range << alternative.context;
 }
 
 Optional<DictationAlternative> ArgumentCoder<DictationAlternative>::decode(Decoder& decoder)
 {
-    Optional<unsigned> rangeStart;
-    decoder >> rangeStart;
-    if (!rangeStart)
+    Optional<CharacterRange> range;
+    decoder >> range;
+    if (!range)
         return WTF::nullopt;
-    
-    Optional<unsigned> rangeLength;
-    decoder >> rangeLength;
-    if (!rangeLength)
+
+    Optional<DictationContext> context;
+    decoder >> context;
+    if (!context)
         return WTF::nullopt;
-    
-    Optional<uint64_t> dictationContext;
-    decoder >> dictationContext;
-    if (!dictationContext)
-        return WTF::nullopt;
-    
-    return {{ WTFMove(*rangeStart), WTFMove(*rangeLength), WTFMove(*dictationContext) }};
+
+    return {{ *range, *context }};
 }
 
 void ArgumentCoder<FileChooserSettings>::encode(Encoder& encoder, const FileChooserSettings& settings)

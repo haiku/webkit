@@ -350,6 +350,10 @@ public:
     virtual void didPerformDictionaryLookup(const WebCore::DictionaryPopupInfo&) = 0;
 #endif
 
+#if ENABLE(TINT_COLOR_SUPPORT)
+    virtual WebCore::Color tintColor() = 0;
+#endif
+
     virtual bool effectiveAppearanceIsDark() const { return false; }
     virtual bool effectiveUserInterfaceLevelIsElevated() const { return false; }
 
@@ -361,10 +365,10 @@ public:
     virtual void takeFocus(WebCore::FocusDirection) { }
 
 #if USE(DICTATION_ALTERNATIVES)
-    virtual uint64_t addDictationAlternatives(NSTextAlternatives *) = 0;
-    virtual void removeDictationAlternatives(uint64_t dictationContext) = 0;
-    virtual void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext) = 0;
-    virtual Vector<String> dictationAlternatives(uint64_t dictationContext) = 0;
+    virtual WebCore::DictationContext addDictationAlternatives(NSTextAlternatives *) = 0;
+    virtual void removeDictationAlternatives(WebCore::DictationContext) = 0;
+    virtual void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, WebCore::DictationContext) = 0;
+    virtual Vector<String> dictationAlternatives(WebCore::DictationContext) = 0;
 #endif
 
 #if PLATFORM(MAC)

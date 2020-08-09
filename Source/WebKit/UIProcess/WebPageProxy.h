@@ -75,6 +75,7 @@
 #include <WebCore/AutoplayEvent.h>
 #include <WebCore/Color.h>
 #include <WebCore/DiagnosticLoggingClient.h>
+#include <WebCore/DictationContext.h>
 #include <WebCore/DragActions.h>
 #include <WebCore/EventTrackingRegions.h>
 #include <WebCore/ExceptionDetails.h>
@@ -718,6 +719,8 @@ public:
     void focusTextInputContextAndPlaceCaret(const WebCore::ElementContext&, const WebCore::IntPoint&, CompletionHandler<void(bool)>&&);
 
     void setShouldRevealCurrentSelectionAfterInsertion(bool);
+        
+    void setScreenIsBeingCaptured(bool);
 
     void insertTextPlaceholder(const WebCore::IntSize&, CompletionHandler<void(const Optional<WebCore::ElementContext>&)>&&);
     void removeTextPlaceholder(const WebCore::ElementContext&, CompletionHandler<void()>&&);
@@ -992,7 +995,7 @@ public:
     float deviceScaleFactor() const;
     void setIntrinsicDeviceScaleFactor(float);
     void setCustomDeviceScaleFactor(float);
-    void windowScreenDidChange(WebCore::PlatformDisplayID);
+    void windowScreenDidChange(WebCore::PlatformDisplayID, Optional<unsigned> nominalFramesPerSecond);
     void accessibilitySettingsDidChange();
 
     void setUseFixedLayout(bool);
@@ -1305,6 +1308,7 @@ public:
 
     void setMediaVolume(float);
     void setMuted(WebCore::MediaProducer::MutedStateFlags);
+    bool isAudioMuted() const { return m_mutedState & WebCore::MediaProducer::AudioIsMuted; };
     void setMayStartMediaWhenInWindow(bool);
     bool mayStartMediaWhenInWindow() const { return m_mayStartMediaWhenInWindow; }
     void setMediaCaptureEnabled(bool);
@@ -1766,7 +1770,9 @@ public:
 #endif
 
     void setHasExecutedAppBoundBehaviorBeforeNavigation() { m_hasExecutedAppBoundBehaviorBeforeNavigation = true; }
-        
+
+    WebPopupMenuProxy* activePopupMenu() const { return m_activePopupMenu.get(); }
+
 private:
     WebPageProxy(PageClient&, WebProcessProxy&, Ref<API::PageConfiguration>&&);
     void platformInitialize();
@@ -2126,9 +2132,9 @@ private:
 #endif
 
 #if USE(DICTATION_ALTERNATIVES)
-    void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext);
-    void removeDictationAlternatives(uint64_t dictationContext);
-    void dictationAlternatives(uint64_t dictationContext, CompletionHandler<void(Vector<String>&&)>&&);
+    void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, WebCore::DictationContext);
+    void removeDictationAlternatives(WebCore::DictationContext);
+    void dictationAlternatives(WebCore::DictationContext, CompletionHandler<void(Vector<String>&&)>&&);
 #endif
 
 #if PLATFORM(MAC)

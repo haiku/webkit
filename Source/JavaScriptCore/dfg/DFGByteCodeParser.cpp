@@ -56,6 +56,7 @@
 #include "InByIdStatus.h"
 #include "InstanceOfStatus.h"
 #include "JSArrayIterator.h"
+#include "JSCInlines.h"
 #include "JSImmutableButterfly.h"
 #include "JSInternalPromise.h"
 #include "JSInternalPromiseConstructor.h"
@@ -3871,7 +3872,7 @@ bool ByteCodeParser::handleDOMJITGetter(Operand result, const GetByIdVariant& va
     addToGraph(CheckStructure, OpInfo(m_graph.addStructureSet(variant.structureSet())), thisNode);
     
     // We do not need to emit CheckIsConstant thingy here. When the custom accessor is replaced to different one, Structure transition occurs.
-    addToGraph(CheckSubClass, OpInfo(domAttribute->classInfo), thisNode);
+    addToGraph(CheckJSCast, OpInfo(domAttribute->classInfo), thisNode);
     
     bool wasSeenInJIT = true;
     GetByStatus* status = m_graph.m_plan.recordedStatuses().addGetByStatus(currentCodeOrigin(), GetByStatus(GetByStatus::Custom, wasSeenInJIT));
@@ -6740,9 +6741,10 @@ void ByteCodeParser::parseBlock(unsigned limit)
                 ASSERT_WITH_MESSAGE(globalObject->arrayProtoValuesFunctionConcurrently(), "The only way we could have seen FastArray is if we saw this function in the LLInt/Baseline so the iterator function should be allocated.");
                 FrozenValue* frozenSymbolIteratorFunction = m_graph.freeze(globalObject->arrayProtoValuesFunctionConcurrently());
                 numberOfRemainingModes--;
-                if (!numberOfRemainingModes)
+                if (!numberOfRemainingModes) {
                     addToGraph(CheckIsConstant, OpInfo(frozenSymbolIteratorFunction), symbolIterator);
-                else {
+                    addToGraph(CheckJSCast, OpInfo(JSArray::info()), get(bytecode.m_iterable));
+                } else {
                     BasicBlock* fastArrayBlock = allocateUntargetableBlock();
                     genericBlock = allocateUntargetableBlock();
 
@@ -7821,6 +7823,24 @@ void ByteCodeParser::parseBlock(unsigned limit)
                 get(bytecode.m_property),
                 get(bytecode.m_enumerator)));
             NEXT_OPCODE(op_has_structure_property);
+        }
+
+        case op_has_own_structure_property: {
+            auto bytecode = currentInstruction->as<OpHasOwnStructureProperty>();
+            set(bytecode.m_dst, addToGraph(HasOwnStructureProperty,
+                get(bytecode.m_base),
+                get(bytecode.m_property),
+                get(bytecode.m_enumerator)));
+            NEXT_OPCODE(op_has_own_structure_property);
+        }
+
+        case op_in_structure_property: {
+            auto bytecode = currentInstruction->as<OpInStructureProperty>();
+            set(bytecode.m_dst, addToGraph(InStructureProperty,
+                get(bytecode.m_base),
+                get(bytecode.m_property),
+                get(bytecode.m_enumerator)));
+            NEXT_OPCODE(op_in_structure_property);
         }
 
         case op_has_indexed_property: {

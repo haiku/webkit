@@ -332,6 +332,11 @@ void WebProcessProxy::getLaunchOptions(ProcessLauncher::LaunchOptions& launchOpt
     if (isPrewarmed())
         launchOptions.extraInitializationData.add("is-prewarmed"_s, "1"_s);
 
+#if PLATFORM(PLAYSTATION)
+    launchOptions.processPath = m_processPool->webProcessPath();
+    launchOptions.userId = m_processPool->userId();
+#endif
+
     if (processPool().shouldMakeNextWebProcessLaunchFailForTesting()) {
         processPool().setShouldMakeNextWebProcessLaunchFailForTesting(false);
         launchOptions.shouldMakeProcessLaunchFailForTesting = true;
@@ -1550,6 +1555,9 @@ void WebProcessProxy::didStartProvisionalLoadForMainFrame(const URL& url)
 
     // This process has been used for several registrable domains already.
     if (m_registrableDomain && m_registrableDomain->isEmpty())
+        return;
+
+    if (url.protocolIsAbout())
         return;
 
     auto registrableDomain = WebCore::RegistrableDomain { url };

@@ -1034,6 +1034,19 @@ void NetworkProcess::mergeStatisticForTesting(PAL::SessionID sessionID, const Re
     }
 }
 
+void NetworkProcess::insertExpiredStatisticForTesting(PAL::SessionID sessionID, const RegistrableDomain& domain, bool hadUserInteraction, bool isScheduledForAllButCookieDataRemoval, bool isPrevalent, CompletionHandler<void()>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID)) {
+        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
+            resourceLoadStatistics->insertExpiredStatisticForTesting(domain, hadUserInteraction, isScheduledForAllButCookieDataRemoval, isPrevalent, WTFMove(completionHandler));
+        else
+            completionHandler();
+    } else {
+        ASSERT_NOT_REACHED();
+        completionHandler();
+    }
+}
+
 void NetworkProcess::getAllStorageAccessEntries(PAL::SessionID sessionID, CompletionHandler<void(Vector<String> domains)>&& completionHandler)
 {
     if (auto* networkStorageSession = storageSession(sessionID))
@@ -1384,7 +1397,7 @@ void NetworkProcess::setAdClickAttributionDebugMode(bool debugMode)
     }
 }
 
-void NetworkProcess::preconnectTo(PAL::SessionID sessionID, const URL& url, const String& userAgent, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
+void NetworkProcess::preconnectTo(PAL::SessionID sessionID, WebPageProxyIdentifier webPageProxyID, WebCore::PageIdentifier webPageID, const URL& url, const String& userAgent, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
 #if ENABLE(SERVER_PRECONNECT)
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
@@ -1394,6 +1407,8 @@ void NetworkProcess::preconnectTo(PAL::SessionID sessionID, const URL& url, cons
 
     NetworkLoadParameters parameters;
     parameters.request = ResourceRequest { url };
+    parameters.webPageProxyID = webPageProxyID;
+    parameters.webPageID = webPageID;
     parameters.isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain;
     if (!userAgent.isEmpty()) {
         // FIXME: we add user-agent to the preconnect request because otherwise the preconnect
@@ -2739,6 +2754,23 @@ void NetworkProcess::broadcastConsoleMessage(PAL::SessionID sessionID, JSC::Mess
         if (networkConnectionToWebProcess->sessionID() == sessionID)
             networkConnectionToWebProcess->broadcastConsoleMessage(source, level, message);
     }
+}
+
+void NetworkProcess::updateBundleIdentifier(String&& bundleIdentifier, CompletionHandler<void()>&& completionHandler)
+{
+#if PLATFORM(COCOA)
+    WebCore::clearApplicationBundleIdentifierTestingOverride();
+    WebCore::setApplicationBundleIdentifier(bundleIdentifier);
+#endif
+    completionHandler();
+}
+
+void NetworkProcess::clearBundleIdentifier(CompletionHandler<void()>&& completionHandler)
+{
+#if PLATFORM(COCOA)
+    WebCore::clearApplicationBundleIdentifierTestingOverride();
+#endif
+    completionHandler();
 }
 
 } // namespace WebKit

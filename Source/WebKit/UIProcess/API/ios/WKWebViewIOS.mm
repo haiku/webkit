@@ -513,7 +513,7 @@ static WebCore::Color scrollViewBackgroundColor(WKWebView *webView)
     if (zoomScale < minimumZoomScale) {
         CGFloat slope = 12;
         CGFloat opacity = std::max<CGFloat>(1 - slope * (minimumZoomScale - zoomScale), 0);
-        color = WebCore::colorWithOverrideAlpha(color.rgb(), opacity);
+        color = color.colorWithAlphaUsingAlternativeRounding(opacity);
     }
 
     return color;
@@ -532,9 +532,7 @@ static WebCore::Color scrollViewBackgroundColor(WKWebView *webView)
     [_scrollView setBackgroundColor:uiBackgroundColor.get()];
 
     // Update the indicator style based on the lightness/darkness of the background color.
-    double hue, saturation, lightness;
-    color.getHSL(hue, saturation, lightness);
-    if (lightness <= .5 && color.isVisible())
+    if (color.lightness() <= .5f && color.isVisible())
         [_scrollView setIndicatorStyle:UIScrollViewIndicatorStyleWhite];
     else
         [_scrollView setIndicatorStyle:UIScrollViewIndicatorStyleBlack];

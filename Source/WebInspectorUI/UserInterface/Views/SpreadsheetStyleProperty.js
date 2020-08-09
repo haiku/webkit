@@ -36,6 +36,9 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
         this._readOnly = options.readOnly || false;
         this._element = document.createElement("div");
 
+        if (options.selectable)
+            this._element.tabIndex = -1;
+
         this._contentElement = null;
         this._nameElement = null;
         this._valueElement = null;
@@ -410,7 +413,7 @@ WI.SpreadsheetStyleProperty = class SpreadsheetStyleProperty extends WI.Object
 
         if (changed) {
             let target = WI.assumingMainTarget();
-            if (target.hasDomain("DOM"))
+            if (target.hasCommand("DOM.markUndoableState"))
                 target.DOMAgent.markUndoableState();
         }
     }

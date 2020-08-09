@@ -140,7 +140,7 @@ def message_to_struct_declaration(receiver, message):
 
     result.append('class %s {\n' % message.name)
     result.append('public:\n')
-    result.append('    typedef %s Arguments;\n' % arguments_type(message))
+    result.append('    using Arguments = %s;\n' % arguments_type(message))
     result.append('\n')
     result.append('    static IPC::MessageName name() { return IPC::MessageName::%s_%s; }\n' % (receiver.name, message.name))
     result.append('    static const bool isSync = %s;\n' % ('false', 'true')[message.reply_parameters != None and not message.has_attribute(ASYNC_ATTRIBUTE)])
@@ -206,6 +206,7 @@ def types_that_cannot_be_forward_declared():
         'MediaTime',
         'String',
         'WebCore::ColorSpace',
+        'WebCore::DictationContext',
         'WebCore::DocumentIdentifier',
         'WebCore::DocumentOrWorkerIdentifier',
         'WebCore::FetchIdentifier',
@@ -228,6 +229,7 @@ def types_that_cannot_be_forward_declared():
         'WebKit::ActivityStateChangeID',
         'WebKit::AudioMediaStreamTrackRendererIdentifier',
         'WebKit::ContentWorldIdentifier',
+        'WebKit::DisplayLinkObserverID',
         'WebKit::GeolocationIdentifier',
         'WebKit::ImageBufferBackendHandle',
         'WebKit::ImageBufferFlushIdentifier',
@@ -472,7 +474,10 @@ def async_message_statement(receiver, message):
         dispatch_function_args.insert(0, 'connection')
 
     if message.has_attribute(WANTS_CONNECTION_ATTRIBUTE):
-        dispatch_function_args.insert(0, 'connection')
+        if message.has_attribute(ASYNC_ATTRIBUTE):
+            dispatch_function += 'WantsConnection'
+        else:
+            dispatch_function_args.insert(0, 'connection')
 
     result = []
     result.append('    if (decoder.messageName() == Messages::%s::%s::name()) {\n' % (receiver.name, message.name))
@@ -614,6 +619,7 @@ def headers_for_type(type):
         'WebCore::PolicyCheckIdentifier': ['<WebCore/FrameLoaderTypes.h>'],
         'WebCore::ProcessIdentifier': ['<WebCore/ProcessIdentifier.h>'],
         'WebCore::RecentSearch': ['<WebCore/SearchPopupMenu.h>'],
+        'WebCore::RequestStorageAccessResult': ['<WebCore/DocumentStorageAccess.h>'],
         'WebCore::RouteSharingPolicy': ['<WebCore/AudioSession.h>'],
         'WebCore::SWServerConnectionIdentifier': ['<WebCore/ServiceWorkerTypes.h>'],
         'WebCore::SelectionDirection': ['<WebCore/VisibleSelection.h>'],
@@ -629,6 +635,7 @@ def headers_for_type(type):
         'WebCore::ShouldNotifyWhenResolved': ['<WebCore/ServiceWorkerTypes.h>'],
         'WebCore::ShouldSample': ['<WebCore/DiagnosticLoggingClient.h>'],
         'WebCore::StorageAccessPromptWasShown': ['<WebCore/DocumentStorageAccess.h>'],
+        'WebCore::StorageAccessScope': ['<WebCore/DocumentStorageAccess.h>'],
         'WebCore::StorageAccessWasGranted': ['<WebCore/DocumentStorageAccess.h>'],
         'WebCore::SupportedPluginIdentifier': ['<WebCore/PluginData.h>'],
         'WebCore::SystemPreviewInfo': ['<WebCore/FrameLoaderTypes.h>'],

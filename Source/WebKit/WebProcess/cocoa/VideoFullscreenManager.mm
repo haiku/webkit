@@ -505,6 +505,8 @@ void VideoFullscreenManager::didCleanupFullscreen(uint64_t contextId)
 
     model->setVideoFullscreenLayer(nil);
     RefPtr<HTMLVideoElement> videoElement = model->videoElement();
+    if (videoElement)
+        videoElement->didStopBeingFullscreenElement();
 
     interface->setFullscreenMode(HTMLMediaElementEnums::VideoFullscreenModeNone);
     interface->setFullscreenStandby(false);

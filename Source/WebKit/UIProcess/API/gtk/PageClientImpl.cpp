@@ -239,7 +239,7 @@ WebCore::IntRect PageClientImpl::rootViewToAccessibilityScreen(const WebCore::In
 
 void PageClientImpl::doneWithKeyEvent(const NativeWebKeyboardEvent& event, bool wasEventHandled)
 {
-    if (wasEventHandled || event.type() != WebEvent::Type::KeyDown)
+    if (wasEventHandled || event.type() != WebEvent::Type::KeyDown || !event.nativeEvent())
         return;
 
     WebKitWebViewBase* webkitWebViewBase = WEBKIT_WEB_VIEW_BASE(m_viewWidget);
@@ -253,13 +253,9 @@ void PageClientImpl::doneWithKeyEvent(const NativeWebKeyboardEvent& event, bool 
 
 RefPtr<WebPopupMenuProxy> PageClientImpl::createPopupMenuProxy(WebPageProxy& page)
 {
-#if USE(GTK4)
-    return nullptr;
-#else
     if (WEBKIT_IS_WEB_VIEW(m_viewWidget))
         return WebKitPopupMenu::create(m_viewWidget, page);
     return WebPopupMenuProxyGtk::create(m_viewWidget, page);
-#endif
 }
 
 Ref<WebContextMenuProxy> PageClientImpl::createContextMenuProxy(WebPageProxy& page, ContextMenuContextData&& context, const UserData& userData)
@@ -277,11 +273,7 @@ RefPtr<WebColorPicker> PageClientImpl::createColorPicker(WebPageProxy* page, con
 #if ENABLE(DATALIST_ELEMENT)
 RefPtr<WebDataListSuggestionsDropdown> PageClientImpl::createDataListSuggestionsDropdown(WebPageProxy& page)
 {
-#if USE(GTK4)
-    return nullptr;
-#else
     return WebDataListSuggestionsDropdownGtk::create(m_viewWidget, page);
-#endif
 }
 #endif
 
@@ -411,6 +403,8 @@ void PageClientImpl::doneWithTouchEvent(const NativeWebTouchEvent& event, bool w
 {
 #if !USE(GTK4)
     const GdkEvent* touchEvent = event.nativeEvent();
+    if (!touchEvent)
+        return;
 
     GestureController& gestureController = webkitWebViewBaseGestureController(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
     if (wasEventHandled) {
@@ -471,6 +465,9 @@ void PageClientImpl::doneWithTouchEvent(const NativeWebTouchEvent& event, bool w
 
 void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
 {
+    if (!event.nativeEvent())
+        return;
+
 #if !USE(GTK4)
     ViewGestureController* controller = webkitWebViewBaseViewGestureController(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
     if (controller && controller->isSwipeGestureEnabled()) {

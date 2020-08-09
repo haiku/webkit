@@ -1477,6 +1477,12 @@ private:
         case HasStructureProperty:
             compileHasStructureProperty();
             break;
+        case HasOwnStructureProperty:
+            compileHasOwnStructureProperty();
+            break;
+        case InStructureProperty:
+            compileInStructureProperty();
+            break;
         case GetDirectPname:
             compileGetDirectPname();
             break;
@@ -1583,8 +1589,8 @@ private:
         case NumberToStringWithValidRadixConstant:
             compileNumberToStringWithValidRadixConstant();
             break;
-        case CheckSubClass:
-            compileCheckSubClass();
+        case CheckJSCast:
+            compileCheckJSCast();
             break;
         case CallDOM:
             compileCallDOM();
@@ -3785,9 +3791,12 @@ private:
         ASSERT(oldStructure->typeInfo().type() == newStructure->typeInfo().type());
 
         LValue cell = lowCell(m_node->child1()); 
+
+        auto& heap = m_node->transition()->next->isPropertyDeletionTransition() ? m_heaps.JSCellHeaderAndNamedProperties : m_heaps.JSCell_structureID;
+        TypedPointer pointer { heap, m_out.addPtr(cell, m_heaps.JSCell_structureID.offset()) };
+
         m_out.store32(
-            weakStructureID(newStructure),
-            cell, m_heaps.JSCell_structureID);
+            weakStructureID(newStructure), pointer);
     }
     
     void compileGetById(AccessType type)
@@ -8462,22 +8471,20 @@ private:
 
             m_out.appendTo(blocks[block], block + 1 < blocks.size() ? blocks[block + 1] : exit);
 
-            if (variant.newStructure()) {
-                LValue storage;
+            LValue storage;
 
-                if (isInlineOffset(variant.offset()))
-                    storage = base;
-                else
-                    storage = m_out.loadPtr(base, m_heaps.JSObject_butterfly);
+            if (isInlineOffset(variant.offset()))
+                storage = base;
+            else
+                storage = m_out.loadPtr(base, m_heaps.JSObject_butterfly);
 
-                storeProperty(m_out.int64Zero, storage, data.identifierNumber, variant.offset());
+            storeProperty(m_out.int64Zero, storage, data.identifierNumber, variant.offset());
 
-                ASSERT(variant.oldStructure()->indexingType() == variant.newStructure()->indexingType());
-                ASSERT(variant.oldStructure()->typeInfo().inlineTypeFlags() == variant.newStructure()->typeInfo().inlineTypeFlags());
-                ASSERT(variant.oldStructure()->typeInfo().type() == variant.newStructure()->typeInfo().type());
-                m_out.store32(
-                    weakStructureID(m_graph.registerStructure(variant.newStructure())), base, m_heaps.JSCell_structureID);
-            }
+            ASSERT(variant.oldStructure()->indexingType() == variant.newStructure()->indexingType());
+            ASSERT(variant.oldStructure()->typeInfo().inlineTypeFlags() == variant.newStructure()->typeInfo().inlineTypeFlags());
+            ASSERT(variant.oldStructure()->typeInfo().type() == variant.newStructure()->typeInfo().type());
+            m_out.store32(
+                weakStructureID(m_graph.registerStructure(variant.newStructure())), base, m_heaps.JSCell_structureID);
 
             results.append(m_out.anchor(variant.result() ? m_out.booleanTrue : m_out.booleanFalse));
             m_out.jump(continuation);
@@ -8503,6 +8510,12 @@ private:
 
         m_out.appendTo(continuation, lastNext);
         setBoolean(m_out.phi(Int32, results));
+
+        if (data.writesStructures()) {
+            PatchpointValue* patchpoint = m_out.patchpoint(Void);
+            patchpoint->setGenerator([] (CCallHelpers&, const StackmapGenerationParams&) { });
+            m_heaps.decoratePatchpointWrite(&m_heaps.JSCellHeaderAndNamedProperties, patchpoint);
+        }
     }
     
     void compileMatchStructure()
@@ -12241,35 +12254,56 @@ private:
         setJSValue(vmCall(Int64, operationHasGenericProperty, weakPointer(globalObject), base, property));
     }
 
-    void compileHasStructureProperty()
+    template <typename SlowPathCall>
+    void compileHasStructurePropertyImpl(LValue base, SlowPathCall slowPathCall)
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        LValue base = lowJSValue(m_node->child1());
         LValue property = lowString(m_node->child2());
         LValue enumerator = lowCell(m_node->child3());
 
+        LBasicBlock isCellCase = m_out.newBlock();
         LBasicBlock correctStructure = m_out.newBlock();
-        LBasicBlock wrongStructure = m_out.newBlock();
+        LBasicBlock slowPath = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
+
+        m_out.branch(isCell(base, provenType(m_node->child1())),
+            usually(isCellCase), rarely(slowPath));
+
+        LBasicBlock lastNext = m_out.appendTo(isCellCase, correctStructure);
 
         m_out.branch(m_out.notEqual(
             m_out.load32(base, m_heaps.JSCell_structureID),
             m_out.load32(enumerator, m_heaps.JSPropertyNameEnumerator_cachedStructureID)),
-            rarely(wrongStructure), usually(correctStructure));
+            rarely(slowPath), usually(correctStructure));
 
-        LBasicBlock lastNext = m_out.appendTo(correctStructure, wrongStructure);
+        m_out.appendTo(correctStructure, slowPath);
         ValueFromBlock correctStructureResult = m_out.anchor(m_out.booleanTrue);
         m_out.jump(continuation);
 
-        m_out.appendTo(wrongStructure, continuation);
-        ValueFromBlock wrongStructureResult = m_out.anchor(
+        m_out.appendTo(slowPath, continuation);
+        ValueFromBlock slowPathResult = m_out.anchor(
             m_out.equal(
                 m_out.constInt64(JSValue::encode(jsBoolean(true))), 
-                vmCall(Int64, operationHasGenericProperty, weakPointer(globalObject), base, property)));
+                vmCall(Int64, slowPathCall, weakPointer(globalObject), base, property)));
         m_out.jump(continuation);
 
         m_out.appendTo(continuation, lastNext);
-        setBoolean(m_out.phi(Int32, correctStructureResult, wrongStructureResult));
+        setBoolean(m_out.phi(Int32, correctStructureResult, slowPathResult));
+    }
+
+    void compileHasStructureProperty()
+    {
+        compileHasStructurePropertyImpl(lowJSValue(m_node->child1()), operationHasGenericProperty);
+    }
+
+    void compileHasOwnStructureProperty()
+    {
+        compileHasStructurePropertyImpl(lowCell(m_node->child1()), operationHasOwnStructureProperty);
+    }
+
+    void compileInStructureProperty()
+    {
+        compileHasStructurePropertyImpl(lowCell(m_node->child1()), operationInStructureProperty);
     }
 
     void compileGetDirectPname()
@@ -13912,11 +13946,18 @@ private:
         crash();
     }
 
-    void compileCheckSubClass()
+    void compileCheckJSCast()
     {
         LValue cell = lowCell(m_node->child1());
 
         const ClassInfo* classInfo = m_node->classInfo();
+
+        if (classInfo->inheritsJSTypeRange) {
+            LValue hasType = isCellWithType(cell, classInfo->inheritsJSTypeRange.value(), speculationFromClassInfoInheritance(classInfo));
+            speculate(BadType, jsValueValue(cell), m_node->child1().node(), m_out.bitNot(hasType));
+            return;
+        }
+
         if (!classInfo->checkSubClassSnippet) {
             LBasicBlock loop = m_out.newBlock();
             LBasicBlock parentClass = m_out.newBlock();
@@ -15788,7 +15829,7 @@ private:
         if (!Gigacage::isEnabled(kind))
             return doUntagArrayPtr(ptr);
         
-        if (kind == Gigacage::Primitive && Gigacage::canPrimitiveGigacageBeDisabled()) {
+        if (kind == Gigacage::Primitive && !Gigacage::disablingPrimitiveGigacageIsForbidden()) {
             if (vm().primitiveGigacageEnabled().isStillValid())
                 m_graph.watchpoints().addLazily(vm().primitiveGigacageEnabled());
             else
@@ -17681,27 +17722,33 @@ private:
         jsValueToStrictInt52(edge, lowJSValue(edge, ManualOperandSpeculation));
     }
 
-    LValue isCellWithType(LValue cell, JSType queriedType, Optional<SpeculatedType> speculatedTypeForQuery, SpeculatedType type = SpecFullTop)
+    LValue isCellWithType(LValue cell, JSTypeRange queriedTypeRange, Optional<SpeculatedType> speculatedTypeForQuery, SpeculatedType type = SpecFullTop)
     {
         if (speculatedTypeForQuery) {
             if (LValue proven = isProvenValue(type & SpecCell, speculatedTypeForQuery.value()))
                 return proven;
         }
-        return m_out.equal(
+        if (queriedTypeRange.first == queriedTypeRange.last) {
+            return m_out.equal(
+                m_out.load8ZeroExt32(cell, m_heaps.JSCell_typeInfoType),
+                m_out.constInt32(queriedTypeRange.first));
+        }
+
+        ASSERT(queriedTypeRange.last > queriedTypeRange.first);
+        LValue first = m_out.sub(
             m_out.load8ZeroExt32(cell, m_heaps.JSCell_typeInfoType),
-            m_out.constInt32(queriedType));
+            m_out.constInt32(queriedTypeRange.first));
+        return m_out.belowOrEqual(first, m_out.constInt32(queriedTypeRange.last - queriedTypeRange.first));
+    }
+
+    LValue isCellWithType(LValue cell, JSType queriedType, Optional<SpeculatedType> speculatedTypeForQuery, SpeculatedType type = SpecFullTop)
+    {
+        return isCellWithType(cell, JSTypeRange { queriedType, queriedType }, speculatedTypeForQuery, type);
     }
 
     LValue isTypedArrayView(LValue cell, SpeculatedType type = SpecFullTop)
     {
-        if (LValue proven = isProvenValue(type & SpecCell, SpecTypedArrayView))
-            return proven;
-        LValue jsType = m_out.sub(
-            m_out.load8ZeroExt32(cell, m_heaps.JSCell_typeInfoType),
-            m_out.constInt32(FirstTypedArrayType));
-        return m_out.below(
-            jsType,
-            m_out.constInt32(NumberOfTypedArrayTypesExcludingDataView));
+        return isCellWithType(cell, JSTypeRange { static_cast<JSType>(FirstTypedArrayType), static_cast<JSType>(LastTypedArrayTypeExcludingDataView) }, SpecTypedArrayView, type);
     }
     
     LValue isObject(LValue cell, SpeculatedType type = SpecFullTop)

@@ -905,11 +905,12 @@ void WebPageProxy::swapToProvisionalPage(std::unique_ptr<ProvisionalPageProxy> p
     if (m_logger)
         m_logger->setEnabled(this, isAlwaysOnLoggingAllowed());
 
+    m_hasRunningProcess = true;
+
     ASSERT(!m_drawingArea);
     setDrawingArea(provisionalPage->takeDrawingArea());
     ASSERT(!m_mainFrame);
     m_mainFrame = provisionalPage->mainFrame();
-    m_hasRunningProcess = true;
 
     m_process->addExistingWebPage(*this, WebProcessProxy::BeginsUsingDataStore::No);
     m_process->addMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_webPageID, *this);
@@ -1031,6 +1032,7 @@ void WebPageProxy::setDrawingArea(std::unique_ptr<DrawingAreaProxy>&& drawingAre
         return;
 
     m_drawingArea->startReceivingMessages();
+    m_drawingArea->setSize(viewSize());
 
 #if ENABLE(ASYNC_SCROLLING) && PLATFORM(COCOA)
     if (m_drawingArea->type() == DrawingAreaTypeRemoteLayerTree) {
@@ -3705,12 +3707,12 @@ void WebPageProxy::setIntrinsicDeviceScaleFactor(float scaleFactor)
         m_drawingArea->deviceScaleFactorDidChange();
 }
 
-void WebPageProxy::windowScreenDidChange(PlatformDisplayID displayID)
+void WebPageProxy::windowScreenDidChange(PlatformDisplayID displayID, Optional<unsigned> nominalFramesPerSecond)
 {
     if (!hasRunningProcess())
         return;
 
-    send(Messages::WebPage::WindowScreenDidChange(displayID));
+    send(Messages::WebPage::WindowScreenDidChange(displayID, nominalFramesPerSecond));
 }
 
 float WebPageProxy::deviceScaleFactor() const
@@ -4409,7 +4411,7 @@ void WebPageProxy::preconnectTo(const URL& url)
         return;
 
     if (auto* networkProcess = m_process->processPool().networkProcess())
-        networkProcess->preconnectTo(sessionID(), url, userAgent(), WebCore::StoredCredentialsPolicy::Use, m_isNavigatingToAppBoundDomain);
+        networkProcess->preconnectTo(sessionID(), identifier(), webPageID(), url, userAgent(), WebCore::StoredCredentialsPolicy::Use, m_isNavigatingToAppBoundDomain);
 }
 
 void WebPageProxy::didDestroyNavigation(uint64_t navigationID)
@@ -7804,6 +7806,9 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
     parameters.smartInsertDeleteEnabled = m_isSmartInsertDeleteEnabled;
     parameters.additionalSupportedImageTypes = m_configuration->additionalSupportedImageTypes();
 #endif
+#if ENABLE(TINT_COLOR_SUPPORT)
+    parameters.tintColor = pageClient().tintColor();
+#endif
     parameters.shouldScaleViewToFitDocument = m_shouldScaleViewToFitDocument;
     parameters.userInterfaceLayoutDirection = pageClient().userInterfaceLayoutDirection();
     parameters.observedLayoutMilestones = m_observedLayoutMilestones;
@@ -7812,6 +7817,10 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
 
 #if USE(WPE_RENDERER)
     parameters.hostFileDescriptor = pageClient().hostFileDescriptor();
+#endif
+
+#if PLATFORM(WIN)
+    parameters.nativeWindowHandle = reinterpret_cast<uint64_t>(viewWidget());
 #endif
 
     for (auto& iterator : m_urlSchemeHandlersByScheme)
@@ -7852,6 +7861,7 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
     parameters.shouldRenderCanvasInGPUProcess = preferences().renderCanvasInGPUProcessEnabled();
     parameters.shouldCaptureDisplayInUIProcess = m_process->processPool().configuration().shouldCaptureDisplayInUIProcess();
     parameters.limitsNavigationsToAppBoundDomains = m_limitsNavigationsToAppBoundDomains;
+    parameters.shouldRelaxThirdPartyCookieBlocking = m_configuration->shouldRelaxThirdPartyCookieBlocking();
 
 #if PLATFORM(GTK)
     parameters.themeName = pageClient().themeName();
@@ -8534,17 +8544,17 @@ void WebPageProxy::toggleAutomaticTextReplacement()
 
 #if USE(DICTATION_ALTERNATIVES)
 
-void WebPageProxy::showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext)
+void WebPageProxy::showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, WebCore::DictationContext dictationContext)
 {
     pageClient().showDictationAlternativeUI(boundingBoxOfDictatedText, dictationContext);
 }
 
-void WebPageProxy::removeDictationAlternatives(uint64_t dictationContext)
+void WebPageProxy::removeDictationAlternatives(WebCore::DictationContext dictationContext)
 {
     pageClient().removeDictationAlternatives(dictationContext);
 }
 
-void WebPageProxy::dictationAlternatives(uint64_t dictationContext, CompletionHandler<void(Vector<String>&&)>&& completionHandler)
+void WebPageProxy::dictationAlternatives(WebCore::DictationContext dictationContext, CompletionHandler<void(Vector<String>&&)>&& completionHandler)
 {
     completionHandler(pageClient().dictationAlternatives(dictationContext));
 }

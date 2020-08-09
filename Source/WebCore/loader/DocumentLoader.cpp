@@ -1004,7 +1004,7 @@ void DocumentLoader::continueAfterContentPolicy(PolicyAction policy)
         return;
     }
 
-    if (m_response.isHTTP()) {
+    if (m_response.isInHTTPFamily()) {
         int status = m_response.httpStatusCode(); // Status may be zero when loading substitute data, in particular from a WebArchive.
         if (status && (status < 200 || status >= 300)) {
             bool hostedByObject = frameLoader()->isHostedByObjectElement();
@@ -1238,6 +1238,9 @@ void DocumentLoader::applyPoliciesToSettings()
 
 #if ENABLE(MEDIA_SOURCE)
     m_frame->settings().setMediaSourceEnabled(m_mediaSourcePolicy == MediaSourcePolicy::Default ? Settings::platformDefaultMediaSourceEnabled() : m_mediaSourcePolicy == MediaSourcePolicy::Enable);
+#endif
+#if ENABLE(TEXT_AUTOSIZING)
+    m_frame->settings().setIdempotentModeAutosizingOnlyHonorsPercentages(m_idempotentModeAutosizingOnlyHonorsPercentages);
 #endif
 }
 

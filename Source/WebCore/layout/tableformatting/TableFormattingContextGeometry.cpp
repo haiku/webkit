@@ -41,9 +41,53 @@ namespace Layout {
 LayoutUnit TableFormattingContext::Geometry::cellHeigh(const ContainerBox& cellBox) const
 {
     ASSERT(cellBox.isInFlow());
-    if (auto height = computedHeight(cellBox))
-        return *height;
-    return contentHeightForFormattingContextRoot(cellBox);
+    return std::max(computedHeight(cellBox).valueOr(0_lu), contentHeightForFormattingContextRoot(cellBox));
+}
+
+Edges TableFormattingContext::Geometry::computedCellBorder(const TableGrid::Cell& cell) const
+{
+    auto& cellBox = cell.box();
+    auto border = computedBorder(cellBox);
+    auto collapsedBorder = m_grid.collapsedBorder();
+    if (!collapsedBorder)
+        return border;
+
+    // We might want to cache these collapsed borders on the grid.
+    auto cellPosition = cell.position();
+    // Collapsed border left from table and adjacent cells.
+    if (!cellPosition.column)
+        border.horizontal.left = collapsedBorder->horizontal.left / 2;
+    else {
+        auto adjacentBorderRight = computedBorder(m_grid.slot({ cellPosition.column - 1, cellPosition.row })->cell().box()).horizontal.right;
+        border.horizontal.left = std::max(border.horizontal.left, adjacentBorderRight) / 2;
+    }
+    // Collapsed border right from table and adjacent cells.
+    if (cellPosition.column == m_grid.columns().size() - 1)
+        border.horizontal.right = collapsedBorder->horizontal.right / 2;
+    else {
+        auto adjacentBorderLeft = computedBorder(m_grid.slot({ cellPosition.column + 1, cellPosition.row })->cell().box()).horizontal.left;
+        border.horizontal.right = std::max(border.horizontal.right, adjacentBorderLeft) / 2;
+    }
+    // Collapsed border top from table, row and adjacent cells.
+    auto& rows = m_grid.rows().list();
+    if (!cellPosition.row)
+        border.vertical.top = collapsedBorder->vertical.top / 2;
+    else {
+        auto adjacentBorderBottom = computedBorder(m_grid.slot({ cellPosition.column, cellPosition.row - 1 })->cell().box()).vertical.bottom;
+        auto adjacentRowBottom = computedBorder(rows[cellPosition.row - 1].box()).vertical.bottom;
+        auto adjacentCollapsedBorder = std::max(adjacentBorderBottom, adjacentRowBottom);
+        border.vertical.top = std::max(border.vertical.top, adjacentCollapsedBorder) / 2;
+    }
+    // Collapsed border bottom from table, row and adjacent cells.
+    if (cellPosition.row == m_grid.rows().size() - 1)
+        border.vertical.bottom = collapsedBorder->vertical.bottom / 2;
+    else {
+        auto adjacentBorderTop = computedBorder(m_grid.slot({ cellPosition.column, cellPosition.row + 1 })->cell().box()).vertical.top;
+        auto adjacentRowTop = computedBorder(rows[cellPosition.row + 1].box()).vertical.top;
+        auto adjacentCollapsedBorder = std::max(adjacentBorderTop, adjacentRowTop);
+        border.vertical.bottom = std::max(border.vertical.bottom, adjacentCollapsedBorder) / 2;
+    }
+    return border;
 }
 
 Optional<LayoutUnit> TableFormattingContext::Geometry::computedColumnWidth(const ContainerBox& columnBox) const
@@ -55,31 +99,29 @@ Optional<LayoutUnit> TableFormattingContext::Geometry::computedColumnWidth(const
     return columnBox.columnWidth();
 }
 
-FormattingContext::IntrinsicWidthConstraints TableFormattingContext::Geometry::intrinsicWidthConstraintsForCell(const ContainerBox& cellBox)
+FormattingContext::IntrinsicWidthConstraints TableFormattingContext::Geometry::intrinsicWidthConstraintsForCell(const TableGrid::Cell& cell)
 {
-    auto fixedMarginBorderAndPadding = [&] {
-        auto& style = cellBox.style();
-        return fixedValue(style.marginStart()).valueOr(0)
-            + LayoutUnit { style.borderLeftWidth() }
-            + fixedValue(style.paddingLeft()).valueOr(0)
-            + fixedValue(style.paddingRight()).valueOr(0)
-            + LayoutUnit { style.borderRightWidth() }
-            + fixedValue(style.marginEnd()).valueOr(0);
-    };
+    auto& cellBox = cell.box();
+    auto& style = cellBox.style();
 
-    auto computedIntrinsicWidthConstraints = [&] {
+    auto computedIntrinsicWidthConstraints = [&]() -> FormattingContext::IntrinsicWidthConstraints {
         // Even fixed width cells expand to their minimum content width
         // <td style="width: 10px">test_content</td> will size to max(minimum content width, computed width).
         auto intrinsicWidthConstraints = FormattingContext::IntrinsicWidthConstraints { };
         if (cellBox.hasChild())
             intrinsicWidthConstraints = LayoutContext::createFormattingContext(cellBox, layoutState())->computedIntrinsicWidthConstraints();
-        if (auto width = fixedValue(cellBox.style().logicalWidth()))
-            return FormattingContext::IntrinsicWidthConstraints { std::max(intrinsicWidthConstraints.minimum, *width), *width };
+        if (auto fixedWidth = fixedValue(style.logicalWidth()))
+            return { std::max(intrinsicWidthConstraints.minimum, *fixedWidth), std::max(intrinsicWidthConstraints.minimum, *fixedWidth) };
         return intrinsicWidthConstraints;
     };
     // FIXME Check for box-sizing: border-box;
     auto intrinsicWidthConstraints = constrainByMinMaxWidth(cellBox, computedIntrinsicWidthConstraints());
-    intrinsicWidthConstraints.expand(fixedMarginBorderAndPadding());
+    // Expand with border
+    intrinsicWidthConstraints.expand(computedCellBorder(cell).width());
+    // padding
+    intrinsicWidthConstraints.expand(fixedValue(style.paddingLeft()).valueOr(0) + fixedValue(style.paddingRight()).valueOr(0));
+    // and margin
+    intrinsicWidthConstraints.expand(fixedValue(style.marginStart()).valueOr(0) + fixedValue(style.marginEnd()).valueOr(0));
     return intrinsicWidthConstraints;
 }
 

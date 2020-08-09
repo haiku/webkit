@@ -27,7 +27,9 @@
 #include "Exception.h"
 
 #include "Interpreter.h"
-#include "JSCellInlines.h"
+#include "JSCJSValueInlines.h"
+#include "JSObjectInlines.h"
+#include "StructureInlines.h"
 
 namespace JSC {
 

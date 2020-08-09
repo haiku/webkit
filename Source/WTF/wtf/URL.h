@@ -170,9 +170,6 @@ public:
     unsigned pathEnd() const;
     unsigned pathAfterLastSlash() const;
 
-    operator const String&() const { return m_string; }
-    operator StringView() const { return m_string; }
-
 #if USE(CF)
     WTF_EXPORT_PRIVATE URL(CFURLRef);
     WTF_EXPORT_PRIVATE RetainPtr<CFURLRef> createCFURL() const;
@@ -181,10 +178,6 @@ public:
 #if USE(FOUNDATION)
     WTF_EXPORT_PRIVATE URL(NSURL *);
     WTF_EXPORT_PRIVATE operator NSURL *() const;
-#endif
-
-#ifdef __OBJC__
-    operator NSString *() const { return m_string; }
 #endif
 
 #if PLATFORM(HAIKU)
@@ -204,7 +197,6 @@ private:
     friend class URLParser;
 
     WTF_EXPORT_PRIVATE void invalidate();
-    void copyToBuffer(Vector<char, 512>& buffer) const;
     unsigned hostStart() const;
     unsigned credentialsEnd() const;
     void remove(unsigned start, unsigned length);

@@ -1,7 +1,4 @@
 ---
-test/annexB/built-ins/Array/from/iterator-method-emulates-undefined.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
 test/annexB/built-ins/Function/createdynfn-html-close-comment-params.js:
   default: "SyntaxError: Unexpected token '}'. Expected a parameter pattern or a ')' in parameter list."
   strict mode: "SyntaxError: Unexpected token '}'. Expected a parameter pattern or a ')' in parameter list."
@@ -11,24 +8,9 @@ test/annexB/built-ins/Function/createdynfn-html-open-comment-params.js:
 test/annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
-test/annexB/built-ins/String/prototype/match/custom-matcher-emulates-undefined.js:
-  default: 'Test262Error: Expected SameValue(«0», «1») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«0», «1») to be true'
-test/annexB/built-ins/String/prototype/replace/custom-replacer-emulates-undefined.js:
-  default: 'Test262Error: Expected SameValue(«», «null») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«», «null») to be true'
 test/annexB/built-ins/String/prototype/replaceAll/custom-replacer-emulates-undefined.js:
   default: 'Test262Error: Expected SameValue(«», «null») to be true'
   strict mode: 'Test262Error: Expected SameValue(«», «null») to be true'
-test/annexB/built-ins/String/prototype/search/custom-searcher-emulates-undefined.js:
-  default: 'Test262Error: Expected SameValue(«-1», «null») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«-1», «null») to be true'
-test/annexB/built-ins/String/prototype/split/custom-splitter-emulates-undefined.js:
-  default: 'Test262Error: Expected SameValue(«», «null») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«», «null») to be true'
-test/annexB/built-ins/TypedArrayConstructors/from/iterator-method-emulates-undefined.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
 test/annexB/language/eval-code/direct/func-block-decl-eval-func-skip-early-err-block.js:
   default: 'Test262Error: An initialized binding is not created prior to evaluation Expected a ReferenceError to be thrown but no exception was thrown at all'
 test/annexB/language/eval-code/direct/func-block-decl-eval-func-skip-early-err-for-in.js:
@@ -654,15 +636,6 @@ test/annexB/language/statements/for-of/iterator-close-return-emulates-undefined-
 test/annexB/language/statements/function/default-parameters-emulates-undefined.js:
   default: 'Test262Error: Expected SameValue(«undefined», «[object Function]») to be true'
   strict mode: 'Test262Error: Expected SameValue(«undefined», «[object Function]») to be true'
-test/built-ins/Array/prototype/concat/arg-length-exceeding-integer-limit.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/Array/prototype/concat/arg-length-near-integer-limit.js:
-  default: 'Test262Error: Expected a Test262Error but got a RangeError'
-  strict mode: 'Test262Error: Expected a Test262Error but got a RangeError'
-test/built-ins/Array/prototype/splice/property-traps-order-with-species.js:
-  default: 'Test262Error: Expected [defineProperty, defineProperty, set, getOwnPropertyDescriptor, defineProperty] and [defineProperty, defineProperty] to have the same contents. '
-  strict mode: 'Test262Error: Expected [defineProperty, defineProperty, set, getOwnPropertyDescriptor, defineProperty] and [defineProperty, defineProperty] to have the same contents. '
 test/built-ins/ArrayBuffer/prototype/byteLength/detached-buffer.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
@@ -1528,12 +1501,6 @@ test/built-ins/RegExp/prototype/unicode/cross-realm.js:
 test/built-ins/RegExp/quantifier-integer-limit.js:
   default: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
   strict mode: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
-test/built-ins/String/prototype/replace/cstm-replace-is-null.js:
-  default: 'TypeError: null is not a function'
-  strict mode: 'TypeError: null is not a function'
-test/built-ins/String/prototype/replaceAll/searchValue-replacer-is-null.js:
-  default: 'TypeError: null is not a function'
-  strict mode: 'TypeError: null is not a function'
 test/built-ins/ThrowTypeError/extensible.js:
   default: 'Test262Error: Expected SameValue(«true», «false») to be true'
   strict mode: 'Test262Error: Expected SameValue(«true», «false») to be true'
@@ -3291,9 +3258,6 @@ test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-obj
   strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict.js:
   strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-await-of/iterator-close-throw-get-method-abrupt.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«function Object() {'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«function Object() {'
 test/language/statements/for-await-of/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-await-of/ticks-with-async-iter-resolved-promise-and-constructor-lookup-two.js:
@@ -3508,9 +3472,6 @@ test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:
 test/language/statements/for-of/head-var-no-expr.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/iterator-close-throw-get-method-abrupt.js:
-  default: 'Test262Error: Expected a Test262Error but got a Object'
-  strict mode: 'Test262Error: Expected a Test262Error but got a Object'
 test/language/statements/for-of/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for/head-lhs-let.js:

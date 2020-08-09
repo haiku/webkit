@@ -45,6 +45,13 @@ gtk_widget_get_toplevel(GtkWidget* widget)
 }
 
 static inline void
+gtk_widget_destroy(GtkWidget* widget)
+{
+    ASSERT(GTK_IS_WINDOW(widget));
+    gtk_window_destroy(GTK_WINDOW(widget));
+}
+
+static inline void
 gtk_window_get_position(GtkWindow*, int* x, int* y)
 {
     *x = *y = 0;
@@ -78,6 +85,30 @@ static inline void
 gtk_widget_queue_resize_no_redraw(GtkWidget* widget)
 {
     gtk_widget_queue_resize(widget);
+}
+
+static inline void
+gtk_entry_set_text(GtkEntry* entry, const char* text)
+{
+    gtk_editable_set_text(GTK_EDITABLE(entry), text);
+}
+
+static inline const char*
+gtk_entry_get_text(GtkEntry* entry)
+{
+    return gtk_editable_get_text(GTK_EDITABLE(entry));
+}
+
+static inline void
+gtk_label_set_line_wrap(GtkLabel* label, gboolean enable)
+{
+    gtk_label_set_wrap(label, enable);
+}
+
+static inline void
+gtk_window_set_default(GtkWindow* window, GtkWidget* widget)
+{
+    gtk_window_set_default_widget(window, widget);
 }
 
 static inline gboolean
@@ -150,6 +181,58 @@ gdk_event_get_keycode(const GdkEvent* event, guint16* keycode)
     if (keycode)
         *keycode = gdk_key_event_get_keycode(const_cast<GdkEvent*>(event));
     return TRUE;
+}
+
+static inline int
+gtk_native_dialog_run(GtkNativeDialog* dialog)
+{
+    struct RunDialogContext {
+        GMainLoop *loop;
+        int response;
+    } context = { g_main_loop_new(nullptr, FALSE), 0 };
+
+    gtk_native_dialog_show(dialog);
+    g_signal_connect(dialog, "response", G_CALLBACK(+[](GtkNativeDialog*, int response, RunDialogContext* context) {
+        context->response = response;
+        g_main_loop_quit(context->loop);
+    }), &context);
+    g_main_loop_run(context.loop);
+    g_main_loop_unref(context.loop);
+
+    return context.response;
+}
+
+static inline int
+gtk_dialog_run(GtkDialog* dialog)
+{
+    struct RunDialogContext {
+        GMainLoop *loop;
+        int response;
+    } context = { g_main_loop_new(nullptr, FALSE), 0 };
+
+    gtk_widget_show(GTK_WIDGET(dialog));
+    g_signal_connect(dialog, "response", G_CALLBACK(+[](GtkDialog*, int response, RunDialogContext* context) {
+        context->response = response;
+        g_main_loop_quit(context->loop);
+    }), &context);
+    g_main_loop_run(context.loop);
+    g_main_loop_unref(context.loop);
+
+    return context.response;
+}
+
+static inline void
+gtk_tree_view_column_cell_get_size(GtkTreeViewColumn* column, const GdkRectangle*, gint* xOffset, gint* yOffset, gint* width, gint* height)
+{
+    gtk_tree_view_column_cell_get_size(column, xOffset, yOffset, width, height);
+}
+
+#else // USE(GTK4)
+
+static inline void
+gtk_widget_add_css_class(GtkWidget* widget, const char* name)
+{
+    gtk_style_context_add_class(gtk_widget_get_style_context(widget), name);
 }
 
 #endif // USE(GTK4)

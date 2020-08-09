@@ -57,6 +57,11 @@ ScrollingTreeFrameScrollingNodeMac::ScrollingTreeFrameScrollingNodeMac(Scrolling
 
 ScrollingTreeFrameScrollingNodeMac::~ScrollingTreeFrameScrollingNodeMac() = default;
 
+void ScrollingTreeFrameScrollingNodeMac::willBeDestroyed()
+{
+    m_delegate.nodeWillBeDestroyed();
+}
+
 void ScrollingTreeFrameScrollingNodeMac::commitStateBeforeChildren(const ScrollingStateNode& stateNode)
 {
     ScrollingTreeFrameScrollingNode::commitStateBeforeChildren(stateNode);
@@ -111,10 +116,10 @@ void ScrollingTreeFrameScrollingNodeMac::commitStateAfterChildren(const Scrollin
         updateMainFramePinAndRubberbandState();
 }
 
-ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
+WheelEventHandlingResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
     if (!canHandleWheelEvent(wheelEvent))
-        return ScrollingEventResult::DidNotHandleEvent;
+        return WheelEventHandlingResult::unhandled();
 
     bool handled = m_delegate.handleWheelEvent(wheelEvent);
 
@@ -125,7 +130,7 @@ ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const 
     if (m_delegate.activeScrollSnapIndexDidChange())
         scrollingTree().setActiveScrollSnapIndices(scrollingNodeID(), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Horizontal), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Vertical));
 #endif
-    return handled ? ScrollingEventResult::DidHandleEvent : ScrollingEventResult::DidNotHandleEvent;
+    return WheelEventHandlingResult::result(handled);
 }
 
 FloatPoint ScrollingTreeFrameScrollingNodeMac::adjustedScrollPosition(const FloatPoint& position, ScrollClamping clamp) const
@@ -134,17 +139,14 @@ FloatPoint ScrollingTreeFrameScrollingNodeMac::adjustedScrollPosition(const Floa
     return ScrollingTreeFrameScrollingNode::adjustedScrollPosition(scrollPosition, clamp);
 }
 
-void ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged()
+void ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged(ScrollingLayerPositionAction action)
 {
     LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged to " << currentScrollPosition() << " min: " << minimumScrollPosition() << " max: " << maximumScrollPosition() << " sync: " << hasSynchronousScrollingReasons());
 
     if (isRootNode())
         updateMainFramePinAndRubberbandState();
 
-    if (hasSynchronousScrollingReasons())
-        scrollingTree().scrollingTreeNodeDidScroll(*this, ScrollingLayerPositionAction::Set);
-    else
-        ScrollingTreeFrameScrollingNode::currentScrollPositionChanged();
+    ScrollingTreeFrameScrollingNode::currentScrollPositionChanged(hasSynchronousScrollingReasons() ? ScrollingLayerPositionAction::Set : action);
 
     if (scrollingTree().scrollingPerformanceLoggingEnabled()) {
         unsigned unfilledArea = exposedUnfilledArea();

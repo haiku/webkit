@@ -92,6 +92,73 @@ namespace JSC {
         unsigned m_padding;
     };
 
+    class Variable {
+    public:
+        enum VariableKind { NormalVariable, SpecialVariable };
+
+        Variable() = default;
+        
+        Variable(const Identifier& ident)
+            : m_ident(ident)
+            , m_local(nullptr)
+            , m_attributes(0)
+            , m_kind(NormalVariable) // This is somewhat meaningless here for this kind of Variable.
+            , m_symbolTableConstantIndex(0) // This is meaningless here for this kind of Variable.
+            , m_isLexicallyScoped(false)
+        {
+        }
+
+        Variable(const Identifier& ident, VarOffset offset, RegisterID* local, unsigned attributes, VariableKind kind, int symbolTableConstantIndex, bool isLexicallyScoped)
+            : m_ident(ident)
+            , m_offset(offset)
+            , m_local(local)
+            , m_attributes(attributes)
+            , m_kind(kind)
+            , m_symbolTableConstantIndex(symbolTableConstantIndex)
+            , m_isLexicallyScoped(isLexicallyScoped)
+        {
+        }
+
+        // If it's unset, then it is a non-locally-scoped variable. If it is set, then it could be
+        // a stack variable, a scoped variable in a local scope, or a variable captured in the
+        // direct arguments object.
+        bool isResolved() const { return !!m_offset; }
+        int symbolTableConstantIndex() const { ASSERT(isResolved() && !isSpecial()); return m_symbolTableConstantIndex; }
+        
+        const Identifier& ident() const { return m_ident; }
+        
+        VarOffset offset() const { return m_offset; }
+        bool isLocal() const { return m_offset.isStack(); }
+        RegisterID* local() const { return m_local; }
+
+        bool isReadOnly() const { return m_attributes & PropertyAttribute::ReadOnly; }
+        bool isSpecial() const { return m_kind != NormalVariable; }
+        bool isConst() const { return isReadOnly() && m_isLexicallyScoped; }
+        void setIsReadOnly() { m_attributes |= PropertyAttribute::ReadOnly; }
+
+        void dump(PrintStream&) const;
+
+        bool operator==(const Variable& other) const
+        {
+            return m_ident == other.m_ident
+                && m_offset == other.m_offset
+                && m_local == other.m_local
+                && m_attributes == other.m_attributes
+                && m_kind == other.m_kind
+                && m_symbolTableConstantIndex == other.m_symbolTableConstantIndex
+                && m_isLexicallyScoped == other.m_isLexicallyScoped;
+        }
+
+    private:
+        Identifier m_ident;
+        VarOffset m_offset { };
+        RegisterID* m_local { nullptr };
+        unsigned m_attributes { 0 };
+        VariableKind m_kind { NormalVariable };
+        int m_symbolTableConstantIndex { 0 }; // This is meaningless here for this default NormalVariable kind of Variable.
+        bool m_isLexicallyScoped { false };
+    };
+
     // https://tc39.github.io/ecma262/#sec-completion-record-specification-type
     //
     // For the Break and Continue cases, instead of using the Break and Continue enum values
@@ -238,22 +305,36 @@ namespace JSC {
         using Base = ForInContext;
     public:
         using GetInst = std::tuple<unsigned, int>;
+        using InInst = GetInst;
+        using HasOwnPropertyJumpInst = std::tuple<unsigned, unsigned>;
 
-        StructureForInContext(RegisterID* localRegister, RegisterID* indexRegister, RegisterID* propertyRegister, RegisterID* enumeratorRegister, unsigned bodyBytecodeStartOffset)
+        StructureForInContext(RegisterID* localRegister, RegisterID* indexRegister, RegisterID* propertyRegister, RegisterID* enumeratorRegister, Optional<Variable> baseVariable, unsigned bodyBytecodeStartOffset)
             : ForInContext(localRegister, Type::StructureForIn, bodyBytecodeStartOffset)
             , m_indexRegister(indexRegister)
             , m_propertyRegister(propertyRegister)
             , m_enumeratorRegister(enumeratorRegister)
+            , m_baseVariable(baseVariable)
         {
         }
 
         RegisterID* index() const { return m_indexRegister.get(); }
         RegisterID* property() const { return m_propertyRegister.get(); }
         RegisterID* enumerator() const { return m_enumeratorRegister.get(); }
+        const Optional<Variable>& baseVariable() const { return m_baseVariable; }
 
         void addGetInst(unsigned instIndex, int propertyRegIndex)
         {
             m_getInsts.append(GetInst { instIndex, propertyRegIndex });
+        }
+
+        void addInInst(unsigned instIndex, int propertyRegIndex)
+        {
+            m_inInsts.append(InInst { instIndex, propertyRegIndex });
+        }
+
+        void addHasOwnPropertyJump(unsigned branchInstIndex, unsigned genericPathTarget)
+        {
+            m_hasOwnPropertyJumpInsts.append(HasOwnPropertyJumpInst { branchInstIndex, genericPathTarget });
         }
 
         void finalize(BytecodeGenerator&, UnlinkedCodeBlockGenerator*, unsigned bodyBytecodeEndOffset);
@@ -262,7 +343,10 @@ namespace JSC {
         RefPtr<RegisterID> m_indexRegister;
         RefPtr<RegisterID> m_propertyRegister;
         RefPtr<RegisterID> m_enumeratorRegister;
+        Optional<Variable> m_baseVariable;
         Vector<GetInst> m_getInsts;
+        Vector<InInst> m_inInsts;
+        Vector<HasOwnPropertyJumpInst> m_hasOwnPropertyJumpInsts;
     };
 
     class IndexedForInContext : public ForInContext {
@@ -294,70 +378,6 @@ namespace JSC {
         TryData* tryData;
     };
 
-    class Variable {
-    public:
-        enum VariableKind { NormalVariable, SpecialVariable };
-
-        Variable()
-            : m_offset()
-            , m_local(nullptr)
-            , m_attributes(0)
-            , m_kind(NormalVariable)
-            , m_symbolTableConstantIndex(0) // This is meaningless here for this kind of Variable.
-            , m_isLexicallyScoped(false)
-        {
-        }
-        
-        Variable(const Identifier& ident)
-            : m_ident(ident)
-            , m_local(nullptr)
-            , m_attributes(0)
-            , m_kind(NormalVariable) // This is somewhat meaningless here for this kind of Variable.
-            , m_symbolTableConstantIndex(0) // This is meaningless here for this kind of Variable.
-            , m_isLexicallyScoped(false)
-        {
-        }
-
-        Variable(const Identifier& ident, VarOffset offset, RegisterID* local, unsigned attributes, VariableKind kind, int symbolTableConstantIndex, bool isLexicallyScoped)
-            : m_ident(ident)
-            , m_offset(offset)
-            , m_local(local)
-            , m_attributes(attributes)
-            , m_kind(kind)
-            , m_symbolTableConstantIndex(symbolTableConstantIndex)
-            , m_isLexicallyScoped(isLexicallyScoped)
-        {
-        }
-
-        // If it's unset, then it is a non-locally-scoped variable. If it is set, then it could be
-        // a stack variable, a scoped variable in a local scope, or a variable captured in the
-        // direct arguments object.
-        bool isResolved() const { return !!m_offset; }
-        int symbolTableConstantIndex() const { ASSERT(isResolved() && !isSpecial()); return m_symbolTableConstantIndex; }
-        
-        const Identifier& ident() const { return m_ident; }
-        
-        VarOffset offset() const { return m_offset; }
-        bool isLocal() const { return m_offset.isStack(); }
-        RegisterID* local() const { return m_local; }
-
-        bool isReadOnly() const { return m_attributes & PropertyAttribute::ReadOnly; }
-        bool isSpecial() const { return m_kind != NormalVariable; }
-        bool isConst() const { return isReadOnly() && m_isLexicallyScoped; }
-        void setIsReadOnly() { m_attributes |= PropertyAttribute::ReadOnly; }
-
-        void dump(PrintStream&) const;
-
-    private:
-        Identifier m_ident;
-        VarOffset m_offset;
-        RegisterID* m_local;
-        unsigned m_attributes;
-        VariableKind m_kind;
-        int m_symbolTableConstantIndex;
-        bool m_isLexicallyScoped;
-    };
-
     struct TryRange {
         Ref<Label> start;
         Ref<Label> end;
@@ -381,6 +401,10 @@ namespace JSC {
         friend class IndexedForInContext;
         friend class StructureForInContext;
         friend class StrictModeScope;
+
+        template <typename OldOpType, typename TupleType>
+        friend void rewriteOp(BytecodeGenerator&, TupleType&);
+
     public:
         typedef DeclarationStacks::FunctionStack FunctionStack;
 
@@ -654,6 +678,8 @@ namespace JSC {
 
         void hoistSloppyModeFunctionIfNecessary(const Identifier& functionName);
 
+        StructureForInContext* findStructureForInContext(RegisterID* property);
+
     private:
         void emitTypeProfilerExpressionInfo(const JSTextPosition& startDivot, const JSTextPosition& endDivot);
     public:
@@ -859,6 +885,8 @@ namespace JSC {
         void emitJumpIfFalse(RegisterID* cond, Label& target);
         void emitJumpIfNotFunctionCall(RegisterID* cond, Label& target);
         void emitJumpIfNotFunctionApply(RegisterID* cond, Label& target);
+        unsigned emitWideJumpIfNotFunctionHasOwnProperty(RegisterID* cond, Label& target);
+        void recordHasOwnStructurePropertyInForInLoop(StructureForInContext&, unsigned branchOffset, Label& genericPath);
 
         template<typename BinOp, typename JmpOp>
         bool fuseCompareAndJump(RegisterID* cond, Label& target, bool swapOperands = false);
@@ -871,6 +899,7 @@ namespace JSC {
 
         RegisterID* emitHasIndexedProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName);
         RegisterID* emitHasStructureProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName, RegisterID* enumerator);
+        RegisterID* emitHasOwnStructureProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName, RegisterID* enumerator);
         RegisterID* emitHasGenericProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName);
         RegisterID* emitGetPropertyEnumerator(RegisterID* dst, RegisterID* base);
         RegisterID* emitGetEnumerableLength(RegisterID* dst, RegisterID* base);
@@ -999,7 +1028,7 @@ namespace JSC {
 
         void pushIndexedForInScope(RegisterID* local, RegisterID* index);
         void popIndexedForInScope(RegisterID* local);
-        void pushStructureForInScope(RegisterID* local, RegisterID* index, RegisterID* property, RegisterID* enumerator);
+        void pushStructureForInScope(RegisterID* local, RegisterID* index, RegisterID* property, RegisterID* enumerator, Optional<Variable> base);
         void popStructureForInScope(RegisterID* local);
 
         LabelScope* breakTarget(const Identifier&);
@@ -1063,6 +1092,9 @@ namespace JSC {
 
         RegisterID* emitMove(RegisterID* dst, RegisterID* src);
 
+    public:
+        void disablePeepholeOptimization() { m_lastOpcodeID = op_end; }
+    private:
         bool canDoPeepholeOptimization() const { return m_lastOpcodeID != op_end; }
 
     public:
@@ -1204,7 +1236,7 @@ namespace JSC {
             auto prevLastOpcodeID = m_lastOpcodeID;
             auto prevLastInstruction = m_lastInstruction;
             m_writer.swap(writer);
-            m_lastOpcodeID = op_end;
+            disablePeepholeOptimization();
             m_lastInstruction = m_writer.ref();
             fn();
             m_writer.swap(writer);

@@ -114,10 +114,10 @@ void ScrollingTreeFrameScrollingNodeNicosia::commitStateAfterChildren(const Scro
     }
 }
 
-ScrollingEventResult ScrollingTreeFrameScrollingNodeNicosia::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
+WheelEventHandlingResult ScrollingTreeFrameScrollingNodeNicosia::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
     if (!canHandleWheelEvent(wheelEvent))
-        return ScrollingEventResult::DidNotHandleEvent;
+        return WheelEventHandlingResult::unhandled();
 
     if (wheelEvent.deltaX() || wheelEvent.deltaY()) {
         auto* scrollLayer = static_cast<Nicosia::PlatformLayer*>(scrolledContentsLayer());
@@ -145,7 +145,7 @@ ScrollingEventResult ScrollingTreeFrameScrollingNodeNicosia::handleWheelEvent(co
 #endif
 
     // FIXME: This needs to return whether the event was handled.
-    return ScrollingEventResult::DidHandleEvent;
+    return WheelEventHandlingResult::handled();
 }
 
 void ScrollingTreeFrameScrollingNodeNicosia::stopScrollAnimations()
@@ -162,14 +162,11 @@ FloatPoint ScrollingTreeFrameScrollingNodeNicosia::adjustedScrollPosition(const 
     return ScrollingTreeFrameScrollingNode::adjustedScrollPosition(scrollPosition, clamping);
 }
 
-void ScrollingTreeFrameScrollingNodeNicosia::currentScrollPositionChanged()
+void ScrollingTreeFrameScrollingNodeNicosia::currentScrollPositionChanged(ScrollingLayerPositionAction action)
 {
     LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeFrameScrollingNodeNicosia::currentScrollPositionChanged to " << currentScrollPosition() << " min: " << minimumScrollPosition() << " max: " << maximumScrollPosition() << " sync: " << hasSynchronousScrollingReasons());
 
-    if (hasSynchronousScrollingReasons())
-        scrollingTree().scrollingTreeNodeDidScroll(*this, ScrollingLayerPositionAction::Set);
-    else
-        ScrollingTreeFrameScrollingNode::currentScrollPositionChanged();
+    ScrollingTreeFrameScrollingNode::currentScrollPositionChanged(hasSynchronousScrollingReasons() ? ScrollingLayerPositionAction::Set : action);
 }
 
 void ScrollingTreeFrameScrollingNodeNicosia::repositionScrollingLayers()

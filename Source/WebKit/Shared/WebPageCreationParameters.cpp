@@ -107,13 +107,20 @@ void WebPageCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << deviceOrientation;
     encoder << keyboardIsAttached;
     encoder << canShowWhileLocked;
+    encoder << isCapturingScreen;
 #endif
 #if PLATFORM(COCOA)
     encoder << smartInsertDeleteEnabled;
     encoder << additionalSupportedImageTypes;
 #endif
+#if ENABLE(TINT_COLOR_SUPPORT)
+    encoder << tintColor;
+#endif
 #if USE(WPE_RENDERER)
     encoder << hostFileDescriptor;
+#endif
+#if PLATFORM(WIN)
+    encoder << nativeWindowHandle;
 #endif
     encoder << appleMailPaginationQuirkEnabled;
     encoder << appleMailLinesClampEnabled;
@@ -148,6 +155,7 @@ void WebPageCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << shouldRenderCanvasInGPUProcess;
     encoder << needsInAppBrowserPrivacyQuirks;
     encoder << limitsNavigationsToAppBoundDomains;
+    encoder << shouldRelaxThirdPartyCookieBlocking;
 
 #if PLATFORM(GTK)
     encoder << themeName;
@@ -340,6 +348,8 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
         return WTF::nullopt;
     if (!decoder.decode(parameters.canShowWhileLocked))
         return WTF::nullopt;
+    if (!decoder.decode(parameters.isCapturingScreen))
+        return WTF::nullopt;
 #endif
 
 #if PLATFORM(COCOA)
@@ -349,8 +359,18 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
         return WTF::nullopt;
 #endif
 
+#if ENABLE(TINT_COLOR_SUPPORT)
+    if (!decoder.decode(parameters.tintColor))
+        return WTF::nullopt;
+#endif
+
 #if USE(WPE_RENDERER)
     if (!decoder.decode(parameters.hostFileDescriptor))
+        return WTF::nullopt;
+#endif
+
+#if PLATFORM(WIN)
+    if (!decoder.decode(parameters.nativeWindowHandle))
         return WTF::nullopt;
 #endif
 
@@ -475,6 +495,9 @@ Optional<WebPageCreationParameters> WebPageCreationParameters::decode(IPC::Decod
         return WTF::nullopt;
     
     if (!decoder.decode(parameters.limitsNavigationsToAppBoundDomains))
+        return WTF::nullopt;
+    
+    if (!decoder.decode(parameters.shouldRelaxThirdPartyCookieBlocking))
         return WTF::nullopt;
     
 #if PLATFORM(GTK)

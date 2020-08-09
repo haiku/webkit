@@ -200,6 +200,7 @@ namespace JSC {
         virtual bool isAdd() const { return false; }
         virtual bool isSubtract() const { return false; }
         virtual bool isBoolean() const { return false; }
+        virtual bool isThisNode() const { return false; }
         virtual bool isSpreadExpression() const { return false; }
         virtual bool isSuperNode() const { return false; }
         virtual bool isImportNode() const { return false; }
@@ -612,6 +613,7 @@ namespace JSC {
         ThisNode(const JSTokenLocation&);
 
     private:
+        bool isThisNode() const final { return true; }
         RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = nullptr) final;
     };
 
@@ -1009,6 +1011,14 @@ namespace JSC {
     private:
         RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = nullptr) final;
         size_t m_distanceToInnermostCallOrApply;
+    };
+
+    class HasOwnPropertyFunctionCallDotNode final : public FunctionCallDotNode {
+    public:
+        HasOwnPropertyFunctionCallDotNode(const JSTokenLocation&, ExpressionNode* base, const Identifier&, ArgumentsNode*, const JSTextPosition& divot, const JSTextPosition& divotStart, const JSTextPosition& divotEnd);
+
+    private:
+        RegisterID* emitBytecode(BytecodeGenerator&, RegisterID* = nullptr) final;
     };
 
     class DeleteResolveNode final : public ExpressionNode, public ThrowableExpressionData {

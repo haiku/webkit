@@ -27,9 +27,10 @@
 #include "SparseArrayValueMap.h"
 
 #include "GetterSetter.h"
-#include "JSCellInlines.h"
+#include "JSCJSValueInlines.h"
+#include "JSObjectInlines.h"
 #include "PropertySlot.h"
-#include "SlotVisitor.h"
+#include "StructureInlines.h"
 #include "TypeError.h"
 
 namespace JSC {

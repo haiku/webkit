@@ -280,6 +280,8 @@ inline CapabilityLevel canCompile(Node* node)
     case BooleanToNumber:
     case HasGenericProperty:
     case HasStructureProperty:
+    case HasOwnStructureProperty:
+    case InStructureProperty:
     case HasIndexedProperty:
     case GetDirectPname:
     case GetEnumerableLength:
@@ -362,7 +364,7 @@ inline CapabilityLevel canCompile(Node* node)
     case ToLowerCase:
     case NumberToStringWithRadix:
     case NumberToStringWithValidRadixConstant:
-    case CheckSubClass:
+    case CheckJSCast:
     case CallDOM:
     case CallDOMGetter:
     case ArraySlice:

@@ -3021,7 +3021,7 @@ sub GenerateHeader
         }
     }
 
-    # CheckSubClass Snippet function.
+    # CheckJSCast Snippet function.
     if ($interface->extendedAttributes->{DOMJIT}) {
         $headerIncludes{"<JavaScriptCore/Snippet.h>"} = 1;
         push(@headerContent, "#if ENABLE(JIT)\n");
@@ -7476,10 +7476,13 @@ sub GenerateConstructorDefinition
             push(@constructionConversionArguments, "WTFMove(object)");
 
             # FIXME: toJSNewlyCreated should return JSObject* instead of JSValue.
+            # But certain constructor can return jsNull() e.g. AudioContext.
             push(@$outputArray, "    auto jsValue = toJSNewlyCreated<${IDLType}>(" . join(", ", @constructionConversionArguments) . ");\n");
             push(@$outputArray, "    RETURN_IF_EXCEPTION(throwScope, { });\n") if $interface->extendedAttributes->{ConstructorMayThrowException};
-            push(@$outputArray, "    setSubclassStructureIfNeeded<${implType}>(lexicalGlobalObject, callFrame, asObject(jsValue));\n");
-            push(@$outputArray, "    RETURN_IF_EXCEPTION(throwScope, { });\n");
+            push(@$outputArray, "    if (auto* object = jsDynamicCast<JSObject*>(vm, jsValue)) {\n");
+            push(@$outputArray, "        setSubclassStructureIfNeeded<${implType}>(lexicalGlobalObject, callFrame, object);\n");
+            push(@$outputArray, "        RETURN_IF_EXCEPTION(throwScope, { });\n");
+            push(@$outputArray, "    }\n");
             push(@$outputArray, "    return JSValue::encode(jsValue);\n");
             push(@$outputArray, "}\n\n");
         }

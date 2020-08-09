@@ -27,7 +27,7 @@
 #include "config.h"
 #include "BigIntObject.h"
 
-#include "JSCellInlines.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -38,6 +38,7 @@ const ClassInfo BigIntObject::s_info = { "BigInt", &Base::s_info, nullptr, nullp
 
 BigIntObject* BigIntObject::create(VM& vm, JSGlobalObject* globalObject, JSValue bigInt)
 {
+    ASSERT(bigInt.isBigInt());
     BigIntObject* object = new (NotNull, allocateCell<BigIntObject>(vm.heap)) BigIntObject(vm, globalObject->bigIntObjectStructure());
     object->finishCreation(vm, bigInt);
     return object;

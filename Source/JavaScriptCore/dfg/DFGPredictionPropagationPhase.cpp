@@ -30,12 +30,13 @@
 
 #include "DFGGraph.h"
 #include "DFGPhase.h"
+#include "JSCJSValueInlines.h"
 
 namespace JSC { namespace DFG {
 
 namespace {
 
-bool verboseFixPointLoops = false;
+static constexpr bool verboseFixPointLoops = false;
 
 class PredictionPropagationPhase : public Phase {
 public:
@@ -1059,7 +1060,7 @@ private:
             break;
         }
 
-        case CheckSubClass:
+        case CheckJSCast:
             break;
 
         case SkipScope:
@@ -1205,6 +1206,8 @@ private:
         }
         case HasGenericProperty:
         case HasStructureProperty:
+        case HasOwnStructureProperty:
+        case InStructureProperty:
         case HasIndexedProperty: {
             setPrediction(SpecBoolean);
             break;

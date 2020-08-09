@@ -428,6 +428,9 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #elif ENABLE(ACCESSIBILITY) && PLATFORM(GTK)
     , m_accessibilityObject(nullptr)
 #endif
+#if PLATFORM(WIN)
+    , m_nativeWindowHandle(parameters.nativeWindowHandle)
+#endif
     , m_setCanStartMediaTimer(RunLoop::main(), this, &WebPage::setCanStartMediaTimerFired)
 #if ENABLE(CONTEXT_MENUS)
     , m_contextMenuClient(makeUnique<API::InjectedBundle::PageContextMenuClient>())
@@ -550,6 +553,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     pageConfiguration.userScriptsShouldWaitUntilNotification = parameters.userScriptsShouldWaitUntilNotification;
     pageConfiguration.loadsSubresources = parameters.loadsSubresources;
     pageConfiguration.loadsFromNetwork = parameters.loadsFromNetwork;
+    pageConfiguration.shouldRelaxThirdPartyCookieBlocking = parameters.shouldRelaxThirdPartyCookieBlocking;
 
     if (!parameters.crossOriginAccessControlCheckEnabled)
         CrossOriginAccessControlCheckDisabler::singleton().setCrossOriginAccessControlCheckEnabled(false);
@@ -720,6 +724,10 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     m_page->settings().setContentDispositionAttachmentSandboxEnabled(true);
     setSmartInsertDeleteEnabled(parameters.smartInsertDeleteEnabled);
     WebCore::setAdditionalSupportedImageTypes(parameters.additionalSupportedImageTypes);
+#endif
+
+#if ENABLE(TINT_COLOR_SUPPORT)
+    setTintColor(parameters.tintColor);
 #endif
 
     m_needsFontAttributes = parameters.needsFontAttributes;
@@ -1971,9 +1979,9 @@ void WebPage::setPageAndTextZoomFactors(double pageZoomFactor, double textZoomFa
     return frame->setPageAndTextZoomFactors(static_cast<float>(pageZoomFactor), static_cast<float>(textZoomFactor));
 }
 
-void WebPage::windowScreenDidChange(uint32_t displayID)
+void WebPage::windowScreenDidChange(PlatformDisplayID displayID, Optional<unsigned> nominalFramesPerSecond)
 {
-    m_page->chrome().windowScreenDidChange(static_cast<PlatformDisplayID>(displayID));
+    m_page->chrome().windowScreenDidChange(displayID, nominalFramesPerSecond);
 
 #if PLATFORM(MAC)
     WebProcess::singleton().updatePageScreenProperties();
@@ -2398,7 +2406,7 @@ void WebPage::paintSnapshotAtSize(const IntRect& rect, const IntSize& bitmapSize
 
     if (options & SnapshotOptionsPaintSelectionRectangle) {
         FloatRect selectionRectangle = frame.selection().selectionBounds();
-        graphicsContext.setStrokeColor(Color(0xFF, 0, 0));
+        graphicsContext.setStrokeColor(makeSimpleColor(0xFF, 0, 0));
         graphicsContext.strokeRect(selectionRectangle, 1);
     }
 }
@@ -2572,7 +2580,7 @@ void WebPage::updateDrawingAreaLayerTreeFreezeState()
 
 void WebPage::callVolatilityCompletionHandlers(bool succeeded)
 {
-    auto completionHandlers = WTFMove(m_markLayersAsVolatileCompletionHandlers);
+    auto completionHandlers = std::exchange(m_markLayersAsVolatileCompletionHandlers, { });
     for (auto& completionHandler : completionHandlers)
         completionHandler(succeeded);
 }
@@ -2600,7 +2608,7 @@ bool WebPage::markLayersVolatileImmediatelyIfPossible()
     return !drawingArea() || drawingArea()->markLayersVolatileImmediatelyIfPossible();
 }
 
-void WebPage::markLayersVolatile(WTF::Function<void (bool)>&& completionHandler)
+void WebPage::markLayersVolatile(CompletionHandler<void(bool)>&& completionHandler)
 {
     RELEASE_LOG_IF_ALLOWED(Layers, "markLayersVolatile:");
 
@@ -2630,7 +2638,7 @@ void WebPage::cancelMarkLayersVolatile()
 {
     RELEASE_LOG_IF_ALLOWED(Layers, "cancelMarkLayersVolatile:");
     m_layerVolatilityTimer.stop();
-    m_markLayersAsVolatileCompletionHandlers.clear();
+    callVolatilityCompletionHandlers(false);
 }
 
 class CurrentEvent {
@@ -6721,12 +6729,20 @@ void WebPage::hasStorageAccess(RegistrableDomain&& subFrameDomain, RegistrableDo
     WebProcess::singleton().ensureNetworkProcessConnection().connection().sendWithAsyncReply(Messages::NetworkConnectionToWebProcess::HasStorageAccess(WTFMove(subFrameDomain), WTFMove(topFrameDomain), frame.frameID(), m_identifier), WTFMove(completionHandler));
 }
 
-void WebPage::requestStorageAccess(RegistrableDomain&& subFrameDomain, RegistrableDomain&& topFrameDomain, WebFrame& frame, CompletionHandler<void(WebCore::StorageAccessWasGranted, WebCore::StorageAccessPromptWasShown)>&& completionHandler)
+void WebPage::requestStorageAccess(RegistrableDomain&& subFrameDomain, RegistrableDomain&& topFrameDomain, WebFrame& frame, StorageAccessScope scope, CompletionHandler<void(WebCore::RequestStorageAccessResult)>&& completionHandler)
 {
-    WebProcess::singleton().ensureNetworkProcessConnection().connection().sendWithAsyncReply(Messages::NetworkConnectionToWebProcess::RequestStorageAccess(WTFMove(subFrameDomain), WTFMove(topFrameDomain), frame.frameID(), m_identifier, m_webPageProxyIdentifier), [completionHandler = WTFMove(completionHandler), frame = makeRef(frame), pageID = m_identifier, frameID = frame.frameID()](StorageAccessWasGranted wasGranted, WebCore::StorageAccessPromptWasShown promptWasShown) mutable {
-        if (wasGranted == StorageAccessWasGranted::Yes)
-            frame->frameLoaderClient()->setHasFrameSpecificStorageAccess({ frameID, pageID });
-        completionHandler(wasGranted, promptWasShown);
+    WebProcess::singleton().ensureNetworkProcessConnection().connection().sendWithAsyncReply(Messages::NetworkConnectionToWebProcess::RequestStorageAccess(WTFMove(subFrameDomain), WTFMove(topFrameDomain), frame.frameID(), m_identifier, m_webPageProxyIdentifier, scope), [this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler), frame = makeRef(frame), pageID = m_identifier, frameID = frame.frameID()](RequestStorageAccessResult result) mutable {
+        if (result.wasGranted == StorageAccessWasGranted::Yes) {
+            switch (result.scope) {
+            case StorageAccessScope::PerFrame:
+                frame->frameLoaderClient()->setHasFrameSpecificStorageAccess({ frameID, pageID });
+                break;
+            case StorageAccessScope::PerPage:
+                addDomainWithPageLevelStorageAccess(result.topFrameDomain, result.subFrameDomain);
+                break;
+            }
+        }
+        completionHandler(result);
     });
 }
 

@@ -151,8 +151,11 @@ private:
     ModelInterfaceTuple& ensureModelAndInterface(uint64_t contextId);
     VideoFullscreenModelContext& ensureModel(uint64_t contextId);
     PlatformVideoFullscreenInterface& ensureInterface(uint64_t contextId);
+    PlatformVideoFullscreenInterface* findInterface(uint64_t contextId);
     void addClientForContext(uint64_t contextId);
     void removeClientForContext(uint64_t contextId);
+
+    void hasVideoInPictureInPictureDidChange(bool);
 
     // Messages from VideoFullscreenManager
     void setupFullscreenWithID(uint64_t contextId, uint32_t videoLayerID, const WebCore::IntRect& initialRect, float hostingScaleFactor, WebCore::HTMLMediaElementEnums::VideoFullscreenMode, bool allowsPictureInPicture, bool standby);

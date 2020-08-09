@@ -117,11 +117,6 @@ private:
         return complete(holdLock(*worklist.m_lock));
     }
 
-    void threadIsStopping(const AbstractLocker&) final
-    {
-        clearLLIntThreadSpecificCache();
-    }
-
     const char* name() const final
     {
         return "Wasm Worklist Helper Thread";

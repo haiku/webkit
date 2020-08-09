@@ -88,15 +88,13 @@ bool SVGStopElement::rendererIsNeeded(const RenderStyle&)
 Color SVGStopElement::stopColorIncludingOpacity() const
 {
     if (!renderer())
-        return Color(Color::transparent, true);
+        return Color::transparent;
 
     auto& style = renderer()->style();
     auto& svgStyle = style.svgStyle();
     auto stopColor = style.colorResolvingCurrentColor(svgStyle.stopColor());
 
-    float colorAlpha = stopColor.alpha() / 255.0;
-    // FIXME: This should use colorWithAlphaMultipliedBy() but that has different rounding of the alpha component.
-    return colorWithOverrideAlpha(stopColor.rgb(), colorAlpha * svgStyle.stopOpacity());
+    return stopColor.colorWithAlphaMultipliedByUsingAlternativeRounding(svgStyle.stopOpacity());
 }
 
 }

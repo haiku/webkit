@@ -73,19 +73,19 @@ void ScrollingCoordinatorMac::pageDestroyed()
     });
 }
 
-ScrollingEventResult ScrollingCoordinatorMac::handleWheelEvent(FrameView&, const PlatformWheelEvent& wheelEvent)
+bool ScrollingCoordinatorMac::handleWheelEvent(FrameView&, const PlatformWheelEvent& wheelEvent)
 {
     ASSERT(isMainThread());
     ASSERT(m_page);
 
     if (scrollingTree()->willWheelEventStartSwipeGesture(wheelEvent))
-        return ScrollingEventResult::DidNotHandleEvent;
+        return false;
 
     RefPtr<ThreadedScrollingTree> threadedScrollingTree = downcast<ThreadedScrollingTree>(scrollingTree());
     ScrollingThread::dispatch([threadedScrollingTree, wheelEvent] {
         threadedScrollingTree->handleWheelEventAfterMainThread(wheelEvent);
     });
-    return ScrollingEventResult::DidHandleEvent;
+    return true;
 }
 
 void ScrollingCoordinatorMac::scheduleTreeStateCommit()
@@ -108,6 +108,18 @@ void ScrollingCoordinatorMac::commitTreeStateIfNeeded()
     scrollingTree()->commitTreeState(WTFMove(stateTree));
 
     updateTiledScrollingIndicator();
+}
+
+void ScrollingCoordinatorMac::willStartRenderingUpdate()
+{
+    RefPtr<ThreadedScrollingTree> threadedScrollingTree = downcast<ThreadedScrollingTree>(scrollingTree());
+    threadedScrollingTree->willStartRenderingUpdate();
+    synchronizeStateFromScrollingTree();
+}
+
+void ScrollingCoordinatorMac::didCompleteRenderingUpdate()
+{
+    downcast<ThreadedScrollingTree>(scrollingTree())->didCompleteRenderingUpdate();
 }
 
 void ScrollingCoordinatorMac::updateTiledScrollingIndicator()

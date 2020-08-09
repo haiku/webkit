@@ -53,7 +53,7 @@ function from(items /*, mapFn, thisArg */)
     var arrayLike = @toObject(items, "Array.from requires an array-like object - not null or undefined");
 
     var iteratorMethod = items.@@iterator;
-    if (iteratorMethod != null) {
+    if (!@isUndefinedOrNull(iteratorMethod)) {
         if (typeof iteratorMethod !== "function")
             @throwTypeError("Array.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function");
 
@@ -69,6 +69,8 @@ function from(items /*, mapFn, thisArg */)
         wrapper.@@iterator = function() { return iterator; };
 
         for (var value of wrapper) {
+            if (k >= @MAX_SAFE_INTEGER)
+                @throwTypeError("Length exceeded the maximum array length");
             if (mapFn)
                 @putByValDirect(result, k, thisArg === @undefined ? mapFn(value, k) : mapFn.@call(thisArg, value, k));
             else

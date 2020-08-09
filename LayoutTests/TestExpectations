@@ -203,6 +203,9 @@ http/tests/security/strip-referrer-to-origin-for-third-party-requests-in-private
 media/deactivate-audio-session.html [ Skip ]
 
 # ApplePay is only available on iOS (greater than iOS 10) and macOS (greater than macOS 10.12) and only for WebKit2.
+fast/css/appearance-apple-pay-button.html [ Skip ]
+fast/css/appearance-apple-pay-button-border-radius.html [ Skip ]
+fast/css/getComputedStyle/computed-style-apple-pay-button.html [ Skip ]
 http/tests/ssl/applepay/ [ Skip ]
 
 # Only WK2 allows unconstrained scrolling
@@ -276,6 +279,14 @@ imported/w3c/web-platform-tests/html/webappapis/dynamic-markup-insertion/opening
 imported/w3c/web-platform-tests/html/webappapis/dynamic-markup-insertion/opening-the-input-stream/tasks.window.html [ Skip ]
 imported/w3c/web-platform-tests/html/webappapis/scripting/event-loops/fully_active_document.window.html [ Skip ]
 
+# Skip WPT webaudio tests that are timing out.
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analyser-output.html [ Skip ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-multi-channels.html [ Skip ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediastreamaudiosourcenode-interface/mediastreamaudiosourcenode-routing.html [ Skip ]
+
+# Test prints out sample rate, which appears to be hardware-specific.
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontextoptions.html [ Pass Failure ]
+
 webkit.org/b/176929 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/ready-states/autoplay-with-slow-text-tracks.html [ Pass Failure ]
 
 # Requires BroadcastChannel.
@@ -299,6 +310,8 @@ imported/w3c/web-platform-tests/server-timing/navigation_timing_idl.https.html [
 imported/w3c/web-platform-tests/html/browsers/history/the-location-interface/location-protocol-setter-non-broken.html [ DumpJSConsoleLogInStdErr Failure Pass ]
 imported/w3c/web-platform-tests/html/browsers/history/the-location-interface/location-protocol-setter-non-broken-weird.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/workers/WorkerGlobalScope_ErrorEvent_lineno.htm [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic.html [ DumpJSConsoleLogInStdErr ]
 fast/files/file-reader-back-forward-cache.html [ DumpJSConsoleLogInStdErr ]
 fast/history/page-cache-createImageBitmap.html [ DumpJSConsoleLogInStdErr ]
 http/tests/navigation/page-cache-xhr-in-loading-iframe.html [ DumpJSConsoleLogInStdErr ]
@@ -377,17 +390,6 @@ imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/js
 imported/w3c/web-platform-tests/2dcontext/wide-gamut-canvas/canvas-createImageBitmap-e_srgb.html [ Skip ]
 
 # Newly imported WPT ref tests failures.
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-001a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-002a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-003a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-003c.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-004a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-005a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-006a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-007a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-007c.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-008a.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/html/dom/elements/requirements-relating-to-bidirectional-algorithm-formatting-characters/dir-isolation-009c.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/html/editing/editing-0/spelling-and-grammar-checking/spelling-markers-008.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/html/editing/editing-0/spelling-and-grammar-checking/spelling-markers-010.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/html/rendering/bindings/the-select-element-0/option-label.html [ ImageOnlyFailure ]
@@ -1052,16 +1054,10 @@ webkit.org/b/136754 css3/flexbox/csswg/ttwf-reftest-flex-wrap-reverse.html [ Ima
 webkit.org/b/136754 css3/flexbox/csswg/ttwf-reftest-flex-wrap.html [ ImageOnlyFailure ]
 
 # grid layout tests
-webkit.org/b/169271 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-items-sizing-alignment-001.html [ ImageOnlyFailure ]
-webkit.org/b/191465 imported/w3c/web-platform-tests/css/css-grid/abspos/absolute-positioning-changing-containing-block-001.html [ ImageOnlyFailure ]
-webkit.org/b/191465 imported/w3c/web-platform-tests/css/css-grid/abspos/grid-item-absolute-positioning-dynamic-001.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-010.html [ Pass Failure ]
 imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-013.html [ Pass Failure ]
 imported/w3c/web-platform-tests/css/css-grid/abspos/orthogonal-positioned-grid-descendants-015.html [ Pass Failure ]
-webkit.org/b/191365 imported/w3c/web-platform-tests/css/css-grid/grid-items/item-with-table-with-infinite-max-intrinsic-width.html [ ImageOnlyFailure ]
-webkit.org/b/191365 imported/w3c/web-platform-tests/css/css-grid/grid-items/table-with-infinite-max-intrinsic-width.html [ ImageOnlyFailure ]
 webkit.org/b/191367 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-container-ignores-first-letter-002.html [ ImageOnlyFailure ]
-webkit.org/b/191460 imported/w3c/web-platform-tests/css/css-grid/grid-items/anonymous-grid-item-001.html [ Skip ]
 webkit.org/b/191461 imported/w3c/web-platform-tests/css/css-grid/grid-items/percentage-size-subitems-001.html [ ImageOnlyFailure ]
 webkit.org/b/191462 imported/w3c/web-platform-tests/css/css-grid/grid-items/percentage-size-replaced-subitems-001.html [ ImageOnlyFailure ]
 webkit.org/b/191463 imported/w3c/web-platform-tests/css/css-grid/grid-items/explicitly-sized-grid-item-as-table.html [ ImageOnlyFailure ]
@@ -1069,6 +1065,10 @@ webkit.org/b/191627 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-
 webkit.org/b/149890 fast/css-grid-layout/grid-shorthands-style-format.html [ Failure ]
 webkit.org/b/191507 fast/css-grid-layout/positioned-grid-container-percentage-tracks.html [ Failure ]
 webkit.org/b/191508 fast/css-grid-layout/crash-large-positions.html [ Skip ]
+webkit.org/b/209282 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/grid-as-flex-item-should-not-shrink-to-fit-001.html [ ImageOnlyFailure ]
+webkit.org/b/209282 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/grid-as-flex-item-should-not-shrink-to-fit-003.html [ ImageOnlyFailure ]
+webkit.org/b/209282 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/grid-as-flex-item-should-not-shrink-to-fit-007.html [ ImageOnlyFailure ]
+webkit.org/b/209282 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/grid-as-flex-item-should-not-shrink-to-fit-008.html [ ImageOnlyFailure ]
 
 # Flaky tests at import time
 imported/w3c/web-platform-tests/css/css-scoping/css-scoping-shadow-host-namespace.html [ ImageOnlyFailure ]
@@ -1149,6 +1149,9 @@ webkit.org/b/171094 streams/reference-implementation/abstract-ops.html [ Pass Fa
 
 # tee.html is flaky with unhandled promise rejections
 imported/w3c/web-platform-tests/streams/readable-streams/tee.html [ DumpJSConsoleLogInStdErr ]
+# Timeout tests.
+imported/w3c/web-platform-tests/streams/readable-byte-streams/general.serviceworker.https.html [ Skip ]
+imported/w3c/web-platform-tests/streams/readable-byte-streams/detached-buffers.serviceworker.https.html [ Skip ]
 
 webkit.org/b/186161 imported/w3c/web-platform-tests/streams/piping/error-propagation-forward.html [ Pass Failure ]
 
@@ -1686,9 +1689,6 @@ webkit.org/b/85308 ietestcenter/css3/valuesandunits/units-000.htm [ ImageOnlyFai
 [ Debug ] fast/loader/document-with-fragment-url-3.html [ Pass Timeout ]
 [ Debug ] fast/loader/document-with-fragment-url-4.html [ Pass Timeout ]
 
-webkit.org/b/110546 [ Debug ] fast/parser/document-write-fighting-eof.html [ Skip ]
-webkit.org/b/110546 [ Debug ] fast/parser/document-write-partial-entity-before-load.html [ Skip ]
-
 webkit.org/b/85902 [ Debug ] fast/overflow/lots-of-sibling-inline-boxes.html [ Slow ]
 webkit.org/b/121452 [ Debug ] fast/frames/lots-of-objects.html [ Slow ]
 webkit.org/b/121452 [ Debug ] fast/frames/lots-of-iframes.html [ Slow ]
@@ -1932,11 +1932,9 @@ imported/w3c/web-platform-tests/css/css-multicol/multicol-span-all-children-heig
 webkit.org/b/148884 imported/w3c/web-platform-tests/html/semantics/forms/textfieldselection/selection.html [ Pass Failure ]
 
 # Tests require WTR and disabling of user installed fonts. Reenabling them in supported platforms
-fast/text/user-installed-fonts/extended-character.html [ Skip ]
-fast/text/user-installed-fonts/extended-character-with-user-font.html [ Skip ]
+fast/text/user-installed-fonts/extended-character.html [ Pass ImageOnlyFailure ]
+fast/text/user-installed-fonts/extended-character-with-user-font.html [ Pass ImageOnlyFailure ]
 
-# Does timeout
-imported/w3c/web-platform-tests/webaudio/idlharness.https.html [ Skip ]
 # Do assert in OfflineAudioContext
 [ Debug ] imported/w3c/web-platform-tests/webaudio/ [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-channelmergernode-interface/audiochannelmerger-disconnect.html [ DumpJSConsoleLogInStdErr ]
@@ -1956,7 +1954,6 @@ fast/css-intrinsic-dimensions/height-tables.html [ ImageOnlyFailure ]
 # integral hittest vs. subpixel table
 fast/table/hittest-tablecell-with-borders-right-edge.html [ Pass Failure ]
 fast/table/hittest-tablecell-right-edge.html [ Pass Failure ]
-fast/css/appearance-apple-pay-button.html [ ImageOnlyFailure ]
 
 webkit.org/b/151949 streams/reference-implementation/pipe-to.html [ Pass Failure ]
 webkit.org/b/154687 streams/pipe-to.html [ Slow ]
@@ -3320,7 +3317,6 @@ webgl/2.0.0/conformance2/rendering/clear-func-buffer-type-match.html [ Skip ]
 webgl/2.0.0/conformance2/renderbuffers/multisample-with-full-sample-counts.html [ Pass Failure ]
 webgl/2.0.0/conformance/extensions/webgl-draw-buffers.html [ Pass Failure ]
 webgl/2.0.0/conformance2/buffers/buffer-data-and-buffer-sub-data-sub-source.html [ Pass Failure ]
-webgl/2.0.0/conformance2/buffers/get-buffer-sub-data.html [ Pass Failure ]
 
 # webkit.org/b/208211 Additional inconsitencies between Intel bots and AMD machine
 webgl/2.0.0/conformance/buffers/buffer-uninitialized.html [ Pass Failure ]
@@ -3905,9 +3901,6 @@ webkit.org/b/207262 imported/w3c/web-platform-tests/web-animations/timing-model/
 # WebXR is being implemented
 webkit.org/b/208988 imported/w3c/web-platform-tests/webxr [ Skip ]
 
-imported/w3c/web-platform-tests/css/css-grid/alignment/self-baseline/grid-self-baseline-changes-grid-area-size-010.html [ ImageOnlyFailure ]
-imported/w3c/web-platform-tests/css/css-grid/alignment/self-baseline/grid-self-baseline-changes-grid-area-size-011.html [ ImageOnlyFailure ]
-
 webkit.org/b/210963 imported/w3c/web-platform-tests/css/css-animations/animation-important-002.html [ ImageOnlyFailure ]
 
 webkit.org/b/209080 imported/w3c/web-platform-tests/css/css-writing-modes/central-baseline-alignment-003.xht [ ImageOnlyFailure Pass ]
@@ -4247,11 +4240,7 @@ webkit.org/b/210089 imported/w3c/web-platform-tests/css/css-flexbox/flex-minimum
 webkit.org/b/210089 imported/w3c/web-platform-tests/css/css-flexbox/flex-minimum-height-flex-items-013.html [ ImageOnlyFailure ]
 webkit.org/b/210093 imported/w3c/web-platform-tests/css/css-flexbox/select-element-zero-height-001.html [ ImageOnlyFailure ]
 webkit.org/b/210093 imported/w3c/web-platform-tests/css/css-flexbox/select-element-zero-height-002.html [ ImageOnlyFailure ]
-webkit.org/b/210102 imported/w3c/web-platform-tests/css/css-flexbox/table-as-item-auto-min-width.html [ ImageOnlyFailure ]
-webkit.org/b/210103 imported/w3c/web-platform-tests/css/css-flexbox/item-with-table-with-infinite-max-intrinsic-width.html [ ImageOnlyFailure ]
-webkit.org/b/210144 imported/w3c/web-platform-tests/css/css-flexbox/anonymous-flex-item-004.html [ ImageOnlyFailure ]
 webkit.org/b/210144 imported/w3c/web-platform-tests/css/css-flexbox/anonymous-flex-item-005.html [ ImageOnlyFailure ]
-webkit.org/b/210465 imported/w3c/web-platform-tests/css/css-flexbox/flex-wrap-002.html [ ImageOnlyFailure ]
 webkit.org/b/210475 imported/w3c/web-platform-tests/css/css-flexbox/image-items-flake-001.html [ ImageOnlyFailure ]
 webkit.org/b/210478 imported/w3c/web-platform-tests/css/css-flexbox/percentage-heights-006.html [ ImageOnlyFailure ]
 webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/flex-minimum-height-flex-items-005.xht [ ImageOnlyFailure ]
@@ -4268,6 +4257,39 @@ webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/percentage-h
 webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/percentage-size-subitems-001.html [ ImageOnlyFailure ]
 webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/scrollbars-auto.html [ ImageOnlyFailure ]
 webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/scrollbars.html [ ImageOnlyFailure ]
-webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/table-as-item-fixed-min-width.html [ ImageOnlyFailure ]
-webkit.org/b/212046 imported/w3c/web-platform-tests/css/css-flexbox/table-as-item-narrow-content.html [ ImageOnlyFailure ]
-webkit.org/b/212054 imported/w3c/web-platform-tests/css/css-flexbox/flex-lines/multi-line-wrap-reverse-column-reverse.html [ ImageOnlyFailure ]
+
+# CSS Masonry Layout not supported.
+imported/w3c/web-platform-tests/css/css-grid/masonry.tentative [ Skip ]
+webkit.org/b/202115 imported/w3c/web-platform-tests/css/css-grid/subgrid [ Skip ]
+webkit.org/b/204580 imported/w3c/web-platform-tests/css/css-grid/animation/grid-template-columns-001.html [ ImageOnlyFailure ]
+webkit.org/b/204580 imported/w3c/web-platform-tests/css/css-grid/animation/grid-template-rows-001.html [ ImageOnlyFailure ]
+webkit.org/b/209460 imported/w3c/web-platform-tests/css/css-grid/abspos/descendant-static-position-001.html [ ImageOnlyFailure ]
+webkit.org/b/209460 imported/w3c/web-platform-tests/css/css-grid/abspos/descendant-static-position-002.html [ ImageOnlyFailure ]
+webkit.org/b/209460 imported/w3c/web-platform-tests/css/css-grid/abspos/descendant-static-position-003.html [ ImageOnlyFailure ]
+webkit.org/b/209460 imported/w3c/web-platform-tests/css/css-grid/abspos/descendant-static-position-004.html [ ImageOnlyFailure ]
+webkit.org/b/209650 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-item-percentage-sizes-001.html [ ImageOnlyFailure ]
+webkit.org/b/209650 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-item-percentage-sizes-002.html [ ImageOnlyFailure ]
+webkit.org/b/209650 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-item-percentage-sizes-003.html [ ImageOnlyFailure ]
+webkit.org/b/212201 imported/w3c/web-platform-tests/css/css-grid/grid-definition/grid-limits-001.html [ Skip ]
+webkit.org/b/209656 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-button-001.html [ Failure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-baseline-align-cycles-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-content-baseline-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-content-baseline-002.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-content-baseline-003.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-content-baseline-004.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-mixed-baseline-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-mixed-baseline-002.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-mixed-baseline-003.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-mixed-baseline-004.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-self-alignment-baseline-with-grid-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-self-alignment-baseline-with-grid-002.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-self-alignment-baseline-with-grid-003.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-self-alignment-baseline-with-grid-004.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-child-percent-basis-resize-1.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-areas-overflowing-grid-container-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-areas-overflowing-grid-container-002.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-areas-overflowing-grid-container-003.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-areas-overflowing-grid-container-005.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-overflow-padding-001.html [ ImageOnlyFailure ]
+webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-overflow-padding-002.html [ ImageOnlyFailure ]
+webkit.org/b/212267 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-self-baseline-001.html [ Skip ]

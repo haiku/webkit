@@ -495,6 +495,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     editing/CompositionHighlight.h
     editing/CompositionUnderline.h
     editing/DictationAlternative.h
+    editing/DictationContext.h
     editing/DictionaryPopupInfo.h
     editing/EditAction.h
     editing/Editing.h
@@ -1078,7 +1079,9 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/AudioTrackPrivate.h
     platform/graphics/BitmapImage.h
     platform/graphics/Color.h
+    platform/graphics/ColorComponents.h
     platform/graphics/ColorHash.h
+    platform/graphics/ColorMatrix.h
     platform/graphics/ColorSpace.h
     platform/graphics/ColorUtilities.h
     platform/graphics/ComplexTextController.h
@@ -1183,6 +1186,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/RemoteVideoSample.h
     platform/graphics/RenderingMode.h
     platform/graphics/RoundedRect.h
+    platform/graphics/SimpleColor.h
     platform/graphics/StringTruncator.h
     platform/graphics/TabSize.h
     platform/graphics/TextRun.h
@@ -1302,6 +1306,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/network/ResourceRequestBase.h
     platform/network/ResourceResponseBase.h
     platform/network/SameSiteInfo.h
+    platform/network/ShouldRelaxThirdPartyCookieBlocking.h
     platform/network/SocketStreamError.h
     platform/network/SocketStreamHandle.h
     platform/network/SocketStreamHandleClient.h
@@ -1474,6 +1479,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     style/StyleChange.h
     style/StyleScope.h
+    style/StyleUpdate.h
     style/StyleValidity.h
 
     svg/SVGLengthContext.h

@@ -56,6 +56,25 @@ class ScrollingTreeScrollingNode;
 enum class EventListenerRegionType : uint8_t;
 using PlatformDisplayID = uint32_t;
 
+struct WheelEventHandlingResult {
+    OptionSet<WheelEventProcessingSteps> steps;
+    bool wasHandled { false };
+    bool needsMainThreadProcessing() const { return steps.containsAny({ WheelEventProcessingSteps::MainThreadForScrolling, WheelEventProcessingSteps::MainThreadForDOMEventDispatch }); }
+
+    static WheelEventHandlingResult handled()
+    {
+        return { { }, true };
+    }
+    static WheelEventHandlingResult unhandled()
+    {
+        return { { }, false };
+    }
+    static WheelEventHandlingResult result(bool handled)
+    {
+        return { { }, handled };
+    }
+};
+
 class ScrollingTree : public ThreadSafeRefCounted<ScrollingTree> {
 friend class ScrollingTreeLatchingController;
 public:
@@ -70,11 +89,9 @@ public:
     bool asyncFrameOrOverflowScrollingEnabled() const { return m_asyncFrameOrOverflowScrollingEnabled; }
     void setAsyncFrameOrOverflowScrollingEnabled(bool);
 
-    using CompletionFunction = WTF::Function<void (ScrollingEventResult)>;
-    // Note that CompletionFunction may get called on a different thread.
-    virtual ScrollingEventResult tryToHandleWheelEvent(const PlatformWheelEvent&, CompletionFunction&& = nullptr) = 0;
-    WEBCORE_EXPORT bool shouldHandleWheelEventSynchronously(const PlatformWheelEvent&);
-    
+    WEBCORE_EXPORT OptionSet<WheelEventProcessingSteps> determineWheelEventProcessing(const PlatformWheelEvent&);
+    WEBCORE_EXPORT virtual WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&);
+
     void setMainFrameIsRubberBanding(bool);
     bool isRubberBandInProgress();
     void setMainFrameIsScrollSnapping(bool);
@@ -90,7 +107,7 @@ public:
     
     WEBCORE_EXPORT ScrollingTreeNode* nodeForID(ScrollingNodeID) const;
 
-    using VisitorFunction = WTF::Function<void (ScrollingNodeID, ScrollingNodeType, Optional<FloatPoint> scrollPosition, Optional<FloatPoint> layoutViewportOrigin)>;
+    using VisitorFunction = WTF::Function<void (ScrollingNodeID, ScrollingNodeType, Optional<FloatPoint> scrollPosition, Optional<FloatPoint> layoutViewportOrigin, bool scrolledSinceLastCommit)>;
     void traverseScrollingTree(VisitorFunction&&);
 
     // Called after a scrolling tree node has handled a scroll and updated its layers.
@@ -179,20 +196,23 @@ public:
     virtual void lockLayersForHitTesting() { }
     virtual void unlockLayersForHitTesting() { }
 
-    void windowScreenDidChange(PlatformDisplayID);
+    Lock& treeMutex() { return m_treeMutex; }
+
+    void windowScreenDidChange(PlatformDisplayID, Optional<unsigned> nominalFramesPerSecond);
     PlatformDisplayID displayID();
 
 protected:
     FloatPoint mainFrameScrollPosition() const;
     void setMainFrameScrollPosition(FloatPoint);
 
-    WEBCORE_EXPORT virtual ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&);
+    Optional<unsigned> nominalFramesPerSecond();
+
+    void applyLayerPositionsInternal();
+    Lock m_treeMutex; // Protects the scrolling tree.
 
 private:
     void updateTreeFromStateNodeRecursive(const ScrollingStateNode*, struct CommitTreeState&);
     virtual void propagateSynchronousScrollingReasons(const HashSet<ScrollingNodeID>&) { }
-
-    void applyLayerPositionsInternal();
 
     void applyLayerPositionsRecursive(ScrollingTreeNode&);
     void notifyRelatedNodesRecursive(ScrollingTreeNode&);
@@ -201,8 +221,8 @@ private:
     WEBCORE_EXPORT virtual RefPtr<ScrollingTreeNode> scrollingNodeForPoint(FloatPoint);
     WEBCORE_EXPORT virtual OptionSet<EventListenerRegionType> eventListenerRegionTypesForPoint(FloatPoint) const;
     virtual void receivedWheelEvent(const PlatformWheelEvent&) { }
-
-    Lock m_treeMutex; // Protects the scrolling tree.
+    
+    void removeAllNodes();
 
     RefPtr<ScrollingTreeFrameScrollingNode> m_rootNode;
 
@@ -221,6 +241,7 @@ private:
         EventTrackingRegions eventTrackingRegions;
         FloatPoint mainFrameScrollPosition;
         PlatformDisplayID displayID { 0 };
+        Optional<unsigned> nominalFramesPerSecond;
         bool mainFrameIsRubberBanding { false };
         bool mainFrameIsScrollSnapping { false };
     };

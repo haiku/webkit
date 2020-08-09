@@ -1160,7 +1160,8 @@ TEST(_WKDownload, ResumedDownloadCanHandleAuthenticationChallenge)
     Util::run(&isDone);
 }
 
-#if HAVE(NETWORK_FRAMEWORK)
+// FIXME: Enable this everywhere once rdar://problem/63249830 or rdar://problem/63512518 is fixed.
+#if HAVE(NETWORK_FRAMEWORK) && (PLATFORM(MAC) || (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED < 140000))
 
 template<size_t length>
 String longString(LChar c)
@@ -1172,41 +1173,30 @@ String longString(LChar c)
 TEST(_WKDownload, Resume)
 {
     using namespace TestWebKitAPI;
-    HTTPServer server([connectionCount = 0](nw_connection_t connection) mutable {
+    HTTPServer server([connectionCount = 0](Connection connection) mutable {
         switch (++connectionCount) {
         case 1:
-            nw_connection_receive(connection, 1, std::numeric_limits<uint32_t>::max(), makeBlockPtr([connection = retainPtr(connection)](dispatch_data_t content, nw_content_context_t context, bool, nw_error_t error) {
-                EXPECT_TRUE(content);
-                EXPECT_FALSE(error);
-                auto data = dataFromString(makeString(
+            connection.receiveHTTPRequest([connection](Vector<char>&&) {
+                connection.send(makeString(
                     "HTTP/1.1 200 OK\r\n"
                     "ETag: test\r\n"
                     "Content-Length: 10000\r\n"
                     "Content-Disposition: attachment; filename=\"example.txt\"\r\n"
-                    "\r\n", longString<5000>('a')));
-                nw_connection_send(connection.get(), data.get(), context, false, ^(nw_error_t error) {
-                    ASSERT(!error);
-                });
-            }).get());
+                    "\r\n", longString<5000>('a')
+                ));
+            });
             break;
         case 2:
-            nw_connection_receive(connection, 1, std::numeric_limits<uint32_t>::max(), makeBlockPtr([connection = retainPtr(connection)](dispatch_data_t content, nw_content_context_t context, bool, nw_error_t error) {
-                EXPECT_TRUE(content);
-                EXPECT_FALSE(error);
-
-                auto request = nullTerminatedRequest(content);
-                EXPECT_TRUE(strstr(request.data(), "Range: bytes=5000-\r\n"));
-
-                auto data = dataFromString(makeString(
+            connection.receiveHTTPRequest([connection](Vector<char>&& request) {
+                EXPECT_TRUE(strnstr(request.data(), "Range: bytes=5000-\r\n", request.size()));
+                connection.send(makeString(
                     "HTTP/1.1 206 Partial Content\r\n"
                     "ETag: test\r\n"
                     "Content-Length: 5000\r\n"
                     "Content-Range: bytes 5000-9999/10000\r\n"
-                    "\r\n", longString<5000>('b')));
-                nw_connection_send(connection.get(), data.get(), context, true, ^(nw_error_t error) {
-                    ASSERT(!error);
-                });
-            }).get());
+                    "\r\n", longString<5000>('b')
+                ));
+            });
             break;
         default:
             ASSERT_NOT_REACHED();
@@ -1223,7 +1213,7 @@ TEST(_WKDownload, Resume)
         completionHandler(_WKNavigationResponsePolicyBecomeDownload);
     };
 
-    enum class Callback : uint8_t { Start, ReceiveData, DecideDestination, CreateDestination, Cancel, Finish };
+    enum class Callback : uint8_t { Start, WriteData, DecideDestination, CreateDestination, Cancel, Finish };
     __block Vector<Callback> callbacks;
     __block bool didCancel = false;
     __block bool didFinish = false;
@@ -1236,9 +1226,11 @@ TEST(_WKDownload, Resume)
         callbacks.append(Callback::DecideDestination);
         completionHandler(YES, [tempDir URLByAppendingPathComponent:suggestedFilename].path);
     };
-    downloadDelegate.get().didReceiveData = ^(_WKDownload *download, uint64_t length) {
-        callbacks.append(Callback::ReceiveData);
-        EXPECT_EQ(length, 5000u);
+    downloadDelegate.get().didWriteData = ^(_WKDownload *download, uint64_t bytesWritten, uint64_t totalBytesWritten, uint64_t totalBytesExpectedToWrite) {
+        callbacks.append(Callback::WriteData);
+        EXPECT_EQ(bytesWritten, 5000u);
+        EXPECT_EQ(totalBytesWritten, didCancel ? 10000u : 5000u);
+        EXPECT_EQ(totalBytesExpectedToWrite, 10000u);
         receivedData = true;
     };
     downloadDelegate.get().downloadDidStart = ^(_WKDownload *downloadFromDelegate) {
@@ -1274,9 +1266,9 @@ TEST(_WKDownload, Resume)
     EXPECT_EQ(callbacks[0], Callback::Start);
     EXPECT_EQ(callbacks[1], Callback::DecideDestination);
     EXPECT_EQ(callbacks[2], Callback::CreateDestination);
-    EXPECT_EQ(callbacks[3], Callback::ReceiveData);
+    EXPECT_EQ(callbacks[3], Callback::WriteData);
     EXPECT_EQ(callbacks[4], Callback::Cancel);
-    EXPECT_EQ(callbacks[5], Callback::ReceiveData);
+    EXPECT_EQ(callbacks[5], Callback::WriteData);
     EXPECT_EQ(callbacks[6], Callback::Finish);
 
     // Give CFNetwork enough time to unlink the downloaded file if it would have.

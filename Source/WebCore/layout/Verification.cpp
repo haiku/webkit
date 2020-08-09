@@ -261,7 +261,8 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         // Table rows and tbody have 0 width for some reason when border collapsing is on.
         if (is<RenderTableRow>(renderer) && downcast<RenderTableRow>(renderer).table()->collapseBorders())
             return false;
-        if (is<RenderTableSection>(renderer) && downcast<RenderTableSection>(renderer).table()->collapseBorders())
+        // Section borders are either collapsed or ignored. However they may produce negative padding boxes.
+        if (is<RenderTableSection>(renderer) && (downcast<RenderTableSection>(renderer).table()->collapseBorders() || renderer.style().hasBorder()))
             return false;
     }
     if (!areEssentiallyEqual(frameRect, displayBox.rect())) {
@@ -274,12 +275,16 @@ static bool outputMismatchingBlockBoxInformationIfNeeded(TextStream& stream, con
         return true;
     }
 
-    if (!areEssentiallyEqual(renderer.paddingBoxRect(), displayBox.paddingBox())) {
+    // When the table row border overflows the row, padding box becomes negative and content box is incorrect.
+    auto shouldCheckPaddingAndContentBox = !is<RenderTableRow>(renderer) || renderer.paddingBoxRect().width() >= 0;
+    if (shouldCheckPaddingAndContentBox && !areEssentiallyEqual(renderer.paddingBoxRect(), displayBox.paddingBox())) {
         outputRect("paddingBox", renderer.paddingBoxRect(), displayBox.paddingBox());
         return true;
     }
 
     auto shouldCheckContentBox = [&] {
+        if (!shouldCheckPaddingAndContentBox)
+            return false;
         // FIXME: Figure out why trunk/rendering comes back with odd values for <tbody> and <td> content box.
         if (is<RenderTableCell>(renderer) || is<RenderTableSection>(renderer))
             return false;

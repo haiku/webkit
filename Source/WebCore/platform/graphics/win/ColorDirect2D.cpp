@@ -36,24 +36,19 @@ namespace WebCore {
 
 Color::Color(D2D1_COLOR_F color)
 {
-    setRGB(makeRGBA(color.r * 255, color.g * 255, color.b * 255, color.a * 255));
+    setSimpleColor(makeSimpleColor(color.r * 255, color.g * 255, color.b * 255, color.a * 255));
 }
 
 Color::operator D2D1_COLOR_F() const
 {
-    if (isExtended()) {
-        auto asRGBA = toSRGBAComponentsLossy();
-        return D2D1::ColorF(asRGBA.components[0], asRGBA.components[1], asRGBA.components[2], asRGBA.components[3]);
-    }
-
-    float colorAlpha = alpha() / 255.0f;
-    return D2D1::ColorF(rgb().value(), colorAlpha);
+    auto [r, g, b, a] = toSRGBAComponentsLossy();
+    return D2D1::ColorF(r, g, b, a);
 }
 
 Color::operator D2D1_VECTOR_4F() const
 {
-    auto asRGBA = toSRGBAComponentsLossy();
-    return D2D1::Vector4F(asRGBA.components[0], asRGBA.components[1], asRGBA.components[2], asRGBA.components[3]);
+    auto [r, g, b, a] = toSRGBAComponentsLossy();
+    return D2D1::Vector4F(r, g, b, a);
 }
 
 }

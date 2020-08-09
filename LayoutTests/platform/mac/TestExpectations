@@ -553,12 +553,6 @@ webkit.org/b/112176 fast/canvas/webgl/read-pixels-test.html [ Failure Pass ]
 
 # Baseline Alignment tests affected by 1px diff failures only on Mac and iOS platforms
 webkit.org/b/170293 fast/css-grid-layout/grid-align-baseline-vertical.html [ Failure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-03.html [ ImageOnlyFailure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-04.html [ ImageOnlyFailure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-vertical-rl-05.html [ ImageOnlyFailure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-vertical-rl-04.html [ ImageOnlyFailure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-06.html [ ImageOnlyFailure ]
-webkit.org/b/170293 fast/css-grid-layout/grid-self-baseline-07.html [ ImageOnlyFailure ]
 
 # The following ref-test appears to fail on EWS bots as well.
 webkit.org/b/112176 fast/css/sticky/inline-sticky-abspos-child.html [ ImageOnlyFailure Pass ]
@@ -1047,7 +1041,7 @@ webkit.org/b/210436 http/tests/performance/paint-timing/performance-paint-timing
 # Touch events are not enabled on Mac
 webkit.org/b/149592 fast/shadow-dom/touch-event-ios.html [ Skip ]
 
-webkit.org/b/149819 [ Debug ] compositing/video/video-poster.html [ Pass Crash ]
+webkit.org/b/149819 [ Debug ] compositing/video/video-poster.html [ Pass Crash Failure ]
 
 webkit.org/b/168953 [ Release ] compositing/video/video-poster.html [ Pass Failure ]
 
@@ -1119,6 +1113,8 @@ webkit.org/b/158649 fast/text/chinese-font-name-aliases-2.html [ ImageOnlyFailur
 webkit.org/b/158889 media/video-controls-show-on-kb-or-ax-event.html [ Pass Failure Timeout ]
 
 fast/css/appearance-apple-pay-button.html [ Pass ]
+fast/css/appearance-apple-pay-button-border-radius.html [ Pass ]
+fast/css/getComputedStyle/computed-style-apple-pay-button.html [ Pass ]
 
 # <rdar://problem/23500327> storage/websql/alter-to-info-table.html
 storage/websql/alter-to-info-table.html [ Pass Failure ]
@@ -1536,7 +1532,6 @@ webkit.org/b/183490 media/modern-media-controls/media-controller/media-controlle
 webkit.org/b/183490 media/modern-media-controls/start-support/start-support-fullscreen.html [ Failure ]
 webkit.org/b/183490 media/video-playsinline.html [ Failure ]
 webkit.org/b/183490 media/video-webkit-playsinline.html [ Failure ]
-webkit.org/b/183490 media/modern-media-controls/media-controller/media-controller-inline-to-fullscreen-to-pip-to-inline.html [ Failure ]
 
 webkit.org/b/183764 fast/css/apple-system-control-colors.html [ Pass ]
 
@@ -1684,7 +1679,7 @@ webkit.org/b/190882 animations/change-one-anim.html [ Pass Failure ]
 [ Catalina+ ] fast/images/animated-heics-verify.html [ Pass ]
 
 # <rdar://problem/40172428>
-[ Catalina+ ] fast/text/font-collection.html [ ImageOnlyFailure ]
+webkit.org/b/212172 [ Catalina ] fast/text/font-collection.html [ ImageOnlyFailure ]
 [ Catalina+ ] fast/text/woff2.html [ Pass ImageOnlyFailure ]
 
 # <rdar://problem/45056204>
@@ -1940,8 +1935,6 @@ webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass
 
 webkit.org/b/207160 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Failure ]
 
-webkit.org/b/210351 scrollingcoordinator/mac/latching/horizontal-overflow-back-swipe.html [ Pass Timeout ]
-
 webkit.org/b/182571 [ Debug ] media/modern-media-controls/tracks-support/tracks-support-show-panel-fullscreen.html [ Pass Timeout ]
 
 # Certain versions of macOS use different text security characters.
@@ -1958,3 +1951,20 @@ media/controls-styling.html [ Skip ]
 http/tests/frame-throttling/raf-throttle-in-cross-origin-subframe.html [ Pass Failure ]
 
 webkit.org/b/211891 imported/w3c/web-platform-tests/css/css-flexbox/flexbox_direction-row-reverse.html [ ImageOnlyFailure ]
+
+webkit.org/b/212165 http/tests/resourceLoadStatistics/telemetry-generation-basic-functionality-database.html [ Pass Failure ]
+
+webkit.org/b/212215 media/video-isplayingtoautomotiveheadunit.html [ Pass Failure ]
+
+webkit.org/b/212219 media/track/track-cue-missing.html [ Pass Failure ]
+
+webkit.org/b/212218 webrtc/datachannel/gather-candidates-networkprocess-crash.html [ Pass Timeout ]
+
+webkit.org/b/212226 imported/w3c/web-platform-tests/css/css-grid/alignment/self-baseline/grid-self-baseline-changes-grid-area-size-008.html [ ImageOnlyFailure ]
+
+webkit.org/b/212488 [ Catalina ] media/video-play-audio-require-user-gesture.html [ Pass Timeout ]
+
+# This test requires an update to system decoders
+webkit.org/b/212565 [ Catalina Mojave ] imported/w3c/web-platform-tests/encoding/single-byte-decoder.html [ Failure ]
+
+webkit.org/b/212694 media/modern-media-controls/media-controller/media-controller-inline-to-fullscreen-to-pip-to-inline.html [ Pass Timeout ]

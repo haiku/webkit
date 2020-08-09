@@ -1246,7 +1246,7 @@ public:
     void compileGetButterfly(Node*);
     void compileCallDOMGetter(Node*);
     void compileCallDOM(Node*);
-    void compileCheckSubClass(Node*);
+    void compileCheckJSCast(Node*);
     void compileNormalizeMapKey(Node*);
     void compileGetMapBucketHead(Node*);
     void compileGetMapBucketNext(Node*);
@@ -1447,6 +1447,10 @@ public:
     void compilePutByIdDirect(Node*);
     void compilePutByIdWithThis(Node*);
     void compileHasStructureProperty(Node*);
+    template <typename Function>
+    void compileHasOwnStructurePropertyImpl(Node*, Function);
+    void compileHasOwnStructureProperty(Node*);
+    void compileInStructureProperty(Node*);
     void compileGetDirectPname(Node*);
     void compileGetPropertyEnumerator(Node*);
     void compileGetEnumeratorPname(Node*);

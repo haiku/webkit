@@ -39,6 +39,7 @@ namespace WebCore {
 
 class ScrollingTree;
 class ScrollingStateScrollingNode;
+struct WheelEventHandlingResult;
 
 class WEBCORE_EXPORT ScrollingTreeScrollingNode : public ScrollingTreeNode {
     friend class ScrollingTreeScrollingNodeDelegate;
@@ -52,9 +53,10 @@ public:
 
     void commitStateBeforeChildren(const ScrollingStateNode&) override;
     void commitStateAfterChildren(const ScrollingStateNode&) override;
+    void didCompleteCommitForNode() final;
 
     virtual bool canHandleWheelEvent(const PlatformWheelEvent&) const;
-    virtual ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&);
+    virtual WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&);
 
     FloatPoint currentScrollPosition() const { return m_currentScrollPosition; }
     FloatPoint currentScrollOffset() const { return ScrollableArea::scrollOffsetFromPosition(m_currentScrollPosition, toFloatSize(m_scrollOrigin)); }
@@ -103,6 +105,8 @@ public:
     bool useDarkAppearanceForScrollbars() const { return m_scrollableAreaParameters.useDarkAppearanceForScrollbars; }
 
     bool eventCanScrollContents(const PlatformWheelEvent&) const;
+    
+    bool scrolledSinceLastCommit() const { return m_scrolledSinceLastCommit; }
 
     const LayerRepresentation& scrollContainerLayer() const { return m_scrollContainerLayer; }
     const LayerRepresentation& scrolledContentsLayer() const { return m_scrolledContentsLayer; }
@@ -117,7 +121,7 @@ protected:
     
     virtual FloatPoint adjustedScrollPosition(const FloatPoint&, ScrollClamping = ScrollClamping::Clamped) const;
 
-    virtual void currentScrollPositionChanged();
+    virtual void currentScrollPositionChanged(ScrollingLayerPositionAction = ScrollingLayerPositionAction::Sync);
     virtual void updateViewportForCurrentScrollPosition(Optional<FloatRect> = { }) { }
     virtual bool scrollPositionAndLayoutViewportMatch(const FloatPoint& position, Optional<FloatRect> overrideLayoutViewport);
 
@@ -162,6 +166,7 @@ private:
     OptionSet<SynchronousScrollingReason> m_synchronousScrollingReasons;
 #endif
     bool m_isFirstCommit { true };
+    bool m_scrolledSinceLastCommit { false };
 
     LayerRepresentation m_scrollContainerLayer;
     LayerRepresentation m_scrolledContentsLayer;

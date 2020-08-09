@@ -31,6 +31,7 @@
 #include "AuxiliaryBarrierInlines.h"
 #include "GetterSetter.h"
 #include "IntegrityInlines.h"
+#include "JSCInlines.h"
 #include "JSWebAssemblyGlobal.h"
 
 namespace JSC {

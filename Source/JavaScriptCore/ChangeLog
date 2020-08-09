@@ -1,3 +1,2188 @@
+2020-06-03  Mark Lam  <mark.lam@apple.com>
+
+        Fix non-unified --jsc-only build.
+        https://bugs.webkit.org/show_bug.cgi?id=212707
+
+        Reviewed by Yusuke Suzuki.
+
+        These files need JSGlobalObjectInlines.h.  But rather than adding yet another
+        #include, we'll just remove many individual ones and just #include JSCInlines.h
+        instead.
+
+        * wasm/js/JSToWasmICCallee.cpp:
+        * wasm/js/WebAssemblyCompileErrorConstructor.cpp:
+        * wasm/js/WebAssemblyCompileErrorPrototype.cpp:
+        * wasm/js/WebAssemblyGlobalPrototype.cpp:
+        * wasm/js/WebAssemblyInstanceConstructor.cpp:
+        * wasm/js/WebAssemblyInstancePrototype.cpp:
+        * wasm/js/WebAssemblyLinkErrorConstructor.cpp:
+        * wasm/js/WebAssemblyLinkErrorPrototype.cpp:
+        * wasm/js/WebAssemblyModulePrototype.cpp:
+        * wasm/js/WebAssemblyRuntimeErrorConstructor.cpp:
+        * wasm/js/WebAssemblyRuntimeErrorPrototype.cpp:
+
+2020-06-03  Rob Buis  <rbuis@igalia.com>
+
+        Make generated C++ code use modern C++
+        https://bugs.webkit.org/show_bug.cgi?id=190714
+
+        Reviewed by Jonathan Bedard.
+
+        Update inspector protocol generator and rebaseline the tests.
+
+        * inspector/scripts/codegen/cpp_generator_templates.py:
+        * inspector/scripts/codegen/generate_cpp_protocol_types_header.py:
+        * inspector/scripts/tests/expected/commands-with-async-attribute.json-result:
+        * inspector/scripts/tests/expected/commands-with-optional-call-return-parameters.json-result:
+        * inspector/scripts/tests/expected/domains-with-varying-command-sizes.json-result:
+        * inspector/scripts/tests/expected/enum-values.json-result:
+        * inspector/scripts/tests/expected/events-with-optional-parameters.json-result:
+        * inspector/scripts/tests/expected/same-type-id-different-domain.json-result:
+        * inspector/scripts/tests/expected/type-declaration-aliased-primitive-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-array-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-enum-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-object-type.json-result:
+        * inspector/scripts/tests/expected/type-requiring-runtime-casts.json-result:
+        * yarr/generateYarrUnicodePropertyTables.py:
+
+2020-06-02  Mark Lam  <mark.lam@apple.com>
+
+        Rolling out r262475 to unbreak Windows bot.
+        https://bugs.webkit.org/show_bug.cgi?id=212680
+
+        Not reviewed.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * assembler/MacroAssemblerARM64.h:
+        * assembler/MacroAssemblerX86_64.h:
+        * assembler/testmasm.cpp:
+        (JSC::testCountTrailingZeros64WithoutNullCheck):
+        (JSC::run):
+        (JSC::testStore64Imm64AddressPointer): Deleted.
+        * dfg/DFGDoesGCCheck.cpp: Removed.
+        * dfg/DFGDoesGCCheck.h: Removed.
+        * dfg/DFGGraph.cpp:
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::operationCompileOSRExit):
+        (JSC::DFG::OSRExit::compileExit):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+        (JSC::FTL::operationCompileFTLOSRExit):
+        * heap/CompleteSubspace.cpp:
+        (JSC::CompleteSubspace::tryAllocateSlow):
+        (JSC::CompleteSubspace::reallocatePreciseAllocationNonVirtual):
+        * heap/CompleteSubspaceInlines.h:
+        (JSC::CompleteSubspace::allocateNonVirtual):
+        * heap/DeferGC.h:
+        (JSC::DeferGC::~DeferGC):
+        * heap/GCDeferralContextInlines.h:
+        (JSC::GCDeferralContext::~GCDeferralContext):
+        * heap/Heap.cpp:
+        (JSC::Heap::collectNow):
+        (JSC::Heap::collectAsync):
+        (JSC::Heap::collectSync):
+        (JSC::Heap::stopIfNecessarySlow):
+        (JSC::Heap::collectIfNecessaryOrDefer):
+        * heap/Heap.h:
+        (JSC::Heap::expectDoesGC const):
+        (JSC::Heap::setExpectDoesGC):
+        (JSC::Heap::addressOfExpectDoesGC):
+        (JSC::Heap::addressOfDoesGC): Deleted.
+        (JSC::Heap::setDoesGCExpectation): Deleted.
+        (JSC::Heap::verifyCanGC): Deleted.
+        * heap/HeapInlines.h:
+        (JSC::Heap::acquireAccess):
+        (JSC::Heap::stopIfNecessary):
+        * heap/LocalAllocatorInlines.h:
+        (JSC::LocalAllocator::allocate):
+        * heap/PreciseAllocation.cpp:
+        (JSC::PreciseAllocation::tryCreate):
+        (JSC::PreciseAllocation::createForLowerTier):
+        * runtime/JSString.h:
+        (JSC::jsSingleCharacterString):
+        (JSC::JSString::toAtomString const):
+        (JSC::JSString::toExistingAtomString const):
+        (JSC::JSString::value const):
+        (JSC::JSString::tryGetValue const):
+        (JSC::JSRopeString::unsafeView const):
+        (JSC::JSRopeString::viewWithUnderlyingString const):
+        (JSC::JSString::unsafeView const):
+        * runtime/RegExpMatchesArray.h:
+        (JSC::createRegExpMatchesArray):
+
+2020-06-02  Mark Lam  <mark.lam@apple.com>
+
+        Enhance DoesGC verification to print more useful info when verification fails.
+        https://bugs.webkit.org/show_bug.cgi?id=212680
+
+        Reviewed by Yusuke Suzuki.
+
+        When DoesGC verification fails, the first step of debugging it would be to find
+        out what and which DFG node resulted in the failed verification.  In pre-existing
+        code, all we get is an assertion failure.
+
+        This patch makes it so that the verifier will dump useful info.  Here's an example:
+
+            Error: DoesGC failed @ D@34 DateGetInt32OrNaN in #DtCHMz:[0x1135bd1d0->0x1135bcab0->0x1135e5c80, DFGFunctionCall, 150 (DidTryToEnterInLoop)]
+                [0] frame 0x7ffee8285660 {
+                  name: 
+                  sourceURL: 
+                  isInlinedFrame: false
+                  callee: 0x1135f6820
+                  returnPC: 0x50ce61248ae6
+                  callerFrame: 0x7ffee82856f0
+                  rawLocationBits: 5 0x5
+                  codeBlock: 0x1135bd1d0 #DtCHMz:[0x1135bd1d0->0x1135bcab0->0x1135e5c80, DFGFunctionCall, 150 (DidTryToEnterInLoop)]
+                    hasCodeOrigins: true
+                    callSiteIndex: 5 of 13
+                    jitCode: 0x113020200 start 0x50ce61214c60 end 0x50ce61219b00
+                    line: 1
+                    column: 60
+                  EntryFrame: 0x7ffee8285860
+                }
+                [1] frame 0x7ffee82856f0 {
+                  name: 
+                  sourceURL: date-format-xparb.js
+                  isInlinedFrame: false
+                  callee: 0x1135f65a0
+                  returnPC: 0x50ce61227e99
+                  callerFrame: 0x7ffee8285770
+                  rawLocationBits: 4 0x4
+                  codeBlock: 0x1135bd0a0 #BU6Zcd:[0x1135bd0a0->0x1135bc260->0x1135e5180, DFGFunctionCall, 112 (DidTryToEnterInLoop)]
+                    hasCodeOrigins: true
+                    callSiteIndex: 4 of 12
+                    jitCode: 0x113004000 start 0x50ce61212c60 end 0x50ce61214960
+                    line: 26
+                    column: 22
+                  EntryFrame: 0x7ffee8285860
+                }
+                [2] frame 0x7ffee8285770 {
+                  name: 
+                  sourceURL: date-format-xparb.js
+                  isInlinedFrame: false
+                  callee: 0x1135f64e0
+                  returnPC: 0x108058eb1
+                  callerFrame: 0x7ffee82857e0
+                  rawLocationBits: 1001 0x3e9
+                  codeBlock: 0x1135bc130 #DAS9xe:[0x1135bc130->0x1135e5100, BaselineFunctionCall, 1149]
+                    bc#1001 of 1149
+                    line: 417
+                    column: 38
+                  EntryFrame: 0x7ffee8285860
+                }
+                [3] frame 0x7ffee82857e0 {
+                  name: global code
+                  sourceURL: date-format-xparb.js
+                  isInlinedFrame: false
+                  callee: 0x1130f97b8
+                  returnPC: 0x108039043
+                  callerFrame: 0x0
+                  rawLocationBits: 23 0x17
+                  codeBlock: 0x1135bc000 <global>#CukXvt:[0x1135bc000->0x1130cd768, LLIntGlobal, 81]
+                    bc#23 of 81
+                    line: 425
+                    column: 3
+                  EntryFrame: 0x7ffee8285860
+                }
+
+            ASSERTION FAILED: expectDoesGC()
+
+        The error message now comes with the node index, NodeType, codeBlock which this
+        failure was found in, and the JS call stack that led to the failure.
+
+        Changes made:
+
+        1. Introduced a DoesGCCheck value that is used to encode some of the above data.
+
+           Previously, we only recorded whether doesGC() returns true or false for the
+           Node.  Now, we record the nodeIndex and nodeOp as well.
+
+           Note that we also set DoesGC expectations for OSR exits.  So, DoesGCCheck
+           includes Special cases for those.
+
+        2. Added store64(TrustedImm64 imm, const void* address) emitters for X86_64 and ARM64.
+           Also added a test for this new emitter in testmasm.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::store64):
+        * assembler/MacroAssemblerX86_64.h:
+        (JSC::MacroAssemblerX86_64::store64):
+        * assembler/testmasm.cpp:
+        (JSC::testStore64Imm64AddressPointer):
+        (JSC::run):
+        * dfg/DFGDoesGCCheck.cpp: Added.
+        (JSC::DFG::DoesGCCheck::verifyCanGC):
+        * dfg/DFGDoesGCCheck.h: Added.
+        (JSC::DFG::DoesGCCheck::DoesGCCheck):
+        (JSC::DFG::DoesGCCheck::encode):
+        (JSC::DFG::DoesGCCheck::set):
+        (JSC::DFG::DoesGCCheck::expectDoesGC):
+        (JSC::DFG::DoesGCCheck::special):
+        (JSC::DFG::DoesGCCheck::nodeIndex):
+        (JSC::DFG::DoesGCCheck::nodeOp):
+        (JSC::DFG::DoesGCCheck::isSpecial):
+        (JSC::DFG::DoesGCCheck::specialIndex):
+        (JSC::DFG::DoesGCCheck::bits):
+        * dfg/DFGGraph.cpp:
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::operationCompileOSRExit):
+        (JSC::DFG::OSRExit::compileExit):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+        (JSC::FTL::operationCompileFTLOSRExit):
+        * heap/CompleteSubspace.cpp:
+        (JSC::CompleteSubspace::tryAllocateSlow):
+        (JSC::CompleteSubspace::reallocatePreciseAllocationNonVirtual):
+        * heap/CompleteSubspaceInlines.h:
+        (JSC::CompleteSubspace::allocateNonVirtual):
+        * heap/DeferGC.h:
+        (JSC::DeferGC::~DeferGC):
+        * heap/GCDeferralContextInlines.h:
+        (JSC::GCDeferralContext::~GCDeferralContext):
+        * heap/Heap.cpp:
+        (JSC::Heap::collectNow):
+        (JSC::Heap::collectAsync):
+        (JSC::Heap::collectSync):
+        (JSC::Heap::stopIfNecessarySlow):
+        (JSC::Heap::collectIfNecessaryOrDefer):
+        * heap/Heap.h:
+        (JSC::Heap::addressOfDoesGC):
+        (JSC::Heap::setDoesGCExpectation):
+        (JSC::Heap::verifyCanGC):
+        (JSC::Heap::expectDoesGC const): Deleted.
+        (JSC::Heap::setExpectDoesGC): Deleted.
+        (JSC::Heap::addressOfExpectDoesGC): Deleted.
+        * heap/HeapInlines.h:
+        (JSC::Heap::acquireAccess):
+        (JSC::Heap::stopIfNecessary):
+        * heap/LocalAllocatorInlines.h:
+        (JSC::LocalAllocator::allocate):
+        * heap/PreciseAllocation.cpp:
+        (JSC::PreciseAllocation::tryCreate):
+        (JSC::PreciseAllocation::createForLowerTier):
+        * runtime/JSString.h:
+        (JSC::jsSingleCharacterString):
+        (JSC::JSString::toAtomString const):
+        (JSC::JSString::toExistingAtomString const):
+        (JSC::JSString::value const):
+        (JSC::JSString::tryGetValue const):
+        (JSC::JSRopeString::unsafeView const):
+        (JSC::JSRopeString::viewWithUnderlyingString const):
+        (JSC::JSString::unsafeView const):
+        * runtime/RegExpMatchesArray.h:
+        (JSC::createRegExpMatchesArray):
+
+2020-06-02  Mark Lam  <mark.lam@apple.com>
+
+        VMInspector APIs should be taking a VM* instead of a JSGlobalObject*.
+        https://bugs.webkit.org/show_bug.cgi?id=212676
+
+        Reviewed by Saam Barati and Robin Morisset.
+
+        This because:
+        1. None of the functions currently taking a JSGlobalObject* actually need the
+           globalObject.  All of them need the VM.
+        2. The role of the VMInspector is to enable inspection of the VM.  By requiring
+           that it be passed a JSGlobalObject*, we were actually preventing the VMInspector
+           from being used in code that have a VM to inspect but don't have a JSGlobalObject
+           to use.
+
+        The reason I'm choosing to pass VM* instead of VM& is because it makes these
+        functions trivial to call using lldb interactively.  The VMInspector functions
+        are also intentionally designed so that they can be used for this purpose.
+        On occasion, I may have to cast literal numbers (addresses) to VM*.  Technically,
+        I could cast a number to VM* and dereference it to get a VM& too.  However, at
+        present, lldb is often buggy and not always reliable with casts.  I would like to
+        lessen the chance that lldb fails on me when I'm deep in the middle of a debugging
+        session, and have a need to call one of these functions.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionGC):
+        (JSC::functionEdenGC):
+        (JSC::functionCodeBlockForFrame):
+        (JSC::codeBlockFromArg):
+        (JSC::functionDumpCallFrame):
+        (JSC::functionDumpStack):
+        * tools/VMInspector.cpp:
+        (JSC::VMInspector::currentThreadOwnsJSLock):
+        (JSC::ensureCurrentThreadOwnsJSLock):
+        (JSC::VMInspector::gc):
+        (JSC::VMInspector::edenGC):
+        (JSC::VMInspector::isValidCodeBlock):
+        (JSC::VMInspector::codeBlockForFrame):
+        (JSC::VMInspector::dumpCallFrame):
+        (JSC::VMInspector::dumpStack):
+        * tools/VMInspector.h:
+
+2020-06-02  Keith Rollin  <krollin@apple.com>
+
+        Revert FEATURES_DEFINES related changes
+        https://bugs.webkit.org/show_bug.cgi?id=212664
+        <rdar://problem/63893033>
+
+        Reviewed by Andy Estes.
+
+        Bug 262310, Bug 262311, Bug 262318, and Bug 262331 involve changes to
+        FEATURE_DEFINES and how the values there relate to those found in the
+        Platform*.h files. Those changes break XCBuild (by removing the
+        .xcfilelist related to UnifiedSources and the process for generating
+        them), and so are being reverted.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-02  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, reverting r262424.
+
+        Caused webkitpy test failure
+
+        Reverted changeset:
+
+        "Make generated C++ code use modern C++"
+        https://bugs.webkit.org/show_bug.cgi?id=190714
+        https://trac.webkit.org/changeset/262424
+
+2020-06-02  Mark Lam  <mark.lam@apple.com>
+
+        Change Gigacage::Config to use storage in WebConfig::g_config instead of its own.
+        https://bugs.webkit.org/show_bug.cgi?id=212585
+        <rdar://problem/63812487>
+
+        Reviewed by Yusuke Suzuki.
+
+        * assembler/testmasm.cpp:
+        (JSC::testCagePreservesPACFailureBit):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::cageTypedArrayStorage):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::caged):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::cageConditionally):
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/JSCConfig.h:
+        (JSC::Config::isPermanentlyFrozen):
+
+2020-06-02  Saam Barati  <sbarati@apple.com>
+
+        MultiDeleteByOffset should not always def
+        https://bugs.webkit.org/show_bug.cgi?id=212621
+        <rdar://problem/63824182>
+
+        Reviewed by Yusuke Suzuki.
+
+        Clobberize used to claim that MultiDeleteByOffset always defd a value.
+        That's an incorrect modeling of MultiDeleteByOffset though, since it might
+        have delete misses in its variant list. This would lead us to incorrectly
+        CSE when we shouldn't. This patch fixes this by saying MultiDeleteByOffset
+        only defs when all its cases write out a value (are hits).
+
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGNode.cpp:
+        (JSC::DFG::MultiDeleteByOffsetData::allVariantsStoreEmpty const):
+        * dfg/DFGNode.h:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileMultiDeleteByOffset):
+
+2020-06-02  Rob Buis  <rbuis@igalia.com>
+
+        Make generated C++ code use modern C++
+        https://bugs.webkit.org/show_bug.cgi?id=190714
+
+        Reviewed by Sam Weinig.
+
+        Update inspector protocol generator and rebaseline the tests.
+
+        * inspector/scripts/codegen/cpp_generator_templates.py:
+        * inspector/scripts/codegen/generate_cpp_protocol_types_header.py:
+        * inspector/scripts/tests/expected/commands-with-async-attribute.json-result:
+        * inspector/scripts/tests/expected/commands-with-optional-call-return-parameters.json-result:
+        * inspector/scripts/tests/expected/domains-with-varying-command-sizes.json-result:
+        * inspector/scripts/tests/expected/enum-values.json-result:
+        * inspector/scripts/tests/expected/events-with-optional-parameters.json-result:
+        * inspector/scripts/tests/expected/same-type-id-different-domain.json-result:
+        * inspector/scripts/tests/expected/type-declaration-aliased-primitive-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-array-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-enum-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-object-type.json-result:
+        * inspector/scripts/tests/expected/type-requiring-runtime-casts.json-result:
+        * yarr/generateYarrUnicodePropertyTables.py:
+
+2020-06-02  Paulo Matos  <pmatos@igalia.com>
+
+        Fix assert message formatting
+        https://bugs.webkit.org/show_bug.cgi?id=212591
+
+        Reviewed by Adrian Perez de Castro.
+
+        Fixes warning by gcc - lineParts.size() is size_t, %zu should be used.
+
+        * runtime/FuzzerPredictions.cpp:
+        (JSC::FuzzerPredictions::FuzzerPredictions):
+
+2020-06-01  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Graphics: should use the `id` (name) of the animation if it exists
+        https://bugs.webkit.org/show_bug.cgi?id=212618
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector/protocol/Animation.json:
+         - added an optional `name` property to the `Animation.Animation` type
+         - created a new `Animation.nameChanged` event
+
+2020-06-01  Saam Barati  <sbarati@apple.com>
+
+        Correct misunderstandings on how ThreadSpecific work
+        https://bugs.webkit.org/show_bug.cgi?id=212616
+
+        Reviewed by Michael Saboff.
+
+        There were two misunderstandings I had when writing code using ThreadSpecific
+        when doing LLInt bytecode buffer caching in Wasm.
+        
+        1. For ThreadSpecific<Vector>, I was calling Vector's constructor twice
+        unnecessarily, and incorrectly, since we ended up constructing over an
+        already constructed Vector for the second call. When doing operator* or
+        operator-> on a ThreadSpecific<T>, T() is called if it has not been
+        initialized yet. So there is no need to do manually call the constructor
+        the second time.
+        
+        2. There is no need to try to destroy entries for ThreadSpecific manually
+        since we already run destructors when the thread goes away.
+        
+        This patch removes code for (1) and (2) both from the Wasm bytecode
+        buffer and from AssemblerData.
+
+        * assembler/AssemblerBuffer.cpp:
+        (JSC::clearAssembleDataThreadSpecificCache): Deleted.
+        * assembler/AssemblerBuffer.h:
+        (JSC::AssemblerBuffer::AssemblerBuffer):
+        (JSC::AssemblerBuffer::~AssemblerBuffer):
+        (JSC::AssemblerBuffer::getThreadSpecificAssemblerData): Deleted.
+        * dfg/DFGWorklist.cpp:
+        * jit/JITWorklist.cpp:
+        * wasm/WasmLLIntGenerator.cpp:
+        (JSC::Wasm::LLIntGenerator::LLIntGenerator):
+        (JSC::Wasm::clearLLIntThreadSpecificCache): Deleted.
+        * wasm/WasmLLIntGenerator.h:
+        * wasm/WasmWorklist.cpp:
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, fix build failure in ARMv7k
+        https://bugs.webkit.org/show_bug.cgi?id=212595
+
+        * runtime/JSCJSValue.cpp:
+        (JSC::JSValue::toThisSlowCase const):
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt::rightTrim can miss |this| pointer and leads to incorrect GC collection
+        https://bugs.webkit.org/show_bug.cgi?id=212601
+
+        Reviewed by Saam Barati.
+
+        This is pretty rare case. But in some optimization level, JSBigInt::rightTrim could store |this| + offset pointer into the stack instead of |this|
+        and make conservative GC think that |this| JSBigInt is unreachable. We put ensureStillAliveHere(this) to ensure that this is alive.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::rightTrim):
+
+2020-06-01  Mark Lam  <mark.lam@apple.com>
+
+        x86.rb's LabelReference.x86LoadOperand()'s address operand should be a pointer type.
+        https://bugs.webkit.org/show_bug.cgi?id=212603
+
+        Reviewed by Saam Barati.
+
+        The current implementation mistakenly sets the address type to that of the value
+        being loaded.  I encountered this issue when I was trying to do a loadb from a
+        global address.  Because of this bug, the emitted code was trying do a load using
+        %al (8 byte register) as the pointer to load from.  With this fix, it now loads
+        from %rax.
+
+        * offlineasm/x86.rb:
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSValue::toThis should not throw exception
+        https://bugs.webkit.org/show_bug.cgi?id=212595
+
+        Reviewed by Mark Lam.
+
+        Including WebCore code, there are a lot of code which assume JSValue::toThis should not throw an exception.
+        This assumption was now broken after making JSBigInt allocation graceful for OOM. But for this particular JSValue::toThis case,
+        we can make it non-throwing code.
+
+        This patch makes JSValue::toThis non-throwing code to fix exception-missing debug assertions.
+        We ensure that BigIntObject can hold BigInt32 (actually, it can already if toObjectSlowCase path is taken).
+
+        * runtime/BigIntObject.cpp:
+        (JSC::BigIntObject::create):
+        * runtime/JSCJSValue.cpp:
+        (JSC::JSValue::toThisSlowCase const):
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt operations should handle exception correctly
+        https://bugs.webkit.org/show_bug.cgi?id=212596
+
+        Reviewed by Mark Lam.
+
+        Some places miss exception check / explicit scope-release while BigInt operations can now throw an exception.
+        This patch adds them. They are covered by existing stress tests with Debug build.
+
+        * runtime/Operations.h:
+        (JSC::compareBigIntToOtherPrimitive):
+        (JSC::compareBigInt32ToOtherPrimitive):
+        (JSC::jsInc):
+        (JSC::jsDec):
+        (JSC::jsBitwiseNot):
+
+2020-05-31  Michael Saboff  <msaboff@apple.com>
+
+        Consider a Thread Specific Cache for AssemblerBuffers
+        https://bugs.webkit.org/show_bug.cgi?id=212562
+
+        Reviewed by Filip Pizlo.
+
+        This patch creates a thread local cache of AssemblerData in the hopes that it will reduce
+        memory allocation churn.  The cache is cleared when a thread is destroyed.
+        If an AssemblerData is destroyed in another thread, its storage is cached by the
+        destroying thread.
+
+        Made a few changes described below to facilite the swap as well as returning a
+        clear()'ed AssemblerData back to its original state.
+
+        Reviewed by Filip Pizlo.
+
+        * assembler/AssemblerBuffer.cpp:
+        (JSC::threadSpecificAssemblerData):
+        (JSC::clearAssembleDataThreadSpecificCache):
+        * assembler/AssemblerBuffer.h:
+
+        (JSC::AssemblerData::AssemblerData):
+        (JSC::AssemblerData::operator=):
+        The copy constructor and assignment operator now perform complete AssemblerBuffer swaps.
+
+        (JSC::AssemblerData::takeBufferIfLarger):
+        A new method that will conditionally copy the enclosed buffer of the argument to "this"
+        if the argument's buffer is larger than the current buffer of "this".
+
+        (JSC::AssemblerData::~AssemblerData):
+        (JSC::AssemblerData::clear):
+        The destructor now calls clear which has been changed to reset the buffer to one with
+        inline capacity.
+
+        (JSC::AssemblerBuffer::AssemblerBuffer):
+        Take the cached out of line buffer if there is one.
+
+        (JSC::AssemblerBuffer::~AssemblerBuffer):
+        Cache the enclosed out of line buffer if it is larger than the currently cached one.
+
+        (JSC::AssemblerBuffer::getThreadSpecificAssemblerData):
+        * dfg/DFGWorklist.cpp:
+        * jit/JITWorklist.cpp:
+        * wasm/WasmWorklist.cpp:
+
+2020-05-31  Mark Lam  <mark.lam@apple.com>
+
+        Change JSC::Config to use storage in WTF::Config instead of its own.
+        https://bugs.webkit.org/show_bug.cgi?id=212575
+        <rdar://problem/63796584>
+
+        Reviewed by Yusuke Suzuki.
+
+        Since Configs must be rounded up to CeilingOnPageSize, this will save us some
+        memory since the contents of both Configs do not add up to CeilingOnPageSize.
+
+        g_jscConfig is now located at g_wtfConfig.spaceForExtensions.
+
+        * runtime/JSCConfig.cpp:
+        (JSC::Config::disableFreezingForTesting):
+        (JSC::Config::enableRestrictedOptions):
+        (JSC::Config::permanentlyFreeze): Deleted.
+        * runtime/JSCConfig.h:
+        (JSC::Config::permanentlyFreeze):
+        (JSC::Config::isPermanentlyFrozen):
+        (): Deleted.
+        * runtime/Options.cpp:
+        (JSC::Options::setOptions):
+        * tools/JSDollarVM.cpp:
+        (JSC::functionCallWithStackSize):
+
+2020-05-30  Mark Lam  <mark.lam@apple.com>
+
+        Rename Signal::BadAccess to Signal::AccessFault.
+        https://bugs.webkit.org/show_bug.cgi?id=212577
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/VMTraps.cpp:
+        * wasm/WasmFaultSignalHandler.cpp:
+        (JSC::Wasm::enableFastMemory):
+
+2020-05-30  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] for-in should allocate new temporary register for base
+        https://bugs.webkit.org/show_bug.cgi?id=212519
+        <rdar://problem/63722044>
+
+        Reviewed by Saam Barati.
+
+        While r262233 keeps for-in's enumerated object in variable register if possible to use this register for heuristics driving an optimization,
+        for-in body can replace the content of this register during enumeration and confuse enumerator.
+
+        Instead, we record Variable information in StructureForInContext. This allows us to detect patterns using heap-variables too.
+        Further, this patch extends pattern-matching code to support ThisNode too.
+
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::pushStructureForInScope):
+        * bytecompiler/BytecodeGenerator.h:
+        (JSC::Variable::Variable):
+        (JSC::Variable::isResolved const):
+        (JSC::Variable::symbolTableConstantIndex const):
+        (JSC::Variable::ident const):
+        (JSC::Variable::offset const):
+        (JSC::Variable::isLocal const):
+        (JSC::Variable::local const):
+        (JSC::Variable::isReadOnly const):
+        (JSC::Variable::isSpecial const):
+        (JSC::Variable::isConst const):
+        (JSC::Variable::setIsReadOnly):
+        (JSC::Variable::operator== const):
+        (JSC::StructureForInContext::StructureForInContext):
+        (JSC::StructureForInContext::baseVariable const):
+        (JSC::StructureForInContext::base const): Deleted.
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::HasOwnPropertyFunctionCallDotNode::emitBytecode):
+        (JSC::ForInNode::emitBytecode):
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::makeFunctionCallNode):
+        * parser/Nodes.h:
+        (JSC::ExpressionNode::isThisNode const):
+
+2020-05-30  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, fix JSC debug tests' exception checking
+        https://bugs.webkit.org/show_bug.cgi?id=212512
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createWithLength):
+        (JSC::JSBigInt::allocateFor):
+
+2020-05-30  Mark Lam  <mark.lam@apple.com>
+
+        AssemblyHelpers::callExceptionFuzz() is passing a wrong argument to operationExceptionFuzz().
+        https://bugs.webkit.org/show_bug.cgi?id=212561
+
+        Reviewed by Yusuke Suzuki.
+
+        There's 2 possible solution to this issue:
+        1. Thread the globalObject from all the way up the clients calling into
+           callExceptionFuzz(), or
+        2. Introduce a operationExceptionFuzzWithCallFrame() wrapper take receives a VM*
+           and CallFrame*, and use these to get the lexicalGlobalObject.
+
+        This patch applies solution 2.
+
+        Solution 1 is too unwieldy because it will cause the threading of the globalObject
+        argument to fan out to many clients, and almost all of those clients currently
+        do not need the globalObject.  Hence, implementing this solution may incur some
+        performance penalty in normal code, for the sole benefit of this one fuzzing tool.
+
+        Secondly, the exception fuzzer doesn't really care which globalObject is used.
+        It only cares that an exception is thrown, and we need a globalObject in order to
+        throw that exception.  Hence, there is no benefit to threading the globalObject
+        down from all the clients.
+
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::callExceptionFuzz):
+        * jit/JITOperations.cpp:
+        * jit/JITOperations.h:
+
+2020-05-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt allocation should be graceful for OOM
+        https://bugs.webkit.org/show_bug.cgi?id=212512
+
+        Reviewed by Mark Lam.
+
+        This patch allows JSBigInt's storage allocation to fail gracefully if OOM condition happens.
+        We thread JSGlobalObject* instead of VM& and throw OOM error if storage allocation failed.
+        We also rename `JSGlobalObject* globalObject` parameter to `JSGlobalObject* nullOrGlobalObjectForOOM`
+        if it can be nullptr.
+
+        * jit/JITOperations.cpp:
+        * jsc.cpp:
+        (functionCreateHeapBigInt):
+        * parser/ParserArena.cpp:
+        (JSC::IdentifierArena::makeBigIntDecimalIdentifier):
+        * runtime/BigIntConstructor.cpp:
+        (JSC::toBigInt):
+        (JSC::callBigIntConstructor):
+        * runtime/BigIntPrototype.cpp:
+        (JSC::toThisBigIntValue):
+        (JSC::bigIntProtoFuncToString):
+        (JSC::bigIntProtoFuncToLocaleString):
+        (JSC::bigIntProtoFuncValueOf):
+        * runtime/CachedTypes.cpp:
+        (JSC::CachedBigInt::decode const):
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/IntlNumberFormatPrototype.cpp:
+        (JSC::IntlNumberFormatFuncFormat):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createZero):
+        (JSC::JSBigInt::tryCreateZero):
+        (JSC::JSBigInt::createWithLength):
+        (JSC::JSBigInt::tryCreateWithLength):
+        (JSC::JSBigInt::createFrom):
+        (JSC::JSBigInt::tryCreateFrom):
+        (JSC::JSBigInt::createFromImpl):
+        (JSC::JSBigInt::parseInt):
+        (JSC::HeapBigIntImpl::toHeapBigInt):
+        (JSC::Int32BigIntImpl::toHeapBigInt):
+        (JSC::zeroImpl):
+        (JSC::JSBigInt::exponentiateImpl):
+        (JSC::JSBigInt::multiplyImpl):
+        (JSC::JSBigInt::divideImpl):
+        (JSC::JSBigInt::copy):
+        (JSC::JSBigInt::unaryMinusImpl):
+        (JSC::JSBigInt::unaryMinus):
+        (JSC::JSBigInt::remainderImpl):
+        (JSC::JSBigInt::incImpl):
+        (JSC::JSBigInt::decImpl):
+        (JSC::JSBigInt::addImpl):
+        (JSC::JSBigInt::subImpl):
+        (JSC::JSBigInt::bitwiseAndImpl):
+        (JSC::JSBigInt::bitwiseOrImpl):
+        (JSC::JSBigInt::bitwiseXorImpl):
+        (JSC::JSBigInt::absoluteAdd):
+        (JSC::JSBigInt::absoluteSub):
+        (JSC::JSBigInt::absoluteDivWithDigitDivisor):
+        (JSC::JSBigInt::absoluteDivWithBigIntDivisor):
+        (JSC::JSBigInt::absoluteLeftShiftAlwaysCopy):
+        (JSC::JSBigInt::absoluteBitwiseOp):
+        (JSC::JSBigInt::absoluteAnd):
+        (JSC::JSBigInt::absoluteOr):
+        (JSC::JSBigInt::absoluteAndNot):
+        (JSC::JSBigInt::absoluteXor):
+        (JSC::JSBigInt::absoluteAddOne):
+        (JSC::JSBigInt::absoluteSubOne):
+        (JSC::JSBigInt::leftShiftByAbsolute):
+        (JSC::JSBigInt::rightShiftByAbsolute):
+        (JSC::JSBigInt::rightShiftByMaximum):
+        (JSC::JSBigInt::toStringBasePowerOfTwo):
+        (JSC::JSBigInt::toStringGeneric):
+        (JSC::JSBigInt::rightTrim):
+        (JSC::JSBigInt::tryRightTrim):
+        (JSC::JSBigInt::allocateFor):
+        (JSC::JSBigInt::asIntNImpl):
+        (JSC::JSBigInt::asUintNImpl):
+        (JSC::JSBigInt::truncateToNBits):
+        (JSC::JSBigInt::truncateAndSubFromPowerOfTwo):
+        (JSC::JSBigInt::createWithLengthUnchecked): Deleted.
+        * runtime/JSBigInt.h:
+        * runtime/JSCJSValue.cpp:
+        (JSC::JSValue::toThisSlowCase const):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+
+2020-05-29  Saam Barati  <sbarati@apple.com>
+
+        We need to properly model heap ranges of Delete in DFG/B3
+        https://bugs.webkit.org/show_bug.cgi?id=212538
+        <rdar://problem/63670964>
+
+        Reviewed by Filip Pizlo.
+
+        We need to properly model the aliasing dependencies of an inlined delete 
+        operation. 
+        
+        We had a bug in the B3 IR we generated from code like this for a delete
+        followed by a property addition:
+        ```
+        const o = { y: 0 };
+        delete o.y;
+        o.z = 0;
+        ```
+        
+        generated:
+        
+        ```
+        note: bb#5 dominates bb#10, bb#10 dominates bb#15
+        
+        bb#5
+        Void b@125 = Store($-562949953421312(b@282), b@112, offset = 16, ControlDependent|Writes:129, D@30)
+        bb#10
+        Void b@171 = Store($0(b@2), b@112, offset = 16, ControlDependent|Writes:129, D@37)
+        bb#15
+        Void b@217 = Store($-562949953421312(b@282), b@112, offset = 16, ControlDependent|Writes:130, D@44)
+        ```
+        
+        Notice that "y" and "z" ended up at the same property offset.
+        
+        In the above program, B3 proves the pointer we're storing to is the same value
+        in all three stores (b@112). However, because of how it does store forwarding,
+        it determined it could eliminate b@217 because b@125 already stored the same
+        value to the same pointer. It didn't know that b@171 was a write because its
+        heap range is different than @217. Generally, when using two heap ranges, it's
+        telling B3 that two pointers don't alias.
+        ```
+        @A, Heap_H
+        @B, Heap_H
+        ```
+        In the above program, 
+        - If @B reads H and @A writes H, then @B is dependent on @A.
+        - If @B writes H, then @B is dependent on @A if @A reads or writes H.
+        
+        So for delete, we need to model the deletion of a property as actually
+        writing to all named properties that may exist at that slot given a
+        series of structure transitions. We model this by saying the PutStructure
+        for an inlined delete, or MultiDeleteByOffset, writes to all named properties
+        (which is a superset of all named properties that may exist at that slot
+        through a series of transitions).
+
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * ftl/FTLAbstractHeap.cpp:
+        (JSC::FTL::IndexedAbstractHeap::dump):
+        (JSC::FTL::NumberedAbstractHeap::dump):
+        (JSC::FTL::AbsoluteAbstractHeap::dump):
+        (JSC::FTL::IndexedAbstractHeap::dump const): Deleted.
+        (JSC::FTL::NumberedAbstractHeap::dump const): Deleted.
+        (JSC::FTL::AbsoluteAbstractHeap::dump const): Deleted.
+        * ftl/FTLAbstractHeap.h:
+        (JSC::FTL::IndexedAbstractHeap::atAnyIndex):
+        (JSC::FTL::NumberedAbstractHeap::atAnyNumber):
+        (JSC::FTL::AbsoluteAbstractHeap::atAnyAddress):
+        (JSC::FTL::IndexedAbstractHeap::atAnyIndex const): Deleted.
+        (JSC::FTL::NumberedAbstractHeap::atAnyNumber const): Deleted.
+        (JSC::FTL::AbsoluteAbstractHeap::atAnyAddress const): Deleted.
+        * ftl/FTLAbstractHeapRepository.cpp:
+        (JSC::FTL::AbstractHeapRepository::AbstractHeapRepository):
+        * ftl/FTLAbstractHeapRepository.h:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compilePutStructure):
+        (JSC::FTL::DFG::LowerDFGToB3::compileMultiDeleteByOffset):
+
+2020-05-29  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Remove conditionals for ENABLE_APPLE_PAY_SESSION_V(3|4)
+        https://bugs.webkit.org/show_bug.cgi?id=212541
+
+        Reviewed by Darin Adler.
+
+        APPLE_PAY_SESSION_V(3|4) is now enabled whenever APPLE_PAY itself is enabled.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Rubber-stamped by Simon Fraser.
+
+        * Configurations/FeatureDefines.xcconfig: Add back ENABLE_CSS_CONIC_GRADIENTS, removed
+        by accident.
+
+2020-05-27  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Andy Estes.
+
+        * Configurations/FeatureDefines.xcconfig: Removed 83 of the 119 things defined in
+        this file. There are 36 more that are slightly more complex that we can remove
+        carefully later.
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Pass all defines from Platform.h to various scripts, not just the ones from .xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+
+        Reviewed by Sam Weinig.
+
+        * DerivedSources.make: Run the preprocessor on Platform.h and parse the output into
+        FEATURE_AND_PLATFORM_DEFINES. Use that and FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES
+        whenever we need a list of defines. Also took out some Windows-specific stuff since
+        this is now only used on Mac platforms. Use ":=" when calling $(shell) to make sure
+        the same shell command is not invoked over and over again.
+
+2020-05-29  Keith Rollin  <krollin@apple.com>
+
+        Revert switch to XCBuild
+        https://bugs.webkit.org/show_bug.cgi?id=212530
+        <rdar://problem/63764632>
+
+        Unreviewed build fix.
+
+        Bug 209890 enabled the use of XCBuild by default. Since then, some
+        build issues have shown up. While addressing them, temporarily turn
+        off the use of XCBuild by default.
+
+        * Configurations/JavaScriptCore.xcconfig:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-05-29  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r262245.
+        https://bugs.webkit.org/show_bug.cgi?id=212531
+
+        "Caused WebCore's 'Check .xcfilelists' build phase to be ~100x
+        slower"
+
+        Reverted changeset:
+
+        "[Cocoa] Pass all defines from Platform.h to various scripts,
+        not just the ones from .xcconfig"
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+        https://trac.webkit.org/changeset/262245
+
+2020-05-29  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add ITML debuggable/target type
+        https://bugs.webkit.org/show_bug.cgi?id=203300
+        <rdar://problem/56545896>
+
+        Reviewed by Joseph Pecoraro and Brian Burg.
+
+        * API/JSContextPrivate.h:
+        * API/JSContext.mm:
+        (-[JSContext _setITMLDebuggableType]): Added.
+        * runtime/JSGlobalObject.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::setIsITML): Added.
+        Create an SPI for marking a `JSContext` as an ITML context for Web Inspector.
+
+        * runtime/JSGlobalObjectDebuggable.h:
+        (isType):
+        * inspector/remote/RemoteControllableTarget.h:
+        * inspector/remote/RemoteInspectionTarget.h:
+        * inspector/remote/RemoteInspectorConstants.h:
+
+        * inspector/JSGlobalObjectInspectorController.cpp:
+        (Inspector::JSGlobalObjectInspectorController::connectFrontend):
+        Don't dispatch `Inspector.activateExtraDomains` unless we're a basic `JavaScript` debuggable.
+
+        * inspector/remote/cocoa/RemoteInspectorCocoa.mm:
+        (Inspector::RemoteInspector::listingForInspectionTarget const):
+
+        * inspector/scripts/codegen/models.py:
+        (validate_target_types):
+        * inspector/scripts/codegen/objc_generator.py:
+        (ObjCGenerator):
+        * inspector/scripts/tests/expected/fail-on-command-targetTypes-value.json-error:
+        * inspector/scripts/tests/expected/fail-on-domain-debuggableTypes-value.json-error:
+        * inspector/scripts/tests/expected/fail-on-domain-targetTypes-value.json-error:
+        * inspector/scripts/tests/expected/fail-on-event-targetTypes-value.json-error:
+
+        * inspector/protocol/Audit.json:
+        * inspector/protocol/CSS.json:
+        * inspector/protocol/Console.json:
+        * inspector/protocol/DOM.json:
+        * inspector/protocol/DOMStorage.json:
+        * inspector/protocol/Database.json:
+        * inspector/protocol/Debugger.json:
+        * inspector/protocol/Heap.json:
+        * inspector/protocol/Inspector.json:
+        * inspector/protocol/Network.json:
+        * inspector/protocol/Page.json:
+        * inspector/protocol/Runtime.json:
+        * inspector/protocol/Security.json:
+        Add support for `itml` debuggables and targets, marking non-ITML commands/events with `page`.
+
+2020-05-29  Mark Lam  <mark.lam@apple.com>
+
+        Add a check for errors when computing a utf string in jsc shell's runInteractive().
+        https://bugs.webkit.org/show_bug.cgi?id=212526
+        <rdar://problem/63757892>
+
+        Reviewed by Michael Saboff.
+
+        * jsc.cpp:
+        (runInteractive):
+
+2020-05-28  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add missing condition guards when generating objc protocol files
+        https://bugs.webkit.org/show_bug.cgi?id=212494
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector/scripts/codegen/generate_objc_backend_dispatcher_header.py:
+        (ObjCBackendDispatcherHeaderGenerator._generate_objc_forward_declarations):
+        * inspector/scripts/codegen/generate_objc_configuration_header.py:
+        (ObjCConfigurationHeaderGenerator._generate_properties_for_domain):
+        * inspector/scripts/codegen/generate_objc_configuration_implementation.py:
+        (ObjCConfigurationImplementationGenerator._generate_configuration_implementation_for_domains):
+        (ObjCConfigurationImplementationGenerator._generate_ivars):
+        (ObjCConfigurationImplementationGenerator._generate_dealloc):
+        (ObjCConfigurationImplementationGenerator._generate_event_dispatcher_getter_for_domain):
+        (ObjCConfigurationImplementationGenerator._variable_name_prefix_for_domain): Deleted.
+        * inspector/scripts/codegen/generate_objc_frontend_dispatcher_implementation.py:
+        (ObjCFrontendDispatcherImplementationGenerator._generate_event_dispatcher_implementations):
+        (ObjCFrontendDispatcherImplementationGenerator._generate_event):
+        * inspector/scripts/codegen/generate_objc_header.py:
+        (ObjCHeaderGenerator._generate_forward_declarations):
+        (ObjCHeaderGenerator._generate_enums):
+        (ObjCHeaderGenerator._generate_types):
+        (ObjCHeaderGenerator._generate_command_protocols):
+        (ObjCHeaderGenerator._generate_event_interfaces):
+        (ObjCHeaderGenerator._generate_single_event_interface):
+        * inspector/scripts/codegen/generate_objc_internal_header.py:
+        (ObjCInternalHeaderGenerator._generate_event_dispatcher_private_interfaces):
+        * inspector/scripts/codegen/generate_objc_protocol_type_conversions_header.py:
+        (ObjCProtocolTypeConversionsHeaderGenerator._generate_enum_conversion_functions):
+        * inspector/scripts/tests/definitions-with-mac-platform.json:
+        * inspector/scripts/tests/expected/definitions-with-mac-platform.json-result:
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        for-of should check the iterable is a JSArray for FastArray in DFG iterator_open
+        https://bugs.webkit.org/show_bug.cgi?id=212383
+
+        Reviewed by Saam Barati.
+
+        This patch fixes an issue where we didn't check that the iterable operand to
+        iterator_open was a JSArray when lowering the FastArray only variant of the bytecode to the DFG.
+        This meant we would OSR exit at the iterator_next's lowering then assertion failure in the
+        checkpoint OSR exit helper. To make this work, this patch extends (and renames from CheckSubClass)
+        CheckJSCast to use the same JSType information that we use for the jsCast function. In order to
+        get the JSType range from a ClassInfo* the macro that autogenerates MethodTable now also fills
+        a Optional<JSTypeRange> into the ClassInfo as well.
+
+        Lastly, speculationFromClassInfo was misused by AI. This patch
+        renames it to speculationFromClassInfoInheritance to better
+        reflect how AI was using it. The only other user of
+        speculationFromClassInfo was speculationFromStructure. Any case
+        where speculationFromClassInfoInteritance would differ from what a
+        Structure would tell you has been hoisted to
+        speculationFromStructure.
+
+        * assembler/testmasm.cpp:
+        (JSC::testBranchIfType):
+        (JSC::testBranchIfNotType):
+        * bytecode/SpeculatedType.cpp:
+        (JSC::speculationFromClassInfoInheritance):
+        (JSC::speculationFromStructure):
+        (JSC::speculationFromClassInfo): Deleted.
+        * bytecode/SpeculatedType.h:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGAbstractValue.cpp:
+        (JSC::DFG::AbstractValue::filterClassInfo):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleDOMJITGetter):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::attemptToMakeCallDOM):
+        (JSC::DFG::FixupPhase::fixupCheckJSCast):
+        (JSC::DFG::FixupPhase::fixupCheckSubClass): Deleted.
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::hasClassInfo const):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::checkArray):
+        (JSC::DFG::SpeculativeJIT::compileCheckJSCast):
+        (JSC::DFG::SpeculativeJIT::compileCheckSubClass): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckJSCast):
+        (JSC::FTL::DFG::LowerDFGToB3::isCellWithType):
+        (JSC::FTL::DFG::LowerDFGToB3::isTypedArrayView):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckSubClass): Deleted.
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::branchIfType):
+        (JSC::AssemblyHelpers::branchIfNotType):
+        * runtime/ClassInfo.h:
+        * runtime/JSCast.h:
+        (JSC::JSTypeRange::contains const):
+        (JSC::JSCastingHelpers::inheritsJSTypeImpl):
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::assertTypeInfoFlagInvariants):
+        * tools/JSDollarVM.cpp:
+        (JSC::functionCreateDOMJITCheckJSCastObject):
+        (JSC::JSDollarVM::finishCreation):
+        (JSC::functionCreateDOMJITCheckSubClassObject): Deleted.
+
+2020-05-27  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Pass all defines from Platform.h to various scripts, not just the ones from .xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+
+        Reviewed by Sam Weinig.
+
+        * DerivedSources.make: Run the preprocessor on Platform.h and parse the output into
+        FEATURE_AND_PLATFORM_DEFINES. Use that and FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES
+        whenever we need a list of defines. Also took out some Windows-specific stuff since
+        this is now only used on Mac platforms.
+
+2020-05-28  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Web Inspector: generate_cpp_protocol_types_header.py:294: SyntaxWarning: "is" with a literal. Did you mean "=="?
+        https://bugs.webkit.org/show_bug.cgi?id=212468
+
+        Reviewed by Timothy Hatcher.
+
+        Use "==" instead of "is" to compare against 0.
+
+        * inspector/scripts/codegen/generate_cpp_protocol_types_header.py:
+
+2020-05-28  Mark Lam  <mark.lam@apple.com>
+
+        Gardening: Add an assertNoException() to placate the exception checker and green the bots.
+        https://bugs.webkit.org/show_bug.cgi?id=212248
+
+        Not reviewed.
+
+        This solution was pointed out by Caio Lima in https://bugs.webkit.org/show_bug.cgi?id=212248#c10.
+
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        hasOwnProperty inside structure property for-in loop should use an opcode like has_structure_property but for hasOwnProperty
+        https://bugs.webkit.org/show_bug.cgi?id=212248
+
+        Reviewed by Keith Miller.
+
+        This patch applies the same principles from r262083 but to hasOwnProperty.
+        
+        In this patch, we have a fast path for this syntactic pattern when
+        iterating structure properties:
+        
+        for (let <p> in <o>)
+            if (<o>.hasOwnProperty(<p>))
+        
+        We look for both <p> and <o> as resolve nodes, and we look for them being the
+        same values both in the header and inside the body.
+        
+        Using a simple static analysis, when we detect this pattern, we compare the
+        result of `<o>.hasOwnProperty` to the original hasOwnProperty function. If
+        it's the same, we execute the fast path new bytecode has_own_structure_property,
+        which on the fast path is two loads, a compare and branch, and a materialization of
+        the boolean constant true.
+        
+        On the slow path, has_own_structure_property just executes the runtime code 
+        for hasOwnProperty.
+        
+        In my testing, this seems like it might be 3-5% faster on Speedometer 2's
+        react subtests. I was getting some noise when running the tests locally,
+        so I can't say for certain it's a definite speedup. But the data implies
+        it has a good chance at being a speedup.
+
+        * builtins/BuiltinNames.h:
+        * bytecode/BytecodeList.rb:
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecode/LinkTimeConstant.h:
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitWideJumpIfNotFunctionHasOwnProperty):
+        (JSC::BytecodeGenerator::recordHasOwnStructurePropertyInForInLoop):
+        (JSC::BytecodeGenerator::emitHasOwnStructureProperty):
+        (JSC::BytecodeGenerator::pushStructureForInScope):
+        (JSC::StructureForInContext::finalize):
+        (JSC::BytecodeGenerator::findStructureForInContext):
+        * bytecompiler/BytecodeGenerator.h:
+        (JSC::StructureForInContext::StructureForInContext):
+        (JSC::StructureForInContext::base const):
+        (JSC::StructureForInContext::addHasOwnPropertyJump):
+        * bytecompiler/Label.h:
+        (JSC::GenericBoundLabel::GenericBoundLabel):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::HasOwnPropertyFunctionCallDotNode::emitBytecode):
+        (JSC::ForInNode::emitBytecode):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileHasStructureProperty):
+        (JSC::DFG::SpeculativeJIT::compileHasOwnStructurePropertyImpl):
+        (JSC::DFG::SpeculativeJIT::compileHasOwnStructureProperty):
+        (JSC::DFG::SpeculativeJIT::compileInStructureProperty):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileHasOwnStructureProperty):
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        (JSC::JIT::privateCompileSlowCases):
+        * jit/JIT.h:
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_has_structure_propertyImpl):
+        (JSC::JIT::emit_op_has_structure_property):
+        (JSC::JIT::emit_op_has_own_structure_property):
+        (JSC::JIT::emit_op_in_structure_property):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_has_structure_propertyImpl):
+        (JSC::JIT::emit_op_has_structure_property):
+        (JSC::JIT::emit_op_has_own_structure_property):
+        (JSC::JIT::emit_op_in_structure_property):
+        * llint/LowLevelInterpreter.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::makeFunctionCallNode):
+        * parser/NodeConstructors.h:
+        (JSC::HasOwnPropertyFunctionCallDotNode::HasOwnPropertyFunctionCallDotNode):
+        * parser/Nodes.h:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectPrototypeHasOwnProperty):
+        (JSC::objectProtoFuncHasOwnProperty):
+        * runtime/ObjectPrototype.h:
+
+2020-05-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ macOS iOS ] REGRESSION(r261600?): imported/w3c/web-platform-tests/html/dom/reflection-embedded.html & imported/w3c/web-platform-tests/html/dom/reflection-forms.html are flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=212430
+
+        Reviewed by Saam Barati.
+
+        r261600 added IsConstructor rule to DFG AI. That rule is saying that if the object is not JSFunction and not ProxyObject,
+        then it must not be a constructor. But this is wrong since any objects can implement getConstructData and DOM constructors
+        are actually implementing it while it is not JSFunction and it is not ProxyObject. This patch removes that rule.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * tools/JSDollarVM.cpp:
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        Limit memory used by wasm/references/multitable.js on memory limited devices
+        https://bugs.webkit.org/show_bug.cgi?id=212437
+
+        Reviewed by Keith Miller.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionIsMemoryLimited):
+        (JSC::JSDollarVM::finishCreation):
+
+2020-05-27  David Kilzer  <ddkilzer@apple.com>
+
+        REGRESSION: Build errors during JavaScriptCore "Generate Derived Sources" about missing Availability.h header and invalid SDKROOT [-Wmissing-sysroot]
+        <https://webkit.org/b/212436>
+
+        Unreviewed build fix.
+
+        * Scripts/generate-derived-sources.sh: Pass SDKROOT to `make`
+        command from the current environment.
+
+2020-05-27  Mark Lam  <mark.lam@apple.com>
+
+        Add missing #include for when LLINT_TRACING is enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=212433
+
+        Reviewed by Tadeu Zagallo.
+
+        * llint/LLIntExceptions.cpp:
+
+2020-05-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: replace `featureGuard` and `availability` with a combined `condition` that accepts any macro
+        https://bugs.webkit.org/show_bug.cgi?id=210014
+
+        Reviewed by Brian Burg.
+
+        Previously, the generated InspectorBackendCommands.js would include code for things that the
+        backend doesn't actually support. By using actual macros and preprocessing that file, we can
+        ensure that the frontend doesn't incorrectly think that something is supported by the page
+        being inspected:
+         - the `Canvas` commands and events related to shader programs/pipelines should only exist
+           when the corresponding context type exists, namely `ENABLE(WEBGL)` and `ENABLE(WEBGPU)`.
+         - iOS doesn't support showing rulers, so create a variant of `DOM.setInspectModeEnabled`
+           that only exists for `PLATFORM(IOS_FAMILY)` that doesn't have the `showRulers` optional
+           parameter, as well as removing `Page.setShowRulers` entirely.
+         - setting the forced appearance should only be possible if dark mode is supported.
+         - web archives only exist if CF is used.
+
+        * inspector/protocol/CPUProfiler.json:
+        * inspector/protocol/Canvas.json:
+        * inspector/protocol/DOM.json:
+        * inspector/protocol/IndexedDB.json:
+        * inspector/protocol/Inspector.json:
+        * inspector/protocol/Memory.json:
+        * inspector/protocol/Page.json:
+        * inspector/protocol/ServiceWorker.json:
+
+        * Scripts/generate-derived-sources.sh:
+        Set `CC` if it hasn't already been set.
+
+        * DerivedSources.make:
+        * DerivedSources-input.xcfilelist:
+        Preprocess `InspectorBackendCommands.js.in` to get an accurate `InspectorBackendCommands.js`
+        that follows the logic/description above.
+
+        * CMakeLists.txt:
+        Create a new `InspectorBackendCommands` target now that `InspectorBackendCommands.js` is
+        generated seprately from the rest of the protocol files.
+
+        * Configurations/FeatureDefines.xcconfig:
+        Add `ENABLE_WEB_ARCHIVE` since it's always enabled in wtf/PlatformEnableCocoa.h.
+
+        * inspector/scripts/generate-inspector-protocol-bindings.py:
+        (generate_from_specification):
+        (generate_from_specification.load_specification):
+        * inspector/scripts/codegen/generator.py:
+        (Generator.__init__):
+        (Generator.model):
+        (Generator.set_generator_setting):
+        (Generator.type_declarations_for_domain):
+        (Generator.commands_for_domain):
+        (Generator.events_for_domain):
+        (Generator.wrap_with_guard_for_condition): Added.
+        (Generator.platform): Deleted.
+        (Generator.can_generate_platform): Deleted.
+        (Generator.wrap_with_guard_for_domain): Deleted.
+        (Generator.wrap_with_guard): Deleted.
+        * inspector/scripts/codegen/models.py:
+        (Frameworks):
+        (Protocol.parse_domain):
+        (Protocol.parse_type_declaration):
+        (Protocol.parse_command):
+        (Protocol.parse_event):
+        (Domain.__init__):
+        (TypeDeclaration.__init__):
+        (Command.__init__):
+        (Event.__init__):
+        (Platform): Deleted.
+        (Platform.__init__): Deleted.
+        (Platform.fromString): Deleted.
+        (Platforms): Deleted.
+        (Platforms.__metaclass__): Deleted.
+        (Platforms.__metaclass__.__iter__): Deleted.
+        * inspector/scripts/codegen/generator_templates.py:
+        Remove `platform` as it is handled by `condition`.
+
+        * inspector/scripts/codegen/preprocess.pl: Copied from Source/WebCore/bindings/scripts/preprocessor.pm.
+
+        * inspector/scripts/codegen/generate_js_backend_commands.py:
+        (JSBackendCommandsGenerator.output_filename):
+        (JSBackendCommandsGenerator.generate_domain):
+        Output to `InspectorBackendCommands.js.in` that includes `#if` for preprocessing.
+
+        * inspector/scripts/codegen/cpp_generator_templates.py:
+        * inspector/scripts/codegen/generate_cpp_alternate_backend_dispatcher_header.py:
+        (CppAlternateBackendDispatcherHeaderGenerator.generate_output):
+        (CppAlternateBackendDispatcherHeaderGenerator._generate_handler_declarations_for_domain):
+        (CppAlternateBackendDispatcherHeaderGenerator._generate_handler_declaration_for_command):
+        * inspector/scripts/codegen/generate_cpp_backend_dispatcher_header.py:
+        (CppBackendDispatcherHeaderGenerator._generate_alternate_handler_forward_declarations_for_domains.Alternate):
+        (CppBackendDispatcherHeaderGenerator._generate_handler_declarations_for_domain):
+        (CppBackendDispatcherHeaderGenerator._generate_handler_declaration_for_command):
+        (CppBackendDispatcherHeaderGenerator._generate_async_handler_declaration_for_command):
+        (CppBackendDispatcherHeaderGenerator._generate_dispatcher_declarations_for_domain):
+        (CppBackendDispatcherHeaderGenerator._generate_dispatcher_declaration_for_command):
+        * inspector/scripts/codegen/generate_cpp_backend_dispatcher_implementation.py:
+        (CppBackendDispatcherImplementationGenerator.generate_output):
+        (CppBackendDispatcherImplementationGenerator._generate_handler_class_destructor_for_domain):
+        (CppBackendDispatcherImplementationGenerator._generate_dispatcher_implementations_for_domain):
+        (CppBackendDispatcherImplementationGenerator._generate_small_dispatcher_switch_implementation_for_domain):
+        (CppBackendDispatcherImplementationGenerator._generate_large_dispatcher_switch_implementation_for_domain):
+        (CppBackendDispatcherImplementationGenerator._generate_async_dispatcher_class_for_domain):
+        (CppBackendDispatcherImplementationGenerator._generate_dispatcher_implementation_for_command):
+        * inspector/scripts/codegen/generate_cpp_frontend_dispatcher_header.py:
+        (CppFrontendDispatcherHeaderGenerator._generate_dispatcher_declarations_for_domain):
+        (CppFrontendDispatcherHeaderGenerator._generate_dispatcher_declaration_for_event):
+        * inspector/scripts/codegen/generate_cpp_frontend_dispatcher_implementation.py:
+        (CppFrontendDispatcherImplementationGenerator._generate_dispatcher_implementations_for_domain):
+        (CppFrontendDispatcherImplementationGenerator._generate_dispatcher_implementation_for_event):
+        * inspector/scripts/codegen/generate_cpp_protocol_types_header.py:
+        (CppProtocolTypesHeaderGenerator._generate_versions):
+        * inspector/scripts/codegen/generate_cpp_protocol_types_implementation.py:
+        (CppProtocolTypesImplementationGenerator._generate_enum_conversion_methods_for_domain.generate_conversion_method_body):
+        (CppProtocolTypesImplementationGenerator._generate_enum_conversion_methods_for_domain):
+        (CppProtocolTypesImplementationGenerator._generate_open_field_names):
+        (CppProtocolTypesImplementationGenerator._generate_builders_for_domain):
+        * inspector/scripts/codegen/objc_generator_templates.py:
+        * inspector/scripts/codegen/generate_objc_backend_dispatcher_header.py:
+        (ObjCBackendDispatcherHeaderGenerator._generate_objc_handler_declarations_for_domain):
+        (ObjCBackendDispatcherHeaderGenerator._generate_objc_handler_declaration_for_command):
+        * inspector/scripts/codegen/generate_objc_backend_dispatcher_implementation.py:
+        (ObjCBackendDispatcherImplementationGenerator._generate_handler_implementation_for_domain):
+        (ObjCBackendDispatcherImplementationGenerator._generate_handler_implementation_for_command):
+        * inspector/scripts/codegen/generate_objc_header.py:
+        (add_newline):
+        (ObjCHeaderGenerator.generate_output):
+        (ObjCHeaderGenerator._generate_forward_declarations):
+        (ObjCHeaderGenerator._generate_enums):
+        (ObjCHeaderGenerator._generate_types):
+        (ObjCHeaderGenerator._generate_type_interface):
+        (ObjCHeaderGenerator._generate_command_protocols):
+        (ObjCHeaderGenerator._generate_single_command_protocol):
+        (ObjCHeaderGenerator._generate_event_interfaces):
+        (ObjCHeaderGenerator._generate_single_event_interface):
+        (ObjCHeaderGenerator._generate_enum_for_platforms): Deleted.
+        * inspector/scripts/codegen/generate_objc_protocol_type_conversions_header.py:
+        (add_newline):
+        (ObjCProtocolTypeConversionsHeaderGenerator.generate_output):
+        (ObjCProtocolTypeConversionsHeaderGenerator._generate_enum_conversion_functions):
+        (ObjCProtocolTypeConversionsHeaderGenerator._generate_enum_conversion_for_platforms): Deleted.
+        * inspector/scripts/codegen/generate_objc_protocol_type_conversions_implementation.py:
+        (add_newline):
+        (ObjCProtocolTypeConversionsImplementationGenerator._generate_type_factory_category_interface):
+        (ObjCProtocolTypeConversionsImplementationGenerator._generate_type_factory_method_declaration):
+        (ObjCProtocolTypeConversionsImplementationGenerator._generate_type_factory_category_implementation):
+        (ObjCProtocolTypeConversionsImplementationGenerator._generate_type_factory_method_implementation):
+        * inspector/scripts/codegen/generate_objc_protocol_types_implementation.py:
+        (add_newline):
+        (ObjCProtocolTypesImplementationGenerator.generate_type_implementations):
+        (ObjCProtocolTypesImplementationGenerator.generate_type_implementation):
+        Wrap each domain, type, command, and event with the associated `condition` (if it exists).
+
+        * inspector/scripts/tests/command-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/command-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/commands-with-async-attribute.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/commands-with-async-attribute.json.
+        * inspector/scripts/tests/commands-with-optional-call-return-parameters.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/commands-with-optional-call-return-parameters.json.
+        * inspector/scripts/tests/definitions-with-mac-platform.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/mac/definitions-with-mac-platform.json.
+        * inspector/scripts/tests/domain-debuggableTypes.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/domain-debuggableTypes.json.
+        * inspector/scripts/tests/domain-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/domain-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/domain-targetTypes.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/domain-targetTypes.json.
+        * inspector/scripts/tests/domains-with-varying-command-sizes.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/domains-with-varying-command-sizes.json.
+        * inspector/scripts/tests/enum-values.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/enum-values.json.
+        * inspector/scripts/tests/event-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/event-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/events-with-optional-parameters.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/events-with-optional-parameters.json.
+        * inspector/scripts/tests/expected/command-targetType-matching-domain-debuggableType.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/command-targetType-matching-domain-debuggableType.json-result.
+        * inspector/scripts/tests/expected/commands-with-async-attribute.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/commands-with-async-attribute.json-result.
+        * inspector/scripts/tests/expected/commands-with-optional-call-return-parameters.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/commands-with-optional-call-return-parameters.json-result.
+        * inspector/scripts/tests/expected/definitions-with-mac-platform.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/mac/expected/definitions-with-mac-platform.json-result.
+        * inspector/scripts/tests/expected/domain-debuggableTypes.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/domain-debuggableTypes.json-result.
+        * inspector/scripts/tests/expected/domain-targetType-matching-domain-debuggableType.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/domain-targetType-matching-domain-debuggableType.json-result.
+        * inspector/scripts/tests/expected/domain-targetTypes.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/domain-targetTypes.json-result.
+        * inspector/scripts/tests/expected/domains-with-varying-command-sizes.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/domains-with-varying-command-sizes.json-result.
+        * inspector/scripts/tests/expected/enum-values.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/enum-values.json-result.
+        * inspector/scripts/tests/expected/event-targetType-matching-domain-debuggableType.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/event-targetType-matching-domain-debuggableType.json-result.
+        * inspector/scripts/tests/expected/events-with-optional-parameters.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/events-with-optional-parameters.json-result.
+        * inspector/scripts/tests/expected/fail-on-command-targetType-matching-domain-debuggableType.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-command-targetType-matching-domain-debuggableType.json-error.
+        * inspector/scripts/tests/expected/fail-on-command-targetTypes-type.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-command-targetTypes-type.json-error.
+        * inspector/scripts/tests/expected/fail-on-command-targetTypes-value.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-command-targetTypes-value.json-error.
+        * inspector/scripts/tests/expected/fail-on-domain-debuggableTypes-type.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-domain-debuggableTypes-type.json-error.
+        * inspector/scripts/tests/expected/fail-on-domain-debuggableTypes-value.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-domain-debuggableTypes-value.json-error.
+        * inspector/scripts/tests/expected/fail-on-domain-targetType-matching-domain-debuggableType.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-domain-targetType-matching-domain-debuggableType.json-error.
+        * inspector/scripts/tests/expected/fail-on-domain-targetTypes-type.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-domain-targetTypes-type.json-error.
+        * inspector/scripts/tests/expected/fail-on-domain-targetTypes-value.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-domain-targetTypes-value.json-error.
+        * inspector/scripts/tests/expected/fail-on-duplicate-command-call-parameter-names.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-duplicate-command-call-parameter-names.json-error.
+        * inspector/scripts/tests/expected/fail-on-duplicate-command-return-parameter-names.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-duplicate-command-return-parameter-names.json-error.
+        * inspector/scripts/tests/expected/fail-on-duplicate-event-parameter-names.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-duplicate-event-parameter-names.json-error.
+        * inspector/scripts/tests/expected/fail-on-duplicate-type-declarations.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-duplicate-type-declarations.json-error.
+        * inspector/scripts/tests/expected/fail-on-duplicate-type-member-names.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-duplicate-type-member-names.json-error.
+        * inspector/scripts/tests/expected/fail-on-enum-with-no-values.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-enum-with-no-values.json-error.
+        * inspector/scripts/tests/expected/fail-on-event-targetType-matching-domain-debuggableType.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-event-targetType-matching-domain-debuggableType.json-error.
+        * inspector/scripts/tests/expected/fail-on-event-targetTypes-type.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-event-targetTypes-type.json-error.
+        * inspector/scripts/tests/expected/fail-on-event-targetTypes-value.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-event-targetTypes-value.json-error.
+        * inspector/scripts/tests/expected/fail-on-number-typed-optional-parameter-flag.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-number-typed-optional-parameter-flag.json-error.
+        * inspector/scripts/tests/expected/fail-on-number-typed-optional-type-member.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-number-typed-optional-type-member.json-error.
+        * inspector/scripts/tests/expected/fail-on-string-typed-optional-parameter-flag.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-string-typed-optional-parameter-flag.json-error.
+        * inspector/scripts/tests/expected/fail-on-string-typed-optional-type-member.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-string-typed-optional-type-member.json-error.
+        * inspector/scripts/tests/expected/fail-on-type-declaration-using-type-reference.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-type-declaration-using-type-reference.json-error.
+        * inspector/scripts/tests/expected/fail-on-type-reference-as-primitive-type.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-type-reference-as-primitive-type.json-error.
+        * inspector/scripts/tests/expected/fail-on-type-with-lowercase-name.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-type-with-lowercase-name.json-error.
+        * inspector/scripts/tests/expected/fail-on-unknown-type-reference-in-type-declaration.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-unknown-type-reference-in-type-declaration.json-error.
+        * inspector/scripts/tests/expected/fail-on-unknown-type-reference-in-type-member.json-error: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/fail-on-unknown-type-reference-in-type-member.json-error.
+        * inspector/scripts/tests/expected/generate-domains-with-feature-guards.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/generate-domains-with-feature-guards.json-result.
+        * inspector/scripts/tests/expected/same-type-id-different-domain.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/same-type-id-different-domain.json-result.
+        * inspector/scripts/tests/expected/shadowed-optional-type-setters.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/shadowed-optional-type-setters.json-result.
+        * inspector/scripts/tests/expected/should-strip-comments.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/should-strip-comments.json-result.
+        * inspector/scripts/tests/expected/type-declaration-aliased-primitive-type.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-declaration-aliased-primitive-type.json-result.
+        * inspector/scripts/tests/expected/type-declaration-array-type.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-declaration-array-type.json-result.
+        * inspector/scripts/tests/expected/type-declaration-enum-type.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-declaration-enum-type.json-result.
+        * inspector/scripts/tests/expected/type-declaration-object-type.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-declaration-object-type.json-result.
+        * inspector/scripts/tests/expected/type-requiring-runtime-casts.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-requiring-runtime-casts.json-result.
+        * inspector/scripts/tests/expected/type-with-open-parameters.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/type-with-open-parameters.json-result.
+        * inspector/scripts/tests/expected/version.json-result: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/expected/version.json-result.
+        * inspector/scripts/tests/fail-on-command-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-command-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/fail-on-command-targetTypes-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-command-targetTypes-type.json.
+        * inspector/scripts/tests/fail-on-command-targetTypes-value.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-command-targetTypes-value.json.
+        * inspector/scripts/tests/fail-on-domain-debuggableTypes-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-domain-debuggableTypes-type.json.
+        * inspector/scripts/tests/fail-on-domain-debuggableTypes-value.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-domain-debuggableTypes-value.json.
+        * inspector/scripts/tests/fail-on-domain-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-domain-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/fail-on-domain-targetTypes-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-domain-targetTypes-type.json.
+        * inspector/scripts/tests/fail-on-domain-targetTypes-value.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-domain-targetTypes-value.json.
+        * inspector/scripts/tests/fail-on-duplicate-command-call-parameter-names.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-duplicate-command-call-parameter-names.json.
+        * inspector/scripts/tests/fail-on-duplicate-command-return-parameter-names.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-duplicate-command-return-parameter-names.json.
+        * inspector/scripts/tests/fail-on-duplicate-event-parameter-names.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-duplicate-event-parameter-names.json.
+        * inspector/scripts/tests/fail-on-duplicate-type-declarations.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-duplicate-type-declarations.json.
+        * inspector/scripts/tests/fail-on-duplicate-type-member-names.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-duplicate-type-member-names.json.
+        * inspector/scripts/tests/fail-on-enum-with-no-values.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-enum-with-no-values.json.
+        * inspector/scripts/tests/fail-on-event-targetType-matching-domain-debuggableType.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-event-targetType-matching-domain-debuggableType.json.
+        * inspector/scripts/tests/fail-on-event-targetTypes-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-event-targetTypes-type.json.
+        * inspector/scripts/tests/fail-on-event-targetTypes-value.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-event-targetTypes-value.json.
+        * inspector/scripts/tests/fail-on-number-typed-optional-parameter-flag.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-number-typed-optional-parameter-flag.json.
+        * inspector/scripts/tests/fail-on-number-typed-optional-type-member.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-number-typed-optional-type-member.json.
+        * inspector/scripts/tests/fail-on-string-typed-optional-parameter-flag.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-string-typed-optional-parameter-flag.json.
+        * inspector/scripts/tests/fail-on-string-typed-optional-type-member.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-string-typed-optional-type-member.json.
+        * inspector/scripts/tests/fail-on-type-declaration-using-type-reference.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-type-declaration-using-type-reference.json.
+        * inspector/scripts/tests/fail-on-type-reference-as-primitive-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-type-reference-as-primitive-type.json.
+        * inspector/scripts/tests/fail-on-type-with-lowercase-name.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-type-with-lowercase-name.json.
+        * inspector/scripts/tests/fail-on-unknown-type-reference-in-type-declaration.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-unknown-type-reference-in-type-declaration.json.
+        * inspector/scripts/tests/fail-on-unknown-type-reference-in-type-member.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/fail-on-unknown-type-reference-in-type-member.json.
+        * inspector/scripts/tests/generate-domains-with-feature-guards.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/generate-domains-with-feature-guards.json.
+        * inspector/scripts/tests/same-type-id-different-domain.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/same-type-id-different-domain.json.
+        * inspector/scripts/tests/shadowed-optional-type-setters.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/shadowed-optional-type-setters.json.
+        * inspector/scripts/tests/should-strip-comments.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/should-strip-comments.json.
+        * inspector/scripts/tests/type-declaration-aliased-primitive-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-declaration-aliased-primitive-type.json.
+        * inspector/scripts/tests/type-declaration-array-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-declaration-array-type.json.
+        * inspector/scripts/tests/type-declaration-enum-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-declaration-enum-type.json.
+        * inspector/scripts/tests/type-declaration-object-type.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-declaration-object-type.json.
+        * inspector/scripts/tests/type-requiring-runtime-casts.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-requiring-runtime-casts.json.
+        * inspector/scripts/tests/type-with-open-parameters.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/type-with-open-parameters.json.
+        * inspector/scripts/tests/version.json: Renamed from Source/JavaScriptCore/inspector/scripts/tests/generic/version.json.
+        * inspector/scripts/tests/generic/definitions-with-mac-platform.json: Removed.
+        * inspector/scripts/tests/generic/expected/definitions-with-mac-platform.json-result: Removed.
+        * inspector/scripts/tests/generic/fail-on-command-with-invalid-platform.json: Removed.
+        * inspector/scripts/tests/generic/expected/fail-on-command-with-invalid-platform.json-error: Removed.
+        * inspector/scripts/tests/generic/fail-on-type-with-invalid-platform.json: Removed.
+        * inspector/scripts/tests/generic/expected/fail-on-type-with-invalid-platform.json-error: Removed.
+        * inspector/scripts/tests/ios/definitions-with-mac-platform.json: Removed.
+        * inspector/scripts/tests/ios/expected/definitions-with-mac-platform.json-result: Removed.
+        * inspector/scripts/tests/all/definitions-with-mac-platform.json: Removed.
+        * inspector/scripts/tests/all/expected/definitions-with-mac-platform.json-result: Removed.
+        Don't separate the inspector generator tests by platform.
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        in_structure_property needs to handle constants on the RHS of the "in"
+        https://bugs.webkit.org/show_bug.cgi?id=212399
+
+        Reviewed by Saam Barati.
+
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+
+2020-05-27  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Unreviewed build fix. Check the value of XCODE_VERSION_ACTUAL rather
+        than XCODE_VERSION_MAJOR when determining whether to use the XCBuild
+        or non-XCBuild method of running header post-processing scripts.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-05-26  Mark Lam  <mark.lam@apple.com>
+
+        Add some new emitters to the X86_64 and ARM64 MacroAssemblers.
+        https://bugs.webkit.org/show_bug.cgi?id=212385
+
+        Reviewed by Robin Morisset.
+
+        This patch adds these MacroAssembler emitters: 
+            clearBit64
+            clearBits64WithMask
+            countTrailingZeros64WithoutNullCheck
+
+        clearBit64 clears a bit.
+
+        clearBits64WithMask does the equivalent of and64 with the 1's complement of the
+        provided mask.
+
+        countTrailingZeros64WithoutNullCheck does the same thing as countTrailingZeros64,
+        except that it assumes that the word in the register it is processing will never
+        be null, and therefore skips the null check.  This is useful in code generation
+        that already does a null check ahead of time.  So, there's no need to do a
+        redundant null check.
+
+        Also added testmasm tests for these emitters.
+
+        * assembler/AbortReason.h:
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::clearBit64):
+        (JSC::MacroAssemblerARM64::clearBits64WithMask):
+        (JSC::MacroAssemblerARM64::countTrailingZeros64WithoutNullCheck):
+        * assembler/MacroAssemblerX86_64.h:
+        (JSC::MacroAssemblerX86_64::countTrailingZeros64WithoutNullCheck):
+        (JSC::MacroAssemblerX86_64::clearBit64):
+        (JSC::MacroAssemblerX86_64::clearBits64WithMask):
+        * assembler/X86Assembler.h:
+        (JSC::X86Assembler::btrq_rr):
+        * assembler/testmasm.cpp:
+        (JSC::testClearBit64):
+        (JSC::testClearBits64WithMask):
+        (JSC::testClearBits64WithMaskTernary):
+        (JSC::testCountTrailingZeros64Impl):
+        (JSC::testCountTrailingZeros64):
+        (JSC::testCountTrailingZeros64WithoutNullCheck):
+        (JSC::run):
+
+2020-05-26  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Enable RemoteWebInspector
+        https://bugs.webkit.org/show_bug.cgi?id=212312
+
+        Reviewed by Don Olmstead.
+
+        * API/JSRemoteInspectorServer.cpp:
+        Fix compile error.
+        * PlatformPlayStation.cmake:
+        Add JSRemoteInspectorServer.h to the public header list.
+        * inspector/remote/socket/posix/RemoteInspectorSocketPOSIX.cpp:
+        Set PlayStation specific socket option.
+
+2020-05-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        IteratorClose should suppress GetMethod errors
+        https://bugs.webkit.org/show_bug.cgi?id=212378
+
+        Reviewed by Keith Miller.
+
+        This patch implements recent spec change [1] that prevents "return" method lookup error
+        from overriding outer exception, aligning JSC with V8 and SpiderMonkey.
+
+        It is accomplished by moving pushTry() before emitGetById() in BytecodeGenerator.cpp
+        (covered by test262 suite) and removal of RETURN_IF_EXCEPTION in IteratorOperations.cpp
+        (added a stress test).
+
+        Before this patch, JSC partly implemented the spec change [1] by suppressing TypeError
+        if "return" method of iterator was not callable.
+
+        BytecodeGenerator::emitDelegateYield() is intentionally left unchanged.
+        Also, this patch utilizes emitIteratorGenericClose() to avoid code duplication.
+        for/of microbenchmarks are neutral.
+
+        [1]: https://github.com/tc39/ecma262/pull/1408
+
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitGenericEnumeration):
+        (JSC::BytecodeGenerator::emitEnumeration):
+        * runtime/IteratorOperations.cpp:
+        (JSC::iteratorClose):
+
+2020-05-26  Mark Lam  <mark.lam@apple.com>
+
+        SamplingProfiler::takeSample() should not assume that ENABLE(WEBASSEMBLY) means Wasm is enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=212382
+
+        Reviewed by Saam Barati.
+
+        Wasm can still be disabled at runtime with JSC options.  Fixing this will allow
+        sampling profiler tests to run with JSC_useJIT=0 without crashing.
+
+        * runtime/SamplingProfiler.cpp:
+        (JSC::FrameWalker::FrameWalker):
+        (JSC::FrameWalker::recordJITFrame):
+        (JSC::CFrameWalker::CFrameWalker):
+        (JSC::SamplingProfiler::takeSample):
+
+2020-05-26  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * Configurations/JavaScriptCore.xcconfig:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-05-23  Paulo Matos  <pmatos@igalia.com>
+
+        Fix non-unified builds for x86_64
+        https://bugs.webkit.org/show_bug.cgi?id=212297
+
+        Reviewed by Adrian Perez de Castro.
+
+        * b3/B3BasicBlock.cpp:
+        * b3/B3CaseCollection.cpp:
+        * b3/B3DuplicateTails.cpp:
+        * b3/B3EnsureLoopPreHeaders.cpp:
+        * b3/B3FenceValue.cpp:
+        * b3/B3HoistLoopInvariantValues.cpp:
+        * b3/B3LegalizeMemoryOffsets.cpp:
+        * b3/B3LowerMacrosAfterOptimizations.cpp:
+        * b3/B3LowerToAir.cpp:
+        * b3/B3MathExtras.cpp:
+        * b3/B3MemoryValue.cpp:
+        * b3/B3Procedure.cpp:
+        * b3/B3StackmapValue.cpp:
+        * b3/B3SwitchValue.cpp:
+        * b3/B3UseCounts.cpp:
+        * b3/B3Validate.cpp:
+        * b3/B3VariableValue.cpp:
+        * b3/B3WasmAddressValue.cpp:
+        * b3/B3WasmBoundsCheckValue.cpp:
+        * ftl/FTLCommonValues.cpp:
+        * ftl/FTLCompile.cpp:
+        * ftl/FTLOSREntry.cpp:
+        * ftl/FTLOSRExitCompiler.cpp:
+        * wasm/WasmInstance.cpp:
+        * wasm/WasmStreamingParser.cpp:
+        * wasm/js/JSToWasm.cpp:
+        * wasm/js/JSToWasmICCallee.cpp:
+        * wasm/js/JSWebAssembly.cpp:
+        * wasm/js/JSWebAssemblyCodeBlock.cpp:
+        * wasm/js/WebAssemblyCompileErrorConstructor.cpp:
+        * wasm/js/WebAssemblyCompileErrorPrototype.cpp:
+        * wasm/js/WebAssemblyFunction.cpp:
+        * wasm/js/WebAssemblyFunctionBase.cpp:
+        * wasm/js/WebAssemblyGlobalPrototype.cpp:
+        * wasm/js/WebAssemblyInstanceConstructor.cpp:
+        * wasm/js/WebAssemblyInstancePrototype.cpp:
+        * wasm/js/WebAssemblyLinkErrorConstructor.cpp:
+        * wasm/js/WebAssemblyLinkErrorPrototype.cpp:
+        * wasm/js/WebAssemblyMemoryConstructor.cpp:
+        * wasm/js/WebAssemblyMemoryPrototype.cpp:
+        * wasm/js/WebAssemblyModuleConstructor.cpp:
+        * wasm/js/WebAssemblyModulePrototype.cpp:
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        * wasm/js/WebAssemblyRuntimeErrorConstructor.cpp:
+        * wasm/js/WebAssemblyRuntimeErrorPrototype.cpp:
+        * wasm/js/WebAssemblyTableConstructor.cpp:
+        * wasm/js/WebAssemblyTablePrototype.cpp:
+
+2020-05-22  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Enable JSC shell to run
+        https://bugs.webkit.org/show_bug.cgi?id=212294
+
+        Reviewed by Ross Kirsling.
+
+        * shell/PlatformPlayStation.cmake:
+        Set working directory for Visual Studio
+        * shell/playstation/Initializer.cpp:
+        Load libJavaScriptCore as we now build it as SHARED.
+
+2020-05-22  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Array.prototype.splice doesn't set "length" of returned object
+        https://bugs.webkit.org/show_bug.cgi?id=212285
+
+        Reviewed by Darin Adler.
+
+        This change implements step 12 of Array.prototype.splice [1], which is observable
+        if result object is not JSArray, aligning JSC with V8 and SpiderMonkey.
+
+        Only slow path of splice() is affected by this patch; zero-argument case already
+        performs setLength(). Microbenchmarks are neutral.
+
+        [1]: https://tc39.es/ecma262/#sec-array.prototype.splice
+
+        * runtime/ArrayPrototype.cpp:
+        (JSC::arrayProtoFuncSplice):
+
+2020-05-22  Saam Barati  <sbarati@apple.com>
+
+        in_by_val inside structure property for-in loop should use an opcode like has_structure_property but for "in"
+        https://bugs.webkit.org/show_bug.cgi?id=212239
+
+        Reviewed by Tadeu Zagallo.
+
+        There is code inside Speedometer 2 that is like:
+        
+        ```
+        for (let p in o) {
+            if (p in o2)
+                ...
+        }
+        ```
+        
+        Where o and o2 frequently share the same structure. Elm does this when it's
+        diffing two objects. We already optimize o2[p] (get_by_val) in the above loop
+        for structure properties. This patch adds that same optimization for in_by_val.
+        Because we already emit a "structure" loop for for-in, where we iterate structure
+        properties, the fast path for the above, where o and o2 have the same
+        structure is simply a structure check followed by return true.
+        
+        This patch introduces the new opcode: op_in_structure_property. Its fast path is identical
+        to op_has_structure_property. Its slow path, however, behaves like "in", which
+        uses the HasProperty internal method, unlike op_has_structure_property,
+        which uses the GetOwnProperty internal method. This behavior difference is
+        observable using Proxy.
+        
+        This a 5% perf improvement in the Elm subtest in Speedometer 2.
+
+        * bytecode/BytecodeList.rb:
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitInByVal):
+        (JSC::rewriteOp):
+        (JSC::StructureForInContext::finalize):
+        * bytecompiler/BytecodeGenerator.h:
+        (JSC::StructureForInContext::addInInst):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileInStructureProperty):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileHasStructurePropertyImpl):
+        (JSC::FTL::DFG::LowerDFGToB3::compileHasStructureProperty):
+        (JSC::FTL::DFG::LowerDFGToB3::compileInStructureProperty):
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        (JSC::JIT::privateCompileSlowCases):
+        * jit/JIT.h:
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_in_structure_property):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_in_structure_property):
+        * llint/LLIntOffsetsExtractor.cpp:
+        * llint/LowLevelInterpreter.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.h:
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::hasPropertyGeneric const):
+        * runtime/JSPropertyNameEnumerator.h:
+
+2020-05-22  Keith Miller  <keith_miller@apple.com>
+
+        Checkpoint inlined call return handler needs an exception check when dispatching
+        https://bugs.webkit.org/show_bug.cgi?id=212104
+
+        Reviewed by Yusuke Suzuki.
+
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::dispatchToNextInstruction):
+        (JSC::LLInt::slow_path_checkpoint_osr_exit_from_inlined_call):
+        (JSC::LLInt::slow_path_checkpoint_osr_exit):
+
+2020-05-22  Paulo Matos  <pmatos@igalia.com>
+
+        Fix non-unified builds for i386 build
+        https://bugs.webkit.org/show_bug.cgi?id=212258
+
+        Reviewed by Adrian Perez de Castro.
+
+        * API/JSContextRef.cpp:
+        * bytecode/IntrinsicGetterAccessCase.cpp:
+        * inspector/InjectedScriptHost.cpp:
+        * llint/LLIntData.cpp:
+        * llint/LLIntThunks.cpp:
+        * runtime/Exception.cpp:
+        * runtime/ExecutableBase.cpp:
+        * runtime/JSBigInt.cpp:
+        * runtime/JSInternalPromiseConstructor.cpp:
+        * runtime/JSString.cpp:
+        * runtime/ScopedArgumentsTable.cpp:
+        * runtime/ScriptExecutable.cpp:
+        * runtime/SparseArrayValueMap.cpp:
+        * runtime/StructureRareData.cpp:
+
+2020-05-22  Paulo Matos  <pmatos@igalia.com>
+
+        Fix typo in JSCVirtualMachine documentation
+
+        Unreviewed Typo Fix.
+
+        * API/glib/JSCVirtualMachine.cpp:
+
+2020-05-21  Robin Morisset  <rmorisset@apple.com>
+
+        Various compile-time boolean flags could/should be marked constexpr
+        https://bugs.webkit.org/show_bug.cgi?id=212244
+
+        Reviewed by Mark Lam.
+
+        This trivial patch saves roughly 16kB from the JavaScriptCore binary in release mode.
+
+        * b3/B3OptimizeAssociativeExpressionTrees.cpp:
+        * b3/air/AirAllocateRegistersByGraphColoring.cpp:
+        * b3/air/AirSimplifyCFG.cpp:
+        (JSC::B3::Air::simplifyCFG):
+        * b3/air/AirTmpWidth.cpp:
+        (JSC::B3::Air::TmpWidth::recompute):
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * heap/GCIncomingRefCountedInlines.h:
+        (JSC::GCIncomingRefCounted<T>::filterIncomingReferences):
+        * heap/Heap.cpp:
+        (JSC::Heap::updateAllocationLimits):
+        * wasm/WasmEntryPlan.cpp:
+
+2020-05-21  Robin Morisset  <rmorisset@apple.com>
+
+        Remove AssemblerBufferWithConstantPool.h (as it has been dead for years)
+        https://bugs.webkit.org/show_bug.cgi?id=212241
+
+        Reviewed by Yusuke Suzuki.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * assembler/AssemblerBufferWithConstantPool.h: Removed.
+
+2020-05-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use @isUndefinedOrNull instead of abstract equality with null
+        https://bugs.webkit.org/show_bug.cgi?id=210954
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch:
+
+        a) Replaces 2 `!== @undefined` comparisons in String.prototype.{replace,replaceAll}
+        with @isUndefinedOrNull() as per spec [1], aligning JSC with V8 and SpiderMonkey.
+
+        b) Replaces 3 `!= @undefined` and 7 `!= null` comparisons with @isUndefinedOrNull()
+        as only the latter is correct with [[IsHTMLDDA]] aka MasqueradesAsUndefined objects [2].
+
+        c) Removes @isDictionary() since it is unused, easy to inline and its name is quite
+        misleading: one might expect it to perform Structure::isDictionary().
+
+        [1]: https://tc39.es/ecma262/#sec-getmethod (step 3)
+        [2]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
+
+        * builtins/ArrayConstructor.js:
+        * builtins/GlobalOperations.js:
+        (globalPrivate.isDictionary): Deleted.
+        * builtins/RegExpPrototype.js:
+        (Symbol.split): Unobservable as there is `=== null` check in @regExpExec.
+        * builtins/StringPrototype.js:
+        (match):
+        (replace):
+        (replaceAll):
+        (search):
+        (split):
+        * builtins/TypedArrayConstructor.js:
+
+2020-05-21  Saam Barati  <sbarati@apple.com>
+
+        Add an option that exposes functions on the global object to turn on and off the sampling profiler and the super sampler
+        https://bugs.webkit.org/show_bug.cgi?id=212178
+
+        Reviewed by Yusuke Suzuki.
+
+        When profiling things like Speedometer inside the browser, it's important to
+        to only enable the super sampler and the sampling profiler around the code
+        that you want profiled. Otherwise, you will be profiling things that aren't
+        relevant to the benchmark score. This patch adds a new option, exposeProfilersOnGlobalObject,
+        which when true, will expose JS functions on the global object that allow
+        enabling/disabling the super sampler and the sampling profiler. This way,
+        we can change the Speedometer source code locally such that these profilers
+        are only sampling code accounted for in the benchmark score.
+
+        * bytecode/SuperSampler.cpp:
+        (JSC::initializeSuperSampler):
+        (JSC::enableSuperSampler):
+        (JSC::disableSuperSampler):
+        * bytecode/SuperSampler.h:
+        * jsc.cpp:
+        (jscmain):
+        * runtime/JSGlobalObject.cpp:
+        (JSC::enableSamplingProfiler):
+        (JSC::disableSamplingProfiler):
+        (JSC::enableSuperSampler):
+        (JSC::disableSuperSampler):
+        (JSC::JSGlobalObject::init):
+        * runtime/OptionsList.h:
+
+2020-05-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Fix 32bit JSBigInt with INT32_MAX < x <= UINT32_MAX
+        https://bugs.webkit.org/show_bug.cgi?id=212193
+
+        Reviewed by Mark Lam.
+
+        In 32bit architecture, we are creating one-length JSBigInt for INT32_MIN <= x <= INT32_MAX, and two-length JSBigInt otherwise.
+        This is wrong since one-length JSBigInt should cover from -UINT32_MAX <= x <= UINT32_MAX.
+
+        This patch fixes the bug and cleans up createFrom(VM&, int64_t). And it also adds JSBigInt::createFrom(VM&, uint64_t) in preparation for [1]
+        Currently, this path is not used while it was used previously because BigIntConstructor starts using JSBigInt::createFrom(VM&, double). But this
+        will be used in [1], and simply the existing implementation is wrong.
+
+        [1]: https://bugs.webkit.org/show_bug.cgi?id=190800
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createFromImpl):
+        (JSC::JSBigInt::createFrom):
+        * runtime/JSBigInt.h:
+
+2020-05-21  Paulo Matos  <pmatos@igalia.com>
+
+        Further non-unified build fixes
+        https://bugs.webkit.org/show_bug.cgi?id=212195
+
+        Reviewed by Adrian Perez de Castro.
+
+        * bytecode/InstanceOfStatus.cpp:
+        * heap/MarkedSpace.cpp:
+        * runtime/ObjectInitializationScope.cpp:
+        * runtime/ThrowScope.cpp:
+
+2020-05-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Array.prototype.concat is incorrect with objects whose "length" exceeds 2 ** 32 - 1
+        https://bugs.webkit.org/show_bug.cgi?id=212167
+
+        Reviewed by Saam Barati.
+
+        This patch increases "length" limit of Array.prototype.concat result to @MAX_SAFE_INTEGER
+        and changes thrown error to TypeError, aligning JSC with the spec [1], V8, and SpiderMonkey.
+
+        Also, adds missing @MAX_SAFE_INTEGER overflow check in Array.from [2] (we implement similar
+        checks in other methods). SunSpider and microbenchmarks/concat-append-one.js are both neutral.
+
+        [1]: https://tc39.es/ecma262/#sec-array.prototype.concat (steps 5.c.iii, 5.d.ii)
+        [2]: https://tc39.es/ecma262/#sec-array.from (step 5.e.i)
+
+        * builtins/ArrayConstructor.js:
+        (from):
+        * builtins/ArrayPrototype.js:
+        (globalPrivate.concatSlowPath):
+
+2020-05-20  Michael Saboff  <msaboff@apple.com>
+
+        [Wasm] Limit the size of Wasm function we optimize in OMG mode
+        https://bugs.webkit.org/show_bug.cgi?id=212105
+
+        Reviewed by Filip Pizlo.
+
+        Given that memory grows O(N^2) compiling Wasm code through the OMG path,
+        we can run out of memory when compiling large Wasm functions.  This change adds
+        a limit option, webAssemblyBBQFallbackSize,  When the Wasm function size is
+        equal to or greater than this limit we always compile using BBQ optimization
+        parameters.
+
+        As part of this change, we still go through the OMG loop entry OSR code
+        generation path for functions that are at or above the threshold, but we
+        compile such functions with BBQ compilation optimization levels.
+        Also for Wasm functions at or above  the threashold, we don't tier up to an
+        OMG compiled normal entry function.  Instead we stay with the BBQ compiled version.
+
+        * runtime/OptionsList.h:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::AirIRGenerator):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::B3IRGenerator):
+        (JSC::Wasm::parseAndCompile):
+        * wasm/WasmCompilationMode.cpp:
+        (JSC::Wasm::wasmFunctionSizeCanBeOMGCompiled):
+        * wasm/WasmCompilationMode.h:
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::operationWasmTriggerOSREntryNow):
+
+2020-05-19  Ross Kirsling  <ross.kirsling@sony.com>
+
+        REGRESSION(r261755): Win/Linux non-unified builds have hundreds of link failures
+        https://bugs.webkit.org/show_bug.cgi?id=212111
+
+        Unreviewed build fix.
+
+        * API/:
+        * bindings/:
+        * bytecode/:
+        * bytecompiler/NodesCodegen.cpp:
+        * debugger/:
+        * dfg/:
+        * heap/:
+        * inspector/:
+        * interpreter/:
+        * jit/:
+        * llint/LLIntEntrypoint.cpp:
+        * parser/:
+        * profiler/:
+        * runtime/:
+        Restore *Inlines.h includes for >300 files,
+        but try to preserve the spirit of the original patch by pruning redundancies along the way.
+
 2020-05-19  Mark Lam  <mark.lam@apple.com>
 
         Put PtrTagLookup data structures in Configs for freezing.

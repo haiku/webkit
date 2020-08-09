@@ -29,6 +29,7 @@
 #if ENABLE(DFG_JIT)
 
 #include "DFGGraph.h"
+#include "JSCJSValueInlines.h"
 #include "TrackedReferences.h"
 
 namespace JSC { namespace DFG {
@@ -285,7 +286,7 @@ FiltrationResult AbstractValue::filterClassInfo(Graph& graph, const ClassInfo* c
     if (isClear())
         return FiltrationOK;
 
-    m_type &= speculationFromClassInfo(classInfo);
+    m_type &= speculationFromClassInfoInheritance(classInfo);
     m_structure.filterClassInfo(classInfo);
 
     m_structure.filter(m_type);

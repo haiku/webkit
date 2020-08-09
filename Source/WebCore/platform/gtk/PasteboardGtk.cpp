@@ -303,8 +303,14 @@ void Pasteboard::read(PasteboardWebContentReader& reader, WebContentReadingPolic
     }
 }
 
-void Pasteboard::read(PasteboardFileReader& reader)
+void Pasteboard::read(PasteboardFileReader& reader, Optional<size_t>)
 {
+    if (m_selectionData) {
+        for (const auto& filePath : m_selectionData->filenames())
+            reader.readFilename(filePath);
+        return;
+    }
+
     auto filePaths = platformStrategies()->pasteboardStrategy()->readFilePathsFromClipboard(m_name);
     for (const auto& filePath : filePaths)
         reader.readFilename(filePath);
@@ -374,7 +380,7 @@ String Pasteboard::readString(const String& type)
     case ClipboardDataTypeURIList:
         return m_selectionData->uriList();
     case ClipboardDataTypeURL:
-        return m_selectionData->url();
+        return m_selectionData->url().string();
     case ClipboardDataTypeMarkup:
         return m_selectionData->markup();
     case ClipboardDataTypeText:

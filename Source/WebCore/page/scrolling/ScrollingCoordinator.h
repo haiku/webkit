@@ -113,8 +113,8 @@ public:
     // Traverses the scrolling tree, setting layer positions to represent the current scrolled state.
     virtual void applyScrollingTreeLayerPositions() { }
 
-    // Takes scroll positions from the scrolling tree and applies them to ScrollableAreas.
-    virtual void synchronizeStateFromScrollingTree() { }
+    virtual void willStartRenderingUpdate() { }
+    virtual void didCompleteRenderingUpdate() { }
 
 #if ENABLE(KINETIC_SCROLLING)
     // Dispatched by the scrolling tree during handleWheelEvent. This is required as long as scrollbars are painted on the main thread.
@@ -127,7 +127,7 @@ public:
     // These virtual functions are currently unique to the threaded scrolling architecture. 
     virtual void commitTreeStateIfNeeded() { }
     virtual bool requestScrollPositionUpdate(ScrollableArea&, const IntPoint&, ScrollType = ScrollType::Programmatic, ScrollClamping = ScrollClamping::Clamped) { return false; }
-    virtual ScrollingEventResult handleWheelEvent(FrameView&, const PlatformWheelEvent&) { return ScrollingEventResult::DidNotHandleEvent; }
+    virtual bool handleWheelEvent(FrameView&, const PlatformWheelEvent&) { return false; }
 
     // Create an unparented node.
     virtual ScrollingNodeID createNode(ScrollingNodeType, ScrollingNodeID newNodeID) { return newNodeID; }
@@ -181,7 +181,7 @@ public:
     virtual void willDestroyScrollableArea(ScrollableArea&) { }
     virtual void scrollableAreaScrollbarLayerDidChange(ScrollableArea&, ScrollbarOrientation) { }
 
-    virtual void windowScreenDidChange(PlatformDisplayID) { }
+    virtual void windowScreenDidChange(PlatformDisplayID, Optional<unsigned> /* nominalFramesPerSecond */) { }
 
     static String synchronousScrollingReasonsAsText(OptionSet<SynchronousScrollingReason>);
     String synchronousScrollingReasonsAsText() const;

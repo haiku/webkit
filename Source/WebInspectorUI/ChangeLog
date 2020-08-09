@@ -1,3 +1,339 @@
+2020-06-01  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Graphics: should use the `id` (name) of the animation if it exists
+        https://bugs.webkit.org/show_bug.cgi?id=212618
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Protocol/AnimationObserver.js:
+        (WI.AnimationObserver.prototype.nameChanged): Added.
+        * UserInterface/Controllers/AnimationManager.js:
+        (WI.AnimationManager.prototype.nameChanged): Added.
+
+        * UserInterface/Models/Animation.js:
+        (WI.Animation):
+        (WI.Animation.fromPayload):
+        (WI.Animation.prototype.get name): Added.
+        (WI.Animation.prototype.get cssAnimationName): Added.
+        (WI.Animation.prototype.get cssTransitionProperty): Added.
+        (WI.Animation.prototype.get displayName):
+        (WI.Animation.prototype.nameChanged): Added.
+
+        * UserInterface/Views/AnimationContentView.js:
+        (WI.AnimationContentView.prototype.initialLayout):
+        (WI.AnimationContentView.prototype.layout):
+        (WI.AnimationContentView.prototype.attached):
+        (WI.AnimationContentView.prototype.detached):
+        (WI.AnimationContentView.prototype._refreshTitle): Added.
+        (WI.AnimationContentView.prototype._handleNameChanged): Added.
+        * UserInterface/Views/AnimationContentView.css:
+        (.content-view.animation):
+        (.content-view.animation > header > .titles):
+        (.content-view.animation > header > .titles > .title > code): Added.
+        Show the `animation-name`/`transition-property`/count in parenthesis after the `id` (only if
+        it has been specified).
+        Drive-by: ensure that the `<header>` doesn't overflow.
+
+        * UserInterface/Views/AnimationDetailsSidebarPanel.js:
+        (WI.AnimationDetailsSidebarPanel.prototype.set animation):
+        (WI.AnimationDetailsSidebarPanel.prototype.initialLayout):
+        (WI.AnimationDetailsSidebarPanel.prototype._refreshIdentitySection):
+        (WI.AnimationDetailsSidebarPanel.prototype._handleAnimationNameChanged): Added.
+        Only show the "Identifier" row if an `id` is actually set. If there is a CSS
+        `animation-name`/`transition-property`, show it in a separate row.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-06-01  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Timelines: Edit button has wrong outline
+        https://bugs.webkit.org/show_bug.cgi?id=211105
+        <rdar://problem/62475815>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/ButtonNavigationItem.css:
+        (.navigation-bar .item.button.text-only:focus):
+        Add `.text-only` to the selector to make specificity higher than of the button selector.
+
+        * UserInterface/Views/RadioButtonNavigationItem.css:
+        (.navigation-bar .item.radio.button.text-only:focus):
+        Add `.text-only` to the selector to make specificity higher than of the button selector.
+
+        (.navigation-bar .item.radio.button:not(.text-only)): Deleted.
+        (.navigation-bar.collapsed .item.radio.button:not(.text-only)): Deleted.
+        Remove dead code. We only have text-only buttons now.
+
+        * UserInterface/Views/RadioButtonNavigationItem.js:
+        (WI.RadioButtonNavigationItem):
+        (WI.RadioButtonNavigationItem.prototype.get buttonStyle):
+        (WI.RadioButtonNavigationItem.prototype.set buttonStyle):
+
+2020-05-29  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Graphics: text editors in Keyframes section don't populate when sidebar is first shown
+        https://bugs.webkit.org/show_bug.cgi?id=212509
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/AnimationDetailsSidebarPanel.js:
+        (WI.AnimationDetailsSidebarPanel.prototype.shown): Added.
+        Refresh all `CodeMirror` whenever this panel is shown.
+
+        * UserInterface/Views/Sidebar.js:
+        (WI.Sidebar.prototype.removeSidebarPanel):
+        (WI.Sidebar.prototype.selectedSidebarPanel):
+        (WI.Sidebar.prototype.set collapsed):
+        * UserInterface/Views/SidebarPanel.js:
+        (WI.SidebarPanel.prototype.visibilityDidChange): Deleted.
+        Drive-by: remove unused function.
+
+2020-05-29  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add ITML debuggable/target type
+        https://bugs.webkit.org/show_bug.cgi?id=203300
+        <rdar://problem/56545896>
+
+        Reviewed by Joseph Pecoraro and Brian Burg.
+
+        * UserInterface/Base/DebuggableType.js:
+        (WI.DebuggableType.fromString):
+        (WI.DebuggableType.supportedTargetTypes): Added.
+        * UserInterface/Base/TargetType.js:
+        * UserInterface/Protocol/InspectorBackend.js:
+        (InspectorBackendClass.prototype.activateDomain):
+        * UserInterface/Controllers/TargetManager.js:
+        (WI.TargetManager.prototype.createDirectBackendTarget):
+        (WI.TargetManager.prototype._initializePageTarget):
+
+        * UserInterface/Protocol/RemoteObject.js:
+        (WI.RemoteObject.prototype.pushNodeToFrontend):
+        * UserInterface/Controllers/CSSManager.js:
+        (WI.CSSManager.supportsInspectorStyleSheet): Added.
+        * UserInterface/Controllers/DOMManager.js:
+        (WI.DOMManager.prototype.setInspectedNode):
+        * UserInterface/Controllers/LayerTreeManager.js:
+        (WI.LayerTreeManager.supportsVisibleCompositingBorders):
+        * UserInterface/Controllers/NetworkManager.js:
+        (WI.NetworkManager.prototype._loadAndParseSourceMap):
+        * UserInterface/Controllers/TimelineManager.js:
+        (WI.NetworkManager.defaultTimelineTypes):
+        (WI.NetworkManager.availableTimelineTypes):
+        (WI.NetworkManager.prototype.set autoCaptureOnPageLoad):
+        (WI.NetworkManager.prototype.scriptProfilerTrackingCompleted):
+        * UserInterface/Models/CSSCompletions.js:
+        (WI.CSSCompletions.initializeCSSCompletions):
+        * UserInterface/Models/CSSStyleDeclaration.js:
+        (WI.CSSStyleDeclaration.prototype.get selectorEditable):
+        * UserInterface/Models/CSSStyleSheet.js:
+        (WI.CSSStyleSheet.prototype.handleCurrentRevisionContentChange):
+        * UserInterface/Models/DOMNode.js:
+        (WI.DOMNode.prototype._makeUndoableCallback):
+        * UserInterface/Models/SourceMapResource.js:
+        (WI.SourceMapResource.prototype.requestContentFromBackend):
+        * UserInterface/Base/Main.js:
+        (WI._updateDownloadToolbarButton):
+        (WI.undo):
+        (WI.redo):
+        (WI.canArchiveMainFrame):
+        * UserInterface/Views/ComputedStyleDetailsPanel.js:
+        (WI.ComputedStyleDetailsPanel.prototype.refresh):
+        * UserInterface/Views/ContextMenuUtilities.js:
+        (WI.appendContextMenuItemsForDOMNode):
+        * UserInterface/Views/CookieStorageContentView.js:
+        (WI.CookieStorageContentView):
+        (WI.CookieStorageContentView.prototype.get navigationItems):
+        (WI.CookieStorageContentView.prototype.tableCellContextMenuClicked):
+        (WI.CookieStorageContentView.prototype._reloadCookies):
+        (WI.CookieStorageContentView.prototype._handleTableKeyDown):
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.js:
+        (WI.DOMNodeDetailsSidebarPanel.prototype.initialLayout):
+        * UserInterface/Views/DOMTreeContentView.js:
+        (WI.DOMTreeContentView):
+        (WI.DOMTreeContentView.prototype._restoreSelectedNodeAfterUpdate):
+        (WI.DOMTreeContentView.prototype._showPrintStylesChanged):
+        * UserInterface/Views/DOMTreeElement.js:
+        (WI.DOMTreeElement.prototype.populateDOMNodeContextMenu):
+        (WI.DOMTreeElement.prototype._startEditingTagName):
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.js:
+        (WI.GeneralStyleDetailsSidebarPanel.prototype.initialLayout):
+        * UserInterface/Views/SearchSidebarPanel.js:
+        (WI.SearchSidebarPanel.prototype.performSearch):
+        * UserInterface/Views/SourceCodeTextEditor.js:
+        (WI.SourceCodeTextEditor.prototype.customPerformSearch):
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateResourceContextMenu):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationSection.js:
+        (WI.SpreadsheetCSSStyleDeclarationSection.prototype._populateIconElementContextMenu):
+        * UserInterface/Views/SpreadsheetRulesStyleDetailsPanel.js:
+        (WI.SpreadsheetRulesStyleDetailsPanel.prototype.get supportsNewRule):
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+        (WI.SpreadsheetStyleProperty.prototype.spreadsheetTextFieldDidBlur):
+        * UserInterface/Views/TimelineTabContentView.js:
+        (WI.TimelineTabContentView):
+
+        * UserInterface/Controllers/AppControllerBase.js:
+        (WI.AppControllerBase.prototype.get hasExtraDomains): Deleted.
+        * UserInterface/Controllers/AppController.js:
+        (WI.AppController):
+        (WI.AppController.prototype.activateExtraDomains):
+        (WI.AppController.prototype.get hasExtraDomains): Deleted.
+        * UserInterface/Test/TestAppController.js:
+        (WI.TestAppController.prototype.get hasExtraDomains): Deleted.
+
+        * UserInterface/Protocol/Legacy/11.0/InspectorBackendCommands.js:
+        * UserInterface/Protocol/Legacy/11.3/InspectorBackendCommands.js:
+        * UserInterface/Protocol/Legacy/12.0/InspectorBackendCommands.js:
+        * UserInterface/Protocol/Legacy/12.2/InspectorBackendCommands.js:
+        * UserInterface/Protocol/Legacy/13.0/InspectorBackendCommands.js:
+        * UserInterface/Protocol/Legacy/13.4/InspectorBackendCommands.js:
+        * Versions/Inspector-iOS-11.0.json:
+        * Versions/Inspector-iOS-11.3.json:
+        * Versions/Inspector-iOS-12.0.json:
+        * Versions/Inspector-iOS-12.2.json:
+        * Versions/Inspector-iOS-13.0.json:
+        * Versions/Inspector-iOS-13.4.json:
+        Update protocol files for older versions of iOS.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-05-28  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Network: statistics don't update when filtering
+        https://bugs.webkit.org/show_bug.cgi?id=212394
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/NetworkTableContentView.js:
+        (WI.NetworkTableContentView.prototype._updateFilteredEntries):
+        (WI.NetworkTableContentView.prototype._updateStatistics):
+        (WI.NetworkTableContentView.prototype._updateLoadTimeStatistic):
+        If the URL/type filter is active, hide the load time statistic, similar to how it's hidden
+        when viewing imported HARs. Additionally, update the other statistics to show info based on
+        the entries that are still shown.
+
+2020-05-27  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        [WebInspectorUI] Inconsistent check for WI.ImageUtilities.supportsCanvasPathDebugging
+        https://bugs.webkit.org/show_bug.cgi?id=212450
+
+        Reviewed by Devin Rousso.
+
+        In RecordContentView.js _updateCanvasPath() should not be called if CanvasPathDebugging
+        is not supported otherwise _updateCanvasPath() tries to access _showPathButtonNavigationItem,
+        which is created only if CanvasPathDebugging is supported, but fails and raises an exception.
+        
+        * UserInterface/Views/RecordingContentView.js:
+        Check if WI.ImageUtilities.supportsCanvasPathDebugging() before
+        calling _updateCanvasPath()
+
+2020-05-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: replace `featureGuard` and `availability` with a combined `condition` that accepts any macro
+        https://bugs.webkit.org/show_bug.cgi?id=210014
+
+        Reviewed by Brian Burg.
+
+        Previously, the generated InspectorBackendCommands.js would include code for things that the
+        backend doesn't actually support. By using actual macros and preprocessing that file, we can
+        ensure that the frontend doesn't incorrectly think that something is supported by the page
+        being inspected:
+         - the `Canvas` commands and events related to shader programs/pipelines should only exist
+           when the corresponding context type exists, namely `ENABLE(WEBGL)` and `ENABLE(WEBGPU)`.
+         - iOS doesn't support showing rulers, so create a variant of `DOM.setInspectModeEnabled`
+           that only exists for `PLATFORM(IOS_FAMILY)` that doesn't have the `showRulers` optional
+           parameter, as well as removing `Page.setShowRulers` entirely.
+         - setting the forced appearance should only be possible if dark mode is supported.
+         - web archives only exist if CF is used.
+
+        * CMakeLists.txt:
+        Add a dependency on the new `InspectorBackendCommands` target.
+
+        * UserInterface/Base/Main.js:
+        (WI._updateDownloadTabBarButton):
+
+2020-05-26  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: ⌘G should not override the current query of the find banner if it's visible
+        https://bugs.webkit.org/show_bug.cgi?id=212395
+
+        Reviewed by Simon Fraser.
+
+        * UserInterface/Views/ContentBrowser.js:
+        (WI.ContentBrowser.prototype.async handleFindNextShortcut):
+        (WI.ContentBrowser.prototype.async handleFindPreviousShortcut):
+        * UserInterface/Views/LogContentView.js:
+        (WI.LogContentView.prototype.highlightPreviousSearchMatch):
+        (WI.LogContentView.prototype.highlightNextSearchMatch):
+
+2020-05-26  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Network: Timing: gaps around the "An error occurred trying to load this resource" message
+        https://bugs.webkit.org/show_bug.cgi?id=212384
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/NetworkTableContentView.css:
+        (.content-view.network-table > .message-text-view): Added.
+        (.content-view.network-table > .message-text-view > .message): Added.
+        (.content-view.network .message-text-view): Deleted.
+        (.content-view.network .message-text-view > .message): Deleted.
+        Be more specific with the selector so it doesn't apply as broadly.
+
+2020-05-22  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Storage: don't request the list of IndexedDB database names multiple times for the same security origin
+        https://bugs.webkit.org/show_bug.cgi?id=212253
+        <rdar://problem/62945903>
+
+        Reviewed by Joseph Pecoraro.
+
+        This can happen if additional frames are added that share the same security origin as the
+        main frame. Simply maintain a `Set` of security origins that've already been requested for
+        and ignore any repeat requests.
+
+        * UserInterface/Controllers/IndexedDBManager.js:
+        (WI.IndexedDBManager):
+        (WI.IndexedDBManager.prototype._reset):
+
+2020-05-20  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Left/Right arrow keys should collapse/expand details sections
+        https://bugs.webkit.org/show_bug.cgi?id=212064
+        <rdar://problem/63384091>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/DetailsSection.js:
+        (WI.DetailsSection):
+        (WI.DetailsSection.prototype._headerElementClicked):
+        (WI.DetailsSection.prototype._handleHeaderElementKeyDown):
+        Use keydown event instead of keypress because the latter doesn't fire for arrow keys.
+        Drive-by: remove unused `expandedByUser`.
+
+        * UserInterface/Views/ExpandableView.js:
+        (WI.ExpandableView):
+        (WI.ExpandableView.prototype._handleDisclosureButtonKeyDown):
+        Computed panel items should also collapse/expand by pressing Left/Right keys.
+
+2020-05-20  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION(r260978): Web Inspector: Styles: Pressing Space no longer toggles selected properties
+        https://bugs.webkit.org/show_bug.cgi?id=212121
+
+        Reviewed by Devin Rousso.
+
+        r260978 removed `tabIndex = -1` from the style property element so it wouldn't have a focus outline
+        when in the Computed panel. However, this also made style properties non-focusable in the Styles panel.
+
+        This patch sets `tabIndex = -1` on style property elements when they can be selected (e.g. in the Styles panel).
+        It doesn't set any tabIndex for style property elements in Computed or Changes panels.
+
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationEditor.js:
+        (WI.SpreadsheetCSSStyleDeclarationEditor.prototype.layout):
+        * UserInterface/Views/SpreadsheetStyleProperty.js:
+
 2020-05-15  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: Fails to pretty-print a particular CSS file

@@ -1769,7 +1769,13 @@ slowPathOp(greater)
 slowPathOp(greatereq)
 slowPathOp(has_generic_property)
 slowPathOp(has_indexed_property)
-slowPathOp(has_structure_property)
+
+if not JSVALUE64
+    slowPathOp(has_structure_property)
+    slowPathOp(has_own_structure_property)
+    slowPathOp(in_structure_property)
+end
+
 slowPathOp(in_by_id)
 slowPathOp(in_by_val)
 slowPathOp(is_function)

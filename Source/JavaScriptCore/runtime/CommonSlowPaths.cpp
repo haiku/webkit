@@ -28,25 +28,21 @@
 
 #include "ArithProfile.h"
 #include "BytecodeStructs.h"
-#include "CallFrame.h"
 #include "ClonedArguments.h"
 #include "DefinePropertyAttributes.h"
 #include "DirectArguments.h"
-#include "Error.h"
 #include "ErrorHandlingScope.h"
 #include "ExceptionFuzz.h"
 #include "FrameTracers.h"
 #include "JSArrayIterator.h"
 #include "JSAsyncGenerator.h"
-#include "JSCJSValue.h"
+#include "JSCInlines.h"
 #include "JSImmutableButterfly.h"
 #include "JSInternalPromise.h"
 #include "JSInternalPromiseConstructor.h"
 #include "JSLexicalEnvironment.h"
-#include "JSObjectInlines.h"
 #include "JSPromiseConstructor.h"
 #include "JSPropertyNameEnumerator.h"
-#include "JSString.h"
 #include "JSWithScope.h"
 #include "LLIntCommon.h"
 #include "LLIntExceptions.h"
@@ -534,7 +530,8 @@ SLOW_PATH_DECL(slow_path_negate)
 
 #if USE(BIGINT32)
     if (primValue.isBigInt32()) {
-        JSValue result = JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32());
+        JSValue result = JSBigInt::unaryMinus(globalObject, primValue.bigInt32AsInt32());
+        CHECK_EXCEPTION();
         RETURN_WITH_PROFILING(result, {
             updateArithProfileForUnaryArithOp(metadata, result, operand);
         });
@@ -542,7 +539,8 @@ SLOW_PATH_DECL(slow_path_negate)
 #endif
 
     if (primValue.isHeapBigInt()) {
-        JSValue result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
+        JSValue result = JSBigInt::unaryMinus(globalObject, primValue.asHeapBigInt());
+        CHECK_EXCEPTION();
         RETURN_WITH_PROFILING(result, {
             updateArithProfileForUnaryArithOp(metadata, result, operand);
         });
@@ -1026,7 +1024,7 @@ SLOW_PATH_DECL(slow_path_get_enumerable_length)
 {
     BEGIN();
     auto bytecode = pc->as<OpGetEnumerableLength>();
-    JSValue enumeratorValue = GET(bytecode.m_base).jsValue();
+    JSValue enumeratorValue = GET_C(bytecode.m_base).jsValue();
     if (enumeratorValue.isUndefinedOrNull())
         RETURN(jsNumber(0));
 
@@ -1040,7 +1038,7 @@ SLOW_PATH_DECL(slow_path_has_indexed_property)
     BEGIN();
     auto bytecode = pc->as<OpHasIndexedProperty>();
     auto& metadata = bytecode.metadata(codeBlock);
-    JSObject* base = GET(bytecode.m_base).jsValue().toObject(globalObject);
+    JSObject* base = GET_C(bytecode.m_base).jsValue().toObject(globalObject);
     CHECK_EXCEPTION();
     JSValue property = GET(bytecode.m_property).jsValue();
     metadata.m_arrayProfile.observeStructure(base->structure(vm));
@@ -1052,24 +1050,62 @@ SLOW_PATH_DECL(slow_path_has_structure_property)
 {
     BEGIN();
     auto bytecode = pc->as<OpHasStructureProperty>();
-    JSObject* base = GET(bytecode.m_base).jsValue().toObject(globalObject);
+    JSObject* base = GET_C(bytecode.m_base).jsValue().toObject(globalObject);
     CHECK_EXCEPTION();
     JSValue property = GET(bytecode.m_property).jsValue();
-    ASSERT(property.isString());
+    RELEASE_ASSERT(property.isString());
+#if USE(JSVALUE32_64)
     JSPropertyNameEnumerator* enumerator = jsCast<JSPropertyNameEnumerator*>(GET(bytecode.m_enumerator).jsValue().asCell());
     if (base->structure(vm)->id() == enumerator->cachedStructureID())
         RETURN(jsBoolean(true));
+#endif
     JSString* string = asString(property);
     auto propertyName = string->toIdentifier(globalObject);
     CHECK_EXCEPTION();
     RETURN(jsBoolean(base->hasPropertyGeneric(globalObject, propertyName, PropertySlot::InternalMethodType::GetOwnProperty)));
 }
 
+SLOW_PATH_DECL(slow_path_has_own_structure_property)
+{
+    BEGIN();
+    auto bytecode = pc->as<OpHasOwnStructureProperty>();
+    JSValue base = GET_C(bytecode.m_base).jsValue();
+
+#if USE(JSVALUE32_64)
+    JSPropertyNameEnumerator* enumerator = jsCast<JSPropertyNameEnumerator*>(GET(bytecode.m_enumerator).jsValue().asCell());
+    if (base.isCell() && base.asCell()->structure(vm)->id() == enumerator->cachedStructureID())
+        RETURN(jsBoolean(true));
+#endif
+
+    JSValue property = GET(bytecode.m_property).jsValue();
+    RELEASE_ASSERT(property.isString());
+    JSString* string = asString(property);
+    auto propertyName = string->toIdentifier(globalObject);
+    CHECK_EXCEPTION();
+
+    RETURN(jsBoolean(objectPrototypeHasOwnProperty(globalObject, base, propertyName)));
+}
+
+SLOW_PATH_DECL(slow_path_in_structure_property)
+{
+    BEGIN();
+    auto bytecode = pc->as<OpInStructureProperty>();
+    JSValue base = GET_C(bytecode.m_base).jsValue();
+#if USE(JSVALUE32_64)
+    JSPropertyNameEnumerator* enumerator = jsCast<JSPropertyNameEnumerator*>(GET(bytecode.m_enumerator).jsValue().asCell());
+    if (base.isCell() && base.asCell()->structure(vm)->id() == enumerator->cachedStructureID())
+        RETURN(jsBoolean(true));
+#endif
+    JSValue property = GET(bytecode.m_property).jsValue();
+    RELEASE_ASSERT(property.isString());
+    RETURN(jsBoolean(CommonSlowPaths::opInByVal(globalObject, base, asString(property))));
+}
+
 SLOW_PATH_DECL(slow_path_has_generic_property)
 {
     BEGIN();
     auto bytecode = pc->as<OpHasGenericProperty>();
-    JSObject* base = GET(bytecode.m_base).jsValue().toObject(globalObject);
+    JSObject* base = GET_C(bytecode.m_base).jsValue().toObject(globalObject);
     CHECK_EXCEPTION();
     JSValue property = GET(bytecode.m_property).jsValue();
     ASSERT(property.isString());
@@ -1096,7 +1132,7 @@ SLOW_PATH_DECL(slow_path_get_property_enumerator)
 {
     BEGIN();
     auto bytecode = pc->as<OpGetPropertyEnumerator>();
-    JSValue baseValue = GET(bytecode.m_base).jsValue();
+    JSValue baseValue = GET_C(bytecode.m_base).jsValue();
     if (baseValue.isUndefinedOrNull())
         RETURN(vm.emptyPropertyNameEnumerator());
 

@@ -198,11 +198,11 @@ enum class DOMPasteAccessResponse : uint8_t;
 enum class DragHandlingMethod : uint8_t;
 enum class SelectionDirection : uint8_t;
 enum class ShouldTreatAsContinuingLoad : bool;
-enum class StorageAccessPromptWasShown : bool;
-enum class StorageAccessWasGranted : bool;
 enum class TextIndicatorPresentationTransition : uint8_t;
 enum class TextGranularity : uint8_t;
 enum class WritingDirection : uint8_t;
+
+using PlatformDisplayID = uint32_t;
 
 struct AttributedString;
 struct BackForwardItemIdentifier;
@@ -216,6 +216,7 @@ struct Highlight;
 struct KeypressCommand;
 struct MediaUsageInfo;
 struct PromisedAttachmentInfo;
+struct RequestStorageAccessResult;
 struct RunJavaScriptParameters;
 struct TextCheckingResult;
 struct ViewportArguments;
@@ -517,7 +518,7 @@ public:
     double pageZoomFactor() const;
     void setPageZoomFactor(double);
     void setPageAndTextZoomFactors(double pageZoomFactor, double textZoomFactor);
-    void windowScreenDidChange(uint32_t);
+    void windowScreenDidChange(WebCore::PlatformDisplayID, Optional<unsigned> nominalFramesPerSecond);
     String dumpHistoryForTesting(const String& directory);
     void clearHistory();
 
@@ -665,6 +666,9 @@ public:
     WebCore::FloatSize overrideScreenSize() const;
     int32_t deviceOrientation() const { return m_deviceOrientation; }
     void didReceiveMobileDocType(bool);
+    
+    bool screenIsBeingCaptured() const { return m_screenIsBeingCaptured; }
+    void setScreenIsBeingCaptured(bool);
 
     double minimumPageScaleFactor() const;
     double maximumPageScaleFactor() const;
@@ -769,7 +773,7 @@ public:
     void freezeLayerTree(LayerTreeFreezeReason);
     void unfreezeLayerTree(LayerTreeFreezeReason);
 
-    void markLayersVolatile(Function<void(bool)>&& completionHandler = { });
+    void markLayersVolatile(CompletionHandler<void(bool)>&& completionHandler = { });
     void cancelMarkLayersVolatile();
 
     void freezeLayerTreeDueToSwipeAnimation();
@@ -1014,6 +1018,7 @@ public:
     bool platformPrefersTextLegibilityBasedZoomScaling() const;
 
     void hardwareKeyboardAvailabilityChanged(bool keyboardIsAttached);
+    bool hardwareKeyboardIsAttached() const { return m_keyboardIsAttached; }
 
     void updateStringForFind(const String&);
     
@@ -1200,7 +1205,7 @@ public:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     void hasStorageAccess(WebCore::RegistrableDomain&& subFrameDomain, WebCore::RegistrableDomain&& topFrameDomain, WebFrame&, CompletionHandler<void(bool)>&&);
-    void requestStorageAccess(WebCore::RegistrableDomain&& subFrameDomain, WebCore::RegistrableDomain&& topFrameDomain, WebFrame&, CompletionHandler<void(WebCore::StorageAccessWasGranted, WebCore::StorageAccessPromptWasShown)>&&);
+    void requestStorageAccess(WebCore::RegistrableDomain&& subFrameDomain, WebCore::RegistrableDomain&& topFrameDomain, WebFrame&, WebCore::StorageAccessScope, CompletionHandler<void(WebCore::RequestStorageAccessResult)>&&);
     bool hasPageLevelStorageAccess(const WebCore::RegistrableDomain& topLevelDomain, const WebCore::RegistrableDomain& resourceDomain) const;
     void addDomainWithPageLevelStorageAccess(const WebCore::RegistrableDomain& topLevelDomain, const WebCore::RegistrableDomain& resourceDomain);
     void wasLoadedWithDataTransferFromPrevalentResource();
@@ -1328,6 +1333,10 @@ public:
     void addMediaUsageManagerSession(WebCore::MediaSessionIdentifier, const String&, const URL&);
     void updateMediaUsageManagerSessionState(WebCore::MediaSessionIdentifier, const WebCore::MediaUsageInfo&);
     void removeMediaUsageManagerSession(WebCore::MediaSessionIdentifier);
+#endif
+
+#if PLATFORM(WIN)
+    uint64_t nativeWindowHandle() { return m_nativeWindowHandle; }
 #endif
 
 private:
@@ -1556,6 +1565,10 @@ private:
     void computePagesForPrintingPDFDocument(WebCore::FrameIdentifier, const PrintInfo&, Vector<WebCore::IntRect>& resultPageRects);
     void drawPDFDocument(CGContextRef, PDFDocument *, const PrintInfo&, const WebCore::IntRect&);
     void drawPagesToPDFFromPDFDocument(CGContextRef, PDFDocument *, const PrintInfo&, uint32_t first, uint32_t count);
+#endif
+
+#if ENABLE(TINT_COLOR_SUPPORT)
+    void setTintColor(WebCore::Color);
 #endif
 
     void setMainFrameIsScrollable(bool);
@@ -1824,6 +1837,10 @@ private:
     GRefPtr<AtkObject> m_accessibilityObject;
 #endif
 
+#if PLATFORM(WIN)
+    uint64_t m_nativeWindowHandle { 0 };
+#endif
+
 #if !PLATFORM(IOS_FAMILY)
     RefPtr<PageBanner> m_headerBanner;
     RefPtr<PageBanner> m_footerBanner;
@@ -1988,6 +2005,7 @@ private:
     bool m_hasStablePageScaleFactor { true };
     bool m_isInStableState { true };
     bool m_shouldRevealCurrentSelectionAfterInsertion { true };
+    bool m_screenIsBeingCaptured { false };
     MonotonicTime m_oldestNonStableUpdateVisibleContentRectsTimestamp;
     Seconds m_estimatedLatency { 0 };
     WebCore::FloatSize m_screenSize;
@@ -2017,7 +2035,7 @@ private:
 #endif
 
     WebCore::Timer m_layerVolatilityTimer;
-    Vector<Function<void(bool)>> m_markLayersAsVolatileCompletionHandlers;
+    Vector<CompletionHandler<void(bool)>> m_markLayersAsVolatileCompletionHandlers;
     bool m_isSuspendedUnderLock { false };
 
     HashSet<String, ASCIICaseInsensitiveHash> m_mimeTypesWithCustomContentProviders;

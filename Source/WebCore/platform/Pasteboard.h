@@ -171,6 +171,7 @@ struct PasteboardPlainText {
 struct PasteboardFileReader {
     virtual ~PasteboardFileReader() = default;
     virtual void readFilename(const String&) = 0;
+    virtual bool shouldReadBuffer(const String& /* type */) const { return true; }
     virtual void readBuffer(const String& filename, const String& type, Ref<SharedBuffer>&&) = 0;
 };
 
@@ -215,7 +216,7 @@ public:
 
     virtual WEBCORE_EXPORT void read(PasteboardPlainText&, PlainTextURLReadingPolicy = PlainTextURLReadingPolicy::AllowURL, Optional<size_t> itemIndex = WTF::nullopt);
     virtual WEBCORE_EXPORT void read(PasteboardWebContentReader&, WebContentReadingPolicy = WebContentReadingPolicy::AnyType, Optional<size_t> itemIndex = WTF::nullopt);
-    virtual WEBCORE_EXPORT void read(PasteboardFileReader&);
+    virtual WEBCORE_EXPORT void read(PasteboardFileReader&, Optional<size_t> itemIndex = WTF::nullopt);
 
     virtual WEBCORE_EXPORT void write(const Color&);
     virtual WEBCORE_EXPORT void write(const PasteboardURL&);

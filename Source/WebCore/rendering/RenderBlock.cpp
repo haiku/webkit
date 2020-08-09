@@ -1253,8 +1253,11 @@ void RenderBlock::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
         }
 
         bool needsTraverseDescendants = hasVisualOverflow() || containsFloats() || !paintInfo.eventRegionContext->contains(enclosingIntRect(borderRect)) || view().needsEventRegionUpdateForNonCompositedFrame();
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(TOUCH_ACTION_REGIONS)
         needsTraverseDescendants |= document().mayHaveElementsWithNonAutoTouchAction();
+#endif
+#if !PLATFORM(IOS_FAMILY)
+        needsTraverseDescendants |= document().hasWheelEventHandlers();
 #endif
 #if ENABLE(EDITABLE_REGION)
         // We treat the entire text control as editable to match users' expectation even
@@ -1749,6 +1752,9 @@ TrackedRendererListHashSet* RenderBlock::positionedObjects() const
 void RenderBlock::insertPositionedObject(RenderBox& positioned)
 {
     ASSERT(!isAnonymousBlock());
+
+    positioned.clearOverrideContainingBlockContentSize();
+
     if (positioned.isRenderFragmentedFlow())
         return;
     // FIXME: Find out if we can do this as part of positioned.setChildNeedsLayout(MarkOnlyThis)

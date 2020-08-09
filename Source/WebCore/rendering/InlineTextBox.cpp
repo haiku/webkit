@@ -854,7 +854,7 @@ auto InlineTextBox::resolveStyleForMarkedText(const MarkedText& markedText, cons
         Color selectionBackgroundColor = renderer().selectionBackgroundColor();
         style.backgroundColor = selectionBackgroundColor;
         if (selectionBackgroundColor.isValid() && selectionBackgroundColor.alpha() && style.textStyles.fillColor == selectionBackgroundColor)
-            style.backgroundColor = { 0xff - selectionBackgroundColor.red(), 0xff - selectionBackgroundColor.green(), 0xff - selectionBackgroundColor.blue() };
+            style.backgroundColor = selectionBackgroundColor.invertedColorWithAlpha(1.0);
         break;
     }
     case MarkedText::TextMatch: {
@@ -1248,7 +1248,7 @@ void InlineTextBox::paintMarkedTextDecoration(PaintInfo& paintInfo, const FloatR
 void InlineTextBox::paintCompositionBackground(PaintInfo& paintInfo, const FloatPoint& boxOrigin)
 {
     if (!renderer().frame().editor().compositionUsesCustomHighlights()) {
-        paintMarkedTextBackground(paintInfo, boxOrigin, Color::compositionFill, clampedOffset(renderer().frame().editor().compositionStart()), clampedOffset(renderer().frame().editor().compositionEnd()));
+        paintMarkedTextBackground(paintInfo, boxOrigin, CompositionHighlight::defaultCompositionFillColor, clampedOffset(renderer().frame().editor().compositionStart()), clampedOffset(renderer().frame().editor().compositionEnd()));
         return;
     }
 

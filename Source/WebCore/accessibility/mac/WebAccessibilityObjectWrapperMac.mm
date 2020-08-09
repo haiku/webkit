@@ -1996,47 +1996,51 @@ static void WebTransformCGPathToNSBezierPath(void* info, const CGPathElement *el
 ALLOW_DEPRECATED_DECLARATIONS_BEGIN
 - (NSString*)subrole
 {
-    if (self.axBackingObject->isPasswordField())
+    auto* backingObject = self.axBackingObject;
+    if (!backingObject)
+        return nil;
+
+    // FIXME: create AXCoreObject::subrolePlatformString to replace the following linear search and heuristics, similar to rolePlatformString.
+    if (backingObject->isPasswordField())
         return NSAccessibilitySecureTextFieldSubrole;
-    if (self.axBackingObject->isSearchField())
+    if (backingObject->isSearchField())
         return NSAccessibilitySearchFieldSubrole;
-    
-    if (self.axBackingObject->isAttachment()) {
+
+    if (backingObject->isAttachment()) {
         NSView* attachView = [self attachmentView];
         if ([[attachView accessibilityAttributeNames] containsObject:NSAccessibilitySubroleAttribute])
             return [attachView accessibilityAttributeValue:NSAccessibilitySubroleAttribute];
     }
-    
-    if (self.axBackingObject->isMeter())
+
+    if (backingObject->isMeter())
         return @"AXMeter";
-    
-    AccessibilityRole role = self.axBackingObject->roleValue();
+
+    AccessibilityRole role = backingObject->roleValue();
     if (role == AccessibilityRole::HorizontalRule)
         return NSAccessibilityContentSeparatorSubrole;
     if (role == AccessibilityRole::ToggleButton)
         return NSAccessibilityToggleSubrole;
     if (role == AccessibilityRole::Footer)
         return @"AXFooter";
-
-    if (self.axBackingObject->roleValue() == AccessibilityRole::SpinButtonPart) {
-        if (self.axBackingObject->isIncrementor())
+    if (role == AccessibilityRole::SpinButtonPart) {
+        if (backingObject->isIncrementor())
             return NSAccessibilityIncrementArrowSubrole;
         return NSAccessibilityDecrementArrowSubrole;
     }
-    
-    if (self.axBackingObject->isFileUploadButton())
+
+    if (backingObject->isFileUploadButton())
         return @"AXFileUploadButton";
-    
-    if (self.axBackingObject->isTreeItem())
+
+    if (backingObject->isTreeItem())
         return NSAccessibilityOutlineRowSubrole;
-    
-    if (self.axBackingObject->isFieldset())
+
+    if (backingObject->isFieldset())
         return @"AXFieldset";
 
-    if (self.axBackingObject->isList()) {
-        if (self.axBackingObject->isUnorderedList() || self.axBackingObject->isOrderedList())
+    if (backingObject->isList()) {
+        if (backingObject->isUnorderedList() || backingObject->isOrderedList())
             return NSAccessibilityContentListSubrole;
-        if (self.axBackingObject->isDescriptionList()) {
+        if (backingObject->isDescriptionList()) {
             return NSAccessibilityDescriptionListSubrole;
         }
     }
@@ -2103,44 +2107,44 @@ ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     default:
         break;
     }
-    
+
     if (role == AccessibilityRole::MathElement) {
-        if (self.axBackingObject->isMathFraction())
+        if (backingObject->isMathFraction())
             return @"AXMathFraction";
-        if (self.axBackingObject->isMathFenced())
+        if (backingObject->isMathFenced())
             return @"AXMathFenced";
-        if (self.axBackingObject->isMathSubscriptSuperscript())
+        if (backingObject->isMathSubscriptSuperscript())
             return @"AXMathSubscriptSuperscript";
-        if (self.axBackingObject->isMathRow())
+        if (backingObject->isMathRow())
             return @"AXMathRow";
-        if (self.axBackingObject->isMathUnderOver())
+        if (backingObject->isMathUnderOver())
             return @"AXMathUnderOver";
-        if (self.axBackingObject->isMathSquareRoot())
+        if (backingObject->isMathSquareRoot())
             return @"AXMathSquareRoot";
-        if (self.axBackingObject->isMathRoot())
+        if (backingObject->isMathRoot())
             return @"AXMathRoot";
-        if (self.axBackingObject->isMathText())
+        if (backingObject->isMathText())
             return @"AXMathText";
-        if (self.axBackingObject->isMathNumber())
+        if (backingObject->isMathNumber())
             return @"AXMathNumber";
-        if (self.axBackingObject->isMathIdentifier())
+        if (backingObject->isMathIdentifier())
             return @"AXMathIdentifier";
-        if (self.axBackingObject->isMathTable())
+        if (backingObject->isMathTable())
             return @"AXMathTable";
-        if (self.axBackingObject->isMathTableRow())
+        if (backingObject->isMathTableRow())
             return @"AXMathTableRow";
-        if (self.axBackingObject->isMathTableCell())
+        if (backingObject->isMathTableCell())
             return @"AXMathTableCell";
-        if (self.axBackingObject->isMathFenceOperator())
+        if (backingObject->isMathFenceOperator())
             return @"AXMathFenceOperator";
-        if (self.axBackingObject->isMathSeparatorOperator())
+        if (backingObject->isMathSeparatorOperator())
             return @"AXMathSeparatorOperator";
-        if (self.axBackingObject->isMathOperator())
+        if (backingObject->isMathOperator())
             return @"AXMathOperator";
-        if (self.axBackingObject->isMathMultiscript())
+        if (backingObject->isMathMultiscript())
             return @"AXMathMultiscript";
     }
-    
+
     if (role == AccessibilityRole::Video)
         return @"AXVideo";
     if (role == AccessibilityRole::Audio)
@@ -2152,10 +2156,10 @@ ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     if (role == AccessibilityRole::Time)
         return @"AXTimeGroup";
 
-    if (self.axBackingObject->isMediaTimeline())
+    if (backingObject->isMediaTimeline())
         return NSAccessibilityTimelineSubrole;
 
-    if (self.axBackingObject->isSwitch())
+    if (backingObject->isSwitch())
         return NSAccessibilitySwitchSubrole;
 
     if (role == AccessibilityRole::Insertion)
@@ -2167,9 +2171,9 @@ ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     if (role == AccessibilityRole::Subscript)
         return @"AXSubscriptStyleGroup";
 
-    if (self.axBackingObject->isStyleFormatGroup()) {
+    if (backingObject->isStyleFormatGroup()) {
         using namespace HTMLNames;
-        auto tagName = self.axBackingObject->tagName();
+        auto tagName = backingObject->tagName();
         if (tagName == kbdTag)
             return @"AXKeyboardInputStyleGroup";
         if (tagName == codeTag)
@@ -2184,7 +2188,7 @@ ALLOW_DEPRECATED_DECLARATIONS_BEGIN
             return @"AXCiteStyleGroup";
         ASSERT_NOT_REACHED();
     }
-    
+
     // Ruby subroles
     switch (role) {
     case AccessibilityRole::RubyBase:
@@ -2200,40 +2204,42 @@ ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     default:
         break;
     }
-    
+
     return nil;
 }
 ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (NSString*)roleDescription
 {
-    if (!self.axBackingObject)
+    auto* backingObject = self.axBackingObject;
+    if (!backingObject)
         return nil;
 
     ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     // attachments have the AXImage role, but a different subrole
-    if (self.axBackingObject->isAttachment())
+    if (backingObject->isAttachment())
         return [[self attachmentView] accessibilityAttributeValue:NSAccessibilityRoleDescriptionAttribute];
     ALLOW_DEPRECATED_DECLARATIONS_END
 
-    String roleDescription = self.axBackingObject->roleDescription();
+    String roleDescription = backingObject->roleDescription();
     if (!roleDescription.isEmpty())
         return roleDescription;
 
-    NSString *axRole = self.axBackingObject->rolePlatformString();
+    NSString *axRole = backingObject->rolePlatformString();
+    NSString *subrole = self.subrole;
     // Fallback to the system default role description.
     // If we get the same string back, then as a last resort, return unknown.
-    NSString *defaultRoleDescription = NSAccessibilityRoleDescription(axRole, [self subrole]);
+    NSString *defaultRoleDescription = NSAccessibilityRoleDescription(axRole, subrole);
 
     // On earlier Mac versions (Lion), using a non-standard subrole would result in a role description
     // being returned that looked like AXRole:AXSubrole. To make all platforms have the same role descriptions
     // we should fallback on a role description ignoring the subrole in these cases.
-    if ([defaultRoleDescription isEqualToString:[NSString stringWithFormat:@"%@:%@", axRole, [self subrole]]])
+    if ([defaultRoleDescription isEqualToString:[NSString stringWithFormat:@"%@:%@", axRole, subrole]])
         defaultRoleDescription = NSAccessibilityRoleDescription(axRole, nil);
-    
+
     if (![defaultRoleDescription isEqualToString:axRole])
         return defaultRoleDescription;
-    
+
     return NSAccessibilityRoleDescription(NSAccessibilityUnknownRole, nil);
 }
 
@@ -2290,8 +2296,6 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
     AXTRACE(makeString("WebAccessibilityObjectWrapper accessibilityAttributeValue:", String(attributeName)));
     auto* backingObject = self.updateObjectBackingStore;
-    AXLOG("backingObject");
-    AXLOG(backingObject);
     if (!backingObject)
         return nil;
 

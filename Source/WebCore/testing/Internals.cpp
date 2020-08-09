@@ -196,6 +196,7 @@
 #include "ViewportArguments.h"
 #include "VoidCallback.h"
 #include "WebAnimation.h"
+#include "WebAnimationUtilities.h"
 #include "WebCoreJSClientData.h"
 #include "WindowProxy.h"
 #include "WorkerThread.h"
@@ -1198,6 +1199,11 @@ unsigned Internals::numberOfAnimationTimelineInvalidations() const
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
         return frame()->document()->timeline().numberOfAnimationTimelineInvalidationsForTesting();
     return 0;
+}
+
+double Internals::timeToNextAnimationTick(WebAnimation& animation) const
+{
+    return secondsToWebAnimationsAPITime(animation.timeToNextTick());
 }
 
 ExceptionOr<RefPtr<Element>> Internals::pseudoElement(Element& element, const String& pseudoId)
@@ -2354,6 +2360,17 @@ bool Internals::hasAutocorrectedMarker(int from, int length)
     updateEditorUINowIfScheduled();
 
     return document->editor().selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
+}
+
+bool Internals::hasDictationAlternativesMarker(int from, int length)
+{
+    auto* document = contextDocument();
+    if (!document || !document->frame())
+        return false;
+
+    updateEditorUINowIfScheduled();
+
+    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::DictationAlternatives, from, length);
 }
 
 void Internals::setContinuousSpellCheckingEnabled(bool enabled)
@@ -5584,13 +5601,6 @@ void Internals::setMockWebAuthenticationConfiguration(const MockWebAuthenticatio
     if (!page)
         return;
     page->chrome().client().setMockWebAuthenticationConfiguration(configuration);
-}
-#endif
-
-#if ENABLE(PICTURE_IN_PICTURE_API)
-void Internals::setPictureInPictureAPITestEnabled(HTMLVideoElement& videoElement, bool enabled)
-{
-    videoElement.setPictureInPictureAPITestEnabled(enabled);
 }
 #endif
 

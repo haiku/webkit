@@ -1920,6 +1920,20 @@ bool Document::hasPendingFullStyleRebuild() const
     return hasPendingStyleRecalc() && m_needsFullStyleRebuild;
 }
 
+void Document::updateRenderTree(std::unique_ptr<const Style::Update> styleUpdate)
+{
+    ASSERT(!inRenderTreeUpdate());
+
+    Style::PostResolutionCallbackDisabler callbackDisabler(*this);
+    {
+        SetForScope<bool> inRenderTreeUpdate(m_inRenderTreeUpdate, true);
+        {
+            RenderTreeUpdater updater(*this, callbackDisabler);
+            updater.commit(WTFMove(styleUpdate));
+        }
+    }
+}
+
 void Document::resolveStyle(ResolveStyleType type)
 {
     ASSERT(!view() || !view()->isPainting());
@@ -2004,11 +2018,7 @@ void Document::resolveStyle(ResolveStyleType type)
         m_inStyleRecalc = false;
 
         if (styleUpdate) {
-            SetForScope<bool> inRenderTreeUpdate(m_inRenderTreeUpdate, true);
-
-            RenderTreeUpdater updater(*this);
-            updater.commit(WTFMove(styleUpdate));
-
+            updateRenderTree(WTFMove(styleUpdate));
             frameView.styleAndRenderTreeDidChange();
         }
 
@@ -2042,14 +2052,10 @@ void Document::resolveStyle(ResolveStyleType type)
 
 void Document::updateTextRenderer(Text& text, unsigned offsetOfReplacedText, unsigned lengthOfReplacedText)
 {
-    ASSERT(!m_inRenderTreeUpdate);
-    SetForScope<bool> inRenderTreeUpdate(m_inRenderTreeUpdate, true);
-
     auto textUpdate = makeUnique<Style::Update>(*this);
     textUpdate->addText(text, { offsetOfReplacedText, lengthOfReplacedText, WTF::nullopt });
 
-    RenderTreeUpdater renderTreeUpdater(*this);
-    renderTreeUpdater.commit(WTFMove(textUpdate));
+    updateRenderTree(WTFMove(textUpdate));
 }
 
 bool Document::needsStyleRecalc() const
@@ -3046,11 +3052,13 @@ void Document::implicitClose()
         // FIXME: We shouldn't be dispatching pending events globally on all Documents here.
         // For now, only do this when there is a Frame, otherwise this could cause JS reentrancy
         // below SVG font parsing, for example. <https://webkit.org/b/136269>
-        ImageLoader::dispatchPendingBeforeLoadEvents();
-        ImageLoader::dispatchPendingLoadEvents();
-        ImageLoader::dispatchPendingErrorEvents();
-        HTMLLinkElement::dispatchPendingLoadEvents();
-        HTMLStyleElement::dispatchPendingLoadEvents();
+        if (auto* currentPage = page()) {
+            ImageLoader::dispatchPendingBeforeLoadEvents(currentPage);
+            ImageLoader::dispatchPendingLoadEvents(currentPage);
+            ImageLoader::dispatchPendingErrorEvents(currentPage);
+            HTMLLinkElement::dispatchPendingLoadEvents(currentPage);
+            HTMLStyleElement::dispatchPendingLoadEvents(currentPage);
+        }
 
         if (svgExtensions())
             accessSVGExtensions().dispatchLoadEventToOutermostSVGElements();
@@ -8572,6 +8580,41 @@ LazyLoadImageObserver& Document::lazyLoadImageObserver()
     if (!m_lazyLoadImageObserver)
         m_lazyLoadImageObserver = LazyLoadImageObserver::create();
     return *m_lazyLoadImageObserver;
+}
+
+void Document::prepareCanvasesForDisplayIfNeeded()
+{
+    // Some canvas contexts need to do work when rendering has finished but
+    // before their content is composited.
+    for (auto* canvas : m_canvasesNeedingDisplayPreparation) {
+        // However, if they are not in the document body, then they won't
+        // be composited and thus don't need preparation. Unfortunately they
+        // can't tell at the time they were added to the list, since they
+        // could be inserted or removed from the document body afterwards.
+        if (!canvas->isInTreeScope())
+            continue;
+
+        auto refCountedCanvas = makeRefPtr(canvas);
+        refCountedCanvas->prepareForDisplay();
+    }
+    m_canvasesNeedingDisplayPreparation.clear();
+}
+
+void Document::canvasChanged(CanvasBase& canvasBase, const FloatRect&)
+{
+    if (is<HTMLCanvasElement>(canvasBase)) {
+        auto* canvas = downcast<HTMLCanvasElement>(&canvasBase);
+        if (canvas->needsPreparationForDisplay())
+            m_canvasesNeedingDisplayPreparation.add(canvas);
+    }
+}
+
+void Document::canvasDestroyed(CanvasBase& canvasBase)
+{
+    if (is<HTMLCanvasElement>(canvasBase)) {
+        auto* canvas = downcast<HTMLCanvasElement>(&canvasBase);
+        m_canvasesNeedingDisplayPreparation.remove(canvas);
+    }
 }
 
 } // namespace WebCore

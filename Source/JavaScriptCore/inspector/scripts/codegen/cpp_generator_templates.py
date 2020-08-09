@@ -108,7 +108,7 @@ public:
     void setAlternateDispatcher(Alternate${domainName}BackendDispatcher* alternateDispatcher) { m_alternateDispatcher = alternateDispatcher; }
 private:
     Alternate${domainName}BackendDispatcher* m_alternateDispatcher { nullptr };
-#endif""")
+#endif // ENABLE(INSPECTOR_ALTERNATE_DISPATCHERS)""")
 
     BackendDispatcherHeaderAsyncCommandDeclaration = (
     """    ${classAndExportMacro} ${callbackName} : public BackendDispatcher::CallbackBase {
@@ -127,8 +127,8 @@ private:
     message->getObject("params"_s, parameters);
 
 ${dispatchCases}
-    else
-        m_backendDispatcher->reportProtocolError(BackendDispatcher::MethodNotFound, "'${domainName}." + method + "' was not found");
+
+    m_backendDispatcher->reportProtocolError(BackendDispatcher::MethodNotFound, "'${domainName}." + method + "' was not found");
 }""")
 
     BackendDispatcherImplementationLargeSwitch = (
@@ -139,8 +139,8 @@ ${dispatchCases}
     RefPtr<JSON::Object> parameters;
     message->getObject("params"_s, parameters);
 
-    typedef void (${domainName}BackendDispatcher::*CallHandler)(long requestId, RefPtr<JSON::Object>&& message);
-    typedef HashMap<String, CallHandler> DispatchMap;
+    using CallHandler = void (${domainName}BackendDispatcher::*)(long requestId, RefPtr<JSON::Object>&& message);
+    using DispatchMap = HashMap<String, CallHandler>;
     static NeverDestroyed<DispatchMap> dispatchMap;
     if (dispatchMap.get().isEmpty()) {
         static const struct MethodTable {

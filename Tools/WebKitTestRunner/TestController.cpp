@@ -795,8 +795,10 @@ void TestController::createWebViewWithOptions(const TestOptions& options)
     // something else for specific tests that need to run at a different window scale.
     m_mainWebView->changeWindowScaleIfNeeded(1);
     
-    if (!options.applicationBundleIdentifier.isEmpty())
+    if (!options.applicationBundleIdentifier.isEmpty()) {
         reinitializeAppBoundDomains();
+        updateBundleIdentifierInNetworkProcess(options.applicationBundleIdentifier);
+    }
 }
 
 void TestController::ensureViewSupportsOptionsForTest(const TestInvocation& test)
@@ -1142,18 +1144,29 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     m_serverTrustEvaluationCallbackCallsCount = 0;
     m_shouldDismissJavaScriptAlertsAsynchronously = false;
 
+    auto loadAboutBlank = [this] {
+        m_doneResetting = false;
+        WKPageLoadURL(m_mainWebView->page(), blankURL());
+        runUntil(m_doneResetting, m_currentInvocation->shortTimeout());
+        return m_doneResetting;
+    };
+
     // Reset main page back to about:blank
-    m_doneResetting = false;
-    WKPageLoadURL(m_mainWebView->page(), blankURL());
-    runUntil(m_doneResetting, m_currentInvocation->shortTimeout());
-    if (!m_doneResetting)
-        return false;
+    if (!loadAboutBlank()) {
+        WTFLogAlways("Failed to load 'about:blank', terminating process and trying again.");
+        WKPageTerminate(m_mainWebView->page());
+        if (!loadAboutBlank()) {
+            WTFLogAlways("Failed to load 'about:blank' again after termination.");
+            return false;
+        }
+    }
     
     if (resetStage == ResetStage::AfterTest) {
         updateLiveDocumentsAfterTest();
 #if PLATFORM(COCOA)
         clearApplicationBundleIdentifierTestingOverride();
 #endif
+        clearBundleIdentifierInNetworkProcess();
     }
 
     return m_doneResetting;
@@ -3478,6 +3491,14 @@ void TestController::setStatisticsMergeStatistic(WKStringRef host, WKStringRef t
     m_currentInvocation->didMergeStatistic();
 }
 
+void TestController::setStatisticsExpiredStatistic(WKStringRef host, bool hadUserInteraction, bool isScheduledForAllButCookieDataRemoval, bool isPrevalent)
+{
+    ResourceStatisticsCallbackContext context(*this);
+    WKWebsiteDataStoreSetStatisticsExpiredStatistic(websiteDataStore(), host, hadUserInteraction, isScheduledForAllButCookieDataRemoval, isPrevalent, &context, resourceStatisticsVoidResultCallback);
+    runUntil(context.done, noTimeout);
+    m_currentInvocation->didSetExpiredStatistic();
+}
+
 void TestController::setStatisticsPrevalentResource(WKStringRef host, bool value)
 {
     ResourceStatisticsCallbackContext context(*this);
@@ -3884,6 +3905,20 @@ void TestController::clearAppBoundSession()
 void TestController::reinitializeAppBoundDomains()
 {
     WKWebsiteDataStoreReinitializeAppBoundDomains(TestController::websiteDataStore());
+}
+
+void TestController::updateBundleIdentifierInNetworkProcess(const String& bundleIdentifier)
+{
+    InAppBrowserPrivacyCallbackContext context(*this);
+    WKWebsiteDataStoreUpdateBundleIdentifierInNetworkProcess(TestController::websiteDataStore(), adoptWK(WKStringCreateWithUTF8CString(bundleIdentifier.utf8().data())).get(), &context, inAppBrowserPrivacyVoidResultCallback);
+    runUntil(context.done, noTimeout);
+}
+
+void TestController::clearBundleIdentifierInNetworkProcess()
+{
+    InAppBrowserPrivacyCallbackContext context(*this);
+    WKWebsiteDataStoreClearBundleIdentifierInNetworkProcess(TestController::websiteDataStore(), &context, inAppBrowserPrivacyVoidResultCallback);
+    runUntil(context.done, noTimeout);
 }
 
 #if !PLATFORM(COCOA)

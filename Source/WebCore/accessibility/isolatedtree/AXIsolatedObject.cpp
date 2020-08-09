@@ -84,7 +84,6 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::IsGroup, object.isGroup());
     setProperty(AXPropertyName::IsHeading, object.isHeading());
     setProperty(AXPropertyName::IsHovered, object.isHovered());
-    setProperty(AXPropertyName::IsImage, object.isImage());
     setProperty(AXPropertyName::IsImageMapLink, object.isImageMapLink());
     setProperty(AXPropertyName::IsIndeterminate, object.isIndeterminate());
     setProperty(AXPropertyName::IsInlineText, object.isInlineText());
@@ -349,7 +348,7 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     
     int r, g, b;
     object.colorValue(r, g, b);
-    setProperty(AXPropertyName::ColorValue, Color(r, g, b));
+    setProperty(AXPropertyName::ColorValue, makeSimpleColor(r, g, b));
     
     if (bool isMathElement = object.isMathElement()) {
         setProperty(AXPropertyName::IsMathElement, isMathElement);
@@ -698,10 +697,10 @@ void AXIsolatedObject::setPreventKeyboardDOMEventDispatch(bool value)
 
 void AXIsolatedObject::colorValue(int& r, int& g, int& b) const
 {
-    auto color = colorAttributeValue(AXPropertyName::ColorValue);
-    r = color.red();
-    g = color.green();
-    b = color.blue();
+    auto color = colorAttributeValue(AXPropertyName::ColorValue).toSRGBASimpleColorLossy();
+    r = color.redComponent();
+    g = color.greenComponent();
+    b = color.blueComponent();
 }
 
 AXCoreObject* AXIsolatedObject::accessibilityHitTest(const IntPoint& point) const

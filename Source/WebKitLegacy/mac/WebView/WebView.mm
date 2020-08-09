@@ -112,7 +112,6 @@
 #import "WebStorageNamespaceProvider.h"
 #import "WebTextCompletionController.h"
 #import "WebTextIterator.h"
-#import "WebUIDelegate.h"
 #import "WebUIDelegatePrivate.h"
 #import "WebValidationMessageClient.h"
 #import "WebViewGroup.h"
@@ -140,6 +139,7 @@
 #import <WebCore/CookieJar.h>
 #import <WebCore/DatabaseManager.h>
 #import <WebCore/DeprecatedGlobalSettings.h>
+#import <WebCore/DictationAlternative.h>
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/Document.h>
 #import <WebCore/DocumentLoader.h>
@@ -192,6 +192,7 @@
 #import <WebCore/PageGroup.h>
 #import <WebCore/PathUtilities.h>
 #import <WebCore/PlatformEventFactoryMac.h>
+#import <WebCore/PlatformScreen.h>
 #import <WebCore/ProgressTracker.h>
 #import <WebCore/RenderTheme.h>
 #import <WebCore/RenderView.h>
@@ -562,8 +563,9 @@ static const char webViewIsOpen[] = "At least one WebView is still open.";
 
 @interface _WebSafeForwarder : NSObject
 {
-    __weak id _target;
-    __weak id _defaultTarget;
+    // Do not not change _target and _defaultTarget to __weak. See <rdar://problem/62624078>.
+    __unsafe_unretained id _target;
+    __unsafe_unretained id _defaultTarget;
 #if PLATFORM(IOS_FAMILY)
     _WebSafeAsyncForwarder *_asyncForwarder;
 #endif
@@ -574,6 +576,20 @@ static const char webViewIsOpen[] = "At least one WebView is still open.";
 - (void)clearTarget;
 #endif
 @end
+
+#if ENABLE(DRAG_SUPPORT)
+static OptionSet<WebCore::DragDestinationAction> coreDragDestinationActionMask(WebDragDestinationAction actionMask)
+{
+    OptionSet<WebCore::DragDestinationAction> result;
+    if (actionMask & WebDragDestinationActionDHTML)
+        result.add(WebCore::DragDestinationAction::DHTML);
+    if (actionMask & WebDragDestinationActionEdit)
+        result.add(WebCore::DragDestinationAction::Edit);
+    if (actionMask & WebDragDestinationActionLoad)
+        result.add(WebCore::DragDestinationAction::Load);
+    return result;
+}
+#endif // ENABLE(DRAG_SUPPORT)
 
 WebCore::FindOptions coreOptions(WebFindOptions options)
 {
@@ -1908,8 +1924,8 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 - (WebCore::DragData)dragDataForSession:(id <UIDropSession>)session client:(CGPoint)clientPosition global:(CGPoint)globalPosition operation:(uint64_t)operation
 {
     auto dragOperationMask = static_cast<WebCore::DragOperation>(operation);
-    auto dragDestinationMask = static_cast<WebCore::DragDestinationAction>([self dragDestinationActionMaskForSession:session]);
-    return { session, WebCore::roundedIntPoint(clientPosition), WebCore::roundedIntPoint(globalPosition), dragOperationMask, WebCore::DragApplicationNone, dragDestinationMask };
+    auto dragDestinationActionMask = coreDragDestinationActionMask([self dragDestinationActionMaskForSession:session]);
+    return { session, WebCore::roundedIntPoint(clientPosition), WebCore::roundedIntPoint(globalPosition), dragOperationMask, WebCore::DragApplicationNone, dragDestinationActionMask };
 }
 
 - (uint64_t)_enteredDataInteraction:(id <UIDropSession>)session client:(CGPoint)clientPosition global:(CGPoint)globalPosition operation:(uint64_t)operation
@@ -1925,12 +1941,14 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     auto dragData = [self dragDataForSession:session client:clientPosition global:globalPosition operation:operation];
     return _private->page->dragController().dragUpdated(dragData);
 }
+
 - (void)_exitedDataInteraction:(id <UIDropSession>)session client:(CGPoint)clientPosition global:(CGPoint)globalPosition operation:(uint64_t)operation
 {
     WebThreadLock();
     auto dragData = [self dragDataForSession:session client:clientPosition global:globalPosition operation:operation];
     _private->page->dragController().dragExited(dragData);
 }
+
 - (void)_performDataInteraction:(id <UIDropSession>)session client:(CGPoint)clientPosition global:(CGPoint)globalPosition operation:(uint64_t)operation
 {
     [self _tryToPerformDataInteraction:session client:clientPosition global:globalPosition operation:operation];
@@ -6046,7 +6064,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 - (void)doWindowDidChangeScreen
 {
     if (_private && _private->page)
-        _private->page->chrome().windowScreenDidChange((WebCore::PlatformDisplayID)[[[[[self window] screen] deviceDescription] objectForKey:@"NSScreenNumber"] intValue]);
+        _private->page->chrome().windowScreenDidChange(WebCore::displayID(self.window.screen), WTF::nullopt);
 }
 
 - (void)_windowChangedKeyState
@@ -6720,9 +6738,9 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     return static_cast<WebCore::DragApplicationFlags>(flags);
 }
 
-- (WebCore::DragDestinationAction)actionMaskForDraggingInfo:(id <NSDraggingInfo>)draggingInfo
+- (OptionSet<WebCore::DragDestinationAction>)actionMaskForDraggingInfo:(id <NSDraggingInfo>)draggingInfo
 {
-    return (WebCore::DragDestinationAction)[[self _UIDelegateForwarder] webView:self dragDestinationActionMaskForDraggingInfo:draggingInfo];
+    return coreDragDestinationActionMask([[self _UIDelegateForwarder] webView:self dragDestinationActionMaskForDraggingInfo:draggingInfo]);
 }
 
 - (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)draggingInfo
@@ -9271,18 +9289,8 @@ bool LayerFlushController::flushLayers()
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
 
-- (void)_setMockVideoPresentationModeEnabled:(BOOL)enabled
-{
-    _private->mockVideoPresentationModeEnabled = enabled;
-}
-
 - (void)_enterVideoFullscreenForVideoElement:(NakedPtr<WebCore::HTMLVideoElement>)videoElement mode:(WebCore::HTMLMediaElementEnums::VideoFullscreenMode)mode
 {
-    if (_private->mockVideoPresentationModeEnabled) {
-        videoElement->didBecomeFullscreenElement();
-        return;
-    }
-
     if (_private->fullscreenController) {
         if ([_private->fullscreenController videoElement] == videoElement) {
             // The backend may just warn us that the underlaying plaftormMovie()
@@ -9311,9 +9319,6 @@ bool LayerFlushController::flushLayers()
 
 - (void)_exitVideoFullscreen
 {
-    if (_private->mockVideoPresentationModeEnabled)
-        return;
-
     if (!_private->fullscreenController && _private->fullscreenControllersExiting.isEmpty())
         return;
 
@@ -9419,11 +9424,11 @@ bool LayerFlushController::flushLayers()
 {
     for (auto& alternativeWithRange : alternativesWithRange) {
         if (auto dictationContext = _private->m_alternativeTextUIController->addAlternatives(alternativeWithRange.alternatives.get()))
-            alternatives.append(WebCore::DictationAlternative(alternativeWithRange.range.location, alternativeWithRange.range.length, dictationContext));
+            alternatives.append({ alternativeWithRange.range, dictationContext });
     }
 }
 
-- (void)_showDictationAlternativeUI:(const WebCore::FloatRect&)boundingBoxOfDictatedText forDictationContext:(uint64_t)dictationContext
+- (void)_showDictationAlternativeUI:(const WebCore::FloatRect&)boundingBoxOfDictatedText forDictationContext:(WebCore::DictationContext)dictationContext
 {
 #if USE(AUTOCORRECTION_PANEL)
     _private->m_alternativeTextUIController->showAlternatives(self, [self _convertRectFromRootView:boundingBoxOfDictatedText], dictationContext, ^(NSString* acceptedAlternative) {
@@ -9432,12 +9437,12 @@ bool LayerFlushController::flushLayers()
 #endif
 }
 
-- (void)_removeDictationAlternatives:(uint64_t)dictationContext
+- (void)_removeDictationAlternatives:(WebCore::DictationContext)dictationContext
 {
     _private->m_alternativeTextUIController->removeAlternatives(dictationContext);
 }
 
-- (Vector<String>)_dictationAlternatives:(uint64_t)dictationContext
+- (Vector<String>)_dictationAlternatives:(WebCore::DictationContext)dictationContext
 {
     return _private->m_alternativeTextUIController->alternativesForContext(dictationContext);
 }

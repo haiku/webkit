@@ -55,8 +55,9 @@ extern const CFStringRef _kCFWindowsSSLPeerCert;
 
 WTF_EXTERN_C_END
 
-#else // PLATFORM(WIN)
+#else // !PLATFORM(WIN)
 #include <CFNetwork/CFSocketStreamPriv.h>
+#include <nw/private.h>
 #endif // PLATFORM(WIN)
 
 // FIXME: Remove the defined(__OBJC__)-guard once we fix <rdar://problem/19033610>.
@@ -65,6 +66,19 @@ WTF_EXTERN_C_END
 #endif
 
 #else // !PLATFORM(WIN) && !USE(APPLE_INTERNAL_SDK)
+
+#if HAVE(LOGGING_PRIVACY_LEVEL)
+typedef enum {
+    nw_context_privacy_level_public = 1,
+    nw_context_privacy_level_private = 2,
+    nw_context_privacy_level_sensitive = 3,
+    nw_context_privacy_level_silent = 4,
+} nw_context_privacy_level_t;
+
+#ifndef NW_CONTEXT_HAS_PRIVACY_LEVEL_SILENT
+#define NW_CONTEXT_HAS_PRIVACY_LEVEL_SILENT    1
+#endif
+#endif // HAVE(LOGGING_PRIVACY_LEVEL)
 
 typedef CF_ENUM(int64_t, _TimingDataOptions)
 {
@@ -209,6 +223,9 @@ typedef NS_ENUM(NSInteger, NSURLSessionCompanionProxyPreference) {
 #if HAVE(ALLOWS_SENSITIVE_LOGGING)
 @property BOOL _allowsSensitiveLogging;
 #endif
+#if HAVE(LOGGING_PRIVACY_LEVEL)
+@property nw_context_privacy_level_t _loggingPrivacyLevel;
+#endif
 #if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
 @property (nullable, retain) _NSHTTPAlternativeServicesStorage *_alternativeServicesStorage;
 @property (readonly, assign) BOOL _allowsHTTP3;
@@ -279,7 +296,7 @@ extern NSString * const NSURLAuthenticationMethodOAuth;
 
 #endif // defined(__OBJC__)
 
-#endif // !PLATFORM(WIN) && !USE(APPLE_INTERNAL_SDK)
+#endif // PLATFORM(WIN) || USE(APPLE_INTERNAL_SDK)
 
 WTF_EXTERN_C_BEGIN
 
@@ -425,7 +442,7 @@ WTF_EXTERN_C_END
 - (void)_setCookiesRemovedHandler:(void(^__nullable)(NSArray<NSHTTPCookie*>* __nullable removedCookies, NSString* __nullable domainForRemovedCookies, bool removeAllCookies))cookiesRemovedHandler onQueue:(dispatch_queue_t __nullable)queue;
 @end
 
-@interface __NSCFLocalDownloadFile
+@interface __NSCFLocalDownloadFile : NSObject
 @end
 @interface __NSCFLocalDownloadFile ()
 @property (readwrite, assign) BOOL skipUnlink;

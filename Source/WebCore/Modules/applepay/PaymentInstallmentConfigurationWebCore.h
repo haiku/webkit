@@ -29,22 +29,28 @@
 
 #include <wtf/RetainPtr.h>
 
+OBJC_CLASS NSDictionary;
 OBJC_CLASS PKPaymentInstallmentConfiguration;
 
 namespace WebCore {
 
+class Document;
 struct ApplePayInstallmentConfiguration;
+template<typename> class ExceptionOr;
 
 class WEBCORE_EXPORT PaymentInstallmentConfiguration {
 public:
+    static ExceptionOr<PaymentInstallmentConfiguration> create(const ApplePayInstallmentConfiguration&);
+
     PaymentInstallmentConfiguration() = default;
-    PaymentInstallmentConfiguration(const ApplePayInstallmentConfiguration&);
     PaymentInstallmentConfiguration(RetainPtr<PKPaymentInstallmentConfiguration>&&);
 
     PKPaymentInstallmentConfiguration *platformConfiguration() const;
     ApplePayInstallmentConfiguration applePayInstallmentConfiguration() const;
 
 private:
+    PaymentInstallmentConfiguration(const ApplePayInstallmentConfiguration&, NSDictionary *applicationMetadata);
+
     RetainPtr<PKPaymentInstallmentConfiguration> m_configuration;
 };
 

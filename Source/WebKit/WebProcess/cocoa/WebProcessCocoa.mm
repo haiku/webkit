@@ -166,37 +166,8 @@ static id NSApplicationAccessibilityFocusedUIElement(NSApplication*, SEL)
 }
 #endif
 
-#if ENABLE(CFPREFS_DIRECT_MODE)
-static void setGlobalPreferences(const String& encodedGlobalPreferences)
-{
-    if (encodedGlobalPreferences.isEmpty())
-        return;
-
-    auto encodedData = adoptNS([[NSData alloc] initWithBase64EncodedString:encodedGlobalPreferences options:0]);
-    if (!encodedData)
-        return;
-
-    NSError *err = nil;
-    auto classes = [NSSet setWithArray:@[[NSString class], [NSNumber class], [NSDate class], [NSDictionary class], [NSArray class], [NSData class]]];
-    id globalPreferencesDictionary = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:encodedData.get() error:&err];
-    if (err) {
-        ASSERT_NOT_REACHED();
-        WTFLogAlways("Failed to unarchive global preferences dictionary with NSKeyedUnarchiver.");
-        return;
-    }
-    [globalPreferencesDictionary enumerateKeysAndObjectsUsingBlock: ^(NSString *key, id value, BOOL* stop) {
-        if (value)
-            CFPreferencesSetAppValue(static_cast<CFStringRef>(key), static_cast<CFPropertyListRef>(value), CFSTR("kCFPreferencesAnyApplication"));
-    }];
-}
-#endif
-
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
-#if ENABLE(CFPREFS_DIRECT_MODE)
-    setGlobalPreferences(parameters.encodedGlobalPreferences);
-#endif
-
     // Map Launch Services database. This should be done as early as possible, as the mapping will fail
     // if 'com.apple.lsd.mapdb' is being accessed before this.
     if (parameters.mapDBExtensionHandle) {
@@ -205,16 +176,13 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
         ASSERT_UNUSED(ok, ok);
         // Perform API calls which will communicate with the database mapping service, and map the database.
         auto uti = adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, CFSTR("text/html"), 0));
+
+        [[objc_getClass("_LSDReadService") XPCConnectionToService] invalidate];
+
         ok = extension->revoke();
         ASSERT_UNUSED(ok, ok);
 
-        auto services = [get_LSDServiceClass() allServiceClasses];
-        for (Class cls in services) {
-            auto connection = [cls XPCConnectionToService];
-            [connection invalidate];
-        }
-
-        ASSERT(String(uti.get()) = String(adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, CFSTR("text/html"), 0)).get()));
+        ASSERT(String(uti.get()) == String(adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, CFSTR("text/html"), 0)).get()));
     }
 
 #if PLATFORM(IOS_FAMILY)
@@ -945,11 +913,52 @@ void WebProcess::setMediaMIMETypes(const Vector<String> types)
 }
 
 #if ENABLE(CFPREFS_DIRECT_MODE)
+
+#if USE(APPKIT)
+static const WTF::String& userAccentColorPreferenceKey()
+{
+    static NeverDestroyed<WTF::String> userAccentColorPreferenceKey(MAKE_STATIC_STRING_IMPL("AppleAccentColor"));
+    return userAccentColorPreferenceKey;
+}
+#endif
+
+static bool shouldWriteToAppDomainForPreferenceKey(const String& key)
+{
+#if USE(APPKIT)
+    return key == userAccentColorPreferenceKey();
+#else
+    return false;
+#endif
+}
+
+static void dispatchSimulatedNotificationsForPreferenceChange(const String& key)
+{
+#if USE(APPKIT)
+    // Ordinarily, other parts of the system ensure that this notification is posted after this default is changed.
+    // However, since we synchronize defaults to the Web Content process using a mechanism not known to the rest
+    // of the system, we must re-post the notification in the Web Content process after updating the default.
+    if (key == userAccentColorPreferenceKey())
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"kCUINotificationAquaColorVariantChanged" object:nil];
+#endif
+}
+
 void WebProcess::notifyPreferencesChanged(const String& domain, const String& key, const Optional<String>& encodedValue)
 {
-    auto defaults = adoptNS([[NSUserDefaults alloc] initWithSuiteName:domain]);
+    // FIXME (212627): In the case of global preference changes, the domain that we are notified in is
+    // not the correct domain to write to; it is an arbitrary domain affected by the global change.
+    // Work around this by writing to the app's domain in cases where we know that is OK
+    // (because the code that uses the default in the Web Content process reads from
+    // -standardUserDefaults, not from a specific domain). PreferenceObserver needs to be fixed
+    // to find the correct domain, but we currently have no mechanism to do so.
+    RetainPtr<NSUserDefaults> defaults;
+    if (shouldWriteToAppDomainForPreferenceKey(key))
+        defaults = [NSUserDefaults standardUserDefaults];
+    else
+        defaults = adoptNS([[NSUserDefaults alloc] initWithSuiteName:domain]);
+
     if (!encodedValue.hasValue()) {
         [defaults setObject:nil forKey:key];
+        dispatchSimulatedNotificationsForPreferenceChange(key);
         return;
     }
     auto encodedData = adoptNS([[NSData alloc] initWithBase64EncodedString:*encodedValue options:0]);
@@ -962,6 +971,7 @@ void WebProcess::notifyPreferencesChanged(const String& domain, const String& ke
     if (err)
         return;
     [defaults setObject:object forKey:key];
+    dispatchSimulatedNotificationsForPreferenceChange(key);
 }
 
 void WebProcess::unblockPreferenceService(SandboxExtension::HandleArray&& handleArray)

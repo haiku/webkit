@@ -36,27 +36,32 @@ namespace TestWebKitAPI {
 
 TEST(ExtendedColor, Constructor)
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
-    EXPECT_FLOAT_EQ(1.0, c1.asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c1.asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c1.asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c1.asExtended().alpha());
+
+    auto [r, g, b, alpha] = c1.asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c1.asExtended().refCount());
     EXPECT_EQ(c1.cssText(), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, CopyConstructor)
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2(c1);
 
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c2.asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c2.asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().alpha());
+    auto [r, g, b, alpha] = c2.asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(2u, c1.asExtended().refCount());
     EXPECT_EQ(2u, c2.asExtended().refCount());
     EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
@@ -64,15 +69,17 @@ TEST(ExtendedColor, CopyConstructor)
 
 TEST(ExtendedColor, Assignment)
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2 = c1;
 
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c2.asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c2.asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().alpha());
+    auto [r, g, b, alpha] = c2.asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(2u, c1.asExtended().refCount());
     EXPECT_EQ(2u, c2.asExtended().refCount());
     EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
@@ -81,20 +88,20 @@ TEST(ExtendedColor, Assignment)
 TEST(ExtendedColor, Equality)
 {
     {
-        Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_EQ(c1, c2);
     }
 
     {
-        Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB);
+        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB) };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_NE(c1, c2);
@@ -104,8 +111,8 @@ TEST(ExtendedColor, Equality)
     int g = 128;
     int b = 63;
     int a = 127;
-    Color rgb1(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB);
-    Color rgb2(r, g, b, a);
+    Color rgb1 { makeExtendedColor(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB) };
+    Color rgb2 = makeSimpleColor(r, g, b, a);
     EXPECT_NE(rgb1, rgb2);
     EXPECT_NE(rgb2, rgb1);
 }
@@ -113,20 +120,20 @@ TEST(ExtendedColor, Equality)
 TEST(ExtendedColor, Hash)
 {
     {
-        Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_EQ(c1.hash(), c2.hash());
     }
 
     {
-        Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB);
+        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB) };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_NE(c1.hash(), c2.hash());
@@ -136,14 +143,14 @@ TEST(ExtendedColor, Hash)
     int g = 128;
     int b = 63;
     int a = 127;
-    Color rgb1(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB);
-    Color rgb2(r, g, b, a);
+    Color rgb1 { makeExtendedColor(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB) };
+    Color rgb2 = makeSimpleColor(r, g, b, a);
     EXPECT_NE(rgb1.hash(), rgb2.hash());
 }
 
 TEST(ExtendedColor, MoveConstructor)
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2(WTFMove(c1));
@@ -152,17 +159,19 @@ TEST(ExtendedColor, MoveConstructor)
     EXPECT_FALSE(c1.isExtended());
     EXPECT_FALSE(c1.isValid());
 
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c2.asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c2.asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().alpha());
+    auto [r, g, b, alpha] = c2.asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c2.asExtended().refCount());
     EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, MoveAssignment)
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2 = WTFMove(c1);
@@ -172,26 +181,30 @@ TEST(ExtendedColor, MoveAssignment)
     EXPECT_FALSE(c1.isExtended());
     EXPECT_FALSE(c1.isValid());
 
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c2.asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c2.asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c2.asExtended().alpha());
+    auto [r, g, b, alpha] = c2.asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c2.asExtended().refCount());
     EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, BasicReferenceCounting)
 {
-    Color* c1 = new Color(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color* c1 = new Color { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1->isExtended());
 
     Color* c2 = new Color(*c1);
     Color* c3 = new Color(*c2);
 
-    EXPECT_FLOAT_EQ(1.0, c2->asExtended().red());
-    EXPECT_FLOAT_EQ(0.5, c2->asExtended().green());
-    EXPECT_FLOAT_EQ(0.25, c2->asExtended().blue());
-    EXPECT_FLOAT_EQ(1.0, c2->asExtended().alpha());
+    auto [r, g, b, alpha] = c2->asExtended().components();
+
+    EXPECT_FLOAT_EQ(1.0, r);
+    EXPECT_FLOAT_EQ(0.5, g);
+    EXPECT_FLOAT_EQ(0.25, b);
+    EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(3u, c2->asExtended().refCount());
     EXPECT_EQ(c2->cssText(), "color(display-p3 1 0.5 0.25)");
 
@@ -206,7 +219,7 @@ TEST(ExtendedColor, BasicReferenceCounting)
 
 Color makeColor()
 {
-    Color c1(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3);
+    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
     EXPECT_TRUE(c1.isExtended());
     EXPECT_EQ(1u, c1.asExtended().refCount());
 
@@ -225,7 +238,7 @@ TEST(ExtendedColor, ReturnValues)
 TEST(ExtendedColor, P3ConversionToSRGB)
 {
     {
-        Color p3Color(1.0, 0.5, 0.25, 0.75, ColorSpace::DisplayP3);
+        Color p3Color { makeExtendedColor(1.0, 0.5, 0.25, 0.75, ColorSpace::DisplayP3) };
         EXPECT_TRUE(p3Color.isExtended());
 
         auto sRGBComponents = p3Color.toSRGBAComponentsLossy();
@@ -236,7 +249,7 @@ TEST(ExtendedColor, P3ConversionToSRGB)
     }
 
     {
-        Color linearColor(1.0, 0.5, 0.25, 0.75, ColorSpace::LinearRGB);
+        Color linearColor { makeExtendedColor(1.0, 0.5, 0.25, 0.75, ColorSpace::LinearRGB) };
         EXPECT_TRUE(linearColor.isExtended());
         auto sRGBComponents = linearColor.toSRGBAComponentsLossy();
         EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBComponents.components[0], 1.0f));

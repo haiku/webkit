@@ -34,6 +34,7 @@
 #include "WebKitWebViewBasePrivate.h"
 #include "WebPageGroup.h"
 #include <WebCore/CertificateInfo.h>
+#include <WebCore/GtkVersioning.h>
 #include <wtf/text/Base64.h>
 
 namespace WebKit {
@@ -72,8 +73,12 @@ WebPageProxy* RemoteWebInspectorProxy::platformCreateFrontendPageAndWindow()
     g_object_add_weak_pointer(G_OBJECT(m_webView), reinterpret_cast<void**>(&m_webView));
 
     m_window = webkitInspectorWindowNew();
+#if USE(GTK4)
+    gtk_window_set_child(GTK_WINDOW(m_window), m_webView);
+#else
     gtk_container_add(GTK_CONTAINER(m_window), m_webView);
     gtk_widget_show(m_webView);
+#endif
 
     g_object_add_weak_pointer(G_OBJECT(m_window), reinterpret_cast<void**>(&m_window));
     gtk_window_present(GTK_WINDOW(m_window));

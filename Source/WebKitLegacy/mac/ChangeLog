@@ -1,3 +1,355 @@
+2020-06-02  Keith Rollin  <krollin@apple.com>
+
+        Revert FEATURES_DEFINES related changes
+        https://bugs.webkit.org/show_bug.cgi?id=212664
+        <rdar://problem/63893033>
+
+        Reviewed by Andy Estes.
+
+        Bug 262310, Bug 262311, Bug 262318, and Bug 262331 involve changes to
+        FEATURE_DEFINES and how the values there relate to those found in the
+        Platform*.h files. Those changes break XCBuild (by removing the
+        .xcfilelist related to UnifiedSources and the process for generating
+        them), and so are being reverted.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-02  Peng Liu  <peng.liu6@apple.com>
+
+        Stressing webkitSetPresentationMode leads to wrong inline video dimensions
+        https://bugs.webkit.org/show_bug.cgi?id=202425
+
+        Reviewed by Eric Carlson.
+
+        Move DumpRenderTree's implementation of the mock video presentation mode from WebView
+        to WebChromeClient and call videoElement.didStopBeingFullscreenElement() when a video
+        element exits fullscreen.
+
+        * WebCoreSupport/WebChromeClient.h:
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::setMockVideoPresentationModeEnabled):
+        (WebChromeClient::enterVideoFullscreenForVideoElement):
+        (WebChromeClient::exitVideoFullscreenForVideoElement):
+        (WebChromeClient::exitVideoFullscreenToModeWithoutAnimation):
+        * WebView/WebView.mm:
+        (-[WebView _enterVideoFullscreenForVideoElement:mode:]):
+        (-[WebView _exitVideoFullscreen]):
+        (-[WebView _setMockVideoPresentationModeEnabled:]): Deleted.
+        * WebView/WebViewData.h:
+        * WebView/WebViewInternal.h:
+
+2020-06-01  David Kilzer  <ddkilzer@apple.com>
+
+        Don't use casts to convert between WebCore::DragDestinationAction and {Web,WK}DragDestinationAction types
+        <https://webkit.org/b/212507>
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebDragClient.mm:
+        (kit):
+        - Add conversion function to avoid casting.
+        (WebDragClient::willPerformDragDestinationAction):
+        - Make use of kit() conversion function.
+        * WebView/WebView.mm:
+        (coreDragDestinationActionMask):
+        - Add conversion function to avoid casting.
+        (-[WebView dragDataForSession:client:global:operation:]):
+        (-[WebView actionMaskForDraggingInfo:]):
+        - Make use of coreDragDestinationActionMask() conversion
+          function.
+
+2020-06-01  Sam Weinig  <weinig@apple.com>
+
+        Extended Color: Replace Color constructors taking numeric values with type specific factory functions
+        https://bugs.webkit.org/show_bug.cgi?id=212576
+
+        Reviewed by Tim Horton.
+
+        Replaces all remaining implicit and explicit uses of the Color constructors taking numeric
+        values with explicit calls to makeSimpleColor/makeSimpleColorFromFloats/makeExtendedColor,
+        giving us a consistent way to create colors. Also addes use constexpr SimpleColors where possible.
+
+        * WebView/WebIndicateLayer.mm:
+
+2020-05-29  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Remove conditionals for ENABLE_APPLE_PAY_SESSION_V(3|4)
+        https://bugs.webkit.org/show_bug.cgi?id=212541
+
+        Reviewed by Darin Adler.
+
+        APPLE_PAY_SESSION_V(3|4) is now enabled whenever APPLE_PAY itself is enabled.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-05-29  David Kilzer  <ddkilzer@apple.com>
+
+        REGRESSION (r260306): Compatibility issue leading to crash on macOS games
+        <https://webkit.org/b/212546>
+        <rdar://problem/62624078>
+
+        Reviewed by Brent Fulgham.
+
+        * WebView/WebView.mm:
+        (_WebSafeForwarder._target):
+        (_WebSafeForwarder._defaultTarget):
+        - Change __weak attribute to __unsafe_unretained to fix the
+          crash.
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Rubber-stamped by Simon Fraser.
+
+        * Configurations/FeatureDefines.xcconfig: Add back ENABLE_CSS_CONIC_GRADIENTS, removed
+        by accident.
+
+2020-05-27  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Andy Estes.
+
+        * Configurations/FeatureDefines.xcconfig: Removed 83 of the 119 things defined in
+        this file. There are 36 more that are slightly more complex that we can remove
+        carefully later.
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Pass all defines from Platform.h to various scripts, not just the ones from .xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+
+        Reviewed by Sam Weinig.
+
+        * MigrateHeaders.make: Run the preprocessor on Platform.h and parse the output into
+        FEATURE_AND_PLATFORM_DEFINES. Use that and FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES
+        whenever we need a list of defines. Also took out some Windows-specific stuff since
+        this is now only used on Mac platforms. Use ":=" when calling $(shell) to make sure
+        the same shell command is not invoked over and over again.
+
+2020-05-29  Keith Rollin  <krollin@apple.com>
+
+        Revert switch to XCBuild
+        https://bugs.webkit.org/show_bug.cgi?id=212530
+        <rdar://problem/63764632>
+
+        Unreviewed build fix.
+
+        Bug 209890 enabled the use of XCBuild by default. Since then, some
+        build issues have shown up. While addressing them, temporarily turn
+        off the use of XCBuild by default.
+
+        * Configurations/WebKitLegacy.xcconfig:
+
+2020-05-29  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r262245.
+        https://bugs.webkit.org/show_bug.cgi?id=212531
+
+        "Caused WebCore's 'Check .xcfilelists' build phase to be ~100x
+        slower"
+
+        Reverted changeset:
+
+        "[Cocoa] Pass all defines from Platform.h to various scripts,
+        not just the ones from .xcconfig"
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+        https://trac.webkit.org/changeset/262245
+
+2020-05-28  Megan Gardner  <megan_gardner@apple.com>
+
+        Responding to post commit review comments for https://bugs.webkit.org/show_bug.cgi?id=212060
+
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        * WebView/WebViewData.h:
+
+2020-05-28  David Kilzer  <ddkilzer@apple.com>
+
+        Follow-up build fix: [Cocoa] Pass all defines from Platform.h to various scripts, not just the ones from .xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+
+        Fixes the following build error:
+
+            PhaseScriptExecution Migrate\ Headers BUILD_DIR/WebKitLegacy.build/Debug/WebKitLegacy.build/Script-1C6CB0510AA63EB000D23BFD.sh
+                cd SOURCE_DIR/Source/WebKitLegacy
+                /bin/sh -c BUILD_DIR/WebKitLegacy.build/Debug/WebKitLegacy.build/Script-1C6CB0510AA63EB000D23BFD.sh
+            clang: warning: no such sysroot directory: 'macosx.internal' [-Wmissing-sysroot]
+            In file included from <built-in>:1:
+            In file included from BUILD_DIR/Debug/usr/local/include/wtf/Platform.h:44:
+            BUILD_DIR/Debug/usr/local/include/wtf/PlatformOS.h:36:10: fatal error: 'Availability.h' file not found
+            #include <Availability.h>
+                     ^~~~~~~~~~~~~~~~
+            1 error generated.
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/WebKitAvailability.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/WebKitAvailability.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/WebScriptObject.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/WebScriptObject.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/npapi.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/npapi.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/npfunctions.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/npfunctions.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/npruntime.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/npruntime.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            sed -E -e 's/<WebCore\//<WebKitLegacy\//' -e "s/(^ *)WEBCORE_EXPORT /\1/" BUILD_DIR/Debug/DerivedSources/WebKitLegacy/WebCorePrivateHeaders/nptypes.h > BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders/nptypes.h; touch BUILD_DIR/Debug/WebKitLegacy.framework/Versions/A/PrivateHeaders
+            clang: warning: no such sysroot directory: 'macosx.internal' [-Wmissing-sysroot]
+            In file included from <built-in>:1:
+            In file included from BUILD_DIR/Debug/usr/local/include/wtf/Platform.h:44:
+            BUILD_DIR/Debug/usr/local/include/wtf/PlatformOS.h:36:10: fatal error: 'Availability.h' file not found
+            #include <Availability.h>
+                     ^~~~~~~~~~~~~~~~
+            1 error generated.
+            make[4]: Nothing to be done for `reexport_headers'.
+            Command /bin/sh emitted errors but did not return a nonzero exit code to indicate failure
+
+        * migrate-headers.sh: Pass SDKROOT environment variable on the
+        command-line `make` invocations after r262245 added code to
+        MigrateHeaders.make to set -isysroot based on the SDKROOT value.
+
+2020-05-27  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Pass all defines from Platform.h to various scripts, not just the ones from .xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212451
+
+        Reviewed by Sam Weinig.
+
+        * MigrateHeaders.make: Run the preprocessor on Platform.h and parse the output into
+        FEATURE_AND_PLATFORM_DEFINES. Use that and FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES
+        whenever we need a list of defines. Also took out some Windows-specific stuff since
+        this is now only used on Mac platforms.
+
+2020-05-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: replace `featureGuard` and `availability` with a combined `condition` that accepts any macro
+        https://bugs.webkit.org/show_bug.cgi?id=210014
+
+        Reviewed by Brian Burg.
+
+        Previously, the generated InspectorBackendCommands.js would include code for things that the
+        backend doesn't actually support. By using actual macros and preprocessing that file, we can
+        ensure that the frontend doesn't incorrectly think that something is supported by the page
+        being inspected:
+         - the `Canvas` commands and events related to shader programs/pipelines should only exist
+           when the corresponding context type exists, namely `ENABLE(WEBGL)` and `ENABLE(WEBGPU)`.
+         - iOS doesn't support showing rulers, so create a variant of `DOM.setInspectModeEnabled`
+           that only exists for `PLATFORM(IOS_FAMILY)` that doesn't have the `showRulers` optional
+           parameter, as well as removing `Page.setShowRulers` entirely.
+         - setting the forced appearance should only be possible if dark mode is supported.
+         - web archives only exist if CF is used.
+
+        * Configurations/FeatureDefines.xcconfig:
+        Add `ENABLE_WEB_ARCHIVE` since it's always enabled in wtf/PlatformEnableCocoa.h.
+
+2020-05-27  David Kilzer  <ddkilzer@apple.com>
+
+        Use OptionSet<DragDestinationAction> for mask values
+        <https://webkit.org/b/212115>
+        <rdar://problem/63423380>
+
+        Reviewed by Alex Christensen.
+
+        * WebCoreSupport/WebDragClient.mm:
+        (WebDragClient::willPerformDragDestinationAction):
+        * WebView/WebView.mm:
+        (-[WebView dragDataForSession:client:global:operation:]):
+        (-[WebView actionMaskForDraggingInfo:]):
+
+2020-05-26  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * Configurations/WebKitLegacy.xcconfig:
+
+2020-05-21  Pinki Gyanchandani  <pgyanchandani@apple.com>
+
+        Null Ptr Deref @ WebCore::ResourceResponse::platformLazyInit
+        https://bugs.webkit.org/show_bug.cgi?id=212224
+
+        Reviewed by Geoffrey Garen.
+
+        Its possible that client can cancel the load implicitly or explicitly after its informed that load is committed, but code continues to assume that
+        loading is still in progress. This was cause of crash.
+        Added nullptr check before dereferencing the documentLoader, after client calls the commit load.
+
+        * WebView/WebHTMLRepresentation.mm:
+        (-[WebHTMLRepresentation receivedData:withDataSource:]):
+
+2020-05-20  Darin Adler  <darin@apple.com>
+
+        Dictation context should be an object identifier, not a type-punned pointer
+        https://bugs.webkit.org/show_bug.cgi?id=212174
+
+        Reviewed by Anders Carlsson.
+
+        * WebCoreSupport/WebAlternativeTextClient.h: Use DictationContext instead of uint64_t.
+        * WebCoreSupport/WebAlternativeTextClient.mm:
+        (WebAlternativeTextClient::removeDictationAlternatives): Ditto.
+        (WebAlternativeTextClient::showDictationAlternativeUI): Ditto.
+        (WebAlternativeTextClient::dictationAlternatives): Ditto.
+
+        * WebView/WebHTMLView.mm: Added include of DictationAlternative.h, now needed because
+        it's forward declared in Editor.h.
+        * WebView/WebView.mm: Ditto.
+        (-[WebView _getWebCoreDictationAlternatives:fromTextAlternatives:]): Updated for change
+        to DictationAlternative.
+        (-[WebView _showDictationAlternativeUI:forDictationContext:]): Use DictationContext
+        instead of uint64_t.
+        (-[WebView _removeDictationAlternatives:]): Ditto.
+        (-[WebView _dictationAlternatives:]): Ditto.
+        * WebView/WebViewInternal.h: Updated for the above.
+
+2020-05-20  Alex Christensen  <achristensen@webkit.org>
+
+        Remove implicit URL->String conversion operators
+        https://bugs.webkit.org/show_bug.cgi?id=211033
+
+        Reviewed by Darin Adler.
+
+        * DOM/DOMHTMLBaseElement.mm:
+        (-[DOMHTMLBaseElement href]):
+
+2020-05-20  Simon Fraser  <simon.fraser@apple.com>
+
+        Plumb the display's nominal refresh rate down to ScrollingTree for use in scroll synchronization
+        https://bugs.webkit.org/show_bug.cgi?id=212159
+
+        Reviewed by Tim Horton.
+
+        Plumb an Optional<unsigned> down windowScreenDidChange, which contains the nominal
+        display refresh rate (as frames per second) if available. On macOS, we get this
+        from CVDisplayLinkGetNominalOutputVideoRefreshPeriod().
+
+        To read it, WebProcessPool::nominalFramesPerSecondForDisplay() makes a DisplayLink
+        that doesn't get any observers, but that DisplayLink will very likely get used
+        as soon as we schedule a rendering update.
+
+        * WebView/WebView.mm:
+        (-[WebView doWindowDidChangeScreen]):
+
 2020-05-18  David Kilzer  <ddkilzer@apple.com>
 
         Replace TextIndicatorOptions with OptionSet<TextIndicatorOption>

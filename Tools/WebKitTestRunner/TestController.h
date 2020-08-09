@@ -222,6 +222,7 @@ public:
     void setStatisticsPrevalentResourceForDebugMode(WKStringRef hostName);
     void setStatisticsLastSeen(WKStringRef hostName, double seconds);
     void setStatisticsMergeStatistic(WKStringRef host, WKStringRef topFrameDomain1, WKStringRef topFrameDomain2, double lastSeen, bool hadUserInteraction, double mostRecentUserInteraction, bool isGrandfathered, bool isPrevalent, bool isVeryPrevalent, int dataRecordsRemoved);
+    void setStatisticsExpiredStatistic(WKStringRef host, bool hadUserInteraction, bool isScheduledForAllButCookieDataRemoval, bool isPrevalent);
     void setStatisticsPrevalentResource(WKStringRef hostName, bool value);
     void setStatisticsVeryPrevalentResource(WKStringRef hostName, bool value);
     String dumpResourceLoadStatistics();
@@ -274,6 +275,8 @@ public:
     void clearLoadedThirdPartyDomains();
     void clearAppBoundSession();
     void reinitializeAppBoundDomains();
+    void updateBundleIdentifierInNetworkProcess(const String& bundleIdentifier);
+    void clearBundleIdentifierInNetworkProcess();
 
     WKArrayRef openPanelFileURLs() const { return m_openPanelFileURLs.get(); }
     void setOpenPanelFileURLs(WKArrayRef fileURLs) { m_openPanelFileURLs = fileURLs; }
@@ -551,6 +554,9 @@ private:
     Vector<std::unique_ptr<InstanceMethodSwizzler>> m_inputModeSwizzlers;
     RetainPtr<UIKeyboardInputMode> m_overriddenKeyboardInputMode;
     Vector<std::unique_ptr<InstanceMethodSwizzler>> m_presentPopoverSwizzlers;
+#if !HAVE(NONDESTRUCTIVE_IMAGE_PASTE_SUPPORT_QUERY)
+    std::unique_ptr<InstanceMethodSwizzler> m_keyboardDelegateSupportsImagePasteSwizzler;
+#endif
 #endif
 
     enum State {

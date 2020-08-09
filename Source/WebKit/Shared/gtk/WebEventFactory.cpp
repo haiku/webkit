@@ -138,7 +138,7 @@ static inline short pressedMouseButtons(GdkModifierType state)
     return buttons;
 }
 
-WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, int currentClickCount, Optional<IntPoint> delta)
+WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, int currentClickCount, Optional<FloatSize> delta)
 {
     double x, y;
     gdk_event_get_coords(event, &x, &y);
@@ -148,7 +148,7 @@ WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, int cu
     return createWebMouseEvent(event, { clampToInteger(x), clampToInteger(y) }, { clampToInteger(xRoot), clampToInteger(yRoot) }, currentClickCount, delta);
 }
 
-WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, const IntPoint& position, const IntPoint& globalPosition, int currentClickCount, Optional<IntPoint> delta)
+WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, const IntPoint& position, const IntPoint& globalPosition, int currentClickCount, Optional<FloatSize> delta)
 {
 #if USE(GTK4)
     // This can happen when a NativeWebMouseEvent representing a crossing event is copied.
@@ -160,7 +160,7 @@ WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, const 
     gdk_event_get_state(event, &state);
 
     WebEvent::Type type = static_cast<WebEvent::Type>(0);
-    IntPoint movementDelta;
+    FloatSize movementDelta;
 
     switch (gdk_event_get_event_type(const_cast<GdkEvent*>(event))) {
     case GDK_MOTION_NOTIFY:
@@ -199,8 +199,8 @@ WebMouseEvent WebEventFactory::createWebMouseEvent(const GdkEvent* event, const 
         pressedMouseButtons(state),
         position,
         globalPosition,
-        movementDelta.x(),
-        movementDelta.y(),
+        movementDelta.width(),
+        movementDelta.height(),
         0 /* deltaZ */,
         currentClickCount,
         modifiersForEvent(event),
@@ -262,16 +262,21 @@ WebWheelEvent WebEventFactory::createWebWheelEvent(const GdkEvent* event, const 
         }
     }
 
+    return createWebWheelEvent(event, position, globalPosition, wheelTicks.value(), phase, momentumPhase);
+}
+
+WebWheelEvent WebEventFactory::createWebWheelEvent(const GdkEvent* event, const IntPoint& position, const IntPoint& globalPosition, const FloatSize& wheelTicks, WebWheelEvent::Phase phase, WebWheelEvent::Phase momentumPhase)
+{
     // FIXME: [GTK] Add a setting to change the pixels per line used for scrolling
     // https://bugs.webkit.org/show_bug.cgi?id=54826
     float step = static_cast<float>(Scrollbar::pixelsPerLineStep());
-    FloatSize delta(wheelTicks->width() * step, wheelTicks->height() * step);
+    FloatSize delta(wheelTicks.width() * step, wheelTicks.height() * step);
 
     return WebWheelEvent(WebEvent::Wheel,
         position,
         globalPosition,
         delta,
-        wheelTicks.value(),
+        wheelTicks,
         phase,
         momentumPhase,
         WebWheelEvent::ScrollByPixelWheelEvent,

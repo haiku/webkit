@@ -106,6 +106,7 @@ class TimeRanges;
 class TypeConversions;
 class UnsuspendableActiveDOMObject;
 class VoidCallback;
+class WebAnimation;
 class WebGLRenderingContext;
 class WindowProxy;
 class XMLHttpRequest;
@@ -239,6 +240,7 @@ public:
     };
     Vector<AcceleratedAnimation> acceleratedAnimationsForElement(Element&);
     unsigned numberOfAnimationTimelineInvalidations() const;
+    double timeToNextAnimationTick(WebAnimation&) const;
 
     // For animations testing, we need a way to get at pseudo elements.
     ExceptionOr<RefPtr<Element>> pseudoElement(Element&, const String&);
@@ -349,6 +351,7 @@ public:
     bool hasSpellingMarker(int from, int length);
     bool hasGrammarMarker(int from, int length);
     bool hasAutocorrectedMarker(int from, int length);
+    bool hasDictationAlternativesMarker(int from, int length);
     void setContinuousSpellCheckingEnabled(bool);
     void setAutomaticQuoteSubstitutionEnabled(bool);
     void setAutomaticLinkDetectionEnabled(bool);
@@ -982,10 +985,6 @@ public:
 
 #if ENABLE(WEB_AUTHN)
     void setMockWebAuthenticationConfiguration(const MockWebAuthenticationConfiguration&);
-#endif
-
-#if ENABLE(PICTURE_IN_PICTURE_API)
-    void setPictureInPictureAPITestEnabled(HTMLVideoElement&, bool);
 #endif
 
     int processIdentifier() const;

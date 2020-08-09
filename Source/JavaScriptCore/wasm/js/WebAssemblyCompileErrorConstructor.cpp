@@ -28,6 +28,7 @@
 
 #if ENABLE(WEBASSEMBLY)
 
+#include "JSCInlines.h"
 #include "JSWebAssemblyCompileError.h"
 #include "WebAssemblyCompileErrorPrototype.h"
 

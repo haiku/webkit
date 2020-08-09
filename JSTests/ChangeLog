@@ -1,3 +1,330 @@
+2020-06-02  Saam Barati  <sbarati@apple.com>
+
+        MultiDeleteByOffset should not always def
+        https://bugs.webkit.org/show_bug.cgi?id=212621
+        <rdar://problem/63824182>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/multi-del-by-offset-doesnt-always-def-osr-entry.js: Added.
+        (foo):
+        * stress/multi-del-by-offset-doesnt-always-def.js: Added.
+        (foo):
+        (let.p.set undefined):
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt::rightTrim can miss |this| pointer and leads to incorrect GC collection
+        https://bugs.webkit.org/show_bug.cgi?id=212601
+
+        Reviewed by Saam Barati.
+
+        * stress/bigint-should-not-be-collected-while-creating.js: Added.
+        (foo.let.increment.10000n.bar):
+        (foo):
+
+2020-06-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSValue::toThis should not throw exception
+        https://bugs.webkit.org/show_bug.cgi?id=212595
+
+        Reviewed by Mark Lam.
+
+        * stress/number-proto.js: Added.
+        (shouldBe):
+
+2020-06-01  Caio Lima  <ticaiolima@gmail.com>
+
+        JSTests/exceptionFuzz/earley-boyer.js fails with early exception thrown.
+        https://bugs.webkit.org/show_bug.cgi?id=212569
+
+        Reviewed by Mark Lam.
+
+        This is a temporary fix to avoid flawky results when running
+        `exceptionFuzz` tests. Right now, exception handler starts after
+        function declarations, since they are hoisted. Since function
+        declarations emit `new_func` bytecode, those bytecodes can
+        throw an exception outside expected exception handler.
+        Embedding them in a function avoid such hoisting to happen.
+
+        * exceptionFuzz/3d-cube.js:
+        * exceptionFuzz/date-format-xparb.js:
+        * exceptionFuzz/earley-boyer.js:
+
+2020-05-30  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] for-in should allocate new temporary register for base
+        https://bugs.webkit.org/show_bug.cgi?id=212519
+        <rdar://problem/63722044>
+
+        Reviewed by Saam Barati.
+
+        * microbenchmarks/has-own-property-for-in-loop-with-heap-variable.js: Added.
+        (assert):
+        (test1.count):
+        (test1):
+        * microbenchmarks/has-own-property-for-in-loop-with-this.js: Added.
+        (assert):
+        (test1.count):
+        (test1):
+        * stress/for-in-body-replace-enumerable.js: Added.
+        (foo):
+        * stress/for-in-enumerable-shadow.js: Added.
+        (assert):
+        (test1.count):
+        (test1):
+        * stress/for-in-enumerable-this-arrow.js: Added.
+        (assert):
+        (test1):
+
+2020-05-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt allocation should be graceful for OOM
+        https://bugs.webkit.org/show_bug.cgi?id=212512
+
+        Reviewed by Mark Lam.
+
+        * stress/bigint-can-throw-oom.js: Copied from JSTests/stress/get-function-realm-not-doing-recursion.js.
+        (canThrow):
+        (foo):
+        (get foo):
+        * stress/get-function-realm-not-doing-recursion.js:
+        (canThrow):
+
+2020-05-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Split some of JSC tests / reduce iteration count to make it not timed-out in Debug build
+        https://bugs.webkit.org/show_bug.cgi?id=212557
+
+        Reviewed by Mark Lam.
+
+        * stress/should-not-emit-double-rep-for-bigint.js: Ensured that this iteration count can reproduce the original crash.
+        * stress/tailCallForwardArguments.js: Split tests into 4 files.
+        (let.bodyText): Deleted.
+        (baz4): Deleted.
+        (testFunc): Deleted.
+        (baz5): Deleted.
+        (baz6): Deleted.
+        (arrayEq): Deleted.
+        * stress/tailCallForwardArguments2.js: Added.
+        (putFuncToPrivateName.createBuiltin):
+        (createTailCallForwardingFuncWith):
+        (putFuncToPrivateName):
+        (let.bodyText):
+        (baz4):
+        * stress/tailCallForwardArguments3.js: Added.
+        (putFuncToPrivateName.createBuiltin):
+        (createTailCallForwardingFuncWith):
+        (putFuncToPrivateName):
+        (let.bodyText):
+        (testFunc):
+        (baz5):
+        * stress/tailCallForwardArguments4.js: Added.
+        (putFuncToPrivateName.createBuiltin):
+        (createTailCallForwardingFuncWith):
+        (let.bodyText):
+        (putFuncToPrivateName):
+        (baz6):
+        (arrayEq):
+
+2020-05-29  Saam Barati  <sbarati@apple.com>
+
+        We need to properly model heap ranges of Delete in DFG/B3
+        https://bugs.webkit.org/show_bug.cgi?id=212538
+        <rdar://problem/63670964>
+
+        Reviewed by Filip Pizlo.
+
+        * stress/delete-inlining-should-model-aliasing-of-future-stores.js: Added.
+
+2020-05-29  Saam Barati  <sbarati@apple.com>
+
+        Skip a few more JSC tests when $memoryLimited
+        https://bugs.webkit.org/show_bug.cgi?id=212552
+
+        Reviewed by Mark Lam.
+
+        * stress/call-varargs-inlining-should-not-clobber-previous-to-free-register.js:
+        * stress/incremental-marking-should-not-dead-lock-in-new-property-transition.js:
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        for-of should check the iterable is a JSArray for FastArray in DFG iterator_open
+        https://bugs.webkit.org/show_bug.cgi?id=212383
+
+        Reviewed by Saam Barati.
+
+        * stress/check-sub-class.js:
+        * stress/for-of-iterator-open-fast-array-should-check-js-type.js: Added.
+        (foo):
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        hasOwnProperty inside structure property for-in loop should use an opcode like has_structure_property but for hasOwnProperty
+        https://bugs.webkit.org/show_bug.cgi?id=212248
+
+        Reviewed by Keith Miller.
+
+        * microbenchmarks/has-own-property-for-in-loop.js: Added.
+        * stress/has-own-property-structure-for-in-loop-correctness.js: Added.
+
+2020-05-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ macOS iOS ] REGRESSION(r261600?): imported/w3c/web-platform-tests/html/dom/reflection-embedded.html & imported/w3c/web-platform-tests/html/dom/reflection-forms.html are flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=212430
+
+        Reviewed by Saam Barati.
+
+        * stress/is-constructor-should-be-correct-in-ai.js: Added.
+        (shouldBe):
+        (test):
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        Limit memory used by wasm/references/multitable.js on memory limited devices
+        https://bugs.webkit.org/show_bug.cgi?id=212437
+
+        Reviewed by Keith Miller.
+
+        wasm/references/multitable.js was using around ~700MB of memory.
+        This looks like it's causing jetsams on some of our iOS test runners.
+        This patch makes this test use less memory on memory limited devices.
+
+        * wasm/assert.js:
+        * wasm/references/multitable.js:
+        (string_appeared_here.tableInsanity):
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        Unreviwed, catch expected exception in new test.
+
+        * stress/for-in-in-structure-property-constant-virtual-register.js:
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        in_structure_property needs to handle constants on the RHS of the "in"
+        https://bugs.webkit.org/show_bug.cgi?id=212399
+
+        Reviewed by Saam Barati.
+
+        * stress/for-in-in-structure-property-constant-virtual-register.js: Added.
+
+2020-05-26  Mark Lam  <mark.lam@apple.com>
+
+        JSC stress tests that require --useLLInt=0 should be skipped on --no-jit test runs.
+        https://bugs.webkit.org/show_bug.cgi?id=212400
+
+        Reviewed by Saam Barati.
+
+        That's because using --useLLInt=0 and --useJIT=0 together is not a "coherent"
+        (read "valid") configuration.  We should be able to do a --no-jit test run with
+        the JSC_useJIT=0 environmental variable set.  Before this patch, the following
+        tests will all fail.  This patch skips them.
+
+        * stress/delete-property-poly-proto.js:
+        * stress/dfg-compare-eq-via-nonSpeculativeNonPeepholeCompareNullOrUndefined.js:
+        * stress/getter-setter-inlining-should-emit-movhint.js:
+        * stress/merging-ic-variants-should-bail-if-structures-overlap.js:
+        * stress/poly-proto-setter-adds-setter-in-middle.js:
+        * stress/poly-proto-setter-changes-setter-2.js:
+        * stress/poly-proto-setter-changes-setter.js:
+        * stress/racy-gc-cleanup-of-identifier-after-mutator-stops-running.js:
+        * stress/regress-192717.js:
+        * stress/retry-cache-later.js:
+
+2020-05-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        IteratorClose should suppress GetMethod errors
+        https://bugs.webkit.org/show_bug.cgi?id=212378
+
+        Reviewed by Keith Miller.
+
+        * stress/custom-iterators.js:
+        * stress/iterator-return-abrupt-lookup-builtins.js: Added.
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-05-23  Caio Lima  <ticaiolima@gmail.com>
+
+        [bmalloc] Fix OOM errors on MIPS after r261667
+        https://bugs.webkit.org/show_bug.cgi?id=212016
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js:
+        * stress/big-int-mod-memory-stress.js:
+        * stress/incremental-marking-should-not-dead-lock-in-new-property-transition.js:
+
+2020-05-22  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Array.prototype.splice doesn't set "length" of returned object
+        https://bugs.webkit.org/show_bug.cgi?id=212285
+
+        Reviewed by Darin Adler.
+
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-05-22  Saam Barati  <sbarati@apple.com>
+
+        in_by_val inside structure property for-in loop should use an opcode like has_structure_property but for "in"
+        https://bugs.webkit.org/show_bug.cgi?id=212239
+
+        Reviewed by Tadeu Zagallo.
+
+        * microbenchmarks/in-by-val-inside-for-in-loop.js: Added.
+        (assert):
+        (count):
+        * stress/in-by-val-inside-for-in-loop.js: Added.
+        (assert):
+        (test1.count):
+        (test1):
+        (test2.count):
+        (test2):
+        (test3.count):
+        (test3):
+        (test4.count):
+        (test4):
+        (test5.count):
+        (test5):
+        (test6.count):
+        (test6):
+        (test7.count):
+        (test7):
+        (test8.count):
+        (test8):
+
+2020-05-22  Keith Miller  <keith_miller@apple.com>
+
+        Checkpoint inlined call return handler needs an exception check when dispatching
+        https://bugs.webkit.org/show_bug.cgi?id=212104
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/for-of-done-getter-osr-exits-inlined-to-value-getter-with-exception.js: Added.
+        (let.d.get done):
+        (let.d.get value):
+        (foo):
+        (catch):
+
+2020-05-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use @isUndefinedOrNull instead of abstract equality with null
+        https://bugs.webkit.org/show_bug.cgi?id=210954
+
+        Reviewed by Yusuke Suzuki.
+
+        * test262/expectations.yaml: Mark 16 test cases as passing.
+
+2020-05-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Array.prototype.concat is incorrect with objects whose "length" exceeds 2 ** 32 - 1
+        https://bugs.webkit.org/show_bug.cgi?id=212167
+
+        Reviewed by Saam Barati.
+
+        * stress/array-prototype-concat-of-long-spliced-arrays.js:
+        * stress/array-prototype-concat-of-long-spliced-arrays2.js:
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
 2020-05-19  Michael Catanzaro  <mcatanzaro@gnome.org>
 
         Fixups for r261689 "stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js failing on ppc64le and s390x"

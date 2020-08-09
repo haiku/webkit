@@ -43,6 +43,7 @@
 #include <WebCore/PageIdentifier.h>
 #include <WebCore/Pagination.h>
 #include <WebCore/ScrollTypes.h>
+#include <WebCore/ShouldRelaxThirdPartyCookieBlocking.h>
 #include <WebCore/UserInterfaceLayoutDirection.h>
 #include <WebCore/ViewportArguments.h>
 #include <wtf/HashMap.h>
@@ -167,13 +168,20 @@ struct WebPageCreationParameters {
     int32_t deviceOrientation { 0 };
     bool keyboardIsAttached { false };
     bool canShowWhileLocked { false };
+    bool isCapturingScreen { false };
 #endif
 #if PLATFORM(COCOA)
     bool smartInsertDeleteEnabled;
     Vector<String> additionalSupportedImageTypes;
 #endif
+#if ENABLE(TINT_COLOR_SUPPORT)
+    WebCore::Color tintColor;
+#endif
 #if USE(WPE_RENDERER)
     IPC::Attachment hostFileDescriptor;
+#endif
+#if PLATFORM(WIN)
+    uint64_t nativeWindowHandle;
 #endif
     bool appleMailPaginationQuirkEnabled;
     bool appleMailLinesClampEnabled;
@@ -220,6 +228,7 @@ struct WebPageCreationParameters {
     bool shouldRenderCanvasInGPUProcess { false };
     bool needsInAppBrowserPrivacyQuirks { false };
     bool limitsNavigationsToAppBoundDomains { false };
+    WebCore::ShouldRelaxThirdPartyCookieBlocking shouldRelaxThirdPartyCookieBlocking { WebCore::ShouldRelaxThirdPartyCookieBlocking::No };
 
 #if PLATFORM(GTK)
     String themeName;

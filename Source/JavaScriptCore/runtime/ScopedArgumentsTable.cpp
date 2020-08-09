@@ -26,7 +26,9 @@
 #include "config.h"
 #include "ScopedArgumentsTable.h"
 
-#include "JSCellInlines.h"
+#include "JSCJSValueInlines.h"
+#include "JSObjectInlines.h"
+#include "StructureInlines.h"
 
 namespace JSC {
 

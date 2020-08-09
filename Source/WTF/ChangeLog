@@ -1,3 +1,458 @@
+2020-06-01  Simon Fraser  <simon.fraser@apple.com>
+
+        Add ENABLE(WHEEL_EVENT_REGIONS), enabled on macOS which is the only platform that needs wheel event regions for scrolling thread hit-testing
+        https://bugs.webkit.org/show_bug.cgi?id=212620
+
+        Reviewed by Tim Horton.
+
+        Surround code related to wheel event regions with ENABLE(WHEEL_EVENT_REGIONS).
+
+        Eventually we'll use this same code for touch event regions, and when we do, we
+        can rejigger the #ifdefs.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-06-02  Mark Lam  <mark.lam@apple.com>
+
+        Change Gigacage::Config to use storage in WebConfig::g_config instead of its own.
+        https://bugs.webkit.org/show_bug.cgi?id=212585
+        <rdar://problem/63812487>
+
+        Reviewed by Yusuke Suzuki.
+
+        We now think of the various Config records as being allocated from parts of a
+        WebConfig::g_config buffer.  WTF::Config will manage the mechanics of freezing
+        that buffer.  And the JSC VM is still the determiner of if/when to freeze the
+        buffer, and it will do this at the end of the construction of the very first
+        VM instance (as before).
+
+        Gigacage::Config reserves space in WebConfig::g_config.
+        WTF::Config will honor that reservation and place itself after that.
+        JSC::Config will continue to place itself at WTF::Config::spaceForExtensions.
+
+        The upside of this approach this is that we can now share the same memory page
+        for all the Configs, and can freeze them in one go.
+
+        The downside is that g_gigacageConfig, g_wtfConfig, and g_jscConfig now have to
+        be macros.  This results in some weirdness e.g. they are no longer qualified by
+        namespaces: referring to WTF::g_wtfConfig is now incorrect.
+
+        * wtf/Gigacage.h:
+        (Gigacage::disablingPrimitiveGigacageIsForbidden):
+        (Gigacage::isDisablingPrimitiveGigacageForbidden): Deleted.
+        (Gigacage::isPrimitiveGigacagePermanentlyEnabled): Deleted.
+        (Gigacage::canPrimitiveGigacageBeDisabled): Deleted.
+        * wtf/WTFConfig.cpp:
+        (WTF::Config::permanentlyFreeze):
+        * wtf/WTFConfig.h:
+        (): Deleted.
+
+2020-06-01  Simon Fraser  <simon.fraser@apple.com>
+
+        Add ENABLE(TOUCH_ACTION_REGIONS) to wrap code that's only relevant for platforms that consult touch-action for event handling
+        https://bugs.webkit.org/show_bug.cgi?id=212572
+
+        Reviewed by Andy Estes.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-05-31  Mark Lam  <mark.lam@apple.com>
+
+        Change JSC::Config to use storage in WTF::Config instead of its own.
+        https://bugs.webkit.org/show_bug.cgi?id=212575
+        <rdar://problem/63796584>
+
+        Reviewed by Yusuke Suzuki.
+
+        * wtf/WTFConfig.h:
+
+2020-05-30  Mark Lam  <mark.lam@apple.com>
+
+        Rename Signal::BadAccess to Signal::AccessFault.
+        https://bugs.webkit.org/show_bug.cgi?id=212577
+
+        Reviewed by Yusuke Suzuki.
+
+        This is needed because GTK port's X11 has a #define for BadAccess (in include/X11/X.h):
+
+            #define BadAccess     10    /* depending on context:
+                                         - key/button already grabbed
+                                         - attempt to free an illegal 
+                                           cmap entry 
+                                         - attempt to store into a read-only 
+                                           color map entry.
+                                         - attempt to modify the access control
+                                           list from other than the local host.
+                                         */
+
+        As a result, this would break the GTK build when wtf/Signals.h is #include'd.
+
+        * wtf/threads/Signals.cpp:
+        (WTF::fromMachException):
+        (WTF::toMachMask):
+        (WTF::jscSignalHandler):
+        * wtf/threads/Signals.h:
+        (WTF::toSystemSignal):
+        (WTF::fromSystemSignal):
+
+2020-05-29  Alex Christensen  <achristensen@webkit.org>
+
+        Use correct encoding when converting a WTF::URL to CFURLRef
+        https://bugs.webkit.org/show_bug.cgi?id=212486
+
+        Reviewed by Darin Adler.
+
+        * wtf/cf/CFURLExtras.cpp:
+        (WTF::createCFURLFromBuffer):
+        * wtf/cf/CFURLExtras.h:
+        * wtf/cf/URLCF.cpp:
+        (WTF::URL::createCFURL const):
+        * wtf/cocoa/URLCocoa.mm:
+        (WTF::URL::createCFURL const):
+
+2020-05-29  Brent Fulgham  <bfulgham@apple.com>
+
+        [Cocoa] Improve logging quality for non-ephemeral sessions
+        https://bugs.webkit.org/show_bug.cgi?id=212551
+        <rdar://problem/62461099>
+
+        Reviewed by David Kilzer.
+
+        * wtf/PlatformHave.h: Add new feature check for CFNetwork convenience setter.
+
+2020-05-29  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        REGRESSION (r261812): editing/async-clipboard/clipboard-item-get-type-basic.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=212281
+        <rdar://problem/63554912>
+
+        Reviewed by Tim Horton.
+
+        Add a new `HAVE()` define.
+
+        * wtf/PlatformHave.h:
+
+2020-05-27  Keith Miller  <keith_miller@apple.com>
+
+        for-of should check the iterable is a JSArray for FastArray in DFG iterator_open
+        https://bugs.webkit.org/show_bug.cgi?id=212383
+
+        Reviewed by Saam Barati.
+
+        Optional should be able to copy/move constructor itself as long as <T> is
+        trivially copyable. This lets us copy Optionals into const globals without
+        global constructors.
+
+        * wtf/Optional.h:
+        (WTF::Optional::Optional):
+        (WTF::Optional::__NOEXCEPT_):
+
+2020-05-27  Noam Rosenthal  <noam@webkit.org>
+
+        Implement AccessKeyLabel attribute.
+        https://bugs.webkit.org/show_bug.cgi?id=72715
+
+        Reviewed by Darin Adler.
+
+        Added character names for upArrow/option, as they're needed for accessKeyLabel.
+
+        * wtf/unicode/CharacterNames.h:
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        Improve comments about OS/PLATFORM(IOS) and friends
+        https://bugs.webkit.org/show_bug.cgi?id=212438
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformLegacy.h:
+        * wtf/PlatformOS.h:
+
+2020-05-27  David Kilzer  <ddkilzer@apple.com>
+
+        Add OptionSetTraits<> and use with WebCore::DragDestinationAction
+        <https://webkit.org/b/212397>
+
+        Reviewed by Alex Christensen.
+
+        Add OptionSetTraits<> (similar to EnumTraits<>) to define all
+        valid values for a given enum type.  This allows us to use that
+        bitmask with OptionSet<>::fromRaw() to clear undefined bits, and
+        to validate enum values used with the OptionSet<> constructors.
+
+        Note that the extra validation possible with OptionSetTraits<>
+        is enabled based on the existence of that type using the new
+        WTF::is_type_complete_v<> type trait.  Other OptionSet<> enums
+        fall back to the original validation checks.
+
+        Finally, typename <T> is changed to <E> for OptionSet<> to
+        emphasize that it's an enum typename.
+
+        * wtf/OptionSet.h:
+        (WTF::is_type_complete_v): Add.
+        (WTF::OptionSetTraits): Add.
+        (WTF::OptionSetValues): Add.
+        (WTF::OptionSetValueChecker): Add.
+        (WTF::isValidOptionSetEnum): Add.
+        (WTF::maskRawValue): Add.
+        (WTF::OptionSet::Iterator::operator* const):
+        (WTF::OptionSet::fromRaw):
+        (WTF::OptionSet::OptionSet):
+        (WTF::OptionSet::contains const):
+
+2020-05-27  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wdeprecated-copy caused by Bitmap copy assignment operator
+        https://bugs.webkit.org/show_bug.cgi?id=212421
+
+        Reviewed by Mark Lam.
+
+        This copy assignment operator is not needed, and causes warnings because we do not have a
+        corresponding copy constructor. We could add a copy constructor, but it's easiest to just
+        remove the copy assignment operator.
+
+        * wtf/Bitmap.h:
+
+2020-05-26  Darin Adler  <darin@apple.com>
+
+        Sort PlatformEnableCocoa.h and add definitions for the simple cases from FeatureDefines.xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212389
+
+        Reviewed by Anders Carlsson.
+
+        Added more PlatformEnableCocoa.h; allowing us to later remove things from
+        FeatureDefines.xcconfig (patch forthcoming).
+
+        * wtf/PlatformEnableCocoa.h: Added definitions from FeatureDefines.xcconfig that
+        were simple, and that differ from the defaults in PlatformEnable.h. That includes
+        3D_TRANSFORMS, ACCESSIBILITY_ISOLATED_TREE (macOS >= 10.6), APPLICATION_MANIFEST,
+        ASYNC_SCROLLING, ATTACHMENT_ELEMENT, AVF_CAPTIONS, CACHE_PARTITIONING,
+        CSS_COMPOSITING, CSS_PAINTING_API, CSS_SCROLL_SNAP, CSS_SELECTORS_LEVEL4,
+        CSS_TRAILING_WORD, CSS_TYPED_OM, DATACUE_VALUE, DATALIST_ELEMENT, FILTERS_LEVEL_2,
+        GPU_PROCESS, INDEXED_DATABASE, INDEXED_DATABASE_IN_WORKERS, INSPECTOR_TELEMETRY,
+        INTERSECTION_OBSERVER, LAYOUT_FORMATTING_CONTEXT, LEGACY_CSS_VENDOR_PREFIXES,
+        LEGACY_CUSTOM_PROTOCOL_MANAGER, MEDIA_CONTROLS_SCRIPT, MEMORY_SAMPLER,
+        MOUSE_CURSOR_SCALE (macOS), NETWORK_CACHE_SPECULATIVE_REVALIDATION,
+        NETWORK_CACHE_STALE_WHILE_REVALIDATE, NOTIFICATIONS (macOS), PDFKIT_PLUGIN (macOS),
+        PERIODIC_MEMORY_MONITOR (macOS), PUBLIC_SUFFIX_LIST, RESIZE_OBSERVER,
+        RESOURCE_LOAD_STATISTICS, RUBBER_BANDING (macOS), SANDBOX_EXTENSIONS,
+        SERVER_PRECONNECT, SERVICE_CONTROLS (macOS), SHAREABLE_RESOURCE,
+        TELEPHONE_NUMBER_DETECTION, TEXT_AUTOSIZING, USERSELECT_ALL, USER_MESSAGE_HANDLERS,
+        VARIATION_FONTS, VIDEO, VIDEO_USES_ELEMENT_FULLSCREEN (macOS),
+        WEBDRIVER_KEYBOARD_INTERACTIONS, WEBDRIVER_MOUSE_INTERACTIONS (macOS),
+        WEBGL, WEBGL2, WEB_AUDIO, WEB_CRYPTO, and WIRELESS_PLAYBACK_TARGET. Sorted and
+        merged all the existing settings.
+
+2020-05-26  Alex Christensen  <achristensen@webkit.org>
+
+        UTF-8 encode strings of invalid URLs when converting WTF::URL to NSURL instead of truncating the UTF-16 encoding
+        https://bugs.webkit.org/show_bug.cgi?id=212393
+        <rdar://problem/63095503>
+
+        Reviewed by Tim Horton.
+
+        This only changes behavior in code that is marked as UNLIKELY because it can only be reached by invalid unicode URLs,
+        but it can be reached and should behave in a reasonable manner in those cases.  This makes Safari behave more similarly
+        to Firefox in this case instead of doing something similar to no other browser.
+
+        * wtf/URL.cpp:
+        (WTF::copyASCII): Deleted.
+        (WTF::URL::copyToBuffer const): Deleted.
+        * wtf/URL.h:
+        * wtf/cf/URLCF.cpp:
+        (WTF::URL::createCFURL const):
+        * wtf/cocoa/URLCocoa.mm:
+        (WTF::URL::createCFURL const):
+
+2020-05-26  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Disable LLINT_EMBEDDED_OPCODE_ID
+        https://bugs.webkit.org/show_bug.cgi?id=212387
+
+        Reviewed by Don Olmstead.
+
+        * wtf/CMakeLists.txt:
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnablePlayStation.h: Added.
+
+2020-05-26  Mark Lam  <mark.lam@apple.com>
+
+        Enhance Bitmap::setEachNthBit() to also take an end index.
+        https://bugs.webkit.org/show_bug.cgi?id=212386
+        <rdar://problem/63643324>
+
+        Reviewed by Robin Morisset.
+
+        Previously, it was only taking the n interval, and the start index.
+        Also fixed isEmpty() and isFull() to return a bool instead of size_t.
+
+        * wtf/Bitmap.h:
+        (WTF::WordType>::isEmpty const):
+        (WTF::WordType>::isFull const):
+        (WTF::WordType>::setEachNthBit):
+
+2020-05-26  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add static analyzers
+        https://bugs.webkit.org/show_bug.cgi?id=212280
+
+        Reviewed by David Kilzer.
+
+        Export headers from Plaform.h so include-what-you-use does not suggest they be
+        included directly. The headers being exported will #error when included outside of
+        Platform.h
+
+        * wtf/Platform.h:
+
+2020-05-25  Alex Christensen  <achristensen@webkit.org>
+
+        Expose more network metrics to WebCoreNSURLSession
+        https://bugs.webkit.org/show_bug.cgi?id=212359
+        <rdar://problem/62909440>
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h:
+
+2020-05-22  David Kilzer  <ddkilzer@apple.com>
+
+        WTF::isValidEnum() has a typo in static_assert making it a tautological comparison
+        <https://webkit.org/b/212290>
+
+        Reviewed by Yusuke Suzuki.
+
+        * wtf/EnumTraits.h:
+        (WTF::isValidEnum): Use sizeof(std::underlying_type_t<E>)
+        instead of std::underlying_type_t<E>() to fix the bug.
+
+2020-05-22  Chris Dumez  <cdumez@apple.com>
+
+        RELEASE_ASSERT() that InitializeWebKit2() is getting called on the main thread
+        https://bugs.webkit.org/show_bug.cgi?id=212283
+
+        Reviewed by Alex Christensen.
+
+        * wtf/spi/darwin/dyldSPI.h:
+
+2020-05-22  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Add new ApplePayInstallmentConfiguration members
+        https://bugs.webkit.org/show_bug.cgi?id=212160
+        <rdar://problem/60703650>
+
+        Reviewed by Alex Christensen.
+
+        * wtf/PlatformEnableCocoa.h: Defined ENABLE_APPLE_PAY_INSTALLMENT_IDENTIFIERS.
+
+2020-05-21  Robin Morisset  <rmorisset@apple.com>
+
+        Various compile-time boolean flags could/should be marked constexpr
+        https://bugs.webkit.org/show_bug.cgi?id=212244
+
+        Reviewed by Mark Lam.
+
+        * wtf/ParkingLot.cpp:
+
+2020-05-20  Mark Lam  <mark.lam@apple.com>
+
+        Add more Bitmap methods.
+        https://bugs.webkit.org/show_bug.cgi?id=212190
+        <rdar://problem/63481333>
+
+        Reviewed by Robin Morisset.
+
+        Specifically,
+            setEachNthBit - sets every Nth bit starting at a specified start bit
+            operator=     - assignment
+            operator|=    - bit or and assignment
+            operator&=    - bit and and assignment
+            operator^=    - bit xor and assignment
+
+        * wtf/Bitmap.h:
+
+2020-05-21  Yoshiaki Jitsukawa  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Add minimal WKView API to enable TestWebKitAPI
+        https://bugs.webkit.org/show_bug.cgi?id=211868
+
+        Reviewed by Alex Christensen.
+
+        Enable TestWebKitAPI
+
+        * wtf/PlatformPlayStation.cmake:
+        Link libc as a system library.
+
+2020-05-21  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Unreviewed, fix the iOS 13.4 build after r261978
+
+        Add a `HAVE()` macro to guard usages of _UIHoverEventRespondable.
+
+        * wtf/PlatformHave.h:
+
+2020-05-20  Simon Fraser  <simon.fraser@apple.com>
+
+        [macOS] Scrolling synchronization part 1: Have the scrolling thread wait half a frame for the main thread to complete the rendering update
+        https://bugs.webkit.org/show_bug.cgi?id=212168
+
+        Reviewed by Tim Horton.
+
+        Some new trace points for scrolling thread activity.
+
+        * wtf/SystemTracing.h:
+
+2020-05-20  Tim Horton  <timothy_horton@apple.com>
+
+        WKMouseGestureRecognizer should be implemented without using UIKit internals
+        https://bugs.webkit.org/show_bug.cgi?id=212173
+        <rdar://problem/61163726>
+
+        Reviewed by Wenson Hsieh.
+
+        * wtf/PlatformHave.h:
+
+2020-05-20  Alex Christensen  <achristensen@webkit.org>
+
+        Remove implicit URL->String conversion operators
+        https://bugs.webkit.org/show_bug.cgi?id=211033
+
+        Reviewed by Darin Adler.
+
+        These operators have been the cause of many subtle bugs related to type inference that are hard to see in the code,
+        as well as performance bugs where we unnecessarily re-parse parsed URLs.
+        After my recent cleanup this was easier than I thought it would be.
+
+        * wtf/URL.h:
+        (WTF::URL::operator const String& const): Deleted.
+        (WTF::URL::operator StringView const): Deleted.
+        (WTF::URL::operator NSString * const): Deleted.
+
+2020-05-20  Antoine Quint  <graouts@apple.com>
+
+        [Web Animations] Animation engine should not wake up every tick for steps timing functions
+        https://bugs.webkit.org/show_bug.cgi?id=212103
+        <rdar://problem/62737868>
+
+        Reviewed by Simon Fraser.
+
+        Allow Seconds to be divided or multiplied by a double with operands in any order.
+
+        * wtf/Seconds.h:
+        (WTF::operator*):
+        (WTF::operator/):
+
+2020-05-20  Youenn Fablet  <youenn@apple.com>
+
+        [Mac] Use preferedPixelBufferFormat for AVVideoCaptureSource
+        https://bugs.webkit.org/show_bug.cgi?id=212071
+
+        Reviewed by Eric Carlson.
+
+        * wtf/PlatformHave.h:
+        Add HAVE_DISPLAY_LAYER_BIPLANAR_SUPPORT macro.
+
 2020-05-19  Adrian Perez de Castro  <aperez@igalia.com>
 
         WTF::LockedPrintStream should be final

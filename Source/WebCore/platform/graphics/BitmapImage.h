@@ -134,6 +134,9 @@ public:
 
 #if PLATFORM(GTK)
     GdkPixbuf* getGdkPixbuf() override;
+#if USE(GTK4)
+    GdkTexture* gdkTexture() override;
+#endif
 #endif
 
 #if PLATFORM(HAIKU)

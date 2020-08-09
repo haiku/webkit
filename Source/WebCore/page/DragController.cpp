@@ -255,8 +255,8 @@ bool DragController::performDragOperation(const DragData& dragData)
     if (m_documentUnderMouse)
         shouldOpenExternalURLsPolicy = m_documentUnderMouse->shouldOpenExternalURLsPolicyToPropagate();
 
-    if ((m_dragDestinationAction & DragDestinationActionDHTML) && dragIsHandledByDocument(m_dragHandlingMethod)) {
-        client().willPerformDragDestinationAction(DragDestinationActionDHTML, dragData);
+    if ((m_dragDestinationActionMask.contains(DragDestinationAction::DHTML)) && dragIsHandledByDocument(m_dragHandlingMethod)) {
+        client().willPerformDragDestinationAction(DragDestinationAction::DHTML, dragData);
         Ref<Frame> mainFrame(m_page.mainFrame());
         bool preventedDefault = false;
         if (mainFrame->view())
@@ -268,7 +268,7 @@ bool DragController::performDragOperation(const DragData& dragData)
         }
     }
 
-    if ((m_dragDestinationAction & DragDestinationActionEdit) && concludeEditDrag(dragData)) {
+    if ((m_dragDestinationActionMask.contains(DragDestinationAction::Edit)) && concludeEditDrag(dragData)) {
         client().didConcludeEditDrag();
         m_documentUnderMouse = nullptr;
         clearDragCaret();
@@ -285,7 +285,7 @@ bool DragController::performDragOperation(const DragData& dragData)
     if (urlString.isEmpty())
         return false;
 
-    client().willPerformDragDestinationAction(DragDestinationActionLoad, dragData);
+    client().willPerformDragDestinationAction(DragDestinationAction::Load, dragData);
     FrameLoadRequest frameLoadRequest { m_page.mainFrame(), ResourceRequest { urlString } };
     frameLoadRequest.setShouldOpenExternalURLsPolicy(shouldOpenExternalURLsPolicy);
     frameLoadRequest.setIsRequestFromClientOrUserInput();
@@ -308,15 +308,15 @@ DragOperation DragController::dragEnteredOrUpdated(const DragData& dragData)
 {
     mouseMovedIntoDocument(m_page.mainFrame().documentAtPoint(dragData.clientPosition()));
 
-    m_dragDestinationAction = dragData.dragDestinationAction();
-    if (m_dragDestinationAction == DragDestinationActionNone) {
+    m_dragDestinationActionMask = dragData.dragDestinationActionMask();
+    if (m_dragDestinationActionMask.isEmpty()) {
         clearDragCaret(); // FIXME: Why not call mouseMovedIntoDocument(nullptr)?
         return DragOperationNone;
     }
 
     DragOperation dragOperation = DragOperationNone;
-    m_dragHandlingMethod = tryDocumentDrag(dragData, m_dragDestinationAction, dragOperation);
-    if (m_dragHandlingMethod == DragHandlingMethod::None && (m_dragDestinationAction & DragDestinationActionLoad)) {
+    m_dragHandlingMethod = tryDocumentDrag(dragData, m_dragDestinationActionMask, dragOperation);
+    if (m_dragHandlingMethod == DragHandlingMethod::None && (m_dragDestinationActionMask.contains(DragDestinationAction::Load))) {
         dragOperation = operationForLoad(dragData);
         if (dragOperation != DragOperationNone)
             m_dragHandlingMethod = DragHandlingMethod::PageLoad;
@@ -388,7 +388,7 @@ void DragController::updateSupportedTypeIdentifiersForDragHandlingMethod(DragHan
 
 #endif
 
-DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, DragDestinationAction actionMask, DragOperation& dragOperation)
+DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, OptionSet<DragDestinationAction> destinationActionMask, DragOperation& dragOperation)
 {
     if (!m_documentUnderMouse)
         return DragHandlingMethod::None;
@@ -397,7 +397,7 @@ DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, Dra
         return DragHandlingMethod::None;
 
     bool isHandlingDrag = false;
-    if (actionMask & DragDestinationActionDHTML) {
+    if (destinationActionMask.contains(DragDestinationAction::DHTML)) {
         isHandlingDrag = tryDHTMLDrag(dragData, dragOperation);
         // Do not continue if m_documentUnderMouse has been reset by tryDHTMLDrag.
         // tryDHTMLDrag fires dragenter event. The event listener that listens
@@ -420,7 +420,7 @@ DragHandlingMethod DragController::tryDocumentDrag(const DragData& dragData, Dra
         return DragHandlingMethod::NonDefault;
     }
 
-    if ((actionMask & DragDestinationActionEdit) && canProcessDrag(dragData)) {
+    if (destinationActionMask.contains(DragDestinationAction::Edit) && canProcessDrag(dragData)) {
         if (dragData.containsColor()) {
             dragOperation = DragOperationGeneric;
             return DragHandlingMethod::SetColor;
@@ -569,7 +569,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         style->setProperty(CSSPropertyColor, color.serialized(), false);
         if (!innerFrame->editor().shouldApplyStyle(style.ptr(), createLiveRange(innerRange).get()))
             return false;
-        client().willPerformDragDestinationAction(DragDestinationActionEdit, dragData);
+        client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
         innerFrame->editor().applyStyle(style.ptr(), EditAction::SetColor);
         return true;
     }
@@ -605,7 +605,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         if (!fragment || !editor.shouldInsertFragment(*fragment, createLiveRange(range).get(), EditorInsertAction::Dropped))
             return false;
 
-        client().willPerformDragDestinationAction(DragDestinationActionEdit, dragData);
+        client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
 
         if (editor.client() && editor.client()->performTwoStepDrop(*fragment, createLiveRange(*range), isMove))
             return true;
@@ -631,7 +631,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         if (text.isEmpty() || !editor.shouldInsertText(text, createLiveRange(*range).ptr(), EditorInsertAction::Dropped))
             return false;
 
-        client().willPerformDragDestinationAction(DragDestinationActionEdit, dragData);
+        client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
         auto fragment = createFragmentFromText(createLiveRange(*range), text);
         if (editor.client() && editor.client()->performTwoStepDrop(fragment.get(), createLiveRange(*range), isMove))
             return true;
@@ -899,25 +899,75 @@ static IntPoint dragLocForSelectionDrag(Frame& src)
     return IntPoint(xpos, ypos);
 }
 
-bool DragController::startDrag(Frame& src, const DragState& state, DragOperation srcOp, const PlatformMouseEvent& dragEvent, const IntPoint& dragOrigin, HasNonDefaultPasteboardData hasData)
+void DragController::prepareForDragStart(Frame& source, DragSourceAction action, Element& element, DataTransfer& dataTransfer, const IntPoint& dragOrigin) const
 {
-    if (!src.view() || !src.contentRenderer() || !state.source)
-        return false;
+#if !PLATFORM(WIN)
+    Ref<Frame> protector(source);
+    auto hitTestResult = hitTestResultForDragStart(source, element, dragOrigin);
+    if (!hitTestResult)
+        return;
 
-    Ref<Frame> protector(src);
+    auto& pasteboard = dataTransfer.pasteboard();
+    auto& editor = source.editor();
+    if (action == DragSourceActionSelection) {
+        if (enclosingTextFormControl(source.selection().selection().start()))
+            pasteboard.writePlainText(editor.selectedTextForDataTransfer(), Pasteboard::CannotSmartReplace);
+        else
+            editor.writeSelectionToPasteboard(pasteboard);
+        return;
+    }
+
+    auto* image = getImage(element);
+    auto imageURL = hitTestResult->absoluteImageURL();
+    if ((action & DragSourceActionImage) && !imageURL.isEmpty() && image && !image->isNull()) {
+        editor.writeImageToPasteboard(pasteboard, element, imageURL, { });
+        return;
+    }
+
+    auto linkURL = hitTestResult->absoluteLinkURL();
+    if ((action & DragSourceActionLink) && !linkURL.isEmpty() && source.document()->securityOrigin().canDisplay(linkURL))
+        editor.copyURL(linkURL, hitTestResult->textContent().simplifyWhiteSpace(), pasteboard);
+#else
+    // FIXME: Make this work on Windows by implementing Editor::writeSelectionToPasteboard and Editor::writeImageToPasteboard.
+    UNUSED_PARAM(source);
+    UNUSED_PARAM(action);
+    UNUSED_PARAM(element);
+    UNUSED_PARAM(dataTransfer);
+    UNUSED_PARAM(dragOrigin);
+#endif
+}
+
+Optional<HitTestResult> DragController::hitTestResultForDragStart(Frame& source, Element& element, const IntPoint& location) const
+{
+    if (!source.view() || !source.contentRenderer())
+        return WTF::nullopt;
+
     constexpr OptionSet<HitTestRequest::RequestType> hitType { HitTestRequest::ReadOnly, HitTestRequest::Active, HitTestRequest::AllowChildFrameContent };
-    HitTestResult hitTestResult = src.eventHandler().hitTestResultAtPoint(dragOrigin, hitType);
+    auto hitTestResult = source.eventHandler().hitTestResultAtPoint(location, hitType);
 
-    bool sourceContainsHitNode = state.source->containsIncludingShadowDOM(hitTestResult.innerNode());
+    bool sourceContainsHitNode = element.containsIncludingShadowDOM(hitTestResult.innerNode());
     if (!sourceContainsHitNode) {
         // The original node being dragged isn't under the drag origin anymore... maybe it was
         // hidden or moved out from under the cursor. Regardless, we don't want to start a drag on
         // something that's not actually under the drag origin.
-        return false;
+        return WTF::nullopt;
     }
 
-    URL linkURL = hitTestResult.absoluteLinkURL();
-    URL imageURL = hitTestResult.absoluteImageURL();
+    return { hitTestResult };
+}
+
+bool DragController::startDrag(Frame& src, const DragState& state, DragOperation srcOp, const PlatformMouseEvent& dragEvent, const IntPoint& dragOrigin, HasNonDefaultPasteboardData hasData)
+{
+    if (!state.source)
+        return false;
+
+    Ref<Frame> protector(src);
+    auto hitTestResult = hitTestResultForDragStart(src, *state.source, dragOrigin);
+    if (!hitTestResult)
+        return false;
+
+    auto linkURL = hitTestResult->absoluteLinkURL();
+    auto imageURL = hitTestResult->absoluteImageURL();
 
     IntPoint mouseDraggedPoint = src.view()->windowToContents(dragEvent.position());
 
@@ -1046,13 +1096,13 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
             if (element.isContentRichlyEditable())
                 selectElement(element);
             if (!attachmentInfo)
-                declareAndWriteDragImage(dataTransfer, element, !linkURL.isEmpty() ? linkURL : imageURL, hitTestResult.altDisplayString());
+                declareAndWriteDragImage(dataTransfer, element, !linkURL.isEmpty() ? linkURL : imageURL, hitTestResult->altDisplayString());
         }
 
         client().willPerformDragSourceAction(DragSourceActionImage, dragOrigin, dataTransfer);
 
         if (!dragImage)
-            doImageDrag(element, dragOrigin, hitTestResult.imageRect(), src, m_dragOffset, state, WTFMove(attachmentInfo));
+            doImageDrag(element, dragOrigin, hitTestResult->imageRect(), src, m_dragOffset, state, WTFMove(attachmentInfo));
         else {
             // DHTML defined drag image
             doSystemDrag(WTFMove(dragImage), dragLoc, dragOrigin, src, state, WTFMove(attachmentInfo));
@@ -1064,7 +1114,7 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
     if (!linkURL.isEmpty() && (m_dragSourceAction & DragSourceActionLink)) {
         PasteboardWriterData pasteboardWriterData;
 
-        String textContentWithSimplifiedWhiteSpace = hitTestResult.textContent().simplifyWhiteSpace();
+        String textContentWithSimplifiedWhiteSpace = hitTestResult->textContent().simplifyWhiteSpace();
 
         if (hasData == HasNonDefaultPasteboardData::No) {
             // Simplify whitespace so the title put on the dataTransfer resembles what the user sees
@@ -1078,7 +1128,7 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
             // but don't overwrite more general pasteboard types.
             PasteboardURL pasteboardURL;
             pasteboardURL.url = linkURL;
-            pasteboardURL.title = hitTestResult.textContent();
+            pasteboardURL.title = hitTestResult->textContent();
             dataTransfer.pasteboard().writeTrustworthyWebURLsPboardType(pasteboardURL);
         }
 

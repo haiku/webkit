@@ -1,5 +1,4 @@
-//@ skip if ["arm", "mips"].include?($architecture)
-//@ skip if $hostOS == "playstation"
+//@ skip if $hostOS == "playstation" || $memoryLimited
 //@ runDefault("--gcIncrementScale=100", "--gcIncrementBytes=10", "--numberOfGCMarkers=1")
 
 let a = [];

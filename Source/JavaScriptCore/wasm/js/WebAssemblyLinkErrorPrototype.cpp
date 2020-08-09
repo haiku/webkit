@@ -29,6 +29,7 @@
 #if ENABLE(WEBASSEMBLY)
 
 #include "AuxiliaryBarrierInlines.h"
+#include "JSCInlines.h"
 
 #include "WebAssemblyLinkErrorPrototype.lut.h"
 

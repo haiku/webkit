@@ -365,9 +365,7 @@ void FrameView::recalculateScrollbarOverlayStyle()
         // Reduce the background color from RGB to a lightness value
         // and determine which scrollbar style to use based on a lightness
         // heuristic.
-        double hue, saturation, lightness;
-        backgroundColor.getHSL(hue, saturation, lightness);
-        if (lightness <= .5 && backgroundColor.isVisible())
+        if (backgroundColor.lightness() <= .5f && backgroundColor.isVisible())
             computedOverlayStyle = ScrollbarOverlayStyleLight;
         else if (!backgroundColor.isVisible() && useDarkAppearance())
             computedOverlayStyle = ScrollbarOverlayStyleLight;
@@ -4245,7 +4243,7 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
     if (fillWithWarningColor) {
         IntRect debugRect = frameRect();
         debugRect.intersect(dirtyRect);
-        context.fillRect(debugRect, Color(255, 64, 255));
+        context.fillRect(debugRect, makeSimpleColor(255, 64, 255));
     }
 #endif
 
@@ -5093,7 +5091,7 @@ bool FrameView::wheelEvent(const PlatformWheelEvent& wheelEvent)
 #if ENABLE(ASYNC_SCROLLING)
     if (auto scrollingCoordinator = this->scrollingCoordinator()) {
         if (scrollingCoordinator->coordinatesScrollingForFrameView(*this))
-            return scrollingCoordinator->handleWheelEvent(*this, wheelEvent) != ScrollingEventResult::DidNotHandleEvent;
+            return scrollingCoordinator->handleWheelEvent(*this, wheelEvent);
     }
 #endif
 

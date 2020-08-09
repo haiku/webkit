@@ -280,7 +280,7 @@ namespace JSC { namespace DFG {
     macro(CheckInBounds, NodeMustGenerate | NodeResultJS) \
     macro(CheckIdent, NodeMustGenerate) \
     macro(CheckTypeInfoFlags, NodeMustGenerate) /* Takes an OpInfo with the flags you want to test are set */\
-    macro(CheckSubClass, NodeMustGenerate) \
+    macro(CheckJSCast, NodeMustGenerate) /* This is the same as jsCast but as a speculation rather than assertion */\
     macro(ParseInt, NodeMustGenerate | NodeResultJS) \
     macro(GetPrototypeOf, NodeMustGenerate | NodeResultJS) \
     macro(ObjectCreate, NodeMustGenerate | NodeResultJS) \
@@ -490,6 +490,8 @@ namespace JSC { namespace DFG {
     /* Must generate because of Proxies on the prototype chain */ \
     macro(HasIndexedProperty, NodeMustGenerate | NodeResultBoolean | NodeHasVarArgs) \
     macro(HasStructureProperty, NodeResultBoolean) \
+    macro(HasOwnStructureProperty, NodeResultBoolean | NodeMustGenerate) \
+    macro(InStructureProperty, NodeMustGenerate | NodeResultBoolean) \
     macro(HasGenericProperty, NodeResultBoolean) \
     macro(GetDirectPname, NodeMustGenerate | NodeHasVarArgs | NodeResultJS) \
     macro(GetPropertyEnumerator, NodeMustGenerate | NodeResultJS) \

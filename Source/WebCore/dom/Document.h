@@ -28,6 +28,7 @@
 #pragma once
 
 #include "CSSRegisteredCustomProperty.h"
+#include "CanvasBase.h"
 #include "Color.h"
 #include "ContainerNode.h"
 #include "DisabledAdaptations.h"
@@ -55,6 +56,7 @@
 #include "SecurityPolicyViolationEvent.h"
 #include "StringWithDirection.h"
 #include "StyleColor.h"
+#include "StyleUpdate.h"
 #include "Supplementable.h"
 #include "TextResourceDecoder.h"
 #include "Timer.h"
@@ -356,7 +358,8 @@ class Document
     , public FontSelectorClient
     , public FrameDestructionObserver
     , public Supplementable<Document>
-    , public Logger::Observer {
+    , public Logger::Observer
+    , public CanvasObserver {
     WTF_MAKE_ISO_ALLOCATED(Document);
 public:
     static Ref<Document> create(const URL&);
@@ -643,6 +646,7 @@ public:
 
     bool renderTreeBeingDestroyed() const { return m_renderTreeBeingDestroyed; }
     bool hasLivingRenderTree() const { return renderView() && !renderTreeBeingDestroyed(); }
+    void updateRenderTree(std::unique_ptr<const Style::Update> styleUpdate);
     
     bool updateLayoutIfDimensionsOutOfDate(Element&, DimensionsCheck = AllDimensionsCheck);
     
@@ -1249,13 +1253,13 @@ public:
     WEBCORE_EXPORT unsigned styleRecalcCount() const;
 
 #if ENABLE(TOUCH_EVENTS)
-    bool hasTouchEventHandlers() const { return (m_touchEventTargets.get()) ? m_touchEventTargets->size() : false; }
+    bool hasTouchEventHandlers() const { return m_touchEventTargets.get() ? m_touchEventTargets->size() : false; }
     bool touchEventTargetsContain(Node& node) const { return m_touchEventTargets ? m_touchEventTargets->contains(&node) : false; }
 #else
     bool hasTouchEventHandlers() const { return false; }
     bool touchEventTargetsContain(Node&) const { return false; }
 #endif
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(TOUCH_ACTION_REGIONS)
     bool mayHaveElementsWithNonAutoTouchAction() const { return m_mayHaveElementsWithNonAutoTouchAction; }
     void setMayHaveElementsWithNonAutoTouchAction() { m_mayHaveElementsWithNonAutoTouchAction = true; }
 #endif
@@ -1278,6 +1282,7 @@ public:
 #endif
     }
 
+    bool hasWheelEventHandlers() const { return m_wheelEventTargets.get() ? m_wheelEventTargets->size() : false; }
     const EventTargetSet* wheelEventTargets() const { return m_wheelEventTargets.get(); }
 
     typedef std::pair<Region, bool> RegionFixedPair;
@@ -1590,6 +1595,11 @@ public:
     FrameSelection& selection() { return m_selection; }
     const FrameSelection& selection() const { return m_selection; }
 
+    void prepareCanvasesForDisplayIfNeeded();
+    void canvasChanged(CanvasBase&, const FloatRect&) final;
+    void canvasResized(CanvasBase&) final { };
+    void canvasDestroyed(CanvasBase&) final;
+
 protected:
     enum ConstructionFlags { Synthesized = 1, NonRenderedPlaceholder = 1 << 1 };
     Document(Frame*, const URL&, unsigned = DefaultDocumentClass, unsigned constructionFlags = 0);
@@ -1808,6 +1818,11 @@ private:
     std::unique_ptr<SVGDocumentExtensions> m_svgExtensions;
     HashSet<SVGUseElement*> m_svgUseElements;
 
+    // Collection of canvas objects that need to do work after they've
+    // rendered but before compositing, for the next frame. The set is
+    // cleared after they've been called.
+    HashSet<HTMLCanvasElement*> m_canvasesNeedingDisplayPreparation;
+
 #if ENABLE(DARK_MODE_CSS)
     OptionSet<ColorScheme> m_colorScheme;
     bool m_allowsColorSchemeTransformations { true };
@@ -1873,7 +1888,7 @@ private:
 #if ENABLE(TOUCH_EVENTS)
     std::unique_ptr<EventTargetSet> m_touchEventTargets;
 #endif
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(TOUCH_ACTION_REGIONS)
     bool m_mayHaveElementsWithNonAutoTouchAction { false };
 #endif
 #if ENABLE(EDITABLE_REGION)

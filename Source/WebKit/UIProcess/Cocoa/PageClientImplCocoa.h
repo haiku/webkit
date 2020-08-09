@@ -54,6 +54,10 @@ public:
 
     bool scrollingUpdatesDisabledForTesting() final;
 
+#if ENABLE(TINT_COLOR_SUPPORT)
+    WebCore::Color tintColor() final;
+#endif
+
 #if ENABLE(ATTACHMENT_ELEMENT)
     void didInsertAttachment(API::Attachment&, const String& source) final;
     void didRemoveAttachment(API::Attachment&) final;
@@ -62,9 +66,9 @@ public:
     NSSet *serializableFileWrapperClasses() const final;
 #endif
 
-    uint64_t addDictationAlternatives(NSTextAlternatives *) final;
-    void removeDictationAlternatives(uint64_t dictationContext) final;
-    Vector<String> dictationAlternatives(uint64_t dictationContext) final;
+    WebCore::DictationContext addDictationAlternatives(NSTextAlternatives *) final;
+    void removeDictationAlternatives(WebCore::DictationContext) final;
+    Vector<String> dictationAlternatives(WebCore::DictationContext) final;
 
 protected:
     WeakObjCPtr<WKWebView> m_webView;

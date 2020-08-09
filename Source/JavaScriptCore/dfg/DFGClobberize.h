@@ -697,6 +697,8 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
     case ToObject:
     case HasGenericProperty:
     case HasStructureProperty:
+    case HasOwnStructureProperty:
+    case InStructureProperty:
     case GetPropertyEnumerator:
     case GetDirectPname:
     case InstanceOfCustom:
@@ -1160,6 +1162,20 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         write(JSCell_structureID);
         write(JSCell_typeInfoFlags);
         write(JSCell_indexingType);
+
+        if (node->transition()->next->isPropertyDeletionTransition()) {
+            // We use this "delete fence" to model the proper aliasing of future stores.
+            // Both in DFG and when we lower to B3, we model aliasing of properties by
+            // property  name. In a world without delete, that also models {base, propertyOffset}.
+            // However, with delete, we may reuse property offsets for different names.
+            // Those potential stores that come after this delete won't properly model
+            // that they are dependent on the prior name stores. For example, if we didn't model this,
+            // it could give when doing things like store elimination, since we don't see
+            // writes to the new field name as having dependencies on the old field name.
+            // This node makes it so we properly model those dependencies.
+            write(NamedProperties);
+        }
+            
         return;
         
     case AllocatePropertyStorage:
@@ -1179,7 +1195,7 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         def(HeapLocation(ButterflyLoc, JSObject_butterfly, node->child1()), LazyNode(node));
         return;
 
-    case CheckSubClass:
+    case CheckJSCast:
         def(PureValue(node, node->classInfo()));
         return;
 
@@ -1316,9 +1332,14 @@ void clobberize(Graph& graph, Node* node, const ReadFunctor& read, const WriteFu
         read(JSObject_butterfly);
         AbstractHeap heap(NamedProperties, node->multiDeleteByOffsetData().identifierNumber);
         write(heap);
-        if (node->multiDeleteByOffsetData().writesStructures())
+        if (node->multiDeleteByOffsetData().writesStructures()) {
             write(JSCell_structureID);
-        def(HeapLocation(NamedPropertyLoc, heap, node->child1()), LazyNode(graph.freezeStrong(JSValue())));
+            // See comment in PutStructure about why this is needed for proper
+            // alias analysis.
+            write(NamedProperties);
+        }
+        if (node->multiDeleteByOffsetData().allVariantsStoreEmpty())
+            def(HeapLocation(NamedPropertyLoc, heap, node->child1()), LazyNode(graph.freezeStrong(JSValue())));
         return;
     }
         

@@ -2252,7 +2252,7 @@ EncodedJSValue JSC_HOST_CALL functionCreateHeapBigInt(JSGlobalObject* globalObje
         return JSValue::encode(bigInt);
     ASSERT(bigInt.isBigInt32());
     int32_t value = bigInt.bigInt32AsInt32();
-    return JSValue::encode(JSBigInt::createFrom(vm, value));
+    RELEASE_AND_RETURN(scope, JSValue::encode(JSBigInt::createFrom(globalObject, value)));
 #else
     return JSValue::encode(bigInt);
 #endif
@@ -2858,12 +2858,20 @@ static void runInteractive(GlobalObject* globalObject)
         NakedPtr<Exception> evaluationException;
         JSValue returnValue = evaluate(globalObject, jscSource(line, sourceOrigin, sourceOrigin.string()), JSValue(), evaluationException);
 #endif
-        CString result;
+        Expected<CString, UTF8ConversionError> utf8;
         if (evaluationException) {
             fputs("Exception: ", stdout);
-            result = evaluationException->value().toWTFString(globalObject).utf8();
+            utf8 = evaluationException->value().toWTFString(globalObject).tryGetUtf8();
         } else
-            result = returnValue.toWTFString(globalObject).utf8();
+            utf8 = returnValue.toWTFString(globalObject).tryGetUtf8();
+
+        CString result;
+        if (utf8)
+            result = utf8.value();
+        else if (utf8.error() == UTF8ConversionError::OutOfMemory)
+            result = "OutOfMemory while processing string";
+        else
+            result = "Error while processing string";
         fwrite(result.data(), sizeof(char), result.length(), stdout);
         putchar('\n');
 
@@ -3221,6 +3229,9 @@ int jscmain(int argc, char** argv)
     // Initialize JSC before getting VM.
     JSC::initializeThreading();
     initializeTimeoutIfNeeded();
+
+    if (Options::useSuperSampler())
+        enableSuperSampler();
 
     bool gigacageDisableRequested = false;
 #if GIGACAGE_ENABLED && !COMPILER(MSVC)

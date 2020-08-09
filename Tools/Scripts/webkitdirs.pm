@@ -962,11 +962,8 @@ sub XcodeStaticAnalyzerOption()
 
 sub canUseXCBuild()
 {
-    # if (`xcodebuild -version | grep "Build version"` =~ /Build version (\d+)([a-zA-Z])(\d+)([a-zA-Z]?)/) {
-    #     return $1 >= 11;
-    # }
-
-    return 0;
+    determineXcodeVersion();
+    return (eval "v$xcodeVersion" ge v11.4)
 }
 
 my $passedConfiguration;
@@ -1100,7 +1097,20 @@ sub builtDylibPathForName
 
     if (isGtk()) {
         my $extension = isDarwin() ? ".dylib" : ".so";
-        return "$configurationProductDir/lib/libwebkit2gtk-4.0" . $extension;
+        my @apiVersions = ("4.0", "5.0");
+        for my $apiVersion (@apiVersions) {
+            my $libraryPath;
+            if ($libraryName eq "JavaScriptCore") {
+                $libraryPath = "$configurationProductDir/lib/libjavascriptcoregtk-$apiVersion$extension";
+            } else {
+                $libraryPath = "$configurationProductDir/lib/libwebkit2gtk-$apiVersion$extension";
+            }
+            if (-e $libraryPath) {
+                return $libraryPath;
+            }
+        }
+
+        return "";
     }
     if (isHaiku()) {
         if (isWK2()) {

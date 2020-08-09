@@ -453,6 +453,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Unsigned, webAssemblyBBQAirOptimizationLevel, 0, Normal, "Air Optimization level for BBQ Web Assembly module compilations.") \
     v(Unsigned, webAssemblyBBQB3OptimizationLevel, 1, Normal, "B3 Optimization level for BBQ Web Assembly module compilations.") \
     v(Unsigned, webAssemblyOMGOptimizationLevel, Options::defaultB3OptLevel(), Normal, "B3 Optimization level for OMG Web Assembly module compilations.") \
+    v(Unsigned, webAssemblyBBQFallbackSize, 50000, Normal, "Limit of Wasm function size above which we fallback to BBQ compilation mode.") \
     \
     v(Bool, useBBQTierUpChecks, true, Normal, "Enables tier up checks for our BBQ code.") \
     v(Bool, useWebAssemblyOSR, true, Normal, nullptr) \
@@ -507,6 +508,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Unsigned, getByValICMaxNumberOfIdentifiers, 4, Normal, "Number of identifiers we see in the LLInt that could cause us to bail on generating an IC for get_by_val.") \
     v(Bool, usePublicClassFields, true, Normal, "If true, the parser will understand public data fields inside classes.") \
     v(Bool, useRandomizingExecutableIslandAllocation, false, Normal, "For the arm64 ExecutableAllocator, if true, select which region to use randomly. This is useful for testing that jump islands work.") \
+    v(Bool, exposeProfilersOnGlobalObject, false, Normal, "If true, we will expose functions to enable/disable both the sampling profiler and the super sampler") \
 
 enum OptionEquivalence {
     SameOption,

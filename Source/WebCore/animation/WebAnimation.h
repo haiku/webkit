@@ -63,7 +63,7 @@ public:
     virtual bool isCSSTransition() const { return false; }
 
     const String& id() const { return m_id; }
-    void setId(const String& id) { m_id = id; }
+    void setId(const String&);
 
     AnimationEffect* bindingsEffect() const { return effect(); }
     virtual void setBindingsEffect(RefPtr<AnimationEffect>&&);
@@ -120,7 +120,7 @@ public:
 
     bool needsTick() const;
     virtual void tick();
-    Seconds timeToNextTick() const;
+    WEBCORE_EXPORT Seconds timeToNextTick() const;
     virtual void resolve(RenderStyle&);
     void effectTargetDidChange(Element* previousTarget, Element* newTarget);
     void acceleratedStateDidChange();

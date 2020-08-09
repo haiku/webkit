@@ -423,6 +423,7 @@ public:
     virtual void ancestorWillEnterFullscreen() { }
     virtual void didBecomeFullscreenElement() { }
     virtual void willStopBeingFullscreenElement() { }
+    virtual void didStopBeingFullscreenElement() { }
 
     bool isFinishedParsingChildren() const { return isParsingChildrenFinished(); }
     void finishParsingChildren() override;
@@ -501,6 +502,9 @@ public:
     PropertyToTransitionMap& ensureRunningTransitionsByProperty();
     CSSAnimationCollection& animationsCreatedByMarkup();
     void setAnimationsCreatedByMarkup(CSSAnimationCollection&&);
+
+    const RenderStyle* lastStyleChangeEventStyle() const;
+    void setLastStyleChangeEventStyle(std::unique_ptr<const RenderStyle>&&);
 
 #if ENABLE(FULLSCREEN_API)
     WEBCORE_EXPORT bool containsFullScreenElement() const;

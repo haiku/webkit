@@ -95,7 +95,10 @@
 #include <wtf/PlatformEnableWinCairo.h>
 #endif
 
-
+/* --------- PlayStation port --------- */
+#if PLATFORM(PLAYSTATION)
+#include <wtf/PlatformEnablePlayStation.h>
+#endif
 
 /* ---------  ENABLE macro defaults --------- */
 
@@ -481,6 +484,14 @@
 
 #if !defined(ENABLE_TOUCH_EVENTS)
 #define ENABLE_TOUCH_EVENTS 0
+#endif
+
+#if !defined(ENABLE_TOUCH_ACTION_REGIONS)
+#define ENABLE_TOUCH_ACTION_REGIONS 0
+#endif
+
+#if !defined(ENABLE_WHEEL_EVENT_REGIONS)
+#define ENABLE_WHEEL_EVENT_REGIONS 0
 #endif
 
 #if !defined(ENABLE_VIDEO)

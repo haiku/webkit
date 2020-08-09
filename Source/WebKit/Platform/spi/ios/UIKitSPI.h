@@ -133,13 +133,6 @@
 #import <UIKit/_UICursorStyle_Private.h>
 #endif
 
-#if __has_include(<UIKit/UIHoverEvent_Private.h>)
-#import <UIKit/UIHoverEvent_Private.h>
-#else
-@interface UIHoverEvent : UIEvent
-@end
-#endif
-
 #else // USE(APPLE_INTERNAL_SDK)
 
 #if ENABLE(DRAG_SUPPORT)
@@ -427,12 +420,18 @@ typedef enum {
 #if PLATFORM(IOS) && !defined(__IPHONE_13_4)
 @property (nonatomic, readonly, getter=_modifierFlags) UIKeyModifierFlags modifierFlags;
 #endif
+@end
 
+#if HAVE(UI_HOVER_EVENT_RESPONDABLE)
+
+@protocol _UIHoverEventRespondable <NSObject>
 - (void)_hoverEntered:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event;
 - (void)_hoverMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event;
 - (void)_hoverExited:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event;
 - (void)_hoverCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event;
 @end
+
+#endif // HAVE(UI_HOVER_EVENT_RESPONDABLE)
 
 @interface UITapGestureRecognizer ()
 @property (nonatomic, getter=_allowableSeparation, setter=_setAllowableSeparation:) CGFloat allowableSeparation;
@@ -1214,13 +1213,6 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 + (instancetype)styleWithCursor:(_UICursor *)cursor constrainedAxes:(UIAxis)axes;
 @end
 
-@interface UITouch ()
-- (BOOL)_isPointerTouch;
-@end
-
-@interface UIHoverEvent : UIEvent
-@end
-
 #endif // USE(APPLE_INTERNAL_SDK)
 
 #define UIWKDocumentRequestMarkedTextRects (1 << 5)
@@ -1295,25 +1287,6 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 - (void)_updateSafeAreaInsets;
 @end
 
-@interface UIGestureRecognizer (IPI)
-- (BOOL)_paused;
-@property (nonatomic) UIView *view;
-@property (nonatomic, assign, getter=_acceptsFailureRequirements, setter=_setAcceptsFailureRequiments:) BOOL _acceptsFailureRequirements;
-@property (nonatomic, readonly, getter=_modifierFlags) UIKeyModifierFlags modifierFlags;
-@end
-
-@interface UIHoverEvent (IPI)
-#if PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED < 140000 || PLATFORM(MACCATALYST)
-- (void)setNeedsHitTestReset;
-#else
-- (void)setNeedsHitTestResetForWindow:(UIWindow *)window;
-#endif
-@end
-
-@interface UIApplication (IPI)
-- (UIHoverEvent *)_hoverEventForWindow:(UIWindow *)window;
-@end
-
 @interface UIScrollView (IPI)
 - (CGFloat)_rubberBandOffsetForOffset:(CGFloat)newOffset maxOffset:(CGFloat)maxOffset minOffset:(CGFloat)minOffset range:(CGFloat)range outside:(BOOL *)outside;
 - (void)_adjustForAutomaticKeyboardInfo:(NSDictionary *)info animated:(BOOL)animated lastAdjustment:(CGFloat*)lastAdjustment;
@@ -1339,6 +1312,7 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 - (BOOL)handleKeyAppCommandForCurrentEvent;
 - (BOOL)handleKeyInputMethodCommandForCurrentEvent;
 - (BOOL)isCallingInputDelegate;
+- (BOOL)delegateSupportsImagePaste;
 @property (nonatomic, readonly) UIKeyboardInputMode *currentInputModeInPreference;
 @end
 

@@ -31,6 +31,7 @@
 #include "ScrollingTree.h"
 #include <wtf/Condition.h>
 #include <wtf/RefPtr.h>
+#include <wtf/RunLoop.h>
 
 namespace WebCore {
 
@@ -44,18 +45,18 @@ class ThreadedScrollingTree : public ScrollingTree {
 public:
     virtual ~ThreadedScrollingTree();
 
-    ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override;
+    WheelEventHandlingResult handleWheelEvent(const PlatformWheelEvent&) override;
 
-    ScrollingEventResult handleWheelEventAfterMainThread(const PlatformWheelEvent&);
-
-    // Can be called from any thread. Will try to handle the wheel event on the scrolling thread.
-    // Returns true if the wheel event can be handled on the scrolling thread and false if the
-    // event must be sent again to the WebCore event handler.
-    ScrollingEventResult tryToHandleWheelEvent(const PlatformWheelEvent&, CompletionFunction&&) override;
+    bool handleWheelEventAfterMainThread(const PlatformWheelEvent&);
 
     void invalidate() override;
 
     WEBCORE_EXPORT void displayDidRefresh(PlatformDisplayID);
+
+    void willStartRenderingUpdate();
+    void didCompleteRenderingUpdate();
+
+    Lock& treeMutex() { return m_treeMutex; }
 
 protected:
     explicit ThreadedScrollingTree(AsyncScrollingCoordinator&);
@@ -79,8 +80,27 @@ private:
     void propagateSynchronousScrollingReasons(const HashSet<ScrollingNodeID>&) override;
 
     void displayDidRefreshOnScrollingThread();
+    void waitForRenderingUpdateCompletionOrTimeout();
+
+    void scheduleDelayedRenderingUpdateDetectionTimer(Seconds);
+    void delayedRenderingUpdateDetectionTimerFired();
+
+    Seconds maxAllowableRenderingUpdateDurationForSynchronization();
 
     RefPtr<AsyncScrollingCoordinator> m_scrollingCoordinator;
+
+    enum class SynchronizationState : uint8_t {
+        Idle,
+        WaitingForRenderingUpdate,
+        InRenderingUpdate,
+        Desynchronized,
+    };
+
+    SynchronizationState m_state { SynchronizationState::Idle };
+    Condition m_stateCondition;
+
+    // Dynamically allocated because it has to use the ScrollingThread's runloop.
+    std::unique_ptr<RunLoop::Timer<ThreadedScrollingTree>> m_delayedRenderingUpdateDetectionTimer;
 };
 
 } // namespace WebCore

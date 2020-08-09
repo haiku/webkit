@@ -1,3 +1,225 @@
+2020-06-02  Keith Rollin  <krollin@apple.com>
+
+        Change ANGLE's header postprocessing script to not rely on timestamps
+        https://bugs.webkit.org/show_bug.cgi?id=212623
+        <rdar://problem/63856997>
+
+        Reviewed by David Kilzer.
+        Reviewed by Kennneth Russell.
+
+        Some WebKit builds involve multiple passes, where each pass is a
+        superset of the previous pass. In the cases where each pass produces
+        the same files, it is required that files be produced in exactly the
+        same way in each of those passes. A build process that relies on a
+        file containing a timestamp trips up that prerequisite.
+
+        adjust-angle-include-paths.sh uses such a mechanism, using a timestamp
+        file to determine if any exported headers need to be post-processed.
+        Since this violates our prerequisite, we need a different approach.
+        Instead of using a timestamp, always perform the post-processing, but
+        write the output to a temporary location. Then see if it differs from
+        what's in the actual final destination. If the two files diff, then
+        copy the one from the temporary location to the final destination.
+
+        This approach does cause more work in the area of post-processing.
+        However, this post-processing is actually very cheap. And avoiding the
+        post-processing is not actually the original goal of the timestamp.
+        The actual goal is to avoid touching the modification dates of the
+        exported headers, which would then cause a lot of downstream
+        rebuilding. The new approach with the temporary files also achieves
+        that goal.
+
+        * CMakeLists.txt:
+        * adjust-angle-include-paths.sh:
+
+2020-06-02  Kenneth Russell  <kbr@chromium.org>
+
+        Revise PVRTC compressed texture validation in ANGLE backend for WebGL
+        https://bugs.webkit.org/show_bug.cgi?id=212612
+
+        Reviewed by Dean Jackson.
+
+        Correct the block sizes of PVRTC textures, and incorporate minimum
+        block sizes for width and height, as required by these formats.
+
+        * src/libANGLE/formatutils.cpp:
+        (gl::BuildInternalFormatInfoMap):
+        (gl::InternalFormat::computeCompressedImageSize const):
+        (gl::InternalFormat::getCompressedImageMinBlocks const):
+        * src/libANGLE/formatutils.h:
+
+2020-05-29  Keith Rollin  <krollin@apple.com>
+
+        Revert switch to XCBuild
+        https://bugs.webkit.org/show_bug.cgi?id=212530
+        <rdar://problem/63764632>
+
+        Unreviewed build fix.
+
+        Bug 209890 enabled the use of XCBuild by default. Since then, some
+        build issues have shown up. While addressing them, temporarily turn
+        off the use of XCBuild by default.
+
+        * ANGLE.xcodeproj/project.pbxproj:
+        * Configurations/ANGLE.xcconfig:
+
+2020-05-27  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Unreviewed build fix. Check the value of XCODE_VERSION_ACTUAL rather
+        than XCODE_VERSION_MAJOR when determining whether to use the XCBuild
+        or non-XCBuild method of running header post-processing scripts.
+
+        * ANGLE.xcodeproj/project.pbxproj:
+
+2020-05-26  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * ANGLE.xcodeproj/project.pbxproj:
+        * Configurations/ANGLE.xcconfig:
+
+2020-05-22  Kenneth Russell  <kbr@chromium.org>
+
+        [ANGLE - iOS] webgl/1.0.3/conformance/extensions/ext-sRGB.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=212277
+
+        Reviewed by Dean Jackson.
+
+        Properly translate GL_EXT_sRGB enums to ES 3.0 enums when
+        GL_EXT_sRGB is not supported.
+
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::GetNativeInternalFormat):
+        (rx::nativegl::GetNativeFormat):
+
+2020-05-22  Kenneth Russell  <kbr@chromium.org>
+
+        [ANGLE - iOS] fast/canvas/webgl/webgl-depth-texture.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=212271
+
+        Reviewed by Dean Jackson.
+
+        Use ES 3.0 sized internal formats for unsized depth/stencil
+        textures when the OES_depth_texture extension is unavailable - as
+        is the case in iOS's ES 3.0 driver.
+
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::GetNativeInternalFormat):
+
+2020-05-21  Dean Jackson  <dino@apple.com>
+
+        PVRTC compressed textures are failing with ANGLE backend
+        https://bugs.webkit.org/show_bug.cgi?id=212240
+        <rdar://problem/63517385>
+
+        Reviewed by Ken Russell (representing ANGLE).
+
+        The values used for the PVRTC formats were incorrect.
+
+        * src/libANGLE/formatutils.cpp:
+        (gl::BuildInternalFormatInfoMap):
+
+2020-05-21  Kenneth Russell  <kbr@chromium.org>
+
+        Roll ANGLE to 2020-05-21
+        https://bugs.webkit.org/show_bug.cgi?id=212228
+
+        Reviewed by Dean Jackson.
+
+        Roll ANGLE to 96a80283cc0fe604d03c0bc0b3f9eb100edd22f9 in the
+        upstream repository using jdarpinian's excellent update-angle.sh
+        script.
+
+        Manually undo the fix from Bug 210992, which was fixed differently
+        upstream.
+
+2020-05-21  Kenneth Russell  <kbr@chromium.org>
+
+        EXT_color_buffer_half_float not exposed on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=212181
+
+        Reviewed by Dean Jackson.
+
+        Remove OES_texture_half_float requirement for advertising
+        EXT_color_buffer_half_float in ANGLE. This is implicit in ES 3.0.
+
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::BuildInternalFormatInfoMap):
+
+2020-05-20  Kenneth Russell  <kbr@chromium.org>
+
+        OES_texture_half_float_linear unavailable on WebGL 1.0 on iOS with ANGLE
+        https://bugs.webkit.org/show_bug.cgi?id=212170
+
+        Reviewed by Dean Jackson.
+
+        Now that FP16 luminance/alpha texture formats are correctly
+        emulated on ES 3.0, advertise them as filterable.
+
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::BuildInternalFormatInfoMap):
+
+2020-05-20  Kenneth Russell  <kbr@chromium.org>
+
+        OES_texture_float / OES_texture_half_float unavailable in WebGL 1.0 on iOS Simulator with ANGLE
+        https://bugs.webkit.org/show_bug.cgi?id=210524
+
+        Reviewed by Dean Jackson.
+
+        Emulate LUMINANCE, ALPHA and LUMINANCE_ALPHA floating-point
+        textures on top of RED / RG textures when the underlying
+        OES_texture_float/half_float OpenGL ES extensions are unavailable.
+
+        This makes the conformance/extensions/oes-texture{-half}-float*
+        tests run and pass in the iOS Simulator.
+
+        This change is being reviewed upstream in the ANGLE repository and
+        is only being uploaded here for testing purposes. It will be
+        rolled in with the next ANGLE update.
+
+        * src/libANGLE/renderer/gl/TextureGL.cpp:
+        (rx::TextureGL::setSwizzle):
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::BuildInternalFormatInfoMap):
+        (rx::nativegl::IsLUMAFormat):
+        (rx::nativegl::EmulateLUMAFormat):
+        (rx::nativegl::EmulateLUMA):
+        (rx::nativegl::GetNativeInternalFormat):
+        (rx::nativegl::GetNativeFormat):
+        (rx::nativegl::GetNativeType):
+        (rx::nativegl::GetTexImageFormat):
+        (rx::nativegl::GetTexSubImageFormat):
+
 2020-05-18  James Darpinian  <jdarpinian@chromium.org>
 
         Enable regenerateStructNames workaround on iOS

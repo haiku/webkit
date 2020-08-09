@@ -1169,8 +1169,6 @@ webkit.org/b/171886 imported/w3c/web-platform-tests/streams/readable-byte-stream
 
 webkit.org/b/171957 fast/animation/request-animation-frame-time-unit.html [ Pass Failure ]
 
-webkit.org/b/172772 [ Release ] http/tests/cache/cancel-during-revalidation-succeeded.html [ Skip ]
-
 webkit.org/b/172454 http/tests/navigation/statistics.html [ Pass Failure ]
 
 webkit.org/b/17373 fast/forms/file/input-file-write-files-using-open-panel.html [ Skip ]
@@ -1326,8 +1324,6 @@ webkit.org/b/207156 [ Release ] http/tests/websocket/tests/hybi/workers/close.ht
 
 webkit.org/b/207161 imported/w3c/web-platform-tests/2dcontext/imagebitmap/createImageBitmap-transfer.html [ Pass Failure ]
 
-webkit.org/b/207197 http/tests/resourceLoadStatistics/cookie-deletion.html [ Pass Failure Crash ]
-
 webkit.org/b/206627 storage/websql [ Skip ]
 
 webkit.org/b/207386 imported/w3c/web-platform-tests/css/css-transitions/properties-value-002.html [ Pass Failure ]
@@ -1340,11 +1336,7 @@ webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/repo
 
 webkit.org/b/207551 http/tests/adClickAttribution/store-disabled-in-ephemeral-session.html [ Pass Timeout ]
 
-webkit.org/b/207552 http/tests/storageAccess/has-storage-access-false-by-default-ephemeral-database.html [ Pass Timeout ]
-
 webkit.org/b/190852 imported/w3c/web-platform-tests/service-workers/service-worker/redirected-response.https.html [ Pass Failure ]
-
-webkit.org/b/207583 http/wpt/beacon/cors/crossorigin-arraybufferview-no-preflight.html [ Pass Failure ]
 
 webkit.org/b/209514 http/tests/cache-storage/page-cache-domcache-pending-promise.html [ Pass Timeout DumpJSConsoleLogInStdErr ]
 
@@ -1721,11 +1713,6 @@ webkit.org/b/209281 imported/w3c/web-platform-tests/fetch/stale-while-revalidate
 
 webkit.org/b/209352 http/tests/security/stylesheet-href-redirect.html [ Pass Timeout ]
 
-# Flaky failure is tracked in webkit.org/b/211652
-webkit.org/b/209357 http/tests/resourceLoadStatistics/third-party-cookie-blocking-on-sites-without-user-interaction-database.html [ Pass Failure Timeout ]
-
-webkit.org/b/211653 http/tests/resourceLoadStatistics/strip-referrer-to-origin-for-prevalent-subresource-redirects-database.html [ Pass Failure ]
-
 webkit.org/b/209446 imported/w3c/web-platform-tests/navigation-timing/test_timing_attributes_order.html [ Pass Failure ]
 
 webkit.org/b/209450 [ Debug ] fast/text/control-characters/visible-control-characters-1.html [ Pass ImageOnlyFailure Crash ]
@@ -1754,7 +1741,15 @@ webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass
 
 webkit.org/b/211928 http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database.html [ Pass Timeout ]
 
-webkit.org/b/211958 [ Debug ] fast/text/international/system-language/han-quotes.html [ Pass Crash ]
-webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-es-419.html [ Pass Crash ]
-webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-hi.html [ Pass Crash ]
-webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-pt-PT.html [ Pass Crash ]
+webkit.org/b/212219 media/track/track-cue-missing.html [ Pass Failure ]
+
+webkit.org/b/212636 [ Debug ] imported/w3c/web-platform-tests/2dcontext/fill-and-stroke-styles/canvas_colorsandstyles_createlineargradient_001.htm [ Slow ]
+
+webkit.org/b/186045 [ Release ] imported/w3c/web-platform-tests/css/css-display/display-none-inline-img.html [ Pass Failure ]
+
+webkit.org/b/212532 http/wpt/service-workers/service-worker-crashing-while-fetching.https.html [ Pass Failure ]
+webkit.org/b/212532 http/wpt/service-workers/service-worker-different-process.https.html [ Pass Failure ]
+
+webkit.org/b/212641 animations/play-state-paused.html [ Pass Failure ]
+
+webkit.org/b/212696 imported/w3c/web-platform-tests/service-workers/service-worker/fetch-request-no-freshness-headers.https.html [ Pass Failure ]

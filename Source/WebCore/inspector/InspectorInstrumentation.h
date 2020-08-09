@@ -229,7 +229,9 @@ public:
     static void frameStoppedLoading(Frame&);
     static void frameScheduledNavigation(Frame&, Seconds delay);
     static void frameClearedScheduledNavigation(Frame&);
+#if ENABLE(DARK_MODE_CSS) || HAVE(OS_DARK_MODE_SUPPORT)
     static void defaultAppearanceDidChange(Page&, bool useDarkAppearance);
+#endif
     static void willDestroyCachedResource(CachedResource&);
 
     static bool willInterceptRequest(const Frame*, const ResourceRequest&);
@@ -306,6 +308,7 @@ public:
 #endif
 
     static void willApplyKeyframeEffect(Element&, KeyframeEffect&, ComputedEffectTiming);
+    static void didChangeWebAnimationName(WebAnimation&);
     static void didSetWebAnimationEffect(WebAnimation&);
     static void didChangeWebAnimationEffectTiming(WebAnimation&);
     static void didChangeWebAnimationEffectTarget(WebAnimation&);
@@ -434,7 +437,9 @@ private:
     static void frameStoppedLoadingImpl(InstrumentingAgents&, Frame&);
     static void frameScheduledNavigationImpl(InstrumentingAgents&, Frame&, Seconds delay);
     static void frameClearedScheduledNavigationImpl(InstrumentingAgents&, Frame&);
+#if ENABLE(DARK_MODE_CSS) || HAVE(OS_DARK_MODE_SUPPORT)
     static void defaultAppearanceDidChangeImpl(InstrumentingAgents&, bool useDarkAppearance);
+#endif
     static void willDestroyCachedResourceImpl(CachedResource&);
 
     static bool willInterceptRequestImpl(InstrumentingAgents&, const ResourceRequest&);
@@ -510,6 +515,7 @@ private:
 #endif
 
     static void willApplyKeyframeEffectImpl(InstrumentingAgents&, Element&, KeyframeEffect&, ComputedEffectTiming);
+    static void didChangeWebAnimationNameImpl(InstrumentingAgents&, WebAnimation&);
     static void didSetWebAnimationEffectImpl(InstrumentingAgents&, WebAnimation&);
     static void didChangeWebAnimationEffectTimingImpl(InstrumentingAgents&, WebAnimation&);
     static void didChangeWebAnimationEffectTargetImpl(InstrumentingAgents&, WebAnimation&);
@@ -1237,11 +1243,13 @@ inline void InspectorInstrumentation::frameClearedScheduledNavigation(Frame& fra
         frameClearedScheduledNavigationImpl(*instrumentingAgents, frame);
 }
 
+#if ENABLE(DARK_MODE_CSS) || HAVE(OS_DARK_MODE_SUPPORT)
 inline void InspectorInstrumentation::defaultAppearanceDidChange(Page& page, bool useDarkAppearance)
 {
     FAST_RETURN_IF_NO_FRONTENDS(void());
     defaultAppearanceDidChangeImpl(instrumentingAgentsForPage(page), useDarkAppearance);
 }
+#endif
 
 inline void InspectorInstrumentation::willDestroyCachedResource(CachedResource& cachedResource)
 {
@@ -1480,6 +1488,13 @@ inline void InspectorInstrumentation::willApplyKeyframeEffect(Element& target, K
     FAST_RETURN_IF_NO_FRONTENDS(void());
     if (auto* instrumentingAgents = instrumentingAgentsForDocument(target.document()))
         willApplyKeyframeEffectImpl(*instrumentingAgents, target, effect, computedTiming);
+}
+
+inline void InspectorInstrumentation::didChangeWebAnimationName(WebAnimation& animation)
+{
+    FAST_RETURN_IF_NO_FRONTENDS(void());
+    if (auto* instrumentingAgents = instrumentingAgentsForContext(animation.scriptExecutionContext()))
+        didChangeWebAnimationNameImpl(*instrumentingAgents, animation);
 }
 
 inline void InspectorInstrumentation::didSetWebAnimationEffect(WebAnimation& animation)

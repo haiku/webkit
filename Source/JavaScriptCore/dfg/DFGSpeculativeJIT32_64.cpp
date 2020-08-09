@@ -4057,6 +4057,14 @@ void SpeculativeJIT::compile(Node* node)
         compileHasStructureProperty(node);
         break;
     }
+    case HasOwnStructureProperty: {
+        compileHasOwnStructureProperty(node);
+        break;
+    }
+    case InStructureProperty: {
+        compileInStructureProperty(node);
+        break;
+    }
     case HasIndexedProperty: {
         compileHasIndexedProperty(node);
         break;
@@ -4170,8 +4178,8 @@ void SpeculativeJIT::compile(Node* node)
         compileCallDOMGetter(node);
         break;
 
-    case CheckSubClass:
-        compileCheckSubClass(node);
+    case CheckJSCast:
+        compileCheckJSCast(node);
         break;
 
     case Unreachable:

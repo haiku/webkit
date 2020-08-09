@@ -98,6 +98,7 @@ struct MultiDeleteByOffsetData {
     Vector<DeleteByIdVariant, 2> variants;
 
     bool writesStructures() const;
+    bool allVariantsStoreEmpty() const;
 };
 
 struct MatchStructureVariant {
@@ -2945,7 +2946,7 @@ public:
 
     bool hasClassInfo() const
     {
-        return op() == CheckSubClass;
+        return op() == CheckJSCast;
     }
 
     const ClassInfo* classInfo()

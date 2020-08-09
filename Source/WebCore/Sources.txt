@@ -34,6 +34,7 @@ loader/cache/CachedApplicationManifest.cpp
 #endif
 
 Modules/async-clipboard/Clipboard.cpp
+Modules/async-clipboard/ClipboardImageReader.cpp
 Modules/async-clipboard/ClipboardItem.cpp
 Modules/async-clipboard/ClipboardItemBindingsDataSource.cpp
 Modules/async-clipboard/ClipboardItemPasteboardDataSource.cpp
@@ -1040,7 +1041,6 @@ editing/CreateLinkCommand.cpp
 editing/CustomUndoStep.cpp
 editing/DeleteFromTextNodeCommand.cpp
 editing/DeleteSelectionCommand.cpp
-editing/DictationAlternative.cpp
 editing/DictationCommand.cpp
 editing/EditAction.cpp
 editing/EditCommand.cpp
@@ -1938,6 +1938,7 @@ platform/graphics/Region.cpp
 platform/graphics/RemoteVideoSample.cpp
 platform/graphics/RoundedRect.cpp
 platform/graphics/ShadowBlur.cpp
+platform/graphics/SimpleColor.cpp
 platform/graphics/StringTruncator.cpp
 platform/graphics/SurrogatePairAwareTextIterator.cpp
 platform/graphics/TextRun.cpp

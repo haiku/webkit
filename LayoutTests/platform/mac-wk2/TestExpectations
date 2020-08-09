@@ -39,6 +39,9 @@ http/tests/ssl/applepay/ [ Pass ]
 # ApplePayInstallmentConfiguration was first available in Catalina.
 [ Mojave ] http/tests/ssl/applepay/ApplePayInstallmentConfiguration.https.html [ Skip ]
 
+# ApplePayInstallmentItem is not available in Mojave or Catalina.
+[ Mojave Catalina ] http/tests/ssl/applepay/ApplePayInstallmentItems.https.html [ Skip ]
+
 fast/visual-viewport/rubberbanding-viewport-rects.html [ Pass ]
 fast/visual-viewport/rubberbanding-viewport-rects-header-footer.html  [ Pass ]
 
@@ -179,6 +182,7 @@ webkit.org/b/105616 editing/spelling/context-menu-suggestions-subword-selection.
 webkit.org/b/105616 editing/spelling/copy-paste-crash.html
 webkit.org/b/105616 editing/spelling/delete-into-misspelled-word.html
 webkit.org/b/105616 editing/spelling/editing-multiple-words-with-markers.html
+webkit.org/b/105616 editing/spelling/editing-word-with-marker-1.html [ Failure ]
 webkit.org/b/105616 editing/spelling/editing-word-with-marker-2.html
 webkit.org/b/105616 editing/spelling/move-cursor-around-misspelled-word.html
 webkit.org/b/105616 editing/spelling/spelling-changed-text.html
@@ -208,7 +212,6 @@ webkit.org/b/105616 editing/mac/spelling/click-autocorrected-word.html [ Failure
 webkit.org/b/105616 editing/mac/spelling/delete-autocorrected-word-1.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/delete-autocorrected-word-2.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/delete-into-autocorrected-word.html [ Failure ]
-webkit.org/b/105616 editing/mac/spelling/editing-word-with-marker-1.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/forward-delete-into-autocorrected-word.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/move-cursor-to-autocorrected-word.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/move-cursor-to-beginning-of-autocorrected-word.html [ Failure ]
@@ -845,7 +848,7 @@ webkit.org/b/197289 [ Mojave Debug ] webgl/2.0.0/conformance/state/gl-object-get
 
 webkit.org/b/189672 [ Mojave Debug ] webgl/2.0.0/conformance2/textures/misc/tex-new-formats.html [ Skip ]
 
-webkit.org/b/198195 [ Release ] fast/css/sticky/sticky-left-percentage.html [ Pass ImageOnlyFailure ]
+webkit.org/b/198195 fast/css/sticky/sticky-left-percentage.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/187828 [ Release ] fast/css-grid-layout/flex-content-sized-columns-resize.html [ Pass ImageOnlyFailure ]
 
@@ -946,8 +949,6 @@ webkit.org/b/207700 webgpu/whlsl/return-local-variable.html [ Pass ImageOnlyFail
 
 webkit.org/b/207728 [ Release ] accessibility/press-targets-center-point.html [ Pass Failure ]
 
-webkit.org/b/206699 http/tests/media/now-playing-info.html [ Pass Failure ]
-
 webkit.org/b/207779 webgpu/whlsl/dereference-pointer-should-type-check.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/207796 [ Release ] fast/box-shadow/hidpi-box-shadow.html [ Pass ImageOnlyFailure ]
@@ -993,8 +994,6 @@ webkit.org/b/208889 fast/images/decode-render-animated-image.html [ Pass ImageOn
 
 webkit.org/b/209006 imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/execution-timing/085.html [ Pass Failure ]
 
-webkit.org/b/209018 [ Catalina ] webrtc/video-autoplay1.html [ Pass Failure ]
-
 webkit.org/b/209024 [ Debug ] webgpu/whlsl/vector-compare.html [ Pass Crash ]
 
 webkit.org/b/209077 svg/custom/object-sizing-explicit-width.xhtml [ Pass Failure ]
@@ -1017,11 +1016,7 @@ webkit.org/b/209283 tiled-drawing/scrolling/scroll-iframe-latched-selects.html [
 
 webkit.org/b/209564 svg/as-image/svg-image-with-data-uri-background.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/209622 http/tests/eventsource/eventsource-reconnect-during-navigate-crash.html [ Pass Failure ]
-
 webkit.org/b/209624 [ Release ] tiled-drawing/scrolling/fixed/four-bars-zoomed.html [ Pass Failure ]
-
-webkit.org/b/209672 http/wpt/service-workers/service-worker-spinning-fetch.https.html [ Pass Failure Crash ]
 
 webkit.org/b/209769 [ Catalina ] tiled-drawing/scrolling/frames/frameset-nested-frame-scrollability.html [ Pass Failure ]
 
@@ -1031,5 +1026,15 @@ webkit.org/b/210433 swipe/basic-cached-back-swipe.html [ Pass Crash Timeout ]
 
 webkit.org/b/207518 tiled-drawing/simple-document-with-margin-tiles.html [ Pass Failure ]
 
+webkit.org/b/212091 platform/mac/media/media-source/media-source-change-source.html [ Pass Failure ]
+
 webkit.org/b/212085 [ Mojave Debug ] webgl/2.0.0/conformance/textures/canvas/tex-2d-rgba-rgba-unsigned_byte.html [ Pass Timeout ]
 webkit.org/b/212085 [ Mojave Debug ] webgl/2.0.0/conformance/textures/canvas/tex-2d-rgb-rgb-unsigned_byte.html [ Pass Timeout ]
+
+webkit.org/b/183424 media/video-zoom-controls.html [ Pass Failure ]
+
+webkit.org/b/212413 fast/mediastream/mock-media-source-webaudio.html [ Pass Timeout ]
+
+webkit.org/b/261103 [ Debug ] inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass Failure ]
+
+webkit.org/b/212667 [ Mojave Debug ] fast/scrolling/mac/scrollbars/select-overlay-scrollbar-hovered.html [ Pass Failure Timeout ]

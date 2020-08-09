@@ -619,17 +619,16 @@ NSArray *DataDetection::detectContentInRange(const SimpleRange& contextRange, Da
                 if (renderStyle) {
                     auto textColor = renderStyle->visitedDependentColor(CSSPropertyColor);
                     if (textColor.isValid()) {
-                        double hue, saturation, lightness;
-                        textColor.getHSL(hue, saturation, lightness);
+                        auto [hue, saturation, lightness, alpha] = sRGBToHSL(textColor.toSRGBAComponentsLossy());
 
                         // Force the lightness of the underline color to the middle, and multiply the alpha by 38%,
                         // so the color will appear on light and dark backgrounds, since only one color can be specified.
                         double overrideLightness = 0.5;
                         double overrideAlphaMultiplier = 0.38;
-                        auto underlineColor = Color(makeRGBAFromHSLA(hue, saturation, overrideLightness, overrideAlphaMultiplier * textColor.alphaAsFloat()));
+                        auto underlineColor = makeSimpleColorFromHSLA(hue, saturation, overrideLightness, overrideAlphaMultiplier * alpha);
 
                         anchorElement->setInlineStyleProperty(CSSPropertyColor, CSSValueCurrentcolor);
-                        anchorElement->setInlineStyleProperty(CSSPropertyTextDecorationColor, underlineColor.cssText());
+                        anchorElement->setInlineStyleProperty(CSSPropertyTextDecorationColor, underlineColor.serializationForCSS());
                     }
                 }
             }

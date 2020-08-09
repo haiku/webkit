@@ -36,6 +36,7 @@
 #include "RegistrableDomain.h"
 #include "RenderingUpdateScheduler.h"
 #include "ScrollTypes.h"
+#include "ShouldRelaxThirdPartyCookieBlocking.h"
 #include "Supplementable.h"
 #include "Timer.h"
 #include "UserInterfaceLayoutDirection.h"
@@ -362,8 +363,9 @@ public:
     float initialScaleIgnoringContentSize() const { return m_initialScaleIgnoringContentSize; }
     WEBCORE_EXPORT void setInitialScaleIgnoringContentSize(float);
 
-    void windowScreenDidChange(PlatformDisplayID);
+    void windowScreenDidChange(PlatformDisplayID, Optional<unsigned> nominalFramesPerSecond);
     PlatformDisplayID displayID() const { return m_displayID; }
+    Optional<unsigned> displayNominalFramesPerSecond() const { return m_displayNominalFramesPerSecond; }
 
     float topContentInset() const { return m_topContentInset; }
     WEBCORE_EXPORT void setTopContentInset(float);
@@ -720,6 +722,7 @@ public:
 
     bool loadsSubresources() const { return m_loadsSubresources; }
     bool loadsFromNetwork() const { return m_loadsFromNetwork; }
+    ShouldRelaxThirdPartyCookieBlocking shouldRelaxThirdPartyCookieBlocking() const { return m_shouldRelaxThirdPartyCookieBlocking; }
 
     bool isLowPowerModeEnabled() const { return m_throttlingReasons.contains(ThrottlingReason::LowPowerMode); }
     bool canUpdateThrottlingReason(ThrottlingReason reason) const { return !m_throttlingReasonsOverridenForTesting.contains(reason); }
@@ -845,6 +848,7 @@ private:
     RTCController m_rtcController;
 
     PlatformDisplayID m_displayID { 0 };
+    Optional<unsigned> m_displayNominalFramesPerSecond;
 
     int m_nestedRunLoopCount { 0 };
     WTF::Function<void()> m_unnestCallback;
@@ -1045,6 +1049,7 @@ private:
     bool m_shouldFireEvents { true };
     bool m_loadsSubresources { true };
     bool m_loadsFromNetwork { true };
+    ShouldRelaxThirdPartyCookieBlocking m_shouldRelaxThirdPartyCookieBlocking { ShouldRelaxThirdPartyCookieBlocking::No };
     bool m_hasBeenNotifiedToInjectUserScripts { false };
     Vector<std::pair<Ref<DOMWrapperWorld>, UniqueRef<UserScript>>> m_userScriptsAwaitingNotification;
 };

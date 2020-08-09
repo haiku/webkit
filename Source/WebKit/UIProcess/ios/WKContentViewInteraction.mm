@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -86,6 +86,7 @@
 #import "WebPageProxyMessages.h"
 #import "WebProcessProxy.h"
 #import "_WKActivatedElementInfoInternal.h"
+#import "_WKDragActionsInternal.h"
 #import "_WKElementAction.h"
 #import "_WKElementActionInternal.h"
 #import "_WKFocusedElementInfo.h"
@@ -896,6 +897,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 #endif
 
     _page->process().updateTextCheckerState();
+    _page->setScreenIsBeingCaptured([[[self window] screen] isCaptured]);
 
     _hasSetUpInteractions = YES;
 }
@@ -919,6 +921,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     _formInputSession = nil;
     [_highlightView removeFromSuperview];
     _outstandingPositionInformationRequest = WTF::nullopt;
+    _isWaitingOnPositionInformation = NO;
 
     _focusRequiresStrongPasswordAssistance = NO;
     _additionalContextForStrongPasswordAssistance = nil;
@@ -1447,7 +1450,11 @@ typedef NS_ENUM(NSInteger, EndEditingReason) {
 
 inline static UIKeyModifierFlags gestureRecognizerModifierFlags(UIGestureRecognizer *recognizer)
 {
+#if HAVE(UI_GESTURE_RECOGNIZER_MODIFIER_FLAGS)
+    return recognizer.modifierFlags;
+#else
     return [recognizer respondsToSelector:@selector(_modifierFlags)] ? [recognizer _modifierFlags] : 0;
+#endif
 }
 
 - (void)_webTouchEventsRecognized:(UIWebTouchEventsGestureRecognizer *)gestureRecognizer
@@ -1530,7 +1537,7 @@ inline static UIKeyModifierFlags gestureRecognizerModifierFlags(UIGestureRecogni
         return NO;
 
     if (gestureRecognizer == _doubleTapGestureRecognizer || gestureRecognizer == _nonBlockingDoubleTapGestureRecognizer)
-        return !touch._isPointerTouch;
+        return touch.type != UITouchTypeIndirectPointer;
 #endif
 
     if (gestureRecognizer == _touchActionLeftSwipeGestureRecognizer || gestureRecognizer == _touchActionRightSwipeGestureRecognizer || gestureRecognizer == _touchActionUpSwipeGestureRecognizer || gestureRecognizer == _touchActionDownSwipeGestureRecognizer) {
@@ -2236,16 +2243,14 @@ static Class tapAndAHalfRecognizerClass()
     if (!connection)
         return NO;
 
-    if ([self _hasValidOutstandingPositionInformationRequest:request])
-        return connection->waitForAndDispatchImmediately<Messages::WebPageProxy::DidReceivePositionInformation>(_page->webPageID(), 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
-
-    bool receivedResponse = _page->sendSync(Messages::WebPage::GetPositionInformation(request), Messages::WebPage::GetPositionInformation::Reply(_positionInformation), 1_s, IPC::SendSyncOption::ForceDispatchWhenDestinationIsWaitingForUnboundedSyncReply);
-    _hasValidPositionInformation = receivedResponse && _positionInformation.canBeValid;
+    if (_isWaitingOnPositionInformation)
+        return NO;
     
-    // FIXME: We need to clean up these handlers in the event that we are not able to collect data, or if the WebProcess crashes.
-    if (_hasValidPositionInformation)
-        [self _invokeAndRemovePendingHandlersValidForCurrentPositionInformation];
-
+    _isWaitingOnPositionInformation = YES;
+    if (![self _hasValidOutstandingPositionInformationRequest:request])
+        [self requestAsynchronousPositionInformationUpdate:request];
+    bool receivedResponse = connection->waitForAndDispatchImmediately<Messages::WebPageProxy::DidReceivePositionInformation>(_page->webPageID(), 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
+    _hasValidPositionInformation = receivedResponse && _positionInformation.canBeValid;
     return _hasValidPositionInformation;
 }
 
@@ -2278,6 +2283,7 @@ static Class tapAndAHalfRecognizerClass()
 {
     ASSERT(_hasValidPositionInformation);
 
+    // FIXME: We need to clean up these handlers in the event that we are not able to collect data, or if the WebProcess crashes.
     ++_positionInformationCallbackDepth;
     auto updatedPositionInformation = _positionInformation;
 
@@ -2323,12 +2329,8 @@ static Class tapAndAHalfRecognizerClass()
     return textSelectionRects;
 }
 
-- (BOOL)_shouldToggleSelectionCommandsAfterTapAt:(CGPoint)point
+- (BOOL)_pointIsInsideSelectionRect:(CGPoint)point outBoundingRect:(WebCore::FloatRect *)outBoundingRect
 {
-    if (_lastSelectionDrawingInfo.selectionRects.isEmpty())
-        return NO;
-
-    WebCore::FloatRect selectionBoundingRect;
     BOOL pointIsInSelectionRect = NO;
     for (auto& rectInfo : _lastSelectionDrawingInfo.selectionRects) {
         auto rect = rectInfo.rect();
@@ -2336,9 +2338,19 @@ static Class tapAndAHalfRecognizerClass()
             continue;
 
         pointIsInSelectionRect |= rect.contains(WebCore::roundedIntPoint(point));
-        selectionBoundingRect.unite(rect);
+        if (outBoundingRect)
+            outBoundingRect->unite(rect);
     }
+    return pointIsInSelectionRect;
+}
 
+- (BOOL)_shouldToggleSelectionCommandsAfterTapAt:(CGPoint)point
+{
+    if (_lastSelectionDrawingInfo.selectionRects.isEmpty())
+        return NO;
+
+    WebCore::FloatRect selectionBoundingRect;
+    BOOL pointIsInSelectionRect = [self _pointIsInsideSelectionRect:point outBoundingRect:&selectionBoundingRect];
     WebCore::FloatRect unobscuredContentRect = self.unobscuredContentRect;
     selectionBoundingRect.intersect(unobscuredContentRect);
 
@@ -2548,7 +2560,9 @@ static Class tapAndAHalfRecognizerClass()
                 return NO;
             }
             default:
-                break;
+                if (!_page->editorState().selectionIsRange)
+                    return NO;
+                return [self _pointIsInsideSelectionRect:point outBoundingRect:nil];
             }
         }
     }
@@ -2860,6 +2874,7 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 - (void)_positionInformationDidChange:(const WebKit::InteractionInformationAtPosition&)info
 {
     _outstandingPositionInformationRequest = WTF::nullopt;
+    _isWaitingOnPositionInformation = NO;
 
     WebKit::InteractionInformationAtPosition newInfo = info;
     newInfo.mergeCompatibleOptionalInformation(_positionInformation);
@@ -4314,7 +4329,7 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
 - (WebCore::Color)_tapHighlightColorForFastClick:(BOOL)forFastClick
 {
     ASSERT(_showDebugTapHighlightsForFastClicking);
-    return forFastClick ? WebCore::Color(0, 225, 0, 127) : WebCore::Color(225, 0, 0, 127);
+    return forFastClick ? WebCore::makeSimpleColor(0, 225, 0, 127) : WebCore::makeSimpleColor(225, 0, 0, 127);
 }
 
 - (void)_setDoubleTapGesturesEnabled:(BOOL)enabled
@@ -4619,7 +4634,7 @@ static Vector<WebCore::CompositionHighlight> compositionHighlights(NSAttributedS
         if (!attributes[NSMarkedClauseSegmentAttributeName])
             return;
 
-        WebCore::Color highlightColor { WebCore::Color::compositionFill };
+        WebCore::Color highlightColor { WebCore::CompositionHighlight::defaultCompositionFillColor };
         if (UIColor *uiColor = attributes[NSBackgroundColorAttributeName])
             highlightColor = WebCore::colorFromUIColor(uiColor);
         highlights.append({ static_cast<unsigned>(range.location), static_cast<unsigned>(NSMaxRange(range)), highlightColor });
@@ -5061,7 +5076,6 @@ static NSString *contentTypeFromFieldName(WebCore::AutofillFieldName fieldName)
     case WebKit::InputType::Drawing:
     case WebKit::InputType::Email:
     case WebKit::InputType::Month:
-    case WebKit::InputType::None:
     case WebKit::InputType::Number:
     case WebKit::InputType::NumberPad:
     case WebKit::InputType::Password:
@@ -5073,6 +5087,8 @@ static NSString *contentTypeFromFieldName(WebCore::AutofillFieldName fieldName)
     case WebKit::InputType::URL:
     case WebKit::InputType::Week:
         [_traits setIsSingleLineDocument:YES];
+        break;
+    case WebKit::InputType::None:
         break;
     }
 
@@ -7305,7 +7321,7 @@ static UIDropOperation dropOperationForWebCoreDragOperation(WebCore::DragOperati
     [self computeClientAndGlobalPointsForDropSession:session outClientPoint:&client outGlobalPoint:&global];
 
     WebCore::DragOperation dragOperationMask = static_cast<WebCore::DragOperation>(session.allowsMoveOperation ? WebCore::DragOperationEvery : (WebCore::DragOperationEvery & ~WebCore::DragOperationMove));
-    return { session, WebCore::roundedIntPoint(client), WebCore::roundedIntPoint(global), dragOperationMask, WebCore::DragApplicationNone, static_cast<WebCore::DragDestinationAction>(dragDestinationAction) };
+    return { session, WebCore::roundedIntPoint(client), WebCore::roundedIntPoint(global), dragOperationMask, WebCore::DragApplicationNone, WebKit::coreDragDestinationActionMask(dragDestinationAction) };
 }
 
 - (void)cleanUpDragSourceSessionState
@@ -9655,7 +9671,7 @@ static UIMenu *menuFromLegacyPreviewOrDefaultActions(UIViewController *previewVi
 
     NSURL *targetURL = controller.previewData[UIPreviewDataLink];
     URL coreTargetURL = targetURL;
-    bool isValidURLForImagePreview = !coreTargetURL.isEmpty() && (WTF::protocolIsInHTTPFamily(coreTargetURL) || WTF::protocolIs(coreTargetURL, "data"));
+    bool isValidURLForImagePreview = !coreTargetURL.isEmpty() && (coreTargetURL.protocolIsInHTTPFamily() || coreTargetURL.protocolIs("data"));
 
     if ([_previewItemController type] == UIPreviewItemTypeLink) {
         _longPressCanClick = NO;

@@ -28,8 +28,7 @@
 #include "CustomGetterSetter.h"
 #include "GetterSetter.h"
 #include "JSBigInt.h"
-#include "JSCJSValueInlines.h"
-#include "JSGlobalObject.h"
+#include "JSCInlines.h"
 #include "NumberObject.h"
 #include "TypeError.h"
 
@@ -129,10 +128,8 @@ JSValue JSValue::toThisSlowCase(JSGlobalObject* globalObject, ECMAMode ecmaMode)
     if (isTrue() || isFalse())
         return constructBooleanFromImmediateBoolean(globalObject, asValue());
 #if USE(BIGINT32)
-    if (isBigInt32()) {
-        JSCell* heapBigInt = static_cast<JSCell*>(JSBigInt::createFrom(globalObject->vm(), bigInt32AsInt32()));
-        return heapBigInt->toObject(globalObject);
-    }
+    if (isBigInt32())
+        return BigIntObject::create(globalObject->vm(), globalObject, *this);
 #endif
 
     ASSERT(isUndefinedOrNull());

@@ -79,6 +79,11 @@ static inline void bindModelToMenuWidget(GtkWidget* widget, GMenuModel* model)
 {
     gtk_popover_menu_set_menu_model(GTK_POPOVER_MENU(widget), model);
 }
+
+static inline void destroyMenuWidget(GtkWidget* widget)
+{
+    gtk_widget_unparent(widget);
+}
 #else
 const char* WebContextMenuProxyGtk::widgetDismissedSignal = "deactivate";
 
@@ -100,6 +105,8 @@ static void popupMenuWidget(GtkWidget* widget, const GdkEvent* triggerEvent, con
         gdk_event_set_device(keyEvent.get(), gdk_seat_get_keyboard(gdk_display_get_default_seat(gdk_window_get_display(window))));
         auto* event = reinterpret_cast<GdkEventKey*>(keyEvent.get());
         event->window = window;
+        // Take a ref of the GdkWindow when creating the GdkEvent, since the event will unref it on destroy.
+        g_object_ref(window);
         event->time = GDK_CURRENT_TIME;
         event->keyval = GDK_KEY_Menu;
         triggerEvent = keyEvent.get();
@@ -121,7 +128,12 @@ static inline bool menuWidgetHasItems(GtkWidget* widget)
 
 static inline void bindModelToMenuWidget(GtkWidget* widget, GMenuModel* model)
 {
-    gtk_menu_shell_bind_model(GTK_MENU_SHELL(widget), model, gContextMenuItemGroup, TRUE);
+    gtk_menu_shell_bind_model(GTK_MENU_SHELL(widget), model, nullptr, TRUE);
+}
+
+static inline void destroyMenuWidget(GtkWidget* widget)
+{
+    gtk_widget_destroy(widget);
 }
 #endif // USE(GTK4)
 
@@ -151,7 +163,8 @@ void WebContextMenuProxyGtk::append(GMenu* menu, const WebContextMenuItemGlib& m
     case ActionType:
     case CheckableActionType: {
         gMenuItem = adoptGRef(g_menu_item_new(menuItem.title().utf8().data(), nullptr));
-        g_menu_item_set_action_and_target_value(gMenuItem.get(), g_action_get_name(action), menuItem.gActionTarget());
+        GUniquePtr<char> actionName(g_strdup_printf("%s.%s", gContextMenuItemGroup, g_action_get_name(action)));
+        g_menu_item_set_action_and_target_value(gMenuItem.get(), actionName.get(), menuItem.gActionTarget());
 
         if (menuItem.action() < ContextMenuItemBaseApplicationTag) {
             g_object_set_data(G_OBJECT(action), gContextMenuActionId, GINT_TO_POINTER(menuItem.action()));
@@ -280,7 +293,7 @@ WebContextMenuProxyGtk::~WebContextMenuProxyGtk()
     m_signalHandlers.clear();
 
     gtk_widget_insert_action_group(GTK_WIDGET(m_menu), gContextMenuItemGroup, nullptr);
-    gtk_widget_destroy(m_menu);
+    destroyMenuWidget(m_menu);
 }
 
 } // namespace WebKit

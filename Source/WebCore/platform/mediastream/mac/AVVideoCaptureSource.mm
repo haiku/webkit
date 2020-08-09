@@ -75,11 +75,10 @@ namespace WebCore {
 
 static inline OSType avVideoCapturePixelBufferFormat()
 {
-    // FIXME: Use preferedPixelBufferFormat() once rdar://problem/44391444 is fixed.
-#if PLATFORM(MAC)
-    return kCVPixelFormatType_420YpCbCr8Planar;
-#else
+#if HAVE(DISPLAY_LAYER_BIPLANAR_SUPPORT)
     return preferedPixelBufferFormat();
+#else
+    return kCVPixelFormatType_420YpCbCr8Planar;
 #endif
 }
 
@@ -543,25 +542,15 @@ void AVVideoCaptureSource::computeSampleRotation()
     notifySettingsDidChangeObservers({ RealtimeMediaSourceSettings::Flag::Width, RealtimeMediaSourceSettings::Flag::Height });
 }
 
-void AVVideoCaptureSource::processNewFrame(Ref<MediaSample>&& sample)
-{
-    if (!isProducingData() || muted())
-        return;
-
-    m_buffer = &sample.get();
-    setIntrinsicSize(expandedIntSize(sample->presentationSize()));
-    dispatchMediaSampleToObservers(WTFMove(sample));
-}
-
 void AVVideoCaptureSource::captureOutputDidOutputSampleBufferFromConnection(AVCaptureOutput*, CMSampleBufferRef sampleBuffer, AVCaptureConnection* captureConnection)
 {
     if (++m_framesCount <= framesToDropWhenStarting)
         return;
 
     auto sample = MediaSampleAVFObjC::create(sampleBuffer, m_sampleRotation, [captureConnection isVideoMirrored]);
-    scheduleDeferredTask([this, sample = WTFMove(sample)] () mutable {
-        processNewFrame(WTFMove(sample));
-    });
+    m_buffer = &sample.get();
+    setIntrinsicSize(expandedIntSize(sample->presentationSize()));
+    dispatchMediaSampleToObservers(WTFMove(sample));
 }
 
 void AVVideoCaptureSource::captureSessionIsRunningDidChange(bool state)

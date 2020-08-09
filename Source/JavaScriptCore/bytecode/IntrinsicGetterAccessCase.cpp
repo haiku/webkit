@@ -28,6 +28,9 @@
 
 #if ENABLE(JIT)
 
+#include "HeapInlines.h"
+#include "JSCellInlines.h"
+
 namespace JSC {
 
 IntrinsicGetterAccessCase::IntrinsicGetterAccessCase(VM& vm, JSCell* owner, CacheableIdentifier identifier, PropertyOffset offset, Structure* structure, const ObjectPropertyConditionSet& conditionSet, JSFunction* intrinsicFunction, std::unique_ptr<PolyProtoAccessChain> prototypeAccessChain)

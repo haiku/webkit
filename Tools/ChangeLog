@@ -1,3 +1,1534 @@
+2020-06-03  Sihui Liu  <sihui_liu@apple.com>
+
+        Text manipulation sometimes fails to replace text in attributes
+        https://bugs.webkit.org/show_bug.cgi?id=212701
+
+        Reviewed by Wenson Hsieh.
+
+        Modify TextManipulation.CompleteTextManipulationShouldReplaceTextContentWithMultipleTokens to cover text 
+        manipulation for attributes.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TextManipulation.mm:
+        (TestWebKitAPI::TEST):
+
+2020-06-03  Diego Pino Garcia  <dpino@igalia.com>
+
+        [WPE] lint-test-expectations doesn't work when platform is WPE
+        https://bugs.webkit.org/show_bug.cgi?id=212700
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        When passing arguments '--wpe' or '--platform=wpe*',
+        lint-test-expectations does nothing for WPE, despite currently 
+        there are many lint errors in WPE's TestExpectations file.
+
+        As a side-effect of this patch, now `Tools/Scripts/webkit-path
+        rebaseline` lists the WPE Release and Debug bots.
+
+        * Scripts/webkitpy/port/builders.py: Add WPE to the list of
+        exact_matches and fuzzy_matches.
+        * Scripts/webkitpy/tool/commands/rebaseline_unittest.py:
+
+2020-06-03  Jonathan Bedard  <jbedard@apple.com>
+
+        Allow using web processes for service workers even though they loaded about URLs (Follow-up fix)
+        https://bugs.webkit.org/show_bug.cgi?id=212464
+
+        Unreviewed build fix.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ServiceWorkerBasic.mm: didFinishNavigation is now used unconditionally.
+
+2020-06-02  Keith Rollin  <krollin@apple.com>
+
+        Revert FEATURES_DEFINES related changes
+        https://bugs.webkit.org/show_bug.cgi?id=212664
+        <rdar://problem/63893033>
+
+        Reviewed by Andy Estes.
+
+        Bug 262310, Bug 262311, Bug 262318, and Bug 262331 involve changes to
+        FEATURE_DEFINES and how the values there relate to those found in the
+        Platform*.h files. Those changes break XCBuild (by removing the
+        .xcfilelist related to UnifiedSources and the process for generating
+        them), and so are being reverted.
+
+        * Scripts/webkitperl/FeatureList.pm:
+        * Scripts/webkitpy/generate_xcfilelists_lib/generators.py:
+        (WebCoreGenerator):
+        (WebCoreGenerator._get_generate_unified_sources_script):
+        * TestWebKitAPI/Configurations/FeatureDefines.xcconfig:
+
+2020-06-02  Peng Liu  <peng.liu6@apple.com>
+
+        Stressing webkitSetPresentationMode leads to wrong inline video dimensions
+        https://bugs.webkit.org/show_bug.cgi?id=202425
+
+        Reviewed by Eric Carlson.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WKWebViewCloseAllMediaPresentations.mm:
+        (TEST):
+
+2020-06-02  Youenn Fablet  <youenn@apple.com>
+
+        Allow using web processes for service workers even though they loaded about URLs
+        https://bugs.webkit.org/show_bug.cgi?id=212464
+
+        Reviewed by Chris Dumez.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ServiceWorkerBasic.mm:
+
+2020-06-02  Diego Pino Garcia  <dpino@igalia.com>
+
+        [buildbot] [GTK][WPE] Move JavaScript related tests to own bot
+        https://bugs.webkit.org/show_bug.cgi?id=212481
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Currently GTK and WPE tests bots run too many tests. This makes
+        the total running time for each build very long.
+
+        This patch moves JavaScript related tests (jscore-test and
+        test262-test) to a separated bot which will be triggered by the
+        corresponding build bot of each platform.
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json:
+        * BuildSlaveSupport/build.webkit.org-config/factories.py:
+        (TestFactory.__init__):
+        (TestJSFactory):
+        (TestJSFactory.__init__):
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py:
+
+2020-06-02  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK4] Make popup menus work
+        https://bugs.webkit.org/show_bug.cgi?id=211178
+
+        Reviewed by Adrian Perez de Castro.
+
+        * WebKitTestRunner/gtk/PlatformWebViewGtk.cpp:
+        (WTR::PlatformWebView::dismissAllPopupMenus):
+
+2020-06-02  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK4] Make it possible to run layout tests
+        https://bugs.webkit.org/show_bug.cgi?id=212328
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Build WTR with GTK4.
+
+        * PlatformGTK.cmake:
+        * Scripts/webkitdirs.pm:
+        (builtDylibPathForName): Try with both 4 and 5 API versions.
+        * WebKitTestRunner/gtk/EventSenderProxyGtk.cpp:
+        * WebKitTestRunner/gtk/PlatformWebViewGtk.cpp:
+        (WTR::PlatformWebView::PlatformWebView):
+        (WTR::PlatformWebView::~PlatformWebView):
+        (WTR::PlatformWebView::setWindowIsKey):
+        (WTR::PlatformWebView::windowFrame):
+        (WTR::PlatformWebView::setWindowFrame):
+        (WTR::PlatformWebView::addToWindow):
+        (WTR::PlatformWebView::removeFromWindow):
+        (WTR::PlatformWebView::windowSnapshotImage):
+        (WTR::PlatformWebView::dismissAllPopupMenus):
+        * WebKitTestRunner/gtk/UIScriptControllerGtk.cpp:
+        (WTR::UIScriptControllerGtk::copyText):
+
+2020-06-01  Noam Rosenthal  <noam@webkit.org>
+
+        Make unicode-bidi:isolate the default for an element with a dir attribute (instead of unicode-bidi:embed)
+        https://bugs.webkit.org/show_bug.cgi?id=134630
+
+        Reviewed by Simon Fraser.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/AttrStyle.mm:
+        (TEST):
+                Test was expecting unicode-bidi:embed, changed expectation.
+
+2020-06-01  Sihui Liu  <sihui_liu@apple.com>
+
+        TextManipulationController should put one Node in only one paragraph
+        https://bugs.webkit.org/show_bug.cgi?id=212548
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TextManipulation.mm:
+        (TestWebKitAPI::TEST):
+
+2020-06-01  Alex Christensen  <achristensen@webkit.org>
+
+        Make CustomDisplayName and DefaultDisplayName API tests fail instead of timing out when something changes
+        https://bugs.webkit.org/show_bug.cgi?id=212480
+
+        This saves time when debugging and running all the tests.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/DisplayName.mm:
+        (TestWebKitAPI::checkUntilDisplayNameIs):
+
+2020-06-01  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Install and update don't provide any terminal output
+        https://bugs.webkit.org/show_bug.cgi?id=212579
+
+        Reviewed by Žan Doberšek.
+
+        The `show_output` option was removed from the process execution routines. We now assume the
+        output will be displayed, unless the call-site asks `gather_output`. This change makes
+        webkit-flatpak more chatty, which is nice during install/update operations.
+
+        * flatpak/flatpakutils.py:
+        (run_sanitized):
+        (FlatpakObject.flatpak):
+        (FlatpakPackage.install):
+        (FlatpakPackage.update):
+        (WebkitFlatpak.setup_builddir):
+        (WebkitFlatpak.run_in_sandbox):
+
+2020-06-01  Chris Dumez  <cdumez@apple.com>
+
+        ASSERTION FAILURE (r220931): !m_function in ~CompletionHandler() after switch tabs
+        https://bugs.webkit.org/show_bug.cgi?id=212537
+        <rdar://problem/63766838>
+
+        Reviewed by Alex Christensen.
+
+        Add API test coverage.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitCocoa/ProcessSuspension.mm: Added.
+        (TEST):
+
+2020-06-01  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        [EWS] Add a special case for running the layout test step without aborting in case of many failures for WPT tests
+        https://bugs.webkit.org/show_bug.cgi?id=212381
+
+        Reviewed by Jonathan Bedard.
+
+        Add a special case for patches uploaded by the bugzilla user that would be used
+        for prototyping a bot that helps automating the import of WPT tests. For patches
+        uploaded by this user don't pass the parameters that make the step abort early in
+        case of many errors, and only run the layout tests inside the WPT import directory.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (RunWebKitTests):
+        (RunWebKitTests.start):
+        * BuildSlaveSupport/ews-build/steps_unittest.py:
+        (test_success):
+        (test_warnings):
+        (test_parse_results_json_regression):
+        (test_parse_results_json_flakes):
+        (test_parse_results_json_flakes_and_regressions):
+        (test_parse_results_json_with_newlines):
+        (test_unexpected_error):
+        (test_failure):
+        (test_success_wpt_import_bot):
+        (TestRunWebKitTestsWithoutPatch.test_success):
+        (TestRunWebKitTestsWithoutPatch.test_failure):
+        (TestRunWebKit1Tests.test_success):
+        (TestRunWebKit1Tests.test_failure):
+
+2020-06-01  Sam Weinig  <weinig@apple.com>
+
+        Extended Color: Replace Color constructors taking numeric values with type specific factory functions
+        https://bugs.webkit.org/show_bug.cgi?id=212576
+
+        Reviewed by Tim Horton.
+
+        Replaces all remaining implicit and explicit uses of the Color constructors taking numeric
+        values with explicit calls to makeSimpleColor/makeSimpleColorFromFloats/makeExtendedColor,
+        giving us a consistent way to create colors. Also addes use constexpr SimpleColors where possible.
+
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        (TestWebKitAPI::makeColor):
+        * TestWebKitAPI/Tests/WebKitCocoa/PDFSnapshot.mm:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/cocoa/TestPDFDocument.mm:
+        (TestWebKitAPI::TestPDFPage::colorAtPoint const):
+
+2020-05-31  Dean Jackson  <dino@apple.com>
+
+        AutoTrader crashed while browsing search results
+        https://bugs.webkit.org/show_bug.cgi?id=212461
+        rdar://60733185
+
+        Reviewed by Sam Weinig.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/WebGLPrepareDisplayOnWebThread.mm: Added.
+        (-[WebGLPrepareDisplayOnWebThreadDelegate webViewDidFinishLoad:]):
+        (-[WebGLPrepareDisplayOnWebThreadDelegate webView:shouldStartLoadWithRequest:navigationType:]):
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/webgl.html: Added.
+
+2020-05-31  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix GTK4 build with current GTK
+
+        * MiniBrowser/gtk/BrowserTab.c:
+        (audioMutedChanged):
+
+2020-05-30  Sam Weinig  <weinig@apple.com>
+
+        Extended Color: Additional color cleanups
+        https://bugs.webkit.org/show_bug.cgi?id=212567
+
+        Reviewed by Simon Fraser.
+
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        Update for rename from ExtendedColor::channels() to ExtendedColor::components()
+
+2020-05-30  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] WebDriver: stop using GdkEvent API in preparation for GTK4
+        https://bugs.webkit.org/show_bug.cgi?id=212465
+
+        Reviewed by Adrian Perez de Castro.
+
+        Update to the new webkitWebViewBaseSynthesizeKeyEvent() API.
+
+        * WebKitTestRunner/gtk/EventSenderProxyGtk.cpp:
+        (WTR::EventSenderProxy::keyDown):
+
+2020-05-29  Alex Christensen  <achristensen@webkit.org>
+
+        Use correct encoding when converting a WTF::URL to CFURLRef
+        https://bugs.webkit.org/show_bug.cgi?id=212486
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WTF/cocoa/URLExtras.mm:
+        (TestWebKitAPI::TEST):
+
+2020-05-29  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Remove conditionals for ENABLE_APPLE_PAY_SESSION_V(3|4)
+        https://bugs.webkit.org/show_bug.cgi?id=212541
+
+        Reviewed by Darin Adler.
+
+        APPLE_PAY_SESSION_V(3|4) is now enabled whenever APPLE_PAY itself is enabled.
+
+        * Scripts/webkitperl/FeatureList.pm:
+        * TestWebKitAPI/Configurations/FeatureDefines.xcconfig:
+
+2020-05-29  Jan-Michael Brummer  <jan.brummer@tabos.org>
+
+        [GTK][WPE] API for WebView audio mute support
+        https://bugs.webkit.org/show_bug.cgi?id=176119
+
+        Reviewed by Michael Catanzaro.
+
+        * MiniBrowser/gtk/BrowserTab.c:
+        (audioClicked):
+        (audioMutedChanged):
+        (browserTabConstructed):
+        * TestWebKitAPI/Tests/WebKitGLib/TestWebKitWebView.cpp:
+        (testWebViewIsAudioMuted):
+        (beforeAll):
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Rubber-stamped by Simon Fraser.
+
+        * TestWebKitAPI/Configurations/FeatureDefines.xcconfig: Add back ENABLE_CSS_CONIC_GRADIENTS,
+        removed by accident.
+
+2020-05-29  Pavel  <pavel.feldman@gmail.com>
+
+        [Win] Allow compiling with the TOUCH_EVENTS enabled
+        https://bugs.webkit.org/show_bug.cgi?id=212528
+
+        Reviewed by Fujii Hironori.
+
+        Aligning Win with GTK, adding missing EventSenderProxy stubs.
+        This allows compiling Win with TOUCH_EVENTS and unlocks event
+        injection / processing by the automation drivers
+
+        * WebKitTestRunner/win/EventSenderProxyWin.cpp:
+        (WTR::EventSenderProxy::addTouchPoint):
+        (WTR::EventSenderProxy::updateTouchPoint):
+        (WTR::EventSenderProxy::setTouchModifier):
+        (WTR::EventSenderProxy::setTouchPointRadius):
+        (WTR::EventSenderProxy::touchStart):
+        (WTR::EventSenderProxy::touchMove):
+        (WTR::EventSenderProxy::touchEnd):
+        (WTR::EventSenderProxy::touchCancel):
+        (WTR::EventSenderProxy::clearTouchPoints):
+        (WTR::EventSenderProxy::releaseTouchPoint):
+        (WTR::EventSenderProxy::cancelTouchPoint):
+
+2020-05-27  Darin Adler  <darin@apple.com>
+
+        Remove things from FeatureDefines.xcconfig that are covered by PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Andy Estes.
+
+        * TestWebKitAPI/Configurations/FeatureDefines.xcconfig: Removed 83 of the 119 things
+        defined in this file. There are 36 more that are slightly more complex that we can
+        remove carefully later.
+
+2020-05-29  Darin Adler  <darin@apple.com>
+
+        Make generate-unified-sources.sh not depend on features being listed in FEATURE_DEFINES environment variable
+        https://bugs.webkit.org/show_bug.cgi?id=212420
+
+        Reviewed by Andy Estes.
+
+        * Scripts/webkitpy/generate_xcfilelists_lib/generators.py:
+        (WebCoreGenerator._get_generate_derived_sources_script): Removed the code
+        to generate UnifiedSources-output.xcfilelist.
+
+2020-05-29  Keith Rollin  <krollin@apple.com>
+
+        Revert switch to XCBuild
+        https://bugs.webkit.org/show_bug.cgi?id=212530
+        <rdar://problem/63764632>
+
+        Unreviewed build fix.
+
+        Bug 209890 enabled the use of XCBuild by default. Since then, some
+        build issues have shown up. While addressing them, temporarily turn
+        off the use of XCBuild by default.
+
+        * DumpRenderTree/DumpRenderTree.xcodeproj/project.pbxproj:
+        * Scripts/build-webkit:
+        * WebKitTestRunner/WebKitTestRunner.xcodeproj/project.pbxproj:
+
+2020-05-29  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak][GStreamer] all commands, except webkit-build, fails if GST_BUILD_PATH is set
+        https://bugs.webkit.org/show_bug.cgi?id=212408
+
+        Reviewed by Žan Doberšek.
+
+        Don't run gst-env.py in the sandbox because that can lead to command-line options clashing
+        with build-webkit and other WebKit scripts. So instead we now parse the output of the
+        environment variables gst-build requires and we forward those to the sandbox.
+
+        * flatpak/flatpakutils.py:
+        (run_sanitized):
+        (check_flatpak):
+        (FlatpakObject.flatpak):
+        (WebkitFlatpak.execute_command):
+        (WebkitFlatpak.setup_gstbuild):
+        (WebkitFlatpak.run_in_sandbox):
+        (flatpak_run_sanitized): Deleted.
+
+2020-05-29  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        Add watchlist comment for patches touching imported WPT tests.
+        https://bugs.webkit.org/show_bug.cgi?id=212362
+
+        Reviewed by Youenn Fablet.
+
+        Add a watchlist trigger to comment on patches touching imported WPT tests
+        with a link to documentation about the export process.
+
+        * Scripts/webkitpy/common/config/watchlist:
+
+2020-05-29  Lauro Moura  <lmoura@igalia.com>
+
+        [Flatpak] Fix os.system return code for better signal handling.
+
+        Rubber-stamped by Philippe Normand.
+
+        The previous fix in r262270 correctly fixed the return code issue
+        but made signal handling pass through python. For example, when you
+        ctlr+C running MiniBrowser, you'd get a python stacktrace deep inside
+        subprocess.call.
+
+        So, revert back to os.system but fixing the return code.
+
+        * flatpak/webkit-bwrap:
+
+2020-05-29  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Update OpenXR
+        https://bugs.webkit.org/show_bug.cgi?id=212518
+
+        Reviewed by Žan Doberšek.
+
+        Upstream now builds fine with GCC 9.3.0. Removing downstream patch.
+        
+        * buildstream/elements/sdk/openxr.bst:
+        * buildstream/patches/openxr-0001-cmake-Check-for-C-17-and-conditionally-enable-it.patch: Removed.
+
+2020-05-29  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        REGRESSION (r261812): editing/async-clipboard/clipboard-item-get-type-basic.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=212281
+        <rdar://problem/63554912>
+
+        Reviewed by Tim Horton.
+
+        On some shipping versions of iOS, returning `NO` from `-supportsImagePaste` still results in UIKit keyboard
+        code pinning temporary items to the general pasteboard, which increments the change count of the pasteboard.
+        If this happens in the middle of an attempt to read from the pasteboard, we end up falsely denying access to the
+        contents of the pasteboard, since we believe that the contents of the pasteboard have changed.
+
+        This has the potential to affect any test that attempts to read from the pasteboard on iOS, though the titular
+        layout test seems to trigger the bug more frequently than other tests.
+
+        This item pinning was added in support of being able to insert Memojis from the software keyboard, and works by
+        pretending to copy a temporary PNG image, asking the delegate whether it `-canPerformAction:withSender:`, and
+        then restoring the items previously on the pasteboard. To work around this in the test runner, we can simply
+        swizzle out `-[UIKeyboardImpl delegateSupportsImagePaste]` to always return `NO`, which has the same effect as
+        disabling the Memoji keyboard.
+
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/ios/TestControllerIOS.mm:
+        (overrideKeyboardDelegateSupportsImagePaste):
+        (WTR::TestController::platformResetStateToConsistentValues):
+
+2020-05-28  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Make fast/text/user-installed-fonts/extended-character.html more robust
+        https://bugs.webkit.org/show_bug.cgi?id=212487
+        <rdar://problem/63235370>
+
+        Unreviewed.
+
+        Update the font to use the new character.
+
+        * WebKitTestRunner/fonts/FakeHelvetica-SingleExtendedCharacter.ttf:
+
+2020-05-28  Lauro Moura  <lmoura@igalia.com>
+
+        [Flatpak] Use subprocess.call instead of os.system to forward the return code correctly.
+
+        os.system reports error codes from the child process like wait(),
+        which seems to not be playing well with flatpak/bwrap.
+
+        This was causing flatpak to return 0 to some failed commands (like
+        build-webkit), making failures show as successes in the bots.
+
+        Unreviewed build fix.
+
+        * flatpak/webkit-bwrap:
+
+2020-05-28  Tim Horton  <timothy_horton@apple.com>
+
+        makeValueRefForValue should be robust against the type encoding of a NSNumber backed by a boolean
+        https://bugs.webkit.org/show_bug.cgi?id=212456
+
+        Reviewed by Anders Carlsson.
+
+        * WebKitTestRunner/InjectedBundle/mac/AccessibilityCommonMac.mm:
+        (WTR::makeValueRefForValue):
+        Apply the fix from r260515 to this second copy of the code too.
+
+2020-05-27  Saam Barati  <sbarati@apple.com>
+
+        revert logging for detecting failures in run-jsc-stress-tests
+        https://bugs.webkit.org/show_bug.cgi?id=212447
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Scripts/run-jsc-stress-tests:
+
+2020-05-27  Tim Horton  <timothy_horton@apple.com>
+
+        REGRESSION (PSON): Resizing WKWebView during cross-site navigation results in the page laying out at the wrong size
+        https://bugs.webkit.org/show_bug.cgi?id=212434
+        <rdar://problem/51621621>
+
+        Reviewed by Chris Dumez.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ProcessSwapOnNavigation.mm:
+        Add a test ensuring that we correctly update the view size if it changes
+        during the provisional phase of the navigation.
+
+2020-05-27  Lauro Moura  <lmoura@igalia.com>
+
+        Unreviewed. A couple transformations missing from r262214.
+
+        Was making fast/events/touch/tap-highlight-color.html to fail.
+
+        * WebKitTestRunner/wpe/EventSenderProxyWPE.cpp:
+        (WTR::EventSenderProxy::keyDown):
+        (WTR::EventSenderProxy::addTouchPoint):
+
+2020-05-27  Kenneth Russell  <kbr@chromium.org>
+
+        Update MobileMiniBrowser project settings to current Xcode
+        https://bugs.webkit.org/show_bug.cgi?id=212428
+
+        Reviewed by Dean Jackson.
+
+        Apply suggestions from Dean to automatically switch between the
+        internal and public SDKs.
+
+        * MobileMiniBrowser/Configurations/Base.xcconfig:
+
+2020-05-27  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE] Avoid possible WTR event timing going back in time and fix conversion from s to ms
+        https://bugs.webkit.org/show_bug.cgi?id=212338
+
+        Reviewed by Michael Catanzaro.
+
+        Make sure we cast the double m_time timestamp from seconds to uint32_t
+        milliseconds expected by WPE input events.
+
+        * WebKitTestRunner/wpe/EventSenderProxyWPE.cpp:
+        (WTR::secToMsTimestamp):
+        (WTR::EventSenderProxy::EventSenderProxy): Use monotonic time instead
+        of zero as the time origin. This is used only in a relative manner,
+        and we need monotonic behavior so conversion to DOM event timestamps
+        makes sense.
+        (WTR::EventSenderProxy::mouseDown):
+        (WTR::EventSenderProxy::mouseUp):
+        (WTR::EventSenderProxy::mouseMoveTo):
+        (WTR::EventSenderProxy::mouseScrollBy):
+        (WTR::EventSenderProxy::updateTouchPoint):
+        (WTR::EventSenderProxy::prepareAndDispatchTouchEvent):
+        (WTR::EventSenderProxy::releaseTouchPoint):
+
+2020-05-27  Kate Cheney  <katherine_cheney@apple.com>
+
+        Make sure bundle identifier testing override is set in the network process
+        https://bugs.webkit.org/show_bug.cgi?id=212288
+        <rdar://problem/63539061>
+
+        Reviewed by Chris Dumez.
+
+        Set the bundle identifier in the network process if a layout test
+        updates it. This value usually only gets updated when a new network
+        process is initialized, which does not happen for every test. So it
+        should be set/cleared as needed.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::createWebViewWithOptions):
+        (WTR::TestController::updateBundleIdentifierInNetworkProcess):
+        * WebKitTestRunner/TestController.h:
+
+2020-05-27  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [Clipboard API] Support reading "image/png" on ClipboardItem
+        https://bugs.webkit.org/show_bug.cgi?id=212339
+        <rdar://problem/63588957>
+
+        Reviewed by Tim Horton.
+
+        Add a new API test to verify that TIFF images on the system pasteboard on macOS are automatically converted to
+        PNG data, and is accessible through `ClipboardItem` through the "image/png" type.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ClipboardTests.mm:
+
+2020-05-27  Per Arne Vollan  <pvollan@apple.com>
+
+        Unreviewed, reverting r260840.
+
+        This patch is no longer needed after preferences root cause
+        has been fixed.
+
+        Reverted changeset:
+
+        "[Cocoa] Global preferences are not accessible in the
+        WebContent process when CFPrefs direct mode is enabled"
+        https://bugs.webkit.org/show_bug.cgi?id=211075
+        https://trac.webkit.org/changeset/260840
+
+2020-05-27  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: replace `featureGuard` and `availability` with a combined `condition` that accepts any macro
+        https://bugs.webkit.org/show_bug.cgi?id=210014
+
+        Reviewed by Brian Burg.
+
+        Previously, the generated InspectorBackendCommands.js would include code for things that the
+        backend doesn't actually support. By using actual macros and preprocessing that file, we can
+        ensure that the frontend doesn't incorrectly think that something is supported by the page
+        being inspected:
+         - the `Canvas` commands and events related to shader programs/pipelines should only exist
+           when the corresponding context type exists, namely `ENABLE(WEBGL)` and `ENABLE(WEBGPU)`.
+         - iOS doesn't support showing rulers, so create a variant of `DOM.setInspectModeEnabled`
+           that only exists for `PLATFORM(IOS_FAMILY)` that doesn't have the `showRulers` optional
+           parameter, as well as removing `Page.setShowRulers` entirely.
+         - setting the forced appearance should only be possible if dark mode is supported.
+         - web archives only exist if CF is used.
+
+        * Configurations/FeatureDefines.xcconfig:
+        Add `ENABLE_WEB_ARCHIVE` since it's always enabled in wtf/PlatformEnableCocoa.h.
+
+        * Scripts/webkitpy/inspector/main.py:
+        (InspectorGeneratorTests.generate_from_json):
+        (InspectorGeneratorTests.run_tests):
+        (InspectorGeneratorTests.main):
+
+2020-05-27  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Update openxr recipe
+        https://bugs.webkit.org/show_bug.cgi?id=212403
+
+        Reviewed by Sergio Villar Senin.
+
+        * buildstream/elements/sdk/openxr.bst: Explicitely list dependencies and bump to latest git master.
+
+2020-05-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WTR] EventSender: stop using GdkEvent API in preparation for GTK4
+        https://bugs.webkit.org/show_bug.cgi?id=212298
+
+        Reviewed by Adrian Perez de Castro.
+
+        Use WebKitWebViewBase internal API to synthesize events instead of GdkEvents. The touch events support has been
+        removed because we are no longer testing touch events, since they need an actual touchscreen.
+
+        * WebKitTestRunner/EventSenderProxy.h:
+        * WebKitTestRunner/gtk/EventSenderProxyGtk.cpp:
+        (WTR::getGDKKeySymForKeyRef):
+        (WTR::toWebKitGLibAPI):
+        (WTR::EventSenderProxy::keyDown):
+        (WTR::EventSenderProxy::mouseDown):
+        (WTR::EventSenderProxy::mouseUp):
+        (WTR::EventSenderProxy::mouseMoveTo):
+        (WTR::EventSenderProxy::mouseScrollBy):
+        (WTR::EventSenderProxy::continuousMouseScrollBy):
+        (WTR::EventSenderProxy::mouseScrollByWithWheelAndMomentumPhases):
+        (WTR::EventSenderProxy::leapForward):
+        (WTR::EventSenderProxy::addTouchPoint):
+        (WTR::EventSenderProxy::updateTouchPoint):
+        (WTR::EventSenderProxy::touchStart):
+        (WTR::EventSenderProxy::touchMove):
+        (WTR::EventSenderProxy::touchEnd):
+        (WTR::EventSenderProxy::touchCancel):
+        (WTR::EventSenderProxy::clearTouchPoints):
+        (WTR::EventSenderProxy::releaseTouchPoint):
+        (WTR::EventSenderProxy::cancelTouchPoint):
+        (WTR::EventSenderProxy::setTouchPointRadius):
+        (WTR::EventSenderProxy::setTouchModifier):
+
+2020-05-26  Alex Christensen  <achristensen@webkit.org>
+
+        UTF-8 encode strings of invalid URLs when converting WTF::URL to NSURL instead of truncating the UTF-16 encoding
+        https://bugs.webkit.org/show_bug.cgi?id=212393
+        <rdar://problem/63095503>
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/Tests/WTF/cocoa/URLExtras.mm:
+        (TestWebKitAPI::TEST):
+
+2020-05-26  Mark Lam  <mark.lam@apple.com>
+
+        Enhance Bitmap::setEachNthBit() to also take an end index.
+        https://bugs.webkit.org/show_bug.cgi?id=212386
+        <rdar://problem/63643324>
+
+        Reviewed by Robin Morisset.
+
+        * TestWebKitAPI/Tests/WTF/Bitmap.cpp:
+        (TestWebKitAPI::testBitmapSetEachNthBitImpl):
+
+2020-05-26  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo][WK2] Use GraphicsLayerTextureMapper for Accelerated Compositing mode
+        https://bugs.webkit.org/show_bug.cgi?id=211883
+
+        Reviewed by Don Olmstead.
+
+        * MiniBrowser/win/WebKitBrowserWindow.cpp:
+        (WebKitBrowserWindow::setPreference): Call WKPreferencesSet* for
+        menu items IDM_ACC_COMPOSITING, IDM_COMPOSITING_BORDERS and
+        IDM_DEBUG_INFO_LAYER.
+
+2020-05-26  Sam Weinig  <weinig@apple.com>
+
+        Extended Color Cleanup: Remove red()/green()/blue() accessors from ExtendedColor in preperation for supporting non-RGB based ColorSpaces
+        https://bugs.webkit.org/show_bug.cgi?id=212366
+
+        Reviewed by Simon Fraser.
+
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        Update tests to pull values from the channels rather than from the red()/green()/blue() accessors.
+
+2020-05-26  Peng Liu  <peng.liu6@apple.com>
+
+        ASSERTION FAILED: m_clientCounts.contains(contextId) - WebKit::VideoFullscreenManagerProxy::removeClientForContext()
+        https://bugs.webkit.org/show_bug.cgi?id=212308
+
+        Disable TestWebKitAPI.PictureInPicture.ExitPiPOnSuspendVideoElement for old iOS versions
+        due to an issue of AVKit.
+
+        In addition, don't run the test if Picture-in-Picture is not supported.
+
+        Reviewed by Jer Noble.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ExitPiPOnSuspendVideoElement.mm:
+        (TestWebKitAPI::TEST):
+
+2020-05-26  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * DumpRenderTree/DumpRenderTree.xcodeproj/project.pbxproj:
+        * Scripts/build-webkit:
+        * Scripts/webkitdirs.pm:
+        (canUseXCBuild):
+        * WebKitTestRunner/WebKitTestRunner.xcodeproj/project.pbxproj:
+
+2020-05-26  Jonathan Bedard  <jbedard@apple.com>
+
+        webkitpy: simctl list may have stderr logging
+        https://bugs.webkit.org/show_bug.cgi?id=212376
+        <rdar://problem/63517635>
+
+        Unreviewed infrastructure fix.
+
+        * Scripts/webkitpy/xcode/simulated_device.py:
+        (SimulatedDeviceManager.populate_available_devices): Only parse stdout, log error when
+        json decoding fails.
+        (SimulatedDevice.is_usable): Only parse stdout.
+        (SimulatedDevice.launch_app): Ditto.
+
+2020-05-25  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [iOS] ActionSheetTests.DataDetectorsLinkIsNotPresentedAsALink is failing consistently
+        https://bugs.webkit.org/show_bug.cgi?id=212363
+        <rdar://problem/63508866>
+
+        Reviewed by Tim Horton.
+
+        This test began to consistently throw an exception after <https://trac.webkit.org/r261157>, due to how
+        UserInterfaceSwizzler always instantiates the shared UIApplication. This apparently causes -[WKContentView
+        resizableSnapshotViewFromRect:afterScreenUpdates:withCapInsets:] to return `nil` instead of a replica view. As a
+        result, we crash under `createFallbackTargetedPreview` as we're attempting to assemble a targeted preview for
+        the context menu interaction.
+
+        Since this seems to only affect this particular API test, work around it by swizzling out
+        `-resizableSnapshotViewFromRect:afterScreenUpdates:withCapInsets:` in this API test to return a non-null UIView.
+
+        * TestWebKitAPI/Tests/ios/ActionSheetTests.mm:
+        (TestWebKitAPI::swizzledResizableSnapshotViewFromRect):
+        (TestWebKitAPI::TEST):
+
+2020-05-24  Sam Weinig  <weinig@apple.com>
+
+        Extended Color Cleanup: Use the name SimpleColor consistently
+        https://bugs.webkit.org/show_bug.cgi?id=212337
+
+        Reviewed by Anders Carlsson.
+
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        Update test for rename of makeRGBAFromHSLA to makeSimpleColorFromHSLA.
+
+2020-05-25  Víctor Manuel Jáquez Leal  <vjaquez@igalia.com>
+
+        [Flatpak][GStreamer] compilation fails when GST_BUILD_PATH is defined
+        https://bugs.webkit.org/show_bug.cgi?id=212343
+
+        Reviewed by Philippe Normand.
+
+        Flatpak's command has to be expressed before gst-env declaration.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox):
+
+2020-05-25  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [WPE][WKTR] Fix typo in EventSenderProxyWPE
+        https://bugs.webkit.org/show_bug.cgi?id=212340
+
+        Reviewed by Carlos Garcia Campos.
+
+        * WebKitTestRunner/wpe/EventSenderProxyWPE.cpp:
+        (WTR::wpeKeySymForKeyRef): Fix typo rightArror -> rightArrow.
+
+2020-05-25  Philippe Normand  <pnormand@igalia.com>
+
+        REGRESSION(r262057): [Flatpak SDK] sccache-dist server no longer starting
+        https://bugs.webkit.org/show_bug.cgi?id=212326
+
+        Reviewed by Žan Doberšek.
+
+        A few mount points were missing in the sandbox created by
+        `flatpak run` preventing the sccache-dist server to start and keep running.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox):
+        * flatpak/webkit-bwrap:
+
+2020-05-25  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Fixup icecc support
+        https://bugs.webkit.org/show_bug.cgi?id=212301
+
+        Reviewed by Žan Doberšek.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox): Allow homedir access from the
+        sandbox, this is needed because the icecc toolchains paths refer
+        to the host environment, not the sandbox.
+        (WebkitFlatpak.pack_toolchain): Fix byte-string formatting issue, happening in Python3.
+
+2020-05-25  Philippe Normand  <pnormand@igalia.com>
+
+        [GTK4] SDK contains too old GTK4
+        https://bugs.webkit.org/show_bug.cgi?id=212334
+
+        Reviewed by Adrian Perez de Castro.
+
+        * buildstream/elements/sdk/gtk.bst: Update GTK4 to 3.98.4.
+
+2020-05-24  Sam Weinig  <weinig@apple.com>
+
+        Extended Color Cleanup: Stop allowing direct access to the underlying SimpleColor (it is almost always incorrect with respect to extended colors)
+        https://bugs.webkit.org/show_bug.cgi?id=212184
+
+        Reviewed by Dean Jackson.
+
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        Use toSRGBASimpleColorLossy() to get access to color components.
+
+2020-05-22  Alex Christensen  <achristensen@webkit.org>
+
+        Make download resume workaround forgiving of changes in CFNetwork
+        https://bugs.webkit.org/show_bug.cgi?id=212273
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+
+2020-05-22  Paulo Matos  <pmatos@igalia.com>
+
+        Add support for [no-]use-ccache option in build-jsc
+        https://bugs.webkit.org/show_bug.cgi?id=212259
+
+        Reviewed by Mark Lam.
+
+        * Scripts/build-jsc:
+
+2020-05-22  Alex Christensen  <achristensen@webkit.org>
+
+        Add SPI to unblock third party cookies from WKWebViews with ResourceLoadStatistics turned on
+        https://bugs.webkit.org/show_bug.cgi?id=212058
+        <rdar://problem/60595539>
+
+        Reviewed by John Wilander.
+
+        I also add _test_waitForAlert to make tests less verbose.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/NetworkProcess.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/Proxy.mm:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/cocoa/HTTPServer.h:
+        (TestWebKitAPI::Connection::Connection):
+        * TestWebKitAPI/cocoa/HTTPServer.mm:
+        (TestWebKitAPI::HTTPServer::HTTPServer):
+        (TestWebKitAPI::dataFromString):
+        (TestWebKitAPI::nullTerminatedRequest):
+        (TestWebKitAPI::HTTPServer::request const):
+        (TestWebKitAPI::Connection::receive const):
+        (TestWebKitAPI::Connection::send const):
+        * TestWebKitAPI/cocoa/TestUIDelegate.h:
+        * TestWebKitAPI/cocoa/TestUIDelegate.mm:
+        (-[WKWebView _test_waitForAlert]):
+
+2020-05-22  Chris Dumez  <cdumez@apple.com>
+
+        [WKTR] Make TestController::resetStateToConsistentValues() more robust against failures to navigate to about:blank
+        https://bugs.webkit.org/show_bug.cgi?id=212268
+        <rdar://problem/63493074>
+
+        Reviewed by Geoffrey Garen.
+
+        Make TestController::resetStateToConsistentValues() more robust against failures to navigate to about:blank.
+
+        In <rdar://problem/63493074>, we have evidence that TestController::resetStateToConsistentValues() sometimes
+        fails to load about:blank, likely due to an unresponsive WebProcess. When this happens, WebKitTestRunner
+        reports the test as timing out and logs this on stderr:
+        """
+        <unknown> - TestController::run - Failed to reset state to consistent values
+        #PROCESS UNRESPONSIVE - com.apple.WebKit.WebContent.Development (pid 57421)
+        """
+
+        This is unfortunate because this does not indicate that anything is particularly wrong with the test in
+        question. Rather, it indicates that the WebProcess is unresponsive (likely due to a hang caused by a
+        previous test), which prevents WebKitTestRunner to reset the state in order to run the test.
+
+        I propose that if we fail to load about:blank once, we log an error message to stderr but then terminate
+        the WebProcess and try once again, to make WebKitTestRunner more robust.
+        I have verified the change locally, by injecting a script in resetStateToConsistentValues() that causes
+        a WebProcess hang. Before my change, the test would time out and the same logging as in
+        <rdar://problem/63493074> would show. After my change though, the test would pass successfully despite the
+        WebProcess hang.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetStateToConsistentValues):
+
+2020-05-22  ChangSeok Oh  <changseok@webkit.org>
+
+        [GTK] jhbuild is broken with GCC 10.0
+        https://bugs.webkit.org/show_bug.cgi?id=212256
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        GCC 10.0 enables -fno-common as default, so many 'multiple definitions' failures occur
+        in building dependencies via jhbuild. This patch addresses them by back-porting patches
+        from corresponding source repositories.
+
+        * gstreamer/jhbuild.modules:
+        * gstreamer/patches/libsrtp-Fix-building-with-gcc-10.patch: Added.
+        * gstreamer/patches/orc-satisfy-fno-common-under-gcc10.patch: Added.
+        * gtk/jhbuild.modules:
+        * gtk/patches/at-spi2-atk-tests-Replace-common-variable-with-usual-external.patch: Added.
+        * gtk/patches/at-spi2-atk-tests-fix-child_pid-reference.patch: Added.
+        * gtk/patches/mesa-gallium-build-fix-to-make-gcc-10-happy.patch: Added.
+        * gtk/patches/xserver-Fix-building-with-fno-common.patch: Added.
+
+2020-05-22  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Add bubblewrap ... wrapper
+        https://bugs.webkit.org/show_bug.cgi?id=212077
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        The bind-mounts are now handled through webkit-bwrap.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.execute_command):
+        (WebkitFlatpak.run_in_sandbox):
+        * flatpak/webkit-bwrap: Added.
+
+2020-05-22  Javier Fernandez  <jfernandez@igalia.com>
+
+        [Flatpak SDK] CCACHE_ env vars are not forwarded to the sandbox environment
+        https://bugs.webkit.org/show_bug.cgi?id=212257
+
+        Reviewed by Philippe Normand.
+
+        Added the "CCACHE" prefix to the ones the SDK should keep from the
+        user's environment, and forwarded to the Flatpak sandbox.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox):
+
+2020-05-22  Tim Horton  <timothy_horton@apple.com>
+
+        iOS: Pressing tab in the Mail subject field moves focus to the body, but pressing shift tab doesn't move it back
+        https://bugs.webkit.org/show_bug.cgi?id=212243
+        <rdar://problem/59127764>
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/UIDelegate.mm:
+        (-[FocusDelegate _webView:takeFocus:]):
+        (-[FocusDelegate webView:runJavaScriptAlertPanelWithMessage:initiatedByFrame:completionHandler:]):
+        (TEST):
+
+2020-05-21  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        DataTransfer.files contains multiple files when pasting a single image with multiple representations
+        https://bugs.webkit.org/show_bug.cgi?id=212245
+        <rdar://problem/60240436>
+
+        Reviewed by Tim Horton.
+
+        * DumpRenderTree/mac/DumpRenderTreePasteboard.mm:
+        (-[LocalPasteboard _clearContentsWithoutUpdatingChangeCount]):
+        (-[LocalPasteboard _addTypesWithoutUpdatingChangeCount:owner:]):
+        (-[LocalPasteboard writeObjects:]):
+        (-[LocalPasteboard pasteboardItems]):
+
+        Adjust DumpRenderTree's LocalPasteboard so that it lazily populates the pasteboard when constructing
+        NSPasteboardItems. To do this, we need to make a few adjustments:
+
+        1.      When reifying NSPasteboardItems from LocalPasteboard, ask the owner (WebHTMLView) to provide pasteboard
+                data for each pasteboard type that was promised by WebKit, but was not eagerly written to the pasteboard.
+
+        2.      Cache pasteboard items that were created, so that we don't repeatedly ask WebHTMLView to provide
+                pasteboard data. WebHTMLView doesn't currently support this, and suffers from a bug where TIFF data may
+                only be provided once. This was fixed for WebKit2, but not for WebKit1.
+
+        3.      Maintain a separate hash list of original pasteboard types (which may not be UTIs) that were handed to
+                LocalPasteboard by WebKit. We use these original types in step (1).
+
+        * TestWebKitAPI/Tests/WebKitCocoa/PasteImage.mm:
+
+        Add a new API test to verify that one file is exposed via the DataTranfer when the pasteboard contains a single
+        image with two image representations, but two files are exposed when the pasteboard contains two images, each
+        with a single representation.
+
+        (writeImageDataToPasteboard):
+
+        Overload this helper method with two additional variants: one that takes a dictionary of pasteboard types to
+        data, and another that takes an array of dictionaries, each representing a single item's types and data.
+
+2020-05-21  Robin Morisset  <rmorisset@apple.com>
+
+        Various compile-time boolean flags could/should be marked constexpr
+        https://bugs.webkit.org/show_bug.cgi?id=212244
+
+        Reviewed by Mark Lam.
+
+        * TestWebKitAPI/Tests/WTF/Condition.cpp:
+
+2020-05-21  Mark Lam  <mark.lam@apple.com>
+
+        Rename some variables in Bitmap API test for consistency and better readability.
+        https://bugs.webkit.org/show_bug.cgi?id=212235
+
+        Reviewed by Saam Barati.
+
+        This patch renames the following:
+            bitmap0 => bitmapZeroes
+            bitmapFilled => bitmapOnes
+            bitmap3 => bitmap2Clone
+            bitmapSmallZeroed => smallBitmapZeroes
+            bitmapSmallFilled => smallBitmapOnes
+            bitmapSmall1 => smallBitmap1
+            bitmapSmall2 => smallBitmap2
+
+        Apart from these renamings, there are no other code changes.
+
+        * TestWebKitAPI/Tests/WTF/Bitmap.cpp:
+        (TestWebKitAPI::testBitmapSize):
+        (TestWebKitAPI::testBitmapConstructedEmpty):
+        (TestWebKitAPI::testBitmapSetGet):
+        (TestWebKitAPI::testBitmapTestAndSet):
+        (TestWebKitAPI::testBitmapTestAndClear):
+        (TestWebKitAPI::testBitmapConcurrentTestAndSet):
+        (TestWebKitAPI::testBitmapConcurrentTestAndClear):
+        (TestWebKitAPI::testBitmapClear):
+        (TestWebKitAPI::testBitmapClearAll):
+        (TestWebKitAPI::testBitmapInvert):
+        (TestWebKitAPI::testBitmapFindRunOfZeros):
+        (TestWebKitAPI::testBitmapCount):
+        (TestWebKitAPI::testBitmapIsEmpty):
+        (TestWebKitAPI::testBitmapIsFull):
+        (TestWebKitAPI::testBitmapMerge):
+        (TestWebKitAPI::testBitmapFilter):
+        (TestWebKitAPI::testBitmapExclude):
+        (TestWebKitAPI::testBitmapConcurrentFilter):
+        (TestWebKitAPI::testBitmapSubsumes):
+        (TestWebKitAPI::testBitmapForEachSetBit):
+        (TestWebKitAPI::testBitmapFindBit):
+        (TestWebKitAPI::testBitmapIteration):
+        (TestWebKitAPI::testBitmapMergeAndClear):
+        (TestWebKitAPI::testBitmapSetAndClear):
+        (TestWebKitAPI::testBitmapSetEachNthBit):
+        (TestWebKitAPI::testBitmapOperatorEqual):
+        (TestWebKitAPI::testBitmapOperatorNotEqual):
+        (TestWebKitAPI::testBitmapOperatorAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitOrAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitAndAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitXorAssignment):
+        (TestWebKitAPI::testBitmapHash):
+
+2020-05-20  Mark Lam  <mark.lam@apple.com>
+
+        Add more Bitmap methods.
+        https://bugs.webkit.org/show_bug.cgi?id=212190
+        <rdar://problem/63481333>
+
+        Reviewed by Robin Morisset.
+
+        Added test coverage for the new WTF::Bitmap methods.
+
+        * TestWebKitAPI/Tests/WTF/Bitmap.cpp:
+        (TestWebKitAPI::testBitmapSetEachNthBit):
+        (TestWebKitAPI::testBitmapOperatorAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitOrAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitAndAssignment):
+        (TestWebKitAPI::testBitmapOperatorBitXorAssignment):
+        (TestWebKitAPI::TEST):
+
+2020-05-21  Yoshiaki Jitsukawa  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Add minimal WKView API to enable TestWebKitAPI
+        https://bugs.webkit.org/show_bug.cgi?id=211868
+
+        Reviewed by Alex Christensen.
+
+        Enable TestWebKitAPI
+
+        * TestWebKitAPI/PlatformPlayStation.cmake:
+        * TestWebKitAPI/PlatformWebView.h:
+        * TestWebKitAPI/playstation/PlatformUtilitiesPlayStation.cpp:
+        (TestWebKitAPI::Util::createInjectedBundlePath):
+        (TestWebKitAPI::Util::createURLForResource):
+        * TestWebKitAPI/playstation/PlatformWebViewPlayStation.cpp:
+        (TestWebKitAPI::PlatformWebView::PlatformWebView):
+        (TestWebKitAPI::PlatformWebView::~PlatformWebView):
+        (TestWebKitAPI::PlatformWebView::initialize):
+        (TestWebKitAPI::PlatformWebView::resizeTo):
+        (TestWebKitAPI::PlatformWebView::page const):
+        (TestWebKitAPI::PlatformWebView::simulateSpacebarKeyPress):
+        (TestWebKitAPI::PlatformWebView::simulateMouseMove):
+        (TestWebKitAPI::PlatformWebView::simulateRightClick):
+        (TestWebKitAPI::PlatformWebView::simulateButtonClick):
+        * TestWebKitAPI/playstation/main.cpp:
+        (loadLibraryOrExit):
+        (main):
+        Add PlayStation Platform support.
+
+        * TestWebKitAPI/Tests/WebKit/WKPreferences.cpp:
+        (TestWebKitAPI::TEST):
+        Use the same expected default font preferences as GTK's.
+
+2020-05-21  Alex Christensen  <achristensen@webkit.org>
+
+        [macOS] TestWebKitAPI.WebKit.HTTPReferer is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=212180
+
+        Reviewed by Darin Adler.
+
+        Sometimes an HTTP request takes more than one call to nw_connection_receive to receive entirely.
+        Add a new abstraction Connection that wraps an nw_connection_t and knows how to read an entire request.
+        Use strnstr instead of null terminating and using strstr.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/NetworkProcess.mm:
+        (TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/Proxy.mm:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebKitCocoa/ServiceWorkerBasic.mm:
+        * TestWebKitAPI/Tests/WebKitCocoa/ServiceWorkerTCPServer.h:
+        * TestWebKitAPI/cocoa/HTTPServer.h:
+        (TestWebKitAPI::Connection::receiveHTTPRequest):
+        (TestWebKitAPI::Connection::Connection):
+        * TestWebKitAPI/cocoa/HTTPServer.mm:
+        (TestWebKitAPI::HTTPServer::HTTPServer):
+        (TestWebKitAPI::dataFromString):
+        (TestWebKitAPI::vectorFromData):
+        (TestWebKitAPI::HTTPServer::respondToRequests):
+        (TestWebKitAPI::HTTPServer::request const):
+        (TestWebKitAPI::Connection::receiveHTTPRequest const):
+        (TestWebKitAPI::Connection::send const):
+        (TestWebKitAPI::Connection::terminate const):
+        (TestWebKitAPI::nullTerminatedRequest): Deleted.
+
+2020-05-21  Enrique Ocaña González  <eocanha@igalia.com>
+
+        [GStreamer][GTK][WPE] Expose and honor the media content types requiring hardware support setting
+        https://bugs.webkit.org/show_bug.cgi?id=211950
+
+        Reviewed by Adrian Perez de Castro.
+
+        Exercise the new mediaContentTypesRequiringHardwareSupport setting.
+
+        * TestWebKitAPI/Tests/WebKitGLib/TestWebKitSettings.cpp:
+        (testWebKitSettings):
+
+2020-05-20  Simon Fraser  <simon.fraser@apple.com>
+
+        [macOS] Scrolling synchronization part 1: Have the scrolling thread wait half a frame for the main thread to complete the rendering update
+        https://bugs.webkit.org/show_bug.cgi?id=212168
+
+        Reviewed by Tim Horton.
+
+        Some new trace points for scrolling thread activity.
+
+        * Tracing/SystemTracePoints.plist:
+
+2020-05-20  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [iOS] Layout tests in editing/pasteboard sporadically crash
+        https://bugs.webkit.org/show_bug.cgi?id=212169
+        <rdar://problem/63361966>
+
+        Reviewed by Tim Horton.
+
+        Add some missing entitlements.
+
+        * TestWebKitAPI/Configurations/TestWebKitAPI-iOS.entitlements:
+        * WebKitTestRunner/Configurations/WebKitTestRunnerApp-iOS.entitlements:
+
+2020-05-20  Sam Weinig  <weinig@apple.com>
+
+        Replace Color::getHSL() with sRGBToHSL to ensure it at least gives somewhat sensible results for ExtendedColors and reduce code duplication
+        https://bugs.webkit.org/show_bug.cgi?id=212143
+
+        Reviewed by Simon Fraser.
+
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp:
+        (TestWebKitAPI::TEST):
+        Update tests to use sRGBToHSL instead of Color::getHSL() and add testing of WebCore::lightness() and 
+        round tripping. Update results for hue to be 0->1 rather than 0->6 which allows the round tripping to succeed.
+
+2020-05-20  ChangSeok Oh  <changseok@webkit.org>
+
+        [GTK] Implement connected and disconnected events of GAMEPAD API with libmanette
+        https://bugs.webkit.org/show_bug.cgi?id=133854
+
+        Reviewed by Carlos Garcia Campos.
+
+        This patch brings initial GAMEPAD API support to the gtk port. We use libmanette,
+        a simple GObject game controller library to handle gamepad connection and input.
+        In particular, we use libmanette-0.2.4 which is the latest version and minimum
+        version to build in c++.
+
+        * gtk/jhbuild.modules:
+
+2020-05-20  Kate Cheney  <katherine_cheney@apple.com>
+
+        Support operating dates in ResourceLoadStatisticsDatabaseStore
+        https://bugs.webkit.org/show_bug.cgi?id=212034
+        <rdar://problem/63349242>
+
+        Reviewed by Brent Fulgham.
+
+        Add a testing function to insert an expired statistic.
+
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl:
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.cpp:
+        (WTR::InjectedBundle::didReceiveMessageToPage):
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp:
+        (WTR::TestRunner::setStatisticsExpiredStatistic):
+        (WTR::TestRunner::statisticsCallDidSetExpiredStatisticCallback):
+        * WebKitTestRunner/InjectedBundle/TestRunner.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::setStatisticsExpiredStatistic):
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::didReceiveMessageFromInjectedBundle):
+        (WTR::TestInvocation::didSetExpiredStatistic):
+        * WebKitTestRunner/TestInvocation.h:
+
+2020-05-20  Chris Dumez  <cdumez@apple.com>
+
+        Deprecate WKBundlePageSetPolicyClient() Injected bundle C API
+        https://bugs.webkit.org/show_bug.cgi?id=212166
+
+        Reviewed by Alex Christensen.
+
+        * TestWebKitAPI/Tests/WebKitObjC/CustomProtocolsInvalidScheme_Bundle.cpp:
+        * WebKitTestRunner/InjectedBundle/InjectedBundlePage.cpp:
+        (WTR::InjectedBundlePage::InjectedBundlePage):
+
+2020-05-20  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [iPadOS] -webkit-text-size-adjust:percentage doesn't work in native apps
+        https://bugs.webkit.org/show_bug.cgi?id=212122
+        <rdar://problem/54560875>
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKit/idempotent-mode-autosizing-only-honors-percentages.html: Added.
+        * TestWebKitAPI/ios/PreferredContentMode.mm:
+
+2020-05-20  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE][WebDriver] Allow subviews to create new views
+        https://bugs.webkit.org/show_bug.cgi?id=212118
+
+        Reviewed by Carlos Garcia Campos.
+
+        Required by some WebDriver tests.
+
+        * MiniBrowser/wpe/main.cpp:
+        (createWebView):
+
+2020-05-20  Philippe Normand  <pnormand@igalia.com>
+
+        [FlatPak SDK] Missing ruby gems json and highline
+        https://bugs.webkit.org/show_bug.cgi?id=212086
+
+        Reviewed by Žan Doberšek.
+
+        Add the json and highline Ruby gems in the Flatpak SDK.
+
+        * buildstream/elements/sdk-platform.bst:
+        * buildstream/elements/sdk/ruby-highline.bst: Added.
+        * buildstream/elements/sdk/ruby-json.bst: Added.
+        * buildstream/project.conf:
+
+2020-05-20  Diego Pino Garcia  <dpino@igalia.com>
+
+        Unreviewed, reverting r261909.
+
+        Execution of LayoutTests returns syntax error in the bots (GTK, WPE)
+
+        Reverted changeset:
+
+        "[Flatpak SDK] Add bubblewrap ... wrapper"
+        https://bugs.webkit.org/show_bug.cgi?id=212077
+        https://trac.webkit.org/changeset/261909
+
+2020-05-20  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Bump rr and bst
+        https://bugs.webkit.org/show_bug.cgi?id=212074
+
+        Reviewed by Adrian Perez de Castro.
+
+        Update Buildstream to 1.4.3 which is their latest stable release. Also bump rr to their
+        latest git master commit, which makes it usable in the Flatpak sandbox.
+
+        * buildstream/Pipfile:
+        * buildstream/Pipfile.lock:
+        * buildstream/elements/sdk/rr.bst:
+
+2020-05-20  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        update-test-expectations-from-bugzilla tool not working with new EWS
+        https://bugs.webkit.org/show_bug.cgi?id=210975
+
+        Reviewed by Youenn Fablet.
+
+        With the new EWS, the layout test archive results are not longer
+        posted to bugzilla as attachment. Now we need to inspect the EWS
+        server to get the status of the runs for the patch id, and then
+        query the EWS builbot server in order to get the details of each
+        run to finally obtain the URL with the zip file for the results.
+
+        The tool now automatically applies platform-specific and generic
+        results automatically (its not longer needed to specify whether
+        the result its generic or not). It uses mac-wk2 results as generic.
+
+        Also now it updates the test results for tests where the result
+        is MISSING.
+
+        * Scripts/webkitpy/common/net/bugzilla/test_expectation_updater.py:
+        (configure_logging):
+        (argument_parser):
+        (TestExpectationUpdater.__init__):
+        (TestExpectationUpdater._platform_name):
+        (TestExpectationUpdater):
+        (TestExpectationUpdater._get_layout_tests_run):
+        (TestExpectationUpdater._lookup_ews_results):
+        (TestExpectationUpdater._tests_to_update):
+        (TestExpectationUpdater._update_for_generic_bot):
+        (TestExpectationUpdater._update_for_platform_specific_bot):
+        (TestExpectationUpdater.do_update):
+        (main):
+        * Scripts/webkitpy/common/net/bugzilla/test_expectation_updater_unittest.py:
+        (MockAttachment.__init__):
+        (MockAttachment.is_patch):
+        (MockAttachment):
+        (MockAttachment.is_obsolete):
+        (MockBugzilla):
+        (MockBugzilla.attachments):
+        (MockRequests):
+        (MockRequests.__init__):
+        (MockRequests.get):
+        (MockRequests.content):
+        (MockRequests.text):
+        (MockZip.__init__):
+        (TestExpectationUpdaterTest.test_update_test_expectations):
+
+2020-05-20  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix GTK4 build with GTK 3.98.4
+
+        * MiniBrowser/gtk/BrowserTab.c:
+        (loadChanged):
+        (browserTabConstructed):
+        * MiniBrowser/gtk/BrowserWindow.c:
+        (webViewClose):
+        (browserWindowSetupToolbarItem):
+        (browser_window_init):
+
+2020-05-20  Sam Weinig  <weinig@apple.com>
+
+        Remove unused Color::getHSV function
+        https://bugs.webkit.org/show_bug.cgi?id=212119
+
+        Reviewed by Simon Fraser.
+
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp:
+        Remove tests for Color::getHSV().
+
+2020-05-20  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Add bubblewrap ... wrapper
+        https://bugs.webkit.org/show_bug.cgi?id=212077
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        The bind-mounts are now handled through webkit-bwrap.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.execute_command):
+        (WebkitFlatpak.run_in_sandbox):
+        * flatpak/webkit-bwrap: Added.
+
+2020-05-19  Darin Adler  <darin@apple.com>
+
+        REGRESSION (r259930): Dictation marker at start of text is removed when added trailing whitespace is collapsed
+        https://bugs.webkit.org/show_bug.cgi?id=212093
+
+        Reviewed by Daniel Bates.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/InsertTextAlternatives.mm:
+        (TestWebKitAPI::TEST): Expect success rather than failure.
+
+2020-05-19  Alex Christensen  <achristensen@webkit.org>
+
+        Add _WKDownloadDelegate callback including totalBytesWritten
+        https://bugs.webkit.org/show_bug.cgi?id=212110
+        <rdar://problem/63358981>
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+        (TEST):
+        * TestWebKitAPI/cocoa/TestDownloadDelegate.h:
+        * TestWebKitAPI/cocoa/TestDownloadDelegate.mm:
+        (-[TestDownloadDelegate _download:didWriteData:totalBytesWritten:totalBytesExpectedToWrite:]):
+        (-[TestDownloadDelegate _download:didReceiveData:]): Deleted.
+
+2020-05-19  Daniel Bates  <dabates@apple.com>
+
+        Blue dotted underline with alternatives only shown for last word, gets lost for previous insertions
+        https://bugs.webkit.org/show_bug.cgi?id=212097
+        <rdar://problem/61913405>
+
+        Reviewed by Darin Adler.
+
+        Add tests. As I was writing them I discovered a few bugs in the existing code:
+                1. <https://webkit.org/b/212093> REGRESSION (r259930): Dictation marker at start of text is removed when added trailing whitespace is collapsed
+                2. <https://webkit.org/b/212098> Inserting a no-break space before or after a marker removes the marker
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKitCocoa/InsertTextAlternatives.mm: Added.
+        (TestWebKitAPI::TEST):
+        (TestWebKitAPI::makeNSStringWithCharacter): Added.
+
 2020-05-19  Sergio Villar Senin  <svillar@igalia.com>
 
         [WPE] Sync jhbuild to flatpak

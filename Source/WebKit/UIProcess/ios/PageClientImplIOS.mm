@@ -119,10 +119,7 @@ WebCore::FloatPoint PageClientImpl::viewScrollPosition()
 
 IntSize PageClientImpl::viewSize()
 {
-    if (UIScrollView *scroller = [m_contentView _scroller])
-        return IntSize(scroller.bounds.size);
-
-    return IntSize([m_contentView bounds].size);
+    return IntSize([m_webView bounds].size);
 }
 
 bool PageClientImpl::isViewWindowActive()
@@ -942,7 +939,7 @@ void PageClientImpl::handleAutocorrectionContext(const WebAutocorrectionContext&
     [m_contentView _handleAutocorrectionContext:context];
 }
 
-void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect&, uint64_t)
+void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect&, WebCore::DictationContext)
 {
     notImplemented();
 }

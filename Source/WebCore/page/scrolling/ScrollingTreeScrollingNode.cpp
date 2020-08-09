@@ -124,6 +124,11 @@ void ScrollingTreeScrollingNode::commitStateAfterChildren(const ScrollingStateNo
     m_isFirstCommit = false;
 }
 
+void ScrollingTreeScrollingNode::didCompleteCommitForNode()
+{
+    m_scrolledSinceLastCommit = false;
+}
+
 bool ScrollingTreeScrollingNode::isLatchedNode() const
 {
     return scrollingTree().latchedNodeID() == scrollingNodeID();
@@ -145,9 +150,9 @@ bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& w
     return eventCanScrollContents(wheelEvent);
 }
 
-ScrollingEventResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
+WheelEventHandlingResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
 {
-    return ScrollingEventResult::DidNotHandleEvent;
+    return WheelEventHandlingResult::unhandled();
 }
 
 FloatPoint ScrollingTreeScrollingNode::clampScrollPosition(const FloatPoint& scrollPosition) const
@@ -247,9 +252,10 @@ void ScrollingTreeScrollingNode::scrollTo(const FloatPoint& position, ScrollType
     scrollingTree().setIsHandlingProgrammaticScroll(false);
 }
 
-void ScrollingTreeScrollingNode::currentScrollPositionChanged()
+void ScrollingTreeScrollingNode::currentScrollPositionChanged(ScrollingLayerPositionAction action)
 {
-    scrollingTree().scrollingTreeNodeDidScroll(*this);
+    m_scrolledSinceLastCommit = true;
+    scrollingTree().scrollingTreeNodeDidScroll(*this, action);
 }
 
 bool ScrollingTreeScrollingNode::scrollPositionAndLayoutViewportMatch(const FloatPoint& position, Optional<FloatRect>)

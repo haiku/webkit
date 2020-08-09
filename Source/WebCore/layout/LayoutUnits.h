@@ -115,21 +115,25 @@ inline void Point::moveBy(LayoutPoint offset)
 struct HorizontalEdges {
     LayoutUnit left;
     LayoutUnit right;
-
-    LayoutUnit width() const { return left + right; }
 };
 
 struct VerticalEdges {
     LayoutUnit top;
     LayoutUnit bottom;
-
-    LayoutUnit height() const { return top + bottom; }
 };
 
 struct Edges {
     HorizontalEdges horizontal;
     VerticalEdges vertical;
+
+    LayoutUnit width() const { return horizontal.left + horizontal.right; }
+    LayoutUnit height() const { return vertical.top + vertical.bottom; }
 };
+
+inline Edges operator/(const Edges& edge, size_t value)
+{
+    return { { edge.horizontal.left / value, edge.horizontal.right / value }, { edge.vertical.top / value, edge.vertical.bottom / value } };
+}
 
 struct ContentWidthAndMargin {
     LayoutUnit contentWidth;

@@ -31,9 +31,9 @@
 #include "BuiltinNames.h"
 #include "BytecodeGenerator.h"
 #include "BytecodeGeneratorBaseInlines.h"
-#include "CallFrame.h"
 #include "JSArrayIterator.h"
 #include "JSAsyncGenerator.h"
+#include "JSCInlines.h"
 #include "JSGenerator.h"
 #include "JSImmutableButterfly.h"
 #include "JSMapIterator.h"
@@ -43,6 +43,7 @@
 #include "LinkTimeConstant.h"
 #include "ModuleScopeData.h"
 #include "StackAlignment.h"
+#include "UnlinkedMetadataTableInlines.h"
 #include "YarrFlags.h"
 #include <wtf/Assertions.h>
 #include <wtf/text/StringBuilder.h>
@@ -1823,6 +1824,75 @@ RegisterID* CallFunctionCallDotNode::emitBytecode(BytecodeGenerator& generator, 
         }
         generator.emitLabel(end.get());
     }
+    generator.emitProfileType(returnValue.get(), divotStart(), divotEnd());
+    return returnValue.get();
+}
+
+RegisterID* HasOwnPropertyFunctionCallDotNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
+{
+    RefPtr<RegisterID> returnValue = generator.finalDestination(dst);
+    RefPtr<RegisterID> base = generator.emitNode(m_base);
+
+    if (m_base->isOptionalChainBase())
+        generator.emitOptionalCheck(base.get());
+
+    generator.emitExpressionInfo(subexpressionDivot(), subexpressionStart(), subexpressionEnd());
+
+    RefPtr<RegisterID> function = generator.emitGetById(generator.newTemporary(), base.get(), generator.propertyNames().hasOwnProperty);
+    if (isOptionalChainBase())
+        generator.emitOptionalCheck(function.get());
+
+    RELEASE_ASSERT(m_args->m_listNode && m_args->m_listNode->m_expr && !m_args->m_listNode->m_next);  
+    ExpressionNode* argument = m_args->m_listNode->m_expr;
+    RELEASE_ASSERT(argument->isResolveNode());
+    StructureForInContext* structureContext = nullptr;
+    Variable argumentVariable = generator.variable(static_cast<ResolveNode*>(argument)->identifier());
+    if (argumentVariable.isLocal()) {
+        RegisterID* property = argumentVariable.local();
+        structureContext = generator.findStructureForInContext(property);
+    }
+
+    auto canUseFastHasOwnProperty = [&] {
+        if (!structureContext)
+            return false;
+        if (!structureContext->baseVariable())
+            return false;
+        if (m_base->isResolveNode())
+            return generator.variable(static_cast<ResolveNode*>(m_base)->identifier()) == structureContext->baseVariable().value();
+        if (m_base->isThisNode()) {
+            // After generator.ensureThis (which must be invoked in |base|'s materialization), we can ensure that |this| is in local this-register.
+            ASSERT(base);
+            return generator.variable(generator.propertyNames().thisIdentifier, ThisResolutionType::Local) == structureContext->baseVariable().value();
+        }
+        return false;
+    };
+
+    if (canUseFastHasOwnProperty()) {
+        // It is possible that base register is variable and each for-in body replaces JS object in the base register with a different one.
+        // Even though, this is OK since HasOwnStructureProperty will reject the replaced JS object.
+        Ref<Label> realCall = generator.newLabel();
+        Ref<Label> end = generator.newLabel();
+
+        unsigned branchInsnOffset = generator.emitWideJumpIfNotFunctionHasOwnProperty(function.get(), realCall.get());
+        generator.emitHasOwnStructureProperty(returnValue.get(), base.get(), generator.emitNode(argument), structureContext->enumerator());
+        generator.emitJump(end.get());
+
+        generator.emitLabel(realCall.get());
+        {
+            CallArguments callArguments(generator, m_args);
+            generator.move(callArguments.thisRegister(), base.get());
+            generator.emitCallInTailPosition(returnValue.get(), function.get(), NoExpectedFunction, callArguments, divot(), divotStart(), divotEnd(), DebuggableCall::Yes);
+        }
+
+        generator.emitLabel(end.get());
+
+        generator.recordHasOwnStructurePropertyInForInLoop(*structureContext, branchInsnOffset, realCall);
+    } else {
+        CallArguments callArguments(generator, m_args);
+        generator.move(callArguments.thisRegister(), base.get());
+        generator.emitCallInTailPosition(returnValue.get(), function.get(), NoExpectedFunction, callArguments, divot(), divotStart(), divotEnd(), DebuggableCall::Yes);
+    }
+
     generator.emitProfileType(returnValue.get(), divotStart(), divotEnd());
     return returnValue.get();
 }
@@ -3702,6 +3772,15 @@ void ForInNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
     RefPtr<RegisterID> local = this->tryGetBoundLocal(generator);
     RefPtr<RegisterID> enumeratorIndex;
 
+    Optional<Variable> baseVariable;
+    if (m_expr->isResolveNode())
+        baseVariable = generator.variable(static_cast<ResolveNode*>(m_expr)->identifier());
+    else if (m_expr->isThisNode()) {
+        // After generator.ensureThis (which must be invoked in |base|'s materialization), we can ensure that |this| is in local this-register.
+        ASSERT(base);
+        baseVariable = generator.variable(generator.propertyNames().thisIdentifier, ThisResolutionType::Local);
+    }
+
     // Pause at the assignment expression for each for..in iteration.
     generator.emitDebugHook(m_lexpr);
 
@@ -3776,7 +3855,7 @@ void ForInNode::emitBytecode(BytecodeGenerator& generator, RegisterID* dst)
 
         generator.emitProfileControlFlow(profilerStartOffset);
 
-        generator.pushStructureForInScope(local.get(), enumeratorIndex.get(), propertyName.get(), enumerator.get());
+        generator.pushStructureForInScope(local.get(), enumeratorIndex.get(), propertyName.get(), enumerator.get(), baseVariable);
         generator.emitNode(dst, m_statement);
         generator.popStructureForInScope(local.get());
 

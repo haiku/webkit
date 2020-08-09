@@ -1,3 +1,192 @@
+2020-06-02  Keith Rollin  <krollin@apple.com>
+
+        Revert FEATURES_DEFINES related changes
+        https://bugs.webkit.org/show_bug.cgi?id=212664
+        <rdar://problem/63893033>
+
+        Reviewed by Andy Estes.
+
+        Bug 262310, Bug 262311, Bug 262318, and Bug 262331 involve changes to
+        FEATURE_DEFINES and how the values there relate to those found in the
+        Platform*.h files. Those changes break XCBuild (by removing the
+        .xcfilelist related to UnifiedSources and the process for generating
+        them), and so are being reverted.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+
+2020-06-02  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        Add .editorconfig
+        https://bugs.webkit.org/show_bug.cgi?id=212463
+
+        Add .editorconfig for Visual Studio.
+        
+        Initally following file types are supported:
+          - .h/.c/.cpp
+          - CMakeFilelist.txt/.cmake
+          - .editorconfig itself
+
+        Reviewed by Fujii Hironori.
+
+        * .editorconfig: Added.
+
+2020-05-29  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Remove conditionals for ENABLE_APPLE_PAY_SESSION_V(3|4)
+        https://bugs.webkit.org/show_bug.cgi?id=212541
+
+        Reviewed by Darin Adler.
+
+        APPLE_PAY_SESSION_V(3|4) is now enabled whenever APPLE_PAY itself is enabled.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+
+2020-05-29  Keith Rollin  <krollin@apple.com>
+
+        Revert switch to XCBuild
+        https://bugs.webkit.org/show_bug.cgi?id=212530
+        <rdar://problem/63764632>
+
+        Unreviewed build fix.
+
+        Bug 209890 enabled the use of XCBuild by default. Since then, some
+        build issues have shown up. While addressing them, temporarily turn
+        off the use of XCBuild by default.
+
+        * Makefile.shared:
+        * WebKit.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings:
+
+2020-05-27  Kenneth Russell  <kbr@chromium.org>
+
+        Update MobileMiniBrowser project settings to current Xcode
+        https://bugs.webkit.org/show_bug.cgi?id=212428
+
+        Reviewed by Dean Jackson.
+
+        Accept Xcode's suggested upgrade to use the new build system.
+
+        * WebKit.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings:
+
+2020-05-27  ChangSeok Oh  <changseok@webkit.org>
+
+        [GTK] Manette_INCLUDE_DIR and Manette_LIBRARY are undefined.
+        https://bugs.webkit.org/show_bug.cgi?id=212236
+
+        Reviewed by Michael Catanzaro.
+
+        The cmake complains Manette_INCLUDE_DIR and Manette_LIBRARY are missing
+        in finding the manette package where GAMEPAD is enabled for the gtk port.
+        In r261965, we thought they would be automatically defined with IMPORTED_TARGET
+        but they seem not. We explicitly find the header and library paths, following FindOpenJPEG.cmake.
+
+        * Source/cmake/FindManette.cmake:
+        * Source/cmake/OptionsGTK.cmake: REQUIRED removed.
+
+2020-05-26  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo][WK2] Use GraphicsLayerTextureMapper for Accelerated Compositing mode
+        https://bugs.webkit.org/show_bug.cgi?id=211883
+
+        Reviewed by Don Olmstead.
+
+        * Source/cmake/OptionsWinCairo.cmake: Added a new build option
+        USE_GRAPHICS_LAYER_TEXTURE_MAPPER, and set ON as the default.
+
+2020-05-26  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Add static analyzers
+        https://bugs.webkit.org/show_bug.cgi?id=212280
+
+        Reviewed by David Kilzer.
+
+        Add support for static analyzers within CMake builds. Supported analyzers are
+        clang-tidy, iwyu (include-what-you-use) and lwyu (link-what-you-use). They can
+        be enabled by passing a semicolon separated list to CMake through the ANALYZERS
+        option.
+
+        * Source/cmake/WebKitCommon.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmake/WebKitMacros.cmake:
+        * Source/cmake/WebKitStaticAnalysis.cmake: Added.
+
+2020-05-26  Keith Rollin  <krollin@apple.com>
+
+        Enable the use of XCBuild by default in Apple builds
+        https://bugs.webkit.org/show_bug.cgi?id=209890
+        <rdar://problem/44182078>
+
+        Reviewed by Darin Adler.
+
+        Switch from the "legacy" Xcode build system to the "new" build system
+        (also known as "XCBuild"). Switching to the new system speeds up
+        builds by a small percentage, better validates projects for
+        build-related issues (such as dependency cycles), lets WebKit benefit
+        from future improvements in XCBuild such as those coming from the
+        underlying llbuild open source project, and prepares us for any other
+        tools built for this new ecosystem.
+
+        Specific changes:
+
+        - Remove Xcode project and workspace settings that selected the Build
+          system, allowing the default to take hold (which is currently the
+          New build system).
+        - Updated webkitdirs.pm with a terser check for Xcode version.
+        - Update build-webkit and Makefile.shared to be explicit when using
+          the old build system (no longer treat it as a default or fall-back
+          configuration).
+        - Update various xcconfig files similarly to treat the default as
+          using the new build system.
+        - Update various post-processing build steps to check for Xcode 11.4
+          and to no longer treat the default as using the old build system.
+
+        * Makefile.shared:
+        * WebKit.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings:
+
+2020-05-22  Yoshiaki JITSUKAWA  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Enable JSC shell to run
+        https://bugs.webkit.org/show_bug.cgi?id=212294
+
+        Reviewed by Ross Kirsling.
+
+        * Source/cmake/OptionsPlayStation.cmake:
+
+2020-05-21  Yoshiaki Jitsukawa  <yoshiaki.jitsukawa@sony.com>
+
+        [PlayStation] Add minimal WKView API to enable TestWebKitAPI
+        https://bugs.webkit.org/show_bug.cgi?id=211868
+
+        Reviewed by Alex Christensen.
+
+        Enable TestWebKitAPI
+
+        * Source/cmake/OptionsPlayStation.cmake:
+        Disable FullScreen API and ContextMenus.
+
+2020-05-20  ChangSeok Oh  <changseok@webkit.org>
+
+        [GTK] Implement connected and disconnected events of GAMEPAD API with libmanette
+        https://bugs.webkit.org/show_bug.cgi?id=133854
+
+        Reviewed by Carlos Garcia Campos.
+
+        This patch brings initial GAMEPAD API support to the gtk port. We use libmanette,
+        a simple GObject game controller library to handle gamepad connection and input.
+
+        * Source/cmake/FindManette.cmake: Added to detect libmanette headers and libs installed in host system.
+        * Source/cmake/OptionsGTK.cmake: Added a private flag, ENABLE_GAMEPAD.
+          Once libmanette is found, we expose another build flag, USE_MANETTE for other ports.
+
+2020-05-20  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix GTK4 build with GTK 3.98.4
+
+        * Source/cmake/OptionsGTK.cmake:
+
 2020-05-18  Michael Catanzaro  <mcatanzaro@gnome.org>
 
         [GTK] Allow gtk-doc and introspection in cross builds

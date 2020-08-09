@@ -9,7 +9,6 @@ function canThrow(func, errorMessage) {
     } catch (e) {
         errorThrown = true;
         error = e;
-        print(error.message);
     }
     if (errorThrown && String(error) !== errorMessage)
         throw new Error(`bad error: ${String(error)}`);

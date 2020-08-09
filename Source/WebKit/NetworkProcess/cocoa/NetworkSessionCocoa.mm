@@ -52,6 +52,7 @@
 #import <wtf/MainThread.h>
 #import <wtf/NakedRef.h>
 #import <wtf/NeverDestroyed.h>
+#import <wtf/ObjCRuntimeExtras.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/SoftLinking.h>
 #import <wtf/URL.h>
@@ -536,7 +537,7 @@ static NSURLRequest* updateIgnoreStrictTransportSecuritySettingIfNecessary(NSURL
         bool shouldIgnoreHSTS = false;
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
         if (auto* sessionCocoa = networkDataTask->networkSession()) {
-            shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && sessionCocoa->networkProcess().storageSession(sessionCocoa->sessionID())->shouldBlockCookies(request, networkDataTask->frameID(), networkDataTask->pageID());
+            shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && sessionCocoa->networkProcess().storageSession(sessionCocoa->sessionID())->shouldBlockCookies(request, networkDataTask->frameID(), networkDataTask->pageID(), networkDataTask->shouldRelaxThirdPartyCookieBlocking());
             if (shouldIgnoreHSTS) {
                 request = downgradeRequest(request);
                 ASSERT([request.URL.scheme isEqualToString:@"http"]);
@@ -572,7 +573,7 @@ static NSURLRequest* updateIgnoreStrictTransportSecuritySettingIfNecessary(NSURL
         bool shouldIgnoreHSTS = false;
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
         if (auto* sessionCocoa = networkDataTask->networkSession()) {
-            shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && sessionCocoa->networkProcess().storageSession(sessionCocoa->sessionID())->shouldBlockCookies(request, networkDataTask->frameID(), networkDataTask->pageID());
+            shouldIgnoreHSTS = schemeWasUpgradedDueToDynamicHSTS(request) && sessionCocoa->networkProcess().storageSession(sessionCocoa->sessionID())->shouldBlockCookies(request, networkDataTask->frameID(), networkDataTask->pageID(), networkDataTask->shouldRelaxThirdPartyCookieBlocking());
             if (shouldIgnoreHSTS) {
                 request = downgradeRequest(request);
                 ASSERT([request.URL.scheme isEqualToString:@"http"]);
@@ -792,6 +793,13 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
         networkLoadMetrics.responseEnd = Seconds(responseEndInterval);
         networkLoadMetrics.markComplete();
         networkLoadMetrics.protocol = String(m.networkProtocolName);
+#if HAVE(CFNETWORK_METRICS_CONNECTION_PROPERTIES)
+        networkLoadMetrics.cellular = m.cellular;
+        networkLoadMetrics.expensive = m.expensive;
+        networkLoadMetrics.constrained = m.constrained;
+        networkLoadMetrics.multipath = m.multipath;
+#endif
+        networkLoadMetrics.isReusedConnection = m.isReusedConnection;
 
         if (networkDataTask->shouldCaptureExtraNetworkLoadMetrics()) {
             networkLoadMetrics.priority = toNetworkLoadPriority(task.priority);
@@ -950,14 +958,15 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
     auto* download = _session->networkProcess().downloadManager().download(downloadID);
     if (!download)
         return;
-    download->didReceiveData(bytesWritten);
+    download->didReceiveData(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
 }
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didResumeAtOffset:(int64_t)fileOffset expectedTotalBytes:(int64_t)expectedTotalBytes
 {
 #if PLATFORM(IOS_FAMILY)
     // This is to work around rdar://problem/63249830
-    downloadTask.downloadFile.skipUnlink = YES;
+    if ([downloadTask respondsToSelector:@selector(downloadFile)] && [downloadTask.downloadFile respondsToSelector:@selector(setSkipUnlink:)])
+        downloadTask.downloadFile.skipUnlink = YES;
 #endif
 }
 
@@ -1021,15 +1030,28 @@ static bool sessionsCreated = false;
 
 static NSURLSessionConfiguration *configurationForSessionID(const PAL::SessionID& session)
 {
+#if HAVE(LOGGING_PRIVACY_LEVEL)
+    auto loggingPrivacyLevel = nw_context_privacy_level_sensitive;
+#endif
+
     NSURLSessionConfiguration *configuration;
     if (session.isEphemeral()) {
         configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         configuration._shouldSkipPreferredClientCertificateLookup = YES;
+#if HAVE(LOGGING_PRIVACY_LEVEL) && defined(NW_CONTEXT_HAS_PRIVACY_LEVEL_SILENT)
+        loggingPrivacyLevel = nw_context_privacy_level_silent;
+#endif
     } else
         configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
 
-#if HAVE(ALLOWS_SENSITIVE_LOGGING)
+#if HAVE(LOGGING_PRIVACY_LEVEL)
+    auto setLoggingPrivacyLevel = NSSelectorFromString(@"_setLoggingPrivacyLevel:");
+    if ([configuration respondsToSelector:setLoggingPrivacyLevel])
+        wtfObjCMsgSend<void>(configuration, setLoggingPrivacyLevel, loggingPrivacyLevel);
+#elif HAVE(ALLOWS_SENSITIVE_LOGGING)
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     configuration._allowsSensitiveLogging = NO;
+ALLOW_DEPRECATED_DECLARATIONS_END
 #endif
     return configuration;
 }
@@ -1119,7 +1141,9 @@ static NSDictionary *proxyDictionary(const URL& httpProxy, const URL& httpsProxy
 void SessionWrapper::initialize(NSURLSessionConfiguration *configuration, NetworkSessionCocoa& networkSession, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, NavigatingToAppBoundDomain isNavigatingToAppBoundDomain)
 {
     UNUSED_PARAM(isNavigatingToAppBoundDomain);
+#if PLATFORM(IOS_FAMILY)
     NETWORK_SESSION_COCOA_ADDITIONS_1
+#endif
     delegate = adoptNS([[WKNetworkSessionDelegate alloc] initWithNetworkSession:networkSession wrapper:*this withCredentials:storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use]);
     session = [NSURLSession sessionWithConfiguration:configuration delegate:delegate.get() delegateQueue:[NSOperationQueue mainQueue]];
 }
@@ -1276,8 +1300,10 @@ SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::Resour
         ASSERT_NOT_REACHED();
 #endif
 
+#if PLATFORM(IOS_FAMILY)
     if (shouldBeConsideredAppBound == NavigatingToAppBoundDomain::Yes)
         return appBoundSession(storedCredentialsPolicy);
+#endif
 
     switch (storedCredentialsPolicy) {
     case WebCore::StoredCredentialsPolicy::Use:

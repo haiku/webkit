@@ -162,8 +162,6 @@ public:
     bool isCurrentlyAffectingProperty(CSSPropertyID, Accelerated = Accelerated::No) const;
     bool isRunningAcceleratedAnimationForProperty(CSSPropertyID) const;
 
-    const RenderStyle* unanimatedStyle() const { return m_unanimatedStyle.get(); }
-
     bool requiresPseudoElement() const;
 
 private:
@@ -181,16 +179,18 @@ private:
     void addPendingAcceleratedAction(AcceleratedAction);
     void updateAcceleratedActions();
     void setAnimatedPropertiesInStyle(RenderStyle&, double);
-    TimingFunction* timingFunctionForKeyframeAtIndex(size_t);
+    TimingFunction* timingFunctionForKeyframeAtIndex(size_t) const;
     Ref<const Animation> backingAnimationForCompositedRenderer() const;
     void computedNeedsForcedLayout();
     void computeStackingContextImpact();
+    void computeSomeKeyframesUseStepsTimingFunction();
     void clearBlendingKeyframes();
     void updateBlendingKeyframes(RenderStyle&);
     void computeCSSAnimationBlendingKeyframes(const RenderStyle&);
     void computeCSSTransitionBlendingKeyframes(const RenderStyle* oldStyle, const RenderStyle& newStyle);
     void computeAcceleratedPropertiesState();
     void setBlendingKeyframes(KeyframeList&);
+    Optional<double> progressUntilNextStep(double) const final;
     void checkForMatchingTransformFunctionLists();
     void checkForMatchingFilterFunctionLists();
     void checkForMatchingColorFilterFunctionLists();
@@ -204,7 +204,6 @@ private:
     Vector<AcceleratedAction> m_pendingAcceleratedActions;
     RefPtr<Element> m_target;
     PseudoId m_pseudoId { PseudoId::None };
-    std::unique_ptr<const RenderStyle> m_unanimatedStyle;
 
     AcceleratedAction m_lastRecordedAcceleratedAction { AcceleratedAction::Stop };
     BlendingKeyframesSource m_blendingKeyframesSource { BlendingKeyframesSource::WebAnimation };
@@ -222,6 +221,7 @@ private:
 #endif
     bool m_colorFilterFunctionListsMatch { false };
     bool m_inTargetEffectStack { false };
+    bool m_someKeyframesUseStepsTimingFunction { false };
 };
 
 } // namespace WebCore

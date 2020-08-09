@@ -1291,7 +1291,7 @@ void BytecodeGenerator::emitEnter()
         // to have somewhere to jump to if there is a recursive tail-call that points to this function.
         m_codeBlock->addJumpTarget(instructions().size());
         // This disables peephole optimizations when an instruction is a jump target
-        m_lastOpcodeID = op_end;
+        disablePeepholeOptimization();
     }
 }
 
@@ -1314,7 +1314,7 @@ void BytecodeGenerator::emitCheckTraps()
 void ALWAYS_INLINE BytecodeGenerator::rewind()
 {
     ASSERT(m_lastInstruction.isValid());
-    m_lastOpcodeID = op_end;
+    disablePeepholeOptimization();
     m_writer.rewind(m_lastInstruction);
 }
 
@@ -1456,6 +1456,19 @@ void BytecodeGenerator::emitJumpIfNotFunctionCall(RegisterID* cond, Label& targe
 void BytecodeGenerator::emitJumpIfNotFunctionApply(RegisterID* cond, Label& target)
 {
     OpJneqPtr::emit(this, cond, moveLinkTimeConstant(nullptr, LinkTimeConstant::applyFunction), target.bind(this));
+}
+
+unsigned BytecodeGenerator::emitWideJumpIfNotFunctionHasOwnProperty(RegisterID* cond, Label& target)
+{
+    OpJneqPtr::emit<OpcodeSize::Wide32>(this, cond, moveLinkTimeConstant(nullptr, LinkTimeConstant::hasOwnPropertyFunction), target.bind(this));
+    return m_lastInstruction.offset();
+}
+
+void BytecodeGenerator::recordHasOwnStructurePropertyInForInLoop(StructureForInContext& structureContext, unsigned branchOffset, Label& genericPath)
+{
+    RELEASE_ASSERT(genericPath.isBound());
+    RELEASE_ASSERT(!genericPath.isForward());
+    structureContext.addHasOwnPropertyJump(branchOffset, genericPath.location());
 }
 
 bool BytecodeGenerator::hasConstant(const Identifier& ident) const
@@ -2479,6 +2492,20 @@ RegisterID* BytecodeGenerator::emitInstanceOfCustom(RegisterID* dst, RegisterID*
 
 RegisterID* BytecodeGenerator::emitInByVal(RegisterID* dst, RegisterID* property, RegisterID* base)
 {
+    for (size_t i = m_forInContextStack.size(); i--; ) {
+        ForInContext& context = m_forInContextStack[i].get();
+        if (context.local() != property)
+            continue;
+
+        if (!context.isStructureForInContext())
+            break;
+
+        StructureForInContext& structureContext = context.asStructureForInContext();
+        OpInStructureProperty::emit<OpcodeSize::Wide32>(this, dst, base, property, structureContext.enumerator());
+        structureContext.addInInst(m_lastInstruction.offset(), property->index());
+        return dst;
+    }
+
     OpInByVal::emit(this, dst, base, property);
     return dst;
 }
@@ -4068,26 +4095,12 @@ void BytecodeGenerator::emitGenericEnumeration(ThrowableExpressionData* node, Ex
             emitLabel(finallyBodyLabel.get());
             restoreScopeRegister();
 
-            Ref<Label> finallyDone = newLabel();
-
-            RefPtr<RegisterID> returnMethod = emitGetById(newTemporary(), iterator.get(), propertyNames().returnKeyword);
-            emitJumpIfTrue(emitIsUndefined(newTemporary(), returnMethod.get()), finallyDone.get());
-
             Ref<Label> returnCallTryStart = newLabel();
             emitLabel(returnCallTryStart.get());
             TryData* returnCallTryData = pushTry(returnCallTryStart.get(), catchLabel.get(), HandlerType::SynthesizedCatch);
 
-            CallArguments returnArguments(*this, nullptr);
-            move(returnArguments.thisRegister(), iterator.get());
-            emitCall(value.get(), returnMethod.get(), NoExpectedFunction, returnArguments, node->divot(), node->divotStart(), node->divotEnd(), DebuggableCall::No);
-
-            if (isForAwait)
-                emitAwait(value.get());
-
-            emitJumpIfTrue(emitIsObject(newTemporary(), value.get()), finallyDone.get());
-            emitThrowTypeError("Iterator result interface is not an object."_s);
-
-            emitLabel(finallyDone.get());
+            emitIteratorGenericClose(iterator.get(), node, shouldEmitAwait);
+            Ref<Label> finallyDone = newEmittedLabel();
             emitFinallyCompletion(finallyContext, endCatchLabel.get());
 
             popTry(returnCallTryData, finallyDone.get());
@@ -4224,23 +4237,12 @@ void BytecodeGenerator::emitEnumeration(ThrowableExpressionData* node, Expressio
             emitLabel(finallyBodyLabel.get());
             restoreScopeRegister();
 
-            Ref<Label> finallyDone = newLabel();
-
-            RefPtr<RegisterID> returnMethod = emitGetById(newTemporary(), iterator.get(), propertyNames().returnKeyword);
-            emitJumpIfTrue(emitIsUndefined(newTemporary(), returnMethod.get()), finallyDone.get());
-
             Ref<Label> returnCallTryStart = newLabel();
             emitLabel(returnCallTryStart.get());
             TryData* returnCallTryData = pushTry(returnCallTryStart.get(), catchLabel.get(), HandlerType::SynthesizedCatch);
 
-            CallArguments returnArguments(*this, nullptr);
-            move(returnArguments.thisRegister(), iterator.get());
-            emitCall(value.get(), returnMethod.get(), NoExpectedFunction, returnArguments, node->divot(), node->divotStart(), node->divotEnd(), DebuggableCall::No);
-
-            emitJumpIfTrue(emitIsObject(newTemporary(), value.get()), finallyDone.get());
-            emitThrowTypeError("Iterator result interface is not an object."_s);
-
-            emitLabel(finallyDone.get());
+            emitIteratorGenericClose(iterator.get(), node, EmitAwait::No);
+            Ref<Label> finallyDone = newEmittedLabel();
             emitFinallyCompletion(finallyContext, endCatchLabel.get());
 
             popTry(returnCallTryData, finallyDone.get());
@@ -4336,6 +4338,12 @@ RegisterID* BytecodeGenerator::emitHasIndexedProperty(RegisterID* dst, RegisterI
 RegisterID* BytecodeGenerator::emitHasStructureProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName, RegisterID* enumerator)
 {
     OpHasStructureProperty::emit(this, dst, base, propertyName, enumerator);
+    return dst;
+}
+
+RegisterID* BytecodeGenerator::emitHasOwnStructureProperty(RegisterID* dst, RegisterID* base, RegisterID* propertyName, RegisterID* enumerator)
+{
+    OpHasOwnStructureProperty::emit(this, dst, base, propertyName, enumerator);
     return dst;
 }
 
@@ -4525,12 +4533,12 @@ void BytecodeGenerator::emitPutThisToArrowFunctionContextScope()
     }
 }
 
-void BytecodeGenerator::pushStructureForInScope(RegisterID* localRegister, RegisterID* indexRegister, RegisterID* propertyRegister, RegisterID* enumeratorRegister)
+void BytecodeGenerator::pushStructureForInScope(RegisterID* localRegister, RegisterID* indexRegister, RegisterID* propertyRegister, RegisterID* enumeratorRegister, Optional<Variable> baseVariable)
 {
     if (!localRegister)
         return;
     unsigned bodyBytecodeStartOffset = instructions().size();
-    m_forInContextStack.append(adoptRef(*new StructureForInContext(localRegister, indexRegister, propertyRegister, enumeratorRegister, bodyBytecodeStartOffset)));
+    m_forInContextStack.append(adoptRef(*new StructureForInContext(localRegister, indexRegister, propertyRegister, enumeratorRegister, baseVariable, bodyBytecodeStartOffset)));
 }
 
 void BytecodeGenerator::popStructureForInScope(RegisterID* localRegister)
@@ -5183,6 +5191,40 @@ void ForInContext::finalize(BytecodeGenerator& generator, UnlinkedCodeBlockGener
     }
 }
 
+template <typename OldOpType, typename TupleType>
+ALWAYS_INLINE void rewriteOp(BytecodeGenerator& generator, TupleType& instTuple)
+{
+    unsigned instIndex = std::get<0>(instTuple);
+    int propertyRegIndex = std::get<1>(instTuple);
+    auto instruction = generator.m_writer.ref(instIndex);
+    auto end = instIndex + instruction->size();
+    ASSERT(instruction->isWide32());
+
+    generator.m_writer.seek(instIndex);
+
+    auto bytecode = instruction->as<OldOpType>();
+
+    generator.disablePeepholeOptimization();
+
+    // Change the opcode to get_by_val.
+    // 1. dst stays the same.
+    // 2. base stays the same.
+    // 3. property gets switched to the original property.
+
+    if constexpr (std::is_same<OldOpType, OpGetDirectPname>::value) {
+        static_assert(sizeof(OpGetByVal) <= sizeof(OpGetDirectPname));
+        OpGetByVal::emit<OpcodeSize::Wide32>(&generator, bytecode.m_dst, bytecode.m_base, VirtualRegister(propertyRegIndex));
+    } else if constexpr (std::is_same<OldOpType, OpInStructureProperty>::value) {
+        static_assert(sizeof(OpInByVal) <= sizeof(OpInStructureProperty));
+        OpInByVal::emit<OpcodeSize::Wide32>(&generator, bytecode.m_dst, bytecode.m_base, VirtualRegister(propertyRegIndex));
+    } else
+        RELEASE_ASSERT_NOT_REACHED();
+
+    // 4. nop out the remaining bytes
+    while (generator.m_writer.position() < end)
+        OpNop::emit<OpcodeSize::Narrow>(&generator);
+}
+
 void StructureForInContext::finalize(BytecodeGenerator& generator, UnlinkedCodeBlockGenerator* codeBlock, unsigned bodyBytecodeEndOffset)
 {
     Base::finalize(generator, codeBlock, bodyBytecodeEndOffset);
@@ -5191,30 +5233,33 @@ void StructureForInContext::finalize(BytecodeGenerator& generator, UnlinkedCodeB
 
     OpcodeID lastOpcodeID = generator.m_lastOpcodeID;
     InstructionStream::MutableRef lastInstruction = generator.m_lastInstruction;
-    for (const auto& instTuple : m_getInsts) {
-        unsigned instIndex = std::get<0>(instTuple);
-        int propertyRegIndex = std::get<1>(instTuple);
-        auto instruction = generator.m_writer.ref(instIndex);
-        auto end = instIndex + instruction->size();
-        ASSERT(instruction->isWide32());
 
-        generator.m_writer.seek(instIndex);
+    for (const auto& instTuple : m_getInsts)
+        rewriteOp<OpGetDirectPname>(generator, instTuple);
 
-        auto bytecode = instruction->as<OpGetDirectPname>();
+    for (const auto& instTuple : m_inInsts)
+        rewriteOp<OpInStructureProperty>(generator, instTuple);
 
-        // disable peephole optimizations
-        generator.m_lastOpcodeID = op_end;
+    for (const auto& hasOwnPropertyTuple : m_hasOwnPropertyJumpInsts) {
+        static_assert(sizeof(OpJmp) <= sizeof(OpJneqPtr));
+        unsigned branchInstIndex = std::get<0>(hasOwnPropertyTuple);
+        unsigned newBranchTarget = std::get<1>(hasOwnPropertyTuple);
 
-        // Change the opcode to get_by_val.
-        // 1. dst stays the same.
-        // 2. base stays the same.
-        // 3. property gets switched to the original property.
-        OpGetByVal::emit<OpcodeSize::Wide32>(&generator, bytecode.m_dst, bytecode.m_base, VirtualRegister(propertyRegIndex));
+        auto instruction = generator.m_writer.ref(branchInstIndex);
+        RELEASE_ASSERT(instruction->is<OpJneqPtr>());
+        RELEASE_ASSERT(instruction->isWide32());
+        auto end = branchInstIndex + instruction->size();
 
-        // 4. nop out the remaining bytes
+        generator.m_writer.seek(branchInstIndex);
+
+        generator.disablePeepholeOptimization();
+
+        OpJmp::emit(&generator, BoundLabel(static_cast<int>(newBranchTarget) - static_cast<int>(branchInstIndex)));
+
         while (generator.m_writer.position() < end)
             OpNop::emit<OpcodeSize::Narrow>(&generator);
     }
+
     generator.m_writer.seek(generator.m_writer.size());
     if (generator.m_lastInstruction.offset() + generator.m_lastInstruction->size() != generator.m_writer.size()) {
         generator.m_lastOpcodeID = lastOpcodeID;
@@ -5261,6 +5306,22 @@ void StaticPropertyAnalysis::record()
 void BytecodeGenerator::emitToThis()
 {
     OpToThis::emit(this, kill(&m_thisRegister), ecmaMode());
+}
+
+StructureForInContext* BytecodeGenerator::findStructureForInContext(RegisterID* property)
+{
+    for (size_t i = m_forInContextStack.size(); i--; ) {
+        ForInContext& context = m_forInContextStack[i].get();
+        if (context.local() != property)
+            continue;
+
+        if (!context.isStructureForInContext())
+            break;
+
+        return &context.asStructureForInContext();
+    }
+
+    return nullptr;
 }
 
 } // namespace JSC

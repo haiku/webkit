@@ -114,7 +114,7 @@ bool doesGC(Graph& graph, Node* node)
     case CheckStructureImmediate:
     case GetExecutable:
     case GetButterfly:
-    case CheckSubClass:
+    case CheckJSCast:
     case CheckArray:
     case CheckArrayOrEmpty:
     case CheckNeutered:
@@ -297,6 +297,8 @@ bool doesGC(Graph& graph, Node* node)
     case HasIndexedProperty:
     case HasOwnProperty:
     case HasStructureProperty:
+    case HasOwnStructureProperty:
+    case InStructureProperty:
     case InById:
     case InByVal:
     case InstanceOf:

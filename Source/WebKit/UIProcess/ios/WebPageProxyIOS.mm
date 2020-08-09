@@ -1439,9 +1439,6 @@ static RecommendDesktopClassBrowsingForRequest desktopClassBrowsingRecommendedFo
     if (equalLettersIgnoringASCIICase(host, "roblox.com") || host.endsWithIgnoringASCIICase(".roblox.com"))
         return RecommendDesktopClassBrowsingForRequest::No;
 
-    if (equalLettersIgnoringASCIICase(host, "stackoverflow.com") && request.url().path().startsWithIgnoringASCIICase("/jobs/"))
-        return RecommendDesktopClassBrowsingForRequest::Yes;
-
     return RecommendDesktopClassBrowsingForRequest::Auto;
 }
 
@@ -1511,6 +1508,7 @@ WebContentMode WebPageProxy::effectiveContentModeAfterAdjustingPolicies(API::Web
 
     if (!useDesktopBrowsingMode) {
         policies.setAllowContentChangeObserverQuirk(true);
+        policies.setIdempotentModeAutosizingOnlyHonorsPercentages(true);
         return WebContentMode::Mobile;
     }
 
@@ -1578,6 +1576,12 @@ void WebPageProxy::setShouldRevealCurrentSelectionAfterInsertion(bool shouldReve
 {
     if (hasRunningProcess())
         send(Messages::WebPage::SetShouldRevealCurrentSelectionAfterInsertion(shouldRevealCurrentSelectionAfterInsertion));
+}
+
+void WebPageProxy::setScreenIsBeingCaptured(bool captured)
+{
+    if (hasRunningProcess())
+        send(Messages::WebPage::SetScreenIsBeingCaptured(captured));
 }
 
 void WebPageProxy::willOpenAppLink()
