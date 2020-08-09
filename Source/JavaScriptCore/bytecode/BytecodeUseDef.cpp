@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -174,6 +174,7 @@ void computeUsesForBytecodeIndexImpl(VirtualRegister scopeRegister, const Instru
     USES(OpIsUndefinedOrNull, operand)
     USES(OpIsBoolean, operand)
     USES(OpIsNumber, operand)
+    USES(OpIsBigInt, operand)
     USES(OpIsObject, operand)
     USES(OpIsObjectOrNull, operand)
     USES(OpIsCellWithType, operand)
@@ -258,6 +259,9 @@ void computeUsesForBytecodeIndexImpl(VirtualRegister scopeRegister, const Instru
     USES(OpPutInternalField, base, value)
 
     USES(OpYield, generator, argument)
+
+    USES(OpIteratorOpen, symbolIterator, iterable)
+    USES(OpIteratorNext, iterator, next, iterable)
 
     case op_new_array_with_spread:
         handleNewArrayLike(instruction->as<OpNewArrayWithSpread>());
@@ -423,9 +427,10 @@ void computeDefsForBytecodeIndexImpl(unsigned numVars, const Instruction* instru
     DEFS(OpIdentityWithProfile, srcDst)
     DEFS(OpIsEmpty, dst)
     DEFS(OpIsUndefined, dst)
-    USES(OpIsUndefinedOrNull, dst)
+    DEFS(OpIsUndefinedOrNull, dst)
     DEFS(OpIsBoolean, dst)
     DEFS(OpIsNumber, dst)
+    DEFS(OpIsBigInt, dst)
     DEFS(OpIsObject, dst)
     DEFS(OpIsObjectOrNull, dst)
     DEFS(OpIsCellWithType, dst)
@@ -485,6 +490,9 @@ void computeDefsForBytecodeIndexImpl(unsigned numVars, const Instruction* instru
     DEFS(OpGetInternalField, dst)
 
     DEFS(OpCatch, exception, thrownValue)
+
+    DEFS(OpIteratorOpen, iterator, next)
+    DEFS(OpIteratorNext, done, value)
 
     case op_enter: {
         for (unsigned i = numVars; i--;)

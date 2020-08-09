@@ -75,13 +75,6 @@
 namespace WebKit {
 using namespace WebCore;
 
-static uint64_t generateCallbackID()
-{
-    static uint64_t callbackID;
-
-    return ++callbackID;
-}
-
 NetworkProcessProxy::NetworkProcessProxy(WebProcessPool& processPool)
     : AuxiliaryProcessProxy(processPool.alwaysRunsAtBackgroundPriority())
     , m_processPool(processPool)
@@ -91,9 +84,6 @@ NetworkProcessProxy::NetworkProcessProxy(WebProcessPool& processPool)
     , m_throttler(*this, processPool.shouldTakeUIBackgroundAssertion())
 {
     connect();
-
-    if (auto* websiteDataStore = m_processPool.websiteDataStore())
-        m_websiteDataStores.set(websiteDataStore->sessionID(), makeRef(*websiteDataStore));
 }
 
 NetworkProcessProxy::~NetworkProcessProxy()
@@ -177,7 +167,7 @@ void NetworkProcessProxy::fetchWebsiteData(PAL::SessionID sessionID, OptionSet<W
 {
     ASSERT(canSendMessage());
 
-    uint64_t callbackID = generateCallbackID();
+    auto callbackID = CallbackID::generateID();
     RELEASE_LOG_IF(sessionID.isAlwaysOnLoggingAllowed(), ProcessSuspension, "%p - NetworkProcessProxy is taking a background assertion because the Network process is fetching Website data", this);
 
     m_pendingFetchWebsiteDataCallbacks.add(callbackID, [this, activity = throttler().backgroundActivity("NetworkProcessProxy::fetchWebsiteData"_s), completionHandler = WTFMove(completionHandler), sessionID] (WebsiteData websiteData) mutable {
@@ -194,7 +184,7 @@ void NetworkProcessProxy::fetchWebsiteData(PAL::SessionID sessionID, OptionSet<W
 
 void NetworkProcessProxy::deleteWebsiteData(PAL::SessionID sessionID, OptionSet<WebsiteDataType> dataTypes, WallTime modifiedSince, CompletionHandler<void ()>&& completionHandler)
 {
-    auto callbackID = generateCallbackID();
+    auto callbackID = CallbackID::generateID();
     RELEASE_LOG_IF(sessionID.isAlwaysOnLoggingAllowed(), ProcessSuspension, "%p - NetworkProcessProxy is taking a background assertion because the Network process is deleting Website data", this);
 
     m_pendingDeleteWebsiteDataCallbacks.add(callbackID, [this, activity = throttler().backgroundActivity("NetworkProcessProxy::deleteWebsiteData"_s), completionHandler = WTFMove(completionHandler), sessionID] () mutable {
@@ -212,7 +202,7 @@ void NetworkProcessProxy::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, 
 {
     ASSERT(canSendMessage());
 
-    uint64_t callbackID = generateCallbackID();
+    auto callbackID = CallbackID::generateID();
     RELEASE_LOG_IF(sessionID.isAlwaysOnLoggingAllowed(), ProcessSuspension, "%p - NetworkProcessProxy is taking a background assertion because the Network process is deleting Website data for several origins", this);
 
     m_pendingDeleteWebsiteDataForOriginsCallbacks.add(callbackID, [this, activity = throttler().backgroundActivity("NetworkProcessProxy::deleteWebsiteDataForOrigins"_s), completionHandler = WTFMove(completionHandler), sessionID] () mutable {
@@ -280,6 +270,8 @@ void NetworkProcessProxy::didClose(IPC::Connection&)
     
     m_syncAllCookiesActivity = nullptr;
     m_syncAllCookiesCounter = 0;
+
+    m_uploadActivity = WTF::nullopt;
 
     // This will cause us to be deleted.
     networkProcessCrashed();
@@ -352,21 +344,21 @@ void NetworkProcessProxy::negotiatedLegacyTLS(WebPageProxyIdentifier pageID)
         page->negotiatedLegacyTLS();
 }
 
-void NetworkProcessProxy::didFetchWebsiteData(uint64_t callbackID, const WebsiteData& websiteData)
+void NetworkProcessProxy::didFetchWebsiteData(CallbackID callbackID, const WebsiteData& websiteData)
 {
     MESSAGE_CHECK(m_pendingFetchWebsiteDataCallbacks.isValidKey(callbackID));
     auto callback = m_pendingFetchWebsiteDataCallbacks.take(callbackID);
     callback(websiteData);
 }
 
-void NetworkProcessProxy::didDeleteWebsiteData(uint64_t callbackID)
+void NetworkProcessProxy::didDeleteWebsiteData(CallbackID callbackID)
 {
     MESSAGE_CHECK(m_pendingDeleteWebsiteDataCallbacks.isValidKey(callbackID));
     auto callback = m_pendingDeleteWebsiteDataCallbacks.take(callbackID);
     callback();
 }
 
-void NetworkProcessProxy::didDeleteWebsiteDataForOrigins(uint64_t callbackID)
+void NetworkProcessProxy::didDeleteWebsiteDataForOrigins(CallbackID callbackID)
 {
     MESSAGE_CHECK(m_pendingDeleteWebsiteDataForOriginsCallbacks.isValidKey(callbackID));
     auto callback = m_pendingDeleteWebsiteDataForOriginsCallbacks.take(callbackID);
@@ -1208,7 +1200,6 @@ void NetworkProcessProxy::addSession(Ref<WebsiteDataStore>&& store)
 #if ENABLE(INDEXED_DATABASE)
         createSymLinkForFileUpgrade(store->resolvedIndexedDatabaseDirectory());
 #endif
-        m_websiteDataStores.set(sessionID, WTFMove(store));
     }
 }
 
@@ -1216,25 +1207,13 @@ void NetworkProcessProxy::removeSession(PAL::SessionID sessionID)
 {
     if (canSendMessage())
         send(Messages::NetworkProcess::DestroySession { sessionID }, 0);
-    if (!sessionID.isEphemeral())
-        m_websiteDataStores.remove(sessionID);
 }
 
 WebsiteDataStore* NetworkProcessProxy::websiteDataStoreFromSessionID(PAL::SessionID sessionID)
 {
-    auto iterator = m_websiteDataStores.find(sessionID);
-    if (iterator != m_websiteDataStores.end())
-        return iterator->value.get();
-
-    if (auto* websiteDataStore = m_processPool.websiteDataStore()) {
-        if (sessionID == websiteDataStore->sessionID())
-            return websiteDataStore;
-    }
-
-    if (sessionID != PAL::SessionID::defaultSessionID())
-        return nullptr;
-
-    return WebKit::WebsiteDataStore::defaultDataStore().ptr();
+    if (sessionID == PAL::SessionID::defaultSessionID())
+        return WebsiteDataStore::defaultDataStore().ptr();
+    return WebsiteDataStore::existingNonDefaultDataStoreForSessionID(sessionID);
 }
 
 void NetworkProcessProxy::retrieveCacheStorageParameters(PAL::SessionID sessionID)
@@ -1362,16 +1341,42 @@ void NetworkProcessProxy::unregisterSchemeForLegacyCustomProtocol(const String& 
 #endif
 }
 
-void NetworkProcessProxy::takeUploadAssertion()
+void NetworkProcessProxy::setWebProcessHasUploads(WebCore::ProcessIdentifier processID, bool hasUpload)
 {
-    ASSERT(!m_uploadAssertion);
-    m_uploadAssertion = makeUnique<ProcessAssertion>(processIdentifier(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking);
-}
+    if (!hasUpload) {
+        if (!m_uploadActivity)
+            return;
 
-void NetworkProcessProxy::clearUploadAssertion()
-{
-    ASSERT(m_uploadAssertion);
-    m_uploadAssertion = nullptr;
+        auto assertion = m_uploadActivity->webProcessAssertions.take(processID);
+        if (!assertion)
+            return;
+
+        RELEASE_LOG(ProcessSuspension, "NetworkProcessProxy::setWebProcessHasUploads: Releasing upload assertion on behalf of WebProcess with PID %d", assertion->pid());
+
+        if (m_uploadActivity->webProcessAssertions.isEmpty()) {
+            RELEASE_LOG(ProcessSuspension, "NetworkProcessProxy::setWebProcessHasUploads: The number of uploads in progress is now zero. Releasing Networking and UI process assertions.");
+            m_uploadActivity = WTF::nullopt;
+        }
+        return;
+    }
+
+    auto* process = WebProcessProxy::processForIdentifier(processID);
+    if (!process)
+        return;
+
+    if (!m_uploadActivity) {
+        RELEASE_LOG(ProcessSuspension, "NetworkProcessProxy::setWebProcessHasUploads: The number of uploads in progress is now greater than 0. Taking Networking and UI process assertions.");
+        m_uploadActivity = UploadActivity {
+            makeUnique<ProcessAssertion>(getCurrentProcessID(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking),
+            makeUnique<ProcessAssertion>(processIdentifier(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking),
+            HashMap<WebCore::ProcessIdentifier, std::unique_ptr<ProcessAssertion>>()
+        };
+    }
+
+    m_uploadActivity->webProcessAssertions.ensure(processID, [&] {
+        RELEASE_LOG(ProcessSuspension, "NetworkProcessProxy::setWebProcessHasUploads: Taking upload assertion on behalf of WebProcess with PID %d", process->processIdentifier());
+        return makeUnique<ProcessAssertion>(process->processIdentifier(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking);
+    });
 }
 
 void NetworkProcessProxy::testProcessIncomingSyncMessagesWhenWaitingForSyncReply(WebPageProxyIdentifier pageID, Messages::NetworkProcessProxy::TestProcessIncomingSyncMessagesWhenWaitingForSyncReply::DelayedReply&& reply)
@@ -1460,6 +1465,21 @@ void NetworkProcessProxy::setInAppBrowserPrivacyEnabled(PAL::SessionID sessionID
     sendWithAsyncReply(Messages::NetworkProcess::SetInAppBrowserPrivacyEnabled(sessionID, value), WTFMove(completionHandler));
 }
 
+void NetworkProcessProxy::getAppBoundDomains(PAL::SessionID sessionID, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&& completionHandler)
+{
+#if PLATFORM(IOS_FAMILY)
+    if (auto* store = websiteDataStoreFromSessionID(sessionID)) {
+        store->getAppBoundDomains([completionHandler = WTFMove(completionHandler)] (auto& appBoundDomains) mutable {
+            auto appBoundDomainsCopy = appBoundDomains;
+            completionHandler(WTFMove(appBoundDomainsCopy));
+        });
+        return;
+    }
+    completionHandler({ });
+#else
+    completionHandler({ });
+#endif
+}
 
 } // namespace WebKit
 

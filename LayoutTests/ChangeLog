@@ -1,3 +1,805 @@
+2020-04-19  Simon Fraser  <simon.fraser@apple.com>
+
+        Content disappears on CSS parallax example
+        https://bugs.webkit.org/show_bug.cgi?id=210732
+
+        Reviewed by Darin Adler.
+
+        * compositing/tiling/coverage-adjustment-secondary-quad-mapping-expected.txt: Added.
+        * compositing/tiling/coverage-adjustment-secondary-quad-mapping.html: Added.
+        * platform/ios-wk2/compositing/tiling/coverage-adjustment-secondary-quad-mapping-expected.txt: Added.
+        * platform/mac-wk1/compositing/tiling/coverage-adjustment-secondary-quad-mapping-expected.txt: Added.
+
+2020-04-20  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][TFC] Add support for border-collapse: collapse.
+        https://bugs.webkit.org/show_bug.cgi?id=210747
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/table-flex-width-border-collapse.html: Added.
+
+2020-04-20  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Oversized caret and selection rects in text fields on ganji.com and netflix.com/login
+        https://bugs.webkit.org/show_bug.cgi?id=210622
+        <rdar://problem/45945636>
+
+        Reviewed by Darin Adler.
+
+        Rebaseline existing tests, and add a new test to verify that caret and selection rects do not extend to match
+        the line height in empty and non-empty editable elements, in both horizontal and vertical writing modes.
+
+        * editing/selection/ios/absolute-selection-after-scroll-expected.txt:
+        * editing/selection/ios/absolute-selection-after-scroll.html:
+        * editing/selection/ios/change-selection-after-tapping-focused-element-expected.txt:
+        * editing/selection/ios/change-selection-after-tapping-focused-element.html:
+        * editing/selection/ios/fixed-selection-after-scroll-expected.txt:
+        * editing/selection/ios/fixed-selection-after-scroll.html:
+        * editing/selection/ios/selection-after-changing-text-with-callout-menu-expected.txt:
+        * editing/selection/ios/selection-after-changing-text-with-callout-menu.html:
+        * editing/selection/ios/selection-handles-after-touch-end-expected.txt:
+        * editing/selection/ios/update-selection-after-overflow-scroll-expected.txt:
+        * editing/selection/ios/update-selection-after-overflow-scroll.html:
+        * editing/selection/selection-and-caret-do-not-extend-to-line-height-expected.txt: Added.
+        * editing/selection/selection-and-caret-do-not-extend-to-line-height.html: Added.
+        * fast/repaint/focus-ring-repaint-expected.txt:
+        * platform/ios/editing/selection/ios/selection-handles-after-touch-end-expected.txt: Removed.
+
+        Delete this redundant test expectation.
+
+2020-04-20  Youenn Fablet  <youenn@apple.com>
+
+        Safari doesn't apply frameRate limit when request stream from Camera
+        https://bugs.webkit.org/show_bug.cgi?id=210186
+        <rdar://problem/61452794>
+
+        Reviewed by Eric Carlson.
+
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-decreasing-expected.txt: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-decreasing.html: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing-expected.txt: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing.html: Added.
+        * fast/mediastream/mediastreamtrack-video-framerate-decreasing-expected.txt: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-decreasing.html: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-increasing-expected.txt: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-increasing.html: added.
+        * webrtc/routines.js:
+
+2020-04-20  Antoine Quint  <graouts@apple.com>
+
+        WebAnimations API doesn't properly apply keyframe easings to transforms
+        https://bugs.webkit.org/show_bug.cgi?id=210526
+        <rdar://problem/61800424>
+
+        Reviewed by Antti Koivisto.
+
+        Add a new test that checks that an animation targeting an accelerted property does not yield an accelerated animation if one of its keyframes contains a steps timing function.
+
+        * webanimations/transform-animation-with-steps-timing-function-not-accelerated-expected.txt: Added.
+        * webanimations/transform-animation-with-steps-timing-function-not-accelerated.html: Added.
+
+2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        StructuredClone algorithm should be aware of BigInt
+        https://bugs.webkit.org/show_bug.cgi?id=210728
+
+        Reviewed by Mark Lam.
+
+        * inspector/model/remote-object/number-expected.txt:
+        * inspector/model/remote-object/object-expected.txt:
+
+2020-04-20  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WPE] Enable resource load statistics
+        https://bugs.webkit.org/show_bug.cgi?id=210184
+
+        Reviewed by Žan Doberšek.
+
+        Unskip tests that are now passing and add expectations for the two reminaing failures.
+
+        * http/tests/resourceLoadStatistics/loaded-registrable-domains-get-reported.html: Use setTimeout in onload
+        handler to avoid a deadlock due to sync injected bundle messages.
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-04-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, skip imported/w3c/web-platform-tests/IndexedDB/structured-clone
+        https://bugs.webkit.org/show_bug.cgi?id=210731#c4
+
+        Skipping this test based on the following rationales.
+
+            1. This test was previously *effectively* skipped because it is including BigInt syntax. This test immediately throws SyntaxError. So nothing in this test was executed before.
+            2. Now JSC supports BigInt syntax. Then, this test is now executed finally. And crash happens when deserializaing DOMMatrixReadOnly.
+            3. This is because DOMMatrixReadOnly requires JSDOMGlobalObject since DOMMatrixReadOnly is WebCore object, not JSC object.
+            4. However, IDBSerializationContext.cpp is using plain JSGlobalObject. This is not correct since it is JSC JSGlobalObject and it does not include DOMMatrix implementations.
+            5. So, nothing is related to BigInt here.
+
+        * TestExpectations:
+
+2020-04-19  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][TFC] Add column spanning support for flexible table width
+        https://bugs.webkit.org/show_bug.cgi?id=210713
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/table-flex-width-colspans-expected.txt: Added.
+        * fast/layoutformattingcontext/table-flex-width-colspans.html: Added.
+
+2020-04-19  Emilio Cobos Álvarez  <emilio@crisal.io>
+
+        Don't use the inherited custom properties to store environment variables.
+        https://bugs.webkit.org/show_bug.cgi?id=210707
+
+        Reviewed by Antti Koivisto.
+
+        * platform/ios/imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+
+2020-04-19  Antti Koivisto  <antti@apple.com>
+
+        [CSS selectors] :is() / :where() should not allow pseudo-elements at parse-time
+        https://bugs.webkit.org/show_bug.cgi?id=210701
+
+        Reviewed by Anders Carlsson.
+
+        Remove or update tests for pseudo elements inside :is()/:where().
+        Also add some :where() rountrip coverage.
+
+        * fast/css/css-selector-text-expected.txt:
+        * fast/css/css-selector-text.html:
+        * fast/css/css-set-selector-text-expected.txt:
+        * fast/css/css-set-selector-text.html:
+        * fast/css/is-specificity-6-expected.html: Removed.
+        * fast/css/is-specificity-6.html: Removed.
+        * fast/css/matches-specificity-6-expected.html: Removed.
+        * fast/css/matches-specificity-6.html: Removed.
+        * fast/css/parsing-css-allowed-string-characters-expected.txt:
+        * fast/css/parsing-css-is-1-expected.txt:
+        * fast/css/parsing-css-is-1.html:
+        * fast/css/parsing-css-is-2-expected.txt:
+        * fast/css/parsing-css-is-2.html:
+        * fast/css/parsing-css-is-3-expected.txt:
+        * fast/css/parsing-css-is-3.html:
+        * fast/css/parsing-css-is-4-expected.txt:
+        * fast/css/parsing-css-is-4.html:
+        * fast/css/parsing-css-matches-1-expected.txt:
+        * fast/css/parsing-css-matches-1.html:
+        * fast/css/parsing-css-matches-2-expected.txt:
+        * fast/css/parsing-css-matches-2.html:
+        * fast/css/parsing-css-matches-3-expected.txt:
+        * fast/css/parsing-css-matches-3.html:
+        * fast/css/parsing-css-matches-4-expected.txt:
+        * fast/css/parsing-css-matches-4.html:
+        * fast/selectors/pseudo-element-in-is-where-expected.html: Added.
+        * fast/selectors/pseudo-element-in-is-where.html: Added.
+        * fast/selectors/pseudo-element-inside-is-expected.html: Removed.
+        * fast/selectors/pseudo-element-inside-is.html: Removed.
+        * fast/selectors/pseudo-element-inside-matches-expected.html: Removed.
+        * fast/selectors/pseudo-element-inside-matches.html: Removed.
+        * fast/selectors/querySelector-is-expected.txt:
+        * fast/selectors/querySelector-is.html:
+        * fast/selectors/querySelector-matches-expected.txt:
+        * fast/selectors/querySelector-matches.html:
+
+2020-04-18  Daniel Bates  <dabates@apple.com>
+
+        Add a test to ensure WebKit::mayContainEditableElementsInRect() returns true if the document element is editable
+        https://bugs.webkit.org/show_bug.cgi?id=210560
+
+        Reviewed by Simon Fraser.
+
+        If the document element is marked editable then all child elements are editable.
+        Add a test to ensure that WebKit::mayContainEditableElementsInRect() returns true
+        for such a page.
+
+        * editing/editable-region/hit-test-editable-document-element-expected.txt: Added.
+        * editing/editable-region/hit-test-editable-document-element.html: Added.
+
+2020-04-18  Antti Koivisto  <antti@apple.com>
+
+        [CSS selectors] Support :where() pseudo class
+        https://bugs.webkit.org/show_bug.cgi?id=210690
+
+        Reviewed by Sam Weinig.
+
+        * fast/selectors/where-specificity-expected.html: Added.
+        * fast/selectors/where-specificity.html: Added.
+
+2020-04-17  Simon Fraser  <simon.fraser@apple.com>
+
+        Group overflow controls layers into a single container layer
+        https://bugs.webkit.org/show_bug.cgi?id=210675
+
+        Reviewed by Zalan Bujtas.
+
+        Rebaselines.
+
+        * compositing/clipping/border-radius-async-overflow-clipping-layer-expected.txt:
+        * compositing/layer-creation/absolute-in-async-overflow-scroll-expected.txt:
+        * compositing/layer-creation/clipping-scope/nested-scroller-overlap-expected.txt:
+        * compositing/layer-creation/clipping-scope/overlap-constrained-inside-scroller-expected.txt:
+        * compositing/layer-creation/clipping-scope/overlap-constrained-inside-stacking-context-scroller-expected.txt:
+        * compositing/layer-creation/clipping-scope/scroller-with-negative-z-children-expected.txt:
+        * compositing/layer-creation/clipping-scope/shared-layers-in-scroller-expected.txt:
+        * compositing/overflow/overflow-auto-with-touch-expected.txt:
+        * compositing/overflow/overflow-overlay-with-touch-expected.txt:
+        * compositing/overflow/overflow-scrollbar-layer-positions-expected.txt:
+        * compositing/overflow/scrolling-content-clip-to-viewport-expected.txt:
+        * compositing/overflow/stacking-context-composited-scroller-with-foreground-paint-phases-expected.txt:
+        * compositing/overflow/textarea-scroll-touch-expected.txt:
+        * compositing/repaint/scroller-with-foreground-layer-repaints-expected.txt:
+        * compositing/rtl/rtl-scrolling-with-transformed-descendants-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/clipped-layer-in-overflow-clipped-by-scroll-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/clipped-layer-in-overflow-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/clipped-layer-in-overflow-nested-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-for-negative-z-in-scroller-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-clip-to-hidden-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-clip-to-visible-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-gain-clipping-layer-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-in-clipped-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/layer-in-overflow-lose-clipping-layer-expected.txt:
+        * compositing/scrolling/async-overflow-scrolling/visibility-hidden-scrollers-expected.txt:
+        * compositing/scrolling/overflow-scrolling-layers-are-self-painting-expected.txt:
+        * compositing/shared-backing/overflow-scroll/absolute-in-stacking-relative-in-scroller-expected.txt:
+        * compositing/shared-backing/overflow-scroll/composited-absolute-in-absolute-in-relative-in-scroller-expected.txt:
+        * compositing/shared-backing/overflow-scroll/nested-absolute-with-clipping-in-stacking-overflow-expected.txt:
+        * compositing/shared-backing/overflow-scroll/previous-sibling-prevents-inclusiveness-expected.txt:
+        * compositing/shared-backing/overflow-scroll/relative-in-clipping-in-scroller-in-clipping-expected.txt:
+        * compositing/shared-backing/overflow-scroll/relative-in-clipping-in-scroller-in-relative-clipping-expected.txt:
+        * compositing/shared-backing/overflow-scroll/relative-in-div-in-overflow-scroll-expected.txt:
+        * compositing/shared-backing/overflow-scroll/scrolled-contents-has-painted-content-expected.txt:
+        * fast/scrolling/mac/event-region-scrolled-contents-layer-expected.txt:
+        * platform/mac-wk1/compositing/clipping/border-radius-async-overflow-clipping-layer-expected.txt:
+        * platform/mac/compositing/overflow/overflow-auto-with-touch-toggle-expected.txt:
+        * tiled-drawing/scrolling/overflow/overflow-scrolled-down-tile-coverage-expected.txt:
+        * tiled-drawing/scrolling/overflow/overflow-scrolled-up-tile-coverage-expected.txt:
+        * tiled-drawing/scrolling/overflow/overflow-tile-coverage-expected.txt:
+
+2020-04-17  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Password obscuring dots drawn with the system font are too small
+        https://bugs.webkit.org/show_bug.cgi?id=209692
+
+        Reviewed by Darin Adler.
+
+        Addressing post-review comments.
+
+        * platform/mac/TestExpectations:
+
+2020-04-17  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, reverting r260245.
+
+        The tests added with this change are frequently failing on
+        macOS bots.
+
+        Reverted changeset:
+
+        "Safari doesn't apply frameRate limit when request stream from
+        Camera"
+        https://bugs.webkit.org/show_bug.cgi?id=210186
+        https://trac.webkit.org/changeset/260245
+
+2020-04-16  Ryan Haddad  <ryanhaddad@apple.com>
+
+        REGRESSION (r259463): [ Mojave Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html is flaky failing and timing out
+        https://bugs.webkit.org/show_bug.cgi?id=210219
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations: Test transitioned from timeout -> failure.
+
+2020-04-17  Jason Lawrence  <lawrence.j@apple.com>
+
+        REGRESSION ( r254044 ): [ Win ] css1/box_properties/padding_left.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=207480
+
+        Unreviewed test gardening.
+
+        Adjusted this test expectation and others in the Windows category with lint alerts.
+
+        * platform/win/TestExpectations:
+
+2020-04-17  Jason Lawrence  <lawrence.j@apple.com>
+
+        Layout Test fast/text/variations/ipc2.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=189550
+
+        Unreviewed test gardening.
+
+        * platform/win/TestExpectations:
+
+2020-04-17  Jason Lawrence  <lawrence.j@apple.com>
+
+        [ macOS ] inspector/runtime/getCollectionEntries.html is flaky failing
+        https://bugs.webkit.org/show_bug.cgi?id=207642
+
+        Unreviewed test gardening.
+
+        Removed duplicate expectations.
+
+        * platform/mac/TestExpectations:
+
+2020-04-17  Jason Lawrence  <lawrence.j@apple.com>
+
+        [Web Animations] Update WPT tests related to Web Animations and remove imported Mozilla tests
+        https://bugs.webkit.org/show_bug.cgi?id=203291
+
+        Unreviewed test gardening.
+
+        Removed duplicate test expectations.
+
+        * platform/ios/TestExpectations:
+
+2020-04-17  Oriol Brufau  <obrufau@igalia.com>
+
+        Revert "[css-grid] Exclude implicit grid tracks from the resolved value"
+        https://bugs.webkit.org/show_bug.cgi?id=210617
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        Revert r254561 since it appears to be breaking site authoring tools
+        which were relying on the previous behaviour.
+
+        * fast/css-grid-layout/grid-auto-columns-rows-get-set-expected.txt:
+        * fast/css-grid-layout/grid-auto-columns-rows-get-set.html:
+        * fast/css-grid-layout/grid-columns-rows-get-set.html:
+        * fast/css-grid-layout/grid-template-shorthand-get-set-expected.txt:
+        * fast/css-grid-layout/grid-template-shorthand-get-set.html:
+        * fast/css-grid-layout/mark-as-infinitely-growable.html:
+        * fast/css-grid-layout/named-grid-lines-computed-style-implicit-tracks-expected.txt:
+        * fast/css-grid-layout/named-grid-lines-computed-style-implicit-tracks.html:
+        * fast/css-grid-layout/negative-growth-share-as-infinity-crash.html:
+
+2020-04-17  Youenn Fablet  <youenn@apple.com>
+
+        Safari doesn't apply frameRate limit when request stream from Camera
+        https://bugs.webkit.org/show_bug.cgi?id=210186
+        <rdar://problem/61452794>
+
+        Reviewed by Eric Carlson.
+
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-decreasing-expected.txt: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-decreasing.html: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing-expected.txt: Added.
+        * fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing.html: Added.
+        * fast/mediastream/mediastreamtrack-video-framerate-decreasing-expected.txt: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-decreasing.html: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-increasing-expected.txt: added.
+        * fast/mediastream/mediastreamtrack-video-framerate-increasing.html: added.
+        * webrtc/routines.js:
+
+2020-04-17  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        MediaQueryList should extend EventTarget
+        https://bugs.webkit.org/show_bug.cgi?id=203288
+
+        Reviewed by Darin Adler.
+
+        * TestExpectations:
+        * fast/media/media-query-list-07-expected.txt:
+        * fast/media/media-query-list-07.html:
+
+2020-04-17  Tomoki Imai  <Tomoki.Imai@sony.com>
+
+        Fix an integer overflow in WebCrypto AES-CTR Mac implementation, which may detect a false loop
+        https://bugs.webkit.org/show_bug.cgi?id=210540
+
+        Reviewed by Jiewen Tan.
+
+        Added more AES-CTR tests for AesCtrParams.length larger than 32.
+        * crypto/subtle/aes-ctr-import-key-encrypt-expected.txt:
+        * crypto/subtle/aes-ctr-import-key-encrypt.html:
+
+2020-04-16  Simon Fraser  <simon.fraser@apple.com>
+
+        Scrolling-tree hit-testing is off by top content inset
+        https://bugs.webkit.org/show_bug.cgi?id=210629
+        <rdar://problem/61848883>
+
+        Reviewed by Tim Horton.
+
+        Test for scroller hit-testing with top content inset.
+
+        * fast/scrolling/mac/async-scroll-overflow-top-inset-expected.txt: Added.
+        * fast/scrolling/mac/async-scroll-overflow-top-inset.html: Added.
+
+2020-04-16  Simon Fraser  <simon.fraser@apple.com>
+
+        A slow-starting swipe always latches on the root node
+        https://bugs.webkit.org/show_bug.cgi?id=210618
+
+        Reviewed by Tim Horton.
+
+        * scrollingcoordinator/mac/latching/zero-delta-began-should-not-latch-expected.txt: Added.
+        * scrollingcoordinator/mac/latching/zero-delta-began-should-not-latch.html: Added.
+
+2020-04-16  Jack Lee  <shihchieh_lee@apple.com>
+
+        ASSERTION FAILED: candidate.isCandidate() in WebCore::canonicalizeCandidate
+        https://bugs.webkit.org/show_bug.cgi?id=130844
+        <rdar://59535009>
+
+        Reviewed by Geoffrey Garen.
+
+        * editing/inserting/insert-in-br-expected.txt: Added.
+        * editing/inserting/insert-in-br.html: Added.
+        Added a regression test for the crash.
+
+        * editing/inserting/insert-list-in-table-cell-07-expected.txt:
+        Update node tree in expected text file due to behavior change in function 
+        PositionIterator::isCandidate. The visual result remains the same.
+
+2020-04-16  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Need method for setting selected range from NSRange
+        https://bugs.webkit.org/show_bug.cgi?id=210593
+
+        Reviewed by Darin Adler.
+
+        * accessibility/ios-simulator/non-textcontrol-set-selection-expected.txt: Added.
+        * accessibility/ios-simulator/non-textcontrol-set-selection.html: Added.
+
+2020-04-16  Zalan Bujtas  <zalan@apple.com>
+
+        Crash in IndefiniteSizeStrategy::recomputeUsedFlexFractionIfNeeded when min-size can not be resolved
+        https://bugs.webkit.org/show_bug.cgi?id=210584
+        <rdar://problem/56685237>
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * fast/css-grid-layout/crash-when-min-height-cant-be-resolved-expected.txt: Added.
+        * fast/css-grid-layout/crash-when-min-height-cant-be-resolved.html: Added.
+
+2020-04-16  Daniel Bates  <dabates@apple.com>
+
+        Move -_requestTextInputContextsInRect to WKContentView to simplify implementation
+        https://bugs.webkit.org/show_bug.cgi?id=210398
+        <rdar://problem/61656931>
+
+        Reviewed by Darin Adler.
+
+        Update test and expected results now that UIScriptController.mayContainEditableElementsInRect()
+        expects the passed rect to be in content coordinates.
+
+        I replaced one sub-test of a rect pre-scroll with another that tests the location
+        of a rect that will have editable elements after scroll. The purpose of that sub-test
+        hasn't changed, but it now makes the sub-tests' rects symmetric for before and after
+        scroll. I also added debug() statements to demarcate the before scroll and after scroll
+        sub-tests in the results to make it easier to understand what this test file is testing.
+
+        * editing/editable-region/hit-test-fixed-expected.txt:
+        * editing/editable-region/hit-test-fixed.html:
+
+2020-04-16  Simon Fraser  <simon.fraser@apple.com>
+
+        [Async overflow scrolling] Slow-repaint overflow scroll have force their enclosing scrollers to be slow too
+        https://bugs.webkit.org/show_bug.cgi?id=210591
+
+        Reviewed by Antti Koivisto.
+
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-non-cb-overflow-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-non-cb-overflow.html: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-overflow-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-overflow.html: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-overflow2-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-nested-overflow2.html: Added.
+
+2020-04-16  Antoine Quint  <graouts@apple.com>
+
+        [ Mac wk2 Debug ] media/modern-media-controls/media-controller/media-controller-auto-hide.html is flaky timing out.
+        https://bugs.webkit.org/show_bug.cgi?id=210349
+        <rdar://problem/61594098>
+
+        Reviewed by Eric Carlson.
+
+        This test had several things wrong about it. First, it manually created a MediaController in the test page and set a custom auto-hide delay on it.
+        However, it would test the proper behavior of the auto-hide behavior on the MediaController created by the media element, querying the state of
+        the media controls markup within that media element's shadow root. In that world, the auto-hide delay was the default delay, and not the custom
+        one set on the page-created MediaController.
+
+        The cause of the timeout was that the media clip used in this test is barely longer than the auto-hide delay, and it could happen that under slow
+        conditions, the media would end and the auto-hide timer would never have a chance to fire since it would be canceled due to auto-hide being disabled
+        when the media is not playing, such as when it ended.
+
+        We make this test saner and more realistic by not customizing the auto-hide delay, removing the page MediaController and simply setting "loop" on the
+        media element such that it never stops playing, givin the auto-hide timer additional time to fire with no risk of it being canceled by the media ending.
+
+        * media/modern-media-controls/media-controller/media-controller-auto-hide.html:
+        * platform/mac-wk2/TestExpectations:
+
+2020-04-16  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening, mark several animations test as failure
+        https://bugs.webkit.org/show_bug.cgi?id=210602
+
+        Unreviewed gardening.
+
+        For some reason these baselines are not making the tests pass in
+        the EWS GTK-WK2 bot, so I'm removing these GTK baselines added in
+        r260155 and mark the tests as failing instead.
+
+        * platform/gtk/TestExpectations:
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/Animatable/animate-expected.txt: Removed.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/Animation/commitStyles-expected.txt: Removed.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/KeyframeEffect/style-change-events-expected.txt: Removed.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/KeyframeEffect/target-expected.txt: Removed.
+
+2020-04-16  Eric Carlson  <eric.carlson@apple.com>
+
+        [macOS] Update ScreenTime as playback state changes
+        https://bugs.webkit.org/show_bug.cgi?id=210518
+        <rdar://problem/61181092>
+
+        Reviewed by Jer Noble.
+
+        * media/media-usage-state-expected.txt: Added.
+        * media/media-usage-state.html: Added.
+        * platform/gtk/TestExpectations: Skip new test.
+        * platform/win/TestExpectations: Ditto.
+        * platform/wpe/TestExpectations: Ditto.
+
+2020-04-15  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Password obscuring dots drawn with the system font are too small
+        https://bugs.webkit.org/show_bug.cgi?id=209692
+        <rdar://problem/60788385>
+
+        Reviewed by Darin Adler.
+
+        * fast/text/text-security-disc-bullet-pua-expected.html: Added.
+        * fast/text/text-security-disc-bullet-pua.html: Added.
+        * platform/ios/fast/text/text-security-disc-bullet-pua-ios-new-expected.html: Added.
+        * platform/ios/fast/text/text-security-disc-bullet-pua-ios-new.html: Added.
+        * platform/ios/fast/text/text-security-disc-bullet-pua-ios-old-expected.html: Added.
+        * platform/ios/fast/text/text-security-disc-bullet-pua-ios-old.html: Added.
+        * platform/mac/fast/text/text-security-disc-bullet-pua-mac-expected.html: Added.
+        * platform/mac/fast/text/text-security-disc-bullet-pua-mac.html: Added.
+        * platform/ios/TestExpectations:
+        * platform/mac/TestExpectations:
+
+2020-04-15  Simon Fraser  <simon.fraser@apple.com>
+
+        [Async overflow scroll] background-attachment:fixed needs to disable async overflow scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=210581
+
+        Reviewed by Zalan Bujtas.
+
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-overflow-dynamic-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-overflow-dynamic.html: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-overflow-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-in-overflow.html: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-on-overflow-expected.txt: Added.
+        * scrollingcoordinator/mac/fixed-backgrounds/fixed-background-on-overflow.html: Added.
+
+2020-04-15  John Wilander  <wilander@apple.com>
+
+        Add SPI to configure WebsiteDataStores with a URL for standalone web applications and use it to disable first-party website data removal in ITP
+        https://bugs.webkit.org/show_bug.cgi?id=209634
+        <rdar://problem/60943970>
+
+        Reviewed by Alex Christensen.
+
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database-expected.txt: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database.html: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-expected.txt: Added.
+        * http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion.html: Added.
+
+2020-04-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening, emit baselines after r260139
+        https://bugs.webkit.org/show_bug.cgi?id=210573
+
+        Unreviewed gardening.
+
+        * platform/gtk/imported/w3c/web-platform-tests/css/css-animations/Element-getAnimations.tentative-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/Animatable/animate-expected.txt: Added.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/Animation/commitStyles-expected.txt: Added.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/KeyframeEffect/style-change-events-expected.txt: Added.
+        * platform/gtk/imported/w3c/web-platform-tests/web-animations/interfaces/KeyframeEffect/target-expected.txt: Added.
+
+2020-04-15  Jack Lee  <shihchieh_lee@apple.com>
+
+        Infinite loop in InsertListCommand::doApply()
+        https://bugs.webkit.org/show_bug.cgi?id=210354
+        <rdar://problem/61427778>
+
+        Reviewed by Geoffrey Garen.
+
+        Update the regression test for this hang issue.
+
+        * editing/inserting/insert-list-end-of-table-expected.txt: Added.
+        * editing/inserting/insert-list-end-of-table.html: Added.
+
+2020-04-15  Jack Lee  <shihchieh_lee@apple.com>
+
+        ASSERTION FAILED: !selectionToDelete.isNone() in TypingCommand::forwardDeleteKeyPressed 
+        when deleting a UserSelect::None element.
+        https://bugs.webkit.org/show_bug.cgi?id=210530
+        <rdar://problem/58591480>
+
+        Reviewed by Geoffrey Garen.
+
+        Added a regression test for the crash.
+
+        * editing/deleting/forward-delete-UserSelect-None-element-expected.txt: Added.
+        * editing/deleting/forward-delete-UserSelect-None-element.html: Added.
+
+2020-04-15  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [iPadOS] Some pages indefinitely zoom in and out due to idempotent text autosizing
+        https://bugs.webkit.org/show_bug.cgi?id=210551
+        <rdar://problem/56820674>
+
+        Reviewed by Tim Horton.
+
+        Add a layout test to verify that on a page with a single line of text, if idempotent text autosizing is enabled,
+        the text size is boosted by idempotent autosizing, but we don't end up getting into a state where the computed
+        font size flickers between multiple values.
+
+        * fast/text-autosizing/ios/idempotentmode/idempotent-autosizing-reaches-stable-state-expected.txt: Added.
+        * fast/text-autosizing/ios/idempotentmode/idempotent-autosizing-reaches-stable-state.html: Added.
+
+2020-04-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening of flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=210563
+
+        Unreviewed gardening.
+
+        * platform/gtk/TestExpectations:
+
+2020-04-15  Truitt Savell  <tsavell@apple.com>
+
+        Remove expectations for imported/blink/storage/indexeddb/blob-basics-metadata.html
+        https://bugs.webkit.org/show_bug.cgi?id=199117
+        
+        Unreviewed test gardening.
+
+        * platform/mac-wk1/TestExpectations:
+
+2020-04-15  Jacob Uphoff  <jacob_uphoff@apple.com>
+
+        [ macOS ] scrollingcoordinator/mac/latching/horizontal-overflow-back-swipe.html is flaky timing out
+        https://bugs.webkit.org/show_bug.cgi?id=210351
+
+        Unreviewed test gardening.
+
+        * platform/mac/TestExpectations:
+
+2020-04-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        import.meta.url: baseURL for a module script should be response URL, not request URL
+        https://bugs.webkit.org/show_bug.cgi?id=205294
+
+        Reviewed by Youenn Fablet.
+
+        AppleWin networking does not properly propagate fragment if redirect location clears it. This is a known issue[1].
+
+        [1]: See `http/tests/navigation/redirect-to-fragment2.html [ Failure ]` in platform/win/TestExpectations.
+
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-redirect-expected.txt: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-redirect-with-fragment-expected.txt: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-redirect-with-fragment.html: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-redirect.html: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-with-fragment-expected.txt: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-with-fragment.html: Added.
+        * http/wpt/html/semantics/scripting-1/the-script-element/module/resources/import-meta-url-expose.js: Added.
+        * http/wpt/resources/redirect.py: Added.
+        (main):
+        * http/wpt/service-workers/module-meta-url-fragment-worker.js: Added.
+        (async e):
+        * http/wpt/service-workers/module-meta-url-fragment.https-expected.txt: Added.
+        * http/wpt/service-workers/module-meta-url-fragment.https.html: Added.
+        * http/wpt/service-workers/resources/module-meta-url-fragment.html: Added.
+        * platform/win/http/wpt/html/semantics/scripting-1/the-script-element/module/module-meta-url-redirect-with-fragment-expected.txt: Added.
+
+2020-04-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening of flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=210545
+
+        Unreviewed gardening.
+
+        * platform/gtk/TestExpectations:
+
+2020-04-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening of flaky failures
+        https://bugs.webkit.org/show_bug.cgi?id=210542
+
+        Unreviewed gardening.
+
+        * platform/gtk/TestExpectations:
+
+2020-04-14  Simon Fraser  <simon.fraser@apple.com>
+
+        [Async overflow scroll] Backgrounds missing on gmail sometimes
+        https://bugs.webkit.org/show_bug.cgi?id=210506
+        <rdar://problem/60523869>
+
+        Reviewed by Zalan Bujtas.
+        
+        Test with a scroller inside a flexbox; programmatically scrolls the scroller to the bottom,
+        then mouseWheels up to reveal new tiles.
+
+        * TestExpectations:
+        * compositing/scrolling/async-overflow-scrolling/mac/overflow-in-flex-empty-tiles-expected.html: Added.
+        * compositing/scrolling/async-overflow-scrolling/mac/overflow-in-flex-empty-tiles.html: Added.
+        * platform/mac/TestExpectations: Test is macOS-only because it uses wheel events.
+
+2020-04-14  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK] Garden media/media-source/media-source-seek-back flaky crashes
+
+        Unreviewed test gardening.
+
+        * platform/gtk/TestExpectations:
+
+2020-04-14  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Debugger: add a Step next that steps by expression
+        https://bugs.webkit.org/show_bug.cgi?id=210324
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector/debugger/stepping/stepNext.html: Added.
+        * inspector/debugger/stepping/stepNext-expected.txt: Added.
+
+        * inspector/debugger/stepping/stepInto.html:
+        * inspector/debugger/stepping/stepInto-expected.txt:
+        * inspector/debugger/stepping/stepOut.html:
+        * inspector/debugger/stepping/stepOut-expected.txt:
+        * inspector/debugger/stepping/stepOver.html:
+        * inspector/debugger/stepping/stepOver-expected.txt:
+        Renamed functions for clarity and added additional test cases from other commands.
+
+2020-04-14  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Gardening, update expectations after r260062
+        https://bugs.webkit.org/show_bug.cgi?id=210516
+
+        Unreviewed gardening.
+
+        * platform/gtk/TestExpectations:
+
+2020-04-14  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Fix navigator-detached-no-crash expectations
+
+        Unreviewed test gardening.
+
+        * platform/gtk/fast/dom/navigator-detached-no-crash-expected.txt:
+        Upload the correct expectation file.
+        * platform/wpe/TestExpectations: Removed failing expectation.
+
+2020-04-14  James Craig  <jcraig@apple.com>
+
+        AX: Smart Invert doesn't handle the picture elements on foxnews.com
+        <https://webkit.org/b/210472>
+
+        Reviewed by Chris Fleizach.
+
+        Filled out more variants in the test cases, and removed the unnecessary :not() selector.
+
+        * accessibility/smart-invert-expected.txt:
+        * accessibility/smart-invert-reference-expected.html:
+        * accessibility/smart-invert-reference.html:
+        * accessibility/smart-invert.html:
+
+2020-04-14  Simon Fraser  <simon.fraser@apple.com>
+
+        Scroll snap in subframes is often broken
+        https://bugs.webkit.org/show_bug.cgi?id=210503
+
+        Reviewed by Darin Adler.
+
+        * tiled-drawing/scrolling/scroll-snap/scroll-snap-async-iframe-expected.txt: Added.
+        * tiled-drawing/scrolling/scroll-snap/scroll-snap-async-iframe.html: Added.
+
 2020-04-14  Lauro Moura  <lmoura@igalia.com>
 
         [GTK][WPE] Layout test gardening

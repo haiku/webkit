@@ -702,6 +702,18 @@ def runBigIntEnabled(*optionalTestSpecificOptions)
     run("big-int-enabled", "--useBigInt=true" , *(FTL_OPTIONS + optionalTestSpecificOptions))
 end
 
+def runBigIntEnabledNoJIT(*optionalTestSpecificOptions)
+    run("big-int-enabled-nojit", "--useBigInt=true", "--useJIT=false", *optionalTestSpecificOptions)
+end
+
+def runBigIntEnabledBaseline(*optionalTestSpecificOptions)
+    run("big-int-enabled-baseline", "--useBigInt=true", "--useDFGJIT=0", *optionalTestSpecificOptions)
+end
+
+def runIntlRelativeTimeFormatEnabled(*optionalTestSpecificOptions)
+    run("intl-relativetimeformat-enabled", "--useIntlRelativeTimeFormat=true" , *(FTL_OPTIONS + optionalTestSpecificOptions))
+end
+
 def runFTLNoCJIT(*optionalTestSpecificOptions)
     run("misc-ftl-no-cjit", *(FTL_OPTIONS + NO_CJIT_OPTIONS + optionalTestSpecificOptions))
 end
@@ -785,6 +797,10 @@ end
 
 def runMiniMode(*optionalTestSpecificOptions)
     run("mini-mode", "--forceMiniVMMode=true", *optionalTestSpecificOptions)
+end
+
+def runLogicalAssignmentOperatorsEnabled(*optionalTestSpecificOptions)
+    run("logical-assignment-operators-enabled", "--useLogicalAssignmentOperators=true" , *(FTL_OPTIONS + optionalTestSpecificOptions))
 end
 
 def defaultRun

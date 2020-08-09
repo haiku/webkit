@@ -121,6 +121,7 @@
 #import <WebCore/MIMETypeRegistry.h>
 #import <WebCore/PlatformScreen.h>
 #import <WebCore/RuntimeApplicationChecks.h>
+#import <WebCore/RuntimeEnabledFeatures.h>
 #import <WebCore/SQLiteDatabaseTracker.h>
 #import <WebCore/Settings.h>
 #import <WebCore/SharedBuffer.h>
@@ -150,7 +151,6 @@
 
 #if PLATFORM(IOS_FAMILY)
 #import "RemoteLayerTreeDrawingAreaProxy.h"
-#import "RemoteLayerTreeViews.h"
 #import "RemoteScrollingCoordinatorProxy.h"
 #import "UIKitSPI.h"
 #import "WKContentViewInteraction.h"
@@ -524,8 +524,9 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
 #endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(SERVICE_WORKER)
-    if (!WTF::processHasEntitlement("com.apple.developer.WebKit.ServiceWorkers"))
+    if ((!WTF::processHasEntitlement("com.apple.developer.WebKit.ServiceWorkers") || !![_configuration preferences]._serviceWorkerEntitlementDisabledForTesting) && ![_configuration limitsNavigationsToAppBoundDomains])
         pageConfiguration->preferences()->setServiceWorkersEnabled(false);
+    pageConfiguration->preferences()->setServiceWorkerEntitlementDisabledForTesting(!![_configuration preferences]._serviceWorkerEntitlementDisabledForTesting);
 #endif
 
     if (!linkedOnOrAfter(WebKit::SDKVersion::FirstWhereSiteSpecificQuirksAreEnabledByDefault))
@@ -897,15 +898,13 @@ static bool validateArgument(id argument)
 
     for (id key in arguments) {
         id value = [arguments objectForKey:key];
-        if (!validateArgument(value)) {
-            errorMessage = @"Function argument values must be one of the following types, or contain only the following types: NSString, NSNumber, NSDate, NSArray, and NSDictionary";
+        auto serializedValue = API::SerializedScriptValue::createFromNSObject(value);
+        if (!serializedValue) {
+            errorMessage = @"Function argument values must be one of the following types, or contain only the following types: NSNumber, NSNull, NSDate, NSString, NSArray, and NSDictionary";
             break;
         }
-    
-        auto wireBytes = API::SerializedScriptValue::wireBytesFromNSObject(value);
-        // Since we've validated the input dictionary above, we should never fail to serialize it into wire bytes.
-        ASSERT(wireBytes);
-        argumentsMap->set(key, *wireBytes);
+
+        argumentsMap->set(key, serializedValue->internalRepresentation().toWireBytes());
     }
 
     if (errorMessage && handler) {
@@ -2072,93 +2071,6 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
     }
 }
 
-- (CGRect)_convertRectFromRootViewCoordinates:(CGRect)rectInRootViewCoordinates
-{
-    // FIXME: It should be easier to talk about WKWebView coordinates in a consistent and cross-platform way.
-    // Currently, neither "root view" nor "window" mean "WKWebView coordinates" on both platforms.
-    // See https://webkit.org/b/193649 and related bugs.
-#if PLATFORM(IOS_FAMILY)
-    return [self convertRect:rectInRootViewCoordinates fromView:_contentView.get()];
-#else
-    return rectInRootViewCoordinates;
-#endif
-}
-
-- (CGRect)_convertRectToRootViewCoordinates:(CGRect)rectInWebViewCoordinates
-{
-#if PLATFORM(IOS_FAMILY)
-    return [self convertRect:rectInWebViewCoordinates toView:_contentView.get()];
-#else
-    return rectInWebViewCoordinates;
-#endif
-}
-
-- (BOOL)_mayContainEditableElementsInRect:(CGRect)rect
-{
-#if ENABLE(EDITABLE_REGION)
-#if PLATFORM(IOS_FAMILY)
-    if (![self usesStandardContentView])
-        return NO;
-#endif
-    CGRect rectInRootViewCoordinates = [self _convertRectToRootViewCoordinates:rect];
-    return WebKit::mayContainEditableElementsInRect(_contentView.get(), rectInRootViewCoordinates);
-#else
-    return NO;
-#endif
-}
-
-- (void)_requestTextInputContextsInRect:(CGRect)rectInWebViewCoordinates completionHandler:(void(^)(NSArray<_WKTextInputContext *> *))completionHandler
-{
-#if PLATFORM(IOS_FAMILY)
-    if (![self usesStandardContentView]) {
-        completionHandler(@[]);
-        return;
-    }
-#endif
-#if ENABLE(EDITABLE_REGION)
-    if (![self _mayContainEditableElementsInRect:rectInWebViewCoordinates]) {
-        completionHandler(@[]);
-        return;
-    }
-#endif
-
-    CGRect rectInRootViewCoordinates = [self _convertRectToRootViewCoordinates:rectInWebViewCoordinates];
-
-    auto weakSelf = WeakObjCPtr<WKWebView>(self);
-    _page->textInputContextsInRect(rectInRootViewCoordinates, [weakSelf, capturedCompletionHandler = makeBlockPtr(completionHandler)] (const Vector<WebCore::ElementContext>& contexts) {
-        RetainPtr<NSMutableArray> elements = adoptNS([[NSMutableArray alloc] initWithCapacity:contexts.size()]);
-
-        auto strongSelf = weakSelf.get();
-        for (const auto& context : contexts) {
-            WebCore::ElementContext contextWithWebViewBoundingRect = context;
-            contextWithWebViewBoundingRect.boundingRect = [strongSelf _convertRectFromRootViewCoordinates:context.boundingRect];
-            [elements addObject:adoptNS([[_WKTextInputContext alloc] _initWithTextInputContext:contextWithWebViewBoundingRect]).get()];
-        }
-
-        capturedCompletionHandler(elements.get());
-    });
-}
-
-- (void)_focusTextInputContext:(_WKTextInputContext *)textInputContext completionHandler:(void(^)(BOOL))completionHandler
-{
-#if PLATFORM(IOS_FAMILY)
-    if (![self usesStandardContentView]) {
-        completionHandler(NO);
-        return;
-    }
-#endif
-
-    auto webContext = [textInputContext _textInputContext];
-    if (webContext.webPageIdentifier != _page->webPageID())
-        [NSException raise:NSInvalidArgumentException format:@"The provided _WKTextInputContext was not created by this WKWebView."];
-
-    [self becomeFirstResponder];
-
-    _page->focusTextInputContext(webContext, [capturedCompletionHandler = makeBlockPtr(completionHandler)](bool success) {
-        capturedCompletionHandler(success);
-    });
-}
-
 - (void)_takePDFSnapshotWithConfiguration:(WKSnapshotConfiguration *)snapshotConfiguration completionHandler:(void (^)(NSData *, NSError *))completionHandler
 {
     WKPDFConfiguration *pdfConfiguration = nil;
@@ -2738,6 +2650,19 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
     });
 }
 
+- (void)_serviceWorkersEnabled:(void(^)(BOOL))completionHandler
+{
+    auto enabled = [_configuration preferences]->_preferences.get()->serviceWorkersEnabled() || WebCore::RuntimeEnabledFeatures::sharedFeatures().serviceWorkerEnabled();
+    completionHandler(enabled);
+}
+
+- (void)_clearServiceWorkerEntitlementOverride:(void (^)(void))completionHandler
+{
+    _page->clearServiceWorkerEntitlementOverride([completionHandler = makeBlockPtr(completionHandler)] {
+        completionHandler();
+    });
+}
+
 - (id <_WKInputDelegate>)_inputDelegate
 {
     return _inputDelegate.getAutoreleased();
@@ -2783,10 +2708,8 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
                 auto unarchiver = adoptNS([[NSKeyedUnarchiver alloc] initForReadingFromData:nsData.get() error:nullptr]);
                 unarchiver.get().decodingFailurePolicy = NSDecodingFailurePolicyRaiseException;
                 @try {
-                    if (auto* allowedClasses = m_webView->_page->process().processPool().allowedClassesForParameterCoding())
-                        userObject = [unarchiver decodeObjectOfClasses:allowedClasses forKey:@"userObject"];
-                    else
-                        userObject = [unarchiver decodeObjectOfClass:[NSObject class] forKey:@"userObject"];
+                    auto* allowedClasses = m_webView->_page->process().processPool().allowedClassesForParameterCoding();
+                    userObject = [unarchiver decodeObjectOfClasses:allowedClasses forKey:@"userObject"];
                 } @catch (NSException *exception) {
                     LOG_ERROR("Failed to decode user data: %@", exception);
                 }

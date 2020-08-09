@@ -129,6 +129,7 @@
 #import <WebCore/TextIterator.h>
 #import <WebCore/TextPlaceholderElement.h>
 #import <WebCore/UserAgent.h>
+#import <WebCore/UserGestureIndicator.h>
 #import <WebCore/VisibleUnits.h>
 #import <WebCore/WebEvent.h>
 #import <wtf/MathExtras.h>
@@ -487,10 +488,26 @@ bool WebPage::handleEditingKeyboardEvent(KeyboardEvent& event)
     return sendResult && eventWasHandled;
 }
 
+static bool disableServiceWorkerEntitlementTestingOverride;
+
 bool WebPage::parentProcessHasServiceWorkerEntitlement() const
 {
+    if (disableServiceWorkerEntitlementTestingOverride)
+        return false;
+    
     static bool hasEntitlement = WTF::hasEntitlement(WebProcess::singleton().parentProcessConnection()->xpcConnection(), "com.apple.developer.WebKit.ServiceWorkers");
     return hasEntitlement;
+}
+
+void WebPage::disableServiceWorkerEntitlement()
+{
+    disableServiceWorkerEntitlementTestingOverride = true;
+}
+
+void WebPage::clearServiceWorkerEntitlementOverride(CompletionHandler<void()>&& completionHandler)
+{
+    disableServiceWorkerEntitlementTestingOverride = false;
+    completionHandler();
 }
 
 void WebPage::sendComplexTextInputToPlugin(uint64_t, const String&)
@@ -3527,10 +3544,10 @@ void WebPage::resetIdempotentTextAutosizingIfNeeded(double previousInitialScale)
         return;
 
     const float minimumScaleChangeBeforeRecomputingTextAutosizing = 0.01;
-    if (std::abs(previousInitialScale - m_page->initialScale()) < minimumScaleChangeBeforeRecomputingTextAutosizing)
+    if (std::abs(previousInitialScale - m_page->initialScaleIgnoringContentSize()) < minimumScaleChangeBeforeRecomputingTextAutosizing)
         return;
 
-    if (m_page->initialScale() >= 1 && previousInitialScale >= 1)
+    if (m_page->initialScaleIgnoringContentSize() >= 1 && previousInitialScale >= 1)
         return;
 
     if (!m_page->mainFrame().view())
@@ -3646,10 +3663,11 @@ bool WebPage::shouldIgnoreMetaViewport() const
 void WebPage::viewportConfigurationChanged(ZoomToInitialScale zoomToInitialScale)
 {
     double initialScale = m_viewportConfiguration.initialScale();
+    double initialScaleIgnoringContentSize = m_viewportConfiguration.initialScaleIgnoringContentSize();
 #if ENABLE(TEXT_AUTOSIZING)
-    double previousInitialScale = m_page->initialScale();
-    m_page->setInitialScale(initialScale);
-    resetIdempotentTextAutosizingIfNeeded(previousInitialScale);
+    double previousInitialScaleIgnoringContentSize = m_page->initialScaleIgnoringContentSize();
+    m_page->setInitialScaleIgnoringContentSize(initialScaleIgnoringContentSize);
+    resetIdempotentTextAutosizingIfNeeded(previousInitialScaleIgnoringContentSize);
 
     if (setFixedLayoutSize(m_viewportConfiguration.layoutSize()))
         resetTextAutosizing();
@@ -3880,6 +3898,21 @@ void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo& visi
     if (m_viewportConfiguration.setCanIgnoreScalingConstraints(visibleContentRectUpdateInfo.allowShrinkToFit()))
         viewportConfigurationChanged();
 
+    double minimumEffectiveDeviceWidthWhenIgnoringScalingConstraints = ([&] {
+        auto document = makeRefPtr(frame.document());
+        if (!document)
+            return 0;
+
+        if (!document->quirks().shouldLayOutAtMinimumWindowWidthWhenIgnoringScalingConstraints())
+            return 0;
+
+        // This value is chosen to be close to the minimum width of a Safari window on macOS.
+        return 500;
+    })();
+
+    if (m_viewportConfiguration.setMinimumEffectiveDeviceWidthWhenIgnoringScalingConstraints(minimumEffectiveDeviceWidthWhenIgnoringScalingConstraints))
+        viewportConfigurationChanged();
+
     frameView.setUnobscuredContentSize(visibleContentRectUpdateInfo.unobscuredContentRect().size());
     m_page->setContentInsets(visibleContentRectUpdateInfo.contentInsets());
     m_page->setObscuredInsets(visibleContentRectUpdateInfo.obscuredInsets());
@@ -4029,9 +4062,9 @@ void WebPage::insertTextPlaceholder(const IntSize& size, CompletionHandler<void(
     completionHandler(placeholder ? contextForElement(*placeholder) : WTF::nullopt);
 }
 
-void WebPage::removeTextPlaceholder(const WebCore::ElementContext& placeholder, CompletionHandler<void()>&& completionHandler)
+void WebPage::removeTextPlaceholder(const ElementContext& placeholder, CompletionHandler<void()>&& completionHandler)
 {
-    if (RefPtr<Element> element = elementForContext(placeholder)) {
+    if (auto element = elementForContext(placeholder)) {
         RELEASE_ASSERT(is<TextPlaceholderElement>(element));
         if (RefPtr<Frame> frame = element->document().frame())
             frame->editor().removeTextPlaceholder(downcast<TextPlaceholderElement>(*element));
@@ -4124,7 +4157,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
     bool wantsMarkedTextRects = request.options.contains(DocumentEditingContextRequest::Options::MarkedTextRects);
 
     if (auto textInputContext = request.textInputContext) {
-        RefPtr<Element> element = elementForContext(*textInputContext);
+        auto element = elementForContext(*textInputContext);
         if (!element) {
             completionHandler({ });
             return;
@@ -4278,6 +4311,44 @@ void WebPage::setShouldRevealCurrentSelectionAfterInsertion(bool shouldRevealCur
         return;
     m_page->revealCurrentSelection();
     scheduleFullEditorStateUpdate();
+}
+
+void WebPage::focusTextInputContextAndPlaceCaret(const ElementContext& elementContext, const IntPoint& point, CompletionHandler<void(bool)>&& completionHandler)
+{
+    auto target = elementForContext(elementContext);
+    if (!target) {
+        completionHandler(false);
+        return;
+    }
+
+    ASSERT(target->document().frame());
+    auto targetFrame = makeRef(*target->document().frame());
+
+    targetFrame->document()->updateLayoutIgnorePendingStylesheets();
+
+    // Performing layout could have could torn down the element's renderer. Check that we still
+    // have one. Otherwise, bail out as this function only focuses elements that have a visual
+    // representation.
+    if (!target->renderer()) {
+        completionHandler(false);
+        return;
+    }
+
+    UserGestureIndicator gestureIndicator { ProcessingUserGesture, &target->document() };
+    SetForScope<bool> userIsInteractingChange { m_userIsInteracting, true };
+    bool didFocus = m_page->focusController().setFocusedElement(target.get(), targetFrame);
+
+    // Setting the focused element could tear down the element's renderer. Check that we still have one.
+    if (!didFocus || !target->renderer()) {
+        completionHandler(false);
+        return;
+    }
+    ASSERT(m_focusedElement == target);
+    // The function visiblePositionInFocusedNodeForPoint constrains the point to be inside
+    // the bounds of the target element.
+    auto position = visiblePositionInFocusedNodeForPoint(targetFrame, point, true /* isInteractingWithFocusedElement */);
+    targetFrame->selection().setSelectedRange(Range::create(*targetFrame->document(), position, position).ptr(), position.affinity(), WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+    completionHandler(true);
 }
 
 void WebPage::platformDidScalePage()

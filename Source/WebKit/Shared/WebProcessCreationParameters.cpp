@@ -159,12 +159,14 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 #if PLATFORM(IOS)
     encoder << compilerServiceExtensionHandle;
     encoder << contentFilterExtensionHandle;
+    encoder << frontboardServiceExtensionHandle;
 #endif
 
 #if PLATFORM(IOS_FAMILY)
     encoder << diagnosticsExtensionHandle;
     encoder << runningboardExtensionHandle;
     encoder << dynamicMachExtensionHandles;
+    encoder << dynamicIOKitExtensionHandles;
 #endif
 
 #if PLATFORM(COCOA)
@@ -430,6 +432,12 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!contentFilterExtensionHandle)
         return false;
     parameters.contentFilterExtensionHandle = WTFMove(*contentFilterExtensionHandle);
+
+    Optional<Optional<SandboxExtension::Handle>> frontboardServiceExtensionHandle;
+    decoder >> frontboardServiceExtensionHandle;
+    if (!frontboardServiceExtensionHandle)
+        return false;
+    parameters.frontboardServiceExtensionHandle = WTFMove(*frontboardServiceExtensionHandle);
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -450,6 +458,12 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!dynamicMachExtensionHandles)
         return false;
     parameters.dynamicMachExtensionHandles = WTFMove(*dynamicMachExtensionHandles);
+
+    Optional<SandboxExtension::HandleArray> dynamicIOKitExtensionHandles;
+    decoder >> dynamicIOKitExtensionHandles;
+    if (!dynamicIOKitExtensionHandles)
+        return false;
+    parameters.dynamicIOKitExtensionHandles = WTFMove(*dynamicIOKitExtensionHandles);
 #endif
 
 #if PLATFORM(COCOA)

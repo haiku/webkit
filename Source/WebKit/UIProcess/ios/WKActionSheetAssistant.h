@@ -36,6 +36,7 @@ class WebPageProxy;
 struct InteractionInformationAtPosition;
 }
 
+@class UITargetedPreview;
 @class WKActionSheetAssistant;
 @class _WKActivatedElementInfo;
 @class _WKElementAction;
@@ -63,6 +64,9 @@ struct InteractionInformationAtPosition;
 - (NSString *)selectedTextForActionSheetAssistant:(WKActionSheetAssistant *)assistant;
 - (void)actionSheetAssistant:(WKActionSheetAssistant *)assistant getAlternateURLForImage:(UIImage *)image completion:(void (^)(NSURL *alternateURL, NSDictionary *userInfo))completion;
 - (CGPoint)contextMenuPresentationLocationForActionSheetAssistant:(WKActionSheetAssistant *)assistant;
+#if USE(UICONTEXTMENU)
+- (UITargetedPreview *)createTargetedContextMenuHintForActionSheetAssistant:(WKActionSheetAssistant *)assistant;
+#endif
 
 @end
 

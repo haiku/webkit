@@ -29,6 +29,7 @@
 #include "AuxiliaryProcessProxy.h"
 #include "BackgroundProcessResponsivenessTimer.h"
 #include "MessageReceiverMap.h"
+#include "NetworkProcessProxy.h"
 #include "PluginInfoStore.h"
 #include "ProcessLauncher.h"
 #include "ProcessTerminationReason.h"
@@ -77,7 +78,7 @@ enum class ThirdPartyCookieBlockingMode : uint8_t;
 
 namespace WebKit {
 
-class NetworkProcessProxy;
+class AudioSessionRoutingArbitratorProxy;
 class ObjCObjectGraph;
 class PageClient;
 class ProvisionalPageProxy;
@@ -105,6 +106,9 @@ typedef ForegroundWebProcessCounter::Token ForegroundWebProcessToken;
 enum BackgroundWebProcessCounterType { };
 typedef RefCounter<BackgroundWebProcessCounterType> BackgroundWebProcessCounter;
 typedef BackgroundWebProcessCounter::Token BackgroundWebProcessToken;
+enum WebProcessWithAudibleMediaCounterType { };
+using WebProcessWithAudibleMediaCounter = RefCounter<WebProcessWithAudibleMediaCounterType>;
+using WebProcessWithAudibleMediaToken = WebProcessWithAudibleMediaCounter::Token;
 
 class WebProcessProxy : public AuxiliaryProcessProxy, public ResponsivenessTimer::Client, public ThreadSafeRefCounted<WebProcessProxy>, public CanMakeWeakPtr<WebProcessProxy>, private ProcessThrottlerClient {
 public:
@@ -344,7 +348,7 @@ public:
 #endif
 #endif
 
-    void webPageMediaStateDidChange(WebPageProxy&);
+    void updateAudibleMediaAssertions();
 
     void ref() final { ThreadSafeRefCounted::ref(); }
     void deref() final { ThreadSafeRefCounted::deref(); }
@@ -536,6 +540,10 @@ private:
     ForegroundWebProcessToken m_foregroundToken;
     BackgroundWebProcessToken m_backgroundToken;
 
+#if ENABLE(ROUTING_ARBITRATION)
+    UniqueRef<AudioSessionRoutingArbitratorProxy> m_routingArbitrator;
+#endif
+
 #if PLATFORM(COCOA)
     bool m_hasSentMessageToUnblockAccessibilityServer { false };
     bool m_hasSentMessageToUnblockPreferenceService { false };
@@ -563,7 +571,6 @@ private:
     unsigned m_shutdownPreventingScopeCount { 0 };
     bool m_hasCommittedAnyProvisionalLoads { false };
     bool m_isPrewarmed;
-    bool m_hasAudibleWebPage { false };
 #if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
     bool m_hasIssuedAttachmentElementRelatedSandboxExtensions { false };
 #endif
@@ -588,6 +595,12 @@ private:
     Optional<ServiceWorkerInformation> m_serviceWorkerInformation;
 
     HashMap<WebCore::SleepDisablerIdentifier, std::unique_ptr<WebCore::SleepDisabler>> m_sleepDisablers;
+
+    struct AudibleMediaActivity {
+        UniqueRef<ProcessAssertion> assertion;
+        WebProcessWithAudibleMediaToken token;
+    };
+    Optional<AudibleMediaActivity> m_audibleMediaActivity;
 };
 
 } // namespace WebKit

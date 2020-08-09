@@ -105,6 +105,7 @@ NetworkConnectionToWebProcess::NetworkConnectionToWebProcess(NetworkProcess& net
     : m_connection(IPC::Connection::createServerConnection(connectionIdentifier, *this))
     , m_networkProcess(networkProcess)
     , m_sessionID(sessionID)
+    , m_networkResourceLoaders([this](bool hasUpload) { hasUploadStateChanged(hasUpload); })
 #if ENABLE(WEB_RTC)
     , m_mdnsRegister(*this)
 #endif
@@ -120,8 +121,7 @@ NetworkConnectionToWebProcess::NetworkConnectionToWebProcess(NetworkProcess& net
     m_connection->open();
 
 #if ENABLE(SERVICE_WORKER)
-    if (networkProcess.parentProcessHasServiceWorkerEntitlement())
-        establishSWServerConnection();
+    establishSWServerConnection();
 #endif
 }
 
@@ -130,6 +130,9 @@ NetworkConnectionToWebProcess::~NetworkConnectionToWebProcess()
     RELEASE_ASSERT(RunLoop::isMain());
 
     m_connection->invalidate();
+
+    // This may call hasUploadStateChanged().
+    m_networkResourceLoaders.clear();
 
     for (auto& port : m_processEntangledPorts)
         networkProcess().messagePortChannelRegistry().didCloseMessagePort(port);
@@ -147,6 +150,12 @@ NetworkConnectionToWebProcess::~NetworkConnectionToWebProcess()
 #if ENABLE(SERVICE_WORKER)
     unregisterSWConnection();
 #endif
+}
+
+void NetworkConnectionToWebProcess::hasUploadStateChanged(bool hasUpload)
+{
+    RELEASE_LOG_IF_ALLOWED(Loading, "hasUploadStateChanged - WebProcess %llu - hasUpload: %d", webProcessIdentifier().toUInt64(), hasUpload);
+    m_networkProcess->parentProcessConnection()->send(Messages::NetworkProcessProxy::SetWebProcessHasUploads(m_webProcessIdentifier, hasUpload), 0);
 }
 
 void NetworkConnectionToWebProcess::didCleanupResourceLoader(NetworkResourceLoader& loader)
@@ -421,15 +430,8 @@ Vector<RefPtr<WebCore::BlobDataFileReference>> NetworkConnectionToWebProcess::re
 }
 
 #if ENABLE(SERVICE_WORKER)
-bool NetworkConnectionToWebProcess::isServiceWorkerAllowed() const
-{
-    return m_networkProcess->parentProcessHasServiceWorkerEntitlement();
-}
-
 std::unique_ptr<ServiceWorkerFetchTask> NetworkConnectionToWebProcess::createFetchTask(NetworkResourceLoader& loader, const ResourceRequest& request)
 {
-    if (!isServiceWorkerAllowed())
-        return nullptr;
     return swConnection().createFetchTask(loader, request);
 }
 #endif
@@ -437,18 +439,15 @@ std::unique_ptr<ServiceWorkerFetchTask> NetworkConnectionToWebProcess::createFet
 void NetworkConnectionToWebProcess::scheduleResourceLoad(NetworkResourceLoadParameters&& loadParameters)
 {
 #if ENABLE(SERVICE_WORKER)
-    bool isServiceWorkerAllowed = this->isServiceWorkerAllowed();
-    if (isServiceWorkerAllowed) {
-        auto& server = m_networkProcess->swServerForSession(m_sessionID);
-        if (!server.isImportCompleted()) {
-            server.whenImportIsCompleted([this, protectedThis = makeRef(*this), loadParameters = WTFMove(loadParameters)]() mutable {
-                if (!m_networkProcess->webProcessConnection(webProcessIdentifier()))
-                    return;
-                ASSERT(m_networkProcess->swServerForSession(m_sessionID).isImportCompleted());
-                scheduleResourceLoad(WTFMove(loadParameters));
-            });
-            return;
-        }
+    auto& server = m_networkProcess->swServerForSession(m_sessionID);
+    if (!server.isImportCompleted()) {
+        server.whenImportIsCompleted([this, protectedThis = makeRef(*this), loadParameters = WTFMove(loadParameters)]() mutable {
+            if (!m_networkProcess->webProcessConnection(webProcessIdentifier()))
+                return;
+            ASSERT(m_networkProcess->swServerForSession(m_sessionID).isImportCompleted());
+            scheduleResourceLoad(WTFMove(loadParameters));
+        });
+        return;
     }
 #endif
     auto identifier = loadParameters.identifier;
@@ -459,12 +458,11 @@ void NetworkConnectionToWebProcess::scheduleResourceLoad(NetworkResourceLoadPara
     auto& loader = m_networkResourceLoaders.add(identifier, NetworkResourceLoader::create(WTFMove(loadParameters), *this)).iterator->value;
 
 #if ENABLE(SERVICE_WORKER)
-    if (isServiceWorkerAllowed) {
-        loader->startWithServiceWorker();
-        return;
-    }
-#endif
+    loader->startWithServiceWorker();
+    return;
+#else
     loader->start();
+#endif
 }
 
 void NetworkConnectionToWebProcess::performSynchronousLoad(NetworkResourceLoadParameters&& loadParameters, Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply&& reply)
@@ -1043,7 +1041,6 @@ void NetworkConnectionToWebProcess::serverToContextConnectionNoLongerNeeded()
 
 WebSWServerConnection& NetworkConnectionToWebProcess::swConnection()
 {
-    ASSERT(isServiceWorkerAllowed());
     if (!m_swConnection)
         establishSWServerConnection();
     return *m_swConnection;

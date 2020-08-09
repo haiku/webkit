@@ -23,8 +23,8 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "WKFormColorPicker.h"
+#import "config.h"
+#import "WKFormColorPicker.h"
 
 #if ENABLE(INPUT_TYPE_COLOR) && PLATFORM(IOS_FAMILY)
 
@@ -73,6 +73,14 @@ using namespace WebKit;
     colorButton.color = color;
     colorButton.backgroundColor = color;
     return colorButton;
+}
+
+- (void)dealloc
+{
+    [_color release];
+    _color = nil;
+
+    [super dealloc];
 }
 
 @end

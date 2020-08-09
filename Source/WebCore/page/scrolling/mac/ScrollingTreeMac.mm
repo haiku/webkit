@@ -23,21 +23,21 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "ScrollingTreeMac.h"
+#import "config.h"
+#import "ScrollingTreeMac.h"
 
-#include "Logging.h"
-#include "PlatformCALayer.h"
-#include "ScrollingTreeFixedNode.h"
-#include "ScrollingTreeFrameHostingNode.h"
-#include "ScrollingTreeFrameScrollingNodeMac.h"
-#include "ScrollingTreeOverflowScrollProxyNode.h"
-#include "ScrollingTreeOverflowScrollingNodeMac.h"
-#include "ScrollingTreePositionedNode.h"
-#include "ScrollingTreeStickyNode.h"
-#include "WebLayer.h"
-#include "WheelEventTestMonitor.h"
-#include <wtf/text/TextStream.h>
+#import "Logging.h"
+#import "PlatformCALayer.h"
+#import "ScrollingTreeFixedNode.h"
+#import "ScrollingTreeFrameHostingNode.h"
+#import "ScrollingTreeFrameScrollingNodeMac.h"
+#import "ScrollingTreeOverflowScrollProxyNode.h"
+#import "ScrollingTreeOverflowScrollingNodeMac.h"
+#import "ScrollingTreePositionedNode.h"
+#import "ScrollingTreeStickyNode.h"
+#import "WebLayer.h"
+#import "WheelEventTestMonitor.h"
+#import <wtf/text/TextStream.h>
 
 #if ENABLE(ASYNC_SCROLLING) && ENABLE(SCROLLING_THREAD)
 
@@ -154,7 +154,9 @@ RefPtr<ScrollingTreeNode> ScrollingTreeMac::scrollingNodeForPoint(FloatPoint poi
     LockHolder lockHolder(m_layerHitTestMutex);
 
     auto rootContentsLayer = static_cast<ScrollingTreeFrameScrollingNodeMac*>(rootScrollingNode)->rootContentsLayer();
-    auto pointInContentsLayer = [rootContentsLayer convertPoint:point fromLayer:[rootContentsLayer superlayer]];
+    FloatPoint scrollOrigin = rootScrollingNode->scrollOrigin();
+    auto pointInContentsLayer = point;
+    pointInContentsLayer.moveBy(scrollOrigin);
 
     Vector<CALayer *, 16> layersAtPoint;
     collectDescendantLayersAtPoint(layersAtPoint, rootContentsLayer.get(), pointInContentsLayer);

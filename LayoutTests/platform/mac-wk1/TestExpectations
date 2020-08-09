@@ -816,8 +816,6 @@ imported/w3c/web-platform-tests/css/css-display/display-none-inline-img.html [ I
 fast/images/animated-heics-draw.html [ Skip ]
 fast/images/animated-heics-verify.html [ Skip ]
 
-webkit.org/b/200002 [ Debug ] imported/blink/storage/indexeddb/blob-basics-metadata.html [ Timeout ]
-
 # Skip IsLoggedIn
 http/tests/is-logged-in/ [ Skip ]
 
@@ -957,4 +955,4 @@ webkit.org/b/210134 media/track/track-css-user-override.html [ Pass Failure ]
 webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.html [ Slow ]
 webkit.org/b/210198 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Slow ]
 
-webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Timeout ]
+webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Failure ]

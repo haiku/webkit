@@ -155,6 +155,7 @@ void JIT_OPERATION operationLookupExceptionHandler(VM*) WTF_INTERNAL;
 void JIT_OPERATION operationLookupExceptionHandlerFromCallerFrame(VM*) WTF_INTERNAL;
 void JIT_OPERATION operationVMHandleException(VM*) WTF_INTERNAL;
 void JIT_OPERATION operationThrowStackOverflowErrorFromThunk(JSGlobalObject*) WTF_INTERNAL;
+void JIT_OPERATION operationThrowIteratorResultIsNotObject(JSGlobalObject*) WTF_INTERNAL;
 
 void JIT_OPERATION operationThrowStackOverflowError(CodeBlock*) WTF_INTERNAL;
 int32_t JIT_OPERATION operationCallArityCheck(JSGlobalObject*) WTF_INTERNAL;
@@ -206,6 +207,7 @@ size_t JIT_OPERATION operationCompareEq(JSGlobalObject*, EncodedJSValue, Encoded
 size_t JIT_OPERATION operationCompareStrictEq(JSGlobalObject*, EncodedJSValue, EncodedJSValue) WTF_INTERNAL;
 #if USE(JSVALUE64)
 EncodedJSValue JIT_OPERATION operationCompareStringEq(JSGlobalObject*, JSCell* left, JSCell* right) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareEqHeapBigIntToInt32(JSGlobalObject*, JSCell* heapBigInt, int32_t smallInt) WTF_INTERNAL;
 #else
 size_t JIT_OPERATION operationCompareStringEq(JSGlobalObject*, JSCell* left, JSCell* right) WTF_INTERNAL;
 #endif

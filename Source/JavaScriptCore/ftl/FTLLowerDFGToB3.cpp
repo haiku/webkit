@@ -84,8 +84,11 @@
 #include "JSGenerator.h"
 #include "JSGeneratorFunction.h"
 #include "JSImmutableButterfly.h"
+#include "JSInternalPromise.h"
 #include "JSLexicalEnvironment.h"
 #include "JSMap.h"
+#include "JSMapIterator.h"
+#include "JSSetIterator.h"
 #include "OperandsInlines.h"
 #include "ProbeContext.h"
 #include "RegExpObject.h"
@@ -880,8 +883,8 @@ private:
         case CheckStructureOrEmpty:
             compileCheckStructureOrEmpty();
             break;
-        case CheckCell:
-            compileCheckCell();
+        case CheckIsConstant:
+            compileCheckIsConstant();
             break;
         case CheckNotEmpty:
             compileCheckNotEmpty();
@@ -1063,17 +1066,14 @@ private:
         case NewObject:
             compileNewObject();
             break;
-        case NewPromise:
-            compileNewPromise();
-            break;
         case NewGenerator:
             compileNewGenerator();
             break;
         case NewAsyncGenerator:
             compileNewAsyncGenerator();
             break;
-        case NewArrayIterator:
-            compileNewArrayIterator();
+        case NewInternalFieldObject:
+            compileNewInternalFieldObject();
             break;
         case NewStringObject:
             compileNewStringObject();
@@ -1356,6 +1356,9 @@ private:
         case IsNumber:
             compileIsNumber();
             break;
+        case IsBigInt:
+            compileIsBigInt();
+            break;
         case NumberIsInteger:
             compileNumberIsInteger();
             break;
@@ -1597,7 +1600,7 @@ private:
         case PhantomNewGeneratorFunction:
         case PhantomNewAsyncGeneratorFunction:
         case PhantomNewAsyncFunction:
-        case PhantomNewArrayIterator:
+        case PhantomNewInternalFieldObject:
         case PhantomCreateActivation:
         case PhantomDirectArguments:
         case PhantomCreateRest:
@@ -2139,11 +2142,28 @@ private:
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
 
-            LValue result = vmCall(pointerType(), operationAddBigInt, weakPointer(globalObject), left, right);
+            LValue unboxedLeft = unboxBigInt32(left);
+            LValue unboxedRight = unboxBigInt32(right);
+
+            CheckValue* result = m_out.speculateAdd(unboxedLeft, unboxedRight);
+            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+
+            LValue boxedResult = boxBigInt32(result);
+            setJSValue(boxedResult);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
+
+            LValue result = vmCall(pointerType(), operationAddHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -2160,11 +2180,28 @@ private:
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+
+            LValue unboxedLeft = unboxBigInt32(left);
+            LValue unboxedRight = unboxBigInt32(right);
+
+            CheckValue* result = m_out.speculateSub(unboxedLeft, unboxedRight);
+            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+
+            LValue boxedResult = boxBigInt32(result);
+            setJSValue(boxedResult);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(pointerType(), operationSubBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(pointerType(), operationSubHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -2181,11 +2218,28 @@ private:
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+
+            LValue unboxedLeft = unboxBigInt32(left);
+            LValue unboxedRight = unboxBigInt32(right);
+
+            CheckValue* result = m_out.speculateMul(unboxedLeft, unboxedRight);
+            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+
+            LValue boxedResult = boxBigInt32(result);
+            setJSValue(boxedResult);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(Int64, operationMulBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(Int64, operationMulHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -2289,7 +2343,21 @@ private:
     void compileBinaryMathIC(BinaryArithProfile* arithProfile, Func1 repatchingFunction, Func2 nonRepatchingFunction)
     {
         Node* node = m_node;
-        
+
+#if USE(BIGINT32)
+        if (node->isBinaryUseKind(AnyBigIntUse)) {
+            // FIXME: This is not supported by the IC yet.
+            LValue left = lowJSValue(node->child1(), ManualOperandSpeculation);
+            LValue right = lowJSValue(node->child2(), ManualOperandSpeculation);
+            speculate(node, node->child1());
+            speculate(node, node->child2());
+
+            JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
+            setJSValue(vmCall(pointerType(), nonRepatchingFunction, weakPointer(globalObject), left, right));
+            return;
+        }
+#endif
+
         LValue left = lowJSValue(node->child1());
         LValue right = lowJSValue(node->child2());
 
@@ -2558,11 +2626,12 @@ private:
     void compileValueDiv()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+        // FIXME: add a fast path for BigInt32 here
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(pointerType(), operationDivBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(pointerType(), operationDivHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -2637,18 +2706,21 @@ private:
     void compileValueMod()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->binaryUseKind() == BigIntUse) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+        // FIXME: add a BigInt32 fast path here
+        if (m_node->binaryUseKind() == HeapBigIntUse) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
 
-            LValue result = vmCall(pointerType(), operationModBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(pointerType(), operationModHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
 
-        DFG_ASSERT(m_graph, m_node, m_node->binaryUseKind() == UntypedUse, m_node->binaryUseKind());
-        LValue left = lowJSValue(m_node->child1());
-        LValue right = lowJSValue(m_node->child2());
+        DFG_ASSERT(m_graph, m_node, m_node->binaryUseKind() == UntypedUse || m_node->binaryUseKind() == AnyBigIntUse, m_node->binaryUseKind());
+        LValue left = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+        LValue right = lowJSValue(m_node->child2(), ManualOperandSpeculation);
+        speculate(m_node, m_node->child1());
+        speculate(m_node, m_node->child2());
         LValue result = vmCall(Int64, operationValueMod, weakPointer(globalObject), left, right);
         setJSValue(result);
     }
@@ -2813,17 +2885,21 @@ private:
     void compileValuePow()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue base = lowBigInt(m_node->child1());
-            LValue exponent = lowBigInt(m_node->child2());
+        // FIXME: maybe add a fast path for BigInt32 here
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue base = lowHeapBigInt(m_node->child1());
+            LValue exponent = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(pointerType(), operationPowBigInt, weakPointer(globalObject), base, exponent);
+            LValue result = vmCall(pointerType(), operationPowHeapBigInt, weakPointer(globalObject), base, exponent);
             setJSValue(result);
             return;
         }
 
-        LValue base = lowJSValue(m_node->child1());
-        LValue exponent = lowJSValue(m_node->child2());
+        ASSERT(m_node->isBinaryUseKind(UntypedUse) || m_node->isBinaryUseKind(AnyBigIntUse));
+        LValue base = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+        LValue exponent = lowJSValue(m_node->child2(), ManualOperandSpeculation);
+        speculate(m_node, m_node->child1());
+        speculate(m_node, m_node->child2());
         LValue result = vmCall(Int64, operationValuePow, weakPointer(globalObject), base, exponent);
         setJSValue(result);
     }
@@ -3204,9 +3280,23 @@ private:
     void compileValueBitNot()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->child1().useKind() == BigIntUse) {
-            LValue operand = lowBigInt(m_node->child1());
-            LValue result = vmCall(pointerType(), operationBitNotBigInt, weakPointer(globalObject), operand);
+
+#if USE(BIGINT32)
+        if (m_node->child1().useKind() == BigInt32Use) {
+            LValue operand = lowBigInt32(m_node->child1());
+            // The following trick relies on details of the representation of BigInt32, and will have to be updated if we move bits around.
+            static_assert(JSValue::BigInt32Tag == 0x12);
+            static_assert(JSValue::BigInt32Mask == 0xfffe000000000012);
+            uint64_t maskForBigInt32Bits = 0x0000ffffffff0000;
+            LValue result = m_out.bitXor(operand, m_out.constInt64(maskForBigInt32Bits));
+            setJSValue(result);
+            return;
+        }
+#endif
+
+        if (m_node->child1().useKind() == HeapBigIntUse) {
+            LValue operand = lowHeapBigInt(m_node->child1());
+            LValue result = vmCall(pointerType(), operationBitNotHeapBigInt, weakPointer(globalObject), operand);
             setJSValue(result);
             return;
         }
@@ -3224,11 +3314,23 @@ private:
     void compileValueBitAnd()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+            // No need to unbox, since the tagging is not affected by bitAnd
+            LValue result = m_out.bitAnd(left, right);
+            setJSValue(result);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(pointerType(), operationBitAndBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(pointerType(), operationBitAndHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -3244,11 +3346,23 @@ private:
     void compileValueBitOr()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
 
-            LValue result = vmCall(pointerType(), operationBitOrBigInt, weakPointer(globalObject), left, right);
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+            // No need to unbox, since the tagging is not affected by bitAnd
+            LValue result = m_out.bitOr(left, right);
+            setJSValue(result);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
+
+            LValue result = vmCall(pointerType(), operationBitOrHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -3264,11 +3378,23 @@ private:
     void compileValueBitXor()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
 
-            LValue result = vmCall(pointerType(), operationBitXorBigInt, weakPointer(globalObject), left, right);
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+            LValue resultMissingTag = m_out.bitXor(left, right);
+            LValue result = m_out.bitOr(resultMissingTag, m_out.constInt64(JSValue::BigInt32Tag));
+            setJSValue(result);
+            return;
+        }
+#endif
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
+
+            LValue result = vmCall(pointerType(), operationBitXorHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -3284,11 +3410,29 @@ private:
     void compileValueBitRShift()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
 
-            LValue result = vmCall(pointerType(), operationBitRShiftBigInt, weakPointer(globalObject), left, right);
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(AnyBigIntUse) || m_node->isBinaryUseKind(BigInt32Use)) {
+            // FIXME: do something smarter here
+            // Things are a bit tricky because a right-shift by a negative number is a left-shift for BigInts.
+            // So even a right shift can overflow.
+
+            LValue left = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+            LValue right = lowJSValue(m_node->child2(), ManualOperandSpeculation);
+            speculate(m_node, m_node->child1());
+            speculate(m_node, m_node->child2());
+
+            LValue result = vmCall(pointerType(), operationValueBitRShift, weakPointer(globalObject), left, right);
+            setJSValue(result);
+            return;
+        }
+#endif // USE(BIGINT32)
+
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
+
+            LValue result = vmCall(pointerType(), operationBitRShiftHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -3300,24 +3444,25 @@ private:
     {
         setInt32(m_out.aShr(
             lowInt32(m_node->child1()),
-            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31))));
+            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31)))); // FIXME: I don't think that the BitAnd is useful, it is included in the semantics of shift in B3
     }
     
     void compileArithBitLShift()
     {
         setInt32(m_out.shl(
             lowInt32(m_node->child1()),
-            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31))));
+            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31)))); // FIXME: I don't think that the BitAnd is useful, it is included in the semantics of shift in B3
     }
     
     void compileValueBitLShift()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+        // FIXME: consider adding a fast path for BigInt32 here.
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
             
-            LValue result = vmCall(pointerType(), operationBitLShiftBigInt, weakPointer(globalObject), left, right);
+            LValue result = vmCall(pointerType(), operationBitLShiftHeapBigInt, weakPointer(globalObject), left, right);
             setJSValue(result);
             return;
         }
@@ -3334,7 +3479,7 @@ private:
         }
         setInt32(m_out.lShr(
             lowInt32(m_node->child1()),
-            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31))));
+            m_out.bitAnd(lowInt32(m_node->child2()), m_out.constInt32(31)))); // FIXME: I don't think that the BitAnd is useful, it is included in the semantics of shift in B3
     }
     
     void compileUInt32ToNumber()
@@ -3437,7 +3582,7 @@ private:
         }
     }
     
-    void compileCheckCell()
+    void compileCheckIsConstant()
     {
         LValue cell = lowCell(m_node->child1());
         
@@ -4119,27 +4264,22 @@ private:
     {
         LValue basePtr = lowCell(m_node->child1());    
 
-        LBasicBlock simpleCase = m_out.newBlock();
         LBasicBlock wastefulCase = m_out.newBlock();
         LBasicBlock notNull = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
         
+        ValueFromBlock nullVectorOut = m_out.anchor(m_out.constIntPtr(0));
+
         LValue mode = m_out.load32(basePtr, m_heaps.JSArrayBufferView_mode);
         m_out.branch(
             m_out.notEqual(mode, m_out.constInt32(WastefulTypedArray)),
-            unsure(simpleCase), unsure(wastefulCase));
+            unsure(continuation), unsure(wastefulCase));
 
-        LBasicBlock lastNext = m_out.appendTo(simpleCase, wastefulCase);
-
-        ValueFromBlock simpleOut = m_out.anchor(m_out.constIntPtr(0));
-
-        m_out.jump(continuation);
-
-        m_out.appendTo(wastefulCase, notNull);
+        LBasicBlock lastNext = m_out.appendTo(wastefulCase, notNull);
 
         LValue vector = m_out.loadPtr(basePtr, m_heaps.JSArrayBufferView_vector);
-        ValueFromBlock nullVectorOut = m_out.anchor(vector);
-        m_out.branch(vector, unsure(notNull), unsure(continuation));
+        m_out.branch(m_out.equal(vector, m_out.constIntPtr(JSArrayBufferView::nullVectorPtr())), 
+            unsure(continuation), unsure(notNull));
 
         m_out.appendTo(notNull, continuation);
 
@@ -4158,7 +4298,7 @@ private:
         m_out.jump(continuation);
         m_out.appendTo(continuation, lastNext);
 
-        setInt32(m_out.castToInt32(m_out.phi(pointerType(), simpleOut, nullVectorOut, wastefulOut)));
+        setInt32(m_out.castToInt32(m_out.phi(pointerType(), nullVectorOut, wastefulOut)));
     }
 
     void compileGetPrototypeOf()
@@ -4353,6 +4493,9 @@ private:
                         isHole, m_out.constInt64(JSValue::encode(jsUndefined())), result);
                 } else
                     speculate(LoadFromHole, noValue(), 0, isHole);
+                // We have to keep base alive to keep content in storage alive.
+                if (m_node->arrayMode().type() == Array::Contiguous)
+                    ensureStillAliveHere(base);
                 setJSValue(result);
                 return;
             }
@@ -4378,6 +4521,9 @@ private:
             m_out.jump(continuation);
             
             m_out.appendTo(continuation, lastNext);
+            // We have to keep base alive to keep content in storage alive.
+            if (m_node->arrayMode().type() == Array::Contiguous)
+                ensureStillAliveHere(base);
             setJSValue(m_out.phi(Int64, fastResult, slowResult));
             return;
         }
@@ -4656,8 +4802,10 @@ private:
             if (m_node->arrayMode().isInBounds()) {
                 LValue result = m_out.load64(baseIndex(heap, storage, index, m_graph.varArgChild(m_node, 1)));
                 speculate(LoadFromHole, noValue(), 0, m_out.isZero64(result));
+                // We have to keep base alive to keep content in storage alive.
+                ensureStillAliveHere(base);
                 setJSValue(result);
-                break;
+                return;
             }
 
             LBasicBlock inBounds = m_out.newBlock();
@@ -4681,6 +4829,8 @@ private:
             m_out.jump(continuation);
 
             m_out.appendTo(continuation, lastNext);
+            // We have to keep base alive to keep content in storage alive.
+            ensureStillAliveHere(base);
             setJSValue(m_out.phi(Int64, fastResult, slowResult));
             return;
         }
@@ -5651,6 +5801,7 @@ private:
     void compileArrayIndexOf()
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
+        LValue base = lowCell(m_graph.varArgChild(m_node, 0));
         LValue storage = lowStorage(m_node->numChildren() == 3 ? m_graph.varArgChild(m_node, 2) : m_graph.varArgChild(m_node, 3));
         LValue length = m_out.load32(storage, m_heaps.Butterfly_publicLength);
 
@@ -5753,33 +5904,40 @@ private:
             m_out.jump(continuation);
 
             m_out.appendTo(continuation, lastNext);
+            // We have to keep base alive since that keeps content of storage alive.
+            ensureStillAliveHere(base);
             setInt32(m_out.castToInt32(m_out.phi(pointerType(), notFoundResult, foundResult)));
-            break;
+            return;
         }
 
         case StringUse:
             ASSERT(m_node->arrayMode().type() == Array::Contiguous);
+            // We have to keep base alive since that keeps storage alive.
+            ensureStillAliveHere(base);
             setInt32(m_out.castToInt32(vmCall(Int64, operationArrayIndexOfString, weakPointer(globalObject), storage, lowString(searchElementEdge), startIndex)));
-            break;
+            return;
 
         case UntypedUse:
             switch (m_node->arrayMode().type()) {
             case Array::Double:
                 setInt32(m_out.castToInt32(vmCall(Int64, operationArrayIndexOfValueDouble, weakPointer(globalObject), storage, lowJSValue(searchElementEdge), startIndex)));
-                break;
-            case Array::Int32:
+                return;
             case Array::Contiguous:
+                // We have to keep base alive since that keeps content of storage alive.
+                ensureStillAliveHere(base);
+                FALLTHROUGH;
+            case Array::Int32:
                 setInt32(m_out.castToInt32(vmCall(Int64, operationArrayIndexOfValueInt32OrContiguous, weakPointer(globalObject), storage, lowJSValue(searchElementEdge), startIndex)));
-                break;
+                return;
             default:
                 RELEASE_ASSERT_NOT_REACHED();
-                break;
+                return;
             }
-            break;
+            return;
 
         default:
             RELEASE_ASSERT_NOT_REACHED();
-            break;
+            return;
         }
     }
 
@@ -5813,6 +5971,9 @@ private:
             TypedPointer pointer = m_out.baseIndex(heap, storage, m_out.zeroExtPtr(newLength));
             if (m_node->arrayMode().type() != Array::Double) {
                 LValue result = m_out.load64(pointer);
+                // We have to keep base alive to keep content in storage alive.
+                if (m_node->arrayMode().type() == Array::Contiguous)
+                    ensureStillAliveHere(base);
                 m_out.store64(m_out.int64Zero, pointer);
                 results.append(m_out.anchor(result));
                 m_out.branch(
@@ -5858,6 +6019,8 @@ private:
             m_out.appendTo(popCheckCase, fastCase);
             TypedPointer pointer = m_out.baseIndex(m_heaps.ArrayStorage_vector, storage, m_out.zeroExtPtr(newLength));
             LValue result = m_out.load64(pointer);
+            // We have to keep base alive to keep content in storage alive.
+            ensureStillAliveHere(base);
             m_out.branch(m_out.notZero64(result), usually(fastCase), rarely(slowCase));
 
             m_out.appendTo(fastCase, slowCase);
@@ -6330,34 +6493,8 @@ private:
         mutatorFence();
     }
 
-    void compileNewPromise()
-    {
-        LBasicBlock slowCase = m_out.newBlock();
-        LBasicBlock continuation = m_out.newBlock();
-
-        LBasicBlock lastNext = m_out.insertNewBlocksBefore(slowCase);
-
-        LValue promise;
-        if (m_node->isInternalPromise())
-            promise = allocateObject<JSInternalPromise>(m_node->structure(), m_out.intPtrZero, slowCase);
-        else
-            promise = allocateObject<JSPromise>(m_node->structure(), m_out.intPtrZero, slowCase);
-        m_out.store64(m_out.constInt64(JSValue::encode(jsNumber(static_cast<unsigned>(JSPromise::Status::Pending)))), promise, m_heaps.JSInternalFieldObjectImpl_internalFields[static_cast<unsigned>(JSPromise::Field::Flags)]);
-        m_out.store64(m_out.constInt64(JSValue::encode(jsUndefined())), promise, m_heaps.JSInternalFieldObjectImpl_internalFields[static_cast<unsigned>(JSPromise::Field::ReactionsOrResult)]);
-        mutatorFence();
-        ValueFromBlock fastResult = m_out.anchor(promise);
-        m_out.jump(continuation);
-
-        m_out.appendTo(slowCase, continuation);
-        ValueFromBlock slowResult = m_out.anchor(vmCall(pointerType(), m_node->isInternalPromise() ? operationNewInternalPromise : operationNewPromise, m_vmValue, frozenPointer(m_graph.freezeStrong(m_node->structure().get()))));
-        m_out.jump(continuation);
-
-        m_out.appendTo(continuation, lastNext);
-        setJSValue(m_out.phi(pointerType(), fastResult, slowResult));
-    }
-
     template<typename JSClass, typename Operation>
-    void compileNewInternalFieldObject(Operation operation)
+    void compileNewInternalFieldObjectImpl(Operation operation)
     {
         LBasicBlock slowCase = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
@@ -6383,17 +6520,37 @@ private:
 
     void compileNewGenerator()
     {
-        compileNewInternalFieldObject<JSGenerator>(operationNewGenerator);
+        compileNewInternalFieldObjectImpl<JSGenerator>(operationNewGenerator);
     }
 
     void compileNewAsyncGenerator()
     {
-        compileNewInternalFieldObject<JSAsyncGenerator>(operationNewAsyncGenerator);
+        compileNewInternalFieldObjectImpl<JSAsyncGenerator>(operationNewAsyncGenerator);
     }
 
-    void compileNewArrayIterator()
+    void compileNewInternalFieldObject()
     {
-        compileNewInternalFieldObject<JSArrayIterator>(operationNewArrayIterator);
+        switch (m_node->structure()->typeInfo().type()) {
+        case JSArrayIteratorType:
+            compileNewInternalFieldObjectImpl<JSArrayIterator>(operationNewArrayIterator);
+            break;
+        case JSMapIteratorType:
+            compileNewInternalFieldObjectImpl<JSMapIterator>(operationNewMapIterator);
+            break;
+        case JSSetIteratorType:
+            compileNewInternalFieldObjectImpl<JSSetIterator>(operationNewSetIterator);
+            break;
+        case JSPromiseType:
+            if (m_node->structure()->classInfo() == JSInternalPromise::info())
+                compileNewInternalFieldObjectImpl<JSInternalPromise>(operationNewInternalPromise);
+            else {
+                ASSERT(m_node->structure()->classInfo() == JSPromise::info());
+                compileNewInternalFieldObjectImpl<JSPromise>(operationNewPromise);
+            }
+            break;
+        default:
+            DFG_CRASH(m_graph, m_node, "Bad structure");
+        }
     }
 
     void compileNewStringObject()
@@ -7372,6 +7529,9 @@ private:
         
         if (abstractValue(m_node->child1()).m_type & (SpecBytecodeNumber | SpecBigInt)) {
             LBasicBlock notNumber = m_out.newBlock();
+#if USE(BIGINT32)
+            LBasicBlock notBigInt32 = m_out.newBlock();
+#endif
             LBasicBlock isCellPath = m_out.newBlock();
             LBasicBlock slowPath = m_out.newBlock();
             LBasicBlock continuation = m_out.newBlock();
@@ -7381,10 +7541,14 @@ private:
 
             // notNumber case.
             LBasicBlock lastNext = m_out.appendTo(notNumber, continuation);
+#if USE(BIGINT32)
+            m_out.branch(isBigInt32(value, provenType(m_node->child1())), unsure(continuation), unsure(notBigInt32));
+            m_out.appendTo(notBigInt32);
+#endif
             m_out.branch(isCell(value, provenType(m_node->child1())), unsure(isCellPath), unsure(slowPath));
 
             m_out.appendTo(isCellPath);
-            m_out.branch(isBigInt(value, provenType(m_node->child1())), unsure(continuation), unsure(slowPath));
+            m_out.branch(isHeapBigInt(value, provenType(m_node->child1())), unsure(continuation), unsure(slowPath));
             
             m_out.appendTo(slowPath);
             // We have several attempts to remove ToNumeric. But ToNumeric still exists.
@@ -7816,6 +7980,8 @@ private:
         m_out.jump(continuation);
             
         m_out.appendTo(continuation, lastNext);
+        // We have to keep base alive since that keeps storage alive.
+        ensureStillAliveHere(base);
         setJSValue(m_out.phi(Int64, results));
     }
     
@@ -7862,6 +8028,8 @@ private:
         
         m_out.appendTo(continuation, lastNext);
         
+        // We have to keep base alive since that keeps storage alive.
+        ensureStillAliveHere(base);
         setInt32(m_out.phi(Int32, char8Bit, char16Bit));
     }
 
@@ -7920,6 +8088,8 @@ private:
         m_out.jump(continuation);
 
         m_out.appendTo(continuation, lastNext);
+        // We have to keep base alive since that keeps storage alive.
+        ensureStillAliveHere(base);
         setInt32(m_out.phi(Int32, char8Bit, char16Bit, charSurrogatePair));
     }
 
@@ -7972,8 +8142,11 @@ private:
     {
         StorageAccessData& data = m_node->storageAccessData();
         
-        setJSValue(loadProperty(
-            lowStorage(m_node->child1()), data.identifierNumber, data.offset));
+        LValue base = lowCell(m_node->child2());
+        LValue value = loadProperty(lowStorage(m_node->child1()), data.identifierNumber, data.offset);
+        // We have to keep base alive since that keeps content of storage alive.
+        ensureStillAliveHere(base);
+        setJSValue(value);
     }
     
     void compileGetGetter()
@@ -8055,6 +8228,8 @@ private:
         m_out.unreachable();
         
         m_out.appendTo(continuation, lastNext);
+        // We have to keep base alive since that keeps storage alive.
+        ensureStillAliveHere(base);
         setJSValue(m_out.phi(Int64, results));
     }
     
@@ -8443,7 +8618,10 @@ private:
             || m_node->isBinaryUseKind(BooleanUse)
             || m_node->isBinaryUseKind(SymbolUse)
             || m_node->isBinaryUseKind(StringIdentUse)
-            || m_node->isBinaryUseKind(StringUse)) {
+            || m_node->isBinaryUseKind(StringUse)
+            || m_node->isBinaryUseKind(BigInt32Use)
+            || m_node->isBinaryUseKind(HeapBigIntUse)
+            || m_node->isBinaryUseKind(AnyBigIntUse)) {
             compileCompareStrictEq();
             return;
         }
@@ -8486,7 +8664,105 @@ private:
                 m_out.equal(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
             return;
         }
-        
+
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+
+            // No need to unbox since the tag bits are the same on both sides
+            LValue result = m_out.equal(left, right);
+            setBoolean(result);
+            return;
+        }
+
+        if (m_node->isBinaryUseKind(AnyBigIntUse)) {
+            LValue left = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+            LValue right = lowJSValue(m_node->child2(), ManualOperandSpeculation);
+
+            // Note that we cannot start with if (left == right), because we must insert the right checks (see ManualOperandSpeculation above)
+            // The code that we generate looks like the following pseudo-code:
+            /*
+             if (isBigInt32(left)) {
+                if (isBigInt32(right))
+                    return left == right;
+                CHECK(isHeapBigInt(right));
+                return call(JSBigInt::equalsToInt32(right, unboxed(left));
+             }
+             CHECK(isHeapBigInt(left))
+             if (left == right)
+                return true;
+             if (isBigInt32(right))
+                return call(JSBigInt::equalsToInt32(left, unboxed(right));
+             CHECK(isHeapBigInt(right));
+             return call(JSBigInt::equals(left, right));
+            */
+            LBasicBlock leftIsBigInt32 = m_out.newBlock();
+            LBasicBlock bothAreBigInt32 = m_out.newBlock();
+            LBasicBlock onlyLeftIsBigInt32 = m_out.newBlock();
+            LBasicBlock leftIsNotBigInt32 = m_out.newBlock();
+            LBasicBlock leftEqualsRight = m_out.newBlock();
+            LBasicBlock leftIsHeapBigInt = m_out.newBlock();
+            LBasicBlock rightIsBigInt32 = m_out.newBlock();
+            LBasicBlock rightIsNotBigInt32 = m_out.newBlock();
+            LBasicBlock continuation = m_out.newBlock();
+
+            // Inserts a check that a value is a HeapBigInt, assuming only that we know it is not a BigInt32
+            auto checkIsHeapBigInt = [&](LValue lowValue, Edge highValue) {
+                if (m_interpreter.needsTypeCheck(highValue, SpecHeapBigInt)) {
+                    ASSERT(mayHaveTypeCheck(highValue.useKind()));
+                    LValue checkFailed = isNotHeapBigIntUnknownWhetherCell(lowValue, ~SpecBigInt32);
+                    appendOSRExit(BadType, jsValueValue(lowValue), highValue.node(), checkFailed, m_origin);
+                }
+            };
+
+            m_out.branch(isBigInt32(left, provenType(m_node->child1())), unsure(leftIsBigInt32), unsure(leftIsNotBigInt32));
+
+            LBasicBlock lastNext = m_out.appendTo(leftIsBigInt32, bothAreBigInt32);
+            m_out.branch(isBigInt32(right, provenType(m_node->child2())), unsure(bothAreBigInt32), unsure(onlyLeftIsBigInt32));
+
+            m_out.appendTo(bothAreBigInt32, onlyLeftIsBigInt32);
+            ValueFromBlock resultBothAreBigInt32 = m_out.anchor(m_out.equal(left, right));
+            m_out.jump(continuation);
+
+            m_out.appendTo(onlyLeftIsBigInt32, leftIsNotBigInt32);
+            checkIsHeapBigInt(right, m_node->child2());
+            LValue unboxedLeft = unboxBigInt32(left);
+            ValueFromBlock resultLeftIsBigInt32 = m_out.anchor(m_out.notNull(vmCall(pointerType(), operationCompareEqHeapBigIntToInt32, weakPointer(globalObject), right, unboxedLeft)));
+            m_out.jump(continuation);
+
+            m_out.appendTo(leftIsNotBigInt32, leftEqualsRight);
+            checkIsHeapBigInt(left, m_node->child1());
+            m_out.branch(m_out.equal(left, right), unsure(leftEqualsRight), unsure(leftIsHeapBigInt));
+
+            m_out.appendTo(leftEqualsRight, leftIsHeapBigInt);
+            ValueFromBlock resultLeftEqualsRight = m_out.anchor(m_out.booleanTrue);
+            m_out.jump(continuation);
+
+            m_out.appendTo(leftIsHeapBigInt, rightIsBigInt32);
+            m_out.branch(isBigInt32(right, provenType(m_node->child2())), unsure(rightIsBigInt32), unsure(rightIsNotBigInt32));
+
+            m_out.appendTo(rightIsBigInt32, rightIsNotBigInt32);
+            LValue unboxedRight = unboxBigInt32(right);
+            ValueFromBlock resultRightIsBigInt32 = m_out.anchor(m_out.notNull(vmCall(pointerType(), operationCompareEqHeapBigIntToInt32, weakPointer(globalObject), left, unboxedRight)));
+            m_out.jump(continuation);
+
+            m_out.appendTo(rightIsNotBigInt32, continuation);
+            checkIsHeapBigInt(right, m_node->child2());
+            // FIXME: [ESNext][BigInt] Create specialized version of strict equals for big ints
+            // https://bugs.webkit.org/show_bug.cgi?id=182895
+            ValueFromBlock resultBothHeapBigInt = m_out.anchor(m_out.notNull(vmCall(pointerType(), operationCompareStrictEq, weakPointer(globalObject), left, right)));
+            m_out.jump(continuation);
+
+            m_out.appendTo(continuation, lastNext);
+            setBoolean(m_out.phi(Int32, resultBothAreBigInt32, resultLeftIsBigInt32, resultLeftEqualsRight, resultRightIsBigInt32, resultBothHeapBigInt));
+
+            m_interpreter.filter(m_node->child1(), SpecBigInt);
+            m_interpreter.filter(m_node->child2(), SpecBigInt);
+            return;
+        }
+#endif // USE(BIGINT32)
+
         if (m_node->isBinaryUseKind(Int52RepUse)) {
             Int52Kind kind;
             LValue left = lowWhicheverInt52(m_node->child1(), kind);
@@ -8569,11 +8845,11 @@ private:
             return;
         }
         
-        if (m_node->isBinaryUseKind(BigIntUse)) {
-            // FIXME: [ESNext][BigInt] Create specialized version of strict equals for BigIntUse
+        if (m_node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: [ESNext][BigInt] Create specialized version of strict equals for big ints
             // https://bugs.webkit.org/show_bug.cgi?id=182895
-            LValue left = lowBigInt(m_node->child1());
-            LValue right = lowBigInt(m_node->child2());
+            LValue left = lowHeapBigInt(m_node->child1());
+            LValue right = lowHeapBigInt(m_node->child2());
 
             LBasicBlock notTriviallyEqualCase = m_out.newBlock();
             LBasicBlock continuation = m_out.newBlock();
@@ -8659,6 +8935,7 @@ private:
             return;
         }
 
+        // FIXME: we can do something much smarter here, see the DFGSpeculativeJIT approach in e.g. SpeculativeJIT::nonSpeculativePeepholeStrictEq
         DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse), m_node->child1().useKind(), m_node->child2().useKind());
         nonSpeculativeCompare(
             [&] (LValue left, LValue right) {
@@ -10622,7 +10899,37 @@ private:
         m_out.appendTo(continuation, lastNext);
         setBoolean(m_out.phi(Int32, trueResult, falseResult, patchpointResult));
     }
-    
+
+#if USE(BIGINT32)
+    void compileIsBigInt()
+    {
+        LValue value = lowJSValue(m_node->child1());
+
+        LBasicBlock isCellCase = m_out.newBlock();
+        LBasicBlock isNotCellCase = m_out.newBlock();
+        LBasicBlock continuation = m_out.newBlock();
+
+        m_out.branch(isCell(value, provenType(m_node->child1())), unsure(isCellCase), unsure(isNotCellCase));
+
+        LBasicBlock lastNext = m_out.appendTo(isNotCellCase, isCellCase);
+        // FIXME: we should filter the provenType to include the fact that we know we are not dealing with a cell
+        ValueFromBlock notCellResult = m_out.anchor(isBigInt32(value, provenType(m_node->child1())));
+        m_out.jump(continuation);
+
+        m_out.appendTo(isCellCase, continuation);
+        ValueFromBlock cellResult = m_out.anchor(isCellWithType(value, m_node->queriedType(), m_node->speculatedTypeForQuery(), provenType(m_node->child1())));
+        m_out.jump(continuation);
+
+        m_out.appendTo(continuation, lastNext);
+        setBoolean(m_out.phi(Int32, notCellResult, cellResult));
+    }
+#else // if !USE(BIGINT32)
+    NO_RETURN_DUE_TO_CRASH ALWAYS_INLINE void compileIsBigInt()
+    {
+        // If we are not dealing with BigInt32, we should just emit IsCellWithType(HeapBigInt) instead.
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+#endif
     void compileIsCellWithType()
     {
         if (m_node->child1().useKind() == UntypedUse) {
@@ -12419,6 +12726,20 @@ private:
         switch (m_node->structure()->typeInfo().type()) {
         case JSArrayIteratorType:
             compileMaterializeNewInternalFieldObjectImpl<JSArrayIterator>(operationNewArrayIterator);
+            break;
+        case JSMapIteratorType:
+            compileMaterializeNewInternalFieldObjectImpl<JSMapIterator>(operationNewMapIterator);
+            break;
+        case JSSetIteratorType:
+            compileMaterializeNewInternalFieldObjectImpl<JSSetIterator>(operationNewSetIterator);
+            break;
+        case JSPromiseType:
+            if (m_node->structure()->classInfo() == JSInternalPromise::info())
+                compileMaterializeNewInternalFieldObjectImpl<JSInternalPromise>(operationNewInternalPromise);
+            else {
+                ASSERT(m_node->structure()->classInfo() == JSPromise::info());
+                compileMaterializeNewInternalFieldObjectImpl<JSPromise>(operationNewPromise);
+            }
             break;
         default:
             DFG_CRASH(m_graph, m_node, "Bad structure");
@@ -14346,9 +14667,11 @@ private:
     void emitBinarySnippet(J_JITOperation_GJJ slowPathFunction)
     {
         Node* node = m_node;
-        
-        LValue left = lowJSValue(node->child1());
-        LValue right = lowJSValue(node->child2());
+
+        LValue left = lowJSValue(node->child1(), ManualOperandSpeculation);
+        LValue right = lowJSValue(node->child2(), ManualOperandSpeculation);
+        speculate(node->child1());
+        speculate(node->child2());
 
         SnippetOperand leftOperand(m_state.forNode(node->child1()).resultType());
         SnippetOperand rightOperand(m_state.forNode(node->child2()).resultType());
@@ -14414,8 +14737,11 @@ private:
     {
         Node* node = m_node;
         
-        LValue left = lowJSValue(node->child1());
-        LValue right = lowJSValue(node->child2());
+        ASSERT(node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse));
+        LValue left = lowJSValue(node->child1(), ManualOperandSpeculation);
+        LValue right = lowJSValue(node->child2(), ManualOperandSpeculation);
+        speculate(node, node->child1());
+        speculate(node, node->child2());
 
         SnippetOperand leftOperand(m_state.forNode(node->child1()).resultType());
         SnippetOperand rightOperand(m_state.forNode(node->child2()).resultType());
@@ -15027,7 +15353,7 @@ private:
             
             // Implements the following control flow structure:
             // if (value is cell) {
-            //     if (value is string or value is BigInt)
+            //     if (value is string or value is HeapBigInt)
             //         result = !!value->length
             //     else {
             //         do evil things for masquerades-as-undefined
@@ -15037,6 +15363,8 @@ private:
             //     result = !!unboxInt32(value)
             // } else if (value is number) {
             //     result = !!unboxDouble(value)
+            // } else if (value is BigInt32) {
+            //     result = (value != BigInt32Tag)
             // } else {
             //     result = value == jsTrue
             // }
@@ -15044,13 +15372,17 @@ private:
             LBasicBlock cellCase = m_out.newBlock();
             LBasicBlock notStringCase = m_out.newBlock();
             LBasicBlock stringCase = m_out.newBlock();
-            LBasicBlock bigIntCase = m_out.newBlock();
-            LBasicBlock notStringOrBigIntCase = m_out.newBlock();
+            LBasicBlock heapBigIntCase = m_out.newBlock();
+            LBasicBlock notStringNorHeapBigIntCase = m_out.newBlock();
             LBasicBlock notCellCase = m_out.newBlock();
             LBasicBlock int32Case = m_out.newBlock();
             LBasicBlock notInt32Case = m_out.newBlock();
             LBasicBlock doubleCase = m_out.newBlock();
             LBasicBlock notDoubleCase = m_out.newBlock();
+#if USE(BIGINT32)
+            LBasicBlock bigInt32Case = m_out.newBlock();
+            LBasicBlock notBigInt32Case = m_out.newBlock();
+#endif
             LBasicBlock continuation = m_out.newBlock();
             
             Vector<ValueFromBlock> results;
@@ -15064,20 +15396,20 @@ private:
             
             m_out.appendTo(notStringCase, stringCase);
             m_out.branch(
-                isBigInt(value, provenType(edge) & (SpecCell - SpecString)),
-                unsure(bigIntCase), unsure(notStringOrBigIntCase));
+                isHeapBigInt(value, provenType(edge) & (SpecCell - SpecString)),
+                unsure(heapBigIntCase), unsure(notStringNorHeapBigIntCase));
 
-            m_out.appendTo(stringCase, bigIntCase);
+            m_out.appendTo(stringCase, heapBigIntCase);
             results.append(m_out.anchor(m_out.notEqual(value, weakPointer(jsEmptyString(m_graph.m_vm)))));
             m_out.jump(continuation);
 
-            m_out.appendTo(bigIntCase, notStringOrBigIntCase);
+            m_out.appendTo(heapBigIntCase, notStringNorHeapBigIntCase);
             LValue nonZeroBigInt = m_out.notZero32(
                 m_out.load32NonNegative(value, m_heaps.JSBigInt_length));
             results.append(m_out.anchor(nonZeroBigInt));
             m_out.jump(continuation);
             
-            m_out.appendTo(notStringOrBigIntCase, notCellCase);
+            m_out.appendTo(notStringNorHeapBigIntCase, notCellCase);
             LValue isTruthyObject;
             if (masqueradesAsUndefinedWatchpointIsStillValid())
                 isTruthyObject = m_out.booleanTrue;
@@ -15120,8 +15452,22 @@ private:
                 unboxDouble(value), m_out.constDouble(0));
             results.append(m_out.anchor(doubleIsTruthy));
             m_out.jump(continuation);
+
+#if USE(BIGINT32)
+            m_out.appendTo(notDoubleCase, bigInt32Case);
+            m_out.branch(
+                isBigInt32(value, provenType(edge) & ~SpecCell),
+                unsure(bigInt32Case), unsure(notBigInt32Case));
+
+            m_out.appendTo(bigInt32Case, notBigInt32Case);
+            LValue bigInt32NotZero = m_out.notEqual(value, m_out.constInt64(JSValue::BigInt32Tag));
+            results.append(m_out.anchor(bigInt32NotZero));
+            m_out.jump(continuation);
             
+            m_out.appendTo(notBigInt32Case, continuation);
+#else
             m_out.appendTo(notDoubleCase, continuation);
+#endif
             LValue miscIsTruthy = m_out.equal(
                 value, m_out.constInt64(JSValue::encode(jsBoolean(true))));
             results.append(m_out.anchor(miscIsTruthy));
@@ -15726,13 +16072,15 @@ private:
         //         }
         //     } else if (is string) {
         //         return string
-        //     } else if (is bigint) {
+        //     } else if (is heapbigint) {
         //         return bigint
         //     } else {
         //         return symbol
         //     }
         // } else if (is number) {
         //     return number
+        // } else if (is bigint32) {
+        //     return bigint
         // } else if (is null) {
         //     return object
         // } else if (is boolean) {
@@ -15760,6 +16108,9 @@ private:
         LBasicBlock notCellCase = m_out.newBlock();
         LBasicBlock numberCase = m_out.newBlock();
         LBasicBlock notNumberCase = m_out.newBlock();
+#if USE(BIGINT32)
+        LBasicBlock notBigInt32Case = m_out.newBlock();
+#endif
         LBasicBlock notNullCase = m_out.newBlock();
         LBasicBlock booleanCase = m_out.newBlock();
         LBasicBlock undefinedCase = m_out.newBlock();
@@ -15812,7 +16163,7 @@ private:
 
         m_out.appendTo(notStringCase, bigIntCase);
         m_out.branch(
-            isBigInt(value, provenType(child) & (SpecCell - SpecObject - SpecString)),
+            isHeapBigInt(value, provenType(child) & (SpecCell - SpecObject - SpecString)),
             unsure(bigIntCase), unsure(symbolCase));
 
         m_out.appendTo(bigIntCase, symbolCase);
@@ -15828,8 +16179,15 @@ private:
         
         m_out.appendTo(numberCase, notNumberCase);
         functor(TypeofType::Number);
-        
+
+#if USE(BIGINT32)
+        m_out.appendTo(notNumberCase, notBigInt32Case);
+        m_out.branch(isBigInt32(value, provenType(child) & ~SpecCell), unsure(bigIntCase), unsure(notBigInt32Case));
+
+        m_out.appendTo(notBigInt32Case, notNullCase);
+#else
         m_out.appendTo(notNumberCase, notNullCase);
+#endif
         LValue isNull;
         if (provenType(child) & SpecOther)
             isNull = m_out.equal(value, m_out.constInt64(JSValue::ValueNull));
@@ -16527,15 +16885,33 @@ private:
         return result;
     }
 
-    LValue lowBigInt(Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
+    LValue lowHeapBigInt(Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
     {
-        ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || edge.useKind() == BigIntUse);
+        ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || edge.useKind() == HeapBigIntUse);
 
         LValue result = lowCell(edge, mode);
-        speculateBigInt(edge, result);
+        speculateHeapBigInt(edge, result);
         return result;
     }
-    
+
+#if USE(BIGINT32)
+    LValue lowBigInt32(Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
+    {
+        ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || edge.useKind() == BigInt32Use);
+
+        LoweredNodeValue value = m_jsValueValues.get(edge.node());
+        if (isValid(value)) {
+            LValue result = value.value();
+            FTL_TYPE_CHECK(jsValueValue(result), edge, SpecBigInt32, isNotBigInt32(result));
+            return result;
+        }
+
+        if (mayHaveTypeCheck(edge.useKind()))
+            terminate(Uncountable);
+        return m_out.bigInt32Zero;
+    }
+#endif
+
     LValue lowNonNullObject(Edge edge, OperandSpeculationMode mode = AutomaticOperandSpeculation)
     {
         ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || edge.useKind() == ObjectUse);
@@ -16721,7 +17097,73 @@ private:
     {
         return m_out.add(m_out.zeroExt(value, Int64), m_numberTag);
     }
-    
+
+#if USE(BIGINT32)
+    LValue isBigInt32(LValue jsValue, SpeculatedType type = SpecFullTop)
+    {
+        if (LValue proven = isProvenValue(type, SpecBigInt32))
+            return proven;
+        return m_out.equal(
+            m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)),
+            m_out.constInt64(JSValue::BigInt32Tag));
+    }
+    LValue isNotBigInt32(LValue jsValue, SpeculatedType type = SpecFullTop)
+    {
+        if (LValue proven = isProvenValue(type, ~SpecBigInt32))
+            return proven;
+        return m_out.notEqual(
+            m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)),
+            m_out.constInt64(JSValue::BigInt32Tag));
+    }
+    LValue unboxBigInt32(LValue jsValue)
+    {
+        return m_out.castToInt32(m_out.lShr(jsValue, m_out.constInt64(16)));
+    }
+    LValue boxBigInt32(LValue int32Value)
+    {
+        return m_out.bitOr(
+            m_out.shl(m_out.zeroExt(int32Value, B3::Int64), m_out.constInt64(16)),
+            m_out.constInt64(JSValue::BigInt32Tag));
+    }
+    LValue isNotAnyBigInt(LValue jsValue, SpeculatedType type = SpecFullTop)
+    {
+        if (LValue proven = isProvenValue(type, ~SpecBigInt))
+            return proven;
+
+        // if (isBigInt32)
+        //   return false
+        // if (!isCell)
+        //   return true;
+        // return !isHeapBigInt
+        LBasicBlock isBigInt32Case = m_out.newBlock();
+        LBasicBlock isNotBigInt32Case = m_out.newBlock();
+        LBasicBlock isNotCellCase = m_out.newBlock();
+        LBasicBlock isCellCase = m_out.newBlock();
+        LBasicBlock continuation = m_out.newBlock();
+
+        m_out.branch(isBigInt32(jsValue, type), unsure(isBigInt32Case), unsure(isNotBigInt32Case));
+
+        LBasicBlock lastNext = m_out.appendTo(isBigInt32Case, isNotBigInt32Case);
+        ValueFromBlock returnFalse = m_out.anchor(m_out.booleanFalse);
+        m_out.jump(continuation);
+
+        m_out.appendTo(isNotBigInt32Case, isNotCellCase);
+        // FIXME: we should filter the type passed to isCell to account for the previous test that told us we are definitely not a BigInt32.
+        m_out.branch(isCell(jsValue, type), unsure(isCellCase), unsure(isNotCellCase));
+
+        m_out.appendTo(isNotCellCase, isCellCase);
+        ValueFromBlock returnTrue = m_out.anchor(m_out.booleanTrue);
+        m_out.jump(continuation);
+
+        m_out.appendTo(isCellCase, continuation);
+        ValueFromBlock returnIsNotHeapBigInt = m_out.anchor(isNotHeapBigInt(jsValue));
+        m_out.jump(continuation);
+
+        m_out.appendTo(continuation, lastNext);
+        return m_out.phi(Int32, returnFalse, returnTrue, returnIsNotHeapBigInt);
+    }
+#endif // USE(BIGINT32)
+
     LValue isCellOrMisc(LValue jsValue, SpeculatedType type = SpecFullTop)
     {
         if (LValue proven = isProvenValue(type, SpecCellCheck | SpecMisc))
@@ -17033,8 +17475,16 @@ private:
         case BooleanUse:
             speculateBoolean(edge);
             break;
-        case BigIntUse:
-            speculateBigInt(edge);
+#if USE(BIGINT32)
+        case BigInt32Use:
+            speculateBigInt32(edge);
+            break;
+        case AnyBigIntUse:
+            speculateAnyBigInt(edge);
+            break;
+#endif // USE(BIGINT32)
+        case HeapBigIntUse:
+            speculateHeapBigInt(edge);
             break;
         case NotStringVarUse:
             speculateNotStringVar(edge);
@@ -17220,18 +17670,38 @@ private:
             m_out.constInt32(vm().symbolStructure->id()));
     }
 
-    LValue isNotBigInt(LValue cell, SpeculatedType type = SpecFullTop)
+    LValue isNotHeapBigIntUnknownWhetherCell(LValue value, SpeculatedType type = SpecFullTop)
     {
-        if (LValue proven = isProvenValue(type & SpecCell, ~SpecBigInt))
+        if (LValue proven = isProvenValue(type, ~SpecHeapBigInt))
+            return proven;
+
+        LBasicBlock isCellCase = m_out.newBlock();
+        LBasicBlock continuation = m_out.newBlock();
+
+        ValueFromBlock defaultToFalse = m_out.anchor(m_out.booleanFalse);
+        m_out.branch(isCell(value, type), unsure(isCellCase), unsure(continuation));
+
+        LBasicBlock lastNext = m_out.appendTo(isCellCase, continuation);
+        ValueFromBlock returnForCell = m_out.anchor(isHeapBigInt(value, type));
+        m_out.jump(continuation);
+
+        m_out.appendTo(continuation, lastNext);
+        LValue result = m_out.phi(Int32, defaultToFalse, returnForCell);
+        return result;
+    }
+
+    LValue isNotHeapBigInt(LValue cell, SpeculatedType type = SpecFullTop)
+    {
+        if (LValue proven = isProvenValue(type & SpecCell, ~SpecHeapBigInt))
             return proven;
         return m_out.notEqual(
             m_out.load32(cell, m_heaps.JSCell_structureID),
             m_out.constInt32(vm().bigIntStructure->id()));
     }
 
-    LValue isBigInt(LValue cell, SpeculatedType type = SpecFullTop)
+    LValue isHeapBigInt(LValue cell, SpeculatedType type = SpecFullTop)
     {
-        if (LValue proven = isProvenValue(type & SpecCell, SpecBigInt))
+        if (LValue proven = isProvenValue(type & SpecCell, SpecHeapBigInt))
             return proven;
         return m_out.equal(
             m_out.load32(cell, m_heaps.JSCell_structureID),
@@ -17689,15 +18159,28 @@ private:
         speculateSymbol(edge, lowCell(edge));
     }
 
-    void speculateBigInt(Edge edge, LValue cell)
+    void speculateHeapBigInt(Edge edge, LValue cell)
     {
-        FTL_TYPE_CHECK(jsValueValue(cell), edge, SpecBigInt, isNotBigInt(cell));
+        FTL_TYPE_CHECK(jsValueValue(cell), edge, SpecHeapBigInt, isNotHeapBigInt(cell));
+    }
+    void speculateHeapBigInt(Edge edge)
+    {
+        speculateHeapBigInt(edge, lowCell(edge));
     }
 
-    void speculateBigInt(Edge edge)
+#if USE(BIGINT32)
+    void speculateBigInt32(Edge edge)
     {
-        speculateBigInt(edge, lowCell(edge));
+        LValue value = lowJSValue(edge, ManualOperandSpeculation);
+        FTL_TYPE_CHECK(jsValueValue(value), edge, SpecBigInt32, isNotBigInt32(value));
     }
+
+    void speculateAnyBigInt(Edge edge)
+    {
+        LValue value = lowJSValue(edge, ManualOperandSpeculation);
+        FTL_TYPE_CHECK(jsValueValue(value), edge, SpecBigInt, isNotAnyBigInt(value));
+    }
+#endif
 
     void speculateNonNullObject(Edge edge, LValue cell)
     {

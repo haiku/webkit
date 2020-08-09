@@ -135,6 +135,10 @@ typedef struct _AtkObject AtkObject;
 #include <WebKitAdditions/PlatformGestureEventMac.h>
 #endif
 
+#if ENABLE(MEDIA_USAGE)
+#include <WebCore/MediaSessionIdentifier.h>
+#endif
+
 #if PLATFORM(COCOA)
 #include "DynamicViewportSizeUpdate.h"
 #include <WebCore/VisibleSelection.h>
@@ -208,6 +212,7 @@ struct GlobalFrameIdentifier;
 struct GlobalWindowIdentifier;
 struct Highlight;
 struct KeypressCommand;
+struct MediaUsageInfo;
 struct PromisedAttachmentInfo;
 struct RunJavaScriptParameters;
 struct TextCheckingResult;
@@ -356,8 +361,11 @@ public:
 
 #if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
     PlaybackSessionManager& playbackSessionManager();
-    VideoFullscreenManager& videoFullscreenManager();
     void videoControlsManagerDidChange();
+#endif
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    VideoFullscreenManager& videoFullscreenManager();
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -642,6 +650,8 @@ public:
     void setCanShowPlaceholder(const WebCore::ElementContext&, bool);
 
 #if PLATFORM(IOS_FAMILY)
+    void focusTextInputContextAndPlaceCaret(const WebCore::ElementContext&, const WebCore::IntPoint&, CompletionHandler<void(bool)>&&);
+
     bool shouldRevealCurrentSelectionAfterInsertion() const { return m_shouldRevealCurrentSelectionAfterInsertion; }
     void setShouldRevealCurrentSelectionAfterInsertion(bool);
 
@@ -1245,7 +1255,7 @@ public:
 
     void configureLoggingChannel(const String&, WTFLogChannelState, WTFLogLevel);
 
-    WebCore::Element* elementForContext(const WebCore::ElementContext&) const;
+    RefPtr<WebCore::Element> elementForContext(const WebCore::ElementContext&) const;
     Optional<WebCore::ElementContext> contextForElement(WebCore::Element&) const;
 
     void startTextManipulations(Vector<WebCore::TextManipulationController::ExclusionRule>&&, CompletionHandler<void()>&&);
@@ -1307,7 +1317,13 @@ public:
     bool needsInAppBrowserPrivacyQuirks() const { return m_needsInAppBrowserPrivacyQuirks; }
     
     bool shouldUseRemoteRenderingFor(WebCore::RenderingPurpose);
-    
+
+#if ENABLE(MEDIA_USAGE)
+    void addMediaUsageManagerSession(WebCore::MediaSessionIdentifier, const String&, const URL&);
+    void updateMediaUsageManagerSessionState(WebCore::MediaSessionIdentifier, const WebCore::MediaUsageInfo&);
+    void removeMediaUsageManagerSession(WebCore::MediaSessionIdentifier);
+#endif
+
 private:
     WebPage(WebCore::PageIdentifier, WebPageCreationParameters&&);
 
@@ -1507,8 +1523,12 @@ private:
 
 #if PLATFORM(IOS_FAMILY)
     bool parentProcessHasServiceWorkerEntitlement() const;
+    void disableServiceWorkerEntitlement();
+    void clearServiceWorkerEntitlementOverride(CompletionHandler<void()>&&);
 #else
     bool parentProcessHasServiceWorkerEntitlement() const { return true; }
+    void disableServiceWorkerEntitlement() { }
+    void clearServiceWorkerEntitlementOverride(CompletionHandler<void()>&& completionHandler) { completionHandler(); }
 #endif
 
     void didReceivePolicyDecision(WebCore::FrameIdentifier, uint64_t listenerID, PolicyDecision&&);
@@ -1685,6 +1705,7 @@ private:
     void urlSchemeTaskDidComplete(uint64_t handlerIdentifier, uint64_t taskIdentifier, const WebCore::ResourceError&);
 
     void setShouldFireResizeEvents(bool);
+    void setNeedsDOMWindowResizeEvent();
 
     void setIsSuspended(bool);
 
@@ -1830,7 +1851,7 @@ private:
     RefPtr<RemoteWebInspectorUI> m_remoteInspectorUI;
     std::unique_ptr<WebPageInspectorTargetController> m_inspectorTargetController;
 
-#if (PLATFORM(IOS_FAMILY) && HAVE(AVKIT)) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
     RefPtr<PlaybackSessionManager> m_playbackSessionManager;
     RefPtr<VideoFullscreenManager> m_videoFullscreenManager;
 #endif

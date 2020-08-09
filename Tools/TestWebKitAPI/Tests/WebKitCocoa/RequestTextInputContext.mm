@@ -25,17 +25,20 @@
 
 #import "config.h"
 
+#if PLATFORM(IOS_FAMILY)
+
 #import "PlatformUtilities.h"
 #import "TestCocoa.h"
+#import "TestInputDelegate.h"
 #import "TestNavigationDelegate.h"
 #import "TestWKWebView.h"
 #import <WebKit/WKPreferencesRefPrivate.h>
-#import <WebKit/WKWebViewPrivate.h>
-#import <WebKit/WebKit.h>
+#import <WebKit/WKWebViewConfigurationPrivate.h>
+#import <WebKit/WKWebViewPrivateForTesting.h>
 #import <WebKit/_WKTextInputContext.h>
 #import <wtf/RetainPtr.h>
 
-@implementation WKWebView (SynchronousTextInputContext)
+@implementation TestWKWebView (SynchronousTextInputContext)
 
 - (NSArray<_WKTextInputContext *> *)synchronouslyRequestTextInputContextsInRect:(CGRect)rect
 {
@@ -49,16 +52,16 @@
     return result.autorelease();
 }
 
-- (BOOL)synchronouslyFocusTextInputContext:(_WKTextInputContext *)context
+- (UIResponder<UITextInput> *)synchronouslyFocusTextInputContext:(_WKTextInputContext *)context placeCaretAt:(CGPoint)point
 {
     __block bool finished = false;
-    __block bool success = false;
-    [self _focusTextInputContext:context completionHandler:^(BOOL innerSuccess) {
-        success = innerSuccess;
+    __block UIResponder<UITextInput> *responder = nil;
+    [self _focusTextInputContext:context placeCaretAt:point completionHandler:^(UIResponder<UITextInput> *textInputResponder) {
+        responder = textInputResponder;
         finished = true;
     }];
     TestWebKitAPI::Util::run(&finished);
-    return success;
+    return responder;
 }
 
 @end
@@ -156,7 +159,7 @@ static void webViewLoadHTMLStringAndWaitForAllFramesToPaint(TestWKWebView *webVi
     ASSERT(webView); // Make passing a nil web view a more obvious failure than a hang.
     bool didFireDOMLoadEvent = false;
     [webView performAfterLoading:[&] { didFireDOMLoadEvent = true; }];
-    [webView loadHTMLString:htmlString baseURL:nil];
+    [webView loadHTMLString:htmlString baseURL:[NSBundle.mainBundle.bundleURL URLByAppendingPathComponent:@"TestWebKitAPI.resources"]];
     TestWebKitAPI::Util::run(&didFireDOMLoadEvent);
     [webView waitForNextPresentationUpdate];
 }
@@ -182,6 +185,15 @@ TEST(RequestTextInputContext, Iframe)
     contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
     EXPECT_EQ(1UL, contexts.count);
     EXPECT_EQ(CGRectMake(0, 200, 100, 100), contexts[0].boundingRect);
+}
+
+TEST(RequestTextInputContext, ViewIsEditable)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<body></body>")];
+    [webView _setEditable:YES];
+    EXPECT_GE([webView synchronouslyRequestTextInputContextsInRect:[webView bounds]].count, 1UL);
 }
 
 static CGRect squareCenteredAtPoint(float x, float y, float length)
@@ -229,37 +241,234 @@ TEST(RequestTextInputContext, CompositedOverlap)
     EXPECT_EQ(1UL, contexts.count);
 }
 
-TEST(RequestTextInputContext, DISABLED_FocusTextInputContext)
+TEST(RequestTextInputContext, ReadOnlyField)
 {
-    RetainPtr<WKWebViewConfiguration> configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
-    WKPreferencesSetThreadedScrollingEnabled((WKPreferencesRef)[configuration preferences], false);
-    RetainPtr<TestWKWebView> webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
 
-    NSArray<_WKTextInputContext *> *contexts;
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' value='hello world' style='width: 100px; height: 50px;' readonly>")];
+    EXPECT_EQ(0UL, [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]].count);
+}
 
-    [webView synchronouslyLoadHTMLString:applyStyle(@"<input id='test' type='text' style='width: 50px; height: 50px;'>")];
-    contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+TEST(RequestTextInputContext, DisabledField)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' value='hello world' style='width: 100px; height: 50px;' disabled>")];
+    EXPECT_EQ(0UL, [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]].count);
+}
+
+TEST(RequestTextInputContext, FocusAfterNavigation)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    // 1. Load initial page and save off the text input context for the input element on it.
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' value='hello world' style='width: 100px; height: 50px;'>")];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
     EXPECT_EQ(1UL, contexts.count);
-    RetainPtr<_WKTextInputContext> originalInput = contexts[0];
-    EXPECT_TRUE([webView synchronouslyFocusTextInputContext:originalInput.get()]);
-    EXPECT_WK_STREQ("test", [webView objectByEvaluatingJavaScript:@"document.activeElement.id"]);
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
 
-    // The _WKTextInputContext should still work even after another request.
-    contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
-    EXPECT_TRUE([contexts[0] isEqual:originalInput.get()]);
-    EXPECT_TRUE([webView synchronouslyFocusTextInputContext:originalInput.get()]);
+    // 2. Load a new page.
+    [webView synchronouslyLoadHTMLString:@"<body></body>"];
+
+    // 3. Focus the input element in the old page.
+    EXPECT_NULL([webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:[inputElement boundingRect].origin]);
+}
+
+TEST(RequestTextInputContext, CaretShouldNotMoveInAlreadyFocusedField)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    constexpr char exampleText[] = "hello world";
+    constexpr size_t exampleTextLength = sizeof(exampleText) - 1;
+    [webView synchronouslyLoadHTMLString:applyStyle([NSString stringWithFormat:@"<input type='text' value='%s' style='width: 100px; height: 50px;'>", exampleText])];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+
+    EXPECT_WK_STREQ("BODY", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+
+    // Place the caret the end of the field; should succeed becausse field is not already focused.
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
+    CGRect boundingRect = [inputElement boundingRect];
+    CGPoint endPosition = CGPointMake(boundingRect.origin.x + boundingRect.size.width, boundingRect.origin.y + boundingRect.size.height / 2);
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:endPosition]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+
+    // Try to place the caret at the start of the field; should fail since field is already focused.
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:boundingRect.origin]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+}
+
+TEST(RequestTextInputContext, CaretShouldNotMoveInAlreadyFocusedField2)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+    auto inputDelegate = adoptNS([[TestInputDelegate alloc] init]);
+    [inputDelegate setFocusStartsInputSessionPolicyHandler:[] (WKWebView *, id <_WKFocusedElementInfo>) { return _WKFocusStartsInputSessionPolicyAllow; }];
+    [webView _setInputDelegate:inputDelegate.get()];
+
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' id='input' value='hello world' style='width: 100px; height: 50px;'>")];
+
+    // Use JavaScript to place the caret after the 'h' in the field.
+    [webView evaluateJavaScriptAndWaitForInputSessionToChange:@"input.focus()"];
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    [webView stringByEvaluatingJavaScript:@"input.setSelectionRange(1, 1)"];
+    EXPECT_EQ(1, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(1, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+
+    // Use -focusTextInputContext: to place the caret at the beginning of the field; no change because the field is already focused.
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:[inputElement boundingRect].origin]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(1, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(1, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+}
+
+TEST(RequestTextInputContext, FocusTextFieldThenProgrammaticallyReplaceWithTextAreaAndFocusTextArea)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' style='width: 50px; height: 50px;'>")];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+
+    RetainPtr<_WKTextInputContext> originalInput = contexts[0];
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:originalInput.get() placeCaretAt:[originalInput boundingRect].origin]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
 
     // Replace the <input> with a <textarea> with script; the <input> should no longer be focusable.
-    [webView objectByEvaluatingJavaScript:@"document.body.innerHTML = '<textarea id=\"area\">';"];
+    [webView objectByEvaluatingJavaScript:@"document.body.innerHTML = '<textarea>'"];
     contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
     EXPECT_EQ(1UL, contexts.count);
     RetainPtr<_WKTextInputContext> textArea = contexts[0];
-    EXPECT_FALSE([textArea isEqual:originalInput.get()]);
-    EXPECT_FALSE([webView synchronouslyFocusTextInputContext:originalInput.get()]);
-    EXPECT_TRUE([webView synchronouslyFocusTextInputContext:textArea.get()]);
-    EXPECT_WK_STREQ("area", [webView objectByEvaluatingJavaScript:@"document.activeElement.id"]);
-
-    // Destroy the <textarea> by navigating away; we can no longer focus it.
-    [webView synchronouslyLoadHTMLString:@""];
-    EXPECT_FALSE([webView synchronouslyFocusTextInputContext:textArea.get()]);
+    EXPECT_NULL([webView synchronouslyFocusTextInputContext:originalInput.get() placeCaretAt:[originalInput boundingRect].origin]);
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:textArea.get() placeCaretAt:[textArea boundingRect].origin]);
+    EXPECT_WK_STREQ("TEXTAREA", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
 }
+
+TEST(RequestTextInputContext, FocusFieldAndPlaceCaretAtStart)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    [webView synchronouslyLoadHTMLString:applyStyle(@"<input type='text' value='hello world' style='width: 100px; height: 50px;'>")];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
+
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:[inputElement boundingRect].origin]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+}
+
+TEST(RequestTextInputContext, FocusFieldAndPlaceCaretAtEnd)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    constexpr char exampleText[] = "hello world";
+    constexpr size_t exampleTextLength = sizeof(exampleText) - 1;
+    [webView synchronouslyLoadHTMLString:applyStyle([NSString stringWithFormat:@"<input type='text' value='%s' style='width: 100px; height: 50px;'>", exampleText])];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
+
+    CGRect boundingRect = [inputElement boundingRect];
+    CGPoint endPosition = CGPointMake(boundingRect.origin.x + boundingRect.size.width, boundingRect.origin.y + boundingRect.size.height / 2);
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:endPosition]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+}
+
+TEST(RequestTextInputContext, FocusFieldAndPlaceCaretOutsideField)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    constexpr char exampleText[] = "hello world";
+    constexpr size_t exampleTextLength = sizeof(exampleText) - 1;
+    [webView synchronouslyLoadHTMLString:applyStyle([NSString stringWithFormat:@"<input type='text' value='%s' style='width: 100px; height: 50px;'>", exampleText])];
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(1UL, contexts.count);
+    RetainPtr<_WKTextInputContext> inputElement = contexts[0];
+
+    auto resetTest = [&] {
+        [webView stringByEvaluatingJavaScript:@"document.activeElement.blur()"];
+        EXPECT_WK_STREQ("BODY", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    };
+
+    // Point before the field
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:CGPointMake(-1000, -500)]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+    resetTest();
+
+    // Point after the field
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:inputElement.get() placeCaretAt:CGPointMake(1000, 500)]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(static_cast<int>(exampleTextLength), [[webView objectByEvaluatingJavaScript:@"document.activeElement.selectionEnd"] intValue]);
+    resetTest();
+}
+
+TEST(RequestTextInputContext, FocusFieldInFrame)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    [configuration _setAllowUniversalAccessFromFileURLs:YES];
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    auto testPage = applyStyle([NSString stringWithFormat:@"<input type='text' value='mainFrameField' style='width: 100px; height: 50px;'>%@", applyIframe(@"<input type='text' value='iframeField' style='width: 120px; height: 70px;'>")]);
+    webViewLoadHTMLStringAndWaitForAllFramesToPaint(webView.get(), testPage);
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(2UL, contexts.count);
+    RetainPtr<_WKTextInputContext> frameBField = contexts[0];
+
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:frameBField.get() placeCaretAt:[frameBField boundingRect].origin]);
+    EXPECT_WK_STREQ("IFRAME", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.tagName"]);
+    EXPECT_WK_STREQ("iframeField", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.value"]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.selectionStart"] intValue]);
+    EXPECT_EQ(0, [[webView objectByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.selectionEnd"] intValue]);
+}
+
+TEST(RequestTextInputContext, SwitchFocusBetweenFrames)
+{
+    auto configuration = adoptNS([[WKWebViewConfiguration alloc] init]);
+    [configuration _setAllowUniversalAccessFromFileURLs:YES];
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:configuration.get()]);
+
+    auto testPage = applyStyle([NSString stringWithFormat:@"<input type='text' value='mainFrameField' style='width: 100px; height: 50px;'>%@", applyIframe(@"<input type='text' value='iframeField' style='width: 100px; height: 50px;'>")]);
+    webViewLoadHTMLStringAndWaitForAllFramesToPaint(webView.get(), testPage);
+    NSArray<_WKTextInputContext *> *contexts = [webView synchronouslyRequestTextInputContextsInRect:[webView bounds]];
+    EXPECT_EQ(2UL, contexts.count);
+    // Note that returned contexts are in hit-test order.
+    RetainPtr<_WKTextInputContext> frameAField = contexts[1];
+    RetainPtr<_WKTextInputContext> frameBField = contexts[0];
+
+    EXPECT_WK_STREQ("BODY", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_WK_STREQ("BODY", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.tagName"]);
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:frameAField.get() placeCaretAt:[frameAField boundingRect].origin]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_WK_STREQ("mainFrameField", [webView stringByEvaluatingJavaScript:@"document.activeElement.value"]);
+    EXPECT_WK_STREQ("BODY", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.tagName"]);
+
+    EXPECT_EQ((UIResponder<UITextInput> *)[webView textInputContentView], [webView synchronouslyFocusTextInputContext:frameBField.get() placeCaretAt:[frameBField boundingRect].origin]);
+    EXPECT_WK_STREQ("IFRAME", [webView stringByEvaluatingJavaScript:@"document.activeElement.tagName"]);
+    EXPECT_WK_STREQ("INPUT", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.tagName"]);
+    EXPECT_WK_STREQ("iframeField", [webView stringByEvaluatingJavaScript:@"document.querySelector('iframe').contentDocument.activeElement.value"]);
+}
+
+#endif // PLATFORM(IOS_FAMILY)

@@ -4848,18 +4848,6 @@ LayoutRect RenderBox::flippedClientBoxRect() const
     return rect;
 }
 
-LayoutRect RenderBox::overflowRectForPaintRejection() const
-{
-    LayoutRect overflowRect = visualOverflowRect();
-    
-    if (!m_overflow || !usesCompositedScrolling())
-        return overflowRect;
-
-    overflowRect.unite(layoutOverflowRect());
-    overflowRect.moveBy(-scrollPosition());
-    return overflowRect;
-}
-
 LayoutUnit RenderBox::offsetLeft() const
 {
     return adjustedPositionRelativeToOffsetParent(topLeftLocation()).x();
@@ -5008,7 +4996,8 @@ const RenderBox* RenderBox::findEnclosingScrollableContainer() const
             return &candidate;
     }
     // If all parent elements are not overflow scrollable, check the body.
-    if (document().body() && frame().mainFrame().view() && frame().mainFrame().view()->isScrollable())
+    // FIXME: We should not treat the body as the scrollable element (see webkit.org/b/210469).
+    if (document().body() && frame().view() && frame().view()->isScrollable())
         return document().body()->renderBox();
     
     return nullptr;

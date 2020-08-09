@@ -543,7 +543,9 @@ void MacroAssembler::probe(Probe::Function function, void* arg)
     storePair64(x28, x30, sp, TrustedImm32(offsetof(IncomingProbeRecord, x28))); // Note: x30 is lr.
     move(TrustedImmPtr(tagCFunction<JITProbeTrampolinePtrTag>(ctiMasmProbeTrampoline)), x26);
     move(TrustedImmPtr(tagCFunction<JITProbeExecutorPtrTag>(Probe::executeProbe)), x28);
+#if CPU(ARM64E)
     ASSERT(isTaggedWith(function, JITProbePtrTag));
+#endif
     move(TrustedImmPtr(reinterpret_cast<void*>(function)), x24);
     move(TrustedImmPtr(arg), x25);
     call(x26, JITProbeTrampolinePtrTag);
@@ -588,4 +590,3 @@ MacroAssemblerARM64::CPUIDCheckState MacroAssemblerARM64::s_jscvtCheckState = CP
 } // namespace JSC
 
 #endif // ENABLE(ASSEMBLER) && CPU(ARM64)
-

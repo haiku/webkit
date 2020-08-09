@@ -49,6 +49,7 @@
     macro(Promise) \
     macro(Reflect) \
     macro(RegExp) \
+    macro(RelativeTimeFormat) \
     macro(RemotePlayback) \
     macro(Set) \
     macro(SharedArrayBuffer) \
@@ -97,7 +98,6 @@
     macro(displayName) \
     macro(done) \
     macro(dotAll) \
-    macro(entries) \
     macro(enumerable) \
     macro(era) \
     macro(eval) \
@@ -137,7 +137,6 @@
     macro(isWatchpoint) \
     macro(jettisonReason) \
     macro(join) \
-    macro(keys) \
     macro(lastIndex) \
     macro(length) \
     macro(line) \
@@ -180,6 +179,7 @@
     macro(stack) \
     macro(stackTraceLimit) \
     macro(sticky) \
+    macro(style) \
     macro(subarray) \
     macro(summary) \
     macro(target) \
@@ -195,11 +195,11 @@
     macro(toLocaleString) \
     macro(toPrecision) \
     macro(toString) \
+    macro(type) \
     macro(uid) \
     macro(unicode) \
     macro(usage) \
     macro(value) \
-    macro(values) \
     macro(valueOf) \
     macro(weekday) \
     macro(writable) \

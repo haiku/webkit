@@ -78,26 +78,23 @@ MediaStreamTrackPrivate::~MediaStreamTrackPrivate()
     m_source->removeObserver(*this);
 }
 
-void MediaStreamTrackPrivate::forEachObserver(const Function<void(Observer&)>& apply) const
+void MediaStreamTrackPrivate::forEachObserver(const Function<void(Observer&)>& apply)
 {
     ASSERT(isMainThread());
-    for (auto* observer : copyToVector(m_observers)) {
-        if (!m_observers.contains(observer))
-            continue;
-        apply(*observer);
-    }
+    auto protectedThis = makeRef(*this);
+    m_observers.forEach(apply);
 }
 
 void MediaStreamTrackPrivate::addObserver(MediaStreamTrackPrivate::Observer& observer)
 {
     ASSERT(isMainThread());
-    m_observers.add(&observer);
+    m_observers.add(observer);
 }
 
 void MediaStreamTrackPrivate::removeObserver(MediaStreamTrackPrivate::Observer& observer)
 {
     ASSERT(isMainThread());
-    m_observers.remove(&observer);
+    m_observers.remove(observer);
 }
 
 const String& MediaStreamTrackPrivate::label() const

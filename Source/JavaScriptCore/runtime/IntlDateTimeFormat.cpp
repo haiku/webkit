@@ -104,12 +104,17 @@ void IntlDateTimeFormat::setBoundFormat(VM& vm, JSBoundFunction* format)
     m_boundFormat.set(vm, this, format);
 }
 
+static ALWAYS_INLINE bool isUTCEquivalent(StringView timeZone)
+{
+    return timeZone == "Etc/UTC" || timeZone == "Etc/GMT";
+}
+
+// https://tc39.es/ecma402/#sec-defaulttimezone
 static String defaultTimeZone()
 {
-    // 6.4.3 DefaultTimeZone () (ECMA-402 2.0)
-    // The DefaultTimeZone abstract operation returns a String value representing the valid (6.4.1) and canonicalized (6.4.2) time zone name for the host environment’s current time zone.
-
     UErrorCode status = U_ZERO_ERROR;
+    String canonical;
+
     Vector<UChar, 32> buffer(32);
     auto bufferLength = ucal_getDefaultTimeZone(buffer.data(), buffer.size(), &status);
     if (status == U_BUFFER_OVERFLOW_ERROR) {
@@ -127,10 +132,13 @@ static String defaultTimeZone()
             ucal_getCanonicalTimeZoneID(buffer.data(), bufferLength, canonicalBuffer.data(), canonicalLength, nullptr, &status);
         }
         if (U_SUCCESS(status))
-            return String(canonicalBuffer.data(), canonicalLength);
+            canonical = String(canonicalBuffer.data(), canonicalLength);
     }
 
-    return "UTC"_s;
+    if (canonical.isNull() || isUTCEquivalent(canonical))
+        return "UTC"_s;
+
+    return canonical;
 }
 
 static String canonicalizeTimeZoneName(const String& timeZoneName)
@@ -176,8 +184,8 @@ static String canonicalizeTimeZoneName(const String& timeZoneName)
     uenum_close(timeZones);
 
     // 3. If ianaTimeZone is "Etc/UTC" or "Etc/GMT", then return "UTC".
-    if (canonical == "Etc/UTC" || canonical == "Etc/GMT")
-        canonical = "UTC"_s;
+    if (isUTCEquivalent(canonical))
+        return "UTC"_s;
 
     // 4. Return ianaTimeZone.
     return canonical;
@@ -502,7 +510,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
 
     m_hourCycle = resolved.get("hc"_s);
     m_numberingSystem = resolved.get("nu"_s);
-    String dataLocale = resolved.get("dataLocale"_s);
+    CString dataLocaleWithExtensions = makeString(resolved.get("dataLocale"_s), "-u-ca-", m_calendar, "-nu-", m_numberingSystem).utf8();
 
     JSValue tzValue = options->get(globalObject, vm.propertyNames->timeZone);
     RETURN_IF_EXCEPTION(scope, void());
@@ -631,7 +639,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
 
     // Always use ICU date format generator, rather than our own pattern list and matcher.
     UErrorCode status = U_ZERO_ERROR;
-    UDateTimePatternGenerator* generator = udatpg_open(dataLocale.utf8().data(), &status);
+    UDateTimePatternGenerator* generator = udatpg_open(dataLocaleWithExtensions.data(), &status);
     if (U_FAILURE(status)) {
         throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
         return;
@@ -683,7 +691,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
 
     status = U_ZERO_ERROR;
     StringView timeZoneView(m_timeZone);
-    m_dateFormat = std::unique_ptr<UDateFormat, UDateFormatDeleter>(udat_open(UDAT_PATTERN, UDAT_PATTERN, m_locale.utf8().data(), timeZoneView.upconvertedCharacters(), timeZoneView.length(), pattern.upconvertedCharacters(), pattern.length(), &status));
+    m_dateFormat = std::unique_ptr<UDateFormat, UDateFormatDeleter>(udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), timeZoneView.upconvertedCharacters(), timeZoneView.length(), pattern.upconvertedCharacters(), pattern.length(), &status));
     if (U_FAILURE(status)) {
         throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
         return;
@@ -932,9 +940,10 @@ ASCIILiteral IntlDateTimeFormat::partTypeString(UDateFormatField field)
     case UDAT_ERA_FIELD:
         return "era"_s;
     case UDAT_YEAR_FIELD:
-    case UDAT_YEAR_NAME_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
         return "year"_s;
+    case UDAT_YEAR_NAME_FIELD:
+        return "yearName"_s;
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
         return "month"_s;
@@ -966,6 +975,8 @@ ASCIILiteral IntlDateTimeFormat::partTypeString(UDateFormatField field)
     case UDAT_TIMEZONE_ISO_FIELD:
     case UDAT_TIMEZONE_ISO_LOCAL_FIELD:
         return "timeZoneName"_s;
+    case UDAT_RELATED_YEAR_FIELD:
+        return "relatedYear"_s;
     // These should not show up because there is no way to specify them in DateTimeFormat options.
     // If they do, they don't fit well into any of known part types, so consider it an "unknown".
     case UDAT_DAY_OF_YEAR_FIELD:
@@ -977,7 +988,6 @@ ASCIILiteral IntlDateTimeFormat::partTypeString(UDateFormatField field)
     case UDAT_MILLISECONDS_IN_DAY_FIELD:
     case UDAT_QUARTER_FIELD:
     case UDAT_STANDALONE_QUARTER_FIELD:
-    case UDAT_RELATED_YEAR_FIELD:
     case UDAT_TIME_SEPARATOR_FIELD:
     // Any newer additions to the UDateFormatField enum should just be considered an "unknown" part.
     default:
@@ -1019,7 +1029,6 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
         return throwOutOfMemoryError(globalObject, scope);
 
     auto resultString = String(result.data(), resultLength);
-    auto typePropertyName = Identifier::fromString(vm, "type");
     auto literalString = jsNontrivialString(vm, "literal"_s);
 
     int32_t previousEndIndex = 0;
@@ -1033,7 +1042,7 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
         if (previousEndIndex < beginIndex) {
             auto value = jsString(vm, resultString.substring(previousEndIndex, beginIndex - previousEndIndex));
             JSObject* part = constructEmptyObject(globalObject);
-            part->putDirect(vm, typePropertyName, literalString);
+            part->putDirect(vm, vm.propertyNames->type, literalString);
             part->putDirect(vm, vm.propertyNames->value, value);
             parts->push(globalObject, part);
             RETURN_IF_EXCEPTION(scope, { });
@@ -1044,7 +1053,7 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
             auto type = jsString(vm, partTypeString(UDateFormatField(fieldType)));
             auto value = jsString(vm, resultString.substring(beginIndex, endIndex - beginIndex));
             JSObject* part = constructEmptyObject(globalObject);
-            part->putDirect(vm, typePropertyName, type);
+            part->putDirect(vm, vm.propertyNames->type, type);
             part->putDirect(vm, vm.propertyNames->value, value);
             parts->push(globalObject, part);
             RETURN_IF_EXCEPTION(scope, { });

@@ -79,7 +79,9 @@ public:
         case StringUse:
         case StringOrOtherUse:
         case SymbolUse:
-        case BigIntUse:
+        case AnyBigIntUse:
+        case HeapBigIntUse:
+        case BigInt32Use:
         case StringObjectUse:
         case StringOrStringObjectUse:
         case NotStringVarUse:
@@ -241,7 +243,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case GetClosureVar:
     case GetGlobalVar:
     case GetGlobalLexicalVariable:
-    case CheckCell:
+    case CheckIsConstant:
     case CheckNotEmpty:
     case AssertNotEmpty:
     case CheckIdent:
@@ -263,6 +265,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case IsUndefinedOrNull:
     case IsBoolean:
     case IsNumber:
+    case IsBigInt:
     case NumberIsInteger:
     case IsObject:
     case IsObjectOrNull:
@@ -542,14 +545,13 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case CallForwardVarargs:
     case ConstructForwardVarargs:
     case NewObject:
-    case NewPromise:
     case NewGenerator:
     case NewAsyncGenerator:
     case NewArray:
     case NewArrayWithSize:
     case NewArrayBuffer:
     case NewArrayWithSpread:
-    case NewArrayIterator:
+    case NewInternalFieldObject:
     case Spread:
     case NewRegexp:
     case NewSymbol:
@@ -620,7 +622,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case PhantomNewGeneratorFunction:
     case PhantomNewAsyncGeneratorFunction:
     case PhantomNewAsyncFunction:
-    case PhantomNewArrayIterator:
+    case PhantomNewInternalFieldObject:
     case PhantomCreateActivation:
     case PhantomNewRegexp:
     case PutHint:
@@ -677,10 +679,10 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case ValueDiv:
     case ValueMod:
     case ValuePow:
-        return node->isBinaryUseKind(BigIntUse);
+        return node->isBinaryUseKind(AnyBigIntUse) || node->isBinaryUseKind(BigInt32Use) || node->isBinaryUseKind(HeapBigIntUse);
 
     case ValueBitNot:
-        return node->child1().useKind() == BigIntUse;
+        return node->child1().useKind() == AnyBigIntUse || node->child1().useKind() == BigInt32Use || node->child1().useKind() == HeapBigIntUse;
 
     case LastNodeType:
         RELEASE_ASSERT_NOT_REACHED();

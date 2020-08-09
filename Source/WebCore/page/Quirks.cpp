@@ -158,6 +158,15 @@ bool Quirks::shouldDisableContentChangeObserverTouchEventAdjustment() const
     return host.endsWith(".youtube.com") || host == "youtube.com";
 }
 
+bool Quirks::needsMillisecondResolutionForHighResTimeStamp() const
+{
+    if (!needsQuirks())
+        return false;
+    // webkit.org/b/210527
+    auto host = m_document->url().host();
+    return equalLettersIgnoringASCIICase(host, "www.icourse163.org");
+}
+
 bool Quirks::shouldStripQuotationMarkInFontFaceSetFamily() const
 {
     if (!needsQuirks())
@@ -748,6 +757,16 @@ bool Quirks::needsCanPlayAfterSeekedQuirk() const
     m_needsCanPlayAfterSeekedQuirk = domain == "hulu.com" || domain.endsWith(".hulu.com");
 
     return m_needsCanPlayAfterSeekedQuirk.value();
+}
+
+bool Quirks::shouldLayOutAtMinimumWindowWidthWhenIgnoringScalingConstraints() const
+{
+    if (!needsQuirks())
+        return false;
+
+    // FIXME: We should consider replacing this with a heuristic to determine whether
+    // or not the edges of the page mostly lack content after shrinking to fit.
+    return m_document->url().host().endsWithIgnoringASCIICase(".wikipedia.org");
 }
 
 }

@@ -53,6 +53,7 @@
 #include "TypeProfilerLog.h"
 #include "VMInspector.h"
 #include "WasmCapabilities.h"
+#include <unicode/uversion.h>
 #include <wtf/Atomics.h>
 #include <wtf/CPUTime.h>
 #include <wtf/DataLog.h>
@@ -2205,7 +2206,7 @@ static EncodedJSValue JSC_HOST_CALL functionCallWithStackSize(JSGlobalObject* gl
     uint8_t* vmStackEnd = vmStackStart - originalMaxPerThreadStackUsage;
     ptrdiff_t sizeDiff = vmStackEnd - end;
     RELEASE_ASSERT(sizeDiff >= 0);
-    RELEASE_ASSERT(sizeDiff < UINT_MAX);
+    RELEASE_ASSERT(static_cast<uint64_t>(sizeDiff) < UINT_MAX);
 
     Options::maxPerThreadStackUsage() = originalMaxPerThreadStackUsage + sizeDiff;
     helper.updateVMStackLimits();
@@ -2977,6 +2978,13 @@ static EncodedJSValue JSC_HOST_CALL functionSetUserPreferredLanguages(JSGlobalOb
     return JSValue::encode(jsUndefined());
 }
 
+static EncodedJSValue JSC_HOST_CALL functionICUVersion(JSGlobalObject*, CallFrame*)
+{
+    UVersionInfo versionInfo;
+    u_getVersion(versionInfo);
+    return JSValue::encode(jsNumber(versionInfo[0]));
+}
+
 void JSDollarVM::finishCreation(VM& vm)
 {
     DollarVMAssertScope assertScope;
@@ -3114,6 +3122,7 @@ void JSDollarVM::finishCreation(VM& vm)
     addFunction(vm, "rejectPromiseAsHandled", functionRejectPromiseAsHandled, 1);
 
     addFunction(vm, "setUserPreferredLanguages", functionSetUserPreferredLanguages, 1);
+    addFunction(vm, "icuVersion", functionICUVersion, 0);
 
     m_objectDoingSideEffectPutWithoutCorrectSlotStatusStructure.set(vm, this, ObjectDoingSideEffectPutWithoutCorrectSlotStatus::createStructure(vm, globalObject, jsNull()));
 }

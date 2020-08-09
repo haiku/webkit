@@ -281,9 +281,12 @@ struct WKAutoCorrectionData {
     RetainPtr<UIMenu> _contextMenuLegacyMenu;
     BOOL _contextMenuHasRequestedLegacyData;
     BOOL _contextMenuActionProviderDelegateNeedsOverride;
-    RetainPtr<UITargetedPreview> _contextMenuInteractionTargetedPreview;
 #endif
     RetainPtr<UIPreviewItemController> _previewItemController;
+#endif
+
+#if USE(UICONTEXTMENU)
+    RetainPtr<UITargetedPreview> _contextMenuInteractionTargetedPreview;
 #endif
 
     std::unique_ptr<WebKit::SmartMagnificationController> _smartMagnificationController;
@@ -567,6 +570,9 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (WKDrawingCoordinator *)_drawingCoordinator;
 #endif
 
+- (void)_requestTextInputContextsInRect:(CGRect)rect completionHandler:(void (^)(NSArray<_WKTextInputContext *> *))completionHandler;
+- (void)_focusTextInputContext:(_WKTextInputContext *)context placeCaretAt:(CGPoint)point completionHandler:(void (^)(UIResponder<UITextInput> *))completionHandler;
+
 #if USE(TEXT_INTERACTION_ADDITIONS)
 - (void)_willBeginTextInteractionInTextInputContext:(_WKTextInputContext *)context;
 - (void)_didFinishTextInteractionInTextInputContext:(_WKTextInputContext *)context;
@@ -584,6 +590,10 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 - (void)_didChangeLinkPreviewAvailability;
 - (void)setContinuousSpellCheckingEnabled:(BOOL)enabled;
+
+#if USE(UICONTEXTMENU)
+- (UITargetedPreview *)_createTargetedContextMenuHintPreviewIfPossible;
+#endif
 
 @end
 

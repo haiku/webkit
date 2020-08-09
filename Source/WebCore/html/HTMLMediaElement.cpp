@@ -48,6 +48,7 @@
 #include "Document.h"
 #include "DocumentLoader.h"
 #include "ElementChildIterator.h"
+#include "EventLoop.h"
 #include "EventNames.h"
 #include "Frame.h"
 #include "FrameLoader.h"
@@ -166,7 +167,7 @@
 #include "NotImplemented.h"
 #endif
 
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 #include "VideoFullscreenModel.h"
 #endif
 
@@ -459,7 +460,6 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_logger(&document.logger())
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
-    , m_mediaSessionIdentifier(MediaSessionIdentifier::generate())
 {
     allMediaElements().add(this);
 
@@ -5035,7 +5035,7 @@ void HTMLMediaElement::mediaEngineWasUpdated()
         m_player->setCDM(&m_webKitMediaKeys->cdm());
 #endif
 
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
     if (!m_player)
         return;
     m_player->setVideoFullscreenFrame(m_videoFullscreenFrame);
@@ -6088,7 +6088,7 @@ WEBCORE_EXPORT void HTMLMediaElement::setVideoFullscreenStandby(bool value)
 
     m_videoFullscreenStandby = value;
     
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
     if (m_player)
         m_player->videoFullscreenStandbyChanged();
 #endif
@@ -6163,7 +6163,7 @@ void HTMLMediaElement::waitForPreparedForInlineThen(WTF::Function<void()>&& comp
     m_preparedForInlineCompletionHandler = WTFMove(completionHandler);
 }
 
-#if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 
 void HTMLMediaElement::willExitFullscreen()
 {
@@ -7505,7 +7505,7 @@ String HTMLMediaElement::mediaSessionTitle() const
 
 MediaSessionIdentifier HTMLMediaElement::mediaSessionUniqueIdentifier() const
 {
-    return m_mediaSessionIdentifier;
+    return m_mediaSession->mediaSessionIdentifier();
 }
 
 void HTMLMediaElement::didReceiveRemoteControlCommand(PlatformMediaSession::RemoteControlCommandType command, const PlatformMediaSession::RemoteCommandArgument* argument)

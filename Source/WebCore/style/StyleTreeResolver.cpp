@@ -265,20 +265,15 @@ ElementUpdate TreeResolver::resolvePseudoStyle(Element& element, const ElementUp
         return { };
 
     auto pseudoStyle = scope().resolver.pseudoStyleForElement(element, { pseudoId }, *elementUpdate.style, parentBoxStyleForPseudo(elementUpdate), &scope().selectorFilter);
-    if (!pseudoElementRendererIsNeeded(pseudoStyle.get()))
+    if (!pseudoStyle)
         return { };
 
-    PseudoElement* pseudoElement = pseudoId == PseudoId::Before ? element.beforePseudoElement() : element.afterPseudoElement();
-    if (!pseudoElement) {
-        auto newPseudoElement = PseudoElement::create(element, pseudoId);
-        pseudoElement = newPseudoElement.ptr();
-        if (pseudoId == PseudoId::Before)
-            element.setBeforePseudoElement(WTFMove(newPseudoElement));
-        else
-            element.setAfterPseudoElement(WTFMove(newPseudoElement));
-    }
+    auto* pseudoElement = pseudoId == PseudoId::Before ? element.beforePseudoElement() : element.afterPseudoElement();
+    bool hasAnimations = pseudoElement && pseudoElement->isTargetedByKeyframeEffectRequiringPseudoElement();
+    if (!pseudoElementRendererIsNeeded(pseudoStyle.get()) && !hasAnimations)
+        return { };
 
-    return createAnimatedElementUpdate(WTFMove(pseudoStyle), *pseudoElement, elementUpdate.change);
+    return createAnimatedElementUpdate(WTFMove(pseudoStyle), element.ensurePseudoElement(pseudoId), elementUpdate.change);
 }
 
 const RenderStyle* TreeResolver::parentBoxStyle() const

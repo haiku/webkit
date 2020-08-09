@@ -460,6 +460,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #endif
     , m_overriddenMediaType(parameters.overriddenMediaType)
     , m_processDisplayName(parameters.processDisplayName)
+    , m_isNavigatingToAppBoundDomain(parameters.limitsNavigationsToAppBoundDomains ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No)
 {
     ASSERT(m_identifier);
 
@@ -560,7 +561,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 
     updatePreferences(parameters.store);
 
-#if PLATFORM(IOS_FAMILY)
+#if PLATFORM(IOS_FAMILY) || ENABLE(ROUTING_ARBITRATION)
     if (!m_page->settings().useGPUProcessForMedia())
         DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
 #endif
@@ -872,7 +873,7 @@ WebPage::~WebPage()
     webPageCounter.decrement();
 #endif
     
-#if (PLATFORM(IOS_FAMILY) && HAVE(AVKIT)) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
     if (m_playbackSessionManager)
         m_playbackSessionManager->invalidate();
 
@@ -996,7 +997,7 @@ RefPtr<Plugin> WebPage::createPlugin(WebFrame* frame, HTMLPlugInElement* pluginE
     PluginProcessType processType = pluginElement->displayState() == HTMLPlugInElement::WaitingForSnapshot ? PluginProcessTypeSnapshot : PluginProcessTypeNormal;
 #endif
 
-    bool allowOnlyApplicationPlugins = !frame->coreFrame()->loader().subframeLoader().allowPlugins();
+    bool allowOnlyApplicationPlugins = !frame->coreFrame()->loader().arePluginsEnabled();
 
     uint64_t pluginProcessToken;
     uint32_t pluginLoadPolicy;
@@ -1497,7 +1498,7 @@ void WebPage::loadURLInFrame(URL&& url, const String& referrer, FrameIdentifier 
     if (!frame)
         return;
 
-    frame->coreFrame()->loader().load(FrameLoadRequest(*frame->coreFrame(), ResourceRequest(url, referrer), ShouldOpenExternalURLsPolicy::ShouldNotAllow));
+    frame->coreFrame()->loader().load(FrameLoadRequest(*frame->coreFrame(), ResourceRequest(url, referrer)));
 }
 
 void WebPage::loadDataInFrame(IPC::DataReference&& data, String&& MIMEType, String&& encodingName, URL&& baseURL, FrameIdentifier frameID)
@@ -1510,7 +1511,7 @@ void WebPage::loadDataInFrame(IPC::DataReference&& data, String&& MIMEType, Stri
     auto sharedBuffer = SharedBuffer::create(reinterpret_cast<const char*>(data.data()), data.size());
     ResourceResponse response(baseURL, MIMEType, sharedBuffer->size(), encodingName);
     SubstituteData substituteData(WTFMove(sharedBuffer), baseURL, WTFMove(response), SubstituteData::SessionHistoryVisibility::Hidden);
-    frame->coreFrame()->loader().load(FrameLoadRequest(*frame->coreFrame(), ResourceRequest(baseURL), ShouldOpenExternalURLsPolicy::ShouldNotAllow, WTFMove(substituteData)));
+    frame->coreFrame()->loader().load(FrameLoadRequest(*frame->coreFrame(), ResourceRequest(baseURL), WTFMove(substituteData)));
 }
 
 #if !PLATFORM(COCOA)
@@ -1538,11 +1539,11 @@ void WebPage::loadRequest(LoadParameters&& loadParameters)
     platformDidReceiveLoadParameters(loadParameters);
 
     // Initate the load in WebCore.
-    FrameLoadRequest frameLoadRequest { *m_mainFrame->coreFrame(), loadParameters.request, ShouldOpenExternalURLsPolicy::ShouldNotAllow };
+    FrameLoadRequest frameLoadRequest { *m_mainFrame->coreFrame(), loadParameters.request };
     frameLoadRequest.setShouldOpenExternalURLsPolicy(loadParameters.shouldOpenExternalURLsPolicy);
     frameLoadRequest.setShouldTreatAsContinuingLoad(loadParameters.shouldTreatAsContinuingLoad);
     frameLoadRequest.setLockHistory(loadParameters.lockHistory);
-    frameLoadRequest.setlockBackForwardList(loadParameters.lockBackForwardList);
+    frameLoadRequest.setLockBackForwardList(loadParameters.lockBackForwardList);
     frameLoadRequest.setClientRedirectSourceForHistory(loadParameters.clientRedirectSourceForHistory);
     frameLoadRequest.setIsRequestFromClientOrUserInput();
 
@@ -1577,7 +1578,8 @@ void WebPage::loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLo
     m_loaderClient->willLoadDataRequest(*this, request, const_cast<SharedBuffer*>(substituteData.content()), substituteData.mimeType(), substituteData.textEncoding(), substituteData.failingURL(), WebProcess::singleton().transformHandlesToObjects(userData.object()).get());
 
     // Initate the load in WebCore.
-    FrameLoadRequest frameLoadRequest(*m_mainFrame->coreFrame(), request, shouldOpenExternalURLsPolicy, substituteData);
+    FrameLoadRequest frameLoadRequest(*m_mainFrame->coreFrame(), request, substituteData);
+    frameLoadRequest.setShouldOpenExternalURLsPolicy(shouldOpenExternalURLsPolicy);
     frameLoadRequest.setShouldTreatAsContinuingLoad(shouldTreatAsContinuingLoad);
     frameLoadRequest.setIsRequestFromClientOrUserInput();
     m_mainFrame->coreFrame()->loader().load(WTFMove(frameLoadRequest));
@@ -3314,6 +3316,15 @@ void WebPage::setShouldFireResizeEvents(bool shouldFireResizeEvents)
         m_page->setShouldFireResizeEvents(shouldFireResizeEvents);
 }
 
+void WebPage::setNeedsDOMWindowResizeEvent()
+{
+    if (!m_page)
+        return;
+
+    if (auto* document = m_page->mainFrame().document())
+        document->setNeedsDOMWindowResizeEvent();
+}
+
 String WebPage::userAgent(const URL& webCoreURL) const
 {
     String userAgent = platformUserAgent(webCoreURL);
@@ -3663,9 +3674,12 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 #endif
 
 #if ENABLE(SERVICE_WORKER)
+    if (store.getBoolValueForKey(WebPreferencesKey::serviceWorkerEntitlementDisabledForTestingKey()))
+        disableServiceWorkerEntitlement();
+
     if (store.getBoolValueForKey(WebPreferencesKey::serviceWorkersEnabledKey())) {
-        ASSERT(parentProcessHasServiceWorkerEntitlement());
-        if (!parentProcessHasServiceWorkerEntitlement())
+        ASSERT(parentProcessHasServiceWorkerEntitlement() || m_isNavigatingToAppBoundDomain);
+        if (!parentProcessHasServiceWorkerEntitlement() && !m_isNavigatingToAppBoundDomain)
             RuntimeEnabledFeatures::sharedFeatures().setServiceWorkerEnabled(false);
     }
 #endif
@@ -3830,7 +3844,7 @@ void WebPage::inspectorFrontendCountChanged(unsigned count)
     send(Messages::WebPageProxy::DidChangeInspectorFrontendCount(count));
 }
 
-#if (PLATFORM(IOS_FAMILY) && HAVE(AVKIT)) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 PlaybackSessionManager& WebPage::playbackSessionManager()
 {
     if (!m_playbackSessionManager)
@@ -4644,8 +4658,6 @@ void WebPage::SandboxExtensionTracker::didStartProvisionalLoad(WebFrame* frame)
     if (!m_provisionalSandboxExtension)
         return;
 
-    ASSERT(!m_provisionalSandboxExtension || frame->coreFrame()->loader().provisionalDocumentLoader()->url().isLocalFile());
-
     m_provisionalSandboxExtension->consume();
 }
 
@@ -5240,7 +5252,7 @@ bool WebPage::canPluginHandleResponse(const ResourceResponse& response)
 {
 #if ENABLE(NETSCAPE_PLUGIN_API)
     uint32_t pluginLoadPolicy;
-    bool allowOnlyApplicationPlugins = !m_mainFrame->coreFrame()->loader().subframeLoader().allowPlugins();
+    bool allowOnlyApplicationPlugins = !m_mainFrame->coreFrame()->loader().arePluginsEnabled();
 
     uint64_t pluginProcessToken;
     String newMIMEType;
@@ -5788,7 +5800,7 @@ bool WebPage::canShowMIMEType(const String& mimeType, const Function<bool(const 
     if (!mimeType.isNull() && m_mimeTypesWithCustomContentProviders.contains(mimeType))
         return true;
 
-    if (corePage()->mainFrame().loader().subframeLoader().allowPlugins() && pluginsSupport(mimeType, PluginData::AllPlugins))
+    if (corePage()->mainFrame().loader().arePluginsEnabled() && pluginsSupport(mimeType, PluginData::AllPlugins))
         return true;
 
     // We can use application plugins even if plugins aren't enabled.
@@ -6904,7 +6916,7 @@ void WebPage::textInputContextsInRect(WebCore::FloatRect searchRect, CompletionH
 
 void WebPage::focusTextInputContext(const WebCore::ElementContext& textInputContext, CompletionHandler<void(bool)>&& completionHandler)
 {
-    RefPtr<Element> element = elementForContext(textInputContext);
+    auto element = elementForContext(textInputContext);
 
     if (element)
         element->focus();
@@ -6919,7 +6931,7 @@ void WebPage::setCanShowPlaceholder(const WebCore::ElementContext& elementContex
         downcast<HTMLTextFormControlElement>(*element).setCanShowPlaceholder(canShowPlaceholder);
 }
 
-Element* WebPage::elementForContext(const WebCore::ElementContext& elementContext) const
+RefPtr<Element> WebPage::elementForContext(const ElementContext& elementContext) const
 {
     if (elementContext.webPageIdentifier != m_identifier)
         return nullptr;
@@ -7061,6 +7073,23 @@ bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)
 #endif
     return false;
 }
+
+#if ENABLE(MEDIA_USAGE)
+void WebPage::addMediaUsageManagerSession(MediaSessionIdentifier identifier, const String& bundleIdentifier, const URL& pageURL)
+{
+    send(Messages::WebPageProxy::AddMediaUsageManagerSession(identifier, bundleIdentifier, pageURL));
+}
+
+void WebPage::updateMediaUsageManagerSessionState(MediaSessionIdentifier identifier, const MediaUsageInfo& usage)
+{
+    send(Messages::WebPageProxy::UpdateMediaUsageManagerSessionState(identifier, usage));
+}
+
+void WebPage::removeMediaUsageManagerSession(MediaSessionIdentifier identifier)
+{
+    send(Messages::WebPageProxy::RemoveMediaUsageManagerSession(identifier));
+}
+#endif // ENABLE(MEDIA_USAGE)
 
 } // namespace WebKit
 

@@ -119,6 +119,8 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Unsigned, shadowChickenLogSize, 1000, Normal, nullptr) \
     v(Unsigned, shadowChickenMaxTailDeletedFramesSize, 128, Normal, nullptr) \
     \
+    v(Bool, useIterationIntrinsics, true, Normal, nullptr) \
+    \
     v(Bool, useOSLog, false, Normal, "Log dataLog()s to os_log instead of stderr") \
     /* dumpDisassembly implies dumpDFGDisassembly. */ \
     v(Bool, dumpDisassembly, false, Normal, "dumps disassembly of all JIT compiled code upon compilation") \
@@ -481,7 +483,8 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, useWebAssemblyReferences, false, Normal, "Allow types from the wasm references spec.") \
     v(Bool, useWebAssemblyMultiValues, true, Normal, "Allow types from the wasm mulit-values spec.") \
     v(Bool, useWeakRefs, false, Normal, "Expose the WeakRef constructor.") \
-    v(Bool, useBigInt, false, Normal, "If true, we will enable BigInt support.") \
+    v(Bool, useBigInt, true, Normal, "If true, we will enable BigInt support.") \
+    v(Bool, useIntlRelativeTimeFormat, false, Normal, "Expose the Intl.RelativeTimeFormat constructor.") \
     v(Bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.") \
     v(Bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.") \
     v(Bool, forceMiniVMMode, false, Normal, "If true, it will force mini VM mode on.") \
@@ -500,6 +503,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, forceOSRExitToLLInt, false, Normal, "If true, we always exit to the LLInt. If false, we exit to whatever is most convenient.") \
     v(Unsigned, getByValICMaxNumberOfIdentifiers, 4, Normal, "Number of identifiers we see in the LLInt that could cause us to bail on generating an IC for get_by_val.") \
     v(Bool, usePublicClassFields, true, Normal, "If true, the parser will understand public data fields inside classes.") \
+    v(Bool, useLogicalAssignmentOperators, false, Normal, "Enable support for \?\?=, ||=, and &&= logical assignment operators.") \
     v(Bool, useRandomizingExecutableIslandAllocation, false, Normal, "For the arm64 ExecutableAllocator, if true, select which region to use randomly. This is useful for testing that jump islands work.") \
 
 enum OptionEquivalence {

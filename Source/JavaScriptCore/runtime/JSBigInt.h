@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2017 Caio Lima <ticaiolima@gmail.com>
- * Copyright (C) 2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2019-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,7 +60,7 @@ public:
 
     static Structure* createStructure(VM&, JSGlobalObject*, JSValue prototype);
     static JSBigInt* createZero(VM&);
-    static JSBigInt* tryCreateWithLength(JSGlobalObject*, unsigned length);
+    JS_EXPORT_PRIVATE static JSBigInt* tryCreateWithLength(JSGlobalObject*, unsigned length);
     static JSBigInt* createWithLengthUnchecked(VM&, unsigned length);
 
     static JSBigInt* createFrom(VM&, int32_t value);
@@ -82,6 +82,17 @@ public:
 
     unsigned length() const { return m_length; }
 
+    static JSValue makeHeapBigIntOrBigInt32(VM& vm, int64_t value)
+    {
+#if USE(BIGINT32)
+        if (value <= INT_MAX && value >= INT_MIN)
+            return JSValue(JSValue::JSBigInt32, static_cast<int32_t>(value));
+#endif
+
+        auto ptr = JSBigInt::createFrom(vm, value);
+        return JSValue(static_cast<JSCell*>(ptr));
+    }
+
     enum class ErrorParseMode {
         ThrowExceptions,
         IgnoreExceptions
@@ -90,13 +101,12 @@ public:
     enum class ParseIntMode { DisallowEmptyString, AllowEmptyString };
     enum class ParseIntSign { Unsigned, Signed };
 
-    static JSBigInt* parseInt(JSGlobalObject*, VM&, StringView, uint8_t radix, ErrorParseMode = ErrorParseMode::ThrowExceptions, ParseIntSign = ParseIntSign::Unsigned);
-    static JSBigInt* parseInt(JSGlobalObject*, StringView, ErrorParseMode = ErrorParseMode::ThrowExceptions);
-    static JSBigInt* stringToBigInt(JSGlobalObject*, StringView);
+    static JSValue parseInt(JSGlobalObject*, VM&, StringView, uint8_t radix, ErrorParseMode = ErrorParseMode::ThrowExceptions, ParseIntSign = ParseIntSign::Unsigned);
+    static JSValue parseInt(JSGlobalObject*, StringView, ErrorParseMode = ErrorParseMode::ThrowExceptions);
+    static JSValue stringToBigInt(JSGlobalObject*, StringView);
 
     static String tryGetString(VM&, JSBigInt*, unsigned radix);
 
-    Optional<uint8_t> singleDigitValueForString();
     String toString(JSGlobalObject*, unsigned radix);
     
     enum class ComparisonMode {
@@ -113,6 +123,7 @@ public:
     
     JS_EXPORT_PRIVATE static bool equals(JSBigInt*, JSBigInt*);
     bool equalsToNumber(JSValue);
+    JS_EXPORT_PRIVATE bool equalsToInt32(int32_t);
     static ComparisonResult compare(JSBigInt* x, JSBigInt* y);
 
     bool getPrimitiveNumber(JSGlobalObject*, double& number, JSValue& result) const;
@@ -142,6 +153,9 @@ public:
 
     static JSBigInt* leftShift(JSGlobalObject*, JSBigInt* x, JSBigInt* y);
     static JSBigInt* signedRightShift(JSGlobalObject*, JSBigInt* x, JSBigInt* y);
+
+    Digit digit(unsigned);
+    void setDigit(unsigned, Digit); // Use only when initializing.
 
 private:
     JSBigInt(VM&, Structure*, Digit*, unsigned length);
@@ -222,10 +236,10 @@ private:
     }
 
     template <typename CharType>
-    static JSBigInt* parseInt(JSGlobalObject*, CharType*  data, unsigned length, ErrorParseMode);
+    static JSValue parseInt(JSGlobalObject*, CharType*  data, unsigned length, ErrorParseMode);
 
     template <typename CharType>
-    static JSBigInt* parseInt(JSGlobalObject*, VM&, CharType* data, unsigned length, unsigned startIndex, unsigned radix, ErrorParseMode, ParseIntSign = ParseIntSign::Signed, ParseIntMode = ParseIntMode::AllowEmptyString);
+    static JSValue parseInt(JSGlobalObject*, VM&, CharType* data, unsigned length, unsigned startIndex, unsigned radix, ErrorParseMode, ParseIntSign = ParseIntSign::Signed, ParseIntMode = ParseIntMode::AllowEmptyString);
 
     static JSBigInt* allocateFor(JSGlobalObject*, VM&, unsigned radix, unsigned charcount);
 
@@ -250,18 +264,27 @@ private:
 
     inline Digit* dataStorage() { return m_data.get(m_length); }
 
-    Digit digit(unsigned);
-    void setDigit(unsigned, Digit);
-
     const unsigned m_length;
     bool m_sign { false };
     CagedUniquePtr<Gigacage::Primitive, Digit> m_data;
 };
 
-inline JSBigInt* asBigInt(JSValue value)
+inline JSBigInt* asHeapBigInt(JSValue value)
 {
-    ASSERT(value.asCell()->isBigInt());
+    ASSERT(value.asCell()->isHeapBigInt());
     return jsCast<JSBigInt*>(value.asCell());
+}
+
+inline JSBigInt::Digit JSBigInt::digit(unsigned n)
+{
+    ASSERT(n < length());
+    return dataStorage()[n];
+}
+
+inline void JSBigInt::setDigit(unsigned n, Digit value)
+{
+    ASSERT(n < length());
+    dataStorage()[n] = value;
 }
 
 } // namespace JSC

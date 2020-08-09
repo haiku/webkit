@@ -60,7 +60,9 @@ public:
     FloatPoint currentScrollOffset() const { return ScrollableArea::scrollOffsetFromPosition(m_currentScrollPosition, toFloatSize(m_scrollOrigin)); }
     FloatPoint lastCommittedScrollPosition() const { return m_lastCommittedScrollPosition; }
     FloatSize scrollDeltaSinceLastCommit() const { return m_currentScrollPosition - m_lastCommittedScrollPosition; }
-    
+
+    const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
+
     RectEdges<bool> edgePinnedState() const;
     bool isRubberBanding() const;
 
@@ -74,6 +76,7 @@ public:
     
 #if ENABLE(SCROLLING_THREAD)
     OptionSet<SynchronousScrollingReason> synchronousScrollingReasons() const { return m_synchronousScrollingReasons; }
+    void addSynchronousScrollingReason(SynchronousScrollingReason reason) { m_synchronousScrollingReasons.add(reason); }
     bool shouldUpdateScrollLayerPositionSynchronously() const { return !m_synchronousScrollingReasons.isEmpty(); }
 #endif
 
@@ -99,7 +102,7 @@ public:
 
     bool useDarkAppearanceForScrollbars() const { return m_scrollableAreaParameters.useDarkAppearanceForScrollbars; }
 
-    bool scrollLimitReached(const PlatformWheelEvent&) const;
+    bool eventCanScrollContents(const PlatformWheelEvent&) const;
 
     const LayerRepresentation& scrollContainerLayer() const { return m_scrollContainerLayer; }
     const LayerRepresentation& scrolledContentsLayer() const { return m_scrolledContentsLayer; }
@@ -124,7 +127,6 @@ protected:
     void applyLayerPositions() override;
 
     const FloatSize& reachableContentsSize() const { return m_reachableContentsSize; }
-    const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
     
     bool isLatchedNode() const;
 

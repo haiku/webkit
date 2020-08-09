@@ -74,14 +74,13 @@ inline CapabilityLevel canCompile(Node* node)
     case PutStructure:
     case GetButterfly:
     case NewObject:
-    case NewPromise:
     case NewGenerator:
     case NewAsyncGenerator:
     case NewStringObject:
     case NewSymbol:
     case NewArray:
     case NewArrayWithSpread:
-    case NewArrayIterator:
+    case NewInternalFieldObject:
     case Spread:
     case NewArrayBuffer:
     case NewTypedArray:
@@ -159,7 +158,7 @@ inline CapabilityLevel canCompile(Node* node)
     case GetArgument:
     case InvalidationPoint:
     case StringCharAt:
-    case CheckCell:
+    case CheckIsConstant:
     case CheckBadCell:
     case CheckNotEmpty:
     case AssertNotEmpty:
@@ -261,6 +260,7 @@ inline CapabilityLevel canCompile(Node* node)
     case IsUndefinedOrNull:
     case IsBoolean:
     case IsNumber:
+    case IsBigInt:
     case NumberIsInteger:
     case IsObject:
     case IsObjectOrNull:
@@ -292,7 +292,7 @@ inline CapabilityLevel canCompile(Node* node)
     case PhantomNewGeneratorFunction:
     case PhantomNewAsyncGeneratorFunction:
     case PhantomNewAsyncFunction:
-    case PhantomNewArrayIterator:
+    case PhantomNewInternalFieldObject:
     case PhantomCreateActivation:
     case PhantomNewRegexp:
     case PutHint:
@@ -484,7 +484,9 @@ CapabilityLevel canCompile(Graph& graph)
                 case StringObjectUse:
                 case StringOrStringObjectUse:
                 case SymbolUse:
-                case BigIntUse:
+                case AnyBigIntUse:
+                case BigInt32Use:
+                case HeapBigIntUse:
                 case DateObjectUse:
                 case MapObjectUse:
                 case SetObjectUse:

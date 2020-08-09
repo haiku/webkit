@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -520,6 +520,7 @@ public:
     bool hasConstant()
     {
         switch (op()) {
+        case CheckIsConstant:
         case JSConstant:
         case DoubleConstant:
         case Int52Constant:
@@ -657,10 +658,10 @@ public:
         children = AdjacencyList();
     }
 
-    void convertToPhantomNewArrayIterator()
+    void convertToPhantomNewInternalFieldObject()
     {
-        ASSERT(m_op == NewArrayIterator);
-        m_op = PhantomNewArrayIterator;
+        ASSERT(m_op == NewInternalFieldObject);
+        m_op = PhantomNewInternalFieldObject;
         m_flags &= ~NodeHasVarArgs;
         m_flags |= NodeMustGenerate;
         m_opInfo = OpInfoWrapper();
@@ -784,17 +785,16 @@ public:
         m_opInfo2 = OpInfoWrapper();
     }
 
-    void convertToNewPromise(RegisteredStructure structure)
+    void convertToNewInternalFieldObject(RegisteredStructure structure)
     {
         ASSERT(m_op == CreatePromise);
-        bool internal = isInternalPromise();
-        setOpAndDefaultFlags(NewPromise);
+        setOpAndDefaultFlags(NewInternalFieldObject);
         children.reset();
         m_opInfo = structure;
-        m_opInfo2 = internal;
+        m_opInfo2 = OpInfoWrapper();
     }
 
-    void convertToNewInternalFieldObject(NodeType newOp, RegisteredStructure structure)
+    void convertToNewInternalFieldObjectWithInlineFields(NodeType newOp, RegisteredStructure structure)
     {
         ASSERT(m_op == CreateAsyncGenerator || m_op == CreateGenerator);
         setOpAndDefaultFlags(newOp);
@@ -1312,7 +1312,7 @@ public:
 
     bool hasIsInternalPromise()
     {
-        return op() == CreatePromise || op() == NewPromise;
+        return op() == CreatePromise;
     }
 
     bool isInternalPromise()
@@ -1851,7 +1851,8 @@ public:
     bool hasCellOperand()
     {
         switch (op()) {
-        case CheckCell:
+        case CheckIsConstant:
+            return isCell(child1().useKind());
         case OverridesHasInstance:
         case NewFunction:
         case NewGeneratorFunction:
@@ -1981,10 +1982,9 @@ public:
         case ArrayifyToStructure:
         case MaterializeNewInternalFieldObject:
         case NewObject:
-        case NewPromise:
         case NewGenerator:
         case NewAsyncGenerator:
-        case NewArrayIterator:
+        case NewInternalFieldObject:
         case NewStringObject:
             return true;
         default:
@@ -2161,7 +2161,7 @@ public:
         case PhantomNewGeneratorFunction:
         case PhantomNewAsyncFunction:
         case PhantomNewAsyncGeneratorFunction:
-        case PhantomNewArrayIterator:
+        case PhantomNewInternalFieldObject:
         case PhantomCreateActivation:
         case PhantomNewRegexp:
             return true;
@@ -2622,6 +2622,18 @@ public:
     {
         return isSymbolSpeculation(prediction());
     }
+
+#if USE(BIGINT32)
+    bool shouldSpeculateBigInt32()
+    {
+        return isBigInt32Speculation(prediction());
+    }
+#endif
+
+    bool shouldSpeculateHeapBigInt()
+    {
+        return isHeapBigIntSpeculation(prediction());
+    }
     
     bool shouldSpeculateBigInt()
     {
@@ -2822,7 +2834,19 @@ public:
     {
         return op1->shouldSpeculateBigInt() && op2->shouldSpeculateBigInt();
     }
-    
+
+#if USE(BIGINT32)
+    static bool shouldSpeculateBigInt32(Node* op1, Node* op2)
+    {
+        return op1->shouldSpeculateBigInt32() && op2->shouldSpeculateBigInt32();
+    }
+#endif
+
+    static bool shouldSpeculateHeapBigInt(Node* op1, Node* op2)
+    {
+        return op1->shouldSpeculateHeapBigInt() && op2->shouldSpeculateHeapBigInt();
+    }
+
     static bool shouldSpeculateFinalObject(Node* op1, Node* op2)
     {
         return op1->shouldSpeculateFinalObject() && op2->shouldSpeculateFinalObject();

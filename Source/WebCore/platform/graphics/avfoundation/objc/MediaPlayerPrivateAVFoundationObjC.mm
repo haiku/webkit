@@ -87,7 +87,7 @@
 #import <wtf/text/CString.h>
 
 #if ENABLE(AVF_CAPTIONS)
-#include "TextTrack.h"
+#import "TextTrack.h"
 #endif
 
 #import <AVFoundation/AVAssetImageGenerator.h>
@@ -650,7 +650,7 @@ void MediaPlayerPrivateAVFoundationObjC::createAVPlayerLayer()
 
     m_videoLayerManager->setVideoLayer(m_videoLayer.get(), defaultSize);
 
-#if PLATFORM(IOS_FAMILY) && !PLATFORM(WATCHOS)
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     if ([m_videoLayer respondsToSelector:@selector(setPIPModeEnabled:)])
         [m_videoLayer setPIPModeEnabled:(player()->fullscreenMode() & MediaPlayer::VideoFullscreenModePictureInPicture)];
 #endif
@@ -1090,6 +1090,8 @@ PlatformLayer* MediaPlayerPrivateAVFoundationObjC::platformLayer() const
     return m_videoLayerManager->videoInlineLayer();
 }
 
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+
 void MediaPlayerPrivateAVFoundationObjC::updateVideoFullscreenInlineImage()
 {
     updateLastImage(UpdateType::UpdateSynchronously);
@@ -1156,6 +1158,8 @@ void MediaPlayerPrivateAVFoundationObjC::videoFullscreenStandbyChanged()
     updateDisableExternalPlayback();
 #endif
 }
+
+#endif // ENABLE(VIDEO_PRESENTATION_MODE)
 
 #if PLATFORM(IOS_FAMILY)
 NSArray *MediaPlayerPrivateAVFoundationObjC::timedMetadata() const
@@ -2885,7 +2889,7 @@ void MediaPlayerPrivateAVFoundationObjC::setShouldPlayToPlaybackTarget(bool shou
 
 void MediaPlayerPrivateAVFoundationObjC::updateDisableExternalPlayback()
 {
-#if PLATFORM(IOS_FAMILY)
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(APPLETV)
     if (!m_avPlayer)
         return;
 

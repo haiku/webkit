@@ -236,7 +236,6 @@ private:
     void establishSWContextConnection(WebCore::RegistrableDomain&&, CompletionHandler<void()>&&);
     void closeSWContextConnection();
     void unregisterSWConnection();
-    bool isServiceWorkerAllowed() const;
 #endif
 
     void createNewMessagePortChannel(const WebCore::MessagePortIdentifier& port1, const WebCore::MessagePortIdentifier& port2);
@@ -313,6 +312,8 @@ private:
     void stopAllNetworkActivityTrackingForPage(WebCore::PageIdentifier);
     size_t findRootNetworkActivity(WebCore::PageIdentifier);
     size_t findNetworkActivityTracker(ResourceLoadIdentifier resourceID);
+
+    void hasUploadStateChanged(bool);
 
 #if ENABLE(APPLE_PAY_REMOTE_UI)
     WebPaymentCoordinatorProxy& paymentCoordinator();

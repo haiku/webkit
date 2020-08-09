@@ -163,6 +163,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/websockets/WebSocketFrame.h
     Modules/websockets/WebSocketHandshake.h
 
+    accessibility/AXLogger.h
     accessibility/AXObjectCache.h
     accessibility/AXTextStateChangeIntent.h
     accessibility/AccessibilityListBox.h
@@ -1158,6 +1159,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/MediaPlayer.h
     platform/graphics/MediaPlayerEnums.h
     platform/graphics/MediaPlayerPrivate.h
+    platform/graphics/MediaUsageInfo.h
     platform/graphics/NativeImage.h
     platform/graphics/OpenGLESShims.h
     platform/graphics/OpenGLShims.h
@@ -1411,7 +1413,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/style/BorderData.h
     rendering/style/BorderValue.h
     rendering/style/CounterDirectives.h
-    rendering/style/DataRef.h
     rendering/style/FillLayer.h
     rendering/style/GapLength.h
     rendering/style/GridArea.h

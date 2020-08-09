@@ -29,6 +29,7 @@
 #if ENABLE(ASYNC_SCROLLING)
 
 #include "FloatPoint.h"
+#include "Logging.h"
 #include "PlatformWheelEvent.h"
 #include "ScrollingThread.h"
 #include "ScrollingTree.h"
@@ -82,7 +83,7 @@ void ScrollingTreeLatchingController::nodeDidHandleEvent(const PlatformWheelEven
         return;
     }
 
-    if (!wheelEvent.shouldConsiderLatching())
+    if (wheelEvent.delta().isZero() || !wheelEvent.shouldConsiderLatching())
         return;
 
     LOG_WITH_STREAM(ScrollLatching, stream << "ScrollingTreeLatchingController " << this << " nodeDidHandleEvent: latching to " << scrollingNodeID);

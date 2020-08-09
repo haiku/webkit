@@ -33,6 +33,7 @@
 #include "ScrollingThread.h"
 #include "ScrollingTreeFrameScrollingNode.h"
 #include "ScrollingTreeNode.h"
+#include "ScrollingTreeOverflowScrollProxyNode.h"
 #include "ScrollingTreeScrollingNode.h"
 #include <wtf/RunLoop.h>
 
@@ -92,6 +93,32 @@ void ThreadedScrollingTree::commitTreeState(std::unique_ptr<ScrollingStateTree> 
     decrementPendingCommitCount();
 }
 
+void ThreadedScrollingTree::propagateSynchronousScrollingReasons(const HashSet<ScrollingNodeID>& synchronousScrollingNodes)
+{
+    auto propagateStateToAncestors = [&](ScrollingTreeNode& node) {
+        ASSERT(is<ScrollingTreeScrollingNode>(node) && !downcast<ScrollingTreeScrollingNode>(node).synchronousScrollingReasons().isEmpty());
+
+        auto currNode = node.parent();
+        
+        while (currNode) {
+            if (is<ScrollingTreeScrollingNode>(currNode))
+                downcast<ScrollingTreeScrollingNode>(*currNode).addSynchronousScrollingReason(SynchronousScrollingReason::DescendantScrollersHaveSynchronousScrolling);
+
+            if (is<ScrollingTreeOverflowScrollProxyNode>(currNode)) {
+                currNode = nodeForID(downcast<ScrollingTreeOverflowScrollProxyNode>(*currNode).overflowScrollingNodeID());
+                continue;
+            }
+
+            currNode = currNode->parent();
+        }
+    };
+
+    for (auto nodeID : synchronousScrollingNodes) {
+        if (auto node = nodeForID(nodeID))
+            propagateStateToAncestors(*node);
+    }
+}
+
 void ThreadedScrollingTree::scrollingTreeNodeDidScroll(ScrollingTreeScrollingNode& node, ScrollingLayerPositionAction scrollingLayerPositionAction)
 {
     if (!m_scrollingCoordinator)
@@ -114,7 +141,8 @@ void ThreadedScrollingTree::scrollingTreeNodeDidScroll(ScrollingTreeScrollingNod
 #endif
 
     RunLoop::main().dispatch([strongThis = makeRef(*this), nodeID = node.scrollingNodeID(), scrollPosition, layoutViewportOrigin, scrollingLayerPositionAction] {
-        strongThis->m_scrollingCoordinator->scheduleUpdateScrollPositionAfterAsyncScroll(nodeID, scrollPosition, layoutViewportOrigin, scrollingLayerPositionAction);
+        if (auto* scrollingCoordinator = strongThis->m_scrollingCoordinator.get())
+            scrollingCoordinator->scheduleUpdateScrollPositionAfterAsyncScroll(nodeID, scrollPosition, layoutViewportOrigin, scrollingLayerPositionAction);
     });
 }
 
@@ -153,6 +181,11 @@ void ThreadedScrollingTree::waitForPendingCommits()
     LockHolder commitLocker(m_pendingCommitCountMutex);
     while (m_pendingCommitCount)
         m_commitCondition.wait(m_pendingCommitCountMutex);
+}
+
+void ThreadedScrollingTree::waitForScrollingTreeCommit()
+{
+    waitForPendingCommits();
 }
 
 void ThreadedScrollingTree::applyLayerPositions()

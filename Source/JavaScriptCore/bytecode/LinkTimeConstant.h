@@ -47,6 +47,7 @@ class JSGlobalObject;
     v(ownKeys, nullptr) \
     v(enqueueJob, nullptr) \
     v(makeTypeError, nullptr) \
+    v(AggregateError, nullptr) \
     v(typedArrayLength, nullptr) \
     v(typedArrayGetOriginalConstructor, nullptr) \
     v(typedArraySort, nullptr) \
@@ -73,6 +74,7 @@ class JSGlobalObject;
     v(Set, nullptr) \
     v(thisTimeValue, nullptr) \
     v(isConstructor, nullptr) \
+    v(sameValue, nullptr) \
     v(regExpProtoFlagsGetter, nullptr) \
     v(regExpProtoGlobalGetter, nullptr) \
     v(regExpProtoIgnoreCaseGetter, nullptr) \

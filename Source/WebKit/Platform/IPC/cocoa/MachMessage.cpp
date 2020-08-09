@@ -32,9 +32,19 @@
 
 namespace IPC {
 
+// Version of round_msg() using CheckedSize for extra safety.
+static inline CheckedSize safeRoundMsg(CheckedSize value)
+{
+    constexpr size_t alignment = sizeof(natural_t);
+    return ((value + (alignment - 1)) / alignment) * alignment;
+}
+
 std::unique_ptr<MachMessage> MachMessage::create(CString&& messageReceiverName, CString&& messageName, size_t size)
 {
-    void* memory = WTF::fastZeroedMalloc(sizeof(MachMessage) + size);
+    auto bufferSize = CheckedSize(sizeof(MachMessage)) + size;
+    if (bufferSize.hasOverflowed())
+        return nullptr;
+    void* memory = WTF::fastZeroedMalloc(bufferSize.unsafeGet());
     return std::unique_ptr<MachMessage> { new (NotNull, memory) MachMessage { WTFMove(messageReceiverName), WTFMove(messageName), size } };
 }
 
@@ -62,11 +72,7 @@ CheckedSize MachMessage::messageSize(size_t bodySize, size_t portDescriptorCount
         messageSize += (memoryDescriptorCount * sizeof(mach_msg_ool_descriptor_t));
     }
 
-    size_t safeMessageSize;
-    if (UNLIKELY(messageSize.safeGet(safeMessageSize) == CheckedState::DidOverflow))
-        return messageSize;
-
-    return round_msg(safeMessageSize);
+    return safeRoundMsg(messageSize);
 }
 
 void MachMessage::leakDescriptors()

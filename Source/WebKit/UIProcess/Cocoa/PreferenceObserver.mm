@@ -27,6 +27,7 @@
 #import "PreferenceObserver.h"
 
 #import "WebProcessPool.h"
+#import <pal/spi/cocoa/NSUserDefaultsSPI.h>
 
 @implementation WKUserDefaults
 
@@ -62,11 +63,14 @@
 {
 }
 
-- (instancetype)initWithSuiteName:(NSString *)suitename
+- (instancetype)initWithSuiteName:(NSString *)suiteName
 {
-    m_suiteName = suitename;
+    if (!(self = [super initWithSuiteName:suiteName]))
+        return nil;
+
+    m_suiteName = suiteName;
     m_observer = nil;
-    return [super initWithSuiteName:suitename];
+    return self;
 }
 @end
 

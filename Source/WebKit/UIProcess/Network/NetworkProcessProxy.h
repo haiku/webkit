@@ -26,6 +26,7 @@
 #pragma once
 
 #include "AuxiliaryProcessProxy.h"
+#include "CallbackID.h"
 #include "NetworkProcessProxyMessagesReplies.h"
 #include "ProcessLauncher.h"
 #include "ProcessThrottler.h"
@@ -200,9 +201,6 @@ public:
     void addSession(Ref<WebsiteDataStore>&&);
     void removeSession(PAL::SessionID);
     
-    void takeUploadAssertion();
-    void clearUploadAssertion();
-    
 #if ENABLE(INDEXED_DATABASE)
     void createSymLinkForFileUpgrade(const String& indexedDatabaseDirectory);
 #endif
@@ -225,7 +223,8 @@ public:
 
     void hasAppBoundSession(PAL::SessionID, CompletionHandler<void(bool)>&&);
     void setInAppBrowserPrivacyEnabled(PAL::SessionID, bool, CompletionHandler<void()>&&);
-    
+    void getAppBoundDomains(PAL::SessionID, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&&);
+
 private:
     // AuxiliaryProcessProxy
     ASCIILiteral processName() const final { return "Networking"_s; }
@@ -251,9 +250,10 @@ private:
     void didReceiveNetworkProcessProxyMessage(IPC::Connection&, IPC::Decoder&);
     void didReceiveAuthenticationChallenge(PAL::SessionID, WebPageProxyIdentifier, const Optional<WebCore::SecurityOriginData>&, WebCore::AuthenticationChallenge&&, bool, uint64_t challengeID);
     void negotiatedLegacyTLS(WebPageProxyIdentifier);
-    void didFetchWebsiteData(uint64_t callbackID, const WebsiteData&);
-    void didDeleteWebsiteData(uint64_t callbackID);
-    void didDeleteWebsiteDataForOrigins(uint64_t callbackID);
+    void didFetchWebsiteData(CallbackID, const WebsiteData&);
+    void didDeleteWebsiteData(CallbackID);
+    void didDeleteWebsiteDataForOrigins(CallbackID);
+    void setWebProcessHasUploads(WebCore::ProcessIdentifier, bool);
     void logDiagnosticMessage(WebPageProxyIdentifier, const String& message, const String& description, WebCore::ShouldSample);
     void logDiagnosticMessageWithResult(WebPageProxyIdentifier, const String& message, const String& description, uint32_t result, WebCore::ShouldSample);
     void logDiagnosticMessageWithValue(WebPageProxyIdentifier, const String& message, const String& description, double value, unsigned significantFigures, WebCore::ShouldSample);
@@ -290,9 +290,9 @@ private:
 
     WebProcessPool& m_processPool;
 
-    HashMap<uint64_t, CompletionHandler<void(WebsiteData)>> m_pendingFetchWebsiteDataCallbacks;
-    HashMap<uint64_t, CompletionHandler<void()>> m_pendingDeleteWebsiteDataCallbacks;
-    HashMap<uint64_t, CompletionHandler<void()>> m_pendingDeleteWebsiteDataForOriginsCallbacks;
+    HashMap<CallbackID, CompletionHandler<void(WebsiteData)>> m_pendingFetchWebsiteDataCallbacks;
+    HashMap<CallbackID, CompletionHandler<void()>> m_pendingDeleteWebsiteDataCallbacks;
+    HashMap<CallbackID, CompletionHandler<void()>> m_pendingDeleteWebsiteDataForOriginsCallbacks;
 
     std::unique_ptr<DownloadProxyMap> m_downloadProxyMap;
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
@@ -309,9 +309,12 @@ private:
     HashSet<WebUserContentControllerProxy*> m_webUserContentControllerProxies;
 #endif
 
-    HashMap<PAL::SessionID, RefPtr<WebsiteDataStore>> m_websiteDataStores;
-    
-    std::unique_ptr<ProcessAssertion> m_uploadAssertion;
+    struct UploadActivity {
+        std::unique_ptr<ProcessAssertion> uiAssertion;
+        std::unique_ptr<ProcessAssertion> networkAssertion;
+        HashMap<WebCore::ProcessIdentifier, std::unique_ptr<ProcessAssertion>> webProcessAssertions;
+    };
+    Optional<UploadActivity> m_uploadActivity;
 };
 
 } // namespace WebKit

@@ -87,6 +87,10 @@
 #include "SecItemShimProxy.h"
 #endif
 
+#if ENABLE(ROUTING_ARBITRATION)
+#include "AudioSessionRoutingArbitratorProxy.h"
+#endif
+
 #define MESSAGE_CHECK(assertion) MESSAGE_CHECK_BASE(assertion, connection())
 #define MESSAGE_CHECK_URL(url) MESSAGE_CHECK_BASE(checkURLReceivedFromWebProcess(url), connection())
 
@@ -187,6 +191,9 @@ WebProcessProxy::WebProcessProxy(WebProcessPool& processPool, WebsiteDataStore* 
     , m_mayHaveUniversalFileReadSandboxExtension(false)
     , m_numberOfTimesSuddenTerminationWasDisabled(0)
     , m_throttler(*this, processPool.shouldTakeUIBackgroundAssertion())
+#if ENABLE(ROUTING_ARBITRATION)
+    , m_routingArbitrator(makeUniqueRef<AudioSessionRoutingArbitratorProxy>(*this))
+#endif
     , m_isResponsive(NoOrMaybe::Maybe)
     , m_visiblePageCounter([this](RefCounterEvent) { updateBackgroundResponsivenessTimer(); })
     , m_websiteDataStore(websiteDataStore)
@@ -207,9 +214,6 @@ WebProcessProxy::~WebProcessProxy()
 {
     RELEASE_ASSERT(isMainThreadOrCheckDisabled());
     ASSERT(m_pageURLRetainCountMap.isEmpty());
-
-    if (m_processPool)
-        m_processPool->clearWebProcessHasUploads(coreProcessIdentifier());
 
     auto result = allProcesses().remove(coreProcessIdentifier());
     ASSERT_UNUSED(result, result);
@@ -410,6 +414,7 @@ void WebProcessProxy::shutDown()
     m_responsivenessTimer.invalidate();
     m_backgroundResponsivenessTimer.invalidate();
     m_activityForHoldingLockedFiles = nullptr;
+    m_audibleMediaActivity = WTF::nullopt;
 
     for (auto& frame : copyToVector(m_frameMap.values()))
         frame->webProcessWillShutDown();
@@ -509,7 +514,7 @@ void WebProcessProxy::removeWebPage(WebPageProxy& webPage, EndsUsingDataStore en
 
     removeVisitedLinkStoreUser(webPage.visitedLinkStore(), webPage.identifier());
     updateRegistrationWithDataStore();
-
+    updateAudibleMediaAssertions();
     updateBackgroundResponsivenessTimer();
 
     maybeShutDown();
@@ -821,6 +826,10 @@ void WebProcessProxy::processDidTerminateOrFailedToLaunch()
         if (!domain.isEmpty())
             page.logDiagnosticMessageWithEnhancedPrivacy(WebCore::DiagnosticLoggingKeys::domainCausingCrashKey(), domain, WebCore::ShouldSample::No);
     }
+#endif
+
+#if ENABLE(ROUTING_ARBITRATION)
+    m_routingArbitrator->processDidTerminate();
 #endif
 
     for (auto& page : pages)
@@ -1374,17 +1383,24 @@ void WebProcessProxy::didSetAssertionType(ProcessAssertionType type)
     ASSERT(!m_backgroundToken || !m_foregroundToken);
 }
 
-void WebProcessProxy::webPageMediaStateDidChange(WebPageProxy&)
+void WebProcessProxy::updateAudibleMediaAssertions()
 {
     bool newHasAudibleWebPage = WTF::anyOf(m_pageMap.values(), [] (auto& page) { return page->isPlayingAudio(); });
-    if (m_hasAudibleWebPage == newHasAudibleWebPage)
-        return;
-    m_hasAudibleWebPage = newHasAudibleWebPage;
 
-    if (m_hasAudibleWebPage)
-        processPool().setWebProcessIsPlayingAudibleMedia(coreProcessIdentifier());
-    else
-        processPool().clearWebProcessIsPlayingAudibleMedia(coreProcessIdentifier());
+    bool hasAudibleMediaActivity = !!m_audibleMediaActivity;
+    if (hasAudibleMediaActivity == newHasAudibleWebPage)
+        return;
+
+    if (newHasAudibleWebPage) {
+        RELEASE_LOG(ProcessSuspension, "%p - Taking MediaPlayback assertion for WebProcess with PID %d", this, processIdentifier());
+        m_audibleMediaActivity = AudibleMediaActivity {
+            makeUniqueRef<ProcessAssertion>(processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback),
+            processPool().webProcessWithAudibleMediaToken()
+        };
+    } else {
+        RELEASE_LOG(ProcessSuspension, "%p - Releasing MediaPlayback assertion for WebProcess with PID %d", this, processIdentifier());
+        m_audibleMediaActivity = WTF::nullopt;
+    }
 }
 
 void WebProcessProxy::setIsHoldingLockedFiles(bool isHoldingLockedFiles)

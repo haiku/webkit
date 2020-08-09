@@ -29,6 +29,7 @@
 #include "config.h"
 #include "VM.h"
 
+#include "AggregateError.h"
 #include "ArgList.h"
 #include "BigIntObject.h"
 #include "BooleanObject.h"
@@ -76,6 +77,7 @@
 #include "IntlDateTimeFormat.h"
 #include "IntlNumberFormat.h"
 #include "IntlPluralRules.h"
+#include "IntlRelativeTimeFormat.h"
 #include "IsoHeapCellType.h"
 #include "IsoInlinedHeapCellType.h"
 #include "JITCode.h"
@@ -308,6 +310,7 @@ VM::VM(VMType vmType, HeapType heapType)
     , immutableButterflyHeapCellType(makeUnique<HeapCellType>(CellAttributes(DoesNotNeedDestruction, HeapCell::JSCellWithInteriorPointers)))
     , cellHeapCellType(makeUnique<HeapCellType>(CellAttributes(DoesNotNeedDestruction, HeapCell::JSCell)))
     , destructibleCellHeapCellType(makeUnique<HeapCellType>(CellAttributes(NeedsDestruction, HeapCell::JSCell)))
+    , aggregateErrorHeapCellType(IsoHeapCellType::create<AggregateError>())
     , apiGlobalObjectHeapCellType(IsoHeapCellType::create<JSAPIGlobalObject>())
     , callbackConstructorHeapCellType(IsoHeapCellType::create<JSCallbackConstructor>())
     , callbackGlobalObjectHeapCellType(IsoHeapCellType::create<JSCallbackObject<JSGlobalObject>>())
@@ -338,6 +341,7 @@ VM::VM(VMType vmType, HeapType heapType)
     , intlDateTimeFormatHeapCellType(IsoHeapCellType::create<IntlDateTimeFormat>())
     , intlNumberFormatHeapCellType(IsoHeapCellType::create<IntlNumberFormat>())
     , intlPluralRulesHeapCellType(IsoHeapCellType::create<IntlPluralRules>())
+    , intlRelativeTimeFormatHeapCellType(IsoHeapCellType::create<IntlRelativeTimeFormat>())
 #if ENABLE(WEBASSEMBLY)
     , webAssemblyCodeBlockHeapCellType(IsoHeapCellType::create<JSWebAssemblyCodeBlock>())
     , webAssemblyFunctionHeapCellType(IsoHeapCellType::create<WebAssemblyFunction>())
@@ -492,7 +496,7 @@ VM::VM(VMType vmType, HeapType heapType)
         sentinelMapBucket();
         sentinelSetBucket();
     }
-    bigIntConstantOne.set(*this, JSBigInt::createFrom(*this, 1));
+    heapBigIntConstantOne.set(*this, JSBigInt::createFrom(*this, 1));
 
     Thread::current().setCurrentAtomStringTable(existingEntryAtomStringTable);
     
@@ -1437,6 +1441,7 @@ void VM::ensureShadowChicken()
     }
 
 
+DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(aggregateErrorSpace, aggregateErrorHeapCellType.get(), AggregateError)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(apiGlobalObjectSpace, apiGlobalObjectHeapCellType.get(), JSAPIGlobalObject)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(apiValueWrapperSpace, cellHeapCellType.get(), JSAPIValueWrapper)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(arrayBufferSpace, cellHeapCellType.get(), JSArrayBuffer)
@@ -1508,6 +1513,7 @@ DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlCollatorSpace, intlCollatorHeapCellT
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDateTimeFormatSpace, intlDateTimeFormatHeapCellType.get(), IntlDateTimeFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlNumberFormatSpace, intlNumberFormatHeapCellType.get(), IntlNumberFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlPluralRulesSpace, intlPluralRulesHeapCellType.get(), IntlPluralRules)
+DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlRelativeTimeFormatSpace, intlRelativeTimeFormatHeapCellType.get(), IntlRelativeTimeFormat)
 #if ENABLE(WEBASSEMBLY)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(jsToWasmICCalleeSpace, cellHeapCellType.get(), JSToWasmICCallee)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(webAssemblyCodeBlockSpace, webAssemblyCodeBlockHeapCellType.get(), JSWebAssemblyCodeBlock) // Hash:0x9ad995cd
@@ -1537,20 +1543,6 @@ DYNAMIC_SPACE_AND_SET_DEFINE_MEMBER_SLOW(evalExecutableSpace, destructibleCellHe
 DYNAMIC_SPACE_AND_SET_DEFINE_MEMBER_SLOW(moduleProgramExecutableSpace, destructibleCellHeapCellType.get(), ModuleProgramExecutable) // Hash:0x6506fa3c
 
 #undef DYNAMIC_SPACE_AND_SET_DEFINE_MEMBER_SLOW
-
-Structure* VM::setIteratorStructureSlow()
-{
-    ASSERT(!m_setIteratorStructure);
-    m_setIteratorStructure.set(*this, JSSetIterator::createStructure(*this, 0, jsNull()));
-    return m_setIteratorStructure.get();
-}
-
-Structure* VM::mapIteratorStructureSlow()
-{
-    ASSERT(!m_mapIteratorStructure);
-    m_mapIteratorStructure.set(*this, JSMapIterator::createStructure(*this, 0, jsNull()));
-    return m_mapIteratorStructure.get();
-}
 
 JSCell* VM::sentinelSetBucketSlow()
 {

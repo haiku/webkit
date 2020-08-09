@@ -32,7 +32,6 @@
 #include "DFGGraph.h"
 #include "DFGNode.h"
 #include "DFGNullAbstractState.h"
-#include "Operations.h"
 
 namespace JSC { namespace DFG {
 
@@ -71,7 +70,7 @@ ExitMode mayExitImpl(Graph& graph, Node* node, StateType& state)
     case BottomValue:
     case PutHint:
     case PhantomNewObject:
-    case PhantomNewArrayIterator:
+    case PhantomNewInternalFieldObject:
     case PutStack:
     case KillStack:
     case GetStack:
@@ -130,7 +129,7 @@ ExitMode mayExitImpl(Graph& graph, Node* node, StateType& state)
     case NewAsyncGeneratorFunction:
     case NewStringObject:
     case NewSymbol:
-    case NewArrayIterator:
+    case NewInternalFieldObject:
     case NewRegexp:
     case ToNumber:
     case ToNumeric:

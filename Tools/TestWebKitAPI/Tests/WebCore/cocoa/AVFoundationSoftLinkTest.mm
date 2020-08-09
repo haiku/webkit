@@ -23,7 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#import "config.h"
 
 #if PLATFORM(COCOA)
 
@@ -73,6 +73,10 @@ TEST(AVFoundationSoftLink, Classes)
     EXPECT_NE(PAL::getAVSpeechSynthesizerClass(), nullptr);
     EXPECT_NE(PAL::getAVSpeechUtteranceClass(), nullptr);
     EXPECT_NE(PAL::getAVSpeechSynthesisVoiceClass(), nullptr);
+#endif
+
+#if HAVE(AVAUDIO_ROUTING_ARBITER)
+    EXPECT_NE(PAL::getAVAudioRoutingArbiterClass(), nullptr);
 #endif
 
 #if HAVE(MEDIA_PLAYER) && !PLATFORM(WATCHOS)

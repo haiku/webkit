@@ -34,6 +34,7 @@ types [
     :GetByValHistory,
     :GetPutInfo,
     :IndexingType,
+    :IterationModeMetadata,
     :JSCell,
     :JSGlobalLexicalEnvironment,
     :JSGlobalObject,
@@ -329,6 +330,7 @@ op_group :UnaryOp,
         :is_undefined_or_null,
         :is_boolean,
         :is_number,
+        :is_big_int,
         :is_object,
         :is_object_or_null,
         :is_function,
@@ -1162,6 +1164,60 @@ op :get_rest_length,
         numParametersToSkip: unsigned,
     }
 
+# Semantically, this is iterator = symbolIterator.@call(iterable); next = iterator.next;
+# where symbolIterator the result of iterable[Symbol.iterator] (which is done in a different bytecode).
+# For builtin iterators, however, this has special behavior where next becomes the empty value, which
+# indicates that we are in a known iteration mode to op_iterator_next.
+op :iterator_open,
+    args: {
+        iterator: VirtualRegister,
+        next: VirtualRegister,
+        symbolIterator: VirtualRegister,
+        iterable: VirtualRegister,
+        stackOffset: unsigned,
+    },
+    metadata: {
+        iterationMetadata: IterationModeMetadata,
+        iterableProfile: ValueProfile,
+        callLinkInfo: LLIntCallLinkInfo,
+        iteratorProfile: ValueProfile,
+        modeMetadata: GetByIdModeMetadata,
+        nextProfile: ValueProfile,
+    },
+    checkpoints: {
+        symbolCall: nil,
+        getNext: nil,
+    }
+
+# Semantically, this is nextResult = next.@call(iterator); done = nextResult.done; value = done ? undefined : nextResult.value;
+op :iterator_next,
+    args: {
+        done: VirtualRegister,
+        value: VirtualRegister,
+        iterable: VirtualRegister,
+        next: VirtualRegister,
+        iterator: VirtualRegister,
+        stackOffset: unsigned,
+    },
+    metadata: {
+        iterationMetadata: IterationModeMetadata,
+        iterableProfile: ArrayProfile,
+        callLinkInfo: LLIntCallLinkInfo,
+        nextResultProfile: ValueProfile,
+        doneModeMetadata: GetByIdModeMetadata,
+        doneProfile: ValueProfile,
+        valueModeMetadata: GetByIdModeMetadata,
+        valueProfile: ValueProfile,
+    },
+    tmps: {
+        nextResult: JSValue,
+    },
+    checkpoints: {
+        computeNext: nil,
+        getDone: nil,
+        getValue: nil,
+    }
+
 op :yield,
     args: {
         generator: VirtualRegister,
@@ -1257,6 +1313,18 @@ op :llint_cloop_did_return_from_js_31
 op :llint_cloop_did_return_from_js_32
 op :llint_cloop_did_return_from_js_33
 op :llint_cloop_did_return_from_js_34
+op :llint_cloop_did_return_from_js_35
+op :llint_cloop_did_return_from_js_36
+op :llint_cloop_did_return_from_js_37
+op :llint_cloop_did_return_from_js_38
+op :llint_cloop_did_return_from_js_39
+op :llint_cloop_did_return_from_js_40
+op :llint_cloop_did_return_from_js_41
+op :llint_cloop_did_return_from_js_42
+op :llint_cloop_did_return_from_js_43
+op :llint_cloop_did_return_from_js_44
+op :llint_cloop_did_return_from_js_45
+op :llint_cloop_did_return_from_js_46
 
 end_section :CLoopHelpers
 
@@ -1290,6 +1358,8 @@ op :op_get_by_id_return_location
 op :op_get_by_val_return_location
 op :op_put_by_id_return_location
 op :op_put_by_val_return_location
+op :op_iterator_open_return_location
+op :op_iterator_next_return_location
 op :wasm_function_prologue
 op :wasm_function_prologue_no_tls
 

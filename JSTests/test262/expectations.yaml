@@ -1165,18 +1165,12 @@ test/built-ins/Object/values/order-after-define-property.js:
 test/built-ins/Promise/all/invoke-resolve-get-error-close.js:
   default: 'Test262Error: Expected SameValue(«0», «1») to be true'
   strict mode: 'Test262Error: Expected SameValue(«0», «1») to be true'
-test/built-ins/Promise/all/resolve-element-function-nonconstructor.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
 test/built-ins/Promise/allSettled/invoke-resolve-get-error-close.js:
   default: 'Test262Error: Expected SameValue(«0», «1») to be true'
   strict mode: 'Test262Error: Expected SameValue(«0», «1») to be true'
-test/built-ins/Promise/allSettled/reject-element-function-nonconstructor.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-test/built-ins/Promise/allSettled/resolve-element-function-nonconstructor.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/built-ins/Promise/any/invoke-resolve-get-error-close.js:
+  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«0», «1») to be true'
+  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«0», «1») to be true'
 test/built-ins/Promise/create-resolving-functions-reject.js:
   default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected true but got false'
   strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected true but got false'
@@ -1660,12 +1654,6 @@ test/built-ins/RegExp/proto-from-ctor-realm.js:
 test/built-ins/RegExp/prototype/Symbol.match/builtin-infer-unicode.js:
   default: 'Test262Error: Expected SameValue(«�», «null») to be true'
   strict mode: 'Test262Error: Expected SameValue(«�», «null») to be true'
-test/built-ins/RegExp/prototype/Symbol.search/set-lastindex-init-samevalue.js:
-  default: 'Test262Error: Expected SameValue(«-0», «0») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«-0», «0») to be true'
-test/built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-samevalue.js:
-  default: 'Test262Error: Expected SameValue(«-0», «0») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«-0», «0») to be true'
 test/built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance.js:
   default: 'Test262Error: Expected SameValue(«1», «-1») to be true'
   strict mode: 'Test262Error: Expected SameValue(«1», «-1») to be true'
@@ -1911,9 +1899,6 @@ test/built-ins/WeakRef/proto-from-ctor-realm.js:
 test/built-ins/WeakSet/proto-from-ctor-realm.js:
   default: 'Test262Error: Expected SameValue(«[object WeakSet]», «[object WeakSet]») to be true'
   strict mode: 'Test262Error: Expected SameValue(«[object WeakSet]», «[object WeakSet]») to be true'
-test/intl402/Collator/missing-unicode-ext-value-defaults-to-true.js:
-  default: 'Test262Error: "kn" should be returned in locale. Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262Error: "kn" should be returned in locale. Expected SameValue(«false», «true») to be true'
 test/intl402/Collator/proto-from-ctor-realm.js:
   default: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
   strict mode: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
@@ -1923,18 +1908,6 @@ test/intl402/Collator/usage-de.js:
 test/intl402/DateTimeFormat/proto-from-ctor-realm.js:
   default: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
   strict mode: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
-test/intl402/DateTimeFormat/prototype/format/related-year-zh.js:
-  default: 'Test262Error: Expected SameValue(«36年», «2019己亥年») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«36年», «2019己亥年») to be true'
-test/intl402/DateTimeFormat/prototype/formatToParts/pattern-on-calendar.js:
-  default: 'Test262Error: Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«false», «true») to be true'
-test/intl402/DateTimeFormat/prototype/formatToParts/related-year-zh.js:
-  default: 'Test262Error: undefined: length Expected SameValue(«2», «3») to be true'
-  strict mode: 'Test262Error: undefined: length Expected SameValue(«2», «3») to be true'
-test/intl402/DateTimeFormat/prototype/formatToParts/related-year.js:
-  default: 'Test262Error: Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«false», «true») to be true'
 test/intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default.js:
   default: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
   strict mode: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
@@ -1962,12 +1935,33 @@ test/intl402/NumberFormat/proto-from-ctor-realm.js:
 test/intl402/PluralRules/proto-from-ctor-realm.js:
   default: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
   strict mode: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Object]», «[object Object]») to be true'
+test/intl402/RelativeTimeFormat/constructor/constructor/locales-valid.js:
+  default: 'Test262Error: Grandfathered Expected a RangeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Grandfathered Expected a RangeError to be thrown but no exception was thrown at all'
+test/intl402/RelativeTimeFormat/constructor/constructor/proto-from-ctor-realm.js:
+  default: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Intl.RelativeTimeFormat]», «[object Intl.RelativeTimeFormat]») to be true'
+  strict mode: 'Test262Error: newTarget.prototype is undefined Expected SameValue(«[object Intl.RelativeTimeFormat]», «[object Intl.RelativeTimeFormat]») to be true'
+test/intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long.js:
+  default: 'Test262Error: Expected SameValue(«za 1000 sekund», «za 1 000 sekund») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«za 1000 sekund», «za 1 000 sekund») to be true'
+test/intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow.js:
+  default: 'Test262Error: Expected SameValue(«za 1000 s», «za 1 000 s») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«za 1000 s», «za 1 000 s») to be true'
+test/intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short.js:
+  default: 'Test262Error: Expected SameValue(«za 1000 sek.», «za 1 000 sek.») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«za 1000 sek.», «za 1 000 sek.») to be true'
+test/intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long.js:
+  default: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
+  strict mode: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
+test/intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow.js:
+  default: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
+  strict mode: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
+test/intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short.js:
+  default: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
+  strict mode: 'Test262Error: formatToParts(1000, second): length Expected SameValue(«3», «5») to be true'
 test/intl402/language-tags-invalid.js:
   default: 'Test262Error: Test data "de-gregory-gregory" is a canonicalized and structurally valid language tag.'
   strict mode: 'Test262Error: Test data "de-gregory-gregory" is a canonicalized and structurally valid language tag.'
-test/intl402/supportedLocalesOf-returned-array-elements-are-not-frozen.js:
-  default: 'Test262Error: Property 0 of object returned by SupportedLocales is not writable. Expected SameValue(«false», «true») to be true (Testing with Collator.)'
-  strict mode: 'Test262Error: Property 0 of object returned by SupportedLocales is not writable. Expected SameValue(«false», «true») to be true (Testing with Collator.)'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-arguments.js:
   default: 'Test262Error: Expected obj[0] to have enumerable:false.'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-param.js:
@@ -2718,6 +2712,12 @@ test/language/expressions/import.meta/syntax/invalid-assignment-target-for-of-lo
 test/language/expressions/instanceof/prototype-getter-with-primitive.js:
   default: "Test262Error: getter for 'prototype' called"
   strict mode: "Test262Error: getter for 'prototype' called"
+test/language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs.js:
+  default: 'Test262: This statement should not be evaluated.'
+test/language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs.js:
+  default: 'Test262: This statement should not be evaluated.'
+test/language/expressions/logical-assignment/lgcl-or-assignment-operator-non-simple-lhs.js:
+  default: 'Test262: This statement should not be evaluated.'
 test/language/expressions/new/ctorExpr-fn-ref-before-args-eval-fn-wrapup.js:
   default: "TypeError: 1 is not a constructor (evaluating 'new x(x = 1)')"
   strict mode: "TypeError: 1 is not a constructor (evaluating 'new x(x = 1)')"

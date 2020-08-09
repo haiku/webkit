@@ -85,6 +85,8 @@ namespace JSC {
     macro(repeatCharacter) \
     macro(starDefault) \
     macro(InspectorInstrumentation) \
+    macro(keys) \
+    macro(values) \
     macro(get) \
     macro(set) \
     macro(shift) \
@@ -120,6 +122,7 @@ namespace JSC {
     macro(instanceOf) \
     macro(isArraySlow) \
     macro(isConstructor) \
+    macro(sameValue) \
     macro(concatMemcpy) \
     macro(appendMemcpy) \
     macro(regExpCreate) \
@@ -128,17 +131,14 @@ namespace JSC {
     macro(replaceUsingStringSearch) \
     macro(replaceAllUsingStringSearch) \
     macro(makeTypeError) \
-    macro(mapBucket) \
+    macro(AggregateError) \
     macro(mapBucketHead) \
     macro(mapBucketNext) \
     macro(mapBucketKey) \
     macro(mapBucketValue) \
-    macro(mapIteratorKind) \
-    macro(setBucket) \
     macro(setBucketHead) \
     macro(setBucketNext) \
     macro(setBucketKey) \
-    macro(setIteratorKind) \
     macro(regExpBuiltinExec) \
     macro(regExpMatchFast) \
     macro(regExpProtoFlagsGetter) \

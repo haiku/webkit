@@ -52,14 +52,15 @@ const ClassInfo IntlNumberFormatPrototype::s_info = { "Object", &Base::s_info, &
 /* Source for IntlNumberFormatPrototype.lut.h
 @begin numberFormatPrototypeTable
   format           IntlNumberFormatPrototypeGetterFormat         DontEnum|Accessor
+  formatToParts    IntlNumberFormatPrototypeFuncFormatToParts    DontEnum|Function 1
   resolvedOptions  IntlNumberFormatPrototypeFuncResolvedOptions  DontEnum|Function 0
 @end
 */
 
-IntlNumberFormatPrototype* IntlNumberFormatPrototype::create(VM& vm, JSGlobalObject* globalObject, Structure* structure)
+IntlNumberFormatPrototype* IntlNumberFormatPrototype::create(VM& vm, JSGlobalObject*, Structure* structure)
 {
     IntlNumberFormatPrototype* object = new (NotNull, allocateCell<IntlNumberFormatPrototype>(vm.heap)) IntlNumberFormatPrototype(vm, structure);
-    object->finishCreation(vm, globalObject, structure);
+    object->finishCreation(vm);
     return object;
 }
 
@@ -73,10 +74,9 @@ IntlNumberFormatPrototype::IntlNumberFormatPrototype(VM& vm, Structure* structur
 {
 }
 
-void IntlNumberFormatPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject, Structure*)
+void IntlNumberFormatPrototype::finishCreation(VM& vm)
 {
     Base::finishCreation(vm);
-    JSC_NATIVE_FUNCTION_WITHOUT_TRANSITION(vm.propertyNames->formatToParts, IntlNumberFormatPrototypeFuncFormatToParts, static_cast<unsigned>(PropertyAttribute::DontEnum), 1);
     putDirectWithoutTransition(vm, vm.propertyNames->toStringTagSymbol, jsNontrivialString(vm, "Object"_s), PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
 }
 
@@ -87,12 +87,25 @@ static EncodedJSValue JSC_HOST_CALL IntlNumberFormatFuncFormat(JSGlobalObject* g
     auto scope = DECLARE_THROW_SCOPE(vm);
     auto* numberFormat = jsCast<IntlNumberFormat*>(callFrame->thisValue());
 
-    auto variant = callFrame->argument(0).toNumeric(globalObject);
+    JSValue bigIntOrNumber = callFrame->argument(0).toNumeric(globalObject);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
 
-    RELEASE_AND_RETURN(scope, JSValue::encode(switchOn(variant, [&](auto&& value) {
-        return numberFormat->format(globalObject, value);
-    })));
+    scope.release();
+    if (bigIntOrNumber.isNumber()) {
+        double value = bigIntOrNumber.asNumber();
+        return JSValue::encode(numberFormat->format(globalObject, value));
+    }
+
+#if USE(BIGINT32)
+    if (bigIntOrNumber.isBigInt32()) {
+        JSBigInt* value = JSBigInt::createFrom(vm, bigIntOrNumber.bigInt32AsInt32());
+        return JSValue::encode(numberFormat->format(globalObject, value));
+    }
+#endif
+
+    ASSERT(bigIntOrNumber.isHeapBigInt());
+    JSBigInt* value = bigIntOrNumber.asHeapBigInt();
+    return JSValue::encode(numberFormat->format(globalObject, value));
 }
 
 EncodedJSValue JSC_HOST_CALL IntlNumberFormatPrototypeGetterFormat(JSGlobalObject* globalObject, CallFrame* callFrame)

@@ -272,6 +272,12 @@ typedef void(^RBSAssertionInvalidationCallbackType)();
 @end
 
 @implementation WKRBSAssertionDelegate
+- (void)dealloc
+{
+    [_invalidationCallback release];
+    [super dealloc];
+}
+
 - (void)assertionWillInvalidate:(RBSAssertion *)assertion
 {
     RELEASE_LOG(ProcessSuspension, "%p - WKRBSAssertionDelegate: assertionWillInvalidate", self);
@@ -300,7 +306,7 @@ static NSString *runningBoardNameForAssertionType(ProcessAssertionType assertion
     case ProcessAssertionType::UnboundedNetworking:
         return @"UnboundedNetworking";
     case ProcessAssertionType::Foreground:
-        return @"Foreground";
+        return nil; // Not using RunningBoard until <rdar://problem/61830390> is fixed.
     case ProcessAssertionType::DependentProcessLink:
         return @"DependentProcessLink";
     case ProcessAssertionType::MediaPlayback:

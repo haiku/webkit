@@ -1,3 +1,137 @@
+2020-04-17  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r242018): using `RegExp.prototype.test` with a global `RegExp` will ignore one potential match after each successful match
+        https://bugs.webkit.org/show_bug.cgi?id=210671
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Base/SearchUtilities.js:
+        (WI.SearchUtilities.searchRegExpForString):
+        (WI.SearchUtilities.filterRegExpForString):
+        (WI.SearchUtilities._regExpForString):
+        (WI.SearchUtilities.regExpForString): Deleted.
+        Many uses of `WI.SearchUtilities.regExpForString` use the returned `RegExp` multiple times,
+        expecting each use to be done in isolation from every other use (e.g. filtering). In these
+        cases, the global flag `g` should not be set on the `RegExp`, as otherwise it will keep a
+        state of the last matched index, thereby breaking this isolation. As such, it is necessary
+        to split `WI.SearchUtilities.regExpForString` into two versions, one for each use case.
+
+        * UserInterface/Views/DOMTreeElement.js:
+        (WI.DOMTreeElement.prototype._highlightSearchResults):
+        * UserInterface/Views/LogContentView.js:
+        (WI.LogContentView.prototype.performSearch):
+        * UserInterface/Views/ResourceHeadersContentView.js:
+        (WI.ResourceHeadersContentView.prototype._perfomSearchOnKeyValuePairs):
+        * UserInterface/Views/ResourceSecurityContentView.js:
+        (WI.ResourceSecurityContentView.prototype._perfomSearchOnKeyValuePairs):
+        * UserInterface/Views/SearchSidebarPanel.js:
+        (WI.SearchSidebarPanel.prototype.performSearch.forEachMatch):
+        Use `WI.SearchUtilities.searchRegExpForString` as these views expect the search to maintain
+        its current position throughout the contents of the view.
+
+        * UserInterface/Views/DataGrid.js:
+        (WI.DataGrid.prototype._updateFilter):
+        * UserInterface/Views/IndexedDatabaseObjectStoreContentView.js:
+        (WI.IndexedDatabaseObjectStoreContentView.prototype.dataGridMatchNodeAgainstCustomFilters):
+        * UserInterface/Views/NetworkTableContentView.js:
+        (WI.NetworkTableContentView.prototype._urlFilterDidChange):
+        * UserInterface/Views/SourceCodeTextEditor.js:
+        (WI.SourceCodeTextEditor.prototype.customPerformSearch.searchResultCallback):
+        * UserInterface/Views/TextEditor.js:
+        (WI.TextEditor.prototype.performSearch):
+        Use `WI.SearchUtilities.filterRegExpForString` as these views expect each search to be done
+        in isolation from every other search (e.g. filtering).
+
+2020-04-17  Devin Rousso  <drousso@apple.com>
+
+        Implement Promise.any and AggregateError
+        https://bugs.webkit.org/show_bug.cgi?id=202566
+
+        Reviewed by Yusuke Suzuki.
+
+        * UserInterface/Models/IssueMessage.js:
+        Mark `AggregateError` as a `WI.IssueMessage.Type.SemanticIssue`.
+
+2020-04-17  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        MediaQueryList should extend EventTarget
+        https://bugs.webkit.org/show_bug.cgi?id=203288
+
+        Reviewed by Darin Adler.
+
+        * UserInterface/Models/NativeFunctionParameters.js:
+
+2020-04-14  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Debugger: add a Step next that steps by expression
+        https://bugs.webkit.org/show_bug.cgi?id=210324
+
+        Reviewed by Timothy Hatcher.
+
+        Step next is a hybrid of Step over and Step into which continues execution to the next pause
+        opportunity within the current (or ancestor) call frame. It is especially useful when trying
+        to debug minified code, such as trying to continue to `c()` in `a() && b() && c();`, where
+        Step over would continue to the next statement (i.e. after the `;`) and Step in would
+        continue to the first line inside `a()` (and would require a Step out to get back).
+
+        * UserInterface/Controllers/DebuggerManager.js:
+        (WI.DebuggerManager.prototype.stepNext): Added.
+
+        * UserInterface/Base/Main.js:
+        (WI.contentLoaded):
+        (WI.debuggerStepNext): Added.
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._handleDebuggerPaused):
+        (WI.SourcesNavigationSidebarPanel.prototype._handleDebuggerResumed):
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Images/StepNext.svg: Added.
+
+2020-04-14  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Don't show tooltips for tabs
+        https://bugs.webkit.org/show_bug.cgi?id=210464
+
+        Reviewed by Devin Rousso.
+
+        Don't show tooltips when they match the name of the tab. We no longer truncate tab names
+        so the tooltip is redundant.
+
+        Only show tooltips for settings and search (pinned tabs).
+
+        * UserInterface/Views/TabBarItem.js:
+        (WI.TabBarItem):
+        (WI.TabBarItem.prototype.set title):
+
+2020-04-14  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Elements: Computed: de-indent items in the Variables section so that wrapped content doesn't line up with the `--`
+        https://bugs.webkit.org/show_bug.cgi?id=210384
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/ComputedStyleDetailsPanel.css:
+        (.sidebar > .panel.details.css-style > .content > .computed .property):
+
+2020-04-14  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Console: treat long strings as non-simple so they aren't truncated
+        https://bugs.webkit.org/show_bug.cgi?id=210511
+        <rdar://problem/49570592>
+
+        Reviewed by Joseph Pecoraro.
+
+        Treat strings longer than 140 characters (`WI.FormattedValue.MaxPreviewStringLength`) as not
+        simple so that `WI.ConsoleMessageView` makes itself expandable, which will show the full
+        length string when expanded (the truncated string is still shown when collapsed).
+
+        * UserInterface/Views/FormattedValue.js:
+        (WI.FormattedValue.isSimpleString): Added.
+        (WI.FormattedValue.hasSimpleDisplay):
+        * UserInterface/Views/ConsoleMessageView.js:
+        (WI.ConsoleMessageView.prototype._shouldConsiderObjectLossless):
+
 2020-04-12  Darin Adler  <darin@apple.com>
 
         Fix a few mispellings of descendant and propagation

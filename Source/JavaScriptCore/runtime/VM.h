@@ -128,6 +128,7 @@ class IntlCollator;
 class IntlDateTimeFormat;
 class IntlNumberFormat;
 class IntlPluralRules;
+class IntlRelativeTimeFormat;
 class JSAPIGlobalObject;
 class JSAPIWrapperGlobalObject;
 class JSAPIWrapperObject;
@@ -370,6 +371,7 @@ public:
     std::unique_ptr<HeapCellType> immutableButterflyHeapCellType;
     std::unique_ptr<HeapCellType> cellHeapCellType;
     std::unique_ptr<HeapCellType> destructibleCellHeapCellType;
+    std::unique_ptr<IsoHeapCellType> aggregateErrorHeapCellType;
     std::unique_ptr<IsoHeapCellType> apiGlobalObjectHeapCellType;
     std::unique_ptr<IsoHeapCellType> callbackConstructorHeapCellType;
     std::unique_ptr<IsoHeapCellType> callbackGlobalObjectHeapCellType;
@@ -400,6 +402,7 @@ public:
     std::unique_ptr<IsoHeapCellType> intlDateTimeFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlNumberFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlPluralRulesHeapCellType;
+    std::unique_ptr<IsoHeapCellType> intlRelativeTimeFormatHeapCellType;
 #if ENABLE(WEBASSEMBLY)
     std::unique_ptr<IsoHeapCellType> webAssemblyCodeBlockHeapCellType;
     std::unique_ptr<IsoHeapCellType> webAssemblyFunctionHeapCellType;
@@ -493,6 +496,7 @@ public:
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(jscCallbackFunctionSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(callbackAPIWrapperGlobalObjectSpace)
 #endif
+    DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(aggregateErrorSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(apiGlobalObjectSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(apiValueWrapperSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(arrayBufferSpace)
@@ -555,6 +559,7 @@ public:
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDateTimeFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlNumberFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlPluralRulesSpace)
+    DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlRelativeTimeFormatSpace)
 #if ENABLE(WEBASSEMBLY)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(jsToWasmICCalleeSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(webAssemblyCodeBlockSpace)
@@ -694,9 +699,6 @@ public:
     Strong<Structure> bigIntStructure;
     Strong<Structure> executableToCodeBlockEdgeStructure;
 
-    Strong<Structure> m_setIteratorStructure;
-    Strong<Structure> m_mapIteratorStructure;
-
     Strong<JSPropertyNameEnumerator> m_emptyPropertyNameEnumerator;
 
     Strong<JSCell> m_sentinelSetBucket;
@@ -727,21 +729,7 @@ public:
     AtomStringTable* atomStringTable() const { return m_atomStringTable; }
     WTF::SymbolRegistry& symbolRegistry() { return m_symbolRegistry; }
 
-    Strong<JSBigInt> bigIntConstantOne;
-
-    Structure* setIteratorStructure()
-    {
-        if (LIKELY(m_setIteratorStructure))
-            return m_setIteratorStructure.get();
-        return setIteratorStructureSlow();
-    }
-
-    Structure* mapIteratorStructure()
-    {
-        if (LIKELY(m_mapIteratorStructure))
-            return m_mapIteratorStructure.get();
-        return mapIteratorStructureSlow();
-    }
+    Strong<JSBigInt> heapBigIntConstantOne;
 
     JSCell* sentinelSetBucket()
     {
@@ -1123,10 +1111,8 @@ private:
     static VM*& sharedInstanceInternal();
     void createNativeThunk();
 
-    JS_EXPORT_PRIVATE Structure* setIteratorStructureSlow();
-    JS_EXPORT_PRIVATE Structure* mapIteratorStructureSlow();
-    JSCell* sentinelSetBucketSlow();
-    JSCell* sentinelMapBucketSlow();
+    JS_EXPORT_PRIVATE JSCell* sentinelSetBucketSlow();
+    JS_EXPORT_PRIVATE JSCell* sentinelMapBucketSlow();
     JSPropertyNameEnumerator* emptyPropertyNameEnumeratorSlow();
 
     void updateStackLimits();

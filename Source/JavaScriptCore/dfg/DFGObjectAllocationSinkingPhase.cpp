@@ -42,6 +42,9 @@
 #include "DFGValidate.h"
 #include "JSArrayIterator.h"
 #include "JSCInlines.h"
+#include "JSInternalPromise.h"
+#include "JSMapIterator.h"
+#include "JSSetIterator.h"
 #include <wtf/StdList.h>
 
 namespace JSC { namespace DFG {
@@ -961,8 +964,28 @@ private:
             break;
         }
 
-        case NewArrayIterator: {
-            target = handleInternalFieldClass<JSArrayIterator>(node, writes);
+        case NewInternalFieldObject: {
+            switch (node->structure()->typeInfo().type()) {
+            case JSArrayIteratorType:
+                target = handleInternalFieldClass<JSArrayIterator>(node, writes);
+                break;
+            case JSMapIteratorType:
+                target = handleInternalFieldClass<JSMapIterator>(node, writes);
+                break;
+            case JSSetIteratorType:
+                target = handleInternalFieldClass<JSSetIterator>(node, writes);
+                break;
+            case JSPromiseType:
+                if (node->structure()->classInfo() == JSInternalPromise::info())
+                    target = handleInternalFieldClass<JSInternalPromise>(node, writes);
+                else {
+                    ASSERT(node->structure()->classInfo() == JSPromise::info());
+                    target = handleInternalFieldClass<JSPromise>(node, writes);
+                }
+                break;
+            default:
+                DFG_CRASH(m_graph, node, "Bad structure");
+            }
             break;
         }
 
@@ -2085,8 +2108,8 @@ private:
                         node->convertToPhantomNewAsyncFunction();
                         break;
 
-                    case NewArrayIterator:
-                        node->convertToPhantomNewArrayIterator();
+                    case NewInternalFieldObject:
+                        node->convertToPhantomNewInternalFieldObject();
                         break;
 
                     case CreateActivation:

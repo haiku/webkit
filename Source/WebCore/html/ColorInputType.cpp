@@ -95,8 +95,9 @@ bool ColorInputType::isKeyboardFocusable(KeyboardEvent*) const
         return false;
 
     return element()->isTextFormControlFocusable();
-#endif
+#else
     return false;
+#endif
 }
 
 bool ColorInputType::isColorControl() const

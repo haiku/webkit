@@ -84,7 +84,7 @@
 #import <wtf/text/WTFString.h>
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
-#include <WebCore/WebMediaSessionManager.h>
+#import <WebCore/WebMediaSessionManager.h>
 #endif
 
 static NSString * const kAXLoadCompleteNotification = @"AXLoadComplete";
@@ -530,7 +530,7 @@ void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& lay
     ASSERT(!layerTreeContext.isEmpty());
 
     CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
-    m_impl->setAcceleratedCompositingRootLayer(renderLayer);
+    m_impl->enterAcceleratedCompositingWithRootLayer(renderLayer);
 }
 
 void PageClientImpl::didFirstLayerFlush(const LayerTreeContext& layerTreeContext)
@@ -538,7 +538,7 @@ void PageClientImpl::didFirstLayerFlush(const LayerTreeContext& layerTreeContext
     ASSERT(!layerTreeContext.isEmpty());
 
     CALayer *renderLayer = [CALayer _web_renderLayerWithContextID:layerTreeContext.contextID];
-    m_impl->setAcceleratedCompositingRootLayerAfterFlush(renderLayer);
+    m_impl->setAcceleratedCompositingRootLayer(renderLayer);
 }
 
 void PageClientImpl::exitAcceleratedCompositingMode()

@@ -117,6 +117,10 @@ void ScrollingTreeScrollingNode::commitStateAfterChildren(const ScrollingStateNo
         scrollingTree().scrollingTreeNodeRequestsScroll(scrollingNodeID(), requestedScrollData.scrollPosition, requestedScrollData.scrollType, requestedScrollData.clamping);
     }
 
+    // This synthetic bit is added back in ScrollingTree::propagateSynchronousScrollingReasons().
+#if ENABLE(SCROLLING_THREAD)
+    m_synchronousScrollingReasons.remove(SynchronousScrollingReason::DescendantScrollersHaveSynchronousScrolling);
+#endif
     m_isFirstCommit = false;
 }
 
@@ -131,7 +135,10 @@ bool ScrollingTreeScrollingNode::canScrollWithWheelEvent(const PlatformWheelEven
         return false;
 
     // We always rubber-band the latched node, or the root node.
-    return isLatchedNode() || isRootNode() || !scrollLimitReached(wheelEvent);
+    if (isLatchedNode() || isRootNode())
+        return true;
+    
+    return eventCanScrollContents(wheelEvent);
 }
 
 ScrollingEventResult ScrollingTreeScrollingNode::handleWheelEvent(const PlatformWheelEvent&)
@@ -157,12 +164,15 @@ FloatPoint ScrollingTreeScrollingNode::maximumScrollPosition() const
     return ScrollableArea::scrollPositionFromOffset(maximumScrollOffset, toFloatSize(scrollOrigin()));
 }
 
-bool ScrollingTreeScrollingNode::scrollLimitReached(const PlatformWheelEvent& wheelEvent) const
+bool ScrollingTreeScrollingNode::eventCanScrollContents(const PlatformWheelEvent& wheelEvent) const
 {
+    if (wheelEvent.delta().isZero())
+        return false;
+
     FloatPoint oldScrollPosition = currentScrollPosition();
     FloatPoint newScrollPosition = oldScrollPosition + FloatSize(-wheelEvent.deltaX(), -wheelEvent.deltaY());
     newScrollPosition = newScrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
-    return newScrollPosition == oldScrollPosition;
+    return newScrollPosition != oldScrollPosition;
 }
 
 RectEdges<bool> ScrollingTreeScrollingNode::edgePinnedState() const

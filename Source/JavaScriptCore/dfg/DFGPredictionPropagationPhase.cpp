@@ -532,7 +532,19 @@ private:
                     changed |= mergePrediction(SpecSymbol);
                     break;
                 }
-                
+
+#if USE(BIGINT32)
+                if (node->child1()->shouldSpeculateBigInt32()) {
+                    changed |= mergePrediction(SpecBigInt32);
+                    break;
+                }
+#endif
+
+                if (node->child1()->shouldSpeculateHeapBigInt()) {
+                    changed |= mergePrediction(SpecHeapBigInt);
+                    break;
+                }
+
                 if (node->child1()->shouldSpeculateBigInt()) {
                     changed |= mergePrediction(SpecBigInt);
                     break;
@@ -1004,6 +1016,7 @@ private:
         case IsUndefinedOrNull:
         case IsBoolean:
         case IsNumber:
+        case IsBigInt:
         case NumberIsInteger:
         case IsObject:
         case IsObjectOrNull:
@@ -1053,7 +1066,6 @@ private:
         }
 
         case CreatePromise:
-        case NewPromise:
             setPrediction(SpecPromiseObject);
             break;
 
@@ -1061,8 +1073,11 @@ private:
         case NewGenerator:
         case CreateAsyncGenerator:
         case NewAsyncGenerator:
-        case NewArrayIterator:
             setPrediction(SpecObjectOther);
+            break;
+
+        case NewInternalFieldObject:
+            setPrediction(speculationFromStructure(m_currentNode->structure().get()));
             break;
             
         case ArraySlice:
@@ -1101,6 +1116,12 @@ private:
             m_currentNode->child1()->mergeFlags(NodeBytecodeUsesAsNumber | NodeBytecodeUsesAsInt);
             break;
         }
+
+        case LazyJSConstant: {
+            setPrediction(m_currentNode->lazyJSValue().speculatedType());
+            break;
+        }
+
         case StringCharAt:
         case CallStringConstructor:
         case ToString:
@@ -1285,7 +1306,7 @@ private:
         case PhantomSpread:
         case PhantomNewArrayWithSpread:
         case PhantomNewArrayBuffer:
-        case PhantomNewArrayIterator:
+        case PhantomNewInternalFieldObject:
         case PhantomClonedArguments:
         case PhantomNewRegexp:
         case GetMyArgumentByVal:
@@ -1305,7 +1326,6 @@ private:
         case GetRegExpObjectLastIndex:
         case SetRegExpObjectLastIndex:
         case RecordRegExpCachedResult:
-        case LazyJSConstant:
         case CallDOM: {
             // This node should never be visible at this stage of compilation.
             DFG_CRASH(m_graph, m_currentNode, "Unexpected node during prediction propagation");
@@ -1362,7 +1382,7 @@ private:
         case SetArgumentMaybe:
         case SetFunctionName:
         case CheckStructure:
-        case CheckCell:
+        case CheckIsConstant:
         case CheckNotEmpty:
         case AssertNotEmpty:
         case CheckIdent:

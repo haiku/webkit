@@ -1,3 +1,337 @@
+2020-04-20  Keith Miller  <keith_miller@apple.com>
+
+        Unreviewed, revert accidental test changes.
+
+        * microbenchmarks/for-of-iterate-array-entries.js:
+        (foo):
+
+2020-04-20  Paulo Matos  <pmatos@igalia.com>
+
+        [32-bits] stress/for-of-array-different-globals.js is failing
+        https://bugs.webkit.org/show_bug.cgi?id=210718
+
+        Unreviewed gardening.
+
+        Skip test for arm and mips, failing due to r260323
+
+        * stress/for-of-array-different-globals.js:
+
+2020-04-19  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Intl.RelativeTimeFormat missing in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=209770
+
+        Reviewed by Darin Adler.
+
+        * stress/intl-relativetimeformat.js: Added.
+
+        * test262/config.yaml:
+        Enable Intl.RelativeTimeFormat feature with flag.
+
+        * test262/expectations.yaml:
+        Mark known failures.
+        Test for locale validation is not specific to RelativeTimeFormat and should be investigated separately.
+        Tests for Polish appear to be wrong and should be corrected in test262.
+
+2020-04-18  Keith Miller  <keith_miller@apple.com>
+
+        Unreviewed, mark test passing.
+
+        * test262/expectations.yaml:
+
+2020-04-18  Robin Morisset  <rmorisset@apple.com>
+
+        Support an inlined representation in JSValue of small BigInts ("BigInt32")
+        https://bugs.webkit.org/show_bug.cgi?id=206182
+
+        Reviewed by Yusuke Suzuki.
+
+        I improved several of the tests to give more informative error messages in the process of fixing them.
+
+        More interestingly I had to modify "missing-exception-check-in-string-compare" because it relied on "s1 == s1" resolving ropes, and we now just return true.
+
+        * stress/big-int-division.js:
+        (testDiv):
+        * stress/big-int-left-shift-wrapped-value.js:
+        (assert.sameValue):
+        * stress/big-int-logical-not.js:
+        (assert):
+        * stress/big-int-mod-jit.js:
+        * stress/big-int-right-shift-general.js:
+        (testRightShift):
+        * stress/big-int-type-of-proven-type.js:
+        (assert):
+        * stress/compare-strict-eq-on-various-types.js:
+        (testAllTypesCall):
+        * stress/ftl-string-strict-equality.js:
+        * stress/missing-exception-check-in-string-compare.js:
+
+2020-04-18  Keith Miller  <keith_miller@apple.com>
+
+        Redesign how we do for-of iteration for JSArrays
+        https://bugs.webkit.org/show_bug.cgi?id=175454
+
+        Reviewed by Filip Pizlo.
+
+        * microbenchmarks/for-of-iterate-array-entries.js:
+        (foo):
+        * stress/custom-iterators.js:
+        (catch):
+        (iter.return):
+        (iteratorInterfaceErrorTest):
+        (iteratorInterfaceErrorTestReturn):
+        (iteratorInterfaceBreakTestReturn):
+        * stress/for-of-array-different-globals.js: Added.
+        (foo):
+        (array.Symbol.iterator.__proto__.next):
+        * stress/for-of-array-mixed-values.js: Added.
+        (test):
+        * stress/for-of-no-direct-loop-back-edge-osr.js: Added.
+        (osrIfFinalTier):
+        (test):
+        * stress/generator-containing-for-of-on-map.js: Added.
+        (find):
+        (i.let.v.of.find):
+        * stress/generator-containing-for-of-on-set.js: Added.
+        (find):
+        (set add):
+        * stress/osr-from-for-of-done-getter.js: Added.
+        (i.let.iterable.next.return.get done):
+        (i.let.iterable.next):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        * stress/osr-from-for-of-value-getter.js: Added.
+        (i.let.iterable.next.return.get value):
+        (i.let.iterable.next):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        * stress/throw-for-of-next-returns-non-object.js: Added.
+        (i.let.iterable.next):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        (i.catch):
+        * stress/throw-from-done-getter-in-for-of-header.js: Added.
+        (i.let.iterable.next):
+        (i.let.iterable.get done):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        (i.catch):
+        * stress/throw-from-next-in-for-of-header.js: Added.
+        (i.let.iterable.next):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        (i.catch):
+        * stress/throw-from-value-getter-in-for-of-header.js: Added.
+        (i.let.iterable.next):
+        (i.let.iterable.get value):
+        (i.let.iterable.Symbol.iterator):
+        (i.let.iterable.return):
+        (i.catch):
+        * stress/webidl-tokenizer-for-of.js: Added.
+        (tokenise.attemptTokenMatch):
+        (tokenise):
+        (Tokeniser):
+        (Tokeniser.prototype.probe):
+        (Tokeniser.prototype.consume):
+        (Tokeniser.prototype.unconsume):
+
+2020-04-18  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        RegExp.prototype[@@search] should use SameValue
+        https://bugs.webkit.org/show_bug.cgi?id=173226
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/same-value-intrinsic.js: Added.
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-04-17  Saam Barati  <sbarati@apple.com>
+
+        GetTypedArrayByteOffset is broken on arm64e
+        https://bugs.webkit.org/show_bug.cgi?id=210631
+
+        Reviewed by Mark Lam.
+
+        * stress/byte-offset-on-wasteful-neutered-arm64e.js: Added.
+        (foo):
+        (assert):
+        (transferArrayBuffer.array.buffer):
+
+2020-04-17  Devin Rousso  <drousso@apple.com>
+
+        Rename NullishEq / NULLISHEQUAL to CoalesceEq / COALESCEEQUAL to match the spec
+        https://bugs.webkit.org/show_bug.cgi?id=210663
+
+        Reviewed by Ross Kirsling.
+
+        * stress/logical-assignment-operator-coalesce.js: Renamed from stress/logical-assignment-operator-nullish.js.
+
+2020-04-17  Devin Rousso  <drousso@apple.com>
+
+        Implement Promise.any and AggregateError
+        https://bugs.webkit.org/show_bug.cgi?id=202566
+
+        Reviewed by Yusuke Suzuki.
+
+        * test262/config.yaml:
+        * test262/expectations.yaml:
+
+2020-04-17  Paulo Matos  <pmatos@igalia.com>
+
+        Reduce test iterations for stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js on mips
+        https://bugs.webkit.org/show_bug.cgi?id=210641
+
+        Reviewed by Yusuke Suzuki.
+
+        Reduce test iteration count on mips for which the current value is too high.
+
+        * stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js:
+
+2020-04-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Map/Set iterator creation functions should fail with BadType etc. before executing insertChecks
+        https://bugs.webkit.org/show_bug.cgi?id=210649
+        <rdar://problem/61925452>
+
+        Reviewed by Mark Lam.
+
+        * stress/map-iterator-check-before-fail.js: Added.
+        (test):
+        * stress/set-iterator-check-before-fail.js: Added.
+        (set new):
+        (set var):
+
+2020-04-16  Ross Kirsling  <ross.kirsling@sony.com>
+
+        REGRESSION(r259480): Two new failing i18n tests
+        https://bugs.webkit.org/show_bug.cgi?id=210605
+
+        Reviewed by Darin Adler.
+
+        * stress/date-toLocaleString.js:
+        Tests shouldn't rely on system default time zone.
+
+2020-04-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reduce # of iteration since this test is timed out in slow devices
+        https://bugs.webkit.org/show_bug.cgi?id=210023
+
+        * stress/map-iteration-oas.js:
+
+2020-04-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement JSMapIterator/JSSetIterator with JSInternalFieldObjectImpl
+        https://bugs.webkit.org/show_bug.cgi?id=210023
+
+        Reviewed by Keith Miller.
+
+        * stress/map-iteration-oas.js: Added.
+        (shouldBe):
+        (test):
+        * stress/map-iterator-creation-fail-dfg.js: Added.
+        (shouldThrow):
+        (test2):
+        (test3):
+        * stress/map-iterator-creation-fail.js: Added.
+        (shouldThrow):
+        (i.shouldThrow):
+        (test2):
+        (test3):
+        * stress/set-iteration-oas.js: Added.
+        (shouldBe):
+        * stress/set-iterator-creation-fail-dfg.js: Added.
+        (shouldThrow):
+        (set shouldThrow):
+        * stress/set-iterator-creation-fail.js: Added.
+        (shouldThrow):
+        (i.shouldThrow):
+        (test2):
+        (test3):
+
+2020-04-15  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Extension values should default to true, canonicalize without "-true"
+        https://bugs.webkit.org/show_bug.cgi?id=210457
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/intl-collator.js:
+        * stress/intl-datetimeformat.js:
+        * stress/intl-numberformat.js:
+        * stress/intl-object.js:
+        * stress/intl-pluralrules.js:
+        Fix tests.
+
+        * test262/expectations.yaml:
+        Mark two test cases as passing.
+
+2020-04-15  Justin Michaud  <justin@justinmichaud.com>
+
+        stress/delete-property-dfg-inline.js.ftl-no-cjit-small-pool consistently timing out on debug JSC bot
+        https://bugs.webkit.org/show_bug.cgi?id=210513
+
+        Reviewed by Saam Barati.
+
+        * stress/delete-property-dfg-inline.js:
+
+2020-04-15  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Fix Intl.DateTimeFormat patterns and fields in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=209783
+
+        Reviewed by Keith Miller.
+
+        * stress/date-toLocaleString.js:
+        * stress/intl-datetimeformat.js:
+        Add tests and fix some existing ones.
+
+        * test262/config.yaml:
+        * test262/expectations.yaml:
+        Mark eight test cases passing...but skip half of them due to outdated CLDR data in macOS system ICU.
+
+2020-04-15  Devin Rousso  <drousso@apple.com>
+
+        [ESNext] Implement logical assignment operators
+        https://bugs.webkit.org/show_bug.cgi?id=209716
+
+        Reviewed by Ross Kirsling.
+
+        * stress/logical-assignment-operator-and.js: Added.
+        * stress/logical-assignment-operator-nullish.js: Added.
+        * stress/logical-assignment-operator-or.js: Added.
+
+        * test262/config.yaml:
+        * test262/expectations.yaml:
+        Right now, test262 expects an early error to be thrown if the lhs is not simple, which does
+        not match what we do with other read-modify assignment operators. This is likely to change
+        in the future to match existing behavior (throw a `ReferenceError`) [1].
+
+        [1]: <https://github.com/tc39/ecma262/issues/257#issuecomment-502878708>
+
+2020-04-14  Saam Barati  <sbarati@apple.com>
+
+        Skip all low executable memory wasm tests on arm64
+        https://bugs.webkit.org/show_bug.cgi?id=210522
+
+        Reviewed by Tadeu Zagallo.
+
+        In my original JIT islands patch, I only skipped one of the "low executable
+        memory" tests. But the others are also causing problems on the iOS JSC test
+        runners, so let's just skip them all.
+
+        * wasm/lowExecutableMemory/exports-oom.js:
+        * wasm/lowExecutableMemory/imports-oom.js:
+
+2020-04-14  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reduce iteration count and introduce early return to make typed-array-subarray-can-throw-oom-error.js execution time short while throwing an error
+        https://bugs.webkit.org/show_bug.cgi?id=210507
+
+        * stress/typed-array-subarray-can-throw-oom-error.js:
+        (canThrow):
+        (bar):
+        (get bar):
+
 2020-04-13  Michael Saboff  <msaboff@apple.com>
 
         [YARR] Allow for Unicode named capture group identifiers in non-Unicode regular expressions

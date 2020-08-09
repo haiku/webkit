@@ -1,3 +1,221 @@
+2020-04-20  Darin Adler  <darin@apple.com>
+
+        Use #import instead of #include in Objective-C and don't use #pragma once
+        https://bugs.webkit.org/show_bug.cgi?id=210724
+
+        Reviewed by David Kilzer.
+
+        * wtf/cocoa/Entitlements.mm:
+        * wtf/cocoa/FileSystemCocoa.mm:
+        * wtf/cocoa/MainThreadCocoa.mm:
+        * wtf/cocoa/SystemTracingCocoa.cpp:
+        * wtf/mac/DeprecatedSymbolsUsedBySafari.mm:
+        * wtf/mac/SchedulePairMac.mm:
+        * wtf/text/cocoa/StringCocoa.mm:
+        * wtf/text/cocoa/TextStreamCocoa.mm:
+        More #import.
+
+2020-04-19  Brady Eidson  <beidson@apple.com>
+
+        Add WKScriptMessageHandler API that asynchronously responds with a promise.
+        rdar://problem/57243492 and https://bugs.webkit.org/show_bug.cgi?id=206398
+
+        Reviewed by Andy Estes.
+
+        * wtf/CompletionHandler.h:
+        (WTF::CompletionHandlerWithFinalizer<Out): Add a variant of CompletionHandler that allows for a Finalizer function
+          to handle cases where the Completion function hasn't been called at destruction time.
+
+2020-04-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Enable BigInt
+        https://bugs.webkit.org/show_bug.cgi?id=210726
+
+        Reviewed by Mark Lam.
+
+        * wtf/PlatformUse.h:
+
+2020-04-18  Robin Morisset  <rmorisset@apple.com>
+
+        Support an inlined representation in JSValue of small BigInts ("BigInt32")
+        https://bugs.webkit.org/show_bug.cgi?id=206182
+
+        Reviewed by Yusuke Suzuki.
+
+        Add a USE(BIGINT32) flag.
+
+        * wtf/PlatformUse.h:
+
+2020-04-18  Keith Miller  <keith_miller@apple.com>
+
+        Redesign how we do for-of iteration for JSArrays
+        https://bugs.webkit.org/show_bug.cgi?id=175454
+
+        Reviewed by Filip Pizlo.
+
+        * wtf/EnumClassOperatorOverloads.h:
+
+2020-04-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [WTF] Move DataRef.h from WebCore to WTF to utilize it in JSC
+        https://bugs.webkit.org/show_bug.cgi?id=210689
+
+        Reviewed by Anders Carlsson.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/DataRef.h: Renamed from Source/WebCore/rendering/style/DataRef.h.
+
+2020-04-17  Saam Barati  <sbarati@apple.com>
+
+        GetTypedArrayByteOffset is broken on arm64e
+        https://bugs.webkit.org/show_bug.cgi?id=210631
+
+        Reviewed by Mark Lam.
+
+        * wtf/CagedPtr.h:
+        (WTF::CagedPtr::rawBits const):
+
+2020-04-17  Peng Liu  <peng.liu6@apple.com>
+
+        Cleanup the macros for video fullscreen and picture-in-picture
+        https://bugs.webkit.org/show_bug.cgi?id=210638
+
+        Reviewed by Eric Carlson.
+
+        Add macro ENABLE_VIDEO_PRESENTATION_MODE.
+
+        * wtf/PlatformEnable.h:
+
+2020-04-17  Claudio Saavedra  <csaavedra@igalia.com>
+
+        [GTK][WPE] Bump dependencies minimum required version in Platform.h
+        https://bugs.webkit.org/show_bug.cgi?id=210651
+
+        Reviewed by Adrian Perez de Castro.
+
+        Bring the minimum required version in Platform.h in sync with the actual
+        minimal required version. This ensures that deprecated APIs used bring up
+        compilation warnings.
+
+        * wtf/Platform.h:
+
+2020-04-17  Per Arne Vollan  <pvollan@apple.com>
+
+        [iOS] Deny iokit open access to graphics related classes
+        https://bugs.webkit.org/show_bug.cgi?id=210616
+
+        Reviewed by Darin Adler.
+
+        * wtf/spi/darwin/SandboxSPI.h:
+
+2020-04-17  Youenn Fablet  <youenn@apple.com>
+
+        Make use of WeakHashSet for MediaStreamTrackPrivate and RealtimeMediaSource observers
+        https://bugs.webkit.org/show_bug.cgi?id=210492
+
+        Reviewed by Geoffrey Garen.
+
+        * wtf/WeakHashSet.h:
+
+2020-04-16  Daniel Bates  <dabates@apple.com>
+
+        Clean up VectorCocoa createNSArray overloads and add documentation for createNSArray taking a map function
+        https://bugs.webkit.org/show_bug.cgi?id=210610
+
+        Reviewed by Darin Adler.
+
+        Remove unnecessary local variable. Rename "map" type in createNSArray function for clarity
+        and add documentation for createNSArray function that takes a map function.
+
+        I was tempted, but decided not to write the createNSArray function that does not take a
+        map function in terms of the one that did. With the "right" optimization settings the
+        compiler should emit the same code, but I didn't verify this. So, I didn't do it.
+
+        While I am here, update  makeVector() to call shrinkToFit() to reduce the memory footprint
+        of the returned vector should it end of having less entries, due to filtering, than its
+        initial capacity.
+
+        * wtf/cocoa/VectorCocoa.h:
+        (WTF::createNSArray): See above description.
+        (WTF::makeVector): Shrink to fit before returning the vector. See above for more details.
+
+2020-04-16  Daniel Bates  <dabates@apple.com>
+
+        Move -_requestTextInputContextsInRect to WKContentView to simplify implementation
+        https://bugs.webkit.org/show_bug.cgi?id=210398
+        <rdar://problem/61656931>
+
+        Reviewed by Darin Adler.
+
+        Add a convenience function to create an NSArray from a WTF::Vector with a transform function.
+        The tranform function can either return a RetainPtr or an id.
+
+        * wtf/cocoa/VectorCocoa.h:
+        (WTF::createNSArray): Added.
+
+2020-04-16  Eric Carlson  <eric.carlson@apple.com>
+
+        [macOS] Update ScreenTime as playback state changes
+        https://bugs.webkit.org/show_bug.cgi?id=210518
+        <rdar://problem/61181092>
+
+        Reviewed by Jer Noble.
+        
+        Define HAVE_MEDIA_USAGE_FRAMEWORK and ENABLE_MEDIA_USAGE
+
+        * wtf/PlatformEnableCocoa.h:
+        * wtf/PlatformHave.h:
+
+2020-04-16  Alberto Garcia  <berto@igalia.com>
+
+        Unreviewed, set CeilingOnPageSize for MIPS64
+
+        This fixes a build failure ("Must set CeilingOnPageSize in
+        PageBlock.h").
+
+        * wtf/PageBlock.h:
+
+2020-04-15  Chris Dumez  <cdumez@apple.com>
+
+        [IPC Hardening] MachMessage::messageSize() should use checked arithmetic
+        https://bugs.webkit.org/show_bug.cgi?id=210567
+        <rdar://problem/61734355>
+
+        Reviewed by Geoffrey Garen.
+
+        Add operator / to CheckedArithmetic for convenience.
+
+        * wtf/CheckedArithmetic.h:
+        (WTF::safeDivide):
+        (WTF::Checked::operator/=):
+        (WTF::operator/):
+
+2020-04-15  Robin Morisset  <rmorisset@apple.com>
+
+        Flaky Test: fetch/fetch-worker-crash.html
+        https://bugs.webkit.org/show_bug.cgi?id=187257
+        <rdar://problem/48527526>
+
+        Reviewed by Yusuke Suzuki.
+
+        Make startMachExceptionHandlerThread visible so that we can make sure it is called whenever initializing JSC.
+
+        * wtf/threads/Signals.cpp:
+        (WTF::startMachExceptionHandlerThread):
+        * wtf/threads/Signals.h:
+
+2020-04-14  Peng Liu  <peng.liu6@apple.com>
+
+        Adopt interface AVAudioRoutingArbiter for Mac
+        https://bugs.webkit.org/show_bug.cgi?id=210167
+
+        Reviewed by Eric Carlson.
+
+        Add macro HAVE_AVAUDIO_ROUTING_ARBITER.
+
+        * wtf/PlatformHave.h:
+
 2020-04-13  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, reverting r260052.

@@ -420,7 +420,14 @@ void FrameLoader::changeLocation(const URL& url, const String& passedTarget, Eve
     auto initiatedByMainFrame = frame && frame->isMainFrame() ? InitiatedByMainFrame::Yes : InitiatedByMainFrame::Unknown;
 
     NewFrameOpenerPolicy newFrameOpenerPolicy = openerPolicy.valueOr(referrerPolicy == ReferrerPolicy::NoReferrer ? NewFrameOpenerPolicy::Suppress : NewFrameOpenerPolicy::Allow);
-    changeLocation(FrameLoadRequest(*m_frame.document(), m_frame.document()->securityOrigin(), { url }, passedTarget, lockHistory, lockBackForwardList, referrerPolicy, AllowNavigationToInvalidURL::Yes, newFrameOpenerPolicy, shouldOpenExternalURLsPolicy, initiatedByMainFrame, DoNotReplaceDocumentIfJavaScriptURL, downloadAttribute, systemPreviewInfo), triggeringEvent, WTFMove(adClickAttribution));
+    FrameLoadRequest frameLoadRequest(*m_frame.document(), m_frame.document()->securityOrigin(), { url }, passedTarget, initiatedByMainFrame, downloadAttribute, systemPreviewInfo);
+    frameLoadRequest.setLockHistory(lockHistory);
+    frameLoadRequest.setLockBackForwardList(lockBackForwardList);
+    frameLoadRequest.setNewFrameOpenerPolicy(newFrameOpenerPolicy);
+    frameLoadRequest.setReferrerPolicy(referrerPolicy);
+    frameLoadRequest.setShouldOpenExternalURLsPolicy(shouldOpenExternalURLsPolicy);
+    frameLoadRequest.disableShouldReplaceDocumentIfJavaScriptURL();
+    changeLocation(WTFMove(frameLoadRequest), triggeringEvent, WTFMove(adClickAttribution));
 }
 
 void FrameLoader::changeLocation(FrameLoadRequest&& frameRequest, Event* triggeringEvent, Optional<AdClickAttribution>&& adClickAttribution)
@@ -987,7 +994,9 @@ void FrameLoader::loadURLIntoChildFrame(const URL& url, const String& referer, F
     auto* lexicalFrame = lexicalFrameFromCommonVM();
     auto initiatedByMainFrame = lexicalFrame && lexicalFrame->isMainFrame() ? InitiatedByMainFrame::Yes : InitiatedByMainFrame::Unknown;
 
-    FrameLoadRequest frameLoadRequest { *m_frame.document(), m_frame.document()->securityOrigin(), { url }, "_self"_s, LockHistory::No, LockBackForwardList::Yes, ReferrerPolicy::EmptyString, AllowNavigationToInvalidURL::Yes, NewFrameOpenerPolicy::Suppress, ShouldOpenExternalURLsPolicy::ShouldNotAllow, initiatedByMainFrame };
+    FrameLoadRequest frameLoadRequest { *m_frame.document(), m_frame.document()->securityOrigin(), { url }, "_self"_s, initiatedByMainFrame };
+    frameLoadRequest.setNewFrameOpenerPolicy(NewFrameOpenerPolicy::Suppress);
+    frameLoadRequest.setLockBackForwardList(LockBackForwardList::Yes);
     childFrame->loader().loadURL(WTFMove(frameLoadRequest), referer, FrameLoadType::RedirectWithLockedBackForwardList, nullptr, { }, WTF::nullopt, [] { });
 }
 
@@ -1354,8 +1363,6 @@ void FrameLoader::loadURL(FrameLoadRequest&& frameLoadRequest, const String& ref
         request.setHTTPReferrer(referrer);
 
     addExtraFieldsToRequest(request, IsMainResource::Yes, newLoadType);
-    if (isReload(newLoadType))
-        request.setCachePolicy(ResourceRequestCachePolicy::ReloadIgnoringCacheData);
 
     ASSERT(newLoadType != FrameLoadType::Same);
 
@@ -3756,8 +3763,6 @@ void FrameLoader::loadDifferentDocumentItem(HistoryItem& item, HistoryItem* from
             request.setHTTPOrigin(origin);
         }
 
-        // Make sure to add extra fields to the request after the Origin header is added for the FormData case.
-        // See https://bugs.webkit.org/show_bug.cgi?id=22194 for more discussion.
         addExtraFieldsToRequest(request, IsMainResource::Yes, loadType);
         
         // FIXME: Slight hack to test if the NSURL cache contains the page we're going to.
@@ -4120,11 +4125,20 @@ RefPtr<Frame> createWindow(Frame& openerFrame, Frame& lookupFrame, FrameLoadRequ
         windowRect.setX(*features.x);
     if (features.y)
         windowRect.setY(*features.y);
-    // Zero width and height mean using default size, not minumum one.
+    // Zero width and height mean using default size, not minimum one.
     if (features.width && *features.width)
         windowRect.setWidth(*features.width + (windowRect.width() - viewportSize.width()));
     if (features.height && *features.height)
         windowRect.setHeight(*features.height + (windowRect.height() - viewportSize.height()));
+
+#if PLATFORM(GTK)
+    FloatRect oldWindowRect = oldPage->chrome().windowRect();
+    // Use the size of the previous window if there is no default size.
+    if (!windowRect.width())
+        windowRect.setWidth(oldWindowRect.width());
+    if (!windowRect.height())
+        windowRect.setHeight(oldWindowRect.height());
+#endif
 
     // Ensure non-NaN values, minimum size as well as being within valid screen area.
     FloatRect newWindowRect = DOMWindow::adjustWindowRect(*page, windowRect);
@@ -4154,6 +4168,11 @@ RefPtr<Frame> createWindow(Frame& openerFrame, Frame& lookupFrame, FrameLoadRequ
 bool FrameLoader::shouldSuppressTextInputFromEditing() const
 {
     return m_frame.settings().shouldSuppressTextInputFromEditingDuringProvisionalNavigation() && m_state == FrameStateProvisional;
+}
+
+bool FrameLoader::arePluginsEnabled()
+{
+    return m_frame.settings().arePluginsEnabled();
 }
 
 } // namespace WebCore

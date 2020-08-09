@@ -48,6 +48,7 @@
 #import "WebProcessCreationParameters.h"
 #import "WebProcessMessages.h"
 #import "WindowServerConnection.h"
+#import <WebCore/AGXCompilerService.h>
 #import <WebCore/Color.h>
 #import <WebCore/LocalizedDeviceModel.h>
 #import <WebCore/MIMETypeRegistry.h>
@@ -84,7 +85,6 @@
 #if PLATFORM(IOS)
 #import <pal/spi/cocoa/WebFilterEvaluatorSPI.h>
 #import <pal/spi/ios/MobileGestaltSPI.h>
-#import <sys/utsname.h>
 
 SOFT_LINK_PRIVATE_FRAMEWORK(WebContentAnalysis);
 SOFT_LINK_CLASS(WebContentAnalysis, WebFilterEvaluator);
@@ -199,25 +199,6 @@ void WebProcessPool::platformResolvePathsForSandboxExtensions()
 #endif
 }
 
-#if PLATFORM(IOS)
-static bool deviceHasAGXCompilerService()
-{
-    static bool deviceHasAGXCompilerService = false;
-    static std::once_flag flag;
-    std::call_once(
-        flag,
-        [] () {
-            struct utsname systemInfo;
-            if (uname(&systemInfo))
-                return;
-            const char* machine = systemInfo.machine;
-            if (!strcmp(machine, "iPad5,1") || !strcmp(machine, "iPad5,2") || !strcmp(machine, "iPad5,3") || !strcmp(machine, "iPad5,4"))
-                deviceHasAGXCompilerService = true;
-        });
-    return deviceHasAGXCompilerService;
-}
-#endif
-
 #if PLATFORM(IOS_FAMILY)
 static bool isInternalInstall()
 {
@@ -256,7 +237,7 @@ static const Vector<String>& mediaRelatedMachServices()
 #if PLATFORM(MAC) || PLATFORM(MACCATALYST)
         "com.apple.coremedia.endpointstream.xpc", "com.apple.coremedia.endpointplaybacksession.xpc",
         "com.apple.coremedia.endpointremotecontrolsession.xpc", "com.apple.coremedia.videodecoder",
-        "com.apple.coremedia.videoencoder"
+        "com.apple.coremedia.videoencoder", "com.apple.BluetoothServices"
 #endif
     });
     return services;
@@ -361,7 +342,7 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
 #endif
     
 #if PLATFORM(IOS)
-    if (deviceHasAGXCompilerService()) {
+    if (WebCore::deviceHasAGXCompilerService()) {
         SandboxExtension::Handle compilerServiceExtensionHandle;
         SandboxExtension::createHandleForMachLookup("com.apple.AGXCompilerService", WTF::nullopt, compilerServiceExtensionHandle);
         parameters.compilerServiceExtensionHandle = WTFMove(compilerServiceExtensionHandle);
@@ -390,8 +371,27 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     }
 
     SandboxExtension::Handle runningboardExtensionHandle;
-    SandboxExtension::createHandleForMachLookup("com.apple.runningboard", WTF::nullopt, runningboardExtensionHandle, SandboxExtension::Flags::NoReport);
-    parameters.runningboardExtensionHandle = WTFMove(runningboardExtensionHandle);
+    if (SandboxExtension::createHandleForMachLookup("com.apple.runningboard", WTF::nullopt, runningboardExtensionHandle, SandboxExtension::Flags::NoReport))
+        parameters.runningboardExtensionHandle = WTFMove(runningboardExtensionHandle);
+
+    if (WebCore::deviceHasAGXCompilerService()) {
+        static const char* const ioKitClasses[] = {
+            "AGXCommandQueue",
+            "AGXDevice",
+            "AGXSharedUserClient",
+            "IOAccelContext",
+            "IOAccelContext2",
+            "IOAccelDevice",
+            "IOAccelDevice2",
+            "IOAccelSharedUserClient",
+            "IOAccelSharedUserClient2"
+            "IOAccelSubmitter2",
+        };
+        auto size = WTF_ARRAY_LENGTH(ioKitClasses);
+        parameters.dynamicIOKitExtensionHandles.allocate(size);
+        for (size_t i = 0; i < size; ++i)
+            SandboxExtension::createHandleForIOKitClassExtension(ioKitClasses[i], WTF::nullopt, parameters.dynamicIOKitExtensionHandles[i]);
+    }
 #endif
     
 #if PLATFORM(COCOA)
@@ -420,6 +420,10 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         SandboxExtension::Handle handle;
         SandboxExtension::createHandleForMachLookup("com.apple.uikit.viewservice.com.apple.WebContentFilter.remoteUI", WTF::nullopt, handle);
         parameters.contentFilterExtensionHandle = WTFMove(handle);
+
+        SandboxExtension::Handle frontboardServiceExtensionHandle;
+        if (SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices", WTF::nullopt, frontboardServiceExtensionHandle))
+            parameters.frontboardServiceExtensionHandle = WTFMove(frontboardServiceExtensionHandle);
     }
 #endif
     

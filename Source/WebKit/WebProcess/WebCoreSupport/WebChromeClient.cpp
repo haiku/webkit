@@ -86,6 +86,9 @@
 
 #if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
 #include "PlaybackSessionManager.h"
+#endif
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 #include "VideoFullscreenManager.h"
 #endif
 
@@ -972,7 +975,7 @@ RefPtr<ScrollingCoordinator> WebChromeClient::createScrollingCoordinator(Page& p
 
 #endif
 
-#if (PLATFORM(IOS_FAMILY) && HAVE(AVKIT)) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 
 bool WebChromeClient::supportsVideoFullscreen(HTMLMediaElementEnums::VideoFullscreenMode mode)
 {
@@ -1008,8 +1011,24 @@ void WebChromeClient::exitVideoFullscreenForVideoElement(HTMLVideoElement& video
 {
     m_page.videoFullscreenManager().exitVideoFullscreenForVideoElement(videoElement);
 }
-
 #endif
+
+#if ENABLE(MEDIA_USAGE)
+void WebChromeClient::addMediaUsageManagerSession(MediaSessionIdentifier identifier, const String& bundleIdentifier, const URL& pageURL)
+{
+    m_page.addMediaUsageManagerSession(identifier, bundleIdentifier, pageURL);
+}
+
+void WebChromeClient::updateMediaUsageManagerSessionState(MediaSessionIdentifier identifier, const MediaUsageInfo& usage)
+{
+    m_page.updateMediaUsageManagerSessionState(identifier, usage);
+}
+
+void WebChromeClient::removeMediaUsageManagerSession(MediaSessionIdentifier identifier)
+{
+    m_page.removeMediaUsageManagerSession(identifier);
+}
+#endif // ENABLE(MEDIA_USAGE)
 
 #if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
 

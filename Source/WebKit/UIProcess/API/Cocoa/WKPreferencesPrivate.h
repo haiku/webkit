@@ -23,13 +23,8 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
-
-#include <WebKit/WKPreferencesRefPrivate.h>
-
-#ifdef __OBJC__
-
 #import <WebKit/WKPreferences.h>
+#import <WebKit/WKPreferencesRefPrivate.h>
 
 typedef NS_ENUM(NSInteger, _WKStorageBlockingPolicy) {
     _WKStorageBlockingPolicyAllowAll,
@@ -165,6 +160,7 @@ typedef NS_ENUM(NSInteger, _WKEditableLinkBehavior) {
 @property (nonatomic, setter=_setAcceleratedCompositingEnabled:) BOOL _acceleratedCompositingEnabled WK_API_AVAILABLE(macos(10.13.4), ios(WK_IOS_TBA));
 @property (nonatomic, setter=_setRequestAnimationFrameEnabled:) BOOL _requestAnimationFrameEnabled WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 @property (nonatomic, readonly) BOOL _isITPDatabaseEnabled WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
+@property (nonatomic, setter=_setServiceWorkerEntitlementDisabledForTesting:) BOOL _serviceWorkerEntitlementDisabledForTesting WK_API_AVAILABLE(macos(WK_MAC_TBA), ios(WK_IOS_TBA));
 
 #if !TARGET_OS_IPHONE
 @property (nonatomic, setter=_setWebGLEnabled:) BOOL _webGLEnabled WK_API_AVAILABLE(macos(10.13.4));
@@ -214,5 +210,3 @@ typedef NS_ENUM(NSInteger, _WKEditableLinkBehavior) {
 #endif
 
 @end
-
-#endif

@@ -260,6 +260,7 @@ WebProcessPool::WebProcessPool(API::ProcessPoolConfiguration& configuration)
     , m_backgroundWebProcessCounter([this](RefCounterEvent) { updateProcessAssertions(); })
     , m_backForwardCache(makeUniqueRef<WebBackForwardCache>(*this))
     , m_webProcessCache(makeUniqueRef<WebProcessCache>(*this))
+    , m_webProcessWithAudibleMediaCounter([this](RefCounterEvent) { updateAudibleMediaAssertions(); })
 {
     static std::once_flag onceFlag;
     std::call_once(onceFlag, [] {
@@ -604,6 +605,7 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
     WebCore::ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode = WebCore::ThirdPartyCookieBlockingMode::All;
     WebCore::SameSiteStrictEnforcementEnabled sameSiteStrictEnforcementEnabled = WebCore::SameSiteStrictEnforcementEnabled::No;
 #endif
+    WebCore::RegistrableDomain standaloneApplicationDomain { };
     WebCore::FirstPartyWebsiteDataRemovalMode firstPartyWebsiteDataRemovalMode = WebCore::FirstPartyWebsiteDataRemovalMode::AllButCookies;
     WebCore::RegistrableDomain manualPrevalentResource { };
     WEB_PROCESS_POOL_ADDITIONS_2
@@ -621,6 +623,7 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
             sameSiteStrictEnforcementEnabled = networkSessionParameters.resourceLoadStatisticsParameters.sameSiteStrictEnforcementEnabled;
 #endif
             firstPartyWebsiteDataRemovalMode = networkSessionParameters.resourceLoadStatisticsParameters.firstPartyWebsiteDataRemovalMode;
+            standaloneApplicationDomain = networkSessionParameters.resourceLoadStatisticsParameters.standaloneApplicationDomain;
             manualPrevalentResource = networkSessionParameters.resourceLoadStatisticsParameters.manualPrevalentResource;
         }
 
@@ -646,6 +649,7 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
             sameSiteStrictEnforcementEnabled = networkSessionParameters.resourceLoadStatisticsParameters.sameSiteStrictEnforcementEnabled;
 #endif
             firstPartyWebsiteDataRemovalMode = networkSessionParameters.resourceLoadStatisticsParameters.firstPartyWebsiteDataRemovalMode;
+            standaloneApplicationDomain = networkSessionParameters.resourceLoadStatisticsParameters.standaloneApplicationDomain;
             manualPrevalentResource = networkSessionParameters.resourceLoadStatisticsParameters.manualPrevalentResource;
         }
 
@@ -1179,7 +1183,6 @@ void WebProcessPool::processDidFinishLaunching(WebProcessProxy* process)
 void WebProcessPool::disconnectProcess(WebProcessProxy* process)
 {
     ASSERT(m_processes.contains(process));
-    ASSERT(!m_processesPlayingAudibleMedia.contains(process->coreProcessIdentifier()));
 
     if (m_prewarmedProcess == process) {
         ASSERT(m_prewarmedProcess->isPrewarmed());
@@ -2347,94 +2350,29 @@ void WebProcessPool::seedResourceLoadStatisticsForTesting(const RegistrableDomai
 }
 #endif
 
-void WebProcessPool::setWebProcessHasUploads(ProcessIdentifier processID)
+WebProcessWithAudibleMediaToken WebProcessPool::webProcessWithAudibleMediaToken() const
 {
-    ASSERT(processID);
-    auto* process = WebProcessProxy::processForIdentifier(processID);
-    ASSERT(process);
-
-    if (!process)
-        return;
-
-    WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "setWebProcessHasUploads: Web process now has uploads in progress (process=%p, PID=%i)", process, process->processIdentifier());
-
-    if (m_processesWithUploads.isEmpty()) {
-        WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "setWebProcessHasUploads: The number of uploads in progress is now one. Taking Networking and UI process assertions.");
-
-        ensureNetworkProcess().takeUploadAssertion();
-        
-        ASSERT(!m_uiProcessUploadAssertion);
-        m_uiProcessUploadAssertion = makeUnique<ProcessAssertion>(getCurrentProcessID(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking);
-    }
-    
-    auto result = m_processesWithUploads.add(processID, nullptr);
-    ASSERT(result.isNewEntry);
-    result.iterator->value = makeUnique<ProcessAssertion>(process->processIdentifier(), "WebKit uploads"_s, ProcessAssertionType::UnboundedNetworking);
+    return m_webProcessWithAudibleMediaCounter.count();
 }
 
-void WebProcessPool::clearWebProcessHasUploads(ProcessIdentifier processID)
+void WebProcessPool::updateAudibleMediaAssertions()
 {
-    ASSERT(processID);
-    auto result = m_processesWithUploads.take(processID);
-    if (!result)
+    if (!m_webProcessWithAudibleMediaCounter.value()) {
+        WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "updateAudibleMediaAssertions: The number of processes playing audible media now zero. Releasing UI process assertion.");
+        m_audibleMediaActivity = WTF::nullopt;
+        return;
+    }
+
+    if (m_audibleMediaActivity)
         return;
 
-    auto* process = WebProcessProxy::processForIdentifier(processID);
-    ASSERT_UNUSED(process, process);
-    WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "clearWebProcessHasUploads: Web process no longer has uploads in progress (process=%p, PID=%i)", process, process->processIdentifier());
-
-    if (m_processesWithUploads.isEmpty()) {
-        WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "clearWebProcessHasUploads: The number of uploads in progress is now zero. Releasing Networking and UI process assertions.");
-
-        if (m_networkProcess)
-            m_networkProcess->clearUploadAssertion();
-        
-        ASSERT(m_uiProcessUploadAssertion);
-        m_uiProcessUploadAssertion = nullptr;
-    }
-    
-}
-
-void WebProcessPool::setWebProcessIsPlayingAudibleMedia(WebCore::ProcessIdentifier processID)
-{
-    auto* process = WebProcessProxy::processForIdentifier(processID);
-    ASSERT(process);
-
-    WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "setWebProcessIsPlayingAudibleMedia: Web process is now playing audible media (process=%p, PID=%i)", process, process->processIdentifier());
-
-    if (m_processesPlayingAudibleMedia.isEmpty()) {
-        WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "setWebProcessIsPlayingAudibleMedia: The number of processes playing audible media is now one. Taking UI process assertion.");
-
-        ASSERT(!m_uiProcessMediaPlaybackAssertion);
-        m_uiProcessMediaPlaybackAssertion = makeUnique<ProcessAssertion>(getCurrentProcessID(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback);
+    WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "updateAudibleMediaAssertions: The number of processes playing audible media is now greater than zero. Taking UI process assertion.");
+    m_audibleMediaActivity = AudibleMediaActivity {
+        makeUniqueRef<ProcessAssertion>(getCurrentProcessID(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback)
 #if ENABLE(GPU_PROCESS)
-        if (GPUProcessProxy::singletonIfCreated())
-            m_gpuProcessMediaPlaybackAssertion = makeUnique<ProcessAssertion>(GPUProcessProxy::singleton().processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback);
+        , GPUProcessProxy::singletonIfCreated() ? makeUnique<ProcessAssertion>(GPUProcessProxy::singleton().processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback) : nullptr
 #endif
-    }
-
-    auto result = m_processesPlayingAudibleMedia.add(processID, nullptr);
-    ASSERT(result.isNewEntry);
-    result.iterator->value = makeUnique<ProcessAssertion>(process->processIdentifier(), "WebKit Media Playback"_s, ProcessAssertionType::MediaPlayback);
-}
-
-void WebProcessPool::clearWebProcessIsPlayingAudibleMedia(WebCore::ProcessIdentifier processID)
-{
-    auto result = m_processesPlayingAudibleMedia.take(processID);
-    ASSERT_UNUSED(result, result);
-
-    auto* process = WebProcessProxy::processForIdentifier(processID);
-    ASSERT_UNUSED(process, process);
-
-    WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "clearWebProcessIsPlayingAudibleMedia: Web process is no longer playing audible media (process=%p, PID=%i)", process, process->processIdentifier());
-
-    if (m_processesPlayingAudibleMedia.isEmpty()) {
-        WEBPROCESSPOOL_RELEASE_LOG(ProcessSuspension, "clearWebProcessIsPlayingAudibleMedia: The number of processes playing audible media now zero. Releasing UI process assertion.");
-
-        ASSERT(m_uiProcessMediaPlaybackAssertion);
-        m_uiProcessMediaPlaybackAssertion = nullptr;
-        m_gpuProcessMediaPlaybackAssertion = nullptr;
-    }
+    };
 }
 
 void WebProcessPool::setUseSeparateServiceWorkerProcess(bool useSeparateServiceWorkerProcess)

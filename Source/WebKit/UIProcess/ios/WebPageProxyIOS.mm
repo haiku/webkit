@@ -62,6 +62,7 @@
 #import "WebProcessMessages.h"
 #import "WebProcessPool.h"
 #import "WebProcessProxy.h"
+#import <WebCore/AGXCompilerService.h>
 #import <WebCore/FrameView.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PlatformScreen.h>
@@ -1539,6 +1540,15 @@ bool WebPageProxy::shouldForceForegroundPriorityForClientNavigation() const
     return pageClient().isApplicationVisible();
 }
 
+void WebPageProxy::focusTextInputContextAndPlaceCaret(const ElementContext& context, const IntPoint& point, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!hasRunningProcess()) {
+        completionHandler(false);
+        return;
+    }
+
+    sendWithAsyncReply(Messages::WebPage::FocusTextInputContextAndPlaceCaret(context, point), WTFMove(completionHandler));
+}
 
 void WebPageProxy::setShouldRevealCurrentSelectionAfterInsertion(bool shouldRevealCurrentSelectionAfterInsertion)
 {
@@ -1580,6 +1590,11 @@ void WebPageProxy::revokeAccessToAssetServices()
 void WebPageProxy::willPerformPasteCommand()
 {
     grantAccessToCurrentPasteboardData(UIPasteboardNameGeneral);
+}
+
+void WebPageProxy::setDeviceHasAGXCompilerServiceForTesting() const
+{
+    WebCore::setDeviceHasAGXCompilerServiceForTesting();
 }
 
 } // namespace WebKit

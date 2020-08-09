@@ -273,7 +273,6 @@
 #import <pal/spi/mac/LookupSPI.h>
 #import <pal/spi/mac/NSImmediateActionGestureRecognizerSPI.h>
 #else
-#import "MemoryMeasure.h"
 #import "WebCaretChangeListener.h"
 #import "WebChromeClientIOS.h"
 #import "WebDefaultFormDelegate.h"
@@ -308,7 +307,6 @@
 #import <WebCore/WebSQLiteDatabaseTrackerClient.h>
 #import <WebCore/WebVideoFullscreenControllerAVKit.h>
 #import <libkern/OSAtomic.h>
-#import <pal/ios/ManagedConfigurationSoftLink.h>
 #import <pal/spi/ios/ManagedConfigurationSPI.h>
 #import <pal/spi/ios/MobileGestaltSPI.h>
 #import <wtf/FastMalloc.h>
@@ -322,7 +320,7 @@
 #endif
 
 #if USE(QUICK_LOOK)
-#include <WebCore/QuickLook.h>
+#import <WebCore/QuickLook.h>
 #endif
 
 #if ENABLE(IOS_TOUCH_EVENTS)
@@ -347,14 +345,21 @@
 #if ENABLE(DATA_INTERACTION)
 #import <UIKit/UIColor.h>
 #import <UIKit/UIImage.h>
+#endif
+
+#if ENABLE(DATA_INTERACTION)
 #import <pal/ios/UIKitSoftLink.h>
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+#import <pal/ios/ManagedConfigurationSoftLink.h>
 #endif
 
 #if HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
 SOFT_LINK_FRAMEWORK(AVKit)
 SOFT_LINK_CLASS(AVKit, AVTouchBarPlaybackControlsProvider)
 SOFT_LINK_CLASS(AVKit, AVTouchBarScrubber)
-#endif // HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
+#endif
 
 #if !PLATFORM(IOS_FAMILY)
 
@@ -549,25 +554,24 @@ static const char webViewIsOpen[] = "At least one WebView is still open.";
 @class _WebSafeForwarder;
 
 @interface _WebSafeAsyncForwarder : NSObject {
-    _WebSafeForwarder *_forwarder;
+    __weak _WebSafeForwarder *_forwarder;
 }
-- (id)initWithForwarder:(_WebSafeForwarder *)forwarder;
+- (instancetype)initWithForwarder:(_WebSafeForwarder *)forwarder;
 @end
 #endif
 
 @interface _WebSafeForwarder : NSObject
 {
-    id target; // Non-retained. Don't retain delegates.
-    id defaultTarget;
+    __weak id _target;
+    __weak id _defaultTarget;
 #if PLATFORM(IOS_FAMILY)
-    _WebSafeAsyncForwarder *asyncForwarder;
-    dispatch_once_t asyncForwarderPred;
+    _WebSafeAsyncForwarder *_asyncForwarder;
 #endif
 }
 - (instancetype)initWithTarget:(id)target defaultTarget:(id)defaultTarget;
 #if PLATFORM(IOS_FAMILY)
+@property (nonatomic, readonly, strong) id asyncForwarder;
 - (void)clearTarget;
-- (id)asyncForwarder;
 #endif
 @end
 
@@ -5334,34 +5338,34 @@ IGNORE_WARNINGS_END
 
 // Used to send messages to delegates that implement informal protocols.
 
-- (instancetype)initWithTarget:(id)t defaultTarget:(id)dt
+- (instancetype)initWithTarget:(id)target defaultTarget:(id)defaultTarget
 {
-    self = [super init];
-    if (!self)
+    if (!(self = [super init]))
         return nil;
-    target = t; // Non retained.
-    defaultTarget = dt;
+    _target = target;
+    _defaultTarget = defaultTarget;
+#if PLATFORM(IOS_FAMILY)
+    _asyncForwarder = [[_WebSafeAsyncForwarder alloc] initWithForwarder:self];
+#endif
     return self;
 }
 
 #if PLATFORM(IOS_FAMILY)
-- (id)asyncForwarder
-{
-    dispatch_once(&asyncForwarderPred, ^{
-        asyncForwarder = [[_WebSafeAsyncForwarder alloc] initWithForwarder:self];
-    });
-    return asyncForwarder;
-}
+@synthesize asyncForwarder=_asyncForwarder;
 
 - (void)dealloc
 {
-    [asyncForwarder release];
+    _target = nil;
+    _defaultTarget = nil;
+    [_asyncForwarder release];
+    _asyncForwarder = nil;
+
     [super dealloc];
 }
 
 - (void)clearTarget
 {
-    target = nil;
+    _target = nil;
 }
 #endif
 
@@ -5374,17 +5378,17 @@ IGNORE_WARNINGS_END
         return;
     }
 #endif
-    if ([target respondsToSelector:[invocation selector]]) {
+    if ([_target respondsToSelector:invocation.selector]) {
         @try {
-            [invocation invokeWithTarget:target];
+            [invocation invokeWithTarget:_target];
         } @catch(id exception) {
-            ReportDiscardedDelegateException([invocation selector], exception);
+            ReportDiscardedDelegateException(invocation.selector, exception);
         }
         return;
     }
 
-    if ([defaultTarget respondsToSelector:[invocation selector]])
-        [invocation invokeWithTarget:defaultTarget];
+    if ([_defaultTarget respondsToSelector:invocation.selector])
+        [invocation invokeWithTarget:_defaultTarget];
 
     // Do nothing quietly if method not implemented.
 }
@@ -5392,13 +5396,13 @@ IGNORE_WARNINGS_END
 #if PLATFORM(IOS_FAMILY)
 - (BOOL)respondsToSelector:(SEL)aSelector
 {
-    return [defaultTarget respondsToSelector:aSelector];
+    return [_defaultTarget respondsToSelector:aSelector];
 }
 #endif
 
 - (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector
 {
-    return [defaultTarget methodSignatureForSelector:aSelector];
+    return [_defaultTarget methodSignatureForSelector:aSelector];
 }
 
 @end
@@ -5406,7 +5410,7 @@ IGNORE_WARNINGS_END
 #if PLATFORM(IOS_FAMILY)
 @implementation _WebSafeAsyncForwarder
 
-- (id)initWithForwarder:(_WebSafeForwarder *)forwarder
+- (instancetype)initWithForwarder:(_WebSafeForwarder *)forwarder
 {
     if (!(self = [super init]))
         return nil;

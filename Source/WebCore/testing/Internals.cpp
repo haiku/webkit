@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Google Inc. All rights reserved.
- * Copyright (C) 2013-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -126,6 +126,7 @@
 #include "MediaRecorderProvider.h"
 #include "MediaResourceLoader.h"
 #include "MediaStreamTrack.h"
+#include "MediaUsageInfo.h"
 #include "MemoryCache.h"
 #include "MemoryInfo.h"
 #include "MockAudioDestinationCocoa.h"
@@ -2832,6 +2833,26 @@ ExceptionOr<String> Internals::scrollingStateTreeAsText() const
     return page->scrollingStateTreeAsText();
 }
 
+ExceptionOr<String> Internals::scrollingTreeAsText() const
+{
+    Document* document = contextDocument();
+    if (!document || !document->frame())
+        return Exception { InvalidAccessError };
+
+    document->updateLayoutIgnorePendingStylesheets();
+
+    auto page = document->page();
+    if (!page)
+        return String();
+
+    auto scrollingCoordinator = page->scrollingCoordinator();
+    if (!scrollingCoordinator)
+        return String();
+
+    scrollingCoordinator->commitTreeStateIfNeeded();
+    return scrollingCoordinator->scrollingTreeAsText();
+}
+
 ExceptionOr<String> Internals::mainThreadScrollingReasons() const
 {
     Document* document = contextDocument();
@@ -4066,6 +4087,12 @@ void Internals::setMediaElementRestrictions(HTMLMediaElement& element, StringVie
             restrictions |= MediaElementSession::InvisibleAutoplayNotPermitted;
         if (equalLettersIgnoringASCIICase(restrictionString, "overrideusergesturerequirementformaincontent"))
             restrictions |= MediaElementSession::OverrideUserGestureRequirementForMainContent;
+        if (equalLettersIgnoringASCIICase(restrictionString, "requireusergesturetocontrolcontrolsmanager"))
+            restrictions |= MediaElementSession::RequireUserGestureToControlControlsManager;
+        if (equalLettersIgnoringASCIICase(restrictionString, "requireplaybackTocontrolcontrolsmanager"))
+            restrictions |= MediaElementSession::RequirePlaybackToControlControlsManager;
+        if (equalLettersIgnoringASCIICase(restrictionString, "requireusergestureforvideoduetolowpowermode"))
+            restrictions |= MediaElementSession::RequireUserGestureForVideoDueToLowPowerMode;
     }
     element.mediaSession().addBehaviorRestriction(restrictions);
 }
@@ -4222,6 +4249,54 @@ Internals::MediaSessionState Internals::mediaSessionState(HTMLMediaElement& elem
     return element.mediaSession().state();
 }
 #endif
+
+ExceptionOr<Internals::MediaUsageState> Internals::mediaUsageState(HTMLMediaElement& element) const
+{
+#if ENABLE(VIDEO)
+    element.mediaSession().updateMediaUsageIfChanged();
+    auto info = element.mediaSession().mediaUsageInfo();
+    if (!info)
+        return Exception { NotSupportedError };
+
+    return { { info.value().mediaURL.string(),
+        info.value().isPlaying,
+        info.value().canShowControlsManager,
+        info.value().canShowNowPlayingControls,
+        info.value().isSuspended,
+        info.value().isInActiveDocument,
+        info.value().isFullscreen,
+        info.value().isMuted,
+        info.value().isMediaDocumentInMainFrame,
+        info.value().isVideo,
+        info.value().isAudio,
+        info.value().hasVideo,
+        info.value().hasAudio,
+        info.value().hasRenderer,
+        info.value().audioElementWithUserGesture,
+        info.value().userHasPlayedAudioBefore,
+        info.value().isElementRectMostlyInMainFrame,
+        info.value().playbackPermitted,
+        info.value().pageMediaPlaybackSuspended,
+        info.value().isMediaDocumentAndNotOwnerElement,
+        info.value().pageExplicitlyAllowsElementToAutoplayInline,
+        info.value().requiresFullscreenForVideoPlaybackAndFullscreenNotPermitted,
+        info.value().hasHadUserInteractionAndQuirksContainsShouldAutoplayForArbitraryUserGesture,
+        info.value().isVideoAndRequiresUserGestureForVideoRateChange,
+        info.value().isAudioAndRequiresUserGestureForAudioRateChange,
+        info.value().isVideoAndRequiresUserGestureForVideoDueToLowPowerMode,
+        info.value().noUserGestureRequired,
+        info.value().requiresPlaybackAndIsNotPlaying,
+        info.value().hasEverNotifiedAboutPlaying,
+        info.value().outsideOfFullscreen,
+        info.value().isLargeEnoughForMainContent,
+    } };
+
+#else
+    UNUSED_PARAM(element);
+    return Exception { InvalidAccessError };
+#endif
+}
+
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 
@@ -4927,6 +5002,14 @@ void Internals::setCameraMediaStreamTrackOrientation(MediaStreamTrack& track, in
 
 void Internals::observeMediaStreamTrack(MediaStreamTrack& track)
 {
+    if (m_trackSource) {
+        m_trackSource->removeObserver(*this);
+        m_trackSource->removeAudioSampleObserver(*this);
+
+        m_trackAudioSampleCount = 0;
+        m_trackVideoSampleCount = 0;
+    }
+
     m_trackSource = &track.source();
     m_trackSource->addObserver(*this);
     m_trackSource->addAudioSampleObserver(*this);
@@ -5525,6 +5608,11 @@ String Internals::getUTIFromTag(const String&, const String&, const String&)
 }
 
 bool Internals::isRemoteUIAppForAccessibility()
+{
+    return false;
+}
+
+bool Internals::hasSandboxIOKitOpenAccessToClass(const String& process, const String& ioKitClass)
 {
     return false;
 }

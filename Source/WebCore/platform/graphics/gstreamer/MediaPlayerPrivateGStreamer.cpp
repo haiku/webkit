@@ -1110,7 +1110,6 @@ Optional<bool> MediaPlayerPrivateGStreamer::wouldTaintOrigin(const SecurityOrigi
     // GStreamer < 1.12 has an incomplete uridownloader implementation so we
     // can't use WebKitWebSrc for adaptive fragments downloading if this
     // version is detected.
-    UNUSED_PARAM(origin);
     return m_hasTaintedOrigin;
 }
 
@@ -3779,6 +3778,7 @@ void MediaPlayerPrivateGStreamer::cdmInstanceAttached(CDMInstance& instance)
 
 void MediaPlayerPrivateGStreamer::cdmInstanceDetached(CDMInstance& instance)
 {
+    UNUSED_PARAM(instance);
     ASSERT(isMainThread());
     ASSERT(m_pipeline);
 

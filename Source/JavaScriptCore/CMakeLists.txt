@@ -75,6 +75,8 @@ set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/IntlObject.cpp
     runtime/IntlPluralRulesConstructor.cpp
     runtime/IntlPluralRulesPrototype.cpp
+    runtime/IntlRelativeTimeFormatConstructor.cpp
+    runtime/IntlRelativeTimeFormatPrototype.cpp
     runtime/JSDataViewPrototype.cpp
     runtime/JSGlobalObject.cpp
     runtime/JSInternalPromiseConstructor.cpp
@@ -787,6 +789,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/AuxiliaryBarrierInlines.h
     runtime/BasicBlockLocation.h
     runtime/BatchedTransitionOptimizer.h
+    runtime/BigIntObject.h
     runtime/BigIntPrototype.h
     runtime/BooleanObject.h
     runtime/BooleanPrototype.h
@@ -986,6 +989,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/SamplingProfiler.h
     runtime/ScopeOffset.h
     runtime/ScopedArgumentsTable.h
+    runtime/Scribble.h
     runtime/ScriptExecutable.h
     runtime/ScriptFetchParameters.h
     runtime/ScriptFetcher.h
@@ -1339,7 +1343,7 @@ WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 if (COMPILER_IS_GCC_OR_CLANG)
     # Avoid using fused multiply-add instructions since this could give different results
     # for e.g. parseInt depending on the platform and compilation flags.
-    WEBKIT_ADD_TARGET_CXX_FLAGS(JavaScriptCore -ffp-contract=off)
+    WEBKIT_ADD_TARGET_CXX_FLAGS(JavaScriptCore -ffp-contract=off -fno-slp-vectorize)
 endif ()
 
 WEBKIT_COPY_FILES(JavaScriptCore_CopyHeaders
@@ -1353,6 +1357,7 @@ WEBKIT_COPY_FILES(JavaScriptCore_CopyPrivateHeaders
     FILES ${JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS}
     FLATTENED
 )
+add_dependencies(JavaScriptCore_CopyPrivateHeaders Bytecodes JSCBuiltins)
 # JavaScriptCore_CopyPrivateHeaders needs to have a direct or indirect
 # dependency of JavaScriptCore for CMake Visual Studio generator to
 # eliminate duplicated custom commands. Otherwise,
