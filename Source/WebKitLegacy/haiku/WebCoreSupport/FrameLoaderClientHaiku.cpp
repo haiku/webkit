@@ -976,10 +976,6 @@ String FrameLoaderClientHaiku::overrideMediaType() const
     return "screen";
 }
 
-void FrameLoaderClientHaiku::dispatchDidBecomeFrameset(bool)
-{
-}
-
 void FrameLoaderClientHaiku::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& world)
 {
     if (&world != &mainThreadNormalWorld())

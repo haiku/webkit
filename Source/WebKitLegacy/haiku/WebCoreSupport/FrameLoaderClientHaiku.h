@@ -211,8 +211,6 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
 
     String overrideMediaType() const override;
 
-    void dispatchDidBecomeFrameset(bool) override;
-
     void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&) override;
 
     Ref<FrameNetworkingContext> createNetworkingContext() override;
