@@ -21,6 +21,7 @@
 #pragma once
 
 #include "ActivityState.h"
+#include "AnimationFrameRate.h"
 #include "DisabledAdaptations.h"
 #include "Document.h"
 #include "FindOptions.h"
@@ -149,6 +150,7 @@ class WebGLStateTracker;
 class WheelEventDeltaFilter;
 class WheelEventTestMonitor;
 
+using PlatformDisplayID = uint32_t;
 using SharedStringHash = uint32_t;
 
 enum class CanWrap : bool;
@@ -161,6 +163,11 @@ enum class EventThrottlingBehavior : bool { Responsive, Unresponsive };
 enum class CompositingPolicy : bool {
     Normal,
     Conservative, // Used in low memory situations.
+};
+
+enum class FinalizeRenderingUpdateFlags : uint8_t {
+    ApplyScrollingTreeLayerPositions    = 1 << 0,
+    InvalidateImagesWithAsyncDecodes    = 1 << 1,
 };
 
 class Page : public Supplementable<Page>, public CanMakeWeakPtr<Page> {
@@ -355,6 +362,9 @@ public:
     float initialScaleIgnoringContentSize() const { return m_initialScaleIgnoringContentSize; }
     WEBCORE_EXPORT void setInitialScaleIgnoringContentSize(float);
 
+    void windowScreenDidChange(PlatformDisplayID);
+    PlatformDisplayID displayID() const { return m_displayID; }
+
     float topContentInset() const { return m_topContentInset; }
     WEBCORE_EXPORT void setTopContentInset(float);
 
@@ -477,6 +487,8 @@ public:
     WEBCORE_EXPORT void layoutIfNeeded();
     WEBCORE_EXPORT void updateRendering();
     
+    WEBCORE_EXPORT void finalizeRenderingUpdate(OptionSet<FinalizeRenderingUpdateFlags>);
+    
     WEBCORE_EXPORT void scheduleRenderingUpdate();
     void scheduleTimedRenderingUpdate();
 
@@ -509,6 +521,8 @@ public:
 
     bool hasCustomHTMLTokenizerTimeDelay() const;
     double customHTMLTokenizerTimeDelay() const;
+
+    WEBCORE_EXPORT void setCORSDisablingPatterns(Vector<UserContentURLPattern>&&);
 
     WEBCORE_EXPORT void setMemoryCacheClientCallsEnabled(bool);
     bool areMemoryCacheClientCallsEnabled() const { return m_areMemoryCacheClientCallsEnabled; }
@@ -707,8 +721,11 @@ public:
     bool loadsSubresources() const { return m_loadsSubresources; }
     bool loadsFromNetwork() const { return m_loadsFromNetwork; }
 
-    bool isLowPowerModeEnabled() const;
+    bool isLowPowerModeEnabled() const { return m_throttlingReasons.contains(ThrottlingReason::LowPowerMode); }
     WEBCORE_EXPORT void setLowPowerModeEnabledOverrideForTesting(Optional<bool>);
+
+    OptionSet<ThrottlingReason> throttlingReasons() const { return m_throttlingReasons; }
+    Seconds preferredRenderingUpdateInterval() const;
 
     WEBCORE_EXPORT void applicationWillResignActive();
     WEBCORE_EXPORT void applicationDidEnterBackground();
@@ -777,6 +794,8 @@ private:
     void updateDOMTimerAlignmentInterval();
     void domTimerAlignmentIntervalIncreaseTimerFired();
 
+    bool canUpdateThrottlingReason(ThrottlingReason reason) const { return !m_throttlingReasonsOverridenForTesting.contains(reason); }
+
     void doAfterUpdateRendering();
 
     WheelEventTestMonitor& ensureWheelEventTestMonitor();
@@ -824,6 +843,8 @@ private:
     UniqueRef<MediaRecorderProvider> m_mediaRecorderProvider;
     UniqueRef<LibWebRTCProvider> m_libWebRTCProvider;
     RTCController m_rtcController;
+
+    PlatformDisplayID m_displayID { 0 };
 
     int m_nestedRunLoopCount { 0 };
     WTF::Function<void()> m_unnestCallback;
@@ -985,7 +1006,8 @@ private:
 
     std::unique_ptr<PerformanceMonitor> m_performanceMonitor;
     std::unique_ptr<LowPowerModeNotifier> m_lowPowerModeNotifier;
-    Optional<bool> m_lowPowerModeEnabledOverrideForTesting;
+    OptionSet<ThrottlingReason> m_throttlingReasons;
+    OptionSet<ThrottlingReason> m_throttlingReasonsOverridenForTesting;
 
     Optional<Navigation> m_navigationToLogWhenVisible;
 

@@ -62,7 +62,6 @@
 #import <JavaScriptCore/JSObject.h>
 #import <WebCore/AXObjectCache.h>
 #import <WebCore/AccessibilityObject.h>
-#import <WebCore/CSSAnimationController.h>
 #import <WebCore/CSSStyleDeclaration.h>
 #import <WebCore/CachedResourceLoader.h>
 #import <WebCore/Chrome.h>
@@ -573,15 +572,6 @@ static NSURL *createUniqueWebDataURL();
 
 #endif
 
-- (NSArray *)_nodesFromList:(Vector<WebCore::Node*> *)nodesVector
-{
-    size_t size = nodesVector->size();
-    NSMutableArray *nodes = [NSMutableArray arrayWithCapacity:size];
-    for (size_t i = 0; i < size; ++i)
-        [nodes addObject:kit((*nodesVector)[i])];
-    return nodes;
-}
-
 - (NSString *)_selectedString
 {
     return _private->coreFrame->displayStringModifiedByEncoding(_private->coreFrame->editor().selectedText());
@@ -625,9 +615,7 @@ static NSURL *createUniqueWebDataURL();
 #if !PLATFORM(IOS_FAMILY)
     ASSERT([[NSGraphicsContext currentContext] isFlipped]);
 
-    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-    CGContextRef ctx = static_cast<CGContextRef>([[NSGraphicsContext currentContext] graphicsPort]);
-    ALLOW_DEPRECATED_DECLARATIONS_END
+    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
 #else
     CGContextRef ctx = WKGetCurrentGraphicsContext();
 #endif
@@ -796,7 +784,7 @@ static NSURL *createUniqueWebDataURL();
     WebCore::FrameSelection selection;
     selection.setSelection(_private->coreFrame->selection().selection());
     selection.modify(alteration, direction, granularity);
-    return kit(selection.toNormalizedRange().get());
+    return kit(createLiveRange(selection.selection().toNormalizedRange()).get());
 }
 #endif
 
@@ -805,11 +793,8 @@ static NSURL *createUniqueWebDataURL();
     return _private->coreFrame->selection().granularity();
 }
 
-- (NSRange)_convertToNSRange:(WebCore::Range *)range
+- (NSRange)_convertToNSRange:(const WebCore::SimpleRange&)range
 {
-    if (!range)
-        return NSMakeRange(NSNotFound, 0);
-
     auto frame = _private->coreFrame;
     if (!frame)
         return NSMakeRange(NSNotFound, 0);
@@ -818,7 +803,7 @@ static NSURL *createUniqueWebDataURL();
     if (!element)
         return NSMakeRange(NSNotFound, 0);
 
-    return characterRange(makeBoundaryPointBeforeNodeContents(*element), *range);
+    return characterRange(makeBoundaryPointBeforeNodeContents(*element), range);
 }
 
 - (RefPtr<WebCore::Range>)_convertToDOMRange:(NSRange)nsrange
@@ -861,12 +846,14 @@ static NSURL *createUniqueWebDataURL();
 
 - (NSRange)_convertDOMRangeToNSRange:(DOMRange *)range
 {
-    return [self _convertToNSRange:core(range)];
+    if (!range)
+        return NSMakeRange(NSNotFound, 0);
+    return [self _convertToNSRange:*core(range)];
 }
 
 - (DOMRange *)_markDOMRange
 {
-    return kit(_private->coreFrame->editor().mark().toNormalizedRange().get());
+    return kit(createLiveRange(_private->coreFrame->editor().mark().toNormalizedRange()).get());
 }
 
 - (DOMDocumentFragment *)_documentFragmentWithMarkupString:(NSString *)markupString baseURLString:(NSString *)baseURLString
@@ -1119,19 +1106,22 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 {
     auto firstPosition = [self _visiblePositionForPoint:first];
     auto secondPosition = [self _visiblePositionForPoint:second];
-    return kit(WebCore::VisibleSelection(firstPosition, secondPosition).toNormalizedRange().get());
+    return kit(createLiveRange(WebCore::VisibleSelection(firstPosition, secondPosition).toNormalizedRange()).get());
 }
 
 - (DOMRange *)_selectionRangeForPoint:(CGPoint)point
 {
-    return kit(WebCore::VisibleSelection([self _visiblePositionForPoint:point]).toNormalizedRange().get());
+    return kit(createLiveRange(WebCore::VisibleSelection([self _visiblePositionForPoint:point]).toNormalizedRange()).get());
 }
 
 #endif // PLATFORM(IOS_FAMILY)
 
 - (NSRange)_selectedNSRange
 {
-    return [self _convertToNSRange:_private->coreFrame->selection().toNormalizedRange().get()];
+    auto range = _private->coreFrame->selection().selection().toNormalizedRange();
+    if (!range)
+        return NSMakeRange(NSNotFound, 0);
+    return [self _convertToNSRange:*range];
 }
 
 - (void)_selectNSRange:(NSRange)range
@@ -1464,9 +1454,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMRange *)selectedDOMRange
 {
-    WebCore::Frame *frame = core(self);
-    RefPtr<WebCore::Range> range = frame->selection().toNormalizedRange();
-    return kit(range.get());
+    return kit(createLiveRange(core(self)->selection().selection().toNormalizedRange()).get());
 }
 
 - (void)setSelectedDOMRange:(DOMRange *)range affinity:(NSSelectionAffinity)affinity closeTyping:(BOOL)closeTyping
@@ -1508,21 +1496,17 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMRange *)elementRangeContainingCaretSelection
 {
-    WebCore::Frame *frame = core(self);
-    RefPtr<WebCore::Range> range = frame->selection().elementRangeContainingCaretSelection();
-    return kit(range.get());
+    return kit(createLiveRange(core(self)->selection().elementRangeContainingCaretSelection()).get());
 }
 
 - (void)expandSelectionToWordContainingCaretSelection
 {
-    WebCore::Frame *frame = core(self);
-    frame->selection().expandSelectionToWordContainingCaretSelection();
+    core(self)->selection().expandSelectionToWordContainingCaretSelection();
 }
 
 - (void)expandSelectionToStartOfWordContainingCaretSelection
 {
-    WebCore::Frame *frame = core(self);
-    frame->selection().expandSelectionToStartOfWordContainingCaretSelection();
+    core(self)->selection().expandSelectionToStartOfWordContainingCaretSelection();
 }
 
 - (unichar)characterInRelationToCaretSelection:(int)amount
@@ -1542,9 +1526,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMRange *)wordRangeContainingCaretSelection
 {
-    WebCore::Frame *frame = core(self);
-    RefPtr<WebCore::Range> range = frame->selection().wordRangeContainingCaretSelection();
-    return kit(range.get());
+    return kit(createLiveRange(core(self)->selection().wordRangeContainingCaretSelection()).get());
 }
 
 - (NSString *)wordInRange:(DOMRange *)range
@@ -1575,7 +1557,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
     
     if (frame->selection().selection().isNone())
         return NO;
-        
+
     frame->document()->updateLayout();
     
     return frame->selection().selectionAtDocumentStart();
@@ -1607,16 +1589,12 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMRange *)rangeByMovingCurrentSelection:(int)amount
 {
-    WebCore::Frame *frame = core(self);
-    RefPtr<WebCore::Range> range = frame->selection().rangeByMovingCurrentSelection(amount);
-    return kit(range.get());
+    return kit(createLiveRange(core(self)->selection().rangeByMovingCurrentSelection(amount)).get());
 }
 
 - (DOMRange *)rangeByExtendingCurrentSelection:(int)amount
 {
-    WebCore::Frame *frame = core(self);
-    RefPtr<WebCore::Range> range = frame->selection().rangeByExtendingCurrentSelection(amount);
-    return kit(range.get());
+    return kit(createLiveRange(core(self)->selection().rangeByExtendingCurrentSelection(amount)).get());
 }
 
 - (void)selectNSRange:(NSRange)range onElement:(DOMElement *)element
@@ -1890,9 +1868,8 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 // 
 - (void)_replaceSelectionWithText:(NSString *)text selectReplacement:(BOOL)selectReplacement smartReplace:(BOOL)smartReplace matchStyle:(BOOL)matchStyle
 {
-    RefPtr<WebCore::Range> range = _private->coreFrame->selection().toNormalizedRange();
-
-    DOMDocumentFragment* fragment = range ? kit(createFragmentFromText(*range, text).ptr()) : nil;
+    auto range = _private->coreFrame->selection().selection().toNormalizedRange();
+    DOMDocumentFragment* fragment = range ? kit(createFragmentFromText(createLiveRange(*range), text).ptr()) : nil;
     [self _replaceSelectionWithFragment:fragment selectReplacement:selectReplacement smartReplace:smartReplace matchStyle:matchStyle];
 }
 
@@ -1974,9 +1951,8 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (void)_replaceSelectionWithText:(NSString *)text selectReplacement:(BOOL)selectReplacement smartReplace:(BOOL)smartReplace
 {
-    RefPtr<WebCore::Range> range = _private->coreFrame->selection().toNormalizedRange();
-    
-    DOMDocumentFragment* fragment = range ? kit(createFragmentFromText(*range, text).ptr()) : nil;
+    auto range = _private->coreFrame->selection().selection().toNormalizedRange();
+    DOMDocumentFragment* fragment = range ? kit(createFragmentFromText(createLiveRange(*range), text).ptr()) : nil;
     [self _replaceSelectionWithFragment:fragment selectReplacement:selectReplacement smartReplace:smartReplace matchStyle:YES];
 }
 
@@ -2285,7 +2261,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMDocumentFragment *)_documentFragmentForText:(NSString *)text
 {
-    return kit(createFragmentFromText(*_private->coreFrame->selection().toNormalizedRange().get(), text).ptr());
+    return kit(createFragmentFromText(*createLiveRange(_private->coreFrame->selection().selection().toNormalizedRange()), text).ptr());
 }
 
 - (DOMDocumentFragment *)_documentFragmentForWebArchive:(WebArchive *)webArchive
@@ -2295,14 +2271,10 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (DOMDocumentFragment *)_documentFragmentForImageData:(NSData *)data withRelativeURLPart:(NSString *)relativeURLPart andMIMEType:(NSString *)mimeType
 {
-    WebResource *resource = [[WebResource alloc] initWithData:data
-                                                          URL:URL::fakeURLWithRelativePart(relativeURLPart)
-                                                     MIMEType:mimeType
-                                             textEncodingName:nil
-                                                    frameName:nil];
-    DOMDocumentFragment *fragment = [[self _dataSource] _documentFragmentWithImageResource:resource];
-    [resource release];
-    return fragment;
+    auto resource = adoptNS([[WebResource alloc] initWithData:data
+        URL:URL::fakeURLWithRelativePart(String { relativeURLPart })
+        MIMEType:mimeType textEncodingName:nil frameName:nil]);
+    return [[self _dataSource] _documentFragmentWithImageResource:resource.get()];
 }
 
 - (BOOL)focusedNodeHasContent

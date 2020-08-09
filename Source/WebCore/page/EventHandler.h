@@ -179,6 +179,7 @@ public:
 
     void resizeLayerDestroyed();
 
+    // FIXME: Each Frame has an EventHandler, and not every event goes to all frames, so this position can be stale. It should probably be stored on Page.
     IntPoint lastKnownMousePosition() const;
     IntPoint lastKnownMouseGlobalPosition() const { return m_lastKnownMouseGlobalPosition; }
     Cursor currentMouseCursor() const { return m_currentMouseCursor; }
@@ -186,8 +187,8 @@ public:
     IntPoint targetPositionInWindowForSelectionAutoscroll() const;
     bool shouldUpdateAutoscroll();
 
-    static Frame* subframeForTargetNode(Node*);
-    static Frame* subframeForHitTestResult(const MouseEventWithHitTestResults&);
+    static RefPtr<Frame> subframeForTargetNode(Node*);
+    static RefPtr<Frame> subframeForHitTestResult(const MouseEventWithHitTestResults&);
 
     WEBCORE_EXPORT bool scrollOverflow(ScrollDirection, ScrollGranularity, Node* startingNode = nullptr);
     WEBCORE_EXPORT bool scrollRecursively(ScrollDirection, ScrollGranularity, Node* startingNode = nullptr);
@@ -202,7 +203,7 @@ public:
     void lostMouseCapture();
 
     WEBCORE_EXPORT bool handleMousePressEvent(const PlatformMouseEvent&);
-    bool handleMouseMoveEvent(const PlatformMouseEvent&, HitTestResult* hoveredNode = nullptr, bool onlyUpdateScrollbars = false);
+    bool handleMouseMoveEvent(const PlatformMouseEvent&, HitTestResult* = nullptr, bool onlyUpdateScrollbars = false);
     WEBCORE_EXPORT bool handleMouseReleaseEvent(const PlatformMouseEvent&);
     bool handleMouseForceEvent(const PlatformMouseEvent&);
     WEBCORE_EXPORT bool handleWheelEvent(const PlatformWheelEvent&);
@@ -338,6 +339,9 @@ public:
 
     WEBCORE_EXPORT Optional<Cursor> selectCursor(const HitTestResult&, bool shiftKey);
 
+#if ENABLE(DRAG_SUPPORT)
+    Element* draggingElement() const;
+#endif
 private:
 #if ENABLE(DRAG_SUPPORT)
     static DragState& dragState();
@@ -402,9 +406,12 @@ private:
     enum class FireMouseOverOut { No, Yes };
     void updateMouseEventTargetNode(Node*, const PlatformMouseEvent&, FireMouseOverOut);
 
+    void notifyScrollableAreasOfMouseEnterExit(Element* lastElementUnderMouse, Element* elementUnderMouse);
+
     MouseEventWithHitTestResults prepareMouseEvent(const HitTestRequest&, const PlatformMouseEvent&);
 
-    bool dispatchMouseEvent(const AtomString& eventType, Node* target, bool cancelable, int clickCount, const PlatformMouseEvent&, bool setUnder);
+    enum class Cancelable { No, Yes };
+    bool dispatchMouseEvent(const AtomString& eventType, Node* target, int clickCount, const PlatformMouseEvent&, FireMouseOverOut);
 
 #if ENABLE(DRAG_SUPPORT)
     bool dispatchDragEvent(const AtomString& eventType, Element& target, const PlatformMouseEvent&, DataTransfer&);
@@ -429,11 +436,11 @@ private:
     
     bool mouseMovementExceedsThreshold(const FloatPoint&, int pointsThreshold) const;
 
-    bool passMousePressEventToSubframe(MouseEventWithHitTestResults&, Frame* subframe);
-    bool passMouseMoveEventToSubframe(MouseEventWithHitTestResults&, Frame* subframe, HitTestResult* hoveredNode = nullptr);
-    bool passMouseReleaseEventToSubframe(MouseEventWithHitTestResults&, Frame* subframe);
+    bool passMousePressEventToSubframe(MouseEventWithHitTestResults&, Frame&);
+    bool passMouseMoveEventToSubframe(MouseEventWithHitTestResults&, Frame&, HitTestResult* = nullptr);
+    bool passMouseReleaseEventToSubframe(MouseEventWithHitTestResults&, Frame&);
 
-    bool passSubframeEventToSubframe(MouseEventWithHitTestResults&, Frame* subframe, HitTestResult* hoveredNode = nullptr);
+    bool passSubframeEventToSubframe(MouseEventWithHitTestResults&, Frame&, HitTestResult* = nullptr);
 
     bool passMousePressEventToScrollbar(MouseEventWithHitTestResults&, Scrollbar*);
 
@@ -587,11 +594,11 @@ private:
     LayoutSize m_offsetFromResizeCorner; // In the coords of m_resizeLayer.
     
     bool m_mousePositionIsUnknown { true };
-    IntPoint m_lastKnownMousePosition;
+    IntPoint m_lastKnownMousePosition; // Same coordinates as PlatformMouseEvent::position().
     IntPoint m_lastKnownMouseGlobalPosition;
-    IntPoint m_mouseDownPos; // In our view's coords.
+    IntPoint m_mouseDownContentsPosition;
     WallTime m_mouseDownTimestamp;
-    PlatformMouseEvent m_mouseDown;
+    PlatformMouseEvent m_mouseDownEvent;
     PlatformMouseEvent m_lastPlatformMouseEvent;
 
 #if PLATFORM(COCOA)

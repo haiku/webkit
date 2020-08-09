@@ -67,6 +67,13 @@ void RemoteWebInspectorUI::initialize(DebuggableInfoData&& debuggableInfo, const
     m_frontendAPIDispatcher.dispatchCommand("setDockingUnavailable"_s, true);
 }
 
+void RemoteWebInspectorUI::updateFindString(const String& findString)
+{
+    StringBuilder builder;
+    JSON::Value::escapeString(builder, findString);
+    m_frontendAPIDispatcher.dispatchCommand("updateFindString"_s, builder.toString());
+}
+
 void RemoteWebInspectorUI::didSave(const String& url)
 {
     m_frontendAPIDispatcher.dispatchCommand("savedURL"_s, url);

@@ -43,13 +43,9 @@ public:
 
     DECLARE_INFO;
 
-    Structure* collatorStructure(VM&) const { return globalObject()->collatorStructure(); }
-
-protected:
-    void finishCreation(VM&, IntlCollatorPrototype*);
-
 private:
     IntlCollatorConstructor(VM&, Structure*);
+    void finishCreation(VM&, IntlCollatorPrototype*);
 };
 STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(IntlCollatorConstructor, InternalFunction);
 

@@ -51,14 +51,22 @@
 #endif
 
 #if PLATFORM(GTK) && PLATFORM(X11)
+#if USE(GTK4)
+#include <gdk/x11/gdkx.h>
+#else
 #include <gdk/gdkx.h>
+#endif
 #if defined(None)
 #undef None
 #endif
 #endif
 
 #if PLATFORM(GTK) && PLATFORM(WAYLAND)
+#if USE(GTK4)
+#include <gdk/wayland/gdkwayland.h>
+#else
 #include <gdk/gdkwayland.h>
+#endif
 #endif
 
 #if USE(EGL)
@@ -90,12 +98,6 @@ std::unique_ptr<PlatformDisplay> PlatformDisplay::createPlatformDisplay()
     }
 #endif // PLATFORM(GTK)
 
-#if USE(WPE_RENDERER)
-    return PlatformDisplayLibWPE::create();
-#elif PLATFORM(WIN)
-    return PlatformDisplayWin::create();
-#endif
-
 #if PLATFORM(WAYLAND)
     if (auto platformDisplay = PlatformDisplayWayland::create())
         return platformDisplay;
@@ -111,6 +113,12 @@ std::unique_ptr<PlatformDisplay> PlatformDisplay::createPlatformDisplay()
     return PlatformDisplayWayland::create(nullptr);
 #elif PLATFORM(X11)
     return PlatformDisplayX11::create(nullptr);
+#endif
+
+#if USE(WPE_RENDERER)
+    return PlatformDisplayLibWPE::create();
+#elif PLATFORM(WIN)
+    return PlatformDisplayWin::create();
 #endif
 
     RELEASE_ASSERT_NOT_REACHED();

@@ -56,22 +56,23 @@ public:
     DECLARE_INFO;
 
     void initializeNumberFormat(JSGlobalObject*, JSValue locales, JSValue optionsValue);
-    JSValue format(JSGlobalObject*, double);
-    JSValue format(JSGlobalObject*, JSBigInt*);
-    JSValue formatToParts(JSGlobalObject*, double);
-    JSObject* resolvedOptions(JSGlobalObject*);
+    JSValue format(JSGlobalObject*, double) const;
+    JSValue format(JSGlobalObject*, JSBigInt*) const;
+    JSValue formatToParts(JSGlobalObject*, double) const;
+    JSObject* resolvedOptions(JSGlobalObject*) const;
 
     JSBoundFunction* boundFormat() const { return m_boundFormat.get(); }
     void setBoundFormat(VM&, JSBoundFunction*);
 
     static void formatToPartsInternal(JSGlobalObject*, double, const String& formatted, UFieldPositionIterator*, JSArray*, JSString* unit = nullptr);
 
-protected:
+private:
     IntlNumberFormat(VM&, Structure*);
     void finishCreation(VM&);
     static void visitChildren(JSCell*, SlotVisitor&);
 
-private:
+    static Vector<String> localeData(const String&, size_t);
+
     enum class Style : uint8_t { Decimal, Percent, Currency };
     enum class CurrencyDisplay : uint8_t { Code, Symbol, Name };
 
@@ -82,11 +83,12 @@ private:
     static ASCIILiteral styleString(Style);
     static ASCIILiteral currencyDisplayString(CurrencyDisplay);
 
+    WriteBarrier<JSBoundFunction> m_boundFormat;
+    std::unique_ptr<UNumberFormat, UNumberFormatDeleter> m_numberFormat;
+
     String m_locale;
     String m_numberingSystem;
     String m_currency;
-    std::unique_ptr<UNumberFormat, UNumberFormatDeleter> m_numberFormat;
-    WriteBarrier<JSBoundFunction> m_boundFormat;
     unsigned m_minimumIntegerDigits { 1 };
     unsigned m_minimumFractionDigits { 0 };
     unsigned m_maximumFractionDigits { 3 };
@@ -95,22 +97,6 @@ private:
     Style m_style { Style::Decimal };
     CurrencyDisplay m_currencyDisplay;
     bool m_useGrouping { true };
-    bool m_initializedNumberFormat { false };
-
-    struct UFieldPositionIteratorDeleter {
-        void operator()(UFieldPositionIterator*) const;
-    };
-
-    struct IntlNumberFormatField {
-        int32_t type;
-        int32_t size;
-        IntlNumberFormatField(int32_t type, int32_t size)
-            : type(type)
-            , size(size)
-        { }
-    };
-
-    static ASCIILiteral partTypeString(UNumberFormatFields, double);
 };
 
 } // namespace JSC

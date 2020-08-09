@@ -73,7 +73,7 @@
 #include <wtf/CompletionHandler.h>
 #include <wtf/text/StringBuilder.h>
 
-#if PLATFORM(X11)
+#if PLATFORM(X11) && ENABLE(NETSCAPE_PLUGIN_API)
 #include <WebCore/PlatformDisplay.h>
 #endif
 
@@ -1168,7 +1168,7 @@ void PluginView::performURLRequest(URLRequest* request)
     Ref<PluginView> protect(*this);
 
     // First, check if this is a javascript: url.
-    if (WTF::protocolIsJavaScript(request->request().url())) {
+    if (request->request().url().protocolIsJavaScript()) {
         performJavaScriptURLRequest(request);
         return;
     }
@@ -1233,7 +1233,7 @@ void PluginView::performFrameLoadURLRequest(URLRequest* request)
 
 void PluginView::performJavaScriptURLRequest(URLRequest* request)
 {
-    ASSERT(WTF::protocolIsJavaScript(request->request().url()));
+    ASSERT(request->request().url().protocolIsJavaScript());
 
     RefPtr<Frame> frame = m_pluginElement->document().frame();
     if (!frame)
@@ -1682,7 +1682,7 @@ void PluginView::didFailLoad(WebFrame* webFrame, bool wasCancelled)
     m_plugin->frameDidFail(request->requestID(), wasCancelled);
 }
 
-#if PLATFORM(X11)
+#if PLATFORM(X11) && ENABLE(NETSCAPE_PLUGIN_API)
 uint64_t PluginView::createPluginContainer()
 {
     uint64_t windowID = 0;

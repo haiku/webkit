@@ -29,6 +29,12 @@ window.UIHelper = class UIHelper {
         eventSender.mouseUp();
     }
 
+    static async moveMouseAndWaitForFrame(x, y)
+    {
+        eventSender.mouseMoveTo(x, y);
+        await UIHelper.animationFrame();
+    }
+
     static async mouseWheelScrollAt(x, y, beginX, beginY, deltaX, deltaY)
     {
         if (beginX === undefined)
@@ -53,6 +59,20 @@ window.UIHelper = class UIHelper {
         });
     }
 
+    static async mouseWheelMayBeginAt(x, y)
+    {
+        eventSender.mouseMoveTo(x, y);
+        eventSender.mouseScrollByWithWheelAndMomentumPhases(x, y, "maybegin", "none");
+        await UIHelper.animationFrame();
+    }
+
+    static async mouseWheelCancelAt(x, y)
+    {
+        eventSender.mouseMoveTo(x, y);
+        eventSender.mouseScrollByWithWheelAndMomentumPhases(x, y, "cancelled", "none");
+        await UIHelper.animationFrame();
+    }
+
     static async waitForScrollCompletion()
     {
         return new Promise(resolve => {
@@ -65,6 +85,13 @@ window.UIHelper = class UIHelper {
     static async animationFrame()
     {
         return new Promise(requestAnimationFrame);
+    }
+
+    static async waitForCondition(conditionFunc)
+    {
+        while (!conditionFunc()) {
+            await UIHelper.animationFrame();
+        }
     }
 
     static sendEventStream(eventStream)
@@ -714,6 +741,18 @@ window.UIHelper = class UIHelper {
         return new Promise(resolve => testRunner.runUIScript(setValueScript, resolve));
     }
 
+    static timerPickerValues()
+    {
+        if (!this.isIOSFamily())
+            return Promise.resolve();
+
+        const uiScript = "JSON.stringify([uiController.timePickerValueHour, uiController.timePickerValueMinute])";
+        return new Promise(resolve => testRunner.runUIScript(uiScript, result => {
+            const [hour, minute] = JSON.parse(result)
+            resolve({ hour: hour, minute: minute });
+        }));
+    }
+
     static setShareSheetCompletesImmediatelyWithResolution(resolved)
     {
         const resolveShareSheet = `(() => uiController.setShareSheetCompletesImmediatelyWithResolution(${resolved}))()`;
@@ -1028,6 +1067,11 @@ window.UIHelper = class UIHelper {
         const menuRect = await this.rectForMenuAction(action);
         if (menuRect)
             await this.activateAt(menuRect.left + menuRect.width / 2, menuRect.top + menuRect.height / 2);
+    }
+
+    static waitForEvent(target, eventName)
+    {
+        return new Promise(resolve => target.addEventListener(eventName, resolve, { once: true }));
     }
 
     static callFunctionAndWaitForEvent(functionToCall, target, eventName)

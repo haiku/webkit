@@ -120,17 +120,30 @@ MediaElementSession::MediaElementSession(HTMLMediaElement& element)
     , m_logIdentifier(element.logIdentifier())
 #endif
 {
-#if ENABLE(MEDIA_USAGE)
-    if (auto page = m_element.document().page())
-        page->chrome().client().addMediaUsageManagerSession(mediaSessionIdentifier(), m_element.sourceApplicationIdentifier(), m_element.document().url());
-#endif
+    addedMediaUsageManagerSessionIfNecessary();
 }
 
 MediaElementSession::~MediaElementSession()
 {
 #if ENABLE(MEDIA_USAGE)
-    if (auto page = m_element.document().page())
+    auto page = m_element.document().page();
+    if (page && m_haveAddedMediaUsageManagerSession)
         page->chrome().client().removeMediaUsageManagerSession(mediaSessionIdentifier());
+#endif
+}
+
+void MediaElementSession::addedMediaUsageManagerSessionIfNecessary()
+{
+#if ENABLE(MEDIA_USAGE)
+    if (m_haveAddedMediaUsageManagerSession)
+        return;
+
+    auto page = m_element.document().page();
+    if (!page)
+        return;
+
+    m_haveAddedMediaUsageManagerSession = true;
+    page->chrome().client().addMediaUsageManagerSession(mediaSessionIdentifier(), m_element.sourceApplicationIdentifier(), m_element.document().url());
 #endif
 }
 
@@ -200,6 +213,7 @@ void MediaElementSession::inActiveDocumentChanged()
 {
     m_elementIsHiddenBecauseItWasRemovedFromDOM = !m_element.inActiveDocument();
     scheduleClientDataBufferingCheck();
+    addedMediaUsageManagerSessionIfNecessary();
 }
 
 void MediaElementSession::scheduleClientDataBufferingCheck()
@@ -1042,7 +1056,7 @@ void MediaElementSession::updateMediaUsageIfChanged()
         isAudio,
         m_element.hasVideo(),
         m_element.hasAudio(),
-        m_element.renderer(),
+        m_element.hasRenderer(),
         isAudio && hasBehaviorRestriction(RequireUserGestureToControlControlsManager) && !processingUserGesture,
         m_element.hasAudio() && isPlaying && allowsPlaybackControlsForAutoplayingAudio(), // userHasPlayedAudioBefore
         isElementRectMostlyInMainFrame(m_element),
@@ -1068,6 +1082,7 @@ void MediaElementSession::updateMediaUsageIfChanged()
     m_mediaUsageInfo = WTFMove(usage);
 
 #if ENABLE(MEDIA_USAGE)
+    ASSERT(m_haveAddedMediaUsageManagerSession);
     page->chrome().client().updateMediaUsageManagerSessionState(mediaSessionIdentifier(), *m_mediaUsageInfo);
 #endif
 }

@@ -273,14 +273,9 @@ void AuthenticatorManager::requestPin(uint64_t retries, CompletionHandler<void(c
     });
 }
 
-void AuthenticatorManager::selectAssertionResponse(const HashSet<Ref<AuthenticatorAssertionResponse>>& responses, WebAuthenticationSource source, CompletionHandler<void(AuthenticatorAssertionResponse*)>&& completionHandler)
+void AuthenticatorManager::selectAssertionResponse(Vector<Ref<WebCore::AuthenticatorAssertionResponse>>&& responses, WebAuthenticationSource source, CompletionHandler<void(AuthenticatorAssertionResponse*)>&& completionHandler)
 {
-    Vector<Ref<AuthenticatorAssertionResponse>> responseVector;
-    responseVector.reserveInitialCapacity(responses.size());
-    for (auto& response : responses)
-        responseVector.uncheckedAppend(response.copyRef());
-
-    dispatchPanelClientCall([responses = WTFMove(responseVector), source, completionHandler = WTFMove(completionHandler)] (const API::WebAuthenticationPanel& panel) mutable {
+    dispatchPanelClientCall([responses = WTFMove(responses), source, completionHandler = WTFMove(completionHandler)] (const API::WebAuthenticationPanel& panel) mutable {
         panel.client().selectAssertionResponse(WTFMove(responses), source, WTFMove(completionHandler));
     });
 }
@@ -309,6 +304,12 @@ void AuthenticatorManager::filterTransports(TransportSet& transports) const
     if (!NfcService::isAvailable())
         transports.remove(AuthenticatorTransport::Nfc);
     if (!LocalService::isAvailable())
+        transports.remove(AuthenticatorTransport::Internal);
+
+    if (!isFeatureEnabled(m_pendingRequestData.page.get(), WebPreferencesKey::webAuthenticationLocalAuthenticatorEnabledKey()))
+        transports.remove(AuthenticatorTransport::Internal);
+    // Local authenticator might invoke system UI which should definitely not be able to trigger by scripts automatically.
+    if (!m_pendingRequestData.processingUserGesture)
         transports.remove(AuthenticatorTransport::Internal);
 }
 
@@ -395,8 +396,6 @@ auto AuthenticatorManager::getTransports() const -> TransportSet
     }, [&](const PublicKeyCredentialRequestOptions& options) {
         transports = collectTransports(options.allowCredentials);
     });
-    if (!isFeatureEnabled(m_pendingRequestData.page.get(), WebPreferencesKey::webAuthenticationLocalAuthenticatorEnabledKey()))
-        transports.remove(AuthenticatorTransport::Internal);
     filterTransports(transports);
     return transports;
 }

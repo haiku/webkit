@@ -87,6 +87,7 @@ public:
         case NotStringVarUse:
         case NotSymbolUse:
         case NotCellUse:
+        case NotCellNorBigIntUse:
         case OtherUse:
         case MiscUse:
         case AnyIntUse:
@@ -565,6 +566,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node, bool igno
     case ToNumber:
     case ToNumeric:
     case ToObject:
+    case CallNumberConstructor:
     case NumberToStringWithRadix:
     case SetFunctionName:
     case NewStringObject:

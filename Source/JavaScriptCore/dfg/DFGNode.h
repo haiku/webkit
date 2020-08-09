@@ -1202,9 +1202,19 @@ public:
         return m_flags & NodeMayHaveNonNumericResult;
     }
 
+    bool mayHaveBigInt32Result()
+    {
+        return m_flags & NodeMayHaveBigInt32Result;
+    }
+
+    bool mayHaveHeapBigIntResult()
+    {
+        return m_flags & NodeMayHaveHeapBigIntResult;
+    }
+
     bool mayHaveBigIntResult()
     {
-        return m_flags & NodeMayHaveBigIntResult;
+        return mayHaveBigInt32Result() || mayHaveHeapBigIntResult();
     }
 
     bool hasNewArrayBufferData()
@@ -1785,6 +1795,7 @@ public:
         case ToNumber:
         case ToNumeric:
         case ToObject:
+        case CallNumberConstructor:
         case ValueBitAnd:
         case ValueBitOr:
         case ValueBitXor:
@@ -2754,6 +2765,11 @@ public:
     {
         return isNotCellSpeculation(prediction());
     }
+
+    bool shouldSpeculateNotCellNorBigInt()
+    {
+        return isNotCellNorBigIntSpeculation(prediction());
+    }
     
     bool shouldSpeculateUntypedForArithmetic()
     {
@@ -2866,6 +2882,11 @@ public:
     {
         return nodeCanSpeculateInt52(arithNodeFlags(), source);
     }
+
+    bool canSpeculateBigInt32(RareCaseProfilingSource source)
+    {
+        return nodeCanSpeculateBigInt32(arithNodeFlags(), source);
+    }
     
     RareCaseProfilingSource sourceFor(PredictionPass pass)
     {
@@ -2882,6 +2903,11 @@ public:
     bool canSpeculateInt52(PredictionPass pass)
     {
         return canSpeculateInt52(sourceFor(pass));
+    }
+
+    bool canSpeculateBigInt32(PredictionPass pass)
+    {
+        return canSpeculateBigInt32(sourceFor(pass));
     }
 
     bool hasTypeLocation()

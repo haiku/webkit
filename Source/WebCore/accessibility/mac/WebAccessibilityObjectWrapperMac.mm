@@ -31,6 +31,7 @@
 
 #if ENABLE(ACCESSIBILITY) && PLATFORM(MAC)
 
+#import "AXLogger.h"
 #import "AXObjectCache.h"
 #import "AccessibilityARIAGridRow.h"
 #import "AccessibilityLabel.h"
@@ -1349,10 +1350,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         || backingObject->isToolbar())
         [additional addObject:NSAccessibilityOrientationAttribute];
 
-    if (backingObject->supportsARIADragging())
+    if (backingObject->supportsDragging())
         [additional addObject:NSAccessibilityGrabbedAttribute];
 
-    if (backingObject->supportsARIADropping())
+    if (backingObject->supportsDropping())
         [additional addObject:NSAccessibilityDropEffectsAttribute];
 
     if (backingObject->isTable() && backingObject->isExposable() && backingObject->supportsSelectedRows())
@@ -1942,7 +1943,11 @@ static void WebTransformCGPathToNSBezierPath(void* info, const CGPathElement *el
 
 - (NSNumber *)primaryScreenHeight
 {
-    FloatRect screenRect = screenRectForPrimaryScreen();
+    // The rect for primary screen should not change in normal use. So cache it
+    // here to avoid hitting the main thread repeatedly.
+    static FloatRect screenRect = Accessibility::retrieveValueFromMainThread<FloatRect>([] () -> FloatRect {
+        return screenRectForPrimaryScreen();
+    });
     return [NSNumber numberWithFloat:screenRect.height()];
 }
 
@@ -2281,12 +2286,18 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (id)accessibilityAttributeValue:(NSString*)attributeName
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    AXTRACE(makeString("WebAccessibilityObjectWrapper accessibilityAttributeValue:", String(attributeName)));
     auto* backingObject = self.updateObjectBackingStore;
-    if (!backingObject)
+    if (!backingObject) {
+        AXLOG("No backingObject!!!");
         return nil;
+    }
+    AXLOG(*backingObject);
 
-    if (backingObject->isDetachedFromParent())
+    if (backingObject->isDetachedFromParent()) {
+        AXLOG("backingObject is detached from parent!!!");
         return nil;
+    }
 
     if ([attributeName isEqualToString: NSAccessibilityRoleAttribute])
         return [self role];
@@ -2906,10 +2917,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         return @(backingObject->setSize());
 
     if ([attributeName isEqualToString:NSAccessibilityGrabbedAttribute])
-        return [NSNumber numberWithBool:backingObject->isARIAGrabbed()];
+        return [NSNumber numberWithBool:backingObject->isGrabbed()];
 
     if ([attributeName isEqualToString:NSAccessibilityDropEffectsAttribute])
-        return createNSArray(backingObject->determineARIADropEffects()).autorelease();
+        return createNSArray(backingObject->determineDropEffects()).autorelease();
 
     if ([attributeName isEqualToString:NSAccessibilityPlaceholderValueAttribute])
         return backingObject->placeholderValue();
@@ -3858,6 +3869,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (id)accessibilityAttributeValue:(NSString*)attribute forParameter:(id)parameter
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    AXTRACE(makeString("WebAccessibilityObjectWrapper accessibilityAttributeValue:", String(attribute)));
     auto* backingObject = self.updateObjectBackingStore;
     if (!backingObject)
         return nil;
@@ -3931,16 +3943,12 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             auto* backingObject = protectedSelf.get().axBackingObject;
             if (!backingObject)
                 return nil;
-
             auto ranges = backingObject->findTextRanges(criteria);
             if (ranges.isEmpty())
                 return nil;
-            NSMutableArray *markers = [NSMutableArray arrayWithCapacity:ranges.size()];
-            for (auto range : ranges) {
-                if (id marker = [protectedSelf textMarkerRangeFromRange:range])
-                    [markers addObject:marker];
-            }
-            return markers;
+            return createNSArray(ranges, [&] (auto& range) {
+                return [protectedSelf textMarkerRangeFromRange:range];
+            }).autorelease();
         });
     }
 
@@ -3955,10 +3963,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         });
         if (operationResult.isEmpty())
             return nil;
-        NSMutableArray *result = [NSMutableArray arrayWithCapacity:operationResult.size()];
-        for (auto str : operationResult)
-            [result addObject:str];
-        return result;
+        return createNSArray(operationResult).autorelease();
     }
 
     if ([attribute isEqualToString:NSAccessibilityUIElementCountForSearchPredicateParameterizedAttribute]) {
@@ -4469,6 +4474,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (NSArray *)accessibilityArrayAttributeValues:(NSString *)attribute index:(NSUInteger)index maxCount:(NSUInteger)maxCount
 {
+    AXTRACE(makeString("WebAccessibilityObjectWrapper accessibilityArrayAttributeValue:", String(attribute)));
     auto* backingObject = self.updateObjectBackingStore;
     if (!backingObject)
         return nil;

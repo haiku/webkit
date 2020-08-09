@@ -327,11 +327,11 @@ public:
     int posInSet() const override;
 
     // ARIA drag and drop
-    bool supportsARIADropping() const override { return false; }
-    bool supportsARIADragging() const override { return false; }
-    bool isARIAGrabbed() override { return false; }
+    bool supportsDropping() const override { return false; }
+    bool supportsDragging() const override { return false; }
+    bool isGrabbed() override { return false; }
     void setARIAGrabbed(bool) override { }
-    Vector<String> determineARIADropEffects() override { return { }; }
+    Vector<String> determineDropEffects() const override { return { }; }
 
     // Called on the root AX object to return the deepest available element.
     AXCoreObject* accessibilityHitTest(const IntPoint&) const override { return nullptr; }
@@ -358,7 +358,7 @@ public:
     // Text selection
 private:
     RefPtr<Range> rangeOfStringClosestToRangeInDirection(Range*, AccessibilitySearchDirection, Vector<String> const&) const;
-    RefPtr<Range> selectionRange() const;
+    Optional<SimpleRange> selectionRange() const;
     RefPtr<Range> findTextRange(Vector<String> const& searchStrings, RefPtr<Range> const& start, AccessibilitySearchTextDirection) const;
 public:
     Vector<RefPtr<Range>> findTextRanges(AccessibilitySearchTextCriteria const&) const override;

@@ -825,6 +825,14 @@ ModernMediaControlsEnabled:
   humanReadableDescription: "Use modern media controls look"
   webcoreBinding: RuntimeEnabledFeatures
 
+PaintTimingEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "Paint Timing"
+  humanReadableDescription: "Enable PaintTiming API"
+  webcoreBinding: RuntimeEnabledFeatures
+  category: experimental
+
 ResourceTimingEnabled:
   type: bool
   defaultValue: true
@@ -1267,7 +1275,7 @@ IsInAppBrowserPrivacyEnabled:
 
 NeedsInAppBrowserPrivacyQuirks:
     type: bool
-    defaultValue: true
+    defaultValue: false
     humanReadableName: "Needs In-App Browser Privacy Quirks"
     humanReadableDescription: "Enable quirks needed to support In-App Browser privacy"
     webcoreBinding: RuntimeEnabledFeatures
@@ -1792,6 +1800,14 @@ CSSLogicalEnabled:
   defaultValue: false
   humanReadableName: "CSS Logical Properties and Values"
   humanReadableDescription: "Enable CSS Logical Properties and Values"
+  webcoreBinding: RuntimeEnabledFeatures
+  category: internal
+
+LineHeightUnitsEnabled:
+  type: bool
+  defaultValue: false
+  humanReadableName: "lh / rlh units"
+  humanReadableDescription: "Enable the lh and lhr units"
   webcoreBinding: RuntimeEnabledFeatures
   category: internal
 

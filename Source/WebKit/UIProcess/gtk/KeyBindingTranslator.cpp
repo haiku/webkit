@@ -19,8 +19,8 @@
 #include "config.h"
 #include "KeyBindingTranslator.h"
 
+#include <WebCore/GtkVersioning.h>
 #include <gdk/gdkkeysyms.h>
-#include <gtk/gtk.h>
 
 namespace WebKit {
 
@@ -68,6 +68,7 @@ static void insertEmojiCallback(GtkWidget* widget, KeyBindingTranslator* transla
 }
 #endif
 
+#if !USE(GTK4)
 // GTK+ will still send these signals to the web view. So we can safely stop signal
 // emission without breaking accessibility.
 static void popupMenuCallback(GtkWidget* widget, KeyBindingTranslator*)
@@ -79,6 +80,7 @@ static void showHelpCallback(GtkWidget* widget, KeyBindingTranslator*)
 {
     g_signal_stop_emission_by_name(widget, "show-help");
 }
+#endif
 
 static const char* const gtkDeleteCommands[][2] = {
     { "DeleteBackward",               "DeleteForward"                        }, // Characters
@@ -171,19 +173,26 @@ static void moveCursorCallback(GtkWidget* widget, GtkMovementStep step, gint cou
 KeyBindingTranslator::KeyBindingTranslator()
     : m_nativeWidget(gtk_text_view_new())
 {
-    g_signal_connect(m_nativeWidget.get(), "backspace", G_CALLBACK(backspaceCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "cut-clipboard", G_CALLBACK(cutClipboardCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "copy-clipboard", G_CALLBACK(copyClipboardCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "paste-clipboard", G_CALLBACK(pasteClipboardCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "select-all", G_CALLBACK(selectAllCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "move-cursor", G_CALLBACK(moveCursorCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "delete-from-cursor", G_CALLBACK(deleteFromCursorCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "toggle-overwrite", G_CALLBACK(toggleOverwriteCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "popup-menu", G_CALLBACK(popupMenuCallback), this);
-    g_signal_connect(m_nativeWidget.get(), "show-help", G_CALLBACK(showHelpCallback), this);
-#if GTK_CHECK_VERSION(3, 24, 0)
-    g_signal_connect(m_nativeWidget.get(), "insert-emoji", G_CALLBACK(insertEmojiCallback), this);
+    g_signal_connect(m_nativeWidget, "backspace", G_CALLBACK(backspaceCallback), this);
+    g_signal_connect(m_nativeWidget, "cut-clipboard", G_CALLBACK(cutClipboardCallback), this);
+    g_signal_connect(m_nativeWidget, "copy-clipboard", G_CALLBACK(copyClipboardCallback), this);
+    g_signal_connect(m_nativeWidget, "paste-clipboard", G_CALLBACK(pasteClipboardCallback), this);
+    g_signal_connect(m_nativeWidget, "select-all", G_CALLBACK(selectAllCallback), this);
+    g_signal_connect(m_nativeWidget, "move-cursor", G_CALLBACK(moveCursorCallback), this);
+    g_signal_connect(m_nativeWidget, "delete-from-cursor", G_CALLBACK(deleteFromCursorCallback), this);
+    g_signal_connect(m_nativeWidget, "toggle-overwrite", G_CALLBACK(toggleOverwriteCallback), this);
+#if !USE(GTK4)
+    g_signal_connect(m_nativeWidget, "popup-menu", G_CALLBACK(popupMenuCallback), this);
+    g_signal_connect(m_nativeWidget, "show-help", G_CALLBACK(showHelpCallback), this);
 #endif
+#if GTK_CHECK_VERSION(3, 24, 0)
+    g_signal_connect(m_nativeWidget, "insert-emoji", G_CALLBACK(insertEmojiCallback), this);
+#endif
+}
+
+KeyBindingTranslator::~KeyBindingTranslator()
+{
+    ASSERT(!m_nativeWidget);
 }
 
 struct KeyCombinationEntry {
@@ -207,19 +216,8 @@ static const KeyCombinationEntry customKeyBindings[] = {
     { GDK_KEY_ISO_Enter, GDK_SHIFT_MASK,   "InsertLineBreak" },
 };
 
-Vector<String> KeyBindingTranslator::commandsForKeyEvent(GdkEventKey* event)
+static Vector<String> handleCustomKeyBindings(unsigned keyval, GdkModifierType state)
 {
-    ASSERT(m_pendingEditorCommands.isEmpty());
-
-    guint keyval;
-    GdkModifierType state;
-    gdk_event_get_keyval(reinterpret_cast<GdkEvent*>(event), &keyval);
-    gdk_event_get_state(reinterpret_cast<GdkEvent*>(event), &state);
-
-    gtk_bindings_activate_event(G_OBJECT(m_nativeWidget.get()), event);
-    if (!m_pendingEditorCommands.isEmpty())
-        return WTFMove(m_pendingEditorCommands);
-
     // For keypress events, we want charCode(), but keyCode() does that.
     unsigned mapKey = (state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK | GDK_MOD1_MASK)) << 16 | keyval;
     if (!mapKey)
@@ -232,5 +230,34 @@ Vector<String> KeyBindingTranslator::commandsForKeyEvent(GdkEventKey* event)
 
     return { };
 }
+
+#if USE(GTK4)
+Vector<String> KeyBindingTranslator::commandsForKeyEvent(GtkEventControllerKey* controller)
+{
+    ASSERT(m_pendingEditorCommands.isEmpty());
+
+    gtk_event_controller_key_forward(GTK_EVENT_CONTROLLER_KEY(controller), m_nativeWidget);
+    if (!m_pendingEditorCommands.isEmpty())
+        return WTFMove(m_pendingEditorCommands);
+
+    auto* event = gtk_event_controller_get_current_event(GTK_EVENT_CONTROLLER(controller));
+    return handleCustomKeyBindings(gdk_key_event_get_keyval(event), gdk_event_get_modifier_state(event));
+}
+#else
+Vector<String> KeyBindingTranslator::commandsForKeyEvent(GdkEventKey* event)
+{
+    ASSERT(m_pendingEditorCommands.isEmpty());
+
+    gtk_bindings_activate_event(G_OBJECT(m_nativeWidget), event);
+    if (!m_pendingEditorCommands.isEmpty())
+        return WTFMove(m_pendingEditorCommands);
+
+    guint keyval;
+    gdk_event_get_keyval(reinterpret_cast<GdkEvent*>(event), &keyval);
+    GdkModifierType state;
+    gdk_event_get_state(reinterpret_cast<GdkEvent*>(event), &state);
+    return handleCustomKeyBindings(keyval, state);
+}
+#endif
 
 } // namespace WebKit

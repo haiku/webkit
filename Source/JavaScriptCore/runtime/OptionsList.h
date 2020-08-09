@@ -384,6 +384,8 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, validateExceptionChecks, false, Normal, "Verifies that needed exception checks are performed.") \
     v(Unsigned, unexpectedExceptionStackTraceLimit, 100, Normal, "Stack trace limit for debugging unexpected exceptions observed in the VM") \
     \
+    v(Bool, validateDFGClobberize, false, Normal, "Emits extra validation code in the DFG/FTL for the Clobberize phase")\
+    \
     v(Bool, useExecutableAllocationFuzz, false, Normal, nullptr) \
     v(Unsigned, fireExecutableAllocationFuzzAt, 0, Normal, nullptr) \
     v(Unsigned, fireExecutableAllocationFuzzAtOrAfter, 0, Normal, nullptr) \
@@ -484,6 +486,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, useWebAssemblyMultiValues, true, Normal, "Allow types from the wasm mulit-values spec.") \
     v(Bool, useWeakRefs, false, Normal, "Expose the WeakRef constructor.") \
     v(Bool, useBigInt, true, Normal, "If true, we will enable BigInt support.") \
+    v(Bool, useIntlLocale, false, Normal, "Expose the Intl.Locale constructor.") \
     v(Bool, useIntlRelativeTimeFormat, false, Normal, "Expose the Intl.RelativeTimeFormat constructor.") \
     v(Bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.") \
     v(Bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.") \
@@ -541,7 +544,6 @@ enum OptionEquivalence {
     v(enableOSRExitFuzz, useOSRExitFuzz, SameOption) \
     v(enableDollarVM, useDollarVM, SameOption) \
     v(enableWebAssembly, useWebAssembly, SameOption) \
-    v(verboseDFGByteCodeParsing, verboseDFGBytecodeParsing, SameOption) \
     v(maximumOptimizationCandidateInstructionCount, maximumOptimizationCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForCallInlineCandidateInstructionCount, maximumFunctionForCallInlineCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForClosureCallInlineCandidateInstructionCount, maximumFunctionForClosureCallInlineCandidateBytecodeCost, SameOption) \

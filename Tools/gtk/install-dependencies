@@ -181,7 +181,8 @@ function installDependenciesWithApt {
 
     # These are dependencies necessary for building with the Flatpak SDK.
     packages="$packages \
-        flatpak"
+        flatpak \
+        pipenv"
 
     # These are dependencies necessary for building the jhbuild.
     packages="$packages \
@@ -246,6 +247,7 @@ function installDependenciesWithApt {
     # These are dependencies necessary for using webkit-patch
     packages="$packages \
         git-svn \
+        python3-secretstorage \
         subversion"
 
     apt-get install $packages
@@ -356,7 +358,8 @@ function installDependenciesWithPacman {
 
     # These are dependencies necessary for building with the Flatpak SDK.
     packages="$packages \
-        flatpak"
+        flatpak \
+        python-pipenv"
 
     # These are dependencies necessary for building the jhbuild.
     # Note: Could not find libegl-mesa
@@ -412,6 +415,7 @@ function installDependenciesWithPacman {
 
     # These are dependencies necessary for using webkit-patch
     packages="$packages \
+        python-secretstorage \
         svn"
     pacman -S --needed $packages
 
@@ -535,7 +539,8 @@ function installDependenciesWithDnf {
 
     # These are dependencies necessary for building with the Flatpak SDK.
     packages="$packages \
-        flatpak"
+        flatpak \
+        pipenv"
 
     # These are dependencies necessary for building the jhbuild.
     packages="$packages \
@@ -584,6 +589,7 @@ function installDependenciesWithDnf {
     # These are dependencies necessary for using webkit-patch
     packages="$packages
         git-svn \
+        python3-secretstorage \
         subversion"
 
     dnf install $packages

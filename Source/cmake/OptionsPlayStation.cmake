@@ -1,5 +1,9 @@
 set(PORT PlayStation)
 
+string(APPEND CMAKE_C_FLAGS_RELEASE " -g")
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -g")
+set(CMAKE_CONFIGURATION_TYPES "Debug" "Release")
+
 include(Sign)
 
 add_definitions(-DWTF_PLATFORM_PLAYSTATION=1)
@@ -11,6 +15,7 @@ set(ENABLE_API_TESTS ON CACHE BOOL "Build API Tests")
 set(ENABLE_WEBCORE ON CACHE BOOL "Build WebCore")
 set(ENABLE_WEBKIT ON CACHE BOOL "Build WebKit")
 set(ENABLE_WEBKIT_LEGACY OFF)
+set(ENABLE_WEBINSPECTORUI OFF)
 
 if (NOT ENABLE_WEBCORE)
     set(ENABLE_WEBKIT OFF)
@@ -121,8 +126,6 @@ find_package(ZLIB REQUIRED)
 
 SET_AND_EXPOSE_TO_BUILD(HAVE_PTHREAD_SETNAME_NP ON)
 
-SET_AND_EXPOSE_TO_BUILD(USE_EXPORT_MACROS ON)
-
 SET_AND_EXPOSE_TO_BUILD(USE_CAIRO ON)
 SET_AND_EXPOSE_TO_BUILD(USE_CURL ON)
 SET_AND_EXPOSE_TO_BUILD(USE_FREETYPE ON)
@@ -214,3 +217,49 @@ macro(WEBKIT_EXECUTABLE _target)
         endforeach ()
     endif ()
 endmacro()
+
+function(PLAYSTATION_COPY_SHARED_LIBRARIES target_name)
+    set(oneValueArgs PREFIX DESTINATION)
+    set(multiValueArgs FILES)
+    cmake_parse_arguments(opt "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+    if (opt_PREFIX)
+        set(prefix ${opt_PREFIX})
+    else ()
+        set(prefix ${WEBKIT_LIBRARIES_DIR})
+    endif ()
+    if (opt_DESTINATION)
+        set(destination ${opt_DESTINATION})
+    else ()
+        set(destination ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    endif ()
+
+    set(stub_libs)
+    list(REMOVE_DUPLICATES opt_FILES)
+    foreach (file IN LISTS opt_FILES)
+        if (NOT ${file} MATCHES ".*_stub_weak.a")
+            continue()
+        endif ()
+        file(RELATIVE_PATH _relative ${prefix} ${file})
+        if (NOT ${_relative} MATCHES "^\.\./.*")
+            get_filename_component(lib ${file} NAME)
+            list(APPEND stub_libs ${lib})
+        endif ()
+    endforeach ()
+
+    set(dst_shared_libs)
+    foreach (lib IN LISTS stub_libs)
+        string(REPLACE "_stub_weak.a" ".sprx" shared_lib ${lib})
+        set(src_file "${prefix}/bin/${shared_lib}")
+        if (NOT EXISTS ${src_file})
+            continue()
+        endif ()
+        set(dst_file "${destination}/${shared_lib}")
+        add_custom_command(OUTPUT ${dst_file}
+            COMMAND ${CMAKE_COMMAND} -E copy ${src_file} ${dst_file}
+            MAIN_DEPENDENCY ${file}
+            VERBATIM
+        )
+        list(APPEND dst_shared_libs ${dst_file})
+    endforeach ()
+    add_custom_target(${target_name} ALL DEPENDS ${dst_shared_libs})
+endfunction()

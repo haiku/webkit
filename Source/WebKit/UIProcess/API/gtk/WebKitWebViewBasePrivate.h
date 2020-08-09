@@ -78,16 +78,19 @@ void webkitWebViewBaseDidExitWebProcess(WebKitWebViewBase*);
 void webkitWebViewBaseDidRelaunchWebProcess(WebKitWebViewBase*);
 void webkitWebViewBasePageClosed(WebKitWebViewBase*);
 
-#if ENABLE(DRAG_SUPPORT)
+#if ENABLE(DRAG_SUPPORT) && !USE(GTK4)
 WebKit::DragAndDropHandler& webkitWebViewBaseDragAndDropHandler(WebKitWebViewBase*);
 #endif
 
+#if !USE(GTK4)
 WebKit::GestureController& webkitWebViewBaseGestureController(WebKitWebViewBase*);
+#endif
 
 RefPtr<WebKit::ViewSnapshot> webkitWebViewBaseTakeViewSnapshot(WebKitWebViewBase*, Optional<WebCore::IntRect>&&);
-
 void webkitWebViewBaseSetEnableBackForwardNavigationGesture(WebKitWebViewBase*, bool enabled);
+#if !USE(GTK4)
 WebKit::ViewGestureController* webkitWebViewBaseViewGestureController(WebKitWebViewBase*);
+#endif
 
 bool webkitWebViewBaseBeginBackSwipeForTesting(WebKitWebViewBase*);
 bool webkitWebViewBaseCompleteBackSwipeForTesting(WebKitWebViewBase*);

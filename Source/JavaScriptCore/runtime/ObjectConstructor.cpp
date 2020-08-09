@@ -126,7 +126,8 @@ static ALWAYS_INLINE JSObject* constructObjectWithNewTarget(JSGlobalObject* glob
     // 1. If NewTarget is neither undefined nor the active function, then
     if (newTarget && newTarget != objectConstructor) {
         // a. Return ? OrdinaryCreateFromConstructor(NewTarget, "%ObjectPrototype%").
-        Structure* objectStructure = InternalFunction::createSubclassStructure(globalObject, objectConstructor, newTarget, globalObject->objectStructureForObjectConstructor());
+        Structure* baseStructure = getFunctionRealm(vm, asObject(newTarget))->objectStructureForObjectConstructor();
+        Structure* objectStructure = InternalFunction::createSubclassStructure(globalObject, asObject(newTarget), baseStructure);
         RETURN_IF_EXCEPTION(scope, nullptr);
         return constructEmptyObject(vm, objectStructure);
     }
@@ -191,9 +192,8 @@ JSValue objectConstructorGetOwnPropertyDescriptor(JSGlobalObject* globalObject, 
     RETURN_IF_EXCEPTION(scope, { });
 
     JSObject* result = constructObjectFromPropertyDescriptor(globalObject, descriptor);
-    EXCEPTION_ASSERT(!!scope.exception() == !result);
-    if (!result)
-        return jsUndefined();
+    scope.assertNoException();
+    ASSERT(result);
     return result;
 }
 
@@ -217,9 +217,8 @@ JSValue objectConstructorGetOwnPropertyDescriptors(JSGlobalObject* globalObject,
             continue;
 
         JSObject* fromDescriptor = constructObjectFromPropertyDescriptor(globalObject, descriptor);
-        EXCEPTION_ASSERT(!!scope.exception() == !fromDescriptor);
-        if (!fromDescriptor)
-            return jsUndefined();
+        scope.assertNoException();
+        ASSERT(fromDescriptor);
 
         PutPropertySlot slot(descriptors);
         descriptors->putOwnDataPropertyMayBeIndex(globalObject, propertyName, fromDescriptor, slot);
@@ -319,6 +318,10 @@ EncodedJSValue JSC_HOST_CALL objectConstructorAssign(JSGlobalObject* globalObjec
                 if (hasIndexedProperties(structure->indexingType()))
                     return false;
                 if (structure->hasGetterSetterProperties())
+                    return false;
+                if (structure->hasReadOnlyOrGetterSetterPropertiesExcludingProto())
+                    return false;
+                if (structure->hasCustomGetterSetterProperties())
                     return false;
                 if (structure->isUncacheableDictionary())
                     return false;
@@ -529,12 +532,9 @@ bool toPropertyDescriptor(JSGlobalObject* globalObject, JSValue in, PropertyDesc
     if (hasProperty) {
         JSValue get = description->get(globalObject, vm.propertyNames->get);
         RETURN_IF_EXCEPTION(scope, false);
-        if (!get.isUndefined()) {
-            CallData callData;
-            if (getCallData(vm, get, callData) == CallType::None) {
-                throwTypeError(globalObject, scope, "Getter must be a function."_s);
-                return false;
-            }
+        if (!get.isUndefined() && !get.isCallable(vm)) {
+            throwTypeError(globalObject, scope, "Getter must be a function."_s);
+            return false;
         }
         desc.setGetter(get);
     } else
@@ -545,12 +545,9 @@ bool toPropertyDescriptor(JSGlobalObject* globalObject, JSValue in, PropertyDesc
     if (hasProperty) {
         JSValue set = description->get(globalObject, vm.propertyNames->set);
         RETURN_IF_EXCEPTION(scope, false);
-        if (!set.isUndefined()) {
-            CallData callData;
-            if (getCallData(vm, set, callData) == CallType::None) {
-                throwTypeError(globalObject, scope, "Setter must be a function."_s);
-                return false;
-            }
+        if (!set.isUndefined() && !set.isCallable(vm)) {
+            throwTypeError(globalObject, scope, "Setter must be a function."_s);
+            return false;
         }
         desc.setSetter(set);
     } else

@@ -36,6 +36,7 @@
 #import <wtf/Optional.h>
 #import <wtf/ProcessPrivilege.h>
 #import <wtf/URL.h>
+#import <wtf/cocoa/VectorCocoa.h>
 #import <wtf/text/StringBuilder.h>
 
 @interface NSURL ()
@@ -64,9 +65,9 @@ void NetworkStorageSession::setCookies(const Vector<Cookie>& cookies, const URL&
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies) || m_isInMemoryCookieStore);
 
-    RetainPtr<NSMutableArray> nsCookies = adoptNS([[NSMutableArray alloc] initWithCapacity:cookies.size()]);
-    for (const auto& cookie : cookies)
-        [nsCookies addObject:(NSHTTPCookie *)cookie];
+    auto nsCookies = createNSArray(cookies, [] (auto& cookie) -> NSHTTPCookie * {
+        return cookie;
+    });
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
     [nsCookieStorage() setCookies:nsCookies.get() forURL:(NSURL *)url mainDocumentURL:(NSURL *)mainDocumentURL];
@@ -229,7 +230,7 @@ void NetworkStorageSession::deleteHTTPCookie(CFHTTPCookieStorageRef cookieStorag
     CFHTTPCookieStorageDeleteCookie(cookieStorage, [cookie _GetInternalCFHTTPCookie]);
 }
 
-#if !(PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101400) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
 static RetainPtr<NSDictionary> policyProperties(const SameSiteInfo& sameSiteInfo, NSURL *url)
 {
     static NSURL *emptyURL = [[NSURL alloc] initWithString:@""];
@@ -248,7 +249,8 @@ static NSArray *cookiesForURL(NSHTTPCookieStorage *storage, NSURL *url, NSURL *m
     auto completionHandler = [&cookiesPtr] (NSArray *cookies) {
         cookiesPtr = retainPtr(cookies);
     };
-#if !(PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101400) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+// FIXME: Seems like this newer code path can be used for watchOS and tvOS too.
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     if ([storage respondsToSelector:@selector(_getCookiesForURL:mainDocumentURL:partition:policyProperties:completionHandler:)])
         [storage _getCookiesForURL:url mainDocumentURL:mainDocumentURL partition:partition policyProperties:sameSiteInfo ? policyProperties(sameSiteInfo.value(), url).get() : nullptr completionHandler:completionHandler];
     else
@@ -265,7 +267,8 @@ void NetworkStorageSession::setHTTPCookiesForURL(CFHTTPCookieStorageRef cookieSt
 {
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanAccessRawCookies) || m_isInMemoryCookieStore);
     if (!cookieStorage) {
-#if !(PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101400) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+// FIXME: Seems like this newer code path can be used for watchOS and tvOS too.
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
         if ([NSHTTPCookieStorage instancesRespondToSelector:@selector(_setCookies:forURL:mainDocumentURL:policyProperties:)])
             [[NSHTTPCookieStorage sharedHTTPCookieStorage] _setCookies:cookies forURL:url mainDocumentURL:mainDocumentURL policyProperties:policyProperties(sameSiteInfo, url).get()];
         else
@@ -273,7 +276,8 @@ void NetworkStorageSession::setHTTPCookiesForURL(CFHTTPCookieStorageRef cookieSt
             [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookies:cookies forURL:url mainDocumentURL:mainDocumentURL];
         return;
     }
-#if !(PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101400) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+// FIXME: Seems like this newer code path can be used for watchOS and tvOS too.
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     if ([NSHTTPCookieStorage instancesRespondToSelector:@selector(_setCookies:forURL:mainDocumentURL:policyProperties:)]) {
         // FIXME: Stop creating a new NSHTTPCookieStorage object each time we want to query the cookie jar.
         // NetworkStorageSession could instead keep a NSHTTPCookieStorage object for us.
@@ -283,7 +287,7 @@ void NetworkStorageSession::setHTTPCookiesForURL(CFHTTPCookieStorageRef cookieSt
 #endif
         auto cfCookies = adoptCF([NSHTTPCookie _ns2cfCookies:cookies]);
         CFHTTPCookieStorageSetCookies(cookieStorage, cfCookies.get(), [url _cfurl], [mainDocumentURL _cfurl]);
-#if !(PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101400) && !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     }
 #else
     UNUSED_PARAM(sameSiteInfo);
@@ -616,71 +620,38 @@ void NetworkStorageSession::registerCookieChangeListenersIfNecessary()
 
     m_didRegisterCookieListeners = true;
 
-    if ([nsCookieStorage() respondsToSelector:@selector(_setCookiesChangedHandler:onQueue:)]) {
-        [nsCookieStorage() _setCookiesChangedHandler:^(NSArray<NSHTTPCookie*>* addedCookies, NSString* domainForChangedCookie) {
-            String host = domainForChangedCookie;
-            auto it = m_cookieChangeObservers.find(host);
-            if (it == m_cookieChangeObservers.end())
-                return;
-            auto cookies = nsCookiesToCookieVector(addedCookies, [](NSHTTPCookie *cookie) { return !cookie.HTTPOnly; });
-            if (cookies.isEmpty())
-                return;
-            for (auto* observer : it->value)
-                observer->cookiesAdded(host, cookies);
-        } onQueue:dispatch_get_main_queue()];
-    } else {
-        // Old SPI.
-        // FIXME: This could can be removed after a while. It is only kept to ensure a smooth transition to the new SPI.
-        [nsCookieStorage() _setCookiesAddedHandler:^(NSArray<NSHTTPCookie *> * nsCookies, NSURL *urlForAddedCookies) {
-            auto cookies = nsCookiesToCookieVector(nsCookies, [](NSHTTPCookie *cookie) { return !cookie.HTTPOnly; });
-            if (cookies.isEmpty())
-                return;
-            auto host = URL(urlForAddedCookies).host().toString();
-            RELEASE_ASSERT(!host.isNull());
-            // FIXME: This is inefficient. Unfortunately, CFNetwork sends us notifications for hosts that do not match exactly the ones we
-            // are listening for (e.g. 'secure.hulu.com instead of 'www.hulu.com' for). See <rdar://problem/59973630>.
-            auto registrableDomain = RegistrableDomain::uncheckedCreateFromHost(host);
-            for (auto& pair : m_cookieChangeObservers) {
-                if (RegistrableDomain::uncheckedCreateFromHost(pair.key) == registrableDomain) {
-                    for (auto* observer : pair.value)
-                        observer->cookiesAdded(pair.key, cookies);
-                }
-            }
-        } onQueue:dispatch_get_main_queue()];
-    }
+    [nsCookieStorage() _setCookiesChangedHandler:^(NSArray<NSHTTPCookie*>* addedCookies, NSString* domainForChangedCookie) {
+        String host = domainForChangedCookie;
+        auto it = m_cookieChangeObservers.find(host);
+        if (it == m_cookieChangeObservers.end())
+            return;
+        auto cookies = nsCookiesToCookieVector(addedCookies, [](NSHTTPCookie *cookie) { return !cookie.HTTPOnly; });
+        if (cookies.isEmpty())
+            return;
+        for (auto* observer : it->value)
+            observer->cookiesAdded(host, cookies);
+    } onQueue:dispatch_get_main_queue()];
 
-    if ([nsCookieStorage() respondsToSelector:@selector(_setCookiesRemovedHandler:onQueue:)]) {
-        [nsCookieStorage() _setCookiesRemovedHandler:^(NSArray<NSHTTPCookie*>* removedCookies, NSString* domainForRemovedCookies, bool removeAllCookies)
-        {
-            if (removeAllCookies) {
-                for (auto& observers : m_cookieChangeObservers.values()) {
-                    for (auto* observer : observers)
-                        observer->allCookiesDeleted();
-                }
-                return;
-            }
-
-            String host = domainForRemovedCookies;
-            auto it = m_cookieChangeObservers.find(host);
-            if (it == m_cookieChangeObservers.end())
-                return;
-
-            auto cookies = nsCookiesToCookieVector(removedCookies, [](NSHTTPCookie *cookie) { return !cookie.HTTPOnly; });
-            if (cookies.isEmpty())
-                return;
-            for (auto* observer : it->value)
-                observer->cookiesDeleted(host, cookies);
-        } onQueue:dispatch_get_main_queue()];
-    } else {
-        // Old SPI.
-        // FIXME: This could can be removed after a while. It is only kept to ensure a smooth transition to the new SPI.
-        [nsCookieStorage() _setCookiesDeletedHandler:^(NSArray<NSHTTPCookie *> *, bool /*deletedAllCookies*/) {
+    [nsCookieStorage() _setCookiesRemovedHandler:^(NSArray<NSHTTPCookie*>* removedCookies, NSString* domainForRemovedCookies, bool removeAllCookies) {
+        if (removeAllCookies) {
             for (auto& observers : m_cookieChangeObservers.values()) {
                 for (auto* observer : observers)
                     observer->allCookiesDeleted();
             }
-        } onQueue:dispatch_get_main_queue()];
-    }
+            return;
+        }
+
+        String host = domainForRemovedCookies;
+        auto it = m_cookieChangeObservers.find(host);
+        if (it == m_cookieChangeObservers.end())
+            return;
+
+        auto cookies = nsCookiesToCookieVector(removedCookies, [](NSHTTPCookie *cookie) { return !cookie.HTTPOnly; });
+        if (cookies.isEmpty())
+            return;
+        for (auto* observer : it->value)
+            observer->cookiesDeleted(host, cookies);
+    } onQueue:dispatch_get_main_queue()];
 }
 
 void NetworkStorageSession::unregisterCookieChangeListenersIfNecessary()
@@ -688,15 +659,8 @@ void NetworkStorageSession::unregisterCookieChangeListenersIfNecessary()
     if (!m_didRegisterCookieListeners)
         return;
 
-    if ([nsCookieStorage() respondsToSelector:@selector(_setCookiesChangedHandler:onQueue:)])
-        [nsCookieStorage() _setCookiesChangedHandler:nil onQueue:nil];
-    else
-        [nsCookieStorage() _setCookiesAddedHandler:nil onQueue:nil]; // Old SPI.
-
-    if ([nsCookieStorage() respondsToSelector:@selector(_setCookiesRemovedHandler:onQueue:)])
-        [nsCookieStorage() _setCookiesRemovedHandler:nil onQueue:nil];
-    else
-        [nsCookieStorage() _setCookiesDeletedHandler:nil onQueue:nil]; // Old SPI.
+    [nsCookieStorage() _setCookiesChangedHandler:nil onQueue:nil];
+    [nsCookieStorage() _setCookiesRemovedHandler:nil onQueue:nil];
 
     [nsCookieStorage() _setSubscribedDomainsForCookieChanges:nil];
     m_didRegisterCookieListeners = false;
@@ -747,7 +711,7 @@ void NetworkStorageSession::stopListeningForCookieChangeNotifications(CookieChan
 // FIXME: This can eventually go away, this is merely to ensure a smooth transition to the new API.
 bool NetworkStorageSession::supportsCookieChangeListenerAPI() const
 {
-    static const bool supportsAPI = [nsCookieStorage() respondsToSelector:@selector(_setSubscribedDomainsForCookieChanges:)];
+    static const bool supportsAPI = [nsCookieStorage() respondsToSelector:@selector(_setCookiesChangedHandler:onQueue:)];
     return supportsAPI;
 }
 

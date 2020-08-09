@@ -25,24 +25,33 @@
 
 #pragma once
 
-#include <wtf/Logger.h>
+#include "AXObjectCache.h"
+#include "AccessibilityObjectInterface.h"
 
 namespace WebCore {
 
 class AXLogger {
 public:
-    AXLogger(const char* methodName);
+    AXLogger() = default;
+    AXLogger(const String& methodName);
     ~AXLogger();
+    static void log(const String&);
+    static void log(const AXCoreObject&);
+    static void log(const std::pair<RefPtr<AXCoreObject>, AXObjectCache::AXNotification>&);
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    static void log(AXIsolatedTree&);
+#endif
+    static void add(TextStream&, const RefPtr<AXCoreObject>&, bool recursive = false);
 private:
-    RefPtr<Logger> m_logger;
-    WTFLogChannel& m_channel;
     String m_methodName;
 };
 
-#ifndef NDEBUG
-#define AXTRACE(methodName) AXLogger axLogger(methodName)
+#if LOG_DISABLED
+#define AXTRACE(methodName) (void)0
+#define AXLOG(x) (void)0
 #else
-#define AXTRACE(methodName)
-#endif // ifndef NDEBUG
+#define AXTRACE(methodName) AXLogger axLogger(methodName)
+#define AXLOG(x) AXLogger::log(x)
+#endif // LOG_DISABLED
 
 } // namespace WebCore

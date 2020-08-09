@@ -1,3 +1,216 @@
+2020-05-07  Darin Adler  <darin@apple.com>
+
+        Remove USE(INSERTION_UNDO_GROUPING) checks in macOS platform code
+        https://bugs.webkit.org/show_bug.cgi?id=211525
+
+        Reviewed by Anders Carlsson.
+
+        * PAL.xcodeproj/project.pbxproj: Added NSTextInputContextSPI.h and NSUndoManagerSPI.h.
+        * pal/PlatformMac.cmake: Ditto.
+        * pal/spi/mac/NSTextInputContextSPI.h: Added.
+        * pal/spi/mac/NSUndoManagerSPI.h: Added.
+
+2020-05-05  Chris Dumez  <cdumez@apple.com>
+
+        Drop code path using the legacy CFNetwork cookie change notification SPI
+        https://bugs.webkit.org/show_bug.cgi?id=211411
+        <rdar://problem/62869148>
+
+        Reviewed by John Wilander.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-05-05  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, reverting r261130.
+
+        Caused crashes on some of our bots
+
+        Reverted changeset:
+
+        "Drop code path using the legacy CFNetwork cookie change
+        notification SPI"
+        https://bugs.webkit.org/show_bug.cgi?id=211411
+        https://trac.webkit.org/changeset/261130
+
+2020-05-05  Darin Adler  <darin@apple.com>
+
+        Remove now-unneeded USE(COREMEDIA) and USE(VIDEOTOOLBOX)
+        https://bugs.webkit.org/show_bug.cgi?id=211437
+
+        Reviewed by Eric Carlson.
+
+        * pal/system/mac/ClockCM.h: Remove USE(COREMEDIA). Also made everything
+        private since nothing includes this header. Removed everything unused.
+
+        * pal/system/mac/ClockCM.mm: Remove USE(COREMEDIA). Put everything inside
+        the PAL namespace.
+        (PAL::ClockCM::ClockCM): Merged in the second constructor and initializeWithTimingSource.
+        (PAL::ClockCM::ClockCM): Deleted.
+        (PAL::ClockCM::initializeWithTimingSource): Deleted.
+        (PAL::ClockCM::setCurrentTime): Tweaked.
+        (PAL::ClockCM::currentTime const): Tweaked.
+        (PAL::ClockCM::setCurrentMediaTime): Deleted.
+        (PAL::ClockCM::currentMediaTime const): Deleted.
+
+2020-05-04  Darin Adler  <darin@apple.com>
+
+        [Mac] Remove __MAC_OS_X_VERSION_MIN_REQUIRED checks for versions older than 10.14
+        https://bugs.webkit.org/show_bug.cgi?id=211420
+
+        Reviewed by Alex Christensen.
+
+        * pal/spi/cocoa/NSColorSPI.h: Remove __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400.
+        * pal/spi/cocoa/QuartzCoreSPI.h: Ditto.
+        * pal/spi/mac/DataDetectorsSPI.h: Ditto.
+        * pal/spi/mac/NSApplicationSPI.h: Ditto.
+
+2020-05-04  Darin Adler  <darin@apple.com>
+
+        Remove now-unneeded HAVE(ACCESSIBILITY_SUPPORT)
+        https://bugs.webkit.org/show_bug.cgi?id=211425
+
+        Reviewed by Alex Christensen.
+
+        * pal/spi/cocoa/AccessibilitySupportSPI.h: Remove HAVE(ACCESSIBILITY_SUPPORT).
+
+2020-05-04  Darin Adler  <darin@apple.com>
+
+        Make __IPHONE_OS_VERSION_MIN_REQUIRED checks against old versions explicit about watchOS and tvOS
+        https://bugs.webkit.org/show_bug.cgi?id=211402
+
+        Reviewed by Alexey Proskuryakov.
+
+        * pal/spi/cocoa/NSAttributedStringSPI.h: Moved iOS family version of
+        NSExcludedElementsDocumentAttribute to this header. For now didn't
+        change its implementation to match, just moved it as is.
+
+2020-05-04  Peng Liu  <peng.liu6@apple.com>
+
+        Fix the mistake on macro HAVE_SYSTEM_FEATURE_FLAGS
+        https://bugs.webkit.org/show_bug.cgi?id=211416
+
+        Reviewed by Tim Horton.
+
+        We should use "#if HAVE(SYSTEM_FEATURE_FLAGS)" instead of "#if HAVE(HAVE_SYSTEM_FEATURE_FLAGS)".
+
+        * pal/spi/cocoa/FeatureFlagsSPI.h:
+
+2020-05-04  Darin Adler  <darin@apple.com>
+
+        Remove HAVE(IOSURFACE) checks in Cocoa-platform-specific code
+        https://bugs.webkit.org/show_bug.cgi?id=211389
+
+        Reviewed by Alexey Proskuryakov.
+
+        * pal/spi/cocoa/QuartzCoreSPI.h: Remove HAVE(IOSURFACE).
+
+2020-05-04  Chris Dumez  <cdumez@apple.com>
+
+        Drop code path using the legacy CFNetwork cookie change notification SPI
+        https://bugs.webkit.org/show_bug.cgi?id=211411
+
+        Reviewed by John Wilander.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-05-04  Darin Adler  <darin@apple.com>
+
+        Remove unneeded USE(MEDIAREMOTE)
+        https://bugs.webkit.org/show_bug.cgi?id=211385
+
+        Reviewed by Eric Carlson.
+
+        * pal/spi/mac/MediaRemoteSPI.h: Removed check of USE(MEDIAREMOTE).
+        Also got rid of __has_include for MRNowPlayingTypes.h and moved
+        it down into the normal sections below.
+
+2020-05-01  Don Olmstead  <don.olmstead@sony.com>
+
+        Use export macros on all platforms
+        https://bugs.webkit.org/show_bug.cgi?id=211293
+
+        Reviewed by Michael Catanzaro.
+
+        Allow overriding of PAL_EXPORT if desired otherwise use the defaults.
+
+        * pal/ExportMacros.h:
+
+2020-04-28  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] Adopt kMTSupportNotification_ShouldPlayHDRVideoChanged notification
+        https://bugs.webkit.org/show_bug.cgi?id=211028
+
+        Reviewed by Eric Carlson.
+
+        Make MediaToolboxSoftLink fully exported from PAL.
+
+        * pal/cf/CoreMediaSoftLink.cpp:
+        * pal/cocoa/MediaToolboxSoftLink.cpp:
+        * pal/cocoa/MediaToolboxSoftLink.h:
+
+2020-04-25  Alex Christensen  <achristensen@webkit.org>
+
+        Move ApplePay code from WebKitAdditions to WebCore and WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=210521
+
+        Reviewed by Andy Estes.
+
+        * pal/cocoa/PassKitSoftLink.h:
+        * pal/cocoa/PassKitSoftLink.mm:
+        * pal/spi/cocoa/PassKitSPI.h:
+
+2020-04-25  Alex Christensen  <achristensen@webkit.org>
+
+        Unreviewed, reverting r260717.
+
+        Wrong Patch
+
+        Reverted changeset:
+
+        "Move ApplePay code from WebKitAdditions to WebCore and
+        WebKit"
+        https://bugs.webkit.org/show_bug.cgi?id=210521
+        https://trac.webkit.org/changeset/260717
+
+2020-04-25  Alex Christensen  <achristensen@webkit.org>
+
+        Move ApplePay code from WebKitAdditions to WebCore and WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=210521
+
+        Reviewed by Andy Estes.
+
+        * pal/cocoa/PassKitSoftLink.h:
+        * pal/cocoa/PassKitSoftLink.mm:
+        * pal/spi/cocoa/PassKitSPI.h:
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Deal with another round of Xcode upgrade checks
+        https://bugs.webkit.org/show_bug.cgi?id=211027
+
+        Reviewed by Alexey Proskuryakov.
+
+        * PAL.xcodeproj/project.pbxproj: Bump the upgrade check version.
+
+2020-04-21  Peng Liu  <peng.liu6@apple.com>
+
+        Fix MACCATALYST build failures
+        https://bugs.webkit.org/show_bug.cgi?id=210815
+
+        Reviewed by Tim Horton.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-04-20  Peng Liu  <peng.liu6@apple.com>
+
+        Fix build failures when video fullscreen and picture-in-picture is disabled
+        https://bugs.webkit.org/show_bug.cgi?id=210777
+
+        Reviewed by Eric Carlson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
 2020-04-20  Darin Adler  <darin@apple.com>
 
         Use #import instead of #include in Objective-C and don't use #pragma once

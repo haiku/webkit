@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,7 @@
 
 #include "ArgumentCoder.h"
 #include "Attachment.h"
+#include "MessageNames.h"
 #include "StringReference.h"
 #include <wtf/EnumTraits.h>
 #include <wtf/Vector.h>
@@ -44,14 +45,15 @@ enum class ShouldDispatchWhenWaitingForSyncReply;
 class Decoder {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    Decoder(const uint8_t* buffer, size_t bufferSize, void (*bufferDeallocator)(const uint8_t*, size_t), Vector<Attachment>&&);
+    static std::unique_ptr<Decoder> create(const uint8_t* buffer, size_t bufferSize, void (*bufferDeallocator)(const uint8_t*, size_t), Vector<Attachment>&&);
+    explicit Decoder(const uint8_t* buffer, size_t bufferSize, void (*bufferDeallocator)(const uint8_t*, size_t), Vector<Attachment>&&);
     ~Decoder();
 
     Decoder(const Decoder&) = delete;
     Decoder(Decoder&&) = delete;
 
-    StringReference messageReceiverName() const { return m_messageReceiverName; }
-    StringReference messageName() const { return m_messageName; }
+    ReceiverName messageReceiverName() const { return receiverName(m_messageName); }
+    MessageName messageName() const { return m_messageName; }
     uint64_t destinationID() const { return m_destinationID; }
 
     bool isSyncMessage() const;
@@ -70,12 +72,7 @@ public:
 
     size_t length() const { return m_bufferEnd - m_buffer; }
 
-    bool isInvalid() const
-    {
-        // (m_bufferPos == m_bufferEnd) is a valid state for decoding if the last parameter
-        // is a variable length byte array and its size == 0.
-        return m_bufferPos < m_buffer || m_bufferPos > m_bufferEnd;
-    }
+    WARN_UNUSED_RETURN bool isValid() const { return m_bufferPos != nullptr; }
     void markInvalid() { m_bufferPos = nullptr; }
 
     WARN_UNUSED_RETURN bool decodeFixedLengthData(uint8_t*, size_t, unsigned alignment);
@@ -110,7 +107,7 @@ public:
         typename std::underlying_type<E>::type value;
         if (!decode(value))
             return false;
-        if (!isValidEnum<E>(value))
+        if (!WTF::isValidEnum<E>(value))
             return false;
 
         e = static_cast<E>(value);
@@ -122,7 +119,7 @@ public:
     {
         Optional<typename std::underlying_type<E>::type> value;
         *this >> value;
-        if (value && isValidEnum<E>(*value))
+        if (value && WTF::isValidEnum<E>(*value))
             optional = static_cast<E>(*value);
         return *this;
     }
@@ -202,8 +199,7 @@ private:
     Vector<Attachment> m_attachments;
 
     uint8_t m_messageFlags;
-    StringReference m_messageReceiverName;
-    StringReference m_messageName;
+    MessageName m_messageName;
 
     uint64_t m_destinationID;
 

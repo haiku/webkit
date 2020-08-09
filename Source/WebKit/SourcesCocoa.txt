@@ -122,6 +122,8 @@ Shared/API/Cocoa/WKBrowsingContextHandle.mm
 Shared/API/Cocoa/WKRemoteObject.mm
 Shared/API/Cocoa/WKRemoteObjectCoder.mm
 
+Shared/ApplePay/ApplePayPaymentSetupFeatures.mm
+Shared/ApplePay/PaymentSetupConfiguration.mm
 Shared/ApplePay/WebPaymentCoordinatorProxy.cpp
 Shared/ApplePay/cocoa/WebPaymentCoordinatorProxyCocoa.mm
 Shared/ApplePay/ios/WebPaymentCoordinatorProxyIOS.mm
@@ -132,7 +134,6 @@ Shared/APIWebArchiveResource.mm
 Shared/DocumentEditingContext.mm
 Shared/FocusedElementInformation.cpp
 Shared/VisibleContentRectUpdateInfo.cpp
-Shared/WebSQLiteDatabaseTracker.cpp
 
 Shared/cf/ArgumentCodersCF.cpp @no-unify
 Shared/cf/CookieStorageUtilsCF.mm
@@ -186,7 +187,6 @@ Shared/ios/WebPlatformTouchPointIOS.cpp
 Shared/ios/WebPreferencesDefaultValuesIOS.mm
 Shared/ios/WebTouchEventIOS.cpp
 
-Shared/mac/AttributedString.mm
 Shared/mac/AuxiliaryProcessMac.mm
 Shared/mac/CodeSigning.mm
 Shared/mac/ColorSpaceData.mm
@@ -656,6 +656,7 @@ GPUProcessProxyMessageReceiver.cpp
 GPUProcessMessageReceiver.cpp
 LibWebRTCCodecsProxyMessageReceiver.cpp
 LibWebRTCCodecsMessageReceiver.cpp
+MessageNames.cpp
 RemoteAudioDestinationManagerMessageReceiver.cpp
 RemoteAudioDestinationProxyMessageReceiver.cpp
 RemoteAudioSessionMessageReceiver.cpp

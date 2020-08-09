@@ -573,6 +573,23 @@ bool Quirks::needsYouTubeOverflowScrollQuirk() const
 #endif
 }
 
+bool Quirks::needsFullscreenDisplayNoneQuirk() const
+{
+#if PLATFORM(IOS_FAMILY)
+    if (!needsQuirks())
+        return false;
+
+    if (!m_needsFullscreenDisplayNoneQuirk) {
+        auto host = m_document->topDocument().url().host();
+        m_needsFullscreenDisplayNoneQuirk = equalLettersIgnoringASCIICase(host, "gizmodo.com") || host.endsWithIgnoringASCIICase(".gizmodo.com");
+    }
+
+    return *m_needsFullscreenDisplayNoneQuirk;
+#else
+    return false;
+#endif
+}
+
 bool Quirks::shouldAvoidScrollingWhenFocusedContentIsVisible() const
 {
     if (!needsQuirks())
@@ -667,7 +684,7 @@ bool Quirks::shouldBypassBackForwardCache() const
     // because it puts an overlay (with class "docs-homescreen-freeze-el-full") over the page when navigating away and fails
     // to remove it when coming back from the back/forward cache (e.g. in 'pageshow' event handler). See <rdar://problem/57670064>.
     // Note that this does not check for docs.google.com host because of hosted G Suite apps.
-    static NeverDestroyed<const AtomString> googleDocsOverlayDivClass("docs-homescreen-freeze-el-full", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> googleDocsOverlayDivClass("docs-homescreen-freeze-el-full", AtomString::ConstructFromLiteral);
     auto* firstChildInBody = m_document->body() ? m_document->body()->firstChild() : nullptr;
     if (is<HTMLDivElement>(firstChildInBody)) {
         auto& div = downcast<HTMLDivElement>(*firstChildInBody);
@@ -676,6 +693,19 @@ bool Quirks::shouldBypassBackForwardCache() const
     }
 
     return false;
+}
+
+bool Quirks::shouldBypassAsyncScriptDeferring() const
+{
+    if (!needsQuirks())
+        return false;
+
+    if (!m_shouldBypassAsyncScriptDeferring) {
+        auto domain = RegistrableDomain { m_document->topDocument().url() };
+        // Deferring 'mapbox-gl.js' script on bungalow.com causes the script to get in a bad state (rdar://problem/61658940).
+        m_shouldBypassAsyncScriptDeferring = (domain == "bungalow.com");
+    }
+    return *m_shouldBypassAsyncScriptDeferring;
 }
 
 bool Quirks::shouldMakeEventListenerPassive(const EventTarget& eventTarget, const AtomString& eventType, const EventListener& eventListener)
@@ -767,6 +797,15 @@ bool Quirks::shouldLayOutAtMinimumWindowWidthWhenIgnoringScalingConstraints() co
     // FIXME: We should consider replacing this with a heuristic to determine whether
     // or not the edges of the page mostly lack content after shrinking to fit.
     return m_document->url().host().endsWithIgnoringASCIICase(".wikipedia.org");
+}
+
+bool Quirks::shouldIgnoreContentObservationForSyntheticClick(bool isFirstSyntheticClickOnPage) const
+{
+    if (!needsQuirks())
+        return false;
+
+    auto host = m_document->url().host();
+    return isFirstSyntheticClickOnPage && (equalLettersIgnoringASCIICase(host, "shutterstock.com") || host.endsWithIgnoringASCIICase(".shutterstock.com"));
 }
 
 }

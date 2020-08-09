@@ -1562,10 +1562,8 @@ void PDFPlugin::installPDFDocument()
     if ([m_pdfDocument isLocked])
         createPasswordEntryForm();
 
-    if ([m_pdfLayerController respondsToSelector:@selector(setURLFragment:)]) {
-        String pdfURLFragment = m_frame.url().fragmentIdentifier();
-        [m_pdfLayerController setURLFragment:pdfURLFragment];
-    }
+    if ([m_pdfLayerController respondsToSelector:@selector(setURLFragment:)])
+        [m_pdfLayerController setURLFragment:m_frame.url().fragmentIdentifier().createNSString().get()];
 }
 
 void PDFPlugin::setSuggestedFilename(const String& suggestedFilename)
@@ -2301,7 +2299,7 @@ bool PDFPlugin::handlesPageScaleFactor() const
 void PDFPlugin::clickedLink(NSURL *url)
 {
     URL coreURL = url;
-    if (WTF::protocolIsJavaScript(coreURL))
+    if (coreURL.protocolIsJavaScript())
         return;
 
     auto* frame = m_frame.coreFrame();
@@ -2397,7 +2395,7 @@ void PDFPlugin::openWithNativeApplication()
         m_temporaryPDFUUID = createCanonicalUUIDString();
         ASSERT(m_temporaryPDFUUID);
 
-        m_frame.page()->savePDFToTemporaryFolderAndOpenWithNativeApplication(m_suggestedFilename, m_frame.url(), static_cast<const unsigned char *>([data bytes]), [data length], m_temporaryPDFUUID);
+        m_frame.page()->savePDFToTemporaryFolderAndOpenWithNativeApplication(m_suggestedFilename, m_frame.url().string(), static_cast<const unsigned char *>([data bytes]), [data length], m_temporaryPDFUUID);
         return;
     }
 

@@ -55,19 +55,20 @@ public:
     DECLARE_INFO;
 
     void initializeDateTimeFormat(JSGlobalObject*, JSValue locales, JSValue options);
-    JSValue format(JSGlobalObject*, double value);
-    JSValue formatToParts(JSGlobalObject*, double value);
-    JSObject* resolvedOptions(JSGlobalObject*);
+    JSValue format(JSGlobalObject*, double value) const;
+    JSValue formatToParts(JSGlobalObject*, double value) const;
+    JSObject* resolvedOptions(JSGlobalObject*) const;
 
     JSBoundFunction* boundFormat() const { return m_boundFormat.get(); }
     void setBoundFormat(VM&, JSBoundFunction*);
 
-protected:
+private:
     IntlDateTimeFormat(VM&, Structure*);
     void finishCreation(VM&);
     static void visitChildren(JSCell*, SlotVisitor&);
 
-private:
+    static Vector<String> localeData(const String&, size_t);
+
     enum class Weekday : uint8_t { None, Narrow, Short, Long };
     enum class Era : uint8_t { None, Narrow, Short, Long };
     enum class Year : uint8_t { None, TwoDigit, Numeric };
@@ -110,13 +111,6 @@ private:
     Minute m_minute { Minute::None };
     Second m_second { Second::None };
     TimeZoneName m_timeZoneName { TimeZoneName::None };
-    bool m_initializedDateTimeFormat { false };
-
-    struct UFieldPositionIteratorDeleter {
-        void operator()(UFieldPositionIterator*) const;
-    };
-
-    static ASCIILiteral partTypeString(UDateFormatField);
 };
 
 } // namespace JSC

@@ -1,7 +1,7 @@
 set(TESTWEBKITAPI_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TestWebKitAPI")
 
 set(test_main_SOURCES
-    generic/main.cpp
+    playstation/main.cpp
 )
 
 list(APPEND TestWTF_SOURCES
@@ -27,6 +27,7 @@ list(APPEND TestWebCore_SOURCES
 # so they are added here.
 list(APPEND TestWebCore_PRIVATE_LIBRARIES
     $<TARGET_OBJECTS:PAL>
+    $<TARGET_OBJECTS:WebCore>
 )
 
 # TestWebKit
@@ -47,4 +48,10 @@ if (ENABLE_WEBKIT)
         playstation/PlatformUtilitiesPlayStation.cpp
         playstation/PlatformWebViewPlayStation.cpp
     )
+endif ()
+
+
+# Set the debugger working directory for Visual Studio
+if (${CMAKE_GENERATOR} MATCHES "Visual Studio")
+    set_target_properties(TestWTF TestWebCore TestWebKit PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif ()

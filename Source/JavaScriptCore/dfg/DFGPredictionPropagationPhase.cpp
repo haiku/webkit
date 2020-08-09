@@ -185,9 +185,7 @@ private:
             SpeculatedType right = node->child2()->prediction();
 
             if (left && right) {
-                if (isBigIntSpeculation(left) && isBigIntSpeculation(right))
-                    changed |= mergePrediction(SpecBigInt);
-                else if (isFullNumberOrBooleanSpeculationExpectingDefined(left) && isFullNumberOrBooleanSpeculationExpectingDefined(right))
+                if (isFullNumberOrBooleanSpeculationExpectingDefined(left) && isFullNumberOrBooleanSpeculationExpectingDefined(right))
                     changed |= mergePrediction(SpecInt32Only);
                 else
                     changed |= mergePrediction(node->getHeapPrediction());
@@ -212,7 +210,12 @@ private:
                 } else if (isStringOrStringObjectSpeculation(left) || isStringOrStringObjectSpeculation(right)) {
                     // left or right is definitely something other than a number.
                     changed |= mergePrediction(SpecString);
-                } else if (isBigIntSpeculation(left) && isBigIntSpeculation(right))
+                }
+#if USE(BIGINT32)
+                else if (m_graph.binaryArithShouldSpeculateBigInt32(node, m_pass))
+                    changed |= mergePrediction(SpecBigInt32);
+#endif
+                else if (isBigIntSpeculation(left) && isBigIntSpeculation(right))
                     changed |= mergePrediction(SpecBigInt);
                 else {
                     changed |= mergePrediction(SpecInt32Only);
@@ -280,7 +283,12 @@ private:
                         changed |= mergePrediction(SpecInt52Any);
                     else
                         changed |= mergePrediction(speculatedDoubleTypeForPredictions(left, right));
-                } else if (isBigIntSpeculation(left) && isBigIntSpeculation(right))
+                }
+#if USE(BIGINT32)
+                else if (m_graph.binaryArithShouldSpeculateBigInt32(node, m_pass))
+                    changed |= mergePrediction(SpecBigInt32);
+#endif
+                else if (isBigIntSpeculation(left) && isBigIntSpeculation(right))
                     changed |= mergePrediction(SpecBigInt);
                 else {
                     changed |= mergePrediction(SpecInt32Only);
@@ -306,7 +314,12 @@ private:
                         changed |= mergePrediction(SpecInt52Any);
                     else
                         changed |= mergePrediction(speculatedDoubleTypeForPrediction(prediction));
-                } else if (isBigIntSpeculation(prediction))
+                }
+#if USE(BIGINT32)
+                else if (m_graph.unaryArithShouldSpeculateBigInt32(node, m_pass))
+                    changed |= mergePrediction(SpecBigInt32);
+#endif
+                else if (isBigIntSpeculation(prediction))
                     changed |= mergePrediction(SpecBigInt);
                 else {
                     changed |= mergePrediction(SpecInt32Only);
@@ -388,7 +401,12 @@ private:
                         changed |= mergePrediction(SpecInt52Any);
                     else
                         changed |= mergePrediction(speculatedDoubleTypeForPredictions(left, right));
-                } else if (op == ValueMul && isBigIntSpeculation(left) && isBigIntSpeculation(right))
+                }
+#if USE(BIGINT32)
+                else if (op == ValueMul && m_graph.binaryArithShouldSpeculateBigInt32(node, m_pass))
+                    changed |= mergePrediction(SpecBigInt32);
+#endif
+                else if (op == ValueMul && isBigIntSpeculation(left) && isBigIntSpeculation(right))
                     changed |= mergePrediction(SpecBigInt);
                 else {
                     changed |= mergePrediction(SpecInt32Only);
@@ -879,6 +897,7 @@ private:
         case ToNumber:
         case ToNumeric:
         case ToObject:
+        case CallNumberConstructor:
         case ValueBitAnd:
         case ValueBitXor:
         case ValueBitOr:

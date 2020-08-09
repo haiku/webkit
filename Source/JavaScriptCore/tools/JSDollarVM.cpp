@@ -2147,10 +2147,9 @@ static void callWithStackSizeProbeFunction(Probe::State* state)
     DollarVMAssertScope assertScope;
     VM& vm = globalObject->vm();
 
-    CallData callData;
-    CallType callType = getCallData(vm, function, callData);
+    auto callData = getCallData(vm, function);
     MarkedArgumentBuffer args;
-    call(globalObject, function, callType, callData, jsUndefined(), args);
+    call(globalObject, function, callData, jsUndefined(), args);
 }
 #endif // ENABLE(MASM_PROBE)
 
@@ -2179,7 +2178,7 @@ static EncodedJSValue JSC_HOST_CALL functionCallWithStackSize(JSGlobalObject* gl
         return throwVMError(globalObject, throwScope, "Invalid number of arguments");
     JSValue arg0 = callFrame->argument(0);
     JSValue arg1 = callFrame->argument(1);
-    if (!arg0.isFunction(vm))
+    if (!arg0.isCallable(vm))
         return throwVMError(globalObject, throwScope, "arg0 should be a function");
     if (!arg1.isNumber())
         return throwVMError(globalObject, throwScope, "arg1 should be a number");
@@ -2592,7 +2591,7 @@ static EncodedJSValue JSC_HOST_CALL functionFindTypeForExpression(JSGlobalObject
     vm.typeProfilerLog()->processLogEntries(vm, "jsc Testing API: functionFindTypeForExpression"_s);
 
     JSValue functionValue = callFrame->argument(0);
-    RELEASE_ASSERT(functionValue.isFunction(vm));
+    RELEASE_ASSERT(functionValue.isCallable(vm));
     FunctionExecutable* executable = (jsDynamicCast<JSFunction*>(vm, functionValue.asCell()->getObject()))->jsExecutable();
 
     RELEASE_ASSERT(callFrame->argument(1).isString());
@@ -2612,7 +2611,7 @@ static EncodedJSValue JSC_HOST_CALL functionReturnTypeFor(JSGlobalObject* global
     vm.typeProfilerLog()->processLogEntries(vm, "jsc Testing API: functionReturnTypeFor"_s);
 
     JSValue functionValue = callFrame->argument(0);
-    RELEASE_ASSERT(functionValue.isFunction(vm));
+    RELEASE_ASSERT(functionValue.isCallable(vm));
     FunctionExecutable* executable = (jsDynamicCast<JSFunction*>(vm, functionValue.asCell()->getObject()))->jsExecutable();
 
     unsigned offset = executable->typeProfilingStartOffset(vm);
@@ -2646,7 +2645,7 @@ static EncodedJSValue JSC_HOST_CALL functionHasBasicBlockExecuted(JSGlobalObject
     RELEASE_ASSERT(vm.controlFlowProfiler());
 
     JSValue functionValue = callFrame->argument(0);
-    RELEASE_ASSERT(functionValue.isFunction(vm));
+    RELEASE_ASSERT(functionValue.isCallable(vm));
     FunctionExecutable* executable = (jsDynamicCast<JSFunction*>(vm, functionValue.asCell()->getObject()))->jsExecutable();
 
     RELEASE_ASSERT(callFrame->argument(1).isString());
@@ -2666,7 +2665,7 @@ static EncodedJSValue JSC_HOST_CALL functionBasicBlockExecutionCount(JSGlobalObj
     RELEASE_ASSERT(vm.controlFlowProfiler());
 
     JSValue functionValue = callFrame->argument(0);
-    RELEASE_ASSERT(functionValue.isFunction(vm));
+    RELEASE_ASSERT(functionValue.isCallable(vm));
     FunctionExecutable* executable = (jsDynamicCast<JSFunction*>(vm, functionValue.asCell()->getObject()))->jsExecutable();
 
     RELEASE_ASSERT(callFrame->argument(1).isString());
@@ -2677,13 +2676,6 @@ static EncodedJSValue JSC_HOST_CALL functionBasicBlockExecutionCount(JSGlobalObj
     
     size_t executionCount = vm.controlFlowProfiler()->basicBlockExecutionCountAtTextOffset(offset, executable->sourceID(), vm);
     return JSValue::encode(JSValue(executionCount));
-}
-
-static EncodedJSValue JSC_HOST_CALL functionEnableExceptionFuzz(JSGlobalObject*, CallFrame*)
-{
-    DollarVMAssertScope assertScope;
-    Options::useExceptionFuzz() = true;
-    return JSValue::encode(jsUndefined());
 }
 
 class DoNothingDebugger final : public Debugger {
@@ -2968,7 +2960,7 @@ static EncodedJSValue JSC_HOST_CALL functionSetUserPreferredLanguages(JSGlobalOb
 
     Vector<String> languages;
     unsigned length = array->length();
-    for (size_t i = 0; i < length; i++) {
+    for (unsigned i = 0; i < length; i++) {
         String language = array->get(globalObject, i).toWTFString(globalObject);
         RETURN_IF_EXCEPTION(scope, encodedJSValue());
         languages.append(language);
@@ -2983,6 +2975,11 @@ static EncodedJSValue JSC_HOST_CALL functionICUVersion(JSGlobalObject*, CallFram
     UVersionInfo versionInfo;
     u_getVersion(versionInfo);
     return JSValue::encode(jsNumber(versionInfo[0]));
+}
+
+static EncodedJSValue JSC_HOST_CALL functionAssertEnabled(JSGlobalObject*, CallFrame*)
+{
+    return JSValue::encode(jsBoolean(ASSERT_ENABLED));
 }
 
 void JSDollarVM::finishCreation(VM& vm)
@@ -3091,8 +3088,6 @@ void JSDollarVM::finishCreation(VM& vm)
     addFunction(vm, "hasBasicBlockExecuted", functionHasBasicBlockExecuted, 2);
     addFunction(vm, "basicBlockExecutionCount", functionBasicBlockExecutionCount, 2);
 
-    addFunction(vm, "enableExceptionFuzz", functionEnableExceptionFuzz, 0);
-
     addFunction(vm, "enableDebuggerModeWhenIdle", functionEnableDebuggerModeWhenIdle, 0);
     addFunction(vm, "disableDebuggerModeWhenIdle", functionDisableDebuggerModeWhenIdle, 0);
 
@@ -3123,6 +3118,8 @@ void JSDollarVM::finishCreation(VM& vm)
 
     addFunction(vm, "setUserPreferredLanguages", functionSetUserPreferredLanguages, 1);
     addFunction(vm, "icuVersion", functionICUVersion, 0);
+
+    addFunction(vm, "assertEnabled", functionAssertEnabled, 0);
 
     m_objectDoingSideEffectPutWithoutCorrectSlotStatusStructure.set(vm, this, ObjectDoingSideEffectPutWithoutCorrectSlotStatus::createStructure(vm, globalObject, jsNull()));
 }

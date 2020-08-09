@@ -42,6 +42,10 @@
 #include <wtf/glib/GRefPtr.h>
 #endif
 
+namespace WTF {
+class TextStream;
+}
+
 namespace WebCore {
 
 class Document;
@@ -299,7 +303,12 @@ public:
         AXRequiredStatusChanged,
         AXTextChanged,
         AXAriaAttributeChanged,
-        AXElementBusyChanged
+        AXElementBusyChanged,
+        AXDraggingStarted,
+        AXDraggingEnded,
+        AXDraggingEnteredDropZone,
+        AXDraggingDropped,
+        AXDraggingExitedDropZone
     };
 
     void postNotification(RenderObject*, AXNotification, PostTarget = TargetElement, PostType = PostAsynchronously);
@@ -487,9 +496,9 @@ private:
     Timer m_performCacheUpdateTimer;
 
     AXTextStateChangeIntent m_textSelectionIntent;
-    ListHashSet<Element*> m_deferredRecomputeIsIgnoredList;
+    WeakHashSet<Element> m_deferredRecomputeIsIgnoredList;
     ListHashSet<Node*> m_deferredTextChangedList;
-    ListHashSet<Element*> m_deferredSelectedChildredChangedList;
+    WeakHashSet<Element> m_deferredSelectedChildredChangedList;
     ListHashSet<RefPtr<AXCoreObject>> m_deferredChildrenChangedList;
     ListHashSet<Node*> m_deferredChildrenChangedNodeList;
     HashMap<Element*, String> m_deferredTextFormControlValue;
@@ -616,5 +625,7 @@ inline void AXObjectCache::nodeTextChangePlatformNotification(AccessibilityObjec
 inline AXAttributeCacheEnabler::AXAttributeCacheEnabler(AXObjectCache*) { }
 inline AXAttributeCacheEnabler::~AXAttributeCacheEnabler() { }
 #endif
+
+WTF::TextStream& operator<<(WTF::TextStream&, AXObjectCache::AXNotification);
 
 } // namespace WebCore

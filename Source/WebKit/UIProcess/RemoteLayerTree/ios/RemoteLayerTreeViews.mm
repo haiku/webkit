@@ -332,7 +332,6 @@ static Class scrollViewScrollIndicatorClass()
 
 @end
 
-#if HAVE(UI_REMOTE_VIEW)
 @implementation WKUIRemoteView
 
 - (instancetype)initWithFrame:(CGRect)frame pid:(pid_t)pid contextID:(uint32_t)contextID
@@ -362,7 +361,6 @@ static Class scrollViewScrollIndicatorClass()
 }
 
 @end
-#endif
 
 @implementation WKBackdropView
 
@@ -386,7 +384,8 @@ static Class scrollViewScrollIndicatorClass()
     if (!self)
         return nil;
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+// FIXME: Likely we can remove this special case for watchOS and tvOS.
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
 #endif
 

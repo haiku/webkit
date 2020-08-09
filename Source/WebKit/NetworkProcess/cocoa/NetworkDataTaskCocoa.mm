@@ -213,7 +213,7 @@ NetworkDataTaskCocoa::NetworkDataTaskCocoa(NetworkSession& session, NetworkDataT
     auto url = request.url();
     if (storedCredentialsPolicy == WebCore::StoredCredentialsPolicy::Use && url.protocolIsInHTTPFamily()) {
         m_user = url.user();
-        m_password = url.pass();
+        m_password = url.password();
         request.removeCredentials();
         url = request.url();
     
@@ -318,6 +318,12 @@ void NetworkDataTaskCocoa::didReceiveChallenge(WebCore::AuthenticationChallenge&
     }
 }
 
+void NetworkDataTaskCocoa::didNegotiateModernTLS(const WebCore::AuthenticationChallenge& challenge)
+{
+    if (m_client)
+        m_client->didNegotiateModernTLS(challenge);
+}
+
 void NetworkDataTaskCocoa::didCompleteWithError(const WebCore::ResourceError& error, const WebCore::NetworkLoadMetrics& networkLoadMetrics)
 {
     if (error.isNull())
@@ -365,7 +371,7 @@ void NetworkDataTaskCocoa::willPerformHTTPRedirection(WebCore::ResourceResponse&
     
     const auto& url = request.url();
     m_user = url.user();
-    m_password = url.pass();
+    m_password = url.password();
     m_lastHTTPMethod = request.httpMethod();
     request.removeCredentials();
     

@@ -148,21 +148,21 @@ public:
         m_supplements.add(T::supplementName(), T::create(this));
     }
 
-    void addMessageReceiver(IPC::StringReference messageReceiverName, IPC::MessageReceiver&);
-    void addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver&);
-    void removeMessageReceiver(IPC::StringReference messageReceiverName);
-    void removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID);
+    void addMessageReceiver(IPC::ReceiverName, IPC::MessageReceiver&);
+    void addMessageReceiver(IPC::ReceiverName, uint64_t destinationID, IPC::MessageReceiver&);
+    void removeMessageReceiver(IPC::ReceiverName);
+    void removeMessageReceiver(IPC::ReceiverName, uint64_t destinationID);
 
     WebBackForwardCache& backForwardCache() { return m_backForwardCache.get(); }
     
     template <typename T>
-    void addMessageReceiver(IPC::StringReference messageReceiverName, ObjectIdentifier<T> destinationID, IPC::MessageReceiver& receiver)
+    void addMessageReceiver(IPC::ReceiverName messageReceiverName, ObjectIdentifier<T> destinationID, IPC::MessageReceiver& receiver)
     {
         addMessageReceiver(messageReceiverName, destinationID.toUInt64(), receiver);
     }
     
     template <typename T>
-    void removeMessageReceiver(IPC::StringReference messageReceiverName, ObjectIdentifier<T> destinationID)
+    void removeMessageReceiver(IPC::ReceiverName messageReceiverName, ObjectIdentifier<T> destinationID)
     {
         removeMessageReceiver(messageReceiverName, destinationID.toUInt64());
     }
@@ -321,6 +321,7 @@ public:
     void clearCachedCredentials();
     void terminateNetworkProcess();
     void terminateAllWebContentProcesses();
+    void sendNetworkProcessPrepareToSuspendForTesting(CompletionHandler<void()>&&);
     void sendNetworkProcessWillSuspendImminentlyForTesting();
     void sendNetworkProcessDidResume();
     void terminateServiceWorkers();
@@ -417,7 +418,7 @@ public:
 #endif
 
     static void setInvalidMessageCallback(void (*)(WKStringRef));
-    static void didReceiveInvalidMessage(const IPC::StringReference& messageReceiverName, const IPC::StringReference& messageName);
+    static void didReceiveInvalidMessage(IPC::MessageName);
 
     bool isURLKnownHSTSHost(const String& urlString) const;
     void resetHSTSHosts();
@@ -609,6 +610,8 @@ private:
 #if ENABLE(CFPREFS_DIRECT_MODE)
     void startObservingPreferenceChanges();
 #endif
+
+    static void registerHighDynamicRangeChangeCallback();
 
     Ref<API::ProcessPoolConfiguration> m_configuration;
 

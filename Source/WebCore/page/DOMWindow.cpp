@@ -45,7 +45,6 @@
 #include "DOMStringList.h"
 #include "DOMTimer.h"
 #include "DOMTokenList.h"
-#include "DOMURL.h"
 #include "DeviceMotionController.h"
 #include "DeviceMotionData.h"
 #include "DeviceMotionEvent.h"
@@ -735,9 +734,24 @@ Performance& DOMWindow::performance() const
     return *m_performance;
 }
 
-double DOMWindow::nowTimestamp() const
+ReducedResolutionSeconds DOMWindow::nowTimestamp() const
 {
-    return performance().now() / 1000.;
+    return performance().nowInReducedResolutionSeconds();
+}
+
+void DOMWindow::freezeNowTimestamp()
+{
+    m_frozenNowTimestamp = nowTimestamp();
+}
+
+void DOMWindow::unfreezeNowTimestamp()
+{
+    m_frozenNowTimestamp = WTF::nullopt;
+}
+
+ReducedResolutionSeconds DOMWindow::frozenNowTimestamp() const
+{
+    return m_frozenNowTimestamp.valueOr(nowTimestamp());
 }
 
 Location& DOMWindow::location()
@@ -2326,7 +2340,7 @@ void DOMWindow::setLocation(DOMWindow& activeWindow, const URL& completedURL, Se
     if (!activeDocument->canNavigate(frame, completedURL))
         return;
 
-    if (isInsecureScriptAccess(activeWindow, completedURL))
+    if (isInsecureScriptAccess(activeWindow, completedURL.string()))
         return;
 
     // We want a new history item if we are processing a user gesture.
@@ -2458,7 +2472,7 @@ ExceptionOr<RefPtr<Frame>> DOMWindow::createWindow(const String& urlString, cons
     if (created)
         newFrame->page()->setOpenedByDOM();
 
-    if (newFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL))
+    if (newFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL.string()))
         return noopener ? RefPtr<Frame> { nullptr } : newFrame;
 
     if (prepareDialogFunction)
@@ -2535,7 +2549,7 @@ ExceptionOr<RefPtr<WindowProxy>> DOMWindow::open(DOMWindow& activeWindow, DOMWin
 
         URL completedURL = firstFrame->document()->completeURL(urlString);
 
-        if (targetFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL))
+        if (targetFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL.string()))
             return &targetFrame->windowProxy();
 
         if (urlString.isEmpty())

@@ -11,6 +11,7 @@ compositing/layer-creation/clipping-scope [ Pass ]
 editing/find [ Pass ]
 editing/undo-manager [ Pass ]
 editing/pasteboard/dom-paste [ Pass ]
+fast/events/cursors [ Pass ]
 fast/forms/select/mac-wk2 [ Pass ]
 fast/sandbox/mac [ Pass ]
 fast/scrolling/mac [ Pass ]
@@ -219,6 +220,8 @@ webkit.org/b/105616 fast/writing-mode/english-rl-text-with-spelling-marker.html 
 
 # [WK2] [Mac] Support drag in mouse events for WebKit2 EventSender
 # <https://bugs.webkit.org/show_bug.cgi?id=68552>
+editing/pasteboard/drag-and-drop-color-input-events.html [ Skip ]
+editing/pasteboard/drag-and-drop-color-input.html [ Skip ]
 editing/selection/select-across-readonly-input-2.html
 editing/selection/select-across-readonly-input-3.html
 editing/selection/select-across-readonly-input-4.html
@@ -496,8 +499,6 @@ imported/blink/fast/multicol/dynamic/add-spanner-inside-overflow-hidden.html [ P
 imported/blink/http/tests/plugins/get-url-notify-on-removal.html [ Pass Timeout ]
 imported/blink/fast/multicol/newmulticol/multicol-becomes-regular-block.html [ Pass ImageOnlyFailure ]
 imported/blink/fast/transforms/transform-update-frame-overflow.html [ Pass ImageOnlyFailure ]
-
-webkit.org/b/155757 media/media-document-audio-repaint.html [ Pass Failure ]
 
 webkit.org/b/157589 fast/text-autosizing/ios/text-autosizing-after-back.html [ Pass Timeout ]
 
@@ -892,8 +893,6 @@ webkit.org/b/207141 [ Release ] inspector/canvas/create-context-bitmaprenderer.h
 
 webkit.org/b/207149  [ Mojave ] imported/w3c/web-platform-tests/webrtc/RTCDtlsTransport-state.html [ Pass Failure ]
 
-webkit.org/b/207165 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-padding.html [ Pass Failure ]
-
 webkit.org/b/207166 http/wpt/mediarecorder/MediaRecorder-AV-audio-video-dataavailable-gpuprocess.html [ Pass Failure ]
 
 webkit.org/b/207199 webgpu/whlsl/loops.html [ Pass ImageOnlyFailure ]
@@ -953,9 +952,6 @@ webkit.org/b/207700 webgpu/whlsl/return-local-variable.html [ Pass ImageOnlyFail
 webkit.org/b/207728 [ Release ] accessibility/press-targets-center-point.html [ Pass Failure ]
 
 webkit.org/b/206699 http/tests/media/now-playing-info.html [ Pass Failure ]
-
-webkit.org/b/209989 [ Mojave Debug ] http/tests/media/clearkey/collect-webkit-media-session.html [ Failure ]
-webkit.org/b/209989 [ Mojave Debug ] http/tests/media/media-stream/collect-media-devices.https.html [ Pass Failure ]
 
 webkit.org/b/207779 webgpu/whlsl/dereference-pointer-should-type-check.html [ Pass ImageOnlyFailure ]
 
@@ -1024,10 +1020,6 @@ webkit.org/b/209281 imported/w3c/web-platform-tests/fetch/stale-while-revalidate
 
 webkit.org/b/209283 tiled-drawing/scrolling/scroll-iframe-latched-selects.html [ Pass Failure ]
 
-webkit.org/b/209295 [ Debug ] imported/w3c/web-platform-tests/service-workers/service-worker/respond-with-body-accessed-response.https.html  [ Pass Failure ]
-
-webkit.org/b/209483 imported/w3c/web-platform-tests/notifications/event-onclose.html [ Pass Failure ]
-
 webkit.org/b/209503 [ Debug ] http/tests/referrer-policy-anchor/origin/cross-origin-http.https.html [ Pass Crash ]
 
 webkit.org/b/209564 svg/as-image/svg-image-with-data-uri-background.html [ Pass ImageOnlyFailure ]
@@ -1045,3 +1037,5 @@ webkit.org/b/209878  [ Debug ] webrtc/datachannel/multiple-connections.html [ Sl
 webkit.org/b/210165 [ Catalina ] webrtc/peer-connection-audio-mute2.html [ Pass Timeout Failure ]
 
 webkit.org/b/210433 swipe/basic-cached-back-swipe.html [ Pass Crash Timeout ]
+
+webkit.org/b/207518 tiled-drawing/simple-document-with-margin-tiles.html [ Pass Failure ]

@@ -283,11 +283,15 @@ SLOW_PATH_DECL(slow_path_create_promise)
 
     JSPromise* result = nullptr;
     if (bytecode.m_isInternalPromise) {
-        Structure* structure = InternalFunction::createSubclassStructure(globalObject, globalObject->internalPromiseConstructor(), constructorAsObject, globalObject->internalPromiseStructure());
+        Structure* structure = constructorAsObject == globalObject->internalPromiseConstructor()
+            ? globalObject->internalPromiseStructure()
+            : InternalFunction::createSubclassStructure(globalObject, constructorAsObject, getFunctionRealm(vm, constructorAsObject)->internalPromiseStructure());
         CHECK_EXCEPTION();
         result = JSInternalPromise::create(vm, structure);
     } else {
-        Structure* structure = InternalFunction::createSubclassStructure(globalObject, globalObject->promiseConstructor(), constructorAsObject, globalObject->promiseStructure());
+        Structure* structure = constructorAsObject == globalObject->promiseConstructor()
+            ? globalObject->promiseStructure()
+            : InternalFunction::createSubclassStructure(globalObject, constructorAsObject, getFunctionRealm(vm, constructorAsObject)->promiseStructure());
         CHECK_EXCEPTION();
         result = JSPromise::create(vm, structure);
     }
@@ -320,7 +324,7 @@ static JSClass* createInternalFieldObject(JSGlobalObject* globalObject, VM& vm, 
 {
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    Structure* structure = InternalFunction::createSubclassStructure(globalObject, nullptr, constructorAsObject, baseStructure);
+    Structure* structure = InternalFunction::createSubclassStructure(globalObject, constructorAsObject, baseStructure);
     RETURN_IF_EXCEPTION(scope, nullptr);
     JSClass* result = JSClass::create(vm, structure);
 
@@ -545,19 +549,15 @@ SLOW_PATH_DECL(slow_path_negate)
 
 #if USE(BIGINT32)
     if (primValue.isBigInt32()) {
-        int32_t value = primValue.bigInt32AsInt32();
-        if (value != INT_MIN) {
-            auto result = JSValue(JSValue::JSBigInt32, -value);
-            RETURN_WITH_PROFILING(result, {
-                updateArithProfileForUnaryArithOp(metadata, result, operand);
-            });
-        } else
-            primValue = JSBigInt::createFrom(vm, value);
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32());
+        RETURN_WITH_PROFILING(result, {
+            updateArithProfileForUnaryArithOp(metadata, result, operand);
+        });
     }
 #endif
 
     if (primValue.isHeapBigInt()) {
-        JSBigInt* result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
         RETURN_WITH_PROFILING(result, {
             updateArithProfileForUnaryArithOp(metadata, result, operand);
         });
@@ -751,11 +751,12 @@ SLOW_PATH_DECL(slow_path_urshift)
 {
     BEGIN();
     auto bytecode = pc->as<OpUrshift>();
-    uint32_t a = GET_C(bytecode.m_lhs).jsValue().toUInt32(globalObject);
-    if (UNLIKELY(throwScope.exception()))
-        RETURN(JSValue());
-    uint32_t b = GET_C(bytecode.m_rhs).jsValue().toUInt32(globalObject);
-    RETURN(jsNumber(static_cast<int32_t>(a >> (b & 31))));
+    JSValue left = GET_C(bytecode.m_lhs).jsValue();
+    JSValue right = GET_C(bytecode.m_rhs).jsValue();
+
+    JSValue result = jsURShift(globalObject, left, right);
+    CHECK_EXCEPTION();
+    RETURN(result);
 }
 
 SLOW_PATH_DECL(slow_path_unsigned)
@@ -831,7 +832,7 @@ SLOW_PATH_DECL(slow_path_is_function)
 {
     BEGIN();
     auto bytecode = pc->as<OpIsFunction>();
-    RETURN(jsBoolean(GET_C(bytecode.m_operand).jsValue().isFunction(vm)));
+    RETURN(jsBoolean(GET_C(bytecode.m_operand).jsValue().isCallable(vm)));
 }
 
 SLOW_PATH_DECL(slow_path_in_by_val)
@@ -936,7 +937,7 @@ SlowPathReturnType SLOW_PATH iterator_next_try_fast(CallFrame* callFrame, const 
             ASSERT(0 <= index && index <= maxSafeInteger());
 
             JSValue value;
-            bool done = index == -1 || index >= array->length();
+            bool done = index == JSArrayIterator::doneIndex || index >= array->length();
             GET(bytecode.m_done) = jsBoolean(done);
             if (!done) {
                 // No need for a barrier here because we know this is a primitive.
@@ -1498,14 +1499,13 @@ SLOW_PATH_DECL(slow_path_spread)
     JSArray* array;
     {
         JSFunction* iterationFunction = globalObject->iteratorProtocolFunction();
-        CallData callData;
-        CallType callType = JSC::getCallData(vm, iterationFunction, callData);
-        ASSERT(callType != CallType::None);
+        auto callData = getCallData(vm, iterationFunction);
+        ASSERT(callData.type != CallData::Type::None);
 
         MarkedArgumentBuffer arguments;
         arguments.append(iterable);
         ASSERT(!arguments.hasOverflowed());
-        JSValue arrayResult = call(globalObject, iterationFunction, callType, callData, jsNull(), arguments);
+        JSValue arrayResult = call(globalObject, iterationFunction, callData, jsNull(), arguments);
         CHECK_EXCEPTION();
         array = jsCast<JSArray*>(arrayResult);
     }

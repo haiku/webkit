@@ -743,11 +743,11 @@ public:
     void nonSpeculativePeepholeBranchNullOrUndefined(Edge operand, Node* branchNode);
     
     void nonSpeculativePeepholeBranch(Node*, Node* branchNode, MacroAssembler::RelationalCondition, S_JITOperation_GJJ helperFunction);
-    void nonSpeculativeNonPeepholeCompare(Node*, MacroAssembler::RelationalCondition, S_JITOperation_GJJ helperFunction);
+    void genericJSValueNonPeepholeCompare(Node*, MacroAssembler::RelationalCondition, S_JITOperation_GJJ helperFunction);
     
     void nonSpeculativePeepholeStrictEq(Node*, Node* branchNode, bool invert = false);
-    void nonSpeculativeNonPeepholeStrictEq(Node*, bool invert = false);
-    bool nonSpeculativeStrictEq(Node*, bool invert = false);
+    void genericJSValueNonPeepholeStrictEq(Node*, bool invert = false);
+    bool genericJSValueStrictEq(Node*, bool invert = false);
     
     void compileInstanceOfForCells(Node*, JSValueRegs valueGPR, JSValueRegs prototypeGPR, GPRReg resultGPT, GPRReg scratchGPR, GPRReg scratch2GPR, JITCompiler::Jump slowCase = JITCompiler::Jump());
     void compileInstanceOf(Node*);
@@ -1474,6 +1474,7 @@ public:
     void compileToPrimitive(Node*);
     void compileToPropertyKey(Node*);
     void compileToNumeric(Node*);
+    void compileCallNumberConstructor(Node*);
     void compileLogShadowChickenPrologue(Node*);
     void compileLogShadowChickenTail(Node*);
     void compileHasIndexedProperty(Node*);
@@ -1638,6 +1639,7 @@ public:
     void speculateHeapBigInt(Edge);
     void speculateNotCell(Edge, JSValueRegs);
     void speculateNotCell(Edge);
+    void speculateNotCellNorBigInt(Edge);
     void speculateOther(Edge, JSValueRegs, GPRReg temp);
     void speculateOther(Edge, JSValueRegs);
     void speculateOther(Edge);

@@ -753,7 +753,7 @@ private:
         return JSValue();
     }
 
-    void dumpImmediate(JSValue value)
+    void dumpImmediate(JSValue value, SerializationReturnCode& code)
     {
         if (value.isNull()) {
             write(NullTag);
@@ -793,6 +793,9 @@ private:
             return;
         }
 #endif
+
+        // Make any new primitive extension safe by throwing an error.
+        code = SerializationReturnCode::DataCloneError;
     }
 
     void dumpString(const String& string)
@@ -832,6 +835,10 @@ private:
     {
         static_assert(sizeof(uint64_t) == sizeof(unsigned long long));
         write(static_cast<uint8_t>(integer < 0));
+        if (!integer) {
+            write(static_cast<uint32_t>(0)); // Length-in-uint64_t
+            return;
+        }
         write(static_cast<uint32_t>(1)); // Length-in-uint64_t
         int64_t value = static_cast<int64_t>(integer);
         if (value < 0)
@@ -1061,7 +1068,7 @@ private:
     bool dumpIfTerminal(JSValue value, SerializationReturnCode& code)
     {
         if (!value.isCell()) {
-            dumpImmediate(value);
+            dumpImmediate(value, code);
             return true;
         }
         ASSERT(value.isCell());
@@ -1136,8 +1143,8 @@ private:
             }
             if (auto* blob = JSBlob::toWrapped(vm, obj)) {
                 write(BlobTag);
-                m_blobURLs.append(blob->url());
-                write(blob->url());
+                m_blobURLs.append(blob->url().string());
+                write(blob->url().string());
                 write(blob->type());
                 write(blob->size());
                 return true;
@@ -1438,9 +1445,9 @@ private:
 
     void write(const File& file)
     {
-        m_blobURLs.append(file.url());
+        m_blobURLs.append(file.url().string());
         write(file.path());
-        write(file.url());
+        write(file.url().string());
         write(file.type());
         write(file.name());
         write(static_cast<double>(file.lastModifiedOverride().valueOr(-1)));
@@ -2995,6 +3002,17 @@ private:
         uint32_t lengthInUint64 = 0;
         if (!read(lengthInUint64))
             return JSValue();
+
+        if (!lengthInUint64) {
+#if USE(BIGINT32)
+            return jsBigInt32(0);
+#else
+            JSBigInt* bigInt = JSBigInt::createZero(m_lexicalGlobalObject->vm());
+            m_gcBuffer.appendWithCrashOnOverflow(bigInt);
+            return bigInt;
+#endif
+        }
+
 #if USE(BIGINT32)
         static_assert(sizeof(JSBigInt::Digit) == sizeof(uint64_t));
         if (lengthInUint64 == 1) {
@@ -3004,10 +3022,10 @@ private:
                 return JSValue();
             if (sign) {
                 if (digit64 <= static_cast<uint64_t>(-static_cast<int64_t>(INT32_MIN)))
-                    return JSValue(JSValue::JSBigInt32, static_cast<int32_t>(-static_cast<int64_t>(digit64)));
+                    return jsBigInt32(static_cast<int32_t>(-static_cast<int64_t>(digit64)));
             } else {
                 if (digit64 <= INT32_MAX)
-                    return JSValue(JSValue::JSBigInt32, static_cast<int32_t>(digit64));
+                    return jsBigInt32(static_cast<int32_t>(digit64));
             }
             ASSERT(digit64 != 0);
             JSBigInt* bigInt = JSBigInt::tryCreateWithLength(m_lexicalGlobalObject, 1);
@@ -3017,6 +3035,7 @@ private:
             }
             bigInt->setDigit(0, digit64);
             bigInt->setSign(sign);
+            bigInt = bigInt->rightTrim(m_lexicalGlobalObject->vm());
             m_gcBuffer.appendWithCrashOnOverflow(bigInt);
             return bigInt;
         }
@@ -3052,6 +3071,7 @@ private:
             }
         }
         bigInt->setSign(sign);
+        bigInt = bigInt->rightTrim(m_lexicalGlobalObject->vm());
         m_gcBuffer.appendWithCrashOnOverflow(bigInt);
         return bigInt;
     }

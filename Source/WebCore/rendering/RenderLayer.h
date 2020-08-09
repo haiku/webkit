@@ -521,9 +521,9 @@ public:
     int horizontalScrollbarHeight(OverlayScrollbarSizeRelevancy = IgnoreOverlayScrollbarSize) const;
 
     bool hasOverflowControls() const;
-    bool isPointInResizeControl(const IntPoint& absolutePoint) const;
+    bool isPointInResizeControl(IntPoint localPoint) const;
     bool hitTestOverflowControls(HitTestResult&, const IntPoint& localPoint);
-    IntSize offsetFromResizeCorner(const IntPoint& absolutePoint) const;
+    IntSize offsetFromResizeCorner(const IntPoint& localPoint) const;
 
     void paintOverflowControls(GraphicsContext&, const IntPoint&, const IntRect& damageRect, bool paintingOverlayControls = false);
     void paintScrollCorner(GraphicsContext&, const IntPoint&, const IntRect& damageRect);
@@ -1095,7 +1095,7 @@ private:
     
     bool hitTestContents(const HitTestRequest&, HitTestResult&, const LayoutRect& layerBounds, const HitTestLocation&, HitTestFilter) const;
     bool hitTestContentsForFragments(const LayerFragments&, const HitTestRequest&, HitTestResult&, const HitTestLocation&, HitTestFilter, bool& insideClipRect) const;
-    bool hitTestResizerInFragments(const LayerFragments&, const HitTestLocation&) const;
+    bool hitTestResizerInFragments(const LayerFragments&, const HitTestLocation&, LayoutPoint& pointInFragment) const;
     RenderLayer* hitTestTransformedLayerInFragments(RenderLayer* rootLayer, RenderLayer* containerLayer, const HitTestRequest&, HitTestResult&,
         const LayoutRect& hitTestRect, const HitTestLocation&, const HitTestingTransformState* = nullptr, double* zOffset = nullptr);
 
@@ -1125,7 +1125,7 @@ private:
 
     IntRect visibleContentRectInternal(VisibleContentRectIncludesScrollbars, VisibleContentRectBehavior) const final;
     IntSize overhangAmount() const final;
-    IntPoint lastKnownMousePosition() const final;
+    IntPoint lastKnownMousePositionInView() const final;
     bool isHandlingWheelEvent() const final;
     bool shouldSuspendScrollAnimations() const final;
     IntRect scrollableAreaBoundingBox(bool* isInsideFixed = nullptr) const final;
@@ -1141,9 +1141,6 @@ private:
     void registerAsTouchEventListenerForScrolling();
     void unregisterAsTouchEventListenerForScrolling();
 #endif
-
-    // Rectangle encompassing the scroll corner and resizer rect.
-    LayoutRect scrollCornerAndResizerRect() const;
 
     // NOTE: This should only be called by the overridden setScrollOffset from ScrollableArea.
     void scrollTo(const ScrollPosition&);
@@ -1210,11 +1207,17 @@ private:
     LayoutUnit overflowLeft() const;
     LayoutUnit overflowRight() const;
 
-    IntRect rectForHorizontalScrollbar(const IntRect& borderBoxRect) const;
-    IntRect rectForVerticalScrollbar(const IntRect& borderBoxRect) const;
-
-    LayoutUnit verticalScrollbarStart(int minX, int maxX) const;
-    LayoutUnit horizontalScrollbarStart(int minX) const;
+    struct OverflowControlRects {
+        IntRect horizontalScrollbar;
+        IntRect verticalScrollbar;
+        IntRect scrollCorner;
+        IntRect resizer;
+        IntRect scrollCornerOrResizerRect() const
+        {
+            return !scrollCorner.isEmpty() ? scrollCorner : resizer;
+        }
+    };
+    OverflowControlRects overflowControlsRects() const;
 
     bool overflowControlsIntersectRect(const IntRect& localRect) const;
 

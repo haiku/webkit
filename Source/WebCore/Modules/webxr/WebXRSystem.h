@@ -33,6 +33,7 @@
 #include "XRSessionMode.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/RefCounted.h>
+#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -40,14 +41,14 @@ class ScriptExecutionContext;
 class WebXRSession;
 struct XRSessionInit;
 
-class WebXRSystem final : public RefCounted<WebXRSystem>, public EventTargetWithInlineData, public ActiveDOMObject {
+class WebXRSystem final : public RefCounted<WebXRSystem>, public EventTargetWithInlineData, public ActiveDOMObject, public CanMakeWeakPtr<WebXRSystem> {
     WTF_MAKE_ISO_ALLOCATED(WebXRSystem);
 public:
     using IsSessionSupportedPromise = DOMPromiseDeferred<IDLBoolean>;
     using RequestSessionPromise = DOMPromiseDeferred<IDLInterface<WebXRSession>>;
 
     static Ref<WebXRSystem> create(ScriptExecutionContext&);
-    virtual ~WebXRSystem();
+    ~WebXRSystem();
 
     using RefCounted<WebXRSystem>::ref;
     using RefCounted<WebXRSystem>::deref;
@@ -55,9 +56,11 @@ public:
     void isSessionSupported(XRSessionMode, IsSessionSupportedPromise&&);
     void requestSession(XRSessionMode, const XRSessionInit&, RequestSessionPromise&&);
 
-protected:
-    WebXRSystem(ScriptExecutionContext&);
+    // For testing purpouses only.
+    void registerSimulatedXRDeviceForTesting(const PlatformXR::Device&);
+    void unregisterSimulatedXRDeviceForTesting(PlatformXR::Device*);
 
+protected:
     // EventTarget
     EventTargetInterface eventTargetInterface() const override { return WebXRSystemEventTargetInterfaceType; }
     ScriptExecutionContext* scriptExecutionContext() const override { return ActiveDOMObject::scriptExecutionContext(); }
@@ -67,6 +70,30 @@ protected:
     // ActiveDOMObject
     const char* activeDOMObjectName() const override;
     void stop() override;
+
+private:
+    WebXRSystem(ScriptExecutionContext&);
+
+    void ensureImmersiveXRDeviceIsSelected();
+
+    // https://immersive-web.github.io/webxr/#default-inline-xr-device
+    class DummyInlineDevice final : public PlatformXR::Device {
+    public:
+        DummyInlineDevice()
+        {
+            m_supportedModes.append(XRSessionMode::Inline);
+        }
+    };
+    DummyInlineDevice m_defaultInlineDevice;
+
+    bool m_immersiveXRDevicesHaveBeenEnumerated { false };
+    bool m_testingMode { false };
+
+    WeakPtr<WebXRSession> m_activeImmersiveSession;
+
+    WeakPtr<PlatformXR::Device> m_activeImmersiveDevice;
+    Vector<WeakPtr<PlatformXR::Device>> m_immersiveDevices;
+    WeakPtr<PlatformXR::Device> m_inlineXRDevice;
 };
 
 } // namespace WebCore

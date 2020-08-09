@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2010-2019 Apple Inc. All rights reserved.
+ *  Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -22,18 +22,21 @@
 #include <array>
 #include <wtf/Atomics.h>
 #include <wtf/HashFunctions.h>
+#include <wtf/StdIntExtras.h>
 #include <wtf/StdLibExtras.h>
-#include <stdint.h>
 #include <string.h>
-#include "HashFunctions.h"
+#include <type_traits>
 
 namespace WTF {
 
-template<size_t bitmapSize, typename WordType = uint32_t>
+template<size_t size>
+using BitmapWordType = std::conditional_t<(size <= 32 && sizeof(UCPURegister) > sizeof(uint32_t)), uint32_t, UCPURegister>;
+
+template<size_t bitmapSize, typename WordType = BitmapWordType<bitmapSize>>
 class Bitmap final {
     WTF_MAKE_FAST_ALLOCATED;
     
-    static_assert(sizeof(WordType) <= sizeof(unsigned), "WordType must not be bigger than unsigned");
+    static_assert(sizeof(WordType) <= sizeof(UCPURegister), "WordType must not be bigger than the CPU atomic word size");
 public:
     constexpr Bitmap();
 
@@ -104,12 +107,6 @@ public:
             return !(*this == other);
         }
 
-        iterator& operator=(bool value)
-        {
-            m_bitmap->set(m_index, value);
-            return *this;
-        }
-
     private:
         const Bitmap* m_bitmap;
         size_t m_index;
@@ -119,9 +116,6 @@ public:
     iterator begin() const { return iterator(*this, findBit(0, true)); }
     iterator end() const { return iterator(*this, bitmapSize); }
     
-    iterator operator[](size_t);
-    const iterator operator[](size_t) const;
-
     void mergeAndClear(Bitmap&);
     void setAndClear(Bitmap&);
     
@@ -240,6 +234,11 @@ inline void Bitmap<bitmapSize, WordType>::invert()
 {
     for (size_t i = 0; i < words; ++i)
         bits[i] = ~bits[i];
+    if constexpr (!!(bitmapSize % wordSize)) {
+        constexpr size_t remainingBits = bitmapSize % wordSize;
+        constexpr WordType mask = (static_cast<WordType>(1) << remainingBits) - 1;
+        bits[words - 1] &= mask;
+    }
 }
 
 template<size_t bitmapSize, typename WordType>
@@ -256,6 +255,9 @@ inline int64_t Bitmap<bitmapSize, WordType>::findRunOfZeros(size_t runLength) co
     if (!runLength) 
         runLength = 1; 
      
+    if (runLength > bitmapSize)
+        return -1;
+
     for (size_t i = 0; i <= (bitmapSize - runLength) ; i++) {
         bool found = true; 
         for (size_t j = i; j <= (i + runLength - 1) ; j++) { 
@@ -279,7 +281,7 @@ inline size_t Bitmap<bitmapSize, WordType>::count(size_t start) const
             ++result;
     }
     for (size_t i = start / wordSize; i < words; ++i)
-        result += WTF::bitCount(static_cast<unsigned>(bits[i]));
+        result += WTF::bitCount(bits[i]);
     return result;
 }
 
@@ -296,8 +298,17 @@ template<size_t bitmapSize, typename WordType>
 inline size_t Bitmap<bitmapSize, WordType>::isFull() const
 {
     for (size_t i = 0; i < words; ++i)
-        if (~bits[i])
+        if (~bits[i]) {
+            if constexpr (!!(bitmapSize % wordSize)) {
+                if (i == words - 1) {
+                    constexpr size_t remainingBits = bitmapSize % wordSize;
+                    constexpr WordType mask = (static_cast<WordType>(1) << remainingBits) - 1;
+                    if ((bits[i] & mask) == mask)
+                        return true;
+                }
+            }
             return false;
+        }
     return true;
 }
 
@@ -425,19 +436,6 @@ template<size_t bitmapSize, typename WordType>
 inline bool Bitmap<bitmapSize, WordType>::operator!=(const Bitmap& other) const
 {
     return !(*this == other);
-}
-
-template<size_t bitmapSize, typename WordType>
-inline auto Bitmap<bitmapSize, WordType>::operator[](size_t index) -> iterator
-{
-    ASSERT(index < size());
-    return iterator(*this, index);
-}
-
-template<size_t bitmapSize, typename WordType>
-inline auto Bitmap<bitmapSize, WordType>::operator[](size_t index) const -> const iterator
-{
-    return (*const_cast<Bitmap<bitmapSize, WordType>*>(this))[index];
 }
 
 template<size_t bitmapSize, typename WordType>

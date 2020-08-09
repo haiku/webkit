@@ -383,7 +383,7 @@ void WebFrameLoaderClient::dispatchWillPerformClientRedirect(const URL& url, dou
         return;
 
     // Notify the bundle client.
-    webPage->injectedBundleLoaderClient().willPerformClientRedirectForFrame(*webPage, m_frame, url, interval, fireDate);
+    webPage->injectedBundleLoaderClient().willPerformClientRedirectForFrame(*webPage, m_frame, url.string(), interval, fireDate);
 
     // Notify the UIProcess.
     webPage->send(Messages::WebPageProxy::WillPerformClientRedirectForFrame(m_frame->frameID(), url.string(), interval, lockBackForwardList));
@@ -602,7 +602,7 @@ void WebFrameLoaderClient::dispatchDidFailProvisionalLoad(const ResourceError& e
 
     // Notify the UIProcess.
     WebCore::Frame* coreFrame = m_frame->coreFrame();
-    webPage->send(Messages::WebPageProxy::DidFailProvisionalLoadForFrame(m_frame->frameID(), m_frame->info(), request, navigationID, coreFrame->loader().provisionalLoadErrorBeingHandledURL(), error, willContinueLoading, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
+    webPage->send(Messages::WebPageProxy::DidFailProvisionalLoadForFrame(m_frame->frameID(), m_frame->info(), request, navigationID, coreFrame->loader().provisionalLoadErrorBeingHandledURL().string(), error, willContinueLoading, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
 
     // If we have a load listener, notify it.
     if (WebFrame::LoadListener* loadListener = m_frame->loadListener())
@@ -1495,8 +1495,9 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
         shouldHideScrollbars = true;
 #endif
 
-    const ResourceResponse& response = m_frame->coreFrame()->loader().documentLoader()->response();
-    m_frameHasCustomContentProvider = isMainFrame && webPage->shouldUseCustomContentProviderForResponse(response);
+    m_frameHasCustomContentProvider = isMainFrame
+        && m_frame->coreFrame()->loader().documentLoader()
+        && webPage->shouldUseCustomContentProviderForResponse(m_frame->coreFrame()->loader().documentLoader()->response());
     m_frameCameFromBackForwardCache = false;
 
     ScrollbarMode defaultScrollbarMode = shouldHideScrollbars ? ScrollbarAlwaysOff : ScrollbarAuto;
@@ -1579,8 +1580,7 @@ void WebFrameLoaderClient::convertMainResourceLoadToDownload(DocumentLoader *doc
     m_frame->convertMainResourceLoadToDownload(documentLoader, request, response);
 }
 
-RefPtr<Frame> WebFrameLoaderClient::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement& ownerElement,
-    const String& referrer)
+RefPtr<Frame> WebFrameLoaderClient::createFrame(const String& name, HTMLFrameOwnerElement& ownerElement)
 {
     auto* webPage = m_frame->page();
 
@@ -1591,15 +1591,6 @@ RefPtr<Frame> WebFrameLoaderClient::createFrame(const URL& url, const String& na
 
     // The creation of the frame may have run arbitrary JavaScript that removed it from the page already.
     if (!coreSubframe->page())
-        return nullptr;
-
-    m_frame->coreFrame()->loader().loadURLIntoChildFrame(url, referrer, coreSubframe);
-
-    // The frame's onload handler may have removed it from the document.
-    if (!subframe->coreFrame())
-        return nullptr;
-    ASSERT(subframe->coreFrame() == coreSubframe);
-    if (!coreSubframe->tree().parent())
         return nullptr;
 
     return coreSubframe;
@@ -1859,7 +1850,7 @@ bool WebFrameLoaderClient::shouldForceUniversalAccessFromLocalURL(const URL& url
     if (!webPage)
         return false;
 
-    return webPage->injectedBundleLoaderClient().shouldForceUniversalAccessFromLocalURL(*webPage, url);
+    return webPage->injectedBundleLoaderClient().shouldForceUniversalAccessFromLocalURL(*webPage, url.string());
 }
 
 Ref<FrameNetworkingContext> WebFrameLoaderClient::createNetworkingContext()

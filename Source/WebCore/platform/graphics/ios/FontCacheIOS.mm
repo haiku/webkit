@@ -53,10 +53,10 @@ FontPlatformData* FontCache::getCustomFallbackFont(const UInt32 c, const FontDes
 {
     ASSERT(requiresCustomFallbackFont(c));
 
-    static NeverDestroyed<AtomString> helveticaFamily("Helvetica Neue", AtomString::ConstructFromLiteral);
-    static NeverDestroyed<AtomString> timesNewRomanPSMTFamily("TimesNewRomanPSMT", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> helveticaFamily("Helvetica Neue", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> timesNewRomanPSMTFamily("TimesNewRomanPSMT", AtomString::ConstructFromLiteral);
 
-    AtomString* family = nullptr;
+    const AtomString* family = nullptr;
     switch (c) {
     case AppleLogo:
         family = &helveticaFamily.get();
@@ -156,7 +156,8 @@ RetainPtr<CTFontRef> platformFontWithFamilySpecialCase(const AtomString& family,
     }
 
     if (equalLettersIgnoringASCIICase(family, "lastresort")) {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+// FIXME: Likely we can remove this special case for watchOS and tvOS.
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
         static const CTFontDescriptorRef lastResort = CTFontDescriptorCreateLastResort();
         return adoptCF(CTFontCreateWithFontDescriptor(lastResort, size, nullptr));
 #else

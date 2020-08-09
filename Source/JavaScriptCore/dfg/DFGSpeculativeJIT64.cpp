@@ -33,6 +33,7 @@
 #include "CallFrameShuffler.h"
 #include "DFGAbstractInterpreterInlines.h"
 #include "DFGCallArrayAllocatorSlowPathGenerator.h"
+#include "DFGClobberize.h"
 #include "DFGDoesGC.h"
 #include "DFGOperations.h"
 #include "DFGSlowPathGenerator.h"
@@ -419,11 +420,13 @@ void SpeculativeJIT::nonSpeculativePeepholeStrictEq(Node* node, Node* branchNode
     jump(notTaken);
 }
 
-void SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq(Node* node, bool invert)
+void SpeculativeJIT::genericJSValueNonPeepholeStrictEq(Node* node, bool invert)
 {
     // FIXME: some of this code should be shareable with nonSpeculativePeepholeStrictEq
-    JSValueOperand arg1(this, node->child1());
-    JSValueOperand arg2(this, node->child2());
+    JSValueOperand arg1(this, node->child1(), ManualOperandSpeculation);
+    JSValueOperand arg2(this, node->child2(), ManualOperandSpeculation);
+    speculate(node, node->child1());
+    speculate(node, node->child2());
     JSValueRegs arg1Regs = arg1.jsValueRegs();
     JSValueRegs arg2Regs = arg2.jsValueRegs();
     GPRReg arg1GPR = arg1.gpr();
@@ -1467,8 +1470,7 @@ GPRReg SpeculativeJIT::fillSpeculateBigInt32(Edge edge)
         if (type & ~SpecBigInt32) {
             CCallHelpers::JumpList failureCases;
             GPRReg tempGPR = allocate();
-            failureCases.append(m_jit.branchIfNumber(gpr));
-            failureCases.append(m_jit.branchIfNotBigInt32KnownNotNumber(gpr, tempGPR));
+            failureCases.append(m_jit.branchIfNotBigInt32(gpr, tempGPR));
             speculationCheck(BadType, JSValueRegs(gpr), edge, failureCases);
             unlock(tempGPR);
         }
@@ -1752,28 +1754,20 @@ void SpeculativeJIT::compileBigInt32Compare(Node* node, MacroAssembler::Relation
 
     if (condition == MacroAssembler::Equal || condition == MacroAssembler::NotEqual) {
         // No need to unbox the operands, since the tag bits are identical
-        m_jit.compare64(condition, op1.gpr(), op2.gpr(), result.gpr());
+        m_jit.compare64(condition, op1GPR, op2GPR, resultGPR);
     } else {
         GPRTemporary temp(this);
         GPRReg tempGPR = temp.gpr();
 
-        m_jit.move(op1GPR, tempGPR);
-        m_jit.unboxBigInt32(tempGPR);
-        m_jit.move(op2GPR, resultGPR);
-        m_jit.unboxBigInt32(resultGPR);
-        m_jit.compare64(condition, tempGPR, resultGPR, resultGPR);
+        m_jit.unboxBigInt32(op1GPR, tempGPR);
+        m_jit.unboxBigInt32(op2GPR, resultGPR);
+        m_jit.compare32(condition, tempGPR, resultGPR, resultGPR);
     }
-
-    // If we add a DataFormatBool, we should use it here.
-    m_jit.or32(TrustedImm32(JSValue::ValueFalse), result.gpr());
-    jsValueResult(result.gpr(), m_currentNode, DataFormatJSBoolean);
+    unblessedBooleanResult(resultGPR, node);
 }
 
 void SpeculativeJIT::compilePeepHoleBigInt32Branch(Node* node, Node* branchNode, JITCompiler::RelationalCondition condition)
 {
-    // Other conditions would require unboxing the BigInt32 to get correct results on negative numbers.
-    ASSERT(condition == MacroAssembler::Equal || condition == MacroAssembler::NotEqual);
-
     BasicBlock* taken = branchNode->branchData()->taken.block;
     BasicBlock* notTaken = branchNode->branchData()->notTaken.block;
 
@@ -1781,16 +1775,28 @@ void SpeculativeJIT::compilePeepHoleBigInt32Branch(Node* node, Node* branchNode,
     // If taken is next, switch taken with notTaken & invert the branch condition so we can fall through.
     if (taken == nextBlock()) {
         condition = JITCompiler::invert(condition);
-        BasicBlock* tmp = taken;
-        taken = notTaken;
-        notTaken = tmp;
+        std::swap(taken, notTaken);
     }
 
     SpeculateBigInt32Operand op1(this, node->child1());
     SpeculateBigInt32Operand op2(this, node->child2());
+    GPRReg op1GPR = op1.gpr();
+    GPRReg op2GPR = op2.gpr();
 
-    branch64(condition, op1.gpr(), op2.gpr(), taken);
-    jump(notTaken);
+    if (condition == MacroAssembler::Equal || condition == MacroAssembler::NotEqual) {
+        branch64(condition, op1GPR, op2GPR, taken);
+        jump(notTaken);
+    } else {
+        GPRTemporary lhs(this, Reuse, op1);
+        GPRTemporary rhs(this, Reuse, op2);
+        GPRReg lhsGPR = lhs.gpr();
+        GPRReg rhsGPR = rhs.gpr();
+        m_jit.unboxBigInt32(op1GPR, lhsGPR);
+        m_jit.unboxBigInt32(op2GPR, rhsGPR);
+        branch32(condition, lhsGPR, rhsGPR, taken);
+        jump(notTaken);
+    }
+
 }
 #endif // USE(BIGINT32)
 
@@ -3715,6 +3721,10 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
+    case CallNumberConstructor:
+        compileCallNumberConstructor(node);
+        break;
+
     case ToString:
     case CallStringConstructor:
     case StringValueOf: {
@@ -5109,9 +5119,9 @@ void SpeculativeJIT::compile(Node* node)
                         m_jit.signExtend16To32(t2, t2);
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianLoad();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianLoad();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5128,9 +5138,9 @@ void SpeculativeJIT::compile(Node* node)
             case 4: {
                 m_jit.load32(baseIndex, t2);
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     m_jit.byteSwap32(t2);
-                else if (data.isLittleEndian == MixedTriState) {
+                else if (data.isLittleEndian == TriState::Indeterminate) {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
                     auto isLittleEndian = m_jit.branchTest32(MacroAssembler::NonZero, isLittleEndianGPR, TrustedImm32(1));
                     m_jit.byteSwap32(t2);
@@ -5164,9 +5174,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.convertFloatToDouble(resultFPR, resultFPR);
                 };
 
-                if (data.isLittleEndian == TrueTriState)
+                if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
-                else if (data.isLittleEndian == FalseTriState)
+                else if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5191,9 +5201,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.move64ToDouble(t2, resultFPR);
                 };
 
-                if (data.isLittleEndian == TrueTriState)
+                if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
-                else if (data.isLittleEndian == FalseTriState)
+                else if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5303,9 +5313,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.store32(t3, baseIndex);
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5329,9 +5339,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.store64(t3, baseIndex);
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5363,9 +5373,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.store16(t3, baseIndex);
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);
@@ -5391,9 +5401,9 @@ void SpeculativeJIT::compile(Node* node)
                     m_jit.store32(t3, baseIndex);
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else {
                     RELEASE_ASSERT(isLittleEndianGPR != InvalidGPRReg);

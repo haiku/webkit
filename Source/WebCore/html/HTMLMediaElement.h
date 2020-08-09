@@ -155,6 +155,7 @@ public:
     virtual bool isVideo() const { return false; }
     bool hasVideo() const override { return false; }
     bool hasAudio() const override;
+    bool hasRenderer() const { return static_cast<bool>(renderer()); }
 
     static HashSet<HTMLMediaElement*>& allMediaElements();
 
@@ -931,6 +932,8 @@ private:
     void seekToPlaybackPositionEndedTimerFired();
 
     void setInActiveDocument(bool);
+
+    void checkForAudioAndVideo();
 
 #if !RELEASE_LOG_DISABLED
     const void* mediaPlayerLogIdentifier() final { return logIdentifier(); }

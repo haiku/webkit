@@ -111,9 +111,12 @@ public:
     // Traverses the scrolling tree, setting layer positions to represent the current scrolled state.
     virtual void applyScrollingTreeLayerPositions() { }
 
-#if PLATFORM(COCOA)
+    // Takes scroll positions from the scrolling tree and applies them to ScrollableAreas.
+    virtual void synchronizeStateFromScrollingTree() { }
+
+#if ENABLE(KINETIC_SCROLLING)
     // Dispatched by the scrolling tree during handleWheelEvent. This is required as long as scrollbars are painted on the main thread.
-    void handleWheelEventPhase(PlatformWheelEventPhase);
+    virtual void handleWheelEventPhase(ScrollingNodeID, PlatformWheelEventPhase) { }
 #endif
 
     // Force all scroll layer position updates to happen on the main thread.
@@ -158,6 +161,7 @@ public:
     virtual void setPositionedNodeConstraints(ScrollingNodeID, const AbsolutePositionConstraints&) { }
     virtual void setRelatedOverflowScrollingNodes(ScrollingNodeID, Vector<ScrollingNodeID>&&) { }
     virtual void setSynchronousScrollingReasons(ScrollingNodeID, OptionSet<SynchronousScrollingReason>) { }
+    virtual bool hasSynchronousScrollingReasons(ScrollingNodeID) const { return false; }
 
     virtual void reconcileViewportConstrainedLayerPositions(ScrollingNodeID, const LayoutRect&, ScrollingLayerPositionAction) { }
     virtual String scrollingStateTreeAsText(ScrollingStateTreeAsTextBehavior = ScrollingStateTreeAsTextBehaviorNormal) const;

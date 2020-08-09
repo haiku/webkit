@@ -160,7 +160,7 @@ public:
     WEBCORE_EXPORT TiledBacking* tiledBacking() const;
 
     ScrollingNodeID scrollingNodeID() const override;
-    ScrollableArea* scrollableAreaForScrollLayerID(uint64_t) const;
+    ScrollableArea* scrollableAreaForScrollingNodeID(ScrollingNodeID) const;
     bool usesAsyncScrolling() const final;
 
     WEBCORE_EXPORT void enterCompositingMode();
@@ -520,7 +520,7 @@ public:
     enum ScrollbarModesCalculationStrategy { RulesFromWebContentOnly, AnyRule };
     void calculateScrollbarModesForLayout(ScrollbarMode& hMode, ScrollbarMode& vMode, ScrollbarModesCalculationStrategy = AnyRule);
 
-    IntPoint lastKnownMousePosition() const final;
+    IntPoint lastKnownMousePositionInView() const final;
     bool isHandlingWheelEvent() const final;
     bool shouldSetCursor() const;
 
@@ -669,7 +669,9 @@ public:
 
     String debugDescription() const final;
 
-protected:
+private:
+    explicit FrameView(Frame&);
+
     bool scrollContentsFastPath(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect) final;
     void scrollContentsSlowPath(const IntRect& updateRect) final;
     
@@ -677,9 +679,6 @@ protected:
 
     bool isVerticalDocument() const final;
     bool isFlippedDocument() const final;
-
-private:
-    explicit FrameView(Frame&);
 
     void reset();
     void init();

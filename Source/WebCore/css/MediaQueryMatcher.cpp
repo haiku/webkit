@@ -28,6 +28,7 @@
 #include "MediaList.h"
 #include "MediaQueryEvaluator.h"
 #include "MediaQueryList.h"
+#include "MediaQueryListEvent.h"
 #include "MediaQueryParserContext.h"
 #include "NodeRenderStyle.h"
 #include "RenderElement.h"
@@ -47,7 +48,11 @@ MediaQueryMatcher::~MediaQueryMatcher() = default;
 void MediaQueryMatcher::documentDestroyed()
 {
     m_document = nullptr;
-    m_mediaQueryLists.clear();
+    auto mediaQueryLists = std::exchange(m_mediaQueryLists, { });
+    for (auto& mediaQueryList : mediaQueryLists) {
+        if (mediaQueryList)
+            mediaQueryList->detachFromMatcher();
+    }
 }
 
 String MediaQueryMatcher::mediaType() const

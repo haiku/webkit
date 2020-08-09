@@ -42,6 +42,10 @@
 #include <WebCore/AsyncScrollingCoordinator.h>
 #endif
 
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+#include <WebCore/DisplayRefreshMonitorManager.h>
+#endif
+
 #if ENABLE(SCROLLING_THREAD)
 #include <WebCore/ScrollingThread.h>
 #include <WebCore/ThreadedScrollingTree.h>
@@ -126,13 +130,18 @@ void EventDispatcher::wheelEvent(PageIdentifier pageID, const WebWheelEvent& whe
         if (platformWheelEvent.phase() == PlatformWheelEventPhaseBegan)
             scrollingTree->setMainFrameCanRubberBand({ canRubberBandAtTop, canRubberBandAtRight, canRubberBandAtBottom, canRubberBandAtLeft });
 
-        auto eventType = wheelEvent.type();
-        ScrollingEventResult result = scrollingTree->tryToHandleWheelEvent(platformWheelEvent, [pageID, eventType](ScrollingEventResult result) {
+        ScrollingEventResult result = scrollingTree->tryToHandleWheelEvent(platformWheelEvent, [protectedThis = makeRef(*this), wheelEvent, pageID](ScrollingEventResult result) {
             ASSERT(ScrollingThread::isCurrentThread());
             ASSERT(result != ScrollingEventResult::SendToScrollingThread);
-            ASSERT(result != ScrollingEventResult::SendToMainThread);
             
-            sendDidReceiveEvent(pageID, eventType, result == ScrollingEventResult::DidHandleEvent);
+            if (result == ScrollingEventResult::SendToMainThread) {
+                RunLoop::main().dispatch([innerProtectedThis = protectedThis.copyRef(), pageID, wheelEvent]() mutable {
+                    innerProtectedThis->dispatchWheelEvent(pageID, wheelEvent);
+                });
+                return;
+            }
+            
+            sendDidReceiveEvent(pageID, wheelEvent.type(), result == ScrollingEventResult::DidHandleEvent);
         });
 
         if (result == ScrollingEventResult::SendToScrollingThread)
@@ -250,6 +259,15 @@ void EventDispatcher::dispatchGestureEvent(PageIdentifier pageID, const WebGestu
 void EventDispatcher::sendDidReceiveEvent(PageIdentifier pageID, WebEvent::Type eventType, bool didHandleEvent)
 {
     WebProcess::singleton().parentProcessConnection()->send(Messages::WebPageProxy::DidReceiveEvent(static_cast<uint32_t>(eventType), didHandleEvent), pageID);
+}
+#endif
+
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+void EventDispatcher::displayWasRefreshed(PlatformDisplayID displayID)
+{
+    RunLoop::main().dispatch([displayID]() {
+        DisplayRefreshMonitorManager::sharedManager().displayWasUpdated(displayID);
+    });
 }
 #endif
 

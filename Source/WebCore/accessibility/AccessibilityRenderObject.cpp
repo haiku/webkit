@@ -633,10 +633,10 @@ String AccessibilityRenderObject::textUnderElement(AccessibilityTextUnderElement
         // If possible, use a text iterator to get the text, so that whitespace
         // is handled consistently.
         Document* nodeDocument = nullptr;
-        RefPtr<Range> textRange;
+        Optional<SimpleRange> textRange;
         if (Node* node = m_renderer->node()) {
             nodeDocument = &node->document();
-            textRange = rangeOfContents(*node);
+            textRange = makeRangeSelectingNodeContents(*node);
         } else {
             // For anonymous blocks, we work around not having a direct node to create a range from
             // defining one based in the two external positions defining the boundaries of the subtree.
@@ -650,7 +650,7 @@ String AccessibilityRenderObject::textUnderElement(AccessibilityTextUnderElement
                 Position endPosition = positionInParentAfterNode(lastChildRenderer->node());
 
                 nodeDocument = &firstNodeInBlock->document();
-                textRange = Range::create(*nodeDocument, startPosition, endPosition);
+                textRange = { { *makeBoundaryPoint(startPosition), *makeBoundaryPoint(endPosition) } };
             }
         }
 
@@ -944,26 +944,27 @@ IntPoint AccessibilityRenderObject::clickPoint()
     
 AccessibilityObject* AccessibilityRenderObject::internalLinkElement() const
 {
-    Element* element = anchorElement();
+    auto element = anchorElement();
+
     // Right now, we do not support ARIA links as internal link elements
     if (!is<HTMLAnchorElement>(element))
         return nullptr;
-    HTMLAnchorElement& anchor = downcast<HTMLAnchorElement>(*element);
-    
-    URL linkURL = anchor.href();
-    String fragmentIdentifier = linkURL.fragmentIdentifier();
+    auto& anchor = downcast<HTMLAnchorElement>(*element);
+
+    auto linkURL = anchor.href();
+    auto fragmentIdentifier = linkURL.fragmentIdentifier();
     if (fragmentIdentifier.isEmpty())
         return nullptr;
-    
+
     // check if URL is the same as current URL
-    URL documentURL = m_renderer->document().url();
+    auto documentURL = m_renderer->document().url();
     if (!equalIgnoringFragmentIdentifier(documentURL, linkURL))
         return nullptr;
-    
-    Node* linkedNode = m_renderer->document().findAnchor(fragmentIdentifier);
+
+    auto linkedNode = m_renderer->document().findAnchor(fragmentIdentifier.toStringWithoutCopying());
     if (!linkedNode)
         return nullptr;
-    
+
     // The element we find may not be accessible, so find the first accessible object.
     return firstAccessibleObjectFromNode(linkedNode);
 }
@@ -1039,33 +1040,46 @@ bool AccessibilityRenderObject::hasPopup() const
     });
 }
 
-bool AccessibilityRenderObject::supportsARIADropping() const 
+bool AccessibilityRenderObject::supportsDropping() const 
 {
-    const AtomString& dropEffect = getAttribute(aria_dropeffectAttr);
-    return !dropEffect.isEmpty();
+    return determineDropEffects().size();
 }
 
-bool AccessibilityRenderObject::supportsARIADragging() const
+bool AccessibilityRenderObject::supportsDragging() const
 {
     const AtomString& grabbed = getAttribute(aria_grabbedAttr);
-    return equalLettersIgnoringASCIICase(grabbed, "true") || equalLettersIgnoringASCIICase(grabbed, "false");
+    return equalLettersIgnoringASCIICase(grabbed, "true") || equalLettersIgnoringASCIICase(grabbed, "false") || hasAttribute(draggableAttr);
 }
 
-bool AccessibilityRenderObject::isARIAGrabbed()
+bool AccessibilityRenderObject::isGrabbed()
 {
+#if ENABLE(DRAG_SUPPORT)
+    if (mainFrame() && mainFrame()->eventHandler().draggingElement() == element())
+        return true;
+#endif
+
     return elementAttributeValue(aria_grabbedAttr);
 }
 
-Vector<String> AccessibilityRenderObject::determineARIADropEffects()
+Vector<String> AccessibilityRenderObject::determineDropEffects() const
 {
+    // Order is aria-dropeffect, dropzone, webkitdropzone
     const AtomString& dropEffects = getAttribute(aria_dropeffectAttr);
-    if (dropEffects.isEmpty()) {
-        return { };
+    if (!dropEffects.isEmpty()) {
+        String dropEffectsString = dropEffects.string();
+        dropEffectsString.replace('\n', ' ');
+        return dropEffectsString.split(' ');
     }
     
-    String dropEffectsString = dropEffects.string();
-    dropEffectsString.replace('\n', ' ');
-    return dropEffectsString.split(' ');
+    auto dropzone = getAttribute(dropzoneAttr);
+    if (!dropzone.isEmpty())
+        return Vector<String> { dropzone };
+    
+    auto webkitdropzone = getAttribute(webkitdropzoneAttr);
+    if (!webkitdropzone.isEmpty())
+        return Vector<String> { webkitdropzone };
+    
+    return { };
 }
     
 bool AccessibilityRenderObject::exposesTitleUIElement() const
@@ -1538,20 +1552,20 @@ PlainTextRange AccessibilityRenderObject::documentBasedSelectedTextRange() const
         return PlainTextRange();
 
     VisibleSelection visibleSelection = selection();
-    RefPtr<Range> currentSelectionRange = visibleSelection.toNormalizedRange();
-    if (!currentSelectionRange)
+    auto selectionRange = visibleSelection.toNormalizedRange();
+    if (!selectionRange)
         return PlainTextRange();
+
     // FIXME: The reason this does the correct thing when the selection is in the
     // shadow tree of an input element is that we get an exception below, and we
     // choose to interpret all exceptions as "does not intersect". Seems likely
     // that does not handle all cases correctly.
-    auto intersectsResult = currentSelectionRange->intersectsNode(*node);
+    auto intersectsResult = createLiveRange(*selectionRange)->intersectsNode(*node);
     if (!intersectsResult.hasException() && !intersectsResult.releaseReturnValue())
         return PlainTextRange();
 
     int start = indexForVisiblePosition(visibleSelection.start());
     int end = indexForVisiblePosition(visibleSelection.end());
-
     return PlainTextRange(start, end - start);
 }
 
@@ -3409,7 +3423,7 @@ const String AccessibilityRenderObject::liveRegionStatus() const
 
 const String AccessibilityRenderObject::liveRegionRelevant() const
 {
-    static NeverDestroyed<const AtomString> defaultLiveRegionRelevant("additions text", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> defaultLiveRegionRelevant("additions text", AtomString::ConstructFromLiteral);
     const AtomString& relevant = getAttribute(aria_relevantAttr);
 
     // Default aria-relevant = "additions text".

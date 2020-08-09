@@ -34,6 +34,7 @@
 #include "Region.h"
 #include "ScrollTypes.h"
 #include "ScrollingCoordinatorTypes.h"
+#include "ScrollingTreeGestureState.h"
 #include "ScrollingTreeLatchingController.h"
 #include "WheelEventTestMonitor.h"
 #include <wtf/HashMap.h>
@@ -78,7 +79,7 @@ public:
     bool isScrollSnapInProgress();
 
     virtual void invalidate() { }
-    WEBCORE_EXPORT virtual void commitTreeState(std::unique_ptr<ScrollingStateTree>);
+    WEBCORE_EXPORT virtual void commitTreeState(std::unique_ptr<ScrollingStateTree>&&);
     
     WEBCORE_EXPORT virtual void applyLayerPositions();
     WEBCORE_EXPORT void applyLayerPositionsAfterCommit();
@@ -86,6 +87,9 @@ public:
     virtual Ref<ScrollingTreeNode> createScrollingTreeNode(ScrollingNodeType, ScrollingNodeID) = 0;
     
     WEBCORE_EXPORT ScrollingTreeNode* nodeForID(ScrollingNodeID) const;
+
+    using VisitorFunction = WTF::Function<void (ScrollingNodeID, ScrollingNodeType, Optional<FloatPoint> scrollPosition, Optional<FloatPoint> layoutViewportOrigin)>;
+    void traverseScrollingTree(VisitorFunction&&);
 
     // Called after a scrolling tree node has handled a scroll and updated its layers.
     // Updates FrameView/RenderLayer scrolling state and GraphicsLayers.
@@ -113,13 +117,15 @@ public:
     WEBCORE_EXPORT TrackingType eventTrackingTypeForPoint(const AtomString& eventName, IntPoint);
 
 #if PLATFORM(MAC)
-    virtual void handleWheelEventPhase(PlatformWheelEventPhase) = 0;
+    virtual void handleWheelEventPhase(ScrollingNodeID, PlatformWheelEventPhase) = 0;
     virtual void setActiveScrollSnapIndices(ScrollingNodeID, unsigned /*horizontalIndex*/, unsigned /*verticalIndex*/) { }
 
     virtual void setWheelEventTestMonitor(RefPtr<WheelEventTestMonitor>&&) { }
 
     virtual void deferWheelEventTestCompletionForReason(WheelEventTestMonitor::ScrollableAreaIdentifier, WheelEventTestMonitor::DeferReason) { }
     virtual void removeWheelEventTestCompletionDeferralForReason(WheelEventTestMonitor::ScrollableAreaIdentifier, WheelEventTestMonitor::DeferReason) { }
+#else
+    void handleWheelEventPhase(ScrollingNodeID, PlatformWheelEventPhase) { }
 #endif
 
 #if PLATFORM(COCOA)
@@ -171,8 +177,6 @@ public:
     virtual void lockLayersForHitTesting() { }
     virtual void unlockLayersForHitTesting() { }
 
-    virtual void waitForScrollingTreeCommit() { }
-
 protected:
     FloatPoint mainFrameScrollPosition() const;
     void setMainFrameScrollPosition(FloatPoint);
@@ -183,9 +187,11 @@ private:
     void updateTreeFromStateNodeRecursive(const ScrollingStateNode*, struct CommitTreeState&);
     virtual void propagateSynchronousScrollingReasons(const HashSet<ScrollingNodeID>&) { }
 
-    void applyLayerPositionsRecursive(ScrollingTreeNode&);
+    void applyLayerPositionsInternal();
 
+    void applyLayerPositionsRecursive(ScrollingTreeNode&);
     void notifyRelatedNodesRecursive(ScrollingTreeNode&);
+    void traverseScrollingTreeRecursive(ScrollingTreeNode&, const VisitorFunction&);
 
     WEBCORE_EXPORT virtual RefPtr<ScrollingTreeNode> scrollingNodeForPoint(FloatPoint);
     virtual void receivedWheelEvent(const PlatformWheelEvent&) { }
@@ -198,6 +204,8 @@ private:
     ScrollingTreeNodeMap m_nodeMap;
 
     ScrollingTreeLatchingController m_latchingController;
+    ScrollingTreeGestureState m_gestureState;
+
     RelatedNodesMap m_overflowRelatedNodesMap;
 
     HashSet<Ref<ScrollingTreeOverflowScrollProxyNode>> m_activeOverflowScrollProxyNodes;

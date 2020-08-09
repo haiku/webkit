@@ -180,15 +180,11 @@ private:
 
     void intrinsicContentSizeDidChange(const WebCore::IntSize& intrinsicContentSize) override;
 
-#if USE(DICTATION_ALTERNATIVES)
     void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext) override;
-#endif
 
     void setEditableElementIsFocused(bool) override;
 
-#if USE(INSERTION_UNDO_GROUPING)
     void registerInsertionUndoGrouping() override;
-#endif
 
     // Auxiliary Client Creation
 #if ENABLE(FULLSCREEN_API)

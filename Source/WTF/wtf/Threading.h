@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2007 Justin Haygood <jhaygood@reaktix.com>
  * Copyright (C) 2017 Yusuke Suzuki <utatane.tea@gmail.com>
  *
@@ -85,6 +85,7 @@ enum class GCThreadType : uint8_t {
 enum class ThreadType : uint8_t {
     Unknown = 0,
     JavaScript,
+    Compiler,
     GarbageCollection,
     Network,
     Graphics,
@@ -315,6 +316,8 @@ protected:
     bool m_isDestroyedOnce : 1;
     bool m_isCompilationThread: 1;
     unsigned m_gcThreadType : 2;
+
+    bool m_didUnregisterFromAllThreads { false };
 
     // Lock & ParkingLot rely on ThreadSpecific. But Thread object can be destroyed even after ThreadSpecific things are destroyed.
     // Use WordLock since WordLock does not depend on ThreadSpecific and this "Thread".

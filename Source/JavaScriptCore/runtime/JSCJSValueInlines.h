@@ -53,7 +53,8 @@ ALWAYS_INLINE int32_t JSValue::toInt32(JSGlobalObject* globalObject) const
 
 inline uint32_t JSValue::toUInt32(JSGlobalObject* globalObject) const
 {
-    // See comment on JSC::toUInt32, in JSCJSValue.h.
+    // The only difference between toInt32 and toUint32 is that toUint32 reinterprets resulted int32_t value as uint32_t.
+    // https://tc39.es/ecma262/#sec-touint32
     return toInt32(globalObject);
 }
 
@@ -538,7 +539,7 @@ ALWAYS_INLINE JSBigInt* JSValue::asHeapBigInt() const
 #endif // USE(JSVALUE64)
 
 #if USE(BIGINT32)
-inline JSValue::JSValue(JSBigInt32Tag, int32_t value)
+inline JSValue::JSValue(EncodeAsBigInt32Tag, int32_t value)
 {
     uint64_t shiftedValue = static_cast<uint64_t>(static_cast<uint32_t>(value)) << 16;
     ASSERT(!(shiftedValue & NumberTag));
@@ -849,6 +850,17 @@ ALWAYS_INLINE JSValue JSValue::toNumeric(JSGlobalObject* globalObject) const
     return jsNumber(value);
 }
 
+ALWAYS_INLINE Optional<uint32_t> JSValue::toUInt32AfterToNumeric(JSGlobalObject* globalObject) const
+{
+    VM& vm = getVM(globalObject);
+    auto scope = DECLARE_THROW_SCOPE(vm);
+    JSValue result = toBigIntOrInt32(globalObject);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (LIKELY(result.isInt32()))
+        return static_cast<uint32_t>(result.asInt32());
+    return WTF::nullopt;
+}
+
 ALWAYS_INLINE JSValue JSValue::toBigIntOrInt32(JSGlobalObject* globalObject) const
 {
     VM& vm = getVM(globalObject);
@@ -875,39 +887,14 @@ inline JSObject* JSValue::toObject(JSGlobalObject* globalObject) const
     return isCell() ? asCell()->toObject(globalObject) : toObjectSlowCase(globalObject);
 }
 
-inline bool JSValue::isFunction(VM& vm) const
-{
-    if (!isCell())
-        return false;
-    return asCell()->isFunction(vm);
-}
-
 inline bool JSValue::isCallable(VM& vm) const
 {
-    CallType unusedType;
-    CallData unusedData;
-    return isCallable(vm, unusedType, unusedData);
-}
-
-inline bool JSValue::isCallable(VM& vm, CallType& callType, CallData& callData) const
-{
-    if (!isCell())
-        return false;
-    return asCell()->isCallable(vm, callType, callData);
+    return isCell() && asCell()->isCallable(vm);
 }
 
 inline bool JSValue::isConstructor(VM& vm) const
 {
-    if (!isCell())
-        return false;
-    return asCell()->isConstructor(vm);
-}
-
-inline bool JSValue::isConstructor(VM& vm, ConstructType& constructType, ConstructData& constructData) const
-{
-    if (!isCell())
-        return false;
-    return asCell()->isConstructor(vm, constructType, constructData);
+    return isCell() && asCell()->isConstructor(vm);
 }
 
 // this method is here to be after the inline declaration of JSCell::inherits
@@ -1275,7 +1262,7 @@ inline TriState JSValue::pureStrictEqual(JSValue v1, JSValue v2)
             const StringImpl* v1String = asString(v1)->tryGetValueImpl();
             const StringImpl* v2String = asString(v2)->tryGetValueImpl();
             if (!v1String || !v2String)
-                return MixedTriState;
+                return TriState::Indeterminate;
             return triState(WTF::equal(*v1String, *v2String));
         }
         if (v1.asCell()->isHeapBigInt() && v2.asCell()->isHeapBigInt())
@@ -1288,16 +1275,16 @@ inline TriState JSValue::pureStrictEqual(JSValue v1, JSValue v2)
 inline TriState JSValue::pureToBoolean() const
 {
     if (isInt32())
-        return asInt32() ? TrueTriState : FalseTriState;
+        return asInt32() ? TriState::True : TriState::False;
     if (isDouble())
-        return isNotZeroAndOrdered(asDouble()) ? TrueTriState : FalseTriState; // false for NaN
+        return isNotZeroAndOrdered(asDouble()) ? TriState::True : TriState::False; // false for NaN
     if (isCell())
         return asCell()->pureToBoolean();
 #if USE(BIGINT32)
     if (isBigInt32())
-        return bigInt32AsInt32() ? TrueTriState : FalseTriState;
+        return bigInt32AsInt32() ? TriState::True : TriState::False;
 #endif
-    return isTrue() ? TrueTriState : FalseTriState;
+    return isTrue() ? TriState::True : TriState::False;
 }
 
 ALWAYS_INLINE bool JSValue::requireObjectCoercible(JSGlobalObject* globalObject) const

@@ -344,7 +344,9 @@ JSCell* JIT_OPERATION operationCreatePromise(JSGlobalObject* globalObject, JSObj
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     auto scope = DECLARE_THROW_SCOPE(vm);
-    Structure* structure = InternalFunction::createSubclassStructure(globalObject, globalObject->promiseConstructor(), constructor, globalObject->promiseStructure());
+    Structure* structure = constructor == globalObject->promiseConstructor()
+        ? globalObject->promiseStructure()
+        : InternalFunction::createSubclassStructure(globalObject, constructor, getFunctionRealm(vm, constructor)->promiseStructure());
     RETURN_IF_EXCEPTION(scope, nullptr);
     RELEASE_AND_RETURN(scope, JSPromise::create(vm, structure));
 }
@@ -355,7 +357,9 @@ JSCell* JIT_OPERATION operationCreateInternalPromise(JSGlobalObject* globalObjec
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     auto scope = DECLARE_THROW_SCOPE(vm);
-    Structure* structure = InternalFunction::createSubclassStructure(globalObject, globalObject->internalPromiseConstructor(), constructor, globalObject->internalPromiseStructure());
+    Structure* structure = constructor == globalObject->internalPromiseConstructor()
+        ? globalObject->internalPromiseStructure()
+        : InternalFunction::createSubclassStructure(globalObject, constructor, getFunctionRealm(vm, constructor)->internalPromiseStructure());
     RETURN_IF_EXCEPTION(scope, nullptr);
     RELEASE_AND_RETURN(scope, JSInternalPromise::create(vm, structure));
 }
@@ -366,7 +370,7 @@ JSCell* JIT_OPERATION operationCreateGenerator(JSGlobalObject* globalObject, JSO
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     auto scope = DECLARE_THROW_SCOPE(vm);
-    Structure* structure = InternalFunction::createSubclassStructure(globalObject, nullptr, constructor, globalObject->generatorStructure());
+    Structure* structure = InternalFunction::createSubclassStructure(globalObject, constructor, globalObject->generatorStructure());
     RETURN_IF_EXCEPTION(scope, nullptr);
     RELEASE_AND_RETURN(scope, JSGenerator::create(vm, structure));
 }
@@ -377,7 +381,7 @@ JSCell* JIT_OPERATION operationCreateAsyncGenerator(JSGlobalObject* globalObject
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     auto scope = DECLARE_THROW_SCOPE(vm);
-    Structure* structure = InternalFunction::createSubclassStructure(globalObject, nullptr, constructor, globalObject->asyncGeneratorStructure());
+    Structure* structure = InternalFunction::createSubclassStructure(globalObject, constructor, globalObject->asyncGeneratorStructure());
     RETURN_IF_EXCEPTION(scope, nullptr);
     RELEASE_AND_RETURN(scope, JSAsyncGenerator::create(vm, structure));
 }
@@ -502,16 +506,8 @@ EncodedJSValue JIT_OPERATION operationValueBitURShift(JSGlobalObject* globalObje
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
-    auto scope = DECLARE_THROW_SCOPE(vm);
 
-    JSValue op1 = JSValue::decode(encodedOp1);
-    JSValue op2 = JSValue::decode(encodedOp2);
-
-    uint32_t a = op1.toUInt32(globalObject);
-    RETURN_IF_EXCEPTION(scope, encodedJSValue());
-    scope.release();
-    uint32_t b = op2.toUInt32(globalObject);
-    return JSValue::encode(jsNumber(static_cast<int32_t>(a >> (b & 0x1f))));
+    return JSValue::encode(jsURShift(globalObject, JSValue::decode(encodedOp1), JSValue::decode(encodedOp2)));
 }
 
 EncodedJSValue JIT_OPERATION operationValueAddNotNumber(JSGlobalObject* globalObject, EncodedJSValue encodedOp1, EncodedJSValue encodedOp2)
@@ -832,7 +828,7 @@ void JIT_OPERATION operationPutByValBeyondArrayBoundsStrict(JSGlobalObject* glob
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     
     if (index >= 0) {
-        object->putByIndexInline(globalObject, index, JSValue::decode(encodedValue), true);
+        object->putByIndexInline(globalObject, static_cast<uint32_t>(index), JSValue::decode(encodedValue), true);
         return;
     }
     
@@ -848,7 +844,7 @@ void JIT_OPERATION operationPutByValBeyondArrayBoundsNonStrict(JSGlobalObject* g
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     
     if (index >= 0) {
-        object->putByIndexInline(globalObject, index, JSValue::decode(encodedValue), false);
+        object->putByIndexInline(globalObject, static_cast<uint32_t>(index), JSValue::decode(encodedValue), false);
         return;
     }
     
@@ -866,7 +862,7 @@ void JIT_OPERATION operationPutDoubleByValBeyondArrayBoundsStrict(JSGlobalObject
     JSValue jsValue = JSValue(JSValue::EncodeAsDouble, value);
     
     if (index >= 0) {
-        object->putByIndexInline(globalObject, index, jsValue, true);
+        object->putByIndexInline(globalObject, static_cast<uint32_t>(index), jsValue, true);
         return;
     }
     
@@ -884,7 +880,7 @@ void JIT_OPERATION operationPutDoubleByValBeyondArrayBoundsNonStrict(JSGlobalObj
     JSValue jsValue = JSValue(JSValue::EncodeAsDouble, value);
     
     if (index >= 0) {
-        object->putByIndexInline(globalObject, index, jsValue, false);
+        object->putByIndexInline(globalObject, static_cast<uint32_t>(index), jsValue, false);
         return;
     }
     
@@ -902,7 +898,7 @@ void JIT_OPERATION operationPutDoubleByValDirectBeyondArrayBoundsStrict(JSGlobal
     JSValue jsValue = JSValue(JSValue::EncodeAsDouble, value);
 
     if (index >= 0) {
-        object->putDirectIndex(globalObject, index, jsValue, 0, PutDirectIndexShouldThrow);
+        object->putDirectIndex(globalObject, static_cast<uint32_t>(index), jsValue, 0, PutDirectIndexShouldThrow);
         return;
     }
 
@@ -919,7 +915,7 @@ void JIT_OPERATION operationPutDoubleByValDirectBeyondArrayBoundsNonStrict(JSGlo
     JSValue jsValue = JSValue(JSValue::EncodeAsDouble, value);
 
     if (index >= 0) {
-        object->putDirectIndex(globalObject, index, jsValue);
+        object->putDirectIndex(globalObject, static_cast<uint32_t>(index), jsValue);
         return;
     }
 
@@ -1007,7 +1003,7 @@ void JIT_OPERATION operationPutByValDirectBeyondArrayBoundsStrict(JSGlobalObject
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
     if (index >= 0) {
-        object->putDirectIndex(globalObject, index, JSValue::decode(encodedValue), 0, PutDirectIndexShouldThrow);
+        object->putDirectIndex(globalObject, static_cast<uint32_t>(index), JSValue::decode(encodedValue), 0, PutDirectIndexShouldThrow);
         return;
     }
     
@@ -1022,7 +1018,7 @@ void JIT_OPERATION operationPutByValDirectBeyondArrayBoundsNonStrict(JSGlobalObj
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
 
     if (index >= 0) {
-        object->putDirectIndex(globalObject, index, JSValue::decode(encodedValue));
+        object->putDirectIndex(globalObject, static_cast<uint32_t>(index), JSValue::decode(encodedValue));
         return;
     }
     
@@ -1338,7 +1334,7 @@ size_t JIT_OPERATION operationRegExpTestGeneric(JSGlobalObject* globalObject, En
     RELEASE_AND_RETURN(scope, regexp->test(globalObject, input));
 }
 
-JSCell* JIT_OPERATION operationSubHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationSubHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1347,10 +1343,10 @@ JSCell* JIT_OPERATION operationSubHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::sub(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::sub(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitNotHeapBigInt(JSGlobalObject* globalObject, JSCell* op1)
+EncodedJSValue JIT_OPERATION operationBitNotHeapBigInt(JSGlobalObject* globalObject, JSCell* op1)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1358,10 +1354,10 @@ JSCell* JIT_OPERATION operationBitNotHeapBigInt(JSGlobalObject* globalObject, JS
 
     JSBigInt* operand = jsCast<JSBigInt*>(op1);
 
-    return JSBigInt::bitwiseNot(globalObject, operand);
+    return JSValue::encode(JSBigInt::bitwiseNot(globalObject, operand));
 }
 
-JSCell* JIT_OPERATION operationMulHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationMulHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1370,10 +1366,10 @@ JSCell* JIT_OPERATION operationMulHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
 
-    return JSBigInt::multiply(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::multiply(globalObject, leftOperand, rightOperand));
 }
     
-JSCell* JIT_OPERATION operationModHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationModHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1382,10 +1378,10 @@ JSCell* JIT_OPERATION operationModHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::remainder(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::remainder(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationDivHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationDivHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1394,10 +1390,10 @@ JSCell* JIT_OPERATION operationDivHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::divide(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::divide(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationPowHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationPowHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1406,10 +1402,10 @@ JSCell* JIT_OPERATION operationPowHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::exponentiate(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::exponentiate(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitAndHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationBitAndHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1418,10 +1414,10 @@ JSCell* JIT_OPERATION operationBitAndHeapBigInt(JSGlobalObject* globalObject, JS
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
 
-    return JSBigInt::bitwiseAnd(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::bitwiseAnd(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitLShiftHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationBitLShiftHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1430,10 +1426,10 @@ JSCell* JIT_OPERATION operationBitLShiftHeapBigInt(JSGlobalObject* globalObject,
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
 
-    return JSBigInt::leftShift(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::leftShift(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationAddHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationAddHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1442,10 +1438,10 @@ JSCell* JIT_OPERATION operationAddHeapBigInt(JSGlobalObject* globalObject, JSCel
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::add(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::add(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitRShiftHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationBitRShiftHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1454,10 +1450,10 @@ JSCell* JIT_OPERATION operationBitRShiftHeapBigInt(JSGlobalObject* globalObject,
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::signedRightShift(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::signedRightShift(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitOrHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationBitOrHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1466,10 +1462,10 @@ JSCell* JIT_OPERATION operationBitOrHeapBigInt(JSGlobalObject* globalObject, JSC
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
     
-    return JSBigInt::bitwiseOr(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::bitwiseOr(globalObject, leftOperand, rightOperand));
 }
 
-JSCell* JIT_OPERATION operationBitXorHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
+EncodedJSValue JIT_OPERATION operationBitXorHeapBigInt(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
 {
     VM& vm = globalObject->vm();
     CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
@@ -1478,7 +1474,7 @@ JSCell* JIT_OPERATION operationBitXorHeapBigInt(JSGlobalObject* globalObject, JS
     JSBigInt* leftOperand = jsCast<JSBigInt*>(op1);
     JSBigInt* rightOperand = jsCast<JSBigInt*>(op2);
 
-    return JSBigInt::bitwiseXor(globalObject, leftOperand, rightOperand);
+    return JSValue::encode(JSBigInt::bitwiseXor(globalObject, leftOperand, rightOperand));
 }
 
 size_t JIT_OPERATION operationCompareStrictEqCell(JSGlobalObject* globalObject, JSCell* op1, JSCell* op2)
@@ -1533,6 +1529,22 @@ EncodedJSValue JIT_OPERATION operationToNumeric(JSGlobalObject* globalObject, En
     JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
 
     return JSValue::encode(JSValue::decode(value).toNumeric(globalObject));
+}
+
+EncodedJSValue JIT_OPERATION operationCallNumberConstructor(JSGlobalObject* globalObject, EncodedJSValue encodedValue)
+{
+    VM& vm = globalObject->vm();
+    CallFrame* callFrame = DECLARE_CALL_FRAME(vm);
+    JITOperationPrologueCallFrameTracer tracer(vm, callFrame);
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    JSValue value = JSValue::decode(encodedValue);
+    JSValue numeric = value.toNumeric(globalObject);
+    RETURN_IF_EXCEPTION(scope, { });
+    if (numeric.isNumber())
+        return JSValue::encode(numeric);
+    ASSERT(numeric.isBigInt());
+    return JSValue::encode(JSBigInt::toNumber(numeric));
 }
 
 EncodedJSValue JIT_OPERATION operationGetByValWithThis(JSGlobalObject* globalObject, EncodedJSValue encodedBase, EncodedJSValue encodedThis, EncodedJSValue encodedSubscript)
@@ -2131,7 +2143,7 @@ size_t JIT_OPERATION operationObjectIsObject(JSGlobalObject* globalObject, JSCel
     
     if (object->structure(vm)->masqueradesAsUndefined(globalObject))
         return false;
-    if (object->isFunction(vm))
+    if (object->isCallable(vm))
         return false;
     return true;
 }
@@ -2146,7 +2158,7 @@ size_t JIT_OPERATION operationObjectIsFunction(JSGlobalObject* globalObject, JSC
     
     if (object->structure(vm)->masqueradesAsUndefined(globalObject))
         return false;
-    if (object->isFunction(vm))
+    if (object->isCallable(vm))
         return true;
     return false;
 }
@@ -2161,7 +2173,7 @@ JSCell* JIT_OPERATION operationTypeOfObject(JSGlobalObject* globalObject, JSCell
     
     if (object->structure(vm)->masqueradesAsUndefined(globalObject))
         return vm.smallStrings.undefinedString();
-    if (object->isFunction(vm))
+    if (object->isCallable(vm))
         return vm.smallStrings.functionString();
     return vm.smallStrings.objectString();
 }
@@ -3039,14 +3051,13 @@ JSCell* JIT_OPERATION operationSpreadGeneric(JSGlobalObject* globalObject, JSCel
     JSArray* array;
     {
         JSFunction* iterationFunction = globalObject->iteratorProtocolFunction();
-        CallData callData;
-        CallType callType = JSC::getCallData(vm, iterationFunction, callData);
-        ASSERT(callType != CallType::None);
+        auto callData = getCallData(vm, iterationFunction);
+        ASSERT(callData.type != CallData::Type::None);
 
         MarkedArgumentBuffer arguments;
         arguments.append(iterable);
         ASSERT(!arguments.hasOverflowed());
-        JSValue arrayResult = call(globalObject, iterationFunction, callType, callData, jsNull(), arguments);
+        JSValue arrayResult = call(globalObject, iterationFunction, callData, jsNull(), arguments);
         RETURN_IF_EXCEPTION(throwScope, nullptr);
         array = jsCast<JSArray*>(arrayResult);
     }

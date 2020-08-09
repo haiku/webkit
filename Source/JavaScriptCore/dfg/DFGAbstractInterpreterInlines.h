@@ -508,9 +508,12 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 #else
             RELEASE_ASSERT_NOT_REACHED();
 #endif
-        } else if (node->child1().useKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->child1().useKind() == AnyBigIntUse)
+        } else if (node->child1().useKind() == HeapBigIntUse) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
+            setTypeForNode(node, SpecBigInt);
+        } else if (node->child1().useKind() == AnyBigIntUse)
             setTypeForNode(node, SpecBigInt);
         else {
             clobberWorld();
@@ -541,15 +544,34 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             break;
 
         // FIXME: this use of binaryUseKind means that we cannot specialize to (for example) a HeapBigInt left-operand and a BigInt32 right-operand.
+        // https://bugs.webkit.org/show_bug.cgi?id=210977
         if (node->binaryUseKind() == BigInt32Use) {
 #if USE(BIGINT32)
-            setTypeForNode(node, SpecBigInt32);
+            switch (node->op()) {
+            case ValueBitXor:
+            case ValueBitAnd:
+            case ValueBitOr:
+                setTypeForNode(node, SpecBigInt32);
+                break;
+
+            // FIXME: We should have inlined implementation that always returns BigInt32.
+            // https://bugs.webkit.org/show_bug.cgi?id=210847
+            case ValueBitRShift:
+            case ValueBitLShift:
+                setTypeForNode(node, SpecBigInt);
+                break;
+            default:
+                DFG_CRASH(m_graph, node, "Incorrect DFG op");
+            }
 #else
-            RELEASE_ASSERT_NOT_REACHED();
+            DFG_CRASH(m_graph, node, "No BigInt32 support");
 #endif
-        } else if (node->binaryUseKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->binaryUseKind() == AnyBigIntUse)
+        } else if (node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
+            setTypeForNode(node, SpecBigInt);
+        } else if (node->binaryUseKind() == AnyBigIntUse)
             setTypeForNode(node, SpecBigInt);
         else {
             clobberWorld();
@@ -687,7 +709,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 
         SpeculatedType type = forNode(node->child1()).m_type;
         switch (node->child1().useKind()) {
-        case NotCellUse: {
+        case NotCellNorBigIntUse: {
             if (type & SpecOther) {
                 type &= ~SpecOther;
                 type |= SpecDoublePureNaN | SpecBoolInt32; // Null becomes zero, undefined becomes NaN.
@@ -739,10 +761,15 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 
     case ValueSub:
     case ValueAdd: {
-        if (node->binaryUseKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
+        if (node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
             setTypeForNode(node, SpecBigInt);
+        } else if (node->isBinaryUseKind(AnyBigIntUse))
+            setTypeForNode(node, SpecBigInt);
+        else if (node->isBinaryUseKind(BigInt32Use))
+            setTypeForNode(node, SpecBigInt32);
         else {
             DFG_ASSERT(m_graph, node, node->binaryUseKind() == UntypedUse);
             clobberWorld();
@@ -980,7 +1007,10 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             setNonCellTypeForNode(node, typeOfDoubleIncOrDec(forNode(node->child1()).m_type));
             break;
         case HeapBigIntUse:
-            setTypeForNode(node, SpecHeapBigInt);
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
+            setTypeForNode(node, SpecBigInt);
             break;
         case AnyBigIntUse:
         case BigInt32Use:
@@ -1007,9 +1037,12 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             break;
         }
 
-        if (node->binaryUseKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
+        if (node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
+            setTypeForNode(node, SpecBigInt);
+        } else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
             setTypeForNode(node, SpecBigInt);
         else {
             clobberWorld();
@@ -1020,10 +1053,15 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 
     case ValueMul: {
         // FIXME: why is this code not shared with ValueSub?
-        if (node->binaryUseKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
+        if (node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
             setTypeForNode(node, SpecBigInt);
+        } else if (node->isBinaryUseKind(AnyBigIntUse))
+            setTypeForNode(node, SpecBigInt);
+        else if (node->isBinaryUseKind(BigInt32Use))
+            setTypeForNode(node, SpecBigInt32);
         else {
             clobberWorld();
             setTypeForNode(node, SpecBytecodeNumber | SpecBigInt);
@@ -1086,9 +1124,12 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         if (handleConstantDivOp(node))
             break;
 
-        if (node->binaryUseKind() == HeapBigIntUse)
-            setTypeForNode(node, SpecHeapBigInt);
-        else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
+        if (node->isBinaryUseKind(HeapBigIntUse)) {
+            // FIXME: We will want an arithmetic mode here that allows us to speculate or dictate
+            // the format of our result:
+            // https://bugs.webkit.org/show_bug.cgi?id=210982
+            setTypeForNode(node, SpecBigInt);
+        } else if (node->binaryUseKind() == AnyBigIntUse || node->binaryUseKind() == BigInt32Use)
             setTypeForNode(node, SpecBigInt);
         else {
             clobberWorld();
@@ -1839,23 +1880,45 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         JSValue rightConst = forNode(node->child2()).value();
         if (leftConst && rightConst) {
             if (leftConst.isNumber() && rightConst.isNumber()) {
+                auto compareNumber = [&](double a, double b) {
+                    switch (node->op()) {
+                    case CompareLess:
+                        return jsBoolean(a < b);
+                    case CompareLessEq:
+                        return jsBoolean(a <= b);
+                    case CompareGreater:
+                        return jsBoolean(a > b);
+                    case CompareGreaterEq:
+                        return jsBoolean(a >= b);
+                    case CompareEq:
+                        return jsBoolean(a == b);
+                    default:
+                        RELEASE_ASSERT_NOT_REACHED();
+                        break;
+                    }
+                };
                 double a = leftConst.asNumber();
                 double b = rightConst.asNumber();
+                setConstant(node, compareNumber(a, b));
+                break;
+            }
+
+            if (leftConst.isBigInt() && rightConst.isBigInt()) {
                 switch (node->op()) {
                 case CompareLess:
-                    setConstant(node, jsBoolean(a < b));
+                    setConstant(node, jsBoolean(bigIntCompareResult(compareBigInt(leftConst, rightConst), JSBigInt::ComparisonMode::LessThan)));
                     break;
                 case CompareLessEq:
-                    setConstant(node, jsBoolean(a <= b));
+                    setConstant(node, jsBoolean(bigIntCompareResult(compareBigInt(leftConst, rightConst), JSBigInt::ComparisonMode::LessThanOrEqual)));
                     break;
                 case CompareGreater:
-                    setConstant(node, jsBoolean(a > b));
+                    setConstant(node, jsBoolean(bigIntCompareResult(compareBigInt(rightConst, leftConst), JSBigInt::ComparisonMode::LessThan)));
                     break;
                 case CompareGreaterEq:
-                    setConstant(node, jsBoolean(a >= b));
+                    setConstant(node, jsBoolean(bigIntCompareResult(compareBigInt(rightConst, leftConst), JSBigInt::ComparisonMode::LessThanOrEqual)));
                     break;
                 case CompareEq:
-                    setConstant(node, jsBoolean(a == b));
+                    setConstant(node, jsBoolean(compareBigInt(leftConst, rightConst) == JSBigInt::ComparisonResult::Equal));
                     break;
                 default:
                     RELEASE_ASSERT_NOT_REACHED();
@@ -1931,6 +1994,9 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         if (node->child1() == node->child2()) {
             if (node->isBinaryUseKind(Int32Use) ||
                 node->isBinaryUseKind(Int52RepUse) ||
+                node->isBinaryUseKind(BigInt32Use) ||
+                node->isBinaryUseKind(HeapBigIntUse) ||
+                node->isBinaryUseKind(AnyBigIntUse) ||
                 node->isBinaryUseKind(StringUse) ||
                 node->isBinaryUseKind(BooleanUse) ||
                 node->isBinaryUseKind(SymbolUse) ||
@@ -2643,6 +2709,45 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 
         clobberWorld();
         setTypeForNode(node, SpecBytecodeNumber | SpecBigInt);
+        break;
+    }
+
+    case CallNumberConstructor: {
+        JSValue childConst = forNode(node->child1()).value();
+        if (childConst) {
+            if (childConst.isNumber()) {
+                if (node->child1().useKind() == UntypedUse)
+                    didFoldClobberWorld();
+                setConstant(node, childConst);
+                break;
+            }
+#if USE(BIGINT32)
+            if (childConst.isBigInt32()) {
+                if (node->child1().useKind() == UntypedUse)
+                    didFoldClobberWorld();
+                setConstant(node, jsNumber(childConst.bigInt32AsInt32()));
+                break;
+            }
+#endif
+        }
+
+        ASSERT(node->child1().useKind() == UntypedUse || node->child1().useKind() == BigInt32Use);
+
+        if (!(forNode(node->child1()).m_type & ~SpecBytecodeNumber)) {
+            m_state.setShouldTryConstantFolding(true);
+            if (node->child1().useKind() == UntypedUse)
+                didFoldClobberWorld();
+            setForNode(node, forNode(node->child1()));
+            break;
+        }
+
+        if (node->child1().useKind() == BigInt32Use) {
+            setTypeForNode(node, SpecInt32Only);
+            break;
+        }
+
+        clobberWorld();
+        setNonCellTypeForNode(node, SpecBytecodeNumber);
         break;
     }
         
@@ -3816,10 +3921,9 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
     }
     
     case CheckIsConstant: {
-        JSValue value = forNode(node->child1()).value();
-        if (value == node->constant()->value()) {
+        AbstractValue& value = forNode(node->child1());
+        if (value.value() == node->constant()->value() && (value.value() || value.m_type == SpecEmpty)) {
             m_state.setShouldTryConstantFolding(true);
-            ASSERT(value || forNode(node->child1()).m_type == SpecEmpty);
             break;
         }
         filterByValue(node->child1(), *node->constant());

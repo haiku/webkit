@@ -62,6 +62,9 @@ public:
     void setUserTimingEnabled(bool isEnabled) { m_isUserTimingEnabled = isEnabled; }
     bool userTimingEnabled() const { return m_isUserTimingEnabled; }
 
+    void setPaintTimingEnabled(bool isEnabled) { m_isPaintTimingEnabled = isEnabled; }
+    bool paintTimingEnabled() const { return m_isPaintTimingEnabled; }
+
     bool performanceTimelineEnabled() const { return resourceTimingEnabled() || userTimingEnabled(); }
 
     void setShadowDOMEnabled(bool isEnabled) { m_isShadowDOMEnabled = isEnabled; }
@@ -356,6 +359,9 @@ public:
     void setCSSLogicalEnabled(bool isEnabled) { m_CSSLogicalEnabled = isEnabled; }
     bool cssLogicalEnabled() const { return m_CSSLogicalEnabled; }
 
+    void setLineHeightUnitsEnabled(bool isEnabled) { m_lineHeightUnitsEnabled = isEnabled; }
+    bool lineHeightUnitsEnabled() const { return m_lineHeightUnitsEnabled; }
+
     bool adClickAttributionEnabled() const { return m_adClickAttributionEnabled; }
     void setAdClickAttributionEnabled(bool isEnabled) { m_adClickAttributionEnabled = isEnabled; }
     bool adClickAttributionDebugModeEnabled() const { return m_adClickAttributionDebugModeEnabled; }
@@ -424,6 +430,7 @@ private:
     bool m_isLinkPreloadEnabled { true };
     bool m_isLinkPrefetchEnabled { false };
     bool m_isMediaPreloadingEnabled { false };
+    bool m_isPaintTimingEnabled { false };
     bool m_isResourceTimingEnabled { false };
     bool m_isUserTimingEnabled { false };
     bool m_isInteractiveFormValidationEnabled { false };
@@ -593,6 +600,10 @@ private:
     bool m_undoManagerAPIEnabled { false };
 
     bool m_CSSLogicalEnabled { false };
+
+    // False by default until https://bugs.webkit.org/show_bug.cgi?id=211351 /
+    // https://github.com/w3c/csswg-drafts/issues/3257 have been sorted out.
+    bool m_lineHeightUnitsEnabled { false };
 
     bool m_adClickAttributionEnabled { false };
     bool m_adClickAttributionDebugModeEnabled { false };

@@ -50,6 +50,7 @@
 #import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/RunLoop.h>
+#import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 
 using namespace WebCore;
 
@@ -389,11 +390,13 @@ public:
     JSC::initializeThreading();
     RunLoop::initializeMainRunLoop();
     bool attachmentElementEnabled = MacApplication::isAppleMail();
+    bool webSQLEnabled = false;
 #else
     bool allowsInlineMediaPlayback = WebCore::deviceClass() == MGDeviceClassiPad;
     bool allowsInlineMediaPlaybackAfterFullscreen = WebCore::deviceClass() != MGDeviceClassiPad;
     bool requiresPlaysInlineAttribute = !allowsInlineMediaPlayback;
     bool attachmentElementEnabled = IOSApplication::isMobileMail();
+    bool webSQLEnabled = IOSApplication::isJesusCalling() && applicationSDKVersion() <= DYLD_IOS_VERSION_12_2;
 #endif
 
     NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
@@ -678,6 +681,7 @@ public:
 #endif
         @YES, WebKitSelectionAcrossShadowBoundariesEnabledPreferenceKey,
         @NO, WebKitCSSLogicalEnabledPreferenceKey,
+        @NO, WebKitLineHeightUnitsEnabledPreferenceKey,
         @NO, WebKitAdClickAttributionEnabledPreferenceKey,
 #if ENABLE(INTERSECTION_OBSERVER)
         @NO, WebKitIntersectionObserverEnabledPreferenceKey,
@@ -711,7 +715,7 @@ public:
         @YES, WebKitCSSShadowPartsEnabledPreferenceKey,
         @NO, WebKitDebugInAppBrowserPrivacyEnabledPreferenceKey,
         @NO, WebKitAspectRatioOfImgFromWidthAndHeightEnabledPreferenceKey,
-        @NO, WebKitWebSQLEnabledPreferenceKey,
+        @(webSQLEnabled), WebKitWebSQLEnabledPreferenceKey,
         @YES, WebKitDebugNeedsInAppBrowserPrivacyQuirksPreferenceKey,
         nil];
 
@@ -3236,6 +3240,16 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitWebAnimationsMutableTimelinesEnabledPreferenceKey];
 }
 
+- (BOOL)CSSCustomPropertiesAndValuesEnabled
+{
+    return [self _boolValueForKey:WebKitCSSCustomPropertiesAndValuesEnabledPreferenceKey];
+}
+
+- (void)setCSSCustomPropertiesAndValuesEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitCSSCustomPropertiesAndValuesEnabledPreferenceKey];
+}
+
 - (BOOL)syntheticEditingCommandsEnabled
 {
     return [self _boolValueForKey:WebKitSyntheticEditingCommandsEnabledPreferenceKey];
@@ -3536,6 +3550,16 @@ static NSString *classIBCreatorID = nil;
 - (void)setCSSLogicalEnabled:(BOOL)flag
 {
     [self _setBoolValue:flag forKey:WebKitCSSLogicalEnabledPreferenceKey];
+}
+
+- (BOOL)lineHeightUnitsEnabled
+{
+    return [self _boolValueForKey:WebKitLineHeightUnitsEnabledPreferenceKey];
+}
+
+- (void)setLineHeightUnitsEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitLineHeightUnitsEnabledPreferenceKey];
 }
 
 - (BOOL)adClickAttributionEnabled

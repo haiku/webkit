@@ -43,13 +43,9 @@ public:
 
     DECLARE_INFO;
 
-    Structure* numberFormatStructure(VM&) const { return globalObject()->numberFormatStructure(); }
-
-protected:
-    void finishCreation(VM&, IntlNumberFormatPrototype*);
-
 private:
     IntlNumberFormatConstructor(VM&, Structure*);
+    void finishCreation(VM&, IntlNumberFormatPrototype*);
 };
 STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(IntlNumberFormatConstructor, InternalFunction);
 

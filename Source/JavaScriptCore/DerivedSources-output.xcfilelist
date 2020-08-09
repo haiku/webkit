@@ -23,11 +23,11 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/InitBytecodes.asm
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/InitWasm.asm
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/InjectedScriptSource.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/InspectorInstrumentationObject.lut.h
-$(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlCanonicalizeLanguage.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlCollatorConstructor.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlCollatorPrototype.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlDateTimeFormatConstructor.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlDateTimeFormatPrototype.lut.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlLocalePrototype.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlNumberFormatConstructor.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlNumberFormatPrototype.lut.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/JavaScriptCore/IntlObject.lut.h

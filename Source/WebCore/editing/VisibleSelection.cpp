@@ -128,21 +128,21 @@ void VisibleSelection::setExtent(const VisiblePosition& visiblePosition)
     validate();
 }
 
-RefPtr<Range> VisibleSelection::firstRange() const
+Optional<SimpleRange> VisibleSelection::firstRange() const
 {
     if (isNoneOrOrphaned())
-        return nullptr;
+        return WTF::nullopt;
     Position start = m_start.parentAnchoredEquivalent();
     Position end = m_end.parentAnchoredEquivalent();
     if (start.isNull() || start.isOrphan() || end.isNull() || end.isOrphan())
-        return nullptr;
-    return Range::create(start.anchorNode()->document(), start, end);
+        return WTF::nullopt;
+    return SimpleRange { *makeBoundaryPoint(start), *makeBoundaryPoint(end) };
 }
 
-RefPtr<Range> VisibleSelection::toNormalizedRange() const
+Optional<SimpleRange> VisibleSelection::toNormalizedRange() const
 {
     if (isNoneOrOrphaned())
-        return nullptr;
+        return WTF::nullopt;
 
     // Make sure we have an updated layout since this function is called
     // in the course of running edit commands which modify the DOM.
@@ -152,7 +152,7 @@ RefPtr<Range> VisibleSelection::toNormalizedRange() const
 
     // Check again, because updating layout can clear the selection.
     if (isNoneOrOrphaned())
-        return nullptr;
+        return WTF::nullopt;
 
     Position s, e;
     if (isCaret()) {
@@ -187,12 +187,10 @@ RefPtr<Range> VisibleSelection::toNormalizedRange() const
         e = e.parentAnchoredEquivalent();
     }
 
-    if (!s.containerNode() || !e.containerNode())
-        return nullptr;
+    if (s.isNull() || e.isNull())
+        return WTF::nullopt;
 
-    // VisibleSelections are supposed to always be valid.  This constructor will ASSERT
-    // if a valid range could not be created, which is fine for this callsite.
-    return Range::create(s.anchorNode()->document(), s, e);
+    return SimpleRange { *makeBoundaryPoint(s), *makeBoundaryPoint(e) };
 }
 
 bool VisibleSelection::expandUsingGranularity(TextGranularity granularity)
@@ -204,26 +202,16 @@ bool VisibleSelection::expandUsingGranularity(TextGranularity granularity)
     return true;
 }
 
-static RefPtr<Range> makeSearchRange(const Position& position)
+static Optional<SimpleRange> makeSearchRange(const Position& position)
 {
-    auto* node = position.deprecatedNode();
-    if (!node)
-        return nullptr;
-    auto* boundary = deprecatedEnclosingBlockFlowElement(node);
-    if (!boundary)
-        return nullptr;
-
-    auto searchRange = Range::create(node->document());
-
-    auto result = searchRange->selectNodeContents(*boundary);
-    if (result.hasException())
-        return nullptr;
-    Position start { position.parentAnchoredEquivalent() };
-    result = searchRange->setStart(*start.containerNode(), start.offsetInContainerNode());
-    if (result.hasException())
-        return nullptr;
-
-    return searchRange;
+    auto node = position.deprecatedNode();
+    auto scope = deprecatedEnclosingBlockFlowElement(node);
+    if (!scope)
+        return { };
+    auto start = makeBoundaryPoint(position.parentAnchoredEquivalent());
+    if (!start)
+        return { };
+    return { { WTFMove(*start), makeBoundaryPointAfterNodeContents(*scope) } };
 }
 
 bool VisibleSelection::isAll(EditingBoundaryCrossingRule rule) const
@@ -233,7 +221,7 @@ bool VisibleSelection::isAll(EditingBoundaryCrossingRule rule) const
 
 void VisibleSelection::appendTrailingWhitespace()
 {
-    RefPtr<Range> searchRange = makeSearchRange(m_end);
+    auto searchRange = makeSearchRange(m_end);
     if (!searchRange)
         return;
 

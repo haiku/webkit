@@ -50,8 +50,10 @@
 #include "RenderBlock.h"
 #include "RenderElement.h"
 #include "RenderTableCell.h"
+#include "RenderTextControlSingleLine.h"
 #include "ShadowRoot.h"
 #include "Text.h"
+#include "TextControlInnerElements.h"
 #include "TextIterator.h"
 #include "VisibleUnits.h"
 #include <wtf/Assertions.h>
@@ -561,6 +563,33 @@ VisiblePosition visiblePositionAfterNode(Node& node)
     return positionInParentAfterNode(&node);
 }
 
+VisiblePosition closestEditablePositionInElementForAbsolutePoint(const Element& element, const IntPoint& point)
+{
+    if (!element.isConnected() || !element.document().frame())
+        return { };
+
+    Ref<const Element> protectedElement { element };
+    auto frame = makeRef(*element.document().frame());
+
+    element.document().updateLayoutIgnorePendingStylesheets();
+
+    RenderObject* renderer = element.renderer();
+    // Look at the inner element of a form control, not the control itself, as it is the editable part.
+    if (is<HTMLTextFormControlElement>(element)) {
+        auto& formControlElement = downcast<HTMLTextFormControlElement>(element);
+        if (!formControlElement.isInnerTextElementEditable())
+            return { };
+        if (auto innerTextElement = formControlElement.innerTextElement())
+            renderer = innerTextElement->renderer();
+    }
+    if (!renderer)
+        return { };
+    auto absoluteBoundingBox = renderer->absoluteBoundingBoxRect();
+    auto constrainedPoint = point.constrainedBetween(absoluteBoundingBox.minXMinYCorner(), absoluteBoundingBox.maxXMaxYCorner());
+    auto visiblePosition = frame->visiblePositionForPoint(constrainedPoint);
+    return isEditablePosition(visiblePosition.deepEquivalent()) ? visiblePosition : VisiblePosition { };
+}
+
 bool isListHTMLElement(Node* node)
 {
     return node && (is<HTMLUListElement>(*node) || is<HTMLOListElement>(*node) || is<HTMLDListElement>(*node));
@@ -869,7 +898,7 @@ bool isEmptyTableCell(const Node* node)
 
 Ref<HTMLElement> createDefaultParagraphElement(Document& document)
 {
-    switch (document.frame()->editor().defaultParagraphSeparator()) {
+    switch (document.editor().defaultParagraphSeparator()) {
     case EditorParagraphSeparatorIsDiv:
         return HTMLDivElement::create(document);
     case EditorParagraphSeparatorIsP:
@@ -1140,19 +1169,22 @@ static bool isVisiblyAdjacent(const Position& first, const Position& second)
 
 // Determines whether a node is inside a range or visibly starts and ends at the boundaries of the range.
 // Call this function to determine whether a node is visibly fit inside selectedRange
-bool isNodeVisiblyContainedWithin(Node& node, const Range& range)
+bool isNodeVisiblyContainedWithin(Node& node, const SimpleRange& range)
 {
     // If the node is inside the range, then it surely is contained within.
-    auto comparisonResult = range.compareNode(node);
+    auto comparisonResult = createLiveRange(range)->compareNode(node);
     if (!comparisonResult.hasException() && comparisonResult.releaseReturnValue() == Range::NODE_INSIDE)
         return true;
 
-    bool startIsVisuallySame = visiblePositionBeforeNode(node) == range.startPosition();
-    if (startIsVisuallySame && comparePositions(positionInParentAfterNode(&node), range.endPosition()) < 0)
+    auto startPosition = createLegacyEditingPosition(range.start);
+    auto endPosition = createLegacyEditingPosition(range.end);
+
+    bool startIsVisuallySame = visiblePositionBeforeNode(node) == startPosition;
+    if (startIsVisuallySame && comparePositions(positionInParentAfterNode(&node), endPosition) < 0)
         return true;
 
-    bool endIsVisuallySame = visiblePositionAfterNode(node) == range.endPosition();
-    if (endIsVisuallySame && comparePositions(range.startPosition(), positionInParentBeforeNode(&node)) < 0)
+    bool endIsVisuallySame = visiblePositionAfterNode(node) == endPosition;
+    if (endIsVisuallySame && comparePositions(startPosition, positionInParentBeforeNode(&node)) < 0)
         return true;
 
     return startIsVisuallySame && endIsVisuallySame;
@@ -1301,7 +1333,7 @@ IntRect absoluteBoundsForLocalCaretRect(RenderBlock* rendererForCaretPainting, c
     return rendererForCaretPainting->localToAbsoluteQuad(FloatRect(localRect), UseTransforms, insideFixed).enclosingBoundingBox();
 }
 
-HashSet<RefPtr<HTMLImageElement>> visibleImageElementsInRangeWithNonLoadedImages(const Range& range)
+HashSet<RefPtr<HTMLImageElement>> visibleImageElementsInRangeWithNonLoadedImages(const SimpleRange& range)
 {
     HashSet<RefPtr<HTMLImageElement>> result;
     for (TextIterator iterator(range); !iterator.atEnd(); iterator.advance()) {

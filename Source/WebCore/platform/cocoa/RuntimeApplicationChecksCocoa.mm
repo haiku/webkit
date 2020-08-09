@@ -69,7 +69,7 @@ void setApplicationBundleIdentifier(const String& bundleIdentifier)
 void clearApplicationBundleIdentifierTestingOverride()
 {
     ASSERT(RunLoop::isMain());
-    applicationBundleIdentifierOverride() = emptyString();
+    applicationBundleIdentifierOverride() = String();
 #if !ASSERT_MSG_DISABLED
     applicationBundleIdentifierOverrideWasQueried = false;
 #endif
@@ -361,6 +361,18 @@ bool IOSApplication::isFeedly()
 {
     static bool isFeedly = applicationBundleIsEqualTo("com.devhd.feedly"_s);
     return isFeedly;
+}
+
+bool IOSApplication::isPocketCity()
+{
+    static bool isPocketCity = applicationBundleIsEqualTo("com.codebrewgames.pocketcity"_s);
+    return isPocketCity;
+}
+
+bool IOSApplication::isEssentialSkeleton()
+{
+    static bool isEssentialSkeleton = applicationBundleIsEqualTo("com.3d4medical.EssentialSkeleton"_s);
+    return isEssentialSkeleton;
 }
 
 #endif

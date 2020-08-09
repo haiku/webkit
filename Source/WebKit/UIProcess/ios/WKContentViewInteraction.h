@@ -353,6 +353,8 @@ struct WKAutoCorrectionData {
     BOOL _didAccessoryTabInitiateFocus;
     BOOL _isExpectingFastSingleTapCommit;
     BOOL _showDebugTapHighlightsForFastClicking;
+    BOOL _textInteractionDidChangeFocusedElement;
+    BOOL _textInteractionIsHappening;
 
     WebCore::PointerID m_commitPotentialTapPointerId;
 
@@ -540,8 +542,10 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 // UIWebFormAccessoryDelegate protocol
 - (void)accessoryDone;
-
 - (void)accessoryOpen;
+
+- (void)updateFocusedElementValueAsNumber:(double)value;
+- (void)updateFocusedElementValue:(NSString *)value;
 
 - (void)_requestDOMPasteAccessWithElementRect:(const WebCore::IntRect&)elementRect originIdentifier:(const String&)originIdentifier completionHandler:(CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&)completionHandler;
 
@@ -572,11 +576,8 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 - (void)_requestTextInputContextsInRect:(CGRect)rect completionHandler:(void (^)(NSArray<_WKTextInputContext *> *))completionHandler;
 - (void)_focusTextInputContext:(_WKTextInputContext *)context placeCaretAt:(CGPoint)point completionHandler:(void (^)(UIResponder<UITextInput> *))completionHandler;
-
-#if USE(TEXT_INTERACTION_ADDITIONS)
 - (void)_willBeginTextInteractionInTextInputContext:(_WKTextInputContext *)context;
 - (void)_didFinishTextInteractionInTextInputContext:(_WKTextInputContext *)context;
-#endif
 
 - (void)_handleAutocorrectionContext:(const WebKit::WebAutocorrectionContext&)context;
 
@@ -593,6 +594,7 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 #if USE(UICONTEXTMENU)
 - (UITargetedPreview *)_createTargetedContextMenuHintPreviewIfPossible;
+- (void)_removeContextMenuViewIfPossible;
 #endif
 
 @end
@@ -603,6 +605,8 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_simulateTextEntered:(NSString *)text;
 - (void)selectFormAccessoryPickerRow:(NSInteger)rowIndex;
 - (void)setTimePickerValueToHour:(NSInteger)hour minute:(NSInteger)minute;
+- (double)timePickerValueHour;
+- (double)timePickerValueMinute;
 - (NSDictionary *)_contentsOfUserInterfaceItem:(NSString *)userInterfaceItem;
 - (void)_doAfterResettingSingleTapGesture:(dispatch_block_t)action;
 - (void)_doAfterReceivingEditDragSnapshotForTesting:(dispatch_block_t)action;

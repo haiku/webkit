@@ -269,6 +269,13 @@ void WebInspectorUI::setIsVisible(bool visible)
     m_frontendAPIDispatcher.dispatchCommand("setIsVisible"_s, visible);
 }
 
+void WebInspectorUI::updateFindString(const String& findString)
+{
+    StringBuilder builder;
+    JSON::Value::escapeString(builder, findString);
+    m_frontendAPIDispatcher.dispatchCommand("updateFindString"_s, builder.toString());
+}
+
 void WebInspectorUI::changeAttachedWindowHeight(unsigned height)
 {
     WebProcess::singleton().parentProcessConnection()->send(Messages::WebInspectorProxy::SetAttachedWindowHeight(height), m_inspectedPageIdentifier);

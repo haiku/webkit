@@ -413,6 +413,15 @@ bool doesGC(Graph& graph, Node* node)
 #endif // not ASSERT_ENABLED
         return true;
 
+    case CallNumberConstructor:
+        switch (node->child1().useKind()) {
+        case BigInt32Use:
+            return false;
+        default:
+            break;
+        }
+        return true;
+
     case CallStringConstructor:
     case ToString:
         switch (node->child1().useKind()) {
@@ -434,11 +443,14 @@ bool doesGC(Graph& graph, Node* node)
     case CompareLessEq:
     case CompareGreater:
     case CompareGreaterEq:
+        // FIXME: Add AnyBigIntUse and HeapBigIntUse specific optimizations in DFG / FTL code generation and ensure it does not perform GC.
+        // https://bugs.webkit.org/show_bug.cgi?id=210923
         if (node->isBinaryUseKind(Int32Use)
 #if USE(JSVALUE64)
             || node->isBinaryUseKind(Int52RepUse)
 #endif
             || node->isBinaryUseKind(DoubleRepUse)
+            || node->isBinaryUseKind(BigInt32Use)
             || node->isBinaryUseKind(StringIdentUse)
             )
             return false;

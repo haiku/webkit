@@ -2243,7 +2243,7 @@ void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldPar
         timeline->elementWasRemoved(*this);
 
     if (frame)
-        frame->animation().cancelAnimations(*this);
+        frame->legacyAnimation().cancelAnimations(*this);
 
 #if PLATFORM(MAC)
     if (frame && frame->page())
@@ -4491,7 +4491,7 @@ Element* Element::findAnchorElementForLink(String& outAnchorName)
         return nullptr;
 
     if (url.hasFragmentIdentifier() && equalIgnoringFragmentIdentifier(url, document.baseURL())) {
-        outAnchorName = url.fragmentIdentifier();
+        outAnchorName = url.fragmentIdentifier().toString();
         return document.findAnchor(outAnchorName);
     }
 

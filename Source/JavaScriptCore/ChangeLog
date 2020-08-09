@@ -1,3 +1,3233 @@
+2020-05-07  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Simplify preprocessor guards in GCMemoryOperations.h
+        https://bugs.webkit.org/show_bug.cgi?id=211588
+
+        Reviewed by Darin Adler.
+
+        If we adjust the guards a bit, then we don't need to repeat the fallback path.
+
+        * heap/GCMemoryOperations.h:
+        (JSC::gcSafeMemmove):
+        (JSC::gcSafeZeroMemory):
+
+2020-05-07  Mark Lam  <mark.lam@apple.com>
+
+        Give the DFG and FTL WorkList threads more stack space on ASAN builds.
+        https://bugs.webkit.org/show_bug.cgi?id=211535
+        <rdar://problem/62947884>
+
+        Reviewed by Geoffrey Garen.
+
+        * dfg/DFGWorklist.cpp:
+        (JSC::DFG::Worklist::ThreadBody::ThreadBody):
+        - Mark the AutomaticThread as ThreadType::Compiler.
+
+2020-05-07  Daniel Kolesa  <daniel@octaforge.org>
+
+        REGRESSION(r251875): Crash in JSC::StructureIDTable::get on ppc64le: gcSafeMemcpy broken on JSVALUE64 platforms other than x86_64 and aarch64
+        https://bugs.webkit.org/show_bug.cgi?id=210685
+
+        Reviewed by Michael Catanzaro.
+
+        Fix gcSafeMemcpy on non-x86_64/aarch64 64-bit architectures.
+
+        We were hitting an incorrect x86_64 assertion on values larger than
+        mediumCutoff on JSVALUE64 architectures other than x86_64 and aarch64,
+        as the control flow is wrong.
+
+        * heap/GCMemoryOperations.h:
+        (JSC::gcSafeMemcpy):
+
+2020-05-07  Mark Lam  <mark.lam@apple.com>
+
+        Add stack checks to the DFG and FTL bytecode parser.
+        https://bugs.webkit.org/show_bug.cgi?id=211547
+        <rdar://problem/62958880>
+
+        Reviewed by Yusuke Suzuki.
+
+        Inlining can cause some level of recursion of the DFG bytecode parser.  We should
+        do a stack check at each inlining check before recursing.  If a stack overflow
+        appears to be imminent, then just refuse to inline, and therefore, don't recurse
+        deeper into the parser.
+
+        This issue is more noticeable on ASan debug builds where stack frames can be
+        humongous.
+
+        Removed the SUPPRESS_ASAN on cloberrize() and the associated comment from r260692.
+        It was a mis-diagnosis.  The stack checks are what we need.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleVarargsInlining):
+        (JSC::DFG::ByteCodeParser::handleInlining):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGGraph.h:
+
+2020-05-07  Darin Adler  <darin@apple.com>
+
+        REGRESSION (r261257): Lifetime problem with upconverted characters in toLocaleCase
+        https://bugs.webkit.org/show_bug.cgi?id=211580
+        rdar://62980449
+
+        Reviewed by Yusuke Suzuki.
+
+        The problem comes from the fact that callBufferProducingFunction is moving the same
+        arguments multiple times. At the moment, this works around the only practical
+        problem with that, but later it should be fixed in callBufferProducingFunction.
+
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat): Work around mistakes in how
+        callBufferProducingFunction works with arguments by calling get() explicitly on the
+        result of upconvertedCharacters. Later we could fix callBufferProducingFunction to
+        be safer, but for now this solves the problem.
+        * runtime/StringPrototype.cpp:
+        (JSC::toLocaleCase): Ditto.
+
+2020-05-07  Keith Miller  <keith_miller@apple.com>
+
+        Fix ArrayMode nodes after r261260
+        https://bugs.webkit.org/show_bug.cgi?id=211543
+
+        Reviewed by Yusuke Suzuki.
+
+        I accidentally ran tests with a release build rather than
+        release+assert when uploading r261260. This patch skips the
+        CheckArray node in the ArrayMode clobbersTop() logic before
+        Fixup. And also marks a GetArrayLength in the TypedArray
+        intrsinics as ExitOK.
+
+        This patch also relands r261260.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleIntrinsicGetter):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+
+2020-05-07  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, reverting r261260.
+
+        Caused 26 JSC test failures
+
+        Reverted changeset:
+
+        "DFG ByVal nodes with ArrayModes should clobberTop until Fixup
+        phase runs."
+        https://bugs.webkit.org/show_bug.cgi?id=211531
+        https://trac.webkit.org/changeset/261260
+
+2020-05-07  Mark Lam  <mark.lam@apple.com>
+
+        Fix broken exceptionFuzz tests.
+        https://bugs.webkit.org/show_bug.cgi?id=211550
+
+        Reviewed by Yusuke Suzuki.
+
+        Remove the bad and now unused utility function to set Options::useExceptionFuzz().
+
+        * tools/JSDollarVM.cpp:
+        (JSC::JSDollarVM::finishCreation):
+        (JSC::functionEnableExceptionFuzz): Deleted.
+
+2020-05-06  Keith Miller  <keith_miller@apple.com>
+
+        DFG ByVal nodes with ArrayModes should clobberTop until Fixup phase runs.
+        https://bugs.webkit.org/show_bug.cgi?id=211531
+
+        Reviewed by Yusuke Suzuki.
+
+        When parsing bytecode we may pick a relatively constrained
+        ArrayMode based on our profiling. Some of these modes may not
+        clobber exit state.  However, Fixup sometimes wants to widen this
+        to a more generic mode based on other data. This causes us to
+        think it was valid to exit immediately after the
+        GetByVal/HasIndexedProperty, which would be wrong with the wider
+        ArrayMode. We may also incorrectly insert invalidition points
+        if clobberize gives us the wrong data.
+
+        To fix this clobberize should say All ByVal nodes clobberTop()
+        until after fixup. Additionally, this patch adds an assertion that
+        nodes don't go from not clobbering exit state to clobbering exit
+        state during fixup.
+
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::performFixup):
+        * dfg/DFGGraph.h:
+
+2020-05-06  Darin Adler  <darin@apple.com>
+
+        Make a helper for the pattern of ICU functions that may need to be called twice to populate a buffer
+        https://bugs.webkit.org/show_bug.cgi?id=211499
+
+        Reviewed by Ross Kirsling.
+
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::defaultTimeZone): Use callBufferProducingFunction.
+        (JSC::canonicalizeTimeZoneName): Ditto.
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat): Ditto.
+        (JSC::IntlDateTimeFormat::format const): Ditto.
+        (JSC::IntlDateTimeFormat::formatToParts const): Ditto.
+        * runtime/IntlLocale.cpp:
+        (JSC::LocaleIDBuilder::toCanonical): Ditto.
+        (JSC::IntlLocale::language): Ditto.
+        (JSC::IntlLocale::script): Ditto.
+        (JSC::IntlLocale::region): Ditto.
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::format const): Ditto.
+        (JSC::IntlNumberFormat::formatToParts const): Ditto.
+        * runtime/IntlObject.cpp:
+        (JSC::languageTagForLocaleID): Ditto.
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::formatInternal const): Ditto.
+        (JSC::IntlRelativeTimeFormat::formatToParts const): Ditto.
+        * runtime/StringPrototype.cpp:
+        (JSC::toLocaleCase): Ditto.
+
+2020-05-06  Devin Rousso  <drousso@apple.com>
+
+        ASSERT_WITH_MESSAGE(m_isOwnedByMainThread == isMainThread()) when web inspecting
+        https://bugs.webkit.org/show_bug.cgi?id=203638
+        <rdar://problem/56761893>
+
+        Reviewed by Brian Burg.
+
+        Mark the `InspectorEnvironment::executionStopwatch` abstract function as `const` and have it
+        return a `Stopwatch&` instead of a `RefPtr<Stopwatch>&` as callers assume that it exists.
+        By not using a `RefPtr`, an additional `copyRef` can be avoided.
+
+        * inspector/InspectorEnvironment.h:
+
+        * inspector/JSGlobalObjectInspectorController.h:
+        * inspector/JSGlobalObjectInspectorController.cpp:
+        (Inspector::JSGlobalObjectInspectorController::executionStopwatch const): Added.
+        (Inspector::JSGlobalObjectInspectorController::executionStopwatch): Deleted.
+
+        * inspector/agents/InspectorDebuggerAgent.cpp:
+        (Inspector::InspectorDebuggerAgent::didPause):
+        (Inspector::InspectorDebuggerAgent::breakpointActionProbe):
+        (Inspector::InspectorDebuggerAgent::didContinue):
+        * inspector/agents/InspectorHeapAgent.cpp:
+        (Inspector::InspectorHeapAgent::snapshot):
+        (Inspector::InspectorHeapAgent::willGarbageCollect):
+        (Inspector::InspectorHeapAgent::didGarbageCollect):
+        * inspector/agents/InspectorScriptProfilerAgent.cpp:
+        (Inspector::InspectorScriptProfilerAgent::startTracking):
+        (Inspector::InspectorScriptProfilerAgent::willEvaluateScript):
+        (Inspector::InspectorScriptProfilerAgent::didEvaluateScript):
+        (Inspector::InspectorScriptProfilerAgent::trackingComplete):
+        * runtime/SamplingProfiler.h:
+        * runtime/SamplingProfiler.cpp:
+        (JSC::SamplingProfiler::SamplingProfiler):
+        * runtime/VM.h:
+        * runtime/VM.cpp:
+        (JSC::VM::ensureSamplingProfiler):
+
+2020-05-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Implement Intl.Locale
+        https://bugs.webkit.org/show_bug.cgi?id=209772
+
+        Reviewed by Darin Adler and Saam Barati.
+
+        This patch implements the recent ECMA-402 feature Intl.Locale.
+
+        This is effectively a wrapper class for all the pieces of uloc.h that ECMA-402 cares about.
+        (If we used the C++ API, there's a LocaleBuilder that would make this much easier, but in sticking to the C API,
+        it's basically an object that has an ICU localeID as data and uloc_* functions as methods / getters.
+        Furthermore, there's no way to modify said data, so every method / getter can be lazy and cache its result.)
+
+        Usage example:
+          >>> locale = new Intl.Locale('ja', { region: 'JP', calendar: 'japanese', numeric: false })
+          "ja-JP-u-ca-japanese-kn-false"
+          >>> locale.baseName
+          "ja-JP"
+
+        Intl.Locale can be used anywhere that Intl APIs accept locale strings as input parameters,
+        and is moreover hoped to be the class by which future Web APIs will handle the current locale.
+
+        This feature is runtime-guarded by the `useIntlLocale` option.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * runtime/CommonIdentifiers.h:
+        * runtime/IntlLocale.cpp: Added.
+        * runtime/IntlLocale.h: Added.
+        * runtime/IntlLocaleConstructor.cpp: Added.
+        * runtime/IntlLocaleConstructor.h: Added.
+        * runtime/IntlLocalePrototype.cpp: Added.
+        * runtime/IntlLocalePrototype.h: Added.
+        * runtime/IntlObject.cpp:
+        (JSC::IntlObject::finishCreation):
+        (JSC::localeIDBufferForLanguageTag): Added.
+        (JSC::languageTagForLocaleID): Renamed from JSC::convertICULocaleToBCP47LanguageTag.
+        (JSC::intlAvailableLocales):
+        (JSC::intlCollatorAvailableLocales):
+        (JSC::canonicalizeLanguageTag):
+        (JSC::canonicalizeLocaleList):
+        (JSC::defaultLocale):
+        * runtime/IntlObject.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::collatorStructure):
+        (JSC::JSGlobalObject::numberFormatStructure):
+        (JSC::JSGlobalObject::localeStructure):
+        * runtime/OptionsList.h:
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        * runtime/VM.h:
+
+2020-05-05  Keith Miller  <keith_miller@apple.com>
+
+        clobberize validator should use branchTest8 directly.
+        https://bugs.webkit.org/show_bug.cgi?id=211469
+
+        Reviewed by Yusuke Suzuki.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileCurrentBlock):
+
+2020-05-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement BigInt.asIntN and BigInt.asUintN
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+
+        Reviewed by Darin Adler.
+
+        This patch implements BigInt.asIntN[1] and BigInt.asUintN[2] features.
+        As the same to the other BigInt runtime C++ code, we port V8 code to JSC to implement both.
+
+        BigInt.asIntN is `static_cast<intN_t>(BigInt value)` and BigInt.asUintN is `static_cast<uintN_t>(BigInt value)`.
+        They are getting slice of N bits from two's complement representation of the given BigInt. The difference between
+        asIntN and asUintN is asIntN renders MSB as a sign.
+
+        This patch is once rolled out due to ARM64_32 build failure, which is caused by the existing bug[3]. Relanding it
+        since it is now fixed.
+
+        [1]: https://tc39.es/ecma262/#sec-bigint.asintn
+        [2]: https://tc39.es/ecma262/#sec-bigint.asuintn
+        [3]: https://trac.webkit.org/changeset/261174/webkit
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::toBigInt):
+        (JSC::bigIntConstructorFuncAsUintN):
+        (JSC::bigIntConstructorFuncAsIntN):
+        * runtime/JSBigInt.cpp:
+        (JSC::zeroImpl):
+        (JSC::JSBigInt::divideImpl):
+        (JSC::JSBigInt::unaryMinusImpl):
+        (JSC::JSBigInt::remainderImpl):
+        (JSC::JSBigInt::digitDiv):
+        (JSC::JSBigInt::absoluteSub):
+        (JSC::JSBigInt::asIntNImpl):
+        (JSC::JSBigInt::asUintNImpl):
+        (JSC::JSBigInt::truncateToNBits):
+        (JSC::JSBigInt::truncateAndSubFromPowerOfTwo):
+        (JSC::JSBigInt::asIntN):
+        (JSC::JSBigInt::asUintN):
+        * runtime/JSBigInt.h:
+
+2020-05-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Alphabetize extension keys and correctly mark const methods
+        https://bugs.webkit.org/show_bug.cgi?id=211359
+
+        Reviewed by Darin Adler.
+
+        Two cleanup items for Intl classes:
+
+        1. Ensure `resolvedOptions().locale` returns relevant extension keys in alphabetical order.
+           ICU does this for us via Intl.getCanonicalLocales / Intl.*.supportedLocalesOf but not via ResolveLocale.
+           However, we don't need to do any sorting in ResolveLocale; we can just pre-alphabetize relevantExtensionKeys.
+           (See also https://github.com/tc39/ecma402/pull/433.)
+
+        2. Ensure Intl classes are marking const methods correctly.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::sortLocaleData):
+        (JSC::IntlCollator::searchLocaleData):
+        (JSC::IntlCollator::compareStrings const): Add const specifier.
+        (JSC::IntlCollator::resolvedOptions const): Add const specifier.
+        * runtime/IntlCollator.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::localeData):
+        (JSC::IntlDateTimeFormat::resolvedOptions const): Add const specifier.
+        (JSC::IntlDateTimeFormat::format const): Add const specifier.
+        (JSC::IntlDateTimeFormat::formatToParts const): Add const specifier.
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::format const): Add const specifier.
+        (JSC::IntlNumberFormat::resolvedOptions const): Add const specifier.
+        (JSC::IntlNumberFormat::formatToParts const): Add const specifier.
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::resolvedOptions const): Add const specifier.
+        (JSC::IntlPluralRules::select const): Add const specifier.
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::resolvedOptions const): Add const specifier.
+        (JSC::IntlRelativeTimeFormat::formatInternal const): Add const specifier.
+        (JSC::IntlRelativeTimeFormat::format const): Add const specifier.
+        (JSC::IntlRelativeTimeFormat::formatToParts const): Add const specifier.
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-05-05  Keith Miller  <keith_miller@apple.com>
+
+        Add Clobberize validator for clobber top.
+        https://bugs.webkit.org/show_bug.cgi?id=209432
+
+        Reviewed by Yusuke Suzuki.
+
+        * assembler/MacroAssemblerARMv7.h:
+        (JSC::MacroAssemblerARMv7::scratchRegister):
+        * assembler/MacroAssemblerMIPS.h:
+        (JSC::MacroAssemblerMIPS::scratchRegister):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileCurrentBlock):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::lower):
+        (JSC::FTL::DFG::LowerDFGToB3::compileBlock):
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        * interpreter/Interpreter.cpp:
+        (JSC::eval):
+        (JSC::Interpreter::executeProgram):
+        (JSC::Interpreter::executeCall):
+        (JSC::Interpreter::executeConstruct):
+        (JSC::Interpreter::execute):
+        (JSC::Interpreter::executeModuleProgram):
+        * jit/JITCodeInlines.h:
+        (JSC::JITCode::execute):
+        * llint/LLIntThunks.h:
+        (JSC::vmEntryToWasm):
+        * runtime/OptionsList.h:
+        * runtime/VM.h:
+
+2020-05-05  Mark Lam  <mark.lam@apple.com>
+
+        Allow Bitmap to use up to a UCPURegister word size for internal bit storage.
+        https://bugs.webkit.org/show_bug.cgi?id=211328
+        <rdar://problem/62755865>
+
+        Reviewed by Yusuke Suzuki.
+
+        * assembler/CPU.h:
+
+2020-05-05  Keith Miller  <keith_miller@apple.com>
+
+        iterator_open should remap the symbolIterator argument correctly when inlined.
+        https://bugs.webkit.org/show_bug.cgi?id=211308
+        <rdar://problem/62287877>
+
+        Reviewed by Mark Lam.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+
+2020-05-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt::maxLengthBits and JSBigInt::maxLength are wrong
+        https://bugs.webkit.org/show_bug.cgi?id=211445
+
+        Reviewed by Mark Lam.
+
+        JSBigInt::maxLengthBits and JSBigInt::maxLength definitions are wrong.
+
+        1. We are defining maxLength and maxLengthBits as an unrelated value to each other. This is wrong.
+           maxLength should be defined as maxLengthBits / (sizeof(Digit) * bitsPerByte).
+        2. We use `sizeof(void*)` and assume that `sizeof(Digit) == sizeof(void*)`. This is wrong in ARM64_32 environment
+           where Digit size is sizeof(uint64_t) while the pointer size is sizeof(uint32_t). This causes compile errors in ARM64_32
+           when the code is using these values with static_assert.
+
+        * runtime/JSBigInt.h:
+
+2020-05-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reverting r261156.
+
+        Break ARM64_32 build due to existing bug
+
+        Reverted changeset:
+
+        "[JSC] Implement BigInt.asIntN and BigInt.asUintN"
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+        https://trac.webkit.org/changeset/261156
+
+2020-05-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Object.prototype.toString is not spec-perfect
+        https://bugs.webkit.org/show_bug.cgi?id=199138
+
+        Reviewed by Darin Adler and Keith Miller.
+
+        Before ES6, Object.prototype.toString relied only on internal [[Class]] slot. Starting with ES6,
+        Object.prototype.toString checks for a handful of internal slots, mimicing [[Class]], to ensure
+        backwards compatibility for pre-ES6 instances. Newly-added built-ins provide @@toStringTag for
+        the method to use.
+
+        Before this change, Object.prototype.toString in JSC relied on className() a.k.a [[Class]] for
+        all instances. For (almost all) new built-ins, it was overriden by toStringName() returning
+        "Object", while @@toStringTag was set to correct value. This is quite an error-prone approach
+        and observable spec discrepancy if @@toStringTag is deleted or set to a non-string.
+
+        This change eliminates the above-mentioned discrepancy and fixes Object.prototype.toString
+        to return "[object Function]" for callable Proxy objects, aligning JSC with the spec [1], V8,
+        and SpiderMonkey.
+
+        For Object.prototype.toString to work through DebuggerScope and JSProxy, we perform all checks
+        in JSObject::toStringName(). Given that isArray() may throw a TypeError [2], we invoke
+        toStringName() before @@toStringTag lookup to accomodate revoked Proxy case.
+
+        Also, this patch defines @@toStringTag for WebAssembly namespace object (to match Chrome),
+        JSC shell, and ConsoleObject.
+
+        [1]: https://tc39.es/ecma262/#sec-object.prototype.tostring
+        [2]: https://tc39.es/ecma262/#sec-isarray (step 3.a)
+
+        * jsc.cpp:
+        * runtime/BigIntObject.cpp:
+        (JSC::BigIntObject::toStringName): Deleted.
+        * runtime/BigIntObject.h:
+        * runtime/BooleanObject.cpp:
+        (JSC::BooleanObject::toStringName):
+        * runtime/BooleanObject.h:
+        * runtime/ConsoleObject.cpp:
+        (JSC::ConsoleObject::finishCreation):
+        * runtime/DateInstance.cpp:
+        (JSC::DateInstance::toStringName):
+        * runtime/DateInstance.h:
+        * runtime/ErrorInstance.cpp:
+        (JSC::ErrorInstance::toStringName):
+        * runtime/ErrorInstance.h:
+        * runtime/JSArrayBufferView.cpp:
+        (JSC::JSArrayBufferView::toStringName): Deleted.
+        * runtime/JSArrayBufferView.h:
+        * runtime/JSMap.cpp:
+        (JSC::JSMap::toStringName): Deleted.
+        * runtime/JSMap.h:
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::toStringName):
+        * runtime/JSSet.cpp:
+        (JSC::JSSet::toStringName): Deleted.
+        * runtime/JSSet.h:
+        * runtime/JSWeakMap.cpp:
+        (JSC::JSWeakMap::toStringName): Deleted.
+        * runtime/JSWeakMap.h:
+        * runtime/JSWeakObjectRef.cpp:
+        (JSC::JSWeakObjectRef::toStringName): Deleted.
+        * runtime/JSWeakObjectRef.h:
+        * runtime/JSWeakSet.cpp:
+        (JSC::JSWeakSet::toStringName): Deleted.
+        * runtime/JSWeakSet.h:
+        * runtime/NumberObject.cpp:
+        (JSC::NumberObject::toStringName):
+        * runtime/NumberObject.h:
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectProtoFuncToString):
+        * runtime/ProxyObject.cpp:
+        (JSC::ProxyObject::toStringName): Deleted.
+        * runtime/ProxyObject.h:
+        * runtime/RegExpObject.cpp:
+        (JSC::RegExpObject::toStringName):
+        * runtime/RegExpObject.h:
+        * runtime/StringObject.cpp:
+        (JSC::StringObject::toStringName):
+        * runtime/StringObject.h:
+        * runtime/SymbolObject.cpp:
+        (JSC::SymbolObject::toStringName): Deleted.
+        * runtime/SymbolObject.h:
+        * wasm/js/JSWebAssembly.cpp:
+        (JSC::JSWebAssembly::finishCreation):
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement BigInt.asIntN and BigInt.asUintN
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+
+        Reviewed by Darin Adler.
+
+        This patch implements BigInt.asIntN[1] and BigInt.asUintN[2] features.
+        As the same to the other BigInt runtime C++ code, we port V8 code to JSC to implement both.
+
+        BigInt.asIntN is `static_cast<intN_t>(BigInt value)` and BigInt.asUintN is `static_cast<uintN_t>(BigInt value)`.
+        They are getting slice of N bits from two's complement representation of the given BigInt. The difference between
+        asIntN and asUintN is asIntN renders MSB as a sign.
+
+        [1]: https://tc39.es/ecma262/#sec-bigint.asintn
+        [2]: https://tc39.es/ecma262/#sec-bigint.asuintn
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::toBigInt):
+        (JSC::bigIntConstructorFuncAsUintN):
+        (JSC::bigIntConstructorFuncAsIntN):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::zeroImpl):
+        (JSC::JSBigInt::divideImpl):
+        (JSC::JSBigInt::unaryMinusImpl):
+        (JSC::JSBigInt::remainderImpl):
+        (JSC::JSBigInt::digitDiv):
+        (JSC::JSBigInt::asIntNImpl):
+        (JSC::JSBigInt::asUintNImpl):
+        (JSC::JSBigInt::truncateToNBits):
+        (JSC::JSBigInt::truncateAndSubFromPowerOfTwo):
+        (JSC::JSBigInt::asIntN):
+        (JSC::JSBigInt::asUintN):
+        * runtime/JSBigInt.h:
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG NotCellUse is used without considering about BigInt32
+        https://bugs.webkit.org/show_bug.cgi?id=211395
+
+        Reviewed by Saam Barati.
+
+        When we see CompareXXX(BigInt32, Double), we are emitting CompareXXX(DoubleRep(BigInt:NotCellUse), Double). But this has two problems.
+
+        1. We should emit CompareXXX(UntypedUse, UntypedUse) in this case.
+        2. DoubleRep(NotCellUse) does not support converting BigInt32 to double. Since DoubleRep's semantics is for ToNumber, it should not
+           accept BigInt32 since it should throw an error. However, DoubleRep currently assumes that NotCellUse value can be converted to double
+           without any errors.
+
+        To keep DoubleRep's semantics ToNumber, we replace NotCellUse with NotCellNorBigIntUse, which rejects BigInt32. This patch also uses NotCellNorBigIntUse
+        for ValueToInt32 because of the same reason.
+
+        For CompareXXX and CompareEq nodes, we can optimize it if we introduce new DoubleRepAcceptingBigInt32 DFG node which can convert BigInt32 to Double, since
+        CompareXXX and CompareEq are not requiring toNumber semantics. This should be done in a separate bug https://bugs.webkit.org/show_bug.cgi?id=211407.
+
+        * bytecode/SpeculatedType.h:
+        (JSC::isNotCellNorBigIntSpeculation):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::fixIntConvertingEdge):
+        (JSC::DFG::FixupPhase::fixupChecksInBlock):
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::shouldSpeculateNotCellNorBigInt):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::SafeToExecuteEdge::operator()):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileValueToInt32):
+        (JSC::DFG::SpeculativeJIT::compileDoubleRep):
+        (JSC::DFG::SpeculativeJIT::speculateNotCellNorBigInt):
+        (JSC::DFG::SpeculativeJIT::speculate):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGUseKind.cpp:
+        (WTF::printInternal):
+        * dfg/DFGUseKind.h:
+        (JSC::DFG::typeFilterFor):
+        (JSC::DFG::checkMayCrashIfInputIsEmpty):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileDoubleRep):
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueToInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::numberOrNotCellNorBigIntToInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::speculate):
+        (JSC::FTL::DFG::LowerDFGToB3::speculateNotCellNorBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::numberOrNotCellToInt32): Deleted.
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add @@toStringTag to WebAssembly.Global
+        https://bugs.webkit.org/show_bug.cgi?id=211372
+
+        Reviewed by Sam Weinig.
+
+        As r260992 did for the other wasm prototypes, we should put @@toStringTag to WebAssembly.Global's prototype too.
+
+        * wasm/js/WebAssemblyGlobalPrototype.cpp:
+        (JSC::WebAssemblyGlobalPrototype::finishCreation):
+
+2020-05-04  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Worker: should use the name of the worker if it exists
+        https://bugs.webkit.org/show_bug.cgi?id=211244
+
+        Reviewed by Brian Burg.
+
+        * inspector/protocol/Worker.json:
+        Include the `name` in `Worker.workerCreated`.
+
+2020-05-04  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: provide a way for inspector to turn on/off ITP debug mode and AdClickAttribution debug mode
+        https://bugs.webkit.org/show_bug.cgi?id=209763
+
+        Reviewed by Brian Burg.
+
+        * inspector/protocol/Page.json:
+        Add new enum values to `Page.Setting`:
+         - `AdClickAttributionDebugModeEnabled`
+         - `ITPDebugModeEnabled`
+
+2020-05-03  Maciej Stachowiak  <mjs@apple.com>
+
+        Remove no longer needed WebKitAdditions include for JavaScriptCorePrefix.h
+        https://bugs.webkit.org/show_bug.cgi?id=211357
+
+        Reviewed by Mark Lam.
+
+        * JavaScriptCorePrefix.h:
+
+2020-05-02  Mark Lam  <mark.lam@apple.com>
+
+        Gardening: rolling out r261050 and r261051.
+        https://bugs.webkit.org/show_bug.cgi?id=211328
+        <rdar://problem/62755865>
+
+        Not reviewed.
+
+        * assembler/CPU.h:
+
+2020-05-01  Mark Lam  <mark.lam@apple.com>
+
+        Allow Bitmap to use up to a UCPURegister word size for internal bit storage.
+        https://bugs.webkit.org/show_bug.cgi?id=211328
+        <rdar://problem/62755865>
+
+        Reviewed by Yusuke Suzuki.
+
+        * assembler/CPU.h:
+
+2020-05-01  Saam Barati  <sbarati@apple.com>
+
+        Have a thread local cache for the Wasm LLInt bytecode buffer
+        https://bugs.webkit.org/show_bug.cgi?id=211317
+
+        Reviewed by Filip Pizlo and Mark Lam.
+
+        One of the main things slowing down Wasm compile times is the banging
+        on bmalloc's global heap lock. This patch makes it so for the bytecode
+        instruction buffer, we keep a thread local cache with latest capacity
+        the thread needed to compile. This makes it so that in the average case,
+        we only do one malloc at the end of a compile to memcpy the final result.
+        
+        We clear these thread local caches when the WasmWorklist's automatic threads
+        underlying machine thread is destroyed.
+        
+        This is a 15% speedup in zen garden compile times on a 16-core Mac Pro.
+        This is a 4-5% speedup in zen garden compile times on a 6-core MBP.
+
+        * bytecode/InstructionStream.h:
+        (JSC::InstructionStreamWriter::setInstructionBuffer):
+        (JSC::InstructionStreamWriter::finalize):
+        * wasm/WasmLLIntGenerator.cpp:
+        (JSC::Wasm::threadSpecificBuffer):
+        (JSC::Wasm::clearLLIntThreadSpecificCache):
+        (JSC::Wasm::LLIntGenerator::LLIntGenerator):
+        (JSC::Wasm::LLIntGenerator::finalize):
+        * wasm/WasmLLIntGenerator.h:
+        * wasm/WasmWorklist.cpp:
+
+2020-05-01  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win] Fix AppleWin build
+        https://bugs.webkit.org/show_bug.cgi?id=211324
+
+        Reviewed by Don Olmstead.
+
+        Check if target WTF_CopyHeaders exists before using it.
+
+        * CMakeLists.txt:
+
+2020-05-01  Don Olmstead  <don.olmstead@sony.com>
+
+        [GTK] Add additional exports to support hidden visibility
+        https://bugs.webkit.org/show_bug.cgi?id=211246
+
+        Reviewed by Michael Catanzaro.
+
+        * API/glib/JSCContextPrivate.h:
+        * API/glib/JSCValuePrivate.h:
+        * inspector/remote/glib/RemoteInspectorServer.h:
+        * inspector/remote/glib/RemoteInspectorUtils.h:
+
+2020-05-01  Don Olmstead  <don.olmstead@sony.com>
+
+        Use export macros on all platforms
+        https://bugs.webkit.org/show_bug.cgi?id=211293
+
+        Reviewed by Michael Catanzaro.
+
+        Allow overriding of JS_EXPORT_PRIVATE if desired otherwise use the defaults.
+
+        * runtime/JSExportMacros.h:
+
+2020-05-01  Saam Barati  <sbarati@apple.com>
+
+        Unreviewed. Non-speculative build fix for watchOS build.
+
+        * runtime/ArrayPrototype.cpp:
+        (JSC::shift):
+        (JSC::unshift):
+        (JSC::arrayProtoFuncToLocaleString):
+        (JSC::arrayProtoFuncReverse):
+        (JSC::arrayProtoFuncSlice):
+        (JSC::arrayProtoFuncSplice):
+        * runtime/JSONObject.cpp:
+        (JSC::Stringifier::Stringifier):
+
+2020-05-01  Saam Barati  <sbarati@apple.com>
+
+        Unreviewed. Speculative build fix for watchOS build.
+
+        * runtime/ArrayPrototype.cpp:
+        (JSC::shift):
+
+2020-05-01  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        [WebIDL] Interface prototype objects should define @@toStringTag
+        https://bugs.webkit.org/show_bug.cgi?id=211020
+
+        Unreviewed follow-up to r260992.
+
+        * runtime/JSArrayBufferPrototype.cpp:
+        (JSC::JSArrayBufferPrototype::finishCreation): Revert change in attempt to fix ARMv7 test.
+
+2020-05-01  David Kilzer  <ddkilzer@apple.com>
+
+        JSC::PropertySlot::m_attributes is uninitialized in constructor
+        <https://webkit.org/b/211267>
+
+        Reviewed by Mark Lam.
+
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::PropertySlot):
+        - Initialize m_attributes and m_additionalData, and make use of
+          default initializers.
+
+2020-05-01  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        [WebIDL] Interface prototype objects should define @@toStringTag
+        https://bugs.webkit.org/show_bug.cgi?id=211020
+
+        Reviewed by Darin Adler.
+
+        WebIDL spec was recently updated [1] to define @@toStringTag on interface prototype objects.
+        This change aligns WebIDL with ECMA-262 built-ins and Blink's behavior. Gecko have also
+        expressed implementation commitment.
+
+        This patch implements the spec change, making `X.prototype.toString()` return "[object X]"
+        instead of "[object XPrototype]", where X is WebIDL interface. This behavior is proven to
+        be web compatible (shipping in Chrome since Q2 2016) and matches class strings of iterator
+        prototype objects [2] introduced in r253855.
+
+        We define @@toStringTag for all WebAssembly interfaces but Error subclasses since they
+        are not defined using WebIDL [3].
+
+        This change also introduces JSC_TO_STRING_TAG_WITHOUT_TRANSITION() macro that sets up
+        @@toStringTag using ClassInfo to avoid extra strings creation, ensuring `className` equality
+        between prototype and instance classes (fixing a few discrepancies), as well as correct
+        descriptors. It also ensures using faster jsNontrivialString() and relieves from putting
+        more code into CodeGeneratorJS.pm.
+
+        [1]: https://github.com/heycam/webidl/pull/357
+        [2]: https://heycam.github.io/webidl/#es-iterator-prototype-object
+        [3]: https://webassembly.github.io/spec/js-api/#error-objects
+
+        Tests: imported/w3c/web-platform-tests/wasm/jsapi/instance/toString.any.js
+               imported/w3c/web-platform-tests/wasm/jsapi/memory/toString.any.js
+               imported/w3c/web-platform-tests/wasm/jsapi/module/toString.any.js
+               imported/w3c/web-platform-tests/wasm/jsapi/table/toString.any.js
+
+        * runtime/ArrayIteratorPrototype.cpp:
+        (JSC::ArrayIteratorPrototype::finishCreation):
+        * runtime/AsyncFunctionPrototype.cpp:
+        (JSC::AsyncFunctionPrototype::finishCreation):
+        * runtime/AsyncGeneratorFunctionPrototype.cpp:
+        (JSC::AsyncGeneratorFunctionPrototype::finishCreation):
+        * runtime/AsyncGeneratorPrototype.cpp:
+        (JSC::AsyncGeneratorPrototype::finishCreation):
+        * runtime/BigIntPrototype.cpp:
+        (JSC::BigIntPrototype::finishCreation):
+        * runtime/GeneratorFunctionPrototype.cpp:
+        (JSC::GeneratorFunctionPrototype::finishCreation):
+        * runtime/GeneratorPrototype.cpp:
+        (JSC::GeneratorPrototype::finishCreation):
+        * runtime/IntlCollatorPrototype.cpp:
+        (JSC::IntlCollatorPrototype::finishCreation):
+        * runtime/IntlDateTimeFormatPrototype.cpp:
+        (JSC::IntlDateTimeFormatPrototype::finishCreation):
+        * runtime/IntlNumberFormatPrototype.cpp:
+        (JSC::IntlNumberFormatPrototype::finishCreation):
+        * runtime/IntlPluralRulesPrototype.cpp:
+        (JSC::IntlPluralRulesPrototype::finishCreation):
+        * runtime/IntlRelativeTimeFormatPrototype.cpp:
+        (JSC::IntlRelativeTimeFormatPrototype::finishCreation):
+        * runtime/JSArrayBufferPrototype.cpp:
+        (JSC::JSArrayBufferPrototype::finishCreation):
+        * runtime/JSDataViewPrototype.cpp:
+        (JSC::JSDataViewPrototype::finishCreation):
+        * runtime/JSONObject.cpp:
+        (JSC::JSONObject::finishCreation):
+        * runtime/JSObject.h:
+        * runtime/JSPromisePrototype.cpp:
+        (JSC::JSPromisePrototype::finishCreation):
+        * runtime/MapIteratorPrototype.cpp:
+        (JSC::MapIteratorPrototype::finishCreation):
+        * runtime/MapPrototype.cpp:
+        (JSC::MapPrototype::finishCreation):
+        * runtime/MathObject.cpp:
+        (JSC::MathObject::finishCreation):
+        * runtime/RegExpStringIteratorPrototype.cpp:
+        (JSC::RegExpStringIteratorPrototype::finishCreation):
+        * runtime/SetIteratorPrototype.cpp:
+        (JSC::SetIteratorPrototype::finishCreation):
+        * runtime/SetPrototype.cpp:
+        (JSC::SetPrototype::finishCreation):
+        * runtime/StringIteratorPrototype.cpp:
+        (JSC::StringIteratorPrototype::finishCreation):
+        * runtime/SymbolPrototype.cpp:
+        (JSC::SymbolPrototype::finishCreation):
+        * runtime/WeakMapPrototype.cpp:
+        (JSC::WeakMapPrototype::finishCreation):
+        * runtime/WeakObjectRefPrototype.cpp:
+        (JSC::WeakObjectRefPrototype::finishCreation):
+        * runtime/WeakSetPrototype.cpp:
+        (JSC::WeakSetPrototype::finishCreation):
+        * wasm/js/WebAssemblyInstancePrototype.cpp:
+        (JSC::WebAssemblyInstancePrototype::finishCreation):
+        * wasm/js/WebAssemblyMemoryPrototype.cpp:
+        (JSC::WebAssemblyMemoryPrototype::finishCreation):
+        * wasm/js/WebAssemblyModulePrototype.cpp:
+        (JSC::WebAssemblyModulePrototype::finishCreation):
+        * wasm/js/WebAssemblyTablePrototype.cpp:
+        (JSC::WebAssemblyTablePrototype::finishCreation):
+
+2020-05-01  Saam Barati  <sbarati@apple.com>
+
+        We can't cast toLength result to unsigned
+        https://bugs.webkit.org/show_bug.cgi?id=211205
+        <rdar://problem/62625562>
+
+        Reviewed by Yusuke Suzuki.
+
+        toLength, according to the spec, returns a 53-bit integer. In our
+        implementation, we return a double. However, there were many callsites
+        that did something like:
+        ```
+        unsigned length = toLength(obj);
+        ```
+        
+        This is bad for a few reasons:
+        - Casting to unsigned from double is undefined behavior when the integer
+        is greater than UINT_MAX. In practice, this means that we'd have different
+        engine behavior depending on what architecture we'd be running on. For
+        example, if the length were UINT_MAX + 1, on x86, we'd treat the
+        length as zero. On arm64, we'd treat it as UINT_MAX. Both are wrong.
+        - We weren't spec compliant. We were just ignoring that these numbers could
+        be 53-bit integers.
+        
+        This patch addresses each bad use of the undefined behavior, and by doing so,
+        makes us more spec compliant.
+
+        * dfg/DFGOperations.cpp:
+        * jit/JITOperations.cpp:
+        (JSC::getByVal):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::getProperty):
+        (JSC::setLength):
+        (JSC::argumentClampedIndexFromStartOrEnd):
+        (JSC::shift):
+        (JSC::unshift):
+        (JSC::arrayProtoFuncToLocaleString):
+        (JSC::arrayProtoFuncPop):
+        (JSC::arrayProtoFuncPush):
+        (JSC::arrayProtoFuncReverse):
+        (JSC::arrayProtoFuncShift):
+        (JSC::arrayProtoFuncSlice):
+        (JSC::arrayProtoFuncSplice):
+        (JSC::arrayProtoFuncUnShift):
+        (JSC::fastIndexOf):
+        (JSC::arrayProtoFuncIndexOf):
+        (JSC::arrayProtoFuncLastIndexOf):
+        * runtime/Identifier.h:
+        (JSC::Identifier::from):
+        * runtime/IntlObject.cpp:
+        (JSC::canonicalizeLocaleList):
+        * runtime/JSONObject.cpp:
+        (JSC::Stringifier::Stringifier):
+        (JSC::Stringifier::Holder::appendNextProperty):
+        (JSC::Walker::walk):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::hasProperty const):
+        * runtime/JSObject.h:
+        (JSC::JSObject::putByIndexInline):
+        (JSC::JSObject::putDirectIndex):
+        (JSC::JSObject::canGetIndexQuickly const):
+        (JSC::JSObject::tryGetIndexQuickly const):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::getPropertySlot):
+        (JSC::JSObject::deleteProperty):
+        (JSC::JSObject::get const):
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::getValue const):
+        * tools/JSDollarVM.cpp:
+        (JSC::functionSetUserPreferredLanguages):
+
+2020-04-30  Ross Kirsling  <ross.kirsling@sony.com>
+
+        TriState should be an enum class and use "Indeterminate" instead of "Mixed"
+        https://bugs.webkit.org/show_bug.cgi?id=211268
+
+        Reviewed by Mark Lam.
+
+        * b3/B3Const32Value.cpp:
+        (JSC::B3::Const32Value::equalConstant const):
+        (JSC::B3::Const32Value::notEqualConstant const):
+        (JSC::B3::Const32Value::lessThanConstant const):
+        (JSC::B3::Const32Value::greaterThanConstant const):
+        (JSC::B3::Const32Value::lessEqualConstant const):
+        (JSC::B3::Const32Value::greaterEqualConstant const):
+        (JSC::B3::Const32Value::aboveConstant const):
+        (JSC::B3::Const32Value::belowConstant const):
+        (JSC::B3::Const32Value::aboveEqualConstant const):
+        (JSC::B3::Const32Value::belowEqualConstant const):
+        * b3/B3Const64Value.cpp:
+        (JSC::B3::Const64Value::equalConstant const):
+        (JSC::B3::Const64Value::notEqualConstant const):
+        (JSC::B3::Const64Value::lessThanConstant const):
+        (JSC::B3::Const64Value::greaterThanConstant const):
+        (JSC::B3::Const64Value::lessEqualConstant const):
+        (JSC::B3::Const64Value::greaterEqualConstant const):
+        (JSC::B3::Const64Value::aboveConstant const):
+        (JSC::B3::Const64Value::belowConstant const):
+        (JSC::B3::Const64Value::aboveEqualConstant const):
+        (JSC::B3::Const64Value::belowEqualConstant const):
+        * b3/B3ConstDoubleValue.cpp:
+        (JSC::B3::ConstDoubleValue::equalConstant const):
+        (JSC::B3::ConstDoubleValue::notEqualConstant const):
+        (JSC::B3::ConstDoubleValue::lessThanConstant const):
+        (JSC::B3::ConstDoubleValue::greaterThanConstant const):
+        (JSC::B3::ConstDoubleValue::lessEqualConstant const):
+        (JSC::B3::ConstDoubleValue::greaterEqualConstant const):
+        (JSC::B3::ConstDoubleValue::equalOrUnorderedConstant const):
+        * b3/B3ConstFloatValue.cpp:
+        (JSC::B3::ConstFloatValue::equalConstant const):
+        (JSC::B3::ConstFloatValue::notEqualConstant const):
+        (JSC::B3::ConstFloatValue::lessThanConstant const):
+        (JSC::B3::ConstFloatValue::greaterThanConstant const):
+        (JSC::B3::ConstFloatValue::lessEqualConstant const):
+        (JSC::B3::ConstFloatValue::greaterEqualConstant const):
+        (JSC::B3::ConstFloatValue::equalOrUnorderedConstant const):
+        * b3/B3Procedure.cpp:
+        (JSC::B3::Procedure::addBoolConstant):
+        * b3/B3Procedure.h:
+        * b3/B3ReduceStrength.cpp:
+        * b3/B3Value.cpp:
+        (JSC::B3::Value::equalConstant const):
+        (JSC::B3::Value::notEqualConstant const):
+        (JSC::B3::Value::lessThanConstant const):
+        (JSC::B3::Value::greaterThanConstant const):
+        (JSC::B3::Value::lessEqualConstant const):
+        (JSC::B3::Value::greaterEqualConstant const):
+        (JSC::B3::Value::aboveConstant const):
+        (JSC::B3::Value::belowConstant const):
+        (JSC::B3::Value::aboveEqualConstant const):
+        (JSC::B3::Value::belowEqualConstant const):
+        (JSC::B3::Value::equalOrUnorderedConstant const):
+        (JSC::B3::Value::asTriState const):
+        * b3/B3Value.h:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::~CodeBlock):
+        (JSC::CodeBlock::thresholdForJIT):
+        * bytecode/UnlinkedCodeBlock.cpp:
+        (JSC::UnlinkedCodeBlock::UnlinkedCodeBlock):
+        * bytecode/UnlinkedFunctionExecutable.cpp:
+        (JSC::UnlinkedFunctionExecutable::visitChildren):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ConstantNode::emitBytecodeInConditionContext):
+        (JSC::BinaryOpNode::emitBytecodeInConditionContext):
+        (JSC::BinaryOpNode::tryFoldToBranch):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleIntrinsicCall):
+        * dfg/DFGCFGSimplificationPhase.cpp:
+        (JSC::DFG::CFGSimplificationPhase::run):
+        * dfg/DFGLazyJSValue.cpp:
+        (JSC::DFG::equalToSingleCharacter):
+        (JSC::DFG::equalToStringImpl):
+        (JSC::DFG::LazyJSValue::strictEqual const):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileDataViewGet):
+        (JSC::FTL::DFG::LowerDFGToB3::compileDataViewSet):
+        * ftl/FTLOutput.cpp:
+        (JSC::FTL::Output::equal):
+        (JSC::FTL::Output::notEqual):
+        (JSC::FTL::Output::above):
+        (JSC::FTL::Output::aboveOrEqual):
+        (JSC::FTL::Output::below):
+        (JSC::FTL::Output::belowOrEqual):
+        (JSC::FTL::Output::greaterThan):
+        (JSC::FTL::Output::greaterThanOrEqual):
+        (JSC::FTL::Output::lessThan):
+        (JSC::FTL::Output::lessThanOrEqual):
+        * jit/JITOperations.cpp:
+        * runtime/CachedTypes.cpp:
+        (JSC::UnlinkedCodeBlock::UnlinkedCodeBlock):
+        * runtime/DefinePropertyAttributes.h:
+        (JSC::DefinePropertyAttributes::DefinePropertyAttributes):
+        (JSC::DefinePropertyAttributes::hasWritable const):
+        (JSC::DefinePropertyAttributes::writable const):
+        (JSC::DefinePropertyAttributes::hasConfigurable const):
+        (JSC::DefinePropertyAttributes::configurable const):
+        (JSC::DefinePropertyAttributes::hasEnumerable const):
+        (JSC::DefinePropertyAttributes::enumerable const):
+        (JSC::DefinePropertyAttributes::setWritable):
+        (JSC::DefinePropertyAttributes::setConfigurable):
+        (JSC::DefinePropertyAttributes::setEnumerable):
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::initializeCollator):
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        * runtime/IntlObject.cpp:
+        (JSC::intlBooleanOption):
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::pureStrictEqual):
+        (JSC::JSValue::pureToBoolean const):
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::pureToBoolean const):
+
+2020-04-30  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] intlBooleanOption should return TriState instead of taking an out param
+        https://bugs.webkit.org/show_bug.cgi?id=211256
+
+        Reviewed by Darin Adler and Mark Lam.
+
+        Boolean options for Intl constructors can have default values of true, false, or undefined.
+        To handle the undefined case, intlBooleanOption currently has a `bool& usesFallback` param;
+        we should have the return type simply be a TriState instead.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::initializeCollator):
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        * runtime/IntlObject.cpp:
+        (JSC::intlBooleanOption):
+        * runtime/IntlObject.h:
+
+2020-04-30  Devin Rousso  <drousso@apple.com>
+
+        WebKit.WebContent process crashes when web developer tools are opened in Safari
+        https://bugs.webkit.org/show_bug.cgi?id=210794
+        <rdar://problem/62214651>
+
+        Reviewed by Brian Burg.
+
+        * inspector/InjectedScriptManager.cpp:
+        (Inspector::InjectedScriptManager::injectedScriptFor):
+        Don't crash if a `TerminatedExecutionError` is thrown.
+
+        * inspector/InjectedScriptBase.cpp:
+        (Inspector::InjectedScriptBase::makeCall):
+        Report the actual error message. Check that the result has a value before attempting to make
+        a `JSON::Value` out of it.
+
+2020-04-29  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Ensure Intl classes don't have naming conflicts with unified builds
+        https://bugs.webkit.org/show_bug.cgi?id=211213
+
+        Reviewed by Yusuke Suzuki.
+
+        Each Intl class usually has an array named relevantExtensionsKeys and a function named localeData.
+        This can result in redefinition errors when unified builds put two of them into the same translation unit. 
+        Some are already guarding against this with an internal namespace while others are not.
+
+        As a uniform approach, this patch makes each localeData function a static method and
+        puts each relevantExtensionsKeys array (as well as any constants for its indices) into an internal namespace.
+
+        Furthermore, since three different classes are defining an identical UFieldPositionIteratorDeleter,
+        this patch consolidates them into one definition in IntlObject.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::sortLocaleData): Renamed from JSC::sortLocaleData.
+        (JSC::IntlCollator::searchLocaleData): Renamed from JSC::searchLocaleData.
+        (JSC::IntlCollator::initializeCollator):
+        * runtime/IntlCollator.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::localeData): Renamed from JSC::IntlDTFInternal::localeData.
+        (JSC::toDateTimeOptionsAnyDate): Renamed from JSC::IntlDTFInternal::toDateTimeOptionsAnyDate.
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        (JSC::UFieldPositionIteratorDeleter::operator() const): Deleted.
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::localeData): Renamed from JSC::IntlNFInternal::localeData.
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        (JSC::UFieldPositionIteratorDeleter::operator() const): Deleted.
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlObject.cpp:
+        (JSC::UFieldPositionIteratorDeleter::operator() const): Added.
+        * runtime/IntlObject.h:
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::localeData): Renamed from JSC::localeData.
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::localeData): Renamed from JSC::localeData.
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+        (JSC::UFieldPositionIteratorDeleter::operator() const): Deleted.
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-04-29  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed follow-up to r260848.
+        LowerDFGToB3 has its own isFunction which should NOT have been renamed.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreateThis):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreatePromise):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreateInternalFieldObject):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsObjectOrNull):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsFunction):
+        (JSC::FTL::DFG::LowerDFGToB3::buildTypeOf):
+        (JSC::FTL::DFG::LowerDFGToB3::isFunction): Renamed from isCallable.
+
+2020-04-29  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        AsyncFromSyncIterator methods should not pass absent values
+        https://bugs.webkit.org/show_bug.cgi?id=211147
+
+        Reviewed by Ross Kirsling.
+
+        This patch implements minor spec change [1] to match async and sync iteration
+        from the perspective of userland `next` and `return` iterator methods.
+        `throw` method always receives an argument, yet we align with others to be
+        consistent and future-proof.
+
+        This change is already implemented in SpiderMonkey.
+
+        [1]: https://github.com/tc39/ecma262/pull/1776
+
+        * builtins/AsyncFromSyncIteratorPrototype.js:
+
+2020-04-29  Mark Lam  <mark.lam@apple.com>
+
+        Freezing of Gigacage and JSC Configs should be thread safe.
+        https://bugs.webkit.org/show_bug.cgi?id=211201
+        <rdar://problem/62597619>
+
+        Reviewed by Yusuke Suzuki.
+
+        If a client creates multiple VM instances in different threads concurrently, the
+        following race can occur:
+
+        Config::permanentlyFreeze() contains the following code:
+
+            if (!g_jscConfig.isPermanentlyFrozen)         // Point P1
+                g_jscConfig.isPermanentlyFrozen = true;   // Point P2
+
+        Let's say there are 2 threads T1 and T2.
+
+        1. T1 creates a VM and gets to point P1, and sees that g_jscConfig.isPermanentlyFrozen is not set.
+           T1 is about to execute P2 when it gets pre-empted.
+
+        2. T2 creates a VM and gets to point P1, and sees that g_jscConfig.isPermanentlyFrozen is not set.
+           T2 proceeds to point P2 and sets g_jscConfig.isPermanentlyFrozen to true.
+           T2 goes on to freeze the Config and makes it not writable.
+
+        3. T1 gets to run again, and proceeds to point P2.
+           T1 tries to set g_jscConfig.isPermanentlyFrozen to true.
+           But because the Config has been frozen against writes, the write to
+           g_jscConfig.isPermanentlyFrozen results in a crash.
+
+        This is a classic TOCTOU bug.  The fix is simply to ensure that only one thread
+        can enter Config::permanentlyFreeze() at a time.
+
+        Ditto for Gigacage::permanentlyFreezeGigacageConfig().
+
+        * runtime/JSCConfig.cpp:
+        (JSC::Config::permanentlyFreeze):
+
+2020-04-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSStringJoiner is missing BigInt handling
+        https://bugs.webkit.org/show_bug.cgi?id=211174
+
+        Reviewed by Mark Lam.
+
+        JSStringJoiner missed handling of BigInt (specifically BigInt32) and appending empty string incorrectly.
+        In debug build, assertion hits. We should support BigInt in JSStringJoiner.
+
+        * runtime/JSStringJoiner.h:
+        (JSC::JSStringJoiner::appendWithoutSideEffects):
+
+2020-04-29  Saam Barati  <sbarati@apple.com>
+
+        U_STRING_NOT_TERMINATED_WARNING ICU must be handled when using the output buffer as a C string
+        https://bugs.webkit.org/show_bug.cgi?id=211142
+        <rdar://problem/62530860>
+
+        Reviewed by Darin Adler.
+
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::defaultTimeZone):
+        (JSC::canonicalizeTimeZoneName):
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        (JSC::IntlDateTimeFormat::format):
+        (JSC::IntlDateTimeFormat::formatToParts):
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::format):
+        (JSC::IntlNumberFormat::formatToParts):
+        * runtime/IntlObject.cpp:
+        (JSC::convertICULocaleToBCP47LanguageTag):
+        (JSC::canonicalizeLanguageTag):
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::formatInternal):
+        (JSC::IntlRelativeTimeFormat::formatToParts):
+        * runtime/StringPrototype.cpp:
+        (JSC::toLocaleCase):
+        (JSC::normalize):
+
+2020-04-28  Saam Barati  <sbarati@apple.com>
+
+        Unreviewed. Fix 32-bit build.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createFrom):
+        (JSC::Int32BigIntImpl::digit):
+
+2020-04-28  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r260876 and r260877.
+        https://bugs.webkit.org/show_bug.cgi?id=211165
+
+        Broke build (Requested by yusukesuzuki on #webkit).
+
+        Reverted changesets:
+
+        "Unreviewed, build fix on watchOS"
+        https://bugs.webkit.org/show_bug.cgi?id=210978
+        https://trac.webkit.org/changeset/260876
+
+        "Unreviewed, speculative build fix on watchOS part 2"
+        https://bugs.webkit.org/show_bug.cgi?id=210978
+        https://trac.webkit.org/changeset/260877
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, speculative build fix on watchOS part 2
+        https://bugs.webkit.org/show_bug.cgi?id=210978
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createFrom):
+        (JSC::Int32BigIntImpl::digit):
+        * runtime/JSBigInt.h:
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, build fix on watchOS
+        https://bugs.webkit.org/show_bug.cgi?id=210978
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createFrom):
+        (JSC::Int32BigIntImpl::digit):
+        * runtime/JSBigInt.h:
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt constructor should accept larger integers than safe-integers
+        https://bugs.webkit.org/show_bug.cgi?id=210755
+
+        Reviewed by Darin Adler.
+
+        While our implementation of BigInt constructor only accepts safe integers, it should accept all integers.
+        This patch implements it by creating JSBigInt::createFrom(double). We port double bit processing part from
+        V8 as the same to the other part of JSBigInt.
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::callBigIntConstructor):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::createFrom):
+        * runtime/JSBigInt.h:
+        * runtime/MathCommon.h:
+        (JSC::isInteger):
+        (JSC::isSafeInteger):
+        * runtime/NumberConstructor.cpp:
+        (JSC::numberConstructorFuncIsSafeInteger):
+        * runtime/NumberConstructor.h:
+
+2020-04-28  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Align upon the name isCallable instead of isFunction
+        https://bugs.webkit.org/show_bug.cgi?id=211140
+
+        Reviewed by Darin Adler.
+
+        Follow-up to r260722. Usage is now cleanly separated between isFunction / getCallData,
+        but the name isCallable is still clearer than isFunction so let's flip that after all.
+
+        * API/JSContextRef.cpp:
+        (JSGlobalContextSetUnhandledRejectionCallback):
+        * API/JSObjectRef.cpp:
+        (JSObjectIsFunction):
+        * dfg/DFGOperations.cpp:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreateThis):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreatePromise):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCreateInternalFieldObject):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsObjectOrNull):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsFunction):
+        (JSC::FTL::DFG::LowerDFGToB3::buildTypeOf):
+        (JSC::FTL::DFG::LowerDFGToB3::isCallable):
+        (JSC::FTL::DFG::LowerDFGToB3::isFunction): Deleted.
+        * ftl/FTLOperations.cpp:
+        (JSC::FTL::operationTypeOfObjectAsTypeofType):
+        * jsc.cpp:
+        (functionSetUnhandledRejectionCallback):
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/ExceptionHelpers.cpp:
+        (JSC::errorDescriptionForValue):
+        * runtime/FunctionPrototype.cpp:
+        (JSC::functionProtoFuncToString):
+        * runtime/InternalFunction.cpp:
+        (JSC::getFunctionRealm):
+        * runtime/JSCJSValue.h:
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::isCallable const):
+        (JSC::JSValue::isFunction const): Deleted.
+        * runtime/JSCell.h:
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::isCallable):
+        (JSC::JSCell::isFunction): Deleted.
+        * runtime/JSONObject.cpp:
+        (JSC::Stringifier::appendStringifiedValue):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::toPropertyDescriptor):
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectProtoFuncDefineGetter):
+        (JSC::objectProtoFuncDefineSetter):
+        * runtime/Operations.cpp:
+        (JSC::jsTypeStringForValue):
+        (JSC::jsIsObjectTypeOrNull):
+        * runtime/ProxyObject.cpp:
+        (JSC::ProxyObject::structureForTarget):
+        (JSC::ProxyObject::finishCreation):
+        * runtime/RuntimeType.cpp:
+        (JSC::runtimeTypeForValue):
+        * tools/JSDollarVM.cpp:
+        (JSC::functionCallWithStackSize):
+        (JSC::functionFindTypeForExpression):
+        (JSC::functionReturnTypeFor):
+        (JSC::functionHasBasicBlockExecuted):
+        (JSC::functionBasicBlockExecutionCount):
+        * wasm/WasmInstance.cpp:
+        (JSC::Wasm::Instance::setFunctionWrapper):
+        * wasm/WasmOperations.cpp:
+        (JSC::Wasm::operationIterateResults):
+        (JSC::Wasm::operationWasmRefFunc):
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        (JSC::WebAssemblyModuleRecord::link):
+        * wasm/js/WebAssemblyWrapperFunction.cpp:
+        (JSC::WebAssemblyWrapperFunction::finishCreation):
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] NumberConstructor should accept BigInt
+        https://bugs.webkit.org/show_bug.cgi?id=210835
+
+        Reviewed by Mark Lam.
+
+        This patch fixes our Number constructor behavior to accept BigInt. According to the spec[1],
+        Number constructor should accept BigInt and should generate numbers from that.
+
+        We port V8's BigInt to double conversion code as we did for the other HeapBigInt runtime functions.
+
+        And we introduce CallNumberConstructor DFG node and handle Number constructor call with BigInt correctly
+        in DFG and FTL. Previously we were emitting ToNumber DFG node for Number constructor. But this is wrong
+        now since ToNumber does not accept BigInt and throws an error, and Number constructor should not use
+        ToNumber to implement its implementation. So we should introduce slightly different semantics: CallNumberConstructor
+        as we introduced CallStringConstructor in addition to ToString DFG node. And we add appropriate BigInt32 path
+        to emit efficient CallNumberConstructor machine code.
+
+        [1]: https://tc39.es/ecma262/#sec-number-constructor-number-value
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGBackwardsPropagationPhase.cpp:
+        (JSC::DFG::BackwardsPropagationPhase::propagate):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleConstantInternalFunction):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::fixupToNumberOrToNumericOrCallNumberConstructor):
+        (JSC::DFG::FixupPhase::fixupToNumeric): Deleted.
+        (JSC::DFG::FixupPhase::fixupToNumber): Deleted.
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::hasHeapPrediction):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileToNumeric):
+        (JSC::DFG::SpeculativeJIT::compileCallNumberConstructor):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCallNumberConstructor):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::decideRounding):
+        (JSC::JSBigInt::toNumberHeap):
+        * runtime/JSBigInt.h:
+        * runtime/NumberConstructor.cpp:
+        (JSC::constructNumberConstructor):
+        (JSC::callNumberConstructor):
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Throw OutOfMemoryError instead of RangeError if BigInt is too big
+        https://bugs.webkit.org/show_bug.cgi?id=211111
+
+        Reviewed by Saam Barati.
+
+        Currently, we are throwing a RangeError if we detect that JSBigInt becomes too large. But this is not consistent with our JSString's policy.
+        We should throw OutOfMemoryError in this case. This also makes DFG simple since DFG allows throwing OutOfMemoryError in any places which node
+        is even removed.
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * runtime/ExceptionHelpers.cpp:
+        (JSC::throwOutOfMemoryError):
+        * runtime/ExceptionHelpers.h:
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::tryCreateWithLength):
+        (JSC::JSBigInt::exponentiateHeap):
+        (JSC::JSBigInt::leftShiftByAbsolute):
+        (JSC::JSBigInt::allocateFor):
+
+2020-04-27  Saam Barati  <sbarati@apple.com>
+
+        BigInt math runtime shouldn't convert BigInt32 input operands to a heap cell when doing math
+        https://bugs.webkit.org/show_bug.cgi?id=210978
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch adds support in the runtime for doing alomst all BigInt math
+        operations on the inputs either being Int32, HeapBigInt, or a mixing
+        of both. Before, if we detected a binary operation on an Int32 and a
+        HeapBigInt, this would lead us to convert the Int32 operand into a HeapBigInt.
+        
+        This is especially bad because we'd repeat this for all math ops. For example,
+        if x is a BigInt32, and all rhs are a HeapBigInt, we'd repeatedly convert x
+        to a HeapBigInt for each operation:
+        ```
+        x + y
+        x * y
+        x - y
+        x >> y
+        x << y
+        etc
+        ```
+        
+        To teach the runtime how to operate both over a BigInt32 and a HeapBigInt, I
+        templatized the runtime math operations to work both over BigInt32 and
+        HeapBigInt wrapper classes that expose the same interface.
+        
+        This is a ~28% speedup on microbenchmarks/sunspider-sha1-big-int.js
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compare):
+        * jit/JITOperations.cpp:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/JSBigInt.cpp:
+        (JSC::HeapBigIntImpl::HeapBigIntImpl):
+        (JSC::HeapBigIntImpl::isZero):
+        (JSC::HeapBigIntImpl::sign):
+        (JSC::HeapBigIntImpl::length):
+        (JSC::HeapBigIntImpl::digit):
+        (JSC::HeapBigIntImpl::toHeapBigInt):
+        (JSC::Int32BigIntImpl::Int32BigIntImpl):
+        (JSC::Int32BigIntImpl::isZero):
+        (JSC::Int32BigIntImpl::sign):
+        (JSC::Int32BigIntImpl::length):
+        (JSC::Int32BigIntImpl::digit):
+        (JSC::Int32BigIntImpl::toHeapBigInt):
+        (JSC::JSBigInt::ImplResult::ImplResult):
+        (JSC::tryConvertToBigInt32):
+        (JSC::JSBigInt::inplaceMultiplyAdd):
+        (JSC::JSBigInt::exponentiateImpl):
+        (JSC::JSBigInt::exponentiate):
+        (JSC::JSBigInt::multiplyImpl):
+        (JSC::JSBigInt::multiply):
+        (JSC::JSBigInt::divideImpl):
+        (JSC::JSBigInt::divide):
+        (JSC::JSBigInt::copy):
+        (JSC::JSBigInt::unaryMinusImpl):
+        (JSC::JSBigInt::unaryMinus):
+        (JSC::JSBigInt::remainderImpl):
+        (JSC::JSBigInt::remainder):
+        (JSC::JSBigInt::incImpl):
+        (JSC::JSBigInt::inc):
+        (JSC::JSBigInt::decImpl):
+        (JSC::JSBigInt::dec):
+        (JSC::JSBigInt::addImpl):
+        (JSC::JSBigInt::add):
+        (JSC::JSBigInt::subImpl):
+        (JSC::JSBigInt::sub):
+        (JSC::JSBigInt::bitwiseAndImpl):
+        (JSC::JSBigInt::bitwiseAnd):
+        (JSC::JSBigInt::bitwiseOrImpl):
+        (JSC::JSBigInt::bitwiseOr):
+        (JSC::JSBigInt::bitwiseXorImpl):
+        (JSC::JSBigInt::bitwiseXor):
+        (JSC::JSBigInt::leftShiftImpl):
+        (JSC::JSBigInt::leftShift):
+        (JSC::JSBigInt::leftShiftSlow):
+        (JSC::JSBigInt::signedRightShiftImpl):
+        (JSC::JSBigInt::signedRightShift):
+        (JSC::JSBigInt::bitwiseNotImpl):
+        (JSC::JSBigInt::bitwiseNot):
+        (JSC::JSBigInt::internalMultiplyAdd):
+        (JSC::JSBigInt::multiplyAccumulate):
+        (JSC::JSBigInt::absoluteCompare):
+        (JSC::JSBigInt::compareImpl):
+        (JSC::JSBigInt::compare):
+        (JSC::JSBigInt::absoluteAdd):
+        (JSC::JSBigInt::absoluteSub):
+        (JSC::JSBigInt::absoluteDivWithDigitDivisor):
+        (JSC::JSBigInt::absoluteDivWithBigIntDivisor):
+        (JSC::JSBigInt::absoluteLeftShiftAlwaysCopy):
+        (JSC::JSBigInt::absoluteBitwiseOp):
+        (JSC::JSBigInt::absoluteAnd):
+        (JSC::JSBigInt::absoluteOr):
+        (JSC::JSBigInt::absoluteAndNot):
+        (JSC::JSBigInt::absoluteXor):
+        (JSC::JSBigInt::absoluteAddOne):
+        (JSC::JSBigInt::absoluteSubOne):
+        (JSC::JSBigInt::leftShiftByAbsolute):
+        (JSC::JSBigInt::rightShiftByAbsolute):
+        (JSC::JSBigInt::rightShiftByMaximum):
+        (JSC::JSBigInt::toStringGeneric):
+        (JSC::JSBigInt::toShiftAmount):
+        (JSC::JSBigInt::exponentiateHeap): Deleted.
+        (JSC::JSBigInt::multiplyHeap): Deleted.
+        (JSC::JSBigInt::divideHeap): Deleted.
+        (JSC::JSBigInt::unaryMinusHeap): Deleted.
+        (JSC::JSBigInt::remainderHeap): Deleted.
+        (JSC::JSBigInt::incHeap): Deleted.
+        (JSC::JSBigInt::decHeap): Deleted.
+        (JSC::JSBigInt::addHeap): Deleted.
+        (JSC::JSBigInt::subHeap): Deleted.
+        (JSC::JSBigInt::bitwiseAndHeap): Deleted.
+        (JSC::JSBigInt::bitwiseOrHeap): Deleted.
+        (JSC::JSBigInt::bitwiseXorHeap): Deleted.
+        (JSC::JSBigInt::leftShiftHeap): Deleted.
+        (JSC::JSBigInt::signedRightShiftHeap): Deleted.
+        (JSC::JSBigInt::bitwiseNotHeap): Deleted.
+        (JSC::JSBigInt::compareToInt32): Deleted.
+        * runtime/JSBigInt.h:
+        * runtime/Operations.cpp:
+        (JSC::jsAddSlowCase):
+        * runtime/Operations.h:
+        (JSC::compareBigInt):
+        (JSC::compareBigInt32ToOtherPrimitive):
+        (JSC::arithmeticBinaryOp):
+        (JSC::jsSub):
+        (JSC::jsMul):
+        (JSC::jsDiv):
+        (JSC::jsRemainder):
+        (JSC::jsPow):
+        (JSC::jsInc):
+        (JSC::jsDec):
+        (JSC::jsBitwiseNot):
+        (JSC::shift):
+        (JSC::jsLShift):
+        (JSC::jsRShift):
+        (JSC::bitwiseBinaryOp):
+        (JSC::jsBitwiseAnd):
+        (JSC::jsBitwiseOr):
+        (JSC::jsBitwiseXor):
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] >>> should call ToNumeric
+        https://bugs.webkit.org/show_bug.cgi?id=211065
+
+        Reviewed by Ross Kirsling.
+
+        While BigInt does not support >>> operator, >>> operator should call ToNumeric (in this case, toBigIntOrInt32) for both before throwing an error.
+        We call toBigIntOrInt32 for both operands, and throw an error. And after that, casting int32_t to uint32_t to perform >>> operator. This is correct
+        since the only difference between toUint32 and toInt32 is casting int32_t result to uint32_t.
+
+        * dfg/DFGOperations.cpp:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/Operations.h:
+        (JSC::shift):
+        (JSC::jsURShift):
+
+2020-04-27  Keith Miller  <keith_miller@apple.com>
+
+        OSR Exit compiler should know and print the exiting DFG node's index
+        https://bugs.webkit.org/show_bug.cgi?id=210998
+
+        Reviewed by Mark Lam.
+
+        The only interesting thing here is that we set the node to index 0 if there is no node.
+        AFAICT, we only don't have a node when we are checking arguments.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::OSRExit):
+        (JSC::DFG::operationCompileOSRExit):
+        * dfg/DFGOSRExitBase.h:
+        (JSC::DFG::OSRExitBase::OSRExitBase):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileInvalidationPoint):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckSubClass):
+        (JSC::FTL::DFG::LowerDFGToB3::blessSpeculation):
+        * ftl/FTLOSRExit.cpp:
+        (JSC::FTL::OSRExitDescriptor::emitOSRExit):
+        (JSC::FTL::OSRExitDescriptor::emitOSRExitLater):
+        (JSC::FTL::OSRExitDescriptor::prepareOSRExitHandle):
+        (JSC::FTL::OSRExit::OSRExit):
+        * ftl/FTLOSRExit.h:
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+
+2020-04-27  Saam Barati  <sbarati@apple.com>
+
+        compilePeepHoleBigInt32Branch needs to handle all conditions
+        https://bugs.webkit.org/show_bug.cgi?id=211096
+        <rdar://problem/62469971>
+
+        Reviewed by Yusuke Suzuki.
+
+        We were falling through to the generic path for all conditions which
+        weren't Equal/NotEqual. The generic path does not do speculation, so
+        it was leading to potential miscompiles because we omitted a type check.
+        Defining compilePeepHoleBigInt32Branch for other conditions is trivial,
+        so this patch just implements that.
+
+        This failure is caught by microbenchmarks/sunspider-sha1-big-int.js
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compilePeepHoleBranch):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compilePeepHoleBigInt32Branch):
+
+2020-04-27  Jason Lawrence  <lawrence.j@apple.com>
+
+        Unreviewed, reverting r260772.
+
+        This commit caused tests to start failing internally.
+
+        Reverted changeset:
+
+        "OSR Exit compiler should know and print the exiting DFG
+        node's index"
+        https://bugs.webkit.org/show_bug.cgi?id=210998
+        https://trac.webkit.org/changeset/260772
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add $vm.assertEnabled() to suppress Debug crash expected tests in release+assert build
+        https://bugs.webkit.org/show_bug.cgi?id=211089
+
+        Reviewed by Keith Miller.
+
+        Expose ASSERT_ENABLED condition to the shell to control crash expected tests.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionAssertEnabled):
+        (JSC::JSDollarVM::finishCreation):
+
+2020-04-27  Keith Miller  <keith_miller@apple.com>
+
+        OSR Exit compiler should know and print the exiting DFG node's index
+        https://bugs.webkit.org/show_bug.cgi?id=210998
+
+        Reviewed by Mark Lam.
+
+        The only interesting thing here is that we set the node to index 0 if there is no node.
+        AFAICT, we only don't have a node when we are checking arguments.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::OSRExit):
+        (JSC::DFG::operationCompileOSRExit):
+        * dfg/DFGOSRExitBase.h:
+        (JSC::DFG::OSRExitBase::OSRExitBase):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileInvalidationPoint):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckSubClass):
+        (JSC::FTL::DFG::LowerDFGToB3::blessSpeculation):
+        * ftl/FTLOSRExit.cpp:
+        (JSC::FTL::OSRExitDescriptor::emitOSRExit):
+        (JSC::FTL::OSRExitDescriptor::emitOSRExitLater):
+        (JSC::FTL::OSRExitDescriptor::prepareOSRExitHandle):
+        (JSC::FTL::OSRExit::OSRExit):
+        * ftl/FTLOSRExit.h:
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+
+2020-04-27  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] CallData/ConstructData should include CallType/ConstructType
+        https://bugs.webkit.org/show_bug.cgi?id=211059
+
+        Reviewed by Darin Adler.
+
+        getCallData/getConstructData return a CallType/ConstructType and have a CallData/ConstructData out param,
+        and then *both* of these are passed side-by-side to `call`/`construct`, which all seems a bit silly.
+
+        This patch merges CallType/ConstructType into CallData/ConstructData such that getCallData/getConstructData
+        no longer need an out param and `call`/`construct` require one less overt parameter.
+
+        In so doing, it also:
+        - removes ConstructData entirely as it's an exact duplicate of CallData
+        - renames enum value Host to Native in alignment with CallData's union
+
+        * API/JSCallbackConstructor.cpp:
+        (JSC::JSCallbackConstructor::getConstructData):
+        * API/JSCallbackConstructor.h:
+        * API/JSCallbackObject.h:
+        * API/JSCallbackObjectFunctions.h:
+        (JSC::JSCallbackObject<Parent>::getConstructData):
+        (JSC::JSCallbackObject<Parent>::getCallData):
+        * API/JSObjectRef.cpp:
+        (JSObjectCallAsFunction):
+        (JSObjectCallAsConstructor):
+        * bindings/ScriptFunctionCall.cpp:
+        (Deprecated::ScriptFunctionCall::call):
+        * bindings/ScriptFunctionCall.h:
+        * dfg/DFGOperations.cpp:
+        * inspector/InjectedScriptManager.cpp:
+        (Inspector::InjectedScriptManager::createInjectedScript):
+        * inspector/InspectorEnvironment.h:
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::executeProgram):
+        (JSC::Interpreter::executeCall):
+        (JSC::Interpreter::executeConstruct):
+        * interpreter/Interpreter.h:
+        * jit/JITOperations.cpp:
+        * jsc.cpp:
+        (functionDollarAgentReceiveBroadcast):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::handleHostCall):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::arrayProtoFuncToString):
+        (JSC::arrayProtoFuncToLocaleString):
+        * runtime/CallData.cpp:
+        (JSC::call):
+        (JSC::profiledCall):
+        * runtime/CallData.h:
+        * runtime/ClassInfo.h:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/ConstructData.cpp:
+        (JSC::construct):
+        (JSC::profiledConstruct):
+        * runtime/ConstructData.h:
+        (JSC::construct):
+        (JSC::profiledConstruct):
+        (): Deleted.
+        * runtime/DatePrototype.cpp:
+        (JSC::dateProtoFuncToJSON):
+        * runtime/GetterSetter.cpp:
+        (JSC::callGetter):
+        (JSC::callSetter):
+        * runtime/InternalFunction.cpp:
+        (JSC::InternalFunction::getCallData):
+        (JSC::InternalFunction::getConstructData):
+        * runtime/InternalFunction.h:
+        * runtime/IteratorOperations.cpp:
+        (JSC::iteratorNext):
+        (JSC::iteratorClose):
+        (JSC::hasIteratorMethod):
+        (JSC::iteratorMethod):
+        (JSC::iteratorForIterable):
+        * runtime/JSBoundFunction.cpp:
+        (JSC::boundThisNoArgsFunctionCall):
+        (JSC::boundFunctionCall):
+        (JSC::boundThisNoArgsFunctionConstruct):
+        (JSC::boundFunctionConstruct):
+        * runtime/JSCJSValue.h:
+        * runtime/JSCell.cpp:
+        (JSC::JSCell::getCallData):
+        (JSC::JSCell::getConstructData):
+        * runtime/JSCell.h:
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::isFunction):
+        (JSC::JSCell::isConstructor):
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::getCallData):
+        (JSC::JSFunction::getConstructData):
+        * runtime/JSFunction.h:
+        * runtime/JSInternalPromise.cpp:
+        (JSC::JSInternalPromise::then):
+        * runtime/JSMicrotask.cpp:
+        (JSC::JSMicrotask::run):
+        * runtime/JSModuleLoader.cpp:
+        (JSC::JSModuleLoader::dependencyKeysIfEvaluated):
+        (JSC::JSModuleLoader::provideFetch):
+        (JSC::JSModuleLoader::loadAndEvaluateModule):
+        (JSC::JSModuleLoader::loadModule):
+        (JSC::JSModuleLoader::linkAndEvaluateModule):
+        (JSC::JSModuleLoader::requestImportModule):
+        * runtime/JSONObject.cpp:
+        (JSC::Stringifier::isCallableReplacer const):
+        (JSC::Stringifier::Stringifier):
+        (JSC::Stringifier::toJSON):
+        (JSC::Stringifier::appendStringifiedValue):
+        (JSC::Walker::Walker):
+        (JSC::Walker::callReviver):
+        (JSC::JSONProtoFuncParse):
+        * runtime/JSObject.cpp:
+        (JSC::ordinarySetSlow):
+        (JSC::callToPrimitiveFunction):
+        (JSC::JSObject::hasInstance):
+        (JSC::JSObject::getMethod):
+        * runtime/JSObject.h:
+        * runtime/JSObjectInlines.h:
+        (JSC::getCallData):
+        (JSC::getConstructData):
+        * runtime/JSPromise.cpp:
+        (JSC::JSPromise::createDeferredData):
+        (JSC::JSPromise::resolvedPromise):
+        (JSC::callFunction):
+        * runtime/MapConstructor.cpp:
+        (JSC::constructMap):
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectProtoFuncToLocaleString):
+        * runtime/ProxyObject.cpp:
+        (JSC::performProxyGet):
+        (JSC::ProxyObject::performInternalMethodGetOwnProperty):
+        (JSC::ProxyObject::performHasProperty):
+        (JSC::ProxyObject::performPut):
+        (JSC::performProxyCall):
+        (JSC::ProxyObject::getCallData):
+        (JSC::performProxyConstruct):
+        (JSC::ProxyObject::getConstructData):
+        (JSC::ProxyObject::performDelete):
+        (JSC::ProxyObject::performPreventExtensions):
+        (JSC::ProxyObject::performIsExtensible):
+        (JSC::ProxyObject::performDefineOwnProperty):
+        (JSC::ProxyObject::performGetOwnPropertyNames):
+        (JSC::ProxyObject::performSetPrototype):
+        (JSC::ProxyObject::performGetPrototype):
+        * runtime/ProxyObject.h:
+        * runtime/ReflectObject.cpp:
+        (JSC::reflectObjectConstruct):
+        * runtime/SamplingProfiler.cpp:
+        (JSC::SamplingProfiler::processUnverifiedStackTraces):
+        * runtime/SetConstructor.cpp:
+        (JSC::constructSet):
+        * runtime/StringPrototype.cpp:
+        (JSC::replaceUsingRegExpSearch):
+        (JSC::operationStringProtoFuncReplaceRegExpEmptyStr):
+        (JSC::operationStringProtoFuncReplaceRegExpString):
+        (JSC::replaceUsingStringSearch):
+        * runtime/VM.cpp:
+        (JSC::VM::callPromiseRejectionCallback):
+        * runtime/WeakMapConstructor.cpp:
+        (JSC::constructWeakMap):
+        * runtime/WeakSetConstructor.cpp:
+        (JSC::constructWeakSet):
+        * tools/JSDollarVM.cpp:
+        (JSC::callWithStackSizeProbeFunction):
+        * wasm/js/WebAssemblyModuleRecord.cpp:
+        (JSC::WebAssemblyModuleRecord::evaluate):
+        * wasm/js/WebAssemblyWrapperFunction.cpp:
+        (JSC::callWebAssemblyWrapperFunction):
+
+2020-04-26  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Clearly distinguish isConstructor from getConstructData
+        https://bugs.webkit.org/show_bug.cgi?id=211053
+
+        Reviewed by Sam Weinig.
+
+        Follow-up to r260722. Remove the isConstructor overload that duplicates getConstructData
+        and clearly distinguish the usage of these two functions.
+
+        * runtime/JSCJSValue.h:
+        * runtime/JSCJSValueInlines.h:
+        * runtime/JSCell.h:
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::isConstructor):
+        Remove isConstructor overload.
+
+        * runtime/JSBoundFunction.cpp:
+        (JSC::JSBoundFunction::create):
+        Don't use getConstructData if you don't need ConstructData.
+
+        * runtime/ReflectObject.cpp:
+        (JSC::reflectObjectConstruct):
+        Use getConstructData if you need ConstructData.
+
+        * API/JSObjectRef.cpp:
+        (JSObjectIsFunction):
+        Use isFunction (leftover spot from last patch).
+
+2020-04-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Symbol should have [[Construct]] internal method
+        https://bugs.webkit.org/show_bug.cgi?id=211050
+
+        Reviewed by Yusuke Suzuki.
+
+        This change introduces constructSymbol() method, which unconditionally throws
+        a TypeError, since its presence is observable when, for example, Symbol is a
+        [[ProxyTarget]] itself [1]. Aligns JSC with the spec [2], V8, and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-proxycreate (step 7.b)
+        [2]: https://tc39.es/ecma262/#constructor
+
+        * runtime/SymbolConstructor.cpp:
+        (JSC::SymbolConstructor::SymbolConstructor):
+        (JSC::constructSymbol):
+
+2020-04-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        InternalFunction::createSubclassStructure should use newTarget's globalObject
+        https://bugs.webkit.org/show_bug.cgi?id=202599
+
+        Reviewed by Yusuke Suzuki.
+
+        If "prototype" of NewTarget is not an object, built-in constructors [1] should acquire
+        default [[Prototype]] from realm of NewTarget, utilizing GetFunctionRealm helper [2].
+        Before this change, realm of active constructor was used instead. This patch introduces
+        GetFunctionRealm and aligns all subclassable constructors with the spec, V8, and SpiderMonkey.
+
+        This change inlines fast paths checks of InternalFunction::createSubclassStructure() and
+        simplifies its signature; getFunctionRealm() is invoked in slow paths only.
+
+        While a dynamically created function uses NewTarget's realm for its default [[Prototype]]
+        similar to other built-ins, its "prototype" object inherit from ObjectPrototype
+        of active constructor's realm [3] (just like their scope), making it retain references
+        to 2 different global objects. To accomodate this behavior, this change introduces
+        `scopeGlobalObject` in JSFunction.cpp methods.
+
+        Above-mentioned behavior also simplifies creation of JSGenerator and JSAsyncGenerator
+        instances since NewTarget's realm is irrelevant to them.
+
+        IntlCollatorConstructor::collatorStructure() and 6 similar methods are removed:
+        a) to impose good practice of using newTarget's globalObject;
+        b) with this change, each of them have 1 call site max;
+        c) other JSC constructors have no methods alike.
+
+        [1]: https://tc39.es/ecma262/#sec-map-constructor (step 2)
+        [2]: https://tc39.es/ecma262/#sec-getfunctionrealm
+        [3]: https://tc39.es/ecma262/#sec-createdynamicfunction (steps 23-25)
+
+        * dfg/DFGOperations.cpp:
+        * runtime/AggregateErrorConstructor.cpp:
+        (JSC::callAggregateErrorConstructor):
+        (JSC::constructAggregateErrorConstructor):
+        * runtime/AggregateErrorConstructor.h:
+        * runtime/AsyncFunctionConstructor.cpp:
+        (JSC::constructAsyncFunctionConstructor):
+        * runtime/AsyncGeneratorFunctionConstructor.cpp:
+        (JSC::constructAsyncGeneratorFunctionConstructor):
+        * runtime/BooleanConstructor.cpp:
+        (JSC::constructWithBooleanConstructor):
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        (JSC::createInternalFieldObject):
+        * runtime/DateConstructor.cpp:
+        (JSC::constructDate):
+        * runtime/ErrorConstructor.cpp:
+        (JSC::constructErrorConstructor):
+        * runtime/FunctionConstructor.cpp:
+        (JSC::constructFunctionSkippingEvalEnabledCheck):
+        * runtime/InternalFunction.cpp:
+        (JSC::InternalFunction::createSubclassStructure):
+        (JSC::getFunctionRealm):
+        (JSC::InternalFunction::createSubclassStructureSlow): Deleted.
+        * runtime/InternalFunction.h:
+        (JSC::InternalFunction::createSubclassStructure): Deleted.
+        * runtime/IntlCollatorConstructor.cpp:
+        (JSC::constructIntlCollator):
+        (JSC::callIntlCollator):
+        * runtime/IntlCollatorConstructor.h:
+        * runtime/IntlDateTimeFormatConstructor.cpp:
+        (JSC::constructIntlDateTimeFormat):
+        (JSC::callIntlDateTimeFormat):
+        * runtime/IntlDateTimeFormatConstructor.h:
+        * runtime/IntlNumberFormatConstructor.cpp:
+        (JSC::constructIntlNumberFormat):
+        (JSC::callIntlNumberFormat):
+        * runtime/IntlNumberFormatConstructor.h:
+        * runtime/IntlPluralRulesConstructor.cpp:
+        (JSC::constructIntlPluralRules):
+        * runtime/IntlPluralRulesConstructor.h:
+        * runtime/IntlRelativeTimeFormatConstructor.cpp:
+        (JSC::constructIntlRelativeTimeFormat):
+        * runtime/IntlRelativeTimeFormatConstructor.h:
+        * runtime/JSArrayBufferConstructor.cpp:
+        (JSC::JSGenericArrayBufferConstructor<sharingMode>::constructArrayBuffer):
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::prototypeForConstruction):
+        (JSC::JSFunction::getOwnPropertySlot):
+        * runtime/JSGenericTypedArrayViewConstructorInlines.h:
+        (JSC::constructGenericTypedArrayView):
+        * runtime/JSGlobalObjectInlines.h:
+        (JSC::JSGlobalObject::arrayStructureForIndexingTypeDuringAllocation const):
+        * runtime/MapConstructor.cpp:
+        (JSC::constructMap):
+        * runtime/NativeErrorConstructor.cpp:
+        (JSC::NativeErrorConstructor<errorType>::constructNativeErrorConstructor):
+        (JSC::NativeErrorConstructor<errorType>::callNativeErrorConstructor):
+        * runtime/NativeErrorConstructor.h:
+        * runtime/NumberConstructor.cpp:
+        (JSC::constructNumberConstructor):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::constructObjectWithNewTarget):
+        * runtime/RegExpConstructor.cpp:
+        (JSC::getRegExpStructure):
+        (JSC::constructRegExp):
+        (JSC::esSpecRegExpCreate):
+        * runtime/RegExpConstructor.h:
+        * runtime/SetConstructor.cpp:
+        (JSC::constructSet):
+        * runtime/StringConstructor.cpp:
+        (JSC::constructWithStringConstructor):
+        * runtime/WeakMapConstructor.cpp:
+        (JSC::constructWeakMap):
+        * runtime/WeakObjectRefConstructor.cpp:
+        (JSC::constructWeakRef):
+        * runtime/WeakSetConstructor.cpp:
+        (JSC::constructWeakSet):
+        * wasm/js/WebAssemblyCompileErrorConstructor.cpp:
+        (JSC::constructJSWebAssemblyCompileError):
+        * wasm/js/WebAssemblyInstanceConstructor.cpp:
+        (JSC::constructJSWebAssemblyInstance):
+        * wasm/js/WebAssemblyLinkErrorConstructor.cpp:
+        (JSC::constructJSWebAssemblyLinkError):
+        * wasm/js/WebAssemblyModuleConstructor.cpp:
+        (JSC::WebAssemblyModuleConstructor::createModule):
+        * wasm/js/WebAssemblyRuntimeErrorConstructor.cpp:
+        (JSC::constructJSWebAssemblyRuntimeError):
+
+2020-04-26  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] ValueAdd, VaueSub, ValueMul, Inc, Dec should say SpecBigInt32 prediction based on ArithProfile
+        https://bugs.webkit.org/show_bug.cgi?id=211038
+
+        Reviewed by Filip Pizlo.
+
+        This patch adds profile feedback to ValueAdd, ValueSub, ValueMul, Inc, Dec to say SpecBigInt32 prediction.
+
+        Our HeapBigInt v.s. BigInt32 strategy is simpler than Double v.s. Int32 strategy: we always
+        prefer BigInt32 over HeapBigInt. This is because HeapBigInt calculation and conversion require
+        much higher cost than BigInt32. This tradeoff is largely different from Double v.s. Int32.
+        So keeping HeapBigInt is simply inefficient when we can use BigInt32.
+
+        This means that ArithProfile's feedback is also very simple. If we see HeapBigInt, this means
+        overflow happens. In DFG, we propagate this information to ValueAdd, ValueSub, and ValueMul nodes
+        and record it in DFGNodeFlags. And based on this information, we change the prediction and
+        speculation in prediction propagation and fixup phase.
+
+        We change exit reason from Overflow to BigInt32Overflow since Overflow is solely used for Int32 case,
+        and we have Int52Overflow for Int52 case. We should have BigInt32Overflow for BigInt32 to precisely
+        record and tell about what happens in DFG as a feedback for the next compilation.
+
+        We add BigInt32 speculation for ValueSub. Previously, we missed that in fixup phase and we always
+        speculate ValueSub with AnyBigIntUse or HeapBigIntUse. Now it can use BigInt32Use.
+
+        We also fix Inc / Dec's fixup phase to use BigInt path. Previously, it was always using UntypedUse since
+        `node->child1()->shouldSpeculateUntypedForArithmetic()` returns true for BigInt. We fix the ordering of
+        speculation attempts as it is done in the other places in fixup phase.
+
+        This patch offers 7.9% performance improvement in sunspider-sha1-big-int.
+
+                                               ToT                     Patched
+
+            sunspider-sha1-big-int      134.5668+-2.8695     ^    124.6743+-0.7541        ^ definitely 1.0793x faster
+
+        * bytecode/ExitKind.cpp:
+        (JSC::exitKindToString):
+        * bytecode/ExitKind.h:
+        * bytecode/SpeculatedType.h:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::makeSafe):
+        (JSC::DFG::ByteCodeParser::makeDivSafe):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGGraph.h:
+        (JSC::DFG::Graph::binaryArithShouldSpeculateBigInt32):
+        (JSC::DFG::Graph::unaryArithShouldSpeculateBigInt32):
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::mayHaveBigInt32Result):
+        (JSC::DFG::Node::mayHaveHeapBigIntResult):
+        (JSC::DFG::Node::mayHaveBigIntResult):
+        (JSC::DFG::Node::canSpeculateBigInt32):
+        (JSC::DFG::Node::canSpeculateInt52):
+        * dfg/DFGNodeFlags.cpp:
+        (JSC::DFG::dumpNodeFlags):
+        * dfg/DFGNodeFlags.h:
+        (JSC::DFG::nodeMayHaveHeapBigInt):
+        (JSC::DFG::nodeCanSpeculateBigInt32):
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileValueAdd):
+        (JSC::DFG::SpeculativeJIT::compileValueSub):
+        (JSC::DFG::SpeculativeJIT::compileValueMul):
+        (JSC::DFG::SpeculativeJIT::compileValueDiv):
+        (JSC::DFG::SpeculativeJIT::speculateHeapBigInt):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueAdd):
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueSub):
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueMul):
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueDiv):
+
+2020-04-25  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] isCallable is redundant with isFunction
+        https://bugs.webkit.org/show_bug.cgi?id=211037
+
+        Reviewed by Yusuke Suzuki.
+
+        isCallable is only being used in two places and has the same definition as isFunction (aside from out params).
+        Where CallData is needed, getCallData should be used; where CallData is not needed, isFunction should be used.
+
+        * runtime/JSCJSValue.h:
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::isCallable const): Deleted.
+        * runtime/JSCell.h:
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::isCallable): Deleted.
+        Remove isCallable.
+
+        * runtime/JSONObject.cpp:
+        (JSC::Stringifier::Stringifier):
+        (JSC::Stringifier::toJSON):
+        Use getCallData if you need CallData.
+
+        * runtime/ExceptionHelpers.cpp:
+        (JSC::errorDescriptionForValue):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::toPropertyDescriptor):
+        * runtime/ObjectPrototype.cpp:
+        (JSC::objectProtoFuncDefineGetter):
+        (JSC::objectProtoFuncDefineSetter):
+        Don't use getCallData if you don't need CallData. 
+
+2020-04-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Handle BigInt32 INT32_MIN shift amount
+        https://bugs.webkit.org/show_bug.cgi?id=211030
+
+        Reviewed by Darin Adler.
+
+        Our BigInt shift-operation does not correctly handle INT32_MIN shift amount, and producing a wrong result.
+        This patch fixes it.
+
+        * runtime/Operations.h:
+        (JSC::shift):
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Deal with another round of Xcode upgrade checks
+        https://bugs.webkit.org/show_bug.cgi?id=211027
+
+        Reviewed by Alexey Proskuryakov.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj: Bump the upgrade check version.
+        Add a harmless base localization; this project contains nothing localized.
+
+2020-04-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add fast path for BigInt32 left-shift
+        https://bugs.webkit.org/show_bug.cgi?id=211029
+
+        Reviewed by Saam Barati.
+
+        Currently, the left-shift operation misses the fast path for BigInt32 <> BigInt32 case. This patch adds it. We also fixes
+        prediction-propagation for left/right shift to use existing heap prediction instead of polluting the result with SpecBigInt.
+        This offer 4.5% improvement in microbenchmarks/sunspider-sha1-big-int.js.
+
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * runtime/Operations.h:
+        (JSC::shift):
+
+2020-04-25  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed fix for JSC Debug tests following r210853.
+
+        * runtime/IntlObject.cpp:
+        (JSC::canonicalizeLanguageTag):
+        (JSC::canonicalizeLocaleList):
+        (JSC::defaultLocale):
+        Deal with unchecked exception by moving tryGetUtf8 call out of canonicalizeLanguageTag; it's meant to
+        verify the user input from canonicalizeLocaleList and needn't change the noexcept-ness of defaultLocale.
+
+2020-04-25  Alex Christensen  <achristensen@webkit.org>
+
+        Prepare to remove automatic URL->String conversion operators
+        https://bugs.webkit.org/show_bug.cgi?id=211007
+
+        Reviewed by Darin Adler.
+
+        * API/JSAPIGlobalObject.mm:
+        (JSC::JSAPIGlobalObject::moduleLoaderResolve):
+        (JSC::JSAPIGlobalObject::moduleLoaderImportModule):
+        * API/JSScript.mm:
+        (validateBytecodeCachePath):
+        (+[JSScript scriptOfType:memoryMappedFromASCIIFile:withSourceURL:andBytecodeCache:inVirtualMachine:error:]):
+        * inspector/ScriptDebugServer.cpp:
+        (Inspector::ScriptDebugServer::sourceParsed):
+        * parser/Nodes.h:
+        (JSC::ScopeNode::sourceURL const):
+        * runtime/CachedTypes.cpp:
+        (JSC::CachedSourceProviderShape::encode):
+        * runtime/Error.cpp:
+        (JSC::addErrorInfo):
+        * runtime/ScriptExecutable.h:
+        (JSC::ScriptExecutable::sourceURL const):
+
+2020-04-25  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Locale validation/canonicalization should defer to ICU
+        https://bugs.webkit.org/show_bug.cgi?id=210853
+
+        Reviewed by Darin Adler.
+
+        The mappings for locale canonicalization in latest CLDR are sufficiently complex
+        that it really no longer makes sense not to have ICU do this work for us.
+
+        This means the UTS 35 canonicalization desired by ECMA-402 will not be fully achievable until ICU ~67,
+        but it's better than reaching right into CLDR and pretending that we *are* ICU.
+        (On this point, we thus align with V8 and diverge from SM.)
+
+        Of course, we can still add our own pre-validations / post-canonicalizations if desired.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Scripts/generateIntlCanonicalizeLanguage.py: Removed.
+        * runtime/IntlObject.cpp:
+        (JSC::intlAvailableLocales):
+        (JSC::intlCollatorAvailableLocales):
+        (JSC::canonicalizeLanguageTag):
+        (JSC::canonicalizeLocaleList):
+        (JSC::defaultLocale):
+        (JSC::removeUnicodeLocaleExtension):
+        (JSC::addMissingScriptLocales): Deleted. This one was ostensibly a fix for an old ICU bug.
+        (JSC::privateUseLangTag): Deleted.
+        (JSC::preferredLanguage): Deleted.
+        (JSC::preferredRegion): Deleted.
+        (JSC::canonicalLangTag): Deleted.
+        * ucd/language-subtag-registry.txt: Removed.
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Fix internal build by using strcmp instead of using string literal comparison
+        https://bugs.webkit.org/show_bug.cgi?id=211011
+
+        Reviewed by Keith Miller.
+
+        Use strcmp for string literal comparison to expect that this is fully handled by compiler and converted into constant at compile time.
+
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+
+2020-04-24  Mark Lam  <mark.lam@apple.com>
+
+        Suppress ASan on DFG::clobberize() to work around an ASan bug.
+        https://bugs.webkit.org/show_bug.cgi?id=211012
+        <rdar://problem/62275430>
+
+        Reviewed by Yusuke Suzuki.
+
+        ASan was incorrectly thinking that we're accessing invalid stack memory when we're not.
+
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Fix WASM Error classes and re-sync wpt/wasm/jsapi from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=210980
+
+        Reviewed by Keith Miller.
+
+        assert_throws_js() harness, which is extensively used by wpt/wasm/jsapi tests,
+        was recently updated to assert that passed constructors subclass Error in
+        spec-perfect way.
+
+        With this patch, WebAssembly errors have Error as [[Prototype]] of their constructors
+        and define correct "name" and "message" properties on their prototypes, aligning JSC
+        with the spec [1], V8 and SpiderMonkey.
+
+        [1]: https://webassembly.github.io/spec/js-api/#error-objects
+
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        * wasm/js/WebAssemblyCompileErrorPrototype.cpp:
+        (JSC::WebAssemblyCompileErrorPrototype::finishCreation):
+        * wasm/js/WebAssemblyLinkErrorPrototype.cpp:
+        (JSC::WebAssemblyLinkErrorPrototype::finishCreation):
+        * wasm/js/WebAssemblyRuntimeErrorPrototype.cpp:
+        (JSC::WebAssemblyRuntimeErrorPrototype::finishCreation):
+
+2020-04-24  Saam Barati  <sbarati@apple.com>
+
+        Return BigInt32 whenever we can
+        https://bugs.webkit.org/show_bug.cgi?id=210922
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch makes it so our runtime functions for big int math on heap
+        big ints converts the result to a big int 32 when possible.
+        
+        The inspiration for this patch came from converting SunSpider's sha1 benchmark to
+        using big ints. I found that that original implementation of big int 32
+        was a ~35% slowdown here. This patch speeds it up by 86% from ToT, and
+        36% faster than before big int 32 was introduced.
+        
+        To make this sound in the DFG/FTL, we are currently reporting that all
+        HeapBigInt math ops return SpecBigInt, instead of SpecHeapBigInt.
+        However, we want to do better in a follow up. We need some kind of profiling
+        system where we determine if we should speculate if the result is big int
+        32, a heap big int, or both:
+        https://bugs.webkit.org/show_bug.cgi?id=210982
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileValueBitNot):
+        (JSC::DFG::SpeculativeJIT::compileValueBitwiseOp):
+        (JSC::DFG::SpeculativeJIT::compileValueLShiftOp):
+        (JSC::DFG::SpeculativeJIT::compileValueBitRShift):
+        (JSC::DFG::SpeculativeJIT::compileValueAdd):
+        (JSC::DFG::SpeculativeJIT::compileValueSub):
+        (JSC::DFG::SpeculativeJIT::compileValueMul):
+        (JSC::DFG::SpeculativeJIT::compileValueDiv):
+        (JSC::DFG::SpeculativeJIT::compileValueMod):
+        (JSC::DFG::SpeculativeJIT::compileValuePow):
+        * jit/JITOperations.cpp:
+        * jsc.cpp:
+        (functionCreateBigInt32):
+        * runtime/BigIntConstructor.cpp:
+        (JSC::toBigInt):
+        (JSC::callBigIntConstructor):
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::exponentiateHeap):
+        (JSC::JSBigInt::multiplyHeap):
+        (JSC::JSBigInt::divideHeap):
+        (JSC::JSBigInt::unaryMinusHeap):
+        (JSC::JSBigInt::remainderHeap):
+        (JSC::JSBigInt::incHeap):
+        (JSC::JSBigInt::decHeap):
+        (JSC::JSBigInt::addHeap):
+        (JSC::JSBigInt::subHeap):
+        (JSC::JSBigInt::bitwiseAndHeap):
+        (JSC::JSBigInt::bitwiseOrHeap):
+        (JSC::JSBigInt::bitwiseXorHeap):
+        (JSC::JSBigInt::leftShiftHeap):
+        (JSC::JSBigInt::signedRightShiftHeap):
+        (JSC::JSBigInt::bitwiseNotHeap):
+        (JSC::JSBigInt::absoluteAdd):
+        (JSC::JSBigInt::absoluteSub):
+        (JSC::JSBigInt::parseInt):
+        (JSC::JSBigInt::exponentiate): Deleted.
+        (JSC::JSBigInt::multiply): Deleted.
+        (JSC::JSBigInt::divide): Deleted.
+        (JSC::JSBigInt::unaryMinus): Deleted.
+        (JSC::JSBigInt::remainder): Deleted.
+        (JSC::JSBigInt::inc): Deleted.
+        (JSC::JSBigInt::dec): Deleted.
+        (JSC::JSBigInt::add): Deleted.
+        (JSC::JSBigInt::sub): Deleted.
+        (JSC::JSBigInt::bitwiseAnd): Deleted.
+        (JSC::JSBigInt::bitwiseOr): Deleted.
+        (JSC::JSBigInt::bitwiseXor): Deleted.
+        (JSC::JSBigInt::leftShift): Deleted.
+        (JSC::JSBigInt::signedRightShift): Deleted.
+        (JSC::JSBigInt::bitwiseNot): Deleted.
+        * runtime/JSBigInt.h:
+        * runtime/JSCJSValue.h:
+        (JSC::jsBigInt32):
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::JSValue):
+        * runtime/Operations.cpp:
+        (JSC::jsAddSlowCase):
+        * runtime/Operations.h:
+        (JSC::jsSub):
+        (JSC::jsMul):
+        (JSC::jsDiv):
+        (JSC::jsInc):
+        (JSC::jsDec):
+        (JSC::jsBitwiseNot):
+        (JSC::shift):
+        (JSC::bitwiseBinaryOp):
+
+2020-04-24  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [GTK][WPE][JSCOnly] compile error when -DWTF_CPU_ARM64_CORTEXA53=ON set for arm64
+        https://bugs.webkit.org/show_bug.cgi?id=197192
+
+        Reviewed by Yusuke Suzuki.
+
+        This workaround is supposed to fix WebKit on old Cortex A53 CPUs, but it has been broken
+        since 2018, and people would like to use WebKit on modern Cortex A53. If anyone using WebKit
+        on the original hardware wants to fix and reimplement the workaround, feel free.
+
+        * assembler/ARM64Assembler.h:
+        (JSC::ARM64Assembler::adrp):
+        (JSC::ARM64Assembler::madd):
+        (JSC::ARM64Assembler::msub):
+        (JSC::ARM64Assembler::smaddl):
+        (JSC::ARM64Assembler::smsubl):
+        (JSC::ARM64Assembler::umaddl):
+        (JSC::ARM64Assembler::umsubl):
+        (JSC::ARM64Assembler::nopCortexA53Fix835769): Deleted.
+        (JSC::ARM64Assembler::nopCortexA53Fix843419): Deleted.
+        * offlineasm/arm64.rb:
+        * offlineasm/instructions.rb:
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Fix DataFormatJSBigInt32 missing part
+        https://bugs.webkit.org/show_bug.cgi?id=210986
+
+        Reviewed by Mark Lam.
+
+        Add missing part of DataFormatJSBigInt32 implementation.
+
+        * bytecode/DataFormat.h:
+        (JSC::dataFormatToString):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::checkGeneratedTypeForToInt32):
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, build fix in Windows
+        https://bugs.webkit.org/show_bug.cgi?id=210892
+
+        Windows MSVC does not have proper understanding of IGNORE_RETURN_TYPE_WARNINGS_BEGIN.
+
+        * runtime/JSBigInt.h:
+        (JSC::invertBigIntCompareResult):
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG compare should speculate BigInt well
+        https://bugs.webkit.org/show_bug.cgi?id=210892
+
+        Reviewed by Saam Barati.
+
+        Compare operations in DFG does not support BigInt related speculations. As a result, DFG fixup phase emits DoubleRep for operands, and
+        causes OSR exit. This patch adds BigInt32, HeapBigInt, and AnyBigIntUse support to DFG compare operations to avoid OSR exits.
+        We also introduce JSBigInt::compareToInt32 to avoid allocating JSBigInt only for comparison, and optimize C++ runtime for JSBigInt comparison.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileValueAdd):
+        (JSC::DFG::SpeculativeJIT::compileValueSub):
+        (JSC::DFG::SpeculativeJIT::compileValueMul):
+        (JSC::DFG::SpeculativeJIT::compare):
+        (JSC::DFG::SpeculativeJIT::genericJSValueNonPeepholeCompare):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeCompare): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compileBigInt32Compare):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileCompareEq):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCompareStrictEq):
+        (JSC::FTL::DFG::LowerDFGToB3::compare):
+        (JSC::FTL::DFG::LowerDFGToB3::genericJSValueCompare):
+        (JSC::FTL::DFG::LowerDFGToB3::nonSpeculativeCompare): Deleted.
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::unboxBigInt32):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::compareToInt32):
+        * runtime/JSBigInt.h:
+        (JSC::swapBigIntCompareResult):
+        * runtime/Operations.h:
+        (JSC::compareBigInt):
+        (JSC::compareBigInt32ToOtherPrimitive):
+        (JSC::bigIntCompare):
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Proxy.revocable should not have [[Construct]] slot
+        https://bugs.webkit.org/show_bug.cgi?id=210959
+
+        Reviewed by Darin Adler.
+
+        This change removes proxyRevocableConstructorThrowError() since its presence is
+        observable when, for example, Proxy.revocable is a [[ProxyTarget]] itself [1].
+        Also removes unnecessary newTarget() check in constructProxyObject() and
+        2 extra ArgList instances.
+
+        This patch aligns JSC with the spec [2], V8 and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-proxycreate (step 7.b)
+        [2]: https://tc39.es/ecma262/#sec-ecmascript-standard-built-in-objects
+
+        * runtime/ProxyConstructor.cpp:
+        (JSC::makeRevocableProxy):
+        (JSC::ProxyConstructor::finishCreation):
+        (JSC::constructProxyObject):
+        (JSC::proxyRevocableConstructorThrowError): Deleted.
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG AI for some bitops + BigInt32 should be precise
+        https://bugs.webkit.org/show_bug.cgi?id=210956
+
+        Reviewed by Keith Miller.
+
+        Use SpecBigInt32 for ValueBitXor, ValueBitAnd, and ValueBitOr since they are always producing BigInt32 and they have inlined implementations in DFG / FTL.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+
+2020-04-23  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove revoked Proxy checks from ProxyCreate
+        https://bugs.webkit.org/show_bug.cgi?id=210862
+
+        Reviewed by Ross Kirsling.
+
+        This change removes revoked Proxy checks from ProxyCreate [1], implementing
+        https://github.com/tc39/ecma262/pull/1814 and aligning JSC with SpiderMonkey.
+        Also cleans up ProxyObject creation by using isFunction() instead of
+        isCallable(), which are identical.
+
+        [1]: https://tc39.es/ecma262/#sec-proxycreate (steps 2, 4)
+
+        * runtime/ProxyObject.cpp:
+        (JSC::ProxyObject::structureForTarget):
+        (JSC::ProxyObject::finishCreation):
+
+2020-04-22  Keith Miller  <keith_miller@apple.com>
+
+        Fix OSR exiting/iterator object checks in for-of bytecodes
+        https://bugs.webkit.org/show_bug.cgi?id=210882
+
+        Reviewed by Saam Barati.
+
+        This patch fixes some bugs in the DFGBytecodeParser where we would
+        set the exit origin for the SetLocal following the iterator_open/next
+        first call to the next bytecode. This meant that if out-of-line
+        Symbol.iterator or next functions returned an unexpected non-cell
+        we would OSR past the rest of the next bytecode rather than to the
+        first checkpoint.
+
+        This patch also makes sure we properly throw for non-objects returned
+        from either of the above functions in all tiers (and adds tests).
+
+        Finally, this patch makes a small optimization where we just ArithBitOr the
+        iterator's closed state (index == -1) and index is out of bounds. We can't
+        do a CompareBelow check because the index is effectively an int33_t.
+
+        * bytecode/BytecodeIndex.h:
+        (JSC::BytecodeIndex::withCheckpoint const):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::nextOpcodeIndex const):
+        (JSC::DFG::ByteCodeParser::nextCheckpoint const):
+        (JSC::DFG::ByteCodeParser::progressToNextCheckpoint):
+        (JSC::DFG::ByteCodeParser::handleCall):
+        (JSC::DFG::ByteCodeParser::handleCallVariant):
+        (JSC::DFG::ByteCodeParser::handleInlining):
+        (JSC::DFG::ByteCodeParser::handleGetById):
+        (JSC::DFG::ByteCodeParser::handlePutById):
+        (JSC::DFG::ByteCodeParser::parseGetById):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        (JSC::DFG::ByteCodeParser::handlePutByVal):
+        * jit/JITCall.cpp:
+        (JSC::JIT::emitSlow_op_iterator_open):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        (JSC::LLInt::handleIteratorNextCheckpoint):
+
+2020-04-22  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Build with UChar as char16_t even in builds that use Apple's internal SDK
+        https://bugs.webkit.org/show_bug.cgi?id=210845
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/Base.xcconfig: Move ICU-configuring macros to Platform.h.
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] branchIfBigInt32 can use BigInt32Mask and remove branchIfNumber filter
+        https://bugs.webkit.org/show_bug.cgi?id=210870
+
+        Reviewed by Saam Barati.
+
+        By using BigInt32Mask, we can detect BigInt32 without filtering Numbers. In this patch,
+
+        1. Remove branchIfBigInt32KnownNotNumber and branchIfNotBigInt32KnownNotNumber. And always use branchBigInt32 and branchNotBigInt32 instead.
+        2. Remove branchIfNumber type filtering in DFG.
+        3. Use BigInt32Mask based scheme in FTL.
+        4. Add and64(TrustedImm64, RegisterID) implementations in MacroAssembler.
+        5. Add TagRegistersMode version in branchIfBigInt. We use numberTagRegister to produce really efficient code[1] by avoiding large constant materialization.
+
+        [1]: From
+                mov %rax, %rdx
+                mov $0xfffe000000000012, %r11
+                and %r11, %rdx
+                cmp $0x12, %rdx
+             To
+                lea 0x12(%r14), %rdx
+                and %rax, %rdx
+                cmp $0x12, %rdx
+
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::and64):
+        * assembler/MacroAssemblerX86_64.h:
+        (JSC::MacroAssemblerX86_64::and64):
+        * bytecode/ArithProfile.cpp:
+        (JSC::ArithProfile<BitfieldType>::emitObserveResult):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateBigInt32):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileToNumeric):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCompareStrictEq):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::boolify):
+        (JSC::FTL::DFG::LowerDFGToB3::buildTypeOf):
+        (JSC::FTL::DFG::LowerDFGToB3::lowBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotAnyBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::speculateBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::speculateAnyBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32KnownNotCell): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32KnownNotNumber): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isNotBigInt32KnownNotNumber): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isNotAnyBigIntKnownNotNumber): Deleted.
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::emitConvertValueToBoolean):
+        (JSC::AssemblyHelpers::branchIfValue):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::branchIfBigInt32):
+        (JSC::AssemblyHelpers::branchIfNotBigInt32):
+        (JSC::AssemblyHelpers::emitTypeOf):
+        (JSC::AssemblyHelpers::branchIfBigInt32KnownNotNumber): Deleted.
+        (JSC::AssemblyHelpers::branchIfNotBigInt32KnownNotNumber): Deleted.
+
+2020-04-22  Saam Barati  <sbarati@apple.com>
+
+        BigInt32 parsing should be precise
+        https://bugs.webkit.org/show_bug.cgi?id=210869
+
+        Reviewed by Robin Morisset.
+
+        Our algorithm before was conservative, and might produce a heap big int even
+        if the value could be an int32. This patch makes the algorithm precise on
+        64-bit, always producing a bigint32 if the number is indeed an int32.
+
+        * jsc.cpp:
+        (functionUseBigInt32):
+        (functionIsBigInt32):
+        (functionIsHeapBigInt):
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::parseInt):
+
+2020-04-22  Saam Barati  <sbarati@apple.com>
+
+        Edge use kind asserts are wrong for BigInt32 on ValueBitLShift
+        https://bugs.webkit.org/show_bug.cgi?id=210872
+
+        Reviewed by Yusuke Suzuki, Mark Lam, and Robin Morisset.
+
+        This is already covered by the v8 tests Yusuke checked in.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::emitUntypedOrAnyBigIntBitOp):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueBitLShift):
+        (JSC::FTL::DFG::LowerDFGToB3::emitBinaryBitOpSnippet):
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt inc operation does not produce right HeapBigInt zero
+        https://bugs.webkit.org/show_bug.cgi?id=210860
+
+        Reviewed by Mark Lam.
+
+        JSBigInt::inc can produce signed HeapBigInt zero, which is not meeting the invariant of JSBigInt.
+        This patch fixes it by checking zero status before setting `setSign(true)`.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::inc):
+        * runtime/JSCJSValue.cpp:
+        (JSC::JSValue::dumpInContextAssumingStructure const):
+
+2020-04-22  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Debugger: Step Over should only step through comma expressions if they are comma statements
+        https://bugs.webkit.org/show_bug.cgi?id=210588
+
+        Reviewed by Brian Burg.
+
+        * parser/Nodes.h:
+        (JSC::ExpressionNode::isStatement const): Added.
+        (JSC::ExpressionNode::setIsStatement): Added.
+        * parser/NodeConstructors.h:
+        (JSC::ExprStatementNode::ExprStatementNode):
+        (JSC::DeclarationStatement::DeclarationStatement):
+        (JSC::ReturnNode::ReturnNode):
+        (JSC::ThrowNode::ThrowNode):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::CommaNode::emitBytecode):
+        Only emit `WillExecuteStatement` debug hooks inside `CommaNode` if it's the only child of a
+        statement parent node (e.g. `a(), b(), c()` vs `true && (a(), b(), c()) && true`).
+
+        * parser/Parser.h:
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseReturnStatement):
+        (JSC::Parser<LexerType>::parseThrowStatement):
+        (JSC::Parser<LexerType>::parseExpressionOrLabelStatement):
+        (JSC::Parser<LexerType>::parseExpressionStatement):
+        (JSC::Parser<LexerType>::parseExpression):
+        Only record a pause location for each sub-expression in a comma separated expression if it's
+        the only child of a statement (e.g. `a(), b(), c()` vs `true && (a(), b(), c()) && true`).
+
+2020-04-22  Saam Barati  <sbarati@apple.com>
+
+        ValueBitNot is wrong in FTL with AnyBigIntUse
+        https://bugs.webkit.org/show_bug.cgi?id=210846
+
+        Reviewed by Yusuke Suzuki.
+
+        We forgot to speculate.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueBitNot):
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] AI results of BigInt32 Bitwise shift operation does not match to runtime results
+        https://bugs.webkit.org/show_bug.cgi?id=210839
+
+        Reviewed by Saam Barati.
+
+        While runtime function of bitwise ops with BigInt32 sometimes returns HeapBigInt, DFG AI is setting SpecBigInt32
+        as a result value. This leads to miscompilation particularly in FTL since FTL uses this information to remove
+        a lot of branches.
+
+        And we found that FTL BigInt32 predicate is not correctly checking state. This patch fixes it too.
+
+        Added test case found this (v8-bigint32-sar.js).
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileValueBitRShift):
+        (JSC::FTL::DFG::LowerDFGToB3::compileToNumeric):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCompareStrictEq):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::boolify):
+        (JSC::FTL::DFG::LowerDFGToB3::buildTypeOf):
+        (JSC::FTL::DFG::LowerDFGToB3::lowBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32KnownNotCell):
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32KnownNotNumber):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotBigInt32KnownNotNumber):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotAnyBigIntKnownNotNumber):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotHeapBigIntUnknownWhetherCell):
+        (JSC::FTL::DFG::LowerDFGToB3::speculateBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::speculateAnyBigInt):
+        (JSC::FTL::DFG::LowerDFGToB3::isBigInt32): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isNotBigInt32): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isNotAnyBigInt): Deleted.
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, build fix for watchOS
+        https://bugs.webkit.org/show_bug.cgi?id=210832
+
+        If function is not defined, static declaration should not be declared, otherwise, unused-function-error happens.
+
+        * jsc.cpp:
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewd, speculative Windows build fix part 2
+        https://bugs.webkit.org/show_bug.cgi?id=210834
+
+        * runtime/Options.cpp:
+        (JSC::strncasecmp):
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, fix windows build failure
+        https://bugs.webkit.org/show_bug.cgi?id=210834
+
+        * runtime/Options.cpp:
+        (JSC::strncasecmp):
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq should expect AnyBigIntUse
+        https://bugs.webkit.org/show_bug.cgi?id=210832
+
+        Reviewed by Mark Lam.
+
+        SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq will get AnyBigIntUse now. We should use ManualOperandSpeculation
+        and speculate function to perform speculation check.
+
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeStrictEq):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq):
+        * jsc.cpp:
+        (functionCreateHeapBigInt):
+        (functionCreateBigInt32):
+        * runtime/BigIntConstructor.cpp:
+        (JSC::toBigInt):
+        (JSC::callBigIntConstructor):
+        * runtime/BigIntConstructor.h:
+        * runtime/JSBigInt.h:
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Canonicalize JSBigInt generated by structured-cloning by calling rightTrim
+        https://bugs.webkit.org/show_bug.cgi?id=210816
+
+        Reviewed by Keith Miller and Darin Adler.
+
+        * runtime/JSBigInt.h:
+
+2020-04-21  Peng Liu  <peng.liu6@apple.com>
+
+        Fix MACCATALYST build failures
+        https://bugs.webkit.org/show_bug.cgi?id=210815
+
+        Reviewed by Tim Horton.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-04-21  Keith Miller  <keith_miller@apple.com>
+
+        JSC's options should be case insensitive
+        https://bugs.webkit.org/show_bug.cgi?id=210834
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/Options.cpp:
+        (JSC::Options::setOptionWithoutAlias):
+        (JSC::Options::setAliasedOption):
+        * runtime/OptionsList.h:
+
+2020-04-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        constructObjectFromPropertyDescriptor() is incorrect with partial descriptors
+        https://bugs.webkit.org/show_bug.cgi?id=184629
+
+        Reviewed by Ross Kirsling.
+
+        Before this change, constructObjectFromPropertyDescriptor() serialized a value-only descriptor
+        with nullish m_seenAttributes to {value, writable: false, enumerable: false, configurable: false}
+        instead of just {value}. This was observable when ordinarySetSlow() was called on a Proxy
+        `receiver` with "defineProperty" trap.
+
+        This patch makes constructObjectFromPropertyDescriptor() 1:1 with the spec [2], aligning JSC
+        with V8 and SpiderMonkey, and also cleans up its call sites from handling exceptions and
+        `undefined` value returns.
+
+        [1]: https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor (step 3.d.iv)
+        [2]: https://tc39.es/ecma262/#sec-frompropertydescriptor
+
+        * runtime/ObjectConstructor.cpp:
+        (JSC::objectConstructorGetOwnPropertyDescriptor):
+        (JSC::objectConstructorGetOwnPropertyDescriptors):
+        * runtime/ObjectConstructor.h:
+        (JSC::constructObjectFromPropertyDescriptor):
+        * runtime/ProxyObject.cpp:
+        (JSC::ProxyObject::performDefineOwnProperty):
+
+2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Check Structure attributes in Object.assign exhaustively
+        https://bugs.webkit.org/show_bug.cgi?id=210782
+        <rdar://problem/62065853>
+
+        Reviewed by Mark Lam.
+
+        * runtime/ObjectConstructor.cpp:
+        (JSC::objectConstructorAssign):
+
+2020-04-21  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Non-unified build fixes late February 2020 edition
+        https://bugs.webkit.org/show_bug.cgi?id=210767
+
+        Unreviewed build fix.
+
+        * dfg/DFGValueRepReductionPhase.cpp: Add missing JSCJSValueInlines.h header.
+        * jit/JITCall.cpp: Add missing SlowPathCall.h header.
+        * runtime/AggregateError.cpp: Add missing JSCJSValueInlines.h, JSCellInlines.h, and
+        JSGlobalObjectInlines.h headers.
+        * runtime/AggregateErrorConstructor.cpp: Added missing JSCJSValueInlines.h, JSCellInlines.h,
+        and VMInlines.h headers.
+        * runtime/AggregateErrorPrototype.cpp: Added missing AggregateError.h, IdentifierInlines.h,
+        JSCJSValueInlines.h, JSCellInlines.h, JSGlobalObjectInlines.h, and VMInlines.h headers.
+        * runtime/Intrinsic.h: Added missing wtf/Optional.h header.
+
+2020-04-20  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Classes marked final should not use protected access specifier
+        https://bugs.webkit.org/show_bug.cgi?id=210775
+
+        Reviewed by Daniel Bates.
+
+        * API/JSAPIValueWrapper.h:
+        * API/JSCallbackConstructor.h:
+        * API/JSCallbackObject.h:
+        * b3/B3ExtractValue.h:
+        * bytecode/UnlinkedFunctionExecutable.h:
+        * inspector/JSGlobalObjectConsoleClient.h:
+        * inspector/JSInjectedScriptHost.h:
+        * inspector/JSJavaScriptCallFrame.h:
+        * jsc.cpp:
+        * runtime/AggregateError.h:
+        * runtime/AggregateErrorPrototype.h:
+        * runtime/ArrayConstructor.h:
+        * runtime/ArrayPrototype.h:
+        * runtime/AsyncFunctionPrototype.h:
+        * runtime/AsyncGeneratorFunctionPrototype.h:
+        * runtime/AtomicsObject.h:
+        * runtime/BigIntConstructor.h:
+        * runtime/BigIntObject.h:
+        * runtime/BigIntPrototype.h:
+        * runtime/BooleanConstructor.h:
+        * runtime/BooleanPrototype.h:
+        * runtime/ConsoleObject.h:
+        * runtime/DateConstructor.h:
+        * runtime/DatePrototype.h:
+        * runtime/ErrorConstructor.h:
+        * runtime/ErrorPrototype.h:
+        * runtime/FileBasedFuzzerAgent.h:
+        * runtime/FunctionPrototype.h:
+        * runtime/FunctionRareData.h:
+        * runtime/GeneratorFunctionPrototype.h:
+        * runtime/GenericTypedArrayView.h:
+        * runtime/InspectorInstrumentationObject.h:
+        * runtime/IntlCollator.h:
+        * runtime/IntlCollatorConstructor.h:
+        * runtime/IntlCollatorPrototype.h:
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlDateTimeFormatConstructor.h:
+        * runtime/IntlDateTimeFormatPrototype.h:
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlNumberFormatConstructor.h:
+        * runtime/IntlNumberFormatPrototype.h:
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlPluralRulesConstructor.h:
+        * runtime/IntlPluralRulesPrototype.h:
+        * runtime/IntlRelativeTimeFormatConstructor.h:
+        * runtime/IntlRelativeTimeFormatPrototype.h:
+        * runtime/JSArrayBuffer.h:
+        * runtime/JSArrayBufferConstructor.h:
+        * runtime/JSArrayBufferPrototype.h:
+        * runtime/JSAsyncGenerator.h:
+        * runtime/JSBoundFunction.h:
+        * runtime/JSCustomGetterSetterFunction.h:
+        * runtime/JSDataView.h:
+        * runtime/JSDataViewPrototype.h:
+        * runtime/JSGenerator.h:
+        * runtime/JSGenericTypedArrayView.h:
+        * runtime/JSGenericTypedArrayViewConstructor.h:
+        * runtime/JSGenericTypedArrayViewPrototype.h:
+        * runtime/JSGlobalLexicalEnvironment.h:
+        * runtime/JSModuleLoader.h:
+        * runtime/JSModuleNamespaceObject.h:
+        * runtime/JSNativeStdFunction.h:
+        * runtime/JSONObject.h:
+        * runtime/JSObject.h:
+        * runtime/JSTemplateObjectDescriptor.h:
+        * runtime/JSTypedArrayViewConstructor.h:
+        * runtime/JSTypedArrayViewPrototype.h:
+        * runtime/MathObject.h:
+        * runtime/NativeExecutable.h:
+        * runtime/NumberConstructor.h:
+        * runtime/NumberPrototype.h:
+        * runtime/ObjectConstructor.h:
+        * runtime/ObjectPrototype.h:
+        * runtime/PredictionFileCreatingFuzzerAgent.h:
+        * runtime/ReflectObject.h:
+        * runtime/RegExp.h:
+        * runtime/RegExpConstructor.h:
+        * runtime/RegExpObject.h:
+        * runtime/RegExpPrototype.h:
+        * runtime/StringPrototype.h:
+        * runtime/Structure.h:
+        * runtime/Symbol.h:
+        * runtime/SymbolConstructor.h:
+        * runtime/SymbolObject.h:
+        * runtime/SymbolPrototype.h:
+        * runtime/VMTraps.cpp:
+        * testRegExp.cpp:
+        * wasm/WasmBBQPlan.h:
+        * wasm/WasmLLIntPlan.h:
+        * wasm/WasmWorklist.cpp:
+        * wasm/js/JSWebAssembly.h:
+        * wasm/js/JSWebAssemblyCompileError.h:
+        * wasm/js/JSWebAssemblyInstance.h:
+        * wasm/js/JSWebAssemblyLinkError.h:
+        * wasm/js/JSWebAssemblyRuntimeError.h:
+        * wasm/js/WebAssemblyCompileErrorConstructor.h:
+        * wasm/js/WebAssemblyCompileErrorPrototype.h:
+        * wasm/js/WebAssemblyGlobalConstructor.h:
+        * wasm/js/WebAssemblyGlobalPrototype.h:
+        * wasm/js/WebAssemblyInstanceConstructor.h:
+        * wasm/js/WebAssemblyInstancePrototype.h:
+        * wasm/js/WebAssemblyLinkErrorConstructor.h:
+        * wasm/js/WebAssemblyLinkErrorPrototype.h:
+        * wasm/js/WebAssemblyMemoryConstructor.h:
+        * wasm/js/WebAssemblyMemoryPrototype.h:
+        * wasm/js/WebAssemblyModuleConstructor.h:
+        * wasm/js/WebAssemblyModulePrototype.h:
+        * wasm/js/WebAssemblyRuntimeErrorConstructor.h:
+        * wasm/js/WebAssemblyRuntimeErrorPrototype.h:
+        * wasm/js/WebAssemblyTableConstructor.h:
+        * wasm/js/WebAssemblyTablePrototype.h:
+        * wasm/js/WebAssemblyWrapperFunction.h:
+
+2020-04-20  Peng Liu  <peng.liu6@apple.com>
+
+        Fix build failures when video fullscreen and picture-in-picture is disabled
+        https://bugs.webkit.org/show_bug.cgi?id=210777
+
+        Reviewed by Eric Carlson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-04-20  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Intl classes shouldn't need an m_initialized* field
+        https://bugs.webkit.org/show_bug.cgi?id=210764
+
+        Reviewed by Darin Adler.
+
+        Existing Intl classes each have a field like m_initializedNumberFormat, but this is unnecessary on two levels:
+          1. The thing that gets initialized is a unique pointer to an ICU struct, so we can check it directly.
+          2. Everywhere we're checking this is redundant since we've already done the same check on the prototype side,
+             therefore we can just ASSERT before using said ICU struct.
+
+        While we're at it, clean up other stuff like:
+          - Move stuff that doesn't need to be part of the class to the CPP file (e.g. UFieldPositionIteratorDeleter).
+          - Merge createCollator into initializeCollator (seems like this is probably the oldest code in this space).
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::initializeCollator):
+        (JSC::IntlCollator::compareStrings):
+        (JSC::IntlCollator::resolvedOptions):
+        (JSC::IntlCollator::createCollator): Deleted.
+        * runtime/IntlCollator.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::UFieldPositionIteratorDeleter::operator() const):
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        (JSC::IntlDateTimeFormat::resolvedOptions):
+        (JSC::IntlDateTimeFormat::format):
+        (JSC::partTypeString):
+        (JSC::IntlDateTimeFormat::formatToParts):
+        (JSC::IntlDateTimeFormat::UFieldPositionIteratorDeleter::operator() const): Deleted.
+        (JSC::IntlDateTimeFormat::partTypeString): Deleted.
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::UFieldPositionIteratorDeleter::operator() const):
+        (JSC::IntlNumberFormatField::IntlNumberFormatField):
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        (JSC::IntlNumberFormat::format):
+        (JSC::IntlNumberFormat::resolvedOptions):
+        (JSC::partTypeString):
+        (JSC::IntlNumberFormat::formatToParts):
+        (JSC::IntlNumberFormat::UFieldPositionIteratorDeleter::operator() const): Deleted.
+        (JSC::IntlNumberFormat::partTypeString): Deleted.
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlPluralRules.cpp:
+        (JSC::localeData):
+        (JSC::IntlPluralRules::initializePluralRules):
+        (JSC::IntlPluralRules::resolvedOptions):
+        (JSC::IntlPluralRules::select):
+        (JSC::IntlPRInternal::localeData): Deleted.
+        * runtime/IntlPluralRules.h:
+
+2020-04-20  Keith Miller  <keith_miller@apple.com>
+
+        FTL doesn't observe the use kind of CheckIsConstant's child1
+        https://bugs.webkit.org/show_bug.cgi?id=210763
+
+        Reviewed by Yusuke Suzuki.
+
+        Somehow, this didn't get added when I changed CheckIsConstant and didn't show up
+        when I tested r260377 because I tested in release. Fortunately, the produced
+        DFG IR will be the same.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileCheckIsConstant):
+
+2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Skip test262 for non-safe-integer range BigIntConstructor
+        https://bugs.webkit.org/show_bug.cgi?id=210749
+
+        Reviewed by Keith Miller.
+
+        * runtime/BigIntConstructor.cpp:
+        (JSC::callBigIntConstructor):
+
+2020-04-20  Keith Miller  <keith_miller@apple.com>
+
+        Fix CheckIsConstant for non-constant values and checking for empty
+        https://bugs.webkit.org/show_bug.cgi?id=210752
+
+        Reviewed by Saam Barati.
+
+        We need to make sure that we only have one speculated type if our value
+        is empty.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+
 2020-04-20  Darin Adler  <darin@apple.com>
 
         Use #import instead of #include in Objective-C and don't use #pragma once

@@ -1,3 +1,445 @@
+2020-05-06  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove orphaned WPT expectations & unused harness
+        https://bugs.webkit.org/show_bug.cgi?id=211454
+
+        Reviewed by Darin Adler.
+
+        1. wpt/html/dom/interfaces was renamed to wpt/html/dom/idlharness.
+        2. wpt/dom/nodes/Document-createEvent was superseded by HTTPS version.
+        3. w3c/resources/WebIDLParser.js is unused.
+
+        * resources/WebIDLParser.js: Removed.
+        * web-platform-tests/dom/nodes/Document-createEvent-expected.txt: Removed.
+        * web-platform-tests/html/dom/interfaces-expected.txt: Removed.
+        * web-platform-tests/html/dom/interfaces.worker-expected.txt: Removed.
+        * web-platform-tests/html/dom/interfaces.worker.html: Removed.
+
+2020-04-29  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WebXR] Implement isSessionSupported()
+        https://bugs.webkit.org/show_bug.cgi?id=211187
+
+        Reviewed by Dean Jackson.
+
+        * web-platform-tests/webxr/xrDevice_isSessionSupported_immersive.https-expected.txt: Added.
+        * web-platform-tests/webxr/xrDevice_isSessionSupported_immersive_unsupported.https-expected.txt: Added.
+        * web-platform-tests/webxr/xrDevice_isSessionSupported_inline.https-expected.txt: Added.
+
+2020-05-05  Antoine Quint  <graouts@apple.com>
+
+        Fix animation ordering to make imported/w3c/web-platform-tests/css/css-animations/Element-getAnimations.tentative.html pass
+        https://bugs.webkit.org/show_bug.cgi?id=211468
+        <rdar://problem/62732578>
+
+        Reviewed by David Kilzer.
+
+        Mark the final two failures in imported/w3c/web-platform-tests/css/css-animations/Element-getAnimations.tentative.html as PASS.
+
+        * web-platform-tests/css/css-animations/Element-getAnimations.tentative-expected.txt:
+
+2020-05-05  Rob Buis  <rbuis@igalia.com>
+
+        Fix setting host on URL when no port is specified
+        https://bugs.webkit.org/show_bug.cgi?id=211453
+
+        Reviewed by Darin Adler.
+
+        Update improved test expectations.
+
+        * web-platform-tests/url/url-setters-expected.txt:
+
+2020-05-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Update two svg tests from WPT
+        https://bugs.webkit.org/show_bug.cgi?id=211331
+        <rdar://problem/61844271>
+
+        Unreviewed.
+
+        Apply https://github.com/web-platform-tests/wpt/commit/51151cf5bfc32adb8d96fca51a30c126d1e0200d
+        to our own tree.
+
+        * platform/mac/imported/w3c/web-platform-tests/svg/import/pservers-grad-08-b-manual-expected.txt:
+        * platform/mac/imported/w3c/web-platform-tests/svg/import/text-altglyph-01-b-manual-expected.txt:
+        * web-platform-tests/svg/import/pservers-grad-08-b-manual.svg:
+        * web-platform-tests/svg/import/text-altglyph-01-b-manual.svg:
+
+2020-05-05  Rob Buis  <rbuis@igalia.com>
+
+        A URL cannot have a username/password/port if its host is null
+        https://bugs.webkit.org/show_bug.cgi?id=211358
+
+        Reviewed by Darin Adler.
+
+        Update improved test results.
+
+        * web-platform-tests/url/url-setters-expected.txt:
+
+2020-05-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Object.prototype.toString is not spec-perfect
+        https://bugs.webkit.org/show_bug.cgi?id=199138
+
+        Reviewed by Darin Adler and Keith Miller.
+
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-interface.any-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-interface.any.worker-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-iterator-prototype-object.any-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-iterator-prototype-object.any.worker-expected.txt:
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add @@toStringTag to WebAssembly.Global
+        https://bugs.webkit.org/show_bug.cgi?id=211372
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/wasm/jsapi/global/toString.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/global/toString.any.worker-expected.txt:
+
+2020-05-04  Emilio Cobos Álvarez  <emilio@crisal.io>
+
+        Put lh / rlh units behind a flag until bug 211351 is sorted out.
+        https://bugs.webkit.org/show_bug.cgi?id=211356
+
+        Reviewed by Antti Koivisto.
+
+        * web-platform-tests/css/css-values/lh-rlh-on-root-001.html: Enable the flag in relevant tests.
+        * web-platform-tests/css/css-values/lh-unit-001.html:
+        * web-platform-tests/css/css-values/lh-unit-002.html:
+
+2020-05-03  Rob Buis  <rbuis@igalia.com>
+
+        atob() should not accept a vertical tab
+        https://bugs.webkit.org/show_bug.cgi?id=184529
+
+        Reviewed by Darin Adler.
+
+        Update improved test expectations.
+
+        * web-platform-tests/fetch/data-urls/base64.any-expected.txt:
+        * web-platform-tests/fetch/data-urls/base64.any.worker-expected.txt:
+        * web-platform-tests/fetch/data-urls/resources/base64.json: Add test for unicode whitespace.
+        * web-platform-tests/html/webappapis/atob/base64-expected.txt:
+
+2020-05-02  Devin Rousso  <drousso@apple.com>
+
+        [CSS Easing 1] implement `jump-*` step positions
+        https://bugs.webkit.org/show_bug.cgi?id=211271
+
+        Reviewed by Dean Jackson.
+
+        * web-platform-tests/css/css-animations/parsing/animation-timing-function-computed-expected.txt:
+        * web-platform-tests/css/css-animations/parsing/animation-timing-function-valid-expected.txt:
+        * web-platform-tests/css/css-easing/step-timing-functions-output-expected.txt:
+        * web-platform-tests/css/css-easing/step-timing-functions-syntax-expected.txt:
+        * web-platform-tests/css/css-transitions/parsing/transition-timing-function-computed-expected.txt:
+        * web-platform-tests/css/css-transitions/parsing/transition-timing-function-valid-expected.txt:
+        * web-platform-tests/web-animations/timing-model/time-transformations/transformed-progress-expected.txt:
+
+2020-05-01  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        [WebIDL] Interface prototype objects should define @@toStringTag
+        https://bugs.webkit.org/show_bug.cgi?id=211020
+
+        Reviewed by Darin Adler.
+
+        Adjust tests for `X.prototype.toString()` returning "[object X]"
+        instead of "[object XPrototype]", where X is WebIDL interface.
+
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-interface.any-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-interface.any.worker-expected.txt:
+        * web-platform-tests/WebIDL/ecmascript-binding/class-string-named-properties-object.window-expected.txt:
+        * web-platform-tests/dom/nodes/Document-createEvent.https-expected.txt:
+        * web-platform-tests/html/browsers/the-window-object/window-prototype-chain.html: WPT revision: 50417942bbfe.
+        * web-platform-tests/wasm/jsapi/instance/toString.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/instance/toString.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/toString.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/memory/toString.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/module/toString.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/module/toString.any.worker-expected.txt:
+        * web-platform-tests/wasm/jsapi/table/toString.any-expected.txt:
+        * web-platform-tests/wasm/jsapi/table/toString.any.worker-expected.txt:
+
+2020-04-30  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WebXR] Import latest changes from webxr/resources in tests
+        https://bugs.webkit.org/show_bug.cgi?id=211129
+
+        Reviewed by Žan Doberšek.
+
+        The code in webxr_utils.js had some engine detecting code that was not
+        working, and thus was unconditionally loading Chromium-only resources when
+        running tests with other engines (as WebKit). I fixed it upstream in
+        https://github.com/web-platform-tests/wpt/pull/23200 and now I'm importing it
+        along with a recent fix in webxr_test_constants.js.
+
+        * web-platform-tests/webxr/resources/webxr_test_constants.js: Reverse position.
+        * web-platform-tests/webxr/resources/webxr_util.js:
+        (xr_promise_test): Properly detect browser engines.
+
+2020-04-28  Noam Rosenthal  <noam@webkit.org>
+
+        Implement FCP (first contentful paint)
+        https://bugs.webkit.org/show_bug.cgi?id=208499
+
+        Reviewed by Simon Fraser.
+
+        Imported paint timing tests that don't require first-paint.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/paint-timing: Added.
+        * web-platform-tests/paint-timing/fcp-only: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-background-size-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-background-size.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-bg-image-set-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-bg-image-set.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-bg-image-two-steps-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-bg-image-two-steps.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-canvas-context-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-canvas-context.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-gradient-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-gradient.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-3d-rotate-descendant-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-3d-rotate-descendant.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-3d-rotate-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-3d-rotate.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-scale-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-scale-transition-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-scale-transition.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-scale.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-text-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-invisible-text.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-opacity-descendant-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-opacity-descendant.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-opacity-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-opacity.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-out-of-bounds-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-out-of-bounds-translate-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-out-of-bounds-translate.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-out-of-bounds.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-display-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-display.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-image-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-image.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-opacity-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-opacity.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-text-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-text.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-visibility-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-pseudo-element-visibility.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-svg-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-svg.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-text-input-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-text-input.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-typographic-pseudo-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-typographic-pseudo.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-video-frame-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-video-frame.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-video-poster-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-video-poster.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-whitespace-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-whitespace.html: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-with-rtl-expected.txt: Added.
+        * web-platform-tests/paint-timing/fcp-only/fcp-with-rtl.html: Added.
+        * web-platform-tests/paint-timing/resources: Added.
+        * web-platform-tests/paint-timing/resources/circle.svg: Added.
+        * web-platform-tests/paint-timing/resources/circles.png: Added.
+        * web-platform-tests/paint-timing/resources/subframe-painting.html: Added.
+        * web-platform-tests/paint-timing/resources/subframe-sending-paint.html: Added.
+        * web-platform-tests/paint-timing/resources/utils.js: Added.
+        (waitForAnimationFrames):
+        (async assertNoFirstContentfulPaint):
+        (async assertFirstContentfulPaint.return.new.Promise):
+        (async assertFirstContentfulPaint):
+        (async test_fcp):
+
+2020-04-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        InternalFunction::createSubclassStructure should use newTarget's globalObject
+        https://bugs.webkit.org/show_bug.cgi?id=202599
+
+        Reviewed by Yusuke Suzuki.
+
+        * web-platform-tests/WebIDL/ecmascript-binding/constructors-expected.txt:
+        * web-platform-tests/custom-elements/htmlconstructor/newtarget-expected.txt:
+        * web-platform-tests/wasm/jsapi/proto-from-ctor-realm-expected.txt:
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        Move URL to use StringView when returning substrings of the URL
+        https://bugs.webkit.org/show_bug.cgi?id=210431
+
+        Reviewed by Anders Carlsson.
+
+        * web-platform-tests/url/url-setters-expected.txt: Updated expected results for progression in
+        correct behavior when port numbers are >65535. I didn't originally intend to make this improvement,
+        but it fell out naturally from the refactoring changes.
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Fix WASM Error classes and re-sync wpt/wasm/jsapi from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=210980
+
+        Reviewed by Keith Miller.
+
+        web-platform-tests revision: 028bd8650758
+
+        * web-platform-tests/wasm/jsapi/*: Updated.
+
+2020-04-24  David Kilzer  <ddkilzer@apple.com>
+
+        REGRESSION (r223327): Remove merge conflict file
+
+        * web-platform-tests/webrtc/simplecall.html.orig: Remove.
+
+2020-04-24  Antoine Quint  <graouts@apple.com>
+
+        [Web Animations] Ensure calling Web Animations APIs override future CSS Animations style properties
+        https://bugs.webkit.org/show_bug.cgi?id=210988
+
+        Reviewed by Dean Jackson.
+
+        Mark all WPT tests related to Web Animations APIs overrides for CSS Animations as PASS, save for one
+        failing assertion which is caused by AnimationTimeline::updateCSSAnimations() not updating the animation
+        when the underlying @keyframes rule changed. This is due to Animation::animationsMatch() not checking on
+        the actual keyframes, tracked by webkit.org/b/210989.
+
+        * web-platform-tests/css/css-animations/AnimationEffect-updateTiming.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/CSSAnimation-effect.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/CSSAnimation-pausing.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/KeyframeEffect-setKeyframes.tentative-expected.txt:
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Re-sync wpt/WebIDL/ecmascript-binding and wpt/custom-elements/htmlconstructor from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=210984
+
+        Reviewed by Darin Adler.
+
+        web-platform-tests revision: 39e9c51041a1
+
+        * web-platform-tests/WebIDL/ecmascript-binding/*: Updated.
+        * web-platform-tests/custom-elements/htmlconstructor/*: Updated.
+
+2020-04-24  Antoine Quint  <graouts@apple.com>
+
+        Update the css/css-animations WPT tests
+        https://bugs.webkit.org/show_bug.cgi?id=210964
+
+        Reviewed by Dean Jackson.
+
+        * resources/import-expectations.json:
+        * resources/resource-files.json:
+        * web-platform-tests/css/css-animations/AnimationEffect-updateTiming.tentative-expected.txt: Added.
+        * web-platform-tests/css/css-animations/AnimationEffect-updateTiming.tentative.html: Added.
+        * web-platform-tests/css/css-animations/CSSAnimation-compositeOrder.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/CSSAnimation-compositeOrder.tentative.html:
+        * web-platform-tests/css/css-animations/CSSAnimation-effect.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/CSSAnimation-effect.tentative.html:
+        * web-platform-tests/css/css-animations/CSSAnimation-finished.tentative.html:
+        * web-platform-tests/css/css-animations/CSSAnimation-pausing.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/CSSAnimation-pausing.tentative.html:
+        * web-platform-tests/css/css-animations/CSSAnimation-ready.tentative.html:
+        * web-platform-tests/css/css-animations/Document-getAnimations.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/Document-getAnimations.tentative.html:
+        * web-platform-tests/css/css-animations/KeyframeEffect-getKeyframes.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/KeyframeEffect-getKeyframes.tentative.html:
+        * web-platform-tests/css/css-animations/KeyframeEffect-setKeyframes.tentative-expected.txt: Added.
+        * web-platform-tests/css/css-animations/KeyframeEffect-setKeyframes.tentative.html: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-001-expected.txt: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-001.html: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-002-expected.txt: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-002.html: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-003-expected.txt: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-003.html: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-004-expected.txt: Added.
+        * web-platform-tests/css/css-animations/animation-base-response-004.html: Added.
+        * web-platform-tests/css/css-animations/animation-important-001-expected.txt: Added.
+        * web-platform-tests/css/css-animations/animation-important-001.html: Added.
+        * web-platform-tests/css/css-animations/animation-important-002-expected.html: Added.
+        * web-platform-tests/css/css-animations/animation-important-002.html: Added.
+        * web-platform-tests/css/css-animations/event-dispatch.tentative.html:
+        * web-platform-tests/css/css-animations/event-order.tentative-expected.txt:
+        * web-platform-tests/css/css-animations/event-order.tentative.html:
+        * web-platform-tests/css/css-animations/historical.html:
+        * web-platform-tests/css/css-animations/keyframes-remove-documentElement-crash-expected.txt: Removed.
+        * web-platform-tests/css/css-animations/support/testcommon.js:
+        (assert_frames_equal):
+        (assert_frame_lists_equal):
+        * web-platform-tests/css/css-animations/w3c-import.log:
+
+2020-04-24  Rob Buis  <rbuis@igalia.com>
+
+        Import fetch/stale-while-revalidate/fetch.html
+        https://bugs.webkit.org/show_bug.cgi?id=210905
+
+        Reviewed by Youenn Fablet.
+
+        Import fetch/stale-while-revalidate/fetch.html to try to fix
+        flakiness (see https://bugs.webkit.org/show_bug.cgi?id=207230).
+
+        * web-platform-tests/fetch/stale-while-revalidate/fetch.html:
+
+2020-04-22  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Update dom/events/Event-dispatch-redispatch.html from upstream WPT
+        https://bugs.webkit.org/show_bug.cgi?id=210842
+        <rdar://problem/61948094>
+
+        Reviewed by Jon Lee.
+
+        Pull in https://github.com/web-platform-tests/wpt/commit/e30e282ed7b1fb77f6d953fb05ef74a34985f472
+        to our local repo.
+
+        * web-platform-tests/dom/events/Event-dispatch-redispatch-expected.txt:
+        * web-platform-tests/dom/events/Event-dispatch-redispatch.html:
+
+2020-04-22  Antoine Quint  <graouts@apple.com>
+
+        [Web Animations] Coordinate "update animations and send events" procedure across multiple timelines
+        https://bugs.webkit.org/show_bug.cgi?id=202109
+        <rdar://problem/59470821>
+
+        Reviewed by Dean Jackson.
+
+        Mark a new test as PASS which shows that we correctly perform a single microstask checkpoint when updating multiple timelines.
+
+        * web-platform-tests/web-animations/timing-model/timelines/update-and-send-events-expected.txt:
+
+2020-04-21  Sergio Villar Senin  <svillar@igalia.com>
+
+        Import latest changes from web-platform-test/webxr/resources to enable testing in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=210788
+
+        Reviewed by Žan Doberšek.
+
+        We landed in wpt new code in webxr_utils.js to map internal.xrTest to
+        navigator.xr.test to be able to run WebXR WPT in WebKit. Import those changes
+        from upstream in order to be able to run the tests.
+
+        Apart from that we take the chance to import the latest fixes to the
+        files in resources/ directory.
+
+        * web-platform-tests/webxr/resources/webxr_test_constants.js: Updated.
+        * web-platform-tests/webxr/resources/webxr_test_constants_fake_world.js:
+        (createFakeWorld): Ditto.
+        * web-platform-tests/webxr/resources/webxr_util.js: Map internals.xrTest 
+        to navigator.xr.test for WebKit browsers.
+        (xr_debug): Updated.
+        (async xr_session_promise_test): Ditto.
+        (xr_promise_test): Deleted.
+
+2020-04-15  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WebXR] Update WebXRSession and WebXRSystem interfaces
+        https://bugs.webkit.org/show_bug.cgi?id=210553
+
+        Reviewed by Žan Doberšek.
+
+        * web-platform-tests/webxr/idlharness.https.window-expected.txt: Added.
+
 2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
 
         StructuredClone algorithm should be aware of BigInt

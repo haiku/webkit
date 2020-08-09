@@ -51,10 +51,14 @@
 - (BOOL)_mayContainEditableElementsInRect:(CGRect)rect;
 - (void)_requestTextInputContextsInRect:(CGRect)rect completionHandler:(void (^)(NSArray<_WKTextInputContext *> *))completionHandler;
 - (void)_focusTextInputContext:(_WKTextInputContext *)context placeCaretAt:(CGPoint)point completionHandler:(void (^)(UIResponder<UITextInput> *))completionHandler;
+- (void)_willBeginTextInteractionInTextInputContext:(_WKTextInputContext *)context;
+- (void)_didFinishTextInteractionInTextInputContext:(_WKTextInputContext *)context;
 - (void)_requestDocumentContext:(UIWKDocumentRequest *)request completionHandler:(void (^)(UIWKDocumentContext *))completionHandler;
 - (void)_adjustSelectionWithDelta:(NSRange)deltaRange completionHandler:(void (^)(void))completionHandler;
 
 - (void)setTimePickerValueToHour:(NSInteger)hour minute:(NSInteger)minute;
+- (double)timePickerValueHour;
+- (double)timePickerValueMinute;
 
 - (void)applyAutocorrection:(NSString *)newString toString:(NSString *)oldString withCompletionHandler:(void (^)(void))completionHandler;
 

@@ -113,7 +113,7 @@ void ScrollingTreeFrameScrollingNodeMac::commitStateAfterChildren(const Scrollin
 
 ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
 {
-    if (!canScrollWithWheelEvent(wheelEvent))
+    if (!canHandleWheelEvent(wheelEvent))
         return ScrollingEventResult::DidNotHandleEvent;
 
     bool handled = m_delegate.handleWheelEvent(wheelEvent);
@@ -125,8 +125,6 @@ ScrollingEventResult ScrollingTreeFrameScrollingNodeMac::handleWheelEvent(const 
     if (m_delegate.activeScrollSnapIndexDidChange())
         scrollingTree().setActiveScrollSnapIndices(scrollingNodeID(), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Horizontal), m_delegate.activeScrollSnapIndexForAxis(ScrollEventAxis::Vertical));
 #endif
-    scrollingTree().handleWheelEventPhase(wheelEvent.phase());
-    
     return handled ? ScrollingEventResult::DidHandleEvent : ScrollingEventResult::DidNotHandleEvent;
 }
 
@@ -138,12 +136,12 @@ FloatPoint ScrollingTreeFrameScrollingNodeMac::adjustedScrollPosition(const Floa
 
 void ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged()
 {
-    LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged to " << currentScrollPosition() << " min: " << minimumScrollPosition() << " max: " << maximumScrollPosition() << " sync: " << shouldUpdateScrollLayerPositionSynchronously());
+    LOG_WITH_STREAM(Scrolling, stream << "ScrollingTreeFrameScrollingNodeMac::currentScrollPositionChanged to " << currentScrollPosition() << " min: " << minimumScrollPosition() << " max: " << maximumScrollPosition() << " sync: " << hasSynchronousScrollingReasons());
 
     if (isRootNode())
         updateMainFramePinAndRubberbandState();
 
-    if (shouldUpdateScrollLayerPositionSynchronously())
+    if (hasSynchronousScrollingReasons())
         scrollingTree().scrollingTreeNodeDidScroll(*this, ScrollingLayerPositionAction::Set);
     else
         ScrollingTreeFrameScrollingNode::currentScrollPositionChanged();

@@ -146,10 +146,6 @@
 #include "UserMediaCaptureManager.h"
 #endif
 
-#if PLATFORM(IOS_FAMILY)
-#include "WebSQLiteDatabaseTracker.h"
-#endif
-
 #if ENABLE(SEC_ITEM_SHIM)
 #include "SecItemShim.h"
 #endif
@@ -227,9 +223,6 @@ WebProcess::WebProcess()
     , m_pluginProcessConnectionManager(PluginProcessConnectionManager::create())
 #endif
     , m_nonVisibleProcessCleanupTimer(*this, &WebProcess::nonVisibleProcessCleanupTimerFired)
-#if PLATFORM(IOS_FAMILY)
-    , m_webSQLiteDatabaseTracker([this](bool isHoldingLockedFiles) { parentProcessConnection()->send(Messages::WebProcessProxy::SetIsHoldingLockedFiles(isHoldingLockedFiles), 0); })
-#endif
 {
     // Initialize our platform strategies.
     WebPlatformStrategies::initialize();
@@ -380,8 +373,7 @@ void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters)
         memoryPressureHandler.install();
     }
 
-    for (size_t i = 0, size = parameters.additionalSandboxExtensionHandles.size(); i < size; ++i)
-        SandboxExtension::consumePermanently(parameters.additionalSandboxExtensionHandles[i]);
+    SandboxExtension::consumePermanently(parameters.additionalSandboxExtensionHandles);
 
     if (!parameters.injectedBundlePath.isEmpty())
         m_injectedBundle = InjectedBundle::create(parameters, transformHandlesToObjects(parameters.initializationUserData.object()).get());
@@ -427,9 +419,6 @@ void WebProcess::initializeWebProcess(WebProcessCreationParameters&& parameters)
 
     for (auto& scheme : parameters.urlSchemesRegisteredAsCachePartitioned)
         registerURLSchemeAsCachePartitioned(scheme);
-
-    for (auto& scheme : parameters.urlSchemesServiceWorkersCanHandle)
-        WebCore::LegacySchemeRegistry::registerURLSchemeServiceWorkersCanHandle(scheme);
 
     for (auto& scheme : parameters.urlSchemesRegisteredAsCanDisplayOnlyIfCanRequest)
         registerURLSchemeAsCanDisplayOnlyIfCanRequest(scheme);
@@ -793,7 +782,7 @@ void WebProcess::didReceiveMessage(IPC::Connection& connection, IPC::Decoder& de
     }
 #endif
 
-    LOG_ERROR("Unhandled web process message '%s::%s' (destination: %" PRIu64 " pid: %d)", decoder.messageReceiverName().toString().data(), decoder.messageName().toString().data(), decoder.destinationID(), static_cast<int>(getCurrentProcessID()));
+    LOG_ERROR("Unhandled web process message '%s' (destination: %" PRIu64 " pid: %d)", description(decoder.messageName()), decoder.destinationID(), static_cast<int>(getCurrentProcessID()));
 }
 
 WebFrame* WebProcess::webFrame(FrameIdentifier frameID) const
@@ -1439,7 +1428,6 @@ void WebProcess::prepareToSuspend(bool isSuspensionImminent, CompletionHandler<v
 #endif
 
 #if PLATFORM(IOS_FAMILY)
-    m_webSQLiteDatabaseTracker.setIsSuspended(true);
     SQLiteDatabase::setIsDatabaseOpeningForbidden(true);
     if (DatabaseTracker::isInitialized())
         DatabaseTracker::singleton().closeAllDatabases(CurrentQueryBehavior::Interrupt);
@@ -1518,7 +1506,6 @@ void WebProcess::processDidResume()
     unfreezeAllLayerTrees();
     
 #if PLATFORM(IOS_FAMILY)
-    m_webSQLiteDatabaseTracker.setIsSuspended(false);
     SQLiteDatabase::setIsDatabaseOpeningForbidden(false);
     accessibilityProcessSuspendedNotification(false);
 #endif
@@ -1908,7 +1895,7 @@ bool WebProcess::areAllPagesThrottleable() const
 }
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-void WebProcess::setShouldBlockThirdPartyCookiesForTesting(ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode, CompletionHandler<void()>&& completionHandler)
+void WebProcess::setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode, CompletionHandler<void()>&& completionHandler)
 {
     m_thirdPartyCookieBlockingMode = thirdPartyCookieBlockingMode;
     completionHandler();

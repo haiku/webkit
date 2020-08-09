@@ -72,12 +72,7 @@
 (allow file-read*
     (literal "/dev/autofs_nowait")
     (literal "/dev/random")
-    (literal "/dev/urandom"))
-
-(deny file-read*
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101600
-    (with telemetry-backtrace)
-#endif
+    (literal "/dev/urandom")
     (literal "/private/etc/master.passwd")
     (literal "/private/etc/passwd"))
 
@@ -179,6 +174,7 @@
         "kern.memorystatus_level"
         "kern.osproductversion" ;; <rdar://problem/51756739>
         "kern.ostype"
+        "kern.osversion"
         "kern.safeboot"
         "kern.version"
         "machdep.cpu.brand_string"
@@ -721,13 +717,12 @@
     (global-name "com.apple.windowserver.active"))
 #endif
 
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 101600
 ;; Needed to support encrypted media playback <rdar://problem/40038478>
 (allow mach-lookup
-#if __MAC_OS_X_VERSION_MIN_REQUIRED > 101500
-    (with telemetry-backtrace)
-#endif
     (global-name "com.apple.SecurityServer")
     (global-name "com.apple.ocspd"))
+#endif
 
 (allow file-read* file-write* (subpath "/private/var/db/mds/system")) ;; FIXME: This should be removed when <rdar://problem/9538414> is fixed.
 
@@ -911,6 +906,7 @@
             "com.apple.nesessionmanager"
 #endif
             "com.apple.webinspector"
+            "com.apple.cfprefsd.agent"
             "com.apple.cfprefsd.daemon"
             "com.apple.tccd"
             "com.apple.lsd.mapdb"

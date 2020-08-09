@@ -36,7 +36,6 @@
 namespace WebCore {
 
 class PlatformWheelEvent;
-class ScrollingTree;
 
 class ScrollingTreeLatchingController {
 public:
@@ -44,7 +43,7 @@ public:
 
     void receivedWheelEvent(const PlatformWheelEvent&);
     Optional<ScrollingNodeID> latchedNodeForEvent(const PlatformWheelEvent&) const;
-    void nodeDidHandleEvent(const PlatformWheelEvent&, ScrollingNodeID);
+    void nodeDidHandleEvent(ScrollingNodeID, const PlatformWheelEvent&);
 
     Optional<ScrollingNodeID> latchedNodeID() const;
 
@@ -52,7 +51,6 @@ public:
     void clearLatchedNode();
 
 private:
-
     mutable Lock m_latchedNodeMutex;
     Markable<ScrollingNodeID, IntegralMarkableTraits<ScrollingNodeID, 0>> m_latchedNodeID;
     MonotonicTime m_lastLatchedNodeInterationTime;

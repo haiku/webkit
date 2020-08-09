@@ -514,8 +514,8 @@ FloatRect RenderLayerCompositor::visibleRectForLayerFlushing() const
     // Having a m_scrolledContentsLayer indicates that we're doing scrolling via GraphicsLayers.
     FloatRect visibleRect = m_scrolledContentsLayer ? FloatRect({ }, frameView.sizeForVisibleContent()) : frameView.visibleContentRect();
 
-    if (frameView.viewExposedRect())
-        visibleRect.intersect(frameView.viewExposedRect().value());
+    if (auto exposedRect = frameView.viewExposedRect())
+        visibleRect.intersect(*exposedRect);
 
     return visibleRect;
 #endif
@@ -536,7 +536,7 @@ void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
     }
 
     auto& frameView = m_renderView.frameView();
-    AnimationUpdateBlock animationUpdateBlock(&frameView.frame().animation());
+    AnimationUpdateBlock animationUpdateBlock(&frameView.frame().legacyAnimation());
 
     ASSERT(!m_flushingLayers);
     {
@@ -776,7 +776,7 @@ bool RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
 
     ++m_compositingUpdateCount;
 
-    AnimationUpdateBlock animationUpdateBlock(&m_renderView.frameView().frame().animation());
+    AnimationUpdateBlock animationUpdateBlock(&m_renderView.frameView().frame().legacyAnimation());
 
     SetForScope<bool> postLayoutChange(m_inPostLayoutUpdate, true);
 
@@ -2823,6 +2823,14 @@ ScrollingNodeID RenderLayerCompositor::asyncScrollableContainerNodeID(const Rend
     return containerScrollingNodeID;
 }
 
+bool RenderLayerCompositor::isCompositedSubframeRenderer(const RenderObject& renderer)
+{
+    if (!is<RenderWidget>(renderer))
+        return false;
+
+    return downcast<RenderWidget>(renderer).requiresAcceleratedCompositing();
+}
+
 // Return true if the given layer is a stacking context and has compositing child
 // layers that it needs to clip. In this case we insert a clipping GraphicsLayer
 // into the hierarchy between this layer and its children in the z-order hierarchy.
@@ -2851,7 +2859,7 @@ bool RenderLayerCompositor::requiresCompositingForAnimation(RenderLayerModelObje
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
         return false;
 
-    auto& animController = renderer.animation();
+    auto& animController = renderer.legacyAnimation();
     return (animController.isRunningAnimationOnRenderer(renderer, CSSPropertyOpacity)
         && (usesCompositing() || (m_compositingTriggers & ChromeClient::AnimatedOpacityTrigger)))
         || animController.isRunningAnimationOnRenderer(renderer, CSSPropertyFilter)
@@ -3401,7 +3409,7 @@ bool RenderLayerCompositor::isRunningTransformAnimation(RenderLayerModelObject& 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
         return false;
 
-    return renderer.animation().isRunningAnimationOnRenderer(renderer, CSSPropertyTransform);
+    return renderer.legacyAnimation().isRunningAnimationOnRenderer(renderer, CSSPropertyTransform);
 }
 
 // If an element has composited negative z-index children, those children render in front of the
@@ -4761,10 +4769,13 @@ void RenderLayerCompositor::updateSynchronousScrollingNodes()
     clearSynchronousReasonsOnNodes();
 }
 
-ScrollableArea* RenderLayerCompositor::scrollableAreaForScrollLayerID(ScrollingNodeID nodeID) const
+ScrollableArea* RenderLayerCompositor::scrollableAreaForScrollingNodeID(ScrollingNodeID nodeID) const
 {
     if (!nodeID)
         return nullptr;
+
+    if (nodeID == m_renderView.frameView().scrollingNodeID())
+        return &m_renderView.frameView();
 
     return m_scrollingNodeToLayerMap.get(nodeID).get();
 }
@@ -4815,7 +4826,6 @@ GraphicsLayerFactory* RenderLayerCompositor::graphicsLayerFactory() const
     return page().chrome().client().graphicsLayerFactory();
 }
 
-#if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
 RefPtr<DisplayRefreshMonitor> RenderLayerCompositor::createDisplayRefreshMonitor(PlatformDisplayID displayID) const
 {
     if (auto monitor = page().chrome().client().createDisplayRefreshMonitor(displayID))
@@ -4823,7 +4833,6 @@ RefPtr<DisplayRefreshMonitor> RenderLayerCompositor::createDisplayRefreshMonitor
 
     return DisplayRefreshMonitor::createDefaultDisplayRefreshMonitor(displayID);
 }
-#endif
 
 #if ENABLE(CSS_SCROLL_SNAP)
 void RenderLayerCompositor::updateScrollSnapPropertiesWithFrameView(const FrameView& frameView) const

@@ -27,6 +27,7 @@
 
 #include "ArgumentCoder.h"
 #include "Attachment.h"
+#include "MessageNames.h"
 #include "StringReference.h"
 #include <wtf/EnumTraits.h>
 #include <wtf/Vector.h>
@@ -35,15 +36,16 @@ namespace IPC {
 
 class DataReference;
 enum class ShouldDispatchWhenWaitingForSyncReply;
+enum class MessageName : uint16_t;
 
 class Encoder final {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    Encoder(StringReference messageReceiverName, StringReference messageName, uint64_t destinationID);
+    Encoder(MessageName, uint64_t destinationID);
     ~Encoder();
 
-    StringReference messageReceiverName() const { return m_messageReceiverName; }
-    StringReference messageName() const { return m_messageName; }
+    ReceiverName messageReceiverName() const { return receiverName(m_messageName); }
+    MessageName messageName() const { return m_messageName; }
     uint64_t destinationID() const { return m_destinationID; }
 
     void setIsSyncMessage(bool);
@@ -89,13 +91,14 @@ public:
 
     void addAttachment(Attachment&&);
     Vector<Attachment> releaseAttachments();
-    void reserve(size_t);
 
     static const bool isIPCEncoder = true;
 
     void encode(uint64_t);
 
 private:
+    void reserve(size_t);
+
     uint8_t* grow(unsigned alignment, size_t);
 
     void encode(bool);
@@ -111,14 +114,13 @@ private:
     template<typename E>
     auto encode(E value) -> std::enable_if_t<std::is_enum<E>::value>
     {
-        ASSERT(isValidEnum<E>(static_cast<typename std::underlying_type<E>::type>(value)));
+        ASSERT(WTF::isValidEnum<E>(static_cast<typename std::underlying_type<E>::type>(value)));
         encode(static_cast<typename std::underlying_type<E>::type>(value));
     }
 
     void encodeHeader();
 
-    StringReference m_messageReceiverName;
-    StringReference m_messageName;
+    MessageName m_messageName;
     uint64_t m_destinationID;
 
     uint8_t m_inlineBuffer[512];

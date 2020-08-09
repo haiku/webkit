@@ -27,6 +27,7 @@
 
 #include "AffineTransform.h"
 #include "Region.h"
+#include "RenderStyleConstants.h"
 #include "TouchAction.h"
 #include <wtf/OptionSet.h>
 #include <wtf/Vector.h>
@@ -46,7 +47,7 @@ public:
     void pushClip(const IntRect&);
     void popClip();
 
-    void unite(const Region&, const RenderStyle&);
+    void unite(const Region&, const RenderStyle&, bool overrideUserModifyIsEditable = false);
     bool contains(const IntRect&) const;
 
 private:
@@ -65,8 +66,8 @@ public:
 
     WEBCORE_EXPORT bool operator==(const EventRegion&) const;
 
-    WEBCORE_EXPORT void unite(const Region&, const RenderStyle&);
-    WEBCORE_EXPORT void translate(const IntSize&);
+    void unite(const Region&, const RenderStyle&, bool overrideUserModifyIsEditable = false);
+    void translate(const IntSize&);
 
     bool contains(const IntPoint& point) const { return m_region.contains(point); }
     bool contains(const IntRect& rect) const { return m_region.contains(rect); }
@@ -76,7 +77,6 @@ public:
 
     bool hasTouchActions() const { return !m_touchActionRegions.isEmpty(); }
     WEBCORE_EXPORT OptionSet<TouchAction> touchActionsForPoint(const IntPoint&) const;
-
     const Region* regionForTouchAction(TouchAction) const;
 
 #if ENABLE(EDITABLE_REGION)
@@ -93,9 +93,12 @@ public:
 
 private:
     void uniteTouchActions(const Region&, OptionSet<TouchAction>);
+    void uniteEventListeners(const Region&, OptionSet<EventListenerRegionType>);
 
     Region m_region;
     Vector<Region> m_touchActionRegions;
+    Region m_wheelEventListenerRegion;
+    Region m_nonPassiveWheelEventListenerRegion;
 #if ENABLE(EDITABLE_REGION)
     Region m_editableRegion;
 #endif

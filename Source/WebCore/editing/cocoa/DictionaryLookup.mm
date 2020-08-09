@@ -36,7 +36,6 @@
 #import "Frame.h"
 #import "FrameSelection.h"
 #import "GraphicsContextCG.h"
-#import "HTMLConverter.h"
 #import "HitTestResult.h"
 #import "NotImplemented.h"
 #import "Page.h"
@@ -266,9 +265,6 @@ std::tuple<RefPtr<Range>, NSDictionary *> DictionaryLookup::rangeForSelection(co
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
     if (!RevealLibrary() || !RevealCoreLibrary() || !getRVItemClass())
-        return { nullptr, nil };
-
-    if (!selection.toNormalizedRange())
         return { nullptr, nil };
 
     // Since we already have the range we want, we just need to grab the returned options.

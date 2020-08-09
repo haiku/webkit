@@ -38,7 +38,6 @@
 #import "Editing.h"
 #import "EditorClient.h"
 #import "Frame.h"
-#import "HTMLConverter.h"
 #import "HTMLInputElement.h"
 #import "HTMLNames.h"
 #import "HTMLParserIdioms.h"
@@ -83,7 +82,7 @@ void Editor::setTextAlignmentForChangedBaseWritingDirection(WritingDirection dir
     // If the text has left or right alignment, flip left->right and right->left. 
     // Otherwise, do nothing.
 
-    auto selectionStyle = EditingStyle::styleAtSelectionStart(m_frame.selection().selection());
+    auto selectionStyle = EditingStyle::styleAtSelectionStart(m_document.selection().selection());
     if (!selectionStyle || !selectionStyle->style())
          return;
 
@@ -127,14 +126,14 @@ void Editor::setTextAlignmentForChangedBaseWritingDirection(WritingDirection dir
     if (!newValue)
         return;
 
-    Element* focusedElement = m_frame.document()->focusedElement();
+    Element* focusedElement = m_document.focusedElement();
     if (focusedElement && (is<HTMLTextAreaElement>(*focusedElement) || (is<HTMLInputElement>(*focusedElement)
         && (downcast<HTMLInputElement>(*focusedElement).isTextField()
             || downcast<HTMLInputElement>(*focusedElement).isSearchField())))) {
         if (direction == WritingDirection::Natural)
             return;
         downcast<HTMLElement>(*focusedElement).setAttributeWithoutSynchronization(alignAttr, newValue);
-        m_frame.document()->updateStyleIfNeeded();
+        m_document.updateStyleIfNeeded();
         return;
     }
 
@@ -147,7 +146,7 @@ void Editor::removeUnchangeableStyles()
 {
     // This function removes styles that the user cannot modify by applying their default values.
     
-    auto editingStyle = EditingStyle::create(m_frame.document()->bodyOrFrameset());
+    auto editingStyle = EditingStyle::create(m_document.bodyOrFrameset());
     auto defaultStyle = editingStyle->style()->mutableCopy();
     
     // Text widgets implement background color via the UIView property. Their body element will not have one.
@@ -202,7 +201,7 @@ void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElemen
         pasteboardImage.url.url = pasteboardImageURL;
         pasteboardImage.url.title = title;
     }
-    pasteboardImage.suggestedName = imageSourceURL.lastPathComponent();
+    pasteboardImage.suggestedName = imageSourceURL.lastPathComponent().toString();
     pasteboardImage.imageSize = image->size();
     pasteboardImage.resourceMIMEType = pasteboard.resourceMIMEType(cachedImage->response().mimeType());
     pasteboardImage.resourceData = cachedImage->resourceBuffer();
@@ -219,7 +218,7 @@ void Editor::pasteWithPasteboard(Pasteboard* pasteboard, OptionSet<PasteOption> 
 {
     RefPtr<Range> range = selectedRange();
     bool allowPlainText = options.contains(PasteOption::AllowPlainText);
-    WebContentReader reader(m_frame, *range, allowPlainText);
+    WebContentReader reader(*m_document.frame(), *range, allowPlainText);
     int numberOfPasteboardItems = client()->getPasteboardItemsCount();
     for (int i = 0; i < numberOfPasteboardItems; ++i) {
         RefPtr<DocumentFragment> fragment = client()->documentFragmentFromDelegate(i);
@@ -243,7 +242,7 @@ void Editor::pasteWithPasteboard(Pasteboard* pasteboard, OptionSet<PasteOption> 
 
 void Editor::insertDictationPhrases(Vector<Vector<String>>&& dictationPhrases, id metadata)
 {
-    if (m_frame.selection().isNone())
+    if (m_document.selection().isNone())
         return;
 
     if (dictationPhrases.isEmpty())
@@ -261,7 +260,7 @@ void Editor::setDictationPhrasesAsChildOfElement(const Vector<Vector<String>>& d
     // Some day we could make them Undoable, and let callers clear the Undo stack explicitly if they wish.
     clearUndoRedoOperations();
 
-    m_frame.selection().clear();
+    m_document.selection().clear();
 
     element.removeChildren();
 
@@ -339,7 +338,7 @@ void Editor::setTextAsChildOfElement(const String& text, Element& element)
 
     // As a side effect this function sets a caret selection after the inserted content. Much of what
     // follows is more expensive if there is a selection, so clear it since it's going to change anyway.
-    m_frame.selection().clear();
+    m_document.selection().clear();
 
     // clear out all current children of element
     element.removeChildren();
@@ -380,7 +379,7 @@ void Editor::setTextAsChildOfElement(const String& text, Element& element)
     selection.setBase(visiblePos);
     selection.setExtent(visiblePos);
 
-    m_frame.selection().setSelection(selection);
+    m_document.selection().setSelection(selection);
 
     client()->respondToChangedContents();
 }
@@ -389,7 +388,7 @@ void Editor::setTextAsChildOfElement(const String& text, Element& element)
 // have a stale selection.
 void Editor::ensureLastEditCommandHasCurrentSelectionIfOpenForMoreTyping()
 {
-    TypingCommand::ensureLastEditCommandHasCurrentSelectionIfOpenForMoreTyping(&m_frame, m_frame.selection().selection());
+    TypingCommand::ensureLastEditCommandHasCurrentSelectionIfOpenForMoreTyping(m_document, m_document.selection().selection());
 }
 
 } // namespace WebCore

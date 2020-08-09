@@ -151,9 +151,6 @@ NetworkProcess::NetworkProcess(AuxiliaryProcessInitializationParameters&& parame
 #if ENABLE(CONTENT_EXTENSIONS)
     , m_networkContentRuleListManager(*this)
 #endif
-#if PLATFORM(IOS_FAMILY)
-    , m_webSQLiteDatabaseTracker([this](bool isHoldingLockedFiles) { parentProcessConnection()->send(Messages::NetworkProcessProxy::SetIsHoldingLockedFiles(isHoldingLockedFiles), 0); })
-#endif
     , m_messagePortChannelRegistry(createMessagePortChannelRegistry(*this))
 {
     NetworkProcessPlatformStrategies::initialize();
@@ -217,7 +214,7 @@ void NetworkProcess::didReceiveMessage(IPC::Connection& connection, IPC::Decoder
 {
     ASSERT(parentProcessConnection() == &connection);
     if (parentProcessConnection() != &connection) {
-        WTFLogAlways("Ignored message '%s:%s' because it did not come from the UIProcess (destination: %" PRIu64 ")", decoder.messageReceiverName().toString().data(), decoder.messageName().toString().data(), decoder.destinationID());
+        WTFLogAlways("Ignored message '%s' because it did not come from the UIProcess (destination: %" PRIu64 ")", description(decoder.messageName()), decoder.destinationID());
         ASSERT_NOT_REACHED();
         return;
     }
@@ -244,7 +241,7 @@ void NetworkProcess::didReceiveSyncMessage(IPC::Connection& connection, IPC::Dec
 {
     ASSERT(parentProcessConnection() == &connection);
     if (parentProcessConnection() != &connection) {
-        WTFLogAlways("Ignored message '%s:%s' because it did not come from the UIProcess (destination: %" PRIu64 ")", decoder.messageReceiverName().toString().data(), decoder.messageName().toString().data(), decoder.destinationID());
+        WTFLogAlways("Ignored message '%s' because it did not come from the UIProcess (destination: %" PRIu64 ")", description(decoder.messageName()), decoder.destinationID());
         ASSERT_NOT_REACHED();
         return;
     }
@@ -259,10 +256,18 @@ void NetworkProcess::didClose(IPC::Connection&)
 {
     ASSERT(RunLoop::isMain());
 
-    // Make sure we flush all cookies to disk before exiting.
-    platformSyncAllCookies([this] {
+    auto callbackAggregator = CallbackAggregator::create([this] {
+        ASSERT(RunLoop::isMain());
         stopRunLoop();
     });
+
+    // Make sure we flush all cookies and resource load statistics to disk before exiting.
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
+    forEachNetworkSession([&] (auto& networkSession) {
+        networkSession.destroyResourceLoadStatistics([callbackAggregator = callbackAggregator.copyRef()] { });
+    });
+#endif
+    platformSyncAllCookies([callbackAggregator = callbackAggregator.copyRef()] { });
 }
 
 void NetworkProcess::didCreateDownload()
@@ -330,7 +335,7 @@ void NetworkProcess::initializeNetworkProcess(NetworkProcessCreationParameters&&
     m_isITPDatabaseEnabled = parameters.shouldEnableITPDatabase;
 #endif
 
-    WebCore::RuntimeEnabledFeatures::sharedFeatures().setAdClickAttributionDebugModeEnabled(parameters.enableAdClickAttributionDebugMode);
+    setAdClickAttributionDebugMode(parameters.enableAdClickAttributionDebugMode);
 
     SandboxExtension::consumePermanently(parameters.defaultDataStoreParameters.networkSessionParameters.resourceLoadStatisticsParameters.directoryExtensionHandle);
 
@@ -820,6 +825,19 @@ void NetworkProcess::scheduleStatisticsAndDataRecordsProcessing(PAL::SessionID s
     }
 }
 
+void NetworkProcess::statisticsDatabaseHasAllTables(PAL::SessionID sessionID, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID)) {
+        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
+            resourceLoadStatistics->statisticsDatabaseHasAllTables(WTFMove(completionHandler));
+        else
+            completionHandler(false);
+    } else {
+        ASSERT_NOT_REACHED();
+        completionHandler(false);
+    }
+}
+
 void NetworkProcess::setNotifyPagesWhenDataRecordsWereScanned(PAL::SessionID sessionID, bool value, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID)) {
@@ -987,6 +1005,19 @@ void NetworkProcess::setLastSeen(PAL::SessionID sessionID, const RegistrableDoma
     } else {
         ASSERT_NOT_REACHED();
         completionHandler();
+    }
+}
+
+void NetworkProcess::domainIDExistsInDatabase(PAL::SessionID sessionID, int domainID, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID)) {
+        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
+            resourceLoadStatistics->domainIDExistsInDatabase(domainID, WTFMove(completionHandler));
+        else
+            completionHandler(false);
+    } else {
+        ASSERT_NOT_REACHED();
+        completionHandler(false);
     }
 }
 
@@ -1276,6 +1307,18 @@ void NetworkProcess::hasIsolatedSession(PAL::SessionID sessionID, const WebCore:
     completionHandler(result);
 }
 
+void NetworkProcess::setAppBoundDomainsForResourceLoadStatistics(PAL::SessionID sessionID, HashSet<WebCore::RegistrableDomain>&& appBoundDomains, CompletionHandler<void()>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID)) {
+        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics()) {
+            resourceLoadStatistics->setAppBoundDomains(WTFMove(appBoundDomains), WTFMove(completionHandler));
+            return;
+        }
+    }
+    ASSERT_NOT_REACHED();
+    completionHandler();
+}
+
 void NetworkProcess::setShouldDowngradeReferrerForTesting(bool enabled, CompletionHandler<void()>&& completionHandler)
 {
     forEachNetworkSession([enabled](auto& networkSession) {
@@ -1284,7 +1327,7 @@ void NetworkProcess::setShouldDowngradeReferrerForTesting(bool enabled, Completi
     completionHandler();
 }
 
-void NetworkProcess::setShouldBlockThirdPartyCookiesForTesting(PAL::SessionID sessionID, WebCore::ThirdPartyCookieBlockingMode blockingMode, CompletionHandler<void()>&& completionHandler)
+void NetworkProcess::setThirdPartyCookieBlockingMode(PAL::SessionID sessionID, WebCore::ThirdPartyCookieBlockingMode blockingMode, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID))
         networkSession->setThirdPartyCookieBlockingMode(blockingMode);
@@ -1325,6 +1368,21 @@ void NetworkProcess::setToSameSiteStrictCookiesForTesting(PAL::SessionID session
     }
 }
 #endif // ENABLE(RESOURCE_LOAD_STATISTICS)
+
+void NetworkProcess::setAdClickAttributionDebugMode(bool debugMode)
+{
+    if (RuntimeEnabledFeatures::sharedFeatures().adClickAttributionDebugModeEnabled() == debugMode)
+        return;
+
+    RuntimeEnabledFeatures::sharedFeatures().setAdClickAttributionDebugModeEnabled(debugMode);
+
+    String message = debugMode ? "[Ad Click Attribution] Turned Debug Mode on."_s : "[Ad Click Attribution] Turned Debug Mode off."_s;
+    for (auto& networkConnectionToWebProcess : m_webProcessConnections.values()) {
+        if (networkConnectionToWebProcess->sessionID().isEphemeral())
+            continue;
+        networkConnectionToWebProcess->broadcastConsoleMessage(MessageSource::AdClickAttribution, MessageLevel::Info, message);
+    }
+}
 
 void NetworkProcess::preconnectTo(PAL::SessionID sessionID, const URL& url, const String& userAgent, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
@@ -1604,7 +1662,7 @@ static void clearDiskCacheEntries(NetworkCache::Cache* cache, const Vector<Secur
     });
 }
 
-void NetworkProcess::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, OptionSet<WebsiteDataType> websiteDataTypes, const Vector<SecurityOriginData>& originDatas, const Vector<String>& cookieHostNames, const Vector<String>& HSTSCacheHostNames, CallbackID callbackID)
+void NetworkProcess::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, OptionSet<WebsiteDataType> websiteDataTypes, const Vector<SecurityOriginData>& originDatas, const Vector<String>& cookieHostNames, const Vector<String>& HSTSCacheHostNames, const Vector<RegistrableDomain>& registrableDomains, CallbackID callbackID)
 {
     if (websiteDataTypes.contains(WebsiteDataType::Cookies)) {
         if (auto* networkStorageSession = storageSession(sessionID))
@@ -1678,6 +1736,17 @@ void NetworkProcess::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, Optio
         }
         WebCore::CredentialStorage::removeSessionCredentialsWithOrigins(originDatas);
     }
+
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
+    if (websiteDataTypes.contains(WebsiteDataType::ResourceLoadStatistics)) {
+        if (auto* networkSession = this->networkSession(sessionID)) {
+            for (auto& domain : registrableDomains) {
+                if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
+                    resourceLoadStatistics->removeDataForDomain(domain, [clearTasksHandler = clearTasksHandler.copyRef()] { });
+            }
+        }
+    }
+#endif
 }
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
@@ -2165,11 +2234,7 @@ void NetworkProcess::prepareToSuspend(bool isSuspensionImminent, CompletionHandl
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(INDEXED_DATABASE)
     for (auto& server : m_webIDBServers.values())
-        server->suspend(isSuspensionImminent ? WebIDBServer::ShouldForceStop::Yes : WebIDBServer::ShouldForceStop::No);
-#endif
-
-#if PLATFORM(IOS_FAMILY)
-    m_webSQLiteDatabaseTracker.setIsSuspended(true);
+        server->suspend(WebIDBServer::ShouldForceStop::Yes);
 #endif
 
     lowMemoryHandler(Critical::Yes);
@@ -2180,15 +2245,9 @@ void NetworkProcess::prepareToSuspend(bool isSuspensionImminent, CompletionHandl
     });
     
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    forEachNetworkSession([&callbackAggregator](auto& networkSession) {
-        if (auto* resourceLoadStatistics = networkSession.resourceLoadStatistics()) {
-            if (!resourceLoadStatistics->isEphemeral())
-                resourceLoadStatistics->suspend([callbackAggregator] { });
-        }
-    });
+    WebResourceLoadStatisticsStore::suspend([callbackAggregator] { });
 #endif
 
-    platformPrepareToSuspend([callbackAggregator] { });
     platformSyncAllCookies([callbackAggregator] { });
 
     for (auto& connection : m_webProcessConnections.values())
@@ -2222,21 +2281,11 @@ void NetworkProcess::processDidResume()
 
 void NetworkProcess::resume()
 {
-#if PLATFORM(IOS_FAMILY)
-    m_webSQLiteDatabaseTracker.setIsSuspended(false);
-#endif
-
-    platformProcessDidResume();
     for (auto& connection : m_webProcessConnections.values())
         connection->endSuspension();
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    forEachNetworkSession([](auto& networkSession) {
-        if (auto* resourceLoadStatistics = networkSession.resourceLoadStatistics()) {
-            if (!resourceLoadStatistics->isEphemeral())
-                resourceLoadStatistics->resume();
-        }
-    });
+    WebResourceLoadStatisticsStore::resume();
 #endif
     
 #if ENABLE(SERVICE_WORKER)
@@ -2436,6 +2485,16 @@ void NetworkProcess::resetQuota(PAL::SessionID sessionID, CompletionHandler<void
     completionHandler();
 }
 
+void NetworkProcess::renameOriginInWebsiteData(PAL::SessionID sessionID, const URL& oldName, const URL& newName, OptionSet<WebsiteDataType> dataTypes, CompletionHandler<void()>&& completionHandler)
+{
+    auto aggregator = CallbackAggregator::create(WTFMove(completionHandler));
+
+    if (dataTypes.contains(WebsiteDataType::LocalStorage)) {
+        if (m_storageManagerSet->contains(sessionID))
+            m_storageManagerSet->renameOrigin(sessionID, oldName, newName, [aggregator = aggregator.copyRef()] { });
+    }
+}
+
 #if ENABLE(SERVICE_WORKER)
 void NetworkProcess::forEachSWServer(const Function<void(SWServer&)>& callback)
 {
@@ -2623,12 +2682,11 @@ void NetworkProcess::getLocalStorageOriginDetails(PAL::SessionID sessionID, Comp
 {
     if (!m_storageManagerSet->contains(sessionID)) {
         LOG_ERROR("Cannot get local storage information for an unknown session");
+        completionHandler({ });
         return;
     }
 
-    m_storageManagerSet->getLocalStorageOriginDetails(sessionID, [completionHandler = WTFMove(completionHandler)](auto&& details) mutable {
-        completionHandler(WTFMove(details));
-    });
+    m_storageManagerSet->getLocalStorageOriginDetails(sessionID, WTFMove(completionHandler));
 }
 
 void NetworkProcess::connectionToWebProcessClosed(IPC::Connection& connection, PAL::SessionID sessionID)
@@ -2664,10 +2722,10 @@ void NetworkProcess::hasAppBoundSession(PAL::SessionID sessionID, CompletionHand
     completionHandler(result);
 }
 
-void NetworkProcess::setInAppBrowserPrivacyEnabled(PAL::SessionID sessionID, bool enable, CompletionHandler<void()>&& completionHandler)
+void NetworkProcess::clearAppBoundSession(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID)) {
-        networkSession->setInAppBrowserPrivacyEnabled(enable);
+        networkSession->clearAppBoundSession();
         completionHandler();
     } else {
         ASSERT_NOT_REACHED();

@@ -86,20 +86,6 @@ namespace WebCore {
 
 using namespace Inspector;
 
-// Keep this in sync with Page.Setting
-#define FOR_EACH_INSPECTOR_OVERRIDE_SETTING(macro) \
-    macro(AuthorAndUserStylesEnabled) \
-    macro(ICECandidateFilteringEnabled) \
-    macro(ImagesEnabled) \
-    macro(MediaCaptureRequiresSecureConnection) \
-    macro(MockCaptureDevicesEnabled) \
-    macro(NeedsSiteSpecificQuirks) \
-    macro(ScriptEnabled) \
-    macro(ShowDebugBorders) \
-    macro(ShowRepaintCounter) \
-    macro(WebRTCEncryptionEnabled) \
-    macro(WebSecurityEnabled)
-
 static bool decodeBuffer(const char* buffer, unsigned size, const String& textEncodingName, String* result)
 {
     if (buffer) {
@@ -366,9 +352,9 @@ void InspectorPageAgent::enable(ErrorString& errorString)
 
     m_instrumentingAgents.setInspectorPageAgent(this);
 
-    auto stopwatch = m_environment.executionStopwatch();
-    stopwatch->reset();
-    stopwatch->start();
+    auto& stopwatch = m_environment.executionStopwatch();
+    stopwatch.reset();
+    stopwatch.start();
 
 #if HAVE(OS_DARK_MODE_SUPPORT)
     defaultAppearanceDidChange(m_inspectedPage.defaultUseDarkAppearance());
@@ -386,19 +372,27 @@ void InspectorPageAgent::disable(ErrorString&)
     setEmulatedMedia(unused, emptyString());
     setForcedAppearance(unused, emptyString());
 
-#define DISABLE_INSPECTOR_OVERRIDE_SETTING(name) \
-    m_inspectedPage.settings().set##name##InspectorOverride(WTF::nullopt);
+    auto& inspectedPageSettings = m_inspectedPage.settings();
+    inspectedPageSettings.setAuthorAndUserStylesEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setICECandidateFilteringEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setImagesEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setMediaCaptureRequiresSecureConnectionInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setMockCaptureDevicesEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setNeedsSiteSpecificQuirksInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setScriptEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setShowDebugBordersInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setShowRepaintCounterInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setWebRTCEncryptionEnabledInspectorOverride(WTF::nullopt);
+    inspectedPageSettings.setWebSecurityEnabledInspectorOverride(WTF::nullopt);
 
-    FOR_EACH_INSPECTOR_OVERRIDE_SETTING(DISABLE_INSPECTOR_OVERRIDE_SETTING)
-
-#undef DISABLE_INSPECTOR_OVERRIDE_SETTING
-
-    m_client->setMockCaptureDevicesEnabledOverride(WTF::nullopt);
+    m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::AdClickAttributionDebugModeEnabled, WTF::nullopt);
+    m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::ITPDebugModeEnabled, WTF::nullopt);
+    m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::MockCaptureDevicesEnabled, WTF::nullopt);
 }
 
 double InspectorPageAgent::timestamp()
 {
-    return m_environment.executionStopwatch()->elapsedTime().seconds();
+    return m_environment.executionStopwatch().elapsedTime().seconds();
 }
 
 void InspectorPageAgent::reload(ErrorString&, const bool* optionalReloadFromOrigin, const bool* optionalRevalidateAllResources)
@@ -451,21 +445,65 @@ void InspectorPageAgent::overrideSetting(ErrorString& errorString, const String&
         return;
     }
 
+    auto& inspectedPageSettings = m_inspectedPage.settings();
+
     auto overrideValue = asOptionalBool(value);
     switch (setting.value()) {
-#define CASE_INSPECTOR_OVERRIDE_SETTING(name) \
-    case Inspector::Protocol::Page::Setting::name:                              \
-        m_inspectedPage.settings().set##name##InspectorOverride(overrideValue); \
-        break;                                                                  \
+    case Inspector::Protocol::Page::Setting::AdClickAttributionDebugModeEnabled:
+        m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::AdClickAttributionDebugModeEnabled, overrideValue);
+        return;
 
-    FOR_EACH_INSPECTOR_OVERRIDE_SETTING(CASE_INSPECTOR_OVERRIDE_SETTING)
+    case Inspector::Protocol::Page::Setting::AuthorAndUserStylesEnabled:
+        inspectedPageSettings.setAuthorAndUserStylesEnabledInspectorOverride(overrideValue);
+        return;
 
-#undef CASE_INSPECTOR_OVERRIDE_SETTING
+    case Inspector::Protocol::Page::Setting::ICECandidateFilteringEnabled:
+        inspectedPageSettings.setICECandidateFilteringEnabledInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::ITPDebugModeEnabled:
+        m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::ITPDebugModeEnabled, overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::ImagesEnabled:
+        inspectedPageSettings.setImagesEnabledInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::MediaCaptureRequiresSecureConnection:
+        inspectedPageSettings.setMediaCaptureRequiresSecureConnectionInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::MockCaptureDevicesEnabled:
+        inspectedPageSettings.setMockCaptureDevicesEnabledInspectorOverride(overrideValue);
+        m_client->setDeveloperPreferenceOverride(InspectorClient::DeveloperPreference::MockCaptureDevicesEnabled, overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::NeedsSiteSpecificQuirks:
+        inspectedPageSettings.setNeedsSiteSpecificQuirksInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::ScriptEnabled:
+        inspectedPageSettings.setScriptEnabledInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::ShowDebugBorders:
+        inspectedPageSettings.setShowDebugBordersInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::ShowRepaintCounter:
+        inspectedPageSettings.setShowRepaintCounterInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::WebRTCEncryptionEnabled:
+        inspectedPageSettings.setWebRTCEncryptionEnabledInspectorOverride(overrideValue);
+        return;
+
+    case Inspector::Protocol::Page::Setting::WebSecurityEnabled:
+        inspectedPageSettings.setWebSecurityEnabledInspectorOverride(overrideValue);
+        return;
     }
 
-    // Update the UIProcess / client for particular overrides.
-    if (setting.value() == Inspector::Protocol::Page::Setting::MockCaptureDevicesEnabled)
-        m_client->setMockCaptureDevicesEnabledOverride(overrideValue);
+    ASSERT_NOT_REACHED();
 }
 
 static Inspector::Protocol::Page::CookieSameSitePolicy cookieSameSitePolicyJSON(Cookie::SameSitePolicy policy)
@@ -530,7 +568,7 @@ void InspectorPageAgent::getCookies(ErrorString&, RefPtr<JSON::ArrayOf<Inspector
 
         for (auto& url : allResourcesURLsForFrame(frame)) {
             Vector<Cookie> rawCookiesForURLInDocument;
-            if (!document->page()->cookieJar().getRawCookies(*document, URL({ }, url), rawCookiesForURLInDocument))
+            if (!document->page()->cookieJar().getRawCookies(*document, url, rawCookiesForURLInDocument))
                 continue;
 
             for (auto& rawCookieForURLInDocument : rawCookiesForURLInDocument)
@@ -723,7 +761,7 @@ void InspectorPageAgent::searchInResources(ErrorString&, const String& text, con
             if (auto textContent = InspectorNetworkAgent::textContentForCachedResource(*cachedResource)) {
                 int matchesCount = ContentSearchUtilities::countRegularExpressionMatches(regex, *textContent);
                 if (matchesCount)
-                    result->addItem(buildObjectForSearchResult(frameId(frame), cachedResource->url(), matchesCount));
+                    result->addItem(buildObjectForSearchResult(frameId(frame), cachedResource->url().string(), matchesCount));
             }
         }
     }
@@ -924,7 +962,7 @@ Ref<Inspector::Protocol::Page::FrameResourceTree> InspectorPageAgent::buildObjec
 
     for (auto* cachedResource : cachedResourcesForFrame(frame)) {
         auto resourceObject = Inspector::Protocol::Page::FrameResource::create()
-            .setUrl(cachedResource->url())
+            .setUrl(cachedResource->url().string())
             .setType(cachedResourceTypeJSON(*cachedResource))
             .setMimeType(cachedResource->response().mimeType())
             .release();

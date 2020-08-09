@@ -32,6 +32,7 @@
 #include "ContainerNode.h"
 #include "DisabledAdaptations.h"
 #include "DocumentIdentifier.h"
+#include "DocumentTimelinesController.h"
 #include "DocumentTiming.h"
 #include "ElementIdentifier.h"
 #include "FocusDirection.h"
@@ -119,6 +120,7 @@ class DocumentSharedObjectPool;
 class DocumentTimeline;
 class DocumentType;
 class EditingBehavior;
+class Editor;
 class EventLoop;
 class EventLoopTaskGroup;
 class ExtensionStyleSheets;
@@ -127,6 +129,7 @@ class FloatRect;
 class FontFaceSet;
 class FormController;
 class Frame;
+class FrameSelection;
 class FrameView;
 class FullscreenManager;
 class GPUCanvasContext;
@@ -625,7 +628,7 @@ public:
 
     void didBecomeCurrentDocumentInFrame();
     void destroyRenderTree();
-    void prepareForDestruction();
+    void willBeRemovedFromFrame();
 
     // Override ScriptExecutionContext methods to do additional work
     WEBCORE_EXPORT bool shouldBypassMainWorldContentSecurityPolicy() const final;
@@ -761,6 +764,8 @@ public:
     MouseEventWithHitTestResults prepareMouseEvent(const HitTestRequest&, const LayoutPoint&, const PlatformMouseEvent&);
 
     enum class FocusRemovalEventsMode { Dispatch, DoNotDispatch };
+    // Returns whether focus was blocked. A true value does not necessarily mean the element was focused.
+    // The element could have already been focused or may not be focusable (e.g. <input disabled>).
     WEBCORE_EXPORT bool setFocusedElement(Element*, FocusDirection = FocusDirectionNone,
         FocusRemovalEventsMode = FocusRemovalEventsMode::Dispatch);
     Element* focusedElement() const { return m_focusedElement.get(); }
@@ -1035,6 +1040,8 @@ public:
 
     bool shouldDeferAsynchronousScriptsUntilParsingFinishes() const;
 
+    bool supportsPaintTiming() const;
+
 #if ENABLE(XSLT)
     void scheduleToApplyXSLTransforms();
     void applyPendingXSLTransformsNowIfScheduled();
@@ -1077,8 +1084,7 @@ public:
     void suspendScriptedAnimationControllerCallbacks();
     void resumeScriptedAnimationControllerCallbacks();
 
-    void updateAnimationsAndSendEvents(DOMHighResTimeStamp);
-    void serviceRequestAnimationFrameCallbacks(DOMHighResTimeStamp);
+    void serviceRequestAnimationFrameCallbacks(ReducedResolutionSeconds);
 
     void windowScreenDidChange(PlatformDisplayID);
 
@@ -1485,12 +1491,12 @@ public:
 
     WEBCORE_EXPORT void setConsoleMessageListener(RefPtr<StringCallback>&&); // For testing.
 
-    void addTimeline(DocumentTimeline&);
-    void removeTimeline(DocumentTimeline&);
     WEBCORE_EXPORT DocumentTimeline& timeline();
     DocumentTimeline* existingTimeline() const { return m_timeline.get(); }
     Vector<RefPtr<WebAnimation>> getAnimations();
     Vector<RefPtr<WebAnimation>> matchingAnimations(const WTF::Function<bool(Element&)>&);
+    DocumentTimelinesController* timelinesController() const { return m_timelinesController.get(); }
+    WEBCORE_EXPORT DocumentTimelinesController& ensureTimelinesController();
 
 #if ENABLE(ATTACHMENT_ELEMENT)
     void registerAttachmentIdentifier(const String&);
@@ -1575,6 +1581,12 @@ public:
 
     void setHasVisuallyNonEmptyCustomContent() { m_hasVisuallyNonEmptyCustomContent = true; }
     bool hasVisuallyNonEmptyCustomContent() const { return m_hasVisuallyNonEmptyCustomContent; }
+    void enqueuePaintTimingEntryIfNeeded();
+
+    Editor& editor() { return m_editor; }
+    const Editor& editor() const { return m_editor; }
+    FrameSelection& selection() { return m_selection; }
+    const FrameSelection& selection() const { return m_selection; }
 
 protected:
     enum ConstructionFlags { Synthesized = 1, NonRenderedPlaceholder = 1 << 1 };
@@ -1665,10 +1677,6 @@ private:
 
     bool canNavigateInternal(Frame& targetFrame);
     bool isNavigationBlockedByThirdPartyIFrameRedirectBlocking(Frame& targetFrame, const URL& destinationURL);
-
-#if ENABLE(INTERSECTION_OBSERVER)
-    void notifyIntersectionObserversTimerFired();
-#endif
 
 #if USE(QUICK_LOOK)
     bool shouldEnforceQuickLookSandbox() const;
@@ -1842,7 +1850,6 @@ private:
 #if ENABLE(INTERSECTION_OBSERVER)
     Vector<WeakPtr<IntersectionObserver>> m_intersectionObservers;
     Vector<WeakPtr<IntersectionObserver>> m_intersectionObserversWithPendingNotifications;
-    Timer m_intersectionObserversNotifyTimer;
     Timer m_intersectionObserversInitialUpdateTimer;
     // This is only non-null when this document is an explicit root.
     std::unique_ptr<IntersectionObserverData> m_intersectionObserverData;
@@ -2041,6 +2048,9 @@ private:
 
     bool m_areDeviceMotionAndOrientationUpdatesSuspended { false };
     bool m_userDidInteractWithPage { false };
+
+    bool m_didEnqueueFirstContentfulPaint { false };
+
 #if ASSERT_ENABLED
     bool m_inHitTesting { false };
 #endif
@@ -2069,7 +2079,7 @@ private:
     static bool hasEverCreatedAnAXObjectCache;
 
     RefPtr<DocumentTimeline> m_timeline;
-    WeakHashSet<DocumentTimeline> m_timelines;
+    std::unique_ptr<DocumentTimelinesController> m_timelinesController;
 
     DocumentIdentifier m_identifier;
 
@@ -2116,6 +2126,9 @@ private:
     std::unique_ptr<TextManipulationController> m_textManipulationController;
 
     HashMap<Element*, ElementIdentifier> m_identifiedElementsMap;
+
+    UniqueRef<Editor> m_editor;
+    UniqueRef<FrameSelection> m_selection;
 };
 
 Element* eventTargetElementForDocument(Document*);

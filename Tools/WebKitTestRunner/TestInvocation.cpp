@@ -760,13 +760,6 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         TestController::singleton().setStatisticsShouldBlockThirdPartyCookies(WKBooleanGetValue(value), false);
         return;
     }
-    
-    if (WKStringIsEqualToUTF8CString(messageName, "SetInAppBrowserPrivacyEnabled")) {
-        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
-        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
-        TestController::singleton().setInAppBrowserPrivacyEnabled(WKBooleanGetValue(value));
-        return;
-    }
 
     if (WKStringIsEqualToUTF8CString(messageName, "RunUIProcessScript")) {
         WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
@@ -805,11 +798,6 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
 
     if (WKStringIsEqualToUTF8CString(messageName, "SetOpenPanelFileURLs")) {
         TestController::singleton().setOpenPanelFileURLs(static_cast<WKArrayRef>(messageBody));
-        return;
-    }
-    
-    if (WKStringIsEqualToUTF8CString(messageName, "GetWebViewCategory")) {
-        TestController::singleton().getWebViewCategory();
         return;
     }
 
@@ -1003,6 +991,13 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
 
     if (WKStringIsEqualToUTF8CString(messageName, "StatisticsUpdateCookieBlocking")) {
         TestController::singleton().statisticsUpdateCookieBlocking();
+        return;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "SetAppBoundDomains")) {
+        ASSERT(WKGetTypeID(messageBody) == WKArrayGetTypeID());
+        WKArrayRef originURLs = static_cast<WKArrayRef>(messageBody);
+        TestController::singleton().setAppBoundDomains(originURLs);
         return;
     }
 
@@ -1286,6 +1281,24 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
     }
     if (WKStringIsEqualToUTF8CString(messageName, "IsDoingMediaCapture")) {
         WKRetainPtr<WKTypeRef> result = adoptWK(WKBooleanCreate(TestController::singleton().isDoingMediaCapture()));
+        return result;
+    }
+    
+    if (WKStringIsEqualToUTF8CString(messageName, "ClearStatisticsDataForDomain")) {
+        ASSERT(WKGetTypeID(messageBody) == WKStringGetTypeID());
+        WKStringRef domain = static_cast<WKStringRef>(messageBody);
+
+        TestController::singleton().clearStatisticsDataForDomain(domain);
+        return nullptr;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "DoesStatisticsDomainIDExistInDatabase")) {
+        ASSERT(WKGetTypeID(messageBody) == WKDictionaryGetTypeID());
+        WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
+        WKRetainPtr<WKStringRef> domainIDKey = adoptWK(WKStringCreateWithUTF8CString("DomainID"));
+        WKUInt64Ref domainID = static_cast<WKUInt64Ref>(WKDictionaryGetItemForKey(messageBodyDictionary, domainIDKey.get()));
+        bool domainIDExists = TestController::singleton().doesStatisticsDomainIDExistInDatabase(WKUInt64GetValue(domainID));
+        WKRetainPtr<WKTypeRef> result = adoptWK(WKBooleanCreate(domainIDExists));
         return result;
     }
 
@@ -1911,12 +1924,6 @@ void TestInvocation::didSetShouldBlockThirdPartyCookies()
     WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), nullptr);
 }
 
-void TestInvocation::didSetInAppBrowserPrivacyEnabled()
-{
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("CallDidSetInAppBrowserPrivacyEnabled"));
-    WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), nullptr);
-}
-
 void TestInvocation::didSetFirstPartyWebsiteDataRemovalMode()
 {
     WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("CallDidSetFirstPartyWebsiteDataRemovalMode"));
@@ -2005,18 +2012,16 @@ void TestInvocation::didReceiveLoadedThirdPartyDomains(Vector<String>&& domains)
     WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), messageBody.get());
 }
 
-void TestInvocation::didReceiveWebViewCategory(String&& webViewCategory)
-{
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("CallDidReceiveWebViewCategory"));
-    
-    WKRetainPtr<WKStringRef> messageBody = adoptWK(WKStringCreateWithUTF8CString(webViewCategory.utf8().data()));
-    WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), messageBody.get());
-}
-
 void TestInvocation::didRemoveAllSessionCredentials()
 {
     WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("CallDidRemoveAllSessionCredentialsCallback"));
     WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), 0);
+}
+
+void TestInvocation::didSetAppBoundDomains()
+{
+    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("CallDidSetAppBoundDomains"));
+    WKPagePostMessageToInjectedBundle(TestController::singleton().mainWebView()->page(), messageName.get(), nullptr);
 }
 
 void TestInvocation::dumpResourceLoadStatistics()

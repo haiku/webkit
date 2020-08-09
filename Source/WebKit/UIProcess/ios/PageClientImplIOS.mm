@@ -38,6 +38,7 @@
 #import "InteractionInformationAtPosition.h"
 #import "NativeWebKeyboardEvent.h"
 #import "NavigationState.h"
+#import "RunningBoardServicesSPI.h"
 #import "StringUtilities.h"
 #import "UIKitSPI.h"
 #import "UndoOrRedo.h"
@@ -168,10 +169,7 @@ bool PageClientImpl::isApplicationVisible()
     pid_t applicationPID = serviceViewController._hostProcessIdentifier;
     ASSERT(applicationPID);
 
-    auto applicationStateMonitor = adoptNS([[BKSApplicationStateMonitor alloc] init]);
-    auto applicationState = [applicationStateMonitor mostElevatedApplicationStateForPID:applicationPID];
-    [applicationStateMonitor invalidate];
-    return applicationState != BKSApplicationStateBackgroundRunning && applicationState != BKSApplicationStateBackgroundTaskSuspended;
+    return isApplicationForeground(applicationPID);
 }
 
 bool PageClientImpl::isViewInWindow()
@@ -337,13 +335,6 @@ void PageClientImpl::registerEditCommand(Ref<WebEditCommandProxy>&& command, Und
     if (!actionName.isEmpty())
         [undoManager setActionName:(NSString *)actionName];
 }
-
-#if USE(INSERTION_UNDO_GROUPING)
-void PageClientImpl::registerInsertionUndoGrouping()
-{
-    notImplemented();
-}
-#endif
 
 void PageClientImpl::clearAllEditCommands()
 {
@@ -951,14 +942,10 @@ void PageClientImpl::handleAutocorrectionContext(const WebAutocorrectionContext&
     [m_contentView _handleAutocorrectionContext:context];
 }
 
-#if USE(DICTATION_ALTERNATIVES)
-
 void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect&, uint64_t)
 {
     notImplemented();
 }
-
-#endif
 
 } // namespace WebKit
 

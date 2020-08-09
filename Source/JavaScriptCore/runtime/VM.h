@@ -126,6 +126,7 @@ class Identifier;
 class Interpreter;
 class IntlCollator;
 class IntlDateTimeFormat;
+class IntlLocale;
 class IntlNumberFormat;
 class IntlPluralRules;
 class IntlRelativeTimeFormat;
@@ -323,7 +324,7 @@ public:
 
 #if ENABLE(SAMPLING_PROFILER)
     SamplingProfiler* samplingProfiler() { return m_samplingProfiler.get(); }
-    JS_EXPORT_PRIVATE SamplingProfiler& ensureSamplingProfiler(RefPtr<Stopwatch>&&);
+    JS_EXPORT_PRIVATE SamplingProfiler& ensureSamplingProfiler(Ref<Stopwatch>&&);
 #endif
 
     FuzzerAgent* fuzzerAgent() const { return m_fuzzerAgent.get(); }
@@ -400,6 +401,7 @@ public:
 #endif
     std::unique_ptr<IsoHeapCellType> intlCollatorHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlDateTimeFormatHeapCellType;
+    std::unique_ptr<IsoHeapCellType> intlLocaleHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlNumberFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlPluralRulesHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlRelativeTimeFormatHeapCellType;
@@ -557,6 +559,7 @@ public:
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(withScopeSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlCollatorSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDateTimeFormatSpace)
+    DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlLocaleSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlNumberFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlPluralRulesSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlRelativeTimeFormatSpace)
@@ -1189,6 +1192,9 @@ private:
     RefPtr<Thread> m_throwingThread;
 #endif
 
+public:
+    bool didEnterVM { false };
+private:
     bool m_failNextNewCodeBlock { false };
     DeletePropertyMode m_deletePropertyMode { DeletePropertyMode::Default };
     bool m_globalConstRedeclarationShouldThrow { true };

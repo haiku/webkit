@@ -32,6 +32,7 @@
 #include "AnimationTimeline.h"
 #include "ApplicationCacheStorage.h"
 #include "AudioSession.h"
+#include "AudioTrackPrivateMediaStream.h"
 #include "Autofill.h"
 #include "BackForwardCache.h"
 #include "BackForwardController.h"
@@ -57,6 +58,7 @@
 #include "DOMRect.h"
 #include "DOMRectList.h"
 #include "DOMStringList.h"
+#include "DOMURL.h"
 #include "DOMWindow.h"
 #include "DeprecatedGlobalSettings.h"
 #include "DiagnosticLoggingClient.h"
@@ -309,12 +311,20 @@
 #include "PaymentCoordinator.h"
 #endif
 
+#if ENABLE(WEBXR)
+#include "NavigatorWebXR.h"
+#include "WebXRSystem.h"
+#include "WebXRTest.h"
+#endif
+
 #if PLATFORM(MAC) && USE(LIBWEBRTC)
 #include <webrtc/sdk/WebKit/VideoProcessingSoftLink.h>
 #endif
 
 #if PLATFORM(MAC)
 #include "GraphicsContextGLOpenGLManager.h"
+#include "NSScrollerImpDetails.h"
+#include "ScrollbarThemeMac.h"
 #endif
 
 #if PLATFORM(COCOA)
@@ -323,7 +333,6 @@
 #endif
 
 using JSC::CallData;
-using JSC::CallType;
 using JSC::CodeBlock;
 using JSC::FunctionExecutable;
 using JSC::Identifier;
@@ -507,6 +516,7 @@ void Internals::resetToConsistentState(Page& page)
     WebCore::DeprecatedGlobalSettings::setUsesMockScrollAnimator(false);
 #if ENABLE(VIDEO_TRACK)
     page.group().captionPreferences().setTestingMode(true);
+    page.group().captionPreferences().setCaptionDisplayMode(CaptionUserPreferences::ForcedOnly);
     page.group().captionPreferences().setCaptionsStyleSheetOverride(emptyString());
     page.group().captionPreferences().setTestingMode(false);
 #endif
@@ -1051,7 +1061,7 @@ unsigned Internals::numberOfActiveAnimations() const
 {
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
         return frame()->document()->timeline().numberOfActiveAnimationsForTesting();
-    return frame()->animation().numberOfActiveAnimations(frame()->document());
+    return frame()->legacyAnimation().numberOfActiveAnimations(frame()->document());
 }
 
 ExceptionOr<bool> Internals::animationsAreSuspended() const
@@ -1061,8 +1071,8 @@ ExceptionOr<bool> Internals::animationsAreSuspended() const
         return Exception { InvalidAccessError };
 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
-        return document->timeline().animationsAreSuspended();
-    return document->frame()->animation().animationsAreSuspendedForDocument(document);
+        return document->ensureTimelinesController().animationsAreSuspended();
+    return document->frame()->legacyAnimation().animationsAreSuspendedForDocument(document);
 }
 
 double Internals::animationsInterval() const
@@ -1079,7 +1089,7 @@ double Internals::animationsInterval() const
 
     if (!document->frame())
         return INFINITY;
-    return document->frame()->animation().animationInterval().value();
+    return document->frame()->legacyAnimation().animationInterval().value();
 }
 
 ExceptionOr<void> Internals::suspendAnimations() const
@@ -1089,17 +1099,17 @@ ExceptionOr<void> Internals::suspendAnimations() const
         return Exception { InvalidAccessError };
 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        document->timeline().suspendAnimations();
+        document->ensureTimelinesController().suspendAnimations();
         for (Frame* frame = document->frame(); frame; frame = frame->tree().traverseNext()) {
             if (Document* document = frame->document())
-                document->timeline().suspendAnimations();
+                document->ensureTimelinesController().suspendAnimations();
         }
     } else {
-        document->frame()->animation().suspendAnimationsForDocument(document);
+        document->frame()->legacyAnimation().suspendAnimationsForDocument(document);
 
         for (Frame* frame = document->frame(); frame; frame = frame->tree().traverseNext()) {
             if (Document* document = frame->document())
-                frame->animation().suspendAnimationsForDocument(document);
+                frame->legacyAnimation().suspendAnimationsForDocument(document);
         }
     }
 
@@ -1113,17 +1123,17 @@ ExceptionOr<void> Internals::resumeAnimations() const
         return Exception { InvalidAccessError };
 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        document->timeline().resumeAnimations();
+        document->ensureTimelinesController().resumeAnimations();
         for (Frame* frame = document->frame(); frame; frame = frame->tree().traverseNext()) {
             if (Document* document = frame->document())
-                document->timeline().resumeAnimations();
+                document->ensureTimelinesController().resumeAnimations();
         }
     } else {
-        document->frame()->animation().resumeAnimationsForDocument(document);
+        document->frame()->legacyAnimation().resumeAnimationsForDocument(document);
 
         for (Frame* frame = document->frame(); frame; frame = frame->tree().traverseNext()) {
             if (Document* document = frame->document())
-                frame->animation().resumeAnimationsForDocument(document);
+                frame->legacyAnimation().resumeAnimationsForDocument(document);
         }
     }
 
@@ -1134,7 +1144,7 @@ ExceptionOr<bool> Internals::pauseAnimationAtTimeOnElement(const String& animati
 {
     if (pauseTime < 0)
         return Exception { InvalidAccessError };
-    return frame()->animation().pauseAnimationAtTime(element, AtomString(animationName), pauseTime);
+    return frame()->legacyAnimation().pauseAnimationAtTime(element, AtomString(animationName), pauseTime);
 }
 
 ExceptionOr<bool> Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName, double pauseTime, Element& element, const String& pseudoId)
@@ -1149,14 +1159,14 @@ ExceptionOr<bool> Internals::pauseAnimationAtTimeOnPseudoElement(const String& a
     if (!pseudoElement)
         return Exception { InvalidAccessError };
 
-    return frame()->animation().pauseAnimationAtTime(*pseudoElement, AtomString(animationName), pauseTime);
+    return frame()->legacyAnimation().pauseAnimationAtTime(*pseudoElement, AtomString(animationName), pauseTime);
 }
 
 ExceptionOr<bool> Internals::pauseTransitionAtTimeOnElement(const String& propertyName, double pauseTime, Element& element)
 {
     if (pauseTime < 0)
         return Exception { InvalidAccessError };
-    return frame()->animation().pauseTransitionAtTime(element, propertyName, pauseTime);
+    return frame()->legacyAnimation().pauseTransitionAtTime(element, propertyName, pauseTime);
 }
 
 ExceptionOr<bool> Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, double pauseTime, Element& element, const String& pseudoId)
@@ -1171,7 +1181,7 @@ ExceptionOr<bool> Internals::pauseTransitionAtTimeOnPseudoElement(const String& 
     if (!pseudoElement)
         return Exception { InvalidAccessError };
 
-    return frame()->animation().pauseTransitionAtTime(*pseudoElement, property, pauseTime);
+    return frame()->legacyAnimation().pauseTransitionAtTime(*pseudoElement, property, pauseTime);
 }
 
 Vector<Internals::AcceleratedAnimation> Internals::acceleratedAnimationsForElement(Element& element)
@@ -1378,12 +1388,15 @@ ExceptionOr<bool> Internals::isTimerThrottled(int timeoutId)
     return !!timer->alignedFireTime(MonotonicTime { });
 }
 
-bool Internals::isRequestAnimationFrameThrottled() const
+String Internals::requestAnimationFrameThrottlingReasons() const
 {
     auto* scriptedAnimationController = contextDocument()->scriptedAnimationController();
     if (!scriptedAnimationController)
-        return false;
-    return scriptedAnimationController->isThrottled();
+        return String();
+        
+    TextStream ts;
+    ts << scriptedAnimationController->throttlingReasons();
+    return ts.release();
 }
 
 double Internals::requestAnimationFrameInterval() const
@@ -2220,12 +2233,7 @@ ExceptionOr<RefPtr<NodeList>> Internals::nodesFromRect(Document& document, int c
 
     HitTestResult result(point, topPadding, rightPadding, bottomPadding, leftPadding);
     document.hitTest(request, result);
-    const HitTestResult::NodeSet& nodeSet = result.listBasedTestResult();
-    Vector<Ref<Node>> matches;
-    matches.reserveInitialCapacity(nodeSet.size());
-    for (auto& node : nodeSet)
-        matches.uncheckedAppend(*node);
-
+    auto matches = WTF::map(result.listBasedTestResult(), [](const auto& node) { return node.copyRef(); });
     return RefPtr<NodeList> { StaticNodeList::create(WTFMove(matches)) };
 }
 
@@ -2266,7 +2274,7 @@ String Internals::parserMetaData(JSC::JSValue code)
         callFrame->iterate(vm, iter);
         CodeBlock* codeBlock = iter.codeBlock();
         executable = codeBlock->ownerExecutable();
-    } else if (code.isFunction(vm)) {
+    } else if (code.isCallable(vm)) {
         JSFunction* funcObj = JSC::jsCast<JSFunction*>(code.toObject(globalObject));
         executable = funcObj->jsExecutable();
     } else
@@ -2744,7 +2752,7 @@ ExceptionOr<String> Internals::repaintRectsAsText() const
     return document->frame()->trackedRepaintRectsAsText();
 }
 
-ExceptionOr<String> Internals::scrollbarOverlayStyle(Node* node) const
+ExceptionOr<ScrollableArea*> Internals::scrollableAreaForNode(Node* node) const
 {
     if (!node)
         node = contextDocument();
@@ -2752,17 +2760,18 @@ ExceptionOr<String> Internals::scrollbarOverlayStyle(Node* node) const
     if (!node)
         return Exception { InvalidAccessError };
 
-    node->document().updateLayoutIgnorePendingStylesheets();
+    auto nodeRef = makeRef(*node);
+    nodeRef->document().updateLayoutIgnorePendingStylesheets();
 
     ScrollableArea* scrollableArea = nullptr;
-    if (is<Document>(*node)) {
-        auto* frameView = downcast<Document>(node)->view();
+    if (is<Document>(nodeRef)) {
+        auto* frameView = downcast<Document>(nodeRef.get()).view();
         if (!frameView)
             return Exception { InvalidAccessError };
 
         scrollableArea = frameView;
-    } else if (is<Element>(*node)) {
-        auto& element = *downcast<Element>(node);
+    } else if (is<Element>(nodeRef)) {
+        auto& element = downcast<Element>(nodeRef.get());
         if (!element.renderBox())
             return Exception { InvalidAccessError };
 
@@ -2773,6 +2782,16 @@ ExceptionOr<String> Internals::scrollbarOverlayStyle(Node* node) const
     if (!scrollableArea)
         return Exception { InvalidNodeTypeError };
 
+    return scrollableArea;
+}
+
+ExceptionOr<String> Internals::scrollbarOverlayStyle(Node* node) const
+{
+    auto areaOrException = scrollableAreaForNode(node);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
+
+    auto* scrollableArea = areaOrException.releaseReturnValue();
     switch (scrollableArea->scrollbarOverlayStyle()) {
     case ScrollbarOverlayStyleDefault:
         return "default"_str;
@@ -2788,34 +2807,32 @@ ExceptionOr<String> Internals::scrollbarOverlayStyle(Node* node) const
 
 ExceptionOr<bool> Internals::scrollbarUsingDarkAppearance(Node* node) const
 {
-    if (!node)
-        node = contextDocument();
+    auto areaOrException = scrollableAreaForNode(node);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
 
-    if (!node)
-        return Exception { InvalidAccessError };
-
-    node->document().updateLayoutIgnorePendingStylesheets();
-
-    ScrollableArea* scrollableArea = nullptr;
-    if (is<Document>(*node)) {
-        auto* frameView = downcast<Document>(node)->view();
-        if (!frameView)
-            return Exception { InvalidAccessError };
-
-        scrollableArea = frameView;
-    } else if (is<Element>(*node)) {
-        auto& element = *downcast<Element>(node);
-        if (!element.renderBox())
-            return Exception { InvalidAccessError };
-
-        scrollableArea = element.renderBox()->layer();
-    } else
-        return Exception { InvalidNodeTypeError };
-
-    if (!scrollableArea)
-        return Exception { InvalidNodeTypeError };
-
+    auto* scrollableArea = areaOrException.releaseReturnValue();
     return scrollableArea->useDarkAppearance();
+}
+
+ExceptionOr<String> Internals::horizontalScrollbarState(Node* node) const
+{
+    auto areaOrException = scrollableAreaForNode(node);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
+
+    auto* scrollableArea = areaOrException.releaseReturnValue();
+    return scrollableArea->horizontalScrollbarStateForTesting();
+}
+
+ExceptionOr<String> Internals::verticalScrollbarState(Node* node) const
+{
+    auto areaOrException = scrollableAreaForNode(node);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
+
+    auto* scrollableArea = areaOrException.releaseReturnValue();
+    return scrollableArea->verticalScrollbarStateForTesting();
 }
 
 ExceptionOr<String> Internals::scrollingStateTreeAsText() const
@@ -3259,6 +3276,17 @@ void Internals::setFullscreenControlsHidden(bool hidden)
     page->setFullscreenControlsHidden(hidden);
 }
 
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+void Internals::setMockVideoPresentationModeEnabled(bool enabled)
+{
+    Document* document = contextDocument();
+    if (!document || !document->page())
+        return;
+
+    document->page()->chrome().client().setMockVideoPresentationModeEnabled(enabled);
+}
+#endif
+
 void Internals::setApplicationCacheOriginQuota(unsigned long long quota)
 {
     Document* document = contextDocument();
@@ -3573,6 +3601,14 @@ JSC::JSValue Internals::evaluateInWorldIgnoringException(const String& name, con
 void Internals::setUsesOverlayScrollbars(bool enabled)
 {
     WebCore::DeprecatedGlobalSettings::setUsesOverlayScrollbars(enabled);
+#if PLATFORM(MAC)
+    ScrollerStyle::setUseOverlayScrollbars(enabled);
+    ScrollbarTheme& theme = ScrollbarTheme::theme();
+    if (theme.isMockTheme())
+        return;
+
+    static_cast<ScrollbarThemeMac&>(theme).preferencesChanged();
+#endif
 }
 
 void Internals::setUsesMockScrollAnimator(bool enabled)
@@ -4639,19 +4675,18 @@ JSValue Internals::cloneArrayBuffer(JSC::JSGlobalObject& lexicalGlobalObject, JS
     PropertySlot propertySlot(value, PropertySlot::InternalMethodType::Get);
     lexicalGlobalObject.methodTable(vm)->getOwnPropertySlot(&lexicalGlobalObject, &lexicalGlobalObject, privateName, propertySlot);
     value = propertySlot.getValue(&lexicalGlobalObject, privateName);
-    ASSERT(value.isFunction(vm));
+    ASSERT(value.isCallable(vm));
 
     JSObject* function = value.getObject();
-    CallData callData;
-    CallType callType = JSC::getCallData(vm, function, callData);
-    ASSERT(callType != JSC::CallType::None);
+    auto callData = JSC::getCallData(vm, function);
+    ASSERT(callData.type != JSC::CallData::Type::None);
     MarkedArgumentBuffer arguments;
     arguments.append(buffer);
     arguments.append(srcByteOffset);
     arguments.append(srcLength);
     ASSERT(!arguments.hasOverflowed());
 
-    return JSC::call(&lexicalGlobalObject, function, callType, callData, JSC::jsUndefined(), arguments);
+    return JSC::call(&lexicalGlobalObject, function, callData, JSC::jsUndefined(), arguments);
 }
 
 #endif
@@ -5054,7 +5089,7 @@ void Internals::setMediaStreamTrackMuted(MediaStreamTrack& track, bool muted)
 
 void Internals::removeMediaStreamTrack(MediaStream& stream, MediaStreamTrack& track)
 {
-    stream.internalRemoveTrack(track.id(), MediaStream::StreamModifier::Platform);
+    stream.privateStream().removeTrack(track.privateTrack());
 }
 
 void Internals::simulateMediaStreamTrackCaptureSourceFailure(MediaStreamTrack& track)
@@ -5075,6 +5110,13 @@ void Internals::setMediaStreamSourceInterrupted(MediaStreamTrack& track, bool in
 bool Internals::isMockRealtimeMediaSourceCenterEnabled()
 {
     return MockRealtimeMediaSourceCenter::mockRealtimeMediaSourceCenterEnabled();
+}
+
+bool Internals::shouldAudioTrackPlay(const AudioTrack& track)
+{
+    if (!is<AudioTrackPrivateMediaStream>(track.privateTrack()))
+        return false;
+    return downcast<AudioTrackPrivateMediaStream>(track.privateTrack()).shouldPlay();
 }
 #endif
 
@@ -5614,6 +5656,8 @@ bool Internals::isRemoteUIAppForAccessibility()
 
 bool Internals::hasSandboxIOKitOpenAccessToClass(const String& process, const String& ioKitClass)
 {
+    UNUSED_PARAM(process);
+    UNUSED_PARAM(ioKitClass);
     return false;
 }
 #endif
@@ -5646,5 +5690,31 @@ bool Internals::destroySleepDisabler(unsigned identifier)
 {
     return m_sleepDisablers.remove(identifier);
 }
+
+#if ENABLE(WEBXR)
+
+ExceptionOr<RefPtr<WebXRTest>> Internals::xrTest()
+{
+    if (!RuntimeEnabledFeatures::sharedFeatures().webXREnabled())
+        return Exception { InvalidAccessError };
+
+    if (!m_xrTest) {
+        if (!contextDocument() || !contextDocument()->domWindow())
+            return Exception { InvalidAccessError };
+
+        auto* navigator = contextDocument()->domWindow()->optionalNavigator();
+        if (!navigator)
+            return Exception { InvalidAccessError };
+
+        auto& navigatorXR = NavigatorWebXR::from(*navigator);
+        auto& xrSystem = navigatorXR.xr(*scriptExecutionContext(), *navigator);
+
+        m_xrTest = WebXRTest::create(makeWeakPtr(&xrSystem));
+    }
+    return m_xrTest.get();
+}
+
+#endif
+
 
 } // namespace WebCore

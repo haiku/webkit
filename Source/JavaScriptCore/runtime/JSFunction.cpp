@@ -174,18 +174,17 @@ JSObject* JSFunction::prototypeForConstruction(VM& vm, JSGlobalObject* globalObj
     scope.releaseAssertNoException();
     if (LIKELY(prototype.isObject()))
         return asObject(prototype);
+    if (isHostOrBuiltinFunction())
+        return this->globalObject()->objectPrototype();
 
-    JSGlobalObject* thisGlobalObject = this->globalObject();
-    if (!isHostOrBuiltinFunction()) {
-        // https://tc39.github.io/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluatebody
-        if (isGeneratorWrapperParseMode(jsExecutable()->parseMode()))
-            return thisGlobalObject->generatorPrototype();
-
-        // https://tc39.github.io/ecma262/#sec-asyncgenerator-definitions-evaluatebody
-        if (isAsyncGeneratorWrapperParseMode(jsExecutable()->parseMode()))
-            return thisGlobalObject->asyncGeneratorPrototype();
-    }
-    return thisGlobalObject->objectPrototype();
+    JSGlobalObject* scopeGlobalObject = this->scope()->globalObject();
+    // https://tc39.github.io/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluatebody
+    if (isGeneratorWrapperParseMode(jsExecutable()->parseMode()))
+        return scopeGlobalObject->generatorPrototype();
+    // https://tc39.github.io/ecma262/#sec-asyncgenerator-definitions-evaluatebody
+    if (isAsyncGeneratorWrapperParseMode(jsExecutable()->parseMode()))
+        return scopeGlobalObject->asyncGeneratorPrototype();
+    return scopeGlobalObject->objectPrototype();
 }
 
 FunctionRareData* JSFunction::allocateAndInitializeRareData(JSGlobalObject* globalObject, size_t inlineCapacity)
@@ -275,16 +274,21 @@ void JSFunction::visitChildren(JSCell* cell, SlotVisitor& visitor)
     visitor.appendUnbarriered(bitwise_cast<JSCell*>(bitwise_cast<uintptr_t>(thisObject->m_executableOrRareData) & ~rareDataTag));
 }
 
-CallType JSFunction::getCallData(JSCell* cell, CallData& callData)
+CallData JSFunction::getCallData(JSCell* cell)
 {
+    CallData callData;
+
     JSFunction* thisObject = jsCast<JSFunction*>(cell);
     if (thisObject->isHostFunction()) {
+        callData.type = CallData::Type::Native;
         callData.native.function = thisObject->nativeFunction();
-        return CallType::Host;
+    } else {
+        callData.type = CallData::Type::JS;
+        callData.js.functionExecutable = thisObject->jsExecutable();
+        callData.js.scope = thisObject->scope();
     }
-    callData.js.functionExecutable = thisObject->jsExecutable();
-    callData.js.scope = thisObject->scope();
-    return CallType::JS;
+
+    return callData;
 }
 
 class RetrieveArgumentsFunctor {
@@ -460,16 +464,17 @@ bool JSFunction::getOwnPropertySlot(JSObject* object, JSGlobalObject* globalObje
         unsigned attributes;
         PropertyOffset offset = thisObject->getDirectOffset(vm, propertyName, attributes);
         if (!isValidOffset(offset)) {
+            JSGlobalObject* scopeGlobalObject = thisObject->scope()->globalObject();
             JSObject* prototype = nullptr;
             if (isGeneratorWrapperParseMode(thisObject->jsExecutable()->parseMode())) {
                 // Unlike function instances, the object that is the value of the a GeneratorFunction's prototype
                 // property does not have a constructor property whose value is the GeneratorFunction instance.
                 // https://tc39.github.io/ecma262/#sec-generatorfunction-instances-prototype
-                prototype = constructEmptyObject(globalObject, thisObject->globalObject()->generatorPrototype());
+                prototype = constructEmptyObject(globalObject, scopeGlobalObject->generatorPrototype());
             } else if (isAsyncGeneratorWrapperParseMode(thisObject->jsExecutable()->parseMode()))
-                prototype = constructEmptyObject(globalObject, thisObject->globalObject()->asyncGeneratorPrototype());
+                prototype = constructEmptyObject(globalObject, scopeGlobalObject->asyncGeneratorPrototype());
             else {
-                prototype = constructEmptyObject(globalObject);
+                prototype = constructEmptyObject(globalObject, scopeGlobalObject->objectPrototype());
                 prototype->putDirect(vm, vm.propertyNames->constructor, thisObject, static_cast<unsigned>(PropertyAttribute::DontEnum));
             }
 
@@ -691,24 +696,26 @@ bool JSFunction::defineOwnProperty(JSObject* object, JSGlobalObject* globalObjec
 }
 
 // ECMA 13.2.2 [[Construct]]
-ConstructType JSFunction::getConstructData(JSCell* cell, ConstructData& constructData)
+CallData JSFunction::getConstructData(JSCell* cell)
 {
-    JSFunction* thisObject = jsCast<JSFunction*>(cell);
+    CallData constructData;
 
+    JSFunction* thisObject = jsCast<JSFunction*>(cell);
     if (thisObject->isHostFunction()) {
-        if (thisObject->nativeConstructor() == callHostFunctionAsConstructor)
-            return ConstructType::None;
-        constructData.native.function = thisObject->nativeConstructor();
-        return ConstructType::Host;
+        if (thisObject->nativeConstructor() != callHostFunctionAsConstructor) {
+            constructData.type = CallData::Type::Native;
+            constructData.native.function = thisObject->nativeConstructor();
+        }
+    } else {
+        FunctionExecutable* functionExecutable = thisObject->jsExecutable();
+        if (functionExecutable->constructAbility() != ConstructAbility::CannotConstruct) {
+            constructData.type = CallData::Type::JS;
+            constructData.js.functionExecutable = functionExecutable;
+            constructData.js.scope = thisObject->scope();
+        }
     }
 
-    FunctionExecutable* functionExecutable = thisObject->jsExecutable();
-    if (functionExecutable->constructAbility() == ConstructAbility::CannotConstruct)
-        return ConstructType::None;
-
-    constructData.js.functionExecutable = functionExecutable;
-    constructData.js.scope = thisObject->scope();
-    return ConstructType::JS;
+    return constructData;
 }
 
 String getCalculatedDisplayName(VM& vm, JSObject* object)

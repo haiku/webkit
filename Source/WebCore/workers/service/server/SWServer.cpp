@@ -427,8 +427,7 @@ URL static inline originURL(const SecurityOrigin& origin)
     URL url;
     url.setProtocol(origin.protocol());
     url.setHost(origin.host());
-    if (origin.port())
-        url.setPort(*origin.port());
+    url.setPort(origin.port());
     return url;
 }
 
@@ -454,7 +453,7 @@ void SWServer::startScriptFetch(const ServiceWorkerJobData& jobData, bool should
 
         request.setHTTPHeaderField(HTTPHeaderName::Origin, origin->toString());
         request.setHTTPHeaderField(HTTPHeaderName::ServiceWorker, "script"_s);
-        request.setHTTPReferrer(originURL(origin));
+        request.setHTTPReferrer(originURL(origin).string());
         request.setHTTPUserAgent(serviceWorkerClientUserAgent(ClientOrigin { jobData.topOrigin, SecurityOrigin::create(jobData.scriptURL)->data() }));
         request.setPriority(ResourceLoadPriority::Low);
 
@@ -521,13 +520,10 @@ void SWServer::terminatePreinstallationWorker(SWServerWorker& worker)
 
 void SWServer::didFinishInstall(const Optional<ServiceWorkerJobDataIdentifier>& jobDataIdentifier, SWServerWorker& worker, bool wasSuccessful)
 {
+    RELEASE_LOG(ServiceWorker, "%p - SWServer::didFinishInstall: Finished install for service worker %llu, success is %d", this, worker.identifier().toUInt64(), wasSuccessful);
+
     if (!jobDataIdentifier)
         return;
-
-    if (wasSuccessful)
-        RELEASE_LOG(ServiceWorker, "%p - SWServer::didFinishInstall: Successfuly finished SW install for job %s", this, jobDataIdentifier->loggingString().utf8().data());
-    else
-        RELEASE_LOG_ERROR(ServiceWorker, "%p - SWServer::didFinishInstall: Failed SW install for job %s", this, jobDataIdentifier->loggingString().utf8().data());
 
     if (auto* jobQueue = m_jobQueues.get(worker.registrationKey()))
         jobQueue->didFinishInstall(*jobDataIdentifier, worker, wasSuccessful);
@@ -793,10 +789,11 @@ void SWServer::fireInstallEvent(SWServerWorker& worker)
 {
     auto* contextConnection = worker.contextConnection();
     if (!contextConnection) {
-        LOG_ERROR("Request to fire install event on a worker whose context connection does not exist");
+        RELEASE_LOG_ERROR(ServiceWorker, "Request to fire install event on a worker whose context connection does not exist");
         return;
     }
 
+    RELEASE_LOG(ServiceWorker, "%p - SWServer::fireInstallEvent on worker %llu", this, worker.identifier().toUInt64());
     contextConnection->fireInstallEvent(worker.identifier());
 }
 
@@ -804,10 +801,11 @@ void SWServer::fireActivateEvent(SWServerWorker& worker)
 {
     auto* contextConnection = worker.contextConnection();
     if (!contextConnection) {
-        LOG_ERROR("Request to fire install event on a worker whose context connection does not exist");
+        RELEASE_LOG_ERROR(ServiceWorker, "Request to fire activate event on a worker whose context connection does not exist");
         return;
     }
 
+    RELEASE_LOG(ServiceWorker, "%p - SWServer::fireActivateEvent on worker %llu", this, worker.identifier().toUInt64());
     contextConnection->fireActivateEvent(worker.identifier());
 }
 

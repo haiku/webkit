@@ -355,7 +355,7 @@ public:
     virtual void takeFocus(WebCore::FocusDirection) { }
 
 #if USE(DICTATION_ALTERNATIVES)
-    virtual uint64_t addDictationAlternatives(const RetainPtr<NSTextAlternatives>&) = 0;
+    virtual uint64_t addDictationAlternatives(NSTextAlternatives *) = 0;
     virtual void removeDictationAlternatives(uint64_t dictationContext) = 0;
     virtual void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext) = 0;
     virtual Vector<String> dictationAlternatives(uint64_t dictationContext) = 0;
@@ -386,9 +386,7 @@ public:
 
     virtual void intrinsicContentSizeDidChange(const WebCore::IntSize& intrinsicContentSize) = 0;
 
-#if USE(INSERTION_UNDO_GROUPING)
     virtual void registerInsertionUndoGrouping() = 0;
-#endif
 
     virtual void setEditableElementIsFocused(bool) = 0;
 #endif // PLATFORM(MAC)

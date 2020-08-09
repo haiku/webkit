@@ -311,33 +311,8 @@ void GraphicsContextGLOpenGL::getIntegerv(GCGLenum pname, GCGLint* value)
 
 void GraphicsContextGLOpenGL::getShaderPrecisionFormat(GCGLenum shaderType, GCGLenum precisionType, GCGLint* range, GCGLint* precision)
 {
-    UNUSED_PARAM(shaderType);
-    ASSERT(range);
-    ASSERT(precision);
-
     makeContextCurrent();
-
-    switch (precisionType) {
-    case GraphicsContextGL::LOW_INT:
-    case GraphicsContextGL::MEDIUM_INT:
-    case GraphicsContextGL::HIGH_INT:
-        // These values are for a 32-bit twos-complement integer format.
-        range[0] = 31;
-        range[1] = 30;
-        precision[0] = 0;
-        break;
-    case GraphicsContextGL::LOW_FLOAT:
-    case GraphicsContextGL::MEDIUM_FLOAT:
-    case GraphicsContextGL::HIGH_FLOAT:
-        // These values are for an IEEE single-precision floating-point format.
-        range[0] = 127;
-        range[1] = 127;
-        precision[0] = 23;
-        break;
-    default:
-        ASSERT_NOT_REACHED();
-        break;
-    }
+    gl::GetShaderPrecisionFormat(shaderType, precisionType, range, precision);
 }
 
 bool GraphicsContextGLOpenGL::texImage2D(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLint border, GCGLenum format, GCGLenum type, const void* pixels)
@@ -1836,6 +1811,8 @@ void GraphicsContextGLOpenGL::dispatchContextChangedNotification()
 void GraphicsContextGLOpenGL::texImage2DDirect(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLint border, GCGLenum format, GCGLenum type, const void* pixels)
 {
     makeContextCurrent();
+    if (!m_isForWebGL2)
+        internalformat = ExtensionsGLANGLE::adjustWebGL1TextureInternalFormat(internalformat, format, type);
     gl::TexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
     m_state.textureSeedCount.add(m_state.currentBoundTexture());
 }

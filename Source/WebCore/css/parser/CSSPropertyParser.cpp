@@ -143,6 +143,7 @@ static CSSPropertyID cssPropertyID(const CharacterType* propertyName, unsigned l
     const Property* hashTableEntry = findProperty(name, length);
     if (hashTableEntry) {
         auto propertyID = static_cast<CSSPropertyID>(hashTableEntry->id);
+        // FIXME: Should take account for flags in settings().
         if (isEnabledCSSProperty(propertyID))
             return propertyID;
     }
@@ -1455,34 +1456,57 @@ static RefPtr<CSSValue> consumeTransitionProperty(CSSParserTokenRange& range)
     
 static RefPtr<CSSValue> consumeSteps(CSSParserTokenRange& range)
 {
+    // https://drafts.csswg.org/css-easing-1/#funcdef-step-easing-function-steps
+
     ASSERT(range.peek().functionId() == CSSValueSteps);
     CSSParserTokenRange rangeCopy = range;
     CSSParserTokenRange args = consumeFunction(rangeCopy);
     
-    RefPtr<CSSPrimitiveValue> steps = consumePositiveInteger(args);
-    if (!steps)
+    RefPtr<CSSPrimitiveValue> stepsValue = consumePositiveInteger(args);
+    if (!stepsValue)
         return nullptr;
     
-    // FIXME-NEWPARSER: Support the middle value and change from a boolean to an enum.
-    bool stepAtStart = false;
+    Optional<StepsTimingFunction::StepPosition> stepPosition;
     if (consumeCommaIncludingWhitespace(args)) {
         switch (args.consumeIncludingWhitespace().id()) {
-            case CSSValueStart:
-                stepAtStart = true;
+        case CSSValueJumpStart:
+            stepPosition = StepsTimingFunction::StepPosition::JumpStart;
             break;
-            case CSSValueEnd:
-                stepAtStart = false;
-                break;
-            default:
-                return nullptr;
+
+        case CSSValueJumpEnd:
+            stepPosition = StepsTimingFunction::StepPosition::JumpEnd;
+            break;
+
+        case CSSValueJumpNone:
+            stepPosition = StepsTimingFunction::StepPosition::JumpNone;
+            break;
+
+        case CSSValueJumpBoth:
+            stepPosition = StepsTimingFunction::StepPosition::JumpBoth;
+            break;
+
+        case CSSValueStart:
+            stepPosition = StepsTimingFunction::StepPosition::Start;
+            break;
+
+        case CSSValueEnd:
+            stepPosition = StepsTimingFunction::StepPosition::End;
+            break;
+
+        default:
+            return nullptr;
         }
     }
     
     if (!args.atEnd())
         return nullptr;
+
+    auto steps = stepsValue->intValue();
+    if (steps <= 1 && stepPosition == StepsTimingFunction::StepPosition::JumpNone)
+        return nullptr;
     
     range = rangeCopy;
-    return CSSStepsTimingFunctionValue::create(steps->intValue(), stepAtStart);
+    return CSSStepsTimingFunctionValue::create(steps, stepPosition);
 }
 
 static RefPtr<CSSValue> consumeCubicBezier(CSSParserTokenRange& range)
@@ -1545,10 +1569,25 @@ static RefPtr<CSSValue> consumeSpringFunction(CSSParserTokenRange& range)
 
 static RefPtr<CSSValue> consumeAnimationTimingFunction(CSSParserTokenRange& range, const CSSParserContext& context)
 {
-    CSSValueID id = range.peek().id();
-    if (id == CSSValueEase || id == CSSValueLinear || id == CSSValueEaseIn
-        || id == CSSValueEaseOut || id == CSSValueEaseInOut || id == CSSValueStepStart || id == CSSValueStepEnd)
+    switch (range.peek().id()) {
+    case CSSValueLinear:
+    case CSSValueEase:
+    case CSSValueEaseIn:
+    case CSSValueEaseOut:
+    case CSSValueEaseInOut:
         return consumeIdent(range);
+
+    case CSSValueStepStart:
+        range.consumeIncludingWhitespace();
+        return CSSStepsTimingFunctionValue::create(1, StepsTimingFunction::StepPosition::Start);
+
+    case CSSValueStepEnd:
+        range.consumeIncludingWhitespace();
+        return CSSStepsTimingFunctionValue::create(1, StepsTimingFunction::StepPosition::End);
+
+    default:
+        break;
+    }
 
     CSSValueID function = range.peek().functionId();
     if (function == CSSValueCubicBezier)
@@ -4326,7 +4365,7 @@ static RefPtr<CSSValue> consumeFontFaceSrcURI(CSSParserTokenRange& range, const 
     if (url.isNull())
         return nullptr;
 
-    RefPtr<CSSFontFaceSrcValue> uriValue = CSSFontFaceSrcValue::create(context.completeURL(url), context.isContentOpaque ? LoadedFromOpaqueSource::Yes : LoadedFromOpaqueSource::No);
+    RefPtr<CSSFontFaceSrcValue> uriValue = CSSFontFaceSrcValue::create(context.completeURL(url).string(), context.isContentOpaque ? LoadedFromOpaqueSource::Yes : LoadedFromOpaqueSource::No);
 
     if (range.peek().functionId() != CSSValueFormat)
         return uriValue;

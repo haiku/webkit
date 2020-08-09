@@ -83,10 +83,7 @@ using WriteBarrierTraitsSelect = typename std::conditional<std::is_same<T, Unkno
 
 enum PreferredPrimitiveType : uint8_t { NoPreference, PreferNumber, PreferString };
 
-enum class CallType : unsigned;
 struct CallData;
-enum class ConstructType : unsigned;
-struct ConstructData;
 
 typedef int64_t EncodedJSValue;
     
@@ -178,7 +175,7 @@ public:
     enum JSFalseTag { JSFalse };
     enum JSCellTag { JSCellType };
 #if USE(BIGINT32)
-    enum JSBigInt32Tag { JSBigInt32 };
+    enum EncodeAsBigInt32Tag { EncodeAsBigInt32 };
 #endif
     enum EncodeAsDoubleTag { EncodeAsDouble };
 
@@ -190,7 +187,7 @@ public:
     JSValue(JSCell* ptr);
     JSValue(const JSCell* ptr);
 #if USE(BIGINT32)
-    JSValue(JSBigInt32Tag, int32_t);
+    JSValue(EncodeAsBigInt32Tag, int32_t);
 #endif
 
     // Numbers
@@ -233,11 +230,8 @@ public:
 
     // Querying the type.
     bool isEmpty() const;
-    bool isFunction(VM&) const;
     bool isCallable(VM&) const;
-    bool isCallable(VM&, CallType&, CallData&) const;
     bool isConstructor(VM&) const;
-    bool isConstructor(VM&, ConstructType&, ConstructData&) const;
     bool isUndefined() const;
     bool isNull() const;
     bool isUndefinedOrNull() const;
@@ -299,6 +293,8 @@ public:
     uint32_t toUInt32(JSGlobalObject*) const;
     uint32_t toIndex(JSGlobalObject*, const char* errorName) const;
     double toLength(JSGlobalObject*) const;
+
+    Optional<uint32_t> toUInt32AfterToNumeric(JSGlobalObject*) const;
 
     // Floating point conversions (this is a convenience function for WebCore;
     // single precision float is not a representation used in JS or JSC).
@@ -576,6 +572,13 @@ inline JSValue jsBoolean(bool b)
 {
     return b ? JSValue(JSValue::JSTrue) : JSValue(JSValue::JSFalse);
 }
+
+#if USE(BIGINT32)
+ALWAYS_INLINE JSValue jsBigInt32(int32_t intValue)
+{
+    return JSValue(JSValue::EncodeAsBigInt32, intValue);
+}
+#endif
 
 ALWAYS_INLINE JSValue jsDoubleNumber(double d)
 {

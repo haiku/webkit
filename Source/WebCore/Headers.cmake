@@ -180,6 +180,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     animation/CSSPropertyBlendingClient.h
     animation/CompositeOperation.h
+    animation/DocumentTimelinesController.h
     animation/EffectTiming.h
     animation/FillMode.h
     animation/GetAnimationsOptions.h
@@ -649,8 +650,8 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     html/StepRange.h
     html/TimeRanges.h
     html/TypeAhead.h
+    html/URLDecomposition.h
     html/URLRegistry.h
-    html/URLUtils.h
     html/ValidityState.h
     html/VoidCallback.h
 
@@ -839,6 +840,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/PrintContext.h
     page/ProcessWarming.h
     page/Quirks.h
+    page/ReducedResolutionSeconds.h
     page/RemoteDOMWindow.h
     page/RemoteFrame.h
     page/RenderingUpdateScheduler.h
@@ -906,6 +908,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/scrolling/ScrollingTree.h
     page/scrolling/ScrollingTreeFrameHostingNode.h
     page/scrolling/ScrollingTreeFrameScrollingNode.h
+    page/scrolling/ScrollingTreeGestureState.h
     page/scrolling/ScrollingTreeLatchingController.h
     page/scrolling/ScrollingTreeNode.h
     page/scrolling/ScrollingTreeOverflowScrollingNode.h
@@ -1070,6 +1073,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     platform/graphics/AlphaPremultiplication.h
     platform/graphics/ANGLEWebKitBridge.h
+    platform/graphics/AnimationFrameRate.h
     platform/graphics/AudioTrackPrivate.h
     platform/graphics/BitmapImage.h
     platform/graphics/Color.h
@@ -1309,6 +1313,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/sql/SQLiteDatabaseTrackerClient.h
     platform/sql/SQLiteFileSystem.h
     platform/sql/SQLiteStatement.h
+    platform/sql/SQLiteStatementAutoResetScope.h
     platform/sql/SQLiteTransaction.h
 
     platform/text/BidiContext.h

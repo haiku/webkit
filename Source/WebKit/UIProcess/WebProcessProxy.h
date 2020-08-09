@@ -219,7 +219,7 @@ public:
     static void notifyWebsiteDataDeletionForRegistrableDomainsFinished();
     static void notifyWebsiteDataScanForRegistrableDomainsFinished();
 
-    void setShouldBlockThirdPartyCookiesForTesting(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
+    void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
 #endif
 
     void enableSuddenTermination();
@@ -242,9 +242,7 @@ public:
 
     void windowServerConnectionStateChanged();
 
-    void setIsHoldingLockedFiles(bool);
-
-    ProcessThrottler& throttler() { return m_throttler; }
+    ProcessThrottler& throttler() final { return m_throttler; }
 
     void isResponsive(CompletionHandler<void(bool isWebProcessResponsive)>&&);
     void isResponsiveWithLazyStop();
@@ -318,6 +316,7 @@ public:
     void sendPrepareToSuspend(IsSuspensionImminent, CompletionHandler<void()>&&) final;
     void sendProcessDidResume() final;
     void didSetAssertionType(ProcessAssertionType) final;
+    ASCIILiteral clientName() const final { return "WebProcess"_s; }
 
 #if PLATFORM(COCOA)
     enum SandboxExtensionType : uint32_t {
@@ -454,7 +453,7 @@ private:
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) override;
     void didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, std::unique_ptr<IPC::Encoder>&) override;
     void didClose(IPC::Connection&) override;
-    void didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference messageReceiverName, IPC::StringReference messageName) override;
+    void didReceiveInvalidMessage(IPC::Connection&, IPC::MessageName) override;
 
     // ResponsivenessTimer::Client
     void didBecomeUnresponsive() override;
@@ -536,7 +535,6 @@ private:
 
     int m_numberOfTimesSuddenTerminationWasDisabled;
     ProcessThrottler m_throttler;
-    std::unique_ptr<ProcessThrottler::BackgroundActivity> m_activityForHoldingLockedFiles;
     ForegroundWebProcessToken m_foregroundToken;
     BackgroundWebProcessToken m_backgroundToken;
 

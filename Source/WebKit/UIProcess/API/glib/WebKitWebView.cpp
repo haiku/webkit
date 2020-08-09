@@ -1,8 +1,7 @@
 /*
- * Copyright (C) 2011 Igalia S.L.
  * Portions Copyright (c) 2011 Motorola Mobility, Inc.  All rights reserved.
  * Copyright (C) 2014 Collabora Ltd.
- * Copyright (C) 2017 Igalia S.L.
+ * Copyright (C) 2011, 2017, 2020 Igalia S.L.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -2350,7 +2349,7 @@ void webkitWebViewRunAsModal(WebKitWebView* webView)
 
     webView->priv->modalLoop = adoptGRef(g_main_loop_new(0, FALSE));
 
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) && !USE(GTK4)
 // This is to suppress warnings about gdk_threads_leave and gdk_threads_enter.
     ALLOW_DEPRECATED_DECLARATIONS_BEGIN
     gdk_threads_leave();
@@ -2358,7 +2357,7 @@ void webkitWebViewRunAsModal(WebKitWebView* webView)
 
     g_main_loop_run(webView->priv->modalLoop.get());
 
-#if PLATFORM(GTK)
+#if PLATFORM(GTK) && !USE(GTK4)
     gdk_threads_enter();
     ALLOW_DEPRECATED_DECLARATIONS_END
 #endif
@@ -2580,7 +2579,7 @@ void webkitWebViewRunFileChooserRequest(WebKitWebView* webView, WebKitFileChoose
 }
 
 #if PLATFORM(GTK)
-static void contextMenuDismissed(GtkMenuShell*, WebKitWebView* webView)
+static void contextMenuDismissed(GtkWidget*, WebKitWebView* webView)
 {
     g_signal_emit(webView, signals[CONTEXT_MENU_DISMISSED], 0, NULL);
 }
@@ -2606,7 +2605,7 @@ void webkitWebViewPopulateContextMenu(WebKitWebView* webView, const Vector<WebCo
     webkitContextMenuPopulate(contextMenu.get(), contextMenuItems);
     contextMenuProxy->populate(contextMenuItems);
 
-    g_signal_connect(contextMenuProxy->gtkMenu(), "deactivate", G_CALLBACK(contextMenuDismissed), webView);
+    g_signal_connect(contextMenuProxy->gtkWidget(), "closed", G_CALLBACK(contextMenuDismissed), webView);
 
     // Clear the menu to make sure it's useless after signal emission.
     webkit_context_menu_remove_all(contextMenu.get());

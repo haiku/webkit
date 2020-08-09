@@ -219,6 +219,7 @@ inline CapabilityLevel canCompile(Node* node)
     case ToObject:
     case CallObjectConstructor:
     case CallStringConstructor:
+    case CallNumberConstructor:
     case ObjectCreate:
     case ObjectKeys:
     case MakeRope:
@@ -499,6 +500,7 @@ CapabilityLevel canCompile(Graph& graph)
                 case ProxyObjectUse:
                 case DerivedArrayUse:
                 case NotCellUse:
+                case NotCellNorBigIntUse:
                 case OtherUse:
                 case KnownOtherUse:
                 case MiscUse:

@@ -214,7 +214,7 @@ static void openNewWindow(const URL& urlToLoad, Frame& frame, ShouldOpenExternal
 static void insertUnicodeCharacter(UChar character, Frame& frame)
 {
     String text(&character, 1);
-    if (!frame.editor().shouldInsertText(text, frame.selection().toNormalizedRange().get(), EditorInsertAction::Typed))
+    if (!frame.editor().shouldInsertText(text, createLiveRange(frame.selection().selection().toNormalizedRange()).get(), EditorInsertAction::Typed))
         return;
 
     ASSERT(frame.document());
@@ -231,7 +231,9 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
         return;
     }
 
-    Frame* frame = m_context.hitTestResult().innerNonSharedNode()->document().frame();
+    auto& document = m_context.hitTestResult().innerNonSharedNode()->document();
+
+    auto* frame = document.frame();
     if (!frame)
         return;
 
@@ -370,7 +372,7 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
 #endif
     case ContextMenuItemTagSpellingGuess: {
         VisibleSelection selection = frame->selection().selection();
-        if (frame->editor().shouldInsertText(title, selection.toNormalizedRange().get(), EditorInsertAction::Pasted)) {
+        if (frame->editor().shouldInsertText(title, createLiveRange(selection.toNormalizedRange()).get(), EditorInsertAction::Pasted)) {
             OptionSet<ReplaceSelectionCommand::CommandOption> replaceOptions { ReplaceSelectionCommand::MatchStyle, ReplaceSelectionCommand::PreventNesting };
 
             if (frame->editor().behavior().shouldAllowSpellingSuggestionsWithoutSelection()) {
@@ -429,13 +431,9 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
         // which may make this difficult to implement. Maybe a special case of text-shadow?
         break;
     case ContextMenuItemTagStartSpeaking: {
-        RefPtr<Range> selectedRange = frame->selection().toNormalizedRange();
-        if (!selectedRange || selectedRange->collapsed()) {
-            auto& document = m_context.hitTestResult().innerNonSharedNode()->document();
-            selectedRange = document.createRange();
-            if (auto* element = document.documentElement())
-                selectedRange->selectNode(*element);
-        }
+        auto selectedRange = frame->selection().selection().toNormalizedRange();
+        if (!selectedRange || selectedRange->collapsed())
+            selectedRange = makeRangeSelectingNodeContents(document);
         m_client.speak(plainText(*selectedRange));
         break;
     }
@@ -1174,25 +1172,25 @@ void ContextMenuController::checkOrEnableIfNeeded(ContextMenuItem& item) const
         case ContextMenuItemTagLeftToRight:
         case ContextMenuItemTagRightToLeft: {
             String direction = item.action() == ContextMenuItemTagLeftToRight ? "ltr" : "rtl";
-            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyDirection, direction) != FalseTriState;
+            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyDirection, direction) != TriState::False;
             shouldEnable = true;
             break;
         }
         case ContextMenuItemTagTextDirectionDefault: {
             Editor::Command command = frame->editor().command("MakeTextWritingDirectionNatural");
-            shouldCheck = command.state() == TrueTriState;
+            shouldCheck = command.state() == TriState::True;
             shouldEnable = command.isEnabled();
             break;
         }
         case ContextMenuItemTagTextDirectionLeftToRight: {
             Editor::Command command = frame->editor().command("MakeTextWritingDirectionLeftToRight");
-            shouldCheck = command.state() == TrueTriState;
+            shouldCheck = command.state() == TriState::True;
             shouldEnable = command.isEnabled();
             break;
         }
         case ContextMenuItemTagTextDirectionRightToLeft: {
             Editor::Command command = frame->editor().command("MakeTextWritingDirectionRightToLeft");
-            shouldCheck = command.state() == TrueTriState;
+            shouldCheck = command.state() == TriState::True;
             shouldEnable = command.isEnabled();
             break;
         }
@@ -1233,7 +1231,7 @@ void ContextMenuController::checkOrEnableIfNeeded(ContextMenuItem& item) const
             break;
 #endif
         case ContextMenuItemTagUnderline: {
-            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "underline") != FalseTriState;
+            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyWebkitTextDecorationsInEffect, "underline") != TriState::False;
             shouldEnable = frame->editor().canEditRichly();
             break;
         }
@@ -1246,12 +1244,12 @@ void ContextMenuController::checkOrEnableIfNeeded(ContextMenuItem& item) const
             shouldEnable = true;
             break;
         case ContextMenuItemTagItalic: {
-            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyFontStyle, "italic") != FalseTriState;
+            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyFontStyle, "italic") != TriState::False;
             shouldEnable = frame->editor().canEditRichly();
             break;
         }
         case ContextMenuItemTagBold: {
-            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyFontWeight, "bold") != FalseTriState;
+            shouldCheck = frame->editor().selectionHasStyle(CSSPropertyFontWeight, "bold") != TriState::False;
             shouldEnable = frame->editor().canEditRichly();
             break;
         }
@@ -1348,7 +1346,7 @@ void ContextMenuController::checkOrEnableIfNeeded(ContextMenuItem& item) const
             break;
         case ContextMenuItemTagDownloadImageToDisk:
 #if PLATFORM(MAC)
-            if (WTF::protocolIs(m_context.hitTestResult().absoluteImageURL(), "file"))
+            if (m_context.hitTestResult().absoluteImageURL().protocolIs("file"))
                 shouldEnable = false;
 #endif
             break;
@@ -1363,7 +1361,7 @@ void ContextMenuController::checkOrEnableIfNeeded(ContextMenuItem& item) const
                 item.setTitle(contextMenuItemTagDownloadVideoToDisk());
             else
                 item.setTitle(contextMenuItemTagDownloadAudioToDisk());
-            if (WTF::protocolIs(m_context.hitTestResult().absoluteImageURL(), "file"))
+            if (m_context.hitTestResult().absoluteImageURL().protocolIs("file"))
                 shouldEnable = false;
             break;
         case ContextMenuItemTagCopyMediaLinkToClipboard:

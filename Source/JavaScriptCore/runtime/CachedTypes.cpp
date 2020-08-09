@@ -1495,7 +1495,7 @@ public:
     void encode(Encoder& encoder, const SourceProvider& sourceProvider)
     {
         m_sourceOrigin.encode(encoder, sourceProvider.sourceOrigin());
-        m_url.encode(encoder, sourceProvider.url());
+        m_url.encode(encoder, sourceProvider.url().string());
         m_sourceURLDirective.encode(encoder, sourceProvider.sourceURLDirective());
         m_sourceMappingURLDirective.encode(encoder, sourceProvider.sourceMappingURLDirective());
         m_startPosition.encode(encoder, sourceProvider.startPosition());
@@ -2060,7 +2060,7 @@ ALWAYS_INLINE UnlinkedCodeBlock::UnlinkedCodeBlock(Decoder& decoder, Structure* 
     , m_evalContextType(cachedCodeBlock.evalContextType())
     , m_codeType(cachedCodeBlock.codeType())
 
-    , m_didOptimize(static_cast<unsigned>(MixedTriState))
+    , m_didOptimize(static_cast<unsigned>(TriState::Indeterminate))
     , m_age(0)
     , m_hasCheckpoints(cachedCodeBlock.hasCheckpoints())
 

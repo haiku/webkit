@@ -19,6 +19,7 @@
 #pragma once
 
 #include <memory>
+#include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
 namespace PlatformXR {
@@ -29,22 +30,57 @@ enum class SessionMode {
     ImmersiveAr,
 };
 
+enum class ReferenceSpaceType {
+    Viewer,
+    Local,
+    LocalFloor,
+    BoundedFloor,
+    Unbounded
+};
+
 #if ENABLE(WEBXR)
 
 class Device : public CanMakeWeakPtr<Device> {
+    WTF_MAKE_FAST_ALLOCATED;
+    WTF_MAKE_NONCOPYABLE(Device);
 public:
+    using DeviceId = uint32_t;
+    Device();
+    DeviceId id() const { return m_id; }
+
+    using ListOfSupportedModes = Vector<SessionMode>;
+    using ListOfEnabledFeatures = Vector<ReferenceSpaceType>;
+
+    bool supports(SessionMode mode) const { return m_supportedModes.contains(mode); }
+    void setSupportedModes(const ListOfSupportedModes& modes) { m_supportedModes = modes; }
+    void setEnabledFeatures(const ListOfEnabledFeatures& features) { m_enabledFeatures = features; }
+
+    inline bool operator==(const Device& other) const { return m_id == other.m_id; }
+
+protected:
+    ListOfSupportedModes m_supportedModes;
+    ListOfEnabledFeatures m_enabledFeatures;
+
+private:
+    DeviceId m_id;
 };
 
 class Instance {
 public:
     static Instance& singleton();
 
+    static Device::DeviceId nextDeviceId();
+
+    void enumerateImmersiveXRDevices();
+    const Vector<std::unique_ptr<Device>>& immersiveXRDevices() const { return m_immersiveXRDevices; }
 private:
     Instance();
     ~Instance();
 
     struct Impl;
     std::unique_ptr<Impl> m_impl;
+
+    Vector<std::unique_ptr<Device>> m_immersiveXRDevices;
 };
 
 #endif // ENABLE(WEBXR)

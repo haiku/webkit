@@ -9,6 +9,7 @@
 accessibility/ios-simulator [ Pass ]
 displaylists [ Pass ]
 editing/editable-region [ Pass ]
+editing/execCommand/ios [ Pass ]
 editing/deleting/ios [ Pass ]
 http/tests/quicklook [ Pass ]
 media/ios [ Pass ]
@@ -1305,7 +1306,6 @@ webkit.org/b/178955 fast/css/font-shorthand-line-height.html [ Failure ]
 webkit.org/b/178957 fast/css/getComputedStyle/computed-style-font.html [ Failure ]
 
 webkit.org/b/178958 fast/css/font-face-multiple-faces.html [ Failure ]
-webkit.org/b/178958 fast/css/font-face-opentype.html [ Failure ]
 webkit.org/b/178958 fast/css/font-face-repeated-url.html [ Failure ]
 webkit.org/b/178958 fast/css/font-face-synthetic-bold-italic.html [ Failure ]
 webkit.org/b/178958 fast/css/font-face-weight-matching.html [ Failure ]
@@ -1428,7 +1428,6 @@ svg/batik/paints/patternPreserveAspectRatioA.svg [ Failure ]
 svg/batik/paints/patternRegionA.svg [ Failure ]
 svg/batik/paints/patternRegions-positioned-objects.svg [ Failure ]
 svg/batik/paints/patternRegions.svg [ Failure ]
-svg/batik/text/xmlSpace.svg [ Failure ]
 svg/carto.net/button.svg [ Failure ]
 svg/carto.net/colourpicker.svg [ Failure ]
 svg/carto.net/combobox.svg [ Failure ]
@@ -2486,7 +2485,6 @@ media/media-controls-play-button-updates.html [ Failure ]
 media/media-controls-timeline-updates-after-playing.html [ Failure ]
 media/media-controls-timeline-updates-when-hovered.html [ Failure ]
 media/media-controls-timeline-updates.html [ Failure ]
-media/media-document-audio-repaint.html [ Failure ]
 media/media-higher-prio-audio-stream.html [ Failure ]
 media/media-volume-slider-rendered-below.html [ Failure ]
 media/media-volume-slider-rendered-normal.html [ Failure ]
@@ -2875,6 +2873,7 @@ webgl/1.0.3/conformance/ogles/GL/asin/asin_001_to_006.html [ Skip  ]
 fast/attachment/attachment-folder-icon.html [ ImageOnlyFailure ]
 
 fast/text/font-variations-feature-detection.html [ ImageOnlyFailure ]
+fast/text/text-indent-inside-float.html [ ImageOnlyFailure ]
 
 # <rdar://problem/28835343> REGRESSION: LayoutTest http/tests/multipart/load-last-non-html-frame.php failing
 http/tests/multipart/load-last-non-html-frame.php [ Failure  ]
@@ -2895,10 +2894,15 @@ fast/mediastream/RTCPeerConnection-stats.html [ Skip ]
 
 # screen capture not supported on iOS.
 fast/mediastream/screencapture-user-gesture.html [ Skip ]
+fast/mediastream/getDisplayMedia-max-constraints1.html [ Skip ]
+fast/mediastream/getDisplayMedia-max-constraints2.html [ Skip ]
+fast/mediastream/getDisplayMedia-max-constraints3.html [ Skip ]
 
 webkit.org/b/177401 webrtc/captureCanvas-webrtc.html [ Pass Timeout Failure ]
 
 webkit.org/b/210173 webrtc/h265.html [ Skip ]
+
+webkit.org/b/209878  [ Debug ] webrtc/datachannel/multiple-connections.html [ Slow ]
 
 webkit.org/b/177323 imported/w3c/web-platform-tests/fetch/security/embedded-credentials.tentative.sub.html [ Pass Failure ]
 
@@ -3078,6 +3082,7 @@ webkit.org/b/187982 webgl/2.0.0/conformance2/glsl3 [ Skip ]
 
 # Audio session does not have a "none" category on iOS [ Skip ]
 webkit.org/b/188285 platform/mac/media/audio-session-category-video-paused.html [ Skip ]
+webkit.org/b/188285 platform/mac/media/media-source/media-source-change-source.html [ Skip ]
 
 webkit.org/b/188578 svg/custom/scrolling-embedded-svg-file-image-repaint-problem.html [ Pass Failure ]
 
@@ -3419,8 +3424,6 @@ webkit.org/b/207057 imported/w3c/web-platform-tests/IndexedDB/keypath-special-id
 
 webkit.org/b/207225 imported/w3c/web-platform-tests/service-workers/service-worker/extendable-event-waituntil.https.html [ Pass Failure ]
 
-webkit.org/b/207230 imported/w3c/web-platform-tests/fetch/stale-while-revalidate/fetch.html [ Pass Failure ]
-
 # Locale-specific shaping is only enabled on certain OSes.
 webkit.org/b/77568 fast/text/locale-shaping.html [ ImageOnlyFailure ]
 webkit.org/b/77568 fast/text/locale-shaping-complex.html [ ImageOnlyFailure ]
@@ -3473,7 +3476,6 @@ webkit.org/b/207858 webgl/webgl-box-shadow.html [ Pass Failure ImageOnlyFailure 
 webkit.org/b/207858 fast/canvas/webgl/oes-texture-half-float-uint16.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/program-test.html [ Failure ]
 webkit.org/b/207858 fast/canvas/webgl/uninitialized-test.html [ Pass Failure ]
-webkit.org/b/207858 fast/canvas/webgl/webgl-depth-texture.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/webgl-texture-binding-preserved.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/oes-texture-float-linear.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/oes-vertex-array-object.html [ Pass Failure ]
@@ -3502,9 +3504,6 @@ http/wpt/webauthn/public-key-credential-get-success-local.https.html [ Skip ]
 
 webkit.org/b/208023 fast/text/international/system-language/declarative-language.html [ Failure ]
 
-webkit.org/b/208053 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-effects.sub.html [ Skip ]
-webkit.org/b/208053 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-occlusion.sub.html [ Skip ]
-
 webkit.org/b/204312 imported/w3c/web-platform-tests/svg/import/struct-dom-06-b-manual.svg [ Failure Pass ]
 
 webkit.org/b/209257 svg/as-object/object-box-sizing-no-width-height.html [ Pass Failure ]
@@ -3525,3 +3524,14 @@ webkit.org/b/209734 imported/w3c/web-platform-tests/css/selectors/focus-visible-
 # Certain versions of iOS use different text security characters.
 webkit.org/b/209692 platform/ios/fast/text/text-security-disc-bullet-pua-ios-new.html [ ImageOnlyFailure ]
 webkit.org/b/209692 fast/text/text-security-disc-bullet-pua.html [ ImageOnlyFailure ]
+
+webkit.org/b/210517 storage/indexeddb/result-request-cycle.html [ Pass Failure ]
+
+webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass Failure ]
+
+# These media controls tests are not relevant on macOS and iOS.
+media/media-document-audio-repaint.html [ Skip ]
+media/controls-styling.html [ Skip ]
+
+webkit.org/b/211261 compositing/iframes/border-radius-composited-frame.html [ Pass ImageOnlyFailure ]
+webkit.org/b/211261 compositing/iframes/border-uneven-radius-composited-frame.html [ Pass ImageOnlyFailure ]

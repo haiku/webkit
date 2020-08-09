@@ -985,8 +985,7 @@ bool WebFrameLoaderClient::canCachePage() const
     return true;
 }
 
-RefPtr<Frame> WebFrameLoaderClient::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement& ownerElement,
-    const String& referrer)
+RefPtr<Frame> WebFrameLoaderClient::createFrame(const String& name, HTMLFrameOwnerElement& ownerElement)
 {
     Frame* coreFrame = core(m_webFrame);
     ASSERT(coreFrame);
@@ -999,12 +998,6 @@ RefPtr<Frame> WebFrameLoaderClient::createFrame(const URL& url, const String& na
     coreFrame->tree().appendChild(*childFrame);
     childFrame->init();
 
-    coreFrame->loader().loadURLIntoChildFrame(url, referrer, childFrame.get());
-
-    // The frame's onload handler may have removed it from the document.
-    if (!childFrame->tree().parent())
-        return nullptr;
-
     return childFrame;
 }
 
@@ -1014,7 +1007,7 @@ ObjectContentType WebFrameLoaderClient::objectContentType(const URL& url, const 
 
     if (mimeType.isEmpty()) {
         String decodedPath = decodeURLEscapeSequences(url.path());
-        mimeType = PluginDatabase::installedPlugins()->MIMETypeForExtension(decodedPath.substring(decodedPath.reverseFind('.') + 1));
+        mimeType = PluginDatabase::installedPlugins()->MIMETypeForExtension(StringView { decodedPath }.substring(decodedPath.reverseFind('.') + 1));
     }
 
     if (mimeType.isEmpty())

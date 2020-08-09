@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "WasmWorklist.h"
+#include "WasmLLIntGenerator.h"
 
 #if ENABLE(WEBASSEMBLY)
 
@@ -63,7 +64,7 @@ public:
 
     }
 
-protected:
+private:
     PollResult poll(const AbstractLocker&) override
     {
         auto& queue = worklist.m_queue;
@@ -114,6 +115,11 @@ protected:
         }
 
         return complete(holdLock(*worklist.m_lock));
+    }
+
+    void threadIsStopping(const AbstractLocker&) override
+    {
+        clearLLIntThreadSpecificCache();
     }
 
     const char* name() const override

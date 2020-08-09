@@ -73,17 +73,13 @@
 #import "LocalDefaultSystemAppearance.h"
 #endif
 
-#if (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000) || PLATFORM(MAC)
+// FIXME: Do we really need to keep the legacy code path around for watchOS and tvOS?
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
 @interface NSAttributedString ()
-- (NSString *)_htmlDocumentFragmentString:(NSRange)range documentAttributes:(NSDictionary *)dict subresources:(NSArray **)subresources;
+- (NSString *)_htmlDocumentFragmentString:(NSRange)range documentAttributes:(NSDictionary *)attributes subresources:(NSArray **)subresources;
 @end
-#elif PLATFORM(IOS_FAMILY)
+#else
 SOFT_LINK_PRIVATE_FRAMEWORK(WebKitLegacy)
-#elif PLATFORM(MAC)
-SOFT_LINK_FRAMEWORK_IN_UMBRELLA(WebKit, WebKitLegacy)
-#endif
-
-#if (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED < 110000)
 SOFT_LINK(WebKitLegacy, _WebCreateFragment, void, (WebCore::Document& document, NSAttributedString *string, WebCore::FragmentAndResources& result), (document, string, result))
 #endif
 
@@ -96,7 +92,7 @@ static FragmentAndResources createFragment(Frame&, NSAttributedString *)
     return { };
 }
 
-#elif (PLATFORM(IOS_FAMILY) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000) || PLATFORM(MAC)
+#elif !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
 
 static NSDictionary *attributesForAttributedStringConversion()
 {
@@ -119,10 +115,6 @@ static NSDictionary *attributesForAttributedStringConversion()
 #if ENABLE(ATTACHMENT_ELEMENT)
     if (!RuntimeEnabledFeatures::sharedFeatures().attachmentElementEnabled())
         [excludedElements addObject:@"object"];
-#endif
-
-#if PLATFORM(IOS_FAMILY)
-    static NSString * const NSExcludedElementsDocumentAttribute = @"ExcludedElements";
 #endif
 
     NSURL *baseURL = URL::fakeURLWithRelativePart(emptyString());
@@ -163,6 +155,7 @@ static FragmentAndResources createFragment(Frame& frame, NSAttributedString *str
 
 #else
 
+// FIXME: Do we really need to keep this legacy code path around for watchOS and tvOS?
 static FragmentAndResources createFragment(Frame& frame, NSAttributedString *string)
 {
     FragmentAndResources result;
@@ -328,13 +321,13 @@ static void replaceRichContentWithAttachments(Frame& frame, DocumentFragment& fr
         if (resource == urlToResourceMap.end())
             continue;
 
-        auto name = image.attributeWithoutSynchronization(HTMLNames::altAttr);
+        String name = image.attributeWithoutSynchronization(HTMLNames::altAttr);
         if (name.isEmpty())
-            name = URL({ }, resourceURLString).lastPathComponent();
+            name = URL({ }, resourceURLString).lastPathComponent().toString();
         if (name.isEmpty())
-            name = AtomString("media");
+            name = "media"_s;
 
-        attachmentInsertionInfo.append({ name, resource->value->mimeType(), resource->value->data(), image });
+        attachmentInsertionInfo.append({ WTFMove(name), resource->value->mimeType(), resource->value->data(), image });
     }
 
     for (auto& object : descendantsOfType<HTMLObjectElement>(fragment)) {
@@ -348,11 +341,11 @@ static void replaceRichContentWithAttachments(Frame& frame, DocumentFragment& fr
         if (resource == urlToResourceMap.end())
             continue;
 
-        auto name = URL({ }, resourceURLString).lastPathComponent();
+        String name = URL({ }, resourceURLString).lastPathComponent().toString();
         if (name.isEmpty())
-            name = AtomString("file");
+            name = "file"_s;
 
-        attachmentInsertionInfo.append({ name, resource->value->mimeType(), resource->value->data(), object });
+        attachmentInsertionInfo.append({ WTFMove(name), resource->value->mimeType(), resource->value->data(), object });
     }
 
     for (auto& info : attachmentInsertionInfo) {
@@ -452,11 +445,11 @@ static String sanitizeMarkupWithArchive(Frame& frame, Document& destinationDocum
     auto page = createPageForSanitizingWebContent();
     Document* stagingDocument = page->mainFrame().document();
     ASSERT(stagingDocument);
-    auto fragment = createFragmentFromMarkup(*stagingDocument, markupAndArchive.markup, markupAndArchive.mainResource->url(), DisallowScriptingAndPluginContent);
+    auto fragment = createFragmentFromMarkup(*stagingDocument, markupAndArchive.markup, markupAndArchive.mainResource->url().string(), DisallowScriptingAndPluginContent);
 
     if (shouldReplaceRichContentWithAttachments()) {
         replaceRichContentWithAttachments(frame, fragment, markupAndArchive.archive->subresources());
-        return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, msoListQuirks, markupAndArchive.markup);
+        return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, AddMetaCharsetIfNeeded::No, msoListQuirks, markupAndArchive.markup);
     }
 
     HashMap<AtomString, AtomString> blobURLMap;
@@ -499,7 +492,7 @@ static String sanitizeMarkupWithArchive(Frame& frame, Document& destinationDocum
 
     replaceSubresourceURLs(fragment.get(), WTFMove(blobURLMap));
 
-    return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, msoListQuirks, markupAndArchive.markup);
+    return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, AddMetaCharsetIfNeeded::No, msoListQuirks, markupAndArchive.markup);
 }
 
 bool WebContentReader::readWebArchive(SharedBuffer& buffer)
@@ -515,21 +508,21 @@ bool WebContentReader::readWebArchive(SharedBuffer& buffer)
         return false;
     
     if (!RuntimeEnabledFeatures::sharedFeatures().customPasteboardDataEnabled()) {
-        fragment = createFragmentFromMarkup(*frame.document(), result->markup, result->mainResource->url(), DisallowScriptingAndPluginContent);
+        fragment = createFragmentFromMarkup(*frame.document(), result->markup, result->mainResource->url().string(), DisallowScriptingAndPluginContent);
         if (DocumentLoader* loader = frame.loader().documentLoader())
             loader->addAllArchiveResources(result->archive.get());
         return true;
     }
 
     if (!shouldSanitize()) {
-        fragment = createFragmentFromMarkup(*frame.document(), result->markup, result->mainResource->url(), DisallowScriptingAndPluginContent);
+        fragment = createFragmentFromMarkup(*frame.document(), result->markup, result->mainResource->url().string(), DisallowScriptingAndPluginContent);
         return true;
     }
 
     String sanitizedMarkup = sanitizeMarkupWithArchive(frame, *frame.document(), *result, msoListQuirksForMarkup(), [&] (const String& type) {
         return frame.loader().client().canShowMIMETypeAsHTML(type);
     });
-    fragment = createFragmentFromMarkup(*frame.document(), sanitizedMarkup, aboutBlankURL(), DisallowScriptingAndPluginContent);
+    fragment = createFragmentFromMarkup(*frame.document(), sanitizedMarkup, aboutBlankURL().string(), DisallowScriptingAndPluginContent);
 
     if (!fragment)
         return false;
@@ -587,7 +580,7 @@ bool WebContentReader::readHTML(const String& string)
 
     String markup;
     if (RuntimeEnabledFeatures::sharedFeatures().customPasteboardDataEnabled() && shouldSanitize()) {
-        markup = sanitizeMarkup(stringOmittingMicrosoftPrefix, msoListQuirksForMarkup(), WTF::Function<void (DocumentFragment&)> { [] (DocumentFragment& fragment) {
+        markup = sanitizeMarkup(stringOmittingMicrosoftPrefix, AddMetaCharsetIfNeeded::No, msoListQuirksForMarkup(), WTF::Function<void (DocumentFragment&)> { [] (DocumentFragment& fragment) {
             removeSubresourceURLAttributes(fragment, [] (const URL& url) {
                 return shouldReplaceSubresourceURL(url);
             });
@@ -606,7 +599,7 @@ bool WebContentMarkupReader::readHTML(const String& string)
 
     String rawHTML = stripMicrosoftPrefix(string);
     if (shouldSanitize()) {
-        markup = sanitizeMarkup(rawHTML, msoListQuirksForMarkup(), WTF::Function<void (DocumentFragment&)> { [] (DocumentFragment& fragment) {
+        markup = sanitizeMarkup(rawHTML, AddMetaCharsetIfNeeded::No, msoListQuirksForMarkup(), WTF::Function<void (DocumentFragment&)> { [] (DocumentFragment& fragment) {
             removeSubresourceURLAttributes(fragment, [] (const URL& url) {
                 return shouldReplaceSubresourceURL(url);
             });
@@ -675,7 +668,7 @@ bool WebContentReader::readPlainText(const String& text)
     if (!allowPlainText)
         return false;
 
-    addFragment(createFragmentFromText(context, [text precomposedStringWithCanonicalMapping]));
+    addFragment(createFragmentFromText(createLiveRange(context), [text precomposedStringWithCanonicalMapping]));
 
     madeFragmentFromPlainText = true;
     return true;

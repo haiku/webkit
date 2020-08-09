@@ -230,9 +230,7 @@ private:
     void AXFinishFrameLoad() final { }
 #endif
 
-#if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
     RefPtr<WebCore::DisplayRefreshMonitor> createDisplayRefreshMonitor(WebCore::PlatformDisplayID) const final;
-#endif
 
 #if ENABLE(GPU_PROCESS)
     RemoteRenderingBackend& ensureRemoteRenderingBackend() const;
@@ -264,10 +262,11 @@ private:
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     bool supportsVideoFullscreen(WebCore::HTMLMediaElementEnums::VideoFullscreenMode) final;
     bool supportsVideoFullscreenStandby() final;
-    void setUpPlaybackControlsManager(WebCore::HTMLMediaElement&) final;
-    void clearPlaybackControlsManager() final;
+    void setMockVideoPresentationModeEnabled(bool) final;
     void enterVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&, WebCore::HTMLMediaElementEnums::VideoFullscreenMode, bool standby) final;
     void exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&) final;
+    void setUpPlaybackControlsManager(WebCore::HTMLMediaElement&) final;
+    void clearPlaybackControlsManager() final;
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -276,7 +275,7 @@ private:
     void removeMediaUsageManagerSession(WebCore::MediaSessionIdentifier) final;
 #endif
 
-#if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
+#if ENABLE(VIDEO_PRESENTATION_MODE)
     void exitVideoFullscreenToModeWithoutAnimation(WebCore::HTMLVideoElement&, WebCore::HTMLMediaElementEnums::VideoFullscreenMode) final;
 #endif
 

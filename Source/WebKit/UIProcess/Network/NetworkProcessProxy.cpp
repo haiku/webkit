@@ -128,7 +128,7 @@ void NetworkProcessProxy::processWillShutDown(IPC::Connection& connection)
 void NetworkProcessProxy::getNetworkProcessConnection(WebProcessProxy& webProcessProxy, Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply&& reply)
 {
     RELEASE_LOG(ProcessSuspension, "%p - NetworkProcessProxy is taking a background assertion because a web process is requesting a connection", this);
-    sendWithAsyncReply(Messages::NetworkProcess::CreateNetworkConnectionToWebProcess { webProcessProxy.coreProcessIdentifier(), webProcessProxy.sessionID() }, [this, weakThis = makeWeakPtr(*this), reply = WTFMove(reply), activity = throttler().backgroundActivity("NetworkProcessProxy::getNetworkProcessConnection"_s)](auto&& connectionIdentifier, auto cookieAcceptPolicy) mutable {
+    sendWithAsyncReply(Messages::NetworkProcess::CreateNetworkConnectionToWebProcess { webProcessProxy.coreProcessIdentifier(), webProcessProxy.sessionID() }, [this, weakThis = makeWeakPtr(*this), reply = WTFMove(reply)](auto&& connectionIdentifier, auto cookieAcceptPolicy) mutable {
         if (!weakThis) {
             RELEASE_LOG_ERROR(Process, "NetworkProcessProxy::getNetworkProcessConnection: NetworkProcessProxy deallocated during connection establishment");
             return reply({ });
@@ -136,6 +136,7 @@ void NetworkProcessProxy::getNetworkProcessConnection(WebProcessProxy& webProces
 
 #if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS)
         reply(NetworkProcessConnectionInfo { WTFMove(*connectionIdentifier), cookieAcceptPolicy });
+        UNUSED_VARIABLE(this);
 #elif OS(DARWIN)
         MESSAGE_CHECK(MACH_PORT_VALID(connectionIdentifier->port()));
         reply(NetworkProcessConnectionInfo { IPC::Attachment { connectionIdentifier->port(), MACH_MSG_TYPE_MOVE_SEND }, cookieAcceptPolicy, connection()->getAuditToken() });
@@ -198,7 +199,7 @@ void NetworkProcessProxy::deleteWebsiteData(PAL::SessionID sessionID, OptionSet<
     send(Messages::NetworkProcess::DeleteWebsiteData(sessionID, dataTypes, modifiedSince, callbackID), 0);
 }
 
-void NetworkProcessProxy::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, OptionSet<WebsiteDataType> dataTypes, const Vector<WebCore::SecurityOriginData>& origins, const Vector<String>& cookieHostNames, const Vector<String>& HSTSCacheHostNames, CompletionHandler<void()>&& completionHandler)
+void NetworkProcessProxy::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, OptionSet<WebsiteDataType> dataTypes, const Vector<WebCore::SecurityOriginData>& origins, const Vector<String>& cookieHostNames, const Vector<String>& HSTSCacheHostNames, const Vector<RegistrableDomain>& registrableDomains, CompletionHandler<void()>&& completionHandler)
 {
     ASSERT(canSendMessage());
 
@@ -214,7 +215,12 @@ void NetworkProcessProxy::deleteWebsiteDataForOrigins(PAL::SessionID sessionID, 
         RELEASE_LOG_IF(sessionID.isAlwaysOnLoggingAllowed(), ProcessSuspension, "%p - NetworkProcessProxy is releasing a background assertion because the Network process is done deleting Website data for several origins", this);
     });
 
-    send(Messages::NetworkProcess::DeleteWebsiteDataForOrigins(sessionID, dataTypes, origins, cookieHostNames, HSTSCacheHostNames, callbackID), 0);
+    send(Messages::NetworkProcess::DeleteWebsiteDataForOrigins(sessionID, dataTypes, origins, cookieHostNames, HSTSCacheHostNames, registrableDomains, callbackID), 0);
+}
+
+void NetworkProcessProxy::renameOriginInWebsiteData(PAL::SessionID sessionID, const URL& oldName, const URL& newName, OptionSet<WebsiteDataType> dataTypes, CompletionHandler<void()>&& completionHandler)
+{
+    sendWithAsyncReply(Messages::NetworkProcess::RenameOriginInWebsiteData(sessionID, oldName, newName, dataTypes), WTFMove(completionHandler));
 }
 
 void NetworkProcessProxy::networkProcessCrashed()
@@ -265,8 +271,6 @@ void NetworkProcessProxy::didClose(IPC::Connection&)
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
     m_customProtocolManagerProxy.invalidate();
 #endif
-
-    m_activityForHoldingLockedFiles = nullptr;
     
     m_syncAllCookiesActivity = nullptr;
     m_syncAllCookiesCounter = 0;
@@ -277,9 +281,9 @@ void NetworkProcessProxy::didClose(IPC::Connection&)
     networkProcessCrashed();
 }
 
-void NetworkProcessProxy::didReceiveInvalidMessage(IPC::Connection& connection, IPC::StringReference messageReceiverName, IPC::StringReference messageName)
+void NetworkProcessProxy::didReceiveInvalidMessage(IPC::Connection& connection, IPC::MessageName messageName)
 {
-    logInvalidMessage(connection, messageReceiverName, messageName);
+    logInvalidMessage(connection, messageName);
     terminate();
 }
 
@@ -342,6 +346,12 @@ void NetworkProcessProxy::negotiatedLegacyTLS(WebPageProxyIdentifier pageID)
         page = WebProcessProxy::webPage(pageID);
     if (page)
         page->negotiatedLegacyTLS();
+}
+
+void NetworkProcessProxy::didNegotiateModernTLS(WebPageProxyIdentifier pageID, const WebCore::AuthenticationChallenge& challenge)
+{
+    if (auto* page = pageID ? WebProcessProxy::webPage(pageID) : nullptr)
+        page->didNegotiateModernTLS(challenge);
 }
 
 void NetworkProcessProxy::didFetchWebsiteData(CallbackID callbackID, const WebsiteData& websiteData)
@@ -568,6 +578,16 @@ void NetworkProcessProxy::setLastSeen(PAL::SessionID sessionID, const Registrabl
     sendWithAsyncReply(Messages::NetworkProcess::SetLastSeen(sessionID, resourceDomain, lastSeen), WTFMove(completionHandler));
 }
 
+void NetworkProcessProxy::domainIDExistsInDatabase(PAL::SessionID sessionID, int domainID, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!canSendMessage()) {
+        completionHandler(false);
+        return;
+    }
+    
+    sendWithAsyncReply(Messages::NetworkProcess::DomainIDExistsInDatabase(sessionID, domainID), WTFMove(completionHandler));
+}
+
 void NetworkProcessProxy::mergeStatisticForTesting(PAL::SessionID sessionID, const RegistrableDomain& resourceDomain, const RegistrableDomain& topFrameDomain1, const RegistrableDomain& topFrameDomain2, Seconds lastSeen, bool hadUserInteraction, Seconds mostRecentUserInteraction, bool isGrandfathered, bool isPrevalent, bool isVeryPrevalent, unsigned dataRecordsRemoved, CompletionHandler<void()>&& completionHandler)
 {
     sendWithAsyncReply(Messages::NetworkProcess::MergeStatisticForTesting(sessionID, resourceDomain, topFrameDomain1, topFrameDomain2, lastSeen, hadUserInteraction, mostRecentUserInteraction, isGrandfathered, isPrevalent, isVeryPrevalent, dataRecordsRemoved), WTFMove(completionHandler));
@@ -611,6 +631,16 @@ void NetworkProcessProxy::scheduleStatisticsAndDataRecordsProcessing(PAL::Sessio
     }
     
     sendWithAsyncReply(Messages::NetworkProcess::ScheduleStatisticsAndDataRecordsProcessing(sessionID), WTFMove(completionHandler));
+}
+
+void NetworkProcessProxy::statisticsDatabaseHasAllTables(PAL::SessionID sessionID, CompletionHandler<void(bool)>&& completionHandler)
+{
+    if (!canSendMessage()) {
+        completionHandler(false);
+        return;
+    }
+    
+    sendWithAsyncReply(Messages::NetworkProcess::StatisticsDatabaseHasAllTables(sessionID), WTFMove(completionHandler));
 }
 
 void NetworkProcessProxy::logUserInteraction(PAL::SessionID sessionID, const RegistrableDomain& resourceDomain, CompletionHandler<void()>&& completionHandler)
@@ -820,7 +850,9 @@ void NetworkProcessProxy::setGrandfathered(PAL::SessionID sessionID, const Regis
 
 void NetworkProcessProxy::setUseITPDatabase(PAL::SessionID sessionID, bool value, CompletionHandler<void()>&& completionHandler)
 {
-    sendWithAsyncReply(Messages::NetworkProcess::SetUseITPDatabase(sessionID, value), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::SetUseITPDatabase(sessionID, value), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::requestStorageAccessConfirm(WebPageProxyIdentifier pageID, FrameIdentifier frameID, const RegistrableDomain& subFrameDomain, const RegistrableDomain& topFrameDomain, CompletionHandler<void(bool)>&& completionHandler)
@@ -951,7 +983,9 @@ void NetworkProcessProxy::resetCacheMaxAgeCapForPrevalentResources(PAL::SessionI
         return;
     }
     
-    sendWithAsyncReply(Messages::NetworkProcess::ResetCacheMaxAgeCapForPrevalentResources(sessionID), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::ResetCacheMaxAgeCapForPrevalentResources(sessionID), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::resetParametersToDefaultValues(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
@@ -961,7 +995,9 @@ void NetworkProcessProxy::resetParametersToDefaultValues(PAL::SessionID sessionI
         return;
     }
     
-    sendWithAsyncReply(Messages::NetworkProcess::ResetParametersToDefaultValues(sessionID), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::ResetParametersToDefaultValues(sessionID), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::submitTelemetry(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
@@ -981,7 +1017,9 @@ void NetworkProcessProxy::scheduleClearInMemoryAndPersistent(PAL::SessionID sess
         return;
     }
 
-    sendWithAsyncReply(Messages::NetworkProcess::ScheduleClearInMemoryAndPersistent(sessionID, { }, shouldGrandfather), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::ScheduleClearInMemoryAndPersistent(sessionID, { }, shouldGrandfather), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::logTestingEvent(PAL::SessionID sessionID, const String& event)
@@ -1059,7 +1097,9 @@ void NetworkProcessProxy::resetCrossSiteLoadsWithLinkDecorationForTesting(PAL::S
         return;
     }
     
-    sendWithAsyncReply(Messages::NetworkProcess::ResetCrossSiteLoadsWithLinkDecorationForTesting(sessionID), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::ResetCrossSiteLoadsWithLinkDecorationForTesting(sessionID), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::deleteCookiesForTesting(PAL::SessionID sessionID, const RegistrableDomain& domain, bool includeHttpOnlyCookies, CompletionHandler<void()>&& completionHandler)
@@ -1097,6 +1137,13 @@ void NetworkProcessProxy::hasIsolatedSession(PAL::SessionID sessionID, const Reg
     sendWithAsyncReply(Messages::NetworkProcess::HasIsolatedSession(sessionID, domain), WTFMove(completionHandler));
 }
 
+void NetworkProcessProxy::setAppBoundDomainsForResourceLoadStatistics(PAL::SessionID sessionID, const HashSet<RegistrableDomain>& appBoundDomains, CompletionHandler<void()>&& completionHandler)
+{
+    sendWithAsyncReply(Messages::NetworkProcess::SetAppBoundDomainsForResourceLoadStatistics(sessionID, appBoundDomains), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
+}
+
 void NetworkProcessProxy::setShouldDowngradeReferrerForTesting(bool enabled, CompletionHandler<void()>&& completionHandler)
 {
     if (!canSendMessage()) {
@@ -1104,12 +1151,16 @@ void NetworkProcessProxy::setShouldDowngradeReferrerForTesting(bool enabled, Com
         return;
     }
     
-    sendWithAsyncReply(Messages::NetworkProcess::SetShouldDowngradeReferrerForTesting(enabled), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::SetShouldDowngradeReferrerForTesting(enabled), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
-void NetworkProcessProxy::setShouldBlockThirdPartyCookiesForTesting(PAL::SessionID sessionID, ThirdPartyCookieBlockingMode blockingMode, CompletionHandler<void()>&& completionHandler)
+void NetworkProcessProxy::setThirdPartyCookieBlockingMode(PAL::SessionID sessionID, ThirdPartyCookieBlockingMode blockingMode, CompletionHandler<void()>&& completionHandler)
 {
-    sendWithAsyncReply(Messages::NetworkProcess::SetShouldBlockThirdPartyCookiesForTesting(sessionID, blockingMode), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::SetThirdPartyCookieBlockingMode(sessionID, blockingMode), [completionHandler = WTFMove(completionHandler)]() mutable {
+        completionHandler();
+    });
 }
 
 void NetworkProcessProxy::setShouldEnbleSameSiteStrictEnforcementForTesting(PAL::SessionID sessionID, WebCore::SameSiteStrictEnforcementEnabled enabled, CompletionHandler<void()>&& completionHandler)
@@ -1138,6 +1189,14 @@ void NetworkProcessProxy::setToSameSiteStrictCookiesForTesting(PAL::SessionID se
 }
 #endif // ENABLE(RESOURCE_LOAD_STATISTICS)
 
+void NetworkProcessProxy::setAdClickAttributionDebugMode(bool debugMode)
+{
+    if (!canSendMessage())
+        return;
+
+    send(Messages::NetworkProcess::SetAdClickAttributionDebugMode(debugMode), 0);
+}
+
 void NetworkProcessProxy::sendProcessWillSuspendImminentlyForTesting()
 {
     if (canSendMessage())
@@ -1146,26 +1205,13 @@ void NetworkProcessProxy::sendProcessWillSuspendImminentlyForTesting()
     
 void NetworkProcessProxy::sendPrepareToSuspend(IsSuspensionImminent isSuspensionImminent, CompletionHandler<void()>&& completionHandler)
 {
-    sendWithAsyncReply(Messages::NetworkProcess::PrepareToSuspend(isSuspensionImminent == IsSuspensionImminent::Yes), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::PrepareToSuspend(isSuspensionImminent == IsSuspensionImminent::Yes), WTFMove(completionHandler), 0, { }, ShouldStartProcessThrottlerActivity::No);
 }
 
 void NetworkProcessProxy::sendProcessDidResume()
 {
     if (canSendMessage())
         send(Messages::NetworkProcess::ProcessDidResume(), 0);
-}
-    
-void NetworkProcessProxy::setIsHoldingLockedFiles(bool isHoldingLockedFiles)
-{
-    if (!isHoldingLockedFiles) {
-        RELEASE_LOG(ProcessSuspension, "UIProcess is releasing a background assertion because the Network process is no longer holding locked files");
-        m_activityForHoldingLockedFiles = nullptr;
-        return;
-    }
-    if (!m_activityForHoldingLockedFiles) {
-        RELEASE_LOG(ProcessSuspension, "UIProcess is taking a background assertion because the Network process is holding locked files");
-        m_activityForHoldingLockedFiles = m_throttler.backgroundActivity("Holding locked files"_s).moveToUniquePtr();
-    }
 }
 
 void NetworkProcessProxy::syncAllCookies()
@@ -1455,14 +1501,14 @@ void NetworkProcessProxy::hasAppBoundSession(PAL::SessionID sessionID, Completio
     sendWithAsyncReply(Messages::NetworkProcess::HasAppBoundSession(sessionID), WTFMove(completionHandler));
 }
 
-void NetworkProcessProxy::setInAppBrowserPrivacyEnabled(PAL::SessionID sessionID, bool value, CompletionHandler<void()>&& completionHandler)
+void NetworkProcessProxy::clearAppBoundSession(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
 {
     if (!canSendMessage()) {
         completionHandler();
         return;
     }
     
-    sendWithAsyncReply(Messages::NetworkProcess::SetInAppBrowserPrivacyEnabled(sessionID, value), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::NetworkProcess::ClearAppBoundSession(sessionID), WTFMove(completionHandler));
 }
 
 void NetworkProcessProxy::getAppBoundDomains(PAL::SessionID sessionID, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&& completionHandler)
@@ -1484,4 +1530,3 @@ void NetworkProcessProxy::getAppBoundDomains(PAL::SessionID sessionID, Completio
 } // namespace WebKit
 
 #undef MESSAGE_CHECK
-#undef MESSAGE_CHECK_URL

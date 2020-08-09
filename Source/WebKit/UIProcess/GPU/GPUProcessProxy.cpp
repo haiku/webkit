@@ -183,13 +183,14 @@ void GPUProcessProxy::getGPUProcessConnection(WebProcessProxy& webProcessProxy, 
 #endif
 
     RELEASE_LOG(ProcessSuspension, "%p - GPUProcessProxy is taking a background assertion because a web process is requesting a connection", this);
-    sendWithAsyncReply(Messages::GPUProcess::CreateGPUConnectionToWebProcess { webProcessProxy.coreProcessIdentifier(), webProcessProxy.sessionID() }, [this, weakThis = makeWeakPtr(*this), reply = WTFMove(reply), activity = throttler().backgroundActivity("GPUProcessProxy::getGPUProcessConnection"_s)](auto&& connectionIdentifier) mutable {
+    sendWithAsyncReply(Messages::GPUProcess::CreateGPUConnectionToWebProcess { webProcessProxy.coreProcessIdentifier(), webProcessProxy.sessionID() }, [this, weakThis = makeWeakPtr(*this), reply = WTFMove(reply)](auto&& connectionIdentifier) mutable {
         if (!weakThis) {
             RELEASE_LOG_ERROR(Process, "GPUProcessProxy::getGPUProcessConnection: GPUProcessProxy deallocated during connection establishment");
             return reply({ });
         }
 #if USE(UNIX_DOMAIN_SOCKETS) || OS(WINDOWS)
         reply(GPUProcessConnectionInfo { WTFMove(*connectionIdentifier) });
+        UNUSED_VARIABLE(this);
 #elif OS(DARWIN)
         MESSAGE_CHECK(MACH_PORT_VALID(connectionIdentifier->port()));
         reply(GPUProcessConnectionInfo { IPC::Attachment { connectionIdentifier->port(), MACH_MSG_TYPE_MOVE_SEND }, this->connection()->getAuditToken() });
@@ -211,11 +212,11 @@ void GPUProcessProxy::didClose(IPC::Connection&)
     gpuProcessCrashed();
 }
 
-void GPUProcessProxy::didReceiveInvalidMessage(IPC::Connection& connection, IPC::StringReference messageReceiverName, IPC::StringReference messageName)
+void GPUProcessProxy::didReceiveInvalidMessage(IPC::Connection& connection, IPC::MessageName messageName)
 {
-    logInvalidMessage(connection, messageReceiverName, messageName);
+    logInvalidMessage(connection, messageName);
 
-    WebProcessPool::didReceiveInvalidMessage(messageReceiverName, messageName);
+    WebProcessPool::didReceiveInvalidMessage(messageName);
 
     // Terminate the GPU process.
     terminate();

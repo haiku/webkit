@@ -30,6 +30,10 @@
 
 #include "AXIsolatedTree.h"
 
+#if PLATFORM(COCOA)
+#include <pal/spi/cocoa/AccessibilitySupportSoftLink.h>
+#endif
+
 namespace WebCore {
 
 AXIsolatedObject::AXIsolatedObject(AXCoreObject& object, AXIsolatedTreeID treeID, AXID parentID)
@@ -161,7 +165,7 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::SortDirection, static_cast<int>(object.sortDirection()));
     setProperty(AXPropertyName::CanvasHasFallbackContent, object.canvasHasFallbackContent());
     setProperty(AXPropertyName::SupportsRangeValue, object.supportsRangeValue());
-    setProperty(AXPropertyName::IdentifierAttribute, object.identifierAttribute());
+    setProperty(AXPropertyName::IdentifierAttribute, object.identifierAttribute().isolatedCopy());
     setProperty(AXPropertyName::LinkRelValue, object.linkRelValue());
     setProperty(AXPropertyName::CurrentState, static_cast<int>(object.currentState()));
     setProperty(AXPropertyName::CurrentValue, object.currentValue());
@@ -172,10 +176,10 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::SupportsPosInSet, object.supportsPosInSet());
     setProperty(AXPropertyName::SetSize, object.setSize());
     setProperty(AXPropertyName::PosInSet, object.posInSet());
-    setProperty(AXPropertyName::SupportsARIADropping, object.supportsARIADropping());
-    setProperty(AXPropertyName::SupportsARIADragging, object.supportsARIADragging());
-    setProperty(AXPropertyName::IsARIAGrabbed, object.isARIAGrabbed());
-    setProperty(AXPropertyName::ARIADropEffects, object.determineARIADropEffects());
+    setProperty(AXPropertyName::SupportsDropping, object.supportsDropping());
+    setProperty(AXPropertyName::SupportsDragging, object.supportsDragging());
+    setProperty(AXPropertyName::IsGrabbed, object.isGrabbed());
+    setProperty(AXPropertyName::DropEffects, object.determineDropEffects());
     setObjectProperty(AXPropertyName::TitleUIElement, object.titleUIElement());
     setProperty(AXPropertyName::ExposesTitleUIElement, object.exposesTitleUIElement());
     setObjectProperty(AXPropertyName::VerticalScrollBar, object.scrollBar(AccessibilityOrientation::Vertical));
@@ -374,15 +378,6 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
         setMathscripts(AXPropertyName::MathPostscripts, object);
     }
 
-    if (object.isScrollView()) {
-#if PLATFORM(COCOA)
-        setProperty(AXPropertyName::PlatformWidget, object.platformWidget());
-        setProperty(AXPropertyName::RemoteParentObject, object.remoteParentObject());
-#else
-        setProperty(AXPropertyName::PlatformWidget, object.platformWidget());
-#endif
-    }
-
     if (isRoot) {
         setObjectProperty(AXPropertyName::WebArea, object.webAreaObject());
         setProperty(AXPropertyName::PreventKeyboardDOMEventDispatch, object.preventKeyboardDOMEventDispatch());
@@ -391,6 +386,8 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
         setProperty(AXPropertyName::DocumentEncoding, object.documentEncoding());
         setObjectVectorProperty(AXPropertyName::DocumentLinks, object.documentLinks());
     }
+
+    initializePlatformProperties(object);
 }
 
 void AXIsolatedObject::setMathscripts(AXPropertyName propertyName, AXCoreObject& object)
@@ -462,9 +459,8 @@ void AXIsolatedObject::setParent(AXID parent)
     m_parentID = parent;
 }
 
-void AXIsolatedObject::detachRemoteParts(AccessibilityDetachmentType detachmentType)
+void AXIsolatedObject::detachRemoteParts(AccessibilityDetachmentType)
 {
-    ASSERT_UNUSED(detachmentType, isMainThread() ? detachmentType == AccessibilityDetachmentType::CacheDestroyed : detachmentType != AccessibilityDetachmentType::CacheDestroyed);
     for (const auto& childID : m_childrenIDs) {
         if (auto child = tree()->nodeForID(childID))
             child->detachFromParent();
@@ -485,13 +481,13 @@ void AXIsolatedObject::detachFromParent()
 
 const AXCoreObject::AccessibilityChildrenVector& AXIsolatedObject::children(bool)
 {
-    if (!isMainThread()) {
-        m_children.clear();
-        m_children.reserveInitialCapacity(m_childrenIDs.size());
-        for (const auto& childID : m_childrenIDs) {
-            if (auto child = tree()->nodeForID(childID))
-                m_children.uncheckedAppend(child);
-        }
+    ASSERT(_AXSIsolatedTreeModeFunctionIsAvailable() && ((_AXSIsolatedTreeMode_Soft() == AXSIsolatedTreeModeSecondaryThread && !isMainThread()) || (_AXSIsolatedTreeMode_Soft() == AXSIsolatedTreeModeMainThread && isMainThread())));
+    updateBackingStore();
+    m_children.clear();
+    m_children.reserveInitialCapacity(m_childrenIDs.size());
+    for (const auto& childID : m_childrenIDs) {
+        if (auto child = tree()->nodeForID(childID))
+            m_children.uncheckedAppend(child);
     }
     return m_children;
 }
@@ -589,7 +585,7 @@ void AXIsolatedObject::mathPostscripts(AccessibilityMathMultiscriptPairs& pairs)
 
 AXCoreObject* AXIsolatedObject::focusedUIElement() const
 {
-    return tree()->focusedUIElement().get();
+    return tree()->focusedNode().get();
 }
     
 AXCoreObject* AXIsolatedObject::parentObjectUnignored() const
@@ -866,12 +862,8 @@ void AXIsolatedObject::fillChildrenVectorForProperty(AXPropertyName propertyName
 void AXIsolatedObject::updateBackingStore()
 {
     // This method can be called on either the main or the AX threads.
-    // It can be called in the main thread from [WebAccessibilityObjectWrapper accessibilityFocusedUIElement].
-    // Update the IsolatedTree only if it is called on the AX thread.
-    if (!isMainThread()) {
-        if (auto tree = this->tree())
-            tree->applyPendingChanges();
-    }
+    if (auto tree = this->tree())
+        tree->applyPendingChanges();
 }
 
 String AXIsolatedObject::stringForRange(RefPtr<Range> range) const
@@ -1569,6 +1561,15 @@ Widget* AXIsolatedObject::widget() const
     if (auto* object = associatedAXObject())
         return object->widget();
     return nullptr;
+}
+
+PlatformWidget AXIsolatedObject::platformWidget() const
+{
+#if PLATFORM(COCOA)
+    return m_platformWidget.get();
+#else
+    return m_platformWidget;
+#endif
 }
 
 Widget* AXIsolatedObject::widgetForAttachmentView() const

@@ -27,6 +27,8 @@
 #import "WebCoreArgumentCoders.h"
 
 #import "ArgumentCodersCocoa.h"
+#import "CocoaFont.h"
+#import <WebCore/AttributedString.h>
 #import <WebCore/DictionaryPopupInfo.h>
 #import <WebCore/Font.h>
 #import <WebCore/FontAttributes.h>
@@ -41,19 +43,71 @@
 #import <UIKit/UIFont.h>
 #endif
 
-#if USE(APPLE_INTERNAL_SDK)
-#import <WebKitAdditions/WebCoreArgumentCodersCocoaAdditions.mm>
-#elif ENABLE(APPLE_PAY)
-namespace IPC {
-static bool finishDecoding(Decoder&, WebCore::ApplePaySessionPaymentRequest&) { return true; }
-static void finishEncoding(Encoder&, const WebCore::ApplePaySessionPaymentRequest&) { }
-}
-#endif
-
 namespace IPC {
 using namespace WebCore;
 
+void ArgumentCoder<WebCore::AttributedString>::encode(Encoder& encoder, const WebCore::AttributedString& attributedString)
+{
+    encoder << attributedString.string << attributedString.documentAttributes;
+}
+
+Optional<WebCore::AttributedString> ArgumentCoder<WebCore::AttributedString>::decode(Decoder& decoder)
+{
+    RetainPtr<NSAttributedString> attributedString;
+    if (!IPC::decode(decoder, attributedString))
+        return WTF::nullopt;
+    RetainPtr<NSDictionary> documentAttributes;
+    if (!IPC::decode(decoder, documentAttributes))
+        return WTF::nullopt;
+    return { { WTFMove(attributedString), WTFMove(documentAttributes) } };
+}
+
 #if ENABLE(APPLE_PAY)
+
+static bool finishDecoding(Decoder& decoder, WebCore::ApplePaySessionPaymentRequest& request)
+{
+#if ENABLE(APPLE_PAY_INSTALLMENTS)
+    Optional<WebCore::PaymentInstallmentConfiguration> installmentConfiguration;
+    decoder >> installmentConfiguration;
+    if (!installmentConfiguration)
+        return false;
+
+    request.setInstallmentConfiguration(WTFMove(*installmentConfiguration));
+    return true;
+#else
+    UNUSED_PARAM(decoder);
+    UNUSED_PARAM(request);
+    return true;
+#endif
+}
+
+static void finishEncoding(Encoder& encoder, const WebCore::ApplePaySessionPaymentRequest& request)
+{
+#if ENABLE(APPLE_PAY_INSTALLMENTS)
+    encoder << request.installmentConfiguration();
+#else
+    UNUSED_PARAM(encoder);
+    UNUSED_PARAM(request);
+#endif
+}
+
+#if HAVE(PASSKIT_INSTALLMENTS)
+
+void ArgumentCoder<WebCore::PaymentInstallmentConfiguration>::encode(Encoder& encoder, const WebCore::PaymentInstallmentConfiguration& configuration)
+{
+    encoder << configuration.platformConfiguration();
+}
+
+Optional<WebCore::PaymentInstallmentConfiguration> ArgumentCoder<WebCore::PaymentInstallmentConfiguration>::decode(Decoder& decoder)
+{
+    auto configuration = IPC::decode<PKPaymentInstallmentConfiguration>(decoder, PAL::getPKPaymentInstallmentConfigurationClass());
+    if (!configuration)
+        return WTF::nullopt;
+
+    return { WTFMove(*configuration) };
+}
+
+#endif // HAVE(PASSKIT_INSTALLMENTS)
 
 void ArgumentCoder<WebCore::Payment>::encode(Encoder& encoder, const WebCore::Payment& payment)
 {
@@ -471,12 +525,6 @@ Optional<FontAttributes> ArgumentCoder<WebCore::FontAttributes>::decodePlatformD
         return WTF::nullopt;
     return attributes;
 }
-
-#if PLATFORM(IOS_FAMILY)
-#define CocoaFont UIFont
-#else
-#define CocoaFont NSFont
-#endif
 
 void ArgumentCoder<FontHandle>::encodePlatformData(Encoder& encoder, const FontHandle& handle)
 {

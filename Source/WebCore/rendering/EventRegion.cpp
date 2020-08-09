@@ -71,10 +71,10 @@ void EventRegionContext::popClip()
     m_clipStack.removeLast();
 }
 
-void EventRegionContext::unite(const Region& region, const RenderStyle& style)
+void EventRegionContext::unite(const Region& region, const RenderStyle& style, bool overrideUserModifyIsEditable)
 {
     if (m_transformStack.isEmpty() && m_clipStack.isEmpty()) {
-        m_eventRegion.unite(region, style);
+        m_eventRegion.unite(region, style, overrideUserModifyIsEditable);
         return;
     }
 
@@ -83,7 +83,7 @@ void EventRegionContext::unite(const Region& region, const RenderStyle& style)
     if (!m_clipStack.isEmpty())
         transformedAndClippedRegion.intersect(m_clipStack.last());
 
-    m_eventRegion.unite(transformedAndClippedRegion, style);
+    m_eventRegion.unite(transformedAndClippedRegion, style, overrideUserModifyIsEditable);
 }
 
 bool EventRegionContext::contains(const IntRect& rect) const
@@ -107,15 +107,18 @@ bool EventRegion::operator==(const EventRegion& other) const
     return m_region == other.m_region;
 }
 
-void EventRegion::unite(const Region& region, const RenderStyle& style)
+void EventRegion::unite(const Region& region, const RenderStyle& style, bool overrideUserModifyIsEditable)
 {
     m_region.unite(region);
 
     uniteTouchActions(region, style.effectiveTouchActions());
+    uniteEventListeners(region, style.eventListenerRegionTypes());
 
 #if ENABLE(EDITABLE_REGION)
-    if (style.userModify() != UserModify::ReadOnly)
+    if (overrideUserModifyIsEditable || style.userModify() != UserModify::ReadOnly)
         m_editableRegion.unite(region);
+#else
+    UNUSED_PARAM(overrideUserModifyIsEditable);
 #endif
 }
 
@@ -218,6 +221,14 @@ OptionSet<TouchAction> EventRegion::touchActionsForPoint(const IntPoint& point) 
     return actions;
 }
 
+void EventRegion::uniteEventListeners(const Region& region, OptionSet<EventListenerRegionType> eventListenerRegionTypes)
+{
+    if (eventListenerRegionTypes.contains(EventListenerRegionType::Wheel))
+        m_wheelEventListenerRegion.unite(region);
+    if (eventListenerRegionTypes.contains(EventListenerRegionType::NonPassiveWheel))
+        m_nonPassiveWheelEventListenerRegion.unite(region);
+}
+
 #if ENABLE(EDITABLE_REGION)
 
 bool EventRegion::containsEditableElementsInRect(const IntRect& rect) const
@@ -240,6 +251,16 @@ void EventRegion::dump(TextStream& ts) const
             TextStream::IndentScope indentScope(ts);
             ts << indent << "(" << toTouchAction(i);
             ts << indent << m_touchActionRegions[i];
+            ts << indent << ")\n";
+        }
+        ts << indent << ")\n";
+    }
+
+    if (!m_wheelEventListenerRegion.isEmpty()) {
+        ts << indent << "(wheel event listener region" << m_wheelEventListenerRegion;
+        if (!m_nonPassiveWheelEventListenerRegion.isEmpty()) {
+            TextStream::IndentScope indentScope(ts);
+            ts << indent << "(non-passive" << m_nonPassiveWheelEventListenerRegion;
             ts << indent << ")\n";
         }
         ts << indent << ")\n";

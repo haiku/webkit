@@ -100,16 +100,38 @@ void ProcessThrottler::updateAssertionTypeNow()
     setAssertionType(expectedAssertionType());
 }
 
+String ProcessThrottler::assertionName(ProcessAssertionType type) const
+{
+    ASCIILiteral typeString = [type] {
+        switch (type) {
+        case ProcessAssertionType::Foreground:
+            return "Foreground"_s;
+        case ProcessAssertionType::Background:
+            return "Background"_s;
+        case ProcessAssertionType::Suspended:
+            return "Suspended"_s;
+        case ProcessAssertionType::UnboundedNetworking:
+        case ProcessAssertionType::MediaPlayback:
+        case ProcessAssertionType::DependentProcessLink:
+            ASSERT_NOT_REACHED(); // These other assertion types are not used by the ProcessThrottler.
+            break;
+        }
+        return "Unknown"_s;
+    }();
+
+    return makeString(m_process.clientName(), " ", typeString, " Assertion");
+}
+
 void ProcessThrottler::setAssertionType(ProcessAssertionType newType)
 {
-    if (m_assertion && m_assertion->type() == newType)
+    if (m_assertion && m_assertion->isValid() && m_assertion->type() == newType)
         return;
 
     PROCESSTHROTTLER_RELEASE_LOG("setAssertionType: Updating process assertion type to %u (foregroundActivities: %u, backgroundActivities: %u)", newType, m_foregroundActivities.size(), m_backgroundActivities.size());
     if (m_shouldTakeUIBackgroundAssertion)
-        m_assertion = makeUnique<ProcessAndUIAssertion>(m_processIdentifier, "Web content visibility"_s, newType);
+        m_assertion = makeUnique<ProcessAndUIAssertion>(m_processIdentifier, assertionName(newType), newType);
     else
-        m_assertion = makeUnique<ProcessAssertion>(m_processIdentifier, "Web content visibility"_s, newType);
+        m_assertion = makeUnique<ProcessAssertion>(m_processIdentifier, assertionName(newType), newType);
     m_process.didSetAssertionType(newType);
 }
     
@@ -203,6 +225,12 @@ void ProcessThrottler::uiAssertionWillExpireImminently()
     m_prepareToSuspendTimeoutTimer.stop();
 }
 
+void ProcessThrottler::assertionWasInvalidated()
+{
+    PROCESSTHROTTLER_RELEASE_LOG("assertionWasInvalidated:");
+    invalidateAllActivities();
+}
+
 bool ProcessThrottler::isValidBackgroundActivity(const ProcessThrottler::ActivityVariant& activity)
 {
     if (!WTF::holds_alternative<UniqueRef<ProcessThrottler::BackgroundActivity>>(activity))
@@ -215,6 +243,35 @@ bool ProcessThrottler::isValidForegroundActivity(const ProcessThrottler::Activit
     if (!WTF::holds_alternative<UniqueRef<ProcessThrottler::ForegroundActivity>>(activity))
         return false;
     return WTF::get<UniqueRef<ProcessThrottler::ForegroundActivity>>(activity)->isValid();
+}
+
+ProcessThrottler::TimedActivity::TimedActivity(Seconds timeout, ProcessThrottler::ActivityVariant&& activity)
+    : m_timer(RunLoop::main(), this, &TimedActivity::activityTimedOut)
+    , m_timeout(timeout)
+    , m_activity(WTFMove(activity))
+{
+    updateTimer();
+}
+
+auto ProcessThrottler::TimedActivity::operator=(ProcessThrottler::ActivityVariant&& activity) -> TimedActivity&
+{
+    m_activity = WTFMove(activity);
+    updateTimer();
+    return *this;
+}
+
+void ProcessThrottler::TimedActivity::activityTimedOut()
+{
+    RELEASE_LOG_ERROR(ProcessSuspension, "%p - TimedActivity::activityTimedOut:", this);
+    m_activity = nullptr;
+}
+
+void ProcessThrottler::TimedActivity::updateTimer()
+{
+    if (WTF::holds_alternative<std::nullptr_t>(m_activity))
+        m_timer.stop();
+    else
+        m_timer.startOneShot(m_timeout);
 }
 
 } // namespace WebKit

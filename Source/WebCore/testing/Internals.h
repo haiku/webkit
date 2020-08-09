@@ -52,6 +52,7 @@ namespace WebCore {
 
 class AnimationTimeline;
 class AudioContext;
+class AudioTrack;
 class CacheStorageConnection;
 class DOMRect;
 class DOMRectList;
@@ -95,6 +96,7 @@ class RTCPeerConnection;
 class Range;
 class RenderedDocumentMarker;
 class SVGSVGElement;
+class ScrollableArea;
 class SerializedScriptValue;
 class SourceBuffer;
 class StringCallback;
@@ -114,6 +116,10 @@ class TextTrackCueGeneric;
 
 #if ENABLE(SERVICE_WORKER)
 class ServiceWorker;
+#endif
+
+#if ENABLE(WEBXR)
+class WebXRTest;
 #endif
 
 template<typename IDLType> class DOMPromiseDeferred;
@@ -199,7 +205,7 @@ public:
 
     // DOMTimers throttling testing.
     ExceptionOr<bool> isTimerThrottled(int timeoutId);
-    bool isRequestAnimationFrameThrottled() const;
+    String requestAnimationFrameThrottlingReasons() const;
     double requestAnimationFrameInterval() const;
     bool scriptedAnimationsAreSuspended() const;
     bool areTimersThrottled() const;
@@ -330,9 +336,9 @@ public:
 
     void updateEditorUINowIfScheduled();
 
-    bool sentenceRetroCorrectionEnabled() const
+    static bool sentenceRetroCorrectionEnabled()
     {
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+#if PLATFORM(MAC)
         return true;
 #else
         return false;
@@ -391,6 +397,9 @@ public:
 
     ExceptionOr<String> scrollbarOverlayStyle(Node*) const;
     ExceptionOr<bool> scrollbarUsingDarkAppearance(Node*) const;
+
+    ExceptionOr<String> horizontalScrollbarState(Node*) const;
+    ExceptionOr<String> verticalScrollbarState(Node*) const;
 
     ExceptionOr<String> scrollingStateTreeAsText() const;
     ExceptionOr<String> scrollingTreeAsText() const;
@@ -487,6 +496,10 @@ public:
     void setFullscreenInsets(FullscreenInsets);
     void setFullscreenAutoHideDuration(double);
     void setFullscreenControlsHidden(bool);
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    void setMockVideoPresentationModeEnabled(bool);
+#endif
 
     WEBCORE_TESTSUPPORT_EXPORT void setApplicationCacheOriginQuota(unsigned long long);
 
@@ -764,6 +777,7 @@ public:
     void setMediaStreamTrackIdentifier(MediaStreamTrack&, String&& id);
     void setMediaStreamSourceInterrupted(MediaStreamTrack&, bool);
     bool isMockRealtimeMediaSourceCenterEnabled();
+    bool shouldAudioTrackPlay(const AudioTrack&);
 #endif
 
     bool supportsAudioSession() const;
@@ -1000,12 +1014,17 @@ public:
     unsigned createSleepDisabler(const String& reason, bool display);
     bool destroySleepDisabler(unsigned identifier);
 
+#if ENABLE(WEBXR)
+    ExceptionOr<RefPtr<WebXRTest>> xrTest();
+#endif
+
 private:
     explicit Internals(Document&);
     Document* contextDocument() const;
     Frame* frame() const;
 
     ExceptionOr<RenderedDocumentMarker*> markerAt(Node&, const String& markerType, unsigned index);
+    ExceptionOr<ScrollableArea*> scrollableAreaForNode(Node*) const;
 
 #if ENABLE(MEDIA_STREAM)
     // RealtimeMediaSource::Observer API
@@ -1024,6 +1043,10 @@ private:
     RefPtr<CacheStorageConnection> m_cacheStorageConnection;
 
     HashMap<unsigned, std::unique_ptr<WebCore::SleepDisabler>> m_sleepDisablers;
+
+#if ENABLE(WEBXR)
+    RefPtr<WebXRTest> m_xrTest;
+#endif
 };
 
 } // namespace WebCore

@@ -590,7 +590,7 @@ void FrameView::didDestroyRenderTree()
     ASSERT(!m_viewportConstrainedObjects || m_viewportConstrainedObjects->computesEmpty());
     ASSERT(!m_slowRepaintObjects || m_slowRepaintObjects->computesEmpty());
 
-    ASSERT(!frame().animation().hasAnimations());
+    ASSERT(!frame().legacyAnimation().hasAnimations());
 }
 
 void FrameView::setContentsSize(const IntSize& size)
@@ -880,13 +880,13 @@ ScrollingNodeID FrameView::scrollingNodeID() const
     return backing->scrollingNodeIDForRole(ScrollCoordinationRole::Scrolling);
 }
 
-ScrollableArea* FrameView::scrollableAreaForScrollLayerID(uint64_t nodeID) const
+ScrollableArea* FrameView::scrollableAreaForScrollingNodeID(ScrollingNodeID nodeID) const
 {
     RenderView* renderView = this->renderView();
     if (!renderView)
         return nullptr;
 
-    return renderView->compositor().scrollableAreaForScrollLayerID(nodeID);
+    return renderView->compositor().scrollableAreaForScrollingNodeID(nodeID);
 }
 
 #if ENABLE(RUBBER_BANDING)
@@ -2012,9 +2012,9 @@ bool FrameView::fixedElementsLayoutRelativeToFrame() const
     return frame().settings().fixedElementsLayoutRelativeToFrame();
 }
 
-IntPoint FrameView::lastKnownMousePosition() const
+IntPoint FrameView::lastKnownMousePositionInView() const
 {
-    return frame().eventHandler().lastKnownMousePosition();
+    return convertFromContainingWindow(frame().eventHandler().lastKnownMousePosition());
 }
 
 bool FrameView::isHandlingWheelEvent() const
@@ -2179,8 +2179,8 @@ void FrameView::restoreScrollbar()
 
 bool FrameView::scrollToFragment(const URL& url)
 {
-    String fragmentIdentifier = url.fragmentIdentifier();
-    if (scrollToFragmentInternal(fragmentIdentifier))
+    auto fragmentIdentifier = url.fragmentIdentifier();
+    if (scrollToFragmentInternal(fragmentIdentifier.toString()))
         return true;
 
     // Try again after decoding the ref, based on the document's encoding.
@@ -2195,7 +2195,7 @@ bool FrameView::scrollToFragment(const URL& url)
 
 bool FrameView::scrollToFragmentInternal(const String& fragmentIdentifier)
 {
-    LOG(Scrolling, "FrameView::scrollToAnchor %s", fragmentIdentifier.utf8().data());
+    LOG(Scrolling, "FrameView::scrollToFragmentInternal %s", fragmentIdentifier.utf8().data());
 
     // If our URL has no ref, then we have no place we need to jump to.
     if (fragmentIdentifier.isNull())
@@ -2530,9 +2530,9 @@ void FrameView::updateScriptedAnimationsAndTimersThrottlingState(const IntRect& 
 
     if (auto* scriptedAnimationController = document->scriptedAnimationController()) {
         if (shouldThrottle)
-            scriptedAnimationController->addThrottlingReason(ScriptedAnimationController::ThrottlingReason::OutsideViewport);
+            scriptedAnimationController->addThrottlingReason(ThrottlingReason::OutsideViewport);
         else
-            scriptedAnimationController->removeThrottlingReason(ScriptedAnimationController::ThrottlingReason::OutsideViewport);
+            scriptedAnimationController->removeThrottlingReason(ThrottlingReason::OutsideViewport);
     }
 
     document->setTimerThrottlingEnabled(shouldThrottle);
@@ -4257,6 +4257,9 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
     if (RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled()) {
+        // Integrate paint timing with LFC later on.
+        if (context.detectingContentfulPaint())
+            return;
         if (auto* layoutState = layoutContext().layoutFormattingState())
             Layout::LayoutContext::paint(*layoutState, context, dirtyRect);
         return;
@@ -4377,7 +4380,7 @@ void FrameView::updateLayoutAndStyleIfNeededRecursive()
     // Style updates can trigger script, which can cause this FrameView to be destroyed.
     Ref<FrameView> protectedThis(*this);
 
-    AnimationUpdateBlock animationUpdateBlock(&frame().animation());
+    AnimationUpdateBlock animationUpdateBlock(&frame().legacyAnimation());
 
     using DescendantsDeque = Deque<Ref<FrameView>, 16>;
     auto nextRenderedDescendant = [this] (DescendantsDeque& descendantsDeque) -> RefPtr<FrameView> {
@@ -5373,7 +5376,7 @@ void FrameView::setViewExposedRect(Optional<FloatRect> viewExposedRect)
 
     LOG_WITH_STREAM(Scrolling, stream << "FrameView " << this << " setViewExposedRect " << (viewExposedRect ? viewExposedRect.value() : FloatRect()));
 
-    bool hasRectChanged = !m_viewExposedRect == !viewExposedRect;
+    bool hasRectExistenceChanged = !m_viewExposedRect == !viewExposedRect;
     m_viewExposedRect = viewExposedRect;
 
     // FIXME: We should support clipping to the exposed rect for subframes as well.
@@ -5381,7 +5384,7 @@ void FrameView::setViewExposedRect(Optional<FloatRect> viewExposedRect)
         return;
 
     if (TiledBacking* tiledBacking = this->tiledBacking()) {
-        if (hasRectChanged)
+        if (hasRectExistenceChanged)
             updateTiledBackingAdaptiveSizing();
         adjustTiledBackingCoverage();
         tiledBacking->setTiledScrollingIndicatorPosition(m_viewExposedRect ? m_viewExposedRect.value().location() : FloatPoint());

@@ -277,7 +277,8 @@ public:
     enum class PaintInvalidationReasons : uint8_t {
         None,
         InvalidatingControlTints,
-        InvalidatingImagesWithAsyncDecodes
+        InvalidatingImagesWithAsyncDecodes,
+        DetectingContentfulPaint
     };
     GraphicsContext(PaintInvalidationReasons);
 
@@ -296,6 +297,7 @@ public:
     bool performingPaintInvalidation() const { return m_paintInvalidationReasons != PaintInvalidationReasons::None; }
     bool invalidatingControlTints() const { return m_paintInvalidationReasons == PaintInvalidationReasons::InvalidatingControlTints; }
     bool invalidatingImagesWithAsyncDecodes() const { return m_paintInvalidationReasons == PaintInvalidationReasons::InvalidatingImagesWithAsyncDecodes; }
+    bool detectingContentfulPaint() const { return m_paintInvalidationReasons == PaintInvalidationReasons::DetectingContentfulPaint; }
 
     WEBCORE_EXPORT void setStrokeThickness(float);
     float strokeThickness() const { return m_state.strokeThickness; }
@@ -517,6 +519,9 @@ public:
     FloatSize scaleFactor() const;
     FloatSize scaleFactorForDrawing(const FloatRect& destRect, const FloatRect& srcRect) const;
 
+    void setContentfulPaintDetected() { m_contenfulPaintDetected = true; }
+    bool contenfulPaintDetected() const { return m_contenfulPaintDetected; }
+
 #if OS(WINDOWS)
     HDC getWindowsContext(const IntRect&, bool supportAlphaBlend); // The passed in rect is used to create a bitmap for compositing inside transparency layers.
     void releaseWindowsContext(HDC, const IntRect&, bool supportAlphaBlend); // The passed in HDC should be the one handed back by getWindowsContext.
@@ -665,6 +670,7 @@ private:
 
     const PaintInvalidationReasons m_paintInvalidationReasons { PaintInvalidationReasons::None };
     unsigned m_transparencyCount { 0 };
+    bool m_contenfulPaintDetected { false };
 };
 
 class GraphicsContextStateSaver {

@@ -75,6 +75,7 @@
 #include "Interpreter.h"
 #include "IntlCollator.h"
 #include "IntlDateTimeFormat.h"
+#include "IntlLocale.h"
 #include "IntlNumberFormat.h"
 #include "IntlPluralRules.h"
 #include "IntlRelativeTimeFormat.h"
@@ -339,6 +340,7 @@ VM::VM(VMType vmType, HeapType heapType)
 #endif
     , intlCollatorHeapCellType(IsoHeapCellType::create<IntlCollator>())
     , intlDateTimeFormatHeapCellType(IsoHeapCellType::create<IntlDateTimeFormat>())
+    , intlLocaleHeapCellType(IsoHeapCellType::create<IntlLocale>())
     , intlNumberFormatHeapCellType(IsoHeapCellType::create<IntlNumberFormat>())
     , intlPluralRulesHeapCellType(IsoHeapCellType::create<IntlPluralRules>())
     , intlRelativeTimeFormatHeapCellType(IsoHeapCellType::create<IntlRelativeTimeFormat>())
@@ -739,7 +741,7 @@ HeapProfiler& VM::ensureHeapProfiler()
 }
 
 #if ENABLE(SAMPLING_PROFILER)
-SamplingProfiler& VM::ensureSamplingProfiler(RefPtr<Stopwatch>&& stopwatch)
+SamplingProfiler& VM::ensureSamplingProfiler(Ref<Stopwatch>&& stopwatch)
 {
     if (!m_samplingProfiler)
         m_samplingProfiler = adoptRef(new SamplingProfiler(*this, WTFMove(stopwatch)));
@@ -1258,14 +1260,13 @@ void VM::callPromiseRejectionCallback(Strong<JSPromise>& promise)
 
     auto scope = DECLARE_CATCH_SCOPE(*this);
 
-    CallData callData;
-    CallType callType = getCallData(*this, callback, callData);
-    ASSERT(callType != CallType::None);
+    auto callData = getCallData(*this, callback);
+    ASSERT(callData.type != CallData::Type::None);
 
     MarkedArgumentBuffer args;
     args.append(promise.get());
     args.append(promise->result(*this));
-    call(promise->globalObject(), callback, callType, callData, jsNull(), args);
+    call(promise->globalObject(), callback, callData, jsNull(), args);
     scope.clearException();
 }
 
@@ -1511,6 +1512,7 @@ DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(callbackAPIWrapperGlobalObjectSpace, cal
 #endif
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlCollatorSpace, intlCollatorHeapCellType.get(), IntlCollator)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDateTimeFormatSpace, intlDateTimeFormatHeapCellType.get(), IntlDateTimeFormat)
+DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlLocaleSpace, intlLocaleHeapCellType.get(), IntlLocale)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlNumberFormatSpace, intlNumberFormatHeapCellType.get(), IntlNumberFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlPluralRulesSpace, intlPluralRulesHeapCellType.get(), IntlPluralRules)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlRelativeTimeFormatSpace, intlRelativeTimeFormatHeapCellType.get(), IntlRelativeTimeFormat)

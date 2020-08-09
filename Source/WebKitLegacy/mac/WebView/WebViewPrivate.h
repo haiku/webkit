@@ -117,7 +117,7 @@ extern NSString *WebQuickLookFileNameKey;
 extern NSString *WebQuickLookUTIKey;
 #endif
 
-#if TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+#if TARGET_OS_IOS
 @protocol UIDropSession;
 #endif
 
@@ -479,7 +479,7 @@ Could be worth adding to the API.
 
 - (void)_replaceCurrentHistoryItem:(WebHistoryItem *)item;
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+#if TARGET_OS_IOS
 - (BOOL)_requestStartDataInteraction:(CGPoint)clientPosition globalPosition:(CGPoint)globalPosition;
 - (WebUITextIndicatorData *)_getDataInteractionData;
 @property (nonatomic, readonly, strong, getter=_dataOperationTextIndicator) WebUITextIndicatorData *dataOperationTextIndicator;
@@ -818,28 +818,6 @@ Could be worth adding to the API.
 // SPI for DumpRenderTree
 + (void)_setLoadResourcesSerially:(BOOL)serialize;
 - (void)_forceRepaintForTesting;
-
-/*!
-    @method cssAnimationsSuspended
-    @abstract Returns whether or not CSS Animations are suspended.
-    @result YES if CSS Animations are suspended.
-*/
-- (BOOL)cssAnimationsSuspended;
-
-/*!
-    @method setCSSAnimationsSuspended
-    @param suspended YES to suspend animations, NO to resume animations.
-    @discussion Suspends or resumes all running animations and transitions in the page.
-*/
-- (void)setCSSAnimationsSuspended:(BOOL)suspended;
-
-/*
-    SPI to revert back to buggy behavior that would allow new transitions
-    and animations to run even when the view is suspended (e.g. loading a
-    new document).
-*/
-- (BOOL)allowsNewCSSAnimationsWhileSuspended;
-- (void)setAllowsNewCSSAnimationsWhileSuspended:(BOOL)allowed;
 
 + (void)_setDomainRelaxationForbidden:(BOOL)forbidden forURLScheme:(NSString *)scheme;
 + (void)_registerURLSchemeAsSecure:(NSString *)scheme;

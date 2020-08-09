@@ -1058,12 +1058,10 @@ static SlowPathReturnType handleHostCall(JSGlobalObject* globalObject, CallFrame
     calleeFrame->setCodeBlock(0);
 
     if (callLinkInfo->specializationKind() == CodeForCall) {
-        CallData callData;
-        CallType callType = getCallData(vm, callee, callData);
-    
-        ASSERT(callType != CallType::JS);
-    
-        if (callType == CallType::Host) {
+        auto callData = getCallData(vm, callee);
+        ASSERT(callData.type != CallData::Type::JS);
+
+        if (callData.type == CallData::Type::Native) {
             NativeCallFrameTracer tracer(vm, calleeFrame);
             calleeFrame->setCallee(asObject(callee));
             vm.hostCallReturnValue = JSValue::decode(callData.native.function(asObject(callee)->globalObject(vm), calleeFrame));
@@ -1078,7 +1076,7 @@ static SlowPathReturnType handleHostCall(JSGlobalObject* globalObject, CallFrame
                 reinterpret_cast<void*>(callLinkInfo->callMode() == CallMode::Tail ? ReuseTheFrame : KeepTheFrame));
         }
     
-        ASSERT(callType == CallType::None);
+        ASSERT(callData.type == CallData::Type::None);
         throwException(globalObject, scope, createNotAFunctionError(globalObject, callee));
         return encodeResult(
             vm.getCTIStub(throwExceptionFromCallSlowPathGenerator).retaggedCode<JSEntryPtrTag>().executableAddress(),
@@ -1086,13 +1084,11 @@ static SlowPathReturnType handleHostCall(JSGlobalObject* globalObject, CallFrame
     }
 
     ASSERT(callLinkInfo->specializationKind() == CodeForConstruct);
-    
-    ConstructData constructData;
-    ConstructType constructType = getConstructData(vm, callee, constructData);
-    
-    ASSERT(constructType != ConstructType::JS);
-    
-    if (constructType == ConstructType::Host) {
+
+    auto constructData = getConstructData(vm, callee);
+    ASSERT(constructData.type != CallData::Type::JS);
+
+    if (constructData.type == CallData::Type::Native) {
         NativeCallFrameTracer tracer(vm, calleeFrame);
         calleeFrame->setCallee(asObject(callee));
         vm.hostCallReturnValue = JSValue::decode(constructData.native.function(asObject(callee)->globalObject(vm), calleeFrame));
@@ -1104,8 +1100,8 @@ static SlowPathReturnType handleHostCall(JSGlobalObject* globalObject, CallFrame
 
         return encodeResult(tagCFunction<void*, JSEntryPtrTag>(getHostCallReturnValue), reinterpret_cast<void*>(KeepTheFrame));
     }
-    
-    ASSERT(constructType == ConstructType::None);
+
+    ASSERT(constructData.type == CallData::Type::None);
     throwException(globalObject, scope, createNotAConstructorError(globalObject, callee));
     return encodeResult(
         vm.getCTIStub(throwExceptionFromCallSlowPathGenerator).retaggedCode<JSEntryPtrTag>().executableAddress(),
@@ -1721,7 +1717,7 @@ SlowPathReturnType JIT_OPERATION operationOptimize(VM* vmPointer, uint32_t bytec
         dataLogLnIf(Options::verboseOSR(), "Performing OSR ", codeBlock, " -> ", optimizedCodeBlock);
 
         codeBlock->optimizeSoon();
-        codeBlock->unlinkedCodeBlock()->setDidOptimize(TrueTriState);
+        codeBlock->unlinkedCodeBlock()->setDidOptimize(TriState::True);
         void* targetPC = vm.getCTIStub(DFG::osrEntryThunkGenerator).code().executableAddress();
         targetPC = retagCodePtr(targetPC, JITThunkPtrTag, bitwise_cast<PtrTag>(callFrame));
         return encodeResult(targetPC, dataBuffer);
@@ -1983,7 +1979,7 @@ ALWAYS_INLINE static JSValue getByVal(JSGlobalObject* globalObject, CallFrame* c
                 arrayProfile->setOutOfBounds();
         } else if (baseValue.isObject()) {
             JSObject* object = asObject(baseValue);
-            if (object->canGetIndexQuickly(i))
+            if (object->canGetIndexQuickly(static_cast<uint32_t>(i)))
                 return object->getIndexQuickly(i);
 
             bool skipMarkingOutOfBounds = false;
@@ -2875,12 +2871,8 @@ EncodedJSValue JIT_OPERATION operationArithNegate(JSGlobalObject* globalObject, 
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
 
 #if USE(BIGINT32)
-    if (primValue.isBigInt32()) {
-        int32_t value = primValue.bigInt32AsInt32();
-        if (value != INT_MIN)
-            return JSValue::encode(JSValue(JSValue::JSBigInt32, -value));
-        primValue = JSBigInt::createFrom(vm, value);
-    }
+    if (primValue.isBigInt32())
+        return JSValue::encode(JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32()));
 #endif
     if (primValue.isHeapBigInt())
         return JSValue::encode(JSBigInt::unaryMinus(vm, primValue.asHeapBigInt()));
@@ -2908,17 +2900,13 @@ EncodedJSValue JIT_OPERATION operationArithNegateProfiled(JSGlobalObject* global
 
 #if USE(BIGINT32)
     if (primValue.isBigInt32()) {
-        int32_t value = primValue.bigInt32AsInt32();
-        if (value != INT_MIN) {
-            auto result = JSValue(JSValue::JSBigInt32, -value);
-            arithProfile->observeResult(result);
-            return JSValue::encode(result);
-        }
-        primValue = JSBigInt::createFrom(vm, value);
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32());
+        arithProfile->observeResult(result);
+        return JSValue::encode(result);
     }
 #endif
     if (primValue.isHeapBigInt()) {
-        JSBigInt* result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
         arithProfile->observeResult(result);
         return JSValue::encode(result);
     }
@@ -2954,17 +2942,13 @@ EncodedJSValue JIT_OPERATION operationArithNegateProfiledOptimize(JSGlobalObject
 
 #if USE(BIGINT32)
     if (primValue.isBigInt32()) {
-        int32_t value = primValue.bigInt32AsInt32();
-        if (value != INT_MIN) {
-            auto result = JSValue(JSValue::JSBigInt32, -value);
-            arithProfile->observeResult(result);
-            return JSValue::encode(result);
-        }
-        primValue = JSBigInt::createFrom(vm, value);
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32());
+        arithProfile->observeResult(result);
+        return JSValue::encode(result);
     }
 #endif
     if (primValue.isHeapBigInt()) {
-        JSBigInt* result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
+        JSValue result = JSBigInt::unaryMinus(vm, primValue.asHeapBigInt());
         arithProfile->observeResult(result);
         return JSValue::encode(result);
     }
@@ -2999,12 +2983,8 @@ EncodedJSValue JIT_OPERATION operationArithNegateOptimize(JSGlobalObject* global
 
 #if USE(BIGINT32)
     // FIXME: why does this function profile the argument but not the result?
-    if (primValue.isBigInt32()) {
-        int32_t value = primValue.bigInt32AsInt32();
-        if (value != INT_MIN)
-            return JSValue::encode(JSValue(JSValue::JSBigInt32, -value));
-        primValue = JSBigInt::createFrom(vm, value);
-    }
+    if (primValue.isBigInt32())
+        return JSValue::encode(JSBigInt::unaryMinus(vm, primValue.bigInt32AsInt32()));
 #endif
     if (primValue.isHeapBigInt())
         return JSValue::encode(JSBigInt::unaryMinus(vm, primValue.asHeapBigInt()));

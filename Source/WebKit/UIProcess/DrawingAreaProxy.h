@@ -47,9 +47,12 @@ class MachSendRight;
 namespace WebKit {
 
 class LayerTreeContext;
-class UpdateInfo;
 class WebPageProxy;
 class WebProcessProxy;
+
+#if USE(COORDINATED_GRAPHICS) || USE(TEXTURE_MAPPER)
+class UpdateInfo;
+#endif
 
 class DrawingAreaProxy : public IPC::MessageReceiver, protected IPC::MessageSender {
     WTF_MAKE_FAST_ALLOCATED;
@@ -86,8 +89,7 @@ public:
     virtual void commitTransientZoom(double, WebCore::FloatPoint) { }
 
 #if PLATFORM(MAC)
-    virtual void setViewExposedRect(Optional<WebCore::FloatRect>);
-    Optional<WebCore::FloatRect> viewExposedRect() const { return m_viewExposedRect; }
+    virtual void didChangeViewExposedRect();
     void viewExposedRectChangedTimerFired();
 #endif
 
@@ -150,7 +152,6 @@ private:
 
 #if PLATFORM(MAC)
     RunLoop::Timer<DrawingAreaProxy> m_viewExposedRectChangedTimer;
-    Optional<WebCore::FloatRect> m_viewExposedRect;
     Optional<WebCore::FloatRect> m_lastSentViewExposedRect;
 #endif // PLATFORM(MAC)
 #endif

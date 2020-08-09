@@ -30,28 +30,25 @@
 
 #include "LayoutBox.h"
 #include "LayoutContext.h"
+#include "LayoutDescendantIterator.h"
 #include "TableFormattingState.h"
 
 namespace WebCore {
 namespace Layout {
 
-ContentHeightAndMargin TableFormattingContext::Geometry::tableCellHeightAndMargin(const Box& layoutBox) const
+LayoutUnit TableFormattingContext::Geometry::cellHeigh(const ContainerBox& cellBox) const
 {
-    ASSERT(layoutBox.isInFlow());
-
-    auto height = computedContentHeight(layoutBox);
-    if (!height)
-        height = contentHeightForFormattingContextRoot(layoutBox);
-
-    // Margins don't apply to internal table elements.
-    return ContentHeightAndMargin { *height, { } };
+    ASSERT(cellBox.isInFlow());
+    if (auto height = computedHeight(cellBox))
+        return *height;
+    return contentHeightForFormattingContextRoot(cellBox);
 }
 
-Optional<LayoutUnit> TableFormattingContext::Geometry::computedColumnWidth(const Box& columnBox) const
+Optional<LayoutUnit> TableFormattingContext::Geometry::computedColumnWidth(const ContainerBox& columnBox) const
 {
     // Check both style and <col>'s width attribute.
     // FIXME: Figure out what to do with calculated values, like <col style="width: 10%">.
-    if (auto computedWidthValue = computedContentWidth(columnBox, { }))
+    if (auto computedWidthValue = computedWidth(columnBox, { }))
         return computedWidthValue;
     return columnBox.columnWidth();
 }
@@ -82,6 +79,21 @@ FormattingContext::IntrinsicWidthConstraints TableFormattingContext::Geometry::i
     auto intrinsicWidthConstraints = constrainByMinMaxWidth(cellBox, computedIntrinsicWidthConstraints());
     intrinsicWidthConstraints.expand(fixedMarginBorderAndPadding());
     return intrinsicWidthConstraints;
+}
+
+
+InlineLayoutUnit TableFormattingContext::Geometry::usedBaselineForCell(const ContainerBox& cellBox)
+{
+    // The baseline of a cell is defined as the baseline of the first in-flow line box in the cell,
+    // or the first in-flow table-row in the cell, whichever comes first.
+    // If there is no such line box, the baseline is the bottom of content edge of the cell box.
+    for (auto& cellDescendant : descendantsOfType<ContainerBox>(cellBox)) {
+        if (cellDescendant.establishesInlineFormattingContext())
+            return layoutState().establishedInlineFormattingState(cellDescendant).displayInlineContent()->lineBoxes[0].baselineOffset();
+        if (cellDescendant.establishesTableFormattingContext())
+            return layoutState().establishedTableFormattingState(cellDescendant).tableGrid().rows().list()[0].baselineOffset();
+    }
+    return formattingContext().geometryForBox(cellBox).contentBoxBottom();
 }
 
 }

@@ -48,6 +48,7 @@
 #include "CompositionEvent.h"
 #include "ConstantPropertyMap.h"
 #include "ContentSecurityPolicy.h"
+#include "ContentfulPaintChecker.h"
 #include "CookieJar.h"
 #include "CustomElementReactionQueue.h"
 #include "CustomElementRegistry.h"
@@ -62,6 +63,7 @@
 #include "DocumentMarkerController.h"
 #include "DocumentSharedObjectPool.h"
 #include "DocumentTimeline.h"
+#include "DocumentTimelinesController.h"
 #include "DocumentType.h"
 #include "DragEvent.h"
 #include "Editing.h"
@@ -148,6 +150,7 @@
 #include "PageGroup.h"
 #include "PageTransitionEvent.h"
 #include "PaintWorkletGlobalScope.h"
+#include "Performance.h"
 #include "PlatformLocale.h"
 #include "PlatformMediaSessionManager.h"
 #include "PlatformScreen.h"
@@ -560,7 +563,6 @@ Document::Document(Frame* frame, const URL& url, unsigned documentClasses, unsig
     , m_fullscreenManager { makeUniqueRef<FullscreenManager>(*this) }
 #endif
 #if ENABLE(INTERSECTION_OBSERVER)
-    , m_intersectionObserversNotifyTimer(*this, &Document::notifyIntersectionObserversTimerFired)
     , m_intersectionObserversInitialUpdateTimer(*this, &Document::scheduleTimedRenderingUpdate)
 #endif
     , m_loadEventDelayTimer(*this, &Document::loadEventDelayTimerFired)
@@ -582,6 +584,8 @@ Document::Document(Frame* frame, const URL& url, unsigned documentClasses, unsig
     , m_orientationNotifier(currentOrientation(frame))
     , m_identifier(DocumentIdentifier::generate())
     , m_undoManager(UndoManager::create(*this))
+    , m_editor(makeUniqueRef<Editor>(*this))
+    , m_selection(makeUniqueRef<FrameSelection>(this))
 {
     auto addResult = allDocumentsMap().add(m_identifier, this);
     ASSERT_UNUSED(addResult, addResult.isNewEntry);
@@ -799,8 +803,9 @@ void Document::commonTeardown()
 
     m_pendingScrollEventTargetList = nullptr;
 
-    while (!m_timelines.computesEmpty())
-        m_timelines.begin()->detachFromDocument();
+    if (m_timelinesController)
+        m_timelinesController->detachFromDocument();
+
     m_timeline = nullptr;
 }
 
@@ -1254,7 +1259,7 @@ CustomElementNameValidationStatus Document::validateCustomElementName(const Atom
 #if ENABLE(MATHML)
     const auto& annotationXmlLocalName = MathMLNames::annotation_xmlTag->localName();
 #else
-    static NeverDestroyed<const AtomString> annotationXmlLocalName("annotation-xml", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> annotationXmlLocalName("annotation-xml", AtomString::ConstructFromLiteral);
 #endif
 
     if (localName == SVGNames::color_profileTag->localName()
@@ -1507,23 +1512,23 @@ RefPtr<Range> Document::caretRangeFromPoint(const LayoutPoint& clientPoint)
         return nullptr;
 
     LayoutPoint localPoint;
-    Node* node = nodeFromPoint(clientPoint, &localPoint);
+    auto node = nodeFromPoint(clientPoint, &localPoint);
     if (!node)
         return nullptr;
 
-    RenderObject* renderer = node->renderer();
+    auto* renderer = node->renderer();
     if (!renderer)
         return nullptr;
-    Position rangeCompliantPosition = renderer->positionForPoint(localPoint).parentAnchoredEquivalent();
+    auto rangeCompliantPosition = renderer->positionForPoint(localPoint).parentAnchoredEquivalent();
     if (rangeCompliantPosition.isNull())
         return nullptr;
 
-    unsigned offset = rangeCompliantPosition.offsetInContainerNode();
-    node = &retargetToScope(*rangeCompliantPosition.containerNode());
+    auto offset = rangeCompliantPosition.offsetInContainerNode();
+    node = retargetToScope(*rangeCompliantPosition.containerNode());
     if (node != rangeCompliantPosition.containerNode())
         offset = 0;
 
-    return Range::create(*this, node, offset, node, offset);
+    return Range::create(*this, node.get(), offset, node.get(), offset);
 }
 
 bool Document::isBodyPotentiallyScrollable(HTMLBodyElement& body)
@@ -1739,8 +1744,8 @@ void Document::unregisterForVisibilityStateChangedCallbacks(VisibilityChangeClie
 
 void Document::visibilityStateChanged()
 {
-    // // https://w3c.github.io/page-visibility/#reacting-to-visibilitychange-changes
-    queueTaskToDispatchEvent(TaskSource::UserInteraction, Event::create(eventNames().visibilitychangeEvent, Event::CanBubble::No, Event::IsCancelable::No));
+    // https://w3c.github.io/page-visibility/#reacting-to-visibilitychange-changes
+    queueTaskToDispatchEvent(TaskSource::UserInteraction, Event::create(eventNames().visibilitychangeEvent, Event::CanBubble::Yes, Event::IsCancelable::No));
     for (auto* client : m_visibilityStateCallbackClients)
         client->visibilityStateChanged();
 
@@ -1762,7 +1767,7 @@ VisibilityState Document::visibilityState() const
     // The visibility of the document is inherited from the visibility of the
     // page. If there is no page associated with the document, we will assume
     // that the page is hidden, as specified by the spec:
-    // http://dvcs.w3.org/hg/webperf/raw-file/tip/specs/PageVisibility/Overview.html#dom-document-hidden
+    // https://w3c.github.io/page-visibility/#visibilitystate-attribute
     if (!m_frame || !m_frame->page())
         return VisibilityState::Hidden;
     return m_frame->page()->visibilityState();
@@ -1939,7 +1944,7 @@ void Document::resolveStyle(ResolveStyleType type)
     TraceScope tracingScope(StyleRecalcStart, StyleRecalcEnd);
 
     RenderView::RepaintRegionAccumulator repaintRegionAccumulator(renderView());
-    AnimationUpdateBlock animationUpdateBlock(&m_frame->animation());
+    AnimationUpdateBlock animationUpdateBlock(&m_frame->legacyAnimation());
 
     // FIXME: Do this update per tree scope.
     {
@@ -2398,18 +2403,18 @@ void Document::didBecomeCurrentDocumentInFrame()
     // back/forward cache, or simply newly created).
     if (m_frame->activeDOMObjectsAndAnimationsSuspended()) {
         if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-            if (auto* timeline = existingTimeline())
-                timeline->suspendAnimations();
+            if (m_timelinesController)
+                m_timelinesController->suspendAnimations();
         } else
-            m_frame->animation().suspendAnimationsForDocument(this);
+            m_frame->legacyAnimation().suspendAnimationsForDocument(this);
         suspendScheduledTasks(ReasonForSuspension::PageWillBeSuspended);
     } else {
         resumeScheduledTasks(ReasonForSuspension::PageWillBeSuspended);
         if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-            if (auto* timeline = existingTimeline())
-                timeline->resumeAnimations();
+            if (m_timelinesController)
+                m_timelinesController->resumeAnimations();
         } else
-            m_frame->animation().resumeAnimationsForDocument(this);
+            m_frame->legacyAnimation().resumeAnimationsForDocument(this);
     }
 }
 
@@ -2498,13 +2503,13 @@ void Document::destroyRenderTree()
         view()->didDestroyRenderTree();
 }
 
-void Document::prepareForDestruction()
+void Document::willBeRemovedFromFrame()
 {
     if (m_hasPreparedForDestruction)
         return;
 
     if (m_frame)
-        m_frame->animation().detachFromDocument(this);
+        m_frame->legacyAnimation().detachFromDocument(this);
 
 #if USE(LIBWEBRTC)
     // FIXME: This should be moved to Modules/mediastream.
@@ -2591,6 +2596,8 @@ void Document::prepareForDestruction()
         page()->updateIsPlayingMedia(HTMLMediaElementInvalidID);
     }
 
+    editor().clear();
+    selection().willBeRemovedFromFrame();
     detachFromFrame();
 
 #if ENABLE(CSS_PAINTING_API)
@@ -3039,7 +3046,7 @@ void Document::implicitClose()
         if (auto* documentLoader = loader())
             documentLoader->startIconLoading();
 
-        f->animation().startAnimationsIfNotSuspended(this);
+        f->legacyAnimation().startAnimationsIfNotSuspended(this);
 
         // FIXME: We shouldn't be dispatching pending events globally on all Documents here.
         // For now, only do this when there is a Frame, otherwise this could cause JS reentrancy
@@ -3140,6 +3147,34 @@ bool Document::shouldScheduleLayout() const
 bool Document::isLayoutTimerActive() const
 {
     return view() && view()->layoutContext().isLayoutPending();
+}
+
+bool Document::supportsPaintTiming() const
+{
+    return RuntimeEnabledFeatures::sharedFeatures().paintTimingEnabled() && securityOrigin().canAccess(topOrigin());
+}
+
+// https://w3c.github.io/paint-timing/#ref-for-mark-paint-timing
+void Document::enqueuePaintTimingEntryIfNeeded()
+{
+    if (m_didEnqueueFirstContentfulPaint)
+        return;
+
+    if (!supportsPaintTiming())
+        return;
+
+    if (!domWindow() || !view())
+        return;
+
+    // To make sure we don't report paint while the layer tree is still frozen.
+    if (!view()->isVisuallyNonEmpty() || view()->needsLayout())
+        return;
+
+    if (!ContentfulPaintChecker::qualifiesForContentfulPaint(*view()))
+        return;
+
+    domWindow()->performance().reportFirstContentfulPaint();
+    m_didEnqueueFirstContentfulPaint = true;
 }
 
 ExceptionOr<void> Document::write(Document* responsibleDocument, SegmentedString&& text)
@@ -3249,7 +3284,7 @@ void Document::setURL(const URL& url)
 
     m_url = newURL;
     if (SecurityOrigin::shouldIgnoreHost(m_url))
-        m_url.removeHostAndPort();
+        m_url.setHostAndPort({ });
 
     m_documentURI = m_url.string();
     updateBaseURL();
@@ -3605,7 +3640,7 @@ void Document::processHttpEquiv(const String& equiv, const String& content, bool
                 completedURL = m_url;
             else
                 completedURL = completeURL(urlString);
-            if (!WTF::protocolIsJavaScript(completedURL))
+            if (!completedURL.protocolIsJavaScript())
                 frame->navigationScheduler().scheduleRedirect(*this, delay, completedURL);
             else {
                 String message = "Refused to refresh " + m_url.stringCenterEllipsizedToLength() + " to a javascript: URL";
@@ -5364,10 +5399,10 @@ void Document::resume(ReasonForSuspension reason)
     m_frame->loader().client().dispatchDidBecomeFrameset(isFrameSet());
 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        if (auto* timeline = existingTimeline())
-            timeline->resumeAnimations();  
+        if (m_timelinesController)
+            m_timelinesController->resumeAnimations();  
     } else
-        m_frame->animation().resumeAnimationsForDocument(this);
+        m_frame->legacyAnimation().resumeAnimationsForDocument(this);
 
     resumeScheduledTasks(reason);
 
@@ -5523,12 +5558,12 @@ bool Document::queryCommandEnabled(const String& commandName)
 
 bool Document::queryCommandIndeterm(const String& commandName)
 {
-    return command(this, commandName).state() == MixedTriState;
+    return command(this, commandName).state() == TriState::Indeterminate;
 }
 
 bool Document::queryCommandState(const String& commandName)
 {
-    return command(this, commandName).state() == TrueTriState;
+    return command(this, commandName).state() == TriState::True;
 }
 
 bool Document::queryCommandSupported(const String& commandName)
@@ -5555,6 +5590,9 @@ void Document::popCurrentScript()
 bool Document::shouldDeferAsynchronousScriptsUntilParsingFinishes() const
 {
     if (!settings().shouldDeferAsynchronousScriptsUntilAfterDocumentLoadOrFirstPaint())
+        return false;
+
+    if (quirks().shouldBypassAsyncScriptDeferring())
         return false;
 
     return parsing() && !(view() && view()->hasEverPainted());
@@ -6366,27 +6404,7 @@ void Document::resumeScriptedAnimationControllerCallbacks()
         m_scriptedAnimationController->resume();
 }
 
-void Document::updateAnimationsAndSendEvents(DOMHighResTimeStamp timestamp)
-{
-    ASSERT(!m_timelines.hasNullReferences());
-
-    // We need to copy m_timelines before iterating over its members since calling updateAnimationsAndSendEvents() may mutate m_timelines.
-    Vector<RefPtr<DocumentTimeline>> timelines;
-    bool shouldUpdateAnimations = false;
-    for (auto& timeline : m_timelines) {
-        if (!shouldUpdateAnimations && timeline.scheduledUpdate())
-            shouldUpdateAnimations = true;
-        timelines.append(&timeline);
-    }
-
-    for (auto& timeline : timelines) {
-        timeline->updateCurrentTime(timestamp);
-        if (shouldUpdateAnimations)
-            timeline->updateAnimationsAndSendEvents();
-    }
-}
-
-void Document::serviceRequestAnimationFrameCallbacks(DOMHighResTimeStamp timestamp)
+void Document::serviceRequestAnimationFrameCallbacks(ReducedResolutionSeconds timestamp)
 {
     if (m_scriptedAnimationController)
         m_scriptedAnimationController->serviceRequestAnimationFrameCallbacks(timestamp);
@@ -6535,11 +6553,8 @@ int Document::requestAnimationFrame(Ref<RequestAnimationFrameCallback>&& callbac
         if (!page() || page()->scriptedAnimationsSuspended())
             m_scriptedAnimationController->suspend();
 
-        if (page() && page()->isLowPowerModeEnabled())
-            m_scriptedAnimationController->addThrottlingReason(ScriptedAnimationController::ThrottlingReason::LowPowerMode);
-
         if (!topOrigin().canAccess(securityOrigin()) && !hasHadUserInteraction())
-            m_scriptedAnimationController->addThrottlingReason(ScriptedAnimationController::ThrottlingReason::NonInteractedCrossOriginFrame);
+            m_scriptedAnimationController->addThrottlingReason(ThrottlingReason::NonInteractedCrossOriginFrame);
     }
 
     return m_scriptedAnimationController->registerCallback(WTFMove(callback));
@@ -6778,7 +6793,7 @@ void Document::updateLastHandledUserGestureTimestamp(MonotonicTime time)
 
     if (static_cast<bool>(time) && m_scriptedAnimationController) {
         // It's OK to always remove NonInteractedCrossOriginFrame even if this frame isn't cross-origin.
-        m_scriptedAnimationController->removeThrottlingReason(ScriptedAnimationController::ThrottlingReason::NonInteractedCrossOriginFrame);
+        m_scriptedAnimationController->removeThrottlingReason(ThrottlingReason::NonInteractedCrossOriginFrame);
     }
 
     // DOM Timer alignment may depend on the user having interacted with the document.
@@ -7334,11 +7349,16 @@ void Document::showPlaybackTargetPicker(MediaPlaybackTargetClient& client, bool 
     if (!page)
         return;
 
+    if (!frame())
+        return;
+
     auto it = m_clientToIDMap.find(&client);
     if (it == m_clientToIDMap.end())
         return;
 
-    page->showPlaybackTargetPicker(it->value, view()->lastKnownMousePosition(), isVideo, routeSharingPolicy, routingContextUID);
+    // FIXME: This is probably wrong for subframes.
+    auto position = frame()->eventHandler().lastKnownMousePosition();
+    page->showPlaybackTargetPicker(it->value, position, isVideo, routeSharingPolicy, routingContextUID);
 }
 
 void Document::playbackTargetPickerClientStateDidChange(MediaPlaybackTargetClient& client, MediaProducer::MediaStateFlags state)
@@ -7629,16 +7649,16 @@ void Document::updateIntersectionObservations()
     if (!frameView)
         return;
 
-    m_intersectionObserversInitialUpdateTimer.stop();
-
     bool needsLayout = frameView->layoutContext().isLayoutPending() || (renderView() && renderView()->needsLayout());
     if (needsLayout || hasPendingStyleRecalc())
         return;
 
+    Vector<WeakPtr<IntersectionObserver>> intersectionObserversWithPendingNotifications;
+
     for (const auto& observer : m_intersectionObservers) {
         bool needNotify = false;
-        DOMHighResTimeStamp timestamp;
-        if (!observer->createTimestamp(timestamp))
+        auto timestamp = observer->nowTimestamp();
+        if (!timestamp)
             continue;
         for (Element* target : observer->observationTargets()) {
             auto& targetRegistrations = target->intersectionObserverDataIfExists()->registrations;
@@ -7661,9 +7681,11 @@ void Document::updateIntersectionObservations()
                     else
                         intersectionRatio = 1;
 
-                    auto& thresholds = observer->thresholds();
-                    while (thresholdIndex < thresholds.size() && thresholds[thresholdIndex] <= intersectionRatio)
+                    for (auto threshold : observer->thresholds()) {
+                        if (!(threshold <= intersectionRatio || WTF::areEssentiallyEqual<float>(threshold, intersectionRatio)))
+                            break;
                         ++thresholdIndex;
+                    }
                 }
             }
 
@@ -7691,7 +7713,7 @@ void Document::updateIntersectionObservations()
                 }
 
                 observer->appendQueuedEntry(IntersectionObserverEntry::create({
-                    timestamp,
+                    timestamp->milliseconds(),
                     reportedRootBounds,
                     { targetBoundingClientRect.x(), targetBoundingClientRect.y(), targetBoundingClientRect.width(), targetBoundingClientRect.height() },
                     { clientIntersectionRect.x(), clientIntersectionRect.y(), clientIntersectionRect.width(), clientIntersectionRect.height() },
@@ -7704,20 +7726,13 @@ void Document::updateIntersectionObservations()
             }
         }
         if (needNotify)
-            m_intersectionObserversWithPendingNotifications.append(makeWeakPtr(observer.get()));
+            intersectionObserversWithPendingNotifications.append(makeWeakPtr(observer.get()));
     }
 
-    if (m_intersectionObserversWithPendingNotifications.size())
-        m_intersectionObserversNotifyTimer.startOneShot(0_s);
-}
-
-void Document::notifyIntersectionObserversTimerFired()
-{
-    for (const auto& observer : m_intersectionObserversWithPendingNotifications) {
+    for (const auto& observer : intersectionObserversWithPendingNotifications) {
         if (observer)
             observer->notify();
     }
-    m_intersectionObserversWithPendingNotifications.clear();
 }
 
 void Document::scheduleInitialIntersectionObservationUpdate()
@@ -8092,14 +8107,11 @@ void Document::setConsoleMessageListener(RefPtr<StringCallback>&& listener)
     m_consoleMessageListener = listener;
 }
 
-void Document::addTimeline(DocumentTimeline& timeline)
+DocumentTimelinesController& Document::ensureTimelinesController()
 {
-    m_timelines.add(timeline);
-}
-
-void Document::removeTimeline(DocumentTimeline& timeline)
-{
-    m_timelines.remove(timeline);
+    if (!m_timelinesController)
+        m_timelinesController = makeUnique<DocumentTimelinesController>(*this);
+    return *m_timelinesController.get();
 }
 
 DocumentTimeline& Document::timeline()

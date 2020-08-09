@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,9 +41,10 @@
 #include "MethodOfGettingAValueProfile.h"
 #include <wtf/BitVector.h>
 #include <wtf/HashMap.h>
-#include <wtf/Vector.h>
+#include <wtf/StackCheck.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/StdUnorderedMap.h>
+#include <wtf/Vector.h>
 
 namespace WTF {
 template <typename T> class SingleRootGraph;
@@ -409,6 +410,26 @@ public:
             && node->canSpeculateInt52(pass)
             && !hasExitSite(node, Int52Overflow);
     }
+
+#if USE(BIGINT32)
+    bool binaryArithShouldSpeculateBigInt32(Node* node, PredictionPass pass)
+    {
+        if (!node->canSpeculateBigInt32(pass))
+            return false;
+        if (hasExitSite(node, BigInt32Overflow))
+            return false;
+        return Node::shouldSpeculateBigInt32(node->child1().node(), node->child2().node());
+    }
+
+    bool unaryArithShouldSpeculateBigInt32(Node* node, PredictionPass pass)
+    {
+        if (!node->canSpeculateBigInt32(pass))
+            return false;
+        if (hasExitSite(node, BigInt32Overflow))
+            return false;
+        return node->child1()->shouldSpeculateBigInt32();
+    }
+#endif
 
     bool canOptimizeStringObjectAccess(const CodeOrigin&);
 
@@ -1045,11 +1066,12 @@ public:
     Prefix& prefix() { return m_prefix; }
     void nextPhase() { m_prefix.phaseNumber++; }
 
+    StackCheck m_stackChecker;
     VM& m_vm;
     Plan& m_plan;
     CodeBlock* m_codeBlock;
     CodeBlock* m_profiledBlock;
-    
+
     Vector<RefPtr<BasicBlock>, 8> m_blocks;
     Vector<BasicBlock*, 1> m_roots;
     Vector<Edge, 16> m_varArgChildren;

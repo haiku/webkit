@@ -505,9 +505,9 @@ static Ref<DocumentFragment> textToFragment(Document& document, const String& te
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/common-dom-interfaces.html#limited-to-only-known-values
 static inline const AtomString& toValidDirValue(const AtomString& value)
 {
-    static NeverDestroyed<AtomString> ltrValue("ltr", AtomString::ConstructFromLiteral);
-    static NeverDestroyed<AtomString> rtlValue("rtl", AtomString::ConstructFromLiteral);
-    static NeverDestroyed<AtomString> autoValue("auto", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> ltrValue("ltr", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> rtlValue("rtl", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> autoValue("auto", AtomString::ConstructFromLiteral);
     if (equalLettersIgnoringASCIICase(value, "ltr"))
         return ltrValue;
     if (equalLettersIgnoringASCIICase(value, "rtl"))
@@ -660,14 +660,32 @@ String HTMLElement::contentEditable() const
     return "inherit"_s;
 }
 
+static const AtomString& trueName()
+{
+    static MainThreadNeverDestroyed<const AtomString> trueValue("true", AtomString::ConstructFromLiteral);
+    return trueValue.get();
+}
+
+static const AtomString& falseName()
+{
+    static MainThreadNeverDestroyed<const AtomString> falseValue("false", AtomString::ConstructFromLiteral);
+    return falseValue.get();
+}
+
+static const AtomString& plaintextOnlyName()
+{
+    static MainThreadNeverDestroyed<const AtomString> plaintextOnlyValue("plaintext-only", AtomString::ConstructFromLiteral);
+    return plaintextOnlyValue.get();
+}
+
 ExceptionOr<void> HTMLElement::setContentEditable(const String& enabled)
 {
     if (equalLettersIgnoringASCIICase(enabled, "true"))
-        setAttributeWithoutSynchronization(contenteditableAttr, AtomString("true", AtomString::ConstructFromLiteral));
+        setAttributeWithoutSynchronization(contenteditableAttr, trueName());
     else if (equalLettersIgnoringASCIICase(enabled, "false"))
-        setAttributeWithoutSynchronization(contenteditableAttr, AtomString("false", AtomString::ConstructFromLiteral));
+        setAttributeWithoutSynchronization(contenteditableAttr, falseName());
     else if (equalLettersIgnoringASCIICase(enabled, "plaintext-only"))
-        setAttributeWithoutSynchronization(contenteditableAttr, AtomString("plaintext-only", AtomString::ConstructFromLiteral));
+        setAttributeWithoutSynchronization(contenteditableAttr, plaintextOnlyName());
     else if (equalLettersIgnoringASCIICase(enabled, "inherit"))
         removeAttribute(contenteditableAttr);
     else
@@ -682,9 +700,7 @@ bool HTMLElement::draggable() const
 
 void HTMLElement::setDraggable(bool value)
 {
-    setAttributeWithoutSynchronization(draggableAttr, value
-        ? AtomString("true", AtomString::ConstructFromLiteral)
-        : AtomString("false", AtomString::ConstructFromLiteral));
+    setAttributeWithoutSynchronization(draggableAttr, value ? trueName() : falseName());
 }
 
 bool HTMLElement::spellcheck() const
@@ -694,9 +710,7 @@ bool HTMLElement::spellcheck() const
 
 void HTMLElement::setSpellcheck(bool enable)
 {
-    setAttributeWithoutSynchronization(spellcheckAttr, enable
-        ? AtomString("true", AtomString::ConstructFromLiteral)
-        : AtomString("false", AtomString::ConstructFromLiteral));
+    setAttributeWithoutSynchronization(spellcheckAttr, enable ? trueName() : falseName());
 }
 
 void HTMLElement::click()
@@ -1100,7 +1114,9 @@ bool HTMLElement::shouldAutocorrect() const
 
 void HTMLElement::setAutocorrect(bool autocorrect)
 {
-    setAttributeWithoutSynchronization(autocorrectAttr, autocorrect ? AtomString("on", AtomString::ConstructFromLiteral) : AtomString("off", AtomString::ConstructFromLiteral));
+    static MainThreadNeverDestroyed<const AtomString> onName("on", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> offName("off", AtomString::ConstructFromLiteral);
+    setAttributeWithoutSynchronization(autocorrectAttr, autocorrect ? onName.get() : offName.get());
 }
 
 #endif

@@ -103,6 +103,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/applepay/ApplePayError.idl \
     $(WebCore)/Modules/applepay/ApplePayErrorCode.idl \
     $(WebCore)/Modules/applepay/ApplePayErrorContactField.idl \
+    $(WebCore)/Modules/applepay/ApplePayInstallmentConfiguration.idl \
     $(WebCore)/Modules/applepay/ApplePayLineItem.idl \
     $(WebCore)/Modules/applepay/ApplePayMerchantCapability.idl \
     $(WebCore)/Modules/applepay/ApplePayPayment.idl \
@@ -118,6 +119,9 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/applepay/ApplePayRequestBase.idl \
     $(WebCore)/Modules/applepay/ApplePaySession.idl \
     $(WebCore)/Modules/applepay/ApplePaySessionError.idl \
+    $(WebCore)/Modules/applepay/ApplePaySetup.idl \
+    $(WebCore)/Modules/applepay/ApplePaySetupFeature.idl \
+    $(WebCore)/Modules/applepay/ApplePaySetupFeatureType.idl \
     $(WebCore)/Modules/applepay/ApplePayShippingContactSelectedEvent.idl \
     $(WebCore)/Modules/applepay/ApplePayShippingContactUpdate.idl \
     $(WebCore)/Modules/applepay/ApplePayShippingMethod.idl \
@@ -829,6 +833,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/canvas/CanvasTransform.idl \
     $(WebCore)/html/canvas/CanvasUserInterface.idl \
     $(WebCore)/html/canvas/EXTBlendMinMax.idl \
+    $(WebCore)/html/canvas/EXTColorBufferFloat.idl \
+    $(WebCore)/html/canvas/EXTColorBufferHalfFloat.idl \
     $(WebCore)/html/canvas/EXTFragDepth.idl \
     $(WebCore)/html/canvas/EXTShaderTextureLOD.idl \
     $(WebCore)/html/canvas/EXTTextureFilterAnisotropic.idl \
@@ -849,6 +855,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/html/canvas/WebGL2RenderingContext.idl \
     $(WebCore)/html/canvas/WebGLActiveInfo.idl \
     $(WebCore)/html/canvas/WebGLBuffer.idl \
+    $(WebCore)/html/canvas/WebGLColorBufferFloat.idl \
     $(WebCore)/html/canvas/WebGLCompressedTextureASTC.idl \
     $(WebCore)/html/canvas/WebGLCompressedTextureATC.idl \
     $(WebCore)/html/canvas/WebGLCompressedTextureETC.idl \
@@ -926,6 +933,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/page/PerformanceObserver.idl \
     $(WebCore)/page/PerformanceObserverCallback.idl \
     $(WebCore)/page/PerformanceObserverEntryList.idl \
+    $(WebCore)/page/PerformancePaintTiming.idl \
     $(WebCore)/page/PerformanceResourceTiming.idl \
     $(WebCore)/page/PerformanceServerTiming.idl \
     $(WebCore)/page/PerformanceTiming.idl \
@@ -1118,6 +1126,15 @@ JS_BINDING_IDLS = \
     $(WebCore)/testing/MockWebAuthenticationConfiguration.idl \
     $(WebCore)/testing/ServiceWorkerInternals.idl \
     $(WebCore)/testing/TypeConversions.idl \
+    $(WebCore)/testing/FakeXRBoundsPoint.idl \
+    $(WebCore)/testing/FakeXRButtonStateInit.idl \
+    $(WebCore)/testing/FakeXRInputSourceInit.idl \
+    $(WebCore)/testing/FakeXRRigidTransformInit.idl \
+    $(WebCore)/testing/FakeXRViewInit.idl \
+    $(WebCore)/testing/WebFakeXRDevice.idl \
+    $(WebCore)/testing/WebFakeXRInputController.idl \
+    $(WebCore)/testing/WebXRTest.idl \
+    $(WebCore)/testing/XRSimulateUserActivationFunction.idl \
     $(WebCore)/workers/AbstractWorker.idl \
     $(WebCore)/workers/DedicatedWorkerGlobalScope.idl \
     $(WebCore)/workers/Worker.idl \

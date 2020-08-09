@@ -101,7 +101,7 @@ public:
     static void registerRunLoopMessageWindowClass();
 #endif
 
-#if USE(GLIB_EVENT_LOOP) || USE(HAIKU_EVENT_LOOP) || USE(GENERIC_EVENT_LOOP)
+#if !USE(COCOA_EVENT_LOOP)
     WTF_EXPORT_PRIVATE void dispatchAfter(Seconds, Function<void()>&&);
 #endif
 
@@ -122,8 +122,8 @@ public:
         virtual void fired() = 0;
 
 #if USE(GLIB_EVENT_LOOP)
-        void setName(const char*);
-        void setPriority(int);
+        WTF_EXPORT_PRIVATE void setName(const char*);
+        WTF_EXPORT_PRIVATE void setPriority(int);
 #endif
 
     private:
@@ -182,6 +182,25 @@ public:
         TimerFiredFunction m_function;
         TimerFiredClass* m_object;
     };
+
+#if USE(WINDOWS_EVENT_LOOP)
+    class DispatchTimer : public TimerBase {
+    public:
+        DispatchTimer(RunLoop& runLoop)
+            : TimerBase(runLoop)
+        {
+        }
+
+        void setFunction(Function<void()>&& function)
+        {
+            m_function = WTFMove(function);
+        }
+    private:
+        void fired() override { m_function(); }
+
+        Function<void()> m_function;
+    };
+#endif
 
     class Holder;
 

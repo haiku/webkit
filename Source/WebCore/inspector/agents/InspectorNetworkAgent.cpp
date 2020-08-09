@@ -218,7 +218,7 @@ Ref<Inspector::Protocol::Network::ResourceTiming> InspectorNetworkAgent::buildOb
     auto& loadTiming = resourceLoader.loadTiming();
 
     auto elapsedTimeSince = [&] (const MonotonicTime& time) {
-        return m_environment.executionStopwatch()->elapsedTimeSince(time).seconds();
+        return m_environment.executionStopwatch().elapsedTimeSince(time).seconds();
     };
     Optional<NetworkLoadMetrics> empty;
     if (!timing) {
@@ -398,7 +398,7 @@ RefPtr<Inspector::Protocol::Network::Response> InspectorNetworkAgent::buildObjec
 Ref<Inspector::Protocol::Network::CachedResource> InspectorNetworkAgent::buildObjectForCachedResource(CachedResource* cachedResource)
 {
     auto resourceObject = Inspector::Protocol::Network::CachedResource::create()
-        .setUrl(cachedResource->url())
+        .setUrl(cachedResource->url().string())
         .setType(InspectorPageAgent::cachedResourceTypeJSON(*cachedResource))
         .setBodySize(cachedResource->encodedSize())
         .release();
@@ -415,7 +415,7 @@ Ref<Inspector::Protocol::Network::CachedResource> InspectorNetworkAgent::buildOb
 
 double InspectorNetworkAgent::timestamp()
 {
-    return m_environment.executionStopwatch()->elapsedTime().seconds();
+    return m_environment.executionStopwatch().elapsedTime().seconds();
 }
 
 void InspectorNetworkAgent::willSendRequest(unsigned long identifier, DocumentLoader* loader, ResourceRequest& request, const ResourceResponse& redirectResponse, InspectorPageAgent::ResourceType type)
@@ -458,7 +458,7 @@ void InspectorNetworkAgent::willSendRequest(unsigned long identifier, DocumentLo
     Document* document = loader && loader->frame() ? loader->frame()->document() : nullptr;
     auto initiatorObject = buildInitiatorObject(document, request);
 
-    String url = loader ? loader->url().string() : request.url();
+    String url = loader ? loader->url().string() : request.url().string();
     m_frontendDispatcher->requestWillBeSent(requestId, frameId, loaderId, url, buildObjectForResourceRequest(request), sendTimestamp, walltime.secondsSinceEpoch().seconds(), initiatorObject, buildObjectForResourceResponse(redirectResponse, nullptr), type != InspectorPageAgent::OtherResource ? &protocolResourceType : nullptr, targetId.isEmpty() ? nullptr : &targetId);
 }
 
@@ -576,7 +576,7 @@ void InspectorNetworkAgent::didFinishLoading(unsigned long identifier, DocumentL
     double elapsedFinishTime;
     if (resourceLoader && networkLoadMetrics.isComplete()) {
         MonotonicTime fetchStart = resourceLoader->loadTiming().fetchStart();
-        Seconds fetchStartInInspector = m_environment.executionStopwatch()->elapsedTimeSince(fetchStart);
+        Seconds fetchStartInInspector = m_environment.executionStopwatch().elapsedTimeSince(fetchStart);
         elapsedFinishTime = (fetchStartInInspector + networkLoadMetrics.responseEnd).seconds();
     } else
         elapsedFinishTime = timestamp();

@@ -175,6 +175,9 @@ static WARN_UNUSED_RETURN bool decodeSharedBuffer(Decoder& decoder, RefPtr<Share
         return false;
 
     auto sharedMemoryBuffer = SharedMemory::map(handle, SharedMemory::Protection::ReadOnly);
+    if (!sharedMemoryBuffer)
+        return false;
+
     buffer = SharedBuffer::create(static_cast<unsigned char*>(sharedMemoryBuffer->data()), bufferSize);
 #endif
 
@@ -543,7 +546,7 @@ void ArgumentCoder<StepsTimingFunction>::encode(Encoder& encoder, const StepsTim
     encoder.encodeEnum(timingFunction.type());
     
     encoder << timingFunction.numberOfSteps();
-    encoder << timingFunction.stepAtStart();
+    encoder << timingFunction.stepPosition();
 }
 
 bool ArgumentCoder<StepsTimingFunction>::decode(Decoder& decoder, StepsTimingFunction& timingFunction)
@@ -553,12 +556,12 @@ bool ArgumentCoder<StepsTimingFunction>::decode(Decoder& decoder, StepsTimingFun
     if (!decoder.decode(numSteps))
         return false;
 
-    bool stepAtStart;
-    if (!decoder.decode(stepAtStart))
+    Optional<StepsTimingFunction::StepPosition> stepPosition;
+    if (!decoder.decode(stepPosition))
         return false;
 
     timingFunction.setNumberOfSteps(numSteps);
-    timingFunction.setStepAtStart(stepAtStart);
+    timingFunction.setStepPosition(stepPosition);
 
     return true;
 }

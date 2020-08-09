@@ -1,3 +1,98 @@
+2020-05-07  James Darpinian  <jdarpinian@chromium.org>
+
+        Fix Google Maps rendering corruption in simulator with ANGLE
+        https://bugs.webkit.org/show_bug.cgi?id=211398
+
+        glReadPixels call needs to respect the row stride of the IOSurface.
+
+        Reviewed by Alex Christensen.
+
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.h:
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.mm:
+        (rx::IOSurfaceSurfaceEAGL::IOSurfaceSurfaceEAGL):
+        (rx::IOSurfaceSurfaceEAGL::releaseTexImage):
+
+2020-05-07  Dean Jackson  <dino@apple.com>
+
+        Update ANGLE to 2020-03-27
+        https://bugs.webkit.org/show_bug.cgi?id=209689
+
+        Reverting r259589. It caused
+        https://bugs.webkit.org/show_bug.cgi?id=210992
+
+2020-05-05  Saam Barati  <sbarati@apple.com>
+
+        Unreviewed, reverting r261176.
+
+        It broke the build
+
+        Reverted changeset:
+
+        "[ANGLE] Declarations should match definitions"
+        https://bugs.webkit.org/show_bug.cgi?id=211410
+        https://trac.webkit.org/changeset/261176
+
+2020-05-05  Jonathan Bedard  <jbedard@apple.com>
+
+        [ANGLE] Declarations should match definitions
+        https://bugs.webkit.org/show_bug.cgi?id=211410
+
+        Reviewed by Alex Christensen.
+
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.h: Skip definitions for platforms
+        where class is undefined.
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.mm:
+        (rx::DisplayEAGL::generateConfigs): Function is not defined for for MacCatalyst.
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.h: Skip definitions for platforms
+        where class is undefined.
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.mm:
+        * src/libANGLE/renderer/gl/eagl/WindowSurfaceEAGL.h: Skip definitions for platforms
+        where class is undefined.
+        * src/libANGLE/renderer/gl/eagl/WindowSurfaceEAGL.mm:
+
+2020-04-28  ChangSeok Oh  <changseok@webkit.org>
+
+        [GTK] Fix build failures for ANGLE_WEBGL after r259589
+        https://bugs.webkit.org/show_bug.cgi?id=211116
+
+        Reviewed by Alex Christensen.
+
+        The ANGLE_WEBGL is broken after ANGLE is updated in r259589. Missing sources
+        should be added to the build target.
+
+        * PlatformGTK.cmake: Add libangle_gl_egl_sources and libangle_gl_egl_dl_sources.
+
+2020-04-27  Dean Jackson  <dino@apple.com>
+
+        Temporarily skip GL_DEPTH_COMPONENT32_OES requirement for depth textures on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=211055
+        <rdar://problem/62410499>
+
+        Reviewed by Darin Adler.
+
+        ANGLE requires GL_DEPTH_COMPONENT32_OES be available in order to expose the
+        depth texture extension. However, this format is not supported on iOS.
+        Temporarily remove this restriction while investigating other bugs.
+
+        This also allows us to see the failing results in
+        fast/canvas/webgl/webgl-depth-texture.html
+        webgl/1.0.3/conformance/extensions/webgl-depth-texture.html
+
+        * src/libANGLE/Caps.cpp:
+        (gl::DetermineDepthTextureANGLESupport):
+        (gl::DetermineDepthTextureOESSupport):
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Deal with another round of Xcode upgrade checks
+        https://bugs.webkit.org/show_bug.cgi?id=211027
+
+        Reviewed by Alexey Proskuryakov.
+
+        * ANGLE.xcodeproj/project.pbxproj: Bump the upgrade check version.
+        Add a harmless base localization, rename English localization to en,
+        remove Japanese, French, German; this project contains nothing localized.
+
 2020-04-08  Truitt Savell  <tsavell@apple.com>
 
         Unreviewed, reverting r259708.

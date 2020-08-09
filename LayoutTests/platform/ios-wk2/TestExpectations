@@ -384,6 +384,9 @@ http/tests/webarchive/cross-origin-stylesheet-crash.html [ Failure Pass ]
 http/tests/webarchive/test-preload-resources.html [ Failure Pass ]
 http/tests/xmlhttprequest/event-listener-gc.html [ Failure Pass ]
 
+# This test has been failing on iOS since import and its failing out varies from run to run.
+imported/w3c/web-platform-tests/html/browsers/browsing-the-web/history-traversal/scroll-restoration-order.html [ Failure Pass ]
+
 # <rdar://problem/19270403> BitmapImage::cacheFrame(); ASSERT(isInBounds<ToType>(value)) fails in WTF::safeCast(FromType)
 fast/images/large-size-image-crash.html
 
@@ -1325,10 +1328,6 @@ webkit.org/b/206946 http/tests/security/cookies/third-party-cookie-blocking-main
 
 webkit.org/b/205309 scrollingcoordinator/ios/scroll-position-after-reattach.html [ ImageOnlyFailure ]
 
-webkit.org/b/207153 animations/animation-callback-timestamp.html [ Pass Failure ]
-
-webkit.org/b/209362 animations/animation-direction-reverse.html [ Pass Failure ]
-
 webkit.org/b/207156 [ Release ] http/tests/websocket/tests/hybi/workers/close.html [ Pass Failure ]
 
 webkit.org/b/207161 imported/w3c/web-platform-tests/2dcontext/imagebitmap/createImageBitmap-transfer.html [ Pass Failure ]
@@ -1732,8 +1731,6 @@ http/tests/quicklook/secure-document-with-subresources.html [ Skip ]
 
 webkit.org/b/209281 imported/w3c/web-platform-tests/fetch/stale-while-revalidate/frame-removal.html [ Pass Failure ]
 
-webkit.org/b/209295 imported/w3c/web-platform-tests/service-workers/service-worker/respond-with-body-accessed-response.https.html [ Pass Failure ]
-
 webkit.org/b/209350 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Failure ]
 
 webkit.org/b/209352 http/tests/security/stylesheet-href-redirect.html [ Pass Timeout ]
@@ -1763,3 +1760,7 @@ webkit.org/b/210201 [ Debug ] editing/editability/empty-document-delete.html [ P
 webkit.org/b/210205 [ Debug ] fast/text/firstline/001.html [ Pass Crash ]
 
 webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Crash ]
+
+webkit.org/b/209189 http/tests/IndexedDB/storage-limit.https.html [ Pass Failure ]
+
+webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass Failure ]

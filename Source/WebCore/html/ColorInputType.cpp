@@ -144,11 +144,14 @@ void ColorInputType::createShadowSubtree()
     ASSERT(element());
     ASSERT(element()->shadowRoot());
 
+    static MainThreadNeverDestroyed<const AtomString> webkitColorSwatchName("-webkit-color-swatch", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> webkitColorSwatchWrapperName("-webkit-color-swatch-wrapper", AtomString::ConstructFromLiteral);
+
     Document& document = element()->document();
     auto wrapperElement = HTMLDivElement::create(document);
-    wrapperElement->setPseudo(AtomString("-webkit-color-swatch-wrapper", AtomString::ConstructFromLiteral));
+    wrapperElement->setPseudo(webkitColorSwatchWrapperName);
     auto colorSwatch = HTMLDivElement::create(document);
-    colorSwatch->setPseudo(AtomString("-webkit-color-swatch", AtomString::ConstructFromLiteral));
+    colorSwatch->setPseudo(webkitColorSwatchName);
     wrapperElement->appendChild(colorSwatch);
     element()->userAgentShadowRoot()->appendChild(wrapperElement);
 

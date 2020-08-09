@@ -44,6 +44,7 @@
 #include "WebProcessProxy.h"
 #include <WebCore/CertificateInfo.h>
 #include <WebCore/GtkUtilities.h>
+#include <WebCore/GtkVersioning.h>
 #include <WebCore/InspectorDebuggableType.h>
 #include <WebCore/NotImplemented.h>
 #include <wtf/FileSystem.h>
@@ -479,7 +480,7 @@ static void fileReplaceContentsCallback(GObject* sourceObject, GAsyncResult* res
 
     auto* page = static_cast<WebPageProxy*>(userData);
     GUniquePtr<char> path(g_file_get_path(file));
-    page->process().send(Messages::WebInspectorUI::DidSave(path.get()), page->webPageID());
+    page->send(Messages::WebInspectorUI::DidSave(path.get()));
 }
 
 void WebInspectorProxy::platformSave(const String& suggestedURL, const String& content, bool base64Encoded, bool forceSaveDialog)
@@ -494,7 +495,9 @@ void WebInspectorProxy::platformSave(const String& suggestedURL, const String& c
         GTK_WINDOW(parent), GTK_FILE_CHOOSER_ACTION_SAVE, "Save", "Cancel"));
 
     GtkFileChooser* chooser = GTK_FILE_CHOOSER(dialog.get());
+#if !USE(GTK4)
     gtk_file_chooser_set_do_overwrite_confirmation(chooser, TRUE);
+#endif
 
     // Some inspector views (Audits for instance) use a custom URI scheme, such
     // as web-inspector. So we can't rely on the URL being a valid file:/// URL

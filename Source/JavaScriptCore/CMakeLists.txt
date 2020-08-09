@@ -70,6 +70,7 @@ set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/IntlCollatorPrototype.cpp
     runtime/IntlDateTimeFormatConstructor.cpp
     runtime/IntlDateTimeFormatPrototype.cpp
+    runtime/IntlLocalePrototype.cpp
     runtime/IntlNumberFormatConstructor.cpp
     runtime/IntlNumberFormatPrototype.cpp
     runtime/IntlObject.cpp
@@ -1120,16 +1121,6 @@ add_custom_command(
     COMMAND ${PYTHON_EXECUTABLE} ${JAVASCRIPTCORE_DIR}/yarr/generateYarrCanonicalizeUnicode ${JAVASCRIPTCORE_DIR}/ucd/CaseFolding.txt ${JavaScriptCore_DERIVED_SOURCES_DIR}/yarr/YarrCanonicalizeUnicode.cpp
     VERBATIM)
 
-#GENERATOR: "IntlCanonicalizeLanguage.h": tables used by Intl
-add_custom_command(
-    OUTPUT ${JavaScriptCore_DERIVED_SOURCES_DIR}/IntlCanonicalizeLanguage.h
-    MAIN_DEPENDENCY ${JAVASCRIPTCORE_DIR}/Scripts/generateIntlCanonicalizeLanguage.py
-    DEPENDS ${JAVASCRIPTCORE_DIR}/ucd/language-subtag-registry.txt
-    COMMAND ${PYTHON_EXECUTABLE} ${JAVASCRIPTCORE_DIR}/Scripts/generateIntlCanonicalizeLanguage.py ${JAVASCRIPTCORE_DIR}/ucd/language-subtag-registry.txt ${JavaScriptCore_DERIVED_SOURCES_DIR}/IntlCanonicalizeLanguage.h
-    VERBATIM)
-list(APPEND JavaScriptCore_HEADERS ${JavaScriptCore_DERIVED_SOURCES_DIR}/IntlCanonicalizeLanguage.h)
-WEBKIT_ADD_SOURCE_DEPENDENCIES(${CMAKE_CURRENT_SOURCE_DIR}/runtime/IntlObject.cpp ${JavaScriptCore_DERIVED_SOURCES_DIR}/IntlCanonicalizeLanguage.h)
-
 #GENERATOR: "KeywordLookup.h": keyword decision tree used by the lexer
 add_custom_command(
     OUTPUT ${JavaScriptCore_DERIVED_SOURCES_DIR}/KeywordLookup.h
@@ -1382,7 +1373,10 @@ add_subdirectory(shell)
 
 target_include_directories(LowLevelInterpreterLib
     PRIVATE "$<TARGET_PROPERTY:JavaScriptCore,INCLUDE_DIRECTORIES>")
-add_dependencies(LowLevelInterpreterLib WTF_CopyHeaders Bytecodes JSCBuiltins)
+add_dependencies(LowLevelInterpreterLib Bytecodes JSCBuiltins)
+if (TARGET WTF_CopyHeaders)
+    add_dependencies(LowLevelInterpreterLib WTF_CopyHeaders)
+endif ()
 
 if (CMAKE_COMPILER_IS_GNUCXX AND GCC_OFFLINEASM_SOURCE_MAP)
     message(STATUS "Enabling asm postprocessing")

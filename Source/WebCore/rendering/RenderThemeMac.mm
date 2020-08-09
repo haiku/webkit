@@ -1159,12 +1159,8 @@ bool RenderThemeMac::paintTextField(const RenderObject& o, const PaintInfo& pain
     AffineTransform transform = paintInfo.context().getCTM();
     if (transform.xScale() > 1 || transform.yScale() > 1) {
         adjustedPaintRect.inflateX(1 / transform.xScale());
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
         adjustedPaintRect.inflateY(2 / transform.yScale());
         adjustedPaintRect.move(0, -1 / transform.yScale());
-#else
-        adjustedPaintRect.inflateY(1 / transform.yScale());
-#endif
     }
     NSTextFieldCell *textField = this->textField();
 
@@ -2777,6 +2773,10 @@ static RefPtr<Icon> iconForAttachment(const RenderAttachment& attachment)
 
 static void paintAttachmentIcon(const RenderAttachment& attachment, GraphicsContext& context, AttachmentLayout& layout)
 {
+    if (auto thumbnailIcon = attachment.attachmentElement().thumbnail()) {
+        context.drawImage(*thumbnailIcon, layout.iconRect);
+        return;
+    }
     auto icon = iconForAttachment(attachment);
     if (!icon)
         return;

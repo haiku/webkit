@@ -763,8 +763,7 @@ enum {
     TextFieldDidBeginEditingCallbackID,
     TextFieldDidEndEditingCallbackID,
     CustomMenuActionCallbackID,
-    GetWebViewCategoryCallbackID,
-    DidSetInAppBrowserPrivacyEnabledCallbackID,
+    DidSetAppBoundDomainsCallbackID,
     FirstUIScriptCallbackID = 100
 };
 
@@ -1413,6 +1412,37 @@ void TestRunner::callDidEndSwipeCallback()
 void TestRunner::callDidRemoveSwipeSnapshotCallback()
 {
     callTestRunnerCallback(DidRemoveSwipeSnapshotCallbackID);
+}
+
+void TestRunner::clearStatisticsDataForDomain(JSStringRef domain)
+{
+    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("ClearStatisticsDataForDomain"));
+    WKRetainPtr<WKStringRef> messageBody = adoptWK(WKStringCreateWithJSString(domain));
+    WKBundlePostSynchronousMessage(InjectedBundle::singleton().bundle(), messageName.get(), messageBody.get(), nullptr);
+}
+
+bool TestRunner::doesStatisticsDomainIDExistInDatabase(unsigned domainID)
+{
+    Vector<WKRetainPtr<WKStringRef>> keys;
+    Vector<WKRetainPtr<WKTypeRef>> values;
+
+    keys.append(adoptWK(WKStringCreateWithUTF8CString("DomainID")));
+    values.append(adoptWK(WKUInt64Create(domainID)));
+
+    Vector<WKStringRef> rawKeys(keys.size());
+    Vector<WKTypeRef> rawValues(values.size());
+
+    for (size_t i = 0; i < keys.size(); ++i) {
+        rawKeys[i] = keys[i].get();
+        rawValues[i] = values[i].get();
+    }
+
+    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("DoesStatisticsDomainIDExistInDatabase"));
+    WKRetainPtr<WKDictionaryRef> messageBody = adoptWK(WKDictionaryCreate(rawKeys.data(), rawValues.data(), rawKeys.size()));
+    WKTypeRef returnData = nullptr;
+    WKBundlePagePostSynchronousMessageForTesting(InjectedBundle::singleton().page()->page(), messageName.get(), messageBody.get(), &returnData);
+    ASSERT(WKGetTypeID(returnData) == WKBooleanGetTypeID());
+    return WKBooleanGetValue(adoptWK(static_cast<WKBooleanRef>(returnData)).get());
 }
 
 void TestRunner::setStatisticsEnabled(bool value)
@@ -2936,26 +2966,6 @@ void TestRunner::setOffscreenCanvasEnabled(bool enabled)
     WKBundleOverrideBoolPreferenceForTestRunner(injectedBundle.bundle(), injectedBundle.pageGroup(), key.get(), enabled);
 }
 
-void TestRunner::getWebViewCategory(JSValueRef callback)
-{
-    cacheTestRunnerCallback(GetWebViewCategoryCallbackID, callback);
-    
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("GetWebViewCategory"));
-    WKBundlePostMessage(InjectedBundle::singleton().bundle(), messageName.get(), nullptr);
-}
-
-void TestRunner::callDidReceiveWebViewCategoryCallback(String category)
-{
-    WKBundleFrameRef mainFrame = WKBundlePageGetMainFrame(InjectedBundle::singleton().page()->page());
-    JSContextRef context = WKBundleFrameGetJavaScriptContext(mainFrame);
-
-    auto resultString = makeString("\"", category, "\"");
-    
-    JSValueRef result = JSValueMakeFromJSONString(context, adopt(JSStringCreateWithUTF8CString(resultString.utf8().data())).get());
-
-    callTestRunnerCallback(GetWebViewCategoryCallbackID, 1, &result);
-}
-
 bool TestRunner::hasAppBoundSession()
 {
     auto messageName = adoptWK(WKStringCreateWithUTF8CString("HasAppBoundSession"));
@@ -2966,17 +2976,43 @@ bool TestRunner::hasAppBoundSession()
     return WKBooleanGetValue(adoptWK(static_cast<WKBooleanRef>(returnData)).get());
 }
 
-void TestRunner::setInAppBrowserPrivacyEnabled(bool value, JSValueRef completionHandler)
+void TestRunner::setAppBoundDomains(JSValueRef originArray, JSValueRef completionHandler)
 {
-    cacheTestRunnerCallback(DidSetInAppBrowserPrivacyEnabledCallbackID, completionHandler);
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("SetInAppBrowserPrivacyEnabled"));
-    WKRetainPtr<WKBooleanRef> messageBody = adoptWK(WKBooleanCreate(value));
-    WKBundlePostMessage(InjectedBundle::singleton().bundle(), messageName.get(), messageBody.get());
+    cacheTestRunnerCallback(DidSetAppBoundDomainsCallbackID, completionHandler);
+
+    JSContextRef context = WKBundleFrameGetJavaScriptContext(WKBundlePageGetMainFrame(InjectedBundle::singleton().page()->page()));
+
+    if (!JSValueIsArray(context, originArray))
+        return;
+
+    JSObjectRef origins = JSValueToObject(context, originArray, nullptr);
+    static auto lengthProperty = adopt(JSStringCreateWithUTF8CString("length"));
+    JSValueRef originsLengthValue = JSObjectGetProperty(context, origins, lengthProperty.get(), nullptr);
+    if (!JSValueIsNumber(context, originsLengthValue))
+        return;
+
+    auto originURLs = adoptWK(WKMutableArrayCreate());
+    auto originsLength = static_cast<size_t>(JSValueToNumber(context, originsLengthValue, nullptr));
+    for (size_t i = 0; i < originsLength; ++i) {
+        JSValueRef originValue = JSObjectGetPropertyAtIndex(context, origins, i, nullptr);
+        if (!JSValueIsString(context, originValue))
+            continue;
+
+        auto origin = adopt(JSValueToStringCopy(context, originValue, nullptr));
+        size_t originBufferSize = JSStringGetMaximumUTF8CStringSize(origin.get()) + 1;
+        auto originBuffer = makeUniqueArray<char>(originBufferSize);
+        JSStringGetUTF8CString(origin.get(), originBuffer.get(), originBufferSize);
+
+        WKArrayAppendItem(originURLs.get(), adoptWK(WKURLCreateWithUTF8CString(originBuffer.get())).get());
+    }
+
+    auto messageName = adoptWK(WKStringCreateWithUTF8CString("SetAppBoundDomains"));
+    WKBundlePostMessage(InjectedBundle::singleton().bundle(), messageName.get(), originURLs.get());
 }
 
-void TestRunner::callDidSetInAppBrowserPrivacyEnabledCallback()
+void TestRunner::didSetAppBoundDomainsCallback()
 {
-    callTestRunnerCallback(DidSetInAppBrowserPrivacyEnabledCallbackID);
+    callTestRunnerCallback(DidSetAppBoundDomainsCallbackID);
 }
 
 } // namespace WTR

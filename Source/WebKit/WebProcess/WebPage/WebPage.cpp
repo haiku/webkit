@@ -60,7 +60,6 @@
 #include "RemoteWebInspectorUIMessages.h"
 #include "SessionState.h"
 #include "SessionStateConversion.h"
-#include "ShareSheetCallbackID.h"
 #include "ShareableBitmap.h"
 #include "SharedBufferDataReference.h"
 #include "UserMediaPermissionRequestManager.h"
@@ -272,6 +271,7 @@
 #include <WebCore/LegacyWebArchive.h>
 #include <WebCore/UTIRegistry.h>
 #include <wtf/MachSendRight.h>
+#include <wtf/spi/darwin/SandboxSPI.h>
 #endif
 
 #if HAVE(TOUCH_BAR)
@@ -393,6 +393,21 @@ Ref<WebPage> WebPage::create(PageIdentifier pageID, WebPageCreationParameters&& 
     return page;
 }
 
+static Vector<UserContentURLPattern> parseAndAllowAccessToCORSDisablingPatterns(Vector<String>&& input)
+{
+    Vector<UserContentURLPattern> parsedPatterns;
+    parsedPatterns.reserveInitialCapacity(input.size());
+    for (auto&& pattern : WTFMove(input)) {
+        UserContentURLPattern parsedPattern(WTFMove(pattern));
+        if (parsedPattern.isValid()) {
+            WebCore::SecurityPolicy::allowAccessTo(parsedPattern);
+            parsedPatterns.uncheckedAppend(WTFMove(parsedPattern));
+        }
+    }
+    parsedPatterns.shrinkToFit();
+    return parsedPatterns;
+}
+
 WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     : m_identifier(pageID)
     , m_mainFrame(WebFrame::create())
@@ -408,7 +423,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #if ENABLE(PLATFORM_DRIVEN_TEXT_CHECKING)
     , m_textCheckingControllerProxy(makeUniqueRef<TextCheckingControllerProxy>(*this))
 #endif
-#if PLATFORM(COCOA) || PLATFORM(GTK)
+#if PLATFORM(COCOA) || (PLATFORM(GTK) && !USE(GTK4))
     , m_viewGestureGeometryCollector(makeUnique<ViewGestureGeometryCollector>(*this))
 #elif ENABLE(ACCESSIBILITY) && PLATFORM(GTK)
     , m_accessibilityObject(nullptr)
@@ -530,19 +545,8 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #if PLATFORM(IOS_FAMILY) && ENABLE(DEVICE_ORIENTATION)
     pageConfiguration.deviceOrientationUpdateProvider = WebDeviceOrientationUpdateProvider::create(*this);
 #endif
-
-    Vector<UserContentURLPattern> parsedPatterns;
-    parsedPatterns.reserveInitialCapacity(parameters.corsDisablingPatterns.size());
-    for (auto&& pattern : WTFMove(parameters.corsDisablingPatterns)) {
-        UserContentURLPattern parsedPattern(WTFMove(pattern));
-        if (parsedPattern.isValid()) {
-            WebCore::SecurityPolicy::allowAccessTo(parsedPattern);
-            parsedPatterns.uncheckedAppend(WTFMove(parsedPattern));
-        }
-    }
-    parsedPatterns.shrinkToFit();
     
-    pageConfiguration.corsDisablingPatterns = WTFMove(parsedPatterns);
+    pageConfiguration.corsDisablingPatterns = parseAndAllowAccessToCORSDisablingPatterns(WTFMove(parameters.corsDisablingPatterns));
     pageConfiguration.userScriptsShouldWaitUntilNotification = parameters.userScriptsShouldWaitUntilNotification;
     pageConfiguration.loadsSubresources = parameters.loadsSubresources;
     pageConfiguration.loadsFromNetwork = parameters.loadsFromNetwork;
@@ -1120,10 +1124,10 @@ void WebPage::changeFont(WebCore::FontChanges&& changes)
         frame.editor().applyStyleToSelection(changes.createEditingStyle(), EditAction::SetFont, Editor::ColorFilterMode::InvertColor);
 }
 
-void WebPage::executeEditCommandWithCallback(const String& commandName, const String& argument, CallbackID callbackID)
+void WebPage::executeEditCommandWithCallback(const String& commandName, const String& argument, CompletionHandler<void()>&& completionHandler)
 {
     executeEditCommand(commandName, argument);
-    send(Messages::WebPageProxy::VoidCallback(callbackID));
+    completionHandler();
 }
 
 void WebPage::selectAll()
@@ -1442,7 +1446,7 @@ void WebPage::close()
 #if ENABLE(FULLSCREEN_API)
     webProcess.removeMessageReceiver(Messages::WebFullScreenManager::messageReceiverName(), m_identifier);
 #endif
-#if PLATFORM(COCOA) || PLATFORM(GTK)
+#if PLATFORM(COCOA) || (PLATFORM(GTK) && !USE(GTK4))
     m_viewGestureGeometryCollector = nullptr;
 #endif
 
@@ -2831,7 +2835,7 @@ void WebPage::validateCommand(const String& commandName, CallbackID callbackID)
         isEnabled = pluginView->isEditingCommandEnabled(commandName);
     else {
         Editor::Command command = frame.editor().command(commandName);
-        state = command.state();
+        state = (command.state() != TriState::False);
         isEnabled = command.isSupported() && command.isEnabled();
     }
 
@@ -3143,10 +3147,10 @@ void WebPage::viewWillEndLiveResize()
         view->willEndLiveResize();
 }
 
-void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent& event, CallbackID callbackID)
+void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent& event, CompletionHandler<void()>&& completionHandler)
 {
     if (!m_page)
-        return;
+        return completionHandler();
 
     SetForScope<bool> userIsInteractingChange { m_userIsInteracting, true };
 
@@ -3157,13 +3161,12 @@ void WebPage::setInitialFocus(bool forward, bool isKeyboardEventValid, const Web
         PlatformKeyboardEvent platformEvent(platform(event));
         platformEvent.disambiguateKeyDownEvent(PlatformEvent::RawKeyDown);
         m_page->focusController().setInitialFocus(forward ? FocusDirectionForward : FocusDirectionBackward, &KeyboardEvent::create(platformEvent, &frame.windowProxy()).get());
-
-        send(Messages::WebPageProxy::VoidCallback(callbackID));
+        completionHandler();
         return;
     }
 
     m_page->focusController().setInitialFocus(forward ? FocusDirectionForward : FocusDirectionBackward, nullptr);
-    send(Messages::WebPageProxy::VoidCallback(callbackID));
+    completionHandler();
 }
 
 void WebPage::setCanStartMediaTimerFired()
@@ -3295,6 +3298,8 @@ void WebPage::didStartPageTransition()
 
 #if PLATFORM(IOS_FAMILY)
     m_isShowingInputViewForFocusedElement = false;
+    // This is used to enable a first-tap quirk.
+    m_hasHandledSyntheticClick = false;
 #endif
 }
 
@@ -3732,9 +3737,7 @@ void WebPage::detectDataInAllFrames(uint64_t types, CompletionHandler<void(const
         auto document = makeRefPtr(frame->document());
         if (!document)
             continue;
-
-        RefPtr<Range> range = Range::create(*document, Position { document.get(), Position::PositionIsBeforeChildren }, Position { document.get(), Position::PositionIsAfterChildren });
-        frame->setDataDetectionResults(DataDetection::detectContentInRange(range, dataDetectorTypes, m_dataDetectionContext.get()));
+        frame->setDataDetectionResults(DataDetection::detectContentInRange(makeRangeSelectingNodeContents(*document), dataDetectorTypes, m_dataDetectionContext.get()));
     }
     completionHandler({ m_page->mainFrame().dataDetectionResults() });
 }
@@ -3810,6 +3813,11 @@ void WebPage::layoutIfNeeded()
 void WebPage::updateRendering()
 {
     m_page->updateRendering();
+}
+
+void WebPage::finalizeRenderingUpdate(OptionSet<FinalizeRenderingUpdateFlags> flags)
+{
+    m_page->finalizeRenderingUpdate(flags);
 }
 
 WebInspector* WebPage::inspector(LazyCreationPolicy behavior)
@@ -4214,10 +4222,25 @@ void WebPage::changeSelectedIndex(int32_t index)
 }
 
 #if PLATFORM(IOS_FAMILY)
-void WebPage::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<String>& files, const String& displayString, const IPC::DataReference& iconData)
+void WebPage::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<String>& files, const String& displayString, const IPC::DataReference& iconData, SandboxExtension::Handle&& frontboardServicesSandboxExtensionHandle, SandboxExtension::Handle&& iconServicesSandboxExtensionHandle)
 {
     if (!m_activeOpenPanelResultListener)
         return;
+
+    auto frontboardServicesSandboxExtension = SandboxExtension::create(WTFMove(frontboardServicesSandboxExtensionHandle));
+    if (frontboardServicesSandboxExtension) {
+        bool consumed = frontboardServicesSandboxExtension->consume();
+        ASSERT_UNUSED(consumed, consumed);
+    }
+
+    auto iconServicesSandboxExtension = SandboxExtension::create(WTFMove(iconServicesSandboxExtensionHandle));
+    if (iconServicesSandboxExtension) {
+        bool consumed = iconServicesSandboxExtension->consume();
+        ASSERT_UNUSED(consumed, consumed);
+    }
+
+    RELEASE_ASSERT(!sandbox_check(getpid(), "mach-lookup", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_GLOBAL_NAME | SANDBOX_CHECK_NO_REPORT), "com.apple.frontboard.systemappservices"));
+    RELEASE_ASSERT(!sandbox_check(getpid(), "mach-lookup", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_GLOBAL_NAME | SANDBOX_CHECK_NO_REPORT), "com.apple.frontboard.iconservices"));
 
     RefPtr<Icon> icon;
     if (!iconData.isEmpty()) {
@@ -4229,6 +4252,17 @@ void WebPage::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<St
 
     m_activeOpenPanelResultListener->didChooseFilesWithDisplayStringAndIcon(files, displayString, icon.get());
     m_activeOpenPanelResultListener = nullptr;
+
+    if (frontboardServicesSandboxExtension) {
+        bool revoked = frontboardServicesSandboxExtension->revoke();
+        ASSERT_UNUSED(revoked, revoked);
+    }
+
+    if (iconServicesSandboxExtension) {
+        bool revoked = iconServicesSandboxExtension->revoke();
+        ASSERT_UNUSED(revoked, revoked);
+    }
+
 }
 #endif
 
@@ -4249,18 +4283,16 @@ void WebPage::didCancelForOpenPanel()
 #if ENABLE(SANDBOX_EXTENSIONS)
 void WebPage::extendSandboxForFilesFromOpenPanel(SandboxExtension::HandleArray&& handles)
 {
-    for (size_t i = 0; i < handles.size(); ++i) {
-        bool result = SandboxExtension::consumePermanently(handles[i]);
-        if (!result) {
-            // We have reports of cases where this fails for some unknown reason, <rdar://problem/10156710>.
-            WTFLogAlways("WebPage::extendSandboxForFileFromOpenPanel(): Could not consume a sandbox extension");
-        }
+    bool result = SandboxExtension::consumePermanently(handles);
+    if (!result) {
+        // We have reports of cases where this fails for some unknown reason, <rdar://problem/10156710>.
+        WTFLogAlways("WebPage::extendSandboxForFileFromOpenPanel(): Could not consume a sandbox extension");
     }
 }
 #endif
 
 #if ENABLE(GEOLOCATION)
-void WebPage::didReceiveGeolocationPermissionDecision(uint64_t geolocationID, const String& authorizationToken)
+void WebPage::didReceiveGeolocationPermissionDecision(GeolocationIdentifier geolocationID, const String& authorizationToken)
 {
     geolocationPermissionRequestManager().didReceiveGeolocationPermissionDecision(geolocationID, authorizationToken);
 }
@@ -4443,7 +4475,7 @@ void WebPage::mainFrameDidLayout()
         m_cachedPageCount = pageCount;
     }
 
-#if PLATFORM(COCOA) || PLATFORM(GTK)
+#if PLATFORM(COCOA) || (PLATFORM(GTK) && !USE(GTK4))
     if (m_viewGestureGeometryCollector)
         m_viewGestureGeometryCollector->mainFrameDidLayout();
 #endif
@@ -5358,7 +5390,7 @@ void WebPage::getMarkedRangeAsync(CallbackID callbackID)
 void WebPage::getSelectedRangeAsync(CallbackID callbackID)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
-    auto editingRange = EditingRange::fromRange(frame, frame.selection().toNormalizedRange().get());
+    auto editingRange = EditingRange::fromRange(frame, createLiveRange(frame.selection().selection().toNormalizedRange()).get());
     send(Messages::WebPageProxy::EditingRangeCallback(editingRange, callbackID));
 }
 
@@ -6222,7 +6254,7 @@ RefPtr<Range> WebPage::currentSelectionAsRange()
     if (!frame)
         return nullptr;
 
-    return frame->selection().toNormalizedRange();
+    return createLiveRange(frame->selection().selection().toNormalizedRange());
 }
 
 void WebPage::reportUsedFeatures()
@@ -6739,27 +6771,9 @@ void WebPage::shouldAllowDeviceOrientationAndMotionAccess(FrameIdentifier frameI
 }
 #endif
     
-static ShareSheetCallbackID nextShareSheetCallbackID()
-{
-    static ShareSheetCallbackID nextCallbackID = 0;
-    return ++nextCallbackID;
-}
-    
 void WebPage::showShareSheet(ShareDataWithParsedURL& shareData, WTF::CompletionHandler<void(bool)>&& callback)
 {
-    ShareSheetCallbackID callbackID = nextShareSheetCallbackID();
-    auto addResult = m_shareSheetResponseCallbackMap.add(callbackID, WTFMove(callback));
-    ASSERT(addResult.isNewEntry);
-    if (addResult.iterator->value)
-        send(Messages::WebPageProxy::ShowShareSheet(WTFMove(shareData), callbackID));
-    else
-        callback(false);
-}
-
-void WebPage::didCompleteShareSheet(bool wasGranted, ShareSheetCallbackID callbackID)
-{
-    auto callback = m_shareSheetResponseCallbackMap.take(callbackID);
-    callback(wasGranted);
+    sendWithAsyncReply(Messages::WebPageProxy::ShowShareSheet(WTFMove(shareData)), WTFMove(callback));
 }
 
 WebCore::DOMPasteAccessResponse WebPage::requestDOMPasteAccess(const String& originIdentifier)
@@ -6841,6 +6855,14 @@ void WebPage::updateAttachmentAttributes(const String& identifier, Optional<uint
     send(Messages::WebPageProxy::VoidCallback(callbackID));
 }
 
+void WebPage::updateAttachmentIcon(const String& identifier, const ShareableBitmap::Handle& qlThumbnailHandle)
+{
+    if (auto attachment = attachmentElementWithIdentifier(identifier)) {
+        if (RefPtr<ShareableBitmap> thumbnail = !qlThumbnailHandle.isNull() ? ShareableBitmap::create(qlThumbnailHandle) : nullptr)
+            attachment->updateThumbnail(thumbnail->createImage());
+    }
+}
+
 RefPtr<HTMLAttachmentElement> WebPage::attachmentElementWithIdentifier(const String& identifier) const
 {
     // FIXME: Handle attachment elements in subframes too as well.
@@ -6898,31 +6920,6 @@ void WebPage::updateInputContextAfterBlurringAndRefocusingElementIfNeeded(Elemen
 }
 
 #endif // !PLATFORM(IOS_FAMILY)
-
-void WebPage::textInputContextsInRect(WebCore::FloatRect searchRect, CompletionHandler<void(const Vector<WebCore::ElementContext>&)>&& completionHandler)
-{
-    auto contexts = m_page->editableElementsInRect(searchRect).map([&] (const auto& element) {
-        auto& document = element->document();
-
-        WebCore::ElementContext context;
-        context.webPageIdentifier = m_identifier;
-        context.documentIdentifier = document.identifier();
-        context.elementIdentifier = document.identifierForElement(element);
-        context.boundingRect = element->clientRect();
-        return context;
-    });
-    completionHandler(contexts);
-}
-
-void WebPage::focusTextInputContext(const WebCore::ElementContext& textInputContext, CompletionHandler<void(bool)>&& completionHandler)
-{
-    auto element = elementForContext(textInputContext);
-
-    if (element)
-        element->focus();
-
-    completionHandler(element);
-}
 
 void WebPage::setCanShowPlaceholder(const WebCore::ElementContext& elementContext, bool canShowPlaceholder)
 {
@@ -7057,6 +7054,12 @@ void WebPage::setOverriddenMediaType(const String& mediaType)
 
     m_overriddenMediaType = mediaType;
     m_page->setNeedsRecalcStyleInAllFrames();
+}
+
+void WebPage::updateCORSDisablingPatterns(Vector<String>&& patterns)
+{
+    if (m_page)
+        m_page->setCORSDisablingPatterns(parseAndAllowAccessToCORSDisablingPatterns(WTFMove(patterns)));
 }
 
 bool WebPage::shouldUseRemoteRenderingFor(RenderingPurpose purpose)

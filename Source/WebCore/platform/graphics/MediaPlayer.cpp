@@ -302,13 +302,13 @@ static void addMediaEngine(std::unique_ptr<MediaPlayerFactory>&& factory)
 
 static const AtomString& applicationOctetStream()
 {
-    static NeverDestroyed<const AtomString> applicationOctetStream("application/octet-stream", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> applicationOctetStream("application/octet-stream", AtomString::ConstructFromLiteral);
     return applicationOctetStream;
 }
 
 static const AtomString& textPlain()
 {
-    static NeverDestroyed<const AtomString> textPlain("text/plain", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> textPlain("text/plain", AtomString::ConstructFromLiteral);
     return textPlain;
 }
 
@@ -446,12 +446,12 @@ bool MediaPlayer::load(const URL& url, const ContentType& contentType, const Str
     AtomString containerType = m_contentType.containerType();
     if (containerType.isEmpty() || containerType == applicationOctetStream() || containerType == textPlain()) {
         if (m_url.protocolIsData())
-            m_contentType = ContentType(mimeTypeFromDataURL(m_url.string()));
+            m_contentType = ContentType(mimeTypeFromDataURL(m_url));
         else {
-            String lastPathComponent = url.lastPathComponent();
+            auto lastPathComponent = url.lastPathComponent();
             size_t pos = lastPathComponent.reverseFind('.');
             if (pos != notFound) {
-                String extension = lastPathComponent.substring(pos + 1);
+                String extension = lastPathComponent.substring(pos + 1).toString();
                 String mediaType = MIMETypeRegistry::getMediaMIMETypeForExtension(extension);
                 if (!mediaType.isEmpty()) {
                     m_contentType = ContentType { WTFMove(mediaType) };

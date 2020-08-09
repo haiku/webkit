@@ -42,14 +42,15 @@ class TableFormattingContext final : public FormattingContext {
     WTF_MAKE_ISO_ALLOCATED(TableFormattingContext);
 public:
     TableFormattingContext(const ContainerBox& formattingContextRoot, TableFormattingState&);
-    void layoutInFlowContent(InvalidationState&, const HorizontalConstraints&, const VerticalConstraints&) override;
+    void layoutInFlowContent(InvalidationState&, const ConstraintsForInFlowContent&) override;
 
 private:
     class Geometry : public FormattingContext::Geometry {
     public:
-        ContentHeightAndMargin tableCellHeightAndMargin(const Box&) const;
-        Optional<LayoutUnit> computedColumnWidth(const Box& columnBox) const;
+        LayoutUnit cellHeigh(const ContainerBox&) const;
+        Optional<LayoutUnit> computedColumnWidth(const ContainerBox& columnBox) const;
         FormattingContext::IntrinsicWidthConstraints intrinsicWidthConstraintsForCell(const ContainerBox& cellBox);
+        InlineLayoutUnit usedBaselineForCell(const ContainerBox& cellBox);
 
     private:
         friend class TableFormattingContext;
@@ -60,16 +61,15 @@ private:
     TableFormattingContext::Geometry geometry() const { return Geometry(*this); }
 
     IntrinsicWidthConstraints computedIntrinsicWidthConstraints() override;
-    void layoutCell(const TableGrid::Cell&, InvalidationState&, const HorizontalConstraints&);
-    void positionTableCells();
-    void setComputedGeometryForRows();
-    void setComputedGeometryForSections();
+    void layoutCell(const TableGrid::Cell&, LayoutUnit availableHorizontalSpace, Optional<LayoutUnit> usedCellHeight = WTF::nullopt);
+    void setUsedGeometryForCells(LayoutUnit availableHorizontalSpace);
+    void setUsedGeometryForRows(LayoutUnit availableHorizontalSpace);
+    void setUsedGeometryForSections(const ConstraintsForInFlowContent&);
 
     void ensureTableGrid();
     IntrinsicWidthConstraints computedPreferredWidthForColumns();
     void computeAndDistributeExtraHorizontalSpace(LayoutUnit availableHorizontalSpace);
-
-    void initializeDisplayBoxToBlank(Display::Box&) const;
+    void computeAndDistributeExtraVerticalSpace(LayoutUnit availableHorizontalSpace, Optional<LayoutUnit> availableVerticalSpace);
 
     const TableFormattingState& formattingState() const { return downcast<TableFormattingState>(FormattingContext::formattingState()); }
     TableFormattingState& formattingState() { return downcast<TableFormattingState>(FormattingContext::formattingState()); }

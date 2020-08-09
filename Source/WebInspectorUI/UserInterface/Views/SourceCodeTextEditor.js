@@ -208,6 +208,13 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     customPerformSearch(query)
     {
+        let queryRegex = WI.SearchUtilities.searchRegExpForString(query, WI.SearchUtilities.defaultSettings);
+        if (!queryRegex) {
+            this.searchCleared();
+            this.dispatchEventToListeners(WI.TextEditor.Event.NumberOfSearchResultsDidChange);
+            return true;
+        }
+
         function searchResultCallback(error, matches)
         {
             // Bail if the query changed since we started.
@@ -220,7 +227,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
                 return;
             }
 
-            let queryRegex = WI.SearchUtilities.searchRegExpForString(query, WI.SearchUtilities.defaultSettings);
             var searchResults = [];
 
             for (var i = 0; i < matches.length; ++i) {
@@ -2189,10 +2195,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     _createTypeTokenAnnotator()
     {
-        // COMPATIBILITY (iOS 8): Runtime.getRuntimeTypesForVariablesAtOffsets did not exist yet.
-        if (!this.target || !this.target.hasCommand("Runtime.getRuntimeTypesForVariablesAtOffsets"))
-            return;
-
         var script = this._getAssociatedScript();
         if (!script)
             return;
@@ -2202,10 +2204,6 @@ WI.SourceCodeTextEditor = class SourceCodeTextEditor extends WI.TextEditor
 
     _createBasicBlockAnnotator()
     {
-        // COMPATIBILITY (iOS 8): Runtime.getBasicBlocks did not exist yet.
-        if (!this.target || !this.target.hasCommand("Runtime.getBasicBlocks"))
-            return;
-
         var script = this._getAssociatedScript();
         if (!script)
             return;

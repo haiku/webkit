@@ -24,6 +24,7 @@ $(PROJECT_DIR)/Modules/applepay/ApplePayContactField.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayError.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayErrorCode.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayErrorContactField.idl
+$(PROJECT_DIR)/Modules/applepay/ApplePayInstallmentConfiguration.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayLineItem.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayMerchantCapability.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayPayment.idl
@@ -39,6 +40,9 @@ $(PROJECT_DIR)/Modules/applepay/ApplePayPaymentRequest.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayRequestBase.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePaySession.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePaySessionError.idl
+$(PROJECT_DIR)/Modules/applepay/ApplePaySetup.idl
+$(PROJECT_DIR)/Modules/applepay/ApplePaySetupFeature.idl
+$(PROJECT_DIR)/Modules/applepay/ApplePaySetupFeatureType.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayShippingContactSelectedEvent.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayShippingContactUpdate.idl
 $(PROJECT_DIR)/Modules/applepay/ApplePayShippingMethod.idl
@@ -826,6 +830,8 @@ $(PROJECT_DIR)/html/canvas/CanvasTextDrawingStyles.idl
 $(PROJECT_DIR)/html/canvas/CanvasTransform.idl
 $(PROJECT_DIR)/html/canvas/CanvasUserInterface.idl
 $(PROJECT_DIR)/html/canvas/EXTBlendMinMax.idl
+$(PROJECT_DIR)/html/canvas/EXTColorBufferFloat.idl
+$(PROJECT_DIR)/html/canvas/EXTColorBufferHalfFloat.idl
 $(PROJECT_DIR)/html/canvas/EXTFragDepth.idl
 $(PROJECT_DIR)/html/canvas/EXTShaderTextureLOD.idl
 $(PROJECT_DIR)/html/canvas/EXTTextureFilterAnisotropic.idl
@@ -846,6 +852,7 @@ $(PROJECT_DIR)/html/canvas/Path2D.idl
 $(PROJECT_DIR)/html/canvas/WebGL2RenderingContext.idl
 $(PROJECT_DIR)/html/canvas/WebGLActiveInfo.idl
 $(PROJECT_DIR)/html/canvas/WebGLBuffer.idl
+$(PROJECT_DIR)/html/canvas/WebGLColorBufferFloat.idl
 $(PROJECT_DIR)/html/canvas/WebGLCompressedTextureASTC.idl
 $(PROJECT_DIR)/html/canvas/WebGLCompressedTextureATC.idl
 $(PROJECT_DIR)/html/canvas/WebGLCompressedTextureETC.idl
@@ -931,6 +938,7 @@ $(PROJECT_DIR)/page/PerformanceNavigation.idl
 $(PROJECT_DIR)/page/PerformanceObserver.idl
 $(PROJECT_DIR)/page/PerformanceObserverCallback.idl
 $(PROJECT_DIR)/page/PerformanceObserverEntryList.idl
+$(PROJECT_DIR)/page/PerformancePaintTiming.idl
 $(PROJECT_DIR)/page/PerformanceResourceTiming.idl
 $(PROJECT_DIR)/page/PerformanceServerTiming.idl
 $(PROJECT_DIR)/page/PerformanceTiming.idl
@@ -1113,6 +1121,11 @@ $(PROJECT_DIR)/svg/SVGZoomEvent.idl
 $(PROJECT_DIR)/svg/svgattrs.in
 $(PROJECT_DIR)/svg/svgtags.in
 $(PROJECT_DIR)/svg/xlinkattrs.in
+$(PROJECT_DIR)/testing/FakeXRBoundsPoint.idl
+$(PROJECT_DIR)/testing/FakeXRButtonStateInit.idl
+$(PROJECT_DIR)/testing/FakeXRInputSourceInit.idl
+$(PROJECT_DIR)/testing/FakeXRRigidTransformInit.idl
+$(PROJECT_DIR)/testing/FakeXRViewInit.idl
 $(PROJECT_DIR)/testing/GCObservation.idl
 $(PROJECT_DIR)/testing/InternalSettings.idl
 $(PROJECT_DIR)/testing/Internals.idl
@@ -1130,6 +1143,10 @@ $(PROJECT_DIR)/testing/MockPaymentError.idl
 $(PROJECT_DIR)/testing/MockWebAuthenticationConfiguration.idl
 $(PROJECT_DIR)/testing/ServiceWorkerInternals.idl
 $(PROJECT_DIR)/testing/TypeConversions.idl
+$(PROJECT_DIR)/testing/WebFakeXRDevice.idl
+$(PROJECT_DIR)/testing/WebFakeXRInputController.idl
+$(PROJECT_DIR)/testing/WebXRTest.idl
+$(PROJECT_DIR)/testing/XRSimulateUserActivationFunction.idl
 $(PROJECT_DIR)/workers/AbstractWorker.idl
 $(PROJECT_DIR)/workers/DedicatedWorkerGlobalScope.idl
 $(PROJECT_DIR)/workers/Worker.idl
@@ -1167,3 +1184,5 @@ $(PROJECT_DIR)/xml/XPathResult.idl
 $(PROJECT_DIR)/xml/XSLTProcessor.idl
 $(PROJECT_DIR)/xml/xmlattrs.in
 $(PROJECT_DIR)/xml/xmlnsattrs.in
+ApplePaySetup.idl
+ApplePaySetupFeature.idl

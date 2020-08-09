@@ -31,20 +31,15 @@
 #include "IntlObject.h"
 #include "JSCInlines.h"
 #include "ObjectConstructor.h"
+#include <wtf/unicode/icu/ICUHelpers.h>
 
 namespace JSC {
 
 const ClassInfo IntlRelativeTimeFormat::s_info = { "Object", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(IntlRelativeTimeFormat) };
 
+namespace IntlRelativeTimeFormatInternal {
 constexpr const char* relevantExtensionKeys[1] = { "nu" };
-
-struct UFieldPositionIteratorDeleter {
-    void operator()(UFieldPositionIterator* iterator) const
-    {
-        if (iterator)
-            ufieldpositer_close(iterator);
-    }
-};
+}
 
 void IntlRelativeTimeFormat::URelativeDateTimeFormatterDeleter::operator()(URelativeDateTimeFormatter* relativeDateTimeFormatter) const
 {
@@ -89,7 +84,7 @@ void IntlRelativeTimeFormat::visitChildren(JSCell* cell, SlotVisitor& visitor)
     Base::visitChildren(thisObject, visitor);
 }
 
-static Vector<String> localeData(const String& locale, size_t keyIndex)
+Vector<String> IntlRelativeTimeFormat::localeData(const String& locale, size_t keyIndex)
 {
     // The index of the extension key "nu" in relevantExtensionKeys is 0.
     ASSERT_UNUSED(keyIndex, !keyIndex);
@@ -129,7 +124,7 @@ void IntlRelativeTimeFormat::initializeRelativeTimeFormat(JSGlobalObject* global
     }
 
     const HashSet<String>& availableLocales = intlRelativeTimeFormatAvailableLocales();
-    HashMap<String, String> resolved = resolveLocale(globalObject, availableLocales, requestedLocales, opt, relevantExtensionKeys, WTF_ARRAY_LENGTH(relevantExtensionKeys), localeData);
+    HashMap<String, String> resolved = resolveLocale(globalObject, availableLocales, requestedLocales, opt, IntlRelativeTimeFormatInternal::relevantExtensionKeys, WTF_ARRAY_LENGTH(IntlRelativeTimeFormatInternal::relevantExtensionKeys), localeData);
     m_locale = resolved.get(vm.propertyNames->locale.string());
     if (m_locale.isEmpty()) {
         throwTypeError(globalObject, scope, "failed to initialize RelativeTimeFormat due to invalid locale"_s);
@@ -188,7 +183,7 @@ static ASCIILiteral numericString(bool numeric)
 }
 
 // https://tc39.es/ecma402/#sec-intl.relativetimeformat.prototype.resolvedoptions
-JSObject* IntlRelativeTimeFormat::resolvedOptions(JSGlobalObject* globalObject)
+JSObject* IntlRelativeTimeFormat::resolvedOptions(JSGlobalObject* globalObject) const
 {
     VM& vm = globalObject->vm();
     JSObject* options = constructEmptyObject(globalObject);
@@ -230,7 +225,7 @@ static Optional<URelativeDateTimeUnit> relativeTimeUnitType(StringView unit)
     return WTF::nullopt;
 }
 
-String IntlRelativeTimeFormat::formatInternal(JSGlobalObject* globalObject, double value, StringView unit)
+String IntlRelativeTimeFormat::formatInternal(JSGlobalObject* globalObject, double value, StringView unit) const
 {
     ASSERT(m_relativeDateTimeFormatter);
 
@@ -250,24 +245,18 @@ String IntlRelativeTimeFormat::formatInternal(JSGlobalObject* globalObject, doub
 
     auto formatRelativeTime = m_numeric ? ureldatefmt_formatNumeric : ureldatefmt_format;
 
-    UErrorCode status = U_ZERO_ERROR;
-    Vector<UChar, 32> result(32);
-    auto resultLength = formatRelativeTime(m_relativeDateTimeFormatter.get(), value, unitType.value(), result.data(), result.size(), &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        result.grow(resultLength);
-        formatRelativeTime(m_relativeDateTimeFormatter.get(), value, unitType.value(), result.data(), resultLength, &status);
-    }
+    Vector<UChar, 32> result;
+    auto status = callBufferProducingFunction(formatRelativeTime, m_relativeDateTimeFormatter.get(), value, unitType.value(), result);
     if (UNLIKELY(U_FAILURE(status))) {
         throwTypeError(globalObject, scope, "failed to format relative time"_s);
         return String();
     }
 
-    return String(result.data(), resultLength);
+    return String(result);
 }
 
 // https://tc39.es/ecma402/#sec-FormatRelativeTime
-JSValue IntlRelativeTimeFormat::format(JSGlobalObject* globalObject, double value, StringView unit)
+JSValue IntlRelativeTimeFormat::format(JSGlobalObject* globalObject, double value, StringView unit) const
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -279,7 +268,7 @@ JSValue IntlRelativeTimeFormat::format(JSGlobalObject* globalObject, double valu
 }
 
 // https://tc39.es/ecma402/#sec-FormatRelativeTimeToParts
-JSValue IntlRelativeTimeFormat::formatToParts(JSGlobalObject* globalObject, double value, StringView unit)
+JSValue IntlRelativeTimeFormat::formatToParts(JSGlobalObject* globalObject, double value, StringView unit) const
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -293,17 +282,12 @@ JSValue IntlRelativeTimeFormat::formatToParts(JSGlobalObject* globalObject, doub
 
     double absValue = std::abs(value);
 
-    Vector<UChar, 32> buffer(32);
-    auto numberLength = unum_formatDoubleForFields(m_numberFormat.get(), absValue, buffer.data(), buffer.size(), iterator.get(), &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        buffer.grow(numberLength);
-        unum_formatDoubleForFields(m_numberFormat.get(), absValue, buffer.data(), numberLength, iterator.get(), &status);
-    }
+    Vector<UChar, 32> buffer;
+    status = callBufferProducingFunction(unum_formatDoubleForFields, m_numberFormat.get(), absValue, buffer, iterator.get());
     if (U_FAILURE(status))
         return throwTypeError(globalObject, scope, "failed to format relative time"_s);
 
-    auto formattedNumber = String(buffer.data(), numberLength);
+    auto formattedNumber = String(buffer);
 
     JSArray* parts = JSArray::tryCreate(vm, globalObject->arrayStructureForIndexingTypeDuringAllocation(ArrayWithContiguous), 0);
     if (!parts)
@@ -316,7 +300,7 @@ JSValue IntlRelativeTimeFormat::formatToParts(JSGlobalObject* globalObject, doub
     size_t numberEnd = 0;
     size_t numberStart = formattedRelativeTime.find(formattedNumber);
     if (numberStart != notFound) {
-        numberEnd = numberStart + numberLength;
+        numberEnd = numberStart + buffer.size();
 
         // Add initial literal if there is one.
         if (numberStart) {

@@ -41,6 +41,7 @@
 
 #if PLATFORM(GTK)
 #include <WebCore/GtkUtilities.h>
+#include <WebCore/GtkVersioning.h>
 #endif
 
 using namespace WebKit;
@@ -160,12 +161,12 @@ private:
         RunLoop::current().stop();
         return FALSE;
     }
+#endif // PLATFORM(GTK) && !USE(GTK4)
 
     void setWindowFrameTimerFired()
     {
         RunLoop::current().stop();
     }
-#endif // PLATFORM(GTK) && !USE(GTK4)
 
     void setWindowFrame(WebPageProxy&, const WebCore::FloatRect& frame) final
     {
@@ -215,7 +216,9 @@ private:
             timer->startOneShot(200_ms);
             RunLoop::run();
             timer = nullptr;
+#if !USE(GTK4)
             g_signal_handler_disconnect(window, signalID);
+#endif
         } else
             webkitWindowPropertiesSetGeometry(webkit_web_view_get_window_properties(m_webView), &geometry);
 #endif // PLATFORM(GTK)
@@ -291,6 +294,20 @@ private:
     }
 
 #if PLATFORM(GTK)
+    bool takeFocus(WebPageProxy* page, WKFocusDirection direction) final
+    {
+        if (!gtk_widget_has_focus(GTK_WIDGET(m_webView))) {
+            focus(page);
+            return true;
+        }
+        return gtk_widget_child_focus(gtk_widget_get_toplevel(GTK_WIDGET(m_webView)), direction == kWKFocusDirectionBackward ? GTK_DIR_TAB_BACKWARD : GTK_DIR_TAB_FORWARD);
+    }
+
+    void focus(WebPageProxy*) final
+    {
+        gtk_widget_grab_focus(GTK_WIDGET(m_webView));
+    }
+
     void printFrame(WebPageProxy&, WebFrameProxy& frame, CompletionHandler<void()>&& completionHandler) final
     {
         webkitWebViewPrintFrame(m_webView, &frame);

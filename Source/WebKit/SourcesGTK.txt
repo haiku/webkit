@@ -21,6 +21,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 // THE POSSIBILITY OF SUCH DAMAGE.
 
+GPUProcess/gstreamer/GPUProcessGStreamer.cpp
+GPUProcess/gstreamer/GPUProcessMainGStreamer.cpp
+
+GPUProcess/media/RemoteAudioDestinationManager.cpp
+
+GPUProcess/media/gstreamer/RemoteMediaPlayerProxyGStreamer.cpp
+
 NetworkProcess/Classifier/WebResourceLoadStatisticsStore.cpp
 NetworkProcess/Classifier/WebResourceLoadStatisticsTelemetry.cpp
 
@@ -108,7 +115,6 @@ Shared/unix/AuxiliaryProcessMain.cpp
 UIProcess/BackingStore.cpp
 UIProcess/DefaultUndoController.cpp
 UIProcess/LegacySessionStateCodingNone.cpp
-UIProcess/ViewGestureController.cpp
 UIProcess/ViewSnapshotStore.cpp
 UIProcess/WebGrammarDetail.cpp
 UIProcess/WebMemoryPressureHandler.cpp
@@ -255,7 +261,6 @@ UIProcess/gtk/PointerLockManager.cpp @no-unify
 UIProcess/gtk/PointerLockManagerWayland.cpp @no-unify
 UIProcess/gtk/PointerLockManagerX11.cpp @no-unify
 UIProcess/gtk/TextCheckerGtk.cpp @no-unify
-UIProcess/gtk/ViewGestureControllerGtk.cpp @no-unify
 UIProcess/gtk/ViewSnapshotStoreGtk.cpp
 UIProcess/gtk/WaylandCompositor.cpp @no-unify
 UIProcess/gtk/WebColorPickerGtk.cpp
@@ -268,6 +273,8 @@ UIProcess/gtk/WebPreferencesGtk.cpp
 
 UIProcess/soup/WebCookieManagerProxySoup.cpp
 UIProcess/soup/WebProcessPoolSoup.cpp
+
+WebProcess/GPU/media/gstreamer/VideoLayerRemoteGStreamer.cpp
 
 WebProcess/InjectedBundle/API/glib/DOM/DOMObjectCache.cpp @no-unify
 WebProcess/InjectedBundle/API/glib/DOM/WebKitDOMDocument.cpp @no-unify
@@ -413,7 +420,6 @@ WebProcess/WebCoreSupport/gtk/WebEditorClientGtk.cpp
 WebProcess/WebCoreSupport/soup/WebFrameNetworkingContext.cpp
 
 WebProcess/WebPage/AcceleratedSurface.cpp
-WebProcess/WebPage/ViewGestureGeometryCollector.cpp
 
 WebProcess/WebPage/CoordinatedGraphics/CompositingCoordinator.cpp
 WebProcess/WebPage/CoordinatedGraphics/DrawingAreaCoordinatedGraphics.cpp

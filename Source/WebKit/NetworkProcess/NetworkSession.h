@@ -105,10 +105,11 @@ public:
     bool shouldDowngradeReferrer() const;
     void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode);
     void setShouldEnbleSameSiteStrictEnforcement(WebCore::SameSiteStrictEnforcementEnabled);
+    void destroyResourceLoadStatistics(CompletionHandler<void()>&&);
 #endif
     
     virtual bool hasAppBoundSession() const { return false; }
-    virtual void setInAppBrowserPrivacyEnabled(bool) { }
+    virtual void clearAppBoundSession() { }
     void storeAdClickAttribution(WebCore::AdClickAttribution&&);
     void handleAdClickAttributionConversion(WebCore::AdClickAttribution::Conversion&&, const URL& requestURL, const WebCore::ResourceRequest& redirectRequest);
     void dumpAdClickAttribution(CompletionHandler<void(String)>&&);
@@ -146,7 +147,6 @@ protected:
     NetworkSession(NetworkProcess&, const NetworkSessionCreationParameters&);
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    void destroyResourceLoadStatistics();
     void forwardResourceLoadStatisticsSettings();
 #endif
 

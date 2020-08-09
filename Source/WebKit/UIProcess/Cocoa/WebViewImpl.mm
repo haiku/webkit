@@ -32,7 +32,6 @@
 #import "APILegacyContextHistoryClient.h"
 #import "APINavigation.h"
 #import "AppKitSPI.h"
-#import "AttributedString.h"
 #import "ColorSpaceData.h"
 #import "CoreTextHelpers.h"
 #import "FontInfo.h"
@@ -82,6 +81,7 @@
 #import <Carbon/Carbon.h>
 #import <WebCore/AXObjectCache.h>
 #import <WebCore/ActivityState.h>
+#import <WebCore/AttributedString.h>
 #import <WebCore/ColorMac.h>
 #import <WebCore/CompositionHighlight.h>
 #import <WebCore/DictionaryLookup.h>
@@ -116,6 +116,7 @@
 #import <pal/spi/mac/NSScrollerImpSPI.h>
 #import <pal/spi/mac/NSSpellCheckerSPI.h>
 #import <pal/spi/mac/NSTextFinderSPI.h>
+#import <pal/spi/mac/NSTextInputContextSPI.h>
 #import <pal/spi/mac/NSViewSPI.h>
 #import <pal/spi/mac/NSWindowSPI.h>
 #import <sys/stat.h>
@@ -143,13 +144,6 @@ WTF_DECLARE_CF_TYPE_TRAIT(CGImage);
 - (BOOL)isSpeaking;
 - (void)speakString:(NSString *)string;
 - (void)stopSpeaking:(id)sender;
-@end
-
-// FIXME: Move to an SPI header.
-@interface NSTextInputContext (WKNSTextInputContextDetails)
-- (void)handleEvent:(NSEvent *)event completionHandler:(void(^)(BOOL handled))completionHandler;
-- (void)handleEventByInputMethod:(NSEvent *)event completionHandler:(void(^)(BOOL handled))completionHandler;
-- (BOOL)handleEventByKeyboardLayout:(NSEvent *)event;
 @end
 
 #if HAVE(TOUCH_BAR) && ENABLE(WEB_PLAYBACK_CONTROLS_MANAGER)
@@ -1581,7 +1575,7 @@ bool WebViewImpl::becomeFirstResponder()
         NSEvent *keyboardEvent = nil;
         if ([event type] == NSEventTypeKeyDown || [event type] == NSEventTypeKeyUp)
             keyboardEvent = event;
-        m_page->setInitialFocus(direction == NSSelectingNext, keyboardEvent != nil, NativeWebKeyboardEvent(keyboardEvent, false, false, { }), [](WebKit::CallbackBase::Error) { });
+        m_page->setInitialFocus(direction == NSSelectingNext, keyboardEvent != nil, NativeWebKeyboardEvent(keyboardEvent, false, false, { }), [] { });
     }
     return true;
 }
@@ -1902,8 +1896,7 @@ void WebViewImpl::updateViewExposedRect()
     if (m_useContentPreparationRectForVisibleRect)
         exposedRect = CGRectUnion(m_contentPreparationRect, exposedRect);
 
-    if (auto drawingArea = m_page->drawingArea())
-        drawingArea->setViewExposedRect(m_clipsToVisibleRect ? Optional<WebCore::FloatRect>(exposedRect) : WTF::nullopt);
+    m_page->setViewExposedRect(m_clipsToVisibleRect ? Optional<WebCore::FloatRect>(exposedRect) : WTF::nullopt);
 }
 
 void WebViewImpl::setClipsToVisibleRect(bool clipsToVisibleRect)
@@ -2890,7 +2883,7 @@ void WebViewImpl::updateFontManagerIfNeeded()
         if (!attributeDictionary)
             return;
 
-        PlatformFont *font = fontWithAttributes(attributeDictionary, fontSize);
+        auto font = fontWithAttributes(attributeDictionary, fontSize);
         if (!font)
             return;
 
@@ -4704,13 +4697,12 @@ NSArray *WebViewImpl::validAttributesForMarkedText()
 {
     static NSArray *validAttributes;
     if (!validAttributes) {
-        validAttributes = @[ NSUnderlineStyleAttributeName, NSUnderlineColorAttributeName, NSMarkedClauseSegmentAttributeName,
-#if USE(DICTATION_ALTERNATIVES)
+        validAttributes = @[
+            NSUnderlineStyleAttributeName,
+            NSUnderlineColorAttributeName,
+            NSMarkedClauseSegmentAttributeName,
             NSTextAlternativesAttributeName,
-#endif
-#if USE(INSERTION_UNDO_GROUPING)
             NSTextInsertionUndoableAttributeName,
-#endif
         ];
         // NSText also supports the following attributes, but it's
         // hard to tell which are really required for text input to
@@ -4846,12 +4838,8 @@ void WebViewImpl::insertText(id string, NSRange replacementRange)
 
     bool registerUndoGroup = false;
     if (isAttributedString) {
-#if USE(DICTATION_ALTERNATIVES)
         WebCore::collectDictationTextAlternatives(string, dictationAlternatives);
-#endif
-#if USE(INSERTION_UNDO_GROUPING)
         registerUndoGroup = WebCore::shouldRegisterInsertionUndoGroup(string);
-#endif
         // FIXME: We ignore most attributes from the string, so for example inserting from Character Palette loses font and glyph variation data.
         text = [string string];
     } else
@@ -4951,16 +4939,15 @@ void WebViewImpl::attributedSubstringForProposedRange(NSRange proposedRange, voi
     auto completionHandler = adoptNS([completionHandlerPtr copy]);
 
     LOG(TextInput, "attributedSubstringFromRange:(%u, %u)", proposedRange.location, proposedRange.length);
-    m_page->attributedSubstringForCharacterRangeAsync(proposedRange, [completionHandler](const AttributedString& string, const EditingRange& actualRange, WebKit::CallbackBase::Error error) {
+    m_page->attributedSubstringForCharacterRangeAsync(proposedRange, [completionHandler](const WebCore::AttributedString& string, const EditingRange& actualRange, WebKit::CallbackBase::Error error) {
         void (^completionHandlerBlock)(NSAttributedString *, NSRange) = (void (^)(NSAttributedString *, NSRange))completionHandler.get();
         if (error != WebKit::CallbackBase::Error::None) {
             LOG(TextInput, "    ...attributedSubstringFromRange failed.");
             completionHandlerBlock(0, NSMakeRange(NSNotFound, 0));
             return;
         }
-        NSAttributedString *attributedString = string;
-        LOG(TextInput, "    -> attributedSubstringFromRange returned %@", [attributedString string]);
-        completionHandlerBlock([[attributedString retain] autorelease], actualRange);
+        LOG(TextInput, "    -> attributedSubstringFromRange returned %@", string.string.get());
+        completionHandlerBlock(string.string.get(), actualRange);
     });
 }
 

@@ -499,7 +499,7 @@ def create_skeleton_parameters(all_parameters):
 
 
 def find_parameter_name_index(skeleton_parameter):
-    """Determines where the parametere name starts given the skeleton parameter."""
+    """Determines where the parameter name starts given the skeleton parameter."""
     # The first space from the right in the simplified parameter is where the parameter
     # name starts unless the first space is before any content in the simplified parameter.
     before_name_index = skeleton_parameter.rstrip().rfind(' ')
@@ -1777,6 +1777,8 @@ def _check_parameter_name_against_text(parameter, text, error):
     # case insensitive while still retaining word breaks. (This ensures that
     # 'elate' doesn't look like it is duplicating of 'NateLate'.)
     canonical_parameter_name = parameter.lower_with_underscores_name()
+    if canonical_parameter_name == "]":
+        return True  # Work around a bug parsing some Objective-C code.
 
     # Appends "object" to all text to catch variables that did the same (but only
     # do this when the parameter name is more than a single character to avoid
@@ -2471,6 +2473,30 @@ def check_max_min_macros(clean_lines, line_number, file_state, error):
           % (max_min_macro_lower, max_min_macro_lower, max_min_macro))
 
 
+def check_wtf_checked_size(clean_lines, line_number, file_state, error):
+    """Looks for use of 'Checked<size_t, RecordOverflow>' which should be replaced with 'CheckedSize'.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    if file_state.is_c_or_objective_c():
+        return
+
+    line = clean_lines.elided[line_number]
+
+    using_checked_size_record_overflow = search(r'\bChecked\s*<\s*size_t,\s*RecordOverflow\s*>\s*(\b|\()', line)
+    if not using_checked_size_record_overflow:
+        return
+
+    error(line_number, 'runtime/wtf_checked_size', 5,
+          "Use 'CheckedSize' instead of 'Checked<size_t, RecordOverflow>'.")
+
+
 def check_wtf_move(clean_lines, line_number, file_state, error):
     """Looks for use of 'std::move()' which should be replaced with 'WTFMove()'.
 
@@ -2540,6 +2566,28 @@ def check_wtf_make_unique(clean_lines, line_number, file_state, error):
     else:
         error(line_number, 'runtime/wtf_make_unique', 4,
               "Use 'WTF::makeUnique<{typename}>' instead of 'std::make_unique<{typename}>'.".format(typename=typename))
+
+
+def check_wtf_never_destroyed(clean_lines, line_number, file_state, error):
+    """Looks for use of 'NeverDestroyed<Lock/Condition>' which should be replaced with 'Lock/Condition'.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    using_wtf_never_destroyed_search = search(r'\b(?:Lazy)?NeverDestroyed\s*<([^(>]+)>', line)  # LazyNeverDestroyed is also caught.
+    if not using_wtf_never_destroyed_search:
+        return
+
+    typename = using_wtf_never_destroyed_search.group(1).strip()
+    if search(r'(Lock|Condition)', typename):
+        error(line_number, 'runtime/wtf_never_destroyed', 4, "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'.")
 
 
 def check_lock_guard(clean_lines, line_number, file_state, error):
@@ -3119,9 +3167,11 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
     check_using_std(clean_lines, line_number, file_state, error)
     check_using_namespace(clean_lines, line_number, file_extension, error)
     check_max_min_macros(clean_lines, line_number, file_state, error)
+    check_wtf_checked_size(clean_lines, line_number, file_state, error)
     check_wtf_move(clean_lines, line_number, file_state, error)
     check_wtf_optional(clean_lines, line_number, file_state, error)
     check_wtf_make_unique(clean_lines, line_number, file_state, error)
+    check_wtf_never_destroyed(clean_lines, line_number, file_state, error)
     check_lock_guard(clean_lines, line_number, file_state, error)
     check_ctype_functions(clean_lines, line_number, file_state, error)
     check_switch_indentation(clean_lines, line_number, error)
@@ -3222,6 +3272,8 @@ def _classify_include(filename, include, is_system, include_state):
     # If we haven't encountered a primary header, then be lenient in checking.
     if not include_state.visited_primary_section():
         if target_base.find(include_base) != -1:
+            return _PRIMARY_HEADER
+        if include_base in ['{}Internal'.format(target_base), '{}Private'.format(target_base)]:
             return _PRIMARY_HEADER
 
     # If we already encountered a primary header, perform a strict comparison.
@@ -4298,9 +4350,11 @@ class CppChecker(object):
         'runtime/threadsafe_fn',
         'runtime/unsigned',
         'runtime/virtual',
+        'runtime/wtf_checked_size',
         'runtime/wtf_optional',
         'runtime/wtf_make_unique',
         'runtime/wtf_move',
+        'runtime/wtf_never_destroyed',
         'security/assertion',
         'security/missing_warn_unused_return',
         'security/printf',

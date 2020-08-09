@@ -107,10 +107,8 @@ public:
     bool isGetterSetter() const;
     bool isCustomGetterSetter() const;
     bool isProxy() const;
-    bool isFunction(VM&);
-    bool isCallable(VM&, CallType&, CallData&);
+    bool isCallable(VM&);
     bool isConstructor(VM&);
-    bool isConstructor(VM&, ConstructType&, ConstructData&);
     bool inherits(VM&, const ClassInfo*) const;
     template<typename Target> bool inherits(VM&) const;
     bool isAPIValueWrapper() const;
@@ -151,8 +149,8 @@ public:
     // this is an object, then typeof will return "function" instead of "object". These methods
     // cannot change their minds and must be thread-safe. They are sometimes called from compiler
     // threads.
-    JS_EXPORT_PRIVATE static CallType getCallData(JSCell*, CallData&);
-    JS_EXPORT_PRIVATE static ConstructType getConstructData(JSCell*, ConstructData&);
+    JS_EXPORT_PRIVATE static CallData getCallData(JSCell*);
+    JS_EXPORT_PRIVATE static CallData getConstructData(JSCell*);
 
     // Basic conversions.
     JS_EXPORT_PRIVATE JSValue toPrimitive(JSGlobalObject*, PreferredPrimitiveType) const;

@@ -37,8 +37,8 @@
 #include <unicode/ucal.h>
 #include <unicode/udatpg.h>
 #include <unicode/uenum.h>
-#include <unicode/ufieldpositer.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/unicode/icu/ICUHelpers.h>
 
 namespace JSC {
 
@@ -46,24 +46,17 @@ static const double minECMAScriptTime = -8.64E15;
 
 const ClassInfo IntlDateTimeFormat::s_info = { "Object", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(IntlDateTimeFormat) };
 
-namespace IntlDTFInternal {
-static const char* const relevantExtensionKeys[3] = { "ca", "nu", "hc" };
+namespace IntlDateTimeFormatInternal {
+constexpr const char* relevantExtensionKeys[3] = { "ca", "hc", "nu" };
+constexpr size_t calendarIndex = 0;
+constexpr size_t hourCycleIndex = 1;
+constexpr size_t numberingSystemIndex = 2;
 }
-
-static const size_t indexOfExtensionKeyCa = 0;
-static const size_t indexOfExtensionKeyNu = 1;
-static const size_t indexOfExtensionKeyHc = 2;
 
 void IntlDateTimeFormat::UDateFormatDeleter::operator()(UDateFormat* dateFormat) const
 {
     if (dateFormat)
         udat_close(dateFormat);
-}
-
-void IntlDateTimeFormat::UFieldPositionIteratorDeleter::operator()(UFieldPositionIterator* iterator) const
-{
-    if (iterator)
-        ufieldpositer_close(iterator);
 }
 
 IntlDateTimeFormat* IntlDateTimeFormat::create(VM& vm, Structure* structure)
@@ -112,27 +105,15 @@ static ALWAYS_INLINE bool isUTCEquivalent(StringView timeZone)
 // https://tc39.es/ecma402/#sec-defaulttimezone
 static String defaultTimeZone()
 {
-    UErrorCode status = U_ZERO_ERROR;
     String canonical;
 
-    Vector<UChar, 32> buffer(32);
-    auto bufferLength = ucal_getDefaultTimeZone(buffer.data(), buffer.size(), &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        buffer.grow(bufferLength);
-        ucal_getDefaultTimeZone(buffer.data(), bufferLength, &status);
-    }
+    Vector<UChar, 32> buffer;
+    auto status = callBufferProducingFunction(ucal_getDefaultTimeZone, buffer);
     if (U_SUCCESS(status)) {
-        status = U_ZERO_ERROR;
-        Vector<UChar, 32> canonicalBuffer(32);
-        auto canonicalLength = ucal_getCanonicalTimeZoneID(buffer.data(), bufferLength, canonicalBuffer.data(), canonicalBuffer.size(), nullptr, &status);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            status = U_ZERO_ERROR;
-            canonicalBuffer.grow(canonicalLength);
-            ucal_getCanonicalTimeZoneID(buffer.data(), bufferLength, canonicalBuffer.data(), canonicalLength, nullptr, &status);
-        }
+        Vector<UChar, 32> canonicalBuffer;
+        status = callBufferProducingFunction(ucal_getCanonicalTimeZoneID, buffer.data(), buffer.size(), canonicalBuffer, nullptr);
         if (U_SUCCESS(status))
-            canonical = String(canonicalBuffer.data(), canonicalLength);
+            canonical = String(canonicalBuffer);
     }
 
     if (canonical.isNull() || isUTCEquivalent(canonical))
@@ -153,7 +134,7 @@ static String canonicalizeTimeZoneName(const String& timeZoneName)
     do {
         status = U_ZERO_ERROR;
         int32_t ianaTimeZoneLength;
-        // Time zone names are respresented as UChar[] in all related ICU apis.
+        // Time zone names are represented as UChar[] in all related ICU APIs.
         const UChar* ianaTimeZone = uenum_unext(timeZones, &ianaTimeZoneLength, &status);
         ASSERT(U_SUCCESS(status));
 
@@ -170,16 +151,10 @@ static String canonicalizeTimeZoneName(const String& timeZoneName)
         // 1. Let ianaTimeZone be the Zone or Link name of the IANA Time Zone Database such that timeZone, converted to upper case as described in 6.1, is equal to ianaTimeZone, converted to upper case as described in 6.1.
         // 2. If ianaTimeZone is a Link name, then let ianaTimeZone be the corresponding Zone name as specified in the “backward” file of the IANA Time Zone Database.
 
-        Vector<UChar, 32> buffer(ianaTimeZoneLength);
-        status = U_ZERO_ERROR;
-        auto canonicalLength = ucal_getCanonicalTimeZoneID(ianaTimeZone, ianaTimeZoneLength, buffer.data(), ianaTimeZoneLength, nullptr, &status);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            buffer.grow(canonicalLength);
-            status = U_ZERO_ERROR;
-            ucal_getCanonicalTimeZoneID(ianaTimeZone, ianaTimeZoneLength, buffer.data(), canonicalLength, nullptr, &status);
-        }
-        ASSERT(U_SUCCESS(status));
-        canonical = String(buffer.data(), canonicalLength);
+        Vector<UChar, 32> buffer;
+        auto status = callBufferProducingFunction(ucal_getCanonicalTimeZoneID, ianaTimeZone, ianaTimeZoneLength, buffer, nullptr);
+        ASSERT_UNUSED(status, U_SUCCESS(status));
+        canonical = String(buffer);
     } while (canonical.isNull());
     uenum_close(timeZones);
 
@@ -191,12 +166,11 @@ static String canonicalizeTimeZoneName(const String& timeZoneName)
     return canonical;
 }
 
-namespace IntlDTFInternal {
-static Vector<String> localeData(const String& locale, size_t keyIndex)
+Vector<String> IntlDateTimeFormat::localeData(const String& locale, size_t keyIndex)
 {
     Vector<String> keyLocaleData;
     switch (keyIndex) {
-    case indexOfExtensionKeyCa: {
+    case IntlDateTimeFormatInternal::calendarIndex: {
         UErrorCode status = U_ZERO_ERROR;
         UEnumeration* calendars = ucal_getKeywordValuesForLocale("calendar", locale.utf8().data(), false, &status);
         ASSERT(U_SUCCESS(status));
@@ -217,16 +191,16 @@ static Vector<String> localeData(const String& locale, size_t keyIndex)
         uenum_close(calendars);
         break;
     }
-    case indexOfExtensionKeyNu:
-        keyLocaleData = numberingSystemsForLocale(locale);
-        break;
-    case indexOfExtensionKeyHc:
+    case IntlDateTimeFormatInternal::hourCycleIndex:
         // Null default so we know to use 'j' in pattern.
         keyLocaleData.append(String());
         keyLocaleData.append("h11"_s);
         keyLocaleData.append("h12"_s);
         keyLocaleData.append("h23"_s);
         keyLocaleData.append("h24"_s);
+        break;
+    case IntlDateTimeFormatInternal::numberingSystemIndex:
+        keyLocaleData = numberingSystemsForLocale(locale);
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -329,7 +303,6 @@ static JSObject* toDateTimeOptionsAnyDate(JSGlobalObject* globalObject, JSValue 
 
     // 9. Return options.
     return options;
-}
 }
 
 void IntlDateTimeFormat::setFormatsFromPattern(const StringView& pattern)
@@ -437,18 +410,16 @@ void IntlDateTimeFormat::setFormatsFromPattern(const StringView& pattern)
     }
 }
 
+// https://tc39.github.io/ecma402/#sec-initializedatetimeformat
 void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, JSValue locales, JSValue originalOptions)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    // 12.1.1 InitializeDateTimeFormat (dateTimeFormat, locales, options) (ECMA-402)
-    // https://tc39.github.io/ecma402/#sec-initializedatetimeformat
-
     Vector<String> requestedLocales = canonicalizeLocaleList(globalObject, locales);
     RETURN_IF_EXCEPTION(scope, void());
 
-    JSObject* options = IntlDTFInternal::toDateTimeOptionsAnyDate(globalObject, originalOptions);
+    JSObject* options = toDateTimeOptionsAnyDate(globalObject, originalOptions);
     RETURN_IF_EXCEPTION(scope, void());
 
     HashMap<String, String> opt;
@@ -477,22 +448,22 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
         opt.add("nu"_s, numberingSystem);
     }
 
-    bool isHour12Undefined;
-    bool hour12 = intlBooleanOption(globalObject, options, vm.propertyNames->hour12, isHour12Undefined);
+    TriState hour12 = intlBooleanOption(globalObject, options, vm.propertyNames->hour12);
     RETURN_IF_EXCEPTION(scope, void());
+    bool isHour12Undefined = (hour12 == TriState::Indeterminate);
 
     String hourCycle = intlStringOption(globalObject, options, vm.propertyNames->hourCycle, { "h11", "h12", "h23", "h24" }, "hourCycle must be \"h11\", \"h12\", \"h23\", or \"h24\"", nullptr);
     RETURN_IF_EXCEPTION(scope, void());
     if (isHour12Undefined) {
         // Set hour12 here to simplify hour logic later.
-        hour12 = (hourCycle == "h11" || hourCycle == "h12");
+        hour12 = triState(hourCycle == "h11" || hourCycle == "h12");
         if (!hourCycle.isNull())
             opt.add("hc"_s, hourCycle);
     } else
         opt.add("hc"_s, String());
 
     const HashSet<String>& availableLocales = intlDateTimeFormatAvailableLocales();
-    HashMap<String, String> resolved = resolveLocale(globalObject, availableLocales, requestedLocales, opt, IntlDTFInternal::relevantExtensionKeys, WTF_ARRAY_LENGTH(IntlDTFInternal::relevantExtensionKeys), IntlDTFInternal::localeData);
+    HashMap<String, String> resolved = resolveLocale(globalObject, availableLocales, requestedLocales, opt, IntlDateTimeFormatInternal::relevantExtensionKeys, WTF_ARRAY_LENGTH(IntlDateTimeFormatInternal::relevantExtensionKeys), localeData);
 
     m_locale = resolved.get(vm.propertyNames->locale.string());
     if (m_locale.isEmpty()) {
@@ -593,14 +564,14 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     if (hour == "2-digit") {
         if (isHour12Undefined && m_hourCycle.isNull())
             skeletonBuilder.appendLiteral("jj");
-        else if (hour12)
+        else if (hour12 == TriState::True)
             skeletonBuilder.appendLiteral("hh");
         else
             skeletonBuilder.appendLiteral("HH");
     } else if (hour == "numeric") {
         if (isHour12Undefined && m_hourCycle.isNull())
             skeletonBuilder.append('j');
-        else if (hour12)
+        else if (hour12 == TriState::True)
             skeletonBuilder.append('h');
         else
             skeletonBuilder.append('H');
@@ -647,14 +618,8 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
 
     String skeleton = skeletonBuilder.toString();
     StringView skeletonView(skeleton);
-    Vector<UChar, 32> patternBuffer(32);
-    status = U_ZERO_ERROR;
-    auto patternLength = udatpg_getBestPatternWithOptions(generator, skeletonView.upconvertedCharacters(), skeletonView.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, patternBuffer.data(), patternBuffer.size(), &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        patternBuffer.grow(patternLength);
-        udatpg_getBestPattern(generator, skeletonView.upconvertedCharacters(), skeletonView.length(), patternBuffer.data(), patternLength, &status);
-    }
+    Vector<UChar, 32> patternBuffer;
+    status = callBufferProducingFunction(udatpg_getBestPatternWithOptions, generator, skeletonView.upconvertedCharacters().get(), skeletonView.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, patternBuffer);
     udatpg_close(generator);
     if (U_FAILURE(status)) {
         throwTypeError(globalObject, scope, "failed to initialize DateTimeFormat"_s);
@@ -673,12 +638,11 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
 
         bool isEscaped = false;
         bool hasHour = false;
-        for (auto i = 0; i < patternLength; ++i) {
-            UChar c = patternBuffer[i];
+        for (auto& c : patternBuffer) {
             if (c == '\'')
                 isEscaped = !isEscaped;
             else if (!isEscaped && (c == 'h' || c == 'H' || c == 'k' || c == 'K')) {
-                patternBuffer[i] = hour;
+                c = hour;
                 hasHour = true;
             }
         }
@@ -686,7 +650,7 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
             m_hourCycle = String();
     }
 
-    StringView pattern(patternBuffer.data(), patternLength);
+    StringView pattern(patternBuffer.data(), patternBuffer.size());
     setFormatsFromPattern(pattern);
 
     status = U_ZERO_ERROR;
@@ -701,8 +665,6 @@ void IntlDateTimeFormat::initializeDateTimeFormat(JSGlobalObject* globalObject, 
     // Failure here means unsupported calendar, and can safely be ignored.
     UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(m_dateFormat.get()));
     ucal_setGregorianChange(cal, minECMAScriptTime, &status);
-
-    m_initializedDateTimeFormat = true;
 }
 
 ASCIILiteral IntlDateTimeFormat::weekdayString(Weekday weekday)
@@ -850,18 +812,10 @@ ASCIILiteral IntlDateTimeFormat::timeZoneNameString(TimeZoneName timeZoneName)
     return ASCIILiteral::null();
 }
 
-JSObject* IntlDateTimeFormat::resolvedOptions(JSGlobalObject* globalObject)
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
+JSObject* IntlDateTimeFormat::resolvedOptions(JSGlobalObject* globalObject) const
 {
     VM& vm = globalObject->vm();
-    auto scope = DECLARE_THROW_SCOPE(vm);
-
-    // 12.3.5 Intl.DateTimeFormat.prototype.resolvedOptions() (ECMA-402 2.0)
-    // The function returns a new object whose properties and attributes are set as if constructed by an object literal assigning to each of the following properties the value of the corresponding internal slot of this DateTimeFormat object (see 12.4): locale, calendar, numberingSystem, timeZone, hour12, weekday, era, year, month, day, hour, minute, second, and timeZoneName. Properties whose corresponding internal slots are not present are not assigned.
-    // Note: In this version of the ECMAScript 2015 Internationalization API, the timeZone property will be the name of the default time zone if no timeZone property was provided in the options object provided to the Intl.DateTimeFormat constructor. The previous version left the timeZone property undefined in this case.
-    if (!m_initializedDateTimeFormat) {
-        initializeDateTimeFormat(globalObject, jsUndefined(), jsUndefined());
-        scope.assertNoException();
-    }
 
     JSObject* options = constructEmptyObject(globalObject);
     options->putDirect(vm, vm.propertyNames->locale, jsNontrivialString(vm, m_locale));
@@ -904,37 +858,26 @@ JSObject* IntlDateTimeFormat::resolvedOptions(JSGlobalObject* globalObject)
     return options;
 }
 
-JSValue IntlDateTimeFormat::format(JSGlobalObject* globalObject, double value)
+// https://tc39.es/ecma402/#sec-formatdatetime
+JSValue IntlDateTimeFormat::format(JSGlobalObject* globalObject, double value) const
 {
+    ASSERT(m_dateFormat);
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    // 12.3.4 FormatDateTime abstract operation (ECMA-402 2.0)
-    if (!m_initializedDateTimeFormat) {
-        initializeDateTimeFormat(globalObject, jsUndefined(), jsUndefined());
-        scope.assertNoException();
-    }
-
-    // 1. If x is not a finite Number, then throw a RangeError exception.
     if (!std::isfinite(value))
         return throwRangeError(globalObject, scope, "date value is not finite in DateTimeFormat format()"_s);
 
-    // Delegate remaining steps to ICU.
-    UErrorCode status = U_ZERO_ERROR;
-    Vector<UChar, 32> result(32);
-    auto resultLength = udat_format(m_dateFormat.get(), value, result.data(), result.size(), nullptr, &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        result.grow(resultLength);
-        udat_format(m_dateFormat.get(), value, result.data(), resultLength, nullptr, &status);
-    }
+    Vector<UChar, 32> result;
+    auto status = callBufferProducingFunction(udat_format, m_dateFormat.get(), value, result, nullptr);
     if (U_FAILURE(status))
         return throwTypeError(globalObject, scope, "failed to format date value"_s);
 
-    return jsString(vm, String(result.data(), resultLength));
+    return jsString(vm, String(result));
 }
 
-ASCIILiteral IntlDateTimeFormat::partTypeString(UDateFormatField field)
+static ASCIILiteral partTypeString(UDateFormatField field)
 {
     switch (field) {
     case UDAT_ERA_FIELD:
@@ -996,14 +939,13 @@ ASCIILiteral IntlDateTimeFormat::partTypeString(UDateFormatField field)
     return "unknown"_s;
 }
 
-
-JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double value)
+// https://tc39.es/ecma402/#sec-formatdatetimetoparts
+JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double value) const
 {
+    ASSERT(m_dateFormat);
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-
-    // 12.1.8 FormatDateTimeToParts (ECMA-402 4.0)
-    // https://tc39.github.io/ecma402/#sec-formatdatetimetoparts
 
     if (!std::isfinite(value))
         return throwRangeError(globalObject, scope, "date value is not finite in DateTimeFormat formatToParts()"_s);
@@ -1013,14 +955,8 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
     if (U_FAILURE(status))
         return throwTypeError(globalObject, scope, "failed to open field position iterator"_s);
 
-    status = U_ZERO_ERROR;
-    Vector<UChar, 32> result(32);
-    auto resultLength = udat_formatForFields(m_dateFormat.get(), value, result.data(), result.size(), fields.get(), &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        result.grow(resultLength);
-        udat_formatForFields(m_dateFormat.get(), value, result.data(), resultLength, fields.get(), &status);
-    }
+    Vector<UChar, 32> result;
+    status = callBufferProducingFunction(udat_formatForFields, m_dateFormat.get(), value, result, fields.get());
     if (U_FAILURE(status))
         return throwTypeError(globalObject, scope, "failed to format date value"_s);
 
@@ -1028,9 +964,10 @@ JSValue IntlDateTimeFormat::formatToParts(JSGlobalObject* globalObject, double v
     if (!parts)
         return throwOutOfMemoryError(globalObject, scope);
 
-    auto resultString = String(result.data(), resultLength);
+    auto resultString = String(result);
     auto literalString = jsNontrivialString(vm, "literal"_s);
 
+    int32_t resultLength = result.size();
     int32_t previousEndIndex = 0;
     int32_t beginIndex = 0;
     int32_t endIndex = 0;

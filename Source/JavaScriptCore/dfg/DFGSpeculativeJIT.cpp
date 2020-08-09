@@ -34,6 +34,7 @@
 #include "DFGCallArrayAllocatorSlowPathGenerator.h"
 #include "DFGCallCreateDirectArgumentsSlowPathGenerator.h"
 #include "DFGCapabilities.h"
+#include "DFGClobberize.h"
 #include "DFGMayExit.h"
 #include "DFGOSRExitFuzz.h"
 #include "DFGSaneStringGetByValSlowPathGenerator.h"
@@ -1184,7 +1185,7 @@ void SpeculativeJIT::compilePushWithScope(Node* node)
     cellResult(resultGPR, node);
 }
 
-bool SpeculativeJIT::nonSpeculativeStrictEq(Node* node, bool invert)
+bool SpeculativeJIT::genericJSValueStrictEq(Node* node, bool invert)
 {
     unsigned branchIndexInBlock = detectPeepHoleBranch();
     if (branchIndexInBlock != UINT_MAX) {
@@ -1200,7 +1201,7 @@ bool SpeculativeJIT::nonSpeculativeStrictEq(Node* node, bool invert)
         return true;
     }
     
-    nonSpeculativeNonPeepholeStrictEq(node, invert);
+    genericJSValueNonPeepholeStrictEq(node, invert);
     
     return false;
 }
@@ -1716,7 +1717,7 @@ bool SpeculativeJIT::compilePeepHoleBranch(Node* node, MacroAssembler::Relationa
         if (node->isBinaryUseKind(Int32Use))
             compilePeepHoleInt32Branch(node, branchNode, condition);
 #if USE(BIGINT32)
-        else if (node->isBinaryUseKind(BigInt32Use) && (condition == MacroAssembler::Equal || condition == MacroAssembler::NotEqual))
+        else if (node->isBinaryUseKind(BigInt32Use))
             compilePeepHoleBigInt32Branch(node, branchNode, condition);
 #endif
 #if USE(JSVALUE64)
@@ -1854,7 +1855,29 @@ void SpeculativeJIT::compileCurrentBlock()
     }
 
     m_origin = NodeOrigin();
-    
+
+    if (Options::validateDFGClobberize()) {
+        bool clobberedWorld = m_block->predecessors.isEmpty() || m_block->isOSRTarget || m_block->isCatchEntrypoint;
+        auto validateClobberize = [&] () {
+            clobberedWorld = true;
+        };
+
+        for (auto* predecessor : m_block->predecessors) {
+            Node* terminal = predecessor->terminal();
+            // We sometimes fuse compare followed by branch.
+            if (terminal->isBranch())
+                terminal = terminal->child1().node();
+            clobberize(m_graph, terminal, [] (auto...) { }, [] (auto...) { }, [] (auto...) { }, validateClobberize);
+        }
+
+        if (!clobberedWorld) {
+            auto ok = m_jit.branchTest8(MacroAssembler::Zero, MacroAssembler::AbsoluteAddress(&vm().didEnterVM));
+            m_jit.breakpoint();
+            ok.link(&m_jit);
+        } else
+            m_jit.store8(TrustedImm32(0), &vm().didEnterVM);
+    }
+
     for (m_indexInBlock = 0; m_indexInBlock < m_block->size(); ++m_indexInBlock) {
         m_currentNode = m_block->at(m_indexInBlock);
         
@@ -1881,8 +1904,23 @@ void SpeculativeJIT::compileCurrentBlock()
 
         m_jit.pcToCodeOriginMapBuilder().appendItem(m_jit.labelIgnoringWatchpoints(), m_origin.semantic);
 
+        if (m_indexInBlock && Options::validateDFGClobberize()) {
+            bool clobberedWorld = false;
+            auto validateClobberize = [&] () {
+                clobberedWorld = true;
+            };
+
+            clobberize(m_graph, m_block->at(m_indexInBlock - 1), [] (auto...) { }, [] (auto...) { }, [] (auto...) { }, validateClobberize);
+            if (!clobberedWorld) {
+                auto ok = m_jit.branchTest8(MacroAssembler::Zero, MacroAssembler::AbsoluteAddress(&vm().didEnterVM));
+                m_jit.breakpoint();
+                ok.link(&m_jit);
+            } else
+                m_jit.store8(TrustedImm32(0), &vm().didEnterVM);
+        }
+
         compile(m_currentNode);
-        
+
         if (belongsInMinifiedGraph(m_currentNode->op()))
             m_minifiedGraph->append(MinifiedNode::fromNode(m_currentNode));
         
@@ -2335,6 +2373,7 @@ GeneratedOperandType SpeculativeJIT::checkGeneratedTypeForToInt32(Node* node)
     case DataFormatJS:
     case DataFormatJSBoolean:
     case DataFormatJSDouble:
+    case DataFormatJSBigInt32:
         return GeneratedOperandJSValue;
 
     case DataFormatJSInt32:
@@ -2382,7 +2421,7 @@ void SpeculativeJIT::compileValueToInt32(Node* node)
     }
     
     case NumberUse:
-    case NotCellUse: {
+    case NotCellNorBigIntUse: {
         switch (checkGeneratedTypeForToInt32(node->child1().node())) {
         case GeneratedOperandInteger: {
             SpeculateInt32Operand op1(this, node->child1(), ManualOperandSpeculation);
@@ -2413,6 +2452,10 @@ void SpeculativeJIT::compileValueToInt32(Node* node)
                 
                 DFG_TYPE_CHECK(
                     JSValueRegs(gpr), node->child1(), ~SpecCellCheck, m_jit.branchIfCell(JSValueRegs(gpr)));
+#if USE(BIGINT32)
+                DFG_TYPE_CHECK(
+                    JSValueRegs(gpr), node->child1(), ~SpecCellCheck & ~SpecBigInt, m_jit.branchIfBigInt32(JSValueRegs(gpr), resultGpr));
+#endif
                 
                 // It's not a cell: so true turns into 1 and all else turns into 0.
                 m_jit.compare64(JITCompiler::Equal, gpr, TrustedImm32(JSValue::ValueTrue), resultGpr);
@@ -2608,7 +2651,7 @@ void SpeculativeJIT::compileDoubleRep(Node* node)
         return;
     }
     
-    case NotCellUse:
+    case NotCellNorBigIntUse:
     case NumberUse: {
         SpeculatedType possibleTypes = m_state.forNode(node->child1()).m_type;
         if (isInt32Speculation(possibleTypes)) {
@@ -2632,7 +2675,7 @@ void SpeculativeJIT::compileDoubleRep(Node* node)
 
         JITCompiler::Jump isInteger = m_jit.branchIfInt32(op1GPR);
 
-        if (node->child1().useKind() == NotCellUse) {
+        if (node->child1().useKind() == NotCellNorBigIntUse) {
             JITCompiler::Jump isNumber = m_jit.branchIfNumber(op1GPR);
             JITCompiler::Jump isUndefined = m_jit.branchIfUndefined(op1GPR);
 
@@ -2642,7 +2685,7 @@ void SpeculativeJIT::compileDoubleRep(Node* node)
             JITCompiler::Jump isNull = m_jit.branchIfNull(op1GPR);
             done.append(isNull);
 
-            DFG_TYPE_CHECK(JSValueRegs(op1GPR), node->child1(), ~SpecCellCheck,
+            DFG_TYPE_CHECK(JSValueRegs(op1GPR), node->child1(), ~SpecCellCheck & ~SpecBigInt,
                 m_jit.branchTest64(JITCompiler::Zero, op1GPR, TrustedImm32(JSValue::BoolTag)));
 
             JITCompiler::Jump isFalse = m_jit.branch64(JITCompiler::Equal, op1GPR, TrustedImm64(JSValue::ValueFalse));
@@ -2680,7 +2723,7 @@ void SpeculativeJIT::compileDoubleRep(Node* node)
     
         JITCompiler::Jump isInteger = m_jit.branchIfInt32(op1TagGPR);
 
-        if (node->child1().useKind() == NotCellUse) {
+        if (node->child1().useKind() == NotCellNorBigIntUse) {
             JITCompiler::Jump isNumber = m_jit.branch32(JITCompiler::Below, op1TagGPR, JITCompiler::TrustedImm32(JSValue::LowestTag + 1));
             JITCompiler::Jump isUndefined = m_jit.branchIfUndefined(op1TagGPR);
 
@@ -3574,12 +3617,12 @@ void SpeculativeJIT::compileValueBitNot(Node* node)
         speculateHeapBigInt(child1, operandGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationBitNotHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), operandGPR);
+        callOperation(operationBitNotHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), operandGPR);
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
 
         return;
     }
@@ -3619,7 +3662,7 @@ void SpeculativeJIT::emitUntypedOrAnyBigIntBitOp(Node* node)
     Edge& leftChild = node->child1();
     Edge& rightChild = node->child2();
 
-    ASSERT(leftChild.useKind() == UntypedUse || leftChild.useKind() == AnyBigIntUse || rightChild.useKind() == UntypedUse || rightChild.useKind() == AnyBigIntUse);
+    DFG_ASSERT(m_jit.graph(), node, node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse) || node->isBinaryUseKind(HeapBigIntUse) || node->isBinaryUseKind(BigInt32Use));
 
     if (isKnownNotNumber(leftChild.node()) || isKnownNotNumber(rightChild.node())) {
         JSValueOperand left(this, leftChild, ManualOperandSpeculation);
@@ -3745,7 +3788,7 @@ void SpeculativeJIT::compileValueBitwiseOp(Node* node)
     // FIXME: add support for mixed BigInt32 / HeapBigInt
 #endif
 
-    if (leftChild.useKind() == HeapBigIntUse && rightChild.useKind() == HeapBigIntUse) {
+    if (node->isBinaryUseKind(HeapBigIntUse)) {
         SpeculateCellOperand left(this, node->child1());
         SpeculateCellOperand right(this, node->child2());
         GPRReg leftGPR = left.gpr();
@@ -3755,25 +3798,25 @@ void SpeculativeJIT::compileValueBitwiseOp(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
         switch (op) {
         case ValueBitAnd:
-            callOperation(operationBitAndHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+            callOperation(operationBitAndHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
             break;
         case ValueBitXor:
-            callOperation(operationBitXorHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+            callOperation(operationBitXorHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
             break;
         case ValueBitOr:
-            callOperation(operationBitOrHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+            callOperation(operationBitOrHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
             break;
         default:
             RELEASE_ASSERT_NOT_REACHED();
         }
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -3946,12 +3989,12 @@ void SpeculativeJIT::compileValueLShiftOp(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationBitLShiftHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationBitLShiftHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -3974,12 +4017,12 @@ void SpeculativeJIT::compileValueBitRShift(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
-        callOperation(operationBitRShiftHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
+        callOperation(operationBitRShiftHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
         m_jit.exceptionCheck();
 
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -4025,26 +4068,27 @@ void SpeculativeJIT::compileValueAdd(Node* node)
     Edge& rightChild = node->child2();
 
 #if USE(BIGINT32)
+    // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+    // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+    // https://bugs.webkit.org/show_bug.cgi?id=210957
+    // https://bugs.webkit.org/show_bug.cgi?id=211040
     if (node->isBinaryUseKind(BigInt32Use)) {
         SpeculateBigInt32Operand left(this, leftChild);
         SpeculateBigInt32Operand right(this, rightChild);
-
-        // FIXME: do we really need this extra register, or can we mutate left/right ?
-        // FIXME: also, look into Reuse and other tricks for a more efficient generated code.
         GPRTemporary result(this);
-        GPRReg resultGPR = result.gpr();
         GPRTemporary temp(this);
+
+        GPRReg leftGPR = left.gpr();
+        GPRReg rightGPR = right.gpr();
+        GPRReg resultGPR = result.gpr();
         GPRReg tempGPR = temp.gpr();
 
-        m_jit.move(left.gpr(), resultGPR);
-        m_jit.unboxBigInt32(resultGPR);
-        m_jit.move(right.gpr(), tempGPR);
-        m_jit.unboxBigInt32(tempGPR);
+        m_jit.unboxBigInt32(leftGPR, resultGPR);
+        m_jit.unboxBigInt32(rightGPR, tempGPR);
 
-        // FIXME: add some way to eliminate the overflow check
         MacroAssembler::Jump check = m_jit.branchAdd32(MacroAssembler::Overflow, resultGPR, tempGPR, resultGPR);
 
-        speculationCheck(Overflow, JSValueRegs(), 0, check);
+        speculationCheck(BigInt32Overflow, JSValueRegs(), 0, check);
 
         m_jit.boxBigInt32(resultGPR);
         jsValueResult(resultGPR, node);
@@ -4082,12 +4126,12 @@ void SpeculativeJIT::compileValueAdd(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
-        callOperation(operationAddHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
+        callOperation(operationAddHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
         m_jit.exceptionCheck();
 
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -4131,26 +4175,27 @@ void SpeculativeJIT::compileValueSub(Node* node)
     Edge& rightChild = node->child2();
 
 #if USE(BIGINT32)
+    // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+    // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+    // https://bugs.webkit.org/show_bug.cgi?id=210957
+    // https://bugs.webkit.org/show_bug.cgi?id=211040
     if (node->binaryUseKind() == BigInt32Use) {
         SpeculateBigInt32Operand left(this, node->child1());
         SpeculateBigInt32Operand right(this, node->child2());
-
-        // FIXME: do we really need this extra register, or can we mutate left/right ?
-        // FIXME: also, look into Reuse and other tricks for a more efficient generated code.
         GPRTemporary result(this);
-        GPRReg resultGPR = result.gpr();
         GPRTemporary temp(this);
+
+        GPRReg leftGPR = left.gpr();
+        GPRReg rightGPR = right.gpr();
+        GPRReg resultGPR = result.gpr();
         GPRReg tempGPR = temp.gpr();
 
-        m_jit.move(left.gpr(), resultGPR);
-        m_jit.unboxBigInt32(resultGPR);
-        m_jit.move(right.gpr(), tempGPR);
-        m_jit.unboxBigInt32(tempGPR);
+        m_jit.unboxBigInt32(leftGPR, resultGPR);
+        m_jit.unboxBigInt32(rightGPR, tempGPR);
 
-        // FIXME: add some way to eliminate the overflow check
         MacroAssembler::Jump check = m_jit.branchSub32(MacroAssembler::Overflow, resultGPR, tempGPR, resultGPR);
 
-        speculationCheck(Overflow, JSValueRegs(), 0, check);
+        speculationCheck(BigInt32Overflow, JSValueRegs(), 0, check);
 
         m_jit.boxBigInt32(resultGPR);
         jsValueResult(resultGPR, node);
@@ -4188,13 +4233,13 @@ void SpeculativeJIT::compileValueSub(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationSubHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationSubHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -4980,27 +5025,28 @@ void SpeculativeJIT::compileValueMul(Node* node)
     Edge& rightChild = node->child2();
 
 #if USE(BIGINT32)
+    // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+    // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+    // https://bugs.webkit.org/show_bug.cgi?id=210957
+    // https://bugs.webkit.org/show_bug.cgi?id=211040
     if (node->binaryUseKind() == BigInt32Use) {
         // FIXME: the code between compileValueAdd, compileValueSub and compileValueMul for BigInt32 is nearly identical, so try to get rid of the duplication.
         SpeculateBigInt32Operand left(this, node->child1());
         SpeculateBigInt32Operand right(this, node->child2());
-
-        // FIXME: do we really need this extra register, or can we mutate left/right ?
-        // FIXME: also, look into Reuse and other tricks for a more efficient generated code.
         GPRTemporary result(this);
-        GPRReg resultGPR = result.gpr();
         GPRTemporary temp(this);
+
+        GPRReg leftGPR = left.gpr();
+        GPRReg rightGPR = right.gpr();
+        GPRReg resultGPR = result.gpr();
         GPRReg tempGPR = temp.gpr();
 
-        m_jit.move(left.gpr(), resultGPR);
-        m_jit.unboxBigInt32(resultGPR);
-        m_jit.move(right.gpr(), tempGPR);
-        m_jit.unboxBigInt32(tempGPR);
+        m_jit.unboxBigInt32(leftGPR, resultGPR);
+        m_jit.unboxBigInt32(rightGPR, tempGPR);
 
-        // FIXME: add some way to eliminate the overflow check
         MacroAssembler::Jump check = m_jit.branchMul32(MacroAssembler::Overflow, resultGPR, tempGPR, resultGPR);
 
-        speculationCheck(Overflow, JSValueRegs(), 0, check);
+        speculationCheck(BigInt32Overflow, JSValueRegs(), 0, check);
 
         m_jit.boxBigInt32(resultGPR);
         jsValueResult(resultGPR, node);
@@ -5019,13 +5065,13 @@ void SpeculativeJIT::compileValueMul(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationMulHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationMulHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -5214,6 +5260,7 @@ void SpeculativeJIT::compileValueDiv(Node* node)
     Edge& rightChild = node->child2();
 
     // FIXME: add a fast path for BigInt32. Currently we go through the slow path, because of how ugly the code for Div gets.
+    // https://bugs.webkit.org/show_bug.cgi?id=211041
 
     if (node->isBinaryUseKind(HeapBigIntUse)) {
         SpeculateCellOperand left(this, leftChild);
@@ -5225,13 +5272,13 @@ void SpeculativeJIT::compileValueDiv(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationDivHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationDivHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -5516,13 +5563,13 @@ void SpeculativeJIT::compileValueMod(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationModHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationModHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -6083,13 +6130,13 @@ void SpeculativeJIT::compileValuePow(Node* node)
         speculateHeapBigInt(rightChild, rightGPR);
 
         flushRegisters();
-        GPRFlushedCallResult result(this);
-        GPRReg resultGPR = result.gpr();
+        JSValueRegsFlushedCallResult result(this);
+        JSValueRegs resultRegs = result.regs();
 
-        callOperation(operationPowHeapBigInt, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
+        callOperation(operationPowHeapBigInt, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), leftGPR, rightGPR);
 
         m_jit.exceptionCheck();
-        cellResult(resultGPR, node);
+        jsValueResult(resultRegs, node);
         return;
     }
 
@@ -6252,6 +6299,7 @@ bool SpeculativeJIT::compare(Node* node, MacroAssembler::RelationalCondition con
         return false;
     }
 #endif
+
 #if USE(JSVALUE64)
     if (node->isBinaryUseKind(Int52RepUse)) {
         compileInt52Compare(node, condition);
@@ -6320,7 +6368,7 @@ bool SpeculativeJIT::compare(Node* node, MacroAssembler::RelationalCondition con
         }
     }
 
-    nonSpeculativeNonPeepholeCompare(node, condition, operation);
+    genericJSValueNonPeepholeCompare(node, condition, operation);
     return false;
 }
 
@@ -6522,7 +6570,7 @@ bool SpeculativeJIT::compileStrictEq(Node* node)
     }
 
     ASSERT(node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse));
-    return nonSpeculativeStrictEq(node);
+    return genericJSValueStrictEq(node);
 }
 
 void SpeculativeJIT::compileBooleanCompare(Node* node, MacroAssembler::RelationalCondition condition)
@@ -10806,7 +10854,7 @@ void SpeculativeJIT::speculateHeapBigInt(Edge edge, GPRReg cell)
 
 void SpeculativeJIT::speculateHeapBigInt(Edge edge)
 {
-    if (!needsTypeCheck(edge, SpecBigInt))
+    if (!needsTypeCheck(edge, SpecHeapBigInt))
         return;
 
     SpeculateCellOperand operand(this, edge);
@@ -10825,6 +10873,25 @@ void SpeculativeJIT::speculateNotCell(Edge edge)
     
     JSValueOperand operand(this, edge, ManualOperandSpeculation); 
     speculateNotCell(edge, operand.jsValueRegs());
+}
+
+void SpeculativeJIT::speculateNotCellNorBigInt(Edge edge)
+{
+#if USE(BIGINT32)
+    if (!needsTypeCheck(edge, ~SpecCellCheck & ~SpecBigInt))
+        return;
+
+    JSValueOperand operand(this, edge, ManualOperandSpeculation);
+    GPRTemporary temp(this);
+
+    JSValueRegs regs = operand.jsValueRegs();
+    GPRReg tempGPR = temp.gpr();
+
+    DFG_TYPE_CHECK(regs, edge, ~SpecCellCheck, m_jit.branchIfCell(regs));
+    DFG_TYPE_CHECK(regs, edge, ~SpecCellCheck & ~SpecBigInt, m_jit.branchIfBigInt32(regs, tempGPR));
+#else
+    speculateNotCell(edge);
+#endif
 }
 
 void SpeculativeJIT::speculateOther(Edge edge, JSValueRegs regs, GPRReg tempGPR)
@@ -11005,6 +11072,9 @@ void SpeculativeJIT::speculate(Node*, Edge edge)
         break;
     case NotCellUse:
         speculateNotCell(edge);
+        break;
+    case NotCellNorBigIntUse:
+        speculateNotCellNorBigInt(edge);
         break;
     case OtherUse:
         speculateOther(edge);
@@ -13330,7 +13400,8 @@ void SpeculativeJIT::compileToNumeric(Node* node)
     JSValueRegs argumentRegs = argument.jsValueRegs();
     JSValueRegs resultRegs = result.regs();
     GPRReg scratch = temp.gpr();
-    // FIXME: add a fast path for BigInt32 here (and for typeOf, and for boolify or whatever it is called in this file).
+    // FIXME: add a fast path for BigInt32 here.
+    // https://bugs.webkit.org/show_bug.cgi?id=211064
 
     MacroAssembler::JumpList slowCases;
 
@@ -13347,6 +13418,41 @@ void SpeculativeJIT::compileToNumeric(Node* node)
     addSlowPathGenerator(slowPathCall(slowCases, this, operationToNumeric, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), argumentRegs));
 
     jsValueResult(resultRegs, node, DataFormatJS);
+}
+
+void SpeculativeJIT::compileCallNumberConstructor(Node* node)
+{
+#if USE(BIGINT32)
+    if (node->child1().useKind() == BigInt32Use) {
+        SpeculateBigInt32Operand operand(this, node->child1());
+        GPRTemporary result(this);
+
+        GPRReg operandGPR = operand.gpr();
+        GPRReg resultGPR = result.gpr();
+
+        m_jit.unboxBigInt32(operandGPR, resultGPR);
+        strictInt32Result(resultGPR, node);
+        return;
+    }
+#endif
+
+    DFG_ASSERT(m_jit.graph(), node, node->child1().useKind() == UntypedUse, node->child1().useKind());
+    JSValueOperand argument(this, node->child1());
+    JSValueRegsTemporary result(this);
+    GPRTemporary temp(this);
+
+    JSValueRegs argumentRegs = argument.jsValueRegs();
+    JSValueRegs resultRegs = result.regs();
+    GPRReg tempGPR = temp.gpr();
+    // FIXME: add a fast path for BigInt32 here.
+    // https://bugs.webkit.org/show_bug.cgi?id=211064
+
+    CCallHelpers::JumpList slowCases;
+    slowCases.append(m_jit.branchIfNotNumber(argumentRegs, tempGPR));
+    m_jit.moveValueRegs(argumentRegs, resultRegs);
+    addSlowPathGenerator(slowPathCall(slowCases, this, operationCallNumberConstructor, resultRegs, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), argumentRegs));
+
+    jsValueResult(resultRegs, node);
 }
 
 void SpeculativeJIT::compileLogShadowChickenPrologue(Node* node)
@@ -14115,11 +14221,13 @@ void SpeculativeJIT::cachedPutById(CodeOrigin codeOrigin, GPRReg baseGPR, JSValu
     addSlowPathGenerator(WTFMove(slowPath));
 }
 
-void SpeculativeJIT::nonSpeculativeNonPeepholeCompare(Node* node, MacroAssembler::RelationalCondition cond, S_JITOperation_GJJ helperFunction)
+void SpeculativeJIT::genericJSValueNonPeepholeCompare(Node* node, MacroAssembler::RelationalCondition cond, S_JITOperation_GJJ helperFunction)
 {
-    ASSERT(node->isBinaryUseKind(UntypedUse));
-    JSValueOperand arg1(this, node->child1());
-    JSValueOperand arg2(this, node->child2());
+    ASSERT(node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse) || node->isBinaryUseKind(HeapBigIntUse));
+    JSValueOperand arg1(this, node->child1(), ManualOperandSpeculation);
+    JSValueOperand arg2(this, node->child2(), ManualOperandSpeculation);
+    speculate(node, node->child1());
+    speculate(node, node->child2());
 
     JSValueRegs arg1Regs = arg1.jsValueRegs();
     JSValueRegs arg2Regs = arg2.jsValueRegs();

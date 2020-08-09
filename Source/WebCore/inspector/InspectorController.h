@@ -118,7 +118,7 @@ public:
     Inspector::InspectorFunctionCallHandler functionCallHandler() const override;
     Inspector::InspectorEvaluateHandler evaluateHandler() const override;
     void frontendInitialized() override;
-    Ref<WTF::Stopwatch> executionStopwatch() override;
+    WTF::Stopwatch& executionStopwatch() const final;
     PageScriptDebugServer& scriptDebugServer() override;
     JSC::VM& vm() override;
 

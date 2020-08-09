@@ -37,6 +37,7 @@
 #include "DrawingAreaInfo.h"
 #include "EditingRange.h"
 #include "FocusedElementInformation.h"
+#include "GeolocationIdentifier.h"
 #include "InjectedBundlePageContextMenuClient.h"
 #include "InjectedBundlePageFullScreenClient.h"
 #include "InjectedBundlePagePolicyClient.h"
@@ -47,7 +48,7 @@
 #include "Plugin.h"
 #include "PolicyDecision.h"
 #include "SandboxExtension.h"
-#include "ShareSheetCallbackID.h"
+#include "ShareableBitmap.h"
 #include "SharedMemory.h"
 #include "StorageNamespaceIdentifier.h"
 #include "TransactionID.h"
@@ -76,6 +77,7 @@
 #include <WebCore/RenderingMode.h>
 #include <WebCore/SecurityPolicyViolationEvent.h>
 #include <WebCore/ShareData.h>
+#include <WebCore/SimpleRange.h>
 #include <WebCore/TextManipulationController.h>
 #include <WebCore/UserActivity.h>
 #include <WebCore/UserContentTypes.h>
@@ -125,10 +127,6 @@ typedef struct _AtkObject AtkObject;
 #include <WebKitAdditions/PlatformTouchEventIOS.h>
 #elif ENABLE(TOUCH_EVENTS)
 #include <WebCore/PlatformTouchEvent.h>
-#endif
-
-#if ENABLE(DATA_DETECTION)
-#include <WebCore/DataDetection.h>
 #endif
 
 #if ENABLE(MAC_GESTURE_EVENTS)
@@ -203,6 +201,7 @@ enum class StorageAccessWasGranted : bool;
 enum class TextIndicatorPresentationTransition : uint8_t;
 enum class WritingDirection : uint8_t;
 
+struct AttributedString;
 struct BackForwardItemIdentifier;
 struct CompositionHighlight;
 struct CompositionUnderline;
@@ -277,7 +276,6 @@ enum FindOptions : uint16_t;
 enum class DragControllerAction : uint8_t;
 enum class SyntheticEditingCommandType : uint8_t;
 
-struct AttributedString;
 struct BackForwardListItemState;
 struct DataDetectionResult;
 struct DocumentEditingContext;
@@ -349,6 +347,7 @@ public:
 
     void layoutIfNeeded();
     void updateRendering();
+    void finalizeRenderingUpdate(OptionSet<WebCore::FinalizeRenderingUpdateFlags>);
 
     enum class LazyCreationPolicy { UseExistingOnly, CreateIfNeeded };
 
@@ -642,14 +641,13 @@ public:
 
     void disabledAdaptationsDidChange(const OptionSet<WebCore::DisabledAdaptations>&);
     void viewportPropertiesDidChange(const WebCore::ViewportArguments&);
-    void executeEditCommandWithCallback(const String&, const String& argument, CallbackID);
+    void executeEditCommandWithCallback(const String&, const String& argument, CompletionHandler<void()>&&);
     void selectAll();
 
-    void textInputContextsInRect(WebCore::FloatRect, CompletionHandler<void(const Vector<WebCore::ElementContext>&)>&&);
-    void focusTextInputContext(const WebCore::ElementContext&, CompletionHandler<void(bool)>&&);
     void setCanShowPlaceholder(const WebCore::ElementContext&, bool);
 
 #if PLATFORM(IOS_FAMILY)
+    void textInputContextsInRect(WebCore::FloatRect, CompletionHandler<void(const Vector<WebCore::ElementContext>&)>&&);
     void focusTextInputContextAndPlaceCaret(const WebCore::ElementContext&, const WebCore::IntPoint&, CompletionHandler<void(bool)>&&);
 
     bool shouldRevealCurrentSelectionAfterInsertion() const { return m_shouldRevealCurrentSelectionAfterInsertion; }
@@ -690,11 +688,11 @@ public:
     void selectWithTwoTouches(const WebCore::IntPoint& from, const WebCore::IntPoint& to, uint32_t gestureType, uint32_t gestureState, CallbackID);
     void extendSelection(uint32_t granularity);
     void selectWordBackward();
-    void moveSelectionByOffset(int32_t offset, CallbackID);
-    void selectTextWithGranularityAtPoint(const WebCore::IntPoint&, uint32_t granularity, bool isInteractingWithFocusedElement, CallbackID);
-    void selectPositionAtBoundaryWithDirection(const WebCore::IntPoint&, uint32_t granularity, uint32_t direction, bool isInteractingWithFocusedElement, CallbackID);
-    void moveSelectionAtBoundaryWithDirection(uint32_t granularity, uint32_t direction, CallbackID);
-    void selectPositionAtPoint(const WebCore::IntPoint&, bool isInteractingWithFocusedElement, CallbackID);
+    void moveSelectionByOffset(int32_t offset, CompletionHandler<void()>&&);
+    void selectTextWithGranularityAtPoint(const WebCore::IntPoint&, uint32_t granularity, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
+    void selectPositionAtBoundaryWithDirection(const WebCore::IntPoint&, uint32_t granularity, uint32_t direction, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
+    void moveSelectionAtBoundaryWithDirection(uint32_t granularity, uint32_t direction, CompletionHandler<void()>&&);
+    void selectPositionAtPoint(const WebCore::IntPoint&, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
     void beginSelectionInDirection(uint32_t direction, CallbackID);
     void updateSelectionWithExtentPoint(const WebCore::IntPoint&, bool isInteractingWithFocusedElement, RespectSelectionAnchor, CallbackID);
     void updateSelectionWithExtentPointAndBoundary(const WebCore::IntPoint&, uint32_t granularity, bool isInteractingWithFocusedElement, CallbackID);
@@ -711,7 +709,7 @@ public:
     void startInteractionWithElementContextOrPosition(Optional<WebCore::ElementContext>&&, WebCore::IntPoint&&);
     void stopInteraction();
     void performActionOnElement(uint32_t action);
-    void focusNextFocusedElement(bool isForward, CallbackID);
+    void focusNextFocusedElement(bool isForward, CompletionHandler<void()>&&);
     void autofillLoginCredentials(const String&, const String&);
     void setFocusedElementValue(const String&);
     void setFocusedElementValueAsNumber(double);
@@ -1212,11 +1210,11 @@ public:
 #endif
 
     void showShareSheet(WebCore::ShareDataWithParsedURL&, CompletionHandler<void(bool)>&& callback);
-    void didCompleteShareSheet(bool wasCompleted, ShareSheetCallbackID contextId);
     
 #if ENABLE(ATTACHMENT_ELEMENT)
     void insertAttachment(const String& identifier, Optional<uint64_t>&& fileSize, const String& fileName, const String& contentType, CallbackID);
     void updateAttachmentAttributes(const String& identifier, Optional<uint64_t>&& fileSize, const String& contentType, const String& fileName, const IPC::SharedBufferDataReference& enclosingImageData, CallbackID);
+    void updateAttachmentIcon(const String& identifier, const ShareableBitmap::Handle& qlThumbnailHandle);
 #endif
 
 #if ENABLE(APPLICATION_MANIFEST)
@@ -1303,6 +1301,8 @@ public:
     const String& overriddenMediaType() const { return m_overriddenMediaType; }
     void setOverriddenMediaType(const String&);
 
+    void updateCORSDisablingPatterns(Vector<String>&&);
+
     void getProcessDisplayName(CompletionHandler<void(String&&)>&&);
 
     WebCore::AllowsContentJavaScript allowsContentJavaScriptFromMostRecentNavigation() const { return m_allowsContentJavaScriptFromMostRecentNavigation; }
@@ -1353,8 +1353,6 @@ private:
 
 #if PLATFORM(IOS_FAMILY)
     void updateViewportSizeForCSSViewportUnits();
-
-    static void convertSelectionRectsToRootView(WebCore::FrameView*, Vector<WebCore::SelectionRect>&);
 
     void getFocusedElementInformation(FocusedElementInformation&);
     void platformInitializeAccessibility();
@@ -1430,7 +1428,7 @@ private:
     void reload(uint64_t navigationID, uint32_t reloadOptions, SandboxExtension::Handle&&);
     void goToBackForwardItem(uint64_t navigationID, const WebCore::BackForwardItemIdentifier&, WebCore::FrameLoadType, WebCore::ShouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&&);
     void tryRestoreScrollPosition();
-    void setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent&, CallbackID);
+    void setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent&, CompletionHandler<void()>&&);
     void updateIsInWindow(bool isInitialState = false);
     void visibilityDidChange();
     void setActivityState(OptionSet<WebCore::ActivityState::Flag>, ActivityStateChangeID, const Vector<CallbackID>& callbackIDs);
@@ -1500,7 +1498,7 @@ private:
 
     void getContentsAsString(ContentAsStringIncludesChildFrames, CallbackID);
 #if PLATFORM(COCOA)
-    void getContentsAsAttributedString(CompletionHandler<void(const AttributedString&)>&&);
+    void getContentsAsAttributedString(CompletionHandler<void(const WebCore::AttributedString&)>&&);
 #endif
 #if ENABLE(MHTML)
     void getContentsAsMHTMLData(CallbackID);
@@ -1585,7 +1583,7 @@ private:
     void didCancelForOpenPanel();
 
 #if PLATFORM(IOS_FAMILY)
-    void didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<String>&, const String& displayString, const IPC::DataReference& iconData);
+    void didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<String>&, const String& displayString, const IPC::DataReference& iconData, WebKit::SandboxExtension::Handle&&, WebKit::SandboxExtension::Handle&&);
     bool isTransparentOrFullyClipped(const WebCore::Element&) const;
 #endif
 
@@ -1593,7 +1591,7 @@ private:
     void extendSandboxForFilesFromOpenPanel(SandboxExtension::HandleArray&&);
 #endif
 
-    void didReceiveGeolocationPermissionDecision(uint64_t geolocationID, const String& authorizationToken);
+    void didReceiveGeolocationPermissionDecision(GeolocationIdentifier, const String& authorizationToken);
 
     void didReceiveNotificationPermissionDecision(uint64_t notificationID, bool allowed);
 
@@ -1809,7 +1807,7 @@ private:
     UniqueRef<TextCheckingControllerProxy> m_textCheckingControllerProxy;
 #endif
 
-#if PLATFORM(COCOA) || PLATFORM(GTK)
+#if PLATFORM(COCOA) || (PLATFORM(GTK) && !USE(GTK4))
     std::unique_ptr<ViewGestureGeometryCollector> m_viewGestureGeometryCollector;
 #endif
 
@@ -1916,7 +1914,7 @@ private:
 
 #if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)
     HashSet<RefPtr<WebCore::HTMLImageElement>> m_pendingImageElementsForDropSnapshot;
-    RefPtr<WebCore::Range> m_rangeForDropSnapshot;
+    Optional<WebCore::SimpleRange> m_rangeForDropSnapshot;
 #endif
 
     bool m_cachedMainFrameIsPinnedToLeftSide { true };
@@ -1969,6 +1967,7 @@ private:
     WebCore::IntPoint m_lastInteractionLocation;
 
     bool m_isShowingInputViewForFocusedElement { false };
+    bool m_hasHandledSyntheticClick { false };
     
     enum SelectionAnchor { Start, End };
     SelectionAnchor m_selectionAnchor { Start };
@@ -2067,7 +2066,6 @@ private:
     HashMap<uint64_t, WebURLSchemeHandlerProxy*> m_identifierToURLSchemeHandlerProxyMap;
 
     HashMap<uint64_t, Function<void(bool granted)>> m_storageAccessResponseCallbackMap;
-    HashMap<ShareSheetCallbackID, Function<void(bool completed)>> m_shareSheetResponseCallbackMap;
 
 #if ENABLE(APPLICATION_MANIFEST)
     HashMap<uint64_t, uint64_t> m_applicationManifestFetchCallbackMap;

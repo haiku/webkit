@@ -52,7 +52,7 @@ public:
 
     // IPC::Connection::Client
     void didClose(IPC::Connection&) override { /* Do nothing, the inspected page process may have crashed and may be getting replaced. */ }
-    void didReceiveInvalidMessage(IPC::Connection&, IPC::StringReference, IPC::StringReference) override { closeWindow(); }
+    void didReceiveInvalidMessage(IPC::Connection&, IPC::MessageName) override { closeWindow(); }
 
     // Called by WebInspectorUI messages
     void establishConnection(WebPageProxyIdentifier inspectedPageIdentifier, const DebuggableInfoData&, bool underTest, unsigned inspectionLevel);
@@ -78,6 +78,8 @@ public:
     void setDockingUnavailable(bool);
 
     void setIsVisible(bool);
+
+    void updateFindString(const String&);
 
     void didSave(const String& url);
     void didAppend(const String& url);

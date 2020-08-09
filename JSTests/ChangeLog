@@ -1,3 +1,853 @@
+2020-05-07  Mark Lam  <mark.lam@apple.com>
+
+        Fix broken exceptionFuzz tests.
+        https://bugs.webkit.org/show_bug.cgi?id=211550
+
+        Reviewed by Yusuke Suzuki.
+
+        The tests should not be relying on setting a JSC Option at runtime because the
+        options are already frozen by then.  Instead, we set the needed
+        --useExceptionFuzz=true option from the command line.
+
+        * exceptionFuzz/3d-cube.js:
+        * exceptionFuzz/date-format-xparb.js:
+        * exceptionFuzz/earley-boyer.js:
+
+2020-05-06  Keith Miller  <keith_miller@apple.com>
+
+        DFG ByVal nodes with ArrayModes should clobberTop until Fixup phase runs.
+        https://bugs.webkit.org/show_bug.cgi?id=211531
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/for-of-get-by-val-marks-clobbers-exit-state.js: Added.
+        (foo):
+        * stress/put-by-val-correctly-clobbers-exit-state-when-misprofiling-index.js: Added.
+        (let.foo.vm.createBuiltin):
+
+2020-05-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [ECMA-402] Implement Intl.Locale
+        https://bugs.webkit.org/show_bug.cgi?id=209772
+
+        Reviewed by Darin Adler and Saam Barati.
+
+        * stress/intl-locale.js: Added.
+        * stress/intl-locale-as-intl-param.js: Added.
+
+        * test262/config.yaml:
+        Enable Intl.Locale feature with flag.
+
+        * test262/expectations.yaml:
+        Mark known failures.
+        None of these should be specific to Intl.Locale.
+
+2020-05-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement BigInt.asIntN and BigInt.asUintN
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+
+        Reviewed by Darin Adler.
+
+        * stress/bigint-asintn.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (BigInt.asIntN):
+        * stress/bigint-asuintn.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (BigInt.asUintN):
+        * test262/expectations.yaml:
+
+2020-05-05  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Alphabetize extension keys and correctly mark const methods
+        https://bugs.webkit.org/show_bug.cgi?id=211359
+
+        Reviewed by Darin Adler.
+
+        * stress/intl-collator.js:
+        * stress/intl-datetimeformat.js:
+        Add tests.
+
+2020-05-05  Keith Miller  <keith_miller@apple.com>
+
+        iterator_open should remap the symbolIterator argument correctly when inlined.
+        https://bugs.webkit.org/show_bug.cgi?id=211308
+        <rdar://problem/62287877>
+
+        Reviewed by Mark Lam.
+
+        * stress/inlining-for-of-should-validate.js: Added.
+        (bar):
+        (foo):
+
+2020-05-05  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, reverting r261156.
+
+        Break ARM64_32 build due to existing bug
+
+        Reverted changeset:
+
+        "[JSC] Implement BigInt.asIntN and BigInt.asUintN"
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+        https://trac.webkit.org/changeset/261156
+
+2020-05-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Object.prototype.toString is not spec-perfect
+        https://bugs.webkit.org/show_bug.cgi?id=199138
+
+        Reviewed by Darin Adler and Keith Miller.
+
+        * ChakraCore.yaml: Skip a test as `global` now has @@toStringTag.
+        * ChakraCore/test/LetConst/delete.baseline: Removed.
+        * stress/internal-promise-constructor-not-confusing.js: Use @isPromise.
+        * stress/object-get-own-property-symbols.js: Adjust test as `global` now has @@toStringTag.
+        * test262/expectations.yaml: Mark 6 test cases as passing.
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement BigInt.asIntN and BigInt.asUintN
+        https://bugs.webkit.org/show_bug.cgi?id=181144
+
+        Reviewed by Darin Adler.
+
+        * stress/bigint-asintn.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (BigInt.asIntN):
+        * stress/bigint-asuintn.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        (BigInt.asUintN):
+        * test262/expectations.yaml:
+
+2020-05-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG NotCellUse is used without considering about BigInt32
+        https://bugs.webkit.org/show_bug.cgi?id=211395
+
+        Reviewed by Saam Barati.
+
+        * stress/non-cell-nor-bigint-should-be-emitted-for-to-number-target-if-bigint-appears.js: Added.
+        (shouldThrow):
+        (test):
+        (i.shouldThrow):
+        * stress/non-cell-nor-bigint-should-reject-bigint.js: Added.
+        (shouldBe):
+        (test):
+        * stress/should-not-emit-double-rep-for-bigint.js: Added.
+        (foo):
+        * stress/urshift-value-to-int32-should-reject-bigint.js: Added.
+        (shouldThrow):
+        (test):
+        (i.shouldThrow):
+
+2020-05-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Fix stress/big-int-negate-jit.js
+        https://bugs.webkit.org/show_bug.cgi?id=211321
+
+        Reviewed by Saam Barati.
+
+        This test is assuming that 100000 iteration of 2 negateBigInt calls makes negateBigInt DFG-compiled.
+        But this is wrong if BigInt negation is fast enough. We made BigInt faster and now this test starts
+        failing because running this iteration finishes earlier than DFG compilation finishes. We should use `useConcurrentJIT`
+        to ensure this status.
+
+        * stress/big-int-negate-jit.js:
+
+2020-05-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        REGRESSION (r260990): 8 test262 unicode tests failing
+        https://bugs.webkit.org/show_bug.cgi?id=211298
+
+        Reviewed by Saam Barati.
+
+        These unicode identifier tests are marked as PASS in r260990, but they are failing.
+        Update test262/expectations.yaml by running `test262-runner --release --save`.
+
+        * test262/expectations.yaml:
+
+2020-05-01  Pablo Saavedra  <psaavedra@igalia.com>
+
+        Skip on ARM and MIPS stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js added after r260990
+        https://bugs.webkit.org/show_bug.cgi?id=211304
+
+        Unreviewed Gardening.
+
+        * stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js:
+
+2020-05-01  Saam Barati  <sbarati@apple.com>
+
+        We can't cast toLength result to unsigned
+        https://bugs.webkit.org/show_bug.cgi?id=211205
+        <rdar://problem/62625562>
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/array-length-cant-get-casted-to-unsigned.js: Added.
+        (assert):
+        (testArrayPop):
+        (testArrayPush):
+        (testArrayReverse):
+        (testArraySplice):
+        (testArrayUnshift):
+        (testArrayLastIndexOf):
+        (shouldThrowTypeError):
+        (testJSONStringify.get let):
+        (testJSONStringify):
+        * test262/expectations.yaml:
+
+2020-04-30  Caio Lima  <ticaiolima@gmail.com>
+
+        Investigate stress/v8-bitint32-inc.js failure on mips
+        https://bugs.webkit.org/show_bug.cgi?id=210907
+
+        Unreviewed test gardening.
+
+        * stress/v8-bigint32-inc.js:
+
+2020-04-29  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        AsyncFromSyncIterator methods should not pass absent values
+        https://bugs.webkit.org/show_bug.cgi?id=211147
+
+        Reviewed by Ross Kirsling.
+
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-04-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSStringJoiner is missing BigInt handling
+        https://bugs.webkit.org/show_bug.cgi?id=211174
+
+        Reviewed by Mark Lam.
+
+        * stress/bigint-to-string-in-array.js: Added.
+        (shouldBe):
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt constructor should accept larger integers than safe-integers
+        https://bugs.webkit.org/show_bug.cgi?id=210755
+
+        Reviewed by Darin Adler.
+
+        * stress/big-int-constructor.js:
+        * stress/large-number-to-bigint.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        * test262/config.yaml:
+
+2020-04-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] NumberConstructor should accept BigInt
+        https://bugs.webkit.org/show_bug.cgi?id=210835
+
+        Reviewed by Mark Lam.
+
+        * stress/number-constructor-bigint-dfg.js: Added.
+        (shouldBe):
+        (convert):
+        * stress/number-constructor-bigint.js: Added.
+        (shouldBe):
+        * test262/expectations.yaml:
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Throw OutOfMemoryError instead of RangeError if BigInt is too big
+        https://bugs.webkit.org/show_bug.cgi?id=211111
+
+        Reviewed by Saam Barati.
+
+        * stress/big-int-constructor-oom.js:
+        (catch):
+        * stress/big-int-left-shift-range-error.js:
+        (assertThrowRangeError):
+        * stress/big-int-out-of-memory-tests.js:
+        (catch):
+        * stress/bigint-exponential-oom.js: Added.
+        (shouldThrow):
+        * stress/bigint-int32-min-shift.js:
+        (shouldThrow):
+
+2020-04-27  Keith Miller  <keith_miller@apple.com>
+
+        stress/generator-containing-for-of-on-map.js and stress/generator-containing-for-of-on-set.js timing out on debug JSC bot
+        https://bugs.webkit.org/show_bug.cgi?id=211095
+
+        Reviewed by Yusuke Suzuki.
+
+        Let's try making these tests shorter. Eager compilation should still be interesting with the shorter iterations.
+
+        * stress/generator-containing-for-of-on-map.js:
+        * stress/generator-containing-for-of-on-set.js:
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] >>> should call ToNumeric
+        https://bugs.webkit.org/show_bug.cgi?id=211065
+
+        Reviewed by Ross Kirsling.
+
+        * stress/bigint-urshift.js: Added.
+        (shouldBe):
+        (shouldThrow):
+        * test262/expectations.yaml:
+
+2020-04-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add $vm.assertEnabled() to suppress Debug crash expected tests in release+assert build
+        https://bugs.webkit.org/show_bug.cgi?id=211089
+
+        Reviewed by Keith Miller.
+
+        We have ASSERT which only fires when DOM object is wrongly implemented to catch wrong ones.
+        We are using ASSERT in JSC side since we don't know all the DOM objects are correctly implemented.
+        If it is not correctly implemented, in Release build, JSC is returning sub-optimal but right results.
+        But in Debug build, we can catch the wrong ones, which allows us to fix the wrong things while avoiding
+        catastrophic crashes in release build.
+
+        However, the test is assuming that ASSERT is not enabled if it is not Debug build. Release & Debug builds
+        work, but Release+Assert does not meet this assumption.
+
+        So, skip this based on `$vm.assertEnabled()`.
+
+        * stress/incorrect-put-could-generate-invalid-ic-but-still-not-causing-bad-behavior.js:
+        (vm.assertEnabled.putter):
+        (vm.assertEnabled):
+        (putter): Deleted.
+        (not_string.toString): Deleted.
+        * stress/incorrect-put-could-generate-invalid-ic-involving-dictionary-flatten.js:
+        (vm.assertEnabled):
+        (not_string.toString): Deleted.
+
+2020-04-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Symbol should have [[Construct]] internal method
+        https://bugs.webkit.org/show_bug.cgi?id=211050
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/is-constructor.js:
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-04-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        InternalFunction::createSubclassStructure should use newTarget's globalObject
+        https://bugs.webkit.org/show_bug.cgi?id=202599
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/promise-proto-from-ctor-realm.js: Added.
+        * test262/expectations.yaml: Mark 88 test cases as passing.
+
+2020-04-26  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] ValueAdd, VaueSub, ValueMul, Inc, Dec should say SpecBigInt32 prediction based on ArithProfile
+        https://bugs.webkit.org/show_bug.cgi?id=211038
+
+        Reviewed by Filip Pizlo.
+
+        * stress/bigint32-add-overflow.js: Added.
+        (shouldBe):
+        (add):
+        (noInline):
+        * stress/bigint32-dec-overflow.js: Added.
+        (shouldBe):
+        (dec):
+        (noInline):
+        * stress/bigint32-inc-overflow.js: Added.
+        (shouldBe):
+        (inc):
+        (noInline):
+        * stress/bigint32-mul-overflow.js: Added.
+        (shouldBe):
+        (mul):
+        (noInline):
+        * stress/bigint32-sub-overflow.js: Added.
+        (shouldBe):
+        (sub):
+        (noInline):
+
+2020-04-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Handle BigInt32 INT32_MIN shift amount
+        https://bugs.webkit.org/show_bug.cgi?id=211030
+
+        Reviewed by Darin Adler.
+
+        * stress/bigint-int32-min-shift.js: Added.
+        (shouldBe):
+        (shouldThrow):
+
+2020-04-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add fast path for BigInt32 left-shift
+        https://bugs.webkit.org/show_bug.cgi?id=211029
+
+        Reviewed by Saam Barati.
+
+        * stress/bigint-left-shift-overflow.js: Added.
+        (shouldBe):
+        (leftShift):
+        (noInline):
+        * stress/bigint-right-shift-large.js: Added.
+        (shouldBe):
+
+2020-04-25  Paulo Matos  <pmatos@igalia.com>
+
+        Skip stress/butterfly-zero-unused-butterfly-properties.js on MIPS
+        https://bugs.webkit.org/show_bug.cgi?id=211016
+
+        Unreviewed Gardening.
+
+        * stress/butterfly-zero-unused-butterfly-properties.js:
+
+2020-04-25  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Locale validation/canonicalization should defer to ICU
+        https://bugs.webkit.org/show_bug.cgi?id=210853
+
+        Reviewed by Darin Adler.
+
+        * stress/intl-collator.js:
+        * stress/intl-datetimeformat.js:
+        * stress/intl-numberformat.js:
+        * stress/intl-object.js:
+        * stress/intl-pluralrules.js:
+        * stress/intl-relativetimeformat.js:
+        Adjust tests, since one of the two fixes in r260151 no longer applies
+        (and certain sensitivities apply to older ICU versions).
+
+        * test262/expectations.yaml:
+        Mark eight new passes, two new fails, and six changed failures.
+        It is an unfortunate and baffling truth that the Intl tests of test262 are often not spec tests at all,
+        but effectively ICU/CLDR regression tests. These are not carrots worth chasing.
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Fix WASM Error classes and re-sync wpt/wasm/jsapi from upstream
+        https://bugs.webkit.org/show_bug.cgi?id=210980
+
+        Reviewed by Keith Miller.
+
+        * wasm/modules/js-wasm-cycle.js:
+        * wasm/modules/wasm-wasm-cycle.js:
+        * wasm/stress/too-many-locals.js:
+
+2020-04-24  Saam Barati  <sbarati@apple.com>
+
+        Return BigInt32 whenever we can
+        https://bugs.webkit.org/show_bug.cgi?id=210922
+
+        Reviewed by Yusuke Suzuki.
+
+        * microbenchmarks/sunspider-sha1-big-int.js: Added.
+        (hex_sha1):
+        (b64_sha1):
+        (str_sha1):
+        (hex_hmac_sha1):
+        (b64_hmac_sha1):
+        (str_hmac_sha1):
+        (bigIntToInt32):
+        (sha1_vm_test):
+        (core_sha1):
+        (sha1_ft):
+        (sha1_kt):
+        (core_hmac_sha1):
+        (safe_add):
+        (rol):
+        (str2binb):
+        (binb2hex):
+        (binb2b64):
+        (run):
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG compare should speculate BigInt well
+        https://bugs.webkit.org/show_bug.cgi?id=210892
+
+        Reviewed by Saam Barati.
+
+        * stress/compare-bigint-with-number.js: Added.
+        (shouldBe):
+        (result):
+        (lessThan):
+        (lessThanEqual):
+        (greaterThan):
+        (greaterThanEqual):
+        (equal):
+        * stress/compare-bigint-with-string.js: Added.
+        (shouldBe):
+        (result):
+        (lessThan):
+        (lessThanEqual):
+        (greaterThan):
+        (greaterThanEqual):
+        (equal):
+        * stress/compare-bigint.js: Added.
+        (shouldBe):
+        (result):
+        (lessThan):
+        (lessThanEqual):
+        (greaterThan):
+        (greaterThanEqual):
+        (equal):
+        * stress/compare-bigint32.js: Added.
+        (shouldBe):
+        (result):
+        (lessThan):
+        (lessThanEqual):
+        (greaterThan):
+        (greaterThanEqual):
+        (equal):
+        * stress/compare-heap-bigint.js: Added.
+        (shouldBe):
+        (result):
+        (lessThan):
+        (lessThanEqual):
+        (greaterThan):
+        (greaterThanEqual):
+        (equal):
+        * stress/dfg-ai-fold-bigint.js: Added.
+        (shouldBe):
+        (allAreTrue):
+        (allAreFalse):
+        (lessThan):
+        (lessThanFalse):
+        (lessThanEqual):
+        (lessThanEqualFalse):
+        (greaterThan):
+        (greaterThanFalse):
+        (greaterThanEqual):
+        (greaterThanEqualFalse):
+        (equal):
+        (equalFalse):
+
+2020-04-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Proxy.revocable should not have [[Construct]] slot
+        https://bugs.webkit.org/show_bug.cgi?id=210959
+
+        Reviewed by Darin Adler.
+
+        * stress/proxy-revoke.js:
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-04-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG AI for some bitops + BigInt32 should be precise
+        https://bugs.webkit.org/show_bug.cgi?id=210956
+
+        Reviewed by Keith Miller.
+
+        * stress/bigint-bitops.js: Added.
+        (shouldBe):
+        (test):
+
+2020-04-24  Paulo Matos  <pmatos@igalia.com>
+
+        Skip on ARM and MIPS stress/for-of-iterator-open* added at r260585
+        https://bugs.webkit.org/show_bug.cgi?id=210961
+
+        Unreviewed Gardening.
+
+        * stress/for-of-iterator-open-osr-at-inlined-return-non-object.js:
+        * stress/for-of-iterator-open-osr-at-iterator-set-local.js:
+        * stress/for-of-iterator-open-return-non-object.js:
+
+2020-04-23  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove revoked Proxy checks from ProxyCreate
+        https://bugs.webkit.org/show_bug.cgi?id=210862
+
+        Reviewed by Ross Kirsling.
+
+        Removes expectations for 2 invalid ChakraCore tests.
+
+        * ChakraCore.yaml: Mark 2 test cases as passing.
+        * ChakraCore/test/es6/arraywithproxy.baseline: Removed.
+        * ChakraCore/test/es6/proxytest9.baseline: Removed.
+        * stress/proxy-revoke.js: Adjust test.
+        * test262/expectations.yaml: Mark 12 test cases as passing.
+
+2020-04-23  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed test262 gardening following r260591.
+
+        * test262/expectations.yaml:
+        Fix expectations to reflect ICU 64.
+
+2020-04-23 Alexey Shvayka <shvaikalesh@gmail.com>
+
+        Update test262 to commit 31dabb5618e2
+        https://bugs.webkit.org/show_bug.cgi?id=210921
+
+        Reviewed by Ross Kirsling.
+
+        * test262/config.yaml: Skip "Atomics.waitAsync" feature.
+        * test262/expectations.yaml:
+        * test262/harness/*: Updated.
+        * test262/latest-changes-summary.txt:
+        * test262/test/*: Updated.
+        * test262/test262-Revision.txt:
+
+2020-04-23  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Reduce iteration count and change how it invokes GC to reduce execution time of JSTests/stress/delete-property-dfg-inline.js
+        https://bugs.webkit.org/show_bug.cgi?id=210933
+
+        Reviewed by Keith Miller.
+
+        This test takes 7~ seconds in Release build with default run. And it takes 1 mins in several variants of JSC tests, which is too long.
+        By analyzing this, we found that this takes very long time,
+
+            1. due to so frequent synchronous GC run
+            2. due to large iteration count while function can get FTL with less counts
+
+        While ensuring all functions gets FTL, we reduce iteration count and GC invocations to reduce the execution time, the default run gets 200ms.
+
+        * stress/delete-property-dfg-inline.js:
+        (noInline.blackbox.testSingleStructure):
+        (noInline.testSingleStructure.testInlineSingleStructure):
+        (noInline.testInlineSingleStructure.testExit):
+        (noInline.testExit.testSingleStructureMiss):
+        (noInline.testSingleStructureMiss.testSingleStructureMissStrict):
+        (noInline.testSingleStructureMissStrict.testSingleStructureMissNonConfigurable):
+        (noInline.testSingleStructureMissNonConfigurable.testSingleStructureEmpty):
+        (noInline.testSingleStructureEmpty.testPolymorphic):
+        (noInline.testPolymorphic.testPolyvariant):
+        (noInline.testPolyvariant.testConstantFolding):
+        (noInline.testConstantFolding.testObjectSinking):
+        (noInline.testObjectSinking.testProxy):
+        (noInline.testProxy.testTypedArray):
+        (noInline.testTypedArray.testMissMixed):
+        (noInline.testMissMixed.testMissNonMixed):
+        (noInline.testMissNonMixed.testByVal.noInline.test):
+        (noInline.testMissNonMixed.testByVal):
+        (noInline.assert.assert_throws): Deleted.
+
+2020-04-22  Keith Miller  <keith_miller@apple.com>
+
+        Fix OSR exiting/iterator object checks in for-of bytecodes
+        https://bugs.webkit.org/show_bug.cgi?id=210882
+
+        Reviewed by Saam Barati.
+
+        * stress/for-of-iterator-next-osr-at-inlined-return-non-object.js: Added.
+        (vendNext):
+        (test):
+        (catch):
+        * stress/for-of-iterator-next-osr-at-next-set-local.js: Added.
+        (vendNext):
+        (test):
+        (catch):
+        * stress/for-of-iterator-open-osr-at-inlined-return-non-object.js: Added.
+        (vendIterator):
+        (test):
+        (catch):
+        * stress/for-of-iterator-open-osr-at-iterator-set-local.js: Added.
+        (vendIterator):
+        (test):
+        (catch):
+        * stress/for-of-iterator-open-return-non-object.js: Added.
+        (vendIterator):
+        (test):
+        (i.catch):
+        * stress/test-for-of-cfg-simplication-exit-ok.js: Added.
+        (z.__proto__):
+
+2020-04-23  Paulo Matos  <pmatos@igalia.com>
+
+        Skip stress/v8-bitint32-inc.js on mips
+        https://bugs.webkit.org/show_bug.cgi?id=210906
+
+        Unreviewed Gardening.
+
+        * stress/v8-bigint32-inc.js:
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] branchIfBigInt32 can use BigInt32Mask and remove branchIfNumber filter
+        https://bugs.webkit.org/show_bug.cgi?id=210870
+
+        Reviewed by Saam Barati.
+
+        * stress/anybigintuse-should-filter-number-correctly.js: Added.
+        (shouldBe):
+        (test):
+
+2020-04-22  Saam Barati  <sbarati@apple.com>
+
+        BigInt32 parsing should be precise
+        https://bugs.webkit.org/show_bug.cgi?id=210869
+
+        Reviewed by Robin Morisset.
+
+        * stress/big-int-32-parsing-should-be-precise.js: Added.
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSBigInt inc operation does not produce right HeapBigInt zero
+        https://bugs.webkit.org/show_bug.cgi?id=210860
+
+        Reviewed by Mark Lam.
+
+        * stress/bigint-zero-canonicalized.js: Added.
+        (shouldBe):
+
+2020-04-22  Saam Barati  <sbarati@apple.com>
+
+        ValueBitNot is wrong in FTL with AnyBigIntUse
+        https://bugs.webkit.org/show_bug.cgi?id=210846
+
+        Reviewed by Yusuke Suzuki.
+
+        * stress/big-int-value-bit-not-spec-any-big-int.js: Added.
+        (assert):
+        (foo):
+
+2020-04-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] AI results of BigInt32 Bitwise shift operation does not match to runtime results
+        https://bugs.webkit.org/show_bug.cgi?id=210839
+
+        Reviewed by Saam Barati.
+
+        * stress/v8-bigint32-add.js: Added.
+        (main):
+        * stress/v8-bigint32-and.js: Added.
+        (main):
+        * stress/v8-bigint32-dec.js: Added.
+        (main):
+        * stress/v8-bigint32-div.js: Added.
+        (main):
+        * stress/v8-bigint32-inc.js: Added.
+        (main):
+        * stress/v8-bigint32-mod.js: Added.
+        (main):
+        * stress/v8-bigint32-mul.js: Added.
+        (main):
+        * stress/v8-bigint32-neg.js: Added.
+        (main):
+        * stress/v8-bigint32-not.js: Added.
+        (main):
+        * stress/v8-bigint32-or.js: Added.
+        (main):
+        * stress/v8-bigint32-sar.js: Added.
+        (main):
+        * stress/v8-bigint32-shl.js: Added.
+        (main):
+        * stress/v8-bigint32-sub.js: Added.
+        (main):
+        * stress/v8-bigint32-xor.js: Added.
+        (main):
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq should expect AnyBigIntUse
+        https://bugs.webkit.org/show_bug.cgi?id=210832
+
+        Reviewed by Mark Lam.
+
+        * stress/heap-and-32-bigint-eq.js: Added.
+        (shouldBe):
+        * stress/heap-and-32-bigint-stricteq.js: Added.
+        (shouldBe):
+
+2020-04-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        constructObjectFromPropertyDescriptor() is incorrect with partial descriptors
+        https://bugs.webkit.org/show_bug.cgi?id=184629
+
+        Reviewed by Ross Kirsling.
+
+        * test262/expectations.yaml: Mark 4 test cases as passing.
+
+2020-04-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Move value-pow-ai-rule-should-box-the-same-way-as-the-runtime.js to JSTests/stress/
+        https://bugs.webkit.org/show_bug.cgi?id=210805
+
+        Reviewed by Saam Barati.
+
+        r251408 accidentally puts value-pow-ai-rule-should-box-the-same-way-as-the-runtime.js in JSTests/ instead of JSTests/stress/.
+        This patch fixes that.
+
+        * stress/value-pow-ai-rule-should-box-the-same-way-as-the-runtime.js: Renamed from JSTests/value-pow-ai-rule-should-box-the-same-way-as-the-runtime.js.
+
+2020-04-21  Paulo Matos  <pmatos@igalia.com>
+
+        [ARMv7][EWS] stress/check-stack-overflow-before-value-profiling-arguments.js is failing
+        https://bugs.webkit.org/show_bug.cgi?id=210720
+
+        Unreviewed gardening.
+
+        Skip test on arm since it is failing on EWS, causing significant delays.
+
+        * stress/check-stack-overflow-before-value-profiling-arguments.js:
+
+2020-04-21  Paulo Matos  <pmatos@igalia.com>
+
+        Re-enable previously skipped mips tests
+        https://bugs.webkit.org/show_bug.cgi?id=209964
+
+        Reviewed by Mark Lam.
+
+        Followup to r259454 - where we re-enabled a few stress tests for arm.
+
+        * stress/JSArrayBufferView-byteOffset-is-racy-from-compiler-thread.js:
+        * stress/dont-range-based-iterate-vector-that-is-mutated.js:
+        * stress/ensure-code-block-is-not-precise-allocation.js:
+        * stress/generator-cell-with-type.js:
+        * stress/racy-slow-put-cloned-arguments-when-having-a-bad-time.js:
+        * stress/symbol-is-destructed-before-refing-underlying-symbol-impl.js:
+        * stress/toctou-having-a-bad-time-new-array.js:
+
+2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Import V8 BigInt tests generated by bigint-tester.py
+        https://bugs.webkit.org/show_bug.cgi?id=210783
+
+        Reviewed by Ross Kirsling.
+
+        This patch adds BigInt tests generated by V8 bigint-tester.py, which is modified for JSC use.
+
+        * stress/v8-bigint-add.js: Added.
+        * stress/v8-bigint-and.js: Added.
+        * stress/v8-bigint-dec.js: Added.
+        * stress/v8-bigint-div.js: Added.
+        * stress/v8-bigint-inc.js: Added.
+        * stress/v8-bigint-mod.js: Added.
+        * stress/v8-bigint-mul.js: Added.
+        * stress/v8-bigint-neg.js: Added.
+        * stress/v8-bigint-not.js: Added.
+        * stress/v8-bigint-or.js: Added.
+        * stress/v8-bigint-sar.js: Added.
+        * stress/v8-bigint-shl.js: Added.
+        * stress/v8-bigint-sub.js: Added.
+        * stress/v8-bigint-xor.js: Added.
+
+2020-04-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Skip test262 for non-safe-integer range BigIntConstructor
+        https://bugs.webkit.org/show_bug.cgi?id=210749
+
+        Reviewed by Keith Miller.
+
+        We skip test262 test/built-ins/BigInt/constructor-integer.js for now. As it is shown in old test262 JSTests/test262/expectations.yaml,
+        this test was failing before BigInt flag is enabled. And new BigInt patch changes error message while we are failing in the same way.
+        While we implemented BigInt, this test is based on spec change introduced[1], and we are not implementing this. So we mark it skipped,
+        as it is skipped before BigInt is enabled.
+
+        [1]: https://github.com/tc39/proposal-bigint/pull/138
+
+        * test262/config.yaml:
+
 2020-04-20  Keith Miller  <keith_miller@apple.com>
 
         Unreviewed, revert accidental test changes.

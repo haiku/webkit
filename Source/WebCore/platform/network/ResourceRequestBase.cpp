@@ -165,12 +165,10 @@ void ResourceRequestBase::removeCredentials()
 {
     updateResourceRequest(); 
 
-    if (m_url.user().isEmpty() && m_url.pass().isEmpty())
+    if (!m_url.hasCredentials())
         return;
 
-    m_url.setUser(String());
-    m_url.setPass(String());
-
+    m_url.removeCredentials();
     m_platformRequestUpdated = false;
 }
 
@@ -748,20 +746,6 @@ String ResourceRequestBase::partitionName(const String& domain)
 #endif
     return emptyString();
 #endif
-}
-
-bool doesRequestNeedHTTPOriginHeader(const ResourceRequest& request)
-{
-    if (!request.httpOrigin().isEmpty())
-        return false; // Request already has an Origin header.
-
-    // Don't send an Origin header for GET or HEAD to avoid privacy issues.
-    // For example, if an intranet page has a hyperlink to an external web
-    // site, we don't want to include the Origin of the request because it
-    // will leak the internal host name. Similar privacy concerns have lead
-    // to the widespread suppression of the Referer header at the network
-    // layer.
-    return request.httpMethod() != "GET" && request.httpMethod() != "HEAD";
 }
 
 }

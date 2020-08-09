@@ -2612,6 +2612,34 @@ void* Node::opaqueRootSlow() const
     return const_cast<void*>(static_cast<const void*>(node));
 }
 
+static size_t depth(Node& node)
+{
+    size_t depth = 0;
+    auto ancestor = &node;
+    while ((ancestor = ancestor->parentNode()))
+        ++depth;
+    return depth;
+}
+
+RefPtr<Node> commonInclusiveAncestor(Node& a, Node& b)
+{
+    // This first check isn't needed for correctness, but it is cheap and likely to be
+    // common enough to be worth optimizing so we don't have to walk to the root.
+    if (&a == &b)
+        return &a;
+    auto [depthA, depthB] = std::make_tuple(depth(a), depth(b));
+    auto [x, y, difference] = depthA > depthB
+        ? std::make_tuple(&a, &b, depthA - depthB)
+        : std::make_tuple(&b, &a, depthB - depthA);
+    for (decltype(difference) i = 0; i < difference; ++i)
+        x = x->parentNode();
+    while (x != y) {
+        x = x->parentNode();
+        y = y->parentNode();
+    }
+    return x;
+}
+
 TextStream& operator<<(TextStream& ts, const Node& node)
 {
     ts << "node " << &node << " " << node.debugDescription();

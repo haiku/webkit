@@ -890,14 +890,12 @@ GraphicsLayerFactory* WebChromeClient::graphicsLayerFactory() const
     return nullptr;
 }
 
-#if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
 RefPtr<DisplayRefreshMonitor> WebChromeClient::createDisplayRefreshMonitor(PlatformDisplayID displayID) const
 {
     if (auto* drawingArea = m_page.drawingArea())
         return drawingArea->createDisplayRefreshMonitor(displayID);
     return nullptr;
 }
-#endif
 
 #if ENABLE(GPU_PROCESS)
 
@@ -987,14 +985,9 @@ bool WebChromeClient::supportsVideoFullscreenStandby()
     return m_page.videoFullscreenManager().supportsVideoFullscreenStandby();
 }
 
-void WebChromeClient::setUpPlaybackControlsManager(HTMLMediaElement& mediaElement)
+void WebChromeClient::setMockVideoPresentationModeEnabled(bool enabled)
 {
-    m_page.playbackSessionManager().setUpPlaybackControlsManager(mediaElement);
-}
-
-void WebChromeClient::clearPlaybackControlsManager()
-{
-    m_page.playbackSessionManager().clearPlaybackControlsManager();
+    m_page.send(Messages::WebPageProxy::SetMockVideoPresentationModeEnabled(enabled));
 }
 
 void WebChromeClient::enterVideoFullscreenForVideoElement(HTMLVideoElement& videoElement, HTMLMediaElementEnums::VideoFullscreenMode mode, bool standby)
@@ -1011,6 +1004,17 @@ void WebChromeClient::exitVideoFullscreenForVideoElement(HTMLVideoElement& video
 {
     m_page.videoFullscreenManager().exitVideoFullscreenForVideoElement(videoElement);
 }
+
+void WebChromeClient::setUpPlaybackControlsManager(HTMLMediaElement& mediaElement)
+{
+    m_page.playbackSessionManager().setUpPlaybackControlsManager(mediaElement);
+}
+
+void WebChromeClient::clearPlaybackControlsManager()
+{
+    m_page.playbackSessionManager().clearPlaybackControlsManager();
+}
+
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -1030,7 +1034,7 @@ void WebChromeClient::removeMediaUsageManagerSession(MediaSessionIdentifier iden
 }
 #endif // ENABLE(MEDIA_USAGE)
 
-#if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
+#if ENABLE(VIDEO_PRESENTATION_MODE)
 
 void WebChromeClient::exitVideoFullscreenToModeWithoutAnimation(HTMLVideoElement& videoElement, HTMLMediaElementEnums::VideoFullscreenMode targetMode)
 {

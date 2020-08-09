@@ -424,7 +424,6 @@ http/tests/cache/subresource-expiration-2.html
 fast/frames/sandboxed-iframe-plugins.html
 fast/frames/sandboxed-iframe-storage.html
 fast/overflow/overflow_hidden.html
-media/controls-styling.html
 platform/mac/fast/loader/non-html-load-event.html
 plugins/embed-attributes-style.html
 plugins/plugin-initiate-popup-window.html
@@ -770,6 +769,10 @@ inspector/runtime/callFunctionOn-emulateUserGesture-userIsInteracting.html [ Pas
 
 # Target domain is only present in WebKit2.
 http/tests/inspector/target [ Pass ]
+
+# ITP and AdClickAttribution are WK2 only.
+inspector/page/overrideSetting-AdClickAttributionDebugModeEnabled.html [ Pass ]
+inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass ]
 
 # Highlighting marked text ranges from layout tests is only supported in WebKit2.
 editing/input/composition-highlights.html [ Pass ]

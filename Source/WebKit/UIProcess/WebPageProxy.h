@@ -34,6 +34,7 @@
 #include "EditingRange.h"
 #include "EditorState.h"
 #include "FocusedElementInformation.h"
+#include "GeolocationIdentifier.h"
 #include "GeolocationPermissionRequestManagerProxy.h"
 #include "HiddenPageThrottlingAutoIncreasesCounter.h"
 #include "LayerTreeContext.h"
@@ -44,7 +45,6 @@
 #include "ProcessTerminationReason.h"
 #include "ProcessThrottler.h"
 #include "SandboxExtension.h"
-#include "ShareSheetCallbackID.h"
 #include "ShareableBitmap.h"
 #include "ShareableResource.h"
 #include "SuspendedPageProxy.h"
@@ -200,6 +200,8 @@ class Decoder;
 class FormDataReference;
 class SharedBufferDataReference;
 }
+OBJC_CLASS NSFileWrapper;
+OBJC_CLASS WKQLThumbnailLoadOperation;
 
 namespace WebCore {
 class AuthenticationChallenge;
@@ -230,6 +232,7 @@ enum class ShouldTreatAsContinuingLoad : bool;
 enum class WritingDirection : uint8_t;
 
 struct ApplicationManifest;
+struct AttributedString;
 struct BackForwardItemIdentifier;
 struct CompositionHighlight;
 struct ContentRuleListResults;
@@ -251,7 +254,7 @@ struct TextCheckingResult;
 struct ViewportAttributes;
 struct WindowFeatures;
 
-template <typename> class RectEdges;
+template<typename> class RectEdges;
 using FloatBoxExtent = RectEdges<float>;
 }
 
@@ -321,7 +324,6 @@ class WebViewDidMoveToWindowObserver;
 class WebWheelEvent;
 class WebsiteDataStore;
 
-struct AttributedString;
 struct WebBackForwardListCounts;
 struct ColorSpaceData;
 struct DataDetectionResult;
@@ -393,7 +395,7 @@ typedef GenericCallback<const Optional<WebCore::ApplicationManifest>&> Applicati
 #endif
 
 #if PLATFORM(MAC)
-typedef GenericCallback<const AttributedString&, const EditingRange&> AttributedStringForCharacterRangeCallback;
+typedef GenericCallback<const WebCore::AttributedString&, const EditingRange&> AttributedStringForCharacterRangeCallback;
 typedef GenericCallback<const FontInfo&, double, bool> FontAtSelectionCallback;
 #endif
 
@@ -525,6 +527,7 @@ public:
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     PlaybackSessionManagerProxy* playbackSessionManager();
     VideoFullscreenManagerProxy* videoFullscreenManager();
+    void setMockVideoPresentationModeEnabled(bool);
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -639,7 +642,7 @@ public:
     void viewWillStartLiveResize();
     void viewWillEndLiveResize();
 
-    void setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent&, WTF::Function<void (CallbackBase::Error)>&&);
+    void setInitialFocus(bool forward, bool isKeyboardEventValid, const WebKeyboardEvent&, CompletionHandler<void()>&&);
     
     void clearSelection();
     void restoreSelectionInFocusedEditableElement();
@@ -672,6 +675,7 @@ public:
 
     void selectAll();
     void executeEditCommand(const String& commandName, const String& argument = String());
+    void executeEditCommand(const String& commandName, const String& argument, CompletionHandler<void()>&&);
     void validateCommand(const String& commandName, WTF::Function<void (const String&, bool, int32_t, CallbackBase::Error)>&&);
 
     const EditorState& editorState() const { return m_editorState; }
@@ -699,12 +703,10 @@ public:
     void activateMediaStreamCaptureInPage();
     bool isMediaStreamCaptureMuted() const { return m_mutedState & WebCore::MediaProducer::MediaStreamCaptureIsMuted; }
     void setMediaStreamCaptureMuted(bool);
-    void executeEditCommand(const String& commandName, const String& argument, WTF::Function<void(CallbackBase::Error)>&&);
-        
+
     void requestFontAttributesAtSelectionStart(Function<void(const WebCore::FontAttributes&, CallbackBase::Error)>&&);
     void fontAttributesCallback(const WebCore::FontAttributes&, CallbackID);
 
-    void textInputContextsInRect(WebCore::FloatRect, CompletionHandler<void(const Vector<WebCore::ElementContext>&)>&&);
     void setCanShowPlaceholder(const WebCore::ElementContext&, bool);
 
 #if ENABLE(UI_SIDE_COMPOSITING)
@@ -712,6 +714,7 @@ public:
 #endif
 
 #if PLATFORM(IOS_FAMILY)
+    void textInputContextsInRect(WebCore::FloatRect, CompletionHandler<void(const Vector<WebCore::ElementContext>&)>&&);
     void focusTextInputContextAndPlaceCaret(const WebCore::ElementContext&, const WebCore::IntPoint&, CompletionHandler<void(bool)>&&);
 
     void setShouldRevealCurrentSelectionAfterInsertion(bool);
@@ -754,11 +757,11 @@ public:
     void selectWithTwoTouches(const WebCore::IntPoint from, const WebCore::IntPoint to, uint32_t gestureType, uint32_t gestureState, WTF::Function<void (const WebCore::IntPoint&, uint32_t, uint32_t, uint32_t, CallbackBase::Error)>&&);
     void extendSelection(WebCore::TextGranularity);
     void selectWordBackward();
-    void moveSelectionByOffset(int32_t offset, WTF::Function<void (CallbackBase::Error)>&&);
-    void selectTextWithGranularityAtPoint(const WebCore::IntPoint, WebCore::TextGranularity, bool isInteractingWithFocusedElement, WTF::Function<void(CallbackBase::Error)>&&);
-    void selectPositionAtPoint(const WebCore::IntPoint, bool isInteractingWithFocusedElement, WTF::Function<void(CallbackBase::Error)>&&);
-    void selectPositionAtBoundaryWithDirection(const WebCore::IntPoint, WebCore::TextGranularity, WebCore::SelectionDirection, bool isInteractingWithFocusedElement, WTF::Function<void(CallbackBase::Error)>&&);
-    void moveSelectionAtBoundaryWithDirection(WebCore::TextGranularity, WebCore::SelectionDirection, WTF::Function<void(CallbackBase::Error)>&&);
+    void moveSelectionByOffset(int32_t offset, CompletionHandler<void()>&&);
+    void selectTextWithGranularityAtPoint(const WebCore::IntPoint, WebCore::TextGranularity, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
+    void selectPositionAtPoint(const WebCore::IntPoint, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
+    void selectPositionAtBoundaryWithDirection(const WebCore::IntPoint, WebCore::TextGranularity, WebCore::SelectionDirection, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
+    void moveSelectionAtBoundaryWithDirection(WebCore::TextGranularity, WebCore::SelectionDirection, CompletionHandler<void()>&&);
     void beginSelectionInDirection(WebCore::SelectionDirection, WTF::Function<void (uint64_t, CallbackBase::Error)>&&);
     void updateSelectionWithExtentPoint(const WebCore::IntPoint, bool isInteractingWithFocusedElement, RespectSelectionAnchor, WTF::Function<void(uint64_t, CallbackBase::Error)>&&);
     void updateSelectionWithExtentPointAndBoundary(const WebCore::IntPoint, WebCore::TextGranularity, bool isInteractingWithFocusedElement, WTF::Function<void(uint64_t, CallbackBase::Error)>&&);
@@ -776,7 +779,7 @@ public:
     void stopInteraction();
     void performActionOnElement(uint32_t action);
     void saveImageToLibrary(const SharedMemory::Handle& imageHandle, uint64_t imageSize);
-    void focusNextFocusedElement(bool isForward, WTF::Function<void (CallbackBase::Error)>&& = [] (auto) { });
+    void focusNextFocusedElement(bool isForward, CompletionHandler<void()>&& = [] { });
     void setFocusedElementValue(const String&);
     void setFocusedElementValueAsNumber(double);
     void setFocusedElementSelectedIndex(uint32_t index, bool allowMultipleSelection = false);
@@ -879,7 +882,7 @@ public:
     void changeFont(WebCore::FontChanges&&);
 
 #if PLATFORM(MAC)
-    void attributedSubstringForCharacterRangeAsync(const EditingRange&, WTF::Function<void (const AttributedString&, const EditingRange&, CallbackBase::Error)>&&);
+    void attributedSubstringForCharacterRangeAsync(const EditingRange&, Function<void(const WebCore::AttributedString&, const EditingRange&, CallbackBase::Error)>&&);
     void fontAtSelection(Function<void(const FontInfo&, double, bool, CallbackBase::Error)>&&);
 
     void startWindowDrag();
@@ -996,6 +999,9 @@ public:
     bool useFixedLayout() const { return m_useFixedLayout; };
     const WebCore::IntSize& fixedLayoutSize() const { return m_fixedLayoutSize; };
 
+    void setViewExposedRect(Optional<WebCore::FloatRect>);
+    Optional<WebCore::FloatRect> viewExposedRect() const { return m_viewExposedRect; }
+
     void setAlwaysShowsHorizontalScroller(bool);
     void setAlwaysShowsVerticalScroller(bool);
     bool alwaysShowsHorizontalScroller() const { return m_alwaysShowsHorizontalScroller; }
@@ -1101,7 +1107,7 @@ public:
 
     void getContentsAsString(ContentAsStringIncludesChildFrames, WTF::Function<void(const String&, CallbackBase::Error)>&&);
 #if PLATFORM(COCOA)
-    void getContentsAsAttributedString(CompletionHandler<void(const AttributedString&)>&&);
+    void getContentsAsAttributedString(CompletionHandler<void(const WebCore::AttributedString&)>&&);
 #endif
     void getBytecodeProfile(WTF::Function<void (const String&, CallbackBase::Error)>&&);
     void getSamplingProfilerOutput(WTF::Function<void (const String&, CallbackBase::Error)>&&);
@@ -1366,6 +1372,7 @@ public:
 
     void didReceiveAuthenticationChallengeProxy(Ref<AuthenticationChallengeProxy>&&, NegotiatedLegacyTLS);
     void negotiatedLegacyTLS();
+    void didNegotiateModernTLS(const WebCore::AuthenticationChallenge&);
 
     SpellDocumentTag spellDocumentTag();
 
@@ -1595,7 +1602,12 @@ public:
     void serializedAttachmentDataForIdentifiers(const Vector<String>&, CompletionHandler<void(Vector<WebCore::SerializedAttachmentData>&&)>&&);
     void registerAttachmentIdentifier(const String&);
     void didInvalidateDataForAttachment(API::Attachment&);
-
+#if HAVE(QUICKLOOK_THUMBNAILING)
+    void updateAttachmentIcon(const String&, const RefPtr<ShareableBitmap>&);
+    void requestThumbnailWithPath(const String&, const String&);
+    void requestThumbnailWithFileWrapper(NSFileWrapper*, const String&);
+    void requestThumbnailWithOperation(WKQLThumbnailLoadOperation*);
+#endif
     enum class ShouldUpdateAttachmentAttributes : bool { No, Yes };
     ShouldUpdateAttachmentAttributes willUpdateAttachmentAttributes(const API::Attachment&);
 #endif
@@ -1704,6 +1716,9 @@ public:
 
     const String& overriddenMediaType() const { return m_overriddenMediaType; }
     void setOverriddenMediaType(const String&);
+
+    void setCORSDisablingPatterns(Vector<String>&&);
+    const Vector<String>& corsDisablingPatterns() const { return m_corsDisablingPatterns; }
 
     void getProcessDisplayName(CompletionHandler<void(String&&)>&&);
 
@@ -1886,12 +1901,12 @@ private:
     void didChangeViewportProperties(const WebCore::ViewportAttributes&);
     void pageDidScroll();
     void runOpenPanel(WebCore::FrameIdentifier, FrameInfoData&&, const WebCore::FileChooserSettings&);
-    void showShareSheet(const WebCore::ShareDataWithParsedURL&, ShareSheetCallbackID);
+    void showShareSheet(const WebCore::ShareDataWithParsedURL&, CompletionHandler<void(bool)>&&);
     void printFrame(WebCore::FrameIdentifier, CompletionHandler<void()>&&);
     void exceededDatabaseQuota(WebCore::FrameIdentifier, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, Messages::WebPageProxy::ExceededDatabaseQuotaDelayedReply&&);
     void reachedApplicationCacheOriginQuota(const String& originIdentifier, uint64_t currentQuota, uint64_t totalBytesNeeded, Messages::WebPageProxy::ReachedApplicationCacheOriginQuotaDelayedReply&&);
 
-    void requestGeolocationPermissionForFrame(uint64_t geolocationID, FrameInfoData&&);
+    void requestGeolocationPermissionForFrame(GeolocationIdentifier, FrameInfoData&&);
     void revokeGeolocationAuthorizationToken(const String& authorizationToken);
 
 #if PLATFORM(GTK) || PLATFORM(WPE)
@@ -2071,7 +2086,7 @@ private:
 #endif
     void rectForCharacterRangeCallback(const WebCore::IntRect&, const EditingRange&, CallbackID);
 #if PLATFORM(MAC)
-    void attributedStringForCharacterRangeCallback(const AttributedString&, const EditingRange&, CallbackID);
+    void attributedStringForCharacterRangeCallback(const WebCore::AttributedString&, const EditingRange&, CallbackID);
     void fontAtSelectionCallback(const FontInfo&, double, bool, CallbackID);
 #endif
 #if PLATFORM(IOS_FAMILY)
@@ -2163,7 +2178,7 @@ private:
 
     void setRenderTreeSize(uint64_t treeSize) { m_renderTreeSize = treeSize; }
 
-#if PLATFORM(X11)
+#if PLATFORM(X11) && ENABLE(NETSCAPE_PLUGIN_API)
     void createPluginContainer(CompletionHandler<void(uint64_t)>&&);
     void windowedPluginGeometryDidChange(const WebCore::IntRect& frameRect, const WebCore::IntRect& clipRect, uint64_t windowID);
     void windowedPluginVisibilityDidChange(bool isVisible, uint64_t windowID);
@@ -2269,8 +2284,6 @@ private:
     const String& paymentCoordinatorBoundInterfaceIdentifier(const WebPaymentCoordinatorProxy&) final;
     const String& paymentCoordinatorSourceApplicationBundleIdentifier(const WebPaymentCoordinatorProxy&) final;
     const String& paymentCoordinatorSourceApplicationSecondaryIdentifier(const WebPaymentCoordinatorProxy&) final;
-    void paymentCoordinatorAddMessageReceiver(WebPaymentCoordinatorProxy&, const IPC::StringReference&, IPC::MessageReceiver&) final;
-    void paymentCoordinatorRemoveMessageReceiver(WebPaymentCoordinatorProxy&, const IPC::StringReference&) final;
 #endif
 #if ENABLE(APPLE_PAY) && PLATFORM(IOS_FAMILY)
     UIViewController *paymentCoordinatorPresentingViewController(const WebPaymentCoordinatorProxy&) final;
@@ -2303,7 +2316,7 @@ private:
     void tryCloseTimedOut();
     void makeStorageSpaceRequest(WebCore::FrameIdentifier, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, CompletionHandler<void(uint64_t)>&&);
         
-    void setIsNavigatingToAppBoundDomain(bool isMainFrame, const URL&, Optional<NavigatingToAppBoundDomain>);
+    bool setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMainFrame, const URL&, Optional<NavigatingToAppBoundDomain>);
     NavigatedAwayFromAppBoundDomain hasNavigatedAwayFromAppBoundDomain() const { return m_hasNavigatedAwayFromAppBoundDomain; }
         
     const Identifier m_identifier;
@@ -2370,6 +2383,7 @@ private:
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     RefPtr<PlaybackSessionManagerProxy> m_playbackSessionManager;
     RefPtr<VideoFullscreenManagerProxy> m_videoFullscreenManager;
+    bool m_mockVideoPresentationModeEnabled { false };
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -2477,6 +2491,7 @@ private:
 
     bool m_useFixedLayout { false };
     WebCore::IntSize m_fixedLayoutSize;
+    Optional<WebCore::FloatRect> m_viewExposedRect;
 
     bool m_alwaysShowsHorizontalScroller { false };
     bool m_alwaysShowsVerticalScroller { false };
@@ -2781,6 +2796,8 @@ private:
     bool m_isLayerTreeFrozenDueToSwipeAnimation { false };
     
     String m_overriddenMediaType;
+
+    Vector<String> m_corsDisablingPatterns;
 
     struct InjectedBundleMessage {
         String messageName;

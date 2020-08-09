@@ -19,6 +19,7 @@ displaylists [ Skip ]
 editing/mac [ Skip ]
 editing/caret/ios [ Skip ]
 editing/editable-region [ Skip ]
+editing/execCommand/ios [ Skip ]
 editing/input/ios [ Skip ]
 editing/find [ Skip ]
 editing/pasteboard/gtk [ Skip ]
@@ -43,6 +44,7 @@ fast/forms/ios [ Skip ]
 fast/viewport/ios [ Skip ]
 fast/visual-viewport/ios/ [ Skip ]
 fast/device-orientation [ Skip ]
+fast/events/cursors [ Skip ]
 fast/events/ios [ Skip ]
 fast/events/watchos [ Skip ]
 fast/events/pointer/ios [ Skip ]
@@ -206,6 +208,9 @@ fast/visual-viewport/rubberbanding-viewport-rects-header-footer.html  [ Skip ]
 
 # DataDetectors tests only make sense on Mac
 fast/events/do-not-drag-and-drop-data-detectors-link.html [ Skip ]
+
+# A rounding error may cause 90deg 3d-rotated elements to count as painted
+imported/w3c/web-platform-tests/paint-timing/fcp-only/fcp-invisible-3d-rotate-descendant.html
 
 webkit.org/b/202617 imported/w3c/web-platform-tests/picture-in-picture [ Skip ]
 
@@ -434,6 +439,9 @@ imported/w3c/web-platform-tests/html/semantics/document-metadata/the-link-elemen
 imported/w3c/web-platform-tests/html/rendering/non-replaced-elements/form-controls/select-sizing-001.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/html/rendering/non-replaced-elements/phrasing-content-0/font-element-text-decoration-color/001-x.xhtml [ ImageOnlyFailure ]
 
+# Cross-Origin Opener Policy is not supported.
+imported/w3c/web-platform-tests/html/cross-origin-opener-policy [ Skip ]
+
 # Sometimes prints weird output at the beginning of the tests.
 imported/w3c/web-platform-tests/2dcontext/wide-gamut-canvas [ Failure Pass ]
 
@@ -454,6 +462,7 @@ imported/w3c/web-platform-tests/html/browsers/history/the-history-interface/comb
 imported/w3c/web-platform-tests/html/browsers/history/the-history-interface/combination_history_003.html [ Failure Pass ]
 imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/execution-timing/058.html [ Failure Pass ]
 imported/w3c/web-platform-tests/html/interaction/focus/the-autofocus-attribute/update-the-rendering.html [ Failure Pass ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/loading-the-media-resource/resource-selection-pointer-remove-source.html [ Failure Pass ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/cross-origin-to-whom.window.html [ Failure Pass ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/cross-origin-to-whom-part-2.window.html [ Failure Pass ]
 imported/w3c/web-platform-tests/beacon/beacon-redirect.window.html [ Failure Pass ]
@@ -778,7 +787,6 @@ imported/w3c/web-platform-tests/eventsource/dedicated-worker/eventsource-constru
 imported/w3c/web-platform-tests/eventsource/request-credentials.htm [ Failure ]
 imported/w3c/web-platform-tests/mediacapture-fromelement/capture.html [ Failure ]
 imported/w3c/web-platform-tests/mediacapture-fromelement/ended.html [ Failure ]
-webkit.org/b/185407 imported/w3c/web-platform-tests/html/dom/interfaces.worker.html [ Pass Failure Timeout ]
 imported/w3c/web-platform-tests/mediacapture-fromelement/creation.html [ Pass Failure ]
 webkit.org/b/180240 imported/w3c/web-platform-tests/resource-timing/single-entry-per-resource.html [ Pass Failure ]
 webkit.org/b/189906 imported/w3c/web-platform-tests/resource-timing/resource_timing_buffer_full_eventually.html [ Skip ]
@@ -968,6 +976,10 @@ inspector/runtime/callFunctionOn-emulateUserGesture-userIsInteracting.html [ Ski
 
 # Target domain is only present in WK2.
 http/tests/inspector/target [ Skip ]
+
+# ITP and AdClickAttribution are WK2 only.
+inspector/page/overrideSetting-AdClickAttributionDebugModeEnabled.html [ Skip ]
+inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Skip ]
 
 # These conformance tests are no longer in sync with the latest specification
 # and expect compareDocumentPosition() to return:
@@ -1253,14 +1265,14 @@ imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-object-element/object-fallback-failed-cross-origin-navigation.sub.html [ Failure Pass ]
 
 # Newly importing W3C tests needed support for reftest-wait.
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-added.html [ ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-removed.html [ ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-line-doesnt-fit.html [ ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-transformed-video.html [ Pass ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-non-snap-to-lines.html [ ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-two-cue-layout-after-first-end.html [ ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/available-images.html [ Pass ImageOnlyFailure ]
-webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/sizes/sizes-dynamic-002.html [ ImageOnlyFailure ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-added.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-removed.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-line-doesnt-fit.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-transformed-video.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-non-snap-to-lines.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-two-cue-layout-after-first-end.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/available-images.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/sizes/sizes-dynamic-002.html [ Skip ]
 webkit.org/b/186045 imported/w3c/web-platform-tests/apng/animated-png-timeout.html [ Skip ]
 webkit.org/b/186045 imported/w3c/web-platform-tests/css/css-font-loading/fontface-descriptor-updates.html [ Skip ]
 webkit.org/b/186045 imported/w3c/web-platform-tests/css/css-backgrounds/background-clip/clip-text-dynamic-2.html [ Skip ]
@@ -1745,11 +1757,13 @@ webkit.org/b/173506  ietestcenter/Javascript/15.4.4.14-3-25.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.14-3-7.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.14-3-8.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-12.html [ Failure ]
-webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-25.html [ Failure ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-7.html [ Failure ]
 
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-14.html [ Skip ]
 webkit.org/b/173506  ietestcenter/Javascript/15.4.4.15-3-8.html [ Skip ]
+
+# This takes too long since it's searching through an array with ~4 billion elements.
+ietestcenter/Javascript/15.4.4.15-3-29.html [ Skip ]
 
 # IDBVersionChangeEvent tests need to be rewritten to use event constructors instead of createEvent,
 # after we implement the IDBVersionChangeEvent constructor.
@@ -1786,7 +1800,7 @@ webrtc/simulcast-h264.html [ Slow ]
 
 imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getSynchronizationSources.https.html [ Slow ]
 webkit.org/b/171094 imported/w3c/web-platform-tests/webrtc/rtcpeerconnection/rtcpeerconnection-idl.html [ Failure ]
-webkit.org/b/172f21 imported/w3c/web-platform-tests/webrtc/getstats.html [ Failure ]
+webkit.org/b/172521 imported/w3c/web-platform-tests/webrtc/getstats.html [ Failure ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-setLocalDescription-offer.html [ Failure ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-setLocalDescription-answer.html [ Failure ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-iceGatheringState.html [ Pass Failure ]
@@ -3310,6 +3324,10 @@ webkit.org/b/197673 http/wpt/mediarecorder/MediaRecorder-AV-audio-video-dataavai
 # DEQP is skipped on the main fleet of bots because of the long run time.
 webgl/2.0.0/deqp [ Skip ]
 
+# webkit.org/b/211156 clearBuffer entry points are not implemented
+webgl/2.0.0/conformance2/reading/format-r11f-g11f-b10f.html [ Skip ]
+webgl/2.0.0/conformance2/rendering/clear-func-buffer-type-match.html [ Skip ]
+
 # webkit.org/b/208078 To-be-addressed WebGL 2 tests that generate inconsistent results between devices
 webgl/2.0.0/conformance2/renderbuffers/multisample-with-full-sample-counts.html [ Pass Failure ]
 webgl/2.0.0/conformance/extensions/webgl-draw-buffers.html [ Pass Failure ]
@@ -3325,6 +3343,9 @@ webgl/2.0.0/conformance2/textures/misc/tex-3d-size-limit.html [ Pass Failure ]
 
 # WebGL 2 To-be-implemented flaky tests
 webgl/2.0.0/conformance2/renderbuffers/multisampled-renderbuffer-initialization.html [ Pass Failure ]
+
+# webkit.org/b/211220 svg_image WebGL 2.0 tests currently fail due to inconsistencies between browsers
+webgl/2.0.0/conformance2/textures/svg_image [ Skip ]
 
 # To-be-addressed WebGL 2 Timeouts
 webgl/2.0.0/conformance/context/context-creation-and-destruction.html [ Skip ]
@@ -3887,8 +3908,8 @@ webkit.org/b/206168 [ Debug ] fast/dom/insert-span-into-long-text-bug-28245.html
 webkit.org/b/206676 imported/w3c/web-platform-tests/requestidlecallback/callback-xhr-sync.html [ Pass Failure ]
 
 # wpt intersection-observer failures
-webkit.org/b/208052 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-effects.sub.html [ Timeout ]
-webkit.org/b/208052 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-occlusion.sub.html [ Timeout ]
+webkit.org/b/208052 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-effects.sub.html [ Skip ]
+webkit.org/b/208052 imported/w3c/web-platform-tests/intersection-observer/v2/cross-origin-occlusion.sub.html [ Skip ]
 
 # wpt css-backgrounds failures
 webkit.org/b/206753 imported/w3c/web-platform-tests/css/css-backgrounds/background-attachment-local/attachment-local-clipping-color-4.html [ ImageOnlyFailure ]
@@ -4064,13 +4085,13 @@ webkit.org/b/207261 [ Debug ] imported/w3c/web-platform-tests/css/css-background
 
 webkit.org/b/207262 imported/w3c/web-platform-tests/web-animations/timing-model/animations/sync-start-times.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/202109 imported/w3c/web-platform-tests/web-animations/timing-model/timelines/update-and-send-events.html [ Pass Failure ]
-
 # WebXR is being implemented
 webkit.org/b/208988 imported/w3c/web-platform-tests/webxr [ Skip ]
 
 imported/w3c/web-platform-tests/css/css-grid/alignment/self-baseline/grid-self-baseline-changes-grid-area-size-010.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-grid/alignment/self-baseline/grid-self-baseline-changes-grid-area-size-011.html [ ImageOnlyFailure ]
+
+webkit.org/b/210963 imported/w3c/web-platform-tests/css/css-animations/animation-important-002.html [ ImageOnlyFailure ]
 
 webkit.org/b/209080 imported/w3c/web-platform-tests/css/css-writing-modes/central-baseline-alignment-003.xht [ ImageOnlyFailure Pass ]
 webkit.org/b/209080 imported/w3c/web-platform-tests/css/css-writing-modes/clearance-calculations-vrl-002.xht [ ImageOnlyFailure Pass ]

@@ -158,8 +158,11 @@ MediaPlayerPrivateMediaStreamAVFObjC::~MediaPlayerPrivateMediaStreamAVFObjC()
     if (m_mediaStreamPrivate) {
         m_mediaStreamPrivate->removeObserver(*this);
 
-        for (auto& track : m_mediaStreamPrivate->tracks())
-            track->removeObserver(*this);
+        for (auto& track : m_audioTrackMap.values())
+            track->streamTrack().removeObserver(*this);
+
+        for (auto& track : m_videoTrackMap.values())
+            track->streamTrack().removeObserver(*this);
     }
 
     [m_boundsChangeListener invalidate];
@@ -895,8 +898,11 @@ void MediaPlayerPrivateMediaStreamAVFObjC::updateTracks()
             break;
         case TrackState::Configure:
             track.setTrackIndex(index);
-            bool enabled = track.streamTrack().enabled() && !track.streamTrack().muted();
-            track.setEnabled(enabled);
+            track.setVolume(m_volume);
+            track.setMuted(m_muted);
+            track.setEnabled(track.streamTrack().enabled() && !track.streamTrack().muted());
+            if (playing())
+                track.play();
             break;
         }
     };

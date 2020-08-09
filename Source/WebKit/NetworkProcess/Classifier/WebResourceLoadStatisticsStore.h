@@ -198,7 +198,7 @@ struct ThirdPartyData {
     }
 };
 
-    void didDestroyNetworkSession();
+    void didDestroyNetworkSession(CompletionHandler<void()>&&);
 
     static const OptionSet<WebsiteDataType>& monitoredDataTypes();
 
@@ -212,12 +212,11 @@ struct ThirdPartyData {
 
     void grantStorageAccess(const SubFrameDomain&, const TopFrameDomain&, WebCore::FrameIdentifier, WebCore::PageIdentifier, StorageAccessPromptWasShown, CompletionHandler<void(StorageAccessWasGranted, StorageAccessPromptWasShown)>&&);
 
-    void applicationWillTerminate();
-
     void logFrameNavigation(const NavigatedToDomain&, const TopFrameDomain&, const NavigatedFromDomain&, bool isRedirect, bool isMainFrame, Seconds delayAfterMainFrameDocumentLoad, bool wasPotentiallyInitiatedByUser);
     void logUserInteraction(const TopFrameDomain&, CompletionHandler<void()>&&);
     void logCrossSiteLoadWithLinkDecoration(const NavigatedFromDomain&, const NavigatedToDomain&, CompletionHandler<void()>&&);
     void clearUserInteraction(const TopFrameDomain&, CompletionHandler<void()>&&);
+    void removeDataForDomain(const RegistrableDomain, CompletionHandler<void()>&&);
     void deleteAndRestrictWebsiteDataForRegistrableDomains(OptionSet<WebsiteDataType>, RegistrableDomainsToDeleteOrRestrictWebsiteDataFor&&, bool shouldNotifyPage, CompletionHandler<void(const HashSet<RegistrableDomain>&)>&&);
     void registrableDomainsWithWebsiteData(OptionSet<WebsiteDataType>, bool shouldNotifyPage, CompletionHandler<void(HashSet<RegistrableDomain>&&)>&&);
     StorageAccessWasGranted grantStorageAccess(const SubFrameDomain&, const TopFrameDomain&, Optional<WebCore::FrameIdentifier>, WebCore::PageIdentifier);
@@ -250,10 +249,12 @@ struct ThirdPartyData {
     void scheduleCookieBlockingUpdate(CompletionHandler<void()>&&);
     void scheduleCookieBlockingUpdateForDomains(const Vector<RegistrableDomain>&, CompletionHandler<void()>&&);
     void scheduleStatisticsAndDataRecordsProcessing(CompletionHandler<void()>&&);
+    void statisticsDatabaseHasAllTables(CompletionHandler<void(bool)>&&);
     void submitTelemetry(CompletionHandler<void()>&&);
     void scheduleClearInMemoryAndPersistent(ShouldGrandfatherStatistics, CompletionHandler<void()>&&);
     void scheduleClearInMemoryAndPersistent(WallTime modifiedSince, ShouldGrandfatherStatistics, CompletionHandler<void()>&&);
     void clearInMemoryEphemeral(CompletionHandler<void()>&&);
+    void domainIDExistsInDatabase(int domainID, CompletionHandler<void(bool)>&&);
 
     void setTimeToLiveUserInteraction(Seconds, CompletionHandler<void()>&&);
     void setMinimumTimeBetweenDataRecordsRemoval(Seconds, CompletionHandler<void()>&&);
@@ -278,6 +279,7 @@ struct ThirdPartyData {
     void setSameSiteStrictEnforcementEnabled(WebCore::SameSiteStrictEnforcementEnabled);
     void setFirstPartyWebsiteDataRemovalMode(WebCore::FirstPartyWebsiteDataRemovalMode, CompletionHandler<void()>&&);
     void setStandaloneApplicationDomain(const RegistrableDomain&, CompletionHandler<void()>&&);
+    void setAppBoundDomains(HashSet<RegistrableDomain>&&, CompletionHandler<void()>&&);
     void didCreateNetworkProcess();
 
     void notifyResourceLoadStatisticsProcessed();
@@ -291,8 +293,8 @@ struct ThirdPartyData {
     void resourceLoadStatisticsUpdated(Vector<WebCore::ResourceLoadStatistics>&&);
     void requestStorageAccessUnderOpener(DomainInNeedOfStorageAccess&&, WebCore::PageIdentifier openerID, OpenerDomain&&);
     void aggregatedThirdPartyData(CompletionHandler<void(Vector<WebResourceLoadStatisticsStore::ThirdPartyData>&&)>&&);
-    void suspend(CompletionHandler<void()>&&);
-    void resume();
+    static void suspend(CompletionHandler<void()>&&);
+    static void resume();
     
     bool isEphemeral() const { return m_isEphemeral == WebCore::ResourceLoadStatistics::IsEphemeral::Yes; };
 
@@ -315,7 +317,7 @@ private:
 
     StorageAccessStatus storageAccessStatus(const String& subFramePrimaryDomain, const String& topFramePrimaryDomain);
 
-    void flushAndDestroyPersistentStore();
+    void flushAndDestroyPersistentStore(CompletionHandler<void()>&&);
 
     WeakPtr<NetworkSession> m_networkSession;
     Ref<WTF::WorkQueue> m_statisticsQueue;
@@ -336,9 +338,9 @@ private:
         WillSuspend,
         Suspended
     };
-    State m_state { State::Running };
-    Lock m_stateLock;
-    Condition m_stateChangeCondition;
+    static State suspendedState;
+    static Lock suspendedStateLock;
+    static Condition suspendedStateChangeCondition;
 };
 
 } // namespace WebKit

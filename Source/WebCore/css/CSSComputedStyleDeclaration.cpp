@@ -1287,7 +1287,7 @@ static Ref<CSSValue> createTimingFunctionValue(const TimingFunction& timingFunct
     }
     case TimingFunction::StepsFunction: {
         auto& function = downcast<StepsTimingFunction>(timingFunction);
-        return CSSStepsTimingFunctionValue::create(function.numberOfSteps(), function.stepAtStart());
+        return CSSStepsTimingFunctionValue::create(function.numberOfSteps(), function.stepPosition());
     }
     case TimingFunction::SpringFunction: {
         auto& function = downcast<SpringTimingFunction>(timingFunction);
@@ -2227,7 +2227,7 @@ static inline const RenderStyle* computeRenderStyleForProperty(Element& element,
         if (auto timeline = element.document().existingTimeline())
             ownedStyle = timeline->animatedStyleForRenderer(*renderer);
         else
-            ownedStyle = renderer->animation().animatedStyleForRenderer(*renderer);
+            ownedStyle = renderer->legacyAnimation().animatedStyleForRenderer(*renderer);
         if (pseudoElementSpecifier != PseudoId::None && !element.isPseudoElement()) {
             // FIXME: This cached pseudo style will only exist if the animation has been run at least once.
             return ownedStyle->getCachedPseudoStyle(pseudoElementSpecifier);

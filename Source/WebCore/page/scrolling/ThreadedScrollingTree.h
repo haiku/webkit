@@ -44,8 +44,6 @@ class ThreadedScrollingTree : public ScrollingTree {
 public:
     virtual ~ThreadedScrollingTree();
 
-    void commitTreeState(std::unique_ptr<ScrollingStateTree>) override;
-
     ScrollingEventResult handleWheelEvent(const PlatformWheelEvent&) override;
 
     // Can be called from any thread. Will try to handle the wheel event on the scrolling thread.
@@ -55,15 +53,12 @@ public:
 
     void invalidate() override;
 
-    void incrementPendingCommitCount();
-    void decrementPendingCommitCount();
-
 protected:
     explicit ThreadedScrollingTree(AsyncScrollingCoordinator&);
 
     void scrollingTreeNodeDidScroll(ScrollingTreeScrollingNode&, ScrollingLayerPositionAction = ScrollingLayerPositionAction::Sync) override;
 #if PLATFORM(MAC)
-    void handleWheelEventPhase(PlatformWheelEventPhase) override;
+    void handleWheelEventPhase(ScrollingNodeID, PlatformWheelEventPhase) override;
     void setActiveScrollSnapIndices(ScrollingNodeID, unsigned horizontalIndex, unsigned verticalIndex) override;
     void scrollingTreeNodeRequestsScroll(ScrollingNodeID, const FloatPoint& /*scrollPosition*/, ScrollType, ScrollClamping) override;
 #endif
@@ -77,17 +72,9 @@ protected:
 
 private:
     bool isThreadedScrollingTree() const override { return true; }
-    void applyLayerPositions() override;
-    void waitForScrollingTreeCommit() override;
     void propagateSynchronousScrollingReasons(const HashSet<ScrollingNodeID>&) override;
 
     RefPtr<AsyncScrollingCoordinator> m_scrollingCoordinator;
-
-    void waitForPendingCommits();
-
-    Lock m_pendingCommitCountMutex;
-    unsigned m_pendingCommitCount { 0 };
-    Condition m_commitCondition;
 };
 
 } // namespace WebCore

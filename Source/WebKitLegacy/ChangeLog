@@ -1,3 +1,32 @@
+2020-05-01  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win] Fix AppleWin build
+        https://bugs.webkit.org/show_bug.cgi?id=211324
+
+        Reviewed by Don Olmstead.
+
+        Remove unknown object target and fix link errors.
+
+        * PlatformWin.cmake:
+
+2020-04-25  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Deal with another round of Xcode upgrade checks
+        https://bugs.webkit.org/show_bug.cgi?id=211027
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebKitLegacy.xcodeproj/project.pbxproj: Bump the upgrade check version.
+
+2020-04-20  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Classes marked final should not use protected access specifier
+        https://bugs.webkit.org/show_bug.cgi?id=210775
+
+        Reviewed by Daniel Bates.
+
+        * WebCoreSupport/WebResourceLoadScheduler.h:
+
 2020-04-20  Darin Adler  <darin@apple.com>
 
         Use #import instead of #include in Objective-C and don't use #pragma once

@@ -149,7 +149,6 @@
 #endif
 
 #if ENABLE(MEDIA_STREAM)
-#include "DOMURL.h"
 #include "MediaStream.h"
 #endif
 
@@ -940,8 +939,7 @@ void HTMLMediaElement::scheduleNextSourceChild()
 
 void HTMLMediaElement::mediaPlayerActiveSourceBuffersChanged()
 {
-    m_hasEverHadAudio |= hasAudio();
-    m_hasEverHadVideo |= hasVideo();
+    checkForAudioAndVideo();
 }
 
 void HTMLMediaElement::scheduleEvent(const AtomString& eventName)
@@ -1853,6 +1851,7 @@ void HTMLMediaElement::audioTrackEnabledChanged(AudioTrack& track)
         m_audioTracks->scheduleChangeEvent();
     if (processingUserGestureForMedia())
         removeBehaviorRestrictionsAfterFirstUserGesture(MediaElementSession::AllRestrictions & ~MediaElementSession::RequireUserGestureToControlControlsManager);
+    checkForAudioAndVideo();
 }
 
 void HTMLMediaElement::textTrackModeChanged(TextTrack& track)
@@ -1894,6 +1893,7 @@ void HTMLMediaElement::videoTrackSelectedChanged(VideoTrack& track)
 {
     if (m_videoTracks && m_videoTracks->contains(track))
         m_videoTracks->scheduleChangeEvent();
+    checkForAudioAndVideo();
 }
 
 void HTMLMediaElement::textTrackKindChanged(TextTrack& track)
@@ -4363,14 +4363,13 @@ void HTMLMediaElement::updateCaptionContainer()
         if (!methodObject)
             return false;
 
-        JSC::CallData callData;
-        auto callType = methodObject->methodTable(vm)->getCallData(methodObject, callData);
-        if (callType == JSC::CallType::None)
+        auto callData = JSC::getCallData(vm, methodObject);
+        if (callData.type == JSC::CallData::Type::None)
             return false;
 
         JSC::MarkedArgumentBuffer noArguments;
         ASSERT(!noArguments.hasOverflowed());
-        JSC::call(&lexicalGlobalObject, methodObject, callType, callData, controllerObject, noArguments);
+        JSC::call(&lexicalGlobalObject, methodObject, callData, controllerObject, noArguments);
         scope.clearException();
 
         m_haveSetUpCaptionContainer = true;
@@ -4591,7 +4590,7 @@ URL HTMLMediaElement::selectNextSourceChild(ContentType* contentType, String* ke
 
         type = source->attributeWithoutSynchronization(typeAttr);
         if (type.isEmpty() && mediaURL.protocolIsData())
-            type = mimeTypeFromDataURL(mediaURL);
+            type = mimeTypeFromDataURL(mediaURL.string());
         if (!type.isEmpty()) {
             if (shouldLog)
                 INFO_LOG(LOGIDENTIFIER, "'type' is ", type);
@@ -5106,11 +5105,7 @@ void HTMLMediaElement::mediaPlayerCharacteristicChanged()
     document().updateIsPlayingMedia();
 #endif
 
-    m_hasEverHadAudio |= hasAudio();
-    m_hasEverHadVideo |= hasVideo();
-
-    m_mediaSession->canProduceAudioChanged();
-
+    checkForAudioAndVideo();
     updateSleepDisabling();
 
     endProcessingMediaPlayerCallback();
@@ -5380,8 +5375,14 @@ void HTMLMediaElement::updatePlayState()
     updateMediaController();
     updateRenderer();
 
+    checkForAudioAndVideo();
+}
+
+void HTMLMediaElement::checkForAudioAndVideo()
+{
     m_hasEverHadAudio |= hasAudio();
     m_hasEverHadVideo |= hasVideo();
+    m_mediaSession->canProduceAudioChanged();
 }
 
 void HTMLMediaElement::setPlaying(bool playing)
@@ -5798,7 +5799,8 @@ void HTMLMediaElement::setIsPlayingToWirelessTarget(bool isPlayingToWirelessTarg
         m_failedToPlayToWirelessTarget = false;
         scheduleCheckPlaybackTargetCompatability();
 
-        dispatchEvent(Event::create(eventNames().webkitcurrentplaybacktargetiswirelesschangedEvent, Event::CanBubble::No, Event::IsCancelable::Yes));
+        if (!isContextStopped())
+            dispatchEvent(Event::create(eventNames().webkitcurrentplaybacktargetiswirelesschangedEvent, Event::CanBubble::No, Event::IsCancelable::Yes));
     });
 }
 
@@ -6057,14 +6059,10 @@ void HTMLMediaElement::exitFullscreen()
         }
     }
 
-#if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
     if (document().activeDOMObjectsAreSuspended() || document().activeDOMObjectsAreStopped()) {
         fullscreenModeChanged(VideoFullscreenModeNone);
         document().page()->chrome().client().exitVideoFullscreenToModeWithoutAnimation(downcast<HTMLVideoElement>(*this), VideoFullscreenModeNone);
-    }
-    else
-#endif
-    if (document().page()->chrome().client().supportsVideoFullscreen(oldVideoFullscreenMode)) {
+    } else if (document().page()->chrome().client().supportsVideoFullscreen(oldVideoFullscreenMode)) {
         if (m_videoFullscreenStandby) {
             fullscreenModeChanged(VideoFullscreenModeNone);
             document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), m_videoFullscreenMode, m_videoFullscreenStandby);
@@ -7110,7 +7108,7 @@ void HTMLMediaElement::updateRateChangeRestrictions()
 RefPtr<VideoPlaybackQuality> HTMLMediaElement::getVideoPlaybackQuality()
 {
     RefPtr<DOMWindow> domWindow = document().domWindow();
-    double timestamp = domWindow ? 1000 * domWindow->nowTimestamp() : 0;
+    double timestamp = domWindow ? domWindow->nowTimestamp().milliseconds() : 0;
 
     auto metrics = m_player ? m_player->videoPlaybackQualityMetrics() : WTF::nullopt;
     if (!metrics)
@@ -7148,7 +7146,7 @@ bool HTMLMediaElement::ensureMediaControlsInjectedScript()
         auto scope = DECLARE_CATCH_SCOPE(vm);
 
         auto functionValue = globalObject.get(&lexicalGlobalObject, JSC::Identifier::fromString(vm, "createControls"));
-        if (functionValue.isFunction(vm))
+        if (functionValue.isCallable(vm))
             return true;
 
 #ifndef NDEBUG
@@ -7243,12 +7241,11 @@ void HTMLMediaElement::didAddUserAgentShadowRoot(ShadowRoot& root)
 
         auto* function = functionValue.toObject(&lexicalGlobalObject);
         scope.assertNoException();
-        JSC::CallData callData;
-        auto callType = function->methodTable(vm)->getCallData(function, callData);
-        if (callType == JSC::CallType::None)
+        auto callData = JSC::getCallData(vm, function);
+        if (callData.type == JSC::CallData::Type::None)
             return false;
 
-        auto controllerValue = JSC::call(&lexicalGlobalObject, function, callType, callData, &globalObject, argList);
+        auto controllerValue = JSC::call(&lexicalGlobalObject, function, callData, &globalObject, argList);
         scope.clearException();
         auto* controllerObject = JSC::jsDynamicCast<JSC::JSObject*>(vm, controllerValue);
         if (!controllerObject)
@@ -7321,14 +7318,13 @@ void HTMLMediaElement::updateMediaControlsAfterPresentationModeChange()
 
         auto* function = functionValue.toObject(&lexicalGlobalObject);
         scope.assertNoException();
-        JSC::CallData callData;
-        auto callType = function->methodTable(vm)->getCallData(function, callData);
-        if (callType == JSC::CallType::None)
+        auto callData = JSC::getCallData(vm, function);
+        if (callData.type == JSC::CallData::Type::None)
             return false;
 
         JSC::MarkedArgumentBuffer argList;
         ASSERT(!argList.hasOverflowed());
-        JSC::call(&lexicalGlobalObject, function, callType, callData, controllerObject, argList);
+        JSC::call(&lexicalGlobalObject, function, callData, controllerObject, argList);
 
         return true;
     });
@@ -7365,14 +7361,13 @@ String HTMLMediaElement::getCurrentMediaControlsStatus()
 
         auto* function = functionValue.toObject(&lexicalGlobalObject);
         scope.assertNoException();
-        JSC::CallData callData;
-        auto callType = function->methodTable(vm)->getCallData(function, callData);
+        auto callData = JSC::getCallData(vm, function);
         JSC::MarkedArgumentBuffer argList;
         ASSERT(!argList.hasOverflowed());
-        if (callType == JSC::CallType::None)
+        if (callData.type == JSC::CallData::Type::None)
             return false;
 
-        auto outputValue = JSC::call(&lexicalGlobalObject, function, callType, callData, controllerObject, argList);
+        auto outputValue = JSC::call(&lexicalGlobalObject, function, callData, controllerObject, argList);
 
         RETURN_IF_EXCEPTION(scope, false);
 
@@ -7394,9 +7389,10 @@ unsigned long long HTMLMediaElement::fileSize() const
 PlatformMediaSession::MediaType HTMLMediaElement::mediaType() const
 {
     if (m_player && m_readyState >= HAVE_METADATA) {
-        if (hasVideo() && hasAudio() && !muted())
+        auto hasVideo = this->hasVideo();
+        if (hasVideo && hasAudio() && !muted())
             return PlatformMediaSession::MediaType::VideoAudio;
-        return hasVideo() ? PlatformMediaSession::MediaType::Video : PlatformMediaSession::MediaType::Audio;
+        return hasVideo ? PlatformMediaSession::MediaType::Video : PlatformMediaSession::MediaType::Audio;
     }
 
     return presentationType();

@@ -44,6 +44,7 @@
 #include "CodeBlockWithJITType.h"
 #include "DFGAbstractInterpreterInlines.h"
 #include "DFGCapabilities.h"
+#include "DFGClobberize.h"
 #include "DFGDoesGC.h"
 #include "DFGDominators.h"
 #include "DFGInPlaceAbstractState.h"
@@ -268,6 +269,8 @@ public:
         m_vmValue = m_out.constIntPtr(vm);
         m_numberTag = m_out.constInt64(JSValue::NumberTag);
         m_notCellMask = m_out.constInt64(JSValue::NotCellMask);
+        if (Options::validateDFGClobberize())
+            m_out.store32As8(m_out.int32Zero, m_out.absolute(reinterpret_cast<char*>(vm) + OBJECT_OFFSETOF(VM, didEnterVM)));
 
         // Make sure that B3 knows that we really care about the mask registers. This forces the
         // constants to be materialized in registers.
@@ -353,6 +356,7 @@ public:
             }
 
             m_node = nullptr;
+            m_nodeIndexInGraph = 0;
             m_origin = NodeOrigin(CodeOrigin(BytecodeIndex(0)), CodeOrigin(BytecodeIndex(0)), true);
 
             // Check Arguments.
@@ -511,8 +515,27 @@ private:
         m_state.reset();
         m_state.beginBasicBlock(m_highBlock);
         
-        for (m_nodeIndex = 0; m_nodeIndex < m_highBlock->size(); ++m_nodeIndex) {
-            if (!compileNode(m_nodeIndex))
+        if (Options::validateDFGClobberize()) {
+            bool clobberedWorld = m_highBlock->predecessors.isEmpty() || m_highBlock->isOSRTarget || m_highBlock->isCatchEntrypoint;
+            auto validateClobberize = [&] () {
+                clobberedWorld = true;
+            };
+
+            for (auto* predecessor : m_highBlock->predecessors)
+                clobberize(m_graph, predecessor->terminal(), [] (auto...) { }, [] (auto...) { }, [] (auto...) { }, validateClobberize);
+
+            if (!clobberedWorld) {
+                LValue didNotEnterVM = m_out.notZero32(m_out.load8ZeroExt32(m_out.absolute(&vm().didEnterVM)));
+                auto* check = m_out.speculate(didNotEnterVM);
+                check->setGenerator([=] (CCallHelpers& jit, const StackmapGenerationParams&) {
+                    jit.breakpoint();
+                });
+            } else
+                m_out.store(m_out.int32Zero, m_out.absolute(&vm().didEnterVM));
+        }
+
+        for (unsigned nodeIndex = 0; nodeIndex < m_highBlock->size(); ++nodeIndex) {
+            if (!compileNode(nodeIndex))
                 break;
         }
     }
@@ -675,6 +698,7 @@ private:
         }
         
         m_node = m_highBlock->at(nodeIndex);
+        m_nodeIndexInGraph = m_node->index();
         m_origin = m_node->origin;
         m_out.setOrigin(m_node);
         
@@ -1131,6 +1155,9 @@ private:
             break;
         case ToNumeric:
             compileToNumeric();
+            break;
+        case CallNumberConstructor:
+            compileCallNumberConstructor();
             break;
         case ToString:
         case CallStringConstructor:
@@ -1618,7 +1645,24 @@ private:
             DFG_CRASH(m_graph, m_node, "Unrecognized node in FTL backend");
             break;
         }
-        
+
+        if (Options::validateDFGClobberize() && !m_node->isTerminal()) {
+            bool clobberedWorld = false;
+            auto validateClobberize = [&] () {
+                clobberedWorld = true;
+            };
+
+            clobberize(m_graph, m_node, [] (auto...) { }, [] (auto...) { }, [] (auto...) { }, validateClobberize);
+            if (!clobberedWorld) {
+                LValue didNotEnterVM = m_out.notZero32(m_out.load8ZeroExt32(m_out.absolute(&vm().didEnterVM)));
+                auto* check = m_out.speculate(didNotEnterVM);
+                check->setGenerator([=] (CCallHelpers& jit, const StackmapGenerationParams&) {
+                    jit.breakpoint();
+                });
+            } else
+                m_out.store(m_out.int32Zero, m_out.absolute(&vm().didEnterVM));
+        }
+
         if (m_node->isTerminal())
             return false;
         
@@ -1749,9 +1793,9 @@ private:
             return;
         }
             
-        case NotCellUse:
+        case NotCellNorBigIntUse:
         case NumberUse: {
-            bool shouldConvertNonNumber = m_node->child1().useKind() == NotCellUse;
+            bool shouldConvertNonNumber = m_node->child1().useKind() == NotCellNorBigIntUse;
             
             LValue value = lowJSValue(m_node->child1(), ManualOperandSpeculation);
 
@@ -1814,7 +1858,7 @@ private:
                 m_out.appendTo(convertBooleanFalseCase, continuation);
 
                 LValue valueIsNotBooleanFalse = m_out.notEqual(value, m_out.constInt64(JSValue::ValueFalse));
-                FTL_TYPE_CHECK(jsValueValue(value), m_node->child1(), ~SpecCellCheck, valueIsNotBooleanFalse);
+                FTL_TYPE_CHECK(jsValueValue(value), m_node->child1(), ~SpecCellCheck & ~SpecBigInt, valueIsNotBooleanFalse);
                 ValueFromBlock convertedFalse = m_out.anchor(m_out.constDouble(0));
                 m_out.jump(continuation);
 
@@ -1909,7 +1953,7 @@ private:
             break;
             
         case NumberUse:
-        case NotCellUse: {
+        case NotCellNorBigIntUse: {
             LoweredNodeValue value = m_int32Values.get(m_node->child1().node());
             if (isValid(value)) {
                 setInt32(value.value());
@@ -1918,14 +1962,14 @@ private:
             
             value = m_jsValueValues.get(m_node->child1().node());
             if (isValid(value)) {
-                setInt32(numberOrNotCellToInt32(m_node->child1(), value.value()));
+                setInt32(numberOrNotCellNorBigIntToInt32(m_node->child1(), value.value()));
                 break;
             }
             
             // We'll basically just get here for constants. But it's good to have this
             // catch-all since we often add new representations into the mix.
             setInt32(
-                numberOrNotCellToInt32(
+                numberOrNotCellNorBigIntToInt32(
                     m_node->child1(),
                     lowJSValue(m_node->child1(), ManualOperandSpeculation)));
             break;
@@ -2143,6 +2187,10 @@ private:
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
 #if USE(BIGINT32)
+        // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+        // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+        // https://bugs.webkit.org/show_bug.cgi?id=210957
+        // https://bugs.webkit.org/show_bug.cgi?id=211040
         if (m_node->isBinaryUseKind(BigInt32Use)) {
             LValue left = lowBigInt32(m_node->child1());
             LValue right = lowBigInt32(m_node->child2());
@@ -2151,7 +2199,7 @@ private:
             LValue unboxedRight = unboxBigInt32(right);
 
             CheckValue* result = m_out.speculateAdd(unboxedLeft, unboxedRight);
-            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+            blessSpeculation(result, BigInt32Overflow, noValue(), nullptr, m_origin);
 
             LValue boxedResult = boxBigInt32(result);
             setJSValue(boxedResult);
@@ -2181,6 +2229,10 @@ private:
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
 #if USE(BIGINT32)
+        // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+        // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+        // https://bugs.webkit.org/show_bug.cgi?id=210957
+        // https://bugs.webkit.org/show_bug.cgi?id=211040
         if (m_node->isBinaryUseKind(BigInt32Use)) {
             LValue left = lowBigInt32(m_node->child1());
             LValue right = lowBigInt32(m_node->child2());
@@ -2189,7 +2241,7 @@ private:
             LValue unboxedRight = unboxBigInt32(right);
 
             CheckValue* result = m_out.speculateSub(unboxedLeft, unboxedRight);
-            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+            blessSpeculation(result, BigInt32Overflow, noValue(), nullptr, m_origin);
 
             LValue boxedResult = boxBigInt32(result);
             setJSValue(boxedResult);
@@ -2219,6 +2271,10 @@ private:
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
 
 #if USE(BIGINT32)
+        // FIXME: Introduce another BigInt32 code generation: binary use kinds are BigIntUse32, but result is SpecAnyInt and accepting overflow.
+        // Let's distinguish these modes based on result type information by introducing NodeResultBigInt32.
+        // https://bugs.webkit.org/show_bug.cgi?id=210957
+        // https://bugs.webkit.org/show_bug.cgi?id=211040
         if (m_node->isBinaryUseKind(BigInt32Use)) {
             LValue left = lowBigInt32(m_node->child1());
             LValue right = lowBigInt32(m_node->child2());
@@ -2227,7 +2283,7 @@ private:
             LValue unboxedRight = unboxBigInt32(right);
 
             CheckValue* result = m_out.speculateMul(unboxedLeft, unboxedRight);
-            blessSpeculation(result, Overflow, noValue(), nullptr, m_origin);
+            blessSpeculation(result, BigInt32Overflow, noValue(), nullptr, m_origin);
 
             LValue boxedResult = boxBigInt32(result);
             setJSValue(boxedResult);
@@ -2627,6 +2683,7 @@ private:
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
         // FIXME: add a fast path for BigInt32 here
+        // https://bugs.webkit.org/show_bug.cgi?id=211041
         if (m_node->isBinaryUseKind(HeapBigIntUse)) {
             LValue left = lowHeapBigInt(m_node->child1());
             LValue right = lowHeapBigInt(m_node->child2());
@@ -3301,7 +3358,9 @@ private:
             return;
         }
 
-        LValue operand = lowJSValue(m_node->child1());
+        DFG_ASSERT(m_graph, m_node, m_node->child1().useKind() == UntypedUse || m_node->child1().useKind() == AnyBigIntUse);
+        LValue operand = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+        speculate(m_node, m_node->child1());
         LValue result = vmCall(Int64, operationValueBitNot, weakPointer(globalObject), operand);
         setJSValue(result);
     }
@@ -3416,6 +3475,7 @@ private:
             // FIXME: do something smarter here
             // Things are a bit tricky because a right-shift by a negative number is a left-shift for BigInts.
             // So even a right shift can overflow.
+            // https://bugs.webkit.org/show_bug.cgi?id=210847
 
             LValue left = lowJSValue(m_node->child1(), ManualOperandSpeculation);
             LValue right = lowJSValue(m_node->child2(), ManualOperandSpeculation);
@@ -3467,7 +3527,7 @@ private:
             return;
         }
 
-        ASSERT(m_node->isBinaryUseKind(UntypedUse));
+        DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse) || m_node->isBinaryUseKind(AnyBigIntUse) || m_node->isBinaryUseKind(BigInt32Use));
         emitBinaryBitOpSnippet<JITLeftShiftGenerator>(operationValueBitLShift);
     }
 
@@ -3584,11 +3644,20 @@ private:
     
     void compileCheckIsConstant()
     {
-        LValue cell = lowCell(m_node->child1());
+        if (m_node->child1().useKind() == CellUse) {
+            LValue cell = lowCell(m_node->child1());
         
-        speculate(
-            BadCell, jsValueValue(cell), m_node->child1().node(),
-            m_out.notEqual(cell, weakPointer(m_node->cellOperand()->cell())));
+            speculate(
+                BadCell, jsValueValue(cell), m_node->child1().node(),
+                m_out.notEqual(cell, weakPointer(m_node->cellOperand()->cell())));
+        } else {
+            LValue value = lowJSValue(m_node->child1());
+
+            ASSERT(!m_node->constant()->value().isCell() || !m_node->constant()->value());
+            speculate(
+                BadType, jsValueValue(value), m_node->child1().node(),
+                m_out.notEqual(value, m_out.constInt64(JSValue::encode(m_node->constant()->value()))));
+        }
     }
     
     void compileCheckBadCell()
@@ -7563,6 +7632,35 @@ private:
         } else
             setJSValue(vmCall(Int64, operationToNumeric, weakPointer(globalObject), value));
     }
+
+    void compileCallNumberConstructor()
+    {
+        JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
+#if USE(BIGINT32)
+        if (m_node->child1().useKind() == BigInt32Use) {
+            LValue value = lowBigInt32(m_node->child1());
+            setInt32(unboxBigInt32(value));
+            return;
+        }
+#endif
+        LValue value = lowJSValue(m_node->child1());
+
+        LBasicBlock notNumber = m_out.newBlock();
+        LBasicBlock continuation = m_out.newBlock();
+
+        ValueFromBlock fastResult = m_out.anchor(value);
+        m_out.branch(isNumber(value, provenType(m_node->child1())), unsure(continuation), unsure(notNumber));
+
+        // notNumber case.
+        LBasicBlock lastNext = m_out.appendTo(notNumber, continuation);
+        ValueFromBlock slowResult = m_out.anchor(vmCall(Int64, operationCallNumberConstructor, weakPointer(globalObject), value));
+        m_out.jump(continuation);
+
+        // continuation case.
+        m_out.appendTo(continuation, lastNext);
+        setJSValue(m_out.phi(Int64, fastResult, slowResult));
+    }
+
     
     void compileToStringOrCallStringConstructorOrStringValueOf()
     {
@@ -8649,7 +8747,7 @@ private:
         }
 
         DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse), m_node->child1().useKind(), m_node->child2().useKind());
-        nonSpeculativeCompare(
+        genericJSValueCompare(
             [&] (LValue left, LValue right) {
                 return m_out.equal(left, right);
             },
@@ -8711,7 +8809,7 @@ private:
             auto checkIsHeapBigInt = [&](LValue lowValue, Edge highValue) {
                 if (m_interpreter.needsTypeCheck(highValue, SpecHeapBigInt)) {
                     ASSERT(mayHaveTypeCheck(highValue.useKind()));
-                    LValue checkFailed = isNotHeapBigIntUnknownWhetherCell(lowValue, ~SpecBigInt32);
+                    LValue checkFailed = isNotHeapBigIntUnknownWhetherCell(lowValue, provenType(highValue) & ~SpecBigInt32);
                     appendOSRExit(BadType, jsValueValue(lowValue), highValue.node(), checkFailed, m_origin);
                 }
             };
@@ -8937,7 +9035,7 @@ private:
 
         // FIXME: we can do something much smarter here, see the DFGSpeculativeJIT approach in e.g. SpeculativeJIT::nonSpeculativePeepholeStrictEq
         DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse), m_node->child1().useKind(), m_node->child2().useKind());
-        nonSpeculativeCompare(
+        genericJSValueCompare(
             [&] (LValue left, LValue right) {
                 return m_out.equal(left, right);
             },
@@ -10789,6 +10887,7 @@ private:
         
         State* state = &m_ftlState;
 
+        auto nodeIndex = m_nodeIndexInGraph;
         patchpoint->setGenerator(
             [=] (CCallHelpers& jit, const B3::StackmapGenerationParams& params) {
                 // The MacroAssembler knows more about this than B3 does. The watchpointLabel() method
@@ -10797,7 +10896,7 @@ private:
                 CCallHelpers::Label label = jit.watchpointLabel();
 
                 RefPtr<OSRExitHandle> handle = descriptor->emitOSRExitLater(
-                    *state, UncountableInvalidation, origin, params);
+                    *state, UncountableInvalidation, origin, params, nodeIndex, 0);
 
                 RefPtr<JITCode> jitCode = state->jitCode.get();
 
@@ -13105,13 +13204,13 @@ private:
         m_out.appendTo(continuation, lastNext);
     }
     
-    LValue numberOrNotCellToInt32(Edge edge, LValue value)
+    LValue numberOrNotCellNorBigIntToInt32(Edge edge, LValue value)
     {
         LBasicBlock intCase = m_out.newBlock();
         LBasicBlock notIntCase = m_out.newBlock();
         LBasicBlock doubleCase = 0;
         LBasicBlock notNumberCase = 0;
-        if (edge.useKind() == NotCellUse) {
+        if (edge.useKind() == NotCellNorBigIntUse) {
             doubleCase = m_out.newBlock();
             notNumberCase = m_out.newBlock();
         }
@@ -13142,6 +13241,9 @@ private:
             m_out.appendTo(notNumberCase, continuation);
             
             FTL_TYPE_CHECK(jsValueValue(value), edge, ~SpecCellCheck, isCell(value));
+#if USE(BIGINT32)
+            FTL_TYPE_CHECK(jsValueValue(value), edge, ~SpecCellCheck & ~SpecBigInt, isBigInt32(value));
+#endif
             
             LValue specialResult = m_out.select(
                 m_out.equal(value, m_out.constInt64(JSValue::encode(jsBoolean(true)))),
@@ -13544,6 +13646,15 @@ private:
             return;
         }
 
+#if USE(BIGINT32)
+        if (m_node->isBinaryUseKind(BigInt32Use)) {
+            LValue left = lowBigInt32(m_node->child1());
+            LValue right = lowBigInt32(m_node->child2());
+            setBoolean(intFunctor(unboxBigInt32(left), unboxBigInt32(right)));
+            return;
+        }
+#endif
+
         if (m_node->isBinaryUseKind(StringIdentUse)) {
             LValue left = lowStringIdent(m_node->child1());
             LValue right = lowStringIdent(m_node->child2());
@@ -13564,8 +13675,8 @@ private:
             return;
         }
 
-        DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse), m_node->child1().useKind(), m_node->child2().useKind());
-        nonSpeculativeCompare(intFunctor, fallbackFunction);
+        DFG_ASSERT(m_graph, m_node, m_node->isBinaryUseKind(UntypedUse) || m_node->isBinaryUseKind(HeapBigIntUse) || m_node->isBinaryUseKind(AnyBigIntUse), m_node->child1().useKind(), m_node->child2().useKind());
+        genericJSValueCompare(intFunctor, fallbackFunction);
     }
 
     void compileStringSlice()
@@ -13848,6 +13959,7 @@ private:
         Node* node = m_node;
         JSValue child1Constant = m_state.forNode(m_node->child1()).value();
 
+        auto nodeIndex = m_nodeIndexInGraph;
         patchpoint->setGenerator(
             [=] (CCallHelpers& jit, const StackmapGenerationParams& params) {
                 AllowMacroScratchRegisterUsage allowScratch(jit);
@@ -13864,7 +13976,7 @@ private:
                 for (unsigned i = 0; i < domJIT->numFPScratchRegisters; ++i)
                     fpScratch.append(params.fpScratch(i));
 
-                RefPtr<OSRExitHandle> handle = exitDescriptor->emitOSRExitLater(*state, BadType, origin, params, osrExitArgumentOffset);
+                RefPtr<OSRExitHandle> handle = exitDescriptor->emitOSRExitLater(*state, BadType, origin, params, nodeIndex, osrExitArgumentOffset);
 
                 SnippetParams domJITParams(*state, params, node, nullptr, WTFMove(regs), WTFMove(gpScratch), WTFMove(fpScratch));
                 CCallHelpers::JumpList failureCases = domJIT->generator()->run(jit, domJITParams);
@@ -14120,9 +14232,9 @@ private:
                     return patchpoint;
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     setInt32(emitBigEndianLoad());
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     setInt32(emitLittleEndianLoad());
                 else
                     setInt32(emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianLoad, emitBigEndianLoad));
@@ -14132,9 +14244,9 @@ private:
             case 4: {
                 LValue loadedValue = m_out.load32(pointer);
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     loadedValue = byteSwap32(loadedValue);
-                else if (data.isLittleEndian == MixedTriState) {
+                else if (data.isLittleEndian == TriState::Indeterminate) {
                     auto emitLittleEndianCode = [&] {
                         return loadedValue;
                     };
@@ -14177,9 +14289,9 @@ private:
                     return patchpoint;
                 };
 
-                if (data.isLittleEndian == TrueTriState)
+                if (data.isLittleEndian == TriState::True)
                     setDouble(emitLittleEndianCode());
-                else if (data.isLittleEndian == FalseTriState)
+                else if (data.isLittleEndian == TriState::False)
                     setDouble(emitBigEndianCode());
                 else
                     setDouble(emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode));
@@ -14197,9 +14309,9 @@ private:
                     return m_out.bitCast(loadedValue, Double);
                 };
 
-                if (data.isLittleEndian == TrueTriState)
+                if (data.isLittleEndian == TriState::True)
                     setDouble(emitLittleEndianCode());
-                else if (data.isLittleEndian == FalseTriState)
+                else if (data.isLittleEndian == TriState::False)
                     setDouble(emitBigEndianCode());
                 else
                     setDouble(emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode));
@@ -14268,9 +14380,9 @@ private:
                     return nullptr;
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else
                     emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode);
@@ -14286,9 +14398,9 @@ private:
                     return nullptr;
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else
                     emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode);
@@ -14319,9 +14431,9 @@ private:
                     return nullptr;
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else
                     emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode);
@@ -14342,9 +14454,9 @@ private:
                     return nullptr;
                 };
 
-                if (data.isLittleEndian == FalseTriState)
+                if (data.isLittleEndian == TriState::False)
                     emitBigEndianCode();
-                else if (data.isLittleEndian == TrueTriState)
+                else if (data.isLittleEndian == TriState::True)
                     emitLittleEndianCode();
                 else
                     emitCodeBasedOnEndiannessBranch(isLittleEndian, emitLittleEndianCode, emitBigEndianCode);
@@ -14535,11 +14647,13 @@ private:
     }
 
     template<typename IntFunctor>
-    void nonSpeculativeCompare(const IntFunctor& intFunctor, S_JITOperation_GJJ helperFunction)
+    void genericJSValueCompare(const IntFunctor& intFunctor, S_JITOperation_GJJ helperFunction)
     {
         JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
-        LValue left = lowJSValue(m_node->child1());
-        LValue right = lowJSValue(m_node->child2());
+        LValue left = lowJSValue(m_node->child1(), ManualOperandSpeculation);
+        LValue right = lowJSValue(m_node->child2(), ManualOperandSpeculation);
+        speculate(m_node->child1());
+        speculate(m_node->child2());
         
         LBasicBlock leftIsInt = m_out.newBlock();
         LBasicBlock fastPath = m_out.newBlock();
@@ -14737,7 +14851,7 @@ private:
     {
         Node* node = m_node;
         
-        ASSERT(node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse));
+        DFG_ASSERT(m_graph, node, node->isBinaryUseKind(UntypedUse) || node->isBinaryUseKind(AnyBigIntUse) || node->isBinaryUseKind(BigInt32Use));
         LValue left = lowJSValue(node->child1(), ManualOperandSpeculation);
         LValue right = lowJSValue(node->child2(), ManualOperandSpeculation);
         speculate(node, node->child1());
@@ -17103,17 +17217,13 @@ private:
     {
         if (LValue proven = isProvenValue(type, SpecBigInt32))
             return proven;
-        return m_out.equal(
-            m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)),
-            m_out.constInt64(JSValue::BigInt32Tag));
+        return m_out.equal(m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)), m_out.constInt64(JSValue::BigInt32Tag));
     }
     LValue isNotBigInt32(LValue jsValue, SpeculatedType type = SpecFullTop)
     {
         if (LValue proven = isProvenValue(type, ~SpecBigInt32))
             return proven;
-        return m_out.notEqual(
-            m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)),
-            m_out.constInt64(JSValue::BigInt32Tag));
+        return m_out.notEqual(m_out.bitAnd(jsValue, m_out.constInt64(JSValue::BigInt32Mask)), m_out.constInt64(JSValue::BigInt32Tag));
     }
     LValue unboxBigInt32(LValue jsValue)
     {
@@ -17495,6 +17605,9 @@ private:
         case NotCellUse:
             speculateNotCell(edge);
             break;
+        case NotCellNorBigIntUse:
+            speculateNotCellNorBigInt(edge);
+            break;
         case OtherUse:
             speculateOther(edge);
             break;
@@ -17526,6 +17639,18 @@ private:
         if (!m_interpreter.needsTypeCheck(edge))
             return;
         lowNotCell(edge);
+    }
+
+    void speculateNotCellNorBigInt(Edge edge)
+    {
+#if USE(BIGINT32)
+        if (!m_interpreter.needsTypeCheck(edge))
+            return;
+        LValue nonCell = lowNotCell(edge);
+        FTL_TYPE_CHECK(jsValueValue(nonCell), edge, ~SpecCellCheck & ~SpecBigInt, isBigInt32(nonCell));
+#else
+        speculateNotCell(edge);
+#endif
     }
     
     void speculateCellOrOther(Edge edge)
@@ -17678,15 +17803,15 @@ private:
         LBasicBlock isCellCase = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
 
-        ValueFromBlock defaultToFalse = m_out.anchor(m_out.booleanFalse);
+        ValueFromBlock defaultToTrue = m_out.anchor(m_out.booleanTrue);
         m_out.branch(isCell(value, type), unsure(isCellCase), unsure(continuation));
 
         LBasicBlock lastNext = m_out.appendTo(isCellCase, continuation);
-        ValueFromBlock returnForCell = m_out.anchor(isHeapBigInt(value, type));
+        ValueFromBlock returnForCell = m_out.anchor(isNotHeapBigInt(value, type));
         m_out.jump(continuation);
 
         m_out.appendTo(continuation, lastNext);
-        LValue result = m_out.phi(Int32, defaultToFalse, returnForCell);
+        LValue result = m_out.phi(Int32, defaultToTrue, returnForCell);
         return result;
     }
 
@@ -18556,7 +18681,7 @@ private:
         HandlerInfo* exceptionHandler;
         bool willCatchException = m_graph.willCatchExceptionInMachineFrame(m_origin.forExit, opCatchOrigin, exceptionHandler);
         if (!willCatchException)
-            return PatchpointExceptionHandle::defaultHandle(m_ftlState);
+            return PatchpointExceptionHandle::defaultHandle(m_ftlState, m_nodeIndexInGraph);
 
         dataLogLnIf(verboseCompilationEnabled(), "    Patchpoint exception OSR exit #", m_ftlState.jitCode->osrExitDescriptors.size(), " with availability: ", availabilityMap());
 
@@ -18579,7 +18704,7 @@ private:
             ValueRep::LateColdAny);
 
         return PatchpointExceptionHandle::create(
-            m_ftlState, exitDescriptor, origin, offset, *exceptionHandler);
+            m_ftlState, exitDescriptor, origin, m_nodeIndexInGraph, offset, *exceptionHandler);
     }
 
     LBasicBlock lowBlock(DFG::BasicBlock* block)
@@ -18658,10 +18783,11 @@ private:
         value->appendColdAnys(buildExitArguments(exitDescriptor, origin.forExit, lowValue));
 
         State* state = &m_ftlState;
+        auto nodeIndex = m_nodeIndexInGraph;
         value->setGenerator(
             [=] (CCallHelpers& jit, const B3::StackmapGenerationParams& params) {
                 exitDescriptor->emitOSRExit(
-                    *state, kind, origin, jit, params, 0);
+                    *state, kind, origin, jit, params, nodeIndex, 0);
             });
     }
 
@@ -19156,7 +19282,7 @@ private:
     LBasicBlock m_nextLowBlock;
 
     NodeOrigin m_origin;
-    unsigned m_nodeIndex;
+    unsigned m_nodeIndexInGraph { 0 };
     Node* m_node;
 
     // These are used for validating AI state.

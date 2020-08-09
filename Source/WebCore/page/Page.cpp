@@ -22,6 +22,7 @@
 
 #include "ActivityStateChangeObserver.h"
 #include "AlternativeTextClient.h"
+#include "AnimationFrameRate.h"
 #include "ApplicationCacheStorage.h"
 #include "AuthenticatorCoordinator.h"
 #include "BackForwardCache.h"
@@ -333,9 +334,12 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #if USE(LIBWEBRTC)
     m_libWebRTCProvider->supportsH265(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
 #endif
-    
+
     if (!pageConfiguration.userScriptsShouldWaitUntilNotification)
         m_hasBeenNotifiedToInjectUserScripts = true;
+
+    if (m_lowPowerModeNotifier->isLowPowerModeEnabled())
+        m_throttlingReasons.add(ThrottlingReason::LowPowerMode);
 }
 
 Page::~Page()
@@ -516,7 +520,7 @@ Ref<DOMRectList> Page::passiveTouchEventListenerRectsForTesting()
     }
 
     Vector<IntRect> rects;
-    if (ScrollingCoordinator* scrollingCoordinator = this->scrollingCoordinator())
+    if (auto* scrollingCoordinator = this->scrollingCoordinator())
         rects.appendVector(scrollingCoordinator->absoluteEventTrackingRegions().asynchronousDispatchRegion.rects());
 
     Vector<FloatQuad> quads(rects.size());
@@ -720,10 +724,10 @@ void Page::findStringMatchingRanges(const String& target, FindOptions options, i
 
     if (frameWithSelection) {
         indexForSelection = NoMatchAfterUserSelection;
-        RefPtr<Range> selectedRange = frameWithSelection->selection().selection().firstRange();
+        auto selectedRange = frameWithSelection->selection().selection().firstRange();
         if (options.contains(Backwards)) {
             for (size_t i = matchRanges.size(); i > 0; --i) {
-                auto result = selectedRange->compareBoundaryPoints(Range::END_TO_START, *matchRanges[i - 1]);
+                auto result = createLiveRange(selectedRange)->compareBoundaryPoints(Range::END_TO_START, *matchRanges[i - 1]);
                 if (!result.hasException() && result.releaseReturnValue() > 0) {
                     indexForSelection = i - 1;
                     break;
@@ -731,7 +735,7 @@ void Page::findStringMatchingRanges(const String& target, FindOptions options, i
             }
         } else {
             for (size_t i = 0, size = matchRanges.size(); i < size; ++i) {
-                auto result = selectedRange->compareBoundaryPoints(Range::START_TO_END, *matchRanges[i]);
+                auto result = createLiveRange(selectedRange)->compareBoundaryPoints(Range::START_TO_END, *matchRanges[i]);
                 if (!result.hasException() && result.releaseReturnValue() < 0) {
                     indexForSelection = i;
                     break;
@@ -912,16 +916,6 @@ void Page::unmarkAllTextMatches()
     });
 }
 
-static bool isEditableTextInputElement(const Element& element)
-{
-    if (is<HTMLTextFormControlElement>(element)) {
-        if (!element.isTextField() && !is<HTMLTextAreaElement>(element))
-            return false;
-        return downcast<HTMLTextFormControlElement>(element).isInnerTextElementEditable();
-    }
-    return element.isRootEditableElement();
-}
-
 Vector<Ref<Element>> Page::editableElementsInRect(const FloatRect& searchRectInRootViewCoordinates) const
 {
     auto frameView = makeRefPtr(mainFrame().view());
@@ -938,16 +932,24 @@ Vector<Ref<Element>> Page::editableElementsInRect(const FloatRect& searchRectInR
     if (!document->hitTest(hitType, hitTestResult))
         return { };
 
-    Vector<Ref<Element>> result;
+    auto rootEditableElement = [](Node& node) -> Element* {
+        if (is<HTMLTextFormControlElement>(node)) {
+            if (downcast<HTMLTextFormControlElement>(node).isInnerTextElementEditable())
+                return &downcast<Element>(node);
+        } else if (is<Element>(node) && node.hasEditableStyle())
+            return node.rootEditableElement();
+        return nullptr;
+    };
+
+    ListHashSet<Ref<Element>> rootEditableElements;
     auto& nodeSet = hitTestResult.listBasedTestResult();
-    result.reserveInitialCapacity(nodeSet.size());
     for (auto& node : nodeSet) {
-        if (is<Element>(node) && isEditableTextInputElement(downcast<Element>(*node))) {
-            ASSERT(searchRectInRootViewCoordinates.intersects(downcast<Element>(*node).clientRect()));
-            result.uncheckedAppend(downcast<Element>(*node));
+        if (auto* editableElement = rootEditableElement(node)) {
+            ASSERT(searchRectInRootViewCoordinates.intersects(editableElement->clientRect()));
+            rootEditableElements.add(*editableElement);
         }
     }
-    return result;
+    return WTF::map(rootEditableElements, [](const auto& element) { return element.copyRef(); });
 }
 
 const VisibleSelection& Page::selection() const
@@ -1105,6 +1107,23 @@ void Page::setDeviceScaleFactor(float scaleFactor)
     pageOverlayController().didChangeDeviceScaleFactor();
 }
 
+void Page::windowScreenDidChange(PlatformDisplayID displayID)
+{
+    if (displayID == m_displayID)
+        return;
+
+    m_displayID = displayID;
+
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (frame->document())
+            frame->document()->windowScreenDidChange(displayID);
+    }
+
+    renderingUpdateScheduler().windowScreenDidChange(displayID);
+
+    setNeedsRecalcStyleInAllFrames();
+}
+
 void Page::setInitialScaleIgnoringContentSize(float scale)
 {
     m_initialScaleIgnoringContentSize = scale;
@@ -1153,18 +1172,20 @@ bool Page::isOnlyNonUtilityPage() const
     return !isUtilityPage() && nonUtilityPageCount == 1;
 }
 
-bool Page::isLowPowerModeEnabled() const
-{
-    if (m_lowPowerModeEnabledOverrideForTesting)
-        return m_lowPowerModeEnabledOverrideForTesting.value();
-
-    return m_lowPowerModeNotifier->isLowPowerModeEnabled();
-}
-
 void Page::setLowPowerModeEnabledOverrideForTesting(Optional<bool> isEnabled)
 {
-    m_lowPowerModeEnabledOverrideForTesting = isEnabled;
-    handleLowModePowerChange(m_lowPowerModeEnabledOverrideForTesting.valueOr(false));
+    // Remove ThrottlingReason::LowPowerMode so handleLowModePowerChange() can do its work.
+    m_throttlingReasonsOverridenForTesting.remove(ThrottlingReason::LowPowerMode);
+
+    // Use the current low power mode value of the device.
+    if (!isEnabled) {
+        handleLowModePowerChange(m_lowPowerModeNotifier->isLowPowerModeEnabled());
+        return;
+    }
+
+    // Override the value and add ThrottlingReason::LowPowerMode so it override the device state.
+    handleLowModePowerChange(isEnabled.value());
+    m_throttlingReasonsOverridenForTesting.add(ThrottlingReason::LowPowerMode);
 }
 
 void Page::setTopContentInset(float contentInset)
@@ -1322,6 +1343,13 @@ void Page::updateRendering()
 
     layoutIfNeeded();
 
+    // Timestamps should not change while serving the rendering update steps.
+    Vector<WeakPtr<Document>> initialDocuments;
+    forEachDocument([&initialDocuments] (Document& document) {
+        document.domWindow()->freezeNowTimestamp();
+        initialDocuments.append(makeWeakPtr(&document));
+    });
+
     // Flush autofocus candidates
 
     forEachDocument([] (Document& document) {
@@ -1339,8 +1367,9 @@ void Page::updateRendering()
     forEachDocument([] (Document& document) {
         if (!document.domWindow())
             return;
-        DOMHighResTimeStamp timestamp = document.domWindow()->nowTimestamp();
-        document.updateAnimationsAndSendEvents(timestamp);
+        auto timestamp = document.domWindow()->frozenNowTimestamp();
+        if (auto* timelinesController = document.timelinesController())
+            timelinesController->updateAnimationsAndSendEvents(timestamp);
         // FIXME: Run the fullscreen steps.
         document.serviceRequestAnimationFrameCallbacks(timestamp);
     });
@@ -1366,6 +1395,11 @@ void Page::updateRendering()
         }
     });
 
+    for (auto& document : initialDocuments) {
+        if (document)
+            document->domWindow()->unfreezeNowTimestamp();
+    }
+
     layoutIfNeeded();
     doAfterUpdateRendering();
 }
@@ -1374,6 +1408,10 @@ void Page::doAfterUpdateRendering()
 {
     // Code here should do once-per-frame work that needs to be done before painting, and requires
     // layout to be up-to-date. It should not run script, trigger layout, or dirty layout.
+
+    forEachDocument([] (Document& document) {
+        document.enqueuePaintTimingEntryIfNeeded();
+    });
 
     forEachDocument([] (Document& document) {
         document.updateHighlightPositions();
@@ -1402,6 +1440,26 @@ void Page::doAfterUpdateRendering()
 #endif
 }
 
+void Page::finalizeRenderingUpdate(OptionSet<FinalizeRenderingUpdateFlags> flags)
+{
+    auto* view = mainFrame().view();
+    if (!view)
+        return;
+
+    if (flags.contains(FinalizeRenderingUpdateFlags::InvalidateImagesWithAsyncDecodes))
+        view->invalidateImagesWithAsyncDecodes();
+
+    view->flushCompositingStateIncludingSubframes();
+
+#if ENABLE(ASYNC_SCROLLING)
+    if (auto* scrollingCoordinator = this->scrollingCoordinator()) {
+        scrollingCoordinator->commitTreeStateIfNeeded();
+        if (flags.contains(FinalizeRenderingUpdateFlags::ApplyScrollingTreeLayerPositions))
+            scrollingCoordinator->applyScrollingTreeLayerPositions();
+    }
+#endif
+}
+
 void Page::suspendScriptedAnimations()
 {
     m_scriptedAnimationsSuspended = true;
@@ -1420,34 +1478,34 @@ void Page::resumeScriptedAnimations()
     });
 }
 
-enum class ThrottlingReasonOperation { Add, Remove };
-static void updateScriptedAnimationsThrottlingReason(Page& page, ThrottlingReasonOperation operation, ScriptedAnimationController::ThrottlingReason reason)
+Seconds Page::preferredRenderingUpdateInterval() const
 {
-    page.forEachDocument([&] (Document& document) {
-        if (auto* controller = document.scriptedAnimationController()) {
-            if (operation == ThrottlingReasonOperation::Add)
-                controller->addThrottlingReason(reason);
-            else
-                controller->removeThrottlingReason(reason);
-        }
-    });
+    return preferredFrameInterval(m_throttlingReasons);
 }
 
 void Page::setIsVisuallyIdleInternal(bool isVisuallyIdle)
 {
-    updateScriptedAnimationsThrottlingReason(*this, isVisuallyIdle ? ThrottlingReasonOperation::Add : ThrottlingReasonOperation::Remove, ScriptedAnimationController::ThrottlingReason::VisuallyIdle);
+    if (isVisuallyIdle == m_throttlingReasons.contains(ThrottlingReason::VisuallyIdle))
+        return;
+
+    m_throttlingReasons = m_throttlingReasons ^ ThrottlingReason::VisuallyIdle;
+    renderingUpdateScheduler().adjustRenderingUpdateFrequency();
 }
 
 void Page::handleLowModePowerChange(bool isLowPowerModeEnabled)
 {
-    updateScriptedAnimationsThrottlingReason(*this, isLowPowerModeEnabled ? ThrottlingReasonOperation::Add : ThrottlingReasonOperation::Remove, ScriptedAnimationController::ThrottlingReason::LowPowerMode);
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        forEachDocument([] (Document& document) {
-            if (auto timeline = document.existingTimeline())
-                timeline->updateThrottlingState();
-        });
-    } else
-        mainFrame().animation().updateThrottlingState();
+    if (!canUpdateThrottlingReason(ThrottlingReason::LowPowerMode))
+        return;
+
+    if (isLowPowerModeEnabled == m_throttlingReasons.contains(ThrottlingReason::LowPowerMode))
+        return;
+
+    m_throttlingReasons = m_throttlingReasons ^ ThrottlingReason::LowPowerMode;
+    renderingUpdateScheduler().adjustRenderingUpdateFrequency();
+
+    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        mainFrame().legacyAnimation().updateThrottlingState();
+
     updateDOMTimerAlignmentInterval();
 }
 
@@ -1586,6 +1644,11 @@ double Page::customHTMLTokenizerTimeDelay() const
 {
     ASSERT(m_settings->maxParseDuration() != -1);
     return m_settings->maxParseDuration();
+}
+
+void Page::setCORSDisablingPatterns(Vector<UserContentURLPattern>&& patterns)
+{
+    m_corsDisablingPatterns = WTFMove(patterns);
 }
 
 void Page::setMemoryCacheClientCallsEnabled(bool enabled)
@@ -1989,11 +2052,11 @@ void Page::setIsVisibleInternal(bool isVisible)
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled()) {
             if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
                 forEachDocument([] (Document& document) {
-                    if (auto* timeline = document.existingTimeline())
-                        timeline->resumeAnimations();
+                    if (auto* timelines = document.timelinesController())
+                        timelines->resumeAnimations();
                 });
             } else
-                mainFrame().animation().resumeAnimations();
+                mainFrame().legacyAnimation().resumeAnimations();
         }
 
         forEachDocument([] (Document& document) {
@@ -2013,11 +2076,11 @@ void Page::setIsVisibleInternal(bool isVisible)
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled()) {
             if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
                 forEachDocument([] (Document& document) {
-                    if (auto* timeline = document.existingTimeline())
-                        timeline->suspendAnimations();
+                    if (auto* timelines = document.timelinesController())
+                        timelines->suspendAnimations();
                 });
             } else
-                mainFrame().animation().suspendAnimations();
+                mainFrame().legacyAnimation().suspendAnimations();
         }
 
         forEachDocument([] (Document& document) {
@@ -2364,18 +2427,18 @@ void Page::hiddenPageCSSAnimationSuspensionStateChanged()
     if (!isVisible()) {
         if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
             forEachDocument([&] (Document& document) {
-                if (auto* timeline = document.existingTimeline()) {
+                if (auto* timelines = document.timelinesController()) {
                     if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
-                        timeline->suspendAnimations();
+                        timelines->suspendAnimations();
                     else
-                        timeline->resumeAnimations();
+                        timelines->resumeAnimations();
                 }
             });
         } else {
             if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
-                mainFrame().animation().suspendAnimations();
+                mainFrame().legacyAnimation().suspendAnimations();
             else
-                mainFrame().animation().resumeAnimations();
+                mainFrame().legacyAnimation().resumeAnimations();
         }
     }
 }

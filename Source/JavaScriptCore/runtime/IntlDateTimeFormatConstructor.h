@@ -43,13 +43,9 @@ public:
 
     DECLARE_INFO;
 
-    Structure* dateTimeFormatStructure(VM&) const { return globalObject()->dateTimeFormatStructure(); }
-
-protected:
-    void finishCreation(VM&, IntlDateTimeFormatPrototype*);
-
 private:
     IntlDateTimeFormatConstructor(VM&, Structure*);
+    void finishCreation(VM&, IntlDateTimeFormatPrototype*);
 };
 STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(IntlDateTimeFormatConstructor, InternalFunction);
 

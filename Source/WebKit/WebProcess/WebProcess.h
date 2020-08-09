@@ -39,7 +39,6 @@
 #include "WebInspectorInterruptDispatcher.h"
 #include "WebPageProxyIdentifier.h"
 #include "WebProcessCreationParameters.h"
-#include "WebSQLiteDatabaseTracker.h"
 #include "WebSocketChannelManager.h"
 #include <WebCore/ActivityState.h>
 #include <WebCore/FrameIdentifier.h>
@@ -298,10 +297,10 @@ public:
 #if ENABLE(REMOTE_INSPECTOR)
     void enableRemoteWebInspector(const SandboxExtension::Handle&);
 #endif
-    void unblockAccessibilityServer(const SandboxExtension::Handle&);
+    void unblockServicesRequiredByAccessibility(const SandboxExtension::HandleArray&);
 #if ENABLE(CFPREFS_DIRECT_MODE)
     void notifyPreferencesChanged(const String& domain, const String& key, const Optional<String>& encodedValue);
-    void unblockPreferenceService(const SandboxExtension::Handle&);
+    void unblockPreferenceService(SandboxExtension::HandleArray&&);
 #endif
 #endif
 
@@ -459,7 +458,7 @@ private:
 #endif
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    void setShouldBlockThirdPartyCookiesForTesting(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
+    void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
 #endif
 
     void platformInitializeProcess(const AuxiliaryProcessInitializationParameters&);
@@ -475,7 +474,6 @@ private:
 #if PLATFORM(MAC) && ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
     void scrollerStylePreferenceChanged(bool useOverlayScrollbars);
     void displayConfigurationChanged(CGDirectDisplayID, CGDisplayChangeSummaryFlags);
-    void displayWasRefreshed(CGDirectDisplayID);
 #endif
 
 #if PLATFORM(COCOA)
@@ -580,7 +578,6 @@ private:
     RefPtr<WebCore::ApplicationCacheStorage> m_applicationCacheStorage;
 
 #if PLATFORM(IOS_FAMILY)
-    WebSQLiteDatabaseTracker m_webSQLiteDatabaseTracker;
     std::unique_ptr<ProcessAssertion> m_uiProcessDependencyProcessAssertion;
 #endif
 

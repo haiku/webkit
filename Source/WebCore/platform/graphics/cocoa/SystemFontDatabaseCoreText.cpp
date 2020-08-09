@@ -28,6 +28,7 @@
 
 #include "FontCache.h"
 #include "FontCascadeDescription.h"
+#include <wtf/cf/TypeCastsCF.h>
 
 #if PLATFORM(IOS_FAMILY)
 #include "RenderThemeIOS.h"
@@ -212,22 +213,22 @@ SystemFontDatabaseCoreText::CascadeListParameters SystemFontDatabaseCoreText::sy
 
     switch (systemFontKind) {
     case SystemFontKind::SystemUI: {
-        static NeverDestroyed<AtomString> systemUI = AtomString("system-ui", AtomString::ConstructFromLiteral);
+        static MainThreadNeverDestroyed<const AtomString> systemUI = AtomString("system-ui", AtomString::ConstructFromLiteral);
         result.fontName = systemUI.get();
         break;
     }
     case SystemFontKind::UISerif: {
-        static NeverDestroyed<AtomString> systemUISerif = AtomString("ui-serif", AtomString::ConstructFromLiteral);
+        static MainThreadNeverDestroyed<const AtomString> systemUISerif = AtomString("ui-serif", AtomString::ConstructFromLiteral);
         result.fontName = systemUISerif.get();
         break;
     }
     case SystemFontKind::UIMonospace: {
-        static NeverDestroyed<AtomString> systemUIMonospace = AtomString("ui-monospace", AtomString::ConstructFromLiteral);
+        static MainThreadNeverDestroyed<const AtomString> systemUIMonospace = AtomString("ui-monospace", AtomString::ConstructFromLiteral);
         result.fontName = systemUIMonospace.get();
         break;
     }
     case SystemFontKind::UIRounded: {
-        static NeverDestroyed<AtomString> systemUIRounded = AtomString("ui-rounded", AtomString::ConstructFromLiteral);
+        static MainThreadNeverDestroyed<const AtomString> systemUIRounded = AtomString("ui-rounded", AtomString::ConstructFromLiteral);
         result.fontName = systemUIRounded.get();
         break;
     }
@@ -250,7 +251,8 @@ static String genericFamily(const String& locale, HashMap<String, String>& map, 
 {
     return map.ensure(locale, [&] {
         auto descriptor = adoptCF(CTFontDescriptorCreateForCSSFamily(ctKey, locale.createCFString().get()));
-        return adoptCF(static_cast<CFStringRef>(CTFontDescriptorCopyAttribute(descriptor.get(), kCTFontFamilyNameAttribute))).get();
+        auto value = adoptCF(dynamic_cf_cast<CFStringRef>(CTFontDescriptorCopyAttribute(descriptor.get(), kCTFontFamilyNameAttribute)));
+        return String { value.get() };
     }).iterator->value;
 }
 

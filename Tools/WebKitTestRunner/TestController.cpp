@@ -525,16 +525,17 @@ void TestController::configureWebsiteDataStoreTemporaryDirectories(WKWebsiteData
 {
     if (const char* dumpRenderTreeTemp = libraryPathForTesting()) {
         String temporaryFolder = String::fromUTF8(dumpRenderTreeTemp);
+        auto randomNumber = cryptographicallyRandomNumber();
 
-        WKWebsiteDataStoreConfigurationSetApplicationCacheDirectory(configuration, toWK(temporaryFolder + pathSeparator + "ApplicationCache").get());
-        WKWebsiteDataStoreConfigurationSetNetworkCacheDirectory(configuration, toWK(temporaryFolder + pathSeparator + "Cache").get());
-        WKWebsiteDataStoreConfigurationSetCacheStorageDirectory(configuration, toWK(temporaryFolder + pathSeparator + "CacheStorage").get());
-        WKWebsiteDataStoreConfigurationSetIndexedDBDatabaseDirectory(configuration, toWK(temporaryFolder + pathSeparator + "Databases" + pathSeparator + "IndexedDB").get());
-        WKWebsiteDataStoreConfigurationSetLocalStorageDirectory(configuration, toWK(temporaryFolder + pathSeparator + "LocalStorage").get());
-        WKWebsiteDataStoreConfigurationSetWebSQLDatabaseDirectory(configuration, toWK(temporaryFolder + pathSeparator + "Databases" + pathSeparator + "WebSQL").get());
-        WKWebsiteDataStoreConfigurationSetMediaKeysStorageDirectory(configuration, toWK(temporaryFolder + pathSeparator + "MediaKeys").get());
-        WKWebsiteDataStoreConfigurationSetResourceLoadStatisticsDirectory(configuration, toWK(temporaryFolder + pathSeparator + "ResourceLoadStatistics").get());
-        WKWebsiteDataStoreConfigurationSetServiceWorkerRegistrationDirectory(configuration, toWK(temporaryFolder + pathSeparator + "ServiceWorkers").get());
+        WKWebsiteDataStoreConfigurationSetApplicationCacheDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "ApplicationCache", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetNetworkCacheDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "Cache", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetCacheStorageDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "CacheStorage", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetIndexedDBDatabaseDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "Databases", pathSeparator, "IndexedDB", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetLocalStorageDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "LocalStorage", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetWebSQLDatabaseDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "Databases", pathSeparator, "WebSQL", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetMediaKeysStorageDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "MediaKeys", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetResourceLoadStatisticsDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "ResourceLoadStatistics", pathSeparator, randomNumber)).get());
+        WKWebsiteDataStoreConfigurationSetServiceWorkerRegistrationDirectory(configuration, toWK(makeString(temporaryFolder, pathSeparator, "ServiceWorkers", pathSeparator, randomNumber)).get());
         WKWebsiteDataStoreConfigurationSetPerOriginStorageQuota(configuration, 400 * 1024);
         WKWebsiteDataStoreConfigurationSetNetworkCacheSpeculativeValidationEnabled(configuration, true);
         WKWebsiteDataStoreConfigurationSetStaleWhileRevalidateEnabled(configuration, true);
@@ -640,12 +641,9 @@ WKRetainPtr<WKPageConfigurationRef> TestController::generatePageConfiguration(co
 void TestController::createWebViewWithOptions(const TestOptions& options)
 {
 #if PLATFORM(COCOA)
-    if (m_hasSetApplicationBundleIdentifier) {
-        // Exit if the application bundle identifier has already been set, since it can only be set once.
-        exit(1);
-    }
     if (!options.applicationBundleIdentifier.isEmpty()) {
-        clearApplicationBundleIdentifierTestingOverride();
+        // The bundle identifier can only be set once per test, and is cleared between tests.
+        RELEASE_ASSERT(!m_hasSetApplicationBundleIdentifier);
         setApplicationBundleIdentifier(options.applicationBundleIdentifier);
         m_hasSetApplicationBundleIdentifier = true;
     }
@@ -1136,7 +1134,7 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
 
     statisticsResetToConsistentState();
     clearLoadedThirdPartyDomains();
-
+    clearAppBoundSession();
     clearAdClickAttribution();
 
     m_didReceiveServerRedirectForProvisionalNavigation = false;
@@ -1150,8 +1148,12 @@ bool TestController::resetStateToConsistentValues(const TestOptions& options, Re
     if (!m_doneResetting)
         return false;
     
-    if (resetStage == ResetStage::AfterTest)
+    if (resetStage == ResetStage::AfterTest) {
         updateLiveDocumentsAfterTest();
+#if PLATFORM(COCOA)
+        clearApplicationBundleIdentifierTestingOverride();
+#endif
+    }
 
     return m_doneResetting;
 }
@@ -1527,7 +1529,8 @@ static void updateTestOptionsFromTestHeader(TestOptions& testOptions, const std:
             testOptions.enableInAppBrowserPrivacy = parseBooleanTestHeaderValue(value);
         else if (key == "standaloneWebApplicationURL")
             testOptions.standaloneWebApplicationURL = parseStringTestHeaderValueAsURL(value);
-
+        else if (key == "isAppBoundWebView")
+            testOptions.isAppBoundWebView = parseBooleanTestHeaderValue(value);
         pairStart = pairEnd + 1;
     }
 }
@@ -3191,10 +3194,6 @@ void TestController::clearLoadedThirdPartyDomains()
     WKPageClearLoadedThirdPartyDomains(m_mainWebView->page());
 }
 
-void TestController::getWebViewCategory()
-{
-}
-
 #endif
 
 struct ClearServiceWorkerRegistrationsCallbackContext {
@@ -3415,6 +3414,22 @@ static void resourceStatisticsBooleanResultCallback(bool result, void* userData)
     context->result = result;
     context->done = true;
     context->testController.notifyDone();
+}
+
+void TestController::clearStatisticsDataForDomain(WKStringRef domain)
+{
+    ResourceStatisticsCallbackContext context(*this);
+
+    WKWebsiteDataStoreRemoveITPDataForDomain(TestController::defaultWebsiteDataStore(), domain, &context, resourceStatisticsVoidResultCallback);
+    runUntil(context.done, noTimeout);
+}
+
+bool TestController::doesStatisticsDomainIDExistInDatabase(unsigned domainID)
+{
+    ResourceStatisticsCallbackContext context(*this);
+    WKWebsiteDataStoreDoesStatisticsDomainIDExistInDatabase(websiteDataStore(), domainID, &context, resourceStatisticsBooleanResultCallback);
+    runUntil(context.done, noTimeout);
+    return context.result;
 }
 
 void TestController::setStatisticsEnabled(bool value)
@@ -3762,6 +3777,30 @@ void TestController::setStatisticsToSameSiteStrictCookies(WKStringRef hostName)
     m_currentInvocation->didSetToSameSiteStrictCookies();
 }
 
+struct AppBoundDomainsCallbackContext {
+    explicit AppBoundDomainsCallbackContext(TestController& controller)
+        : testController(controller)
+    {
+    }
+
+    bool done { false };
+    TestController& testController;
+};
+
+static void didSetAppBoundDomainsCallback(void* callbackContext)
+{
+    auto* context = static_cast<AppBoundDomainsCallbackContext*>(callbackContext);
+    context->done = true;
+}
+
+void TestController::setAppBoundDomains(WKArrayRef originURLs)
+{
+    AppBoundDomainsCallbackContext context(*this);
+    WKWebsiteDataStoreSetAppBoundDomainsForTesting(originURLs, &context, didSetAppBoundDomainsCallback);
+    runUntil(context.done, noTimeout);
+    m_currentInvocation->didSetAppBoundDomains();
+}
+
 void TestController::statisticsResetToConsistentState()
 {
     ResourceStatisticsCallbackContext context(*this);
@@ -3834,13 +3873,11 @@ bool TestController::hasAppBoundSession()
     return context.result;
 }
 
-
-void TestController::setInAppBrowserPrivacyEnabled(bool value)
+void TestController::clearAppBoundSession()
 {
     InAppBrowserPrivacyCallbackContext context(*this);
-    WKWebsiteDataStoreSetInAppBrowserPrivacyEnabled(TestController::websiteDataStore(), value, &context, inAppBrowserPrivacyVoidResultCallback);
+    WKWebsiteDataStoreClearAppBoundSession(TestController::websiteDataStore(), &context, inAppBrowserPrivacyVoidResultCallback);
     runUntil(context.done, noTimeout);
-    m_currentInvocation->didSetInAppBrowserPrivacyEnabled();
 }
 
 void TestController::reinitializeAppBoundDomains()

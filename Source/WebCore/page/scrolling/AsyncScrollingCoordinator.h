@@ -54,6 +54,8 @@ public:
     WEBCORE_EXPORT void scheduleUpdateScrollPositionAfterAsyncScroll(ScrollingNodeID, const FloatPoint&, const Optional<FloatPoint>& layoutViewportOrigin, ScrollingLayerPositionAction);
 
 #if PLATFORM(COCOA)
+    WEBCORE_EXPORT void handleWheelEventPhase(ScrollingNodeID, PlatformWheelEventPhase) final;
+
     WEBCORE_EXPORT void setActiveScrollSnapIndices(ScrollingNodeID, unsigned horizontalIndex, unsigned verticalIndex);
 #endif
 
@@ -100,6 +102,7 @@ private:
     WEBCORE_EXPORT bool requestScrollPositionUpdate(ScrollableArea&, const IntPoint&, ScrollType, ScrollClamping) override;
 
     WEBCORE_EXPORT void applyScrollingTreeLayerPositions() override;
+    WEBCORE_EXPORT void synchronizeStateFromScrollingTree() override;
 
     WEBCORE_EXPORT ScrollingNodeID createNode(ScrollingNodeType, ScrollingNodeID newNodeID) override;
     WEBCORE_EXPORT ScrollingNodeID insertNode(ScrollingNodeType, ScrollingNodeID newNodeID, ScrollingNodeID parentID, size_t childIndex) override;
@@ -133,6 +136,7 @@ private:
     WEBCORE_EXPORT void scrollableAreaScrollbarLayerDidChange(ScrollableArea&, ScrollbarOrientation) override;
 
     WEBCORE_EXPORT void setSynchronousScrollingReasons(ScrollingNodeID, OptionSet<SynchronousScrollingReason>) final;
+    WEBCORE_EXPORT bool hasSynchronousScrollingReasons(ScrollingNodeID) const final;
 
     virtual void scheduleTreeStateCommit() = 0;
 

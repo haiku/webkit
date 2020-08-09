@@ -51,34 +51,10 @@ ProxyObject::ProxyObject(VM& vm, Structure* structure)
 {
 }
 
-String ProxyObject::toStringName(const JSObject* object, JSGlobalObject* globalObject)
-{
-    VM& vm = globalObject->vm();
-    auto scope = DECLARE_THROW_SCOPE(vm);
-    const ProxyObject* proxy = jsCast<const ProxyObject*>(object);
-    while (proxy) {
-        const JSObject* target = proxy->target();
-        bool targetIsArray = isArray(globalObject, target);
-        if (UNLIKELY(scope.exception()))
-            break;
-        if (targetIsArray)
-            RELEASE_AND_RETURN(scope, target->classInfo(vm)->methodTable.toStringName(target, globalObject));
-
-        proxy = jsDynamicCast<const ProxyObject*>(vm, target);
-    }
-    return "Object"_s;
-}
-
 Structure* ProxyObject::structureForTarget(JSGlobalObject* globalObject, JSValue target)
 {
-    if (!target.isObject())
-        return globalObject->proxyObjectStructure();
-
-    JSObject* targetAsObject = jsCast<JSObject*>(target);
-    CallData ignoredCallData;
     VM& vm = globalObject->vm();
-    bool isCallable = targetAsObject->methodTable(vm)->getCallData(targetAsObject, ignoredCallData) != CallType::None;
-    return isCallable ? globalObject->callableProxyObjectStructure() : globalObject->proxyObjectStructure();
+    return target.isCallable(vm) ? globalObject->callableProxyObjectStructure() : globalObject->proxyObjectStructure();
 }
 
 void ProxyObject::finishCreation(VM& vm, JSGlobalObject* globalObject, JSValue target, JSValue handler)
@@ -90,33 +66,20 @@ void ProxyObject::finishCreation(VM& vm, JSGlobalObject* globalObject, JSValue t
         throwTypeError(globalObject, scope, "A Proxy's 'target' should be an Object"_s);
         return;
     }
-    if (ProxyObject* targetAsProxy = jsDynamicCast<ProxyObject*>(vm, target)) {
-        if (targetAsProxy->isRevoked()) {
-            throwTypeError(globalObject, scope, "A Proxy's 'target' shouldn't be a revoked Proxy"_s);
-            return;
-        }
-    }
     if (!handler.isObject()) {
         throwTypeError(globalObject, scope, "A Proxy's 'handler' should be an Object"_s);
         return;
     }
-    if (ProxyObject* handlerAsProxy = jsDynamicCast<ProxyObject*>(vm, handler)) {
-        if (handlerAsProxy->isRevoked()) {
-            throwTypeError(globalObject, scope, "A Proxy's 'handler' shouldn't be a revoked Proxy"_s);
-            return;
-        }
-    }
 
     JSObject* targetAsObject = jsCast<JSObject*>(target);
 
-    CallData ignoredCallData;
-    m_isCallable = targetAsObject->methodTable(vm)->getCallData(targetAsObject, ignoredCallData) != CallType::None;
+    m_isCallable = targetAsObject->isCallable(vm);
     if (m_isCallable) {
         TypeInfo info = structure(vm)->typeInfo();
         RELEASE_ASSERT(info.implementsHasInstance() && info.implementsDefaultHasInstance());
     }
 
-    m_isConstructible = jsCast<JSObject*>(target)->isConstructor(vm);
+    m_isConstructible = targetAsObject->isConstructor(vm);
 
     m_target.set(vm, this, targetAsObject);
     m_handler.set(vm, this, handler);
@@ -157,8 +120,7 @@ static JSValue performProxyGet(JSGlobalObject* globalObject, ProxyObject* proxyO
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue getHandler = handler->getMethod(globalObject, callData, callType, vm.propertyNames->get, "'get' property of a Proxy's handler object should be callable"_s);
+    JSValue getHandler = handler->getMethod(globalObject, callData, vm.propertyNames->get, "'get' property of a Proxy's handler object should be callable"_s);
     RETURN_IF_EXCEPTION(scope, { });
 
     if (getHandler.isUndefined())
@@ -169,7 +131,7 @@ static JSValue performProxyGet(JSGlobalObject* globalObject, ProxyObject* proxyO
     arguments.append(identifierToSafePublicJSValue(vm, Identifier::fromUid(vm, propertyName.uid())));
     arguments.append(receiver);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, getHandler, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, getHandler, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, { });
 
     PropertyDescriptor descriptor;
@@ -232,8 +194,7 @@ bool ProxyObject::performInternalMethodGetOwnProperty(JSGlobalObject* globalObje
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue getOwnPropertyDescriptorMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "getOwnPropertyDescriptor"), "'getOwnPropertyDescriptor' property of a Proxy's handler should be callable"_s);
+    JSValue getOwnPropertyDescriptorMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "getOwnPropertyDescriptor"), "'getOwnPropertyDescriptor' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
     if (getOwnPropertyDescriptorMethod.isUndefined())
         RELEASE_AND_RETURN(scope, performDefaultGetOwnProperty());
@@ -242,7 +203,7 @@ bool ProxyObject::performInternalMethodGetOwnProperty(JSGlobalObject* globalObje
     arguments.append(target);
     arguments.append(identifierToSafePublicJSValue(vm, Identifier::fromUid(vm, propertyName.uid())));
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, getOwnPropertyDescriptorMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, getOwnPropertyDescriptorMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     if (!trapResult.isUndefined() && !trapResult.isObject()) {
@@ -336,8 +297,7 @@ bool ProxyObject::performHasProperty(JSGlobalObject* globalObject, PropertyName 
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue hasMethod = handler->getMethod(globalObject, callData, callType, vm.propertyNames->has, "'has' property of a Proxy's handler should be callable"_s);
+    JSValue hasMethod = handler->getMethod(globalObject, callData, vm.propertyNames->has, "'has' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
     if (hasMethod.isUndefined())
         RELEASE_AND_RETURN(scope, performDefaultHasProperty());
@@ -346,7 +306,7 @@ bool ProxyObject::performHasProperty(JSGlobalObject* globalObject, PropertyName 
     arguments.append(target);
     arguments.append(identifierToSafePublicJSValue(vm, Identifier::fromUid(vm, propertyName.uid())));
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, hasMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, hasMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -439,8 +399,7 @@ bool ProxyObject::performPut(JSGlobalObject* globalObject, JSValue putValue, JSV
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue setMethod = handler->getMethod(globalObject, callData, callType, vm.propertyNames->set, "'set' property of a Proxy's handler should be callable"_s);
+    JSValue setMethod = handler->getMethod(globalObject, callData, vm.propertyNames->set, "'set' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
     JSObject* target = this->target();
     if (setMethod.isUndefined())
@@ -452,7 +411,7 @@ bool ProxyObject::performPut(JSGlobalObject* globalObject, JSValue putValue, JSV
     arguments.append(putValue);
     arguments.append(thisValue);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, setMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, setMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
     RETURN_IF_EXCEPTION(scope, false);
@@ -532,15 +491,13 @@ static EncodedJSValue JSC_HOST_CALL performProxyCall(JSGlobalObject* globalObjec
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue applyMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "apply"), "'apply' property of a Proxy's handler should be callable"_s);
+    JSValue applyMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "apply"), "'apply' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     JSObject* target = proxy->target();
     if (applyMethod.isUndefined()) {
-        CallData callData;
-        CallType callType = target->methodTable(vm)->getCallData(target, callData);
-        RELEASE_ASSERT(callType != CallType::None);
-        RELEASE_AND_RETURN(scope, JSValue::encode(call(globalObject, target, callType, callData, callFrame->thisValue(), ArgList(callFrame))));
+        auto callData = getCallData(vm, target);
+        RELEASE_ASSERT(callData.type != CallData::Type::None);
+        RELEASE_AND_RETURN(scope, JSValue::encode(call(globalObject, target, callData, callFrame->thisValue(), ArgList(callFrame))));
     }
 
     JSArray* argArray = constructArray(globalObject, static_cast<ArrayAllocationProfile*>(nullptr), ArgList(callFrame));
@@ -550,20 +507,18 @@ static EncodedJSValue JSC_HOST_CALL performProxyCall(JSGlobalObject* globalObjec
     arguments.append(callFrame->thisValue().toThis(globalObject, ECMAMode::strict()));
     arguments.append(argArray);
     ASSERT(!arguments.hasOverflowed());
-    RELEASE_AND_RETURN(scope, JSValue::encode(call(globalObject, applyMethod, callType, callData, handler, arguments)));
+    RELEASE_AND_RETURN(scope, JSValue::encode(call(globalObject, applyMethod, callData, handler, arguments)));
 }
 
-CallType ProxyObject::getCallData(JSCell* cell, CallData& callData)
+CallData ProxyObject::getCallData(JSCell* cell)
 {
+    CallData callData;
     ProxyObject* proxy = jsCast<ProxyObject*>(cell);
-    if (!proxy->m_isCallable) {
-        callData.js.functionExecutable = nullptr;
-        callData.js.scope = nullptr;
-        return CallType::None;
+    if (proxy->m_isCallable) {
+        callData.type = CallData::Type::Native;
+        callData.native.function = performProxyCall;
     }
-
-    callData.native.function = performProxyCall;
-    return CallType::Host;
+    return callData;
 }
 
 static EncodedJSValue JSC_HOST_CALL performProxyConstruct(JSGlobalObject* globalObject, CallFrame* callFrame)
@@ -583,15 +538,13 @@ static EncodedJSValue JSC_HOST_CALL performProxyConstruct(JSGlobalObject* global
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue constructMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "construct"), "'construct' property of a Proxy's handler should be callable"_s);
+    JSValue constructMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "construct"), "'construct' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     JSObject* target = proxy->target();
     if (constructMethod.isUndefined()) {
-        ConstructData constructData;
-        ConstructType constructType = target->methodTable(vm)->getConstructData(target, constructData);
-        RELEASE_ASSERT(constructType != ConstructType::None);
-        RELEASE_AND_RETURN(scope, JSValue::encode(construct(globalObject, target, constructType, constructData, ArgList(callFrame), callFrame->newTarget())));
+        auto constructData = getConstructData(vm, target);
+        RELEASE_ASSERT(constructData.type != CallData::Type::None);
+        RELEASE_AND_RETURN(scope, JSValue::encode(construct(globalObject, target, constructData, ArgList(callFrame), callFrame->newTarget())));
     }
 
     JSArray* argArray = constructArray(globalObject, static_cast<ArrayAllocationProfile*>(nullptr), ArgList(callFrame));
@@ -601,24 +554,22 @@ static EncodedJSValue JSC_HOST_CALL performProxyConstruct(JSGlobalObject* global
     arguments.append(argArray);
     arguments.append(callFrame->newTarget());
     ASSERT(!arguments.hasOverflowed());
-    JSValue result = call(globalObject, constructMethod, callType, callData, handler, arguments);
+    JSValue result = call(globalObject, constructMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     if (!result.isObject())
         return throwVMTypeError(globalObject, scope, "Result from Proxy handler's 'construct' method should be an object"_s);
     return JSValue::encode(result);
 }
 
-ConstructType ProxyObject::getConstructData(JSCell* cell, ConstructData& constructData)
+CallData ProxyObject::getConstructData(JSCell* cell)
 {
+    CallData constructData;
     ProxyObject* proxy = jsCast<ProxyObject*>(cell);
-    if (!proxy->m_isConstructible) {
-        constructData.js.functionExecutable = nullptr;
-        constructData.js.scope = nullptr;
-        return ConstructType::None;
+    if (proxy->m_isConstructible) {
+        constructData.type = CallData::Type::Native;
+        constructData.native.function = performProxyConstruct;
     }
-
-    constructData.native.function = performProxyConstruct;
-    return ConstructType::Host;
+    return constructData;
 }
 
 template <typename DefaultDeleteFunction>
@@ -644,8 +595,7 @@ bool ProxyObject::performDelete(JSGlobalObject* globalObject, PropertyName prope
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue deletePropertyMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "deleteProperty"), "'deleteProperty' property of a Proxy's handler should be callable"_s);
+    JSValue deletePropertyMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "deleteProperty"), "'deleteProperty' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
     JSObject* target = this->target();
     if (deletePropertyMethod.isUndefined())
@@ -655,7 +605,7 @@ bool ProxyObject::performDelete(JSGlobalObject* globalObject, PropertyName prope
     arguments.append(target);
     arguments.append(identifierToSafePublicJSValue(vm, Identifier::fromUid(vm, propertyName.uid())));
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, deletePropertyMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, deletePropertyMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -726,8 +676,7 @@ bool ProxyObject::performPreventExtensions(JSGlobalObject* globalObject)
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue preventExtensionsMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "preventExtensions"), "'preventExtensions' property of a Proxy's handler should be callable"_s);
+    JSValue preventExtensionsMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "preventExtensions"), "'preventExtensions' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
     JSObject* target = this->target();
     if (preventExtensionsMethod.isUndefined())
@@ -736,7 +685,7 @@ bool ProxyObject::performPreventExtensions(JSGlobalObject* globalObject)
     MarkedArgumentBuffer arguments;
     arguments.append(target);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, preventExtensionsMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, preventExtensionsMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -778,8 +727,7 @@ bool ProxyObject::performIsExtensible(JSGlobalObject* globalObject)
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue isExtensibleMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "isExtensible"), "'isExtensible' property of a Proxy's handler should be callable"_s);
+    JSValue isExtensibleMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "isExtensible"), "'isExtensible' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
 
     JSObject* target = this->target();
@@ -789,7 +737,7 @@ bool ProxyObject::performIsExtensible(JSGlobalObject* globalObject)
     MarkedArgumentBuffer arguments;
     arguments.append(target);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, isExtensibleMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, isExtensibleMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -844,22 +792,22 @@ bool ProxyObject::performDefineOwnProperty(JSGlobalObject* globalObject, Propert
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue definePropertyMethod = handler->getMethod(globalObject, callData, callType, vm.propertyNames->defineProperty, "'defineProperty' property of a Proxy's handler should be callable"_s);
+    JSValue definePropertyMethod = handler->getMethod(globalObject, callData, vm.propertyNames->defineProperty, "'defineProperty' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
 
     if (definePropertyMethod.isUndefined())
         return performDefaultDefineOwnProperty();
 
     JSObject* descriptorObject = constructObjectFromPropertyDescriptor(globalObject, descriptor);
-    RETURN_IF_EXCEPTION(scope, false);
+    scope.assertNoException();
+    ASSERT(descriptorObject);
 
     MarkedArgumentBuffer arguments;
     arguments.append(target);
     arguments.append(identifierToSafePublicJSValue(vm, Identifier::fromUid(vm, propertyName.uid())));
     arguments.append(descriptorObject);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, definePropertyMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, definePropertyMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -940,8 +888,7 @@ void ProxyObject::performGetOwnPropertyNames(JSGlobalObject* globalObject, Prope
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue ownKeysMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "ownKeys"), "'ownKeys' property of a Proxy's handler should be callable"_s);
+    JSValue ownKeysMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "ownKeys"), "'ownKeys' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, void());
     JSObject* target = this->target();
     EnumerationMode enumerationMode(DontEnumPropertiesMode::Include);
@@ -954,7 +901,7 @@ void ProxyObject::performGetOwnPropertyNames(JSGlobalObject* globalObject, Prope
     MarkedArgumentBuffer arguments;
     arguments.append(target);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, ownKeysMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, ownKeysMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, void());
 
     HashSet<UniquedStringImpl*> uncheckedResultKeys;
@@ -1119,8 +1066,7 @@ bool ProxyObject::performSetPrototype(JSGlobalObject* globalObject, JSValue prot
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue setPrototypeOfMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "setPrototypeOf"), "'setPrototypeOf' property of a Proxy's handler should be callable"_s);
+    JSValue setPrototypeOfMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "setPrototypeOf"), "'setPrototypeOf' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, false);
 
     JSObject* target = this->target();
@@ -1131,7 +1077,7 @@ bool ProxyObject::performSetPrototype(JSGlobalObject* globalObject, JSValue prot
     arguments.append(target);
     arguments.append(prototype);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, setPrototypeOfMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, setPrototypeOfMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, false);
 
     bool trapResultAsBool = trapResult.toBoolean(globalObject);
@@ -1184,8 +1130,7 @@ JSValue ProxyObject::performGetPrototype(JSGlobalObject* globalObject)
 
     JSObject* handler = jsCast<JSObject*>(handlerValue);
     CallData callData;
-    CallType callType;
-    JSValue getPrototypeOfMethod = handler->getMethod(globalObject, callData, callType, makeIdentifier(vm, "getPrototypeOf"), "'getPrototypeOf' property of a Proxy's handler should be callable"_s);
+    JSValue getPrototypeOfMethod = handler->getMethod(globalObject, callData, makeIdentifier(vm, "getPrototypeOf"), "'getPrototypeOf' property of a Proxy's handler should be callable"_s);
     RETURN_IF_EXCEPTION(scope, { });
 
     JSObject* target = this->target();
@@ -1195,7 +1140,7 @@ JSValue ProxyObject::performGetPrototype(JSGlobalObject* globalObject)
     MarkedArgumentBuffer arguments;
     arguments.append(target);
     ASSERT(!arguments.hasOverflowed());
-    JSValue trapResult = call(globalObject, getPrototypeOfMethod, callType, callData, handler, arguments);
+    JSValue trapResult = call(globalObject, getPrototypeOfMethod, callData, handler, arguments);
     RETURN_IF_EXCEPTION(scope, { });
 
     if (!trapResult.isObject() && !trapResult.isNull()) {

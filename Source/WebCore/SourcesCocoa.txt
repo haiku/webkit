@@ -260,7 +260,6 @@ platform/graphics/avfoundation/objc/CDMSessionAVStreamSession.mm @no-unify
 platform/graphics/avfoundation/objc/CDMSessionMediaSourceAVFObjC.mm @no-unify
 platform/graphics/avfoundation/objc/ImageDecoderAVFObjC.mm @no-unify
 platform/graphics/avfoundation/objc/InbandTextTrackPrivateAVFObjC.mm @no-unify
-platform/graphics/avfoundation/objc/InbandTextTrackPrivateLegacyAVFObjC.mm @no-unify
 platform/graphics/avfoundation/objc/LocalSampleBufferDisplayLayer.mm @no-unify
 platform/graphics/avfoundation/objc/MediaPlaybackTargetPickerMac.mm @no-unify
 platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm @no-unify
@@ -570,8 +569,8 @@ platform/mediastream/mac/RealtimeMediaSourceCenterMac.mm
 platform/mediastream/mac/RealtimeOutgoingAudioSourceCocoa.cpp
 platform/mediastream/mac/RealtimeOutgoingVideoSourceCocoa.cpp
 platform/mediastream/mac/RealtimeVideoUtilities.mm
-platform/mediastream/mac/ScreenDisplayCaptureSourceMac.mm
-platform/mediastream/mac/WindowDisplayCaptureSourceMac.mm
+platform/mediastream/mac/ScreenDisplayCapturerMac.mm
+platform/mediastream/mac/WindowDisplayCapturerMac.mm
 
 platform/audio/mac/AudioSampleDataSource.mm
 
@@ -595,6 +594,8 @@ WHLSLStandardLibraryFunctionMap.cpp
     Modules/applepay/ApplePayPaymentAuthorizedEvent.cpp
     Modules/applepay/ApplePayPaymentMethodSelectedEvent.cpp
     Modules/applepay/ApplePayRequestBase.cpp
+    Modules/applepay/ApplePaySetup.cpp
+    Modules/applepay/ApplePaySetupFeature.mm
     Modules/applepay/ApplePaySession.cpp
     Modules/applepay/ApplePaySessionPaymentRequest.cpp
     Modules/applepay/ApplePayShippingContactSelectedEvent.cpp
@@ -602,6 +603,7 @@ WHLSLStandardLibraryFunctionMap.cpp
     Modules/applepay/ApplePayValidateMerchantEvent.cpp
     Modules/applepay/PaymentCoordinator.cpp
     Modules/applepay/PaymentCoordinatorClient.cpp
+    Modules/applepay/PaymentInstallmentConfiguration.mm
     Modules/applepay/PaymentRequestValidator.mm
     Modules/applepay/PaymentSession.cpp
 
@@ -620,6 +622,7 @@ WHLSLStandardLibraryFunctionMap.cpp
     JSApplePayError.cpp
     JSApplePayErrorCode.cpp
     JSApplePayErrorContactField.cpp
+    JSApplePayInstallmentConfiguration.cpp
     JSApplePayLineItem.cpp
     JSApplePayMerchantCapability.cpp
     JSApplePayModifier.cpp
@@ -637,6 +640,9 @@ WHLSLStandardLibraryFunctionMap.cpp
     JSApplePayRequestBase.cpp
     JSApplePaySession.cpp
     JSApplePaySessionError.cpp
+    JSApplePaySetup.cpp
+    JSApplePaySetupFeature.cpp
+    JSApplePaySetupFeatureType.cpp
     JSApplePayShippingContactSelectedEvent.cpp
     JSApplePayShippingContactUpdate.cpp
     JSApplePayShippingMethod.cpp

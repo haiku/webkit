@@ -88,11 +88,11 @@ public:
     void didSetHasHadUserInteraction();
     void didReceiveAllStorageAccessEntries(Vector<String>&& domains);
     void didReceiveLoadedThirdPartyDomains(Vector<String>&& domains);
-    void didReceiveWebViewCategory(String&&);
-    void didSetInAppBrowserPrivacyEnabled();
 
     void didRemoveAllSessionCredentials();
-    
+
+    void didSetAppBoundDomains();
+
     void dumpResourceLoadStatistics();
 
     bool canOpenWindows() const { return m_canOpenWindows; }

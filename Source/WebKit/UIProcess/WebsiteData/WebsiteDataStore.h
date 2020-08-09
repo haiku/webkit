@@ -125,6 +125,8 @@ public:
     void setResourceLoadStatisticsDebugMode(bool, CompletionHandler<void()>&&);
     void isResourceLoadStatisticsEphemeral(CompletionHandler<void(bool)>&&) const;
 
+    void setAdClickAttributionDebugMode(bool);
+
     uint64_t perOriginStorageQuota() const { return m_resolvedConfiguration->perOriginStorageQuota(); }
     uint64_t perThirdPartyOriginStorageQuota() const;
     const String& cacheStorageDirectory() const { return m_resolvedConfiguration->cacheStorageDirectory(); }
@@ -167,6 +169,8 @@ public:
     void setUseITPDatabase(bool, CompletionHandler<void()>&&);
     void setGrandfatheringTime(Seconds, CompletionHandler<void()>&&);
     void setLastSeen(const URL&, Seconds, CompletionHandler<void()>&&);
+    void domainIDExistsInDatabase(int domainID, CompletionHandler<void(bool)>&&);
+    void statisticsDatabaseHasAllTables(CompletionHandler<void(bool)>&&);
     void mergeStatisticForTesting(const URL&, const URL& topFrameUrl1, const URL& topFrameUrl2, Seconds lastSeen, bool hadUserInteraction, Seconds mostRecentUserInteraction, bool isGrandfathered, bool isPrevalent, bool isVeryPrevalent, unsigned dataRecordsRemoved, CompletionHandler<void()>&&);
     void setNotifyPagesWhenDataRecordsWereScanned(bool, CompletionHandler<void()>&&);
     void setIsRunningResourceLoadStatisticsTest(bool, CompletionHandler<void()>&&);
@@ -195,6 +199,7 @@ public:
     void hasIsolatedSessionForTesting(const URL&, CompletionHandler<void(bool)>&&) const;
     void setResourceLoadStatisticsShouldDowngradeReferrerForTesting(bool, CompletionHandler<void()>&&);
     void setResourceLoadStatisticsShouldBlockThirdPartyCookiesForTesting(bool enabled, bool onlyOnSitesWithoutUserInteraction, CompletionHandler<void()>&&);
+    void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
     void setResourceLoadStatisticsShouldEnbleSameSiteStrictEnforcementForTesting(bool enabled, CompletionHandler<void()>&&);
     void setResourceLoadStatisticsFirstPartyWebsiteDataRemovalModeForTesting(bool enabled, CompletionHandler<void()>&&);
     void setResourceLoadStatisticsToSameSiteStrictCookiesForTesting(const URL&, CompletionHandler<void()>&&);
@@ -256,6 +261,8 @@ public:
 
     API::HTTPCookieStore& cookieStore();
 
+    void renameOriginInWebsiteData(URL&&, URL&&, OptionSet<WebsiteDataType>, CompletionHandler<void()>&&);
+
 #if ENABLE(DEVICE_ORIENTATION)
     WebDeviceOrientationAndMotionAccessController& deviceOrientationAndMotionAccessController() { return m_deviceOrientationAndMotionAccessController; }
 #endif
@@ -284,12 +291,13 @@ public:
 
     void resetQuota(CompletionHandler<void()>&&);
     void hasAppBoundSession(CompletionHandler<void(bool)>&&) const;
-    void setInAppBrowserPrivacyEnabled(bool enabled, CompletionHandler<void()>&&);
+    void clearAppBoundSession(CompletionHandler<void()>&&);
 
     void beginAppBoundDomainCheck(const URL&, WebFramePolicyListenerProxy&);
     void getAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&&) const;
     void ensureAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&&) const;
     void reinitializeAppBoundDomains();
+    static void setAppBoundDomainsForTesting(HashSet<WebCore::RegistrableDomain>&&, CompletionHandler<void()>&&);
 
 private:
     enum class ForceReinitialization : bool { No, Yes };
@@ -324,6 +332,13 @@ private:
     static void removeMediaKeys(const String& mediaKeysStorageDirectory, const HashSet<WebCore::SecurityOriginData>&);
 
     void maybeRegisterWithSessionIDMap();
+
+#if PLATFORM(COCOA)
+    static Optional<HashSet<WebCore::RegistrableDomain>> appBoundDomainsIfInitialized();
+    constexpr static const std::atomic<bool> isAppBoundITPRelaxationEnabled = false;
+    static void forwardAppBoundDomainsToITPIfInitialized(CompletionHandler<void()>&&);
+    void setAppBoundDomainsForITP(const HashSet<WebCore::RegistrableDomain>&, CompletionHandler<void()>&&);
+#endif
 
     const PAL::SessionID m_sessionID;
 

@@ -397,9 +397,9 @@ int HTMLTextFormControlElement::computeSelectionEnd() const
 
 static const AtomString& directionString(TextFieldSelectionDirection direction)
 {
-    static NeverDestroyed<const AtomString> none("none", AtomString::ConstructFromLiteral);
-    static NeverDestroyed<const AtomString> forward("forward", AtomString::ConstructFromLiteral);
-    static NeverDestroyed<const AtomString> backward("backward", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> none("none", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> forward("forward", AtomString::ConstructFromLiteral);
+    static MainThreadNeverDestroyed<const AtomString> backward("backward", AtomString::ConstructFromLiteral);
 
     switch (direction) {
     case SelectionHasNoDirection:
@@ -535,7 +535,9 @@ bool HTMLTextFormControlElement::isInnerTextElementEditable() const
 void HTMLTextFormControlElement::updateInnerTextElementEditability()
 {
     if (auto innerText = innerTextElement()) {
-        auto value = isInnerTextElementEditable() ? AtomString { "plaintext-only", AtomString::ConstructFromLiteral } : AtomString { "false", AtomString::ConstructFromLiteral };
+        static MainThreadNeverDestroyed<const AtomString> plainTextOnlyName("plaintext-only", AtomString::ConstructFromLiteral);
+        static MainThreadNeverDestroyed<const AtomString> falseName("false", AtomString::ConstructFromLiteral);
+        const auto& value = isInnerTextElementEditable() ? plainTextOnlyName.get() : falseName.get();
         innerText->setAttributeWithoutSynchronization(contenteditableAttr, value);
     }
 }
@@ -676,20 +678,6 @@ unsigned HTMLTextFormControlElement::indexForPosition(const Position& passedPosi
 #endif
     return index;
 }
-
-#if PLATFORM(IOS_FAMILY)
-void HTMLTextFormControlElement::hidePlaceholder()
-{
-    if (RefPtr<HTMLElement> placeholder = placeholderElement())
-        placeholder->setInlineStyleProperty(CSSPropertyVisibility, CSSValueHidden, true);
-}
-
-void HTMLTextFormControlElement::showPlaceholderIfNecessary()
-{
-    if (RefPtr<HTMLElement> placeholder = placeholderElement())
-        placeholder->setInlineStyleProperty(CSSPropertyVisibility, CSSValueVisible, true);
-}
-#endif
 
 static void getNextSoftBreak(RootInlineBox*& line, Node*& breakNode, unsigned& breakOffset)
 {

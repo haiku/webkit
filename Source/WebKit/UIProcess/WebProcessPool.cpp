@@ -605,9 +605,10 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
     WebCore::ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode = WebCore::ThirdPartyCookieBlockingMode::All;
     WebCore::SameSiteStrictEnforcementEnabled sameSiteStrictEnforcementEnabled = WebCore::SameSiteStrictEnforcementEnabled::No;
 #endif
-    WebCore::RegistrableDomain standaloneApplicationDomain { };
     WebCore::FirstPartyWebsiteDataRemovalMode firstPartyWebsiteDataRemovalMode = WebCore::FirstPartyWebsiteDataRemovalMode::AllButCookies;
-    WebCore::RegistrableDomain manualPrevalentResource { };
+    WebCore::RegistrableDomain standaloneApplicationDomain;
+    HashSet<WebCore::RegistrableDomain> appBoundDomains;
+    WebCore::RegistrableDomain manualPrevalentResource;
     WEB_PROCESS_POOL_ADDITIONS_2
     if (withWebsiteDataStore) {
         enableResourceLoadStatistics = withWebsiteDataStore->resourceLoadStatisticsEnabled();
@@ -624,6 +625,7 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
 #endif
             firstPartyWebsiteDataRemovalMode = networkSessionParameters.resourceLoadStatisticsParameters.firstPartyWebsiteDataRemovalMode;
             standaloneApplicationDomain = networkSessionParameters.resourceLoadStatisticsParameters.standaloneApplicationDomain;
+            appBoundDomains = networkSessionParameters.resourceLoadStatisticsParameters.appBoundDomains;
             manualPrevalentResource = networkSessionParameters.resourceLoadStatisticsParameters.manualPrevalentResource;
         }
 
@@ -650,6 +652,7 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
 #endif
             firstPartyWebsiteDataRemovalMode = networkSessionParameters.resourceLoadStatisticsParameters.firstPartyWebsiteDataRemovalMode;
             standaloneApplicationDomain = networkSessionParameters.resourceLoadStatisticsParameters.standaloneApplicationDomain;
+            appBoundDomains = networkSessionParameters.resourceLoadStatisticsParameters.appBoundDomains;
             manualPrevalentResource = networkSessionParameters.resourceLoadStatisticsParameters.manualPrevalentResource;
         }
 
@@ -689,6 +692,8 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
         sameSiteStrictEnforcementEnabled,
 #endif
         firstPartyWebsiteDataRemovalMode,
+        standaloneApplicationDomain,
+        appBoundDomains,
         manualPrevalentResource,
     };
 
@@ -852,17 +857,12 @@ void WebProcessPool::setInvalidMessageCallback(void (*invalidMessageCallback)(WK
     s_invalidMessageCallback = invalidMessageCallback;
 }
 
-void WebProcessPool::didReceiveInvalidMessage(const IPC::StringReference& messageReceiverName, const IPC::StringReference& messageName)
+void WebProcessPool::didReceiveInvalidMessage(IPC::MessageName messageName)
 {
     if (!s_invalidMessageCallback)
         return;
 
-    StringBuilder messageNameStringBuilder;
-    messageNameStringBuilder.appendCharacters(messageReceiverName.data(), messageReceiverName.size());
-    messageNameStringBuilder.append('.');
-    messageNameStringBuilder.appendCharacters(messageName.data(), messageName.size());
-
-    s_invalidMessageCallback(toAPI(API::String::create(messageNameStringBuilder.toString()).ptr()));
+    s_invalidMessageCallback(toAPI(API::String::create(description(messageName)).ptr()));
 }
 
 void WebProcessPool::resolvePathsForSandboxExtensions()
@@ -934,6 +934,12 @@ static void registerDisplayConfigurationCallback()
         [] {
             CGDisplayRegisterReconfigurationCallback(displayReconfigurationCallBack, nullptr);
         });
+}
+#endif
+
+#if !PLATFORM(MAC)
+void WebProcessPool::registerHighDynamicRangeChangeCallback()
+{
 }
 #endif
 
@@ -1117,6 +1123,8 @@ void WebProcessPool::initializeNewWebProcess(WebProcessProxy& process, WebsiteDa
 #if PLATFORM(MAC)
     registerDisplayConfigurationCallback();
 #endif
+
+    registerHighDynamicRangeChangeCallback();
 }
 
 void WebProcessPool::prewarmProcess()
@@ -1673,22 +1681,22 @@ void WebProcessPool::synthesizeAppIsBackground(bool background)
     ensureNetworkProcess().synthesizeAppIsBackground(background);
 }
 
-void WebProcessPool::addMessageReceiver(IPC::StringReference messageReceiverName, IPC::MessageReceiver& messageReceiver)
+void WebProcessPool::addMessageReceiver(IPC::ReceiverName messageReceiverName, IPC::MessageReceiver& messageReceiver)
 {
     m_messageReceiverMap.addMessageReceiver(messageReceiverName, messageReceiver);
 }
 
-void WebProcessPool::addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver& messageReceiver)
+void WebProcessPool::addMessageReceiver(IPC::ReceiverName messageReceiverName, uint64_t destinationID, IPC::MessageReceiver& messageReceiver)
 {
     m_messageReceiverMap.addMessageReceiver(messageReceiverName, destinationID, messageReceiver);
 }
 
-void WebProcessPool::removeMessageReceiver(IPC::StringReference messageReceiverName)
+void WebProcessPool::removeMessageReceiver(IPC::ReceiverName messageReceiverName)
 {
     m_messageReceiverMap.removeMessageReceiver(messageReceiverName);
 }
 
-void WebProcessPool::removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID)
+void WebProcessPool::removeMessageReceiver(IPC::ReceiverName messageReceiverName, uint64_t destinationID)
 {
     m_messageReceiverMap.removeMessageReceiver(messageReceiverName, destinationID);
 }
@@ -1789,6 +1797,14 @@ void WebProcessPool::terminateAllWebContentProcesses()
     Vector<RefPtr<WebProcessProxy>> processes = m_processes;
     for (auto& process : processes)
         process->terminate();
+}
+
+void WebProcessPool::sendNetworkProcessPrepareToSuspendForTesting(CompletionHandler<void()>&& completionHandler)
+{
+    if (!m_networkProcess)
+        return completionHandler();
+
+    m_networkProcess->sendPrepareToSuspend(IsSuspensionImminent::No, WTFMove(completionHandler));
 }
 
 void WebProcessPool::sendNetworkProcessWillSuspendImminentlyForTesting()

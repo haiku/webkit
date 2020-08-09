@@ -30,7 +30,7 @@
 #import "APIFrameTreeNode.h"
 #import "APIPageConfiguration.h"
 #import "APISerializedScriptValue.h"
-#import "AttributedString.h"
+#import "CocoaImage.h"
 #import "CompletionHandlerCallChecker.h"
 #import "ContentAsStringIncludesChildFrames.h"
 #import "DiagnosticLoggingClient.h"
@@ -46,6 +46,7 @@
 #import "ObjCObjectGraph.h"
 #import "PageClient.h"
 #import "ProvisionalPageProxy.h"
+#import "QuickLookThumbnailLoader.h"
 #import "RemoteLayerTreeScrollingPerformanceData.h"
 #import "RemoteObjectRegistry.h"
 #import "RemoteObjectRegistryMessages.h"
@@ -114,6 +115,7 @@
 #import "_WKTextManipulationToken.h"
 #import "_WKVisitedLinkStoreInternal.h"
 #import "_WKWebsitePoliciesInternal.h"
+#import <WebCore/AttributedString.h>
 #import <WebCore/ElementContext.h>
 #import <WebCore/JSDOMBinding.h>
 #import <WebCore/JSDOMExceptionHandling.h>
@@ -122,7 +124,6 @@
 #import <WebCore/PlatformScreen.h>
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/RuntimeEnabledFeatures.h>
-#import <WebCore/SQLiteDatabaseTracker.h>
 #import <WebCore/Settings.h>
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/StringUtilities.h>
@@ -158,8 +159,6 @@
 #import "WKWebViewContentProviderRegistry.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <UIKit/UIApplication.h>
-#import <WebCore/WebBackgroundTaskController.h>
-#import <WebCore/WebSQLiteDatabaseTrackerClient.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
 #import <wtf/cocoa/Entitlements.h>
@@ -400,8 +399,6 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
     _resourceLoadDelegate = makeUnique<WebKit::ResourceLoadDelegate>(self);
     _inspectorDelegate = makeUnique<WebKit::InspectorDelegate>(self);
 
-    [self _setUpSQLiteDatabaseTrackerClient];
-
     for (auto& pair : pageConfiguration->urlSchemeHandlers())
         _page->setURLSchemeHandlerForScheme(WebKit::WebURLSchemeHandlerCocoa::create(static_cast<WebKit::WebURLSchemeHandlerCocoa&>(pair.value.get()).apiHandler()), pair.key);
 
@@ -531,27 +528,6 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
 
     if (!linkedOnOrAfter(WebKit::SDKVersion::FirstWhereSiteSpecificQuirksAreEnabledByDefault))
         pageConfiguration->preferences()->setNeedsSiteSpecificQuirks(false);
-}
-
-- (void)_setUpSQLiteDatabaseTrackerClient
-{
-#if PLATFORM(IOS_FAMILY)
-    WebBackgroundTaskController *controller = [WebBackgroundTaskController sharedController];
-    if (controller.backgroundTaskStartBlock)
-        return;
-
-    controller.backgroundTaskStartBlock = ^NSUInteger (void (^expirationHandler)())
-    {
-        return [[UIApplication sharedApplication] beginBackgroundTaskWithName:@"com.apple.WebKit.DatabaseActivity" expirationHandler:expirationHandler];
-    };
-    controller.backgroundTaskEndBlock = ^(UIBackgroundTaskIdentifier taskIdentifier)
-    {
-        [[UIApplication sharedApplication] endBackgroundTask:taskIdentifier];
-    };
-    controller.invalidBackgroundTaskIdentifier = UIBackgroundTaskInvalid;
-
-    WebCore::SQLiteDatabaseTracker::setClient(&WebCore::WebSQLiteDatabaseTrackerClient::sharedWebSQLiteDatabaseTrackerClient());
-#endif
 }
 
 - (instancetype)initWithFrame:(CGRect)frame configuration:(WKWebViewConfiguration *)configuration
@@ -978,8 +954,7 @@ static bool validateArgument(id argument)
     });
 }
 
-#if PLATFORM(MAC)
-- (void)takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)snapshotConfiguration completionHandler:(void(^)(NSImage *, NSError *))completionHandler
+- (void)takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)snapshotConfiguration completionHandler:(void(^)(CocoaImage *, NSError *))completionHandler
 {
     CGRect rectInViewCoordinates = snapshotConfiguration && !CGRectIsNull(snapshotConfiguration.rect) ? snapshotConfiguration.rect : self.bounds;
     CGFloat snapshotWidth;
@@ -989,6 +964,8 @@ static bool validateArgument(id argument)
         snapshotWidth = self.bounds.size.width;
 
     auto handler = makeBlockPtr(completionHandler);
+
+#if USE(APPKIT)
     CGFloat imageScale = snapshotWidth / rectInViewCoordinates.size.width;
     CGFloat imageHeight = imageScale * rectInViewCoordinates.size.height;
 
@@ -1010,35 +987,23 @@ static bool validateArgument(id argument)
 
         auto bitmap = WebKit::ShareableBitmap::create(imageHandle, WebKit::SharedMemory::Protection::ReadOnly);
         RetainPtr<CGImageRef> cgImage = bitmap ? bitmap->makeCGImage() : nullptr;
-        RetainPtr<NSImage> nsImage = adoptNS([[NSImage alloc] initWithCGImage:cgImage.get() size:NSMakeSize(snapshotWidth, imageHeight)]);
-        handler(nsImage.get(), nil);
+        auto image = adoptNS([[NSImage alloc] initWithCGImage:cgImage.get() size:NSMakeSize(snapshotWidth, imageHeight)]);
+        handler(image.get(), nil);
     });
-}
-
-#elif PLATFORM(IOS_FAMILY)
-- (void)takeSnapshotWithConfiguration:(WKSnapshotConfiguration *)snapshotConfiguration completionHandler:(void(^)(UIImage *, NSError *))completionHandler
-{
-    CGRect rectInViewCoordinates = snapshotConfiguration && !CGRectIsNull(snapshotConfiguration.rect) ? snapshotConfiguration.rect : self.bounds;
-    CGFloat snapshotWidth;
-    if (snapshotConfiguration)
-        snapshotWidth = snapshotConfiguration.snapshotWidth.doubleValue ?: rectInViewCoordinates.size.width;
-    else
-        snapshotWidth = self.bounds.size.width;
-
-    auto handler = makeBlockPtr(completionHandler);
+#else
     CGFloat deviceScale = _page->deviceScaleFactor();
     RetainPtr<WKWebView> strongSelf = self;
     auto callSnapshotRect = [strongSelf, rectInViewCoordinates, snapshotWidth, deviceScale, handler] {
         [strongSelf _snapshotRect:rectInViewCoordinates intoImageOfWidth:(snapshotWidth * deviceScale) completionHandler:[strongSelf, handler, deviceScale](CGImageRef snapshotImage) {
             RetainPtr<NSError> error;
-            RetainPtr<UIImage> uiImage;
+            RetainPtr<UIImage> image;
             
             if (!snapshotImage)
                 error = createNSError(WKErrorUnknown);
             else
-                uiImage = adoptNS([[UIImage alloc] initWithCGImage:snapshotImage scale:deviceScale orientation:UIImageOrientationUp]);
+                image = adoptNS([[UIImage alloc] initWithCGImage:snapshotImage scale:deviceScale orientation:UIImageOrientationUp]);
             
-            handler(uiImage.get(), error.get());
+            handler(image.get(), error.get());
         }];
     };
 
@@ -1054,8 +1019,8 @@ static bool validateArgument(id argument)
         }
         callSnapshotRect();
     });
-}
 #endif
+}
 
 - (void)setAllowsBackForwardNavigationGestures:(BOOL)allowsBackForwardNavigationGestures
 {
@@ -1625,9 +1590,9 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(FORWARD_ACTION_TO_WKCONTENTVIEW)
 
 - (void)_executeEditCommand:(NSString *)command argument:(NSString *)argument completion:(void (^)(BOOL))completion
 {
-    _page->executeEditCommand(command, argument, [capturedCompletionBlock = makeBlockPtr(completion)](WebKit::CallbackBase::Error error) {
+    _page->executeEditCommand(command, argument, [capturedCompletionBlock = makeBlockPtr(completion)] {
         if (capturedCompletionBlock)
-            capturedCompletionBlock(error == WebKit::CallbackBase::Error::None);
+            capturedCompletionBlock(YES);
     });
 }
 
@@ -1639,6 +1604,22 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(FORWARD_ACTION_TO_WKCONTENTVIEW)
 - (void)_setTextManipulationDelegate:(id <_WKTextManipulationDelegate>)delegate
 {
     _textManipulationDelegate = delegate;
+}
+
+static RetainPtr<NSDictionary<NSString *, id>> createUserInfo(const Optional<WebCore::TextManipulationController::ManipulationTokenInfo>& info)
+{
+    if (!info)
+        return { };
+
+    auto result = adoptNS([[NSMutableDictionary alloc] initWithCapacity:3]);
+    if (!info->documentURL.isNull())
+        [result setObject:(NSURL *)info->documentURL forKey:_WKTextManipulationTokenUserInfoDocumentURLKey];
+    if (!info->tagName.isNull())
+        [result setObject:(NSString *)info->tagName forKey:_WKTextManipulationTokenUserInfoTagNameKey];
+    if (!info->roleAttribute.isNull())
+        [result setObject:(NSString *)info->roleAttribute forKey:_WKTextManipulationTokenUserInfoRoleAttributeKey];
+
+    return result;
 }
 
 - (void)_startTextManipulationsWithConfiguration:(_WKTextManipulationConfiguration *)configuration completion:(void(^)())completionHandler
@@ -1672,37 +1653,24 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(FORWARD_ACTION_TO_WKCONTENTVIEW)
         if (!delegate)
             return;
 
-        if (![delegate respondsToSelector:@selector(_webView:didFindTextManipulationItems:)]) {
-            for (auto& item : itemReferences) {
-                NSMutableArray *wkTokens = [NSMutableArray arrayWithCapacity:item.tokens.size()];
-                for (auto& token : item.tokens) {
-                    auto wkToken = adoptNS([[_WKTextManipulationToken alloc] init]);
-                    [wkToken setIdentifier:String::number(token.identifier.toUInt64())];
-                    [wkToken setContent:token.content];
-                    [wkToken setExcluded:token.isExcluded];
-                    [wkTokens addObject:wkToken.get()];
-                }
-                auto wkItem = adoptNS([[_WKTextManipulationItem alloc] initWithIdentifier:String::number(item.identifier.toUInt64()) tokens:wkTokens]);
-                [delegate _webView:retainedSelf.get() didFindTextManipulationItem:wkItem.get()];
-            }
-            return;
-        }
-
-        NSMutableArray *wkItems = [NSMutableArray arrayWithCapacity:itemReferences.size()];
-        for (auto& item : itemReferences) {
-            NSMutableArray *wkTokens = [NSMutableArray arrayWithCapacity:item.tokens.size()];
-            for (auto& token : item.tokens) {
+        auto createWKItem = [] (const WebCore::TextManipulationController::ManipulationItem& item) {
+            auto tokens = createNSArray(item.tokens, [] (auto& token) {
                 auto wkToken = adoptNS([[_WKTextManipulationToken alloc] init]);
                 [wkToken setIdentifier:String::number(token.identifier.toUInt64())];
                 [wkToken setContent:token.content];
                 [wkToken setExcluded:token.isExcluded];
-                [wkTokens addObject:wkToken.get()];
-            }
-            auto wkItem = adoptNS([[_WKTextManipulationItem alloc] initWithIdentifier:String::number(item.identifier.toUInt64()) tokens:wkTokens]);
-            [wkItems addObject:wkItem.get()];
-        }
-        [delegate _webView:retainedSelf.get() didFindTextManipulationItems:wkItems];
+                [wkToken setUserInfo:createUserInfo(token.info).get()];
+                return wkToken;
+            });
+            return adoptNS([[_WKTextManipulationItem alloc] initWithIdentifier:String::number(item.identifier.toUInt64()) tokens:tokens.get()]);
+        };
 
+        if ([delegate respondsToSelector:@selector(_webView:didFindTextManipulationItems:)])
+            [delegate _webView:retainedSelf.get() didFindTextManipulationItems:createNSArray(itemReferences, createWKItem).get()];
+        else {
+            for (auto& item : itemReferences)
+                [delegate _webView:retainedSelf.get() didFindTextManipulationItem:createWKItem(item).get()];
+        }
     }, [capturedCompletionBlock = makeBlockPtr(completionHandler)] () {
         capturedCompletionBlock();
     });
@@ -1729,7 +1697,7 @@ static WebCore::TextManipulationController::TokenIdentifier coreTextManipulation
 
     Vector<WebCore::TextManipulationController::ManipulationToken> tokens;
     for (_WKTextManipulationToken *wkToken in item.tokens)
-        tokens.append(WebCore::TextManipulationController::ManipulationToken { coreTextManipulationTokenIdentifierFromString(wkToken.identifier), wkToken.content });
+        tokens.append(WebCore::TextManipulationController::ManipulationToken { coreTextManipulationTokenIdentifierFromString(wkToken.identifier), wkToken.content, WTF::nullopt });
 
     Vector<WebCore::TextManipulationController::ManipulationItem> coreItems;
     coreItems.reserveInitialCapacity(1);
@@ -1747,36 +1715,32 @@ static RetainPtr<NSMutableArray> makeFailureSetForAllTextManipulationItems(NSArr
     return wkFailures;
 };
 
-static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipulationItem *> *items, const Vector<WebCore::TextManipulationController::ManipulationFailure>& failures)
+static RetainPtr<NSArray> wkTextManipulationErrors(NSArray<_WKTextManipulationItem *> *items, const Vector<WebCore::TextManipulationController::ManipulationFailure>& failures)
 {
-    using ManipulationFailureType = WebCore::TextManipulationController::ManipulationFailureType;
-
     if (failures.isEmpty())
-        return RetainPtr<NSMutableArray> { nil };
+        return nil;
 
-    RetainPtr<NSMutableArray> wkFailures = adoptNS([[NSMutableArray alloc] initWithCapacity:failures.size()]);
-    for (auto& coreFailure : failures) {
+    return createNSArray(failures, [&] (auto& coreFailure) -> NSError * {
         ASSERT(coreFailure.index < items.count);
         if (coreFailure.index >= items.count)
-            continue;
-        auto* item = items[coreFailure.index];
-        ASSERT(coreTextManipulationItemIdentifierFromString(item.identifier) == coreFailure.identifier);
-        auto errorCode = ([&coreFailure]() {
+            return nil;
+        auto errorCode = static_cast<NSInteger>(([&coreFailure] {
+            using Type = WebCore::TextManipulationController::ManipulationFailureType;
             switch (coreFailure.type) {
-            case ManipulationFailureType::ContentChanged:
+            case Type::ContentChanged:
                 return _WKTextManipulationItemErrorContentChanged;
-            case ManipulationFailureType::InvalidItem:
+            case Type::InvalidItem:
                 return _WKTextManipulationItemErrorInvalidItem;
-            case ManipulationFailureType::InvalidToken:
+            case Type::InvalidToken:
                 return _WKTextManipulationItemErrorInvalidToken;
-            case ManipulationFailureType::ExclusionViolation:
+            case Type::ExclusionViolation:
                 return _WKTextManipulationItemErrorExclusionViolation;
             }
-        })();
-        [wkFailures addObject:[NSError errorWithDomain:_WKTextManipulationItemErrorDomain code:static_cast<int>(errorCode) userInfo:@{_WKTextManipulationItemErrorItemKey: item}]];
-    }
-
-    return wkFailures;
+        })());
+        auto item = items[coreFailure.index];
+        ASSERT(coreTextManipulationItemIdentifierFromString(item.identifier) == coreFailure.identifier);
+        return [NSError errorWithDomain:_WKTextManipulationItemErrorDomain code:errorCode userInfo:@{_WKTextManipulationItemErrorItemKey: item}];
+    });
 }
 
 - (void)_completeTextManipulationForItems:(NSArray<_WKTextManipulationItem *> *)items completion:(void(^)(NSArray<NSError *> *errors))completionHandler
@@ -1792,7 +1756,7 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
         Vector<WebCore::TextManipulationController::ManipulationToken> coreTokens;
         coreTokens.reserveInitialCapacity(wkItem.tokens.count);
         for (_WKTextManipulationToken *wkToken in wkItem.tokens)
-            coreTokens.uncheckedAppend(WebCore::TextManipulationController::ManipulationToken { coreTextManipulationTokenIdentifierFromString(wkToken.identifier), wkToken.content });
+            coreTokens.uncheckedAppend(WebCore::TextManipulationController::ManipulationToken { coreTextManipulationTokenIdentifierFromString(wkToken.identifier), wkToken.content, WTF::nullopt });
         coreItems.uncheckedAppend(WebCore::TextManipulationController::ManipulationItem { coreTextManipulationItemIdentifierFromString(wkItem.identifier), WTFMove(coreTokens) });
     }
 
@@ -2160,7 +2124,9 @@ static RetainPtr<NSMutableArray> wkTextManipulationErrors(NSArray<_WKTextManipul
         if (capturedHandler)
             capturedHandler(error == WebKit::CallbackBase::Error::None);
     });
-
+#if HAVE(QUICKLOOK_THUMBNAILING)
+    _page->requestThumbnailWithFileWrapper(fileWrapper, identifier);
+#endif
     return wrapper(attachment);
 #else
     return nil;
@@ -2844,6 +2810,16 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
 
     _page->setViewportConfigurationViewLayoutSize(_page->viewLayoutSize(), viewScale, _page->minimumEffectiveDeviceWidth());
 #endif
+}
+
+- (NSArray<NSString *> *)_corsDisablingPatterns
+{
+    return createNSArray(_page->corsDisablingPatterns()).autorelease();
+}
+
+- (void)_setCORSDisablingPatterns:(NSArray<NSString *> *)patterns
+{
+    _page->setCORSDisablingPatterns(makeVector<String>(patterns));
 }
 
 - (void)_getProcessDisplayNameWithCompletionHandler:(void (^)(NSString *))completionHandler

@@ -3557,6 +3557,15 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '\n'
                                          '#include "ResourceHandleWin.h"\n',
                                          '')
+        # Internal.h and Private.h headers are primary headers.
+        self.assertEqual(cpp_style._PRIMARY_HEADER,
+                         classify_include('WKWebProcessPlugInNodeHandle.mm',
+                                          'WKWebProcessPlugInNodeHandleInternal.h',
+                                          False, include_state))
+        self.assertEqual(cpp_style._PRIMARY_HEADER,
+                         classify_include('WKWebProcessPlugInNodeHandle.mm',
+                                          'WKWebProcessPlugInNodeHandlePrivate.h',
+                                          False, include_state))
 
     def test_try_drop_common_suffixes(self):
         self.assertEqual('foo/foo', cpp_style._drop_common_suffixes('foo/foo-inl.h'))
@@ -5423,6 +5432,31 @@ class WebKitStyleTest(CppStyleTestBase):
             '  [runtime/max_min_macros] [4]',
             'foo.h')
 
+    def test_wtf_checked_size(self):
+        self.assert_lint(
+            'CheckedSize totalSize = barSize;\n'
+            'totalSize += bazSize;',
+            '',
+            'foo.cpp')
+
+        self.assert_lint(
+            'auto totalSize = CheckedSize(barSize) + bazSize;',
+            '',
+            'foo.cpp')
+
+        self.assert_lint(
+            'Checked<size_t, RecordOverflow> totalSize = barSize;\n'
+            'totalSize += bazSize;',
+            "Use 'CheckedSize' instead of 'Checked<size_t, RecordOverflow>'."
+            "  [runtime/wtf_checked_size] [5]",
+            'foo.cpp')
+
+        self.assert_lint(
+            'auto totalSize = Checked<size_t, RecordOverflow>(barSize) + bazSize;',
+            "Use 'CheckedSize' instead of 'Checked<size_t, RecordOverflow>'."
+            "  [runtime/wtf_checked_size] [5]",
+            'foo.cpp')
+
     def test_wtf_make_unique(self):
         self.assert_lint(
              'std::unique_ptr<Foo> foo = WTF::makeUnique<Foo>();',
@@ -5475,6 +5509,75 @@ class WebKitStyleTest(CppStyleTestBase):
             'A a = std::move(b);',
             "Use 'WTFMove()' instead of 'std::move()'."
             "  [runtime/wtf_move] [4]",
+            'foo.mm')
+
+    def test_wtf_never_destroyed(self):
+        self.assert_lint(
+             'static NeverDestroyed<Foo> foo;',
+             '',
+             'foo.cpp')
+
+        self.assert_lint(
+             'static LazyNeverDestroyed<Foo> foo;',
+             '',
+             'foo.cpp')
+
+        self.assert_lint(
+            'static NeverDestroyed<Lock> lock;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.cpp')
+
+        self.assert_lint(
+            'static NeverDestroyed<Condition> condition;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.cpp')
+
+        self.assert_lint(
+            'static LazyNeverDestroyed<Lock> lock;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.cpp')
+
+        self.assert_lint(
+            'static LazyNeverDestroyed<Condition> condition;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.cpp')
+
+        self.assert_lint(
+             'static NeverDestroyed<Foo> foo;',
+             '',
+             'foo.mm')
+
+        self.assert_lint(
+             'static LazyNeverDestroyed<Foo> foo;',
+             '',
+             'foo.mm')
+
+        self.assert_lint(
+            'static NeverDestroyed<Lock> lock;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.mm')
+
+        self.assert_lint(
+            'static NeverDestroyed<Condition> condition;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.mm')
+
+        self.assert_lint(
+            'static LazyNeverDestroyed<Lock> lock;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
+            'foo.mm')
+
+        self.assert_lint(
+            'static LazyNeverDestroyed<Condition> condition;',
+            "Use 'static Lock/Condition' instead of 'NeverDestroyed<Lock/Condition>'."
+            "  [runtime/wtf_never_destroyed] [4]",
             'foo.mm')
 
     def test_wtf_optional(self):

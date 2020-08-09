@@ -515,7 +515,7 @@ typedef enum {
 @property (readonly) NSString *_hostApplicationBundleIdentifier;
 @end
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+#if PLATFORM(IOS)
 @interface NSURL ()
 @property (nonatomic, copy, setter=_setTitle:) NSString *_title;
 @end
@@ -778,13 +778,11 @@ struct _UIWebTouchPoint {
     CGPoint locationInDocumentCoordinates;
     unsigned identifier;
     UITouchPhase phase;
-#if __IPHONE_OS_VERSION_MIN_REQUIRED > 100000
     CGFloat majorRadiusInScreenCoordinates;
     CGFloat force;
     CGFloat altitudeAngle;
     CGFloat azimuthAngle;
     UIWebTouchPointType touchType;
-#endif
 };
 
 struct _UIWebTouchEvent {
@@ -1072,9 +1070,7 @@ typedef NS_OPTIONS(NSUInteger, UIDragOperation)
 
 @interface UITextEffectsWindow : UIAutoRotatingWindow
 + (UITextEffectsWindow *)sharedTextEffectsWindow;
-#if HAVE(UISCENE)
 + (UITextEffectsWindow *)sharedTextEffectsWindowForWindowScene:(UIWindowScene *)windowScene;
-#endif // HAVE(UISCENE)
 @end
 
 @interface _UIVisualEffectLayerConfig : NSObject
@@ -1162,6 +1158,7 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 @end
 
 @interface UIContextMenuInteraction ()
+@property (nonatomic, readonly) UIGestureRecognizer *gestureRecognizerForFailureRelationships;
 - (void)_presentMenuAtLocation:(CGPoint)location;
 @end
 
@@ -1225,6 +1222,12 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 @interface UITextInteraction (IPI)
 @property (nonatomic, readonly) BOOL inGesture;
 @end
+
+#if ENABLE(DRAG_SUPPORT)
+@interface UIDragInteraction (IPI)
+@property (nonatomic, readonly, getter=_initiationDriver) id initiationDriver;
+@end
+#endif // ENABLE(DRAG_SUPPORT)
 
 #if HAVE(LINK_PREVIEW) && USE(UICONTEXTMENU)
 @interface UIContextMenuConfiguration (IPI)

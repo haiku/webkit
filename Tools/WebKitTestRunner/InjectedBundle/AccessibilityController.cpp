@@ -107,7 +107,7 @@ Ref<AccessibilityUIElement> AccessibilityController::focusedElement()
     return AccessibilityUIElement::create(focusedElement);
 }
 
-void AccessibilityController::executeOnAXThreadIfPossible(Function<void()>&& function)
+void AccessibilityController::executeOnAXThreadAndWait(Function<void()>&& function)
 {
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     if (m_useMockAXThread) {
@@ -116,17 +116,36 @@ void AccessibilityController::executeOnAXThreadIfPossible(Function<void()>&& fun
             m_semaphore.signal();
         });
 
-        // Spin the main loop so that any required DOM processing can be
-        // executed in the main thread. That is the case of most parameterized
-        // attributes, where the attribute value has to be calculated
-        // back in the main thread.
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, .25, false);
         m_semaphore.wait();
     } else
 #endif
         function();
 }
+
+void AccessibilityController::executeOnAXThread(Function<void()>&& function)
+{
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    if (m_useMockAXThread) {
+        AXThread::dispatch([function = WTFMove(function)] {
+            function();
+        });
+    } else
 #endif
+        function();
+}
+
+void AccessibilityController::executeOnMainThread(Function<void()>&& function)
+{
+    if (isMainThread()) {
+        function();
+        return;
+    }
+
+    AXThread::dispatchBarrier([function = WTFMove(function)] {
+        function();
+    });
+}
+#endif // PLATFORM(COCOA)
 
 RefPtr<AccessibilityUIElement> AccessibilityController::elementAtPoint(int x, int y)
 {
@@ -162,7 +181,7 @@ void AXThread::dispatch(Function<void()>&& function)
 
 void AXThread::dispatchBarrier(Function<void()>&& function)
 {
-    dispatch([function = WTFMove(function)]() mutable {
+    dispatch([function = WTFMove(function)] () mutable {
         callOnMainThread(WTFMove(function));
     });
 }

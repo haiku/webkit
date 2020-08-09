@@ -214,6 +214,8 @@ public:
     void setShouldDownloadUndisplayableMIMETypes(bool value) { m_shouldDownloadUndisplayableMIMETypes = value; }
     void setShouldAllowDeviceOrientationAndMotionAccess(bool value) { m_shouldAllowDeviceOrientationAndMotionAccess = value; }
 
+    void clearStatisticsDataForDomain(WKStringRef domain);
+    bool doesStatisticsDomainIDExistInDatabase(unsigned domainID);
     void setStatisticsEnabled(bool value);
     bool isStatisticsEphemeral();
     void setStatisticsDebugMode(bool value);
@@ -264,13 +266,13 @@ public:
     void setStatisticsShouldBlockThirdPartyCookies(bool value, bool onlyOnSitesWithoutUserInteraction);
     void setStatisticsFirstPartyWebsiteDataRemovalMode(bool value);
     void setStatisticsToSameSiteStrictCookies(WKStringRef hostName);
+    void setAppBoundDomains(WKArrayRef originURLs);
     void statisticsResetToConsistentState();
 
     void getAllStorageAccessEntries();
     void loadedThirdPartyDomains();
     void clearLoadedThirdPartyDomains();
-    void getWebViewCategory();
-    void setInAppBrowserPrivacyEnabled(bool);
+    void clearAppBoundSession();
     void reinitializeAppBoundDomains();
 
     WKArrayRef openPanelFileURLs() const { return m_openPanelFileURLs.get(); }
@@ -350,6 +352,8 @@ public:
     void setAdClickAttributionOverrideTimerForTesting(bool value);
     void setAdClickAttributionConversionURLForTesting(WKURLRef);
     void markAdClickAttributionsAsExpiredForTesting();
+
+    void didSetAppBoundDomains() const;
 
 private:
     WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(const TestOptions&);

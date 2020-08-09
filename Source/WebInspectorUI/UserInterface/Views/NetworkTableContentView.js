@@ -148,17 +148,14 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         this._buttonsNavigationItemGroup = new WI.GroupNavigationItem([this._harImportNavigationItem, this._harExportNavigationItem, new WI.DividerNavigationItem]);
         this._buttonsNavigationItemGroup.visibilityPriority = WI.NavigationItem.VisibilityPriority.Low;
 
-        // COMPATIBILITY (iOS 10.3): Network.setDisableResourceCaching did not exist.
-        if (InspectorBackend.hasCommand("Network.setResourceCachingDisabled")) {
-            let toolTipForDisableResourceCache = WI.UIString("Ignore the resource cache when loading resources");
-            let activatedToolTipForDisableResourceCache = WI.UIString("Use the resource cache when loading resources");
-            this._disableResourceCacheNavigationItem = new WI.ActivateButtonNavigationItem("disable-resource-cache", toolTipForDisableResourceCache, activatedToolTipForDisableResourceCache, "Images/IgnoreCaches.svg", 16, 16);
-            this._disableResourceCacheNavigationItem.activated = WI.settings.resourceCachingDisabled.value;
-            this._disableResourceCacheNavigationItem.visibilityPriority = WI.NavigationItem.VisibilityPriority.High;
-            this._disableResourceCacheNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, this._toggleDisableResourceCache, this);
+        let toolTipForDisableResourceCache = WI.UIString("Ignore the resource cache when loading resources");
+        let activatedToolTipForDisableResourceCache = WI.UIString("Use the resource cache when loading resources");
+        this._disableResourceCacheNavigationItem = new WI.ActivateButtonNavigationItem("disable-resource-cache", toolTipForDisableResourceCache, activatedToolTipForDisableResourceCache, "Images/IgnoreCaches.svg", 16, 16);
+        this._disableResourceCacheNavigationItem.activated = WI.settings.resourceCachingDisabled.value;
+        this._disableResourceCacheNavigationItem.visibilityPriority = WI.NavigationItem.VisibilityPriority.High;
+        this._disableResourceCacheNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, this._toggleDisableResourceCache, this);
 
-            WI.settings.resourceCachingDisabled.addEventListener(WI.Setting.Event.Changed, this._resourceCachingDisabledSettingChanged, this);
-        }
+        WI.settings.resourceCachingDisabled.addEventListener(WI.Setting.Event.Changed, this._resourceCachingDisabledSettingChanged, this);
 
         this._clearNetworkItemsNavigationItem = new WI.ButtonNavigationItem("clear-network-items", WI.UIString("Clear Network Items (%s)").format(WI.clearKeyboardShortcut.displayName), "Images/NavigationItemTrash.svg", 15, 15);
         this._clearNetworkItemsNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, () => {
@@ -791,6 +788,8 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
 
     _populateWaterfallGraph(cell, entry)
     {
+        cell.classList.add("network");
+
         cell.removeChildren();
 
         let container = cell.appendChild(document.createElement("div"));
@@ -1284,7 +1283,6 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         this._updateWaterfallTimelineRuler();
         this._processPendingEntries();
         this._positionDetailView();
-        this._positionEmptyFilterMessage();
         this._updateExportButton();
     }
 
@@ -1603,7 +1601,6 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         }
 
         this.element.appendChild(this._emptyFilterResultsMessageElement);
-        this._positionEmptyFilterMessage();
     }
 
     _hideEmptyFilterResultsMessage()
@@ -1612,15 +1609,6 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
             return;
 
         this._emptyFilterResultsMessageElement.remove();
-    }
-
-    _positionEmptyFilterMessage()
-    {
-        if (!this._emptyFilterResultsMessageElement)
-            return;
-
-        let width = this._nameColumn.width - 1; // For the 1px border.
-        this._emptyFilterResultsMessageElement.style.width = width + "px";
     }
 
     _clearNetworkOnNavigateSettingChanged()
@@ -2289,15 +2277,19 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
 
     _urlFilterDidChange(event)
     {
-        let searchQuery = this._urlFilterNavigationItem.filterBar.filters.text;
+        let filterBar = this._urlFilterNavigationItem.filterBar;
+        let searchQuery = filterBar.filters.text;
         if (searchQuery === this._urlFilterSearchText)
             return;
 
         // Even if the selected resource would still be visible, lets close the detail view if a filter changes.
         this._hideDetailView();
 
+        this._urlFilterSearchRegex = searchQuery ? WI.SearchUtilities.filterRegExpForString(searchQuery, WI.SearchUtilities.defaultSettings) : null;
+        filterBar.invalid = searchQuery && !this._urlFilterSearchRegex
+
         // Search cleared.
-        if (!searchQuery) {
+        if (!this._urlFilterSearchRegex) {
             this._urlFilterSearchText = null;
             this._urlFilterSearchRegex = null;
             this._urlFilterIsActive = false;
@@ -2310,7 +2302,6 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
 
         this._urlFilterIsActive = true;
         this._urlFilterSearchText = searchQuery;
-        this._urlFilterSearchRegex = WI.SearchUtilities.filterRegExpForString(searchQuery, WI.SearchUtilities.defaultSettings);
 
         this._updateActiveFilterResources();
         this._updateFilteredEntries();
@@ -2494,7 +2485,6 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         this._nameColumnWidthSetting.value = event.target.width;
 
         this._positionDetailView();
-        this._positionEmptyFilterMessage();
     }
 
     _tableWaterfallColumnDidChangeWidth(event)

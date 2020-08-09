@@ -39,7 +39,11 @@ OBJC_CLASS NSView;
 
 #if PLATFORM(GTK)
 #include <WebCore/GUniquePtrGtk.h>
+#if USE(GTK4)
+typedef struct _GdkEvent GdkEvent;
+#else
 typedef union _GdkEvent GdkEvent;
+#endif
 #endif
 
 #if USE(LIBWPE)
@@ -60,6 +64,7 @@ public:
     NativeWebWheelEvent(const NativeWebWheelEvent&);
     NativeWebWheelEvent(GdkEvent*);
     NativeWebWheelEvent(GdkEvent*, WebWheelEvent::Phase, WebWheelEvent::Phase momentumPhase);
+    NativeWebWheelEvent(GdkEvent*, const WebCore::IntPoint&);
 #elif USE(LIBWPE)
     NativeWebWheelEvent(struct wpe_input_axis_event*, float deviceScaleFactor, WebWheelEvent::Phase, WebWheelEvent::Phase momentumPhase);
 #elif PLATFORM(WIN)

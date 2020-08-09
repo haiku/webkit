@@ -129,10 +129,14 @@ bool ScrollingTreeScrollingNode::isLatchedNode() const
     return scrollingTree().latchedNodeID() == scrollingNodeID();
 }
 
-bool ScrollingTreeScrollingNode::canScrollWithWheelEvent(const PlatformWheelEvent& wheelEvent) const
+bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& wheelEvent) const
 {
     if (!canHaveScrollbars())
         return false;
+
+    // MayBegin is used to flash scrollbars; if this node is scrollable, it can handle it.
+    if (wheelEvent.phase() == PlatformWheelEventPhaseMayBegin)
+        return true;
 
     // We always rubber-band the latched node, or the root node.
     if (isLatchedNode() || isRootNode())
@@ -169,8 +173,16 @@ bool ScrollingTreeScrollingNode::eventCanScrollContents(const PlatformWheelEvent
     if (wheelEvent.delta().isZero())
         return false;
 
-    FloatPoint oldScrollPosition = currentScrollPosition();
-    FloatPoint newScrollPosition = oldScrollPosition + FloatSize(-wheelEvent.deltaX(), -wheelEvent.deltaY());
+    auto wheelDelta = wheelEvent.delta();
+
+    if (!m_scrollableAreaParameters.hasEnabledHorizontalScrollbar)
+        wheelDelta.setWidth(0);
+
+    if (!m_scrollableAreaParameters.hasEnabledVerticalScrollbar)
+        wheelDelta.setHeight(0);
+
+    auto oldScrollPosition = currentScrollPosition();
+    auto newScrollPosition = oldScrollPosition - wheelDelta;
     newScrollPosition = newScrollPosition.constrainedBetween(minimumScrollPosition(), maximumScrollPosition());
     return newScrollPosition != oldScrollPosition;
 }
@@ -237,10 +249,6 @@ void ScrollingTreeScrollingNode::scrollTo(const FloatPoint& position, ScrollType
 
 void ScrollingTreeScrollingNode::currentScrollPositionChanged()
 {
-    repositionScrollingLayers();
-    repositionRelatedLayers();
-
-    scrollingTree().notifyRelatedNodesAfterScrollPositionChange(*this);
     scrollingTree().scrollingTreeNodeDidScroll(*this);
 }
 

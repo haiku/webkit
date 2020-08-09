@@ -109,7 +109,9 @@ public:
     const String pseudoElement() const;
     ExceptionOr<void> setPseudoElement(const String&);
 
+    Vector<JSC::Strong<JSC::JSObject>> getBindingsKeyframes(JSC::JSGlobalObject&);
     Vector<JSC::Strong<JSC::JSObject>> getKeyframes(JSC::JSGlobalObject&);
+    ExceptionOr<void> setBindingsKeyframes(JSC::JSGlobalObject&, JSC::Strong<JSC::JSObject>&&);
     ExceptionOr<void> setKeyframes(JSC::JSGlobalObject&, JSC::Strong<JSC::JSObject>&&);
 
     IterationCompositeOperation iterationComposite() const { return m_iterationCompositeOperation; }
@@ -200,7 +202,7 @@ private:
     KeyframeList m_blendingKeyframes { emptyString() };
     Vector<ParsedKeyframe> m_parsedKeyframes;
     Vector<AcceleratedAction> m_pendingAcceleratedActions;
-    WeakPtr<Element> m_target;
+    RefPtr<Element> m_target;
     PseudoId m_pseudoId { PseudoId::None };
     std::unique_ptr<const RenderStyle> m_unanimatedStyle;
 

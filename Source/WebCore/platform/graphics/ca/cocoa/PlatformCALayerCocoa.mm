@@ -51,6 +51,7 @@
 #import <objc/runtime.h>
 #import <wtf/BlockObjCExceptions.h>
 #import <wtf/RetainPtr.h>
+#import <wtf/cocoa/VectorCocoa.h>
 
 #if ENABLE(WEBGPU)
 #import "WebGPULayer.h"
@@ -456,12 +457,9 @@ void PlatformCALayerCocoa::setSublayers(const PlatformCALayerList& list)
     }
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS
-    NSMutableArray* sublayers = [[NSMutableArray alloc] init];
-    for (size_t i = 0; i < list.size(); ++i)
-        [sublayers addObject:list[i]->m_layer.get()];
-
-    [m_layer setSublayers:sublayers];
-    [sublayers release];
+    [m_layer setSublayers:createNSArray(list, [] (auto& layer) {
+        return layer->m_layer;
+    }).get()];
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -1188,9 +1186,7 @@ void PlatformCALayer::drawLayerContents(GraphicsContext& graphicsContext, WebCor
 
         // Set up an NSGraphicsContext for the context, so that parts of AppKit that rely on
         // the current NSGraphicsContext (e.g. NSCell drawing) get the right one.
-        ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-        NSGraphicsContext* layerContext = [NSGraphicsContext graphicsContextWithGraphicsPort:context flipped:YES];
-        ALLOW_DEPRECATED_DECLARATIONS_END
+        NSGraphicsContext* layerContext = [NSGraphicsContext graphicsContextWithCGContext:context flipped:YES];
         [NSGraphicsContext setCurrentContext:layerContext];
 #endif
     }

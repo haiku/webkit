@@ -292,6 +292,8 @@ interface TestRunner {
     void disconnectMockGamepad(unsigned long index);
 
     // Resource Load Statistics
+    void clearStatisticsDataForDomain(DOMString domain);
+    boolean doesStatisticsDomainIDExistInDatabase(unsigned long domainID);
     void setStatisticsEnabled(boolean value);
     boolean isStatisticsEphemeral();
     void installStatisticsDidModifyDataRecordsCallback(object callback);
@@ -356,9 +358,6 @@ interface TestRunner {
     // Storage Access API
     void getAllStorageAccessEntries(object callback);
 
-    void getWebViewCategory(object callback);
-    void setInAppBrowserPrivacyEnabled(boolean value, object callback);
-
     // Open panel
     void setOpenPanelFiles(object filesArray);
     void setOpenPanelFilesMediaIcon(object mediaIcon);
@@ -394,7 +393,9 @@ interface TestRunner {
     void resetMockMediaDevices();
     void setMockCameraOrientation(unsigned long orientation);
     boolean isMockRealtimeMediaSourceCenterEnabled();
+
     boolean hasAppBoundSession();
+    void setAppBoundDomains(object originsArray, object callback);
 
     void injectUserScript(DOMString string);
     readonly attribute unsigned long userScriptInjectedCount;

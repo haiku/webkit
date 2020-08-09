@@ -75,6 +75,8 @@ namespace WebCore {
     macro(EnterPictureInPictureEvent) \
     macro(ExtendableEvent) \
     macro(ExtendableMessageEvent) \
+    macro(FakeXRDevice) \
+    macro(FakeXRInputController) \
     macro(FetchEvent) \
     macro(FileSystem) \
     macro(FileSystemDirectoryEntry) \
@@ -180,6 +182,7 @@ namespace WebCore {
     macro(PerformanceMeasure) \
     macro(PerformanceObserver) \
     macro(PerformanceObserverEntryList) \
+    macro(PerformancePaintTiming) \
     macro(PerformanceResourceTiming) \
     macro(PerformanceServerTiming) \
     macro(PointerEvent) \
@@ -236,6 +239,7 @@ namespace WebCore {
     macro(WorkletGlobalScope) \
     macro(WritableStream) \
     macro(XMLHttpRequest) \
+    macro(XR) \
     macro(XRBoundedReferenceSpace) \
     macro(XRFrame) \
     macro(XRInputSource) \
@@ -250,7 +254,7 @@ namespace WebCore {
     macro(XRSession) \
     macro(XRSessionEvent) \
     macro(XRSpace) \
-    macro(XRSystem) \
+    macro(XRTest) \
     macro(XRView) \
     macro(XRViewerPose) \
     macro(XRViewport) \

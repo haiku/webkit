@@ -379,7 +379,7 @@ AXCoreObject* AXObjectCache::focusedObject(Document& document)
 AXCoreObject* AXObjectCache::isolatedTreeFocusedObject()
 {
     if (auto tree = getOrCreateIsolatedTree())
-        return tree->focusedUIElement().get();
+        return tree->focusedNode().get();
 
     // Should not get here, couldn't create the IsolatedTree.
     ASSERT_NOT_REACHED();
@@ -859,8 +859,6 @@ void AXObjectCache::remove(RenderObject* renderer)
 void AXObjectCache::remove(Node& node)
 {
     if (is<Element>(node)) {
-        m_deferredRecomputeIsIgnoredList.remove(downcast<Element>(&node));
-        m_deferredSelectedChildredChangedList.remove(downcast<Element>(&node));
         m_deferredTextFormControlValue.remove(downcast<Element>(&node));
         m_deferredAttributeChange.remove(downcast<Element>(&node));
     }
@@ -2997,9 +2995,7 @@ void AXObjectCache::prepareForDocumentDestruction(const Document& document)
     HashSet<Node*> nodesToRemove;
     filterListForRemoval(m_textMarkerNodes, document, nodesToRemove);
     filterListForRemoval(m_modalNodesSet, document, nodesToRemove);
-    filterListForRemoval(m_deferredRecomputeIsIgnoredList, document, nodesToRemove);
     filterListForRemoval(m_deferredTextChangedList, document, nodesToRemove);
-    filterListForRemoval(m_deferredSelectedChildredChangedList, document, nodesToRemove);
     filterListForRemoval(m_deferredChildrenChangedNodeList, document, nodesToRemove);
     filterMapForRemoval(m_deferredTextFormControlValue, document, nodesToRemove);
     filterMapForRemoval(m_deferredAttributeChange, document, nodesToRemove);
@@ -3048,14 +3044,14 @@ void AXObjectCache::performDeferredCacheUpdate()
         textChanged(node);
     m_deferredTextChangedList.clear();
 
-    for (auto* element : m_deferredRecomputeIsIgnoredList) {
-        if (auto* renderer = element->renderer())
+    for (auto& element : m_deferredRecomputeIsIgnoredList) {
+        if (auto* renderer = element.renderer())
             recomputeIsIgnored(renderer);
     }
     m_deferredRecomputeIsIgnoredList.clear();
     
-    for (auto* selectElement : m_deferredSelectedChildredChangedList)
-        selectedChildrenChanged(selectElement);
+    for (auto& selectElement : m_deferredSelectedChildredChangedList)
+        selectedChildrenChanged(&selectElement);
     m_deferredSelectedChildredChangedList.clear();
 
     for (auto& deferredFormControlContext : m_deferredTextFormControlValue) {
@@ -3078,6 +3074,7 @@ void AXObjectCache::performDeferredCacheUpdate()
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
 Ref<AXIsolatedTree> AXObjectCache::generateIsolatedTree(PageIdentifier pageID, Document& document)
 {
+    AXTRACE("AXObjectCache::generateIsolatedTree");
     RELEASE_ASSERT(isMainThread());
 
     RefPtr<AXIsolatedTree> tree(AXIsolatedTree::createTreeForPageID(pageID));
@@ -3095,13 +3092,15 @@ Ref<AXIsolatedTree> AXObjectCache::generateIsolatedTree(PageIdentifier pageID, D
 
     auto* axFocus = axObjectCache->focusedObject(document);
     if (axFocus)
-        tree->setFocusedNode(axFocus->objectID());
+        tree->setFocusedNodeID(axFocus->objectID());
 
     return makeRef(*tree);
 }
 
 void AXObjectCache::updateIsolatedTree(AXCoreObject& object, AXNotification notification)
 {
+    AXTRACE("AXObjectCache::updateIsolatedTree");
+    AXLOG(std::make_pair(&object, notification));
     if (!m_pageID)
         return;
 
@@ -3134,6 +3133,7 @@ static bool appendIfNotContainsMatching(Vector<T>& vector, const T& value, F mat
 
 void AXObjectCache::updateIsolatedTree(const Vector<std::pair<RefPtr<AXCoreObject>, AXNotification>>& notifications)
 {
+    AXTRACE("AXObjectCache::updateIsolatedTree");
     if (!m_pageID)
         return;
 
@@ -3145,6 +3145,7 @@ void AXObjectCache::updateIsolatedTree(const Vector<std::pair<RefPtr<AXCoreObjec
     // updating the isolated tree multiple times unnecessarily.
     Vector<std::pair<RefPtr<AXCoreObject>, AXNotification>> filteredNotifications;
     for (const auto& notification : notifications) {
+        AXLOG(notification);
         if (!notification.first || notification.first->objectID() == InvalidAXID)
             continue;
 

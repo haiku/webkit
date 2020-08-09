@@ -380,6 +380,8 @@ public:
     void setMockGamepadButtonValue(unsigned index, unsigned buttonIndex, double value);
     
     // Resource Load Statistics
+    void clearStatisticsDataForDomain(JSStringRef domain);
+    bool doesStatisticsDomainIDExistInDatabase(unsigned domainID);
     void setStatisticsEnabled(bool value);
     bool isStatisticsEphemeral();
     void installStatisticsDidModifyDataRecordsCallback(JSValueRef callback);
@@ -467,10 +469,6 @@ public:
     void getAllStorageAccessEntries(JSValueRef callback);
     void callDidReceiveAllStorageAccessEntriesCallback(Vector<String>& domains);
 
-    
-    void getWebViewCategory(JSValueRef callback);
-    void callDidReceiveWebViewCategoryCallback(String);
-
     // Open panel
     void setOpenPanelFiles(JSValueRef);
     void setOpenPanelFilesMediaIcon(JSValueRef);
@@ -502,9 +500,10 @@ public:
     void resetMockMediaDevices();
     void setMockCameraOrientation(unsigned);
     bool isMockRealtimeMediaSourceCenterEnabled();
+
     bool hasAppBoundSession();
-    void setInAppBrowserPrivacyEnabled(bool, JSValueRef);
-    void callDidSetInAppBrowserPrivacyEnabledCallback();
+    void setAppBoundDomains(JSValueRef originArray, JSValueRef callback);
+    void didSetAppBoundDomainsCallback();
 
     size_t userScriptInjectedCount() const;
     void injectUserScript(JSStringRef);

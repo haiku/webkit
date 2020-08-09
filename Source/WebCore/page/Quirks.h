@@ -75,6 +75,7 @@ public:
     WEBCORE_EXPORT bool shouldUseLegacySelectPopoverDismissalBehaviorInDataActivation() const;
     WEBCORE_EXPORT bool shouldIgnoreAriaForFastPathContentObservationCheck() const;
     WEBCORE_EXPORT bool shouldLayOutAtMinimumWindowWidthWhenIgnoringScalingConstraints() const;
+    WEBCORE_EXPORT bool shouldIgnoreContentObservationForSyntheticClick(bool isFirstSyntheticClickOnPage) const;
 
     WEBCORE_EXPORT bool needsYouTubeMouseOutQuirk() const;
     
@@ -82,12 +83,14 @@ public:
 
     bool needsGMailOverflowScrollQuirk() const;
     bool needsYouTubeOverflowScrollQuirk() const;
+    bool needsFullscreenDisplayNoneQuirk() const;
 
     bool shouldOpenAsAboutBlank(const String&) const;
 
     bool needsPreloadAutoQuirk() const;
 
     bool shouldBypassBackForwardCache() const;
+    bool shouldBypassAsyncScriptDeferring() const;
 
     static bool shouldMakeEventListenerPassive(const EventTarget&, const AtomString& eventType, const EventListener&);
 
@@ -115,12 +118,14 @@ private:
     mutable Optional<bool> m_needsGMailOverflowScrollQuirk;
     mutable Optional<bool> m_needsYouTubeOverflowScrollQuirk;
     mutable Optional<bool> m_needsPreloadAutoQuirk;
+    mutable Optional<bool> m_needsFullscreenDisplayNoneQuirk;
 #endif
     mutable Optional<bool> m_shouldDisableElementFullscreenQuirk;
 #if ENABLE(TOUCH_EVENTS)
     mutable Optional<bool> m_shouldDispatchSimulatedMouseEventsQuirk;
 #endif
     mutable Optional<bool> m_needsCanPlayAfterSeekedQuirk;
+    mutable Optional<bool> m_shouldBypassAsyncScriptDeferring;
 };
 
 }

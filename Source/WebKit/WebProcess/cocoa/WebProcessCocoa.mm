@@ -162,8 +162,37 @@ static id NSApplicationAccessibilityFocusedUIElement(NSApplication*, SEL)
 }
 #endif
 
+#if ENABLE(CFPREFS_DIRECT_MODE)
+static void setGlobalPreferences(const String& encodedGlobalPreferences)
+{
+    if (encodedGlobalPreferences.isEmpty())
+        return;
+
+    auto encodedData = adoptNS([[NSData alloc] initWithBase64EncodedString:encodedGlobalPreferences options:0]);
+    if (!encodedData)
+        return;
+
+    NSError *err = nil;
+    auto classes = [NSSet setWithArray:@[[NSString class], [NSNumber class], [NSDate class], [NSDictionary class], [NSArray class], [NSData class]]];
+    id globalPreferencesDictionary = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes fromData:encodedData.get() error:&err];
+    if (err) {
+        ASSERT_NOT_REACHED();
+        WTFLogAlways("Failed to unarchive global preferences dictionary with NSKeyedUnarchiver.");
+        return;
+    }
+    [globalPreferencesDictionary enumerateKeysAndObjectsUsingBlock: ^(NSString *key, id value, BOOL* stop) {
+        if (value)
+            CFPreferencesSetAppValue(static_cast<CFStringRef>(key), static_cast<CFPropertyListRef>(value), CFSTR("kCFPreferencesAnyApplication"));
+    }];
+}
+#endif
+
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
+#if ENABLE(CFPREFS_DIRECT_MODE)
+    setGlobalPreferences(parameters.encodedGlobalPreferences);
+#endif
+
     // Map Launch Services database. This should be done as early as possible, as the mapping will fail
     // if 'com.apple.lsd.mapdb' is being accessed before this.
     if (parameters.mapDBExtensionHandle) {
@@ -175,7 +204,6 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
         ok = extension->revoke();
         ASSERT_UNUSED(ok, ok);
     }
-
 
 #if PLATFORM(IOS_FAMILY)
     if (parameters.runningboardExtensionHandle) {
@@ -296,11 +324,8 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     if (parameters.diagnosticsExtensionHandle)
         SandboxExtension::consumePermanently(*parameters.diagnosticsExtensionHandle);
 
-    for (size_t i = 0, size = parameters.dynamicMachExtensionHandles.size(); i < size; ++i)
-        SandboxExtension::consumePermanently(parameters.dynamicMachExtensionHandles[i]);
-
-    for (size_t i = 0, size = parameters.dynamicIOKitExtensionHandles.size(); i < size; ++i)
-        SandboxExtension::consumePermanently(parameters.dynamicIOKitExtensionHandles[i]);
+    SandboxExtension::consumePermanently(parameters.dynamicMachExtensionHandles);
+    SandboxExtension::consumePermanently(parameters.dynamicIOKitExtensionHandles);
 #endif
     
     if (parameters.neHelperExtensionHandle)
@@ -320,12 +345,11 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 #endif
 
     // FIXME(207716): The following should be removed when the GPU process is complete.
-    for (size_t i = 0, size = parameters.mediaExtensionHandles.size(); i < size; ++i)
-        SandboxExtension::consumePermanently(parameters.mediaExtensionHandles[i]);
+    SandboxExtension::consumePermanently(parameters.mediaExtensionHandles);
 
 #if ENABLE(CFPREFS_DIRECT_MODE)
-    if (parameters.preferencesExtensionHandle) {
-        SandboxExtension::consumePermanently(*parameters.preferencesExtensionHandle);
+    if (parameters.preferencesExtensionHandles) {
+        SandboxExtension::consumePermanently(*parameters.preferencesExtensionHandles);
         _CFPrefsSetDirectModeEnabled(false);
     }
 #endif
@@ -363,7 +387,7 @@ void WebProcess::initializeProcessName(const AuxiliaryProcessInitializationParam
 void WebProcess::updateProcessName()
 {
 #if PLATFORM(MAC)
-    NSString *applicationName;
+    RetainPtr<NSString> applicationName;
     switch (m_processType) {
     case ProcessType::Inspector:
         applicationName = [NSString stringWithFormat:WEB_UI_STRING("%@ Web Inspector", "Visible name of Web Inspector's web process. The argument is the application name."), (NSString *)m_uiProcessName];
@@ -382,9 +406,9 @@ void WebProcess::updateProcessName()
         break;
     }
 
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
+    RunLoop::main().dispatch([this, applicationName = WTFMove(applicationName)] {
         // Note that it is important for _RegisterApplication() to have been called before setting the display name.
-        auto error = _LSSetApplicationInformationItem(kLSDefaultSessionID, _LSGetCurrentApplicationASN(), _kLSDisplayNameKey, (CFStringRef)applicationName, nullptr);
+        auto error = _LSSetApplicationInformationItem(kLSDefaultSessionID, _LSGetCurrentApplicationASN(), _kLSDisplayNameKey, (CFStringRef)applicationName.get(), nullptr);
         ASSERT(!error);
         if (error) {
             RELEASE_LOG_ERROR_IF_ALLOWED(Process, "updateProcessName: Failed to set the display name of the WebContent process, error code: %ld", static_cast<long>(error));
@@ -463,14 +487,12 @@ void WebProcess::registerWithStateDumper()
                 [stateDict setObject:jsObjectCounts.get() forKey:@"JavaScript Object Counts"];
             }
 
-            auto pageLoadTimes = adoptNS([[NSMutableArray alloc] init]);
-            for (auto& page : m_pageMap.values()) {
+            auto pageLoadTimes = createNSArray(m_pageMap.values(), [] (auto& page) -> id {
                 if (page->usesEphemeralSession())
-                    continue;
+                    return nil;
 
-                NSDate* date = [NSDate dateWithTimeIntervalSince1970:page->loadCommitTime().secondsSinceEpoch().seconds()];
-                [pageLoadTimes addObject:date];
-            }
+                return [NSDate dateWithTimeIntervalSince1970:page->loadCommitTime().secondsSinceEpoch().seconds()];
+            });
 
             // Adding an empty array to the process state may provide an
             // indication of the existance of private sessions, which we'd like
@@ -613,7 +635,7 @@ static NSURL *origin(WebPage& page)
 {
     auto& mainFrame = page.mainWebFrame();
 
-    URL mainFrameURL = { URL(), mainFrame.url() };
+    URL mainFrameURL = mainFrame.url();
     Ref<SecurityOrigin> mainFrameOrigin = SecurityOrigin::create(mainFrameURL);
     String mainFrameOriginString;
     if (!mainFrameOrigin->isUnique())
@@ -631,34 +653,33 @@ static NSURL *origin(WebPage& page)
 #endif
 
 #if PLATFORM(MAC)
+
 static RetainPtr<NSArray<NSString *>> activePagesOrigins(const HashMap<PageIdentifier, RefPtr<WebPage>>& pageMap)
 {
-    RetainPtr<NSMutableArray<NSString *>> activeOrigins = adoptNS([[NSMutableArray alloc] init]);
-
-    for (auto& page : pageMap.values()) {
+    return createNSArray(pageMap.values(), [] (auto& page) -> NSString * {
         if (page->usesEphemeralSession())
-            continue;
+            return nil;
 
-        if (NSURL *originAsURL = origin(*page))
-            [activeOrigins addObject:WTF::userVisibleString(originAsURL)];
-    }
+        NSURL *originAsURL = origin(*page);
+        if (!originAsURL)
+            return nil;
 
-    return activeOrigins;
+        return WTF::userVisibleString(originAsURL);
+    });
 }
+
 #endif
 
 void WebProcess::updateActivePages(const String& overrideDisplayName)
 {
 #if PLATFORM(MAC)
     if (!overrideDisplayName) {
-        auto activeOrigins = activePagesOrigins(m_pageMap);
-
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), [activeOrigins = WTFMove(activeOrigins)] {
+        RunLoop::main().dispatch([activeOrigins = activePagesOrigins(m_pageMap)] {
             _LSSetApplicationInformationItem(kLSDefaultSessionID, _LSGetCurrentApplicationASN(), CFSTR("LSActivePageUserVisibleOriginsKey"), (__bridge CFArrayRef)activeOrigins.get(), nullptr);
         });
     } else {
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            _LSSetApplicationInformationItem(kLSDefaultSessionID, _LSGetCurrentApplicationASN(), _kLSDisplayNameKey, overrideDisplayName.createCFString().get(), nullptr);
+        RunLoop::main().dispatch([name = overrideDisplayName.createCFString()] {
+            _LSSetApplicationInformationItem(kLSDefaultSessionID, _LSGetCurrentApplicationASN(), _kLSDisplayNameKey, name.get(), nullptr);
         });
     }
 #endif
@@ -876,11 +897,6 @@ void WebProcess::displayConfigurationChanged(CGDirectDisplayID displayID, CGDisp
 {
     GraphicsContextGLOpenGLManager::displayWasReconfigured(displayID, flags, nullptr);
 }
-    
-void WebProcess::displayWasRefreshed(CGDirectDisplayID displayID)
-{
-    DisplayRefreshMonitorManager::sharedManager().displayWasUpdated(displayID);
-}
 #endif
 
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
@@ -939,10 +955,9 @@ void WebProcess::notifyPreferencesChanged(const String& domain, const String& ke
     [defaults setObject:object forKey:key];
 }
 
-void WebProcess::unblockPreferenceService(const SandboxExtension::Handle& handle)
+void WebProcess::unblockPreferenceService(SandboxExtension::HandleArray&& handleArray)
 {
-    bool ok = SandboxExtension::consumePermanently(handle);
-    ASSERT_UNUSED(ok, ok);
+    SandboxExtension::consumePermanently(handleArray);
     _CFPrefsSetDirectModeEnabled(false);
 }
 #endif
@@ -994,11 +1009,11 @@ void WebProcess::updatePageScreenProperties()
 }
 #endif
 
-void WebProcess::unblockAccessibilityServer(const SandboxExtension::Handle& handle)
+void WebProcess::unblockServicesRequiredByAccessibility(const SandboxExtension::HandleArray& handleArray)
 {
 #if PLATFORM(IOS_FAMILY)
-    bool ok = SandboxExtension::consumePermanently(handle);
-    ASSERT_UNUSED(ok, ok);
+    bool consumed = SandboxExtension::consumePermanently(handleArray);
+    ASSERT_UNUSED(consumed, consumed);
 #endif
     registerWithAccessibility();
 }

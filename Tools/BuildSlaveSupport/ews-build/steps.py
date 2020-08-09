@@ -295,7 +295,6 @@ class CheckPatchRelevance(buildstep.BuildStep):
 
     webkitpy_paths = [
         'Tools/Scripts/webkitpy/',
-        'Tools/QueueStatusServer/',
     ]
 
     group_to_paths_mapping = {
@@ -304,6 +303,7 @@ class CheckPatchRelevance(buildstep.BuildStep):
         'jsc': jsc_paths,
         'webkitpy': webkitpy_paths,
         'wk1-tests': wk1_paths,
+        'windows': wk1_paths,
     }
 
     def _patch_is_relevant(self, patch, builderName):
@@ -1197,7 +1197,7 @@ class InstallGtkDependencies(shell.ShellCommand):
     name = 'jhbuild'
     description = ['updating gtk dependencies']
     descriptionDone = ['Updated gtk dependencies']
-    command = ['perl', 'Tools/Scripts/update-webkitgtk-libs']
+    command = ['perl', 'Tools/Scripts/update-webkitgtk-libs', WithProperties('--%(configuration)s')]
     haltOnFailure = True
 
     def __init__(self, **kwargs):
@@ -1208,7 +1208,7 @@ class InstallWpeDependencies(shell.ShellCommand):
     name = 'jhbuild'
     description = ['updating wpe dependencies']
     descriptionDone = ['Updated wpe dependencies']
-    command = ['perl', 'Tools/Scripts/update-webkitwpe-libs']
+    command = ['perl', 'Tools/Scripts/update-webkitwpe-libs', WithProperties('--%(configuration)s')]
     haltOnFailure = True
 
     def __init__(self, **kwargs):
@@ -1505,8 +1505,14 @@ class ReRunJavaScriptCoreTests(RunJavaScriptCoreTests):
 
     def evaluateCommand(self, cmd):
         rc = shell.Test.evaluateCommand(self, cmd)
+        first_run_failures = set(self.getProperty('jsc_stress_test_failures', []) + self.getProperty('jsc_binary_failures', []))
+        second_run_failures = set(self.getProperty('jsc_rerun_stress_test_failures', []) + self.getProperty('jsc_rerun_binary_failures', []))
+        flaky_failures = first_run_failures.union(second_run_failures) - first_run_failures.intersection(second_run_failures)
+        flaky_failures_string = ', '.join(flaky_failures)
+
         if rc == SUCCESS or rc == WARNINGS:
-            message = 'Passed JSC tests'
+            pluralSuffix = 's' if len(flaky_failures) > 1 else ''
+            message = 'Found flaky test{}: {}'.format(pluralSuffix, flaky_failures_string)
             self.descriptionDone = message
             self.build.results = SUCCESS
             self.build.buildFinished([message], SUCCESS)

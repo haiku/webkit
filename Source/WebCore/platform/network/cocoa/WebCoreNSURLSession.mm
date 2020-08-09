@@ -31,6 +31,7 @@
 #import "SubresourceLoader.h"
 #import <wtf/BlockPtr.h>
 #import <wtf/CompletionHandler.h>
+#import <wtf/cocoa/VectorCocoa.h>
 
 using namespace WebCore;
 
@@ -56,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (assign) WebCoreNSURLSession * _Nullable session;
 
 - (void)resource:(PlatformMediaResource&)resource sentBytes:(unsigned long long)bytesSent totalBytesToBeSent:(unsigned long long)totalBytesToBeSent;
-- (void)resource:(PlatformMediaResource&)resource receivedResponse:(const ResourceResponse&)response completionHandler:(CompletionHandler<void(PolicyChecker::ShouldContinue)>&&)completionHandler;
+- (void)resource:(PlatformMediaResource&)resource receivedResponse:(const ResourceResponse&)response completionHandler:(CompletionHandler<void(ShouldContinuePolicyCheck)>&&)completionHandler;
 - (BOOL)resource:(PlatformMediaResource&)resource shouldCacheResponse:(const ResourceResponse&)response;
 - (void)resource:(PlatformMediaResource&)resource receivedData:(const char*)data length:(int)length;
 - (void)resource:(PlatformMediaResource&)resource receivedRedirect:(const ResourceResponse&)response request:(ResourceRequest&&)request completionHandler:(CompletionHandler<void(ResourceRequest&&)>&&)completionHandler;
@@ -92,7 +93,7 @@ NS_ASSUME_NONNULL_END
     {
         Locker<Lock> locker(_dataTasksLock);
         for (auto& task : _dataTasks)
-            ((__bridge WebCoreNSURLSessionDataTask *)task.get()).session = nil;
+            [task setSession:nil];
     }
 
     callOnMainThread([loader = WTFMove(_loader)] {
@@ -115,8 +116,8 @@ NS_ASSUME_NONNULL_END
     {
         Locker<Lock> locker(_dataTasksLock);
 
-        ASSERT(_dataTasks.contains((__bridge CFTypeRef)task));
-        _dataTasks.remove((__bridge CFTypeRef)task);
+        ASSERT(_dataTasks.contains(task));
+        _dataTasks.remove(task);
         if (!_dataTasks.isEmpty() || !_invalidated)
             return;
     }
@@ -217,23 +218,23 @@ NS_ASSUME_NONNULL_END
             return;
     }
 
-    RetainPtr<WebCoreNSURLSession> strongSelf { self };
-    [self addDelegateOperation:[strongSelf] {
-        if ([strongSelf.get().delegate respondsToSelector:@selector(URLSession:didBecomeInvalidWithError:)])
-            [strongSelf.get().delegate URLSession:(NSURLSession *)strongSelf.get() didBecomeInvalidWithError:nil];
+    [self addDelegateOperation:[strongSelf = retainPtr(self)] {
+        auto delegate = strongSelf.get().delegate;
+        if ([delegate respondsToSelector:@selector(URLSession:didBecomeInvalidWithError:)])
+            [delegate URLSession:(NSURLSession *)strongSelf.get() didBecomeInvalidWithError:nil];
     }];
 }
 
 - (void)invalidateAndCancel
 {
-    Vector<RetainPtr<CFTypeRef>> tasksCopy;
+    Vector<RetainPtr<WebCoreNSURLSessionDataTask>> tasksCopy;
     {
         Locker<Lock> locker(_dataTasksLock);
         tasksCopy = copyToVector(_dataTasks);
     }
 
     for (auto& task : tasksCopy)
-        [(__bridge WebCoreNSURLSessionDataTask *)task.get() cancel];
+        [task cancel];
 
     [self finishTasksAndInvalidate];
 }
@@ -256,29 +257,29 @@ NS_ASSUME_NONNULL_END
 
 - (void)getTasksWithCompletionHandler:(void (^)(NSArray<NSURLSessionDataTask *> *dataTasks, NSArray<NSURLSessionUploadTask *> *uploadTasks, NSArray<NSURLSessionDownloadTask *> *downloadTasks))completionHandler
 {
-    NSMutableArray *array = nullptr;
+    RetainPtr<NSArray> array;
     {
         Locker<Lock> locker(_dataTasksLock);
-        array = [NSMutableArray arrayWithCapacity:_dataTasks.size()];
-        for (auto& task : _dataTasks)
-            [array addObject:(__bridge WebCoreNSURLSessionDataTask *)task.get()];
+        array = createNSArray(_dataTasks, [] (auto& task) {
+            return task.get();
+        });
     }
     [self addDelegateOperation:^{
-        completionHandler(array, nil, nil);
+        completionHandler(array.get(), nil, nil);
     }];
 }
 
 - (void)getAllTasksWithCompletionHandler:(void (^)(NSArray<__kindof NSURLSessionTask *> *tasks))completionHandler
 {
-    NSMutableArray *array = nullptr;
+    RetainPtr<NSArray> array;
     {
         Locker<Lock> locker(_dataTasksLock);
-        array = [NSMutableArray arrayWithCapacity:_dataTasks.size()];
-        for (auto& task : _dataTasks)
-            [array addObject:(__bridge WebCoreNSURLSessionDataTask *)task.get()];
+        array = createNSArray(_dataTasks, [] (auto& task) {
+            return task.get();
+        });
     }
     [self addDelegateOperation:^{
-        completionHandler(array);
+        completionHandler(array.get());
     }];
 }
 
@@ -290,7 +291,7 @@ NS_ASSUME_NONNULL_END
     WebCoreNSURLSessionDataTask *task = [[WebCoreNSURLSessionDataTask alloc] initWithSession:self identifier:_nextTaskIdentifier++ request:request];
     {
         Locker<Lock> locker(_dataTasksLock);
-        _dataTasks.add((__bridge CFTypeRef)task);
+        _dataTasks.add(task);
     }
     return (NSURLSessionDataTask *)[task autorelease];
 }
@@ -303,7 +304,7 @@ NS_ASSUME_NONNULL_END
     WebCoreNSURLSessionDataTask *task = [[WebCoreNSURLSessionDataTask alloc] initWithSession:self identifier:_nextTaskIdentifier++ URL:url];
     {
         Locker<Lock> locker(_dataTasksLock);
-        _dataTasks.add((__bridge CFTypeRef)task);
+        _dataTasks.add(task);
     }
     return (NSURLSessionDataTask *)[task autorelease];
 }
@@ -381,7 +382,7 @@ public:
 
     void clearTask();
 
-    void responseReceived(PlatformMediaResource&, const ResourceResponse&, CompletionHandler<void(PolicyChecker::ShouldContinue)>&&) override;
+    void responseReceived(PlatformMediaResource&, const ResourceResponse&, CompletionHandler<void(ShouldContinuePolicyCheck)>&&) override;
     void redirectReceived(PlatformMediaResource&, ResourceRequest&&, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&&) override;
     bool shouldCacheResponse(PlatformMediaResource&, const ResourceResponse&) override;
     void dataSent(PlatformMediaResource&, unsigned long long, unsigned long long) override;
@@ -410,11 +411,11 @@ void WebCoreNSURLSessionDataTaskClient::dataSent(PlatformMediaResource& resource
     [m_task resource:resource sentBytes:bytesSent totalBytesToBeSent:totalBytesToBeSent];
 }
 
-void WebCoreNSURLSessionDataTaskClient::responseReceived(PlatformMediaResource& resource, const ResourceResponse& response, CompletionHandler<void(PolicyChecker::ShouldContinue)>&& completionHandler)
+void WebCoreNSURLSessionDataTaskClient::responseReceived(PlatformMediaResource& resource, const ResourceResponse& response, CompletionHandler<void(ShouldContinuePolicyCheck)>&& completionHandler)
 {
     LockHolder locker(m_taskLock);
     if (!m_task)
-        return completionHandler(PolicyChecker::ShouldContinue::No);
+        return completionHandler(ShouldContinuePolicyCheck::No);
 
     [m_task resource:resource receivedResponse:response completionHandler:WTFMove(completionHandler)];
 }
@@ -627,7 +628,7 @@ void WebCoreNSURLSessionDataTaskClient::loadFinished(PlatformMediaResource& reso
     // No-op.
 }
 
-- (void)resource:(PlatformMediaResource&)resource receivedResponse:(const ResourceResponse&)response completionHandler:(CompletionHandler<void(PolicyChecker::ShouldContinue)>&&)completionHandler
+- (void)resource:(PlatformMediaResource&)resource receivedResponse:(const ResourceResponse&)response completionHandler:(CompletionHandler<void(ShouldContinuePolicyCheck)>&&)completionHandler
 {
     ASSERT(response.source() == ResourceResponse::Source::Network || response.source() == ResourceResponse::Source::DiskCache || response.source() == ResourceResponse::Source::DiskCacheAfterValidation || response.source() == ResourceResponse::Source::ServiceWorker);
     ASSERT_UNUSED(resource, &resource == _resource);
@@ -638,14 +639,14 @@ void WebCoreNSURLSessionDataTaskClient::loadFinished(PlatformMediaResource& reso
     RetainPtr<NSURLResponse> strongResponse { response.nsURLResponse() };
     RetainPtr<WebCoreNSURLSessionDataTask> strongSelf { self };
     if (!self.session)
-        return completionHandler(PolicyChecker::ShouldContinue::No);
+        return completionHandler(ShouldContinuePolicyCheck::No);
     [self.session addDelegateOperation:[strongSelf, strongResponse, completionHandler = WTFMove(completionHandler)] () mutable {
         strongSelf->_response = strongResponse.get();
 
         id<NSURLSessionDataDelegate> dataDelegate = (id<NSURLSessionDataDelegate>)strongSelf.get().session.delegate;
         if (![dataDelegate respondsToSelector:@selector(URLSession:dataTask:didReceiveResponse:completionHandler:)]) {
             callOnMainThread([strongSelf, completionHandler = WTFMove(completionHandler)] () mutable {
-                completionHandler(PolicyChecker::ShouldContinue::Yes);
+                completionHandler(ShouldContinuePolicyCheck::Yes);
             });
             return;
         }
@@ -653,10 +654,10 @@ void WebCoreNSURLSessionDataTaskClient::loadFinished(PlatformMediaResource& reso
         [dataDelegate URLSession:(NSURLSession *)strongSelf.get().session dataTask:(NSURLSessionDataTask *)strongSelf.get() didReceiveResponse:strongResponse.get() completionHandler:makeBlockPtr([strongSelf, completionHandler = WTFMove(completionHandler)] (NSURLSessionResponseDisposition disposition) mutable {
             callOnMainThread([strongSelf, disposition, completionHandler = WTFMove(completionHandler)] () mutable {
                 if (disposition == NSURLSessionResponseCancel)
-                    completionHandler(PolicyChecker::ShouldContinue::No);
+                    completionHandler(ShouldContinuePolicyCheck::No);
                 else {
                     ASSERT(disposition == NSURLSessionResponseAllow);
-                    completionHandler(PolicyChecker::ShouldContinue::Yes);
+                    completionHandler(ShouldContinuePolicyCheck::Yes);
                 }
             });
         }).get()];

@@ -1,4 +1,4 @@
-# Copyright (C) 2010-2019 Apple Inc. All rights reserved.
+# Copyright (C) 2010-2020 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -69,7 +69,7 @@ messages -> WebPageProxy {
     RunBeforeUnloadConfirmPanel(WebCore::FrameIdentifier frameID, struct WebKit::FrameInfoData frameInfo, String message) -> (bool shouldClose) Synchronous
     PageDidScroll()
     RunOpenPanel(WebCore::FrameIdentifier frameID, struct WebKit::FrameInfoData frameInfo, struct WebCore::FileChooserSettings parameters)
-    ShowShareSheet(struct WebCore::ShareDataWithParsedURL shareData, uint64_t callbackID)
+    ShowShareSheet(struct WebCore::ShareDataWithParsedURL shareData) -> (bool granted) Async
     PrintFrame(WebCore::FrameIdentifier frameID) -> () Synchronous
     RunModal()
     NotifyScrollerThumbIsVisibleInRect(WebCore::IntRect scrollerThumb)
@@ -175,7 +175,7 @@ messages -> WebPageProxy {
     ApplicationManifestCallback(Optional<WebCore::ApplicationManifest> manifest, WebKit::CallbackID callbackID)
 #endif
 #if PLATFORM(MAC)
-    AttributedStringForCharacterRangeCallback(struct WebKit::AttributedString string, struct WebKit::EditingRange actualRange, WebKit::CallbackID callbackID)
+    AttributedStringForCharacterRangeCallback(struct WebCore::AttributedString string, struct WebKit::EditingRange actualRange, WebKit::CallbackID callbackID)
     FontAtSelectionCallback(struct WebKit::FontInfo fontInfo, double fontSize, bool selectionHasMultipleFonts, WebKit::CallbackID callbackID)
 #endif
     FontAttributesCallback(struct WebCore::FontAttributes attributes, WebKit::CallbackID callbackID)
@@ -280,7 +280,7 @@ messages -> WebPageProxy {
     ReachedApplicationCacheOriginQuota(String originIdentifier, uint64_t currentQuota, uint64_t totalBytesNeeded) -> (uint64_t newQuota) Synchronous
 
     # Geolocation messages
-    RequestGeolocationPermissionForFrame(uint64_t geolocationID, struct WebKit::FrameInfoData frameInfo)
+    RequestGeolocationPermissionForFrame(WebKit::GeolocationIdentifier geolocationID, struct WebKit::FrameInfoData frameInfo)
     RevokeGeolocationAuthorizationToken(String authorizationToken);
 
 #if ENABLE(MEDIA_STREAM)
@@ -395,7 +395,7 @@ messages -> WebPageProxy {
     DictationAlternatives(uint64_t dictationContext) -> (Vector<String> alternatives) Synchronous
 #endif
 
-#if PLATFORM(X11)
+#if PLATFORM(X11) && ENABLE(NETSCAPE_PLUGIN_API)
     # X11 windowed plugin messages
     CreatePluginContainer() -> (uint64_t windowID) Synchronous
     WindowedPluginGeometryDidChange(WebCore::IntRect frameRect, WebCore::IntRect clipRect, uint64_t windowID)
@@ -506,6 +506,10 @@ messages -> WebPageProxy {
     SetMockMediaPlaybackTargetPickerEnabled(bool enabled)
     SetMockMediaPlaybackTargetPickerState(String name, unsigned pickerState)
     MockMediaPlaybackTargetPickerDismissPopup()
+#endif
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    SetMockVideoPresentationModeEnabled(bool enabled)
 #endif
 
 #if ENABLE(POINTER_LOCK)

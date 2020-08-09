@@ -402,7 +402,7 @@ ExceptionOr<void> XMLHttpRequest::open(const String& method, const String& url, 
     if (!user.isNull())
         urlWithCredentials.setUser(user);
     if (!password.isNull())
-        urlWithCredentials.setPass(password);
+        urlWithCredentials.setPassword(password);
 
     return open(method, urlWithCredentials, async);
 }
@@ -443,7 +443,7 @@ Optional<ExceptionOr<void>> XMLHttpRequest::prepareToSend()
 
 ExceptionOr<void> XMLHttpRequest::send(Optional<SendTypes>&& sendType)
 {
-    InspectorInstrumentation::willSendXMLHttpRequest(scriptExecutionContext(), url());
+    InspectorInstrumentation::willSendXMLHttpRequest(scriptExecutionContext(), url().string());
     m_userGestureToken = UserGestureIndicator::currentUserGesture();
 
     ExceptionOr<void> result;

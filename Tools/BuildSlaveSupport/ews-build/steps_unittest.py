@@ -433,11 +433,6 @@ Failed 1/40 test programs. 10/630 subtests failed.''')
         return self.runStep()
 
 
-class TestReRunJavaScriptCoreTests(TestRunWebKitPerlTests):
-    def configureStep(self):
-        self.setupStep(ReRunWebKitPerlTests())
-
-
 class TestWebKitPyPython2Tests(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):
         self.longMessage = True
@@ -874,11 +869,12 @@ class TestInstallGtkDependencies(BuildStepMixinAdditions, unittest.TestCase):
 
     def test_success(self):
         self.setupStep(InstallGtkDependencies())
+        self.setProperty('configuration', 'release')
         self.assertEqual(InstallGtkDependencies.haltOnFailure, True)
         self.expectRemoteCommands(
             ExpectShell(workdir='wkdir',
                         logEnviron=False,
-                        command=['perl', 'Tools/Scripts/update-webkitgtk-libs'],
+                        command=['perl', 'Tools/Scripts/update-webkitgtk-libs', '--release'],
                         )
             + 0,
         )
@@ -887,11 +883,12 @@ class TestInstallGtkDependencies(BuildStepMixinAdditions, unittest.TestCase):
 
     def test_failure(self):
         self.setupStep(InstallGtkDependencies())
+        self.setProperty('configuration', 'release')
         self.assertEqual(InstallGtkDependencies.haltOnFailure, True)
         self.expectRemoteCommands(
             ExpectShell(workdir='wkdir',
                         logEnviron=False,
-                        command=['perl', 'Tools/Scripts/update-webkitgtk-libs'],
+                        command=['perl', 'Tools/Scripts/update-webkitgtk-libs', '--release'],
                         )
             + ExpectShell.log('stdio', stdout='Unexpected error.')
             + 2,
@@ -910,11 +907,12 @@ class TestInstallWpeDependencies(BuildStepMixinAdditions, unittest.TestCase):
 
     def test_success(self):
         self.setupStep(InstallWpeDependencies())
+        self.setProperty('configuration', 'release')
         self.assertEqual(InstallWpeDependencies.haltOnFailure, True)
         self.expectRemoteCommands(
             ExpectShell(workdir='wkdir',
                         logEnviron=False,
-                        command=['perl', 'Tools/Scripts/update-webkitwpe-libs'],
+                        command=['perl', 'Tools/Scripts/update-webkitwpe-libs', '--release'],
                         )
             + 0,
         )
@@ -923,11 +921,12 @@ class TestInstallWpeDependencies(BuildStepMixinAdditions, unittest.TestCase):
 
     def test_failure(self):
         self.setupStep(InstallWpeDependencies())
+        self.setProperty('configuration', 'release')
         self.assertEqual(InstallWpeDependencies.haltOnFailure, True)
         self.expectRemoteCommands(
             ExpectShell(workdir='wkdir',
                         logEnviron=False,
-                        command=['perl', 'Tools/Scripts/update-webkitwpe-libs'],
+                        command=['perl', 'Tools/Scripts/update-webkitwpe-libs', '--release'],
                         )
             + ExpectShell.log('stdio', stdout='Unexpected error.')
             + 2,
@@ -1343,6 +1342,35 @@ class TestReRunJavaScriptCoreTests(TestRunJavaScriptCoreTests):
             self.setProperty('fullPlatform', fullPlatform)
         if configuration:
             self.setProperty('configuration', configuration)
+
+    def test_success(self):
+        self.configureStep(platform='mac', fullPlatform='mac-highsierra', configuration='release')
+        self.setProperty('jsc_stress_test_failures', ['test1', 'test2'])
+        self.expectRemoteCommands(
+            ExpectShell(workdir='wkdir',
+                        logEnviron=False,
+                        command=['perl', 'Tools/Scripts/run-javascriptcore-tests', '--no-build', '--no-fail-fast', '--json-output={0}'.format(self.jsonFileName), '--release'],
+                        logfiles={'json': self.jsonFileName},
+                        ) +
+            0,
+        )
+        self.expectOutcome(result=SUCCESS, state_string='Found flaky tests: test1, test2')
+        return self.runStep()
+
+    def test_remote_success(self):
+        self.configureStep(platform='jsc-only', fullPlatform='jsc-only', configuration='release')
+        self.setProperty('remotes', 'remote-machines.json')
+        self.setProperty('jsc_binary_failures', ['testmasm'])
+        self.expectRemoteCommands(
+            ExpectShell(workdir='wkdir',
+                        logEnviron=False,
+                        command=['perl', 'Tools/Scripts/run-javascriptcore-tests', '--no-build', '--no-fail-fast', '--json-output={0}'.format(self.jsonFileName), '--release', '--remote-config-file=remote-machines.json', '--no-testmasm', '--no-testair', '--no-testb3', '--no-testdfg', '--no-testapi', '--memory-limited', '--jsc-only'],
+                        logfiles={'json': self.jsonFileName},
+                        ) +
+            0,
+        )
+        self.expectOutcome(result=SUCCESS, state_string='Found flaky test: testmasm')
+        return self.runStep()
 
 
 class TestRunJSCTestsWithoutPatch(BuildStepMixinAdditions, unittest.TestCase):
@@ -2188,17 +2216,25 @@ class TestCheckPatchRelevance(BuildStepMixinAdditions, unittest.TestCase):
         self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
         return self.runStep()
 
+    def test_relevant_windows_wk1_patch(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch; file: Source/WebKitLegacy'
+        self.setupStep(CheckPatchRelevance())
+        self.setProperty('buildername', 'Windows-EWS')
+        self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
+        return self.runStep()
+
     def test_queues_without_relevance_info(self):
         CheckPatchRelevance._get_patch = lambda x: 'Sample patch'
         queues = ['Commit-Queue', 'Style-EWS', 'Apply-WatchList-EWS', 'GTK-Build-EWS', 'GTK-WK2-Tests-EWS',
                   'iOS-13-Build-EWS', 'iOS-13-Simulator-Build-EWS', 'iOS-13-Simulator-WK2-Tests-EWS',
                   'macOS-Mojave-Release-Build-EWS', 'macOS-Mojave-Release-WK2-Tests-EWS', 'macOS-Mojave-Debug-Build-EWS',
-                  'Windows-EWS', 'WinCairo-EWS', 'WPE-EWS', 'WebKitPerl-Tests-EWS']
+                  'WinCairo-EWS', 'WPE-EWS', 'WebKitPerl-Tests-EWS']
         for queue in queues:
             self.setupStep(CheckPatchRelevance())
             self.setProperty('buildername', queue)
             self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
-        return self.runStep()
+            rc = self.runStep()
+        return rc
 
     def test_non_relevant_patch(self):
         CheckPatchRelevance._get_patch = lambda x: 'Sample patch'

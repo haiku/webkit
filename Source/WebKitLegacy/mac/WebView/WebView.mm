@@ -697,11 +697,7 @@ private:
     _dataInteractionImage = [PAL::allocUIImageInstance() initWithCGImage:image scale:scale orientation:UIImageOrientationDownMirrored];
     _selectionRectInRootViewCoordinates = indicatorData.selectionRectInRootViewCoordinates;
     _textBoundingRectInRootViewCoordinates = indicatorData.textBoundingRectInRootViewCoordinates;
-
-    NSMutableArray *textRectsInBoundingRectCoordinates = [NSMutableArray array];
-    for (auto rect : indicatorData.textRectsInBoundingRectCoordinates)
-        [textRectsInBoundingRectCoordinates addObject:[NSValue valueWithCGRect:rect]];
-    _textRectsInBoundingRectCoordinates = [[NSArray arrayWithArray:textRectsInBoundingRectCoordinates] retain];
+    _textRectsInBoundingRectCoordinates = createNSArray(indicatorData.textRectsInBoundingRectCoordinates).leakRef();
     _contentImageScaleFactor = indicatorData.contentImageScaleFactor;
     if (indicatorData.contentImageWithHighlight)
         _contentImageWithHighlight = [PAL::allocUIImageInstance() initWithCGImage:indicatorData.contentImageWithHighlight.get()->nativeImage().get() scale:scale orientation:UIImageOrientationDownMirrored];
@@ -1968,12 +1964,12 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     static auto defaultEditDragTextIndicatorOptions = WebCore::TextIndicatorOptionIncludeSnapshotOfAllVisibleContentWithoutSelection | WebCore::TextIndicatorOptionExpandClipBeyondVisibleRect | WebCore::TextIndicatorOptionPaintAllContent | WebCore::TextIndicatorOptionIncludeMarginIfRangeMatchesSelection | WebCore::TextIndicatorOptionPaintBackgrounds | WebCore::TextIndicatorOptionUseSelectionRectForSizing | WebCore::TextIndicatorOptionIncludeSnapshotWithSelectionHighlight | WebCore::TextIndicatorOptionRespectTextColor;
     auto& frame = page->focusController().focusedOrMainFrame();
     if (auto range = frame.selection().selection().toNormalizedRange()) {
-        if (auto textIndicator = WebCore::TextIndicator::createWithRange(*range, defaultEditDragTextIndicatorOptions, WebCore::TextIndicatorPresentationTransition::None, WebCore::FloatSize()))
+        if (auto textIndicator = WebCore::TextIndicator::createWithRange(createLiveRange(*range), defaultEditDragTextIndicatorOptions, WebCore::TextIndicatorPresentationTransition::None, WebCore::FloatSize()))
             _private->dataOperationTextIndicator = adoptNS([[WebUITextIndicatorData alloc] initWithImage:nil textIndicatorData:textIndicator->data() scale:page->deviceScaleFactor()]);
     }
 }
 
-#elif __IPHONE_OS_VERSION_MIN_REQUIRED >= 110000
+#elif PLATFORM(IOS)
 
 - (BOOL)_requestStartDataInteraction:(CGPoint)clientPosition globalPosition:(CGPoint)globalPosition
 {
@@ -2043,6 +2039,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 }
 
 #endif
+
 #endif // PLATFORM(IOS_FAMILY)
 
 static NSMutableSet *knownPluginMIMETypes()
@@ -2073,11 +2070,7 @@ static NSMutableSet *knownPluginMIMETypes()
 #if PLATFORM(IOS_FAMILY)
 #define WebPDFView ([WebView _getPDFViewClass])
 #endif
-#if PLATFORM(MACCATALYST)
-    if (!viewClass || !repClass) {
-#else
     if (!viewClass || !repClass || [[WebPDFView supportedMIMETypes] containsObject:MIMEType]) {
-#endif
 #if PLATFORM(IOS_FAMILY)
 #undef WebPDFView
 #endif
@@ -2358,7 +2351,7 @@ static bool fastDocumentTeardownEnabled()
         return;
     }
 
-#if ENABLE(VIDEO) && !PLATFORM(IOS_FAMILY)
+#if ENABLE(VIDEO_PRESENTATION_MODE) && !PLATFORM(IOS_FAMILY)
     [self _exitVideoFullscreen];
 #endif
 
@@ -3141,6 +3134,8 @@ static bool needsSelfRetainWhileLoadingQuirk()
 
     RuntimeEnabledFeatures::sharedFeatures().setCSSLogicalEnabled([preferences cssLogicalEnabled]);
 
+    RuntimeEnabledFeatures::sharedFeatures().setLineHeightUnitsEnabled([preferences lineHeightUnitsEnabled]);
+
     RuntimeEnabledFeatures::sharedFeatures().setAdClickAttributionEnabled([preferences adClickAttributionEnabled]);
 
     settings.setHiddenPageDOMTimerThrottlingEnabled([preferences hiddenPageDOMTimerThrottlingEnabled]);
@@ -3198,6 +3193,8 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled([preferences webAnimationsEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCompositeOperationsEnabled([preferences webAnimationsCompositeOperationsEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsMutableTimelinesEnabled([preferences webAnimationsMutableTimelinesEnabled]);
+
+    RuntimeEnabledFeatures::sharedFeatures().setCSSCustomPropertiesAndValuesEnabled([preferences CSSCustomPropertiesAndValuesEnabled]);
 
 #if ENABLE(INTERSECTION_OBSERVER)
     RuntimeEnabledFeatures::sharedFeatures().setIntersectionObserverEnabled(preferences.intersectionObserverEnabled);
@@ -4357,6 +4354,7 @@ IGNORE_WARNINGS_END
 #endif // PLATFORM(IOS_FAMILY)
 
 #if ENABLE(TOUCH_EVENTS)
+
 - (NSArray *)_touchEventRegions
 {
     auto* frame = [self _mainCoreFrame];
@@ -4370,38 +4368,33 @@ IGNORE_WARNINGS_END
     Vector<WebCore::IntRect> rects;
     document->getTouchRects(rects);
 
-    if (rects.size() == 0)
+    if (rects.isEmpty())
         return nil;
 
-    NSMutableArray *eventRegionArray = [[[NSMutableArray alloc] initWithCapacity:rects.size()] autorelease];
-
     NSView <WebDocumentView> *documentView = [[[self mainFrame] frameView] documentView];
-    Vector<WebCore::IntRect>::const_iterator end = rects.end();
-    for (Vector<WebCore::IntRect>::const_iterator it = rects.begin(); it != end; ++it) {
-        const WebCore::IntRect& rect = *it;
+    return createNSArray(rects, [&] (auto& rect) -> RetainPtr<WebEventRegion> {
         if (rect.isEmpty())
-            continue;
+            return nil;
 
         // The touch rectangles are in the coordinate system of the document (inside the WebHTMLView), which is not
         // the same as the coordinate system of the WebView. UIWebView currently expects view coordinates, so we'll
         // convert them here now.
-        WebCore::IntRect viewRect = WebCore::IntRect([documentView convertRect:rect toView:self]);
+        auto viewRect = [documentView convertRect:rect toView:self];
 
         // The event region wants this points in this order:
         //  p2------p3
         //  |       |
         //  p1------p4
-        //
-        WebEventRegion *eventRegion = [[WebEventRegion alloc] initWithPoints:WebCore::FloatPoint(viewRect.x(), viewRect.maxY())
-            : WebCore::FloatPoint(viewRect.x(), viewRect.y()) : WebCore::FloatPoint(viewRect.maxX(), viewRect.y()) : WebCore::FloatPoint(viewRect.maxX(), viewRect.maxY())];
-        if (eventRegion) {
-            [eventRegionArray addObject:eventRegion];
-            [eventRegion release];
-        }
-    }
 
-    return eventRegionArray;
+        auto p1 = CGPointMake(CGRectGetMinX(viewRect), CGRectGetMaxY(viewRect));
+        auto p2 = CGPointMake(CGRectGetMinX(viewRect), CGRectGetMinY(viewRect));
+        auto p3 = CGPointMake(CGRectGetMaxX(viewRect), CGRectGetMinY(viewRect));
+        auto p4 = CGPointMake(CGRectGetMaxX(viewRect), CGRectGetMaxY(viewRect));
+
+        return adoptNS([[WebEventRegion alloc] initWithPoints:p1 :p2 :p3 :p4]);
+    }).autorelease();
 }
+
 #endif // ENABLE(TOUCH_EVENTS)
 
 // For backwards compatibility with the WebBackForwardList API, we honor both
@@ -4423,16 +4416,14 @@ IGNORE_WARNINGS_END
 
 - (WebTextIterator *)textIteratorForRect:(NSRect)rect
 {
-    WebCore::IntPoint rectStart(rect.origin.x, rect.origin.y);
-    WebCore::IntPoint rectEnd(rect.origin.x + rect.size.width, rect.origin.y + rect.size.height);
-
     auto* coreFrame = [self _mainCoreFrame];
     if (!coreFrame)
         return nil;
 
-    WebCore::VisibleSelection selectionInsideRect(coreFrame->visiblePositionForPoint(rectStart), coreFrame->visiblePositionForPoint(rectEnd));
-
-    return [[[WebTextIterator alloc] initWithRange:kit(selectionInsideRect.toNormalizedRange().get())] autorelease];
+    auto intRect = WebCore::enclosingIntRect(rect);
+    auto range = WebCore::VisibleSelection(coreFrame->visiblePositionForPoint(intRect.minXMinYCorner()),
+        coreFrame->visiblePositionForPoint(intRect.maxXMaxYCorner())).toNormalizedRange();
+    return [[[WebTextIterator alloc] initWithRange:kit(createLiveRange(range).get())] autorelease];
 }
 
 #if !PLATFORM(IOS_FAMILY)
@@ -4574,20 +4565,14 @@ IGNORE_WARNINGS_END
         view->resetTrackedRepaints();
 }
 
-- (NSArray*)trackedRepaintRects
+- (NSArray *)trackedRepaintRects
 {
-    auto* coreFrame = [self _mainCoreFrame];
-    auto* view = coreFrame->view();
+    auto view = self._mainCoreFrame->view();
     if (!view || !view->isTrackingRepaints())
         return nil;
-
-    const Vector<WebCore::FloatRect>& repaintRects = view->trackedRepaintRects();
-    NSMutableArray* rectsArray = [[NSMutableArray alloc] initWithCapacity:repaintRects.size()];
-
-    for (unsigned i = 0; i < repaintRects.size(); ++i)
-        [rectsArray addObject:[NSValue valueWithRect:snappedIntRect(WebCore::LayoutRect(repaintRects[i]))]];
-
-    return [rectsArray autorelease];
+    return createNSArray(view->trackedRepaintRects(), [] (auto& rect) {
+        return [NSValue valueWithRect:snappedIntRect(WebCore::LayoutRect { rect })];
+    }).autorelease();
 }
 
 #if !PLATFORM(IOS_FAMILY)
@@ -4784,44 +4769,6 @@ IGNORE_WARNINGS_END
     [self _flushCompositingChanges];
     [CATransaction flush];
     [CATransaction synchronize];
-}
-
-- (BOOL)allowsNewCSSAnimationsWhileSuspended
-{
-    auto* frame = core([self mainFrame]);
-    if (frame)
-        return frame->animation().allowsNewAnimationsWhileSuspended();
-
-    return false;
-}
-
-- (void)setAllowsNewCSSAnimationsWhileSuspended:(BOOL)allowed
-{
-    auto* frame = core([self mainFrame]);
-    if (frame)
-        frame->animation().setAllowsNewAnimationsWhileSuspended(allowed);
-}
-
-- (BOOL)cssAnimationsSuspended
-{
-    // should ask the page!
-    auto* frame = core([self mainFrame]);
-    if (frame)
-        return frame->animation().isSuspended();
-
-    return false;
-}
-
-- (void)setCSSAnimationsSuspended:(BOOL)suspended
-{
-    auto* frame = core([self mainFrame]);
-    if (suspended == frame->animation().isSuspended())
-        return;
-
-    if (suspended)
-        frame->animation().suspendAnimations();
-    else
-        frame->animation().resumeAnimations();
 }
 
 + (void)_setDomainRelaxationForbidden:(BOOL)forbidden forURLScheme:(NSString *)scheme
@@ -8339,7 +8286,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(JSC::JSGlobalObject* lexicalGlo
     auto* coreFrame = core([self _selectedOrMainFrame]);
     if (!coreFrame)
         return nil;
-    return kit(coreFrame->selection().toNormalizedRange().get());
+    return kit(createLiveRange(coreFrame->selection().selection().toNormalizedRange()).get());
 }
 
 - (NSSelectionAffinity)selectionAffinity
@@ -9312,8 +9259,19 @@ bool LayerFlushController::flushLayers()
 #endif
 
 #if ENABLE(VIDEO)
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+
+- (void)_setMockVideoPresentationModeEnabled:(BOOL)enabled
+{
+    _private->mockVideoPresentationModeEnabled = enabled;
+}
+
 - (void)_enterVideoFullscreenForVideoElement:(NakedPtr<WebCore::HTMLVideoElement>)videoElement mode:(WebCore::HTMLMediaElementEnums::VideoFullscreenMode)mode
 {
+    if (_private->mockVideoPresentationModeEnabled)
+        return;
+
     if (_private->fullscreenController) {
         if ([_private->fullscreenController videoElement] == videoElement) {
             // The backend may just warn us that the underlaying plaftormMovie()
@@ -9342,6 +9300,9 @@ bool LayerFlushController::flushLayers()
 
 - (void)_exitVideoFullscreen
 {
+    if (_private->mockVideoPresentationModeEnabled)
+        return;
+
     if (!_private->fullscreenController && _private->fullscreenControllersExiting.isEmpty())
         return;
 
@@ -9359,7 +9320,7 @@ bool LayerFlushController::flushLayers()
     [fullscreenController exitFullscreen];
 }
 
-#if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
+#if PLATFORM(MAC)
 - (BOOL)_hasActiveVideoForControlsInterface
 {
     if (!_private->playbackSessionModel)
@@ -9399,7 +9360,11 @@ bool LayerFlushController::flushLayers()
     _private->playbackSessionInterface = nullptr;
     [self updateTouchBar];
 }
-#endif // PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
+
+#endif // PLATFORM(MAC)
+
+#endif // ENABLE(VIDEO_PRESENTATION_MODE)
+
 #endif // ENABLE(VIDEO)
 
 #if ENABLE(FULLSCREEN_API) && !PLATFORM(IOS_FAMILY)
@@ -9439,13 +9404,10 @@ bool LayerFlushController::flushLayers()
 }
 #endif
 
-#if USE(DICTATION_ALTERNATIVES)
 - (void)_getWebCoreDictationAlternatives:(Vector<WebCore::DictationAlternative>&)alternatives fromTextAlternatives:(const Vector<WebCore::TextAlternativeWithRange>&)alternativesWithRange
 {
-    for (size_t i = 0; i < alternativesWithRange.size(); ++i) {
-        const WebCore::TextAlternativeWithRange& alternativeWithRange = alternativesWithRange[i];
-        uint64_t dictationContext = _private->m_alternativeTextUIController->addAlternatives(alternativeWithRange.alternatives);
-        if (dictationContext)
+    for (auto& alternativeWithRange : alternativesWithRange) {
+        if (auto dictationContext = _private->m_alternativeTextUIController->addAlternatives(alternativeWithRange.alternatives.get()))
             alternatives.append(WebCore::DictationAlternative(alternativeWithRange.range.location, alternativeWithRange.range.length, dictationContext));
     }
 }
@@ -9468,7 +9430,6 @@ bool LayerFlushController::flushLayers()
 {
     return _private->m_alternativeTextUIController->alternativesForContext(dictationContext);
 }
-#endif
 
 #if ENABLE(SERVICE_CONTROLS)
 - (WebSelectionServiceController&)_selectionServiceController
@@ -10204,13 +10165,9 @@ static NSTextAlignment nsTextAlignmentFromRenderStyle(const WebCore::RenderStyle
     auto* page = core(self);
     if (!page)
         return @[];
-    auto coreElements = page->editableElementsInRect(rect);
-    if (coreElements.isEmpty())
-        return @[];
-    auto result = adoptNS([[NSMutableArray alloc] initWithCapacity:coreElements.size()]);
-    for (auto& coreElement : coreElements)
-        [result addObject:kit(coreElement.ptr())];
-    return result.autorelease();
+    return createNSArray(page->editableElementsInRect(rect), [] (auto& coreElement) {
+        return kit(coreElement.ptr());
+    }).autorelease();
 }
 
 - (void)revealCurrentSelection

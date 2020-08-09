@@ -54,15 +54,16 @@ public:
     DECLARE_INFO;
 
     void initializePluralRules(JSGlobalObject*, JSValue locales, JSValue options);
-    JSValue select(JSGlobalObject*, double value);
-    JSObject* resolvedOptions(JSGlobalObject*);
+    JSValue select(JSGlobalObject*, double value) const;
+    JSObject* resolvedOptions(JSGlobalObject*) const;
 
-protected:
+private:
     IntlPluralRules(VM&, Structure*);
     void finishCreation(VM&);
     static void visitChildren(JSCell*, SlotVisitor&);
 
-private:
+    static Vector<String> localeData(const String&, size_t);
+
     struct UPluralRulesDeleter {
         void operator()(UPluralRules*) const;
     };
@@ -70,7 +71,6 @@ private:
         void operator()(UNumberFormat*) const;
     };
 
-    bool m_initializedPluralRules { false };
     std::unique_ptr<UPluralRules, UPluralRulesDeleter> m_pluralRules;
     std::unique_ptr<UNumberFormat, UNumberFormatDeleter> m_numberFormat;
 

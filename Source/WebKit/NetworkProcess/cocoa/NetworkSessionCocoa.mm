@@ -674,8 +674,10 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
 
         // Handle server trust evaluation at platform-level if requested, for performance reasons and to use ATS defaults.
         if (sessionCocoa->fastServerTrustEvaluationEnabled() && negotiatedLegacyTLS == NegotiatedLegacyTLS::No) {
-#if HAVE(CFNETWORK_NSURLSESSION_STRICTRUSTEVALUATE)
             auto* networkDataTask = [self existingTask:task];
+            if (networkDataTask)
+                networkDataTask->didNegotiateModernTLS(challenge);
+#if HAVE(CFNETWORK_NSURLSESSION_STRICTRUSTEVALUATE)
             auto decisionHandler = makeBlockPtr([weakSelf = WeakObjCPtr<WKNetworkSessionDelegate>(self), sessionCocoa = makeWeakPtr(sessionCocoa), completionHandler = makeBlockPtr(completionHandler), taskIdentifier, networkDataTask = makeRefPtr(networkDataTask), negotiatedLegacyTLS](NSURLAuthenticationChallenge *challenge, OSStatus trustResult) mutable {
                 auto strongSelf = weakSelf.get();
                 if (!strongSelf)
@@ -1167,7 +1169,7 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
         SandboxExtension::consumePermanently(parameters.alternativeServiceDirectoryExtensionHandle);
         configuration._alternativeServicesStorage = [[[_NSHTTPAlternativeServicesStorage alloc] initPersistentStoreWithURL:[[NSURL fileURLWithPath:parameters.alternativeServiceDirectory isDirectory:YES] URLByAppendingPathComponent:@"AlternativeService.sqlite"]] autorelease];
     } else
-        RELEASE_ASSERT(m_sessionID.isEphemeral());
+        ASSERT(m_sessionID.isEphemeral());
     configuration._allowsHTTP3 = parameters.http3Enabled;
 #endif
 
@@ -1186,11 +1188,9 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
 
     configuration._timingDataOptions = _TimingDataOptionsEnableW3CNavigationTiming;
 
-#if (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101400) || PLATFORM(IOS_FAMILY)
     // FIXME: Replace @"kCFStreamPropertyAutoErrorOnSystemChange" with a constant from the SDK once rdar://problem/40650244 is in a build.
     if (parameters.suppressesConnectionTerminationOnSystemChange)
         configuration._socketStreamProperties = @{ @"kCFStreamPropertyAutoErrorOnSystemChange" : @NO };
-#endif
 
 #if PLATFORM(WATCHOS)
     configuration._companionProxyPreference = NSURLSessionCompanionProxyPreferencePreferDirectToCloud;
@@ -1227,6 +1227,8 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
     m_deviceManagementRestrictionsEnabled = parameters.deviceManagementRestrictionsEnabled;
     m_allLoadsBlockedByDeviceManagementRestrictionsForTesting = parameters.allLoadsBlockedByDeviceManagementRestrictionsForTesting;
 
+    if (m_resourceLoadStatistics && !parameters.resourceLoadStatisticsParameters.appBoundDomains.isEmpty())
+        m_resourceLoadStatistics->setAppBoundDomains(WTFMove(parameters.resourceLoadStatisticsParameters.appBoundDomains), [] { });
 #if HAVE(SESSION_CLEANUP)
     activateSessionCleanup(*this, parameters);
 #endif
@@ -1361,6 +1363,11 @@ bool NetworkSessionCocoa::hasIsolatedSession(const WebCore::RegistrableDomain do
 void NetworkSessionCocoa::clearIsolatedSessions()
 {
     m_isolatedSessions.clear();
+}
+
+void NetworkSessionCocoa::clearAppBoundSession()
+{
+    m_appBoundSession = nullptr;
 }
 
 void NetworkSessionCocoa::invalidateAndCancel()

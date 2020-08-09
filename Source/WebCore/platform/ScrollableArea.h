@@ -136,6 +136,9 @@ public:
     virtual bool horizontalScrollbarHiddenByStyle() const { return false; }
     virtual bool verticalScrollbarHiddenByStyle() const { return false; }
 
+    WEBCORE_EXPORT String horizontalScrollbarStateForTesting() const;
+    WEBCORE_EXPORT String verticalScrollbarStateForTesting() const;
+
     bool inLiveResize() const { return m_inLiveResize; }
     WEBCORE_EXPORT virtual void willStartLiveResize();
     WEBCORE_EXPORT virtual void willEndLiveResize();
@@ -277,7 +280,7 @@ public:
 
     virtual IntSize contentsSize() const = 0;
     virtual IntSize overhangAmount() const { return IntSize(); }
-    virtual IntPoint lastKnownMousePosition() const { return IntPoint(); }
+    virtual IntPoint lastKnownMousePositionInView() const { return IntPoint(); }
     virtual bool isHandlingWheelEvent() const { return false; }
 
     virtual int headerHeight() const { return 0; }
