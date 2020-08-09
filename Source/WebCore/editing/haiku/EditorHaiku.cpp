@@ -54,7 +54,7 @@ void Editor::pasteWithPasteboard(Pasteboard* pasteboard,
 
     bool chosePlainText;
     RefPtr<DocumentFragment> fragment = pasteboard->documentFragment(
-        m_frame, *range, options.contains(PasteOption::AllowPlainText), chosePlainText);
+        *m_document.frame(), *range, options.contains(PasteOption::AllowPlainText), chosePlainText);
 
     if (fragment && shouldInsertFragment(*fragment, range.get(),
             EditorInsertAction::Pasted))
@@ -115,7 +115,7 @@ void Editor::writeSelectionToPasteboard(Pasteboard& pasteboard)
     pasteboard.write(pasteboardContent);
 }
 
-RefPtr<DocumentFragment> Editor::webContentFromPasteboard(Pasteboard&, Range&, bool /*allowPlainText*/, bool& /*chosePlainText*/)
+RefPtr<DocumentFragment> Editor::webContentFromPasteboard(Pasteboard&, const SimpleRange&, bool /*allowPlainText*/, bool& /*chosePlainText*/)
 {
     return nullptr;
 }

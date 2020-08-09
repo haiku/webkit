@@ -49,14 +49,14 @@ URL::operator BUrl() const
     BUrl converted;
     converted.SetProtocol(protocol().utf8().data());
     converted.SetUserName(user());
-    converted.SetPassword(pass());
+    converted.SetPassword(password());
     converted.SetHost(host().utf8().data());
     if (port())
         converted.SetPort(*port());
     converted.SetPath(path().utf8().data());
-    converted.SetRequest(query());
+    converted.SetRequest(query().utf8().data());
     if (hasFragmentIdentifier())
-        converted.SetFragment(fragmentIdentifier());
+        converted.SetFragment(fragmentIdentifier().utf8().data());
     return converted;
 }
 

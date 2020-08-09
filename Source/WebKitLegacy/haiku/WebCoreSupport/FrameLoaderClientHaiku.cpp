@@ -892,9 +892,8 @@ bool FrameLoaderClientHaiku::canCachePage() const
     return true;
 }
 
-RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const URL& url,
-    const String& name, HTMLFrameOwnerElement& ownerElement,
-    const String& referrer)
+RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const String& name,
+    HTMLFrameOwnerElement& ownerElement)
 {
     ASSERT(m_webFrame);
     ASSERT(m_webPage);
@@ -907,15 +906,6 @@ RefPtr<Frame> FrameLoaderClientHaiku::createFrame(const URL& url,
     ASSERT(coreSubFrame);
 
     subFrame->SetListener(m_messenger);
-    m_webFrame->Frame()->loader().loadURLIntoChildFrame(url, referrer, coreSubFrame.get());
-
-    // The frame's onload handler may have removed it from the document.
-    // See fast/dom/null-page-show-modal-dialog-crash.html for an example.
-    if (!coreSubFrame->tree().parent()) {
-        // The subframe will be deleted when coreSubFrame is dereferenced.
-        return nullptr;
-    }
-
     return coreSubFrame;
 }
 

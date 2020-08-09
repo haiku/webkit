@@ -105,7 +105,7 @@ void BWebFrame::LoadURL(BString urlString)
     WTF::URL url;
     if (BEntry(urlString.String()).Exists()) {
         url.setProtocol("file");
-        url.setPath(urlString);
+        url.setPath(String(urlString));
     } else
 		url = WTF::URL(WTF::URL(), urlString.Trim());
 
