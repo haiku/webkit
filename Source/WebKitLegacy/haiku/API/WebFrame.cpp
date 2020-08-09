@@ -128,8 +128,7 @@ void BWebFrame::LoadURL(WTF::URL url)
     fData->requestedURL = url.string();
 
     WebCore::ResourceRequest req(url);
-    fData->frame->loader().load(WebCore::FrameLoadRequest(*fData->frame, req,
-        ShouldOpenExternalURLsPolicy::ShouldNotAllow));
+    fData->frame->loader().load(WebCore::FrameLoadRequest(*fData->frame, req));
 }
 
 void BWebFrame::StopLoading()
