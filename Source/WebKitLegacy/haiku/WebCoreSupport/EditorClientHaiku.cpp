@@ -533,38 +533,48 @@ bool EditorClientHaiku::handleEditingKeyboardEvent(KeyboardEvent* event,
 
     switch (platformEvent->windowsVirtualKeyCode()) {
     case VK_BACK:
-        frame.editor().deleteWithDirection(DirectionBackward,
-                                             platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                             false, true);
+        frame.editor().deleteWithDirection(SelectionDirection::Backward,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            false, true);
         break;
     case VK_DELETE:
-        frame.editor().deleteWithDirection(DirectionForward,
-                                             platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                             false, true);
+        frame.editor().deleteWithDirection(SelectionDirection::Forward,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            false, true);
         break;
     case VK_LEFT:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionLeft,
-                                   platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey()
+                ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
+            SelectionDirection::Left,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            UserTriggered);
         break;
     case VK_RIGHT:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionRight,
-                                   platformEvent->controlKey() ? WordGranularity : CharacterGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Right,
+            platformEvent->controlKey() ? TextGranularity::WordGranularity
+                : TextGranularity::CharacterGranularity,
+            UserTriggered);
         break;
     case VK_UP:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionBackward,
-                                   platformEvent->controlKey() ? ParagraphGranularity : LineGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Backward,
+            platformEvent->controlKey() ? TextGranularity::ParagraphGranularity
+                : TextGranularity::LineGranularity,
+            UserTriggered);
         break;
     case VK_DOWN:
-        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend : FrameSelection::AlterationMove,
-                                   DirectionForward,
-                                   platformEvent->controlKey() ? ParagraphGranularity : LineGranularity,
-                                   UserTriggered);
+        frame.selection().modify(platformEvent->shiftKey() ? FrameSelection::AlterationExtend
+                : FrameSelection::AlterationMove,
+            SelectionDirection::Forward,
+            platformEvent->controlKey() ? TextGranularity::ParagraphGranularity
+                : TextGranularity::LineGranularity,
+            UserTriggered);
         break;
     case VK_HOME:
         if (platformEvent->shiftKey() && platformEvent->controlKey())
