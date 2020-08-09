@@ -31,6 +31,7 @@
 #import "NativeWebMouseEvent.h"
 #import "UIKitSPI.h"
 #import <pal/spi/ios/GraphicsServicesSPI.h>
+#import <wtf/Compiler.h>
 #import <wtf/Optional.h>
 
 static OptionSet<WebKit::WebEvent::Modifier> webEventModifiersForUIKeyModifierFlags(UIKeyModifierFlags flags)
@@ -71,6 +72,20 @@ static OptionSet<WebKit::WebEvent::Modifier> webEventModifiersForUIKeyModifierFl
     return self;
 }
 
+- (void)setEnabled:(BOOL)enabled
+{
+    [super setEnabled:enabled];
+
+    if (!enabled) {
+        _currentHoverEvent = nil;
+        _currentTouch = nil;
+        _touching = NO;
+        _lastEvent = nil;
+        _lastLocation = WTF::nullopt;
+        _pressedButtonMask = WTF::nullopt;
+    }
+}
+
 - (void)setView:(UIView *)view
 {
     if (view == self.view)
@@ -80,7 +95,11 @@ static OptionSet<WebKit::WebEvent::Modifier> webEventModifiersForUIKeyModifierFl
 
     if (view.window) {
         UIHoverEvent *hoverEvent = [UIApp _hoverEventForWindow:view.window];
+#if PLATFORM(IOS) && __IPHONE_OS_VERSION_MAX_ALLOWED < 140000 || PLATFORM(MACCATALYST)
         [hoverEvent setNeedsHitTestReset];
+#else
+        [hoverEvent setNeedsHitTestResetForWindow:view.window];
+#endif
     }
 }
 
@@ -99,10 +118,12 @@ static OptionSet<WebKit::WebEvent::Modifier> webEventModifiersForUIKeyModifierFl
     return _currentTouch.get();
 }
 
+ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (BOOL)_wantsHoverEvents
 {
     return YES;
 }
+ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (void)reset
 {

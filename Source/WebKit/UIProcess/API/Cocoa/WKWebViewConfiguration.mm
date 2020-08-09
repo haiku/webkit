@@ -592,6 +592,16 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     return _pageConfiguration->copy();
 }
 
+- (BOOL)limitsNavigationsToAppBoundDomains
+{
+    return _pageConfiguration->limitsNavigationsToAppBoundDomains();
+}
+
+- (void)setLimitsNavigationsToAppBoundDomains:(BOOL)limitsToAppBoundDomains
+{
+    _pageConfiguration->setLimitsNavigationsToAppBoundDomains(limitsToAppBoundDomains);
+}
+
 @end
 
 @implementation WKWebViewConfiguration (WKPrivate)
@@ -686,16 +696,6 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     _allowTopNavigationToDataURLs = allowTopNavigationToDataURLs;
 }
 
-- (BOOL)limitsNavigationsToAppBoundDomains
-{
-    return _pageConfiguration->limitsNavigationsToAppBoundDomains();
-}
-
-- (void)setLimitsNavigationsToAppBoundDomains:(BOOL)limitsToAppBoundDomains
-{
-    _pageConfiguration->setLimitsNavigationsToAppBoundDomains(limitsToAppBoundDomains);
-}
-
 - (BOOL)_convertsPositionStyleOnCopy
 {
     return _convertsPositionStyleOnCopy;
@@ -729,12 +729,12 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 
 - (BOOL)_alwaysRunsAtForegroundPriority
 {
-    return _pageConfiguration->alwaysRunsAtForegroundPriority();
+    return _pageConfiguration->clientNavigationsRunAtForegroundPriority();
 }
 
 - (void)_setAlwaysRunsAtForegroundPriority:(BOOL)alwaysRunsAtForegroundPriority
 {
-    _pageConfiguration->setAlwaysRunsAtForegroundPriority(alwaysRunsAtForegroundPriority);
+    _pageConfiguration->setClientNavigationsRunAtForegroundPriority(alwaysRunsAtForegroundPriority);
 }
 
 - (BOOL)_inlineMediaPlaybackRequiresPlaysInlineAttribute

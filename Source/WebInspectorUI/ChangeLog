@@ -1,3 +1,84 @@
+2020-05-11  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Network: Timing: gaps around the "Resource does not have timing data" message
+        https://bugs.webkit.org/show_bug.cgi?id=211648
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Main.html:
+        * UserInterface/Views/ResourceTimingContentView.css: Added.
+        (.resource-details.resource-timing > .message-text-view):
+
+2020-05-11  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Network: Preview: default detached window size not wide enough for navigation items to be visible
+        https://bugs.webkit.org/show_bug.cgi?id=211649
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/NetworkDetailView.js:
+        (WI.NetworkDetailView.prototype.initialLayout):
+        Don't center the panel switcher radio buttons as when they are centered, there's not always
+        enough room for `WI.NavigationItem`s for the currently showing `WI.ContentView`. Aligning
+        the panel switcher radio buttons to the start allows for as much room as possible.
+
+2020-05-07  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Timelines: visible outline after clicking the close X button
+        https://bugs.webkit.org/show_bug.cgi?id=211604
+        <rdar://problem/62998871>
+
+        Reviewed by Timothy Hatcher.
+
+        Never display focus outline for TreeOutline items.
+
+        * UserInterface/Views/TreeOutline.css:
+        (.tree-outline .item):
+        (body:not(.window-inactive, .window-docked-inactive) .tree-outline:focus-within .item.selected):
+
+2020-05-07  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Uncaught Exception: TypeError: null is not an object (evaluating 'mimeType.endsWith')
+        https://bugs.webkit.org/show_bug.cgi?id=211593
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Views/ResourceClusterContentView.js:
+        (WI.ResourceClusterContentView.prototype._normalizeMIMETypeForDOM):
+
+2020-05-07  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Sources: Breakpoints status not remembered/restored correctly
+        https://bugs.webkit.org/show_bug.cgi?id=211558
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Controllers/DOMDebuggerManager.js:
+        (WI.DOMDebuggerManager.prototype.initializeTarget):
+
+2020-05-07  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Storage: double clicking on a cookie field doesn't start editing it
+        https://bugs.webkit.org/show_bug.cgi?id=211598
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Views/CookieStorageContentView.js:
+        (WI.CookieStorageContentView):
+        (WI.CookieStorageContentView.prototype.tableCellContextMenuClicked):
+        (WI.CookieStorageContentView.prototype.tablePopulateCell):
+        (WI.CookieStorageContentView.prototype._showCookiePopover):
+        (WI.CookieStorageContentView.prototype._handleSetCookieButtonClick):
+        Add a `"dblclick"` event listener to each cell that shows a `WI.CookiePopover` for that cell
+        and automatically select the current value of that field in the `WI.Cookie`. Unify the few
+        different ways to show a `WI.CookiePopover`.
+
+        * UserInterface/Views/CookiePopover.js:
+        (WI.CookiePopover.prototype.show.createRow):
+        Provide a way to programmatically trigger the focusing of an editor once shown.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
 2020-05-06  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: Layers: the text at the bottom of the details sidebar can get squished

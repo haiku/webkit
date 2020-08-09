@@ -895,12 +895,14 @@ static CharacterOffset characterOffsetForTextMarker(AXObjectCache* cache, CFType
 
 - (CharacterOffset)characterOffsetForTextMarker:(id)textMarker
 {
-    return characterOffsetForTextMarker(self.axBackingObject->axObjectCache(), (__bridge CFTypeRef)textMarker);
+    auto *backingObject = self.axBackingObject;
+    return backingObject ? characterOffsetForTextMarker(backingObject->axObjectCache(), (__bridge CFTypeRef)textMarker) : nil;
 }
 
 - (id)textMarkerForVisiblePosition:(const VisiblePosition &)visiblePos
 {
-    return textMarkerForVisiblePosition(self.axBackingObject->axObjectCache(), visiblePos);
+    auto *backingObject = self.axBackingObject;
+    return backingObject ? textMarkerForVisiblePosition(backingObject->axObjectCache(), visiblePos) : nil;
 }
 
 - (id)textMarkerForFirstPositionInTextControl:(HTMLTextFormControlElement &)textControl
@@ -1078,7 +1080,7 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
 
     if (unifiedTextCheckerEnabled(node->document().frame())) {
         // Check the spelling directly since document->markersForNode() does not store the misspelled marking when the cursor is in a word.
-        TextCheckerClient* checker = node->document().frame()->editor().textChecker();
+        TextCheckerClient* checker = node->document().editor().textChecker();
         
         // checkTextOfParagraph is the only spelling/grammar checker implemented in WK1 and WK2
         Vector<TextCheckingResult> results;
@@ -1098,7 +1100,7 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
     for (unsigned currentPosition = 0; currentPosition < text.length(); ) {
         int misspellingLocation = -1;
         int misspellingLength = 0;
-        node->document().frame()->editor().textChecker()->checkSpellingOfString(text.substring(currentPosition), &misspellingLocation, &misspellingLength);
+        node->document().editor().textChecker()->checkSpellingOfString(text.substring(currentPosition), &misspellingLocation, &misspellingLength);
         if (misspellingLocation == -1 || !misspellingLength)
             break;
         
@@ -2429,7 +2431,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             if (backingObject->isPasswordField() || backingObject->selectionEnd() > 0)
                 return nil;
 
-            auto focusedObject = downcast<AccessibilityObject>(backingObject->focusedUIElement());
+            auto *focusedObject = backingObject->focusedUIElement();
             if (focusedObject != backingObject)
                 return nil;
 
@@ -3489,8 +3491,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 #if PLATFORM(MAC)
     // In case anything we do by changing values causes an alert or other modal
     // behaviors, we need to return now, so that VoiceOver doesn't hang indefinitely.
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self _accessibilitySetValue:value forAttribute:attributeName];
+    callOnMainThread([value = retainPtr(value), attributeName = retainPtr(attributeName), protectedSelf = retainPtr(self)] {
+        [protectedSelf _accessibilitySetValue:value.get() forAttribute:attributeName.get()];
     });
 #else
     // dispatch_async on earlier versions can cause focus not to track.
@@ -3540,7 +3542,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     } else if ([attributeName isEqualToString: NSAccessibilitySelectedChildrenAttribute]) {
         if (!array)
             return;
-        if (backingObject->roleValue() != AccessibilityRole::ListBox)
+        if (!backingObject->isNativeListBox())
             return;
         AccessibilityObject::AccessibilityChildrenVector selectedChildren;
         convertToVector(array, selectedChildren);

@@ -185,6 +185,8 @@ private:
     void didDestroyEditableImage(WebCore::GraphicsLayer::EmbeddedViewID) final;
 
     bool shouldUseMouseEventForSelection(const WebCore::PlatformMouseEvent&) final;
+
+    bool showDataDetectorsUIForElement(const WebCore::Element&, const WebCore::Event&) final;
 #endif
 
 #if ENABLE(ORIENTATION_EVENTS)
@@ -229,6 +231,8 @@ private:
     void AXStartFrameLoad() final { }
     void AXFinishFrameLoad() final { }
 #endif
+
+    void animationDidFinishForElement(const WebCore::Element&) final;
 
     RefPtr<WebCore::DisplayRefreshMonitor> createDisplayRefreshMonitor(WebCore::PlatformDisplayID) const final;
 
@@ -397,7 +401,6 @@ private:
     void setMockWebAuthenticationConfiguration(const WebCore::MockWebAuthenticationConfiguration&) final;
 #endif
 
-    mutable RefPtr<WebFrame> m_cachedFrameSetLargestFrame;
     mutable bool m_cachedMainFrameHasHorizontalScrollbar { false };
     mutable bool m_cachedMainFrameHasVerticalScrollbar { false };
 #if ENABLE(GPU_PROCESS)

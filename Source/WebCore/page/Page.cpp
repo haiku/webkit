@@ -2720,17 +2720,18 @@ bool Page::isMonitoringWheelEvents() const
     return !!m_wheelEventTestMonitor;
 }
 
-void Page::startMonitoringWheelEvents()
+void Page::startMonitoringWheelEvents(bool clearLatchingState)
 {
     ensureWheelEventTestMonitor().clearAllTestDeferrals();
 
 #if ENABLE(WHEEL_EVENT_LATCHING)
-    resetLatchingState();
+    if (clearLatchingState)
+        resetLatchingState();
 #endif
 
     if (auto* frameView = mainFrame().view()) {
         if (m_scrollingCoordinator) {
-            m_scrollingCoordinator->startMonitoringWheelEvents();
+            m_scrollingCoordinator->startMonitoringWheelEvents(clearLatchingState);
             m_scrollingCoordinator->updateIsMonitoringWheelEventsForFrameView(*frameView);
         }
     }
@@ -3162,11 +3163,12 @@ void Page::revealCurrentSelection()
 
 void Page::injectUserStyleSheet(UserStyleSheet& userStyleSheet)
 {
-    if (m_mainFrame->loader().client().hasNavigatedAwayFromAppBoundDomain()) {
+    if (m_mainFrame->loader().client().shouldEnableInAppBrowserPrivacyProtections()) {
         if (auto* document = m_mainFrame->document())
             document->addConsoleMessage(MessageSource::Security, MessageLevel::Warning, "Ignoring user style sheet for non-app bound domain."_s);
         return;
     }
+    m_mainFrame->loader().client().notifyPageOfAppBoundBehavior();
 
     // We need to wait until we're no longer displaying the initial empty document before we can inject the stylesheets.
     if (m_mainFrame->loader().stateMachine().isDisplayingInitialEmptyDocument()) {

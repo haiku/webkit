@@ -159,10 +159,10 @@ private:
 //
 // The order may be significant for nodes with side-effects (property accesses, value conversions).
 // Nodes that are 'dead' remain in the vector with refCount 0.
-class Graph : public virtual Scannable {
+class Graph final : public virtual Scannable {
 public:
     Graph(VM&, Plan&);
-    ~Graph();
+    ~Graph() final;
     
     void changeChild(Edge& edge, Node* newNode)
     {
@@ -267,14 +267,14 @@ public:
     void assertIsRegistered(Structure* structure);
     
     // CodeBlock is optional, but may allow additional information to be dumped (e.g. Identifier names).
-    void dump(PrintStream& = WTF::dataFile(), DumpContext* = 0);
+    void dump(PrintStream& = WTF::dataFile(), DumpContext* = nullptr);
 
     bool terminalsAreValid();
     
     enum PhiNodeDumpMode { DumpLivePhisOnly, DumpAllPhis };
     void dumpBlockHeader(PrintStream&, const char* prefix, BasicBlock*, PhiNodeDumpMode, DumpContext*);
     void dump(PrintStream&, Edge);
-    void dump(PrintStream&, const char* prefix, Node*, DumpContext* = 0);
+    void dump(PrintStream&, const char* prefix, Node*, DumpContext* = nullptr);
     static int amountOfNodeWhiteSpace(Node*);
     static void printNodeWhiteSpace(PrintStream&, Node*);
 
@@ -977,10 +977,7 @@ public:
         for (unsigned argument = block(0)->variablesAtHead.numberOfArguments(); argument--;)
             functor(virtualRegisterForArgumentIncludingThis(argument));
     }
-    
-    BytecodeKills& killsFor(CodeBlock*);
-    BytecodeKills& killsFor(InlineCallFrame*);
-    
+
     static unsigned parameterSlotsForArgCount(unsigned);
     
     unsigned frameRegisterCount();
@@ -1004,7 +1001,7 @@ public:
     
     void registerFrozenValues();
     
-    void visitChildren(SlotVisitor&) override;
+    void visitChildren(SlotVisitor&) final;
     
     void logAssertionFailure(
         std::nullptr_t, const char* file, int line, const char* function,
@@ -1132,7 +1129,6 @@ public:
     Bag<BitVector> m_bitVectors;
     Vector<InlineVariableData, 4> m_inlineVariableData;
     HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>> m_bytecodeLiveness;
-    HashMap<CodeBlock*, std::unique_ptr<BytecodeKills>> m_bytecodeKills;
     HashSet<std::pair<JSObject*, PropertyOffset>> m_safeToLoad;
     Vector<Ref<Snippet>> m_domJITSnippets;
     std::unique_ptr<CPSDominators> m_cpsDominators;

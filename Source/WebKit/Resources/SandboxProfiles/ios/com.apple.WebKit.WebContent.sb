@@ -756,6 +756,51 @@
 ;;; End UIKit-apps.sb content
 ;;;
 
+;; In CFPrefs direct mode, access to preference files is required.
+(allow file-read*
+    (home-literal
+        "/Library/Preferences/com.apple.Accessibility.plist"
+        "/Library/Preferences/com.apple.EmojiPreferences.plist"
+        "/Library/Preferences/com.apple.InputModePreferences.plist"
+        "/Library/Preferences/com.apple.LaunchServices.plist"
+        "/Library/Preferences/com.apple.Metal.plist"
+        "/Library/Preferences/com.apple.MobileAsset.plist"
+        "/Library/Preferences/com.apple.Preferences.plist"
+        "/Library/Preferences/com.apple.PrototypeTools.plist"
+        "/Library/Preferences/com.apple.SpeakSelection.plist"
+        "/Library/Preferences/com.apple.UIKit.plist"
+        "/Library/Preferences/com.apple.VoiceOverTouch.plist"
+        "/Library/Preferences/com.apple.WebFoundation.plist"
+        "/Library/Preferences/com.apple.WebUI.plist"
+        "/Library/Preferences/com.apple.airplay.plist"
+        "/Library/Preferences/com.apple.audio.virtualaudio.plist"
+        "/Library/Preferences/com.apple.avfoundation.plist"
+        "/Library/Preferences/com.apple.avfoundation.frecents.plist"
+        "/Library/Preferences/com.apple.avfoundation.videoperformancehud.plist"
+        "/Library/Preferences/com.apple.avkit.plist"
+        "/Library/Preferences/com.apple.coreanimation.plist"
+        "/Library/Preferences/com.apple.coreaudio.plist"
+        "/Library/Preferences/com.apple.coremedia.plist"
+        "/Library/Preferences/com.apple.corevideo.plist"
+        "/Library/Preferences/com.apple.da.plist"
+        "/Library/Preferences/com.apple.keyboard.plist"
+        "/Library/Preferences/com.apple.lookup.shared.plist"
+        "/Library/Preferences/com.apple.mediaaccessibility.plist"
+        "/Library/Preferences/com.apple.mediaaccessibility.public.plist"
+        "/Library/Preferences/com.apple.mediaremote.plist"
+        "/Library/Preferences/com.apple.mobileipod.plist"
+        "/Library/Preferences/com.apple.mt.plist"
+        "/Library/Preferences/com.apple.hangtracer.plist"
+        "/Library/Preferences/com.apple.iokit.IOMobileGraphicsFamily.plist"
+        "/Library/Preferences/com.apple.itunesstored.plist"
+        "/Library/Preferences/com.apple.opengl.plist"
+        "/Library/Preferences/com.apple.preferences.sounds.plist"
+        "/Library/Preferences/com.apple.security.plist"
+        "/Library/Preferences/com.apple.voiceservices.plist"
+        "/Library/Preferences/com.apple.voiceservices.logging.plist"
+    )
+)
+
 (deny sysctl*)
 (allow sysctl-read
     (sysctl-name
@@ -1213,12 +1258,12 @@
     )
 )
 
-(when (defined? 'mach_make_memory_entry)
 (when (defined? 'mach-kernel-endpoint)
     (allow mach-kernel-endpoint
         (apply-message-filter
-            (allow mach-message-send (with report) (with telemetry))
+            (deny mach-message-send (with telemetry))
             (allow mach-message-send (kernel-mig-routine
+                (when (defined? '_mach_make_memory_entry) _mach_make_memory_entry)
                 host_get_clock_service
                 host_get_io_master
                 host_get_special_port
@@ -1229,6 +1274,7 @@
                 io_connect_set_notification_port_64
                 io_iterator_next
                 io_registry_entry_from_path
+                io_registry_entry_get_parent_iterator
                 io_registry_entry_get_property_bin_buf
                 io_registry_entry_get_property_bytes
                 io_registry_entry_get_registry_entry_id
@@ -1238,7 +1284,8 @@
                 io_service_get_matching_service_bin
                 io_service_get_matching_services_bin
                 io_service_open_extended
-                mach_make_memory_entry
+                mach_exception_raise
+                (when (defined? 'mach_make_memory_entry) mach_make_memory_entry)
                 mach_port_get_context_from_user
                 mach_port_request_notification
                 mach_port_set_attributes
@@ -1252,6 +1299,7 @@
                 task_info_from_user
                 task_restartable_ranges_register
                 task_restartable_ranges_synchronize
+                task_set_exc_guard_behavior
                 task_set_special_port
                 thread_get_state_to_user
                 thread_info
@@ -1264,5 +1312,4 @@
             )
         )
     )
-)
 )

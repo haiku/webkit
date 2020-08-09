@@ -30,10 +30,13 @@
 #include "AnimationPlaybackEvent.h"
 #include "AnimationTimeline.h"
 #include "CSSComputedStyleDeclaration.h"
+#include "Chrome.h"
+#include "ChromeClient.h"
 #include "DOMPromiseProxy.h"
 #include "DeclarativeAnimation.h"
 #include "Document.h"
 #include "DocumentTimeline.h"
+#include "Element.h"
 #include "EventLoop.h"
 #include "EventNames.h"
 #include "InspectorInstrumentation.h"
@@ -131,16 +134,12 @@ void WebAnimation::unsuspendEffectInvalidation()
     --m_suspendCount;
 }
 
-void WebAnimation::effectTimingDidChange(Optional<ComputedEffectTiming> previousTiming)
+void WebAnimation::effectTimingDidChange()
 {
     timingDidChange(DidSeek::No, SynchronouslyNotify::Yes);
 
-    if (previousTiming) {
-        auto* effect = this->effect();
-        ASSERT(effect);
-        if (previousTiming->progress != effect->getComputedTiming().progress)
-            effect->animationDidSeek();
-    }
+    if (m_effect)
+        m_effect->animationDidChangeTimingProperties();
 
     InspectorInstrumentation::didChangeWebAnimationEffectTiming(*this);
 }
@@ -474,7 +473,7 @@ ExceptionOr<void> WebAnimation::setCurrentTime(Optional<Seconds> seekTime)
     timingDidChange(DidSeek::Yes, SynchronouslyNotify::No);
 
     if (m_effect)
-        m_effect->animationDidSeek();
+        m_effect->animationDidChangeTimingProperties();
 
     invalidateEffect();
 
@@ -505,6 +504,9 @@ void WebAnimation::setPlaybackRate(double newPlaybackRate)
     // 4. If previous time is resolved, set the current time of animation to previous time.
     if (previousTime)
         setCurrentTime(previousTime);
+
+    if (m_effect)
+        m_effect->animationDidChangeTimingProperties();
 }
 
 void WebAnimation::updatePlaybackRate(double newPlaybackRate)
@@ -557,6 +559,9 @@ void WebAnimation::updatePlaybackRate(double newPlaybackRate)
         // Run the procedure to play an animation for animation with the auto-rewind flag set to false.
         play(AutoRewind::No);
     }
+
+    if (m_effect)
+        m_effect->animationDidChangeTimingProperties();
 }
 
 void WebAnimation::applyPendingPlaybackRate()
@@ -904,6 +909,13 @@ void WebAnimation::finishNotificationSteps()
     //    effect end to an origin-relative time.
     //    Otherwise, queue a task to dispatch finishEvent at animation. The task source for this task is the DOM manipulation task source.
     enqueueAnimationPlaybackEvent(eventNames().finishEvent, currentTime(), m_timeline ? m_timeline->currentTime() : WTF::nullopt);
+
+    if (is<KeyframeEffect>(m_effect)) {
+        if (auto target = makeRefPtr(downcast<KeyframeEffect>(*m_effect).target())) {
+            if (auto* page = target->document().page())
+                page->chrome().client().animationDidFinishForElement(*target);
+        }
+    }
 }
 
 ExceptionOr<void> WebAnimation::play()
@@ -1141,6 +1153,9 @@ ExceptionOr<void> WebAnimation::reverse()
         m_pendingPlaybackRate = originalPendingPlaybackRate;
         return playResult.releaseException();
     }
+
+    if (m_effect)
+        m_effect->animationDidChangeTimingProperties();
 
     return { };
 }
@@ -1405,7 +1420,6 @@ ExceptionOr<void> WebAnimation::commitStyles()
     inlineStyle->setCssText(styledElement.getAttribute("style"));
 
     auto& keyframeStack = styledElement.ensureKeyframeEffectStack();
-    auto* cssAnimationList = keyframeStack.cssAnimationList();
 
     // 2.5 For each property, property, in targeted properties:
     for (auto property : effect->animatedProperties()) {
@@ -1422,7 +1436,7 @@ ExceptionOr<void> WebAnimation::commitStyles()
         // effect stack and stop when we've found this animation's effect or when we've found an effect associated with an animation with a higher composite order.
         auto animatedStyle = RenderStyle::clonePtr(style);
         for (const auto& effectInStack : keyframeStack.sortedEffects()) {
-            if (effectInStack->animation() != this && !compareAnimationsByCompositeOrder(*effectInStack->animation(), *this, cssAnimationList))
+            if (effectInStack->animation() != this && !compareAnimationsByCompositeOrder(*effectInStack->animation(), *this))
                 break;
             if (effectInStack->animatedProperties().contains(property))
                 effectInStack->animation()->resolve(*animatedStyle);

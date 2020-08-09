@@ -246,10 +246,10 @@ private:
     WriteBarrier<Root> m_root;
 };
 
-class ElementHandleOwner : public WeakHandleOwner {
+class ElementHandleOwner final : public WeakHandleOwner {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor, const char** reason) override
+    bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor, const char** reason) final
     {
         DollarVMAssertScope assertScope;
         if (UNLIKELY(reason))
@@ -259,7 +259,7 @@ public:
     }
 };
 
-class Root : public JSDestructibleObject {
+class Root final : public JSDestructibleObject {
 public:
     using Base = JSDestructibleObject;
     template<typename CellType, SubspaceAccess>
@@ -324,7 +324,6 @@ public:
     }
 
     typedef JSNonFinalObject Base;
-    static constexpr bool needsDestruction = false;
     template<typename CellType, SubspaceAccess>
     static CompleteSubspace* subspaceFor(VM& vm)
     {
@@ -535,6 +534,10 @@ public:
     typedef JSArray Base;
     static constexpr unsigned StructureFlags = Base::StructureFlags | OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | OverridesGetPropertyNames;
 
+IGNORE_WARNINGS_BEGIN("unused-const-variable")
+    static constexpr bool needsDestruction = false;
+IGNORE_WARNINGS_END
+
     template<typename CellType, SubspaceAccess>
     static CompleteSubspace* subspaceFor(VM& vm)
     {
@@ -559,8 +562,6 @@ public:
         DollarVMAssertScope assertScope;
         static_cast<RuntimeArray*>(cell)->RuntimeArray::~RuntimeArray();
     }
-
-    static constexpr bool needsDestruction = false;
 
     static bool getOwnPropertySlot(JSObject* object, JSGlobalObject* globalObject, PropertyName propertyName, PropertySlot& slot)
     {
@@ -633,7 +634,7 @@ protected:
 
 private:
     RuntimeArray(JSGlobalObject* globalObject, Structure* structure)
-        : JSArray(globalObject->vm(), structure, 0)
+        : JSArray(globalObject->vm(), structure, nullptr)
     {
         DollarVMAssertScope assertScope;
     }
@@ -1429,7 +1430,7 @@ const ClassInfo ObjectDoingSideEffectPutWithoutCorrectSlotStatus::s_info = { "Ob
 ElementHandleOwner* Element::handleOwner()
 {
     DollarVMAssertScope assertScope;
-    static ElementHandleOwner* owner = 0;
+    static ElementHandleOwner* owner = nullptr;
     if (!owner)
         owner = new ElementHandleOwner();
     return owner;
@@ -1464,9 +1465,9 @@ public:
         {
         }
 
-        bool didReceiveSectionData(Wasm::Section) override { return true; }
-        bool didReceiveFunctionData(unsigned, const Wasm::FunctionData&) override { return true; }
-        void didFinishParsing() override { }
+        bool didReceiveSectionData(Wasm::Section) final { return true; }
+        bool didReceiveFunctionData(unsigned, const Wasm::FunctionData&) final { return true; }
+        void didFinishParsing() final { }
 
         WasmStreamingParser* m_parser;
     };
@@ -2559,7 +2560,7 @@ static EncodedJSValue JSC_HOST_CALL functionShadowChickenFunctionsOnStack(JSGlob
         return JSValue::encode(shadowChicken->functionsOnStack(globalObject, callFrame));
     }
 
-    JSArray* result = constructEmptyArray(globalObject, 0);
+    JSArray* result = constructEmptyArray(globalObject, nullptr);
     RETURN_IF_EXCEPTION(scope, { });
     StackVisitor::visit(callFrame, vm, [&] (StackVisitor& visitor) -> StackVisitor::Status {
         DollarVMAssertScope assertScope;
@@ -2690,7 +2691,7 @@ public:
     }
 
 private:
-    void sourceParsed(JSGlobalObject*, SourceProvider*, int, const WTF::String&) override
+    void sourceParsed(JSGlobalObject*, SourceProvider*, int, const WTF::String&) final
     {
         DollarVMAssertScope assertScope;
     }

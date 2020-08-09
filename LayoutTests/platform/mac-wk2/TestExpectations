@@ -341,10 +341,6 @@ webkit.org/b/150542 fast/forms/state-restore-per-form.html [ Pass Timeout ]
 
 webkit.org/b/151709 [ Release ] http/tests/xmlhttprequest/workers/methods.html [ Pass Timeout ]
 
-# Video fullscreen is not implemented for mac wk2 in webkittestrunner
-media/media-fullscreen-loop-inline.html [ Skip ]
-media/media-fullscreen-pause-inline.html [ Skip ]
-
 ### END OF (1) Classified failures with bug reports
 ########################################
 
@@ -931,8 +927,6 @@ webkit.org/b/207476 webgpu/whlsl/store-to-property-updates-properly.html [ Pass 
 
 webkit.org/b/207508 webgpu/whlsl/textures-load.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/207571 http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Failure ]
-
 webkit.org/b/207599 webgpu/whlsl/do-while-loop.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/207632 tiled-drawing/scrolling/sticky/sticky-during-rubberband.html [ Pass ImageOnlyFailure ]
@@ -1020,8 +1014,6 @@ webkit.org/b/209281 imported/w3c/web-platform-tests/fetch/stale-while-revalidate
 
 webkit.org/b/209283 tiled-drawing/scrolling/scroll-iframe-latched-selects.html [ Pass Failure ]
 
-webkit.org/b/209503 [ Debug ] http/tests/referrer-policy-anchor/origin/cross-origin-http.https.html [ Pass Crash ]
-
 webkit.org/b/209564 svg/as-image/svg-image-with-data-uri-background.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/209622 http/tests/eventsource/eventsource-reconnect-during-navigate-crash.html [ Pass Failure ]
@@ -1033,8 +1025,6 @@ webkit.org/b/209672 http/wpt/service-workers/service-worker-spinning-fetch.https
 webkit.org/b/209769 [ Catalina ] tiled-drawing/scrolling/frames/frameset-nested-frame-scrollability.html [ Pass Failure ]
 
 webkit.org/b/209878  [ Debug ] webrtc/datachannel/multiple-connections.html [ Slow ]
-
-webkit.org/b/210165 [ Catalina ] webrtc/peer-connection-audio-mute2.html [ Pass Timeout Failure ]
 
 webkit.org/b/210433 swipe/basic-cached-back-swipe.html [ Pass Crash Timeout ]
 

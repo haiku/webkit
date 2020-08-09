@@ -2430,7 +2430,6 @@ media/media-fullscreen-inline.html
 webkit.org/b/136708 media/media-fullscreen-not-in-document.html
 
 media/media-controls-accessibility.html [ Timeout ]
-media/media-fullscreen-return-to-inline.html
 media/no-autoplay-with-user-gesture-requirement.html
 media/video-controls-drag.html
 media/video-controls-fullscreen-volume.html
@@ -2567,7 +2566,6 @@ webkit.org/b/162647 http/tests/xmlhttprequest/onabort-response-getters.html [ Pa
 webkit.org/b/163291 media/require-user-gesture-to-load-video.html
 webkit.org/b/163291 media/video-controls-transformed.html [ Failure ]
 webkit.org/b/163291 media/video-controls-visible-audio-only.html [ Failure ]
-webkit.org/b/163291 media/video-fullscreen-only-playback.html [ Failure ]
 webkit.org/b/163291 media/video-play-audio-require-user-gesture.html [ Failure ]
 webkit.org/b/163291 media/video-play-require-user-gesture.html
 
@@ -2833,9 +2831,6 @@ media/sources-fallback-codecs.html [ Failure ]
 # <rdar://problem/32715902> iOS 11: LayoutTest media/video-src-blob-using-open-panel.html is failing
 media/video-src-blob-using-open-panel.html [ Failure ]
 
-# <rdar://problem/32799573> REGRESSION: LayoutTest fast/text/ipa-tone-letters.html is failing
-fast/text/ipa-tone-letters.html [ Failure ]
-
 # <rdar://problem/33251388> REGRESSION: Multiple imported/w3c/web-platform-tests/ are failing with blobs
 imported/w3c/web-platform-tests/fetch/api/basic/request-headers.any.html [ Failure ]
 imported/w3c/web-platform-tests/fetch/api/basic/request-headers.any.worker.html [ Failure ]
@@ -2879,6 +2874,8 @@ fast/text/text-indent-inside-float.html [ ImageOnlyFailure ]
 http/tests/multipart/load-last-non-html-frame.php [ Failure  ]
 
 webkit.org/b/177366 http/tests/security/frameNavigation/sandbox-ALLOWED-top-navigation-with-user-gesture-1.html [ Pass Timeout ]
+
+webkit.org/b/211509 platform/ios/mediastream/audio-muted-in-background-tab-gpu-process.html [ Failure ]
 
 webkit.org/b/177395 fast/mediastream/RTCPeerConnection-overloaded-operations.html [ Pass Failure ]
 fast/mediastream/MediaStream-video-element-video-tracks-disabled.html [ ImageOnlyFailure ]
@@ -3153,11 +3150,6 @@ fast/gradients/conic-two-hints.html [ Pass ]
 
 # <rdar://problem/36455339> LayoutTest compositing/ios/overflow-scroll-touch-tiles.html is a flaky failure
 compositing/ios/overflow-scroll-touch-tiles.html [ Pass Failure ]
-
-# <rdar://problem/41546970> REGRESSION: LayoutTest media/media-fullscreen-loop-inline.html is a flaky timeout
-media/media-fullscreen-loop-inline.html [ Pass Timeout ]
-
-webkit.org/b/187618 [ Release ] media/media-fullscreen-pause-inline.html [ Pass Failure ]
 
 # Disabled globally.
 http/tests/xmlhttprequest/gzip-content-type-no-content-encoding.html [ Pass ]
@@ -3476,28 +3468,14 @@ webkit.org/b/207858 webgl/webgl-box-shadow.html [ Pass Failure ImageOnlyFailure 
 webkit.org/b/207858 fast/canvas/webgl/oes-texture-half-float-uint16.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/program-test.html [ Failure ]
 webkit.org/b/207858 fast/canvas/webgl/uninitialized-test.html [ Pass Failure ]
-webkit.org/b/207858 fast/canvas/webgl/webgl-texture-binding-preserved.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/oes-texture-float-linear.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/oes-vertex-array-object.html [ Pass Failure ]
 webkit.org/b/207858 fast/canvas/webgl/tex-image-and-sub-image-2d-with-video.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/canvas/texture-bindings-unaffected-on-resize.html [ Pass Failure ]
 webkit.org/b/207858 webgl/1.0.3/conformance/context/context-lost-restored.html [ Pass Failure ]
 webkit.org/b/207858 webgl/1.0.3/conformance/extensions/ext-sRGB.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/extensions/oes-element-index-uint.html [ Pass Failure ]
 webkit.org/b/207858 webgl/1.0.3/conformance/glsl/misc/shader-struct-scope.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/misc/delayed-drawing.html [ Pass Failure ]
 webkit.org/b/207858 webgl/1.0.3/conformance/misc/uninitialized-test.html [ Pass Failure ]
 webkit.org/b/207858 webgl/1.0.3/conformance/programs/program-test.html [ Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/state/state-uneffected-after-compositing.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/default-texture.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-canvas-rgb565.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-canvas-rgba4444.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-canvas-rgba5551.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-canvas.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-webgl-canvas-rgb565.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-webgl-canvas-rgba4444.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-webgl-canvas-rgba5551.html [ Pass Failure ]
-webkit.org/b/207858 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-webgl-canvas.html [ Pass Failure ]
 
 # <rdar://problem/59635486> REGRESSION: http/wpt/webauthn/public-key-credential-get-success-local.https.html is crashing
 http/wpt/webauthn/public-key-credential-get-success-local.https.html [ Skip ]

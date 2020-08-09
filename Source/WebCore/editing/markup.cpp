@@ -86,7 +86,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-static bool propertyMissingOrEqualToNone(StyleProperties*, CSSPropertyID);
+static bool propertyMissingOrEqualToNone(const StyleProperties*, CSSPropertyID);
 
 class AttributeChange {
 public:
@@ -201,7 +201,7 @@ std::unique_ptr<Page> createPageForSanitizingWebContent()
     return page;
 }
 
-String sanitizeMarkup(const String& rawHTML, AddMetaCharsetIfNeeded addMetaCharsetIfNeeded, MSOListQuirks msoListQuirks, Optional<WTF::Function<void(DocumentFragment&)>> fragmentSanitizer)
+String sanitizeMarkup(const String& rawHTML, MSOListQuirks msoListQuirks, Optional<WTF::Function<void(DocumentFragment&)>> fragmentSanitizer)
 {
     auto page = createPageForSanitizingWebContent();
     Document* stagingDocument = page->mainFrame().document();
@@ -212,7 +212,7 @@ String sanitizeMarkup(const String& rawHTML, AddMetaCharsetIfNeeded addMetaChars
     if (fragmentSanitizer)
         (*fragmentSanitizer)(fragment);
 
-    return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, addMetaCharsetIfNeeded, msoListQuirks, rawHTML);
+    return sanitizedMarkupForFragmentInDocument(WTFMove(fragment), *stagingDocument, msoListQuirks, rawHTML);
 }
 
 enum class MSOListMode { Preserve, DoNotPreserve };
@@ -231,7 +231,7 @@ public:
     bool needRelativeStyleWrapper() const { return m_needRelativeStyleWrapper; }
     bool needClearingDiv() const { return m_needClearingDiv; }
 
-    using MarkupAccumulator::appendString;
+    using MarkupAccumulator::append;
 
     ContainerNode* parentNode(Node& node)
     {
@@ -240,7 +240,14 @@ public:
         return node.parentOrShadowHostNode();
     }
 
+    void prependMetaCharsetUTF8TagIfNonASCIICharactersArePresent()
+    {
+        if (!isAllASCII())
+            m_reversedPrecedingMarkup.append("<meta charset=\"UTF-8\">"_s);
+    }
+
 private:
+    bool isAllASCII() const;
     void appendStyleNodeOpenTag(StringBuilder&, StyleProperties*, Document&, bool isBlock = false);
     const String& styleNodeCloseTag(bool isBlock = false);
 
@@ -356,7 +363,7 @@ void StyledMarkupAccumulator::wrapWithStyleNode(StyleProperties* style, Document
     StringBuilder openTag;
     appendStyleNodeOpenTag(openTag, style, document, isBlock);
     m_reversedPrecedingMarkup.append(openTag.toString());
-    appendString(styleNodeCloseTag(isBlock));
+    append(styleNodeCloseTag(isBlock));
 }
 
 void StyledMarkupAccumulator::appendStyleNodeOpenTag(StringBuilder& out, StyleProperties* style, Document& document, bool isBlock)
@@ -378,17 +385,26 @@ const String& StyledMarkupAccumulator::styleNodeCloseTag(bool isBlock)
     return isBlock ? divClose : styleSpanClose;
 }
 
+bool StyledMarkupAccumulator::isAllASCII() const
+{
+    for (auto& preceding : m_reversedPrecedingMarkup) {
+        if (!preceding.isAllASCII())
+            return false;
+    }
+    return MarkupAccumulator::isAllASCII();
+}
+
 String StyledMarkupAccumulator::takeResults()
 {
+    CheckedUint32 length = this->length();
+    for (auto& string : m_reversedPrecedingMarkup)
+        length += string.length();
     StringBuilder result;
-    result.reserveCapacity(totalLength(m_reversedPrecedingMarkup) + length());
-
-    for (size_t i = m_reversedPrecedingMarkup.size(); i > 0; --i)
-        result.append(m_reversedPrecedingMarkup[i - 1]);
-
-    concatenateMarkup(result);
-
-    // We remove '\0' characters because they are not visibly rendered to the user.
+    result.reserveCapacity(length.unsafeGet());
+    for (auto& string : makeReversedRange(m_reversedPrecedingMarkup))
+        result.append(string);
+    result.append(takeMarkup());
+    // Remove '\0' characters because they are not visibly rendered to the user.
     return result.toString().replaceWithLiteral('\0', "");
 }
 
@@ -397,7 +413,7 @@ void StyledMarkupAccumulator::appendText(StringBuilder& out, const Text& text)
     const bool parentIsTextarea = is<HTMLTextAreaElement>(text.parentElement());
     const bool wrappingSpan = shouldApplyWrappingStyle(text) && !parentIsTextarea;
     if (wrappingSpan) {
-        RefPtr<EditingStyle> wrappingStyle = m_wrappingStyle->copy();
+        auto wrappingStyle = m_wrappingStyle->copy();
         // FIXME: <rdar://problem/5371536> Style rules that match pasted content can change it's appearance
         // Make sure spans are inline style in paste side e.g. span { display: block }.
         wrappingStyle->forceInline();
@@ -556,7 +572,7 @@ void StyledMarkupAccumulator::appendStartTag(StringBuilder& out, const Element& 
         if (!newInlineStyle->isEmpty()) {
             out.appendLiteral(" style=\"");
             appendAttributeValue(out, newInlineStyle->style()->asText(), documentIsHTML);
-            out.append('\"');
+            out.append('"');
         }
     }
 
@@ -713,9 +729,9 @@ bool StyledMarkupAccumulator::appendNodeToPreserveMSOList(Node& node)
         if (msoListDefinitionsEnd == notFound || start >= msoListDefinitionsEnd)
             return false;
 
-        appendString("<head><style class=\"" WebKitMSOListQuirksStyle "\">\n<!--\n");
-        appendStringView(StringView(textChild.data()).substring(start, msoListDefinitionsEnd - start + 3));
-        appendString("\n-->\n</style></head>");
+        append("<head><style class=\"" WebKitMSOListQuirksStyle "\">\n<!--\n",
+            StringView(textChild.data()).substring(start, msoListDefinitionsEnd - start + 3),
+            "\n-->\n</style></head>");
 
         return true;
     }
@@ -746,16 +762,12 @@ static inline Node* ancestorToRetainStructureAndAppearance(Node* commonAncestor)
     return ancestorToRetainStructureAndAppearanceForBlock(enclosingBlock(commonAncestor));
 }
 
-static bool propertyMissingOrEqualToNone(StyleProperties* style, CSSPropertyID propertyID)
+static bool propertyMissingOrEqualToNone(const StyleProperties* style, CSSPropertyID propertyID)
 {
     if (!style)
         return false;
-    RefPtr<CSSValue> value = style->getPropertyCSSValue(propertyID);
-    if (!value)
-        return true;
-    if (!is<CSSPrimitiveValue>(*value))
-        return false;
-    return downcast<CSSPrimitiveValue>(*value).valueID() == CSSValueNone;
+    auto value = style->getPropertyCSSValue(propertyID);
+    return !value || (is<CSSPrimitiveValue>(*value) && downcast<CSSPrimitiveValue>(*value).valueID() == CSSValueNone);
 }
 
 static bool needInterchangeNewlineAfter(const VisiblePosition& v)
@@ -861,7 +873,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
         if (visibleStart == visibleEnd.previous())
             return interchangeNewlineString;
 
-        accumulator.appendString(interchangeNewlineString);
+        accumulator.append(interchangeNewlineString.get());
         startAdjustedForInterchangeNewline = visibleStart.next().deepEquivalent();
 
         if (comparePositions(startAdjustedForInterchangeNewline, end) >= 0)
@@ -907,7 +919,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
     
     if (accumulator.needRelativeStyleWrapper() && needsPositionStyleConversion) {
         if (accumulator.needClearingDiv())
-            accumulator.appendString("<div style=\"clear: both;\"></div>");
+            accumulator.append("<div style=\"clear: both;\"></div>");
         RefPtr<EditingStyle> positionRelativeStyle = styleFromMatchedRulesAndInlineDecl(*body);
         positionRelativeStyle->style()->setProperty(CSSPropertyPosition, CSSValueRelative);
         accumulator.wrapWithStyleNode(positionRelativeStyle->style(), document, true);
@@ -915,7 +927,13 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
 
     // FIXME: The interchange newline should be placed in the block that it's in, not after all of the content, unconditionally.
     if (annotate == AnnotateForInterchange::Yes && needInterchangeNewlineAfter(visibleEnd.previous()))
-        accumulator.appendString(interchangeNewlineString);
+        accumulator.append(interchangeNewlineString.get());
+
+#if PLATFORM(COCOA)
+    // On Cocoa platforms, this markup is eventually persisted to the pasteboard and read back as UTF-8 data,
+    // so this meta tag is needed for clients that read this data in the future from the pasteboard and load it.
+    accumulator.prependMetaCharsetUTF8TagIfNonASCIICharactersArePresent();
+#endif
 
     return accumulator.takeResults();
 }
@@ -932,20 +950,19 @@ String serializePreservingVisualAppearance(const VisibleSelection& selection, Re
         AnnotateForInterchange::Yes, ConvertBlocksToInlines::No, StandardFontFamilySerializationMode::Keep, MSOListMode::DoNotPreserve);
 }
 
-
-static bool shouldPreserveMSOLists(const String& markup)
+static bool shouldPreserveMSOLists(StringView markup)
 {
     if (!markup.startsWith("<html xmlns:"))
         return false;
     auto tagClose = markup.find('>');
     if (tagClose == notFound)
         return false;
-    auto htmlTag = markup.substring(0, tagClose);
-    return htmlTag.contains("xmlns:o=\"urn:schemas-microsoft-com:office:office\"")
-        && htmlTag.contains("xmlns:w=\"urn:schemas-microsoft-com:office:word\"");
+    auto tag = markup.substring(0, tagClose);
+    return tag.contains("xmlns:o=\"urn:schemas-microsoft-com:office:office\"")
+        && tag.contains("xmlns:w=\"urn:schemas-microsoft-com:office:word\"");
 }
 
-String sanitizedMarkupForFragmentInDocument(Ref<DocumentFragment>&& fragment, Document& document, AddMetaCharsetIfNeeded addMetaCharsetIfNeeded, MSOListQuirks msoListQuirks, const String& originalMarkup)
+String sanitizedMarkupForFragmentInDocument(Ref<DocumentFragment>&& fragment, Document& document, MSOListQuirks msoListQuirks, const String& originalMarkup)
 {
     MSOListMode msoListMode = msoListQuirks == MSOListQuirks::CheckIfNeeded && shouldPreserveMSOLists(originalMarkup)
         ? MSOListMode::Preserve : MSOListMode::DoNotPreserve;
@@ -958,31 +975,16 @@ String sanitizedMarkupForFragmentInDocument(Ref<DocumentFragment>&& fragment, Do
     auto result = serializePreservingVisualAppearanceInternal(firstPositionInNode(bodyElement.get()), lastPositionInNode(bodyElement.get()), nullptr,
         ResolveURLs::YesExcludingLocalFileURLsForPrivacy, SerializeComposedTree::No, AnnotateForInterchange::Yes, ConvertBlocksToInlines::No,  StandardFontFamilySerializationMode::Strip, msoListMode);
 
-    StringBuilder builder;
-    if (msoListMode == MSOListMode::Preserve) {
-        builder.appendLiteral("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\"\n"
-            "xmlns:w=\"urn:schemas-microsoft-com:office:word\"\n"
-            "xmlns:m=\"http://schemas.microsoft.com/office/2004/12/omml\"\n"
-            "xmlns=\"http://www.w3.org/TR/REC-html40\">");
-    }
+    if (msoListMode != MSOListMode::Preserve)
+        return result;
 
-#if PLATFORM(COCOA)
-    if (addMetaCharsetIfNeeded == AddMetaCharsetIfNeeded::Yes && !result.isAllASCII()) {
-        // On Cocoa platforms, this markup is eventually persisted to the pasteboard and read back as UTF-8 data,
-        // so this meta tag is needed for clients that read this data in the future from the pasteboard and load it.
-        // This logic is used by both DataTransfer and Clipboard APIs to sanitize "text/html" from the page.
-        builder.appendLiteral("<meta charset=\"UTF-8\">");
-    }
-#else
-    UNUSED_PARAM(addMetaCharsetIfNeeded);
-#endif
-
-    builder.append(result);
-
-    if (msoListMode == MSOListMode::Preserve)
-        builder.appendLiteral("</html>");
-
-    return builder.toString();
+    return makeString(
+        "<html xmlns:o=\"urn:schemas-microsoft-com:office:office\"\n"
+        "xmlns:w=\"urn:schemas-microsoft-com:office:word\"\n"
+        "xmlns:m=\"http://schemas.microsoft.com/office/2004/12/omml\"\n"
+        "xmlns=\"http://www.w3.org/TR/REC-html40\">",
+        result,
+        "</html>");
 }
 
 static void restoreAttachmentElementsInFragment(DocumentFragment& fragment)

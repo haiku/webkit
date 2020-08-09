@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2008-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,8 +44,10 @@
 #include "SigillCrashAnalyzer.h"
 #include "StructureIDTable.h"
 #include "SuperSampler.h"
+#include "VMTraps.h"
 #include "WasmCalleeRegistry.h"
 #include "WasmCapabilities.h"
+#include "WasmFaultSignalHandler.h"
 #include "WasmThunks.h"
 #include "WriteBarrier.h"
 #include <mutex>
@@ -64,9 +66,6 @@ void initializeThreading()
     static std::once_flag initializeThreadingOnceFlag;
 
     std::call_once(initializeThreadingOnceFlag, []{
-        RELEASE_ASSERT(!g_jscConfig.initializeThreadingHasBeenCalled);
-        g_jscConfig.initializeThreadingHasBeenCalled = true;
-
         WTF::initializeThreading();
         Options::initialize();
 
@@ -105,6 +104,14 @@ void initializeThreading()
         // JSLock::lock() can call registerThreadForMachExceptionHandling() which crashes if this has not been called first.
         WTF::startMachExceptionHandlerThread();
 #endif
+        VMTraps::initializeSignals();
+#if ENABLE(WEBASSEMBLY)
+        Wasm::enableFastMemory();
+#endif
+
+        WTF::compilerFence();
+        RELEASE_ASSERT(!g_jscConfig.initializeThreadingHasBeenCalled);
+        g_jscConfig.initializeThreadingHasBeenCalled = true;
     });
 }
 

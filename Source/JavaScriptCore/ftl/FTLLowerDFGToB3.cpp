@@ -484,13 +484,13 @@ private:
         
         LBasicBlock lowBlock = m_blocks.get(m_highBlock);
         
-        m_nextHighBlock = 0;
+        m_nextHighBlock = nullptr;
         for (BlockIndex nextBlockIndex = m_highBlock->index + 1; nextBlockIndex < m_graph.numBlocks(); ++nextBlockIndex) {
             m_nextHighBlock = m_graph.block(nextBlockIndex);
             if (m_nextHighBlock)
                 break;
         }
-        m_nextLowBlock = m_nextHighBlock ? m_blocks.get(m_nextHighBlock) : 0;
+        m_nextLowBlock = m_nextHighBlock ? m_blocks.get(m_nextHighBlock) : nullptr;
         
         // All of this effort to find the next block gives us the ability to keep the
         // generated IR in roughly program order. This ought not affect the performance
@@ -1439,6 +1439,9 @@ private:
             break;
         case IsFunction:
             compileIsFunction();
+            break;
+        case IsConstructor:
+            compileIsConstructor();
             break;
         case IsTypedArrayView:
             compileIsTypedArrayView();
@@ -2714,7 +2717,7 @@ private:
                 LBasicBlock innerLastNext = m_out.appendTo(zeroNumerator, numeratorContinuation);
 
                 speculate(
-                    NegativeZero, noValue(), 0, m_out.lessThan(denominator, m_out.int32Zero));
+                    NegativeZero, noValue(), nullptr, m_out.lessThan(denominator, m_out.int32Zero));
 
                 m_out.jump(numeratorContinuation);
 
@@ -2739,7 +2742,7 @@ private:
                 m_out.appendTo(continuation, lastNext);
                 LValue result = m_out.div(numerator, denominator);
                 speculate(
-                    Overflow, noValue(), 0,
+                    Overflow, noValue(), nullptr,
                     m_out.notEqual(m_out.mul(result, denominator), numerator));
                 setInt32(result);
             } else
@@ -2821,7 +2824,7 @@ private:
 
                 LBasicBlock innerLastNext = m_out.appendTo(negativeNumerator, numeratorContinuation);
 
-                speculate(NegativeZero, noValue(), 0, m_out.isZero32(remainder));
+                speculate(NegativeZero, noValue(), nullptr, m_out.isZero32(remainder));
 
                 m_out.jump(numeratorContinuation);
 
@@ -2906,7 +2909,7 @@ private:
             LValue result = m_out.bitXor(mask, m_out.add(mask, value));
 
             if (shouldCheckOverflow(m_node->arithMode()))
-                speculate(Overflow, noValue(), 0, m_out.lessThan(result, m_out.int32Zero));
+                speculate(Overflow, noValue(), nullptr, m_out.lessThan(result, m_out.int32Zero));
 
             setInt32(result);
             break;
@@ -3295,7 +3298,7 @@ private:
                 blessSpeculation(check, Overflow, noValue(), nullptr, m_origin);
                 result = check;
             } else {
-                speculate(Overflow, noValue(), 0, m_out.testIsZero32(value, m_out.constInt32(0x7fffffff)));
+                speculate(Overflow, noValue(), nullptr, m_out.testIsZero32(value, m_out.constInt32(0x7fffffff)));
                 result = m_out.neg(value);
             }
 
@@ -3309,7 +3312,7 @@ private:
                 LValue value = lowWhicheverInt52(m_node->child1(), kind);
                 LValue result = m_out.neg(value);
                 if (shouldCheckNegativeZero(m_node->arithMode()))
-                    speculate(NegativeZero, noValue(), 0, m_out.isZero64(result));
+                    speculate(NegativeZero, noValue(), nullptr, m_out.isZero64(result));
                 setInt52(result, kind);
                 break;
             }
@@ -3318,7 +3321,7 @@ private:
             CheckValue* result = m_out.speculateSub(m_out.int64Zero, value);
             blessSpeculation(result, Int52Overflow, noValue(), nullptr, m_origin);
             if (shouldCheckNegativeZero(m_node->arithMode()))
-                speculate(NegativeZero, noValue(), 0, m_out.isZero64(result));
+                speculate(NegativeZero, noValue(), nullptr, m_out.isZero64(result));
             setInt52(result);
             break;
         }
@@ -3343,7 +3346,7 @@ private:
             LValue operand = lowBigInt32(m_node->child1());
             // The following trick relies on details of the representation of BigInt32, and will have to be updated if we move bits around.
             static_assert(JSValue::BigInt32Tag == 0x12);
-            static_assert(JSValue::BigInt32Mask == 0xfffe000000000012);
+            static_assert(JSValue::BigInt32Mask == static_cast<int64_t>(0xfffe000000000012));
             uint64_t maskForBigInt32Bits = 0x0000ffffffff0000;
             LValue result = m_out.bitXor(operand, m_out.constInt64(maskForBigInt32Bits));
             setJSValue(result);
@@ -3551,7 +3554,7 @@ private:
             return;
         }
 
-        speculate(Overflow, noValue(), 0, m_out.lessThan(value, m_out.int32Zero));
+        speculate(Overflow, noValue(), nullptr, m_out.lessThan(value, m_out.int32Zero));
         setInt32(value);
     }
     
@@ -3724,7 +3727,7 @@ private:
     void compileArrayify()
     {
         LValue cell = lowCell(m_node->child1());
-        LValue property = !!m_node->child2() ? lowInt32(m_node->child2()) : 0;
+        LValue property = !!m_node->child2() ? lowInt32(m_node->child2()) : nullptr;
         
         LBasicBlock unexpectedStructure = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
@@ -3747,7 +3750,7 @@ private:
             case Array::Double:
             case Array::Contiguous:
                 speculate(
-                    Uncountable, noValue(), 0,
+                    Uncountable, noValue(), nullptr,
                     m_out.aboveOrEqual(property, m_out.constInt32(MIN_SPARSE_ARRAY_INDEX)));
                 break;
             default:
@@ -3774,7 +3777,7 @@ private:
             break;
         }
         
-        speculate(BadIndexingType, jsValueValue(cell), 0, isUnexpectedArray(cell));
+        speculate(BadIndexingType, jsValueValue(cell), nullptr, isUnexpectedArray(cell));
         m_out.jump(continuation);
         
         m_out.appendTo(continuation, lastNext);
@@ -4284,7 +4287,7 @@ private:
             return;
         
         speculate(
-            BadIndexingType, jsValueValue(cell), 0,
+            BadIndexingType, jsValueValue(cell), nullptr,
             m_out.logicalNot(isArrayTypeForCheckArray(cell, m_node->arrayMode())));
     }
 
@@ -4310,7 +4313,7 @@ private:
         }
 
         speculate(
-            BadIndexingType, jsValueValue(cell), 0,
+            BadIndexingType, jsValueValue(cell), nullptr,
             m_out.logicalNot(isArrayTypeForCheckArray(cell, m_node->arrayMode())));
 
         if (maySeeEmptyValue) {
@@ -4530,7 +4533,7 @@ private:
     void compileCheckInBounds()
     {
         speculate(
-            OutOfBounds, noValue(), 0,
+            OutOfBounds, noValue(), nullptr,
             m_out.aboveOrEqual(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
 
         // Even though we claim to have JSValue result, no user of us should
@@ -4561,7 +4564,7 @@ private:
                     result = m_out.select(
                         isHole, m_out.constInt64(JSValue::encode(jsUndefined())), result);
                 } else
-                    speculate(LoadFromHole, noValue(), 0, isHole);
+                    speculate(LoadFromHole, noValue(), nullptr, isHole);
                 // We have to keep base alive to keep content in storage alive.
                 if (m_node->arrayMode().type() == Array::Contiguous)
                     ensureStillAliveHere(base);
@@ -4610,7 +4613,7 @@ private:
                 
                 if (!m_node->arrayMode().isSaneChain()) {
                     speculate(
-                        LoadFromHole, noValue(), 0,
+                        LoadFromHole, noValue(), nullptr,
                         m_out.doubleNotEqualOrUnordered(result, result));
                 }
                 setDouble(result);
@@ -4870,7 +4873,7 @@ private:
 
             if (m_node->arrayMode().isInBounds()) {
                 LValue result = m_out.load64(baseIndex(heap, storage, index, m_graph.varArgChild(m_node, 1)));
-                speculate(LoadFromHole, noValue(), 0, m_out.isZero64(result));
+                speculate(LoadFromHole, noValue(), nullptr, m_out.isZero64(result));
                 // We have to keep base alive to keep content in storage alive.
                 ensureStillAliveHere(base);
                 setJSValue(result);
@@ -5192,7 +5195,7 @@ private:
             }
 
             if (arrayMode.isInBounds()) {
-                speculate(StoreToHole, noValue(), 0, m_out.isZero64(m_out.load64(elementPointer)));
+                speculate(StoreToHole, noValue(), nullptr, m_out.isZero64(m_out.load64(elementPointer)));
                 m_out.store64(value, elementPointer);
                 return;
             }
@@ -5204,7 +5207,7 @@ private:
                 ? (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsStrict : operationPutByValBeyondArrayBoundsStrict)
                 : (m_node->op() == PutByValDirect ? operationPutByValDirectBeyondArrayBoundsNonStrict : operationPutByValBeyondArrayBoundsNonStrict);
             if (!arrayMode.isOutOfBounds()) {
-                speculate(OutOfBounds, noValue(), 0, isOutOfBounds);
+                speculate(OutOfBounds, noValue(), nullptr, isOutOfBounds);
                 isOutOfBounds = m_out.booleanFalse;
             }
 
@@ -5441,12 +5444,12 @@ private:
                         return Box<JITDelByIdGenerator>::create(
                             jit.codeBlock(), node->origin.semantic, callSiteIndex,
                             params.unavailableRegisters(), subscriptValue, base,
-                            returnGPR, params.gpScratch(0));
+                            JSValueRegs(returnGPR), params.gpScratch(0));
                     } else {
                         return Box<JITDelByValGenerator>::create(
                             jit.codeBlock(), node->origin.semantic, callSiteIndex,
                             params.unavailableRegisters(), base,
-                            subscript, returnGPR, params.gpScratch(0));
+                            subscript, JSValueRegs(returnGPR), params.gpScratch(0));
                     }
                 }();
 
@@ -7857,7 +7860,7 @@ private:
             kids[2] = lowCell(edges[2]);
             numKids = 3;
         } else {
-            kids[2] = 0;
+            kids[2] = nullptr;
             numKids = 2;
         }
         
@@ -8043,7 +8046,7 @@ private:
         m_out.appendTo(slowPath, continuation);
             
         if (m_node->arrayMode().isInBounds()) {
-            speculate(OutOfBounds, noValue(), 0, m_out.booleanTrue);
+            speculate(OutOfBounds, noValue(), nullptr, m_out.booleanTrue);
             results.append(m_out.anchor(m_out.intPtrZero));
         } else {
             // FIXME: Revisit JSGlobalObject.
@@ -8096,7 +8099,7 @@ private:
         LValue stringImpl = m_out.loadPtr(base, m_heaps.JSString_value);
 
         speculate(
-            Uncountable, noValue(), 0,
+            Uncountable, noValue(), nullptr,
             m_out.aboveOrEqual(
                 index, m_out.load32NonNegative(stringImpl, m_heaps.StringImpl_length)));
         
@@ -8147,7 +8150,7 @@ private:
         LValue stringImpl = m_out.loadPtr(base, m_heaps.JSString_value);
         LValue length = m_out.load32NonNegative(stringImpl, m_heaps.StringImpl_length);
 
-        speculate(Uncountable, noValue(), 0, m_out.aboveOrEqual(index, length));
+        speculate(Uncountable, noValue(), nullptr, m_out.aboveOrEqual(index, length));
 
         m_out.branch(
             m_out.testIsZero32(
@@ -11690,6 +11693,13 @@ private:
         setBoolean(result);
     }
 
+    void compileIsConstructor()
+    {
+        JSGlobalObject* globalObject = m_graph.globalObjectFor(m_node->origin.semantic);
+        LValue value = lowJSValue(m_node->child1());
+        setBoolean(vmCall(Int32, operationIsConstructor, weakPointer(globalObject), value));
+    }
+
     void compileIsTypedArrayView()
     {
         LValue value = lowJSValue(m_node->child1());
@@ -11949,7 +11959,7 @@ private:
     void compileCheckTypeInfoFlags()
     {
         speculate(
-            BadTypeInfoFlags, noValue(), 0,
+            BadTypeInfoFlags, noValue(), nullptr,
             m_out.testIsZero32(
                 m_out.load8ZeroExt32(lowCell(m_node->child1()), m_heaps.JSCell_typeInfoFlags),
                 m_out.constInt32(m_node->typeInfoOperand())));
@@ -13180,7 +13190,7 @@ private:
 
         if (set.size() == 1) {
             speculate(
-                exitKind, formattedValue, 0,
+                exitKind, formattedValue, nullptr,
                 m_out.notEqual(structureDiscriminant, weakStructureDiscriminant(set[0])));
             return;
         }
@@ -13197,7 +13207,7 @@ private:
         }
         
         speculate(
-            exitKind, formattedValue, 0,
+            exitKind, formattedValue, nullptr,
             m_out.notEqual(structureDiscriminant, weakStructureDiscriminant(set.last())));
         
         m_out.jump(continuation);
@@ -13208,8 +13218,8 @@ private:
     {
         LBasicBlock intCase = m_out.newBlock();
         LBasicBlock notIntCase = m_out.newBlock();
-        LBasicBlock doubleCase = 0;
-        LBasicBlock notNumberCase = 0;
+        LBasicBlock doubleCase = nullptr;
+        LBasicBlock notNumberCase = nullptr;
         if (edge.useKind() == NotCellNorBigIntUse) {
             doubleCase = m_out.newBlock();
             notNumberCase = m_out.newBlock();
@@ -15234,8 +15244,8 @@ private:
     
     struct ArrayValues {
         ArrayValues()
-            : array(0)
-            , butterfly(0)
+            : array(nullptr)
+            , butterfly(nullptr)
         {
         }
         
@@ -15592,7 +15602,7 @@ private:
         }
         default:
             DFG_CRASH(m_graph, m_node, "Bad use kind");
-            return 0;
+            return nullptr;
         }
     }
     
@@ -15708,7 +15718,7 @@ private:
                 index, m_out.load32NonNegative(storage, m_heaps.Butterfly_vectorLength));
                 
             if (!m_node->arrayMode().isOutOfBounds())
-                speculate(OutOfBounds, noValue(), 0, isOutOfBounds);
+                speculate(OutOfBounds, noValue(), nullptr, isOutOfBounds);
             else {
                 LBasicBlock outOfBoundsCase =
                     m_out.newBlock();
@@ -16381,7 +16391,7 @@ private:
         
         if (m_node->shouldSpeculateInt32() && canSpeculate) {
             speculate(
-                Overflow, noValue(), 0, m_out.lessThan(result, m_out.int32Zero));
+                Overflow, noValue(), nullptr, m_out.lessThan(result, m_out.int32Zero));
             setInt32(result);
             return;
         }
@@ -17118,7 +17128,7 @@ private:
         }
         
         DFG_CRASH(m_graph, m_node, makeString("Value not defined: ", String::number(edge.node()->index())).ascii().data());
-        return 0;
+        return nullptr;
     }
 
     LValue lowNotCell(Edge edge)

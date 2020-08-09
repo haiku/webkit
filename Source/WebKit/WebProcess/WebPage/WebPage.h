@@ -404,6 +404,8 @@ public:
     void didInsertMenuItemElement(WebCore::HTMLMenuItemElement&);
     void didRemoveMenuItemElement(WebCore::HTMLMenuItemElement&);
 
+    void animationDidFinishForElement(const WebCore::Element&);
+
     const String& overrideContentSecurityPolicy() const { return m_overrideContentSecurityPolicy; }
 
     WebUndoStep* webUndoStep(WebUndoStepID);
@@ -1290,6 +1292,9 @@ public:
     // These include layout overflow for overflow:visible elements, but exclude borders.
     static WebCore::IntRect absoluteInteractionBoundsForElement(const WebCore::Element&);
     static WebCore::IntRect rootViewInteractionBoundsForElement(const WebCore::Element&);
+
+    InteractionInformationAtPosition positionInformation(const InteractionInformationRequest&);
+    
 #endif // PLATFORM(IOS_FAMILY)
 
 #if USE(QUICK_LOOK)
@@ -1310,11 +1315,10 @@ public:
 
     void getAllFrames(CompletionHandler<void(FrameTreeNodeData&&)>&&);
 
-    void setIsNavigatingToAppBoundDomain(Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain) { m_isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain; }
+    void notifyPageOfAppBoundBehavior();
+    bool shouldEnableInAppBrowserPrivacyProtections();
+    void setIsNavigatingToAppBoundDomain(Optional<NavigatingToAppBoundDomain>);
     Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain() const { return m_isNavigatingToAppBoundDomain; }
-    NavigatedAwayFromAppBoundDomain hasNavigatedAwayFromAppBoundDomain() const { return m_hasNavigatedAwayFromAppBoundDomain; }
-    void setHasNavigatedAwayFromAppBoundDomain(NavigatedAwayFromAppBoundDomain navigatedAwayFromAppBoundDomain) { m_hasNavigatedAwayFromAppBoundDomain = navigatedAwayFromAppBoundDomain; }
-    bool needsInAppBrowserPrivacyQuirks() const { return m_needsInAppBrowserPrivacyQuirks; }
     
     bool shouldUseRemoteRenderingFor(WebCore::RenderingPurpose);
 
@@ -1366,7 +1370,6 @@ private:
     void dispatchSyntheticMouseEventsForSelectionGesture(SelectionTouch, const WebCore::IntPoint&);
 
     void sendPositionInformation(InteractionInformationAtPosition&&);
-    InteractionInformationAtPosition positionInformation(const InteractionInformationRequest&);
     RefPtr<ShareableBitmap> shareableBitmapSnapshotForNode(WebCore::Element&);
     WebAutocorrectionContext autocorrectionContext();
     bool applyAutocorrectionInternal(const String& correction, const String& originalText);
@@ -1415,7 +1418,7 @@ private:
 
     String sourceForFrame(WebFrame*);
 
-    void loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&&, Ref<WebCore::SharedBuffer>&&, const String& MIMEType, const String& encodingName, const URL& baseURL, const URL& failingURL, const UserData&, Optional<NavigatingToAppBoundDomain>, NavigatedAwayFromAppBoundDomain, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow);
+    void loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&&, Ref<WebCore::SharedBuffer>&&, const String& MIMEType, const String& encodingName, const URL& baseURL, const URL& failingURL, const UserData&, Optional<NavigatingToAppBoundDomain>, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow);
 
     // Actions
     void tryClose(CompletionHandler<void(bool)>&&);
@@ -1702,7 +1705,7 @@ private:
     void urlSchemeTaskDidReceiveData(uint64_t handlerIdentifier, uint64_t taskIdentifier, const IPC::SharedBufferDataReference&);
     void urlSchemeTaskDidComplete(uint64_t handlerIdentifier, uint64_t taskIdentifier, const WebCore::ResourceError&);
 
-    void setShouldFireResizeEvents(bool);
+    void setShouldFireEvents(bool);
     void setNeedsDOMWindowResizeEvent();
 
     void setIsSuspended(bool);
@@ -2100,8 +2103,9 @@ private:
     String m_themeName;
 #endif
     
-    Optional<NavigatingToAppBoundDomain> m_isNavigatingToAppBoundDomain { NavigatingToAppBoundDomain::No };
-    NavigatedAwayFromAppBoundDomain m_hasNavigatedAwayFromAppBoundDomain { NavigatedAwayFromAppBoundDomain::No };
+    Optional<NavigatingToAppBoundDomain> m_isNavigatingToAppBoundDomain;
+    bool m_limitsNavigationsToAppBoundDomains { false };
+    bool m_navigationHasOccured { false };
 };
 
 #if !PLATFORM(IOS_FAMILY)

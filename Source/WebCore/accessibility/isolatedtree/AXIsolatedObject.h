@@ -147,7 +147,10 @@ private:
         FocusableAncestor,
         HasARIAValueNow,
         HasApplePDFAnnotationAttribute,
+        HasBoldFont,
         HasChildren,
+        HasHighlighting,
+        HasItalicFont,
         HasPopup,
         HeaderContainer,
         HeadingLevel,
@@ -187,6 +190,7 @@ private:
         IsInsideLiveRegion,
         IsHeading,
         IsHovered,
+        IsKeyboardFocusable,
         IsLandmark,
         IsLink,
         IsLinked,
@@ -276,6 +280,7 @@ private:
         MaxValueForRange,
         MinValueForRange,
         Orientation,
+        Path,
         PlaceholderValue,
         PressedIsPresent,
         PopupValue,
@@ -338,7 +343,7 @@ private:
         AccessibilityTextSource textSource;
     };
 
-    using AttributeValueVariant = Variant<std::nullptr_t, String, bool, int, unsigned, double, float, uint64_t, Color, URL, LayoutRect, FloatRect, AXID, IntPoint, OptionSet<SpeakAs>, std::pair<unsigned, unsigned>, Vector<AccessibilityIsolatedTreeText>, Vector<AXID>, Vector<AccessibilityIsolatedTreeMathMultiscriptPair>, Vector<String>>;
+    using AttributeValueVariant = Variant<std::nullptr_t, String, bool, int, unsigned, double, float, uint64_t, Color, URL, LayoutRect, FloatRect, AXID, IntPoint, OptionSet<SpeakAs>, std::pair<unsigned, unsigned>, Vector<AccessibilityIsolatedTreeText>, Vector<AXID>, Vector<AccessibilityIsolatedTreeMathMultiscriptPair>, Vector<String>, Path>;
     void setProperty(AXPropertyName, AttributeValueVariant&&, bool shouldRemove = false);
     void setObjectProperty(AXPropertyName, AXCoreObject*);
     void setObjectVectorProperty(AXPropertyName, const AccessibilityChildrenVector&);
@@ -355,6 +360,7 @@ private:
     Color colorAttributeValue(AXPropertyName) const;
     URL urlAttributeValue(AXPropertyName) const;
     uint64_t uint64AttributeValue(AXPropertyName) const;
+    Path pathAttributeValue(AXPropertyName) const;
     template<typename T> T rectAttributeValue(AXPropertyName) const;
     template<typename T> Vector<T> vectorAttributeValue(AXPropertyName) const;
     template<typename T> OptionSet<T> optionSetAttributeValue(AXPropertyName) const;
@@ -390,7 +396,8 @@ private:
     bool isUnorderedList() const override { return boolAttributeValue(AXPropertyName::IsUnorderedList); }
     bool isOrderedList() const override { return boolAttributeValue(AXPropertyName::IsOrderedList); }
     bool isDescriptionList() const override { return boolAttributeValue(AXPropertyName::IsDescriptionList); }
-
+    bool isKeyboardFocusable() const override { return boolAttributeValue(AXPropertyName::IsKeyboardFocusable); }
+    
     // Table support.
     bool isTable() const override { return boolAttributeValue(AXPropertyName::IsTable); }
     bool isExposable() const override { return boolAttributeValue(AXPropertyName::IsExposable); }
@@ -741,9 +748,7 @@ private:
     bool isMediaObject() const override;
     bool isARIATextControl() const override;
     bool isNonNativeTextControl() const override;
-    bool isBlockquote() const override;
     bool isFigureElement() const override;
-    bool isKeyboardFocusable() const override;
     bool isHovered() const override;
     bool isIndeterminate() const override;
     bool isLoaded() const override { return boolAttributeValue(AXPropertyName::IsLoaded); }
@@ -755,15 +760,15 @@ private:
     bool isVisible() const override;
     bool isCollapsed() const override;
     bool isSelectedOptionActive() const override;
-    bool hasBoldFont() const override;
-    bool hasItalicFont() const override;
+    bool hasBoldFont() const override { return boolAttributeValue(AXPropertyName::HasBoldFont); }
+    bool hasItalicFont() const override { return boolAttributeValue(AXPropertyName::HasItalicFont); }
     bool hasMisspelling() const override;
     bool hasPlainText() const override;
     bool hasSameFont(RenderObject*) const override;
     bool hasSameFontColor(RenderObject*) const override;
     bool hasSameStyle(RenderObject*) const override;
     bool hasUnderline() const override;
-    bool hasHighlighting() const override;
+    bool hasHighlighting() const override { return boolAttributeValue(AXPropertyName::HasHighlighting); }
     Element* element() const override;
     Node* node() const override;
     RenderObject* renderer() const override;
@@ -818,7 +823,7 @@ private:
     AXObjectCache* axObjectCache() const override;
     Element* anchorElement() const override;
     Element* actionElement() const override;
-    Path elementPath() const override;
+    Path elementPath() const override { return pathAttributeValue(AXPropertyName::Path); };
     bool supportsPath() const override { return boolAttributeValue(AXPropertyName::SupportsPath); }
     TextIteratorBehavior textIteratorBehaviorForTextRange() const override;
     Widget* widget() const override;

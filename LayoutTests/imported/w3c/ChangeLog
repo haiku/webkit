@@ -1,3 +1,143 @@
+2020-05-12  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Implement @isConstructor bytecode intrinsic and bytecode for that
+        https://bugs.webkit.org/show_bug.cgi?id=144093
+
+        Reviewed by Keith Miller.
+
+        Tests for unsupported customized built-in elements now fail early 
+        since interfaces they extend lack Constructor WebIDL attribute.
+
+        * web-platform-tests/custom-elements/Document-createElement-expected.txt:
+        * web-platform-tests/custom-elements/Document-createElementNS-expected.txt:
+        * web-platform-tests/custom-elements/HTMLElement-constructor-expected.txt:
+        * web-platform-tests/custom-elements/builtin-coverage-expected.txt:
+        * web-platform-tests/custom-elements/htmlconstructor/newtarget-expected.txt:
+        * web-platform-tests/custom-elements/parser/serializing-html-fragments-expected.txt:
+        * web-platform-tests/custom-elements/upgrading/Document-importNode-expected.txt:
+        * web-platform-tests/custom-elements/upgrading/Node-cloneNode-expected.txt:
+        * web-platform-tests/shadow-dom/Element-interface-attachShadow-custom-element-expected.txt:
+
+2020-05-12  Youenn Fablet  <youenn@apple.com>
+
+        Introduce a RealtimeMediaSource video sample observer
+        https://bugs.webkit.org/show_bug.cgi?id=211718
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/mediacapture-streams/MediaStreamTrack-MediaElement-disabled-video-is-black.https-expected.txt:
+        Drive-by fix, since we are now receiving samples but not rendering them when track is not enabled, the loadeddata event is fired appropriately.
+        Update MediaPlayerPrivateMediaStreamAVFObjC::currentDisplayMode to return PaintItBlack in that case.
+
+2020-05-11  Antoine Quint  <graouts@apple.com>
+
+        [Web Animations] Document.getAnimations() should only consider document connection and not timeline association
+        https://bugs.webkit.org/show_bug.cgi?id=211697
+
+        Reviewed by Dean Jackson.
+
+        Mark two additional WPT tests as PASS.
+
+        * web-platform-tests/web-animations/interfaces/DocumentOrShadowRoot/getAnimations-expected.txt:
+
+2020-05-10  Rob Buis  <rbuis@igalia.com>
+
+        Fix base64.any.html test
+        https://bugs.webkit.org/show_bug.cgi?id=211671
+
+        Reviewed by Darin Adler.
+
+        Update improved test expectation.
+
+        * web-platform-tests/fetch/data-urls/base64.any-expected.txt:
+        * web-platform-tests/fetch/data-urls/base64.any.worker-expected.txt:
+
+2020-05-10  Rob Buis  <rbuis@igalia.com>
+
+        [ iOS wk2 and Mac wk2 ] imported/w3c/web-platform-tests/fetch/stale-while-revalidate/frame-removal.html is flaky failing.
+        https://bugs.webkit.org/show_bug.cgi?id=209281
+
+        Reviewed by Darin Adler.
+
+        Since it is difficult to estimate when the revalidations are received
+        in relation to the frame loads, add two polling loops to make sure
+        revalidations have been received before proceding with the next
+        test step. This is similar to what fetch.html does.
+
+        * web-platform-tests/fetch/stale-while-revalidate/frame-removal.html:
+        * web-platform-tests/fetch/stale-while-revalidate/resources/stale-frame.py:
+        (main):
+
+2020-05-09  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Fix wpt shadow-dom/slots-fallback-in-document.html
+        https://bugs.webkit.org/show_bug.cgi?id=211640
+
+        Reviewed by Ryosuke Niwa.
+
+        By specs, HTMLSlotElement.assignedNodes() should not count children of
+        a slot in a document tree for flattened assigned nodes.
+
+        https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes
+        https://dom.spec.whatwg.org/#find-flattened-slotables
+
+        As sideeffect, this patch also fix wpt
+        shadow-dom/slots-outside-shadow-dom-expected.html
+
+        * web-platform-tests/shadow-dom/slots-fallback-in-document-expected.txt:
+        * web-platform-tests/shadow-dom/slots-outside-shadow-dom-expected.txt:
+
+
+2020-05-08  David Kilzer  <ddkilzer@apple.com>
+
+        Remove empty directories from from svn.webkit.org repository
+        <https://webkit.org/b/211644>
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/web-animations/interfaces/AnimationEffectTiming: Removed.
+
+2020-05-08  Nikos Mouchtaris  <nmouchtaris@apple.com>
+
+        Implement web-share v2 for files
+        https://bugs.webkit.org/show_bug.cgi?id=209265
+
+        Reviewed by Andy Estes.
+
+        Updated test expectations for new behavior.
+
+        * ios-wk2/imported/w3c/web-platform-tests/web-share/canShare-files.https-expected.txt :
+        * mac-wk2/imported/w3c/web-platform-tests/web-share/canShare-files.https-expected.txt :
+
+2020-05-08  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Unreviewed, reverting r261341 and r261392.
+
+        Caused multiple regression test failures
+
+        Reverted changesets:
+
+        "Poster set after playback begins should be ignored"
+        https://bugs.webkit.org/show_bug.cgi?id=211464
+        https://trac.webkit.org/changeset/261341
+
+        "REGRESSION(r261341): imported/w3c/web-platform-
+        tests/html/semantics/embedded-content/the-video-
+        element/intrinsic_sizes.htm is failing"
+        https://bugs.webkit.org/show_bug.cgi?id=211612
+        https://trac.webkit.org/changeset/261392
+
+2020-05-08  Rob Buis  <rbuis@igalia.com>
+
+        Fix urlsearchparams-delete.html
+        https://bugs.webkit.org/show_bug.cgi?id=211456
+
+        Reviewed by Daniel Bates.
+
+        Update improved test expectation.
+
+        * web-platform-tests/url/urlsearchparams-delete-expected.txt:
+
 2020-05-06  Alexey Shvayka  <shvaikalesh@gmail.com>
 
         Remove orphaned WPT expectations & unused harness

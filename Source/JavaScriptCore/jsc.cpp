@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
- *  Copyright (C) 2004-2019 Apple Inc. All rights reserved.
+ *  Copyright (C) 2004-2020 Apple Inc. All rights reserved.
  *  Copyright (C) 2006 Bjoern Graf (bjoern.graf@gmail.com)
  *
  *  This library is free software; you can redistribute it and/or
@@ -76,7 +76,6 @@
 #include "VMInspector.h"
 #include "WasmCapabilities.h"
 #include "WasmContext.h"
-#include "WasmFaultSignalHandler.h"
 #include "WasmMemory.h"
 #include <locale.h>
 #include <math.h>
@@ -483,7 +482,7 @@ public:
 
     static Structure* createStructure(VM& vm, JSValue prototype)
     {
-        return Structure::create(vm, 0, prototype, TypeInfo(GlobalObjectType, StructureFlags), info());
+        return Structure::create(vm, nullptr, prototype, TypeInfo(GlobalObjectType, StructureFlags), info());
     }
 
     static RuntimeFlags javaScriptRuntimeFlags(const JSGlobalObject*) { return RuntimeFlags::createAllEnabled(); }
@@ -592,7 +591,7 @@ private:
 #endif
 
         if (!arguments.isEmpty()) {
-            JSArray* array = constructEmptyArray(this, 0);
+            JSArray* array = constructEmptyArray(this, nullptr);
             for (size_t i = 0; i < arguments.size(); ++i)
                 array->putDirectIndex(this, i, jsString(vm, arguments[i]));
             putDirect(vm, Identifier::fromString(vm, "arguments"), array);
@@ -973,26 +972,26 @@ static bool fetchScriptFromLocalFileSystem(const String& fileName, Vector<char>&
     return true;
 }
 
-class ShellSourceProvider : public StringSourceProvider {
+class ShellSourceProvider final : public StringSourceProvider {
 public:
     static Ref<ShellSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, URL&& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
     {
         return adoptRef(*new ShellSourceProvider(source, sourceOrigin, WTFMove(url), startPosition, sourceType));
     }
 
-    ~ShellSourceProvider()
+    ~ShellSourceProvider() final
     {
         commitCachedBytecode();
     }
 
-    RefPtr<CachedBytecode> cachedBytecode() const override
+    RefPtr<CachedBytecode> cachedBytecode() const final
     {
         if (!m_cachedBytecode)
             loadBytecode();
         return m_cachedBytecode.copyRef();
     }
 
-    void updateCache(const UnlinkedFunctionExecutable* executable, const SourceCode&, CodeSpecializationKind kind, const UnlinkedFunctionCodeBlock* codeBlock) const override
+    void updateCache(const UnlinkedFunctionExecutable* executable, const SourceCode&, CodeSpecializationKind kind, const UnlinkedFunctionCodeBlock* codeBlock) const final
     {
         if (!cacheEnabled() || !m_cachedBytecode)
             return;
@@ -1002,7 +1001,7 @@ public:
             m_cachedBytecode->addFunctionUpdate(executable, kind, *cachedBytecode);
     }
 
-    void cacheBytecode(const BytecodeCacheGenerator& generator) const override
+    void cacheBytecode(const BytecodeCacheGenerator& generator) const final
     {
         if (!cacheEnabled())
             return;
@@ -1013,7 +1012,7 @@ public:
             m_cachedBytecode->addGlobalUpdate(*update);
     }
 
-    void commitCachedBytecode() const override
+    void commitCachedBytecode() const final
     {
         if (!cacheEnabled() || !m_cachedBytecode || !m_cachedBytecode->hasUpdates())
             return;
@@ -1476,7 +1475,7 @@ EncodedJSValue JSC_HOST_CALL functionRun(JSGlobalObject* globalObject, CallFrame
 
     GlobalObject* realm = GlobalObject::create(vm, GlobalObject::createStructure(vm, jsNull()), Vector<String>());
 
-    JSArray* array = constructEmptyArray(realm, 0);
+    JSArray* array = constructEmptyArray(realm, nullptr);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     for (unsigned i = 1; i < callFrame->argumentCount(); ++i) {
         array->putDirectIndex(realm, i - 1, callFrame->uncheckedArgument(i));
@@ -1508,7 +1507,7 @@ EncodedJSValue JSC_HOST_CALL functionRunString(JSGlobalObject* globalObject, Cal
 
     GlobalObject* realm = GlobalObject::create(vm, GlobalObject::createStructure(vm, jsNull()), Vector<String>());
 
-    JSArray* array = constructEmptyArray(realm, 0);
+    JSArray* array = constructEmptyArray(realm, nullptr);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     for (unsigned i = 1; i < callFrame->argumentCount(); ++i) {
         array->putDirectIndex(realm, i - 1, callFrame->uncheckedArgument(i));
@@ -3231,9 +3230,6 @@ int jscmain(int argc, char** argv)
     // Initialize JSC before getting VM.
     JSC::initializeThreading();
     initializeTimeoutIfNeeded();
-#if ENABLE(WEBASSEMBLY)
-    JSC::Wasm::enableFastMemory();
-#endif
 
     bool gigacageDisableRequested = false;
 #if GIGACAGE_ENABLED && !COMPILER(MSVC)

@@ -50,3 +50,12 @@ void webkitScriptDialogSetUserInput(WebKitScriptDialog* scriptDialog, const Stri
     webkitScriptDialogImplSetEntryText(WEBKIT_SCRIPT_DIALOG_IMPL(scriptDialog->nativeDialog), userInput);
 #endif
 }
+
+bool webkitScriptDialogIsUserHandled(WebKitScriptDialog* scriptDialog)
+{
+#if !USE(GTK4)
+    return !WEBKIT_IS_SCRIPT_DIALOG_IMPL(scriptDialog->nativeDialog);
+#else
+    return true;
+#endif
+}

@@ -1318,7 +1318,7 @@ webkit.org/b/203637 fast/css-custom-paint/simple-hidpi.html [ Pass ImageOnlyFail
 
 webkit.org/b/205308 accessibility/smart-invert-reference.html [ ImageOnlyFailure ]
 
-webkit.org/b/206630 [ Release ] fast/forms/validationMessage.html [ Pass Timeout ]
+webkit.org/b/206630 [ Debug ] fast/forms/validationMessage.html [ Pass Timeout ]
 
 webkit.org/b/206687 imported/w3c/web-platform-tests/beacon/idlharness.any.html [ Pass Timeout ]
 
@@ -1351,8 +1351,6 @@ webkit.org/b/207552 http/tests/storageAccess/has-storage-access-false-by-default
 webkit.org/b/190852 imported/w3c/web-platform-tests/service-workers/service-worker/redirected-response.https.html [ Pass Failure ]
 
 webkit.org/b/207583 http/wpt/beacon/cors/crossorigin-arraybufferview-no-preflight.html [ Pass Failure ]
-
-webkit.org/b/207665 http/tests/cache-storage/cache-representation.https.html [ Slow ]
 
 webkit.org/b/209514 http/tests/cache-storage/page-cache-domcache-pending-promise.html [ Pass Timeout DumpJSConsoleLogInStdErr ]
 
@@ -1735,7 +1733,10 @@ webkit.org/b/209350 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Fail
 
 webkit.org/b/209352 http/tests/security/stylesheet-href-redirect.html [ Pass Timeout ]
 
-webkit.org/b/209357 http/tests/resourceLoadStatistics/third-party-cookie-blocking-on-sites-without-user-interaction-database.html [ Pass Timeout ]
+# Flaky failure is tracked in webkit.org/b/211652
+webkit.org/b/209357 http/tests/resourceLoadStatistics/third-party-cookie-blocking-on-sites-without-user-interaction-database.html [ Pass Failure Timeout ]
+
+webkit.org/b/211653 http/tests/resourceLoadStatistics/strip-referrer-to-origin-for-prevalent-subresource-redirects-database.html [ Pass Failure ]
 
 webkit.org/b/209446 imported/w3c/web-platform-tests/navigation-timing/test_timing_attributes_order.html [ Pass Failure ]
 
@@ -1746,8 +1747,6 @@ webkit.org/b/209512 http/tests/cache/disk-cache/disk-cache-vary-cookie-private.h
 webkit.org/b/209520 http/wpt/fetch/dnt-header-after-redirection.html [ Pass Timeout ]
 
 webkit.org/b/209544 svg/custom/object-sizing-explicit-width.xhtml [ Pass Failure ]
-
-webkit.org/b/209812 fast/forms/input-text-scroll-left-on-blur.html [ Pass Failure ]
 
 webkit.org/b/209869 crypto/subtle/rsa-indexeddb-non-exportable-private.html [ Pass Timeout ]
 

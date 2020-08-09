@@ -1,3 +1,39 @@
+2020-05-11  Basuke Suzuki  <basuke.suzuki@sony.com>
+
+        [bmalloc][WTF] Add computing memory size implementation for FreeBSD
+        https://bugs.webkit.org/show_bug.cgi?id=211749
+
+        Reviewed by David Kilzer.
+
+        * bmalloc/AvailableMemory.cpp:
+        (bmalloc::computeAvailableMemory):
+
+2020-05-09  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake] Use WEBKIT_EXECUTABLE in MallocBench
+        https://bugs.webkit.org/show_bug.cgi?id=211665
+
+        Reviewed by Yusuke Suzuki.
+
+        Only build mbmalloc if its possible to run MallocBench.
+
+        * CMakeLists.txt:
+
+2020-05-08  Basuke Suzuki  <basuke.suzuki@sony.com>
+
+        [WTF] Share Linux's MemoryPressureHandler among other Unix ports
+        https://bugs.webkit.org/show_bug.cgi?id=208955
+
+        Reviewed by Yusuke Suzuki.
+
+        Added FreeBSD implementation of memoryFootprint().
+
+        * bmalloc/AvailableMemory.cpp:
+        (bmalloc::memoryStatus):
+        * bmalloc/AvailableMemory.h:
+        (bmalloc::isUnderMemoryPressure):
+        * bmalloc/bmalloc.h:
+
 2020-05-05  Saam Barati  <sbarati@apple.com>
 
         Don't use the DebugHeap for catalyst

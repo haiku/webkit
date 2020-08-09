@@ -39,19 +39,19 @@
 
 using namespace JSC;
 
-struct OpaqueJSScript : public SourceProvider {
+struct OpaqueJSScript final : public SourceProvider {
 public:
     static WTF::Ref<OpaqueJSScript> create(VM& vm, const SourceOrigin& sourceOrigin, URL&& url, int startingLineNumber, const String& source)
     {
         return WTF::adoptRef(*new OpaqueJSScript(vm, sourceOrigin, WTFMove(url), startingLineNumber, source));
     }
 
-    unsigned hash() const override
+    unsigned hash() const final
     {
         return m_source.get().hash();
     }
 
-    StringView source() const override
+    StringView source() const final
     {
         return m_source.get();
     }
@@ -66,7 +66,7 @@ private:
     {
     }
 
-    virtual ~OpaqueJSScript() { }
+    ~OpaqueJSScript() final { }
 
     VM& m_vm;
     Ref<StringImpl> m_source;
@@ -88,7 +88,7 @@ JSScriptRef JSScriptCreateReferencingImmortalASCIIText(JSContextGroupRef context
     JSLockHolder locker(&vm);
     for (size_t i = 0; i < length; i++) {
         if (!isASCII(source[i]))
-            return 0;
+            return nullptr;
     }
 
     startingLineNumber = std::max(1, startingLineNumber);
@@ -149,7 +149,7 @@ JSValueRef JSScriptEvaluate(JSContextRef context, JSScriptRef script, JSValueRef
     JSLockHolder locker(vm);
     if (&script->vm() != &vm) {
         RELEASE_ASSERT_NOT_REACHED();
-        return 0;
+        return nullptr;
     }
     NakedPtr<Exception> internalException;
     JSValue thisValue = thisValueRef ? toJS(globalObject, thisValueRef) : jsUndefined();
@@ -157,7 +157,7 @@ JSValueRef JSScriptEvaluate(JSContextRef context, JSScriptRef script, JSValueRef
     if (internalException) {
         if (exception)
             *exception = toRef(globalObject, internalException->value());
-        return 0;
+        return nullptr;
     }
     ASSERT(result);
     return toRef(globalObject, result);

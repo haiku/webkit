@@ -30,6 +30,9 @@ http/tests/security/clipboard/drag-drop-html-cross-origin-iframe-in-same-origin.
 
 http/tests/security/xss-DENIED-xsl-external-entity-no-logging.xml [ Pass ]
 
+# rdar://problem/61793884 : Enabling this test for WK1 only.
+fast/shapes/shape-outside-floats/shape-outside-imagedata-overflow.html [ Pass ]
+
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
 #//////////////////////////////////////////////////////////////////////////////////////////
@@ -329,6 +332,7 @@ http/tests/IndexedDB/storage-limit.https.html [ Skip ]
 http/tests/IndexedDB/storage-limit-1.https.html [ Skip ]
 http/tests/IndexedDB/storage-limit-2.https.html [ Skip ]
 storage/indexeddb/storage-limit.html [ Skip ]
+storage/indexeddb/storage-limit-with-indices.html [ Skip ]
 storage/indexeddb/request-size-estimate.html [ Skip ]
 
 # Skip WebRTC for now in WK1
@@ -613,7 +617,6 @@ webkit.org/b/172807 imported/w3c/web-platform-tests/css/selectors/focus-display-
 webkit.org/b/172807 imported/w3c/web-platform-tests/css/selectors/focus-within-display-none-001.html [ Pass Failure ]
 
 webkit.org/b/168409 media/modern-media-controls/airplay-button/airplay-button.html [ Pass Timeout ]
-webkit.org/b/175195 media/modern-media-controls/css/webkit-cursor-visibility-auto-hide.html [ Pass Failure ]
 webkit.org/b/168265 media/modern-media-controls/forward-button/forward-button.html [ Pass Timeout ]
 
 
@@ -697,8 +700,6 @@ webkit.org/b/181834 [ Debug ] fast/block/positioning/fixed-container-with-relati
 webkit.org/b/182932 media/track/track-css-matching-default.html [ Pass Timeout ]
 
 webkit.org/b/183220 media/track/track-css-matching-timestamps.html [ Pass Timeout ]
-
-webkit.org/b/206226 [ Debug ] media/track/track-in-band-metadata-display-order.html [ Pass Failure ]
 
 imported/w3c/web-platform-tests/css/selectors/selector-placeholder-shown-type-change-002.html [ ImageOnlyFailure ]
 
@@ -930,8 +931,6 @@ webkit.org/b/208825 [ Debug ] inspector/script-profiler/event-type-Microtask.htm
 
 webkit.org/b/208890 imported/w3c/web-platform-tests/IndexedDB/idbobjectstore_openKeyCursor.htm [ Pass Failure ]
 
-webkit.org/b/209067 http/tests/security/javascriptURL/xss-DENIED-to-javascript-url-in-foreign-domain-subframe.html [ Pass Failure ]
-
 webkit.org/b/209073 [ Debug ] inspector/injected-script/avoid-getter-invocation.html [ Pass Failure Timeout ]
 
 webkit.org/b/209180 inspector/script-profiler/event-type-Other.html [ Pass Failure ]
@@ -944,10 +943,6 @@ webkit.org/b/209494 fast/events/mouse-cursor-no-mousemove.html [ Pass Failure ]
 
 webkit.org/b/209560 imported/w3c/web-platform-tests/xhr/send-response-upload-event-progress.htm [ Pass Crash Failure ]
 
-webkit.org/b/209837 [ Mojave Release ] fast/canvas/webgl/texImage2D-mse-flipY-true.html [ Pass Timeout ]
-
-webkit.org/b/209866 [ Mojave Release ] platform/mac/media/media-source/videoplaybackquality-decompressionsession.html [ Pass Failure ]
-
 webkit.org/b/209882 [ Debug ] inspector/page/overrideSetting-ICECandidateFilteringEnabled.html [ Pass Timeout ]
 
 webkit.org/b/209921 [ Debug ] inspector/css/add-css-property.html [ Pass Timeout ]
@@ -958,7 +953,5 @@ webkit.org/b/210134 media/track/track-css-user-override.html [ Pass Failure ]
 
 webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.html [ Slow ]
 webkit.org/b/210198 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Slow ]
-
-webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Failure ]
 
 webkit.org/b/208477 accessibility/mac/text-marker-for-index.html [ Skip ]

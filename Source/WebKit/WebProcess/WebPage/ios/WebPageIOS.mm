@@ -138,6 +138,10 @@
 #import <wtf/cocoa/Entitlements.h>
 #import <wtf/text/TextStream.h>
 
+#if ENABLE(ATTACHMENT_ELEMENT)
+#import <WebCore/PromisedAttachmentInfo.h>
+#endif
+
 #define RELEASE_LOG_IF_ALLOWED(channel, fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), channel, "%p - WebPage::" fmt, this, ##__VA_ARGS__)
 #define RELEASE_LOG_ERROR_IF_ALLOWED(channel, fmt, ...) RELEASE_LOG_ERROR_IF(isAlwaysOnLoggingAllowed(), channel, "%p - WebPage::" fmt, this, ##__VA_ARGS__)
 
@@ -150,14 +154,14 @@ static String plainTextForContext(const SimpleRange& range)
     return WebCore::plainTextReplacingNoBreakSpace(range);
 }
 
-static String plainTextForContext(const Optional<SimpleRange> range)
+static String plainTextForContext(const Optional<SimpleRange>& range)
 {
     return range ? plainTextForContext(*range) : emptyString();
 }
 
 static String plainTextForContext(const Range* range)
 {
-    return range ? plainTextForContext(*range) : emptyString();
+    return range ? plainTextForContext(SimpleRange { *range }) : emptyString();
 }
 
 static String plainTextForDisplay(const SimpleRange& range)
@@ -869,13 +873,6 @@ void WebPage::handleTap(const IntPoint& point, OptionSet<WebEvent::Modifier> mod
 
     if (!frameRespondingToClick || lastLayerTreeTransactionId < WebFrame::fromCoreFrame(*frameRespondingToClick)->firstLayerTreeTransactionIDAfterDidCommitLoad())
         send(Messages::WebPageProxy::DidNotHandleTapAsClick(adjustedIntPoint));
-#if ENABLE(DATA_DETECTION)
-    else if (is<Element>(*nodeRespondingToClick) && DataDetection::shouldCancelDefaultAction(downcast<Element>(*nodeRespondingToClick))) {
-        InteractionInformationRequest request(adjustedIntPoint);
-        requestPositionInformation(request);
-        send(Messages::WebPageProxy::DidNotHandleTapAsClick(adjustedIntPoint));
-    }
-#endif
     else
         handleSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers);
 }
@@ -1077,14 +1074,7 @@ void WebPage::handleTwoFingerTapAtPoint(const WebCore::IntPoint& point, OptionSe
         return;
     }
     sendTapHighlightForNodeIfNecessary(requestID, nodeRespondingToClick);
-#if ENABLE(DATA_DETECTION)
-    if (is<Element>(*nodeRespondingToClick) && DataDetection::shouldCancelDefaultAction(downcast<Element>(*nodeRespondingToClick))) {
-        InteractionInformationRequest request(roundedIntPoint(adjustedPoint));
-        requestPositionInformation(request);
-        send(Messages::WebPageProxy::DidNotHandleTapAsClick(roundedIntPoint(adjustedPoint)));
-    } else
-#endif
-        completeSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers, WebCore::TwoFingerTap);
+    completeSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers, WebCore::TwoFingerTap);
 }
 
 void WebPage::handleStylusSingleTapAtPoint(const WebCore::IntPoint& point, uint64_t requestID)
@@ -1168,16 +1158,9 @@ void WebPage::commitPotentialTap(OptionSet<WebEvent::Modifier> modifiers, Transa
         return;
     }
 
-    if (m_potentialTapNode == nodeRespondingToClick) {
-#if ENABLE(DATA_DETECTION)
-        if (is<Element>(*nodeRespondingToClick) && DataDetection::shouldCancelDefaultAction(downcast<Element>(*nodeRespondingToClick))) {
-            InteractionInformationRequest request(roundedIntPoint(m_potentialTapLocation));
-            requestPositionInformation(request);
-            commitPotentialTapFailed();
-        } else
-#endif
-            handleSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers, pointerId);
-    } else
+    if (m_potentialTapNode == nodeRespondingToClick)
+        handleSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers, pointerId);
+    else
         commitPotentialTapFailed();
 
     m_potentialTapNode = nullptr;
@@ -2996,10 +2979,13 @@ void WebPage::performActionOnElement(uint32_t action)
                     title = linkElement->textContent();
                 title = stripLeadingAndTrailingHTMLSpaces(title);
             }
-            m_interactionNode->document().frame()->editor().writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), element, url, title);
-        } else if (element.isLink()) {
-            m_interactionNode->document().frame()->editor().copyURL(element.document().completeURL(stripLeadingAndTrailingHTMLSpaces(element.attributeWithoutSynchronization(HTMLNames::hrefAttr))), element.textContent());
-        }
+            m_interactionNode->document().editor().writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), element, url, title);
+        } else if (element.isLink())
+            m_interactionNode->document().editor().copyURL(element.document().completeURL(stripLeadingAndTrailingHTMLSpaces(element.attributeWithoutSynchronization(HTMLNames::hrefAttr))), element.textContent());
+#if ENABLE(ATTACHMENT_ELEMENT)
+        else if (auto attachmentInfo = element.document().editor().promisedAttachmentInfo(element))
+            send(Messages::WebPageProxy::WritePromisedAttachmentToPasteboard(WTFMove(attachmentInfo)));
+#endif
     } else if (static_cast<SheetAction>(action) == SheetAction::SaveImage) {
         if (!is<RenderImage>(*element.renderer()))
             return;
@@ -4390,6 +4376,34 @@ void WebPage::requestPasswordForQuickLookDocumentInMainFrame(const String& fileN
 }
 
 #endif
+
+void WebPage::animationDidFinishForElement(const WebCore::Element& animatedElement)
+{
+    auto frame = makeRef(m_page->focusController().focusedOrMainFrame());
+    auto& selection = frame->selection().selection();
+    if (selection.isNoneOrOrphaned())
+        return;
+
+    if (selection.isCaret() && !selection.hasEditableStyle())
+        return;
+
+    auto scheduleEditorStateUpdateForStartOrEndContainerNodeIfNeeded = [&](const Node* container) {
+        if (!animatedElement.containsIncludingShadowDOM(container))
+            return false;
+
+        frame->selection().setCaretRectNeedsUpdate();
+        scheduleFullEditorStateUpdate();
+        return true;
+    };
+
+    auto startContainer = makeRefPtr(selection.start().containerNode());
+    if (scheduleEditorStateUpdateForStartOrEndContainerNodeIfNeeded(startContainer.get()))
+        return;
+
+    auto endContainer = makeRefPtr(selection.end().containerNode());
+    if (startContainer != endContainer)
+        scheduleEditorStateUpdateForStartOrEndContainerNodeIfNeeded(endContainer.get());
+}
 
 } // namespace WebKit
 

@@ -130,6 +130,7 @@ class Internals final : public RefCounted<Internals>, private ContextDestruction
 #if ENABLE(MEDIA_STREAM)
     , private RealtimeMediaSource::Observer
     , private RealtimeMediaSource::AudioSampleObserver
+    , private RealtimeMediaSource::VideoSampleObserver
 #endif
     {
 public:
@@ -763,6 +764,8 @@ public:
 #endif
 
 #if ENABLE(MEDIA_STREAM)
+    void stopObservingRealtimeMediaSource();
+
     void setMockAudioTrackChannelNumber(MediaStreamTrack&, unsigned short);
     void setCameraMediaStreamTrackOrientation(MediaStreamTrack&, int orientation);
     unsigned long trackAudioSampleCount() const { return m_trackAudioSampleCount; }
@@ -863,6 +866,8 @@ public:
         bool isLargeEnoughForMainContent;
     };
     ExceptionOr<MediaUsageState> mediaUsageState(HTMLMediaElement&) const;
+
+    ExceptionOr<bool> elementShouldDisplayPosterImage(HTMLVideoElement&) const;
 
 #if ENABLE(VIDEO)
     using PlaybackControlsPurpose = MediaElementSession::PlaybackControlsPurpose;
@@ -1000,8 +1005,6 @@ public:
 
     int readPreferenceInteger(const String& domain, const String& key);
     String encodedPreferenceValue(const String& domain, const String& key);
-
-    String mediaMIMETypeForExtension(const String& extension);
 
     String getUTIFromTag(const String& tagClass, const String& tag, const String& conformingToUTI);
 

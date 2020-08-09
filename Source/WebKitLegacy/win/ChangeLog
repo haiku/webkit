@@ -1,3 +1,53 @@
+2020-05-12  Chris Dumez  <cdumez@apple.com>
+
+        [WK2] Neuter WKFrameIsFrameSet() / WKPageGetFrameSetLargestFrame() C API
+        https://bugs.webkit.org/show_bug.cgi?id=211808
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::dispatchDidBecomeFrameset): Deleted.
+        * WebCoreSupport/WebFrameLoaderClient.h:
+
+2020-05-12  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo][WK1] requestAnimationFrame doesn't work since r244182 in Accelerated Compositing mode
+        https://bugs.webkit.org/show_bug.cgi?id=211798
+
+        Reviewed by Don Olmstead.
+
+        Page::updateRendering() should be called for every frames instead
+        of FrameView::updateLayoutAndStyleIfNeededRecursive for rAF after
+        r244182.
+
+        WinCairo doesn't destory m_acceleratedCompositingContext after it
+        was created. WebView::flushPendingGraphicsLayerChangesSoon should
+        check if accelerated compositing mode is enabled by using
+        isAcceleratedCompositing() not by null check of
+        m_acceleratedCompositingContext.
+
+        * WebCoreSupport/AcceleratedCompositingContext.cpp:
+        (AcceleratedCompositingContext::flushAndRenderLayers): Call Page::updateRendering() instead of updateLayoutAndStyleIfNeededRecursive.
+        * WebView.cpp:
+        (WebView::flushPendingGraphicsLayerChangesSoon): Check isAcceleratedCompositing().
+
+2020-05-10  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WinCairo][WK1] requestAnimationFrame doesn't work since r261113
+        https://bugs.webkit.org/show_bug.cgi?id=211702
+
+        Reviewed by Darin Adler.
+
+        Since r261113 (Bug 204713), WinCairo WK1 is failing some rAF tests
+        even though AppleWin isn't.
+
+        WinCairo also should do m_page->updateRendering() in
+        WebView::flushPendingGraphicsLayerChangesSoon as well as AppleWin.
+
+        * WebView.cpp:
+        (WebView::flushPendingGraphicsLayerChangesSoon): Call
+        updateRendering.
+
 2020-04-27  Antoine Quint  <graouts@apple.com>
 
         Rename CSSAnimationController accessors from animation() to legacyAnimation()

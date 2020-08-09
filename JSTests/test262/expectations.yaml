@@ -639,9 +639,6 @@ test/built-ins/Array/prototype/concat/arg-length-exceeding-integer-limit.js:
 test/built-ins/Array/prototype/concat/arg-length-near-integer-limit.js:
   default: 'Test262Error: Expected a Test262Error but got a RangeError'
   strict mode: 'Test262Error: Expected a Test262Error but got a RangeError'
-test/built-ins/Array/prototype/concat/is-concat-spreadable-get-order.js:
-  default: 'Test262Error: Expected [isConcatSpreadable, constructor, isConcatSpreadable] and [constructor, isConcatSpreadable] to have the same contents. '
-  strict mode: 'Test262Error: Expected [isConcatSpreadable, constructor, isConcatSpreadable] and [constructor, isConcatSpreadable] to have the same contents. '
 test/built-ins/Array/prototype/splice/property-traps-order-with-species.js:
   default: 'Test262Error: Expected [defineProperty, defineProperty, set, getOwnPropertyDescriptor, defineProperty] and [defineProperty, defineProperty] to have the same contents. '
   strict mode: 'Test262Error: Expected [defineProperty, defineProperty, set, getOwnPropertyDescriptor, defineProperty] and [defineProperty, defineProperty] to have the same contents. '
@@ -3237,9 +3234,6 @@ test/language/statements/class/poisoned-underscore-proto.js:
 test/language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
-test/language/statements/class/subclass/class-definition-superclass-generator.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
 test/language/statements/do-while/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-await-of/async-from-sync-iterator-continuation-abrupt-completion-get-constructor.js:

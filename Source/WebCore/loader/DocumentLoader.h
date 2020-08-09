@@ -138,6 +138,13 @@ enum class LegacyOverflowScrollingTouchPolicy : uint8_t {
     Enable,
 };
 
+enum class MouseEventPolicy : uint8_t {
+    Default,
+#if ENABLE(IOS_TOUCH_EVENTS)
+    SynthesizeTouchEvents,
+#endif
+};
+
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(DocumentLoader);
 class DocumentLoader
     : public RefCounted<DocumentLoader>
@@ -328,6 +335,9 @@ public:
     LegacyOverflowScrollingTouchPolicy legacyOverflowScrollingTouchPolicy() const { return m_legacyOverflowScrollingTouchPolicy; }
     void setLegacyOverflowScrollingTouchPolicy(LegacyOverflowScrollingTouchPolicy policy) { m_legacyOverflowScrollingTouchPolicy = policy; }
 
+    MouseEventPolicy mouseEventPolicy() const { return m_mouseEventPolicy; }
+    void setMouseEventPolicy(MouseEventPolicy policy) { m_mouseEventPolicy = policy; }
+
     void addSubresourceLoader(ResourceLoader*);
     void removeSubresourceLoader(LoadCompletionType, ResourceLoader*);
     void addPlugInStreamLoader(ResourceLoader&);
@@ -446,7 +456,7 @@ private:
     WEBCORE_EXPORT void redirectReceived(CachedResource&, ResourceRequest&&, const ResourceResponse&, CompletionHandler<void(ResourceRequest&&)>&&) override;
     WEBCORE_EXPORT void responseReceived(CachedResource&, const ResourceResponse&, CompletionHandler<void()>&&) override;
     WEBCORE_EXPORT void dataReceived(CachedResource&, const char* data, int length) override;
-    WEBCORE_EXPORT void notifyFinished(CachedResource&) override;
+    WEBCORE_EXPORT void notifyFinished(CachedResource&, const NetworkLoadMetrics&) override;
 #if USE(QUICK_LOOK)
     WEBCORE_EXPORT void previewResponseReceived(CachedResource&, const ResourceResponse&) override;
 #endif
@@ -632,6 +642,7 @@ private:
     MediaSourcePolicy m_mediaSourcePolicy { MediaSourcePolicy::Default };
     SimulatedMouseEventsDispatchPolicy m_simulatedMouseEventsDispatchPolicy { SimulatedMouseEventsDispatchPolicy::Default };
     LegacyOverflowScrollingTouchPolicy m_legacyOverflowScrollingTouchPolicy { LegacyOverflowScrollingTouchPolicy::Default };
+    MouseEventPolicy m_mouseEventPolicy { MouseEventPolicy::Default };
 
 #if ENABLE(SERVICE_WORKER)
     Optional<ServiceWorkerRegistrationData> m_serviceWorkerRegistrationData;
@@ -731,4 +742,18 @@ inline void DocumentLoader::didTellClientAboutLoad(const String& url)
         m_resourcesClientKnowsAbout.add(url);
 }
 
-}
+} // namespace WebCore
+
+namespace WTF {
+
+template<> struct EnumTraits<WebCore::MouseEventPolicy> {
+    using values = EnumValues<
+        WebCore::MouseEventPolicy,
+        WebCore::MouseEventPolicy::Default
+#if ENABLE(IOS_TOUCH_EVENTS)
+        , WebCore::MouseEventPolicy::SynthesizeTouchEvents
+#endif
+    >;
+};
+
+} // namespace WTF

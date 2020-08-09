@@ -83,7 +83,7 @@ ScrollingEventResult ScrollingCoordinatorMac::handleWheelEvent(FrameView&, const
 
     RefPtr<ThreadedScrollingTree> threadedScrollingTree = downcast<ThreadedScrollingTree>(scrollingTree());
     ScrollingThread::dispatch([threadedScrollingTree, wheelEvent] {
-        threadedScrollingTree->handleWheelEvent(wheelEvent);
+        threadedScrollingTree->handleWheelEventAfterMainThread(wheelEvent);
     });
     return ScrollingEventResult::DidHandleEvent;
 }
@@ -129,9 +129,10 @@ void ScrollingCoordinatorMac::updateTiledScrollingIndicator()
     tiledBacking->setScrollingModeIndication(indicatorMode);
 }
 
-void ScrollingCoordinatorMac::startMonitoringWheelEvents()
+void ScrollingCoordinatorMac::startMonitoringWheelEvents(bool clearLatchingState)
 {
-    scrollingTree()->clearLatchedNode();
+    if (clearLatchingState)
+        scrollingTree()->clearLatchedNode();
     auto monitor = m_page->wheelEventTestMonitor();
     scrollingTree()->setWheelEventTestMonitor(WTFMove(monitor));
 }

@@ -416,6 +416,10 @@
 #define ENABLE_PAYMENT_REQUEST 0
 #endif
 
+#if !defined(ENABLE_PERIODIC_MEMORY_MONITOR)
+#define ENABLE_PERIODIC_MEMORY_MONITOR 0
+#endif
+
 #if !defined(ENABLE_POINTER_LOCK)
 #define ENABLE_POINTER_LOCK 1
 #endif
@@ -545,6 +549,10 @@
 
 #if !defined(ENABLE_DATA_DETECTION)
 #define ENABLE_DATA_DETECTION 0
+#endif
+
+#if !defined(ENABLE_FILE_SHARE)
+#define ENABLE_FILE_SHARE 1
 #endif
 
 /*

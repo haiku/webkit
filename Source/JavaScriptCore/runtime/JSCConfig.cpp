@@ -29,6 +29,7 @@
 #include <wtf/Lock.h>
 #include <wtf/ResourceUsage.h>
 #include <wtf/StdLibExtras.h>
+#include <wtf/WTFConfig.h>
 
 #if OS(DARWIN)
 #include <mach/mach.h>
@@ -54,6 +55,8 @@ void Config::enableRestrictedOptions()
     
 void Config::permanentlyFreeze()
 {
+    WTF::Config::permanentlyFreeze();
+
     static Lock configLock;
     auto locker = holdLock(configLock);
 

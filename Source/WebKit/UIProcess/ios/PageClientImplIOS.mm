@@ -947,6 +947,25 @@ void PageClientImpl::showDictationAlternativeUI(const WebCore::FloatRect&, uint6
     notImplemented();
 }
 
+void PageClientImpl::showDataDetectorsUIForPositionInformation(const InteractionInformationAtPosition& positionInformation)
+{
+    [m_contentView _showDataDetectorsUIForPositionInformation:positionInformation];
+}
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+
+void PageClientImpl::writePromisedAttachmentToPasteboard(WebCore::PromisedAttachmentInfo&& info)
+{
+    [m_contentView _writePromisedAttachmentToPasteboard:WTFMove(info)];
+}
+
+#endif // ENABLE(ATTACHMENT_ELEMENT)
+
+void PageClientImpl::setMouseEventPolicy(WebCore::MouseEventPolicy policy)
+{
+    [m_contentView _setMouseEventPolicy:policy];
+}
+
 } // namespace WebKit
 
 #endif // PLATFORM(IOS_FAMILY)

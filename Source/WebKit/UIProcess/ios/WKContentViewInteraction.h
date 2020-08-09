@@ -50,6 +50,7 @@
 #import "WKShareSheet.h"
 #import "WKSyntheticTapGestureRecognizer.h"
 #import "WKTouchActionGestureRecognizer.h"
+#import "_WKElementAction.h"
 #import "_WKFormInputSession.h"
 #import <UIKit/UIView.h>
 #import <WebCore/ActivityState.h>
@@ -80,6 +81,7 @@ class SelectionRect;
 struct PromisedAttachmentInfo;
 struct ShareDataWithParsedURL;
 enum class DOMPasteAccessResponse : uint8_t;
+enum class MouseEventPolicy : uint8_t;
 enum class RouteSharingPolicy : uint8_t;
 
 #if ENABLE(DRAG_SUPPORT)
@@ -211,6 +213,7 @@ struct WKAutoCorrectionData {
 #if ENABLE(IOS_TOUCH_EVENTS)
     RetainPtr<WKDeferringGestureRecognizer> _deferringGestureRecognizerForImmediatelyResettableGestures;
     RetainPtr<WKDeferringGestureRecognizer> _deferringGestureRecognizerForDelayedResettableGestures;
+    RetainPtr<WKDeferringGestureRecognizer> _deferringGestureRecognizerForSyntheticTapGestures;
 #endif
     RetainPtr<UIWebTouchEventsGestureRecognizer> _touchEventGestureRecognizer;
 
@@ -241,6 +244,7 @@ struct WKAutoCorrectionData {
 
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     RetainPtr<WKMouseGestureRecognizer> _mouseGestureRecognizer;
+    WebCore::MouseEventPolicy _mouseEventPolicy;
 #endif
 
 #if HAVE(UI_CURSOR_INTERACTION)
@@ -530,7 +534,8 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_accessibilityClearSelection;
 - (WKFormInputSession *)_formInputSession;
 - (void)_didChangeWebViewEditability;
-- (NSDictionary *)dataDetectionContextForPositionInformation:(WebKit::InteractionInformationAtPosition)positionInformation;
+- (NSDictionary *)dataDetectionContextForPositionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation;
+- (void)_showDataDetectorsUIForPositionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation;
 
 - (void)willFinishIgnoringCalloutBarFadeAfterPerformingAction;
 
@@ -549,7 +554,6 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 - (void)_requestDOMPasteAccessWithElementRect:(const WebCore::IntRect&)elementRect originIdentifier:(const String&)originIdentifier completionHandler:(CompletionHandler<void(WebCore::DOMPasteAccessResponse)>&&)completionHandler;
 
-@property (nonatomic, readonly) WebKit::InteractionInformationAtPosition currentPositionInformation;
 - (void)doAfterPositionInformationUpdate:(void (^)(WebKit::InteractionInformationAtPosition))action forRequest:(WebKit::InteractionInformationRequest)request;
 - (BOOL)ensurePositionInformationIsUpToDate:(WebKit::InteractionInformationRequest)request;
 
@@ -597,10 +601,19 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_removeContextMenuViewIfPossible;
 #endif
 
+#if ENABLE(ATTACHMENT_ELEMENT)
+- (void)_writePromisedAttachmentToPasteboard:(WebCore::PromisedAttachmentInfo&&)info;
+#endif
+
+#if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
+- (void)_setMouseEventPolicy:(WebCore::MouseEventPolicy)policy;
+#endif
+
 @end
 
 @interface WKContentView (WKTesting)
 
+- (void)_simulateElementAction:(_WKElementActionType)actionType atLocation:(CGPoint)location;
 - (void)_simulateLongPressActionAtLocation:(CGPoint)location;
 - (void)_simulateTextEntered:(NSString *)text;
 - (void)selectFormAccessoryPickerRow:(NSInteger)rowIndex;

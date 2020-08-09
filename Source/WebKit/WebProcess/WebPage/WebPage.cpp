@@ -475,7 +475,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #endif
     , m_overriddenMediaType(parameters.overriddenMediaType)
     , m_processDisplayName(parameters.processDisplayName)
-    , m_isNavigatingToAppBoundDomain(parameters.limitsNavigationsToAppBoundDomains ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No)
+    , m_limitsNavigationsToAppBoundDomains(parameters.limitsNavigationsToAppBoundDomains)
 {
     ASSERT(m_identifier);
 
@@ -1527,7 +1527,6 @@ void WebPage::platformDidReceiveLoadParameters(const LoadParameters& loadParamet
 void WebPage::loadRequest(LoadParameters&& loadParameters)
 {
     setIsNavigatingToAppBoundDomain(loadParameters.isNavigatingToAppBoundDomain);
-    setHasNavigatedAwayFromAppBoundDomain(loadParameters.hasNavigatedAwayFromAppBoundDomain);
 
     SendStopResponsivenessTimer stopper;
 
@@ -1563,10 +1562,9 @@ NO_RETURN void WebPage::loadRequestWaitingForProcessLaunch(LoadParameters&&, URL
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-void WebPage::loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&& websitePolicies, Ref<SharedBuffer>&& sharedBuffer, const String& MIMEType, const String& encodingName, const URL& baseURL, const URL& unreachableURL, const UserData& userData, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, NavigatedAwayFromAppBoundDomain hasNavigatedAwayFromAppBoundDomain, ShouldOpenExternalURLsPolicy shouldOpenExternalURLsPolicy)
+void WebPage::loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&& websitePolicies, Ref<SharedBuffer>&& sharedBuffer, const String& MIMEType, const String& encodingName, const URL& baseURL, const URL& unreachableURL, const UserData& userData, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, ShouldOpenExternalURLsPolicy shouldOpenExternalURLsPolicy)
 {
     setIsNavigatingToAppBoundDomain(isNavigatingToAppBoundDomain);
-    setHasNavigatedAwayFromAppBoundDomain(hasNavigatedAwayFromAppBoundDomain);
 
     SendStopResponsivenessTimer stopper;
 
@@ -1595,7 +1593,7 @@ void WebPage::loadData(LoadParameters&& loadParameters)
 
     auto sharedBuffer = SharedBuffer::create(reinterpret_cast<const char*>(loadParameters.data.data()), loadParameters.data.size());
     URL baseURL = loadParameters.baseURLString.isEmpty() ? aboutBlankURL() : URL(URL(), loadParameters.baseURLString);
-    loadDataImpl(loadParameters.navigationID, loadParameters.shouldTreatAsContinuingLoad, WTFMove(loadParameters.websitePolicies), WTFMove(sharedBuffer), loadParameters.MIMEType, loadParameters.encodingName, baseURL, URL(), loadParameters.userData, loadParameters.isNavigatingToAppBoundDomain, loadParameters.hasNavigatedAwayFromAppBoundDomain, loadParameters.shouldOpenExternalURLsPolicy);
+    loadDataImpl(loadParameters.navigationID, loadParameters.shouldTreatAsContinuingLoad, WTFMove(loadParameters.websitePolicies), WTFMove(sharedBuffer), loadParameters.MIMEType, loadParameters.encodingName, baseURL, URL(), loadParameters.userData, loadParameters.isNavigatingToAppBoundDomain, loadParameters.shouldOpenExternalURLsPolicy);
 }
 
 void WebPage::loadAlternateHTML(LoadParameters&& loadParameters)
@@ -1607,7 +1605,7 @@ void WebPage::loadAlternateHTML(LoadParameters&& loadParameters)
     URL provisionalLoadErrorURL = loadParameters.provisionalLoadErrorURLString.isEmpty() ? URL() : URL(URL(), loadParameters.provisionalLoadErrorURLString);
     auto sharedBuffer = SharedBuffer::create(reinterpret_cast<const char*>(loadParameters.data.data()), loadParameters.data.size());
     m_mainFrame->coreFrame()->loader().setProvisionalLoadErrorBeingHandledURL(provisionalLoadErrorURL);    
-    loadDataImpl(loadParameters.navigationID, loadParameters.shouldTreatAsContinuingLoad, WTFMove(loadParameters.websitePolicies), WTFMove(sharedBuffer), loadParameters.MIMEType, loadParameters.encodingName, baseURL, unreachableURL, loadParameters.userData, loadParameters.isNavigatingToAppBoundDomain, loadParameters.hasNavigatedAwayFromAppBoundDomain);
+    loadDataImpl(loadParameters.navigationID, loadParameters.shouldTreatAsContinuingLoad, WTFMove(loadParameters.websitePolicies), WTFMove(sharedBuffer), loadParameters.MIMEType, loadParameters.encodingName, baseURL, unreachableURL, loadParameters.userData, loadParameters.isNavigatingToAppBoundDomain);
     m_mainFrame->coreFrame()->loader().setProvisionalLoadErrorBeingHandledURL({ });
 }
 
@@ -1814,6 +1812,14 @@ void WebPage::drawRect(GraphicsContext& graphicsContext, const IntRect& rect)
     graphicsContext.clip(rect);
 
     m_mainFrame->coreFrame()->view()->paint(graphicsContext, rect);
+
+#if PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(PLAYSTATION)
+    if (!m_page->settings().acceleratedCompositingEnabled() && m_page->inspectorController().enabled() && m_page->inspectorController().shouldShowOverlay()) {
+        graphicsContext.beginTransparencyLayer(1);
+        m_page->inspectorController().drawHighlight(graphicsContext);
+        graphicsContext.endTransparencyLayer();
+    }
+#endif
 }
 
 double WebPage::textZoomFactor() const
@@ -3253,7 +3259,6 @@ void WebPage::setLayerHostingMode(LayerHostingMode layerHostingMode)
 void WebPage::didReceivePolicyDecision(FrameIdentifier frameID, uint64_t listenerID, PolicyDecision&& policyDecision)
 {
     setIsNavigatingToAppBoundDomain(policyDecision.isNavigatingToAppBoundDomain);
-    setHasNavigatedAwayFromAppBoundDomain(policyDecision.hasNavigatedAwayFromAppBoundDomain);
 
     WebFrame* frame = WebProcess::singleton().webFrame(frameID);
     if (!frame)
@@ -3313,12 +3318,12 @@ void WebPage::show()
     send(Messages::WebPageProxy::ShowPage());
 }
 
-void WebPage::setShouldFireResizeEvents(bool shouldFireResizeEvents)
+void WebPage::setShouldFireEvents(bool shouldFireEvents)
 {
-    RELEASE_LOG_IF_ALLOWED(Resize, "setShouldFireResizeEvents(%d)", shouldFireResizeEvents);
+    RELEASE_LOG_IF_ALLOWED(Resize, "setShouldFireEvents(%d)", shouldFireEvents);
 
     if (m_page)
-        m_page->setShouldFireResizeEvents(shouldFireResizeEvents);
+        m_page->setShouldFireEvents(shouldFireEvents);
 }
 
 void WebPage::setNeedsDOMWindowResizeEvent()
@@ -3426,8 +3431,7 @@ void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameter
 
         send(Messages::WebPageProxy::ScriptValueCallback(dataReference, details, callbackID));
     };
-    
-    if (hasNavigatedAwayFromAppBoundDomain() == NavigatedAwayFromAppBoundDomain::Yes && !m_needsInAppBrowserPrivacyQuirks) {
+    if (shouldEnableInAppBrowserPrivacyProtections()) {
         send(Messages::WebPageProxy::ScriptValueCallback({ }, ExceptionDetails { "Unable to execute JavaScript"_s }, callbackID));
         if (auto* document = m_page->mainFrame().document())
             document->addConsoleMessage(MessageSource::Security, MessageLevel::Warning, "Ignoring user script injection for non-app bound domain.");
@@ -3683,8 +3687,8 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
         disableServiceWorkerEntitlement();
 
     if (store.getBoolValueForKey(WebPreferencesKey::serviceWorkersEnabledKey())) {
-        ASSERT(parentProcessHasServiceWorkerEntitlement() || m_isNavigatingToAppBoundDomain);
-        if (!parentProcessHasServiceWorkerEntitlement() && !m_isNavigatingToAppBoundDomain)
+        ASSERT(parentProcessHasServiceWorkerEntitlement() || m_limitsNavigationsToAppBoundDomains);
+        if (!parentProcessHasServiceWorkerEntitlement() && !m_limitsNavigationsToAppBoundDomains)
             RuntimeEnabledFeatures::sharedFeatures().setServiceWorkerEnabled(false);
     }
 #endif
@@ -3947,7 +3951,7 @@ void WebPage::performDragControllerAction(DragControllerAction action, const Int
         return;
     }
     case DragControllerAction::Updated: {
-        DragOperation resolvedDragOperation = m_page->dragController().dragEntered(dragData);
+        DragOperation resolvedDragOperation = m_page->dragController().dragUpdated(dragData);
         send(Messages::WebPageProxy::DidPerformDragControllerAction(resolvedDragOperation, m_page->dragController().dragHandlingMethod(), m_page->dragController().mouseIsOverFileInput(), m_page->dragController().numberOfItemsToBeAccepted(), { }, { }));
         return;
     }
@@ -4240,7 +4244,7 @@ void WebPage::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vector<St
     }
 
     RELEASE_ASSERT(!sandbox_check(getpid(), "mach-lookup", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_GLOBAL_NAME | SANDBOX_CHECK_NO_REPORT), "com.apple.frontboard.systemappservices"));
-    RELEASE_ASSERT(!sandbox_check(getpid(), "mach-lookup", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_GLOBAL_NAME | SANDBOX_CHECK_NO_REPORT), "com.apple.frontboard.iconservices"));
+    RELEASE_ASSERT(!sandbox_check(getpid(), "mach-lookup", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_GLOBAL_NAME | SANDBOX_CHECK_NO_REPORT), "com.apple.iconservices"));
 
     RefPtr<Icon> icon;
     if (!iconData.isEmpty()) {
@@ -7093,6 +7097,35 @@ void WebPage::removeMediaUsageManagerSession(MediaSessionIdentifier identifier)
     send(Messages::WebPageProxy::RemoveMediaUsageManagerSession(identifier));
 }
 #endif // ENABLE(MEDIA_USAGE)
+
+#if !PLATFORM(IOS_FAMILY)
+
+void WebPage::animationDidFinishForElement(const WebCore::Element&)
+{
+}
+
+#endif
+
+void WebPage::setIsNavigatingToAppBoundDomain(Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
+{
+    m_isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain;
+    
+    m_navigationHasOccured = true;
+}
+
+void WebPage::notifyPageOfAppBoundBehavior()
+{
+    if (!m_navigationHasOccured && !m_limitsNavigationsToAppBoundDomains)
+        send(Messages::WebPageProxy::SetHasExecutedAppBoundBehaviorBeforeNavigation());
+}
+
+bool WebPage::shouldEnableInAppBrowserPrivacyProtections()
+{
+    if (m_needsInAppBrowserPrivacyQuirks)
+        return false;
+
+    return isNavigatingToAppBoundDomain() && isNavigatingToAppBoundDomain() == NavigatingToAppBoundDomain::No;
+}
 
 } // namespace WebKit
 

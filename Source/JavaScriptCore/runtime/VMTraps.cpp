@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2017-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -198,6 +198,9 @@ public:
     SignalSender(const AbstractLocker& locker, VM& vm)
         : Base(locker, vm.traps().m_lock, vm.traps().m_condition.copyRef())
         , m_vm(vm)
+    { }
+
+    static void initializeSignals()
     {
         static std::once_flag once;
         std::call_once(once, [] {
@@ -237,7 +240,7 @@ public:
         });
     }
 
-    const char* name() const override
+    const char* name() const final
     {
         return "JSC VMTraps Signal Sender Thread";
     }
@@ -245,7 +248,7 @@ public:
     VMTraps& traps() { return m_vm.traps(); }
 
 private:
-    PollResult poll(const AbstractLocker&) override
+    PollResult poll(const AbstractLocker&) final
     {
         if (traps().m_isShuttingDown)
             return PollResult::Stop;
@@ -259,7 +262,7 @@ private:
         return PollResult::Work;
     }
 
-    WorkResult work() override
+    WorkResult work() final
     {
         VM& vm = m_vm;
 
@@ -293,6 +296,14 @@ private:
 };
 
 #endif // ENABLE(SIGNAL_BASED_VM_TRAPS)
+
+void VMTraps::initializeSignals()
+{
+#if ENABLE(SIGNAL_BASED_VM_TRAPS)
+    if (!Options::usePollingTraps())
+        SignalSender::initializeSignals();
+#endif
+}
 
 void VMTraps::willDestroyVM()
 {

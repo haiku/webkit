@@ -29,6 +29,7 @@
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
 
 #include "Connection.h"
+#include "RemoteCaptureSampleManagerMessages.h"
 #include "SharedRingBufferStorage.h"
 #include "UserMediaCaptureManagerMessages.h"
 #include "UserMediaCaptureManagerProxyMessages.h"
@@ -49,8 +50,9 @@ namespace WebKit {
 using namespace WebCore;
 
 class UserMediaCaptureManagerProxy::SourceProxy
-    : public RealtimeMediaSource::Observer
-    , public RealtimeMediaSource::AudioSampleObserver
+    : private RealtimeMediaSource::Observer
+    , private RealtimeMediaSource::AudioSampleObserver
+    , private RealtimeMediaSource::VideoSampleObserver
     , public SharedRingBufferStorage::Client {
     WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -61,13 +63,32 @@ public:
         , m_ringBuffer(makeUniqueRef<SharedRingBufferStorage>(makeUniqueRef<SharedRingBufferStorage>(this)))
     {
         m_source->addObserver(*this);
-        m_source->addAudioSampleObserver(*this);
+        switch (m_source->type()) {
+        case RealtimeMediaSource::Type::Audio:
+            m_source->addAudioSampleObserver(*this);
+            break;
+        case RealtimeMediaSource::Type::Video:
+            m_source->addVideoSampleObserver(*this);
+            break;
+        case RealtimeMediaSource::Type::None:
+            ASSERT_NOT_REACHED();
+        }
     }
 
     ~SourceProxy()
     {
         storage().invalidate();
-        m_source->removeAudioSampleObserver(*this);
+
+        switch (m_source->type()) {
+        case RealtimeMediaSource::Type::Audio:
+            m_source->removeAudioSampleObserver(*this);
+            break;
+        case RealtimeMediaSource::Type::Video:
+            m_source->removeVideoSampleObserver(*this);
+            break;
+        case RealtimeMediaSource::Type::None:
+            ASSERT_NOT_REACHED();
+        }
         m_source->removeObserver(*this);
     }
 
@@ -138,7 +159,7 @@ private:
         uint64_t startFrame;
         uint64_t endFrame;
         m_ringBuffer.getCurrentFrameBounds(startFrame, endFrame);
-        m_connection->send(Messages::UserMediaCaptureManager::AudioSamplesAvailable(m_id, time, numberOfFrames, startFrame, endFrame), 0);
+        m_connection->send(Messages::RemoteCaptureSampleManager::AudioSamplesAvailable(m_id, time, numberOfFrames, startFrame, endFrame), 0);
     }
 
     void videoSampleAvailable(MediaSample& sample) final
@@ -181,7 +202,7 @@ private:
         SharedMemory::Handle handle;
         if (storage)
             storage->createHandle(handle, SharedMemory::Protection::ReadOnly);
-        m_connection->send(Messages::UserMediaCaptureManager::StorageChanged(m_id, handle, m_description, m_numberOfFrames), 0);
+        m_connection->send(Messages::RemoteCaptureSampleManager::AudioStorageChanged(m_id, handle, m_description, m_numberOfFrames), 0);
     }
 
     bool preventSourceFromStopping()

@@ -149,6 +149,10 @@
 #import <UIKit/_UILookupGestureRecognizer.h>
 #endif
 
+#if ENABLE(ATTACHMENT_ELEMENT)
+#import "APIAttachment.h"
+#endif
+
 #if ENABLE(INPUT_TYPE_COLOR)
 #import "WKFormColorControl.h"
 #endif
@@ -761,13 +765,17 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 #if ENABLE(IOS_TOUCH_EVENTS)
     _deferringGestureRecognizerForImmediatelyResettableGestures = adoptNS([[WKDeferringGestureRecognizer alloc] initWithDeferringGestureDelegate:self]);
     [_deferringGestureRecognizerForImmediatelyResettableGestures setName:@"Touch event deferrer (immediate reset)"];
-    [_deferringGestureRecognizerForImmediatelyResettableGestures setDelegate:self];
-    [self addGestureRecognizer:_deferringGestureRecognizerForImmediatelyResettableGestures.get()];
 
     _deferringGestureRecognizerForDelayedResettableGestures = adoptNS([[WKDeferringGestureRecognizer alloc] initWithDeferringGestureDelegate:self]);
     [_deferringGestureRecognizerForDelayedResettableGestures setName:@"Touch event deferrer (delayed reset)"];
-    [_deferringGestureRecognizerForDelayedResettableGestures setDelegate:self];
-    [self addGestureRecognizer:_deferringGestureRecognizerForDelayedResettableGestures.get()];
+
+    _deferringGestureRecognizerForSyntheticTapGestures = adoptNS([[WKDeferringGestureRecognizer alloc] initWithDeferringGestureDelegate:self]);
+    [_deferringGestureRecognizerForSyntheticTapGestures setName:@"Touch event deferrer (synthetic tap)"];
+
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers) {
+        gesture.delegate = self;
+        [self addGestureRecognizer:gesture];
+    }
 #endif
 
     _touchEventGestureRecognizer = adoptNS([[UIWebTouchEventsGestureRecognizer alloc] initWithTarget:self action:@selector(_webTouchEventsRecognized:) touchDelegate:self]);
@@ -934,11 +942,10 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self removeGestureRecognizer:_touchEventGestureRecognizer.get()];
 
 #if ENABLE(IOS_TOUCH_EVENTS)
-    [_deferringGestureRecognizerForImmediatelyResettableGestures setDelegate:nil];
-    [self removeGestureRecognizer:_deferringGestureRecognizerForImmediatelyResettableGestures.get()];
-
-    [_deferringGestureRecognizerForDelayedResettableGestures setDelegate:nil];
-    [self removeGestureRecognizer:_deferringGestureRecognizerForDelayedResettableGestures.get()];
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers) {
+        gesture.delegate = nil;
+        [self removeGestureRecognizer:gesture];
+    }
 #endif
 
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
@@ -1053,8 +1060,8 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 - (void)_removeDefaultGestureRecognizers
 {
 #if ENABLE(IOS_TOUCH_EVENTS)
-    [self removeGestureRecognizer:_deferringGestureRecognizerForImmediatelyResettableGestures.get()];
-    [self removeGestureRecognizer:_deferringGestureRecognizerForDelayedResettableGestures.get()];
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers)
+        [self removeGestureRecognizer:gesture];
 #endif
     [self removeGestureRecognizer:_touchEventGestureRecognizer.get()];
     [self removeGestureRecognizer:_singleTapGestureRecognizer.get()];
@@ -1081,8 +1088,8 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 - (void)_addDefaultGestureRecognizers
 {
 #if ENABLE(IOS_TOUCH_EVENTS)
-    [self addGestureRecognizer:_deferringGestureRecognizerForImmediatelyResettableGestures.get()];
-    [self addGestureRecognizer:_deferringGestureRecognizerForDelayedResettableGestures.get()];
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers)
+        [self addGestureRecognizer:gesture];
 #endif
     [self addGestureRecognizer:_touchEventGestureRecognizer.get()];
     [self addGestureRecognizer:_singleTapGestureRecognizer.get()];
@@ -1656,13 +1663,27 @@ static WebCore::FloatQuad inflateQuad(const WebCore::FloatQuad& quad, float infl
 
 #if ENABLE(IOS_TOUCH_EVENTS)
 
-- (void)_doneDeferringNativeGestures:(BOOL)preventNativeGestures
+- (NSArray<WKDeferringGestureRecognizer *> *)_deferringGestureRecognizers
 {
-    [_deferringGestureRecognizerForImmediatelyResettableGestures setDefaultPrevented:preventNativeGestures];
-    [_deferringGestureRecognizerForDelayedResettableGestures setDefaultPrevented:preventNativeGestures];
+    WKDeferringGestureRecognizer *recognizers[3];
+    NSUInteger count = 0;
+    auto add = [&] (const RetainPtr<WKDeferringGestureRecognizer>& recognizer) {
+        if (recognizer)
+            recognizers[count++] = recognizer.get();
+    };
+    add(_deferringGestureRecognizerForImmediatelyResettableGestures);
+    add(_deferringGestureRecognizerForDelayedResettableGestures);
+    add(_deferringGestureRecognizerForSyntheticTapGestures);
+    return [NSArray arrayWithObjects:recognizers count:count];
 }
 
-#endif
+- (void)_doneDeferringNativeGestures:(BOOL)preventNativeGestures
+{
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers)
+        [gesture setDefaultPrevented:preventNativeGestures];
+}
+
+#endif // ENABLE(IOS_TOUCH_EVENTS)
 
 static NSValue *nsSizeForTapHighlightBorderRadius(WebCore::IntSize borderRadius, CGFloat borderRadiusScale)
 {
@@ -2041,11 +2062,10 @@ static Class tapAndAHalfRecognizerClass()
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer*)otherGestureRecognizer
 {
 #if ENABLE(IOS_TOUCH_EVENTS)
-    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _touchEventGestureRecognizer.get(), _deferringGestureRecognizerForImmediatelyResettableGestures.get()))
-        return YES;
-
-    if (isSamePair(gestureRecognizer, otherGestureRecognizer, _touchEventGestureRecognizer.get(), _deferringGestureRecognizerForDelayedResettableGestures.get()))
-        return YES;
+    for (WKDeferringGestureRecognizer *gesture in self._deferringGestureRecognizers) {
+        if (isSamePair(gestureRecognizer, otherGestureRecognizer, _touchEventGestureRecognizer.get(), gesture))
+            return YES;
+    }
 #endif
 
     if ([gestureRecognizer isKindOfClass:WKDeferringGestureRecognizer.class] && [otherGestureRecognizer isKindOfClass:WKDeferringGestureRecognizer.class])
@@ -2148,9 +2168,14 @@ static Class tapAndAHalfRecognizerClass()
     [_actionSheetAssistant showLinkSheet];
 }
 
-- (void)_showDataDetectorsSheet
+- (void)_showDataDetectorsUI
 {
-    [_actionSheetAssistant showDataDetectorsSheet];
+    [self _showDataDetectorsUIForPositionInformation:_positionInformation];
+}
+
+- (void)_showDataDetectorsUIForPositionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation
+{
+    [_actionSheetAssistant showDataDetectorsUIForPositionInformation:positionInformation];
 }
 
 - (SEL)_actionForLongPressFromPositionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation
@@ -2167,7 +2192,7 @@ static Class tapAndAHalfRecognizerClass()
     if (positionInformation.isLink) {
 #if ENABLE(DATA_DETECTION)
         if (WebCore::DataDetection::canBePresentedByDataDetectors(positionInformation.url))
-            return @selector(_showDataDetectorsSheet);
+            return @selector(_showDataDetectorsUI);
 #endif
         return @selector(_showLinkSheet);
     }
@@ -2180,11 +2205,6 @@ static Class tapAndAHalfRecognizerClass()
 - (SEL)_actionForLongPress
 {
     return [self _actionForLongPressFromPositionInformation:_positionInformation];
-}
-
-- (WebKit::InteractionInformationAtPosition)currentPositionInformation
-{
-    return _positionInformation;
 }
 
 - (void)doAfterPositionInformationUpdate:(void (^)(WebKit::InteractionInformationAtPosition))action forRequest:(WebKit::InteractionInformationRequest)request
@@ -2722,15 +2742,6 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 - (void)_didNotHandleTapAsClick:(const WebCore::IntPoint&)point
 {
     [self _resetInputViewDeferral];
-
-    // FIXME: we should also take into account whether or not the UI delegate
-    // has handled this notification.
-#if ENABLE(DATA_DETECTION)
-    if (_hasValidPositionInformation && point == _positionInformation.request.point && _positionInformation.isDataDetectorLink) {
-        [self _showDataDetectorsSheet];
-        return;
-    }
-#endif
 
     if (!_isDoubleTapPending)
         return;
@@ -6904,7 +6915,7 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
     _page->stopInteraction();
 }
 
-- (NSDictionary *)dataDetectionContextForPositionInformation:(WebKit::InteractionInformationAtPosition)positionInformation
+- (NSDictionary *)dataDetectionContextForPositionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation
 {
     RetainPtr<NSMutableDictionary> context;
     id <WKUIDelegatePrivate> uiDelegate = static_cast<id <WKUIDelegatePrivate>>([_webView UIDelegate]);
@@ -6933,9 +6944,9 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
 #endif
 }
 
-- (NSDictionary *)dataDetectionContextForActionSheetAssistant:(WKActionSheetAssistant *)assistant
+- (NSDictionary *)dataDetectionContextForActionSheetAssistant:(WKActionSheetAssistant *)assistant positionInformation:(const WebKit::InteractionInformationAtPosition&)positionInformation
 {
-    return [self dataDetectionContextForPositionInformation:assistant.currentPositionInformation.valueOr(_positionInformation)];
+    return [self dataDetectionContextForPositionInformation:positionInformation];
 }
 
 - (NSString *)selectedTextForActionSheetAssistant:(WKActionSheetAssistant *)assistant
@@ -6952,11 +6963,6 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
         }];
     } else
         completion(nil, nil);
-}
-
-- (CGPoint)contextMenuPresentationLocationForActionSheetAssistant:(WKActionSheetAssistant *)assistant
-{
-    return [self lastInteractionLocation];
 }
 
 #if USE(UICONTEXTMENU)
@@ -7113,6 +7119,9 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
 
         return NO;
     };
+
+    if (gestureRecognizer == _doubleTapGestureRecognizer || gestureRecognizer == _singleTapGestureRecognizer)
+        return deferringGestureRecognizer == _deferringGestureRecognizerForSyntheticTapGestures;
 
     if (mayDelayResetOfContainingSubgraph(gestureRecognizer))
         return deferringGestureRecognizer == _deferringGestureRecognizerForDelayedResettableGestures;
@@ -7676,16 +7685,21 @@ static RetainPtr<UITargetedPreview> createFallbackTargetedPreview(UIView *rootVi
 
 - (void)_removeContextMenuViewIfPossible
 {
+#if HAVE(LINK_PREVIEW)
     // If a new _contextMenuElementInfo is installed, we've started another interaction,
     // and removing the hint container view will cause the animation to break.
     if (_contextMenuElementInfo)
         return;
-    // We are also using this container for the file upload panel...
-    if (_fileUploadPanel)
-        return;
-    // and the action sheet assistant.
+#endif
+#if ENABLE(DATA_DETECTION)
+    // We are also using this container for the action sheet assistant...
     if ([_actionSheetAssistant hasContextMenuInteraction])
         return;
+#endif
+    // and for the file upload panel.
+    if (_fileUploadPanel)
+        return;
+    
     [std::exchange(_contextMenuHintContainerView, nil) removeFromSuperview];
 }
 
@@ -8445,6 +8459,15 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
         return YES;
     }();
 
+    switch (_mouseEventPolicy) {
+    case WebCore::MouseEventPolicy::Default:
+        break;
+#if ENABLE(IOS_TOUCH_EVENTS)
+    case WebCore::MouseEventPolicy::SynthesizeTouchEvents:
+        return NO;
+#endif
+    }
+
     return shouldUseMouseGestureRecognizer;
 }
 
@@ -8452,7 +8475,7 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 {
     _mouseGestureRecognizer = adoptNS([[WKMouseGestureRecognizer alloc] initWithTarget:self action:@selector(mouseGestureRecognizerChanged:)]);
     [_mouseGestureRecognizer setDelegate:self];
-    [_mouseGestureRecognizer setEnabled:[self shouldUseMouseGestureRecognizer]];
+    [self _configureMouseGestureRecognizer];
     [self addGestureRecognizer:_mouseGestureRecognizer.get()];
 }
 
@@ -8469,6 +8492,17 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
         _layerTreeTransactionIdAtLastInteractionStart = downcast<WebKit::RemoteLayerTreeDrawingAreaProxy>(*_page->drawingArea()).lastCommittedLayerTreeTransactionID();
 
     _page->handleMouseEvent(*event);
+}
+
+- (void)_configureMouseGestureRecognizer
+{
+    [_mouseGestureRecognizer setEnabled:[self shouldUseMouseGestureRecognizer]];
+}
+
+- (void)_setMouseEventPolicy:(WebCore::MouseEventPolicy)policy
+{
+    _mouseEventPolicy = policy;
+    [self _configureMouseGestureRecognizer];
 }
 
 #endif // HAVE(UIKIT_WITH_MOUSE_SUPPORT)
@@ -8577,6 +8611,61 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
 #endif // HAVE(UI_CURSOR_INTERACTION)
 
+#if ENABLE(ATTACHMENT_ELEMENT)
+
+static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& page, const WebCore::PromisedAttachmentInfo& info)
+{
+    auto numberOfAdditionalTypes = info.additionalTypes.size();
+    ASSERT(numberOfAdditionalTypes == info.additionalData.size());
+
+    auto attachment = page.attachmentForIdentifier(info.attachmentIdentifier);
+    if (!attachment)
+        return { };
+
+    NSString *utiType = attachment->utiType();
+    if (![utiType length])
+        return { };
+
+    auto fileWrapper = retainPtr(attachment->fileWrapper());
+    if (!fileWrapper)
+        return { };
+
+    auto item = adoptNS([[NSItemProvider alloc] init]);
+    [item setPreferredPresentationStyle:UIPreferredPresentationStyleAttachment];
+
+    NSString *fileName = attachment->fileName();
+    if ([fileName length])
+        [item setSuggestedName:fileName];
+
+    if (numberOfAdditionalTypes == info.additionalData.size() && numberOfAdditionalTypes) {
+        for (size_t index = 0; index < numberOfAdditionalTypes; ++index) {
+            auto nsData = info.additionalData[index]->createNSData();
+            [item registerDataRepresentationForTypeIdentifier:info.additionalTypes[index] visibility:NSItemProviderRepresentationVisibilityAll loadHandler:[nsData](void (^completionHandler)(NSData *, NSError *)) -> NSProgress * {
+                completionHandler(nsData.get(), nil);
+                return nil;
+            }];
+        }
+    }
+
+    [item registerDataRepresentationForTypeIdentifier:utiType visibility:NSItemProviderRepresentationVisibilityAll loadHandler:[fileWrapper](void (^completionHandler)(NSData *, NSError *)) -> NSProgress * {
+        if (auto nsData = retainPtr([fileWrapper serializedRepresentation]))
+            completionHandler(nsData.get(), nil);
+        else
+            completionHandler(nil, [NSError errorWithDomain:WKErrorDomain code:WKErrorUnknown userInfo:nil]);
+        return nil;
+    }];
+
+    return item;
+}
+
+- (void)_writePromisedAttachmentToPasteboard:(WebCore::PromisedAttachmentInfo&&)info
+{
+    if (auto item = createItemProvider(*_page, WTFMove(info)))
+        UIPasteboard.generalPasteboard.itemProviders = @[ item.get() ];
+}
+
+#endif // ENABLE(ATTACHMENT_ELEMENT)
+
 @end
 
 @implementation WKContentView (WKTesting)
@@ -8617,6 +8706,16 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 #else
     [self insertText:text];
 #endif
+}
+
+- (void)_simulateElementAction:(_WKElementActionType)actionType atLocation:(CGPoint)location
+{
+    RetainPtr<WKContentView> protectedSelf = self;
+    [self doAfterPositionInformationUpdate:[actionType, protectedSelf] (WebKit::InteractionInformationAtPosition info) {
+        _WKElementAction *action = [_WKElementAction _elementActionWithType:actionType assistant:protectedSelf->_actionSheetAssistant.get()];
+        _WKActivatedElementInfo *elementInfo = [_WKActivatedElementInfo activatedElementInfoWithInteractionInformationAtPosition:info userInfo:nil];
+        [action runActionWithElementInfo:elementInfo];
+    } forRequest:WebKit::InteractionInformationRequest(WebCore::roundedIntPoint(location))];
 }
 
 - (void)_simulateLongPressActionAtLocation:(CGPoint)location
@@ -9206,13 +9305,11 @@ static UIMenu *menuFromLegacyPreviewOrDefaultActions(UIViewController *previewVi
 
 - (NSArray<UIMenuElement *> *)_contextMenuInteraction:(UIContextMenuInteraction *)interaction overrideSuggestedActionsForConfiguration:(UIContextMenuConfiguration *)configuration
 {
-    if (_contextMenuActionProviderDelegateNeedsOverride) {
-        auto elementInfo = adoptNS([[_WKActivatedElementInfo alloc] _initWithInteractionInformationAtPosition:_positionInformation userInfo:nil]);
-        RetainPtr<NSArray<_WKElementAction *>> defaultActionsFromAssistant = _positionInformation.isLink ? [_actionSheetAssistant defaultActionsForLinkSheet:elementInfo.get()] : [_actionSheetAssistant defaultActionsForImageSheet:elementInfo.get()];
-        return menuElementsFromDefaultActions(defaultActionsFromAssistant, elementInfo);
-    }
     // If we're here we're in the legacy path, which ignores the suggested actions anyway.
-    return nil;
+    if (!_contextMenuActionProviderDelegateNeedsOverride)
+        return nil;
+
+    return [_actionSheetAssistant suggestedActionsForContextMenuWithPositionInformation:_positionInformation];
 }
 
 - (UITargetedPreview *)contextMenuInteraction:(UIContextMenuInteraction *)interaction previewForHighlightingMenuWithConfiguration:(UIContextMenuConfiguration *)configuration

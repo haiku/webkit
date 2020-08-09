@@ -272,6 +272,8 @@ public:
 
     virtual void webAppOrientationsUpdated() = 0;
     virtual void showPlaybackTargetPicker(bool hasVideo, RouteSharingPolicy, const String&) = 0;
+
+    virtual bool showDataDetectorsUIForElement(const Element&, const Event&) = 0;
 #endif
 
 #if ENABLE(ORIENTATION_EVENTS)
@@ -527,6 +529,8 @@ public:
 #if ENABLE(WEB_AUTHN)
     virtual void setMockWebAuthenticationConfiguration(const MockWebAuthenticationConfiguration&) { }
 #endif
+
+    virtual void animationDidFinishForElement(const Element&) { }
 
 protected:
     virtual ~ChromeClient() = default;

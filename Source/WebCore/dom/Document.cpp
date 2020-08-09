@@ -233,6 +233,7 @@
 #include "VisitedLinkState.h"
 #include "VisualViewport.h"
 #include "WebAnimation.h"
+#include "WebAnimationUtilities.h"
 #include "WheelEvent.h"
 #include "WindowEventLoop.h"
 #include "WindowFeatures.h"
@@ -1749,16 +1750,9 @@ void Document::visibilityStateChanged()
     for (auto* client : m_visibilityStateCallbackClients)
         client->visibilityStateChanged();
 
-#if ENABLE(MEDIA_STREAM)
-    auto* page = this->page();
-    if (page && hidden()) {
-        RealtimeMediaSourceCenter::singleton().setCapturePageState(true, page->isMediaCaptureMuted());
-        return;
-    }
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(MEDIA_STREAM) && PLATFORM(IOS_FAMILY)
     if (!PlatformMediaSessionManager::sharedManager().isInterrupted())
         MediaStreamTrack::updateCaptureAccordingToMutedState(*this);
-#endif
 #endif
 }
 
@@ -2596,8 +2590,8 @@ void Document::willBeRemovedFromFrame()
         page()->updateIsPlayingMedia(HTMLMediaElementInvalidID);
     }
 
-    editor().clear();
     selection().willBeRemovedFromFrame();
+    editor().clear();
     detachFromFrame();
 
 #if ENABLE(CSS_PAINTING_API)
@@ -4353,7 +4347,7 @@ bool Document::setFocusedElement(Element* element, FocusDirection direction, Foc
         }
 
         if (oldFocusedElement->isRootEditableElement())
-            frame()->editor().didEndEditing();
+            editor().didEndEditing();
 
         if (view()) {
             if (Widget* oldWidget = widgetForElement(oldFocusedElement.get()))
@@ -4418,7 +4412,7 @@ bool Document::setFocusedElement(Element* element, FocusDirection direction, Foc
         }
 
         if (m_focusedElement->isRootEditableElement())
-            frame()->editor().didBeginEditing();
+            editor().didBeginEditing();
 
         // eww, I suck. set the qt focus correctly
         // ### find a better place in the code for this
@@ -5396,7 +5390,6 @@ void Document::resume(ReasonForSuspension reason)
     page()->lockAllOverlayScrollbarsToHidden(false);
 
     ASSERT(m_frame);
-    m_frame->loader().client().dispatchDidBecomeFrameset(isFrameSet());
 
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
         if (m_timelinesController)
@@ -8135,18 +8128,20 @@ Vector<RefPtr<WebAnimation>> Document::matchingAnimations(const WTF::Function<bo
     // such as updates to CSS Animations and CSS Transitions.
     updateStyleIfNeeded();
 
-    if (!m_timeline)
-        return { };
-
     Vector<RefPtr<WebAnimation>> animations;
-    for (auto& animation : m_timeline->getAnimations()) {
-        auto* effect = animation->effect();
-        ASSERT(is<KeyframeEffect>(animation->effect()));
-        auto* target = downcast<KeyframeEffect>(*effect).targetElementOrPseudoElement();
-        ASSERT(target);
-        if (function(*target))
+    for (auto* animation : WebAnimation::instances()) {
+        if (!animation || !animation->isRelevant() || !is<KeyframeEffect>(animation->effect()))
+            continue;
+
+        auto* target = downcast<KeyframeEffect>(*animation->effect()).targetElementOrPseudoElement();
+        if (target && target->isConnected() && &target->document() == this && function(*target))
             animations.append(animation);
     }
+
+    std::stable_sort(animations.begin(), animations.end(), [](auto& lhs, auto& rhs) {
+        return compareAnimationsByCompositeOrder(*lhs, *rhs);
+    });
+
     return animations;
 }
 
@@ -8154,8 +8149,9 @@ Vector<RefPtr<WebAnimation>> Document::matchingAnimations(const WTF::Function<bo
 
 void Document::registerAttachmentIdentifier(const String& identifier)
 {
-    if (auto* frame = this->frame())
-        frame->editor().registerAttachmentIdentifier(identifier);
+    // FIXME: Can this null check for Frame be removed?
+    if (frame())
+        editor().registerAttachmentIdentifier(identifier);
 }
 
 void Document::didInsertAttachmentElement(HTMLAttachmentElement& attachment)
@@ -8171,10 +8167,11 @@ void Document::didInsertAttachmentElement(HTMLAttachmentElement& attachment)
 
     m_attachmentIdentifierToElementMap.set(identifier, attachment);
 
-    if (auto* frame = this->frame()) {
+    // FIXME: Can this null check for Frame be removed?
+    if (frame()) {
         if (previousIdentifierIsNotUnique)
-            frame->editor().cloneAttachmentData(previousIdentifier, identifier);
-        frame->editor().didInsertAttachmentElement(attachment);
+            editor().cloneAttachmentData(previousIdentifier, identifier);
+        editor().didInsertAttachmentElement(attachment);
     }
 }
 
@@ -8186,8 +8183,9 @@ void Document::didRemoveAttachmentElement(HTMLAttachmentElement& attachment)
 
     m_attachmentIdentifierToElementMap.remove(identifier);
 
+    // FIXME: Can this null check for Frame be removed?
     if (frame())
-        frame()->editor().didRemoveAttachmentElement(attachment);
+        editor().didRemoveAttachmentElement(attachment);
 }
 
 RefPtr<HTMLAttachmentElement> Document::attachmentForIdentifier(const String& identifier) const

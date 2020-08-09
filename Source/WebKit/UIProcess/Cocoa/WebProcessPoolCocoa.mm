@@ -51,7 +51,6 @@
 #import <WebCore/AGXCompilerService.h>
 #import <WebCore/Color.h>
 #import <WebCore/LocalizedDeviceModel.h>
-#import <WebCore/MIMETypeRegistry.h>
 #import <WebCore/NetworkStorageSession.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PictureInPictureSupport.h>
@@ -84,9 +83,12 @@
 #import <pal/spi/ios/ManagedConfigurationSPI.h>
 #endif
 
+#if PLATFORM(IOS_FAMILY)
+#import <pal/spi/ios/MobileGestaltSPI.h>
+#endif
+
 #if PLATFORM(IOS)
 #import <pal/spi/cocoa/WebFilterEvaluatorSPI.h>
-#import <pal/spi/ios/MobileGestaltSPI.h>
 
 SOFT_LINK_PRIVATE_FRAMEWORK(WebContentAnalysis);
 SOFT_LINK_CLASS(WebContentAnalysis, WebFilterEvaluator);
@@ -414,7 +416,6 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         parameters.neSessionManagerExtensionHandle = WTFMove(managerHandle);
     }
     parameters.systemHasBattery = systemHasBattery();
-    parameters.mimeTypesMap = commonMimeTypesMap();
 
     SandboxExtension::Handle mapDBHandle;
     if (SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb", WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport))
@@ -478,6 +479,11 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         } else
             parameters.encodedGlobalPreferences = String([data base64EncodedStringWithOptions:0]);
     }
+#endif
+
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
+    if (!_MGCacheValid())
+        [adoptNS([[objc_getClass("MobileGestaltHelperProxy") alloc] init]) proxyRebuildCache];
 #endif
 }
 

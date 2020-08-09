@@ -59,21 +59,21 @@ public:
     virtual void dump(PrintStream&) const = 0;
 };
 
-class StringFireDetail : public FireDetail {
+class StringFireDetail final : public FireDetail {
 public:
     StringFireDetail(const char* string)
         : m_string(string)
     {
     }
     
-    void dump(PrintStream& out) const override;
+    void dump(PrintStream& out) const final;
 
 private:
     const char* m_string;
 };
 
 template<typename... Types>
-class LazyFireDetail : public FireDetail {
+class LazyFireDetail final : public FireDetail {
 public:
     LazyFireDetail(const Types&... args)
     {
@@ -82,7 +82,7 @@ public:
         });
     }
 
-    void dump(PrintStream& out) const override { m_lambda(out); }
+    void dump(PrintStream& out) const final { m_lambda(out); }
 
 private:
     ScopedLambda<void(PrintStream&)> m_lambda;
@@ -535,7 +535,7 @@ class DeferredWatchpointFire : public FireDetail {
     WTF_MAKE_NONCOPYABLE(DeferredWatchpointFire);
 public:
     JS_EXPORT_PRIVATE DeferredWatchpointFire(VM&);
-    JS_EXPORT_PRIVATE ~DeferredWatchpointFire();
+    JS_EXPORT_PRIVATE ~DeferredWatchpointFire() override;
 
     JS_EXPORT_PRIVATE void takeWatchpointsToFire(WatchpointSet*);
     JS_EXPORT_PRIVATE void fireAll();

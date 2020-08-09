@@ -213,8 +213,6 @@ private:
 
     void didRestoreFromBackForwardCache() final;
 
-    void dispatchDidBecomeFrameset(bool) final;
-
     bool canCachePage() const final;
     void convertMainResourceLoadToDownload(WebCore::DocumentLoader*, const WebCore::ResourceRequest&, const WebCore::ResourceResponse&) final;
 
@@ -292,8 +290,8 @@ private:
     Optional<FrameSpecificStorageAccessIdentifier> m_frameSpecificStorageAccessIdentifier;
 #endif
 
-    bool hasNavigatedAwayFromAppBoundDomain() final;
-    bool needsInAppBrowserPrivacyQuirks() const final;
+    bool shouldEnableInAppBrowserPrivacyProtections() const final;
+    void notifyPageOfAppBoundBehavior() final;
 };
 
 // As long as EmptyFrameLoaderClient exists in WebCore, this can return 0.

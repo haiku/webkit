@@ -229,6 +229,29 @@ void EventRegion::uniteEventListeners(const Region& region, OptionSet<EventListe
         m_nonPassiveWheelEventListenerRegion.unite(region);
 }
 
+OptionSet<EventListenerRegionType> EventRegion::eventListenerRegionTypesForPoint(const IntPoint& point) const
+{
+    OptionSet<EventListenerRegionType> regionTypes;
+    if (m_wheelEventListenerRegion.contains(point))
+        regionTypes.add(EventListenerRegionType::Wheel);
+    if (m_nonPassiveWheelEventListenerRegion.contains(point))
+        regionTypes.add(EventListenerRegionType::NonPassiveWheel);
+
+    return regionTypes;
+}
+
+const Region& EventRegion::eventListenerRegionForType(EventListenerRegionType type) const
+{
+    switch (type) {
+    case EventListenerRegionType::Wheel:
+        return m_wheelEventListenerRegion;
+    case EventListenerRegionType::NonPassiveWheel:
+        return m_nonPassiveWheelEventListenerRegion;
+    }
+    ASSERT_NOT_REACHED();
+    return m_wheelEventListenerRegion;
+}
+
 #if ENABLE(EDITABLE_REGION)
 
 bool EventRegion::containsEditableElementsInRect(const IntRect& rect) const

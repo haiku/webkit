@@ -62,6 +62,7 @@
 #import <WebKitAdditions/NetworkSessionCocoaAdditions.h>
 #else
 #define NETWORK_SESSION_COCOA_ADDITIONS_1
+#define NETWORK_SESSION_COCOA_ADDITIONS_2 true
 #endif
 
 #import "DeviceManagementSoftLink.h"
@@ -780,6 +781,7 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
         NSTimeInterval responseEndInterval = [m.responseEndDate timeIntervalSinceDate:fetchStartDate];
 
         auto& networkLoadMetrics = networkDataTask->networkLoadMetrics();
+        networkLoadMetrics.fetchStart = Seconds(fetchStartDate.timeIntervalSince1970);
         networkLoadMetrics.domainLookupStart = Seconds(domainLookupStartInterval);
         networkLoadMetrics.domainLookupEnd = Seconds(domainLookupEndInterval);
         networkLoadMetrics.connectStart = Seconds(connectStartInterval);
@@ -1260,6 +1262,8 @@ void NetworkSessionCocoa::initializeEphemeralStatelessSession(NavigatingToAppBou
 SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::ResourceRequest& request, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
     auto shouldBeConsideredAppBound = isNavigatingToAppBoundDomain ? *isNavigatingToAppBoundDomain : NavigatingToAppBoundDomain::Yes;
+    if (NETWORK_SESSION_COCOA_ADDITIONS_2)
+        shouldBeConsideredAppBound = NavigatingToAppBoundDomain::No;
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     if (auto* storageSession = networkStorageSession()) {
         auto firstParty = WebCore::RegistrableDomain(request.firstPartyForCookies());

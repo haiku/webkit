@@ -594,6 +594,28 @@ void RenderLayerBacking::destroyGraphicsLayers()
     GraphicsLayer::unparentAndClear(m_graphicsLayer);
 }
 
+static LayoutRect scrollContainerLayerBox(const RenderBox& renderBox)
+{
+    return renderBox.paddingBoxRect();
+}
+
+static LayoutRect clippingLayerBox(const RenderBox& renderBox)
+{
+    LayoutRect result = LayoutRect::infiniteRect();
+    if (renderBox.hasOverflowClip())
+        result = renderBox.overflowClipRect({ }, 0); // FIXME: Incorrect for CSS regions.
+
+    if (renderBox.hasClip())
+        result.intersect(renderBox.clipRect({ }, 0)); // FIXME: Incorrect for CSS regions.
+
+    return result;
+}
+
+static LayoutRect overflowControlsHostLayerBox(const RenderBox& renderBox)
+{
+    return renderBox.paddingBoxRectIncludingScrollbar();
+}
+
 void RenderLayerBacking::updateOpacity(const RenderStyle& style)
 {
     m_graphicsLayer->setOpacity(compositingOpacity(style.opacity()));
@@ -615,6 +637,77 @@ void RenderLayerBacking::updateTransform(const RenderStyle& style)
         m_graphicsLayer->setTransform({ });
     } else
         m_graphicsLayer->setTransform(t);
+}
+
+void RenderLayerBacking::updateChildrenTransformAndAnchorPoint(const LayoutRect& primaryGraphicsLayerRect, LayoutSize offsetFromParentGraphicsLayer)
+{
+    if (!renderer().hasTransformRelatedProperty()) {
+        auto defaultAnchorPoint = FloatPoint3D { 0.5, 0.5, 0 };
+        m_graphicsLayer->setAnchorPoint(defaultAnchorPoint);
+        if (m_contentsContainmentLayer)
+            m_contentsContainmentLayer->setAnchorPoint(defaultAnchorPoint);
+
+        if (m_scrolledContentsLayer)
+            m_scrolledContentsLayer->setPreserves3D(false);
+        return;
+    }
+
+    auto& renderBox = downcast<RenderBox>(renderer());
+    const auto deviceScaleFactor = this->deviceScaleFactor();
+    auto borderBoxRect = renderBox.borderBoxRect();
+    auto transformOrigin = computeTransformOriginForPainting(borderBoxRect);
+    auto layerOffset = roundPointToDevicePixels(toLayoutPoint(offsetFromParentGraphicsLayer), deviceScaleFactor);
+    auto anchor = FloatPoint3D {
+        primaryGraphicsLayerRect.width() ? ((layerOffset.x() - primaryGraphicsLayerRect.x()) + transformOrigin.x()) / primaryGraphicsLayerRect.width() : 0.5f,
+        primaryGraphicsLayerRect.height() ? ((layerOffset.y() - primaryGraphicsLayerRect.y())+ transformOrigin.y()) / primaryGraphicsLayerRect.height() : 0.5f,
+        transformOrigin.z()
+    };
+
+    if (m_contentsContainmentLayer)
+        m_contentsContainmentLayer->setAnchorPoint(anchor);
+    else
+        m_graphicsLayer->setAnchorPoint(anchor);
+
+    auto removeChildrenTransformFromLayers = [&](GraphicsLayer* layerToIgnore = nullptr) {
+        auto* clippingLayer = this->clippingLayer();
+        if (clippingLayer && clippingLayer != layerToIgnore)
+            clippingLayer->setChildrenTransform({ });
+        
+        if (m_scrollContainerLayer && m_scrollContainerLayer != layerToIgnore) {
+            m_scrollContainerLayer->setChildrenTransform({ });
+            m_scrolledContentsLayer->setPreserves3D(false);
+        }
+
+        if (m_graphicsLayer != layerToIgnore)
+            m_graphicsLayer->setChildrenTransform({ });
+    };
+
+    if (!renderer().style().hasPerspective()) {
+        removeChildrenTransformFromLayers();
+        return;
+    }
+
+    auto layerForChildrenTransform = [&] {
+        if (m_scrollContainerLayer)
+            return std::make_tuple(m_scrollContainerLayer.get(), scrollContainerLayerBox(renderBox));
+
+        if (auto* layer = clippingLayer())
+            return std::make_tuple(layer, clippingLayerBox(renderBox));
+
+        return std::make_tuple(m_graphicsLayer.get(), borderBoxRect);
+    };
+
+    auto [layerForPerspective, perspectiveRelativeBox] = layerForChildrenTransform();
+    // FIXME: perspectiveRelativeBox isn't quite right here. This needs work: webkit.org/b/211787.
+    auto perspectiveTransform = owningLayer().perspectiveTransform(perspectiveRelativeBox);
+    
+    // If we have scrolling layers, we need the children transform on m_scrollContainerLayer to
+    // affect children of m_scrolledContentsLayer, so set setPreserves3D(true).
+    if (layerForPerspective == m_scrollContainerLayer)
+        m_scrolledContentsLayer->setPreserves3D(true);
+    
+    layerForPerspective->setChildrenTransform(perspectiveTransform);
+    removeChildrenTransformFromLayers(layerForPerspective);
 }
 
 void RenderLayerBacking::updateFilters(const RenderStyle& style)
@@ -1040,7 +1133,7 @@ static LayoutSize computeOffsetFromAncestorGraphicsLayer(const RenderLayer* comp
     if (!compositedAncestor)
         return toLayoutSize(location);
 
-    // FIXME: This is a workaround until after webkit.org/162634 gets fixed. ancestorSubpixelOffsetFromRenderer
+    // FIXME: This is a workaround until after webkit.org/b/162634 gets fixed. ancestorSubpixelOffsetFromRenderer
     // could be stale when a dynamic composited state change triggers a pre-order updateGeometry() traversal.
     LayoutSize ancestorSubpixelOffsetFromRenderer = compositedAncestor->backing()->subpixelOffsetFromRenderer();
     LayoutRect ancestorCompositedBounds = compositedAncestor->backing()->compositedBounds();
@@ -1105,28 +1198,6 @@ LayoutRect RenderLayerBacking::computePrimaryGraphicsLayerRect(const RenderLayer
         deviceScaleFactor()));
 }
 
-static LayoutRect scrollContainerLayerBox(const RenderBox& renderBox)
-{
-    return renderBox.paddingBoxRect();
-}
-
-static LayoutRect clippingLayerBox(const RenderBox& renderBox)
-{
-    LayoutRect result = LayoutRect::infiniteRect();
-    if (renderBox.hasOverflowClip())
-        result = renderBox.overflowClipRect({ }, 0); // FIXME: Incorrect for CSS regions.
-
-    if (renderBox.hasClip())
-        result.intersect(renderBox.clipRect({ }, 0)); // FIXME: Incorrect for CSS regions.
-
-    return result;
-}
-
-static LayoutRect overflowControlsHostLayerBox(const RenderBox& renderBox)
-{
-    return renderBox.paddingBoxRectIncludingScrollbar();
-}
-
 // FIXME: See if we need this now that updateGeometry() is always called in post-order traversal.
 LayoutRect RenderLayerBacking::computeParentGraphicsLayerRect(const RenderLayer* compositedAncestor) const
 {
@@ -1172,6 +1243,7 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
     ASSERT(!renderer().view().needsLayout());
 
     const RenderStyle& style = renderer().style();
+    const auto deviceScaleFactor = this->deviceScaleFactor();
 
     bool isRunningAcceleratedTransformAnimation = false;
     if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
@@ -1200,8 +1272,8 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
 
         for (auto& entry : m_ancestorClippingStack->stack()) {
             auto clipRect = entry.clipData.clipRect;
-            LayoutSize clippingOffset = computeOffsetFromAncestorGraphicsLayer(compositedAncestor, clipRect.location() + offsetFromCompositedAncestor, deviceScaleFactor());
-            LayoutRect snappedClippingLayerRect = snappedGraphicsLayer(clippingOffset, clipRect.size(), deviceScaleFactor()).m_snappedRect;
+            LayoutSize clippingOffset = computeOffsetFromAncestorGraphicsLayer(compositedAncestor, clipRect.location() + offsetFromCompositedAncestor, deviceScaleFactor);
+            LayoutRect snappedClippingLayerRect = snappedGraphicsLayer(clippingOffset, clipRect.size(), deviceScaleFactor).m_snappedRect;
 
             entry.clippingLayer->setPosition(toLayoutPoint(snappedClippingLayerRect.location() - lastClipLayerRect.location()));
             lastClipLayerRect = snappedClippingLayerRect;
@@ -1256,7 +1328,7 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
     // the same as the ancestor graphics layer.
     OffsetFromRenderer primaryGraphicsLayerOffsetFromRenderer;
     LayoutSize oldSubpixelOffsetFromRenderer = m_subpixelOffsetFromRenderer;
-    primaryGraphicsLayerOffsetFromRenderer = computeOffsetFromRenderer(-rendererOffset.fromPrimaryGraphicsLayer(), deviceScaleFactor());
+    primaryGraphicsLayerOffsetFromRenderer = computeOffsetFromRenderer(-rendererOffset.fromPrimaryGraphicsLayer(), deviceScaleFactor);
     m_subpixelOffsetFromRenderer = primaryGraphicsLayerOffsetFromRenderer.m_subpixelOffset;
     m_hasSubpixelRounding = !m_subpixelOffsetFromRenderer.isZero() || compositedBounds().size() != primaryGraphicsLayerRect.size();
 
@@ -1271,13 +1343,13 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
         clippingBox = clippingLayerBox(renderBox);
         // Clipping layer is parented in the primary graphics layer.
         LayoutSize clipBoxOffsetFromGraphicsLayer = toLayoutSize(clippingBox.location()) + rendererOffset.fromPrimaryGraphicsLayer();
-        SnappedRectInfo snappedClippingGraphicsLayer = snappedGraphicsLayer(clipBoxOffsetFromGraphicsLayer, clippingBox.size(), deviceScaleFactor());
+        SnappedRectInfo snappedClippingGraphicsLayer = snappedGraphicsLayer(clipBoxOffsetFromGraphicsLayer, clippingBox.size(), deviceScaleFactor);
         clipLayer->setPosition(snappedClippingGraphicsLayer.m_snappedRect.location());
         clipLayer->setSize(snappedClippingGraphicsLayer.m_snappedRect.size());
         clipLayer->setOffsetFromRenderer(toLayoutSize(clippingBox.location() - snappedClippingGraphicsLayer.m_snapDelta));
 
         if ((renderer().style().clipPath() || renderer().style().hasBorderRadius()) && !m_childClippingMaskLayer) {
-            FloatRoundedRect contentsClippingRect = renderBox.roundedBorderBoxRect().pixelSnappedRoundedRectForPainting(deviceScaleFactor());
+            FloatRoundedRect contentsClippingRect = renderBox.roundedBorderBoxRect().pixelSnappedRoundedRectForPainting(deviceScaleFactor);
             contentsClippingRect.move(LayoutSize(-clipLayer->offsetFromRenderer()));
             clipLayer->setMasksToBoundsRect(contentsClippingRect);
         }
@@ -1288,46 +1360,11 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
             m_childClippingMaskLayer->setOffsetFromRenderer(clipLayer->offsetFromRenderer());
         }
     }
-    
+
     if (m_maskLayer)
         updateMaskingLayerGeometry();
-    
-    if (renderer().hasTransformRelatedProperty()) {
-        // Update properties that depend on layer dimensions.
-        FloatPoint3D transformOrigin = computeTransformOriginForPainting(downcast<RenderBox>(renderer()).borderBoxRect());
-        FloatPoint layerOffset = roundPointToDevicePixels(toLayoutPoint(rendererOffset.fromParentGraphicsLayer()), deviceScaleFactor());
-        // Compute the anchor point, which is in the center of the renderer box unless transform-origin is set.
-        FloatPoint3D anchor(
-            primaryGraphicsLayerRect.width() ? ((layerOffset.x() - primaryGraphicsLayerRect.x()) + transformOrigin.x()) / primaryGraphicsLayerRect.width() : 0.5,
-            primaryGraphicsLayerRect.height() ? ((layerOffset.y() - primaryGraphicsLayerRect.y())+ transformOrigin.y()) / primaryGraphicsLayerRect.height() : 0.5,
-            transformOrigin.z());
 
-        if (m_contentsContainmentLayer)
-            m_contentsContainmentLayer->setAnchorPoint(anchor);
-        else
-            m_graphicsLayer->setAnchorPoint(anchor);
-
-        auto* clipLayer = clippingLayer();
-        if (style.hasPerspective()) {
-            TransformationMatrix t = owningLayer().perspectiveTransform();
-            
-            if (clipLayer) {
-                clipLayer->setChildrenTransform(t);
-                m_graphicsLayer->setChildrenTransform(TransformationMatrix());
-            }
-            else
-                m_graphicsLayer->setChildrenTransform(t);
-        } else {
-            if (clipLayer)
-                clipLayer->setChildrenTransform(TransformationMatrix());
-            else
-                m_graphicsLayer->setChildrenTransform(TransformationMatrix());
-        }
-    } else {
-        m_graphicsLayer->setAnchorPoint(FloatPoint3D(0.5, 0.5, 0));
-        if (m_contentsContainmentLayer)
-            m_contentsContainmentLayer->setAnchorPoint(FloatPoint3D(0.5, 0.5, 0));
-    }
+    updateChildrenTransformAndAnchorPoint(primaryGraphicsLayerRect, rendererOffset.fromParentGraphicsLayer());
 
     if (m_owningLayer.reflectionLayer() && m_owningLayer.reflectionLayer()->isComposited()) {
         auto* reflectionBacking = m_owningLayer.reflectionLayer()->backing();
@@ -1377,7 +1414,7 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
     if (m_overflowControlsContainer) {
         LayoutRect overflowControlsBox = overflowControlsHostLayerBox(downcast<RenderBox>(renderer()));
         LayoutSize boxOffsetFromGraphicsLayer = toLayoutSize(overflowControlsBox.location()) + rendererOffset.fromPrimaryGraphicsLayer();
-        SnappedRectInfo snappedBoxInfo = snappedGraphicsLayer(boxOffsetFromGraphicsLayer, overflowControlsBox.size(), deviceScaleFactor());
+        SnappedRectInfo snappedBoxInfo = snappedGraphicsLayer(boxOffsetFromGraphicsLayer, overflowControlsBox.size(), deviceScaleFactor);
 
         m_overflowControlsContainer->setPosition(snappedBoxInfo.m_snappedRect.location());
         m_overflowControlsContainer->setSize(snappedBoxInfo.m_snappedRect.size());
@@ -1434,7 +1471,7 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
 
     positionOverflowControlsLayers();
 
-    if (subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor()) && canIssueSetNeedsDisplay())
+    if (subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor) && canIssueSetNeedsDisplay())
         setContentsNeedDisplay();
 }
 
@@ -2721,11 +2758,9 @@ void RenderLayerBacking::updateImageContents(PaintedContentsInfo& contentsInfo)
 FloatPoint3D RenderLayerBacking::computeTransformOriginForPainting(const LayoutRect& borderBox) const
 {
     const RenderStyle& style = renderer().style();
-    float deviceScaleFactor = this->deviceScaleFactor();
 
     FloatPoint3D origin;
-    origin.setX(roundToDevicePixel(floatValueForLength(style.transformOriginX(), borderBox.width()), deviceScaleFactor));
-    origin.setY(roundToDevicePixel(floatValueForLength(style.transformOriginY(), borderBox.height()), deviceScaleFactor));
+    origin.setXY(roundPointToDevicePixels(pointForLengthPoint(style.transformOriginXY(), borderBox.size()), deviceScaleFactor()));
     origin.setZ(style.transformOriginZ());
 
     return origin;
@@ -3046,6 +3081,49 @@ OptionSet<RenderLayer::PaintLayerFlag> RenderLayerBacking::paintFlagsForLayer(co
     return paintFlags;
 }
 
+struct PatternDescription {
+    ASCIILiteral name;
+    FloatSize phase;
+    RGBA32 fillColor;
+};
+
+static RefPtr<Pattern> patternForDescription(PatternDescription description, FloatSize contentOffset, GraphicsContext& destContext)
+{
+    const FloatSize tileSize { 32, 18 };
+
+    auto imageBuffer = ImageBuffer::createCompatibleBuffer(tileSize, ColorSpace::SRGB, destContext);
+    if (!imageBuffer)
+        return nullptr;
+
+    {
+        GraphicsContext& imageContext = imageBuffer->context();
+
+        FontCascadeDescription fontDescription;
+        fontDescription.setOneFamily("Helvetica");
+        fontDescription.setSpecifiedSize(10);
+        fontDescription.setComputedSize(10);
+        fontDescription.setWeight(FontSelectionValue(500));
+        FontCascade font(WTFMove(fontDescription), 0, 0);
+        font.update(nullptr);
+
+        TextRun textRun = TextRun(description.name);
+        imageContext.setFillColor(description.fillColor);
+
+        constexpr float textGap = 4;
+        constexpr float yOffset = 12;
+        imageContext.drawText(font, textRun, { textGap, yOffset }, 0);
+    }
+
+    auto tileImage = ImageBuffer::sinkIntoImage(WTFMove(imageBuffer));
+    auto fillPattern = Pattern::create(tileImage.releaseNonNull(), true, true);
+    AffineTransform patternOffsetTransform;
+    patternOffsetTransform.translate(contentOffset + description.phase);
+    patternOffsetTransform.scale(1 / destContext.scaleFactor());
+    fillPattern->setPatternSpaceTransform(patternOffsetTransform);
+
+    return fillPattern;
+};
+
 static RefPtr<Pattern> patternForTouchAction(TouchAction touchAction, FloatSize contentOffset, GraphicsContext& destContext)
 {
     auto toIndex = [](TouchAction touchAction) -> unsigned {
@@ -3066,58 +3144,40 @@ static RefPtr<Pattern> patternForTouchAction(TouchAction touchAction, FloatSize 
         return 0;
     };
 
-    struct TouchActionAndRGB {
-        TouchAction action;
-        ASCIILiteral name;
-        FloatSize phase;
-    };
-    static const TouchActionAndRGB actionsAndColors[] = {
-        { TouchAction::Auto, "auto"_s, { } },
-        { TouchAction::None, "none"_s, { } },
-        { TouchAction::Manipulation, "manip"_s, { } },
-        { TouchAction::PanX, "pan-x"_s, { } },
-        { TouchAction::PanY, "pan-y"_s, { 0, 9 } },
-        { TouchAction::PinchZoom, "p-z"_s, { 16, 4.5 } },
+    constexpr auto fillColor = makeRGBA(0, 0, 0, 128);
+
+    static const PatternDescription patternDescriptions[] = {
+        { "auto"_s, { }, fillColor },
+        { "none"_s, { }, fillColor },
+        { "manip"_s, { }, fillColor },
+        { "pan-x"_s, { }, fillColor },
+        { "pan-y"_s, { 0, 9 }, fillColor },
+        { "p-z"_s, { 16, 4.5 }, fillColor },
     };
     
     auto actionIndex = toIndex(touchAction);
-    if (!actionIndex || actionIndex >= ARRAY_SIZE(actionsAndColors))
+    if (!actionIndex || actionIndex >= ARRAY_SIZE(patternDescriptions))
         return nullptr;
 
-    const FloatSize tileSize { 32, 18 };
+    return patternForDescription(patternDescriptions[actionIndex], contentOffset, destContext);
+}
 
-    auto imageBuffer = ImageBuffer::createCompatibleBuffer(tileSize, ColorSpace::SRGB, destContext);
-    if (!imageBuffer)
-        return nullptr;
+static RefPtr<Pattern> patternForEventListenerRegionType(EventListenerRegionType type, FloatSize contentOffset, GraphicsContext& destContext)
+{
+    constexpr auto fillColor = makeRGBA(0, 128, 0, 128);
 
-    const auto& touchActionData = actionsAndColors[actionIndex];
-    {
-        GraphicsContext& imageContext = imageBuffer->context();
+    auto patternAndPhase = [&]() -> PatternDescription {
+        switch (type) {
+        case EventListenerRegionType::Wheel:
+            return { "wheel"_s, { }, fillColor };
+        case EventListenerRegionType::NonPassiveWheel:
+            return { "sync"_s, { 0, 9 }, fillColor };
+        }
+        ASSERT_NOT_REACHED();
+        return { ""_s, { }, fillColor };
+    }();
 
-        FontCascadeDescription fontDescription;
-        fontDescription.setOneFamily("Helvetica");
-        fontDescription.setSpecifiedSize(10);
-        fontDescription.setComputedSize(10);
-        fontDescription.setWeight(FontSelectionValue(500));
-        FontCascade font(WTFMove(fontDescription), 0, 0);
-        font.update(nullptr);
-
-        TextRun textRun = TextRun(touchActionData.name);
-        imageContext.setFillColor(Color(0, 0, 0, 128));
-
-        constexpr float textGap = 4;
-        constexpr float yOffset = 12;
-        imageContext.drawText(font, textRun, { textGap, yOffset }, 0);
-    }
-
-    auto tileImage = ImageBuffer::sinkIntoImage(WTFMove(imageBuffer));
-    auto fillPattern = Pattern::create(tileImage.releaseNonNull(), true, true);
-    AffineTransform patternOffsetTransform;
-    patternOffsetTransform.translate(contentOffset + touchActionData.phase);
-    patternOffsetTransform.scale(1 / destContext.scaleFactor());
-    fillPattern->setPatternSpaceTransform(patternOffsetTransform);
-
-    return fillPattern;
+    return patternForDescription(patternAndPhase, contentOffset, destContext);
 }
 
 void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, GraphicsContext& context)
@@ -3161,6 +3221,17 @@ void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, 
 
             context.setFillPattern(fillPattern.releaseNonNull());
             for (auto rect : actionRegion->rects())
+                context.fillRect(rect);
+        }
+    }
+
+    if (visibleDebugOverlayRegions & WheelEventHandlerRegion) {
+        for (auto type : { EventListenerRegionType::Wheel, EventListenerRegionType::NonPassiveWheel }) {
+            auto fillPattern = patternForEventListenerRegionType(type, contentOffsetInCompositingLayer(), context);
+            context.setFillPattern(fillPattern.releaseNonNull());
+
+            auto& region = graphicsLayer->eventRegion().eventListenerRegionForType(type);
+            for (auto rect : region.rects())
                 context.fillRect(rect);
         }
     }
@@ -3214,7 +3285,7 @@ void RenderLayerBacking::paintContents(const GraphicsLayer* graphicsLayer, Graph
 
         paintIntoLayer(graphicsLayer, context, dirtyRect, behavior);
 
-        if (renderer().settings().visibleDebugOverlayRegions() & (TouchActionRegion | EditableElementRegion))
+        if (renderer().settings().visibleDebugOverlayRegions() & (TouchActionRegion | EditableElementRegion | WheelEventHandlerRegion))
             paintDebugOverlays(graphicsLayer, context);
 
     } else if (graphicsLayer == layerForHorizontalScrollbar()) {
@@ -3424,11 +3495,6 @@ bool RenderLayerBacking::startAnimation(double timeOffset, const Animation& anim
 void RenderLayerBacking::animationPaused(double timeOffset, const String& animationName)
 {
     m_graphicsLayer->pauseAnimation(animationName, timeOffset);
-}
-
-void RenderLayerBacking::animationSeeked(double timeOffset, const String& animationName)
-{
-    m_graphicsLayer->seekAnimation(animationName, timeOffset);
 }
 
 void RenderLayerBacking::animationFinished(const String& animationName)

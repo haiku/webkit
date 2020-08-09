@@ -159,7 +159,6 @@ page/scrolling/cocoa/ScrollingTreeStickyNode.mm
 page/scrolling/mac/ScrollingCoordinatorMac.mm
 page/scrolling/mac/ScrollingMomentumCalculatorMac.mm
 page/scrolling/mac/ScrollingStateScrollingNodeMac.mm
-page/scrolling/mac/ScrollingThreadMac.mm
 page/scrolling/mac/ScrollingTreeFrameScrollingNodeMac.mm
 page/scrolling/mac/ScrollingTreeOverflowScrollingNodeMac.mm
 page/scrolling/mac/ScrollingTreeScrollingNodeDelegateMac.mm
@@ -404,6 +403,7 @@ platform/ios/LegacyTileGrid.mm
 platform/ios/LegacyTileGridTile.mm
 platform/ios/LegacyTileLayer.mm
 platform/ios/LegacyTileLayerPool.mm
+platform/ios/LocalCurrentGraphicsContextIOS.mm
 platform/ios/LocalCurrentTraitCollection.mm
 platform/ios/LocalizedDeviceModel.mm
 platform/ios/LowPowerModeNotifierIOS.mm
@@ -449,7 +449,7 @@ platform/mac/BlacklistUpdater.mm
 platform/mac/CursorMac.mm @no-unify
 platform/mac/KeyEventMac.mm @no-unify
 platform/mac/PlaybackSessionInterfaceMac.mm @no-unify
-platform/mac/LocalCurrentGraphicsContext.mm
+platform/mac/LocalCurrentGraphicsContextMac.mm
 platform/mac/LocalDefaultSystemAppearance.mm
 platform/mac/LoggingMac.mm
 platform/mac/MediaRemoteSoftLink.cpp

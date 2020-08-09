@@ -566,7 +566,7 @@ void WebFrameLoaderClient::dispatchDidCommitLoad(Optional<HasInsecureContent> ha
         usedLegacyTLS = usedLegacyTLSFromPageCache == UsedLegacyTLS::Yes;
     
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), m_frame->info(), documentLoader.request(), documentLoader.navigationID(), documentLoader.response().mimeType(), m_frameHasCustomContentProvider, static_cast<uint32_t>(m_frame->coreFrame()->loader().loadType()), valueOrCompute(documentLoader.response().certificateInfo(), [] { return CertificateInfo(); }), usedLegacyTLS, m_frame->coreFrame()->document()->isPluginDocument(), hasInsecureContent, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
+    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), m_frame->info(), documentLoader.request(), documentLoader.navigationID(), documentLoader.response().mimeType(), m_frameHasCustomContentProvider, static_cast<uint32_t>(m_frame->coreFrame()->loader().loadType()), valueOrCompute(documentLoader.response().certificateInfo(), [] { return CertificateInfo(); }), usedLegacyTLS, m_frame->coreFrame()->document()->isPluginDocument(), hasInsecureContent, documentLoader.mouseEventPolicy(), UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
     webPage->didCommitLoad(m_frame.ptr());
 }
 
@@ -838,7 +838,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceRespons
     uint64_t listenerID = m_frame->setUpPolicyListener(identifier, WTFMove(function), WebFrame::ForNavigationAction::No);
     if (!webPage->send(Messages::WebPageProxy::DecidePolicyForResponse(m_frame->frameID(), m_frame->info(), identifier, navigationID, response, request, canShowResponse, downloadAttribute, listenerID, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())))) {
         WEBFRAMELOADERCLIENT_RELEASE_LOG(Network, "dispatchDecidePolicyForResponse: ignoring because WebPageProxy::DecidePolicyForResponse failed");
-        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { identifier, NavigatingToAppBoundDomain::No, NavigatedAwayFromAppBoundDomain::No, PolicyAction::Ignore, 0, { }, { } });
+        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { identifier, WTF::nullopt, PolicyAction::Ignore, 0, { }, { } });
     }
 }
 
@@ -1000,17 +1000,17 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
         PolicyDecision policyDecision;
 
         if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForNavigationActionSync(m_frame->frameID(), m_frame->isMainFrame(), m_frame->info(), requestIdentifier, documentLoader->navigationID(), navigationActionData, originatingFrameInfoData, originatingPageID, navigationAction.resourceRequest(), request, IPC::FormDataReference { request.httpBody() }, redirectResponse, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())), Messages::WebPageProxy::DecidePolicyForNavigationActionSync::Reply(policyDecision))) {
-            m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, NavigatingToAppBoundDomain::No, NavigatedAwayFromAppBoundDomain::No, PolicyAction::Ignore, 0, { }, { } });
+            m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, WTF::nullopt, PolicyAction::Ignore, 0, { }, { } });
             return;
         }
 
-        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { policyDecision.identifier, policyDecision.isNavigatingToAppBoundDomain, policyDecision.hasNavigatedAwayFromAppBoundDomain, policyDecision.policyAction, 0, policyDecision.downloadID, { }});
+        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { policyDecision.identifier, policyDecision.isNavigatingToAppBoundDomain, policyDecision.policyAction, 0, policyDecision.downloadID, { }});
         return;
     }
 
     ASSERT(policyDecisionMode == PolicyDecisionMode::Asynchronous);
     if (!webPage->send(Messages::WebPageProxy::DecidePolicyForNavigationActionAsync(m_frame->frameID(), m_frame->info(), requestIdentifier, documentLoader->navigationID(), navigationActionData, originatingFrameInfoData, originatingPageID, navigationAction.resourceRequest(), request, IPC::FormDataReference { request.httpBody() }, redirectResponse, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get()), listenerID)))
-        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, NavigatingToAppBoundDomain::No, NavigatedAwayFromAppBoundDomain::No, PolicyAction::Ignore, 0, { }, { } });
+        m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, WTF::nullopt, PolicyAction::Ignore, 0, { }, { } });
 }
 
 void WebFrameLoaderClient::cancelPolicyCheck()
@@ -1559,15 +1559,6 @@ void WebFrameLoaderClient::didRestoreFromBackForwardCache()
     m_frameCameFromBackForwardCache = true;
 }
 
-void WebFrameLoaderClient::dispatchDidBecomeFrameset(bool value)
-{
-    WebPage* webPage = m_frame->page();
-    if (!webPage)
-        return;
-
-    webPage->send(Messages::WebPageProxy::FrameDidBecomeFrameSet(m_frame->frameID(), value));
-}
-
 bool WebFrameLoaderClient::canCachePage() const
 {
     // We cannot cache frames that have custom representations because they are
@@ -1929,7 +1920,7 @@ void WebFrameLoaderClient::finishedLoadingApplicationManifest(uint64_t callbackI
 }
 #endif // ENABLE(APPLICATION_MANIFEST)
 
-bool WebFrameLoaderClient::hasNavigatedAwayFromAppBoundDomain()
+bool WebFrameLoaderClient::shouldEnableInAppBrowserPrivacyProtections() const
 {
     if (!m_frame->isMainFrame())
         return false;
@@ -1937,19 +1928,21 @@ bool WebFrameLoaderClient::hasNavigatedAwayFromAppBoundDomain()
     auto* webPage = m_frame->page();
     if (!webPage)
         return false;
-    
-    return webPage->hasNavigatedAwayFromAppBoundDomain() == NavigatedAwayFromAppBoundDomain::Yes;
+
+    return webPage->shouldEnableInAppBrowserPrivacyProtections();
 }
 
-bool WebFrameLoaderClient::needsInAppBrowserPrivacyQuirks() const
+void WebFrameLoaderClient::notifyPageOfAppBoundBehavior()
 {
+    if (!m_frame->isMainFrame())
+        return;
+
     auto* webPage = m_frame->page();
     if (!webPage)
-        return false;
-    
-    return webPage->needsInAppBrowserPrivacyQuirks();
-}
+        return;
 
+    webPage->notifyPageOfAppBoundBehavior();
+}
 
 } // namespace WebKit
 

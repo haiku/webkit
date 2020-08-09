@@ -1,3 +1,120 @@
+2020-05-13  Paulo Matos  <pmatos@igalia.com>
+
+        Skip on MIPS test stress/has-own-property-name-cache-symbols-and-strings.js
+
+        Unreviewed Gardening.
+        Test started to fail unpredictably with segfault in bots -
+        requires further investigation.
+
+        * stress/has-own-property-name-cache-symbols-and-strings.js:
+
+2020-05-13  Saam Barati  <sbarati@apple.com>
+
+        MovHint can see an arguments object be MovHinted to a Tmp
+        https://bugs.webkit.org/show_bug.cgi?id=211820
+        <rdar://problem/62882158>
+
+        Reviewed by Keith Miller.
+
+        * stress/varargs-forwarding-can-see-arguments-mov-hint-to-for-of-tmp.js: Added.
+        (let.iter.Symbol.iterator.return.next):
+        (let.iter.Symbol.iterator):
+
+2020-05-13  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Move @isConstructor checks from fast paths of Array.from and Array.of
+        https://bugs.webkit.org/show_bug.cgi?id=211805
+
+        Reviewed by Keith Miller.
+
+        * microbenchmarks/array-from-arraylike.js: Added.
+        * microbenchmarks/array-of.js: Added.
+        * stress/new-promise-capabilities-requires-constructor.js:
+
+2020-05-12  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Implement @isConstructor bytecode intrinsic and bytecode for that
+        https://bugs.webkit.org/show_bug.cgi?id=144093
+
+        Reviewed by Keith Miller.
+
+        * microbenchmarks/is-constructor.js: Added.
+        * stress/async-arrow-function-in-class-heritage.js:
+        * stress/is-constructor.js:
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-05-12  Robin Morisset  <rmorisset@apple.com>
+
+        Exception check for OOM is a bit too late in JSBigInt::exponentiate.
+        https://bugs.webkit.org/show_bug.cgi?id=211823
+
+        Reviewed by Mark Lam.
+
+        Just add one more case so that this test now catches this bug (the control-flow through JSBigInt::exponentiate is pretty convoluted).
+
+        * stress/bigint-exponential-oom.js:
+        (shouldThrow):
+
+2020-05-12  Saam Barati  <sbarati@apple.com>
+
+        handling of Check in VarargsForwardingPhase is too pessimistic
+        https://bugs.webkit.org/show_bug.cgi?id=211810
+
+        Reviewed by Keith Miller and Filip Pizlo.
+
+        * microbenchmarks/forward-varargs-check-shouldnt-escape.js: Added.
+        (g):
+        (foo):
+
+2020-05-12  Keith Miller  <keith_miller@apple.com>
+
+        The bottom value set for m_value in iterator_next should be materialized after a done getter
+        https://bugs.webkit.org/show_bug.cgi?id=211811
+
+        Reviewed by Saam Barati.
+
+        * stress/for-of-done-getter-materialize-bottom-late.js: Added.
+        (let.d.get done):
+        * stress/for-of-value-getter-contains-control-flow.js: Added.
+        (let.d.get value):
+        (let.d.get done):
+
+2020-05-11  Paulo Matos  <pmatos@igalia.com>
+
+        Skip on armv7/linux stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js
+        https://bugs.webkit.org/show_bug.cgi?id=211721
+
+        Unreviewed Gardening.
+        This test is failing on our linux armv7 bots on a flaky basis and requires investigation.
+
+        * stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js:
+
+2020-05-08  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Array.prototype.concat fast path checks should not be observable
+        https://bugs.webkit.org/show_bug.cgi?id=211643
+
+        Reviewed by Ross Kirsling.
+
+        While test262 has complete coverage for @@isConcatSpreadable getters in prototype
+        chain, Proxy cases are covered by stress/array-concat-fast-spread-proxy.js and
+        stress/array-concat-spread-proxy.js.
+
+        * test262/expectations.yaml: Mark 2 test cases as passing.
+
+2020-05-08  Pablo Saavedra  <psaavedra@igalia.com>
+
+        Unreviewed, reverting r261010.
+
+        Test skipped for all ARM. no evidence of this affecting iOS
+
+        Reverted changeset:
+
+        "Skip on ARM and MIPS stress/array-buffer-view-watchpoint-can-
+        be-fired-in-really-add-in-dfg.js added after r260990"
+        https://bugs.webkit.org/show_bug.cgi?id=211304
+        https://trac.webkit.org/changeset/261010
+
 2020-05-07  Mark Lam  <mark.lam@apple.com>
 
         Fix broken exceptionFuzz tests.

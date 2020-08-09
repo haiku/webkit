@@ -168,6 +168,7 @@ private:
     void positionInformationDidChange(const InteractionInformationAtPosition&) override;
     void saveImageToLibrary(Ref<WebCore::SharedBuffer>&&) override;
     void showPlaybackTargetPicker(bool hasVideo, const WebCore::IntRect& elementRect, WebCore::RouteSharingPolicy, const String&) override;
+    void showDataDetectorsUIForPositionInformation(const InteractionInformationAtPosition&) override;
 
     bool handleRunOpenPanel(WebPageProxy*, WebFrameProxy*, const FrameInfoData&, API::OpenPanelParameters*, WebOpenPanelResultListenerProxy*) override;
     bool showShareSheet(const WebCore::ShareDataWithParsedURL&, WTF::CompletionHandler<void(bool)>&&) override;
@@ -253,8 +254,14 @@ private:
 
     void handleAutocorrectionContext(const WebAutocorrectionContext&) final;
 
+    void setMouseEventPolicy(WebCore::MouseEventPolicy) final;
+
 #if HAVE(PENCILKIT)
     RetainPtr<WKDrawingView> createDrawingView(WebCore::GraphicsLayer::EmbeddedViewID) override;
+#endif
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+    void writePromisedAttachmentToPasteboard(WebCore::PromisedAttachmentInfo&&) final;
 #endif
 
     void cancelPointersForGestureRecognizer(UIGestureRecognizer*) override;

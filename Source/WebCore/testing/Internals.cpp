@@ -119,7 +119,6 @@
 #include "LibWebRTCProvider.h"
 #include "LoaderStrategy.h"
 #include "Location.h"
-#include "MIMETypeRegistry.h"
 #include "MallocStatistics.h"
 #include "MediaDevices.h"
 #include "MediaEngineConfigurationFactory.h"
@@ -154,6 +153,7 @@
 #include "RenderEmbeddedObject.h"
 #include "RenderLayerBacking.h"
 #include "RenderLayerCompositor.h"
+#include "RenderListBox.h"
 #include "RenderMenuList.h"
 #include "RenderTheme.h"
 #include "RenderTreeAsText.h"
@@ -476,10 +476,7 @@ Ref<Internals> Internals::create(Document& document)
 Internals::~Internals()
 {
 #if ENABLE(MEDIA_STREAM)
-    if (m_trackSource) {
-        m_trackSource->removeObserver(*this);
-        m_trackSource->removeAudioSampleObserver(*this);
-    }
+    stopObservingRealtimeMediaSource();
 #endif
 }
 
@@ -1711,7 +1708,7 @@ ExceptionOr<unsigned> Internals::markerCountForNode(Node& node, const String& ma
     if (!markerTypesFrom(markerType, markerTypes))
         return Exception { SyntaxError };
 
-    node.document().frame()->editor().updateEditorUINowIfScheduled();
+    node.document().editor().updateEditorUINowIfScheduled();
     return node.document().markers().markersFor(node, markerTypes).size();
 }
 
@@ -1723,7 +1720,7 @@ ExceptionOr<RenderedDocumentMarker*> Internals::markerAt(Node& node, const Strin
     if (!markerTypesFrom(markerType, markerTypes))
         return Exception { SyntaxError };
 
-    node.document().frame()->editor().updateEditorUINowIfScheduled();
+    node.document().editor().updateEditorUINowIfScheduled();
 
     Vector<RenderedDocumentMarker*> markers = node.document().markers().markersFor(node, markerTypes);
     if (markers.size() <= index)
@@ -1775,7 +1772,7 @@ ExceptionOr<void> Internals::setMarkedTextMatchesAreHighlighted(bool flag)
     Document* document = contextDocument();
     if (!document || !document->frame())
         return Exception { InvalidAccessError };
-    document->frame()->editor().setMarkedTextMatchesAreHighlighted(flag);
+    document->editor().setMarkedTextMatchesAreHighlighted(flag);
     return { };
 }
 
@@ -2115,7 +2112,7 @@ ExceptionOr<uint64_t> Internals::lastSpellCheckRequestSequence()
     if (!document || !document->frame())
         return Exception { InvalidAccessError };
 
-    return document->frame()->editor().spellChecker().lastRequestIdentifier().toUInt64();
+    return document->editor().spellChecker().lastRequestIdentifier().toUInt64();
 }
 
 ExceptionOr<uint64_t> Internals::lastSpellCheckProcessedSequence()
@@ -2124,7 +2121,7 @@ ExceptionOr<uint64_t> Internals::lastSpellCheckProcessedSequence()
     if (!document || !document->frame())
         return Exception { InvalidAccessError };
 
-    return document->frame()->editor().spellChecker().lastProcessedIdentifier().toUInt64();
+    return document->editor().spellChecker().lastProcessedIdentifier().toUInt64();
 }
 
 Vector<String> Internals::userPreferredLanguages() const
@@ -2331,7 +2328,7 @@ bool Internals::hasSpellingMarker(int from, int length)
 
     updateEditorUINowIfScheduled();
 
-    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
+    return document->editor().selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
 }
 
 bool Internals::hasAutocorrectedMarker(int from, int length)
@@ -2342,7 +2339,7 @@ bool Internals::hasAutocorrectedMarker(int from, int length)
 
     updateEditorUINowIfScheduled();
 
-    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
+    return document->editor().selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
 }
 
 void Internals::setContinuousSpellCheckingEnabled(bool enabled)
@@ -2350,8 +2347,8 @@ void Internals::setContinuousSpellCheckingEnabled(bool enabled)
     if (!contextDocument() || !contextDocument()->frame())
         return;
 
-    if (enabled != contextDocument()->frame()->editor().isContinuousSpellCheckingEnabled())
-        contextDocument()->frame()->editor().toggleContinuousSpellChecking();
+    if (enabled != contextDocument()->editor().isContinuousSpellCheckingEnabled())
+        contextDocument()->editor().toggleContinuousSpellChecking();
 }
 
 void Internals::setAutomaticQuoteSubstitutionEnabled(bool enabled)
@@ -2360,8 +2357,8 @@ void Internals::setAutomaticQuoteSubstitutionEnabled(bool enabled)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor().isAutomaticQuoteSubstitutionEnabled())
-        contextDocument()->frame()->editor().toggleAutomaticQuoteSubstitution();
+    if (enabled != contextDocument()->editor().isAutomaticQuoteSubstitutionEnabled())
+        contextDocument()->editor().toggleAutomaticQuoteSubstitution();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -2373,8 +2370,8 @@ void Internals::setAutomaticLinkDetectionEnabled(bool enabled)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor().isAutomaticLinkDetectionEnabled())
-        contextDocument()->frame()->editor().toggleAutomaticLinkDetection();
+    if (enabled != contextDocument()->editor().isAutomaticLinkDetectionEnabled())
+        contextDocument()->editor().toggleAutomaticLinkDetection();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -2393,8 +2390,8 @@ void Internals::setAutomaticDashSubstitutionEnabled(bool enabled)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor().isAutomaticDashSubstitutionEnabled())
-        contextDocument()->frame()->editor().toggleAutomaticDashSubstitution();
+    if (enabled != contextDocument()->editor().isAutomaticDashSubstitutionEnabled())
+        contextDocument()->editor().toggleAutomaticDashSubstitution();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -2406,8 +2403,8 @@ void Internals::setAutomaticTextReplacementEnabled(bool enabled)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor().isAutomaticTextReplacementEnabled())
-        contextDocument()->frame()->editor().toggleAutomaticTextReplacement();
+    if (enabled != contextDocument()->editor().isAutomaticTextReplacementEnabled())
+        contextDocument()->editor().toggleAutomaticTextReplacement();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -2419,8 +2416,8 @@ void Internals::setAutomaticSpellingCorrectionEnabled(bool enabled)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor().isAutomaticSpellingCorrectionEnabled())
-        contextDocument()->frame()->editor().toggleAutomaticSpellingCorrection();
+    if (enabled != contextDocument()->editor().isAutomaticSpellingCorrectionEnabled())
+        contextDocument()->editor().toggleAutomaticSpellingCorrection();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -2435,7 +2432,7 @@ void Internals::handleAcceptedCandidate(const String& candidate, unsigned locati
     result.type = TextCheckingType::None;
     result.range = { location, length };
     result.replacement = candidate;
-    contextDocument()->frame()->editor().handleAcceptedCandidate(result);
+    contextDocument()->editor().handleAcceptedCandidate(result);
 }
 
 void Internals::changeSelectionListType()
@@ -2450,7 +2447,7 @@ bool Internals::isOverwriteModeEnabled()
     if (!document || !document->frame())
         return false;
 
-    return document->frame()->editor().isOverwriteModeEnabled();
+    return document->editor().isOverwriteModeEnabled();
 }
 
 void Internals::toggleOverwriteModeEnabled()
@@ -2459,7 +2456,7 @@ void Internals::toggleOverwriteModeEnabled()
     if (!document || !document->frame())
         return;
 
-    document->frame()->editor().toggleOverwriteModeEnabled();
+    document->editor().toggleOverwriteModeEnabled();
 }
 
 static ExceptionOr<FindOptions> parseFindOptions(const Vector<String>& optionList)
@@ -2504,7 +2501,7 @@ ExceptionOr<RefPtr<Range>> Internals::rangeOfString(const String& text, RefPtr<R
     if (parsedOptions.hasException())
         return parsedOptions.releaseException();
 
-    return document->frame()->editor().rangeOfString(text, referenceRange.get(), parsedOptions.releaseReturnValue());
+    return document->editor().rangeOfString(text, referenceRange.get(), parsedOptions.releaseReturnValue());
 }
 
 ExceptionOr<unsigned> Internals::countMatchesForText(const String& text, const Vector<String>& findOptions, const String& markMatches)
@@ -2518,7 +2515,7 @@ ExceptionOr<unsigned> Internals::countMatchesForText(const String& text, const V
         return parsedOptions.releaseException();
 
     bool mark = markMatches == "mark";
-    return document->frame()->editor().countMatchesForText(text, nullptr, parsedOptions.releaseReturnValue(), 1000, mark, nullptr);
+    return document->editor().countMatchesForText(text, nullptr, parsedOptions.releaseReturnValue(), 1000, mark, nullptr);
 }
 
 ExceptionOr<unsigned> Internals::countFindMatches(const String& text, const Vector<String>& findOptions)
@@ -2651,7 +2648,7 @@ bool Internals::hasGrammarMarker(int from, int length)
     if (!document || !document->frame())
         return false;
 
-    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Grammar, from, length);
+    return document->editor().selectionStartHasMarkerFor(DocumentMarker::Grammar, from, length);
 }
 
 unsigned Internals::numberOfScrollableAreas()
@@ -2775,7 +2772,11 @@ ExceptionOr<ScrollableArea*> Internals::scrollableAreaForNode(Node* node) const
         if (!element.renderBox())
             return Exception { InvalidAccessError };
 
-        scrollableArea = element.renderBox()->layer();
+        auto& renderBox = *element.renderBox();
+        if (is<RenderListBox>(renderBox))
+            scrollableArea = &downcast<RenderListBox>(renderBox);
+        else
+            scrollableArea = renderBox.layer();
     } else
         return Exception { InvalidNodeTypeError };
 
@@ -4333,6 +4334,15 @@ ExceptionOr<Internals::MediaUsageState> Internals::mediaUsageState(HTMLMediaElem
 #endif
 }
 
+ExceptionOr<bool> Internals::elementShouldDisplayPosterImage(HTMLVideoElement& element) const
+{
+#if ENABLE(VIDEO)
+    return element.shouldDisplayPosterImage();
+#else
+    UNUSED_PARAM(element);
+    return Exception { InvalidAccessError };
+#endif
+}
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 
@@ -5035,19 +5045,44 @@ void Internals::setCameraMediaStreamTrackOrientation(MediaStreamTrack& track, in
     source.monitorOrientation(m_orientationNotifier);
 }
 
+void Internals::stopObservingRealtimeMediaSource()
+{
+    if (!m_trackSource)
+        return;
+
+    switch (m_trackSource->type()) {
+    case RealtimeMediaSource::Type::Audio:
+        m_trackSource->removeAudioSampleObserver(*this);
+        break;
+    case RealtimeMediaSource::Type::Video:
+        m_trackSource->removeVideoSampleObserver(*this);
+        break;
+    case RealtimeMediaSource::Type::None:
+        ASSERT_NOT_REACHED();
+    }
+    m_trackSource->removeObserver(*this);
+
+    m_trackSource = nullptr;
+    m_trackAudioSampleCount = 0;
+    m_trackVideoSampleCount = 0;
+}
+
 void Internals::observeMediaStreamTrack(MediaStreamTrack& track)
 {
-    if (m_trackSource) {
-        m_trackSource->removeObserver(*this);
-        m_trackSource->removeAudioSampleObserver(*this);
-
-        m_trackAudioSampleCount = 0;
-        m_trackVideoSampleCount = 0;
-    }
+    stopObservingRealtimeMediaSource();
 
     m_trackSource = &track.source();
     m_trackSource->addObserver(*this);
-    m_trackSource->addAudioSampleObserver(*this);
+    switch (m_trackSource->type()) {
+    case RealtimeMediaSource::Type::Audio:
+        m_trackSource->addAudioSampleObserver(*this);
+        break;
+    case RealtimeMediaSource::Type::Video:
+        m_trackSource->addVideoSampleObserver(*this);
+        break;
+    case RealtimeMediaSource::Type::None:
+        ASSERT_NOT_REACHED();
+    }
 }
 
 void Internals::grabNextMediaStreamTrackFrame(TrackFramePromise&& promise)
@@ -5661,11 +5696,6 @@ bool Internals::hasSandboxIOKitOpenAccessToClass(const String& process, const St
     return false;
 }
 #endif
-
-String Internals::mediaMIMETypeForExtension(const String& extension)
-{
-    return MIMETypeRegistry::getMediaMIMETypeForExtension(extension);
-}
 
 bool Internals::supportsPictureInPicture()
 {

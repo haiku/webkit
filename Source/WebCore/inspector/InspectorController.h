@@ -91,6 +91,7 @@ public:
     WEBCORE_EXPORT void disconnectAllFrontends();
 
     void inspect(Node*);
+    WEBCORE_EXPORT bool shouldShowOverlay() const;
     WEBCORE_EXPORT void drawHighlight(GraphicsContext&) const;
     WEBCORE_EXPORT void getHighlight(WebCore::Highlight&, InspectorOverlay::CoordinateSystem) const;
     void hideHighlight();

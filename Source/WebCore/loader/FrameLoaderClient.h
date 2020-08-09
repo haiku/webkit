@@ -283,8 +283,6 @@ public:
 
     virtual void didRestoreFromBackForwardCache() = 0;
 
-    virtual void dispatchDidBecomeFrameset(bool) = 0; // Can change due to navigation or DOM modification.
-
     virtual bool canCachePage() const = 0;
     virtual void convertMainResourceLoadToDownload(DocumentLoader*, const ResourceRequest&, const ResourceResponse&) = 0;
 
@@ -381,8 +379,8 @@ public:
 
     virtual AllowsContentJavaScript allowsContentJavaScriptFromMostRecentNavigation() const { return AllowsContentJavaScript::Yes; }
 
-    virtual bool hasNavigatedAwayFromAppBoundDomain() { return false; }
-    virtual bool needsInAppBrowserPrivacyQuirks() const { return false; }
+    virtual bool shouldEnableInAppBrowserPrivacyProtections() const { return false; }
+    virtual void notifyPageOfAppBoundBehavior() { }
 };
 
 } // namespace WebCore
