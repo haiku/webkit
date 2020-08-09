@@ -67,10 +67,10 @@ template<> struct Coder<WebCore::CertificateInfo> {
         notImplemented();
     }
 
-    static bool decode(Decoder&, WebCore::CertificateInfo&)
+    static WebCore::CertificateInfo decode(Decoder&)
     {
         notImplemented();
-        return false;
+        return WebCore::CertificateInfo();
     }
 };
 
