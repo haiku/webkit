@@ -32,7 +32,6 @@
 #include "CacheableIdentifierInlines.h"
 #include "DFGAbstractValue.h"
 #include "DFGGraph.h"
-#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -185,6 +184,8 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJSLocker& locker, ArrayProfile
 
 static bool canBecomeGetArrayLength(Graph& graph, Node* node)
 {
+    if (node->op() == GetArrayLength)
+        return true;
     if (node->op() != GetById)
         return false;
     auto uid = node->cacheableIdentifier().uid();
@@ -240,12 +241,16 @@ ArrayMode ArrayMode::refine(
             return withTypeAndConversion(Array::Double, Array::Convert);
         return withTypeAndConversion(Array::Contiguous, Array::Convert);
     case Array::Undecided: {
+        // As long as we have a JSArray getting its length shouldn't require any sane chainness.
+        if (canBecomeGetArrayLength(graph, node) && isJSArray())
+            return *this;
+
         // If we have an OriginalArray and the JSArray prototype chain is sane,
         // any indexed access always return undefined. We have a fast path for that.
         JSGlobalObject* globalObject = graph.globalObjectFor(node->origin.semantic);
         Structure* arrayPrototypeStructure = globalObject->arrayPrototype()->structure(graph.m_vm);
         Structure* objectPrototypeStructure = globalObject->objectPrototype()->structure(graph.m_vm);
-        if ((node->op() == GetByVal || canBecomeGetArrayLength(graph, node))
+        if (node->op() == GetByVal
             && isJSArrayWithOriginalStructure()
             && !graph.hasExitSite(node->origin.semantic, OutOfBounds)
             && arrayPrototypeStructure->transitionWatchpointSetIsStillValid()

@@ -1,5 +1,4 @@
-//@ skip if $architecture == "arm" and $hostOS == "linux"
-//@ requireOptions("-e", "let iterations=40000") if ["mips"].include?($architecture)
+//@ skip if ["arm", "mips", "powerpc", "powerpc64", "s390"].include?($architecture) and $hostOS == "linux"
 //@ runDefault("--jitPolicyScale=0")
 
 iterations = typeof(iterations) === 'undefined' ? 10000000 : iterations;

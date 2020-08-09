@@ -106,6 +106,7 @@ public:
     virtual void resignFirstResponder() { notImplemented(); }
 
     virtual void copyText(JSStringRef) { notImplemented(); }
+    virtual void paste() { notImplemented(); }
 
     virtual void chooseMenuAction(JSStringRef, JSValueRef);
     virtual void dismissMenu();
@@ -163,6 +164,11 @@ public:
     virtual void keyDown(JSStringRef character, JSValueRef modifierArray) { notImplemented(); }
     virtual void toggleCapsLock(JSValueRef callback) { notImplemented(); }
     virtual void setContinuousSpellCheckingEnabled(bool) { notImplemented(); }
+    virtual bool keyboardIsAutomaticallyShifted() const
+    {
+        notImplemented();
+        return false;
+    }
 
     virtual void rawKeyDown(JSStringRef) { notImplemented(); }
     virtual void rawKeyUp(JSStringRef) { notImplemented(); }
@@ -200,6 +206,7 @@ public:
     virtual void dismissFilePicker(JSValueRef callback) { notImplemented(); }
     virtual void dismissFormAccessoryView() { notImplemented(); }
     virtual void selectFormAccessoryPickerRow(long) { notImplemented(); }
+    virtual bool selectFormAccessoryHasCheckedItemAtRow(long) const { return false; }
     virtual JSRetainPtr<JSStringRef> textContentType() const { notImplemented(); return nullptr; }
     virtual JSRetainPtr<JSStringRef> selectFormPopoverTitle() const { notImplemented(); return nullptr; }
     virtual JSRetainPtr<JSStringRef> formInputLabel() const { notImplemented(); return nullptr; }

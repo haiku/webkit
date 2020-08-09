@@ -1,3 +1,20 @@
+2020-05-18  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [GTK] Allow gtk-doc and introspection in cross builds
+        https://bugs.webkit.org/show_bug.cgi?id=212026
+
+        Reviewed by Adrian Perez de Castro.
+
+        Stop disabling these options in cross builds.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2020-05-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update OptionsGTK.cmake and NEWS for 2.29.1 release
+
+        * Source/cmake/OptionsGTK.cmake: Bump version numbers.
+
 2020-05-10  Basuke Suzuki  <basuke.suzuki@sony.com>
 
         Add ENABLE_PERIODIC_MEMORY_MONITOR flag.

@@ -27,14 +27,9 @@
 
 #include "BuiltinNames.h"
 #include "Identifier.h"
-#include "JSCInlines.h"
-#include "JSFunctionInlines.h"
 #include "KeywordLookup.h"
 #include "Lexer.lut.h"
-#include "Nodes.h"
 #include "ParseInt.h"
-#include "Parser.h"
-#include <ctype.h>
 #include <limits.h>
 #include <string.h>
 #include <wtf/Assertions.h>
@@ -2086,7 +2081,7 @@ start:
         shift();
         if (m_current == '&') {
             shift();
-            if (UNLIKELY(Options::useLogicalAssignmentOperators() && m_current == '=')) {
+            if (m_current == '=') {
                 shift();
                 token = ANDEQUAL;
                 break;
@@ -2128,7 +2123,7 @@ start:
         }
         if (m_current == '|') {
             shift();
-            if (UNLIKELY(Options::useLogicalAssignmentOperators() && m_current == '=')) {
+            if (m_current == '=') {
                 shift();
                 token = OREQUAL;
                 break;
@@ -2169,7 +2164,7 @@ start:
         shift();
         if (m_current == '?') {
             shift();
-            if (UNLIKELY(Options::useLogicalAssignmentOperators() && m_current == '=')) {
+            if (m_current == '=') {
                 shift();
                 token = COALESCEEQUAL;
                 break;

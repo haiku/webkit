@@ -556,13 +556,13 @@ extern "C" AXUIElementRef NSAccessibilityCreateAXUIElementRef(id element);
 
 - (id)attachmentView
 {
-    ASSERT(self.axBackingObject->isAttachment());
-
     return Accessibility::retrieveAutoreleasedValueFromMainThread<id>([protectedSelf = retainPtr(self)] () -> RetainPtr<id> {
-        auto* widget = protectedSelf.get().axBackingObject->widgetForAttachmentView();
-        if (!widget)
+        auto* backingObject = protectedSelf.get().axBackingObject;
+        if (!backingObject)
             return nil;
-        return NSAccessibilityUnignoredDescendant(widget->platformWidget());
+
+        auto* widget = backingObject->widgetForAttachmentView();
+        return widget ? NSAccessibilityUnignoredDescendant(widget->platformWidget()) : nil;
     });
 }
 
@@ -2290,11 +2290,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
     AXTRACE(makeString("WebAccessibilityObjectWrapper accessibilityAttributeValue:", String(attributeName)));
     auto* backingObject = self.updateObjectBackingStore;
-    if (!backingObject) {
-        AXLOG("No backingObject!!!");
+    AXLOG("backingObject");
+    AXLOG(backingObject);
+    if (!backingObject)
         return nil;
-    }
-    AXLOG(*backingObject);
 
     if (backingObject->isDetachedFromParent()) {
         AXLOG("backingObject is detached from parent!!!");
@@ -3472,7 +3471,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     if (!backingObject)
         return NO;
 
-    return backingObject->replaceTextInRange(string, PlainTextRange(range));
+    return backingObject->replaceTextInRange(String(string).isolatedCopy(), PlainTextRange(range));
 }
 
 - (BOOL)accessibilityInsertText:(NSString *)text
@@ -3481,7 +3480,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     if (!backingObject)
         return NO;
 
-    return backingObject->insertText(text);
+    return backingObject->insertText(String(text).isolatedCopy());
 }
 
 ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
@@ -3515,13 +3514,13 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     // decode the parameter
     if (AXObjectIsTextMarkerRange(value))
         textMarkerRange = value;
-    else if ([value isKindOfClass:[NSNumber self]])
+    else if ([value isKindOfClass:[NSNumber class]])
         number = value;
-    else if ([value isKindOfClass:[NSString self]])
+    else if ([value isKindOfClass:[NSString class]])
         string = value;
-    else if ([value isKindOfClass:[NSValue self]])
+    else if ([value isKindOfClass:[NSValue class]])
         range = [value rangeValue];
-    else if ([value isKindOfClass:[NSArray self]])
+    else if ([value isKindOfClass:[NSArray class]])
         array = value;
 
     // handle the command
@@ -3899,21 +3898,21 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         textMarker = parameter;
     else if (AXObjectIsTextMarkerRange(parameter))
         textMarkerRange = parameter;
-    else if ([parameter isKindOfClass:[WebAccessibilityObjectWrapper self]])
+    else if ([parameter isKindOfClass:[WebAccessibilityObjectWrapper class]])
         uiElement = [(WebAccessibilityObjectWrapper*)parameter axBackingObject];
-    else if ([parameter isKindOfClass:[NSNumber self]])
+    else if ([parameter isKindOfClass:[NSNumber class]])
         number = parameter;
-    else if ([parameter isKindOfClass:[NSArray self]])
+    else if ([parameter isKindOfClass:[NSArray class]])
         array = parameter;
-    else if ([parameter isKindOfClass:[NSDictionary self]])
+    else if ([parameter isKindOfClass:[NSDictionary class]])
         dictionary = parameter;
-    else if ([parameter isKindOfClass:[NSValue self]] && !strcmp([(NSValue*)parameter objCType], @encode(NSPoint))) {
+    else if ([parameter isKindOfClass:[NSValue class]] && !strcmp([(NSValue*)parameter objCType], @encode(NSPoint))) {
         pointSet = true;
         point = [(NSValue*)parameter pointValue];
-    } else if ([parameter isKindOfClass:[NSValue self]] && !strcmp([(NSValue*)parameter objCType], @encode(NSRange))) {
+    } else if ([parameter isKindOfClass:[NSValue class]] && !strcmp([(NSValue*)parameter objCType], @encode(NSRange))) {
         rangeSet = true;
         range = [(NSValue*)parameter rangeValue];
-    } else if ([parameter isKindOfClass:[NSValue self]] && !strcmp([(NSValue*)parameter objCType], @encode(NSRect)))
+    } else if ([parameter isKindOfClass:[NSValue class]] && !strcmp([(NSValue*)parameter objCType], @encode(NSRect)))
         rect = [(NSValue*)parameter rectValue];
     else {
         // Attribute type is not supported. Allow super to handle.
@@ -4512,7 +4511,7 @@ ALLOW_DEPRECATED_DECLARATIONS_END
         for (unsigned added = 0; added < available; ++index, ++added) {
             WebAccessibilityObjectWrapper* wrapper = children[index];
             // The attachment view should be returned, otherwise AX palindrome errors occur.
-            BOOL isAttachment = [wrapper isKindOfClass:[WebAccessibilityObjectWrapper class]] && wrapper.axBackingObject->isAttachment() && [wrapper attachmentView];
+            BOOL isAttachment = [wrapper isKindOfClass:[WebAccessibilityObjectWrapper class]] && wrapper.axBackingObject && wrapper.axBackingObject->isAttachment() && [wrapper attachmentView];
             [subarray addObject:isAttachment ? [wrapper attachmentView] : wrapper];
         }
 

@@ -79,7 +79,7 @@ RGBA32 colorWithOverrideAlpha(RGBA32 color, float overrideAlpha)
 RGBA32 makeRGBAFromHSLA(float hue, float saturation, float lightness, float alpha)
 {
     const float scaleFactor = 255.0;
-    FloatComponents floatResult = HSLToSRGB({ hue, saturation, lightness, alpha });
+    FloatComponents floatResult = hslToSRGB({ hue, saturation, lightness, alpha });
     return makeRGBA(
         round(floatResult.components[0] * scaleFactor),
         round(floatResult.components[1] * scaleFactor),
@@ -240,12 +240,12 @@ Color::Color(Color&& other)
     *this = WTFMove(other);
 }
 
-Color::Color(float r, float g, float b, float a, ColorSpace colorSpace)
+Color::Color(float c1, float c2, float c3, float alpha, ColorSpace colorSpace)
 {
     // Zero the union, just in case a 32-bit system only assigns the
     // top 32 bits when copying the extendedColor pointer below.
     m_colorData.rgbaAndFlags = 0;
-    auto extendedColorRef = ExtendedColor::create(r, g, b, a, colorSpace);
+    auto extendedColorRef = ExtendedColor::create(c1, c2, c3, alpha, colorSpace);
     m_colorData.extendedColor = &extendedColorRef.leakRef();
     ASSERT(isExtended());
 }
@@ -555,6 +555,24 @@ void Color::getHSV(double& hue, double& saturation, double& value) const
     value = max;
 }
 
+FloatComponents Color::toSRGBAComponentsLossy() const
+{
+    if (isExtended()) {
+        auto& extendedColor = asExtended();
+        switch (extendedColor.colorSpace()) {
+        case ColorSpace::SRGB:
+            return extendedColor.channels();
+        case ColorSpace::LinearRGB:
+            return linearToRGBComponents(extendedColor.channels());
+        case ColorSpace::DisplayP3:
+            return p3ToSRGB(extendedColor.channels());
+        }
+    }
+    float r, g, b, a;
+    getRGBA(r, g, b, a);
+    return { r, g, b, a };
+}
+
 Color colorFromPremultipliedARGB(RGBA32 pixelColor)
 {
     if (pixelColor.isVisible() && !pixelColor.isOpaque())
@@ -574,6 +592,15 @@ RGBA32 premultipliedARGBFromColor(const Color& color)
         return makePremultipliedRGBA(color.asExtended().red() * 255, color.asExtended().green() * 255, color.asExtended().blue() * 255, color.asExtended().alpha() * 255);
 
     return makePremultipliedRGBA(color.red(), color.green(), color.blue(), color.alpha());
+}
+
+bool extendedColorsEqual(const Color& a, const Color& b)
+{
+    if (a.isExtended() && b.isExtended())
+        return a.asExtended() == b.asExtended();
+
+    ASSERT(a.isExtended() || b.isExtended());
+    return false;
 }
 
 Color blend(const Color& from, const Color& to, double progress, bool blendPremultiplied)
@@ -607,7 +634,7 @@ void Color::tagAsValid()
     m_colorData.rgbaAndFlags |= validRGBAColor;
 }
 
-ExtendedColor& Color::asExtended() const
+const ExtendedColor& Color::asExtended() const
 {
     ASSERT(isExtended());
     return *m_colorData.extendedColor;

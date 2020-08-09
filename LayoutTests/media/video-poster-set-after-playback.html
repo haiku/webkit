@@ -15,15 +15,15 @@
             video.play();
             await waitFor(video, 'playing');
 
+            await testExpectedEventually('internals.elementShouldDisplayPosterImage(video)', false);
+
             video.pause();
             await waitFor(video, 'pause');
-            
+
             video.poster = 'content/green.png';
-            
-            await sleepFor(1000);
-            
+
             if (window.internals)
-                testExpected('internals.elementShouldDisplayPosterImage(video)', false);
+                await testExpectedEventually('internals.elementShouldDisplayPosterImage(video)', false);
             else
                 consoleWrite("video should not be blank")
 

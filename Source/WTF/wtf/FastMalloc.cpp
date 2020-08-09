@@ -26,15 +26,12 @@
 #include "config.h"
 #include <wtf/FastMalloc.h>
 
-#include <limits>
 #include <string.h>
 #include <wtf/CheckedArithmetic.h>
-#include <wtf/DataLog.h>
 
 #if OS(WINDOWS)
 #include <windows.h>
 #else
-#include <pthread.h>
 #if HAVE(RESOURCE_H)
 #include <sys/resource.h>
 #endif // HAVE(RESOURCE_H)
@@ -42,11 +39,6 @@
 
 #if OS(HAIKU)
 #include <OS.h>
-#endif
-
-#if OS(DARWIN)
-#include <mach/mach_init.h>
-#include <malloc/malloc.h>
 #endif
 
 #if ENABLE(MALLOC_HEAP_BREAKDOWN)

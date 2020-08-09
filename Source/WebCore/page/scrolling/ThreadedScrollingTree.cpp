@@ -29,6 +29,7 @@
 #if ENABLE(ASYNC_SCROLLING) && ENABLE(SCROLLING_THREAD)
 
 #include "AsyncScrollingCoordinator.h"
+#include "Logging.h"
 #include "PlatformWheelEvent.h"
 #include "ScrollingThread.h"
 #include "ScrollingTreeFrameScrollingNode.h"
@@ -37,6 +38,7 @@
 #include "ScrollingTreeScrollingNode.h"
 #include <wtf/RunLoop.h>
 #include <wtf/SetForScope.h>
+#include <wtf/text/TextStream.h>
 
 namespace WebCore {
 
@@ -139,6 +141,8 @@ void ThreadedScrollingTree::scrollingTreeNodeDidScroll(ScrollingTreeScrollingNod
         deferWheelEventTestCompletionForReason(reinterpret_cast<WheelEventTestMonitor::ScrollableAreaIdentifier>(node.scrollingNodeID()), WheelEventTestMonitor::ScrollingThreadSyncNeeded);
 #endif
 
+    LOG_WITH_STREAM(Scrolling, stream << "ThreadedScrollingTree::scrollingTreeNodeDidScroll " << node.scrollingNodeID() << " to " << scrollPosition << " bouncing to main thread");
+
     RunLoop::main().dispatch([strongThis = makeRef(*this), nodeID = node.scrollingNodeID(), scrollPosition, layoutViewportOrigin, scrollingLayerPositionAction] {
         if (auto* scrollingCoordinator = strongThis->m_scrollingCoordinator.get())
             scrollingCoordinator->scheduleUpdateScrollPositionAfterAsyncScroll(nodeID, scrollPosition, layoutViewportOrigin, scrollingLayerPositionAction);
@@ -197,6 +201,25 @@ void ThreadedScrollingTree::scrollingTreeNodeRequestsScroll(ScrollingNodeID node
     removeWheelEventTestCompletionDeferralForReason(reinterpret_cast<WheelEventTestMonitor::ScrollableAreaIdentifier>(nodeID), WheelEventTestMonitor::RequestedScrollPosition);
 }
 #endif
+
+void ThreadedScrollingTree::displayDidRefresh(PlatformDisplayID displayID)
+{
+    if (displayID != this->displayID())
+        return;
+
+    // We're on the EventDispatcher thread here.
+
+#if ENABLE(SCROLLING_THREAD)
+    ScrollingThread::dispatch([protectedThis = makeRef(*this)]() {
+        protectedThis->displayDidRefreshOnScrollingThread();
+    });
+#endif
+}
+
+void ThreadedScrollingTree::displayDidRefreshOnScrollingThread()
+{
+    ASSERT(ScrollingThread::isCurrentThread());
+}
 
 } // namespace WebCore
 

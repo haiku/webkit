@@ -62,6 +62,10 @@
 #include <WebCore/CDMInstanceSession.h>
 #endif
 
+#if PLATFORM(GTK)
+#include "ArgumentCodersGtk.h"
+#endif
+
 #if PLATFORM(COCOA)
 namespace WTF {
 class MachSendRight;
@@ -103,6 +107,7 @@ class LinearTimingFunction;
 class NativeImageHandle;
 class Notification;
 class PasteboardCustomData;
+class PaymentInstallmentConfiguration;
 class ProtectionSpace;
 class Region;
 class ResourceError;
@@ -873,6 +878,13 @@ template<> struct ArgumentCoder<Ref<WebCore::ImageData>> {
     static void encode(Encoder&, const Ref<WebCore::ImageData>&);
     static Optional<Ref<WebCore::ImageData>> decode(Decoder&);
 };
+
+#if HAVE(PASSKIT_INSTALLMENTS)
+template<> struct ArgumentCoder<WebCore::PaymentInstallmentConfiguration> {
+    static void encode(Encoder&, const WebCore::PaymentInstallmentConfiguration&);
+    static Optional<WebCore::PaymentInstallmentConfiguration> decode(Decoder&);
+};
+#endif
 
 } // namespace IPC
 

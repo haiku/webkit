@@ -34,18 +34,13 @@
 #include "CommonSlowPathsInlines.h"
 #include "Error.h"
 #include "ErrorHandlingScope.h"
-#include "EvalCodeBlock.h"
 #include "Exception.h"
 #include "ExceptionFuzz.h"
-#include "ExecutableBaseInlines.h"
 #include "FrameTracers.h"
 #include "FunctionCodeBlock.h"
 #include "FunctionWhitelist.h"
 #include "GetterSetter.h"
 #include "HostCallReturnValue.h"
-#include "InterpreterInlines.h"
-#include "IteratorOperations.h"
-#include "JIT.h"
 #include "JITExceptions.h"
 #include "JITWorklist.h"
 #include "JSAsyncFunction.h"
@@ -56,21 +51,15 @@
 #include "JSGlobalObjectFunctions.h"
 #include "JSLexicalEnvironment.h"
 #include "JSString.h"
-#include "JSWithScope.h"
 #include "LLIntCommon.h"
 #include "LLIntData.h"
 #include "LLIntExceptions.h"
 #include "LLIntPrototypeLoadAdaptiveStructureWatchpoint.h"
-#include "LowLevelInterpreter.h"
-#include "ModuleProgramCodeBlock.h"
 #include "ObjectConstructor.h"
 #include "ObjectPropertyConditionSet.h"
-#include "OpcodeInlines.h"
-#include "ProgramCodeBlock.h"
 #include "ProtoCallFrameInlines.h"
 #include "RegExpObject.h"
 #include "ShadowChicken.h"
-#include "StructureRareDataInlines.h"
 #include "SuperSampler.h"
 #include "VMInlines.h"
 #include <wtf/NeverDestroyed.h>
@@ -1012,8 +1001,8 @@ static ALWAYS_INLINE JSValue getByVal(VM& vm, JSGlobalObject* globalObject, Code
         }
     }
     
-    if (subscript.isUInt32()) {
-        uint32_t i = subscript.asUInt32();
+    if (Optional<uint32_t> index = subscript.tryGetAsUint32Index()) {
+        uint32_t i = *index;
         auto& metadata = bytecode.metadata(codeBlock);
         ArrayProfile* arrayProfile = &metadata.m_arrayProfile;
 
@@ -1091,8 +1080,8 @@ LLINT_SLOW_PATH_DECL(slow_path_put_by_val)
     JSValue value = getOperand(callFrame, bytecode.m_value);
     bool isStrictMode = bytecode.m_ecmaMode.isStrict();
     
-    if (LIKELY(subscript.isUInt32())) {
-        uint32_t i = subscript.asUInt32();
+    if (Optional<uint32_t> index = subscript.tryGetAsUint32Index()) {
+        uint32_t i = *index;
         if (baseValue.isObject()) {
             JSObject* object = asObject(baseValue);
             if (object->canSetIndexQuickly(i, value))
@@ -1123,20 +1112,9 @@ LLINT_SLOW_PATH_DECL(slow_path_put_by_val_direct)
     RELEASE_ASSERT(baseValue.isObject());
     JSObject* baseObject = asObject(baseValue);
     bool isStrictMode = bytecode.m_ecmaMode.isStrict();
-    if (LIKELY(subscript.isUInt32())) {
-        // Despite its name, JSValue::isUInt32 will return true only for positive boxed int32_t; all those values are valid array indices.
-        ASSERT(isIndex(subscript.asUInt32()));
-        baseObject->putDirectIndex(globalObject, subscript.asUInt32(), value, 0, isStrictMode ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
+    if (Optional<uint32_t> index = subscript.tryGetAsUint32Index()) {
+        baseObject->putDirectIndex(globalObject, *index, value, 0, isStrictMode ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
         LLINT_END();
-    }
-
-    if (subscript.isDouble()) {
-        double subscriptAsDouble = subscript.asDouble();
-        uint32_t subscriptAsUInt32 = static_cast<uint32_t>(subscriptAsDouble);
-        if (subscriptAsDouble == subscriptAsUInt32 && isIndex(subscriptAsUInt32)) {
-            baseObject->putDirectIndex(globalObject, subscriptAsUInt32, value, 0, isStrictMode ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
-            LLINT_END();
-        }
     }
 
     // Don't put to an object if toString threw an exception.
@@ -2135,7 +2113,10 @@ extern "C" SlowPathReturnType slow_path_checkpoint_osr_exit_from_inlined_call(Ca
 
     std::unique_ptr<CheckpointOSRExitSideState> sideState = vm.findCheckpointOSRSideState(callFrame);
     BytecodeIndex bytecodeIndex = sideState->bytecodeIndex;
+    ASSERT(bytecodeIndex.checkpoint());
+
     auto pc = codeBlock->instructions().at(bytecodeIndex);
+    JSGlobalObject* globalObject = codeBlock->globalObject();
 
     auto opcode = pc->opcodeID();
     switch (opcode) {
@@ -2148,8 +2129,24 @@ extern "C" SlowPathReturnType slow_path_checkpoint_osr_exit_from_inlined_call(Ca
         break;
     }
     // op_tail_call_varargs should never return if the thing it was calling was inlined.
+
+    case op_iterator_open: {
+        ASSERT(bytecodeIndex.checkpoint() == OpIteratorOpen::getNext);
+        callFrame->uncheckedR(destinationFor(pc->as<OpIteratorOpen>(), bytecodeIndex.checkpoint()).virtualRegister()) = JSValue::decode(result);
+        break;
+    }
+    case op_iterator_next: {
+        callFrame->uncheckedR(destinationFor(pc->as<OpIteratorNext>(), bytecodeIndex.checkpoint()).virtualRegister()) = JSValue::decode(result);
+        if (bytecodeIndex.checkpoint() == OpIteratorNext::getValue)
+            break;
+        ASSERT(bytecodeIndex.checkpoint() == OpIteratorNext::getDone);
+        sideState->bytecodeIndex = bytecodeIndex.withCheckpoint(OpIteratorNext::getValue);
+        handleIteratorNextCheckpoint(vm, callFrame, globalObject, pc->as<OpIteratorNext>(), *sideState.get());
+        break;
+    }
+
     default:
-        RELEASE_ASSERT_NOT_REACHED();
+        CRASH_WITH_INFO(opcode);
         break;
     }
 

@@ -153,7 +153,6 @@ editing/selection/caret-at-bidi-boundary.html
 editing/spelling/context-menu-suggestions-multiword-selection.html
 editing/spelling/delete-into-misspelled-word.html
 editing/spelling/design-mode-spellcheck-off.html
-editing/spelling/editing-word-with-marker-2.html
 editing/spelling/grammar-edit-word.html
 editing/spelling/grammar.html
 editing/spelling/inline-spelling-markers-hidpi.html
@@ -303,7 +302,6 @@ editing/selection/7152-1.html [ Failure ]
 editing/selection/anchor-focus1.html [ Failure ]
 editing/selection/anchor-focus2.html [ Failure ]
 editing/selection/anchor-focus3.html [ Failure ]
-editing/selection/block-cursor-overtype-mode.html [ Failure ]
 editing/selection/caret-bidi-first-and-last-letters.html [ Failure ]
 editing/selection/caret-in-empty-inline-1.html [ Failure ]
 editing/selection/caret-in-empty-inline-2.html [ Failure ]
@@ -699,7 +697,7 @@ css3/filters/animation-from-initial-values-with-color-matrix.html [ ImageOnlyFai
 css3/filters/backdrop/backdrop-filter-with-border-radius-and-reflection-add.html [ ImageOnlyFailure ]
 css3/filters/backdrop/backdrop-filter-with-border-radius-and-reflection.html [ ImageOnlyFailure ]
 css3/filters/backdrop/backdrop-filter-with-clip-path.html [ ImageOnlyFailure ]
-css3/flexbox/content-height-with-scrollbars.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-flexbox/content-height-with-scrollbars.html [ ImageOnlyFailure ]
 
 # CSS tests that pass:
 css3/flexbox/csswg/ttwf-reftest-flex-wrap-reverse.html [ Pass ]
@@ -1837,7 +1835,7 @@ css2.1/t100801-c548-ln-ht-02-b-ag.html [ Failure ]
 css2.1/t1507-c526-font-sz-02-b-a.html [ Failure ]
 css2.1/t1601-c547-indent-00-b-a.html [ Failure ]
 css2.1/t1604-c542-letter-sp-00-b-a.html [ Failure ]
-css3/flexbox/csswg/flexbox_flex-natural-mixed-basis-auto.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/css/css-flexbox/flexbox_flex-natural-mixed-basis-auto.html [ ImageOnlyFailure ]
 [ Debug ] editing/inserting/insert-div-025.html [ Failure ]
 fast/dom/Element/scrolling-funtions-on-body-quirks.html [ Failure ]
 fast/dom/Element/scrolling-funtions-on-body.html [ Failure ]

@@ -366,10 +366,6 @@ editing/pasteboard/paste-TIFF.html [ Skip ]
 editing/mac/pasteboard/dataTransfer-set-data-file-url.html [ Skip ]
 webkit.org/b/147674 editing/mac/pasteboard/5583362.html [ Skip ]
 
-# Assorted failures that need investigation
-[ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method.any.worker.html [ Skip ]
-[ Debug ] imported/w3c/web-platform-tests/fetch/api/redirect/redirect-method.any.html [ Skip ]
-
 webkit.org/b/107118 fast/canvas/canvas-quadratic-same-endpoint.html [ Failure ]
 webkit.org/b/142258 fast/css/object-fit/object-fit-canvas.html [ Pass ImageOnlyFailure ]
 
@@ -1795,7 +1791,7 @@ webkit.org/b/204820 [ Catalina+ ] fast/text/emoji-gender-9.html [ ImageOnlyFailu
 
 webkit.org/b/204247 [ Catalina ] webaudio/silence-after-playback.html [ Failure ]
 
-webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure ]
+webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure DumpJSConsoleLogInStdErr ]
 
 webkit.org/b/205361 [ Release ] crypto/workers/subtle/aes-indexeddb.html [ Pass Timeout ]
 
@@ -1946,13 +1942,19 @@ webkit.org/b/207160 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Fail
 
 webkit.org/b/210351 scrollingcoordinator/mac/latching/horizontal-overflow-back-swipe.html [ Pass Timeout ]
 
+webkit.org/b/182571 [ Debug ] media/modern-media-controls/tracks-support/tracks-support-show-panel-fullscreen.html [ Pass Timeout ]
+
 # Certain versions of macOS use different text security characters.
 webkit.org/b/209692 [ Mojave Catalina ] platform/mac/fast/text/text-security-disc-bullet-pua-mac.html [ ImageOnlyFailure ]
 
 webkit.org/b/210517 storage/indexeddb/result-request-cycle.html [ Pass Failure ]
+
+webkit.org/b/211856 media/video-poster-set-after-playback.html [ Pass Failure ]
 
 # These media controls tests are not relevant on macOS and iOS.
 media/media-document-audio-repaint.html [ Skip ]
 media/controls-styling.html [ Skip ]
 
 http/tests/frame-throttling/raf-throttle-in-cross-origin-subframe.html [ Pass Failure ]
+
+webkit.org/b/211891 imported/w3c/web-platform-tests/css/css-flexbox/flexbox_direction-row-reverse.html [ ImageOnlyFailure ]

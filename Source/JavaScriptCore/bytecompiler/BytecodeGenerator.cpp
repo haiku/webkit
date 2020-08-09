@@ -31,12 +31,10 @@
 #include "config.h"
 #include "BytecodeGenerator.h"
 
-#include "ArithProfile.h"
 #include "BuiltinExecutables.h"
 #include "BuiltinNames.h"
 #include "BytecodeGeneratorBaseInlines.h"
 #include "BytecodeGeneratorification.h"
-#include "BytecodeLivenessAnalysis.h"
 #include "BytecodeUseDef.h"
 #include "CatchScope.h"
 #include "DefinePropertyAttributes.h"
@@ -44,18 +42,11 @@
 #include "JSAsyncGenerator.h"
 #include "JSBigInt.h"
 #include "JSCInlines.h"
-#include "JSFunction.h"
-#include "JSGeneratorFunction.h"
 #include "JSImmutableButterfly.h"
-#include "JSLexicalEnvironment.h"
 #include "JSTemplateObjectDescriptor.h"
 #include "LinkTimeConstant.h"
-#include "LowLevelInterpreter.h"
 #include "Options.h"
-#include "PreciseJumpTargetsInlines.h"
-#include "StackAlignment.h"
 #include "StrongInlines.h"
-#include "SuperSamplerBytecodeScope.h"
 #include "UnlinkedCodeBlock.h"
 #include "UnlinkedEvalCodeBlock.h"
 #include "UnlinkedFunctionCodeBlock.h"
@@ -63,7 +54,6 @@
 #include "UnlinkedModuleProgramCodeBlock.h"
 #include "UnlinkedProgramCodeBlock.h"
 #include <wtf/BitVector.h>
-#include <wtf/CommaPrinter.h>
 #include <wtf/Optional.h>
 #include <wtf/SmallPtrSet.h>
 #include <wtf/StdLibExtras.h>
@@ -3774,41 +3764,41 @@ int BytecodeGenerator::labelScopeDepth() const
     return depth;
 }
 
-void BytecodeGenerator::emitThrowStaticError(ErrorType errorType, RegisterID* raw)
+void BytecodeGenerator::emitThrowStaticError(ErrorTypeWithExtension errorType, RegisterID* raw)
 {
     RefPtr<RegisterID> message = newTemporary();
     emitToString(message.get(), raw);
     OpThrowStaticError::emit(this, message.get(), errorType);
 }
 
-void BytecodeGenerator::emitThrowStaticError(ErrorType errorType, const Identifier& message)
+void BytecodeGenerator::emitThrowStaticError(ErrorTypeWithExtension errorType, const Identifier& message)
 {
     OpThrowStaticError::emit(this, addConstantValue(addStringConstant(message)), errorType);
 }
 
 void BytecodeGenerator::emitThrowReferenceError(const String& message)
 {
-    emitThrowStaticError(ErrorType::ReferenceError, Identifier::fromString(m_vm, message));
+    emitThrowStaticError(ErrorTypeWithExtension::ReferenceError, Identifier::fromString(m_vm, message));
 }
 
 void BytecodeGenerator::emitThrowTypeError(const String& message)
 {
-    emitThrowStaticError(ErrorType::TypeError, Identifier::fromString(m_vm, message));
+    emitThrowStaticError(ErrorTypeWithExtension::TypeError, Identifier::fromString(m_vm, message));
 }
 
 void BytecodeGenerator::emitThrowTypeError(const Identifier& message)
 {
-    emitThrowStaticError(ErrorType::TypeError, message);
+    emitThrowStaticError(ErrorTypeWithExtension::TypeError, message);
 }
 
 void BytecodeGenerator::emitThrowRangeError(const Identifier& message)
 {
-    emitThrowStaticError(ErrorType::RangeError, message);
+    emitThrowStaticError(ErrorTypeWithExtension::RangeError, message);
 }
 
 void BytecodeGenerator::emitThrowOutOfMemoryError()
 {
-    emitThrowStaticError(ErrorType::Error, Identifier::fromString(m_vm, "Out of memory"));
+    emitThrowStaticError(ErrorTypeWithExtension::OutOfMemoryError, m_vm.propertyNames->emptyIdentifier);
 }
 
 void BytecodeGenerator::emitPushFunctionNameScope(const Identifier& property, RegisterID* callee, bool isCaptured)

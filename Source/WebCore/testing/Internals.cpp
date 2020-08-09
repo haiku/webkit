@@ -550,6 +550,7 @@ void Internals::resetToConsistentState(Page& page)
 
     page.setShowAllPlugins(false);
     page.setLowPowerModeEnabledOverrideForTesting(WTF::nullopt);
+    page.setOutsideViewportThrottlingEnabledForTesting(false);
 
 #if USE(QUICK_LOOK)
     MockPreviewLoaderClient::singleton().setPassword("");
@@ -1796,6 +1797,19 @@ ExceptionOr<void> Internals::setLowPowerModeEnabled(bool isEnabled)
         return Exception { InvalidAccessError };
 
     page->setLowPowerModeEnabledOverrideForTesting(isEnabled);
+    return { };
+}
+
+ExceptionOr<void> Internals::setOutsideViewportThrottlingEnabled(bool isEnabled)
+{
+    auto* document = contextDocument();
+    if (!document)
+        return Exception { InvalidAccessError };
+    auto* page = document->page();
+    if (!page)
+        return Exception { InvalidAccessError };
+
+    page->setOutsideViewportThrottlingEnabledForTesting(isEnabled);
     return { };
 }
 
@@ -4268,7 +4282,8 @@ ExceptionOr<Internals::NowPlayingState> Internals::nowPlayingState() const
         PlatformMediaSessionManager::sharedManager().lastUpdatedNowPlayingElapsedTime(),
         PlatformMediaSessionManager::sharedManager().lastUpdatedNowPlayingInfoUniqueIdentifier().toUInt64(),
         PlatformMediaSessionManager::sharedManager().hasActiveNowPlayingSession(),
-        PlatformMediaSessionManager::sharedManager().registeredAsNowPlayingApplication()
+        PlatformMediaSessionManager::sharedManager().registeredAsNowPlayingApplication(),
+        PlatformMediaSessionManager::sharedManager().haveEverRegisteredAsNowPlayingApplication()
     } };
 #else
     return Exception { InvalidAccessError };
@@ -5547,7 +5562,7 @@ Internals::TextIndicatorInfo::~TextIndicatorInfo() = default;
 
 Internals::TextIndicatorInfo Internals::textIndicatorForRange(const Range& range, TextIndicatorOptions options)
 {
-    auto indicator = TextIndicator::createWithRange(range, options.core(), TextIndicatorPresentationTransition::None);
+    auto indicator = TextIndicator::createWithRange(range, options.coreOptions(), TextIndicatorPresentationTransition::None);
     return indicator->data();
 }
 
@@ -5736,10 +5751,7 @@ ExceptionOr<RefPtr<WebXRTest>> Internals::xrTest()
         if (!navigator)
             return Exception { InvalidAccessError };
 
-        auto& navigatorXR = NavigatorWebXR::from(*navigator);
-        auto& xrSystem = navigatorXR.xr(*scriptExecutionContext(), *navigator);
-
-        m_xrTest = WebXRTest::create(makeWeakPtr(&xrSystem));
+        m_xrTest = WebXRTest::create(makeWeakPtr(&NavigatorWebXR::xr(*navigator)));
     }
     return m_xrTest.get();
 }

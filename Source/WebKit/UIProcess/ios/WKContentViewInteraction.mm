@@ -50,10 +50,10 @@
 #import "WKContextMenuElementInfoInternal.h"
 #import "WKContextMenuElementInfoPrivate.h"
 #import "WKDatePickerViewController.h"
+#import "WKDateTimeInputControl.h"
 #import "WKDrawingCoordinator.h"
 #import "WKError.h"
 #import "WKFocusedFormControlView.h"
-#import "WKFormInputControl.h"
 #import "WKFormSelectControl.h"
 #import "WKFrameInfoInternal.h"
 #import "WKHighlightLongPressGestureRecognizer.h"
@@ -1403,16 +1403,20 @@ typedef NS_ENUM(NSInteger, EndEditingReason) {
 
         if (_keyWebEventHandler) {
             dispatch_async(dispatch_get_main_queue(), [weakHandler = WeakObjCPtr<id>(_keyWebEventHandler.get()), weakSelf = WeakObjCPtr<WKContentView>(self)] {
-                if (!weakSelf || !weakHandler)
-                    return;
-
                 auto strongSelf = weakSelf.get();
-                if ([strongSelf isFirstResponder] || weakHandler.get().get() != strongSelf->_keyWebEventHandler.get())
+                if (!strongSelf || [strongSelf isFirstResponder])
                     return;
-
+                auto strongHandler = weakHandler.get();
+                if (!strongHandler)
+                    return;
+                if (strongSelf->_keyWebEventHandler.get() != strongHandler.get())
+                    return;
                 auto keyEventHandler = std::exchange(strongSelf->_keyWebEventHandler, nil);
-                ASSERT(strongSelf->_page->hasQueuedKeyEvent());
-                keyEventHandler(strongSelf->_page->firstQueuedKeyEvent().nativeEvent(), YES);
+                auto page = strongSelf->_page;
+                if (!page)
+                    return;
+                ASSERT(page->hasQueuedKeyEvent());
+                keyEventHandler(page->firstQueuedKeyEvent().nativeEvent(), YES);
             });
         }
     }
@@ -1906,16 +1910,15 @@ static NSValue *nsSizeForTapHighlightBorderRadius(WebCore::IntSize borderRadius,
     switch (_focusedElementInformation.elementType) {
     case WebKit::InputType::None:
     case WebKit::InputType::Drawing:
+    case WebKit::InputType::Date:
+    case WebKit::InputType::Month:
+    case WebKit::InputType::DateTimeLocal:
+    case WebKit::InputType::Time:
         return NO;
     case WebKit::InputType::Select:
 #if ENABLE(INPUT_TYPE_COLOR)
     case WebKit::InputType::Color:
 #endif
-    case WebKit::InputType::Date:
-    case WebKit::InputType::Month:
-    case WebKit::InputType::DateTimeLocal:
-    case WebKit::InputType::Time:
-        return !WebKit::currentUserInterfaceIdiomIsPad();
     default:
         return !_focusedElementInformation.isReadOnly;
     }
@@ -2918,6 +2921,10 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
     switch (_focusedElementInformation.elementType) {
     case WebKit::InputType::None:
     case WebKit::InputType::Drawing:
+    case WebKit::InputType::Date:
+    case WebKit::InputType::DateTimeLocal:
+    case WebKit::InputType::Month:
+    case WebKit::InputType::Time:
         return NO;
     case WebKit::InputType::Text:
     case WebKit::InputType::Password:
@@ -2930,12 +2937,8 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
     case WebKit::InputType::ContentEditable:
     case WebKit::InputType::TextArea:
     case WebKit::InputType::Select:
-    case WebKit::InputType::Date:
     case WebKit::InputType::DateTime:
-    case WebKit::InputType::DateTimeLocal:
-    case WebKit::InputType::Month:
-    case WebKit:: InputType::Week:
-    case WebKit::InputType::Time:
+    case WebKit::InputType::Week:
 #if ENABLE(INPUT_TYPE_COLOR)
     case WebKit::InputType::Color:
 #endif
@@ -3516,7 +3519,7 @@ WEBCORE_COMMAND_FOR_WEBVIEW(pasteAndMatchStyle);
 {
     [_textInteractionAssistant selectWord];
     // We cannot use selectWord command, because we want to be able to select the word even when it is the last in the paragraph.
-    _page->extendSelection(WebCore::WordGranularity);
+    _page->extendSelection(WebCore::TextGranularity::WordGranularity);
 }
 
 - (void)selectAllForWebView:(id)sender
@@ -3824,32 +3827,42 @@ static inline UIGestureRecognizerState toUIGestureRecognizerState(WebKit::Gestur
     }
 }
 
-static inline UIWKSelectionFlags toUIWKSelectionFlags(WebKit::SelectionFlags flags)
+static inline UIWKSelectionFlags toUIWKSelectionFlags(OptionSet<WebKit::SelectionFlags> flags)
 {
     NSInteger uiFlags = UIWKNone;
-    if (flags & WebKit::WordIsNearTap)
+    if (flags.contains(WebKit::WordIsNearTap))
         uiFlags |= UIWKWordIsNearTap;
-    if (flags & WebKit::PhraseBoundaryChanged)
+    if (flags.contains(WebKit::PhraseBoundaryChanged))
         uiFlags |= UIWKPhraseBoundaryChanged;
 
     return static_cast<UIWKSelectionFlags>(uiFlags);
+}
+
+static inline OptionSet<WebKit::SelectionFlags> toSelectionFlags(UIWKSelectionFlags uiFlags)
+{
+    OptionSet<WebKit::SelectionFlags> flags;
+    if (uiFlags & UIWKWordIsNearTap)
+        flags.add(WebKit::WordIsNearTap);
+    if (uiFlags & UIWKPhraseBoundaryChanged)
+        flags.add(WebKit::PhraseBoundaryChanged);
+    return flags;
 }
 
 static inline WebCore::TextGranularity toWKTextGranularity(UITextGranularity granularity)
 {
     switch (granularity) {
     case UITextGranularityCharacter:
-        return WebCore::CharacterGranularity;
+        return WebCore::TextGranularity::CharacterGranularity;
     case UITextGranularityWord:
-        return WebCore::WordGranularity;
+        return WebCore::TextGranularity::WordGranularity;
     case UITextGranularitySentence:
-        return WebCore::SentenceGranularity;
+        return WebCore::TextGranularity::SentenceGranularity;
     case UITextGranularityParagraph:
-        return WebCore::ParagraphGranularity;
+        return WebCore::TextGranularity::ParagraphGranularity;
     case UITextGranularityLine:
-        return WebCore::LineGranularity;
+        return WebCore::TextGranularity::LineGranularity;
     case UITextGranularityDocument:
-        return WebCore::DocumentGranularity;
+        return WebCore::TextGranularity::DocumentGranularity;
     }
 }
 
@@ -3858,29 +3871,29 @@ static inline WebCore::SelectionDirection toWKSelectionDirection(UITextDirection
     switch (direction) {
     case UITextLayoutDirectionDown:
     case UITextLayoutDirectionRight:
-        return WebCore::DirectionRight;
+        return WebCore::SelectionDirection::Right;
     case UITextLayoutDirectionUp:
     case UITextLayoutDirectionLeft:
-        return WebCore::DirectionLeft;
+        return WebCore::SelectionDirection::Left;
     default:
         // UITextDirection is not an enum, but we only want to accept values from UITextLayoutDirection.
         ASSERT_NOT_REACHED();
-        return WebCore::DirectionRight;
+        return WebCore::SelectionDirection::Right;
     }
 }
 
-static void selectionChangedWithGesture(WKContentView *view, const WebCore::IntPoint& point, uint32_t gestureType, uint32_t gestureState, uint32_t flags, WebKit::CallbackBase::Error error)
+static void selectionChangedWithGesture(WKContentView *view, const WebCore::IntPoint& point, WebKit::GestureType gestureType, WebKit::GestureRecognizerState gestureState, OptionSet<WebKit::SelectionFlags> flags, WebKit::CallbackBase::Error error)
 {
     if (error != WebKit::CallbackBase::Error::None)
         return;
-    [(UIWKTextInteractionAssistant *)[view interactionAssistant] selectionChangedWithGestureAt:(CGPoint)point withGesture:toUIWKGestureType((WebKit::GestureType)gestureType) withState:toUIGestureRecognizerState(static_cast<WebKit::GestureRecognizerState>(gestureState)) withFlags:(toUIWKSelectionFlags((WebKit::SelectionFlags)flags))];
+    [(UIWKTextInteractionAssistant *)[view interactionAssistant] selectionChangedWithGestureAt:(CGPoint)point withGesture:toUIWKGestureType(gestureType) withState:toUIGestureRecognizerState(gestureState) withFlags:toUIWKSelectionFlags(flags)];
 }
 
-static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoint& point, uint32_t touch, uint32_t flags, WebKit::CallbackBase::Error error)
+static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoint& point, WebKit::SelectionTouch touch, OptionSet<WebKit::SelectionFlags> flags, WebKit::CallbackBase::Error error)
 {
     if (error != WebKit::CallbackBase::Error::None)
         return;
-    [(UIWKTextInteractionAssistant *)[view interactionAssistant] selectionChangedWithTouchAt:(CGPoint)point withSelectionTouch:toUIWKSelectionTouch((WebKit::SelectionTouch)touch) withFlags:static_cast<UIWKSelectionFlags>(flags)];
+    [(UIWKTextInteractionAssistant *)[view interactionAssistant] selectionChangedWithTouchAt:(CGPoint)point withSelectionTouch:toUIWKSelectionTouch((WebKit::SelectionTouch)touch) withFlags:toUIWKSelectionFlags(flags)];
 }
 
 - (BOOL)_hasFocusedElement
@@ -3896,8 +3909,8 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
 - (void)changeSelectionWithGestureAt:(CGPoint)point withGesture:(UIWKGestureType)gestureType withState:(UIGestureRecognizerState)state withFlags:(UIWKSelectionFlags)flags
 {
     _usingGestureForSelection = YES;
-    _page->selectWithGesture(WebCore::IntPoint(point), WebCore::CharacterGranularity, static_cast<uint32_t>(toGestureType(gestureType)), static_cast<uint32_t>(toGestureRecognizerState(state)), self._hasFocusedElement, [self, state, flags](const WebCore::IntPoint& point, uint32_t gestureType, uint32_t gestureState, uint32_t innerFlags, WebKit::CallbackBase::Error error) {
-        selectionChangedWithGesture(self, point, gestureType, gestureState, flags | innerFlags, error);
+    _page->selectWithGesture(WebCore::IntPoint(point), toGestureType(gestureType), toGestureRecognizerState(state), self._hasFocusedElement, [self, strongSelf = retainPtr(self), state, flags](const WebCore::IntPoint& point, WebKit::GestureType gestureType, WebKit::GestureRecognizerState gestureState, OptionSet<WebKit::SelectionFlags> innerFlags, WebKit::CallbackBase::Error error) {
+        selectionChangedWithGesture(self, point, gestureType, gestureState, toSelectionFlags(flags) | innerFlags, error);
         if (state == UIGestureRecognizerStateEnded || state == UIGestureRecognizerStateCancelled)
             _usingGestureForSelection = NO;
     });
@@ -3906,9 +3919,9 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
 - (void)changeSelectionWithTouchAt:(CGPoint)point withSelectionTouch:(UIWKSelectionTouch)touch baseIsStart:(BOOL)baseIsStart withFlags:(UIWKSelectionFlags)flags
 {
     _usingGestureForSelection = YES;
-    _page->updateSelectionWithTouches(WebCore::IntPoint(point), static_cast<uint32_t>(toSelectionTouch(touch)), baseIsStart, [self, flags](const WebCore::IntPoint& point, uint32_t touch, uint32_t innerFlags, WebKit::CallbackBase::Error error) {
-        selectionChangedWithTouch(self, point, touch, flags | innerFlags, error);
-        if (touch != UIWKSelectionTouchStarted && touch != UIWKSelectionTouchMoved)
+    _page->updateSelectionWithTouches(WebCore::IntPoint(point), toSelectionTouch(touch), baseIsStart, [self, strongSelf = retainPtr(self), flags](const WebCore::IntPoint& point, WebKit::SelectionTouch touch, OptionSet<WebKit::SelectionFlags> innerFlags, WebKit::CallbackBase::Error error) {
+        selectionChangedWithTouch(self, point, touch, toSelectionFlags(flags) | innerFlags, error);
+        if (toUIWKSelectionTouch(touch) != UIWKSelectionTouchStarted && toUIWKSelectionTouch(touch) != UIWKSelectionTouchMoved)
             _usingGestureForSelection = NO;
     });
 }
@@ -3916,9 +3929,9 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
 - (void)changeSelectionWithTouchesFrom:(CGPoint)from to:(CGPoint)to withGesture:(UIWKGestureType)gestureType withState:(UIGestureRecognizerState)gestureState
 {
     _usingGestureForSelection = YES;
-    _page->selectWithTwoTouches(WebCore::IntPoint(from), WebCore::IntPoint(to), static_cast<uint32_t>(toGestureType(gestureType)), static_cast<uint32_t>(toGestureRecognizerState(gestureState)), [self](const WebCore::IntPoint& point, uint32_t gestureType, uint32_t gestureState, uint32_t flags, WebKit::CallbackBase::Error error) {
+    _page->selectWithTwoTouches(WebCore::IntPoint(from), WebCore::IntPoint(to), toGestureType(gestureType), toGestureRecognizerState(gestureState), [self, strongSelf = retainPtr(self)](const WebCore::IntPoint& point, WebKit::GestureType gestureType, WebKit::GestureRecognizerState gestureState, OptionSet<WebKit::SelectionFlags> flags, WebKit::CallbackBase::Error error) {
         selectionChangedWithGesture(self, point, gestureType, gestureState, flags, error);
-        if (gestureState == UIGestureRecognizerStateEnded || gestureState == UIGestureRecognizerStateCancelled)
+        if (toUIGestureRecognizerState(gestureState) == UIGestureRecognizerStateEnded || toUIGestureRecognizerState(gestureState) == UIGestureRecognizerStateCancelled)
             _usingGestureForSelection = NO;
     });
 }
@@ -4229,7 +4242,7 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
     _page->requestAutocorrectionContext();
 
     if (useSyncRequest) {
-        _page->process().connection()->waitForAndDispatchImmediately<Messages::WebPageProxy::HandleAutocorrectionContext>(_page->webPageID(), 1_s, IPC::WaitForOption::InterruptWaitingIfSyncMessageArrives);
+        _page->process().connection()->waitForAndDispatchImmediately<Messages::WebPageProxy::HandleAutocorrectionContext>(_page->webPageID(), 1_s, IPC::WaitForOption::DispatchIncomingSyncMessagesWhileWaiting);
         [self _cancelPendingAutocorrectionContextHandler];
     }
 }
@@ -4406,8 +4419,8 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
 
     switch (_focusedElementInformation.elementType) {
     case WebKit::InputType::Date:
-    case WebKit::InputType::Month:
     case WebKit::InputType::DateTimeLocal:
+    case WebKit::InputType::Month:
     case WebKit::InputType::Time:
         [accessoryView setClearVisible:YES];
         return;
@@ -5580,18 +5593,6 @@ static NSString *contentTypeFromFieldName(WebCore::AutofillFieldName fieldName)
     return nil;
 }
 
-// Returns the dictation result boundaries from position so that text that was not dictated can be excluded from logging.
-// If these are not implemented, no text will be logged.
-- (UITextPosition *)previousUnperturbedDictationResultBoundaryFromPosition:(UITextPosition *)position
-{
-    return nil;
-}
-
-- (UITextPosition *)nextUnperturbedDictationResultBoundaryFromPosition:(UITextPosition *)position
-{
-    return nil;
-}
-
 // The can all be (and have been) trivially implemented in terms of UITextInput.  Deprecate and remove.
 - (void)moveBackward:(unsigned)count
 {
@@ -5733,7 +5734,6 @@ static bool mayContainSelectableText(WebKit::InputType type)
         return false;
     // The following types look and behave like a text field.
     case WebKit::InputType::ContentEditable:
-    case WebKit::InputType::DateTime:
     case WebKit::InputType::Email:
     case WebKit::InputType::Number:
     case WebKit::InputType::NumberPad:
@@ -5743,6 +5743,7 @@ static bool mayContainSelectableText(WebKit::InputType type)
     case WebKit::InputType::Text:
     case WebKit::InputType::TextArea:
     case WebKit::InputType::URL:
+    case WebKit::InputType::DateTime:
     case WebKit::InputType::Week:
         return true;
     }
@@ -5805,8 +5806,13 @@ static RetainPtr<NSObject <WKFormPeripheral>> createInputPeripheralWithView(WebK
     case WebKit::InputType::Color:
         return adoptNS([[WKFormColorControl alloc] initWithView:view]);
 #endif // ENABLE(INPUT_TYPE_COLOR)
+    case WebKit::InputType::Date:
+    case WebKit::InputType::DateTimeLocal:
+    case WebKit::InputType::Month:
+    case WebKit::InputType::Time:
+        return adoptNS([[WKDateTimeInputControl alloc] initWithView:view]);
     default:
-        return adoptNS([[WKFormInputControl alloc] initWithView:view]);
+        return nil;
     }
 #endif
 }
@@ -6517,7 +6523,7 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
 
 - (void)selectWordForReplacement
 {
-    _page->extendSelection(WebCore::WordGranularity);
+    _page->extendSelection(WebCore::TextGranularity::WordGranularity);
 }
 
 #if ENABLE(PLATFORM_DRIVEN_TEXT_CHECKING)
@@ -6754,6 +6760,20 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
     _shareSheet = nil;
 }
 #endif
+
+- (NSString *)inputLabelText
+{
+    if (!_focusedElementInformation.label.isEmpty())
+        return _focusedElementInformation.label;
+
+    if (!_focusedElementInformation.ariaLabel.isEmpty())
+        return _focusedElementInformation.ariaLabel;
+
+    if (!_focusedElementInformation.title.isEmpty())
+        return _focusedElementInformation.title;
+
+    return _focusedElementInformation.placeholder;
+}
 
 #pragma mark - UITextInputMultiDocument
 
@@ -7696,8 +7716,12 @@ static RetainPtr<UITargetedPreview> createFallbackTargetedPreview(UIView *rootVi
     if ([_actionSheetAssistant hasContextMenuInteraction])
         return;
 #endif
-    // and for the file upload panel.
+    // and for the file upload panel...
     if (_fileUploadPanel)
+        return;
+    
+    // and for the date/time picker.
+    if ([self dateTimeInputControl])
         return;
     
     [std::exchange(_contextMenuHintContainerView, nil) removeFromSuperview];
@@ -8315,16 +8339,7 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
 - (NSString *)inputLabelTextForViewController:(PUICQuickboardViewController *)controller
 {
-    if (!_focusedElementInformation.label.isEmpty())
-        return _focusedElementInformation.label;
-
-    if (!_focusedElementInformation.ariaLabel.isEmpty())
-        return _focusedElementInformation.ariaLabel;
-
-    if (!_focusedElementInformation.title.isEmpty())
-        return _focusedElementInformation.title;
-
-    return _focusedElementInformation.placeholder;
+    return [self inputLabelText];
 }
 
 - (NSString *)initialValueForViewController:(PUICQuickboardViewController *)controller
@@ -8613,6 +8628,8 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
 #if ENABLE(ATTACHMENT_ELEMENT)
 
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+
 static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& page, const WebCore::PromisedAttachmentInfo& info)
 {
     auto numberOfAdditionalTypes = info.additionalTypes.size();
@@ -8658,10 +8675,16 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
     return item;
 }
 
+#endif // !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
+
 - (void)_writePromisedAttachmentToPasteboard:(WebCore::PromisedAttachmentInfo&&)info
 {
+#if !PLATFORM(WATCHOS) && !PLATFORM(APPLETV)
     if (auto item = createItemProvider(*_page, WTFMove(info)))
         UIPasteboard.generalPasteboard.itemProviders = @[ item.get() ];
+#else
+    UNUSED_PARAM(info);
+#endif
 }
 
 #endif // ENABLE(ATTACHMENT_ELEMENT)
@@ -8691,10 +8714,10 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
     action();
 }
 
-- (WKFormInputControl *)formInputControl
+- (WKDateTimeInputControl *)dateTimeInputControl
 {
-    if ([_inputPeripheral isKindOfClass:WKFormInputControl.class])
-        return (WKFormInputControl *)_inputPeripheral.get();
+    if ([_inputPeripheral isKindOfClass:WKDateTimeInputControl.class])
+        return (WKDateTimeInputControl *)_inputPeripheral.get();
     return nil;
 }
 
@@ -8733,9 +8756,18 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
     if ([_presentedFullScreenInputViewController isKindOfClass:[WKSelectMenuListViewController class]])
         [(WKSelectMenuListViewController *)_presentedFullScreenInputViewController.get() selectItemAtIndex:rowIndex];
 #else
-    if ([_inputPeripheral isKindOfClass:[WKFormSelectControl self]])
+    if ([_inputPeripheral isKindOfClass:[WKFormSelectControl class]])
         [(WKFormSelectControl *)_inputPeripheral selectRow:rowIndex inComponent:0 extendingSelection:NO];
 #endif
+}
+
+- (BOOL)selectFormAccessoryHasCheckedItemAtRow:(long)rowIndex
+{
+#if !PLATFORM(WATCHOS)
+    if ([_inputPeripheral isKindOfClass:[WKFormSelectControl self]])
+        return [(WKFormSelectControl *)_inputPeripheral selectFormAccessoryHasCheckedItemAtRow:rowIndex];
+#endif
+    return NO;
 }
 
 - (NSString *)textContentTypeForTesting
@@ -8749,7 +8781,7 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
 
 - (NSString *)selectFormPopoverTitle
 {
-    if (![_inputPeripheral isKindOfClass:[WKFormSelectControl self]])
+    if (![_inputPeripheral isKindOfClass:[WKFormSelectControl class]])
         return nil;
 
     return [(WKFormSelectControl *)_inputPeripheral selectFormPopoverTitle];
@@ -8770,16 +8802,16 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
     if ([_presentedFullScreenInputViewController isKindOfClass:[WKTimePickerViewController class]])
         [(WKTimePickerViewController *)_presentedFullScreenInputViewController.get() setHour:hour minute:minute];
 #elif PLATFORM(IOS_FAMILY)
-    if ([_inputPeripheral isKindOfClass:[WKFormInputControl class]])
-        [(WKFormInputControl *)_inputPeripheral.get() setTimePickerHour:hour minute:minute];
+    if ([_inputPeripheral isKindOfClass:[WKDateTimeInputControl class]])
+        [(WKDateTimeInputControl *)_inputPeripheral.get() setTimePickerHour:hour minute:minute];
 #endif
 }
 
 - (double)timePickerValueHour
 {
 #if PLATFORM(IOS_FAMILY)
-    if ([_inputPeripheral isKindOfClass:[WKFormInputControl class]])
-        return [(WKFormInputControl *)_inputPeripheral.get() timePickerValueHour];
+    if ([_inputPeripheral isKindOfClass:[WKDateTimeInputControl class]])
+        return [(WKDateTimeInputControl *)_inputPeripheral.get() timePickerValueHour];
 #endif
     return -1;
 }
@@ -8787,8 +8819,8 @@ static RetainPtr<NSItemProvider> createItemProvider(const WebKit::WebPageProxy& 
 - (double)timePickerValueMinute
 {
 #if PLATFORM(IOS_FAMILY)
-    if ([_inputPeripheral isKindOfClass:[WKFormInputControl class]])
-        return [(WKFormInputControl *)_inputPeripheral.get() timePickerValueMinute];
+    if ([_inputPeripheral isKindOfClass:[WKDateTimeInputControl class]])
+        return [(WKDateTimeInputControl *)_inputPeripheral.get() timePickerValueMinute];
 #endif
     return -1;
 }

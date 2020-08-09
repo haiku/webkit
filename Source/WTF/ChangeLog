@@ -1,3 +1,232 @@
+2020-05-19  Adrian Perez de Castro  <aperez@igalia.com>
+
+        WTF::LockedPrintStream should be final
+        https://bugs.webkit.org/show_bug.cgi?id=212107
+
+        Reviewed by Darin Adler.
+
+        * wtf/LockedPrintStream.h: Make class WTF::LockedPrintStream final.
+
+2020-05-19  Mark Lam  <mark.lam@apple.com>
+
+        Put PtrTagLookup data structures in Configs for freezing.
+        https://bugs.webkit.org/show_bug.cgi?id=212089
+        <rdar://problem/63401487>
+
+        Reviewed by Robin Morisset.
+
+        * wtf/PtrTag.cpp:
+        (WTF::tagForPtr):
+        (WTF::ptrTagName):
+        (WTF::registerPtrTagLookup):
+        * wtf/PtrTag.h:
+        (WTF::PtrTagLookup::initialize):
+        * wtf/WTFConfig.h:
+
+2020-05-19  Mark Lam  <mark.lam@apple.com>
+
+        Remove unnecessary debug logging from release builds.
+        https://bugs.webkit.org/show_bug.cgi?id=212084
+        <rdar://problem/63398704>
+
+        Reviewed by Saam Barati.
+
+        * wtf/PtrTag.h:
+
+2020-05-18  Andy Estes  <aestes@apple.com>
+
+        http/tests/ssl/applepay/ApplePayInstallmentConfiguration.https.html fails in public SDK builds
+        https://bugs.webkit.org/show_bug.cgi?id=212000
+        <rdar://problem/63323082>
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformEnableCocoa.h:
+        * wtf/PlatformHave.h:
+
+2020-05-18  Mark Lam  <mark.lam@apple.com>
+
+        Implement a faster findBitInWord() using the hardware ctz instruction.
+        https://bugs.webkit.org/show_bug.cgi?id=212032
+        <rdar://problem/63348086>
+
+        Reviewed by Saam Barati.
+
+        Based on local microbenchmarking, both ARM64 and X86_64 shows a speed up of
+        28% - 95% faster than the loop.
+
+        The largest perf regressions for ctz vs the loop, are when finding 1 in a mostly
+        set word or finding 0 in a mostly cleared word. For example, on X86_64:
+            Find 1 in 0xffffffffffffffff: using loop 8.67 ms, using ctz 6.07 ms, delta 30.0%
+            Find 0 in 0x8000000000000000: using loop 9.01 ms, using ctz 6.54 ms, delta 28.1%
+
+        The largest perf progressions for ctz vs the loop, are the opposite: finding 1 in
+        a mostly cleared word, or finding a 0 in a mostly set word. For example, on X86_64:
+            Find 1 in 0x8000000000000000: using loop 91.4 ms, using ctz 6.48 ms, delta 92.9%
+            Find 0 in 0xffffffffffffffff: using loop 91.7 ms, using ctz 6.95 ms, delta 92.4%
+
+        TL;DR: the microbenchmark methodology used:
+
+        findBitInWord() takes:
+            a. word to scan
+            b. startIndex
+            c. endIndex
+            d. bool value to scan for, either 1 or 0.
+
+        1. Randomly select 1000 startIndex and endIndex pairs.
+           The endIndex is guaranteed to be >= startIndex.
+
+        2. Using a base word of 0xffffffffffffffff (or uint64_t) and 0xffffffff (for uint32_t),
+           shift left by 0 - N (where N is the number of bits in the word) to generate
+           N + 1 words for the test.  This produces words with contiguous lengths of 1s
+           and 0s.  We're choosing these words to deliberately measure the effects o
+           run lengths of 0s or 1s on the algorithm in use.
+
+        3. For each test word, call findBitInWord() with the start and end indexes chosen
+           in 1 for a 100 iterations.
+
+        4. Run (3) once to search for a true value, and once to search for a false value.
+
+        5. Print the results for each test word and value pair.
+
+        * wtf/BitVector.cpp:
+        * wtf/Bitmap.h:
+        * wtf/StdLibExtras.h:
+        (WTF::findBitInWord):
+
+2020-05-18  Darin Adler  <darin@apple.com>
+
+        Add iterator checking to ListHashSet
+        https://bugs.webkit.org/show_bug.cgi?id=211669
+
+        Reviewed by Anders Carlsson.
+
+        HashSet and HashMap have iterator checking in debug builds.
+        Add similar checking to ListHashSet, controlled by the same
+        macro, CHECK_HASHTABLE_ITERATORS. Use WeakPtr to make the
+        implementation simple.
+
+        * wtf/Forward.h: Update to add a second parameter to WeakPtr.
+        Also rearranged and tweaked the file a bug.
+
+        * wtf/ListHashSet.h: Make ListHashSet and ListHashSetNode derive
+        from CanMakeWeakPtr. Add m_weakSet and m_weakPosition members to
+        ListHashSetConstIterator, and assert their values at the appropriate
+        times so we will get a breakpoint or crash.
+
+        * wtf/WeakHashSet.h: Updated to add a Counter argument for testing.
+
+        * wtf/WeakPtr.h: Removed the DID_CREATE_WEAK_PTR_IMPL and
+        WILL_DESTROY_WEAK_PTR_IMPL macros, which didn't really work because
+        using them violated the C++ one-definition rule. Replaced with
+        a Counter argument, which defaults to EmptyCounter, which is inlines
+        that do nothing. This required some updates to the classes and
+        functions to make them work with a second argument.
+
+2020-05-15  Alex Christensen  <achristensen@webkit.org>
+
+        Make host parser fail on ^
+        https://bugs.webkit.org/show_bug.cgi?id=211901
+
+        Reviewed by Geoffrey Garen.
+
+        This matches the behavior of Chrome and Firefox, and now the specification!
+        I updated the URL wpt data, and this introduces new PASSes.
+
+        * wtf/URLParser.cpp:
+        (WTF::isC0Control):
+        (WTF::isForbiddenHostCodePoint):
+
+2020-05-14  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [macOS] Update the placeholder icon image for attachment elements with progress="0"
+        https://bugs.webkit.org/show_bug.cgi?id=211898
+        <rdar://problem/63203900>
+
+        Reviewed by Timothy Hatcher.
+
+        Add a new flag for HAVE(SYSTEM_ATTACHMENT_PLACEHOLDER_ICON).
+
+        * wtf/PlatformHave.h:
+
+2020-05-14  Chris Dumez  <cdumez@apple.com>
+
+        Regression(r254856) Family Health iOS app is broken due to lack for WebSQL support
+        https://bugs.webkit.org/show_bug.cgi?id=211896
+        <rdar://problem/63025045>
+
+        Reviewed by Maciej Stachowiak.
+
+        * wtf/spi/darwin/dyldSPI.h:
+
+2020-05-13  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [IWYU] Try removing redundant includes in WTF implementation files
+        https://bugs.webkit.org/show_bug.cgi?id=211821
+
+        Reviewed by Simon Fraser.
+
+        * wtf/Assertions.cpp:
+        * wtf/Bag.cpp:
+        * wtf/BitVector.cpp:
+        * wtf/ConcurrentBuffer.cpp:
+        * wtf/ConcurrentPtrHashSet.cpp:
+        * wtf/CrossThreadCopier.cpp:
+        * wtf/CurrentTime.cpp:
+        * wtf/DataLog.cpp:
+        * wtf/DateMath.cpp:
+        * wtf/FastBitVector.cpp:
+        * wtf/FastMalloc.cpp:
+        * wtf/FileSystem.cpp:
+        * wtf/Gigacage.cpp:
+        * wtf/HashTable.cpp:
+        * wtf/JSValueMalloc.cpp:
+        * wtf/Language.cpp:
+        * wtf/MainThread.cpp:
+        * wtf/MetaAllocator.cpp:
+        * wtf/MonotonicTime.cpp:
+        * wtf/NumberOfCores.cpp:
+        * wtf/OSLogPrintStream.cpp:
+        * wtf/ParallelHelperPool.cpp:
+        * wtf/ParkingLot.cpp:
+        * wtf/PrintStream.cpp:
+        * wtf/RAMSize.cpp:
+        * wtf/RandomDevice.cpp:
+        * wtf/RandomNumber.cpp:
+        * wtf/RefCountedArray.cpp:
+        * wtf/RefCountedLeakCounter.cpp:
+        * wtf/SegmentedVector.cpp:
+        * wtf/SmallPtrSet.cpp:
+        * wtf/StackBounds.cpp:
+        * wtf/ThreadGroup.cpp:
+        * wtf/Threading.cpp:
+        * wtf/TimeWithDynamicClockType.cpp:
+        * wtf/URL.cpp:
+        * wtf/URLParser.cpp:
+        * wtf/UUID.cpp:
+        * wtf/UniqueArray.cpp:
+        * wtf/Vector.cpp:
+        * wtf/WTFConfig.cpp:
+        * wtf/WallTime.cpp:
+        * wtf/WordLock.cpp:
+        * wtf/WorkQueue.cpp:
+        * wtf/WorkerPool.cpp:
+        * wtf/generic/WorkQueueGeneric.cpp:
+        * wtf/posix/OSAllocatorPOSIX.cpp:
+        * wtf/posix/ThreadingPOSIX.cpp:
+        * wtf/text/AtomString.cpp:
+        * wtf/text/AtomStringImpl.cpp:
+        * wtf/text/AtomStringTable.cpp:
+        * wtf/text/CString.cpp:
+        * wtf/text/StringBuffer.cpp:
+        * wtf/text/StringBuilder.cpp:
+        * wtf/text/StringImpl.cpp:
+        * wtf/text/StringView.cpp:
+        * wtf/text/TextBreakIterator.cpp:
+        * wtf/text/TextStream.cpp:
+        * wtf/text/WTFString.cpp:
+        * wtf/threads/Signals.cpp:
+
 2020-05-13  Jer Noble  <jer.noble@apple.com>
 
         Replace isNullFunctionPointer with real weak-linking support

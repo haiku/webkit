@@ -31,10 +31,8 @@
 #include "CodeBlock.h"
 #include "Disassembler.h"
 #include "JITCode.h"
-#include "JSCInlines.h"
 #include "Options.h"
 #include "WasmCompilationMode.h"
-#include <wtf/CompilationThread.h>
 
 #if OS(LINUX)
 #include "PerfLog.h"
@@ -237,8 +235,10 @@ void LinkBuffer::copyCompactAndLinkCode(MacroAssembler& macroAssembler, JITCompi
 
 #if CPU(ARM64E) && ENABLE(FAST_JIT_PERMISSIONS)
     if (verifyUncompactedHash.finalHash() != expectedFinalHash) {
+#ifndef NDEBUG
         dataLogLn("Hashes don't match: ", RawPointer(bitwise_cast<void*>(static_cast<uintptr_t>(verifyUncompactedHash.finalHash()))), " ", RawPointer(bitwise_cast<void*>(static_cast<uintptr_t>(expectedFinalHash))));
         dataLogLn("Crashing!");
+#endif
         CRASH();
     }
 #endif

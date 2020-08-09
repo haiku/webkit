@@ -321,6 +321,7 @@ typedef enum {
 - (void)addInputString:(NSString *)string withFlags:(NSUInteger)flags;
 - (void)addInputString:(NSString *)string withFlags:(NSUInteger)flags withInputManagerHint:(NSString *)hint;
 - (BOOL)autocorrectSpellingEnabled;
+- (BOOL)isAutoShifted;
 - (void)deleteFromInput;
 - (void)deleteFromInputWithFlags:(NSUInteger)flags;
 - (void)replaceText:(id)replacement;
@@ -1152,10 +1153,12 @@ typedef NS_OPTIONS(NSInteger, UIWKDocumentRequestFlags) {
 typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
     _UIContextMenuLayoutActionsOnly = 1,
     _UIContextMenuLayoutCompactMenu = 3,
+    _UIContextMenuLayoutAutomatic = 100,
 };
 
 @interface _UIContextMenuStyle : NSObject <NSCopying>
 @property (nonatomic) _UIContextMenuLayout preferredLayout;
+@property (nonatomic) BOOL hasInteractivePreview;
 + (instancetype)defaultStyle;
 @end
 

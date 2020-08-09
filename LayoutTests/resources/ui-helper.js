@@ -308,6 +308,13 @@ window.UIHelper = class UIHelper {
         });
     }
 
+    static keyboardIsAutomaticallyShifted()
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript(`uiController.keyboardIsAutomaticallyShifted`, result => resolve(result === "true"));
+        });
+    }
+
     static ensurePresentationUpdate()
     {
         if (!this.isWebKit2()) {
@@ -715,8 +722,15 @@ window.UIHelper = class UIHelper {
 
     static selectFormAccessoryPickerRow(rowIndex)
     {
-        const selectRowScript = `(() => uiController.selectFormAccessoryPickerRow(${rowIndex}))()`;
+        const selectRowScript = `uiController.selectFormAccessoryPickerRow(${rowIndex})`;
         return new Promise(resolve => testRunner.runUIScript(selectRowScript, resolve));
+    }
+
+    static selectFormAccessoryHasCheckedItemAtRow(rowIndex)
+    {
+        return new Promise(resolve => testRunner.runUIScript(`uiController.selectFormAccessoryHasCheckedItemAtRow(${rowIndex})`, result => {
+            resolve(result === "true");
+        }));
     }
 
     static selectFormPopoverTitle()
@@ -1176,8 +1190,12 @@ window.UIHelper = class UIHelper {
     }
 
     static async copyText(text) {
-        const copyTextScript = `uiController.copyText(\`${text.replace(/`/g, "\\`")}\`)()`;
+        const copyTextScript = `uiController.copyText(\`${text.replace(/`/g, "\\`")}\`)`;
         return new Promise(resolve => testRunner.runUIScript(copyTextScript, resolve));
+    }
+
+    static async paste() {
+        return new Promise(resolve => testRunner.runUIScript(`uiController.paste()`, resolve));
     }
 
     static async setContinuousSpellCheckingEnabled(enabled) {

@@ -1154,7 +1154,7 @@ TEST(WKAttachmentTests, InsertAndRemoveDuplicateAttachment)
         observer.expectAttachmentUpdates(@[ ], @[ originalAttachment.get() ]);
     }
     [webView selectAll:nil];
-    [webView _executeEditCommand:@"Copy" argument:nil completion:nil];
+    [webView _synchronouslyExecuteEditCommand:@"Copy" argument:nil];
     [webView evaluateJavaScript:@"getSelection().collapseToEnd()" completionHandler:nil];
     {
         ObserveAttachmentUpdatesForScope observer(webView.get());
@@ -1196,7 +1196,7 @@ TEST(WKAttachmentTests, InsertDuplicateAttachmentAndUpdateData)
         observer.expectAttachmentUpdates(@[ ], @[ originalAttachment.get() ]);
     }
     [webView selectAll:nil];
-    [webView _executeEditCommand:@"Copy" argument:nil completion:nil];
+    [webView _synchronouslyExecuteEditCommand:@"Copy" argument:nil];
     [webView evaluateJavaScript:@"getSelection().collapseToEnd()" completionHandler:nil];
     {
         ObserveAttachmentUpdatesForScope observer(webView.get());
@@ -1470,13 +1470,13 @@ TEST(WKAttachmentTests, CustomFileWrapperSubclass)
     [configuration _setAttachmentElementEnabled:YES];
     RetainPtr<NSException> exception;
     @try {
-        [configuration _setAttachmentFileWrapperClass:[NSArray self]];
+        [configuration _setAttachmentFileWrapperClass:[NSArray class]];
     } @catch(NSException *caught) {
         exception = caught;
     }
     EXPECT_TRUE(exception);
 
-    [configuration _setAttachmentFileWrapperClass:[FileWrapper self]];
+    [configuration _setAttachmentFileWrapperClass:[FileWrapper class]];
 
     auto webView = webViewForTestingAttachments(CGSizeZero, configuration.get());
 
@@ -1486,7 +1486,7 @@ TEST(WKAttachmentTests, CustomFileWrapperSubclass)
     NSArray<_WKAttachment *> * insertedAttachments = observer.observer().inserted;
 
     EXPECT_EQ(1U, insertedAttachments.count);
-    EXPECT_EQ([FileWrapper self], [insertedAttachments.firstObject.info.fileWrapper class]);
+    EXPECT_EQ([FileWrapper class], [insertedAttachments.firstObject.info.fileWrapper class]);
 }
 
 // FIXME: Remove this version guard once rdar://51752593 is resolved.
@@ -1566,6 +1566,37 @@ TEST(WKAttachmentTests, SetFileWrapperForPDFImageAttachment)
 #pragma mark - Platform-specific tests
 
 #if PLATFORM(MAC)
+
+TEST(WKAttachmentTestsMac, DraggingAttachmentBackedImagePreservesRangedSelection)
+{
+    platformCopyPNG();
+
+    RetainPtr<_WKAttachment> attachment;
+    auto webView = webViewForTestingAttachments(NSMakeSize(250, 250));
+    {
+        ObserveAttachmentUpdatesForScope observer(webView.get());
+        [webView _synchronouslyExecuteEditCommand:@"Paste" argument:nil];
+        EXPECT_EQ(1U, observer.observer().inserted.count);
+        attachment = observer.observer().inserted[0];
+    }
+
+    [webView waitForImageElementSizeToBecome:CGSizeMake(215, 174)];
+
+    [webView mouseEnterAtPoint:CGPointMake(125, 125)];
+    [webView mouseMoveToPoint:CGPointMake(125, 125) withFlags:0];
+    [webView mouseDownAtPoint:CGPointMake(125, 125) simulatePressure:NO];
+    [webView waitForPendingMouseEvents];
+
+    [webView mouseDragToPoint:CGPointMake(150, 150)];
+    [webView mouseDragToPoint:CGPointMake(200, 150)];
+    [webView waitForPendingMouseEvents];
+
+    [webView mouseUpAtPoint:CGPointMake(200, 150)];
+    [webView waitForPendingMouseEvents];
+
+    EXPECT_WK_STREQ("Range", [webView stringByEvaluatingJavaScript:@"getSelection().type"]);
+    EXPECT_TRUE([[webView objectByEvaluatingJavaScript:@"getSelection().containsNode(document.querySelector('img'))"] boolValue]);
+}
 
 TEST(WKAttachmentTestsMac, InsertPastedFileURLsAsAttachments)
 {

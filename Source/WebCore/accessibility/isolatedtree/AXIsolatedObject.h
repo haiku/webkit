@@ -80,13 +80,8 @@ private:
         return axObjectCache()->objectFromAXID(objectID());
     }
 
-    enum class AXPropertyName : uint8_t {
+    enum class AXPropertyName : uint16_t {
         None = 0,
-        AccessKey,
-        ActionVerb,
-        AccessibilityButtonState,
-        AccessibilityText,
-        AutoCompleteValue,
         ARIAControlsElements,
         ARIADetailsElements,
         DropEffects,
@@ -102,6 +97,12 @@ private:
         AXColumnIndex,
         AXRowCount,
         AXRowIndex,
+        AccessKey,
+        AccessibilityButtonState,
+        AccessibilityDescription,
+        AccessibilityText,
+        ActionVerb,
+        AutoCompleteValue,
         BlockquoteLevel,
         BoundingBoxRect,
         CanHaveSelectedChildren,
@@ -151,7 +152,9 @@ private:
         HasChildren,
         HasHighlighting,
         HasItalicFont,
+        HasPlainText,
         HasPopup,
+        HasUnderline,
         HeaderContainer,
         HeadingLevel,
         HelpText,
@@ -171,6 +174,7 @@ private:
         IsBusy,
         IsChecked,
         IsCollapsed,
+        IsColumnHeaderCell,
         IsControl,
         IsDataTable,
         IsDescriptionList,
@@ -235,6 +239,7 @@ private:
         IsProgressIndicator,
         IsRangeControl,
         IsRequired,
+        IsRowHeaderCell,
         IsScrollbar,
         IsSearchField,
         IsSelected,
@@ -336,7 +341,7 @@ private:
         VisibleRows,
         WebArea,
     };
-    
+
     typedef std::pair<AXID, AXID> AccessibilityIsolatedTreeMathMultiscriptPair;
     struct AccessibilityIsolatedTreeText {
         String text;
@@ -423,6 +428,8 @@ private:
     std::pair<unsigned, unsigned> rowIndexRange() const override { return pairAttributeValue<unsigned>(AXPropertyName::RowIndexRange); }
     // Returns the start location and column span of the cell.
     std::pair<unsigned, unsigned> columnIndexRange() const override { return pairAttributeValue<unsigned>(AXPropertyName::ColumnIndexRange); }
+    bool isColumnHeaderCell() const override { return boolAttributeValue(AXPropertyName::IsColumnHeaderCell); }
+    bool isRowHeaderCell() const override { return boolAttributeValue(AXPropertyName::IsRowHeaderCell); }
     int axColumnIndex() const override { return intAttributeValue(AXPropertyName::AXColumnIndex); }
     int axRowIndex() const override { return intAttributeValue(AXPropertyName::AXRowIndex); }
 
@@ -736,7 +743,6 @@ private:
     bool isContainedByPasswordField() const override;
     AXCoreObject* passwordFieldOrContainingPasswordField() override;
     bool isNativeTextControl() const override;
-    bool isNativeListBox() const override;
     bool isListBoxOption() const override;
     bool isSliderThumb() const override;
     bool isInputSlider() const override;
@@ -755,7 +761,7 @@ private:
     bool isOnScreen() const override;
     bool isOffScreen() const override;
     bool isPressed() const override;
-    bool isUnvisited() const override;
+    bool isUnvisited() const override { return boolAttributeValue(AXPropertyName::IsUnvisited); }
     bool isLinked() const override;
     bool isVisible() const override;
     bool isCollapsed() const override;
@@ -763,11 +769,11 @@ private:
     bool hasBoldFont() const override { return boolAttributeValue(AXPropertyName::HasBoldFont); }
     bool hasItalicFont() const override { return boolAttributeValue(AXPropertyName::HasItalicFont); }
     bool hasMisspelling() const override;
-    bool hasPlainText() const override;
-    bool hasSameFont(RenderObject*) const override;
-    bool hasSameFontColor(RenderObject*) const override;
-    bool hasSameStyle(RenderObject*) const override;
-    bool hasUnderline() const override;
+    bool hasPlainText() const override { return boolAttributeValue(AXPropertyName::HasPlainText); }
+    bool hasSameFont(const AXCoreObject&) const override;
+    bool hasSameFontColor(const AXCoreObject&) const override;
+    bool hasSameStyle(const AXCoreObject&) const override;
+    bool hasUnderline() const override { return boolAttributeValue(AXPropertyName::HasUnderline); }
     bool hasHighlighting() const override { return boolAttributeValue(AXPropertyName::HasHighlighting); }
     Element* element() const override;
     Node* node() const override;
@@ -811,7 +817,7 @@ private:
     bool inheritsPresentationalRole() const override;
     void setAccessibleName(const AtomString&) override;
     bool hasAttributesRequiredForInclusion() const override;
-    String accessibilityDescription() const override;
+    String accessibilityDescription() const override { return stringAttributeValue(AXPropertyName::AccessibilityDescription); }
     String title() const override { return stringAttributeValue(AXPropertyName::Title); }
     String helpText() const override;
     bool isARIAStaticText() const override;

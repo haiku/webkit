@@ -218,7 +218,7 @@ void ScrollingTree::commitTreeState(std::unique_ptr<ScrollingStateTree>&& scroll
 
     bool rootStateNodeChanged = scrollingStateTree->hasNewRootStateNode();
     
-    LOG(Scrolling, "\nScrollingTree %p commitTreeState", this);
+    LOG(ScrollingTree, "\nScrollingTree %p commitTreeState", this);
     
     auto* rootNode = scrollingStateTree->rootStateNode();
     if (rootNode
@@ -260,7 +260,7 @@ void ScrollingTree::commitTreeState(std::unique_ptr<ScrollingStateTree>&& scroll
         m_nodeMap.remove(nodeID);
     }
 
-    LOG_WITH_STREAM(Scrolling, stream << "committed ScrollingTree" << scrollingTreeAsText(ScrollingStateTreeAsTextBehaviorDebug));
+    LOG_WITH_STREAM(ScrollingTree, stream << "committed ScrollingTree" << scrollingTreeAsText(ScrollingStateTreeAsTextBehaviorDebug));
 }
 
 void ScrollingTree::updateTreeFromStateNodeRecursive(const ScrollingStateNode* stateNode, CommitTreeState& state)
@@ -525,6 +525,18 @@ bool ScrollingTree::willWheelEventStartSwipeGesture(const PlatformWheelEvent& wh
         return true;
 
     return false;
+}
+
+void ScrollingTree::windowScreenDidChange(PlatformDisplayID displayID)
+{
+    LockHolder locker(m_treeStateMutex);
+    m_treeState.displayID = displayID;
+}
+
+PlatformDisplayID ScrollingTree::displayID()
+{
+    LockHolder locker(m_treeStateMutex);
+    return m_treeState.displayID;
 }
 
 void ScrollingTree::setScrollingPerformanceLoggingEnabled(bool flag)

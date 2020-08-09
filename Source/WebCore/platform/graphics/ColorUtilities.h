@@ -25,11 +25,13 @@
 
 #pragma once
 
-#include "Color.h"
 #include <algorithm>
+#include <array>
 #include <math.h>
 
 namespace WebCore {
+
+class Color;
 
 struct FloatComponents {
     FloatComponents(float a = 0, float b = 0, float c = 0, float d = 0)
@@ -38,6 +40,14 @@ struct FloatComponents {
         components[1] = b;
         components[2] = c;
         components[3] = d;
+    }
+
+    FloatComponents(const std::array<float, 4>& values)
+    {
+        components[0] = values[0];
+        components[1] = values[1];
+        components[2] = values[2];
+        components[3] = values[3];
     }
 
     FloatComponents(const Color&);
@@ -91,8 +101,10 @@ struct FloatComponents {
         return result;
     }
 
-    float components[4];
+    std::array<float, 4> components;
 };
+
+bool areEssentiallyEqual(const FloatComponents&, const FloatComponents&);
 
 struct ColorComponents {
     ColorComponents(const FloatComponents&);
@@ -115,7 +127,7 @@ struct ColorComponents {
         return components[0] << 24 | components[1] << 16 | components[2] << 8 | components[3];
     }
 
-    uint8_t components[4] { };
+    std::array<uint8_t, 4> components;
 };
 
 inline ColorComponents perComponentMax(const ColorComponents& a, const ColorComponents& b)
@@ -138,6 +150,16 @@ inline ColorComponents perComponentMin(const ColorComponents& a, const ColorComp
     };
 }
 
+inline bool operator==(const ColorComponents& a, const ColorComponents& b)
+{
+    return a.components == b.components;
+}
+
+inline bool operator!=(const ColorComponents& a, const ColorComponents& b)
+{
+    return !(a == b);
+}
+
 inline uint8_t clampedColorComponent(float f)
 {
     // See also colorFloatToRGBAByte().
@@ -151,15 +173,18 @@ inline unsigned byteOffsetOfPixel(unsigned x, unsigned y, unsigned rowBytes)
 }
 
 // 0-1 components, result is clamped.
-float linearToSRGBColorComponent(float);
-float sRGBToLinearColorComponent(float);
+float linearToRGBColorComponent(float);
+float rgbToLinearColorComponent(float);
 
 FloatComponents sRGBColorToLinearComponents(const Color&);
-FloatComponents sRGBToLinearComponents(const FloatComponents&);
-FloatComponents linearToSRGBComponents(const FloatComponents&);
+FloatComponents rgbToLinearComponents(const FloatComponents&);
+FloatComponents linearToRGBComponents(const FloatComponents&);
+
+FloatComponents p3ToSRGB(const FloatComponents&);
+FloatComponents sRGBToP3(const FloatComponents&);
 
 FloatComponents sRGBToHSL(const FloatComponents&);
-FloatComponents HSLToSRGB(const FloatComponents&);
+FloatComponents hslToSRGB(const FloatComponents&);
 
 float luminance(const FloatComponents& sRGBCompontents);
 float contrastRatio(const FloatComponents&, const FloatComponents&);
@@ -172,9 +197,10 @@ public:
     static ColorMatrix sepiaMatrix(float);
 
     ColorMatrix();
-    ColorMatrix(float[20]);
+    ColorMatrix(const float[20]);
     
     void transformColorComponents(FloatComponents&) const;
+    FloatComponents transformedColorComponents(const FloatComponents&) const;
 
 private:
     void makeIdentity();

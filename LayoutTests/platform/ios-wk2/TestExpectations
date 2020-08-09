@@ -629,7 +629,6 @@ editing/secure-input/password-input-changed-type.html [ Failure ]
 editing/secure-input/password-input-focusing.html [ Failure ]
 editing/secure-input/removed-password-input.html [ Failure ]
 editing/secure-input/reset-state-on-navigation.html [ Failure ]
-editing/selection/block-cursor-overtype-mode.html [ Failure ]
 editing/selection/caret-in-empty-inline-1.html [ Failure ]
 editing/selection/caret-in-empty-inline-2.html [ Failure ]
 editing/selection/click-in-margins-inside-editable-div.html [ Failure ]
@@ -704,7 +703,6 @@ editing/caret/ios/emoji.html [ Failure ]
 editing/selection/designmode-no-caret.html
 editing/selection/move-by-character-brute-force.html
 editing/spelling/delete-into-misspelled-word.html
-editing/spelling/editing-word-with-marker-2.html
 editing/spelling/grammar-edit-word.html
 editing/spelling/grammar.html
 editing/spelling/inline-spelling-markers-hidpi.html
@@ -1015,8 +1013,6 @@ fast/shadow-dom/fullscreen-in-slot-webkitCurrentFullScreenElement.html [ Skip ]
 fast/events/focus-label-legend-elements-with-tab.html [ Skip ]
 fast/forms/search-cancel-button-hover.html [ Skip ]
 
-webkit.org/b/209502 fast/dom/window-open-ephemeral.html [ Pass Timeout ]
-
 # No touch events
 fast/visual-viewport/ios/bottom-bar-with-keyboard.html [ Skip ]
 fast/visual-viewport/ios/fixed-element-on-bottom-with-keyboard.html [ Skip ]
@@ -1053,8 +1049,6 @@ webkit.org/b/155948 transitions/cancel-transition.html [ Pass Failure ]
 
 webkit.org/b/149087 http/tests/cache/disk-cache/disk-cache-vary.html [ Pass Timeout ]
 webkit.org/b/149087 http/tests/cache/disk-cache/disk-cache-vary-no-body.html [ Pass Timeout ]
-
-webkit.org/b/209349 http/tests/cache/disk-cache/disk-cache-disable.html [ Pass Timeout ]
 
 webkit.org/b/82762 fast/animation/request-animation-frame-during-modal.html [ Pass Failure ]
 webkit.org/b/156620 fast/animation/request-animation-frame-iframe2.html [ Pass Failure ]
@@ -1342,7 +1336,7 @@ webkit.org/b/207465 [ Debug ] storage/indexeddb/intversion-long-queue.html [ Pas
 
 webkit.org/b/207466 http/wpt/service-workers/service-worker-networkprocess-crash.html [ Pass Failure ]
 
-webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure ]
+webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure DumpJSConsoleLogInStdErr ]
 
 webkit.org/b/207551 http/tests/adClickAttribution/store-disabled-in-ephemeral-session.html [ Pass Timeout ]
 
@@ -1392,8 +1386,6 @@ webkit.org/b/208525 http/tests/security/cookies/third-party-cookie-blocking-redi
 
 webkit.org/b/209517 http/tests/security/cookies/third-party-cookie-blocking.html [ Pass Timeout ]
 
-webkit.org/b/208543 fast/hidpi/filters-and-image-buffer-resolution.html [ Pass Failure ]
-
 webkit.org/b/208547 http/tests/navigation/process-swap-on-client-side-redirect-private.html [ Pass Timeout ]
 
 webkit.org/b/208576 webrtc/video-replace-track.html [ Pass Failure ]
@@ -1423,8 +1415,6 @@ webkit.org/b/208601 fast/backgrounds/hidpi-bitmap-background-on-subpixel-positio
 webkit.org/b/208739 http/tests/resourceLoadStatistics/third-party-cookie-blocking-ephemeral.html [ Pass Timeout ]
 
 webkit.org/b/208739 http/tests/resourceLoadStatistics/third-party-cookie-blocking-ephemeral-database.html [ Pass Timeout ]
-
-webkit.org/b/208887 fast/css-custom-paint/image.html [ Pass Timeout ]
 
 webkit.org/b/208890 imported/w3c/web-platform-tests/IndexedDB/idbobjectstore_openKeyCursor.htm [ Pass Failure ]
 
@@ -1729,8 +1719,6 @@ http/tests/quicklook/secure-document-with-subresources.html [ Skip ]
 
 webkit.org/b/209281 imported/w3c/web-platform-tests/fetch/stale-while-revalidate/frame-removal.html [ Pass Failure ]
 
-webkit.org/b/209350 css2.1/20110323/replaced-intrinsic-ratio-001.htm [ Pass Failure ]
-
 webkit.org/b/209352 http/tests/security/stylesheet-href-redirect.html [ Pass Timeout ]
 
 # Flaky failure is tracked in webkit.org/b/211652
@@ -1763,3 +1751,10 @@ webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.htm
 webkit.org/b/209189 http/tests/IndexedDB/storage-limit.https.html [ Pass Failure ]
 
 webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass Failure ]
+
+webkit.org/b/211928 http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database.html [ Pass Timeout ]
+
+webkit.org/b/211958 [ Debug ] fast/text/international/system-language/han-quotes.html [ Pass Crash ]
+webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-es-419.html [ Pass Crash ]
+webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-hi.html [ Pass Crash ]
+webkit.org/b/211958 [ Debug ] fast/text/international/system-language/navigator-language/navigator-language-pt-PT.html [ Pass Crash ]

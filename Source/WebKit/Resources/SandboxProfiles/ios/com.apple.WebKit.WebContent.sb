@@ -92,8 +92,9 @@
             (apply-message-filter
                 (deny (with telemetry)
                     iokit-async-external-method
-                    iokit-external-method
                     iokit-external-trap)
+                (allow
+                    iokit-external-method)
             )
         )
     )
@@ -386,8 +387,9 @@
             (apply-message-filter
                 (deny (with telemetry)
                     iokit-async-external-method
-                    iokit-external-method
                     iokit-external-trap)
+                (allow
+                    iokit-external-method)
             )
         )
     )
@@ -953,8 +955,8 @@
             "com.apple.webinspector"
 
             ;;; FIXME(207716): The following should be removed when the GPU process is complete
-            "com.apple.airplay.apsynccontroller.xpc" "com.apple.audio.AURemoteIOServer" "com.apple.audio.AudioComponentRegistrar"
-            "com.apple.audio.AudioComponentRegistrar" "com.apple.audio.AudioSession" "com.apple.coremedia.admin" "com.apple.coremedia.asset.xpc"
+            "com.apple.airplay.apsynccontroller.xpc" "com.apple.audio.AURemoteIOServer" "com.apple.audio.AudioComponentPrefs" "com.apple.audio.AudioComponentRegistrar"
+            "com.apple.audio.AudioQueueServer" "com.apple.audio.AudioSession" "com.apple.coremedia.admin" "com.apple.coremedia.asset.xpc"
             "com.apple.coremedia.assetimagegenerator.xpc" "com.apple.coremedia.audiodeviceclock.xpc" "com.apple.coremedia.audioprocessingtap.xpc"
             "com.apple.coremedia.capturesession" "com.apple.coremedia.capturesource" "com.apple.coremedia.compressionsession" "com.apple.coremedia.cpe.xpc"
             "com.apple.coremedia.cpeprotector.xpc" "com.apple.coremedia.customurlloader.xpc" "com.apple.coremedia.decompressionsession"
@@ -1264,12 +1266,15 @@
             (deny mach-message-send (with telemetry))
             (allow mach-message-send (kernel-mig-routine
                 (when (defined? '_mach_make_memory_entry) _mach_make_memory_entry)
+                clock_get_time
                 host_get_clock_service
                 host_get_io_master
                 host_get_special_port
                 host_info
                 host_request_notification
+                io_connect_add_client
                 io_connect_async_method
+                io_connect_map_memory_into_task
                 io_connect_method
                 io_connect_set_notification_port_64
                 io_iterator_next
@@ -1286,12 +1291,14 @@
                 io_service_open_extended
                 mach_exception_raise
                 (when (defined? 'mach_make_memory_entry) mach_make_memory_entry)
+                (when (defined? 'mach_make_memory_entry_64) mach_make_memory_entry_64)
                 mach_port_get_context_from_user
                 mach_port_request_notification
                 mach_port_set_attributes
                 mach_vm_copy
                 mach_vm_map_external
                 mach_vm_region
+                mach_vm_region_recurse
                 mach_vm_remap_external
                 semaphore_create
                 semaphore_destroy

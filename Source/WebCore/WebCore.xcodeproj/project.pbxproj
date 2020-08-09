@@ -363,6 +363,7 @@
 		0FEA3E80191B3169000F1B55 /* ScrollingTreeOverflowScrollingNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FEA3E7E191B3169000F1B55 /* ScrollingTreeOverflowScrollingNode.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		0FEA3E84191B31BF000F1B55 /* ScrollingStateOverflowScrollingNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FEA3E82191B31BF000F1B55 /* ScrollingStateOverflowScrollingNode.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		0FEA3E88191B3BD7000F1B55 /* ScrollingTreeFrameScrollingNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FEA3E86191B3BD7000F1B55 /* ScrollingTreeFrameScrollingNode.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		0FEAF66B23BFC39E004030DA /* ColorUtilities.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FE6C76C1FBFB7A60025C053 /* ColorUtilities.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		0FEC120C22BF2CD2004E9D35 /* LayerAncestorClippingStack.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FEC120922BF2CC7004E9D35 /* LayerAncestorClippingStack.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		0FF3B9291EE3B6DE00B84144 /* JSDOMQuad.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FF3B9251EE3B6DE00B84144 /* JSDOMQuad.h */; };
 		0FF3B92B1EE3B6DE00B84144 /* JSDOMQuadInit.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FF3B9271EE3B6DE00B84144 /* JSDOMQuadInit.h */; };
@@ -2048,6 +2049,7 @@
 		6EE8A77310F803F3005A4A24 /* JSWebGLContextAttributes.h in Headers */ = {isa = PBXBuildFile; fileRef = 6EE8A77110F803F3005A4A24 /* JSWebGLContextAttributes.h */; };
 		6F0B98B523F268EC00EEC2F2 /* LayoutInlineTextBox.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F0B98B323F268EB00EEC2F2 /* LayoutInlineTextBox.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		6F0CD695229ED32700C5994E /* InlineLineBuilder.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F0CD694229ED32700C5994E /* InlineLineBuilder.h */; };
+		6F17264F2470C60B00518C96 /* TableWrapperBlockFormattingContext.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F17264E2470C60A00518C96 /* TableWrapperBlockFormattingContext.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		6F1CC1DE225F8B4900720AD2 /* InlineTextItem.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F1CC1DD225F8B4200720AD2 /* InlineTextItem.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		6F26BB6C23343E6F002F2BEA /* LayoutContext.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F26BB6B23343E5B002F2BEA /* LayoutContext.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		6F26EB48234004A5006906E2 /* LineLayoutContext.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F26EB46234004A5006906E2 /* LineLayoutContext.h */; };
@@ -9416,6 +9418,8 @@
 		6F0CD692229ED31900C5994E /* InlineLineBuilder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InlineLineBuilder.cpp; sourceTree = "<group>"; };
 		6F0CD694229ED32700C5994E /* InlineLineBuilder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InlineLineBuilder.h; sourceTree = "<group>"; };
 		6F10B08622B8568D0090E69C /* InlineFormattingContextQuirks.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InlineFormattingContextQuirks.cpp; sourceTree = "<group>"; };
+		6F17264C2470C5F700518C96 /* TableWrapperBlockFormattingContext.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TableWrapperBlockFormattingContext.cpp; sourceTree = "<group>"; };
+		6F17264E2470C60A00518C96 /* TableWrapperBlockFormattingContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TableWrapperBlockFormattingContext.h; sourceTree = "<group>"; };
 		6F1CC1DC225F8B4100720AD2 /* InlineTextItem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InlineTextItem.cpp; sourceTree = "<group>"; };
 		6F1CC1DD225F8B4200720AD2 /* InlineTextItem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InlineTextItem.h; sourceTree = "<group>"; };
 		6F222B741AB52D640094651A /* WebGLVertexArrayObjectBase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WebGLVertexArrayObjectBase.h; sourceTree = "<group>"; };
@@ -9491,6 +9495,7 @@
 		6FE8E6F8237BA6B200758D26 /* InvalidationState.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = InvalidationState.cpp; sourceTree = "<group>"; };
 		6FE9F09222211035004C5082 /* ContentChangeObserver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ContentChangeObserver.cpp; sourceTree = "<group>"; };
 		6FEFE81D22F9D22A00114927 /* LayoutPhase.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LayoutPhase.h; sourceTree = "<group>"; };
+		6FF9F1BE246D966C00435083 /* TableLayout.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TableLayout.cpp; sourceTree = "<group>"; };
 		6FFA4BFE23F2FECD007E4EBC /* LayoutLineBreakBox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LayoutLineBreakBox.cpp; sourceTree = "<group>"; };
 		6FFA4C0023F2FED9007E4EBC /* LayoutLineBreakBox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LayoutLineBreakBox.h; sourceTree = "<group>"; };
 		6FFDC43E212EFF1600A9CA91 /* FloatAvoider.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FloatAvoider.cpp; sourceTree = "<group>"; };
@@ -17071,6 +17076,7 @@
 		115CFA99208BC09A001E6991 /* blockformatting */ = {
 			isa = PBXGroup;
 			children = (
+				6FD4FE3E2470B3AD007374CC /* tablewrapper */,
 				115CFA6D208AFAB6001E6991 /* BlockFormattingContext.cpp */,
 				115CFA6C208AFAB6001E6991 /* BlockFormattingContext.h */,
 				6F0830DF20B46951008A945B /* BlockFormattingContextGeometry.cpp */,
@@ -21270,6 +21276,7 @@
 				6FC5CA9622E3599500B13E11 /* TableFormattingState.h */,
 				6F5B7EAA2300A79E0067D9C3 /* TableGrid.cpp */,
 				6FB22E30230097E300C20866 /* TableGrid.h */,
+				6FF9F1BE246D966C00435083 /* TableLayout.cpp */,
 			);
 			path = tableformatting;
 			sourceTree = "<group>";
@@ -21287,6 +21294,15 @@
 				115CFA80208B8EDA001E6991 /* FloatingState.h */,
 			);
 			path = floats;
+			sourceTree = "<group>";
+		};
+		6FD4FE3E2470B3AD007374CC /* tablewrapper */ = {
+			isa = PBXGroup;
+			children = (
+				6F17264C2470C5F700518C96 /* TableWrapperBlockFormattingContext.cpp */,
+				6F17264E2470C60A00518C96 /* TableWrapperBlockFormattingContext.h */,
+			);
+			path = tablewrapper;
 			sourceTree = "<group>";
 		};
 		6FE7DDDD20EC6E8B008B5B4E /* text */ = {
@@ -29876,6 +29892,7 @@
 				CE5169E721F1B84700EA4F78 /* ColorIOS.h in Headers */,
 				EDE3A5000C7A430600956A37 /* ColorMac.h in Headers */,
 				9382DF5810A8D5C900925652 /* ColorSpace.h in Headers */,
+				0FEAF66B23BFC39E004030DA /* ColorUtilities.h in Headers */,
 				BCDD454E1236C95C009A7985 /* ColumnInfo.h in Headers */,
 				43EDD67F1B485DBF00640E75 /* CombinedFiltersAlphabet.h in Headers */,
 				26E944D91AC4B2DD007B85B5 /* CombinedURLFilters.h in Headers */,
@@ -33276,6 +33293,7 @@
 				0F03C0741884695E00A5F8CA /* SystemMemory.h in Headers */,
 				5D5975B319635F1100D00878 /* SystemVersion.h in Headers */,
 				A8CFF0510A154F09000A4234 /* TableLayout.h in Headers */,
+				6F17264F2470C60B00518C96 /* TableWrapperBlockFormattingContext.h in Headers */,
 				3BB6B81122A7D313003A2A69 /* TabSize.h in Headers */,
 				463EB6231B8789E00096ED51 /* TagCollection.h in Headers */,
 				9B0ABCAE236BB43100B45085 /* TaskSource.h in Headers */,
@@ -34075,7 +34093,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "SRC_DIR=\"$SRCROOT/Modules/modern-media-controls\"\nDST_DIR=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/modern-media-controls\"\n\nmkdir -p \"$DST_DIR\"\n\nif [ \"${WK_PLATFORM_NAME}\" == \"macosx\" ]; then\n    IMG_OS_PREFIX=\"macOS\"\nelse\n    if [[ \"${WK_PLATFORM_NAME}\" == *\"watch\"* ]]; then\n        IMG_OS_PREFIX=\"watchOS\"\n    else\n        IMG_OS_PREFIX=\"iOS\"\n    fi\nfi\n\nif [ -n \"$IMG_OS_PREFIX\" ]; then\nrsync -aq --exclude \".svn\" --exclude \".DS_Store\" \"$SRC_DIR/images/$IMG_OS_PREFIX/\" \"$DST_DIR/images\"\nfi\n\ncd \"$SRC_DIR\"\ncat controls/*.css > \"$DST_DIR/modern-media-controls.css\"\n             cat `cat js-files` > \"$DST_DIR/modern-media-controls.js\"\n";
+			shellScript = "SRC_DIR=\"$SRCROOT/Modules/modern-media-controls\"\nDST_DIR=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/modern-media-controls\"\n\nmkdir -p \"$DST_DIR\"\n\nif [ \"${WK_PLATFORM_NAME}\" == \"macosx\" ]; then\n    IMG_OS_PREFIX=\"macOS\"\nelse\n    if [[ \"${WK_PLATFORM_NAME}\" == *\"watch\"* ]]; then\n        IMG_OS_PREFIX=\"watchOS\"\n    else\n        IMG_OS_PREFIX=\"iOS\"\n    fi\nfi\n\nif [ -n \"$IMG_OS_PREFIX\" ]; then\nrsync -aq --exclude \".svn\" --exclude \".DS_Store\" \"$SRC_DIR/images/$IMG_OS_PREFIX/\" \"$DST_DIR/images\"\nfi\n\ncd \"$SRC_DIR\"\ncat controls/*.css | perl -0777 -pe 's{/\\*.*?\\*/}{}gs' > \"$DST_DIR/modern-media-controls.css\"\ncat `cat js-files` | perl -0777 -pe 's{/\\*.*?\\*/}{}gs' > \"$DST_DIR/modern-media-controls.js\"\n";
 		};
 		A5E79CEC1E67F2CF00FB8153 /* Make Frameworks Symbolic Link */ = {
 			isa = PBXShellScriptBuildPhase;

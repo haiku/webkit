@@ -33,8 +33,6 @@
 #include "DFGGraph.h"
 #include "DFGInsertionSet.h"
 #include "DFGPhase.h"
-#include "DFGPredictionPropagationPhase.h"
-#include "DFGVariableAccessDataDump.h"
 #include "GetterSetter.h"
 #include "JSCInlines.h"
 #include "TypeLocation.h"
@@ -1030,6 +1028,23 @@ private:
                 m_insertionSet.insertNode(
                     m_indexInBlock, SpecNone, ForceOSRExit, node->origin);
             }
+
+            {
+                auto indexSpeculation = m_graph.varArgChild(node, 1)->prediction();
+                if (!isInt32Speculation(indexSpeculation) 
+                    && isFullNumberSpeculation(indexSpeculation)
+                    && node->arrayMode().isSpecific()
+                    && node->arrayMode().isInBounds()
+                    && !m_graph.hasExitSite(node->origin.semantic, Overflow)) {
+
+                    Node* newIndex = m_insertionSet.insertNode(
+                        m_indexInBlock, SpecInt32Only, DoubleAsInt32, node->origin,
+                        Edge(m_graph.varArgChild(node, 1).node(), DoubleRepUse));
+                    newIndex->setArithMode(Arith::CheckOverflow);
+                    m_graph.varArgChild(node, 1).setNode(newIndex);
+                }
+            }
+            
             
             node->setArrayMode(
                 node->arrayMode().refine(
@@ -1171,6 +1186,22 @@ private:
             Edge& child1 = m_graph.varArgChild(node, 0);
             Edge& child2 = m_graph.varArgChild(node, 1);
             Edge& child3 = m_graph.varArgChild(node, 2);
+
+            {
+                auto indexSpeculation = child2->prediction();
+                if (!isInt32Speculation(indexSpeculation) 
+                    && isFullNumberSpeculation(indexSpeculation)
+                    && node->arrayMode().isSpecific()
+                    && node->arrayMode().isInBounds()
+                    && !m_graph.hasExitSite(node->origin.semantic, Overflow)) {
+
+                    Node* newIndex = m_insertionSet.insertNode(
+                        m_indexInBlock, SpecInt32Only, DoubleAsInt32, node->origin,
+                        Edge(child2.node(), DoubleRepUse));
+                    newIndex->setArithMode(Arith::CheckOverflow);
+                    child2.setNode(newIndex);
+                }
+            }
 
             node->setArrayMode(
                 node->arrayMode().refine(
@@ -2021,6 +2052,14 @@ private:
         }
 
         case GetArrayLength: {
+            ArrayMode arrayMode = node->arrayMode().refine(m_graph, node, node->child1()->prediction(), ArrayMode::unusedIndexSpeculatedType);
+            // We don't know how to handle generic and we only emit this in the Parser when we have checked the value is an Array/TypedArray.
+            if (arrayMode.type() == Array::Generic)
+                arrayMode = arrayMode.withType(Array::ForceExit);
+            ASSERT(arrayMode.isSpecific() || arrayMode.type() == Array::ForceExit);
+            node->setArrayMode(arrayMode);
+            blessArrayOperation(node->child1(), Edge(), node->child2(), lengthNeedsStorage);
+
             fixEdge<KnownCellUse>(node->child1());
             break;
         }
@@ -3519,7 +3558,7 @@ private:
         }
     }
     
-    void blessArrayOperation(Edge base, Edge index, Edge& storageChild)
+    void blessArrayOperation(Edge base, Edge index, Edge& storageChild, bool (*storageCheck)(const ArrayMode&) = canCSEStorage)
     {
         Node* node = m_currentNode;
         
@@ -3539,7 +3578,7 @@ private:
             return;
             
         default: {
-            Node* storage = checkArray(node->arrayMode(), node->origin, base.node(), index.node());
+            Node* storage = checkArray(node->arrayMode(), node->origin, base.node(), index.node(), storageCheck);
             if (!storage)
                 return;
             
@@ -3828,7 +3867,7 @@ private:
         }
             
         arrayMode = arrayMode.refine(
-            m_graph, node, node->child1()->prediction(), node->prediction());
+            m_graph, node, node->child1()->prediction(), ArrayMode::unusedIndexSpeculatedType);
             
         if (arrayMode.type() == Array::Generic) {
             // Check if the input is something that we can't get array length for, but for which we

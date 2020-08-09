@@ -24,21 +24,12 @@
 #include "config.h"
 #include "Error.h"
 
-#include "ConstructData.h"
-#include "ErrorConstructor.h"
-#include "ExceptionHelpers.h"
-#include "FunctionPrototype.h"
 #include "Interpreter.h"
-#include "JSArray.h"
-#include "JSCInlines.h"
-#include "JSFunction.h"
 #include "JSGlobalObject.h"
 #include "JSObject.h"
 #include "JSString.h"
-#include "NativeErrorConstructor.h"
 #include "SourceCode.h"
 #include "StackFrame.h"
-#include "SuperSampler.h"
 
 namespace JSC {
 
@@ -91,23 +82,30 @@ JSObject* createURIError(JSGlobalObject* globalObject, const String& message, Er
 
 JSObject* createError(JSGlobalObject* globalObject, ErrorType errorType, const String& message)
 {
+    return createError(globalObject, static_cast<ErrorTypeWithExtension>(errorType), message);
+}
+
+JSObject* createError(JSGlobalObject* globalObject, ErrorTypeWithExtension errorType, const String& message)
+{
     switch (errorType) {
-    case ErrorType::Error:
+    case ErrorTypeWithExtension::Error:
         return createError(globalObject, message);
-    case ErrorType::EvalError:
+    case ErrorTypeWithExtension::EvalError:
         return createEvalError(globalObject, message);
-    case ErrorType::RangeError:
+    case ErrorTypeWithExtension::RangeError:
         return createRangeError(globalObject, message);
-    case ErrorType::ReferenceError:
+    case ErrorTypeWithExtension::ReferenceError:
         return createReferenceError(globalObject, message);
-    case ErrorType::SyntaxError:
+    case ErrorTypeWithExtension::SyntaxError:
         return createSyntaxError(globalObject, message);
-    case ErrorType::TypeError:
+    case ErrorTypeWithExtension::TypeError:
         return createTypeError(globalObject, message);
-    case ErrorType::URIError:
+    case ErrorTypeWithExtension::URIError:
         return createURIError(globalObject, message);
-    case ErrorType::AggregateError:
+    case ErrorTypeWithExtension::AggregateError:
         break;
+    case ErrorTypeWithExtension::OutOfMemoryError:
+        return createOutOfMemoryError(globalObject, message);
     }
     ASSERT_NOT_REACHED();
     return nullptr;
@@ -342,15 +340,16 @@ JSObject* createURIError(JSGlobalObject* globalObject, const String& message)
 
 JSObject* createOutOfMemoryError(JSGlobalObject* globalObject)
 {
-    auto* error = createError(globalObject, "Out of memory"_s, nullptr);
+    auto* error = createRangeError(globalObject, "Out of memory"_s, nullptr);
     jsCast<ErrorInstance*>(error)->setOutOfMemoryError();
     return error;
 }
 
 JSObject* createOutOfMemoryError(JSGlobalObject* globalObject, const String& message)
 {
-    
-    auto* error = createError(globalObject, makeString("Out of memory: ", message), nullptr);
+    if (message.isEmpty())
+        return createOutOfMemoryError(globalObject);
+    auto* error = createRangeError(globalObject, makeString("Out of memory: ", message), nullptr);
     jsCast<ErrorInstance*>(error)->setOutOfMemoryError();
     return error;
 }

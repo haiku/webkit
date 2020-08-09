@@ -26,6 +26,7 @@
 
 static WebKitTestServer* kServer;
 
+#if USE(GTK4)
 struct LookupWidgetsData {
     void (*walkChildren)(GtkContainer*, GtkCallback, void*);
     Function<bool(GtkWidget*)> predicate;
@@ -47,6 +48,7 @@ static Vector<GtkWidget*> lookupWidgets(GtkWidget* widget, Function<bool(GtkWidg
     lookupWidgetsWalkChild(widget, &data);
     return WTFMove(data.result);
 }
+#endif // USE(GTK4)
 
 class ContextMenuTest: public WebViewTest {
 public:
@@ -116,13 +118,14 @@ public:
         quitMainLoop();
     }
 
-    GtkPopover* getPopoverMenu()
+    GtkWidget* getContextMenuWidget()
     {
         GUniquePtr<GList> toplevels(gtk_window_list_toplevels());
         for (GList* iter = toplevels.get(); iter; iter = g_list_next(iter)) {
             if (!GTK_IS_WINDOW(iter->data))
                 continue;
 
+#if USE(GTK4)
             // Popovers are internal to the GtkContainer where the webview resides,
             // gtk_container_forall() is the only way to enumerate internal children.
             GtkPopover *popover = nullptr;
@@ -135,6 +138,14 @@ public:
 
             if (popover && gtk_popover_get_relative_to(popover) == GTK_WIDGET(m_webView))
                 return popover;
+#else
+            GtkWidget* child = gtk_bin_get_child(GTK_BIN(iter->data));
+            if (!GTK_IS_MENU(child))
+                continue;
+
+            if (gtk_menu_get_attach_widget(GTK_MENU(child)) == GTK_WIDGET(m_webView))
+                return child;
+#endif // USE(GTK4)
         }
         g_assert_not_reached();
         return 0;
@@ -326,6 +337,7 @@ public:
         Audio,
         VideoLive,
         Editable,
+        RichEditable,
         Selection
     };
 
@@ -448,6 +460,24 @@ public:
             iter = checkCurrentItemIsSeparatorAndGetNext(iter);
             iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_UNICODE, Visible | Enabled);
             break;
+        case RichEditable:
+            g_assert_false(webkit_hit_test_result_context_is_link(hitTestResult));
+            g_assert_false(webkit_hit_test_result_context_is_image(hitTestResult));
+            g_assert_false(webkit_hit_test_result_context_is_media(hitTestResult));
+            g_assert_true(webkit_hit_test_result_context_is_editable(hitTestResult));
+            g_assert_false(webkit_hit_test_result_context_is_selection(hitTestResult));
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_CUT, Visible);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_COPY, Visible);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_PASTE, Visible | Enabled);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_PASTE_AS_PLAIN_TEXT, Visible | Enabled);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_DELETE, Visible);
+            iter = checkCurrentItemIsSeparatorAndGetNext(iter);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_SELECT_ALL, Visible | Enabled);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_INSERT_EMOJI, Visible | Enabled);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_FONT_MENU, Visible | Enabled);
+            iter = checkCurrentItemIsSeparatorAndGetNext(iter);
+            iter = checkCurrentItemIsStockActionAndGetNext(iter, WEBKIT_CONTEXT_MENU_ACTION_UNICODE, Visible | Enabled);
+            break;
         case Selection:
             g_assert_false(webkit_hit_test_result_context_is_link(hitTestResult));
             g_assert_false(webkit_hit_test_result_context_is_image(hitTestResult));
@@ -485,7 +515,8 @@ static void prepareContextMenuTestView(ContextMenuDefaultTest* test)
         " <input style='position:absolute; left:1; top:30' size='10'></input>"
         " <video style='position:absolute; left:1; top:50' width='300' height='300' controls='controls' preload='none'><source src='silence.webm' type='video/webm' /></video>"
         " <audio style='position:absolute; left:1; top:60' width='50' height='20' controls='controls' preload='none'><source src='track.ogg' type='audio/ogg' /></audio>"
-        " <p style='position:absolute; left:1; top:90' id='text_to_select'>Lorem ipsum.</p>"
+        " <div contenteditable style='position:absolute; left:1; top: 90; height: 20px; width: 100px'></div>"
+        " <p style='position:absolute; left:1; top:110' id='text_to_select'>Lorem ipsum.</p>"
         " <script>"
         "  window.getSelection().removeAllRanges();"
         "  var select_range = document.createRange();"
@@ -506,7 +537,7 @@ static void testContextMenuDefaultMenu(ContextMenuDefaultTest* test, gconstpoint
     // Context menu for selection.
     // This test should always be the first because any other click removes the selection.
     test->m_expectedMenuType = ContextMenuDefaultTest::Selection;
-    test->showContextMenuAtPositionAndWaitUntilFinished(2, 115);
+    test->showContextMenuAtPositionAndWaitUntilFinished(2, 135);
 
     // Context menu for document.
     test->m_expectedMenuType = ContextMenuDefaultTest::Navigation;
@@ -539,6 +570,10 @@ static void testContextMenuDefaultMenu(ContextMenuDefaultTest* test, gconstpoint
     // Context menu for editable.
     test->m_expectedMenuType = ContextMenuDefaultTest::Editable;
     test->showContextMenuAtPositionAndWaitUntilFinished(5, 35);
+
+    // Context menu for rich editable.
+    test->m_expectedMenuType = ContextMenuDefaultTest::RichEditable;
+    test->showContextMenuAtPositionAndWaitUntilFinished(5, 95);
 }
 
 static void testPopupEventSignal(ContextMenuDefaultTest* test, gconstpointer)
@@ -579,9 +614,10 @@ public:
         return false;
     }
 
-    GtkButton* getMenuItem(GtkPopover* popover, const gchar* itemLabel)
+#if USE(GTK4)
+    GtkButton* getMenuItem(GtkWidget* popover, const gchar* itemLabel)
     {
-        auto items = lookupWidgets(GTK_WIDGET(popover),
+        auto items = lookupWidgets(popover,
             [itemLabel](GtkWidget* widget) {
                 if (!GTK_IS_BUTTON(widget))
                     return false;
@@ -598,13 +634,32 @@ public:
         g_assert_cmpuint(items.size(), >, 0);
         return items.size() ? GTK_BUTTON(items[0]) : nullptr;
     }
+#else
+    GtkMenuItem* getMenuItem(GtkWidget* menu, const gchar* itemLabel)
+    {
+        GUniquePtr<GList> items(gtk_container_get_children(GTK_CONTAINER(menu)));
+        for (GList* iter = items.get(); iter; iter = g_list_next(iter)) {
+            GtkMenuItem* child = GTK_MENU_ITEM(iter->data);
+            if (g_str_equal(itemLabel, gtk_menu_item_get_label(child)))
+                return child;
+        }
+        g_assert_not_reached();
+        return nullptr;
+    }
+#endif // USE(GTK4)
 
     void activateMenuItem()
     {
         g_assert_nonnull(m_itemToActivateLabel);
-        auto* menu = getPopoverMenu();
+        auto* menu = getContextMenuWidget();
         auto* item = getMenuItem(menu, m_itemToActivateLabel);
+#if USE(GTK4)
+        // GTK4 uses a popover, which contains buttons.
         gtk_button_clicked(item);
+#else
+        // GTK3 uses a menu, which contains menu items.
+        gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(item), TRUE);
+#endif // USE(GTK4)
         m_itemToActivateLabel = nullptr;
     }
 
@@ -649,9 +704,11 @@ public:
     {
         test->m_toggled = true;
 
+#if USE(GTK4)
         // For toggle actions the popover menu is NOT dismissed automatically, as to show visual feedback to the user
         // (i.e. the check marker). Dismiss it here to trigger contextMenuDismissedCallback() and continue the test.
         gtk_popover_popdown(test->getPopoverMenu());
+#endif // USE(GTK4)
     }
 
     void setAction(GtkAction* action)

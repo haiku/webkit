@@ -34,6 +34,7 @@
 #include "NetworkProcessConnection.h"
 #include "NetworkResourceLoadParameters.h"
 #include "PluginInfoStore.h"
+#include "SharedBufferDataReference.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebErrors.h"
 #include "WebFrame.h"
@@ -70,7 +71,7 @@
 #endif
 
 #if PLATFORM(GTK)
-#include "WebSelectionData.h"
+#include <WebCore/SelectionData.h>
 #endif
 
 namespace WebKit {
@@ -324,7 +325,7 @@ RefPtr<SharedBuffer> WebPlatformStrategies::readBufferFromClipboard(const String
 
 void WebPlatformStrategies::writeToClipboard(const String& pasteboardName, SelectionData&& selectionData)
 {
-    WebProcess::singleton().parentProcessConnection()->send(Messages::WebPasteboardProxy::WriteToClipboard(pasteboardName, WebSelectionData(selectionData)), 0);
+    WebProcess::singleton().parentProcessConnection()->send(Messages::WebPasteboardProxy::WriteToClipboard(pasteboardName, WTFMove(selectionData)), 0);
 }
 
 void WebPlatformStrategies::clearClipboard(const String& pasteboardName)

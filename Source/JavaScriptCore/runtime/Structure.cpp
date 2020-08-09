@@ -27,22 +27,16 @@
 #include "Structure.h"
 
 #include "BuiltinNames.h"
-#include "CodeBlock.h"
 #include "DumpContext.h"
-#include "JSCInlines.h"
 #include "JSObject.h"
-#include "JSPropertyNameEnumerator.h"
 #include "Lookup.h"
 #include "PropertyMapHashTable.h"
 #include "PropertyNameArray.h"
-#include "StructureChain.h"
-#include "StructureRareDataInlines.h"
+#include "StructureInlines.h"
 #include "WeakGCMapInlines.h"
 #include <wtf/CommaPrinter.h>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/ProcessID.h>
 #include <wtf/RefPtr.h>
-#include <wtf/Threading.h>
 
 #define DUMP_STRUCTURE_ID_STATISTICS 0
 
@@ -953,7 +947,7 @@ WatchpointSet* Structure::ensurePropertyReplacementWatchpointSet(VM& vm, Propert
     }
     auto result = rareData->m_replacementWatchpointSets->add(offset, nullptr);
     if (result.isNewEntry)
-        result.iterator->value = adoptRef(new WatchpointSet(IsWatched));
+        result.iterator->value = WatchpointSet::create(IsWatched);
     return result.iterator->value.get();
 }
 

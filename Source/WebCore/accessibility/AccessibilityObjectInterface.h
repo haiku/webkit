@@ -513,7 +513,7 @@ public:
     bool isCheckbox() const { return roleValue() == AccessibilityRole::CheckBox; }
     bool isRadioButton() const { return roleValue() == AccessibilityRole::RadioButton; }
     bool isListBox() const { return roleValue() == AccessibilityRole::ListBox; }
-    virtual bool isNativeListBox() const = 0;
+    virtual bool isNativeListBox() const { return false; };
     virtual bool isListBoxOption() const = 0;
     virtual bool isAttachment() const = 0;
     virtual bool isMediaTimeline() const = 0;
@@ -563,6 +563,8 @@ public:
     virtual std::pair<unsigned, unsigned> rowIndexRange() const = 0;
     // Returns the start location and column span of the cell.
     virtual std::pair<unsigned, unsigned> columnIndexRange() const = 0;
+    virtual bool isColumnHeaderCell() const = 0;
+    virtual bool isRowHeaderCell() const = 0;
     virtual int axColumnIndex() const = 0;
     virtual int axRowIndex() const = 0;
 
@@ -663,9 +665,9 @@ public:
     virtual bool hasMisspelling() const = 0;
     virtual RefPtr<Range> getMisspellingRange(RefPtr<Range> const& start, AccessibilitySearchDirection) const = 0;
     virtual bool hasPlainText() const = 0;
-    virtual bool hasSameFont(RenderObject*) const = 0;
-    virtual bool hasSameFontColor(RenderObject*) const = 0;
-    virtual bool hasSameStyle(RenderObject*) const = 0;
+    virtual bool hasSameFont(const AXCoreObject&) const = 0;
+    virtual bool hasSameFontColor(const AXCoreObject&) const = 0;
+    virtual bool hasSameStyle(const AXCoreObject&) const = 0;
     bool isStaticText() const { return roleValue() == AccessibilityRole::StaticText; }
     virtual bool hasUnderline() const = 0;
     virtual bool hasHighlighting() const = 0;

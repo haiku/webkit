@@ -484,7 +484,7 @@ using namespace WebCore;
 
     // This is a temporary hack until we get the improvements
     // I'm working on for RTL selection.
-    if (frameSelection.granularity() == WordGranularity)
+    if (frameSelection.granularity() == TextGranularity::WordGranularity)
         frameSelection.moveTo(frameSelection.selection().start(), frameSelection.selection().end());
     
     if (frameSelection.selection().isCaret()) {
@@ -604,23 +604,23 @@ using namespace WebCore;
 
 - (void)setSelectionGranularity:(WebTextGranularity)granularity
 {
-    TextGranularity wcGranularity = CharacterGranularity;
+    TextGranularity wcGranularity = TextGranularity::CharacterGranularity;
     switch (granularity) {
         case WebTextGranularityCharacter:
-            wcGranularity = CharacterGranularity;
+            wcGranularity = TextGranularity::CharacterGranularity;
             break;
         case WebTextGranularityWord:
-            wcGranularity = WordGranularity;
+            wcGranularity = TextGranularity::WordGranularity;
             break;
         case WebTextGranularitySentence:
-            wcGranularity = SentenceGranularity;
+            wcGranularity = TextGranularity::SentenceGranularity;
             break;
         case WebTextGranularityParagraph:
-            wcGranularity = ParagraphGranularity;
+            wcGranularity = TextGranularity::ParagraphGranularity;
             break;
         case WebTextGranularityAll:
-            // FIXME: Add DocumentGranularity.
-            wcGranularity = ParagraphGranularity;
+            // FIXME: Add TextGranularity::DocumentGranularity.
+            wcGranularity = TextGranularity::ParagraphGranularity;
             break;
         default:
             ASSERT_NOT_REACHED();
@@ -803,112 +803,6 @@ static VisiblePosition SimpleSmartExtendEnd(const VisiblePosition& start, const 
 {
     Frame *frame = [self coreFrame];
     return frame->view()->renderedCharactersExceed(threshold);
-}
-
-// Iterates backward through the document and returns the point at which untouched dictation results end.
-- (WebVisiblePosition *)previousUnperturbedDictationResultBoundaryFromPosition:(WebVisiblePosition *)position
-{
-    VisiblePosition currentVisiblePosition = [position _visiblePosition];
-    if (currentVisiblePosition.isNull())
-        return position;
-    
-    Document& document = currentVisiblePosition.deepEquivalent().anchorNode()->document();
-
-    id uikitDelegate = [[self webView] _UIKitDelegate];
-    if (![uikitDelegate respondsToSelector:@selector(isUnperturbedDictationResultMarker:)])
-        return position;
-    
-    while (currentVisiblePosition.isNotNull()) {
-        WebVisiblePosition *currentWebVisiblePosition = [WebVisiblePosition _wrapVisiblePosition:currentVisiblePosition];
-        
-        auto* currentNode = currentVisiblePosition.deepEquivalent().anchorNode();
-        unsigned lastOffset = lastOffsetForEditing(*currentNode);
-
-        VisiblePosition previousVisiblePosition = currentVisiblePosition.previous();
-        if (previousVisiblePosition.isNull())
-            return currentWebVisiblePosition;
-        
-        auto graphemeRange = Range::create(document, previousVisiblePosition.deepEquivalent(), currentVisiblePosition.deepEquivalent());
-        
-        auto markers = document.markers().markersInRange(graphemeRange, DocumentMarker::DictationResult);
-        if (markers.isEmpty())
-            return currentWebVisiblePosition;
-        
-        // FIXME: Result markers should not overlap, so there should only ever be one for a single grapheme.
-        // <rdar://problem/9810617> Too much document context is omitted when sending dictation hints because of problems with WebCore DocumentMarkers
-        // ASSERT(markers.size() == 1);
-        if (markers.size() > 1)
-            return currentWebVisiblePosition;
-
-        auto& marker = *markers[0];
-        
-        // FIXME: WebCore doesn't always update markers correctly during editing. Bail if resultMarker extends off the edge of this node, because that means it's invalid.
-        if (marker.endOffset() > lastOffset)
-            return currentWebVisiblePosition;
-        
-        if (![uikitDelegate isUnperturbedDictationResultMarker:WTF::get<RetainPtr<id>>(marker.data()).get()])
-            return currentWebVisiblePosition;
-        
-        if (marker.startOffset() > 0)
-            return [WebVisiblePosition _wrapVisiblePosition:VisiblePosition(createLegacyEditingPosition(currentNode, marker.startOffset()))];
-        
-        currentVisiblePosition = VisiblePosition(createLegacyEditingPosition(currentNode, 0));
-    }
-    
-    return position;
-}
-
-// Iterates forward through the document and returns the point at which untouched dictation results end.
-- (WebVisiblePosition *)nextUnperturbedDictationResultBoundaryFromPosition:(WebVisiblePosition *)position
-{
-    VisiblePosition currentVisiblePosition = [position _visiblePosition];
-    if (currentVisiblePosition.isNull())
-        return position;
-    
-    Document& document = currentVisiblePosition.deepEquivalent().anchorNode()->document();
-    
-    id uikitDelegate = [[self webView] _UIKitDelegate];
-    if (![uikitDelegate respondsToSelector:@selector(isUnperturbedDictationResultMarker:)])
-        return position;
-    
-    while (currentVisiblePosition.isNotNull()) {
-        WebVisiblePosition *currentWebVisiblePosition = [WebVisiblePosition _wrapVisiblePosition:currentVisiblePosition];
-        
-        auto* currentNode = currentVisiblePosition.deepEquivalent().anchorNode();
-        unsigned lastOffset = lastOffsetForEditing(*currentNode);
-
-        VisiblePosition nextVisiblePosition = currentVisiblePosition.next();
-        if (nextVisiblePosition.isNull())
-            return currentWebVisiblePosition;
-        
-        auto graphemeRange = Range::create(document, currentVisiblePosition.deepEquivalent(), nextVisiblePosition.deepEquivalent());
-        
-        auto markers = document.markers().markersInRange(graphemeRange, DocumentMarker::DictationResult);
-        if (markers.isEmpty())
-            return currentWebVisiblePosition;
-        
-        // FIXME: Result markers should not overlap, so there should only ever be one for a single grapheme.
-        // <rdar://problem/9810617> Too much document context is omitted when sending dictation hints because of problems with WebCore DocumentMarkers
-        //ASSERT(markers.size() == 1);
-        if (markers.size() > 1)
-            return currentWebVisiblePosition;
-
-        auto& marker = *markers[0];
-
-        // FIXME: WebCore doesn't always update markers correctly during editing. Bail if resultMarker extends off the edge of this node, because that means it's invalid.
-        if (marker.endOffset() > lastOffset)
-            return currentWebVisiblePosition;
-        
-        if (![uikitDelegate isUnperturbedDictationResultMarker:WTF::get<RetainPtr<id>>(marker.data()).get()])
-            return currentWebVisiblePosition;
-        
-        if (marker.endOffset() <= static_cast<unsigned>(lastOffset))
-            return [WebVisiblePosition _wrapVisiblePosition:VisiblePosition(createLegacyEditingPosition(currentNode, marker.endOffset()))];
-        
-        currentVisiblePosition = VisiblePosition(createLegacyEditingPosition(currentNode, lastOffset));
-    }
-    
-    return position;
 }
 
 - (CGRect)elementRectAtPoint:(CGPoint)point

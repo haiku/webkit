@@ -40,18 +40,14 @@
 #include "DFGSaneStringGetByValSlowPathGenerator.h"
 #include "DFGSlowPathGenerator.h"
 #include "DFGSnippetParams.h"
-#include "DateInstance.h"
 #include "DirectArguments.h"
 #include "DisallowMacroScratchRegisterUsage.h"
-#include "JITAddGenerator.h"
 #include "JITBitAndGenerator.h"
 #include "JITBitOrGenerator.h"
 #include "JITBitXorGenerator.h"
 #include "JITDivGenerator.h"
 #include "JITLeftShiftGenerator.h"
-#include "JITMulGenerator.h"
 #include "JITRightShiftGenerator.h"
-#include "JITSubGenerator.h"
 #include "JSArrayIterator.h"
 #include "JSAsyncFunction.h"
 #include "JSAsyncGeneratorFunction.h"
@@ -62,11 +58,8 @@
 #include "JSMapIterator.h"
 #include "JSPropertyNameEnumerator.h"
 #include "JSSetIterator.h"
-#include "LinkBuffer.h"
 #include "RegExpObject.h"
 #include "ScopedArguments.h"
-#include "ScratchRegisterAllocator.h"
-#include "SuperSampler.h"
 #include "TypeProfilerLog.h"
 #include "WeakMapImpl.h"
 #include <wtf/BitVector.h>
@@ -832,13 +825,14 @@ JITCompiler::JumpList SpeculativeJIT::jumpSlowForUnwantedArrayMode(GPRReg tempGP
 
 void SpeculativeJIT::checkArray(Node* node)
 {
-    ASSERT(node->arrayMode().isSpecific());
-    ASSERT(!node->arrayMode().doesConversion());
+    ArrayMode arrayMode = node->arrayMode();
+    ASSERT(arrayMode.isSpecific());
+    ASSERT(!arrayMode.doesConversion());
     
     SpeculateCellOperand base(this, node->child1());
     GPRReg baseReg = base.gpr();
     
-    if (node->arrayMode().alreadyChecked(m_jit.graph(), node, m_state.forNode(node->child1()))) {
+    if (arrayMode.alreadyChecked(m_jit.graph(), node, m_state.forNode(node->child1()))) {
         // We can purge Empty check completely in this case of CheckArrayOrEmpty since CellUse only accepts SpecCell | SpecEmpty.
         ASSERT(typeFilterFor(node->child1().useKind()) & SpecEmpty);
         noResult(m_currentNode);
@@ -847,7 +841,7 @@ void SpeculativeJIT::checkArray(Node* node)
 
     Optional<GPRTemporary> temp;
     Optional<GPRReg> tempGPR;
-    switch (node->arrayMode().type()) {
+    switch (arrayMode.type()) {
     case Array::Int32:
     case Array::Double:
     case Array::Contiguous:
@@ -871,8 +865,7 @@ void SpeculativeJIT::checkArray(Node* node)
     }
 #endif
 
-    switch (node->arrayMode().type()) {
-    case Array::AnyTypedArray:
+    switch (arrayMode.type()) {
     case Array::String:
         RELEASE_ASSERT_NOT_REACHED(); // Should have been a Phantom(String:)
         return;
@@ -885,7 +878,7 @@ void SpeculativeJIT::checkArray(Node* node)
         m_jit.load8(MacroAssembler::Address(baseReg, JSCell::indexingTypeAndMiscOffset()), tempGPR.value());
         speculationCheck(
             BadIndexingType, JSValueSource::unboxedCell(baseReg), nullptr,
-            jumpSlowForUnwantedArrayMode(tempGPR.value(), node->arrayMode()));
+            jumpSlowForUnwantedArrayMode(tempGPR.value(), arrayMode));
         break;
     }
     case Array::DirectArguments:
@@ -894,11 +887,15 @@ void SpeculativeJIT::checkArray(Node* node)
     case Array::ScopedArguments:
         speculateCellTypeWithoutTypeFiltering(node->child1(), baseReg, ScopedArgumentsType);
         break;
-    default:
-        speculateCellTypeWithoutTypeFiltering(
-            node->child1(), baseReg,
-            typeForTypedArrayType(node->arrayMode().typedArrayType()));
+    default: {
+        DFG_ASSERT(m_graph, node, arrayMode.isSomeTypedArrayView());
+
+        if (arrayMode.type() == Array::AnyTypedArray)
+            speculationCheck(BadType, JSValueSource::unboxedCell(baseReg), nullptr, m_jit.branchIfNotType(baseReg, JSType(FirstTypedArrayType), JSType(LastTypedArrayTypeExcludingDataView)));
+        else
+            speculateCellTypeWithoutTypeFiltering(node->child1(), baseReg, typeForTypedArrayType(arrayMode.typedArrayType()));
         break;
+    }
     }
 
     if (isEmpty.isSet())
@@ -1871,11 +1868,11 @@ bool SpeculativeJIT::compilePeepHoleBranch(Node* node, MacroAssembler::Relationa
             else if (!needsTypeCheck(node->child2(), SpecOther))
                 nonSpeculativePeepholeBranchNullOrUndefined(node->child1(), branchNode);
             else {
-                nonSpeculativePeepholeBranch(node, branchNode, condition, operation);
+                genericJSValuePeepholeBranch(node, branchNode, condition, operation);
                 return true;
             }
         } else {
-            nonSpeculativePeepholeBranch(node, branchNode, condition, operation);
+            genericJSValuePeepholeBranch(node, branchNode, condition, operation);
             return true;
         }
 
@@ -14406,7 +14403,7 @@ void SpeculativeJIT::genericJSValueNonPeepholeCompare(Node* node, MacroAssembler
     unblessedBooleanResult(resultGPR, node, UseChildrenCalledExplicitly);
 }
 
-void SpeculativeJIT::nonSpeculativePeepholeBranch(Node* node, Node* branchNode, MacroAssembler::RelationalCondition cond, S_JITOperation_GJJ helperFunction)
+void SpeculativeJIT::genericJSValuePeepholeBranch(Node* node, Node* branchNode, MacroAssembler::RelationalCondition cond, S_JITOperation_GJJ helperFunction)
 {
     BasicBlock* taken = branchNode->branchData()->taken.block;
     BasicBlock* notTaken = branchNode->branchData()->notTaken.block;
@@ -14423,8 +14420,11 @@ void SpeculativeJIT::nonSpeculativePeepholeBranch(Node* node, Node* branchNode, 
         notTaken = tmp;
     }
 
-    JSValueOperand arg1(this, node->child1());
-    JSValueOperand arg2(this, node->child2());
+    JSValueOperand arg1(this, node->child1(), ManualOperandSpeculation);
+    JSValueOperand arg2(this, node->child2(), ManualOperandSpeculation);
+    speculate(node, node->child1());
+    speculate(node, node->child2());
+
     JSValueRegs arg1Regs = arg1.jsValueRegs();
     JSValueRegs arg2Regs = arg2.jsValueRegs();
 

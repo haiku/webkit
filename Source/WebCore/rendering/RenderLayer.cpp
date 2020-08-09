@@ -2384,10 +2384,10 @@ static inline const RenderLayer* accumulateOffsetTowardsAncestor(const RenderLay
     location += toLayoutSize(layer->location());
 
     if (adjustForColumns == RenderLayer::AdjustForColumns) {
-        if (RenderLayer* parentLayer = layer->parent()) {
+        auto* parentLayer = layer->parent();
+        if (parentLayer && parentLayer != ancestorLayer) {
             if (is<RenderMultiColumnFlow>(parentLayer->renderer())) {
-                RenderFragmentContainer* fragment = downcast<RenderMultiColumnFlow>(parentLayer->renderer()).physicalTranslationFromFlowToFragment(location);
-                if (fragment)
+                if (auto* fragment = downcast<RenderMultiColumnFlow>(parentLayer->renderer()).physicalTranslationFromFlowToFragment(location))
                     location.moveBy(fragment->topLeftLocation() + -parentLayer->renderBox()->topLeftLocation());
             }
         }
@@ -5783,7 +5783,7 @@ void RenderLayer::calculateClipRects(const ClipRectsContext& clipRectsContext, C
 
         if (clipRects.fixed() && &clipRectsContext.rootLayer->renderer() == &renderer().view())
             offset -= toLayoutSize(renderer().view().frameView().scrollPositionForFixedPosition());
-        
+
         if (renderer().hasOverflowClip()) {
             ClipRect newOverflowClip = downcast<RenderBox>(renderer()).overflowClipRectForChildLayers(offset, nullptr, clipRectsContext.overlayScrollbarSizeRelevancy);
             newOverflowClip.setAffectedByRadius(renderer().style().hasBorderRadius());
@@ -5799,7 +5799,7 @@ void RenderLayer::calculateClipRects(const ClipRectsContext& clipRectsContext, C
         }
     }
 
-    LOG_WITH_STREAM(ClipRects, stream << "RenderLayer " << this << " calculateClipRects " << clipRects);
+    LOG_WITH_STREAM(ClipRects, stream << "RenderLayer " << this << " calculateClipRects " << clipRectsContext << " computed " << clipRects);
 }
 
 Ref<ClipRects> RenderLayer::parentClipRects(const ClipRectsContext& clipRectsContext) const
@@ -6970,28 +6970,20 @@ bool RenderLayer::isTransparentRespectingParentFrames() const
 
 bool RenderLayer::invalidateEventRegion(EventRegionInvalidationReason reason)
 {
-    // FIXME: This should not be conditioned on PLATFORM(IOS_FAMILY). See <https://webkit.org/b/210216>.
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(ASYNC_SCROLLING)
     auto* compositingLayer = enclosingCompositingLayerForRepaint();
-    if (!compositingLayer)
-        return false;
 
-    auto maintainsEventRegion = [&] {
-        // UI side scroll overlap testing.
-        if (!compositingLayer->isRenderViewLayer())
+    auto shouldInvalidate = [&] {
+        if (!compositingLayer)
+            return false;
+
+        if (reason == EventRegionInvalidationReason::NonCompositedFrame)
             return true;
-        // UI side touch-action resolution.
-        if (renderer().document().mayHaveElementsWithNonAutoTouchAction())
-            return true;
-#if ENABLE(EDITABLE_REGION)
-        // UI side editable elements resolution.
-        if (renderer().document().mayHaveEditableElements())
-            return true;
-#endif
-        return false;
+
+        return compositingLayer->backing()->maintainsEventRegion();
     };
 
-    if (reason != EventRegionInvalidationReason::NonCompositedFrame && !maintainsEventRegion())
+    if (!shouldInvalidate())
         return false;
 
     compositingLayer->setNeedsCompositingConfigurationUpdate();
@@ -6999,7 +6991,7 @@ bool RenderLayer::invalidateEventRegion(EventRegionInvalidationReason reason)
     if (reason == EventRegionInvalidationReason::NonCompositedFrame) {
         auto& view = renderer().view();
         view.setNeedsEventRegionUpdateForNonCompositedFrame();
-        if (renderer().settings().visibleDebugOverlayRegions() & (TouchActionRegion | EditableElementRegion))
+        if (renderer().settings().visibleDebugOverlayRegions() & (TouchActionRegion | EditableElementRegion | WheelEventHandlerRegion))
             view.setNeedsRepaintHackAfterCompositingLayerUpdateForDebugOverlaysOnly();
         view.compositor().scheduleCompositingLayerUpdate();
     }

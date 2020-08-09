@@ -32,25 +32,19 @@
 #include "BytecodeGenerator.h"
 #include "BytecodeGeneratorBaseInlines.h"
 #include "CallFrame.h"
-#include "JIT.h"
 #include "JSArrayIterator.h"
 #include "JSAsyncGenerator.h"
-#include "JSCInlines.h"
-#include "JSFunction.h"
 #include "JSGenerator.h"
-#include "JSGlobalObject.h"
 #include "JSImmutableButterfly.h"
 #include "JSMapIterator.h"
 #include "JSSetIterator.h"
 #include "JSStringIterator.h"
 #include "LabelScope.h"
-#include "Lexer.h"
-#include "Parser.h"
+#include "LinkTimeConstant.h"
+#include "ModuleScopeData.h"
 #include "StackAlignment.h"
-#include "UnlinkedMetadataTableInlines.h"
 #include "YarrFlags.h"
 #include <wtf/Assertions.h>
-#include <wtf/Threading.h>
 #include <wtf/text/StringBuilder.h>
 
 namespace JSC {
@@ -163,7 +157,7 @@ RegisterID* RegExpNode::emitBytecode(BytecodeGenerator& generator, RegisterID* d
 
     const char* messageCharacters = regExp->errorMessage();
     const Identifier& message = generator.parserArena().identifierArena().makeIdentifier(generator.vm(), bitwise_cast<const LChar*>(messageCharacters), strlen(messageCharacters));
-    generator.emitThrowStaticError(ErrorType::SyntaxError, message);
+    generator.emitThrowStaticError(ErrorTypeWithExtension::SyntaxError, message);
     return generator.emitLoad(generator.finalDestination(dst), jsUndefined());
 }
 
@@ -1470,7 +1464,7 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_throwTypeError(BytecodeGenerat
         generator.emitThrowTypeError(ident);
     } else {
         RefPtr<RegisterID> message = generator.emitNode(node);
-        generator.emitThrowStaticError(ErrorType::TypeError, message.get());
+        generator.emitThrowStaticError(ErrorTypeWithExtension::TypeError, message.get());
     }
     return dst;
 }
@@ -1484,7 +1478,7 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_throwRangeError(BytecodeGenera
         generator.emitThrowRangeError(ident);
     } else {
         RefPtr<RegisterID> message = generator.emitNode(node);
-        generator.emitThrowStaticError(ErrorType::RangeError, message.get());
+        generator.emitThrowStaticError(ErrorTypeWithExtension::RangeError, message.get());
     }
 
     return dst;

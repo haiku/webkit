@@ -1267,10 +1267,8 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!table)
         return nil;
 
-    AccessibilityTableCell* cell = table->cellForColumnAndRow(column, row);
-    if (!cell)
-        return nil;
-    return cell->wrapper();
+    auto* cell = table->cellForColumnAndRow(column, row);
+    return cell ? cell->wrapper() : nil;
 }
 
 - (NSUInteger)accessibilityRowCount
@@ -2012,7 +2010,7 @@ static RenderObject* rendererForView(WAKView* view)
     if (frameSelection.isNone() && (selection.visibleStart() < range.start || selection.visibleEnd() > range.end))
         frameSelection.moveTo(range.start, UserTriggered);
     
-    frameSelection.modify(FrameSelection::AlterationExtend, (increase) ? DirectionRight : DirectionLeft, granularity, UserTriggered);
+    frameSelection.modify(FrameSelection::AlterationExtend, (increase) ? SelectionDirection::Right : SelectionDirection::Left, granularity, UserTriggered);
 }
 
 - (void)accessibilityIncreaseSelection:(TextGranularity)granularity

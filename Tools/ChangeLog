@@ -1,3 +1,663 @@
+2020-05-19  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WPE] Sync jhbuild to flatpak
+        https://bugs.webkit.org/show_bug.cgi?id=212087
+
+        Reviewed by Adrian Perez de Castro.
+
+        * wpe/jhbuild.modules: Updated meson, libwpe and wpebackend-fdo.
+
+2020-05-19  Chris Dumez  <cdumez@apple.com>
+
+        Turn on ITP in TestController::resetStateToConsistentValues()
+        https://bugs.webkit.org/show_bug.cgi?id=212076
+
+        Reviewed by Darin Adler.
+
+        Turn on ITP in TestController::resetStateToConsistentValues(), in a single place
+        instead of doing it in different places depending on whether or not the session
+        is ephemeral or not. It is also important to do it in resetStateToConsistentValues()
+        instead of doing it on data store creation because there is a testRunner method
+        that allows tests to turn off ITP.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::generatePageConfiguration):
+        (WTR::TestController::resetStateToConsistentValues):
+        (WTR::TestController::platformAdjustContext):
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::initializeWebViewConfiguration):
+        (WTR::TestController::platformInitializeDataStore):
+
+2020-05-19  Lauro Moura  <lmoura@igalia.com>
+
+        [Flatpak SDK] Use items instead of iteritems to make Python 3 happier.
+
+        Rubber-stamped by Philippe Normand.
+
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.pack_toolchain):
+
+2020-05-19  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [macOS] Drag and drop within a contenteditable area duplicates attachment-backed images
+        https://bugs.webkit.org/show_bug.cgi?id=212075
+        <rdar://problem/62434146>
+
+        Reviewed by Andy Estes.
+
+        Add a new API test to verify that starting a drag on an attachment-backed image in an editable container with
+        queued mouse move events does not cause the selection to collapse. See Source/WebKit/ChangeLog for more details.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WKAttachmentTests.mm:
+        * TestWebKitAPI/cocoa/TestWKWebView.h:
+        * TestWebKitAPI/cocoa/TestWKWebView.mm:
+        (-[TestWKWebView waitForPendingMouseEvents]):
+
+        Move this method from DragAndDropSimulator into TestWKWebView.
+
+        * TestWebKitAPI/mac/DragAndDropSimulatorMac.mm:
+        (-[DragAndDropTestWKWebView waitForPendingMouseEvents]): Deleted.
+
+2020-05-19  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        [buildbot][GTK][WPE] Pass --verbose flag when running JavaScriptCore tests
+        https://bugs.webkit.org/show_bug.cgi?id=212088
+
+        Reviewed by Philippe Normand.
+
+        Pass the "--verbose" flag to run-javascriptcore-tests also for GTK and WPE.
+        Also change the way we are currently passing "--memory-limited" to make
+        it more obvious that this is needed for all Linux bots (GTK+WPE+JSCOnly).
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py:
+        (RunJavaScriptCoreTests.start):
+        (RunRemoteJavaScriptCoreTests.start):
+
+2020-05-19  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Fixups for r261689 "stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js failing on ppc64le and s390x"
+        https://bugs.webkit.org/show_bug.cgi?id=211724
+        <rdar://problem/63227393>
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Rewrite determineArchitectureFromELFBinary to properly handle big endian architectures.
+        Also, properly account for 32-bit PowerPC.
+
+        * Scripts/run-jsc-stress-tests:
+
+2020-05-19  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        [GTK] Add WEBKIT_EDITING_COMMAND_PASTE_AS_PLAIN_TEXT
+        https://bugs.webkit.org/show_bug.cgi?id=212038
+
+        Reviewed by Carlos Garcia Campos.
+
+        * TestWebKitAPI/Tests/WebKitGtk/TestWebViewEditor.cpp:
+        (testWebViewEditorCutCopyPasteNonEditable):
+        (testWebViewEditorCutCopyPasteEditable):
+        (testWebViewEditorNonEditable):
+
+2020-05-18  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WPE] HeadlessViewBackend should exclusively use software rasterization mode
+        https://bugs.webkit.org/show_bug.cgi?id=211982
+
+        Reviewed by Carlos Garcia Campos.
+
+        Instead of using WPEBackend-fdo's EGL mode that optionally allows the
+        GL operations to be done through software rasterization, have the
+        HeadlessViewBackend use the SHM mode which enforces this behavior.
+
+        Under the hood, the graphics library will be forced to set up and use
+        the software rasterization mechanisms, and on our side we are required
+        to properly handle SHM-backed buffers. This avoids any use of EGL or
+        GL operations inside HeadlessViewBackend, enabling to use this setup
+        in systems and environments that don't have GPUs available.
+
+        All GL-y things are pushed into the WindowViewBackend class. Inside
+        HeadlessViewBackend, the whole SHM logic requires WPEBackend-fdo APIs
+        that are part of the current 1.7 development cycle. When building
+        against older versions, HeadlessViewBackend itself remains buildable
+        but is not operational otherwise.
+
+        * WebKitTestRunner/wpe/PlatformWebViewWPE.cpp:
+        (WTR::PlatformWebView::windowSnapshotImage):
+        * wpe/backends/HeadlessViewBackend.cpp:
+        (WPEToolingBackends::HeadlessInstance::singleton):
+        (WPEToolingBackends::HeadlessViewBackend::HeadlessViewBackend):
+        (WPEToolingBackends::HeadlessViewBackend::~HeadlessViewBackend):
+        (WPEToolingBackends::HeadlessViewBackend::backend const):
+        (WPEToolingBackends::HeadlessViewBackend::snapshot):
+        (WPEToolingBackends::HeadlessViewBackend::updateSnapshot):
+        (WPEToolingBackends::HeadlessViewBackend::vsync):
+        (): Deleted.
+        (WPEToolingBackends::HeadlessEGLConnection::singleton): Deleted.
+        (WPEToolingBackends::HeadlessViewBackend::createSnapshot): Deleted.
+        (WPEToolingBackends::HeadlessViewBackend::createEGLSnapshot): Deleted.
+        (WPEToolingBackends::HeadlessViewBackend::createSHMSnapshot): Deleted.
+        (WPEToolingBackends::HeadlessViewBackend::performUpdate): Deleted.
+        (WPEToolingBackends::HeadlessViewBackend::displayBuffer): Deleted.
+        * wpe/backends/HeadlessViewBackend.h:
+        * wpe/backends/ViewBackend.cpp:
+        (WPEToolingBackends::ViewBackend::initialize): Deleted.
+        (WPEToolingBackends::ViewBackend::deinitialize): Deleted.
+        (WPEToolingBackends::ViewBackend::backend const): Deleted.
+        * wpe/backends/ViewBackend.h:
+        * wpe/backends/WindowViewBackend.cpp:
+        (WPEToolingBackends::WindowViewBackend::backend const):
+        (WPEToolingBackends::WindowViewBackend::initialize):
+        (WPEToolingBackends::WindowViewBackend::deinitialize):
+        * wpe/backends/WindowViewBackend.h:
+
+2020-05-18  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WPE] Disable modern media controls for testing
+        https://bugs.webkit.org/show_bug.cgi?id=212023
+
+        Reviewed by Philippe Normand.
+
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+        (WTR::TestController::updatePlatformSpecificTestOptionsForTest const):
+        Since using the same Adwaita-based media controls as the GTK port, WPE
+        too should disable modern media controls during testing by overriding
+        the default value. This fixes a couple of obscure crashes in text track
+        tests.
+
+2020-05-18  Christopher Reid  <chris.reid@sony.com>
+
+        [WinCairo] WKTR WebsiteDataStore is being overwritten by the default one
+        https://bugs.webkit.org/show_bug.cgi?id=212044
+
+        Reviewed by Fujii Hironori.
+
+        Ensure TestController::defaultWebSiteDataStore is being used for WinCairo as done in r259705.
+
+        Also consolidate platformInitializeDataStore implementations with GTK/WPE since WinCairo WKTR
+        also started crashing since r261758.
+
+        * WebKitTestRunner/TestController.cpp:
+        * WebKitTestRunner/gtk/TestControllerGtk.cpp:
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+
+2020-05-18  Andy Estes  <aestes@apple.com>
+
+        http/tests/ssl/applepay/ApplePayInstallmentConfiguration.https.html fails in public SDK builds
+        https://bugs.webkit.org/show_bug.cgi?id=212000
+        <rdar://problem/63323082>
+
+        Reviewed by Youenn Fablet.
+
+        * TestWebKitAPI/Configurations/FeatureDefines.xcconfig:
+
+2020-05-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Replace uses of +self with +class
+        https://bugs.webkit.org/show_bug.cgi?id=212041
+
+        Reviewed by Darin Adler.
+
+        * DumpRenderTree/mac/EventSendingController.mm:
+        (-[EventSendingController monitorWheelEventsWithOptions:]):
+        * TestWebKitAPI/Tests/WebKitCocoa/WKAttachmentTests.mm:
+        (TestWebKitAPI::TEST):
+        * WebKitTestRunner/ios/UIScriptControllerIOS.mm:
+        (WTR::enclosingScrollViewIncludingSelf):
+
+2020-05-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Implement conversion between P3 and sRGB color
+        https://bugs.webkit.org/show_bug.cgi?id=211998
+
+        Reviewed by Daniel Bates.
+
+        API test for conversions from P3 to sRGB, and linearRGB to sRGB. Values were confirmed
+        as close to those provided by ColorSync Utility.
+
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-05-18  Mark Lam  <mark.lam@apple.com>
+
+        Implement a faster findBitInWord() using the hardware ctz instruction.
+        https://bugs.webkit.org/show_bug.cgi?id=212032
+        <rdar://problem/63348086>
+
+        Reviewed by Saam Barati.
+
+        Add tests to make sure that the ctz implementation matches the loop implementation
+        in behavior.
+
+        * TestWebKitAPI/CMakeLists.txt:
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WTF/StdLibExtras.cpp: Added.
+        (TestWebKitAPI::testFindBitInWord):
+        (TestWebKitAPI::TEST):
+
+2020-05-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Allow clipboard API access when pasting from a menu item or key binding
+        https://bugs.webkit.org/show_bug.cgi?id=211990
+        <rdar://problem/63308916>
+
+        Reviewed by Megan Gardner.
+
+        Add a UIScriptController method to trigger a paste from the application process.
+
+        * DumpRenderTree/cocoa/UIScriptControllerCocoa.h:
+        * DumpRenderTree/cocoa/UIScriptControllerCocoa.mm:
+        (WTR::UIScriptControllerCocoa::paste):
+        * TestRunnerShared/UIScriptContext/Bindings/UIScriptController.idl:
+        * TestRunnerShared/UIScriptContext/UIScriptController.h:
+        (WTR::UIScriptController::paste):
+        * WebKitTestRunner/cocoa/UIScriptControllerCocoa.h:
+        * WebKitTestRunner/cocoa/UIScriptControllerCocoa.mm:
+        (WTR::UIScriptControllerCocoa::paste):
+
+2020-05-18  Darin Adler  <darin@apple.com>
+
+        Add iterator checking to ListHashSet
+        https://bugs.webkit.org/show_bug.cgi?id=211669
+
+        Reviewed by Anders Carlsson.
+
+        * TestWebKitAPI/Tests/WTF/WeakPtr.cpp: Removed use of the DID_CREATE_WEAK_PTR_IMPL
+        and WILL_DESTROY_WEAK_PTR_IMPL, which didn't work consistently because of the
+        one-definition rule. Instead, this file parameterizes the WeakPtr family of
+        class templates with a counter class. To avoid having to rewrite test code, used
+        alias templates to insert these class template into the TestWebKitAPI namespace,
+        hiding the class templates from the WTF namespace.
+
+2020-05-18  Peng Liu  <peng.liu6@apple.com>
+
+        [iPad Simulator] TestWebKitAPI.WebKitLegacy.ScrollingDoesNotPauseMedia is timing out
+        https://bugs.webkit.org/show_bug.cgi?id=211792
+
+        Reviewed by Daniel Bates.
+
+        Fix deadlocks in two API tests (only reproducible on iPad simulators).
+
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/PreemptVideoFullscreen.mm:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WebKitLegacy/ios/ScrollingDoesNotPauseMedia.mm:
+        (TestWebKitAPI::TEST):
+
+2020-05-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Single selection <select> with <optgroups> shows multiple selected options
+        https://bugs.webkit.org/show_bug.cgi?id=199485
+        <rdar://problem/52757531>
+
+        Reviewed by Megan Gardner.
+
+        Add a new helper method to check whether the currently presented form accessory is a select menu, and has a
+        checked menu item at the given row.
+
+        * TestRunnerShared/UIScriptContext/Bindings/UIScriptController.idl:
+        * TestRunnerShared/UIScriptContext/UIScriptController.h:
+        (WTR::UIScriptController::selectFormAccessoryHasCheckedItemAtRow const):
+        * WebKitTestRunner/ios/UIScriptControllerIOS.h:
+        * WebKitTestRunner/ios/UIScriptControllerIOS.mm:
+        (WTR::UIScriptControllerIOS::selectFormAccessoryHasCheckedItemAtRow const):
+
+2020-05-18  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [iOS] Unexpected capitalization of next word after repositioning caret
+        https://bugs.webkit.org/show_bug.cgi?id=211969
+        <rdar://problem/62605526>
+
+        Reviewed by Alex Christensen.
+
+        Add a new UIScriptController hook to query whether or not the software keyboard is in shifted state.
+
+        * TestRunnerShared/UIScriptContext/Bindings/UIScriptController.idl:
+        * TestRunnerShared/UIScriptContext/UIScriptController.h:
+        (WTR::UIScriptController::keyboardIsAutomaticallyShifted const):
+        * TestWebKitAPI/Tests/WebKitCocoa/WKAttachmentTests.mm:
+
+        Adjust a couple of API tests that copy and paste back-to-back, so that they wait for the copy to finish before
+        attempting to paste.
+
+        * WebKitTestRunner/ios/UIScriptControllerIOS.h:
+        * WebKitTestRunner/ios/UIScriptControllerIOS.mm:
+        (WTR::UIScriptControllerIOS::keyboardIsAutomaticallyShifted const):
+
+2020-05-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Add WebKitContextMenuItemType for paste as plaintext
+        https://bugs.webkit.org/show_bug.cgi?id=177638
+
+        Reviewed by Michael Catanzaro.
+
+        Update default context menu test case to also test the context menu for rich editable content.
+
+        * TestWebKitAPI/Tests/WebKitGtk/TestContextMenu.cpp:
+        (prepareContextMenuTestView):
+        (testContextMenuDefaultMenu):
+
+2020-05-17  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix operator== and hash() for ExtendedColor
+        https://bugs.webkit.org/show_bug.cgi?id=211993
+
+        Reviewed by Sam Weinig.
+
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-05-16  Simon Fraser  <simon.fraser@apple.com>
+
+        Rename some API test files
+        https://bugs.webkit.org/show_bug.cgi?id=211992
+
+        Reviewed by Zalan Bujtas.
+
+        I'm tired of Quick Open of Color.cpp opening the test file rather than the one I want.
+
+        * TestWebKitAPI/CMakeLists.txt:
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebCore/ColorTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/Color.cpp.
+        * TestWebKitAPI/Tests/WebCore/ExtendedColorTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/ExtendedColor.cpp.
+        * TestWebKitAPI/Tests/WebCore/FloatPointTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/FloatPoint.cpp.
+        * TestWebKitAPI/Tests/WebCore/FloatRectTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/FloatRect.cpp.
+        * TestWebKitAPI/Tests/WebCore/FloatSizeTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/FloatSize.cpp.
+        * TestWebKitAPI/Tests/WebCore/IntPointTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/IntPoint.cpp.
+        * TestWebKitAPI/Tests/WebCore/IntRectTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/IntRect.cpp.
+        * TestWebKitAPI/Tests/WebCore/IntSizeTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/IntSize.cpp.
+        * TestWebKitAPI/Tests/WebCore/LayoutUnitTests.cpp: Renamed from Tools/TestWebKitAPI/Tests/WebCore/LayoutUnit.cpp.
+
+2020-05-15  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Add default initialization of WebsiteDataStore to WebKitTestRunner after r261758
+        https://bugs.webkit.org/show_bug.cgi?id=211977
+
+        As GTK/WPE does not explicitly create WebSiteDataStore for the tests,
+        assign the default one.
+
+        Not sure if this is the correct fix, but should allow running tests
+        again.
+
+        Reviewed by Žan Doberšek.
+
+        * WebKitTestRunner/TestController.cpp: Add GTK/WPE guards.
+        * WebKitTestRunner/gtk/TestControllerGtk.cpp:
+        (WTR::TestController::platformInitializeDataStore): Use default
+        WebsiteDataStore.
+        * WebKitTestRunner/wpe/TestControllerWPE.cpp:
+        (WTR::TestController::platformInitializeDataStore): Use default
+        websiteDataStore.
+
+2020-05-15  Alex Christensen  <achristensen@webkit.org>
+
+        Use enum serialization instead of casting to/from uint32_t
+        https://bugs.webkit.org/show_bug.cgi?id=211885
+
+        Reviewed by Geoffrey Garen.
+
+        * DumpRenderTree/ios/AccessibilityUIElementIOS.mm:
+        (AccessibilityUIElement::increaseTextSelection):
+        (AccessibilityUIElement::decreaseTextSelection):
+        * WebKitTestRunner/InjectedBundle/ios/AccessibilityUIElementIOS.mm:
+        (WTR::AccessibilityUIElement::increaseTextSelection):
+        (WTR::AccessibilityUIElement::decreaseTextSelection):
+
+2020-05-15  Ryan Haddad  <ryanhaddad@apple.com>
+
+        [iOS EWS] TestWebKitAPI.WKWebsiteDataStore.RemoveAndFetchData is failing
+        https://bugs.webkit.org/show_bug.cgi?id=208451
+
+        Unreviewed test gardening.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WKWebsiteDatastore.mm:
+        (TestWebKitAPI::TEST): Re-enable the test for iOS.
+
+2020-05-15  Geoffrey Garen  <ggaren@apple.com>
+
+        Update Sihui Liu's status to reviewer
+        https://bugs.webkit.org/show_bug.cgi?id=211966
+
+        Reviewed by Per Arne Vollan.
+
+        See email thread on webkit-reviewers on 5/7, "Reviewer nomination:
+        Sihui Liu".
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-05-15  Alex Christensen  <achristensen@webkit.org>
+
+        TestWebKitAPI.WKHTTPCookieStore.Basic is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=211752
+
+        Reviewed by Geoffrey Garen.
+
+        The ordering of cookiesDidChangeInCookieStore callbacks with regard to other callbacks isn't quite deterministic.
+        No problem.  If the number of callbacks isn't what it is expected, wait until it is.
+        When I reproduce this test failure, I need to spin the run loop at max once to have it succeed, but the bots may take a few more run loop spins.
+        Spin until the number of callbacks is the expected value.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/WKHTTPCookieStore.mm:
+        (runTestWithWebsiteDataStore):
+
+2020-05-15  Alex Christensen  <achristensen@webkit.org>
+
+        [iOS Simulator] TestWebKitAPI._WKDownload.Resume is a flaky crash
+        https://bugs.webkit.org/show_bug.cgi?id=211786
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Download.mm:
+        (TEST):
+        Add a short sleep (<1/10s) to make this test so it would've almost always failed without this fix.
+        Checking the file immediately usually succeeded, but waiting a few run loop iterations revealed that CFNetwork
+        was deleting resumed then finished downloads.
+
+2020-05-15  Alex Christensen  <achristensen@webkit.org>
+
+        Regression (iOS 13.4, r249142): WKWebView.loading is never reset after a Back navigation in an iframe
+        https://bugs.webkit.org/show_bug.cgi?id=211449
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/Navigation.mm:
+        (-[LoadingObserver changesObserved]):
+        (-[LoadingObserver observeValueForKeyPath:ofObject:change:context:]):
+        (TEST):
+
+2020-05-15  Chris Dumez  <cdumez@apple.com>
+
+        Make sure we use current data store in WKTR's TestController
+        https://bugs.webkit.org/show_bug.cgi?id=211920
+
+        Reviewed by Alex Christensen.
+
+        Make sure we use current data store in WKTR's TestController. Currently, a lot of code
+        uses defaultDataStore(), even though the test may be using another data store (e.g. an
+        ephemeral one). I suspect this is contributing to test flakiness.
+
+        We now also make sure that TestController::websiteDataStore() returns the actual store
+        that will be used by the test when resetPreferencesToConsistentValues() is called.
+        Previously, it would not since it would get the store from the m_mainView and m_mainView
+        would only get initialized after calling resetPreferencesToConsistentValues(). To support
+        this, we now initialize a m_websiteDataStore member in platformInitializeDataStore(),
+        which gets called right before resetPreferencesToConsistentValues(). When
+        platformCreateWebView() gets called right after resetPreferencesToConsistentValues(),
+        it now simply relies on m_websiteDataStore instead of creating the data store at this
+        point.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::didReceiveSynchronousMessageFromInjectedBundle):
+        (WTR::TestController::clearServiceWorkerRegistrations):
+        (WTR::TestController::clearDOMCache):
+        (WTR::TestController::clearDOMCaches):
+        (WTR::TestController::hasDOMCache):
+        (WTR::TestController::domCacheSize):
+        (WTR::TestController::clearStatisticsDataForDomain):
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::invoke):
+        (WTR::TestInvocation::didReceiveSynchronousMessageFromInjectedBundle):
+
+2020-05-15  Diego Pino Garcia  <dpino@igalia.com>
+
+        [buildbot] Increase blocksize of file transfer in UploadTestResults step
+        https://bugs.webkit.org/show_bug.cgi?id=211847
+
+        Reviewed by Aakash Jain.
+
+        All other steps involving file transfer uploads use 256kb as block
+        size. Make this step in line with others.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py:
+        (UploadTestResults.__init__):
+
+2020-05-15  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK3] Bring back usage of GtkMenu for context menus
+        https://bugs.webkit.org/show_bug.cgi?id=211557
+
+        Reviewed by Carlos Garcia Campos.
+
+        * TestWebKitAPI/Tests/WebKitGtk/TestContextMenu.cpp: Add preprocessor conditionals
+        for GTK4 and bring back some bits previously removed in r260889 for GTK3.
+
+2020-05-14  Kate Cheney  <katherine_cheney@apple.com>
+
+        Attribute non-network loads and loads with html strings as automatically app-bound
+        https://bugs.webkit.org/show_bug.cgi?id=211913
+        <rdar://problem/63157801
+
+        Reviewed by Brent Fulgham.
+
+        Adds new tests to check that WebView loads with HTML strings have
+        proper behavior.
+
+        Some tests need to test behavior on app-bound domains on webviews which do not specify
+        limitsNavigationsToAppBoundDomains. Since local files now do this
+        automatically, this patch updates those to use actual app-bound
+        domains from the WKAppBoundDomains list instead to maintain behavior.
+
+        Remove limitsNavigationsToAppBoundDomains for local files to make sure
+        they are forced into this mode automatically.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/InAppBrowserPrivacy.mm:
+        (-[InAppBrowserSchemeHandler webView:startURLSchemeTask:]):
+        (TEST):
+
+2020-05-14  Jiewen Tan  <jiewen_tan@apple.com>
+
+        [WebAuthn] Relaxing signature length requirements for U2fRegister
+        https://bugs.webkit.org/show_bug.cgi?id=209645
+        <rdar://problem/63204591>
+
+        Reviewed by Brent Fulgham.
+
+        * TestWebKitAPI/Tests/WebCore/CtapResponseTest.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-05-14  Jonathan Bedard  <jbedard@apple.com>
+
+        run-webkit-tests shouldn't need Xcode to run Mac tests
+        https://bugs.webkit.org/show_bug.cgi?id=211903
+        <rdar://problem/63205839>
+
+        Reviewed by Stephanie Lewis.
+
+        * Scripts/webkitpy/common/system/platforminfo.py:
+        (PlatformInfo):
+        (PlatformInfo.xcode_sdk_version): Memoize SDK version retrieval.
+        (PlatformInfo.xcode_version): Only run xcodebuild if macosx SDK is present.
+        (PlatformInfo.available_sdks): Ditto.
+        * Scripts/webkitpy/common/system/platforminfo_unittest.py:
+        (TestPlatformInfo.test_available_sdks):
+
+2020-05-14  Daniel Bates  <dabates@apple.com>
+
+        Include LocalOverrides.xcconfig in all Tools projects
+        https://bugs.webkit.org/show_bug.cgi?id=211789
+
+        Reviewed by Dan Bernstein.
+
+        Matches what is done for all Source projects so as to support local overriding of configs.
+
+        * DumpRenderTree/mac/Configurations/DebugRelease.xcconfig:
+        * MiniBrowser/Configurations/DebugRelease.xcconfig:
+        * MobileMiniBrowser/Configurations/DebugRelease.xcconfig:
+        * TestWebKitAPI/Configurations/DebugRelease.xcconfig:
+        * WebKitTestRunner/Configurations/DebugRelease.xcconfig:
+
+2020-05-14  Andres Gonzalez  <andresg_22@apple.com>
+
+        Fix for crashes in LayoutTests related to TextMarkers in isolated tree mode.
+        https://bugs.webkit.org/show_bug.cgi?id=211912
+
+        Reviewed by Chris Fleizach.
+
+        Check for null pointer parameters before dereferencing.
+
+        * WebKitTestRunner/InjectedBundle/mac/AccessibilityUIElementMac.mm:
+        (WTR::misspellingSearchParameterizedAttributeForCriteria):
+        (WTR::AccessibilityUIElement::lineTextMarkerRangeForTextMarker):
+        (WTR::AccessibilityUIElement::textMarkerRangeLength):
+        (WTR::AccessibilityUIElement::previousTextMarker):
+        (WTR::AccessibilityUIElement::nextTextMarker):
+        (WTR::AccessibilityUIElement::stringForTextMarkerRange):
+        (WTR::AccessibilityUIElement::textMarkerRangeForMarkers):
+        (WTR::AccessibilityUIElement::startTextMarkerForTextMarkerRange):
+        (WTR::AccessibilityUIElement::endTextMarkerForTextMarkerRange):
+        (WTR::AccessibilityUIElement::accessibilityElementForTextMarker):
+        (WTR::AccessibilityUIElement::attributedStringForTextMarkerRange):
+        (WTR::AccessibilityUIElement::attributedStringForTextMarkerRangeWithOptions):
+        (WTR::AccessibilityUIElement::attributedStringForTextMarkerRangeContainsAttribute):
+        (WTR::AccessibilityUIElement::indexForTextMarker):
+        (WTR::AccessibilityUIElement::isTextMarkerValid):
+        (WTR::AccessibilityUIElement::leftWordTextMarkerRangeForTextMarker):
+        (WTR::AccessibilityUIElement::rightWordTextMarkerRangeForTextMarker):
+        (WTR::AccessibilityUIElement::previousWordStartTextMarkerForTextMarker):
+        (WTR::AccessibilityUIElement::nextWordEndTextMarkerForTextMarker):
+        (WTR::AccessibilityUIElement::paragraphTextMarkerRangeForTextMarker):
+        (WTR::AccessibilityUIElement::previousParagraphStartTextMarkerForTextMarker):
+        (WTR::AccessibilityUIElement::nextParagraphEndTextMarkerForTextMarker):
+        (WTR::AccessibilityUIElement::sentenceTextMarkerRangeForTextMarker):
+        (WTR::AccessibilityUIElement::previousSentenceStartTextMarkerForTextMarker):
+        (WTR::AccessibilityUIElement::nextSentenceEndTextMarkerForTextMarker):
+
+2020-05-14  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        stress/array-buffer-view-watchpoint-can-be-fired-in-really-add-in-dfg.js failing on ppc64le and s390x
+        https://bugs.webkit.org/show_bug.cgi?id=211724
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Add architecture detection for PowerPC and S/390.
+
+        * Scripts/run-jsc-stress-tests:
+
+2020-05-14  Philippe Normand  <pnormand@igalia.com>
+
+        [WPE] Tools/wpe/install-dependencies fails due to missing pipenv
+        https://bugs.webkit.org/show_bug.cgi?id=211849
+
+        Reviewed by Žan Doberšek.
+
+        Ubuntu Bionic doesn't ship pipenv. So fallback to the pip3 install path. Also remove the
+        libpng12-dev fallback, this doesn't seem necessary any longer (tested on a Ubuntu Bionic
+        docker).
+
+        * gtk/install-dependencies:
+        * wpe/install-dependencies:
+
+2020-05-14  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Path references shouldn't point to the sandbox in compile_commands.json
+        https://bugs.webkit.org/show_bug.cgi?id=209901
+
+        Reviewed by Žan Doberšek.
+
+        Add ccls to the SDK. It can then be used through a wrapper script by Emacs's lsp-mode.
+        
+        * buildstream/elements/sdk-build-depends/rapidjson.bst: Added.
+        * buildstream/elements/sdk-platform.bst:
+        * buildstream/elements/sdk/ccls.bst: Added.
+
 2020-05-13  Jer Noble  <jer.noble@apple.com>
 
         Replace isNullFunctionPointer with real weak-linking support

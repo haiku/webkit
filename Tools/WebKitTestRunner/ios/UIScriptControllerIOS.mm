@@ -606,6 +606,11 @@ void UIScriptControllerIOS::selectFormAccessoryPickerRow(long rowIndex)
     [webView() selectFormAccessoryPickerRow:rowIndex];
 }
 
+bool UIScriptControllerIOS::selectFormAccessoryHasCheckedItemAtRow(long rowIndex) const
+{
+    return [webView() selectFormAccessoryHasCheckedItemAtRow:rowIndex];
+}
+
 void UIScriptControllerIOS::setTimePickerValue(long hour, long minute)
 {
     [webView() setTimePickerValueToHour:hour minute:minute];
@@ -677,7 +682,7 @@ void UIScriptControllerIOS::immediateScrollToOffset(long x, long y)
 static UIScrollView *enclosingScrollViewIncludingSelf(UIView *view)
 {
     do {
-        if ([view isKindOfClass:[UIScrollView self]])
+        if ([view isKindOfClass:[UIScrollView class]])
             return static_cast<UIScrollView *>(view);
     } while ((view = [view superview]));
 
@@ -1205,6 +1210,11 @@ void UIScriptControllerIOS::toggleCapsLock(JSValueRef callback)
     doAsyncTask(callback);
 }
 
+bool UIScriptControllerIOS::keyboardIsAutomaticallyShifted() const
+{
+    return UIKeyboardImpl.activeInstance.isAutoShifted;
+}
+
 JSObjectRef UIScriptControllerIOS::attachmentInfo(JSStringRef jsAttachmentIdentifier)
 {
     auto attachmentIdentifier = toWTFString(toWK(jsAttachmentIdentifier));
@@ -1230,7 +1240,7 @@ UIView *UIScriptControllerIOS::platformContentView() const
 JSObjectRef UIScriptControllerIOS::calendarType() const
 {
     UIView *contentView = [webView() valueForKeyPath:@"_currentContentView"];
-    NSString *calendarTypeString = [contentView valueForKeyPath:@"formInputControl.dateTimePickerCalendarType"];
+    NSString *calendarTypeString = [contentView valueForKeyPath:@"dateTimeInputControl.dateTimePickerCalendarType"];
     auto jsContext = m_context->jsContext();
     return JSValueToObject(jsContext, [JSValue valueWithObject:calendarTypeString inContext:[JSContext contextWithJSGlobalContextRef:jsContext]].JSValueRef, nullptr);
 }

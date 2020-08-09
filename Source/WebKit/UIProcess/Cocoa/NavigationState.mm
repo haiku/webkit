@@ -409,21 +409,21 @@ inline WebCore::WebGLLoadPolicy toWebCoreWebGLLoadPolicy(_WKWebGLLoadPolicy poli
 {
     switch (policy) {
     case _WKWebGLLoadPolicyAllowCreation:
-        return WebCore::WebGLAllowCreation;
+        return WebCore::WebGLLoadPolicy::WebGLAllowCreation;
     case _WKWebGLLoadPolicyBlockCreation:
-        return WebCore::WebGLBlockCreation;
+        return WebCore::WebGLLoadPolicy::WebGLBlockCreation;
     case _WKWebGLLoadPolicyPendingCreation:
-        return WebCore::WebGLPendingCreation;
+        return WebCore::WebGLLoadPolicy::WebGLPendingCreation;
     }
     
     ASSERT_NOT_REACHED();
-    return WebCore::WebGLAllowCreation;
+    return WebCore::WebGLLoadPolicy::WebGLAllowCreation;
 }
 
 void NavigationState::NavigationClient::webGLLoadPolicy(WebPageProxy&, const URL& url, CompletionHandler<void(WebCore::WebGLLoadPolicy)>&& completionHandler) const
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewWebGLLoadPolicyForURL) {
-        completionHandler(WebGLAllowCreation);
+        completionHandler(WebGLLoadPolicy::WebGLAllowCreation);
         return;
     }
 
@@ -440,7 +440,7 @@ void NavigationState::NavigationClient::webGLLoadPolicy(WebPageProxy&, const URL
 void NavigationState::NavigationClient::resolveWebGLLoadPolicy(WebPageProxy&, const URL& url, CompletionHandler<void(WebCore::WebGLLoadPolicy)>&& completionHandler) const
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewResolveWebGLLoadPolicyForURL) {
-        completionHandler(WebGLAllowCreation);
+        completionHandler(WebGLLoadPolicy::WebGLAllowCreation);
         return;
     }
     
@@ -598,13 +598,13 @@ void NavigationState::NavigationClient::decidePolicyForNavigationAction(WebPageP
         checker->didCallCompletionHandler();
 
         RefPtr<API::WebsitePolicies> apiWebsitePolicies;
-        if ([policiesOrPreferences isKindOfClass:WKWebpagePreferences.self])
+        if ([policiesOrPreferences isKindOfClass:WKWebpagePreferences.class])
             apiWebsitePolicies = ((WKWebpagePreferences *)policiesOrPreferences)->_websitePolicies.get();
 ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-        else if ([policiesOrPreferences isKindOfClass:_WKWebsitePolicies.self])
+        else if ([policiesOrPreferences isKindOfClass:_WKWebsitePolicies.class])
             apiWebsitePolicies = [policiesOrPreferences webpagePreferences]->_websitePolicies.get();
         else if (policiesOrPreferences)
-            [NSException raise:NSInvalidArgumentException format:@"Expected policies of class %@, but got %@", NSStringFromClass(_WKWebsitePolicies.self), [policiesOrPreferences class]];
+            [NSException raise:NSInvalidArgumentException format:@"Expected policies of class %@, but got %@", NSStringFromClass(_WKWebsitePolicies.class), [policiesOrPreferences class]];
 ALLOW_DEPRECATED_DECLARATIONS_END
         else
             apiWebsitePolicies = defaultWebsitePolicies;

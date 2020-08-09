@@ -83,6 +83,7 @@ set(TestWTF_SOURCES
     Tests/WTF/Scope.cpp
     Tests/WTF/ScopedLambda.cpp
     Tests/WTF/SetForScope.cpp
+    Tests/WTF/StdLibExtras.cpp
     Tests/WTF/StringBuilder.cpp
     Tests/WTF/StringConcatenate.cpp
     Tests/WTF/StringHasher.cpp
@@ -130,18 +131,20 @@ if (ENABLE_WEBCORE)
         Tests/WebCore/CSSParser.cpp
         Tests/WebCore/CalculationValue.cpp
         Tests/WebCore/ComplexTextController.cpp
+        Tests/WebCore/ColorTests.cpp
+        Tests/WebCore/ExtendedColorTests.cpp
         Tests/WebCore/FileMonitor.cpp
-        Tests/WebCore/FloatPoint.cpp
-        Tests/WebCore/FloatRect.cpp
-        Tests/WebCore/FloatSize.cpp
+        Tests/WebCore/FloatPointTests.cpp
+        Tests/WebCore/FloatRectTests.cpp
+        Tests/WebCore/FloatSizeTests.cpp
         Tests/WebCore/GridPosition.cpp
         Tests/WebCore/HTMLParserIdioms.cpp
         Tests/WebCore/HTTPParsers.cpp
-        Tests/WebCore/IntPoint.cpp
-        Tests/WebCore/IntRect.cpp
-        Tests/WebCore/IntSize.cpp
+        Tests/WebCore/IntPointTests.cpp
+        Tests/WebCore/IntRectTests.cpp
+        Tests/WebCore/IntSizeTests.cpp
         Tests/WebCore/KeyedCoding.cpp
-        Tests/WebCore/LayoutUnit.cpp
+        Tests/WebCore/LayoutUnitTests.cpp
         Tests/WebCore/MIMETypeRegistry.cpp
         Tests/WebCore/ParsedContentRange.cpp
         Tests/WebCore/PublicSuffix.cpp

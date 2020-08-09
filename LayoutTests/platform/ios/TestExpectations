@@ -27,6 +27,8 @@ http/tests/gzip-content-encoding [ Pass ]
 
 imported/w3c/web-platform-tests/dom/events/document-level-touchmove-event-listener-passive-by-default.html [ Pass ]
 
+webkit.org/b/211813 editing/mac/spelling/editing-word-with-marker-1.html [ Pass ]
+
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
 #//////////////////////////////////////////////////////////////////////////////////////////
@@ -486,6 +488,7 @@ fast/events/mouse-cursor-change.html [ Skip ]
 fast/events/mouse-cursor-image-set.html [ Skip ]
 fast/events/mouse-cursor-multiframecur.html [ Skip ]
 fast/events/mouse-cursor-no-mousemove.html [ Skip ]
+fast/events/mouse-cursor-udpate-during-raf.html [ Skip ]
 fast/events/mouse-cursor.html [ Skip ]
 fast/events/mouse-drag-from-frame-to-other-frame.html [ Skip ]
 fast/events/mouse-drag-from-frame.html [ Skip ]
@@ -1050,6 +1053,7 @@ fast/css/resize-single-axis.html [ Skip ]
 fast/css/user-drag-none.html [ Skip ]
 fast/forms/range/disabled-while-dragging.html [ Skip ]
 fast/forms/range/range-drag-when-toggled-disabled.html [ Skip ]
+fast/frames/flattening/scrolling-in-object.html [ Skip ]
 fast/media/video-element-in-details-collapse.html [ Skip ]
 fast/frames/user-gesture-timestamp-propagation.html [ Failure ]
 fast/events/mouse-click-different-mouseDown-mouseUp-nodes.html [ Skip ]
@@ -1965,6 +1969,10 @@ editing/undo/undo-combined-delete.html [ Pass Failure ]
 editing/undo/undo-forward-delete-boundary.html [ Pass Failure ]
 editing/undo/undo-forward-delete.html [ Pass Failure ]
 
+# selectionBounds() doesn't work.
+webkit.org/b/212033 editing/selection/block-cursor-overtype-mode.html [ Failure ]
+webkit.org/b/212033 editing/selection/selection-bounds-fractional-containing-blocks.html [ Failure ]
+
 # storage tests that fail:
 storage/websql/sql-error-codes.html [ Failure ]
 
@@ -2163,7 +2171,6 @@ fast/filter-image/background-filter-image.html [ ImageOnlyFailure ]
 fast/text/combining-mark-paint.html [ ImageOnlyFailure ]
 fast/text/han-generic-font-families.html [ ImageOnlyFailure ]
 fast/text/mark-matches-broken-line-rendering.html [ ImageOnlyFailure ]
-fast/text/multiple-codeunit-vertical-upright.html [ ImageOnlyFailure ]
 fast/text/synthetic-bold-transformed.html [ ImageOnlyFailure ]
 fast/text/word-break-keep-all.html [ ImageOnlyFailure ]
 
@@ -2631,10 +2638,10 @@ imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin.h
 webkit.org/b/168053 pageoverlay/overlay-remove-reinsert-view.html [ Pass Failure ]
 
 # Skip some flexbox tests that aren't designed to run in smaller viewports
-css3/flexbox/overflow-auto-resizes-correctly.html [ Skip ]
-css3/flexbox/flexbox-height-with-overflow-auto.html [ Skip ]
+imported/w3c/web-platform-tests/css/css-flexbox/overflow-auto-008.html [ Skip ]
+imported/w3c/web-platform-tests/css/css-flexbox/overflow-auto-006.html [ Skip ]
 css3/flexbox/flex-flow-auto-margins-no-available-space-assert.html [ Skip ]
-css3/flexbox/flex-one-sets-flex-basis-to-zero-px.html [ Skip ]
+imported/w3c/web-platform-tests/css/css-flexbox/flex-one-sets-flex-basis-to-zero-px.html [ Skip ]
 
 # Skip test because checkboxes/radio buttons don't behave the same on iOS
 fast/replaced/table-percent-height.html [ Skip ]
@@ -3453,7 +3460,7 @@ webkit.org/b/207767 http/wpt/service-workers/online.https.html [ Pass Failure ]
 
 webkit.org/b/207768 http/wpt/service-workers/useragent.https.html [ Pass Failure ]
 
-webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure ]
+webkit.org/b/205216 imported/w3c/web-platform-tests/content-security-policy/reporting/report-same-origin-with-cookies.html [ Pass Failure DumpJSConsoleLogInStdErr ]
 
 webkit.org/b/207769 crypto/subtle/rsa-indexeddb-non-exportable.html [ Pass Timeout ]
 
@@ -3510,6 +3517,8 @@ webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass
 # These media controls tests are not relevant on macOS and iOS.
 media/media-document-audio-repaint.html [ Skip ]
 media/controls-styling.html [ Skip ]
+
+webkit.org/b/211856 media/video-poster-set-after-playback.html [ Pass Failure ]
 
 webkit.org/b/211261 compositing/iframes/border-radius-composited-frame.html [ Pass ImageOnlyFailure ]
 webkit.org/b/211261 compositing/iframes/border-uneven-radius-composited-frame.html [ Pass ImageOnlyFailure ]

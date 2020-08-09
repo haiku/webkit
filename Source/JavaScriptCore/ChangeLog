@@ -1,3 +1,458 @@
+2020-05-19  Mark Lam  <mark.lam@apple.com>
+
+        Put PtrTagLookup data structures in Configs for freezing.
+        https://bugs.webkit.org/show_bug.cgi?id=212089
+        <rdar://problem/63401487>
+
+        Reviewed by Robin Morisset.
+
+        PtrTagLookup data structures were always meant to only be initialized once at
+        initialization time and never modified thereafter.  This patch puts them in the
+        Configs for freezing to document and enforce this invariant.
+
+        * runtime/JSCConfig.h:
+        * runtime/JSCPtrTag.cpp:
+        (JSC::initializePtrTagLookup):
+
+2020-05-19  Youenn Fablet  <youenn@apple.com>
+
+        [ Mac wk1 Debug ] imported/w3c/web-platform-tests/fetch/api/basic/stream-safe-creation.any.html  is flaky crashing with alerts - WTFCrashWithInfo - SC::JSObject::get(JSC::JSGlobalObject*, JSC::PropertyName)
+        https://bugs.webkit.org/show_bug.cgi?id=211923
+        <rdar://problem/63244249>
+
+        Reviewed by Mark Lam.
+
+        * runtime/JSObject.h:
+        (JSC::JSObject::get const):
+        When calling get, a terminate exception might happen if running in workers.
+        Return early in that case. Add an ASSERT that only terminated exceptions can actually happen.
+
+2020-05-18  Andy Estes  <aestes@apple.com>
+
+        http/tests/ssl/applepay/ApplePayInstallmentConfiguration.https.html fails in public SDK builds
+        https://bugs.webkit.org/show_bug.cgi?id=212000
+        <rdar://problem/63323082>
+
+        Reviewed by Youenn Fablet.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-05-18  Saam Barati  <sbarati@apple.com>
+
+        Do more speculation that a GetByVal/PutByVal will have an int32 index based on data from ArrayProfile
+        https://bugs.webkit.org/show_bug.cgi?id=211877
+
+        Reviewed by Yusuke Suzuki.
+
+        Before this patch, when a GetByVal or PutByVal had a non int32 prediction for
+        their incoming index, they'd fall completely off the fast path. However, there
+        are programs where an int32 is boxed inside a double, but our notion of
+        predicted types don't fully capture this fact. For example, if we have a double Add
+        to produce an array index, that double Add will predict a full double result,
+        not a SpecAnyIntAsDouble. However, for GetByVal and PutByVal, there is information
+        from ArrayProfile we can use to determine if the incoming value is expected to
+        be in int32 range. The heuristic this patch introduces is:
+        
+        isFullNumberSpeculation(indexSpeculation)
+        && node->arrayMode().isSpecific()
+        && node->arrayMode().isInBounds()
+        && !m_graph.hasExitSite(node->origin.semantic, Overflow) // DoubleAsInt32 will exit with Overflow on failure
+        
+        If these conditions are met, we'll now emit a DoubleAsInt32 conversion node
+        for the index. This puts along the fast path for GetByVal and PutByVal on
+        array accesses where the incoming index is an int32 boxed in a double.
+        
+        To make the above isFullNumberSpeculation check more robust, this patch also
+        makes it so non index double accesses result in marking the array profile as
+        out of bounds. So this means indices greater than max safe index, and also,
+        fractional doubles.
+        
+        
+        This is a 3.75x speedup on microbenchmarks/get-and-put-by-val-double-index-dont-fall-off-a-cliff.js
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * jit/JITOperations.cpp:
+        (JSC::getByVal):
+
+2020-05-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt peephole compare should speculate appropriately
+        https://bugs.webkit.org/show_bug.cgi?id=212037
+        <rdar://problem/63346966>
+
+        Reviewed by Saam Barati.
+
+        SpeculativeJIT::nonSpeculativePeepholeBranch missed BigInt speculation. This patch renames it
+        to SpeculativeJIT::genericJSValuePeepholeBranch and adds speculation checks appropriately.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compilePeepHoleBranch):
+        (JSC::DFG::SpeculativeJIT::genericJSValuePeepholeBranch):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeBranch): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+
+2020-05-18  Keith Miller  <keith_miller@apple.com>
+
+        OSR loop entry to iterator_next generic needs to CheckNotEmpty on m_next
+        https://bugs.webkit.org/show_bug.cgi?id=212001
+
+        Reviewed by Saam Barati.
+
+        If we happen to OSR enter into iterator_next during a for-of loop
+        that has only profiled a generic iterator but is actually running
+        a fast iterator we will incorrectly perform the Call node This
+        could happen if we loop_hint OSR enter the first time have seen a
+        fast iterator. If this happens right now, we generate the following
+        code:
+
+        D@113:<!2:loc15>    GetLocal(Check:Untyped:D@198, JS|MustGen|UseAsOther, Function|Empty, loc13(W~/FlushedJSValue), machine:loc10, R:Stack(loc13),Stack(loc5), bc#46, ExitValid)  predicting Function|Empty
+          0x4913f1806151: mov -0x58(%rbp), %rsi
+        D@114:<!0:->    FilterCallLinkStatus(Check:Untyped:D@113, MustGen, (Function: Object: 0x1053f47e0 with butterfly 0x0 (Structure 0x1053f9260:[0x6dad, Function, {}, NonArray, Proto:0x1050fc248]), StructureID: 28077; Executable: next#Ddkruz:[0x1053c0480->0x1053e4a80, BaselineFunctionCall, 54 (StrictMode)]), R:Stack(loc5), W:SideState, bc#46, ExitValid)
+        D@115:<!6:loc15>    Call(Check:Untyped:D@113, Check:Untyped:D@110, JS|MustGen|VarArgs|UseAsOther, Final, R:World,Stack(loc5), W:Heap, ExitsForExceptions, ClobbersExit, bc#46, ExitValid)  predicting Final
+          0x4913f1806155: mov $0x1, 0x10(%rsp)
+          0x4913f180615d: mov %rax, 0x18(%rsp)
+          0x4913f1806162: mov %rsi, 0x8(%rsp)
+          0x4913f1806167: mov %rax, -0xa0(%rbp)
+          0x4913f180616e: mov $0x0, 0x24(%rbp)
+          0x4913f1806175: mov $0x0, %r11
+          0x4913f180617f: cmp %r11, %rsi
+          0x4913f1806182: jnz 0x4913f1806192
+          0x4913f1806188: call 0x4913f180618d
+          0x4913f180618d: jmp 0x4913f18061ae
+          0x4913f1806192: mov %rsi, %rax
+          0x4913f1806195: mov $0x1050cfcb0, %rdx
+          0x4913f180619f: mov $0x1052fab68, %rcx
+          0x4913f18061a9: call 0x4913f1801680
+          0x4913f18061ae: lea -0xd0(%rbp), %rsp
+        D@116:<!0:->    MovHint(Check:Untyped:D@115, MustGen, tmp0, R:Stack(loc5), W:SideState, ClobbersExit, bc#46, ExitInvalid)
+        D@332:<!0:->    InvalidationPoint(MustGen, R:Stack(loc5), W:SideState, Exits, bc#46, exit: bc#46cp#1, ExitValid)
+        D@335:<!0:->    CheckStructure(Check:Cell:D@115, MustGen, [%B2:Object], R:Stack(loc5),JSCell_structureID, Exits, bc#46, exit: bc#46cp#1, ExitValid)
+          0x4913f18061b5: test %rax, %r15
+          0x4913f18061b8: jnz 0x4913f18068db
+          0x4913f18061be: cmp $0xcaae, (%rax)
+          0x4913f18061c4: jnz 0x4913f18068f1
+
+        Loc13 in this IR is the location of the next function. Since it's
+        nullptr, we will pass the initial fast-path value of 0 and make a
+        garbage call. This is because Call does not know how to handle
+        empty values. Subsequently, we will fail a structure check for the
+        Call's result and OSR exit to the getDone checkpoint. The fix for
+        this is to simply put a CheckNotEmpty at the top of the generic
+        case. 99.9% of the time this check will be eliminated so it
+        doesn't really cost anything.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+
+2020-05-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, link fix for our internal Debug build
+
+        * heap/AlignedMemoryAllocator.cpp:
+
+2020-05-17  Lauro Moura  <lmoura@igalia.com>
+
+        [JSC] Silence unused-but-set-parameter warnings for older compilers
+        https://bugs.webkit.org/show_bug.cgi?id=212006
+
+        Reviewed by Mark Lam.
+
+        GCC up to 9.x will emit unused-but-set-parameter for the sources
+        parameter when NumberOfRegisters is zero (the if block is eliminated)
+        and for destinations when also ASSERT_ENABLED is false.
+
+        * jit/CCallHelpers.h:
+        (JSC::CCallHelpers::setupStubArgs):
+
+2020-05-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Make OutOfMemory error as instance of RangeError
+        https://bugs.webkit.org/show_bug.cgi?id=211952
+
+        Reviewed by Mark Lam.
+
+        The spec sometimes requires "check parameters and throw RangeError" before allocating an object.
+        But we are just allocating an object and throwing an out-of-memory error since wrong parameter will
+        cause out-of-memory. If out-of-memory error is RangeError, then we can keep our current behavior while
+        we can make us spec compliant. And note that out-of-memory error is RangeError in SpiderMonkey and V8.
+
+        This patch makes out-of-memory error as RangeError instead of Error. We also fix @throwOutOfMemoryError
+        in builtin code: the previous thrown errors are not marked as out-of-memory error.
+
+        * bytecode/BytecodeList.rb:
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitThrowStaticError):
+        (JSC::BytecodeGenerator::emitThrowReferenceError):
+        (JSC::BytecodeGenerator::emitThrowTypeError):
+        (JSC::BytecodeGenerator::emitThrowRangeError):
+        (JSC::BytecodeGenerator::emitThrowOutOfMemoryError):
+        * bytecompiler/BytecodeGenerator.h:
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::RegExpNode::emitBytecode):
+        (JSC::BytecodeIntrinsicNode::emit_intrinsic_throwTypeError):
+        (JSC::BytecodeIntrinsicNode::emit_intrinsic_throwRangeError):
+        * dfg/DFGOperations.cpp:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/Error.cpp:
+        (JSC::createError):
+        (JSC::createOutOfMemoryError):
+        * runtime/Error.h:
+        * runtime/ErrorType.cpp:
+        (JSC::errorTypeName):
+        (WTF::printInternal):
+        * runtime/ErrorType.h: We introduced ErrorTypeWithExtension separately from ErrorType to keep ErrorType one-on-one to spec-specified error types.
+
+2020-05-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] getFunctionRealm should not use recursion
+        https://bugs.webkit.org/show_bug.cgi?id=211965
+        <rdar://problem/63268287>
+
+        Reviewed by Saam Barati.
+
+        This patch avoids using recursion in getFunctionRealm to avoid stack-overflow.
+
+        * runtime/InternalFunction.cpp:
+        (JSC::getFunctionRealm):
+
+2020-05-15  Keith Miller  <keith_miller@apple.com>
+
+        Unreviewed, fix internal arm64e build.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+
+2020-05-15  Keith Miller  <keith_miller@apple.com>
+
+        Unreviewed, fix internal fast tls build.
+
+        * jit/AssemblyHelpers.cpp:
+
+2020-05-15  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [IWYU] Remove unnecessary includes from JSC implementation files
+        https://bugs.webkit.org/show_bug.cgi?id=211867
+
+        Reviewed by Keith Miller.
+
+        * API/:
+        * assembler/:
+        * b3/:
+        * bindings/:
+        * builtins/BuiltinExecutables.cpp:
+        * bytecode/:
+        * bytecompiler/:
+        * debugger/:
+        * dfg/:
+        * disassembler/:
+        * ftl/:
+        * heap/:
+        * inspector/:
+        * interpreter/:
+        * jit/:
+        * jsc.cpp:
+        * llint/:
+        * parser/:
+        * profiler/:
+        * runtime/:
+        * testRegExp.cpp:
+        * tools/:
+        * wasm/:
+        * yarr/:
+
+2020-05-15  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Wtype-limits warning spam from CCallHelpers.h
+        https://bugs.webkit.org/show_bug.cgi?id=211701
+
+        Reviewed by Darin Adler.
+
+        Skip the problematic loops when TargetSize or NumberOfRegisters is 0 using constexpr if.
+        Solution suggested by Mark Lam.
+
+        * jit/CCallHelpers.h:
+        (JSC::CCallHelpers::setupStubArgs):
+        (JSC::CCallHelpers::clampArrayToSize):
+
+2020-05-15  Mark Lam  <mark.lam@apple.com>
+
+        Remove debugging dataLogs in LinkBuffer::copyCompactAndLinkCode() for release builds.
+        https://bugs.webkit.org/show_bug.cgi?id=211961
+        <rdar://problem/63264848>
+
+        Reviewed by Keith Miller.
+
+        * assembler/LinkBuffer.cpp:
+        (JSC::LinkBuffer::copyCompactAndLinkCode):
+
+2020-05-15  Paulo Matos  <pmatos@igalia.com>
+
+        Fix ARM NEON only assert
+        https://bugs.webkit.org/show_bug.cgi?id=211889
+
+        Reviewed by Mark Lam.
+
+        Fix assert that breaks if ARM does not contain NEON extensions -
+        the register d16 is only defined if NEON exists.
+
+        * assembler/ARMv7Assembler.h:
+        (JSC::RegisterNames::asSingle):
+        (JSC::RegisterNames::asSingleUpper):
+
+2020-05-14  Saam Barati  <sbarati@apple.com>
+
+        GetByVal and PutByVal runtime operations shouldn't fall off a performance cliff when the property is an integer boxed as a double
+        https://bugs.webkit.org/show_bug.cgi?id=211935
+
+        Reviewed by Yusuke Suzuki and Mark Lam.
+
+        There were parts in the runtime for get_by_val that weren't properly handling
+        ints boxed as doubles along the fast path. This could lead to terrible
+        performance as we could go from double -> string -> int while converting the
+        subscript into a property to access.
+        
+        This patch fixes that, and removes the duplicate code we had throughout the
+        codebase that does this conversion. I'm adding a new functions tryGetAsUint32Index
+        and tryGetAsInt32 which will handle the double to int conversion.
+        
+        This is a 10x speedup on the microbenchmark get-and-put-by-val-double-index-dont-fall-off-a-cliff.js
+
+        * dfg/DFGOperations.cpp:
+        (JSC::DFG::putByValInternal):
+        * jit/JITOperations.cpp:
+        (JSC::getByVal):
+        * jsc.cpp:
+        (functionAsDoubleNumber):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::getByVal):
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * runtime/JSCJSValue.h:
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::tryGetAsUint32Index):
+        (JSC::JSValue::tryGetAsInt32):
+
+2020-05-14  Devin Rousso  <drousso@apple.com>
+
+        [ESNext] enable logical assignment operators by default
+        https://bugs.webkit.org/show_bug.cgi?id=211921
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/OptionsList.h:
+        * parser/Lexer.cpp:
+        (JSC::Lexer<T>::lexWithoutClearingLineTerminator):
+        Remove `useLogicalAssignmentOperators` option.
+
+2020-05-14  Keith Miller  <keith_miller@apple.com>
+
+        Undecided Arrays shouldn't need to be OriginalArray to covert to GetArrayLength
+        https://bugs.webkit.org/show_bug.cgi?id=211914
+
+        Reviewed by Saam Barati.
+
+        Also, fix a bug that arrayModesThatPassFiltering() can't handle
+        Undecided arrays. Because we can now emit a CheckArray on
+        Undecided AI will try to figure out what types flow out of the
+        check. Since Undecided was unhandled by filtering, AI will assume
+        bottom is the only possible value and the DFG/FTL will insert a
+        breakpoint, causing a crash.
+
+        * dfg/DFGArrayMode.cpp:
+        (JSC::DFG::ArrayMode::refine const):
+        * dfg/DFGArrayMode.h:
+        (JSC::DFG::ArrayMode::arrayModesThatPassFiltering const):
+
+2020-05-14  Keith Miller  <keith_miller@apple.com>
+
+        GetArrayLength should be "blessed" during Fixup phase in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=211540
+
+        Reviewed by Saam Barati.
+
+        If we got an ArrayMode during bytecode parsing for-of that expects
+        to be configured during Fixup, then right now we will crash on
+        GetArrayLength. This fixes GetArrayLength to properly call
+        blessArrayOperation and fixes clobberize to know that
+        GetArrayLength could have a ForceExit ArrayMode briefly before
+        being cleaned up.
+
+        When blessing GetArrayLength we can now produce CheckArrays that
+        have an AnyTypedArray ArrayMode::Type. So this patch expands
+        CheckArray to properly handle that. To help with this we expand
+        branchIfType to have a starting JSType and an optional ending
+        JSType. Additionally, to prevent extra checks AI has been taught
+        to fold more ArrayModes so we should almost always avoid new
+        runtime checks.
+
+        Lastly, make sure that Undecided Arrays don't fall back to generic
+        because GetArrayLength can't be converted to...
+        GetArrayLenth. Also, GetArrayLength would previously pass it's own
+        speculation for the speculation of the index, which logically
+        doesn't make sense. So this patch adds a new constant, which is
+        SpecInt32Only, that can be passed if a DFG node doesn't have an
+        index.
+
+        * assembler/testmasm.cpp:
+        (JSC::testBranchIfType):
+        (JSC::testBranchIfNotType):
+        (JSC::run):
+        * dfg/DFGArrayMode.cpp:
+        (JSC::DFG::canBecomeGetArrayLength):
+        * dfg/DFGArrayMode.h:
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::blessArrayOperation):
+        (JSC::DFG::FixupPhase::attemptToMakeGetArrayLength):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::checkArray):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::isArrayTypeForCheckArray):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::branchIfType):
+        (JSC::AssemblyHelpers::branchIfNotType):
+        * runtime/JSType.h:
+
+2020-05-13  Keith Miller  <keith_miller@apple.com>
+
+        iteration bytecodes need to handle osr exiting from inlined getter frames
+        https://bugs.webkit.org/show_bug.cgi?id=211873
+
+        Reviewed by Saam Barati.
+
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::slow_path_checkpoint_osr_exit_from_inlined_call):
+
+2020-05-13  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: rename CSS.StyleSheetOrigin.Regular to CSS.StyleSheetOrigin.Author to match the spec
+        https://bugs.webkit.org/show_bug.cgi?id=211827
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector/protocol/CSS.json:
+
+2020-05-13  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        JSDOMWindowBase m_windowCloseWatchpoints must be Ref<>
+        https://bugs.webkit.org/show_bug.cgi?id=211844
+
+        Reviewed by Mark Lam.
+
+        * bytecode/Watchpoint.cpp:
+        (JSC::InlineWatchpointSet::inflateSlow):
+        * bytecode/Watchpoint.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::JSGlobalObject):
+        * runtime/Structure.cpp:
+        (JSC::Structure::ensurePropertyReplacementWatchpointSet):
+        * runtime/SymbolTable.cpp:
+        (JSC::SymbolTableEntry::prepareToWatch):
+        * runtime/VM.cpp:
+        (JSC::VM::ensureWatchpointSetForImpureProperty):
+
 2020-05-13  Caio Lima  <ticaiolima@gmail.com>
 
         Making 32-bits JIT build without Unified Build system

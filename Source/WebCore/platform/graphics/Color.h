@@ -58,6 +58,8 @@ struct rgb_color;
 
 namespace WebCore {
 
+struct FloatComponents;
+
 // Color value with 8-bit components for red, green, blue, and alpha.
 // For historical reasons, stored as a 32-bit integer, with alpha in the high bits: ARGB.
 class SimpleColor {
@@ -173,7 +175,7 @@ public:
     // This creates an ExtendedColor.
     // FIXME: If the colorSpace is sRGB and the values can all be
     // converted exactly to integers, we should make a normal Color.
-    WEBCORE_EXPORT Color(float r, float g, float b, float a, ColorSpace colorSpace);
+    WEBCORE_EXPORT Color(float, float, float, float, ColorSpace);
 
     WEBCORE_EXPORT Color(const Color&);
     WEBCORE_EXPORT Color(Color&&);
@@ -207,16 +209,18 @@ public:
 
     RGBA32 rgb() const;
 
-    // FIXME: Like operator==, this will give different values for ExtendedColors that
-    // should be identical, since the respective pointer will be different.
-    unsigned hash() const { return WTF::intHash(m_colorData.rgbaAndFlags); }
+    unsigned hash() const;
 
     // FIXME: ExtendedColor - these should be renamed (to be clear about their parameter types, or
     // replaced with alternative accessors.
     WEBCORE_EXPORT void getRGBA(float& r, float& g, float& b, float& a) const;
     WEBCORE_EXPORT void getRGBA(double& r, double& g, double& b, double& a) const;
+
     WEBCORE_EXPORT void getHSL(double& h, double& s, double& l) const;
     WEBCORE_EXPORT void getHSV(double& h, double& s, double& v) const;
+
+    // This will convert non-sRGB colorspace colors into sRGB.
+    WEBCORE_EXPORT FloatComponents toSRGBAComponentsLossy() const;
 
     Color light() const;
     Color dark() const;
@@ -281,11 +285,12 @@ public:
     {
         return !(m_colorData.rgbaAndFlags & invalidRGBAColor);
     }
-    WEBCORE_EXPORT ExtendedColor& asExtended() const;
+    WEBCORE_EXPORT const ExtendedColor& asExtended() const;
 
     WEBCORE_EXPORT Color& operator=(const Color&);
     WEBCORE_EXPORT Color& operator=(Color&&);
 
+    // Extended and non-extended colors will always be non-equal.
     friend bool operator==(const Color& a, const Color& b);
     friend bool equalIgnoringSemanticColor(const Color& a, const Color& b);
 
@@ -317,13 +322,13 @@ private:
     } m_colorData;
 };
 
-// FIXME: These do not work for ExtendedColor because
-// they become just pointer comparison.
 bool operator==(const Color&, const Color&);
 bool operator!=(const Color&, const Color&);
 
 Color colorFromPremultipliedARGB(RGBA32);
 RGBA32 premultipliedARGBFromColor(const Color&);
+// One or both must be extended colors.
+WEBCORE_EXPORT bool extendedColorsEqual(const Color&, const Color&);
 
 Color blend(const Color& from, const Color& to, double progress, bool blendPremultiplied = true);
 
@@ -351,6 +356,9 @@ inline bool operator!=(SimpleColor a, SimpleColor b)
 
 inline bool operator==(const Color& a, const Color& b)
 {
+    if (a.isExtended() || b.isExtended())
+        return extendedColorsEqual(a, b);
+
     return a.m_colorData.rgbaAndFlags == b.m_colorData.rgbaAndFlags;
 }
 
@@ -361,7 +369,17 @@ inline bool operator!=(const Color& a, const Color& b)
 
 inline bool equalIgnoringSemanticColor(const Color& a, const Color& b)
 {
+    if (a.isExtended() || b.isExtended())
+        return extendedColorsEqual(a, b);
     return (a.m_colorData.rgbaAndFlags & ~Color::isSemanticRBGAColorBit) == (b.m_colorData.rgbaAndFlags & ~Color::isSemanticRBGAColorBit);
+}
+
+inline unsigned Color::hash() const
+{
+    if (isExtended())
+        return asExtended().hash();
+
+    return WTF::intHash(m_colorData.rgbaAndFlags);
 }
 
 inline uint8_t roundAndClampColorChannel(int value)

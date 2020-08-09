@@ -225,7 +225,7 @@
 #endif
 
 #if PLATFORM(GTK)
-#include "WebSelectionData.h"
+#include <WebCore/SelectionData.h>
 #endif
 
 #if USE(CAIRO)
@@ -1391,6 +1391,9 @@ RefPtr<API::Navigation> WebPageProxy::loadData(const IPC::DataReference& data, c
 {
     RELEASE_LOG_IF_ALLOWED(Loading, "loadData:");
 
+    if (MIMEType == "text/html"_s && !WEB_PAGE_PROXY_ADDITIONS_SETISNAVIGATINGTOAPPBOUNDDOMAIN)
+        m_limitsNavigationsToAppBoundDomains = true;
+
     if (m_isClosed) {
         RELEASE_LOG_IF_ALLOWED(Loading, "loadData: page is closed");
         return nullptr;
@@ -2365,6 +2368,12 @@ void WebPageProxy::layerTreeCommitComplete()
 }
 #endif
 
+void WebPageProxy::discardQueuedMouseEvents()
+{
+    while (m_mouseEventQueue.size() > 1)
+        m_mouseEventQueue.removeLast();
+}
+
 #if ENABLE(DRAG_SUPPORT)
 void WebPageProxy::dragEntered(DragData& dragData, const String& dragStorageName)
 {
@@ -2407,8 +2416,7 @@ void WebPageProxy::performDragControllerAction(DragControllerAction action, Drag
         m_process->assumeReadAccessToBaseURL(*this, url);
 
     ASSERT(dragData.platformData());
-    WebSelectionData selection(*dragData.platformData());
-    send(Messages::WebPage::PerformDragControllerAction(action, dragData.clientPosition(), dragData.globalPosition(), dragData.draggingSourceOperationMask(), selection, dragData.flags()));
+    send(Messages::WebPage::PerformDragControllerAction(action, dragData.clientPosition(), dragData.globalPosition(), dragData.draggingSourceOperationMask(), *dragData.platformData(), dragData.flags()));
 #else
     send(Messages::WebPage::PerformDragControllerAction(action, dragData, sandboxExtensionHandle, sandboxExtensionsForUpload));
 #endif
@@ -2428,10 +2436,10 @@ void WebPageProxy::didPerformDragControllerAction(uint64_t dragOperation, WebCor
 }
 
 #if PLATFORM(GTK)
-void WebPageProxy::startDrag(WebSelectionData&& selection, uint64_t dragOperation, const ShareableBitmap::Handle& dragImageHandle)
+void WebPageProxy::startDrag(SelectionData&& selectionData, uint64_t dragOperation, const ShareableBitmap::Handle& dragImageHandle)
 {
     RefPtr<ShareableBitmap> dragImage = !dragImageHandle.isNull() ? ShareableBitmap::create(dragImageHandle) : nullptr;
-    pageClient().startDrag(WTFMove(selection.selectionData), static_cast<WebCore::DragOperation>(dragOperation), WTFMove(dragImage));
+    pageClient().startDrag(WTFMove(selectionData), static_cast<WebCore::DragOperation>(dragOperation), WTFMove(dragImage));
 
     didStartDrag();
 }
@@ -2452,8 +2460,11 @@ void WebPageProxy::didPerformDragOperation(bool handled)
 
 void WebPageProxy::didStartDrag()
 {
-    if (hasRunningProcess())
-        send(Messages::WebPage::DidStartDrag());
+    if (!hasRunningProcess())
+        return;
+
+    discardQueuedMouseEvents();
+    send(Messages::WebPage::DidStartDrag());
 }
     
 void WebPageProxy::dragCancelled()
@@ -3111,6 +3122,13 @@ private:
     PolicyCheckIdentifier m_identifier;
 };
 
+#if PLATFORM(IOS_FAMILY)
+static bool shouldTreatURLProtocolAsAppBound(const URL& requestURL)
+{
+    return requestURL.protocolIsAbout() || requestURL.protocolIsData() || requestURL.protocolIsBlob() || requestURL.isLocalFile() || requestURL.protocolIsJavaScript();
+}
+#endif
+
 bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMainFrame, const URL& requestURL, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
 #if PLATFORM(IOS_FAMILY)
@@ -3124,6 +3142,10 @@ bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMai
         if (m_ignoresAppBoundDomains)
             return true;
         
+        if (shouldTreatURLProtocolAsAppBound(requestURL)) {
+            isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::Yes;
+            m_limitsNavigationsToAppBoundDomains = true;
+        }
         if (m_limitsNavigationsToAppBoundDomains) {
             if (*isNavigatingToAppBoundDomain == NavigatingToAppBoundDomain::No)
                 return false;
@@ -3147,6 +3169,11 @@ bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMai
 void WebPageProxy::isNavigatingToAppBoundDomainTesting(CompletionHandler<void(bool)>&& completionHandler)
 {
     completionHandler(m_isNavigatingToAppBoundDomain && (*m_isNavigatingToAppBoundDomain == NavigatingToAppBoundDomain::Yes));
+}
+
+void WebPageProxy::isForcedIntoAppBoundModeTesting(CompletionHandler<void(bool)>&& completionHandler)
+{
+    completionHandler(m_limitsNavigationsToAppBoundDomains);
 }
 
 void WebPageProxy::disableServiceWorkerEntitlementInNetworkProcess()
@@ -3305,7 +3332,7 @@ void WebPageProxy::receivedPolicyDecision(PolicyAction action, API::Navigation* 
     sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), action, navigation ? navigation->navigationID() : 0, downloadID, WTFMove(websitePoliciesData), WTFMove(sandboxExtensionHandle) });
 }
 
-void WebPageProxy::commitProvisionalPage(FrameIdentifier frameID, FrameInfoData&& frameInfo, ResourceRequest&& request, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, uint32_t frameLoadType, const WebCore::CertificateInfo& certificateInfo, bool usedLegacyTLS, bool containsPluginDocument, Optional<WebCore::HasInsecureContent> forcedHasInsecureContent, WebCore::MouseEventPolicy mouseEventPolicy, const UserData& userData)
+void WebPageProxy::commitProvisionalPage(FrameIdentifier frameID, FrameInfoData&& frameInfo, ResourceRequest&& request, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, WebCore::FrameLoadType frameLoadType, const WebCore::CertificateInfo& certificateInfo, bool usedLegacyTLS, bool containsPluginDocument, Optional<WebCore::HasInsecureContent> forcedHasInsecureContent, WebCore::MouseEventPolicy mouseEventPolicy, const UserData& userData)
 {
     ASSERT(m_provisionalPage);
     RELEASE_LOG_IF_ALLOWED(Loading, "commitProvisionalPage: newPID = %i", m_provisionalPage->process().processIdentifier());
@@ -4425,9 +4452,7 @@ void WebPageProxy::didStartProvisionalLoadForFrameShared(Ref<WebProcessProxy>&& 
     RELEASE_LOG_IF_ALLOWED(Loading, "didStartProvisionalLoadForFrame: frameID = %" PRIu64, frameID.toUInt64());
 
     auto transaction = m_pageLoadState.transaction();
-    bool fromAlternateHTMLAPI = !unreachableURL.isEmpty() && unreachableURL == m_pageLoadState.pendingAPIRequestURL();
-    if (navigation || fromAlternateHTMLAPI)
-        m_pageLoadState.clearPendingAPIRequest(transaction);
+    m_pageLoadState.clearPendingAPIRequest(transaction);
 
     if (frame->isMainFrame()) {
         process->didStartProvisionalLoadForMainFrame(url);
@@ -4652,7 +4677,7 @@ static OptionSet<CrossSiteNavigationDataTransfer::Flag> checkIfNavigationContain
 }
 #endif
 
-void WebPageProxy::didCommitLoadForFrame(FrameIdentifier frameID, FrameInfoData&& frameInfo, ResourceRequest&& request, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, uint32_t opaqueFrameLoadType, const WebCore::CertificateInfo& certificateInfo, bool usedLegacyTLS, bool containsPluginDocument, Optional<HasInsecureContent> hasInsecureContent, WebCore::MouseEventPolicy mouseEventPolicy, const UserData& userData)
+void WebPageProxy::didCommitLoadForFrame(FrameIdentifier frameID, FrameInfoData&& frameInfo, ResourceRequest&& request, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, WebCore::FrameLoadType frameLoadType, const WebCore::CertificateInfo& certificateInfo, bool usedLegacyTLS, bool containsPluginDocument, Optional<HasInsecureContent> hasInsecureContent, WebCore::MouseEventPolicy mouseEventPolicy, const UserData& userData)
 {
     LOG(Loading, "(Loading) WebPageProxy %" PRIu64 " didCommitLoadForFrame in navigation %" PRIu64, m_identifier.toUInt64(), navigationID);
     LOG(BackForward, "(Back/Forward) After load commit, back/forward list is now:%s", m_backForwardList->loggingString());
@@ -4737,7 +4762,7 @@ void WebPageProxy::didCommitLoadForFrame(FrameIdentifier frameID, FrameInfoData&
     // plugin is handling page scaling itself) so we should reset it to the default
     // for standard main frame loads.
     if (frame->isMainFrame()) {
-        if (static_cast<FrameLoadType>(opaqueFrameLoadType) == FrameLoadType::Standard) {
+        if (frameLoadType == FrameLoadType::Standard) {
             m_pageScaleFactor = 1;
             m_pluginScaleFactor = 1;
             m_mainFramePluginHandlesPageScaleGesture = false;
@@ -5736,16 +5761,12 @@ void WebPageProxy::unavailablePluginButtonClicked(uint32_t opaquePluginUnavailab
 #if ENABLE(WEBGL)
 void WebPageProxy::webGLPolicyForURL(URL&& url, Messages::WebPageProxy::WebGLPolicyForURL::DelayedReply&& reply)
 {
-    m_navigationClient->webGLLoadPolicy(*this, url, [reply = WTFMove(reply)] (WebGLLoadPolicy policy) mutable {
-        reply(static_cast<uint32_t>(policy));
-    });
+    m_navigationClient->webGLLoadPolicy(*this, url, WTFMove(reply));
 }
 
 void WebPageProxy::resolveWebGLPolicyForURL(URL&& url, Messages::WebPageProxy::ResolveWebGLPolicyForURL::DelayedReply&& reply)
 {
-    m_navigationClient->resolveWebGLLoadPolicy(*this, url, [reply = WTFMove(reply)] (WebGLLoadPolicy policy) mutable {
-        reply(static_cast<uint32_t>(policy));
-    });
+    m_navigationClient->resolveWebGLLoadPolicy(*this, url, WTFMove(reply));
 }
 #endif // ENABLE(WEBGL)
 
@@ -6525,8 +6546,7 @@ void WebPageProxy::showContextMenu(ContextMenuContextData&& contextMenuContextDa
     // Discard any enqueued mouse events that have been delivered to the UIProcess whilst the WebProcess is still processing the
     // MouseDown event that triggered this ShowContextMenu message. This can happen if we take too long to enter the nested runloop.
     ASSERT(isProcessingMouseEvents());
-    while (m_mouseEventQueue.size() > 1)
-        m_mouseEventQueue.takeLast();
+    discardQueuedMouseEvents();
 
     m_activeContextMenuContextData = contextMenuContextData;
 

@@ -278,6 +278,7 @@ fast/events/wheelevent-in-vertical-scrollbar-in-rtl.html [ Failure ]
 scrollbars/scroll-rtl-or-bt-layer.html [ Timeout ]
 webkit.org/b/208559 fast/scrolling/arrow-key-scroll-in-rtl-document.html [ Skip ]
 webkit.org/b/208559 fast/scrolling/programmatic-scroll-to-zero-zero.html [ Skip ]
+webkit.org/b/208559 fast/scrolling/rtl-point-in-iframe.html [ Skip ]
 
 # TODO Needs testRunner.enableAutoResizeMode()
 fast/autoresize/ [ Skip ]
@@ -1163,6 +1164,7 @@ media/track/track-in-band-cues-added-once.html [ Skip ] # Timeout
 
 # Currently enabled on Mac only
 media/media-usage-state.html [ Skip ]
+media/now-playing-status-without-media.html [ Skip ]
 
 ################################################################################
 ############################   End Media Failures   ############################
@@ -1205,6 +1207,7 @@ webkit.org/b/203100 editing/async-clipboard/clipboard-do-not-read-text-from-plat
 webkit.org/b/203100 editing/async-clipboard/clipboard-read-text-from-platform.html [ Skip ]
 webkit.org/b/203100 editing/async-clipboard/clipboard-read-text-same-origin.html [ Skip ]
 webkit.org/b/203100 editing/async-clipboard/clipboard-read-text.html [ Skip ]
+webkit.org/b/203100 editing/async-clipboard/clipboard-read-while-pasting.html [ Skip ]
 webkit.org/b/203100 editing/async-clipboard/sanitize-when-writing-image.html [ Skip ]
 webkit.org/b/203100 editing/async-clipboard/sanitize-when-reading-markup.html [ Skip ]
 
@@ -3504,7 +3507,7 @@ accessibility/win/text-role.html [ Failure ]
 animations/font-variations/font-variation-settings-order.html [ Failure ]
 animations/font-variations/font-variation-settings-unlike.html [ Failure ]
 animations/font-variations/font-variation-settings.html [ Failure ]
-css3/flexbox/flex-item-contains-strict.html [ Failure ]
+imported/w3c/web-platform-tests/css/css-flexbox/flex-item-contains-strict.html [ Failure ]
 editing/caret/emoji.html [ Failure ]
 editing/deleting/skip-virama-001.html [ Failure ]
 fast/animation/request-animation-frame-throttling-detached-iframe.html [ Failure ]
@@ -3607,7 +3610,6 @@ fast/multicol/flexbox-rows.html [ ImageOnlyFailure ]
 fast/multicol/newmulticol/compare-with-old-impl/shrink-to-column-height-for-pagination.html [ ImageOnlyFailure ]
 fast/text/accessibility-bold-system-font-2.html [ ImageOnlyFailure ]
 fast/text/emoji-overlap.html [ ImageOnlyFailure ]
-fast/text/multiple-codeunit-vertical-upright.html [ ImageOnlyFailure ]
 fast/text/simple-line-layout-simple-text-but-complex-font-path.html [ ImageOnlyFailure ]
 imported/blink/scrollbars/avoid-double-scrollbars-when-html-element-is-not-the-renderview.html [ ImageOnlyFailure ]
 imported/w3c/i18n/bidi/bidi-plaintext-011.html [ ImageOnlyFailure ]
@@ -4494,3 +4496,7 @@ fast/forms/file/open-file-panel-crash.html [ Skip ]
 fast/text/text-indent-inside-float.html [ ImageOnlyFailure ]
 
 webkit.org/b/211854 webanimations/accelerated-animation-slot-invalidation.html [ Pass ImageOnlyFailure ]
+
+# Windows can't seem to handle the fonts used in these tests.
+webkit.org/b/211860 fast/text/multiple-codeunit-vertical-upright.html [ Pass ImageOnlyFailure ]
+webkit.org/b/211860 fast/text/multiple-codeunit-vertical-upright-2.html [ Pass ImageOnlyFailure ]

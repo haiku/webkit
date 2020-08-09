@@ -52,6 +52,7 @@
 #include "EditorClient.h"
 #include "EmptyClients.h"
 #include "Event.h"
+#include "EventHandler.h"
 #include "EventNames.h"
 #include "ExtensionStyleSheets.h"
 #include "FocusController.h"
@@ -433,6 +434,8 @@ ScrollingCoordinator* Page::scrollingCoordinator()
         m_scrollingCoordinator = chrome().client().createScrollingCoordinator(*this);
         if (!m_scrollingCoordinator)
             m_scrollingCoordinator = ScrollingCoordinator::create(this);
+
+        m_scrollingCoordinator->windowScreenDidChange(m_displayID);
     }
 
     return m_scrollingCoordinator.get();
@@ -1119,6 +1122,9 @@ void Page::windowScreenDidChange(PlatformDisplayID displayID)
             frame->document()->windowScreenDidChange(displayID);
     }
 
+    if (m_scrollingCoordinator)
+        m_scrollingCoordinator->windowScreenDidChange(displayID);
+
     renderingUpdateScheduler().windowScreenDidChange(displayID);
 
     setNeedsRecalcStyleInAllFrames();
@@ -1186,6 +1192,16 @@ void Page::setLowPowerModeEnabledOverrideForTesting(Optional<bool> isEnabled)
     // Override the value and add ThrottlingReason::LowPowerMode so it override the device state.
     handleLowModePowerChange(isEnabled.value());
     m_throttlingReasonsOverridenForTesting.add(ThrottlingReason::LowPowerMode);
+}
+
+void Page::setOutsideViewportThrottlingEnabledForTesting(bool isEnabled)
+{
+    if (!isEnabled)
+        m_throttlingReasonsOverridenForTesting.add(ThrottlingReason::OutsideViewport);
+    else
+        m_throttlingReasonsOverridenForTesting.remove(ThrottlingReason::OutsideViewport);
+
+    m_throttlingReasons.remove(ThrottlingReason::OutsideViewport);
 }
 
 void Page::setTopContentInset(float contentInset)
@@ -1408,6 +1424,11 @@ void Page::doAfterUpdateRendering()
 {
     // Code here should do once-per-frame work that needs to be done before painting, and requires
     // layout to be up-to-date. It should not run script, trigger layout, or dirty layout.
+
+    forEachDocument([] (Document& document) {
+        if (auto* frame = document.frame())
+            frame->eventHandler().updateCursorIfNeeded();
+    });
 
     forEachDocument([] (Document& document) {
         document.enqueuePaintTimingEntryIfNeeded();

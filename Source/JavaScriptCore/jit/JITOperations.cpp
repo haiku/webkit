@@ -38,15 +38,8 @@
 #include "DFGThunks.h"
 #include "DFGWorklist.h"
 #include "Debugger.h"
-#include "DirectArguments.h"
-#include "Error.h"
-#include "ErrorHandlingScope.h"
-#include "EvalCodeBlock.h"
 #include "ExceptionFuzz.h"
-#include "ExecutableBaseInlines.h"
-#include "FTLOSREntry.h"
 #include "FrameTracers.h"
-#include "FunctionCodeBlock.h"
 #include "GetterSetter.h"
 #include "HostCallReturnValue.h"
 #include "ICStats.h"
@@ -64,23 +57,16 @@
 #include "JSInternalPromise.h"
 #include "JSLexicalEnvironment.h"
 #include "JSWithScope.h"
-#include "ModuleProgramCodeBlock.h"
 #include "ObjectConstructor.h"
-#include "PolymorphicAccess.h"
-#include "ProgramCodeBlock.h"
 #include "PropertyName.h"
 #include "RegExpObject.h"
 #include "Repatch.h"
-#include "ScopedArguments.h"
 #include "ShadowChicken.h"
 #include "StructureStubInfo.h"
 #include "SuperSampler.h"
-#include "TestRunnerUtils.h"
 #include "ThunkGenerators.h"
 #include "TypeProfilerLog.h"
 #include "VMInlines.h"
-#include "WebAssemblyFunction.h"
-#include <wtf/InlineASM.h>
 
 IGNORE_WARNINGS_BEGIN("frame-address")
 
@@ -715,9 +701,9 @@ static void putByVal(JSGlobalObject* globalObject, JSValue baseValue, JSValue su
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    if (LIKELY(subscript.isUInt32())) {
+    if (Optional<uint32_t> index = subscript.tryGetAsUint32Index()) {
         byValInfo->tookSlowPath = true;
-        uint32_t i = subscript.asUInt32();
+        uint32_t i = *index;
         if (baseValue.isObject()) {
             JSObject* object = asObject(baseValue);
             if (object->canSetIndexQuickly(i, value)) {
@@ -734,7 +720,8 @@ static void putByVal(JSGlobalObject* globalObject, JSValue baseValue, JSValue su
         scope.release();
         baseValue.putByIndex(globalObject, i, value, ecmaMode.isStrict());
         return;
-    } else if (subscript.isInt32()) {
+    } 
+    if (subscript.isNumber()) {
         byValInfo->tookSlowPath = true;
         if (baseValue.isObject())
             byValInfo->arrayProfile->setOutOfBounds();
@@ -757,11 +744,9 @@ static void directPutByVal(JSGlobalObject* globalObject, JSObject* baseObject, J
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    if (LIKELY(subscript.isUInt32())) {
-        // Despite its name, JSValue::isUInt32 will return true only for positive boxed int32_t; all those values are valid array indices.
+    if (Optional<uint32_t> maybeIndex = subscript.tryGetAsUint32Index()) {
         byValInfo->tookSlowPath = true;
-        uint32_t index = subscript.asUInt32();
-        ASSERT(isIndex(index));
+        uint32_t index = *maybeIndex;
 
         switch (baseObject->indexingType()) {
         case ALL_INT32_INDEXING_TYPES:
@@ -779,17 +764,6 @@ static void directPutByVal(JSGlobalObject* globalObject, JSObject* baseObject, J
         scope.release();
         baseObject->putDirectIndex(globalObject, index, value, 0, ecmaMode.isStrict() ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
         return;
-    }
-
-    if (subscript.isDouble()) {
-        double subscriptAsDouble = subscript.asDouble();
-        uint32_t subscriptAsUInt32 = static_cast<uint32_t>(subscriptAsDouble);
-        if (subscriptAsDouble == subscriptAsUInt32 && isIndex(subscriptAsUInt32)) {
-            byValInfo->tookSlowPath = true;
-            scope.release();
-            baseObject->putDirectIndex(globalObject, subscriptAsUInt32, value, 0, ecmaMode.isStrict() ? PutDirectIndexShouldThrow : PutDirectIndexShouldNotThrow);
-            return;
-        }
     }
 
     // Don't put to an object if toString threw an exception.
@@ -1970,8 +1944,8 @@ ALWAYS_INLINE static JSValue getByVal(JSGlobalObject* globalObject, CallFrame* c
         }
     }
 
-    if (subscript.isInt32()) {
-        int32_t i = subscript.asInt32();
+    if (Optional<int32_t> index = subscript.tryGetAsInt32()) {
+        int32_t i = *index;
         if (isJSString(baseValue)) {
             if (i >= 0 && asString(baseValue)->canGetIndex(i))
                 RELEASE_AND_RETURN(scope, asString(baseValue)->getIndex(globalObject, i));
@@ -2002,7 +1976,8 @@ ALWAYS_INLINE static JSValue getByVal(JSGlobalObject* globalObject, CallFrame* c
 
         if (i >= 0)
             RELEASE_AND_RETURN(scope, baseValue.get(globalObject, static_cast<uint32_t>(i)));
-    }
+    } else if (subscript.isNumber() && baseValue.isCell() && arrayProfile)
+        arrayProfile->setOutOfBounds();
 
     baseValue.requireObjectCoercible(globalObject);
     RETURN_IF_EXCEPTION(scope, JSValue());
@@ -2083,15 +2058,10 @@ EncodedJSValue JIT_OPERATION operationGetByVal(JSGlobalObject* globalObject, Enc
     if (LIKELY(baseValue.isCell())) {
         JSCell* base = baseValue.asCell();
 
-        if (property.isUInt32())
-            RELEASE_AND_RETURN(scope, getByValWithIndex(globalObject, base, property.asUInt32()));
+        if (Optional<uint32_t> index = property.tryGetAsUint32Index())
+            RELEASE_AND_RETURN(scope, getByValWithIndex(globalObject, base, *index));
 
-        if (property.isDouble()) {
-            double propertyAsDouble = property.asDouble();
-            uint32_t propertyAsUInt32 = static_cast<uint32_t>(propertyAsDouble);
-            if (propertyAsUInt32 == propertyAsDouble && isIndex(propertyAsUInt32))
-                RELEASE_AND_RETURN(scope, getByValWithIndex(globalObject, base, propertyAsUInt32));
-        } else if (property.isString()) {
+        if (property.isString()) {
             Structure& structure = *base->structure(vm);
             if (JSCell::canUseFastGetOwnProperty(structure)) {
                 RefPtr<AtomStringImpl> existingAtomString = asString(property)->toExistingAtomString(globalObject);

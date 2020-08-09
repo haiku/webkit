@@ -2320,7 +2320,7 @@ void webkitWebViewSetIcon(WebKitWebView* webView, const LinkIcon& icon, API::Dat
 }
 #endif
 
-WebPageProxy* webkitWebViewCreateNewPage(WebKitWebView* webView, const WindowFeatures& windowFeatures, WebKitNavigationAction* navigationAction)
+RefPtr<WebPageProxy> webkitWebViewCreateNewPage(WebKitWebView* webView, const WindowFeatures& windowFeatures, WebKitNavigationAction* navigationAction)
 {
     WebKitWebView* newWebView;
     g_signal_emit(webView, signals[CREATE], 0, navigationAction, &newWebView);
@@ -2334,8 +2334,7 @@ WebPageProxy* webkitWebViewCreateNewPage(WebKitWebView* webView, const WindowFea
 
     webkitWindowPropertiesUpdateFromWebWindowFeatures(newWebView->priv->windowProperties.get(), windowFeatures);
 
-    RefPtr<WebPageProxy> newPage = &getPage(newWebView);
-    return newPage.leakRef();
+    return makeRefPtr(getPage(newWebView));
 }
 
 void webkitWebViewReadyToShowPage(WebKitWebView* webView)
@@ -2591,11 +2590,6 @@ void webkitWebViewRunFileChooserRequest(WebKitWebView* webView, WebKitFileChoose
 }
 
 #if PLATFORM(GTK)
-static void contextMenuDismissed(GtkWidget*, WebKitWebView* webView)
-{
-    g_signal_emit(webView, signals[CONTEXT_MENU_DISMISSED], 0, NULL);
-}
-
 void webkitWebViewPopulateContextMenu(WebKitWebView* webView, const Vector<WebContextMenuItemData>& proposedMenu, const WebHitTestResultData& hitTestResultData, GVariant* userData)
 {
     WebKitWebViewBase* webViewBase = WEBKIT_WEB_VIEW_BASE(webView);
@@ -2617,7 +2611,9 @@ void webkitWebViewPopulateContextMenu(WebKitWebView* webView, const Vector<WebCo
     webkitContextMenuPopulate(contextMenu.get(), contextMenuItems);
     contextMenuProxy->populate(contextMenuItems);
 
-    g_signal_connect(contextMenuProxy->gtkWidget(), "closed", G_CALLBACK(contextMenuDismissed), webView);
+    g_signal_connect(contextMenuProxy->gtkWidget(), WebContextMenuProxyGtk::widgetDismissedSignal, G_CALLBACK(+[](GtkWidget*, WebKitWebView* webView) {
+        g_signal_emit(webView, signals[CONTEXT_MENU_DISMISSED], 0, nullptr);
+    }), webView);
 
     // Clear the menu to make sure it's useless after signal emission.
     webkit_context_menu_remove_all(contextMenu.get());
@@ -3695,7 +3691,7 @@ void webkit_web_view_run_javascript(WebKitWebView* webView, const gchar* script,
     g_return_if_fail(script);
 
     GRefPtr<GTask> task = adoptGRef(g_task_new(webView, cancellable, callback, userData));
-    getPage(webView).runJavaScriptInMainFrame({ String::fromUTF8(script), false, WTF::nullopt, true }, [task = WTFMove(task)](API::SerializedScriptValue* serializedScriptValue, Optional<ExceptionDetails> details, WebKit::CallbackBase::Error) {
+    getPage(webView).runJavaScriptInMainFrame({ String::fromUTF8(script), URL { }, false, WTF::nullopt, true }, [task = WTFMove(task)](API::SerializedScriptValue* serializedScriptValue, Optional<ExceptionDetails> details, WebKit::CallbackBase::Error) {
         ExceptionDetails exceptionDetails;
         if (details)
             exceptionDetails = *details;
@@ -3797,7 +3793,7 @@ void webkit_web_view_run_javascript_in_world(WebKitWebView* webView, const gchar
 
     GRefPtr<GTask> task = adoptGRef(g_task_new(webView, cancellable, callback, userData));
     auto world = API::ContentWorld::sharedWorldWithName(String::fromUTF8(worldName));
-    getPage(webView).runJavaScriptInFrameInScriptWorld({ String::fromUTF8(script), false, WTF::nullopt, true }, WTF::nullopt, world.get(), [task = WTFMove(task)](API::SerializedScriptValue* serializedScriptValue, Optional<ExceptionDetails> details, WebKit::CallbackBase::Error) {
+    getPage(webView).runJavaScriptInFrameInScriptWorld({ String::fromUTF8(script), URL { }, false, WTF::nullopt, true }, WTF::nullopt, world.get(), [task = WTFMove(task)](API::SerializedScriptValue* serializedScriptValue, Optional<ExceptionDetails> details, WebKit::CallbackBase::Error) {
         ExceptionDetails exceptionDetails;
         if (details)
             exceptionDetails = *details;
@@ -3839,7 +3835,7 @@ static void resourcesStreamReadCallback(GObject* object, GAsyncResult* result, g
 
     WebKitWebView* webView = WEBKIT_WEB_VIEW(g_task_get_source_object(task.get()));
     gpointer outputStreamData = g_memory_output_stream_get_data(G_MEMORY_OUTPUT_STREAM(object));
-    getPage(webView).runJavaScriptInMainFrame({ String::fromUTF8(reinterpret_cast<const gchar*>(outputStreamData)), false, WTF::nullopt, true},
+    getPage(webView).runJavaScriptInMainFrame({ String::fromUTF8(reinterpret_cast<const gchar*>(outputStreamData)), URL { }, false, WTF::nullopt, true },
         [task](API::SerializedScriptValue* serializedScriptValue, Optional<ExceptionDetails> details, WebKit::CallbackBase::Error) {
             ExceptionDetails exceptionDetails;
             if (details)

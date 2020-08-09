@@ -196,8 +196,9 @@ fast/css/read-only-read-write-input-basics.html [ ImageOnlyFailure ]
 fast/forms/color [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/forms/the-input-element/color.html [ Skip ]
 
-# Audio session is a singleton
+# Audio session and media session manager are a singletons
 platform/mac/media/media-source/media-source-change-source.html [ Skip ]
+media/now-playing-status-without-media.html [ Skip ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End features not supported in WebKit1
@@ -653,9 +654,6 @@ fast/canvas/webgl/tex-image-and-sub-image-2d-with-potentially-subsampled-image.h
 # <rdar://problem/29031509> REGRESSION? (FontParser-195): svg/W3C-SVG-1.1/fonts-elem-* and svg/W3C-SVG-1.1/text-intro-* tests failing
 svg/W3C-SVG-1.1/fonts-elem-04-b.svg [ Failure ]
 
-# <rdar://problem/31893714> REGRESSION: LayoutTest fast/text/multiple-codeunit-vertical-upright.html is failing on WK1
-fast/text/multiple-codeunit-vertical-upright.html [ Pass ImageOnlyFailure ]
-
 # <rdar://problem/31895192> DumpRenderTree crashed in com.apple.ImageIO.framework: IIODictionary::getBoolForKey + 0
 http/tests/misc/slow-loading-animated-image.html [ Skip ]
 
@@ -881,8 +879,6 @@ webkit.org/b/207059 imported/w3c/web-platform-tests/IndexedDB/interleaved-cursor
 
 webkit.org/b/207066 editing/execCommand/insert-nested-lists.html [ Pass Failure ]
 
-webkit.org/b/207124 compositing/backing/animate-into-view.html [ Pass Timeout ]
-
 webkit.org/b/207125 transitions/start-transform-transition.html [ Pass Failure ]
 
 webkit.org/b/181085 svg/custom/object-sizing-explicit-width.xhtml [ Pass Failure ]
@@ -939,8 +935,6 @@ webkit.org/b/209182 [ Debug ] inspector/debugger/setShouldBlackboxURL.html [ Pas
 
 webkit.org/b/209353 [ Release ] media/video-background-tab-playback.html [ Pass Failure ]
 
-webkit.org/b/209494 fast/events/mouse-cursor-no-mousemove.html [ Pass Failure ]
-
 webkit.org/b/209560 imported/w3c/web-platform-tests/xhr/send-response-upload-event-progress.htm [ Pass Crash Failure ]
 
 webkit.org/b/209882 [ Debug ] inspector/page/overrideSetting-ICECandidateFilteringEnabled.html [ Pass Timeout ]
@@ -955,3 +949,5 @@ webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.htm
 webkit.org/b/210198 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Slow ]
 
 webkit.org/b/208477 accessibility/mac/text-marker-for-index.html [ Skip ]
+
+webkit.org/b/211923 imported/w3c/web-platform-tests/fetch/api/basic/stream-safe-creation.any.html [ Pass Crash ]

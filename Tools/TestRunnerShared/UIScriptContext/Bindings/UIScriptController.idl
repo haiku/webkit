@@ -80,6 +80,8 @@ interface UIScriptController {
     void toggleCapsLock(object callback);
     void setContinuousSpellCheckingEnabled(boolean enabled);
 
+    readonly attribute boolean keyboardIsAutomaticallyShifted;
+
     void rawKeyDown(DOMString key);
     void rawKeyUp(DOMString key);
 
@@ -210,6 +212,7 @@ interface UIScriptController {
 
     // <select> picker
     void selectFormAccessoryPickerRow(long rowIndex);
+    boolean selectFormAccessoryHasCheckedItemAtRow(long rowIndex);
     readonly attribute DOMString selectFormPopoverTitle;
     readonly attribute DOMString formInputLabel;
 
@@ -267,6 +270,7 @@ interface UIScriptController {
     readonly attribute boolean isPresentingModally;
 
     void copyText(DOMString text);
+    void paste();
 
     readonly attribute double contentOffsetX;
     readonly attribute double contentOffsetY;
