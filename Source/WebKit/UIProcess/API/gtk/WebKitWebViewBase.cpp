@@ -2061,13 +2061,13 @@ void webkitWebViewBaseSetTooltipArea(WebKitWebViewBase* webViewBase, const IntRe
 }
 
 #if ENABLE(DRAG_SUPPORT)
-void webkitWebViewBaseStartDrag(WebKitWebViewBase* webViewBase, SelectionData&& selectionData, DragOperation dragOperation, RefPtr<ShareableBitmap>&& image)
+void webkitWebViewBaseStartDrag(WebKitWebViewBase* webViewBase, SelectionData&& selectionData, OptionSet<DragOperation> dragOperationMask, RefPtr<ShareableBitmap>&& image)
 {
     WebKitWebViewBasePrivate* priv = webViewBase->priv;
     if (!priv->dragSource)
         priv->dragSource = makeUnique<DragSource>(GTK_WIDGET(webViewBase));
 
-    priv->dragSource->begin(WTFMove(selectionData), dragOperation, WTFMove(image));
+    priv->dragSource->begin(WTFMove(selectionData), dragOperationMask, WTFMove(image));
 
 #if !USE(GTK4)
     // A drag starting should prevent a double-click from happening. This might
@@ -2596,16 +2596,20 @@ void webkitWebViewBaseSynthesizeKeyEvent(WebKitWebViewBase* webViewBase, KeyEven
         }
 #endif
 
+#if !USE(GTK4)
         if (keyval == GDK_KEY_Menu) {
             webkitWebViewBasePopupMenu(GTK_WIDGET(webViewBase));
             return;
         }
+#endif
     }
 
     auto keycode = widgetKeyvalToKeycode(GTK_WIDGET(webViewBase), keyval);
     if (modifiers && shouldTranslate == ShouldTranslateKeyboardState::Yes) {
         auto* display = gtk_widget_get_display(GTK_WIDGET(webViewBase));
-#if !USE(GTK4)
+#if USE(GTK4)
+        gdk_display_translate_key(display, keycode, static_cast<GdkModifierType>(modifiers), 0, &keyval, nullptr, nullptr, nullptr);
+#else
         gdk_keymap_translate_keyboard_state(gdk_keymap_get_for_display(display), keycode, static_cast<GdkModifierType>(modifiers), 0, &keyval, nullptr, nullptr, nullptr);
 #endif
     }

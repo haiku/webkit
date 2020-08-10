@@ -30,8 +30,6 @@
 from webkitpy.thirdparty.mock import Mock
 from webkitpy.common.host import Host
 from webkitpy.common.host_mock import MockHost
-from webkitpy.common.net.generictestresults import BindingsTestResults
-from webkitpy.common.net.generictestresults import WebkitpyTestResults
 from webkitpy.common.net.jsctestresults import JSCTestResults
 from webkitpy.common.net.layouttestresults import LayoutTestResults
 from webkitpy.common.system.outputcapture import OutputCapture
@@ -58,18 +56,6 @@ class TestJSCEWS(AbstractEarlyWarningSystem):
     _group = "jsc"
 
 
-class TestBindingsEWS(AbstractEarlyWarningSystem):
-    port_name = "mac"
-    _build_style = None
-    _group = "bindings"
-
-
-class TestWebkitpyEWS(AbstractEarlyWarningSystem):
-    port_name = "mac"
-    _build_style = None
-    _group = "webkitpy"
-
-
 class AbstractEarlyWarningSystemTest(QueuesTest):
     def _test_message(self, ews, results, message):
         ews.bind_to_tool(MockTool())
@@ -93,18 +79,6 @@ class AbstractEarlyWarningSystemTest(QueuesTest):
         ews = TestJSCEWS()
         results = lambda a: JSCTestResults(False, ["es6.yaml/es6/typed_arrays_Int8Array.js.default", "es6.yaml/es6/typed_arrays_Uint8Array.js.default"])
         message = "New failing tests:\nes6.yaml/es6/typed_arrays_Int8Array.js.default\nes6.yaml/es6/typed_arrays_Uint8Array.js.default\napiTests"
-        self._test_message(ews, results, message)
-
-    def test_failing_bindings_tests_message(self):
-        ews = TestBindingsEWS()
-        results = lambda a: BindingsTestResults(["(JS) TestMapLike.idl", "(JS) TestNode.idl"])
-        message = "New failing tests:\n(JS) TestMapLike.idl\n(JS) TestNode.idl"
-        self._test_message(ews, results, message)
-
-    def test_failing_webkitpy_tests_message(self):
-        ews = TestWebkitpyEWS()
-        results = lambda a: WebkitpyTestResults(["webkitpy.tool.commands.earlywarningsystem_unittest.EarlyWarningSystemTest.test_ews_name"])
-        message = "New failing tests:\nwebkitpy.tool.commands.earlywarningsystem_unittest.EarlyWarningSystemTest.test_ews_name"
         self._test_message(ews, results, message)
 
 
@@ -183,7 +157,6 @@ Running: webkit-patch check-patch-relevance --quiet --group=%(group)s --port=%(p
     def test_ews_name(self):
         # These are the names EWS's infrastructure expects, check that they work
         expected_names = {
-            'bindings-ews',
             'gtk-wk2-ews',
             'ios-ews',
             'ios-sim-ews',
@@ -194,7 +167,6 @@ Running: webkit-patch check-patch-relevance --quiet --group=%(group)s --port=%(p
             'mac-debug-ews',
             'mac-ews',
             'mac-wk2-ews',
-            'webkitpy-ews',
             'win-ews',
             'wpe-ews',
             'wincairo-ews',
