@@ -190,7 +190,7 @@ BMessenger BWebPage::sDownloadListener;
 
     WebVisitedLinkStore::setShouldTrackVisitedLinks(true);
 
-    RunLoop::initializeMainRunLoop();
+    RunLoop::initializeMain();
 	RunLoop::run(); // This attaches it to the existing be_app looper
 }
 

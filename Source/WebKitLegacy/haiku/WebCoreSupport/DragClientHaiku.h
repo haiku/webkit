@@ -36,7 +36,7 @@ namespace WebCore {
         virtual void willPerformDragDestinationAction(DragDestinationAction, const DragData&) override;
         virtual void willPerformDragSourceAction(DragSourceAction, const IntPoint&, DataTransfer&) override;
 
-        virtual DragSourceAction dragSourceActionMaskForPoint(const IntPoint&) override;
+        virtual OptionSet<DragSourceAction> dragSourceActionMaskForPoint(const IntPoint&) override;
 
         virtual void startDrag(DragItem, DataTransfer&, Frame&) override;
     private:
