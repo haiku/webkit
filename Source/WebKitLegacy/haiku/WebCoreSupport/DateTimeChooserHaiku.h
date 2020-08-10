@@ -83,8 +83,7 @@ public:
         // TODO we should also handle the list of suggestions from the params
         // (probably as a BMenuField), and the min, max, and step values.
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal()
+        if (params.type == InputTypeNames::datetimelocal()
                 || params.type == InputTypeNames::date()
                 || params.type == InputTypeNames::week()
                 || params.type == InputTypeNames::month()) {
@@ -141,12 +140,10 @@ public:
 
         }
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal())
+        if (params.type == InputTypeNames::datetimelocal())
            group->AddChild(new BSeparatorView(B_VERTICAL));
 
-        if (params.type == InputTypeNames::datetime() 
-                || params.type == InputTypeNames::datetimelocal()
+        if (params.type == InputTypeNames::datetimelocal()
                 || params.type == InputTypeNames::time()) {
             m_hourMenu = new BMenu("hour");
             m_hourMenu->SetLabelFromMarked(true);

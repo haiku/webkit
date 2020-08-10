@@ -37,26 +37,25 @@
 
 namespace WebCore {
 
-void Gradient::platformDestroy()
+void Gradient::stopsChanged()
 {
-    delete m_gradient;
-    m_gradient = NULL;
+	m_gradient = NULL;
 }
 
-PlatformGradient Gradient::platformGradient()
+const BGradient& Gradient::getHaikuGradient()
 {
 	if (m_gradient)
-		return m_gradient;
+		return *m_gradient;
 
 	m_gradient = WTF::switchOn(m_data,
-		[&] (const RadialData& data) -> BGradient* {
-			return new BGradientRadialFocus(data.point1, data.endRadius, data.point0);
+		[&] (const RadialData& data) -> std::unique_ptr<BGradient> {
+			return std::make_unique<BGradientRadialFocus>(data.point1, data.endRadius, data.point0);
 		},
-		[&] (const LinearData& data) -> BGradient* {
-			return new BGradientLinear(data.point0, data.point1);
+		[&] (const LinearData& data) -> std::unique_ptr<BGradient> {
+			return std::make_unique<BGradientLinear>(data.point0, data.point1);
 		},
-		[&] (const ConicData& data) -> BGradient* {
-			return new BGradientConic(data.point0, data.angleRadians);
+		[&] (const ConicData& data) -> std::unique_ptr<BGradient> {
+			return std::make_unique<BGradientConic>(data.point0, data.angleRadians);
 		}
 		);
 
@@ -68,17 +67,13 @@ PlatformGradient Gradient::platformGradient()
 
         // TODO handle m_spreadMethod (pad/reflect/repeat)
     }
-    return m_gradient;
-}
-
-PlatformGradient Gradient::createPlatformGradient(float globalAlpha)
-{
-	return platformGradient();
+    return *m_gradient;
 }
 
 void Gradient::fill(GraphicsContext& context, const FloatRect& rect)
 {
-    context.platformContext()->FillRect(rect, *platformGradient());
+    auto pattern = getHaikuGradient();
+    context.platformContext()->FillRect(rect, pattern);
 }
 
 } // namespace WebCore

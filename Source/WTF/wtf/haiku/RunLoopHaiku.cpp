@@ -166,15 +166,4 @@ RunLoop::CycleResult RunLoop::cycle(RunLoopMode)
     return CycleResult::Continue;
 }
 
-void RunLoop::dispatchAfter(Seconds delay, Function<void()>&& function)
-{
-	BMessage* message = new BMessage('daft');
-	BMessageRunner* runner = new BMessageRunner(m_handler, NULL, 0, 0);
-	struct RunLoopDispatchHandler* handler = new RunLoopDispatchHandler(WTFMove(function));
-	handler->runner = runner;
-	message->AddPointer("handler", &handler);
-
-	runner->StartSending(m_handler, message, delay.microseconds(), 1);
-}
-
 }

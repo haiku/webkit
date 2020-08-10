@@ -218,11 +218,13 @@ class FrameLoaderClientHaiku : public FrameLoaderClient {
 
     void prefetchDNS(const String&) override { }
 
-	void didRestoreFromBackForwardCache() final {}
+    void didRestoreFromBackForwardCache() final {}
+
+    void sendH2Ping(const WTF::URL&, WTF::CompletionHandler<void(std::experimental::fundamentals_v3::expected<WTF::Seconds, WebCore::ResourceError>&&)>&&) final { notImplemented(); }
  private:
     bool isTertiaryMouseButton(const NavigationAction& action) const;
 
-	status_t dispatchNavigationRequested(const ResourceRequest& request) const;
+    status_t dispatchNavigationRequested(const ResourceRequest& request) const;
     status_t dispatchMessage(BMessage& message, bool allowChildFrame = false) const;
 
 private:

@@ -48,6 +48,8 @@ public:
     // System fonts.
     void updateCachedSystemFontDescription(CSSValueID propId, FontCascadeDescription&) const override;
 
+    bool canPaint(const PaintInfo&) const override { return true ; }
+
 #if ENABLE(VIDEO)
     String mediaControlsStyleSheet() override;
     String mediaControlsScript() override;

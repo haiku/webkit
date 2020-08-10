@@ -871,7 +871,7 @@ void FrameLoaderClientHaiku::transitionToCommittedForNewPage()
 
     Optional<Color> backgroundColor;
     if (m_webFrame->IsTransparent())
-        backgroundColor = Color(Color::transparent);
+        backgroundColor = Color(Color::transparentBlack);
     frame->createView(size, backgroundColor, {}, {});
 
     frame->view()->setTopLevelPlatformWidget(m_webPage->WebView());
@@ -925,7 +925,7 @@ ObjectContentType FrameLoaderClientHaiku::objectContentType(const URL& url, cons
         } else {
             // For non-file URLs, try guessing from the extension (this happens
             // before the request so our content sniffing is of no use)
-            mimeType = MIMETypeRegistry::getMIMETypeForExtension(toString(url.path().substring(url.path().reverseFind('.') + 1)));
+            mimeType = MIMETypeRegistry::mimeTypeForExtension(toString(url.path().substring(url.path().reverseFind('.') + 1)));
         } 
     }
 

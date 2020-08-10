@@ -64,7 +64,7 @@ static const ExtensionMap extensionMap[] = {
     { 0, 0 }
 };
 
-String MIMETypeRegistry::getMIMETypeForExtension(const String& ext)
+String MIMETypeRegistry::mimeTypeForExtension(const String& ext)
 {
     String str = ext.convertToASCIILowercase();
 
@@ -89,7 +89,7 @@ String MIMETypeRegistry::getMIMETypeForExtension(const String& ext)
 }
 
 
-String MIMETypeRegistry::getPreferredExtensionForMIMEType(const String& type)
+String MIMETypeRegistry::preferredExtensionForMIMEType(const String& type)
 {
 	BMimeType mimeType(type.utf8().data());
 	BMessage storage;
@@ -97,6 +97,12 @@ String MIMETypeRegistry::getPreferredExtensionForMIMEType(const String& type)
 	BString extension = storage.FindString("extensions");
 
 	return extension;
+}
+
+Vector<String> MIMETypeRegistry::extensionsForMIMEType(const String&)
+{
+    ASSERT_NOT_IMPLEMENTED_YET();
+    return { };
 }
 
 bool MIMETypeRegistry::isApplicationPluginMIMEType(const String&)

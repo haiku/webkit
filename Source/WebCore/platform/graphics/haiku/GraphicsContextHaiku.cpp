@@ -33,6 +33,7 @@
 #include "AffineTransform.h"
 #include "Color.h"
 #include "DisplayListRecorder.h"
+#include "Gradient.h"
 #include "ImageBuffer.h"
 #include "NotImplemented.h"
 #include "Path.h"
@@ -173,12 +174,12 @@ void GraphicsContext::drawRect(const FloatRect& rect, float borderThickness)
     if (m_state.fillPattern)
         notImplemented();
     else if (m_state.fillGradient) {
-		m_state.fillGradient->fill(*this, rect);
-    } else if (fillColor().alpha())
+        m_state.fillGradient->fill(*this, rect);
+    } else
         m_data->view()->FillRect(rect);
 
     // TODO: Support gradients
-    if (strokeStyle() != NoStroke && borderThickness > 0.0f && strokeColor().alpha())
+    if (strokeStyle() != NoStroke && borderThickness > 0.0f && strokeColor().isVisible())
     {
         m_data->view()->SetPenSize(borderThickness);
         m_data->view()->StrokeRect(rect, m_data->m_strokeStyle);
@@ -190,28 +191,28 @@ void GraphicsContext::drawNativeImage(const NativeImagePtr& image, const FloatSi
     if (paintingDisabled())
         return;
 
-	save();
+    save();
     setCompositeOperation(options.compositeOperator());
 
     // Test using example site at
     // http://www.meyerweb.com/eric/css/edge/complexspiral/demo.html
     platformContext()->SetDrawingMode(B_OP_ALPHA);
 
-	uint32 flags = 0;
+    uint32 flags = 0;
 
-	// TODO handle more things from options (blend mode, etc)
-	if (options.interpolationQuality() > InterpolationQuality::Low)
-		flags |= B_FILTER_BITMAP_BILINEAR;
+    // TODO handle more things from options (blend mode, etc)
+    if (options.interpolationQuality() > InterpolationQuality::Low)
+        flags |= B_FILTER_BITMAP_BILINEAR;
 
-	m_data->view()->DrawBitmapAsync(image.get(), BRect(srcRect), BRect(destRect), flags);
+    m_data->view()->DrawBitmapAsync(image.get(), BRect(srcRect), BRect(destRect), flags);
 
-	restore();
+    restore();
 }
 
 // This is only used to draw borders.
 void GraphicsContext::drawLine(const FloatPoint& point1, const FloatPoint& point2)
 {
-    if (paintingDisabled() || strokeStyle() == NoStroke || strokeThickness() <= 0.0f || !strokeColor().alpha())
+    if (paintingDisabled() || strokeStyle() == NoStroke || !strokeColor().isVisible())
         return;
     m_data->view()->StrokeLine(point1, point2, m_data->m_strokeStyle);
 }
@@ -222,25 +223,25 @@ void GraphicsContext::drawEllipse(const FloatRect& rect)
     if (paintingDisabled())
         return;
 
-    if (m_state.fillPattern || m_state.fillGradient || fillColor().alpha()) {
+    if (m_state.fillPattern || m_state.fillGradient || fillColor().isVisible()) {
 //        TODO: What's this shadow business?
         if (m_state.fillPattern)
             notImplemented();
         else if (m_state.fillGradient) {
-            BGradient* gradient = m_state.fillGradient->createPlatformGradient(1);
-            m_data->view()->FillEllipse(rect, *gradient);
+            const BGradient& gradient = m_state.fillGradient->getHaikuGradient();
+            m_data->view()->FillEllipse(rect, gradient);
         } else
             m_data->view()->FillEllipse(rect);
     }
 
     // TODO: Support gradients
-    if (strokeStyle() != NoStroke && strokeThickness() > 0.0f && strokeColor().alpha())
+    if (strokeStyle() != NoStroke && strokeThickness() > 0.0f && strokeColor().isVisible())
         m_data->view()->StrokeEllipse(rect, m_data->m_strokeStyle);
 }
 
 void GraphicsContext::strokeRect(const FloatRect& rect, float width)
 {
-    if (paintingDisabled() || strokeStyle() == NoStroke || width <= 0.0f || !strokeColor().alpha())
+    if (paintingDisabled() || strokeStyle() == NoStroke || width <= 0.0f || !strokeColor().isVisible())
         return;
 
     float oldSize = m_data->view()->PenSize();
@@ -265,7 +266,7 @@ void GraphicsContext::strokePath(const Path& path)
         notImplemented();
 //      BGradient* gradient = m_state.strokeGradient->platformGradient();
 //      m_data->view()->StrokeShape(m_data->shape(), *gradient);
-    } else if(strokeColor().alpha()) {
+    } else if (strokeColor().isVisible()) {
         drawing_mode mode = m_data->view()->DrawingMode();
         if (m_data->view()->HighColor().alpha < 255)
             m_data->view()->SetDrawingMode(B_OP_ALPHA);
@@ -308,7 +309,7 @@ void GraphicsContext::fillRect(const FloatRect& rect)
 
 void GraphicsContext::platformFillRoundedRect(const FloatRoundedRect& roundRect, const Color& color)
 {
-    if (paintingDisabled() || !color.alpha())
+    if (paintingDisabled() || !color.isVisible())
         return;
 
     const FloatRect& rect = roundRect.rect();
@@ -387,9 +388,9 @@ void GraphicsContext::fillPath(const Path& path)
         notImplemented();
     else if (m_state.fillGradient) {
         view->SetDrawingMode(B_OP_ALPHA);
-        BGradient* gradient = m_state.fillGradient->createPlatformGradient(1);
-        view->FillShape(path.platformPath(), *gradient);
-    } else if (fillColor().alpha()) {
+        const BGradient& gradient = m_state.fillGradient->getHaikuGradient();
+        view->FillShape(path.platformPath(), gradient);
+    } else {
         if (view->HighColor().alpha < 255)
             view->SetDrawingMode(B_OP_ALPHA);
 
@@ -475,7 +476,7 @@ void GraphicsContext::clipToImageBuffer(ImageBuffer& buffer, const FloatRect& de
 
 
 void GraphicsContext::drawPattern(Image& image, const FloatRect& destRect,
-    const FloatRect& tileRect, const AffineTransform& patternTransform,
+    const FloatRect& tileRect, const AffineTransform&,
     const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&)
 {
     if (paintingDisabled())
@@ -543,7 +544,7 @@ void GraphicsContext::clipOut(const FloatRect& rect)
 
 void GraphicsContext::drawFocusRing(const Path& path, float width, float /*offset*/, const Color& color)
 {
-    if (paintingDisabled() || width <= 0 || color.alpha() == 0)
+    if (paintingDisabled() || width <= 0 || !color.isVisible())
         return;
 
     // GTK forces this to 2, we use 1. A focus ring several pixels thick doesn't
@@ -559,7 +560,7 @@ void GraphicsContext::drawFocusRing(const Path& path, float width, float /*offse
 
 void GraphicsContext::drawFocusRing(const Vector<FloatRect>& rects, float width, float /* offset */, const Color& color)
 {
-    if (paintingDisabled() || width <= 0 || color.alpha() == 0)
+    if (paintingDisabled() || width <= 0 || !color.isVisible())
         return;
 
     unsigned rectCount = rects.size();
@@ -652,7 +653,7 @@ void GraphicsContext::clearRect(const FloatRect& rect)
     if (paintingDisabled())
         return;
 
-	m_data->view()->PushState();
+    m_data->view()->PushState();
     m_data->view()->SetHighColor(0, 0, 0, 0);
     m_data->view()->SetDrawingMode(B_OP_COPY);
     m_data->view()->FillRect(rect);
@@ -802,7 +803,7 @@ void GraphicsContext::translate(float x, float y)
     if (paintingDisabled() || (x == 0.f && y == 0.f))
         return;
 
-	m_data->view()->TranslateBy(x, y);
+    m_data->view()->TranslateBy(x, y);
 }
 
 void GraphicsContext::rotate(float radians)
@@ -810,7 +811,7 @@ void GraphicsContext::rotate(float radians)
     if (paintingDisabled() || radians == 0.f)
         return;
 
-	m_data->view()->RotateBy(radians);
+    m_data->view()->RotateBy(radians);
 }
 
 void GraphicsContext::scale(const FloatSize& size)

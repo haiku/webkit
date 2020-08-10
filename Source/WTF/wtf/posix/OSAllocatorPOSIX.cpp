@@ -35,6 +35,7 @@
 // For old versions of Haiku (before R1 beta3), only posix_madvise is available
 #define MADV_DONTNEED POSIX_MADV_DONTNEED
 #define MADV_FREE POSIX_MADV_FREE
+#define MADV_WILLNEED POSIX_MADV_WILLNEED
 #define madvise posix_madvise
 #endif
 

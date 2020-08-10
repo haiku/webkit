@@ -34,7 +34,7 @@
 
 #include <DumpRenderTreeClient.h>
 
-#include <wtf/MD5.h>
+#include <wtf/SHA1.h>
 
 #include <Bitmap.h>
 #include <BitmapStream.h>
@@ -56,10 +56,8 @@ RefPtr<BitmapContext> createBitmapContextFromWebView(bool, bool, bool, bool draw
     return BitmapContext::createByAdoptingData(size, bitmap);
 }
 
-void computeMD5HashStringForBitmapContext(BitmapContext* context, char hashString[33])
+void computeSHA1HashStringForBitmapContext(BitmapContext* context, char hashString[33])
 {
-    hashString[0] = 0;
-
     if (!context || !context->m_bitmap)
         return;
 
@@ -69,19 +67,18 @@ void computeMD5HashStringForBitmapContext(BitmapContext* context, char hashStrin
     int bytesPerRow = context->m_bitmap->BytesPerRow();
     unsigned char* pixelData = (unsigned char*)context->m_bitmap->Bits();
 
-    MD5 md5;
+    SHA1 sha1;
     for (int i = 0; i <= pixelsHigh; ++i) {
-        md5.addBytes(pixelData, 4 * pixelsWide);
+        sha1.addBytes(pixelData, 4 * pixelsWide);
         pixelData += bytesPerRow;
     }
 
-    MD5::Digest hash;
-    md5.checksum(hash);
+    SHA1::Digest hash;
+    sha1.computeHash(hash);
 
-    hashString[0] = '\0';
-    for (int i = 0; i < 16; ++i) {
-        snprintf(&hashString[i * 2], 3, "%02x", hash[i]);
-    }
+    snprintf(hashString, 33, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+        hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
+        hash[8], hash[9], hash[10], hash[11], hash[12], hash[13], hash[14], hash[15]);
 }
 
 void dumpBitmap(BitmapContext* context, const char* checksum)

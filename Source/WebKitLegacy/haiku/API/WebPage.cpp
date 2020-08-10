@@ -174,24 +174,23 @@ BMessenger BWebPage::sDownloadListener;
     PlatformStrategiesHaiku::initialize();
 
 #if USE(GCRYPT)
-	// Call gcry_check_version() before any other libgcrypt call, ignoring the
-	// returned version string.
-	gcry_check_version(nullptr);
+    // Call gcry_check_version() before any other libgcrypt call, ignoring the
+    // returned version string.
+    gcry_check_version(nullptr);
 
-	// Pre-allocate 16kB of secure memory and finish the initialization.
-	gcry_control(GCRYCTL_INIT_SECMEM, 16384, nullptr);
-	gcry_control(GCRYCTL_INITIALIZATION_FINISHED, nullptr);
+    // Pre-allocate 16kB of secure memory and finish the initialization.
+    gcry_control(GCRYCTL_INIT_SECMEM, 16384, nullptr);
+    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, nullptr);
 #endif
 
-    ScriptController::initializeThreading();
+    ScriptController::initializeMainThread();
     WTF::initializeMainThread();
     WTF::AtomString::init();
     WebCore::UTF8Encoding();
 
     WebVisitedLinkStore::setShouldTrackVisitedLinks(true);
 
-    RunLoop::initializeMain();
-	RunLoop::run(); // This attaches it to the existing be_app looper
+    RunLoop::run(); // This attaches it to the existing be_app looper
 }
 
 /*static*/ void BWebPage::ShutdownOnce()
