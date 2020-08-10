@@ -51,8 +51,8 @@
 namespace WebCore {
 
 class AnimationTimeline;
-class AudioContext;
 class AudioTrack;
+class BaseAudioContext;
 class CacheStorageConnection;
 class DOMRect;
 class DOMRectList;
@@ -108,6 +108,7 @@ class UnsuspendableActiveDOMObject;
 class VoidCallback;
 class WebAnimation;
 class WebGLRenderingContext;
+class WebKitAudioContext;
 class WindowProxy;
 class XMLHttpRequest;
 
@@ -565,6 +566,7 @@ public:
     void reloadExpiredOnly();
 
     void enableFixedWidthAutoSizeMode(bool enabled, int width, int height);
+    void enableSizeToContentAutoSizeMode(bool enabled, int width, int height);
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     void initializeMockCDM();
@@ -674,7 +676,7 @@ public:
 #endif
 
 #if ENABLE(WEB_AUDIO)
-    void setAudioContextRestrictions(AudioContext&, StringView restrictionsString);
+    void setAudioContextRestrictions(const Variant<RefPtr<BaseAudioContext>, RefPtr<WebKitAudioContext>>&, StringView restrictionsString);
     void useMockAudioDestinationCocoa();
 #endif
 

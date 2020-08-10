@@ -371,6 +371,7 @@
 		5742178A2400AED8002B303D /* web-authentication-make-credential-la-duplicate-credential.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 574217892400AED0002B303D /* web-authentication-make-credential-la-duplicate-credential.html */; };
 		5742178E2400D2DF002B303D /* web-authentication-make-credential-la.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 5742178D2400D26C002B303D /* web-authentication-make-credential-la.html */; };
 		574F55D2204D47F0002948C6 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 574F55D0204D471C002948C6 /* Security.framework */; };
+		5751B28A249D5BC500664C2A /* web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 5751B289249D5B9900664C2A /* web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html */; };
 		5758597F23A2527A00C74572 /* CtapPinTest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5758597E23A2527A00C74572 /* CtapPinTest.cpp */; };
 		5758598423C3C3A400C74572 /* web-authentication-make-credential-hid-pin-get-retries-error.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 5758598323C3C36200C74572 /* web-authentication-make-credential-hid-pin-get-retries-error.html */; };
 		57599E211F07191900A3FB8C /* IndexedDBStructuredCloneBackwardCompatibility.mm in Sources */ = {isa = PBXBuildFile; fileRef = 57599E201F07191700A3FB8C /* IndexedDBStructuredCloneBackwardCompatibility.mm */; };
@@ -997,6 +998,7 @@
 		CDCFFEC122E26A1500DF4223 /* NoPauseWhenSwitchingTabs.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDCFFEC022E268D500DF4223 /* NoPauseWhenSwitchingTabs.mm */; };
 		CDD68F0D22C18317000CF0AE /* WKWebViewCloseAllMediaPresentations.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDD68F0C22C18317000CF0AE /* WKWebViewCloseAllMediaPresentations.mm */; };
 		CDE195B51CFE0B880053D256 /* FullscreenTopContentInset.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = CDE195B21CFE0ADE0053D256 /* FullscreenTopContentInset.html */; };
+		CDED342F249DDE0E0002AE7A /* AudioRoutingArbitration.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDED342E249DDD9D0002AE7A /* AudioRoutingArbitration.mm */; };
 		CDF0B78A216D48DC00421ECC /* CloseWebViewDuringEnterFullscreen.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDF0B789216D484300421ECC /* CloseWebViewDuringEnterFullscreen.mm */; };
 		CDF92237216D186400647AA7 /* CloseWebViewAfterEnterFullscreen.mm in Sources */ = {isa = PBXBuildFile; fileRef = CDF92236216D186400647AA7 /* CloseWebViewAfterEnterFullscreen.mm */; };
 		CE06DF9B1E1851F200E570C9 /* SecurityOrigin.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE06DF9A1E1851F200E570C9 /* SecurityOrigin.cpp */; };
@@ -1225,6 +1227,7 @@
 			dstPath = TestWebKitAPI.resources;
 			dstSubfolderSpec = 7;
 			files = (
+				5751B28A249D5BC500664C2A /* web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html in Copy Resources */,
 				55A817FF2181021A0004A39A /* 100x100-red.tga in Copy Resources */,
 				1A9E52C913E65EF4006917F5 /* 18-characters.html in Copy Resources */,
 				55A81800218102210004A39A /* 400x400-green.png in Copy Resources */,
@@ -2054,6 +2057,7 @@
 		574217892400AED0002B303D /* web-authentication-make-credential-la-duplicate-credential.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "web-authentication-make-credential-la-duplicate-credential.html"; sourceTree = "<group>"; };
 		5742178D2400D26C002B303D /* web-authentication-make-credential-la.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "web-authentication-make-credential-la.html"; sourceTree = "<group>"; };
 		574F55D0204D471C002948C6 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		5751B289249D5B9900664C2A /* web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html"; sourceTree = "<group>"; };
 		5758597D23A2527A00C74572 /* CtapPinTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CtapPinTest.h; sourceTree = "<group>"; };
 		5758597E23A2527A00C74572 /* CtapPinTest.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CtapPinTest.cpp; sourceTree = "<group>"; };
 		5758598323C3C36200C74572 /* web-authentication-make-credential-hid-pin-get-retries-error.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "web-authentication-make-credential-hid-pin-get-retries-error.html"; sourceTree = "<group>"; };
@@ -2643,6 +2647,7 @@
 		CDD68F0C22C18317000CF0AE /* WKWebViewCloseAllMediaPresentations.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = WKWebViewCloseAllMediaPresentations.mm; sourceTree = "<group>"; };
 		CDE195B21CFE0ADE0053D256 /* FullscreenTopContentInset.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = FullscreenTopContentInset.html; sourceTree = "<group>"; };
 		CDE195B31CFE0ADE0053D256 /* TopContentInset.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TopContentInset.mm; sourceTree = "<group>"; };
+		CDED342E249DDD9D0002AE7A /* AudioRoutingArbitration.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AudioRoutingArbitration.mm; sourceTree = "<group>"; };
 		CDF0B789216D484300421ECC /* CloseWebViewDuringEnterFullscreen.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = CloseWebViewDuringEnterFullscreen.mm; sourceTree = "<group>"; };
 		CDF92236216D186400647AA7 /* CloseWebViewAfterEnterFullscreen.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CloseWebViewAfterEnterFullscreen.mm; sourceTree = "<group>"; };
 		CE06DF9A1E1851F200E570C9 /* SecurityOrigin.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SecurityOrigin.cpp; sourceTree = "<group>"; };
@@ -3054,6 +3059,7 @@
 				51B40D9D23AC960E00E05241 /* AsyncFunction.mm */,
 				834138C6203261B900F26960 /* AsyncPolicyForNavigationResponse.mm */,
 				3760C4F0211249AF00233ACC /* AttrStyle.mm */,
+				CDED342E249DDD9D0002AE7A /* AudioRoutingArbitration.mm */,
 				754CEC801F6722DC00D0039A /* AutoFillAvailable.mm */,
 				2DD355351BD08378005DF4A7 /* AutoLayoutIntegration.mm */,
 				07CD32F52065B5420064A4BE /* AVFoundationPreference.mm */,
@@ -3741,6 +3747,7 @@
 				57C6244F2346C1EC00383FE7 /* web-authentication-get-assertion.html */,
 				578DA44723ECD01300246010 /* web-authentication-make-credential-hid-pin-auth-blocked-error.html */,
 				570D26F323C3CA5500D5CF67 /* web-authentication-make-credential-hid-pin-get-key-agreement-error.html */,
+				5751B289249D5B9900664C2A /* web-authentication-make-credential-hid-pin-get-pin-token-fake-pin-invalid-error-retry.html */,
 				578DA44123ECC76B00246010 /* web-authentication-make-credential-hid-pin-get-pin-token-pin-auth-blocked-error.html */,
 				578DA44523ECCBD000246010 /* web-authentication-make-credential-hid-pin-get-pin-token-pin-auth-invalid-error-retry.html */,
 				570D26F923C3F24500D5CF67 /* web-authentication-make-credential-hid-pin-get-pin-token-pin-blocked-error.html */,
@@ -4855,6 +4862,7 @@
 				1C2B81801C891E7C00A5529F /* CancelFontSubresource.mm in Sources */,
 				7CCE7EB61A411A7E00447C4C /* CancelLoadFromResourceLoadDelegate.mm in Sources */,
 				7C83E0411D0A63F200FEBCF3 /* CandidateTests.mm in Sources */,
+				CDED342F249DDE0E0002AE7A /* AudioRoutingArbitration.mm in Sources */,
 				7CCE7EE71A411AE600447C4C /* CanHandleRequest.cpp in Sources */,
 				07C046CA1E4262A8007201E7 /* CARingBuffer.cpp in Sources */,
 				57303BCB2008376500355965 /* CBORReaderTest.cpp in Sources */,

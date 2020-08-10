@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2016-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -222,8 +222,13 @@ void WebResourceLoadStatisticsStore::didDestroyNetworkSession(CompletionHandler<
 {
     ASSERT(RunLoop::isMain());
 
+    auto callbackAggregator = CallbackAggregator::create([completionHandler = WTFMove(completionHandler)] () mutable {
+        completionHandler();
+    });
+
     m_networkSession = nullptr;
-    flushAndDestroyPersistentStore(WTFMove(completionHandler));
+    flushAndDestroyPersistentStore([callbackAggregator] { });
+    destroyResourceLoadStatisticsStore([callbackAggregator] { });
 }
 
 inline void WebResourceLoadStatisticsStore::postTask(WTF::Function<void()>&& task)
@@ -243,6 +248,21 @@ inline void WebResourceLoadStatisticsStore::postTaskReply(WTF::Function<void()>&
     RunLoop::main().dispatch(WTFMove(reply));
 }
 
+void WebResourceLoadStatisticsStore::destroyResourceLoadStatisticsStore(CompletionHandler<void()>&& completionHandler)
+{
+    RELEASE_ASSERT(RunLoop::isMain());
+
+    if (isEphemeral()) {
+        completionHandler();
+        return;
+    }
+
+    postTask([this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler)]() mutable {
+        m_statisticsStore = nullptr;
+        postTaskReply(WTFMove(completionHandler));
+    });
+}
+
 void WebResourceLoadStatisticsStore::flushAndDestroyPersistentStore(CompletionHandler<void()>&& completionHandler)
 {
     RELEASE_ASSERT(RunLoop::isMain());
@@ -251,7 +271,6 @@ void WebResourceLoadStatisticsStore::flushAndDestroyPersistentStore(CompletionHa
     // is destroyed because it has a C++ reference to us.
     m_statisticsQueue->dispatch([this, protectedThis = makeRef(*this), completionHandler = WTFMove(completionHandler)] () mutable {
         m_persistentStorage = nullptr;
-        m_statisticsStore = nullptr;
         RunLoop::main().dispatch(WTFMove(completionHandler));
     });
 }
@@ -1262,6 +1281,18 @@ void WebResourceLoadStatisticsStore::setCacheMaxAgeCap(Seconds seconds, Completi
     completionHandler();
 }
 
+bool WebResourceLoadStatisticsStore::needsUserInteractionQuirk(const RegistrableDomain& domain) const
+{
+    static NeverDestroyed<HashSet<RegistrableDomain>> quirks = [] {
+        HashSet<RegistrableDomain> set;
+        set.add(RegistrableDomain::uncheckedCreateFromRegistrableDomainString("kinja.com"_s));
+        set.add(RegistrableDomain::uncheckedCreateFromRegistrableDomainString("youtube.com"_s));
+        return set;
+    }();
+
+    return quirks.get().contains(domain);
+}
+
 void WebResourceLoadStatisticsStore::callUpdatePrevalentDomainsToBlockCookiesForHandler(const RegistrableDomainsToBlockCookiesFor& domainsToBlock, CompletionHandler<void()>&& completionHandler)
 {
     ASSERT(RunLoop::isMain());
@@ -1271,6 +1302,17 @@ void WebResourceLoadStatisticsStore::callUpdatePrevalentDomainsToBlockCookiesFor
             storageSession->setPrevalentDomainsToBlockAndDeleteCookiesFor(domainsToBlock.domainsToBlockAndDeleteCookiesFor);
             storageSession->setPrevalentDomainsToBlockButKeepCookiesFor(domainsToBlock.domainsToBlockButKeepCookiesFor);
             storageSession->setDomainsWithUserInteractionAsFirstParty(domainsToBlock.domainsWithUserInteractionAsFirstParty);
+        }
+
+        HashSet<RegistrableDomain> domainsWithUserInteractionQuirk;
+        for (auto& domain : domainsToBlock.domainsWithUserInteractionAsFirstParty) {
+            if (needsUserInteractionQuirk(domain))
+                domainsWithUserInteractionQuirk.add(domain);
+        }
+
+        if (m_domainsWithUserInteractionQuirk != domainsWithUserInteractionQuirk) {
+            m_domainsWithUserInteractionQuirk = domainsWithUserInteractionQuirk;
+            m_networkSession->networkProcess().parentProcessConnection()->send(Messages::NetworkProcessProxy::SetDomainsWithUserInteraction(domainsWithUserInteractionQuirk), 0);
         }
     }
 
@@ -1358,6 +1400,17 @@ void WebResourceLoadStatisticsStore::removeDataForDomain(RegistrableDomain domai
             m_statisticsStore->removeDataForDomain(domain);
 
         postTaskReply(WTFMove(completionHandler));
+    });
+}
+
+void WebResourceLoadStatisticsStore::registrableDomains(CompletionHandler<void(Vector<RegistrableDomain>&&)>&& completionHandler)
+{
+    ASSERT(RunLoop::isMain());
+    postTask([this, completionHandler = WTFMove(completionHandler)]() mutable {
+        auto domains = m_statisticsStore ? m_statisticsStore->allDomains() : Vector<RegistrableDomain>();
+        postTaskReply([domains = crossThreadCopy(WTFMove(domains)), completionHandler = WTFMove(completionHandler)]() mutable {
+            completionHandler(WTFMove(domains));
+        });
     });
 }
 

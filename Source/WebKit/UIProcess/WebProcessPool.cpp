@@ -997,6 +997,7 @@ WebProcessDataStoreParameters WebProcessPool::webProcessDataStoreParameters(WebP
         WTFMove(plugInAutoStartOriginHashes),
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
         websiteDataStore.thirdPartyCookieBlockingMode(),
+        m_domainsWithUserInteraction,
 #endif
         websiteDataStore.resourceLoadStatisticsEnabled()
     };
@@ -1113,11 +1114,6 @@ void WebProcessPool::initializeNewWebProcess(WebProcessProxy& process, WebsiteDa
 
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
     process.send(Messages::WebProcess::BacklightLevelDidChange(displayBrightness()), 0);
-#endif
-
-#if ENABLE(REMOTE_INSPECTOR)
-    // Initialize remote inspector connection now that we have a sub-process that is hosting one of our web views.
-    Inspector::RemoteInspector::singleton();
 #endif
 
 #if PLATFORM(MAC)
@@ -2353,6 +2349,12 @@ void WebProcessPool::didCommitCrossSiteLoadWithDataTransfer(PAL::SessionID sessi
         return;
 
     m_networkProcess->didCommitCrossSiteLoadWithDataTransfer(sessionID, fromDomain, toDomain, navigationDataTransfer, webPageProxyID, webPageID);
+}
+
+void WebProcessPool::setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain>&& domains)
+{
+    sendToAllProcesses(Messages::WebProcess::SetDomainsWithUserInteraction(domains));
+    m_domainsWithUserInteraction = WTFMove(domains);
 }
 
 void WebProcessPool::seedResourceLoadStatisticsForTesting(const RegistrableDomain& firstPartyDomain, const RegistrableDomain& thirdPartyDomain, bool shouldScheduleNotification, CompletionHandler<void()>&& completionHandler)

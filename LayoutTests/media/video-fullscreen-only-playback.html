@@ -18,7 +18,8 @@
                 video.loop = true;
 
                 internals.settings.setAllowsInlineMediaPlayback(false);
-
+                // Disable the Fullscreen API (element fullscreen) support
+                internals.settings.setFullScreenEnabled(false);
                 internals.setMockVideoPresentationModeEnabled(true);
 
                 consoleWrite("");
@@ -42,7 +43,7 @@
             {
                 await testExpectedEventually("video.webkitDisplayingFullscreen", true);
                 consoleWrite("<br>** Entered fullscreen");
-                waitForEvent('webkitpresentationmodechanged', endfullscreen);
+                waitForEventOnce('webkitpresentationmodechanged', endfullscreen);
                 run("video.webkitExitFullScreen()");
             }
 

@@ -605,6 +605,8 @@ localizedStrings["Frame %d"] = "Frame %d";
 localizedStrings["Frame URL"] = "Frame URL";
 localizedStrings["Frames"] = "Frames";
 localizedStrings["Frames %d \u2013 %d"] = "Frames %d \u2013 %d";
+/* Title for list of HTML subframe JavaScript execution contexts */
+localizedStrings["Frames @ Execution Context Picker"] = "Frames";
 localizedStrings["Full Garbage Collection"] = "Full Garbage Collection";
 localizedStrings["Full URL"] = "Full URL";
 localizedStrings["Full-Screen"] = "Full-Screen";
@@ -627,8 +629,10 @@ localizedStrings["Graphics Tab Name"] = "Graphics";
 localizedStrings["Group"] = "Group";
 localizedStrings["Group By Resource"] = "Group By Resource";
 localizedStrings["Group Media Requests"] = "Group Media Requests";
-localizedStrings["Group by Event"] = "Group by Event";
-localizedStrings["Group by Target"] = "Group by Target";
+/* Group DOM event listeners by DOM event */
+localizedStrings["Group by Event @ Node Event Listeners"] = "Group by Event";
+/* Group DOM event listeners by DOM node */
+localizedStrings["Group by Target @ Node Event Listeners"] = "Group by Target";
 localizedStrings["Grouping Method"] = "Grouping Method";
 localizedStrings["HAR Export (%s)"] = "HAR Export (%s)";
 localizedStrings["HAR Import"] = "HAR Import";
@@ -1441,7 +1445,8 @@ localizedStrings["Worker"] = "Worker";
 localizedStrings["Worker Thread"] = "Worker Thread";
 localizedStrings["Worker Threads"] = "Worker Threads";
 localizedStrings["Worker: %s"] = "Worker: %s";
-localizedStrings["Workers"] = "Workers";
+/* Title for list of JavaScript web worker execution contexts */
+localizedStrings["Workers @ Execution Context Picker"] = "Workers";
 localizedStrings["Wrap lines to editor width"] = "Wrap lines to editor width";
 localizedStrings["XBM"] = "XBM";
 localizedStrings["XHR"] = "XHR";

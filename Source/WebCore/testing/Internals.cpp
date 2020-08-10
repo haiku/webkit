@@ -279,7 +279,8 @@
 #endif
 
 #if ENABLE(WEB_AUDIO)
-#include "AudioContext.h"
+#include "BaseAudioContext.h"
+#include "WebKitAudioContext.h"
 #endif
 
 #if ENABLE(MEDIA_SESSION)
@@ -3712,6 +3713,14 @@ void Internals::enableFixedWidthAutoSizeMode(bool enabled, int width, int height
     document->view()->enableFixedWidthAutoSizeMode(enabled, { width, height });
 }
 
+void Internals::enableSizeToContentAutoSizeMode(bool enabled, int width, int height)
+{
+    auto* document = contextDocument();
+    if (!document || !document->view())
+        return;
+    document->view()->enableSizeToContentAutoSizeMode(enabled, { width, height });
+}
+
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
 
 void Internals::initializeMockCDM()
@@ -4290,22 +4299,29 @@ void Internals::sendMediaControlEvent(MediaControlEvent event)
 #endif // ENABLE(MEDIA_SESSION)
 
 #if ENABLE(WEB_AUDIO)
-void Internals::setAudioContextRestrictions(AudioContext& context, StringView restrictionsString)
+void Internals::setAudioContextRestrictions(const Variant<RefPtr<BaseAudioContext>, RefPtr<WebKitAudioContext>>& contextVariant, StringView restrictionsString)
 {
-    AudioContext::BehaviorRestrictions restrictions = context.behaviorRestrictions();
-    context.removeBehaviorRestriction(restrictions);
+    RefPtr<BaseAudioContext> context;
+    switchOn(contextVariant, [&](RefPtr<BaseAudioContext> entry) {
+        context = entry;
+    }, [&](RefPtr<WebKitAudioContext> entry) {
+        context = entry;
+    });
 
-    restrictions = AudioContext::NoRestrictions;
+    auto restrictions = context->behaviorRestrictions();
+    context->removeBehaviorRestriction(restrictions);
+
+    restrictions = BaseAudioContext::NoRestrictions;
 
     for (StringView restrictionString : restrictionsString.split(',')) {
         if (equalLettersIgnoringASCIICase(restrictionString, "norestrictions"))
-            restrictions |= AudioContext::NoRestrictions;
+            restrictions |= BaseAudioContext::NoRestrictions;
         if (equalLettersIgnoringASCIICase(restrictionString, "requireusergestureforaudiostart"))
-            restrictions |= AudioContext::RequireUserGestureForAudioStartRestriction;
+            restrictions |= BaseAudioContext::RequireUserGestureForAudioStartRestriction;
         if (equalLettersIgnoringASCIICase(restrictionString, "requirepageconsentforaudiostart"))
-            restrictions |= AudioContext::RequirePageConsentForAudioStartRestriction;
+            restrictions |= BaseAudioContext::RequirePageConsentForAudioStartRestriction;
     }
-    context.addBehaviorRestriction(restrictions);
+    context->addBehaviorRestriction(restrictions);
 }
 
 void Internals::useMockAudioDestinationCocoa()

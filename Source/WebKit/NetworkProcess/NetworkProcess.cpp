@@ -267,7 +267,7 @@ void NetworkProcess::didClose(IPC::Connection&)
     // Make sure we flush all cookies and resource load statistics to disk before exiting.
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     forEachNetworkSession([&] (auto& networkSession) {
-        networkSession.destroyResourceLoadStatistics([callbackAggregator = callbackAggregator.copyRef()] { });
+        networkSession.flushAndDestroyPersistentStore([callbackAggregator = callbackAggregator.copyRef()] { });
     });
 #endif
     platformSyncAllCookies([callbackAggregator = callbackAggregator.copyRef()] { });
@@ -1575,6 +1575,19 @@ void NetworkProcess::fetchWebsiteData(PAL::SessionID sessionID, OptionSet<Websit
         if (auto* session = networkSession(sessionID)) {
             for (auto& origin : session->hostNamesWithAlternativeServices())
                 callbackAggregator->m_websiteData.entries.append({ origin, WebsiteDataType::AlternativeServices, 0 });
+        }
+    }
+#endif
+
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
+    if (websiteDataTypes.contains(WebsiteDataType::ResourceLoadStatistics)) {
+        if (auto* session = networkSession(sessionID)) {
+            if (auto* resourceLoadStatistics = session->resourceLoadStatistics()) {
+                resourceLoadStatistics->registrableDomains([callbackAggregator = callbackAggregator.copyRef()](auto&& domains) mutable {
+                    while (!domains.isEmpty())
+                        callbackAggregator->m_websiteData.registrableDomainsWithResourceLoadStatistics.add(domains.takeLast());
+                });
+            }
         }
     }
 #endif

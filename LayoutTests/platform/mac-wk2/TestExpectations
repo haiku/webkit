@@ -1037,3 +1037,7 @@ webkit.org/b/212042 [ Debug ] fast/scrolling/mac/scrollbars/select-overlay-scrol
 webkit.org/b/213212 [ Mojave Release ] webgl/2.0.0/conformance2/textures/canvas_sub_rectangle/tex-2d-rgb16f-rgb-half_float.html [ Pass Failure ]
 
 webkit.org/b/213292 [ Catalina Release ] http/tests/IndexedDB/storage-limit-1.https.html [ Pass Failure ]
+
+webkit.org/b/213375 [ Debug ] webaudio/biquad-bandpass.html [ Pass Crash ]
+
+webkit.org/b/213461 fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing.html [ Pass Failure ]

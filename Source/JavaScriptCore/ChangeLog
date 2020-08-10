@@ -1,3 +1,557 @@
+2020-06-23  Mark Lam  <mark.lam@apple.com>
+
+        Handle string overflow in DFG graph dump while validating AI.
+        https://bugs.webkit.org/show_bug.cgi?id=213524
+        <rdar://problem/64635620>
+
+        Not reviewed.
+
+        Applying refinement suggested by Darin in https://bugs.webkit.org/show_bug.cgi?id=213524#c3.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::validateAIState):
+
+2020-06-23  Mark Lam  <mark.lam@apple.com>
+
+        Handle string overflow in DFG graph dump while validating AI.
+        https://bugs.webkit.org/show_bug.cgi?id=213524
+        <rdar://problem/64635620>
+
+        Reviewed by Saam Barati.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::validateAIState):
+
+2020-06-23  Devin Rousso  <drousso@apple.com>
+
+        Keyframe animation doesn't 't show up in the Animations timeline
+        https://bugs.webkit.org/show_bug.cgi?id=213441
+
+        Reviewed by Brian Burg.
+
+        * inspector/protocol/Animation.json:
+        An `interationCount` of `Infinity` is not JSON serializable, so represent it as `-1` instead.
+
+2020-06-22  Saam Barati  <sbarati@apple.com>
+
+        Attempt to fix watchOS simulator build.
+
+        * assembler/FastJITPermissions.h:
+        (threadSelfRestrictRWXToRW):
+        (threadSelfRestrictRWXToRX):
+
+2020-06-22  Saam Barati  <sbarati@apple.com>
+
+        Allow building JavaScriptCore Mac+arm64 in public SDK build
+        https://bugs.webkit.org/show_bug.cgi?id=213472
+
+        Reviewed by Sam Weinig.
+
+        We used to only builld code for fast permission switching when using the
+        Apple internal SDK. However, with arm64 on macOS, this is no longer a viable
+        implementation strategy.
+        
+        This patch makes it so we can build JSC on macOS+arm64 using the public Xcode
+        SDK.
+        
+        - ENABLE_FAST_JIT_PERMISSIONS is removed. We now use runtime checks instead.
+        - In the new suite of OS betas, pthreads has added API for fast permissions
+          switching. We now use this API instead of using the non-public SDK found in
+          the kernel headers.
+        - We fall back to the separated W/X heaps when fast permissions checking is
+          not supported. This all happens at runtime.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * assembler/ARM64Assembler.h:
+        (JSC::ARM64Assembler::fillNops):
+        * assembler/ARMv7Assembler.h:
+        (JSC::ARMv7Assembler::fillNops):
+        * assembler/FastJITPermissions.h: Added.
+        (useFastJITPermissions):
+        (threadSelfRestrictRWXToRW):
+        (threadSelfRestrictRWXToRX):
+        (fastJITPermissionsIsSupported):
+        * assembler/LinkBuffer.cpp:
+        (JSC::memcpyWrapper):
+        (JSC::LinkBuffer::copyCompactAndLinkCode):
+        * assembler/MIPSAssembler.h:
+        (JSC::MIPSAssembler::fillNops):
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::link):
+        * assembler/MacroAssemblerARMv7.h:
+        (JSC::MacroAssemblerARMv7::link):
+        * jit/ExecutableAllocator.cpp:
+        (JSC::initializeJITPageReservation):
+        * jit/ExecutableAllocator.h:
+        (JSC::performJITMemcpy):
+        (JSC::useFastJITPermissions): Deleted.
+        * runtime/JSCConfig.h:
+        * runtime/Options.cpp:
+        (JSC::Options::recomputeDependentOptions):
+        * runtime/OptionsList.h:
+
+2020-06-22  Tim Horton  <timothy_horton@apple.com>
+
+        Disable the JS JIT when running in a translated process
+        https://bugs.webkit.org/show_bug.cgi?id=213478
+
+        Reviewed by Saam Barati.
+
+        * runtime/Options.cpp:
+        (JSC::Options::recomputeDependentOptions):
+        Based on our performance experiements, disable the JavaScript JIT
+        (but not the regular expression, DOM, or Wasm JIT) when running
+        in a translated process.
+
+2020-06-22  Tim Horton  <timothy_horton@apple.com>
+
+        Update macOS version macros
+        https://bugs.webkit.org/show_bug.cgi?id=213484
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+        * Configurations/WebKitTargetConditionals.xcconfig:
+
+2020-06-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Check Gigacage usage before launching VM
+        https://bugs.webkit.org/show_bug.cgi?id=213410
+
+        Reviewed by Mark Lam.
+
+        Since VM allocates JSBigInt from Gigacage, it is possible that VM creation fails when Gigacage is exhausted.
+        As a work-around for internal testing, we insert ad-hoc Gigacage usage check before launching a new agent.
+        If 80% of Gigacage is used, we fail to launch a new VM gracefully.
+
+        * assembler/testmasm.cpp:
+        (JSC::testCagePreservesPACFailureBit):
+        * jsc.cpp:
+        (functionDollarAgentStart):
+
+2020-06-19  James Darpinian  <jdarpinian@chromium.org>
+
+        Typed array constructor behaves differently when length is not passed or when undefined is passed
+        https://bugs.webkit.org/show_bug.cgi?id=184232
+
+        Reviewed by Yusuke Suzuki.
+
+        Passing undefined for length should have the same effect as omitting the argument. It was being
+        treated as 0 instead.
+
+        * runtime/JSGenericTypedArrayViewConstructorInlines.h:
+        (JSC::constructGenericTypedArrayView):
+
+2020-06-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Attempt to reduce timeout failures on Apple Watch Series 3
+        https://bugs.webkit.org/show_bug.cgi?id=213419
+
+        Reviewed by Mark Lam.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionUseJIT):
+        (JSC::JSDollarVM::finishCreation):
+
+2020-06-19  Mark Lam  <mark.lam@apple.com>
+
+        toString of String doesn't check integrity of structureID in one path.
+        https://bugs.webkit.org/show_bug.cgi?id=213338
+
+        Reviewed by Saam Barati.
+
+        * runtime/StringPrototype.cpp:
+        (JSC::stringProtoFuncToString):
+
+2020-06-19  Saam Barati  <sbarati@apple.com>
+
+        Have a memory monitor thread in jsc shell when running tests using --memory-limited
+        https://bugs.webkit.org/show_bug.cgi?id=213389
+
+        Reviewed by Mark Lam.
+
+        When testing on iOS, there are times high memory usage from a JSC test
+        will jetsam our entire test runner. This makes it so we don't get any test
+        results from that test run, which can make it difficult to track testing
+        results.
+        
+        This patch introduces an optional memory monitoring thread to the JSC
+        shell. It's a best effort approach. If memory usage exceeds the passed
+        in threshold, we crash the process. Similar to how the timeout mechanism
+        works. On Cocoa platforms, we also perform this check in the low memory 
+        warning handler.
+        
+        Currently, we use this feature when running JSC stress tests in
+        "--memory-limited" mode.
+
+        * jsc.cpp:
+        (crashIfExceedingMemoryLimit):
+        (startMemoryMonitoringThreadIfNeeded):
+        (jscmain):
+
+2020-06-19  Mark Lam  <mark.lam@apple.com>
+
+        Make $vm properties non-configurable, non-enumerable, and non-writable.
+        https://bugs.webkit.org/show_bug.cgi?id=213395
+
+        Reviewed by Saam Barati and Yusuke Suzuki.
+
+        $vm provides functions for test development and VM debugging.  There's no reason
+        for them to be configurable, enumerable, and writable.
+
+        We particularly don't want them to be enumerable as this can trip up some fuzzers.
+        Fuzzers should not be fuzzing the $vm object which doesn't exist in real world
+        uses of JavaScriptCore.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::JSDollarVM::finishCreation):
+        (JSC::JSDollarVM::addFunction):
+        (JSC::JSDollarVM::addConstructibleFunction):
+
+2020-06-19  Tuomas Karkkainen  <tuomas.webkit@apple.com>
+
+        functionCpuClflush checks that the second argument is Int32 but it actually expects it to be UInt32
+        https://bugs.webkit.org/show_bug.cgi?id=213388
+
+        Reviewed by Saam Barati.
+
+        This changes the check from isInt32() to isUInt32() so that the logic is consistent.
+
+        * tools/JSDollarVM.cpp:
+
+2020-06-18  Mark Lam  <mark.lam@apple.com>
+
+        Unify Bitmap math loops in MarkedBlock::Handle::specializedSweep().
+        https://bugs.webkit.org/show_bug.cgi?id=213345
+
+        Reviewed by Robin Morisset and Saam Barati.
+
+        This change appears to be performance neutral.  However, we'll take the change
+        because we know that it does less work, and the new way of expressing the Bitmap
+        math in MarkedBlock::Handle::specializedSweep() does appear to be easier to
+        understand than the old code.
+
+        Also addressed feedback from Robin and Saam in https://bugs.webkit.org/show_bug.cgi?id=213071.
+
+        Changes made:
+
+        1. Use the new Bitmap::words() API to get direct access to the underlying bits
+           storage.  With this, we can do the merging of the marked and newlyAllocated
+           bits with a single pass looping thru the bitmap words.
+
+        2. In MarkedBlock::Handle::specializedSweep()'s Bitmap free list code, moved the
+           implementation of handleDeadCells lambda down to the call to freeAtoms.forEachSetBit()
+           because this is the only place it is used.
+
+        3. Fixed MarkedBlock::Handle::specializedSweep()'s Bitmap free list code to
+           handle the dead cells unconditionally.  This condition check was wrongly
+           adapted from the linked list implementation where handleDeadCell() was called
+           in 2 places depending on the destruction mode.  With the Bitmap free list,
+           there is only once place to handle the dead cells, and it should be executed
+           unconditionally.
+
+           This fixes a bug where the FreeList::originalSize() never gets computed if the
+           cells in the block does not need destruction.
+
+        4. Renamed FreeList::bitmapRows() to FreeList::bitmapRowsMinusOne().
+           Renamed FreeList::offsetOfBitmapRows() to FreeList::offsetOfBitmapRowsMinusOne().
+
+        5. Also fixed some typos in comments.
+
+        * heap/FreeList.h:
+        (JSC::FreeList::bitmapIsEmpty const):
+        (JSC::FreeList::offsetOfBitmapRowsMinusOne):
+        (JSC::FreeList::bitmapRowsMinusOne const):
+        (JSC::FreeList::offsetOfBitmapRows): Deleted.
+        (JSC::FreeList::bitmapRows const): Deleted.
+        * heap/FreeListInlines.h:
+        (JSC::FreeList::allocate):
+        (JSC::FreeList::forEach const):
+        * heap/MarkedBlockInlines.h:
+        (JSC::MarkedBlock::Handle::specializedSweep):
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::emitAllocateWithNonNullAllocator):
+
+2020-06-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Remove dead non-ICU locale Date code since we are always using ICU version
+        https://bugs.webkit.org/show_bug.cgi?id=213362
+
+        Reviewed by Ross Kirsling.
+
+        There are old non-ICU version of Date locale code. But this is now dead code since we are always using ICU version,
+        which is invoked from builtin JS DatePrototype.js. We should remove these dead code.
+
+        * runtime/DatePrototype.cpp:
+        (JSC::DatePrototype::finishCreation):
+        (): Deleted.
+        (JSC::styleFromArgString): Deleted.
+        (JSC::formatLocaleDate): Deleted.
+        (JSC::dateProtoFuncToLocaleString): Deleted.
+        (JSC::dateProtoFuncToLocaleDateString): Deleted.
+        (JSC::dateProtoFuncToLocaleTimeString): Deleted.
+
+2020-06-18  Ross Kirsling  <ross.kirsling@sony.com>
+
+        Unreviewed, address Darin's feedback on r263227.
+
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::UNumberFormatDeleter::operator() const):
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+        (JSC::IntlRelativeTimeFormat::formatToParts const):
+        * runtime/IntlRelativeTimeFormat.h:
+        Keep ownership over our UNumberFormat instance after all,
+        to avoid relying on behavior ICU isn't explicitly guaranteeing.
+
+2020-06-18  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Enable RelativeTimeFormat and Locale by default
+        https://bugs.webkit.org/show_bug.cgi?id=213324
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/IntlObject.cpp:
+        (JSC::createDateTimeFormatConstructor):
+        (JSC::createLocaleConstructor):
+        (JSC::createNumberFormatConstructor):
+        (JSC::createRelativeTimeFormatConstructor):
+        (JSC::IntlObject::finishCreation):
+        Unconditionalize creation of RelativeTimeFormat and Locale constructors.
+
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+        (JSC::IntlRelativeTimeFormat::formatToParts const):
+        (JSC::IntlRelativeTimeFormat::UNumberFormatDeleter::operator() const): Deleted.
+        * runtime/IntlRelativeTimeFormat.h:
+        Fix an actual bug -- URelativeDateTimeFormatter *adopts* the UNumberFormat it's instantiated with,
+        so we can't keep a unique_ptr to it.
+
+        * runtime/OptionsList.h:
+        Remove feature flags.
+
+2020-06-18  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Promise built-in functions should be anonymous non-constructors
+        https://bugs.webkit.org/show_bug.cgi?id=213317
+
+        Reviewed by Darin Adler.
+
+        This patch makes userland-exposed Promise built-in functions
+        non-constructors and sets their "name" properties to empty strings
+        as per spec [1], aligning JSC with V8 and SpiderMonkey.
+
+        @createResolvingFunctionsWithoutPromise change is covered by test262's
+        async-generator/yield-thenable-create-resolving-functions-*.js cases.
+
+        Promise microbenchmarks are neutral. Promise constructors bytecode is
+        unchanged, while @createResolvingFunctions* bytecode is reduced by 2
+        instructions.
+
+        [1]: https://tc39.es/ecma262/#sec-ecmascript-standard-built-in-objects
+
+        * builtins/PromiseConstructor.js:
+        (nakedConstructor.Promise):
+        (nakedConstructor.InternalPromise):
+        * builtins/PromiseOperations.js:
+        (globalPrivate.newPromiseCapabilitySlow):
+        (globalPrivate.createResolvingFunctions):
+        (globalPrivate.createResolvingFunctionsWithoutPromise):
+        (globalPrivate.createResolvingFunctions.resolve): Deleted.
+        (globalPrivate.createResolvingFunctions.reject): Deleted.
+        (resolve): Deleted.
+        (reject): Deleted.
+        * builtins/PromisePrototype.js:
+        (globalPrivate.getThenFinally):
+        (globalPrivate.getCatchFinally):
+        (valueThunk): Deleted.
+        (thrower): Deleted.
+
+2020-06-18  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        TypedArray.prototype.set is incorrect with primitives
+        https://bugs.webkit.org/show_bug.cgi?id=212730
+
+        Reviewed by Yusuke Suzuki.
+
+        This change implements step 14 of %TypedArray%.prototype.set [1],
+        which coerces primitives to objects instead of throwing an error,
+        aligning JSC with V8 and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-%typedarray%.prototype.set-array-offset
+
+        * runtime/JSGenericTypedArrayViewPrototypeFunctions.h:
+        (JSC::genericTypedArrayViewProtoFuncSet):
+
+2020-06-17  Mark Lam  <mark.lam@apple.com>
+
+        Replace JSC::FreeList linked list with a Bitmap.
+        https://bugs.webkit.org/show_bug.cgi?id=213071
+
+        Reviewed by Filip Pizlo.
+
+        Implement an alternative to the linked list FreeList.  This alternative uses
+        a Bitmap to record which atom in the block is available for allocation.
+
+        The intuition here is that allocation using the Bitmap implementation will do:
+            2 loads - m_currentRowBitmap, m_currentMarkedBlockRowAddress
+            1 store - m_currentRowBitmap
+
+        whereas the linked list implementation will do:
+            3 loads - m_scrambledHead, m_secret, result->scrambledNext
+            1 store - m_scrambledHead
+
+        and result->scrambledNext is from a different region of code and therefore not
+        in the same cache line.
+
+        The downside of the Bitmap implementation is that it uses more instructions.
+
+        This change is currently only enabled for x86_64, which shows about a 0.8%
+        progression on Speedometer 2.
+
+        It appears to be about a 1% regression on ARM64E.  Hence, for now, we keep the
+        linked list implementation for ARM64 builds.
+
+        This is how the Bitmap FreeList works:
+
+        1. The Bitmap implementation only replaces the linked list implementation.  It
+           does not replace the bump allocator.
+
+        2. The Bitmap allocator keeps a m_bitmap that is initialized in
+           MarkedBlock::Handle::specializedSweep() to have a bit set for each atom
+           location that is available for allocation (i.e. is free).  Note that a cell
+           is usually allocated using more than 1 atom.  Only the bit corresponding to
+           the first atom (in that cell length range of free atoms) will be set.
+
+           This is consistent with how bits in MarkedBlock::Footer::m_marks and
+           MarkedBlock::Footer::m_newlyAllocated are set i.e. only the bit for the first
+           atom in the cell can be set.
+
+        3. The allocation algorithm thinks of the MarkedBlock as consisting of rows
+           of atoms, where the number of atoms in a row equals the number of bits in
+           a AtomsBitmap::Word.  On 64-bit CPUs, this would be 64.
+
+           We will start allocating from the last (highest numbered) row down to the
+           first (row 0).  As we allocate, we will only update m_currentRowIndex and
+           m_currentRowBitmap.  m_bitmap will not be updated.  This is so in order to
+           reduce the number of instructions executed during an allocation.
+
+           When m_currentRowIndex points to N, the AtomsBitmap::Word for row N in
+           m_bitmap will have been copied into m_currentRowBitmap.  This is the row
+           that we will be allocating from until the row is exhausted.
+
+           This is how we know whether an atom is available for allocation or not:
+             i. Atoms in any rows above m_currentRowIndex are guaranteed to be
+                allocated already (because we allocate downwards), and hence, are not
+                available.
+            ii. For row m_currentRowIndex, m_currentRowBitmap is the source of truth
+                on which atoms in the row are available for allocation.
+           iii. For rows below m_currentRowIndex, m_bitmap is the source of truth on
+                which atoms are available for allocation.
+
+           When m_currentRowIndex reaches 0, the info in m_bitmap is completely
+           obsoleted, and m_currentRowBitmap holds the availability info for row 0.
+           When both m_currentRowIndex and m_currentRowBitmap are 0, then we have
+           completely exhausted the block and no more atoms are available for
+           allocation.
+
+        4. Allocation happens in 3 paths: fast, middle, slow.
+
+           The fast path checks m_currentRowBitmap.  If it's not 0, then we compute the
+           bit number of the lowest set bit in it.  That bit number will be used together
+           with m_currentMarkedBlockRowAddress to compute the address of the atom
+           location available for allocation.  m_currentRowBitmap will be updated to clear
+           the bit for the atom that has just ben allocated.
+
+           If m_currentRowBitmap is 0, then we'll go to the middle path.
+
+           The middle path checks m_currentRowIndex to see if we have more rows to allocate
+           from.  For each m_currentRowIndex, we check its corresponding AtomsBitmap::Word
+           in m_bitmap.  If the word is non-zero, we copy it to m_currentRowBitmap and
+           jump to the fast path to do the allocation.  The middle path will update
+           m_currentRowIndex to point to the current row we're allocating from.
+
+           If we have decremented m_currentRowIndex down to 0 but still can't find a
+           non-zero AtomsBitmap::Word in m_bitmap, then the block has been exhausted, and
+           we'll go to the slow path.
+
+           The slow path is analogous to the old slow path i.e. we try to refill the
+           LocalAllocator with a new MarkedBlock.
+
+        5. On the layout of fields in FreeList (see changes in FreeList.h), we try to
+           preserve the positions of the bump allocator fields.  The only change we made
+           there is in the location of m_cellSize.  It is now moved up next to m_remaining,
+           and m_originalSize is moved down.  This is because m_originalSize is only
+           accessed in the slow path, and m_cellSize is accessed in the bump allocation
+           path.
+
+           Next, we try to put Bitmap allocation fields where the linked list fields
+           would have been.  The one bit of trickiness is that we'll put
+           m_currentMarkedBlockRowAddress in a union with m_payloadEnd.  This is because
+           m_payloadEnd is only used in the bump allocation path.  If m_remaining is 0,
+           then we can reuse this location for m_currentMarkedBlockRowAddress.
+
+           With this, we would have 4 bytes of padding after m_currentRowIndex.  For
+           compactness, we put m_originalSize there in that space.  For builds that use
+           the linked list implementation, m_originalSize will be located below after
+           m_cellSize.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::allocateHeapCell):
+        * heap/FreeList.cpp:
+        (JSC::FreeList::clear):
+        (JSC::FreeList::initializeAtomsBitmap):
+        (JSC::FreeList::initializeBump):
+        (JSC::FreeList::contains const):
+        (JSC::FreeList::dump const):
+        * heap/FreeList.h:
+        (JSC::FreeList::bitmapIsEmpty const):
+        (JSC::FreeList::allocationWillFail const):
+        (JSC::FreeList::offsetOfCurrentRowBitmap):
+        (JSC::FreeList::offsetOfBitmapRows):
+        (JSC::FreeList::offsetOfCurrentRowIndex):
+        (JSC::FreeList::offsetOfCurrentMarkedBlockRowAddress):
+        (JSC::FreeList::offsetOfRemaining):
+        (JSC::FreeList::atomsBitmap):
+        (JSC::FreeList::bitmapRows const):
+        (JSC::FreeList::offsetOfOriginalSize): Deleted.
+        * heap/FreeListInlines.h:
+        (JSC::FreeList::allocate):
+        (JSC::FreeList::forEach const):
+        * heap/LocalAllocator.cpp:
+        (JSC::LocalAllocator::isFreeListedCell const):
+        * heap/MarkedBlock.h:
+        (JSC::MarkedBlock::Handle::atomAt const):
+        * heap/MarkedBlockInlines.h:
+        (JSC::MarkedBlock::Handle::specializedSweep):
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::emitAllocateWithNonNullAllocator):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::emitAllocateWithNonNullAllocator):
+
+2020-06-17  Mark Lam  <mark.lam@apple.com>
+
+        StructureIDTable::validate() doesn't work when compiled with GCC.
+        https://bugs.webkit.org/show_bug.cgi?id=213302
+        <rdar://problem/64452172>
+
+        Reviewed by Yusuke Suzuki.
+
+        I was previously using ensureStillAliveHere() to force the validation load to
+        not be elided.  However, this is not how ensureStillAliveHere() works.  The proper
+        way to force the load is to use a volatile pointer instead, which is applied in
+        this patch.
+
+        With Clang, the ensureStillAliveHere() happened to do what I expected, but with
+        GCC it did not.  The compiler is at liberty to elide the load because there is
+        no memory clobbering operation between the load and the call to
+        ensureStillAliveHere().  Switching to using the volatile pointer solution.
+
+        * runtime/StructureIDTable.h:
+        (JSC::StructureIDTable::validate):
+
 2020-06-17  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] Freeze JSBigInt when setting it as a constant in AI

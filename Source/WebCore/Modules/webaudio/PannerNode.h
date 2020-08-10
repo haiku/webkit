@@ -26,6 +26,7 @@
 
 #if ENABLE(WEB_AUDIO)
 
+#include "AudioContext.h"
 #include "AudioListener.h"
 #include "AudioNode.h"
 #include "AudioParam.h"
@@ -41,6 +42,16 @@ namespace WebCore {
 
 class HRTFDatabaseLoader;
 
+class PannerNodeBase : public AudioNode {
+public:
+    virtual ~PannerNodeBase() = default;
+
+    virtual float dopplerRate() = 0;
+
+protected:
+    PannerNodeBase(BaseAudioContext&, float sampleRate);
+};
+
 // PannerNode is an AudioNode with one input and one output.
 // It positions a sound in 3D space, with the exact effect dependent on the panning model.
 // It has a position and an orientation in 3D space which is relative to the position and orientation of the context's AudioListener.
@@ -48,10 +59,10 @@ class HRTFDatabaseLoader;
 // A cone effect will attenuate the gain as the orientation moves away from the listener.
 // All of these effects follow the OpenAL specification very closely.
 
-class PannerNode final : public AudioNode {
+class PannerNode final : public PannerNodeBase {
     WTF_MAKE_ISO_ALLOCATED(PannerNode);
 public:
-    static Ref<PannerNode> create(AudioContext& context, float sampleRate)
+    static Ref<PannerNode> create(BaseAudioContext& context, float sampleRate)
     {
         return adoptRef(*new PannerNode(context, sampleRate));
     }
@@ -80,12 +91,11 @@ public:
     AudioParam& positionZ() { return m_positionZ.get(); }
 
     // Orientation
-    FloatPoint3D orientation() const { return m_orientation; }
-    void setOrientation(float x, float y, float z) { m_orientation = FloatPoint3D(x, y, z); }
-
-    // Velocity
-    FloatPoint3D velocity() const { return m_velocity; }
-    void setVelocity(float x, float y, float z) { m_velocity = FloatPoint3D(x, y, z); }
+    FloatPoint3D orientation() const;
+    void setOrientation(float x, float y, float z);
+    AudioParam& orientationX() { return m_orientationX.get(); }
+    AudioParam& orientationY() { return m_orientationY.get(); }
+    AudioParam& orientationZ() { return m_orientationZ.get(); }
 
     // Distance parameters
     DistanceModelType distanceModel() const;
@@ -111,7 +121,7 @@ public:
     void setConeOuterGain(double angle) { m_coneEffect.setOuterGain(angle); }
 
     void getAzimuthElevation(double* outAzimuth, double* outElevation);
-    float dopplerRate();
+    float dopplerRate() final;
 
     // Accessors for dynamically calculated gain values.
     AudioParam* distanceGain() { return m_distanceGain.get(); }
@@ -121,7 +131,7 @@ public:
     double latencyTime() const override { return m_panner ? m_panner->latencyTime() : 0; }
 
 private:
-    PannerNode(AudioContext&, float sampleRate);
+    PannerNode(BaseAudioContext&, float sampleRate);
 
     // Returns the combined distance and cone gain attenuation.
     float distanceConeGain();
@@ -133,9 +143,6 @@ private:
     std::unique_ptr<Panner> m_panner;
     PanningModelType m_panningModel;
 
-    FloatPoint3D m_orientation;
-    FloatPoint3D m_velocity;
-
     // Gain
     RefPtr<AudioParam> m_distanceGain;
     RefPtr<AudioParam> m_coneGain;
@@ -146,6 +153,10 @@ private:
     Ref<AudioParam> m_positionX;
     Ref<AudioParam> m_positionY;
     Ref<AudioParam> m_positionZ;
+    
+    Ref<AudioParam> m_orientationX;
+    Ref<AudioParam> m_orientationY;
+    Ref<AudioParam> m_orientationZ;
 
     // HRTF Database loader
     RefPtr<HRTFDatabaseLoader> m_hrtfDatabaseLoader;

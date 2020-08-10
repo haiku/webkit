@@ -155,7 +155,7 @@ void IntlRelativeTimeFormat::initializeRelativeTimeFormat(JSGlobalObject* global
         return;
     }
 
-    m_relativeDateTimeFormatter = std::unique_ptr<URelativeDateTimeFormatter, URelativeDateTimeFormatterDeleter>(ureldatefmt_open(dataLocaleWithExtensions.data(), m_numberFormat.get(), m_style, UDISPCTX_CAPITALIZATION_FOR_STANDALONE, &status));
+    m_relativeDateTimeFormatter = std::unique_ptr<URelativeDateTimeFormatter, URelativeDateTimeFormatterDeleter>(ureldatefmt_open(dataLocaleWithExtensions.data(), nullptr, m_style, UDISPCTX_CAPITALIZATION_FOR_STANDALONE, &status));
     if (UNLIKELY(U_FAILURE(status))) {
         throwTypeError(globalObject, scope, "failed to initialize RelativeTimeFormat"_s);
         return;

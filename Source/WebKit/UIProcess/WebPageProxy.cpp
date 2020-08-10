@@ -1059,6 +1059,11 @@ void WebPageProxy::initializeWebPage()
     setDrawingArea(pageClient().createDrawingAreaProxy(m_process));
     ASSERT(m_drawingArea);
 
+#if ENABLE(REMOTE_INSPECTOR)
+    // Initialize remote inspector connection now that we have a sub-process that is hosting one of our web views.
+    Inspector::RemoteInspector::singleton();
+#endif
+
     send(Messages::WebProcess::CreateWebPage(m_webPageID, creationParameters(m_process, *m_drawingArea)), 0);
 
     m_process->addVisitedLinkStoreUser(visitedLinkStore(), m_identifier);
@@ -1261,7 +1266,7 @@ void WebPageProxy::maybeInitializeSandboxExtensionHandle(WebProcessProxy& proces
 }
 
 #if !PLATFORM(COCOA)
-void WebPageProxy::addPlatformLoadParameters(LoadParameters&)
+void WebPageProxy::addPlatformLoadParameters(WebProcessProxy&, LoadParameters&)
 {
 }
 #endif
@@ -1318,7 +1323,7 @@ void WebPageProxy::loadRequestWithNavigationShared(Ref<WebProcessProxy>&& proces
     loadParameters.isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain;
     maybeInitializeSandboxExtensionHandle(process, url, m_pageLoadState.resourceDirectoryURL(), loadParameters.sandboxExtensionHandle);
 
-    addPlatformLoadParameters(loadParameters);
+    addPlatformLoadParameters(process, loadParameters);
 
     preconnectTo(url);
 
@@ -1380,7 +1385,7 @@ RefPtr<API::Navigation> WebPageProxy::loadFile(const String& fileURLString, cons
     loadParameters.userData = UserData(process().transformObjectsToHandles(userData).get());
     const bool checkAssumedReadAccessToResourceURL = false;
     maybeInitializeSandboxExtensionHandle(m_process, fileURL, resourceDirectoryURL, loadParameters.sandboxExtensionHandle, checkAssumedReadAccessToResourceURL);
-    addPlatformLoadParameters(loadParameters);
+    addPlatformLoadParameters(m_process, loadParameters);
 
 #if HAVE(SANDBOX_ISSUE_READ_EXTENSION_TO_PROCESS_BY_AUDIT_TOKEN)
     if (m_process->isLaunching())
@@ -1440,7 +1445,7 @@ void WebPageProxy::loadDataWithNavigationShared(Ref<WebProcessProxy>&& process, 
     loadParameters.websitePolicies = WTFMove(websitePolicies);
     loadParameters.shouldOpenExternalURLsPolicy = shouldOpenExternalURLsPolicy;
     loadParameters.isNavigatingToAppBoundDomain = isNavigatingToAppBoundDomain;
-    addPlatformLoadParameters(loadParameters);
+    addPlatformLoadParameters(process, loadParameters);
 
     process->assumeReadAccessToBaseURL(*this, baseURL);
     process->send(Messages::WebPage::LoadData(loadParameters), webPageID);
@@ -1482,7 +1487,7 @@ void WebPageProxy::loadAlternateHTML(const IPC::DataReference& htmlData, const S
     loadParameters.unreachableURLString = unreachableURL.string();
     loadParameters.provisionalLoadErrorURLString = m_failingProvisionalLoadURL;
     loadParameters.userData = UserData(process().transformObjectsToHandles(userData).get());
-    addPlatformLoadParameters(loadParameters);
+    addPlatformLoadParameters(process(), loadParameters);
 
     m_process->assumeReadAccessToBaseURL(*this, baseURL.string());
     m_process->assumeReadAccessToBaseURL(*this, unreachableURL.string());
@@ -1511,7 +1516,7 @@ void WebPageProxy::loadWebArchiveData(API::Data* webArchiveData, API::Object* us
     loadParameters.MIMEType = "application/x-webarchive"_s;
     loadParameters.encodingName = "utf-16"_s;
     loadParameters.userData = UserData(process().transformObjectsToHandles(userData).get());
-    addPlatformLoadParameters(loadParameters);
+    addPlatformLoadParameters(process(), loadParameters);
 
     send(Messages::WebPage::LoadData(loadParameters));
     m_process->startResponsivenessTimer();
@@ -6667,9 +6672,9 @@ void WebPageProxy::didChooseFilesForOpenPanelWithDisplayStringAndIcon(const Vect
 
     SandboxExtension::Handle frontboardServicesSandboxExtension, iconServicesSandboxExtension;
 #if HAVE(FRONTBOARD_SYSTEM_APP_SERVICES)
-    SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices", WTF::nullopt, frontboardServicesSandboxExtension);
+    SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices"_s, WTF::nullopt, frontboardServicesSandboxExtension);
 #endif
-    SandboxExtension::createHandleForMachLookup("com.apple.iconservices", WTF::nullopt, iconServicesSandboxExtension);
+    SandboxExtension::createHandleForMachLookup("com.apple.iconservices"_s, WTF::nullopt, iconServicesSandboxExtension);
 
     send(Messages::WebPage::DidChooseFilesForOpenPanelWithDisplayStringAndIcon(fileURLs, displayString, iconData ? iconData->dataReference() : IPC::DataReference(), frontboardServicesSandboxExtension, iconServicesSandboxExtension));
 
@@ -7852,9 +7857,9 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
 #if ENABLE(ATTACHMENT_ELEMENT) && PLATFORM(IOS_FAMILY)
     if (m_preferences->attachmentElementEnabled() && !m_process->hasIssuedAttachmentElementRelatedSandboxExtensions()) {
         SandboxExtension::Handle handle;
-        SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices", WTF::nullopt, handle);
+        SandboxExtension::createHandleForMachLookup("com.apple.frontboard.systemappservices"_s, WTF::nullopt, handle);
         parameters.frontboardExtensionHandle = WTFMove(handle);
-        SandboxExtension::createHandleForMachLookup("com.apple.iconservices", WTF::nullopt, handle);
+        SandboxExtension::createHandleForMachLookup("com.apple.iconservices"_s, WTF::nullopt, handle);
         parameters.iconServicesExtensionHandle = WTFMove(handle);
         m_process->setHasIssuedAttachmentElementRelatedSandboxExtensions();
     }

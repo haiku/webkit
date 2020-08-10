@@ -603,7 +603,7 @@ public:
 
     void closePage();
 
-    void addPlatformLoadParameters(LoadParameters&);
+    void addPlatformLoadParameters(WebProcessProxy&, LoadParameters&);
     RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemes, API::Object* userData = nullptr);
     RefPtr<API::Navigation> loadFile(const String& fileURL, const String& resourceDirectoryURL, API::Object* userData = nullptr);
     RefPtr<API::Navigation> loadData(const IPC::DataReference&, const String& MIMEType, const String& encoding, const String& baseURL, API::Object* userData = nullptr, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow);
@@ -2837,10 +2837,6 @@ private:
     bool m_userScriptsNotified { false };
     bool m_limitsNavigationsToAppBoundDomains { false };
     bool m_hasExecutedAppBoundBehaviorBeforeNavigation { false };
-
-#if ENABLE(ROUTING_ARBITRATION)
-    std::unique_ptr<AudioSessionRoutingArbitratorProxy> m_routingArbitrator;
-#endif
 };
 
 } // namespace WebKit

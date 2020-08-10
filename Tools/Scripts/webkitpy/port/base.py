@@ -143,6 +143,7 @@ class Port(object):
         self._jhbuild_wrapper = []
         self._layout_tests_dir = hasattr(options, 'layout_tests_dir') and options.layout_tests_dir and self._filesystem.abspath(options.layout_tests_dir)
         self._w3c_resource_files = None
+        self._display_server = None
 
     def target_host(self, worker_number=None):
         return self.host
@@ -836,9 +837,6 @@ class Port(object):
         return self._build_path()
 
     def bindings_results_directory(self):
-        return self._build_path()
-
-    def api_results_directory(self):
         return self._build_path()
 
     def results_directory(self):

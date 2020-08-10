@@ -241,7 +241,33 @@ imported/w3c/web-platform-tests/service-workers/service-worker/ready.https.html 
 # This test is timing out in all browsers.
 imported/w3c/web-platform-tests/service-workers/service-worker/clients-matchall-frozen.https.html [ Skip ]
 
-imported/w3c/web-platform-tests/referrer-policy [ Skip ]
+# These tests rely on subdomains and can't work currently with local webserver.
+imported/w3c/web-platform-tests/referrer-policy/origin [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/strict-origin-when-cross-origin [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/no-referrer [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/origin-when-cross-origin [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/unsafe-url [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/css-integration [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/no-referrer-when-downgrade [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/same-origin [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/strict-origin [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/unset-referrer-policy [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/iframe-inheritance.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/multiple-headers-and-values.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/multiple-headers-combined.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/multiple-headers-one-invalid.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/multiple-headers-one-unknown-token.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/multiple-headers.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/sandboxed-iframe-with-opaque-origin.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/area-navigate.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/fetch-messaging.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/iframe-messaging.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/image-decoding.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/link-navigate.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/script-messaging.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/worker-messaging.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/subresource-test/xhr-messaging.html [ Skip ]
+imported/w3c/web-platform-tests/referrer-policy/generic/unsupported-csp-referrer-directive.html [ Skip ]
 
 # Newly imported service worker tests that are timing out.
 imported/w3c/web-platform-tests/service-workers/service-worker/dedicated-worker-service-worker-interception.https.html [ Skip ]
@@ -879,9 +905,6 @@ http/tests/websocket/tests/hybi/imported/blink/permessage-deflate-window-bits.ht
 webkit.org/b/203146 fast/canvas/offscreen-enabled.html [ Skip ]
 webkit.org/b/203146 http/wpt/offscreen-canvas [ Skip ]
 webkit.org/b/203146 imported/w3c/web-platform-tests/html/canvas/offscreen [ Skip ]
-
-# Tests a setting behind the ENABLE_FULLSCREEN_API flag, which is WK2-only
-media/video-supports-fullscreen.html [ Skip ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific tests.
@@ -4315,3 +4338,7 @@ webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid
 webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-overflow-padding-001.html [ ImageOnlyFailure ]
 webkit.org/b/212246 imported/w3c/web-platform-tests/css/css-grid/grid-model/grid-overflow-padding-002.html [ ImageOnlyFailure ]
 webkit.org/b/212267 imported/w3c/web-platform-tests/css/css-grid/alignment/grid-item-self-baseline-001.html [ Skip ]
+
+# Only Cocoa ports support the -apple-system font keywords
+fast/text/text-styles/-apple-system [ ImageOnlyFailure ]
+
