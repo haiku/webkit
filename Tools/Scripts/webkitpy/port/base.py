@@ -30,6 +30,7 @@
 """Abstract base class of Port-specific entry points for the layout tests
 test infrastructure (the Port and Driver classes)."""
 
+import argparse
 import difflib
 import json
 import logging
@@ -102,18 +103,10 @@ class Port(object):
         # These are default values that should be overridden in a subclasses.
         self._os_version = None
 
-        # FIXME: This can be removed once default architectures for GTK and EFL EWS bots are set.
-        self.did_override_architecture = False
-
         # FIXME: Ideally we'd have a package-wide way to get a
         # well-formed options object that had all of the necessary
         # options defined on it.
         self._options = options or optparse.Values()
-
-        if self.get_option('architecture'):
-            self.did_override_architecture = True
-        else:
-            self.set_option('architecture', self.DEFAULT_ARCHITECTURE)
 
         if self._name and '-wk2' in self._name:
             self._options.webkit_test_runner = True
@@ -149,10 +142,9 @@ class Port(object):
         return self.host
 
     def architecture(self):
-        return self.get_option('architecture')
+        return self.get_option('architecture') or self.DEFAULT_ARCHITECTURE
 
     def set_architecture(self, arch):
-        self.did_override_architecture = True
         self.set_option('architecture', arch)
 
     def additional_drt_flag(self):
@@ -798,7 +790,12 @@ class Port(object):
         return self.get_option(name) == value
 
     def set_option_default(self, name, default_value):
-        return self._options.ensure_value(name, default_value)
+        if isinstance(self._options, argparse.Namespace):
+            if not hasattr(self._options, name):
+                setattr(self._options, name, default_value)
+                return True
+        else:
+            return self._options.ensure_value(name, default_value)
 
     @memoized
     def path_to_generic_test_expectations_file(self):
@@ -1256,7 +1253,7 @@ class Port(object):
 
     def _debian_php_version(self):
         prefix = "/usr/lib/apache2/modules/"
-        for version in ("7.0", "7.1", "7.2", "7.3"):
+        for version in ("7.0", "7.1", "7.2", "7.3", "7.4"):
             if self._filesystem.exists("%s/libphp%s.so" % (prefix, version)):
                 return "-php%s" % version
         _log.error("No libphp7.x.so found in %s" % prefix)
@@ -1369,6 +1366,13 @@ class Port(object):
     def _path_to_default_image_diff(self):
         """Returns the full path to the default ImageDiff binary, or None if it is not available."""
         return self._build_path('ImageDiff')
+
+    def run_minibrowser(self, args):
+        # FIXME: Migrate to webkitpy based run-minibrowser. https://bugs.webkit.org/show_bug.cgi?id=213464
+        miniBrowser = self.path_to_script("old-run-minibrowser")
+        args.append(self._config.flag_for_configuration(self.get_option('configuration')))
+        args.append("--%s" % self.get_option('platform'))
+        return self._executive.run_command([miniBrowser] + args, stdout=None, cwd=self.webkit_base(), return_stderr=False, decode_output=False, ignore_errors=True)
 
     @memoized
     def _path_to_image_diff(self):
@@ -1593,6 +1597,7 @@ class Port(object):
             style=style,
             sdk=host.platform.build_version(),
             flavor=self.get_option('result_report_flavor'),
+            model=self.get_option('model'),
         )
 
     @memoized

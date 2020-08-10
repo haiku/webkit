@@ -127,6 +127,7 @@
 
 #if PLATFORM(COCOA)
 #include "VersionChecks.h"
+#include <WebCore/PowerSourceNotifier.h>
 #endif
 
 #if PLATFORM(MAC)
@@ -673,10 +674,12 @@ NetworkProcessProxy& WebProcessPool::ensureNetworkProcess(WebsiteDataStore* with
     }
 
 #if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
-    parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory = WebsiteDataStore::defaultAlternativeServicesDirectory();
-    if (!parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory.isEmpty())
-        SandboxExtension::createHandleForReadWriteDirectory(parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory, parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectoryExtensionHandle);
-    parameters.defaultDataStoreParameters.networkSessionParameters.http3Enabled = WebsiteDataStore::http3Enabled();
+    if (WebsiteDataStore::http3Enabled()) {
+        parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory = WebsiteDataStore::defaultAlternativeServicesDirectory();
+        if (!parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory.isEmpty())
+            SandboxExtension::createHandleForReadWriteDirectory(parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectory, parameters.defaultDataStoreParameters.networkSessionParameters.alternativeServiceDirectoryExtensionHandle);
+        parameters.defaultDataStoreParameters.networkSessionParameters.http3Enabled = true;
+    }
 #endif
     bool isItpStateExplicitlySet = false;
     parameters.defaultDataStoreParameters.networkSessionParameters.resourceLoadStatisticsParameters = ResourceLoadStatisticsParameters {
@@ -1387,7 +1390,7 @@ DownloadProxy& WebProcessPool::download(WebsiteDataStore& dataStore, WebPageProx
     Optional<NavigatingToAppBoundDomain> isAppBound = NavigatingToAppBoundDomain::No;
     if (initiatingPage) {
         initiatingPage->handleDownloadRequest(downloadProxy);
-        isAppBound = initiatingPage->isNavigatingToAppBoundDomain();
+        isAppBound = initiatingPage->isTopFrameNavigatingToAppBoundDomain();
     }
 
     if (networkProcess()) {
@@ -1955,30 +1958,16 @@ void WebProcessPool::processStoppedUsingGamepads(WebProcessProxy& process)
         UIGamepadProvider::singleton().processPoolStoppedUsingGamepads(*this);
 }
 
-void WebProcessPool::gamepadConnected(const UIGamepad& gamepad)
+void WebProcessPool::gamepadConnected(const UIGamepad& gamepad, EventMakesGamepadsVisible eventVisibility)
 {
     for (auto& process : m_processesUsingGamepads)
-        process->send(Messages::WebProcess::GamepadConnected(gamepad.fullGamepadData()), 0);
+        process->send(Messages::WebProcess::GamepadConnected(gamepad.fullGamepadData(), eventVisibility), 0);
 }
 
 void WebProcessPool::gamepadDisconnected(const UIGamepad& gamepad)
 {
     for (auto& process : m_processesUsingGamepads)
         process->send(Messages::WebProcess::GamepadDisconnected(gamepad.index()), 0);
-}
-
-void WebProcessPool::setInitialConnectedGamepads(const Vector<std::unique_ptr<UIGamepad>>& gamepads)
-{
-    Vector<GamepadData> gamepadDatas;
-    gamepadDatas.grow(gamepads.size());
-    for (size_t i = 0; i < gamepads.size(); ++i) {
-        if (!gamepads[i])
-            continue;
-        gamepadDatas[i] = gamepads[i]->fullGamepadData();
-    }
-
-    for (auto& process : m_processesUsingGamepads)
-        process->send(Messages::WebProcess::SetInitialGamepads(gamepadDatas), 0);
 }
 
 #endif // ENABLE(GAMEPAD)
@@ -2185,7 +2174,7 @@ void WebProcessPool::processForNavigationInternal(WebPageProxy& page, const API:
     auto& targetURL = navigation.currentRequest().url();
     auto targetRegistrableDomain = WebCore::RegistrableDomain { targetURL };
 
-    auto createNewProcess = [this, protectedThis = makeRef(*this), page = makeRef(page), targetRegistrableDomain, dataStore = dataStore.copyRef()] () -> Ref<WebProcessProxy> {
+    auto createNewProcess = [this, protectedThis = makeRef(*this), page = makeRef(page), targetRegistrableDomain, dataStore] () -> Ref<WebProcessProxy> {
         return processForRegistrableDomain(dataStore, page.ptr(), targetRegistrableDomain);
     };
 
@@ -2362,7 +2351,7 @@ void WebProcessPool::seedResourceLoadStatisticsForTesting(const RegistrableDomai
     auto callbackAggregator = CallbackAggregator::create(WTFMove(completionHandler));
 
     for (auto& process : processes())
-        process->sendWithAsyncReply(Messages::WebProcess::SeedResourceLoadStatisticsForTesting(firstPartyDomain, thirdPartyDomain, shouldScheduleNotification), [callbackAggregator = callbackAggregator.copyRef()] { });
+        process->sendWithAsyncReply(Messages::WebProcess::SeedResourceLoadStatisticsForTesting(firstPartyDomain, thirdPartyDomain, shouldScheduleNotification), [callbackAggregator] { });
 }
 #endif
 

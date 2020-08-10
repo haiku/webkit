@@ -17,6 +17,7 @@ set(WTF_PUBLIC_HEADERS
     BloomFilter.h
     BooleanLattice.h
     Box.h
+    BoxPtr.h
     Brigand.h
     BubbleSort.h
     BumpPointerAllocator.h
@@ -62,6 +63,7 @@ set(WTF_PUBLIC_HEADERS
     EnumTraits.h
     Expected.h
     ExportMacros.h
+    FailureAction.h
     FastBitVector.h
     FastMalloc.h
     FastTLS.h
@@ -124,7 +126,6 @@ set(WTF_PUBLIC_HEADERS
     LoggingHashMap.h
     LoggingHashSet.h
     LoggingHashTraits.h
-    MD5.h
     MachSendRight.h
     MainThread.h
     MainThreadData.h
@@ -212,7 +213,6 @@ set(WTF_PUBLIC_HEADERS
     ResourceUsage.h
     RetainPtr.h
     RunLoop.h
-    RunLoopTimer.h
     SHA1.h
     SaturatedArithmetic.h
     SchedulePair.h
@@ -339,6 +339,7 @@ set(WTF_PUBLIC_HEADERS
     text/StringHasher.h
     text/StringImpl.h
     text/StringOperators.h
+    text/StringParsingBuffer.h
     text/StringToIntegerConversion.h
     text/StringView.h
     text/SymbolImpl.h
@@ -402,7 +403,6 @@ set(WTF_SOURCES
     Lock.cpp
     LockedPrintStream.cpp
     Logger.cpp
-    MD5.cpp
     MainThread.cpp
     MediaTime.cpp
     MemoryPressureHandler.cpp
@@ -498,6 +498,7 @@ set(WTF_SOURCES
     unicode/UTF8Conversion.cpp
 
     unicode/icu/CollatorICU.cpp
+    unicode/icu/ICUHelpers.cpp
 )
 
 set(WTF_PRIVATE_INCLUDE_DIRECTORIES

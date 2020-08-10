@@ -223,12 +223,14 @@ static void runOpenPanel(WKPageRef page, WKFrameRef frame, WKOpenPanelParameters
     }
 #endif
 
+    WKArrayRef allowedMimeTypes = WKOpenPanelParametersCopyAllowedMIMETypes(parameters);
+
     if (WKOpenPanelParametersGetAllowsMultipleFiles(parameters)) {
-        WKOpenPanelResultListenerChooseFiles(resultListenerRef, fileURLs);
+        WKOpenPanelResultListenerChooseFiles(resultListenerRef, fileURLs, allowedMimeTypes);
         return;
     }
 
-    WKOpenPanelResultListenerChooseFiles(resultListenerRef, adoptWK(WKArrayCreate(&firstItem, 1)).get());
+    WKOpenPanelResultListenerChooseFiles(resultListenerRef, adoptWK(WKArrayCreate(&firstItem, 1)).get(), allowedMimeTypes);
 }
 
 void TestController::runModal(WKPageRef page, const void* clientInfo)
@@ -444,8 +446,8 @@ void TestController::initialize(int argc, const char* argv[])
 {
     AutodrainedPool pool;
 
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
     WTF::setProcessPrivileges(allPrivileges());
 
     platformInitialize();
@@ -846,6 +848,27 @@ void TestController::resetPreferencesToConsistentValues(const TestOptions& optio
 
     static WKStringRef asyncFrameScrollingFeature = WKStringCreateWithUTF8CString("AsyncFrameScrollingEnabled");
     WKPreferencesSetInternalDebugFeatureForKey(preferences, false, asyncFrameScrollingFeature);
+
+#if ENABLE(INPUT_TYPE_DATE)
+    static WKStringRef inputTypeDateFeature = WKStringCreateWithUTF8CString("InputTypeDateEnabled");
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, inputTypeDateFeature);
+#endif
+#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
+    static WKStringRef inputTypeDateTimeLocalFeature = WKStringCreateWithUTF8CString("InputTypeDateTimeLocalEnabled");
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, inputTypeDateTimeLocalFeature);
+#endif
+#if ENABLE(INPUT_TYPE_MONTH)
+    static WKStringRef inputTypeMonthFeature = WKStringCreateWithUTF8CString("InputTypeMonthEnabled");
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, inputTypeMonthFeature);
+#endif
+#if ENABLE(INPUT_TYPE_TIME)
+    static WKStringRef inputTypeTimeFeature = WKStringCreateWithUTF8CString("InputTypeTimeEnabled");
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, inputTypeTimeFeature);
+#endif
+#if ENABLE(INPUT_TYPE_WEEK)
+    static WKStringRef inputTypeWeekFeature = WKStringCreateWithUTF8CString("InputTypeWeekEnabled");
+    WKPreferencesSetInternalDebugFeatureForKey(preferences, true, inputTypeWeekFeature);
+#endif
 
     for (const auto& internalDebugFeature : options.internalDebugFeatures)
         WKPreferencesSetInternalDebugFeatureForKey(preferences, internalDebugFeature.value, toWK(internalDebugFeature.key).get());
@@ -3133,9 +3156,12 @@ void TestController::platformWillRunTest(const TestInvocation&)
 {
 }
 
-void TestController::platformInitializeDataStore(WKPageConfigurationRef, const TestOptions&)
+void TestController::platformInitializeDataStore(WKPageConfigurationRef configuration, const TestOptions& options)
 {
-    m_websiteDataStore = defaultWebsiteDataStore();
+    if (options.useEphemeralSession)
+        m_websiteDataStore = WKPageConfigurationGetWebsiteDataStore(configuration);
+    else
+        m_websiteDataStore = defaultWebsiteDataStore();
 }
 
 void TestController::platformCreateWebView(WKPageConfigurationRef configuration, const TestOptions& options)
@@ -3202,12 +3228,11 @@ void getAllStorageAccessEntriesCallback(void* userData, WKArrayRef domainList)
 
 void TestController::getAllStorageAccessEntries()
 {
-    auto dataStore = WKContextGetWebsiteDataStore(platformContext());
     GetAllStorageAccessEntriesCallbackContext context(*this, [this] (Vector<String>&& domains) {
         m_currentInvocation->didReceiveAllStorageAccessEntries(WTFMove(domains));
     });
 
-    WKWebsiteDataStoreGetAllStorageAccessEntries(dataStore, m_mainWebView->page(), &context, getAllStorageAccessEntriesCallback);
+    WKWebsiteDataStoreGetAllStorageAccessEntries(websiteDataStore(), m_mainWebView->page(), &context, getAllStorageAccessEntriesCallback);
     runUntil(context.done, noTimeout);
 }
 
@@ -3728,11 +3753,6 @@ void TestController::setStatisticsIsRunningTest(bool value)
 void TestController::setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool value)
 {
     WKWebsiteDataStoreSetStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(websiteDataStore(), value);
-}
-
-void TestController::setStatisticsNotifyPagesWhenTelemetryWasCaptured(bool value)
-{
-    WKWebsiteDataStoreSetStatisticsNotifyPagesWhenTelemetryWasCaptured(websiteDataStore(), value);
 }
 
 void TestController::setStatisticsMinimumTimeBetweenDataRecordsRemoval(double seconds)

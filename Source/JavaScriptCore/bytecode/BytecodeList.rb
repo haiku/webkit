@@ -327,7 +327,7 @@ op_group :UnaryOp,
         :to_string,
         :unsigned,
         :is_empty,
-        :is_undefined,
+        :typeof_is_undefined,
         :is_undefined_or_null,
         :is_boolean,
         :is_number,
@@ -1389,6 +1389,7 @@ op :llint_internal_function_call_trampoline
 op :llint_internal_function_construct_trampoline
 op :checkpoint_osr_exit_from_inlined_call_trampoline
 op :checkpoint_osr_exit_trampoline
+op :fuzzer_return_early_from_loop_hint
 op :handleUncaughtException
 op :op_call_return_location
 op :op_construct_return_location

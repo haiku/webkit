@@ -26,6 +26,7 @@
 #include "config.h"
 #include "ViewGestureController.h"
 
+#include "APINavigation.h"
 #include "DrawingAreaProxy.h"
 #include "WebBackForwardList.h"
 #include <WebCore/GRefPtrGtk.h>
@@ -337,7 +338,7 @@ void ViewGestureController::beginSwipeGesture(WebBackForwardListItem* targetItem
         if (color.isValid()) {
             m_backgroundColorForCurrentSnapshot = color;
             if (!m_currentSwipeSnapshotPattern) {
-                auto [red, green, blue, alpha] = color.toSRGBALossy();
+                auto [red, green, blue, alpha] = color.toSRGBALossy<float>();
                 m_currentSwipeSnapshotPattern = adoptRef(cairo_pattern_create_rgba(red, green, blue, alpha));
             }
         }
@@ -505,6 +506,8 @@ void ViewGestureController::removeSwipeSnapshot()
     m_webPageProxy.navigationGestureSnapshotWasRemoved();
 
     m_backgroundColorForCurrentSnapshot = Color();
+
+    m_pendingNavigation = nullptr;
 
     didEndGesture();
 

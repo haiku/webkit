@@ -238,17 +238,18 @@ static Vector<LayoutUnit> distributeAvailableSpace(const TableGrid& grid, Layout
 TableFormattingContext::TableLayout::DistributedSpaces TableFormattingContext::TableLayout::distributedHorizontalSpace(LayoutUnit availableHorizontalSpace)
 {
     enum class ColumnWidthBalancingBase { MinimumWidth, MaximumWidth };
-    auto columnWidthBalancingBase = availableHorizontalSpace == m_grid.widthConstraints()->maximum ? ColumnWidthBalancingBase::MaximumWidth : ColumnWidthBalancingBase::MinimumWidth;
+    auto columnWidthBalancingBase = availableHorizontalSpace >= m_grid.widthConstraints()->maximum ? ColumnWidthBalancingBase::MaximumWidth : ColumnWidthBalancingBase::MinimumWidth;
     return distributeAvailableSpace<ColumnSpan>(m_grid, availableHorizontalSpace, [&] (const TableGrid::Slot& slot, size_t columnIndex) {
         auto& column = m_grid.columns().list()[columnIndex];
         auto columnBoxFixedWidth = column.box() ? column.box()->columnWidth().valueOr(0_lu) : 0_lu;
-        if (columnWidthBalancingBase == ColumnWidthBalancingBase::MinimumWidth) {
-            auto minimumWidth = std::max<float>(slot.widthConstraints().minimum, columnBoxFixedWidth);
-            return GridSpace { minimumWidth, minimumWidth };
-        }
-        // When the column has a fixed width cell, the maximum width balancing is based on the minimum width.
         auto minimumWidth = std::max<float>(slot.widthConstraints().minimum, columnBoxFixedWidth);
         auto maximumWidth = std::max<float>(slot.widthConstraints().maximum, columnBoxFixedWidth);
+
+        if (columnWidthBalancingBase == ColumnWidthBalancingBase::MinimumWidth) {
+            ASSERT(maximumWidth >= minimumWidth);
+            return GridSpace { minimumWidth, maximumWidth - minimumWidth };
+        }
+        // When the column has a fixed width cell, the maximum width balancing is based on the minimum width.
         if (column.isFixedWidth())
             return GridSpace { minimumWidth, maximumWidth };
         return GridSpace { maximumWidth, maximumWidth };
@@ -266,6 +267,8 @@ TableFormattingContext::TableLayout::DistributedSpaces TableFormattingContext::T
     for (size_t rowIndex = 0; rowIndex < rows.size(); ++rowIndex) {
         auto maximumColumnAscent = InlineLayoutUnit { };
         auto maximumColumnDescent = InlineLayoutUnit { };
+        // Initial minimum height is the computed height if available <tr style="height: 100px"><td></td></tr>
+        rowHeight[rowIndex] = formattingContext().geometry().computedHeight(rows.list()[rowIndex].box(), availableVerticalSpace).valueOr(0_lu);
         for (size_t columnIndex = 0; columnIndex < columns.size(); ++columnIndex) {
             auto& slot = *m_grid.slot({ columnIndex, rowIndex });
             if (slot.isRowSpanned())
@@ -275,11 +278,15 @@ TableFormattingContext::TableLayout::DistributedSpaces TableFormattingContext::T
             // The minimum height of a row (without spanning-related height distribution) is defined as the height of an hypothetical
             // linebox containing the cells originating in the row.
             auto& cell = slot.cell();
-            maximumColumnAscent = std::max(maximumColumnAscent, cell.baselineOffset());
-            maximumColumnDescent = std::max(maximumColumnDescent, formattingContext().geometryForBox(cell.box()).height() - cell.baselineOffset());
+            auto& cellBox = cell.box();
+            auto height = formattingContext().geometryForBox(cellBox).height();
+            if (cellBox.style().verticalAlign() == VerticalAlign::Baseline) {
+                maximumColumnAscent = std::max(maximumColumnAscent, cell.baselineOffset());
+                maximumColumnDescent = std::max(maximumColumnDescent, height - cell.baselineOffset());
+                rowHeight[rowIndex] = std::max(rowHeight[rowIndex], LayoutUnit { maximumColumnAscent + maximumColumnDescent });
+            } else
+                rowHeight[rowIndex] = std::max(rowHeight[rowIndex], height);
         }
-        // <tr style="height: 10px"> is considered as min height.
-        rowHeight[rowIndex] = maximumColumnAscent + maximumColumnDescent;
         tableUsedHeight += rowHeight[rowIndex];
     }
     // FIXME: Collect spanning row maximum heights.

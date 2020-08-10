@@ -206,9 +206,9 @@ void JIT::emit_op_is_empty(const Instruction* currentInstruction)
     emitPutVirtualRegister(dst);
 }
 
-void JIT::emit_op_is_undefined(const Instruction* currentInstruction)
+void JIT::emit_op_typeof_is_undefined(const Instruction* currentInstruction)
 {
-    auto bytecode = currentInstruction->as<OpIsUndefined>();
+    auto bytecode = currentInstruction->as<OpTypeofIsUndefined>();
     VirtualRegister dst = bytecode.m_dst;
     VirtualRegister value = bytecode.m_operand;
     
@@ -1160,8 +1160,26 @@ void JIT::emitSlow_op_instanceof_custom(const Instruction* currentInstruction, V
 
 #endif // USE(JSVALUE64)
 
-void JIT::emit_op_loop_hint(const Instruction*)
+void JIT::emit_op_loop_hint(const Instruction* instruction)
 {
+#if USE(JSVALUE64)
+    if (Options::returnEarlyFromInfiniteLoopsForFuzzing() && m_codeBlock->loopHintsAreEligibleForFuzzingEarlyReturn()) {
+        uint64_t* ptr = vm().getLoopHintExecutionCounter(instruction);
+        load64(ptr, regT0);
+        auto skipEarlyReturn = branch64(Below, regT0, TrustedImm64(Options::earlyReturnFromInfiniteLoopsLimit()));
+
+        moveValue(jsUndefined(), JSValueRegs { GPRInfo::returnValueGPR });
+        checkStackPointerAlignment();
+        emitRestoreCalleeSaves();
+        emitFunctionEpilogue();
+        ret();
+
+        skipEarlyReturn.link(this);
+        add64(TrustedImm32(1), regT0);
+        store64(regT0, ptr);
+    }
+#endif
+
     // Emit the JIT optimization check: 
     if (canBeOptimized()) {
         addSlowCase(branchAdd32(PositiveOrZero, TrustedImm32(Options::executionCounterIncrementForLoop()),
@@ -1436,7 +1454,7 @@ void JIT::emit_op_has_indexed_property(const Instruction* currentInstruction)
     // size is always less than 4Gb). As such zero extending will have been correct (and extending the value
     // to 64-bits is necessary since it's used in the address calculation. We zero extend rather than sign
     // extending since it makes it easier to re-tag the value in the slow case.
-    zeroExtend32ToPtr(regT1, regT1);
+    zeroExtend32ToWord(regT1, regT1);
 
     emitJumpSlowCaseIfNotJSCell(regT0, base);
     emitArrayProfilingSiteWithCell(regT0, regT2, profile);
@@ -1523,26 +1541,6 @@ void JIT::emit_op_get_direct_pname(const Instruction* currentInstruction)
     done.link(this);
     emitValueProfilingSite(bytecode.metadata(m_codeBlock));
     emitPutVirtualRegister(dst, regT0);
-}
-
-void JIT::emit_op_get_prototype_of(const Instruction* currentInstruction)
-{
-    auto bytecode = currentInstruction->as<OpGetPrototypeOf>();
-    emitGetVirtualRegister(bytecode.m_value, regT0);
-
-    addSlowCase(branchIfNotCell(regT0));
-    addSlowCase(branchIfNotObject(regT0));
-
-    emitLoadStructure(vm(), regT0, regT2, regT1);
-    addSlowCase(branchTest32(NonZero, Address(regT2, Structure::outOfLineTypeFlagsOffset()), TrustedImm32(OverridesGetPrototypeOutOfLine)));
-
-    load64(Address(regT2, Structure::prototypeOffset()), regT2);
-    Jump hasMonoProto = branchTest64(NonZero, regT2);
-    load64(Address(regT0, offsetRelativeToBase(knownPolyProtoOffset)), regT2);
-    hasMonoProto.link(this);
-
-    emitValueProfilingSite(bytecode.metadata(m_codeBlock));
-    emitStoreCell(bytecode.m_dst, regT2);
 }
 
 void JIT::emit_op_enumerator_structure_pname(const Instruction* currentInstruction)
@@ -1763,6 +1761,32 @@ void JIT::emit_op_get_argument(const Instruction* currentInstruction)
     done.link(this);
     emitValueProfilingSite(bytecode.metadata(m_codeBlock));
     emitPutVirtualRegister(dst, resultRegs);
+}
+
+void JIT::emit_op_get_prototype_of(const Instruction* currentInstruction)
+{
+    auto bytecode = currentInstruction->as<OpGetPrototypeOf>();
+#if USE(JSVALUE64)
+    JSValueRegs valueRegs(regT0);
+    JSValueRegs resultRegs(regT2);
+    GPRReg scratchGPR = regT3;
+#else
+    JSValueRegs valueRegs(regT1, regT0);
+    JSValueRegs resultRegs(regT3, regT2);
+    GPRReg scratchGPR = regT1;
+    ASSERT(valueRegs.tagGPR() == scratchGPR);
+#endif
+    emitGetVirtualRegister(bytecode.m_value, valueRegs);
+
+    JumpList slowCases;
+    slowCases.append(branchIfNotCell(valueRegs));
+    slowCases.append(branchIfNotObject(valueRegs.payloadGPR()));
+
+    emitLoadPrototype(vm(), valueRegs.payloadGPR(), resultRegs, scratchGPR, slowCases);
+    addSlowCase(slowCases);
+
+    emitValueProfilingSite(bytecode.metadata(m_codeBlock));
+    emitPutVirtualRegister(bytecode.m_dst, resultRegs);
 }
 
 } // namespace JSC

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2000 Harri Porten (porten@kde.org)
  *  Copyright (C) 2006 Jon Shier (jshier@iastate.edu)
- *  Copyright (C) 2003-2017 Apple Inc. All rights reseved.
+ *  Copyright (C) 2003-2020 Apple Inc. All rights reseved.
  *  Copyright (C) 2006 Alexey Proskuryakov (ap@webkit.org)
  *  Copyright (c) 2015 Canon Inc. All rights reserved.
  *
@@ -48,10 +48,10 @@
 #include "Settings.h"
 #include "WebCoreJSClientData.h"
 #include <JavaScriptCore/CodeBlock.h>
+#include <JavaScriptCore/DeferredWorkTimer.h>
 #include <JavaScriptCore/JSInternalPromise.h>
 #include <JavaScriptCore/JSWebAssembly.h>
 #include <JavaScriptCore/Microtask.h>
-#include <JavaScriptCore/PromiseTimer.h>
 #include <JavaScriptCore/StrongInlines.h>
 #include <wtf/Language.h>
 #include <wtf/MainThread.h>
@@ -78,6 +78,7 @@ const GlobalObjectMethodTable JSDOMWindowBase::s_globalObjectMethodTable = {
     &moduleLoaderCreateImportMetaProperties,
     &moduleLoaderEvaluate,
     &promiseRejectionTracker,
+    &reportUncaughtExceptionAtEventLoop,
     &defaultLanguage,
 #if ENABLE(WEBASSEMBLY)
     &compileStreaming,
@@ -126,10 +127,14 @@ void JSDOMWindowBase::updateDocument()
     // Reaching here, the attributes of "document" property should be never changed.
     ASSERT(m_wrapped->document());
     JSGlobalObject* lexicalGlobalObject = this;
+    VM& vm = lexicalGlobalObject->vm();
+    auto scope = DECLARE_CATCH_SCOPE(vm);
+
     bool shouldThrowReadOnlyError = false;
     bool ignoreReadOnlyErrors = true;
     bool putResult = false;
-    symbolTablePutTouchWatchpointSet(this, lexicalGlobalObject, static_cast<JSVMClientData*>(lexicalGlobalObject->vm().clientData)->builtinNames().documentPublicName(), toJS(lexicalGlobalObject, this, m_wrapped->document()), shouldThrowReadOnlyError, ignoreReadOnlyErrors, putResult);
+    symbolTablePutTouchWatchpointSet(this, lexicalGlobalObject, static_cast<JSVMClientData*>(vm.clientData)->builtinNames().documentPublicName(), toJS(lexicalGlobalObject, this, m_wrapped->document()), shouldThrowReadOnlyError, ignoreReadOnlyErrors, putResult);
+    EXCEPTION_ASSERT_UNUSED(scope, !scope.exception());
 }
 
 ScriptExecutionContext* JSDOMWindowBase::scriptExecutionContext() const
@@ -439,8 +444,8 @@ void JSDOMWindowBase::compileStreaming(JSC::JSGlobalObject* globalObject, JSC::J
 
     VM& vm = globalObject->vm();
 
-    ASSERT(vm.promiseTimer->hasPendingPromise(promise));
-    ASSERT(vm.promiseTimer->hasDependancyInPendingPromise(promise, globalObject));
+    ASSERT(vm.deferredWorkTimer->hasPendingWork(promise));
+    ASSERT(vm.deferredWorkTimer->hasDependancyInPendingWork(promise, globalObject));
 
     if (auto inputResponse = JSFetchResponse::toWrapped(vm, source)) {
         handleResponseOnStreamingAction(globalObject, inputResponse, promise, [promise] (JSC::JSGlobalObject* lexicalGlobalObject, const char* data, size_t byteSize) mutable {
@@ -457,9 +462,9 @@ void JSDOMWindowBase::instantiateStreaming(JSC::JSGlobalObject* globalObject, JS
 
     VM& vm = globalObject->vm();
 
-    ASSERT(vm.promiseTimer->hasPendingPromise(promise));
-    ASSERT(vm.promiseTimer->hasDependancyInPendingPromise(promise, globalObject));
-    ASSERT(vm.promiseTimer->hasDependancyInPendingPromise(promise, importedObject));
+    ASSERT(vm.deferredWorkTimer->hasPendingWork(promise));
+    ASSERT(vm.deferredWorkTimer->hasDependancyInPendingWork(promise, globalObject));
+    ASSERT(vm.deferredWorkTimer->hasDependancyInPendingWork(promise, importedObject));
 
     if (auto inputResponse = JSFetchResponse::toWrapped(vm, source)) {
         handleResponseOnStreamingAction(globalObject, inputResponse, promise, [promise, importedObject] (JSC::JSGlobalObject* lexicalGlobalObject, const char* data, size_t byteSize) mutable {

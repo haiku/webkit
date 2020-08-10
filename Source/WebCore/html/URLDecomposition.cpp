@@ -95,27 +95,28 @@ static unsigned countASCIIDigits(StringView string)
 
 void URLDecomposition::setHost(StringView value)
 {
-    if (value.isEmpty())
+    auto fullURL = this->fullURL();
+    if (value.isEmpty() && !fullURL.protocolIs("file"))
         return;
 
-    size_t separator = value.find(':');
+    size_t separator = value.reverseFind(':');
     if (!separator)
         return;
 
-    auto fullURL = this->fullURL();
     if (fullURL.cannotBeABaseURL() || !fullURL.canSetHostOrPort())
         return;
 
-    if (separator == notFound)
+    // No port if no colon or rightmost colon is within the IPv6 section.
+    size_t ipv6Separator = value.reverseFind(']');
+    if (separator == notFound || (ipv6Separator != notFound && ipv6Separator > separator))
         fullURL.setHost(value);
     else {
+        // Multiple colons are acceptable only in case of IPv6.
+        if (value.find(':') != separator && ipv6Separator == notFound)
+            return;
         unsigned portLength = countASCIIDigits(value.substring(separator + 1));
         if (!portLength) {
-            // http://dev.w3.org/html5/spec/infrastructure.html#url-decomposition-idl-attributes
-            // specifically goes against RFC 3986 (p3.2) and
-            // requires setting the port to "0" if it is set to empty string.
-            // FIXME: This seems like something that has since been changed and this rule and code may be obsolete.
-            fullURL.setHostAndPort(makeString(value.substring(0, separator + 1), '0'));
+            fullURL.setHost(value.substring(0, separator));
         } else {
             auto portNumber = parseUInt16(value.substring(separator + 1, portLength));
             if (portNumber && WTF::isDefaultPortForProtocol(*portNumber, fullURL.protocol()))
@@ -146,10 +147,10 @@ static StringView removeAllLeadingSolidusCharacters(StringView string)
 
 void URLDecomposition::setHostname(StringView value)
 {
-    auto host = removeAllLeadingSolidusCharacters(value);
-    if (host.isEmpty())
-        return;
     auto fullURL = this->fullURL();
+    auto host = removeAllLeadingSolidusCharacters(value);
+    if (host.isEmpty() && !fullURL.protocolIs("file"))
+        return;
     if (fullURL.cannotBeABaseURL() || !fullURL.canSetHostOrPort())
         return;
     fullURL.setHost(host);
@@ -221,7 +222,7 @@ void URLDecomposition::setSearch(const String& value)
         // If the given value is the empty string, set url's query to null.
         fullURL.setQuery({ });
     } else {
-        String newSearch = value.startsWith('?') ? value.substring(1) : value;
+        String newSearch = value;
         // Make sure that '#' in the query does not leak to the hash.
         fullURL.setQuery(newSearch.replaceWithLiteral('#', "%23"));
     }
@@ -238,11 +239,10 @@ String URLDecomposition::hash() const
 void URLDecomposition::setHash(StringView value)
 {
     auto fullURL = this->fullURL();
-    auto newFragment = value.startsWith('#') ? StringView(value).substring(1) : StringView(value);
-    if (newFragment.isEmpty())
+    if (value.isEmpty())
         fullURL.removeFragmentIdentifier();
     else
-        fullURL.setFragmentIdentifier(newFragment);
+        fullURL.setFragmentIdentifier(value.startsWith('#') ? value.substring(1) : value);
     setFullURL(fullURL);
 }
 

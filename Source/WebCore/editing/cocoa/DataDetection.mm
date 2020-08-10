@@ -30,6 +30,8 @@
 
 #import "Attr.h"
 #import "CSSStyleDeclaration.h"
+#import "ColorConversion.h"
+#import "ColorSerialization.h"
 #import "Editing.h"
 #import "ElementAncestorIterator.h"
 #import "ElementTraversal.h"
@@ -619,16 +621,16 @@ NSArray *DataDetection::detectContentInRange(const SimpleRange& contextRange, Da
                 if (renderStyle) {
                     auto textColor = renderStyle->visitedDependentColor(CSSPropertyColor);
                     if (textColor.isValid()) {
-                        auto hsla = toHSLA(textColor.toSRGBALossy());
+                        auto hsla = toHSLA(textColor.toSRGBALossy<float>());
 
                         // Force the lightness of the underline color to the middle, and multiply the alpha by 38%,
                         // so the color will appear on light and dark backgrounds, since only one color can be specified.
                         hsla.lightness = 0.5f;
                         hsla.alpha *= 0.38f;
-                        auto underlineColor = makeSimpleColor(toSRGBA(hsla));
+                        auto underlineColor = convertToComponentBytes(toSRGBA(hsla));
 
                         anchorElement->setInlineStyleProperty(CSSPropertyColor, CSSValueCurrentcolor);
-                        anchorElement->setInlineStyleProperty(CSSPropertyTextDecorationColor, underlineColor.serializationForCSS());
+                        anchorElement->setInlineStyleProperty(CSSPropertyTextDecorationColor, serializationForCSS(underlineColor));
                     }
                 }
             }

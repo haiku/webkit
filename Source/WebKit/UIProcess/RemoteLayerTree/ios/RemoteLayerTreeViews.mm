@@ -35,6 +35,8 @@
 #import "WKDeferringGestureRecognizer.h"
 #import "WKDrawingView.h"
 #import <WebCore/Region.h>
+#import <WebCore/TransformationMatrix.h>
+#import <WebCore/WebCoreCALayerExtras.h>
 #import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/SoftLinking.h>
 
@@ -45,8 +47,15 @@ static void collectDescendantViewsAtPoint(Vector<UIView *, 16>& viewsAtPoint, UI
     if (parent.clipsToBounds && ![parent pointInside:point withEvent:event])
         return;
 
+    if (parent.layer.mask && ![parent.layer _web_maskContainsPoint:point])
+        return;
+
     for (UIView *view in [parent subviews]) {
         CGPoint subviewPoint = [view convertPoint:point fromView:parent];
+
+        auto transform = WebCore::TransformationMatrix { [view.layer transform] };
+        if (!transform.isInvertible())
+            continue;
 
         auto handlesEvent = [&] {
             // FIXME: isUserInteractionEnabled is mostly redundant with event regions for web content layers.
@@ -81,6 +90,9 @@ static void collectDescendantViewsAtPoint(Vector<UIView *, 16>& viewsAtPoint, UI
 static void collectDescendantViewsInRect(Vector<UIView *, 16>& viewsInRect, UIView *parent, CGRect rect)
 {
     if (parent.clipsToBounds && !CGRectIntersectsRect(parent.bounds, rect))
+        return;
+
+    if (parent.layer.mask && ![parent.layer _web_maskMayIntersectRect:rect])
         return;
 
     for (UIView *view in parent.subviews) {
@@ -120,6 +132,7 @@ bool mayContainEditableElementsInRect(UIView *rootView, const WebCore::FloatRect
     collectDescendantViewsInRect(viewsInRect, rootView, rect);
     if (viewsInRect.isEmpty())
         return false;
+    bool possiblyHasEditableElements = true;
     for (auto *view : WTF::makeReversedRange(viewsInRect)) {
         if (![view isKindOfClass:WKCompositingView.class])
             continue;
@@ -129,10 +142,13 @@ bool mayContainEditableElementsInRect(UIView *rootView, const WebCore::FloatRect
         WebCore::IntRect rectToTest { [view convertRect:rect fromView:rootView] };
         if (node->eventRegion().containsEditableElementsInRect(rectToTest))
             return true;
-        if (node->eventRegion().contains(rectToTest))
+        bool hasEditableRegion = node->eventRegion().hasEditableRegion();
+        if (hasEditableRegion && node->eventRegion().contains(rectToTest))
             return false;
+        if (hasEditableRegion)
+            possiblyHasEditableElements = false;
     }
-    return false;
+    return possiblyHasEditableElements;
 }
 
 #endif // ENABLE(EDITABLE_REGION)

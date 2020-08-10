@@ -28,6 +28,7 @@
 #include "Test.h"
 #include "WTFStringUtilities.h"
 #include <WebCore/Color.h>
+#include <WebCore/ColorSerialization.h>
 #include <wtf/MathExtras.h>
 
 using namespace WebCore;
@@ -36,7 +37,7 @@ namespace TestWebKitAPI {
 
 TEST(ExtendedColor, Constructor)
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
 
     auto [r, g, b, alpha] = c1.asExtended().components();
@@ -46,12 +47,12 @@ TEST(ExtendedColor, Constructor)
     EXPECT_FLOAT_EQ(0.25, b);
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c1.asExtended().refCount());
-    EXPECT_EQ(c1.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c1), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, CopyConstructor)
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2(c1);
@@ -64,12 +65,12 @@ TEST(ExtendedColor, CopyConstructor)
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(2u, c1.asExtended().refCount());
     EXPECT_EQ(2u, c2.asExtended().refCount());
-    EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c2), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, Assignment)
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2 = c1;
@@ -82,37 +83,34 @@ TEST(ExtendedColor, Assignment)
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(2u, c1.asExtended().refCount());
     EXPECT_EQ(2u, c2.asExtended().refCount());
-    EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c2), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, Equality)
 {
     {
-        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c2 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_EQ(c1, c2);
     }
 
     {
-        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB) };
+        Color c2 { SRGBA<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_NE(c1, c2);
     }
 
-    int r = 255;
-    int g = 128;
-    int b = 63;
-    int a = 127;
-    Color rgb1 { makeExtendedColor(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB) };
-    Color rgb2 = makeSimpleColor(r, g, b, a);
+    auto componentBytes = SRGBA<uint8_t> { 255, 128, 63, 127 };
+    Color rgb1 { convertToComponentFloats(componentBytes) };
+    Color rgb2 { componentBytes };
     EXPECT_NE(rgb1, rgb2);
     EXPECT_NE(rgb2, rgb1);
 }
@@ -120,37 +118,34 @@ TEST(ExtendedColor, Equality)
 TEST(ExtendedColor, Hash)
 {
     {
-        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c2 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_EQ(c1.hash(), c2.hash());
     }
 
     {
-        Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+        Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
-        Color c2 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::SRGB) };
+        Color c2 { SRGBA<float> { 1.0, 0.5, 0.25, 1.0 } };
         EXPECT_TRUE(c1.isExtended());
 
         EXPECT_NE(c1.hash(), c2.hash());
     }
 
-    int r = 255;
-    int g = 128;
-    int b = 63;
-    int a = 127;
-    Color rgb1 { makeExtendedColor(r / 255.0, g / 255.0, b / 255.0, a / 255.0, ColorSpace::SRGB) };
-    Color rgb2 = makeSimpleColor(r, g, b, a);
+    auto componentBytes = SRGBA<uint8_t> { 255, 128, 63, 127 };
+    Color rgb1 { convertToComponentFloats(componentBytes) };
+    Color rgb2 { componentBytes };
     EXPECT_NE(rgb1.hash(), rgb2.hash());
 }
 
 TEST(ExtendedColor, MoveConstructor)
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2(WTFMove(c1));
@@ -166,12 +161,12 @@ TEST(ExtendedColor, MoveConstructor)
     EXPECT_FLOAT_EQ(0.25, b);
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c2.asExtended().refCount());
-    EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c2), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, MoveAssignment)
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
 
     Color c2 = WTFMove(c1);
@@ -188,12 +183,13 @@ TEST(ExtendedColor, MoveAssignment)
     EXPECT_FLOAT_EQ(0.25, b);
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(1u, c2.asExtended().refCount());
-    EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c2), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, BasicReferenceCounting)
 {
-    Color* c1 = new Color { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color* c1 = new Color { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
+    
     EXPECT_TRUE(c1->isExtended());
 
     Color* c2 = new Color(*c1);
@@ -206,7 +202,7 @@ TEST(ExtendedColor, BasicReferenceCounting)
     EXPECT_FLOAT_EQ(0.25, b);
     EXPECT_FLOAT_EQ(1.0, alpha);
     EXPECT_EQ(3u, c2->asExtended().refCount());
-    EXPECT_EQ(c2->cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(*c2), "color(display-p3 1 0.5 0.25)");
 
     delete c1;
     EXPECT_EQ(2u, c2->asExtended().refCount());
@@ -219,7 +215,7 @@ TEST(ExtendedColor, BasicReferenceCounting)
 
 Color makeColor()
 {
-    Color c1 { makeExtendedColor(1.0, 0.5, 0.25, 1.0, ColorSpace::DisplayP3) };
+    Color c1 { DisplayP3<float> { 1.0, 0.5, 0.25, 1.0 } };
     EXPECT_TRUE(c1.isExtended());
     EXPECT_EQ(1u, c1.asExtended().refCount());
 
@@ -232,15 +228,15 @@ TEST(ExtendedColor, ReturnValues)
     EXPECT_TRUE(c2.isExtended());
 
     EXPECT_EQ(1u, c2.asExtended().refCount());
-    EXPECT_EQ(c2.cssText(), "color(display-p3 1 0.5 0.25)");
+    EXPECT_EQ(serializationForCSS(c2), "color(display-p3 1 0.5 0.25)");
 }
 
 TEST(ExtendedColor, P3ConversionToSRGB)
 {
-    Color p3Color { makeExtendedColor(1.0, 0.5, 0.25, 0.75, ColorSpace::DisplayP3) };
+    Color p3Color { DisplayP3<float> { 1.0, 0.5, 0.25, 0.75 } };
     EXPECT_TRUE(p3Color.isExtended());
 
-    auto sRGBAColor = p3Color.toSRGBALossy();
+    auto sRGBAColor = p3Color.toSRGBALossy<float>();
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.red, 1.0f));
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.green, 0.462537885f));
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.blue, 0.149147838f));
@@ -249,13 +245,46 @@ TEST(ExtendedColor, P3ConversionToSRGB)
 
 TEST(ExtendedColor, LinearSRGBConversionToSRGB)
 {
-    Color linearColor { makeExtendedColor(1.0, 0.5, 0.25, 0.75, ColorSpace::LinearRGB) };
-    EXPECT_TRUE(linearColor.isExtended());
-    auto sRGBAColor = linearColor.toSRGBALossy();
+    Color linearSRGBAColor { LinearSRGBA<float> { 1.0, 0.5, 0.25, 0.75 } };
+    EXPECT_TRUE(linearSRGBAColor.isExtended());
+
+    auto sRGBAColor = linearSRGBAColor.toSRGBALossy<float>();
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.red, 1.0f));
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.green, 0.735356927f));
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.blue, 0.537098706f));
     EXPECT_TRUE(WTF::areEssentiallyEqual(sRGBAColor.alpha, 0.75f));
+}
+
+TEST(ExtendedColor, ColorWithAlphaMultipliedBy)
+{
+    Color color { SRGBA<float> { 0., 0., 1., 0.6 } };
+    EXPECT_TRUE(color.isExtended());
+
+    {
+        Color colorWithAlphaMultipliedBy = color.colorWithAlphaMultipliedBy(1.);
+        EXPECT_TRUE(colorWithAlphaMultipliedBy.isExtended());
+        EXPECT_EQ(color, colorWithAlphaMultipliedBy);
+    }
+
+    {
+        Color colorWithAlphaMultipliedBy = color.colorWithAlphaMultipliedBy(0.5);
+        EXPECT_TRUE(colorWithAlphaMultipliedBy.isExtended());
+        auto [r, g, b, a] = colorWithAlphaMultipliedBy.asExtended().components();
+        EXPECT_FLOAT_EQ(r, 0.);
+        EXPECT_FLOAT_EQ(g, 0.);
+        EXPECT_FLOAT_EQ(b, 1.);
+        EXPECT_FLOAT_EQ(a, 0.3);
+    }
+
+    {
+        Color colorWithAlphaMultipliedBy = color.colorWithAlphaMultipliedBy(0.);
+        EXPECT_TRUE(colorWithAlphaMultipliedBy.isExtended());
+        auto [r, g, b, a] = colorWithAlphaMultipliedBy.asExtended().components();
+        EXPECT_FLOAT_EQ(r, 0.);
+        EXPECT_FLOAT_EQ(g, 0.);
+        EXPECT_FLOAT_EQ(b, 1.);
+        EXPECT_FLOAT_EQ(a, 0.);
+    }
 }
 
 } // namespace TestWebKitAPI

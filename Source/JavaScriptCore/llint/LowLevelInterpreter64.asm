@@ -1301,7 +1301,7 @@ llintOpWithReturn(op_is_empty, OpIsEmpty, macro (size, get, dispatch, return)
 end)
 
 
-llintOpWithReturn(op_is_undefined, OpIsUndefined, macro (size, get, dispatch, return)
+llintOpWithReturn(op_typeof_is_undefined, OpTypeofIsUndefined, macro (size, get, dispatch, return)
     get(m_operand, t1)
     loadConstantOrVariable(size, t1, t0)
     btqz t0, notCellMask, .opIsUndefinedCell
@@ -1384,6 +1384,12 @@ llintOpWithReturn(op_is_object, OpIsObject, macro (size, get, dispatch, return)
 .opIsObjectNotCell:
     return(ValueFalse)
 end)
+
+
+macro loadInlineOffset(propertyOffsetAsInt, objectAndStorage, value)
+    addp sizeof JSObject - (firstOutOfLineOffset - 2) * 8, objectAndStorage
+    loadq (firstOutOfLineOffset - 2) * 8[objectAndStorage, propertyOffsetAsInt, 8], value
+end
 
 
 macro loadPropertyAtVariableOffset(propertyOffsetAsInt, objectAndStorage, value)
@@ -1503,7 +1509,8 @@ llintOpWithProfile(op_get_prototype_of, OpGetPrototypeOf, macro (size, get, disp
     bbb JSCell::m_type[t0], ObjectType, .opGetPrototypeOfSlow
 
     loadStructureWithScratch(t0, t2, t1, t3)
-    btinz Structure::m_outOfLineTypeFlags[t2], OverridesGetPrototypeOutOfLine, .opGetPrototypeOfSlow
+    loadh Structure::m_outOfLineTypeFlags[t2], t3
+    btinz t3, OverridesGetPrototypeOutOfLine, .opGetPrototypeOfSlow
 
     loadq Structure::m_prototype[t2], t2
     btqz t2, .opGetPrototypeOfPolyProto
@@ -1515,7 +1522,7 @@ llintOpWithProfile(op_get_prototype_of, OpGetPrototypeOf, macro (size, get, disp
 
 .opGetPrototypeOfPolyProto:
     move knownPolyProtoOffset, t1
-    loadPropertyAtVariableOffset(t1, t0, t3)
+    loadInlineOffset(t1, t0, t3)
     return(t3)
 end)
 
@@ -1692,7 +1699,8 @@ llintOpWithMetadata(op_get_private_name, OpGetPrivateName, macro (size, get, dis
     metadata(t2, t0)
 
     # Slow path if the private field is stale
-    get(m_property, t0)
+    get(m_property, t1)
+    loadConstantOrVariable(size, t1, t0)
     loadp OpGetPrivateName::Metadata::m_property[t2], t1
     bpneq t1, t0, .opGetPrivateNameSlow
 
@@ -2937,3 +2945,9 @@ end)
 llintOpWithReturn(op_in_structure_property, OpInStructureProperty, macro (size, get, dispatch, return)
     hasStructurePropertyImpl(size, get, dispatch,  return, _slow_path_in_structure_property)
 end)
+
+op(fuzzer_return_early_from_loop_hint, macro ()
+    move ValueUndefined, r0
+    doReturn()
+end)
+

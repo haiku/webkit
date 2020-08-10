@@ -35,11 +35,11 @@ import re
 import sys
 import time
 
+from webkitcorepy import Version
+
 from webkitpy.common.system.crashlogs import CrashLogs
 from webkitpy.common.system.systemhost import SystemHost
-from webkitpy.common.system.executive import Executive
 from webkitpy.common.system.path import abspath_to_uri, cygpath
-from webkitpy.common.version import Version
 from webkitpy.common.version_name_map import VersionNameMap
 from webkitpy.port.apple import ApplePort
 from webkitpy.port.config import apple_additions
@@ -153,7 +153,7 @@ class WinPort(ApplePort):
         return 'win'
 
     def _port_flag_for_scripts(self):
-        if self.get_option('architecture') == 'x86_64':
+        if self.architecture() == 'x86_64':
             return '--64-bit'
         return None
 
@@ -166,7 +166,7 @@ class WinPort(ApplePort):
         if not root_directory:
             ApplePort._build_path(self, *comps)  # Sets option _cached_root
             binary_directory = 'bin32'
-            if self.get_option('architecture') == 'x86_64':
+            if self.architecture() == 'x86_64':
                 binary_directory = 'bin64'
             root_directory = self._filesystem.join(self.get_option('_cached_root'), binary_directory)
             self.set_option('_cached_root', root_directory)
@@ -216,7 +216,7 @@ class WinPort(ApplePort):
         possible_paths = [self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "10", "Debuggers", "x64", "ntsd.exe"),
             self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "8.1", "Debuggers", "x64", "ntsd.exe"),
             self._filesystem.join(os.environ['PROGRAMFILES'], "Windows Kits", "8.0", "Debuggers", "x64", "ntsd.exe")]
-        if self.get_option('architecture') == 'x86_64':
+        if self.architecture() == 'x86_64':
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "10", "Debuggers", "x64", "ntsd.exe"))
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "8.1", "Debuggers", "x64", "ntsd.exe"))
             possible_paths.append(self._filesystem.join("{0} (x86)".format(os.environ['PROGRAMFILES']), "Windows Kits", "8.0", "Debuggers", "x64", "ntsd.exe"))

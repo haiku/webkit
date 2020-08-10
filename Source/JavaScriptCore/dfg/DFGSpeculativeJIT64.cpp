@@ -1023,7 +1023,7 @@ GPRReg SpeculativeJIT::fillSpeculateInt32Internal(Edge edge, DataFormat& returnF
                 info.fillInt32(*m_stream, gpr);
                 result = gpr;
             }
-            m_jit.zeroExtend32ToPtr(gpr, result);
+            m_jit.zeroExtend32ToWord(gpr, result);
             returnFormat = DataFormatInt32;
             return result;
         }
@@ -4242,7 +4242,7 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
         
-    case IsUndefined: {
+    case TypeOfIsUndefined: {
         JSValueOperand value(this, node->child1());
         GPRTemporary result(this);
         GPRTemporary localGlobalObject(this);
@@ -4963,7 +4963,35 @@ void SpeculativeJIT::compile(Node* node)
         break;
         
     case PhantomLocal:
+        // This is a no-op.
+        noResult(node);
+        break;
+
     case LoopHint:
+        if (Options::returnEarlyFromInfiniteLoopsForFuzzing()) {
+            CodeBlock* baselineCodeBlock = m_jit.graph().baselineCodeBlockFor(node->origin.semantic);
+            if (baselineCodeBlock->loopHintsAreEligibleForFuzzingEarlyReturn()) {
+                BytecodeIndex bytecodeIndex = node->origin.semantic.bytecodeIndex();
+                const Instruction* instruction = baselineCodeBlock->instructions().at(bytecodeIndex.offset()).ptr();
+
+                uint64_t* ptr = vm().getLoopHintExecutionCounter(instruction);
+                m_jit.pushToSave(GPRInfo::regT0);
+                m_jit.load64(ptr, GPRInfo::regT0);
+                auto skipEarlyReturn = m_jit.branch64(CCallHelpers::Below, GPRInfo::regT0, CCallHelpers::TrustedImm64(Options::earlyReturnFromInfiniteLoopsLimit()));
+
+                m_jit.popToRestore(GPRInfo::regT0);
+                m_jit.move(CCallHelpers::TrustedImm64(JSValue::encode(jsUndefined())), GPRInfo::returnValueGPR);
+                m_jit.emitRestoreCalleeSaves();
+                m_jit.emitFunctionEpilogue();
+                m_jit.ret();
+
+                skipEarlyReturn.link(&m_jit);
+                m_jit.add64(CCallHelpers::TrustedImm32(1), GPRInfo::regT0);
+                m_jit.store64(GPRInfo::regT0, ptr);
+                m_jit.popToRestore(GPRInfo::regT0);
+            }
+        }
+
         // This is a no-op.
         noResult(node);
         break;
@@ -5087,7 +5115,7 @@ void SpeculativeJIT::compile(Node* node)
 
         DataViewData data = node->dataViewData();
 
-        m_jit.zeroExtend32ToPtr(indexGPR, t2);
+        m_jit.zeroExtend32ToWord(indexGPR, t2);
         if (data.byteSize > 1)
             m_jit.add64(TrustedImm32(data.byteSize - 1), t2);
         m_jit.load32(MacroAssembler::Address(dataViewGPR, JSArrayBufferView::offsetOfLength()), t1);
@@ -5097,7 +5125,7 @@ void SpeculativeJIT::compile(Node* node)
         m_jit.loadPtr(JITCompiler::Address(dataViewGPR, JSArrayBufferView::offsetOfVector()), t2);
         cageTypedArrayStorage(dataViewGPR, t2);
 
-        m_jit.zeroExtend32ToPtr(indexGPR, t1);
+        m_jit.zeroExtend32ToWord(indexGPR, t1);
         auto baseIndex = JITCompiler::BaseIndex(t2, t1, MacroAssembler::TimesOne);
 
         if (node->op() == DataViewGetInt) {
@@ -5288,7 +5316,7 @@ void SpeculativeJIT::compile(Node* node)
             isLittleEndianOperand.emplace(this, m_graph.varArgChild(node, 3));
         GPRReg isLittleEndianGPR = isLittleEndianOperand ? isLittleEndianOperand->gpr() : InvalidGPRReg;
 
-        m_jit.zeroExtend32ToPtr(indexGPR, t2);
+        m_jit.zeroExtend32ToWord(indexGPR, t2);
         if (data.byteSize > 1)
             m_jit.add64(TrustedImm32(data.byteSize - 1), t2);
         m_jit.load32(MacroAssembler::Address(dataViewGPR, JSArrayBufferView::offsetOfLength()), t1);
@@ -5298,7 +5326,7 @@ void SpeculativeJIT::compile(Node* node)
         m_jit.loadPtr(JITCompiler::Address(dataViewGPR, JSArrayBufferView::offsetOfVector()), t2);
         cageTypedArrayStorage(dataViewGPR, t2);
 
-        m_jit.zeroExtend32ToPtr(indexGPR, t1);
+        m_jit.zeroExtend32ToWord(indexGPR, t1);
         auto baseIndex = JITCompiler::BaseIndex(t2, t1, MacroAssembler::TimesOne);
 
         if (data.isFloatingPoint) {
@@ -5400,7 +5428,7 @@ void SpeculativeJIT::compile(Node* node)
                 };
 
                 auto emitBigEndianCode = [&] {
-                    m_jit.zeroExtend32ToPtr(valueGPR, t3);
+                    m_jit.zeroExtend32ToWord(valueGPR, t3);
                     m_jit.byteSwap32(t3);
                     m_jit.store32(t3, baseIndex);
                 };

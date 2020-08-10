@@ -84,8 +84,7 @@ bool CDMProxyFactoryClearKey::supportsKeySystem(const String& keySystem)
 
 CDMProxyClearKey::~CDMProxyClearKey()
 {
-    if (m_gCryptHandle)
-        gcry_cipher_close(*m_gCryptHandle);
+    closeGCryptHandle();
 }
 
 bool CDMProxyClearKey::cencSetCounterVector(const cencDecryptContext& input)
@@ -122,11 +121,14 @@ bool CDMProxyClearKey::cencSetDecryptionKey(const cencDecryptContext& in)
     Vector<uint8_t> keyIDVec;
     keyIDVec.append(in.keyID, in.keyIDSizeInBytes);
 
-    auto keyData = getOrWaitForKey(keyIDVec);
+    auto keyData = getOrWaitForKeyValue(keyIDVec);
     if (!keyData)
         return false;
 
-    if (gcry_error_t cipherError = gcry_cipher_setkey(gCryptHandle(), keyData->data(), keyData->size())) {
+    ASSERT(WTF::holds_alternative<Vector<uint8_t>>(keyData.value()));
+    auto& keyDataValue = WTF::get<Vector<uint8_t>>(keyData.value());
+
+    if (gcry_error_t cipherError = gcry_cipher_setkey(gCryptHandle(), keyDataValue.data(), keyDataValue.size())) {
 #if !LOG_DISABLED
         LOG(EME, "EME - CDMProxyClearKey - ERROR(gcry_cipher_setkey): %s", gpg_strerror(cipherError));
 #else
@@ -211,6 +213,20 @@ bool CDMProxyClearKey::cencDecrypt(CDMProxyClearKey::cencDecryptContext& input)
         return false;
 
     return input.isSubsampled() ? cencDecryptSubsampled(input) : cencDecryptFullSample(input);
+}
+
+void CDMProxyClearKey::releaseDecryptionResources()
+{
+    closeGCryptHandle();
+    CDMProxy::releaseDecryptionResources();
+}
+
+void CDMProxyClearKey::closeGCryptHandle()
+{
+    if (m_gCryptHandle) {
+        gcry_cipher_close(*m_gCryptHandle);
+        m_gCryptHandle.reset();
+    }
 }
 
 gcry_cipher_hd_t& CDMProxyClearKey::gCryptHandle()

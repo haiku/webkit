@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
  * This library is free software; you can redistribute it and/or
@@ -334,7 +334,8 @@ Page::Page(PageConfiguration&& pageConfiguration)
 #endif
 
 #if USE(LIBWEBRTC)
-    m_libWebRTCProvider->supportsH265(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
+    m_libWebRTCProvider->setH265Support(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
+    m_libWebRTCProvider->setVP9Support(RuntimeEnabledFeatures::sharedFeatures().webRTCVP9CodecEnabled());
 #endif
 
     if (!pageConfiguration.userScriptsShouldWaitUntilNotification)
@@ -920,6 +921,31 @@ void Page::unmarkAllTextMatches()
     });
 }
 
+#if ENABLE(EDITABLE_REGION)
+
+void Page::setEditableRegionEnabled(bool enabled)
+{
+    if (m_isEditableRegionEnabled == enabled)
+        return;
+    m_isEditableRegionEnabled = enabled;
+    auto frameView = makeRefPtr(mainFrame().view());
+    if (!frameView)
+        return;
+    if (auto* renderView = frameView->renderView())
+        renderView->compositor().invalidateEventRegionForAllLayers();
+}
+
+#endif
+
+#if ENABLE(EDITABLE_REGION)
+
+bool Page::shouldBuildEditableRegion() const
+{
+    return m_isEditableRegionEnabled || m_settings->visibleDebugOverlayRegions() & EditableElementRegion;
+}
+
+#endif
+
 Vector<Ref<Element>> Page::editableElementsInRect(const FloatRect& searchRectInRootViewCoordinates) const
 {
     auto frameView = makeRefPtr(mainFrame().view());
@@ -949,8 +975,20 @@ Vector<Ref<Element>> Page::editableElementsInRect(const FloatRect& searchRectInR
     auto& nodeSet = hitTestResult.listBasedTestResult();
     for (auto& node : nodeSet) {
         if (auto* editableElement = rootEditableElement(node)) {
-            ASSERT(searchRectInRootViewCoordinates.intersects(editableElement->clientRect()));
+            ASSERT(searchRectInRootViewCoordinates.inclusivelyIntersects(editableElement->clientRect()));
             rootEditableElements.add(*editableElement);
+        }
+    }
+
+    // Fix up for a now empty focused inline element, e.g. <span contenteditable='true'>Hello</span> became
+    // <span contenteditable='true'></span>. Hit testing will likely not find this element because the engine
+    // tries to avoid creating line boxes, which are things it hit tests, for them to reduce memory. If the
+    // focused element is inside the search rect it's the most likely target for future editing operations,
+    // even if it's empty. So, we special case it here.
+    if (auto* focusedElement = focusController().focusedOrMainFrame().document()->focusedElement()) {
+        if (searchRectInRootViewCoordinates.inclusivelyIntersects(focusedElement->clientRect())) {
+            if (auto* editableElement = rootEditableElement(*focusedElement))
+                rootEditableElements.add(*editableElement);
         }
     }
     return WTF::map(rootEditableElements, [](const auto& element) { return element.copyRef(); });
@@ -1174,6 +1212,9 @@ void Page::didStartProvisionalLoad()
 
 void Page::didFinishLoad()
 {
+#if ENABLE(EDITABLE_REGION)
+    m_isEditableRegionEnabled = false;
+#endif
     resetRelevantPaintedObjectCounter();
 
     if (m_performanceMonitor)
@@ -1424,7 +1465,7 @@ void Page::updateRendering()
     });
 
     for (auto& document : initialDocuments) {
-        if (document)
+        if (document && document->domWindow())
             document->domWindow()->unfreezeNowTimestamp();
     }
 
@@ -1987,20 +2028,10 @@ void Page::setVolumeOfMediaElement(double volume, uint64_t elementID)
 
 #endif
 
-#if ASSERT_ENABLED
-
-void Page::checkSubframeCountConsistency() const
+unsigned Page::subframeCount() const
 {
-    ASSERT(m_subframeCount >= 0);
-
-    int subframeCount = 0;
-    for (const Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext())
-        ++subframeCount;
-
-    ASSERT(m_subframeCount + 1 == subframeCount);
+    return mainFrame().tree().descendantCount();
 }
-
-#endif // ASSERT_ENABLED
 
 void Page::resumeAnimatingImages()
 {
@@ -2669,17 +2700,17 @@ void Page::setSessionID(PAL::SessionID sessionID)
 }
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
-void Page::addPlaybackTargetPickerClient(uint64_t contextId)
+void Page::addPlaybackTargetPickerClient(PlaybackTargetClientContextIdentifier contextId)
 {
     chrome().client().addPlaybackTargetPickerClient(contextId);
 }
 
-void Page::removePlaybackTargetPickerClient(uint64_t contextId)
+void Page::removePlaybackTargetPickerClient(PlaybackTargetClientContextIdentifier contextId)
 {
     chrome().client().removePlaybackTargetPickerClient(contextId);
 }
 
-void Page::showPlaybackTargetPicker(uint64_t contextId, const WebCore::IntPoint& location, bool isVideo, RouteSharingPolicy routeSharingPolicy, const String& routingContextUID)
+void Page::showPlaybackTargetPicker(PlaybackTargetClientContextIdentifier contextId, const WebCore::IntPoint& location, bool isVideo, RouteSharingPolicy routeSharingPolicy, const String& routingContextUID)
 {
 #if PLATFORM(IOS_FAMILY)
     // FIXME: refactor iOS implementation.
@@ -2693,7 +2724,7 @@ void Page::showPlaybackTargetPicker(uint64_t contextId, const WebCore::IntPoint&
 #endif
 }
 
-void Page::playbackTargetPickerClientStateDidChange(uint64_t contextId, MediaProducer::MediaStateFlags state)
+void Page::playbackTargetPickerClientStateDidChange(PlaybackTargetClientContextIdentifier contextId, MediaProducer::MediaStateFlags state)
 {
     chrome().client().playbackTargetPickerClientStateDidChange(contextId, state);
 }
@@ -2713,31 +2744,31 @@ void Page::mockMediaPlaybackTargetPickerDismissPopup()
     chrome().client().mockMediaPlaybackTargetPickerDismissPopup();
 }
 
-void Page::setPlaybackTarget(uint64_t contextId, Ref<MediaPlaybackTarget>&& target)
+void Page::setPlaybackTarget(PlaybackTargetClientContextIdentifier contextId, Ref<MediaPlaybackTarget>&& target)
 {
     forEachDocument([&] (Document& document) {
         document.setPlaybackTarget(contextId, target.copyRef());
     });
 }
 
-void Page::playbackTargetAvailabilityDidChange(uint64_t contextId, bool available)
+void Page::playbackTargetAvailabilityDidChange(PlaybackTargetClientContextIdentifier contextId, bool available)
 {
     forEachDocument([&] (Document& document) {
         document.playbackTargetAvailabilityDidChange(contextId, available);
     });
 }
 
-void Page::setShouldPlayToPlaybackTarget(uint64_t clientId, bool shouldPlay)
+void Page::setShouldPlayToPlaybackTarget(PlaybackTargetClientContextIdentifier contextId, bool shouldPlay)
 {
     forEachDocument([&] (Document& document) {
-        document.setShouldPlayToPlaybackTarget(clientId, shouldPlay);
+        document.setShouldPlayToPlaybackTarget(contextId, shouldPlay);
     });
 }
 
-void Page::playbackTargetPickerWasDismissed(uint64_t clientId)
+void Page::playbackTargetPickerWasDismissed(PlaybackTargetClientContextIdentifier contextId)
 {
     forEachDocument([&] (Document& document) {
-        document.playbackTargetPickerWasDismissed(clientId);
+        document.playbackTargetPickerWasDismissed(contextId);
     });
 }
 

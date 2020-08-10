@@ -55,7 +55,6 @@ NetworkProcess/webrtc/NetworkRTCMonitor.cpp
 NetworkProcess/webrtc/NetworkRTCProvider.cpp
 NetworkProcess/webrtc/NetworkRTCResolver.cpp
 NetworkProcess/webrtc/NetworkRTCResolverCocoa.cpp
-NetworkProcess/webrtc/NetworkRTCSocket.cpp
 
 GPUProcess/EntryPoint/Cocoa/XPCService/GPUServiceEntryPoint.mm
 GPUProcess/ios/GPUProcessIOS.mm
@@ -66,7 +65,7 @@ GPUProcess/webrtc/LibWebRTCCodecsProxy.mm
 
 Platform/cf/ModuleCF.cpp
 
-Platform/cg/CGUtilities.cpp
+Platform/cg/ImageUtilitiesCG.cpp
 
 Platform/classifier/cocoa/ResourceLoadStatisticsClassifierCocoa.cpp
 Platform/classifier/ResourceLoadStatisticsClassifier.cpp
@@ -415,6 +414,8 @@ UIProcess/Inspector/mac/RemoteWebInspectorProxyMac.mm
 UIProcess/Inspector/mac/WebInspectorProxyMac.mm
 UIProcess/Inspector/mac/WKInspectorViewController.mm
 UIProcess/Inspector/mac/WKInspectorWKWebView.mm
+
+UIProcess/Network/NetworkProcessProxyCocoa.mm
 
 UIProcess/ios/forms/WKAirPlayRoutePicker.mm
 UIProcess/ios/forms/WKDatePickerViewController.mm

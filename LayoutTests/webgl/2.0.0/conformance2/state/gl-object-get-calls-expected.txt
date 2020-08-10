@@ -1,4 +1,3 @@
-CONSOLE MESSAGE: TypeError: Argument 1 ('sync') to WebGL2RenderingContext.getSyncParameter must be an instance of WebGLSync
 This test runs the WebGL Test listed below in an iframe and reports PASS or FAIL.
 
 Test: ../../resources/webgl_test_files/conformance2/state/gl-object-get-calls.html
@@ -243,26 +242,26 @@ Test: ../../resources/webgl_test_files/conformance2/state/gl-object-get-calls.ht
 [ 239: PASS ] getError was expected value: NO_ERROR :
 [ 240: PASS ] gl.getProgramParameter(uintProgram, gl.LINK_STATUS) is true
 [ 241: PASS ] getError was expected value: NO_ERROR :
-[ 242: FAIL ] gl.getUniform(uintProgram, uvalLoc) should be 1 (of type number). Was null (of type object).
-[ 243: FAIL ] gl.getUniform(uintProgram, uval2Loc) should be 2,3. Was null.
-[ 244: FAIL ] gl.getUniform(uintProgram, uval3Loc) should be 4,5,6. Was null.
-[ 245: FAIL ] gl.getUniform(uintProgram, uval4Loc) should be 7,8,9,10. Was null.
-[ 246: FAIL ] getError expected: NO_ERROR. Was INVALID_VALUE :
+[ 242: PASS ] gl.getUniform(uintProgram, uvalLoc) is 1
+[ 243: PASS ] gl.getUniform(uintProgram, uval2Loc) is [2, 3]
+[ 244: PASS ] gl.getUniform(uintProgram, uval3Loc) is [4, 5, 6]
+[ 245: PASS ] gl.getUniform(uintProgram, uval4Loc) is [7, 8, 9, 10]
+[ 246: PASS ] getError was expected value: NO_ERROR :
 [ 247: PASS ] getError was expected value: NO_ERROR :
 [ 248: PASS ] gl.getProgramParameter(matForWebGL2Program, gl.LINK_STATUS) is true
 [ 249: PASS ] getError was expected value: NO_ERROR :
-[ 250: FAIL ] gl.getUniform(matForWebGL2Program, mval2x3Loc) should be 1,2,3,4,5,6. Was null.
-[ 251: FAIL ] gl.getUniform(matForWebGL2Program, mval2x4Loc) should be 7,8,9,10,11,12,13,14. Was null.
-[ 252: FAIL ] gl.getUniform(matForWebGL2Program, mval3x2Loc) should be 15,16,17,18,19,20. Was null.
-[ 253: FAIL ] gl.getUniform(matForWebGL2Program, mval3x4Loc) should be 21,22,23,24,25,26,27,28,29,30,31,32. Was null.
-[ 254: FAIL ] gl.getUniform(matForWebGL2Program, mval4x2Loc) should be 33,34,35,36,37,38,39,40. Was null.
-[ 255: FAIL ] gl.getUniform(matForWebGL2Program, mval4x3Loc) should be 41,42,43,44,45,46,47,48,49,50,51,52. Was null.
-[ 256: FAIL ] getError expected: NO_ERROR. Was INVALID_VALUE :
+[ 250: PASS ] gl.getUniform(matForWebGL2Program, mval2x3Loc) is [1, 2, 3, 4, 5, 6]
+[ 251: PASS ] gl.getUniform(matForWebGL2Program, mval2x4Loc) is [7, 8, 9, 10, 11, 12, 13, 14]
+[ 252: PASS ] gl.getUniform(matForWebGL2Program, mval3x2Loc) is [15, 16, 17, 18, 19, 20]
+[ 253: PASS ] gl.getUniform(matForWebGL2Program, mval3x4Loc) is [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+[ 254: PASS ] gl.getUniform(matForWebGL2Program, mval4x2Loc) is [33, 34, 35, 36, 37, 38, 39, 40]
+[ 255: PASS ] gl.getUniform(matForWebGL2Program, mval4x3Loc) is [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52]
+[ 256: PASS ] getError was expected value: NO_ERROR :
 [ 257: PASS ] gl.getProgramParameter(samplerForWebGL2Program, gl.LINK_STATUS) is true
 [ 258: PASS ] getError was expected value: NO_ERROR :
-[ 259: FAIL ] gl.getUniform(samplerForWebGL2Program, s3DValLoc) should be 0 (of type number). Was null (of type object).
-[ 260: FAIL ] gl.getUniform(samplerForWebGL2Program, s2DArrayValLoc) should be 1 (of type number). Was null (of type object).
-[ 261: FAIL ] getError expected: NO_ERROR. Was INVALID_VALUE :
+[ 259: PASS ] gl.getUniform(samplerForWebGL2Program, s3DValLoc) is 0
+[ 260: PASS ] gl.getUniform(samplerForWebGL2Program, s2DArrayValLoc) is 1
+[ 261: PASS ] getError was expected value: NO_ERROR :
 [ 262: PASS ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING) is buffer
 [ 263: PASS ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_ENABLED) is true
 [ 264: PASS ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_SIZE) is 4
@@ -279,13 +278,13 @@ Test: ../../resources/webgl_test_files/conformance2/state/gl-object-get-calls.ht
 [ 275: FAIL ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_TYPE) should be 5124. Was 5126.
 [ 276: FAIL ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_INTEGER) should be true (of type boolean). Was null (of type object).
 [ 277: FAIL ] getError expected: NO_ERROR. Was INVALID_ENUM :
-[ 278: FAIL ] getVertexAttrib did not generate INVALID_ENUM for invalid parameter enum: NO_ERROR
-[ 279: FAIL ] getError expected: INVALID_VALUE. Was INVALID_ENUM : after evaluating: gl.getVertexAttrib(16, gl.CURRENT_VERTEX_ATTRIB)
+[ 278: PASS ] getVertexAttrib correctly handled invalid parameter enums
+[ 279: PASS ] getError was expected value: INVALID_VALUE : after evaluating: gl.getVertexAttrib(16, gl.CURRENT_VERTEX_ATTRIB)
 [ 280: PASS ] gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) is gl.NONE
-[ 281: FAIL ] getError expected: INVALID_OPERATION. Was INVALID_VALUE :
+[ 281: PASS ] getError was expected value: INVALID_OPERATION :
 [ 282: PASS ] gl.getFramebufferAttachmentParameter(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE) is gl.NONE
 [ 283: PASS ] gl.getVertexAttrib(1, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING) is null
-[ 284: FAIL ] getError expected: NO_ERROR. Was INVALID_OPERATION :
+[ 284: PASS ] getError was expected value: NO_ERROR :
 [ 285: PASS ] gl.getInternalformatParameter(gl.RENDERBUFFER, gl.R32I, gl.SAMPLES) is non-null.
 [ 286: PASS ] getError was expected value: NO_ERROR :
 [ 287: PASS ] getInternalformatParameter correctly handled invalid target enums
@@ -309,7 +308,61 @@ Test: ../../resources/webgl_test_files/conformance2/state/gl-object-get-calls.ht
 [ 305: PASS ] gl.getSamplerParameter(sampler, gl.TEXTURE_WRAP_S) is gl.CLAMP_TO_EDGE
 [ 306: PASS ] gl.getSamplerParameter(sampler, gl.TEXTURE_WRAP_T) is gl.CLAMP_TO_EDGE
 [ 307: PASS ] getSamplerParameter correctly handled invalid pname enums
-[ 308: FAIL ] gl.getSyncParameter(sync, gl.OBJECT_TYPE) should be 37142. Threw exception TypeError: Argument 1 ('sync') to WebGL2RenderingContext.getSyncParameter must be an instance of WebGLSync
-[ 309: FAIL ] successfullyParsed should be true (of type boolean). Was undefined (of type undefined).
-[ FAIL ] 58 failures reported
+[ 308: PASS ] gl.getSyncParameter(sync, gl.OBJECT_TYPE) is gl.SYNC_FENCE
+[ 309: PASS ] gl.getSyncParameter(sync, gl.SYNC_CONDITION) is gl.UNSIGNALED
+[ 310: PASS ] gl.getSyncParameter(sync, gl.SYNC_CONDITION) is gl.SYNC_GPU_COMMANDS_COMPLETE
+[ 311: PASS ] gl.getSyncParameter(sync, gl.SYNC_FLAGS) is 0
+[ 312: PASS ] getSyncParameter correctly handled invalid pname enums
+[ 313: FAIL ] gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE) should be false (of type boolean). Was 0 (of type number).
+[ 314: PASS ] getQueryParameter correctly handled invalid pname enums
+[ 315: PASS ] gl.getShaderParameter(vertShader, gl.COMPILE_STATUS) is true
+[ 316: PASS ] gl.getShaderParameter(fragShader, gl.COMPILE_STATUS) is true
+[ 317: PASS ] gl.getProgramParameter(program, gl.LINK_STATUS) is true
+[ 318: PASS ] gl.getFragDataLocation(program, "vertexColor") is -1
+[ 319: PASS ] gl.getFragDataLocation(program, "modelViewMatrix") is -1
+[ 320: PASS ] gl.getFragDataLocation(program, "projectionMatrix") is -1
+[ 321: PASS ] gl.getFragDataLocation(program, "position") is -1
+[ 322: PASS ] gl.getFragDataLocation(program, "fragColor") is 0
+[ 323: PASS ] gl.getProgramParameter(program, gl.LINK_STATUS) is true
+[ 324: PASS ] gl.getError() is gl.NO_ERROR
+[ 325: PASS ] typeof rowMajors[i] is "boolean"
+[ 326: PASS ] typeof rowMajors[i] is "boolean"
+[ 327: PASS ] typeof rowMajors[i] is "boolean"
+[ 328: PASS ] getActiveUniforms correctly handled invalid pname enums
+[ 329: PASS ] gl.getProgramParameter(program, gl.LINK_STATUS) is true
+[ 330: PASS ] gl.getUniformBlockIndex(program, "Transform") is 0
+[ 331: PASS ] gl.getUniformBlockIndex(program, "u_modelViewMatrix") is gl.INVALID_INDEX
+[ 332: PASS ] gl.getUniformBlockIndex(program, "normal") is gl.INVALID_INDEX
+[ 333: PASS ] gl.getUniformBlockIndex(program, "u_normal") is gl.INVALID_INDEX
+[ 334: PASS ] gl.getProgramParameter(noUniformProgram, gl.LINK_STATUS) is true
+[ 335: PASS ] gl.getUniformBlockIndex(noUniformProgram, "u_modelViewProjMatrix") is gl.INVALID_INDEX
+[ 336: PASS ] gl.getUniformBlockIndex(noUniformProgram, "u_normal") is gl.INVALID_INDEX
+[ 337: PASS ] gl.getProgramParameter(program, gl.LINK_STATUS) is true
+[ 338: PASS ] gl.getActiveUniformBlockName(program, 0) is "Transform"
+[ 339: FAIL ] gl.getActiveUniformBlockName(program, -1) should be null (of type object). Was (of type string).
+[ 340: PASS ] getError was expected value: INVALID_VALUE :
+[ 341: FAIL ] gl.getActiveUniformBlockName(program, 1) should be null (of type object). Was (of type string).
+[ 342: PASS ] getError was expected value: INVALID_VALUE :
+[ 343: FAIL ] gl.getActiveUniformBlockName(program, gl.INVALID_INDEX) should be null (of type object). Was (of type string).
+[ 344: PASS ] getError was expected value: INVALID_VALUE :
+[ 345: PASS ] gl.getProgramParameter(noLinkProgram, gl.LINK_STATUS) is false
+[ 346: FAIL ] getError expected: INVALID_OPERATION. Was INVALID_VALUE : after evaluating: gl.getActiveUniformBlockName(noLinkProgram, 0)
+[ 347: PASS ] gl.getProgramParameter(noUniformProgram, gl.LINK_STATUS) is true
+[ 348: FAIL ] gl.getActiveUniformBlockName(noUniformProgram, -1) should be null (of type object). Was (of type string).
+[ 349: PASS ] getError was expected value: INVALID_VALUE :
+[ 350: FAIL ] gl.getActiveUniformBlockName(noUniformProgram, 0) should be null (of type object). Was (of type string).
+[ 351: PASS ] getError was expected value: INVALID_VALUE :
+[ 352: FAIL ] gl.getActiveUniformBlockName(noUniformProgram, gl.INVALID_INDEX) should be null (of type object). Was (of type string).
+[ 353: PASS ] getError was expected value: INVALID_VALUE :
+[ 354: PASS ] gl.getProgramParameter(program, gl.LINK_STATUS) is true
+[ 355: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_BINDING) is 0
+[ 356: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_BINDING) is 1
+[ 357: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_DATA_SIZE) >= 164 is true
+[ 358: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_ACTIVE_UNIFORMS) is 3
+[ 359: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER) is true
+[ 360: PASS ] gl.getActiveUniformBlockParameter(program, 0, gl.UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER) is false
+[ 361: PASS ] getActiveUniformBlockParameter correctly handled invalid pname enums
+[ 362: PASS ] getError was expected value: NO_ERROR :
+[ 363: PASS ] successfullyParsed is true
+[ FAIL ] 45 failures reported
 

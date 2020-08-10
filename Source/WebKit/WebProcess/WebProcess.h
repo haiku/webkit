@@ -84,6 +84,9 @@ class PageGroup;
 class RegistrableDomain;
 class ResourceRequest;
 class UserGestureToken;
+
+enum class EventMakesGamepadsVisible : bool;
+
 struct BackForwardItemIdentifier;
 struct MessagePortIdentifier;
 struct MessageWithMessagePorts;
@@ -304,6 +307,7 @@ public:
     void notifyPreferencesChanged(const String& domain, const String& key, const Optional<String>& encodedValue);
     void unblockPreferenceService(SandboxExtension::HandleArray&&);
 #endif
+    void powerSourceDidChange(bool);
 #endif
 
     bool areAllPagesThrottleable() const;
@@ -327,6 +331,8 @@ public:
 #if ENABLE(GPU_PROCESS)
     void setUseGPUProcessForMedia(bool);
 #endif
+
+    void enableVP9Decoder();
 
 private:
     WebProcess();
@@ -399,7 +405,7 @@ private:
 
 #if ENABLE(GAMEPAD)
     void setInitialGamepads(const Vector<GamepadData>&);
-    void gamepadConnected(const GamepadData&);
+    void gamepadConnected(const GamepadData&, WebCore::EventMakesGamepadsVisible);
     void gamepadDisconnected(unsigned index);
 #endif
 
@@ -509,6 +515,10 @@ private:
 #endif
 
     bool isAlwaysOnLoggingAllowed() { return m_sessionID ? m_sessionID->isAlwaysOnLoggingAllowed() : true; }
+
+#if PLATFORM(COCOA)
+    void handleXPCEndpointMessages() const;
+#endif
 
     RefPtr<WebConnectionToUIProcess> m_webConnection;
 
@@ -639,6 +649,7 @@ private:
 #endif
 
     bool m_useGPUProcessForMedia { false };
+    bool m_vp9DecoderEnabled { false };
 };
 
 } // namespace WebKit

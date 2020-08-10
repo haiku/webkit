@@ -100,7 +100,7 @@ messages -> WebProcess LegacyReceiver NotRefCounted {
 
 #if ENABLE(GAMEPAD)
     SetInitialGamepads(Vector<WebKit::GamepadData> gamepadDatas)
-    GamepadConnected(WebKit::GamepadData gamepadData)
+    GamepadConnected(WebKit::GamepadData gamepadData, enum:bool WebCore::EventMakesGamepadsVisible eventVisibility)
     GamepadDisconnected(unsigned index)
 #endif
 
@@ -172,6 +172,7 @@ messages -> WebProcess LegacyReceiver NotRefCounted {
     NotifyPreferencesChanged(String domain, String key, Optional<String> encodedValue)
     UnblockPreferenceService(WebKit::SandboxExtension::HandleArray handleArray)
 #endif
+    PowerSourceDidChange(bool hasAC)
 #endif
 
 #if PLATFORM(GTK) && !USE(GTK4)

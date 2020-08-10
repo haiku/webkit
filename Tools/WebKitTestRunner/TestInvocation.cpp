@@ -919,13 +919,6 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         return;
     }
 
-    if (WKStringIsEqualToUTF8CString(messageName, "StatisticsNotifyPagesWhenDataRecordsWereScanned")) {
-        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
-        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
-        TestController::singleton().setStatisticsNotifyPagesWhenDataRecordsWereScanned(WKBooleanGetValue(value));
-        return;
-    }
-
     if (WKStringIsEqualToUTF8CString(messageName, "StatisticsClearInMemoryAndPersistentStore")) {
         TestController::singleton().statisticsClearInMemoryAndPersistentStore();
         return;
@@ -1582,13 +1575,6 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
         WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
         TestController::singleton().setStatisticsIsRunningTest(WKBooleanGetValue(value));
-        return nullptr;
-    }
-    
-    if (WKStringIsEqualToUTF8CString(messageName, "StatisticsNotifyPagesWhenTelemetryWasCaptured")) {
-        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
-        WKBooleanRef value = static_cast<WKBooleanRef>(messageBody);
-        TestController::singleton().setStatisticsNotifyPagesWhenTelemetryWasCaptured(WKBooleanGetValue(value));
         return nullptr;
     }
     

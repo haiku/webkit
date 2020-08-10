@@ -33,12 +33,8 @@
 #import "Logging.h"
 #import <GameController/GameController.h>
 #import <wtf/NeverDestroyed.h>
-#import <wtf/SoftLinking.h>
 
-SOFT_LINK_FRAMEWORK_OPTIONAL(GameController)
-SOFT_LINK_CLASS_OPTIONAL(GameController, GCController);
-SOFT_LINK_CONSTANT_MAY_FAIL(GameController, GCControllerDidConnectNotification, NSString *)
-SOFT_LINK_CONSTANT_MAY_FAIL(GameController, GCControllerDidDisconnectNotification, NSString *)
+#import "GameControllerSoftLink.h"
 
 namespace WebCore {
 
@@ -60,6 +56,11 @@ void GameControllerGamepadProvider::controllerDidConnect(GCController *controlle
 {
     LOG(Gamepad, "GameControllerGamepadProvider controller %p added", controller);
 
+    // When initially starting up the GameController framework machinery,
+    // we might get the connection notification for an already-connected controller.
+    if (m_gamepadMap.contains(controller))
+        return;
+
     unsigned index = indexForNewlyConnectedDevice();
     auto gamepad = makeUnique<GameControllerGamepad>(controller, index);
 
@@ -75,10 +76,10 @@ void GameControllerGamepadProvider::controllerDidConnect(GCController *controlle
         return;
     }
 
-    makeInvisibileGamepadsVisible();
+    makeInvisibleGamepadsVisible();
 
     for (auto& client : m_clients)
-        client->platformGamepadConnected(*m_gamepadVector[index]);
+        client->platformGamepadConnected(*m_gamepadVector[index], EventMakesGamepadsVisible::Yes);
 }
 
 void GameControllerGamepadProvider::controllerDidDisconnect(GCController *controller)
@@ -98,6 +99,17 @@ void GameControllerGamepadProvider::controllerDidDisconnect(GCController *contro
         client->platformGamepadDisconnected(*removedGamepad);
 }
 
+void GameControllerGamepadProvider::prewarmGameControllerDevicesIfNecessary()
+{
+    static bool prewarmed;
+    if (prewarmed)
+        return;
+
+    LOG(Gamepad, "GameControllerGamepadProvider explicitly starting GameController framework monitoring");
+    [getGCControllerClass() __openXPC_and_CBApplicationDidBecomeActive__];
+    prewarmed = true;
+}
+
 void GameControllerGamepadProvider::startMonitoringGamepads(GamepadProviderClient& client)
 {
     ASSERT(!m_clients.contains(&client));
@@ -106,20 +118,30 @@ void GameControllerGamepadProvider::startMonitoringGamepads(GamepadProviderClien
     if (m_connectObserver)
         return;
 
-    if (canLoadGCControllerDidConnectNotification()) {
-        m_connectObserver = [[NSNotificationCenter defaultCenter] addObserverForName:getGCControllerDidConnectNotification() object:nil queue:nil usingBlock:^(NSNotification *notification) {
+    prewarmGameControllerDevicesIfNecessary();
+
+    if (canLoad_GameController_GCControllerDidConnectNotification()) {
+        m_connectObserver = [[NSNotificationCenter defaultCenter] addObserverForName:get_GameController_GCControllerDidConnectNotification() object:nil queue:nil usingBlock:^(NSNotification *notification) {
+            LOG(Gamepad, "GameControllerGamepadProvider notified of new GCController %p", notification.object);
             GameControllerGamepadProvider::singleton().controllerDidConnect(notification.object, ConnectionVisibility::Visible);
         }];
     }
 
-    if (canLoadGCControllerDidDisconnectNotification()) {
-        m_disconnectObserver = [[NSNotificationCenter defaultCenter] addObserverForName:getGCControllerDidDisconnectNotification() object:nil queue:nil usingBlock:^(NSNotification *notification) {
+    if (canLoad_GameController_GCControllerDidDisconnectNotification()) {
+        m_disconnectObserver = [[NSNotificationCenter defaultCenter] addObserverForName:get_GameController_GCControllerDidDisconnectNotification() object:nil queue:nil usingBlock:^(NSNotification *notification) {
+            LOG(Gamepad, "GameControllerGamepadProvider notified of disconnected GCController %p", notification.object);
             GameControllerGamepadProvider::singleton().controllerDidDisconnect(notification.object);
         }];
     }
 
-    for (GCController *controller in [getGCControllerClass() controllers])
+    auto *controllers = [getGCControllerClass() controllers];
+    if (!controllers || !controllers.count)
+        LOG(Gamepad, "GameControllerGamepadProvider has no initial GCControllers attached");
+
+    for (GCController *controller in controllers) {
+        LOG(Gamepad, "GameControllerGamepadProvider has initial GCController %p", controller);
         controllerDidConnect(controller, ConnectionVisibility::Invisible);
+    }
 }
 
 void GameControllerGamepadProvider::stopMonitoringGamepads(GamepadProviderClient& client)
@@ -149,14 +171,14 @@ void GameControllerGamepadProvider::gamepadHadInput(GameControllerGamepad&, bool
         m_inputNotificationTimer.startOneShot(inputNotificationDelay);
 
     if (hadButtonPresses)
-        m_shouldMakeInvisibileGamepadsVisible = true;
+        m_shouldMakeInvisibleGamepadsVisible = true;
 }
 
-void GameControllerGamepadProvider::makeInvisibileGamepadsVisible()
+void GameControllerGamepadProvider::makeInvisibleGamepadsVisible()
 {
     for (auto* gamepad : m_invisibleGamepads) {
         for (auto& client : m_clients)
-            client->platformGamepadConnected(*gamepad);
+            client->platformGamepadConnected(*gamepad, EventMakesGamepadsVisible::Yes);
     }
 
     m_invisibleGamepads.clear();
@@ -164,12 +186,12 @@ void GameControllerGamepadProvider::makeInvisibileGamepadsVisible()
 
 void GameControllerGamepadProvider::inputNotificationTimerFired()
 {
-    if (m_shouldMakeInvisibileGamepadsVisible) {
+    if (m_shouldMakeInvisibleGamepadsVisible) {
         setShouldMakeGamepadsVisibile();
-        makeInvisibileGamepadsVisible();
+        makeInvisibleGamepadsVisible();
     }
 
-    m_shouldMakeInvisibileGamepadsVisible = false;
+    m_shouldMakeInvisibleGamepadsVisible = false;
 
     dispatchPlatformGamepadInputActivity();
 }

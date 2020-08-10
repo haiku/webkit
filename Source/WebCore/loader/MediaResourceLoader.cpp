@@ -34,6 +34,7 @@
 #include "CachedResourceRequest.h"
 #include "CrossOriginAccessControl.h"
 #include "Document.h"
+#include "FrameLoaderClient.h"
 #include "HTMLMediaElement.h"
 #include "InspectorInstrumentation.h"
 #include "SecurityOrigin.h"
@@ -67,6 +68,15 @@ void MediaResourceLoader::contextDestroyed()
     m_document = nullptr;
     m_mediaElement = nullptr;
 }
+
+void MediaResourceLoader::sendH2Ping(const URL& url, CompletionHandler<void(Expected<Seconds, ResourceError>&&)>&& completionHandler)
+{
+    if (!m_document || !m_document->frame())
+        return completionHandler(makeUnexpected(internalError(url)));
+
+    m_document->frame()->loader().client().sendH2Ping(url, WTFMove(completionHandler));
+}
+
 
 RefPtr<PlatformMediaResource> MediaResourceLoader::requestResource(ResourceRequest&& request, LoadOptions options)
 {

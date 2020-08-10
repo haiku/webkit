@@ -35,6 +35,7 @@
 #include "Frame.h"
 #include "FrameSelection.h"
 #include "PasteboardWriterData.h"
+#include "ScrollView.h"
 #include "TextChecking.h"
 #include "TextEventInputType.h"
 #include "TextIteratorBehavior.h"
@@ -187,10 +188,10 @@ public:
     WEBCORE_EXPORT bool canSmartCopyOrDelete();
     bool shouldSmartDelete();
 
-    WEBCORE_EXPORT void cut();
-    WEBCORE_EXPORT void copy();
-
     enum class FromMenuOrKeyBinding : bool { No, Yes };
+    WEBCORE_EXPORT void cut(FromMenuOrKeyBinding = FromMenuOrKeyBinding::No);
+    WEBCORE_EXPORT void copy(FromMenuOrKeyBinding = FromMenuOrKeyBinding::No);
+
     WEBCORE_EXPORT void paste(FromMenuOrKeyBinding = FromMenuOrKeyBinding::No);
     void paste(Pasteboard&, FromMenuOrKeyBinding = FromMenuOrKeyBinding::No);
     WEBCORE_EXPORT void pasteAsPlainText(FromMenuOrKeyBinding = FromMenuOrKeyBinding::No);
@@ -574,6 +575,7 @@ public:
     WEBCORE_EXPORT void removeTextPlaceholder(TextPlaceholderElement&);
 
     bool isPastingFromMenuOrKeyBinding() const { return m_pastingFromMenuOrKeyBinding; }
+    bool isCopyingFromMenuOrKeyBinding() const { return m_copyingFromMenuOrKeyBinding; }
 
 private:
     Document& document() const { return m_document; }
@@ -658,6 +660,7 @@ private:
     bool m_editorUIUpdateTimerShouldCheckSpellingAndGrammar { false };
     bool m_editorUIUpdateTimerWasTriggeredByDictation { false };
     bool m_isHandlingAcceptedCandidate { false };
+    bool m_copyingFromMenuOrKeyBinding { false };
     bool m_pastingFromMenuOrKeyBinding { false };
 
 #if ENABLE(TELEPHONE_NUMBER_DETECTION) && PLATFORM(MAC)
@@ -666,6 +669,8 @@ private:
     Timer m_telephoneNumberDetectionUpdateTimer;
     Vector<SimpleRange> m_detectedTelephoneNumberRanges;
 #endif
+
+    mutable std::unique_ptr<ScrollView::ProhibitScrollingWhenChangingContentSizeForScope> m_prohibitScrollingDueToContentSizeChangesWhileTyping;
 
     bool m_isGettingDictionaryPopupInfo { false };
     HashSet<RefPtr<HTMLImageElement>> m_imageElementsToLoadBeforeRevealingSelection;

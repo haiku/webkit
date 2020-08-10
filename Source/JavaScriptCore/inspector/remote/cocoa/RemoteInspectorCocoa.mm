@@ -97,7 +97,7 @@ RemoteInspector& RemoteInspector::singleton()
         if (canAccessWebInspectorMachPort()) {
             dispatch_block_t initialize = ^{
                 WTF::initializeMainThread();
-                JSC::initializeThreading();
+                JSC::initialize();
                 if (RemoteInspector::startEnabled)
                     shared.get().start();
             };
@@ -380,7 +380,7 @@ RetainPtr<NSDictionary> RemoteInspector::listingForInspectionTarget(const Remote
 
     switch (target.type()) {
     case RemoteInspectionTarget::Type::ITML:
-        [listing setObject:target.name() forKey:WIRTypeKey];
+        [listing setObject:target.name() forKey:WIRTitleKey];
         [listing setObject:WIRTypeITML forKey:WIRTypeKey];
         break;
     case RemoteInspectionTarget::Type::JavaScript:

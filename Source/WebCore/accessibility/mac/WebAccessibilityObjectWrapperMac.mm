@@ -682,7 +682,7 @@ static AccessibilitySearchTextCriteria accessibilitySearchTextCriteriaForParamet
     return criteria;
 }
 
-static AccessibilityTextOperation accessibilityTextOperationForParameterizedAttribute(WebAccessibilityObjectWrapper *obj, const NSDictionary *parameterizedAttribute)
+static AccessibilityTextOperation accessibilityTextOperationForParameterizedAttribute(WebAccessibilityObjectWrapper *wrapper, const NSDictionary *parameterizedAttribute)
 {
     AccessibilityTextOperation operation;
 
@@ -691,10 +691,9 @@ static AccessibilityTextOperation accessibilityTextOperationForParameterizedAttr
     NSString *replacementString = [parameterizedAttribute objectForKey:NSAccessibilityTextOperationReplacementString];
 
     if ([markerRanges isKindOfClass:[NSArray class]]) {
-        size_t count = static_cast<size_t>(markerRanges.count);
-        operation.textRanges.reserveInitialCapacity(count);
-        for (id markerRange : markerRanges)
-            operation.textRanges.append([obj rangeForTextMarkerRange:markerRange]);
+        operation.textRanges = makeVector(markerRanges, [wrapper] (id markerRange) {
+            return makeSimpleRange([wrapper rangeForTextMarkerRange:markerRange]);
+        });
     }
 
     if ([operationType isKindOfClass:[NSString class]]) {
@@ -800,12 +799,15 @@ static id startOrEndTextmarkerForRange(AXObjectCache* cache, RefPtr<Range> range
 {
     if (!cache)
         return nil;
-    
+
+    if (!range)
+        return nil;
+
     TextMarkerData textMarkerData;
-    cache->startOrEndTextMarkerDataForRange(textMarkerData, range, isStart);
+    cache->startOrEndTextMarkerDataForRange(textMarkerData, *range, isStart);
     if (!textMarkerData.axID)
         return nil;
-    
+
     return CFBridgingRelease(AXTextMarkerCreate(kCFAllocatorDefault, (const UInt8*)&textMarkerData, sizeof(textMarkerData)));
 }
 
@@ -878,7 +880,7 @@ static id textMarkerForCharacterOffset(AXObjectCache* cache, const CharacterOffs
     
     CharacterOffset startCharacterOffset = [self characterOffsetForTextMarker:startTextMarker];
     CharacterOffset endCharacterOffset = [self characterOffsetForTextMarker:endTextMarker];
-    return cache->rangeForUnorderedCharacterOffsets(startCharacterOffset, endCharacterOffset);
+    return createLiveRange(cache->rangeForUnorderedCharacterOffsets(startCharacterOffset, endCharacterOffset));
 }
 
 static CharacterOffset characterOffsetForTextMarker(AXObjectCache* cache, CFTypeRef textMarker)
@@ -1236,9 +1238,9 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
     return [NSString stringWithCharacters:&attachmentChar length:1];
 }
 
-- (NSAttributedString*)doAXAttributedStringForTextMarkerRange:(id)textMarkerRange spellCheck:(BOOL)spellCheck
+- (NSAttributedString *)doAXAttributedStringForTextMarkerRange:(id)textMarkerRange spellCheck:(BOOL)spellCheck
 {
-    return Accessibility::retrieveValueFromMainThread<NSAttributedString *>([&textMarkerRange, &spellCheck, protectedSelf = retainPtr(self)] () -> NSAttributedString * {
+    return Accessibility::retrieveAutoreleasedValueFromMainThread<NSAttributedString *>([&textMarkerRange, &spellCheck, protectedSelf = retainPtr(self)] () -> RetainPtr<NSAttributedString> {
         auto* backingObject = protectedSelf.get().axBackingObject;
         if (!backingObject)
             return nil;
@@ -1278,7 +1280,7 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
             it.advance();
         }
 
-        return attrString.autorelease();
+        return attrString;
     });
 }
 
@@ -2540,9 +2542,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             return @(backingObject->isSelected());
 
         if (backingObject->isColorWell()) {
-            int r, g, b;
-            backingObject->colorValue(r, g, b);
-            return [NSString stringWithFormat:@"rgb %7.5f %7.5f %7.5f 1", r / 255., g / 255., b / 255.];
+            auto color = convertToComponentFloats(backingObject->colorValue());
+            return [NSString stringWithFormat:@"rgb %7.5f %7.5f %7.5f 1", color.red, color.green, color.blue];
         }
 
         return backingObject->stringValue();
@@ -3470,6 +3471,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         [self accessibilityPerformDecrementAction];
     else if ([action isEqualToString:NSAccessibilityScrollToVisibleAction])
         [self accessibilityScrollToVisible];
+    else if ([action isEqualToString:@"AXDismissAction"])
+        backingObject->performDismissAction();
 }
 
 - (BOOL)accessibilityReplaceRange:(NSRange)range withText:(NSString *)string
@@ -3533,7 +3536,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     // handle the command
     if ([attributeName isEqualToString: @"AXSelectedTextMarkerRange"]) {
         ASSERT(textMarkerRange);
-        backingObject->setSelectedVisiblePositionRange([self visiblePositionRangeForTextMarkerRange:textMarkerRange]);
+        Accessibility::performFunctionOnMainThread([&textMarkerRange, protectedSelf = retainPtr(self)] {
+            if (auto* backingObject = protectedSelf.get().axBackingObject)
+                backingObject->setSelectedVisiblePositionRange([protectedSelf visiblePositionRangeForTextMarkerRange:textMarkerRange]);
+        });
     } else if ([attributeName isEqualToString: NSAccessibilityFocusedAttribute]) {
         [self baseAccessibilitySetFocus:[number boolValue]];
     } else if ([attributeName isEqualToString: NSAccessibilityValueAttribute]) {
@@ -3615,11 +3621,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 // The CFAttributedStringType representation of the text associated with this accessibility
 // object that is specified by the given range.
-- (NSAttributedString*)doAXAttributedStringForRange:(NSRange)range
+- (NSAttributedString *)doAXAttributedStringForRange:(NSRange)range
 {
-    PlainTextRange textRange = PlainTextRange(range.location, range.length);
-    RefPtr<Range> webRange = self.axBackingObject->rangeForPlainTextRange(textRange);
-    return [self doAXAttributedStringForTextMarkerRange:[self textMarkerRangeFromRange:webRange] spellCheck:YES];
+    auto webRange = self.axBackingObject->rangeForPlainTextRange(range);
+    return [self doAXAttributedStringForTextMarkerRange:[self textMarkerRangeFromRange:createLiveRange(webRange)] spellCheck:YES];
 }
 
 - (NSRange)_convertToNSRange:(Range*)range
@@ -3648,8 +3653,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
     if (AXObjectCache* cache = self.axBackingObject->axObjectCache()) {
         CharacterOffset characterOffset = [self characterOffsetForTextMarker:marker];
         // Create a collapsed range from the CharacterOffset object.
-        RefPtr<Range> range = cache->rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
-        return [self _convertToNSRange:range.get()].location;
+        auto range = cache->rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
+        return [self _convertToNSRange:createLiveRange(range).get()].location;
     }
     return NSNotFound;
 }
@@ -3769,7 +3774,7 @@ enum class TextUnit {
             return nil;
 
         auto characterOffset = characterOffsetForTextMarker(cache, textMarker);
-        RefPtr<Range> range;
+        Optional<SimpleRange> range;
         switch (textUnit) {
         case TextUnit::LeftWord:
             range = cache->leftWordRange(characterOffset);
@@ -3788,7 +3793,7 @@ enum class TextUnit {
             break;
         }
 
-        return textMarkerRangeFromRange(cache, range);
+        return textMarkerRangeFromRange(cache, createLiveRange(range));
     });
 }
 
@@ -3820,7 +3825,7 @@ enum class TextUnit {
             break;
         }
 
-        return textMarkerRangeFromVisiblePositions(backingObject->axObjectCache(), visiblePositionRange.start, visiblePositionRange.end);
+        return textMarkerRangeFromVisiblePositions(cache, visiblePositionRange.start, visiblePositionRange.end);
     });
 }
 
@@ -3955,7 +3960,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             if (ranges.isEmpty())
                 return nil;
             return createNSArray(ranges, [&] (auto& range) {
-                return [protectedSelf textMarkerRangeFromRange:range];
+                return [protectedSelf textMarkerRangeFromRange:createLiveRange(range)];
             }).autorelease();
         });
     }
@@ -4030,8 +4035,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             if (!backingObject)
                 return nil;
 
-            if (auto misspellingRange = backingObject->getMisspellingRange(criteria.first, criteria.second))
-                return [protectedSelf textMarkerRangeFromRange:misspellingRange];
+            if (auto misspellingRange = backingObject->misspellingRange(*criteria.first, criteria.second))
+                return [protectedSelf textMarkerRangeFromRange:createLiveRange(*misspellingRange)];
             return nil;
         });
     }
@@ -4071,8 +4076,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
     if ([attribute isEqualToString:@"AXTextMarkerRangeForUIElement"]) {
         return Accessibility::retrieveAutoreleasedValueFromMainThread<id>([&uiElement, protectedSelf = retainPtr(self)] () -> RetainPtr<id> {
-            RefPtr<Range> range = uiElement.get()->elementRange();
-            return [protectedSelf textMarkerRangeFromRange:range];
+            return [protectedSelf textMarkerRangeFromRange:createLiveRange(uiElement.get()->elementRange())];
         });
     }
 
@@ -4103,9 +4107,9 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
     if ([attribute isEqualToString:@"AXStringForTextMarkerRange"]) {
         return Accessibility::retrieveValueFromMainThread<String>([&textMarkerRange, protectedSelf = retainPtr(self)] () -> String {
-            RefPtr<Range> range = [protectedSelf rangeForTextMarkerRange:textMarkerRange];
+            auto range = [protectedSelf rangeForTextMarkerRange:textMarkerRange];
             auto* backingObject = protectedSelf.get().axBackingObject;
-            return backingObject ? backingObject->stringForRange(range) : String();
+            return (range && backingObject) ? backingObject->stringForRange(*range) : String();
         });
     }
 
@@ -4133,9 +4137,10 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             auto* backingObject = protectedSelf.get().axBackingObject;
             if (!backingObject)
                 return CGRectZero;
-
-            RefPtr<Range> range = [protectedSelf rangeForTextMarkerRange:textMarkerRange];
-            auto bounds = FloatRect(backingObject->boundsForRange(range));
+            auto range = [protectedSelf rangeForTextMarkerRange:textMarkerRange];
+            if (!range)
+                return CGRectZero;
+            auto bounds = FloatRect(backingObject->boundsForRange(*range));
             return [protectedSelf convertRectToSpace:bounds space:AccessibilityConversionSpace::Screen];
         });
         return [NSValue valueWithRect:rect];
@@ -4146,18 +4151,15 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             auto* backingObject = protectedSelf.get().axBackingObject;
             if (!backingObject)
                 return CGRectZero;
-
             auto* cache = backingObject->axObjectCache();
             if (!cache)
                 return CGRectZero;
-
             CharacterOffset start = cache->characterOffsetForIndex(range.location, backingObject);
             CharacterOffset end = cache->characterOffsetForIndex(range.location+range.length, backingObject);
-            if (start.isNull() || end.isNull())
+            auto range = cache->rangeForUnorderedCharacterOffsets(start, end);
+            if (!range)
                 return CGRectZero;
-
-            RefPtr<Range> range = cache->rangeForUnorderedCharacterOffsets(start, end);
-            auto bounds = FloatRect(backingObject->boundsForRange(range));
+            auto bounds = FloatRect(backingObject->boundsForRange(*range));
             return [protectedSelf convertRectToSpace:bounds space:AccessibilityConversionSpace::Screen];
         });
         return [NSValue valueWithRect:rect];
@@ -4173,18 +4175,15 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
             auto* backingObject = protectedSelf.get().axBackingObject;
             if (!backingObject)
                 return String();
-
             auto* cache = backingObject->axObjectCache();
             if (!cache)
                 return String();
-
-            CharacterOffset start = cache->characterOffsetForIndex(range.location, backingObject);
-            CharacterOffset end = cache->characterOffsetForIndex(range.location + range.length, backingObject);
-            if (start.isNull() || end.isNull())
-                return String();
-
-            RefPtr<Range> range = cache->rangeForUnorderedCharacterOffsets(start, end);
-            return backingObject->stringForRange(range);
+            auto start = cache->characterOffsetForIndex(range.location, backingObject);
+            auto end = cache->characterOffsetForIndex(range.location + range.length, backingObject);
+            auto range = cache->rangeForUnorderedCharacterOffsets(start, end);
+            if (!range)
+                return { };
+            return backingObject->stringForRange(*range);
         });
     }
 
@@ -4228,8 +4227,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
             CharacterOffset characterOffset1 = [protectedSelf characterOffsetForTextMarker:textMarker1];
             CharacterOffset characterOffset2 = [protectedSelf characterOffsetForTextMarker:textMarker2];
-            RefPtr<Range> range = cache->rangeForUnorderedCharacterOffsets(characterOffset1, characterOffset2);
-            return [protectedSelf textMarkerRangeFromRange:range];
+            auto range = cache->rangeForUnorderedCharacterOffsets(characterOffset1, characterOffset2);
+            return [protectedSelf textMarkerRangeFromRange:createLiveRange(range)];
         });
     }
 
@@ -4312,7 +4311,9 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
                 return 0;
 
             RefPtr<Range> range = [protectedSelf rangeForTextMarkerRange:textMarkerRange];
-            return AXObjectCache::lengthForRange(range.get());
+            if (!range)
+                return 0;
+            return AXObjectCache::lengthForRange(SimpleRange { *range });
         });
         if (length < 0)
             return nil;

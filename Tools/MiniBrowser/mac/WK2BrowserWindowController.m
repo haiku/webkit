@@ -27,6 +27,7 @@
 
 #import "AppDelegate.h"
 #import "SettingsController.h"
+#import <SecurityInterface/SFCertificateTrustPanel.h>
 #import <WebKit/WKFrameInfo.h>
 #import <WebKit/WKNavigationActionPrivate.h>
 #import <WebKit/WKNavigationDelegate.h>
@@ -72,45 +73,6 @@ static const int testFooterBannerHeight = 58;
 
 @end
 
-// Target for the FileExtensions NSPopupButton in the OpenPanel's AccessoryView.
-@interface FileExtensionsPopupTarget : NSObject {
-@private
-    NSOpenPanel *_openPanel;
-    NSArray<NSString *> *_allowedFileExtensions;
-}
-@end
-
-@implementation FileExtensionsPopupTarget
-
-- (id)initWithOpenPanel:(NSOpenPanel*)openPanel allowedFileExtensions:(NSArray<NSString *> *)allowedFileExtensions {
-    if ((self = [super init])) {
-        _openPanel = openPanel;
-        _allowedFileExtensions = [allowedFileExtensions copy];
-    }
-    return self;
-}
-
-- (void)popupAction:(id)sender {
-    // Last item.
-    if ([sender indexOfSelectedItem] == [sender numberOfItems] - 1)
-        [_openPanel setAllowedFileTypes:nil];
-    else if (![sender indexOfSelectedItem]) {
-        // First item.
-        if (![_allowedFileExtensions count])
-            [_openPanel setAllowedFileTypes:@[@""]];
-        else
-            [_openPanel setAllowedFileTypes:_allowedFileExtensions];
-    }
-}
-
-- (void)dealloc
-{
-    [_allowedFileExtensions release];
-    [super dealloc];
-}
-
-@end
-
 @interface WK2BrowserWindowController () <NSTextFinderBarContainer, WKNavigationDelegate, WKUIDelegate, _WKIconLoadingDelegate>
 @end
 
@@ -125,7 +87,6 @@ static const int testFooterBannerHeight = 58;
     MiniBrowserNSTextFinder *_textFinder;
     NSView *_textFindBarView;
     BOOL _findBarVisible;
-    FileExtensionsPopupTarget *_fileExtensionsPopupTarget;
 }
 
 - (void)awakeFromNib
@@ -145,6 +106,7 @@ static const int testFooterBannerHeight = 58;
 
     [_webView addObserver:self forKeyPath:@"title" options:0 context:keyValueObservingContext];
     [_webView addObserver:self forKeyPath:@"URL" options:0 context:keyValueObservingContext];
+    [_webView addObserver:self forKeyPath:@"hasOnlySecureContent" options:0 context:keyValueObservingContext];
 
     _webView.navigationDelegate = self;
     _webView.UIDelegate = self;
@@ -203,6 +165,7 @@ static const int testFooterBannerHeight = 58;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [_webView removeObserver:self forKeyPath:@"title"];
     [_webView removeObserver:self forKeyPath:@"URL"];
+    [_webView removeObserver:self forKeyPath:@"hasOnlySecureContent"];
     
     [progressIndicator unbind:NSHiddenBinding];
     [progressIndicator unbind:NSValueBinding];
@@ -211,7 +174,6 @@ static const int testFooterBannerHeight = 58;
 
     [_webView release];
     [_configuration release];
-    [_fileExtensionsPopupTarget release];
 
     [super dealloc];
 }
@@ -326,6 +288,12 @@ static BOOL areEssentiallyEqual(double a, double b)
 - (IBAction)reload:(id)sender
 {
     [_webView reload];
+}
+
+- (IBAction)showCertificate:(id)sender
+{
+    if (_webView.serverTrust)
+        [[SFCertificateTrustPanel sharedCertificateTrustPanel] beginSheetForWindow:self.window modalDelegate:nil didEndSelector:nil contextInfo:NULL trust:_webView.serverTrust message:@"TLS Certificate Details"];
 }
 
 - (IBAction)forceRepaint:(id)sender
@@ -555,7 +523,12 @@ static BOOL areEssentiallyEqual(double a, double b)
         title = url.lastPathComponent ?: url._web_userVisibleString;
     }
 
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 110000
+    self.window.title = title;
+    self.window.subtitle = [NSString stringWithFormat:@"[WK2 %d]%@%@", _webView._webProcessIdentifier, _isPrivateBrowsingWindow ? @" 🙈" : @"", _webView._editable ? @" ✏️" : @""];
+#else
     self.window.title = [NSString stringWithFormat:@"%@%@ [WK2 %d]%@", _isPrivateBrowsingWindow ? @"🙈 " : @"", title, _webView._webProcessIdentifier, _webView._editable ? @" [Editable]" : @""];
+#endif
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
@@ -567,6 +540,8 @@ static BOOL areEssentiallyEqual(double a, double b)
         [self updateTitle:_webView.title];
     else if ([keyPath isEqualToString:@"URL"])
         [self updateTextFieldFromURL:_webView.URL];
+    else if ([keyPath isEqualToString:@"hasOnlySecureContent"])
+        [self updateLockButtonIcon:_webView.hasOnlySecureContent];
 }
 
 - (nullable WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures
@@ -629,54 +604,6 @@ static BOOL areEssentiallyEqual(double a, double b)
     }];
 }
 
-- (nullable NSView *)createFilterView:(NSArray *)titles popupTarget:(FileExtensionsPopupTarget*)popupTarget
-{
-    NSTextField* label = [[[NSTextField alloc] initWithFrame:NSZeroRect] autorelease];
-    [label setStringValue:@"Format:"];
-    [label setEditable:NO];
-    [label setSelectable:NO];
-    [label setBordered:NO];
-    [label setBackgroundColor:[NSColor clearColor]];
-    [label sizeToFit];
-
-    NSPopUpButton *button = [[[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO] autorelease];
-    [button addItemsWithTitles:titles];
-    [button setTarget:popupTarget];
-    [button setAction:@selector(popupAction:)];
-    [button sizeToFit];
-    [button selectItemAtIndex:0];
-    [popupTarget popupAction:button];
-    
-    NSView* filterView = [[[NSView alloc] initWithFrame:NSZeroRect] autorelease];
-    [filterView addSubview:label];
-    [filterView addSubview:button];
-
-    const CGFloat margin = 20;
-    const CGFloat spacing = 2;
-    const CGFloat minButtonWidth = 230;
-
-    NSRect labelFrame = [label frame];
-    NSRect buttonFrame = [button frame];
-    NSRect filterViewFrame = [filterView frame];
-
-    // Set a minimum width for 'button'.
-    buttonFrame.size = NSMakeSize(MAX(NSWidth(buttonFrame), minButtonWidth), NSHeight(buttonFrame));
-    
-    // FilterView will lay out 'label' and 'button' horizontally and have a vertical margins.
-    filterViewFrame.size = NSMakeSize(NSWidth(labelFrame) + NSWidth(buttonFrame) + spacing, MAX(NSHeight(labelFrame), NSHeight(buttonFrame)) + margin * 2);
-    [filterView setFrame:filterViewFrame];
-
-    // 'label' will be laid out center vertically.
-    labelFrame.origin = NSMakePoint(NSMinX(labelFrame), (NSHeight(filterViewFrame) - NSHeight(labelFrame)) / 2);
-    [label setFrame:labelFrame];
-    
-    // 'button' will be laid out center vertically and it will come after 'label' horizontally.
-    buttonFrame.origin = NSMakePoint(NSMaxX(labelFrame) + spacing, (NSHeight(filterViewFrame) - NSHeight(buttonFrame)) / 2);
-    [button setFrame:buttonFrame];
-
-    return filterView;
-}
-
 #if __has_feature(objc_generics)
 - (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(NSArray<NSURL *> * URLs))completionHandler
 #else
@@ -686,14 +613,7 @@ static BOOL areEssentiallyEqual(double a, double b)
     NSOpenPanel *openPanel = [NSOpenPanel openPanel];
 
     openPanel.allowsMultipleSelection = parameters.allowsMultipleSelection;
-
-    [_fileExtensionsPopupTarget release];
-    _fileExtensionsPopupTarget = [[FileExtensionsPopupTarget alloc] initWithOpenPanel: openPanel allowedFileExtensions: parameters._allowedFileExtensions];
-
-    NSArray *allowedFileExtensionsTitles = parameters._allowedFileExtensionsTitles;
-    NSView *filterView = [self createFilterView:allowedFileExtensionsTitles popupTarget:_fileExtensionsPopupTarget];
-    if (filterView)
-        [openPanel setAccessoryView:filterView];
+    [openPanel setAllowedFileTypes:parameters._allowedFileExtensions];
 
     [openPanel beginSheetModalForWindow:webView.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK)
@@ -733,6 +653,14 @@ static BOOL areEssentiallyEqual(double a, double b)
         return;
 
     urlText.stringValue = [URL _web_userVisibleString];
+}
+
+- (void)updateLockButtonIcon:(BOOL)hasOnlySecureContent
+{
+    if (hasOnlySecureContent)
+        [lockButton setImage:[NSImage imageNamed:NSImageNameLockLockedTemplate]];
+    else
+        [lockButton setImage:[NSImage imageNamed:NSImageNameLockUnlockedTemplate]];
 }
 
 - (void)loadURLString:(NSString *)urlString

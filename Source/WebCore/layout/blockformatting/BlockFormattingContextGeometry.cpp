@@ -84,16 +84,15 @@ ContentHeightAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedHeight
         }
 
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin...
-        auto* lastInFlowChild = layoutContainer.lastInFlowChild();
-        ASSERT(lastInFlowChild);
-        if (!formattingContext().marginCollapse().marginAfterCollapsesWithParentMarginAfter(*lastInFlowChild)) {
-            auto& lastInFlowBoxGeometry = formattingContext().geometryForBox(*lastInFlowChild);
-            auto bottomEdgeOfBottomMargin = lastInFlowBoxGeometry.bottom() + (lastInFlowBoxGeometry.hasCollapsedThroughMargin() ? LayoutUnit() : lastInFlowBoxGeometry.marginAfter()); 
+        auto& lastInFlowChild = *layoutContainer.lastInFlowChild();
+        if (!formattingContext().marginCollapse().marginAfterCollapsesWithParentMarginAfter(lastInFlowChild)) {
+            auto& lastInFlowBoxGeometry = formattingContext().geometryForBox(lastInFlowChild);
+            auto bottomEdgeOfBottomMargin = lastInFlowBoxGeometry.bottom() + lastInFlowBoxGeometry.marginAfter(); 
             return { bottomEdgeOfBottomMargin - borderAndPaddingTop, nonCollapsedMargin };
         }
 
         // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
-        auto* inFlowChild = lastInFlowChild;
+        auto* inFlowChild = &lastInFlowChild;
         while (inFlowChild && formattingContext().marginCollapse().marginBeforeCollapsesWithParentMarginAfter(*inFlowChild))
             inFlowChild = inFlowChild->previousInFlowSibling();
         if (inFlowChild) {
@@ -140,6 +139,7 @@ ContentWidthAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedWidthAn
         //    edges of the containing block.
 
         auto containingBlockWidth = horizontalConstraints.logicalWidth;
+        auto& containingBlockStyle = layoutBox.containingBlock().style();
         auto& boxGeometry = formattingContext().geometryForBox(layoutBox);
 
         auto width = overrideHorizontalValues.width ? overrideHorizontalValues.width : computedWidth(layoutBox, containingBlockWidth);
@@ -159,7 +159,7 @@ ContentWidthAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedWidthAn
 
         // #2
         if (width && computedHorizontalMargin.start && computedHorizontalMargin.end) {
-            if (layoutBox.containingBlock().style().isLeftToRightDirection()) {
+            if (containingBlockStyle.isLeftToRightDirection()) {
                 usedHorizontalMargin.start = *computedHorizontalMargin.start;
                 usedHorizontalMargin.end = containingBlockWidth - (usedHorizontalMargin.start + borderLeft + paddingLeft + *width + paddingRight + borderRight);
             } else {
@@ -192,9 +192,18 @@ ContentWidthAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedWidthAn
             usedHorizontalMargin = { horizontalSpaceForMargin / 2, horizontalSpaceForMargin / 2 };
         }
 
+        auto shouldApplyCenterAlignForBlockContent = containingBlockStyle.textAlign() == TextAlignMode::WebKitCenter && (computedHorizontalMargin.start || computedHorizontalMargin.end);
+        if (shouldApplyCenterAlignForBlockContent) {
+            auto borderBoxWidth = (borderLeft + paddingLeft  + *width + paddingRight + borderRight);
+            auto marginStart = computedHorizontalMargin.start.valueOr(0);
+            auto marginEnd = computedHorizontalMargin.end.valueOr(0);
+            auto centeredLogicalLeftForMarginBox = std::max((containingBlockWidth - borderBoxWidth - marginStart - marginEnd) / 2, 0_lu);
+            usedHorizontalMargin.start = centeredLogicalLeftForMarginBox + marginStart;
+            usedHorizontalMargin.end = containingBlockWidth - borderBoxWidth - marginStart + marginEnd;
+        }
         ASSERT(width);
 
-        return ContentWidthAndMargin { *width, usedHorizontalMargin, computedHorizontalMargin };
+        return ContentWidthAndMargin { *width, usedHorizontalMargin };
     };
 
     auto contentWidthAndMargin = compute();
@@ -217,7 +226,7 @@ ContentWidthAndMargin BlockFormattingContext::Geometry::inFlowReplacedWidthAndMa
     auto nonReplacedWidthAndMargin = inFlowNonReplacedWidthAndMargin(replacedBox, horizontalConstraints, OverrideHorizontalValues { usedWidth, overrideHorizontalValues.margin });
 
     LOG_WITH_STREAM(FormattingContextLayout, stream << "[Width][Margin] -> inflow replaced -> width(" << usedWidth  << "px) margin(" << nonReplacedWidthAndMargin.usedMargin.start << "px, " << nonReplacedWidthAndMargin.usedMargin.end << "px) -> layoutBox(" << &replacedBox << ")");
-    return { usedWidth, nonReplacedWidthAndMargin.usedMargin, nonReplacedWidthAndMargin.computedMargin };
+    return { usedWidth, nonReplacedWidthAndMargin.usedMargin };
 }
 
 LayoutUnit BlockFormattingContext::Geometry::staticVerticalPosition(const Box& layoutBox, const VerticalConstraints& verticalConstraints) const
@@ -363,15 +372,13 @@ FormattingContext::IntrinsicWidthConstraints BlockFormattingContext::Geometry::i
         auto intrinsicWidthConstraints = IntrinsicWidthConstraints { };
         auto& formattingState = layoutState().formattingStateForBox(layoutBox);
         for (auto& child : childrenOfType<Box>(downcast<ContainerBox>(layoutBox))) {
-            if (child.isOutOfFlowPositioned())
+            if (child.isOutOfFlowPositioned() || (child.isFloatAvoider() && !child.hasFloatClear()))
                 continue;
             auto childIntrinsicWidthConstraints = formattingState.intrinsicWidthConstraintsForBox(child);
             ASSERT(childIntrinsicWidthConstraints);
 
-            // FIXME Check for box-sizing: border-box;
-            auto marginBorderAndPadding = fixedMarginBorderAndPadding(child);
-            intrinsicWidthConstraints.minimum = std::max(intrinsicWidthConstraints.minimum, childIntrinsicWidthConstraints->minimum + marginBorderAndPadding);
-            intrinsicWidthConstraints.maximum = std::max(intrinsicWidthConstraints.maximum, childIntrinsicWidthConstraints->maximum + marginBorderAndPadding);
+            intrinsicWidthConstraints.minimum = std::max(intrinsicWidthConstraints.minimum, childIntrinsicWidthConstraints->minimum);
+            intrinsicWidthConstraints.maximum = std::max(intrinsicWidthConstraints.maximum, childIntrinsicWidthConstraints->maximum);
         }
         return intrinsicWidthConstraints;
     };

@@ -1681,7 +1681,7 @@ bool BytecodeGenerator::emitEqualityOpImpl(RegisterID* dst, RegisterID* src1, Re
             const String& value = asString(m_codeBlock->constantRegister(src2->virtualRegister()).get())->tryGetValue();
             if (value == "undefined") {
                 rewind();
-                OpIsUndefined::emit(this, dst, op.m_value);
+                OpTypeofIsUndefined::emit(this, dst, op.m_value);
                 return true;
             }
             if (value == "boolean") {
@@ -4424,12 +4424,6 @@ RegisterID* BytecodeGenerator::emitIsNumber(RegisterID* dst, RegisterID* src)
     return dst;
 }
 
-RegisterID* BytecodeGenerator::emitIsUndefined(RegisterID* dst, RegisterID* src)
-{
-    OpIsUndefined::emit(this, dst, src);
-    return dst;
-}
-
 RegisterID* BytecodeGenerator::emitIsUndefinedOrNull(RegisterID* dst, RegisterID* src)
 {
     OpIsUndefinedOrNull::emit(this, dst, src);
@@ -5215,10 +5209,12 @@ void ForInContext::finalize(BytecodeGenerator& generator, UnlinkedCodeBlockGener
     for (unsigned offset = bodyBytecodeStartOffset(); isValid() && offset < bodyBytecodeEndOffset;) {
         auto instruction = generator.instructions().at(offset);
         ASSERT(!instruction->is<OpEnter>());
-        computeDefsForBytecodeIndex(codeBlock, instruction.ptr(), [&] (VirtualRegister operand) {
-            if (local()->virtualRegister() == operand)
-                invalidate();
-        });
+        for (Checkpoint checkpoint = instruction->numberOfCheckpoints(); checkpoint--;) {
+            computeDefsForBytecodeIndex(codeBlock, instruction.ptr(), checkpoint, [&] (VirtualRegister operand) {
+                if (local()->virtualRegister() == operand)
+                    invalidate();
+            });
+        }
         offset += instruction->size();
     }
 }

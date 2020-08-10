@@ -601,11 +601,32 @@ void GraphicsContextGLOpenGL::readRenderingResults(unsigned char *pixels, int pi
         gl::PixelStorei(GL_PACK_ALIGNMENT, 4);
         mustRestorePackAlignment = true;
     }
+    GLint packRowLength = 0;
+    GLint packSkipRows = 0;
+    GLint packSkipPixels = 0;
+    ScopedResetBufferBinding scopedPixelPackBufferReset(m_isForWebGL2, GL_PIXEL_PACK_BUFFER_BINDING, GL_PIXEL_PACK_BUFFER);
+    if (m_isForWebGL2) {
+        gl::GetIntegerv(GL_PACK_ROW_LENGTH, &packRowLength);
+        if (packRowLength > 0)
+            gl::PixelStorei(GL_PACK_ROW_LENGTH, 0);
+        gl::GetIntegerv(GL_PACK_SKIP_ROWS, &packSkipRows);
+        if (packSkipRows > 0)
+            gl::PixelStorei(GL_PACK_SKIP_ROWS, 0);
+        gl::GetIntegerv(GL_PACK_SKIP_PIXELS, &packSkipPixels);
+        if (packSkipPixels > 0)
+            gl::PixelStorei(GL_PACK_SKIP_PIXELS, 0);
+    }
 
     readPixelsAndConvertToBGRAIfNecessary(0, 0, m_currentWidth, m_currentHeight, pixels);
 
     if (mustRestorePackAlignment)
         gl::PixelStorei(GL_PACK_ALIGNMENT, packAlignment);
+    if (packRowLength > 0)
+        gl::PixelStorei(GL_PACK_ROW_LENGTH, packRowLength);
+    if (packSkipRows > 0)
+        gl::PixelStorei(GL_PACK_SKIP_ROWS, packSkipRows);
+    if (packSkipPixels > 0)
+        gl::PixelStorei(GL_PACK_SKIP_PIXELS, packSkipPixels);
 
     if (mustRestoreFBO)
         gl::BindFramebuffer(framebufferTarget, m_state.boundReadFBO);
@@ -1709,6 +1730,12 @@ void GraphicsContextGLOpenGL::getUniformiv(PlatformGLObject program, GCGLint loc
     gl::GetUniformiv(program, location, value);
 }
 
+void GraphicsContextGLOpenGL::getUniformuiv(PlatformGLObject program, GCGLint location, GCGLuint* value)
+{
+    makeContextCurrent();
+    gl::GetUniformuiv(program, location, value);
+}
+
 GCGLint GraphicsContextGLOpenGL::getUniformLocation(PlatformGLObject program, const String& name)
 {
     ASSERT(program);
@@ -1929,7 +1956,10 @@ void GraphicsContextGLOpenGL::drawElementsInstanced(GCGLenum mode, GCGLsizei cou
 
 void GraphicsContextGLOpenGL::vertexAttribDivisor(GCGLuint index, GCGLuint divisor)
 {
-    getExtensions().vertexAttribDivisor(index, divisor);
+    if (m_isForWebGL2)
+        gl::VertexAttribDivisor(index, divisor);
+    else
+        getExtensions().vertexAttribDivisor(index, divisor);
 }
 
 GCGLuint GraphicsContextGLOpenGL::getUniformBlockIndex(PlatformGLObject program, const String& uniformBlockName)
@@ -2136,303 +2166,133 @@ void GraphicsContextGLOpenGL::readBuffer(GCGLenum src)
     gl::ReadBuffer(src);
 }
 
-void GraphicsContextGLOpenGL::texImage3D(GCGLenum target, GCGLint level, GCGLint internalformat, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLint border, GCGLenum format, GCGLenum type, GCGLintptr pboOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(internalformat);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(border);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(pboOffset);
-}
-
-void GraphicsContextGLOpenGL::texImage3D(GCGLenum target, GCGLint level, GCGLint internalformat, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLint border, GCGLenum format, GCGLenum type, const void* pixels)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(internalformat);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(border);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(pixels);
-}
-
-void GraphicsContextGLOpenGL::texImage3D(GCGLenum target, GCGLint level, GCGLint internalformat, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLint border, GCGLenum format, GCGLenum type, const void* srcData, GCGLuint srcOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(internalformat);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(border);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(srcData);
-    UNUSED_PARAM(srcOffset);
-}
-
-void GraphicsContextGLOpenGL::texSubImage3D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLenum format, GCGLenum type, GCGLintptr pboOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(zoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(pboOffset);
-}
-
-void GraphicsContextGLOpenGL::texSubImage3D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLenum format, GCGLenum type, const void* srcData, GCGLuint srcOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(zoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(srcData);
-    UNUSED_PARAM(srcOffset);
-}
-
 void GraphicsContextGLOpenGL::copyTexSubImage3D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height)
 {
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(zoffset);
-    UNUSED_PARAM(x);
-    UNUSED_PARAM(y);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-}
+    makeContextCurrent();
+    auto attrs = contextAttributes();
+    GCGLenum framebufferTarget = m_isForWebGL2 ? GraphicsContextGL::READ_FRAMEBUFFER : GraphicsContextGL::FRAMEBUFFER;
 
-void GraphicsContextGLOpenGL::compressedTexImage3D(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLint border, GCGLsizei imageSize, GCGLintptr offset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(internalformat);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(border);
-    UNUSED_PARAM(imageSize);
-    UNUSED_PARAM(offset);
-}
-
-void GraphicsContextGLOpenGL::compressedTexImage3D(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLint border, const void* srcData, GCGLuint srcOffset, GCGLuint srcLengthOverride)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(internalformat);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(border);
-    UNUSED_PARAM(srcData);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLengthOverride);
-}
-
-void GraphicsContextGLOpenGL::compressedTexSubImage3D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLenum format, GCGLsizei imageSize, GCGLintptr offset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(zoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(imageSize);
-    UNUSED_PARAM(offset);
-}
-
-void GraphicsContextGLOpenGL::compressedTexSubImage3D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLsizei width, GCGLsizei height, GCGLsizei depth, GCGLenum format, const void* srcData, GCGLuint srcOffset, GCGLuint srcLengthOverride)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(zoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(depth);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(srcData);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLengthOverride);
+    if (attrs.antialias && m_state.boundReadFBO == m_multisampleFBO) {
+        resolveMultisamplingIfNecessary(IntRect(x, y, width, height));
+        gl::BindFramebuffer(framebufferTarget, m_fbo);
+    }
+    gl::CopyTexSubImage3D(target, level, xoffset, yoffset, zoffset, x, y, width, height);
+    if (attrs.antialias && m_state.boundReadFBO == m_multisampleFBO)
+        gl::BindFramebuffer(framebufferTarget, m_multisampleFBO);
 }
 
 GCGLint GraphicsContextGLOpenGL::getFragDataLocation(PlatformGLObject program, const String& name)
 {
-    UNUSED_PARAM(program);
-    UNUSED_PARAM(name);
-
-    return 0;
+    makeContextCurrent();
+    return gl::GetFragDataLocation(program, name.utf8().data());
 }
 
 void GraphicsContextGLOpenGL::uniform1ui(GCGLint location, GCGLuint v0)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(v0);
+    makeContextCurrent();
+    gl::Uniform1ui(location, v0);
 }
 
 void GraphicsContextGLOpenGL::uniform2ui(GCGLint location, GCGLuint v0, GCGLuint v1)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(v0);
-    UNUSED_PARAM(v1);
+    makeContextCurrent();
+    gl::Uniform2ui(location, v0, v1);
 }
 
 void GraphicsContextGLOpenGL::uniform3ui(GCGLint location, GCGLuint v0, GCGLuint v1, GCGLuint v2)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(v0);
-    UNUSED_PARAM(v1);
-    UNUSED_PARAM(v2);
+    makeContextCurrent();
+    gl::Uniform3ui(location, v0, v1, v2);
 }
 
 void GraphicsContextGLOpenGL::uniform4ui(GCGLint location, GCGLuint v0, GCGLuint v1, GCGLuint v2, GCGLuint v3)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(v0);
-    UNUSED_PARAM(v1);
-    UNUSED_PARAM(v2);
-    UNUSED_PARAM(v3);
+    makeContextCurrent();
+    gl::Uniform4ui(location, v0, v1, v2, v3);
 }
 
 void GraphicsContextGLOpenGL::uniform1uiv(GCGLint location, const GCGLuint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform1uiv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform2uiv(GCGLint location, const GCGLuint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform2uiv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform3uiv(GCGLint location, const GCGLuint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform3uiv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform4uiv(GCGLint location, const GCGLuint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform4uiv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix2x3fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix2x3fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix3x2fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix3x2fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix2x4fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix2x4fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix4x2fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix4x2fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix3x4fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix3x4fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix4x3fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix4x3fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::vertexAttribI4i(GCGLuint index, GCGLint x, GCGLint y, GCGLint z, GCGLint w)
 {
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(x);
-    UNUSED_PARAM(y);
-    UNUSED_PARAM(z);
-    UNUSED_PARAM(w);
+    makeContextCurrent();
+    gl::VertexAttribI4i(index, x, y, z, w);
 }
 
 void GraphicsContextGLOpenGL::vertexAttribI4iv(GCGLuint index, const GCGLint* values)
 {
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(values);
+    makeContextCurrent();
+    gl::VertexAttribI4iv(index, values);
 }
 
 void GraphicsContextGLOpenGL::vertexAttribI4ui(GCGLuint index, GCGLuint x, GCGLuint y, GCGLuint z, GCGLuint w)
 {
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(x);
-    UNUSED_PARAM(y);
-    UNUSED_PARAM(z);
-    UNUSED_PARAM(w);
+    makeContextCurrent();
+    gl::VertexAttribI4ui(index, x, y, z, w);
 }
 
 void GraphicsContextGLOpenGL::vertexAttribI4uiv(GCGLuint index, const GCGLuint* values)
 {
-    UNUSED_PARAM(index);
-    UNUSED_PARAM(values);
+    makeContextCurrent();
+    gl::VertexAttribI4uiv(index, values);
 }
 
 void GraphicsContextGLOpenGL::drawRangeElements(GCGLenum mode, GCGLuint start, GCGLuint end, GCGLsizei count, GCGLenum type, GCGLintptr offset)
@@ -2547,48 +2407,40 @@ void GraphicsContextGLOpenGL::getSamplerParameteriv(PlatformGLObject sampler, GC
     gl::GetSamplerParameteriv(sampler, pname, value);
 }
 
-PlatformGLObject GraphicsContextGLOpenGL::fenceSync(GCGLenum condition, GCGLbitfield flags)
+GCGLsync GraphicsContextGLOpenGL::fenceSync(GCGLenum condition, GCGLbitfield flags)
 {
-    UNUSED_PARAM(condition);
-    UNUSED_PARAM(flags);
-
-    return 0;
+    makeContextCurrent();
+    return gl::FenceSync(condition, flags);
 }
 
-GCGLboolean GraphicsContextGLOpenGL::isSync(PlatformGLObject sync)
+GCGLboolean GraphicsContextGLOpenGL::isSync(GCGLsync sync)
 {
-    UNUSED_PARAM(sync);
-
-    return false;
+    makeContextCurrent();
+    return gl::IsSync(sync);
 }
 
-void GraphicsContextGLOpenGL::deleteSync(PlatformGLObject sync)
+void GraphicsContextGLOpenGL::deleteSync(GCGLsync sync)
 {
-    UNUSED_PARAM(sync);
+    makeContextCurrent();
+    gl::DeleteSync(sync);
 }
 
-GCGLenum GraphicsContextGLOpenGL::clientWaitSync(PlatformGLObject sync, GCGLbitfield flags, GCGLuint64 timeout)
+GCGLenum GraphicsContextGLOpenGL::clientWaitSync(GCGLsync sync, GCGLbitfield flags, GCGLuint64 timeout)
 {
-    UNUSED_PARAM(sync);
-    UNUSED_PARAM(flags);
-    UNUSED_PARAM(timeout);
-
-    return 0;
+    makeContextCurrent();
+    return gl::ClientWaitSync(sync, flags, timeout);
 }
 
-void GraphicsContextGLOpenGL::waitSync(PlatformGLObject sync, GCGLbitfield flags, GCGLint64 timeout)
+void GraphicsContextGLOpenGL::waitSync(GCGLsync sync, GCGLbitfield flags, GCGLint64 timeout)
 {
-    UNUSED_PARAM(sync);
-    UNUSED_PARAM(flags);
-    UNUSED_PARAM(timeout);
+    makeContextCurrent();
+    gl::WaitSync(sync, flags, timeout);
 }
 
-void GraphicsContextGLOpenGL::getSynciv(PlatformGLObject sync, GCGLenum pname, GCGLsizei bufSize, GCGLint *value)
+void GraphicsContextGLOpenGL::getSynciv(GCGLsync sync, GCGLenum pname, GCGLsizei bufSize, GCGLint *value)
 {
-    UNUSED_PARAM(sync);
-    UNUSED_PARAM(pname);
-    UNUSED_PARAM(bufSize);
-    UNUSED_PARAM(value);
+    makeContextCurrent();
+    gl::GetSynciv(sync, pname, bufSize, nullptr, value);
 }
 
 void GraphicsContextGLOpenGL::pauseTransformFeedback()
@@ -2618,33 +2470,6 @@ Vector<GCGLuint> GraphicsContextGLOpenGL::getUniformIndices(PlatformGLObject pro
     Vector<GCGLuint> result(cstr.size(), 0);
     gl::GetUniformIndices(program, cstr.size(), cstr.data(), result.data());
     return result;
-}
-
-void GraphicsContextGLOpenGL::texSubImage2D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLsizei width, GCGLsizei height, GCGLenum format, GCGLenum type, GCGLintptr pboOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(pboOffset);
-}
-
-void GraphicsContextGLOpenGL::texSubImage2D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLsizei width, GCGLsizei height, GCGLenum format, GCGLenum type, const void* srcData, GCGLuint srcOffset)
-{
-    UNUSED_PARAM(target);
-    UNUSED_PARAM(level);
-    UNUSED_PARAM(xoffset);
-    UNUSED_PARAM(yoffset);
-    UNUSED_PARAM(width);
-    UNUSED_PARAM(height);
-    UNUSED_PARAM(format);
-    UNUSED_PARAM(type);
-    UNUSED_PARAM(srcData);
-    UNUSED_PARAM(srcOffset);
 }
 
 void GraphicsContextGLOpenGL::compressedTexImage2D(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLint border, GCGLsizei imageSize, GCGLintptr offset)
@@ -2701,93 +2526,68 @@ void GraphicsContextGLOpenGL::compressedTexSubImage2D(GCGLenum target, GCGLint l
 
 void GraphicsContextGLOpenGL::uniform1fv(GCGLint location, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform1fv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform2fv(GCGLint location, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform2fv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform3fv(GCGLint location, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform3fv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform4fv(GCGLint location, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform4fv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform1iv(GCGLint location, const GCGLint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform1iv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform2iv(GCGLint location, const GCGLint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform2iv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform3iv(GCGLint location, const GCGLint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform3iv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniform4iv(GCGLint location, const GCGLint* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::Uniform4iv(location, srcLength, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix2fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix2fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix3fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix3fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::uniformMatrix4fv(GCGLint location, GCGLboolean transpose, const GCGLfloat* data, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    UNUSED_PARAM(location);
-    UNUSED_PARAM(transpose);
-    UNUSED_PARAM(data);
-    UNUSED_PARAM(srcOffset);
-    UNUSED_PARAM(srcLength);
+    makeContextCurrent();
+    gl::UniformMatrix4fv(location, srcLength, transpose, data + srcOffset);
 }
 
 void GraphicsContextGLOpenGL::readPixels(GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height, GCGLenum format, GCGLenum type, GCGLintptr offset)

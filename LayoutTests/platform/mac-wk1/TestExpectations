@@ -167,8 +167,6 @@ http/tests/lazyload [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/below-viewport-image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/disconnected-image-loading-lazy.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-below-viewport-dynamic.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-ifame-001.sub.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-ifame-002.sub.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-viewport-dynamic.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-document.html [ Skip ]
@@ -179,8 +177,6 @@ imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/move-element-and-scroll.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/not-rendered-below-viewport-image-loading-lazy.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/not-rendered-image-loading-lazy.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/original-base-url-applied-2.html [ Skip ]
-imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/original-base-url-applied.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/picture-loading-lazy.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/remove-element-and-scroll.html [ Skip ]
 
@@ -317,9 +313,16 @@ imported/w3c/web-platform-tests/content-security-policy/worker-src/service-worke
 imported/w3c/web-platform-tests/fetch/api/request/destination [ Skip ]
 imported/w3c/web-platform-tests/fetch/cross-origin-resource-policy [ Skip ]
 imported/w3c/web-platform-tests/fetch/range/sw.https.window.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/cache-storage-reporting-dedicated-worker.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/cache-storage-reporting-document.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/cache-storage-reporting-shared-worker.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/coep-on-response-from-service-worker.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/dedicated-worker-cache-storage.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/reporting-subresource-corp.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/require-corp-sw.https.html [ Skip ]
+imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/service-worker-cache-storage.https.html [ Skip ]
 imported/w3c/web-platform-tests/server-timing/service_worker_idl.html [ Skip ]
 imported/w3c/web-platform-tests/service-workers [ Skip ]
-imported/w3c/web-platform-tests/streams/readable-byte-streams/detached-buffers.serviceworker.https.html [ Skip ]
 imported/w3c/web-platform-tests/infrastructure/server/context.any.serviceworker.html [ Skip ]
 imported/w3c/web-platform-tests/infrastructure/server/secure-context.https.any.serviceworker.html [ Skip ]
 imported/w3c/web-platform-tests/IndexedDB/key-generators/reading-autoincrement-indexes-cursors.any.serviceworker.html [ Skip ]
@@ -485,6 +488,8 @@ imported/w3c/web-platform-tests/html/browsers/history/the-history-interface/hist
 # Newly imported WPT tests that are flaky only on WK1.
 imported/w3c/web-platform-tests/html/browsers/history/the-location-interface/assign_after_load.html [ Pass Failure ]
 imported/w3c/web-platform-tests/html/browsers/history/the-location-interface/assign_before_load.html [ Pass Failure ]
+imported/w3c/web-platform-tests/html/browsers/the-window-object/apis-for-creating-and-navigating-browsing-contexts-by-name/open-features-non-integer-top.html [ Pass Failure ]
+imported/w3c/web-platform-tests/html/rendering/replaced-elements/attributes-for-embedded-content-and-images/img-aspect-ratio-lazy.tentative.html [ Pass Failure ]
 
 # Console logs are flaky.
 imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/module/integrity.html [ DumpJSConsoleLogInStdErr ]
@@ -653,8 +658,6 @@ webkit.org/b/174180 svg/animations/smil-leak-elements.svg [ Pass Failure ]
 
 webkit.org/b/175867 svg/animations/smil-leak-dynamically-added-element-instances.svg [ Pass Failure ]
 
-webkit.org/b/176920 imported/w3c/web-platform-tests/streams/piping/error-propagation-forward.dedicatedworker.html [ Pass Timeout ]
-
 webkit.org/b/175886 svg/animations/smil-leak-element-instances.svg [ Pass Failure ]
 
 # <rdar://problem/29201698> DumpRenderTree crashed in com.apple.CoreGraphics: CGDataProviderCopyData + 377
@@ -762,8 +765,6 @@ webkit.org/b/189087 svg/animations/animate-end-attribute-numeric-precision.html 
 
 webkit.org/b/189594 imported/w3c/web-platform-tests/css/css-animations/pending-style-changes-001.html [ Pass Failure ]
 
-webkit.org/b/188070 imported/w3c/web-platform-tests/streams/piping/error-propagation-backward.html [ Pass Failure ]
-
 # Tests for smooth scroll behavior do not all work and they are slow, so let's just skip them.
 webkit.org/b/191357 imported/w3c/web-platform-tests/css/cssom-view/scroll-behavior-main-frame-root.html [ Skip ]
 webkit.org/b/191357 imported/w3c/web-platform-tests/css/cssom-view/scroll-behavior-main-frame-window.html [ Skip ]
@@ -799,7 +800,6 @@ webkit.org/b/195098 pointerevents/mouse/over-enter-out-leave.html [ Failure ]
 webkit.org/b/195098 pointerevents/mouse/pointer-capture.html [ Failure ]
 webkit.org/b/195098 pointerevents/mouse/pointer-events-before-mouse-events.html [ Failure ]
 
-
 webkit.org/b/196915 [ Debug ] inspector/timeline/timeline-recording.html [ Pass Failure ]
 
 webkit.org/b/195623 http/tests/cache/link-prefetch-main-resource.html [ Skip ]
@@ -812,6 +812,7 @@ webkit.org/b/199632 http/wpt/prefetch/load-events.html [ Skip ]
 webkit.org/b/199632 http/wpt/prefetch/load-events-dynamic.html [ Skip ]
 
 webkit.org/b/198177 pointerevents/mouse/compatibility-mouse-events-prevention-mouse-pressed.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/compat/pointerevent_compat-mouse-events-when-removing-nodes.html [ Skip ]
 
 webkit.org/b/198459 [ Debug ] inspector/canvas/recording-webgl-full.html [ Slow ]
 
@@ -824,6 +825,8 @@ webkit.org/b/199242 [ Debug ] http/tests/performance/performance-resource-timing
 # No support for reftest-wait in DRT.
 imported/w3c/web-platform-tests/html/semantics/forms/the-input-element/range-setattribute-value.html [ ImageOnlyFailure ]
 imported/w3c/web-platform-tests/css/css-display/display-none-inline-img.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-compositing-change.html [ ImageOnlyFailure ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-slow.html [ ImageOnlyFailure ]
 
 # <rdar://problem/42625657> REGRESSION (Mojave): 12 fast/images tests timing out on WK1
 fast/images/animated-heics-draw.html [ Skip ]
@@ -839,8 +842,6 @@ webkit.org/b/203466 imported/w3c/web-platform-tests/css/css-position/position-st
 webkit.org/b/203466 imported/w3c/web-platform-tests/css/css-position/position-sticky-scroll-with-clip-and-abspos.html [ ImageOnlyFailure ]
 webkit.org/b/203466 imported/w3c/web-platform-tests/css/css-position/z-index-blend-will-change-overlapping-layers.html [ ImageOnlyFailure ]
 
-webkit.org/b/203501 imported/w3c/web-platform-tests/css/css-animations/animation-opacity-pause-and-set-time.html [ ImageOnlyFailure ]
-webkit.org/b/203501 imported/w3c/web-platform-tests/css/css-animations/animation-transform-pause-and-set-time.html [ ImageOnlyFailure ]
 
 webkit.org/b/203517 imported/w3c/web-platform-tests/css/css-sizing/dynamic-available-size-iframe.html [ Pass ImageOnlyFailure ]
 
@@ -880,6 +881,8 @@ webkit.org/b/206974 http/tests/security/contentSecurityPolicy/block-all-mixed-co
 webkit.org/b/207059 imported/w3c/web-platform-tests/IndexedDB/interleaved-cursors-small.html [ Pass Failure ]
 
 webkit.org/b/207066 editing/execCommand/insert-nested-lists.html [ Pass Failure ]
+
+webkit.org/b/214558 editing/execCommand/typing-should-not-trigger-scrolling-when-selection-is-visible.html [ Failure ]
 
 webkit.org/b/207125 transitions/start-transform-transition.html [ Pass Failure ]
 
@@ -948,15 +951,12 @@ webkit.org/b/210079 [ Debug ] inspector/debugger/evaluateOnCallFrame-errors.html
 webkit.org/b/210134 media/track/track-css-user-override.html [ Pass Failure ]
 
 webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.html [ Slow ]
-webkit.org/b/210198 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Slow ]
 
 webkit.org/b/208477 accessibility/mac/text-marker-for-index.html [ Skip ]
 
 webkit.org/b/211923 imported/w3c/web-platform-tests/fetch/api/basic/stream-safe-creation.any.html [ Pass Crash ]
 
 webkit.org/b/212665 svg/custom/textPath-insert-path.svg [ Pass ImageOnlyFailure ]
-
-webkit.org/b/212828 http/tests/media/reload-after-dialog.html [ Pass Failure ]
 
 # Mac-WK1 does not support Picture-in-Picture
 media/modern-media-controls/media-controller/media-controller-inline-to-fullscreen-to-pip-to-inline.html [ Skip ]
@@ -965,3 +965,33 @@ media/presentationmodechanged-fired-once.html [ Skip ]
 media/video-presentation-mode.html [ Skip ]
 
 webkit.org/b/212851 [ Mojave Release ] js/dom/unhandled-promise-rejection-console-no-report.html [ Pass Failure ]
+
+webkit.org/b/213896 imported/w3c/web-platform-tests/css/css-flexbox/overflow-auto-008.html [ Pass Failure ]
+
+# ENABLE_INPUT_TYPE_* are not enabled on wk1.
+fast/forms/date
+fast/forms/datetimelocal
+fast/forms/month
+fast/forms/time
+fast/forms/week
+
+# New failure after update of WPT tests in bug 214278
+webkit.org/b/214291 imported/w3c/web-platform-tests/css/css-writing-modes/sizing-orthog-htb-in-vrl-013.xht [ ImageOnlyFailure ]
+
+webkit.org/b/214299 imported/w3c/web-platform-tests/css/css-ui/resize-change-margin.html [ ImageOnlyFailure ]
+
+webkit.org/b/214308 http/tests/xmlhttprequest/access-control-basic-allow-preflight-cache.html [ Pass Failure ]
+
+webkit.org/b/214388 [ Mojave ] compositing/repaint/iframes/composited-iframe-with-fixed-background-doc-repaint.html [ Pass Failure ]
+
+webkit.org/b/214478 [ Debug ] storage/indexeddb/structured-clone-private.html [ Skip ]
+webkit.org/b/214478 [ Debug ] storage/indexeddb/structured-clone.html [ Skip ]
+
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-animations/animation-opacity-pause-and-set-time.html [ ImageOnlyFailure ]
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-animations/animation-transform-pause-and-set-time.html [ ImageOnlyFailure ]
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-overflow/overflow-ellipsis-dynamic-001.html [ ImageOnlyFailure ]
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-position/position-sticky-fixed-ancestor-iframe.html [ ImageOnlyFailure ]
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-position/position-sticky-fixed-ancestor.html [ ImageOnlyFailure ]
+webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-position/position-sticky-scroll-reposition.html [ ImageOnlyFailure ]
+webkit.org/b/214469 [ Debug ] imported/w3c/web-platform-tests/css/css-position/position-absolute-crash-chrome-013.html [ Skip ]
+webkit.org/b/214469 [ Debug ] imported/w3c/web-platform-tests/css/css-scoping/slotted-matches.html [ Skip ]

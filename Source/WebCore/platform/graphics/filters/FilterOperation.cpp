@@ -29,8 +29,10 @@
 #include "AnimationUtilities.h"
 #include "CachedResourceLoader.h"
 #include "CachedSVGDocumentReference.h"
+#include "ColorBlending.h"
+#include "ColorConversion.h"
 #include "ColorMatrix.h"
-#include "ColorUtilities.h"
+#include "ColorTypes.h"
 #include "FilterEffect.h"
 #include "SVGURIReference.h"
 #include <wtf/text/TextStream.h>
@@ -156,20 +158,20 @@ bool BasicComponentTransferFilterOperation::transformColor(SRGBA<float>& color) 
         return true;
     case INVERT: {
         float oneMinusAmount = 1.0f - m_amount;
-        forEachNonAlphaComponent(color, [&](float component) {
+        color = colorByModifingEachNonAlphaComponent(color, [&](float component) {
             return 1.0f - (oneMinusAmount + component * (m_amount - oneMinusAmount));
         });
         return true;
     }
     case CONTRAST: {
         float intercept = -(0.5f * m_amount) + 0.5f;
-        forEachNonAlphaComponent(color, [&](float component) {
+        color = colorByModifingEachNonAlphaComponent(color, [&](float component) {
             return std::clamp<float>(intercept + m_amount * component, 0.0f, 1.0f);
         });
         return true;
     }
     case BRIGHTNESS:
-        forEachNonAlphaComponent(color, [&](float component) {
+        color = colorByModifingEachNonAlphaComponent(color, [&](float component) {
             return std::max<float>(m_amount * component, 0.0f);
         });
         return true;
@@ -303,12 +305,12 @@ RefPtr<FilterOperation> DropShadowFilterOperation::blend(const FilterOperation* 
         return DropShadowFilterOperation::create(
             WebCore::blend(m_location, IntPoint(), progress),
             WebCore::blend(m_stdDeviation, 0, progress),
-            WebCore::blend(m_color, Color::transparent, progress));
+            WebCore::blend(m_color, Color::transparentBlack, progress));
 
     const DropShadowFilterOperation* fromOperation = downcast<DropShadowFilterOperation>(from);
     IntPoint fromLocation = fromOperation ? fromOperation->location() : IntPoint();
     int fromStdDeviation = fromOperation ? fromOperation->stdDeviation() : 0;
-    Color fromColor = fromOperation ? fromOperation->color() : Color::transparent;
+    Color fromColor = fromOperation ? fromOperation->color() : Color::transparentBlack;
     
     return DropShadowFilterOperation::create(
         WebCore::blend(fromLocation, m_location, progress),

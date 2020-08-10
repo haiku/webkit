@@ -155,6 +155,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioConfiguration.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioConfiguration.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContext.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContext.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextLatencyCategory.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextLatencyCategory.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextState.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContextState.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioDestinationNode.cpp
@@ -163,10 +167,14 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioListener.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioListener.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioNodeOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioNodeOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioParam.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioParam.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEvent.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrack.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrack.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrackList.cpp
@@ -299,6 +307,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCanvasTransform.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCanvasTransform.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCanvasUserInterface.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCanvasUserInterface.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelCountMode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelCountMode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelInterpretation.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelInterpretation.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelMergerNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelMergerNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSChannelSplitterNode.cpp
@@ -1230,6 +1242,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPaintWorkletGlobalScope.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPaintWorkletGlobalScope.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPannerNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPannerNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPannerOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPannerOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPanningModelType.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSPanningModelType.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSParentNode.cpp
@@ -2124,6 +2138,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRInputSource.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRInputSource.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRInputSourceArray.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRInputSourceArray.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRLayer.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRLayer.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRPose.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRPose.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebXRReferenceSpace.cpp

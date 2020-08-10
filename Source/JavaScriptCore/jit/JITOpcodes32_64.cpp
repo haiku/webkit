@@ -227,9 +227,9 @@ void JIT::emit_op_is_empty(const Instruction* currentInstruction)
     emitStoreBool(dst, regT0);
 }
 
-void JIT::emit_op_is_undefined(const Instruction* currentInstruction)
+void JIT::emit_op_typeof_is_undefined(const Instruction* currentInstruction)
 {
-    auto bytecode = currentInstruction->as<OpIsUndefined>();
+    auto bytecode = currentInstruction->as<OpTypeofIsUndefined>();
     VirtualRegister dst = bytecode.m_dst;
     VirtualRegister value = bytecode.m_operand;
     
@@ -1215,7 +1215,7 @@ void JIT::emit_op_has_indexed_property(const Instruction* currentInstruction)
     // size is always less than 4Gb). As such zero extending will have been correct (and extending the value
     // to 64-bits is necessary since it's used in the address calculation. We zero extend rather than sign
     // extending since it makes it easier to re-tag the value in the slow case.
-    zeroExtend32ToPtr(regT1, regT1);
+    zeroExtend32ToWord(regT1, regT1);
 
     emitArrayProfilingSiteWithCell(regT0, regT2, profile);
     and32(TrustedImm32(IndexingShapeMask), regT2);

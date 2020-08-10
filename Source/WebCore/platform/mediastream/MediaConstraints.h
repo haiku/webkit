@@ -43,7 +43,7 @@ namespace WebCore {
     
 class MediaConstraint {
 public:
-    enum class DataType { None, Integer, Double, Boolean, String };
+    enum class DataType : uint8_t { None, Integer, Double, Boolean, String };
 
     bool isInt() const { return m_dataType == DataType::Integer; }
     bool isDouble() const { return m_dataType == DataType::Double; }
@@ -74,6 +74,8 @@ public:
 
         return true;
     }
+
+    void log() const;
 
 protected:
     MediaConstraint(const String& name, MediaConstraintType constraintType, DataType dataType)
@@ -415,6 +417,8 @@ public:
         ASSERT(other.isInt());
         NumericConstraint::innerMerge(downcast<const IntConstraint>(other));
     }
+
+    void logAsInt() const;
 };
 
 class DoubleConstraint final : public NumericConstraint<double> {
@@ -431,6 +435,8 @@ public:
         ASSERT(other.isDouble());
         NumericConstraint::innerMerge(downcast<DoubleConstraint>(other));
     }
+
+    void logAsDouble() const;
 };
 
 class BooleanConstraint final : public MediaConstraint {
@@ -526,6 +532,8 @@ public:
 
         return true;
     }
+
+    void logAsBoolean() const;
 
 private:
     Optional<bool> m_exact;

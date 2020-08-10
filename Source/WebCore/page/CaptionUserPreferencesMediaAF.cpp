@@ -32,6 +32,7 @@
 #include "CaptionUserPreferencesMediaAF.h"
 
 #include "AudioTrackList.h"
+#include "ColorSerialization.h"
 #include "FloatConversion.h"
 #include "HTMLMediaElement.h"
 #include "LocalizedStrings.h"
@@ -270,7 +271,7 @@ String CaptionUserPreferencesMediaAF::captionsWindowCSS() const
 
     Color windowColor(color.get());
     if (!windowColor.isValid())
-        windowColor = Color::transparent;
+        windowColor = Color::transparentBlack;
 
     bool important = behavior == kMACaptionAppearanceBehaviorUseValue;
     CGFloat opacity = MACaptionAppearanceGetWindowOpacity(kMACaptionAppearanceDomainUser, &behavior);
@@ -288,7 +289,7 @@ String CaptionUserPreferencesMediaAF::captionsBackgroundCSS() const
 {
     // This default value must be the same as the one specified in mediaControls.css for -webkit-media-text-track-past-nodes
     // and webkit-media-text-track-future-nodes.
-    constexpr auto defaultBackgroundColor = makeSimpleColor(0, 0, 0, 0.8 * 255);
+    constexpr auto defaultBackgroundColor = Color::black.colorWithAlphaByte(204);
 
     MACaptionAppearanceBehavior behavior;
 
@@ -356,7 +357,8 @@ String CaptionUserPreferencesMediaAF::windowRoundedCornerRadiusCSS() const
 String CaptionUserPreferencesMediaAF::colorPropertyCSS(CSSPropertyID id, const Color& color, bool important) const
 {
     StringBuilder builder;
-    appendCSS(builder, id, color.serialized(), important);
+    // FIXME: Seems like this should be using serializationForCSS instead?
+    appendCSS(builder, id, serializationForHTML(color), important);
     return builder.toString();
 }
 

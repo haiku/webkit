@@ -51,6 +51,7 @@
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "ClientOrigin.h"
+#include "ColorSerialization.h"
 #include "ComposedTreeIterator.h"
 #include "CookieJar.h"
 #include "Cursor.h"
@@ -157,6 +158,7 @@
 #include "RenderListBox.h"
 #include "RenderMenuList.h"
 #include "RenderTheme.h"
+#include "RenderThemeIOS.h"
 #include "RenderTreeAsText.h"
 #include "RenderView.h"
 #include "RenderedDocumentMarker.h"
@@ -317,10 +319,6 @@
 #include "WebXRTest.h"
 #endif
 
-#if PLATFORM(MAC) && USE(LIBWEBRTC)
-#include <webrtc/sdk/WebKit/VideoProcessingSoftLink.h>
-#endif
-
 #if PLATFORM(MAC)
 #include "GraphicsContextGLOpenGLManager.h"
 #include "NSScrollerImpDetails.h"
@@ -329,7 +327,13 @@
 
 #if PLATFORM(COCOA)
 #include "SystemBattery.h"
+#include "VP9UtilitiesCocoa.h"
+#include <pal/spi/cocoa/CoreTextSPI.h>
 #include <wtf/spi/darwin/SandboxSPI.h>
+#endif
+
+#if PLATFORM(MAC) && USE(LIBWEBRTC)
+#include <webrtc/sdk/WebKit/VideoProcessingSoftLink.h>
 #endif
 
 using JSC::CallData;
@@ -580,6 +584,10 @@ void Internals::resetToConsistentState(Page& page)
 
     HTMLCanvasElement::setMaxPixelMemoryForTesting(0); // This means use the default value.
     DOMWindow::overrideTransientActivationDurationForTesting(WTF::nullopt);
+
+#if PLATFORM(IOS)
+    RenderThemeIOS::setContentSizeCategory(kCTFontContentSizeCategoryL);
+#endif
 }
 
 Internals::Internals(Document& document)
@@ -622,6 +630,13 @@ Internals::Internals(Document& document)
 
 #if PLATFORM(COCOA) &&  ENABLE(WEB_AUDIO)
     AudioDestinationCocoa::createOverride = nullptr;
+#endif
+
+#if PLATFORM(COCOA)
+    setOverrideSystemHasBatteryForTesting(WTF::nullopt);
+    setOverrideSystemHasACForTesting(WTF::nullopt);
+    setOverrideVP9HardwareDecoderDisabledForTesting(false);
+    resetOverrideVP9ScreenSizeAndScaleForTesting();
 #endif
 }
 
@@ -1613,6 +1628,25 @@ void Internals::applyRotationForOutgoingVideoSources(RTCPeerConnection& connecti
 {
     connection.applyRotationForOutgoingVideoSources();
 }
+void Internals::setWebRTCH265Support(bool value)
+{
+#if USE(LIBWEBRTC)
+    if (auto* page = contextDocument()->page()) {
+        page->libWebRTCProvider().setH265Support(value);
+        page->libWebRTCProvider().clearFactory();
+    }
+#endif
+}
+
+void Internals::setWebRTCVP9Support(bool value)
+{
+#if USE(LIBWEBRTC)
+    if (auto* page = contextDocument()->page()) {
+        page->libWebRTCProvider().setVP9Support(value);
+        page->libWebRTCProvider().clearFactory();
+    }
+#endif
+}
 
 void Internals::setEnableWebRTCEncryption(bool value)
 {
@@ -1926,7 +1960,7 @@ ExceptionOr<void> Internals::setViewIsTransparent(bool transparent)
         return Exception { InvalidAccessError };
     Optional<Color> backgroundColor;
     if (transparent)
-        backgroundColor = Color(Color::transparent);
+        backgroundColor = Color(Color::transparentBlack);
     document->view()->updateBackgroundRecursively(backgroundColor);
     return { };
 }
@@ -1936,7 +1970,7 @@ ExceptionOr<String> Internals::viewBaseBackgroundColor()
     Document* document = contextDocument();
     if (!document || !document->view())
         return Exception { InvalidAccessError };
-    return document->view()->baseBackgroundColor().cssText();
+    return serializationForCSS(document->view()->baseBackgroundColor());
 }
 
 ExceptionOr<void> Internals::setViewBaseBackgroundColor(const String& colorValue)
@@ -1946,7 +1980,7 @@ ExceptionOr<void> Internals::setViewBaseBackgroundColor(const String& colorValue
         return Exception { InvalidAccessError };
 
     if (colorValue == "transparent") {
-        document->view()->setBaseBackgroundColor(Color::transparent);
+        document->view()->setBaseBackgroundColor(Color::transparentBlack);
         return { };
     }
     if (colorValue == "white") {
@@ -2185,6 +2219,14 @@ ExceptionOr<uint64_t> Internals::lastSpellCheckProcessedSequence()
         return Exception { InvalidAccessError };
 
     return document->editor().spellChecker().lastProcessedIdentifier().toUInt64();
+}
+
+void Internals::advanceToNextMisspelling()
+{
+#if !PLATFORM(IOS_FAMILY)
+    if (auto* document = contextDocument())
+        document->editor().advanceToNextMisspelling();
+#endif
 }
 
 Vector<String> Internals::userPreferredLanguages() const
@@ -2841,12 +2883,21 @@ ExceptionOr<ScrollableArea*> Internals::scrollableAreaForNode(Node* node) const
             return Exception { InvalidAccessError };
 
         scrollableArea = frameView;
+    } else if (node == nodeRef->document().scrollingElement()) {
+        auto* frameView = nodeRef->document().view();
+        if (!frameView)
+            return Exception { InvalidAccessError };
+
+        scrollableArea = frameView;
     } else if (is<Element>(nodeRef)) {
         auto& element = downcast<Element>(nodeRef.get());
         if (!element.renderBox())
             return Exception { InvalidAccessError };
 
         auto& renderBox = *element.renderBox();
+        if (!renderBox.canBeScrolledAndHasScrollableArea())
+            return Exception { InvalidAccessError };
+
         if (is<RenderListBox>(renderBox))
             scrollableArea = &downcast<RenderListBox>(renderBox);
         else
@@ -4643,31 +4694,15 @@ void Internals::setPlatformMomentumScrollingPredictionEnabled(bool enabled)
 
 ExceptionOr<String> Internals::scrollSnapOffsets(Element& element)
 {
-    element.document().updateLayoutIgnorePendingStylesheets();
+    auto areaOrException = scrollableAreaForNode(&element);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
 
-    if (!element.renderBox())
-        return String();
-
-    RenderBox& box = *element.renderBox();
-    ScrollableArea* scrollableArea;
-
-    if (box.isBody()) {
-        FrameView* frameView = box.frame().mainFrame().view();
-        if (!frameView || !frameView->isScrollable())
-            return Exception { InvalidAccessError };
-        scrollableArea = frameView;
-
-    } else {
-        if (!box.canBeScrolledAndHasScrollableArea())
-            return Exception { InvalidAccessError };
-        scrollableArea = box.layer();
-    }
-
+    auto* scrollableArea = areaOrException.releaseReturnValue();
     if (!scrollableArea)
-        return String();
+        return Exception { InvalidAccessError };
 
     StringBuilder result;
-
     if (auto* offsets = scrollableArea->horizontalSnapOffsets()) {
         if (offsets->size()) {
             result.appendLiteral("horizontal = ");
@@ -4688,6 +4723,18 @@ ExceptionOr<String> Internals::scrollSnapOffsets(Element& element)
     return result.toString();
 }
 
+ExceptionOr<bool> Internals::isScrollSnapInProgress(Element& element)
+{
+    auto areaOrException = scrollableAreaForNode(&element);
+    if (areaOrException.hasException())
+        return areaOrException.releaseException();
+
+    auto* scrollableArea = areaOrException.releaseReturnValue();
+    if (!scrollableArea)
+        return Exception { InvalidAccessError };
+
+    return scrollableArea->isScrollSnapInProgress();
+}
 #endif
 
 bool Internals::testPreloaderSettingViewport()
@@ -4761,8 +4808,6 @@ void Internals::setShowAllPlugins(bool show)
     page->setShowAllPlugins(show);
 }
 
-#if ENABLE(STREAMS_API)
-
 bool Internals::isReadableStreamDisturbed(JSC::JSGlobalObject& lexicalGlobalObject, JSValue stream)
 {
     return ReadableStream::isDisturbed(lexicalGlobalObject, stream);
@@ -4790,8 +4835,6 @@ JSValue Internals::cloneArrayBuffer(JSC::JSGlobalObject& lexicalGlobalObject, JS
 
     return JSC::call(&lexicalGlobalObject, function, callData, JSC::jsUndefined(), arguments);
 }
-
-#endif
 
 String Internals::resourceLoadStatisticsForURL(const DOMURL& url)
 {
@@ -5320,6 +5363,28 @@ void Internals::storeRegistrationsOnDisk(DOMPromiseDeferred<void>&& promise)
 #endif
 }
 
+void Internals::sendH2Ping(String url, DOMPromiseDeferred<IDLDouble>&& promise)
+{
+    auto* document = contextDocument();
+    if (!document) {
+        promise.settle(InvalidStateError);
+        return;
+    }
+
+    auto* frame = document->frame();
+    if (!frame) {
+        promise.settle(InvalidStateError);
+        return;
+    }
+
+    frame->loader().client().sendH2Ping(URL(URL(), url), [promise = WTFMove(promise)] (Expected<Seconds, ResourceError>&& result) mutable {
+        if (result.has_value())
+            promise.resolve(result.value().value());
+        else
+            promise.settle(InvalidStateError);
+    });
+}
+
 void Internals::clearCacheStorageMemoryRepresentation(DOMPromiseDeferred<void>&& promise)
 {
     auto* document = contextDocument();
@@ -5543,6 +5608,11 @@ Optional<DoViParameterSet> Internals::parseDoViCodecParameters(const String& cod
     return WebCore::parseDoViCodecParameters(codecString);
 }
 
+Optional<VPCodecConfigurationRecord> Internals::parseVPCodecParameters(const String& codecString)
+{
+    return WebCore::parseVPCodecParameters(codecString);
+}
+
 auto Internals::getCookies() const -> Vector<CookieData>
 {
     auto* document = contextDocument();
@@ -5632,7 +5702,7 @@ String Internals::highlightPseudoElementColor(const String& highlightName, Eleme
     if (!style)
         return { };
 
-    return style->color().cssText();
+    return serializationForCSS(style->color());
 }
     
 Internals::TextIndicatorInfo::TextIndicatorInfo()
@@ -5744,7 +5814,7 @@ String Internals::systemColorForCSSValue(const String& cssValue, bool useDarkMod
     if (useElevatedUserInterfaceLevel)
         options.add(StyleColor::Options::UseElevatedUserInterfaceLevel);
     
-    return RenderTheme::singleton().systemColor(id, options).cssText();
+    return serializationForCSS(RenderTheme::singleton().systemColor(id, options));
 }
 
 bool Internals::systemHasBattery() const
@@ -5753,6 +5823,44 @@ bool Internals::systemHasBattery() const
     return WebCore::systemHasBattery();
 #else
     return false;
+#endif
+}
+
+void Internals::setSystemHasBatteryForTesting(bool hasBattery)
+{
+#if PLATFORM(COCOA)
+    WebCore::setOverrideSystemHasBatteryForTesting(hasBattery);
+#else
+    UNUSED_PARAM(hasBattery);
+#endif
+}
+
+void Internals::setSystemHasACForTesting(bool hasAC)
+{
+#if PLATFORM(COCOA)
+    WebCore::setOverrideSystemHasACForTesting(hasAC);
+#else
+    UNUSED_PARAM(hasAC);
+#endif
+}
+
+void Internals::setHardwareVP9DecoderDisabledForTesting(bool disabled)
+{
+#if PLATFORM(COCOA)
+    WebCore::setOverrideVP9HardwareDecoderDisabledForTesting(disabled);
+#else
+    UNUSED_PARAM(disabled);
+#endif
+}
+
+void Internals::setVP9ScreenSizeAndScaleForTesting(double width, double height, double scale)
+{
+#if PLATFORM(COCOA)
+    WebCore::setOverrideVP9ScreenSizeAndScaleForTesting(width, height, scale);
+#else
+    UNUSED_PARAM(width);
+    UNUSED_PARAM(height);
+    UNUSED_PARAM(scale);
 #endif
 }
 
@@ -5799,8 +5907,7 @@ bool Internals::supportsPictureInPicture()
 
 String Internals::focusRingColor()
 {
-    OptionSet<StyleColor::Options> options;
-    return RenderTheme::singleton().focusRingColor(options).cssText();
+    return serializationForCSS(RenderTheme::singleton().focusRingColor({ }));
 }
 
 unsigned Internals::createSleepDisabler(const String& reason, bool display)
@@ -5849,5 +5956,24 @@ unsigned Internals::mediaKeySessionInternalInstanceSessionObjectRefCount(const M
     return mediaKeySession.internalInstanceSessionObjectRefCount();
 }
 #endif
+
+void Internals::setContentSizeCategory(Internals::ContentSizeCategory category)
+{
+#if PLATFORM(IOS)
+    CFStringRef ctCategory = nil;
+    switch (category) {
+    case Internals::ContentSizeCategory::L:
+        ctCategory = kCTFontContentSizeCategoryL;
+        break;
+    case Internals::ContentSizeCategory::XXXL:
+        ctCategory = kCTFontContentSizeCategoryXXXL;
+        break;
+    }
+    RenderThemeIOS::setContentSizeCategory(ctCategory);
+    Page::updateStyleForAllPagesAfterGlobalChangeInEnvironment();
+#else
+    UNUSED_PARAM(category);
+#endif
+}
 
 } // namespace WebCore

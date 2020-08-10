@@ -41,6 +41,7 @@
 #include "CSSPaintImageValue.h"
 #include "CSSParserIdioms.h"
 #include "CSSValuePool.h"
+#include "ColorConversion.h"
 #include "Pair.h"
 #include "RuntimeEnabledFeatures.h"
 #include "StyleColor.h"
@@ -588,7 +589,7 @@ static Color parseRGBParameters(CSSParserTokenRange& range)
     if (!args.atEnd())
         return Color();
 
-    return makeSimpleColor(colorArray[0], colorArray[1], colorArray[2], alphaComponent);
+    return SRGBA<uint8_t> { colorArray[0], colorArray[1], colorArray[2], alphaComponent };
 }
 
 static Color parseHSLParameters(CSSParserTokenRange& range, CSSParserMode cssParserMode)
@@ -640,7 +641,7 @@ static Color parseHSLParameters(CSSParserTokenRange& range, CSSParserMode cssPar
     if (!args.atEnd())
         return Color();
 
-    return makeSimpleColor(toSRGBA(HSLA<float> { static_cast<float>(colorArray[0]), static_cast<float>(colorArray[1]), static_cast<float>(colorArray[2]), static_cast<float>(alpha) }));
+    return convertToComponentBytes(toSRGBA(HSLA<float> { static_cast<float>(colorArray[0]), static_cast<float>(colorArray[1]), static_cast<float>(colorArray[2]), static_cast<float>(alpha) }));
 }
 
 static Color parseColorFunctionParameters(CSSParserTokenRange& range)
@@ -657,7 +658,7 @@ static Color parseColorFunctionParameters(CSSParserTokenRange& range)
         colorSpace = ColorSpace::DisplayP3;
         break;
     default:
-        return Color();
+        return { };
     }
     consumeIdent(args);
 
@@ -675,7 +676,7 @@ static Color parseColorFunctionParameters(CSSParserTokenRange& range)
         if (!alphaParameter)
             alphaParameter = consumeNumber(args, ValueRangeAll);
         if (!alphaParameter)
-            return Color();
+            return { };
 
         colorChannels[3] = std::max(0.0, std::min(1.0, alphaParameter->isPercentage() ? (alphaParameter->doubleValue() / 100) : alphaParameter->doubleValue()));
     }
@@ -683,12 +684,12 @@ static Color parseColorFunctionParameters(CSSParserTokenRange& range)
     // FIXME: Support the comma-separated list of fallback color values.
 
     if (!args.atEnd())
-        return Color();
-    
-    return makeExtendedColor(colorChannels[0], colorChannels[1], colorChannels[2], colorChannels[3], colorSpace);
+        return { };
+
+    return Color { ColorComponents { static_cast<float>(colorChannels[0]), static_cast<float>(colorChannels[1]), static_cast<float>(colorChannels[2]), static_cast<float>(colorChannels[3]) }, colorSpace };
 }
 
-static Optional<SimpleColor> parseHexColor(CSSParserTokenRange& range, bool acceptQuirkyColors)
+static Optional<SRGBA<uint8_t>> parseHexColor(CSSParserTokenRange& range, bool acceptQuirkyColors)
 {
     String string;
     StringView view;

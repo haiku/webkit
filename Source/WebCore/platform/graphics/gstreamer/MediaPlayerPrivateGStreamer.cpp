@@ -53,6 +53,7 @@
 
 #if ENABLE(MEDIA_STREAM)
 #include "GStreamerMediaStreamSource.h"
+#include "MediaStreamPrivate.h"
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
@@ -269,8 +270,6 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     downcast<Nicosia::ContentLayerTextureMapperImpl>(m_nicosiaLayer->impl()).invalidateClient();
 #endif
 
-    m_notifier->invalidate();
-
     if (m_videoSink)
         g_signal_handlers_disconnect_matched(m_videoSink.get(), G_SIGNAL_MATCH_DATA, 0, 0, nullptr, nullptr, this);
 
@@ -293,7 +292,16 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     if (m_pipeline)
         gst_element_set_state(m_pipeline.get(), GST_STATE_NULL);
 
+#if ENABLE(ENCRYPTED_MEDIA)
+    {
+        LockHolder lock(m_cdmAttachmentMutex);
+        if (m_cdmInstance)
+            m_cdmInstance->releaseDecryptionResources();
+    }
+#endif
+
     m_player = nullptr;
+    m_notifier->invalidate();
 }
 
 bool MediaPlayerPrivateGStreamer::isAvailable()
@@ -3510,7 +3518,8 @@ void MediaPlayerPrivateGStreamer::initializationDataEncountered(InitData&& initD
         if (!weakThis)
             return;
 
-        GST_DEBUG("scheduling initializationDataEncountered event of size %zu", initData.payload()->size());
+        GST_DEBUG("scheduling initializationDataEncountered %s event of size %zu", initData.payloadContainerType().utf8().data(),
+            initData.payload()->size());
         GST_MEMDUMP("init datas", reinterpret_cast<const uint8_t*>(initData.payload()->data()), initData.payload()->size());
         weakThis->m_player->initializationDataEncountered(initData.payloadContainerType(), initData.payload()->tryCreateArrayBuffer());
     });

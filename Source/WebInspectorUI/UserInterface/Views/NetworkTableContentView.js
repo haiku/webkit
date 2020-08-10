@@ -148,14 +148,17 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         this._buttonsNavigationItemGroup = new WI.GroupNavigationItem([this._harImportNavigationItem, this._harExportNavigationItem, new WI.DividerNavigationItem]);
         this._buttonsNavigationItemGroup.visibilityPriority = WI.NavigationItem.VisibilityPriority.Low;
 
-        let toolTipForDisableResourceCache = WI.UIString("Ignore the resource cache when loading resources");
-        let activatedToolTipForDisableResourceCache = WI.UIString("Use the resource cache when loading resources");
-        this._disableResourceCacheNavigationItem = new WI.ActivateButtonNavigationItem("disable-resource-cache", toolTipForDisableResourceCache, activatedToolTipForDisableResourceCache, "Images/IgnoreCaches.svg", 16, 16);
-        this._disableResourceCacheNavigationItem.activated = WI.settings.resourceCachingDisabled.value;
-        this._disableResourceCacheNavigationItem.visibilityPriority = WI.NavigationItem.VisibilityPriority.High;
-        this._disableResourceCacheNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, this._toggleDisableResourceCache, this);
+        // COMPATIBILITY (iOS 10.3): Network.setDisableResourceCaching did not exist.
+        if (InspectorBackend.hasCommand("Network.setResourceCachingDisabled")) {
+            let toolTipForDisableResourceCache = WI.UIString("Ignore the resource cache when loading resources");
+            let activatedToolTipForDisableResourceCache = WI.UIString("Use the resource cache when loading resources");
+            this._disableResourceCacheNavigationItem = new WI.ActivateButtonNavigationItem("disable-resource-cache", toolTipForDisableResourceCache, activatedToolTipForDisableResourceCache, "Images/IgnoreCaches.svg", 16, 16);
+            this._disableResourceCacheNavigationItem.activated = WI.settings.resourceCachingDisabled.value;
+            this._disableResourceCacheNavigationItem.visibilityPriority = WI.NavigationItem.VisibilityPriority.High;
+            this._disableResourceCacheNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, this._toggleDisableResourceCache, this);
 
-        WI.settings.resourceCachingDisabled.addEventListener(WI.Setting.Event.Changed, this._resourceCachingDisabledSettingChanged, this);
+            WI.settings.resourceCachingDisabled.addEventListener(WI.Setting.Event.Changed, this._resourceCachingDisabledSettingChanged, this);
+        }
 
         this._clearNetworkItemsNavigationItem = new WI.ButtonNavigationItem("clear-network-items", WI.UIString("Clear Network Items (%s)").format(WI.clearKeyboardShortcut.displayName), "Images/NavigationItemTrash.svg", 15, 15);
         this._clearNetworkItemsNavigationItem.addEventListener(WI.ButtonNavigationItem.Event.Clicked, () => {
@@ -624,6 +627,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         function createIconElement() {
             let iconElement = cell.appendChild(document.createElement("img"));
             iconElement.className = "icon";
+            return iconElement;
         }
 
         let domNode = entry.domNode;
@@ -657,7 +661,7 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
             statusElement.appendChild(spinner.element);
         }
 
-        createIconElement();
+        let resourceIconElement = createIconElement();
 
         cell.classList.add(WI.ResourceTreeElement.ResourceIconStyleClassName, ...WI.Resource.classNamesForResource(resource));
 
@@ -678,7 +682,8 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         }
 
         cell.title = resource.url;
-        cell.classList.add(...WI.Resource.classNamesForResource(resource));
+        if (resource.responseSource === WI.Resource.ResponseSource.InspectorOverride)
+            resourceIconElement.title = WI.UIString("This resource was loaded from a local override");
     }
 
     _populateDomainCell(cell, entry)
@@ -739,23 +744,27 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
             if (resourceEntries.every((resourceEntry) => resourceEntry.resource.responseSource === WI.Resource.ResponseSource.MemoryCache)) {
                 cell.classList.add("cache-type");
                 cell.textContent = WI.UIString("(memory)");
+                cell.title = WI.UIString("This resource was loaded from the memory cache");
                 return;
             }
             if (resourceEntries.every((resourceEntry) => resourceEntry.resource.responseSource === WI.Resource.ResponseSource.DiskCache)) {
                 cell.classList.add("cache-type");
                 cell.textContent = WI.UIString("(disk)");
+                cell.title = WI.UIString("This resource was loaded from the disk cache");
                 return;
             }
             if (resourceEntries.every((resourceEntry) => resourceEntry.resource.responseSource === WI.Resource.ResponseSource.ServiceWorker)) {
                 cell.classList.add("cache-type");
                 cell.textContent = WI.UIString("(service worker)");
+                cell.title = WI.UIString("This resource was loaded from a service worker");
                 return;
             }
+
+            console.assert(!cell.classList.contains("cache-type"), "Should not have cache-type class on cell.");
+
             let transferSize = resourceEntries.reduce((accumulator, current) => accumulator + (current.transferSize || 0), 0);
-            if (isNaN(transferSize))
-                cell.textContent = emDash;
-            else
-                cell.textContent = Number.bytesToString(transferSize);
+            cell.textContent = isNaN(transferSize) ? emDash : Number.bytesToString(transferSize);
+            cell.title = "";
             return;
         }
 
@@ -763,27 +772,33 @@ WI.NetworkTableContentView = class NetworkTableContentView extends WI.ContentVie
         if (responseSource === WI.Resource.ResponseSource.MemoryCache) {
             cell.classList.add("cache-type");
             cell.textContent = WI.UIString("(memory)");
+            cell.title = WI.UIString("This resource was loaded from the memory cache");
             return;
         }
         if (responseSource === WI.Resource.ResponseSource.DiskCache) {
             cell.classList.add("cache-type");
             cell.textContent = WI.UIString("(disk)");
+            cell.title = WI.UIString("This resource was loaded from the disk cache");
             return;
         }
         if (responseSource === WI.Resource.ResponseSource.ServiceWorker) {
             cell.classList.add("cache-type");
             cell.textContent = WI.UIString("(service worker)");
+            cell.title = WI.UIString("This resource was loaded from a service worker");
             return;
         }
         if (responseSource === WI.Resource.ResponseSource.InspectorOverride) {
             cell.classList.add("cache-type");
-            cell.textContent = WI.UIString("(inspector override)");
+            cell.textContent = WI.UIString("(local override)");
+            cell.title = WI.UIString("This resource was loaded from a local override");
             return;
         }
 
+        console.assert(!cell.classList.contains("cache-type"), "Should not have cache-type class on cell.");
+
         let transferSize = entry.transferSize;
         cell.textContent = isNaN(transferSize) ? emDash : Number.bytesToString(transferSize);
-        console.assert(!cell.classList.contains("cache-type"), "Should not have cache-type class on cell.");
+        cell.title = "";
     }
 
     _populateWaterfallGraph(cell, entry)

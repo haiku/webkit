@@ -34,7 +34,7 @@
 #include "BasicBlockLocation.h"
 #include "ByValInfo.h"
 #include "BytecodeDumper.h"
-#include "BytecodeLivenessAnalysis.h"
+#include "BytecodeLivenessAnalysisInlines.h"
 #include "BytecodeOperandsForCheckpoint.h"
 #include "BytecodeStructs.h"
 #include "CodeBlockInlines.h"
@@ -231,7 +231,8 @@ void CodeBlock::dumpBytecode(PrintStream& out)
 {
     ICStatusMap statusMap;
     getICStatusMap(statusMap);
-    CodeBlockBytecodeDumper<CodeBlock>::dumpBlock(this, instructions(), out, statusMap);
+    BytecodeGraph graph(this, this->instructions());
+    CodeBlockBytecodeDumper<CodeBlock>::dumpGraph(this, instructions(), graph, out, statusMap);
 }
 
 void CodeBlock::dumpBytecode(PrintStream& out, const InstructionStream::Ref& it, const ICStatusMap& statusMap)
@@ -767,6 +768,12 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
             m_numberOfArgumentsToSkip = numberOfArgumentsToSkip;
             break;
         }
+
+        case op_loop_hint: {
+            if (Options::returnEarlyFromInfiniteLoopsForFuzzing())
+                vm.addLoopHintExecutionCounter(instruction.ptr());
+            break;
+        }
         
         default:
             break;
@@ -810,6 +817,19 @@ CodeBlock::~CodeBlock()
 {
     VM& vm = *m_vm;
 
+    // We use unvalidatedGet because get() has a validation assertion that rejects access.
+    // This assertion is correct since destruction order of cells is not guaranteed, and member cells could already be destroyed.
+    // But for CodeBlock, we are ensuring the order: CodeBlock gets destroyed before UnlinkedCodeBlock gets destroyed.
+    // So, we can access member UnlinkedCodeBlock safely here. We bypass the assertion by using unvalidatedGet.
+    UnlinkedCodeBlock* unlinkedCodeBlock = m_unlinkedCode.unvalidatedGet();
+
+    if (Options::returnEarlyFromInfiniteLoopsForFuzzing() && JITCode::isBaselineCode(jitType())) {
+        for (const auto& instruction : unlinkedCodeBlock->instructions()) {
+            if (instruction->is<OpLoopHint>())
+                vm.removeLoopHintExecutionCounter(instruction.ptr());
+        }
+    }
+
 #if ENABLE(DFG_JIT)
     // The JITCode (and its corresponding DFG::CommonData) may outlive the CodeBlock by
     // a short amount of time after the CodeBlock is destructed. For example, the
@@ -835,8 +855,8 @@ CodeBlock::~CodeBlock()
     if (UNLIKELY(vm.m_perBytecodeProfiler))
         vm.m_perBytecodeProfiler->notifyDestruction(this);
 
-    if (!vm.heap.isShuttingDown() && unlinkedCodeBlock()->didOptimize() == TriState::Indeterminate)
-        unlinkedCodeBlock()->setDidOptimize(TriState::False);
+    if (!vm.heap.isShuttingDown() && unlinkedCodeBlock->didOptimize() == TriState::Indeterminate)
+        unlinkedCodeBlock->setDidOptimize(TriState::False);
 
 #if ENABLE(VERBOSE_VALUE_PROFILE)
     dumpValueProfiles();
@@ -1413,8 +1433,10 @@ void CodeBlock::finalizeBaselineJITInlineCaches()
         for (CallLinkInfo* callLinkInfo : jitData->m_callLinkInfos)
             callLinkInfo->visitWeak(vm());
 
-        for (StructureStubInfo* stubInfo : jitData->m_stubInfos)
-            stubInfo->visitWeakReferences(this);
+        for (StructureStubInfo* stubInfo : jitData->m_stubInfos) {
+            ConcurrentJSLockerBase locker(NoLockingNecessary);
+            stubInfo->visitWeakReferences(locker, this);
+        }
     }
 }
 #endif
@@ -1923,7 +1945,7 @@ void CodeBlock::ensureCatchLivenessIsComputedForBytecodeIndexSlow(const OpCatch&
     // into the DFG.
 
     auto nextOffset = instructions().at(bytecodeIndex).next().offset();
-    FastBitVector liveLocals = bytecodeLiveness.getLivenessInfoAtBytecodeIndex(this, BytecodeIndex(nextOffset));
+    FastBitVector liveLocals = bytecodeLiveness.getLivenessInfoAtInstruction(this, BytecodeIndex(nextOffset));
     Vector<VirtualRegister> liveOperands;
     liveOperands.reserveInitialCapacity(liveLocals.bitCount());
     liveLocals.forEachSetBit([&] (unsigned liveLocal) {
@@ -3109,7 +3131,7 @@ void CodeBlock::validate()
 {
     BytecodeLivenessAnalysis liveness(this); // Compute directly from scratch so it doesn't effect CodeBlock footprint.
     
-    FastBitVector liveAtHead = liveness.getLivenessInfoAtBytecodeIndex(this, BytecodeIndex(0));
+    FastBitVector liveAtHead = liveness.getLivenessInfoAtInstruction(this, BytecodeIndex(0));
     
     if (liveAtHead.numBits() != static_cast<size_t>(m_numCalleeLocals)) {
         beginValidationDidFail();

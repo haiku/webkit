@@ -129,6 +129,7 @@ use constant IOS_DEVELOPMENT_CERTIFICATE_NAME_PREFIX => "iPhone Developer: ";
 our @EXPORT_OK;
 
 my $architecture;
+my %nativeArchitectureMap = ();
 my $asanIsEnabled;
 my $forceOptimizationLevel;
 my $coverageIsEnabled;
@@ -351,16 +352,46 @@ sub determineConfiguration
     }
 }
 
+sub determineNativeArchitecture(;$$)
+{
+    my ($target, $port) = @_;
+    $target = '' if !defined $target;
+    $port = 0 if !defined $port;
+    return if defined $nativeArchitectureMap{"$target:$port"};
+
+    my $output;
+    if ($target eq "") {
+        $output = `uname -m` unless isWindows();
+    } else {
+        $output = `ssh -o NoHostAuthenticationForLocalhost=yes -p $port $target 'uname  -m'`;
+    }
+    chomp $output if defined $output;
+    $output = "x86_64" if (not defined $output);
+
+    # FIXME: Remove this when <rdar://problem/64208532> is resolved
+    if (isAppleCocoaWebKit() && $output ne "x86_64") {
+        $output = "arm64";
+    }
+
+    $output = "arm" if $output eq "armv7l";
+    $nativeArchitectureMap{"$target:$port"} = $output;
+}
+
 sub determineArchitecture
 {
     return if defined $architecture;
-    # make sure $architecture is defined in all cases
-    $architecture = "";
 
     determineBaseProductDir();
-    determineXcodeSDK();
+    $architecture = nativeArchitecture();
+    if (isAppleCocoaWebKit() && $architecture eq "arm64") {
+        determineXcodeSDK();
+        if ($xcodeSDK eq "macosx.internal") {
+            $architecture = "arm64e";
+        }
+    }
 
     if (isAppleCocoaWebKit()) {
+        determineXcodeSDK();
         if (open ARCHITECTURE, "$baseProductDir/Architecture") {
             $architecture = <ARCHITECTURE>;
             close ARCHITECTURE;
@@ -368,20 +399,12 @@ sub determineArchitecture
         if ($architecture) {
             chomp $architecture;
         } else {
-            if (not defined $xcodeSDK or $xcodeSDK =~ /^(\/$|macosx)/) {
-                my $supports64Bit = `sysctl -n hw.optional.x86_64`;
-                chomp $supports64Bit;
-                $architecture = 'x86_64' if $supports64Bit;
-            } elsif ($xcodeSDK =~ /^iphonesimulator/) {
-                $architecture = 'x86_64';
-            } elsif ($xcodeSDK =~ /^iphoneos/) {
+            if ($xcodeSDK =~ /^iphoneos/) {
                 $architecture = 'arm64';
             } elsif ($xcodeSDK =~ /^watchsimulator/) {
                 $architecture = 'i386';
             } elsif ($xcodeSDK =~ /^watchos/) {
                 $architecture = 'arm64_32 arm64e armv7k';
-            } elsif ($xcodeSDK =~ /^appletvsimulator/) {
-                $architecture = 'x86_64';
             } elsif ($xcodeSDK =~ /^appletvos/) {
                 $architecture = 'arm64';
             }
@@ -401,14 +424,6 @@ sub determineArchitecture
                 }
             }
             close $cmake_sysinfo;
-        }
-    }
-
-    if (!isAnyWindows()) {
-        if (!$architecture) {
-            # Fall back to output of `uname -m', if it is present.
-            $architecture = `uname -m`;
-            chomp $architecture;
         }
     }
 
@@ -507,7 +522,7 @@ sub jscPath($)
     my $jscName = "jsc";
     $jscName .= "_debug"  if configuration() eq "Debug_All";
     if (isPlayStation()) {
-        $jscName .= ".elf";
+        $jscName .= ".self";
     } elsif (isAnyWindows()) {
         $jscName .= ".exe";
     }
@@ -628,7 +643,11 @@ sub determineXcodeSDK
     if (checkForArgumentAndRemoveFromARGV("--maccatalyst")) {
         $xcodeSDK ||= "maccatalyst";
     }
-    return if !defined $xcodeSDK;
+
+    # Finally, fall back to macOS if no platform is specified.
+    if (!defined $xcodeSDK) {
+        $xcodeSDK = "macosx";
+    }
     
     # Prefer the internal version of an sdk, if it exists.
     my @availableSDKs = availableXcodeSDKs();
@@ -845,6 +864,18 @@ sub jscProductDir
     return executableProductDir();
 }
 
+sub architecturesForProducts
+{
+    # Most ports don't have emulation, assume that the user gave us an accurate architecture
+    if (!isAppleCocoaWebKit()) {
+        return architecture();
+    }
+    my $webkitBinary = File::Spec->catdir(executableProductDir(), "JavaScriptCore.framework", "JavaScriptCore");
+    my $architectures = `/usr/bin/lipo -archs $webkitBinary`;
+    chomp($architectures);
+    return $architectures;
+}
+
 sub configuration()
 {
     determineConfiguration();
@@ -1043,6 +1074,15 @@ sub passedArchitecture
 {
     determinePassedArchitecture();
     return $passedArchitecture;
+}
+
+sub nativeArchitecture(;$$)
+{
+    my ($target, $port) = @_;
+    $target = '' if !defined $target;
+    $port = 0 if !defined $port;
+    determineNativeArchitecture($target, $port);
+    return $nativeArchitectureMap{"$target:$port"};
 }
 
 sub architecture()
@@ -2099,6 +2139,16 @@ sub getJhbuildPath()
     }
     return File::Spec->catdir(@jhbuildPath);
 }
+
+
+sub getJhbuildModulesetName()
+{
+    if (defined($ENV{'WEBKIT_JHBUILD_MODULESET'})) {
+        return 'jhbuild-' . $ENV{'WEBKIT_JHBUILD_MODULESET'} . '.modules';
+    }
+    return 'jhbuild.modules';
+}
+
 
 sub getUserFlatpakPath()
 {

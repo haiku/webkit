@@ -432,7 +432,7 @@ static bool dispatchClipboardEvent(RefPtr<Element>&& target, ClipboardEventKind 
 
     target->dispatchEvent(event);
     bool noDefaultProcessing = event->defaultPrevented();
-    if (noDefaultProcessing && (kind == ClipboardEventKind::Copy || kind == ClipboardEventKind::Cut))
+    if (noDefaultProcessing && (kind == ClipboardEventKind::Copy || kind == ClipboardEventKind::Cut) && dataTransfer->pasteboard().hasData())
         dataTransfer->commitToPasteboard(*Pasteboard::createForCopyAndPaste());
 
     dataTransfer->makeInvalidForSecurity();
@@ -1108,6 +1108,9 @@ bool Editor::willApplyEditing(CompositeEditCommand& command, Vector<RefPtr<Stati
     if (!composition)
         return true;
 
+    if (command.isTopLevelCommand() && command.isTypingCommand() && document().view())
+        m_prohibitScrollingDueToContentSizeChangesWhileTyping = document().view()->prohibitScrollingWhenChangingContentSizeForScope();
+
     return dispatchBeforeInputEvents(composition->startingRootEditableElement(), composition->endingRootEditableElement(), command.inputEventTypeName(),
         command.inputEventData(), command.inputEventDataTransfer(), targetRanges, command.isBeforeInputEventCancelable() ? Event::IsCancelable::Yes : Event::IsCancelable::No);
 }
@@ -1155,6 +1158,9 @@ void Editor::appliedEditing(CompositeEditCommand& command)
                 client()->registerUndoStep(m_lastEditCommand->ensureComposition());
         }
         respondToChangedContents(newSelection);
+
+        if (command.isTypingCommand())
+            m_prohibitScrollingDueToContentSizeChangesWhileTyping = nullptr;
     }
 }
 
@@ -1366,8 +1372,9 @@ bool Editor::insertParagraphSeparatorInQuotedContent()
     return true;
 }
 
-void Editor::cut()
+void Editor::cut(FromMenuOrKeyBinding fromMenuOrKeyBinding)
 {
+    SetForScope<bool> copyScope { m_copyingFromMenuOrKeyBinding, fromMenuOrKeyBinding == FromMenuOrKeyBinding::Yes };
     if (tryDHTMLCut())
         return; // DHTML did the whole operation
     if (!canCut()) {
@@ -1378,8 +1385,9 @@ void Editor::cut()
     performCutOrCopy(CutAction);
 }
 
-void Editor::copy()
+void Editor::copy(FromMenuOrKeyBinding fromMenuOrKeyBinding)
 {
+    SetForScope<bool> copyScope { m_copyingFromMenuOrKeyBinding, fromMenuOrKeyBinding == FromMenuOrKeyBinding::Yes };
     if (tryDHTMLCopy())
         return; // DHTML did the whole operation
     if (!canCopy()) {
@@ -3321,8 +3329,11 @@ RefPtr<TextPlaceholderElement> Editor::insertTextPlaceholder(const IntSize& size
     auto placeholder = TextPlaceholderElement::create(document, size);
     createLiveRange(*range)->insertNode(placeholder.copyRef());
 
-    VisibleSelection newSelection { positionBeforeNode(placeholder.ptr()), positionAfterNode(placeholder.ptr()) };
-    m_document.selection().setSelection(newSelection, FrameSelection::defaultSetSelectionOptions(UserTriggered));
+    // Inserting the placeholder can run arbitrary JavaScript. Check that it still has a parent.
+    if (!placeholder->parentNode())
+        return nullptr;
+
+    m_document.selection().setSelection(VisibleSelection { positionInParentBeforeNode(placeholder.ptr()), SEL_DEFAULT_AFFINITY }, FrameSelection::defaultSetSelectionOptions(UserTriggered));
 
     return placeholder;
 }

@@ -301,28 +301,25 @@ void WebAnimation::effectTargetDidChange(Element* previousTarget, Element* newTa
     InspectorInstrumentation::didChangeWebAnimationEffectTarget(*this);
 }
 
-Optional<double> WebAnimation::startTime() const
+Optional<double> WebAnimation::bindingsStartTime() const
 {
     if (!m_startTime)
         return WTF::nullopt;
-    return secondsToWebAnimationsAPITime(m_startTime.value());
+    return secondsToWebAnimationsAPITime(*m_startTime);
 }
 
-void WebAnimation::setBindingsStartTime(Optional<double> startTime)
+void WebAnimation::setBindingsStartTime(Optional<double> newStartTime)
 {
-    setStartTime(startTime);
+    if (newStartTime)
+        setStartTime(Seconds::fromMilliseconds(*newStartTime));
+    else
+        setStartTime(WTF::nullopt);
 }
 
-void WebAnimation::setStartTime(Optional<double> startTime)
+void WebAnimation::setStartTime(Optional<Seconds> newStartTime)
 {
     // 3.4.6 The procedure to set the start time of animation, animation, to new start time, is as follows:
     // https://drafts.csswg.org/web-animations/#setting-the-start-time-of-an-animation
-
-    Optional<Seconds> newStartTime;
-    if (!startTime)
-        newStartTime = WTF::nullopt;
-    else
-        newStartTime = Seconds::fromMilliseconds(startTime.value());
 
     // 1. Let timeline time be the current time value of the timeline that animation is associated with. If
     //    there is no timeline associated with animation or the associated timeline is inactive, let the timeline
@@ -382,12 +379,12 @@ ExceptionOr<void> WebAnimation::setBindingsCurrentTime(Optional<double> currentT
     return setCurrentTime(Seconds::fromMilliseconds(currentTime.value()));
 }
 
-Optional<Seconds> WebAnimation::currentTime() const
+Optional<Seconds> WebAnimation::currentTime(Optional<Seconds> startTime) const
 {
-    return currentTime(RespectHoldTime::Yes);
+    return currentTime(RespectHoldTime::Yes, startTime);
 }
 
-Optional<Seconds> WebAnimation::currentTime(RespectHoldTime respectHoldTime) const
+Optional<Seconds> WebAnimation::currentTime(RespectHoldTime respectHoldTime, Optional<Seconds> startTime) const
 {
     // 3.4.4. The current time of an animation
     // https://drafts.csswg.org/web-animations-1/#the-current-time-of-an-animation
@@ -407,7 +404,7 @@ Optional<Seconds> WebAnimation::currentTime(RespectHoldTime respectHoldTime) con
         return WTF::nullopt;
 
     // Otherwise, current time = (timeline time - start time) * playback rate
-    return (m_timeline->currentTime().value() - m_startTime.value()) * m_playbackRate;
+    return (*m_timeline->currentTime() - startTime.valueOr(*m_startTime)) * m_playbackRate;
 }
 
 ExceptionOr<void> WebAnimation::silentlySetCurrentTime(Optional<Seconds> seekTime)
@@ -1241,14 +1238,14 @@ void WebAnimation::tick()
         m_effect->animationDidTick();
 }
 
-void WebAnimation::resolve(RenderStyle& targetStyle)
+void WebAnimation::resolve(RenderStyle& targetStyle, Optional<Seconds> startTime)
 {
     if (!m_shouldSkipUpdatingFinishedStateWhenResolving)
         updateFinishedState(DidSeek::No, SynchronouslyNotify::Yes);
     m_shouldSkipUpdatingFinishedStateWhenResolving = false;
 
     if (m_effect)
-        m_effect->apply(targetStyle);
+        m_effect->apply(targetStyle, startTime);
 }
 
 void WebAnimation::setSuspended(bool isSuspended)

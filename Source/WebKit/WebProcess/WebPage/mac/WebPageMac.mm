@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,6 +57,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <WebCore/AXObjectCache.h>
 #import <WebCore/BackForwardController.h>
+#import <WebCore/ColorMac.h>
 #import <WebCore/DataDetection.h>
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/Editing.h>
@@ -91,6 +92,7 @@
 #import <WebCore/VisibleUnits.h>
 #import <WebCore/WindowsKeyboardCodes.h>
 #import <pal/spi/cocoa/NSAccessibilitySPI.h>
+#import <pal/spi/mac/NSApplicationSPI.h>
 #import <wtf/SetForScope.h>
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -857,14 +859,12 @@ void WebPage::performImmediateActionHitTestAtLocation(WebCore::FloatPoint locati
     if (!absoluteLinkURL.isEmpty() && URLElement)
         immediateActionResult.linkTextIndicator = TextIndicator::createWithRange(makeRangeSelectingNodeContents(*URLElement), { TextIndicatorOption::UseBoundingRectAndPaintAllContentForComplexRanges }, TextIndicatorPresentationTransition::FadeIn);
 
-    auto lookupResult = lookupTextAtLocation(locationInViewCoordinates);
-    if (auto* lookupRange = std::get<RefPtr<Range>>(lookupResult).get()) {
-        immediateActionResult.lookupText = lookupRange->text();
+    if (auto lookupResult = lookupTextAtLocation(locationInViewCoordinates)) {
+        auto [lookupRange, options] = WTFMove(*lookupResult);
+        immediateActionResult.lookupText = plainText(lookupRange);
         if (auto* node = hitTestResult.innerNode()) {
-            if (auto* frame = node->document().frame()) {
-                auto options = std::get<NSDictionary *>(lookupResult);
-                immediateActionResult.dictionaryPopupInfo = dictionaryPopupInfoForRange(*frame, *lookupRange, options, TextIndicatorPresentationTransition::FadeIn);
-            }
+            if (auto* frame = node->document().frame())
+                immediateActionResult.dictionaryPopupInfo = dictionaryPopupInfoForRange(*frame, lookupRange, options, TextIndicatorPresentationTransition::FadeIn);
         }
     }
 
@@ -934,11 +934,11 @@ void WebPage::performImmediateActionHitTestAtLocation(WebCore::FloatPoint locati
     send(Messages::WebPageProxy::DidPerformImmediateActionHitTest(immediateActionResult, immediateActionHitTestPreventsDefault, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())));
 }
 
-std::tuple<RefPtr<WebCore::Range>, NSDictionary *> WebPage::lookupTextAtLocation(FloatPoint locationInViewCoordinates)
+Optional<std::tuple<WebCore::SimpleRange, NSDictionary *>> WebPage::lookupTextAtLocation(FloatPoint locationInViewCoordinates)
 {
     auto& mainFrame = corePage()->mainFrame();
     if (!mainFrame.view() || !mainFrame.view()->renderView())
-        return { nullptr, nil };
+        return WTF::nullopt;
 
     auto point = roundedIntPoint(locationInViewCoordinates);
     constexpr OptionSet<HitTestRequest::RequestType> hitType { HitTestRequest::ReadOnly, HitTestRequest::Active, HitTestRequest::DisallowUserAgentShadowContent, HitTestRequest::AllowChildFrameContent };
@@ -1008,7 +1008,7 @@ void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo&, Mon
 }
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET) && !PLATFORM(IOS_FAMILY)
-void WebPage::playbackTargetSelected(uint64_t contextId, const WebCore::MediaPlaybackTargetContext& targetContext) const
+void WebPage::playbackTargetSelected(PlaybackTargetClientContextIdentifier contextId, const WebCore::MediaPlaybackTargetContext& targetContext) const
 {
     switch (targetContext.type()) {
     case MediaPlaybackTargetContext::AVOutputContextType:
@@ -1023,17 +1023,17 @@ void WebPage::playbackTargetSelected(uint64_t contextId, const WebCore::MediaPla
     }
 }
 
-void WebPage::playbackTargetAvailabilityDidChange(uint64_t contextId, bool changed)
+void WebPage::playbackTargetAvailabilityDidChange(PlaybackTargetClientContextIdentifier contextId, bool changed)
 {
     m_page->playbackTargetAvailabilityDidChange(contextId, changed);
 }
 
-void WebPage::setShouldPlayToPlaybackTarget(uint64_t contextId, bool shouldPlay)
+void WebPage::setShouldPlayToPlaybackTarget(PlaybackTargetClientContextIdentifier contextId, bool shouldPlay)
 {
     m_page->setShouldPlayToPlaybackTarget(contextId, shouldPlay);
 }
 
-void WebPage::playbackTargetPickerWasDismissed(uint64_t contextId)
+void WebPage::playbackTargetPickerWasDismissed(PlaybackTargetClientContextIdentifier contextId)
 {
     m_page->playbackTargetPickerWasDismissed(contextId);
 }
@@ -1045,6 +1045,15 @@ void WebPage::didEndMagnificationGesture()
     m_page->mainFrame().eventHandler().didEndMagnificationGesture();
 #endif
 }
+
+#if HAVE(APP_ACCENT_COLORS)
+
+void WebPage::setAccentColor(WebCore::Color color)
+{
+    [NSApp _setAccentColor:color.isValid() ? WebCore::nsColor(color) : nil];
+}
+
+#endif
 
 } // namespace WebKit
 

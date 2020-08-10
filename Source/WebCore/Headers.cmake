@@ -89,6 +89,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     Modules/mediasession/MediaSessionEvents.h
     Modules/mediasession/MediaSessionMetadata.h
+    Modules/mediasession/PlaybackTargetClientContextIdentifier.h
     Modules/mediasession/WebMediaSessionManager.h
     Modules/mediasession/WebMediaSessionManagerClient.h
 
@@ -664,6 +665,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
 
     html/forms/FileIconLoader.h
 
+    html/parser/ParsingUtilities.h
     html/parser/HTMLParserIdioms.h
 
     html/track/AudioTrack.h
@@ -1069,6 +1071,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/encryptedmedia/CDMRequirement.h
     platform/encryptedmedia/CDMRestrictions.h
     platform/encryptedmedia/CDMSessionType.h
+    platform/encryptedmedia/CDMUtilities.h
 
     platform/gamepad/GamepadProvider.h
     platform/gamepad/GamepadProviderClient.h
@@ -1081,8 +1084,10 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/BitmapImage.h
     platform/graphics/Color.h
     platform/graphics/ColorComponents.h
+    platform/graphics/ColorConversion.h
     platform/graphics/ColorHash.h
     platform/graphics/ColorMatrix.h
+    platform/graphics/ColorSerialization.h
     platform/graphics/ColorSpace.h
     platform/graphics/ColorTypes.h
     platform/graphics/ColorUtilities.h
@@ -1188,7 +1193,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/RemoteVideoSample.h
     platform/graphics/RenderingMode.h
     platform/graphics/RoundedRect.h
-    platform/graphics/SimpleColor.h
     platform/graphics/StringTruncator.h
     platform/graphics/TabSize.h
     platform/graphics/TextRun.h
@@ -1602,3 +1606,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     ${WebCore_DERIVED_SOURCES_DIR}/WebKitFontFamilyNames.h
     ${WebCore_DERIVED_SOURCES_DIR}/WritableStreamInternalsBuiltins.h
 )
+
+if (ENABLE_OPENCDM)
+    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/encryptedmedia/CDMOpenCDMTypes.h)
+endif ()

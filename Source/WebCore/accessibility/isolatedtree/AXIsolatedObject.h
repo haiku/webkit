@@ -84,7 +84,7 @@ private:
     AXCoreObject* associatedAXObject() const
     {
         ASSERT(isMainThread());
-        return axObjectCache()->objectFromAXID(objectID());
+        return m_id != InvalidAXID ? axObjectCache()->objectFromAXID(m_id) : nullptr;
     }
 
     enum class AXPropertyName : uint16_t {
@@ -541,7 +541,7 @@ private:
     const String placeholderValue() const override { return stringAttributeValue(AXPropertyName::PlaceholderValue); }
     String expandedTextValue() const override { return stringAttributeValue(AXPropertyName::ExpandedTextValue); }
     bool supportsExpandedTextValue() const override { return boolAttributeValue(AXPropertyName::SupportsExpandedTextValue); }
-    void colorValue(int&, int&, int&) const override;
+    SRGBA<uint8_t> colorValue() const override;
     AccessibilityRole roleValue() const override { return static_cast<AccessibilityRole>(intAttributeValue(AXPropertyName::RoleValue)); }
     String rolePlatformString() const override { return stringAttributeValue(AXPropertyName::RolePlatformString); }
     String roleDescription() const override { return stringAttributeValue(AXPropertyName::RoleDescription); }
@@ -636,7 +636,7 @@ private:
     String stringValue() const override { return stringAttributeValue(AXPropertyName::StringValue); }
 
     // Parameterized attribute retrieval.
-    Vector<RefPtr<Range>> findTextRanges(AccessibilitySearchTextCriteria const&) const override;
+    Vector<SimpleRange> findTextRanges(const AccessibilitySearchTextCriteria&) const override;
     Vector<String> performTextOperation(AccessibilityTextOperation const&) override;
     void findMatchingObjects(AccessibilitySearchCriteria*, AccessibilityChildrenVector&) override;
 
@@ -647,14 +647,15 @@ private:
     bool preventKeyboardDOMEventDispatch() const override;
 
     PlainTextRange selectedTextRange() const override;
+    VisibleSelection selection() const override;
+    void setSelectedVisiblePositionRange(const VisiblePositionRange&) const override;
     // TODO: Text ranges and selection.
     unsigned selectionStart() const override { return 0; }
     unsigned selectionEnd() const override { return 0; }
-    VisibleSelection selection() const override { return VisibleSelection(); }
     String selectedText() const override { return String(); }
     VisiblePositionRange visiblePositionRange() const override { return VisiblePositionRange(); }
     VisiblePositionRange visiblePositionRangeForLine(unsigned) const override { return VisiblePositionRange(); }
-    RefPtr<Range> elementRange() const override { return nullptr; }
+    Optional<SimpleRange> elementRange() const override { return WTF::nullopt; }
     VisiblePositionRange visiblePositionRangeForUnorderedPositions(const VisiblePosition&, const VisiblePosition&) const override { return VisiblePositionRange(); }
     VisiblePositionRange positionOfLeftWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
     VisiblePositionRange positionOfRightWord(const VisiblePosition&) const override { return VisiblePositionRange(); }
@@ -665,12 +666,11 @@ private:
     VisiblePositionRange styleRangeForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
     VisiblePositionRange visiblePositionRangeForRange(const PlainTextRange&) const override { return VisiblePositionRange(); }
     VisiblePositionRange lineRangeForPosition(const VisiblePosition&) const override { return VisiblePositionRange(); }
-    RefPtr<Range> rangeForPlainTextRange(const PlainTextRange&) const override { return nullptr; }
-    String stringForRange(RefPtr<Range>) const override;
+    Optional<SimpleRange> rangeForPlainTextRange(const PlainTextRange&) const override { return WTF::nullopt; }
+    String stringForRange(const SimpleRange&) const override;
     IntRect boundsForVisiblePositionRange(const VisiblePositionRange&) const override { return IntRect(); }
-    IntRect boundsForRange(const RefPtr<Range>) const override { return IntRect(); }
+    IntRect boundsForRange(const SimpleRange&) const override { return IntRect(); }
     int lengthForVisiblePositionRange(const VisiblePositionRange&) const override { return 0; }
-    void setSelectedVisiblePositionRange(const VisiblePositionRange&) const override { }
     VisiblePosition visiblePositionForBounds(const IntRect&, AccessibilityVisiblePositionForBounds) const override { return VisiblePosition(); }
     VisiblePosition visiblePositionForPoint(const IntPoint&) const override { return VisiblePosition(); }
     VisiblePosition nextVisiblePosition(const VisiblePosition&) const override { return VisiblePosition(); }
@@ -703,13 +703,13 @@ private:
     // Attribute setters.
     void setARIAGrabbed(bool) override;
     void setIsExpanded(bool) override;
-    void setValue(float) override;
+    bool setValue(float) override;
     void setSelected(bool) override;
     void setSelectedRows(AccessibilityChildrenVector&) override;
     void setFocused(bool) override;
     void setSelectedText(const String&) override;
     void setSelectedTextRange(const PlainTextRange&) override;
-    void setValue(const String&) override;
+    bool setValue(const String&) override;
 #if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
     void setCaretBrowsingEnabled(bool) override;
 #endif
@@ -717,10 +717,11 @@ private:
 
     // TODO: Functions
     String textUnderElement(AccessibilityTextUnderElementMode = AccessibilityTextUnderElementMode()) const override { return String(); }
-    RefPtr<Range> getMisspellingRange(RefPtr<Range> const&, AccessibilitySearchDirection) const override { return nullptr; }
+    Optional<SimpleRange> misspellingRange(const SimpleRange&, AccessibilitySearchDirection) const override { return WTF::nullopt; }
     FloatRect convertFrameToSpace(const FloatRect&, AccessibilityConversionSpace) const override { return FloatRect(); }
     void increment() override { }
     void decrement() override { }
+    bool performDismissAction() override;
     void scrollToMakeVisible() const override { }
     void scrollToMakeVisibleWithSubFocus(const IntRect&) const override { }
     void scrollToGlobalPoint(const IntPoint&) const override { }

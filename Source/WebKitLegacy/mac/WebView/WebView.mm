@@ -136,6 +136,7 @@
 #import <WebCore/CacheStorageProvider.h>
 #import <WebCore/Chrome.h>
 #import <WebCore/ColorMac.h>
+#import <WebCore/ColorSerialization.h>
 #import <WebCore/CookieJar.h>
 #import <WebCore/DatabaseManager.h>
 #import <WebCore/DeprecatedGlobalSettings.h>
@@ -1208,7 +1209,7 @@ static const NSUInteger orderedListSegment = 2;
 - (void)_webChangeColor:(id)sender
 {
     _textColor = self.colorPickerItem.color;
-    [_webView _executeCoreCommandByName:@"ForeColor" value: WebCore::colorFromNSColor(_textColor.get()).serialized()];
+    [_webView _executeCoreCommandByName:@"ForeColor" value: WebCore::serializationForHTML(WebCore::colorFromNSColor(_textColor.get()))];
 }
 
 - (NSViewController *)textListViewController
@@ -1360,6 +1361,31 @@ static NSString *leakOutlookQuirksUserScriptContents()
     static NSString *outlookQuirksScriptContents = leakOutlookQuirksUserScriptContents();
     _private->group->userContentController().addUserScript(*core([WebScriptWorld world]), makeUnique<WebCore::UserScript>(outlookQuirksScriptContents, URL(), Vector<String>(), Vector<String>(), WebCore::UserScriptInjectionTime::DocumentEnd, WebCore::UserContentInjectedFrames::InjectInAllFrames, WebCore::WaitForNotificationBeforeInjecting::No));
 
+}
+#endif
+
+#if PLATFORM(IOS)
+static bool needsLaBanquePostaleQuirks()
+{
+    static bool needsQuirks = WebCore::IOSApplication::isLaBanquePostale() && dyld_get_program_sdk_version() < DYLD_IOS_VERSION_14_0;
+    return needsQuirks;
+}
+
+static NSString *leakLaBanquePostaleQuirksScript()
+{
+    NSURL *scriptURL = [[NSBundle bundleForClass:WebView.class] URLForResource:@"LaBanquePostaleQuirks" withExtension:@"js"];
+    NSStringEncoding encoding;
+    return [[NSString alloc] initWithContentsOfURL:scriptURL usedEncoding:&encoding error:nullptr];
+}
+
+- (void)_injectLaBanquePostaleQuirks
+{
+    ASSERT(needsLaBanquePostaleQuirks());
+    static NSString * const quirksScript = leakLaBanquePostaleQuirksScript();
+
+    using namespace WebCore;
+    auto userScript = makeUnique<UserScript>(quirksScript, URL(), Vector<String>(), Vector<String>(), UserScriptInjectionTime::DocumentEnd, UserContentInjectedFrames::InjectInAllFrames, WaitForNotificationBeforeInjecting::No);
+    _private->group->userContentController().addUserScript(*core(WebScriptWorld.world), WTFMove(userScript));
 }
 #endif
 
@@ -1636,6 +1662,11 @@ static void WebKitInitializeGamepadProviderIfNecessary()
         _private->page->settings().setShouldInjectUserScriptsInInitialEmptyDocument(true);
         [self _injectOutlookQuirksScript];
     }
+#endif
+
+#if PLATFORM(IOS)
+    if (needsLaBanquePostaleQuirks())
+        [self _injectLaBanquePostaleQuirks];
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -3312,10 +3343,8 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setCacheAPIEnabled([preferences cacheAPIEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setFetchAPIEnabled([preferences fetchAPIEnabled]);
 
-#if ENABLE(STREAMS_API)
     RuntimeEnabledFeatures::sharedFeatures().setWritableStreamAPIEnabled([preferences writableStreamAPIEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setReadableByteStreamAPIEnabled([preferences readableByteStreamAPIEnabled]);
-#endif
 
 #if ENABLE(WEBGL2)
     RuntimeEnabledFeatures::sharedFeatures().setWebGL2Enabled([preferences webGL2Enabled]);
@@ -3361,7 +3390,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
     RuntimeEnabledFeatures::sharedFeatures().setLayoutFormattingContextIntegrationEnabled([preferences layoutFormattingContextIntegrationEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setIsInAppBrowserPrivacyEnabled([preferences isInAppBrowserPrivacyEnabled]);
     RuntimeEnabledFeatures::sharedFeatures().setWebSQLDisabled(![preferences webSQLEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setNeedsInAppBrowserPrivacyQuirks([preferences needsInAppBrowserPrivacyQuirks]);
     
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
     RuntimeEnabledFeatures::sharedFeatures().setLegacyEncryptedMediaAPIEnabled(preferences.legacyEncryptedMediaAPIEnabled);
@@ -4580,10 +4608,8 @@ IGNORE_WARNINGS_END
 
 - (void)_executeCoreCommandByName:(NSString *)name value:(NSString *)value
 {
-    auto* coreFrame = [self _mainCoreFrame];
-    if (!coreFrame)
-        return;
-    coreFrame->editor().command(name).execute(value);
+    if (auto* page = _private->page)
+        page->focusController().focusedOrMainFrame().editor().command(name).execute(value);
 }
 
 - (void)_clearMainFrameName
@@ -5559,8 +5585,8 @@ IGNORE_WARNINGS_END
     initialized = YES;
 
 #if !PLATFORM(IOS_FAMILY)
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
 #endif
 
     WTF::RefCountedBase::enableThreadingChecksGlobally();
@@ -9722,28 +9748,28 @@ bool LayerFlushController::flushLayers()
     return _private->m_playbackTargetPicker.get();
 }
 
-- (void)_addPlaybackTargetPickerClient:(uint64_t)clientId
+- (void)_addPlaybackTargetPickerClient:(WebCore::PlaybackTargetClientContextIdentifier)contextId
 {
-    [self _devicePicker]->addPlaybackTargetPickerClient(clientId);
+    [self _devicePicker]->addPlaybackTargetPickerClient(contextId);
 }
 
-- (void)_removePlaybackTargetPickerClient:(uint64_t)clientId
+- (void)_removePlaybackTargetPickerClient:(WebCore::PlaybackTargetClientContextIdentifier)contextId
 {
-    [self _devicePicker]->removePlaybackTargetPickerClient(clientId);
+    [self _devicePicker]->removePlaybackTargetPickerClient(contextId);
 }
 
-- (void)_showPlaybackTargetPicker:(uint64_t)clientId location:(const WebCore::IntPoint&)location hasVideo:(BOOL)hasVideo
+- (void)_showPlaybackTargetPicker:(WebCore::PlaybackTargetClientContextIdentifier)contextId location:(const WebCore::IntPoint&)location hasVideo:(BOOL)hasVideo
 {
     if (!_private->page)
         return;
 
     NSRect rectInScreenCoordinates = [self.window convertRectToScreen:NSMakeRect(location.x(), location.y(), 0, 0)];
-    [self _devicePicker]->showPlaybackTargetPicker(clientId, rectInScreenCoordinates, hasVideo);
+    [self _devicePicker]->showPlaybackTargetPicker(contextId, rectInScreenCoordinates, hasVideo);
 }
 
-- (void)_playbackTargetPickerClientStateDidChange:(uint64_t)clientId state:(WebCore::MediaProducer::MediaStateFlags)state
+- (void)_playbackTargetPickerClientStateDidChange:(WebCore::PlaybackTargetClientContextIdentifier)contextId state:(WebCore::MediaProducer::MediaStateFlags)state
 {
-    [self _devicePicker]->playbackTargetPickerClientStateDidChange(clientId, state);
+    [self _devicePicker]->playbackTargetPickerClientStateDidChange(contextId, state);
 }
 
 - (void)_setMockMediaPlaybackTargetPickerEnabled:(bool)enabled

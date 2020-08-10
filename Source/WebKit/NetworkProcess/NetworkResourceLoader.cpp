@@ -337,6 +337,7 @@ void NetworkResourceLoader::startNetworkLoad(ResourceRequest&& request, FirstLoa
     parameters.request = WTFMove(request);
     parameters.isNavigatingToAppBoundDomain = m_parameters.isNavigatingToAppBoundDomain;
     m_networkLoad = makeUnique<NetworkLoad>(*this, &networkSession->blobRegistry(), WTFMove(parameters), *networkSession);
+    m_networkLoad->start();
 
     RELEASE_LOG_IF_ALLOWED("startNetworkLoad: Going to the network (description=%" PUBLIC_LOG_STRING ")", m_networkLoad->description().utf8().data());
 }
@@ -514,12 +515,12 @@ bool NetworkResourceLoader::shouldInterruptLoadForXFrameOptions(const String& xF
         return false;
 
     switch (parseXFrameOptionsHeader(xFrameOptions)) {
-    case XFrameOptionsNone:
-    case XFrameOptionsAllowAll:
+    case XFrameOptionsDisposition::None:
+    case XFrameOptionsDisposition::AllowAll:
         return false;
-    case XFrameOptionsDeny:
+    case XFrameOptionsDisposition::Deny:
         return true;
-    case XFrameOptionsSameOrigin: {
+    case XFrameOptionsDisposition::SameOrigin: {
         auto origin = SecurityOrigin::create(url);
         auto topFrameOrigin = m_parameters.frameAncestorOrigins.last();
         if (!origin->isSameSchemeHostPort(*topFrameOrigin))
@@ -530,12 +531,12 @@ bool NetworkResourceLoader::shouldInterruptLoadForXFrameOptions(const String& xF
         }
         return false;
     }
-    case XFrameOptionsConflict: {
+    case XFrameOptionsDisposition::Conflict: {
         String errorMessage = "Multiple 'X-Frame-Options' headers with conflicting values ('" + xFrameOptions + "') encountered when loading '" + url.stringCenterEllipsizedToLength() + "'. Falling back to 'DENY'.";
         send(Messages::WebPage::AddConsoleMessage { m_parameters.webFrameID,  MessageSource::JS, MessageLevel::Error, errorMessage, identifier() }, m_parameters.webPageID);
         return true;
     }
-    case XFrameOptionsInvalid: {
+    case XFrameOptionsDisposition::Invalid: {
         String errorMessage = "Invalid 'X-Frame-Options' header encountered when loading '" + url.stringCenterEllipsizedToLength() + "': '" + xFrameOptions + "' is not a recognized directive. The header will be ignored.";
         send(Messages::WebPage::AddConsoleMessage { m_parameters.webFrameID,  MessageSource::JS, MessageLevel::Error, errorMessage, identifier() }, m_parameters.webPageID);
         return false;

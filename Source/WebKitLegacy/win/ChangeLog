@@ -1,3 +1,88 @@
+2020-07-19  Sam Weinig  <weinig@apple.com>
+
+        Rename Color::transparent to Color::transparentBlack to more clearly state what it is
+        https://bugs.webkit.org/show_bug.cgi?id=214522
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::transitionToCommittedForNewPage):
+        * WebFrame.cpp:
+        (WebFrame::updateBackground):
+        Color::transparent to Color::transparentBlack.
+
+2020-07-17  Sam Weinig  <weinig@apple.com>
+
+        Remove final vestigates of SimpleColor
+        https://bugs.webkit.org/show_bug.cgi?id=214439
+
+        Reviewed by Simon Fraser.
+
+        * FullscreenVideoController.cpp:
+        * WebView.cpp:
+        (compositionToUnderlines):
+        Replace remaining makeSimpleColor() uses.
+
+2020-07-16  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] Remove the unnecessary inner class DefaultHash<T>::Hash
+        https://bugs.webkit.org/show_bug.cgi?id=214389
+
+        Reviewed by Darin Adler.
+
+        * COMPropertyBag.h:
+
+2020-07-07  Sam Weinig  <weinig@apple.com>
+
+        Part 2 of SimpleColor and SRGBA<uint8_t> are essentially the same - let's converge them
+        https://bugs.webkit.org/show_bug.cgi?id=213981
+
+        Reviewed by Darin Adler.
+
+        * FullscreenVideoController.cpp:
+        Switch to using auto/makeSimpleColor.
+
+2020-07-03  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        Change the names of MIMETypeRegistry methods to comply with webkit naming style
+        https://bugs.webkit.org/show_bug.cgi?id=213912
+
+        Reviewed by Youenn Fablet.
+
+        * WebView.cpp:
+        (WebView::MIMETypeForExtension):
+
+2020-07-01  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        Allow the File object to be created with a replacement file
+        https://bugs.webkit.org/show_bug.cgi?id=213825
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebPlatformStrategies.cpp:
+
+2020-06-28  Geoffrey Garen  <ggaren@apple.com>
+
+        Rename initializeThreading to initialize
+        https://bugs.webkit.org/show_bug.cgi?id=213674
+
+        Reviewed by Mark Lam.
+
+        * WebKitClassFactory.cpp:
+        (WebKitClassFactory::WebKitClassFactory):
+        * WebView.cpp:
+        (WebView::WebView):
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        Initializing the main thread should initialize the main run loop
+        https://bugs.webkit.org/show_bug.cgi?id=213637
+
+        Reviewed by Anders Carlsson.
+
+        * WebView.cpp:
+        (WebView::WebView):
+
 2020-06-19  Chris Dumez  <cdumez@apple.com>
 
         Move Prefixed WebAudio interfaces behind their own feature flag

@@ -3,7 +3,7 @@
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2001 Dirk Mueller (mueller@kde.org)
  *           (C) 2006 Alexey Proskuryakov (ap@webkit.org)
- * Copyright (C) 2004-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2008, 2009 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  * Copyright (C) 2008, 2009, 2011, 2012 Google Inc. All rights reserved.
  * Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies)
@@ -536,7 +536,7 @@ static inline int currentOrientation(Frame* frame)
     return 0;
 }
 
-Document::Document(Frame* frame, const URL& url, unsigned documentClasses, unsigned constructionFlags)
+Document::Document(Frame* frame, const URL& url, DocumentClassFlags documentClasses, unsigned constructionFlags)
     : ContainerNode(*this, CreateDocument)
     , TreeScope(*this)
     , FrameDestructionObserver(frame)
@@ -1508,32 +1508,35 @@ String Document::contentType() const
 
 RefPtr<Range> Document::caretRangeFromPoint(int x, int y)
 {
-    return caretRangeFromPoint(LayoutPoint(x, y));
+    auto boundary = caretPositionFromPoint(LayoutPoint(x, y));
+    if (!boundary)
+        return nullptr;
+    return createLiveRange({ *boundary, *boundary });
 }
 
-RefPtr<Range> Document::caretRangeFromPoint(const LayoutPoint& clientPoint)
+Optional<BoundaryPoint> Document::caretPositionFromPoint(const LayoutPoint& clientPoint)
 {
     if (!hasLivingRenderTree())
-        return nullptr;
+        return WTF::nullopt;
 
     LayoutPoint localPoint;
     auto node = nodeFromPoint(clientPoint, &localPoint);
     if (!node)
-        return nullptr;
+        return WTF::nullopt;
 
     auto* renderer = node->renderer();
     if (!renderer)
-        return nullptr;
+        return WTF::nullopt;
     auto rangeCompliantPosition = renderer->positionForPoint(localPoint).parentAnchoredEquivalent();
     if (rangeCompliantPosition.isNull())
-        return nullptr;
+        return WTF::nullopt;
 
-    auto offset = rangeCompliantPosition.offsetInContainerNode();
+    unsigned offset = rangeCompliantPosition.offsetInContainerNode();
     node = retargetToScope(*rangeCompliantPosition.containerNode());
     if (node != rangeCompliantPosition.containerNode())
         offset = 0;
 
-    return Range::create(*this, node.get(), offset, node.get(), offset);
+    return { { *node, offset } };
 }
 
 bool Document::isBodyPotentiallyScrollable(HTMLBodyElement& body)
@@ -1755,8 +1758,10 @@ void Document::visibilityStateChanged()
         client->visibilityStateChanged();
 
 #if ENABLE(MEDIA_STREAM) && PLATFORM(IOS_FAMILY)
-    if (!PlatformMediaSessionManager::sharedManager().isInterrupted())
-        MediaStreamTrack::updateCaptureAccordingToMutedState(*this);
+    if (auto mediaSessionManager = PlatformMediaSessionManager::sharedManagerIfExists()) {
+        if (!mediaSessionManager->isInterrupted())
+            MediaStreamTrack::updateCaptureAccordingToMutedState(*this);
+    }
 #endif
 }
 
@@ -4130,7 +4135,7 @@ void Document::runScrollSteps()
     }
     if (m_needsVisualViewportScrollEvent) {
         LOG_WITH_STREAM(Events, stream << "Document" << this << "sending scroll events to visualViewport");
-        m_needsVisualViewportResizeEvent = false;
+        m_needsVisualViewportScrollEvent = false;
         if (auto* window = domWindow())
             window->visualViewport().dispatchEvent(Event::create(eventNames().scrollEvent, Event::CanBubble::No, Event::IsCancelable::No));
     }
@@ -7336,12 +7341,6 @@ bool Document::hasFocus() const
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 
-static uint64_t nextPlaybackTargetClientContextId()
-{
-    static uint64_t contextId = 0;
-    return ++contextId;
-}
-
 void Document::addPlaybackTargetPickerClient(MediaPlaybackTargetClient& client)
 {
     Page* page = this->page();
@@ -7352,7 +7351,7 @@ void Document::addPlaybackTargetPickerClient(MediaPlaybackTargetClient& client)
     if (m_clientToIDMap.contains(&client))
         return;
 
-    uint64_t contextId = nextPlaybackTargetClientContextId();
+    auto contextId = PlaybackTargetClientContextIdentifier::generate();
     m_clientToIDMap.add(&client, contextId);
     m_idToClientMap.add(contextId, &client);
     page->addPlaybackTargetPickerClient(contextId);
@@ -7364,7 +7363,7 @@ void Document::removePlaybackTargetPickerClient(MediaPlaybackTargetClient& clien
     if (it == m_clientToIDMap.end())
         return;
 
-    uint64_t clientId = it->value;
+    auto clientId = it->value;
     m_idToClientMap.remove(clientId);
     m_clientToIDMap.remove(it);
 
@@ -7405,36 +7404,36 @@ void Document::playbackTargetPickerClientStateDidChange(MediaPlaybackTargetClien
     page->playbackTargetPickerClientStateDidChange(it->value, state);
 }
 
-void Document::playbackTargetAvailabilityDidChange(uint64_t clientId, bool available)
+void Document::playbackTargetAvailabilityDidChange(PlaybackTargetClientContextIdentifier contextId, bool available)
 {
-    auto it = m_idToClientMap.find(clientId);
+    auto it = m_idToClientMap.find(contextId);
     if (it == m_idToClientMap.end())
         return;
 
     it->value->externalOutputDeviceAvailableDidChange(available);
 }
 
-void Document::setPlaybackTarget(uint64_t clientId, Ref<MediaPlaybackTarget>&& target)
+void Document::setPlaybackTarget(PlaybackTargetClientContextIdentifier contextId, Ref<MediaPlaybackTarget>&& target)
 {
-    auto it = m_idToClientMap.find(clientId);
+    auto it = m_idToClientMap.find(contextId);
     if (it == m_idToClientMap.end())
         return;
 
     it->value->setPlaybackTarget(target.copyRef());
 }
 
-void Document::setShouldPlayToPlaybackTarget(uint64_t clientId, bool shouldPlay)
+void Document::setShouldPlayToPlaybackTarget(PlaybackTargetClientContextIdentifier contextId, bool shouldPlay)
 {
-    auto it = m_idToClientMap.find(clientId);
+    auto it = m_idToClientMap.find(contextId);
     if (it == m_idToClientMap.end())
         return;
 
     it->value->setShouldPlayToPlaybackTarget(shouldPlay);
 }
 
-void Document::playbackTargetPickerWasDismissed(uint64_t clientId)
+void Document::playbackTargetPickerWasDismissed(PlaybackTargetClientContextIdentifier contextId)
 {
-    auto it = m_idToClientMap.find(clientId);
+    auto it = m_idToClientMap.find(contextId);
     if (it == m_idToClientMap.end())
         return;
 

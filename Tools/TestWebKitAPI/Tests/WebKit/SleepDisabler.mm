@@ -205,7 +205,7 @@ TEST_F(SleepDisabler, Navigate)
     hasSleepDisablerShouldBecomeEqualTo(false);
 }
 
-TEST_F(SleepDisabler, NavigateBack)
+TEST_F(SleepDisabler, DISABLED_NavigateBack)
 {
     loadPlayingPage(@"video-with-audio");
     hasSleepDisablerShouldBecomeEqualTo(true);
@@ -214,7 +214,6 @@ TEST_F(SleepDisabler, NavigateBack)
     hasSleepDisablerShouldBecomeEqualTo(false);
 
     [webView goBack];
-    [webView evaluateJavaScript:@"document.querySelector('video').play()" completionHandler:nil];
     hasSleepDisablerShouldBecomeEqualTo(true);
 }
 

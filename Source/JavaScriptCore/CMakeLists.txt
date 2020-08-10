@@ -830,6 +830,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/DataView.h
     runtime/DateInstance.h
     runtime/DateInstanceCache.h
+    runtime/DeferredWorkTimer.h
     runtime/DefinePropertyAttributes.h
     runtime/DeletePropertySlot.h
     runtime/DirectArgumentsOffset.h
@@ -968,7 +969,6 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/ParseInt.h
     runtime/PrivateName.h
     runtime/ProgramExecutable.h
-    runtime/PromiseTimer.h
     runtime/PropertyDescriptor.h
     runtime/PropertyMapHashTable.h
     runtime/PropertyName.h
@@ -1410,8 +1410,8 @@ endif ()
 
 # Force staging of shared scripts, even if they aren't directly used to build JavaScriptCore.
 
-add_custom_target(stageSharedScripts DEPENDS ${JavaScriptCore_SCRIPTS})
-add_dependencies(JavaScriptCore stageSharedScripts ${JavaScriptCore_EXTRA_DEPENDENCIES})
+add_custom_target(JavaScriptCoreSharedScripts DEPENDS ${JavaScriptCore_SCRIPTS})
+add_dependencies(JavaScriptCore JavaScriptCoreSharedScripts ${JavaScriptCore_EXTRA_DEPENDENCIES})
 
 # JavaScriptCore target needs to have a direct or indirect dependency
 # of InspectorBackendCommands for CMake Visual Studio generator to

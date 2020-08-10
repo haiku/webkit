@@ -26,7 +26,6 @@
 #include "config.h"
 #include "FilterOperations.h"
 
-#include "ColorUtilities.h"
 #include "FEGaussianBlur.h"
 #include "IntSize.h"
 #include "LengthFunctions.h"
@@ -111,14 +110,14 @@ bool FilterOperations::transformColor(Color& color) const
     if (color.isSemantic())
         return false;
 
-    auto sRGBAColor = color.toSRGBALossy();
+    auto sRGBAColor = color.toSRGBALossy<float>();
 
     for (auto& operation : m_operations) {
         if (!operation->transformColor(sRGBAColor))
             return false;
     }
 
-    color = makeSimpleColor(sRGBAColor);
+    color = convertToComponentBytes(sRGBAColor);
     return true;
 }
 
@@ -130,14 +129,14 @@ bool FilterOperations::inverseTransformColor(Color& color) const
     if (color.isSemantic())
         return false;
 
-    auto sRGBAColor = color.toSRGBALossy();
+    auto sRGBAColor = color.toSRGBALossy<float>();
 
     for (auto& operation : m_operations) {
         if (!operation->inverseTransformColor(sRGBAColor))
             return false;
     }
 
-    color = makeSimpleColor(sRGBAColor);
+    color = convertToComponentBytes(sRGBAColor);
     return true;
 }
 

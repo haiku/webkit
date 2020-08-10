@@ -143,7 +143,7 @@ CapabilityLevel capabilityLevel(OpcodeID opcodeID, CodeBlock* codeBlock, const I
     case op_instanceof:
     case op_instanceof_custom:
     case op_is_empty:
-    case op_is_undefined:
+    case op_typeof_is_undefined:
     case op_is_undefined_or_null:
     case op_is_boolean:
     case op_is_number:
@@ -317,6 +317,7 @@ CapabilityLevel capabilityLevel(OpcodeID opcodeID, CodeBlock* codeBlock, const I
     case checkpoint_osr_exit_from_inlined_call_trampoline:
     case checkpoint_osr_exit_trampoline:
     case handleUncaughtException:
+    case fuzzer_return_early_from_loop_hint:
     case op_iterator_open_return_location:
     case op_iterator_next_return_location:
     case op_call_return_location:

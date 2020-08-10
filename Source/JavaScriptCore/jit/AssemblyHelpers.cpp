@@ -392,6 +392,24 @@ void AssemblyHelpers::emitLoadStructure(VM& vm, RegisterID source, RegisterID de
 #endif // not USE(JSVALUE64)
 }
 
+void AssemblyHelpers::emitLoadPrototype(VM& vm, GPRReg objectGPR, JSValueRegs resultRegs, GPRReg scratchGPR, JumpList& slowPath)
+{
+    ASSERT(resultRegs.payloadGPR() != objectGPR);
+    ASSERT(resultRegs.payloadGPR() != scratchGPR);
+    ASSERT(objectGPR != scratchGPR);
+
+    emitLoadStructure(vm, objectGPR, resultRegs.payloadGPR(), scratchGPR);
+
+    load16(MacroAssembler::Address(resultRegs.payloadGPR(), Structure::outOfLineTypeFlagsOffset()), scratchGPR);
+    auto overridesGetPrototype = branchTest32(MacroAssembler::NonZero, scratchGPR, TrustedImm32(OverridesGetPrototypeOutOfLine));
+    slowPath.append(overridesGetPrototype);
+
+    loadValue(MacroAssembler::Address(resultRegs.payloadGPR(), Structure::prototypeOffset()), resultRegs);
+    auto hasMonoProto = branchIfNotEmpty(resultRegs);
+    loadValue(MacroAssembler::Address(objectGPR, offsetRelativeToBase(knownPolyProtoOffset)), resultRegs);
+    hasMonoProto.link(this);
+}
+
 void AssemblyHelpers::makeSpaceOnStackForCCall()
 {
     unsigned stackOffset = WTF::roundUpToMultipleOf(stackAlignmentBytes(), maxFrameExtentForSlowPathCall);

@@ -55,7 +55,7 @@ public:
     size_t frameCount() const final { return m_sampleData.size(); }
     RepetitionCount repetitionCount() const final;
     String uti() const final;
-    String filenameExtension() const final { return MIMETypeRegistry::getPreferredExtensionForMIMEType(m_mimeType); }
+    String filenameExtension() const final { return MIMETypeRegistry::preferredExtensionForMIMEType(m_mimeType); }
     Optional<IntPoint> hotSpot() const final { return WTF::nullopt; }
 
     IntSize frameSizeAtIndex(size_t, SubsamplingLevel = SubsamplingLevel::Default) const final { return size(); }
@@ -74,6 +74,9 @@ public:
     bool isAllDataReceived() const final { return m_eos; }
     void clearFrameBufferCache(size_t) final;
 
+    void setHasEOS();
+    void notifySample(GRefPtr<GstSample>&&);
+
 private:
     class InnerDecoder : public ThreadSafeRefCounted<InnerDecoder>, public CanMakeWeakPtr<InnerDecoder> {
         WTF_MAKE_FAST_ALLOCATED;
@@ -89,6 +92,11 @@ private:
             , m_runLoop(RunLoop::current())
         {
             m_memoryStream = adoptGRef(g_memory_input_stream_new_from_data(data, size, nullptr));
+        }
+
+        ~InnerDecoder()
+        {
+            gst_element_set_state(m_pipeline.get(), GST_STATE_NULL);
         }
 
         void run();
@@ -119,7 +127,11 @@ private:
     Optional<IntSize> m_size;
     String m_mimeType;
     RefPtr<ImageDecoderGStreamer::InnerDecoder> m_innerDecoder;
+    Condition m_sampleCondition;
+    Lock m_sampleMutex;
+    GRefPtr<GstSample> m_sample;
+    Condition m_handlerCondition;
+    Lock m_handlerMutex;
 };
-
 }
 #endif

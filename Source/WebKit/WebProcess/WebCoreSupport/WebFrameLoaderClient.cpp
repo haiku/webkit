@@ -39,6 +39,7 @@
 #include "NavigationActionData.h"
 #include "NetworkConnectionToWebProcessMessages.h"
 #include "NetworkProcessConnection.h"
+#include "NetworkResourceLoadParameters.h"
 #include "PluginView.h"
 #include "SharedBufferDataReference.h"
 #include "UserData.h"
@@ -52,6 +53,7 @@
 #include "WebFrame.h"
 #include "WebFrameNetworkingContext.h"
 #include "WebFullScreenManager.h"
+#include "WebLoaderStrategy.h"
 #include "WebNavigationDataStore.h"
 #include "WebPage.h"
 #include "WebPageGroupProxy.h"
@@ -84,6 +86,7 @@
 #include <WebCore/ProgressTracker.h>
 #include <WebCore/ResourceError.h>
 #include <WebCore/ResourceRequest.h>
+#include <WebCore/RuntimeApplicationChecks.h>
 #include <WebCore/ScriptController.h>
 #include <WebCore/SecurityOriginData.h>
 #include <WebCore/Settings.h>
@@ -906,6 +909,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
 {
     auto* webPage = m_frame->page();
     if (!webPage) {
+        WEBFRAMELOADERCLIENT_RELEASE_LOG_ERROR(Network, "dispatchDecidePolicyForNavigationAction: ignoring because there's no web page");
         function(PolicyAction::Ignore, requestIdentifier);
         return;
     }
@@ -914,6 +918,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
 
     // Always ignore requests with empty URLs. 
     if (request.isEmpty()) {
+        WEBFRAMELOADERCLIENT_RELEASE_LOG_ERROR(Network, "dispatchDecidePolicyForNavigationAction: ignoring because request is empty");
         function(PolicyAction::Ignore, requestIdentifier);
         return;
     }
@@ -925,6 +930,7 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
     // Notify the bundle client.
     WKBundlePagePolicyAction policy = webPage->injectedBundlePolicyClient().decidePolicyForNavigationAction(webPage, m_frame.ptr(), action.ptr(), request, userData);
     if (policy == WKBundlePagePolicyActionUse) {
+        WEBFRAMELOADERCLIENT_RELEASE_LOG(Network, "dispatchDecidePolicyForNavigationAction: Injected Bundle responded with PolicyAction::Use");
         function(PolicyAction::Use, requestIdentifier);
         return;
     }
@@ -1000,17 +1006,21 @@ void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const Navigat
         PolicyDecision policyDecision;
 
         if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForNavigationActionSync(m_frame->frameID(), m_frame->isMainFrame(), m_frame->info(), requestIdentifier, documentLoader->navigationID(), navigationActionData, originatingFrameInfoData, originatingPageID, navigationAction.resourceRequest(), request, IPC::FormDataReference { request.httpBody() }, redirectResponse, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get())), Messages::WebPageProxy::DecidePolicyForNavigationActionSync::Reply(policyDecision))) {
+            WEBFRAMELOADERCLIENT_RELEASE_LOG_ERROR(Network, "dispatchDecidePolicyForNavigationAction: ignoring because of failing to send sync IPC");
             m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, WTF::nullopt, PolicyAction::Ignore, 0, { }, { } });
             return;
         }
 
+        WEBFRAMELOADERCLIENT_RELEASE_LOG(Network, "dispatchDecidePolicyForNavigationAction: Got policyAction %u from sync IPC", (unsigned)policyDecision.policyAction);
         m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { policyDecision.identifier, policyDecision.isNavigatingToAppBoundDomain, policyDecision.policyAction, 0, policyDecision.downloadID, { }});
         return;
     }
 
     ASSERT(policyDecisionMode == PolicyDecisionMode::Asynchronous);
-    if (!webPage->send(Messages::WebPageProxy::DecidePolicyForNavigationActionAsync(m_frame->frameID(), m_frame->info(), requestIdentifier, documentLoader->navigationID(), navigationActionData, originatingFrameInfoData, originatingPageID, navigationAction.resourceRequest(), request, IPC::FormDataReference { request.httpBody() }, redirectResponse, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get()), listenerID)))
+    if (!webPage->send(Messages::WebPageProxy::DecidePolicyForNavigationActionAsync(m_frame->frameID(), m_frame->info(), requestIdentifier, documentLoader->navigationID(), navigationActionData, originatingFrameInfoData, originatingPageID, navigationAction.resourceRequest(), request, IPC::FormDataReference { request.httpBody() }, redirectResponse, UserData(WebProcess::singleton().transformObjectsToHandles(userData.get()).get()), listenerID))) {
+        WEBFRAMELOADERCLIENT_RELEASE_LOG_ERROR(Network, "dispatchDecidePolicyForNavigationAction: ignoring because of failing to send async IPC");
         m_frame->didReceivePolicyDecision(listenerID, PolicyDecision { requestIdentifier, WTF::nullopt, PolicyAction::Ignore, 0, { }, { } });
+    }
 }
 
 void WebFrameLoaderClient::cancelPolicyCheck()
@@ -1685,7 +1695,7 @@ ObjectContentType WebFrameLoaderClient::objectContentType(const URL& url, const 
         auto extension = path.substring(dotPosition + 1).convertToASCIILowercase();
 
         // Try to guess the MIME type from the extension.
-        mimeType = MIMETypeRegistry::getMIMETypeForExtension(extension);
+        mimeType = MIMETypeRegistry::mimeTypeForExtension(extension);
         if (mimeType.isEmpty()) {
             // Check if there's a plug-in around that can handle the extension.
             if (auto* webPage = m_frame->page()) {
@@ -1868,6 +1878,29 @@ void WebFrameLoaderClient::prefetchDNS(const String& hostname)
     WebProcess::singleton().prefetchDNS(hostname);
 }
 
+void WebFrameLoaderClient::sendH2Ping(const URL& url, CompletionHandler<void(Expected<Seconds, ResourceError>&&)>&& completionHandler)
+{
+    WebPage* webPage = m_frame->page();
+    if (!webPage)
+        return completionHandler(makeUnexpected(internalError(url)));
+
+    NetworkResourceLoadParameters parameters;
+    parameters.request = ResourceRequest(url);
+    parameters.identifier = WebLoaderStrategy::generateLoadIdentifier();
+    parameters.webPageProxyID = webPage->webPageProxyIdentifier();
+    parameters.webPageID = webPage->identifier();
+    parameters.webFrameID = m_frame->frameID();
+    parameters.parentPID = presentingApplicationPID();
+#if HAVE(AUDIT_TOKEN)
+    parameters.networkProcessAuditToken = WebProcess::singleton().ensureNetworkProcessConnection().networkProcessAuditToken();
+#endif
+    parameters.shouldPreconnectOnly = PreconnectOnly::Yes;
+    parameters.options.destination = FetchOptions::Destination::EmptyString;
+    parameters.isNavigatingToAppBoundDomain = m_frame->isTopFrameNavigatingToAppBoundDomain();
+    
+    WebProcess::singleton().ensureNetworkProcessConnection().connection().sendWithAsyncReply(Messages::NetworkConnectionToWebProcess::SendH2Ping(parameters), WTFMove(completionHandler));
+}
+
 void WebFrameLoaderClient::didRestoreScrollPosition()
 {
     WebPage* webPage = m_frame->page();
@@ -1920,14 +1953,7 @@ void WebFrameLoaderClient::finishedLoadingApplicationManifest(uint64_t callbackI
 
 bool WebFrameLoaderClient::shouldEnableInAppBrowserPrivacyProtections() const
 {
-    if (!m_frame->isMainFrame())
-        return false;
-
-    auto* webPage = m_frame->page();
-    if (!webPage)
-        return false;
-
-    return webPage->shouldEnableInAppBrowserPrivacyProtections();
+    return m_frame->shouldEnableInAppBrowserPrivacyProtections();
 }
 
 void WebFrameLoaderClient::notifyPageOfAppBoundBehavior()

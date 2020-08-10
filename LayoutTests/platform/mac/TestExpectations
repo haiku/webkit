@@ -131,15 +131,6 @@ editing/pasteboard/file-drag-to-editable.html [ Skip ]
 # EventSender::dumpFilenameBeingDragged not implemented.
 webkit.org/b/61827 fast/events/drag-image-filename.html
 
-# ENABLE_INPUT_TYPE_* are not enabled.
-# https://bugs.webkit.org/show_bug.cgi?id=29359
-fast/forms/date
-fast/forms/datetime
-fast/forms/datetimelocal
-fast/forms/month
-fast/forms/time
-fast/forms/week
-
 # Media Stream API is not fully supported.
 fast/mediastream/MediaStream-add-ended-tracks.html
 
@@ -151,6 +142,8 @@ fast/mediastream/RTCPeerConnection-stats.html [ Skip ]
 [ Debug ] fast/images/large-size-image-crash.html [ Skip ]
 
 webkit.org/b/188061 [ Debug ] webgl/2.0.0/conformance2/glsl3/compound-assignment-type-combination.html [ Slow ]
+
+webkit.org/b/214557 webgl/2.0.0/conformance2/state/gl-object-get-calls.html [ Skip ]
 
 # Perf tests are very flaky, because they run in parallel with other tests.
 perf
@@ -272,17 +265,14 @@ webkit.org/b/102257 fast/dom/Window/open-window-min-size.html
 # Fails because MutationObservers are not notified at end-of-task
 webkit.org/b/78290 fast/dom/MutationObserver/end-of-task-delivery.html [ Failure ]
 
-# <rdar://problem/11059777>
-webkit.org/b/81289 canvas/philip/tests/2d.line.cap.round.html [ Failure ]
-
 webkit.org/b/81410 scrollbars/scrollbar-middleclick-nopaste.html
 
 # Spelling tests that are flakey.
 webkit.org/b/82555 editing/spelling/spellcheck-async-mutation.html [ Pass Failure ]
 
-webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding-shift-jis.html [ Failure ]
-webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding-utf-8.html [ Failure ]
-webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding.html [ Failure ]
+webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding-shift-jis.html [ Pass ]
+webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding-utf-8.html [ Pass ]
+webkit.org/b/82665 http/tests/webarchive/test-css-url-encoding.html [ Pass ]
 webkit.org/b/82665 webarchive/test-css-url-resources-in-stylesheets.html [ Failure ]
 webkit.org/b/82665 webarchive/test-css-url-resources-inline-styles.html [ Failure ]
 
@@ -837,7 +827,6 @@ webkit.org/b/116266 media/video-controls-toggling.html [ Skip ]
 webkit.org/b/163231 media/controls/airplay-picker.html [ Pass Failure ]
 
 # --- End media tests ---
-webkit.org/b/136994 http/tests/media/hls/video-cookie.html [ Failure ]
 
 webkit.org/b/137505 media/track/track-forced-subtitles-in-band.html [ Failure Pass Timeout ]
 
@@ -873,9 +862,7 @@ webkit.org/b/161725 imported/w3c/web-platform-tests/media-source/mediasource-see
 webkit.org/b/161725 imported/w3c/web-platform-tests/media-source/mediasource-sequencemode-append-buffer.html [ Skip ]
 webkit.org/b/161725 imported/w3c/web-platform-tests/media-source/mediasource-sourcebuffer-mode-timestamps.html [ Skip ]
 webkit.org/b/161725 imported/w3c/web-platform-tests/media-source/mediasource-sourcebuffer-mode.html [ Skip ]
-
-# Passes, but will need rebaselining once <https://github.com/w3c/web-platform-tests/pull/3758> is merged
-imported/w3c/web-platform-tests/media-source/interfaces.html [ Pass ]
+webkit.org/b/214166 imported/w3c/web-platform-tests/media-source/idlharness.window.html [ Skip ]
 
 # Requires WebM
 imported/w3c/web-platform-tests/media-source/mediasource-config-change-webm-a-bitrate.html [ Skip ]
@@ -1284,8 +1271,6 @@ webkit.org/b/171465 media/track/track-in-band-style.html [ Pass Timeout ]
 
 webkit.org/b/171760 imported/w3c/i18n/bidi/bidi-plaintext-011.html [ ImageOnlyFailure ]
 
-webkit.org/b/171886 imported/w3c/web-platform-tests/streams/readable-byte-streams/general.html [ Pass Failure ]
-
 # These tests are iOS-specific
 media/modern-media-controls/audio/audio-controls-styles.html [ Skip ]
 media/modern-media-controls/ios-inline-media-controls [ Skip ]
@@ -1311,8 +1296,6 @@ webkit.org/b/178127 media/modern-media-controls/media-controller/media-controlle
 media/modern-media-controls/media-documents/background-color-and-centering.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/169158 media/modern-media-controls/tracks-support/tracks-support-show-panel-after-dragging-controls.html [ Skip ]
-
-webkit.org/b/170907 [ Debug ] imported/w3c/web-platform-tests/WebCryptoAPI/derive_bits_keys/hkdf.https.worker.html [ Pass Failure Timeout ]
 
 webkit.org/b/178083 media/media-source/media-source-paint-to-canvas.html [ Failure ]
 
@@ -1361,15 +1344,10 @@ webkit.org/b/161491 media/video-main-content-allow-then-scroll.html [ Pass Failu
 webkit.org/b/172052 [ Debug ] imported/w3c/web-platform-tests/html/webappapis/timers/type-long-setinterval.html [ Pass Failure ]
 
 # <rdar://problem/29031509> REGRESSION? (FontParser-195): svg/W3C-SVG-1.1/fonts-elem-* and svg/W3C-SVG-1.1/text-intro-* tests failing
-svg/W3C-SVG-1.1/fonts-elem-01-t.svg [ Failure ]
-svg/W3C-SVG-1.1/fonts-elem-02-t.svg [ Failure ]
-svg/W3C-SVG-1.1/fonts-elem-03-b.svg [ Failure ]
-svg/W3C-SVG-1.1/fonts-elem-07-b.svg [ Failure ]
 svg/W3C-SVG-1.1/text-intro-01-t.svg [ Failure ]
 svg/W3C-SVG-1.1/text-intro-02-b.svg [ Failure ]
 svg/W3C-SVG-1.1/text-intro-03-b.svg [ Failure ]
 svg/W3C-SVG-1.1/text-intro-04-t.svg [ Failure ]
-svg/batik/text/textEffect3.svg [ Failure ]
 svg/batik/text/textPosition2.svg [ Failure ]
 svg/custom/acid3-test-77.html [ Failure ]
 svg/custom/svg-fonts-fallback.xhtml [ Failure ]
@@ -1379,18 +1357,12 @@ fast/css-generated-content/initial-letter-first-line-wrapping.html [ ImageOnlyFa
 # <rdar://problem/30493910> REGRESSION: LayoutTest fast/writing-mode/broken-ideograph-small-caps.html failing
 fast/writing-mode/broken-ideograph-small-caps.html [ Failure ImageOnlyFailure ]
 
-# <rdar://problem/30182401> REGRESSION: LayoutTest media/media-source/media-source-abort-resets-parser.html failing
-media/media-source/media-source-abort-resets-parser.html [ Failure ]
-
 # <rdar://problem/30517283> REGRESSION: LayoutTests security/block-test.html and security/block-test-no-port.html failing
 security/block-test.html
 security/block-test-no-port.html
 
 # <rdar://problem/31177990> REGRESSION: canvas/2d.gradient.* LayoutTests failing
 # These are imported tests, so we'll have to push changes back to W3C.
-imported/w3c/canvas/2d.gradient.linear.transform.1.html [ Failure ]
-imported/w3c/canvas/2d.gradient.linear.transform.2.html [ Failure ]
-imported/w3c/canvas/2d.gradient.linear.transform.3.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.cone.bottom.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.cone.cylinder.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.cone.front.html [ Failure ]
@@ -1403,7 +1375,6 @@ imported/w3c/canvas/2d.gradient.radial.outside1.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.outside2.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.outside3.html [ Failure ]
 imported/w3c/canvas/2d.gradient.radial.touch2.html [ Failure ]
-fast/canvas/canvas-blending-fill-style.html [ Failure ]
 fast/canvas/canvas-currentColor.html [ Failure ]
 fast/canvas/set-colors.html [ Failure ]
 
@@ -1447,14 +1418,6 @@ fast/dom/HTMLMeterElement/meter-appearances-rating-relevancy.html [ Failure ]
 canvas/philip/tests/2d.path.stroke.scale2.html [ Failure ]
 imported/w3c/canvas/2d.path.stroke.scale2.html [ Failure ]
 
-# <rdar://problem/32799624> REGRESSION: LayoutTests css3/font-variant-petite-caps-synthesis-coverage.html and css3/font-variant-small-caps-synthesis-coverage.html are failing
-css3/font-variant-petite-caps-synthesis-coverage.html [ ImageOnlyFailure ]
-css3/font-variant-small-caps-synthesis-coverage.html [ ImageOnlyFailure ]
-
-# <rdar://problem/32799596> REGRESSION: LayoutTests canvas/philip/tests/2d.gradient.interpolate.solid.html and imported/w3c/canvas/2d.gradient.interpolate.solid.html failing
-canvas/philip/tests/2d.gradient.interpolate.solid.html [ Failure ]
-imported/w3c/canvas/2d.gradient.interpolate.solid.html [ Failure ]
-
 # <rdar://problem/32800095> REGRESSION: LayoutTest imported/blink/fast/gradients/gradient-transparency.html is failing
 imported/blink/fast/gradients/gradient-transparency.html [ ImageOnlyFailure ]
 
@@ -1478,8 +1441,6 @@ media/modern-media-controls/time-labels-support/elapsed-time.html [ Skip ]
 
 # <rdar://problem/33850189>
 http/tests/websocket/tests/hybi/deflate-frame-parameter.html [ Failure ]
-
-webkit.org/b/177319 imported/w3c/web-platform-tests/html/semantics/forms/the-form-element/form-elements-filter.html [ Failure ]
 
 webkit.org/b/177322 imported/w3c/web-platform-tests/html/semantics/document-metadata/the-meta-element/pragma-directives/attr-meta-http-equiv-refresh/parsing.html [ Pass Failure ]
 
@@ -1557,7 +1518,6 @@ webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/i18n/css3-text-
 webkit.org/b/183258 imported/w3c/web-platform-tests/css/css-text/word-break/word-break-break-all-006.html [ ImageOnlyFailure ]
 webkit.org/b/196169 imported/w3c/web-platform-tests/css/css-text/overflow-wrap/overflow-wrap-break-word-003.html [ ImageOnlyFailure ]
 
-webkit.org/b/197970 imported/w3c/web-platform-tests/css/css-text/white-space/break-spaces-010.html [ ImageOnlyFailure ]
 webkit.org/b/198543 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-anywhere-001.html [ ImageOnlyFailure ]
 
 http/tests/cookies/same-site [ Pass ]
@@ -1569,9 +1529,6 @@ http/tests/cookies/only-accept-first-party-cookies.html [ Skip ]
 http/tests/cookies/same-site/set-first-party-cross-site-cookies.php [ Skip ]
 http/tests/cookies/same-site/set-first-party-same-site-cookies.php [ Skip ]
 
-# <rdar://problem/36639117> REGRESSION (Mojave): LayoutTest svg/custom/subpaths-moveto-only-rendering.svg is failing
-svg/custom/subpaths-moveto-only-rendering.svg [ Failure ]
-
 # <rdar://problem/40498290> REGRESSION (Mojave): HTMLMeterElement LayoutTests failing
 fast/dom/HTMLMeterElement/meter-boundary-values.html [ Failure ]
 fast/dom/HTMLMeterElement/meter-element-repaint-on-update-value.html [ Failure ]
@@ -1580,7 +1537,7 @@ fast/dom/HTMLMeterElement/meter-optimums.html [ Failure ]
 fast/dom/HTMLMeterElement/meter-styles.html [ Failure ]
 
 # <rdar://problem/41103260> REGRESSION (Mojave): Three text tests failing with small antialiasing(?) diffs
-fast/inline/break-between-nobr.html [ ImageOnlyFailure ]
+[ Mojave ] fast/inline/break-between-nobr.html [ ImageOnlyFailure ]
 imported/blink/fast/text/international/text-shaping-arabic.html [ ImageOnlyFailure ]
 imported/blink/fast/text/international/vertical-positioning-with-combining-marks.html [ ImageOnlyFailure ]
 
@@ -1656,6 +1613,34 @@ imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-auto-css
 imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_highest-parent-none_touch.html [ Skip ]
 imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-x-pan-y_touch.html [ Skip ]
 imported/w3c/web-platform-tests/pointerevents/pointerevent_pointerout_pen.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/compat/pointerevent_touch-action_two-finger_interaction.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_attributes_nohover_pointers.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_boundary_events_in_capturing.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_coalesced_events_attributes.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_disabled_form_control.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_pointercapture_in_frame.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_releasepointercapture_events_to_original_target.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_sequence_at_implicit_release_on_drag.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-button-none-test_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_child-auto-child-none_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_child-none_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_child-pan-x-child-pan-x_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_child-pan-x-child-pan-y_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-inherit_parent-none_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-none-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-none-on-body-when-style-propagates-to-viewport_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-down-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-left-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-right-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-up-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-x-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-x-pan-y-pan-y_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-pan-y-css_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-span-none-test_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-svg-none-test_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_touch-action-table-none-test_touch.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerlock/pointerevent_movementxy.html [ Skip ]
+imported/w3c/web-platform-tests/pointerevents/pointerevent_sequence_at_implicit_release_on_click.html [ Skip ]
 
 webkit.org/b/197473 imported/w3c/web-platform-tests/resource-timing/resource-timing-level1.sub.html [ Pass Failure ]
 
@@ -1679,12 +1664,8 @@ webkit.org/b/212172 [ Catalina ] fast/text/font-collection.html [ ImageOnlyFailu
 [ Catalina+ ] fast/text/woff2.html [ Pass ImageOnlyFailure ]
 
 # <rdar://problem/45056204>
-[ Catalina+ ] http/tests/cookies/third-party-cookie-relaxing.html [ Failure ]
 [ Catalina+ ] http/tests/xmlhttprequest/cross-origin-cookie-storage.html [ Failure ]
 [ Catalina+ ] http/wpt/beacon/cors/cors-preflight-cookie.html [ Failure ]
-
-# <rdar://problem/50383285>
-[ Catalina+ ] imported/w3c/web-platform-tests/css/css-text/writing-system/writing-system-line-break-001.html [ ImageOnlyFailure ]
 
 # <rdar://problem/51762717>
 [ Catalina+ ] http/wpt/resource-timing/rt-cors.html [ Pass Failure ]
@@ -1750,8 +1731,6 @@ webkit.org/b/201401 imported/w3c/web-platform-tests/media-source/mediasource-vid
 webkit.org/b/198867 webgl/many-contexts.html [ Skip ]
 
 webkit.org/b/203171 inspector/layers/layers-for-node.html [ Pass Failure ]
-
-webkit.org/b/203416 imported/w3c/web-platform-tests/css/css-transitions/before-load-001.html [ Failure ]
 
 webkit.org/b/203357 [ Debug ] imported/w3c/web-platform-tests/css/css-transitions/event-dispatch.tentative.html [ Pass Failure ]
 webkit.org/b/203356 [ Debug ] imported/w3c/web-platform-tests/css/css-transitions/properties-value-003.html [ Pass Failure ]
@@ -1882,8 +1861,6 @@ webkit.org/b/208592 svg/custom/object-sizing-explicit-height.xhtml [ Pass Failur
 
 webkit.org/b/209257 svg/as-object/object-box-sizing-no-width-height.html [ Pass Failure ]
 
-webkit.org/b/208930 accessibility/accessibility-node-memory-management.html [ Pass Failure ]
-
 webkit.org/b/209056 webgpu/whlsl/uint-bitwise.html [ Pass Crash ]
 
 webkit.org/b/209072 [ Debug ] http/tests/css/shared-stylesheet-mutation-preconstruct.html [ Pass Crash Failure ]
@@ -1891,8 +1868,10 @@ webkit.org/b/209072 [ Debug ] http/tests/css/shared-stylesheet-mutation-preconst
 webkit.org/b/207150 platform/mac/webrtc/captureCanvas-webrtc-software-encoder.html [ Pass Failure ]
 
 # The line breaking rules changed in ICU 66. We've updated the tests to match, but old platforms won't get updated line breaking rules.
-webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-normal-015.xht [ ImageOnlyFailure ]
-webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-strict-015.xht [ ImageOnlyFailure ]
+webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-normal-015a.xht [ ImageOnlyFailure ]
+webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-normal-015b.xht [ ImageOnlyFailure ]
+webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-strict-015a.xht [ ImageOnlyFailure ]
+webkit.org/b/209250 imported/w3c/web-platform-tests/css/css-text/line-break/line-break-strict-015b.xht [ ImageOnlyFailure ]
 
 webkit.org/b/207858 fast/canvas/webgl/simulated-vertexAttrib0-invalid-indicies.html [ Skip ]
 
@@ -1927,8 +1906,6 @@ http/tests/frame-throttling/raf-throttle-in-cross-origin-subframe.html [ Pass Fa
 
 webkit.org/b/211891 imported/w3c/web-platform-tests/css/css-flexbox/flexbox_direction-row-reverse.html [ ImageOnlyFailure ]
 
-webkit.org/b/212165 http/tests/resourceLoadStatistics/telemetry-generation-basic-functionality-database.html [ Pass Failure ]
-
 webkit.org/b/212215 media/video-isplayingtoautomotiveheadunit.html [ Pass Failure ]
 
 webkit.org/b/212219 media/track/track-cue-missing.html [ Pass Failure ]
@@ -1943,3 +1920,15 @@ webkit.org/b/212488 [ Catalina ] media/video-play-audio-require-user-gesture.htm
 webkit.org/b/212565 [ Catalina Mojave ] imported/w3c/web-platform-tests/encoding/single-byte-decoder.html [ Failure ]
 
 fast/text/text-styles/-apple-system [ Pass ]
+
+webkit.org/b/214155 imported/w3c/web-platform-tests/html/cross-origin-embedder-policy/blob.https.html [ Pass Failure ]
+
+# This test requires system platform support.
+platform/mac/media/mediacapabilities/vp9-decodingInfo-sw.html [ Skip ]
+
+webkit.org/b/214422 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct.html [ Pass Failure ]
+
+webkit.org/b/214498 imported/w3c/web-platform-tests/cors/remote-origin.htm [ Pass ]
+
+webkit.org/b/214512 imported/w3c/web-platform-tests/css/geometry/DOMMatrix2DInit-validate-fixup.html [ Failure ]
+

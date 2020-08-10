@@ -1,3 +1,2212 @@
+2020-07-20  Geoffrey Garen  <ggaren@apple.com>
+
+        REGRESSION (r264242): [ macOS ] imported/w3c/web-platform-tests/wasm/jsapi/constructor/instantiate.any.html is a flaky crash
+        https://bugs.webkit.org/show_bug.cgi?id=214572
+
+        Unreviewed, reverting r264242.
+
+        * runtime/JSRunLoopTimer.cpp:
+        (JSC::epochTime):
+        (JSC::JSRunLoopTimer::Manager::timerDidFireCallback):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::setRunLoop):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::~PerVMData):
+        (JSC::JSRunLoopTimer::Manager::timerDidFire):
+        (JSC::JSRunLoopTimer::Manager::registerVM):
+        (JSC::JSRunLoopTimer::Manager::scheduleTimer):
+        (JSC::JSRunLoopTimer::Manager::cancelTimer):
+        (JSC::JSRunLoopTimer::Manager::didChangeRunLoop):
+        * runtime/JSRunLoopTimer.h:
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData):
+        * runtime/PromiseTimer.cpp:
+        (JSC::PromiseTimer::doWork):
+        (JSC::PromiseTimer::runRunLoop):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::create):
+        (JSC::VM::tryCreate):
+        (JSC::VM::setRunLoop):
+        * runtime/VM.h:
+        (JSC::VM::runLoop const):
+
+2020-07-20  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] eval?.() should be indirect eval
+        https://bugs.webkit.org/show_bug.cgi?id=214568
+
+        Reviewed by Keith Miller.
+
+        eval?.() is specified as indirect eval, but (virtually) all implementations assumed it should be direct eval.
+        I raised this topic in today's TC39 meeting and we've decided to keep the spec as it is. 
+
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::makeFunctionCallNode):
+        Don't use EvalFunctionCallNode for optional call of eval.
+
+2020-07-20  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Non unified build fixes, midsummer 2020 edition
+        https://bugs.webkit.org/show_bug.cgi?id=213616
+
+        Unreviewed build fix.
+
+        * b3/air/AirTmpInlines.h:
+        (JSC::B3::Air::TmpWidth::widths): Moved from AirTmpWidth.h
+        * b3/air/AirTmpWidth.cpp: Included AirTmpInlines.h
+        * b3/air/AirTmpWidth.h: TmpWidth::widths() moved out from here.
+        * runtime/ExceptionFuzz.cpp: Add missing inclusion of JSCJSValueInlines.h
+        * runtime/StructureIDTable.cpp: Add missing inclusions of wtf/DataLog.h
+        and wtf/RawPointer.h
+        * runtime/VMTraps.cpp: Ditto.
+
+2020-07-20  Keith Miller  <keith_miller@apple.com>
+
+        Add support for FinalizationRegistries
+        https://bugs.webkit.org/show_bug.cgi?id=199888
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch adds support for FinalizationRegistries. There are two
+        main parts to this patch, the first is refactoring PromiseTimer a
+        more general into DeferredWorkTimer. This allows us to finally
+        have a "real" setTimeout on the jsc command line. The second part
+        is adding all the new classes needed for FinalizationRegistries.
+
+        The refactoring is mostly a rename but does two main new
+        things. The first is that it now notifies the VM we have finished
+        a synchronuous JS execution, so that WeakRefs can be
+        collected. The second is that it now catches any exceptions and
+        forwards the to a new method on the global object method
+        table. For WebCore, this reports the exception to the console. For
+        API users, this calls their exceptionHandler block. For the CLI,
+        it exits with exit status 3 (our general exception exit
+        status). Unfortunately, there's not currently an ergonomic way to
+        pass the expected exception from the CLI arguments to this handler
+        so that's not supported here.
+
+        In order to support FinalizationRegistry this patch adds a "new"
+        class JSDestructibleInternalFieldObjectImpl, which allows us to
+        have a destructible object with internal fields. Since the order
+        of collection doesn't matter we currently use C++ HashTables on
+        the FinalizationRegistry. Since users can unregister objects while
+        the callback is pending we have a hash table for the live entries
+        and a second hash table for the dead ones. Lastly, because users
+        are not requred to provide a token for unregistration we have two
+        extra Vectors containing the live/dead objects that are not
+        unregisterible.
+
+        * API/JSAPIGlobalObject.cpp:
+        * API/JSAPIGlobalObject.mm:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * heap/Heap.cpp:
+        (JSC::Heap::finalizeUnconditionalFinalizers):
+        * jsc.cpp:
+        (functionSetTimeout):
+        (functionFinalizationRegistryLiveCount):
+        (functionFinalizationRegistryDeadCount):
+        (main):
+        (checkUncaughtException):
+        (checkException):
+        (GlobalObject::reportUncaughtExceptionAtEventLoop):
+        (runJSC):
+        * runtime/ArrayIteratorPrototype.cpp:
+        * runtime/CommonIdentifiers.h:
+        * runtime/DeferredWorkTimer.cpp: Renamed from Source/JavaScriptCore/runtime/PromiseTimer.cpp.
+        (JSC::DeferredWorkTimer::DeferredWorkTimer):
+        (JSC::DeferredWorkTimer::doWork):
+        (JSC::DeferredWorkTimer::runRunLoop):
+        (JSC::DeferredWorkTimer::addPendingWork):
+        (JSC::DeferredWorkTimer::hasPendingWork):
+        (JSC::DeferredWorkTimer::hasDependancyInPendingWork):
+        (JSC::DeferredWorkTimer::cancelPendingWork):
+        (JSC::DeferredWorkTimer::scheduleWorkSoon):
+        * runtime/DeferredWorkTimer.h: Renamed from Source/JavaScriptCore/runtime/PromiseTimer.h.
+        * runtime/FinalizationRegistryConstructor.cpp: Added.
+        (JSC::FinalizationRegistryConstructor::finishCreation):
+        (JSC::FinalizationRegistryConstructor::FinalizationRegistryConstructor):
+        (JSC::callFinalizationRegistry):
+        (JSC::constructFinalizationRegistry):
+        * runtime/FinalizationRegistryConstructor.h: Copied from Source/JavaScriptCore/API/JSAPIGlobalObject.cpp.
+        * runtime/FinalizationRegistryPrototype.cpp: Added.
+        (JSC::FinalizationRegistryPrototype::finishCreation):
+        (JSC::getFinalizationRegistry):
+        (JSC::protoFuncFinalizationRegistryRegister):
+        (JSC::protoFuncFinalizationRegistryUnregister):
+        * runtime/FinalizationRegistryPrototype.h: Copied from Source/JavaScriptCore/API/JSAPIGlobalObject.cpp.
+        * runtime/IdentifierInlines.h:
+        (JSC::Identifier::Identifier):
+        * runtime/JSFinalizationRegistry.cpp: Added.
+        (JSC::JSFinalizationRegistry::createStructure):
+        (JSC::JSFinalizationRegistry::create):
+        (JSC::JSFinalizationRegistry::finishCreation):
+        (JSC::JSFinalizationRegistry::visitChildren):
+        (JSC::JSFinalizationRegistry::destroy):
+        (JSC::JSFinalizationRegistry::finalizeUnconditionally):
+        (JSC::JSFinalizationRegistry::runFinalizationCleanup):
+        (JSC::JSFinalizationRegistry::takeDeadHoldingsValue):
+        (JSC::JSFinalizationRegistry::registerTarget):
+        (JSC::JSFinalizationRegistry::unregister):
+        (JSC::JSFinalizationRegistry::liveCount):
+        (JSC::JSFinalizationRegistry::deadCount):
+        (JSC::JSFinalizationRegistry::toStringName):
+        * runtime/JSFinalizationRegistry.h: Added.
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::reportUncaughtExceptionAtEventLoop):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::stackOverflowFrameCallee const):
+        (JSC::JSGlobalObject::arrayIteratorProtocolWatchpointSet):
+        (JSC::JSGlobalObject::mapIteratorProtocolWatchpointSet):
+        (JSC::JSGlobalObject::setIteratorProtocolWatchpointSet):
+        (JSC::JSGlobalObject::stringIteratorProtocolWatchpointSet):
+        (JSC::JSGlobalObject::mapSetWatchpointSet):
+        (JSC::JSGlobalObject::setAddWatchpointSet):
+        (JSC::JSGlobalObject::arraySpeciesWatchpointSet):
+        (JSC::JSGlobalObject::arrayJoinWatchpointSet):
+        (JSC::JSGlobalObject::numberToStringWatchpointSet):
+        * runtime/JSInternalFieldObjectImpl.h:
+        * runtime/JSInternalFieldObjectImplInlines.h:
+        (JSC::Base>::visitChildren):
+        (JSC::JSInternalFieldObjectImpl<passedNumberOfInternalFields>::visitChildren): Deleted.
+        * runtime/JSPromise.cpp:
+        (JSC::JSPromise::resolve):
+        (JSC::JSPromise::reject):
+        * runtime/StructureIDTable.cpp:
+        (JSC::StructureIDTable::allocateID):
+        (JSC::StructureIDTable::deallocateID):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::~VM):
+        * runtime/VM.h:
+        * wasm/js/JSWebAssembly.cpp:
+        (JSC::webAssemblyModuleValidateAsyncInternal):
+        (JSC::instantiate):
+        (JSC::compileAndInstantiate):
+        (JSC::webAssemblyModuleInstantinateAsyncInternal):
+        (JSC::webAssemblyCompileStreamingInternal):
+        (JSC::webAssemblyInstantiateStreamingInternal):
+        * wasm/js/JSWebAssemblyCodeBlock.h:
+
+2020-07-20  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        JSC build scripts should be quiet by default
+        https://bugs.webkit.org/show_bug.cgi?id=214535
+
+        Reviewed by Saam Barati.
+        
+        There's no need for these scripts to print "Nothing changed" when they don't do anything.
+
+        * offlineasm/asm.rb:
+        * offlineasm/generate_offset_extractor.rb:
+        * offlineasm/generate_settings_extractor.rb:
+
+2020-07-19  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Unreviewed non-unified source build fix
+
+        * runtime/IntlDateTimeFormat.cpp:
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-07-19  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        -Warray-bounds warnings in testb3 and testair
+        https://bugs.webkit.org/show_bug.cgi?id=214533
+
+        Reviewed by Darin Adler.
+
+        Suppress these warnings when building testb3 and testair.
+
+        * shell/CMakeLists.txt:
+
+2020-07-19  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        cpp_generator.py:134: SyntaxWarning: "is" with a literal. Did you mean "=="?
+        https://bugs.webkit.org/show_bug.cgi?id=214530
+
+        Reviewed by Philippe Normand.
+
+        * inspector/scripts/codegen/cpp_generator.py:
+        (CppGenerator.cpp_type_for_unchecked_formal_in_parameter):
+
+2020-07-18  Mark Lam  <mark.lam@apple.com>
+
+        Fixed regression due to r264507: Math.{min|max} inequality test should use DoubleNotEqualOrUnordered instead DoubleNotEqualAndOrdered.
+        https://bugs.webkit.org/show_bug.cgi?id=214526
+        <rdar://problem/65778061>
+
+        Reviewed by Yusuke Suzuki.
+
+        This bug resulted in NaNs being handled by the "equal" case in some scenarios,
+        which resulted in an assertion failure in a ValueRep on an internal test.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileArithMinMax):
+
+2020-07-18  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Redefining a property should not change its insertion index (Object.keys order)
+        https://bugs.webkit.org/show_bug.cgi?id=142933
+
+        Reviewed by Saam Barati.
+
+        Before this change, JSC used to delete & put back a non-indexed property just to
+        update attributes, which was less efficient and corrupted observable property order.
+
+        This patch:
+        1. Rewrites validateAndApplyPropertyDescriptor() to closely resemble the spec [1].
+        2. Drops property deletion, inlines putDescriptor(), and sets necessary Structure
+           flags in attributeChangeTransition().
+        3. Simplifies validateAndApplyPropertyDescriptor() a bit by obtaining GetterSetter
+           instance from current descriptor rather then calling getDirect().
+
+        This change aligns property order with V8 and SpiderMonkey, advancing provided
+        microbenchmarks by 5-85% (especially for objects in dictionary mode).
+        SixSpeed, SunSpider, and ARES-6 are all neutral.
+
+        [1]: https://tc39.es/ecma262/#sec-validateandapplypropertydescriptor
+
+        * runtime/JSObject.cpp:
+        (JSC::validateAndApplyPropertyDescriptor):
+        (JSC::JSObject::defineOwnNonIndexProperty):
+        (JSC::putDescriptor): Deleted.
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::putDirectInternal):
+        * runtime/PropertyDescriptor.cpp:
+        (JSC::PropertyDescriptor::slowGetterSetter const):
+        (JSC::PropertyDescriptor::slowGetterSetter): Deleted.
+        * runtime/PropertyDescriptor.h:
+        * runtime/Structure.cpp:
+        (JSC::Structure::attributeChangeTransition):
+
+2020-07-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Clean up resolveLocale
+        https://bugs.webkit.org/show_bug.cgi?id=214446
+
+        Reviewed by Darin Adler.
+
+        Introduce RelevantExtensionKey and optimize resolveLocale implementation which avoids using HashMap for input and output.
+        We instead use std::array<T, numberOfRelevantExtensionKeys> since # of RelevantExtensionKeys is only 6.
+
+        For input option, we use std::array<Optional<String>, numberOfRelevantExtensionKeys> since this distinguish non-set-option and null String().
+        For output extension values, we simply use std::array<String, numberOfRelevantExtensionKeys>.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::sortLocaleData):
+        (JSC::IntlCollator::searchLocaleData):
+        (JSC::IntlCollator::initializeCollator):
+        * runtime/IntlCollator.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::localeData):
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::localeData):
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlObject.cpp:
+        (JSC::relevantExtensionKeyString):
+        (JSC::resolveLocale):
+        * runtime/IntlObject.h:
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::localeData):
+        (JSC::IntlPluralRules::initializePluralRules):
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::localeData):
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-07-17  Xan López  <xan@igalia.com>
+
+        Math.max() can yield the wrong result for max(0, -0).
+        https://bugs.webkit.org/show_bug.cgi?id=204457
+
+        Reviewed by Mark Lam.
+
+        The implementations for Math.{max,min} in both DFG and FTL are not
+        considering the fact that according to the spec -0.0 < 0.0 (which
+        is not true for normal double arithmetic).
+        See: https://tc39.es/ecma262/#sec-math.max and https://tc39.es/ecma262/#sec-math.min
+
+        Beyond tweaking the algorithms used in DFG and FTL we must
+        implement the and/or operations on double in MIPS and ARMv7, since
+        these are used in the DFG JIT to distinguish between -0.0 and 0.0.
+
+        * assembler/ARMv7Assembler.h:
+        (JSC::ARMv7Assembler::vand):
+        (JSC::ARMv7Assembler::vorr):
+        * assembler/MacroAssemblerARMv7.h:
+        (JSC::MacroAssemblerARMv7::andDouble):
+        (JSC::MacroAssemblerARMv7::orDouble):
+        * assembler/MacroAssemblerMIPS.h:
+        (JSC::MacroAssemblerMIPS::andDouble):
+        (JSC::MacroAssemblerMIPS::orDouble):
+        * assembler/testmasm.cpp:
+        (JSC::testAndOrDouble):
+        (JSC::run):
+        * dfg/DFGAbstractInterpreterInlines.h: consider that -0.0 < 0.0 per the ECMAScript spec.
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGSpeculativeJIT.cpp: ditto.
+        (JSC::DFG::SpeculativeJIT::compileArithMinMax):
+        * ftl/FTLLowerDFGToB3.cpp: ditto.
+        (JSC::FTL::DFG::LowerDFGToB3::compileArithMinOrMax):
+
+2020-07-17  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        emitIsUndefined() should not special-case [[IsHTMLDDA]] objects
+        https://bugs.webkit.org/show_bug.cgi?id=214443
+
+        Reviewed by Yusuke Suzuki.
+
+        According to Annex B [1], there is only a handful of language constructs
+        that handle [[IsHTMLDDA]] objects: ToBoolean, abstract equality with `null`
+        or `undefined`, and `typeof`. Currently, op_is_undefined does special-case
+        masquarader objects, even though it is used beyond `typeof`.
+
+        With this change, emitIsUndefined() produces `=== undefined`, which meets
+        developer expectations and the spec for all its usages, while op_is_undefined
+        is renamed to op_typeof_is_undefined. New name offers better semantics and
+        clearly communicates the op should be avoided when implementing new features.
+
+        Apart from fixing default values with [[IsHTMLDDA]] objects [2], this change
+        brings significant speed-up: +50% for function parameters and +20% for
+        object destructuring (masqueradesAsUndefinedWatchpoint is not fired).
+
+        This patch also introduces similar emitIsNull() method to avoid breaking
+        masquarader object as superclass test262 case.
+
+        [1]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
+        [2]: https://tc39.es/ecma262/#sec-runtime-semantics-keyedbindinginitialization (step 2)
+
+        * bytecode/BytecodeList.rb:
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitEqualityOpImpl):
+        (JSC::BytecodeGenerator::emitIsUndefined): Deleted.
+        * bytecompiler/BytecodeGenerator.h:
+        (JSC::BytecodeGenerator::emitIsNull):
+        (JSC::BytecodeGenerator::emitIsUndefined):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ForInNode::emitBytecode):
+        (JSC::ClassExprNode::emitBytecode):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGWatchpointCollectionPhase.cpp:
+        (JSC::DFG::WatchpointCollectionPhase::handle):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileTypeOfIsUndefined):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsUndefined): Deleted.
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        * jit/JIT.h:
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_typeof_is_undefined):
+        (JSC::JIT::emit_op_is_undefined): Deleted.
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_typeof_is_undefined):
+        (JSC::JIT::emit_op_is_undefined): Deleted.
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+
+2020-07-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Clean up Intl option parsing code by introducing intlOption<>
+        https://bugs.webkit.org/show_bug.cgi?id=214437
+
+        Reviewed by Ross Kirsling.
+
+        This patch introduces intlOption<>(...) function and remove redundant string comparisons.
+        This makes option handling efficient, and it makes code clean.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::initializeCollator):
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        * runtime/IntlObject.cpp:
+        (JSC::resolveLocale):
+        (JSC::supportedLocales):
+        * runtime/IntlObject.h:
+        * runtime/IntlObjectInlines.h:
+        (JSC::intlOption):
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::initializePluralRules):
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+
+2020-07-16  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] Remove the unnecessary inner class DefaultHash<T>::Hash
+        https://bugs.webkit.org/show_bug.cgi?id=214389
+
+        Reviewed by Darin Adler.
+
+        * assembler/MacroAssemblerCodeRef.h:
+        * b3/B3CheckSpecial.h:
+        * b3/B3Kind.h:
+        * b3/B3ValueKey.h:
+        * b3/air/AirAllocateRegistersByGraphColoring.cpp:
+        * b3/air/AirArg.h:
+        * b3/air/AirTmp.h:
+        * bytecode/BytecodeIndex.h:
+        * bytecode/CallVariant.h:
+        * bytecode/CodeOrigin.h:
+        * bytecode/DFGExitProfile.h:
+        * bytecode/LazyOperandValueProfile.h:
+        * bytecode/ObjectPropertyCondition.h:
+        * bytecode/PropertyCondition.h:
+        * dfg/DFGAbstractHeap.h:
+        * dfg/DFGArgumentsEliminationPhase.cpp:
+        * dfg/DFGByteCodeParser.cpp:
+        * dfg/DFGCSEPhase.cpp:
+        * dfg/DFGCompilationKey.h:
+        * dfg/DFGDesiredGlobalProperty.h:
+        * dfg/DFGHeapLocation.h:
+        * dfg/DFGLivenessAnalysisPhase.cpp:
+        * dfg/DFGMinifiedID.h:
+        * dfg/DFGNodeFlowProjection.h:
+        * dfg/DFGPromotedHeapLocation.h:
+        * dfg/DFGPropertyTypeKey.h:
+        * dfg/DFGPureValue.h:
+        * ftl/FTLLocation.h:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNewArrayWithSpread):
+        (JSC::FTL::DFG::LowerDFGToB3::compileCallOrConstructVarargsSpread):
+        (JSC::FTL::DFG::LowerDFGToB3::compileMaterializeNewObject):
+        * ftl/FTLSlowPathCallKey.h:
+        * heap/MarkedBlock.h:
+        * heap/VisitRaceKey.h:
+        * inspector/scripts/codegen/generate_cpp_protocol_types_header.py:
+        * inspector/scripts/tests/expected/commands-with-async-attribute.json-result:
+        * inspector/scripts/tests/expected/commands-with-optional-call-return-parameters.json-result:
+        * inspector/scripts/tests/expected/enum-values.json-result:
+        * inspector/scripts/tests/expected/type-declaration-array-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-enum-type.json-result:
+        * inspector/scripts/tests/expected/type-declaration-object-type.json-result:
+        * inspector/scripts/tests/expected/type-requiring-runtime-casts.json-result:
+        * jit/ICStats.h:
+        * jit/JITThunks.h:
+        * jit/Reg.h:
+        * jit/RegisterSet.h:
+        * parser/VariableEnvironment.h:
+        * profiler/ProfilerOrigin.h:
+        * profiler/ProfilerOriginStack.h:
+        * profiler/ProfilerUID.h:
+        * runtime/CachedTypes.cpp:
+        * runtime/ControlFlowProfiler.h:
+        * runtime/NativeFunction.h:
+        * runtime/PrototypeKey.h:
+        * runtime/RegExpKey.h:
+        * runtime/TemplateObjectDescriptor.h:
+        * runtime/TypeProfiler.h:
+        * runtime/VarOffset.h:
+        * runtime/WeakGCMap.h:
+        * wasm/WasmBBQPlan.h:
+        * wasm/WasmCodeBlock.h:
+        * wasm/WasmEntryPlan.h:
+        * wasm/WasmLLIntPlan.h:
+        * wasm/WasmSignature.h:
+
+2020-07-16  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Use unvalidatedGet instead of get to access UnlinkedCodeBlock from CodeBlock destructor
+        https://bugs.webkit.org/show_bug.cgi?id=214403
+        <rdar://problem/65527229>
+
+        Reviewed by Mark Lam.
+
+        WriteBarrier<>::get has a check whether this is not executed when sweeping cells. This is good assertion since
+        destruction order of cells are not defined in general, so member cell access from a destructor is almost always wrong.
+        But in CodeBlock case, this is OK because (1) CodeBlock destructor accesses UnlinkedCodeBlock and (2) GC ensures that
+        CodeBlock gets destroyed before UnlinkedCodeBlock gets destroyed. So this assertion is hit incorrectly.
+        In this patch, we use WriteBarrier<>::unvalidatedGet in CodeBlock destructor to bypass the above assertion explicitly.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::~CodeBlock):
+        * heap/Heap.cpp:
+        (JSC::Heap::deleteUnmarkedCompiledCode):
+
+2020-07-15  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [CMake][WebDriver] Generating WebDriverAtoms.cpp is rarely failing as "ImportError: No module named jsmin"
+        https://bugs.webkit.org/show_bug.cgi?id=214339
+
+        Reviewed by Don Olmstead.
+
+        * CMakeLists.txt: Renamed stageSharedScripts to JavaScriptCoreSharedScripts.
+
+2020-07-15  Mark Lam  <mark.lam@apple.com>
+
+        Add handling of out of memory handling while adding a worklet module.
+        https://bugs.webkit.org/show_bug.cgi?id=214354
+        <rdar://problem/65271931>
+
+        Reviewed by Yusuke Suzuki and Keith Miller.
+
+        Add VM::tryCreate() that can fail if we encounter an out of memory issue.
+        As always, we're taking a best effort approach to handling out of memory errors.
+        Hence, we will not attempt to exhaustively handle every OOME scenario.  This patch
+        only checks for failure to allocate a BigInt due to Gigacage exhaustion.  While it
+        doesn't handle other allocation errors, it does enable us to add handling of other
+        cases in the future as needed.
+
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::tryCreate):
+        * runtime/VM.h:
+
+2020-07-15  Jim Mason  <jmason@ibinx.com>
+
+        [WTF] Fix PackedAlignedPtr for X86_64 canonical addresses
+        https://bugs.webkit.org/show_bug.cgi?id=214142
+
+        Reviewed by Mark Lam
+
+        Fixed pointer test to use unsigned in place of signed.
+
+        * wasm/js/WebAssemblyFunction.cpp:
+        (JSC::callWebAssemblyFunction):
+
+2020-07-15  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Emit HasOwnPropertyFunctionCallDotNode for "Reflect" identifiers
+        https://bugs.webkit.org/show_bug.cgi?id=214325
+
+        Reviewed by Darin Adler and Saam Barati.
+
+        Currently, HasOwnPropertyFunctionCallDotNode is emitted for all ResolveNodes
+        except ones with "Reflect" identifier. This exception doesn't seem necessary
+        as ReflectObject inherits ordinary `Object.prototype.hasOwnProperty` method.
+
+        This patch removes the exception, advancing provided "Reflect" microbenchmark
+        by 20%. No behavior change.
+
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::makeFunctionCallNode):
+
+2020-07-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Introduce JSCTEST_hardTimeout
+        https://bugs.webkit.org/show_bug.cgi?id=214343
+
+        Reviewed by Mark Lam.
+
+        JSC Debug tests are failing consistently these days, https://build.webkit.org/builders/Apple-Catalina-Debug-JSC-Tests/.
+        My guess is that some tests get stuck inside JSC even if timeout occurs. Let's consider the following case.
+
+            1. The test is having `JSC_useConcurrentJIT=0`.
+            2. The test is building super heavy FTL code in the main thread.
+            3. The timeout thread notifies the VM about the timeout.
+            4. But VM does not stop since it is running super heavy FTL compilation.
+            5. After 1200 seconds, buildbot terminates the entire test.
+
+        In the above case, JSC gets stuck, and eventually buildbot terminates.
+        In this patch, we introduce JSCTEST_hardTimeout. After soft-timeout (usual timeout) happens, we wait another JSCTEST_hardTimeout seconds.
+        And if the JSC shell is not finished, we forcefully terminates the JSC shell via exit(EXIT_FAILURE), to avoid entire JSC test termination
+        in buildbot.
+
+        We pick 300 seconds. This means, after soft-timeout occurs, we wait for 5 mins, and if the JSC shell is still active, kill it. 5 mins sounds
+        reasonable amount of time. And this should fit within buildbot's hard timeout (1200 seconds).
+
+        * jsc.cpp:
+        (startTimeoutTimer):
+
+2020-07-14  Saam Barati  <sbarati@apple.com>
+
+        We must hold the CodeBlock lock when calling StructureStubInfo::reset
+        https://bugs.webkit.org/show_bug.cgi?id=214332
+        <rdar://problem/64940787>
+
+        Reviewed by Yusuke Suzuki.
+
+        There was a race between resetting the StructureStubInfo, and reading from
+        it from the compiler thread. There was one place inside Repatch where we
+        didn't hold the CodeBlock's lock when calling StructureStubInfo::reset.
+        
+        To make it clear which functions require the CodeBlock's lock to be
+        held when called, I've changed all such functions to take the
+        LockHolder as a parameter.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::finalizeBaselineJITInlineCaches):
+        * bytecode/StructureStubClearingWatchpoint.cpp:
+        (JSC::StructureTransitionStructureStubClearingWatchpoint::fireInternal):
+        (JSC::AdaptiveValueStructureStubClearingWatchpoint::handleFire):
+        * bytecode/StructureStubInfo.cpp:
+        (JSC::StructureStubInfo::initGetByIdSelf):
+        (JSC::StructureStubInfo::initArrayLength):
+        (JSC::StructureStubInfo::initStringLength):
+        (JSC::StructureStubInfo::initPutByIdReplace):
+        (JSC::StructureStubInfo::initInByIdSelf):
+        (JSC::StructureStubInfo::addAccessCase):
+        (JSC::StructureStubInfo::reset):
+        (JSC::StructureStubInfo::visitWeakReferences):
+        (JSC::StructureStubInfo::setCacheType):
+        * bytecode/StructureStubInfo.h:
+        * jit/Repatch.cpp:
+        (JSC::fireWatchpointsAndClearStubIfNeeded):
+        (JSC::tryCacheGetBy):
+        (JSC::tryCachePutByID):
+        (JSC::tryCacheInByID):
+
+2020-07-14  Mark Lam  <mark.lam@apple.com>
+
+        Handle out of memory error while creating an error message in the literal parser.
+        https://bugs.webkit.org/show_bug.cgi?id=214313
+        <rdar://problem/65031745>
+
+        Reviewed by Saam Barati.
+
+        * runtime/LiteralParser.cpp:
+        (JSC::LiteralParser<CharType>::parse):
+
+2020-07-14  Caitlin Potter  <caitp@igalia.com>
+
+        [JSC] fixup LLInt fast path in op_get_private_name
+        https://bugs.webkit.org/show_bug.cgi?id=214311
+
+        Reviewed by Tadeu Zagallo.
+
+        The LLInt slow path would previously always be taken in op_get_private_name,
+        due to not comparing the operand field name's JSValue payload with the cached
+        field name, but the register index itself.
+
+        This fixup can't really be verified by tests, as it is primarily a
+        minor performance improvement.
+
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+
+2020-07-14  Xan Lopez  <xan@igalia.com>
+
+        [JSC] Remove compiler warning in JSBigInt
+        https://bugs.webkit.org/show_bug.cgi?id=214298
+
+        Reviewed by Sam Weinig.
+
+        * runtime/JSBigInt.cpp:
+        (JSC::JSBigInt::parseInt): no need to ASSERT >= 0 with an unsigned int.
+
+2020-07-14  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Unreviewed non-unified build fixes
+
+        * runtime/IntlObject.cpp:
+
+2020-07-13  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Unreviewed non-unified build fixes
+
+        * dfg/DFGCodeOriginPool.h:
+
+2020-07-13  Saam Barati  <sbarati@apple.com>
+
+        returnEarlyFromInfiniteLoopsForFuzzing and validateDoesGC may fail when used together in the FTL
+        https://bugs.webkit.org/show_bug.cgi?id=214289
+        <rdar://problem/65272138>
+
+        Reviewed by Keith Miller.
+
+        Because the patchpoint we use for returnEarlyFromInfiniteLoopsForFuzzing doesn't
+        read or write any heap ranges, B3 move memory ops around it. In particular, it
+        might move the validate DoesGC store above it. In the FTL, we should make returnEarlyFromInfiniteLoopsForFuzzing
+        mimic what Return does for validating DoesGC.
+
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileLoopHint):
+
+2020-07-13  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] IntlLocale::initializeLocale should have scope.release
+        https://bugs.webkit.org/show_bug.cgi?id=214271
+        <rdar://problem/65467314>
+
+        Reviewed by Darin Adler.
+
+        Add missing scope.release() to suppress validateExceptionChecks crash.
+
+        * runtime/IntlLocale.cpp:
+        (JSC::IntlLocale::initializeLocale):
+
+2020-07-13  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] FTL isCellOrMisc should be isCellOrMiscOrBigInt32
+        https://bugs.webkit.org/show_bug.cgi?id=214269
+        <rdar://problem/65475129>
+
+        Reviewed by Mark Lam.
+
+        FTL isCellOrMisc's check can accept BigInt32 too. So it should be isCellOrMiscOrBigInt32.
+        Since our proven type filter does not include SpecBigInt32, isCellOrMisc can be folded into
+        false for BigInt32 AbstractValue. This patch fixes that filter. And we also reviewed places
+        using isCellOrMisc / isNotCellOrMisc.
+
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileSwitch):
+        (JSC::FTL::DFG::LowerDFGToB3::numberOrNotCellNorBigIntToInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isCellOrMiscOrBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotCellOrMiscOrBigInt32):
+        (JSC::FTL::DFG::LowerDFGToB3::isNumber):
+        (JSC::FTL::DFG::LowerDFGToB3::isNotNumber):
+        (JSC::FTL::DFG::LowerDFGToB3::isCellOrMisc): Deleted.
+        (JSC::FTL::DFG::LowerDFGToB3::isNotCellOrMisc): Deleted.
+
+2020-07-13  Geoffrey Garen  <ggaren@apple.com>
+
+        Unreviewed, re-landing r264242 with crash fixed.
+
+        Re-landed changeset:
+
+        "JSRunLoopTimer should use WTF::RunLoop rather than custom CF
+        code"
+        https://bugs.webkit.org/show_bug.cgi?id=214102
+        https://trac.webkit.org/changeset/264242
+
+        * runtime/JSRunLoopTimer.cpp:
+        (JSC::epochTime):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData):
+        (JSC::JSRunLoopTimer::Manager::timerDidFireCallback):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::~PerVMData):
+        (JSC::JSRunLoopTimer::Manager::timerDidFire):
+        (JSC::JSRunLoopTimer::Manager::registerVM):
+        (JSC::JSRunLoopTimer::Manager::scheduleTimer):
+        (JSC::JSRunLoopTimer::Manager::cancelTimer):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::setRunLoop): Deleted.
+        (JSC::JSRunLoopTimer::Manager::didChangeRunLoop): Deleted.
+        * runtime/JSRunLoopTimer.h:
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData): Deleted.
+        * runtime/PromiseTimer.cpp:
+        (JSC::PromiseTimer::doWork):
+        (JSC::PromiseTimer::runRunLoop):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::create):
+        (JSC::VM::setRunLoop): Deleted.
+        * runtime/VM.h:
+        (JSC::VM::runLoop const):
+
+2020-07-13  Keith Miller  <keith_miller@apple.com>
+
+        Clean up SourceProvider and add caller relative load script to jsc.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=214205
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch originally was just to add an optional parameter to our
+        load function so that any relative path is computed with respect
+        to calling script.  Rather than computing the path relative to the
+        current working directory. The main advantage of this is now you
+        can run all the JSTests/stress scripts from anywhere rather than
+        only from the stress directory. This also matches jsc.cpp's module
+        loader implementation.
+
+        To make this possible a surprising number of changes were
+        needed. Specifically, it was much easier to get this to work if we
+        converted SourceOrigin's url to a WTF::URL rather than just a
+        WTF::String. At the same time it became clear that
+        SourceProvider's m_sourceURL is really not a URL but more of a
+        file name, which can sometimes be a URL. It's possible that we
+        don't need m_sourceURL at all but we should do that in a different
+        patch.
+
+        Additionally, jsc.cpp now uses WTF::URL for handling file
+        paths. This is cleaner than managing trying to do it ourselves and
+        should work across all the ports.
+
+        Lastly, the JSC CLI no longer accepts "bare-name"
+        specifiers. i.e. all specifiers must start with "/", "./", or
+        "../". This matches what we do in our Obj-C API and in
+        WebCore. While fixing tests I also noticed that the error message
+        was almost useless since it didn't tell you what the specifier or
+        referrer in question so that information is now part of the user
+        visible error.
+
+        * API/JSAPIGlobalObject.mm:
+        (JSC::computeValidImportSpecifier):
+        (JSC::JSAPIGlobalObject::moduleLoaderImportModule):
+        * API/JSBase.cpp:
+        (JSEvaluateScript):
+        (JSCheckScriptSyntax):
+        * API/JSObjectRef.cpp:
+        (JSObjectMakeFunction):
+        * API/JSScript.mm:
+        (-[JSScript sourceCode]):
+        * API/JSScriptRef.cpp:
+        * API/glib/JSCContext.cpp:
+        (jsc_context_check_syntax):
+        * builtins/BuiltinExecutables.cpp:
+        (JSC::BuiltinExecutables::BuiltinExecutables):
+        * debugger/DebuggerLocation.cpp:
+        (JSC::DebuggerLocation::DebuggerLocation):
+        * debugger/DebuggerLocation.h:
+        (JSC::DebuggerLocation::DebuggerLocation):
+        * inspector/ScriptDebugServer.cpp:
+        (Inspector::ScriptDebugServer::sourceParsed):
+        * jsc.cpp:
+        (currentWorkingDirectory):
+        (absolutePath):
+        (GlobalObject::moduleLoaderImportModule):
+        (GlobalObject::moduleLoaderResolve):
+        (jscSource):
+        (fetchModuleFromLocalFileSystem):
+        (GlobalObject::moduleLoaderFetch):
+        (functionLoad):
+        (functionCallerSourceOrigin):
+        (functionDollarAgentStart):
+        (functionCheckModuleSyntax):
+        (runWithOptions):
+        (runInteractive):
+        (ModuleName::startsWithRoot const): Deleted.
+        (ModuleName::ModuleName): Deleted.
+        (extractDirectoryName): Deleted.
+        (resolvePath): Deleted.
+        * parser/Nodes.h:
+        (JSC::ScopeNode::source const):
+        (JSC::ScopeNode::sourceURL const): Deleted.
+        * parser/SourceCode.h:
+        (JSC::makeSource):
+        * parser/SourceCodeKey.h:
+        (JSC::SourceCodeKey::host const):
+        * parser/SourceProvider.cpp:
+        (JSC::SourceProvider::SourceProvider):
+        * parser/SourceProvider.h:
+        (JSC::SourceProvider::sourceURL const):
+        (JSC::StringSourceProvider::create):
+        (JSC::StringSourceProvider::StringSourceProvider):
+        (JSC::SourceProvider::url const): Deleted.
+        * runtime/CachedTypes.cpp:
+        (JSC::CachedSourceOrigin::encode):
+        (JSC::CachedSourceOrigin::decode const):
+        (JSC::CachedSourceProviderShape::encode):
+        (JSC::CachedStringSourceProvider::decode const):
+        (JSC::CachedWebAssemblySourceProvider::decode const):
+        * runtime/Error.cpp:
+        (JSC::addErrorInfo):
+        * runtime/FunctionConstructor.cpp:
+        (JSC::constructFunctionSkippingEvalEnabledCheck):
+        * runtime/ScriptExecutable.h:
+        (JSC::ScriptExecutable::sourceURL const):
+        * runtime/SourceOrigin.h:
+        (JSC::SourceOrigin::SourceOrigin):
+        (JSC::SourceOrigin::url const):
+        (JSC::SourceOrigin::string const):
+        (JSC::SourceOrigin::isNull const):
+        * runtime/ThrowScope.cpp:
+        (JSC::ThrowScope::throwException):
+        * runtime/ThrowScope.h:
+        (JSC::ThrowScope::throwException):
+        (JSC::throwVMException):
+        * tools/FunctionOverrides.cpp:
+        (JSC::initializeOverrideInfo):
+        * tools/JSDollarVM.cpp:
+        (JSC::doPrint):
+        (JSC::functionCrash):
+
+2020-07-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] String.protoytpe.toLocaleLowerCase's availableLocales HashSet is inefficient
+        https://bugs.webkit.org/show_bug.cgi?id=213158
+
+        Reviewed by Darin Adler.
+
+        Currently, we are always creating the same HashSet every time String.protoytpe.toLocaleLowerCase is called.
+        We changed bestAvailableLocale to take predicate function. And we pass a predicate which returns true for
+        case-sensitive locales.
+
+        * runtime/IntlObject.cpp:
+        (JSC::bestAvailableLocale):
+        * runtime/IntlObject.h:
+        * runtime/IntlObjectInlines.h:
+        (JSC::bestAvailableLocale):
+        * runtime/StringPrototype.cpp:
+        (JSC::computeTwoCharacters16Code):
+        (JSC::toLocaleCase):
+
+2020-07-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] We should keep unaligned access feature in certain architectures in macro-assembler
+        https://bugs.webkit.org/show_bug.cgi?id=214243
+
+        Reviewed by Darin Adler.
+
+        We introduced the assertion in r263049, but this assertion crashes in testb3 Debug build.
+        testb3 actually tests unaligned access feature since ARM64 and x64 allow it. And unaligned access is useful
+        for Yarr etc., so we want to keep unaligned access feature if architecture allows it. We should make this
+        assertion effective only if CPU(NEEDS_ALIGNED_ACCESS) is true.
+
+        * assembler/MacroAssembler.h:
+        (JSC::MacroAssembler::loadPtr):
+
+2020-07-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Avoid JSString creation in Intl.Locale#{minimize,maximize}
+        https://bugs.webkit.org/show_bug.cgi?id=214231
+
+        Reviewed by Darin Adler.
+
+        Add initializeLocale function taking String to avoid unnecessary JSString creation
+        in Intl.Locale#{maximize,minimize}.
+
+        * runtime/IntlLocale.cpp:
+        (JSC::IntlLocale::initializeLocale):
+        * runtime/IntlLocale.h:
+        * runtime/IntlLocalePrototype.cpp:
+        (JSC::IntlLocalePrototypeFuncMaximize):
+        (JSC::IntlLocalePrototypeFuncMinimize):
+
+2020-07-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Intl.Locale maximize, minimize should return Intl.Locale instead of String
+        https://bugs.webkit.org/show_bug.cgi?id=214223
+        <rdar://problem/65413620>
+
+        Reviewed by Ross Kirsling.
+
+        Intl.Locale#{maximize,minimize} should return Intl.Locale object instead of generated locale string.
+
+        We also add some protection and use jsString instead of jsNontrivialString because it would be still
+        possible that ICU's locale recognition and our locale interpretation do not agree each other and ICU
+        failed to produce locale, and then the string becomes empty. Since this is a boundary between third-party
+        library and JSC, and we are not ensuring our invariant inside third-party library, taking safer path makes
+        it better.
+
+        We also change IntlLocale#{maximize,minimize} C++ function names to maximal and minimal to align them
+        to the sepc's definitions.
+
+        * runtime/IntlLocale.cpp:
+        (JSC::IntlLocale::maximal):
+        (JSC::IntlLocale::minimal):
+        (JSC::IntlLocale::maximize): Deleted.
+        (JSC::IntlLocale::minimize): Deleted.
+        * runtime/IntlLocale.h:
+        * runtime/IntlLocalePrototype.cpp:
+        (JSC::IntlLocalePrototypeFuncMaximize):
+        (JSC::IntlLocalePrototypeFuncMinimize):
+        (JSC::IntlLocalePrototypeFuncToString):
+        (JSC::IntlLocalePrototypeGetterBaseName):
+        (JSC::IntlLocalePrototypeGetterCalendar):
+        (JSC::IntlLocalePrototypeGetterCaseFirst):
+        (JSC::IntlLocalePrototypeGetterCollation):
+        (JSC::IntlLocalePrototypeGetterHourCycle):
+        (JSC::IntlLocalePrototypeGetterNumberingSystem):
+        (JSC::IntlLocalePrototypeGetterLanguage):
+        (JSC::IntlLocalePrototypeGetterScript):
+        (JSC::IntlLocalePrototypeGetterRegion):
+
+2020-07-10  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, reverting r264242.
+
+        Caused many crashes on iOS bots
+
+        Reverted changeset:
+
+        "JSRunLoopTimer should use WTF::RunLoop rather than custom CF
+        code"
+        https://bugs.webkit.org/show_bug.cgi?id=214102
+        https://trac.webkit.org/changeset/264242
+
+2020-07-10  Geoffrey Garen  <ggaren@apple.com>
+
+        JSRunLoopTimer should use WTF::RunLoop rather than custom CF code
+        https://bugs.webkit.org/show_bug.cgi?id=214102
+
+        Reviewed by Darin Adler.
+
+        The generic RunLoop codepath was already mostly right. Just needed to
+        clarify the API to demonstrate that VMs do not hop from one RunLoop
+        to another.
+
+        * runtime/JSRunLoopTimer.cpp:
+        (JSC::epochTime): Removed the CF path.
+
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData): Include a RunLoop
+        as a constructor argument so that the web thread can override it.
+
+        (JSC::JSRunLoopTimer::Manager::timerDidFireCallback): Removed the CF path.
+
+        (JSC::JSRunLoopTimer::Manager::PerVMData::~PerVMData): No need to
+        explicitly clear our RunLoop -- the RunLoop::Timer destructor will do
+        the job.
+
+        (JSC::JSRunLoopTimer::Manager::timerDidFire):
+        (JSC::JSRunLoopTimer::Manager::registerVM):
+        (JSC::JSRunLoopTimer::Manager::scheduleTimer):
+        (JSC::JSRunLoopTimer::Manager::cancelTimer): Removed the CF path.
+
+        (JSC::JSRunLoopTimer::Manager::PerVMData::setRunLoop): Deleted.
+        (JSC::JSRunLoopTimer::Manager::didChangeRunLoop): Deleted. Changing
+        RunLoops is not actually a feature we use.
+
+        * runtime/JSRunLoopTimer.h:
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData): Deleted.
+        * runtime/PromiseTimer.cpp:
+        (JSC::PromiseTimer::doWork):
+        (JSC::PromiseTimer::runRunLoop): Removed the CF path.
+
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::create):
+        (JSC::VM::setRunLoop): Deleted.
+        * runtime/VM.h:
+        (JSC::VM::runLoop const): Require a RunLoop in the VM constructor in
+        order to clarify that we always know our RunLoop and never change it.
+
+2020-07-09  Brian Burg  <bburg@apple.com>
+
+        REGRESSION(r262302): ITMLKit debuggables in listings are missing a title, use UUID instead
+        https://bugs.webkit.org/show_bug.cgi?id=214153
+
+        Reviewed by Devin Rousso.
+
+        * inspector/remote/cocoa/RemoteInspectorCocoa.mm:
+        (Inspector::RemoteInspector::listingForInspectionTarget const):
+        Looks like this is due to copypasta.
+
+2020-07-09  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        ErrorInstance::finishCreation() puts "message" twice, with different attributes
+        https://bugs.webkit.org/show_bug.cgi?id=214089
+
+        Reviewed by Yusuke Suzuki.
+
+        This change refactors appendSourceToError() to return new message, making it almost pure
+        and eliminating extra JSString -> String -> JSString conversion and {get,put}Direct() calls
+        from ErrorInstance::finishCreation(). Also, moves null message check as early as possible.
+
+        Removed putDirect() call didn't pass PropertyAttribute::DontEnum. An implementation detail,
+        that is about to change in https://webkit.org/b/142933, prevented "message" property from
+        beind redefined with PropertyAttribute::None.
+
+        No behavior change. Advances provided microbenchmark by 5%.
+
+        * runtime/ErrorInstance.cpp:
+        (JSC::appendSourceToErrorMessage):
+        (JSC::ErrorInstance::finishCreation):
+        (JSC::appendSourceToError): Deleted.
+
+2020-07-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] B3 PureCSE should ignore values which are moved to new BasicBlock
+        https://bugs.webkit.org/show_bug.cgi?id=214115
+        <rdar://problem/65189470>
+
+        Reviewed by Saam Barati.
+
+        We are performing "Select" specialization like this.
+
+              BB#target
+                 ...
+                 @a = Select(@p, @x, 42)
+                 @b = Add(@a, 35)
+                 Check(@b)
+                 @c = ...
+
+             becomes this:
+
+               BB#predecessor
+                 ...
+                 Branch(@p, #truecase, #falsecase)
+
+               BB#truecase:
+                 @b_truecase = Add(@x, 35)
+                 Check(@b_truecase)
+                 Upsilon(@x, ^a)
+                 Upsilon(@b_truecase, ^b)
+                 Jump(#continuation)
+
+               BB#falsecase:
+                 @b_falsecase = Add(42, 35)
+                 Check(@b_falsecase)
+                 Upsilon(42, ^a)
+                 Upsilon(@b_falsecase, ^b)
+                 Jump(#continuation)
+
+               BB#continuation:
+                 @a = Phi()
+                 @b = Phi()
+                 Jump(#target)
+
+               BB#target
+                 @c = ...
+
+        In the above transformation, we create a new BasicBlock and move @a and @b to that one. This is good since we do not need to rewrite all the use of @a and @b.
+        However, this confuses PureCSE since @a and @b point to a BasicBlock (BB#continuation) which is not inserted into the graph yet.
+
+        This patch changes PureCSE so that it ignores values which owners are not inserted yet.
+
+        * b3/B3BasicBlock.h:
+        (JSC::B3::BasicBlock::isInserted const):
+        * b3/B3GenericBlockInsertionSet.h:
+        (JSC::B3::GenericBlockInsertionSet::insert):
+        * b3/B3PureCSE.cpp:
+        (JSC::B3::PureCSE::findMatch):
+        (JSC::B3::PureCSE::process):
+        * b3/air/AirBasicBlock.h:
+
+2020-07-08  Saam Barati  <sbarati@apple.com>
+
+        Add a fuzzing toggle for LICM
+        https://bugs.webkit.org/show_bug.cgi?id=214093
+
+        Reviewed by Yusuke Suzuki.
+
+        We have an AI based safety checker for LICM, to determine if it's safe to
+        hoist nodes. Historically, we've had bugs here, where we allow unsafe
+        hoisting. In practice, we've been saved by safety checks also being hoisted
+        at the same time as the operation they're protecting, so even if we
+        have bugs in AI-based safeToExecute, things usually just work. Since
+        we've had security bugs here before, where the safety checks don't get hoisted,
+        leading to issues, it's helpful if we can fuzz this area.  This patch implements
+        a way to says we won't hoist a node based on some probability, allowing us to play
+        with what does and doesn't get hoisted.
+
+        * dfg/DFGLICMPhase.cpp:
+        (JSC::DFG::LICMPhase::run):
+        * runtime/OptionsList.h:
+
+2020-07-08  Saam Barati  <sbarati@apple.com>
+
+        Add a way to return early from detected infinite loops to aid the fuzzer
+        https://bugs.webkit.org/show_bug.cgi?id=214067
+
+        Reviewed by Yusuke Suzuki.
+
+        It's useful for the fuzzer to not get stuck in infinite loops so its
+        test cases can make forward progress trying to find bugs. This patch
+        adds a new mechanism where we can early return if we've exceeded a total
+        execution count for a static loop in bytecode. Note: this is not on a
+        per-frame basis, but it's a way to implement this in a non-invasive way
+        which is also practical for the fuzzer to use.
+
+        * b3/air/AirAllocateRegistersAndStackAndGenerateCode.cpp:
+        (JSC::B3::Air::GenerateAndAllocateRegisters::generate):
+        * b3/air/AirCode.cpp:
+        (JSC::B3::Air::Code::emitEpilogue):
+        * b3/air/AirCode.h:
+        * b3/air/AirGenerate.cpp:
+        (JSC::B3::Air::generateWithAlreadyAllocatedRegisters):
+        * bytecode/BytecodeList.rb:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::finishCreation):
+        (JSC::CodeBlock::~CodeBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileLoopHint):
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_loop_hint):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * offlineasm/mips.rb:
+        * runtime/OptionsList.h:
+        * runtime/VM.cpp:
+        (JSC::VM::addLoopHintExecutionCounter):
+        (JSC::VM::getLoopHintExecutionCounter):
+        (JSC::VM::removeLoopHintExecutionCounter):
+        * runtime/VM.h:
+
+2020-07-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BytecodeGenerator should be robust against failed constant generation
+        https://bugs.webkit.org/show_bug.cgi?id=214062
+        <rdar://problem/65117916>
+
+        Reviewed by Saam Barati.
+
+        Some code in NodesCodegen.cpp assumes `jsValue(generator)` call for constant nodes must succeed.
+        But this can fail when BigInt in source code is too large and becomes OOM. BytecodeGenerator should
+        be robust against BigInt OOM.
+
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ConstantNode::emitBytecodeInConditionContext):
+        (JSC::ArrayNode::emitBytecode):
+        (JSC::BinaryOpNode::tryFoldToBranch):
+
+2020-07-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Should not pass Exception to JSPromise::reject
+        https://bugs.webkit.org/show_bug.cgi?id=214061
+        <rdar://problem/65134450>
+
+        Reviewed by Mark Lam.
+
+        In some places, we are passing Exception* as JSValue instead of Exception::value()'s JSValue.
+        Error and Exception are different, and Exception is not an object. We should pass Exception::value()'s
+        thrown value instead. I checked `reject(` call sites and ensure error is passed.
+
+        * API/JSAPIGlobalObject.mm:
+        (JSC::JSAPIGlobalObject::moduleLoaderImportModule):
+        (JSC::JSAPIGlobalObject::moduleLoaderFetch):
+        * jsc.cpp:
+        (GlobalObject::moduleLoaderImportModule):
+        (GlobalObject::moduleLoaderFetch):
+        * runtime/JSModuleLoader.cpp:
+        (JSC::JSModuleLoader::importModule):
+        (JSC::JSModuleLoader::resolve):
+        (JSC::JSModuleLoader::fetch):
+        (JSC::moduleLoaderParseModule):
+        * runtime/JSPromise.cpp:
+        (JSC::JSPromise::resolve):
+        (JSC::JSPromise::reject):
+
+2020-07-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Fix btjs by recovering CallFrame::describeFrame
+        https://bugs.webkit.org/show_bug.cgi?id=214055
+
+        Reviewed by Mark Lam.
+
+        While CallFrame::describeFrame is not used in WebKit tree, it is used in LLDB btjs which is invoked from python.
+        So we need to keep it. We also use std::call_once based buffer allocation instead of `static char buffer[...]`
+        to avoid spreading debug-use-only buffer in BSS segment.
+
+        * interpreter/CallFrame.cpp:
+        (JSC::CallFrame::describeFrame):
+        * interpreter/CallFrame.h:
+
+2020-07-07  Keith Miller  <keith_miller@apple.com>
+
+        Bytecode UseDef should be aware of checkpoints
+        https://bugs.webkit.org/show_bug.cgi?id=213566
+
+        Reviewed by Saam Barati.
+
+        Previously, we tried to solve teaching DFG about uses and defs of
+        locals across checkpoints by asking what locals were def'd at some
+        checkpoint. However, this was subtly wrong because we couldn't
+        report any uses at subsequent checkpoints so DFG thought the
+        local was dead immediately after its birth.
+
+        This patch reverts that change and instead teaches BytecodeUseDef
+        about checkpoints. Right now, BytecodeUseDef only knows about
+        locals at checkpoints but in the future we may teach it about tmps
+        at well.
+
+        Since the vectors containing our liveness bitmaps were already
+        sparse (they are indexed by the bytecode offset) we can reuse the
+        gaps to hold our checkpoint liveness information. To make sure we
+        don't overlap between the next bytecode and a checkpoint for the
+        current bytecode there is now a static assert that the length of
+        the bytecode is greater than the number of checkpoints. This
+        assumption is already true for existing bytecodes with checkpoints (and
+        likely to be true for future ones anyway).
+
+        Many of the BytecodeLivenessPropegation functions have been
+        renamed to reflect that they operate over the full instruction,
+        including checkpoints, rather than just the BytecodeIndex passed.
+
+        Lastly, this patch makes a speculative fix to forAllKilledOperands where we
+        wouldn't report that all tmps die at the end of each bytecode. I can't think
+        of a case where this would break things but it's probably good hygiene.
+
+        * bytecode/BytecodeGeneratorification.cpp:
+        (JSC::GeneratorLivenessAnalysis::run):
+        * bytecode/BytecodeIndex.h:
+        (JSC::BytecodeIndex::BytecodeIndex):
+        (JSC::BytecodeIndex::checkpoint const):
+        (JSC::BytecodeIndex::withCheckpoint const):
+        (JSC::BytecodeIndex::pack):
+        * bytecode/BytecodeLivenessAnalysis.cpp:
+        (JSC::BytecodeLivenessAnalysis::computeFullLiveness):
+        (JSC::BytecodeLivenessAnalysis::dumpResults):
+        (JSC::tmpLivenessForCheckpoint):
+        (JSC::BytecodeLivenessAnalysis::getLivenessInfoAtBytecodeIndex): Deleted.
+        (JSC::livenessForCheckpoint): Deleted.
+        * bytecode/BytecodeLivenessAnalysis.h:
+        (JSC::BytecodeLivenessAnalysis::getLivenessInfoAtInstruction):
+        * bytecode/BytecodeLivenessAnalysisInlines.h:
+        (JSC::BytecodeLivenessPropagation::stepOverBytecodeIndexDef):
+        (JSC::BytecodeLivenessPropagation::stepOverBytecodeIndexUse):
+        (JSC::BytecodeLivenessPropagation::stepOverBytecodeIndexUseInExceptionHandler):
+        (JSC::BytecodeLivenessPropagation::stepOverBytecodeIndex):
+        (JSC::BytecodeLivenessPropagation::stepOverInstruction):
+        (JSC::BytecodeLivenessPropagation::computeLocalLivenessForInstruction):
+        (JSC::BytecodeLivenessPropagation::computeLocalLivenessForBlock):
+        (JSC::BytecodeLivenessPropagation::getLivenessInfoAtInstruction):
+        (JSC::BytecodeLivenessPropagation::stepOverInstructionDef): Deleted.
+        (JSC::BytecodeLivenessPropagation::stepOverInstructionUse): Deleted.
+        (JSC::BytecodeLivenessPropagation::stepOverInstructionUseInExceptionHandler): Deleted.
+        (JSC::BytecodeLivenessPropagation::computeLocalLivenessForBytecodeIndex): Deleted.
+        (JSC::BytecodeLivenessPropagation::getLivenessInfoAtBytecodeIndex): Deleted.
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecode/BytecodeUseDef.h:
+        (JSC::computeUsesForBytecodeIndex):
+        (JSC::computeDefsForBytecodeIndex):
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::ensureCatchLivenessIsComputedForBytecodeIndexSlow):
+        (JSC::CodeBlock::validate):
+        * bytecode/FullBytecodeLiveness.h:
+        (JSC::FullBytecodeLiveness::getLiveness const):
+        (JSC::FullBytecodeLiveness::toIndex):
+        * bytecode/Instruction.h:
+        (JSC::BaseInstruction::numberOfCheckpoints const):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::ForInContext::finalize):
+        * dfg/DFGForAllKills.h:
+        (JSC::DFG::forAllKilledOperands):
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::isLiveInBytecode):
+        * dfg/DFGGraph.h:
+        * dfg/DFGMovHintRemovalPhase.cpp:
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::cleanMustHandleValuesIfNecessary):
+        * generator/Opcode.rb:
+        * generator/Section.rb:
+
+2020-07-06  Geoffrey Garen  <ggaren@apple.com>
+
+        callOnMainThread should use the same queue as RunLoop::dispatch
+        https://bugs.webkit.org/show_bug.cgi?id=213830
+
+        Reviewed by Brady Eidson.
+
+        * JavaScriptCore.order:
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263960.
+        https://bugs.webkit.org/show_bug.cgi?id=213980
+
+        Re-land, because r263959 somehow fixed the build issue caused
+        by r263953
+
+        Reverted changeset:
+
+        "Unreviewed, reverting r263953 and r263959."
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+        https://trac.webkit.org/changeset/263960
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263953 and r263959.
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+
+        Broke internal build
+
+        Reverted changesets:
+
+        "[Cocoa] Move almost all features from FeatureDefines.xcconfig
+        to PlatformEnableCocoa.h"
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+        https://trac.webkit.org/changeset/263953
+
+        "[Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build
+        system"
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+        https://trac.webkit.org/changeset/263959
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build system
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/Base.xcconfig: Removed FEATURE_DEFINES.
+        * Configurations/FeatureDefines.xcconfig: Removed.
+        * Configurations/JSC.xcconfig: Removed include of FeatureDefines.xcconfig.
+        * Configurations/JavaScriptCore.xcconfig: Ditto.
+        * Configurations/ToolExecutable.xcconfig: Ditto.
+        * DerivedSources-input.xcfilelist: Removed FeatureDefines.xcconfig.
+        * DerivedSources.make: Removed FEATURE_DEFINES and FEATURE_DEFINE_FLAGS.
+        * JavaScriptCore.xcodeproj/project.pbxproj: Removed FeatureDefines.xcconfig.
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Move almost all features from FeatureDefines.xcconfig to PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Delete everything except
+        ENABLE_EXPERIMENTAL_FEATURES and ENABLE_WEBRTC.
+
+2020-07-05  Philippe Normand  <pnormand@igalia.com>
+
+        Web Inspector: Fix python3 build warnings
+        https://bugs.webkit.org/show_bug.cgi?id=213971
+
+        Reviewed by Sam Weinig.
+
+        Fix Python3 syntax warnings. Using 'is' with string literals triggers those. Adopt the ==
+        operator instead, which is more idiomatic anyway.
+
+        * inspector/scripts/codegen/cpp_generator.py:
+        (CppGenerator.cpp_getter_method_for_type):
+        (CppGenerator.cpp_setter_method_for_type):
+        * inspector/scripts/codegen/objc_generator.py:
+        (ObjCTypeCategory.category_for_type):
+        (ObjCGenerator.objc_type_for_raw_name):
+        (ObjCGenerator.objc_class_for_raw_name):
+        (ObjCGenerator.protocol_type_for_raw_name):
+        (ObjCGenerator.objc_protocol_export_expression_for_variable):
+        (ObjCGenerator.objc_protocol_import_expression_for_variable):
+        (ObjCGenerator.objc_to_protocol_expression_for_member):
+        (ObjCGenerator.protocol_to_objc_expression_for_member):
+        (ObjCGenerator.payload_to_objc_expression_for_member):
+        (ObjCGenerator.objc_setter_method_for_member_internal):
+        (ObjCGenerator.objc_getter_method_for_member_internal):
+        (ObjCGenerator.objc_protocol_export_expression_for_variable.is): Deleted.
+        (ObjCGenerator.objc_protocol_import_expression_for_variable.is): Deleted.
+        (ObjCGenerator.objc_to_protocol_expression_for_member.is): Deleted.
+        (ObjCGenerator.protocol_to_objc_expression_for_member.is): Deleted.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove all features from FeatureDefines.xcconfig that are already mentioned in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=213962
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed all features that were mentioned
+        in PlatformEnableCocoa.h; the rules in that file now define whether they are enabled.
+
+2020-07-04  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        %TypedArray%.prototype.{indexOf,lastIndexOf} are not spec-perfect
+        https://bugs.webkit.org/show_bug.cgi?id=213715
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch:
+
+        1. Implements step 3 of {Array,%TypedArray%}.prototype.indexOf [1] and
+           %TypedArray%.prototype.lastIndexOf [2] since it is observable when
+           second argument is an object with userland toString() or valueOf() method.
+           Advances provided microbenchmark by 100% for Array and by 25% for %TypedArray%.
+
+        2. Removes argument count check from %TypedArray%.prototype.{indexOf,lastIndexOf},
+           allowing these methods to be invoked w/o arguments. The spec treats missing
+           arguments as `undefined`, always returning -1 for typed arrays.
+
+        Both changes align JSC with V8 and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-array.prototype.indexof
+        [2]: https://tc39.es/ecma262/#sec-%typedarray%.prototype.lastindexof
+
+        * runtime/ArrayPrototype.cpp:
+        (JSC::arrayProtoFuncIndexOf):
+        (JSC::arrayProtoFuncLastIndexOf):
+        * runtime/JSGenericTypedArrayViewPrototypeFunctions.h:
+        (JSC::genericTypedArrayViewProtoFuncIndexOf):
+        (JSC::genericTypedArrayViewProtoFuncLastIndexOf):
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove unconditional features from FeatureDefines.xcconfig, making sure they are covered in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed features that are either unconditionally not enabled,
+        or unconditionally enabled. Double checked that all the enabled ones are either in PlatformEnable.h or
+        PlatformEnableCocoa.h.
+
+2020-07-03  Darin Adler  <darin@apple.com>
+
+        Make generate-unified-sources.sh not depend on features being listed in FEATURE_DEFINES environment variable
+        https://bugs.webkit.org/show_bug.cgi?id=212420
+
+        Reviewed by Don Olmstead.
+
+        * Scripts/generate-unified-sources.sh: Removed many unneeded quote marks from the
+        invocation of generate-unified-source-bundles.rb.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        Update comment in FeatureDefines.xcconfig since PlatformEnableCocoa.h should be used instead
+        https://bugs.webkit.org/show_bug.cgi?id=213952
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Updated comment.
+
+2020-07-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Promise should check whether a user-provided function is set by using `@isUndefinedOrNull`
+        https://bugs.webkit.org/show_bug.cgi?id=213951
+
+        Reviewed by Ross Kirsling.
+
+        If a user-provided function is masquerade-as-undefined value, `if (!xxx.@onRejected)` returns wrong
+        value since this function object is considered as undefined in this context. We should use `@isUndefinedOrNull`
+        here instead since this if-branch is checking whether this property is null/undefined actually.
+        And `if (@isUndefinedOrNull(...))` is efficient since we have `jundefined_or_null` / `jnundefined_or_null` bytecodes.
+
+        * builtins/PromiseOperations.js:
+        (globalPrivate.promiseReactionJob):
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Remove support for ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE
+        https://bugs.webkit.org/show_bug.cgi?id=213932
+
+        Reviewed by Darin Adler.
+
+        Removes support for non-standard <input type="datetime">, currently being 
+        guarded by the macro ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE. This macro, was
+        added back in 2013 as a temporary measure to support some engines who shipped
+        support for <input type="datetime">. It is currently not enabled for any
+        ports so now seems like as good a time as any to remove it.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Add "-Wliteral-conversion" warning to Xcode based builds and fix the issues it finds
+        https://bugs.webkit.org/show_bug.cgi?id=213931
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig:
+        Add -Wliteral-conversion.
+
+2020-07-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add exception checks before and after viewWithUnderlyingString
+        https://bugs.webkit.org/show_bug.cgi?id=213923
+        <rdar://problem/65068473>
+
+        Reviewed by Sam Weinig.
+
+        This patch inserts missing exception checks before and after viewWithUnderlyingString.
+
+        * jsc.cpp:
+        (printInternal):
+        (functionDebug):
+        * runtime/FunctionConstructor.cpp:
+        (JSC::constructFunctionSkippingEvalEnabledCheck):
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::globalFuncParseFloat):
+        * runtime/JSONObject.cpp:
+        (JSC::JSONProtoFuncParse):
+        * runtime/StringPrototype.cpp:
+        (JSC::stringProtoFuncCharAt):
+        (JSC::stringProtoFuncCharCodeAt):
+
+2020-07-03  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add exception checks in JSStringBuilder and Array#join
+        https://bugs.webkit.org/show_bug.cgi?id=213915
+        <rdar://problem/64878225>
+
+        Reviewed by Saam Barati and Mark Lam.
+
+        This patch adds missing exception checks into Array#join's certain place and JSStringBuilder.
+
+        * runtime/ArrayPrototype.cpp:
+        (JSC::arrayProtoFuncToString):
+        * runtime/JSStringJoiner.h:
+        (JSC::JSStringJoiner::append):
+
+2020-07-03  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Builtin internal wrapper implementation files wrap static global initialization code with incorrect guards
+        https://bugs.webkit.org/show_bug.cgi?id=213792
+
+        Reviewed by Youenn Fablet.
+
+        Streams API hadn't worked since r263700 for AppleWin and WinCairo
+        ports. r263700 removed the unused ENABLE_STREAMS_API.
+
+        Before r263700, the static global initialization code was wrapped
+        by "ENABLE(WEB_RTC) || ENABLE(STREAMS_API)". After r263700, it was
+        wrapped by "ENABLE(WEB_RTC)". AppleWin and WinCairo doesn't turn
+        on ENABLE_WEB_RTC. So, builtins for Streams API weren't properly
+        initialized for them.
+
+        * Scripts/tests/builtins/expected/WebCoreJSBuiltins.h-result: Rebaselined.
+        * Scripts/wkbuiltins/builtins_generate_internals_wrapper_implementation.py:
+        (BuiltinsInternalsWrapperImplementationGenerator.generate_initialize_method):
+        Removed calling wrap_with_guard for the value of _generate_initialize_static_globals().
+
+2020-07-02  Alex Christensen  <achristensen@webkit.org>
+
+        Update Mac CMake build
+
+        * PlatformMac.cmake:
+
+2020-07-02  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Configure option-offered numberingSystem in Intl.NumberFormat through locale
+        https://bugs.webkit.org/show_bug.cgi?id=213872
+
+        Reviewed by Ross Kirsling.
+
+        We need to pass numberingSystem option to ICU through locale when constructing UNumberFormat.
+        We are passing it when we get "en-US-u-nu-hanidec" locale, but we are not passing it when
+        we are getting `new Intl.NumberFormat("en-US", { numberingSystem: "hanidec" })`.
+
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+
+2020-07-01  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Intl.Collator should set usage:"search" option through ICU locale
+        https://bugs.webkit.org/show_bug.cgi?id=213869
+
+        Reviewed by Ross Kirsling.
+
+        Intl.Collator has usage:"search" option, and it affects on collation. However, UCollator does not have an interface to set this collation option,
+        and only way to configure UCollator is setting "-u-co-search" unicode extension to passed locale string. This patch adds "-u-co-search" unicode
+        extension if Usage::Search is specified.
+
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::initializeCollator):
+
+2020-07-01  Keith Miller  <keith_miller@apple.com>
+
+        Rename zeroExtend32ToPtr to zeroExtend32ToWord
+        https://bugs.webkit.org/show_bug.cgi?id=213866
+
+        Reviewed by Saam Barati.
+
+        The old name no longer makes sense now that we have configurations
+        where sizeof(void*) != sizeof(CPURegister).
+
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::branchTruncateDoubleToInt32):
+        (JSC::MacroAssemblerARM64::zeroExtend32ToWord):
+        (JSC::MacroAssemblerARM64::branchMul32):
+        (JSC::MacroAssemblerARM64::zeroExtend32ToPtr): Deleted.
+        * assembler/MacroAssemblerARMv7.h:
+        (JSC::MacroAssemblerARMv7::zeroExtend32ToWord):
+        (JSC::MacroAssemblerARMv7::zeroExtend32ToPtr): Deleted.
+        * assembler/MacroAssemblerMIPS.h:
+        (JSC::MacroAssemblerMIPS::zeroExtend32ToWord):
+        (JSC::MacroAssemblerMIPS::zeroExtend32ToPtr): Deleted.
+        * assembler/MacroAssemblerX86Common.h:
+        (JSC::MacroAssemblerX86Common::add32):
+        (JSC::MacroAssemblerX86Common::and32):
+        (JSC::MacroAssemblerX86Common::mul32):
+        (JSC::MacroAssemblerX86Common::or32):
+        (JSC::MacroAssemblerX86Common::xor32):
+        (JSC::MacroAssemblerX86Common::zeroExtend32ToWord):
+        (JSC::MacroAssemblerX86Common::branchAdd32):
+        (JSC::MacroAssemblerX86Common::zeroExtend32ToPtr): Deleted.
+        * b3/air/AirOpcode.opcodes:
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::generateWithGuard):
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileStringSlice):
+        (JSC::DFG::SpeculativeJIT::compileValueToInt32):
+        (JSC::DFG::SpeculativeJIT::compileUInt32ToNumber):
+        (JSC::DFG::SpeculativeJIT::setIntTypedArrayLoadResult):
+        (JSC::DFG::SpeculativeJIT::compileArithDiv):
+        (JSC::DFG::SpeculativeJIT::compileCreateRest):
+        (JSC::DFG::SpeculativeJIT::compileArraySlice):
+        (JSC::DFG::SpeculativeJIT::compileArrayIndexOf):
+        (JSC::DFG::SpeculativeJIT::compileNewTypedArrayWithSize):
+        (JSC::DFG::SpeculativeJIT::emitAllocateButterfly):
+        (JSC::DFG::SpeculativeJIT::compileWeakMapGet):
+        (JSC::DFG::SpeculativeJIT::emitInitializeButterfly):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Internal):
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::reboxAccordingToFormat):
+        * jit/CallFrameShuffler64.cpp:
+        (JSC::CallFrameShuffler::emitBox):
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_has_indexed_property):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_has_indexed_property):
+        * jit/JITPropertyAccess.cpp:
+        (JSC::JIT::emit_op_put_by_val):
+        * jit/JSInterfaceJIT.h:
+        (JSC::JSInterfaceJIT::emitLoadInt32):
+        * wasm/js/JSToWasm.cpp:
+        (JSC::Wasm::boxWasmResult):
+        * wasm/js/WasmToJS.cpp:
+        (JSC::Wasm::wasmToJS):
+        * wasm/js/WebAssemblyFunction.cpp:
+        (JSC::WebAssemblyFunction::jsCallEntrypointSlow):
+        * yarr/YarrJIT.cpp:
+
+2020-07-01  Saam Barati  <sbarati@apple.com>
+
+        Script to copy over testapi.js is redundant in xcodebuild
+        https://bugs.webkit.org/show_bug.cgi?id=213824
+
+        Reviewed by Keith Miller.
+
+        We're already copying over the entire testapiScripts directory.
+        No need to manually copy just one file from it, too.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-07-01  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Use properly flag names for tests of Tools/Scripts/run-builtins-generator-tests
+        https://bugs.webkit.org/show_bug.cgi?id=213733
+
+        Reviewed by Youenn Fablet.
+
+        Test cases under Source/JavaScriptCore/Scripts/tests/builtins/ uses exist compilation flags.
+        But they can take an arbitary flag name and don't have to use an exist flag.
+        I think it's better to rename them to more proper ones.
+
+        * Scripts/tests/builtins/WebCore-ArbitraryConditionalGuard-Separate.js:
+        * Scripts/tests/builtins/WebCore-DuplicateKeyValueAnnotation-Separate.js:
+        * Scripts/tests/builtins/WebCore-GuardedBuiltin-Separate.js:
+        * Scripts/tests/builtins/WebCore-GuardedInternalBuiltin-Separate.js:
+        * Scripts/tests/builtins/WebCore-xmlCasingTest-Separate.js:
+        * Scripts/tests/builtins/expected/WebCore-ArbitraryConditionalGuard-Separate.js-result:
+        * Scripts/tests/builtins/expected/WebCore-GuardedBuiltin-Separate.js-result:
+        * Scripts/tests/builtins/expected/WebCore-GuardedInternalBuiltin-Separate.js-result:
+        * Scripts/tests/builtins/expected/WebCore-xmlCasingTest-Separate.js-result:
+        * Scripts/tests/builtins/expected/WebCoreJSBuiltins.h-result:
+
+2020-06-30  Peng Liu  <peng.liu6@apple.com>
+
+        Enable the support of FULLSCREEN_API in WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=213774
+
+        Reviewed by Youenn Fablet.
+
+        Replace the definition of ENABLE_FULLSCREEN_API in FeatureDefines.xcconfig with
+        the one in PlatformEnableCocoa.h. We have to do that because WebKitTestRunner
+        does not have a FeatureDefines.xcconfig but it uses "ENABLE(FULLSCREEN_API)"
+        to conditionally compile code to test the element fullscreen API.
+        WebKitTestRunner can use the macro defined in PlatformEnableCocoa.h.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that this
+        project supports building for Mac Catalyst.
+
+2020-06-29  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Remove ENABLE_STREAMS_API compilation flag
+        https://bugs.webkit.org/show_bug.cgi?id=213728
+
+        Reviewed by Sam Weinig.
+
+        test cases under Scripts/tests/builtins/ does not uses
+        this removed compilation flag. So we don't have to touch them in this change.
+        
+        But they are confusable so I plan to fix them in bug 213733.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-29  Keith Miller  <keith_miller@apple.com>
+
+        ConservativeRoots should mark any cell it finds an interior pointer to
+        https://bugs.webkit.org/show_bug.cgi?id=213686
+
+        Reviewed by Yusuke Suzuki.
+
+        Currently, if ConserativeRoots finds an interior pointer to a cell
+        it will only mark that cell if it's a butterfly of some
+        kind. However, this can cause problems if the C++ or B3 compilers
+        pre-compute the offset of some cell member they want to load from
+        after a call. If this happens and that interior pointer is the
+        only reference to the cell it can get collected while it is still
+        "alive".
+
+        A naive patch that doesn't return from
+        findGCObjectPointersForMarking after finding a live non-interior,
+        non-butterfly cell was a 2% regression on Speedometer2 and
+        JetStream2. So, this patch immediately returns after
+        marking some non-butterfly cell, which appears to have fixed the
+        regression locally. Given this was such a big regression (likely
+        from running MarkedBlock::isLive) more than once there's possibly
+        an optimization opportunity here. I filed
+        https://bugs.webkit.org/show_bug.cgi?id=213687 to investigate
+        further.
+
+        * heap/HeapCell.cpp:
+        (WTF::printInternal):
+        * heap/HeapCell.h:
+        (JSC::isJSCellKind):
+        (JSC::mayHaveIndexingHeader):
+        (JSC::hasInteriorPointers): Deleted.
+        * heap/HeapUtil.h:
+        (JSC::HeapUtil::findGCObjectPointersForMarking):
+        * heap/SlotVisitor.cpp:
+        (JSC::SlotVisitor::appendJSCellOrAuxiliary):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+
+2020-06-28  Geoffrey Garen  <ggaren@apple.com>
+
+        Rename initializeThreading to initialize
+        https://bugs.webkit.org/show_bug.cgi?id=213674
+
+        Reviewed by Mark Lam.
+
+        * API/JSClassRef.cpp:
+        * API/JSContextRef.cpp:
+        (JSContextGroupCreate):
+        (JSGlobalContextCreate):
+        (JSGlobalContextCreateInGroup):
+        * API/JSObjectRef.cpp:
+        (JSClassCreate):
+        * API/JSStringRef.cpp:
+        (JSStringCreateWithCharacters):
+        (JSStringCreateWithUTF8CString):
+        (JSStringCreateWithCharactersNoCopy):
+        * API/JSStringRefCF.cpp:
+        (JSStringCreateWithCFString):
+        * API/tests/CompareAndSwapTest.cpp:
+        (testCompareAndSwap):
+        * API/tests/ExecutionTimeLimitTest.cpp:
+        (testExecutionTimeLimit):
+        * API/tests/FunctionOverridesTest.cpp:
+        (testFunctionOverrides):
+        * API/tests/MultithreadedMultiVMExecutionTest.cpp:
+        (startMultithreadedMultiVMExecutionTest):
+        * API/tests/PingPongStackOverflowTest.cpp:
+        (testPingPongStackOverflow):
+        * JavaScriptCore.order:
+        * assembler/testmasm.cpp:
+        (JSC::run):
+        * b3/air/testair.cpp:
+        (main):
+        * b3/testb3_1.cpp:
+        (main):
+        * dfg/testdfg.cpp:
+        (main):
+        * dynbench.cpp:
+        (main):
+        * inspector/remote/cocoa/RemoteInspectorCocoa.mm:
+        (Inspector::RemoteInspector::singleton):
+        * jsc.cpp:
+        (main):
+        (jscmain):
+        * runtime/InitializeThreading.cpp:
+        (JSC::initialize):
+        (JSC::initializeThreading): Deleted.
+        * runtime/InitializeThreading.h:
+        * runtime/JSCConfig.h:
+        * shell/playstation/TestShell.cpp:
+        (setupTestRun):
+        * testRegExp.cpp:
+        (main):
+
+2020-06-27  Saam Barati  <sbarati@apple.com>
+
+        BytecodeBasicBlock::addSuccessor should check if the  successor already exists
+        https://bugs.webkit.org/show_bug.cgi?id=213670
+
+        Reviewed by Yusuke Suzuki.
+
+        It makes it nicer for algorithms using BytecodeGraph to not have to consider
+        whether or not there are duplicates in the successor list. Also, because of
+        this, bytecode liveness was doing extra work since it walked the successor list,
+        including any duplicates in it.
+
+        * bytecode/BytecodeBasicBlock.h:
+        (JSC::BytecodeBasicBlock::addSuccessor):
+
+2020-06-27  Saam Barati  <sbarati@apple.com>
+
+        Change bytecode dumping to dump the bytecode control flow graph
+        https://bugs.webkit.org/show_bug.cgi?id=213669
+
+        Reviewed by Yusuke Suzuki.
+
+        This makes the bytecode control flow graphs much easier to understand, and
+        puts bytecode dumping in more in line with how we dump other IRs.
+        
+        The new dumps look like this:
+        ```
+        foo#Ahf63N:[0x1035bc120->0x1035e5100, NoneFunctionCall, 36]: 13 instructions (0 16-bit instructions, 0 32-bit instructions, 1 instructions with metadata); 156 bytes (120 metadata bytes); 2 parameter(s); 8 callee register(s); 6 variable(s); scope at loc4
+        
+        bb#1
+        [   0] enter              
+        [   1] get_scope          loc4
+        [   3] mov                loc5, loc4
+        [   6] check_traps        
+        [   7] mov                loc6, <JSValue()>(const0)
+        [  10] mov                loc6, Undefined(const1)
+        [  13] mod                loc7, arg1, Int32: 2(const2)
+        [  17] jfalse             loc7, 8(->25)
+        Successors: [ #3 #2 ]
+        
+        bb#2
+        [  20] mov                loc6, Int32: 42(const3)
+        [  23] jmp                5(->28)
+        Successors: [ #4 ]
+        
+        bb#3
+        [  25] mov                loc6, Int32: 77(const4)
+        Successors: [ #4 ]
+        
+        bb#4
+        [  28] add                loc7, arg1, loc6, OperandTypes(126, 126)
+        [  34] ret                loc7
+        Successors: [ ]
+        ```
+
+        * bytecode/BytecodeDumper.cpp:
+        (JSC::dumpHeader):
+        (JSC::dumpFooter):
+        (JSC::CodeBlockBytecodeDumper<Block>::dumpBlock):
+        (JSC::CodeBlockBytecodeDumper<Block>::dumpGraph):
+        * bytecode/BytecodeDumper.h:
+        * bytecode/BytecodeGraph.h:
+        (JSC::BytecodeGraph::dump):
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::dumpBytecode):
+
+2020-06-27  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [PlayStation] Update test runner for changes to Options and signing
+        https://bugs.webkit.org/show_bug.cgi?id=213650
+
+        Reviewed by Don Olmstead.
+
+        * shell/playstation/Initializer.cpp: Load ICU library
+        * shell/playstation/TestShell.cpp: Update between test options reset
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        Initializing the main thread should initialize the main run loop
+        https://bugs.webkit.org/show_bug.cgi?id=213637
+
+        Reviewed by Anders Carlsson.
+
+        * JavaScriptCore.order: Removed some defunct stuff.
+        * shell/playstation/TestShell.cpp:
+        (setupTestRun): Merged initializeThreading call with
+        initializeMainThread call because initializeMainThread is a superset.
+
+2020-06-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        REGRESSION(r263035): stress/get-prototype-of.js broken on s390x
+        https://bugs.webkit.org/show_bug.cgi?id=213307
+
+        Reviewed by Ross Kirsling.
+
+        Structure::m_outOfLineTypeFlags is uint16_t. If we access this field as 32bit field, we have different value in big endian architectures.
+        Since we do not have half-size-load branch instructions, we should load this uint16_t value via `loadh` (which zero-extends the loaded value)
+        and perform branch onto that value.
+
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::emitLoadPrototype):
+        * llint/LowLevelInterpreter64.asm:
+
+2020-06-25  Mark Lam  <mark.lam@apple.com>
+
+        JSCell constructor needs to ensure that the passed in structure is still alive.
+        https://bugs.webkit.org/show_bug.cgi?id=213593
+        <rdar://problem/64597573>
+
+        Reviewed by Yusuke Suzuki.
+
+        Note that in the initializer list of the `JSCell(VM&, Structure*)` constructor,
+        we are only using values inside the passed in structure but not necessarily the
+        structure pointer itself.  All these values are contained inside Structure::m_blob.
+        Note also that this constructor is an inline function.  Hence, the compiler may
+        choose to pre-compute the address of structure->m_blob and discard the structure
+        pointer itself.
+
+        Here's an example:
+
+            0x10317a21e <+1054>: movq   0x18(%rsp), %rdx  // rdx:vm = &vm
+            0x10317a223 <+1059>: addq   $0x8, %r13        // r13 = &structure.m_blob  <== pre-compute address of m_blob !!!
+                                                          // r13 previously contained the structure pointer.
+                                                          // Now, there's no more references to the structure base address.
+
+            0x10317a227 <+1063>: leaq   0x48(%rdx), %rdi  // arg0:heap = &vm.heap
+            0x10317a22b <+1067>: movl   $0x10, %edx       // arg2:size = 16.
+            0x10317a230 <+1072>: movq   %rdi, 0x28(%rsp)
+            0x10317a235 <+1077>: xorl   %esi, %esi        // arg1:deferralContext = 0
+            0x10317a237 <+1079>: callq  0x10317ae60       // call JSC::allocateCell<JSC::JSArray>  <== Can GC here !!!
+
+            0x10317a23c <+1084>: movq   %rax, %rbx        // rbx:cell = rax:allocation result.
+            ...
+            0x10317a253 <+1107>: movl   (%r13), %eax      // eax = m_blob.structureID  <== Use pre-computed m_blob address here.
+
+        There's a chance that the GC may run while allocating this cell.  In the event
+        that the structure is newly instantiated just before calling this constructor, 
+        there may not be any other references to it.  As a result, the structure may get
+        collected before the cell is even constructed.  To avoid this possibility, we need
+        to ensure that the structure pointer is still alive by the time this constructor
+        is called.
+
+        I am not committing any tests for this issue because the test cases relies on:
+
+        1. Manually forcing an O3 ASan Release build.
+
+        2. Not running jsc with --useDollarVM=1.  Note: the JSC test harness automatically
+           adds --useDollarVM=1 for all test runs.
+
+        3. Memory being allocated in a specific order.  The recent Bitmap FreeList change
+           enabled this issue to manifest.  The old linked list FreeList implementation
+           would have hidden the issue.
+
+        4. Adding some logging code can also make the issue stop manifesting.
+
+        In short, the test cases will not detect any regression even if we commit them
+        because the existing automatic regression test runs will not have the necessary
+        conditions for reproducing the issue.  The tests are also somewhat fragile where
+        any changes in memory layout may stop the issue from manifesting in an observable
+        way.
+
+        * runtime/JSCellInlines.h:
+        (JSC::JSCell::JSCell):
+
+2020-06-24  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [Intl] Disprefer using ICU enums directly as instance variables
+        https://bugs.webkit.org/show_bug.cgi?id=213587
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::initializePluralRules):
+        (JSC::IntlPluralRules::resolvedOptions const):
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::initializeRelativeTimeFormat):
+        (JSC::IntlRelativeTimeFormat::styleString): Renamed from JSC::styleString.
+        (JSC::IntlRelativeTimeFormat::resolvedOptions const):
+        (JSC::numericString): Deleted.
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-06-24  Caitlin Potter  <caitp@igalia.com>
+
+        [JSC] handle Put/DefinePrivateField in resetPutByID
+        https://bugs.webkit.org/show_bug.cgi?id=213583
+
+        Reviewed by Yusuke Suzuki.
+
+        r262613 extends and uses PutByValDirect to support updating and defining private fields, in order to reuse
+        the IC machinery. The necessary resetPutByID change was erroneously omitted, and is presented here.
+
+        * jit/Repatch.cpp:
+        (JSC::resetPutByID):
+
+2020-06-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] llintTrue / jitTrue can encounter native functions
+        https://bugs.webkit.org/show_bug.cgi?id=213442
+        <rdar://problem/64257914>
+
+        Reviewed by Mark Lam.
+
+        If the CallFrame is for native function, associated CodeBlock is nullptr.
+        This patch fixes this case to handle it gracefully.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::CallerFrameJITTypeFunctor::CallerFrameJITTypeFunctor):
+        (JSC::CallerFrameJITTypeFunctor::operator() const):
+        (JSC::functionBaselineJITTrue):
+        (JSC::JSDollarVM::finishCreation):
+        (JSC::functionJITTrue): Deleted.
+
+2020-06-24  Umar Iqbal  <uiqbal@apple.com>
+
+        We should resurrect the older patch that collects some statistics of web API calls
+        https://bugs.webkit.org/show_bug.cgi?id=213319
+
+        Reviewed by Brent Fulgham.
+
+        + Enabled ENABLE_WEB_API_STATISTICS flag
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Add DFG/FTL fast path for GetPrototypeOf based on OverridesGetPrototype flag
+        https://bugs.webkit.org/show_bug.cgi?id=213191
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch:
+
+        1. Introduces `loadInlineOffset` LLInt macro (64-bit only) and utilizes it in
+           `get_prototype_of` since we assert that `knownPolyProtoOffset` is an inline offset.
+
+        2. Brings baseline JIT fast path to 32-bit builds, progressing `super-getter.js`
+           microbenchmark by a factor of 10 (w/o DFG).
+
+        3. Adds GetPrototypeOf DFG/FTL fast paths that leverage OverridesGetPrototype type
+           info flag, advancing provided rare objects microbenchmark by ~46% (~37% w/o FTL).
+           Also, cleans up existing DFG fast path by using AssemblyHelpers::loadValue().
+
+        4. Extracts AssemblyHelpers::emitLoadPrototype() and uses it in baseline JIT, DFG, and
+           InstanceOfGeneric access case. With this change, `instanceof` access case handles all
+           [[GetPrototypeOf]] overrides (before: only Proxy objects), which is more correct, yet
+           not observable enough to provide a test case. `instanceof` microbenchmarks are neutral.
+
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::generateWithGuard):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileGetPrototypeOf):
+        * ftl/FTLAbstractHeapRepository.h:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileGetPrototypeOf):
+        * jit/AssemblyHelpers.cpp:
+        (JSC::AssemblyHelpers::emitLoadPrototype):
+        * jit/AssemblyHelpers.h:
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        (JSC::JIT::privateCompileSlowCases):
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_get_prototype_of):
+        * llint/LowLevelInterpreter64.asm:
+
+2020-06-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Clobberize misses `write(Heap)` report in some nodes
+        https://bugs.webkit.org/show_bug.cgi?id=213525
+        <rdar://problem/64642067>
+
+        Reviewed by Mark Lam.
+
+        In some DFG nodes, clobberize phase misses `clobberTopFunctor` call while it is `write(Heap)`,
+        which confuses clobberizing validation.
+
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+
 2020-06-23  Mark Lam  <mark.lam@apple.com>
 
         Handle string overflow in DFG graph dump while validating AI.

@@ -1043,6 +1043,9 @@ void PDFPlugin::ByteRangeRequest::completeWithAccumulatedData(PDFPlugin& plugin)
 
 bool PDFPlugin::ByteRangeRequest::maybeComplete(PDFPlugin& plugin)
 {
+    if (!plugin.m_data)
+        return false;
+
     if (plugin.m_streamedBytes >= m_position + m_count) {
         completeWithBytes(CFDataGetBytePtr(plugin.m_data.get()) + m_position, m_count, plugin);
         return true;
@@ -1055,6 +1058,7 @@ bool PDFPlugin::ByteRangeRequest::maybeComplete(PDFPlugin& plugin)
         completeWithBytes(CFDataGetBytePtr(plugin.m_data.get()) + m_position, m_count, plugin);
         return true;
     }
+
     return false;
 }
 
@@ -1282,7 +1286,7 @@ const PluginView* PDFPlugin::pluginView() const
 
 Ref<Scrollbar> PDFPlugin::createScrollbar(ScrollbarOrientation orientation)
 {
-    auto widget = Scrollbar::createNativeScrollbar(*this, orientation, RegularScrollbar);
+    auto widget = Scrollbar::createNativeScrollbar(*this, orientation, ScrollbarControlSize::Regular);
     if (orientation == HorizontalScrollbar) {
         m_horizontalScrollbarLayer = adoptNS([[WKPDFPluginScrollbarLayer alloc] initWithPDFPlugin:this]);
         [m_containerLayer addSublayer:m_horizontalScrollbarLayer.get()];

@@ -118,9 +118,25 @@ LineBuilder::RunList LineBuilder::close(IsLastLineWithInlineContent isLastLineWi
     auto hangingContent = collectHangingContent(isLastLineWithInlineContent);
 
     if (!m_isIntrinsicSizing) {
+        unsigned inlineContainerNestingLevel = 0;
+        auto hasSeenTextOrLineBreak = false;
         for (auto& run : m_runs) {
-            adjustBaselineAndLineHeight(run);
             run.setLogicalHeight(runContentHeight(run));
+            inlineContainerNestingLevel = run.isContainerStart() ? inlineContainerNestingLevel + 1 : run.isContainerEnd() ? inlineContainerNestingLevel - 1 : inlineContainerNestingLevel;
+            auto runIsTextOrLineBreak = run.isText() || run.isLineBreak();
+            if (runIsTextOrLineBreak) {
+                // For text content we set the baseline either through the initial strut (set by the formatting context root) or
+                // through the inline container (start). Normally the text content itself does not stretch the line.
+                if (hasSeenTextOrLineBreak)
+                    continue;
+                hasSeenTextOrLineBreak = true;
+                if (!m_initialStrut)
+                    continue;
+                if (inlineContainerNestingLevel)
+                    continue;
+            }
+            auto& usedBaseline = runIsTextOrLineBreak ? *m_initialStrut : m_lineBox.baseline();
+            adjustBaselineAndLineHeight(run, usedBaseline);
         }
         if (isVisuallyEmpty()) {
             m_lineBox.resetBaseline();
@@ -173,8 +189,10 @@ void LineBuilder::alignContentVertically()
                 auto& boxGeometry = formattingContext().geometryForBox(layoutBox);
                 auto baselineOffsetFromMarginBox = boxGeometry.marginBefore() + boxGeometry.borderTop() + boxGeometry.paddingTop().valueOr(0) + inlineBlockBaselineOffset;
                 logicalTop = baselineOffset() - baselineOffsetFromMarginBox;
-            } else
-                logicalTop = baselineOffset() - run.logicalRect().height();
+            } else {
+                auto& boxGeometry = formattingContext().geometryForBox(layoutBox);
+                logicalTop = baselineOffset() - (boxGeometry.verticalBorder() + boxGeometry.verticalPadding().valueOr(0_lu) + run.logicalRect().height() + boxGeometry.marginAfter());
+            }
             break;
         case VerticalAlign::Top:
             logicalTop = 0_lu;
@@ -551,18 +569,12 @@ void LineBuilder::appendLineBreak(const InlineItem& inlineItem)
     m_runs.append({ downcast<InlineSoftLineBreakItem>(inlineItem), contentLogicalWidth() });
 }
 
-void LineBuilder::adjustBaselineAndLineHeight(const Run& run)
+void LineBuilder::adjustBaselineAndLineHeight(const Run& run, const LineBoxBuilder::Baseline& usedBaseline)
 {
-    auto& baseline = m_lineBox.baseline();
     if (run.isText() || run.isLineBreak()) {
-        // For text content we set the baseline either through the initial strut (set by the formatting context root) or
-        // through the inline container (start) -see above. Normally the text content itself does not stretch the line.
-        if (!m_initialStrut)
-            return;
-        m_lineBox.setAscentIfGreater(m_initialStrut->ascent());
-        m_lineBox.setDescentIfGreater(m_initialStrut->descent());
-        m_lineBox.setLogicalHeightIfGreater(baseline.height());
-        m_initialStrut = { };
+        m_lineBox.setAscentIfGreater(usedBaseline.ascent());
+        m_lineBox.setDescentIfGreater(usedBaseline.descent());
+        m_lineBox.setLogicalHeightIfGreater(usedBaseline.height());
         return;
     }
 
@@ -579,7 +591,7 @@ void LineBuilder::adjustBaselineAndLineHeight(const Run& run)
                 m_lineBox.setDescentIfGreater(halfLeading.descent());
             if (halfLeading.ascent() > 0)
                 m_lineBox.setAscentIfGreater(halfLeading.ascent());
-            m_lineBox.setLogicalHeightIfGreater(baseline.height());
+            m_lineBox.setLogicalHeightIfGreater(usedBaseline.height());
         } else
             m_lineBox.setLogicalHeightIfGreater(fontMetrics.height());
         return;
@@ -612,7 +624,7 @@ void LineBuilder::adjustBaselineAndLineHeight(const Run& run)
                 // Non inline-block boxes sit on the baseline (including their bottom margin).
                 m_lineBox.setAscentIfGreater(marginBoxHeight);
                 // Ignore negative descent (yes, negative descent is a thing).
-                m_lineBox.setLogicalHeightIfGreater(marginBoxHeight + std::max<InlineLayoutUnit>(0, baseline.descent()));
+                m_lineBox.setLogicalHeightIfGreater(marginBoxHeight + std::max<InlineLayoutUnit>(0, usedBaseline.descent()));
             }
             break;
         }

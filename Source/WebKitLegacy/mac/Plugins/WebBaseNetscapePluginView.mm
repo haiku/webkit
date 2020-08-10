@@ -70,8 +70,8 @@ using namespace WebCore;
 
 + (void)initialize
 {
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
     WebKit::sendUserChangeNotifications();
 }
 

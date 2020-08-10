@@ -18,8 +18,10 @@
  */
 #pragma once
 
+#include "IntSize.h"
 #include <memory>
 #include <wtf/HashMap.h>
+#include <wtf/UniqueRef.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
@@ -52,6 +54,10 @@ public:
     void setEnabledFeatures(SessionMode mode, const ListOfEnabledFeatures& features) { m_enabledFeaturesMap.set(mode, features); }
     ListOfEnabledFeatures enabledFeatures(SessionMode mode) const { return m_enabledFeaturesMap.get(mode); }
 
+    virtual WebCore::IntSize recommendedResolution(SessionMode) { return { 1, 1 }; }
+
+    bool supportsOrientationTracking() const { return m_supportsOrientationTracking; }
+
 protected:
     Device() = default;
 
@@ -60,6 +66,8 @@ protected:
     // which is a list of feature descriptors which MUST be initially an empty list.
     using EnabledFeaturesPerModeMap = WTF::HashMap<SessionMode, ListOfEnabledFeatures, WTF::IntHash<SessionMode>, WTF::StrongEnumHashTraits<SessionMode>>;
     EnabledFeaturesPerModeMap m_enabledFeaturesMap;
+
+    bool m_supportsOrientationTracking { false };
 };
 
 class Instance {
@@ -69,11 +77,12 @@ public:
     void enumerateImmersiveXRDevices();
     const Vector<std::unique_ptr<Device>>& immersiveXRDevices() const { return m_immersiveXRDevices; }
 private:
+    friend LazyNeverDestroyed<Instance>;
     Instance();
-    ~Instance();
+    ~Instance() = default;
 
     struct Impl;
-    std::unique_ptr<Impl> m_impl;
+    UniqueRef<Impl> m_impl;
 
     Vector<std::unique_ptr<Device>> m_immersiveXRDevices;
 };

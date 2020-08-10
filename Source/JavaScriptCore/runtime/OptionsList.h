@@ -486,6 +486,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, useEagerWebAssemblyModuleHashing, false, Normal, "Unnamed WebAssembly modules are identified in backtraces through their hash, if available.") \
     v(Bool, useWebAssemblyReferences, false, Normal, "Allow types from the wasm references spec.") \
     v(Bool, useWebAssemblyMultiValues, true, Normal, "Allow types from the wasm mulit-values spec.") \
+    /* FIXME: We should make sure finalizers don't run for detached windows before enabling WeakRefs by default. https://bugs.webkit.org/show_bug.cgi?id=214508 */ \
     v(Bool, useWeakRefs, false, Normal, "Expose the WeakRef constructor.") \
     v(Bool, useBigInt, true, Normal, "If true, we will enable BigInt support.") \
     v(Bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.") \
@@ -510,6 +511,11 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, exposeProfilersOnGlobalObject, false, Normal, "If true, we will expose functions to enable/disable both the sampling profiler and the super sampler") \
     v(Bool, allowUnsupportedTiers, false, Normal, "If true, we will not disable DFG or FTL when an experimental feature is enabled.") \
     v(Bool, usePrivateClassFields, false, Normal, "If true, the parser will understand private data fields inside classes.") \
+    v(Bool, returnEarlyFromInfiniteLoopsForFuzzing, false, Normal, nullptr) \
+    v(Size, earlyReturnFromInfiniteLoopsLimit, 1300000000, Normal, "When returnEarlyFromInfiniteLoopsForFuzzing is true, this determines the number of executions a loop can run for before just returning. This is helpful for the fuzzer so it doesn't get stuck in infinite loops.") \
+    v(Bool, useLICMFuzzing, false, Normal, nullptr) \
+    v(Unsigned, seedForLICMFuzzer, 424242, Normal, nullptr) \
+    v(Double, allowHoistingLICMProbability, 0.5, Normal, nullptr) \
 
 enum OptionEquivalence {
     SameOption,

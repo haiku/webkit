@@ -440,7 +440,6 @@
     (sysctl-name "hw.byteorder")
     (sysctl-name "hw.cachelinesize")
     (sysctl-name "hw.cachelinesize_compat")
-    (sysctl-name "hw.cpu64bit_capable")
     (sysctl-name "hw.cpufamily")
     (sysctl-name "hw.cpufrequency")
     (sysctl-name "hw.cpufrequency_compat")
@@ -484,7 +483,6 @@
     (sysctl-name "security.mac.sandbox.sentinel")
     (sysctl-name "vm.loadavg")
     (sysctl-name-prefix "kern.argmax")
-    (sysctl-name-prefix "kern.proc.pid.")
 )
 
 (with-filter (system-attribute apple-internal)
@@ -550,6 +548,7 @@
     (sysctl-name
         "hw.activecpu" ;; Needed by JSC engine.
         "hw.availcpu"
+        "hw.cpu64bit_capable"
         "hw.ncpu"
         "hw.machine" ;; Needed by CFNetwork (CFURLProtocols)
         "hw.model" ;; Needed for bundle loading
@@ -567,7 +566,9 @@
         "kern.tcsm_available" ;; Needed for IndexedDB support
         "kern.version"
         "sysctl.name2oid"
-        "vm.footprint_suspend"))
+        "vm.footprint_suspend")
+    (sysctl-name-prefix "kern.proc.pid.")
+)
 
 ;; Access to client's cache folder & re-vending to CFNetwork.
 ;; FIXME: Remove the webkit specific extension classes <rdar://problem/17755931>

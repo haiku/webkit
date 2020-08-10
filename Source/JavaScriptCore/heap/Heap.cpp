@@ -47,6 +47,7 @@
 #include "IsoCellSetInlines.h"
 #include "JITStubRoutineSet.h"
 #include "JITWorklist.h"
+#include "JSFinalizationRegistry.h"
 #include "JSVirtualMachineInternal.h"
 #include "JSWeakMap.h"
 #include "JSWeakObjectRef.h"
@@ -611,6 +612,8 @@ void Heap::finalizeUnconditionalFinalizers()
         finalizeMarkedUnconditionalFinalizers<JSWeakObjectRef>(*vm().m_weakObjectRefSpace);
     if (vm().m_errorInstanceSpace)
         finalizeMarkedUnconditionalFinalizers<ErrorInstance>(*vm().m_errorInstanceSpace);
+    if (vm().m_finalizationRegistrySpace)
+        finalizeMarkedUnconditionalFinalizers<JSFinalizationRegistry>(*vm().m_finalizationRegistrySpace);
 
 #if ENABLE(WEBASSEMBLY)
     if (vm().m_webAssemblyCodeBlockSpace)
@@ -972,7 +975,9 @@ void Heap::deleteAllUnlinkedCodeBlocks(DeleteAllCodeEffort effort)
 void Heap::deleteUnmarkedCompiledCode()
 {
     vm().forEachScriptExecutableSpace([] (auto& space) { space.space.sweep(); });
-    vm().forEachCodeBlockSpace([] (auto& space) { space.space.sweep(); }); // Sweeping must occur before deleting stubs, otherwise the stubs might still think they're alive as they get deleted.
+    // Sweeping must occur before deleting stubs, otherwise the stubs might still think they're alive as they get deleted.
+    // And CodeBlock destructor is assuming that CodeBlock gets destroyed before UnlinkedCodeBlock gets destroyed.
+    vm().forEachCodeBlockSpace([] (auto& space) { space.space.sweep(); });
     m_jitStubRoutines->deleteUnmarkedJettisonedStubRoutines();
 }
 

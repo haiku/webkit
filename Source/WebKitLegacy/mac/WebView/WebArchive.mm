@@ -69,8 +69,8 @@ static NSString * const WebSubframeArchivesKey = @"WebSubframeArchives";
 + (void)initialize
 {
 #if !PLATFORM(IOS_FAMILY)
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
 #endif
 }
 

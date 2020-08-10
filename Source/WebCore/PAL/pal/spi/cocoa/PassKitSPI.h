@@ -301,11 +301,6 @@ typedef NS_ENUM(NSInteger, PKPaymentSetupFeatureType) {
     PKPaymentSetupFeatureTypeApplePay_X API_DEPRECATED_WITH_REPLACEMENT("PKPaymentSetupFeatureTypeAppleCard", ios(12.3, 12.3), macos(10.14.5, 10.14.5)) = PKPaymentSetupFeatureTypeAppleCard,
 };
 
-typedef NS_OPTIONS(NSInteger, PKPaymentSetupFeatureSupportedOptions) {
-    PKPaymentSetupFeatureSupportedOptionsNone = 0,
-    PKPaymentSetupFeatureSupportedOptionsInstallments = 1 << 0,
-};
-
 @interface PKPaymentSetupConfiguration : NSObject <NSSecureCoding>
 @property (nonatomic, copy) NSString *referrerIdentifier;
 @end
@@ -325,7 +320,6 @@ typedef NS_OPTIONS(NSInteger, PKPaymentSetupFeatureSupportedOptions) {
 @interface PKPaymentSetupFeature : NSObject <NSSecureCoding, NSCopying>
 @property (nonatomic, assign, readonly) PKPaymentSetupFeatureType type;
 @property (nonatomic, assign, readonly) PKPaymentSetupFeatureState state;
-@property (nonatomic, assign, readonly) PKPaymentSetupFeatureSupportedOptions supportedOptions;
 @end
 
 @interface PKPaymentSetupRequest : NSObject <NSSecureCoding>
@@ -333,9 +327,15 @@ typedef NS_OPTIONS(NSInteger, PKPaymentSetupFeatureSupportedOptions) {
 @property (nonatomic, strong) NSArray <PKPaymentSetupFeature *> *paymentSetupFeatures;
 @end
 
+#if PLATFORM(MAC) \
+    || (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED < 140000) \
+    || (PLATFORM(WATCHOS) && __WATCH_OS_VERSION_MIN_REQUIRED < 70000)
+
 @interface PKPaymentMerchantSession : NSObject <NSSecureCoding, NSCopying>
 - (instancetype)initWithDictionary:(NSDictionary *)dictionary;
 @end
+
+#endif
 
 @interface PKPaymentAuthorizationViewController ()
 + (void)paymentServicesMerchantURL:(void(^)(NSURL *merchantURL, NSError *error))completion;

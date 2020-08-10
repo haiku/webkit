@@ -112,7 +112,7 @@ public:
     String title() const override;
     String text() const override;
     String stringValue() const override;
-    void colorValue(int& r, int& g, int& b) const override;
+    SRGBA<uint8_t> colorValue() const override;
     String ariaLabeledByAttribute() const override;
     bool hasAttributesRequiredForInclusion() const final;
     void setIsExpanded(bool) override;
@@ -189,6 +189,9 @@ private:
     bool computeAccessibilityIsIgnored() const override;
     bool usesAltTagForTextComputation() const;
     bool roleIgnoresTitle() const;
+    bool postKeyboardKeysForValueChange(bool increase);
+    void setNodeValue(bool increase, float value);
+    bool performDismissAction() final;
     
     Node* m_node;
 };

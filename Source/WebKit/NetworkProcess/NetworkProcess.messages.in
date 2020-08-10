@@ -32,6 +32,7 @@ messages -> NetworkProcess LegacyReceiver {
     UserPreferredLanguagesChanged(Vector<String> languages)
     SetNetworkProxySettings(struct WebCore::SoupNetworkProxySettings settings)
     PrefetchDNS(String hostname)
+    SetPersistentCredentialStorageEnabled(PAL::SessionID sessionID, bool enabled)
 #endif
 
 #if USE(CURL)
@@ -126,7 +127,6 @@ messages -> NetworkProcess LegacyReceiver {
     SetShouldClassifyResourcesBeforeDataRecordsRemoval(PAL::SessionID sessionID, bool value) -> () Async
     SetNotifyPagesWhenDataRecordsWereScanned(PAL::SessionID sessionID, bool value) -> () Async
     SetIsRunningResourceLoadStatisticsTest(PAL::SessionID sessionID, bool value) -> () Async
-    SetNotifyPagesWhenTelemetryWasCaptured(PAL::SessionID sessionID, bool value) -> () Async
     SetResourceLoadStatisticsDebugMode(PAL::SessionID sessionID, bool debugMode) -> () Async
     SetVeryPrevalentResource(PAL::SessionID sessionID, WebCore::RegistrableDomain resourceDomain) -> () Async
     SetSubframeUnderTopFrameDomain(PAL::SessionID sessionID, WebCore::RegistrableDomain subFrameDomain, WebCore::RegistrableDomain topFrameDomain) -> () Async

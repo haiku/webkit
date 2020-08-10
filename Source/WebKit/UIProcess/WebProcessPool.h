@@ -92,7 +92,11 @@ class PageConfiguration;
 
 namespace WebCore {
 class RegistrableDomain;
+enum class EventMakesGamepadsVisible : bool;
 struct MockMediaDevice;
+#if PLATFORM(COCOA)
+class PowerSourceNotifier;
+#endif
 }
 
 namespace WebKit {
@@ -388,7 +392,7 @@ public:
 
     // Network Process Management
     NetworkProcessProxy& ensureNetworkProcess(WebsiteDataStore* withWebsiteDataStore = nullptr);
-    NetworkProcessProxy* networkProcess() { return m_networkProcess.get(); }
+    NetworkProcessProxy* networkProcess() const { return m_networkProcess.get(); }
     void networkProcessCrashed(NetworkProcessProxy&);
 
     void getNetworkProcessConnection(WebProcessProxy&, Messages::WebProcessProxy::GetNetworkProcessConnectionDelayedReply&&);
@@ -463,10 +467,8 @@ public:
     void synthesizeAppIsBackground(bool background);
     
 #if ENABLE(GAMEPAD)
-    void gamepadConnected(const UIGamepad&);
+    void gamepadConnected(const UIGamepad&, WebCore::EventMakesGamepadsVisible);
     void gamepadDisconnected(const UIGamepad&);
-
-    void setInitialConnectedGamepads(const Vector<std::unique_ptr<UIGamepad>>&);
 #endif
 
 #if PLATFORM(COCOA)
@@ -540,6 +542,11 @@ public:
     const String& webProcessPath() const { return m_resolvedPaths.webProcessPath; }
     const String& networkProcessPath() const { return m_resolvedPaths.networkProcessPath; }
     int32_t userId() const { return m_userId; }
+#endif
+
+#if PLATFORM(COCOA)
+    OSObjectPtr<xpc_object_t> xpcEndpointMessage() const;
+    void sendNetworkProcessXPCEndpointToWebProcess(OSObjectPtr<xpc_object_t> endpointMessage);
 #endif
 
 private:
@@ -685,7 +692,7 @@ private:
     WebContextSupplementMap m_supplements;
 
 #if USE(SOUP)
-    WebCore::HTTPCookieAcceptPolicy m_initialHTTPCookieAcceptPolicy { WebCore::HTTPCookieAcceptPolicy::OnlyFromMainDocumentDomain };
+    WebCore::HTTPCookieAcceptPolicy m_initialHTTPCookieAcceptPolicy { WebCore::HTTPCookieAcceptPolicy::ExclusivelyFromMainDocumentDomain };
     WebCore::SoupNetworkProxySettings m_networkProxySettings;
 #endif
 
@@ -706,6 +713,7 @@ private:
 #endif
 
 #if PLATFORM(COCOA)
+    std::unique_ptr<WebCore::PowerSourceNotifier> m_powerSourceNotifier;
     RetainPtr<NSObject> m_activationObserver;
     RetainPtr<NSObject> m_accessibilityEnabledObserver;
 #endif
@@ -825,6 +833,10 @@ private:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     HashSet<WebCore::RegistrableDomain> m_domainsWithUserInteraction;
+#endif
+
+#if PLATFORM(COCOA)
+    OSObjectPtr<xpc_object_t> m_endpointMessage;
 #endif
 };
 

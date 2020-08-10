@@ -75,15 +75,14 @@ G_DEFINE_BOXED_TYPE(WebKitColor, webkit_color, webkit_color_copy, webkit_color_f
 
 const WebCore::Color webkitColorToWebCoreColor(WebKitColor* color)
 {
-    return WebCore::makeSimpleColorFromFloats(static_cast<float>(color->red), static_cast<float>(color->green),
-        static_cast<float>(color->blue), static_cast<float>(color->alpha));
+    return WebCore::convertToComponentBytes(WebCore::SRGBA { static_cast<float>(color->red), static_cast<float>(color->green), static_cast<float>(color->blue), static_cast<float>(color->alpha) });
 }
 
 void webkitColorFillFromWebCoreColor(const WebCore::Color& webCoreColor, WebKitColor* color)
 {
     RELEASE_ASSERT(webCoreColor.isValid());
 
-    auto [r, g, b, a] = webCoreColor.toSRGBALossy();
+    auto [r, g, b, a] = webCoreColor.toSRGBALossy<float>();
     color->red = r;
     color->green = g;
     color->blue = b;

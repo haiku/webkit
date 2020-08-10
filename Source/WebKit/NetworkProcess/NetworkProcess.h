@@ -248,7 +248,6 @@ public:
     void setMinimumTimeBetweenDataRecordsRemoval(PAL::SessionID, Seconds, CompletionHandler<void()>&&);
     void setNotifyPagesWhenDataRecordsWereScanned(PAL::SessionID, bool value, CompletionHandler<void()>&&);
     void setIsRunningResourceLoadStatisticsTest(PAL::SessionID, bool value, CompletionHandler<void()>&&);
-    void setNotifyPagesWhenTelemetryWasCaptured(PAL::SessionID, bool value, CompletionHandler<void()>&&);
     void setResourceLoadStatisticsEnabled(PAL::SessionID, bool);
     void setResourceLoadStatisticsLogTestingEvent(bool);
     void setResourceLoadStatisticsDebugMode(PAL::SessionID, bool debugMode, CompletionHandler<void()>&&d);
@@ -354,6 +353,8 @@ public:
     void resetServiceWorkerFetchTimeoutForTesting(CompletionHandler<void()>&&);
     Seconds serviceWorkerFetchTimeout() const { return m_serviceWorkerFetchTimeout; }
 
+    static Seconds randomClosedPortDelay();
+
     void cookieAcceptPolicyChanged(WebCore::HTTPCookieAcceptPolicy);
     void hasAppBoundSession(PAL::SessionID, CompletionHandler<void(bool)>&&) const;
     void clearAppBoundSession(PAL::SessionID, CompletionHandler<void()>&&);
@@ -438,6 +439,7 @@ private:
     void setIgnoreTLSErrors(bool);
     void userPreferredLanguagesChanged(const Vector<String>&);
     void setNetworkProxySettings(const WebCore::SoupNetworkProxySettings&);
+    void setPersistentCredentialStorageEnabled(PAL::SessionID, bool);
 #endif
 
 #if USE(CURL)
@@ -462,6 +464,7 @@ private:
     HashSet<WebCore::SecurityOriginData> indexedDatabaseOrigins(const String& path);
     Ref<WebIDBServer> createWebIDBServer(PAL::SessionID);
     void setSessionStorageQuotaManagerIDBRootPath(PAL::SessionID, const String& idbRootPath);
+    void removeWebIDBServerIfPossible(PAL::SessionID);
 #endif
 
 #if ENABLE(SERVICE_WORKER)

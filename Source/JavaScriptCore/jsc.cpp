@@ -31,6 +31,7 @@
 #include "CompilerTimingScope.h"
 #include "Completion.h"
 #include "ConfigFile.h"
+#include "DeferredWorkTimer.h"
 #include "Disassembler.h"
 #include "Exception.h"
 #include "ExceptionHelpers.h"
@@ -41,6 +42,7 @@
 #include "JSArray.h"
 #include "JSArrayBuffer.h"
 #include "JSBigInt.h"
+#include "JSFinalizationRegistry.h"
 #include "JSFunction.h"
 #include "JSInternalPromise.h"
 #include "JSLock.h"
@@ -56,7 +58,6 @@
 #include "ObjectConstructor.h"
 #include "ParserError.h"
 #include "ProfilerDatabase.h"
-#include "PromiseTimer.h"
 #include "ReleaseHeapAccessScope.h"
 #include "SamplingProfiler.h"
 #include "StackVisitor.h"
@@ -155,6 +156,8 @@ using namespace JSC;
 
 namespace {
 
+#define EXIT_EXCEPTION 3
+
 NO_RETURN_WITH_VALUE static void jscExit(int status)
 {
     waitForAsynchronousDisassembly();
@@ -188,7 +191,7 @@ class Workers;
 
 template<typename Func>
 int runJSC(const CommandLine&, bool isWorker, const Func&);
-static void checkException(GlobalObject*, bool isLastFile, bool hasException, JSValue, CommandLine&, bool& success);
+static void checkException(GlobalObject*, bool isLastFile, bool hasException, JSValue, const CommandLine&, bool& success);
 
 class Message : public ThreadSafeRefCounted<Message> {
 public:
@@ -302,7 +305,10 @@ static EncodedJSValue JSC_HOST_CALL functionCallMasquerader(JSGlobalObject*, Cal
 static EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionDumpTypesForAllVariables(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionDrainMicrotasks(JSGlobalObject*, CallFrame*);
+static EncodedJSValue JSC_HOST_CALL functionSetTimeout(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionReleaseWeakRefs(JSGlobalObject*, CallFrame*);
+static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryLiveCount(JSGlobalObject*, CallFrame*);
+static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryDeadCount(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionIs32BitPlatform(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionCheckModuleSyntax(JSGlobalObject*, CallFrame*);
 static EncodedJSValue JSC_HOST_CALL functionPlatformSupportsSamplingProfiler(JSGlobalObject*, CallFrame*);
@@ -538,8 +544,12 @@ private:
         addFunction(vm, "dumpTypesForAllVariables", functionDumpTypesForAllVariables , 0);
 
         addFunction(vm, "drainMicrotasks", functionDrainMicrotasks, 0);
-        addFunction(vm, "releaseWeakRefs", functionReleaseWeakRefs, 0);
+        addFunction(vm, "setTimeout", functionSetTimeout, 2);
 
+        addFunction(vm, "releaseWeakRefs", functionReleaseWeakRefs, 0);
+        addFunction(vm, "finalizationRegistryLiveCount", functionFinalizationRegistryLiveCount, 0);
+        addFunction(vm, "finalizationRegistryDeadCount", functionFinalizationRegistryDeadCount, 0);
+        
         addFunction(vm, "getRandomSeed", functionGetRandomSeed, 0);
         addFunction(vm, "setRandomSeed", functionSetRandomSeed, 1);
         addFunction(vm, "isRope", functionIsRope, 1);
@@ -638,6 +648,8 @@ private:
     static Identifier moduleLoaderResolve(JSGlobalObject*, JSModuleLoader*, JSValue, JSValue, JSValue);
     static JSInternalPromise* moduleLoaderFetch(JSGlobalObject*, JSModuleLoader*, JSValue, JSValue, JSValue);
     static JSObject* moduleLoaderCreateImportMetaProperties(JSGlobalObject*, JSModuleLoader*, JSValue, JSModuleRecord*, JSValue);
+
+    static void reportUncaughtExceptionAtEventLoop(JSGlobalObject*, Exception*);
 };
 STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(GlobalObject, JSGlobalObject);
 
@@ -660,6 +672,7 @@ const GlobalObjectMethodTable GlobalObject::s_globalObjectMethodTable = {
     &moduleLoaderCreateImportMetaProperties,
     nullptr, // moduleLoaderEvaluate
     nullptr, // promiseRejectionTracker
+    &reportUncaughtExceptionAtEventLoop,
     nullptr, // defaultLanguage
     nullptr, // compileStreaming
     nullptr, // instantinateStreaming
@@ -679,51 +692,7 @@ static UChar pathSeparator()
 #endif
 }
 
-struct DirectoryName {
-    // In unix, it is "/". In Windows, it becomes a drive letter like "C:\"
-    String rootName;
-
-    // If the directory name is "/home/WebKit", this becomes "home/WebKit". If the directory name is "/", this becomes "".
-    String queryName;
-};
-
-struct ModuleName {
-    ModuleName(const String& moduleName);
-
-    bool startsWithRoot() const
-    {
-        return !queries.isEmpty() && queries[0].isEmpty();
-    }
-
-    Vector<String> queries;
-};
-
-ModuleName::ModuleName(const String& moduleName)
-{
-    // A module name given from code is represented as the UNIX style path. Like, `./A/B.js`.
-    queries = moduleName.splitAllowingEmptyEntries('/');
-}
-
-static Optional<DirectoryName> extractDirectoryName(const String& absolutePathToFile)
-{
-    size_t firstSeparatorPosition = absolutePathToFile.find(pathSeparator());
-    if (firstSeparatorPosition == notFound)
-        return WTF::nullopt;
-    DirectoryName directoryName;
-    directoryName.rootName = absolutePathToFile.substring(0, firstSeparatorPosition + 1); // Include the separator.
-    size_t lastSeparatorPosition = absolutePathToFile.reverseFind(pathSeparator());
-    ASSERT_WITH_MESSAGE(lastSeparatorPosition != notFound, "If the separator is not found, this function already returns when performing the forward search.");
-    if (firstSeparatorPosition == lastSeparatorPosition)
-        directoryName.queryName = StringImpl::empty();
-    else {
-        size_t queryStartPosition = firstSeparatorPosition + 1;
-        size_t queryLength = lastSeparatorPosition - queryStartPosition; // Not include the last separator.
-        directoryName.queryName = absolutePathToFile.substring(queryStartPosition, queryLength);
-    }
-    return directoryName;
-}
-
-static Optional<DirectoryName> currentWorkingDirectory()
+static URL currentWorkingDirectory()
 {
 #if OS(WINDOWS)
     // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364934.aspx
@@ -737,7 +706,7 @@ static Optional<DirectoryName> currentWorkingDirectory()
     // In the path utility functions inside the JSC shell, we does not handle the UNC and UNCW including the network host name.
     DWORD bufferLength = ::GetCurrentDirectoryW(0, nullptr);
     if (!bufferLength)
-        return WTF::nullopt;
+        return { };
     // In Windows, wchar_t is the UTF-16LE.
     // https://msdn.microsoft.com/en-us/library/dd374081.aspx
     // https://msdn.microsoft.com/en-us/library/windows/desktop/ff381407.aspx
@@ -746,54 +715,31 @@ static Optional<DirectoryName> currentWorkingDirectory()
     String directoryString(buffer.data(), lengthNotIncludingNull);
     // We don't support network path like \\host\share\<path name>.
     if (directoryString.startsWith("\\\\"))
-        return WTF::nullopt;
+        return { };
+
 #else
     Vector<char> buffer(PATH_MAX);
     if (!getcwd(buffer.data(), PATH_MAX))
-        return WTF::nullopt;
+        return { };
     String directoryString = String::fromUTF8(buffer.data());
 #endif
     if (directoryString.isEmpty())
-        return WTF::nullopt;
+        return { };
 
-    if (directoryString[directoryString.length() - 1] == pathSeparator())
-        return extractDirectoryName(directoryString);
-    // Append the seperator to represents the file name. extractDirectoryName only accepts the absolute file name.
-    return extractDirectoryName(makeString(directoryString, pathSeparator()));
+    // Add a trailing slash if needed so the URL resolves to a directory and not a file.
+    if (directoryString[directoryString.length() - 1] != pathSeparator())
+        directoryString = makeString(directoryString, pathSeparator());
+
+    return URL::fileURLWithFileSystemPath(directoryString);
 }
 
-static String resolvePath(const DirectoryName& directoryName, const ModuleName& moduleName)
-{
-    Vector<String> directoryPieces = directoryName.queryName.split(pathSeparator());
-
-    // Only first '/' is recognized as the path from the root.
-    if (moduleName.startsWithRoot())
-        directoryPieces.clear();
-
-    for (const auto& query : moduleName.queries) {
-        if (query == String(".."_s)) {
-            if (!directoryPieces.isEmpty())
-                directoryPieces.removeLast();
-        } else if (!query.isEmpty() && query != String("."_s))
-            directoryPieces.append(query);
-    }
-
-    StringBuilder builder;
-    builder.append(directoryName.rootName);
-    for (size_t i = 0; i < directoryPieces.size(); ++i) {
-        builder.append(directoryPieces[i]);
-        if (i + 1 != directoryPieces.size())
-            builder.append(pathSeparator());
-    }
-    return builder.toString();
-}
-
-static String absolutePath(const String& fileName)
+static URL absolutePath(const String& fileName)
 {
     auto directoryName = currentWorkingDirectory();
-    if (!directoryName)
-        return fileName;
-    return resolvePath(directoryName.value(), ModuleName(fileName.impl()));
+    if (!directoryName.isValid())
+        return URL::fileURLWithFileSystemPath(fileName);
+
+    return URL(directoryName, fileName);
 }
 
 JSInternalPromise* GlobalObject::moduleLoaderImportModule(JSGlobalObject* globalObject, JSModuleLoader*, JSString* moduleNameValue, JSValue parameters, const SourceOrigin& sourceOrigin)
@@ -811,22 +757,25 @@ JSInternalPromise* GlobalObject::moduleLoaderImportModule(JSGlobalObject* global
         return promise;
     };
 
-    if (sourceOrigin.isNull())
-        return reject(createError(globalObject, "Could not resolve the module specifier."_s));
-
-    auto referrer = sourceOrigin.string();
-    auto moduleName = moduleNameValue->value(globalObject);
+    auto referrer = sourceOrigin.url();
+    auto specifier = moduleNameValue->value(globalObject);
     RETURN_IF_EXCEPTION(throwScope, nullptr);
     if (UNLIKELY(catchScope.exception()))
-        return reject(catchScope.exception());
+        return reject(catchScope.exception()->value());
 
-    auto directoryName = extractDirectoryName(referrer.impl());
-    if (!directoryName)
-        return reject(createError(globalObject, makeString("Could not resolve the referrer name '", String(referrer.impl()), "'.")));
+    if (!referrer.isLocalFile())
+        return reject(createError(globalObject, makeString("Could not resolve the referrer's path '", referrer.string(), "', while trying to resolve module '", specifier, "'.")));
 
-    auto result = JSC::importModule(globalObject, Identifier::fromString(vm, resolvePath(directoryName.value(), ModuleName(moduleName))), parameters, jsUndefined());
+    if (!specifier.startsWith('/') && !specifier.startsWith("./") && !specifier.startsWith("../"))
+        return reject(createTypeError(globalObject, makeString("Module specifier, '"_s, specifier, "' does not start with \"/\", \"./\", or \"../\". Referenced from: "_s, referrer.fileSystemPath())));
+
+    URL moduleURL(referrer, specifier);
+    if (!moduleURL.isLocalFile())
+        return reject(createError(globalObject, makeString("Module url, '", moduleURL.string(), "' does not map to a local file.")));
+
+    auto result = JSC::importModule(globalObject, Identifier::fromString(vm, moduleURL.string()), parameters, jsUndefined());
     if (UNLIKELY(catchScope.exception()))
-        return reject(catchScope.exception());
+        return reject(catchScope.exception()->value());
     return result;
 }
 
@@ -842,34 +791,41 @@ Identifier GlobalObject::moduleLoaderResolve(JSGlobalObject* globalObject, JSMod
     if (key.isSymbol())
         return key;
 
-    if (referrerValue.isUndefined()) {
-        auto directoryName = currentWorkingDirectory();
-        if (!directoryName) {
-            throwException(globalObject, scope, createError(globalObject, "Could not resolve the current working directory."_s));
+    auto resolvePath = [&] (const URL& directoryURL) -> Identifier {
+        String specifier = key.impl();
+        if (!specifier.startsWith('/') && !specifier.startsWith("./") && !specifier.startsWith("../")) {
+            throwTypeError(globalObject, scope, makeString("Module specifier, '"_s, specifier, "' does not start with \"/\", \"./\", or \"../\". Referenced from: "_s, directoryURL.fileSystemPath()));
             return { };
         }
-        return Identifier::fromString(vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
-    }
+
+        if (!directoryURL.isLocalFile()) {
+            throwException(globalObject, scope, createError(globalObject, makeString("Could not resolve the referrer's path: ", directoryURL.string())));
+            return { };
+        }
+
+        URL resolvedURL(directoryURL, specifier);
+        if (!resolvedURL.isValid()) {
+            throwException(globalObject, scope, createError(globalObject, makeString("Resolved module url is not valid: ", resolvedURL.string())));
+            return { };
+        }
+        ASSERT(resolvedURL.isLocalFile());
+
+        return Identifier::fromString(vm, resolvedURL.string());
+    };
+
+    if (referrerValue.isUndefined())
+        return resolvePath(currentWorkingDirectory());
 
     const Identifier referrer = referrerValue.toPropertyKey(globalObject);
     RETURN_IF_EXCEPTION(scope, { });
 
-    if (referrer.isSymbol()) {
-        auto directoryName = currentWorkingDirectory();
-        if (!directoryName) {
-            throwException(globalObject, scope, createError(globalObject, "Could not resolve the current working directory."_s));
-            return { };
-        }
-        return Identifier::fromString(vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
-    }
+    if (referrer.isSymbol())
+        return resolvePath(currentWorkingDirectory());
 
-    // If the referrer exists, we assume that the referrer is the correct absolute path.
-    auto directoryName = extractDirectoryName(referrer.impl());
-    if (!directoryName) {
-        throwException(globalObject, scope, createError(globalObject, makeString("Could not resolve the referrer name '", String(referrer.impl()), "'.")));
-        return { };
-    }
-    return Identifier::fromString(vm, resolvePath(directoryName.value(), ModuleName(key.impl())));
+    // If the referrer exists, we assume that the referrer is the correct file url.
+    URL url = URL({ }, referrer.impl());
+    ASSERT(url.isLocalFile());
+    return resolvePath(url);
 }
 
 template<typename Vector>
@@ -954,9 +910,9 @@ static bool fetchScriptFromLocalFileSystem(const String& fileName, Vector<char>&
 
 class ShellSourceProvider final : public StringSourceProvider {
 public:
-    static Ref<ShellSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, URL&& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+    static Ref<ShellSourceProvider> create(const String& source, const SourceOrigin& sourceOrigin, String&& sourceURL, const TextPosition& startPosition, SourceProviderSourceType sourceType)
     {
-        return adoptRef(*new ShellSourceProvider(source, sourceOrigin, WTFMove(url), startPosition, sourceType));
+        return adoptRef(*new ShellSourceProvider(source, sourceOrigin, WTFMove(sourceURL), startPosition, sourceType));
     }
 
     ~ShellSourceProvider() final
@@ -1037,7 +993,7 @@ private:
         if (!cacheEnabled())
             return static_cast<const char*>(nullptr);
         const char* cachePath = Options::diskCachePath();
-        String filename = FileSystem::encodeForFileName(FileSystem::lastComponentOfPathIgnoringTrailingSlash(sourceOrigin().string()));
+        String filename = FileSystem::encodeForFileName(FileSystem::lastComponentOfPathIgnoringTrailingSlash(sourceOrigin().url().fileSystemPath()));
         return FileSystem::pathByAppendingComponent(cachePath, makeString(source().toString().hash(), '-', filename, ".bytecode-cache"));
     }
 
@@ -1067,8 +1023,8 @@ private:
         m_cachedBytecode = CachedBytecode::create(WTFMove(mappedFileData));
     }
 
-    ShellSourceProvider(const String& source, const SourceOrigin& sourceOrigin, URL&& url, const TextPosition& startPosition, SourceProviderSourceType sourceType)
-        : StringSourceProvider(source, sourceOrigin, WTFMove(url), startPosition, sourceType)
+    ShellSourceProvider(const String& source, const SourceOrigin& sourceOrigin, String&& sourceURL, const TextPosition& startPosition, SourceProviderSourceType sourceType)
+        : StringSourceProvider(source, sourceOrigin, WTFMove(sourceURL), startPosition, sourceType)
     {
     }
 
@@ -1081,9 +1037,9 @@ private:
     mutable RefPtr<CachedBytecode> m_cachedBytecode;
 };
 
-static inline SourceCode jscSource(const String& source, const SourceOrigin& sourceOrigin, URL&& url = URL(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
+static inline SourceCode jscSource(const String& source, const SourceOrigin& sourceOrigin, String sourceURL = String(), const TextPosition& startPosition = TextPosition(), SourceProviderSourceType sourceType = SourceProviderSourceType::Program)
 {
-    return SourceCode(ShellSourceProvider::create(source, sourceOrigin, WTFMove(url), startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
+    return SourceCode(ShellSourceProvider::create(source, sourceOrigin, WTFMove(sourceURL), startPosition, sourceType), startPosition.m_line.oneBasedInt(), startPosition.m_column.oneBasedInt());
 }
 
 template<typename Vector>
@@ -1091,13 +1047,13 @@ static inline SourceCode jscSource(const Vector& utf8, const SourceOrigin& sourc
 {
     // FIXME: This should use an absolute file URL https://bugs.webkit.org/show_bug.cgi?id=193077
     String str = stringFromUTF(utf8);
-    return jscSource(str, sourceOrigin, URL({ }, filename));
+    return jscSource(str, sourceOrigin, filename);
 }
 
 template<typename Vector>
-static bool fetchModuleFromLocalFileSystem(const String& fileName, Vector& buffer)
+static bool fetchModuleFromLocalFileSystem(const URL& fileURL, Vector& buffer)
 {
-    // We assume that fileName is always an absolute path.
+    String fileName = fileURL.fileSystemPath();
 #if OS(WINDOWS)
     // https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#maxpath
     // Use long UNC to pass the long path name to the Windows APIs.
@@ -1147,20 +1103,22 @@ JSInternalPromise* GlobalObject::moduleLoaderFetch(JSGlobalObject* globalObject,
 
     String moduleKey = key.toWTFString(globalObject);
     if (UNLIKELY(catchScope.exception()))
-        return reject(catchScope.exception());
+        return reject(catchScope.exception()->value());
 
-    // Here, now we consider moduleKey as the fileName.
+    URL moduleURL({ }, moduleKey);
+    ASSERT(moduleURL.isLocalFile());
+    // Strip the URI from our key so Errors print canonical system paths.
+    moduleKey = moduleURL.fileSystemPath();
+
     Vector<uint8_t> buffer;
-    if (!fetchModuleFromLocalFileSystem(moduleKey, buffer))
+    if (!fetchModuleFromLocalFileSystem(moduleURL, buffer))
         return reject(createError(globalObject, makeString("Could not open file '", moduleKey, "'.")));
 
-
-    URL moduleURL = URL({ }, moduleKey);
 #if ENABLE(WEBASSEMBLY)
     // FileSystem does not have mime-type header. The JSC shell recognizes WebAssembly's magic header.
     if (buffer.size() >= 4) {
         if (buffer[0] == '\0' && buffer[1] == 'a' && buffer[2] == 's' && buffer[3] == 'm') {
-            auto source = SourceCode(WebAssemblySourceProvider::create(WTFMove(buffer), SourceOrigin { moduleKey }, WTFMove(moduleURL)));
+            auto source = SourceCode(WebAssemblySourceProvider::create(WTFMove(buffer), SourceOrigin { moduleURL }, WTFMove(moduleKey)));
             catchScope.releaseAssertNoException();
             auto sourceCode = JSSourceCode::create(vm, WTFMove(source));
             catchScope.releaseAssertNoException();
@@ -1171,7 +1129,7 @@ JSInternalPromise* GlobalObject::moduleLoaderFetch(JSGlobalObject* globalObject,
     }
 #endif
 
-    auto sourceCode = JSSourceCode::create(vm, jscSource(stringFromUTF(buffer), SourceOrigin { moduleKey }, WTFMove(moduleURL), TextPosition(), SourceProviderSourceType::Module));
+    auto sourceCode = JSSourceCode::create(vm, jscSource(stringFromUTF(buffer), SourceOrigin { moduleURL }, WTFMove(moduleKey), TextPosition(), SourceProviderSourceType::Module));
     catchScope.releaseAssertNoException();
     promise->resolve(globalObject, sourceCode);
     catchScope.clearException();
@@ -1231,10 +1189,12 @@ static EncodedJSValue printInternal(JSGlobalObject* globalObject, CallFrame* cal
             if (EOF == fputc(' ', out))
                 goto fail;
 
-        auto viewWithString = callFrame->uncheckedArgument(i).toString(globalObject)->viewWithUnderlyingString(globalObject);
-        RETURN_IF_EXCEPTION(scope, encodedJSValue());
+        auto* jsString = callFrame->uncheckedArgument(i).toString(globalObject);
+        RETURN_IF_EXCEPTION(scope, { });
+        auto viewWithString = jsString->viewWithUnderlyingString(globalObject);
+        RETURN_IF_EXCEPTION(scope, { });
         auto string = cStringFromViewWithString(globalObject, scope, viewWithString);
-        RETURN_IF_EXCEPTION(scope, encodedJSValue());
+        RETURN_IF_EXCEPTION(scope, { });
         fwrite(string.data(), sizeof(char), string.length(), out);
         if (ferror(out))
             goto fail;
@@ -1253,10 +1213,12 @@ EncodedJSValue JSC_HOST_CALL functionDebug(JSGlobalObject* globalObject, CallFra
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
-    auto viewWithString = callFrame->argument(0).toString(globalObject)->viewWithUnderlyingString(globalObject);
-    RETURN_IF_EXCEPTION(scope, encodedJSValue());
+    auto* jsString = callFrame->argument(0).toString(globalObject);
+    RETURN_IF_EXCEPTION(scope, { });
+    auto viewWithString = jsString->viewWithUnderlyingString(globalObject);
+    RETURN_IF_EXCEPTION(scope, { });
     auto string = cStringFromViewWithString(globalObject, scope, viewWithString);
-    RETURN_IF_EXCEPTION(scope, encodedJSValue());
+    RETURN_IF_EXCEPTION(scope, { });
     fputs("--> ", stderr);
     fwrite(string.data(), sizeof(char), string.length(), stderr);
     fputc('\n', stderr);
@@ -1511,14 +1473,25 @@ EncodedJSValue JSC_HOST_CALL functionLoad(JSGlobalObject* globalObject, CallFram
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
+    bool callerRelative = callFrame->argument(1).getString(globalObject) == "caller relative"_s;
+    RETURN_IF_EXCEPTION(scope, encodedJSValue());
+
     String fileName = callFrame->argument(0).toWTFString(globalObject);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
+
+    URL path;
+    if (callerRelative) {
+        path = URL(callFrame->callerSourceOrigin(vm).url(), fileName);
+        if (!path.isLocalFile())
+            return throwVMException(globalObject, scope, createURIError(globalObject, makeString("caller relative URL path is not a local file: ", path.string())));
+    } else
+        path = absolutePath(fileName);
     Vector<char> script;
-    if (!fetchScriptFromLocalFileSystem(fileName, script))
+    if (!fetchScriptFromLocalFileSystem(path.fileSystemPath(), script))
         return JSValue::encode(throwException(globalObject, scope, createError(globalObject, "Could not open file."_s)));
 
     NakedPtr<Exception> evaluationException;
-    JSValue result = evaluate(globalObject, jscSource(script, SourceOrigin { absolutePath(fileName) }, fileName), JSValue(), evaluationException);
+    JSValue result = evaluate(globalObject, jscSource(script, SourceOrigin { path }, fileName), JSValue(), evaluationException);
     if (evaluationException)
         throwException(globalObject, scope, evaluationException);
     return JSValue::encode(result);
@@ -1644,7 +1617,7 @@ EncodedJSValue JSC_HOST_CALL functionCallerSourceOrigin(JSGlobalObject* globalOb
 {
     VM& vm = globalObject->vm();
     SourceOrigin sourceOrigin = callFrame->callerSourceOrigin(vm);
-    if (sourceOrigin.isNull())
+    if (sourceOrigin.url().isNull())
         return JSValue::encode(jsNull());
     return JSValue::encode(jsString(vm, sourceOrigin.string()));
 }
@@ -1908,7 +1881,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentStart(JSGlobalObject* globalObje
                     
                     NakedPtr<Exception> evaluationException;
                     JSValue result;
-                    result = evaluate(globalObject, jscSource(sourceCode, SourceOrigin("worker"_s)), JSValue(), evaluationException);
+                    result = evaluate(globalObject, jscSource(sourceCode, SourceOrigin(URL({ }, "worker"_s))), JSValue(), evaluationException);
                     if (evaluationException)
                         result = evaluationException->value();
                     checkException(globalObject, true, evaluationException, result, commandLine, success);
@@ -2227,11 +2200,60 @@ EncodedJSValue JSC_HOST_CALL functionDrainMicrotasks(JSGlobalObject* globalObjec
     return JSValue::encode(jsUndefined());
 }
 
+EncodedJSValue JSC_HOST_CALL functionSetTimeout(JSGlobalObject* globalObject, CallFrame* callFrame)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    // FIXME: This means we can't pass any internal function but I don't think that's common for testing.
+    auto callback = jsDynamicCast<JSFunction*>(vm, callFrame->argument(0));
+    if (!callback)
+        return throwVMTypeError(globalObject, scope, "First argument is not a JS function"_s);
+
+    // FIXME: We don't look at the timeout parameter because we don't have a schedule work later API.
+    vm.deferredWorkTimer->addPendingWork(vm, callback, { });
+    vm.deferredWorkTimer->scheduleWorkSoon(callback, [callback] {
+        JSGlobalObject* globalObject = callback->globalObject();
+        VM& vm = globalObject->vm();
+
+        MarkedArgumentBuffer args;
+        call(globalObject, callback, jsUndefined(), args, "You shouldn't see this...");
+        vm.deferredWorkTimer->cancelPendingWork(callback);
+    });
+    return JSValue::encode(jsUndefined());
+}
+
 EncodedJSValue JSC_HOST_CALL functionReleaseWeakRefs(JSGlobalObject* globalObject, CallFrame*)
 {
     VM& vm = globalObject->vm();
     vm.finalizeSynchronousJSExecution();
     return JSValue::encode(jsUndefined());
+}
+
+static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryLiveCount(JSGlobalObject* globalObject, CallFrame* callFrame)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    auto* finalizationRegistry = jsDynamicCast<JSFinalizationRegistry*>(vm, callFrame->argument(0));
+    if (!finalizationRegistry)
+        return throwVMTypeError(globalObject, scope, "first argument is not a finalizationRegistry"_s);
+
+    auto locker = holdLock(finalizationRegistry->cellLock());
+    return JSValue::encode(jsNumber(finalizationRegistry->liveCount(locker)));
+}
+
+static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryDeadCount(JSGlobalObject* globalObject, CallFrame* callFrame)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
+
+    auto* finalizationRegistry = jsDynamicCast<JSFinalizationRegistry*>(vm, callFrame->argument(0));
+    if (!finalizationRegistry)
+        return throwVMTypeError(globalObject, scope, "first argument is not a finalizationRegistry"_s);
+
+    auto locker = holdLock(finalizationRegistry->cellLock());
+    return JSValue::encode(jsNumber(finalizationRegistry->deadCount(locker)));
 }
 
 EncodedJSValue JSC_HOST_CALL functionIs32BitPlatform(JSGlobalObject*, CallFrame*)
@@ -2332,7 +2354,7 @@ EncodedJSValue JSC_HOST_CALL functionCheckModuleSyntax(JSGlobalObject* globalObj
     stopWatch.start();
 
     ParserError error;
-    bool validSyntax = checkModuleSyntax(globalObject, jscSource(source, { }, URL(), TextPosition(), SourceProviderSourceType::Module), error);
+    bool validSyntax = checkModuleSyntax(globalObject, jscSource(source, { }, String(), TextPosition(), SourceProviderSourceType::Module), error);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     stopWatch.stop();
 
@@ -2560,6 +2582,18 @@ static void startTimeoutTimer(Seconds duration)
             vm.notifyNeedShellTimeoutCheck();
             return VMInspector::FunctorStatus::Done;
         });
+
+        if (const char* timeoutString = getenv("JSCTEST_hardTimeout")) {
+            double hardTimeoutInDouble = 0;
+            if (sscanf(timeoutString, "%lf", &hardTimeoutInDouble) != 1)
+                dataLog("WARNING: hardTimeout string is malformed, got ", timeoutString, " but expected a number. Not using a timeout.\n");
+            else {
+                Seconds hardTimeout { hardTimeoutInDouble };
+                sleep(hardTimeout);
+                dataLogLn("HARD TIMEOUT after ", hardTimeout);
+                exit(EXIT_FAILURE);
+            }
+        }
     });
 }
 
@@ -2634,10 +2668,10 @@ int main(int argc, char** argv)
         WTFLogAlways("Locale not supported by C library.\n\tUsing the fallback 'C' locale.");
 #endif
 
-    // Need to initialize WTF threading before we start any threads. Cannot initialize JSC
-    // threading yet, since that would do somethings that we'd like to defer until after we
+    // Need to initialize WTF before we start any threads. Cannot initialize JSC
+    // yet, since that would do somethings that we'd like to defer until after we
     // have a chance to parse options.
-    WTF::initializeThreading();
+    WTF::initialize();
 
 #if PLATFORM(IOS_FAMILY)
     Options::crashIfCantAllocateJITMemory() = true;
@@ -2645,10 +2679,10 @@ int main(int argc, char** argv)
 
     // We can't use destructors in the following code because it uses Windows
     // Structured Exception Handling
-    int res = 0;
+    int res = EXIT_SUCCESS;
     TRY
         res = jscmain(argc, argv);
-    EXCEPT(res = 3)
+    EXCEPT(res = EXIT_EXCEPTION)
     finalizeStatsAtEndOfTesting();
     if (getenv("JS_SHELL_WAIT_FOR_INPUT_TO_EXIT")) {
         WTF::fastDisableScavenger();
@@ -2719,7 +2753,7 @@ static void dumpException(GlobalObject* globalObject, JSValue exception)
 #undef CHECK_EXCEPTION
 }
 
-static bool checkUncaughtException(VM& vm, GlobalObject* globalObject, JSValue exception, CommandLine& options)
+static bool checkUncaughtException(VM& vm, GlobalObject* globalObject, JSValue exception, const CommandLine& options)
 {
     const String& expectedExceptionName = options.m_uncaughtExceptionName;
     auto scope = DECLARE_CATCH_SCOPE(vm);
@@ -2751,7 +2785,7 @@ static bool checkUncaughtException(VM& vm, GlobalObject* globalObject, JSValue e
     return false;
 }
 
-static void checkException(GlobalObject* globalObject, bool isLastFile, bool hasException, JSValue value, CommandLine& options, bool& success)
+static void checkException(GlobalObject* globalObject, bool isLastFile, bool hasException, JSValue value, const CommandLine& options, bool& success)
 {
     VM& vm = globalObject->vm();
 
@@ -2768,6 +2802,15 @@ static void checkException(GlobalObject* globalObject, bool isLastFile, bool has
             dumpException(globalObject, value);
     } else
         success = success && checkUncaughtException(vm, globalObject, (hasException) ? value : JSValue(), options);
+}
+
+void GlobalObject::reportUncaughtExceptionAtEventLoop(JSGlobalObject* globalObject, Exception* exception)
+{
+    auto* global = jsCast<GlobalObject*>(globalObject);
+    dumpException(global, exception->value());
+    bool hideNoReturn = true;
+    if (hideNoReturn)
+        jscExit(EXIT_EXCEPTION);
 }
 
 static void runWithOptions(GlobalObject* globalObject, CommandLine& options, bool& success)
@@ -2792,6 +2835,8 @@ static void runWithOptions(GlobalObject* globalObject, CommandLine& options, boo
                 scriptBuffer.append("\"use strict\";\n", strlen("\"use strict\";\n"));
 
             if (isModule) {
+                // If the passed file isn't an absolute path append "./" so the module loader doesn't think this is a bare-name specifier.
+                fileName = fileName.startsWith('/') ? fileName : makeString("./", fileName);
                 promise = loadAndEvaluateModule(globalObject, fileName, jsUndefined(), jsUndefined());
                 scope.releaseAssertNoException();
             } else {
@@ -2808,10 +2853,11 @@ static void runWithOptions(GlobalObject* globalObject, CommandLine& options, boo
         }
 
         bool isLastFile = i == scripts.size() - 1;
+        SourceOrigin sourceOrigin { absolutePath(fileName) };
         if (isModule) {
             if (!promise) {
                 // FIXME: This should use an absolute file URL https://bugs.webkit.org/show_bug.cgi?id=193077
-                promise = loadAndEvaluateModule(globalObject, jscSource(stringFromUTF(scriptBuffer), SourceOrigin { absolutePath(fileName) }, URL({ }, fileName), TextPosition(), SourceProviderSourceType::Module), jsUndefined());
+                promise = loadAndEvaluateModule(globalObject, jscSource(stringFromUTF(scriptBuffer), sourceOrigin, fileName, TextPosition(), SourceProviderSourceType::Module), jsUndefined());
             }
             scope.clearException();
 
@@ -2830,7 +2876,7 @@ static void runWithOptions(GlobalObject* globalObject, CommandLine& options, boo
             vm.drainMicrotasks();
         } else {
             NakedPtr<Exception> evaluationException;
-            JSValue returnValue = evaluate(globalObject, jscSource(scriptBuffer, SourceOrigin { absolutePath(fileName) }, fileName), JSValue(), evaluationException);
+            JSValue returnValue = evaluate(globalObject, jscSource(scriptBuffer, sourceOrigin , fileName), JSValue(), evaluationException);
             scope.assertNoException();
             if (evaluationException)
                 returnValue = evaluationException->value();
@@ -2853,10 +2899,10 @@ static void runInteractive(GlobalObject* globalObject)
     VM& vm = globalObject->vm();
     auto scope = DECLARE_CATCH_SCOPE(vm);
 
-    Optional<DirectoryName> directoryName = currentWorkingDirectory();
-    if (!directoryName)
+    URL directoryName = currentWorkingDirectory();
+    if (!directoryName.isValid())
         return;
-    SourceOrigin sourceOrigin(resolvePath(directoryName.value(), ModuleName("interpreter")));
+    SourceOrigin sourceOrigin(URL(directoryName, "./interpreter"_s));
     
     bool shouldQuit = false;
     while (!shouldQuit) {
@@ -3201,7 +3247,7 @@ int runJSC(const CommandLine& options, bool isWorker, const Func& func)
         func(vm, globalObject, success);
         vm.drainMicrotasks();
     }
-    vm.promiseTimer->runRunLoop();
+    vm.deferredWorkTimer->runRunLoop();
     {
         JSLockHolder locker(vm);
         if (options.m_interactive && success)
@@ -3297,8 +3343,7 @@ int jscmain(int argc, char** argv)
             Options::dumpGeneratedBytecodes() = true;
     }
 
-    // Initialize JSC before getting VM.
-    JSC::initializeThreading();
+    JSC::initialize();
     initializeTimeoutIfNeeded();
 
 #if OS(DARWIN) || OS(LINUX)

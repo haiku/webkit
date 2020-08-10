@@ -57,6 +57,7 @@
 #include "HTMLSelectElement.h"
 #include "HTMLTextAreaElement.h"
 #include "HTMLTextFormControlElement.h"
+#include "KeyboardEvent.h"
 #include "LabelableElement.h"
 #include "LocalizedStrings.h"
 #include "MathMLElement.h"
@@ -1094,18 +1095,67 @@ void AccessibilityNodeObject::decrement()
     alterSliderValue(false);
 }
 
+static bool dispatchSimulatedKeyboardUpDownEvent(AccessibilityObject* object, const KeyboardEvent::Init& keyInit)
+{
+    // In case the keyboard event causes this element to be removed.
+    Ref<AccessibilityObject> protectedObject(*object);
+    
+    bool handled = false;
+    if (auto* node = object->node()) {
+        auto event = KeyboardEvent::create(eventNames().keydownEvent, keyInit);
+        node->dispatchEvent(event);
+        handled |= event->defaultHandled();
+    }
+    
+    // Ensure node is still valid and wasn't removed after the keydown.
+    if (auto* node = object->node()) {
+        auto event = KeyboardEvent::create(eventNames().keyupEvent, keyInit);
+        node->dispatchEvent(event);
+        handled |= event->defaultHandled();
+    }
+    return handled;
+}
+
+bool AccessibilityNodeObject::performDismissAction()
+{
+    auto keyInit = KeyboardEvent::Init();
+    keyInit.key = "Escape"_s;
+    keyInit.keyCode = 0x1b;
+    
+    return dispatchSimulatedKeyboardUpDownEvent(this, keyInit);
+}
+
+// Fire a keyboard event if we were not able to set this value natively.
+bool AccessibilityNodeObject::postKeyboardKeysForValueChange(bool increase)
+{
+    auto keyInit = KeyboardEvent::Init();
+    bool vertical = orientation() == AccessibilityOrientation::Vertical;
+    bool isLTR = page()->userInterfaceLayoutDirection() == UserInterfaceLayoutDirection::LTR;
+    
+    keyInit.key = increase ? vertical ? "ArrowUp"_s : isLTR ? "ArrowRight"_s : "ArrowLeft"_s : vertical ? "ArrowDown"_s : isLTR ? "ArrowLeft"_s : "ArrowRight"_s;
+    keyInit.keyIdentifier = increase ? vertical ? "up"_s : isLTR ? "right"_s : "left"_s : vertical ? "down"_s : isLTR ? "left"_s : "right"_s;
+
+    return dispatchSimulatedKeyboardUpDownEvent(this, keyInit);
+}
+
+void AccessibilityNodeObject::setNodeValue(bool increase, float value)
+{
+    bool didSet = setValue(String::number(value));
+    
+    if (didSet) {
+        if (auto* cache = axObjectCache())
+            cache->postNotification(this, document(), AXObjectCache::AXValueChanged);
+    } else
+        postKeyboardKeysForValueChange(increase);
+}
+
 void AccessibilityNodeObject::changeValueByStep(bool increase)
 {
     float step = stepValueForRange();
     float value = valueForRange();
 
     value += increase ? step : -step;
-
-    setValue(String::number(value));
-
-    auto objectCache = axObjectCache();
-    if (objectCache)
-        objectCache->postNotification(node(), AXObjectCache::AXValueChanged);
+    setNodeValue(increase, value);
 }
 
 void AccessibilityNodeObject::changeValueByPercent(float percentChange)
@@ -1119,11 +1169,7 @@ void AccessibilityNodeObject::changeValueByPercent(float percentChange)
         step = std::abs(percentChange) * (1 / percentChange);
 
     value += step;
-    setValue(String::number(value));
-
-    auto objectCache = axObjectCache();
-    if (objectCache)
-        objectCache->postNotification(node(), AXObjectCache::AXValueChanged);
+    setNodeValue(percentChange > 0, value);
 }
 
 bool AccessibilityNodeObject::isGenericFocusableElement() const
@@ -1946,23 +1992,18 @@ String AccessibilityNodeObject::stringValue() const
     return String();
 }
 
-void AccessibilityNodeObject::colorValue(int& r, int& g, int& b) const
+SRGBA<uint8_t> AccessibilityNodeObject::colorValue() const
 {
-    r = 0;
-    g = 0;
-    b = 0;
-
-#if ENABLE(INPUT_TYPE_COLOR)
+#if !ENABLE(INPUT_TYPE_COLOR)
+    return Color::transparentBlack;
+#else
     if (!isColorWell())
-        return;
+        return Color::transparentBlack;
 
     if (!is<HTMLInputElement>(node()))
-        return;
+        return Color::transparentBlack;
 
-    auto color = downcast<HTMLInputElement>(*node()).valueAsColor().toSRGBASimpleColorLossy();
-    r = color.redComponent();
-    g = color.greenComponent();
-    b = color.blueComponent();
+    return downcast<HTMLInputElement>(*node()).valueAsColor().toSRGBALossy<uint8_t>();
 #endif
 }
 

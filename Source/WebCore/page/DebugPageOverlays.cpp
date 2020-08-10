@@ -82,7 +82,7 @@ public:
 
 private:
     explicit MouseWheelRegionOverlay(Page& page)
-        : RegionOverlay(page, makeSimpleColorFromFloats(0.5f, 0.0f, 0.0f, 0.4f))
+        : RegionOverlay(page, SRGBA<uint8_t> { 128, 0, 0, 102 })
     {
     }
 
@@ -118,7 +118,7 @@ public:
 
 private:
     explicit NonFastScrollableRegionOverlay(Page& page)
-        : RegionOverlay(page, makeSimpleColorFromFloats(1.0f, 0.5f, 0.0f, 0.4f))
+        : RegionOverlay(page, Color::orange.colorWithAlphaByte(102))
     {
     }
 
@@ -144,29 +144,19 @@ bool NonFastScrollableRegionOverlay::updateRegion()
     return regionChanged;
 }
 
-static const HashMap<String, SimpleColor>& touchEventRegionColors()
+static const HashMap<String, SRGBA<uint8_t>>& touchEventRegionColors()
 {
     static const auto regionColors = makeNeverDestroyed([] {
-        struct MapEntry {
-            ASCIILiteral name;
-            int r;
-            int g;
-            int b;
-        };
-        static const MapEntry entries[] = {
-            { "touchstart"_s, 191, 191, 63 },
-            { "touchmove"_s, 80, 204, 245 },
-            { "touchend"_s, 191, 63, 127 },
-            { "touchforcechange"_s, 63, 63, 191 },
-            { "wheel"_s, 255, 128, 0 },
-            { "mousedown"_s, 80, 245, 80 },
-            { "mousemove"_s, 245, 245, 80 },
-            { "mouseup"_s, 80, 245, 176 },
-        };
-        HashMap<String, SimpleColor> map;
-        for (auto& entry : entries)
-            map.add(entry.name, makeSimpleColor(entry.r, entry.g, entry.b, 50));
-        return map;
+        return HashMap<String, SRGBA<uint8_t>> { {
+            { "touchstart"_s, { 191, 191, 63, 50 } },
+            { "touchmove"_s, { 80, 204, 245, 50 } },
+            { "touchend"_s, { 191, 63, 127, 50 } },
+            { "touchforcechange"_s, { 63, 63, 191, 50 } },
+            { "wheel"_s, { 255, 128, 0, 50 } },
+            { "mousedown"_s, { 80, 245, 80, 50 } },
+            { "mousemove"_s, { 245, 245, 80, 50 } },
+            { "mouseup"_s, { 80, 245, 176, 50 } }
+        } };
     }());
     return regionColors;
 }
@@ -177,7 +167,7 @@ static void drawRightAlignedText(const String& text, GraphicsContext& context, c
     float textBaselineFromTop = 14;
 
     TextRun textRun = TextRun(text);
-    context.setFillColor(Color::transparent);
+    context.setFillColor(Color::transparentBlack);
     float textWidth = context.drawText(font, textRun, { });
     context.setFillColor(Color::black);
     context.drawText(font, textRun, boxLocation + FloatSize(-(textWidth + textGap), textBaselineFromTop));
@@ -246,7 +236,7 @@ void NonFastScrollableRegionOverlay::drawRect(PageOverlay& pageOverlay, Graphics
 #endif
 
     for (const auto& synchronousEventRegion : m_eventTrackingRegions.eventSpecificSynchronousDispatchRegions) {
-        auto regionColor = makeSimpleColor(0, 0, 0, 64);
+        auto regionColor = Color::black.colorWithAlphaByte(64);
         auto it = touchEventRegionColors().find(synchronousEventRegion.key);
         if (it != touchEventRegionColors().end())
             regionColor = it->value;

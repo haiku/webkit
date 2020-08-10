@@ -38,7 +38,7 @@
 #include "CSSPropertyNames.h"
 #include "Chrome.h"
 #include "Color.h"
-#include "ElementChildIterator.h"
+#include "ColorSerialization.h"
 #include "Event.h"
 #include "HTMLDataListElement.h"
 #include "HTMLDivElement.h"
@@ -69,11 +69,11 @@ static bool isValidSimpleColor(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-simple-colour-values
-static Optional<SimpleColor> parseSimpleColorValue(StringView string)
+static Optional<SRGBA<uint8_t>> parseSimpleColorValue(StringView string)
 {
     if (!isValidSimpleColor(string))
         return WTF::nullopt;
-    return makeSimpleColor(toASCIIHexValue(string[1], string[2]), toASCIIHexValue(string[3], string[4]), toASCIIHexValue(string[5], string[6]));
+    return { { toASCIIHexValue(string[1], string[2]), toASCIIHexValue(string[3], string[4]), toASCIIHexValue(string[5], string[6]) } };
 }
 
 ColorInputType::~ColorInputType()
@@ -220,7 +220,7 @@ void ColorInputType::didChooseColor(const Color& color)
     if (element()->isDisabledFormControl() || color == valueAsColor())
         return;
     EventQueueScope scope;
-    element()->setValueFromRenderer(color.serialized());
+    element()->setValueFromRenderer(serializationForHTML(color));
     updateColorSwatch();
     element()->dispatchFormControlChangeEvent();
 }
@@ -268,21 +268,6 @@ IntRect ColorInputType::elementRectRelativeToRootView() const
     if (!element()->renderer())
         return IntRect();
     return element()->document().view()->contentsToRootView(element()->renderer()->absoluteBoundingBoxRect());
-}
-
-Color ColorInputType::currentColor()
-{
-    return valueAsColor();
-}
-
-bool ColorInputType::shouldShowSuggestions() const
-{
-#if ENABLE(DATALIST_ELEMENT)
-    ASSERT(element());
-    return element()->hasAttributeWithoutSynchronization(listAttr);
-#else
-    return false;
-#endif
 }
 
 Vector<Color> ColorInputType::suggestedColors() const

@@ -1,3 +1,1260 @@
+2020-07-20  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Non unified build fixes, midsummer 2020 edition
+        https://bugs.webkit.org/show_bug.cgi?id=213616
+
+        Unreviewed build fix.
+
+        * wtf/text/StringParsingBuffer.h: Add missing inclusion of wtf/text/StringView.h,
+        and removed other now-unneeded header inclusions.
+
+2020-07-19  Geoffrey Garen  <ggaren@apple.com>
+
+        There should be only one RunLoop Timer class
+        https://bugs.webkit.org/show_bug.cgi?id=214340
+
+        Reviewed by Darin Adler.
+
+        RunLoop::Timer wins. RunLoopTimer loses.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/PlatformHave.h:
+        * wtf/PlatformMac.cmake: Remove RunLoopTimer.
+
+        * wtf/RunLoop.cpp:
+        (WTF::RunLoop::dispatchAfter): While we're here. let's make dispatchAfter
+        available on all platforms. We had cross-platform code, but it was
+        factored to be needlessly platform-specific.
+
+        * wtf/RunLoop.h: Added a version of dispatch() that accepts a
+        SchedulePairHashSet for Cocoa. Removed some indirection from timer
+        stuff, since it was confusing me. Consistently named all time intervals
+        "interval".
+
+        * wtf/RunLoopTimer.h: Removed.
+
+        * wtf/cf/RunLoopCF.cpp:
+        (WTF::createTimer): Factored out a helper function for dispatch() to use.
+        (WTF::RunLoop::dispatch): This function is the meat of the patch. It's
+        the only unique functionality that RunLoopTimer used to provide.
+        (WTF::RunLoop::TimerBase::start): Adopted helper function.
+        (WTF::RunLoop::runForDuration): Deleted.
+        (WTF::RunLoop::TimerBase::timerFired): Deleted.
+
+        * wtf/cf/RunLoopTimerCF.cpp: Removed.
+
+        * wtf/generic/RunLoopGeneric.cpp:
+        (WTF::RunLoop::dispatchAfter): Deleted. Now cross-platform.
+
+        * wtf/glib/RunLoopGLib.cpp:
+        (WTF::RunLoop::TimerBase::updateReadyTime):
+        (WTF::RunLoop::TimerBase::start):
+        (WTF::RunLoop::TimerBase::stop):
+        (WTF::DispatchAfterContext::DispatchAfterContext): Deleted.
+        (WTF::DispatchAfterContext::dispatch): Deleted.
+        (WTF::RunLoop::dispatchAfter): Deleted. Now cross-platform.
+
+        * wtf/win/RunLoopWin.cpp:
+        (WTF::RunLoop::TimerBase::start):
+        (WTF::RunLoop::dispatchAfter): Deleted. Now cross-platform.
+
+2020-07-17  Sam Weinig  <weinig@apple.com>
+
+        Remove final vestigates of SimpleColor
+        https://bugs.webkit.org/show_bug.cgi?id=214439
+
+        Reviewed by Simon Fraser.
+
+        * wtf/KeyValuePair.h:
+        (WTF::KeyValuePair::KeyValuePair):
+        Add overload of constructor that is not a template function to aid deduction
+        when using std::initializer_lists to contruct a HashMap.
+
+2020-07-17  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Don't include <wtf/text/WTFString.h> in SVGParserUtilities.h
+        https://bugs.webkit.org/show_bug.cgi?id=214320
+
+        Reviewed by Darin Adler.
+
+        * wtf/Forward.h: Added foward declarations for template specializations of DefaultHash.
+
+2020-07-17  Keith Miller  <keith_miller@apple.com>
+
+        Fix 32-bit debug watchos build
+        https://bugs.webkit.org/show_bug.cgi?id=214480
+
+        Reviewed by Michael Saboff.
+
+        subtracting pointers produces a ptrdiff_t but on 32-bit that's the same
+        as an int. Since we were comparing that to an unsigned that triggered
+        the signed comparison warning, which broke the build.
+
+        * wtf/text/StringParsingBuffer.h:
+
+2020-07-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r264482.
+
+        Part of an attempted fix for the build
+
+        Reverted changeset:
+
+        "Use AVRoutePickerView when available for choosing AirPlay
+        devices"
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        https://trac.webkit.org/changeset/264482
+
+2020-07-16  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        Rename createBoxPtr into adoptBoxPtr
+        https://bugs.webkit.org/show_bug.cgi?id=214171
+
+        Reviewed by Darin Adler.
+
+        * wtf/BoxPtr.h:
+        (WTF::adoptInBoxPtr):
+
+2020-07-16  Per Arne Vollan  <pvollan@apple.com>
+
+        XPC connection should be suspended before setting target queue
+        https://bugs.webkit.org/show_bug.cgi?id=214427
+
+        Reviewed by Darin Adler.
+
+        Declare function to suspend XPC connection.
+
+        * wtf/spi/darwin/XPCSPI.h:
+
+2020-07-16  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] Remove the unnecessary inner class DefaultHash<T>::Hash
+        https://bugs.webkit.org/show_bug.cgi?id=214389
+
+        Reviewed by Darin Adler.
+
+        DefaultHash<T> doesn't need to have a inner struct Hash. This can
+        be a problem for forward declarations (Bug 214320 Comment 5).
+
+        * wtf/BitVector.h:
+        * wtf/Forward.h:
+        * wtf/HashFunctions.h:
+        (WTF::PairHash::hash):
+        (WTF::PairHash::equal):
+        (WTF::TupleHash::hash):
+        (WTF::TupleHash::equal):
+        * wtf/ListHashSet.h:
+        * wtf/LoggingHashMap.h:
+        * wtf/LoggingHashSet.h:
+        * wtf/MetaAllocatorPtr.h:
+        * wtf/ObjectIdentifier.h:
+        * wtf/OptionSetHash.h:
+        (WTF::DefaultHash<OptionSet<T>>::hash):
+        (WTF::DefaultHash<OptionSet<T>>::equal):
+        (WTF::DefaultHash<OptionSet<T>>::Hash::hash): Deleted.
+        (WTF::DefaultHash<OptionSet<T>>::Hash::equal): Deleted.
+        * wtf/Packed.h:
+        * wtf/RetainPtr.h:
+        * wtf/StackShot.h:
+        * wtf/URLHash.h:
+        * wtf/VectorHash.h:
+        (WTF::VectorHash::hash):
+        * wtf/text/AtomString.h:
+        * wtf/text/AtomStringHash.h:
+        * wtf/text/CString.h:
+        * wtf/text/StringHash.h:
+        * wtf/text/StringImpl.h:
+        * wtf/text/SymbolRegistry.h:
+        (WTF::DefaultHash<SymbolRegistryKey>::hash):
+        (WTF::DefaultHash<SymbolRegistryKey>::equal):
+        (WTF::DefaultHash<SymbolRegistryKey>::Hash::hash): Deleted.
+        (WTF::DefaultHash<SymbolRegistryKey>::Hash::equal): Deleted.
+        * wtf/text/WTFString.h:
+
+2020-07-16  Eric Carlson  <eric.carlson@apple.com>
+
+        Use AVRoutePickerView when available for choosing AirPlay devices
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        <rdar://problem/58610662>
+
+        Unreviewed build fix.
+
+        * wtf/PlatformHave.h: Define HAVE_AVROUTEPICKERVIEW.
+
+2020-07-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [Big Sur] De-duplicate SPI
+        https://bugs.webkit.org/show_bug.cgi?id=214415
+        <rdar://problem/65678060>
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h:
+
+2020-07-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [Big Sur] Build on Seed 1
+        https://bugs.webkit.org/show_bug.cgi?id=214396
+        <rdar://problem/65644762>
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformHave.h: Add HAVE(LARGE_CONTROL_SIZE).
+
+2020-07-15  Saagar Jha  <saagar@saagarjha.com>
+
+        Add some missing boilerplate to help fix build on macOS Big Sur
+        https://bugs.webkit.org/show_bug.cgi?id=214338
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h: Add HAVE_LARGE_CONTROL_SIZE and enable it on Big Sur.
+
+2020-07-15  Darin Adler  <darin@apple.com>
+
+        Remove a few more uses of the terms black/white list
+        https://bugs.webkit.org/show_bug.cgi?id=214371
+
+        Reviewed by Alex Christensen.
+
+        * wtf/URLHelpers.cpp:
+        (WTF::URLHelpers::loadIDNAllowedScriptList): Renamed.
+        (WTF::URLHelpers::isLookalikeCharacter): Renamed.
+        (WTF::URLHelpers::addScriptToIDNAllowedScriptList): Renamed.
+        (WTF::URLHelpers::initializeDefaultIDNAllowedScriptList): Renamed.
+        (WTF::URLHelpers::allCharactersInAllowedIDNScriptList): Renamed.
+        (WTF::URLHelpers::mapHostName): Updated for name changes.
+        * wtf/URLHelpers.h: Renamed things.
+
+        * wtf/cocoa/NSURLExtras.mm:
+        (WTF::readIDNAllowedScriptListFile): Renamed.
+        (WTF::URLHelpers::loadIDNAllowedScriptList): Renamed. Also use a modern for
+        loop to simplify the code.
+
+2020-07-15  Jim Mason  <jmason@ibinx.com>
+
+        [WTF] Fix PackedAlignedPtr for X86_64 canonical addresses
+        https://bugs.webkit.org/show_bug.cgi?id=214142
+
+        Reviewed by Mark Lam
+
+        * wtf/Packed.h:
+        (WTF::PackedAlignedPtr::get const):
+        (WTF::PackedAlignedPtr::set):
+
+2020-07-15  Brady Eidson  <beidson@apple.com>
+
+        Resolve race between IOHIDManager and GameController framework.
+        <rdar://problem/65554490> and https://bugs.webkit.org/show_bug.cgi?id=214245
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformHave.h:
+
+2020-07-14  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION(r262341) URL::createCFURL should produce a CFURL that uses UTF-8 to decode its percent-encoded sequences
+        https://bugs.webkit.org/show_bug.cgi?id=214314
+        <rdar://problem/65079249>
+
+        Reviewed by Darin Adler.
+
+        r262341 made it so we usually pass kCFStringEncodingISOLatin1 into CFURLCreateAbsoluteURLWithBytes when creating a CFURLRef from a WTF::URL.
+        This is correct for the interpretation of the bytes to create a CFStringRef, and that is a change we want to make.
+        The encoding, however, is also stored with the CFURL and used later when interpreting percent-encoded sequences.
+        We want to use kCFStringEncodingUTF8 to make the interpretation of percent-encoded sequences the same as it used to be.
+        To avoid making a separate CString most of the time, use characters8() only for ASCII-only URLs, where UTF-8 and Latin1 are the same.
+        For all other URLs, we have to make a CString containing the UTF-8 representation of the string to get the percent-encoded sequences interpreted the same.
+
+        * wtf/cf/URLCF.cpp:
+        (WTF::URL::createCFURL const):
+        * wtf/cocoa/URLCocoa.mm:
+        (WTF::URL::createCFURL const):
+
+2020-07-14  Jer Noble  <jer.noble@apple.com>
+
+        Add support for parsing VP-style codec strings.
+        https://bugs.webkit.org/show_bug.cgi?id=214270
+        <rdar://problem/65500048>
+
+        Reviewed by Eric Carlson.
+
+        Add a variant of toIntegralType<> which returns an Optional. Since no existing callers of the
+        original toIntegralType fail to pass in the optional bool* parameter, make that parameter
+        non-optional, as it causes a conflict with the new Optional-returning version.
+
+        * wtf/text/StringToIntegerConversion.h:
+        (WTF::toIntegralType):
+
+2020-07-13  Keith Miller  <keith_miller@apple.com>
+
+        Clean up SourceProvider and add caller relative load script to jsc.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=214205
+
+        Reviewed by Yusuke Suzuki.
+
+        Using a URL as a boolean in a conditional should be a compile
+        error.  Currently, it "works" because it actually calls `operator
+        NSURL*()`... which is likely NOT what you wanted. Until we decide
+        what it means to have a URL in a conditional it will be a compile
+        error.
+
+        * wtf/URL.cpp:
+        (WTF::URL::fileSystemPath const):
+        * wtf/URL.h:
+
+2020-07-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] String.protoytpe.toLocaleLowerCase's availableLocales HashSet is inefficient
+        https://bugs.webkit.org/show_bug.cgi?id=213158
+
+        Reviewed by Darin Adler.
+
+        Add characterAt method to ASCIILiteral.
+
+        * wtf/text/ASCIILiteral.h:
+
+2020-07-12  Darin Adler  <darin@apple.com>
+
+        Some further streamlining of Gradient handling code
+        https://bugs.webkit.org/show_bug.cgi?id=214239
+
+        Reviewed by Sam Weinig.
+
+        * wtf/Vector.h: Added an overload for insert analogous to the ones we already have
+        for append and uncheckedAppend, helpful for type deduction.
+
+2020-07-12  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [macOS]: A HEIF image, selected from the OpenPanel, should be converted to an accepted MIME type
+        https://bugs.webkit.org/show_bug.cgi?id=213347
+        <rdar://problem/57258464>
+
+        Reviewed by Darin Adler.
+
+        Allow a suffix to be included in the temporary file name. The goal is to
+        make it possible to create temporary image files with valid extensions.
+
+        * wtf/FileSystem.h:
+        (WTF::FileSystemImpl::openTemporaryFile):
+        * wtf/cocoa/FileSystemCocoa.mm:
+        (WTF::FileSystemImpl::openTemporaryFile):
+        * wtf/glib/FileSystemGlib.cpp:
+        (WTF::FileSystemImpl::openTemporaryFile):
+        * wtf/posix/FileSystemPOSIX.cpp:
+        (WTF::FileSystemImpl::openTemporaryFile):
+        * wtf/win/FileSystemWin.cpp:
+        (WTF::FileSystemImpl::openTemporaryFile):
+
+2020-07-12  Rob Buis  <rbuis@igalia.com>
+
+        Improve IPv6 detection when setting host/hostname
+        https://bugs.webkit.org/show_bug.cgi?id=214218
+
+        Reviewed by Darin Adler.
+
+        * wtf/URL.cpp:
+        (WTF::URL::setHost): do not bail out if ':' was found but we start
+        with a '[', since the host may be IPv6.
+        (WTF::URL::setHostAndPort): multiple colons are acceptable only in case of IPv6.
+
+2020-07-11  Sam Weinig  <weinig@apple.com> and Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Relanding "Make hasher work with tuple-like classes"
+        https://bugs.webkit.org/show_bug.cgi?id=214224
+
+        Reviewed by Darin Adler.
+
+        The original patch broke the internal build. And reverting patch (r264274) broke the build too.
+        This patch relands r264270 with `constexpr` => `inline constexpr` template variable fix.
+
+        * wtf/Hasher.h:
+        (WTF::add):
+        (WTF::addTupleLikeHelper):
+        (WTF::TypeCheckHelper<decltype): Deleted.
+        (WTF::addTupleHelper): Deleted.
+        Add support for tuple-like classes. These are classes that:
+        - Have defined specializations of std::tuple_size<> and std::tuple_element<>.
+        - And have either a member function named get<> or there exists a function get<>()
+          that takes the class as argument that can be looked up via ADL.
+
+        To avoid abiguity when hashing std::array, the add() overload enabled for containers
+        with a begin member functions also now checks that the container is not tuple-like.
+        The std::pair overload is no longer needed as it will use the tuple-like one now.
+
+        * wtf/OptionSet.h:
+        * wtf/StdLibExtras.h:
+        Move is_type_complete_v<> from OptionSet.h to StdLibExtras.h and rename to
+        adhere to WebKit style as IsTypeComplete<>.
+
+2020-07-11  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r264270.
+        https://bugs.webkit.org/show_bug.cgi?id=214228
+
+        Broke the build
+
+        Reverted changeset:
+
+        "Make hasher work with tuple-like classes"
+        https://bugs.webkit.org/show_bug.cgi?id=214224
+        https://trac.webkit.org/changeset/264270
+
+2020-07-11  Darin Adler  <darin@apple.com>
+
+        Remove live ranges from AccessibilityObject.h, AccessibilityObjectInterface.h, AccessibilityRenderObject.h, AXIsolatedObject.h
+        https://bugs.webkit.org/show_bug.cgi?id=214215
+
+        Reviewed by Sam Weinig.
+
+        * wtf/cocoa/VectorCocoa.h: Added a new makeVector that takes a function.
+        Also updated createNSArray to use std::invoke.
+
+2020-07-11  Sam Weinig  <weinig@apple.com>
+
+        Make hasher work with tuple-like classes
+        https://bugs.webkit.org/show_bug.cgi?id=214224
+
+        Reviewed by Darin Adler.
+
+        * wtf/Hasher.h:
+        (WTF::add):
+        (WTF::addTupleLikeHelper):
+        (WTF::TypeCheckHelper<decltype): Deleted.
+        (WTF::addTupleHelper): Deleted.
+        Add support for tuple-like classes. These are classes that:
+        - Have defined specializations of std::tuple_size<> and std::tuple_element<>.
+        - And have either a member function named get<> or there exists a function get<>()
+          that takes the class as argument that can be looked up via ADL.
+
+        To avoid abiguity when hashing std::array, the add() overload enabled for containers
+        with a begin member functions also now checks that the container is not tuple-like.
+        The std::pair overload is no longer needed as it will use the tuple-like one now.
+
+        * wtf/OptionSet.h:
+        * wtf/StdLibExtras.h:
+        Move is_type_complete_v<> from OptionSet.h to StdLibExtras.h and rename to
+        adhere to WebKit style as IsTypeComplete<>.
+
+2020-07-10  Brady Eidson  <beidson@apple.com>
+
+        GameController.framework gamepads should support Home buttons.
+        <rdar://problem/63500696> and https://bugs.webkit.org/show_bug.cgi?id=212933
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformHave.h:
+
+2020-07-10  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [GStreamer][EME][OpenCDM] Implement OpenCDM support
+        https://bugs.webkit.org/show_bug.cgi?id=213550
+
+        Reviewed by Philippe Normand.
+
+        * wtf/PlatformEnable.h: Disable OPENCDM by default.
+
+2020-07-09  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        Simplify BoxPtr::create
+        https://bugs.webkit.org/show_bug.cgi?id=214144
+
+        Reviewed by Darin Adler.
+
+        * wtf/BoxPtr.h:
+        (WTF::createBoxPtr): Use the alias instead of the unrolled type.
+
+2020-07-09  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Update Launch Services database in the WebContent process from the Network process
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+
+        Reviewed by Brent Fulgham.
+
+        Added HAVE define for determining if the class LSDatabaseContext is present.
+
+        * wtf/PlatformHave.h:
+
+2020-07-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r264148.
+        https://bugs.webkit.org/show_bug.cgi?id=214136
+
+        Introduced layout test failures
+
+        Reverted changeset:
+
+        "[Cocoa] Update Launch Services database in the WebContent
+        process from the Network process"
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+        https://trac.webkit.org/changeset/264148
+
+2020-07-09  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [WTF] Implement new BoxPtr alias
+        https://bugs.webkit.org/show_bug.cgi?id=212379
+
+        Reviewed by Darin Adler.
+
+        Added BoxPtr.h that includes BoxPtr<T> as alias of
+        Box<std::unique_ptr<T>>. We discussed about this class on bugzilla
+        and we agreed on this alias being the best idea. Apart from the
+        alias I'm adding a couple of helpers like a create function and
+        the operator== and operator!=.
+
+        Tests: BoxPtr API tests added.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/BoxPtr.h: Added.
+        (WTF::createBoxPtr):
+        (WTF::operator==):
+        (WTF::operator!=):
+        * wtf/CMakeLists.txt:
+
+2020-07-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Update Launch Services database in the WebContent process from the Network process
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+
+        Reviewed by Brent Fulgham.
+
+        Added HAVE define for determining if the class LSDatabaseContext is present.
+
+        * wtf/PlatformHave.h:
+
+2020-07-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Make it possible to establish direct XPC connections between WebKit processes
+        https://bugs.webkit.org/show_bug.cgi?id=214079
+
+        Reviewed by Brent Fulgham.
+
+        Declare function to create a xpc endpoint, as well as a function to create a connection from an endpoint.
+
+        * wtf/spi/darwin/XPCSPI.h:
+
+2020-07-08  Geoffrey Garen  <ggaren@apple.com>
+
+        dyld: Symbol not found: __ZN3WTF19initializeThreadingEv - webkit MacOSX
+        https://bugs.webkit.org/show_bug.cgi?id=214034
+
+        Reviewed by Mark Lam.
+
+        * wtf/Threading.cpp:
+        (WTF::initializeThreading): Export the old symbol name for compatibility.
+
+2020-07-07  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] WebProcess hangs when browsing GitHub
+        https://bugs.webkit.org/show_bug.cgi?id=213970
+
+        Reviewed by Sergio Villar Senin.
+
+        Use a lower priority for LayerFlushTimer and DisplayRefreshMonitorTimer. We were using a very high priority for
+        drawing with the idea of keeping a good rendering performance without being affected by other timers. The
+        problem is that animations can be controlled by timers, so we need to ensure that MainThreadSharedTimer has
+        higher priority than drawing.
+
+        * wtf/glib/RunLoopSourcePriority.h: Use 110 for LayerFlushTimer and DisplayRefreshMonitorTimer.
+
+2020-07-06  Geoffrey Garen  <ggaren@apple.com>
+
+        callOnMainThread should use the same queue as RunLoop::dispatch
+        https://bugs.webkit.org/show_bug.cgi?id=213830
+
+        Reviewed by Brady Eidson.
+
+        This should reduce flakiness in scheduled tasks.
+
+        There's no need to keep a separate queue anymore since both APIs have
+        the same semantics now.
+
+        * wtf/MainThread.cpp:
+        (WTF::callOnMainThread):
+        (WTF::functionQueue): Deleted.
+        (WTF::dispatchFunctionsFromMainThread): Deleted.
+        * wtf/MainThread.h:
+        * wtf/cocoa/MainThreadCocoa.mm:
+        (WTF::scheduleDispatchFunctionsOnMainThread): Deleted.
+        * wtf/generic/MainThreadGeneric.cpp:
+        (WTF::scheduleDispatchFunctionsOnMainThread): Deleted.
+        * wtf/win/MainThreadWin.cpp:
+        (WTF::scheduleDispatchFunctionsOnMainThread): Deleted.
+
+2020-07-06  Michael Catanzaro  <mcatanzaro@gnome.org>
+
+        Spams system logs with "Current memory footprint: 10 MB"
+        https://bugs.webkit.org/show_bug.cgi?id=213991
+
+        Reviewed by Darin Adler.
+
+        This particular log statement is too much spam in the system journal, since it prints
+        continuously under normal operating conditions. Let's limit it only to Apple platforms,
+        which have had RELEASE_LOG() for a long time and where this is presumably expected.
+
+        * wtf/MemoryPressureHandler.cpp:
+        (WTF::MemoryPressureHandler::measurementTimerFired):
+
+2020-07-06  Sam Weinig  <weinig@apple.com>
+
+        Compile-time enable (but leave disabled at runtime by default) date/time input types on macOS to allow testing of cross platform (e.g. DOM) aspects of the controls
+        https://bugs.webkit.org/show_bug.cgi?id=213949
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformEnableCocoa.h:
+        Enable building date/time input types on all Cocoa ports. 
+
+2020-07-06  Geoffrey Garen  <ggaren@apple.com>
+
+        RunLoop::dispatch should only call wakeUp when needed
+        https://bugs.webkit.org/show_bug.cgi?id=213705
+
+        Reviewed by Brady Eidson.
+
+        RunLoop::wakeUp is super expensive (at least on Darwin platforms). Back
+        when IndexedDB used RunLoop::dispatch, RunLoop::wakeUp accounted for 15%
+        of all database lookup time.
+
+        We can reduce the cost a bit by only scheduling a wakeUp when the queue
+        is empty.
+
+        * wtf/RunLoop.cpp:
+        (WTF::RunLoop::performWork): Take all the functions out of the pending
+        queue before we start executing them; that way, we can tell if a new
+        function has been added to the pending queue since we enetered
+        performWork.
+
+        (WTF::RunLoop::dispatch): Only call wakeUp if we need to.
+
+        * wtf/RunLoop.h:
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Add almost everything from FeatureDefines.xcconfig to PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=213964
+
+        Reviewed by Sam Weinig.
+
+        Added logic that matches what FeatureDefines.xcconfig does for everything
+        except for ENABLE_EXPERIMENTAL_FEATURES.
+
+        Changed format so we mostly list platforms where we do not want to enable
+        a certain feature; also order it pretty consistently macOS, iOS, Mac Catalyst,
+        watchOS, then tvOS. This format highlights possible mistakes when not enabling
+        a feature on some platforms in an easier to understand way.
+
+        * wtf/PlatformEnableCocoa.h:
+        (ENABLE_AIRPLAY_PICKER): List platforms that do *not* enable this.
+        (ENABLE_APPLE_PAY): All except Mac Catalyst, watchOS, tvOS.
+        Not sure why disabled in Mac Catalyst, but replicates FeatureDefines.xcconfig.
+        (ENABLE_APPLE_PAY_REMOTE_UI): List platforms that do *not* enable this.
+        (ENABLE_AUTOCAPITALIZE): List platforms that do *not* enable this.
+        (ENABLE_AUTOCORRECT): List platforms that do *not* enable this.
+        (ENABLE_CONTENT_FILTERING): All except older watchOS simulator and tvOS.
+        (ENABLE_CORE_IMAGE_ACCELERATED_FILTER_RENDER): Re-sorted this.
+        (ENABLE_CSS_CONIC_GRADIENTS): All except older macOS and tvOS. The tvOS
+        exception seems questionable, so added a FIXME.
+        (ENABLE_DARK_MODE_CSS): All except watchOS and tvOS.
+        (ENABLE_DATA_INTERACTION): All except macOS, watchOS, and tvOS.
+        (ENABLE_DATA_DETECTION): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_EDITABLE_REGION): Only iOS.
+        (ENABLE_ENCRYPTED_MEDIA): All except older macOS and Mac Catalyst.
+        (ENABLE_FULLSCREEN_API): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_FULL_KEYBOARD_ACCESS): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_GAMEPAD): All except watchOS.
+        (ENABLE_INPUT_TYPE_DATE): All except macOS, Mac Catalyst, and tvOS.
+        (ENABLE_INPUT_TYPE_DATETIMELOCAL): Ditto.
+        (ENABLE_INPUT_TYPE_MONTH): Ditto.
+        (ENABLE_INPUT_TYPE_TIME): Ditto.
+        (ENABLE_INPUT_TYPE_WEEK): Ditto.
+        (ENABLE_MEDIA_CAPTURE): All except macOS.
+        (ENABLE_MEDIA_SOURCE): All except Mac Catalyst, watchOS, tvOS, and
+        all simulators.
+        (ENABLE_MEDIA_STREAM): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_NAVIGATOR_STANDALONE): All iOS family. (Considered writing as
+        all except macOS, but left like this to match some .cpp code for now.)
+        (ENABLE_OVERFLOW_SCROLLING_TOUCH): All iOS family.
+        (ENABLE_PICTURE_IN_PICTURE_API): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_SPEECH_SYNTHESIS): All except Mac Catalyst.
+        (ENABLE_REVEAL): All except older macOS, watchOS, and tvOS.
+        (ENABLE_SIGILL_CRASH_ANALYZER): All except macOS and watchOS.
+        (ENABLE_TAKE_UNBOUNDED_NETWORKING_ASSERTION): All except macOS, watchOS, and tvOS.
+        (ENABLE_VIDEO_PRESENTATION_MODE): All except simulators and tvOS.
+        (ENABLE_WEBGPU): All except older macOS, Mac Catalyst, and simulators.
+        (ENABLE_WEB_API_STATISTICS): Re-sorted this.
+        (ENABLE_WEB_AUTHN): All except Mac Catalyst, watchOS, and tvOS.
+        (ENABLE_WEB_RTC): All except Mac Catalyst, watchOS, and tvOS.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove all features from FeatureDefines.xcconfig that are already mentioned in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=213962
+
+        Reviewed by Sam Weinig.
+
+        * wtf/PlatformEnableCocoa.h:
+        (ENABLE_DRAG_SUPPORT): Before, this was enabled for iOS, iOS simulator, and Mac Catalyst in the
+        FeatureDefines.xcconfig file, but then disabled for any other iOS family platform here, then enabled
+        by default in PlatformEnable.h, which covered Mac. Instead, disable here only for watchOS and tvOS,
+        which gives the same result in a more straightforward way.
+        (ENABLE_GEOLOCATION): Before, this was enabled for iOS, iOS simulator, Mac Catalyst, and Mac in the
+        FeatureDefines.xcconfig file, then enabled for any other iOS family platform here. Instead, just
+        enable here for all Cocoa platforms, which gives the same result in a more straightforward way.
+
+2020-07-03  Darin Adler  <darin@apple.com>
+
+        Make generate-unified-sources.sh not depend on features being listed in FEATURE_DEFINES environment variable
+        https://bugs.webkit.org/show_bug.cgi?id=212420
+
+        Reviewed by Don Olmstead.
+
+        * Scripts/generate-unified-source-bundles.rb: Removed the --feature-flags
+        command line option along with the code that implements it.
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Remove support for ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE
+        https://bugs.webkit.org/show_bug.cgi?id=213932
+
+        Reviewed by Darin Adler.
+
+        Removes support for non-standard <input type="datetime">, currently being 
+        guarded by the macro ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE. This macro, was
+        added back in 2013 as a temporary measure to support some engines who shipped
+        support for <input type="datetime">. It is currently not enabled for any
+        ports so now seems like as good a time as any to remove it.
+
+        * wtf/PlatformEnable.h:
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Add "-Wliteral-conversion" warning to Xcode based builds and fix the issues it finds
+        https://bugs.webkit.org/show_bug.cgi?id=213931
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig:
+        Add -Wliteral-conversion.
+
+2020-07-03  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263882.
+        https://bugs.webkit.org/show_bug.cgi?id=213933
+
+        Broke the build
+
+        Reverted changeset:
+
+        "Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to
+        replace _WKProcessPoolConfiguration.hstsStorageDirectory"
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+        https://trac.webkit.org/changeset/263882
+
+2020-07-02  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformHave.h:
+
+2020-07-02  Alex Christensen  <achristensen@webkit.org>
+
+        Add testing infrastructure and SPI declaration for HTTP/2 ping
+        https://bugs.webkit.org/show_bug.cgi?id=213913
+
+        Reviewed by Jer Noble.
+
+        This is work towards rdar://problem/64495827
+
+        * wtf/PlatformHave.h:
+
+2020-07-01  Tim Horton  <timothy_horton@apple.com>
+
+        Upstream application accent color support
+        https://bugs.webkit.org/show_bug.cgi?id=213859
+
+        Reviewed by Wenson Hsieh.
+
+        * wtf/PlatformHave.h:
+
+2020-07-01  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use more efficient makeString() instead of StringBuilder
+        https://bugs.webkit.org/show_bug.cgi?id=213708
+
+        Reviewed by Sam Weinig.
+
+        Introduces StringTypeAdapter<std::tuple> overload, which enables using
+        makeString() instead of StringBuilder in more cases.
+
+        * wtf/text/StringConcatenate.h:
+        (WTF::StringTypeAdapter<std::tuple<StringTypes...>, void>): Added.
+
+2020-06-30  Geoffrey Garen  <ggaren@apple.com>
+
+        [Cocoa] [GTK] RunLoop::Timer::isActive() is incorrect for timers while they are firing
+        https://bugs.webkit.org/show_bug.cgi?id=213771
+
+        Reviewed by Darin Adler.
+
+        I noticed this because it triggered an assertion failure in
+        BackgroundProcessResponsivenessTimer::scheduleNextResponsivenessCheck().
+
+        In WebKit timer parlance "isActive()" means "will fire again", so a
+        one-shot timer should report inactive right when it fires. Otherwise,
+        there's no way to check if it needs to be rescheduled.
+
+        * wtf/cf/RunLoopCF.cpp:
+        (WTF::RunLoop::TimerBase::timerFired): For one-shot timers, stop our
+        timer before it fires, so that we know it is not active.
+
+        * wtf/glib/RunLoopGLib.cpp:
+        (WTF::RunLoop::TimerBase::TimerBase): For repeating timers, reschedule
+        our timer before it fires, so that we know it is active.
+
+2020-06-30  Mark Lam  <mark.lam@apple.com>
+
+        Add handling for a case of OOME in CSSTokenizer and CSSParser.
+        https://bugs.webkit.org/show_bug.cgi?id=213702
+        <rdar://problem/64808889>
+
+        Reviewed by Darin Adler.
+
+        1. Added FailureAction so that we can parameterize how we want to handle failures.
+           In this patch, we're only using this for allocation failures, but we could
+           technically apply this to other types of failures as well.
+
+        2. Apply FailureAction to many methods in Vector (and its super classes) so that
+           we can start de-duplicating code.  Previously, we were always duplicating code
+           just to have a "try" version of the same method that reports the failure to
+           allocate instead of crashing.  We can now parameterize all these methods on a
+           FailureAction template parameter instead, and avoid the code duplication.
+           This patch also reverses some of the existing code duplication.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/FailureAction.h: Added.
+        * wtf/Vector.h:
+        (WTF::VectorBufferBase::allocateBuffer):
+        (WTF::VectorBufferBase::tryAllocateBuffer):
+        (WTF::VectorBuffer::allocateBuffer):
+        (WTF::VectorBuffer::tryAllocateBuffer):
+        (WTF::Vector::reserveCapacity):
+        (WTF::Vector::tryReserveCapacity):
+        (WTF::Vector::reserveInitialCapacity):
+        (WTF::Vector::tryReserveInitialCapacity):
+        (WTF::Vector::append):
+        (WTF::Vector::tryAppend):
+        (WTF::Vector::constructAndAppend):
+        (WTF::Vector::tryConstructAndAppend):
+        (WTF::Vector::expandCapacity):
+        (WTF::Vector::resize):
+        (WTF::Vector::grow):
+        (WTF::Vector::reserveCapacity):
+        (WTF::Vector::reserveInitialCapacity):
+        (WTF::Vector::append):
+        (WTF::Vector::constructAndAppend):
+        (WTF::Vector::appendSlowCase):
+        (WTF::Vector::constructAndAppendSlowCase):
+        (WTF::Vector::appendVector):
+        (WTF::Vector::insert):
+        (WTF::Vector::tryExpandCapacity): Deleted.
+        (WTF::Vector::tryReserveCapacity): Deleted.
+        (WTF::Vector::tryAppend): Deleted.
+        (WTF::Vector::tryConstructAndAppend): Deleted.
+        (WTF::Vector::tryConstructAndAppendSlowCase): Deleted.
+
+2020-06-30  Peng Liu  <peng.liu6@apple.com>
+
+        Enable the support of FULLSCREEN_API in WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=213774
+
+        Reviewed by Youenn Fablet.
+
+        Replace the definition of ENABLE_FULLSCREEN_API in FeatureDefines.xcconfig with
+        the one in PlatformEnableCocoa.h. We have to do that because WebKitTestRunner
+        does not have a FeatureDefines.xcconfig but it uses "ENABLE(FULLSCREEN_API)"
+        to conditionally compile code to test the element fullscreen API.
+        WebKitTestRunner can use the macro defined in PlatformEnableCocoa.h.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-06-30  Alex Christensen  <achristensen@webkit.org>
+
+        Remove WTF::MD5
+        https://bugs.webkit.org/show_bug.cgi?id=213766
+
+        Reviewed by Youenn Fablet.
+
+        It was only used for CURL's cache file name generation.
+        If you want to use a broken hash function, use SHA1.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/MD5.cpp: Removed.
+        * wtf/MD5.h: Removed.
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that this
+        project supports building for Mac Catalyst.
+
+2020-06-30  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263724.
+        https://bugs.webkit.org/show_bug.cgi?id=213781
+
+
+        Reverted changeset:
+
+        "Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to
+        replace _WKProcessPoolConfiguration.hstsStorageDirectory"
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+        https://trac.webkit.org/changeset/263724
+
+2020-06-29  Geoffrey Garen  <ggaren@apple.com>
+
+        Unreviewed, rolling out an accidental change from r263723.
+
+        * wtf/cf/RunLoopCF.cpp:
+        (WTF::RunLoop::TimerBase::timerFired):
+
+2020-06-29  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformHave.h:
+
+2020-06-29  Geoffrey Garen  <ggaren@apple.com>
+
+        [GTK] [Win] Build callOnMainThread on WTF::RunLoop rather than on a timer
+        https://bugs.webkit.org/show_bug.cgi?id=213694
+
+        Reviewed by Carlos Garcia Campos.
+
+        As of https://bugs.webkit.org/show_bug.cgi?id=213063, Darwin platforms
+        use the RunLoop. Let's match them for consistency, and to delete some
+        code.
+
+        * wtf/generic/MainThreadGeneric.cpp:
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+        (WTF::MainThreadDispatcher::MainThreadDispatcher): Deleted.
+        (WTF::MainThreadDispatcher::schedule): Deleted.
+        (WTF::MainThreadDispatcher::fired): Deleted.
+        * wtf/glib/RunLoopSourcePriority.h:
+        * wtf/win/MainThreadWin.cpp:
+        (WTF::initializeMainThreadPlatform):
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+        (WTF::ThreadingWindowWndProc): Deleted.
+
+2020-06-29  Guowei Yang  <guowei_yang@apple.com>
+
+        Adding Experimental Feature Flags for CoreImage backed SVG/CSS Filters
+        https://bugs.webkit.org/show_bug.cgi?id=213578
+
+        Reviewed by Darin Adler, Simon Fraser, Myles C. Maxfield.
+
+        Preparing to implement CoreImage backed filter rendering
+        Needs Compiler guards and experimental feature guard.
+
+        * wtf/PlatformEnableCocoa.h: Added definition of a feature flag, 
+          ENABLE_CORE_IMAGE_ACCELERATED_FILTER_RENDER
+        * wtf/PlatformUse.h:  Added compiler guard #define USE_CORE_IMAGE 1
+          to indicate whether CoreImage code is visible to the compiler
+
+2020-06-29  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Remove ENABLE_STREAMS_API compilation flag
+        https://bugs.webkit.org/show_bug.cgi?id=213728
+
+        Reviewed by Sam Weinig.
+
+        * wtf/PlatformEnable.h:
+
+2020-06-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [WTF] Add more StringView / ASCIILiteral helper functions and add ICUDeleter
+        https://bugs.webkit.org/show_bug.cgi?id=209774
+
+        Reviewed by Ross Kirsling and Darin Adler.
+
+        Add ICUDeleter for cleaner ICU object deletion.
+        Add ICU::majorVersion and ICU::minorVersion to switch the skeleton string in Intl.NumberFormat.
+        Add more features for ASCIILiteral.
+
+        This patch is part of https://bugs.webkit.org/show_bug.cgi?id=209774. I land it separately from
+        Intl.NumberFormat change to unlock the further Intl implementations using ICUDeleter.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/text/ASCIILiteral.h:
+        * wtf/text/StringView.cpp:
+        (WTF::codePointCompare):
+        * wtf/text/StringView.h:
+        (WTF::StringView::StringView):
+        * wtf/unicode/icu/ICUHelpers.cpp: Copied from Source/WTF/wtf/text/ASCIILiteral.h.
+        (WTF::ICU::version):
+        (WTF::ICU::majorVersion):
+        (WTF::ICU::minorVersion):
+        * wtf/unicode/icu/ICUHelpers.h:
+        (WTF::ICUDeleter::operator()):
+
+2020-06-28  Geoffrey Garen  <ggaren@apple.com>
+
+        Rename initializeThreading to initialize
+        https://bugs.webkit.org/show_bug.cgi?id=213674
+
+        Reviewed by Mark Lam.
+
+        Reasons:
+
+        (1) You need to call it even if you don't use threads.
+
+        (2) It initializes things unrelated to threads (like the PRNG).
+
+        (3) People seem to get confused about the relationship between
+        initializeThreading() and initializeMainThread(), and sometimes think
+        initializeThreading() is a superset. The opposite is true! I think the
+        confusion may come from "threading" being read as "all threading".
+
+        Some filenames still use the legacy name. We can fix that in post.
+
+        * benchmarks/ConditionSpeedTest.cpp:
+        (main):
+        * benchmarks/HashSetDFGReplay.cpp:
+        (main):
+        * benchmarks/LockFairnessTest.cpp:
+        (main):
+        * benchmarks/LockSpeedTest.cpp:
+        (main):
+        * wtf/MainThread.cpp:
+        (WTF::initializeMainThread):
+        * wtf/Threading.cpp:
+        (WTF::Thread::create):
+        (WTF::initialize):
+        (WTF::initializeThreading): Deleted.
+        * wtf/Threading.h:
+        (WTF::Thread::current):
+
+2020-06-27  Sam Weinig  <weinig@apple.com>
+
+        Improve assertions in StringParsingBuffer 
+        https://bugs.webkit.org/show_bug.cgi?id=213633
+
+        Reviewed by Darin Adler.
+
+        * wtf/text/StringParsingBuffer.h:
+        Address additional feedback and improve the assertions by making them more
+        clear and avoid potential overflows.
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        Re-land r262863
+        https://bugs.webkit.org/show_bug.cgi?id=213654
+
+        Reviewed by Tadeu Zagallo.
+
+        r263575 should fix the crash we saw.
+
+        * wtf/cocoa/MainThreadCocoa.mm:
+        (WTF::initializeMainThreadPlatform):
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+        (-[JSWTFMainThreadCaller call]): Deleted.
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        Initializing the main thread should initialize the main run loop
+        https://bugs.webkit.org/show_bug.cgi?id=213637
+
+        Reviewed by Anders Carlsson.
+
+        Previously, some code initialized one, some the other, and some both;
+        and some code tried to initialize more than once; and some code tried
+        to initialize in ways that would crash but luckily got pre-empted by
+        other code that had already initialized.
+
+        In addition to general confusion, this setup made it subtly high stakes
+        to call certain functions, like callOnMainThread or
+        RunLoop::main().dispatch(), because they might crash if the right
+        initialization had not been performed.
+
+        Let's fix that.
+
+        * wtf/MainThread.cpp:
+        (WTF::initializeMainThread): Removed defunct comment about
+        initializeMainThreadToProcessMainThread. Shrank scope of initializeKey.
+        * wtf/RunLoop.cpp:
+        (WTF::RunLoop::initializeMain): Don't call initializeMainThread anymore
+        because it calls us now. No need for a store fence since we run on the
+        main thread and we don't store anything.
+        (WTF::RunLoop::initializeWeb): Upgrade to RELEASE_ASSERT.
+        * wtf/RunLoop.h: Removed incorrect comment. (Fascinating to wonder when
+        it became incorrect.)
+
+2020-06-25  Sam Weinig  <weinig@apple.com>
+
+        Add a new templated string type to help write more idiomatic parsing code
+        https://bugs.webkit.org/show_bug.cgi?id=213588
+
+        Reviewed by Darin Adler.
+        
+        Introduce StringParsingBuffer<CharType>, a new class in the String class family
+        designed to be used by parsing code. It's designed to be used with the helper
+        function, readCharactersForParsing, and for the user to write the parsing code
+        in a way that will work for both latin1 and UTF-16 inputs. Most usage will likely
+        follow something like the following form
+        
+        {
+            ...
+            auto parsedResult = readCharactersForParsing(stringishObjectToParse, [](auto parsingBuffer) {
+                while (parsingBuffer.hasCharactersRemaining()) {
+                    if (*parsingBuffer == foo) {
+                        ...
+                    }
+                }
+
+                ...
+
+                return parsedResult
+            });
+            ...
+        }
+
+        API tests added.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        Add StringParsingBuffer.h
+
+        * wtf/Forward.h:
+        Forward declare StringParsingBuffer.
+
+        * wtf/text/StringParsingBuffer.h: 
+        Added.
+
+2020-06-25  Tadeu Zagallo  <tzagallo@apple.com>
+
+        WTF::callOnMainThread should not require the main runloop to be initialized
+        https://bugs.webkit.org/show_bug.cgi?id=213612
+        <rdar://problem/64446028>
+
+        Reviewed by Yusuke Suzuki.
+
+        When using JavaScriptCore as a framework, the WTF main runloop is never initialized. However,
+        the inspector uses CFString wrappers, which use `callOnMainThread` when deallocating the
+        underlying string. For now, we bring back the old `JSWTFMainThreadCaller` to ensure we have
+        a way of dispatching to the main thread, even when the main runloop hasn't been initialized.
+
+        * wtf/RunLoop.cpp:
+        (WTF::RunLoop::mainIfExists):
+        * wtf/RunLoop.h:
+        * wtf/cocoa/MainThreadCocoa.mm:
+        (-[JSWTFMainThreadCaller call]):
+        (WTF::initializeMainThreadPlatform):
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+
+2020-06-24  Umar Iqbal  <uiqbal@apple.com>
+
+        We should resurrect the older patch that collects some statistics of web API calls
+        https://bugs.webkit.org/show_bug.cgi?id=213319
+
+        Reviewed by Brent Fulgham.
+
+        + Enabled ENABLE_WEB_API_STATISTICS flag
+        
+        * wtf/PlatformEnableCocoa.h:
+
+2020-06-24  Geoffrey Garen  <ggaren@apple.com>
+
+        Removed the 50ms rescheduling timeout from callOnMainThread
+        https://bugs.webkit.org/show_bug.cgi?id=213560
+
+        Reviewed by Anders Carlsson.
+
+        This is a step toward making the engine less flaky by unifying
+        callOnMainThread with RunLoop::dispatch.
+
+        The timeout was added in r40888 to avoid a hang under heavy postMessage
+        load. A few reasons this isn’t the right approach anymore:
+
+        (1) postMessage has migrated to EventLoop, which does its own
+        scheduling.
+
+        (2) postMessage does not use the application process RunLoop in Modern
+        WebKit.
+
+        (3) Delay is not a sufficient solution to a messaging hang — because
+        you’ll just OOM crash instead. The original author noted this problem
+        in bug 23705 but never resolved it; and we rediscovered it in r233111.
+
+        I verified manually that the r40888 version of
+        fast/workers/worker-timeout.html does not hang.
+
+        * wtf/MainThread.cpp:
+        (WTF::dispatchFunctionsFromMainThread):
+
+2020-06-23  Geoffrey Garen  <ggaren@apple.com>
+
+        Remove WTF::setMainThreadCallbacksPaused
+        https://bugs.webkit.org/show_bug.cgi?id=213112
+
+        Reviewed by Tim Horton.
+
+        setMainThreadCallbacksPaused pauses all uses of callOnMainThread. That
+        has too many side-effects. For example, you can scroll, but you can't
+        paint any large images (since they do async image decoding).
+
+        Meanwhile, setMainThreadCallbacksPaused doesn't pause RunLoop::dispatch.
+        So, other things don't get paused.
+
+        Let's just rely on suspending the ScriptExecutionContext and document
+        event queue. That should suspend JavaScript-visible stuff without
+        suspending engine-critical stuff.
+
+        * wtf/MainThread.cpp:
+        (WTF::dispatchFunctionsFromMainThread):
+        (WTF::setMainThreadCallbacksPaused): Deleted.
+        * wtf/MainThread.h:
+
+2020-06-23  Chris Dumez  <cdumez@apple.com>
+
+        Remove a lot of unnecessary calls to Ref::copyRef()
+        https://bugs.webkit.org/show_bug.cgi?id=213533
+
+        Reviewed by Darin Adler.
+
+        Remove a lot of unnecessary calls to Ref::copyRef() now that Ref is copyable.
+
+        * wtf/glib/SocketConnection.cpp:
+        (WTF::SocketConnection::waitForSocketWritability):
+
+2020-06-23  Saam Barati  <sbarati@apple.com>
+
+        Remove WKkIsTranslated once our bots are updated to the needed SDK
+        https://bugs.webkit.org/show_bug.cgi?id=213489
+
+        Reviewed by Tim Horton.
+
+        We can use the "sysctl.proc_translated" sysctl instead.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/TranslatedProcess.cpp: Added.
+        (WTF::isX86BinaryRunningOnARM):
+        * wtf/TranslatedProcess.h:
+        (WTF::isX86BinaryRunningOnARM):
+
 2020-06-23  Mark Lam  <mark.lam@apple.com>
 
         Handle string overflow in DFG graph dump while validating AI.

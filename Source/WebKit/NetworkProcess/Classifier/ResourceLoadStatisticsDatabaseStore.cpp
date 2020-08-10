@@ -57,13 +57,8 @@
 namespace WebKit {
 using namespace WebCore;
 
-#if PLATFORM(COCOA)
 #define RELEASE_LOG_IF_ALLOWED(sessionID, fmt, ...) RELEASE_LOG_IF(sessionID.isAlwaysOnLoggingAllowed(), Network, "%p - ResourceLoadStatisticsDatabaseStore::" fmt, this, ##__VA_ARGS__)
 #define RELEASE_LOG_ERROR_IF_ALLOWED(sessionID, fmt, ...) RELEASE_LOG_ERROR_IF(sessionID.isAlwaysOnLoggingAllowed(), Network, "%p - ResourceLoadStatisticsDatabaseStore::" fmt, this, ##__VA_ARGS__)
-#else
-#define RELEASE_LOG_IF_ALLOWED(sessionID, fmt, ...)  ((void)0)
-#define RELEASE_LOG_ERROR_IF_ALLOWED(sessionID, fmt, ...)  ((void)0)
-#endif
 
 // COUNT Queries
 constexpr auto observedDomainCountQuery = "SELECT COUNT(*) FROM ObservedDomains"_s;
@@ -926,24 +921,22 @@ void ResourceLoadStatisticsDatabaseStore::mergeStatistics(Vector<ResourceLoadSta
 
 static const StringView joinSubStatisticsForSorting()
 {
-    return R"query(
-        domainID,
-        (countSubFrameUnderTopFrame + countSubResourceUnderTopFrame + countUniqueRedirectTo) as sum
-        FROM (
-        SELECT
-            domainID,
-            COUNT(DISTINCT f.topFrameDomainID) as countSubFrameUnderTopFrame,
-            COUNT(DISTINCT r.topFrameDomainID) as countSubResourceUnderTopFrame,
-            COUNT(DISTINCT toDomainID) as countUniqueRedirectTo
-        FROM
-        ObservedDomains o
-        LEFT JOIN SubframeUnderTopFrameDomains f ON o.domainID = f.subFrameDomainID
-        LEFT JOIN SubresourceUnderTopFrameDomains r ON o.domainID = r.subresourceDomainID
-        LEFT JOIN SubresourceUniqueRedirectsTo u ON o.domainID = u.subresourceDomainID
-        WHERE isPrevalent LIKE ?
-        and hadUserInteraction LIKE ?
-        GROUP BY domainID) ORDER BY sum DESC
-        )query";
+    return "domainID,"
+        "(countSubFrameUnderTopFrame + countSubResourceUnderTopFrame + countUniqueRedirectTo) as sum  "
+        "FROM ( "
+        "SELECT "
+            "domainID, "
+            "COUNT(DISTINCT f.topFrameDomainID) as countSubFrameUnderTopFrame, "
+            "COUNT(DISTINCT r.topFrameDomainID) as countSubResourceUnderTopFrame, "
+            "COUNT(DISTINCT toDomainID) as countUniqueRedirectTo "
+        "FROM "
+        "ObservedDomains o "
+        "LEFT JOIN SubframeUnderTopFrameDomains f ON o.domainID = f.subFrameDomainID "
+        "LEFT JOIN SubresourceUnderTopFrameDomains r ON o.domainID = r.subresourceDomainID "
+        "LEFT JOIN SubresourceUniqueRedirectsTo u ON o.domainID = u.subresourceDomainID "
+        "WHERE isPrevalent LIKE ? "
+        "and hadUserInteraction LIKE ? "
+        "GROUP BY domainID) ORDER BY sum DESC ";
 }
 
 static SQLiteStatement makeMedianWithUIQuery(SQLiteDatabase& database)
@@ -1254,14 +1247,14 @@ void ResourceLoadStatisticsDatabaseStore::calculateTelemetryData(PrevalentResour
     }
 }
 
-void ResourceLoadStatisticsDatabaseStore::calculateAndSubmitTelemetry() const
+void ResourceLoadStatisticsDatabaseStore::calculateAndSubmitTelemetry(NotifyPagesForTesting shouldNotifyPagesForTesting) const
 {
     ASSERT(!RunLoop::isMain());
 
     if (parameters().shouldSubmitTelemetry) {
         PrevalentResourceDatabaseTelemetry prevalentResourceDatabaseTelemetry;
         calculateTelemetryData(prevalentResourceDatabaseTelemetry);
-        WebResourceLoadStatisticsTelemetry::submitTelemetry(*this, prevalentResourceDatabaseTelemetry);
+        WebResourceLoadStatisticsTelemetry::submitTelemetry(*this, prevalentResourceDatabaseTelemetry, shouldNotifyPagesForTesting);
     }
 }
 
@@ -1499,7 +1492,7 @@ void ResourceLoadStatisticsDatabaseStore::hasStorageAccess(const SubFrameDomain&
         return;
     case CookieAccess::BasedOnCookiePolicy:
         RunLoop::main().dispatch([store = makeRef(store()), subFrameDomain = subFrameDomain.isolatedCopy(), completionHandler = WTFMove(completionHandler)]() mutable {
-            store->hasCookies(subFrameDomain, [store = store.copyRef(), completionHandler = WTFMove(completionHandler)](bool result) mutable {
+            store->hasCookies(subFrameDomain, [store, completionHandler = WTFMove(completionHandler)](bool result) mutable {
                 store->statisticsQueue().dispatch([completionHandler = WTFMove(completionHandler), result] () mutable {
                     completionHandler(result);
                 });
@@ -1512,7 +1505,7 @@ void ResourceLoadStatisticsDatabaseStore::hasStorageAccess(const SubFrameDomain&
     };
 
     RunLoop::main().dispatch([store = makeRef(store()), subFrameDomain = subFrameDomain.isolatedCopy(), topFrameDomain = topFrameDomain.isolatedCopy(), frameID, pageID, completionHandler = WTFMove(completionHandler)]() mutable {
-        store->callHasStorageAccessForFrameHandler(subFrameDomain, topFrameDomain, frameID.value(), pageID, [store = store.copyRef(), completionHandler = WTFMove(completionHandler)](bool result) mutable {
+        store->callHasStorageAccessForFrameHandler(subFrameDomain, topFrameDomain, frameID.value(), pageID, [store, completionHandler = WTFMove(completionHandler)](bool result) mutable {
             store->statisticsQueue().dispatch([completionHandler = WTFMove(completionHandler), result] () mutable {
                 completionHandler(result);
             });
@@ -1639,7 +1632,7 @@ void ResourceLoadStatisticsDatabaseStore::grantStorageAccessInternal(SubFrameDom
     }
 
     RunLoop::main().dispatch([subFrameDomain = subFrameDomain.isolatedCopy(), topFrameDomain = topFrameDomain.isolatedCopy(), frameID, pageID, store = makeRef(store()), scope, completionHandler = WTFMove(completionHandler)]() mutable {
-        store->callGrantStorageAccessHandler(subFrameDomain, topFrameDomain, frameID, pageID, scope, [completionHandler = WTFMove(completionHandler), store = store.copyRef()](StorageAccessWasGranted wasGranted) mutable {
+        store->callGrantStorageAccessHandler(subFrameDomain, topFrameDomain, frameID, pageID, scope, [completionHandler = WTFMove(completionHandler), store](StorageAccessWasGranted wasGranted) mutable {
             store->statisticsQueue().dispatch([wasGranted, completionHandler = WTFMove(completionHandler)] () mutable {
                 completionHandler(wasGranted);
             });
@@ -2284,11 +2277,11 @@ void ResourceLoadStatisticsDatabaseStore::clear(CompletionHandler<void()>&& comp
 
     auto callbackAggregator = CallbackAggregator::create(WTFMove(completionHandler));
 
-    removeAllStorageAccess([callbackAggregator = callbackAggregator.copyRef()] { });
+    removeAllStorageAccess([callbackAggregator] { });
 
     auto registrableDomainsToBlockAndDeleteCookiesFor = ensurePrevalentResourcesForDebugMode();
     RegistrableDomainsToBlockCookiesFor domainsToBlock { registrableDomainsToBlockAndDeleteCookiesFor, { }, { } };
-    updateCookieBlockingForDomains(domainsToBlock, [callbackAggregator = callbackAggregator.copyRef()] { });
+    updateCookieBlockingForDomains(domainsToBlock, [callbackAggregator] { });
 }
 
 bool ResourceLoadStatisticsDatabaseStore::areAllThirdPartyCookiesBlockedUnder(const TopFrameDomain& topFrameDomain)
@@ -2406,7 +2399,7 @@ void ResourceLoadStatisticsDatabaseStore::updateCookieBlocking(CompletionHandler
         debugLogDomainsInBatches("Applying cross-site tracking restrictions", domainsToBlock);
 
     RunLoop::main().dispatch([weakThis = makeWeakPtr(*this), store = makeRef(store()), domainsToBlock = crossThreadCopy(domainsToBlock), completionHandler = WTFMove(completionHandler)] () mutable {
-        store->callUpdatePrevalentDomainsToBlockCookiesForHandler(domainsToBlock, [weakThis = WTFMove(weakThis), store = store.copyRef(), completionHandler = WTFMove(completionHandler)]() mutable {
+        store->callUpdatePrevalentDomainsToBlockCookiesForHandler(domainsToBlock, [weakThis = WTFMove(weakThis), store, completionHandler = WTFMove(completionHandler)]() mutable {
             store->statisticsQueue().dispatch([weakThis = WTFMove(weakThis), completionHandler = WTFMove(completionHandler)]() mutable {
                 completionHandler();
 

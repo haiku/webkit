@@ -100,9 +100,9 @@ void ScrollAnimator::scrollToOffset(const FloatPoint& offset)
 
 void ScrollAnimator::scrollToOffsetWithoutAnimation(const FloatPoint& offset, ScrollClamping)
 {
-    FloatPoint newPositon = ScrollableArea::scrollPositionFromOffset(offset, toFloatSize(m_scrollableArea.scrollOrigin()));
-    FloatSize delta = newPositon - currentPosition();
-    m_currentPosition = newPositon;
+    FloatPoint newPosition = ScrollableArea::scrollPositionFromOffset(offset, toFloatSize(m_scrollableArea.scrollOrigin()));
+    FloatSize delta = newPosition - currentPosition();
+    m_currentPosition = newPosition;
     notifyPositionChanged(delta);
     updateActiveScrollSnapIndexForOffset();
 }
@@ -129,7 +129,7 @@ unsigned ScrollAnimator::activeScrollSnapIndexForAxis(ScrollEventAxis axis) cons
 bool ScrollAnimator::handleWheelEvent(const PlatformWheelEvent& e)
 {
 #if ENABLE(CSS_SCROLL_SNAP) && PLATFORM(MAC)
-    if (!m_scrollController.processWheelEventForScrollSnap(e))
+    if (m_scrollController.processWheelEventForScrollSnap(e))
         return false;
 #endif
 #if PLATFORM(COCOA)

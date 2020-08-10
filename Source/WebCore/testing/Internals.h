@@ -37,6 +37,7 @@
 #include "RealtimeMediaSource.h"
 #include "SleepDisabler.h"
 #include "TextIndicator.h"
+#include "VP9Utilities.h"
 #include <JavaScriptCore/Float32Array.h>
 #include <wtf/Optional.h>
 
@@ -326,6 +327,7 @@ public:
 
     ExceptionOr<uint64_t> lastSpellCheckRequestSequence();
     ExceptionOr<uint64_t> lastSpellCheckProcessedSequence();
+    void advanceToNextMisspelling();
 
     Vector<String> userPreferredLanguages() const;
     void setUserPreferredLanguages(const Vector<String>&);
@@ -596,6 +598,8 @@ public:
     void stopPeerConnection(RTCPeerConnection&);
     void clearPeerConnectionFactory();
     void applyRotationForOutgoingVideoSources(RTCPeerConnection&);
+    void setWebRTCH265Support(bool);
+    void setWebRTCVP9Support(bool);
     void setEnableWebRTCEncryption(bool);
     void setUseDTLS10(bool);
     void setUseGPUProcessForWebRTC(bool);
@@ -705,6 +709,7 @@ public:
 
 #if ENABLE(CSS_SCROLL_SNAP)
     ExceptionOr<String> scrollSnapOffsets(Element&);
+    ExceptionOr<bool> isScrollSnapInProgress(Element&);
     void setPlatformMomentumScrollingPredictionEnabled(bool);
 #endif
 
@@ -718,10 +723,8 @@ public:
     String resourceLoadStatisticsForURL(const DOMURL&);
     void setResourceLoadStatisticsEnabled(bool);
 
-#if ENABLE(STREAMS_API)
     bool isReadableStreamDisturbed(JSC::JSGlobalObject&, JSC::JSValue);
     JSC::JSValue cloneArrayBuffer(JSC::JSGlobalObject&, JSC::JSValue, JSC::JSValue, JSC::JSValue);
-#endif
 
     String composedTreeAsText(Node&);
 
@@ -800,6 +803,7 @@ public:
     bool audioSessionActive() const;
 
     void storeRegistrationsOnDisk(DOMPromiseDeferred<void>&&);
+    void sendH2Ping(String url, DOMPromiseDeferred<IDLDouble>&&);
 
     void clearCacheStorageMemoryRepresentation(DOMPromiseDeferred<void>&&);
     void cacheStorageEngineRepresentation(DOMPromiseDeferred<IDLDOMString>&&);
@@ -912,6 +916,9 @@ public:
     using DoViParameterSet = WebCore::DoViParameterSet;
     Optional<DoViParameterSet> parseDoViCodecParameters(const String& codecString);
 
+    using VPCodecConfigurationRecord = WebCore::VPCodecConfigurationRecord;
+    Optional<VPCodecConfigurationRecord> parseVPCodecParameters(const String& codecString);
+
     struct CookieData {
         String name;
         String value;
@@ -1011,6 +1018,12 @@ public:
 
     bool systemHasBattery() const;
 
+    void setSystemHasBatteryForTesting(bool);
+    void setSystemHasACForTesting(bool);
+
+    void setHardwareVP9DecoderDisabledForTesting(bool);
+    void setVP9ScreenSizeAndScaleForTesting(double, double, double);
+
     int readPreferenceInteger(const String& domain, const String& key);
     String encodedPreferenceValue(const String& domain, const String& key);
 
@@ -1033,6 +1046,9 @@ public:
     unsigned mediaKeysInternalInstanceObjectRefCount(const MediaKeys&) const;
     unsigned mediaKeySessionInternalInstanceSessionObjectRefCount(const MediaKeySession&) const;
 #endif
+
+    enum class ContentSizeCategory { L, XXXL };
+    void setContentSizeCategory(ContentSizeCategory);
 
 private:
     explicit Internals(Document&);

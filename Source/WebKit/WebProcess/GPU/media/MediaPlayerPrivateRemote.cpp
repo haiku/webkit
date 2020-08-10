@@ -47,6 +47,7 @@
 #include <WebCore/NotImplemented.h>
 #include <WebCore/PlatformLayer.h>
 #include <WebCore/PlatformTimeRanges.h>
+#include <WebCore/ResourceError.h>
 #include <wtf/HashMap.h>
 #include <wtf/MachSendRight.h>
 #include <wtf/MainThread.h>
@@ -143,7 +144,7 @@ void MediaPlayerPrivateRemote::MediaPlayerPrivateRemote::load(const URL& url, co
         auto fileSystemPath = url.fileSystemPath();
 
         auto createExtension = [&] {
-#if HAVE(SANDBOX_ISSUE_READ_EXTENSION_TO_PROCESS_BY_AUDIT_TOKEN)
+#if HAVE(AUDIT_TOKEN)
             if (auto auditToken = m_manager.gpuProcessConnection().auditToken())
                 return SandboxExtension::createHandleForReadByAuditToken(fileSystemPath, auditToken.value(), handle);
 #endif
@@ -1104,6 +1105,11 @@ void MediaPlayerPrivateRemote::requestResource(RemoteMediaResourceIdentifier rem
     m_mediaResources.add(remoteMediaResourceIdentifier, WTFMove(resource));
 
     completionHandler();
+}
+
+void MediaPlayerPrivateRemote::sendH2Ping(const URL& url, CompletionHandler<void(Expected<WTF::Seconds, WebCore::ResourceError>&&)>&& completionHandler)
+{
+    m_mediaResourceLoader->sendH2Ping(url, WTFMove(completionHandler));
 }
 
 void MediaPlayerPrivateRemote::removeResource(RemoteMediaResourceIdentifier remoteMediaResourceIdentifier)

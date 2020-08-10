@@ -50,15 +50,15 @@ static void runInitializationCode(void* = nullptr)
     InitWebCoreThreadSystemInterface();
 #endif
 
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
 
     WTF::RefCountedBase::enableThreadingChecksGlobally();
 }
 
 void InitializeWebKit2()
 {
-    // Make sure the initialization code is run only once and on the main thread since things like RunLoop::initializeMain()
+    // Make sure the initialization code is run only once and on the main thread since things like initializeMainThread()
     // are only safe to call on the main thread.
     std::call_once(flag, [] {
         if ([NSThread isMainThread] || linkedOnOrAfter(SDKVersion::FirstWithInitializeWebKit2MainThreadAssertion))

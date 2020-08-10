@@ -467,25 +467,24 @@ WebKit::WebsiteDataStore& webkitWebsiteDataManagerGetDataStore(WebKitWebsiteData
     WebKitWebsiteDataManagerPrivate* priv = manager->priv;
     if (!priv->websiteDataStore) {
         auto configuration = WebsiteDataStoreConfiguration::create(IsPersistent::Yes);
-        configuration->setLocalStorageDirectory(!priv->localStorageDirectory ?
-            WebKit::WebsiteDataStore::defaultLocalStorageDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->localStorageDirectory.get()));
-        configuration->setNetworkCacheDirectory(!priv->diskCacheDirectory ?
-            WebKit::WebsiteDataStore::defaultNetworkCacheDirectory() : FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(priv->diskCacheDirectory.get()), networkCacheSubdirectory));
-        configuration->setApplicationCacheDirectory(!priv->applicationCacheDirectory ?
-            WebKit::WebsiteDataStore::defaultApplicationCacheDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->applicationCacheDirectory.get()));
-        configuration->setIndexedDBDatabaseDirectory(!priv->indexedDBDirectory ?
-            WebKit::WebsiteDataStore::defaultIndexedDBDatabaseDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->indexedDBDirectory.get()));
-        configuration->setWebSQLDatabaseDirectory(!priv->webSQLDirectory ?
-            WebKit::WebsiteDataStore::defaultWebSQLDatabaseDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->webSQLDirectory.get()));
-        configuration->setHSTSStorageDirectory(!priv->hstsCacheDirectory ?
-            WebKit::WebsiteDataStore::defaultHSTSDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->hstsCacheDirectory.get()));
-        configuration->setResourceLoadStatisticsDirectory(!priv->itpDirectory ?
-            WebKit::WebsiteDataStore::defaultResourceLoadStatisticsDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->itpDirectory.get()));
-        configuration->setServiceWorkerRegistrationDirectory(!priv->swRegistrationsDirectory ?
-            WebKit::WebsiteDataStore::defaultServiceWorkerRegistrationDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->swRegistrationsDirectory.get()));
-        configuration->setCacheStorageDirectory(!priv->domCacheDirectory ?
-            WebKit::WebsiteDataStore::defaultCacheStorageDirectory() : FileSystem::stringFromFileSystemRepresentation(priv->domCacheDirectory.get()));
-        configuration->setMediaKeysStorageDirectory(WebKit::WebsiteDataStore::defaultMediaKeysStorageDirectory());
+        if (priv->localStorageDirectory)
+            configuration->setLocalStorageDirectory(FileSystem::stringFromFileSystemRepresentation(priv->localStorageDirectory.get()));
+        if (priv->diskCacheDirectory)
+            configuration->setNetworkCacheDirectory(FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(priv->diskCacheDirectory.get()), networkCacheSubdirectory));
+        if (priv->applicationCacheDirectory)
+            configuration->setApplicationCacheDirectory(FileSystem::stringFromFileSystemRepresentation(priv->applicationCacheDirectory.get()));
+        if (priv->indexedDBDirectory)
+            configuration->setIndexedDBDatabaseDirectory(FileSystem::stringFromFileSystemRepresentation(priv->indexedDBDirectory.get()));
+        if (priv->webSQLDirectory)
+            configuration->setWebSQLDatabaseDirectory(FileSystem::stringFromFileSystemRepresentation(priv->webSQLDirectory.get()));
+        if (priv->hstsCacheDirectory)
+            configuration->setHSTSStorageDirectory(FileSystem::stringFromFileSystemRepresentation(priv->hstsCacheDirectory.get()));
+        if (priv->itpDirectory)
+            configuration->setResourceLoadStatisticsDirectory(FileSystem::stringFromFileSystemRepresentation(priv->itpDirectory.get()));
+        if (priv->swRegistrationsDirectory)
+            configuration->setServiceWorkerRegistrationDirectory(FileSystem::stringFromFileSystemRepresentation(priv->swRegistrationsDirectory.get()));
+        if (priv->domCacheDirectory)
+            configuration->setCacheStorageDirectory(FileSystem::stringFromFileSystemRepresentation(priv->domCacheDirectory.get()));
         priv->websiteDataStore = WebKit::WebsiteDataStore::create(WTFMove(configuration), PAL::SessionID::defaultSessionID());
     }
 
@@ -842,8 +841,8 @@ WebKitCookieManager* webkit_website_data_manager_get_cookie_manager(WebKitWebsit
  *
  * Enable or disable Intelligent Tracking Prevention (ITP). When ITP is enabled resource load statistics
  * are collected and used to decide whether to allow or block third-party cookies and prevent user tracking.
- * Note that when ITP is enabled the resources for which cookies are allowed will follow the accept policy
- * set with webkit_cookie_manager_set_accept_policy().
+ * Note that while ITP is enabled the accept policy %WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY is ignored and
+ * %WEBKIT_COOKIE_POLICY_ACCEPT_ALWAYS is used instead. See also webkit_cookie_manager_set_accept_policy().
  *
  * Since: 2.30
  */
@@ -869,6 +868,42 @@ gboolean webkit_website_data_manager_get_itp_enabled(WebKitWebsiteDataManager* m
     g_return_val_if_fail(WEBKIT_IS_WEBSITE_DATA_MANAGER(manager), FALSE);
 
     return webkitWebsiteDataManagerGetDataStore(manager).resourceLoadStatisticsEnabled();
+}
+
+/**
+ * webkit_website_data_manager_set_persistent_credential_storage_enabled:
+ * @manager: a #WebKitWebsiteDataManager
+ * @enabled: value to set
+ *
+ * Enable or disable persistent credential storage. When enabled, which is the default for
+ * non-ephemeral sessions, the network process will try to read and write HTTP authentiacation
+ * credentials from persistent storage.
+ *
+ * Since: 2.30
+ */
+void webkit_website_data_manager_set_persistent_credential_storage_enabled(WebKitWebsiteDataManager* manager, gboolean enabled)
+{
+    g_return_if_fail(WEBKIT_IS_WEBSITE_DATA_MANAGER(manager));
+
+    webkitWebsiteDataManagerGetDataStore(manager).setPersistentCredentialStorageEnabled(enabled);
+}
+
+/**
+ * webkit_website_data_manager_get_persistent_credential_storage_enabled:
+ * @manager: a #WebKitWebsiteDataManager
+ *
+ * Get whether persistent credential storage is enabled or not.
+ * See also webkit_website_data_manager_set_persistent_credential_storage_enabled().
+ *
+ * Returns: %TRUE if persistent credential storage is enabled, or %FALSE otherwise.
+ *
+ * Since: 2.30
+ */
+gboolean webkit_website_data_manager_get_persistent_credential_storage_enabled(WebKitWebsiteDataManager* manager)
+{
+    g_return_val_if_fail(WEBKIT_IS_WEBSITE_DATA_MANAGER(manager), FALSE);
+
+    return webkitWebsiteDataManagerGetDataStore(manager).persistentCredentialStorageEnabled();
 }
 
 static OptionSet<WebsiteDataType> toWebsiteDataTypes(WebKitWebsiteDataTypes types)

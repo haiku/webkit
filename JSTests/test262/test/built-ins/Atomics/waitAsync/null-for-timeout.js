@@ -19,6 +19,7 @@ info: |
 features: [Atomics.waitAsync, SharedArrayBuffer, Symbol, Symbol.toPrimitive, TypedArray, computed-property-names, Atomics, arrow-function]
 flags: [async]
 ---*/
+assert.sameValue(typeof Atomics.waitAsync, 'function');
 
 const i32a = new Int32Array(
   new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 4)
@@ -60,4 +61,4 @@ Promise.all([
     assert.sameValue(outcomes[0], "timed-out");
     assert.sameValue(outcomes[1], "timed-out");
     assert.sameValue(outcomes[2], "timed-out");
-  }, $DONE).then($DONE, $DONE);
+  }).then($DONE, $DONE);

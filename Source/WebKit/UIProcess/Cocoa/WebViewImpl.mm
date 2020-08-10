@@ -84,6 +84,7 @@
 #import <WebCore/ActivityState.h>
 #import <WebCore/AttributedString.h>
 #import <WebCore/ColorMac.h>
+#import <WebCore/ColorSerialization.h>
 #import <WebCore/CompositionHighlight.h>
 #import <WebCore/DictionaryLookup.h>
 #import <WebCore/DragData.h>
@@ -832,7 +833,7 @@ static const NSUInteger orderedListSegment = 2;
         return;
 
     _textColor = self.colorPickerItem.color;
-    _webViewImpl->page().executeEditCommand("ForeColor", WebCore::colorFromNSColor(_textColor.get()).serialized());
+    _webViewImpl->page().executeEditCommand("ForeColor", WebCore::serializationForHTML(WebCore::colorFromNSColor(_textColor.get())));
 }
 
 - (NSViewController *)textListViewController
@@ -1500,7 +1501,7 @@ void WebViewImpl::setDrawsBackground(bool drawsBackground)
 {
     Optional<WebCore::Color> backgroundColor;
     if (!drawsBackground)
-        backgroundColor = WebCore::Color(WebCore::Color::transparent);
+        backgroundColor = WebCore::Color(WebCore::Color::transparentBlack);
     m_page->setBackgroundColor(backgroundColor);
 
     // Make sure updateLayer gets called on the web view.
@@ -2881,7 +2882,7 @@ void WebViewImpl::updateFontManagerIfNeeded()
         if (error != CallbackBase::Error::None)
             return;
 
-        BEGIN_BLOCK_OBJC_EXCEPTIONS;
+        BEGIN_BLOCK_OBJC_EXCEPTIONS
 
         NSDictionary *attributeDictionary = (__bridge NSDictionary *)fontInfo.fontAttributeDictionary.get();
         if (!attributeDictionary)
@@ -4919,13 +4920,8 @@ void WebViewImpl::selectedRangeWithCompletionHandler(void(^completionHandlerPtr)
     auto completionHandler = adoptNS([completionHandlerPtr copy]);
 
     LOG(TextInput, "selectedRange");
-    m_page->getSelectedRangeAsync([completionHandler](const EditingRange& editingRangeResult, WebKit::CallbackBase::Error error) {
+    m_page->getSelectedRangeAsync([completionHandler](const EditingRange& editingRangeResult) {
         void (^completionHandlerBlock)(NSRange) = (void (^)(NSRange))completionHandler.get();
-        if (error != WebKit::CallbackBase::Error::None) {
-            LOG(TextInput, "    ...selectedRange failed.");
-            completionHandlerBlock(NSMakeRange(NSNotFound, 0));
-            return;
-        }
         NSRange result = editingRangeResult;
         if (result.location == NSNotFound)
             LOG(TextInput, "    -> selectedRange returned (NSNotFound, %llu)", result.length);
@@ -4940,13 +4936,8 @@ void WebViewImpl::markedRangeWithCompletionHandler(void(^completionHandlerPtr)(N
     auto completionHandler = adoptNS([completionHandlerPtr copy]);
 
     LOG(TextInput, "markedRange");
-    m_page->getMarkedRangeAsync([completionHandler](const EditingRange& editingRangeResult, WebKit::CallbackBase::Error error) {
+    m_page->getMarkedRangeAsync([completionHandler](const EditingRange& editingRangeResult) {
         void (^completionHandlerBlock)(NSRange) = (void (^)(NSRange))completionHandler.get();
-        if (error != WebKit::CallbackBase::Error::None) {
-            LOG(TextInput, "    ...markedRange failed.");
-            completionHandlerBlock(NSMakeRange(NSNotFound, 0));
-            return;
-        }
         NSRange result = editingRangeResult;
         if (result.location == NSNotFound)
             LOG(TextInput, "    -> markedRange returned (NSNotFound, %llu)", result.length);

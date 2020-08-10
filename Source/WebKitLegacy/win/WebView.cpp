@@ -421,8 +421,8 @@ bool WebView::s_allowSiteSpecificHacks = false;
 
 WebView::WebView()
 {
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
     WTF::setProcessPrivileges(allPrivileges());
     WebCore::NetworkStorageSession::permitProcessToUseCookieAPI(true);
 
@@ -5708,7 +5708,7 @@ HRESULT WebView::MIMETypeForExtension(_In_ BSTR extension, _Deref_opt_out_ BSTR*
     if (!mimeType)
         return E_POINTER;
 
-    *mimeType = BString(MIMETypeRegistry::getMIMETypeForExtension(toString(extension))).release();
+    *mimeType = BString(MIMETypeRegistry::mimeTypeForExtension(toString(extension))).release();
 
     return S_OK;
 }
@@ -6284,7 +6284,7 @@ static void compositionToUnderlines(const Vector<DWORD>& clauses, const Vector<B
         underlines[i].endOffset = clauses[i + 1];
         BYTE attribute = attributes[clauses[i]];
         underlines[i].thick = attribute == ATTR_TARGET_CONVERTED || attribute == ATTR_TARGET_NOTCONVERTED;
-        underlines[i].color = makeSimpleColor(0, 0, 0);
+        underlines[i].color = Color::black;
     }
 }
 

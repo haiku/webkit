@@ -146,7 +146,7 @@ public:
     
     void setFocused(bool) override;
     void setSelectedTextRange(const PlainTextRange&) override;
-    void setValue(const String&) override;
+    bool setValue(const String&) override;
     void setSelectedRows(AccessibilityChildrenVector&) override;
     AccessibilityOrientation orientation() const override;
 
@@ -166,7 +166,7 @@ public:
     VisiblePositionRange visiblePositionRange() const override;
     VisiblePositionRange visiblePositionRangeForLine(unsigned) const override;
     IntRect boundsForVisiblePositionRange(const VisiblePositionRange&) const override;
-    IntRect boundsForRange(const RefPtr<Range>) const override;
+    IntRect boundsForRange(const SimpleRange&) const override;
     void setSelectedVisiblePositionRange(const VisiblePositionRange&) const override;
     bool isVisiblePositionRangeInDifferentDocument(const VisiblePositionRange&) const;
     bool hasPopup() const override;

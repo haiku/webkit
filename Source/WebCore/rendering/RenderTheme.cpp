@@ -22,6 +22,7 @@
 #include "RenderTheme.h"
 
 #include "CSSValueKeywords.h"
+#include "ColorBlending.h"
 #include "ControlStates.h"
 #include "Document.h"
 #include "FileList.h"
@@ -294,7 +295,7 @@ bool RenderTheme::paint(const RenderBox& box, ControlStates& controlStates, cons
     if (paintInfo.context().paintingDisabled())
         return false;
 
-    if (UNLIKELY(!paintInfo.context().hasPlatformContext()))
+    if (UNLIKELY(!canPaint(paintInfo)))
         return false;
 
     ControlPart part = box.style().appearance();
@@ -616,7 +617,7 @@ Color RenderTheme::inactiveSelectionBackgroundColor(OptionSet<StyleColor::Option
 
 Color RenderTheme::transformSelectionBackgroundColor(const Color& color, OptionSet<StyleColor::Options>) const
 {
-    return color.blendWithWhite();
+    return blendWithWhite(color);
 }
 
 Color RenderTheme::activeSelectionForegroundColor(OptionSet<StyleColor::Options> options) const
@@ -670,7 +671,7 @@ Color RenderTheme::inactiveListBoxSelectionForegroundColor(OptionSet<StyleColor:
 Color RenderTheme::platformActiveSelectionBackgroundColor(OptionSet<StyleColor::Options>) const
 {
     // Use a blue color by default if the platform theme doesn't define anything.
-    return makeSimpleColor(0, 0, 255);
+    return Color::blue;
 }
 
 Color RenderTheme::platformActiveSelectionForegroundColor(OptionSet<StyleColor::Options>) const
@@ -683,7 +684,7 @@ Color RenderTheme::platformInactiveSelectionBackgroundColor(OptionSet<StyleColor
 {
     // Use a grey color by default if the platform theme doesn't define anything.
     // This color matches Firefox's inactive color.
-    return makeSimpleColor(176, 176, 176);
+    return SRGBA<uint8_t> { 176, 176, 176 };
 }
 
 Color RenderTheme::platformInactiveSelectionForegroundColor(OptionSet<StyleColor::Options>) const
@@ -1033,11 +1034,65 @@ bool RenderTheme::paintAttachment(const RenderObject&, const PaintInfo&, const I
 
 String RenderTheme::colorInputStyleSheet() const
 {
-    ASSERT(RuntimeEnabledFeatures::sharedFeatures().inputTypeColorEnabled());
     return "input[type=\"color\"] { -webkit-appearance: color-well; width: 44px; height: 23px; outline: none; } "_s;
 }
 
 #endif // ENABLE(INPUT_TYPE_COLOR)
+
+#if PLATFORM(IOS_FAMILY)
+#define DATE_INPUT_WIDTH ""
+#else
+#define DATE_INPUT_WIDTH "width: 10em; "
+#endif
+
+#if ENABLE(INPUT_TYPE_DATE)
+
+String RenderTheme::dateInputStyleSheet() const
+{
+    return "input[type=\"date\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
+}
+
+#endif
+
+#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
+
+String RenderTheme::dateTimeLocalInputStyleSheet() const
+{
+    return "input[type=\"datetime-local\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
+}
+
+#endif
+
+#if ENABLE(INPUT_TYPE_MONTH)
+
+String RenderTheme::monthInputStyleSheet() const
+{
+    return "input[type=\"month\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
+}
+
+#endif
+
+#if ENABLE(INPUT_TYPE_TIME)
+
+String RenderTheme::timeInputStyleSheet() const
+{
+    return "input[type=\"time\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
+}
+
+#endif
+
+#if ENABLE(INPUT_TYPE_WEEK)
+
+String RenderTheme::weekInputStyleSheet() const
+{
+#if PLATFORM(IOS_FAMILY)
+    return emptyString();
+#else
+    return "input[type=\"week\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
+#endif
+}
+
+#endif
 
 #if ENABLE(DATALIST_ELEMENT)
 
@@ -1279,30 +1334,30 @@ Color RenderTheme::systemColor(CSSValueID cssValueId, OptionSet<StyleColor::Opti
 {
     switch (cssValueId) {
     case CSSValueWebkitLink:
-        return options.contains(StyleColor::Options::ForVisitedLink) ? SimpleColor { 0xFF551A8B } : SimpleColor { 0xFF0000EE };
+        return options.contains(StyleColor::Options::ForVisitedLink) ? SRGBA<uint8_t> { 85, 26, 139 } : SRGBA<uint8_t> { 0, 0, 238 };
     case CSSValueWebkitActivelink:
     case CSSValueActivetext:
-        return SimpleColor { 0xFFFF0000 };
+        return Color::red;
     case CSSValueLinktext:
-        return SimpleColor { 0xFF0000EE };
+        return SRGBA<uint8_t> { 0, 0, 238 };
     case CSSValueVisitedtext:
-        return SimpleColor { 0xFF551A8B };
+        return SRGBA<uint8_t> { 85, 26, 139 };
     case CSSValueActiveborder:
         return Color::white;
     case CSSValueActivebuttontext:
         return Color::black;
     case CSSValueActivecaption:
-        return SimpleColor { 0xFFCCCCCC };
+        return SRGBA<uint8_t> { 204, 204, 204 };
     case CSSValueAppworkspace:
         return Color::white;
     case CSSValueBackground:
-        return SimpleColor { 0xFF6363CE };
+        return SRGBA<uint8_t> { 99, 99, 206 };
     case CSSValueButtonface:
         return Color::lightGray;
     case CSSValueButtonhighlight:
-        return SimpleColor { 0xFFDDDDDD };
+        return SRGBA<uint8_t> { 221, 221, 221 };
     case CSSValueButtonshadow:
-        return SimpleColor { 0xFF888888 };
+        return SRGBA<uint8_t> { 136, 136, 136 };
     case CSSValueButtontext:
         return Color::black;
     case CSSValueCaptiontext:
@@ -1316,9 +1371,9 @@ Color RenderTheme::systemColor(CSSValueID cssValueId, OptionSet<StyleColor::Opti
     case CSSValueFieldtext:
         return Color::black;
     case CSSValueGraytext:
-        return SimpleColor { 0xFF808080 };
+        return Color::darkGray;
     case CSSValueHighlight:
-        return SimpleColor { 0xFFB5D5FF };
+        return SRGBA<uint8_t> { 181, 213, 255 };
     case CSSValueHighlighttext:
         return Color::black;
     case CSSValueInactiveborder:
@@ -1326,9 +1381,9 @@ Color RenderTheme::systemColor(CSSValueID cssValueId, OptionSet<StyleColor::Opti
     case CSSValueInactivecaption:
         return Color::white;
     case CSSValueInactivecaptiontext:
-        return SimpleColor { 0xFF7F7F7F };
+        return SRGBA<uint8_t> { 127, 127, 127 };
     case CSSValueInfobackground:
-        return SimpleColor { 0xFFFBFCC5 };
+        return SRGBA<uint8_t> { 251, 252, 197 };
     case CSSValueInfotext:
         return Color::black;
     case CSSValueMenu:
@@ -1340,19 +1395,19 @@ Color RenderTheme::systemColor(CSSValueID cssValueId, OptionSet<StyleColor::Opti
     case CSSValueText:
         return Color::black;
     case CSSValueThreeddarkshadow:
-        return SimpleColor { 0xFF666666 };
+        return SRGBA<uint8_t> { 102, 102, 102 };
     case CSSValueThreedface:
         return Color::lightGray;
     case CSSValueThreedhighlight:
-        return SimpleColor { 0xFFDDDDDD };
+        return SRGBA<uint8_t> { 221, 221, 221 };
     case CSSValueThreedlightshadow:
         return Color::lightGray;
     case CSSValueThreedshadow:
-        return SimpleColor { 0xFF888888 };
+        return SRGBA<uint8_t> { 136, 136, 136 };
     case CSSValueWindow:
         return Color::white;
     case CSSValueWindowframe:
-        return SimpleColor { 0xFFCCCCCC };
+        return SRGBA<uint8_t> { 204, 204, 204 };
     case CSSValueWindowtext:
         return Color::black;
     default:
@@ -1401,7 +1456,7 @@ Color RenderTheme::disabledTextColor(const Color& textColor, const Color& backgr
     // If there's not very much contrast between the disabled color and the background color,
     // just leave the text color alone. We don't want to change a good contrast color scheme so that it has really bad contrast.
     // If the contrast was already poor, then it doesn't do any good to change it to a different poor contrast color scheme.
-    if (contrastRatio(disabledColor.toSRGBALossy(), backgroundColor.toSRGBALossy()) < minColorContrastValue)
+    if (contrastRatio(disabledColor.toSRGBALossy<float>(), backgroundColor.toSRGBALossy<float>()) < minColorContrastValue)
         return textColor;
 
     return disabledColor;
@@ -1462,8 +1517,7 @@ void RenderTheme::paintSystemPreviewBadge(Image& image, const PaintInfo& paintIn
 
     auto markerRect = FloatRect {rect.x() + rect.width() - 24, rect.y() + 8, 16, 16 };
     auto roundedMarkerRect = FloatRoundedRect { markerRect, FloatRoundedRect::Radii { 8 } };
-    auto color = makeSimpleColor(255, 0, 0);
-    context.fillRoundedRect(roundedMarkerRect, color);
+    context.fillRoundedRect(roundedMarkerRect, Color::red);
 }
 #endif
 
@@ -1473,7 +1527,7 @@ Color RenderTheme::platformTapHighlightColor() const
 {
     // This color is expected to be drawn on a semi-transparent overlay,
     // making it more transparent than its alpha value indicates.
-    return makeSimpleColor(0, 0, 0, 102);
+    return Color::black.colorWithAlphaByte(102);
 }
 
 #endif

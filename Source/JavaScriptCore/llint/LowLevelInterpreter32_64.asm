@@ -1272,7 +1272,7 @@ llintOpWithReturn(op_is_empty, OpIsEmpty, macro (size, get, dispatch, return)
 end)
 
 
-llintOpWithReturn(op_is_undefined, OpIsUndefined, macro (size, get, dispatch, return)
+llintOpWithReturn(op_typeof_is_undefined, OpTypeofIsUndefined, macro (size, get, dispatch, return)
     get(m_operand, t1)
     loadConstantOrVariable(size, t1, t2, t3)
     bieq t2, CellTag, .opIsUndefinedCell
@@ -1601,7 +1601,8 @@ llintOpWithMetadata(op_get_private_name, OpGetPrivateName, macro (size, get, dis
     metadata(t5, t0)
 
     # Slow path if the private field is stale
-    get(m_property, t0)
+    get(m_property, t1)
+    loadConstantOrVariablePayloadUnchecked(size, t1, t0)
     loadp OpGetPrivateName::Metadata::m_property[t5], t1
     bpneq t1, t0, .opGetPrivateNameSlow
 
@@ -2701,4 +2702,9 @@ llintOp(op_log_shadow_chicken_tail, OpLogShadowChickenTail, macro (size, get, di
 .opLogShadowChickenTailSlow:
     callSlowPath(_llint_slow_path_log_shadow_chicken_tail)
     dispatch()
+end)
+
+
+op(fuzzer_return_early_from_loop_hint, macro ()
+    notSupported()
 end)

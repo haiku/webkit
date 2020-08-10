@@ -26,6 +26,7 @@
 #pragma once
 
 #include <wtf/ASCIICType.h>
+#include <wtf/StdLibExtras.h>
 
 namespace WTF {
 
@@ -47,7 +48,11 @@ public:
         return ASCIILiteral { nullptr };
     }
 
-    const char* characters() const { return m_characters; }
+    constexpr const char* characters() const { return m_characters; }
+    const LChar* characters8() const { return bitwise_cast<const LChar*>(m_characters); }
+    size_t length() const { return strlen(m_characters); }
+
+    constexpr char characterAt(unsigned index) const { return m_characters[index]; }
 
 private:
     constexpr explicit ASCIILiteral(const char* characters) : m_characters(characters) { }

@@ -17,9 +17,11 @@ fast/sandbox/mac [ Pass ]
 fast/scrolling/mac [ Pass ]
 fast/visual-viewport/tiled-drawing [ Pass ]
 fast/web-share [ Pass ]
+imported/w3c/web-platform-tests/web-share [ Pass ]
 scrollingcoordinator [ Pass ]
 scrollingcoordinator/ios [ Skip ]
 swipe [ Pass ]
+http/tests/swipe [ Pass ]
 tiled-drawing [ Pass ]
 
 fast/events/autoscroll-when-zoomed.html [ Pass ]
@@ -53,6 +55,8 @@ webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpayment
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/removing-allowpaymentrequest.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest-timing.https.sub.html [ Skip ]
 webkit.org/b/175611 imported/w3c/web-platform-tests/payment-request/allowpaymentrequest/setting-allowpaymentrequest.https.sub.html [ Skip ]
+imported/w3c/web-platform-tests/payment-request/payment-request-hasenrolledinstrument-method.tentative.https.html [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/payment-request/payment-request-canmakepayment-method.https.html [ DumpJSConsoleLogInStdErr ]
 
 # skip in favor of tests in http/tests/paymentrequest
 imported/w3c/web-platform-tests/payment-request/payment-request-abort-method.https.html [ WontFix ]
@@ -70,7 +74,7 @@ fast/canvas/webgl/context-update-on-display-configuration.html [ Pass ]
 fast/misc/valid-primary-screen-displayID.html [ Pass ]
 
 # Skipped because of <rdar://problem/45388584>.
-http/tests/webAPIStatistics [ Skip ]
+http/tests/webAPIStatistics [ Pass ]
 
 webkit.org/b/184569 storage/indexeddb/modern/transactions-stop-on-navigation.html [ Pass Failure ]
 
@@ -83,6 +87,9 @@ webkit.org/b/194170 [ Release ] fast/repaint/placeholder-after-caps-lock-hidden.
 fast/events/inactive-window-no-mouse-event.html [ Pass ]
 
 fast/animation/request-animation-frame-in-two-pages.html [ Pass ]
+
+fast/forms/file/entries-api/image-transcode-open-panel.html [ Pass ]
+fast/forms/file/entries-api/image-no-transcode-open-panel.html [ Pass ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End platform-specific directories.
@@ -182,7 +189,6 @@ webkit.org/b/105616 editing/spelling/context-menu-suggestions-subword-selection.
 webkit.org/b/105616 editing/spelling/copy-paste-crash.html
 webkit.org/b/105616 editing/spelling/delete-into-misspelled-word.html
 webkit.org/b/105616 editing/spelling/editing-multiple-words-with-markers.html
-webkit.org/b/105616 editing/spelling/editing-word-with-marker-1.html [ Failure ]
 webkit.org/b/105616 editing/spelling/editing-word-with-marker-2.html
 webkit.org/b/105616 editing/spelling/move-cursor-around-misspelled-word.html
 webkit.org/b/105616 editing/spelling/spelling-changed-text.html
@@ -221,8 +227,6 @@ webkit.org/b/105616 editing/mac/spelling/accept-unseen-candidate-records-accepta
 webkit.org/b/105616 editing/spelling/spelling-marker-includes-hyphen.html [ Pass ImageOnlyFailure ]
 webkit.org/b/105616 editing/spelling/spelling-markers-in-overlapping-lines.html [ Pass ImageOnlyFailure ]
 webkit.org/b/105616 editing/spelling/spelling-markers-in-overlapping-lines-large-font.html [ Pass ImageOnlyFailure ]
-webkit.org/b/105616 fast/writing-mode/english-bt-text-with-spelling-marker.html [ ImageOnlyFailure ]
-webkit.org/b/105616 fast/writing-mode/english-rl-text-with-spelling-marker.html [ ImageOnlyFailure ]
 
 # [WK2] [Mac] Support drag in mouse events for WebKit2 EventSender
 # <https://bugs.webkit.org/show_bug.cgi?id=68552>
@@ -301,9 +305,6 @@ webkit.org/b/107018 svg/animations/animate-linear-discrete-additive.svg [ ImageO
 webkit.org/b/107018 svg/animations/animate-linear-discrete-additive-b.svg [ ImageOnlyFailure Pass ]
 webkit.org/b/107018 svg/animations/animate-linear-discrete-additive-c.svg  [ ImageOnlyFailure Pass ]
 webkit.org/b/107018 svg/animations/mozilla/animateMotion-mpath-pathLength-1.svg [ ImageOnlyFailure Pass ]
-
-# Color space issues from switching to tiled drawing.
-webkit.org/b/122234 css3/filters/null-effect-check.html [ ImageOnlyFailure ]
 
 webkit.org/b/124476 platform/mac-wk2/plugins/slow/asynchronous-plugin-initialization-multiple.html [ Pass Failure ]
 
@@ -509,7 +510,7 @@ webkit.org/b/157589 fast/text-autosizing/ios/text-autosizing-after-back.html [ P
 media/controls/picture-in-picture.html [ Pass ]
 webkit.org/b/170620 media/controls/pip-placeholder-without-video-controls.html [ Pass Failure ]
 media/element-containing-pip-video-going-into-fullscreen.html [ Pass Timeout ]
-webkit.org/b/172998 media/fullscreen-api-enabled-media-with-presentation-mode.html [ Failure ]
+media/fullscreen-api-enabled-media-with-presentation-mode.html [ Pass ]
 webkit.org/b/173199 media/navigate-with-pip-should-not-crash.html [ Pass Failure ]
 media/pip-video-going-into-fullscreen.html [ Pass ]
 media/picture-in-picture [ Pass ]
@@ -546,10 +547,6 @@ fast/scrolling/rtl-scrollbars-animation-property.html [ Pass ]
 
 # <rdar://problem/25063128>
 media/media-controls-drag-timeline-set-controls-property.html [ Pass Timeout ]
-
-# Hitting "The certificate for this server is invalid" loading error (not happening in WK1)
-webkit.org/b/160445 http/tests/security/contentSecurityPolicy/upgrade-insecure-requests/upgrade-insecure-fetch-in-worker.html [ Failure ]
-webkit.org/b/160445 http/tests/security/contentSecurityPolicy/upgrade-insecure-requests/upgrade-insecure-fetch-in-main-frame.html [ Failure ]
 
 webkit.org/b/167607 [ Debug ] http/tests/inspector/worker/blob-script-with-cross-domain-imported-scripts.html [ Pass Timeout ]
 
@@ -602,8 +599,6 @@ webkit.org/b/168065 inspector/unit-tests/heap-snapshot.html [ Pass Failure Timeo
 webkit.org/b/168235 [ Debug ] imported/w3c/web-platform-tests/html/semantics/text-level-semantics/the-a-element/a-download-click.html [ Pass Failure ]
 
 webkit.org/b/168085 tiled-drawing/scrolling/latched-to-deleted-node.html [ Pass Failure ]
-
-webkit.org/b/168336 [ Debug ] imported/w3c/web-platform-tests/streams/readable-streams/garbage-collection.html [ Pass Timeout ]
 
 # Skipped because Mac doesn't have a key to show the context menu
 fast/events/context-activated-by-key-event.html [ Skip ]
@@ -662,8 +657,6 @@ webkit.org/b/175341 accessibility/mac/select-element-selection-with-optgroups.ht
 webkit.org/b/172044 [ Debug ] imported/w3c/web-platform-tests/IndexedDB/open-request-queue.html [ Pass Timeout ]
 
 webkit.org/b/173779 [ Debug ] fast/scrolling/arrow-key-scroll-in-rtl-document.html [ Pass Failure ]
-
-webkit.org/b/175773 [ Debug ] imported/w3c/web-platform-tests/payment-request/payment-request-constructor-crash.https.html [ Skip ]
 
 webkit.org/b/173672 imported/w3c/web-platform-tests/fetch/http-cache/invalidate.html [ Pass Failure ]
 
@@ -800,6 +793,25 @@ imported/w3c/web-platform-tests/payment-request/show-method-postmessage-manual.h
 imported/w3c/web-platform-tests/payment-request/updateWith-method-pmi-handling-manual.https.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/user-abort-algorithm-manual.https.html [ Skip ]
 imported/w3c/web-platform-tests/payment-request/user-accepts-payment-request-algo-manual.https.html [ Skip ]
+
+# Manual tests.
+imported/w3c/web-platform-tests/web-share/share-cancel-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-extra-argument-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-extra-field-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-files-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-image-manual.tentative.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-non-string-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-null-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-simple-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-unicode-strings-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-unicode-strings-nonutf8-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-data-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-empty-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-encoding-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-noscheme-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-pathonly-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-url-relative-manual.https.html [ Skip ]
+imported/w3c/web-platform-tests/web-share/share-sharePromise-internal-slot.https.html [ Timeout ]
 
 webkit.org/b/189598 compositing/backing/backing-store-attachment-fill-forwards-animation.html [ Pass Failure ]
 
@@ -1041,3 +1053,30 @@ webkit.org/b/213292 [ Catalina Release ] http/tests/IndexedDB/storage-limit-1.ht
 webkit.org/b/213375 [ Debug ] webaudio/biquad-bandpass.html [ Pass Crash ]
 
 webkit.org/b/213461 fast/mediastream/mediastreamtrack-video-frameRate-clone-increasing.html [ Pass Failure ]
+
+webkit.org/b/213553 http/tests/resourceLoadStatistics/grandfathering-database.html [ Pass Timeout ]
+
+webkit.org/b/213621 imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getContributingSources.https.html [ Pass Failure ]
+
+webkit.org/b/213652 webrtc/video-autoplay1.html [ Pass Failure ]
+
+webkit.org/b/214084 [ Release ] webrtc/libwebrtc/descriptionGetters.html [ Pass Failure ]
+
+webkit.org/b/214286 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-connectionState.https.html [ Pass Failure ]
+
+webkit.org/b/213804 fast/scrolling/mac/scroll-snapping-in-progress.html [ Pass Failure ]
+
+webkit.org/b/214478 [ Debug ] http/wpt/webrtc/generateCertificate.html [ Skip ]
+webkit.org/b/214478 [ Debug ] imported/w3c/web-platform-tests/webrtc/RTCCertificate-postMessage.html [ Skip ]
+webkit.org/b/214478 [ Debug ] imported/w3c/web-platform-tests/webrtc/RTCCertificate.html [ Skip ]
+webkit.org/b/214478 [ Debug ] imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-generateCertificate.html [ Skip ]
+webkit.org/b/214478 [ Debug ] imported/w3c/web-platform-tests/webrtc/RTCSctpTransport-constructor.html [ Skip ]
+webkit.org/b/214478 [ Debug ] imported/w3c/web-platform-tests/webrtc/idlharness.https.window.html [ Skip ]
+webkit.org/b/214478 [ Debug ] storage/indexeddb/modern/blob-simple-workers.html [ Skip ]
+webkit.org/b/214478 [ Debug ] storage/indexeddb/modern/blob-simple.html [ Skip ]
+webkit.org/b/214478 [ Debug ] storage/indexeddb/structured-clone-private.html [ Skip ]
+webkit.org/b/214478 [ Debug ] storage/indexeddb/structured-clone.html [ Skip ]
+webkit.org/b/214478 [ Debug ] tiled-drawing/scrolling/fast-scroll-iframe-latched-select.html [ Skip ]
+webkit.org/b/214478 [ Debug ] webrtc/simulcast-h264.html [ Skip ]
+
+webkit.org/b/214574 [ Release ] svg/animations/smil-leak-list-property-instances.svg [ Pass Failure ]

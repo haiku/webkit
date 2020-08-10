@@ -110,8 +110,10 @@ WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEven
         if (!asyncFrameOrOverflowScrollingEnabled())
             return m_rootNode->handleWheelEvent(wheelEvent);
 
-        if (m_gestureState.handleGestureCancel(wheelEvent))
+        if (m_gestureState.handleGestureCancel(wheelEvent)) {
+            clearNodesWithUserScrollInProgress();
             return WheelEventHandlingResult::handled();
+        }
 
         m_gestureState.receivedWheelEvent(wheelEvent);
 
@@ -467,16 +469,49 @@ void ScrollingTree::setMainFrameIsRubberBanding(bool isRubberBanding)
 }
 
 // Can be called from the main thread.
-bool ScrollingTree::isScrollSnapInProgress()
+bool ScrollingTree::isUserScrollInProgressForNode(ScrollingNodeID nodeID)
 {
+    if (!nodeID)
+        return false;
+
     LockHolder lock(m_treeStateMutex);
-    return m_treeState.mainFrameIsScrollSnapping;
+    return m_treeState.nodesWithActiveUserScrolls.contains(nodeID);
 }
     
-void ScrollingTree::setMainFrameIsScrollSnapping(bool isScrollSnapping)
+void ScrollingTree::setUserScrollInProgressForNode(ScrollingNodeID nodeID, bool isScrolling)
+{
+    ASSERT(nodeID);
+    LockHolder locker(m_treeStateMutex);
+    if (isScrolling)
+        m_treeState.nodesWithActiveUserScrolls.add(nodeID);
+    else
+        m_treeState.nodesWithActiveUserScrolls.remove(nodeID);
+}
+
+void ScrollingTree::clearNodesWithUserScrollInProgress()
 {
     LockHolder locker(m_treeStateMutex);
-    m_treeState.mainFrameIsScrollSnapping = isScrollSnapping;
+    m_treeState.nodesWithActiveUserScrolls.clear();
+}
+
+// Can be called from the main thread.
+bool ScrollingTree::isScrollSnapInProgressForNode(ScrollingNodeID nodeID)
+{
+    if (!nodeID)
+        return false;
+
+    LockHolder lock(m_treeStateMutex);
+    return m_treeState.nodesWithActiveScrollSnap.contains(nodeID);
+}
+    
+void ScrollingTree::setNodeScrollSnapInProgress(ScrollingNodeID nodeID, bool isScrollSnapping)
+{
+    ASSERT(nodeID);
+    LockHolder locker(m_treeStateMutex);
+    if (isScrollSnapping)
+        m_treeState.nodesWithActiveScrollSnap.add(nodeID);
+    else
+        m_treeState.nodesWithActiveScrollSnap.remove(nodeID);
 }
 
 void ScrollingTree::setMainFramePinnedState(RectEdges<bool> edgePinningState)

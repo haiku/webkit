@@ -81,17 +81,17 @@ public:
 
     void animate(SVGElement*, float progress, unsigned repeatCount, Color& animated)
     {
-        auto simpleAnimated = animated.toSRGBASimpleColorLossy();
-        auto simpleFrom = m_animationMode == AnimationMode::To ? simpleAnimated : m_from.toSRGBASimpleColorLossy();
-        auto simpleTo = m_to.toSRGBASimpleColorLossy();
-        auto simpleToAtEndOfDuration = toAtEndOfDuration().toSRGBASimpleColorLossy();
+        auto simpleAnimated = animated.toSRGBALossy<uint8_t>();
+        auto simpleFrom = m_animationMode == AnimationMode::To ? simpleAnimated : m_from.toSRGBALossy<uint8_t>();
+        auto simpleTo = m_to.toSRGBALossy<uint8_t>();
+        auto simpleToAtEndOfDuration = toAtEndOfDuration().toSRGBALossy<uint8_t>();
         
-        float red = Base::animate(progress, repeatCount, simpleFrom.redComponent(), simpleTo.redComponent(), simpleToAtEndOfDuration.redComponent(), simpleAnimated.redComponent());
-        float green = Base::animate(progress, repeatCount, simpleFrom.greenComponent(), simpleTo.greenComponent(), simpleToAtEndOfDuration.greenComponent(), simpleAnimated.greenComponent());
-        float blue = Base::animate(progress, repeatCount, simpleFrom.blueComponent(), simpleTo.blueComponent(), simpleToAtEndOfDuration.blueComponent(), simpleAnimated.blueComponent());
-        float alpha = Base::animate(progress, repeatCount, simpleFrom.alphaComponent(), simpleTo.alphaComponent(), simpleToAtEndOfDuration.alphaComponent(), simpleAnimated.alphaComponent());
+        float red = Base::animate(progress, repeatCount, simpleFrom.red, simpleTo.red, simpleToAtEndOfDuration.red, simpleAnimated.red);
+        float green = Base::animate(progress, repeatCount, simpleFrom.green, simpleTo.green, simpleToAtEndOfDuration.green, simpleAnimated.green);
+        float blue = Base::animate(progress, repeatCount, simpleFrom.blue, simpleTo.blue, simpleToAtEndOfDuration.blue, simpleAnimated.blue);
+        float alpha = Base::animate(progress, repeatCount, simpleFrom.alpha, simpleTo.alpha, simpleToAtEndOfDuration.alpha, simpleAnimated.alpha);
         
-        animated = makeSimpleColor(roundAndClampColorChannel(red), roundAndClampColorChannel(green), roundAndClampColorChannel(blue), roundAndClampColorChannel(alpha));
+        animated = clampToComponentBytes<SRGBA>(std::lround(red), std::lround(green), std::lround(blue), std::lround(alpha));
     }
 
     Optional<float> calculateDistance(SVGElement*, const String& from, const String& to) const override
@@ -103,38 +103,24 @@ public:
         if (!toColor.isValid())
             return { };
             
-        auto simpleFrom = fromColor.toSRGBASimpleColorLossy();
-        auto simpleTo = toColor.toSRGBASimpleColorLossy();
+        auto simpleFrom = fromColor.toSRGBALossy<uint8_t>();
+        auto simpleTo = toColor.toSRGBALossy<uint8_t>();
 
-        float red = simpleFrom.redComponent() - simpleTo.redComponent();
-        float green = simpleFrom.greenComponent() - simpleTo.greenComponent();
-        float blue = simpleFrom.blueComponent() - simpleTo.blueComponent();
+        float red = simpleFrom.red - simpleTo.red;
+        float green = simpleFrom.green - simpleTo.green;
+        float blue = simpleFrom.blue - simpleTo.blue;
 
         return std::hypot(red, green, blue);
     }
 
 private:
-    inline uint8_t roundAndClampColorChannel(int value)
-    {
-        return std::clamp(value, 0, 255);
-    }
-
-    inline uint8_t roundAndClampColorChannel(float value)
-    {
-        return std::clamp(std::roundf(value), 0.0f, 255.0f);
-    }
-
     void addFromAndToValues(SVGElement*) override
     {
-        auto simpleFrom = m_from.toSRGBASimpleColorLossy();
-        auto simpleTo = m_to.toSRGBASimpleColorLossy();
+        auto simpleFrom = m_from.toSRGBALossy<uint8_t>();
+        auto simpleTo = m_to.toSRGBALossy<uint8_t>();
 
         // Ignores any alpha and sets alpha on result to 100% opaque.
-        m_to = makeSimpleColor(
-            roundAndClampColorChannel(simpleTo.redComponent() + simpleFrom.redComponent()),
-            roundAndClampColorChannel(simpleTo.greenComponent() + simpleFrom.greenComponent()),
-            roundAndClampColorChannel(simpleTo.blueComponent() + simpleFrom.blueComponent())
-        );
+        m_to = clampToComponentBytes<SRGBA>(simpleTo.red + simpleFrom.red, simpleTo.green + simpleFrom.green, simpleTo.blue + simpleFrom.blue);
     }
 
     static Color colorFromString(SVGElement*, const String&);

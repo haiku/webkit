@@ -101,6 +101,7 @@ CTTypesetterRef CTTypesetterCreateWithUniCharProviderAndOptions(CTUniCharProvide
 bool CTFontGetVerticalGlyphsForCharacters(CTFontRef, const UniChar characters[], CGGlyph glyphs[], CFIndex count);
 void CTFontGetUnsummedAdvancesForGlyphsAndStyle(CTFontRef, CTFontOrientation, CGFontRenderingStyle, const CGGlyph[], CGSize advances[], CFIndex count);
 CTFontDescriptorRef CTFontDescriptorCreateForCSSFamily(CFStringRef cssFamily, CFStringRef language);
+bool CTFontGetGlyphsForCharacterRange(CTFontRef, CGGlyph glyphs[], CFRange);
 
 CTFontDescriptorRef CTFontDescriptorCreateForUIType(CTFontUIFontType, CGFloat size, CFStringRef language);
 CTFontDescriptorRef CTFontDescriptorCreateWithTextStyle(CFStringRef style, CFStringRef size, CFStringRef language);
@@ -149,6 +150,7 @@ extern const CFStringRef kCTUIFontTextStyleCaption2;
 extern const CFStringRef kCTFontDescriptorTextStyleEmphasized;
 
 extern const CFStringRef kCTFontContentSizeCategoryL;
+extern const CFStringRef kCTFontContentSizeCategoryXXXL;
 
 extern const CGFloat kCTFontWeightUltraLight;
 extern const CGFloat kCTFontWeightThin;

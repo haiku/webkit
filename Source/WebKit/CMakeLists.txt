@@ -171,7 +171,6 @@ set(WebKit_MESSAGES_IN_FILES
     NetworkProcess/webrtc/NetworkMDNSRegister
     NetworkProcess/webrtc/NetworkRTCMonitor
     NetworkProcess/webrtc/NetworkRTCProvider
-    NetworkProcess/webrtc/NetworkRTCSocket
 
     PluginProcess/PluginControllerProxy
     PluginProcess/PluginProcess
@@ -285,6 +284,12 @@ set(GPUProcess_LIBRARIES
 set(PluginProcess_LIBRARIES
     WebKit
 )
+
+if (ENABLE_ENCRYPTED_MEDIA AND ENABLE_OPENCDM)
+  list(APPEND WebKit_SYSTEM_INCLUDE_DIRECTORIES
+      ${OPENCDM_INCLUDE_DIRS}
+  )
+endif ()
 
 if (ENABLE_GRAPHICS_CONTEXT_GL)
     # For platforms that want to use system-provided OpenGL (ES) / EGL headers,

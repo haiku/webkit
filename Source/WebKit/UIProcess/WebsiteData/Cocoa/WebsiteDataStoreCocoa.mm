@@ -156,11 +156,14 @@ void WebsiteDataStore::platformSetNetworkParameters(WebsiteDataStoreParameters& 
         httpsProxy = URL(URL(), [defaults stringForKey:(NSString *)WebKit2HTTPSProxyDefaultsKey]);
 
 #if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
-    String alternativeServiceStorageDirectory = resolvedAlternativeServicesStorageDirectory();
-    SandboxExtension::Handle alternativeServiceStorageDirectoryExtensionHandle;
-    if (!alternativeServiceStorageDirectory.isEmpty())
-        SandboxExtension::createHandleForReadWriteDirectory(alternativeServiceStorageDirectory, alternativeServiceStorageDirectoryExtensionHandle);
     bool http3Enabled = WebsiteDataStore::http3Enabled();
+    String alternativeServiceStorageDirectory;
+    SandboxExtension::Handle alternativeServiceStorageDirectoryExtensionHandle;
+    if (http3Enabled) {
+        alternativeServiceStorageDirectory = resolvedAlternativeServicesStorageDirectory();
+        if (!alternativeServiceStorageDirectory.isEmpty())
+            SandboxExtension::createHandleForReadWriteDirectory(alternativeServiceStorageDirectory, alternativeServiceStorageDirectoryExtensionHandle);
+    }
 #endif
 
     bool shouldIncludeLocalhostInResourceLoadStatistics = isSafari;
@@ -202,7 +205,12 @@ void WebsiteDataStore::platformSetNetworkParameters(WebsiteDataStoreParameters& 
 bool WebsiteDataStore::http3Enabled()
 {
 #if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
-    return [[NSUserDefaults standardUserDefaults] boolForKey:[NSString stringWithFormat:@"Experimental%@", (NSString *)WebPreferencesKey::http3EnabledKey()]];
+#if PLATFORM(MAC)
+    NSString *format = @"Experimental%@";
+#else
+    NSString *format = @"WebKitExperimental%@";
+#endif
+    return [[NSUserDefaults standardUserDefaults] boolForKey:[NSString stringWithFormat:format, (NSString *)WebPreferencesKey::http3EnabledKey()]];
 #else
     return false;
 #endif
@@ -261,7 +269,7 @@ WTF::String WebsiteDataStore::defaultNetworkCacheDirectory()
 
 WTF::String WebsiteDataStore::defaultAlternativeServicesDirectory()
 {
-    return cacheDirectoryFileSystemRepresentation("AlternativeServices");
+    return cacheDirectoryFileSystemRepresentation("AlternativeServices", ShouldCreateDirectory::No);
 }
 
 WTF::String WebsiteDataStore::defaultMediaCacheDirectory()
@@ -333,7 +341,7 @@ WTF::String WebsiteDataStore::tempDirectoryFileSystemRepresentation(const WTF::S
     return url.absoluteURL.path.fileSystemRepresentation;
 }
 
-WTF::String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const WTF::String& directoryName)
+WTF::String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const WTF::String& directoryName, ShouldCreateDirectory shouldCreateDirectory)
 {
     static dispatch_once_t onceToken;
     static NSURL *cacheURL;
@@ -354,7 +362,8 @@ WTF::String WebsiteDataStore::cacheDirectoryFileSystemRepresentation(const WTF::
     });
 
     NSURL *url = [cacheURL URLByAppendingPathComponent:directoryName isDirectory:YES];
-    if (![[NSFileManager defaultManager] createDirectoryAtURL:url withIntermediateDirectories:YES attributes:nil error:nullptr])
+    if (shouldCreateDirectory == ShouldCreateDirectory::Yes
+        && ![[NSFileManager defaultManager] createDirectoryAtURL:url withIntermediateDirectories:YES attributes:nil error:nullptr])
         LOG_ERROR("Failed to create directory %@", url);
 
     return url.absoluteURL.path.fileSystemRepresentation;
@@ -396,6 +405,13 @@ static HashSet<WebCore::RegistrableDomain>& appBoundDomains()
     return appBoundDomains;
 }
 
+static HashSet<String>& appBoundSchemes()
+{
+    ASSERT(RunLoop::isMain());
+    static NeverDestroyed<HashSet<String>> appBoundSchemes;
+    return appBoundSchemes;
+}
+
 void WebsiteDataStore::initializeAppBoundDomains(ForceReinitialization forceReinitialization)
 {
     ASSERT(RunLoop::isMain());
@@ -409,18 +425,28 @@ void WebsiteDataStore::initializeAppBoundDomains(ForceReinitialization forceRein
         if (hasInitializedAppBoundDomains && forceReinitialization != ForceReinitialization::Yes)
             return;
         
-        NSArray<NSString *> *domains = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"WKAppBoundDomains"];
-        keyExists = domains ? true : false;
+        NSArray<NSString *> *appBoundData = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"WKAppBoundDomains"];
+        keyExists = appBoundData ? true : false;
         
-        RunLoop::main().dispatch([forceReinitialization, domains = retainPtr(domains)] {
+        RunLoop::main().dispatch([forceReinitialization, appBoundData = retainPtr(appBoundData)] {
             if (hasInitializedAppBoundDomains && forceReinitialization != ForceReinitialization::Yes)
                 return;
 
             if (forceReinitialization == ForceReinitialization::Yes)
                 appBoundDomains().clear();
 
-            for (NSString *domain in domains.get()) {
-                URL url { URL(), domain };
+            for (NSString *data in appBoundData.get()) {
+                if (appBoundDomains().size() + appBoundSchemes().size() >= maxAppBoundDomainCount)
+                    break;
+                if ([data hasSuffix:@":"]) {
+                    auto appBoundScheme = String([data substringToIndex:[data length] - 1]);
+                    if (!appBoundScheme.isEmpty()) {
+                        appBoundSchemes().add(appBoundScheme);
+                        continue;
+                    }
+                }
+
+                URL url { URL(), data };
                 if (url.protocol().isEmpty())
                     url.setProtocol("https");
                 if (!url.isValid())
@@ -429,8 +455,6 @@ void WebsiteDataStore::initializeAppBoundDomains(ForceReinitialization forceRein
                 if (appBoundDomain.isEmpty())
                     continue;
                 appBoundDomains().add(appBoundDomain);
-                if (appBoundDomains().size() >= maxAppBoundDomainCount)
-                    break;
             }
             hasInitializedAppBoundDomains = true;
             if (isAppBoundITPRelaxationEnabled)
@@ -439,13 +463,13 @@ void WebsiteDataStore::initializeAppBoundDomains(ForceReinitialization forceRein
     });
 }
 
-void WebsiteDataStore::ensureAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&& completionHandler) const
+void WebsiteDataStore::ensureAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&, const HashSet<String>&)>&& completionHandler) const
 {
     if (hasInitializedAppBoundDomains) {
         if (m_isInAppBrowserPrivacyTestModeEnabled) {
             WEBSITE_DATA_STORE_ADDITIONS;
         }
-        completionHandler(appBoundDomains());
+        completionHandler(appBoundDomains(), appBoundSchemes());
         return;
     }
 
@@ -457,16 +481,24 @@ void WebsiteDataStore::ensureAppBoundDomains(CompletionHandler<void(const HashSe
             if (m_isInAppBrowserPrivacyTestModeEnabled) {
                 WEBSITE_DATA_STORE_ADDITIONS;
             }
-            completionHandler(appBoundDomains());
+            completionHandler(appBoundDomains(), appBoundSchemes());
         });
     });
+}
+
+static NavigatingToAppBoundDomain schemeOrDomainIsAppBound(const URL& requestURL, const HashSet<WebCore::RegistrableDomain>& domains, const HashSet<String>& schemes)
+{
+    auto protocol = requestURL.protocol().toString();
+    auto schemeIsAppBound = !protocol.isNull() && schemes.contains(protocol);
+    auto domainIsAppBound = domains.contains(WebCore::RegistrableDomain(requestURL));
+    return schemeIsAppBound || domainIsAppBound ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No;
 }
 
 void WebsiteDataStore::beginAppBoundDomainCheck(const URL& requestURL, WebFramePolicyListenerProxy& listener)
 {
     ASSERT(RunLoop::isMain());
 
-    ensureAppBoundDomains([&requestURL, listener = makeRef(listener)] (auto& domains) mutable {
+    ensureAppBoundDomains([&requestURL, listener = makeRef(listener)] (auto& domains, auto& schemes) mutable {
         // Must check for both an empty app bound domains list and an empty key before returning nullopt
         // because test cases may have app bound domains but no key.
         bool hasAppBoundDomains = keyExists || !domains.isEmpty();
@@ -474,7 +506,7 @@ void WebsiteDataStore::beginAppBoundDomainCheck(const URL& requestURL, WebFrameP
             listener->didReceiveAppBoundDomainResult(WTF::nullopt);
             return;
         }
-        listener->didReceiveAppBoundDomainResult(domains.contains(WebCore::RegistrableDomain(requestURL)) ? NavigatingToAppBoundDomain::Yes : NavigatingToAppBoundDomain::No);
+        listener->didReceiveAppBoundDomainResult(schemeOrDomainIsAppBound(requestURL, domains, schemes));
     });
 }
 
@@ -482,8 +514,17 @@ void WebsiteDataStore::getAppBoundDomains(CompletionHandler<void(const HashSet<W
 {
     ASSERT(RunLoop::isMain());
 
-    ensureAppBoundDomains([completionHandler = WTFMove(completionHandler)] (auto& domains) mutable {
+    ensureAppBoundDomains([completionHandler = WTFMove(completionHandler)] (auto& domains, auto& schemes) mutable {
         completionHandler(domains);
+    });
+}
+
+void WebsiteDataStore::getAppBoundSchemes(CompletionHandler<void(const HashSet<String>&)>&& completionHandler) const
+{
+    ASSERT(RunLoop::isMain());
+
+    ensureAppBoundDomains([completionHandler = WTFMove(completionHandler)] (auto& domains, auto& schemes) mutable {
+        completionHandler(schemes);
     });
 }
 

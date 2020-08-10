@@ -51,6 +51,7 @@
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLVideoElement.h"
+#include "ImageBitmap.h"
 #include "ImageBuffer.h"
 #include "ImageData.h"
 #include "InspectorInstrumentation.h"
@@ -3405,9 +3406,73 @@ WebGLAny WebGLRenderingContextBase::getUniform(WebGLProgram* program, const WebG
         length = 1;
         break;
     default:
-        // Can't handle this type
-        synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "getUniform", "unhandled type");
-        return nullptr;
+        if (!isWebGL2()) {
+            // Can't handle this type.
+            synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "getUniform", "unhandled type");
+            return nullptr;
+        }
+        switch (uniformLocation->type()) {
+        case GraphicsContextGL::UNSIGNED_INT:
+            baseType = GraphicsContextGL::UNSIGNED_INT;
+            length = 1;
+            break;
+        case GraphicsContextGL::UNSIGNED_INT_VEC2:
+            baseType = GraphicsContextGL::UNSIGNED_INT;
+            length = 2;
+            break;
+        case GraphicsContextGL::UNSIGNED_INT_VEC3:
+            baseType = GraphicsContextGL::UNSIGNED_INT;
+            length = 3;
+            break;
+        case GraphicsContextGL::UNSIGNED_INT_VEC4:
+            baseType = GraphicsContextGL::UNSIGNED_INT;
+            length = 4;
+            break;
+        case GraphicsContextGL::FLOAT_MAT2x3:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 6;
+            break;
+        case GraphicsContextGL::FLOAT_MAT2x4:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 8;
+            break;
+        case GraphicsContextGL::FLOAT_MAT3x2:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 6;
+            break;
+        case GraphicsContextGL::FLOAT_MAT3x4:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 12;
+            break;
+        case GraphicsContextGL::FLOAT_MAT4x2:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 8;
+            break;
+        case GraphicsContextGL::FLOAT_MAT4x3:
+            baseType = GraphicsContextGL::FLOAT;
+            length = 12;
+            break;
+        case GraphicsContextGL::SAMPLER_3D:
+        case GraphicsContextGL::SAMPLER_2D_ARRAY:
+        case GraphicsContextGL::SAMPLER_2D_SHADOW:
+        case GraphicsContextGL::SAMPLER_CUBE_SHADOW:
+        case GraphicsContextGL::SAMPLER_2D_ARRAY_SHADOW:
+        case GraphicsContextGL::INT_SAMPLER_2D:
+        case GraphicsContextGL::INT_SAMPLER_CUBE:
+        case GraphicsContextGL::INT_SAMPLER_3D:
+        case GraphicsContextGL::INT_SAMPLER_2D_ARRAY:
+        case GraphicsContextGL::UNSIGNED_INT_SAMPLER_2D:
+        case GraphicsContextGL::UNSIGNED_INT_SAMPLER_CUBE:
+        case GraphicsContextGL::UNSIGNED_INT_SAMPLER_3D:
+        case GraphicsContextGL::UNSIGNED_INT_SAMPLER_2D_ARRAY:
+            baseType = GraphicsContextGL::INT;
+            length = 1;
+            break;
+        default:
+            // Can't handle this type.
+            synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "getUniform", "unhandled type");
+            return nullptr;
+        }
     }
     switch (baseType) {
     case GraphicsContextGL::FLOAT: {
@@ -3429,6 +3494,13 @@ WebGLAny WebGLRenderingContextBase::getUniform(WebGLProgram* program, const WebG
         if (length == 1)
             return value[0];
         return Int32Array::tryCreate(value, length);
+    }
+    case GraphicsContextGL::UNSIGNED_INT: {
+        GCGLuint value[4] = {0};
+        m_context->getUniformuiv(objectOrZero(program), location, value);
+        if (length == 1)
+            return value[0];
+        return Uint32Array::tryCreate(value, length);
     }
     case GraphicsContextGL::BOOL: {
         GCGLint value[4] = {0};
@@ -3529,8 +3601,20 @@ WebGLAny WebGLRenderingContextBase::getVertexAttrib(GCGLuint index, GCGLenum pna
         return state.originalStride;
     case GraphicsContextGL::VERTEX_ATTRIB_ARRAY_TYPE:
         return state.type;
-    case GraphicsContextGL::CURRENT_VERTEX_ATTRIB:
-        return Float32Array::tryCreate(m_vertexAttribValue[index].value, 4);
+    case GraphicsContextGL::CURRENT_VERTEX_ATTRIB: {
+        switch (m_vertexAttribValue[index].type) {
+        case GraphicsContextGL::FLOAT:
+            return Float32Array::tryCreate(m_vertexAttribValue[index].fValue, 4);
+        case GraphicsContextGL::INT:
+            return Int32Array::tryCreate(m_vertexAttribValue[index].iValue, 4);
+        case GraphicsContextGL::UNSIGNED_INT:
+            return Uint32Array::tryCreate(m_vertexAttribValue[index].uiValue, 4);
+        default:
+            ASSERT_NOT_REACHED();
+            break;
+        }
+        return nullptr;
+    }
     default:
         synthesizeGLError(GraphicsContextGL::INVALID_ENUM, "getVertexAttrib", "invalid parameter name");
         return nullptr;
@@ -4138,7 +4222,7 @@ void WebGLRenderingContextBase::readPixels(GCGLint x, GCGLint y, GCGLsizei width
     unsigned totalBytesRequired = 0;
     unsigned padding = 0;
     if (!m_isRobustnessEXTSupported) {
-        GCGLenum error = m_context->computeImageSizeInBytes(format, type, width, height, 1, getPackPixelStoreParams(), &totalBytesRequired, &padding, nullptr); // NEEDS_PORT
+        GCGLenum error = m_context->computeImageSizeInBytes(format, type, width, height, 1, getPackPixelStoreParams(), &totalBytesRequired, &padding, nullptr);
         if (error != GraphicsContextGL::NO_ERROR) {
             synthesizeGLError(error, "readPixels", "invalid dimensions");
             return;
@@ -4156,7 +4240,7 @@ void WebGLRenderingContextBase::readPixels(GCGLint x, GCGLint y, GCGLsizei width
 #if USE(ANGLE)
         GLsizei length, columns, rows;
         m_context->makeContextCurrent();
-        m_context->getExtensions().readnPixelsRobustANGLE(x, y, width, height, format, type, pixels.byteLength(), &length, &columns, &rows, data);
+        m_context->getExtensions().readnPixelsRobustANGLE(x, y, width, height, format, type, pixels.byteLength(), &length, &columns, &rows, data, false);
 #else
     if (m_isRobustnessEXTSupported)
         m_context->getExtensions().readnPixelsEXT(x, y, width, height, format, type, pixels.byteLength(), data);
@@ -5505,67 +5589,53 @@ void WebGLRenderingContextBase::texParameteri(GCGLenum target, GCGLenum pname, G
     texParameter(target, pname, 0, param, false);
 }
 
+bool WebGLRenderingContextBase::validateUniformLocation(const char* functionName, const WebGLUniformLocation* location)
+{
+    if (!location)
+        return false;
+    if (location->program() != m_currentProgram) {
+        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, functionName, "location not for current program");
+        return false;
+    }
+    return true;
+}
+
 void WebGLRenderingContextBase::uniform1f(const WebGLUniformLocation* location, GCGLfloat x)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform1f", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform1f", "location not for current program");
-        return;
-    }
 
     m_context->uniform1f(location->location(), x);
 }
 
 void WebGLRenderingContextBase::uniform2f(const WebGLUniformLocation* location, GCGLfloat x, GCGLfloat y)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform2f", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform2f", "location not for current program");
-        return;
-    }
 
     m_context->uniform2f(location->location(), x, y);
 }
 
 void WebGLRenderingContextBase::uniform3f(const WebGLUniformLocation* location, GCGLfloat x, GCGLfloat y, GCGLfloat z)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform3f", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform3f", "location not for current program");
-        return;
-    }
 
     m_context->uniform3f(location->location(), x, y, z);
 }
 
 void WebGLRenderingContextBase::uniform4f(const WebGLUniformLocation* location, GCGLfloat x, GCGLfloat y, GCGLfloat z, GCGLfloat w)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform4f", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform4f", "location not for current program");
-        return;
-    }
 
     m_context->uniform4f(location->location(), x, y, z, w);
 }
 
 void WebGLRenderingContextBase::uniform1i(const WebGLUniformLocation* location, GCGLint x)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform1i", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform1i", "location not for current program");
-        return;
-    }
 
     if ((location->type() == GraphicsContextGL::SAMPLER_2D || location->type() == GraphicsContextGL::SAMPLER_CUBE) && x >= (int)m_textureUnits.size()) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "uniform1i", "invalid texture unit");
@@ -5577,46 +5647,31 @@ void WebGLRenderingContextBase::uniform1i(const WebGLUniformLocation* location, 
 
 void WebGLRenderingContextBase::uniform2i(const WebGLUniformLocation* location, GCGLint x, GCGLint y)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform2i", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform2i", "location not for current program");
-        return;
-    }
 
     m_context->uniform2i(location->location(), x, y);
 }
 
 void WebGLRenderingContextBase::uniform3i(const WebGLUniformLocation* location, GCGLint x, GCGLint y, GCGLint z)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform3i", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform3i", "location not for current program");
-        return;
-    }
 
     m_context->uniform3i(location->location(), x, y, z);
 }
 
 void WebGLRenderingContextBase::uniform4i(const WebGLUniformLocation* location, GCGLint x, GCGLint y, GCGLint z, GCGLint w)
 {
-    if (isContextLostOrPending() || !location)
+    if (isContextLostOrPending() || !validateUniformLocation("uniform4i", location))
         return;
-
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "uniform4i", "location not for current program");
-        return;
-    }
 
     m_context->uniform4i(location->location(), x, y, z, w);
 }
 
 void WebGLRenderingContextBase::uniform1fv(const WebGLUniformLocation* location, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform1fv", location, v, 1))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform1fv", location, v, 1, 0, v.length()))
         return;
 
     m_context->uniform1fv(location->location(), v.length(), v.data());
@@ -5624,7 +5679,7 @@ void WebGLRenderingContextBase::uniform1fv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform2fv(const WebGLUniformLocation* location, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform2fv", location, v, 2))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform2fv", location, v, 2, 0, v.length()))
         return;
 
     m_context->uniform2fv(location->location(), v.length() / 2, v.data());
@@ -5632,7 +5687,7 @@ void WebGLRenderingContextBase::uniform2fv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform3fv(const WebGLUniformLocation* location, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform3fv", location, v, 3))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform3fv", location, v, 3, 0, v.length()))
         return;
 
     m_context->uniform3fv(location->location(), v.length() / 3, v.data());
@@ -5640,7 +5695,7 @@ void WebGLRenderingContextBase::uniform3fv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform4fv(const WebGLUniformLocation* location, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform4fv", location, v, 4))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform4fv", location, v, 4, 0, v.length()))
         return;
 
     m_context->uniform4fv(location->location(), v.length() / 4, v.data());
@@ -5648,7 +5703,7 @@ void WebGLRenderingContextBase::uniform4fv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform1iv(const WebGLUniformLocation* location, Int32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform1iv", location, v, 1))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform1iv", location, v, 1, 0, v.length()))
         return;
 
     auto data = v.data();
@@ -5669,7 +5724,7 @@ void WebGLRenderingContextBase::uniform1iv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform2iv(const WebGLUniformLocation* location, Int32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform2iv", location, v, 2))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform2iv", location, v, 2, 0, v.length()))
         return;
 
     m_context->uniform2iv(location->location(), v.length() / 2, v.data());
@@ -5677,7 +5732,7 @@ void WebGLRenderingContextBase::uniform2iv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform3iv(const WebGLUniformLocation* location, Int32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform3iv", location, v, 3))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform3iv", location, v, 3, 0, v.length()))
         return;
 
     m_context->uniform3iv(location->location(), v.length() / 3, v.data());
@@ -5685,7 +5740,7 @@ void WebGLRenderingContextBase::uniform3iv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniform4iv(const WebGLUniformLocation* location, Int32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformParameters("uniform4iv", location, v, 4))
+    if (isContextLostOrPending() || !validateUniformParameters("uniform4iv", location, v, 4, 0, v.length()))
         return;
 
     m_context->uniform4iv(location->location(), v.length() / 4, v.data());
@@ -5693,21 +5748,21 @@ void WebGLRenderingContextBase::uniform4iv(const WebGLUniformLocation* location,
 
 void WebGLRenderingContextBase::uniformMatrix2fv(const WebGLUniformLocation* location, GCGLboolean transpose, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix2fv", location, transpose, v, 4))
+    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix2fv", location, transpose, v, 4, 0, v.length()))
         return;
     m_context->uniformMatrix2fv(location->location(), v.length() / 4, transpose, v.data());
 }
 
 void WebGLRenderingContextBase::uniformMatrix3fv(const WebGLUniformLocation* location, GCGLboolean transpose, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix3fv", location, transpose, v, 9))
+    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix3fv", location, transpose, v, 9, 0, v.length()))
         return;
     m_context->uniformMatrix3fv(location->location(), v.length() / 9, transpose, v.data());
 }
 
 void WebGLRenderingContextBase::uniformMatrix4fv(const WebGLUniformLocation* location, GCGLboolean transpose, Float32List&& v)
 {
-    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix4fv", location, transpose, v, 16))
+    if (isContextLostOrPending() || !validateUniformMatrixParameters("uniformMatrix4fv", location, transpose, v, 16, 0, v.length()))
         return;
     m_context->uniformMatrix4fv(location->location(), v.length() / 16, transpose, v.data());
 }
@@ -6775,43 +6830,56 @@ bool WebGLRenderingContextBase::validateBlendFuncFactors(const char* functionNam
     return true;
 }
 
-bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, const Float32List& v, GCGLsizei requiredMinSize)
+bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, const Float32List& v, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    return validateUniformMatrixParameters(functionName, location, false, v.data(), v.length(), requiredMinSize);
+    return validateUniformMatrixParameters(functionName, location, false, v.data(), v.length(), requiredMinSize, srcOffset, srcLength);
 }
 
-bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, const Int32List& v, GCGLsizei requiredMinSize)
+bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, const Int32List& v, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    return validateUniformMatrixParameters(functionName, location, false, v.data(), v.length(), requiredMinSize);
+    return validateUniformMatrixParameters(functionName, location, false, v.data(), v.length(), requiredMinSize, srcOffset, srcLength);
 }
 
-bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, void* v, GCGLsizei size, GCGLsizei requiredMinSize)
+bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, const Uint32List& v, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    return validateUniformMatrixParameters(functionName, location, false, v, size, requiredMinSize);
+    return validateUniformMatrixParameters(functionName, location, false, v.data(), v.length(), requiredMinSize, srcOffset, srcLength);
 }
 
-bool WebGLRenderingContextBase::validateUniformMatrixParameters(const char* functionName, const WebGLUniformLocation* location, GCGLboolean transpose, const Float32List& v, GCGLsizei requiredMinSize)
+bool WebGLRenderingContextBase::validateUniformParameters(const char* functionName, const WebGLUniformLocation* location, void* v, GCGLsizei size, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    return validateUniformMatrixParameters(functionName, location, transpose, v.data(), v.length(), requiredMinSize);
+    return validateUniformMatrixParameters(functionName, location, false, v, size, requiredMinSize, srcOffset, srcLength);
 }
 
-bool WebGLRenderingContextBase::validateUniformMatrixParameters(const char* functionName, const WebGLUniformLocation* location, GCGLboolean transpose, const void* v, GCGLsizei size, GCGLsizei requiredMinSize)
+bool WebGLRenderingContextBase::validateUniformMatrixParameters(const char* functionName, const WebGLUniformLocation* location, GCGLboolean transpose, const Float32List& v, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
 {
-    if (!location)
+    return validateUniformMatrixParameters(functionName, location, transpose, v.data(), v.length(), requiredMinSize, srcOffset, srcLength);
+}
+
+bool WebGLRenderingContextBase::validateUniformMatrixParameters(const char* functionName, const WebGLUniformLocation* location, GCGLboolean transpose, const void* v, GCGLsizei size, GCGLsizei requiredMinSize, GCGLuint srcOffset, GCGLuint srcLength)
+{
+    if (!validateUniformLocation(functionName, location))
         return false;
-    if (location->program() != m_currentProgram) {
-        synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, functionName, "location is not from current program");
-        return false;
-    }
     if (!v) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "no array");
         return false;
     }
-    if (transpose) {
+    if (transpose && !isWebGL2()) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "transpose not FALSE");
         return false;
     }
-    if (size < requiredMinSize || (size % requiredMinSize)) {
+    if (srcOffset >= static_cast<GCGLuint>(size)) {
+        synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "invalid srcOffset");
+        return false;
+    }
+    GCGLsizei actualSize = size - srcOffset;
+    if (srcLength > 0) {
+        if (srcLength > static_cast<GCGLuint>(actualSize)) {
+            synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "invalid srcOffset + srcLength");
+            return false;
+        }
+        actualSize = srcLength;
+    }
+    if (actualSize < requiredMinSize || (actualSize % requiredMinSize)) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "invalid size");
         return false;
     }
@@ -6927,10 +6995,11 @@ void WebGLRenderingContextBase::vertexAttribfImpl(const char* functionName, GCGL
         }
     }
     VertexAttribValue& attribValue = m_vertexAttribValue[index];
-    attribValue.value[0] = v0;
-    attribValue.value[1] = v1;
-    attribValue.value[2] = v2;
-    attribValue.value[3] = v3;
+    attribValue.type = GraphicsContextGL::FLOAT;
+    attribValue.fValue[0] = v0;
+    attribValue.fValue[1] = v1;
+    attribValue.fValue[2] = v2;
+    attribValue.fValue[3] = v3;
 }
 
 void WebGLRenderingContextBase::vertexAttribfvImpl(const char* functionName, GCGLuint index, Float32List&& list, GCGLsizei expectedSize)
@@ -6943,7 +7012,7 @@ void WebGLRenderingContextBase::vertexAttribfvImpl(const char* functionName, GCG
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "no array");
         return;
     }
-    
+
     int size = list.length();
     if (size < expectedSize) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "invalid size");
@@ -6976,7 +7045,7 @@ void WebGLRenderingContextBase::vertexAttribfvImpl(const char* functionName, GCG
     VertexAttribValue& attribValue = m_vertexAttribValue[index];
     attribValue.initValue();
     for (int ii = 0; ii < expectedSize; ++ii)
-        attribValue.value[ii] = data[ii];
+        attribValue.fValue[ii] = data[ii];
 }
 
 #if !USE(ANGLE)
@@ -7057,25 +7126,27 @@ Optional<bool> WebGLRenderingContextBase::simulateVertexAttrib0(GCGLuint numVert
     }
 
     auto& attribValue = m_vertexAttribValue[0];
+    // This code shouldn't be called with WebGL2 where the type can be non-float.
+    ASSERT(attribValue.type == GraphicsContextGL::FLOAT);
 
     if (usingVertexAttrib0
         && (m_forceAttrib0BufferRefill
-            || attribValue.value[0] != m_vertexAttrib0BufferValue[0]
-            || attribValue.value[1] != m_vertexAttrib0BufferValue[1]
-            || attribValue.value[2] != m_vertexAttrib0BufferValue[2]
-            || attribValue.value[3] != m_vertexAttrib0BufferValue[3])) {
+            || attribValue.fValue[0] != m_vertexAttrib0BufferValue[0]
+            || attribValue.fValue[1] != m_vertexAttrib0BufferValue[1]
+            || attribValue.fValue[2] != m_vertexAttrib0BufferValue[2]
+            || attribValue.fValue[3] != m_vertexAttrib0BufferValue[3])) {
 
         auto bufferData = makeUniqueArray<GCGLfloat>(bufferSize);
         for (GCGLuint ii = 0; ii < numVertex + 1; ++ii) {
-            bufferData[ii * 4] = attribValue.value[0];
-            bufferData[ii * 4 + 1] = attribValue.value[1];
-            bufferData[ii * 4 + 2] = attribValue.value[2];
-            bufferData[ii * 4 + 3] = attribValue.value[3];
+            bufferData[ii * 4] = attribValue.fValue[0];
+            bufferData[ii * 4 + 1] = attribValue.fValue[1];
+            bufferData[ii * 4 + 2] = attribValue.fValue[2];
+            bufferData[ii * 4 + 3] = attribValue.fValue[3];
         }
-        m_vertexAttrib0BufferValue[0] = attribValue.value[0];
-        m_vertexAttrib0BufferValue[1] = attribValue.value[1];
-        m_vertexAttrib0BufferValue[2] = attribValue.value[2];
-        m_vertexAttrib0BufferValue[3] = attribValue.value[3];
+        m_vertexAttrib0BufferValue[0] = attribValue.fValue[0];
+        m_vertexAttrib0BufferValue[1] = attribValue.fValue[1];
+        m_vertexAttrib0BufferValue[2] = attribValue.fValue[2];
+        m_vertexAttrib0BufferValue[3] = attribValue.fValue[3];
         m_forceAttrib0BufferRefill = false;
         m_context->bufferSubData(GraphicsContextGL::ARRAY_BUFFER, 0, bufferDataSize, bufferData.get());
     }

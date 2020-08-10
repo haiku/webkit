@@ -1031,8 +1031,8 @@ static NSControlStateValue kit(TriState state)
     // FIXME: Shouldn't all of this move into +[WebHTMLView initialize]?
     // And some of this work is likely redundant since +[WebHTMLView initialize] is guaranteed to run first.
 
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
 
     if (!oldSetCursorForMouseLocationIMP) {
         Method setCursorMethod = class_getInstanceMethod([NSWindow class], @selector(_setCursorForMouseLocation:));
@@ -2565,8 +2565,8 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 {
     [NSApp registerServicesMenuSendTypes:[[self class] _selectionPasteboardTypes] returnTypes:[[self class] _insertablePasteboardTypes]];
 
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
 }
 
 #endif
@@ -6848,7 +6848,7 @@ static CGImageRef imageFromRect(WebCore::Frame* frame, CGRect rect)
     OptionSet<WebCore::PaintBehavior> oldPaintBehavior = frame->view()->paintBehavior();
     frame->view()->setPaintBehavior(oldPaintBehavior | WebCore::PaintBehavior::FlattenCompositingLayers | WebCore::PaintBehavior::Snapshotting);
 
-    BEGIN_BLOCK_OBJC_EXCEPTIONS;
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
     
     CGRect bounds = [view bounds];
     
@@ -6892,7 +6892,7 @@ static CGImageRef imageFromRect(WebCore::Frame* frame, CGRect rect)
     
     return resultImage.autorelease();
     
-    END_BLOCK_OBJC_EXCEPTIONS;
+    END_BLOCK_OBJC_EXCEPTIONS
 
     frame->view()->setPaintBehavior(oldPaintBehavior);
     return nil;

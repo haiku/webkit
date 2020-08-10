@@ -241,6 +241,10 @@ public:
     void setWebRTCDTMFEnabled(bool isEnabled) { m_isWebRTCDTMFEnabled = isEnabled; }
     bool webRTCH265CodecEnabled() const { return m_isWebRTCH265CodecEnabled; }
     void setWebRTCH265CodecEnabled(bool isEnabled) { m_isWebRTCH265CodecEnabled = isEnabled; }
+    bool webRTCVP9CodecEnabled() const { return m_isWebRTCVP9CodecEnabled; }
+    void setWebRTCVP9CodecEnabled(bool isEnabled) { m_isWebRTCVP9CodecEnabled = isEnabled; }
+    bool webRTCH264LowLatencyEncoderEnabled() const { return m_isWebRTCH264LowLatencyEncoderEnabled; }
+    void setWebRTCH264LowLatencyEncoderEnabled(bool isEnabled) { m_isWebRTCH264LowLatencyEncoderEnabled = isEnabled; }
     bool peerConnectionEnabled() const { return m_isPeerConnectionEnabled; }
     void setPeerConnectionEnabled(bool isEnabled) { m_isPeerConnectionEnabled = isEnabled; }
     bool webRTCMDNSICECandidatesEnabled() const { return m_isWebRTCMDNSICECandidatesEnabled; }
@@ -256,44 +260,9 @@ public:
     bool legacyCSSVendorPrefixesEnabled() const { return m_isLegacyCSSVendorPrefixesEnabled; }
 #endif
 
-#if ENABLE(INPUT_TYPE_COLOR)
-    bool inputTypeColorEnabled() const { return m_isInputTypeColorEnabled; }
-    void setInputTypeColorEnabled(bool isEnabled) { m_isInputTypeColorEnabled = isEnabled; }
-#endif
-
 #if ENABLE(DATALIST_ELEMENT)
     bool dataListElementEnabled() const { return m_isDataListElementEnabled; }
     void setDataListElementEnabled(bool isEnabled) { m_isDataListElementEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_DATE)
-    bool inputTypeDateEnabled() const { return m_isInputTypeDateEnabled; }
-    void setInputTypeDateEnabled(bool isEnabled) { m_isInputTypeDateEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
-    bool inputTypeDateTimeEnabled() const { return m_isInputTypeDateTimeEnabled; }
-    void setInputTypeDateTimeEnabled(bool isEnabled) { m_isInputTypeDateTimeEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
-    bool inputTypeDateTimeLocalEnabled() const { return m_isInputTypeDateTimeLocalEnabled; }
-    void setInputTypeDateTimeLocalEnabled(bool isEnabled) { m_isInputTypeDateTimeLocalEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_MONTH)
-    bool inputTypeMonthEnabled() const { return m_isInputTypeMonthEnabled; }
-    void setInputTypeMonthEnabled(bool isEnabled) { m_isInputTypeMonthEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_TIME)
-    bool inputTypeTimeEnabled() const { return m_isInputTypeTimeEnabled; }
-    void setInputTypeTimeEnabled(bool isEnabled) { m_isInputTypeTimeEnabled = isEnabled; }
-#endif
-
-#if ENABLE(INPUT_TYPE_WEEK)
-    bool inputTypeWeekEnabled() const { return m_isInputTypeWeekEnabled; }
-    void setInputTypeWeekEnabled(bool isEnabled) { m_isInputTypeWeekEnabled = isEnabled; }
 #endif
 
 #if ENABLE(GAMEPAD)
@@ -316,12 +285,10 @@ public:
     bool maskWebGLStringsEnabled() const { return m_isMaskWebGLStringsEnabled; }
 #endif
 
-#if ENABLE(STREAMS_API)
     void setReadableByteStreamAPIEnabled(bool isEnabled) { m_isReadableByteStreamAPIEnabled = isEnabled; }
     bool readableByteStreamAPIEnabled() const { return m_isReadableByteStreamAPIEnabled; }
     void setWritableStreamAPIEnabled(bool isEnabled) { m_isWritableStreamAPIEnabled = isEnabled; }
     bool writableStreamAPIEnabled() const { return m_isWritableStreamAPIEnabled; }
-#endif
 
 #if ENABLE(DOWNLOAD_ATTRIBUTE)
     void setDownloadAttributeEnabled(bool isEnabled) { m_isDownloadAttributeEnabled = isEnabled; }
@@ -512,57 +479,29 @@ private:
 
 #if ENABLE(WEB_RTC)
     bool m_isWebRTCDTMFEnabled { true };
-    bool m_isWebRTCH265CodecEnabled { true };
     bool m_isPeerConnectionEnabled { true };
-    bool m_isWebRTCMDNSICECandidatesEnabled { false };
     bool m_isWebRTCH264SimulcastEnabled { true };
-    bool m_isWebRTCPlatformCodecsInGPUProcessEnabled { true };
+    bool m_isWebRTCMDNSICECandidatesEnabled { false };
+    bool m_isWebRTCPlatformCodecsInGPUProcessEnabled { false };
+    bool m_isWebRTCH265CodecEnabled { false };
+    bool m_isWebRTCVP9CodecEnabled { false };
+    bool m_isWebRTCH264LowLatencyEncoderEnabled { false };
 #endif
 
 #if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
     bool m_isLegacyCSSVendorPrefixesEnabled { false };
 #endif
 
-#if ENABLE(INPUT_TYPE_COLOR)
-    bool m_isInputTypeColorEnabled { false };
-#endif
-
 #if ENABLE(DATALIST_ELEMENT)
     bool m_isDataListElementEnabled { false };
-#endif
-
-#if ENABLE(INPUT_TYPE_DATE)
-    bool m_isInputTypeDateEnabled { true };
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
-    bool m_isInputTypeDateTimeEnabled { false };
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
-    bool m_isInputTypeDateTimeLocalEnabled { true };
-#endif
-
-#if ENABLE(INPUT_TYPE_MONTH)
-    bool m_isInputTypeMonthEnabled { true };
-#endif
-
-#if ENABLE(INPUT_TYPE_TIME)
-    bool m_isInputTypeTimeEnabled { true };
-#endif
-
-#if ENABLE(INPUT_TYPE_WEEK)
-    bool m_isInputTypeWeekEnabled { true };
 #endif
 
 #if ENABLE(GAMEPAD)
     bool m_areGamepadsEnabled { false };
 #endif
 
-#if ENABLE(STREAMS_API)
     bool m_isReadableByteStreamAPIEnabled { false };
     bool m_isWritableStreamAPIEnabled { false };
-#endif
 
 #if ENABLE(WEBGL2)
     bool m_isWebGL2Enabled { false };

@@ -29,6 +29,8 @@
 
 #include "MediaElementSession.h"
 
+#include "Chrome.h"
+#include "ChromeClient.h"
 #include "Document.h"
 #include "DocumentLoader.h"
 #include "Frame.h"
@@ -1029,7 +1031,7 @@ void MediaElementSession::updateMediaUsageIfChanged()
 {
     auto& document = m_element.document();
     auto* page = document.page();
-    if (!page)
+    if (!page || page->sessionID().isEphemeral())
         return;
 
     bool isOutsideOfFullscreen = false;

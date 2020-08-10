@@ -489,7 +489,7 @@ static WebCore::Color baseScrollViewBackgroundColor(WKWebView *webView)
 static WebCore::Color scrollViewBackgroundColor(WKWebView *webView)
 {
     if (!webView.opaque)
-        return WebCore::Color::transparent;
+        return WebCore::Color::transparentBlack;
 
 #if HAVE(OS_DARK_MODE_SUPPORT)
     WebCore::LocalCurrentTraitCollection localTraitCollection(webView.traitCollection);
@@ -819,7 +819,7 @@ static void changeContentOffsetBoundedInValidRange(UIScrollView *scrollView, Web
         scrollingNeededToRevealUI = maxUnobscuredSize.width() == unobscuredContentRect.width() && maxUnobscuredSize.height() == unobscuredContentRect.height();
     }
 
-    bool scrollingEnabled = _page->scrollingCoordinatorProxy()->hasScrollableMainFrame() || hasDockedInputView || isZoomed || scrollingNeededToRevealUI;
+    bool scrollingEnabled = _page->scrollingCoordinatorProxy()->hasScrollableOrZoomedMainFrame() || hasDockedInputView || isZoomed || scrollingNeededToRevealUI;
     [_scrollView _setScrollEnabledInternal:scrollingEnabled];
 
     if (!layerTreeTransaction.scaleWasSetByUIProcess() && ![_scrollView isZooming] && ![_scrollView isZoomBouncing] && ![_scrollView _isAnimatingZoom] && [_scrollView zoomScale] != layerTreeTransaction.pageScaleFactor()) {
@@ -1022,7 +1022,7 @@ static void changeContentOffsetBoundedInValidRange(UIScrollView *scrollView, Web
     WebCore::IOSurface::Format compressedFormat = WebCore::IOSurface::Format::YUV422;
     if (WebCore::IOSurface::allowConversionFromFormatToFormat(snapshotFormat, compressedFormat)) {
         auto viewSnapshot = WebKit::ViewSnapshot::create(nullptr);
-        WebCore::IOSurface::convertToFormat(WTFMove(surface), WebCore::IOSurface::Format::YUV422, [viewSnapshot = viewSnapshot.copyRef()](std::unique_ptr<WebCore::IOSurface> convertedSurface) {
+        WebCore::IOSurface::convertToFormat(WTFMove(surface), WebCore::IOSurface::Format::YUV422, [viewSnapshot](std::unique_ptr<WebCore::IOSurface> convertedSurface) {
             if (convertedSurface)
                 viewSnapshot->setSurface(WTFMove(convertedSurface));
         });
@@ -1097,6 +1097,12 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
 {
     if (_commitDidRestoreScrollPosition || _dynamicViewportUpdateMode != WebKit::DynamicViewportUpdateMode::NotResizing)
         return;
+
+    // Don't allow content to do programmatic scrolls for non-scrollable pages when zoomed.
+    if (!_page->scrollingCoordinatorProxy()->hasScrollableMainFrame() && ([_scrollView zoomScale] > [_scrollView minimumZoomScale] || [_scrollView zoomScale] < [_scrollView minimumZoomScale])) {
+        [self _scheduleForcedVisibleContentRectUpdate];
+        return;
+    }
 
     WebCore::FloatPoint contentOffset = WebCore::ScrollableArea::scrollOffsetFromPosition(scrollPosition, toFloatSize(scrollOrigin));
 
@@ -1409,7 +1415,7 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
 
     Optional<WebCore::Color> backgroundColor;
     if (!opaque)
-        backgroundColor = WebCore::Color(WebCore::Color::transparent);
+        backgroundColor = WebCore::Color(WebCore::Color::transparentBlack);
     _page->setBackgroundColor(backgroundColor);
 
     [self _updateScrollViewBackground];
@@ -1806,6 +1812,12 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
     [self _scheduleVisibleContentRectUpdateAfterScrollInView:_scrollView.get()];
 }
 
+- (void)_scheduleForcedVisibleContentRectUpdate
+{
+    _alwaysSendNextVisibleContentRectUpdate = YES;
+    [self _scheduleVisibleContentRectUpdate];
+}
+
 - (BOOL)_scrollViewIsInStableState:(UIScrollView *)scrollView
 {
     BOOL isStableState = !([scrollView isDragging] || [scrollView isDecelerating] || [scrollView isZooming] || [scrollView _isAnimatingZoom] || [scrollView _isScrollingToTop]);
@@ -2022,7 +2034,8 @@ static bool scrollViewCanScroll(UIScrollView *scrollView)
         scale:scaleFactor minimumScale:[_scrollView minimumZoomScale]
         inStableState:inStableState
         isChangingObscuredInsetsInteractively:_isChangingObscuredInsetsInteractively
-        enclosedInScrollableAncestorView:scrollViewCanScroll([self _scroller])];
+        enclosedInScrollableAncestorView:scrollViewCanScroll([self _scroller])
+        sendEvenIfUnchanged:_alwaysSendNextVisibleContentRectUpdate];
 
     while (!_visibleContentRectUpdateCallbacks.isEmpty()) {
         auto callback = _visibleContentRectUpdateCallbacks.takeLast();
@@ -2032,6 +2045,7 @@ static bool scrollViewCanScroll(UIScrollView *scrollView)
     if ((timeNow - _timeOfRequestForVisibleContentRectUpdate) > delayBeforeNoVisibleContentsRectsLogging)
         RELEASE_LOG_IF_ALLOWED("%p -[WKWebView _updateVisibleContentRects:] finally ran %.2fs after being scheduled", self, (timeNow - _timeOfRequestForVisibleContentRectUpdate).value());
 
+    _alwaysSendNextVisibleContentRectUpdate = NO;
     _timeOfLastVisibleContentRectUpdate = timeNow;
     if (!_timeOfFirstVisibleContentRectUpdateWithPendingCommit)
         _timeOfFirstVisibleContentRectUpdateWithPendingCommit = timeNow;
@@ -2146,16 +2160,16 @@ static int32_t activeOrientation(WKWebView *webView)
         _callbacksDeferredDuringResize.takeLast()();
 }
 
-- (void)_didFinishLoadForMainFrame
+- (void)_didFinishNavigation:(API::Navigation*)navigation
 {
     if (_gestureController)
-        _gestureController->didFinishLoadForMainFrame();
+        _gestureController->didFinishNavigation(navigation);
 }
 
-- (void)_didFailLoadForMainFrame
+- (void)_didFailNavigation:(API::Navigation*)navigation
 {
     if (_gestureController)
-        _gestureController->didFailLoadForMainFrame();
+        _gestureController->didFailNavigation(navigation);
 }
 
 - (void)_didSameDocumentNavigationForMainFrame:(WebKit::SameDocumentNavigationType)navigationType
@@ -2943,7 +2957,10 @@ static WebCore::UserInterfaceLayoutDirection toUserInterfaceLayoutDirection(UISe
 {
     LOG_WITH_STREAM(VisibleRects, stream << "-[WKWebView " << _page->identifier() << " _overrideLayoutParametersWithMinimumLayoutSize:" << WebCore::FloatSize(minimumLayoutSize) << " maximumUnobscuredSizeOverride:" << WebCore::FloatSize(maximumUnobscuredSizeOverride) << "]");
 
-    [self _setViewLayoutSizeOverride:minimumLayoutSize];
+    if (minimumLayoutSize.width < 0 || minimumLayoutSize.height < 0)
+        RELEASE_LOG_FAULT(VisibleRects, "%s: Error: attempting to override layout parameters with negative width or height: %@", __PRETTY_FUNCTION__, NSStringFromCGSize(minimumLayoutSize));
+
+    [self _setViewLayoutSizeOverride:CGSizeMake(std::max<CGFloat>(0, minimumLayoutSize.width), std::max<CGFloat>(0, minimumLayoutSize.height))];
     [self _setMaximumUnobscuredSizeOverride:maximumUnobscuredSizeOverride];
 }
 

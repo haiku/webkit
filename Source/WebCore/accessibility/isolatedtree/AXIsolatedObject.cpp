@@ -350,10 +350,8 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
         combinedClassList.append(" ");
     }
     setProperty(AXPropertyName::ClassList, combinedClassList);
-    
-    int r, g, b;
-    object.colorValue(r, g, b);
-    setProperty(AXPropertyName::ColorValue, makeSimpleColor(r, g, b));
+
+    setProperty(AXPropertyName::ColorValue, object.colorValue());
     
     if (bool isMathElement = object.isMathElement()) {
         setProperty(AXPropertyName::IsMathElement, isMathElement);
@@ -629,10 +627,31 @@ void AXIsolatedObject::setIsExpanded(bool value)
         object->setIsExpanded(value);
     });
 }
-void AXIsolatedObject::setValue(float value)
+
+bool AXIsolatedObject::performDismissAction()
 {
-    performFunctionOnMainThread([&value](AXCoreObject* object) {
-        object->setValue(value);
+    return Accessibility::retrieveValueFromMainThread<bool>([this] () -> bool {
+        if (auto* axObject = associatedAXObject())
+            return axObject->performDismissAction();
+        return false;
+    });
+}
+
+bool AXIsolatedObject::setValue(float value)
+{
+    return Accessibility::retrieveValueFromMainThread<bool>([&value, this] () -> bool {
+        if (auto* axObject = associatedAXObject())
+            return axObject->setValue(value);
+        return false;
+    });
+}
+
+bool AXIsolatedObject::setValue(const String& value)
+{
+    return Accessibility::retrieveValueFromMainThread<bool>([&value, this] () -> bool {
+        if (auto* axObject = associatedAXObject())
+            return axObject->setValue(value);
+        return false;
     });
 }
 
@@ -671,13 +690,6 @@ void AXIsolatedObject::setSelectedTextRange(const PlainTextRange& value)
     });
 }
 
-void AXIsolatedObject::setValue(const String& value)
-{
-    performFunctionOnMainThread([&value](AXCoreObject* object) {
-        object->setValue(value);
-    });
-}
-
 #if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
 void AXIsolatedObject::setCaretBrowsingEnabled(bool value)
 {
@@ -694,12 +706,9 @@ void AXIsolatedObject::setPreventKeyboardDOMEventDispatch(bool value)
     });
 }
 
-void AXIsolatedObject::colorValue(int& r, int& g, int& b) const
+SRGBA<uint8_t> AXIsolatedObject::colorValue() const
 {
-    auto color = colorAttributeValue(AXPropertyName::ColorValue).toSRGBASimpleColorLossy();
-    r = color.redComponent();
-    g = color.greenComponent();
-    b = color.blueComponent();
+    return colorAttributeValue(AXPropertyName::ColorValue).toSRGBALossy<uint8_t>();
 }
 
 AXCoreObject* AXIsolatedObject::accessibilityHitTest(const IntPoint& point) const
@@ -884,7 +893,7 @@ void AXIsolatedObject::updateBackingStore()
         tree->applyPendingChanges();
 }
 
-String AXIsolatedObject::stringForRange(RefPtr<Range> range) const
+String AXIsolatedObject::stringForRange(const SimpleRange& range) const
 {
     return Accessibility::retrieveValueFromMainThread<String>([&range, this] () -> String {
         if (auto* object = associatedAXObject())
@@ -893,12 +902,12 @@ String AXIsolatedObject::stringForRange(RefPtr<Range> range) const
     });
 }
 
-Vector<RefPtr<Range>> AXIsolatedObject::findTextRanges(AccessibilitySearchTextCriteria const& criteria) const
+Vector<SimpleRange> AXIsolatedObject::findTextRanges(const AccessibilitySearchTextCriteria& criteria) const
 {
-    return Accessibility::retrieveValueFromMainThread<Vector<RefPtr<Range>>>([&criteria, this] () -> Vector<RefPtr<Range>> {
+    return Accessibility::retrieveValueFromMainThread<Vector<SimpleRange>>([&criteria, this] () -> Vector<SimpleRange> {
         if (auto* object = associatedAXObject())
             return object->findTextRanges(criteria);
-        return Vector<RefPtr<Range>>();
+        return { };
     });
 }
 
@@ -1065,6 +1074,22 @@ PlainTextRange AXIsolatedObject::selectedTextRange() const
             return object->selectedTextRange();
         return PlainTextRange();
     });
+}
+
+VisibleSelection AXIsolatedObject::selection() const
+{
+    ASSERT(isMainThread());
+
+    auto* object = associatedAXObject();
+    return object ? object->selection() : VisibleSelection();
+}
+
+void AXIsolatedObject::setSelectedVisiblePositionRange(const VisiblePositionRange& visiblePositionRange) const
+{
+    ASSERT(isMainThread());
+
+    if (auto* object = associatedAXObject())
+        object->setSelectedVisiblePositionRange(visiblePositionRange);
 }
 
 bool AXIsolatedObject::isListBoxOption() const

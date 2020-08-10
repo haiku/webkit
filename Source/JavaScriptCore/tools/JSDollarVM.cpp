@@ -1648,11 +1648,47 @@ namespace JSC {
 
 const ClassInfo JSDollarVM::s_info = { "DollarVM", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSDollarVM) };
 
-// Triggers a crash immediately.
-// Usage: $vm.crash()
-static NO_RETURN_DUE_TO_CRASH EncodedJSValue JSC_HOST_CALL functionCrash(JSGlobalObject*, CallFrame*)
+static EncodedJSValue doPrint(JSGlobalObject* globalObject, CallFrame* callFrame, bool addLineFeed)
 {
     DollarVMAssertScope assertScope;
+    auto scope = DECLARE_THROW_SCOPE(globalObject->vm());
+    for (unsigned i = 0; i < callFrame->argumentCount(); ++i) {
+        JSValue arg = callFrame->uncheckedArgument(i);
+        if (arg.isCell()
+            && !arg.isObject()
+            && !arg.isString()
+            && !arg.isBigInt()) {
+            dataLog(arg);
+            continue;
+        }
+        String argStr = callFrame->uncheckedArgument(i).toWTFString(globalObject);
+        RETURN_IF_EXCEPTION(scope, encodedJSValue());
+        dataLog(argStr);
+    }
+    if (addLineFeed)
+        dataLog("\n");
+    return JSValue::encode(jsUndefined());
+}
+
+// Triggers a crash after dumping any paramater passed to it.
+// Usage: $vm.crash(...)
+static NO_RETURN_DUE_TO_CRASH EncodedJSValue JSC_HOST_CALL functionCrash(JSGlobalObject* globalObject, CallFrame* callFrame)
+{
+    DollarVMAssertScope assertScope;
+
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_CATCH_SCOPE(vm);
+    if (callFrame->argumentCount()) {
+        dataLogLn("Dumping ", callFrame->argumentCount(), " values before crashing:");
+        const bool addLineFeed = true;
+        doPrint(globalObject, callFrame, addLineFeed);
+        if (scope.exception()) {
+            JSValue value = scope.exception()->value();
+            scope.clearException();
+            dataLogLn("Error thrown while crashing: ", value.toWTFString(globalObject));
+        }
+    }
+
     CRASH();
 }
 
@@ -1783,16 +1819,17 @@ static EncodedJSValue JSC_HOST_CALL functionCpuClflush(JSGlobalObject* globalObj
 class CallerFrameJITTypeFunctor {
 public:
     CallerFrameJITTypeFunctor()
-        : m_currentFrame(0)
-        , m_jitType(JITType::None)
     {
         DollarVMAssertScope assertScope;
     }
 
     StackVisitor::Status operator()(StackVisitor& visitor) const
     {
-        if (m_currentFrame++ > 1) {
-            m_jitType = visitor->codeBlock()->jitType();
+        unsigned index = m_currentFrame++;
+        // First frame (index 0) is `llintTrue` etc. function itself.
+        if (index == 1) {
+            if (visitor->codeBlock())
+                m_jitType = visitor->codeBlock()->jitType();
             return StackVisitor::Done;
         }
         return StackVisitor::Continue;
@@ -1801,8 +1838,8 @@ public:
     JITType jitType() { return m_jitType; }
 
 private:
-    mutable unsigned m_currentFrame;
-    mutable JITType m_jitType;
+    mutable unsigned m_currentFrame { 0 };
+    mutable JITType m_jitType { JITType::None };
 };
 
 static FunctionExecutable* getExecutableForFunction(JSValue theFunctionValue)
@@ -1836,8 +1873,8 @@ static EncodedJSValue JSC_HOST_CALL functionLLintTrue(JSGlobalObject* globalObje
 }
 
 // Returns true if the current frame is a baseline JIT frame.
-// Usage: isBaselineJIT = $vm.jitTrue()
-static EncodedJSValue JSC_HOST_CALL functionJITTrue(JSGlobalObject* globalObject, CallFrame* callFrame)
+// Usage: isBaselineJIT = $vm.baselineJITTrue()
+static EncodedJSValue JSC_HOST_CALL functionBaselineJITTrue(JSGlobalObject* globalObject, CallFrame* callFrame)
 {
     DollarVMAssertScope assertScope;
     VM& vm = globalObject->vm();
@@ -2024,28 +2061,6 @@ static EncodedJSValue JSC_HOST_CALL functionDumpBytecodeFor(JSGlobalObject* glob
     CodeBlock* codeBlock = codeBlockFromArg(globalObject, callFrame);
     if (codeBlock)
         codeBlock->dumpBytecode();
-    return JSValue::encode(jsUndefined());
-}
-
-static EncodedJSValue doPrint(JSGlobalObject* globalObject, CallFrame* callFrame, bool addLineFeed)
-{
-    DollarVMAssertScope assertScope;
-    auto scope = DECLARE_THROW_SCOPE(globalObject->vm());
-    for (unsigned i = 0; i < callFrame->argumentCount(); ++i) {
-        JSValue arg = callFrame->uncheckedArgument(i);
-        if (arg.isCell()
-            && !arg.isObject()
-            && !arg.isString()
-            && !arg.isBigInt()) {
-            dataLog(arg);
-            continue;
-        }
-        String argStr = callFrame->uncheckedArgument(i).toWTFString(globalObject);
-        RETURN_IF_EXCEPTION(scope, encodedJSValue());
-        dataLog(argStr);
-    }
-    if (addLineFeed)
-        dataLog("\n");
     return JSValue::encode(jsUndefined());
 }
 
@@ -3131,7 +3146,7 @@ void JSDollarVM::finishCreation(VM& vm)
     addFunction(vm, "cpuClflush", functionCpuClflush, 2);
 
     addFunction(vm, "llintTrue", functionLLintTrue, 0);
-    addFunction(vm, "jitTrue", functionJITTrue, 0);
+    addFunction(vm, "baselineJITTrue", functionBaselineJITTrue, 0);
 
     addFunction(vm, "noInline", functionNoInline, 1);
 

@@ -335,31 +335,27 @@ TEST(TextManipulation, StartTextManipulationFindNewlyDisplayedParagraph)
 
     done = false;
     delegate.get().itemCallback = ^(_WKTextManipulationItem *item) {
-        if (items.count == 3)
-            done = true;
+        done = true;
     };
     [webView stringByEvaluatingJavaScript:@"document.querySelectorAll('span.hidden').forEach((span) => span.classList.remove('hidden'));"];
     TestWebKitAPI::Util::run(&done);
 
-    EXPECT_EQ(items.count, 3UL);
-    EXPECT_EQ(items[1].tokens.count, 1UL);
-    EXPECT_EQ(items[2].tokens.count, 1UL);
-    RetainPtr<NSSet> tokens = adoptNS([[NSSet alloc] initWithObjects:items[1].tokens[0].content, items[2].tokens[0].content, nil]);
-    EXPECT_TRUE([tokens.get() containsObject:@"Web"]);
-    EXPECT_TRUE([tokens.get() containsObject:@"Kit"]);
+    EXPECT_EQ(items.count, 2UL);
+    EXPECT_EQ(items[1].tokens.count, 2UL);
+    EXPECT_STREQ("Web", items[1].tokens[0].content.UTF8String);
+    EXPECT_STREQ("Kit", items[1].tokens[1].content.UTF8String);
 
     // This has to happen separately in order to have a deterministic ordering.
     done = false;
     delegate.get().itemCallback = ^(_WKTextManipulationItem *item) {
-        if (items.count == 4)
-            done = true;
+        done = true;
     };
     [webView stringByEvaluatingJavaScript:@"document.querySelectorAll('div.hidden').forEach((div) => div.classList.remove('hidden'));"];
     TestWebKitAPI::Util::run(&done);
 
-    EXPECT_EQ(items.count, 4UL);
-    EXPECT_EQ(items[3].tokens.count, 1UL);
-    EXPECT_STREQ("hey", items[3].tokens[0].content.UTF8String);
+    EXPECT_EQ(items.count, 3UL);
+    EXPECT_EQ(items[2].tokens.count, 1UL);
+    EXPECT_STREQ("hey", items[2].tokens[0].content.UTF8String);
 }
 
 TEST(TextManipulation, StartTextManipulationFindSameParagraphWithNewContent)
@@ -663,7 +659,7 @@ TEST(TextManipulation, StartTextManipulationFindsInsertedClippedText)
     EXPECT_WK_STREQ("after", items[2].tokens[0].content);
 }
 
-TEST(TextManipulation, StartTextManipulationTreatsInlineBlockLinksAndButtonsAsParagraphs)
+TEST(TextManipulation, StartTextManipulationTreatsInlineBlockLinksAndButtonsAndSpansAsParagraphs)
 {
     auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
@@ -683,7 +679,9 @@ TEST(TextManipulation, StartTextManipulationTreatsInlineBlockLinksAndButtonsAsPa
         "    <button>One</button><button>Two</button>"
         "    <div><br></div>"
         "    <a href='#'>Three</a><a href='#'>Four</a>"
-        "    <span role='button'>Five</span><span role='button'>Six</span>"
+        "    <span role='button'>Five</span>"
+        "    <span>Six</span>"
+        "    <b>End</b>"
         "</body>"];
 
     done = false;
@@ -693,17 +691,21 @@ TEST(TextManipulation, StartTextManipulationTreatsInlineBlockLinksAndButtonsAsPa
     TestWebKitAPI::Util::run(&done);
 
     NSArray<_WKTextManipulationItem *> *items = [delegate items];
-    EXPECT_EQ(items.count, 6UL);
+    EXPECT_EQ(items.count, 7UL);
     EXPECT_EQ(items[0].tokens.count, 1UL);
     EXPECT_EQ(items[1].tokens.count, 1UL);
     EXPECT_EQ(items[2].tokens.count, 1UL);
     EXPECT_EQ(items[3].tokens.count, 1UL);
+    EXPECT_EQ(items[4].tokens.count, 1UL);
+    EXPECT_EQ(items[5].tokens.count, 1UL);
+    EXPECT_EQ(items[6].tokens.count, 1UL);
     EXPECT_WK_STREQ("One", items[0].tokens[0].content);
     EXPECT_WK_STREQ("Two", items[1].tokens[0].content);
     EXPECT_WK_STREQ("Three", items[2].tokens[0].content);
     EXPECT_WK_STREQ("Four", items[3].tokens[0].content);
     EXPECT_WK_STREQ("Five", items[4].tokens[0].content);
     EXPECT_WK_STREQ("Six", items[5].tokens[0].content);
+    EXPECT_WK_STREQ("End", items[6].tokens[0].content);
 }
 
 TEST(TextManipulation, StartTextManipulationTreatsLinksInNavigationElementsAsParagraphs)
@@ -981,6 +983,7 @@ TEST(TextManipulation, StartTextManipulationExtractsValuesByNode)
         "<body>"
         "<span>one</span><span style='white-space:pre;'>two &#10; three</span><span>four</span>"
         "<span style='white-space:pre;'>&#10;five</span>"
+        "<span>   six</span>        <span>seven</span>"
         "</body>"];
 
     done = false;
@@ -992,14 +995,101 @@ TEST(TextManipulation, StartTextManipulationExtractsValuesByNode)
     auto items = [delegate items];
     EXPECT_EQ(items.count, 2UL);
     EXPECT_EQ(items[0].tokens.count, 5UL);
-    EXPECT_STREQ("one", items[0].tokens[0].content.UTF8String);
-    EXPECT_STREQ("two", items[0].tokens[1].content.UTF8String);
-    EXPECT_STREQ(" \n ", items[0].tokens[2].content.UTF8String);
-    EXPECT_STREQ("three", items[0].tokens[3].content.UTF8String);
-    EXPECT_STREQ("four", items[0].tokens[4].content.UTF8String);
-    EXPECT_EQ(items[1].tokens.count, 2UL);
-    EXPECT_STREQ("\n", items[1].tokens[0].content.UTF8String);
-    EXPECT_STREQ("five", items[1].tokens[1].content.UTF8String);
+    EXPECT_WK_STREQ("one", items[0].tokens[0].content);
+    EXPECT_WK_STREQ("two", items[0].tokens[1].content);
+    EXPECT_WK_STREQ(" \n ", items[0].tokens[2].content);
+    EXPECT_WK_STREQ("three", items[0].tokens[3].content);
+    EXPECT_WK_STREQ("four", items[0].tokens[4].content);
+    EXPECT_EQ(items[1].tokens.count, 5UL);
+    EXPECT_WK_STREQ("\n", items[1].tokens[0].content);
+    EXPECT_WK_STREQ("five", items[1].tokens[1].content);
+    EXPECT_WK_STREQ(" six", items[1].tokens[2].content);
+    EXPECT_WK_STREQ(" ", items[1].tokens[3].content);
+    EXPECT_WK_STREQ("seven", items[1].tokens[4].content);
+}
+
+TEST(TextManipulation, StartTextManipulationExcludesTextRenderedAsIcons)
+{
+    auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
+    [webView _setTextManipulationDelegate:delegate.get()];
+    [webView synchronouslyLoadHTMLString:@"<!DOCTYPE html>"
+        "<head>"
+        "<style>"
+        "@font-face {"
+        "    font-family: Ahem;"
+        "    src: url(Ahem.ttf);"
+        "}"
+        "@font-face {"
+        "    font-family: SpaceOnly;"
+        "    src: url(SpaceOnly.otf);"
+        "}"
+        ".Ahem { font-family: Ahem; }"
+        ".SpaceOnly { font-family: SpaceOnly; }"
+        ".Missing { font-family: Missing; }"
+        ".SystemUI { font-family: system-ui; }"
+        "</style>"
+        "</head>"
+        "<body>"
+        "<span class='Ahem'>one</span><span class='SpaceOnly'>two</span><span class='Missing'>three</span><span class='SystemUI'>four</span>"
+        "</body>"];
+
+    done = false;
+    [webView _startTextManipulationsWithConfiguration:nil completion:^{
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    auto items = [delegate items];
+    EXPECT_EQ(items.count, 1UL);
+    auto item = items.firstObject;
+    EXPECT_EQ(item.tokens.count, 4UL);
+    EXPECT_WK_STREQ(item.tokens[0].content, "one");
+    EXPECT_FALSE(item.tokens[0].isExcluded);
+    EXPECT_WK_STREQ(item.tokens[1].content, "two");
+    EXPECT_TRUE(item.tokens[1].isExcluded);
+    EXPECT_WK_STREQ(item.tokens[2].content, "three");
+    EXPECT_FALSE(item.tokens[2].isExcluded);
+    EXPECT_WK_STREQ(item.tokens[3].content, "four");
+    EXPECT_FALSE(item.tokens[3].isExcluded);
+}
+
+TEST(TextManipulation, StartTextManipulationAvoidCrashWhenExtractingOrphanedPositions)
+{
+    auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
+    [webView _setTextManipulationDelegate:delegate.get()];
+
+    [webView synchronouslyLoadHTMLString:@"<p>hello world</p>"];
+
+    done = false;
+    [webView _startTextManipulationsWithConfiguration:nil completion:^{
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    auto items = [delegate items];
+    EXPECT_EQ(items.count, 1UL);
+    EXPECT_EQ(items[0].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello world", items[0].tokens[0].content);
+
+    done = false;
+    delegate.get().itemCallback = ^(_WKTextManipulationItem *item) {
+        done = true;
+    };
+
+    [webView objectByEvaluatingJavaScript:@"(() => {"
+        "    const objectElement = document.createElement('object');"
+        "    document.body.appendChild(objectElement);"
+        "    document.body.scrollTop;"
+        "    objectElement.remove();"
+        "    const text = document.createTextNode('testing');"
+        "    const container = document.createElement('div');"
+        "    container.appendChild(text);"
+        "    document.body.appendChild(container);"
+        "})();"];
+
+    TestWebKitAPI::Util::run(&done);
 }
 
 struct Token {
@@ -2358,6 +2448,48 @@ TEST(TextManipulation, CompleteTextManipulationCanMergeContentAndPreserveLineBre
     EXPECT_WK_STREQ("<span style=\"white-space:pre;\">ONE \n TWO \n</span>", [webView stringByEvaluatingJavaScript:@"document.body.innerHTML"]);
 }
 
+TEST(TextManipulation, CompleteTextManipulationIgnoreWhiteSpacesBetweenParagraphs)
+{
+    auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
+    [webView _setTextManipulationDelegate:delegate.get()];
+    [webView synchronouslyLoadHTMLString:@""
+        "<style>"
+            ".inline-block { display: inline-block; }"
+            ".list-item { display: list-item; }"
+            ".hide-absolute { display: none; position: absolute; }"
+            ".float-relative { float: left; position: relative; }"
+        "</style>"
+        "<ul class='float-relative'>"
+        "   <li class='list-item float-relative'><a class='inline-block'>hello</a>           <div class='hide-absolute'><a class='inline-block float-relative'>hide</a></div></li>"
+        "   <li class='list-item float-relative'><a class='inline-block'>world</a></li>"
+        "</ul>"];
+    auto configuration = adoptNS([[_WKTextManipulationConfiguration alloc] init]);
+
+    done = false;
+    [webView _startTextManipulationsWithConfiguration:configuration.get() completion:^{
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    auto *items = [delegate items];
+    EXPECT_EQ(items.count, 2UL);
+    EXPECT_EQ(items[0].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello", items[0].tokens[0].content);
+    EXPECT_EQ(items[1].tokens.count, 1UL);
+    EXPECT_WK_STREQ("world", items[1].tokens[0].content);
+
+    done = false;
+    [webView _completeTextManipulationForItems:@[
+        createItem(items[0].identifier, {{ items[0].tokens[0].identifier, @"Hello" }}).get(),
+        createItem(items[1].identifier, {{ items[1].tokens[0].identifier, @"World" }}).get()
+    ] completion:^(NSArray<NSError *> *errors) {
+        EXPECT_EQ(errors, nil);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+}
+
 TEST(TextManipulation, CompleteTextManipulationShouldPreserveNodesAfterParagraphRange)
 {
     auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
@@ -2581,13 +2713,75 @@ TEST(TextManipulation, CompleteTextManipulationForNewlyDisplayedParagraph)
     EXPECT_WK_STREQ("<b>WebKit!</b><span>Hello World<i>Bye</i></span>", [webView stringByEvaluatingJavaScript:@"document.querySelector('div').innerHTML"]);
 }
 
+TEST(TextManipulation, CompleteTextManipulationForManipulatedTextWithNewContent)
+{
+    auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
+    [webView _setTextManipulationDelegate:delegate.get()];
+
+    [webView synchronouslyLoadHTMLString:@"<!DOCTYPE html><html>"
+        "<body>"
+            "<span>hello world</span>"
+            "<p>hello webkit</p>"
+        "</body></html>"];
+
+    done = false;
+    [webView _startTextManipulationsWithConfiguration:nil completion:^{
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    auto *items = [delegate items];
+    EXPECT_EQ(items.count, 2UL);
+    EXPECT_EQ(items[0].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello world", items[0].tokens[0].content);
+    EXPECT_EQ(items[1].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello webkit", items[1].tokens[0].content);
+
+    done = false;
+    [webView _completeTextManipulationForItems:@[
+        createItem(items[0].identifier, {{ items[0].tokens[0].identifier, @"Hello World" }}).get(),
+        createItem(items[1].identifier, {{ items[1].tokens[0].identifier, @"Hello WebKit" }}).get()
+    ] completion:^(NSArray<NSError *> *errors) {
+        EXPECT_EQ(errors, nil);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+    EXPECT_WK_STREQ("<span>Hello World</span><p>Hello WebKit</p>", [webView stringByEvaluatingJavaScript:@"document.body.innerHTML"]);
+
+    done = false;
+    delegate.get().itemCallback = ^(_WKTextManipulationItem *item) {
+        if (items.count == 4)
+            done = true;
+    };
+    [webView stringByEvaluatingJavaScript:@"document.querySelector('span').innerHTML='hello world again';"];
+    [webView stringByEvaluatingJavaScript:@"document.querySelector('p').childNodes[0].nodeValue='hello webkit again';"];
+    TestWebKitAPI::Util::run(&done);
+
+    EXPECT_EQ(items[2].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello world again", items[2].tokens[0].content);
+    EXPECT_EQ(items[3].tokens.count, 1UL);
+    EXPECT_WK_STREQ("hello webkit again", items[3].tokens[0].content);
+
+    done = false;
+    [webView _completeTextManipulationForItems:@[
+        createItem(items[2].identifier, {{ items[2].tokens[0].identifier, @"Hello World Again" }}).get(),
+        createItem(items[3].identifier, {{ items[3].tokens[0].identifier, @"Hello WebKit Again" }}).get()
+    ] completion:^(NSArray<NSError *> *errors) {
+        EXPECT_EQ(errors, nil);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+    EXPECT_WK_STREQ("<span>Hello World Again</span><p>Hello WebKit Again</p>", [webView stringByEvaluatingJavaScript:@"document.body.innerHTML"]);
+}
+
 TEST(TextManipulation, CompleteTextManipulationAvoidExtractingManipulatedTextAfterManipulation)
 {
     auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
     [webView _setTextManipulationDelegate:delegate.get()];
 
-    [webView synchronouslyLoadHTMLString:@"<p>foo</p>"];
+    [webView synchronouslyLoadHTMLString:@"<p>foo<br>bar</p>"];
 
     done = false;
     [webView _startTextManipulationsWithConfiguration:nil completion:^{
@@ -2596,21 +2790,23 @@ TEST(TextManipulation, CompleteTextManipulationAvoidExtractingManipulatedTextAft
     TestWebKitAPI::Util::run(&done);
 
     auto items = [delegate items];
-    auto item = items[0];
-    EXPECT_EQ(items.count, 1UL);
-    EXPECT_EQ(item.tokens.count, 1UL);
-    EXPECT_WK_STREQ("foo", item.tokens[0].content);
+    EXPECT_EQ(items.count, 2UL);
+    EXPECT_EQ(items[0].tokens.count, 1UL);
+    EXPECT_WK_STREQ("foo", items[0].tokens[0].content);
+    EXPECT_EQ(items[1].tokens.count, 1UL);
+    EXPECT_WK_STREQ("bar", items[1].tokens[0].content);
 
     done = false;
     [webView _completeTextManipulationForItems:@[
-        createItem(item.identifier, {{ item.tokens[0].identifier, @"bar" }}).get()
+        createItem(items[0].identifier, {{ items[0].tokens[0].identifier, @"FOO" }}).get(),
+        createItem(items[1].identifier, {{ items[1].tokens[0].identifier, @"BAR" }}).get()
     ] completion:^(NSArray<NSError *> *errors) {
         EXPECT_EQ(errors, nil);
         done = true;
     }];
     TestWebKitAPI::Util::run(&done);
 
-    EXPECT_WK_STREQ("<p>bar</p>", [webView stringByEvaluatingJavaScript:@"document.body.innerHTML"]);
+    EXPECT_WK_STREQ("<p>FOO<br>BAR</p>", [webView stringByEvaluatingJavaScript:@"document.body.innerHTML"]);
 
     __block bool itemCallbackFired = false;
     [delegate setItemCallback:^(_WKTextManipulationItem *) {
@@ -2618,12 +2814,80 @@ TEST(TextManipulation, CompleteTextManipulationAvoidExtractingManipulatedTextAft
     }];
 
     [webView objectByEvaluatingJavaScript:@"document.querySelector('p').style.display = 'none'"];
-    [webView waitForNextPresentationUpdate];
-
     [webView objectByEvaluatingJavaScript:@"document.querySelector('p').style.display = ''"];
-    [webView waitForNextPresentationUpdate];
+    [webView stringByEvaluatingJavaScript:@"var element = document.createElement('span');"
+        "element.innerHTML='end';"
+        "document.querySelector('p').after(element)"];
 
-    EXPECT_FALSE(itemCallbackFired);
+    done = false;
+    delegate.get().itemCallback = ^(_WKTextManipulationItem *item) {
+        done = true;
+    };
+    TestWebKitAPI::Util::run(&done);
+
+    EXPECT_EQ(items.count, 3UL);
+    EXPECT_EQ(items[2].tokens.count, 1UL);
+    EXPECT_WK_STREQ("end", items[2].tokens[0].content);
+}
+
+TEST(TextManipulation, CompleteTextManipulationAddsOverflowHiddenToAvoidBreakingLayout)
+{
+    auto delegate = adoptNS([[TextManipulationDelegate alloc] init]);
+    auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)]);
+    [webView _setTextManipulationDelegate:delegate.get()];
+    [webView synchronouslyLoadHTMLString:@"<!DOCTYPE html>"
+        "<html>"
+        "<head>"
+        "  <style>"
+        "    span {"
+        "      display: inline-block;"
+        "      width: 28px;"
+        "      height: 40px;"
+        "      margin: 0;"
+        "      word-break: break-all;"
+        "      font-size: 32px;"
+        "    }"
+        "    a {"
+        "      display: block;"
+        "      width: 100px;"
+        "      height: 100px;"
+        "      overflow: hidden;"
+        "    }"
+        "  </style>"
+        "</head>"
+        "<body>"
+        "  <a>"
+        "    <span>A</span> Hello world"
+        "  </a>"
+        "</body>"
+        "</html>"];
+
+    done = false;
+    [webView _startTextManipulationsWithConfiguration:nil completion:^{
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    auto items = [delegate items];
+    EXPECT_EQ(items.count, 2UL);
+    EXPECT_EQ(items[0].tokens.count, 1UL);
+    EXPECT_WK_STREQ("A", items[0].tokens[0].content);
+    EXPECT_EQ(items[1].tokens.count, 1UL);
+    EXPECT_WK_STREQ(" Hello world", items[1].tokens[0].content);
+
+    done = false;
+    [webView _completeTextManipulationForItems:@[
+        createItem(items[0].identifier, {{ items[0].tokens[0].identifier, @"This is a long translation" }}).get(),
+        createItem(items[1].identifier, {{ items[1].tokens[0].identifier, @" Foo bar" }}).get()
+    ] completion:^(NSArray<NSError *> *errors) {
+        EXPECT_EQ(errors, nil);
+        done = true;
+    }];
+    TestWebKitAPI::Util::run(&done);
+
+    EXPECT_WK_STREQ("This is a long translation Foo bar", [webView stringByEvaluatingJavaScript:@"document.querySelector('a').textContent.trim()"]);
+    EXPECT_WK_STREQ("hidden", [webView stringByEvaluatingJavaScript:@"getComputedStyle(document.querySelector('span')).overflowX"]);
+    EXPECT_WK_STREQ("auto", [webView stringByEvaluatingJavaScript:@"getComputedStyle(document.querySelector('span')).overflowY"]);
 }
 
 TEST(TextManipulation, TextManipulationTokenDebugDescription)

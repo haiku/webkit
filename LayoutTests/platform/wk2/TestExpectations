@@ -358,9 +358,6 @@ http/tests/navigation/timerredirect-subframeload.html
 # Unexpected output from scrolling. Might be EFL port specific issue.
 http/tests/navigation/relativeanchor-frames.html
 
-# Scrollbars appear, even though they should not.
-fast/dynamic/window-resize-scrollbars-test.html [ Failure ]
-
 # Machinery for updating view size has a race condition, a problem when moving between
 # SVG tests that have a special view size and all the other tests that use a 800x600 view.
 # This test is not the cause of the problem, just the one that happens to currently be the victim.
@@ -660,8 +657,6 @@ media/video-src-blob.html
 security/contentSecurityPolicy/image-with-blob-url-allowed-by-img-src-star-with-AllowContentSecurityPolicySourceStarToMatchAnyProtocol-enabled.html
 security/contentSecurityPolicy/image-with-blob-url-blocked-by-img-src-star.html
 security/contentSecurityPolicy/video-with-blob-url-allowed-by-media-src-star.html
-storage/indexeddb/structured-clone.html
-storage/indexeddb/structured-clone-private.html
 
 # WebKitTestRunner doesn't have eventSender.fireKeyboardEventsToElement
 platform/mac/fast/events/objc-keyboard-event-creation.html
@@ -775,6 +770,9 @@ inspector/page/overrideSetting-ITPDebugModeEnabled.html [ Pass ]
 # Highlighting marked text ranges from layout tests is only supported in WebKit2.
 editing/input/composition-highlights.html [ Pass ]
 
+# Tests a setting behind the ENABLE_FULLSCREEN_API flag, which is WK2-only
+media/video-supports-fullscreen.html [ Pass ]
+
 ### END OF (5) Progressions, expected successes that are expected failures in WebKit1.
 ########################################
 
@@ -802,3 +800,5 @@ webkit.org/b/187766 http/wpt/service-workers/update-service-worker.https.html [ 
 # Newly imported test that is flaky on WebKit2 only.
 imported/w3c/web-platform-tests/html/browsers/the-window-object/apis-for-creating-and-navigating-browsing-contexts-by-name/no_window_open_when_term_nesting_level_nonzero.window.html [ Pass Failure ]
 
+# Closed port web socket delays are only supported on wk2.
+http/tests/websocket/tests/hybi/closed-port-delay.html [ Pass ]

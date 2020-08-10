@@ -28,26 +28,25 @@
 
 #if PLATFORM(WIN)
 
-#include "ColorUtilities.h"
 #include <d2d1.h>
 #include <d2d1_1helper.h>
 
 namespace WebCore {
 
 Color::Color(D2D1_COLOR_F color)
+    : Color(convertToComponentBytes(SRGBA { color.r, color.g, color.b, color.a }))
 {
-    setSimpleColor(makeSimpleColor(color.r * 255, color.g * 255, color.b * 255, color.a * 255));
 }
 
 Color::operator D2D1_COLOR_F() const
 {
-    auto [r, g, b, a] = toSRGBALossy();
+    auto [r, g, b, a] = toSRGBALossy<float>();
     return D2D1::ColorF(r, g, b, a);
 }
 
 Color::operator D2D1_VECTOR_4F() const
 {
-    auto [r, g, b, a] = toSRGBALossy();
+    auto [r, g, b, a] = toSRGBALossy<float>();
     return D2D1::Vector4F(r, g, b, a);
 }
 

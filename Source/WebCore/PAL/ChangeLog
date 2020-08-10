@@ -1,3 +1,581 @@
+2020-07-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r264477.
+
+        Broke the internal build
+
+        Reverted changeset:
+
+        "Use AVRoutePickerView when available for choosing AirPlay
+        devices"
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        https://trac.webkit.org/changeset/264477
+
+2020-07-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r264493.
+
+        Part of an attempted fix for the build
+
+        Reverted changeset:
+
+        "Use AVRoutePickerView when available for choosing AirPlay
+        devices"
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        https://trac.webkit.org/changeset/264493
+
+2020-07-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r264511.
+
+        Part of an attempted fix for the build
+
+        Reverted changeset:
+
+        "Unreviewed attempt to fix build on shipping macOS after
+        r264493."
+        https://trac.webkit.org/changeset/264511
+
+2020-07-17  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed attempt to fix build on shipping macOS after r264493.
+
+        * pal/spi/cocoa/AVKitSPI.h:
+
+2020-07-17  Jonathan Bedard  <jbedard@apple.com>
+
+        [iOS 14] Some PassKit SPI is now API
+        https://bugs.webkit.org/show_bug.cgi?id=214433
+        <rdar://problem/65695889>
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/PassKitSPI.h:
+
+2020-07-16  Eric Carlson  <eric.carlson@apple.com>
+
+        Use AVRoutePickerView when available for choosing AirPlay devices
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        <rdar://problem/58610662>
+
+        Unreviewed build fix.
+
+        * pal/spi/cocoa/AVKitSPI.h:
+
+2020-07-16  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] Remove the unnecessary inner class DefaultHash<T>::Hash
+        https://bugs.webkit.org/show_bug.cgi?id=214389
+
+        Reviewed by Darin Adler.
+
+        * pal/SessionID.h:
+
+2020-07-16  Eric Carlson  <eric.carlson@apple.com>
+
+        Use AVRoutePickerView when available for choosing AirPlay devices
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        <rdar://problem/58610662>
+
+        Reviewed by Jer Noble.
+
+        * pal/cocoa/AVFoundationSoftLink.h:
+        * pal/cocoa/AVFoundationSoftLink.mm: Soft link AVRoutePickerView.
+        * pal/spi/cocoa/AVKitSPI.h: Declare AVRoutePickerView.
+
+2020-07-16  Jer Noble  <jer.noble@apple.com>
+
+        [Cocoa] Add MediaCapabilities support for SW VP9 decoder.
+        https://bugs.webkit.org/show_bug.cgi?id=214316
+
+        Reviewed by Eric Carlson.
+
+        * pal/spi/cocoa/IOPSLibSPI.h:
+
+2020-07-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [Big Sur] De-duplicate SPI
+        https://bugs.webkit.org/show_bug.cgi?id=214415
+        <rdar://problem/65678060>
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/mac/NSImageSPI.h:
+
+2020-07-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [Big Sur] Build on Seed 1 (Follow-up Fix)
+        https://bugs.webkit.org/show_bug.cgi?id=214396
+        <rdar://problem/65644762>
+
+        Unreviewed follow-up fix.
+
+        * pal/spi/cg/CoreGraphicsSPI.h:
+
+2020-07-16  Jonathan Bedard  <jbedard@apple.com>
+
+        [Big Sur] Build on Seed 1
+        https://bugs.webkit.org/show_bug.cgi?id=214396
+        <rdar://problem/65644762>
+
+        Reviewed by Tim Horton.
+
+        * pal/spi/cg/CoreGraphicsSPI.h: Add CoreGraphics SPI for PDFKIT_PLUGIN.
+        * pal/spi/mac/NSImageSPI.h:
+
+2020-07-15  Saagar Jha  <saagar@saagarjha.com>
+
+        Add some missing boilerplate to help fix build on macOS Big Sur
+        https://bugs.webkit.org/show_bug.cgi?id=214338
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/mac/NSAppearanceSPI.h: Add -[NSAppearance _usesMetricsAppearance] to the SPI header.
+        * pal/spi/mac/NSImageSPI.h: Add +[NSImage _imageWithSystemSymbolName:] to the SPI header.
+
+2020-07-15  Rob Buis  <rbuis@igalia.com>
+
+        Building AccessibilitySupportSPI with the macOS Big Sur public SDK fails
+        https://bugs.webkit.org/show_bug.cgi?id=214237
+
+        Reviewed by Alex Christensen.
+
+        We need to include CoreFoundation.h header here to use CF_ENUM, since
+        we can't rely on the call site that includes AccessibilitySupportSPI.h
+        doing it for us.
+        We also need to declare _AXSetClientIdentificationOverride since it
+        it is used by AccessibilityController.cpp.
+
+        * pal/spi/cocoa/AccessibilitySupportSPI.h:
+        * pal/spi/mac/HIServicesSPI.h:
+
+2020-07-15  Brady Eidson  <beidson@apple.com>
+
+        Fix some build configurations after r264389
+        https://bugs.webkit.org/show_bug.cgi?id=214245
+
+        Unreviewed.
+
+        * pal/spi/mac/IOKitSPIMac.h: Forward declare newly used stuff.
+
+2020-07-15  Brady Eidson  <beidson@apple.com>
+
+        Resolve race between IOHIDManager and GameController framework.
+        <rdar://problem/65554490> and https://bugs.webkit.org/show_bug.cgi?id=214245
+
+        Reviewed by Tim Horton.
+
+        * pal/spi/mac/IOKitSPIMac.h:
+
+2020-07-12  Rob Buis  <rbuis@igalia.com>
+
+        Building CFNetworkSPI with the macOS Big Sur public SDK fails
+        https://bugs.webkit.org/show_bug.cgi?id=214238
+
+        Reviewed by Darin Adler.
+
+        Building CFNetworkSPI with the macOS Big Sur public SDK fails bacause
+        it has Objective-C declarations in a header that’s included by a
+        non-Objective-C source file, to fix wrap the declarations in a
+        defined(__OBJC__) block.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-07-12  Rob Buis  <rbuis@igalia.com>
+
+        Building NetworkSessionCocoa.mm with the macOS Big Sur public SDK fails
+        https://bugs.webkit.org/show_bug.cgi?id=214242
+
+        Reviewed by Darin Adler.
+
+        Building NetworkSessionCocoa.mm with the macOS Big Sur public SDK fails
+        because _allowsHTTP3 is readonly yet it is being written to in
+        NetworkSessionCocoa.mm, mark it as readwrite instead.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-07-12  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, speculative build fix for internal build
+
+        Followed the style of WebKit/Platform/spi/ios/UIKitSPI.h. Using `__has_include` to
+        conditionally define LSDatabaseContext (WebKitChangeTracking) category.
+
+        * pal/spi/cocoa/LaunchServicesSPI.h:
+
+2020-07-09  Brady Eidson  <beidson@apple.com>
+
+        Multiplex the HID and GameController gamepad providers on Mac.
+        <rdar://problem/63192532> and https://bugs.webkit.org/show_bug.cgi?id=214126
+
+        Reviewed by Tim Horton.
+
+        The current "IOKitSPI.h" is really weird.
+        It is mostly needed for iOS, but also used on Mac a little...
+        And since some of what it declares on Mac is actually public, anyone else
+        that uses public headers on Mac runs into redefinitions.
+        
+        Since the use of it on iOS and Mac are so different, let's just make a Mac one.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/spi/mac/IOKitSPIMac.h: Copied from Source/WebCore/platform/gamepad/cocoa/GameControllerSoftLink.h.
+
+2020-07-09  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Update Launch Services database in the WebContent process from the Network process
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+
+        Reviewed by Brent Fulgham.
+
+        Declare interface for observing and consuming the Launch Services database.
+
+        * pal/spi/cocoa/LaunchServicesSPI.h:
+
+2020-07-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r264148.
+        https://bugs.webkit.org/show_bug.cgi?id=214136
+
+        Introduced layout test failures
+
+        Reverted changeset:
+
+        "[Cocoa] Update Launch Services database in the WebContent
+        process from the Network process"
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+        https://trac.webkit.org/changeset/264148
+
+2020-07-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Update Launch Services database in the WebContent process from the Network process
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+
+        Reviewed by Brent Fulgham.
+
+        Declare interface for observing and consuming the Launch Services database.
+
+        * pal/spi/cocoa/LaunchServicesSPI.h:
+
+2020-07-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r264132 and r264139.
+        https://bugs.webkit.org/show_bug.cgi?id=214108
+
+        Introduced assert failure.
+
+        Reverted changesets:
+
+        "[Cocoa] Update Launch Services database in the WebContent
+        process from the Network process"
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+        https://trac.webkit.org/changeset/264132
+
+        "Unreviewed build fix attempt after r264132."
+        https://trac.webkit.org/changeset/264139
+
+2020-07-08  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed build fix attempt after r264132.
+
+        * pal/spi/cocoa/LaunchServicesSPI.h:
+
+2020-07-08  Per Arne Vollan  <pvollan@apple.com>
+
+        [Cocoa] Update Launch Services database in the WebContent process from the Network process
+        https://bugs.webkit.org/show_bug.cgi?id=213794
+
+        Reviewed by Brent Fulgham.
+
+        Declare interface for observing and consuming the Launch Services database.
+
+        * pal/spi/cocoa/LaunchServicesSPI.h:
+
+2020-07-07  Andy Estes  <aestes@apple.com>
+
+        [Apple Pay] Fix the build on Catalina internal SDKs
+        https://bugs.webkit.org/show_bug.cgi?id=214066
+
+        Unreviewed build fix for the 10.15.0 Internal SDK.
+
+        * pal/spi/cocoa/PassKitInstallmentsSPI.h:
+        * pal/spi/cocoa/PassKitSPI.h:
+
+2020-07-07  Tim Horton  <timothy_horton@apple.com>
+
+        <attachment> layout does not scale with Dynamic Type size changes
+        https://bugs.webkit.org/show_bug.cgi?id=214023
+        <rdar://problem/64914762>
+
+        Reviewed by Sam Weinig.
+
+        * pal/spi/cocoa/CoreTextSPI.h:
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263960.
+        https://bugs.webkit.org/show_bug.cgi?id=213980
+
+        Re-land, because r263959 somehow fixed the build issue caused
+        by r263953
+
+        Reverted changeset:
+
+        "Unreviewed, reverting r263953 and r263959."
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+        https://trac.webkit.org/changeset/263960
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263953 and r263959.
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+
+        Broke internal build
+
+        Reverted changesets:
+
+        "[Cocoa] Move almost all features from FeatureDefines.xcconfig
+        to PlatformEnableCocoa.h"
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+        https://trac.webkit.org/changeset/263953
+
+        "[Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build
+        system"
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+        https://trac.webkit.org/changeset/263959
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build system
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed.
+        * Configurations/PAL.xcconfig: Removed FEATURE_DEFINES and the include
+        of FeatureDefines.xcconfig.
+        * PAL.xcodeproj/project.pbxproj: Removed FeatureDefines.xcconfig.
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Move almost all features from FeatureDefines.xcconfig to PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Delete everything except
+        ENABLE_EXPERIMENTAL_FEATURES and ENABLE_WEBRTC.
+
+2020-07-05  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [macOS 11] Indeterminate progress bar animation periodically jumps
+        https://bugs.webkit.org/show_bug.cgi?id=213967
+
+        Reviewed by Sam Weinig.
+
+        * pal/spi/mac/CoreUISPI.h: Add declarations for `kCUIAnimationStartTimeKey` and `kCUIAnimationTimeKey`.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove all features from FeatureDefines.xcconfig that are already mentioned in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=213962
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed all features that were mentioned
+        in PlatformEnableCocoa.h; the rules in that file now define whether they are enabled.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove unconditional features from FeatureDefines.xcconfig, making sure they are covered in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed features that are either unconditionally not enabled,
+        or unconditionally enabled. Double checked that all the enabled ones are either in PlatformEnable.h or
+        PlatformEnableCocoa.h.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        Update comment in FeatureDefines.xcconfig since PlatformEnableCocoa.h should be used instead
+        https://bugs.webkit.org/show_bug.cgi?id=213952
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Updated comment.
+
+2020-07-03  Saagar Jha  <saagar@saagarjha.com>
+
+        Fix a build error by forward declaring _NSHTTPAlternativeServicesStorage
+        https://bugs.webkit.org/show_bug.cgi?id=213911
+
+        Reviewed by Darin Adler.
+
+        The public 10.16 SDK does not define _NSHTTPAlternativeServicesStorage, and the interface
+        declaration comes after it is used. Forward declare it to fix the error.
+
+        * pal/spi/cf/CFNetworkSPI.h: Forward declare _NSHTTPAlternativeServicesStorage.
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Remove support for ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE
+        https://bugs.webkit.org/show_bug.cgi?id=213932
+
+        Reviewed by Darin Adler.
+
+        Removes support for non-standard <input type="datetime">, currently being 
+        guarded by the macro ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE. This macro, was
+        added back in 2013 as a temporary measure to support some engines who shipped
+        support for <input type="datetime">. It is currently not enabled for any
+        ports so now seems like as good a time as any to remove it.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Add "-Wliteral-conversion" warning to Xcode based builds and fix the issues it finds
+        https://bugs.webkit.org/show_bug.cgi?id=213931
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig:
+        Add -Wliteral-conversion.
+
+2020-07-03  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263882.
+        https://bugs.webkit.org/show_bug.cgi?id=213933
+
+        Broke the build
+
+        Reverted changeset:
+
+        "Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to
+        replace _WKProcessPoolConfiguration.hstsStorageDirectory"
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+        https://trac.webkit.org/changeset/263882
+
+2020-07-02  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-07-02  Alex Christensen  <achristensen@webkit.org>
+
+        Add testing infrastructure and SPI declaration for HTTP/2 ping
+        https://bugs.webkit.org/show_bug.cgi?id=213913
+
+        Reviewed by Jer Noble.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-07-01  Tim Horton  <timothy_horton@apple.com>
+
+        Upstream application accent color support
+        https://bugs.webkit.org/show_bug.cgi?id=213859
+
+        Reviewed by Wenson Hsieh.
+
+        * pal/spi/mac/NSApplicationSPI.h:
+
+2020-06-30  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Connections to the preference daemon are established before entering the sandbox
+        https://bugs.webkit.org/show_bug.cgi?id=213379
+
+        Reviewed by Darin Adler.
+
+        Use correct parameter types in _CFPrefsSetDirectModeEnabled and _CFPrefsSetReadOnly, and move
+        _CFPrefsSetDirectModeEnabled inside an Objective-C guard, since BOOL only seems to be a builtin
+        type in Objective-C.
+
+        * pal/spi/cf/CFUtilitiesSPI.h:
+
+2020-06-30  Peng Liu  <peng.liu6@apple.com>
+
+        Enable the support of FULLSCREEN_API in WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=213774
+
+        Reviewed by Youenn Fablet.
+
+        Replace the definition of ENABLE_FULLSCREEN_API in FeatureDefines.xcconfig with
+        the one in PlatformEnableCocoa.h. We have to do that because WebKitTestRunner
+        does not have a FeatureDefines.xcconfig but it uses "ENABLE(FULLSCREEN_API)"
+        to conditionally compile code to test the element fullscreen API.
+        WebKitTestRunner can use the macro defined in PlatformEnableCocoa.h.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that this
+        project supports building for Mac Catalyst.
+
+2020-06-30  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263724.
+        https://bugs.webkit.org/show_bug.cgi?id=213781
+
+
+        Reverted changeset:
+
+        "Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to
+        replace _WKProcessPoolConfiguration.hstsStorageDirectory"
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+        https://trac.webkit.org/changeset/263724
+
+2020-06-29  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-06-29  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Remove ENABLE_STREAMS_API compilation flag
+        https://bugs.webkit.org/show_bug.cgi?id=213728
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-24  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263295.
+        https://bugs.webkit.org/show_bug.cgi?id=213577
+
+        Introduced logging regression
+
+        Reverted changeset:
+
+        "[macOS] Connections to the preference daemon are established
+        before entering the sandbox"
+        https://bugs.webkit.org/show_bug.cgi?id=213379
+        https://trac.webkit.org/changeset/263295
+
+2020-06-24  Umar Iqbal  <uiqbal@apple.com>
+
+        We should resurrect the older patch that collects some statistics of web API calls
+        https://bugs.webkit.org/show_bug.cgi?id=213319
+
+        Reviewed by Brent Fulgham.
+
+        + Enabled ENABLE_WEB_API_STATISTICS flag
+
+        * Configurations/FeatureDefines.xcconfig:
+
 2020-06-22  Tim Horton  <timothy_horton@apple.com>
 
         Update macOS version macros

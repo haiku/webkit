@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Lars Knoll (knoll@kde.org)
  * Copyright (C) 2005 Allan Sandfeld Jensen (kde@carewolf.com)
- * Copyright (C) 2004-2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2007 Nicholas Shanks <webkit@nickshanks.com>
  * Copyright (C) 2008 Eric Seidel <eric@webkit.org>
  * Copyright (C) 2009 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
@@ -89,6 +89,8 @@ RefPtr<StyleRuleKeyframe> CSSParser::parseKeyframeRule(const String& string)
 bool CSSParser::parseSupportsCondition(const String& condition)
 {
     CSSParserImpl parser(m_context, condition);
+    if (!parser.tokenizer())
+        return false;
     return CSSSupportsParser::supportsCondition(parser.tokenizer()->tokenRange(), parser, CSSSupportsParser::ForWindowCSS) == CSSSupportsParser::Supported;
 }
 
@@ -122,12 +124,12 @@ Color CSSParser::parseSystemColor(StringView string)
     return RenderTheme::singleton().systemColor(keyword, { });
 }
 
-Optional<SimpleColor> CSSParser::parseNamedColor(StringView string)
+Optional<SRGBA<uint8_t>> CSSParser::parseNamedColor(StringView string)
 {
     return CSSParserFastPaths::parseNamedColor(string);
 }
 
-Optional<SimpleColor> CSSParser::parseHexColor(StringView string)
+Optional<SRGBA<uint8_t>> CSSParser::parseHexColor(StringView string)
 {
     return CSSParserFastPaths::parseHexColor(string);
 }

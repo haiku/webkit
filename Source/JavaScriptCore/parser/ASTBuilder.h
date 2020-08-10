@@ -1427,7 +1427,7 @@ ExpressionNode* ASTBuilder::makeFunctionCallNode(const JSTokenLocation& location
     if (func->isResolveNode()) {
         ResolveNode* resolve = static_cast<ResolveNode*>(func);
         const Identifier& identifier = resolve->identifier();
-        if (identifier == m_vm.propertyNames->eval) {
+        if (identifier == m_vm.propertyNames->eval && !isOptionalCall) {
             usesEval();
             return new (m_parserArena) EvalFunctionCallNode(location, args, divot, divotStart, divotEnd);
         }
@@ -1455,7 +1455,7 @@ ExpressionNode* ASTBuilder::makeFunctionCallNode(const JSTokenLocation& location
         && args->m_listNode->m_expr
         && args->m_listNode->m_expr->isResolveNode()
         && !args->m_listNode->m_next
-        && ((dot->base()->isResolveNode() && static_cast<ResolveNode*>(dot->base())->identifier() != m_vm.propertyNames->Reflect) || dot->base()->isThisNode())) {
+        && (dot->base()->isResolveNode() || dot->base()->isThisNode())) {
         // We match the AST pattern:
         // <resolveNode|thisNode>.hasOwnProperty(<resolveNode>)
         // i.e:

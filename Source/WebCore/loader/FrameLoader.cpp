@@ -2077,7 +2077,13 @@ void FrameLoader::commitProvisionalLoad()
         notifier().sendRemainingDelegateMessages(m_documentLoader.get(), mainResourceIdentifier, mainResourceRequest, ResourceResponse(),
             nullptr, static_cast<int>(m_documentLoader->response().expectedContentLength()), 0, mainResouceError);
 
-        checkCompleted();
+        Vector<Ref<Frame>> targetFrames;
+        targetFrames.append(m_frame);
+        for (auto* child = m_frame.tree().firstChild(); child; child = child->tree().traverseNext(&m_frame))
+            targetFrames.append(*child);
+
+        for (auto& frame : targetFrames)
+            frame->loader().checkCompleted();
     } else
         didOpenURL();
 
@@ -2350,10 +2356,6 @@ void FrameLoader::open(CachedFrameBase& cachedFrame)
     updateFirstPartyForCookies();
 
     cachedFrame.restore();
-
-    // For the main frame, this gets called in FrameLoader::commitProvisionalLoad().
-    if (!m_frame.isMainFrame())
-        checkCompleted();
 }
 
 bool FrameLoader::isReplacing() const
@@ -2711,8 +2713,6 @@ void FrameLoader::closeAndRemoveChild(Frame& child)
     child.tree().detachFromParent();
 
     child.setView(nullptr);
-    if (child.ownerElement() && child.page())
-        child.page()->decrementSubframeCount();
     child.willDetachPage();
     child.detachFromPage();
 
@@ -2937,6 +2937,11 @@ void FrameLoader::addExtraFieldsToRequest(ResourceRequest& request, IsMainResour
 
     // Make sure we send the Origin header.
     addHTTPOriginIfNeeded(request, String());
+
+    applyUserAgentIfNeeded(request);
+
+    if (isMainResource)
+        request.setHTTPHeaderField(HTTPHeaderName::Accept, CachedResourceRequest::acceptHeaderValueFromType(CachedResource::Type::MainResource));
 
     // Only set fallback array if it's still empty (later attempts may be incorrect, see bug 117818).
     if (request.responseContentDispositionEncodingFallbackArray().isEmpty()) {
@@ -3610,7 +3615,7 @@ bool FrameLoader::shouldInterruptLoadForXFrameOptions(const String& content, con
     XFrameOptionsDisposition disposition = parseXFrameOptionsHeader(content);
 
     switch (disposition) {
-    case XFrameOptionsSameOrigin: {
+    case XFrameOptionsDisposition::SameOrigin: {
         auto origin = SecurityOrigin::create(url);
         if (!origin->isSameSchemeHostPort(topFrame.document()->securityOrigin()))
             return true;
@@ -3620,17 +3625,17 @@ bool FrameLoader::shouldInterruptLoadForXFrameOptions(const String& content, con
         }
         return false;
     }
-    case XFrameOptionsDeny:
+    case XFrameOptionsDisposition::Deny:
         return true;
-    case XFrameOptionsAllowAll:
+    case XFrameOptionsDisposition::AllowAll:
         return false;
-    case XFrameOptionsConflict:
+    case XFrameOptionsDisposition::Conflict:
         m_frame.document()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, "Multiple 'X-Frame-Options' headers with conflicting values ('" + content + "') encountered when loading '" + url.stringCenterEllipsizedToLength() + "'. Falling back to 'DENY'.", requestIdentifier);
         return true;
-    case XFrameOptionsInvalid:
+    case XFrameOptionsDisposition::Invalid:
         m_frame.document()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, "Invalid 'X-Frame-Options' header encountered when loading '" + url.stringCenterEllipsizedToLength() + "': '" + content + "' is not a recognized directive. The header will be ignored.", requestIdentifier);
         return false;
-    case XFrameOptionsNone:
+    case XFrameOptionsDisposition::None:
         return false;
     }
     ASSERT_NOT_REACHED();

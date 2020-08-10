@@ -30,9 +30,24 @@
 #import "HTTPServer.h"
 #import "PlatformUtilities.h"
 #import "TestNavigationDelegate.h"
+#import "TestUIDelegate.h"
 #import "Utilities.h"
+#import "WKWebViewConfigurationExtras.h"
 #import <WebKit/WKWebViewPrivate.h>
+#import <pal/spi/cf/CFNetworkSPI.h>
 #import <wtf/RetainPtr.h>
+
+#if HAVE(PRECONNECT_PING)
+@interface SessionDelegate : NSObject <NSURLSessionDataDelegate>
+@end
+
+@implementation SessionDelegate
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
+{
+    completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
+}
+@end
+#endif
 
 namespace TestWebKitAPI {
 
@@ -89,6 +104,104 @@ TEST(Preconnect, HTTPS)
 }
 
 #endif
+
+#if HAVE(PRECONNECT_PING)
+static void pingPong(Ref<H2::Connection>&& connection, size_t* headersCount)
+{
+    connection->receive([connection, headersCount] (H2::Frame&& frame) mutable {
+        switch (frame.type()) {
+        case H2::Frame::Type::Headers:
+            ++*headersCount;
+            break;
+        case H2::Frame::Type::Settings:
+        case H2::Frame::Type::WindowUpdate:
+            // These frame types are ok for a preconnect task.
+            break;
+        case H2::Frame::Type::Ping:
+            {
+                // https://http2.github.io/http2-spec/#rfc.section.6.7
+                constexpr uint8_t ack = 0x1;
+                connection->send(H2::Frame(H2::Frame::Type::Ping, ack, frame.streamID(), frame.payload()));
+            }
+            break;
+        default:
+            // If anything else is sent by the client, preconnect is doing too much.
+            ASSERT_NOT_REACHED();
+            break;
+        }
+        pingPong(WTFMove(connection), headersCount);
+    });
+}
+
+// This should remain disabled until rdar://problem/65055930 is integrated and bots are updated
+TEST(Preconnect, DISABLED_H2Ping)
+{
+    size_t headersCount = 0;
+    HTTPServer server([headersCount = &headersCount] (Connection tlsConnection) {
+        pingPong(H2::Connection::create(tlsConnection), headersCount);
+    }, HTTPServer::Protocol::Http2);
+    
+    auto delegate = adoptNS([SessionDelegate new]);
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration] delegate:delegate.get() delegateQueue:[NSOperationQueue mainQueue]];
+    NSURLSessionDataTask *task = [session dataTaskWithRequest:server.request()];
+    task._preconnect = YES;
+    __block bool done = false;
+
+    [task getUnderlyingHTTPConnectionInfoWithCompletionHandler:^(_NSHTTPConnectionInfo *connectionInfo) {
+        EXPECT_TRUE(connectionInfo.isValid);
+        [connectionInfo sendPingWithReceiveHandler:^(NSError *error, NSTimeInterval interval) {
+            EXPECT_FALSE(error);
+            EXPECT_GT(interval, 0.0);
+            done = true;
+        }];
+    }];
+    [task resume];
+    Util::run(&done);
+    
+    // Make sure the client doesn't send anything except Settings, WindowUpdate, and Ping.
+    // If Headers or Data were sent, then the preconnect wouldn't be preconnect.
+    usleep(100000);
+    Util::spinRunLoop(100);
+    EXPECT_EQ(headersCount, 0u);
+
+    NSURLSessionDataTask *task2 = [session dataTaskWithRequest:server.request()];
+    [task2 resume];
+    while (!headersCount)
+        Util::spinRunLoop();
+    EXPECT_EQ(headersCount, 1u);
+    usleep(100000);
+    Util::spinRunLoop(100);
+    EXPECT_EQ(headersCount, 1u);
+}
+
+// This should remain disabled until rdar://problem/65055930 is integrated and bots are updated
+TEST(Preconnect, DISABLED_H2PingFromWebCoreNSURLSession)
+{
+    size_t headersCount = 0;
+    HTTPServer server([headersCount = &headersCount] (Connection tlsConnection) {
+        pingPong(H2::Connection::create(tlsConnection), headersCount);
+    }, HTTPServer::Protocol::Http2);
+
+    WKWebViewConfiguration *configuration = [WKWebViewConfiguration _test_configurationWithTestPlugInClassName:@"WebProcessPlugInWithInternals" configureJSCForTesting:YES];
+    auto webView = adoptNS([[WKWebView alloc] initWithFrame:CGRectZero configuration:configuration]);
+
+    auto delegate = adoptNS([TestNavigationDelegate new]);
+    __block bool receivedChallenge = false;
+    [delegate setDidReceiveAuthenticationChallenge:^(WKWebView *, NSURLAuthenticationChallenge *challenge, void (^callback)(NSURLSessionAuthChallengeDisposition, NSURLCredential *)) {
+        EXPECT_WK_STREQ(challenge.protectionSpace.authenticationMethod, NSURLAuthenticationMethodServerTrust);
+        receivedChallenge = true;
+        callback(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
+    }];
+    [webView setNavigationDelegate:delegate.get()];
+    [webView loadHTMLString:[NSString stringWithFormat:@"<script>internals.sendH2Ping('https://127.0.0.1:%d/').then(function(t){if(t>0){alert('pass')}else{alert('fail')}})</script>", server.port()] baseURL:nil];
+    EXPECT_WK_STREQ([webView _test_waitForAlert], "pass");
+    EXPECT_FALSE(headersCount);
+    EXPECT_TRUE(receivedChallenge);
+}
+
+
+
+#endif // HAVE(PRECONNECT_PING)
 
 }
 

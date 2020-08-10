@@ -265,11 +265,6 @@ void MockRealtimeVideoSource::drawAnimation(GraphicsContext& context)
 
 void MockRealtimeVideoSource::drawBoxes(GraphicsContext& context)
 {
-    constexpr SimpleColor magenta { 0xffff00ff };
-    constexpr SimpleColor blue { 0xff0000ff };
-    constexpr SimpleColor red { 0xffff0000 };
-    constexpr SimpleColor darkGreen { 0xff008000 };
-
     IntSize size = captureSize();
     float boxSize = size.width() * .035;
     float boxTop = size.height() * .6;
@@ -318,7 +313,7 @@ void MockRealtimeVideoSource::drawBoxes(GraphicsContext& context)
 
     boxTop += boxSize + 2;
     boxLeft = boxSize;
-    constexpr SimpleColor boxColors[] = { Color::white, Color::yellow, Color::cyan, darkGreen, magenta, red, blue };
+    constexpr SRGBA<uint8_t> boxColors[] = { Color::white, Color::yellow, Color::cyan, Color::darkGreen, Color::magenta, Color::red, Color::blue };
     for (auto& boxColor : boxColors) {
         context.fillRect(FloatRect(boxLeft, boxTop, boxSize + 1, boxSize + 1), boxColor);
         boxLeft += boxSize + 1;

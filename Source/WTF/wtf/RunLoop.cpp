@@ -54,9 +54,7 @@ private:
 
 void RunLoop::initializeMain()
 {
-    if (s_mainRunLoop)
-        return;
-    initializeMainThread();
+    RELEASE_ASSERT(!s_mainRunLoop);
     s_mainRunLoop = &RunLoop::current();
 }
 
@@ -75,6 +73,7 @@ RunLoop& RunLoop::main()
 #if USE(WEB_THREAD)
 void RunLoop::initializeWeb()
 {
+    RELEASE_ASSERT(!s_webRunLoop);
     s_webRunLoop = &RunLoop::current();
 }
 
@@ -98,45 +97,25 @@ bool RunLoop::isMain()
 
 void RunLoop::performWork()
 {
-    // It is important to handle the functions in the queue one at a time because while inside one of these
-    // functions we might re-enter RunLoop::performWork() and we need to be able to pick up where we left off.
-    // See http://webkit.org/b/89590 for more discussion.
-
-    // One possible scenario when handling the function queue is as follows:
-    // - RunLoop::performWork() is invoked with 1 function on the queue
-    // - Handling that function results in 1 more function being enqueued
-    // - Handling that one results in yet another being enqueued
-    // - And so on
-    //
-    // In this situation one invocation of performWork() never returns so all other event sources are blocked.
-    // By only handling up to the number of functions that were in the queue when performWork() is called
-    // we guarantee to occasionally return from the run loop so other event sources will be allowed to spin.
-
-    size_t functionsToHandle = 1;
     bool didSuspendFunctions = false;
 
-    for (size_t functionsHandled = 0; functionsHandled < functionsToHandle; ++functionsHandled) {
-        Function<void ()> function;
-        {
-            auto locker = holdLock(m_functionQueueLock);
+    {
+        auto locker = holdLock(m_nextIterationLock);
 
-            // Even if we start off with N functions to handle and we've only handled less than N functions, the queue
-            // still might be empty because those functions might have been handled in an inner RunLoop::performWork().
-            // In that case we should bail here.
-            if (m_functionQueue.isEmpty())
-                break;
+        // If the RunLoop re-enters or re-schedules, we're expected to execute all functions in order.
+        while (!m_currentIteration.isEmpty())
+            m_nextIteration.prepend(m_currentIteration.takeLast());
 
-            if (m_isFunctionDispatchSuspended) {
-                didSuspendFunctions = true;
-                break;
-            }
+        m_currentIteration = std::exchange(m_nextIteration, { });
+    }
 
-            if (!functionsHandled)
-                functionsToHandle = m_functionQueue.size();
-
-            function = m_functionQueue.takeFirst();
+    while (!m_currentIteration.isEmpty()) {
+        if (m_isFunctionDispatchSuspended) {
+            didSuspendFunctions = true;
+            break;
         }
-        
+
+        auto function = m_currentIteration.takeFirst();
         function();
     }
 
@@ -150,12 +129,26 @@ void RunLoop::performWork()
 
 void RunLoop::dispatch(Function<void ()>&& function)
 {
+    bool needsWakeup = false;
+
     {
-        auto locker = holdLock(m_functionQueueLock);
-        m_functionQueue.append(WTFMove(function));
+        auto locker = holdLock(m_nextIterationLock);
+        needsWakeup = m_nextIteration.isEmpty();
+        m_nextIteration.append(WTFMove(function));
     }
 
-    wakeUp();
+    if (needsWakeup)
+        wakeUp();
+}
+
+void RunLoop::dispatchAfter(Seconds delay, Function<void()>&& function)
+{
+    auto timer = new DispatchTimer(*this);
+    timer->setFunction([timer, function = WTFMove(function)] {
+        function();
+        delete timer;
+    });
+    timer->startOneShot(delay);
 }
 
 void RunLoop::suspendFunctionDispatchForCurrentCycle()

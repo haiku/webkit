@@ -41,6 +41,7 @@
 #include "PlatformScreen.h"
 #include "Region.h"
 #include "RotateTransformOperation.h"
+#include "RuntimeEnabledFeatures.h"
 #include "ScaleTransformOperation.h"
 #include "TiledBacking.h"
 #include "TransformState.h"
@@ -1589,8 +1590,8 @@ void GraphicsLayerCA::recursiveCommitChanges(CommitState& commitState, const Tra
     // Use having a transform as a key to making the tile wash layer. If every layer gets a wash,
     // they start to obscure useful information.
     if ((!m_transform.isIdentity() || tiledBacking()) && !m_visibleTileWashLayer) {
-        constexpr auto washFillColor = makeSimpleColor(255, 0, 0, 50);
-        constexpr auto washBorderColor = makeSimpleColor(255, 0, 0, 100);
+        constexpr auto washFillColor = Color::red.colorWithAlphaByte(50);
+        constexpr auto washBorderColor = Color::red.colorWithAlphaByte(100);
         
         m_visibleTileWashLayer = createPlatformCALayer(PlatformCALayer::LayerTypeLayer, this);
         String name = makeString("Visible Tile Wash Layer 0x", hex(reinterpret_cast<uintptr_t>(m_visibleTileWashLayer->platformLayer()), Lowercase));
@@ -2547,13 +2548,13 @@ static void setLayerDebugBorder(PlatformCALayer& layer, Color borderColor, float
 static const float contentsLayerBorderWidth = 4;
 static Color contentsLayerDebugBorderColor(bool showingBorders)
 {
-    return showingBorders ? makeSimpleColor(0, 0, 128, 180) : Color { };
+    return showingBorders ? SRGBA<uint8_t> { 0, 0, 128, 180 } : Color { };
 }
 
 static const float cloneLayerBorderWidth = 2;
 static Color cloneLayerDebugBorderColor(bool showingBorders)
 {
-    return showingBorders ? makeSimpleColor(255, 122, 251) : Color();
+    return showingBorders ? SRGBA<uint8_t> { 255, 122, 251 } : Color { };
 }
 
 void GraphicsLayerCA::updateDebugIndicators()
@@ -3073,11 +3074,17 @@ void GraphicsLayerCA::updateContentsNeedsDisplay()
         m_contentsLayer->setNeedsDisplay();
 }
 
+static bool isKeyframe(const KeyframeValueList& list)
+{
+    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        return list.size() > 1;
+    return list.size() > 2;
+}
+
 bool GraphicsLayerCA::createAnimationFromKeyframes(const KeyframeValueList& valueList, const Animation* animation, const String& animationName, Seconds timeOffset)
 {
     ASSERT(valueList.property() != AnimatedPropertyTransform && (!supportsAcceleratedFilterAnimations() || valueList.property() != AnimatedPropertyFilter));
 
-    bool isKeyframe = valueList.size() > 2;
     bool valuesOK;
     
     bool additive = false;
@@ -3085,7 +3092,7 @@ bool GraphicsLayerCA::createAnimationFromKeyframes(const KeyframeValueList& valu
     
     RefPtr<PlatformCAAnimation> caAnimation;
 
-    if (isKeyframe) {
+    if (isKeyframe(valueList)) {
         caAnimation = createKeyframeAnimation(animation, propertyIdToString(valueList.property()), additive);
         valuesOK = setAnimationKeyframes(valueList, animation, caAnimation.get());
     } else {
@@ -3113,11 +3120,10 @@ bool GraphicsLayerCA::appendToUncommittedAnimations(const KeyframeValueList& val
     int numAnimations = isMatrixAnimation ? 1 : operations->size();
     bool additive = animationIndex < numAnimations - 1;
 #endif
-    bool isKeyframe = valueList.size() > 2;
 
     RefPtr<PlatformCAAnimation> caAnimation;
     bool validMatrices = true;
-    if (isKeyframe) {
+    if (isKeyframe(valueList)) {
         caAnimation = createKeyframeAnimation(animation, propertyIdToString(valueList.property()), additive);
         validMatrices = setTransformAnimationKeyframes(valueList, animation, caAnimation.get(), animationIndex, transformOp, isMatrixAnimation, boxSize);
     } else {
@@ -3166,8 +3172,6 @@ bool GraphicsLayerCA::createTransformAnimationsFromKeyframes(const KeyframeValue
 
 bool GraphicsLayerCA::appendToUncommittedAnimations(const KeyframeValueList& valueList, const FilterOperation* operation, const Animation* animation, const String& animationName, int animationIndex, Seconds timeOffset)
 {
-    bool isKeyframe = valueList.size() > 2;
-    
     FilterOperation::OperationType filterOp = operation->type();
     int numAnimatedProperties = PlatformCAFilters::numAnimatedFilterProperties(filterOp);
     
@@ -3183,7 +3187,7 @@ bool GraphicsLayerCA::appendToUncommittedAnimations(const KeyframeValueList& val
         RefPtr<PlatformCAAnimation> caAnimation;
         String keyPath = makeString("filters.filter_", animationIndex, '.', PlatformCAFilters::animatedFilterPropertyName(filterOp, internalFilterPropertyIndex));
         
-        if (isKeyframe) {
+        if (isKeyframe(valueList)) {
             caAnimation = createKeyframeAnimation(animation, keyPath, false);
             valuesOK = setFilterAnimationKeyframes(valueList, animation, caAnimation.get(), animationIndex, internalFilterPropertyIndex, filterOp);
         } else {
@@ -3324,10 +3328,19 @@ void GraphicsLayerCA::setupAnimation(PlatformCAAnimation* propertyAnim, const An
     propertyAnim->setRemovedOnCompletion(false);
     propertyAnim->setAdditive(additive);
     propertyAnim->setFillMode(fillMode);
+
+    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        propertyAnim->setTimingFunction(anim->timingFunction());
 }
 
 const TimingFunction& GraphicsLayerCA::timingFunctionForAnimationValue(const AnimationValue& animValue, const Animation& anim)
 {
+    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
+        if (animValue.timingFunction())
+            return *animValue.timingFunction();
+        return LinearTimingFunction::sharedLinearTimingFunction();
+    }
+
     if (animValue.timingFunction())
         return *animValue.timingFunction();
     if (anim.isTimingFunctionSet())
@@ -3355,7 +3368,8 @@ bool GraphicsLayerCA::setAnimationEndpoints(const KeyframeValueList& valueList, 
 
     // This codepath is used for 2-keyframe animations, so we still need to look in the start
     // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
+    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     return true;
 }
@@ -3448,7 +3462,8 @@ bool GraphicsLayerCA::setTransformAnimationEndpoints(const KeyframeValueList& va
 
     // This codepath is used for 2-keyframe animations, so we still need to look in the start
     // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
+    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     auto valueFunction = getValueFunctionNameForTransformOperation(transformOpType);
     if (valueFunction != PlatformCAAnimation::NoValueFunction)
@@ -3558,7 +3573,8 @@ bool GraphicsLayerCA::setFilterAnimationEndpoints(const KeyframeValueList& value
 
     // This codepath is used for 2-keyframe animations, so we still need to look in the start
     // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
+    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     return true;
 }
@@ -3769,13 +3785,13 @@ void GraphicsLayerCA::setDebugBackgroundColor(const Color& color)
     if (color.isValid())
         m_layer->setBackgroundColor(color);
     else
-        m_layer->setBackgroundColor(Color::transparent);
+        m_layer->setBackgroundColor(Color::transparentBlack);
 }
 
 void GraphicsLayerCA::getDebugBorderInfo(Color& color, float& width) const
 {
     if (isPageTiledBackingLayer()) {
-        color = makeSimpleColor(0, 0, 128, 128); // tile cache layer: dark blue
+        color = SRGBA<uint8_t> { 0, 0, 128, 128 }; // tile cache layer: dark blue
 #if OS(WINDOWS)
         width = 1.0;
 #else

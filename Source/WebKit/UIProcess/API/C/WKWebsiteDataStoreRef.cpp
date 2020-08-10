@@ -31,6 +31,7 @@
 #include "ShouldGrandfatherStatistics.h"
 #include "WKAPICast.h"
 #include "WKDictionary.h"
+#include "WKMutableArray.h"
 #include "WKNumber.h"
 #include "WKRetainPtr.h"
 #include "WKSecurityOriginRef.h"
@@ -70,6 +71,7 @@ WKWebsiteDataStoreRef WKWebsiteDataStoreCreateWithConfiguration(WKWebsiteDataSto
 
 void WKWebsiteDataStoreRemoveITPDataForDomain(WKWebsiteDataStoreRef dataStoreRef, WKStringRef host, void* context, WKWebsiteDataStoreRemoveITPDataForDomainFunction callback)
 {
+#if ENABLE(RESOURCE_LOAD_STATISTICS)
     WebKit::WebsiteDataRecord dataRecord;
     dataRecord.types.add(WebKit::WebsiteDataType::ResourceLoadStatistics);
     dataRecord.addResourceLoadStatisticsRegistrableDomain(WebCore::RegistrableDomain::uncheckedCreateFromHost(WebKit::toImpl(host)->string()));
@@ -79,6 +81,9 @@ void WKWebsiteDataStoreRemoveITPDataForDomain(WKWebsiteDataStoreRef dataStoreRef
     WebKit::toImpl(dataStoreRef)->removeData(dataTypes, dataRecords, [context, callback] {
         callback(context);
     });
+#else
+    callback(context);
+#endif
 }
 
 void WKWebsiteDataStoreDoesStatisticsDomainIDExistInDatabase(WKWebsiteDataStoreRef dataStoreRef, int domainID, void* context, WKWebsiteDataStoreDoesStatisticsDomainIDExistInDatabaseFunction callback)
@@ -470,13 +475,6 @@ void WKWebsiteDataStoreSetStatisticsShouldClassifyResourcesBeforeDataRecordsRemo
 #endif
 }
 
-void WKWebsiteDataStoreSetStatisticsNotifyPagesWhenTelemetryWasCaptured(WKWebsiteDataStoreRef dataStoreRef, bool value)
-{
-#if ENABLE(RESOURCE_LOAD_STATISTICS)
-    WebKit::toImpl(dataStoreRef)->setNotifyPagesWhenTelemetryWasCaptured(value, []() { });
-#endif
-}
-
 void WKWebsiteDataStoreSetStatisticsMinimumTimeBetweenDataRecordsRemoval(WKWebsiteDataStoreRef dataStoreRef, double seconds)
 {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
@@ -663,16 +661,16 @@ void WKWebsiteDataStoreStatisticsResetToConsistentState(WKWebsiteDataStoreRef da
     });
 
     auto& store = *WebKit::toImpl(dataStoreRef);
-    store.clearResourceLoadStatisticsInWebProcesses([callbackAggregator = callbackAggregator.copyRef()] { });
-    store.resetCacheMaxAgeCapForPrevalentResources([callbackAggregator = callbackAggregator.copyRef()] { });
-    store.resetCrossSiteLoadsWithLinkDecorationForTesting([callbackAggregator = callbackAggregator.copyRef()] { });
-    store.setResourceLoadStatisticsShouldDowngradeReferrerForTesting(true, [callbackAggregator = callbackAggregator.copyRef()] { });
-    store.setResourceLoadStatisticsShouldBlockThirdPartyCookiesForTesting(false, false, [callbackAggregator = callbackAggregator.copyRef()] { });
-    store.setResourceLoadStatisticsShouldEnbleSameSiteStrictEnforcementForTesting(true, [callbackAggregator = callbackAggregator.copyRef()] { });
-    store.setResourceLoadStatisticsFirstPartyWebsiteDataRemovalModeForTesting(false, [callbackAggregator = callbackAggregator.copyRef()] { });
-    store.resetParametersToDefaultValues([callbackAggregator = callbackAggregator.copyRef()] { });
-    store.scheduleClearInMemoryAndPersistent(WebKit::ShouldGrandfatherStatistics::No, [callbackAggregator = callbackAggregator.copyRef()] { });
-    store.setUseITPDatabase(false, [callbackAggregator = callbackAggregator.copyRef()] { });
+    store.clearResourceLoadStatisticsInWebProcesses([callbackAggregator] { });
+    store.resetCacheMaxAgeCapForPrevalentResources([callbackAggregator] { });
+    store.resetCrossSiteLoadsWithLinkDecorationForTesting([callbackAggregator] { });
+    store.setResourceLoadStatisticsShouldDowngradeReferrerForTesting(true, [callbackAggregator] { });
+    store.setResourceLoadStatisticsShouldBlockThirdPartyCookiesForTesting(false, false, [callbackAggregator] { });
+    store.setResourceLoadStatisticsShouldEnbleSameSiteStrictEnforcementForTesting(true, [callbackAggregator] { });
+    store.setResourceLoadStatisticsFirstPartyWebsiteDataRemovalModeForTesting(false, [callbackAggregator] { });
+    store.resetParametersToDefaultValues([callbackAggregator] { });
+    store.scheduleClearInMemoryAndPersistent(WebKit::ShouldGrandfatherStatistics::No, [callbackAggregator] { });
+    store.setUseITPDatabase(false, [callbackAggregator] { });
 #else
     UNUSED_PARAM(dataStoreRef);
     completionHandler(context);
@@ -824,7 +822,7 @@ void WKWebsiteDataStoreClearBundleIdentifierInNetworkProcess(WKWebsiteDataStoreR
 void WKWebsiteDataStoreGetAllStorageAccessEntries(WKWebsiteDataStoreRef dataStoreRef, WKPageRef pageRef, void* context, WKWebsiteDataStoreGetAllStorageAccessEntriesFunction callback)
 {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    WebKit::toImpl(dataStoreRef)->getAllStorageAccessEntries(toImpl(pageRef)->identifier(), [context, callback] (Vector<String>&& domains) {
+    WebKit::toImpl(dataStoreRef)->getAllStorageAccessEntries(WebKit::toImpl(pageRef)->identifier(), [context, callback] (Vector<String>&& domains) {
         auto domainArrayRef = WKMutableArrayCreate();
         for (auto domain : domains)
             WKArrayAppendItem(domainArrayRef, adoptWK(WKStringCreateWithUTF8CString(domain.utf8().data())).get());

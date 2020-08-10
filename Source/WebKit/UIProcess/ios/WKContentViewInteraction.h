@@ -124,8 +124,6 @@ typedef void (^UIWKSelectionWithDirectionCompletionHandler)(BOOL selectionEndIsM
 typedef BlockPtr<void(WebKit::InteractionInformationAtPosition)> InteractionInformationCallback;
 typedef std::pair<WebKit::InteractionInformationRequest, InteractionInformationCallback> InteractionInformationRequestAndCallback;
 
-typedef uint64_t CursorInteractionRequestID;
-
 #define FOR_EACH_WKCONTENTVIEW_ACTION(M) \
     M(_addShortcut) \
     M(_define) \
@@ -249,7 +247,8 @@ struct WKAutoCorrectionData {
 
 #if HAVE(UI_CURSOR_INTERACTION)
     RetainPtr<_UICursorInteraction> _cursorInteraction;
-    CursorInteractionRequestID _currentCursorInteractionRequestID;
+    BOOL _hasOutstandingCursorInteractionRequest;
+    Optional<std::pair<WebKit::InteractionInformationRequest, BlockPtr<void(_UICursorRegion *)>>> _deferredCursorInteractionRequest;
 #endif
 
     RetainPtr<UIWKTextInteractionAssistant> _textInteractionAssistant;
@@ -324,7 +323,7 @@ struct WKAutoCorrectionData {
 
     WebKit::WKSelectionDrawingInfo _lastSelectionDrawingInfo;
 
-    Optional<WebKit::InteractionInformationRequest> _outstandingPositionInformationRequest;
+    Optional<WebKit::InteractionInformationRequest> _lastOutstandingPositionInformationRequest;
 
     uint64_t _positionInformationCallbackDepth;
     Vector<Optional<InteractionInformationRequestAndCallback>> _pendingPositionInformationHandlers;
@@ -360,9 +359,8 @@ struct WKAutoCorrectionData {
     BOOL _showDebugTapHighlightsForFastClicking;
     BOOL _textInteractionDidChangeFocusedElement;
     BOOL _textInteractionIsHappening;
+    BOOL _treatAsContentEditableUntilNextEditorStateUpdate;
     bool _isWaitingOnPositionInformation;
-
-    Optional<WebCore::IntPoint> _pointInsideLastFocusedTextInputContext;
 
     WebCore::PointerID m_commitPotentialTapPointerId;
 
@@ -379,6 +377,7 @@ struct WKAutoCorrectionData {
     BOOL _isChangingFocus;
     BOOL _isFocusingElementWithKeyboard;
     BOOL _isBlurringFocusedElement;
+    BOOL _isRelinquishingFirstResponderToFocusedElement;
 
     BOOL _focusRequiresStrongPasswordAssistance;
     BOOL _waitingForEditDragSnapshot;
@@ -391,6 +390,8 @@ struct WKAutoCorrectionData {
     BlockPtr<void(UIWKAutocorrectionContext *)> _pendingAutocorrectionContextHandler;
 
     RetainPtr<NSDictionary> _additionalContextForStrongPasswordAssistance;
+
+    Optional<UChar32> _lastInsertedCharacterToOverrideCharacterBeforeSelection;
 
 #if ENABLE(DATA_INTERACTION)
     WebKit::DragDropInteractionState _dragDropInteractionState;
@@ -510,7 +511,7 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (BOOL)_interpretKeyEvent:(::WebEvent *)theEvent isCharEvent:(BOOL)isCharEvent;
 - (void)_positionInformationDidChange:(const WebKit::InteractionInformationAtPosition&)info;
 - (BOOL)_currentPositionInformationIsValidForRequest:(const WebKit::InteractionInformationRequest&)request;
-- (void)_attemptClickAtLocation:(CGPoint)location modifierFlags:(UIKeyModifierFlags)modifierFlags;
+- (void)_attemptSyntheticClickAtLocation:(CGPoint)location modifierFlags:(UIKeyModifierFlags)modifierFlags;
 - (void)_willStartScrollingOrZooming;
 - (void)_didScroll;
 - (void)_didEndScrollingOrZooming;
@@ -548,8 +549,8 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 
 - (NSString *)inputLabelText;
 
-- (void)preserveFocus;
-- (void)releaseFocus;
+- (void)startRelinquishingFirstResponderToFocusedElement;
+- (void)stopRelinquishingFirstResponderToFocusedElement;
 
 // UIWebFormAccessoryDelegate protocol
 - (void)accessoryDone;

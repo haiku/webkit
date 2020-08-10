@@ -358,7 +358,6 @@ void WebProcessProxy::platformGetLaunchOptions(ProcessLauncher::LaunchOptions& l
 
 bool WebProcessProxy::shouldSendPendingMessage(const PendingMessage& message)
 {
-#if HAVE(SANDBOX_ISSUE_READ_EXTENSION_TO_PROCESS_BY_AUDIT_TOKEN)
     if (message.encoder->messageName() == IPC::MessageName::WebPage_LoadRequestWaitingForProcessLaunch) {
         auto buffer = message.encoder->buffer();
         auto bufferSize = message.encoder->bufferSize();
@@ -376,7 +375,6 @@ bool WebProcessProxy::shouldSendPendingMessage(const PendingMessage& message)
             ASSERT_NOT_REACHED();
         return false;
     }
-#endif
     return true;
 }
 
@@ -434,11 +432,11 @@ void WebProcessProxy::shutDown()
     m_userInitiatedActionMap.clear();
     m_sleepDisablers.clear();
 
-    m_processPool->disconnectProcess(this);
-
 #if ENABLE(ROUTING_ARBITRATION)
     m_routingArbitrator->processDidTerminate();
 #endif
+
+    m_processPool->disconnectProcess(this);
 }
 
 WebPageProxy* WebProcessProxy::webPage(WebPageProxyIdentifier pageID)
@@ -952,6 +950,12 @@ void WebProcessProxy::didFinishLaunching(ProcessLauncher* launcher, IPC::Connect
         processDidTerminateOrFailedToLaunch();
         return;
     }
+
+#if PLATFORM(COCOA)
+    auto endpointMessage = processPool().xpcEndpointMessage();
+    if (endpointMessage)
+        xpc_connection_send_message(connection()->xpcConnection(), endpointMessage.get());
+#endif
 
     RELEASE_ASSERT(!m_webConnection);
     m_webConnection = WebConnectionToWebProcess::create(this);

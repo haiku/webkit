@@ -61,6 +61,8 @@
 
 namespace WTR {
 
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
+
 Ref<TestRunner> TestRunner::create()
 {
     return adoptRef(*new TestRunner);
@@ -2082,7 +2084,11 @@ void TestRunner::setStatisticsTimeToLiveUserInteraction(double seconds)
 
 void TestRunner::installStatisticsDidModifyDataRecordsCallback(JSValueRef callback)
 {
-    cacheTestRunnerCallback(StatisticsDidModifyDataRecordsCallbackID, callback);
+    if (!!callback) {
+        cacheTestRunnerCallback(StatisticsDidModifyDataRecordsCallbackID, callback);
+        // Setting a callback implies we expect to receive callbacks. So register for them.
+        setStatisticsNotifyPagesWhenDataRecordsWereScanned(true);
+    }
 }
 
 void TestRunner::statisticsDidModifyDataRecordsCallback()
@@ -2092,14 +2098,11 @@ void TestRunner::statisticsDidModifyDataRecordsCallback()
 
 void TestRunner::installStatisticsDidScanDataRecordsCallback(JSValueRef callback)
 {
-    cacheTestRunnerCallback(StatisticsDidScanDataRecordsCallbackID, callback);
-
-    bool notifyPagesWhenDataRecordsWereScanned = !!callback;
-
-    // Setting a callback implies we expect to receive callbacks. So register for them.
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("StatisticsNotifyPagesWhenDataRecordsWereScanned"));
-    WKRetainPtr<WKBooleanRef> messageBody = adoptWK(WKBooleanCreate(notifyPagesWhenDataRecordsWereScanned));
-    WKBundlePostMessage(InjectedBundle::singleton().bundle(), messageName.get(), messageBody.get());
+    if (!!callback) {
+        cacheTestRunnerCallback(StatisticsDidScanDataRecordsCallbackID, callback);
+        // Setting a callback implies we expect to receive callbacks. So register for them.
+        setStatisticsNotifyPagesWhenDataRecordsWereScanned(true);
+    }
 }
 
 void TestRunner::statisticsDidScanDataRecordsCallback()
@@ -2171,13 +2174,6 @@ void TestRunner::setStatisticsIsRunningTest(bool value)
 void TestRunner::setStatisticsShouldClassifyResourcesBeforeDataRecordsRemoval(bool value)
 {
     WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("StatisticsShouldClassifyResourcesBeforeDataRecordsRemoval"));
-    WKRetainPtr<WKBooleanRef> messageBody = adoptWK(WKBooleanCreate(value));
-    WKBundlePostSynchronousMessage(InjectedBundle::singleton().bundle(), messageName.get(), messageBody.get(), nullptr);
-}
-
-void TestRunner::setStatisticsNotifyPagesWhenTelemetryWasCaptured(bool value)
-{
-    WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("StatisticsNotifyPagesWhenTelemetryWasCaptured"));
     WKRetainPtr<WKBooleanRef> messageBody = adoptWK(WKBooleanCreate(value));
     WKBundlePostSynchronousMessage(InjectedBundle::singleton().bundle(), messageName.get(), messageBody.get(), nullptr);
 }
@@ -3055,5 +3051,7 @@ void TestRunner::didSetAppBoundDomainsCallback()
 {
     callTestRunnerCallback(DidSetAppBoundDomainsCallbackID);
 }
+
+ALLOW_DEPRECATED_DECLARATIONS_END
 
 } // namespace WTR

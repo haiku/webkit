@@ -836,7 +836,6 @@ fast/events/updateLayoutForHitTest.html [ Failure ]
 fast/flexbox/clear-overflow-before-scroll-update.html [ Failure ]
 fast/forms/basic-buttons.html [ Failure ]
 fast/forms/date/date-interactive-validation-required.html [ Failure ]
-fast/forms/datetime/datetime-interactive-validation-required.html [ Failure ]
 fast/forms/datetimelocal/datetimelocal-interactive-validation-required.html [ Failure ]
 fast/forms/input-maxlength-ime-completed.html [ Failure ]
 fast/forms/input-maxlength-ime-preedit.html [ Failure ]
@@ -1061,7 +1060,6 @@ http/tests/local/formdata/send-form-data-with-empty-blob-filename.html
 http/tests/local/formdata/send-form-data-with-string-containing-null.html
 http/tests/navigation/anchor-basic.html
 http/tests/navigation/anchor-frames-cross-origin.html
-http/tests/navigation/anchor-frames-gbk.html
 http/tests/security/contentSecurityPolicy/media-src-blocked.html
 http/tests/security/contentSecurityPolicy/media-src-track-block.html
 http/tests/security/inactive-document-with-empty-security-origin.html

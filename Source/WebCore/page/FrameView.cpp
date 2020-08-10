@@ -35,6 +35,7 @@
 #include "CachedResourceLoader.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "ColorBlending.h"
 #include "DOMWindow.h"
 #include "DebugPageOverlays.h"
 #include "DeprecatedGlobalSettings.h"
@@ -257,6 +258,7 @@ void FrameView::reset()
     m_paintBehavior = PaintBehavior::Normal;
     m_isPainting = false;
     m_needsDeferredScrollbarsUpdate = false;
+    m_needsDeferredPositionScrollbarLayers = false;
     m_maintainScrollPositionAnchor = nullptr;
     resetLayoutMilestones();
     layoutContext().reset();
@@ -349,32 +351,27 @@ void FrameView::detachCustomScrollbars()
 
 void FrameView::recalculateScrollbarOverlayStyle()
 {
-    ScrollbarOverlayStyle oldOverlayStyle = scrollbarOverlayStyle();
-    Optional<ScrollbarOverlayStyle> clientOverlayStyle = frame().page() ? frame().page()->chrome().client().preferredScrollbarOverlayStyle() : WTF::nullopt;
-    if (clientOverlayStyle) {
-        if (clientOverlayStyle.value() != oldOverlayStyle)
-            setScrollbarOverlayStyle(clientOverlayStyle.value());
-        return;
-    }
-
-    ScrollbarOverlayStyle computedOverlayStyle = ScrollbarOverlayStyleDefault;
-
-    Color backgroundColor = documentBackgroundColor();
-    if (backgroundColor.isValid()) {
-        // Reduce the background color from RGB to a lightness value
-        // and determine which scrollbar style to use based on a lightness
-        // heuristic.
-        if (backgroundColor.lightness() <= .5f && backgroundColor.isVisible())
-            computedOverlayStyle = ScrollbarOverlayStyleLight;
-        else if (!backgroundColor.isVisible() && useDarkAppearance())
-            computedOverlayStyle = ScrollbarOverlayStyleLight;
-    }
-
-    if (oldOverlayStyle != computedOverlayStyle)
-        setScrollbarOverlayStyle(computedOverlayStyle);
+    auto style = [this] {
+        if (auto page = frame().page()) {
+            if (auto clientStyle = page->chrome().client().preferredScrollbarOverlayStyle())
+                return *clientStyle;
+        }
+        auto background = documentBackgroundColor();
+        if (background.isVisible()) {
+            if (background.lightness() <= .5f)
+                return ScrollbarOverlayStyleLight;
+        } else {
+            if (useDarkAppearance())
+                return ScrollbarOverlayStyleLight;
+        }
+        return ScrollbarOverlayStyleDefault;
+    }();
+    if (scrollbarOverlayStyle() != style)
+        setScrollbarOverlayStyle(style);
 }
 
 #if ENABLE(DARK_MODE_CSS)
+
 void FrameView::recalculateBaseBackgroundColor()
 {
     bool usingDarkAppearance = useDarkAppearance();
@@ -384,9 +381,10 @@ void FrameView::recalculateBaseBackgroundColor()
     m_usesDarkAppearance = usingDarkAppearance;
     Optional<Color> backgroundColor;
     if (m_isTransparent)
-        backgroundColor = Color(Color::transparent);
+        backgroundColor = Color(Color::transparentBlack);
     updateBackgroundRecursively(backgroundColor);
 }
+
 #endif
 
 void FrameView::clear()
@@ -933,19 +931,19 @@ bool FrameView::isScrollSnapInProgress() const
 {
     if (scrollbarsSuppressed())
         return false;
-    
+
     // If the scrolling thread updates the scroll position for this FrameView, then we should return
     // ScrollingCoordinator::isScrollSnapInProgress().
     if (auto scrollingCoordinator = this->scrollingCoordinator()) {
-        if (!scrollingCoordinator->shouldUpdateScrollLayerPositionSynchronously(*this))
-            return scrollingCoordinator->isScrollSnapInProgress();
+        if (scrollingCoordinator->isScrollSnapInProgress(scrollingNodeID()))
+            return true;
     }
-    
+
     // If the main thread updates the scroll position for this FrameView, we should return
     // ScrollAnimator::isScrollSnapInProgress().
     if (ScrollAnimator* scrollAnimator = existingScrollAnimator())
         return scrollAnimator->isScrollSnapInProgress();
-    
+
     return false;
 }
 
@@ -1095,16 +1093,24 @@ void FrameView::topContentInsetDidChange(float newTopContentInset)
 void FrameView::topContentDirectionDidChange()
 {
     m_needsDeferredScrollbarsUpdate = true;
+    m_needsDeferredPositionScrollbarLayers = true;
 }
 
-void FrameView::handleDeferredScrollbarsUpdateAfterDirectionChange()
+void FrameView::handleDeferredScrollbarsUpdate()
 {
     if (!m_needsDeferredScrollbarsUpdate)
         return;
 
     m_needsDeferredScrollbarsUpdate = false;
-
     updateScrollbars(scrollPosition());
+}
+
+void FrameView::handleDeferredPositionScrollbarLayers()
+{
+    if (!m_needsDeferredPositionScrollbarLayers)
+        return;
+
+    m_needsDeferredPositionScrollbarLayers = false;
     positionScrollbarLayers();
 }
 
@@ -1268,7 +1274,8 @@ void FrameView::didLayout(WeakPtr<RenderElement> layoutRoot)
 
     handleDeferredScrollUpdateAfterContentSizeChange();
 
-    handleDeferredScrollbarsUpdateAfterDirectionChange();
+    handleDeferredScrollbarsUpdate();
+    handleDeferredPositionScrollbarLayers();
 
     if (document->hasListenerType(Document::OVERFLOWCHANGED_LISTENER))
         updateOverflowStatus(layoutWidth() < contentsWidth(), layoutHeight() < contentsHeight());
@@ -2180,11 +2187,8 @@ bool FrameView::scrollToFragment(const URL& url)
     if (scrollToFragmentInternal(fragmentIdentifier.toString()))
         return true;
 
-    // Try again after decoding the ref, based on the document's encoding.
-    if (TextResourceDecoder* decoder = frame().document()->decoder()) {
-        if (scrollToFragmentInternal(decodeURLEscapeSequences(fragmentIdentifier, decoder->encoding())))
-            return true;
-    }
+    if (scrollToFragmentInternal(decodeURLEscapeSequences(fragmentIdentifier)))
+        return true;
 
     resetScrollAnchor();
     return false;
@@ -2607,21 +2611,30 @@ void FrameView::updateCompositingLayersAfterScrolling()
     }
 }
 
+bool FrameView::isUserScrollInProgress() const
+{
+    if (auto scrollingCoordinator = this->scrollingCoordinator()) {
+        if (scrollingCoordinator->isUserScrollInProgress(scrollingNodeID()))
+            return true;
+    }
+
+    if (auto scrollAnimator = existingScrollAnimator())
+        return scrollAnimator->isUserScrollInProgress();
+
+    return false;
+}
+
 bool FrameView::isRubberBandInProgress() const
 {
     if (scrollbarsSuppressed())
         return false;
 
-    // If the scrolling thread updates the scroll position for this FrameView, then we should return
-    // ScrollingCoordinator::isRubberBandInProgress().
     if (auto scrollingCoordinator = this->scrollingCoordinator()) {
         if (!scrollingCoordinator->shouldUpdateScrollLayerPositionSynchronously(*this))
             return scrollingCoordinator->isRubberBandInProgress();
     }
 
-    // If the main thread updates the scroll position for this FrameView, we should return
-    // ScrollAnimator::isRubberBandInProgress().
-    if (ScrollAnimator* scrollAnimator = existingScrollAnimator())
+    if (auto scrollAnimator = existingScrollAnimator())
         return scrollAnimator->isRubberBandInProgress();
 
     return false;
@@ -4037,11 +4050,11 @@ Color FrameView::documentBackgroundColor() const
     if (!bodyBackgroundColor.isValid()) {
         if (!htmlBackgroundColor.isValid())
             return Color();
-        return baseBackgroundColor().blend(htmlBackgroundColor);
+        return blendSourceOver(baseBackgroundColor(), htmlBackgroundColor);
     }
 
     if (!htmlBackgroundColor.isValid())
-        return baseBackgroundColor().blend(bodyBackgroundColor);
+        return blendSourceOver(baseBackgroundColor(), bodyBackgroundColor);
 
     // We take the aggregate of the base background color
     // the <html> background color, and the <body>
@@ -4050,7 +4063,7 @@ Color FrameView::documentBackgroundColor() const
     // technically part of the document background, but it
     // otherwise poses problems when the aggregate is not
     // fully opaque.
-    return baseBackgroundColor().blend(htmlBackgroundColor).blend(bodyBackgroundColor);
+    return blendSourceOver(blendSourceOver(baseBackgroundColor(), htmlBackgroundColor), bodyBackgroundColor);
 }
 
 bool FrameView::hasCustomScrollbars() const
@@ -4241,7 +4254,7 @@ void FrameView::paintContents(GraphicsContext& context, const IntRect& dirtyRect
     if (fillWithWarningColor) {
         IntRect debugRect = frameRect();
         debugRect.intersect(dirtyRect);
-        context.fillRect(debugRect, makeSimpleColor(255, 64, 255));
+        context.fillRect(debugRect, SRGBA<uint8_t> { 255, 64, 255 });
     }
 #endif
 
@@ -5464,6 +5477,16 @@ TextStream& operator<<(TextStream& ts, const FrameView& view)
 {
     ts << view.debugDescription();
     return ts;
+}
+
+void FrameView::didFinishProhibitingScrollingWhenChangingContentSize()
+{
+    if (auto* document = frame().document()) {
+        if (!document->needsStyleRecalc() && !needsLayout() && !layoutContext().isInLayout())
+            updateScrollbars(scrollPosition());
+        else
+            m_needsDeferredScrollbarsUpdate = true;
+    }
 }
 
 } // namespace WebCore

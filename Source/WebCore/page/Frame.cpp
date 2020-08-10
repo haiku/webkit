@@ -165,7 +165,6 @@ Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, UniqueRef<FrameLoa
 
     if (ownerElement) {
         m_mainFrame.selfOnlyRef();
-        page.incrementSubframeCount();
         ownerElement->setContentFrame(this);
     }
 
@@ -313,7 +312,7 @@ void Frame::invalidateContentEventRegionsIfNeeded()
     hasTouchActionElements = m_doc->mayHaveElementsWithNonAutoTouchAction();
 #endif
 #if ENABLE(EDITABLE_REGION)
-    hasEditableElements = m_doc->mayHaveEditableElements();
+    hasEditableElements = m_doc->mayHaveEditableElements() && m_page->shouldBuildEditableRegion();
 #endif
     // FIXME: This needs to look at wheel event handlers too.
     if (!hasTouchActionElements && !hasEditableElements)
@@ -774,10 +773,8 @@ void Frame::disconnectOwnerElement()
 {
     if (m_ownerElement) {
         m_ownerElement->clearContentFrame();
-        if (m_page)
-            m_page->decrementSubframeCount();
+        m_ownerElement = nullptr;
     }
-    m_ownerElement = nullptr;
 
     if (auto* document = this->document())
         document->frameWasDisconnectedFromOwner();

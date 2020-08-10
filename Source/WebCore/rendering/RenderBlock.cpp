@@ -817,10 +817,10 @@ void RenderBlock::dirtyForLayoutFromPercentageHeightDescendants()
         return;
 
     for (auto it = descendants->begin(), end = descendants->end(); it != end; ++it) {
-        auto* box = *it;
+        RenderElement* renderer = *it;
         // Let's not dirty the height perecentage descendant when it has an absolutely positioned containing block ancestor. We should be able to dirty such boxes through the regular invalidation logic.
         bool descendantNeedsLayout = true;
-        for (auto* ancestor = box->containingBlock(); ancestor && ancestor != this; ancestor = ancestor->containingBlock()) {
+        for (auto* ancestor = renderer->containingBlock(); ancestor && ancestor != this; ancestor = ancestor->containingBlock()) {
             if (ancestor->isOutOfFlowPositioned()) {
                 descendantNeedsLayout = false;
                 break;
@@ -829,22 +829,22 @@ void RenderBlock::dirtyForLayoutFromPercentageHeightDescendants()
         if (!descendantNeedsLayout)
             continue;
 
-        while (box != this) {
-            if (box->normalChildNeedsLayout())
+        while (renderer != this) {
+            if (renderer->normalChildNeedsLayout())
                 break;
-            box->setChildNeedsLayout(MarkOnlyThis);
+            renderer->setChildNeedsLayout(MarkOnlyThis);
             
             // If the width of an image is affected by the height of a child (e.g., an image with an aspect ratio),
             // then we have to dirty preferred widths, since even enclosing blocks can become dirty as a result.
             // (A horizontal flexbox that contains an inline image wrapped in an anonymous block for example.)
-            if (box->hasAspectRatio()) 
-                box->setPreferredLogicalWidthsDirty(true);
-            auto* containingBlock = box->containingBlock();
-            // Mark the svg ancestor chain dirty as we walk to the containing block. containingBlock() just skips them. See webkit.org/b/183874.
-            if (is<SVGElement>(box->element()) && containingBlock != box->parent()) {
-                auto* ancestor = box->parent();
-                ASSERT(ancestor->isDescendantOf(containingBlock));
-                while (ancestor != containingBlock) {
+            if (renderer->hasAspectRatio())
+                renderer->setPreferredLogicalWidthsDirty(true);
+            auto* container = renderer->container();
+            // Mark the svg ancestor chain dirty as we walk to the container.
+            if (is<SVGElement>(renderer->element()) && container != renderer->parent()) {
+                auto* ancestor = renderer->parent();
+                ASSERT(ancestor->isDescendantOf(container));
+                while (ancestor != container) {
                     ancestor->setChildNeedsLayout(MarkOnlyThis);
                     // This is the topmost SVG root, no need to go any further.
                     if (is<SVGSVGElement>(ancestor->element()) && !downcast<SVGSVGElement>(*ancestor->element()).ownerSVGElement())
@@ -852,9 +852,9 @@ void RenderBlock::dirtyForLayoutFromPercentageHeightDescendants()
                     ancestor = ancestor->parent();
                 }
             }
-            box = containingBlock;
-            ASSERT(box);
-            if (!box)
+            renderer = container;
+            ASSERT(renderer);
+            if (!renderer)
                 break;
         }
     }
@@ -1264,7 +1264,7 @@ void RenderBlock::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
         // though it's actually the inner text element of the control that is editable.
         // So, no need to traverse to find the inner text element in this case.
         if (!isTextControl())
-            needsTraverseDescendants |= document().mayHaveEditableElements();
+            needsTraverseDescendants |= document().mayHaveEditableElements() && page().shouldBuildEditableRegion();
 #endif
         if (!needsTraverseDescendants)
             return;
@@ -2003,10 +2003,25 @@ Node* RenderBlock::nodeForHitTest() const
     return continuation() ? continuation()->element() : element();
 }
 
+bool RenderBlock::hitTestChildren(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& adjustedLocation, HitTestAction hitTestAction)
+{
+    // Hit test descendants first.
+    const LayoutSize localOffset = toLayoutSize(adjustedLocation);
+    const LayoutSize scrolledOffset(localOffset - toLayoutSize(scrollPosition()));
+
+    if (hitTestAction == HitTestFloat && hitTestFloats(request, result, locationInContainer, toLayoutPoint(scrolledOffset)))
+        return true;
+    if (hitTestContents(request, result, locationInContainer, toLayoutPoint(scrolledOffset), hitTestAction)) {
+        updateHitTestResult(result, flipForWritingMode(locationInContainer.point() - localOffset));
+        return true;
+    }
+    return false;
+}
+
 bool RenderBlock::nodeAtPoint(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction hitTestAction)
 {
-    LayoutPoint adjustedLocation(accumulatedOffset + location());
-    LayoutSize localOffset = toLayoutSize(adjustedLocation);
+    const LayoutPoint adjustedLocation(accumulatedOffset + location());
+    const LayoutSize localOffset = toLayoutSize(adjustedLocation);
 
     if (!isRenderView()) {
         // Check if we need to do anything at all.
@@ -2054,17 +2069,8 @@ bool RenderBlock::nodeAtPoint(const HitTestRequest& request, HitTestResult& resu
     bool useOverflowClip = hasOverflowClip() && !hasSelfPaintingLayer();
     bool useClip = (hasControlClip() || useOverflowClip);
     bool checkChildren = !useClip || (hasControlClip() ? locationInContainer.intersects(controlClipRect(adjustedLocation)) : locationInContainer.intersects(overflowClipRect(adjustedLocation, nullptr, IncludeOverlayScrollbarSize)));
-    if (checkChildren) {
-        // Hit test descendants first.
-        LayoutSize scrolledOffset(localOffset - toLayoutSize(scrollPosition()));
-
-        if (hitTestAction == HitTestFloat && hitTestFloats(request, result, locationInContainer, toLayoutPoint(scrolledOffset)))
-            return true;
-        if (hitTestContents(request, result, locationInContainer, toLayoutPoint(scrolledOffset), hitTestAction)) {
-            updateHitTestResult(result, flipForWritingMode(locationInContainer.point() - localOffset));
-            return true;
-        }
-    }
+    if (checkChildren && hitTestChildren(request, result, locationInContainer, adjustedLocation, hitTestAction))
+        return true;
 
     if (!checkChildren && hitTestExcludedChildrenInBorder(request, result, locationInContainer, adjustedLocation, hitTestAction))
         return true;

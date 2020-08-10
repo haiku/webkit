@@ -1692,7 +1692,7 @@ public:
             move(src, dest);
     }
 
-    void zeroExtend32ToPtr(RegisterID src, RegisterID dest)
+    void zeroExtend32ToWord(RegisterID src, RegisterID dest)
     {
         if (src != dest || m_fixedWidth)
             move(src, dest);
@@ -3078,6 +3078,54 @@ public:
     {
         loadDouble(TrustedImmPtr(address.m_ptr), fpTempRegister);
         m_assembler.addd(dest, dest, fpTempRegister);
+    }
+
+    // andDouble and orDouble are a bit convoluted to implement
+    // because we don't have FP instructions for those
+    // operations. That means we'll have to go back and forth between
+    // the FPU and the CPU, which accounts for most of the code here.
+    void andDouble(FPRegisterID op1, FPRegisterID op2, FPRegisterID dest)
+    {
+        m_assembler.mfc1(immTempRegister, op1);
+        m_assembler.mfc1(dataTempRegister, op2);
+        m_assembler.andInsn(cmpTempRegister, immTempRegister, dataTempRegister);
+        m_assembler.mtc1(cmpTempRegister, dest);
+
+#if WTF_MIPS_ISA_REV(2) && WTF_MIPS_FP64
+        m_assembler.mfhc1(immTempRegister, op1);
+        m_assembler.mfhc1(dataTempRegister, op2);
+#else
+        m_assembler.mfc1(immTempRegister, FPRegisterID(op1+1));
+        m_assembler.mfc1(dataTempRegister, FPRegisterID(op2+1));
+#endif
+        m_assembler.andInsn(cmpTempRegister, immTempRegister, dataTempRegister);
+#if WTF_MIPS_ISA_REV(2) && WTF_MIPS_FP64
+        m_assembler.mthc1(cmpTempRegister, dest);
+#else
+        m_assembler.mtc1(cmpTempRegister, FPRegisterID(dest+1));
+#endif
+    }
+
+    void orDouble(FPRegisterID op1, FPRegisterID op2, FPRegisterID dest)
+    {
+        m_assembler.mfc1(immTempRegister, op1);
+        m_assembler.mfc1(dataTempRegister, op2);
+        m_assembler.orInsn(cmpTempRegister, immTempRegister, dataTempRegister);
+        m_assembler.mtc1(cmpTempRegister, dest);
+
+#if WTF_MIPS_ISA_REV(2) && WTF_MIPS_FP64
+        m_assembler.mfhc1(immTempRegister, op1);
+        m_assembler.mfhc1(dataTempRegister, op2);
+#else
+        m_assembler.mfc1(immTempRegister, FPRegisterID(op1+1));
+        m_assembler.mfc1(dataTempRegister, FPRegisterID(op2+1));
+#endif
+        m_assembler.orInsn(cmpTempRegister, immTempRegister, dataTempRegister);
+#if WTF_MIPS_ISA_REV(2) && WTF_MIPS_FP64
+        m_assembler.mthc1(cmpTempRegister, dest);
+#else
+        m_assembler.mtc1(cmpTempRegister, FPRegisterID(dest+1));
+#endif
     }
 
     void subDouble(FPRegisterID src, FPRegisterID dest)

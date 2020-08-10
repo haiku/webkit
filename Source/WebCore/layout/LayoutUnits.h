@@ -138,7 +138,6 @@ inline Edges operator/(const Edges& edge, size_t value)
 struct ContentWidthAndMargin {
     LayoutUnit contentWidth;
     UsedHorizontalMargin usedMargin;
-    ComputedHorizontalMargin computedMargin;
 };
 
 struct ContentHeightAndMargin {
@@ -248,9 +247,7 @@ template<> struct HashTraits<WebCore::Layout::SlotPosition> : GenericHashTraits<
     static void constructDeletedValue(WebCore::Layout::SlotPosition& slot) { slot = WebCore::Layout::SlotPosition(std::numeric_limits<size_t>::max(), 0); }
     static bool isDeletedValue(const WebCore::Layout::SlotPosition& slot) { return slot == WebCore::Layout::SlotPosition(std::numeric_limits<size_t>::max(), 0); }
 };
-template<> struct DefaultHash<WebCore::Layout::SlotPosition> {
-    typedef SlotPositionHash Hash;
-};
+template<> struct DefaultHash<WebCore::Layout::SlotPosition> : SlotPositionHash { };
 }
 
 #endif

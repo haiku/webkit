@@ -2609,6 +2609,15 @@
          "fawek"
       ]
    },
+   "James Darpinian" : {
+      "emails" : [
+         "jdarpinian@chromium.org"
+      ],
+      "expertise" : "WebGL (Chromium and Safari ports)",
+      "nicks" : [
+         "darpinian"
+      ]
+   },
    "James Craig" : {
       "emails" : [
          "jcraig@apple.com",
@@ -3250,6 +3259,12 @@
       "nicks" : [
          "kareng"
       ]
+   },
+   "Karl Rackler" : {
+      "emails" : [
+         "rackler@apple.com"
+      ],
+      "status" : "committer"
    },
    "Katherine Cheney" : {
       "emails" : [
@@ -5229,7 +5244,8 @@
       ],
       "nicks" : [
          "takashi_knmori_j"
-      ]
+      ],
+      "status" : "committer"
    },
    "Takashi Sakamoto" : {
       "emails" : [

@@ -212,9 +212,10 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
 {
     if (!cache)
         return nil;
-    
+    if (!range)
+        return nil;
     TextMarkerData textMarkerData;
-    cache->startOrEndTextMarkerDataForRange(textMarkerData, range, isStart);
+    cache->startOrEndTextMarkerDataForRange(textMarkerData, *range, isStart);
     if (!textMarkerData.axID)
         return nil;
     return [[[WebAccessibilityTextMarker alloc] initWithTextMarker:&textMarkerData cache:cache] autorelease];
@@ -554,6 +555,17 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return role == AccessibilityRole::Tree;
     };
 
+    if (const AXCoreObject* parent = Accessibility::findAncestor<AXCoreObject>(*self.axBackingObject, false, WTFMove(matchFunc)))
+        return parent->wrapper();
+    return nil;
+}
+
+- (AccessibilityObjectWrapper*)_accessibilityDescriptionListAncestor
+{
+    auto matchFunc = [] (const AXCoreObject& object) {
+        return object.roleValue() == AccessibilityRole::DescriptionList;
+    };
+    
     if (const AXCoreObject* parent = Accessibility::findAncestor<AXCoreObject>(*self.axBackingObject, false, WTFMove(matchFunc)))
         return parent->wrapper();
     return nil;
@@ -1410,9 +1422,8 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
         return nil;
 
     if (self.axBackingObject->isColorWell()) {
-        int r, g, b;
-        self.axBackingObject->colorValue(r, g, b);
-        return [NSString stringWithFormat:@"rgb %7.5f %7.5f %7.5f 1", r / 255., g / 255., b / 255.];
+        auto color = convertToComponentFloats(self.axBackingObject->colorValue());
+        return [NSString stringWithFormat:@"rgb %7.5f %7.5f %7.5f 1", color.red, color.green, color.blue];
     }
 
     return nil;
@@ -1490,6 +1501,26 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
         return NO;
 
     return self.axBackingObject->roleValue() == AccessibilityRole::ComboBox;
+}
+
+- (BOOL)accessibilityIsInDescriptionListTerm
+{
+    if (![self _prepareAccessibilityCall])
+        return NO;
+
+    return Accessibility::findAncestor<AXCoreObject>(*self.axBackingObject, false, [] (const AXCoreObject& object) {
+        return object.roleValue() == AccessibilityRole::DescriptionListTerm;
+    }) != nullptr;
+}
+
+- (BOOL)accessibilityIsInDescriptionListDefinition
+{
+    if (![self _prepareAccessibilityCall])
+        return NO;
+
+    return Accessibility::findAncestor<AXCoreObject>(*self.axBackingObject, false, [] (const AXCoreObject& object) {
+        return object.roleValue() == AccessibilityRole::DescriptionListDetail;
+    }) != nullptr;
 }
 
 - (NSString *)accessibilityHint
@@ -1827,6 +1858,13 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     return nil;
 }
 
+- (BOOL)accessibilityPerformEscape
+{
+    if (![self _prepareAccessibilityCall])
+        return NO;
+    return self.axBackingObject->performDismissAction();
+}
+
 - (BOOL)_accessibilityActivate
 {
     if (![self _prepareAccessibilityCall])
@@ -2090,12 +2128,10 @@ static RenderObject* rendererForView(WAKView* view)
 {
     if (![self _prepareAccessibilityCall])
         return nil;
-    
-    RefPtr<Range> range = [self rangeForTextMarkers:markers];
+    auto range = [self rangeForTextMarkers:markers];
     if (!range)
         return nil;
-    
-    return self.axBackingObject->stringForRange(range);
+    return self.axBackingObject->stringForRange(*range);
 }
 
 static int blockquoteLevel(RenderObject* renderer)
@@ -2362,9 +2398,8 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     if (AXObjectCache* cache = self.axBackingObject->axObjectCache()) {
         CharacterOffset characterOffset = [marker characterOffset];
         // Create a collapsed range from the CharacterOffset object.
-        RefPtr<Range> range = cache->rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
-        NSRange nsRange = [self _convertToNSRange:range.get()];
-        return nsRange.location;
+        auto range = cache->rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
+        return [self _convertToNSRange:createLiveRange(range).get()].location;
     }
     return NSNotFound;
 }
@@ -2373,9 +2408,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 {
     if (![self _prepareAccessibilityCall])
         return nil;
-    
-    RefPtr<Range> range = self.axBackingObject->elementRange();
-    return [self textMarkersForRange:range];
+    return [self textMarkersForRange:createLiveRange(self.axBackingObject->elementRange()).get()];
 }
 
 // A method to get the normalized text cursor range of an element. Used in DumpRenderTree.
@@ -2425,12 +2458,12 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     if (!cache)
         return nil;
     
-    auto range = createLiveRange(selection.toNormalizedRange());
+    auto range = selection.toNormalizedRange();
     if (!range)
         return nil;
 
-    CharacterOffset start = cache->startOrEndCharacterOffsetForRange(range, true);
-    CharacterOffset end = cache->startOrEndCharacterOffsetForRange(range, false);
+    CharacterOffset start = cache->startOrEndCharacterOffsetForRange(*range, true);
+    CharacterOffset end = cache->startOrEndCharacterOffsetForRange(*range, false);
 
     WebAccessibilityTextMarker* startMarker = [WebAccessibilityTextMarker textMarkerWithCharacterOffset:start cache:cache];
     WebAccessibilityTextMarker* endMarker = [WebAccessibilityTextMarker textMarkerWithCharacterOffset:end cache:cache];
@@ -2453,7 +2486,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     if (!cache)
         return nil;
     
-    CharacterOffset characterOffset = cache->startOrEndCharacterOffsetForRange(range, true);
+    CharacterOffset characterOffset = cache->startOrEndCharacterOffsetForRange(*range, true);
     return [WebAccessibilityTextMarker textMarkerWithCharacterOffset:characterOffset cache:cache];
 }
 
@@ -2513,8 +2546,10 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 {
     if (![self _prepareAccessibilityCall])
         return nil;
-
-    return self.axBackingObject->stringForRange([self _convertToDOMRange:range]);
+    auto webRange = [self _convertToDOMRange:range];
+    if (!webRange)
+        return nil;
+    return self.axBackingObject->stringForRange(*webRange);
 }
 
 - (NSAttributedString *)attributedStringForRange:(NSRange)range
@@ -2647,14 +2682,12 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 {
     if (![self _prepareAccessibilityCall])
         return nil;
-
-    RefPtr<Range> startRange = [self rangeForTextMarkers:startTextMarkerRange];
+    auto startRange = [self rangeForTextMarkers:startTextMarkerRange];
     if (!startRange)
         return nil;
-
-    RefPtr<Range> misspellingRange = self.axBackingObject->getMisspellingRange(startRange,
+    auto misspellingRange = self.axBackingObject->misspellingRange(*startRange,
         forward ? AccessibilitySearchDirection::Next : AccessibilitySearchDirection::Previous);
-    return [self textMarkersForRange:misspellingRange];
+    return [self textMarkersForRange:createLiveRange(misspellingRange).get()];
 }
 
 - (WebAccessibilityTextMarker *)nextMarkerForMarker:(WebAccessibilityTextMarker *)marker
@@ -2686,15 +2719,13 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 {
     if (![self _prepareAccessibilityCall])
         return CGRectZero;
-
     AXObjectCache* cache = self.axBackingObject->axObjectCache();
     if (!cache)
         return CGRectZero;
-    RefPtr<Range> range = [self rangeForTextMarkers:array];
+    auto range = [self rangeForTextMarkers:array];
     if (!range)
         return CGRectZero;
-    
-    auto rect = FloatRect(self.axBackingObject->boundsForRange(range));
+    auto rect = self.axBackingObject->boundsForRange(*range);
     return [self convertRectToSpace:rect space:AccessibilityConversionSpace::Screen];
 }
 
@@ -2790,7 +2821,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     
     CharacterOffset startCharacterOffset = [startMarker characterOffset];
     CharacterOffset endCharacterOffset = [endMarker characterOffset];
-    return cache->rangeForUnorderedCharacterOffsets(startCharacterOffset, endCharacterOffset);
+    return createLiveRange(cache->rangeForUnorderedCharacterOffsets(startCharacterOffset, endCharacterOffset));
 }
 
 - (NSInteger)lengthForTextMarkers:(NSArray *)textMarkers
@@ -2798,8 +2829,11 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     if (![self _prepareAccessibilityCall])
         return 0;
     
-    RefPtr<Range> range = [self rangeForTextMarkers:textMarkers];
-    int length = AXObjectCache::lengthForRange(range.get());
+    auto range = [self rangeForTextMarkers:textMarkers];
+    if (!range)
+        return 0;
+
+    int length = AXObjectCache::lengthForRange(SimpleRange { *range });
     return length < 0 ? 0 : length;
 }
 

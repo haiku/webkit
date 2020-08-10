@@ -67,6 +67,19 @@ WTF_EXTERN_C_END
 
 #else // !PLATFORM(WIN) && !USE(APPLE_INTERNAL_SDK)
 
+#if HAVE(PRECONNECT_PING) && defined(__OBJC__)
+
+@interface _NSHTTPConnectionInfo : NSObject
+- (void)sendPingWithReceiveHandler:(void (^)(NSError * _Nullable error, NSTimeInterval interval))pongHandler;
+@property (readonly) BOOL isValid;
+@end
+
+@interface NSURLSessionTask (HTTPConnectionInfo)
+- (void)getUnderlyingHTTPConnectionInfoWithCompletionHandler:(void (^)(_NSHTTPConnectionInfo *connectionInfo))completionHandler;
+@end
+
+#endif // HAVE(PRECONNECT_PING) && defined(__OBJC__)
+
 #if HAVE(LOGGING_PRIVACY_LEVEL)
 typedef enum {
     nw_context_privacy_level_public = 1,
@@ -202,6 +215,10 @@ typedef NS_ENUM(NSInteger, NSURLSessionCompanionProxyPreference) {
 };
 #endif
 
+#if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
+@class _NSHTTPAlternativeServicesStorage;
+#endif
+
 @interface NSURLSessionConfiguration ()
 @property (assign) _TimingDataOptions _timingDataOptions;
 @property (copy) NSData *_sourceApplicationAuditTokenData;
@@ -228,7 +245,7 @@ typedef NS_ENUM(NSInteger, NSURLSessionCompanionProxyPreference) {
 #endif
 #if HAVE(CFNETWORK_ALTERNATIVE_SERVICE)
 @property (nullable, retain) _NSHTTPAlternativeServicesStorage *_alternativeServicesStorage;
-@property (readonly, assign) BOOL _allowsHTTP3;
+@property (readwrite, assign) BOOL _allowsHTTP3;
 #endif
 @end
 

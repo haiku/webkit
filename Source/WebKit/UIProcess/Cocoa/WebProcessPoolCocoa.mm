@@ -55,6 +55,7 @@
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PictureInPictureSupport.h>
 #import <WebCore/PlatformPasteboard.h>
+#import <WebCore/PowerSourceNotifier.h>
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/UTIUtilities.h>
@@ -407,6 +408,7 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     
 #if PLATFORM(COCOA)
     parameters.systemHasBattery = systemHasBattery();
+    parameters.systemHasAC = systemHasAC();
 
     SandboxExtension::Handle mapDBHandle;
     if (SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb"_s, WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport))
@@ -697,6 +699,10 @@ void WebProcessPool::registerNotificationObservers()
     }];
 #endif
 #endif
+
+    m_powerSourceNotifier = WTF::makeUnique<WebCore::PowerSourceNotifier>([this] (bool hasAC) {
+        sendToAllProcesses(Messages::WebProcess::PowerSourceDidChange(hasAC));
+    });
 }
 
 void WebProcessPool::unregisterNotificationObservers()
@@ -726,6 +732,8 @@ void WebProcessPool::unregisterNotificationObservers()
 #endif
 
     [[NSNotificationCenter defaultCenter] removeObserver:m_activationObserver.get()];
+
+    m_powerSourceNotifier = nullptr;
 }
 
 static CFURLStorageSessionRef privateBrowsingSession()
@@ -903,9 +911,11 @@ void WebProcessPool::notifyPreferencesChanged(const String& domain, const String
 #if PLATFORM(MAC)
 static void webProcessPoolHighDynamicRangeDidChangeCallback(CMNotificationCenterRef, const void*, CFStringRef notificationName, const void*, CFTypeRef)
 {
-    auto screenProperties = WebCore::collectScreenProperties();
-    for (auto& processPool : WebProcessPool::allProcessPools())
-        processPool->sendToAllProcesses(Messages::WebProcess::SetScreenProperties(screenProperties));
+    dispatch_async(dispatch_get_main_queue(), ^{
+        auto properties = WebCore::collectScreenProperties();
+        for (auto& pool : WebProcessPool::allProcessPools())
+            pool->sendToAllProcesses(Messages::WebProcess::SetScreenProperties(properties));
+    });
 }
 
 void WebProcessPool::registerHighDynamicRangeChangeCallback()
@@ -931,5 +941,24 @@ void WebProcessPool::registerHighDynamicRangeChangeCallback()
     });
 }
 #endif
+
+OSObjectPtr<xpc_object_t> WebProcessPool::xpcEndpointMessage() const
+{
+    return m_endpointMessage;
+}
+
+void WebProcessPool::sendNetworkProcessXPCEndpointToWebProcess(OSObjectPtr<xpc_object_t> endpointMessage)
+{
+    m_endpointMessage = endpointMessage;
+
+    for (auto process : m_processes) {
+        if (process->state() != AuxiliaryProcessProxy::State::Running)
+            continue;
+        if (!process->connection())
+            continue;
+        auto connection = process->connection()->xpcConnection();
+        xpc_connection_send_message(connection, endpointMessage.get());
+    }
+}
 
 } // namespace WebKit

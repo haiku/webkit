@@ -1222,7 +1222,6 @@ sub GenerateDefineOwnProperty
     }
     
     # 4. Return OrdinaryDefineOwnProperty(O, P, Desc).
-    # FIXME: Does this do the same thing?
     push(@$outputArray, "    return JSObject::defineOwnProperty(object, lexicalGlobalObject, propertyName, newPropertyDescriptor, shouldThrow);\n");
     
     push(@$outputArray, "}\n\n");
@@ -1504,8 +1503,11 @@ sub GetArgumentExceptionFunction
     my $visibleInterfaceName = $codeGenerator->GetVisibleInterfaceName($interface);
     my $typeName = GetTypeNameForDisplayInException($argument->type);
 
-    if ($codeGenerator->IsCallbackInterface($argument->type) || $codeGenerator->IsCallbackFunction($argument->type)) {
-        # FIXME: We should have specialized messages for callback interfaces vs. callback functions.
+    if ($codeGenerator->IsCallbackInterface($argument->type)) {
+        return "throwArgumentMustBeObjectError(lexicalGlobalObject, scope, ${argumentIndex}, \"${name}\", \"${visibleInterfaceName}\", ${quotedFunctionName});";
+    }
+
+    if ($codeGenerator->IsCallbackFunction($argument->type)) {
         return "throwArgumentMustBeFunctionError(lexicalGlobalObject, scope, ${argumentIndex}, \"${name}\", \"${visibleInterfaceName}\", ${quotedFunctionName});";
     }
 
@@ -2208,28 +2210,6 @@ sub GenerateDefaultValue
 {
     my ($typeScope, $context, $type, $defaultValue) = @_;
 
-    if ($codeGenerator->IsStringType($type)) {
-        my $useAtomString = $type->extendedAttributes->{AtomString};
-        if ($defaultValue eq "null") {
-            return $useAtomString ? "nullAtom()" : "String()";
-        } elsif ($defaultValue eq "\"\"") {
-            return $useAtomString ? "emptyAtom()" : "emptyString()";
-        } else {
-            return $useAtomString ? "AtomString(${defaultValue}, AtomString::ConstructFromLiteral)" : "${defaultValue}_s";
-        }
-    }
-
-    if ($codeGenerator->IsEnumType($type)) {
-        # FIXME: Would be nice to report an error if the value does not have quote marks around it.
-        # FIXME: Would be nice to report an error if the value is not one of the enumeration values.
-        if ($defaultValue eq "null") {
-            die if !$type->isNullable;
-            return "WTF::nullopt";
-        }
-        my $className = GetEnumerationClassName($type, $typeScope);
-        my $enumerationValueName = GetEnumerationValueName(substr($defaultValue, 1, -1));
-        return $className . "::" . $enumerationValueName;
-    }
     if ($defaultValue eq "null") {
         if ($type->isUnion) {
             return "WTF::nullopt" if $type->isNullable;
@@ -2240,7 +2220,10 @@ sub GenerateDefaultValue
 
         return "jsNull()" if $type->name eq "any";
         return "nullptr" if $codeGenerator->IsWrapperType($type) || $codeGenerator->IsBufferSourceType($type);
-        return "String()" if $codeGenerator->IsStringType($type);
+        if ($codeGenerator->IsStringType($type)) {
+            my $useAtomString = $type->extendedAttributes->{AtomString};
+            return $useAtomString ? "nullAtom()" : "String()";
+        }
         return "WTF::nullopt";
     }
 
@@ -2251,6 +2234,32 @@ sub GenerateDefaultValue
 
     return "jsUndefined()" if $defaultValue eq "undefined";
     return "PNaN" if $defaultValue eq "NaN";
+
+    if (substr($defaultValue, 0, 1) eq "\"") {
+        # Default value is a quoted string so the type should be a DOMString or an enumeration.
+        if ($type->isUnion) {
+            foreach my $memberType (GetFlattenedMemberTypes($type)) {
+                if ($codeGenerator->IsStringType($memberType) || $codeGenerator->IsEnumType($memberType)) {
+                    $type = $memberType;
+                    last;
+                }
+            }
+        }
+        if ($codeGenerator->IsStringType($type)) {
+            my $useAtomString = $type->extendedAttributes->{AtomString};
+            if ($defaultValue eq "\"\"") {
+                return $useAtomString ? "emptyAtom()" : "emptyString()";
+            } else {
+                return $useAtomString ? "AtomString(${defaultValue}, AtomString::ConstructFromLiteral)" : "${defaultValue}_s";
+            }
+        }
+
+        if ($codeGenerator->IsEnumType($type)) {
+            my $className = GetEnumerationClassName($type, $typeScope);
+            my $enumerationValueName = GetEnumerationValueName(substr($defaultValue, 1, -1));
+            return $className . "::" . $enumerationValueName;
+        }
+    }
 
     return $defaultValue;
 }
@@ -4975,10 +4984,12 @@ sub GenerateAttributeGetterBodyDefinition
         !$attribute->extendedAttributes->{DoNotCheckSecurityOnGetter}) {
         AddToImplIncludes("JSDOMBindingSecurity.h", $conditional);
         if ($interface->type->name eq "DOMWindow") {
-            push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped(), ThrowSecurityError))\n");
+            push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped(), ThrowSecurityError);\n");
         } else {
-            push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped().window(), ThrowSecurityError))\n");
+            push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped().window(), ThrowSecurityError);\n");
         }
+        push(@$outputArray, "    EXCEPTION_ASSERT(!throwScope.exception() || !shouldAllowAccess);\n");
+        push(@$outputArray, "    if (!shouldAllowAccess)\n");
         push(@$outputArray, "        return jsUndefined();\n");
     }
     
@@ -5108,10 +5119,12 @@ sub GenerateAttributeSetterBodyDefinition
     if ($interface->extendedAttributes->{CheckSecurity} && !$attribute->extendedAttributes->{DoNotCheckSecurity} && !$attribute->extendedAttributes->{DoNotCheckSecurityOnSetter}) {
         AddToImplIncludes("JSDOMBindingSecurity.h", $conditional);
         if ($interface->type->name eq "DOMWindow") {
-            push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped(), ThrowSecurityError))\n");
+            push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped(), ThrowSecurityError);\n");
         } else {
-            push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped().window(), ThrowSecurityError))\n");
+            push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(&lexicalGlobalObject, thisObject.wrapped().window(), ThrowSecurityError);\n");
         }
+        push(@$outputArray, "    EXCEPTION_ASSERT(!throwScope.exception() || !shouldAllowAccess);\n");
+        push(@$outputArray, "    if (!shouldAllowAccess)\n");
         push(@$outputArray, "        return false;\n");
     }
     
@@ -5176,9 +5189,7 @@ sub GenerateAttributeSetterBodyDefinition
         my $forwardId = $attribute->extendedAttributes->{PutForwards};
         push(@$outputArray, "    auto forwardId = Identifier::fromString(vm, reinterpret_cast<const LChar*>(\"${forwardId}\"), strlen(\"${forwardId}\"));\n");
         
-        # 3.5.9.4. Perform ? Set(Q, forwardId, V).
-        # FIXME: What should the second value to the PutPropertySlot be?
-        # (https://github.com/heycam/webidl/issues/368)
+        # 3.5.9.4. Perform ? Set(Q, forwardId, V, false).
         push(@$outputArray, "    PutPropertySlot slot(valueToForwardTo, false);\n");
         push(@$outputArray, "    asObject(valueToForwardTo)->methodTable(vm)->put(asObject(valueToForwardTo), &lexicalGlobalObject, forwardId, value, slot);\n");
         push(@$outputArray, "    RETURN_IF_EXCEPTION(throwScope, false);\n");
@@ -5331,12 +5342,13 @@ sub GenerateOperationBodyDefinition
             
             AddToImplIncludes("JSDOMBindingSecurity.h", $conditional);
             if ($interface->type->name eq "DOMWindow") {
-                push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(lexicalGlobalObject, castedThis->wrapped(), ThrowSecurityError))\n");
-                push(@$outputArray, "        return JSValue::encode(jsUndefined());\n");
+                push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(lexicalGlobalObject, castedThis->wrapped(), ThrowSecurityError);\n");
             } else {
-                push(@$outputArray, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(lexicalGlobalObject, castedThis->wrapped().window(), ThrowSecurityError))\n");
-                push(@$outputArray, "        return JSValue::encode(jsUndefined());\n");
+                push(@$outputArray, "    bool shouldAllowAccess = BindingSecurity::shouldAllowAccessToDOMWindow(lexicalGlobalObject, castedThis->wrapped().window(), ThrowSecurityError);\n");
             }
+            push(@$outputArray, "    EXCEPTION_ASSERT(!throwScope.exception() || !shouldAllowAccess);\n");
+            push(@$outputArray, "    if (!shouldAllowAccess)\n");
+            push(@$outputArray, "        return JSValue::encode(jsUndefined());\n");
         }
     }
 
@@ -6168,8 +6180,6 @@ sub GenerateCallbackHeaderContent
 
     push(@$contentRef, "    static JSC::JSValue getConstructor(JSC::VM&, const JSC::JSGlobalObject*);\n") if @{$constants};
 
-    push(@$contentRef, "    virtual bool operator==(const ${name}&) const override;\n\n") if $interfaceOrCallback->extendedAttributes->{CallbackNeedsOperatorEqual};
-
     # Operations
     my $numOperations = @{$operations};
     if ($numOperations > 0) {
@@ -6229,11 +6239,7 @@ sub GenerateCallbackImplementationContent
 
     # Constructor
     push(@$contentRef, "${className}::${className}(JSObject* callback, JSDOMGlobalObject* globalObject)\n");
-    if ($interfaceOrCallback->extendedAttributes->{CallbackNeedsOperatorEqual}) {
-        push(@$contentRef, "    : ${name}(globalObject->scriptExecutionContext(), ${className}Type)\n");
-    } else {
-        push(@$contentRef, "    : ${name}(globalObject->scriptExecutionContext())\n");
-    }
+    push(@$contentRef, "    : ${name}(globalObject->scriptExecutionContext())\n");
     push(@$contentRef, "    , m_data(new ${callbackDataType}(callback, globalObject, this))\n");
     push(@$contentRef, "{\n");
     push(@$contentRef, "}\n\n");
@@ -6252,15 +6258,6 @@ sub GenerateCallbackImplementationContent
     push(@$contentRef, "    m_data = nullptr;\n");
     push(@$contentRef, "#endif\n");
     push(@$contentRef, "}\n\n");
-
-    if ($interfaceOrCallback->extendedAttributes->{CallbackNeedsOperatorEqual}) {
-        push(@$contentRef, "bool ${className}::operator==(const ${name}& other) const\n");
-        push(@$contentRef, "{\n");
-        push(@$contentRef, "    if (other.type() != type())\n");
-        push(@$contentRef, "        return false;\n");
-        push(@$contentRef, "    return static_cast<const ${className}*>(&other)->m_data->callback() == m_data->callback();\n");
-        push(@$contentRef, "}\n\n");
-    }
 
     # Constants.
     my $numConstants = @{$constants};

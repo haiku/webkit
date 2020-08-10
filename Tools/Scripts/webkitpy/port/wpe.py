@@ -32,7 +32,6 @@ from webkitpy.layout_tests.models.test_configuration import TestConfiguration
 from webkitpy.port.base import Port
 from webkitpy.port.headlessdriver import HeadlessDriver
 from webkitpy.port.linux_get_crash_log import GDBCrashLogGenerator
-from webkitpy.port.waylanddriver import WaylandDriver
 
 
 class WPEPort(Port):
@@ -70,7 +69,7 @@ class WPEPort(Port):
 
     @memoized
     def _driver_class(self):
-        return WaylandDriver
+        return HeadlessDriver
 
     def setup_environ_for_server(self, server_name=None):
         environment = super(WPEPort, self).setup_environ_for_server(server_name)
@@ -93,7 +92,7 @@ class WPEPort(Port):
         return environment
 
     def show_results_html_file(self, results_filename):
-        self._run_script("run-minibrowser", [path.abspath_to_uri(self.host.platform, results_filename)])
+        self.run_minibrowser([path.abspath_to_uri(self.host.platform, results_filename)])
 
     def check_sys_deps(self):
         return super(WPEPort, self).check_sys_deps() and self._driver_class().check_driver(self)
@@ -134,3 +133,13 @@ class WPEPort(Port):
         configuration = super(WPEPort, self).configuration_for_upload(host=host)
         configuration['platform'] = 'WPE'
         return configuration
+
+    def run_minibrowser(self, args):
+        miniBrowser = self._build_path('bin', 'MiniBrowser')
+        if not self._filesystem.isfile(miniBrowser):
+            print("%s not found... Did you run build-webkit?" % miniBrowser)
+            return 1
+        command = [miniBrowser]
+        if self._should_use_jhbuild():
+            command = self._jhbuild_wrapper + command
+        return self._executive.run_command(command + args, cwd=self.webkit_base(), stdout=None, return_stderr=False, decode_output=False)

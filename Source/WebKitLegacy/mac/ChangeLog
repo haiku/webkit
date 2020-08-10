@@ -1,3 +1,533 @@
+2020-07-17  Sam Weinig  <weinig@apple.com>
+
+        Remove final vestigates of SimpleColor
+        https://bugs.webkit.org/show_bug.cgi?id=214439
+
+        Reviewed by Simon Fraser.
+
+        * WebView/WebIndicateLayer.mm:
+        Replace remaining makeSimpleColor() uses.
+
+2020-07-17  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r264477.
+
+        Broke the internal build
+
+        Reverted changeset:
+
+        "Use AVRoutePickerView when available for choosing AirPlay
+        devices"
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        https://trac.webkit.org/changeset/264477
+
+2020-07-16  Eric Carlson  <eric.carlson@apple.com>
+
+        Use AVRoutePickerView when available for choosing AirPlay devices
+        https://bugs.webkit.org/show_bug.cgi?id=213497
+        <rdar://problem/58610662>
+
+        Reviewed by Jer Noble.
+
+        * WebView/WebMediaPlaybackTargetPicker.h:
+        (WebMediaPlaybackTargetPicker::~WebMediaPlaybackTargetPicker): Deleted.
+        * WebView/WebMediaPlaybackTargetPicker.mm:
+        (WebMediaPlaybackTargetPicker::create):
+        (WebMediaPlaybackTargetPicker::WebMediaPlaybackTargetPicker):
+        (WebMediaPlaybackTargetPicker::invalidate):
+        (WebMediaPlaybackTargetPicker::platformView const): New override.
+
+        * WebView/WebView.mm:
+        (-[WebView _devicePicker]): Pass view to WebMediaPlaybackTargetPicker factory.
+
+2020-07-15  Darin Adler  <darin@apple.com>
+
+        Remove a few more uses of the terms black/white list
+        https://bugs.webkit.org/show_bug.cgi?id=214371
+
+        Reviewed by Alex Christensen.
+
+        * WebView/WebViewPrivate.h: Corrected a mistake in a comment.
+
+2020-07-13  Keith Miller  <keith_miller@apple.com>
+
+        Clean up SourceProvider and add caller relative load script to jsc.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=214205
+
+        Reviewed by Yusuke Suzuki.
+
+        Use the source origin's URL for the debugger since it's the true URL for the script.
+
+        * WebView/WebScriptDebugger.mm:
+        (WebScriptDebugger::sourceParsed):
+
+2020-07-08  Darin Adler  <darin@apple.com>
+
+        Remove live ranges from Document.h, AlternativeTextController.h, DictionaryLookup.h, and WebPage.h
+        https://bugs.webkit.org/show_bug.cgi?id=214109
+
+        Reviewed by Sam Weinig.
+
+        * WebView/WebImmediateActionController.mm:
+        (-[WebImmediateActionController _animationControllerForText]): Update since
+        DictionaryLookup::rangeAtHitTestResult returns SimpleRange.
+
+2020-07-09  Brian Burg  <bburg@apple.com>
+
+        REGRESSION(r217248): ASSERT_NOT_REACHED() in toWebFrameLoadType()
+        https://bugs.webkit.org/show_bug.cgi?id=214149
+
+        Reviewed by Joseph Pecoraro.
+
+        ASSERT_NOT_REACHED() is hit when the type is FrameLoadType::ReloadExpiredOnly. This happens
+        when remote inspection triggers a reload via InspectorPageAgent::reload() and the
+        'revalidateAllResources' optional argument is false or not specified.
+
+        * WebView/WebFrame.mm:
+        (toWebFrameLoadType):
+        Remove the assert and add a note explaining why this load type that does not
+        naturally occur in WK1 may nonetheless be triggered while remote inspecting.
+
+2020-07-06  Simon Fraser  <simon.fraser@apple.com>
+
+        BEGIN_BLOCK_OBJC_EXCEPTIONS/END_BLOCK_OBJC_EXCEPTIONS should not have trailing semicolons
+        https://bugs.webkit.org/show_bug.cgi?id=214019
+
+        Reviewed by Tim Horton.
+
+        These macros are defined as:
+        
+        #define BEGIN_BLOCK_OBJC_EXCEPTIONS @try {
+        #define END_BLOCK_OBJC_EXCEPTIONS } @catch(NSException *localException) { ReportBlockedObjCException(localException); }
+        
+        so they should not be used with trailing semicolons.
+
+        * DOM/DOMCustomXPathNSResolver.mm:
+        (DOMCustomXPathNSResolver::lookupNamespaceURI):
+        * WebCoreSupport/PopupMenuMac.mm:
+        (PopupMenuMac::show):
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::exceededDatabaseQuota):
+        (WebChromeClient::reachedApplicationCacheOriginQuota):
+        (WebChromeClient::runOpenPanel):
+        (WebChromeClient::keyboardUIMode):
+        (WebChromeClient::firstResponder):
+        (WebChromeClient::makeFirstResponder):
+        (WebChromeClient::attachRootGraphicsLayer):
+        (WebChromeClient::setNeedsOneShotDrawingSynchronization):
+        (WebChromeClient::scheduleRenderingUpdate):
+        (WebChromeClient::enterVideoFullscreenForVideoElement):
+        (WebChromeClient::exitVideoFullscreenForVideoElement):
+        (WebChromeClient::exitVideoFullscreenToModeWithoutAnimation):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (WebFrameLoaderClient::createFrame):
+        (WebFrameLoaderClient::objectContentType):
+        (NetscapePluginWidget::notifyWidget):
+        (WebFrameLoaderClient::createPlugin):
+        (WebFrameLoaderClient::redirectDataToPlugin):
+        (WebFrameLoaderClient::createJavaAppletWidget):
+        * WebCoreSupport/WebGeolocationClient.mm:
+        (WebGeolocationClient::setEnableHighAccuracy):
+        (WebGeolocationClient::requestPermission):
+        (-[WebGeolocationProviderInitializationListener initializationAllowedWebView:]):
+        * WebCoreSupport/WebNotificationClient.mm:
+        (WebNotificationClient::requestPermission):
+        * WebCoreSupport/WebPluginInfoProvider.mm:
+        (WebPluginInfoProvider::pluginInfo):
+        * WebCoreSupport/WebVisitedLinkStore.mm:
+        (WebVisitedLinkStore::populateVisitedLinksIfNeeded):
+        * WebView/WebHTMLView.mm:
+        (imageFromRect):
+
+2020-07-06  Jonathan Bedard  <jbedard@apple.com>
+
+        [Catalyst] Remove SPI header from WebDownload.h
+        https://bugs.webkit.org/show_bug.cgi?id=214004
+        <rdar://problem/65146575>
+
+        Reviewed by Wenson Hsieh.
+
+        * Misc/WebDownload.h: Remove SPI header.
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263960.
+        https://bugs.webkit.org/show_bug.cgi?id=213980
+
+        Re-land, because r263959 somehow fixed the build issue caused
+        by r263953
+
+        Reverted changeset:
+
+        "Unreviewed, reverting r263953 and r263959."
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+        https://trac.webkit.org/changeset/263960
+
+2020-07-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263953 and r263959.
+        https://bugs.webkit.org/show_bug.cgi?id=213979
+
+        Broke internal build
+
+        Reverted changesets:
+
+        "[Cocoa] Move almost all features from FeatureDefines.xcconfig
+        to PlatformEnableCocoa.h"
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+        https://trac.webkit.org/changeset/263953
+
+        "[Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build
+        system"
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+        https://trac.webkit.org/changeset/263959
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove FEATURE_DEFINES from the Cocoa/Xcode build system
+        https://bugs.webkit.org/show_bug.cgi?id=213976
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed.
+        * Configurations/WebKitLegacy.xcconfig: Removed FEATURE_DEFINES and the include of
+        FeatureDefines.xcconfig.
+        * MigrateHeaders.make: Removed FEATURE_DEFINES, FEATURE_DEFINE_FLAGS, and
+        FEATURE_AND_PLATFORM_DEFINE_DEPENDENCIES. FEATURE_AND_PLATFORM_DEFINES is now used
+        solely to determine if this is an internal SDK build, which should be cleaned up later.
+
+2020-07-05  Andy Estes  <aestes@apple.com>
+
+        [iOS] La Banque Postale app does not respect safe area insets on iOS 14
+        https://bugs.webkit.org/show_bug.cgi?id=213974
+        <rdar://problem/65109197>
+
+        Reviewed by Darin Adler.
+
+        La Banque Postale uses a fixed list of iOS versions that support safe area insets (versions
+        11 through 13 at the time of writing). Since iOS 14 is not in this list, the app fails to
+        apply top and bottom safe area insets to its web content. Work around this by adding the
+        'device-ios12p' class to <body> as if the iOS major version were 13 (the app currently uses
+        'device-ios12p' to represent both iOS 12 and iOS 13). This quirk will be disabled on
+        versions of La Banque Postale that link against the iOS 14 SDK (or later).
+
+        * Configurations/WebKitLegacy.xcconfig: Excluded LaBanquePostaleQuirks.js on Mac.
+        * Resources/LaBanquePostaleQuirks.js: Added.
+        * WebView/WebView.mm:
+        (needsLaBanquePostaleQuirks): Added. Checks if the quirk is needed.
+        (leakLaBanquePostaleQuirksScript): Added. Leaks an NSString containing the quirk script.
+        (-[WebView _injectLaBanquePostaleQuirks]): Added. Injects the quirk as a user script.
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+
+2020-07-05  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Move almost all features from FeatureDefines.xcconfig to PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212542
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Delete everything except
+        ENABLE_EXPERIMENTAL_FEATURES and ENABLE_WEBRTC.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove all features from FeatureDefines.xcconfig that are already mentioned in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=213962
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed all features that were mentioned
+        in PlatformEnableCocoa.h; the rules in that file now define whether they are enabled.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        [Cocoa] Remove unconditional features from FeatureDefines.xcconfig, making sure they are covered in PlatformEnableCocoa.h
+        https://bugs.webkit.org/show_bug.cgi?id=212418
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Removed features that are either unconditionally not enabled,
+        or unconditionally enabled. Double checked that all the enabled ones are either in PlatformEnable.h or
+        PlatformEnableCocoa.h.
+
+2020-07-04  Darin Adler  <darin@apple.com>
+
+        Update comment in FeatureDefines.xcconfig since PlatformEnableCocoa.h should be used instead
+        https://bugs.webkit.org/show_bug.cgi?id=213952
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig: Updated comment.
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Remove support for ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE
+        https://bugs.webkit.org/show_bug.cgi?id=213932
+
+        Reviewed by Darin Adler.
+
+        Removes support for non-standard <input type="datetime">, currently being 
+        guarded by the macro ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE. This macro, was
+        added back in 2013 as a temporary measure to support some engines who shipped
+        support for <input type="datetime">. It is currently not enabled for any
+        ports so now seems like as good a time as any to remove it.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Add "-Wliteral-conversion" warning to Xcode based builds and fix the issues it finds
+        https://bugs.webkit.org/show_bug.cgi?id=213931
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig:
+        Add -Wliteral-conversion.
+
+2020-07-01  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        Allow the File object to be created with a replacement file
+        https://bugs.webkit.org/show_bug.cgi?id=213825
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebPlatformStrategies.mm:
+
+2020-06-30  Sam Weinig  <weinig@apple.com>
+
+        Split Color serialization out of Color classes
+        https://bugs.webkit.org/show_bug.cgi?id=213820
+
+        Reviewed by Darin Adler.
+
+        Adopt ColorSerialization.h serialization functions.
+
+        * WebView/WebView.mm:
+        (-[WebTextTouchBarItemController _webChangeColor:]):
+
+2020-06-30  Kate Cheney  <katherine_cheney@apple.com>
+
+        Remove NeedsInAppBrowserPrivacyQuirks flag from WebKitLegacy
+        https://bugs.webkit.org/show_bug.cgi?id=213802
+        <rdar://problem/64945642>
+
+        Reviewed by Darin Adler.
+
+        This feature is for testing only and is not needed in WebKitLegacy.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences needsInAppBrowserPrivacyQuirks]): Deleted.
+        (-[WebPreferences setNeedsInAppBrowserPrivacyQuirks:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-06-30  Peng Liu  <peng.liu6@apple.com>
+
+        Enable the support of FULLSCREEN_API in WebKitTestRunner
+        https://bugs.webkit.org/show_bug.cgi?id=213774
+
+        Reviewed by Youenn Fablet.
+
+        Replace the definition of ENABLE_FULLSCREEN_API in FeatureDefines.xcconfig with
+        the one in PlatformEnableCocoa.h. We have to do that because WebKitTestRunner
+        does not have a FeatureDefines.xcconfig but it uses "ENABLE(FULLSCREEN_API)"
+        to conditionally compile code to test the element fullscreen API.
+        WebKitTestRunner can use the macro defined in PlatformEnableCocoa.h.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that this
+        project supports building for Mac Catalyst.
+
+2020-06-29  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Remove ENABLE_STREAMS_API compilation flag
+        https://bugs.webkit.org/show_bug.cgi?id=213728
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/FeatureDefines.xcconfig:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-06-28  Geoffrey Garen  <ggaren@apple.com>
+
+        Rename initializeThreading to initialize
+        https://bugs.webkit.org/show_bug.cgi?id=213674
+
+        Reviewed by Mark Lam.
+
+        * History/WebBackForwardList.mm:
+        (+[WebBackForwardList initialize]):
+        * History/WebHistoryItem.mm:
+        (+[WebHistoryItem initialize]):
+        * Misc/WebCache.mm:
+        (+[WebCache initialize]):
+        * Misc/WebElementDictionary.mm:
+        (+[WebElementDictionary initialize]):
+        * Misc/WebIconDatabase.mm:
+        * Misc/WebStringTruncator.mm:
+        (+[WebStringTruncator initialize]):
+        * Plugins/Hosted/WebHostedNetscapePluginView.mm:
+        (+[WebHostedNetscapePluginView initialize]):
+        * Plugins/WebBaseNetscapePluginView.mm:
+        * Plugins/WebBasePluginPackage.mm:
+        (+[WebBasePluginPackage initialize]):
+        * Plugins/WebNetscapePluginView.mm:
+        (+[WebNetscapePluginView initialize]):
+        * WebCoreSupport/WebEditorClient.mm:
+        (+[WebUndoStep initialize]):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (+[WebFramePolicyListener initialize]):
+        * WebView/WebArchive.mm:
+        (+[WebArchivePrivate initialize]):
+        * WebView/WebDataSource.mm:
+        (+[WebDataSource initialize]):
+        * WebView/WebHTMLView.mm:
+        (+[WebHTMLViewPrivate initialize]):
+        (+[WebHTMLView initialize]):
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebResource.mm:
+        (+[WebResourcePrivate initialize]):
+        * WebView/WebTextIterator.mm:
+        (+[WebTextIteratorPrivate initialize]):
+        * WebView/WebView.mm:
+        (+[WebView initialize]):
+        * WebView/WebViewData.mm:
+        (+[WebViewPrivate initialize]):
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        WebSecurityOrigin needs to initialize the main thread
+        https://bugs.webkit.org/show_bug.cgi?id=213675
+
+        Reviewed by Tim Horton.
+
+        Safari uses WebSecurityOrigin stand-alone in unit tests.
+
+        (And any client can use WebSecurityOrigin without first using other
+        WebKit data types.)
+
+        * WebCoreSupport/WebSecurityOrigin.mm:
+        (-[WebSecurityOrigin initWithURL:]):
+
+2020-06-26  Geoffrey Garen  <ggaren@apple.com>
+
+        Initializing the main thread should initialize the main run loop
+        https://bugs.webkit.org/show_bug.cgi?id=213637
+
+        Reviewed by Anders Carlsson.
+
+        * History/WebBackForwardList.mm:
+        (+[WebBackForwardList initialize]):
+        * History/WebHistoryItem.mm:
+        (+[WebHistoryItem initialize]):
+        * Misc/WebCache.mm:
+        (+[WebCache initialize]):
+        * Misc/WebElementDictionary.mm:
+        (+[WebElementDictionary initialize]):
+        * Misc/WebIconDatabase.mm:
+        * Plugins/Hosted/WebHostedNetscapePluginView.mm:
+        (+[WebHostedNetscapePluginView initialize]):
+        * Plugins/WebBaseNetscapePluginView.mm:
+        * Plugins/WebBasePluginPackage.mm:
+        (+[WebBasePluginPackage initialize]):
+        * Plugins/WebNetscapePluginView.mm:
+        (+[WebNetscapePluginView initialize]):
+        * WebCoreSupport/WebEditorClient.mm:
+        (+[WebUndoStep initialize]):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (+[WebFramePolicyListener initialize]):
+        * WebView/WebArchive.mm:
+        (+[WebArchivePrivate initialize]):
+        * WebView/WebDataSource.mm:
+        (+[WebDataSource initialize]):
+        * WebView/WebHTMLView.mm:
+        (+[WebHTMLViewPrivate initialize]):
+        (+[WebHTMLView initialize]):
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebResource.mm:
+        (+[WebResourcePrivate initialize]):
+        * WebView/WebTextIterator.mm:
+        (+[WebTextIteratorPrivate initialize]):
+        * WebView/WebView.mm:
+        (+[WebView initialize]):
+        * WebView/WebViewData.mm:
+        (+[WebViewPrivate initialize]):
+
+2020-06-26  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Add a test to verify that async clipboard API write access is granted when copying in subframes
+        https://bugs.webkit.org/show_bug.cgi?id=213581
+
+        Reviewed by Darin Adler.
+
+        * WebView/WebView.mm:
+        (-[WebView _executeCoreCommandByName:value:]):
+
+        Adjust the behavior of this SPI to trigger the editing command in the focused frame, rather than always the
+        mainframe. This matches the behavior of `WKBundlePageExecuteEditingCommand`, and is also consistent with
+        user-triggered editing commands.
+
+2020-06-24  David Kilzer  <ddkilzer@apple.com>
+
+        Use ObjectIdentifier<>instead of WebCore::nextPlaybackTargetClientContextId() in Document.cpp
+        <https://webkit.org/b/213546>
+        <rdar://problem/61803576>
+
+        Reviewed by Youenn Fablet.
+
+        Switch from uint64_t to WebCore::PlaybackTargetClientContextIdentifier
+        for contextId values.
+
+        * WebCoreSupport/WebChromeClient.h:
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::addPlaybackTargetPickerClient):
+        (WebChromeClient::removePlaybackTargetPickerClient):
+        (WebChromeClient::showPlaybackTargetPicker):
+        (WebChromeClient::playbackTargetPickerClientStateDidChange):
+        * WebView/WebMediaPlaybackTargetPicker.h:
+        * WebView/WebMediaPlaybackTargetPicker.mm:
+        (WebMediaPlaybackTargetPicker::addPlaybackTargetPickerClient):
+        (WebMediaPlaybackTargetPicker::removePlaybackTargetPickerClient):
+        (WebMediaPlaybackTargetPicker::showPlaybackTargetPicker):
+        (WebMediaPlaybackTargetPicker::playbackTargetPickerClientStateDidChange):
+        (WebMediaPlaybackTargetPicker::setPlaybackTarget):
+        (WebMediaPlaybackTargetPicker::externalOutputDeviceAvailableDidChange):
+        (WebMediaPlaybackTargetPicker::setShouldPlayToPlaybackTarget):
+        (WebMediaPlaybackTargetPicker::playbackTargetPickerWasDismissed):
+        * WebView/WebView.mm:
+        (-[WebView _addPlaybackTargetPickerClient:]):
+        (-[WebView _removePlaybackTargetPickerClient:]):
+        (-[WebView _showPlaybackTargetPicker:location:hasVideo:]):
+        (-[WebView _playbackTargetPickerClientStateDidChange:state:]):
+        * WebView/WebViewInternal.h:
+
+2020-06-24  Umar Iqbal  <uiqbal@apple.com>
+
+        We should resurrect the older patch that collects some statistics of web API calls
+        https://bugs.webkit.org/show_bug.cgi?id=213319
+
+        Reviewed by Brent Fulgham.
+
+        + Enabled ENABLE_WEB_API_STATISTICS flag
+        
+        * Configurations/FeatureDefines.xcconfig:
+
 2020-06-22  Tim Horton  <timothy_horton@apple.com>
 
         Update macOS version macros

@@ -101,6 +101,21 @@ public:
 #if ENABLE(INPUT_TYPE_COLOR)
     String colorInputStyleSheet() const;
 #endif
+#if ENABLE(INPUT_TYPE_DATE)
+    String dateInputStyleSheet() const;
+#endif
+#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
+    String dateTimeLocalInputStyleSheet() const;
+#endif
+#if ENABLE(INPUT_TYPE_MONTH)
+    String monthInputStyleSheet() const;
+#endif
+#if ENABLE(INPUT_TYPE_TIME)
+    String timeInputStyleSheet() const;
+#endif
+#if ENABLE(INPUT_TYPE_WEEK)
+    String weekInputStyleSheet() const;
+#endif
 
     // A method to obtain the baseline position for a "leaf" control.  This will only be used if a baseline
     // position cannot be determined by examining child content. Checkboxes and radio buttons are examples of
@@ -184,7 +199,7 @@ public:
     virtual bool popupOptionSupportsTextIndent() const { return false; }
     virtual PopupMenuStyle::PopupMenuSize popupMenuSize(const RenderStyle&, IntRect&) const { return PopupMenuStyle::PopupMenuSizeNormal; }
 
-    virtual ScrollbarControlSize scrollbarControlSizeForPart(ControlPart) { return RegularScrollbar; }
+    virtual ScrollbarControlSize scrollbarControlSizeForPart(ControlPart) { return ScrollbarControlSize::Regular; }
 
     // Returns the repeat interval of the animation for the progress bar.
     virtual Seconds animationRepeatIntervalForProgressBar(RenderProgress&) const;
@@ -247,6 +262,7 @@ public:
 #if ENABLE(ATTACHMENT_ELEMENT)
     virtual LayoutSize attachmentIntrinsicSize(const RenderAttachment&) const { return LayoutSize(); }
     virtual int attachmentBaseline(const RenderAttachment&) const { return -1; }
+    virtual bool attachmentShouldAllowWidthToShrink(const RenderAttachment&) const { return false; }
 #endif
 
     enum class InnerSpinButtonLayout { Vertical, HorizontalUpLeft, HorizontalUpRight };
@@ -260,6 +276,7 @@ public:
 #endif
 
 protected:
+    virtual bool canPaint(const PaintInfo&) const = 0;
     virtual FontCascadeDescription& cachedSystemFontDescription(CSSValueID systemFontID) const;
     virtual void updateCachedSystemFontDescription(CSSValueID systemFontID, FontCascadeDescription&) const = 0;
 
@@ -436,7 +453,7 @@ protected:
     virtual ColorCache& colorCache(OptionSet<StyleColor::Options>) const;
 
 private:
-    mutable HashMap<uint8_t, ColorCache, DefaultHash<uint8_t>::Hash, WTF::UnsignedWithZeroKeyHashTraits<uint8_t>> m_colorCacheMap;
+    mutable HashMap<uint8_t, ColorCache, DefaultHash<uint8_t>, WTF::UnsignedWithZeroKeyHashTraits<uint8_t>> m_colorCacheMap;
 };
 
 } // namespace WebCore

@@ -220,6 +220,15 @@ void IntlLocale::initializeLocale(JSGlobalObject* globalObject, JSValue tagValue
 
     String tag = tagValue.inherits<IntlLocale>(vm) ? jsCast<IntlLocale*>(tagValue)->toString() : tagValue.toWTFString(globalObject);
     RETURN_IF_EXCEPTION(scope, void());
+    scope.release();
+    initializeLocale(globalObject, tag, optionsValue);
+}
+
+// https://tc39.es/ecma402/#sec-Intl.Locale
+void IntlLocale::initializeLocale(JSGlobalObject* globalObject, const String& tag, JSValue optionsValue)
+{
+    VM& vm = globalObject->vm();
+    auto scope = DECLARE_THROW_SCOPE(vm);
 
     JSValue options = optionsValue;
     if (!optionsValue.isUndefined()) {
@@ -310,9 +319,9 @@ void IntlLocale::initializeLocale(JSGlobalObject* globalObject, JSValue tagValue
 }
 
 // https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
-const String& IntlLocale::maximize()
+const String& IntlLocale::maximal()
 {
-    if (m_maximized.isNull()) {
+    if (m_maximal.isNull()) {
         UErrorCode status = U_ZERO_ERROR;
         Vector<char, 32> buffer(32);
         auto bufferLength = uloc_addLikelySubtags(m_localeID.data(), buffer.data(), buffer.size(), &status);
@@ -323,15 +332,15 @@ const String& IntlLocale::maximize()
         }
         ASSERT(U_SUCCESS(status));
 
-        m_maximized = languageTagForLocaleID(buffer.data());
+        m_maximal = languageTagForLocaleID(buffer.data());
     }
-    return m_maximized;
+    return m_maximal;
 }
 
 // https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
-const String& IntlLocale::minimize()
+const String& IntlLocale::minimal()
 {
-    if (m_minimized.isNull()) {
+    if (m_minimal.isNull()) {
         UErrorCode status = U_ZERO_ERROR;
         Vector<char, 32> buffer(32);
         auto bufferLength = uloc_minimizeSubtags(m_localeID.data(), buffer.data(), buffer.size(), &status);
@@ -342,9 +351,9 @@ const String& IntlLocale::minimize()
         }
         ASSERT(U_SUCCESS(status));
 
-        m_minimized = languageTagForLocaleID(buffer.data());
+        m_minimal = languageTagForLocaleID(buffer.data());
     }
-    return m_minimized;
+    return m_minimal;
 }
 
 // https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString

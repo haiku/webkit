@@ -39,8 +39,8 @@ namespace WebKit {
 
 void InitializeWebKit2()
 {
-    JSC::initializeThreading();
-    RunLoop::initializeMain();
+    JSC::initialize();
+    WTF::initializeMainThread();
     AtomString::init();
 
     WTF::RefCountedBase::enableThreadingChecksGlobally();

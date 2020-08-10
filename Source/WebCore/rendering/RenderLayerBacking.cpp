@@ -1708,7 +1708,7 @@ bool RenderLayerBacking::maintainsEventRegion() const
         return true;
 #endif
 #if ENABLE(EDITABLE_REGION)
-    if (renderer().document().mayHaveEditableElements())
+    if (renderer().document().mayHaveEditableElements() && renderer().page().shouldBuildEditableRegion())
         return true;
 #endif
 #if !PLATFORM(IOS_FAMILY)
@@ -1735,6 +1735,10 @@ void RenderLayerBacking::updateEventRegion()
     auto updateEventRegionForLayer = [&](GraphicsLayer& graphicsLayer) {
         GraphicsContext nullContext(nullptr);
         EventRegion eventRegion;
+#if ENABLE(EDITABLE_REGION)
+        if (renderer().page().shouldBuildEditableRegion())
+            eventRegion.ensureEditableRegion();
+#endif
         auto eventRegionContext = eventRegion.makeContext();
         auto layerOffset = graphicsLayer.scrollOffset() - roundedIntSize(graphicsLayer.offsetFromRenderer());
 
@@ -1767,6 +1771,9 @@ void RenderLayerBacking::updateEventRegion()
 
     if (m_scrolledContentsLayer)
         updateEventRegionForLayer(*m_scrolledContentsLayer);
+
+    if (m_foregroundLayer)
+        updateEventRegionForLayer(*m_foregroundLayer);
 
     renderer().view().setNeedsEventRegionUpdateForNonCompositedFrame(false);
 }
@@ -2998,7 +3005,7 @@ void RenderLayerBacking::paintIntoLayer(const GraphicsLayer* graphicsLayer, Grap
     auto paintFlags = paintFlagsForLayer(*graphicsLayer);
 
     if (eventRegionContext)
-        paintFlags.add(RenderLayer::PaintLayerCollectingEventRegion);
+        paintFlags.add(RenderLayer::PaintLayerFlag::CollectingEventRegion);
 
     RenderObject::SetLayoutNeededForbiddenScope forbidSetNeedsLayout(renderer());
 
@@ -3018,7 +3025,7 @@ void RenderLayerBacking::paintIntoLayer(const GraphicsLayer* graphicsLayer, Grap
             layer.paintLayerContents(context, paintingInfo, paintFlags);
 
             if (layer.containsDirtyOverlayScrollbars() && !eventRegionContext)
-                layer.paintLayerContents(context, paintingInfo, paintFlags | RenderLayer::PaintLayerPaintingOverlayScrollbars);
+                layer.paintLayerContents(context, paintingInfo, paintFlags | RenderLayer::PaintLayerFlag::PaintingOverlayScrollbars);
         } else
             layer.paintLayerWithEffects(context, paintingInfo, paintFlags);
 
@@ -3039,13 +3046,13 @@ void RenderLayerBacking::paintIntoLayer(const GraphicsLayer* graphicsLayer, Grap
 
     if (graphicsLayer == destinationForSharingLayers) {
         OptionSet<RenderLayer::PaintLayerFlag> sharingLayerPaintFlags = {
-            RenderLayer::PaintLayerPaintingCompositingBackgroundPhase,
-            RenderLayer::PaintLayerPaintingCompositingForegroundPhase };
+            RenderLayer::PaintLayerFlag::PaintingCompositingBackgroundPhase,
+            RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase };
 
         if (graphicsLayer->paintingPhase().contains(GraphicsLayerPaintingPhase::OverflowContents))
-            sharingLayerPaintFlags.add(RenderLayer::PaintLayerPaintingOverflowContents);
+            sharingLayerPaintFlags.add(RenderLayer::PaintLayerFlag::PaintingOverflowContents);
         if (eventRegionContext)
-            sharingLayerPaintFlags.add(RenderLayer::PaintLayerCollectingEventRegion);
+            sharingLayerPaintFlags.add(RenderLayer::PaintLayerFlag::CollectingEventRegion);
 
         for (auto& layerWeakPtr : m_backingSharingLayers)
             paintOneLayer(*layerWeakPtr, sharingLayerPaintFlags);
@@ -3066,24 +3073,24 @@ OptionSet<RenderLayer::PaintLayerFlag> RenderLayerBacking::paintFlagsForLayer(co
 
     auto paintingPhase = graphicsLayer.paintingPhase();
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::Background))
-        paintFlags.add(RenderLayer::PaintLayerPaintingCompositingBackgroundPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingBackgroundPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::Foreground))
-        paintFlags.add(RenderLayer::PaintLayerPaintingCompositingForegroundPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::Mask))
-        paintFlags.add(RenderLayer::PaintLayerPaintingCompositingMaskPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingMaskPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::ClipPath))
-        paintFlags.add(RenderLayer::PaintLayerPaintingCompositingClipPathPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingClipPathPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::ChildClippingMask))
-        paintFlags.add(RenderLayer::PaintLayerPaintingChildClippingMaskPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingChildClippingMaskPhase);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::OverflowContents))
-        paintFlags.add(RenderLayer::PaintLayerPaintingOverflowContents);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingOverflowContents);
     if (paintingPhase.contains(GraphicsLayerPaintingPhase::CompositedScroll))
-        paintFlags.add(RenderLayer::PaintLayerPaintingCompositingScrollingPhase);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingCompositingScrollingPhase);
 
     if (&graphicsLayer == m_backgroundLayer.get() && m_backgroundLayerPaintsFixedRootBackground)
-        paintFlags.add({ RenderLayer::PaintLayerPaintingRootBackgroundOnly, RenderLayer::PaintLayerPaintingCompositingForegroundPhase }); // Need PaintLayerPaintingCompositingForegroundPhase to walk child layers.
+        paintFlags.add({ RenderLayer::PaintLayerFlag::PaintingRootBackgroundOnly, RenderLayer::PaintLayerFlag::PaintingCompositingForegroundPhase }); // Need PaintLayerFlag::PaintingCompositingForegroundPhase to walk child layers.
     else if (compositor().fixedRootBackgroundLayer())
-        paintFlags.add(RenderLayer::PaintLayerPaintingSkipRootBackground);
+        paintFlags.add(RenderLayer::PaintLayerFlag::PaintingSkipRootBackground);
 
     return paintFlags;
 }
@@ -3092,7 +3099,7 @@ OptionSet<RenderLayer::PaintLayerFlag> RenderLayerBacking::paintFlagsForLayer(co
 struct PatternDescription {
     ASCIILiteral name;
     FloatSize phase;
-    SimpleColor fillColor;
+    SRGBA<uint8_t> fillColor;
 };
 
 static RefPtr<Pattern> patternForDescription(PatternDescription description, FloatSize contentOffset, GraphicsContext& destContext)
@@ -3154,7 +3161,7 @@ static RefPtr<Pattern> patternForTouchAction(TouchAction touchAction, FloatSize 
         return 0;
     };
 
-    constexpr auto fillColor = makeSimpleColor(0, 0, 0, 128);
+    constexpr auto fillColor = Color::black.colorWithAlphaByte(128);
 
     static const PatternDescription patternDescriptions[] = {
         { "auto"_s, { }, fillColor },
@@ -3176,7 +3183,7 @@ static RefPtr<Pattern> patternForTouchAction(TouchAction touchAction, FloatSize 
 #if ENABLE(WHEEL_EVENT_REGIONS)
 static RefPtr<Pattern> patternForEventListenerRegionType(EventListenerRegionType type, FloatSize contentOffset, GraphicsContext& destContext)
 {
-    constexpr auto fillColor = makeSimpleColor(0, 128, 0, 128);
+    constexpr auto fillColor = Color::darkGreen.colorWithAlphaByte(128);
 
     auto patternAndPhase = [&]() -> PatternDescription {
         switch (type) {
@@ -3213,7 +3220,7 @@ void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, 
 #if ENABLE(TOUCH_ACTION_REGIONS)
     // Paint rects for touch action.
     if (visibleDebugOverlayRegions & TouchActionRegion) {
-        constexpr auto regionColor = makeSimpleColor(0, 0, 255, 50);
+        constexpr auto regionColor = Color::blue.colorWithAlphaByte(50);
         context.setFillColor(regionColor);
         for (auto rect : eventRegion.region().rects())
             context.fillRect(rect);
@@ -3258,7 +3265,7 @@ void RenderLayerBacking::paintDebugOverlays(const GraphicsLayer* graphicsLayer, 
 #if ENABLE(EDITABLE_REGION)
     // Paint rects for editable elements.
     if (visibleDebugOverlayRegions & EditableElementRegion) {
-        context.setFillColor(makeSimpleColor(128, 0, 128, 50));
+        context.setFillColor(SRGBA<uint8_t> { 128, 0, 128, 50 });
         for (auto rect : eventRegion.rectsForEditableElements())
             context.fillRect(rect);
     }

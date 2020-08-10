@@ -49,7 +49,7 @@ static bool useOldAquaFocusRingColor;
 
 Color oldAquaFocusRingColor()
 {
-    return SimpleColor { 0xFF7DADD9 };
+    return SRGBA<uint8_t> { 125, 173, 217 };
 }
 
 void setUsesTestModeFocusRingColor(bool newValue)
@@ -62,18 +62,19 @@ bool usesTestModeFocusRingColor()
     return useOldAquaFocusRingColor;
 }
 
-static SimpleColor makeSimpleColorFromNSColor(NSColor *color)
+static Optional<SRGBA<uint8_t>> makeSimpleColorFromNSColor(NSColor *color)
 {
     // FIXME: ExtendedColor - needs to handle color spaces.
 
-    ASSERT_ARG(color, color);
+    if (!color)
+        return WTF::nullopt;
 
     CGFloat redComponent;
     CGFloat greenComponent;
     CGFloat blueComponent;
     CGFloat alpha;
 
-    BEGIN_BLOCK_OBJC_EXCEPTIONS;
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
     NSColor *rgbColor = [color colorUsingColorSpace:NSColorSpace.deviceRGBColorSpace];
     if (!rgbColor) {
         // The color space conversion above can fail if the NSColor is in the NSPatternColorSpace.
@@ -91,48 +92,38 @@ static SimpleColor makeSimpleColorFromNSColor(NSColor *color)
         NSUInteger pixel[4];
         [offscreenRep getPixel:pixel atX:0 y:0];
 
-        return makeSimpleColor(pixel[0], pixel[1], pixel[2], pixel[3]);
+        return clampToComponentBytes<SRGBA>(pixel[0], pixel[1], pixel[2], pixel[3]);
     }
 
     [rgbColor getRed:&redComponent green:&greenComponent blue:&blueComponent alpha:&alpha];
-    END_BLOCK_OBJC_EXCEPTIONS;
+    END_BLOCK_OBJC_EXCEPTIONS
 
-    return makeSimpleColorFromFloats(redComponent, greenComponent, blueComponent, alpha);
+    return convertToComponentBytes(SRGBA { static_cast<float>(redComponent), static_cast<float>(greenComponent), static_cast<float>(blueComponent), static_cast<float>(alpha) });
 }
 
 Color colorFromNSColor(NSColor *color)
 {
-    if (!color)
-        return { };
-
-    // FIXME: ExtendedColor - needs to handle color spaces.
-
     return makeSimpleColorFromNSColor(color);
 }
 
 Color semanticColorFromNSColor(NSColor *color)
 {
-    if (!color)
-        return { };
-
-    // FIXME: ExtendedColor - needs to handle color spaces.
-
     return Color(makeSimpleColorFromNSColor(color), Color::Semantic);
 }
 
 NSColor *nsColor(const Color& color)
 {
-    if (color.isSimple()) {
-        switch (color.asSimple().value()) {
-        case Color::transparent.value(): {
+    if (color.isInline()) {
+        switch (Packed::RGBA { color.asInline() }.value) {
+        case Packed::RGBA { Color::transparentBlack }.value: {
             static NSColor *clearColor = [[NSColor colorWithSRGBRed:0 green:0 blue:0 alpha:0] retain];
             return clearColor;
         }
-        case Color::black.value(): {
+        case Packed::RGBA { Color::black }.value: {
             static NSColor *blackColor = [[NSColor colorWithSRGBRed:0 green:0 blue:0 alpha:1] retain];
             return blackColor;
         }
-        case Color::white.value(): {
+        case Packed::RGBA { Color::white }.value: {
             static NSColor *whiteColor = [[NSColor colorWithSRGBRed:1 green:1 blue:1 alpha:1] retain];
             return whiteColor;
         }

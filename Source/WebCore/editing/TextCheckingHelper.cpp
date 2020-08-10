@@ -159,8 +159,10 @@ Ref<Range> TextCheckingParagraph::subrange(CharacterRange range) const
 ExceptionOr<uint64_t> TextCheckingParagraph::offsetTo(const Position& position) const
 {
     auto start = makeBoundaryPoint(paragraphRange().startPosition());
+    if (!start)
+        return Exception { TypeError };
     auto end = makeBoundaryPoint(position);
-    if (!start || !end)
+    if (!end)
         return Exception { TypeError };
     return characterCount({ *start, *end });
 }
@@ -212,8 +214,10 @@ uint64_t TextCheckingParagraph::automaticReplacementStart() const
         return *m_automaticReplacementStart;
 
     auto start = makeBoundaryPoint(paragraphRange().startPosition());
+    if (!start)
+        return 0;
     auto end = makeBoundaryPoint(m_automaticReplacementRange->startPosition());
-    if (!start || !end)
+    if (!end)
         return 0;
 
     m_automaticReplacementStart = characterCount({ *start, *end });
@@ -407,9 +411,14 @@ String TextCheckingHelper::findFirstMisspellingOrBadGrammar(bool checkGrammar, b
         }
         if (lastIteration || totalLengthProcessed + currentLength >= totalRangeLength)
             break;
+
         VisiblePosition newParagraphStart = startOfNextParagraph(paragraphRange->endPosition());
-        setStart(paragraphRange.ptr(), newParagraphStart);
-        setEnd(paragraphRange.ptr(), endOfParagraph(newParagraphStart));
+        if (!setStart(paragraphRange.ptr(), newParagraphStart))
+            break;
+
+        if (!setEnd(paragraphRange.ptr(), endOfParagraph(newParagraphStart)))
+            break;
+
         firstIteration = false;
         totalLengthProcessed += currentLength;
     }

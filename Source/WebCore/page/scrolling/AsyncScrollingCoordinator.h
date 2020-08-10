@@ -128,11 +128,12 @@ private:
 
     WEBCORE_EXPORT void scrollBySimulatingWheelEventForTesting(ScrollingNodeID, FloatSize) final;
 
+    WEBCORE_EXPORT bool isUserScrollInProgress(ScrollingNodeID) const override;
     bool isRubberBandInProgress() const override;
     void setScrollPinningBehavior(ScrollPinningBehavior) override;
 
 #if ENABLE(CSS_SCROLL_SNAP)
-    bool isScrollSnapInProgress() const override;
+    bool isScrollSnapInProgress(ScrollingNodeID) const override;
 #endif
 
     WEBCORE_EXPORT void reconcileViewportConstrainedLayerPositions(ScrollingNodeID, const LayoutRect& viewportRect, ScrollingLayerPositionAction) override;

@@ -569,8 +569,6 @@ VisiblePosition closestEditablePositionInElementForAbsolutePoint(const Element& 
         return { };
 
     Ref<const Element> protectedElement { element };
-    auto frame = makeRef(*element.document().frame());
-
     element.document().updateLayoutIgnorePendingStylesheets();
 
     RenderObject* renderer = element.renderer();
@@ -585,8 +583,9 @@ VisiblePosition closestEditablePositionInElementForAbsolutePoint(const Element& 
     if (!renderer)
         return { };
     auto absoluteBoundingBox = renderer->absoluteBoundingBoxRect();
-    auto constrainedPoint = point.constrainedBetween(absoluteBoundingBox.minXMinYCorner(), absoluteBoundingBox.maxXMaxYCorner());
-    auto visiblePosition = frame->visiblePositionForPoint(constrainedPoint);
+    auto constrainedAbsolutePoint = point.constrainedBetween(absoluteBoundingBox.minXMinYCorner(), absoluteBoundingBox.maxXMaxYCorner());
+    auto localPoint = renderer->absoluteToLocal(constrainedAbsolutePoint, UseTransforms);
+    auto visiblePosition = renderer->positionForPoint(flooredLayoutPoint(localPoint), nullptr);
     return isEditablePosition(visiblePosition.deepEquivalent()) ? visiblePosition : VisiblePosition { };
 }
 
@@ -1106,8 +1105,10 @@ int indexForVisiblePosition(const VisiblePosition& visiblePosition, RefPtr<Conta
     }
 
     auto start = makeBoundaryPoint(firstPositionInNode(scope.get()));
+    if (!start)
+        return 0;
     auto end = makeBoundaryPoint(position.parentAnchoredEquivalent());
-    if (!start || !end)
+    if (!end)
         return 0;
 
     return characterCount({ *start, *end }, TextIteratorEmitsCharactersBetweenAllVisiblePositions);
@@ -1117,8 +1118,10 @@ int indexForVisiblePosition(const VisiblePosition& visiblePosition, RefPtr<Conta
 int indexForVisiblePosition(Node& node, const VisiblePosition& visiblePosition, bool forSelectionPreservation)
 {
     auto start = makeBoundaryPoint(firstPositionInNode(&node));
+    if (!start)
+        return 0;
     auto end = makeBoundaryPoint(visiblePosition.deepEquivalent().parentAnchoredEquivalent());
-    if (!start || !end)
+    if (!end)
         return 0;
 
     return characterCount({ *start, *end }, forSelectionPreservation ? TextIteratorEmitsCharactersBetweenAllVisiblePositions : TextIteratorDefaultBehavior);
@@ -1269,12 +1272,12 @@ Element* deprecatedEnclosingBlockFlowElement(Node* node)
     return nullptr;
 }
 
-static inline bool caretRendersInsideNode(Node& node)
+static inline bool caretRendersInsideNode(const Node& node)
 {
     return !isRenderedTable(&node) && !editingIgnoresContent(node);
 }
 
-RenderBlock* rendererForCaretPainting(Node* node)
+RenderBlock* rendererForCaretPainting(const Node* node)
 {
     if (!node)
         return nullptr;

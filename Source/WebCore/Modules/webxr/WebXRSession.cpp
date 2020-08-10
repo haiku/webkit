@@ -108,10 +108,9 @@ bool WebXRSession::referenceSpaceIsSupported(XRReferenceSpaceType type) const
             return true;
 
         // 4. If type is local or local-floor, and the XR device supports reporting orientation data, return true.
-        // TODO: add API to PlatformXR::Device
-        return true;
+        if (m_device->supportsOrientationTracking())
+            return true;
     }
-
 
     // 5. If type is bounded-floor and session is an immersive session, return the result of whether bounded
     //    reference spaces are supported by the XR device.
@@ -237,6 +236,24 @@ void WebXRSession::cancelAnimationFrame(unsigned callbackId)
 
     if (position != notFound)
         m_runningCallbacks[position]->cancel();
+}
+
+// https://immersive-web.github.io/webxr/#native-webgl-framebuffer-resolution
+IntSize WebXRSession::nativeWebGLFramebufferResolution() const
+{
+    if (m_mode == XRSessionMode::Inline) {
+        // FIXME: replace the conditional by ASSERTs once we properly initialize the outputCanvas.
+        return m_activeRenderState && m_activeRenderState->outputCanvas() ? m_activeRenderState->outputCanvas()->size() : IntSize(1, 1);
+    }
+
+    return recommendedWebGLFramebufferResolution();
+}
+
+// https://immersive-web.github.io/webxr/#recommended-webgl-framebuffer-resolution
+IntSize WebXRSession::recommendedWebGLFramebufferResolution() const
+{
+    ASSERT(m_device);
+    return m_device->recommendedResolution(m_mode);
 }
 
 // https://immersive-web.github.io/webxr/#shut-down-the-session

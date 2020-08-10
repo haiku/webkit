@@ -238,6 +238,7 @@ public:
     void updateLayerPositionsAfterScrolling() final;
     void updateCompositingLayersAfterScrolling() final;
     bool requestScrollPositionUpdate(const ScrollPosition&, ScrollType = ScrollType::User, ScrollClamping = ScrollClamping::Clamped) final;
+    bool isUserScrollInProgress() const final;
     bool isRubberBandInProgress() const final;
     WEBCORE_EXPORT ScrollPosition minimumScrollPosition() const final;
     WEBCORE_EXPORT ScrollPosition maximumScrollPosition() const final;
@@ -774,7 +775,8 @@ private:
 
     void adjustScrollbarsForLayout(bool firstLayout);
 
-    void handleDeferredScrollbarsUpdateAfterDirectionChange();
+    void handleDeferredScrollbarsUpdate();
+    void handleDeferredPositionScrollbarLayers();
 
     void updateScrollableAreaSet();
     void updateLayoutViewport();
@@ -832,6 +834,8 @@ private:
     void overrideViewportSizeForCSSViewportUnits(OverrideViewportSize);
     void overrideViewportWidthForCSSViewportUnits(int);
     void resetOverriddenViewportWidthForCSSViewportUnits();
+
+    void didFinishProhibitingScrollingWhenChangingContentSize() final;
 
     static MonotonicTime sCurrentPaintTimeStamp; // used for detecting decoded resource thrash in the cache
 
@@ -944,6 +948,7 @@ private:
     bool m_hasReachedSignificantRenderedTextThreshold { false };
 
     bool m_needsDeferredScrollbarsUpdate { false };
+    bool m_needsDeferredPositionScrollbarLayers { false };
     bool m_speculativeTilingEnabled { false };
     bool m_visualUpdatesAllowedByClient { true };
     bool m_hasFlippedBlockRenderers { false };

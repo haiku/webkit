@@ -1,4 +1,36 @@
 ================
+WebKitGTK 2.29.3
+================
+
+What's new in WebKitGTK 2.29.3?
+
+  - Add webkit_authentication_request_get_security_origin.
+  - Change the cookies accept policy to always when no-third-party is set and ITP is enabled.
+  - Fix web process hangs on large GitHub pages.
+  - Bubblewrap sandbox should not attempt to bind empty paths.
+  - Add support for sndio to bubblewrap sandbox.
+  - Also handle dark themes when the name ends with -Dark.
+  - Fix a race condition causing a crash in media player.
+  - Fix several crashes and rendering issues.
+
+================
+WebKitGTK 2.29.2
+================
+
+What's new in WebKitGTK 2.29.2?
+
+  - Add Intelligent Tracking Prevention (ITP) support.
+  - Add support for video formats in img elements.
+  - Add API to handle video autoplay policy that now defaults to disallow autoplay videos with audio.
+  - Add API to mute a web view.
+  - Add API to allow applications to handle the HTTP authentication credential storage.
+  - Add a WebKitSetting to set the media content types requiring hardware support.
+  - Fix a crash during drag an drop due to a bug introduced in 2.29.1.
+  - Do not start page load during animation in back/forward gesture.
+  - Fix several crashes and rendering issues.
+  - Translation updates: Ukrainian.
+
+================
 WebKitGTK 2.29.1
 ================
 

@@ -185,7 +185,6 @@ public:
     void setTopFrameUniqueRedirectFrom(const URL& topFrameHostName, const URL& hostNameRedirectedFrom, CompletionHandler<void()>&&);
     void setMaxStatisticsEntries(size_t, CompletionHandler<void()>&&);
     void setMinimumTimeBetweenDataRecordsRemoval(Seconds, CompletionHandler<void()>&&);
-    void setNotifyPagesWhenTelemetryWasCaptured(bool, CompletionHandler<void()>&&);
     void setPrevalentResource(const URL&, CompletionHandler<void()>&&);
     void setPrevalentResourceForDebugMode(const URL&, CompletionHandler<void()>&&);
     void setShouldClassifyResourcesBeforeDataRecordsRemoval(bool, CompletionHandler<void()>&&);
@@ -237,9 +236,16 @@ public:
     void removePendingCookie(const WebCore::Cookie&);
     void clearPendingCookies();
 
+    void dispatchOnQueue(Function<void()>&&);
+
 #if USE(CURL)
     void setNetworkProxySettings(WebCore::CurlProxySettings&&);
     const WebCore::CurlProxySettings& networkProxySettings() const { return m_proxySettings; }
+#endif
+
+#if USE(SOUP)
+    void setPersistentCredentialStorageEnabled(bool);
+    bool persistentCredentialStorageEnabled() const { return m_persistentCredentialStorageEnabled && isPersistent(); }
 #endif
 
     static void allowWebsiteDataRecordsForAllOrigins();
@@ -296,7 +302,8 @@ public:
 
     void beginAppBoundDomainCheck(const URL&, WebFramePolicyListenerProxy&);
     void getAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&&) const;
-    void ensureAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&)>&&) const;
+    void getAppBoundSchemes(CompletionHandler<void(const HashSet<String>&)>&&) const;
+    void ensureAppBoundDomains(CompletionHandler<void(const HashSet<WebCore::RegistrableDomain>&, const HashSet<String>&)>&&) const;
     void reinitializeAppBoundDomains();
     static void setAppBoundDomainsForTesting(HashSet<WebCore::RegistrableDomain>&&, CompletionHandler<void()>&&);
     void updateBundleIdentifierInNetworkProcess(const String&, CompletionHandler<void()>&&);
@@ -318,7 +325,7 @@ private:
 
     enum class ShouldCreateDirectory { No, Yes };
     static WTF::String tempDirectoryFileSystemRepresentation(const WTF::String& directoryName, ShouldCreateDirectory = ShouldCreateDirectory::Yes);
-    static WTF::String cacheDirectoryFileSystemRepresentation(const WTF::String& directoryName);
+    static WTF::String cacheDirectoryFileSystemRepresentation(const WTF::String& directoryName, ShouldCreateDirectory = ShouldCreateDirectory::Yes);
     static WTF::String websiteDataDirectoryFileSystemRepresentation(const WTF::String& directoryName);
 
     HashSet<RefPtr<WebProcessPool>> processPools(size_t limit = std::numeric_limits<size_t>::max()) const;
@@ -366,6 +373,10 @@ private:
 
 #if USE(CURL)
     WebCore::CurlProxySettings m_proxySettings;
+#endif
+
+#if USE(SOUP)
+    bool m_persistentCredentialStorageEnabled { true };
 #endif
 
     HashSet<WebCore::Cookie> m_pendingCookies;

@@ -1,3 +1,219 @@
+2020-07-15  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Tab bar colors of undocked Inspector should match Safari in Big Sur
+        https://bugs.webkit.org/show_bug.cgi?id=214163
+        <rdar://problem/65293335>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/Main.css:
+        (#undocked-title-area):
+        (body.big-sur #undocked-title-area):
+        (body:not(.big-sur) #undocked-title-area):
+        (body.window-inactive #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body.big-sur #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur) #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body.big-sur.window-inactive #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur).window-inactive #undocked-title-area):
+        * UserInterface/Views/TabBar.css:
+        (.tab-bar):
+        (body.big-sur .tab-bar):
+        (body:not(.docked) .tab-bar):
+        (body.big-sur:not(.docked) .tab-bar):
+        (body:not(.big-sur):not(.docked) .tab-bar):
+        (body.big-sur:not(.docked).window-inactive .tab-bar,):
+        (.tab-bar > .border):
+        (.tab-bar > .tabs > .item):
+        (body:not(.docked) .tab-bar > .tabs > .item):
+        (body.big-sur:not(.docked) .tab-bar > .tabs > .item):
+        (body:not(.big-sur):not(.docked) .tab-bar > .tabs > .item):
+        (body.big-sur:not(.docked) .tab-bar > .tabs > .item:not(.disabled).selected):
+        (body:not(.big-sur):not(.docked) .tab-bar > .tabs > .item:not(.disabled).selected):
+        (body.big-sur:not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover):
+        (body:not(.big-sur):not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover):
+        (body:not(.docked).window-inactive .tab-bar > .tabs > .item):
+        (body.big-sur:not(.docked).window-inactive .tab-bar > .tabs > .item,):
+        (body:not(.docked).window-inactive .tab-bar > .tabs > .item:not(.disabled).selected):
+        (.tab-bar > .tabs.animating.inserting-tab > .item.being-inserted):
+        (.tab-bar > .tabs.dragging-tab > .item:not(.disabled).selected):
+        (@media (prefers-color-scheme: dark) body.big-sur .tab-bar,):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked) .tab-bar):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked) .tab-bar):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked) .tab-bar > .tabs > .item):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked) .tab-bar > .tabs > .item:not(.disabled).selected):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked) .tab-bar > .tabs > .item:not(.disabled).selected):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked) .tab-bar > .tabs:not(.animating) > .item:not(.selected, .disabled):hover):
+        (@media (prefers-color-scheme: dark) body:not(.docked).window-inactive .tab-bar):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked).window-inactive .tab-bar,):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked).window-inactive .tab-bar > .tabs > .item):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked).window-inactive .tab-bar > .tabs > .item):
+        (@media (prefers-color-scheme: dark) body.big-sur:not(.docked).window-inactive .tab-bar > .tabs > .item:not(.disabled).selected):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur):not(.docked).window-inactive .tab-bar > .tabs > .item:not(.disabled).selected):
+
+2020-07-13  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: wrong bundle version being used for WebInspectorUI.framework in macOS Big Sur
+        https://bugs.webkit.org/show_bug.cgi?id=214274
+
+        Reviewed by Tim Horton.
+
+        * Configurations/Version.xcconfig: Make this match other Version.xcconfig after
+        the changes in <https://trac.webkit.org/changeset/263364>.
+
+2020-07-09  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: title bar of undocked inspector should be white in BigSur
+        https://bugs.webkit.org/show_bug.cgi?id=214161
+        <rdar://problem/65289224>
+
+        Reviewed by Brian Burg.
+
+        Make the title bar white when the window is focused.
+
+        When the window is unfocused, the title bar background is
+        the same on Big Sur and Catalina. No changes were needed.
+
+        * UserInterface/Views/Main.css:
+        (#undocked-title-area):
+        (body.big-sur #undocked-title-area):
+        (body:not(.big-sur) #undocked-title-area):
+        (@media (prefers-color-scheme: dark) #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body.big-sur #undocked-title-area):
+        (@media (prefers-color-scheme: dark) body:not(.big-sur) #undocked-title-area):
+
+2020-07-08  Christopher Reid  <chris.reid@sony.com>
+
+        Heap Snapshot Object Graph view doesn't get populated in some cases when inspecting a JSContext
+        https://bugs.webkit.org/show_bug.cgi?id=214054
+
+        Reviewed by Devin Rousso.
+
+        When JSContexts are created with a custom globalObjectClass, that object is an
+        instance of CallbackGlobalObject and not GlobalObject so the view doesn't get populated.
+        Add instances of CallbackGlobalObject to the Object Graph view as top level nodes.
+
+        * UserInterface/Views/HeapSnapshotDataGridTree.js:
+
+2020-07-07  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Canvas: show an error message if unable to fetch shader source
+        https://bugs.webkit.org/show_bug.cgi?id=213661
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/ShaderProgramContentView.js:
+        (WI.ShaderProgramContentView):
+        (WI.ShaderProgramContentView.prototype._refreshContent):
+        * UserInterface/Views/ShaderProgramContentView.css:
+        (.content-view.shader-program > .spinner-container): Added.
+        (.content-view.shader-program > .spinner-container > .indeterminate-progress-spinner): Added.
+
+2020-07-03  Sam Weinig  <weinig@apple.com>
+
+        Add "-Wliteral-conversion" warning to Xcode based builds and fix the issues it finds
+        https://bugs.webkit.org/show_bug.cgi?id=213931
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig:
+        Add -Wliteral-conversion.
+
+2020-07-02  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Allow selecting text of Response (DOM Tree)
+        https://bugs.webkit.org/show_bug.cgi?id=213617
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Views/DOMTreeOutline.css:
+        (.tree-outline.dom.non-selectable):
+
+2020-07-01  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add back support for 10.3.1
+        https://bugs.webkit.org/show_bug.cgi?id=213764
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/NetworkManager.js:
+        (WI.NetworkManager.prototype.initializeTarget):
+        (WI.NetworkManager.prototype.webSocketWillSendHandshakeRequest):
+        (WI.NetworkManager.prototype.markResourceRequestAsServedFromMemoryCache): Added.
+        (WI.NetworkManager.prototype.resourceRequestDidReceiveResponse):
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.prototype.legacyMarkServedFromMemoryCache): Added.
+        (WI.Resource.prototype.legacyMarkServedFromDiskCache): Added.
+        * UserInterface/Models/WebSocketResource.js:
+        (WI.WebSocketResource.prototype.addFrame):
+        * UserInterface/Protocol/Legacy/10.3/InspectorBackendCommands.js: Added.
+        * UserInterface/Protocol/NetworkObserver.js:
+        (WI.NetworkObserver.prototype.requestServedFromCache): Added.
+        * UserInterface/Views/NetworkTableContentView.js:
+        (WI.NetworkTableContentView):
+        * UserInterface/Views/NetworkTimelineView.js:
+        (WI.NetworkTimelineView):
+        * UserInterface/Views/ResourceDetailsSidebarPanel.js:
+        (WI.ResourceDetailsSidebarPanel.prototype._refreshRequestAndResponse):
+        * UserInterface/Views/WebSocketContentView.js:
+        (WI.WebSocketContentView):
+        (WI.WebSocketContentView.prototype._addRow):
+        * Versions/Inspector-iOS-10.3.json: Added.
+
+2020-06-30  Andy Estes  <aestes@apple.com>
+
+        [Xcode] Enable the "My Mac (Mac Catalyst)" destination in WebKit Xcode projects
+        https://bugs.webkit.org/show_bug.cgi?id=213740
+
+        Reviewed by Darin Adler.
+
+        * Configurations/Base.xcconfig: Set SUPPORTS_MACCATALYST to YES to tell Xcode that this
+        project supports building for Mac Catalyst.
+
+2020-06-23  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add a tooltip to the icon of overridden resources to clarify meaning
+        https://bugs.webkit.org/show_bug.cgi?id=213531
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/LocalResourceOverrideWarningView.js:
+        (WI.LocalResourceOverrideWarningView.prototype.initialLayout):
+        * UserInterface/Views/ResourceHeadersContentView.js:
+        (WI.ResourceHeadersContentView.prototype._responseSourceDisplayString):
+        Rephrase "local resource override" to just "local override" to match the reference page name.
+
+        * UserInterface/Views/NetworkTableContentView.js:
+        (WI.NetworkTableContentView.prototype._populateNameCell.createIconElement):
+        (WI.NetworkTableContentView.prototype._populateNameCell):
+        (WI.NetworkTableContentView.prototype._populateTransferSizeCell):
+        Add a `title` for the special transfer size cases, such as for `(local override)`.
+
+        * UserInterface/Views/ResourceTreeElement.js:
+        (WI.ResourceTreeElement.prototype._updateIcon):
+        * UserInterface/Views/ResourceSizesContentView.js:
+        (WI.ResourceSizesContentView.prototype.initialLayout):
+        * UserInterface/Views/TimelineDataGridNode.js:
+        (WI.TimelineDataGridNode.prototype.createCellContent):
+        (WI.TimelineDataGridNode.prototype.generateIconTitle): Added.
+        * UserInterface/Views/ResourceTimelineDataGridNode.js:
+        (WI.ResourceTimelineDataGridNode.prototype.get data):
+        (WI.ResourceTimelineDataGridNode.prototype.generateIconTitle): Added.
+        Add a `title` to the overridden resource icon that clarifies the fact that the resource was
+        overridden by a local override.
+
+        * UserInterface/Views/LayoutTimelineDataGridNode.js:
+        (WI.LayoutTimelineDataGridNode.prototype.get data):
+        Cache the `initiatorCallFrame` in the `source` column as well as the `initiator` column, as
+        it is used by the general timeline overview table.
+
+        * UserInterface/Views/DataGridNode.js:
+        (WI.DataGridNode.prototype.createCell):
+        (WI.DataGridNode.prototype.generateIconTitle): Added.
+        Provide a way to set a `title` on just the icon.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
 2020-06-23  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: adjust height of undocked title area to match macOS Big Sur

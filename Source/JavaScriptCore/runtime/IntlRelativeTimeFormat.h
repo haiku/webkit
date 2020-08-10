@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 Sony Interactive Entertainment Inc.
+ * Copyright (C) 2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +30,8 @@
 #include <unicode/ureldatefmt.h>
 
 namespace JSC {
+
+enum class RelevantExtensionKey : uint8_t;
 
 class IntlRelativeTimeFormat final : public JSNonFinalObject {
 public:
@@ -62,9 +65,11 @@ private:
     void finishCreation(VM&);
     static void visitChildren(JSCell*, SlotVisitor&);
 
-    static Vector<String> localeData(const String&, size_t);
+    static Vector<String> localeData(const String&, RelevantExtensionKey);
 
     String formatInternal(JSGlobalObject*, double, StringView unit) const;
+
+    enum class Style : uint8_t { Long, Short, Narrow };
 
     struct URelativeDateTimeFormatterDeleter {
         void operator()(URelativeDateTimeFormatter*) const;
@@ -73,12 +78,14 @@ private:
         void operator()(UNumberFormat*) const;
     };
 
+    static ASCIILiteral styleString(Style);
+
     std::unique_ptr<URelativeDateTimeFormatter, URelativeDateTimeFormatterDeleter> m_relativeDateTimeFormatter;
     std::unique_ptr<UNumberFormat, UNumberFormatDeleter> m_numberFormat;
 
     String m_locale;
     String m_numberingSystem;
-    UDateRelativeDateTimeFormatterStyle m_style { UDAT_STYLE_LONG };
+    Style m_style { Style::Long };
     bool m_numeric { true };
 };
 

@@ -100,6 +100,11 @@ enum CompositingPolicy {
     "Interrupted"
 };
 
+enum ContentSizeCategory {
+    "L",
+    "XXXL"
+};
+
 [
     ExportMacro=WEBCORE_TESTSUPPORT_EXPORT,
     Conditional=VIDEO,
@@ -182,6 +187,21 @@ enum CompositingPolicy {
     DOMString codecName;
     unsigned short bitstreamProfileID;
     unsigned short bitstreamLevelID;
+};
+
+[
+    ExportMacro=WEBCORE_TESTSUPPORT_EXPORT,
+    JSGenerateToJSObject,
+] dictionary VPCodecConfigurationRecord {
+    DOMString codecName;
+    octet profile;
+    octet level;
+    octet bitDepth;
+    octet chromaSubsampling;
+    octet videoFullRangeFlag;
+    octet colorPrimaries;
+    octet transferCharacteristics;
+    octet matrixCoefficients;
 };
 
 [
@@ -380,6 +400,7 @@ enum CompositingPolicy {
 
     [MayThrowException] unsigned long long lastSpellCheckRequestSequence();
     [MayThrowException] unsigned long long lastSpellCheckProcessedSequence();
+    void advanceToNextMisspelling();
 
     sequence<DOMString> userPreferredLanguages();
     void setUserPreferredLanguages(sequence<DOMString> languages);
@@ -716,6 +737,7 @@ enum CompositingPolicy {
     [Conditional=CONTENT_FILTERING] readonly attribute MockContentFilterSettings mockContentFilterSettings;
 
     [Conditional=CSS_SCROLL_SNAP, MayThrowException] DOMString scrollSnapOffsets(Element element);
+    [Conditional=CSS_SCROLL_SNAP, MayThrowException] boolean isScrollSnapInProgress(Element element);
     [Conditional=CSS_SCROLL_SNAP] void setPlatformMomentumScrollingPredictionEnabled(boolean enabled);
 
     [MayThrowException] DOMString pathStringWithShrinkWrappedRects(sequence<double> rectComponents, double radius);
@@ -726,8 +748,8 @@ enum CompositingPolicy {
 
     void setShowAllPlugins(boolean showAll);
 
-    [Conditional=STREAMS_API, CallWith=GlobalObject] any cloneArrayBuffer(any buffer, any srcByteOffset, any byteLength);
-    [Conditional=STREAMS_API, CallWith=GlobalObject] boolean isReadableStreamDisturbed(any stream);
+    [CallWith=GlobalObject] any cloneArrayBuffer(any buffer, any srcByteOffset, any byteLength);
+    [CallWith=GlobalObject] boolean isReadableStreamDisturbed(any stream);
 
     DOMString resourceLoadStatisticsForURL(DOMURL url);
     void setResourceLoadStatisticsEnabled(boolean enable);
@@ -774,6 +796,8 @@ enum CompositingPolicy {
 
     [Conditional=WEB_RTC] void setH264HardwareEncoderAllowed(boolean allowed);
     [Conditional=WEB_RTC] void applyRotationForOutgoingVideoSources(RTCPeerConnection connection);
+    [Conditional=WEB_RTC] void setWebRTCH265Support(boolean allowed);
+    [Conditional=WEB_RTC] void setWebRTCVP9Support(boolean allowed);
 
     [Conditional=MEDIA_STREAM] void setMockAudioTrackChannelNumber(MediaStreamTrack track, unsigned short count);
     [Conditional=MEDIA_STREAM] void setShouldInterruptAudioOnPageVisibilityChange(boolean shouldInterrupt);
@@ -807,6 +831,7 @@ enum CompositingPolicy {
     readonly attribute long processIdentifier;
     DOMString serviceWorkerClientIdentifier(Document document);
     Promise<void> storeRegistrationsOnDisk();
+    Promise<double> sendH2Ping(DOMString url);
 
     Promise<void> clearCacheStorageMemoryRepresentation();
     Promise<DOMString> cacheStorageEngineRepresentation();
@@ -871,6 +896,7 @@ enum CompositingPolicy {
 
     HEVCParameterSet? parseHEVCCodecParameters(DOMString codecParameters);
     DoViParameterSet? parseDoViCodecParameters(DOMString codecParameters);
+    VPCodecConfigurationRecord? parseVPCodecParameters(DOMString codecParameters);
 
     sequence<CookieData> getCookies();
 
@@ -906,6 +932,12 @@ enum CompositingPolicy {
 
     boolean systemHasBattery();
 
+    void setSystemHasBatteryForTesting(boolean hasBattery);
+    void setSystemHasACForTesting(boolean hasAC);
+
+    void setHardwareVP9DecoderDisabledForTesting(boolean disabled);
+    void setVP9ScreenSizeAndScaleForTesting(double width, double height, double scale);
+
     long readPreferenceInteger(DOMString domain, DOMString key);
     DOMString encodedPreferenceValue(DOMString domain, DOMString key);
 
@@ -922,4 +954,6 @@ enum CompositingPolicy {
 
     [Conditional=ENCRYPTED_MEDIA] unsigned long mediaKeysInternalInstanceObjectRefCount(MediaKeys mediaKeys);
     [Conditional=ENCRYPTED_MEDIA] unsigned long mediaKeySessionInternalInstanceSessionObjectRefCount(MediaKeySession session);
+
+    void setContentSizeCategory(ContentSizeCategory category);
 };
