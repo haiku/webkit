@@ -31,6 +31,13 @@
 #include <wtf/Assertions.h>
 #include <wtf/PageBlock.h>
 
+#if OS(HAIKU) && !defined(MADV_DONTNEED)
+// For old versions of Haiku (before R1 beta3), only posix_madvise is available
+#define MADV_DONTNEED POSIX_MADV_DONTNEED
+#define MADV_FREE POSIX_MADV_FREE
+#define madvise posix_madvise
+#endif
+
 namespace WTF {
 
 void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool includesGuardPages)
