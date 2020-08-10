@@ -80,6 +80,7 @@
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SecurityOriginData.h>
 #include <WebCore/StorageQuotaManager.h>
+#include <WebCore/UserContentURLPattern.h>
 #include <wtf/Algorithms.h>
 #include <wtf/CallbackAggregator.h>
 #include <wtf/OptionSet.h>
@@ -164,7 +165,7 @@ NetworkProcess::NetworkProcess(AuxiliaryProcessInitializationParameters&& parame
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
     addSupplement<LegacyCustomProtocolManager>();
 #endif
-#if PLATFORM(COCOA)
+#if HAVE(LSDATABASECONTEXT)
     addSupplement<LaunchServicesDatabaseObserver>();
 #endif
 #if PLATFORM(COCOA) && ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
@@ -1403,6 +1404,10 @@ void NetworkProcess::preconnectTo(PAL::SessionID sessionID, WebPageProxyIdentifi
         return;
 #endif
 
+    auto* networkSession = this->networkSession(sessionID);
+    if (!networkSession)
+        return;
+
     NetworkLoadParameters parameters;
     parameters.request = ResourceRequest { url };
     parameters.webPageProxyID = webPageProxyID;
@@ -1416,7 +1421,7 @@ void NetworkProcess::preconnectTo(PAL::SessionID sessionID, WebPageProxyIdentifi
     parameters.storedCredentialsPolicy = storedCredentialsPolicy;
     parameters.shouldPreconnectOnly = PreconnectOnly::Yes;
 
-    (new PreconnectTask(*this, sessionID, WTFMove(parameters), [](const WebCore::ResourceError&) { }))->start();
+    (new PreconnectTask(*networkSession, WTFMove(parameters), [](const WebCore::ResourceError&) { }))->start();
 #else
     UNUSED_PARAM(url);
     UNUSED_PARAM(userAgent);
@@ -2826,6 +2831,30 @@ void NetworkProcess::clearBundleIdentifier(CompletionHandler<void()>&& completio
     WebCore::clearApplicationBundleIdentifierTestingOverride();
 #endif
     completionHandler();
+}
+
+bool NetworkProcess::shouldDisableCORSForRequestTo(PageIdentifier pageIdentifier, const URL& url) const
+{
+    return WTF::anyOf(m_extensionCORSDisablingPatterns.get(pageIdentifier), [&] (const auto& pattern) {
+        return pattern.matches(url);
+    });
+}
+
+void NetworkProcess::setCORSDisablingPatterns(PageIdentifier pageIdentifier, Vector<String>&& patterns)
+{
+    Vector<UserContentURLPattern> parsedPatterns;
+    parsedPatterns.reserveInitialCapacity(patterns.size());
+    for (auto&& pattern : WTFMove(patterns)) {
+        UserContentURLPattern parsedPattern(WTFMove(pattern));
+        if (parsedPattern.isValid())
+            parsedPatterns.uncheckedAppend(WTFMove(parsedPattern));
+    }
+    parsedPatterns.shrinkToFit();
+    if (parsedPatterns.isEmpty()) {
+        m_extensionCORSDisablingPatterns.remove(pageIdentifier);
+        return;
+    }
+    m_extensionCORSDisablingPatterns.set(pageIdentifier, WTFMove(parsedPatterns));
 }
 
 } // namespace WebKit

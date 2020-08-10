@@ -71,6 +71,7 @@
 #include "PluginViewBase.h"
 #include "Position.h"
 #include "PromisedAttachmentInfo.h"
+#include "Range.h"
 #include "RenderAttachment.h"
 #include "RenderFileUploadControl.h"
 #include "RenderImage.h"
@@ -239,7 +240,7 @@ bool DragController::performDragOperation(const DragData& dragData)
 {
     if (!m_droppedImagePlaceholders.isEmpty() && m_droppedImagePlaceholderRange && tryToUpdateDroppedImagePlaceholders(dragData)) {
         m_droppedImagePlaceholders.clear();
-        m_droppedImagePlaceholderRange = nullptr;
+        m_droppedImagePlaceholderRange = WTF::nullopt;
         m_documentUnderMouse = nullptr;
         clearDragCaret();
         return true;
@@ -568,7 +569,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
             return false;
         auto style = MutableStyleProperties::create();
         style->setProperty(CSSPropertyColor, serializationForHTML(color), false);
-        if (!innerFrame->editor().shouldApplyStyle(style.ptr(), createLiveRange(innerRange).get()))
+        if (!innerFrame->editor().shouldApplyStyle(style, *innerRange))
             return false;
         client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
         innerFrame->editor().applyStyle(style.ptr(), EditAction::SetColor);
@@ -603,7 +604,7 @@ bool DragController::concludeEditDrag(const DragData& dragData)
     if (isMove || dragCaret.isContentRichlyEditable()) {
         bool chosePlainText = false;
         RefPtr<DocumentFragment> fragment = documentFragmentFromDragData(dragData, *innerFrame, createLiveRange(*range), true, chosePlainText);
-        if (!fragment || !editor.shouldInsertFragment(*fragment, createLiveRange(range).get(), EditorInsertAction::Dropped))
+        if (!fragment || !editor.shouldInsertFragment(*fragment, range, EditorInsertAction::Dropped))
             return false;
 
         client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
@@ -629,11 +630,11 @@ bool DragController::concludeEditDrag(const DragData& dragData)
         }
     } else {
         String text = dragData.asPlainText();
-        if (text.isEmpty() || !editor.shouldInsertText(text, createLiveRange(*range).ptr(), EditorInsertAction::Dropped))
+        if (text.isEmpty() || !editor.shouldInsertText(text, *range, EditorInsertAction::Dropped))
             return false;
 
         client().willPerformDragDestinationAction(DragDestinationAction::Edit, dragData);
-        auto fragment = createFragmentFromText(createLiveRange(*range), text);
+        auto fragment = createFragmentFromText(*range, text);
         if (editor.client() && editor.client()->performTwoStepDrop(fragment.get(), createLiveRange(*range), isMove))
             return true;
 
@@ -856,9 +857,10 @@ static Image* getImage(Element& element)
 
 static void selectElement(Element& element)
 {
-    RefPtr<Range> range = element.document().createRange();
-    range->selectNode(element);
-    element.document().frame()->selection().setSelection(VisibleSelection(*range, DOWNSTREAM));
+    if (auto frame = element.document().frame()) {
+        if (auto range = makeRangeSelectingNode(element))
+            frame->selection().setSelection(*range);
+    }
 }
 
 static IntPoint dragLocForDHTMLDrag(const IntPoint& mouseDraggedPoint, const IntPoint& dragOrigin, const IntPoint& dragImageOffset, bool isLinkImage)
@@ -1022,7 +1024,7 @@ bool DragController::startDrag(Frame& src, const DragState& state, OptionSet<Dra
             auto selectionRange = src.selection().selection().toNormalizedRange();
             ASSERT(selectionRange);
 
-            src.editor().willWriteSelectionToPasteboard(createLiveRange(*selectionRange).ptr());
+            src.editor().willWriteSelectionToPasteboard(*selectionRange);
 
             if (enclosingTextFormControl(src.selection().selection().start())) {
                 if (mustUseLegacyDragClient)
@@ -1190,7 +1192,7 @@ bool DragController::startDrag(Frame& src, const DragState& state, OptionSet<Dra
 #if PLATFORM(COCOA)
             if (!promisedAttachment && editor.client()) {
                 // Otherwise, if no file URL is specified, call out to the injected bundle to populate the pasteboard with data.
-                editor.willWriteSelectionToPasteboard(createLiveRange(src.selection().selection().toNormalizedRange()).get());
+                editor.willWriteSelectionToPasteboard(src.selection().selection().toNormalizedRange());
                 editor.writeSelectionToPasteboard(dataTransfer.pasteboard());
                 editor.didWriteSelectionToPasteboard();
             }
@@ -1373,7 +1375,7 @@ void DragController::doSystemDrag(DragImage image, const IntPoint& dragLoc, cons
 
 void DragController::removeAllDroppedImagePlaceholders()
 {
-    m_droppedImagePlaceholderRange = nullptr;
+    m_droppedImagePlaceholderRange = WTF::nullopt;
     for (auto& placeholder : std::exchange(m_droppedImagePlaceholders, { })) {
         if (placeholder->isConnected())
             placeholder->remove();
@@ -1455,13 +1457,13 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
     auto command = ReplaceSelectionCommand::create(*document, WTFMove(fragment), { ReplaceSelectionCommand::PreventNesting, ReplaceSelectionCommand::SmartReplace }, EditAction::InsertFromDrop);
     command->apply();
 
-    auto insertedContentRange = command->insertedContentRange();
+    auto insertedContentRange = makeSimpleRange(command->insertedContentRange());
     if (!insertedContentRange) {
         ASSERT_NOT_REACHED();
         return;
     }
 
-    auto container = makeRefPtr(insertedContentRange->commonAncestorContainer());
+    auto container = commonInclusiveAncestor(*insertedContentRange);
     if (!is<ContainerNode>(container)) {
         ASSERT_NOT_REACHED();
         return;
@@ -1469,7 +1471,7 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
 
     Vector<Ref<HTMLImageElement>> placeholders;
     for (auto& placeholder : descendantsOfType<HTMLImageElement>(downcast<ContainerNode>(*container))) {
-        auto intersectsNode = insertedContentRange->intersectsNode(placeholder);
+        auto intersectsNode = createLiveRange(*insertedContentRange)->intersectsNode(placeholder);
         if (!intersectsNode.hasException() && intersectsNode.returnValue())
             placeholders.append(placeholder);
     }
@@ -1493,7 +1495,7 @@ void DragController::insertDroppedImagePlaceholdersAtCaret(const Vector<IntSize>
     m_droppedImagePlaceholderRange = WTFMove(insertedContentRange);
 
     frame->selection().clear();
-    caretController.setCaretPosition(m_droppedImagePlaceholderRange->startPosition());
+    caretController.setCaretPosition(createLegacyEditingPosition(m_droppedImagePlaceholderRange->start));
 }
 
 void DragController::finalizeDroppedImagePlaceholder(HTMLImageElement& placeholder)

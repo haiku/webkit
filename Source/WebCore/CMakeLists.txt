@@ -469,7 +469,9 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/ChannelCountMode.idl
     Modules/webaudio/ChannelInterpretation.idl
     Modules/webaudio/ChannelMergerNode.idl
+    Modules/webaudio/ChannelMergerOptions.idl
     Modules/webaudio/ChannelSplitterNode.idl
+    Modules/webaudio/ChannelSplitterOptions.idl
     Modules/webaudio/ConvolverNode.idl
     Modules/webaudio/DelayNode.idl
     Modules/webaudio/DistanceModelType.idl
@@ -480,16 +482,22 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/MediaStreamAudioSourceNode.idl
     Modules/webaudio/OfflineAudioCompletionEvent.idl
     Modules/webaudio/OfflineAudioContext.idl
+    Modules/webaudio/OfflineAudioContextOptions.idl
     Modules/webaudio/OscillatorNode.idl
+    Modules/webaudio/OscillatorOptions.idl
+    Modules/webaudio/OscillatorType.idl
     Modules/webaudio/PannerNode.idl
     Modules/webaudio/PannerOptions.idl
     Modules/webaudio/PanningModelType.idl
     Modules/webaudio/PeriodicWave.idl
+    Modules/webaudio/PeriodicWaveConstraints.idl
+    Modules/webaudio/PeriodicWaveOptions.idl
     Modules/webaudio/ScriptProcessorNode.idl
     Modules/webaudio/WaveShaperNode.idl
     Modules/webaudio/WebKitAudioContext.idl
     Modules/webaudio/WebKitAudioPannerNode.idl
     Modules/webaudio/WebKitOfflineAudioContext.idl
+    Modules/webaudio/WebKitOscillatorNode.idl
 
     Modules/webauthn/AttestationConveyancePreference.idl
     Modules/webauthn/AuthenticationExtensionsClientInputs.idl

@@ -239,6 +239,8 @@ private:
     void unregisterSWConnection();
 #endif
 
+    void createRTCProvider(CompletionHandler<void()>&&);
+
     void createNewMessagePortChannel(const WebCore::MessagePortIdentifier& port1, const WebCore::MessagePortIdentifier& port2);
     void entangleLocalPortInThisProcessToRemote(const WebCore::MessagePortIdentifier& local, const WebCore::MessagePortIdentifier& remote);
     void messagePortDisentangled(const WebCore::MessagePortIdentifier&);
@@ -247,6 +249,8 @@ private:
     void postMessageToRemote(WebCore::MessageWithMessagePorts&&, const WebCore::MessagePortIdentifier&);
     void checkRemotePortForActivity(const WebCore::MessagePortIdentifier, CompletionHandler<void(bool)>&&);
     void didDeliverMessagePortMessages(uint64_t messageBatchIdentifier);
+
+    void setCORSDisablingPatterns(WebCore::PageIdentifier, Vector<String>&&);
 
 #if USE(LIBWEBRTC)
     NetworkRTCProvider& rtcProvider();
@@ -268,9 +272,9 @@ private:
     void requestStorageAccessUnderOpener(WebCore::RegistrableDomain&& domainInNeedOfStorageAccess, WebCore::PageIdentifier openerPageID, WebCore::RegistrableDomain&& openerDomain);
 #endif
 
-    void addOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
-    void removeOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
-    void resetOriginAccessWhitelists();
+    void addOriginAccessAllowListEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
+    void removeOriginAccessAllowListEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains);
+    void resetOriginAccessAllowLists();
 
     uint64_t nextMessageBatchIdentifier(Function<void()>&&);
 

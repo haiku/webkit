@@ -4361,31 +4361,23 @@ private:
         LValue basePtr = lowCell(m_node->child1());    
 
         LBasicBlock wastefulCase = m_out.newBlock();
-        LBasicBlock notNull = m_out.newBlock();
         LBasicBlock continuation = m_out.newBlock();
         
-        ValueFromBlock nullVectorOut = m_out.anchor(m_out.constIntPtr(0));
+        ValueFromBlock nonWastefulResult = m_out.anchor(m_out.constIntPtr(0));
 
         LValue mode = m_out.load32(basePtr, m_heaps.JSArrayBufferView_mode);
         m_out.branch(
             m_out.notEqual(mode, m_out.constInt32(WastefulTypedArray)),
             unsure(continuation), unsure(wastefulCase));
 
-        LBasicBlock lastNext = m_out.appendTo(wastefulCase, notNull);
+        LBasicBlock lastNext = m_out.appendTo(wastefulCase, continuation);
 
-        LValue vector = m_out.loadPtr(basePtr, m_heaps.JSArrayBufferView_vector);
-        m_out.branch(m_out.equal(vector, m_out.constIntPtr(JSArrayBufferView::nullVectorPtr())), 
-            unsure(continuation), unsure(notNull));
-
-        m_out.appendTo(notNull, continuation);
+        LValue vectorPtr = m_out.loadPtr(basePtr, m_heaps.JSArrayBufferView_vector);
+        vectorPtr = removeArrayPtrTag(vectorPtr);
 
         LValue butterflyPtr = caged(Gigacage::JSValue, m_out.loadPtr(basePtr, m_heaps.JSObject_butterfly), basePtr);
         LValue arrayBufferPtr = m_out.loadPtr(butterflyPtr, m_heaps.Butterfly_arrayBuffer);
 
-        LValue vectorPtr = caged(Gigacage::Primitive, vector, basePtr);
-
-        // FIXME: This needs caging.
-        // https://bugs.webkit.org/show_bug.cgi?id=175515
         LValue dataPtr = m_out.loadPtr(arrayBufferPtr, m_heaps.ArrayBuffer_data);
         dataPtr = removeArrayPtrTag(dataPtr);
 
@@ -4394,7 +4386,7 @@ private:
         m_out.jump(continuation);
         m_out.appendTo(continuation, lastNext);
 
-        setInt32(m_out.castToInt32(m_out.phi(pointerType(), nullVectorOut, wastefulOut)));
+        setInt32(m_out.castToInt32(m_out.phi(pointerType(), nonWastefulResult, wastefulOut)));
     }
 
     void compileGetPrototypeOf()
@@ -4897,8 +4889,8 @@ private:
                 GPRReg propertyGPR = params[2].gpr();
 
                 auto generator = Box<JITGetByValGenerator>::create(
-                    jit.codeBlock(), node->origin.semantic, callSiteIndex, params.unavailableRegisters(),
-                    JSValueRegs(baseGPR), JSValueRegs(propertyGPR), JSValueRegs(resultGPR));
+                    jit.codeBlock(), node->origin.semantic, callSiteIndex, AccessType::GetByVal,
+                    params.unavailableRegisters(), JSValueRegs(baseGPR), JSValueRegs(propertyGPR), JSValueRegs(resultGPR));
 
                 generator->stubInfo()->propertyIsString = propertyIsString;
                 generator->stubInfo()->propertyIsInt32 = propertyIsInt32;

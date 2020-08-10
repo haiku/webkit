@@ -362,4 +362,16 @@ bool defaultIncrementalPDFEnabled();
 bool defaultWebXREnabled();
 #endif
 
+#if ENABLE(VP9)
+bool defaultVP9DecoderEnabled();
+#endif
+
+#if ENABLE(MEDIA_SOURCE) && ENABLE(VP9)
+bool defaultWebMParserEnabled();
+#endif
+
+#if ENABLE(WEB_RTC)
+bool defaultWebRTCH264LowLatencyEncoderEnabled();
+#endif
+
 } // namespace WebKit

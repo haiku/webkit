@@ -32,11 +32,10 @@
 #include "CodeSpecializationKind.h"
 #include "CompleteSubspace.h"
 #include "ConcurrentJSLock.h"
-#include "ControlFlowProfiler.h"
 #include "DateInstanceCache.h"
 #include "DeleteAllCodeEffort.h"
+#include "DisallowVMEntry.h"
 #include "ExceptionEventLocation.h"
-#include "ExecutableAllocator.h"
 #include "FunctionHasExecutedCache.h"
 #include "FuzzerAgent.h"
 #include "Heap.h"
@@ -44,7 +43,6 @@
 #include "Intrinsic.h"
 #include "IsoCellSet.h"
 #include "IsoSubspace.h"
-#include "JITThunks.h"
 #include "JSCJSValue.h"
 #include "JSLock.h"
 #include "MacroAssemblerCodeRef.h"
@@ -54,6 +52,7 @@
 #include "Strong.h"
 #include "StructureCache.h"
 #include "SubspaceAccess.h"
+#include "ThunkGenerator.h"
 #include "VMTraps.h"
 #include "WasmContext.h"
 #include "Watchpoint.h"
@@ -94,12 +93,14 @@
 #endif
 
 namespace WTF {
+class RunLoop;
 class SimpleStats;
 } // namespace WTF
 using WTF::SimpleStats;
 
 namespace JSC {
 
+class BasicBlockLocation;
 class BuiltinExecutables;
 class BytecodeIntrinsicRegistry;
 class CallFrame;
@@ -109,6 +110,7 @@ class CodeCache;
 class CommonIdentifiers;
 class CompactVariableMap;
 class ConservativeRoots;
+class ControlFlowProfiler;
 class CustomGetterSetter;
 class DOMAttributeGetterSetter;
 class DateInstance;
@@ -118,14 +120,13 @@ class ExceptionScope;
 class FastMallocAlignedMemoryAllocator;
 class GigacageAlignedMemoryAllocator;
 class HandleStack;
-class TypeProfiler;
-class TypeProfilerLog;
 class HasOwnPropertyCache;
 class HeapProfiler;
 class Identifier;
 class Interpreter;
 class IntlCollator;
 class IntlDateTimeFormat;
+class IntlDisplayNames;
 class IntlLocale;
 class IntlNumberFormat;
 class IntlPluralRules;
@@ -155,6 +156,7 @@ class JSWebAssemblyInstance;
 class JSWebAssemblyMemory;
 class JSWebAssemblyModule;
 class JSWebAssemblyTable;
+class JITThunks;
 class LLIntOffsetsExtractor;
 class NativeExecutable;
 class ObjCCallbackFunction;
@@ -185,6 +187,8 @@ class UnlinkedModuleProgramCodeBlock;
 class VirtualRegister;
 class VMEntryScope;
 class TopLevelGlobalObjectScope;
+class TypeProfiler;
+class TypeProfilerLog;
 class Watchdog;
 class Watchpoint;
 class WatchpointSet;
@@ -312,8 +316,8 @@ public:
     JS_EXPORT_PRIVATE static bool sharedInstanceExists();
     JS_EXPORT_PRIVATE static VM& sharedInstance();
 
-    JS_EXPORT_PRIVATE static Ref<VM> create(HeapType = SmallHeap);
-    JS_EXPORT_PRIVATE static RefPtr<VM> tryCreate(HeapType = SmallHeap);
+    JS_EXPORT_PRIVATE static Ref<VM> create(HeapType = SmallHeap, WTF::RunLoop* = nullptr);
+    JS_EXPORT_PRIVATE static RefPtr<VM> tryCreate(HeapType = SmallHeap, WTF::RunLoop* = nullptr);
     static Ref<VM> createContextGroup(HeapType = SmallHeap);
     JS_EXPORT_PRIVATE ~VM();
 
@@ -354,10 +358,7 @@ private:
 
     unsigned m_id;
     RefPtr<JSLock> m_apiLock;
-#if USE(CF)
-    // These need to be initialized before heap below.
-    RetainPtr<CFRunLoopRef> m_runLoop;
-#endif
+    Ref<WTF::RunLoop> m_runLoop;
 
     WeakRandom m_random;
     Integrity::Random m_integrityRandom;
@@ -402,6 +403,7 @@ public:
 #endif
     std::unique_ptr<IsoHeapCellType> intlCollatorHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlDateTimeFormatHeapCellType;
+    std::unique_ptr<IsoHeapCellType> intlDisplayNamesHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlLocaleHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlNumberFormatHeapCellType;
     std::unique_ptr<IsoHeapCellType> intlPluralRulesHeapCellType;
@@ -560,6 +562,7 @@ public:
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(withScopeSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlCollatorSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDateTimeFormatSpace)
+    DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlDisplayNamesSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlLocaleSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlNumberFormatSpace)
     DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER(intlPluralRulesSpace)
@@ -812,10 +815,7 @@ public:
     Interpreter* interpreter;
 #if ENABLE(JIT)
     std::unique_ptr<JITThunks> jitStubs;
-    MacroAssemblerCodeRef<JITThunkPtrTag> getCTIStub(ThunkGenerator generator)
-    {
-        return jitStubs->ctiStub(*this, generator);
-    }
+    MacroAssemblerCodeRef<JITThunkPtrTag> getCTIStub(ThunkGenerator);
 
 #endif // ENABLE(JIT)
 #if ENABLE(FTL_JIT)
@@ -949,6 +949,7 @@ public:
     bool hasCheckpointOSRSideState() const { return m_checkpointSideState.size(); }
     void scanSideState(ConservativeRoots&) const;
 
+    unsigned disallowVMEntryCount { 0 };
     VMEntryScope* entryScope;
 
     JSObject* stringRecursionCheckFirstObject { nullptr };
@@ -1082,10 +1083,7 @@ public:
     bool needExceptionCheck() const { return m_needExceptionCheck; }
 #endif
 
-#if USE(CF)
-    CFRunLoopRef runLoop() const { return m_runLoop.get(); }
-    JS_EXPORT_PRIVATE void setRunLoop(CFRunLoopRef);
-#endif // USE(CF)
+    WTF::RunLoop& runLoop() const { return m_runLoop; }
 
     static void setCrashOnVMCreation(bool);
 
@@ -1109,7 +1107,7 @@ public:
 private:
     friend class LLIntOffsetsExtractor;
 
-    VM(VMType, HeapType, bool* success = nullptr);
+    VM(VMType, HeapType, WTF::RunLoop* = nullptr, bool* success = nullptr);
     static VM*& sharedInstanceInternal();
     void createNativeThunk();
 

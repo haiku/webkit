@@ -165,6 +165,14 @@ void WebProcessPool::platformInitialize()
         installMemoryPressureHandler();
 
     setLegacyCustomProtocolManagerClient(makeUnique<LegacyCustomProtocolManagerClient>());
+
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
+    if (!_MGCacheValid()) {
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [adoptNS([[objc_getClass("MobileGestaltHelperProxy") alloc] init]) proxyRebuildCache];
+        });
+    }
+#endif
 }
 
 #if PLATFORM(IOS_FAMILY)
@@ -333,7 +341,7 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
         SandboxExtension::createHandleWithoutResolvingPath(m_resolvedPaths.containerTemporaryDirectory, SandboxExtension::Type::ReadWrite, parameters.containerTemporaryDirectoryExtensionHandle);
 #endif
 
-    parameters.fontWhitelist = m_fontWhitelist;
+    parameters.fontAllowList = m_fontAllowList;
 
     if (m_bundleParameters) {
         auto keyedArchiver = adoptNS([[NSKeyedArchiver alloc] initRequiringSecureCoding:YES]);
@@ -408,7 +416,7 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     
 #if PLATFORM(COCOA)
     parameters.systemHasBattery = systemHasBattery();
-    parameters.systemHasAC = systemHasAC();
+    parameters.systemHasAC = cachedSystemHasAC().valueOr(true);
 
     SandboxExtension::Handle mapDBHandle;
     if (SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb"_s, WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport))
@@ -447,8 +455,11 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
 #endif
 
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
-    if (!_MGCacheValid())
-        [adoptNS([[objc_getClass("MobileGestaltHelperProxy") alloc] init]) proxyRebuildCache];
+    if (!_MGCacheValid()) {
+        SandboxExtension::Handle handle;
+        SandboxExtension::createHandleForMachLookup("com.apple.mobilegestalt.xpc"_s, WTF::nullopt, handle);
+        parameters.mobileGestaltExtensionHandle = WTFMove(handle);
+    }
 #endif
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(CFPREFS_DIRECT_MODE)

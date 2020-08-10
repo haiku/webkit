@@ -166,6 +166,7 @@
 #include <WebCore/PublicSuffix.h>
 #include <WebCore/RenderEmbeddedObject.h>
 #include <WebCore/ResourceLoadStatistics.h>
+#include <WebCore/RuntimeApplicationChecks.h>
 #include <WebCore/RuntimeEnabledFeatures.h>
 #include <WebCore/SSLKeyGenerator.h>
 #include <WebCore/SerializedCryptoKeyWrap.h>
@@ -288,10 +289,8 @@
 #include "MediaUsageManager.h"
 #endif
 
-#if USE(APPLE_INTERNAL_SDK)
-#include <WebKitAdditions/WebPageProxyAdditions.h>
-#else
-#define WEB_PAGE_PROXY_ADDITIONS_SETISNAVIGATINGTOAPPBOUNDDOMAIN true
+#if PLATFORM(COCOA)
+#include "DefaultWebBrowserChecks.h"
 #endif
 
 // This controls what strategy we use for mouse wheel coalescing.
@@ -1393,8 +1392,10 @@ RefPtr<API::Navigation> WebPageProxy::loadData(const IPC::DataReference& data, c
 {
     RELEASE_LOG_IF_ALLOWED(Loading, "loadData:");
 
-    if (MIMEType == "text/html"_s && !WEB_PAGE_PROXY_ADDITIONS_SETISNAVIGATINGTOAPPBOUNDDOMAIN)
+#if PLATFORM(IOS_FAMILY)
+    if (MIMEType == "text/html"_s && !isFullWebBrowser())
         m_limitsNavigationsToAppBoundDomains = true;
+#endif
 
     if (m_isClosed) {
         RELEASE_LOG_IF_ALLOWED(Loading, "loadData: page is closed");
@@ -3134,8 +3135,12 @@ static bool shouldTreatURLProtocolAsAppBound(const URL& requestURL)
 bool WebPageProxy::setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMainFrame, const URL& requestURL, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
 #if PLATFORM(IOS_FAMILY)
-    if (WEB_PAGE_PROXY_ADDITIONS_SETISNAVIGATINGTOAPPBOUNDDOMAIN)
+    if (isFullWebBrowser()) {
+        if (hasProhibitedUsageStrings())
+            m_isNavigatingToAppBoundDomain = NavigatingToAppBoundDomain::No;
         return true;
+    }
+
     if (!isNavigatingToAppBoundDomain) {
         m_isNavigatingToAppBoundDomain = WTF::nullopt;
         return true;
@@ -7695,6 +7700,11 @@ void WebPageProxy::resetStateAfterProcessExited(ProcessTerminationReason termina
     invalidateAllAttachments();
 #endif
 
+#if ENABLE(ASYNC_SCROLLING) && PLATFORM(COCOA)
+    if (m_scrollingCoordinatorProxy)
+        m_scrollingCoordinatorProxy->resetStateAfterProcessExited();
+#endif
+
     if (terminationReason != ProcessTerminationReason::NavigationSwap) {
         PageLoadState::Transaction transaction = m_pageLoadState.transaction();
         m_pageLoadState.reset(transaction);
@@ -8913,6 +8923,12 @@ void WebPageProxy::isPlayingMediaDidChange(MediaProducer::MediaStateFlags newSta
     ASSERT(focusManager);
     focusManager->updatePlaybackAttributesFromMediaState(this, sourceElementID, newState);
 #endif
+
+#if PLATFORM(IOS_FAMILY)
+    if (!m_process->throttler().shouldBeRunnable())
+        return;
+#endif
+
     if (!m_isClosed)
         updatePlayingMediaDidChange(newState);
 }

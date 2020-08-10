@@ -2617,7 +2617,7 @@ ExceptionOr<RefPtr<Range>> Internals::rangeOfString(const String& text, RefPtr<R
     if (parsedOptions.hasException())
         return parsedOptions.releaseException();
 
-    return document->editor().rangeOfString(text, referenceRange.get(), parsedOptions.releaseReturnValue());
+    return createLiveRange(document->editor().rangeOfString(text, makeSimpleRange(referenceRange), parsedOptions.releaseReturnValue()));
 }
 
 ExceptionOr<unsigned> Internals::countMatchesForText(const String& text, const Vector<String>& findOptions, const String& markMatches)
@@ -2631,7 +2631,7 @@ ExceptionOr<unsigned> Internals::countMatchesForText(const String& text, const V
         return parsedOptions.releaseException();
 
     bool mark = markMatches == "mark";
-    return document->editor().countMatchesForText(text, nullptr, parsedOptions.releaseReturnValue(), 1000, mark, nullptr);
+    return document->editor().countMatchesForText(text, WTF::nullopt, parsedOptions.releaseReturnValue(), 1000, mark, nullptr);
 }
 
 ExceptionOr<unsigned> Internals::countFindMatches(const String& text, const Vector<String>& findOptions)
@@ -3540,6 +3540,25 @@ ExceptionOr<unsigned> Internals::compositingUpdateCount()
         return Exception { InvalidAccessError };
 
     return document->renderView()->compositor().compositingUpdateCount();
+}
+
+ExceptionOr<void> Internals::startTrackingRenderingUpdates()
+{
+    Document* document = contextDocument();
+    if (!document)
+        return Exception { InvalidAccessError };
+
+    document->page()->startTrackingRenderingUpdates();
+    return { };
+}
+
+ExceptionOr<unsigned> Internals::renderingUpdateCount()
+{
+    Document* document = contextDocument();
+    if (!document)
+        return Exception { InvalidAccessError };
+
+    return document->page()->renderingUpdateCount();
 }
 
 ExceptionOr<void> Internals::setCompositingPolicyOverride(Optional<CompositingPolicy> policyOverride)
@@ -5152,6 +5171,15 @@ void Internals::setPageIsFocusedAndActive(bool isFocusedAndActive)
     page.setActivityState(state);
 }
 
+bool Internals::isPageActive() const
+{
+    auto* document = contextDocument();
+    if (!document || !document->page())
+        return false;
+    auto& page = *document->page();
+    return page.activityState().contains(ActivityState::WindowIsActive);
+}
+
 #if ENABLE(WEB_RTC)
 void Internals::setH264HardwareEncoderAllowed(bool allowed)
 {
@@ -5522,6 +5550,15 @@ bool Internals::usingAppleInternalSDK() const
 #endif
 }
 
+bool Internals::usingGStreamer() const
+{
+#if USE(GSTREAMER)
+    return true;
+#else
+    return false;
+#endif
+}
+
 void Internals::setCaptureExtraNetworkLoadMetricsEnabled(bool value)
 {
     platformStrategies()->loaderStrategy()->setCaptureExtraNetworkLoadMetricsEnabled(value);
@@ -5672,9 +5709,9 @@ void Internals::testDictionaryLogging()
     page->diagnosticLoggingClient().logDiagnosticMessageWithValueDictionary("testMessage"_s, "testDescription"_s, dictionary, ShouldSample::No);
 }
 
-void Internals::setXHRMaximumIntervalForUserGestureForwarding(XMLHttpRequest& request, double interval)
+void Internals::setMaximumIntervalForUserGestureForwardingForFetch(double interval)
 {
-    request.setMaximumIntervalForUserGestureForwarding(interval);
+    UserGestureToken::setMaximumIntervalForUserGestureForwardingForFetchForTesting(Seconds(interval));
 }
 
 void Internals::setTransientActivationDuration(double seconds)

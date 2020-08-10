@@ -213,9 +213,11 @@ bool JSTestNamedSetterWithIdentifier::put(JSCell* cell, JSGlobalObject* lexicalG
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
 
     if (!propertyName.isSymbol()) {
-        PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry };
+        PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry, &lexicalGlobalObject->vm() };
         JSValue prototype = thisObject->getPrototypeDirect(JSC::getVM(lexicalGlobalObject));
-        if (!(prototype.isObject() && asObject(prototype)->getPropertySlot(lexicalGlobalObject, propertyName, slot))) {
+        bool found = prototype.isObject() && asObject(prototype)->getPropertySlot(lexicalGlobalObject, propertyName, slot);
+        slot.disallowVMEntry.reset();
+        if (!found) {
             auto throwScope = DECLARE_THROW_SCOPE(JSC::getVM(lexicalGlobalObject));
             auto nativeValue = convert<IDLDOMString>(*lexicalGlobalObject, value);
             RETURN_IF_EXCEPTION(throwScope, true);
@@ -234,9 +236,11 @@ bool JSTestNamedSetterWithIdentifier::putByIndex(JSCell* cell, JSGlobalObject* l
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
 
     auto propertyName = Identifier::from(vm, index);
-    PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry };
+    PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry, &vm };
     JSValue prototype = thisObject->getPrototypeDirect(vm);
-    if (!(prototype.isObject() && asObject(prototype)->getPropertySlot(lexicalGlobalObject, propertyName, slot))) {
+    bool found = prototype.isObject() && asObject(prototype)->getPropertySlot(lexicalGlobalObject, propertyName, slot);
+    slot.disallowVMEntry.reset();
+    if (!found) {
         auto throwScope = DECLARE_THROW_SCOPE(JSC::getVM(lexicalGlobalObject));
         auto nativeValue = convert<IDLDOMString>(*lexicalGlobalObject, value);
         RETURN_IF_EXCEPTION(throwScope, true);
@@ -253,8 +257,10 @@ bool JSTestNamedSetterWithIdentifier::defineOwnProperty(JSObject* object, JSGlob
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
 
     if (!propertyName.isSymbol()) {
-        PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry };
-        if (!JSObject::getOwnPropertySlot(thisObject, lexicalGlobalObject, propertyName, slot)) {
+        PropertySlot slot { thisObject, PropertySlot::InternalMethodType::VMInquiry, &lexicalGlobalObject->vm() };
+        bool found = JSObject::getOwnPropertySlot(thisObject, lexicalGlobalObject, propertyName, slot);
+        slot.disallowVMEntry.reset();
+        if (!found) {
             if (!propertyDescriptor.isDataDescriptor())
                 return false;
             auto throwScope = DECLARE_THROW_SCOPE(JSC::getVM(lexicalGlobalObject));
@@ -298,11 +304,12 @@ bool setJSTestNamedSetterWithIdentifierConstructor(JSGlobalObject* lexicalGlobal
     return prototype->putDirect(vm, vm.propertyNames->constructor, JSValue::decode(encodedValue));
 }
 
-static inline JSC::EncodedJSValue jsTestNamedSetterWithIdentifierPrototypeFunctionNamedSetterBody(JSC::JSGlobalObject* lexicalGlobalObject, JSC::CallFrame* callFrame, typename IDLOperation<JSTestNamedSetterWithIdentifier>::ClassParameter castedThis, JSC::ThrowScope& throwScope)
+static inline JSC::EncodedJSValue jsTestNamedSetterWithIdentifierPrototypeFunctionNamedSetterBody(JSC::JSGlobalObject* lexicalGlobalObject, JSC::CallFrame* callFrame, typename IDLOperation<JSTestNamedSetterWithIdentifier>::ClassParameter castedThis)
 {
-    UNUSED_PARAM(lexicalGlobalObject);
-    UNUSED_PARAM(callFrame);
+    auto& vm = JSC::getVM(lexicalGlobalObject);
+    auto throwScope = DECLARE_THROW_SCOPE(vm);
     UNUSED_PARAM(throwScope);
+    UNUSED_PARAM(callFrame);
     auto& impl = castedThis->wrapped();
     if (UNLIKELY(callFrame->argumentCount() < 2))
         return throwVMError(lexicalGlobalObject, throwScope, createNotEnoughArgumentsError(lexicalGlobalObject));
@@ -312,6 +319,7 @@ static inline JSC::EncodedJSValue jsTestNamedSetterWithIdentifierPrototypeFuncti
     EnsureStillAliveScope argument1 = callFrame->uncheckedArgument(1);
     auto value = convert<IDLDOMString>(*lexicalGlobalObject, argument1.value());
     RETURN_IF_EXCEPTION(throwScope, encodedJSValue());
+    throwScope.release();
     impl.namedSetter(WTFMove(name), WTFMove(value));
     return JSValue::encode(jsUndefined());
 }

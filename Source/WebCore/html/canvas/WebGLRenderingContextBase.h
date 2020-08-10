@@ -138,10 +138,10 @@ public:
     using BufferDataSource = WTF::Variant<RefPtr<ArrayBuffer>, RefPtr<ArrayBufferView>>;
     void bufferData(GCGLenum target, long long size, GCGLenum usage);
     void bufferData(GCGLenum target, Optional<BufferDataSource>&&, GCGLenum usage);
-    void bufferSubData(GCGLenum target, long long offset, Optional<BufferDataSource>&&);
+    void bufferSubData(GCGLenum target, long long offset, BufferDataSource&&);
 
     GCGLenum checkFramebufferStatus(GCGLenum target);
-    virtual void clear(GCGLbitfield mask) = 0;
+    void clear(GCGLbitfield mask);
     void clearColor(GCGLfloat red, GCGLfloat green, GCGLfloat blue, GCGLfloat alpha);
     void clearDepth(GCGLfloat);
     void clearStencil(GCGLint);
@@ -215,12 +215,15 @@ public:
     bool extensionIsEnabled(const String&);
 
     bool isPreservingDrawingBuffer() const { return m_attributes.preserveDrawingBuffer; }
-    void setPreserveDrawingBuffer(bool value) { m_attributes.preserveDrawingBuffer = value; }
+    // Concession to canvas capture API, which must dynamically enable
+    // preserveDrawingBuffer. This can only be called once, when
+    // isPreservingDrawingBuffer() returns false.
+    void enablePreserveDrawingBuffer();
 
     bool preventBufferClearForInspector() const { return m_preventBufferClearForInspector; }
     void setPreventBufferClearForInspector(bool value) { m_preventBufferClearForInspector = value; }
 
-    virtual void hint(GCGLenum target, GCGLenum mode) = 0;
+    void hint(GCGLenum target, GCGLenum mode);
     GCGLboolean isBuffer(WebGLBuffer*);
     bool isContextLost() const;
     GCGLboolean isEnabled(GCGLenum cap);
@@ -242,8 +245,9 @@ public:
     void polygonOffset(GCGLfloat factor, GCGLfloat units);
     // This must be virtual so more validation can be added in WebGL 2.0.
     virtual void readPixels(GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height, GCGLenum format, GCGLenum type, ArrayBufferView& pixels);
+    void renderbufferStorage(GCGLenum target, GCGLenum internalformat, GCGLsizei width, GCGLsizei height);
     void releaseShaderCompiler();
-    virtual void renderbufferStorage(GCGLenum target, GCGLenum internalformat, GCGLsizei width, GCGLsizei height) = 0;
+    virtual void renderbufferStorageImpl(GCGLenum target, GCGLsizei samples, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, const char* functionName);
     void sampleCoverage(GCGLfloat value, GCGLboolean invert);
     void scissor(GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height);
     void shaderSource(WebGLShader*, const String&);
@@ -461,6 +465,7 @@ protected:
     bool validateVertexAttributes(unsigned elementCount, unsigned primitiveCount = 0);
 
     bool validateWebGLObject(const char*, WebGLObject*);
+    bool validateWebGLProgramOrShader(const char*, WebGLObject*);
 
 #if !USE(ANGLE)
     bool validateDrawArrays(const char* functionName, GCGLenum mode, GCGLint first, GCGLsizei count, GCGLsizei primcount);
@@ -871,6 +876,7 @@ protected:
     // Helper function to check input level for functions {copy}Tex{Sub}Image.
     // Generates GL error and returns false if level is invalid.
     bool validateTexFuncLevel(const char* functionName, GCGLenum target, GCGLint level);
+    virtual GCGLint maxTextureLevelForTarget(GCGLenum target);
 
     // Helper function for tex{Sub}Image{2|3}D to check if the input format/type/level/target/width/height/depth/border/xoffset/yoffset/zoffset are valid.
     // Otherwise, it would return quickly without doing other work.
@@ -957,7 +963,7 @@ protected:
     bool validateBlendFuncFactors(const char* functionName, GCGLenum src, GCGLenum dst);
 
     // Helper function to validate a GL capability.
-    virtual bool validateCapability(const char* functionName, GCGLenum) = 0;
+    virtual bool validateCapability(const char* functionName, GCGLenum);
 
     // Helper function to validate input parameters for uniform functions.
     bool validateUniformLocation(const char* functionName, const WebGLUniformLocation*);

@@ -818,28 +818,20 @@ Document* Frame::documentAtPoint(const IntPoint& point)
 
 RefPtr<Range> Frame::rangeForPoint(const IntPoint& framePoint)
 {
-    VisiblePosition position = visiblePositionForPoint(framePoint);
-    if (position.isNull())
-        return nullptr;
+    auto position = visiblePositionForPoint(framePoint);
 
-    Position deepPosition = position.deepEquivalent();
-    Text* containerText = deepPosition.containerText();
+    auto containerText = position.deepEquivalent().containerText();
     if (!containerText || !containerText->renderer() || containerText->renderer()->style().userSelect() == UserSelect::None)
         return nullptr;
 
-    VisiblePosition previous = position.previous();
-    if (previous.isNotNull()) {
-        RefPtr<Range> previousCharacterRange = makeRange(previous, position);
-        LayoutRect rect = editor().firstRectForRange(previousCharacterRange.get());
-        if (rect.contains(framePoint))
-            return previousCharacterRange;
+    if (auto previousCharacterRange = makeSimpleRange(position.previous(), position)) {
+        if (editor().firstRectForRange(*previousCharacterRange).contains(framePoint))
+            return createLiveRange(*previousCharacterRange);
     }
 
-    VisiblePosition next = position.next();
-    if (RefPtr<Range> nextCharacterRange = makeRange(position, next)) {
-        LayoutRect rect = editor().firstRectForRange(nextCharacterRange.get());
-        if (rect.contains(framePoint))
-            return nextCharacterRange;
+    if (auto nextCharacterRange = makeSimpleRange(position, position.next())) {
+        if (editor().firstRectForRange(*nextCharacterRange).contains(framePoint))
+            return createLiveRange(*nextCharacterRange);
     }
 
     return nullptr;

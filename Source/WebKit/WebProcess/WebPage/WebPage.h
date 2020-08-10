@@ -695,7 +695,7 @@ public:
     void selectWithGesture(const WebCore::IntPoint&, GestureType, GestureRecognizerState, bool isInteractingWithFocusedElement, CallbackID);
     void updateSelectionWithTouches(const WebCore::IntPoint&, SelectionTouch, bool baseIsStart, CallbackID);
     void selectWithTwoTouches(const WebCore::IntPoint& from, const WebCore::IntPoint& to, GestureType, GestureRecognizerState, CallbackID);
-    void extendSelection(WebCore::TextGranularity);
+    void extendSelection(WebCore::TextGranularity, CompletionHandler<void()>&&);
     void selectWordBackward();
     void moveSelectionByOffset(int32_t offset, CompletionHandler<void()>&&);
     void selectTextWithGranularityAtPoint(const WebCore::IntPoint&, WebCore::TextGranularity, bool isInteractingWithFocusedElement, CompletionHandler<void()>&&);
@@ -1343,6 +1343,8 @@ public:
 #endif
 
     static void updatePreferencesGenerated(const WebPreferencesStore&);
+
+    void synchronizeCORSDisablingPatternsWithNetworkProcess();
 
 private:
     WebPage(WebCore::PageIdentifier, WebPageCreationParameters&&);
@@ -2132,6 +2134,7 @@ private:
     
     bool m_limitsNavigationsToAppBoundDomains { false };
     bool m_navigationHasOccured { false };
+    Vector<String> m_corsDisablingPatterns;
 };
 
 #if !PLATFORM(IOS_FAMILY)

@@ -137,4 +137,9 @@ void IntersectingNodeIterator::advanceSkippingChildren()
     }
 }
 
+RefPtr<Node> commonInclusiveAncestor(const SimpleRange& range)
+{
+    return commonInclusiveAncestor(range.start.container, range.end.container);
+}
+
 }

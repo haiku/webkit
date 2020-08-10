@@ -1,7 +1,7 @@
 
 PASS # AUDIT TASK RUNNER STARTED. 
-FAIL Executing "Initialize worklet" promise_test: Unhandled rejection with value: object "TypeError: Not enough arguments"
-FAIL Executing "test" promise_test: Unhandled rejection with value: object "TypeError: undefined is not an object (evaluating 'context.destination')"
+FAIL Executing "Initialize worklet" promise_test: Unhandled rejection with value: object "TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')"
+FAIL Executing "test" promise_test: Unhandled rejection with value: object "ReferenceError: Can't find variable: AudioWorkletNode"
 PASS Audit report 
 PASS > [Initialize worklet]  
 PASS > [test] Simple AudioWorklet I/O 

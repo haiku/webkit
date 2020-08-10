@@ -27,9 +27,10 @@
     EnabledBySetting=ModernUnprefixedWebAudio,
     JSGenerateToJSObject,
 ] interface OfflineAudioContext : BaseAudioContext {
-    [CallWith=ScriptExecutionContext, MayThrowException] constructor(unsigned long numberOfChannels, unsigned long numberOfFrames, unrestricted float sampleRate);
-
-    void startRendering();
+    [CallWith=ScriptExecutionContext, MayThrowException] constructor(OfflineAudioContextOptions contextOptions);
+    [CallWith=ScriptExecutionContext, MayThrowException] constructor(unsigned long numberOfChannels, unsigned long length, float sampleRate);
+    
+    [ImplementedAs=startOfflineRendering] Promise<AudioBuffer> startRendering();
 
     [ImplementedAs=resumeRendering] Promise<void> resume();
     [ImplementedAs=suspendRendering] Promise<void> suspend(); // FIXME: Missing suspendTime parameter.

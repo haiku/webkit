@@ -1,3 +1,1035 @@
+2020-07-31  Keith Miller  <keith_miller@apple.com>
+
+        Reduce over include usage in JSC
+        https://bugs.webkit.org/show_bug.cgi?id=215010
+
+        Reviewed by Mark Lam.
+
+        My first attempt to fix
+        https://bugs.webkit.org/show_bug.cgi?id=215009 by making it so we
+        don't include FastJITPermissions.h in TestWebKitAPI, was
+        unsuccessful. Mostly because I gave up after several hours of
+        building... I figure it's still worth it to land the last working
+        version I was able to get building.
+
+        * assembler/MacroAssemblerCodeRef.h:
+        * bytecode/CodeBlock.cpp:
+        * bytecode/PolymorphicAccess.h:
+        * inspector/agents/InspectorRuntimeAgent.cpp:
+        * interpreter/CallFrame.h:
+        * jit/ThunkGenerators.cpp:
+        * llint/LLIntOffsetsExtractor.cpp:
+        * runtime/TypeLocationCache.cpp:
+        * runtime/VM.cpp:
+        (JSC::VM::getCTIStub):
+        * runtime/VM.h:
+        (JSC::VM::getCTIStub): Deleted.
+        * tools/JSDollarVM.cpp:
+
+2020-07-31  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Follow-up changes after r265036
+        https://bugs.webkit.org/show_bug.cgi?id=214982
+
+        Reviewed by Darin Adler.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit): Remove dupe definitions in OSRExit.
+        * jit/JITCall32_64.cpp:
+        (JSC::JIT::emit_op_iterator_open): We should use emitJumpSlowCaseIfNotJSCell(regT1).
+
+2020-07-30  Keith Miller  <keith_miller@apple.com>
+
+        Remove UB from nonPACBitsMask computation
+        https://bugs.webkit.org/show_bug.cgi?id=214996
+
+        Reviewed by Tadeu Zagallo.
+
+        For non-ARM64E we now set numberOfPACBits to zero, which was causing UB in our computation of the nonPACBitsMask.
+
+        * assembler/MacroAssemblerARM64E.h:
+
+2020-07-30  Keith Miller  <keith_miller@apple.com>
+
+        Compute number of PAC bits from what the OS says its address space is
+        https://bugs.webkit.org/show_bug.cgi?id=214986
+
+        Reviewed by Saam Barati.
+
+        * assembler/MacroAssemblerARM64E.h:
+
+2020-07-30  Caio Lima  <ticaiolima@gmail.com>
+
+        [JSC][32-bits] interator_next should check for EmptyValue instead of undefined to execute LLInt fast path
+        https://bugs.webkit.org/show_bug.cgi?id=214963
+
+        Reviewed by Yusuke Suzuki.
+
+        There was a bug in previous implementation that allows execution of
+        `interator_next` fast path if we set ArrayIterator.prototype.next to
+        0. This happened because we were not properly checking `ValueEmpty`
+        from `m_next`. This patch is fixing such issue and doing the proper
+        verification.
+
+        * llint/LowLevelInterpreter32_64.asm:
+
+2020-07-30  Saam Barati  <sbarati@apple.com>
+
+        Strip pointers instead of authing for byteOffset to not allow for a possible way to guess data pac
+        https://bugs.webkit.org/show_bug.cgi?id=214952
+
+        Reviewed by Keith Miller.
+
+        In the old way of doing things, we would auth the vector pointer before subtracting
+        the base from it. Since we never validated the auth, this allowed for a
+        potential data-PAC bypass by just repeatedly calling byteOffset in a loop
+        and observing the integer result of the operation.
+        
+        Since byteOffset does no loads/stores, it suffices to just strip the PAC
+        bits before doing the subtraction. This eliminates any such attacks like
+        the above because the PAC bits are ignored.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileGetTypedArrayByteOffset):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileGetTypedArrayByteOffset):
+
+2020-07-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add B3::BottomTupleValue node
+        https://bugs.webkit.org/show_bug.cgi?id=214956
+        <rdar://problem/65192877>
+
+        Reviewed by Keith Miller.
+
+        In B3 strength reduction, we convert B3 values to bottom value based on type after Oops kind, and then they are *typically* removed later.
+        While we support bottom values for usual types, we do not have a bottom value for tuple type. So when replaceWithBottom is called, we
+        fail to replace Patchpoints producing tuples with bottom values.
+
+        This patch newly adds B3 BottomTupleValue, which is just a BottomValue for tuple. We can extend it to generate arbitrary constant
+        tuple values, but for now, we just support bottom tuple values. We add a new node instead of generating patchpoint which generates bottom
+        values since BottomTupleValues implementation is simpler: BottomTupleValue just emits bunch of zero clear for Air tmps and Air does everything
+        automatically. On the other hand, implementing a patchpoint needs to add code which clears things with zero while checking the ValueRep. And
+        since we have Const32, Const64, etc. values, having this kind of value for tuple too is natural. Plus, this design allows us to remove bunch
+        of unnecessary instructions after lowering this to Air since Air knows what instructions will be emitted by this BottomTupleValue, and Air
+        can remove a lot of zero clear instructions if they are not read later by Extract.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * b3/B3BottomTupleValue.cpp: Copied from Source/JavaScriptCore/b3/B3InsertionSet.cpp.
+        (JSC::B3::BottomTupleValue::dumpMeta const):
+        * b3/B3BottomTupleValue.h: Copied from Source/JavaScriptCore/b3/B3InsertionSet.cpp.
+        * b3/B3InsertionSet.cpp:
+        (JSC::B3::InsertionSet::insertBottom):
+        * b3/B3LowerToAir.cpp:
+        * b3/B3Opcode.cpp:
+        (WTF::printInternal):
+        * b3/B3Opcode.h:
+        * b3/B3Procedure.cpp:
+        (JSC::B3::Procedure::addBottom):
+        * b3/B3TypeMap.h:
+        (JSC::B3::TypeMap::TypeMap): Deleted.
+        * b3/B3Validate.cpp:
+        * b3/B3Value.cpp:
+        (JSC::B3::Value::effects const):
+        (JSC::B3::Value::key const):
+        * b3/B3Value.h:
+        * b3/B3ValueInlines.h:
+        * b3/B3ValueKey.cpp:
+        (JSC::B3::ValueKey::materialize const):
+        * b3/testb3_7.cpp:
+        (testBottomTupleValue):
+        (addTupleTests):
+
+2020-07-29  Tadeu Zagallo  <tzagallo@apple.com>
+
+        WebAssembly validation for call_indirect is incorrect
+        https://bugs.webkit.org/show_bug.cgi?id=214901
+        <rdar://problem/65189677>
+
+        Reviewed by Saam Barati.
+
+        There was an incorrect condition when validating call_indirect's arguments, which often resulted in skipping this validation.
+
+        * wasm/WasmFunctionParser.h:
+        (JSC::Wasm::FunctionParser<Context>::parseExpression):
+
+2020-07-29  Mark Lam  <mark.lam@apple.com>
+
+        Update some JSArrayBufferView comments and add some assertions.
+        https://bugs.webkit.org/show_bug.cgi?id=214914
+
+        Reviewed by Darin Adler.
+
+        * runtime/ArrayBuffer.cpp:
+        (JSC::ArrayBuffer::createAdopted):
+        * runtime/JSArrayBufferView.cpp:
+        (JSC::JSArrayBufferView::ConstructionContext::ConstructionContext):
+        (JSC::JSArrayBufferView::finalize):
+        * runtime/JSArrayBufferView.h:
+
+2020-07-29  Paulo Matos  <pmatos@igalia.com>
+
+        for..of intrinsics implementation for 32bits
+        https://bugs.webkit.org/show_bug.cgi?id=214737
+
+        Reviewed by Yusuke Suzuki.
+
+        Joint work with Caio Lima <ticaiolima@gmail.com>.
+
+        Implements for..of intrinsics for 32bits.
+        Adds or8 instruction to ARMv7 and MIPS Macro Assembler.
+        Adds intrinsic operations to LLInt and Baseline for 32bits.
+        Fixes DFG OSR Exit bug, where checkpoint temporary value is
+        incorrectly recreated for Baseline.
+        Refactors code in DFG OSR Exit to be easier to modify and
+        maintain by separating the switch cases for 32 and 64bits.
+
+        * assembler/MacroAssemblerARMv7.h:
+        (JSC::MacroAssemblerARMv7::or8): Adds or8(TrustedImm, AbsoluteAddress)
+        (JSC::MacroAssemblerARMv7::or32):
+        (JSC::MacroAssemblerARMv7::store8):
+        * assembler/MacroAssemblerMIPS.h:
+        (JSC::MacroAssemblerMIPS::or8): Adds or8(TrustedImm, AbsoluteAddress)
+        (JSC::MacroAssemblerMIPS::store8):
+        * assembler/testmasm.cpp:
+        (JSC::testOrImmMem): Tests or8
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitEnumeration):
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit): Fixes DFG OSR Exit bug, where checkpoint temporary value is
+        incorrectly recreated for Baseline. Refactors code in DFG OSR Exit to be easier to modify and
+        maintain by separating the switch cases for 32 and 64bits.
+        * jit/JIT.h:
+        * jit/JITCall32_64.cpp:
+        (JSC::JIT::emitPutCallResult):
+        (JSC::JIT::compileSetupFrame):
+        (JSC::JIT::compileOpCall):
+        (JSC::JIT::emit_op_iterator_open):
+        (JSC::JIT::emitSlow_op_iterator_open):
+        (JSC::JIT::emit_op_iterator_next):
+        (JSC::JIT::emitSlow_op_iterator_next):
+        * jit/JITInlines.h:
+        (JSC::JIT::emitJumpSlowCaseIfNotJSCell):
+        * llint/LowLevelInterpreter32_64.asm:
+
+2020-07-29  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Reflect object should have toStringTag with "Reflect"
+        https://bugs.webkit.org/show_bug.cgi?id=214909
+
+        Reviewed by Mark Lam.
+
+        We call JSC_TO_STRING_TAG_WITHOUT_TRANSITION in ReflectObject to set "Reflect" @@toStringTag, which fixes one test262 failure.
+
+        * runtime/ReflectObject.cpp:
+        (JSC::ReflectObject::finishCreation):
+
+2020-07-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add hasCustomGetterSetterProperties to canAccessPropertiesQuicklyForEnumeration
+        https://bugs.webkit.org/show_bug.cgi?id=214908
+        <rdar://problem/65883816>
+
+        Reviewed by Mark Lam.
+
+        canAccessPropertiesQuicklyForEnumeration should filter out hasCustomGetterSetterProperties too.
+
+        * runtime/Structure.cpp:
+        (JSC::Structure::canAccessPropertiesQuicklyForEnumeration const):
+
+2020-07-28  Caitlin Potter  <caitp@igalia.com>
+
+        [JSC] add IC support for op_get_private_name
+        https://bugs.webkit.org/show_bug.cgi?id=213545
+
+        Reviewed by Saam Barati.
+
+        The baseline JIT now supports a fast path for op_private_name,
+        using a variant of GetByVal IC.
+
+        The generated AccessCase has the following qualities:
+          - Always "direct", relying only on the current structure for cachebility
+          - Never impure (DOM properties are not supported at this time, ProxyObjects are treated as JSObjects)
+
+        Based on the microbenchmark reviewed on https://bugs.webkit.org/show_bug.cgi?id=213544, this sees
+        an improvement of roughly 50% on average.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::finishCreation):
+        * bytecode/StructureStubInfo.cpp:
+        (JSC::StructureStubInfo::reset):
+        * bytecode/StructureStubInfo.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileGetByVal):
+        * jit/ICStats.h:
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        (JSC::JIT::privateCompileSlowCases):
+        * jit/JIT.h:
+        * jit/JITInlineCacheGenerator.cpp:
+        (JSC::JITGetByValGenerator::JITGetByValGenerator):
+        * jit/JITInlineCacheGenerator.h:
+        * jit/JITOperations.cpp:
+        (JSC::getPrivateName):
+        * jit/JITOperations.h:
+        * jit/JITPropertyAccess.cpp:
+        (JSC::JIT::emit_op_get_by_val):
+        (JSC::JIT::emit_op_get_private_name):
+        (JSC::JIT::emitSlow_op_get_private_name):
+        * jit/JITPropertyAccess32_64.cpp:
+        (JSC::JIT::emit_op_get_by_val):
+        (JSC::JIT::emit_op_get_private_name):
+        (JSC::JIT::emitSlow_op_get_private_name):
+        * jit/Repatch.cpp:
+        (JSC::appropriateOptimizingGetByFunction):
+        (JSC::appropriateGetByFunction):
+        (JSC::tryCacheGetBy):
+        * jit/Repatch.h:
+
+2020-07-27  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC][wasm] Truncating slightly less than INT32_MIN is incorrect
+        https://bugs.webkit.org/show_bug.cgi?id=214834
+
+        Reviewed by Darin Adler.
+
+        Wasm trunc_f64_s should handle (INT32_MIN - 1.0, INT32_MIN) range too.
+
+        * llint/WebAssembly.asm:
+        * wasm/WasmAirIRGenerator.cpp:
+        (JSC::Wasm::AirIRGenerator::addOp<OpType::I32TruncSF64>):
+        * wasm/WasmB3IRGenerator.cpp:
+        (JSC::Wasm::B3IRGenerator::addOp<OpType::I32TruncSF64>):
+
+2020-07-28  Mark Lam  <mark.lam@apple.com>
+
+        ASSERTION FAILED: isSymbol() in Source/JavaScriptCore/runtime/JSCell.cpp(188)
+        https://bugs.webkit.org/show_bug.cgi?id=214837
+
+        Reviewed by Darin Adler.
+
+        The issue found by this bug was that jsc shell test properties were enumerable.
+        These properties are only meant for test development use.  They will never be
+        present in a productized JavaScript environment.
+
+        This patch helps reduce the change of users of the jsc shell tripping up on these
+        test properties when enumerating the global object.
+
+        * jsc.cpp:
+
+2020-07-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        IndexedDB binding utilities miss exception checks
+        https://bugs.webkit.org/show_bug.cgi?id=214820
+        <rdar://problem/66152374>
+
+        Reviewed by Mark Lam.
+
+        jsStringWithCache does not need to take JSGlobalObject*.
+
+        * runtime/JSString.h:
+        (JSC::jsStringWithCache):
+
+2020-07-27  Mark Lam  <mark.lam@apple.com>
+
+        DisallowVMEntry needs a copy assignment operator, detected by gcc's -Wdeprecated-copy warning
+        https://bugs.webkit.org/show_bug.cgi?id=214809
+
+        Reviewed by Yusuke Suzuki.
+
+        According to https://en.cppreference.com/w/cpp/language/copy_assignment,
+        "The generation of the implicitly-defined copy assignment operator is deprecated
+        (since C++11) if T has a user-declared destructor or user-declared copy constructor."
+        DisallowVMEntry has both a user-declared destructor and a user-declared copy
+        constructor.  Hence, it needs to define its own copy assignment operator to placate
+        the compiler.
+
+        This patch also adds back WTF_FORBID_HEAP_ALLOCATION to DisallowVMEntry.
+        DisallowVMEntry should always have forbid heap allocation.  It was accidentally
+        removed in a prior patch.
+
+        * runtime/DisallowVMEntry.h:
+        (JSC::DisallowVMEntryImpl::operator=):
+
+2020-07-27  Caio Lima  <ticaiolima@gmail.com>
+
+        DoesGC failures in debug mode in 32bits
+        https://bugs.webkit.org/show_bug.cgi?id=214449
+
+        Reviewed by Mark Lam.
+
+        Adding the DoesGC update code into OSRExit::compileExit for 32-bits.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit):
+
+2020-07-24  Mark Lam  <mark.lam@apple.com>
+
+        pluginElementCustomGetOwnPropertySlot() should support VMInquiry requests.
+        https://bugs.webkit.org/show_bug.cgi?id=214555
+        <rdar://problem/65855400>
+
+        Reviewed by Yusuke Suzuki.
+
+        1. Add handling for VMInquiry failure in JSObject::getPropertySlot() and
+           JSObject::getNonIndexPropertySlot().  Basically, if the query isTaintedByOpaqueObject,
+           then we should treat the false result as a failed VMInquiry.
+
+        2. Fix JSModuleNamespaceObject::getOwnPropertySlotCommon() and
+           ProxyObject::getOwnPropertySlotCommon() to initialize the PropertySlot to a
+           jsUndefined() value if we have a failed VMInquiry.  The client shouldn't
+           be reading the value if the VMInquiry failed, but as a defensive action, we'll
+           initialize the slot to effectively return an undefined value.
+
+        * runtime/JSModuleNamespaceObject.cpp:
+        (JSC::JSModuleNamespaceObject::getOwnPropertySlotCommon):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::getPropertySlot):
+        (JSC::JSObject::getNonIndexPropertySlot):
+        * runtime/ProxyObject.cpp:
+        (JSC::ProxyObject::getOwnPropertySlotCommon):
+
+2020-07-24  Dean Jackson  <dino@apple.com>
+
+        JavaScriptCore Xcode project has some errors
+        https://bugs.webkit.org/show_bug.cgi?id=214775
+
+        Reviewed by Yusuke Suzuki.
+
+        When looking at the build output for JavaScriptCore I noticed two
+        weird errors in the Xcode project file. Firstly, there was a broken
+        group called "runtime" that was causing some files to appear
+        duplicated. Secondly, there was a generated file
+        WebAssemblyCompileErrorConstructor.lut.h whose location was
+        incorrectly identified as being part of the project source.
+
+        Xcode moved a bunch of other things around, but it seems to compile
+        fine. Weirdly, the diff shows that the project file had unusual
+        whitespace. I wonder if it had been edited by hand.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-07-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] DFG::AbstractValue::filterByValue should re-filter configured m_value via m_type
+        https://bugs.webkit.org/show_bug.cgi?id=214721
+        <rdar://problem/65882837>
+
+        Reviewed by Mark Lam.
+
+        Let's consider the following case.
+
+            1. Input AbstractValue is saying SpecObjectOther.
+            2. We have CheckIsConstant with StringPrototype (which is SpecObjectOther | SpecStringObject in the current SpeculatedType).
+            3. We call filterByValue, which filters m_type by SpecObjectOther | SpecStringObject. But the filtered m_type is SpecObjectOther since (2)'s SpeculatedType is broader.
+            4. We store the given constant (StringPrototype) to m_value.
+            5. This AbstractValue's m_type is SpecObjectOther while its m_value's SpeculatedType is SpecObjectOther | SpecStringObject. Contradiction!
+
+        When setting m_value by filterByValue, we should filter m_value with m_type to ensure that m_value is the expected one.
+        This patch also avoid using SpecObjectOther | SpecStringObject for StringPrototype since we can return narrower type for that.
+
+        * bytecode/SpeculatedType.cpp:
+        (JSC::speculationFromStructure):
+        * dfg/DFGAbstractValue.cpp:
+        (JSC::DFG::AbstractValue::filterByValue):
+        (JSC::DFG::AbstractValue::filter):
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * runtime/StringObject.cpp:
+        (JSC::StringObject::finishCreation):
+
+2020-07-24  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        JSON.parse should not modify non-configurable properties.
+        https://bugs.webkit.org/show_bug.cgi?id=163446
+
+        Reviewed by Darin Adler.
+
+        This change implements step 2.c.ii.3 of InternalizeJSONProperty [1], replacing
+        put() with defineOwnProperty(). Using the latter fixes JSON.parse() with
+        non-configurable (failures are silently ignored; see note in the spec),
+        non-writable, and accessor properties, aligning JSC with V8 and SpiderMonkey.
+
+        Since it's extremely unlikely for userland `reviver` to remove or redefine the
+        next property, a fast path for PropertyAttribute::None attributes is introduced.
+        It advances microbenchmarks/json-parse-object-*.js by ~13%.
+
+        [1]: https://tc39.es/ecma262/#sec-internalizejsonproperty
+
+        * runtime/JSONObject.cpp:
+        (JSC::Walker::walk):
+
+2020-07-24  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Do not use hardened Array for Intl supportedLocalesOf
+        https://bugs.webkit.org/show_bug.cgi?id=214676
+
+        Reviewed by Mark Lam.
+
+        We do not need to call getOwnPropertyNames & defineOwnProperty because hardening array of Intl.XXX.supportedLocalesOf is removed from the spec.
+        We should just return an array from bestFitSupportedLocales or lookupSupportedLocales, while this change is not observable to users (but it is better
+        for performance). This fully fixes https://github.com/tc39/ecma402/pull/278.
+
+        * runtime/IntlObject.cpp:
+        (JSC::supportedLocales):
+
+2020-07-23  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Arrow function |this| resolution should not be trapped by with-scope
+        https://bugs.webkit.org/show_bug.cgi?id=214716
+        <rdar://problem/65980639>
+
+        Reviewed by Darin Adler.
+
+        We were using usual "this" named variable in lexical-environment to load and store arrow-function's |this|.
+        But since this looks normal variable, it can be trapped by "with" scope's object while it should not be.
+        We use thisPrivateName instead to avoid this behavior since Proxy does not trap private names.
+
+        * builtins/BuiltinNames.h:
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::initializeArrowFunctionContextScopeIfNeeded):
+        (JSC::BytecodeGenerator::variable):
+        (JSC::BytecodeGenerator::createVariable):
+        (JSC::BytecodeGenerator::emitLoadThisFromArrowFunctionLexicalEnvironment):
+        (JSC::BytecodeGenerator::emitPutThisToArrowFunctionContextScope):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::HasOwnPropertyFunctionCallDotNode::emitBytecode):
+        (JSC::ForInNode::emitBytecode):
+        * runtime/CommonIdentifiers.cpp:
+        (JSC::CommonIdentifiers::CommonIdentifiers):
+        * runtime/CommonIdentifiers.h:
+
+2020-07-23  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] FTL OSR entry should store boxed |this|
+        https://bugs.webkit.org/show_bug.cgi?id=214675
+        <rdar://problem/65474072>
+
+        Reviewed by Michael Saboff and Mark Lam.
+
+        In this patch, after ensuring that we will go to FTL OSR entry, we store boxed |this| instead of the unboxed value
+        to agree to the FTL assumption that all arguments should be boxed.
+
+        * dfg/DFGOperations.cpp:
+        * ftl/FTLOSREntry.cpp:
+        (JSC::FTL::prepareOSREntry):
+
+2020-07-23  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt can be `false` in boolean context in DFG AI
+        https://bugs.webkit.org/show_bug.cgi?id=214678
+        <rdar://problem/65894751>
+
+        Reviewed by Mark Lam.
+
+        DFG::AbstractInterpreter::booleanResult returns wrong result if finite structure includes HeapBigInt structure
+        since HeapBigInt 0n can be evaluated `false` in boolean context while this function does not care it. This patch
+        fixes it and cleans up code by using WTF/TriState.
+
+        * dfg/DFGAbstractInterpreter.h:
+        (): Deleted.
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::booleanResult):
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+
+2020-07-23  Caio Lima  <ticaiolima@gmail.com>
+
+        [32-bits] Fixing the return of doVMEntry into LowLevelInterpreter32_64.asm
+        https://bugs.webkit.org/show_bug.cgi?id=214641
+
+        Reviewed by Mark Lam.
+
+        Adjusting the return of `doVMEntry` for 32-bits LLInt to proper set
+        `EncodedJSValue` return in little-endian architectures. It is expected
+        that tag is stored in `r1` and payload is stored in `r0`.
+
+        * llint/LowLevelInterpreter.asm:
+        * llint/LowLevelInterpreter32_64.asm:
+
+2020-07-23  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove ArrayNode::m_optional
+        https://bugs.webkit.org/show_bug.cgi?id=214294
+
+        Reviewed by Darin Adler.
+
+        m_optional, which dates back to KJS era, means "is this an array with optional trailing comma,
+        with elision, or an empty array". It was used by ArrayNode::streamTo() to preserve a trailing
+        comma when converting array node to source string, as well as in few other places,
+        before ECMA-262 clarified trailing comma in array literals [1].
+
+        Currently, m_optional is used only by ArrayNode::isSimpleArray(), along with m_elision.
+        Checking m_elision is enough since trailing comma doesn't add extra `undefined` element.
+
+        This patch completely removes m_optional, speeding up destructuring and function.apply()
+        with empty arrays and arrays with trailing commas by ~55% and a factor of 11 respectively.
+        Reflect.apply() optimization (https://webkit.org/b/190668) will also benefit from this change.
+
+        Also, this change converts isSpreadExpression() check to an ASSERT (was enabled by r196323).
+
+        [1]: https://tc39.es/ecma262/#sec-array-initializer
+
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ArrayNode::isSimpleArray const):
+        (JSC::ArrayNode::toArgumentList const):
+        (JSC::ArrayNode::emitDirectBinding):
+        * parser/NodeConstructors.h:
+        (JSC::ArrayNode::ArrayNode):
+        * parser/Nodes.h:
+
+2020-07-23  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove emitIsUndefined() from ClassExprNode::emitBytecode()
+        https://bugs.webkit.org/show_bug.cgi?id=214645
+
+        Reviewed by Darin Adler.
+
+        This change removes `superclass === undefined` check because it's missing from
+        the spec [1] and isn't a common case. No behavior change: values except `null` are
+        passed to OpIsConstructor, resulting in the same error being thrown for `undefined`.
+
+        Test: LayoutTests/js/class-syntax-extends.html
+
+        [1]: https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation (step 5.e)
+
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ClassExprNode::emitBytecode):
+
+2020-07-22  Conrad Shultz  <conrad_shultz@apple.com>
+
+        Update macOS Version macros
+        https://bugs.webkit.org/show_bug.cgi?id=214653
+
+        Reviewed by Tim Horton.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+        * Configurations/WebKitTargetConditionals.xcconfig:
+
+2020-07-22  Geoffrey Garen  <ggaren@apple.com>
+
+        WTF::Function adoption should be explicit instead of implicit
+        https://bugs.webkit.org/show_bug.cgi?id=214654
+
+        Reviewed by Darin Adler.
+
+        * heap/Heap.cpp:
+        (JSC::Heap::LambdaFinalizerOwner::finalize): Use new adopt function.
+
+2020-07-22  Mark Lam  <mark.lam@apple.com>
+
+        Disallow VM entry when doing a VMInquiry.
+        https://bugs.webkit.org/show_bug.cgi?id=214624
+        <rdar://problem/65915314>
+
+        Reviewed by Saam Barati.
+
+        1. In PropertySlot's constructor, automatically install a DisallowVMEntry scope
+           if the passed in internal method type is VMInquiry.  This ensures that we won't
+           be able to enter the VM to call JS code while doing the inquiry.  As a result,
+           the PropertySlot constructor will now take an optional VM pointer, which is 
+           must be passed in in when the internal method type is VMInquiry.
+
+           Note that the handling of attempts to enter the VM depends on
+           Options::crashOnDisallowedVMEntry().
+
+           On Debug build (due to ASSERT_ENABLED), Options::crashOnDisallowedVMEntry()
+           defaults to true and the VM will crash on disallowed entry.
+           On Release build, Options::crashOnDisallowedVMEntry() defaults to false and
+           disallow entry attempts into the VM will be treated like calling an empty
+           function that returns undefined.  This is not new behavior in this patch, but
+           I just want to have a reminder here of how DisallowVMEntry will be enforcing
+           no entry into the VM while doing a VMInquiry.
+
+        2. After VMInquiry gets, sometimes the client code wants to do other work that
+           do entails entering the VM.  In such cases, we need to reset the PropertySlot's
+           disallowVMEntry scope.  Fixed up a few places in client code to do this reset.
+
+        3. Make the DisableVMEntry scope copyable.  At least one place wants to copy 
+           PropertySlot, and as a result, will need to copy its embedded DisableVMEntry
+           scope as well if installed.
+
+           For DisableVMEntry, we'll handle copying semantics as follows: copying a
+           DisableVMEntry will ref the VM::disallowVMEntryCount.  The count will be
+           decremented when both instances are destructed.  As a result, VM entry will
+           be disallowed as long as one of the copies are still alive.
+
+        4. For the setObjectToStringValue() method of Structure and StructureRareData, we
+           were previously passing a PropertySlot by copy.  We don't really need to do
+           this.  Ultimately, only StructureRareData::setObjectToStringValue() needs to
+           access a few of the PropertySlot query methods.  So, we changed these methods
+           to pass a `const PropertySlot&` instead to void the needless copying.
+
+        * API/JSCallbackObjectFunctions.h:
+        (JSC::JSCallbackObject<Parent>::put):
+        (JSC::JSCallbackObject<Parent>::staticFunctionGetter):
+        * heap/HeapSnapshotBuilder.cpp:
+        (JSC::HeapSnapshotBuilder::json):
+        * inspector/JSInjectedScriptHost.cpp:
+        (Inspector::JSInjectedScriptHost::queryInstances):
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::execute):
+        * jit/JITOperations.cpp:
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * runtime/DisallowVMEntry.h:
+        (JSC::DisallowVMEntryImpl::DisallowVMEntryImpl):
+        * runtime/ErrorInstance.cpp:
+        (JSC::ErrorInstance::sanitizedToString):
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::getOwnNonIndexPropertyNames):
+        (JSC::JSFunction::put):
+        (JSC::JSFunction::defineOwnProperty):
+        * runtime/JSGenericTypedArrayViewConstructorInlines.h:
+        (JSC::constructGenericTypedArrayViewWithArguments):
+        * runtime/JSGlobalObject.cpp:
+        (JSC::getGetterById):
+        (JSC::JSGlobalObject::defineOwnProperty):
+        (JSC::JSGlobalObject::tryInstallArraySpeciesWatchpoint):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::calculatedClassName):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::getPrivateFieldSlot):
+        * runtime/JSScope.cpp:
+        (JSC::abstractAccess):
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::PropertySlot):
+        * runtime/SamplingProfiler.cpp:
+        (JSC::SamplingProfiler::StackFrame::nameFromCallee):
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::setObjectToStringValue):
+        * runtime/StructureRareData.cpp:
+        (JSC::StructureRareData::setObjectToStringValue):
+        * runtime/StructureRareData.h:
+        * tools/JSDollarVM.cpp:
+        (JSC::functionGetGetterSetter):
+
+2020-07-22  Geoffrey Garen  <ggaren@apple.com>
+
+        JSRunLoopTimer should use WTF::RunLoop rather than custom CF code
+        https://bugs.webkit.org/show_bug.cgi?id=214102
+
+        Unreviewed, re-landing r264242 with crash fixed.
+
+        We needed to synchronize timer destruction with timer firing.
+
+        * runtime/DeferredWorkTimer.cpp:
+        (JSC::DeferredWorkTimer::doWork):
+        (JSC::DeferredWorkTimer::runRunLoop):
+        * runtime/JSRunLoopTimer.cpp:
+        (JSC::epochTime):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData):
+        (JSC::JSRunLoopTimer::Manager::timerDidFireCallback):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::~PerVMData):
+        (JSC::JSRunLoopTimer::Manager::timerDidFire):
+        (JSC::JSRunLoopTimer::Manager::registerVM):
+        (JSC::JSRunLoopTimer::Manager::scheduleTimer):
+        (JSC::JSRunLoopTimer::Manager::cancelTimer):
+        (JSC::JSRunLoopTimer::Manager::PerVMData::setRunLoop): Deleted.
+        (JSC::JSRunLoopTimer::Manager::didChangeRunLoop): Deleted.
+        * runtime/JSRunLoopTimer.h:
+        (JSC::JSRunLoopTimer::Manager::PerVMData::PerVMData): Deleted.
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::create):
+        (JSC::VM::tryCreate):
+        (JSC::VM::setRunLoop): Deleted.
+        * runtime/VM.h:
+        (JSC::VM::runLoop const):
+
+2020-07-21  Mark Lam  <mark.lam@apple.com>
+
+        Simplify DisallowScope, DisallowGC, and DisallowVMReentry implementations.
+        https://bugs.webkit.org/show_bug.cgi?id=214539
+        <rdar://problem/65795729>
+
+        Reviewed by Keith Miller.
+
+        Previously, DisallowScope needed to support enabling and disabling.  This was
+        only needed to enable the implementation of ObjectInitializationScope.  Now, we
+        can make the DisallowGC and DisallowVMReentry inside ObjectInitializationScope
+        optional with WTF::Optional.  With that we can simplify these scopes and make
+        them true RAII scope objects.
+
+        This patch also does the following:
+
+        1. Renamed DisallowVMReentry to DisallowVMEntry.
+           The scope can be used to disable VM entry completely.  There's no need to
+           restrict it to only re-entries.
+
+        2. Enforcement of DisallowVMReentry is now done in the LLInt's doVMEntry() instead
+           of the VMEntryScope's constructor.  This is a stronger guarantee.
+
+           If Options::crashOnDisallowedVMEntry() is true, the VM will crash if it sees
+           an attempt to enter the VM while disallowed.
+
+           If Options::crashOnDisallowedVMEntry() is false, an attempt to call into the VM
+           while disallowed will return immediately with an undefined result without
+           invoking any script.
+
+           By default, Options::crashOnDisallowedVMEntry() is true if ASSERT_ENABLED is
+           true.
+
+        3. Change DisallowScope and DisallowGC to be based on ASSERT_ENABLED instead of NEBUG.
+
+        4. Make DisallowVMEntry always enforceable, not just when ASSERT_ENABLED.
+           It's enforcement action depends on Options::crashOnDisallowedVMEntry() as
+           described above.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * heap/DeferGC.cpp:
+        * heap/DeferGC.h:
+        (JSC::DisallowGC::DisallowGC):
+        (JSC::DisallowGC::initialize):
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::executeProgram):
+        (JSC::Interpreter::executeCall):
+        (JSC::Interpreter::executeConstruct):
+        (JSC::Interpreter::execute):
+        (JSC::Interpreter::executeModuleProgram):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::llint_check_vm_entry_permission):
+        * llint/LLIntSlowPaths.h:
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/DisallowScope.h:
+        (JSC::DisallowScope::DisallowScope):
+        (JSC::DisallowScope::~DisallowScope):
+        (JSC::DisallowScope::isInEffectOnCurrentThread):
+        (JSC::DisallowScope::enable): Deleted.
+        (JSC::DisallowScope::disable): Deleted.
+        (JSC::DisallowScope::enterScope): Deleted.
+        (JSC::DisallowScope::exitScope): Deleted.
+        * runtime/DisallowVMEntry.h: Copied from Source/JavaScriptCore/runtime/DisallowVMReentry.h.
+        (JSC::DisallowVMEntryImpl::DisallowVMEntryImpl):
+        (JSC::DisallowVMEntryImpl::~DisallowVMEntryImpl):
+        (JSC::DisallowVMEntryImpl::isEngaged const):
+        (JSC::DisallowVMEntryImpl::release):
+        (JSC::DisallowVMReentry::DisallowVMReentry): Deleted.
+        (JSC::DisallowVMReentry::initialize): Deleted.
+        (JSC::DisallowVMReentry::scopeReentryCount): Deleted.
+        (JSC::DisallowVMReentry::setScopeReentryCount): Deleted.
+        * runtime/DisallowVMReentry.cpp: Removed.
+        * runtime/DisallowVMReentry.h: Removed.
+        * runtime/InitializeThreading.cpp:
+        (JSC::initialize):
+        * runtime/JSArray.cpp:
+        (JSC::JSArray::tryCreateUninitializedRestricted):
+        * runtime/ObjectInitializationScope.cpp:
+        (JSC::ObjectInitializationScope::ObjectInitializationScope):
+        (JSC::ObjectInitializationScope::notifyAllocated):
+        (JSC::ObjectInitializationScope::notifyInitialized):
+        * runtime/ObjectInitializationScope.h:
+        (JSC::ObjectInitializationScope::vm const):
+        (JSC::ObjectInitializationScope::ObjectInitializationScope):
+        (JSC::ObjectInitializationScope::~ObjectInitializationScope):
+        (JSC::ObjectInitializationScope::notifyAllocated):
+        (JSC::ObjectInitializationScope::notifyInitialized):
+        * runtime/OptionsList.h:
+        * runtime/RegExpMatchesArray.h:
+        (JSC::tryCreateUninitializedRegExpMatchesArray):
+        * runtime/VM.h:
+        * runtime/VMEntryScope.cpp:
+        (JSC::VMEntryScope::VMEntryScope):
+
+2020-07-21  Mark Lam  <mark.lam@apple.com>
+
+        llint_slow_path_get_private_name() should not be using PropertySlot::InternalMethodType::VMInquiry.
+        https://bugs.webkit.org/show_bug.cgi?id=214603
+
+        Reviewed by Yusuke Suzuki.
+
+        VMInquiry means (1) the get operation should not call back into JS, (2) it should
+        not throw any exceptions (except for OutOfMemoryError or StackOverflowError which
+        can be thrown at any time), or have any side effects that is observable from JS
+        code.  In this case, llint_slow_path_get_private_name() is just implementating
+        PrivateFieldGet (https://tc39.es/proposal-class-fields/#sec-privatefieldget) and
+        should actually be using PropertySlot::InternalMethodType::GetOwnProperty
+        (according to https://tc39.es/proposal-class-fields/#sec-privatefieldfind).
+
+        This patch makes the above change, and also adds an assert in JSObject::getPrivateField
+        to ensure that no one calls it for a VMInquiry since it is not supported.
+
+        Also added a PropertySlot::isVMInquiry() convenience query method.
+
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::getPrivateField):
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::isVMInquiry const):
+
+2020-07-21  Keith Miller  <keith_miller@apple.com>
+
+        Fix FinalizationRegistry GC finalizer interation
+        https://bugs.webkit.org/show_bug.cgi?id=214586
+        <rdar://65854264>
+
+        Reviewed by Mark Lam and Yusuke Suzuki.
+
+        Turns out when you remove the ith element from a Vector and you
+        increment the index anyway you skip things...  Use the helper
+        functions instead. This fixes an ASAN crash on our
+        FinalizationRegistry tests.
+
+        * heap/Heap.cpp:
+        (JSC::Heap::finalizeUnconditionalFinalizers):
+        * runtime/DeferredWorkTimer.cpp:
+        (JSC::DeferredWorkTimer::addPendingWork):
+        (JSC::DeferredWorkTimer::hasPendingWork):
+        (JSC::DeferredWorkTimer::hasDependancyInPendingWork):
+        (JSC::DeferredWorkTimer::cancelPendingWork):
+        * runtime/JSFinalizationRegistry.cpp:
+        (JSC::JSFinalizationRegistry::finalizeUnconditionally):
+        (JSC::JSFinalizationRegistry::takeDeadHoldingsValue):
+
+2020-07-21  Saam Barati  <sbarati@apple.com>
+
+        Disable NO_SMT by default
+        https://bugs.webkit.org/show_bug.cgi?id=214607
+
+        Reviewed by Filip Pizlo.
+
+        * runtime/OptionsList.h:
+
+2020-07-21  Caio Lima  <ticaiolima@gmail.com>
+
+        Debug build is failing after r264537 on Linux
+        https://bugs.webkit.org/show_bug.cgi?id=214596
+
+        Reviewed by Yusuke Suzuki.
+
+        Removing `ASSERT_UNDER_CONTEXPR_CONTEXT(0)` to avoid compilation
+        failure of Debug builds on Linux.
+
+        * runtime/IntlObject.cpp:
+        (JSC::relevantExtensionKeyString):
+
+2020-07-21  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Unreview non-unified source build fix
+
+        * runtime/IntlDisplayNames.cpp: Add missing <unicode/ucurr.h> header.
+
+2020-07-20  Mark Lam  <mark.lam@apple.com>
+
+        TryGetById clobberize rules are wrong.
+        https://bugs.webkit.org/show_bug.cgi?id=163834
+        <rdar://problem/65625807>
+
+        Reviewed by Keith Miller.
+
+        Theoretically, TryGetById can do the same things GetById does i.e. reify lazy
+        properties, read the stack, etc.  Hence, its clobberize rule should be clobberTop
+        just like GetById.  However, in practice, we don't currently use @tryGetById to
+        access anything on the stack (and probably never will).  But as a conservative
+        measure, we'll just treat TryGetById like it can.  In clobberize terms, this
+        means we declare TryGetById as doing read(World) (just like GetById) instead of
+        read(Heap).
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGClobbersExitState.cpp:
+        (JSC::DFG::clobbersExitState):
+
+2020-07-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, fix duplicate forward declaration introduced by merge conflict
+        https://bugs.webkit.org/show_bug.cgi?id=209779
+
+        * runtime/IntlRelativeTimeFormat.h:
+
+2020-07-20  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ECMA-402] Implement Intl.DisplayNames
+        https://bugs.webkit.org/show_bug.cgi?id=209779
+
+        Reviewed by Ross Kirsling.
+
+        This patch implements Intl.DisplayNames behind useIntlDisplayNames=1 flag.
+        Intl.DisplayNames can offer readable "display-name" for ICU language, script, region, currency codes.
+        For example, it can offer "United States" string for "US" region code.
+        We use ICU ULocaleDisplayNames to implement it, except for currency since ULocaleDisplayNames is not supporting
+        currency correctly: it ignores "long", "short", and "narrow" style configurations. We need to call ucurr_getName
+        directly.
+
+        This patch appropriately adds unicode-language-id parsing in IntlLocale.cpp so that we can validate language id
+        when it is passed to `Intl.DisplayNames#of` as defined in the spec.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * runtime/CommonIdentifiers.h:
+        * runtime/IntlDisplayNames.cpp: Added.
+        (JSC::IntlDisplayNames::create):
+        (JSC::IntlDisplayNames::createStructure):
+        (JSC::IntlDisplayNames::IntlDisplayNames):
+        (JSC::IntlDisplayNames::finishCreation):
+        (JSC::IntlDisplayNames::initializeDisplayNames):
+        (JSC::IntlDisplayNames::of const):
+        (JSC::IntlDisplayNames::resolvedOptions const):
+        (JSC::IntlDisplayNames::styleString):
+        (JSC::IntlDisplayNames::typeString):
+        (JSC::IntlDisplayNames::fallbackString):
+        * runtime/IntlDisplayNames.h: Copied from Source/JavaScriptCore/runtime/IntlRelativeTimeFormat.h.
+        * runtime/IntlDisplayNamesConstructor.cpp: Added.
+        (JSC::IntlDisplayNamesConstructor::create):
+        (JSC::IntlDisplayNamesConstructor::createStructure):
+        (JSC::IntlDisplayNamesConstructor::IntlDisplayNamesConstructor):
+        (JSC::IntlDisplayNamesConstructor::finishCreation):
+        (JSC::constructIntlDisplayNames):
+        (JSC::callIntlDisplayNames):
+        (JSC::IntlDisplayNamesConstructorSupportedLocalesOf):
+        * runtime/IntlDisplayNamesConstructor.h: Added.
+        * runtime/IntlDisplayNamesPrototype.cpp: Added.
+        (JSC::IntlDisplayNamesPrototype::create):
+        (JSC::IntlDisplayNamesPrototype::createStructure):
+        (JSC::IntlDisplayNamesPrototype::IntlDisplayNamesPrototype):
+        (JSC::IntlDisplayNamesPrototype::finishCreation):
+        (JSC::IntlDisplayNamesPrototypeFuncOf):
+        (JSC::IntlDisplayNamesPrototypeFuncResolvedOptions):
+        * runtime/IntlDisplayNamesPrototype.h: Added.
+        * runtime/IntlLocale.cpp:
+        (JSC::isUnicodeLanguageSubtag): Deleted.
+        (JSC::isUnicodeScriptSubtag): Deleted.
+        (JSC::isUnicodeRegionSubtag): Deleted.
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        * runtime/IntlObject.cpp:
+        (JSC::createDisplayNamesConstructor):
+        (JSC::IntlObject::finishCreation):
+        (JSC::isUnicodeLanguageSubtag):
+        (JSC::isUnicodeScriptSubtag):
+        (JSC::isUnicodeRegionSubtag):
+        (JSC::isUnicodeVariantSubtag):
+        (JSC::isUnicodeLanguageId):
+        (JSC::isWellFormedCurrencyCode):
+        * runtime/IntlObject.h:
+        (JSC::intlDisplayNamesAvailableLocales):
+        * runtime/IntlRelativeTimeFormat.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::displayNamesStructure):
+        * runtime/OptionsList.h:
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        * runtime/VM.h:
+
 2020-07-20  Geoffrey Garen  <ggaren@apple.com>
 
         REGRESSION (r264242): [ macOS ] imported/w3c/web-platform-tests/wasm/jsapi/constructor/instantiate.any.html is a flaky crash

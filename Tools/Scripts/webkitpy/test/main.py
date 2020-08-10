@@ -37,15 +37,15 @@ import traceback
 import unittest
 
 from webkitpy.common.system.logutils import configure_logging
-from webkitpy.common.system.executive import ScriptError
 from webkitpy.common.system.filesystem import FileSystem
 from webkitpy.common.host import Host
-from webkitpy.common.unicode_compatibility import StringIO
 from webkitpy.test.finder import Finder
 from webkitpy.test.printer import Printer
 from webkitpy.test.runner import Runner, unit_test_name
 from webkitpy.results.upload import Upload
 from webkitpy.results.options import upload_options
+
+from webkitcorepy import StringIO
 
 _log = logging.getLogger(__name__)
 
@@ -156,6 +156,9 @@ class Tester(object):
         from webkitpy.thirdparty import autoinstall_everything
         autoinstall_everything()
 
+        from webkitcorepy import AutoInstall
+        AutoInstall.install_everything()
+
         start_time = time.time()
 
         if getattr(self._options, 'coverage', False):
@@ -215,7 +218,7 @@ class Tester(object):
 
             _host.initialize_scm()
             upload = Upload(
-                suite='webkitpy-tests',
+                suite=self._options.suite or 'webkitpy-tests',
                 configuration=Upload.create_configuration(
                     platform=_host.platform.os_name,
                     version=str(_host.platform.os_version),

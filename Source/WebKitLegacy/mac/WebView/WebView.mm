@@ -195,6 +195,7 @@
 #import <WebCore/PlatformEventFactoryMac.h>
 #import <WebCore/PlatformScreen.h>
 #import <WebCore/ProgressTracker.h>
+#import <WebCore/Range.h>
 #import <WebCore/RenderTheme.h>
 #import <WebCore/RenderView.h>
 #import <WebCore/RenderWidget.h>
@@ -4594,7 +4595,7 @@ IGNORE_WARNINGS_END
     auto intRect = WebCore::enclosingIntRect(rect);
     auto range = WebCore::VisibleSelection(coreFrame->visiblePositionForPoint(intRect.minXMinYCorner()),
         coreFrame->visiblePositionForPoint(intRect.maxXMaxYCorner())).toNormalizedRange();
-    return [[[WebTextIterator alloc] initWithRange:kit(createLiveRange(range).get())] autorelease];
+    return [[[WebTextIterator alloc] initWithRange:kit(range)] autorelease];
 }
 
 #if !PLATFORM(IOS_FAMILY)
@@ -7929,8 +7930,7 @@ static BOOL findString(NSView <WebDocumentSearching> *searchView, NSString *stri
 {
     if (!_private->page)
         return nil;
-
-    return kit(_private->page->rangeOfString(string, core(previousRange), coreOptions(options)).get());
+    return kit(_private->page->rangeOfString(string, makeSimpleRange(core(previousRange)), coreOptions(options)));
 }
 
 - (void)setMainFrameDocumentReady:(BOOL)mainFrameDocumentReady
@@ -8417,7 +8417,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(JSC::JSGlobalObject* lexicalGlo
     auto* page = core(self);
     if (!page)
         return nil;
-    return kit(page->mainFrame().editor().rangeForPoint(WebCore::IntPoint([self convertPoint:point toView:nil])).get());
+    return kit(page->mainFrame().editor().rangeForPoint(WebCore::IntPoint([self convertPoint:point toView:nil])));
 }
 
 - (BOOL)_shouldChangeSelectedDOMRange:(DOMRange *)currentRange toDOMRange:(DOMRange *)proposedRange affinity:(NSSelectionAffinity)selectionAffinity stillSelecting:(BOOL)flag
@@ -8456,7 +8456,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(JSC::JSGlobalObject* lexicalGlo
         if (!coreFrame)
             return;
 
-        coreFrame->selection().setSelectedRange(core(range), core(selectionAffinity), WebCore::FrameSelection::ShouldCloseTyping::Yes);
+        coreFrame->selection().setSelectedRange(makeSimpleRange(*core(range)), core(selectionAffinity), WebCore::FrameSelection::ShouldCloseTyping::Yes);
     }
 }
 
@@ -8465,7 +8465,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(JSC::JSGlobalObject* lexicalGlo
     auto* coreFrame = core([self _selectedOrMainFrame]);
     if (!coreFrame)
         return nil;
-    return kit(createLiveRange(coreFrame->selection().selection().toNormalizedRange()).get());
+    return kit(coreFrame->selection().selection().toNormalizedRange());
 }
 
 - (NSSelectionAffinity)selectionAffinity
@@ -9743,7 +9743,7 @@ bool LayerFlushController::flushLayers()
 - (WebMediaPlaybackTargetPicker *) _devicePicker
 {
     if (!_private->m_playbackTargetPicker)
-        _private->m_playbackTargetPicker = WebMediaPlaybackTargetPicker::create(*_private->page);
+        _private->m_playbackTargetPicker = WebMediaPlaybackTargetPicker::create(self, *_private->page);
 
     return _private->m_playbackTargetPicker.get();
 }

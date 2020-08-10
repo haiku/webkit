@@ -34,6 +34,7 @@
     macro(Collator) \
     macro(Date) \
     macro(DateTimeFormat) \
+    macro(DisplayNames) \
     macro(Error) \
     macro(EvalError) \
     macro(FinalizationRegistry) \
@@ -304,7 +305,6 @@ namespace JSC {
         const Identifier nullIdentifier;
         const Identifier emptyIdentifier;
         const Identifier underscoreProto;
-        const Identifier thisIdentifier;
         const Identifier useStrictIdentifier;
         const Identifier timesIdentifier;
     private:

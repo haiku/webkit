@@ -40,6 +40,7 @@
 #include "CodeBlock.h"
 #include "CodeCache.h"
 #include "CommonIdentifiers.h"
+#include "ControlFlowProfiler.h"
 #include "CustomGetterSetter.h"
 #include "DFGWorklist.h"
 #include "DOMAttributeGetterSetter.h"
@@ -66,6 +67,7 @@
 #include "Interpreter.h"
 #include "IntlCollator.h"
 #include "IntlDateTimeFormat.h"
+#include "IntlDisplayNames.h"
 #include "IntlLocale.h"
 #include "IntlNumberFormat.h"
 #include "IntlPluralRules.h"
@@ -73,6 +75,7 @@
 #include "IsoHeapCellType.h"
 #include "IsoInlinedHeapCellType.h"
 #include "JITCode.h"
+#include "JITThunks.h"
 #include "JITWorklist.h"
 #include "JSAPIGlobalObject.h"
 #include "JSAPIValueWrapper.h"
@@ -263,12 +266,10 @@ inline unsigned VM::nextID()
 
 static bool vmCreationShouldCrash = false;
 
-VM::VM(VMType vmType, HeapType heapType, bool* success)
+VM::VM(VMType vmType, HeapType heapType, WTF::RunLoop* runLoop, bool* success)
     : m_id(nextID())
     , m_apiLock(adoptRef(new JSLock(this)))
-#if USE(CF)
-    , m_runLoop(CFRunLoopGetCurrent())
-#endif // USE(CF)
+    , m_runLoop(runLoop ? *runLoop : WTF::RunLoop::current())
     , m_random(Options::seedOfVMRandomForFuzzer() ? Options::seedOfVMRandomForFuzzer() : cryptographicallyRandomNumber())
     , m_integrityRandom(*this)
     , heap(*this, heapType)
@@ -308,6 +309,7 @@ VM::VM(VMType vmType, HeapType heapType, bool* success)
 #endif
     , intlCollatorHeapCellType(IsoHeapCellType::create<IntlCollator>())
     , intlDateTimeFormatHeapCellType(IsoHeapCellType::create<IntlDateTimeFormat>())
+    , intlDisplayNamesHeapCellType(IsoHeapCellType::create<IntlDisplayNames>())
     , intlLocaleHeapCellType(IsoHeapCellType::create<IntlLocale>())
     , intlNumberFormatHeapCellType(IsoHeapCellType::create<IntlNumberFormat>())
     , intlPluralRulesHeapCellType(IsoHeapCellType::create<IntlPluralRules>())
@@ -679,15 +681,15 @@ Ref<VM> VM::createContextGroup(HeapType heapType)
     return adoptRef(*new VM(APIContextGroup, heapType));
 }
 
-Ref<VM> VM::create(HeapType heapType)
+Ref<VM> VM::create(HeapType heapType, WTF::RunLoop* runLoop)
 {
-    return adoptRef(*new VM(Default, heapType));
+    return adoptRef(*new VM(Default, heapType, runLoop));
 }
 
-RefPtr<VM> VM::tryCreate(HeapType heapType)
+RefPtr<VM> VM::tryCreate(HeapType heapType, WTF::RunLoop* runLoop)
 {
     bool success = true;
-    RefPtr<VM> vm = adoptRef(new VM(Default, heapType, &success));
+    RefPtr<VM> vm = adoptRef(new VM(Default, heapType, runLoop, &success));
     if (!success) {
         // Here, we're destructing a partially constructed VM and we know that
         // no one else can be using it at the same time. So, acquiring the lock
@@ -788,6 +790,11 @@ static ThunkGenerator thunkGeneratorForIntrinsic(Intrinsic intrinsic)
     default:
         return nullptr;
     }
+}
+
+MacroAssemblerCodeRef<JITThunkPtrTag> VM::getCTIStub(ThunkGenerator generator)
+{
+    return jitStubs->ctiStub(*this, generator);
 }
 
 #endif // ENABLE(JIT)
@@ -1385,15 +1392,6 @@ void VM::verifyExceptionCheckNeedIsSatisfied(unsigned recursionDepth, ExceptionE
 }
 #endif
 
-#if USE(CF)
-void VM::setRunLoop(CFRunLoopRef runLoop)
-{
-    ASSERT(runLoop);
-    m_runLoop = runLoop;
-    JSRunLoopTimer::Manager::shared().didChangeRunLoop(*this, runLoop);
-}
-#endif // USE(CF)
-
 ScratchBuffer* VM::scratchBufferForSize(size_t size)
 {
     if (!size)
@@ -1512,6 +1510,7 @@ DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(callbackAPIWrapperGlobalObjectSpace, cal
 #endif
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlCollatorSpace, intlCollatorHeapCellType.get(), IntlCollator)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDateTimeFormatSpace, intlDateTimeFormatHeapCellType.get(), IntlDateTimeFormat)
+DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlDisplayNamesSpace, intlDisplayNamesHeapCellType.get(), IntlDisplayNames)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlLocaleSpace, intlLocaleHeapCellType.get(), IntlLocale)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlNumberFormatSpace, intlNumberFormatHeapCellType.get(), IntlNumberFormat)
 DYNAMIC_ISO_SUBSPACE_DEFINE_MEMBER_SLOW(intlPluralRulesSpace, intlPluralRulesHeapCellType.get(), IntlPluralRules)

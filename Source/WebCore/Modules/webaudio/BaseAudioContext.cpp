@@ -40,7 +40,9 @@
 #include "AudioSession.h"
 #include "BiquadFilterNode.h"
 #include "ChannelMergerNode.h"
+#include "ChannelMergerOptions.h"
 #include "ChannelSplitterNode.h"
+#include "ChannelSplitterOptions.h"
 #include "ConvolverNode.h"
 #include "DefaultAudioDestinationNode.h"
 #include "DelayNode.h"
@@ -63,11 +65,13 @@
 #include "Page.h"
 #include "PannerNode.h"
 #include "PeriodicWave.h"
+#include "PeriodicWaveOptions.h"
 #include "PlatformMediaSessionManager.h"
 #include "ScriptController.h"
 #include "ScriptProcessorNode.h"
 #include "WaveShaperNode.h"
 #include <JavaScriptCore/ScriptCallStack.h>
+#include <wtf/Scope.h>
 
 #if DEBUG_AUDIONODE_REFERENCES
 #include <stdio.h>
@@ -90,8 +94,6 @@
 #include <wtf/RefCounted.h>
 #include <wtf/Scope.h>
 #include <wtf/text/WTFString.h>
-
-const unsigned MaxPeriodicWaveLength = 4096;
 
 namespace WebCore {
 
@@ -519,10 +521,6 @@ ExceptionOr<Ref<PannerNode>> BaseAudioContext::createPanner()
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
     return PannerNode::create(*this);
 }
 
@@ -591,14 +589,10 @@ ExceptionOr<Ref<ChannelSplitterNode>> BaseAudioContext::createChannelSplitter(si
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
 
-    lazyInitialize();
-    auto node = ChannelSplitterNode::create(*this, sampleRate(), numberOfOutputs);
-    if (!node)
-        return Exception { IndexSizeError };
-    return node.releaseNonNull();
+    ChannelSplitterOptions options;
+    options.numberOfOutputs = numberOfOutputs;
+    return ChannelSplitterNode::create(*this, options);
 }
 
 ExceptionOr<Ref<ChannelMergerNode>> BaseAudioContext::createChannelMerger(size_t numberOfInputs)
@@ -606,14 +600,10 @@ ExceptionOr<Ref<ChannelMergerNode>> BaseAudioContext::createChannelMerger(size_t
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
 
-    lazyInitialize();
-    auto node = ChannelMergerNode::create(*this, sampleRate(), numberOfInputs);
-    if (!node)
-        return Exception { IndexSizeError };
-    return node.releaseNonNull();
+    ChannelMergerOptions options;
+    options.numberOfInputs = numberOfInputs;
+    return ChannelMergerNode::create(*this, options);
 }
 
 ExceptionOr<Ref<OscillatorNode>> BaseAudioContext::createOscillator()
@@ -621,32 +611,20 @@ ExceptionOr<Ref<OscillatorNode>> BaseAudioContext::createOscillator()
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
-
-    Ref<OscillatorNode> node = OscillatorNode::create(*this, sampleRate());
-
-    // Because this is an AudioScheduledSourceNode, the context keeps a reference until it has finished playing.
-    // When this happens, AudioScheduledSourceNode::finish() calls BaseAudioContext::notifyNodeFinishedProcessing().
-    refNode(node);
-
-    return node;
+    return OscillatorNode::create(*this);
 }
 
-ExceptionOr<Ref<PeriodicWave>> BaseAudioContext::createPeriodicWave(Float32Array& real, Float32Array& imaginary)
+ExceptionOr<Ref<PeriodicWave>> BaseAudioContext::createPeriodicWave(Vector<float>&& real, Vector<float>&& imaginary, const PeriodicWaveConstraints& constraints)
 {
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    if (real.length() != imaginary.length() || (real.length() > MaxPeriodicWaveLength) || !real.length())
-        return Exception { IndexSizeError };
-    lazyInitialize();
-    return PeriodicWave::create(sampleRate(), real, imaginary);
+    
+    PeriodicWaveOptions options;
+    options.real = WTFMove(real);
+    options.imag = WTFMove(imaginary);
+    options.disableNormalization = constraints.disableNormalization;
+    return PeriodicWave::create(*this, WTFMove(options));
 }
 
 void BaseAudioContext::notifyNodeFinishedProcessing(AudioNode* node)
@@ -1101,6 +1079,10 @@ void BaseAudioContext::finishedRendering(bool didRendering)
 {
     ASSERT(isOfflineContext());
     ASSERT(isMainThread());
+    auto finishedRenderingScope = WTF::makeScopeExit([this] {
+        didFinishOfflineRendering(Exception { InvalidStateError });
+    });
+
     if (!isMainThread())
         return;
 
@@ -1114,7 +1096,7 @@ void BaseAudioContext::finishedRendering(bool didRendering)
     if (!didRendering)
         return;
 
-    AudioBuffer* renderedBuffer = m_renderTarget.get();
+    RefPtr<AudioBuffer> renderedBuffer = m_renderTarget.get();
     setState(State::Closed);
 
     ASSERT(renderedBuffer);
@@ -1126,7 +1108,10 @@ void BaseAudioContext::finishedRendering(bool didRendering)
         return;
 
     clearPendingActivityIfExitEarly.release();
-    m_eventQueue->enqueueEvent(OfflineAudioCompletionEvent::create(renderedBuffer));
+    m_eventQueue->enqueueEvent(OfflineAudioCompletionEvent::create(renderedBuffer.get()));
+
+    finishedRenderingScope.release();
+    didFinishOfflineRendering(renderedBuffer.releaseNonNull());
 }
 
 void BaseAudioContext::dispatchEvent(Event& event)

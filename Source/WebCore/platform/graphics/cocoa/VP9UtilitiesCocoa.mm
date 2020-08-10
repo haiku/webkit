@@ -29,6 +29,7 @@
 #if PLATFORM(COCOA)
 
 #import "FourCC.h"
+#import "LibWebRTCProvider.h"
 #import "MediaCapabilitiesInfo.h"
 #import "PlatformScreen.h"
 #import "ScreenProperties.h"
@@ -96,10 +97,30 @@ static ResolutionCategory resolutionCategory(const FloatSize& size)
     return ResolutionCategory::R_480p;
 }
 
+void registerWebKitVP9Decoder()
+{
+    LibWebRTCProvider::registerWebKitVP9Decoder();
+}
+
+void registerSupplementalVP9Decoder()
+{
+    if (!VideoToolboxLibrary(true))
+        return;
+
+    if (canLoad_VideoToolbox_VTRegisterSupplementalVideoDecoderIfAvailable())
+        softLink_VideoToolbox_VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9);
+}
+
+bool isVP9DecoderAvailable()
+{
+    if (!VideoToolboxLibrary(true))
+        return false;
+    return noErr == VTSelectAndCreateVideoDecoderInstance(kCMVideoCodecType_VP9, kCFAllocatorDefault, nullptr, nullptr);
+}
+
 bool validateVPParameters(VPCodecConfigurationRecord& codecConfiguration, MediaCapabilitiesInfo& info, const VideoConfiguration& videoConfiguration)
 {
-    OSStatus status = VTSelectAndCreateVideoDecoderInstance(kCMVideoCodecType_VP9, kCFAllocatorDefault, nullptr, nullptr);
-    if (status != noErr)
+    if (!isVP9DecoderAvailable())
         return false;
 
     // VideoConfiguration and VPCodecConfigurationRecord can have conflicting values for HDR properties. If so, reject.
@@ -122,7 +143,7 @@ bool validateVPParameters(VPCodecConfigurationRecord& codecConfiguration, MediaC
         info.powerEfficient = true;
 
         // HW VP9 Decoder supports Profile 0 & 2:
-        if (!codecConfiguration.profile && codecConfiguration.profile != 2)
+        if (codecConfiguration.profile && codecConfiguration.profile != 2)
             return false;
 
         // HW VP9 Decoder supports up to Level 6:

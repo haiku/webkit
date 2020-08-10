@@ -1,3 +1,293 @@
+2020-07-30  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION (r?): Web Inspector: Timelines: blue border below selected timeline when in edit mode
+        https://bugs.webkit.org/show_bug.cgi?id=214979
+        <rdar://problem/66338399>
+
+        Reviewed by Devin Rousso.
+
+        Color the top border after the selected item with the same background as the selected item.
+        When editing, don't color that border with the selected item background.
+
+        * UserInterface/Views/TimelineOverview.css:
+        (.timeline-overview.edit-instruments > .tree-outline.timelines .item:not(:first-child),):
+        (body:matches(.window-inactive, .window-docked-inactive) .timeline-overview:not(.edit-instruments) > .tree-outline.timelines .item.selected + .item):
+        (body:not(.window-inactive, .window-docked-inactive) .timeline-overview:not(.edit-instruments) > .tree-outline.timelines:focus-within .item.selected + .item):
+        (@media (prefers-color-scheme: dark) .timeline-overview:not(.frames) > .graphs-container > .timeline-overview-graph:nth-child(even)):
+        (.timeline-overview > .tree-outline.timelines .item.selected + .item): Deleted.
+        (body:not(.window-inactive, .window-docked-inactive) .timeline-overview > .tree-outline.timelines:focus-within .item.selected + .item): Deleted.
+        (@media (prefers-color-scheme: dark) .timeline-overview.edit-instruments > .tree-outline.timelines .item:not(:first-child),): Deleted.
+        (@media (prefers-color-scheme: dark) .timeline-overview > .tree-outline.timelines .item.selected + .item): Deleted.
+
+2020-07-30  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Add another Protocol Version (iOS 14.0)
+        https://bugs.webkit.org/show_bug.cgi?id=214991
+        <rdar://problem/59156892>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Protocol/Legacy/14.0/InspectorBackendCommands.js: Added.
+        * Versions/Inspector-iOS-14.0.json: Added.
+
+2020-07-30  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: on Big Sur, match OS background, text, and border colors
+        https://bugs.webkit.org/show_bug.cgi?id=214366
+        <rdar://problem/65617290>
+
+        Reviewed by Devin Rousso.
+
+        Refactoring:
+        - Remove --background-color-code because it was always the same value as --background-color-content.
+        - Replace commonly hardcoded `hsl(0, 0%, 97%)` background with --background-color-intermediate.
+
+        * UserInterface/Views/AnimationDetailsSidebarPanel.css:
+        (.sidebar > .panel.details.animation > .content > .details-section.animation-keyframes .details-section):
+        (.sidebar > .panel.details.animation > .content > .details-section.animation-keyframes .details-section .row.styles .CodeMirror):
+        * UserInterface/Views/BoxShadowEditor.css:
+        (.box-shadow-editor > table > tr > td > input[type="text"]):
+        * UserInterface/Views/BreakpointActionView.css:
+        (@media (prefers-color-scheme: dark) .breakpoint-action-eval-editor):
+        * UserInterface/Views/BreakpointPopoverController.css:
+        (.edit-breakpoint-popover-condition):
+        * UserInterface/Views/ChangesDetailsSidebarPanel.css:
+        (.sidebar > .panel.changes-panel .css-rule):
+        * UserInterface/Views/ComputedStyleSection.css:
+        (.computed-style-section .computed-property-item.expanded):
+        (.computed-style-properties.details-section > .content,):
+        * UserInterface/Views/ConsolePrompt.css:
+        (.console-prompt):
+        (.console-prompt > .CodeMirror-scroll):
+        * UserInterface/Views/CookiePopover.css:
+        (.popover .cookie-popover-content > table > tr > td > input:matches([type="text"], [type="datetime-local"])):
+
+        * UserInterface/Views/DetailsSection.css:
+        (.details-section .details-section):
+        (.details-section .details-section > .header):
+        Refactor. --background-color-content is the same color value.
+
+        (.details-section .details-section:not(.collapsed) > .header):
+        Refactor. --border-color-secondary is the same color value.
+
+        (.details-section > .content > .group:nth-child(even)):
+        (.details-section > .content > .group > .row:matches(.empty, .text)):
+        (@media (prefers-color-scheme: dark) .details-section > .header > label,):
+
+        * UserInterface/Views/DividerNavigationItem.css:
+        (.navigation-bar .item.divider):
+        Don't use hairline dividers. MacOS Catalina and Big Sur don't use hairline borders.
+
+        * UserInterface/Views/GraphicsOverviewContentView.css:
+        (.content-view.graphics-overview > section > .header):
+        (@media (prefers-color-scheme: dark) .content-view.graphics-overview):
+        * UserInterface/Views/LocalResourceOverridePopover.css:
+        (.popover .local-resource-override-popover-content .editor):
+        * UserInterface/Views/LogContentView.css:
+        (@media (prefers-color-scheme: dark) .console-messages):
+        * UserInterface/Views/QuickConsole.css:
+        (.quick-console):
+        * UserInterface/Views/ScopeChainDetailsSidebarPanel.css:
+        (@media (prefers-color-scheme: dark) .watch-expression-editor):
+        * UserInterface/Views/SpreadsheetCSSStyleDeclarationSection.css:
+        (.spreadsheet-css-declaration):
+        (.spreadsheet-css-declaration.locked):
+        * UserInterface/Views/SyntaxHighlightingDefaultTheme.css:
+        (@media (prefers-color-scheme: dark) .cm-s-default,):
+        * UserInterface/Views/TabBar.css:
+        (body.big-sur.docked .tab-bar > .border.bottom):
+        * UserInterface/Views/URLBreakpointPopover.css:
+        (.popover .url-breakpoint-content > .editor-wrapper > .editor):
+
+        * UserInterface/Views/Variables.css:
+        (:root):
+        Add --separator-color, which has the same semantics as `separator` color from Apple HIG
+        (https://developer.apple.com/design/human-interface-guidelines/ios/visual-design/color/#dynamic-system-colors).
+        --border-color-secondary was only defined in the dark mode. Define it in the light mode, too.
+
+        (body.window-inactive):
+        Remove unused variable.
+
+        (body.big-sur):
+        (@media (prefers-color-scheme: dark) :root):
+        (@media (prefers-color-scheme: dark) body.big-sur):
+        (@media (prefers-color-scheme: dark) body.window-inactive):
+        (body.window-inactive *): Remove unnecessarily greedy selector.
+
+2020-07-30  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: only show scrollbars when needed
+        https://bugs.webkit.org/show_bug.cgi?id=214980
+
+        Reviewed by Brian Burg.
+
+        Prefer `overflow: auto;` instead of `overflow: scroll;` wherever possible, as when using a
+        hardware mouse scrollbars are always shown for the latter, even when the content fits.
+
+        * UserInterface/Debug/UncaughtExceptionReporter.css:
+        (.sheet-container):
+        * UserInterface/Views/AuditTestContentView.css:
+        (.content-view-container > .content-view.audit-test):
+        * UserInterface/Views/CanvasOverviewContentView.css:
+        (.content-view.canvas-overview > .content-view.canvas.saved-recordings .tree-outline):
+        * UserInterface/Views/CanvasSidebarPanel.css:
+        (.sidebar > .panel.navigation.canvas.has-recordings > .content > .recording-content):
+        * UserInterface/Views/DOMEventsBreakdownView.css:
+        (.waterfall-popover-content .dom-events-breakdown):
+        * UserInterface/Views/DOMNodeEventsContentView.css:
+        (.dom-node-details.dom-events):
+        * UserInterface/Views/GraphicsOverviewContentView.css:
+        (.content-view.graphics-overview):
+        * UserInterface/Views/LocalRemoteObjectContentView.css:
+        (.content-view.local-remote-object):
+        * UserInterface/Views/NetworkResourceDetailView.css:
+        (.content-view.resource-details):
+        * UserInterface/Views/OpenResourceDialog.css:
+        (.open-resource-dialog > .tree-outline):
+        * UserInterface/Views/SourceCodeTextEditor.css:
+        (.popover .debugger-popover-content > .body):
+
+        * UserInterface/Views/CPUTimelineView.css:
+        (.timeline-view.cpu): Added.
+        (body .timeline-view.cpu): Deleted.
+        * UserInterface/Views/MemoryTimelineView.css:
+        (.timeline-view.memory): Added.
+        (body .timeline-view.memory): Deleted.
+        Although `!important` is kind of a "hack", adding `body` to the selector is more of a "hack"
+        and is easier to unintentionally break.
+
+2020-07-28  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: REGRESSION(r255396): Audit: button to exit edit mode in main content area is missing border
+        https://bugs.webkit.org/show_bug.cgi?id=214898
+        <rdar://problem/66238391>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Base/Main.js: codify that this function only accepts ButtonNavigationItems.
+        Future developers, you'll need to adjust the CSS for non-button navigation items to work out.
+
+        * UserInterface/Views/Main.css:
+        (.navigation-item-help > .navigation-bar > .item.button):
+        (.navigation-item-help > .navigation-bar > .item.button:not(.text-only)):
+        (.navigation-item-help > .navigation-bar > .item.button.text-only):
+        (.navigation-item-help > .navigation-bar > .item): Deleted.
+        (.navigation-item-help > .navigation-bar > .item:not(.text-only)): Deleted.
+        (.navigation-item-help > .navigation-bar > .item.text-only): Deleted.
+        Split out the rules for text-only buttons. The regressing change added more specificity
+        for the text + image case which made the border transparent and removed extra padding.
+        Also add .button since we only expect buttons to be used in this context.
+
+2020-07-28  Brian Burg  <bburg@apple.com>
+
+        REGRESSION(r262716) Web Inspector: start button is misaligned in Audit content view
+        https://bugs.webkit.org/show_bug.cgi?id=214891
+
+        Reviewed by Devin Rousso.
+
+        In r262716, a rendering defect related to flexbox was fixed. Web Inspector
+        layout inadvertently relied on the defect. Now that it's fixed, a CSS rule is
+        pushing the outline for navigation help buttons out of vertical alignment
+        with surrounding textt.
+
+        * UserInterface/Views/Main.css:
+        (.navigation-item-help): Remove line-height. It was previously ignored
+        due to a layout bug, and now its presence messes up vertical alignment.
+
+2020-07-27  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Change default tab order to display most commonly used tabs first
+        https://bugs.webkit.org/show_bug.cgi?id=212189
+        <rdar://problem/62267309>
+
+        Reviewed by Timothy Hatcher.
+
+        Changet the default tab order to:
+        Elements, Console, Sources, Network, Timelines, Storage, Graphics, Layers, Audit.
+
+        * UserInterface/Base/Main.js:
+        (WI.loaded):
+
+2020-07-22  Conrad Shultz  <conrad_shultz@apple.com>
+
+        Update macOS Version macros
+        https://bugs.webkit.org/show_bug.cgi?id=214653
+
+        Reviewed by Tim Horton.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+        * Configurations/WebKitTargetConditionals.xcconfig:
+
+2020-07-22  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: Sources tab empty, sidebar nonfunctional
+        https://bugs.webkit.org/show_bug.cgi?id=214611
+        <rdar://problem/65898051>
+
+        Reviewed by Devin Rousso.
+
+        This is caused when a subresource fails its initial load. This generates a
+        networking IssueMessage without a source code location, which is not adequately handled.
+
+        * UserInterface/Views/IssueTreeElement.js:
+        (WI.IssueTreeElement.prototype._updateTitles):
+        (WI.IssueTreeElement):
+        If there is no sourceCodeLocation for the issue, then don't try to compute line numbers.
+
+2020-07-21  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: unable to save files that are base64 encoded
+        https://bugs.webkit.org/show_bug.cgi?id=214601
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/SourceCode.js:
+        (WI.SourceCode.prototype.get base64Encoded): Added.
+        Expose if the current content is base64 encoded. The current content is already exposed.
+
+        * UserInterface/Views/ContextMenuUtilities.js:
+        (WI.appendContextMenuItemsForSourceCode):
+        Include the base64 encoded state in the save data.
+
+2020-07-21  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Elements: Styles: don't blur the add class input when a class is added
+        https://bugs.webkit.org/show_bug.cgi?id=214604
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.js:
+        (WI.GeneralStyleDetailsSidebarPanel.prototype._addClassInputKeyPressed):
+        (WI.GeneralStyleDetailsSidebarPanel.prototype._addClassInputBlur):
+        (WI.GeneralStyleDetailsSidebarPanel.prototype._addClassFromInput): Added.
+
+        * UserInterface/Views/GeneralStyleDetailsSidebarPanel.css:
+        (.sidebar > .panel.details.css-style > .content ~ .class-list-container):
+        Drive-by: don't show a scrollbar unless needed.
+
+2020-07-21  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(?): file names are not shown in the open resource dialog
+        https://bugs.webkit.org/show_bug.cgi?id=214605
+
+        Reviewed by Brian Burg.
+
+        When a `DocumentFragment` is added to a parent node, the children of the `DocumentFragment`
+        are added as children of the parent instead of the `DocumentFragment` itself, effectively
+        emptying the `DocumentFragment`, meaning that adding that `DocumentFragment` to a parent
+        node again will basically do nothing as there are no children for that `DocumentFragment`.
+
+        * UserInterface/Views/GeneralTreeElement.js:
+        (WI.GeneralTreeElement.prototype._updateTitleElements):
+        Because the `_mainTitleElement`/`_subtitleElement` is cleared (`removeChildren`), if the
+        `_mainTitle`/`_subtitle` is a `DocumentFragment` nothing will be added due to the above.
+        Instead, if the `_mainTitle`/`_subtitle` is a `DocumentFragment`, change it to be the
+        `textContent` of the `_mainTitleElement`/`_subtitleElement` so that the above does not
+        happen and so that future calls to `_updateTitleElements` won't make any changes the
+        `_mainTitle`/`_subtitle` is now a `String` which matches the `textContent`.
+
 2020-07-15  Nikita Vasilyev  <nvasilyev@apple.com>
 
         Web Inspector: Tab bar colors of undocked Inspector should match Safari in Big Sur

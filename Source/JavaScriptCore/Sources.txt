@@ -109,6 +109,7 @@ b3/B3AtomicValue.cpp
 b3/B3Bank.cpp
 b3/B3BasicBlock.cpp
 b3/B3BlockInsertionSet.cpp
+b3/B3BottomTupleValue.cpp
 b3/B3BreakCriticalEdges.cpp
 b3/B3CCallValue.cpp
 b3/B3CaseCollection.cpp
@@ -766,7 +767,6 @@ runtime/DatePrototype.cpp
 runtime/DirectArguments.cpp
 runtime/DirectArgumentsOffset.cpp
 runtime/DirectEvalExecutable.cpp
-runtime/DisallowVMReentry.cpp
 runtime/DoublePredictionFuzzerAgent.cpp
 runtime/DumpContext.cpp
 runtime/ECMAMode.cpp
@@ -816,6 +816,9 @@ runtime/IntlCollatorPrototype.cpp
 runtime/IntlDateTimeFormat.cpp
 runtime/IntlDateTimeFormatConstructor.cpp
 runtime/IntlDateTimeFormatPrototype.cpp
+runtime/IntlDisplayNames.cpp
+runtime/IntlDisplayNamesConstructor.cpp
+runtime/IntlDisplayNamesPrototype.cpp
 runtime/IntlLocale.cpp
 runtime/IntlLocaleConstructor.cpp
 runtime/IntlLocalePrototype.cpp

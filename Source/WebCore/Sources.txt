@@ -1815,6 +1815,8 @@ platform/encryptedmedia/CDMFactory.cpp
 platform/encryptedmedia/CDMLogging.cpp
 platform/encryptedmedia/CDMPrivate.cpp
 platform/encryptedmedia/CDMProxy.cpp
+platform/gamepad/EmptyGamepadProvider.cpp
+platform/gamepad/GamepadProvider.cpp
 platform/graphics/ANGLEWebKitBridge.cpp
 platform/graphics/BitmapImage.cpp
 platform/graphics/Color.cpp
@@ -1920,6 +1922,7 @@ platform/graphics/filters/FESpecularLighting.cpp
 platform/graphics/filters/FETile.cpp
 platform/graphics/filters/FETurbulence.cpp
 platform/graphics/filters/FilterEffect.cpp
+platform/graphics/filters/FilterEffectRenderer.cpp
 platform/graphics/filters/FilterOperation.cpp
 platform/graphics/filters/FilterOperations.cpp
 platform/graphics/filters/PointLightSource.cpp
@@ -2708,7 +2711,9 @@ JSCanvasUserInterface.cpp
 JSChannelCountMode.cpp
 JSChannelInterpretation.cpp
 JSChannelMergerNode.cpp
+JSChannelMergerOptions.cpp
 JSChannelSplitterNode.cpp
+JSChannelSplitterOptions.cpp
 JSCharacterData.cpp
 JSChildNode.cpp
 JSClipboard.cpp
@@ -3122,10 +3127,13 @@ JSOESTextureHalfFloatLinear.cpp
 JSOESVertexArrayObject.cpp
 JSOfflineAudioCompletionEvent.cpp
 JSOfflineAudioContext.cpp
+JSOfflineAudioContextOptions.cpp
 JSOffscreenCanvas.cpp
 JSOffscreenCanvasRenderingContext2D.cpp
 JSOptionalEffectTiming.cpp
 JSOscillatorNode.cpp
+JSOscillatorOptions.cpp
+JSOscillatorType.cpp
 JSOverconstrainedError.cpp
 JSOverconstrainedErrorEvent.cpp
 JSOverflowEvent.cpp
@@ -3170,6 +3178,8 @@ JSPerformanceResourceTiming.cpp
 JSPerformanceServerTiming.cpp
 JSPerformanceTiming.cpp
 JSPeriodicWave.cpp
+JSPeriodicWaveConstraints.cpp
+JSPeriodicWaveOptions.cpp
 JSPictureInPictureWindow.cpp
 JSPlaybackDirection.cpp
 JSPointerEvent.cpp
@@ -3561,6 +3571,7 @@ JSWebKitMediaKeySession.cpp
 JSWebKitMediaKeys.cpp
 JSWebKitNamespace.cpp
 JSWebKitOfflineAudioContext.cpp
+JSWebKitOscillatorNode.cpp
 JSWebKitPlaybackTargetAvailabilityEvent.cpp
 JSWebKitPoint.cpp
 JSWebKitTransitionEvent.cpp

@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "WebViewTest.h"
+#include <WebCore/GtkVersioning.h>
 #include <glib/gstdio.h>
 #include <wtf/glib/GRefPtr.h>
 
@@ -421,8 +422,7 @@ public:
 
 static void testPrintCustomWidget(PrintCustomWidgetTest* test, gconstpointer)
 {
-    test->showInWindowAndWaitUntilMapped(GTK_WINDOW_TOPLEVEL, 0, 0);
-
+    test->showInWindow();
     test->loadHtml("<html><body>Text</body></html>", 0);
     test->waitUntilLoadFinished();
 

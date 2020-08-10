@@ -25,7 +25,6 @@
 
 #import "config.h"
 #import "WebProcess.h"
-#import "WebProcessCocoa.h"
 
 #import "LaunchServicesDatabaseManager.h"
 #import "LaunchServicesDatabaseXPCConstants.h"
@@ -38,7 +37,6 @@
 #import "SandboxInitializationParameters.h"
 #import "WKAPICast.h"
 #import "WKBrowsingContextHandleInternal.h"
-#import "WKCrashReporter.h"
 #import "WKFullKeyboardAccessWatcher.h"
 #import "WKTypeRefWrapper.h"
 #import "WKWebProcessPlugInBrowserContextControllerInternal.h"
@@ -78,6 +76,7 @@
 #import <pal/spi/cf/CFNetworkSPI.h>
 #import <pal/spi/cf/CFUtilitiesSPI.h>
 #import <pal/spi/cg/CoreGraphicsSPI.h>
+#import <pal/spi/cocoa/AVFoundationSPI.h>
 #import <pal/spi/cocoa/CoreServicesSPI.h>
 #import <pal/spi/cocoa/LaunchServicesSPI.h>
 #import <pal/spi/cocoa/NSAccessibilitySPI.h>
@@ -110,6 +109,7 @@
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <UIKit/UIAccessibility.h>
 #import <pal/spi/ios/GraphicsServicesSPI.h>
+#import <pal/spi/ios/MobileGestaltSPI.h>
 #endif
 
 #if PLATFORM(IOS_FAMILY) && USE(APPLE_INTERNAL_SDK)
@@ -132,6 +132,8 @@
 #if USE(OS_STATE)
 #import <os/state_private.h>
 #endif
+
+#import <pal/cocoa/AVFoundationSoftLink.h>
 
 SOFT_LINK_FRAMEWORK(CoreServices)
 SOFT_LINK_CLASS(CoreServices, _LSDService)
@@ -187,11 +189,13 @@ void WebProcess::handleXPCEndpointMessages() const
         if (messageName.isEmpty())
             return;
 
+#if HAVE(LSDATABASECONTEXT)
         if (messageName == LaunchServicesDatabaseXPCConstants::xpcLaunchServicesDatabaseXPCEndpointMessageName) {
             auto endpoint = xpc_dictionary_get_value(event, LaunchServicesDatabaseXPCConstants::xpcLaunchServicesDatabaseXPCEndpointNameKey);
             LaunchServicesDatabaseManager::singleton().setEndpoint(endpoint);
             return;
         }
+#endif
     });
 
     xpc_connection_resume(connection);
@@ -199,6 +203,26 @@ void WebProcess::handleXPCEndpointMessages() const
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
+    if (parameters.mobileGestaltExtensionHandle) {
+        if (auto extension = SandboxExtension::create(WTFMove(*parameters.mobileGestaltExtensionHandle))) {
+            bool ok = extension->consume();
+            ASSERT_UNUSED(ok, ok);
+#if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
+            MGGetFloat32Answer(kMGQMainScreenScale, 0);
+            MGGetSInt32Answer(kMGQMainScreenPitch, 0);
+            MGGetSInt32Answer(kMGQMainScreenClass, MGScreenClassPad2);
+            MGGetBoolAnswer(kMGQAppleInternalInstallCapability);
+            MGGetBoolAnswer(kMGQiPadCapability);
+            auto deviceName = adoptCF(MGCopyAnswer(kMGQDeviceName, nullptr));
+            MGGetSInt32Answer(kMGQDeviceClassNumber, MGDeviceClassInvalid);
+            MGGetBoolAnswer(kMGQHasExtendedColorDisplay);
+            MGGetFloat32Answer(kMGQDeviceCornerRadius, 0);
+#endif
+            ok = extension->revoke();
+            ASSERT_UNUSED(ok, ok);
+        }
+    }
+
 #if HAVE(LSDATABASECONTEXT)
     // FIXME: Remove this entire section when the selector observeDatabaseChange4WebKit is present
     auto context = [NSClassFromString(@"LSDatabaseContext") sharedDatabaseContext];
@@ -244,7 +268,7 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     [NSURLCache setSharedURLCache:urlCache.get()];
 
 #if PLATFORM(MAC)
-    WebCore::FontCache::setFontAllowlist(parameters.fontWhitelist);
+    WebCore::FontCache::setFontAllowlist(parameters.fontAllowList);
 #endif
 
     m_compositingRenderServerPort = WTFMove(parameters.acceleratedCompositingPort);
@@ -818,12 +842,6 @@ void WebProcess::destroyRenderingResources()
     RELEASE_LOG_IF_ALLOWED(ProcessSuspension, "destroyRenderingResources: took %.2fms", (endTime - startTime).milliseconds());
 }
 
-// FIXME: This should live somewhere else, and it should have the implementation in line instead of calling out to WKSI.
-void _WKSetCrashReportApplicationSpecificInformation(NSString *infoString)
-{
-    return setCrashReportApplicationSpecificInformation((__bridge CFStringRef)infoString);
-}
-
 #if PLATFORM(IOS_FAMILY)
 void WebProcess::accessibilityProcessSuspendedNotification(bool suspended)
 {
@@ -927,6 +945,12 @@ static const WTF::String& userAccentColorPreferenceKey()
     static NeverDestroyed<WTF::String> userAccentColorPreferenceKey(MAKE_STATIC_STRING_IMPL("AppleAccentColor"));
     return userAccentColorPreferenceKey;
 }
+
+static const WTF::String& userHighlightColorPreferenceKey()
+{
+    static NeverDestroyed<WTF::String> userHighlightColorPreferenceKey(MAKE_STATIC_STRING_IMPL("AppleHighlightColor"));
+    return userHighlightColorPreferenceKey;
+}
 #endif
 
 static void dispatchSimulatedNotificationsForPreferenceChange(const String& key)
@@ -935,8 +959,18 @@ static void dispatchSimulatedNotificationsForPreferenceChange(const String& key)
     // Ordinarily, other parts of the system ensure that this notification is posted after this default is changed.
     // However, since we synchronize defaults to the Web Content process using a mechanism not known to the rest
     // of the system, we must re-post the notification in the Web Content process after updating the default.
-    if (key == userAccentColorPreferenceKey())
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"kCUINotificationAquaColorVariantChanged" object:nil];
+    
+    if (key == userAccentColorPreferenceKey()) {
+        NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+        [notificationCenter postNotificationName:@"kCUINotificationAquaColorVariantChanged" object:nil];
+        [notificationCenter postNotificationName:@"NSSystemColorsWillChangeNotification" object:nil];
+        [notificationCenter postNotificationName:NSSystemColorsDidChangeNotification object:nil];
+    }
+    if (key == userHighlightColorPreferenceKey()) {
+        NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+        [notificationCenter postNotificationName:@"NSSystemColorsWillChangeNotification" object:nil];
+        [notificationCenter postNotificationName:NSSystemColorsDidChangeNotification object:nil];
+    }
 #endif
 }
 
@@ -1011,6 +1045,14 @@ void WebProcess::setScreenProperties(const ScreenProperties& properties)
 #if PLATFORM(MAC)
 void WebProcess::updatePageScreenProperties()
 {
+#if HAVE(AVPLAYER_VIDEORANGEOVERRIDE)
+    // If AVPlayer.videoRangeOverride support is present, there's no need to override HDR mode
+    // at the MediaToolbox level, as the MediaToolbox override functionality is both duplicative
+    // and process global.
+    if (PAL::isAVFoundationFrameworkAvailable() && [PAL::getAVPlayerClass() instancesRespondToSelector:@selector(setVideoRangeOverride:)])
+        return;
+#endif
+
     if (hasProcessPrivilege(ProcessPrivilege::CanCommunicateWithWindowServer)) {
         setShouldOverrideScreenSupportsHighDynamicRange(false, false);
         return;

@@ -67,6 +67,10 @@ public:
     };
     FilterResult filterKeyEvent(PlatformEventKey*);
 
+#if PLATFORM(GTK)
+    FilterResult filterKeyEvent(unsigned type, unsigned keyval, unsigned keycode, unsigned modifiers);
+#endif
+
     void notifyFocusedIn();
     void notifyFocusedOut();
     void notifyMouseButtonPress();
@@ -108,6 +112,9 @@ private:
     struct {
         bool isActive { false };
         bool preeditChanged { false };
+#if PLATFORM(GTK) && USE(GTK4)
+        bool isFakeKeyEventForTesting { false };
+#endif
     } m_filteringContext;
 
     String m_compositionResult;

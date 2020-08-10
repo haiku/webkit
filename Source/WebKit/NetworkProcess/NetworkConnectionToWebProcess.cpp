@@ -215,10 +215,6 @@ void NetworkConnectionToWebProcess::didReceiveMessage(IPC::Connection& connectio
     }
 
 #if USE(LIBWEBRTC)
-    if (decoder.messageReceiverName() == Messages::NetworkRTCProvider::messageReceiverName()) {
-        rtcProvider().didReceiveMessage(connection, decoder);
-        return;
-    }
     if (decoder.messageReceiverName() == Messages::NetworkRTCMonitor::messageReceiverName()) {
         rtcProvider().didReceiveNetworkRTCMonitorMessage(connection, decoder);
         return;
@@ -272,6 +268,14 @@ NetworkRTCProvider& NetworkConnectionToWebProcess::rtcProvider()
     return *m_rtcProvider;
 }
 #endif
+
+void NetworkConnectionToWebProcess::createRTCProvider(CompletionHandler<void()>&& callback)
+{
+#if USE(LIBWEBRTC)
+    rtcProvider();
+#endif
+    callback();
+}
 
 CacheStorageEngineConnection& NetworkConnectionToWebProcess::cacheStorageConnection()
 {
@@ -546,8 +550,12 @@ void NetworkConnectionToWebProcess::prefetchDNS(const String& hostname)
 void NetworkConnectionToWebProcess::sendH2Ping(NetworkResourceLoadParameters&& parameters, CompletionHandler<void(Expected<Seconds, ResourceError>&&)>&& completionHandler)
 {
 #if ENABLE(SERVER_PRECONNECT)
+    auto* networkSession = this->networkSession();
+    if (!networkSession)
+        return completionHandler(makeUnexpected(internalError(parameters.request.url())));
+
     URL url = parameters.request.url();
-    auto* task = new PreconnectTask(networkProcess(), sessionID(), WTFMove(parameters), [] (const ResourceError&) { });
+    auto* task = new PreconnectTask(*networkSession, WTFMove(parameters), [] (const ResourceError&) { });
     task->setH2PingCallback(url, WTFMove(completionHandler));
     task->start();
 #else
@@ -577,7 +585,7 @@ void NetworkConnectionToWebProcess::preconnectTo(Optional<uint64_t> preconnectio
 #if ENABLE(SERVER_PRECONNECT)
     auto* session = networkSession();
     if (session && session->allowsServerPreconnect()) {
-        (new PreconnectTask(networkProcess(), sessionID(), WTFMove(loadParameters), [completionHandler = WTFMove(completionHandler)] (const ResourceError& error) {
+        (new PreconnectTask(*session, WTFMove(loadParameters), [completionHandler = WTFMove(completionHandler)] (const ResourceError& error) {
             completionHandler(error);
         }))->start();
         return;
@@ -908,17 +916,17 @@ void NetworkConnectionToWebProcess::requestStorageAccessUnderOpener(WebCore::Reg
 }
 #endif
 
-void NetworkConnectionToWebProcess::addOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains)
+void NetworkConnectionToWebProcess::addOriginAccessAllowListEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains)
 {
     SecurityPolicy::addOriginAccessAllowlistEntry(SecurityOrigin::createFromString(sourceOrigin).get(), destinationProtocol, destinationHost, allowDestinationSubdomains);
 }
 
-void NetworkConnectionToWebProcess::removeOriginAccessWhitelistEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains)
+void NetworkConnectionToWebProcess::removeOriginAccessAllowListEntry(const String& sourceOrigin, const String& destinationProtocol, const String& destinationHost, bool allowDestinationSubdomains)
 {
     SecurityPolicy::removeOriginAccessAllowlistEntry(SecurityOrigin::createFromString(sourceOrigin).get(), destinationProtocol, destinationHost, allowDestinationSubdomains);
 }
 
-void NetworkConnectionToWebProcess::resetOriginAccessWhitelists()
+void NetworkConnectionToWebProcess::resetOriginAccessAllowLists()
 {
     SecurityPolicy::resetOriginAccessAllowlists();
 }
@@ -1146,6 +1154,11 @@ void NetworkConnectionToWebProcess::checkProcessLocalPortForActivity(const Messa
 void NetworkConnectionToWebProcess::broadcastConsoleMessage(JSC::MessageSource source, JSC::MessageLevel level, const String& message)
 {
     connection().send(Messages::NetworkProcessConnection::BroadcastConsoleMessage(source, level, message), 0);
+}
+
+void NetworkConnectionToWebProcess::setCORSDisablingPatterns(WebCore::PageIdentifier pageIdentifier, Vector<String>&& patterns)
+{
+    networkProcess().setCORSDisablingPatterns(pageIdentifier, WTFMove(patterns));
 }
 
 } // namespace WebKit

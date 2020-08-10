@@ -1116,6 +1116,10 @@ public:
 
     GraphicsContextGLAttributes contextAttributes() const { return m_attrs; }
     void setContextAttributes(const GraphicsContextGLAttributes& attrs) { m_attrs = attrs; }
+    // Concession to Canvas captureStream, which needs to dynamically set
+    // preserveDrawingBuffer to true in order to avoid implicit clears.
+    // Implementations generally do not support toggling this bit arbitrarily.
+    virtual void enablePreserveDrawingBuffer();
 
     // VertexArrayOject calls
     virtual PlatformGLObject createVertexArray() = 0;
@@ -1145,8 +1149,8 @@ public:
 
     virtual void blitFramebuffer(GCGLint srcX0, GCGLint srcY0, GCGLint srcX1, GCGLint srcY1, GCGLint dstX0, GCGLint dstY0, GCGLint dstX1, GCGLint dstY1, GCGLbitfield mask, GCGLenum filter) = 0;
     virtual void framebufferTextureLayer(GCGLenum target, GCGLenum attachment, PlatformGLObject texture, GCGLint level, GCGLint layer) = 0;
-    virtual void invalidateFramebuffer(GCGLenum target, const Vector<GCGLenum>& attachments) = 0;
-    virtual void invalidateSubFramebuffer(GCGLenum target, const Vector<GCGLenum>& attachments, GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height) = 0;
+    virtual void invalidateFramebuffer(GCGLenum target, GCGLsizei numAttachments, const GCGLenum* attachments) = 0;
+    virtual void invalidateSubFramebuffer(GCGLenum target, GCGLsizei numAttachments, const GCGLenum* attachments, GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height) = 0;
     virtual void readBuffer(GCGLenum src) = 0;
 
     // getInternalFormatParameter
@@ -1186,7 +1190,7 @@ public:
 
     virtual void drawRangeElements(GCGLenum mode, GCGLuint start, GCGLuint end, GCGLsizei count, GCGLenum type, GCGLintptr offset) = 0;
 
-    virtual void drawBuffers(const Vector<GCGLenum>& buffers) = 0;
+    virtual void drawBuffers(GCGLsizei n, const GCGLenum* bufs) = 0;
     virtual void clearBufferiv(GCGLenum buffer, GCGLint drawbuffer, const GCGLint* values, GCGLuint srcOffset) = 0;
     virtual void clearBufferuiv(GCGLenum buffer, GCGLint drawbuffer, const GCGLuint* values, GCGLuint srcOffset) = 0;
     virtual void clearBufferfv(GCGLenum buffer, GCGLint drawbuffer, const GCGLfloat* values, GCGLuint srcOffset) = 0;
