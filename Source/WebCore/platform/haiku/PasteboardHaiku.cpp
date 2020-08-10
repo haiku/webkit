@@ -249,12 +249,6 @@ void Pasteboard::read(PasteboardWebContentReader&, WebContentReadingPolicy, WTF:
     notImplemented();
 }
 
-void Pasteboard::read(PasteboardFileReader& reader)
-{
-	notImplemented();
-}
-
-
 
 void Pasteboard::read(PasteboardPlainText& text, WebCore::PlainTextURLReadingPolicy, WTF::Optional<long unsigned int>)
 {
@@ -424,6 +418,12 @@ Vector<String> Pasteboard::typesSafeForBindings(const String&)
 
 void Pasteboard::writeCustomData(const WTF::Vector<PasteboardCustomData>&)
 {
+	notImplemented();
+}
+
+void Pasteboard::read(WebCore::PasteboardFileReader&, WTF::Optional<unsigned long>)
+{
+	notImplemented();
 }
 
 

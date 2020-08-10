@@ -35,12 +35,14 @@ namespace WebCore {
 
 Color::Color(const rgb_color& color)
 {
-    setRGB(makeRGBA(color.red, color.green, color.blue, color.alpha));
+    setSimpleColor(makeSimpleColor(color.red, color.green, color.blue, color.alpha));
 }
 
 Color::operator rgb_color() const
 {
-    return make_color(red(), green(), blue(), alpha());
+    SimpleColor c = toSRGBASimpleColorLossy();
+    return make_color(c.redComponent(), c.greenComponent(), c.blueComponent(),
+        c.alphaComponent());
 }
 
 

@@ -93,7 +93,7 @@ bool PlatformStrategiesHaiku::getRawCookies(const NetworkStorageSession& session
 	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
 	Vector<Cookie>& rawCookies)
 {
-    return session.getRawCookies(firstParty, sameSite, url, frameID, pageID, ShouldAskITP::No, rawCookies);
+    return session.getRawCookies(firstParty, sameSite, url, frameID, pageID, ShouldAskITP::No, ShouldRelaxThirdPartyCookieBlocking::Yes, rawCookies);
 }
 
 void PlatformStrategiesHaiku::deleteCookie(const NetworkStorageSession& session, const URL& url, const String& cookieName)

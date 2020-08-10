@@ -65,7 +65,7 @@ static std::unique_ptr<NetworkStorageSession>& defaultSession()
 void NetworkStorageSession::setCookiesFromDOM(const URL& firstParty,
 	const SameSiteInfo& sameSiteInfo, const URL& url,
 	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
-	ShouldAskITP, const String& value) const
+	ShouldAskITP, const String& value, ShouldRelaxThirdPartyCookieBlocking) const
 {
 	BNetworkCookie* heapCookie
 		= new BNetworkCookie(value, BUrl(url));
@@ -86,7 +86,8 @@ HTTPCookieAcceptPolicy NetworkStorageSession::cookieAcceptPolicy() const
 std::pair<String, bool> NetworkStorageSession::cookiesForDOM(const URL& firstParty,
 	const SameSiteInfo& sameSiteInfo, const URL& url,
 	WTF::Optional<FrameIdentifier> frameID, WTF::Optional<PageIdentifier> pageID,
-	IncludeSecureCookies includeSecureCookies, ShouldAskITP) const
+	IncludeSecureCookies includeSecureCookies, ShouldAskITP,
+	ShouldRelaxThirdPartyCookieBlocking) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: Request for %s\n", url.string().utf8().data());
@@ -177,7 +178,7 @@ Vector<Cookie> NetworkStorageSession::getCookies(const URL&)
 
 bool NetworkStorageSession::getRawCookies(const URL& firstParty,
 	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
-	WTF::Optional<PageIdentifier> pageID, ShouldAskITP, Vector<Cookie>& rawCookies) const
+	WTF::Optional<PageIdentifier> pageID, ShouldAskITP, ShouldRelaxThirdPartyCookieBlocking, Vector<Cookie>& rawCookies) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: get raw cookies for %s (NOT IMPLEMENTED)\n", url.string().utf8().data());
@@ -195,7 +196,8 @@ void NetworkStorageSession::flushCookieStore()
 
 std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const URL& firstParty,
 	const SameSiteInfo& sameSiteInfo, const URL& url, WTF::Optional<FrameIdentifier> frameID,
-	WTF::Optional<PageIdentifier> pageID, IncludeSecureCookies includeSecureCookies, ShouldAskITP) const
+	WTF::Optional<PageIdentifier> pageID, IncludeSecureCookies includeSecureCookies, ShouldAskITP,
+	ShouldRelaxThirdPartyCookieBlocking) const
 {
 #if TRACE_COOKIE_JAR
 	printf("CookieJar: RequestHeaderField for %s\n", url.string().utf8().data());
@@ -224,9 +226,14 @@ std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(con
     return {result, secure};
 }
 
-std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(const CookieRequestHeaderFieldProxy& headerFieldProxy) const
+std::pair<String, bool> NetworkStorageSession::cookieRequestHeaderFieldValue(
+    const CookieRequestHeaderFieldProxy& headerFieldProxy) const
 {
-    return cookieRequestHeaderFieldValue(headerFieldProxy.firstParty, headerFieldProxy.sameSiteInfo, headerFieldProxy.url, headerFieldProxy.frameID, headerFieldProxy.pageID, headerFieldProxy.includeSecureCookies, ShouldAskITP::Yes);
+    return cookieRequestHeaderFieldValue(headerFieldProxy.firstParty,
+        headerFieldProxy.sameSiteInfo, headerFieldProxy.url,
+        headerFieldProxy.frameID, headerFieldProxy.pageID,
+        headerFieldProxy.includeSecureCookies, ShouldAskITP::Yes,
+        ShouldRelaxThirdPartyCookieBlocking::No);
 }
 
 BUrlContext& NetworkStorageSession::platformSession() const

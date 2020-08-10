@@ -34,7 +34,7 @@ namespace WebCore {
 
 NativeImagePtr ImageBackingStore::image() const
 {
-    int bytesPerRow = size().width() * sizeof(RGBA32);
+    int bytesPerRow = size().width() * sizeof(rgb_color);
     RefPtr<BitmapRef> bitmap = adoptRef(new BitmapRef(BRect(0, 0, size().width() - 1, size().height() - 1), 0, B_RGBA32, bytesPerRow));
     if (!bitmap || !bitmap->IsValid() || !m_pixelsPtr) {
         return nullptr;
