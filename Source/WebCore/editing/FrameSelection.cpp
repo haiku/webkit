@@ -55,6 +55,7 @@
 #include "InlineTextBox.h"
 #include "Logging.h"
 #include "Page.h"
+#include "Range.h"
 #include "RenderLayer.h"
 #include "RenderText.h"
 #include "RenderTextControl.h"
@@ -2673,10 +2674,8 @@ Optional<SimpleRange> FrameSelection::rangeByExtendingCurrentSelection(int amoun
 
 void FrameSelection::selectRangeOnElement(unsigned location, unsigned length, Node& node)
 {
-    RefPtr<Range> resultRange = m_document->createRange();
-    resultRange->setStart(node, location);
-    resultRange->setEnd(node, location + length);
-    VisibleSelection selection = VisibleSelection(*resultRange, SEL_DEFAULT_AFFINITY);
+    auto selection = VisibleSelection { SimpleRange { { node, location }, { node, location + length } } };
+
     // FIXME: The second argument was "true" which implicitly converted to option "FireSelectEvent". Is this correct?
     setSelection(selection, { FireSelectEvent });
 }

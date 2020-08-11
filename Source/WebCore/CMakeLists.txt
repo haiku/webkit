@@ -450,8 +450,10 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/streams/WritableStream.idl
 
     Modules/webaudio/AnalyserNode.idl
+    Modules/webaudio/AnalyserOptions.idl
     Modules/webaudio/AudioBuffer.idl
     Modules/webaudio/AudioBufferCallback.idl
+    Modules/webaudio/AudioBufferOptions.idl
     Modules/webaudio/AudioBufferSourceNode.idl
     Modules/webaudio/AudioContext.idl
     Modules/webaudio/AudioContextLatencyCategory.idl
@@ -474,6 +476,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/ChannelSplitterOptions.idl
     Modules/webaudio/ConvolverNode.idl
     Modules/webaudio/DelayNode.idl
+    Modules/webaudio/DelayOptions.idl
     Modules/webaudio/DistanceModelType.idl
     Modules/webaudio/DynamicsCompressorNode.idl
     Modules/webaudio/GainNode.idl
@@ -481,11 +484,13 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/MediaStreamAudioDestinationNode.idl
     Modules/webaudio/MediaStreamAudioSourceNode.idl
     Modules/webaudio/OfflineAudioCompletionEvent.idl
+    Modules/webaudio/OfflineAudioCompletionEventInit.idl
     Modules/webaudio/OfflineAudioContext.idl
     Modules/webaudio/OfflineAudioContextOptions.idl
     Modules/webaudio/OscillatorNode.idl
     Modules/webaudio/OscillatorOptions.idl
     Modules/webaudio/OscillatorType.idl
+    Modules/webaudio/OverSampleType.idl
     Modules/webaudio/PannerNode.idl
     Modules/webaudio/PannerOptions.idl
     Modules/webaudio/PanningModelType.idl
@@ -494,6 +499,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/PeriodicWaveOptions.idl
     Modules/webaudio/ScriptProcessorNode.idl
     Modules/webaudio/WaveShaperNode.idl
+    Modules/webaudio/WaveShaperOptions.idl
     Modules/webaudio/WebKitAudioContext.idl
     Modules/webaudio/WebKitAudioPannerNode.idl
     Modules/webaudio/WebKitOfflineAudioContext.idl

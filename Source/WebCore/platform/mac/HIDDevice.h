@@ -50,6 +50,7 @@ public:
 
     uint16_t vendorID() const { return m_vendorID; }
     uint16_t productID() const { return m_productID; }
+    uint32_t fullProductIdentifier() const { return m_vendorID << 16 | m_productID; }
     const String& productName() const { return m_productName; }
 
 private:

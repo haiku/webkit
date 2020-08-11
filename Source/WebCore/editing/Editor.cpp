@@ -714,8 +714,8 @@ void Editor::replaceSelectionWithFragment(DocumentFragment& fragment, SelectRepl
     if (!nodeToCheck)
         return;
 
-    auto rangeToCheck = Range::create(document(), firstPositionInNode(nodeToCheck), lastPositionInNode(nodeToCheck));
-    if (auto request = SpellCheckRequest::create(resolveTextCheckingTypeMask(*nodeToCheck, { TextCheckingType::Spelling, TextCheckingType::Grammar }), TextCheckingProcessBatch, rangeToCheck.copyRef(), rangeToCheck.copyRef(), rangeToCheck.copyRef()))
+    auto rangeToCheck = makeRangeSelectingNodeContents(*nodeToCheck);
+    if (auto request = SpellCheckRequest::create(resolveTextCheckingTypeMask(*nodeToCheck, { TextCheckingType::Spelling, TextCheckingType::Grammar }), TextCheckingProcessBatch, rangeToCheck, rangeToCheck, rangeToCheck))
         m_spellChecker->requestCheckingFor(request.releaseNonNull());
 }
 
@@ -1431,7 +1431,7 @@ void Editor::performCutOrCopy(EditorActionSpecifier action)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Delete after <http://webkit.org/b/177618> lands.
-            Pasteboard::createForCopyAndPaste()->writeSelection(createLiveRange(*selection).get(), canSmartCopyOrDelete(), *m_document.frame(), IncludeImageAltTextForDataTransfer);
+            Pasteboard::createForCopyAndPaste()->writeSelection(*selection, canSmartCopyOrDelete(), *m_document.frame(), IncludeImageAltTextForDataTransfer);
 #endif
         }
     }
@@ -2677,7 +2677,7 @@ void Editor::markAllMisspellingsAndBadGrammarInRanges(OptionSet<TextCheckingType
         return;
 
     auto& rangeToCheck = shouldMarkGrammar ? *grammarRange : *spellingRange;
-    TextCheckingParagraph paragraphToCheck(createLiveRange(rangeToCheck));
+    TextCheckingParagraph paragraphToCheck(rangeToCheck);
     if (paragraphToCheck.isEmpty())
         return;
 
@@ -2723,7 +2723,7 @@ static bool isAutomaticTextReplacementType(TextCheckingType type)
 
 void Editor::replaceRangeForSpellChecking(const SimpleRange& rangeToReplace, const String& replacement)
 {
-    SpellingCorrectionCommand::create(createLiveRange(rangeToReplace), replacement)->apply();
+    SpellingCorrectionCommand::create(rangeToReplace, replacement)->apply();
 }
 
 static void correctSpellcheckingPreservingTextCheckingParagraph(TextCheckingParagraph& paragraph, const SimpleRange& rangeToReplace, const String& replacement, CharacterRange resultCharacterRange)
@@ -2731,7 +2731,7 @@ static void correctSpellcheckingPreservingTextCheckingParagraph(TextCheckingPara
     auto scopeNode = makeRef(downcast<ContainerNode>(paragraph.paragraphRange().startContainer().rootNode()));
     auto paragraphCharacterRange = characterRange(makeBoundaryPointBeforeNodeContents(scopeNode), paragraph.paragraphRange());
 
-    SpellingCorrectionCommand::create(createLiveRange(rangeToReplace), replacement)->apply();
+    SpellingCorrectionCommand::create(rangeToReplace, replacement)->apply();
 
     // TextCheckingParagraph may be orphaned after SpellingCorrectionCommand mutated DOM.
     // See <rdar://10305315>, http://webkit.org/b/89526.
@@ -2921,7 +2921,7 @@ void Editor::changeBackToReplacedString(const String& replacedString)
         return;
     
     m_alternativeTextController->recordAutocorrectionResponse(AutocorrectionResponse::Reverted, replacedString, *selection);
-    TextCheckingParagraph paragraph(createLiveRange(*selection));
+    TextCheckingParagraph paragraph(*selection);
     replaceSelectionWithText(replacedString, SelectReplacement::No, SmartReplace::No, EditAction::Insert);
     auto changedRange = paragraph.subrange(CharacterRange(paragraph.checkingStart(), replacedString.length()));
     addMarker(changedRange, DocumentMarker::Replacement, String());
@@ -3030,7 +3030,7 @@ void Editor::updateMarkersForWordsAffectedByEditing(bool doNotRemoveIfSelectionA
     // garde", we will have CorrectionIndicator marker on both words and on the whitespace between them. If we then edit garde,
     // we would like to remove the marker from word "avant" and whitespace as well. So we need to get the continous range of
     // of marker that contains the word in question, and remove marker on that whole range.
-    auto wordRange = Range::create(document(), startOfFirstWord.deepEquivalent(), endOfLastWord.deepEquivalent());
+    auto wordRange = *makeSimpleRange(startOfFirstWord, endOfLastWord);
 
     for (auto* marker : document().markers().markersInRange(wordRange, DocumentMarker::DictationAlternatives))
         m_alternativeTextController->removeDictationAlternativesForMarker(*marker);
@@ -3143,7 +3143,7 @@ void Editor::transpose()
     previous = previous.previous();
     if (!inSameParagraph(next, previous))
         return;
-    RefPtr<Range> range = makeRange(previous, next);
+    auto range = makeSimpleRange(previous, next);
     if (!range)
         return;
     VisibleSelection newSelection(*range, DOWNSTREAM);
@@ -3526,7 +3526,7 @@ Optional<SimpleRange> Editor::rangeOfString(const String& target, const Optional
     // If we didn't find anything and we're wrapping, search again in the entire document (this will
     // redundantly re-search the area already searched in some cases).
     if (resultRange.collapsed() && options.contains(WrapAround)) {
-        resultRange = collapseIfRootsDiffer(findPlainText(rangeOfContents(document()), target, options));
+        resultRange = collapseIfRootsDiffer(findPlainText(makeRangeSelectingNodeContents(document()), target, options));
         // We used to return false here if we ended up with the same range that we started with
         // (e.g., the reference range was already the only instance of this text). But we decided that
         // this should be a success case instead, so we'll just fall through in that case.
@@ -3577,7 +3577,7 @@ unsigned Editor::countMatchesForText(const String& target, const Optional<Simple
 
         ++matchCount;
         if (matches)
-            matches->append(createLiveRange(resultRange));
+            matches->append(resultRange);
 
         if (markMatches)
             addMarker(resultRange, DocumentMarker::TextMatch);
@@ -4188,8 +4188,8 @@ void Editor::handleAcceptedCandidate(TextCheckingResult acceptedCandidate)
     m_isHandlingAcceptedCandidate = true;
 
     if (auto range = rangeForTextCheckingResult(acceptedCandidate)) {
-        if (shouldInsertText(acceptedCandidate.replacement, range, EditorInsertAction::Typed))
-            ReplaceRangeWithTextCommand::create(createLiveRange(range), acceptedCandidate.replacement)->apply();
+        if (shouldInsertText(acceptedCandidate.replacement, *range, EditorInsertAction::Typed))
+            ReplaceRangeWithTextCommand::create(*range, acceptedCandidate.replacement)->apply();
     } else
         insertText(acceptedCandidate.replacement, nullptr);
 

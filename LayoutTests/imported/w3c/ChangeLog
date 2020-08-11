@@ -1,3 +1,83 @@
+2020-08-03  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor to DelayNode
+        https://bugs.webkit.org/show_bug.cgi?id=215083
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/ctor-delay-expected.txt:
+
+2020-08-03  Clark Wang  <clark_wang@apple.com>
+
+        Added AudioBuffer Constructor
+        https://bugs.webkit.org/show_bug.cgi?id=214990
+
+        Reviewed by Chris Dumez.
+
+        Re-baselined existing tests. Some now fail due to unsupported sampleRate.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/ctor-audiobuffer-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-channels-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-1-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-2-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-setBuffer-already-has-value-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+
+2020-08-03  Kenneth Russell  <kbr@chromium.org>
+
+        [WebGL2] webgl/2.0.0/conformance[2]/textures/image_bitmap* failures
+        https://bugs.webkit.org/show_bug.cgi?id=211484
+
+        Reviewed by Dean Jackson.
+
+        Rebaseline a test which is now passing.
+
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-flipY-expected.txt:
+
+2020-08-03  Clark Wang  <clark_wang@apple.com>
+
+        Added Constructor to AnalyserNode
+        https://bugs.webkit.org/show_bug.cgi?id=215040
+
+        Reviewed by Chris Dumez.
+
+        Re-baselined existing tests.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/ctor-analyser-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/realtimeanalyser-fft-sizing-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analysernode-expected.txt:
+
+2020-07-31  Chris Dumez  <cdumez@apple.com>
+
+        Add OfflineAudioCompletionEvent constructor
+        https://bugs.webkit.org/show_bug.cgi?id=214994
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+
+2020-07-31  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor for WaveShaperNode
+        https://bugs.webkit.org/show_bug.cgi?id=214989
+
+        Reviewed by Youenn Fablet.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/ctor-waveshaper-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-simple-expected.txt:
+
 2020-07-30  Chris Dumez  <cdumez@apple.com>
 
         OfflineAudioContext.startRendering() should return a Promise

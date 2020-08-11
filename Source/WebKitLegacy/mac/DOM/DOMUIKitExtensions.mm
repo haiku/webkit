@@ -61,6 +61,7 @@
 #import <WebCore/RenderText.h>
 #import <WebCore/RoundedRect.h>
 #import <WebCore/SharedBuffer.h>
+#import <WebCore/SimpleRange.h>
 #import <WebCore/VisiblePosition.h>
 #import <WebCore/VisibleUnits.h>
 #import <WebCore/WAKAppKitStubs.h>
@@ -210,22 +211,8 @@ using WebCore::VisiblePosition;
 
 - (DOMRange *)rangeOfContainingParagraph
 {
-    DOMRange *result = nil;
-    
-    Node *node = core(self);    
-    VisiblePosition visiblePosition(createLegacyEditingPosition(node, 0), WebCore::DOWNSTREAM);
-    VisiblePosition visibleParagraphStart = startOfParagraph(visiblePosition);
-    VisiblePosition visibleParagraphEnd = endOfParagraph(visiblePosition);
-    
-    Position paragraphStart = visibleParagraphStart.deepEquivalent().parentAnchoredEquivalent();
-    Position paragraphEnd = visibleParagraphEnd.deepEquivalent().parentAnchoredEquivalent();    
-    
-    if (paragraphStart.isNotNull() && paragraphEnd.isNotNull()) {
-        Ref<Range> range = Range::create(*node->ownerDocument(), paragraphStart, paragraphEnd);
-        result = kit(range.ptr());
-    }
-    
-    return result;
+    VisiblePosition position(createLegacyEditingPosition(core(self), 0), WebCore::DOWNSTREAM);
+    return kit(makeSimpleRange(startOfParagraph(position), endOfParagraph(position)));
 }
 
 - (CGFloat)textHeight

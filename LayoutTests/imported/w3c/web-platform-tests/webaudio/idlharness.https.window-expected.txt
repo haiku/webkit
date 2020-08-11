@@ -1,5 +1,5 @@
 
-FAIL idl_test setup promise_test: Unhandled rejection with value: object "TypeError: function is not a constructor (evaluating 'new AudioBuffer({length: 1, sampleRate: sample_rate})')"
+FAIL idl_test setup promise_test: Unhandled rejection with value: object "TypeError: undefined is not an object (evaluating 'context.audioWorklet.addModule')"
 PASS idl_test validation 
 PASS HTMLElement includes GlobalEventHandlers: member names are unique 
 PASS HTMLElement includes DocumentAndElementEventHandlers: member names are unique 
@@ -160,17 +160,17 @@ PASS BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must
 PASS BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?)" with the proper type 
 FAIL BaseAudioContext interface: calling decodeAudioData(ArrayBuffer, optional DecodeSuccessCallback?, optional DecodeErrorCallback?) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError assert_unreached: Throws "TypeError: Not enough arguments" instead of rejecting promise Reached unreachable code
 PASS OfflineAudioCompletionEvent interface: existence and properties of interface object 
-FAIL OfflineAudioCompletionEvent interface object length assert_equals: wrong value for OfflineAudioCompletionEvent.length expected 2 but got 0
+PASS OfflineAudioCompletionEvent interface object length 
 PASS OfflineAudioCompletionEvent interface object name 
 PASS OfflineAudioCompletionEvent interface: existence and properties of interface prototype object 
 PASS OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's "constructor" property 
 PASS OfflineAudioCompletionEvent interface: existence and properties of interface prototype object's @@unscopables property 
 PASS OfflineAudioCompletionEvent interface: attribute renderedBuffer 
-FAIL OfflineAudioCompletionEvent must be primary interface of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL Stringification of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL OfflineAudioCompletionEvent interface: new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) must inherit property "renderedBuffer" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+PASS OfflineAudioCompletionEvent must be primary interface of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) 
+PASS Stringification of new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) 
+PASS OfflineAudioCompletionEvent interface: new OfflineAudioCompletionEvent("", {renderedBuffer: buffer}) must inherit property "renderedBuffer" with the proper type 
 PASS AudioBuffer interface: existence and properties of interface object 
-FAIL AudioBuffer interface object length assert_equals: wrong value for AudioBuffer.length expected 1 but got 0
+PASS AudioBuffer interface object length 
 PASS AudioBuffer interface object name 
 PASS AudioBuffer interface: existence and properties of interface prototype object 
 PASS AudioBuffer interface: existence and properties of interface prototype object's "constructor" property 
@@ -182,18 +182,18 @@ PASS AudioBuffer interface: attribute numberOfChannels
 PASS AudioBuffer interface: operation getChannelData(unsigned long) 
 PASS AudioBuffer interface: operation copyFromChannel(Float32Array, unsigned long, optional unsigned long) 
 PASS AudioBuffer interface: operation copyToChannel(Float32Array, unsigned long, optional unsigned long) 
-FAIL AudioBuffer must be primary interface of buffer assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL Stringification of buffer assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "sampleRate" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "length" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "duration" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "numberOfChannels" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "getChannelData(unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: calling getChannelData(unsigned long) on buffer with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "copyFromChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: calling copyFromChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: buffer must inherit property "copyToChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
-FAIL AudioBuffer interface: calling copyToChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+PASS AudioBuffer must be primary interface of buffer 
+PASS Stringification of buffer 
+PASS AudioBuffer interface: buffer must inherit property "sampleRate" with the proper type 
+PASS AudioBuffer interface: buffer must inherit property "length" with the proper type 
+PASS AudioBuffer interface: buffer must inherit property "duration" with the proper type 
+PASS AudioBuffer interface: buffer must inherit property "numberOfChannels" with the proper type 
+PASS AudioBuffer interface: buffer must inherit property "getChannelData(unsigned long)" with the proper type 
+PASS AudioBuffer interface: calling getChannelData(unsigned long) on buffer with too few arguments must throw TypeError 
+PASS AudioBuffer interface: buffer must inherit property "copyFromChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type 
+PASS AudioBuffer interface: calling copyFromChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError 
+PASS AudioBuffer interface: buffer must inherit property "copyToChannel(Float32Array, unsigned long, optional unsigned long)" with the proper type 
+PASS AudioBuffer interface: calling copyToChannel(Float32Array, unsigned long, optional unsigned long) on buffer with too few arguments must throw TypeError 
 PASS AudioNode interface: existence and properties of interface object 
 PASS AudioNode interface object length 
 PASS AudioNode interface object name 
@@ -264,7 +264,7 @@ PASS AudioScheduledSourceNode interface: attribute onended
 PASS AudioScheduledSourceNode interface: operation start(optional double) 
 PASS AudioScheduledSourceNode interface: operation stop(optional double) 
 PASS AnalyserNode interface: existence and properties of interface object 
-FAIL AnalyserNode interface object length assert_equals: wrong value for AnalyserNode.length expected 1 but got 0
+PASS AnalyserNode interface object length 
 PASS AnalyserNode interface object name 
 PASS AnalyserNode interface: existence and properties of interface prototype object 
 PASS AnalyserNode interface: existence and properties of interface prototype object's "constructor" property 
@@ -278,44 +278,44 @@ PASS AnalyserNode interface: attribute frequencyBinCount
 PASS AnalyserNode interface: attribute minDecibels 
 PASS AnalyserNode interface: attribute maxDecibels 
 PASS AnalyserNode interface: attribute smoothingTimeConstant 
-FAIL AnalyserNode must be primary interface of new AnalyserNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL Stringification of new AnalyserNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatFrequencyData(Float32Array)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: calling getFloatFrequencyData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteFrequencyData(Uint8Array)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: calling getByteFrequencyData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatTimeDomainData(Float32Array)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: calling getFloatTimeDomainData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteTimeDomainData(Uint8Array)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: calling getByteTimeDomainData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "fftSize" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "frequencyBinCount" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "minDecibels" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "maxDecibels" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AnalyserNode interface: new AnalyserNode(context) must inherit property "smoothingTimeConstant" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling connect(AudioParam, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect()" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "context" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "numberOfInputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "numberOfOutputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "channelCount" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "channelCountMode" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
-FAIL AudioNode interface: new AnalyserNode(context) must inherit property "channelInterpretation" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AnalyserNode(context)')"
+PASS AnalyserNode must be primary interface of new AnalyserNode(context) 
+PASS Stringification of new AnalyserNode(context) 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatFrequencyData(Float32Array)" with the proper type 
+PASS AnalyserNode interface: calling getFloatFrequencyData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteFrequencyData(Uint8Array)" with the proper type 
+PASS AnalyserNode interface: calling getByteFrequencyData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "getFloatTimeDomainData(Float32Array)" with the proper type 
+PASS AnalyserNode interface: calling getFloatTimeDomainData(Float32Array) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "getByteTimeDomainData(Uint8Array)" with the proper type 
+PASS AnalyserNode interface: calling getByteTimeDomainData(Uint8Array) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "fftSize" with the proper type 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "frequencyBinCount" with the proper type 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "minDecibels" with the proper type 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "maxDecibels" with the proper type 
+PASS AnalyserNode interface: new AnalyserNode(context) must inherit property "smoothingTimeConstant" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioParam, optional unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect()" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam, unsigned long) on new AnalyserNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "context" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "numberOfInputs" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "numberOfOutputs" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "channelCount" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "channelCountMode" with the proper type 
+PASS AudioNode interface: new AnalyserNode(context) must inherit property "channelInterpretation" with the proper type 
 PASS AudioBufferSourceNode interface: existence and properties of interface object 
 FAIL AudioBufferSourceNode interface object length assert_equals: wrong value for AudioBufferSourceNode.length expected 1 but got 0
 PASS AudioBufferSourceNode interface object name 
@@ -443,19 +443,29 @@ PASS AudioProcessingEvent interface: attribute inputBuffer
 PASS AudioProcessingEvent interface: attribute outputBuffer 
 FAIL AudioProcessingEvent must be primary interface of new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
-      }) assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+      }) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })')"
 FAIL Stringification of new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
-      }) assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+      }) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })')"
 FAIL AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
-      }) must inherit property "playbackTime" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+      }) must inherit property "playbackTime" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })')"
 FAIL AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
-      }) must inherit property "inputBuffer" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+      }) must inherit property "inputBuffer" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })')"
 FAIL AudioProcessingEvent interface: new AudioProcessingEvent('', {
         playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
-      }) must inherit property "outputBuffer" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: buffer"
+      }) must inherit property "outputBuffer" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new AudioProcessingEvent('', {
+        playbackTime: 0, inputBuffer: buffer, outputBuffer: buffer
+      })')"
 PASS BiquadFilterNode interface: existence and properties of interface object 
 FAIL BiquadFilterNode interface object length assert_equals: wrong value for BiquadFilterNode.length expected 1 but got 0
 PASS BiquadFilterNode interface object name 
@@ -636,38 +646,38 @@ FAIL AudioNode interface: new ConvolverNode(context) must inherit property "chan
 FAIL AudioNode interface: new ConvolverNode(context) must inherit property "channelCountMode" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new ConvolverNode(context)')"
 FAIL AudioNode interface: new ConvolverNode(context) must inherit property "channelInterpretation" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new ConvolverNode(context)')"
 PASS DelayNode interface: existence and properties of interface object 
-FAIL DelayNode interface object length assert_equals: wrong value for DelayNode.length expected 1 but got 0
+PASS DelayNode interface object length 
 PASS DelayNode interface object name 
 PASS DelayNode interface: existence and properties of interface prototype object 
 PASS DelayNode interface: existence and properties of interface prototype object's "constructor" property 
 PASS DelayNode interface: existence and properties of interface prototype object's @@unscopables property 
 PASS DelayNode interface: attribute delayTime 
-FAIL DelayNode must be primary interface of new DelayNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL Stringification of new DelayNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL DelayNode interface: new DelayNode(context) must inherit property "delayTime" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling connect(AudioParam, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect()" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "context" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "numberOfInputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "numberOfOutputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "channelCount" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "channelCountMode" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
-FAIL AudioNode interface: new DelayNode(context) must inherit property "channelInterpretation" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new DelayNode(context)')"
+PASS DelayNode must be primary interface of new DelayNode(context) 
+PASS Stringification of new DelayNode(context) 
+PASS DelayNode interface: new DelayNode(context) must inherit property "delayTime" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioParam, optional unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect()" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam, unsigned long) on new DelayNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new DelayNode(context) must inherit property "context" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "numberOfInputs" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "numberOfOutputs" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "channelCount" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "channelCountMode" with the proper type 
+PASS AudioNode interface: new DelayNode(context) must inherit property "channelInterpretation" with the proper type 
 PASS DynamicsCompressorNode interface: existence and properties of interface object 
 FAIL DynamicsCompressorNode interface object length assert_equals: wrong value for DynamicsCompressorNode.length expected 1 but got 0
 PASS DynamicsCompressorNode interface object name 
@@ -1044,40 +1054,40 @@ FAIL AudioNode interface: new StereoPannerNode(context) must inherit property "c
 FAIL AudioNode interface: new StereoPannerNode(context) must inherit property "channelCountMode" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: StereoPannerNode"
 FAIL AudioNode interface: new StereoPannerNode(context) must inherit property "channelInterpretation" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "ReferenceError: Can't find variable: StereoPannerNode"
 PASS WaveShaperNode interface: existence and properties of interface object 
-FAIL WaveShaperNode interface object length assert_equals: wrong value for WaveShaperNode.length expected 1 but got 0
+PASS WaveShaperNode interface object length 
 PASS WaveShaperNode interface object name 
 PASS WaveShaperNode interface: existence and properties of interface prototype object 
 PASS WaveShaperNode interface: existence and properties of interface prototype object's "constructor" property 
 PASS WaveShaperNode interface: existence and properties of interface prototype object's @@unscopables property 
 PASS WaveShaperNode interface: attribute curve 
 PASS WaveShaperNode interface: attribute oversample 
-FAIL WaveShaperNode must be primary interface of new WaveShaperNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL Stringification of new WaveShaperNode(context) assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL WaveShaperNode interface: new WaveShaperNode(context) must inherit property "curve" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL WaveShaperNode interface: new WaveShaperNode(context) must inherit property "oversample" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling connect(AudioParam, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect()" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: calling disconnect(AudioParam, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "context" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfInputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfOutputs" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "channelCount" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "channelCountMode" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
-FAIL AudioNode interface: new WaveShaperNode(context) must inherit property "channelInterpretation" with the proper type assert_equals: Unexpected exception when evaluating object expected null but got object "TypeError: function is not a constructor (evaluating 'new WaveShaperNode(context)')"
+PASS WaveShaperNode must be primary interface of new WaveShaperNode(context) 
+PASS Stringification of new WaveShaperNode(context) 
+PASS WaveShaperNode interface: new WaveShaperNode(context) must inherit property "curve" with the proper type 
+PASS WaveShaperNode interface: new WaveShaperNode(context) must inherit property "oversample" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type 
+PASS AudioNode interface: calling connect(AudioParam, optional unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect()" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type 
+PASS AudioNode interface: calling disconnect(AudioParam, unsigned long) on new WaveShaperNode(context) with too few arguments must throw TypeError 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "context" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfInputs" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "numberOfOutputs" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "channelCount" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "channelCountMode" with the proper type 
+PASS AudioNode interface: new WaveShaperNode(context) must inherit property "channelInterpretation" with the proper type 
 FAIL AudioWorklet interface: existence and properties of interface object assert_own_property: self does not have own property "AudioWorklet" expected property "AudioWorklet" missing
 FAIL AudioWorklet interface object length assert_own_property: self does not have own property "AudioWorklet" expected property "AudioWorklet" missing
 FAIL AudioWorklet interface object name assert_own_property: self does not have own property "AudioWorklet" expected property "AudioWorklet" missing

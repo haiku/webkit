@@ -28,6 +28,8 @@
 
 #if PLATFORM(MAC)
 
+#include "Logging.h"
+#include <IOKit/hid/IOHIDElement.h>
 #include <IOKit/hid/IOHIDValue.h>
 
 namespace WebCore {

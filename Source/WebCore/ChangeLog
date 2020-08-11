@@ -1,3 +1,1089 @@
+2020-08-03  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor to DelayNode
+        https://bugs.webkit.org/show_bug.cgi?id=215083
+
+        Reviewed by Eric Carlson.
+
+        Add constructor to DelayNode:
+        - https://www.w3.org/TR/webaudio/#DelayNode
+
+        No new tests, rebaselined existing tests.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::createDelay):
+        * Modules/webaudio/DelayDSPKernel.cpp:
+        (WebCore::DelayDSPKernel::process):
+        * Modules/webaudio/DelayNode.cpp:
+        (WebCore::DelayNode::DelayNode):
+        (WebCore::DelayNode::create):
+        (WebCore::DelayNode::delayTime):
+        * Modules/webaudio/DelayNode.h:
+        * Modules/webaudio/DelayNode.idl:
+        * Modules/webaudio/DelayOptions.h: Copied from Source/WebCore/Modules/webaudio/DelayNode.idl.
+        * Modules/webaudio/DelayOptions.idl: Copied from Source/WebCore/Modules/webaudio/DelayNode.idl.
+        * Modules/webaudio/DelayProcessor.cpp:
+        (WebCore::DelayProcessor::DelayProcessor):
+        * Modules/webaudio/DelayProcessor.h:
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-08-03  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Make WidthIterator::advance() return void
+        https://bugs.webkit.org/show_bug.cgi?id=215053
+
+        Reviewed by Darin Adler.
+
+        This is in preparation for https://bugs.webkit.org/show_bug.cgi?id=214769
+        and https://bugs.webkit.org/show_bug.cgi?id=206208.
+
+        This is a small simplification in the fast text codepath. It used to return
+        how many characters were consumed. However, this information is already
+        exposed by just calling currentCharacter() on the width iterator before and
+        after calling advance().
+
+        No new tests because there is no behavior change.
+
+        * platform/graphics/FontCascade.cpp:
+        (WebCore::FontCascade::drawText const):
+        (WebCore::FontCascade::displayListForTextRun const):
+        (WebCore::FontCascade::layoutSimpleText const):
+        (WebCore::FontCascade::adjustSelectionRectForSimpleText const):
+        * platform/graphics/WidthIterator.cpp:
+        (WebCore::WidthIterator::advanceInternal):
+        (WebCore::WidthIterator::advance):
+        * platform/graphics/WidthIterator.h:
+        * rendering/svg/SVGTextMetricsBuilder.cpp:
+        (WebCore::SVGTextMetricsBuilder::advanceSimpleText):
+
+2020-08-03  Youenn Fablet  <youenn@apple.com>
+
+        MediaRecorderPrivateWriter should ensure its writer input is ready for more data before appending new samples
+        https://bugs.webkit.org/show_bug.cgi?id=215081
+
+        Reviewed by Eric Carlson.
+
+        After r265192, we were checking whether the writer input was ready.
+        If so, we were pushing pending samples and then the new sample.
+        The issue is that pushing pending samples might make the writer input no longer ready.
+        Update the code to enqueue the sample if its writer input is not ready.
+        Add an ASSERT in appendCompressedVideoSampleBuffer to make sure this is the case.
+
+        Also make sure that we only enqueue the end of segment sample if video writer input is ready.
+
+        Make sure flushCompressedSampleBuffers is called directly by stopRecording only if not already flushing samples.
+        If we are not flushing, we proceed with the stop steps.
+        If not, we wait for the end of flushCompressedSampleBuffers to proceed with the stop steps.
+
+        * platform/mediarecorder/cocoa/MediaRecorderPrivateWriterCocoa.h:
+        * platform/mediarecorder/cocoa/MediaRecorderPrivateWriterCocoa.mm:
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedAudioSampleBufferIfPossible):
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedVideoSampleBufferIfPossible):
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedVideoSampleBuffer):
+        (WebCore::MediaRecorderPrivateWriter::flushCompressedSampleBuffers):
+        (WebCore::MediaRecorderPrivateWriter::stopRecording):
+        (WebCore::MediaRecorderPrivateWriter::finishedFlushingSamples):
+        (WebCore::MediaRecorderPrivateWriter::doStopRecording):
+
+2020-08-03  Clark Wang  <clark_wang@apple.com>
+
+        Added AudioBuffer Constructor
+        https://bugs.webkit.org/show_bug.cgi?id=214990
+
+        Reviewed by Chris Dumez.
+
+        Added AudioBuffer constructor according to spec: https://www.w3.org/TR/webaudio/#AudioBuffer-constructors.
+        Added in AudioBufferOptions files. Updated BaseAudioContext::createBuffer to use new constructor.
+
+        Re-baselined existing tests. Some fail now due to unsupported sampleRate.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/AudioBuffer.cpp:
+        (WebCore::AudioBuffer::create):
+        (WebCore::AudioBuffer::AudioBuffer):
+        * Modules/webaudio/AudioBuffer.h:
+        * Modules/webaudio/AudioBuffer.idl:
+        * Modules/webaudio/AudioBufferOptions.h: Added.
+        * Modules/webaudio/AudioBufferOptions.idl: Added.
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::createBuffer):
+        * Modules/webaudio/BaseAudioContext.h:
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-08-03  Kenneth Russell  <kbr@chromium.org>
+
+        [WebGL2] webgl/2.0.0/conformance[2]/textures/image_bitmap* failures
+        https://bugs.webkit.org/show_bug.cgi?id=211484
+
+        Reviewed by Dean Jackson.
+
+        Implement ImageBitmapOptions' ImageOrientation and
+        PremultiplyAlpha settings.
+
+        ImageOrientation="flipY" is supported directly while constructing
+        ImageBitmap's representation, ImageBuffer.
+
+        PremultiplyAlpha="premultiply" can not be supported via
+        ImageBuffer's graphics operations, so this attribute is stored on
+        ImageBitmap, serialized and deserialized when ImageBitmap is
+        transferred, and handled in the WebGL implementation.
+
+        * bindings/js/SerializedScriptValue.cpp:
+        (WebCore::CloneSerializer::dumpImageBitmap):
+        (WebCore::CloneDeserializer::deserialize):
+        (WebCore::CloneDeserializer::CloneDeserializer):
+        (WebCore::CloneDeserializer::readImageBitmap):
+        (WebCore::SerializedScriptValue::SerializedScriptValue):
+        * bindings/js/SerializedScriptValue.h:
+        (WebCore::SerializedScriptValue::SerializedScriptValue):
+        * html/ImageBitmap.cpp:
+        (WebCore::ImageBitmap::create):
+        (WebCore::ImageBitmap::detachBitmaps):
+        (WebCore::imageOrientationForOrientation):
+        (WebCore::ImageBitmap::createPromise):
+        (WebCore::ImageBitmap::createFromBuffer):
+        * html/ImageBitmap.h:
+        * html/OffscreenCanvas.cpp:
+        (WebCore::OffscreenCanvas::transferToImageBitmap):
+        * html/canvas/WebGLRenderingContextBase.cpp:
+        (WebCore::WebGLRenderingContextBase::texImageSourceHelper):
+        * platform/graphics/ImageBuffer.h:
+
+2020-08-03  Brian Burg  <bburg@apple.com>
+
+        [WebDriver] window.print should not invoke native UI
+        https://bugs.webkit.org/show_bug.cgi?id=215084
+
+        Reviewed by Devin Rousso.
+
+        This could be handled at a higher level if there is a valid use case to allow printing,
+        but I'm not aware of one. For now, this fixes a script evaluation hang on Mac and iOS.
+
+        * page/DOMWindow.cpp:
+        (WebCore::DOMWindow::print):
+        Don't call out to print delegates if this is a WebDriver-controlled page.
+
+2020-08-03  Rob Buis  <rbuis@igalia.com>
+
+        Remove unused API in HighlightMap
+        https://bugs.webkit.org/show_bug.cgi?id=215078
+
+        Reviewed by Sam Weinig.
+
+        Remove unused API in HighlightMap, this is probably not needed
+        anymore since the maplike code changed at some point.
+
+        * Modules/highlight/HighlightMap.cpp:
+        (WebCore::HighlightMap::getGroupForKey): Deleted.
+        * Modules/highlight/HighlightMap.h:
+
+2020-08-03  James Darpinian  <jdarpinian@chromium.org>
+
+        [WebGL2] Assert when restoring lost context
+        https://bugs.webkit.org/show_bug.cgi?id=214999
+
+        Reviewed by Darin Adler.
+
+        Remove an assert that was wrong when restoring a lost context.
+
+        * html/canvas/WebGL2RenderingContext.cpp:
+        (WebCore::WebGL2RenderingContext::initializeVertexArrayObjects):
+
+2020-08-03  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Non-unified build fixes, early August 20202 edition
+        https://bugs.webkit.org/show_bug.cgi?id=215082
+
+        Unreviewed build fix.
+
+        No new tests needed.
+
+        * accessibility/AccessibilityRenderObject.cpp: Add missing inclusion of Range.h.
+        * dom/RadioButtonGroups.cpp: Ditto.
+        * editing/Editing.cpp: Ditto.
+        * editing/EditingStyle.cpp: Ditto.
+        * editing/EditorCommand.cpp: Ditto.
+        * editing/FrameSelection.cpp: Ditto.
+        * editing/TypingCommand.cpp: Ditto.
+        * editing/VisiblePosition.cpp: Add missing inclusion of SimpleRange.h.
+        * rendering/HitTestResult.cpp: Add missing inclusion of Range.h.
+
+2020-08-03  Antti Koivisto  <antti@apple.com>
+
+        REGRESSION(r259585) Text decoration color with value currentColor miscomputed in some cases
+        https://bugs.webkit.org/show_bug.cgi?id=215079
+
+        Reviewed by Zalan Bujtas.
+
+        r259585 did some refactoring that broke a special case where text decoration color comes from
+        '-webkit-text-fill-color' property.
+
+        Test: fast/text/text-decoration-currentcolor-fill-color.html
+
+        * rendering/TextDecorationPainter.cpp:
+        (WebCore::TextDecorationPainter::decorationColor):
+
+        Move resolving currentColor to RenderStyle.
+
+        * rendering/style/RenderStyle.cpp:
+        (WebCore::RenderStyle::colorResolvingCurrentColor const):
+
+        Handle CSSPropertyTextDecorationColor as a special case here.
+
+        (WebCore::RenderStyle::visitedDependentColor const):
+
+2020-08-03  Clark Wang  <clark_wang@apple.com>
+
+        Added Constructor to AnalyserNode
+        https://bugs.webkit.org/show_bug.cgi?id=215040
+
+        Reviewed by Chris Dumez.
+
+        Introduced AnalyserNode constructor and AnalyserOptions according to spec:
+        https://www.w3.org/TR/webaudio/#AnalyserNode-constructors.
+
+        Re-baselined existing tests.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/AnalyserNode.cpp:
+        (WebCore::AnalyserNode::create):
+        (WebCore::AnalyserNode::AnalyserNode):
+        (WebCore::AnalyserNode::setFftSize):
+        (WebCore::AnalyserNode::setMinMaxDecibels):
+        (WebCore::AnalyserNode::setMinDecibels):
+        (WebCore::AnalyserNode::setMaxDecibels):
+        * Modules/webaudio/AnalyserNode.h:
+        * Modules/webaudio/AnalyserNode.idl:
+        * Modules/webaudio/AnalyserOptions.h: Added.
+        * Modules/webaudio/AnalyserOptions.idl: Added.
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::createAnalyser):
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-08-03  Youenn Fablet  <youenn@apple.com>
+
+        MediaRecorderPrivateWriter::appendEndOfVideoSampleDurationIfNeeded should only call requestMediaDataWhenReadyOnQueue once
+        https://bugs.webkit.org/show_bug.cgi?id=214972
+
+        Reviewed by Eric Carlson.
+
+        When processing a compressed sample, pass it to the writer if its ready.
+        Otherwise buffer it and retry passing it to the writer next time we have a sample.
+        When finishing a write, we call requestMediaDataWhenReadyOnQueue to finish passing samples that are still enqueued.
+
+        Covered by existing tests no longer triggering ObjC exception.
+
+        * platform/mediarecorder/cocoa/MediaRecorderPrivateWriterCocoa.h:
+        * platform/mediarecorder/cocoa/MediaRecorderPrivateWriterCocoa.mm:
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedAudioSampleBuffer):
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedVideoSampleBufferIfPossible):
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedVideoSampleBuffer):
+        (WebCore::MediaRecorderPrivateWriter::appendCompressedSampleBuffers):
+        (WebCore::MediaRecorderPrivateWriter::finishAppendingCompressedAudioSampleBuffers):
+        (WebCore::MediaRecorderPrivateWriter::finishAppendingCompressedVideoSampleBuffers):
+        (WebCore::MediaRecorderPrivateWriter::flushCompressedSampleBuffers):
+
+2020-08-02  Darin Adler  <darin@apple.com>
+
+        Remove some member functions of Range and many calls to createLiveRange
+        https://bugs.webkit.org/show_bug.cgi?id=215070
+
+        Reviewed by Sam Weinig.
+
+        * accessibility/AXObjectCache.cpp:
+        (WebCore::AXObjectCache::nextBoundary): Remove createLiveRange.
+        (WebCore::AXObjectCache::previousBoundary): Ditto.
+
+        * accessibility/ios/WebAccessibilityObjectWrapperIOS.mm:
+        (-[WebAccessibilityObjectWrapper _convertToNSRange:]): Take SimpleRange.
+        (-[WebAccessibilityObjectWrapper positionForTextMarker:]): Remove createLiveRange.
+        (-[WebAccessibilityObjectWrapper textRectsFromMarkers:withText:]): Ditto.
+
+        * accessibility/mac/WebAccessibilityObjectWrapperMac.mm:
+        (-[WebAccessibilityObjectWrapper _convertToNSRange:]): Take SimpleRange.
+        (-[WebAccessibilityObjectWrapper _indexForTextMarker:]): Remove createLiveRange.
+        (-[WebAccessibilityObjectWrapper _textMarkerForIndex:]): Ditto.
+
+        * dom/DocumentMarkerController.cpp:
+        (WebCore::updateRenderedRectsForMarker): Renamed range to makeSimpleRange.
+        (WebCore::makeSimpleRange): Ditto.
+        * dom/DocumentMarkerController.h: Update for the above.
+
+        * dom/Range.cpp:
+        (WebCore::Range::text const): Use makeSimpleRange.
+        (WebCore::Range::shadowRoot const): Deleted.
+        (WebCore::intervalsSufficientlyOverlap): Deleted.
+        (WebCore::adjustLineHeightOfSelectionRects): Deleted.
+        (WebCore::coalesceSelectionRects): Deleted.
+        (WebCore::Range::collectSelectionRectsWithoutUnionInteriorLines const): Deleted.
+        (WebCore::Range::collectSelectionRects const): Deleted.
+        * dom/Range.h: Update for the above. Also make pastLastNode private since it is
+        only used inside the Range class's implementation.
+
+        * dom/SimpleRange.cpp:
+        (WebCore::SimpleRange::SimpleRange): Removed overload that takes a Range.
+        * dom/SimpleRange.h: Update for the above. Removed both constructor overloads
+        that take a Range.
+
+        * editing/AlternativeTextController.cpp:
+        (WebCore::AlternativeTextController::timerFired): Remove createLiveRange.
+        (WebCore::AlternativeTextController::respondToMarkerAtEndOfWord): Use
+        makeSimpleRange.
+        (WebCore::AlternativeTextController::applyAlternativeTextToRange):
+        Remove createLiveRange.
+
+        * editing/EditingStyle.cpp:
+        (WebCore::EditingStyle::styleAtSelectionStart): Remove createLiveRange.
+        * editing/Editor.cpp:
+        (WebCore::Editor::performCutOrCopy): Ditto.
+        (WebCore::Editor::markAllMisspellingsAndBadGrammarInRanges): Ditto.
+        (WebCore::Editor::replaceRangeForSpellChecking): Ditto.
+        (WebCore::correctSpellcheckingPreservingTextCheckingParagraph): Ditto.
+        (WebCore::Editor::changeBackToReplacedString): Ditto.
+        (WebCore::Editor::countMatchesForText): Ditto.
+        * editing/InsertListCommand.cpp:
+        (WebCore::InsertListCommand::doApply): Ditto.
+        (WebCore::InsertListCommand::doApplyForSingleParagraph): Change out
+        argument type to SimpleRange.
+        * editing/InsertListCommand.h: Update for above.
+
+        * editing/SpellChecker.cpp:
+        (WebCore::SpellChecker::isCheckable const): Rewrite questionable logic
+        to use intersectingNodes instead of firstNode.
+
+        * editing/TextCheckingHelper.cpp:
+        (WebCore::TextCheckingHelper::findUngrammaticalPhrases const): Remove createLiveRange.
+        * editing/TypingCommand.cpp:
+        (WebCore::TypingCommand::deleteKeyPressed): Ditto.
+        (WebCore::TypingCommand::forwardDeleteKeyPressed): Ditto.
+        * editing/markup.cpp:
+        (WebCore::createFragmentFromText): Ditto.
+
+        * editing/ios/EditorIOS.mm:
+        (WebCore::Editor::setTextAsChildOfElement): Use makeRangeSelectingNodeContents.
+
+        * editing/win/EditorWin.cpp:
+        (WebCore::Editor::pasteWithPasteboard): Remove createLiveRange.
+
+        * page/DOMSelection.cpp:
+        (WebCore::DOMSelection::addRange): Use makeSimpleRange.
+        (WebCore::DOMSelection::deleteFromDocument): Remove createLiveRange.
+
+        * page/DragController.cpp:
+        (WebCore::documentFragmentFromDragData): Take SimpleRange.
+        (WebCore::DragController::concludeEditDrag): Remove createLiveRange.
+        (WebCore::DragController::startDrag): Ditto.
+
+        * page/TextIndicator.cpp:
+        (WebCore::selectionRects): Deleted.
+        (WebCore::initializeIndicator): Call collectSelectionRects directly here,
+        avoiding createLiveRange and using map to convert from Vector<SelectionRect>
+        to Vector<FloatRect>.
+
+        * page/ios/FrameIOS.mm:
+        (WebCore::Frame::interpretationsForCurrentRoot const): Use makeSimpleRange.
+
+        * platform/DragImage.cpp:
+        (WebCore::createDragImageForRange): Take SimpleRange.
+        * platform/DragImage.h: Update createDragImageForRange to take SimpleRange.
+
+        * platform/Pasteboard.h: Updated Windows-only layering-violating functions
+        to take SimpleRange.
+
+        * platform/ios/DragImageIOS.mm:
+        (WebCore::createDragImageForRange): Take SimpleRange.
+
+        * platform/win/PasteboardWin.cpp:
+        (WebCore::Pasteboard::writeRangeToDataObject): Take SimpleRange.
+        (WebCore::Pasteboard::writeSelection): Ditto.
+        (WebCore::Pasteboard::documentFragment): Ditto.
+
+        * rendering/RenderObject.cpp:
+        (WebCore::intervalsSufficientlyOverlap): Added. Moved from Range. Mostly unchanged
+        but uses SimpleRange now instead of a live range, and intersectingNodes instead of
+        a loop using firstNode and pastLastNode.
+        (WebCore::adjustLineHeightOfSelectionRects): Ditto.
+        (WebCore::coalesceSelectionRects): Ditto.
+        (WebCore::RenderObject::collectSelectionRectsWithoutUnionInteriorLines): Ditto.
+        (WebCore::RenderObject::collectSelectionRectsInternal): Ditto.
+        (WebCore::RenderObject::collectSelectionRects): Ditto.
+        * rendering/RenderObject.h: Update for above.
+
+        * testing/Internals.cpp:
+        (WebCore::Internals::markerRangeForNode): Use makeSimplRange.
+        (WebCore::Internals::locationFromRange): Ditto.
+        (WebCore::Internals::lengthFromRange): Ditto.
+        (WebCore::Internals::rangeAsTextUsingBackwardsTextIterator): Ditto.
+        (WebCore::Internals::subrange): Ditto.
+        (WebCore::Internals::rangeOfStringNearLocation): Ditto.
+        (WebCore::Internals::textIndicatorForRange): Ditto.
+
+2020-08-02  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Table data is incorrectly translated in some articles on en.wikipedia.org
+        https://bugs.webkit.org/show_bug.cgi?id=215071
+        <rdar://problem/66354013>
+
+        Reviewed by Darin Adler.
+
+        Text in table cells sometimes end up in adjacent cells after translation, since adjacent cells are currently
+        extracted as different tokens in a single item; mitigate this by splitting text in table cells into different
+        text manipulation items instead.
+
+        Test: TextManipulation.StartTextManipulationExtractsTableCellsAsSeparateItems
+
+        * editing/TextManipulationController.cpp:
+        (WebCore::isEnclosingItemBoundaryElement):
+
+2020-08-01  Rob Buis  <rbuis@igalia.com>
+
+        Remove superfluous ResourceTiming constructor overload
+        https://bugs.webkit.org/show_bug.cgi?id=215063
+
+        Reviewed by Sam Weinig.
+
+        Remove superfluous ResourceTiming constructor overload, we
+        can just call another overload from ResourceTiming::fromLoad.
+
+        * loader/ResourceTiming.cpp:
+        (WebCore::ResourceTiming::fromLoad):
+        * loader/ResourceTiming.h:
+
+2020-08-01  Brady Eidson  <beidson@apple.com>
+
+        Special HID mapping for the Logitech F310/F710 controllers.
+        https://bugs.webkit.org/show_bug.cgi?id=215050
+
+        Reviewed by Tim Horton.
+
+        Covered by API test.
+
+        These two controllers match the standard mapping perfectly. Easy to support.
+        
+        * SourcesCocoa.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+        
+        * platform/gamepad/KnownGamepads.h:
+        
+        * platform/gamepad/mac/GamepadConstantsMac.h:
+        
+        * platform/gamepad/mac/HIDGamepad.cpp:
+        (WebCore::HIDGamepad::create):
+        
+        * platform/gamepad/mac/HIDGamepadElement.cpp:
+        (WebCore::HIDGamepadElement::HIDGamepadElement):
+        * platform/gamepad/mac/HIDGamepadElement.h:
+        (WebCore::HIDGamepadElement::isAxis const):
+        
+        * platform/gamepad/mac/LogitechGamepad.cpp: Added.
+        (WebCore::LogitechGamepadHatswitch::gamepadValueChanged):
+        (WebCore::LogitechGamepad::LogitechGamepad):
+        * platform/gamepad/mac/LogitechGamepad.h: 
+
+2020-08-01  Joonghun Park  <jh718.park@samsung.com>
+
+        Unreviewed. Remove the build warnings below since r265150.
+        warning: unused parameter ‘foo’ [-Wunused-parameter]
+
+        No new tests, no new behaviors.
+
+        * workers/service/server/SWServerJobQueue.cpp:
+        (WebCore::doCertificatesMatch):
+
+2020-08-01  Brady Eidson  <beidson@apple.com>
+
+        Special HID mapping for the Google Stadia controller
+        https://bugs.webkit.org/show_bug.cgi?id=215061
+
+        Reviewed by Tim Horton.
+
+        New API test coverage.
+
+        * SourcesCocoa.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+        * platform/gamepad/GamepadConstants.h:
+        * platform/gamepad/KnownGamepads.h:
+        * platform/gamepad/mac/GamepadConstantsMac.h:
+
+        * platform/gamepad/mac/HIDGamepad.cpp:
+        (WebCore::HIDGamepad::create):
+
+        * platform/gamepad/mac/HIDGamepadElement.cpp:
+        (WebCore::HIDGamepadElement::HIDGamepadElement):
+        (WebCore::HIDGamepadHatswitch::gamepadValueChanged):
+        (WebCore::HIDGamepadHatswitch::normalizedValue):
+        * platform/gamepad/mac/HIDGamepadElement.h:
+        (WebCore::HIDGamepadElement::isAxis const):
+        (WebCore::HIDGamepadHatswitch::HIDGamepadHatswitch):
+
+        * platform/gamepad/mac/StadiaHIDGamepad.cpp: Added.
+        (WebCore::StadiaHIDGamepad::StadiaHIDGamepad):
+        * platform/gamepad/mac/StadiaHIDGamepad.h: 
+
+2020-08-01  Sam Weinig  <weinig@apple.com>
+
+        Convert LinkHeader to use StringParsingBuffer
+        https://bugs.webkit.org/show_bug.cgi?id=215017
+
+        Reviewed by Darin Adler.
+
+        Update LinkHeader parsing to use StringParsingBuffer and do some light cleanup.
+
+        * loader/LinkHeader.cpp:
+        (WebCore::isSpaceOrTab):
+        (WebCore::isNotURLTerminatingChar):
+        (WebCore::isValidParameterNameChar):
+        (WebCore::isParameterValueEnd):
+        (WebCore::isParameterValueChar):
+        (WebCore::findURLBoundaries):
+        (WebCore::invalidParameterDelimiter):
+        (WebCore::validFieldEnd):
+        (WebCore::parseParameterDelimiter):
+        (WebCore::paramterNameFromString):
+        (WebCore::parseParameterName):
+        (WebCore::skipQuotesIfNeeded):
+        (WebCore::parseParameterValue):
+        (WebCore::findNextHeader):
+        (WebCore::LinkHeader::LinkHeader):
+        (WebCore::LinkHeaderSet::LinkHeaderSet):
+        (WebCore::LinkHeaderSet::init): Deleted.
+        * loader/LinkHeader.h:
+
+2020-08-01  Darin Adler  <darin@apple.com>
+
+        Remove Range::create and many more uses of live ranges
+        https://bugs.webkit.org/show_bug.cgi?id=215004
+
+        Reviewed by Sam Weinig.
+
+        * accessibility/AccessibilityRenderObject.cpp:
+        (WebCore::AccessibilityRenderObject::boundsForVisiblePositionRange const):
+        Use makeSimpleRange.
+        * accessibility/atk/AXObjectCacheAtk.cpp:
+        (WebCore::AXObjectCache::nodeTextChangePlatformNotification): Use SimpleRange.
+        * accessibility/atk/WebKitAccessibleHyperlink.cpp:
+        (rangeLengthForObject): Take SimpleRange.
+        (webkitAccessibleHyperlinkGetStartIndex): Use makeSimpleRange.
+        (webkitAccessibleHyperlinkGetEndIndex): Ditto.
+        * accessibility/atk/WebKitAccessibleInterfaceText.cpp:
+        (getSelectionOffsetsForObject): Ditto.
+        * accessibility/atk/WebKitAccessibleUtil.cpp:
+        (objectFocusedAndCaretOffsetUnignored): Ditto.
+
+        * accessibility/ios/WebAccessibilityObjectWrapperIOS.mm:
+        (+[WebAccessibilityTextMarker startOrEndTextMarkerForRange:isStart:cache:]):
+        Take SimpleRange.
+        (-[WebAccessibilityObjectWrapper arrayOfTextForTextMarkers:attributed:]):
+        Use makeSimpleRange.
+        (-[WebAccessibilityObjectWrapper _convertToDOMRange:]): Return SimpleRange.
+        (-[WebAccessibilityObjectWrapper textMarkerRange]): Remove createLiveRange.
+        (-[WebAccessibilityObjectWrapper textMarkerForPosition:]): Use auto.
+        (-[WebAccessibilityObjectWrapper misspellingTextMarkerRange:forward:]):
+        Remove createLiveRange.
+        (-[WebAccessibilityObjectWrapper rangeFromMarkers:withText:]): Return SimpleRange.
+        (-[WebAccessibilityObjectWrapper textRectsFromMarkers:withText:]): Add createLiveRange.
+        (-[WebAccessibilityObjectWrapper rangeForTextMarkers:]): Return SimpleRange.
+        (-[WebAccessibilityObjectWrapper startOrEndTextMarkerForTextMarkers:isStart:]):
+        Use auto.
+        (-[WebAccessibilityObjectWrapper textMarkerRangeForMarkers:]): Get rid of local.
+        (-[WebAccessibilityObjectWrapper textMarkersForRange:]): Take SimpleRange.
+
+        * accessibility/mac/WebAccessibilityObjectWrapperMac.mm:
+        (accessibilityTextOperationForParameterizedAttribute): Remove makeSimpleRange.
+        (accessibilityMisspellingSearchCriteriaForParameterizedAttribute): Return SimpleRange.
+        (-[WebAccessibilityObjectWrapper textMarkerRangeFromRange:]): Take SimpleRange.
+        (textMarkerRangeFromRange): Ditto.
+        (-[WebAccessibilityObjectWrapper startOrEndTextMarkerForRange:isStart:]): Ditto.
+        (startOrEndTextmarkerForRange): Return SimpleRange.
+        (-[WebAccessibilityObjectWrapper rangeForTextMarkerRange:]): Ditto.
+        (-[WebAccessibilityObjectWrapper doAXAttributedStringForTextMarkerRange:spellCheck:]):
+        Use auto.
+        (-[WebAccessibilityObjectWrapper doAXAttributedStringForRange:]): Remove createLiveRange.
+        (-[WebAccessibilityObjectWrapper textMarkerRangeAtTextMarker:forUnit:]): Ditto.
+        (-[WebAccessibilityObjectWrapper accessibilityAttributeValue:forParameter:]): Ditto.
+
+        * dom/DocumentMarkerController.cpp:
+        (WebCore::updateRenderedRectsForMarker): Use document marker range function.
+        (WebCore::range): Added.
+        * dom/DocumentMarkerController.h: Update for above.
+
+        * dom/Position.cpp: Removed unneeded Range.h include.
+
+        * dom/Range.cpp:
+        (WebCore::Range::Range): Removed unused overload that takes start/end.
+        (WebCore::Range::create): Removed overloads that take start/end.
+        (WebCore::Range::setStart): Removed overload that takes Position.
+        (WebCore::Range::setEnd): Ditto.
+        (WebCore::Range::cloneRange const): Rewrote to use setStart/End since
+        that's what the constructor used to do.
+        (WebCore::Range::contains const): Use SimpleRange/createLiveRange
+        instead of makeRange. Soon this function will be deleted.
+        (WebCore::rangeOfContents): Deleted.
+        (WebCore::createLiveRange): Rewrote to use setStart/End since that's
+        what the constructor used to do.
+        * dom/Range.h: Update for above removals.
+
+        * dom/SimpleRange.h: Export commonInclusiveAncestor for use outside WebCore.
+
+        * dom/StaticRange.cpp:
+        (WebCore::StaticRange::create): Added overload that copies the SimpleRange.
+        * dom/StaticRange.h: Update for above.
+
+        * editing/AlternativeTextController.cpp:
+        (WebCore::AlternativeTextController::respondToMarkerAtEndOfWord): Use document
+        marker range function.
+
+        * editing/ApplyStyleCommand.cpp:
+        (WebCore::ApplyStyleCommand::fixRangeAndApplyInlineStyle): Use makeSimpleRange.
+        * editing/DeleteSelectionCommand.cpp:
+        (WebCore::DeleteSelectionCommand::mergeParagraphs): Ditto.
+        (WebCore::DeleteSelectionCommand::originalStringForAutocorrectionAtBeginningOfSelection):
+        Ditto.
+
+        * editing/EditingStyle.cpp:
+        (WebCore::EditingStyle::textDirectionForSelection): Use makeSimpleRange and
+        intersectingNodes.
+
+        * editing/Editor.cpp:
+        (WebCore::Editor::replaceSelectionWithFragment): Use makeRangeSelectingNodeContents.
+        (WebCore::Editor::updateMarkersForWordsAffectedByEditing): Use makeSimpleRange.
+        (WebCore::Editor::transpose): Ditto.
+        (WebCore::Editor::rangeOfString): Use makeRangeSelectingNodeContents.
+        (WebCore::Editor::handleAcceptedCandidate): Update since rangeForTextCheckingResult
+        now returns an Optional<SimpleRange>.
+
+        * editing/FrameSelection.cpp:
+        (WebCore::FrameSelection::selectRangeOnElement): Use SimpleRange.
+
+        * editing/ReplaceRangeWithTextCommand.cpp:
+        (WebCore::ReplaceRangeWithTextCommand::ReplaceRangeWithTextCommand): Take
+        SimpleRange.
+        (WebCore::ReplaceRangeWithTextCommand::willApplyCommand): Update since
+        m_rangeToBeReplaced is a SimpleRange.
+        (WebCore::ReplaceRangeWithTextCommand::doApply): Ditto.
+        (WebCore::ReplaceRangeWithTextCommand::targetRanges const): Ditto.
+        * editing/ReplaceRangeWithTextCommand.h: Update for above.
+
+        * editing/ReplaceSelectionCommand.cpp:
+        (WebCore::ReplaceSelectionCommand::insertedContentRange const):
+        Return a SimpleRange.
+        * editing/ReplaceSelectionCommand.h: Update for above.
+
+        * editing/SpellingCorrectionCommand.cpp:
+        (WebCore::SpellingCorrectionCommand::SpellingCorrectionCommand):
+        Take a SimpleRange.
+        (WebCore::SpellingCorrectionCommand::create): Moved here from header.
+        * editing/SpellingCorrectionCommand.h: Update for above.
+
+        * editing/TextCheckingHelper.cpp:
+        (WebCore::TextCheckingHelper::findFirstMisspelledWordOrUngrammaticalPhrase const):
+        Use makeSimpleRange.
+
+        * editing/TypingCommand.cpp:
+        (WebCore::TypingCommand::markMisspellingsAfterTyping): Use makeSimpleRange.
+        (WebCore::TypingCommand::willAddTypingToOpenCommand): Take SimpleRange.
+        (WebCore::TypingCommand::deleteKeyPressed): Remove createLiveRange.
+        (WebCore::TypingCommand::forwardDeleteKeyPressed): Ditto.
+        * editing/TypingCommand.h: Update for above.
+
+        * editing/VisiblePosition.cpp:
+        (WebCore::makeRange): Deleted.
+        (WebCore::startVisiblePosition): Deleted.
+        (WebCore::endVisiblePosition): Deleted.
+        (WebCore::setStart): Deleted.
+        (WebCore::setEnd): Deleted.
+        * editing/VisiblePosition.h: Update for above. Also export makeSimpleRange
+        for use outside WebCore.
+
+        * editing/VisibleUnits.cpp:
+        (WebCore::suffixLengthForRange): Take SimpleRange.
+        (WebCore::prefixLengthForRange): Ditto.
+        (WebCore::previousBoundary): Use makeSimpleRange.
+        (WebCore::nextBoundary): Ditto.
+        * editing/VisibleUnits.h: Update for above.
+
+        * editing/cocoa/DataDetection.mm:
+        (WebCore::buildQuery): Remove unused local variable.
+
+        * editing/ios/EditorIOS.mm:
+        (WebCore::Editor::setDictationPhrasesAsChildOfElement): Use makeRangeSelectingNodeContents.
+
+        * page/DOMSelection.cpp:
+        (WebCore::DOMSelection::getRangeAt): Use createLiveRange.
+
+        * page/DragController.cpp:
+        (WebCore::DragController::insertDroppedImagePlaceholdersAtCaret): Remove makeSimpleRange.
+
+        * page/Frame.cpp:
+        (WebCore::Frame::rangeForPoint): Return SimpleRange.
+        * page/Frame.h: Update for above.
+
+        * page/ios/FrameIOS.mm:
+        (WebCore::Frame::interpretationsForCurrentRoot const): Use makeRangeSelectingNodeContents,
+        intersectingNodes, and makeSimpleRange.
+
+        * testing/Internals.cpp:
+        (WebCore::Internals::markerRangeForNode): Use createLiveRange and the document
+        marker range function.
+
+2020-07-31  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] AudioSessionRoutingArbitrator causes a launch time regression checking for CoreAudio muted state
+        https://bugs.webkit.org/show_bug.cgi?id=214993
+
+        Reviewed by Eric Carlson.
+
+        The initial query of isMuted() is only there to tell whether, when we get a notification that the mute state
+        changed, whether our internal state is dirty and we need to fire a notification. Instead, replace the bool member
+        with an Optional<bool>, so we know we need to fire a changed notification whenever the first mute state change
+        comes in.
+
+        * platform/audio/mac/AudioSessionMac.mm:
+        (WebCore::AudioSession::AudioSession):
+        (WebCore::AudioSession::handleMutedStateChange):
+        (WebCore::AudioSessionPrivate::AudioSessionPrivate): Deleted.
+
+2020-07-31  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed Windows build fix after r265167; add some missing includes.
+
+        * page/Screen.cpp:
+
+2020-07-31  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Clean up text layout code a bit
+        https://bugs.webkit.org/show_bug.cgi?id=215013
+
+        Reviewed by Zalan Bujtas.
+
+        This is in preparation for https://bugs.webkit.org/show_bug.cgi?id=214769.
+
+        See file-specific ChangeLog entries for more information.
+
+        No tests because there is no behavior change.
+
+        * platform/graphics/Font.h: Remove unnecessary declaration.
+        * platform/graphics/FontCascade.cpp:
+        (WebCore::FontCascade::layoutText const): Rename glyphBufferForTextRun() to layoutText().
+        Also, make it return a GlyphBuffer instead of taking a GlyphBuffer as an out param.
+        Its previous return, the initial advance, is now returned in GlyphBuffer::initialAdvance.
+        (WebCore::FontCascade::drawText const): Update to new signature of layoutText().
+        (WebCore::FontCascade::drawEmphasisMarks const): Inline drawEmphasisMarksForSimpleText()
+        and drawEmphasisMarksForComplexText(), since they're nearly identical. Update to the new
+        signature of layoutText().
+        (WebCore::FontCascade::displayListForTextRun const): Update to the new signature of
+        layoutText().
+        (WebCore::FontCascade::layoutSimpleText const): Make this return a new GlyphBuffer, instead
+        of taking one as an out param. Also, use accessors of WidthIterator instead of reaching
+        into its guts. The previous return value is now returned in GlyphBuffer::initialAdvance.
+        (WebCore::FontCascade::layoutComplexText const): Ditto.
+        (WebCore::FontCascade::floatWidthForSimpleText const): Use accessors of WidthIterator
+        instead of reaching into its guts.
+        (WebCore::FontCascade::adjustSelectionRectForSimpleText const): Ditto.
+        (WebCore::FontCascade::offsetForPositionForSimpleText const): Ditto.
+        (WebCore::FontCascade::dashesForIntersectionsWithRect const): Same as
+        FontCascade::drawEmphasisMarks() above.
+        (WebCore::FontCascade::glyphBufferForTextRun const): Renamed to layoutText().
+        (WebCore::FontCascade::getGlyphsAndAdvancesForSimpleText const): Renamed to
+        layoutSimpleText().
+        (WebCore::FontCascade::getGlyphsAndAdvancesForComplexText const): Renamed to
+        layoutComplexText().
+        (WebCore::FontCascade::drawEmphasisMarksForSimpleText const): Inlined into
+        drawEmphasisMarks().
+        (WebCore::FontCascade::drawEmphasisMarksForComplexText const): Ditto.
+        * platform/graphics/FontCascade.h:
+        * platform/graphics/GlyphBuffer.h:
+        (WebCore::GlyphBufferAdvance::GlyphBufferAdvance):
+        (WebCore::GlyphBufferAdvance::operator FloatSize):
+        * platform/graphics/TextRun.h: Remove unnecessary declaration.
+        * platform/graphics/WidthIterator.cpp:
+        (WebCore::WidthIterator::WidthIterator): Update for changes to WidthIterator.h
+        * platform/graphics/WidthIterator.h: Rearrange the class members to sort them by size,
+        to get better packing. Also, make all member variables private, and initialize them
+        all with { } syntax.
+        (WebCore::WidthIterator::finalRoundingWidth const):
+        (WebCore::WidthIterator::currentCharacter const):
+        * rendering/svg/SVGTextMetrics.cpp: Remove unnecessary include.
+
+2020-07-31  Chris Dumez  <cdumez@apple.com>
+
+        Add OfflineAudioCompletionEvent constructor
+        https://bugs.webkit.org/show_bug.cgi?id=214994
+
+        Reviewed by Eric Carlson.
+
+        Add OfflineAudioCompletionEvent constructor, as per:
+        - https://www.w3.org/TR/webaudio/#OfflineAudioCompletionEvent
+
+        Test: webaudio/OfflineAudioCompletionEvent-constructor.html
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::finishedRendering):
+        * Modules/webaudio/OfflineAudioCompletionEvent.cpp:
+        (WebCore::OfflineAudioCompletionEvent::create):
+        (WebCore::OfflineAudioCompletionEvent::OfflineAudioCompletionEvent):
+        * Modules/webaudio/OfflineAudioCompletionEvent.h:
+        * Modules/webaudio/OfflineAudioCompletionEvent.idl:
+        * Modules/webaudio/OfflineAudioCompletionEventInit.h: Copied from Source/WebCore/Modules/webaudio/OfflineAudioCompletionEvent.idl.
+        * Modules/webaudio/OfflineAudioCompletionEventInit.idl: Copied from Source/WebCore/Modules/webaudio/OfflineAudioCompletionEvent.idl.
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-07-31  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] YouTube does not offer HDR variants to devices which support HDR
+        https://bugs.webkit.org/show_bug.cgi?id=215022
+
+        Reviewed by Eric Carlson.
+
+        Test: platform/mac/media/media-source/is-type-supported-vp9-codec-check.html
+
+        There are three separate issues which block YouTube from offering HDR:
+
+        1) YouTube checks both valid and invalid VP9 strings through MediaSource.isTypeSupported(), and UAs
+           which answer `true` to even invalid VP9 strings are blocked from HDR. To solve this, we will now
+           send isTypeSupported() through the same code path as Media Capabilities.
+
+        2) YouTube's standard valid and invalid VP9 strings do not include the fullRangeVideoFlag field, which
+           would normally be tossed as invalid. We shouldn't relax our requirements globally, so we will
+           add a Quirk which relaxes the requriement that VP9 strings contain a fullRangeVideoFlag.
+
+        3) YouTube's HDR query checks that window.screen.pixelDepth is > 24. We obviously don't want to change
+           the value of this field globally, so we will add separate Quirk which sets window.screen.pixelDepth
+           to 25 (a totally nonsensical value) when HDR is available.
+
+        Each of these Quirks has a path towards removal for YouTube. The fullRangeVideoFlag field involves
+        YouTube updating their compatibility check to inculde the fullRangeVideoFlag. The pixelDepth check
+        can be replaced by the `dynamic-range:high` Media Query.
+
+        * Modules/mediasource/MediaSource.cpp:
+        (WebCore::addVP9FullRangeVideoFlagToContentType):
+        (WebCore::MediaSource::addSourceBuffer):
+        (WebCore::MediaSource::removeSourceBuffer):
+        (WebCore::MediaSource::isTypeSupported):
+        (WebCore::MediaSource::onReadyStateChange):
+        (WebCore::MediaSource::activeRanges const):
+        * Modules/mediasource/MediaSource.h:
+        * page/Quirks.cpp:
+        (WebCore::Quirks::needsVP9FullRangeFlagQuirk const):
+        (WebCore::Quirks::needsHDRPixelDepthQuirk const):
+        * page/Quirks.h:
+        * page/Screen.cpp:
+        (WebCore::Screen::pixelDepth const):
+        * platform/graphics/cocoa/SourceBufferParserWebM.cpp:
+        (WebCore::SourceBufferParserWebM::isContentTypeSupported):
+        * platform/graphics/cocoa/VP9UtilitiesCocoa.h:
+        * platform/graphics/cocoa/VP9UtilitiesCocoa.mm:
+        (WebCore::isVPCodecConfigurationRecordSupported):
+        (WebCore::validateVPParameters):
+
+2020-07-31  Chris Dumez  <cdumez@apple.com>
+
+        Add linked-on-after check to keep WebSQL working in UIWebView until apps are rebuilt with iOS 14 SDK
+        https://bugs.webkit.org/show_bug.cgi?id=215035
+        <rdar://problem/65003342>
+
+        Reviewed by Tim Horton.
+
+        * platform/RuntimeApplicationChecks.h:
+        * platform/cocoa/RuntimeApplicationChecksCocoa.mm:
+        (WebCore::IOSApplication::isJesusCalling): Deleted.
+        (WebCore::IOSApplication::isFudget): Deleted.
+        (WebCore::IOSApplication::isFamilyHealthApp): Deleted.
+        Drop code that is no longer needed.
+
+2020-07-31  Brady Eidson  <beidson@apple.com>
+
+        Log a warning to the dev console when gamepads are accessed from an insecure context.
+        https://bugs.webkit.org/show_bug.cgi?id=214995
+
+        Reviewed by Tim Horton.
+
+        Test: http/tests/misc/gamepads-insecure.html
+
+        * Modules/gamepad/NavigatorGamepad.cpp:
+        (WebCore::NavigatorGamepad::getGamepads): Insecure contexts should log that getGamepads() will
+          be going away in a future release. Just do it once, because getGamepads() is called frequently.
+
+2020-07-31  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macOS] Date/time input types should have a textfield appearance
+        https://bugs.webkit.org/show_bug.cgi?id=214978
+
+        Reviewed by Wenson Hsieh.
+
+        On iOS, date/time input types have a menulist-button appearance. However, this appearance
+        does not match the style of native date controls on macOS. The textfield appearance
+        with no focus ring brings us closer to a natively styled control.
+
+        * rendering/RenderTheme.h:
+        * rendering/RenderThemeMac.h:
+        * rendering/RenderThemeMac.mm:
+        (WebCore::RenderThemeMac::dateInputStyleSheet const):
+        (WebCore::RenderThemeMac::dateTimeLocalInputStyleSheet const):
+        (WebCore::RenderThemeMac::monthInputStyleSheet const):
+        (WebCore::RenderThemeMac::timeInputStyleSheet const):
+        (WebCore::RenderThemeMac::weekInputStyleSheet const):
+
+2020-07-31  Brady Eidson  <beidson@apple.com>
+
+        Special HID mapping for the Dualshock 3 controller
+        <rdar://problem/66255198> and https://bugs.webkit.org/show_bug.cgi?id=214911
+
+        Reviewed by Tim Horton.
+
+        Covered by API tests.
+
+        - Move GamepadButtons into a GamepadConstants header
+        - Add a "KnownGamepads" header to hold all vendor/product pairs that WebKit knows about
+        - Add a Dualshock3 controller mapping based on its HID report
+        - Add a basic DS3 test based on the HID report
+        
+        * Sources.txt:
+        * SourcesCocoa.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+        * platform/gamepad/GamepadConstants.cpp: Copied from Source/WebCore/platform/gamepad/mac/GenericHIDGamepad.h.
+        (WebCore::standardGamepadMappingString):
+        * platform/gamepad/GamepadConstants.h: Added.
+
+        * platform/gamepad/KnownGamepads.h: Copied from Source/WebCore/platform/gamepad/mac/GenericHIDGamepad.h.
+
+        * platform/gamepad/cocoa/GameControllerGamepad.mm:
+        (WebCore::GameControllerGamepad::setupAsExtendedGamepad):
+
+        * platform/gamepad/mac/Dualshock3HIDGamepad.cpp: Added.
+        (WebCore::Dualshock3HIDGamepad::Dualshock3HIDGamepad):
+        * platform/gamepad/mac/Dualshock3HIDGamepad.h: Copied from Source/WebCore/platform/gamepad/mac/GenericHIDGamepad.h.
+
+        * platform/gamepad/mac/GenericHIDGamepad.cpp:
+        (WebCore::GenericHIDGamepad::GenericHIDGamepad):
+        (WebCore::GenericHIDGamepad::id): Deleted.
+        * platform/gamepad/mac/GenericHIDGamepad.h:
+
+        * platform/gamepad/mac/HIDGamepad.cpp:
+        (WebCore::HIDGamepad::create):
+        (WebCore::HIDGamepad::HIDGamepad):
+        (WebCore::HIDGamepad::initialize):
+        * platform/gamepad/mac/HIDGamepad.h:
+
+        * platform/mac/HIDDevice.h:
+        (WebCore::HIDDevice::fullProductIdentifier const):
+        * platform/mac/HIDElement.h:
+        (WebCore::HIDElement::fullUsage const):
+
+2020-07-31  Alex Christensen  <achristensen@webkit.org>
+
+        Fix Windows build.
+        https://bugs.webkit.org/show_bug.cgi?id=214988
+
+        * platform/network/cf/CertificateInfo.h:
+        * platform/network/cf/CertificateInfoCFNet.cpp:
+
+2020-07-31  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor for WaveShaperNode
+        https://bugs.webkit.org/show_bug.cgi?id=214989
+
+        Reviewed by Youenn Fablet.
+
+        Add constructor for WaveShaperNode:
+        - https://www.w3.org/TR/webaudio/#waveshapernode
+
+        No new tests, rebaselined existing tests.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/webaudio/BaseAudioContext.cpp:
+        (WebCore::BaseAudioContext::createWaveShaper):
+        * Modules/webaudio/OverSampleType.h: Copied from Source/WebCore/Modules/webaudio/WaveShaperNode.idl.
+        * Modules/webaudio/OverSampleType.idl: Copied from Source/WebCore/Modules/webaudio/WaveShaperNode.idl.
+        * Modules/webaudio/WaveShaperNode.cpp:
+        (WebCore::WaveShaperNode::create):
+        (WebCore::WaveShaperNode::setCurve):
+        (WebCore::processorType):
+        * Modules/webaudio/WaveShaperNode.h:
+        (WTF::LogArgument<WebCore::OverSampleType>::toString):
+        * Modules/webaudio/WaveShaperNode.idl:
+        * Modules/webaudio/WaveShaperOptions.h: Copied from Source/WebCore/Modules/webaudio/WaveShaperNode.idl.
+        * Modules/webaudio/WaveShaperOptions.idl: Copied from Source/WebCore/Modules/webaudio/WaveShaperNode.idl.
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+
+2020-07-31  Youenn Fablet  <youenn@apple.com>
+
+        Update service worker if certificate info does not match when soft updating
+        https://bugs.webkit.org/show_bug.cgi?id=214988
+
+        Reviewed by Alex Christensen.
+
+        In case service worker certificate info does not match, treat it as if the script changed.
+        This is a convenient way to update the service worker and the stored registration database.
+        Covered by API test.
+
+        * platform/network/cf/CertificateInfo.h:
+        * platform/network/cf/CertificateInfoCFNet.cpp:
+        (WebCore::certificatesMatch):
+        * workers/service/server/SWServerJobQueue.cpp:
+        (WebCore::doCertificatesMatch):
+        (WebCore::SWServerJobQueue::scriptFetchFinished):
+        * workers/service/server/SWServerWorker.h:
+        (WebCore::SWServerWorker::certificateInfo const):
+
+2020-07-31  Sihui Liu  <sihui_liu@appe.com>
+
+        -[WKWebsiteDataStore _renameOrigin:] needs to support IndexedDB renames
+        https://bugs.webkit.org/show_bug.cgi?id=214905
+        <rdar://problem/66247978>
+
+        Reviewed by Alex Christensen.
+
+        To do the renaming, we close all existing databases whose top origin is old origin, and move all files in 
+        directory of old origin to that of new origin.
+
+        API test: WebKit.WebsiteDataStoreRenameOriginForIndexedDatabase
+
+        * Modules/indexeddb/server/IDBServer.cpp:
+        (WebCore::IDBServer::IDBServer::closeDatabasesForOrigins):
+        (WebCore::IDBServer::IDBServer::closeAndDeleteDatabasesForOrigins):
+        (WebCore::IDBServer::IDBServer::renameOrigin):
+        * Modules/indexeddb/server/IDBServer.h:
+
+2020-07-31  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Inteterminate progressbar reading as 50% with Voiceover
+        https://bugs.webkit.org/show_bug.cgi?id=214330
+        <rdar://problem/65570800>
+
+        Reviewed by Zalan Bujtas.
+
+        Expose indeterminate status to iOS API.
+
+        * accessibility/ios/WebAccessibilityObjectWrapperIOS.mm:
+        (-[WebAccessibilityObjectWrapper accessibilityIsIndeterminate]):
+        (-[WebAccessibilityObjectWrapper accessibilityIsInDescriptionListTerm]):
+        (-[WebAccessibilityObjectWrapper accessibilityIsInDescriptionListDefinition]):
+          - Drive by style fix.
+
 2020-07-31  Peng Liu  <peng.liu6@apple.com>
 
         PIP on netflix.com shows only a gray window and spinner

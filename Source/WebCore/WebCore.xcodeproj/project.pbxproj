@@ -1402,6 +1402,11 @@
 		510A91DC24CF46FE00BFD89C /* SharedGamepadValue.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A91DB24CF441800BFD89C /* SharedGamepadValue.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		510A91EA24D004C300BFD89C /* HIDElement.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A91E324CFCC1800BFD89C /* HIDElement.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		510A91EB24D004C800BFD89C /* HIDDevice.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A91E224CFCC1800BFD89C /* HIDDevice.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		510A91F624D32DDC00BFD89C /* Dualshock3HIDGamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A91F424D324FF00BFD89C /* Dualshock3HIDGamepad.h */; };
+		510A91FD24D3C16200BFD89C /* GamepadConstants.h in Headers */ = {isa = PBXBuildFile; fileRef = 51715FE924CD05DD002C97E6 /* GamepadConstants.h */; };
+		510A91FE24D3C16700BFD89C /* GamepadConstantsMac.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A91FB24D3C0FD00BFD89C /* GamepadConstantsMac.h */; };
+		510A920824D4F49900BFD89C /* LogitechGamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A920524D4F07A00BFD89C /* LogitechGamepad.h */; };
+		510A921224D5E60E00BFD89C /* StadiaHIDGamepad.h in Headers */ = {isa = PBXBuildFile; fileRef = 510A921124D5E21700BFD89C /* StadiaHIDGamepad.h */; };
 		510D4A34103165EE0049EA54 /* SocketStreamError.h in Headers */ = {isa = PBXBuildFile; fileRef = 510D4A2E103165EE0049EA54 /* SocketStreamError.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		510D4A37103165EE0049EA54 /* SocketStreamHandle.h in Headers */ = {isa = PBXBuildFile; fileRef = 510D4A31103165EE0049EA54 /* SocketStreamHandle.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		510D4A38103165EE0049EA54 /* SocketStreamHandleClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 510D4A32103165EE0049EA54 /* SocketStreamHandleClient.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -2432,7 +2437,10 @@
 		831B61762499A5BB00C07C79 /* WebKitAudioPannerNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 831B61742499A59C00C07C79 /* WebKitAudioPannerNode.h */; };
 		831B61772499A5BF00C07C79 /* WebKitOfflineAudioContext.h in Headers */ = {isa = PBXBuildFile; fileRef = 831B61752499A59D00C07C79 /* WebKitOfflineAudioContext.h */; };
 		8321507E1F27EA1B0095B136 /* NavigatorBeacon.h in Headers */ = {isa = PBXBuildFile; fileRef = 8321507B1F27EA150095B136 /* NavigatorBeacon.h */; };
+		8326BF8E24D35C33001F8A85 /* OverSampleType.h in Headers */ = {isa = PBXBuildFile; fileRef = 8326BF8924D35C20001F8A85 /* OverSampleType.h */; };
+		8326BF8F24D35C39001F8A85 /* WaveShaperOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = 8326BF8C24D35C20001F8A85 /* WaveShaperOptions.h */; };
 		832B843419D8E55100B26055 /* SVGAnimateElementBase.h in Headers */ = {isa = PBXBuildFile; fileRef = 832B843319D8E55100B26055 /* SVGAnimateElementBase.h */; };
+		833AE52924D386F200017C4B /* OfflineAudioCompletionEventInit.h in Headers */ = {isa = PBXBuildFile; fileRef = 833AE52824D386E100017C4B /* OfflineAudioCompletionEventInit.h */; };
 		833B9E321F508D8500E0E428 /* JSFileSystemDirectoryEntry.h in Headers */ = {isa = PBXBuildFile; fileRef = 833B9E2F1F508D8000E0E428 /* JSFileSystemDirectoryEntry.h */; };
 		833B9E341F508D8500E0E428 /* JSFileSystemEntry.h in Headers */ = {isa = PBXBuildFile; fileRef = 833B9E2A1F508D8000E0E428 /* JSFileSystemEntry.h */; };
 		833B9E361F508D8500E0E428 /* JSFileSystemFileEntry.h in Headers */ = {isa = PBXBuildFile; fileRef = 833B9E2C1F508D8000E0E428 /* JSFileSystemFileEntry.h */; };
@@ -2486,6 +2494,7 @@
 		839947101F50B6FA00E9D86B /* JSDOMFileSystem.h in Headers */ = {isa = PBXBuildFile; fileRef = 8399470E1F50B6F300E9D86B /* JSDOMFileSystem.h */; };
 		839A2F2E1E204A710039057E /* WebGLStateTracker.h in Headers */ = {isa = PBXBuildFile; fileRef = 839A2F2C1E204A6D0039057E /* WebGLStateTracker.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		839AAFED1A0C0C8D00605F99 /* HTMLWBRElement.h in Headers */ = {isa = PBXBuildFile; fileRef = 839AAFEB1A0C0C8D00605F99 /* HTMLWBRElement.h */; };
+		83A2ABDB24D86DE000E2D73D /* DelayOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = 83A2ABD824D86DC600E2D73D /* DelayOptions.h */; };
 		83A8AC401FABBFE5002064AC /* ServiceWorkerIdentifier.h in Headers */ = {isa = PBXBuildFile; fileRef = 83A8AC3E1FABBFD1002064AC /* ServiceWorkerIdentifier.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		83B1A702249985F000FE5961 /* WebKitAudioContext.h in Headers */ = {isa = PBXBuildFile; fileRef = 83B1A6FF249985D000FE5961 /* WebKitAudioContext.h */; };
 		83B2D1751B8BCD6A00A02E47 /* NativeNodeFilter.h in Headers */ = {isa = PBXBuildFile; fileRef = 83E959E11B8BC22B004D9385 /* NativeNodeFilter.h */; settings = {ATTRIBUTES = (Private, ); }; };
@@ -5068,6 +5077,7 @@
 		E785D96124B7F7350014DB21 /* AudioContextOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = E785D95F24B7F7340014DB21 /* AudioContextOptions.h */; };
 		E785D96224B7F7350014DB21 /* AudioContextLatencyCategory.h in Headers */ = {isa = PBXBuildFile; fileRef = E785D96024B7F7340014DB21 /* AudioContextLatencyCategory.h */; };
 		E7CF84A924C6461C00B06B90 /* OfflineAudioContextOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = E7CF84A524C635F400B06B90 /* OfflineAudioContextOptions.h */; };
+		E7E0357224D4E196008DFEFB /* AnalyserOptions.h in Headers */ = {isa = PBXBuildFile; fileRef = E7E0357124D4E191008DFEFB /* AnalyserOptions.h */; };
 		EBE5B226245A26EF003A5A88 /* SQLiteStatementAutoResetScope.h in Headers */ = {isa = PBXBuildFile; fileRef = EBE5B224245A26EE003A5A88 /* SQLiteStatementAutoResetScope.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		EBF5121C1696496C0056BD25 /* JSTypeConversions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EBF5121A1696496C0056BD25 /* JSTypeConversions.cpp */; };
 		EBF5121D1696496C0056BD25 /* JSTypeConversions.h in Headers */ = {isa = PBXBuildFile; fileRef = EBF5121B1696496C0056BD25 /* JSTypeConversions.h */; };
@@ -8226,6 +8236,14 @@
 		510A91E524CFCC1800BFD89C /* HIDDevice.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HIDDevice.cpp; sourceTree = "<group>"; };
 		510A91E724CFEA1700BFD89C /* GenericHIDGamepad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GenericHIDGamepad.cpp; sourceTree = "<group>"; };
 		510A91E924CFEA3200BFD89C /* GenericHIDGamepad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GenericHIDGamepad.h; sourceTree = "<group>"; };
+		510A91F224D324C600BFD89C /* KnownGamepads.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KnownGamepads.h; sourceTree = "<group>"; };
+		510A91F424D324FF00BFD89C /* Dualshock3HIDGamepad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Dualshock3HIDGamepad.h; sourceTree = "<group>"; };
+		510A91F524D3250000BFD89C /* Dualshock3HIDGamepad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Dualshock3HIDGamepad.cpp; sourceTree = "<group>"; };
+		510A91FB24D3C0FD00BFD89C /* GamepadConstantsMac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GamepadConstantsMac.h; sourceTree = "<group>"; };
+		510A920524D4F07A00BFD89C /* LogitechGamepad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LogitechGamepad.h; sourceTree = "<group>"; };
+		510A920724D4F07A00BFD89C /* LogitechGamepad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LogitechGamepad.cpp; sourceTree = "<group>"; };
+		510A920F24D5E21700BFD89C /* StadiaHIDGamepad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StadiaHIDGamepad.cpp; sourceTree = "<group>"; };
+		510A921124D5E21700BFD89C /* StadiaHIDGamepad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StadiaHIDGamepad.h; sourceTree = "<group>"; };
 		510D4A2E103165EE0049EA54 /* SocketStreamError.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SocketStreamError.h; sourceTree = "<group>"; };
 		510D4A30103165EE0049EA54 /* SocketStreamHandle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SocketStreamHandle.cpp; sourceTree = "<group>"; };
 		510D4A31103165EE0049EA54 /* SocketStreamHandle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SocketStreamHandle.h; sourceTree = "<group>"; };
@@ -10415,10 +10433,16 @@
 		8321507A1F27EA150095B136 /* NavigatorBeacon.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = NavigatorBeacon.cpp; sourceTree = "<group>"; };
 		8321507B1F27EA150095B136 /* NavigatorBeacon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NavigatorBeacon.h; sourceTree = "<group>"; };
 		8321507C1F27EA150095B136 /* NavigatorBeacon.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = NavigatorBeacon.idl; sourceTree = "<group>"; };
+		8326BF8924D35C20001F8A85 /* OverSampleType.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OverSampleType.h; sourceTree = "<group>"; };
+		8326BF8B24D35C20001F8A85 /* OverSampleType.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = OverSampleType.idl; sourceTree = "<group>"; };
+		8326BF8C24D35C20001F8A85 /* WaveShaperOptions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WaveShaperOptions.h; sourceTree = "<group>"; };
+		8326BF8D24D35C21001F8A85 /* WaveShaperOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = WaveShaperOptions.idl; sourceTree = "<group>"; };
 		8329A4171EC25B2B008ED4BE /* DocumentAndElementEventHandlers.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = DocumentAndElementEventHandlers.idl; sourceTree = "<group>"; };
 		8329DCC21C7A6AE300730B33 /* HTMLHyperlinkElementUtils.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = HTMLHyperlinkElementUtils.idl; sourceTree = "<group>"; };
 		832B843319D8E55100B26055 /* SVGAnimateElementBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SVGAnimateElementBase.h; sourceTree = "<group>"; };
 		832B843519D8E57400B26055 /* SVGAnimateElementBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SVGAnimateElementBase.cpp; sourceTree = "<group>"; };
+		833AE52624D386E100017C4B /* OfflineAudioCompletionEventInit.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = OfflineAudioCompletionEventInit.idl; sourceTree = "<group>"; };
+		833AE52824D386E100017C4B /* OfflineAudioCompletionEventInit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OfflineAudioCompletionEventInit.h; sourceTree = "<group>"; };
 		833B9E2A1F508D8000E0E428 /* JSFileSystemEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSFileSystemEntry.h; sourceTree = "<group>"; };
 		833B9E2B1F508D8000E0E428 /* JSFileSystemDirectoryEntry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSFileSystemDirectoryEntry.cpp; sourceTree = "<group>"; };
 		833B9E2C1F508D8000E0E428 /* JSFileSystemFileEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSFileSystemFileEntry.h; sourceTree = "<group>"; };
@@ -10537,6 +10561,8 @@
 		839A2F2C1E204A6D0039057E /* WebGLStateTracker.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WebGLStateTracker.h; sourceTree = "<group>"; };
 		839AAFEA1A0C0C8D00605F99 /* HTMLWBRElement.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HTMLWBRElement.cpp; sourceTree = "<group>"; };
 		839AAFEB1A0C0C8D00605F99 /* HTMLWBRElement.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HTMLWBRElement.h; sourceTree = "<group>"; };
+		83A2ABD824D86DC600E2D73D /* DelayOptions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelayOptions.h; sourceTree = "<group>"; };
+		83A2ABDA24D86DC700E2D73D /* DelayOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = DelayOptions.idl; sourceTree = "<group>"; };
 		83A4A9F81CE7FD7E00709B00 /* JSXMLDocumentCustom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSXMLDocumentCustom.cpp; sourceTree = "<group>"; };
 		83A8AC3E1FABBFD1002064AC /* ServiceWorkerIdentifier.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ServiceWorkerIdentifier.h; sourceTree = "<group>"; };
 		83B1A6FF249985D000FE5961 /* WebKitAudioContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WebKitAudioContext.h; sourceTree = "<group>"; };
@@ -15874,6 +15900,10 @@
 		E7E0352224CF60ED008DFEFB /* ChannelMergerOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = ChannelMergerOptions.idl; sourceTree = "<group>"; };
 		E7E0352424CF715E008DFEFB /* ChannelSplitterOptions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChannelSplitterOptions.h; sourceTree = "<group>"; };
 		E7E0352524CF715E008DFEFB /* ChannelSplitterOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = ChannelSplitterOptions.idl; sourceTree = "<group>"; };
+		E7E0356F24D4E190008DFEFB /* AnalyserOptions.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = AnalyserOptions.idl; sourceTree = "<group>"; };
+		E7E0357124D4E191008DFEFB /* AnalyserOptions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AnalyserOptions.h; sourceTree = "<group>"; };
+		E7E0355724D346DF008DFEFB /* AudioBufferOptions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioBufferOptions.h; sourceTree = "<group>"; };
+		E7E0355924D346DF008DFEFB /* AudioBufferOptions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = AudioBufferOptions.idl; sourceTree = "<group>"; };
 		EB081CD81696084400553730 /* TypeConversions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TypeConversions.h; sourceTree = "<group>"; };
 		EB081CD91696084400553730 /* TypeConversions.idl */ = {isa = PBXFileReference; lastKnownFileType = text; path = TypeConversions.idl; sourceTree = "<group>"; };
 		EBE5B224245A26EE003A5A88 /* SQLiteStatementAutoResetScope.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SQLiteStatementAutoResetScope.h; sourceTree = "<group>"; };
@@ -19662,6 +19692,7 @@
 				515BE18A1D54F5F600DD7C68 /* GamepadProvider.cpp */,
 				515BE18B1D54F5F600DD7C68 /* GamepadProvider.h */,
 				515BE18C1D54F5F600DD7C68 /* GamepadProviderClient.h */,
+				510A91F224D324C600BFD89C /* KnownGamepads.h */,
 				515BE18E1D54F5F600DD7C68 /* PlatformGamepad.h */,
 				510A91DB24CF441800BFD89C /* SharedGamepadValue.h */,
 			);
@@ -19671,6 +19702,9 @@
 		515BE1961D54F64500DD7C68 /* mac */ = {
 			isa = PBXGroup;
 			children = (
+				510A91F524D3250000BFD89C /* Dualshock3HIDGamepad.cpp */,
+				510A91F424D324FF00BFD89C /* Dualshock3HIDGamepad.h */,
+				510A91FB24D3C0FD00BFD89C /* GamepadConstantsMac.h */,
 				510A91E724CFEA1700BFD89C /* GenericHIDGamepad.cpp */,
 				510A91E924CFEA3200BFD89C /* GenericHIDGamepad.h */,
 				515BE1971D54F6BD00DD7C68 /* HIDGamepad.cpp */,
@@ -19679,8 +19713,12 @@
 				510A91D624CE8EDE00BFD89C /* HIDGamepadElement.h */,
 				515BE19A1D54F6BD00DD7C68 /* HIDGamepadProvider.h */,
 				515BE1991D54F6BD00DD7C68 /* HIDGamepadProvider.mm */,
+				510A920724D4F07A00BFD89C /* LogitechGamepad.cpp */,
+				510A920524D4F07A00BFD89C /* LogitechGamepad.h */,
 				517E03F424B6B9630054895A /* MultiGamepadProvider.h */,
 				517E03F524B6B9640054895A /* MultiGamepadProvider.mm */,
+				510A920F24D5E21700BFD89C /* StadiaHIDGamepad.cpp */,
+				510A921124D5E21700BFD89C /* StadiaHIDGamepad.h */,
 			);
 			path = mac;
 			sourceTree = "<group>";
@@ -29442,6 +29480,8 @@
 				FD315FF312B0267600C1A359 /* AnalyserNode.cpp */,
 				FD315FF412B0267600C1A359 /* AnalyserNode.h */,
 				FD315FF512B0267600C1A359 /* AnalyserNode.idl */,
+				E7E0357124D4E191008DFEFB /* AnalyserOptions.h */,
+				E7E0356F24D4E190008DFEFB /* AnalyserOptions.idl */,
 				FD5686C713AC180200B69C68 /* AsyncAudioDecoder.cpp */,
 				FD5686C813AC180200B69C68 /* AsyncAudioDecoder.h */,
 				FD629EA2154B47160006D026 /* AudioBasicInspectorNode.cpp */,
@@ -29453,6 +29493,8 @@
 				FD315FB012B0267500C1A359 /* AudioBuffer.idl */,
 				FD5686CB13AC181400B69C68 /* AudioBufferCallback.h */,
 				FD5686CD13AC183E00B69C68 /* AudioBufferCallback.idl */,
+				E7E0355724D346DF008DFEFB /* AudioBufferOptions.h */,
+				E7E0355924D346DF008DFEFB /* AudioBufferOptions.idl */,
 				FD315FB112B0267500C1A359 /* AudioBufferSourceNode.cpp */,
 				FD315FB212B0267500C1A359 /* AudioBufferSourceNode.h */,
 				FD315FB312B0267500C1A359 /* AudioBufferSourceNode.idl */,
@@ -29527,6 +29569,8 @@
 				FD315FE312B0267600C1A359 /* DelayNode.cpp */,
 				FD315FE412B0267600C1A359 /* DelayNode.h */,
 				FD315FE512B0267600C1A359 /* DelayNode.idl */,
+				83A2ABD824D86DC600E2D73D /* DelayOptions.h */,
+				83A2ABDA24D86DC700E2D73D /* DelayOptions.idl */,
 				FD315FE612B0267600C1A359 /* DelayProcessor.cpp */,
 				FD315FE712B0267600C1A359 /* DelayProcessor.h */,
 				8304027D249A7A5B00A90D8D /* DistanceModelType.h */,
@@ -29552,6 +29596,8 @@
 				FDA3E955134A49EF008D4B5A /* OfflineAudioCompletionEvent.cpp */,
 				FDA3E956134A49EF008D4B5A /* OfflineAudioCompletionEvent.h */,
 				FDA3E95D134A49FF008D4B5A /* OfflineAudioCompletionEvent.idl */,
+				833AE52824D386E100017C4B /* OfflineAudioCompletionEventInit.h */,
+				833AE52624D386E100017C4B /* OfflineAudioCompletionEventInit.idl */,
 				FDA9325A16703B2A008982DC /* OfflineAudioContext.cpp */,
 				FDA9325B16703B2A008982DC /* OfflineAudioContext.h */,
 				FDA9325C16703B2A008982DC /* OfflineAudioContext.idl */,
@@ -29566,6 +29612,8 @@
 				E755E8B124CA270A009F7C23 /* OscillatorOptions.idl */,
 				E755E8B424CA2796009F7C23 /* OscillatorType.h */,
 				E755E8B624CA2796009F7C23 /* OscillatorType.idl */,
+				8326BF8924D35C20001F8A85 /* OverSampleType.h */,
+				8326BF8B24D35C20001F8A85 /* OverSampleType.idl */,
 				FD315FCF12B0267500C1A359 /* PannerNode.cpp */,
 				FD315FD012B0267500C1A359 /* PannerNode.h */,
 				FD315FD112B0267500C1A359 /* PannerNode.idl */,
@@ -29590,6 +29638,8 @@
 				FD7F298C13D4C0CB00AD9535 /* WaveShaperNode.cpp */,
 				FD7F298D13D4C0CB00AD9535 /* WaveShaperNode.h */,
 				FD7F298E13D4C0CB00AD9535 /* WaveShaperNode.idl */,
+				8326BF8C24D35C20001F8A85 /* WaveShaperOptions.h */,
+				8326BF8D24D35C21001F8A85 /* WaveShaperOptions.idl */,
 				FD7F298F13D4C0CB00AD9535 /* WaveShaperProcessor.cpp */,
 				FD7F299013D4C0CB00AD9535 /* WaveShaperProcessor.h */,
 				83003E2B249997A80060AF94 /* WebKitAudioContext.cpp */,
@@ -29913,6 +29963,7 @@
 				CE08C3D2152B599A0021B8C2 /* AlternativeTextController.h in Headers */,
 				CE7B2DB31586ABAD0098B3FA /* AlternativeTextUIController.h in Headers */,
 				FD31603E12B0267600C1A359 /* AnalyserNode.h in Headers */,
+				E7E0357224D4E196008DFEFB /* AnalyserOptions.h in Headers */,
 				31A795C71888BCB200382F90 /* ANGLEInstancedArrays.h in Headers */,
 				490707E71219C04300D90E51 /* ANGLEWebKitBridge.h in Headers */,
 				49E912AB0EFAC906009D0CAF /* Animation.h in Headers */,
@@ -30593,6 +30644,7 @@
 				CD83D36221122A210076E11C /* DeferrableTask.h in Headers */,
 				FD31602C12B0267600C1A359 /* DelayDSPKernel.h in Headers */,
 				FD31602E12B0267600C1A359 /* DelayNode.h in Headers */,
+				83A2ABDB24D86DE000E2D73D /* DelayOptions.h in Headers */,
 				FD31603112B0267600C1A359 /* DelayProcessor.h in Headers */,
 				93309DDF099E64920056E581 /* DeleteFromTextNodeCommand.h in Headers */,
 				93309DE1099E64920056E581 /* DeleteSelectionCommand.h in Headers */,
@@ -30755,6 +30807,7 @@
 				A7CFB3D20B7ED10A0070C32D /* DragImage.h in Headers */,
 				1AF5E4D91E5677A9004A1F01 /* DragItem.h in Headers */,
 				81F65FF613788FAA00FF6F2D /* DragState.h in Headers */,
+				510A91F624D32DDC00BFD89C /* Dualshock3HIDGamepad.h in Headers */,
 				E1BA66F11742BD8600C20251 /* DynamicLinkerInterposing.h in Headers */,
 				FD6ED2C8136B8E66003CF072 /* DynamicsCompressor.h in Headers */,
 				FD537357137B653B00008DCE /* DynamicsCompressorKernel.h in Headers */,
@@ -30980,6 +31033,8 @@
 				FD31600D12B0267600C1A359 /* GainNode.h in Headers */,
 				51E399001D6E4750009C8831 /* GameControllerGamepad.h in Headers */,
 				51E399021D6E4750009C8831 /* GameControllerGamepadProvider.h in Headers */,
+				510A91FD24D3C16200BFD89C /* GamepadConstants.h in Headers */,
+				510A91FE24D3C16700BFD89C /* GamepadConstantsMac.h in Headers */,
 				516C62211950D48700337E75 /* GamepadEvent.h in Headers */,
 				51A9D9EA195B931F001B2B5C /* GamepadManager.h in Headers */,
 				515BE1921D54F5FB00DD7C68 /* GamepadProvider.h in Headers */,
@@ -32383,6 +32438,7 @@
 				A8239E0109B3CF8A00B60641 /* Logging.h in Headers */,
 				9BA273F4172206BB0097CE47 /* LogicalSelectionOffsetCaches.h in Headers */,
 				0FDCD7F31D47E655009F08BC /* LogInitialization.h in Headers */,
+				510A920824D4F49900BFD89C /* LogitechGamepad.h in Headers */,
 				93A806171E03B51C008A1F26 /* LongRange.h in Headers */,
 				46EFAF121E5FB9F100E7F34B /* LowPowerModeNotifier.h in Headers */,
 				7AE6C93C1BE0C60100E19E03 /* MainThreadSharedTimer.h in Headers */,
@@ -32640,6 +32696,7 @@
 				31078CC81880AABB008099DC /* OESTextureHalfFloatLinear.h in Headers */,
 				77A17A7212F28182004E02F6 /* OESVertexArrayObject.h in Headers */,
 				FDA3E95A134A49EF008D4B5A /* OfflineAudioCompletionEvent.h in Headers */,
+				833AE52924D386F200017C4B /* OfflineAudioCompletionEventInit.h in Headers */,
 				FDA9325E16703B2A008982DC /* OfflineAudioContext.h in Headers */,
 				E7CF84A924C6461C00B06B90 /* OfflineAudioContextOptions.h in Headers */,
 				FDA3E95C134A49EF008D4B5A /* OfflineAudioDestinationNode.h in Headers */,
@@ -32661,6 +32718,7 @@
 				072A70401D6E8F6200DF0AFC /* OverconstrainedErrorEvent.h in Headers */,
 				1A0D57370A5C77FE007EDD4C /* OverflowEvent.h in Headers */,
 				3774ABA50FA21EB400AD7DE9 /* OverlapTestRequestClient.h in Headers */,
+				8326BF8E24D35C33001F8A85 /* OverSampleType.h in Headers */,
 				65A21468097A329100B9050A /* Page.h in Headers */,
 				91278D5E21DEDAD600B57184 /* PageAuditAgent.h in Headers */,
 				CD5E5B5F1A15CE54000C609E /* PageConfiguration.h in Headers */,
@@ -33421,6 +33479,7 @@
 				1A2E6E5A0CC55213004A2062 /* SQLValue.h in Headers */,
 				93F1996308245E59001E9ABC /* SSLKeyGenerator.h in Headers */,
 				26B999911803B3C900D01121 /* StackAllocator.h in Headers */,
+				510A921224D5E60E00BFD89C /* StadiaHIDGamepad.h in Headers */,
 				BC7FA62D0D1F0EFF00DB22A9 /* StaticNodeList.h in Headers */,
 				F433E9031DBBDBA200EF0D14 /* StaticPasteboard.h in Headers */,
 				F44EBBD91DB5D21400277334 /* StaticRange.h in Headers */,
@@ -33931,6 +33990,7 @@
 				A14832BB187F643200DA63A6 /* WAKWindow.h in Headers */,
 				FD7F299213D4C0CB00AD9535 /* WaveShaperDSPKernel.h in Headers */,
 				FD7F299413D4C0CB00AD9535 /* WaveShaperNode.h in Headers */,
+				8326BF8F24D35C39001F8A85 /* WaveShaperOptions.h in Headers */,
 				FD7F299713D4C0CB00AD9535 /* WaveShaperProcessor.h in Headers */,
 				29A812490FBB9CA900510293 /* WebAccessibilityObjectWrapperBase.h in Headers */,
 				AAA728F716D1D8BC00D3BBC6 /* WebAccessibilityObjectWrapperIOS.h in Headers */,
@@ -35049,7 +35109,6 @@
 				DECA80391F9FED6A00E3B661 /* UnifiedSource248.cpp in Sources */,
 				DECA803A1F9FED6A00E3B661 /* UnifiedSource249.cpp in Sources */,
 				DECA803B1F9FED6A00E3B661 /* UnifiedSource250.cpp in Sources */,
-				CDED1C3C24CD305700934E12 /* VP9UtilitiesCocoa.mm in Sources */,
 				DECA803C1F9FED6A00E3B661 /* UnifiedSource251.cpp in Sources */,
 				DECA803D1F9FED6A00E3B661 /* UnifiedSource252.cpp in Sources */,
 				DECA803E1F9FED6A00E3B661 /* UnifiedSource253.cpp in Sources */,
@@ -35339,6 +35398,7 @@
 				CD336F6717FA0AC600DDDCD0 /* VideoTrackPrivateAVFObjC.cpp in Sources */,
 				CD8B5A42180D149A008B8E65 /* VideoTrackPrivateMediaSourceAVFObjC.mm in Sources */,
 				26F9A83818A046AC00AEB88A /* ViewportConfiguration.cpp in Sources */,
+				CDED1C3C24CD305700934E12 /* VP9UtilitiesCocoa.mm in Sources */,
 				A14832B1187F61E100DA63A6 /* WAKAppKitStubs.m in Sources */,
 				A14832B3187F629100DA63A6 /* WAKClipView.m in Sources */,
 				A14832B5187F62FC00DA63A6 /* WAKResponder.m in Sources */,

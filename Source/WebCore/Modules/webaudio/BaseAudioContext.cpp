@@ -33,6 +33,7 @@
 #include "AsyncAudioDecoder.h"
 #include "AudioBuffer.h"
 #include "AudioBufferCallback.h"
+#include "AudioBufferOptions.h"
 #include "AudioBufferSourceNode.h"
 #include "AudioListener.h"
 #include "AudioNodeInput.h"
@@ -46,6 +47,7 @@
 #include "ConvolverNode.h"
 #include "DefaultAudioDestinationNode.h"
 #include "DelayNode.h"
+#include "DelayOptions.h"
 #include "Document.h"
 #include "DynamicsCompressorNode.h"
 #include "EventNames.h"
@@ -385,12 +387,9 @@ bool BaseAudioContext::wouldTaintOrigin(const URL& url) const
     return false;
 }
 
-ExceptionOr<Ref<AudioBuffer>> BaseAudioContext::createBuffer(unsigned numberOfChannels, size_t numberOfFrames, float sampleRate)
+ExceptionOr<Ref<AudioBuffer>> BaseAudioContext::createBuffer(unsigned numberOfChannels, unsigned length, float sampleRate)
 {
-    auto audioBuffer = AudioBuffer::create(numberOfChannels, numberOfFrames, sampleRate);
-    if (!audioBuffer)
-        return Exception { NotSupportedError };
-    return audioBuffer.releaseNonNull();
+    return AudioBuffer::create(AudioBufferOptions {numberOfChannels, length, sampleRate});
 }
 
 ExceptionOr<Ref<AudioBuffer>> BaseAudioContext::createBuffer(ArrayBuffer& arrayBuffer, bool mixToMono)
@@ -509,10 +508,6 @@ ExceptionOr<Ref<WaveShaperNode>> BaseAudioContext::createWaveShaper()
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
     return WaveShaperNode::create(*this);
 }
 
@@ -553,11 +548,7 @@ ExceptionOr<Ref<AnalyserNode>> BaseAudioContext::createAnalyser()
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
-    return AnalyserNode::create(*this, sampleRate());
+    return AnalyserNode::create(*this);
 }
 
 ExceptionOr<Ref<GainNode>> BaseAudioContext::createGain()
@@ -577,11 +568,9 @@ ExceptionOr<Ref<DelayNode>> BaseAudioContext::createDelay(double maxDelayTime)
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
-    return DelayNode::create(*this, sampleRate(), maxDelayTime);
+    DelayOptions options;
+    options.maxDelayTime = maxDelayTime;
+    return DelayNode::create(*this, options);
 }
 
 ExceptionOr<Ref<ChannelSplitterNode>> BaseAudioContext::createChannelSplitter(size_t numberOfOutputs)
@@ -1108,7 +1097,7 @@ void BaseAudioContext::finishedRendering(bool didRendering)
         return;
 
     clearPendingActivityIfExitEarly.release();
-    m_eventQueue->enqueueEvent(OfflineAudioCompletionEvent::create(renderedBuffer.get()));
+    m_eventQueue->enqueueEvent(OfflineAudioCompletionEvent::create(*renderedBuffer));
 
     finishedRenderingScope.release();
     didFinishOfflineRendering(renderedBuffer.releaseNonNull());

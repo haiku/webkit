@@ -107,6 +107,7 @@
 #import <WebCore/MediaSessionManagerIOS.h>
 #import <WebCore/Node.h>
 #import <WebCore/NodeList.h>
+#import <WebCore/NodeRenderStyle.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/Page.h>
 #import <WebCore/Pasteboard.h>
@@ -219,7 +220,10 @@ static void computeEditableRootHasContentAndPlainText(const VisibleSelection& se
 
     auto startInEditableRoot = firstPositionInNode(root);
     data.hasContent = root->hasChildNodes() && !isEndOfEditableOrNonEditableContent(startInEditableRoot);
-    data.hasPlainText = data.hasContent && hasAnyPlainText(Range::create(root->document(), VisiblePosition { startInEditableRoot }, VisiblePosition { lastPositionInNode(root) }));
+    if (data.hasContent) {
+        auto range = makeSimpleRange(VisiblePosition { startInEditableRoot }, VisiblePosition { lastPositionInNode(root) });
+        data.hasPlainText = range && hasAnyPlainText(*range);
+    }
 }
 
 bool WebPage::isTransparentOrFullyClipped(const Element& element) const
@@ -264,7 +268,7 @@ void WebPage::getPlatformEditorState(Frame& frame, EditorState& result) const
 
     if (frame.editor().hasComposition()) {
         if (auto compositionRange = frame.editor().compositionRange()) {
-            createLiveRange(*compositionRange)->collectSelectionRects(postLayoutData.markedTextRects);
+            postLayoutData.markedTextRects = RenderObject::collectSelectionRects(*compositionRange);
             convertContentToRootViewSelectionRects(view, postLayoutData.markedTextRects);
 
             postLayoutData.markedText = plainTextForContext(*compositionRange);
@@ -294,7 +298,7 @@ void WebPage::getPlatformEditorState(Frame& frame, EditorState& result) const
         auto selectedRange = selection.toNormalizedRange();
         String selectedText;
         if (selectedRange) {
-            createLiveRange(*selectedRange)->collectSelectionRects(postLayoutData.selectionRects);
+            postLayoutData.selectionRects = RenderObject::collectSelectionRects(*selectedRange);
             convertContentToRootViewSelectionRects(view, postLayoutData.selectionRects);
             selectedText = plainTextForDisplay(*selectedRange);
             postLayoutData.selectedTextLength = selectedText.length();
@@ -1020,7 +1024,7 @@ void WebPage::computeAndSendEditDragSnapshot()
         TextIndicatorOption::IncludeSnapshotWithSelectionHighlight
     };
     if (auto range = std::exchange(m_rangeForDropSnapshot, WTF::nullopt)) {
-        if (auto textIndicator = TextIndicator::createWithRange(createLiveRange(*range), defaultTextIndicatorOptionsForEditDrag, TextIndicatorPresentationTransition::None, { }))
+        if (auto textIndicator = TextIndicator::createWithRange(*range, defaultTextIndicatorOptionsForEditDrag, TextIndicatorPresentationTransition::None, { }))
             textIndicatorData = textIndicator->data();
     }
     send(Messages::WebPageProxy::DidReceiveEditDragSnapshot(WTFMove(textIndicatorData)));
@@ -1493,14 +1497,27 @@ static Optional<SimpleRange> rangeForPointInRootViewCoordinates(Frame& frame, co
 
     auto pointInDocument = frame.view()->rootViewToContents(pointInRootViewCoordinates);
 
-    if (baseIsStart) {
-        int startY = selectionStart.absoluteCaretBounds().center().y();
-        if (pointInDocument.y() < startY)
-            pointInDocument.setY(startY);
+    auto node = selectionStart.deepEquivalent().containerNode();
+    if (node && node->renderStyle() && node->renderStyle()->isVerticalWritingMode()) {
+        if (baseIsStart) {
+            int startX = selectionStart.absoluteCaretBounds().center().x();
+            if (pointInDocument.x() > startX)
+                pointInDocument.setX(startX);
+        } else {
+            int endX = selectionEnd.absoluteCaretBounds().center().x();
+            if (pointInDocument.x() < endX)
+                pointInDocument.setX(endX);
+        }
     } else {
-        int endY = selectionEnd.absoluteCaretBounds().center().y();
-        if (pointInDocument.y() > endY)
-            pointInDocument.setY(endY);
+        if (baseIsStart) {
+            int startY = selectionStart.absoluteCaretBounds().center().y();
+            if (pointInDocument.y() < startY)
+                pointInDocument.setY(startY);
+        } else {
+            int endY = selectionEnd.absoluteCaretBounds().center().y();
+            if (pointInDocument.y() > endY)
+                pointInDocument.setY(endY);
+        }
     }
     
     VisiblePosition result;
@@ -1955,25 +1972,17 @@ void WebPage::requestEvasionRectsAboveSelection(CompletionHandler<void(const Vec
 void WebPage::getRectsForGranularityWithSelectionOffset(WebCore::TextGranularity granularity, int32_t offset, CallbackID callbackID)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
-    VisibleSelection selection = m_storedSelectionForAccessibility.isNone() ? frame.selection().selection() : m_storedSelectionForAccessibility;
-    VisiblePosition selectionStart = selection.visibleStart();
 
-    if (selectionStart.isNull()) {
-        send(Messages::WebPageProxy::SelectionRectsCallback({ }, callbackID));
-        return;
-    }
-
-    auto position = visiblePositionForPositionWithOffset(selectionStart, offset);
-    SelectionDirection direction = offset < 0 ? SelectionDirection::Backward : SelectionDirection::Forward;
-
+    auto selection = m_storedSelectionForAccessibility.isNone() ? frame.selection().selection() : m_storedSelectionForAccessibility;
+    auto position = visiblePositionForPositionWithOffset(selection.visibleStart(), offset);
+    auto direction = offset < 0 ? SelectionDirection::Backward : SelectionDirection::Forward;
     auto range = enclosingTextUnitOfGranularity(position, granularity, direction);
     if (!range || range->collapsed()) {
         send(Messages::WebPageProxy::SelectionRectsCallback({ }, callbackID));
         return;
     }
 
-    Vector<WebCore::SelectionRect> selectionRects;
-    createLiveRange(*range)->collectSelectionRectsWithoutUnionInteriorLines(selectionRects);
+    auto selectionRects = RenderObject::collectSelectionRectsWithoutUnionInteriorLines(*range);
     convertContentToRootViewSelectionRects(*frame.view(), selectionRects);
     send(Messages::WebPageProxy::SelectionRectsCallback(selectionRects, callbackID));
 }
@@ -2003,35 +2012,23 @@ static Optional<SimpleRange> rangeNearPositionMatchesText(const VisiblePosition&
 void WebPage::getRectsAtSelectionOffsetWithText(int32_t offset, const String& text, CallbackID callbackID)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
-    uint32_t length = text.length();
-    VisibleSelection selection = m_storedSelectionForAccessibility.isNone() ? frame.selection().selection() : m_storedSelectionForAccessibility;
-    VisiblePosition selectionStart = selection.visibleStart();
-    VisiblePosition selectionEnd = selection.visibleEnd();
-
-    if (selectionStart.isNull() || selectionEnd.isNull()) {
+    auto& selection = m_storedSelectionForAccessibility.isNone() ? frame.selection().selection() : m_storedSelectionForAccessibility;
+    auto startPosition = visiblePositionForPositionWithOffset(selection.visibleStart(), offset);
+    auto range = makeSimpleRange(startPosition, visiblePositionForPositionWithOffset(startPosition, text.length()));
+    if (!range || range->collapsed()) {
         send(Messages::WebPageProxy::SelectionRectsCallback({ }, callbackID));
         return;
     }
 
-    auto startPosition = visiblePositionForPositionWithOffset(selectionStart, offset);
-    auto endPosition = visiblePositionForPositionWithOffset(startPosition, length);
-    auto range = Range::create(*frame.document(), startPosition, endPosition);
-
-    if (range->collapsed()) {
-        send(Messages::WebPageProxy::SelectionRectsCallback({ }, callbackID));
-        return;
-    }
-
-    if (plainTextForDisplay(range) != text) {
+    if (plainTextForDisplay(*range) != text) {
         // Try to search for a range which is the closest to the position within the selection range that matches the passed in text.
         if (auto wordRange = rangeNearPositionMatchesText(startPosition, text, selection)) {
             if (!wordRange->collapsed())
-                range = createLiveRange(*wordRange);
+                range = *wordRange;
         }
     }
 
-    Vector<WebCore::SelectionRect> selectionRects;
-    range->collectSelectionRectsWithoutUnionInteriorLines(selectionRects);
+    auto selectionRects = RenderObject::collectSelectionRectsWithoutUnionInteriorLines(*range);
     convertContentToRootViewSelectionRects(*frame.view(), selectionRects);
     send(Messages::WebPageProxy::SelectionRectsCallback(selectionRects, callbackID));
 }
@@ -2247,8 +2244,7 @@ void WebPage::requestDictationContext(CallbackID callbackID)
                 break;
             lastPosition = currentPosition;
         }
-        if (lastPosition.isNotNull() && lastPosition != startPosition)
-            contextBefore = plainTextForContext(Range::create(*frame.document(), lastPosition, startPosition));
+        contextBefore = plainTextForContext(makeSimpleRange(lastPosition, startPosition));
     }
 
     String contextAfter;
@@ -2261,8 +2257,7 @@ void WebPage::requestDictationContext(CallbackID callbackID)
                 break;
             lastPosition = currentPosition;
         }
-        if (lastPosition.isNotNull() && lastPosition != endPosition)
-            contextAfter = plainTextForContext(Range::create(*frame.document(), endPosition, lastPosition));
+        contextAfter = plainTextForContext(makeSimpleRange(endPosition, lastPosition));
     }
 
     send(Messages::WebPageProxy::SelectionContextCallback(selectedText, contextBefore, contextAfter, callbackID));
@@ -2335,7 +2330,7 @@ void WebPage::requestAutocorrectionData(const String& textForAutocorrection, Com
 
     Vector<SelectionRect> selectionRects;
     if (textForRange == textForAutocorrection)
-        createLiveRange(range)->collectSelectionRects(selectionRects);
+        selectionRects = RenderObject::collectSelectionRects(*range);
 
     auto rootViewSelectionRects = selectionRects.map([&](const auto& selectionRect) -> FloatRect { return frame.view()->contentsToRootView(selectionRect.rect()); });
 
@@ -2480,14 +2475,14 @@ WebAutocorrectionContext WebPage::autocorrectionContext()
                 previousPosition = startOfWord(positionOfNextBoundaryOfGranularity(currentPosition, TextGranularity::WordGranularity, SelectionDirection::Backward));
                 if (previousPosition.isNull())
                     break;
-                String currentWord = plainTextForContext(Range::create(*frame.document(), previousPosition, currentPosition));
+                String currentWord = plainTextForContext(makeSimpleRange(previousPosition, currentPosition));
                 totalContextLength += currentWord.length();
                 if (totalContextLength >= maxContextLength)
                     break;
                 currentPosition = previousPosition;
             }
             if (currentPosition.isNotNull() && currentPosition != startPosition) {
-                contextBefore = plainTextForContext(Range::create(*frame.document(), currentPosition, startPosition));
+                contextBefore = plainTextForContext(makeSimpleRange(currentPosition, startPosition));
                 if (atBoundaryOfGranularity(currentPosition, TextGranularity::ParagraphGranularity, SelectionDirection::Backward))
                     contextBefore = makeString("\n "_s, contextBefore);
             }
@@ -2497,8 +2492,7 @@ WebAutocorrectionContext WebPage::autocorrectionContext()
             VisiblePosition nextPosition;
             if (!atBoundaryOfGranularity(endPosition, TextGranularity::WordGranularity, SelectionDirection::Forward) && withinTextUnitOfGranularity(endPosition, TextGranularity::WordGranularity, SelectionDirection::Forward))
                 nextPosition = positionOfNextBoundaryOfGranularity(endPosition, TextGranularity::WordGranularity, SelectionDirection::Forward);
-            if (nextPosition.isNotNull())
-                contextAfter = plainTextForContext(Range::create(*frame.document(), endPosition, nextPosition));
+            contextAfter = plainTextForContext(makeSimpleRange(endPosition, nextPosition));
         }
     }
 
@@ -2602,7 +2596,7 @@ static void linkIndicatorPositionInformation(WebPage& page, Element& linkElement
     if (!request.includeLinkIndicator)
         return;
 
-    auto linkRange = rangeOfContents(linkElement);
+    auto linkRange = makeRangeSelectingNodeContents(linkElement);
     float deviceScaleFactor = page.corePage()->deviceScaleFactor();
     const float marginInPoints = request.linkIndicatorShouldHaveLegacyMargins ? 4 : 0;
 
@@ -2614,13 +2608,14 @@ static void linkIndicatorPositionInformation(WebPage& page, Element& linkElement
         TextIndicatorOption::IncludeMarginIfRangeMatchesSelection,
         TextIndicatorOption::ComputeEstimatedBackgroundColor
     };
-    auto textIndicator = TextIndicator::createWithRange(linkRange.get(), textIndicatorOptions, TextIndicatorPresentationTransition::None, FloatSize(marginInPoints * deviceScaleFactor, marginInPoints * deviceScaleFactor));
+    auto textIndicator = TextIndicator::createWithRange(linkRange, textIndicatorOptions, TextIndicatorPresentationTransition::None, FloatSize(marginInPoints * deviceScaleFactor, marginInPoints * deviceScaleFactor));
 
     if (textIndicator)
         info.linkIndicator = textIndicator->data();
 }
     
 #if ENABLE(DATA_DETECTION)
+
 static void dataDetectorLinkPositionInformation(Element& element, InteractionInformationAtPosition& info)
 {
     if (!DataDetection::isDataDetectorLink(element))
@@ -2634,13 +2629,13 @@ static void dataDetectorLinkPositionInformation(Element& element, InteractionInf
     if (!DataDetection::requiresExtendedContext(element))
         return;
     
-    auto linkRange = Range::create(element.document());
-    linkRange->selectNodeContents(element);
-    info.textBefore = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(linkRange->startPosition(),
+    auto range = makeRangeSelectingNodeContents(element);
+    info.textBefore = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(createLegacyEditingPosition(range.start),
         dataDetectionExtendedContextLength, SelectionDirection::Backward));
-    info.textAfter = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(linkRange->endPosition(),
+    info.textAfter = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(createLegacyEditingPosition(range.end),
         dataDetectionExtendedContextLength, SelectionDirection::Forward));
 }
+
 #endif
 
 static void imagePositionInformation(WebPage& page, Element& element, const InteractionInformationRequest& request, InteractionInformationAtPosition& info)
@@ -4136,7 +4131,11 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
             completionHandler({ });
             return;
         }
-        if (is<HTMLTextFormControlElement>(element)) {
+
+        if (!request.rect.isEmpty()) {
+            rangeOfInterestStart = closestEditablePositionInElementForAbsolutePoint(*element, roundedIntPoint(request.rect.minXMinYCorner()));
+            rangeOfInterestEnd = closestEditablePositionInElementForAbsolutePoint(*element, roundedIntPoint(request.rect.maxXMaxYCorner()));
+        } else if (is<HTMLTextFormControlElement>(element)) {
             auto& textFormControlElement = downcast<HTMLTextFormControlElement>(*element);
             rangeOfInterestStart = textFormControlElement.visiblePositionForIndex(0);
             rangeOfInterestEnd = textFormControlElement.visiblePositionForIndex(textFormControlElement.value().length());
@@ -4148,17 +4147,19 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
         // FIXME: We might need to be a bit more careful that we get something useful (test the other corners?).
         rangeOfInterestStart = visiblePositionForPointInRootViewCoordinates(frame.get(), request.rect.minXMinYCorner());
         rangeOfInterestEnd = visiblePositionForPointInRootViewCoordinates(frame.get(), request.rect.maxXMaxYCorner());
-        if (rangeOfInterestEnd < rangeOfInterestStart)
-            std::exchange(rangeOfInterestStart, rangeOfInterestEnd);
-        if (request.options.contains(DocumentEditingContextRequest::Options::SpatialAndCurrentSelection)) {
-            if (selectionStart < rangeOfInterestStart)
-                rangeOfInterestStart = selectionStart;
-            if (selectionEnd > rangeOfInterestEnd)
-                rangeOfInterestEnd = selectionEnd;
-        }
     } else if (!selection.isNone()) {
         rangeOfInterestStart = selectionStart;
         rangeOfInterestEnd = selectionEnd;
+    }
+
+    if (rangeOfInterestEnd < rangeOfInterestStart)
+        std::exchange(rangeOfInterestStart, rangeOfInterestEnd);
+
+    if (request.options.contains(DocumentEditingContextRequest::Options::SpatialAndCurrentSelection)) {
+        if (selectionStart < rangeOfInterestStart)
+            rangeOfInterestStart = selectionStart;
+        if (selectionEnd > rangeOfInterestEnd)
+            rangeOfInterestEnd = selectionEnd;
     }
 
     if (rangeOfInterestStart.isNull() || rangeOfInterestStart.isOrphan() || rangeOfInterestEnd.isNull() || rangeOfInterestEnd.isOrphan()) {
@@ -4173,12 +4174,12 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
     VisiblePosition endOfRangeOfInterestInSelection;
 
     auto selectionRange = selection.toNormalizedRange();
-    auto rangeOfInterest = makeRange(rangeOfInterestStart, rangeOfInterestEnd);
-    if (selectionRange && rangesOverlap(rangeOfInterest.get(), createLiveRange(*selectionRange).ptr())) {
+    auto rangeOfInterest = *makeSimpleRange(rangeOfInterestStart, rangeOfInterestEnd);
+    if (selectionRange && rangesOverlap(createLiveRange(rangeOfInterest).ptr(), createLiveRange(*selectionRange).ptr())) {
         startOfRangeOfInterestInSelection = std::max(rangeOfInterestStart, selectionStart);
         endOfRangeOfInterestInSelection = std::min(rangeOfInterestEnd, selectionEnd);
     } else {
-        auto rootNode = makeRefPtr(rangeOfInterest->commonAncestorContainer());
+        auto rootNode = commonInclusiveAncestor(rangeOfInterest);
         if (!rootNode) {
             completionHandler({ });
             return;
@@ -4190,7 +4191,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
         }
         auto scope = makeRangeSelectingNodeContents(*rootContainerNode);
 
-        auto characterRangeOfInterest = characterRange(scope, *rangeOfInterest);
+        auto characterRangeOfInterest = characterRange(scope, rangeOfInterest);
         auto midpointLocation = checkedSum<uint64_t>(characterRangeOfInterest.location, characterRangeOfInterest.length / 2);
         if (midpointLocation.hasOverflowed()) {
             completionHandler({ });
@@ -4239,7 +4240,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
     context.contextBefore = makeString(contextBeforeStart, startOfRangeOfInterestInSelection);
     context.selectedText = makeString(startOfRangeOfInterestInSelection, endOfRangeOfInterestInSelection);
     context.contextAfter = makeString(endOfRangeOfInterestInSelection, contextAfterEnd);
-    if (compositionRange && rangesOverlap(rangeOfInterest.get(), createLiveRange(*compositionRange).ptr())) {
+    if (compositionRange && rangesOverlap(createLiveRange(rangeOfInterest).ptr(), createLiveRange(*compositionRange).ptr())) {
         VisiblePosition compositionStart(createLegacyEditingPosition(compositionRange->start));
         VisiblePosition compositionEnd(createLegacyEditingPosition(compositionRange->end));
         context.markedText = makeString(compositionStart, compositionEnd);
@@ -4264,7 +4265,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
     };
 
     if (wantsRects) {
-        if (auto contextRange = makeRange(contextBeforeStart, contextAfterEnd))
+        if (auto contextRange = makeSimpleRange(contextBeforeStart, contextAfterEnd))
             context.textRects = characterRectsForRange(*contextRange, 0);
     } else if (wantsMarkedTextRects && compositionRange) {
         unsigned compositionStartOffset = 0;
