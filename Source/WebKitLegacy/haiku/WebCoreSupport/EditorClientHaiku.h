@@ -52,7 +52,7 @@ class EditorClientHaiku : public EditorClient, public TextCheckerClient {
 public:
     EditorClientHaiku(BWebPage* page);
 
-    bool shouldDeleteRange(Range*) override;
+    bool shouldDeleteRange(const Optional<SimpleRange>&) override;
     bool smartInsertDeleteEnabled() override;
     bool isContinuousSpellCheckingEnabled() override;
     void toggleContinuousSpellChecking() override;
@@ -60,24 +60,24 @@ public:
     void toggleGrammarChecking() override;
     int spellCheckerDocumentTag() override;
 
-    bool shouldBeginEditing(Range*) override;
-    bool shouldEndEditing(Range*) override;
-    bool shouldInsertNode(Node*, Range*, EditorInsertAction) override;
-    bool shouldInsertText(const String&, Range*, EditorInsertAction) override;
-    bool shouldChangeSelectedRange(Range* fromRange, Range* toRange,
+    bool shouldBeginEditing(const SimpleRange&) override;
+    bool shouldEndEditing(const SimpleRange&) override;
+    bool shouldInsertNode(Node&, const Optional<SimpleRange>&, EditorInsertAction) override;
+    bool shouldInsertText(const String&, const Optional <SimpleRange>&, EditorInsertAction) override;
+    bool shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange,
                                            EAffinity, bool stillSelecting) override;
 
-    bool shouldApplyStyle(StyleProperties*, Range*) override;
-    bool shouldMoveRangeAfterDelete(Range*, Range*) override;
+    bool shouldApplyStyle(const StyleProperties&, const Optional<SimpleRange>&) override;
+    bool shouldMoveRangeAfterDelete(const SimpleRange&, const SimpleRange&) override;
 
     void didBeginEditing() override;
     void didEndEditing() override;
     void didApplyStyle() override {};
 
-	bool isSelectTrailingWhitespaceEnabled() const override;
-    void willWriteSelectionToPasteboard(WebCore::Range*) override;
+    bool isSelectTrailingWhitespaceEnabled() const override;
+    void willWriteSelectionToPasteboard(const Optional<SimpleRange>&) override;
     void didWriteSelectionToPasteboard() override;
-    void getClientPasteboardDataForRange(WebCore::Range*, Vector<String>& pasteboardTypes, Vector<RefPtr<WebCore::SharedBuffer> >& pasteboardData) override;
+    void getClientPasteboardData(const Optional<SimpleRange>&, Vector<String>& pasteboardTypes, Vector<RefPtr<WebCore::SharedBuffer> >& pasteboardData) override;
 
     void respondToChangedContents() override;
     void respondToChangedSelection(Frame*) override;
@@ -119,7 +119,7 @@ public:
     void willSetInputMethodState() override;
     void setInputMethodState(Element*) override;
 
-    bool performTwoStepDrop(DocumentFragment&, Range& destination, bool isMove) override;
+    bool performTwoStepDrop(DocumentFragment&, const SimpleRange& destination, bool isMove) override;
     // TextCheckerClient
 
     bool shouldEraseMarkersAfterChangeSelection(TextCheckingType) const override;

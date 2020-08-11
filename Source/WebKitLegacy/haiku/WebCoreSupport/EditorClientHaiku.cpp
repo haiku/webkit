@@ -56,10 +56,11 @@ EditorClientHaiku::EditorClientHaiku(BWebPage* page)
 {
 }
 
-bool EditorClientHaiku::shouldDeleteRange(Range* range)
+bool EditorClientHaiku::shouldDeleteRange(const Optional<SimpleRange>& range)
 {
     BMessage message(EDITOR_DELETE_RANGE);
-    message.AddPointer("range", range);
+    if (range)
+        message.AddPointer("range", &*range);
     dispatchMessage(message);
     return true;
 }
@@ -98,65 +99,70 @@ int EditorClientHaiku::spellCheckerDocumentTag()
     return 0;
 }
 
-bool EditorClientHaiku::shouldBeginEditing(WebCore::Range* range)
+bool EditorClientHaiku::shouldBeginEditing(const SimpleRange& range)
 {
     BMessage message(EDITOR_BEGIN_EDITING);
-    message.AddPointer("range", range);
+    message.AddPointer("range", &range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldEndEditing(WebCore::Range* range)
+bool EditorClientHaiku::shouldEndEditing(const SimpleRange& range)
 {
     BMessage message(EDITOR_END_EDITING);
-    message.AddPointer("range", range);
+    message.AddPointer("range", &range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldInsertNode(Node* node, Range* range, EditorInsertAction action)
+bool EditorClientHaiku::shouldInsertNode(Node& node, const Optional<SimpleRange>& range, EditorInsertAction action)
 {
     BMessage message(EDITOR_INSERT_NODE);
-    message.AddPointer("node", node);
-    message.AddPointer("range", range);
+    message.AddPointer("node", &node);
+    if (range)
+        message.AddPointer("range", &*range);
     message.AddInt32("action", (int32)action);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldInsertText(const String& text, Range* range, EditorInsertAction action)
+bool EditorClientHaiku::shouldInsertText(const String& text, const Optional<SimpleRange>& range, EditorInsertAction action)
 {
     BMessage message(EDITOR_INSERT_TEXT);
     message.AddString("text", text);
-    message.AddPointer("range", range);
+    if (range)
+        message.AddPointer("range", &*range);
     message.AddInt32("action", (int32)action);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldChangeSelectedRange(Range* fromRange, Range* toRange,
+bool EditorClientHaiku::shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange,
     EAffinity affinity, bool stillSelecting)
 {
     BMessage message(EDITOR_CHANGE_SELECTED_RANGE);
-    message.AddPointer("from", fromRange);
-    message.AddPointer("to", toRange);
+    if (fromRange)
+        message.AddPointer("from", &*fromRange);
+    if (toRange)
+        message.AddPointer("to", &*toRange);
     message.AddInt32("affinity", affinity);
     message.AddInt32("stillEditing", stillSelecting);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldApplyStyle(WebCore::StyleProperties* style,
-                                      WebCore::Range* range)
+bool EditorClientHaiku::shouldApplyStyle(const WebCore::StyleProperties& style,
+                                      const Optional<SimpleRange>& range)
 {
     BMessage message(EDITOR_APPLY_STYLE);
-    message.AddPointer("style", style);
-    message.AddPointer("range", range);
+    message.AddPointer("style", &style);
+    if (range)
+        message.AddPointer("range", &*range);
     dispatchMessage(message);
     return true;
 }
 
-bool EditorClientHaiku::shouldMoveRangeAfterDelete(Range*, Range*)
+bool EditorClientHaiku::shouldMoveRangeAfterDelete(const SimpleRange&, const SimpleRange&)
 {
     notImplemented();
     return true;
@@ -200,11 +206,11 @@ bool EditorClientHaiku::isSelectTrailingWhitespaceEnabled() const
 	return false;
 }
 
-void EditorClientHaiku::willWriteSelectionToPasteboard(WebCore::Range*)
+void EditorClientHaiku::willWriteSelectionToPasteboard(const Optional<SimpleRange>&)
 {
 }
 
-void EditorClientHaiku::getClientPasteboardDataForRange(WebCore::Range*, Vector<String>&, Vector<RefPtr<WebCore::SharedBuffer> >&)
+void EditorClientHaiku::getClientPasteboardData(const Optional<SimpleRange>&, Vector<String>&, Vector<RefPtr<WebCore::SharedBuffer> >&)
 {
 }
 
@@ -392,9 +398,9 @@ void EditorClientHaiku::handleKeyboardEvent(KeyboardEvent& event)
     if (!platformEvent || platformEvent->type() == PlatformKeyboardEvent::KeyUp)
         return;
 
-	if (handleEditingKeyboardEvent(&event, platformEvent)) {
-	    event.setDefaultHandled();
-	}
+    if (handleEditingKeyboardEvent(&event, platformEvent)) {
+        event.setDefaultHandled();
+    }
 }
 
 void EditorClientHaiku::handleInputMethodKeydown(KeyboardEvent&)
@@ -506,7 +512,7 @@ void EditorClientHaiku::setInputMethodState(Element*)
     notImplemented();
 }
 
-bool EditorClientHaiku::performTwoStepDrop(DocumentFragment&, Range& destination, bool isMove)
+bool EditorClientHaiku::performTwoStepDrop(DocumentFragment&, const SimpleRange& destination, bool isMove)
 {
 	notImplemented();
 	return false;

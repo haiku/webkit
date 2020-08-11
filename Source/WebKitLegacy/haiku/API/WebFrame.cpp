@@ -46,6 +46,7 @@
 #include "Page.h"
 #include "ProgressTracker.h"
 #include "ProgressTrackerHaiku.h"
+#include "Range.h"
 #include "RenderObject.h"
 #include "RenderTreeAsText.h"
 #include "RenderView.h"

@@ -48,20 +48,23 @@ namespace WebCore {
 void Editor::pasteWithPasteboard(Pasteboard* pasteboard,
     WTF::OptionSet<WebCore::Editor::PasteOption> options)
 {
-    RefPtr<Range> range = selectedRange();
+    auto range = selectedRange();
     if (!range)
         return;
 
     bool chosePlainText;
-    RefPtr<DocumentFragment> fragment = pasteboard->documentFragment(
-        *m_document.frame(), *range, options.contains(PasteOption::AllowPlainText), chosePlainText);
+    auto fragment = webContentFromPasteboard(*pasteboard,
+        *range, options.contains(PasteOption::AllowPlainText), chosePlainText);
 
-    if (fragment && shouldInsertFragment(*fragment, range.get(),
+    if (fragment && options.contains(PasteOption::AsQuotation))
+        quoteFragmentForPasting(*fragment);
+
+    if (fragment && shouldInsertFragment(*fragment, *range,
             EditorInsertAction::Pasted))
     {
         pasteAsFragment(fragment.releaseNonNull(), canSmartReplaceWithPasteboard(*pasteboard),
             chosePlainText, options.contains(PasteOption::IgnoreMailBlockquote) ?
-				MailBlockquoteHandling::IgnoreBlockquote : MailBlockquoteHandling::RespectBlockquote);
+                MailBlockquoteHandling::IgnoreBlockquote : MailBlockquoteHandling::RespectBlockquote);
     }
 }
 

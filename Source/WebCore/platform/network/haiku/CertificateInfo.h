@@ -26,7 +26,7 @@
 #ifndef CertificateInfo_h
 #define CertificateInfo_h
 
-#include "CertificateInfoBase.h"
+#include "CertificateSummary.h"
 #include "NotImplemented.h"
 #include <optional>
 #include <support/Locker.h>
@@ -41,14 +41,16 @@ namespace WebCore {
 class ResourceError;
 class ResourceResponse;
 
-class CertificateInfo : public CertificateInfoBase {
+class CertificateInfo {
 public:
     CertificateInfo();
     explicit CertificateInfo(const BCertificate& certificate)
         : m_certificate(&certificate)
     { }
 
-    Optional<SummaryInfo> summaryInfo() const { notImplemented(); return WTF::nullopt; }
+    Optional<CertificateSummary> summary() const { notImplemented(); return WTF::nullopt; }
+
+    bool isEmpty() const { return m_certificate == NULL; }
 
     const BCertificate& certificate() const { return *m_certificate; }
 

@@ -58,7 +58,7 @@ typedef void* PlatformGradient;
 #endif
 
 #if PLATFORM(HAIKU)
-class BGradient;
+#include <Gradient.h>
 #include <memory>
 #endif
 
