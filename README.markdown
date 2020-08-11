@@ -16,7 +16,8 @@ can also use github for that, or download parts of the history later.
 
 ### Requirements ###
 
-- You need a recent version of Haiku with the GCC8 development tools
+- A recent version of Haiku (beta2 is too old, it lacks at least madvise() and support for compositing draw operations)
+- The GCC8 development tools
 - The dependencies as listed below
 - At least about 2G of RAM
 - Preferrably a fast computer!
@@ -25,13 +26,13 @@ Dependencies can be installed (for a gcc2hybrid version) via:
 
     $ pkgman install cmake_x86 gcc_x86 gperf haiku_x86_devel jpeg_x86_devel \
         sqlite_x86_devel libpng16_x86_devel libxml2_x86_devel \
-        libxslt_x86_devel icu_x86_devel icu_devel perl python ruby_x86 \
+        libxslt_x86_devel icu66_x86_devel perl python ruby_x86 \
         libexecinfo_x86_devel libwebp_x86_devel ninja_x86 \
         pkgconfig_x86 pywebsocket gnutls_x86 gnutls_x86_devel
 
 Additionally if you want to run the tests:
 
-    $ pkgman install php lighttpd_x86
+    $ pkgman install php_x86 lighttpd_x86
 
 ##### NOTE :
 If you get an _Ruby missng error_ even after you have installed ruby, similar to <br>`Could NOT find Ruby  (missing: RUBY_INCLUDE_DIR RUBY_LIBRARY RUBY_CONFIG_INCLUDE_DIR)  (found suitable version "2.2.0", minimum required is "1.9")`, you can skip that.
@@ -63,15 +64,15 @@ On a successful build, executables and libraries are generated in the WebKitBuil
 
 The following make targets are available:
 
-- libwtf.so - The Web Template Library
-- libjavascriptcore.so -  The JavaScriptCore library
-- jsc	 - The JavaScriptCore executable shell
-- libwebcore.so - The WebCore library
-- libwebkit.so - The WebKit library
+- libwtf.so - WebKit Template Framework (a complement of the STL used in WebKit)
+- libjavascriptcore.so - The JavaScript interpreter
+- jsc - The JavaScript executable shell
+- libwebcore.so - The WebCore library (cross-platform WebKit code)
+- libwebkitlegacy.so - The Haiku specific parts of WebKit
 - HaikuLauncher - A simple browsing test app
 - DumpRenderTree - The tree parsing test tool
 
-Example given, this will build the JavaScriptCore library in debug mode:
+Example given, this will build the JavaScriptCore library:
 
     $ ninja libjavascriptcore.so
 
@@ -201,6 +202,20 @@ Note that this is currently not working.
 ### Others ###
 
 There are more tests, but the build-\* scripts must be working before we can run them.
+
+## Status of WebKit2 port ##
+
+The Haiku port currently uses the WebKitLegacy API. Eventually we should move to
+WebKit2 (simply called WebKit in the sources). WebKit2 splits the web engine into
+multiple processes: an user interface, a web process, a network process, etc. This
+allows for better sandboxing, and better stability (the user interface will not
+crash or freeze when it hits a problematic website).
+
+The work on WebKit2 is found in the GSoC2019 tag. It has not been updated since
+and the internals of WebKit have changed a bit. An attempt to rebase it is found
+in the webkit2 branch, but it's completely broken. The best thing to do is
+probably to enable webkit2 in the current rebased branch, see what breaks, and
+cherry-pick the relevant changes from the GSoC2019 tag (and the commit history leading to it).
 
 ## Notes ##
 
