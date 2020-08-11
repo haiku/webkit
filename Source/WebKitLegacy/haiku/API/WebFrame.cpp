@@ -254,7 +254,7 @@ BString BWebFrame::FrameSource() const
         WebCore::Document* document = fData->frame->document();
 
         if (document)
-            return BString(serializePreservingVisualAppearance(document->createRange()));
+            return serializeFragment(*document, SerializedNodes::SubtreeIncludingNode);
     }
 
     return BString();
@@ -294,7 +294,7 @@ BString BWebFrame::AsMarkup() const
     if (!fData->frame->document())
         return BString();
 
-    return serializePreservingVisualAppearance(fData->frame->document()->createRange());
+    return serializeFragment(*fData->frame->document(), SerializedNodes::SubtreeIncludingNode);
 }
 
 BString BWebFrame::ExternalRepresentation() const
