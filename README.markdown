@@ -20,22 +20,23 @@ can also use github for that, or download parts of the history later.
 - The GCC8 development tools
 - The dependencies as listed below
 - At least about 2G of RAM
-- Preferrably a fast computer!
+- Preferably a fast computer!
 
 Dependencies can be installed (for a gcc2hybrid version) via:
 
-    $ pkgman install cmake_x86 gcc_x86 gperf haiku_x86_devel jpeg_x86_devel \
-        sqlite_x86_devel libpng16_x86_devel libxml2_x86_devel \
-        libxslt_x86_devel icu66_x86_devel perl python ruby_x86 \
-        libexecinfo_x86_devel libwebp_x86_devel ninja_x86 \
-        pkgconfig_x86 pywebsocket gnutls_x86 gnutls_x86_devel
+    $ pkgman install cmake_x86 gcc_x86 gperf haiku_x86_devel \
+	libjpeg_turbo_x86_devel sqlite_x86_devel libpng16_x86_devel \
+	libxml2_x86_devel libxslt_x86_devel icu66_x86_devel perl python \
+	ruby_x86 libexecinfo_x86_devel libwebp_x86_devel ninja_x86 \
+	pkgconfig_x86 pywebsocket gnutls_x86 gnutls_x86_devel
 
 Additionally if you want to run the tests:
 
     $ pkgman install php_x86 lighttpd_x86
 
 ##### NOTE :
-If you get an _Ruby missng error_ even after you have installed ruby, similar to <br>`Could NOT find Ruby  (missing: RUBY_INCLUDE_DIR RUBY_LIBRARY RUBY_CONFIG_INCLUDE_DIR)  (found suitable version "2.2.0", minimum required is "1.9")`, you can skip that.
+If you get an _Ruby missng error_ even after you have installed ruby, similar to <br>
+`Could NOT find Ruby  (missing: RUBY_INCLUDE_DIR RUBY_LIBRARY RUBY_CONFIG_INCLUDE_DIR)  (found suitable version "2.2.0", minimum required is "1.9")`, you can skip that.
 
 Packages for other flavors of Haiku may or may not be available. Use [haikuporter](http://haikuports.org) to build them if needed.
 
@@ -44,16 +45,17 @@ Packages for other flavors of Haiku may or may not be available. Use [haikuporte
 #### Configuring your build for the first time ####
 Commands to run from the webkit checkout directory:
 
-On a gcc2hybrid Haiku:
-    $ PKG_CONFIG_LIBDIR=/boot/system/develop/lib/x86/pkgconfig \
-        CC=gcc-x86 CXX=g++-x86 Tools/Scripts/build-webkit --cmakeargs="-DCMAKE_AR=/bin/ar-x86 -DCMAKE_RANLIB=/bin/ranlib-x86" --haiku
+On a gcc2hybrid (32bit) Haiku:
+	$ PKG_CONFIG_LIBDIR=/boot/system/develop/lib/x86/pkgconfig \
+        CC=gcc-x86 CXX=g++-x86 Tools/Scripts/build-webkit \
+		--cmakeargs="-DCMAKE_AR=/bin/ar-x86 -DCMAKE_RANLIB=/bin/ranlib-x86" --haiku
 
 On other versions:
     $ Tools/Scripts/build-webkit --haiku
 
 #### Regular build, once configured ####
-    $ cd WebKitBuild/Release
-    $ ninja
+	$ cd WebKitBuild/Release
+	$ ninja
 
 This will build a release version of WebKit libraries on a quad core cpu.
 
@@ -230,6 +232,6 @@ WebKitBuild/Release folder. Launching it will then use the freshly built
 libraries instead of the system ones. It is a good idea to test this because
 HaikuLauncher doesn't use tabs, which sometimes expose different bugs.
 
-This document was last updated May 25, 2020.
+This document was last updated August 13, 2020.
 
 Authors: Maxime Simon, Alexandre Deckner, Adrien Destugues
