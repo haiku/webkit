@@ -1,3 +1,311 @@
+2020-08-12  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [PlayStation] Build fix for !ENABLE(ACCESSIBILITY) after r265514
+        https://bugs.webkit.org/show_bug.cgi?id=215426
+
+        AXObjectCache::getOrCreate(AccessibilityRole) changed names
+        in the above, but the short definition for
+        !ENABLE(ACCESSIBILITY) didn't update.
+
+        Unreviewed build fix.
+
+        * accessibility/AXObjectCache.h: Update name to match new name
+
+2020-08-12  Peng Liu  <peng.liu6@apple.com>
+
+        Add the support to return to element fullscreen from picture-in-picture
+        https://bugs.webkit.org/show_bug.cgi?id=215305
+
+        Reviewed by Jer Noble.
+
+        When a container element enters fullscreen (with the fullscreen API), a descendant
+        video element will enter the video fullscreen standby state so that it can enter
+        picture-in-picture on application suspend (r226217). But we cannot restore
+        to that state from the picture-in-picture mode when we click the "restore" button
+        on the top-right corner of the PiP window. Instead, the video element will return
+        to the inline mode.
+
+        However, when a video element enters video fullscreen first and then enters
+        picture-in-picture, we can let the video restore to fullscreen by clicking the
+        "restore" button on the top-right corner of the picture-in-picture window.
+
+        The inconsistent behaviors may confuse users who are not aware of the difference
+        between the fullscreen API (or element fullscreen) and video fullscreen.
+
+        This patch enables the support to restore to element fullscreen from picture-in-picture
+        mode so that users can have a consistent experience on element fullscreen and
+        video fullscreen.
+
+        * dom/FullscreenManager.h:
+        Export requestFullscreenForElement() so that we can use it in WebKit code.
+
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::enterFullscreen):
+        (WebCore::HTMLMediaElement::prepareForVideoFullscreenStandby):
+        * html/HTMLMediaElement.h:
+        * page/ChromeClient.h:
+        (WebCore::ChromeClient::prepareForVideoFullscreen):
+        Add the interface to request a video element to be prepared for the video fullscreen
+        standby state.
+
+        * platform/cocoa/VideoFullscreenChangeObserver.h:
+        Add prepareToExitFullscreen() and fullscreenWillReturnToInline().
+
+        * platform/cocoa/VideoFullscreenModel.h:
+        (WebCore::VideoFullscreenModelClient::hasVideoChanged):
+        (WebCore::VideoFullscreenModelClient::videoDimensionsChanged):
+        (WebCore::VideoFullscreenModelClient::prepareToExitPictureInPicture):
+        Some minor clean-ups and add function prepareToExitPictureInPicture().
+
+        * platform/ios/VideoFullscreenInterfaceAVKit.h:
+        * platform/ios/VideoFullscreenInterfaceAVKit.mm:
+        (VideoFullscreenInterfaceAVKit::cleanupFullscreen):
+        (VideoFullscreenInterfaceAVKit::prepareForPictureInPictureStop):
+        (VideoFullscreenInterfaceAVKit::didStartPictureInPicture):
+        (VideoFullscreenInterfaceAVKit::willStopPictureInPicture):
+        (VideoFullscreenInterfaceAVKit::prepareForPictureInPictureStopWithCompletionHandler):
+        (VideoFullscreenInterfaceAVKit::setReadyToStopPictureInPicture):
+        (VideoFullscreenInterfaceAVKit::willEnterStandbyFromPictureInPicture):
+        (VideoFullscreenInterfaceAVKit::setWillEnterStandbyFromPictureInPicture):
+        (VideoFullscreenInterfaceAVKit::fullscreenMayReturnToInline): Deleted.
+        When we enter picture-in-picture, we need to save the state and be prepared to
+        restore to element fullscreen if needed.
+
+        Before we exit picture-in-picture, if the "restore" button is clicked, we need
+        to notify the client to prepare for the picture-in-picture stop, and call
+        VideoFullscreenInterfaceAVKit::setReadyToStopPictureInPicture(true) when the client
+        is ready.
+
+        Based on those changes, a client (e.g., WKFullScreenWindowControllerVideoFullscreenModelClient)
+        can coordinate with WKFullScreenWindowController to implement the "restore to
+        element fullscreen" feature.
+
+        * platform/ios/WebVideoFullscreenControllerAVKit.mm:
+        (VideoFullscreenControllerContext::fullscreenWillReturnToInline):
+        (VideoFullscreenControllerContext::fullscreenMayReturnToInline): Deleted.
+
+2020-08-12  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Broken formatting in price table on yandex.ru after translating to English
+        https://bugs.webkit.org/show_bug.cgi?id=215416
+        <rdar://problem/66354018>
+
+        Reviewed by Tim Horton.
+
+        Extend the behavior added in r265188 so that it applies to all elements that have `display: table-cell;`, rather
+        than only table data cell elements.
+
+        * editing/TextManipulationController.cpp:
+        (WebCore::isEnclosingItemBoundaryElement):
+
+2020-08-12  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Unreviewed non-unified build fix.
+
+        No new tests needed.
+
+        * accessibility/AccessibilityMenuListOption.cpp: Add missing inclusion of
+        HTMLSelectElement.h.
+        * page/Quirks.h: Add mising forward declaration of HTMLVideoElement.
+        * page/UndoItem.cpp: Add missing inclusion of Document.h.
+
+2020-08-12  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, address post-landing review comment from Sam Weinig for r265536.
+
+        * Modules/webaudio/WaveShaperDSPKernel.cpp:
+        (WebCore::WaveShaperDSPKernel::processCurve):
+
+2020-08-12  Sergio Villar Senin  <svillar@igalia.com>
+
+        Unreviewed build fix after r265546.
+
+        The <Ref.h> include should be now in the header now that we've inlined the create() function.
+
+        * Modules/webxr/WebXRInputSourceArray.cpp: Removed include.
+        * Modules/webxr/WebXRInputSourceArray.h: Added include
+
+2020-08-12  Youenn Fablet  <youenn@apple.com>
+
+        Refresh WritableStream up to spec
+        https://bugs.webkit.org/show_bug.cgi?id=215267
+
+        Reviewed by Geoff Garen.
+
+        Update according latest spec, including WebIDL, controller and writer.
+        Covered by rebased tests.
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * Modules/streams/StreamInternals.js:
+        * Modules/streams/WritableStream.idl:
+        * Modules/streams/WritableStream.js:
+        * Modules/streams/WritableStreamDefaultController.idl: Added.
+        * Modules/streams/WritableStreamDefaultController.js: Added.
+        * Modules/streams/WritableStreamDefaultWriter.idl: Added.
+        * Modules/streams/WritableStreamDefaultWriter.js: Added.
+        * Modules/streams/WritableStreamInternals.js:
+        * Sources.txt:
+        * WebCore.xcodeproj/project.pbxproj:
+        * bindings/js/WebCoreBuiltinNames.h:
+
+2020-08-06  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WebXR] Update WebXR WPT directory
+        https://bugs.webkit.org/show_bug.cgi?id=215224
+
+        Reviewed by Youenn Fablet.
+
+        The update of the WebXR WPT directory helped us to unveil a couple of mistakes in the current code.
+        First of all the Events defined in the WebXR spec had to be iso allocated as the Event base class.
+        Secondly the WebXRInputSourceArray must have a ::create() method. Finally the m_inputSources attribute
+        of the WebXRSession must be a Ref instead of a RefPtr because the specs mention that the initial
+        value is an empty array.
+
+        Tests: imported/w3c/web-platform-tests/webxr/anchors/ar_anchor_freefloating_create_move.https.html
+               imported/w3c/web-platform-tests/webxr/anchors/ar_anchor_freefloating_delay_creation.https.html
+               imported/w3c/web-platform-tests/webxr/anchors/ar_anchor_freefloating_failure.https.html
+               imported/w3c/web-platform-tests/webxr/anchors/ar_anchor_freefloating_pause_resume_stop.https.html
+               imported/w3c/web-platform-tests/webxr/anchors/ar_anchor_states.https.html
+               imported/w3c/web-platform-tests/webxr/anchors/idlharness.https.window.html
+               imported/w3c/web-platform-tests/webxr/dom-overlay/ar_dom_overlay_hit_test.https.html
+               imported/w3c/web-platform-tests/webxr/dom-overlay/idlharness.https.window.html
+               imported/w3c/web-platform-tests/webxr/hit-test/ar_hittest_subscription_inputSources.https.html
+               imported/w3c/web-platform-tests/webxr/hit-test/ar_hittest_subscription_states_regular.https.html
+               imported/w3c/web-platform-tests/webxr/hit-test/ar_hittest_subscription_states_transient.https.html
+               imported/w3c/web-platform-tests/webxr/hit-test/ar_hittest_subscription_transientInputSources.https.html
+               imported/w3c/web-platform-tests/webxr/hit-test/idlharness.https.html
+               imported/w3c/web-platform-tests/webxr/render_state_update.https.html
+               imported/w3c/web-platform-tests/webxr/webGLCanvasContext_makecompatible_reentrant.https.html
+               imported/w3c/web-platform-tests/webxr/xrReferenceSpace_relationships.https.html
+
+        * Modules/webxr/WebXRInputSourceArray.cpp:
+        (WebCore::WebXRInputSourceArray::create): Added.
+        * Modules/webxr/WebXRInputSourceArray.h:
+        * Modules/webxr/WebXRSession.cpp:
+        (WebCore::WebXRSession::WebXRSession): Initialize the m_inputSources.
+        (WebCore::WebXRSession::inputSources const): Return a const reference.
+        * Modules/webxr/WebXRSession.h:
+        * Modules/webxr/XRInputSourcesChangeEvent.cpp: Make it iso allocated.
+        * Modules/webxr/XRInputSourcesChangeEvent.h: Ditto.
+        * Modules/webxr/XRSessionEvent.cpp: Ditto.
+        * Modules/webxr/XRSessionEvent.h: Ditto.
+
+2020-08-12  Antti Koivisto  <antti@apple.com>
+
+        REGRESSION (r259805): Not able to scroll vertically after scrolling horizontally without leaving message and coming back
+        https://bugs.webkit.org/show_bug.cgi?id=215374
+        <rdar://problem/65269837>
+
+        Reviewed by Darin Adler.
+
+        The content has a horizontally scrolling overflow. While rubberbanding it we mark a wheel event unhandled which causes Mail
+        to take over event handling and leaves us semi-permanently in stretched state.
+
+        * platform/cocoa/ScrollController.mm:
+        (WebCore::ScrollController::handleWheelEvent):
+
+        Dissallowed vertical stretch would mark the event unhandled even though we are rubberbanding in horizontal direction.
+
+        Only mark a wheel event unhandled if it actually concerns the tested direction.
+
+2020-08-12  Chris Lord  <clord@igalia.com>
+
+        Implement Canvas.transferControlToOffscreen and OffscreenCanvasRenderingContext2D.commit
+        https://bugs.webkit.org/show_bug.cgi?id=202797
+
+        Reviewed by Dean Jackson.
+
+        Implement HTMLCanvasElement.transferControlToOffscreen and
+        OffscreenCanvasRenderingContext2D.commit. This allows for
+        (synchronous) display of asynchronously rendered OffscreenCanvas
+        content.
+
+        No new tests. Covered by existing tests.
+
+        * html/HTMLCanvasElement.cpp:
+        (WebCore::HTMLCanvasElement::setHeight):
+        (WebCore::HTMLCanvasElement::setWidth):
+        (WebCore::HTMLCanvasElement::reset):
+        (WebCore::HTMLCanvasElement::transferControlToOffscreen):
+        (WebCore::HTMLCanvasElement::setImageBufferAndMarkDirty):
+        (WebCore::HTMLCanvasElement::isControlledByOffscreen const):
+        * html/HTMLCanvasElement.h:
+        * html/HTMLCanvasElement.idl:
+        * html/OffscreenCanvas.cpp:
+        (WebCore::DetachedOffscreenCanvas::takePlaceholderCanvas):
+        (WebCore::OffscreenCanvas::create):
+        (WebCore::OffscreenCanvas::getContext):
+        (WebCore::OffscreenCanvas::didDraw):
+        (WebCore::OffscreenCanvas::detach):
+        (WebCore::OffscreenCanvas::setPlaceholderCanvas):
+        (WebCore::OffscreenCanvas::pushBufferToPlaceholder):
+        (WebCore::OffscreenCanvas::commitToPlaceholderCanvas):
+        (WebCore::OffscreenCanvas::scheduleCommitToPlaceholderCanvas):
+        (WebCore::OffscreenCanvas::reset):
+        * html/OffscreenCanvas.h:
+        * html/canvas/OffscreenCanvasRenderingContext2D.cpp:
+        (WebCore::OffscreenCanvasRenderingContext2D::commit):
+        * html/canvas/OffscreenCanvasRenderingContext2D.h:
+        * html/canvas/OffscreenCanvasRenderingContext2D.idl:
+        * html/canvas/PlaceholderRenderingContext.cpp:
+        (WebCore::PlaceholderRenderingContext::canvas const):
+        * html/canvas/PlaceholderRenderingContext.h:
+
+2020-08-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        REGRESSION(r261570): [GTK] Fails to send drop event to JavaScript
+        https://bugs.webkit.org/show_bug.cgi?id=215032
+
+        Reviewed by Darin Adler.
+
+        Add support for custom data in drag and drop operations too.
+
+        * platform/gtk/PasteboardGtk.cpp:
+        (WebCore::Pasteboard::write): Se custom data on m_selectionData.
+        (WebCore::Pasteboard::read): Initialize the content origin also for drag and drop pasteboards.
+        (WebCore::Pasteboard::hasData): For drag and drop pasteboards return true also if m_selectionData has custom data.
+        (WebCore::Pasteboard::typesSafeForBindings): Implement this for drag and drop pasteboards.
+        (WebCore::Pasteboard::readOrigin): Ditto.
+        (WebCore::Pasteboard::readStringInCustomData): Ditto.
+        (WebCore::Pasteboard::writeCustomData): Ditto.
+
+2020-08-11  James Darpinian  <jdarpinian@chromium.org>
+
+        [WebGL2] Depth formats can have mipmaps in WebGL 2
+        https://bugs.webkit.org/show_bug.cgi?id=215404
+
+        Reviewed by Kenneth Russell.
+
+        Fixes 150 WebGL 2 conformance tests.
+
+        * html/canvas/WebGLRenderingContextBase.cpp:
+        (WebCore::WebGLRenderingContextBase::validateTexFuncFormatAndType):
+
+2020-08-11  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, address post-landing review comment from Darin for r265536.
+
+        * Modules/webaudio/WaveShaperDSPKernel.cpp:
+        (WebCore::WaveShaperDSPKernel::processCurve):
+
+2020-08-11  Chris Dumez  <cdumez@apple.com>
+
+        Fix WaveShapperNode's waveshaping curve implementation
+        https://bugs.webkit.org/show_bug.cgi?id=215391
+
+        Reviewed by Darin Adler.
+
+        Fix WaveShapperNode's waveshaping curve implementation using the algorithm in the specification:
+        - https://www.w3.org/TR/webaudio/#dom-waveshapernode-curve
+
+        No new tests, rebaselined existing tests.
+
+        * Modules/webaudio/WaveShaperDSPKernel.cpp:
+        (WebCore::WaveShaperDSPKernel::processCurve):
+
 2020-08-11  Simon Fraser  <simon.fraser@apple.com>
 
         Have render tree dumps show overflow information

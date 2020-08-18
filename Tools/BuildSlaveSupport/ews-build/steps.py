@@ -259,7 +259,7 @@ class CheckPatchRelevance(buildstep.BuildStep):
         'Tools/BuildSlaveSupport/build.webkit.org-config',
         'Tools/BuildSlaveSupport/ews-build',
         'Tools/BuildSlaveSupport/Shared',
-        'Tools/resultsdbpy',
+        'Tools/Scripts/libraries/resultsdbpy',
     ]
 
     jsc_paths = [
@@ -1125,7 +1125,7 @@ class RunResultsdbpyTests(shell.ShellCommand):
     description = ['resultsdbpy-unit-tests running']
     command = [
         'python3',
-        'Tools/resultsdbpy/resultsdbpy/run-tests',
+        'Tools/Scripts/libraries/resultsdbpy/resultsdbpy/run-tests',
         '--verbose',
         '--no-selenium',
         '--fast-tests',
@@ -1474,7 +1474,8 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
             email_text = 'EWS has detected build failure on {} while testing Patch {}.'.format(builder_name, patch_id)
             email_text += '\n\nFull details are available at: {}\n\nPatch author: {}'.format(build_url, patch_author)
             if logs:
-                email_text += u'\n\nError lines:\n\n{}'.format(logs)
+                logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                email_text += u'\n\nError lines:\n\n<code>{}</code>'.format(logs)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
             send_email([patch_author], email_subject, email_text)
         except Exception as e:
@@ -1495,7 +1496,8 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
             email_subject = 'Build failure on trunk on {}'.format(builder_name)
             email_text = 'Failed to build WebKit without patch in {}\n\nBuilder: {}\n\nWorker: {}'.format(build_url, builder_name, worker_name)
             if logs:
-                email_text += u'\n\nError lines:\n\n{}'.format(logs)
+                logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                email_text += u'\n\nError lines:\n\n<code>{}</code>'.format(logs)
             send_email_to_bot_watchers(email_subject, email_text)
         except Exception as e:
             print('Error in sending email for build failure: {}'.format(e))
@@ -2135,12 +2137,15 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             patch_id = self.getProperty('patch_id', '')
             patch_author = self.getProperty('patch_author', '')
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
-            test_names_string = '- ' + '\n- '.join(test_names)
+            test_names_string = ''
+            for test_name in test_names:
+                history_url = '{}?suite=layout-tests&test={}'.format(RESULTS_DB_URL, test_name)
+                test_names_string += '\n- {} (<a href="{}">test history</a>)'.format(test_name, history_url)
 
             email_subject = 'Layout test failure for Patch {}: {} '.format(patch_id, bug_title)
             email_text = 'EWS has detected test failure on {} while testing Patch {}.'.format(builder_name, patch_id)
             email_text += '\n\nFull details are available at: {}\n\nPatch author: {}'.format(build_url, patch_author)
-            email_text += '\n\nLayout test failure:\n\n{}'.format(test_names_string)
+            email_text += '\n\nLayout test failure:\n{}'.format(test_names_string)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
             send_email([patch_author], email_subject, email_text)
         except Exception as e:

@@ -254,6 +254,17 @@ bool defaultVP9DecoderEnabled()
 }
 #endif
 
+#if ENABLE(VP9)
+bool defaultVP9SWDecoderEnabledOnBattery()
+{
+#if HAVE(SYSTEM_FEATURE_FLAGS)
+    return isFeatureFlagEnabled("SW_vp9_decoder_on_battery");
+#endif
+
+    return false;
+}
+#endif
+
 #if ENABLE(MEDIA_SOURCE) && ENABLE(VP9)
 bool defaultWebMParserEnabled()
 {
@@ -268,11 +279,7 @@ bool defaultWebMParserEnabled()
 #if ENABLE(WEB_RTC)
 bool defaultWebRTCH264LowLatencyEncoderEnabled()
 {
-#if PLATFORM(IOS_FAMILY)
     return true;
-#else
-    return false;
-#endif
 }
 #endif
 

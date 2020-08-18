@@ -1848,3 +1848,7 @@ webkit.org/b/215351 http/wpt/service-workers/module-meta-url-fragment.https.html
 webkit.org/b/245353 [ Debug ] svg/animations/smil-leak-element-instances-noBaseValRef.svg [ Pass Failure ]
 
 webkit.org/b/208832 imported/w3c/web-platform-tests/webmessaging/Channel_postMessage_Blob.htm [ Pass Failure ]
+
+webkit.org/b/215398 [ Release ] imported/w3c/web-platform-tests/css/css-images/idlharness.html [ Pass Timeout ]
+
+webkit.org/b/215403 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/flex-and-intrinsic-sizes-001.html [ Pass Timeout ]
