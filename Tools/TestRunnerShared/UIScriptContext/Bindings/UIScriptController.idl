@@ -79,6 +79,7 @@ interface UIScriptController {
     void keyDown(DOMString character, object modifierArray);
     void toggleCapsLock(object callback);
     void setContinuousSpellCheckingEnabled(boolean enabled);
+    void setSpellCheckerResults(object results);
 
     readonly attribute boolean keyboardIsAutomaticallyShifted;
 
@@ -311,7 +312,6 @@ interface UIScriptController {
     void setKeyboardInputModeIdentifier(DOMString identifier);
 
     void replaceTextAtRange(DOMString text, long location, long length);
-    void removeAllDynamicDictionaries();
 
     readonly attribute DOMString scrollingTreeAsText;
 

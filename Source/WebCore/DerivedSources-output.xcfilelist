@@ -155,6 +155,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferOptions.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferSourceNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferSourceNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferSourceOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioBufferSourceOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioConfiguration.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioConfiguration.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioContext.cpp
@@ -177,6 +179,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioParam.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioParam.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEvent.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEventInit.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEventInit.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrack.cpp
@@ -209,6 +213,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBeforeUnloadEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBeforeUnloadEvent.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterOptions.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterType.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBiquadFilterType.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBlob.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBlob.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSBlobCallback.cpp
@@ -351,6 +359,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSComputedEffectTiming.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSComputedEffectTiming.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCoordinates.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCoordinates.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCountQueuingStrategy.cpp
@@ -542,6 +552,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDragEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDragEvent.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDynamicsCompressorNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDynamicsCompressorNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDynamicsCompressorOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDynamicsCompressorOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSEXTBlendMinMax.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSEXTBlendMinMax.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSEXTColorBufferFloat.cpp
@@ -720,6 +732,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGPUVertexInputDescriptor.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGPUVertexInputDescriptor.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGainNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGainNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGainOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGainOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGamepad.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGamepad.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSGamepadButton.cpp
@@ -1052,6 +1066,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaDevices.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaDevices.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaElementAudioSourceNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaElementAudioSourceNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaElementAudioSourceOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaElementAudioSourceOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaEncodingConfiguration.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaEncodingConfiguration.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaEncodingType.cpp
@@ -1102,6 +1118,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioDestinationNode.c
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioDestinationNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioSourceNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioSourceNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioSourceOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamAudioSourceOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamTrack.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamTrack.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSMediaStreamTrackEvent.cpp
@@ -2126,14 +2144,20 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebGPUTextureView.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebGPUTextureView.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAnimationEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAnimationEvent.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioBufferSourceNode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioBufferSourceNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioContext.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioContext.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioListener.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioListener.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioPannerNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitAudioPannerNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitCSSMatrix.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitCSSMatrix.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitCSSViewportRule.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitCSSViewportRule.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitDynamicsCompressorNode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitDynamicsCompressorNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitMediaKeyError.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitMediaKeyError.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSWebKitMediaKeyMessageEvent.cpp
@@ -2240,6 +2264,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathEvaluator.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathEvaluator.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathExpression.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathExpression.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathNSResolver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathNSResolver.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathResult.cpp

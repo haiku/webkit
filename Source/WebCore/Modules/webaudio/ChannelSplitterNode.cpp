@@ -47,25 +47,17 @@ ExceptionOr<Ref<ChannelSplitterNode>> ChannelSplitterNode::create(BaseAudioConte
     if (options.numberOfOutputs > AudioContext::maxNumberOfChannels() || !options.numberOfOutputs)
         return Exception { IndexSizeError, "Number of outputs is not in the allowed range"_s };
     
-    auto splitter = adoptRef(*new ChannelSplitterNode(context, context.sampleRate(), options.numberOfOutputs));
+    auto splitter = adoptRef(*new ChannelSplitterNode(context, options.numberOfOutputs));
     
-    auto result = splitter->setChannelCount(options.channelCount.valueOr(options.numberOfOutputs));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = splitter->setChannelCountMode(options.channelCountMode.valueOr(ChannelCountMode::Explicit));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = splitter->setChannelInterpretation(options.channelInterpretation.valueOr(ChannelInterpretation::Discrete));
+    auto result = splitter->handleAudioNodeOptions(options, { options.numberOfOutputs, ChannelCountMode::Explicit, ChannelInterpretation::Discrete });
     if (result.hasException())
         return result.releaseException();
     
     return splitter;
 }
 
-ChannelSplitterNode::ChannelSplitterNode(BaseAudioContext& context, float sampleRate, unsigned numberOfOutputs)
-    : AudioNode(context, sampleRate)
+ChannelSplitterNode::ChannelSplitterNode(BaseAudioContext& context, unsigned numberOfOutputs)
+    : AudioNode(context)
 {
     setNodeType(NodeTypeChannelSplitter);
 

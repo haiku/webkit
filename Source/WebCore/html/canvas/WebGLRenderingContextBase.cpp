@@ -1295,6 +1295,11 @@ unsigned WebGLRenderingContextBase::sizeInBytes(GCGLenum type)
         return sizeof(GCGLuint);
     case GraphicsContextGL::FLOAT:
         return sizeof(GCGLfloat);
+    case GraphicsContextGL::HALF_FLOAT:
+        return 2;
+    case GraphicsContextGL::INT_2_10_10_10_REV:
+    case GraphicsContextGL::UNSIGNED_INT_2_10_10_10_REV:
+        return 4;
     }
     ASSERT_NOT_REACHED();
     return 0;
@@ -4617,7 +4622,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSourceHelper(TexImageFuncti
         RefPtr<Image> image = buffer->copyImage(DontCopyBackingStore);
         // The premultiplyAlpha and flipY pixel unpack parameters are ignored for ImageBitmaps.
         if (image)
-            texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, image.get(), GraphicsContextGL::DOMSource::Image, false, bitmap->premultiplyAlpha(), sourceImageRect, depth, unpackImageHeight);
+            texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, image.get(), GraphicsContextGL::DOMSource::Image, false, bitmap->premultiplyAlpha(), bitmap->forciblyPremultiplyAlpha(), sourceImageRect, depth, unpackImageHeight);
         return { };
     }, [&](const RefPtr<ImageData>& pixels) -> ExceptionOr<void> {
         if (pixels->data()->isNeutered()) {
@@ -4709,7 +4714,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSourceHelper(TexImageFuncti
         // Pass along inputSourceImageRect unchanged. HTMLImageElements are unique in that their
         // size may differ from that of the Image obtained from them (because of devicePixelRatio),
         // so for WebGL 1.0 uploads, defer measuring their rectangle as long as possible.
-        texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, imageForRender.get(), GraphicsContextGL::DOMSource::Image, m_unpackFlipY, m_unpackPremultiplyAlpha, inputSourceImageRect, depth, unpackImageHeight);
+        texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, imageForRender.get(), GraphicsContextGL::DOMSource::Image, m_unpackFlipY, m_unpackPremultiplyAlpha, false, inputSourceImageRect, depth, unpackImageHeight);
         return { };
     }, [&](const RefPtr<HTMLCanvasElement>& canvas) -> ExceptionOr<void> {
         auto validationResult = validateHTMLCanvasElement(functionName, canvas.get());
@@ -4753,7 +4758,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSourceHelper(TexImageFuncti
         if (imageData)
             texImageSourceHelper(functionID, target, level, internalformat, border, format, type, xoffset, yoffset, zoffset, sourceImageRect, depth, unpackImageHeight, TexImageSource(imageData.get()));
         else
-            texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, canvas->copiedImage(), GraphicsContextGL::DOMSource::Canvas, m_unpackFlipY, m_unpackPremultiplyAlpha, sourceImageRect, depth, unpackImageHeight);
+            texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, canvas->copiedImage(), GraphicsContextGL::DOMSource::Canvas, m_unpackFlipY, m_unpackPremultiplyAlpha, false, sourceImageRect, depth, unpackImageHeight);
         return { };
     }
 #if ENABLE(VIDEO)
@@ -4796,7 +4801,7 @@ ExceptionOr<void> WebGLRenderingContextBase::texImageSourceHelper(TexImageFuncti
         RefPtr<Image> image = videoFrameToImage(video.get(), DontCopyBackingStore);
         if (!image)
             return { };
-        texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, image.get(), GraphicsContextGL::DOMSource::Video, m_unpackFlipY, m_unpackPremultiplyAlpha, inputSourceImageRect, depth, unpackImageHeight);
+        texImageImpl(functionID, target, level, internalformat, xoffset, yoffset, zoffset, format, type, image.get(), GraphicsContextGL::DOMSource::Video, m_unpackFlipY, m_unpackPremultiplyAlpha, false, inputSourceImageRect, depth, unpackImageHeight);
         return { };
     }
 #endif // ENABLE(VIDEO)
@@ -4877,7 +4882,7 @@ void WebGLRenderingContextBase::texImageArrayBufferViewHelper(TexImageFunctionID
     }
 }
 
-void WebGLRenderingContextBase::texImageImpl(TexImageFunctionID functionID, GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLenum format, GCGLenum type, Image* image, GraphicsContextGL::DOMSource domSource, bool flipY, bool premultiplyAlpha, const IntRect& sourceImageRect, GCGLsizei depth, GCGLint unpackImageHeight)
+void WebGLRenderingContextBase::texImageImpl(TexImageFunctionID functionID, GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLint xoffset, GCGLint yoffset, GCGLint zoffset, GCGLenum format, GCGLenum type, Image* image, GraphicsContextGL::DOMSource domSource, bool flipY, bool premultiplyAlpha, bool ignoreNativeImageAlphaPremultiplication, const IntRect& sourceImageRect, GCGLsizei depth, GCGLint unpackImageHeight)
 {
     const char* functionName = getTexImageFunctionName(functionID);
     // All calling functions check isContextLostOrPending, so a duplicate check is not
@@ -4903,7 +4908,7 @@ void WebGLRenderingContextBase::texImageImpl(TexImageFunctionID functionID, GCGL
     if (m_unpackFlipY)
         adjustedSourceImageRect.setY(image->height() - adjustedSourceImageRect.maxY());
 
-    GraphicsContextGLOpenGL::ImageExtractor imageExtractor(image, domSource, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContextGL::NONE);
+    GraphicsContextGLOpenGL::ImageExtractor imageExtractor(image, domSource, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContextGL::NONE, ignoreNativeImageAlphaPremultiplication);
     if (!imageExtractor.extractSucceeded()) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, functionName, "bad image data");
         return;
@@ -5965,8 +5970,26 @@ void WebGLRenderingContextBase::vertexAttribPointer(GCGLuint index, GCGLint size
     case GraphicsContextGL::FLOAT:
         break;
     default:
-        synthesizeGLError(GraphicsContextGL::INVALID_ENUM, "vertexAttribPointer", "invalid type");
-        return;
+        if (!isWebGL2()) {
+            synthesizeGLError(GraphicsContextGL::INVALID_ENUM, "vertexAttribPointer", "invalid type");
+            return;
+        }
+        switch (type) {
+        case GraphicsContextGL::INT:
+        case GraphicsContextGL::UNSIGNED_INT:
+        case GraphicsContextGL::HALF_FLOAT:
+            break;
+        case GraphicsContextGL::INT_2_10_10_10_REV:
+        case GraphicsContextGL::UNSIGNED_INT_2_10_10_10_REV:
+            if (size != 4) {
+                synthesizeGLError(GraphicsContextGL::INVALID_OPERATION, "vertexAttribPointer", "[UNSIGNED_]INT_2_10_10_10_REV requires size 4");
+                return;
+            }
+            break;
+        default:
+            synthesizeGLError(GraphicsContextGL::INVALID_ENUM, "vertexAttribPointer", "invalid type");
+            return;
+        }
     }
     if (index >= m_maxVertexAttribs) {
         synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "vertexAttribPointer", "index out of range");

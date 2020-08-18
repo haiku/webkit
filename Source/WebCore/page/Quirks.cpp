@@ -38,6 +38,7 @@
 #include "HTMLDivElement.h"
 #include "HTMLMetaElement.h"
 #include "HTMLObjectElement.h"
+#include "HTMLVideoElement.h"
 #include "JSEventListener.h"
 #include "LayoutUnit.h"
 #include "NamedNodeMap.h"
@@ -64,6 +65,14 @@ static inline OptionSet<AutoplayQuirk> allowedAutoplayQuirks(Document& document)
 
     return loader->allowedAutoplayQuirks();
 }
+
+#if ENABLE(PUBLIC_SUFFIX_LIST)
+static inline bool isYahooMail(Document& document)
+{
+    auto host = document.topDocument().url().host();
+    return startsWithLettersIgnoringASCIICase(host, "mail.") && topPrivatelyControlledDomain(host.toString()).startsWith("yahoo.");
+}
+#endif
 
 Quirks::Quirks(Document& document)
     : m_document(makeWeakPtr(document))
@@ -487,6 +496,18 @@ bool Quirks::shouldPreventDispatchOfTouchEvent(const AtomString& touchEventType,
 
 #endif
 
+#if ENABLE(IOS_TOUCH_EVENTS)
+bool Quirks::shouldSynthesizeTouchEvents() const
+{
+    if (!needsQuirks())
+        return false;
+
+    if (!m_shouldSynthesizeTouchEventsQuirk)
+        m_shouldSynthesizeTouchEventsQuirk = isYahooMail(*m_document);
+    return m_shouldSynthesizeTouchEventsQuirk.value();
+}
+#endif
+
 bool Quirks::shouldAvoidResizingWhenInputViewBoundsChange() const
 {
     if (!needsQuirks())
@@ -841,10 +862,8 @@ bool Quirks::shouldAvoidPastingImagesAsWebContent() const
         return false;
 
 #if PLATFORM(IOS_FAMILY)
-    if (!m_shouldAvoidPastingImagesAsWebContent) {
-        auto host = m_document->topDocument().url().host().toString();
-        m_shouldAvoidPastingImagesAsWebContent = host.startsWithIgnoringASCIICase("mail.") && topPrivatelyControlledDomain(host).startsWith("yahoo.");
-    }
+    if (!m_shouldAvoidPastingImagesAsWebContent)
+        m_shouldAvoidPastingImagesAsWebContent = isYahooMail(*m_document);
     return *m_shouldAvoidPastingImagesAsWebContent;
 #else
     return false;
@@ -946,11 +965,9 @@ Quirks::StorageAccessResult Quirks::triggerOptionalStorageAccessQuirk(const Elem
             auto* abstractFrame = proxy->frame();
             if (abstractFrame && is<Frame>(*abstractFrame)) {
                 auto& frame = downcast<Frame>(*abstractFrame);
-                if (auto* page = frame.page()) {
-                    auto world = ScriptController::createWorld("kinjaComQuirkWorld", ScriptController::WorldType::User);
-                    page->addUserScriptAwaitingNotification(world.get(), kinjaLoginUserScript);
-                    return Quirks::StorageAccessResult::ShouldCancelEvent;
-                }
+                auto world = ScriptController::createWorld("kinjaComQuirkWorld", ScriptController::WorldType::User);
+                frame.addUserScriptAwaitingNotification(world.get(), kinjaLoginUserScript);
+                return Quirks::StorageAccessResult::ShouldCancelEvent;
             }
         }
     }
@@ -983,5 +1000,30 @@ bool Quirks::needsHDRPixelDepthQuirk() const
     return *m_needsHDRPixelDepthQuirk;
 }
 
+// FIXME: remove this once rdar://66739450 has been fixed.
+bool Quirks::needsAkamaiMediaPlayerQuirk(const HTMLVideoElement& element) const
+{
+#if PLATFORM(IOS_FAMILY)
+    // Akamai Media Player begins polling `webkitDisplayingFullscreen` every 100ms immediately after calling
+    // `webkitEnterFullscreen` and exits fullscreen as soon as it returns false. r262456 changed the HTMLMediaPlayer state
+    // machine so `webkitDisplayingFullscreen` doesn't return true until the fullscreen window has been opened in the
+    // UI process, which causes Akamai Media Player to frequently exit fullscreen mode immediately.
+
+    static NeverDestroyed<const AtomString> akamaiHTML5(MAKE_STATIC_STRING_IMPL("akamai-html5"));
+    static NeverDestroyed<const AtomString> akamaiMediaElement(MAKE_STATIC_STRING_IMPL("akamai-media-element"));
+
+    if (!needsQuirks())
+        return false;
+
+    if (!element.hasClass())
+        return false;
+
+    auto& classNames = element.classNames();
+    return classNames.contains(akamaiHTML5) && classNames.contains(akamaiMediaElement);
+#else
+    UNUSED_PARAM(element);
+    return false;
+#endif
+}
 
 }

@@ -60,31 +60,44 @@ ExceptionOr<void> PerformanceObserver::observe(Init&& init)
     if (!m_performance)
         return Exception { TypeError };
 
+    bool isBuffered = false;
     OptionSet<PerformanceEntry::Type> filter;
     if (init.entryTypes) {
         if (init.type)
             return Exception { TypeError, "either entryTypes or type must be provided"_s };
+        if (m_registered && m_isTypeObserver)
+            return Exception { InvalidModificationError, "observer type can't be changed once registered"_s };
         for (auto& entryType : *init.entryTypes) {
             if (auto type = PerformanceEntry::parseEntryTypeString(entryType))
                 filter.add(*type);
         }
         if (filter.isEmpty())
             return { };
+        m_typeFilter = filter;
     } else {
         if (!init.type)
             return Exception { TypeError, "no type or entryTypes were provided"_s };
+        if (m_registered && !m_isTypeObserver)
+            return Exception { InvalidModificationError, "observer type can't be changed once registered"_s };
+        m_isTypeObserver = true;
         if (auto type = PerformanceEntry::parseEntryTypeString(*init.type))
             filter.add(*type);
         else
             return { };
+        if (init.buffered) {
+            isBuffered = true;
+            if (m_performance->appendBufferedEntriesByType(*init.type, m_entriesToDeliver))
+                std::stable_sort(m_entriesToDeliver.begin(), m_entriesToDeliver.end(), PerformanceEntry::startTimeCompareLessThan);
+        }
+        m_typeFilter.add(filter);
     }
-
-    m_typeFilter = filter;
 
     if (!m_registered) {
         m_performance->registerPerformanceObserver(*this);
         m_registered = true;
     }
+    if (isBuffered)
+        deliver();
 
     return { };
 }
@@ -116,7 +129,7 @@ void PerformanceObserver::deliver()
     auto list = PerformanceObserverEntryList::create(WTFMove(entries));
 
     InspectorInstrumentation::willFireObserverCallback(*context, "PerformanceObserver"_s);
-    m_callback->handleEvent(list, *this);
+    m_callback->handleEvent(*this, list, *this);
     InspectorInstrumentation::didFireObserverCallback(*context);
 }
 

@@ -31,7 +31,9 @@
 
 #include "JSDOMPromiseDeferred.h"
 #include "PeriodicWave.h"
+#include "WebKitAudioBufferSourceNode.h"
 #include "WebKitAudioPannerNode.h"
+#include "WebKitDynamicsCompressorNode.h"
 #include "WebKitOscillatorNode.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -40,11 +42,13 @@
 #include "MediaStreamAudioDestinationNode.h"
 #include "MediaStreamAudioSource.h"
 #include "MediaStreamAudioSourceNode.h"
+#include "MediaStreamAudioSourceOptions.h"
 #endif
 
 #if ENABLE(VIDEO)
 #include "HTMLMediaElement.h"
 #include "MediaElementAudioSourceNode.h"
+#include "MediaElementAudioSourceOptions.h"
 #endif
 
 const unsigned MaxPeriodicWaveLength = 4096;
@@ -97,18 +101,7 @@ ExceptionOr<Ref<MediaElementAudioSourceNode>> WebKitAudioContext::createMediaEle
     ALWAYS_LOG(LOGIDENTIFIER);
 
     ASSERT(isMainThread());
-
-    if (isStopped() || mediaElement.audioSourceNode())
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
-
-    auto node = MediaElementAudioSourceNode::create(*this, mediaElement);
-
-    mediaElement.setAudioSourceNode(node.ptr());
-
-    refNode(node.get()); // context keeps reference until node is disconnected
-    return node;
+    return MediaElementAudioSourceNode::create(*this, { &mediaElement });
 }
 
 #endif
@@ -120,41 +113,12 @@ ExceptionOr<Ref<MediaStreamAudioSourceNode>> WebKitAudioContext::createMediaStre
     ALWAYS_LOG(LOGIDENTIFIER);
 
     ASSERT(isMainThread());
-
-    if (isStopped())
-        return Exception { InvalidStateError };
-
-    auto audioTracks = mediaStream.getAudioTracks();
-    if (audioTracks.isEmpty())
-        return Exception { InvalidStateError };
-
-    MediaStreamTrack* providerTrack = nullptr;
-    for (auto& track : audioTracks) {
-        if (track->audioSourceProvider()) {
-            providerTrack = track.get();
-            break;
-        }
-    }
-    if (!providerTrack)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
-
-    auto node = MediaStreamAudioSourceNode::create(*this, mediaStream, *providerTrack);
-    node->setFormat(2, sampleRate());
-
-    refNode(node); // context keeps reference until node is disconnected
-    return node;
+    return MediaStreamAudioSourceNode::create(*this, { &mediaStream });
 }
 
 ExceptionOr<Ref<MediaStreamAudioDestinationNode>> WebKitAudioContext::createMediaStreamDestination()
 {
-    if (isStopped())
-        return Exception { InvalidStateError };
-
-    // FIXME: Add support for an optional argument which specifies the number of channels.
-    // FIXME: The default should probably be stereo instead of mono.
-    return MediaStreamAudioDestinationNode::create(*this, 1);
+    return MediaStreamAudioDestinationNode::create(*this);
 }
 
 #endif
@@ -168,7 +132,7 @@ ExceptionOr<Ref<WebKitAudioPannerNode>> WebKitAudioContext::createWebKitPanner()
         return Exception { InvalidStateError };
 
     lazyInitialize();
-    return WebKitAudioPannerNode::create(*this, sampleRate());
+    return WebKitAudioPannerNode::create(*this);
 }
 
 ExceptionOr<Ref<WebKitOscillatorNode>> WebKitAudioContext::createWebKitOscillator()
@@ -204,6 +168,43 @@ ExceptionOr<Ref<PeriodicWave>> WebKitAudioContext::createPeriodicWave(Float32Arr
         return Exception { IndexSizeError };
     lazyInitialize();
     return PeriodicWave::create(sampleRate(), real, imaginary);
+}
+
+ExceptionOr<Ref<WebKitAudioBufferSourceNode>> WebKitAudioContext::createWebKitBufferSource()
+{
+    ALWAYS_LOG(LOGIDENTIFIER);
+
+    ASSERT(isMainThread());
+    if (isStopped())
+        return Exception { InvalidStateError };
+
+    lazyInitialize();
+
+    auto node = WebKitAudioBufferSourceNode::create(*this);
+
+    // Because this is an AudioScheduledSourceNode, the context keeps a reference until it has finished playing.
+    // When this happens, AudioScheduledSourceNode::finish() calls BaseAudioContext::notifyNodeFinishedProcessing().
+    refNode(node);
+
+    return node;
+}
+
+ExceptionOr<Ref<WebKitDynamicsCompressorNode>> WebKitAudioContext::createWebKitDynamicsCompressor()
+{
+    if (isStopped())
+        return Exception { InvalidStateError };
+
+    lazyInitialize();
+
+    return WebKitDynamicsCompressorNode::create(*this);
+}
+
+ExceptionOr<Ref<AudioBuffer>> WebKitAudioContext::createLegacyBuffer(ArrayBuffer& arrayBuffer, bool mixToMono)
+{
+    auto audioBuffer = AudioBuffer::createFromAudioFileData(arrayBuffer.data(), arrayBuffer.byteLength(), mixToMono, sampleRate());
+    if (!audioBuffer)
+        return Exception { SyntaxError };
+    return audioBuffer.releaseNonNull();
 }
 
 void WebKitAudioContext::close(DOMPromiseDeferred<void>&& promise)

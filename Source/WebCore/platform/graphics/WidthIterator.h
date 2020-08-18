@@ -22,6 +22,7 @@
 #ifndef WidthIterator_h
 #define WidthIterator_h
 
+#include "GlyphBuffer.h"
 #include <unicode/umachine.h>
 #include <wtf/HashSet.h>
 #include <wtf/Vector.h>
@@ -29,21 +30,22 @@
 namespace WebCore {
 
 class FontCascade;
-class GlyphBuffer;
 class Font;
 class TextRun;
 struct GlyphData;
+struct GlyphIndexRange;
 struct OriginalAdvancesForCharacterTreatedAsSpace;
 
-typedef Vector<std::pair<unsigned, OriginalAdvancesForCharacterTreatedAsSpace>, 64> CharactersTreatedAsSpace;
+using CharactersTreatedAsSpace = Vector<OriginalAdvancesForCharacterTreatedAsSpace, 64>;
 
 struct WidthIterator {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    WidthIterator(const FontCascade*, const TextRun&, HashSet<const Font*>* fallbackFonts = 0, bool accountForGlyphBounds = false, bool forTextEmphasis = false);
+    WidthIterator(const FontCascade&, const TextRun&, HashSet<const Font*>* fallbackFonts = 0, bool accountForGlyphBounds = false, bool forTextEmphasis = false);
 
-    void advance(unsigned to, GlyphBuffer*);
+    void advance(unsigned to, GlyphBuffer&);
     bool advanceOneCharacter(float& width, GlyphBuffer&);
+    void finalize(GlyphBuffer&);
 
     float maxGlyphBoundingBoxY() const { ASSERT(m_accountForGlyphBounds); return m_maxGlyphBoundingBoxY; }
     float minGlyphBoundingBoxY() const { ASSERT(m_accountForGlyphBounds); return m_minGlyphBoundingBoxY; }
@@ -52,31 +54,44 @@ public:
 
     const TextRun& run() const { return m_run; }
     float runWidthSoFar() const { return m_runWidthSoFar; }
-    float finalRoundingWidth() const { return m_finalRoundingWidth; }
-    unsigned currentCharacter() const { return m_currentCharacter; }
+    unsigned currentCharacterIndex() const { return m_currentCharacterIndex; }
 
 private:
     GlyphData glyphDataForCharacter(UChar32, bool mirror);
     template <typename TextIterator>
-    inline void advanceInternal(TextIterator&, GlyphBuffer*);
+    inline void advanceInternal(TextIterator&, GlyphBuffer&);
 
     enum class TransformsType { None, Forced, NotForced };
-    TransformsType shouldApplyFontTransforms(const GlyphBuffer*, unsigned lastGlyphCount, UChar32 previousCharacter) const;
-    float applyFontTransforms(GlyphBuffer*, bool ltr, unsigned& lastGlyphCount, const Font*, UChar32 previousCharacter, bool force, CharactersTreatedAsSpace&);
+    TransformsType shouldApplyFontTransforms(const GlyphBuffer&, unsigned lastGlyphCount, unsigned currentCharacterIndex) const;
+    float applyFontTransforms(GlyphBuffer&, unsigned lastGlyphCount, unsigned currentCharacterIndex, const Font&, bool force, CharactersTreatedAsSpace&);
+    void commitCurrentFontRange(GlyphBuffer&, unsigned lastGlyphCount, unsigned currentCharacterIndex, const Font&, const Font& primaryFont, UChar32 character, float widthOfCurrentFontRange, CharactersTreatedAsSpace&);
 
-    const FontCascade* m_font;
+    bool hasExtraSpacing() const;
+    void applyExtraSpacingAfterShaping(GlyphBuffer&, unsigned characterStartIndex, unsigned glyphBufferStartIndex, unsigned characterDestinationIndex, float startingRunWidth);
+    struct AdditionalWidth {
+        float left;
+        float right;
+        float leftExpansion;
+        float rightExpansion;
+    };
+    AdditionalWidth calculateAdditionalWidth(GlyphBuffer&, GlyphBufferStringOffset currentCharacterIndex, unsigned leadingGlyphIndex, unsigned trailingGlyphIndex, float position) const;
+    void applyAdditionalWidth(GlyphBuffer&, GlyphIndexRange, float leftAdditionalWidth, float rightAdditionalWidth, float leftExpansionAdditionalWidth, float rightExpansionAdditionalWidth);
+
+    const FontCascade& m_font;
     const TextRun& m_run;
     HashSet<const Font*>* m_fallbackFonts { nullptr };
 
-    unsigned m_currentCharacter { 0 };
+    Optional<unsigned> m_lastCharacterIndex;
+    unsigned m_currentCharacterIndex { 0 };
+    float m_leftoverJustificationWidth { 0 };
     float m_runWidthSoFar { 0 };
     float m_expansion { 0 };
     float m_expansionPerOpportunity { 0 };
-    float m_finalRoundingWidth { 0 };
     float m_maxGlyphBoundingBoxY { std::numeric_limits<float>::min() };
     float m_minGlyphBoundingBoxY { std::numeric_limits<float>::max() };
     float m_firstGlyphOverflow { 0 };
     float m_lastGlyphOverflow { 0 };
+    bool m_containsTabs { false };
     bool m_isAfterExpansion { false };
     bool m_accountForGlyphBounds { false };
     bool m_enableKerning { false };

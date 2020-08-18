@@ -915,7 +915,7 @@ void WebPage::requestFocusedElementInformation(WebKit::CallbackID callbackID)
     send(Messages::WebPageProxy::FocusedElementInformationCallback(info, callbackID));
 }
 
-#if ENABLE(DATA_INTERACTION)
+#if ENABLE(DRAG_SUPPORT)
 void WebPage::requestDragStart(const IntPoint& clientPosition, const IntPoint& globalPosition, OptionSet<WebCore::DragSourceAction> allowedActionsMask)
 {
     SetForScope<OptionSet<WebCore::DragSourceAction>> allowedActionsForScope(m_allowedDragSourceActions, allowedActionsMask);
@@ -3941,6 +3941,15 @@ void WebPage::dispatchAsynchronousTouchEvents(const Vector<std::pair<WebTouchEve
         dispatchTouchEvent(eventAndCallbackID.first, handled);
         if (eventAndCallbackID.second)
             send(Messages::WebPageProxy::BoolCallback(handled, *eventAndCallbackID.second));
+    }
+}
+
+void WebPage::cancelAsynchronousTouchEvents(const Vector<std::pair<WebTouchEvent, Optional<CallbackID>>, 1>& queue)
+{
+    for (auto& eventAndCallbackID : queue) {
+        if (!eventAndCallbackID.second)
+            continue;
+        send(Messages::WebPageProxy::BoolCallback(true, *eventAndCallbackID.second));
     }
 }
 #endif

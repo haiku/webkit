@@ -657,6 +657,8 @@ media/video-src-blob.html
 security/contentSecurityPolicy/image-with-blob-url-allowed-by-img-src-star-with-AllowContentSecurityPolicySourceStarToMatchAnyProtocol-enabled.html
 security/contentSecurityPolicy/image-with-blob-url-blocked-by-img-src-star.html
 security/contentSecurityPolicy/video-with-blob-url-allowed-by-media-src-star.html
+fast/forms/file/entries-api/image-no-transcode-drag-drop.html
+fast/forms/file/entries-api/image-transcode-drag-drop.html
 
 # WebKitTestRunner doesn't have eventSender.fireKeyboardEventsToElement
 platform/mac/fast/events/objc-keyboard-event-creation.html
@@ -729,6 +731,15 @@ http/tests/resourceLoadStatistics [ Pass ]
 http/tests/resourceLoadStatistics/set-all-cookies-to-same-site-strict.html [ Skip ]
 http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to.html [ Skip ]
 http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to-database.html [ Skip ]
+
+# The CNAME and cookie transform SPIs are only available in macOS Big Sur + iOS 14 and above.
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-1p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-3p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-matching-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-no-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-1p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-3p-cname.html [ Skip ]
+http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-no-cname.html [ Skip ]
 
 http/tests/websocket/connection-refusal-in-frame-resource-load-statistics.html [ Pass ]
 # These are only supported behind a compile time flag in macOS High Sierra + iOS 11, and above.

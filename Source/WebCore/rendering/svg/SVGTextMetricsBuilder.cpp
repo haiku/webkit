@@ -58,9 +58,9 @@ bool SVGTextMetricsBuilder::advance()
 void SVGTextMetricsBuilder::advanceSimpleText()
 {
     GlyphBuffer glyphBuffer;
-    auto before = m_simpleWidthIterator->currentCharacter();
-    m_simpleWidthIterator->advance(m_textPosition + 1, &glyphBuffer);
-    auto after = m_simpleWidthIterator->currentCharacter();
+    auto before = m_simpleWidthIterator->currentCharacterIndex();
+    m_simpleWidthIterator->advance(m_textPosition + 1, glyphBuffer);
+    auto after = m_simpleWidthIterator->currentCharacterIndex();
     if (before == after) {
         m_currentMetrics = SVGTextMetrics();
         return;
@@ -105,7 +105,7 @@ void SVGTextMetricsBuilder::initializeMeasurementWithTextRenderer(RenderSVGInlin
     if (m_isComplexText)
         m_simpleWidthIterator = nullptr;
     else
-        m_simpleWidthIterator = makeUnique<WidthIterator>(&scaledFont, m_run);
+        m_simpleWidthIterator = makeUnique<WidthIterator>(scaledFont, m_run);
 }
 
 struct MeasureTextData {
@@ -163,6 +163,11 @@ void SVGTextMetricsBuilder::measureTextRenderer(RenderSVGInlineText& text, Measu
             surrogatePairCharacters++;
 
         data->lastCharacter = currentCharacter;
+    }
+
+    if (m_simpleWidthIterator) {
+        GlyphBuffer glyphBuffer;
+        m_simpleWidthIterator->finalize(glyphBuffer);
     }
 
     if (!data->allCharactersMap)

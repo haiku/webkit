@@ -23,8 +23,14 @@ scrollingcoordinator/ios/ [ Skip ]
 # CSS3
 webkit.org/b/213829 css3/calc/background-position-parsing.html [ ImageOnlyFailure ]
 
+# Fonts
+webkit.org/b/215355 fonts/ligature.html [ ImageOnlyFailure ]
+
 # Paint Timing
 webkit.org/b/211221 http/tests/performance/paint-timing/performance-paint-timing-fcp-after-visually-non-empty-for-num-chars.html [ Pass Failure ]
+
+# WPT tests
+webkit.org/b/215306 imported/w3c/web-platform-tests/html/user-activation/basic.html [ Timeout ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End of Triaged Expectations
@@ -191,6 +197,7 @@ fast/events/shift-drag-selection-on-link-triggers-drag-n-drop.html [ Skip ]
 fast/events/touch/gesture/long-press-on-draggable-element-triggers-drag.html [ Skip ]
 fast/events/touch/gesture/resources/drag-inside-iframe2.html [ Skip ]
 fast/events/touch/gesture/resources/drag-inside-nested-iframes3.html [ Skip ]
+fast/text/selection-is-prevent-defaulted.html [ Skip ]
 
 # ENABLE_DARK_MODE_CSS is OFF in WPE.
 css-dark-mode [ Skip ]
@@ -592,6 +599,7 @@ webkit.org/b/214290 imported/w3c/web-platform-tests/css/css-text/hyphens/hyphens
 webkit.org/b/214290 imported/w3c/web-platform-tests/css/css-text/white-space/break-spaces-010.html [ ImageOnlyFailure ]
 webkit.org/b/214290 imported/w3c/web-platform-tests/css/css-text/white-space/break-spaces-tab-003.html [ ImageOnlyFailure ]
 webkit.org/b/214290 imported/w3c/web-platform-tests/css/css-text/white-space/break-spaces-tab-004.html [ ImageOnlyFailure ]
+webkit.org/b/214290 imported/w3c/web-platform-tests/css/css-text/overflow-wrap/overflow-wrap-break-word-keep-all-001.html [ Failure ]
 
 # Still failing even after r259188.
 webkit.org/b/206885 css3/font-variant-font-face-override.html [ ImageOnlyFailure ]
@@ -661,7 +669,6 @@ webkit.org/b/214291 imported/w3c/web-platform-tests/css/css-writing-modes/baseli
 
 webkit.org/b/213131 compositing/ [ Skip ]
 webkit.org/b/213131 editing/ [ Skip ]
-webkit.org/b/213131 gamepad/ [ Skip ]
 webkit.org/b/213131 inspector/ [ Skip ]
 webkit.org/b/213131 media/ [ Skip ]
 
@@ -1189,8 +1196,6 @@ webkit.org/b/208921 fast/events/touch/multi-touch-inside-iframes.html [ Timeout 
 
 webkit.org/b/208932 scrollbars/scroll-rtl-or-bt-layer.html [ Timeout ]
 
-webkit.org/b/208934 inspector/console/console-screenshot.html [ Timeout ]
-
 webkit.org/b/210926 fast/mediastream/getDisplayMedia-max-constraints1.html [ Timeout Crash ]
 webkit.org/b/210926 fast/mediastream/getDisplayMedia-max-constraints2.html [ Timeout ]
 webkit.org/b/210926 fast/mediastream/getDisplayMedia-max-constraints3.html [ Timeout Crash ]
@@ -1597,10 +1602,12 @@ Bug(WPE) css3/zoom-coords.xhtml [ Failure ]
 transitions/svg-text-shadow-transition.html [ DumpJSConsoleLogInStdErr ]
 
 # ENABLE_MEDIA_SOURCE
+# Can't remove this PASS yet as the root media/ folder is skipped.
 media/media-source/ [ Pass ]
 webkit.org/b/171726 media/media-source/media-source-init-segment-duration.html [ Failure ]
 webkit.org/b/168373 media/media-source/media-source-resize.html [ Failure ]
 webkit.org/b/168373 media/media-source/only-bcp47-language-tags-accepted-as-valid.html [ Timeout ]
+webkit.org/b/214636 media/media-source/media-source-webm.html [ Timeout ]
 
 webkit.org/b/177871 http/wpt/resource-timing/rt-shared-resource-in-workers.html [ Failure ]
 webkit.org/b/168357 http/wpt/resource-timing/rt-initiatorType-media.html [ Pass Failure ]

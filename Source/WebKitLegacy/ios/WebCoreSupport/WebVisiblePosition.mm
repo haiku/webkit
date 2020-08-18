@@ -38,6 +38,7 @@
 #import <WebCore/Range.h>
 #import <WebCore/RenderTextControl.h>
 #import <WebCore/RenderedDocumentMarker.h>
+#import <WebCore/SimpleRange.h>
 #import <WebCore/TextBoundaries.h>
 #import <WebCore/TextFlags.h>
 #import <WebCore/TextGranularity.h>
@@ -477,7 +478,7 @@ static inline SelectionDirection toSelectionDirection(WebTextAdjustmentDirection
 {
     auto firstPosition = [first _visiblePosition];
     auto secondPosition = [second _visiblePosition];
-    if (firstPosition < secondPosition)
+    if (secondPosition < firstPosition)
         std::swap(firstPosition, secondPosition);
     return kit(makeSimpleRange(firstPosition, secondPosition));
 }

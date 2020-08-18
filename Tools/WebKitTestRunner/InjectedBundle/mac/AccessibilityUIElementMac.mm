@@ -74,6 +74,7 @@
 typedef void (*AXPostedNotificationCallback)(id element, NSString* notification, void* context);
 
 @interface NSObject (WebKitAccessibilityAdditions)
+- (BOOL)isIsolatedObject;
 - (BOOL)accessibilityReplaceRange:(NSRange)range withText:(NSString *)string;
 - (BOOL)accessibilityInsertText:(NSString *)text;
 - (NSArray *)accessibilityArrayAttributeValues:(NSString *)attribute index:(NSUInteger)index maxCount:(NSUInteger)maxCount;
@@ -116,6 +117,13 @@ bool AccessibilityUIElement::isEqual(AccessibilityUIElement* otherElement)
         return false;
     return platformUIElement() == otherElement->platformUIElement();
 }
+
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+bool AccessibilityUIElement::isIsolatedObject() const
+{
+    return [m_element isIsolatedObject];
+}
+#endif
 
 RetainPtr<NSArray> supportedAttributes(id element)
 {
@@ -624,7 +632,9 @@ void AccessibilityUIElement::attributeValueAsync(JSStringRef attribute, JSValueR
     BEGIN_AX_OBJC_EXCEPTIONS
     s_controller->executeOnAXThread([attribute = retainPtr([NSString stringWithJSStringRef:attribute]), callback = WTFMove(callback), this] () mutable {
         id value = [m_element accessibilityAttributeValue:attribute.get()];
-
+        if ([value isKindOfClass:[NSArray class]] || [value isKindOfClass:[NSDictionary class]])
+            value = [value description];
+        
         s_controller->executeOnMainThread([value = retainPtr(value), callback = WTFMove(callback)] () {
             auto mainFrame = WKBundlePageGetMainFrame(InjectedBundle::singleton().page()->page());
             auto context = WKBundleFrameGetJavaScriptContext(mainFrame);

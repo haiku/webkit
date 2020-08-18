@@ -164,6 +164,7 @@ public:
     virtual void keyDown(JSStringRef character, JSValueRef modifierArray) { notImplemented(); }
     virtual void toggleCapsLock(JSValueRef callback) { notImplemented(); }
     virtual void setContinuousSpellCheckingEnabled(bool) { notImplemented(); }
+    virtual void setSpellCheckerResults(JSValueRef) { notImplemented(); }
     virtual bool keyboardIsAutomaticallyShifted() const
     {
         notImplemented();
@@ -186,7 +187,6 @@ public:
     virtual void setKeyboardInputModeIdentifier(JSStringRef) { notImplemented(); }
 
     virtual void replaceTextAtRange(JSStringRef, int location, int length) { notImplemented(); }
-    virtual void removeAllDynamicDictionaries() { notImplemented(); }
 
     virtual bool windowIsKey() const;
     virtual void setWindowIsKey(bool);

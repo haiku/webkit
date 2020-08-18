@@ -350,6 +350,7 @@ public:
     void setDidCancelClientRedirect(bool value) { m_didCancelClientRedirect = value; }
 
     void runUIScript(JSStringRef script, JSValueRef callback);
+    void runUIScriptImmediately(JSStringRef script, JSValueRef callback);
     void runUIScriptCallback(unsigned callbackID, JSStringRef result);
 
     // Contextual menu actions
@@ -453,6 +454,10 @@ public:
     void statisticsCallDidSetFirstPartyWebsiteDataRemovalModeCallback();
     void statisticsSetToSameSiteStrictCookies(JSStringRef hostName, JSValueRef callback);
     void statisticsCallDidSetToSameSiteStrictCookiesCallback();
+    void statisticsSetFirstPartyHostCNAMEDomain(JSStringRef firstPartyURLString, JSStringRef cnameURLString, JSValueRef completionHandler);
+    void statisticsCallDidSetFirstPartyHostCNAMEDomainCallback();
+    void statisticsSetThirdPartyCNAMEDomain(JSStringRef cnameURLString, JSValueRef completionHandler);
+    void statisticsCallDidSetThirdPartyCNAMEDomainCallback();
     void statisticsResetToConsistentState(JSValueRef completionHandler);
     void statisticsCallDidResetToConsistentStateCallback();
     void loadedThirdPartyDomains(JSValueRef callback);

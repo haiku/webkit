@@ -1,3 +1,4 @@
+window.allocated = [];
 function useAllMemory() {
     try {
         const a = [];
@@ -9,7 +10,7 @@ function useAllMemory() {
         }
         new Promise(foo).catch(() => {});
         while(1) {
-            new ArrayBuffer(1000);
+            window.allocated.push(new ArrayBuffer(1000));
         }
     } catch { }
 }
@@ -17,7 +18,7 @@ function useAllMemory() {
 var exception;
 useAllMemory();
 try {
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 5000; i++) {
         CSS.paintWorklet.addModule('');
     }
 } catch (e) {

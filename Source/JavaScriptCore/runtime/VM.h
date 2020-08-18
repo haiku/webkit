@@ -944,8 +944,10 @@ public:
 
     void gatherScratchBufferRoots(ConservativeRoots&);
 
-    void addCheckpointOSRSideState(CallFrame*, std::unique_ptr<CheckpointOSRExitSideState>&&);
-    std::unique_ptr<CheckpointOSRExitSideState> findCheckpointOSRSideState(CallFrame*);
+    static constexpr unsigned expectedMaxActiveSideStateCount = 4;
+    void pushCheckpointOSRSideState(std::unique_ptr<CheckpointOSRExitSideState>&&);
+    std::unique_ptr<CheckpointOSRExitSideState> popCheckpointOSRSideState(CallFrame* expectedFrame);
+    void popAllCheckpointOSRSideStateUntil(CallFrame* targetFrame);
     bool hasCheckpointOSRSideState() const { return m_checkpointSideState.size(); }
     void scanSideState(ConservativeRoots&) const;
 
@@ -1206,7 +1208,7 @@ private:
     Lock m_scratchBufferLock;
     Vector<ScratchBuffer*> m_scratchBuffers;
     size_t m_sizeOfLastScratchBuffer { 0 };
-    HashMap<CallFrame*, std::unique_ptr<CheckpointOSRExitSideState>> m_checkpointSideState;
+    Vector<std::unique_ptr<CheckpointOSRExitSideState>, expectedMaxActiveSideStateCount> m_checkpointSideState;
     InlineWatchpointSet m_primitiveGigacageEnabled;
     FunctionHasExecutedCache m_functionHasExecutedCache;
     std::unique_ptr<ControlFlowProfiler> m_controlFlowProfiler;

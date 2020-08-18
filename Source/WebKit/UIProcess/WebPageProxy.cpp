@@ -217,7 +217,7 @@
 #endif
 
 #if PLATFORM(MAC)
-#include "ImageUtilities.h"
+#include <WebCore/ImageUtilities.h>
 #include <WebCore/UTIUtilities.h>
 #endif
 
@@ -491,9 +491,6 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, Ref
 #if PLATFORM(COCOA)
     , m_ignoresAppBoundDomains(m_configuration->ignoresAppBoundDomains())
     , m_limitsNavigationsToAppBoundDomains(m_configuration->limitsNavigationsToAppBoundDomains())
-#endif
-#if PLATFORM(MAC)
-    , m_transcodingQueue(WorkQueue::create("com.apple.WebKit.ImageTranscoding"))
 #endif
 {
     RELEASE_LOG_IF_ALLOWED(Loading, "constructor:");
@@ -2486,7 +2483,7 @@ void WebPageProxy::resetCurrentDragInformation()
     setDragCaretRect({ });
 }
 
-#if !ENABLE(DATA_INTERACTION)
+#if !PLATFORM(IOS_FAMILY) || !ENABLE(DRAG_SUPPORT)
 
 void WebPageProxy::setDragCaretRect(const IntRect& dragCaretRect)
 {
@@ -4405,7 +4402,14 @@ void WebPageProxy::preconnectTo(const URL& url)
     if (!m_websiteDataStore->configuration().allowsServerPreconnect())
         return;
 
-    m_process->processPool().ensureNetworkProcess().preconnectTo(sessionID(), identifier(), webPageID(), url, userAgent(), WebCore::StoredCredentialsPolicy::Use, m_isNavigatingToAppBoundDomain);
+    auto storedCredentialsPolicy = m_canUseCredentialStorage ? WebCore::StoredCredentialsPolicy::Use : WebCore::StoredCredentialsPolicy::DoNotUse;
+    m_process->processPool().ensureNetworkProcess().preconnectTo(sessionID(), identifier(), webPageID(), url, userAgent(), storedCredentialsPolicy, m_isNavigatingToAppBoundDomain);
+}
+
+void WebPageProxy::setCanUseCredentialStorage(bool canUseCredentialStorage)
+{
+    m_canUseCredentialStorage = canUseCredentialStorage;
+    send(Messages::WebPage::SetCanUseCredentialStorage(canUseCredentialStorage));
 }
 
 void WebPageProxy::didDestroyNavigation(uint64_t navigationID)
@@ -6683,7 +6687,7 @@ bool WebPageProxy::didChooseFilesForOpenPanelWithImageTranscoding(const Vector<S
     auto transcodingUTI = WebCore::UTIFromMIMEType(transcodingMIMEType);
     auto transcodingExtension = WebCore::MIMETypeRegistry::preferredExtensionForMIMEType(transcodingMIMEType);
 
-    m_transcodingQueue->dispatch([this, protectedThis = makeRef(*this), fileURLs = fileURLs.isolatedCopy(), transcodingURLs = transcodingURLs.isolatedCopy(), transcodingUTI = transcodingUTI.isolatedCopy(), transcodingExtension = transcodingExtension.isolatedCopy()]() mutable {
+    sharedImageTranscodingQueue().dispatch([this, protectedThis = makeRef(*this), fileURLs = fileURLs.isolatedCopy(), transcodingURLs = transcodingURLs.isolatedCopy(), transcodingUTI = transcodingUTI.isolatedCopy(), transcodingExtension = transcodingExtension.isolatedCopy()]() mutable {
         ASSERT(!RunLoop::isMain());
 
         auto transcodedURLs = transcodeImages(transcodingURLs, transcodingUTI, transcodingExtension);
@@ -7868,6 +7872,7 @@ WebPageCreationParameters WebPageProxy::creationParameters(WebProcessProxy& proc
     parameters.shouldCaptureDisplayInUIProcess = m_process->processPool().configuration().shouldCaptureDisplayInUIProcess();
     parameters.limitsNavigationsToAppBoundDomains = m_limitsNavigationsToAppBoundDomains;
     parameters.shouldRelaxThirdPartyCookieBlocking = m_configuration->shouldRelaxThirdPartyCookieBlocking();
+    parameters.canUseCredentialStorage = m_canUseCredentialStorage;
 
 #if PLATFORM(GTK)
     parameters.themeName = pageClient().themeName();

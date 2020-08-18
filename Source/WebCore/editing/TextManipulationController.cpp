@@ -281,6 +281,11 @@ static bool canPerformTextManipulationByReplacingEntireTextContent(const Element
     return element.hasTagName(HTMLNames::titleTag) || element.hasTagName(HTMLNames::optionTag);
 }
 
+static bool areEqualIgnoringLeadingAndTrailingWhitespaces(const String& content, const String& originalContent)
+{
+    return content.stripWhiteSpace() == originalContent.stripWhiteSpace();
+}
+
 static Optional<TextManipulationController::ManipulationTokenInfo> tokenInfo(Node* node)
 {
     if (!node)
@@ -541,10 +546,20 @@ void TextManipulationController::didUpdateContentForText(Text& text)
     m_manipulatedTextsWithNewContent.add(&text);
 }
 
+void TextManipulationController::didCreateRendererForTextNode(Text& text)
+{
+    if (m_manipulatedNodes.contains(&text))
+        return;
+
+    scheduleObservationUpdate();
+
+    m_textNodesWithNewRenderer.add(&text);
+}
+
 void TextManipulationController::scheduleObservationUpdate()
 {
     // An update is already scheduled.
-    if (!m_manipulatedTextsWithNewContent.isEmpty() || !m_elementsWithNewRenderer.computesEmpty())
+    if (!m_textNodesWithNewRenderer.isEmpty() || !m_manipulatedTextsWithNewContent.isEmpty() || !m_elementsWithNewRenderer.computesEmpty())
         return;
 
     if (!m_document)
@@ -567,6 +582,10 @@ void TextManipulationController::scheduleObservationUpdate()
             nodesToObserve.add(*text);
         }
         controller->m_manipulatedTextsWithNewContent.clear();
+
+        for (auto* text : controller->m_textNodesWithNewRenderer)
+            nodesToObserve.add(*text);
+        controller->m_textNodesWithNewRenderer.clear();
 
         if (nodesToObserve.isEmpty())
             return;
@@ -779,7 +798,13 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
                 return ManipulationFailureType::ContentChanged;
 
             auto& currentToken = item.tokens[currentTokenIndex++];
-            if (!content.isReplacedContent && currentToken.content != token.content)
+            bool isContentUnchanged = currentToken.content == token.content;
+            if (!UNLIKELY(isContentUnchanged)) {
+                bool isFirstOrLastToken = currentTokenIndex == 1 || currentTokenIndex == item.tokens.size();
+                isContentUnchanged = isFirstOrLastToken && areEqualIgnoringLeadingAndTrailingWhitespaces(currentToken.content, token.content);
+            }
+
+            if (!content.isReplacedContent && !isContentUnchanged)
                 return ManipulationFailureType::ContentChanged;
 
             tokenExchangeMap.set(currentToken.identifier, TokenExchangeData { content.node.copyRef(), currentToken.content, !isNodeIncluded });
@@ -836,14 +861,12 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
         updateInsertions(lastTopDownPath, topDownPath, replacementNode.get(), reusedOriginalNodes, insertions);
     }
 
-    auto end = lastChildOfCommonAncestorInRange ? positionInParentAfterNode(lastChildOfCommonAncestorInRange.get()) : positionAfterNode(commonAncestor.get());
     RefPtr<Node> node = item.end.firstNode();
-    RefPtr<Node> endNode = end.firstNode();
-    if (node && node != endNode) {
+    if (node && lastChildOfCommonAncestorInRange->contains(node.get())) {
         auto topDownPath = getPath(commonAncestor.get(), node->parentNode());
         updateInsertions(lastTopDownPath, topDownPath, nullptr, reusedOriginalNodes, insertions);
     }
-    while (node != endNode) {
+    while (lastChildOfCommonAncestorInRange->contains(node.get())) {
         Ref<Node> parentNode = *node->parentNode();
         while (!lastTopDownPath.isEmpty() && lastTopDownPath.last().first.ptr() != parentNode.ptr())
             lastTopDownPath.removeLast();
@@ -853,21 +876,18 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
         node = NodeTraversal::next(*node);
     }
 
-    Position insertionPoint = positionBeforeNode(firstContentNode.get()).parentAnchoredEquivalent();
-    while (insertionPoint.containerNode() != commonAncestor)
-        insertionPoint = positionInParentBeforeNode(insertionPoint.containerNode());
+    RefPtr<Node> insertionPointNode = lastChildOfCommonAncestorInRange->nextSibling();
 
     for (auto& node : nodesToRemove)
         node->remove();
 
     for (auto& insertion : insertions) {
         auto parentContainer = insertion.parentIfDifferentFromCommonAncestor;
-        if (!insertion.parentIfDifferentFromCommonAncestor) {
-            parentContainer = insertionPoint.containerNode();
-            parentContainer->insertBefore(insertion.child, insertionPoint.computeNodeAfterPosition());
-            insertionPoint = positionInParentAfterNode(insertion.child.ptr());
+        if (!parentContainer) {
+            parentContainer = commonAncestor;
+            parentContainer->insertBefore(insertion.child, insertionPointNode.get());
         } else
-            insertion.parentIfDifferentFromCommonAncestor->appendChild(insertion.child);
+            parentContainer->appendChild(insertion.child);
 
         if (auto* box = parentContainer->renderBox()) {
             if (!box->hasVisualOverflow())
@@ -884,6 +904,7 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
 void TextManipulationController::removeNode(Node* node)
 {
     m_manipulatedNodes.remove(node);
+    m_textNodesWithNewRenderer.remove(node);
 }
 
 } // namespace WebCore

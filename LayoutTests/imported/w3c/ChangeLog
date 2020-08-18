@@ -1,3 +1,564 @@
+2020-08-11  Chris Dumez  <cdumez@apple.com>
+
+        Fix BiquadFilterNode's lowpass filter
+        https://bugs.webkit.org/show_bug.cgi?id=215381
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-lowpass-expected.txt:
+
+2020-08-11  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flexbox] Only update the intrinsic height if we don't have override height
+        https://bugs.webkit.org/show_bug.cgi?id=215369
+
+        Reviewed by Javier Fernandez.
+
+        * web-platform-tests/css/css-flexbox/flex-minimum-height-flex-items-010-expected.txt: Replaced failures
+        by PASS expectations.
+
+2020-08-10  Clark Wang  <clark_wang@apple.com>
+
+        Add AudioProcessingEvent Constructor
+        https://bugs.webkit.org/show_bug.cgi?id=215237
+
+        Reviewed by Chris Dumez.
+
+        Re-baselined existing tests that now pass.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam-expected.txt:
+
+2020-08-10  Chris Dumez  <cdumez@apple.com>
+
+        Align existing AudioParam API with the specification
+        https://bugs.webkit.org/show_bug.cgi?id=215301
+
+        Reviewed by Sam Weinig.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-exceptional-values-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-exponentialRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-linearRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-setValueCurve-exceptions-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-position-expected.txt:
+
+2020-08-10  Chris Lord  <clord@igalia.com>
+
+        Update WPT OffscreenCanvas tests to include manually written tests
+        https://bugs.webkit.org/show_bug.cgi?id=215322
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/2d.gradient.conic-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/2d.gradient.conic.html: Added.
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/2d.gradient.conic.worker-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/2d.gradient.conic.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/2d.gradient.conic.worker.js: Added.
+        (t_fail.t.step_func):
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/fill-and-stroke-styles/w3c-import.log:
+        * web-platform-tests/html/canvas/offscreen/manual/convert-to-blob/offscreencanvas.convert.to.blob-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/convert-to-blob/offscreencanvas.convert.to.blob.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/convert-to-blob/offscreencanvas.convert.to.blob.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/convert-to-blob/offscreencanvas.convert.to.blob.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/convert-to-blob/w3c-import.log: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/filter/offscreencanvas.filter-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/filter/offscreencanvas.filter.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/filter/offscreencanvas.filter.js: Added.
+        (getRegularContextForFilter):
+        (matchImageDataResults):
+        (createPatternCanvas):
+        * web-platform-tests/html/canvas/offscreen/manual/filter/offscreencanvas.filter.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/filter/offscreencanvas.filter.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/filter/w3c-import.log: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/image.smoothing-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/image.smoothing.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/image.smoothing.worker-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/image.smoothing.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/image.smoothing.worker.js: Added.
+        (createTestImage):
+        (test):
+        (test.draw):
+        * web-platform-tests/html/canvas/offscreen/manual/image-smoothing/w3c-import.log: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.commit-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.commit.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.commit.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.commit.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor.worker-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor.worker.js: Added.
+        (t1.step):
+        (t2.step):
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.getcontext-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.getcontext.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.getcontext.worker-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.getcontext.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.getcontext.worker.js: Added.
+        (test):
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.resize-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.resize.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfer.to.imagebitmap-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfer.to.imagebitmap.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfer.to.imagebitmap.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfer.to.imagebitmap.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfercontrol.to.offscreen-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfercontrol.to.offscreen.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfercontrol.to.offscreen.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transfercontrol.to.offscreen.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable.w-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.transferrable.w.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/w3c-import.log: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/transformations/2d.transformation.getTransform-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/transformations/2d.transformation.getTransform.html: Added.
+        * web-platform-tests/html/canvas/offscreen/manual/transformations/w3c-import.log: Added.
+        * web-platform-tests/html/canvas/offscreen/path-objects/2d.path.isPointInStroke.basic-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/path-objects/2d.path.isPointInStroke.basic.html: Added.
+        * web-platform-tests/html/canvas/offscreen/path-objects/2d.path.isPointInStroke.basic.worker-expected.txt: Added.
+        * web-platform-tests/html/canvas/offscreen/path-objects/2d.path.isPointInStroke.basic.worker.html: Added.
+        * web-platform-tests/html/canvas/offscreen/path-objects/2d.path.isPointInStroke.basic.worker.js: Added.
+        (t_fail.t.step_func):
+        (t.step):
+        * web-platform-tests/html/canvas/offscreen/path-objects/w3c-import.log:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.measure.width.space.html:
+        * web-platform-tests/html/canvas/offscreen/text/2d.text.measure.width.space.worker.js:
+        (t.step):
+
+2020-08-10  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, rebaseline imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam.html.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam-expected.txt:
+
+2020-08-09  Youenn Fablet  <youenn@apple.com>
+
+        Always resolve ReadableStream's tee()'s cancel promise after the stream closes or errors
+        https://bugs.webkit.org/show_bug.cgi?id=215197
+
+        Reviewed by Darin Adler.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/streams: Resynced to upstream WPT.
+
+2020-08-07  Chris Dumez  <cdumez@apple.com>
+
+        AudioContext / OfflineAudioContext should support a wider sample rate range
+        https://bugs.webkit.org/show_bug.cgi?id=215289
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that way for checks are passing and now that most tests are running further.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/ctor-audiobuffer-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-null-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-playbackrate-zero-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/buffer-resampling-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/note-grain-on-play-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/note-grain-on-timing-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-buffer-stitching-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-scheduling-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontextoptions-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-channel-rules-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-connect-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/channel-mode-interp-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/adding-events-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-exceptional-values-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/automation-rate-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/cancel-scheduled-values-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/event-insertion-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audiobuffersource-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-constant-source-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-stereo-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-exponentialRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-linearRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setTargetAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setValueCurveAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/set-target-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam-size.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-disconnected-input.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/suspended-context-messageport.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-allpass-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-automation-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-bandpass-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-highpass-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-highshelf-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-lowpass-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-lowshelf-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-notch-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-peaking-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-tail-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-cascade-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-1-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-2-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-upmixing-1-channel-response-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/realtime-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/delaynode-channel-count-1-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-iirfilternode-interface/iirfilter-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/mediaElementAudioSourceToScriptProcessorTest-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/ctor-offlineaudiocontext-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.tentative-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-exponential-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-inverse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/distance-linear-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-equalpower-stereo-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-azimuth-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-distance-clamping-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-stereo-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-rolloff-clamping-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/stereopannernode-panning-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/silent-inputs-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve-expected.txt:
+
+2020-08-07  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        {Intersection,Resize,Performance}Observer callbacks get incorrect `this` value
+        https://bugs.webkit.org/show_bug.cgi?id=215162
+
+        Reviewed by Geoffrey Garen.
+
+        * web-platform-tests/intersection-observer/observer-callback-arguments-expected.txt:
+        * web-platform-tests/performance-timeline/po-observe.any-expected.txt:
+        * web-platform-tests/performance-timeline/po-observe.any.worker-expected.txt:
+        * web-platform-tests/resize-observer/eventloop-expected.txt:
+        * web-platform-tests/resize-observer/observe-expected.txt:
+
+2020-08-07  Chris Dumez  <cdumez@apple.com>
+
+        baseLatency attribute is missing on AudioContext interface
+        https://bugs.webkit.org/show_bug.cgi?id=215277
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+
+2020-08-07  Rob Buis  <rbuis@igalia.com>
+
+        Implement PerfomanceObserverInit.buffered
+        https://bugs.webkit.org/show_bug.cgi?id=214883
+
+        Reviewed by Darin Adler.
+
+        Update improved test expectations and add subtests for
+        case sensitivity of type/entryTypes in observe call.
+
+        * web-platform-tests/performance-timeline/case-sensitivity.any-expected.txt:
+        * web-platform-tests/performance-timeline/case-sensitivity.any.js:
+        (async_test):
+        * web-platform-tests/performance-timeline/case-sensitivity.any.worker-expected.txt:
+        * web-platform-tests/resource-timing/buffered-flag.any-expected.txt:
+        * web-platform-tests/resource-timing/buffered-flag.any.worker-expected.txt:
+        * web-platform-tests/user-timing/buffered-flag.any-expected.txt:
+        * web-platform-tests/user-timing/buffered-flag.any.worker-expected.txt:
+
+2020-08-07  Chris Dumez  <cdumez@apple.com>
+
+        length attribute is missing on OfflineAudioContext
+        https://bugs.webkit.org/show_bug.cgi?id=215287
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+
+2020-08-07  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Reduce the amount of custom binding code for JSXPathNSResolver
+        https://bugs.webkit.org/show_bug.cgi?id=161030
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/dom/idlharness.window-expected.txt:
+        * web-platform-tests/domxpath/callback-interface-expected.txt:
+
+2020-08-06  Kenneth Russell  <kbr@chromium.org>
+
+        Implement createImageBitmap(ImageData)
+        https://bugs.webkit.org/show_bug.cgi?id=183438
+
+        Reviewed by Dean Jackson.
+
+        Rebaseline tests under
+        web-platform-tests/html/canvas/element/imagebitmap/ , which are
+        now either fully passing, or have progressed.
+
+        * web-platform-tests/html/canvas/element/imagebitmap/canvas-createImageBitmap-resize-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-drawImage-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-flipY-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-invalid-args-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-serializable-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-sizeOverflow-expected.txt:
+        * web-platform-tests/html/canvas/element/imagebitmap/createImageBitmap-transfer-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        BaseAudioContext.decodeAudioData() should return a Promise
+        https://bugs.webkit.org/show_bug.cgi?id=215242
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline tests that are now passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-multi-channels-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-detached-execution-context.tentative-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        Drop non-standard createBuffer(ArrayBuffer, boolean) overload from AudioContext
+        https://bugs.webkit.org/show_bug.cgi?id=215238
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that one more check is passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        MediaStreamAudioDestinationNode should have a constructor
+        https://bugs.webkit.org/show_bug.cgi?id=215233
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediastreamaudiodestinationnode-interface/ctor-mediastreamaudiodestination-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        MediaStreamAudioSourceNode should have a constructor
+        https://bugs.webkit.org/show_bug.cgi?id=215225
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediastreamaudiosourcenode-interface/mediastreamaudiosourcenode-ctor-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        DynamicsCompressorNode.reduction attribute should be a float, not an AudioParam
+        https://bugs.webkit.org/show_bug.cgi?id=215195
+
+        Reviewed by Youenn Fablet.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-dynamicscompressornode-interface/ctor-dynamicscompressor-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-dynamicscompressornode-interface/dynamicscompressor-basic-expected.txt:
+
+2020-08-06  Chris Dumez  <cdumez@apple.com>
+
+        MediaElementAudioSourceNode interface should have a constructor
+        https://bugs.webkit.org/show_bug.cgi?id=215200
+
+        Reviewed by Youenn Fablet.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+
+2020-08-05  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor for DynamicsCompressorNode
+        https://bugs.webkit.org/show_bug.cgi?id=215180
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-dynamics-compressor-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-dynamicscompressornode-interface/ctor-dynamicscompressor-expected.txt:
+
+2020-08-05  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor to ConvolverNode
+        https://bugs.webkit.org/show_bug.cgi?id=215169
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/ctor-convolver-expected.txt:
+
+2020-08-05  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Re-sync web-platform-tests (2 dirs + 2 files)
+        https://bugs.webkit.org/show_bug.cgi?id=215173
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        web-platform-tests revision: 993c1bc4c880
+
+        * web-platform-tests/css/cssom/*: Updated.
+        * web-platform-tests/dom/idlharness.window-expected.txt:
+        * web-platform-tests/dom/idlharness.window.js:
+        * web-platform-tests/intersection-observer/*: Updated.
+        * web-platform-tests/performance-timeline/po-observe.any.*: Added.
+
+2020-08-05  Chris Dumez  <cdumez@apple.com>
+
+        Align BiquadFilterNode.getFrequencyResponse() with the specification
+        https://bugs.webkit.org/show_bug.cgi?id=215148
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that all checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-basic-expected.txt:
+
+2020-08-05  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor to BiquadFilterNode
+        https://bugs.webkit.org/show_bug.cgi?id=215144
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/ctor-biquadfilter-expected.txt:
+
+2020-08-05  Rob Buis  <rbuis@igalia.com>
+
+        Allow multiple calls to PerformanceObserver.observe with different types
+        https://bugs.webkit.org/show_bug.cgi?id=214884
+
+        Reviewed by Darin Adler.
+
+        Update improved test expectations.
+
+        * web-platform-tests/performance-timeline/po-observe-type.any-expected.txt:
+        * web-platform-tests/performance-timeline/po-observe-type.any.worker-expected.txt:
+
+2020-08-04  Chris Dumez  <cdumez@apple.com>
+
+        Align AudioListener with the W3C specification
+        https://bugs.webkit.org/show_bug.cgi?id=215134
+
+        Reviewed by Geoffrey Garen.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/historical-expected.txt:
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/ctor-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-position-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/pannernode-basic-expected.txt:
+
+2020-08-04  Chris Dumez  <cdumez@apple.com>
+
+        Align AudioBufferSourceNode's start() / stop() with the specification
+        https://bugs.webkit.org/show_bug.cgi?id=215130
+
+        Reviewed by Darin Adler.
+
+        Rebaseline a couple of web-platform-tests now that they are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-grain-expected.txt:
+
+2020-08-04  Rob Buis  <rbuis@igalia.com>
+
+        Performance.getEntriesByName/Type should match case sensitive
+        https://bugs.webkit.org/show_bug.cgi?id=214960
+
+        Reviewed by Youenn Fablet.
+
+        Import relevant test.
+
+        * web-platform-tests/performance-timeline/case-sensitivity.any-expected.txt: Added.
+        * web-platform-tests/performance-timeline/case-sensitivity.any.html: Added.
+        * web-platform-tests/performance-timeline/case-sensitivity.any.js: Added.
+        (test):
+        * web-platform-tests/performance-timeline/case-sensitivity.any.worker-expected.txt: Added.
+        * web-platform-tests/performance-timeline/case-sensitivity.any.worker.html: Added.
+
+2020-08-03  Lauro Moura  <lmoura@igalia.com>
+
+        [GTK][WPE] Gardening some failures and rebaseline.
+
+        Unreviewed test gardening.
+
+        Rebaseline expectations after r264478 updated the interface
+        descriptions.
+
+        * web-platform-tests/webxr/ar-module/idlharness.https.window-expected.txt:
+        * web-platform-tests/webxr/idlharness.https.window-expected.txt:
+
+2020-08-03  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor for AudioBufferSourceNode
+        https://bugs.webkit.org/show_bug.cgi?id=215096
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/processing-model/feedback-delay-time-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/ctor-audiobuffer-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/ctor-audiobuffersource-expected.txt:
+
+2020-08-03  Chris Dumez  <cdumez@apple.com>
+
+        Add constructor for GainNode
+        https://bugs.webkit.org/show_bug.cgi?id=215093
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/processing-model/cycle-without-delay-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/ctor-gain-expected.txt:
+
 2020-08-03  Chris Dumez  <cdumez@apple.com>
 
         Add constructor to DelayNode

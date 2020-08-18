@@ -65,8 +65,6 @@ public:
 
     bool pullAvalaibleSamplesAsChunks(AudioBufferList&, size_t frameCount, uint64_t timeStamp, Function<void()>&&);
 
-    void setPaused(bool);
-
     void setVolume(float volume) { m_volume = volume; }
     float volume() const { return m_volume; }
 
@@ -115,8 +113,7 @@ private:
 
     float m_volume { 1.0 };
     bool m_muted { false };
-    bool m_paused { true };
-    bool m_transitioningFromPaused { true };
+    bool m_shouldComputeOutputSampleOffset { true };
 
 #if !RELEASE_LOG_DISABLED
     Ref<const Logger> m_logger;

@@ -34,7 +34,7 @@
                 shouldBe('count', '0');
             }, false);
             box.addEventListener('animationend', () => {
-                let count = internals.renderingUpdateCount();
+                count = internals.renderingUpdateCount();
                 shouldBeTrue('count < 6');
                 finishJSTest();
             }, false);

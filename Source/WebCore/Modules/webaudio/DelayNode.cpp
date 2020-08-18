@@ -39,7 +39,7 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(DelayNode);
 const double maximumAllowedDelayTime = 180;
 
 inline DelayNode::DelayNode(BaseAudioContext& context, double maxDelayTime)
-    : AudioBasicProcessorNode(context, context.sampleRate())
+    : AudioBasicProcessorNode(context)
 {
     setNodeType(NodeTypeDelay);
     m_processor = makeUnique<DelayProcessor>(context, context.sampleRate(), 1, maxDelayTime);
@@ -57,15 +57,7 @@ ExceptionOr<Ref<DelayNode>> DelayNode::create(BaseAudioContext& context, const D
 
     auto delayNode = adoptRef(*new DelayNode(context, options.maxDelayTime));
 
-    auto result = delayNode->setChannelCount(options.channelCount.valueOr(2));
-    if (result.hasException())
-        return result.releaseException();
-
-    result = delayNode->setChannelCountMode(options.channelCountMode.valueOr(ChannelCountMode::Max));
-    if (result.hasException())
-        return result.releaseException();
-
-    result = delayNode->setChannelInterpretation(options.channelInterpretation.valueOr(ChannelInterpretation::Speakers));
+    auto result = delayNode->handleAudioNodeOptions(options, { 2, ChannelCountMode::Max, ChannelInterpretation::Speakers });
     if (result.hasException())
         return result.releaseException();
 

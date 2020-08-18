@@ -359,6 +359,16 @@ void InjectedBundle::didReceiveMessageToPage(WKBundlePageRef page, WKStringRef m
         return;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "CallDidSetFirstPartyHostCNAMEDomain")) {
+        m_testRunner->statisticsCallDidSetFirstPartyHostCNAMEDomainCallback();
+        return;
+    }
+
+    if (WKStringIsEqualToUTF8CString(messageName, "CallDidSetThirdPartyCNAMEDomain")) {
+        m_testRunner->statisticsCallDidSetThirdPartyCNAMEDomainCallback();
+        return;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "CallDidResetStatisticsToConsistentState")) {
         m_testRunner->statisticsCallDidResetToConsistentStateCallback();
         return;
@@ -572,7 +582,7 @@ void InjectedBundle::beginTesting(WKDictionaryRef settings, BegingTestingMode te
 #if HAVE(ACCESSIBILITY)
     m_accessibilityController = AccessibilityController::create();
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-    m_accessibilityController->setAccessibilityIsolatedTreeMode(m_accessibilityIsolatedTreeMode);
+    m_accessibilityController->setIsolatedTreeMode(m_accessibilityIsolatedTreeMode);
 #endif
 #endif
 

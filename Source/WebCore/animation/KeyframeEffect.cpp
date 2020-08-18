@@ -1237,6 +1237,7 @@ bool KeyframeEffect::isRunningAcceleratedAnimationForProperty(CSSPropertyID prop
 
 void KeyframeEffect::invalidate()
 {
+    LOG_WITH_STREAM(Animations, stream << "KeyframeEffect::invalidate on element " << ValueOrNull(targetElementOrPseudoElement()));
     invalidateElement(targetElementOrPseudoElement());
 }
 
@@ -1611,7 +1612,8 @@ void KeyframeEffect::applyPendingAcceleratedActions()
     auto timeOffset = animation()->currentTime().valueOr(0_s).seconds() - delay().seconds();
 
     auto startAnimation = [&]() -> RunningAccelerated {
-        renderer->animationFinished(m_blendingKeyframes.animationName());
+        if (m_runningAccelerated == RunningAccelerated::Yes)
+            renderer->animationFinished(m_blendingKeyframes.animationName());
 
         if (!m_blendingKeyframes.hasImplicitKeyframes())
             return renderer->startAnimation(timeOffset, backingAnimationForCompositedRenderer(), m_blendingKeyframes) ? RunningAccelerated::Yes : RunningAccelerated::No;

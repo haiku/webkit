@@ -26,7 +26,6 @@
 
 #if ENABLE(WEB_AUDIO)
 
-#include "AudioListener.h"
 #include "AudioNode.h"
 #include "AudioParam.h"
 #include "Cone.h"
@@ -35,6 +34,7 @@
 #include "Panner.h"
 #include "PannerNode.h"
 #include "WebKitAudioContext.h"
+#include "WebKitAudioListener.h"
 #include <memory>
 #include <wtf/HashSet.h>
 #include <wtf/Lock.h>
@@ -53,9 +53,9 @@ class HRTFDatabaseLoader;
 class WebKitAudioPannerNode final : public PannerNodeBase {
     WTF_MAKE_ISO_ALLOCATED(WebKitAudioPannerNode);
 public:
-    static Ref<WebKitAudioPannerNode> create(WebKitAudioContext& context, float sampleRate)
+    static Ref<WebKitAudioPannerNode> create(WebKitAudioContext& context)
     {
-        return adoptRef(*new WebKitAudioPannerNode(context, sampleRate));
+        return adoptRef(*new WebKitAudioPannerNode(context));
     }
 
     virtual ~WebKitAudioPannerNode();
@@ -71,7 +71,7 @@ public:
     void uninitialize() override;
 
     // Listener
-    AudioListener* listener();
+    WebKitAudioListener& listener();
 
     // Panning model
     PanningModelType panningModel() const { return m_panningModel; }
@@ -123,7 +123,7 @@ public:
     double latencyTime() const override { return m_panner ? m_panner->latencyTime() : 0; }
 
 private:
-    WebKitAudioPannerNode(WebKitAudioContext&, float sampleRate);
+    explicit WebKitAudioPannerNode(WebKitAudioContext&);
 
     // Returns the combined distance and cone gain attenuation.
     float distanceConeGain();

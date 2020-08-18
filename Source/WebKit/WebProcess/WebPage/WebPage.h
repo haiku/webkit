@@ -193,6 +193,7 @@ class SubstituteData;
 class TextCheckingRequest;
 class VisiblePosition;
 
+enum DragApplicationFlags : uint8_t;
 enum SyntheticClickType : int8_t;
 enum class DOMPasteAccessResponse : uint8_t;
 enum class DragHandlingMethod : uint8_t;
@@ -758,6 +759,7 @@ public:
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(IOS_TOUCH_EVENTS)
     void dispatchAsynchronousTouchEvents(const Vector<std::pair<WebTouchEvent, Optional<CallbackID>>, 1>& queue);
+    void cancelAsynchronousTouchEvents(const Vector<std::pair<WebTouchEvent, Optional<CallbackID>>, 1>& queue);
 #endif
 
     bool hasRichlyEditableSelection() const;
@@ -900,7 +902,7 @@ public:
     void restoreSelectionInFocusedEditableElement();
 
 #if ENABLE(DRAG_SUPPORT) && PLATFORM(GTK)
-    void performDragControllerAction(DragControllerAction, const WebCore::IntPoint& clientPosition, const WebCore::IntPoint& globalPosition, OptionSet<WebCore::DragOperation> draggingSourceOperationMask, WebCore::SelectionData&&, uint32_t flags);
+    void performDragControllerAction(DragControllerAction, const WebCore::IntPoint& clientPosition, const WebCore::IntPoint& globalPosition, OptionSet<WebCore::DragOperation> draggingSourceOperationMask, WebCore::SelectionData&&, OptionSet<WebCore::DragApplicationFlags>);
 #endif
 
 #if ENABLE(DRAG_SUPPORT) && !PLATFORM(GTK)
@@ -1410,7 +1412,7 @@ private:
     void shrinkToFitContent(ZoomToInitialScale = ZoomToInitialScale::No);
 #endif
 
-#if PLATFORM(IOS_FAMILY) && ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
     void requestDragStart(const WebCore::IntPoint& clientPosition, const WebCore::IntPoint& globalPosition, OptionSet<WebCore::DragSourceAction> allowedActionsMask);
     void requestAdditionalItemsForDragSession(const WebCore::IntPoint& clientPosition, const WebCore::IntPoint& globalPosition, OptionSet<WebCore::DragSourceAction> allowedActionsMask);
     void insertDroppedImagePlaceholders(const Vector<WebCore::IntSize>&, CompletionHandler<void(const Vector<WebCore::IntRect>&, Optional<WebCore::TextIndicatorData>)>&& reply);
@@ -1644,6 +1646,7 @@ private:
     void platformDidSelectAll();
     
     void setHasResourceLoadClient(bool);
+    void setCanUseCredentialStorage(bool);
 
 #if ENABLE(CONTEXT_MENUS)
     void didSelectItemFromActiveContextMenu(const WebContextMenuItemData&);
@@ -1942,7 +1945,7 @@ private:
     OptionSet<WebCore::DragSourceAction> m_allowedDragSourceActions { WebCore::anyDragSourceAction() };
 #endif
 
-#if ENABLE(DRAG_SUPPORT) && PLATFORM(IOS_FAMILY)
+#if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
     HashSet<RefPtr<WebCore::HTMLImageElement>> m_pendingImageElementsForDropSnapshot;
     Optional<WebCore::SimpleRange> m_rangeForDropSnapshot;
 #endif
@@ -2134,6 +2137,8 @@ private:
     
     bool m_limitsNavigationsToAppBoundDomains { false };
     bool m_navigationHasOccured { false };
+    bool m_canUseCredentialStorage { true };
+
     Vector<String> m_corsDisablingPatterns;
 };
 

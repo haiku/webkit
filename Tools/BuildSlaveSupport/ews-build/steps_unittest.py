@@ -1108,6 +1108,24 @@ class TestAnalyzeCompileWebKitResults(BuildStepMixinAdditions, unittest.TestCase
         self.expectOutcome(result=FAILURE, state_string='Unable to build WebKit without patch, retrying build (failure)')
         return self.runStep()
 
+    def test_filter_logs_containing_error(self):
+        logs = 'In file included from WebCore/unified-sources/UnifiedSource263.cpp:4:\nImageBufferIOSurfaceBackend.cpp:108:30: error: definition of implicitly declared destructor'
+        expected_output = 'ImageBufferIOSurfaceBackend.cpp:108:30: error: definition of implicitly declared destructor'
+        output = AnalyzeCompileWebKitResults().filter_logs_containing_error(logs)
+        self.assertEqual(expected_output, output)
+
+    def test_filter_logs_containing_error_with_too_many_errors(self):
+        logs = 'Error:1\nError:2\nerror:3\nerror:4\nerror:5\nrandom-string\nerror:6\nerror:7\nerror8\nerror:9\nerror:10\nerror:11\nerror:12\nerror:13'
+        expected_output = 'error:3\nerror:4\nerror:5\nerror:6\nerror:7\nerror:9\nerror:10\nerror:11\nerror:12\nerror:13'
+        output = AnalyzeCompileWebKitResults().filter_logs_containing_error(logs)
+        self.assertEqual(expected_output, output)
+
+    def test_filter_logs_containing_error_with_no_error(self):
+        logs = 'CompileC /Volumes/Data/worker/macOS-Mojave-Release-Build-EWS'
+        expected_output = ''
+        output = AnalyzeCompileWebKitResults().filter_logs_containing_error(logs)
+        self.assertEqual(expected_output, output)
+
 
 class TestCompileJSC(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):
@@ -2297,6 +2315,13 @@ class TestCheckPatchRelevance(BuildStepMixinAdditions, unittest.TestCase):
         self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
         return self.runStep()
 
+    def test_relevant_bigsur_builder_patch(self):
+        CheckPatchRelevance._get_patch = lambda x: 'Sample patch; file: Source/xyz'
+        self.setupStep(CheckPatchRelevance())
+        self.setProperty('buildername', 'macOS-BigSur-Release-Build-EWS')
+        self.expectOutcome(result=SUCCESS, state_string='Patch contains relevant changes')
+        return self.runStep()
+
     def test_relevant_windows_wk1_patch(self):
         CheckPatchRelevance._get_patch = lambda x: 'Sample patch; file: Source/WebKitLegacy'
         self.setupStep(CheckPatchRelevance())
@@ -2331,13 +2356,16 @@ class TestCheckPatchRelevance(BuildStepMixinAdditions, unittest.TestCase):
             rc = self.runStep()
         return rc
 
-    def test_non_relevant_patch(self):
+    def test_non_relevant_patch_on_various_queues(self):
         CheckPatchRelevance._get_patch = lambda x: 'Sample patch'
-        self.setupStep(CheckPatchRelevance())
-        self.setProperty('buildername', 'JSC-Tests-EWS')
-        self.setProperty('patch_id', '1234')
-        self.expectOutcome(result=FAILURE, state_string='Patch doesn\'t have relevant changes')
-        return self.runStep()
+        queues = ['Bindings-Tests-EWS', 'JSC-Tests-EWS', 'macOS-BigSur-Release-Build-EWS',
+                  'macOS-Mojave-Debug-WK1-Tests-EWS', 'Services-EWS', 'WebKitPy-Tests-EWS']
+        for queue in queues:
+            self.setupStep(CheckPatchRelevance())
+            self.setProperty('buildername', queue)
+            self.expectOutcome(result=FAILURE, state_string='Patch doesn\'t have relevant changes')
+            rc = self.runStep()
+        return rc
 
 
 class TestArchiveBuiltProduct(BuildStepMixinAdditions, unittest.TestCase):

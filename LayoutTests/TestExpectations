@@ -20,6 +20,7 @@ editing/mac [ Skip ]
 editing/caret/ios [ Skip ]
 editing/editable-region [ Skip ]
 editing/execCommand/ios [ Skip ]
+editing/input/cocoa [ Skip ]
 editing/input/ios [ Skip ]
 editing/find [ Skip ]
 editing/pasteboard/gtk [ Skip ]
@@ -307,12 +308,23 @@ imported/w3c/web-platform-tests/html/webappapis/scripting/event-loops/fully_acti
 
 # Skip WPT webaudio tests that are timing out.
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analyser-output.html [ Skip ]
-imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-multi-channels.html [ Skip ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediastreamaudiosourcenode-interface/mediastreamaudiosourcenode-routing.html [ Skip ]
 
 # Test prints out sample rate, which appears to be hardware-specific.
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontextoptions.html [ Pass Failure ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/mediaElementAudioSourceToScriptProcessorTest.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-rolloff-clamping.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-connection.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/no-dezippering.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-1-chan.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-upmixing-1-channel-response.html [ Pass Failure ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve.html [ Pass Failure ]
+
 
 # Some of the subchecks are failing and print out a different value every time.
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/detune-limiting.html [ Pass Failure ]
@@ -350,6 +362,7 @@ imported/w3c/web-platform-tests/streams/readable-streams/patched-global.any.html
 imported/w3c/web-platform-tests/streams/writable-streams/write.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/streams/writable-streams/error.any.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/workers/WorkerGlobalScope_ErrorEvent_lineno.htm [ DumpJSConsoleLogInStdErr ]
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/offlineaudiocontext-detached-execution-context.tentative.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam.html [ DumpJSConsoleLogInStdErr ]
 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic.html [ DumpJSConsoleLogInStdErr ]
 fast/files/file-reader-back-forward-cache.html [ DumpJSConsoleLogInStdErr ]
@@ -1780,7 +1793,6 @@ webkit.org/b/139210 imported/mozilla/svg/text/textLength-6.svg [ ImageOnlyFailur
 webkit.org/b/139237 imported/mozilla/svg/filters/feComposite-1.svg [ ImageOnlyFailure ]
 webkit.org/b/139258 imported/mozilla/svg/text-layout-05.svg [ ImageOnlyFailure ]
 webkit.org/b/139266 imported/mozilla/svg/text/dynamic-multiple-x.svg [ ImageOnlyFailure ]
-webkit.org/b/139282 imported/mozilla/svg/image/image-filter-01.svg [ ImageOnlyFailure ]
 webkit.org/b/139322 imported/mozilla/svg/text/dynamic-non-scaling-stroke.svg [ ImageOnlyFailure ]
 webkit.org/b/139407 imported/mozilla/svg/as-image/border-image-simple-1.html [ ImageOnlyFailure ]
 webkit.org/b/139412 imported/mozilla/svg/filters/svg-filter-chains/clip-input.svg [ ImageOnlyFailure ]
@@ -1796,7 +1808,6 @@ webkit.org/b/139417 imported/mozilla/svg/filters/filter-marked-line-06.svg [ Ima
 webkit.org/b/139417 imported/mozilla/svg/filters/filter-marked-line-07.svg [ ImageOnlyFailure ]
 webkit.org/b/139417 imported/mozilla/svg/filters/filter-marked-line-08.svg [ ImageOnlyFailure ]
 webkit.org/b/139417 imported/mozilla/svg/filters/filter-marked-line-09.svg [ ImageOnlyFailure ]
-
 webkit.org/b/84759 ietestcenter/css3/multicolumn/column-containing-block-001.htm [ ImageOnlyFailure ]
 webkit.org/b/84760 ietestcenter/css3/multicolumn/column-containing-block-002.htm [ ImageOnlyFailure ]
 webkit.org/b/84761 ietestcenter/css3/multicolumn/column-filling-001.htm [ ImageOnlyFailure ]
@@ -1918,7 +1929,7 @@ webrtc/h264-baseline.html [ Slow ]
 webrtc/h264-high.html [ Slow ]
 
 imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getSynchronizationSources.https.html [ Slow ]
-webkit.org/b/214197 imported/w3c/web-platform-tests/webrtc/RTCRtpTransceiver.https.html [ Pass Failure ]
+webkit.org/b/214197 imported/w3c/web-platform-tests/webrtc/RTCRtpTransceiver.https.html [ Pass Failure Crash ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-setLocalDescription-offer.html [ Failure ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-setLocalDescription-answer.html [ Failure ]
 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-iceGatheringState.html [ Pass Failure ]
@@ -4515,10 +4526,3 @@ webkit.org/b/214467 imported/w3c/web-platform-tests/html/canvas/element/drawing-
 
 # WebKit2 only.
 js/throw-large-string-oom.html [ Skip ]
-
-webkit.org/b/214884 imported/w3c/web-platform-tests/performance-timeline/po-observe-type.any.html [ Skip ]
-webkit.org/b/214884 imported/w3c/web-platform-tests/performance-timeline/po-observe-type.any.worker.html [ Skip ]
-webkit.org/b/214883 imported/w3c/web-platform-tests/resource-timing/buffered-flag.any.html [ Skip ]
-webkit.org/b/214883 imported/w3c/web-platform-tests/resource-timing/buffered-flag.any.worker.html [ Skip ]
-webkit.org/b/214883 imported/w3c/web-platform-tests/user-timing/buffered-flag.any.html [ Skip ]
-webkit.org/b/214883 imported/w3c/web-platform-tests/user-timing/buffered-flag.any.worker.html [ Skip ]

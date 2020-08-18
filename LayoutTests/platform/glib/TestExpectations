@@ -10,7 +10,7 @@
 #
 # Never add any tests to this file without opening a bug on bugzilla.webkit.org.
 #
-# Currently the following sections are used, but this is not a fixed list. Some sections
+# Initially the following sections were used, but this is not a fixed list. Some sections
 # (like WebAnimation, PageOverlay, WebGL) will mirror their top-level LayoutTests/
 # folders, but others like CSS and GStreamer may have entries from multiple folders.
 #
@@ -180,6 +180,19 @@ webkit.org/b/169988 css3/filters/backdrop/backdrop-filter-with-reflection-value-
 webkit.org/b/169988 css3/filters/backdrop/backdrop-filter-with-reflection.html [ ImageOnlyFailure ]
 webkit.org/b/169988 css3/filters/backdrop/effect-hw.html [ ImageOnlyFailure ]
 
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-does-not-size-properly-absolute.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-does-not-size-properly-border-and-padding.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-with-cliprect.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-with-mask.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-with-visibility-hidden-changing.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-with-visibility-hidden.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-add-more-layers.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-excessive.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-ok.html [ Crash ]
+webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-remove-some-layers.html [ Crash ]
+
+webkit.org/b/214682 imported/w3c/web-platform-tests/css/cssom/stylesheet-same-origin.sub.html [ Pass Failure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of CSS-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -195,6 +208,22 @@ webkit.org/b/212202 fast/events/platform-wheelevent-in-scrolling-div.html [ Skip
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Events-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
+
+
+#////////////////////////////////////////////////////////////////////////////////////////
+# Gamepad-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
+# ENABLE_GAMEPAD not enabled.
+webkit.org/b/98937 gamepad [ Skip ]
+webkit.org/b/177447 imported/w3c/web-platform-tests/dom/events/Event-timestamp-high-resolution.html [ Failure ]
+webkit.org/b/98937 http/tests/misc/gamepads-insecure.html [ Skip ]
+
+
+#////////////////////////////////////////////////////////////////////////////////////////
+# End of Gamepad-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +247,7 @@ webkit.org/b/210498 webkit.org/b/210840 fast/mediastream/play-newly-added-audio-
 
 webkit.org/b/203078 media/media-source/media-source-remove-unload-crash.html [ Crash Timeout Pass ]
 webkit.org/b/210528 media/media-source/media-source-seek-back.html [ Crash Pass ]
+webkit.org/b/214636 media/media-source/media-source-webm.html [ Timeout ]
 
 webkit.org/b/210528 media/video-src-blob-replay.html [ Crash Pass ]
 
@@ -230,6 +260,10 @@ webkit.org/b/214031 imported/w3c/web-platform-tests/html/semantics/embedded-cont
 webkit.org/b/207547 media/media-can-play-av1.html [ Failure ]
 
 webkit.org/b/214422 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct.html [ Failure Pass ]
+
+webkit.org/b/215255 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-multi-channels.html [ Failure ]
+
+webkit.org/b/215281 imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/ctor-audiobuffer.html [ Pass Failure ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of GStreamer-related bugs
@@ -251,6 +285,17 @@ webkit.org/b/213293 fast/images/hidpi-image-position-on-device-pixels-with-borde
 
 
 #////////////////////////////////////////////////////////////////////////////////////////
+# HTTP-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
+webkit.org/b/214797 http/tests/images/jpeg-partial-load.html [ ImageOnlyFailure Timeout Pass ]
+
+#////////////////////////////////////////////////////////////////////////////////////////
+# End of HTTP-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
+
+#////////////////////////////////////////////////////////////////////////////////////////
 # IndexedDB-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
 
@@ -260,6 +305,18 @@ webkit.org/b/208292 storage/indexeddb/detached-iframe.html [ Failure Pass ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of IndexedDB-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
+
+#////////////////////////////////////////////////////////////////////////////////////////
+# MathML-related bugs
+#////////////////////////////////////////////////////////////////////////////////////////
+
+webkit.org/b/215217 [ Debug ] mathml/opentype/munderover-layout-resize.html [ Crash ]
+webkit.org/b/215217 [ Debug ] mathml/presentation/mo-invisible.html [ Crash ]
+
+#////////////////////////////////////////////////////////////////////////////////////////
+# End of MathML-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -505,6 +562,8 @@ webkit.org/b/169917 fast/canvas/webgl/unprefixed-anisotropic-extension.html [ Fa
 webkit.org/b/169917 webgl/1.0.3/conformance/extensions/webgl-compressed-texture-size-limit.html [ Failure ]
 
 webkit.org/b/211887 [ Debug ] fast/canvas/webgl/tex-sub-image-2d-bad-args.html [ Crash ]
+webkit.org/b/211887 [ Debug ] webgl/1.0.3/conformance/textures/tex-sub-image-2d-bad-args.html [ Crash ]
+webkit.org/b/211887 [ Debug ] webgl/1.0.3/conformance/more/functions/texSubImage2DHTMLBadArgs.html [ Crash ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of WebGL-related bugs
@@ -922,6 +981,8 @@ webkit.org/b/49179 animations/stop-animation-on-suspend.html [ Failure Pass ]
 webkit.org/b/133151 js/cached-window-properties.html [ Timeout Pass ]
 
 webkit.org/b/163533 security/contentSecurityPolicy/video-with-data-url-allowed-by-media-src-star.html [ Crash ImageOnlyFailure Timeout Pass ]
+
+imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam.html [ DumpJSConsoleLogInStdErr ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of NEEDS TRIAGING. Don't put expectations below this section.

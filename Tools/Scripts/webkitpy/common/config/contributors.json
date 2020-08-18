@@ -2385,6 +2385,12 @@
          "hayato"
       ]
    },
+   "Hector Lopez" : {
+      "emails" : [
+         "hector_i_lopez@apple.com"
+      ],
+      "status" : "committer"
+   },
    "Helder Correia" : {
       "emails" : [
          "helder.correia@nokia.com",
@@ -2609,15 +2615,6 @@
          "fawek"
       ]
    },
-   "James Darpinian" : {
-      "emails" : [
-         "jdarpinian@chromium.org"
-      ],
-      "expertise" : "WebGL (Chromium and Safari ports)",
-      "nicks" : [
-         "darpinian"
-      ]
-   },
    "James Craig" : {
       "emails" : [
          "jcraig@apple.com",
@@ -2625,6 +2622,15 @@
       ],
       "nicks" : [
          "jcraig"
+      ]
+   },
+   "James Darpinian" : {
+      "emails" : [
+         "jdarpinian@chromium.org"
+      ],
+      "expertise" : "WebGL (Chromium and Safari ports)",
+      "nicks" : [
+         "darpinian"
       ]
    },
    "James Hawkins" : {
@@ -3384,7 +3390,7 @@
          "kbr_google",
          "kbrgg"
       ],
-      "status" : "committer"
+      "status" : "reviewer"
    },
    "Kent Hansen" : {
       "emails" : [
@@ -4428,6 +4434,15 @@
          "pamg"
       ]
    },
+   "Patrick Angle" : {
+      "emails" : [
+         "pangle@apple.com"
+      ],
+      "expertise" : "Web Inspector",
+      "nicks" : [
+         "pangle"
+      ]
+   },
    "Patrick Gansterer" : {
       "emails" : [
          "paroga@paroga.com",
@@ -4917,6 +4932,16 @@
          "sabouhallawa"
       ],
       "status" : "reviewer"
+   },
+   "Sam Sneddon" : {
+      "emails" : [
+         "gsnedders@apple.com",
+         "me@gsnedders.com"
+      ],
+      "expertise" : "Web Standards, WPT",
+      "nicks" : [
+         "gsnedders"
+      ]
    },
    "Sam Weinig" : {
       "emails" : [

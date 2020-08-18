@@ -780,6 +780,8 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     if (parameters.shouldEnableVP9Decoder)
         WebProcess::singleton().enableVP9Decoder();
 
+    m_page->setCanUseCredentialStorage(parameters.canUseCredentialStorage);
+
     updateThrottleState();
 }
 
@@ -1227,6 +1229,12 @@ void WebPage::setHasResourceLoadClient(bool has)
 {
     if (m_page)
         m_page->setHasResourceLoadClient(has);
+}
+
+void WebPage::setCanUseCredentialStorage(bool has)
+{
+    if (m_page)
+        m_page->setCanUseCredentialStorage(has);
 }
 
 void WebPage::setTracksRepaints(bool trackRepaints)
@@ -2985,7 +2993,7 @@ void WebPage::touchEventSync(const WebTouchEvent& touchEvent, CompletionHandler<
     m_pendingSynchronousTouchEventReply = WTFMove(reply);
 
     EventDispatcher::TouchEventQueue queuedEvents;
-    WebProcess::singleton().eventDispatcher().getQueuedTouchEventsForPage(*this, queuedEvents);
+    WebProcess::singleton().eventDispatcher().takeQueuedTouchEventsForPage(*this, queuedEvents);
     dispatchAsynchronousTouchEvents(queuedEvents);
 
     bool handled = true;
@@ -3981,14 +3989,14 @@ NotificationPermissionRequestManager* WebPage::notificationPermissionRequestMana
 #if ENABLE(DRAG_SUPPORT)
 
 #if PLATFORM(GTK)
-void WebPage::performDragControllerAction(DragControllerAction action, const IntPoint& clientPosition, const IntPoint& globalPosition, OptionSet<DragOperation> draggingSourceOperationMask, SelectionData&& selectionData, uint32_t flags)
+void WebPage::performDragControllerAction(DragControllerAction action, const IntPoint& clientPosition, const IntPoint& globalPosition, OptionSet<DragOperation> draggingSourceOperationMask, SelectionData&& selectionData, OptionSet<DragApplicationFlags> flags)
 {
     if (!m_page) {
         send(Messages::WebPageProxy::DidPerformDragControllerAction(WTF::nullopt, DragHandlingMethod::None, false, 0, { }, { }));
         return;
     }
 
-    DragData dragData(&selectionData, clientPosition, globalPosition, draggingSourceOperationMask, static_cast<DragApplicationFlags>(flags));
+    DragData dragData(&selectionData, clientPosition, globalPosition, draggingSourceOperationMask, flags);
     switch (action) {
     case DragControllerAction::Entered: {
         auto resolvedDragOperation = m_page->dragController().dragEntered(dragData);
@@ -5987,7 +5995,9 @@ void WebPage::didCommitLoad(WebFrame* frame)
     m_lastLayerTreeTransactionIdAndPageScaleBeforeScalingPage = WTF::nullopt;
 
 #if ENABLE(IOS_TOUCH_EVENTS)
-    WebProcess::singleton().eventDispatcher().clearQueuedTouchEventsForPage(*this);
+    EventDispatcher::TouchEventQueue queuedEvents;
+    WebProcess::singleton().eventDispatcher().takeQueuedTouchEventsForPage(*this, queuedEvents);
+    cancelAsynchronousTouchEvents(queuedEvents);
 #endif
 #endif // PLATFORM(IOS_FAMILY)
 

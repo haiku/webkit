@@ -32,6 +32,7 @@
 #include "AudioContextState.h"
 #include "AudioDestinationNode.h"
 #include "EventTarget.h"
+#include "JSDOMPromiseDeferred.h"
 #include "MediaCanStartListener.h"
 #include "MediaProducer.h"
 #include "PeriodicWaveConstraints.h"
@@ -123,15 +124,16 @@ public:
     void decrementActiveSourceCount();
     
     ExceptionOr<Ref<AudioBuffer>> createBuffer(unsigned numberOfChannels, unsigned length, float sampleRate);
-    ExceptionOr<Ref<AudioBuffer>> createBuffer(ArrayBuffer&, bool mixToMono);
 
     // Asynchronous audio file data decoding.
-    void decodeAudioData(Ref<ArrayBuffer>&&, RefPtr<AudioBufferCallback>&&, RefPtr<AudioBufferCallback>&&);
+    void decodeAudioData(Ref<ArrayBuffer>&&, RefPtr<AudioBufferCallback>&&, RefPtr<AudioBufferCallback>&&, Optional<Ref<DeferredPromise>>&& = WTF::nullopt);
 
-    AudioListener* listener() { return m_listener.get(); }
+    AudioListener& listener();
 
     void suspendRendering(DOMPromiseDeferred<void>&&);
     void resumeRendering(DOMPromiseDeferred<void>&&);
+
+    AudioBuffer* renderTarget() const { return m_renderTarget.get(); }
 
     using State = AudioContextState;
     State state() const { return m_state; }
@@ -294,11 +296,12 @@ public:
 
     void lazyInitialize();
 
+    static bool isSupportedSampleRate(float sampleRate);
+
 protected:
     explicit BaseAudioContext(Document&, const AudioContextOptions& = { });
     BaseAudioContext(Document&, AudioBuffer* renderTarget);
     
-    static bool isSampleRateRangeGood(float sampleRate);
     void clearPendingActivity();
     void makePendingActivity();
 

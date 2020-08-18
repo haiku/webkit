@@ -45,15 +45,7 @@ ExceptionOr<Ref<AnalyserNode>> AnalyserNode::create(BaseAudioContext& context, c
     
     auto analyser = adoptRef(*new AnalyserNode(context));
     
-    auto result = analyser->setChannelCount(options.channelCount.valueOr(2));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = analyser->setChannelCountMode(options.channelCountMode.valueOr(ChannelCountMode::Max));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = analyser->setChannelInterpretation(options.channelInterpretation.valueOr(ChannelInterpretation::Speakers));
+    auto result = analyser->handleAudioNodeOptions(options, { 2, ChannelCountMode::Max, ChannelInterpretation::Speakers });
     if (result.hasException())
         return result.releaseException();
     
@@ -73,9 +65,10 @@ ExceptionOr<Ref<AnalyserNode>> AnalyserNode::create(BaseAudioContext& context, c
 }
 
 AnalyserNode::AnalyserNode(BaseAudioContext& context)
-    : AudioBasicInspectorNode(context, context.sampleRate(), 2)
+    : AudioBasicInspectorNode(context)
 {
     setNodeType(NodeTypeAnalyser);
+    addOutput(makeUnique<AudioNodeOutput>(this, 2));
     
     initialize();
 }

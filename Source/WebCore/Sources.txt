@@ -472,7 +472,6 @@ bindings/js/JSCanvasRenderingContext2DCustom.cpp
 bindings/js/JSCustomElementInterface.cpp
 bindings/js/JSCustomElementRegistryCustom.cpp
 bindings/js/JSCustomEventCustom.cpp
-bindings/js/JSCustomXPathNSResolver.cpp
 bindings/js/JSDOMBindingSecurity.cpp
 bindings/js/JSDOMBuiltinConstructorBase.cpp
 bindings/js/JSDOMConstructorBase.cpp
@@ -574,7 +573,6 @@ bindings/js/JSWorkerNavigatorCustom.cpp
 bindings/js/JSWorkletGlobalScopeBase.cpp
 bindings/js/JSXMLDocumentCustom.cpp
 bindings/js/JSXMLHttpRequestCustom.cpp
-bindings/js/JSXPathNSResolverCustom.cpp
 bindings/js/JSXPathResultCustom.cpp
 bindings/js/ReadableStream.cpp
 bindings/js/ReadableStreamDefaultController.cpp
@@ -2554,6 +2552,7 @@ worklets/Worklet.cpp
 worklets/WorkletConsoleClient.cpp
 worklets/WorkletGlobalScope.cpp
 worklets/WorkletScriptController.cpp
+xml/CustomXPathNSResolver.cpp
 xml/DOMParser.cpp
 xml/NativeXPathNSResolver.cpp
 xml/XMLErrors.cpp
@@ -2633,6 +2632,7 @@ JSAudioBuffer.cpp
 JSAudioBufferCallback.cpp
 JSAudioBufferOptions.cpp
 JSAudioBufferSourceNode.cpp
+JSAudioBufferSourceOptions.cpp
 JSAudioConfiguration.cpp
 JSAudioContext.cpp
 JSAudioContextLatencyCategory.cpp
@@ -2644,6 +2644,7 @@ JSAudioNode.cpp
 JSAudioNodeOptions.cpp
 JSAudioParam.cpp
 JSAudioProcessingEvent.cpp
+JSAudioProcessingEventInit.cpp
 JSAudioScheduledSourceNode.cpp
 JSAudioTrack.cpp
 JSAudioTrackList.cpp
@@ -2660,6 +2661,8 @@ JSBasicCredential.cpp
 JSBeforeLoadEvent.cpp
 JSBeforeUnloadEvent.cpp
 JSBiquadFilterNode.cpp
+JSBiquadFilterOptions.cpp
+JSBiquadFilterType.cpp
 JSBlob.cpp
 JSBlobCallback.cpp
 JSBlobEvent.cpp
@@ -2731,6 +2734,7 @@ JSCompositeOperationOrAuto.cpp
 JSCompositionEvent.cpp
 JSComputedEffectTiming.cpp
 JSConvolverNode.cpp
+JSConvolverOptions.cpp
 JSCountQueuingStrategy.cpp
 JSCredentialCreationOptions.cpp
 JSCredentialRequestOptions.cpp
@@ -2821,6 +2825,7 @@ JSDocumentType.cpp
 JSDoubleRange.cpp
 JSDragEvent.cpp
 JSDynamicsCompressorNode.cpp
+JSDynamicsCompressorOptions.cpp
 JSEXTBlendMinMax.cpp
 JSEXTColorBufferFloat.cpp
 JSEXTColorBufferHalfFloat.cpp
@@ -2901,6 +2906,7 @@ JSGPUVertexAttributeDescriptor.cpp
 JSGPUVertexBufferDescriptor.cpp
 JSGPUVertexInputDescriptor.cpp
 JSGainNode.cpp
+JSGainOptions.cpp
 JSGamepad.cpp
 JSGamepadButton.cpp
 JSGamepadEvent.cpp
@@ -3055,6 +3061,7 @@ JSMediaDecodingType.cpp
 JSMediaDeviceInfo.cpp
 JSMediaDevices.cpp
 JSMediaElementAudioSourceNode.cpp
+JSMediaElementAudioSourceOptions.cpp
 JSMediaEncodingConfiguration.cpp
 JSMediaEncodingType.cpp
 JSMediaEncryptedEvent.cpp
@@ -3080,6 +3087,7 @@ JSMediaSource.cpp
 JSMediaStream.cpp
 JSMediaStreamAudioDestinationNode.cpp
 JSMediaStreamAudioSourceNode.cpp
+JSMediaStreamAudioSourceOptions.cpp
 JSMediaStreamTrack.cpp
 JSMediaStreamTrackEvent.cpp
 JSMediaTrackConstraints.cpp
@@ -3115,6 +3123,7 @@ JSNavigatorStorageQuota.cpp
 JSNavigatorWebDriver.cpp
 JSNode.cpp
 JSNodeFilter.cpp
+JSCustomXPathNSResolver.cpp
 JSNodeIterator.cpp
 JSNodeList.cpp
 JSNonDocumentTypeChildNode.cpp
@@ -3568,9 +3577,12 @@ JSWebGPUSwapChain.cpp
 JSWebGPUTexture.cpp
 JSWebGPUTextureView.cpp
 JSWebKitAnimationEvent.cpp
+JSWebKitAudioBufferSourceNode.cpp
 JSWebKitAudioContext.cpp
+JSWebKitAudioListener.cpp
 JSWebKitAudioPannerNode.cpp
 JSWebKitCSSMatrix.cpp
+JSWebKitDynamicsCompressorNode.cpp
 JSWebKitMediaKeyError.cpp
 JSWebKitMediaKeyMessageEvent.cpp
 JSWebKitMediaKeyNeededEvent.cpp

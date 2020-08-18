@@ -23,10 +23,13 @@
 import json
 import math
 import os
+import platform
 import re
+import subprocess
 import shutil
 import sys
 import tarfile
+import zipfile
 
 from webkitcorepy import log
 from webkitcorepy.version import Version
@@ -40,10 +43,11 @@ else:
 
 class Package(object):
     class Archive(object):
-        def __init__(self, name, link, version):
+        def __init__(self, name, link, version, extension=None):
             self.name = name
             self.link = link
             self.version = version
+            self.extension = extension or 'tar.gz'
 
         def __repr__(self):
             return '{}-{}.{}.{}'.format(self.name, self.version.major, self.version.minor, self.version.tiny)
@@ -52,7 +56,7 @@ class Package(object):
         def path(self):
             if not AutoInstall.directory:
                 raise ValueError('No AutoInstall directory, archive cannot resolve local path')
-            return '{}/{}-{}.tar.gz'.format(AutoInstall.directory, self.name, self.version)
+            return '{}/{}-{}.{}'.format(AutoInstall.directory, self.name, self.version, self.extension)
 
         def download(self):
             response = AutoInstall._request(self.link)
@@ -72,17 +76,27 @@ class Package(object):
             if not os.path.isfile(self.path):
                 raise IOError('Failed to find archive at {}'.format(self.path))
             shutil.rmtree(target, ignore_errors=True)
-            file = tarfile.open(self.path)
-            try:
-                file.extractall(target)
-            finally:
-                file.close()
 
-    def __init__(self, name, version=None, pypi_name=None):
+            if self.extension == 'tar.gz':
+                file = tarfile.open(self.path)
+                try:
+                    file.extractall(target)
+                finally:
+                    file.close()
+            elif self.extension in ['whl', 'zip']:
+                with zipfile.ZipFile(self.path, 'r') as file:
+                    file.extractall(target)
+            else:
+                raise OSError('{} has an  unrecognized package format'.format(self.path))
+
+    def __init__(self, name, version=None, pypi_name=None, slow_install=False, wheel=False, aliases=None):
         self.name = name
         self.version = version
         self._archives = []
         self.pypi_name = pypi_name or self.name
+        self.slow_install = slow_install
+        self.wheel = wheel
+        self.aliases = aliases or []
 
     @property
     def location(self):
@@ -104,7 +118,9 @@ class Package(object):
                 raise ValueError('The package {} was not found on {}'.format(self.pypi_name, AutoInstall.index))
 
             page = minidom.parseString(response.read())
-            for element in page.getElementsByTagName("a"):
+            cached_tags = None
+
+            for element in reversed(page.getElementsByTagName("a")):
                 if not len(element.childNodes):
                     continue
                 if element.childNodes[0].nodeType != minidom.Node.TEXT_NODE:
@@ -115,14 +131,35 @@ class Package(object):
                     attributes[element.attributes.item(index).name] = element.attributes.item(index).value
                 if not attributes.get('href', None):
                     continue
-                if not element.childNodes[0].data.endswith('tar.gz'):
-                    continue
+
+                if self.wheel:
+                    match = re.search(r'.+-([^-]+-[^-]+-[^-]+).whl', element.childNodes[0].data)
+                    if not match:
+                        continue
+
+                    from packaging import tags
+
+                    if not cached_tags:
+                        cached_tags = set(AutoInstall.tags())
+
+                    if all([tag not in cached_tags for tag in tags.parse_tag(match.group(1))]):
+                        continue
+
+                    extension = 'whl'
+
+                else:
+                    if element.childNodes[0].data.endswith('.tar.gz'):
+                        extension = 'tar.gz'
+                    elif element.childNodes[0].data.endswith('.zip'):
+                        extension = 'zip'
+                    else:
+                        continue
 
                 requires = attributes.get('data-requires-python')
                 if requires and not AutoInstall.version.matches(requires):
                     continue
 
-                version_candidate = re.search(r'\d+\.\d+\.\d+', element.childNodes[0].data)
+                version_candidate = re.search(r'\d+\.\d+(\.\d+)?', element.childNodes[0].data)
                 if not version_candidate:
                     continue
                 version = Version(*version_candidate.group().split('.'))
@@ -141,6 +178,7 @@ class Package(object):
                     name=self.pypi_name,
                     link=link,
                     version=version,
+                    extension=extension,
                 ))
 
             self._archives = sorted(self._archives, key=lambda archive: archive.version)
@@ -163,26 +201,82 @@ class Package(object):
         if self.is_cached():
             return
 
+        # Make sure that setuptools are installed, since setup.py relies on it
+        if self.name != 'setuptools':
+            AutoInstall.install('setuptools')
+
         if not self.archives():
             raise ValueError('No archives for {}-{} found'.format(self.pypi_name, self.version))
         archive = self.archives()[-1]
 
         try:
+            install_location = os.path.dirname(self.location)
+            shutil.rmtree(self.location, ignore_errors=True)
+
             log.warning('Installing {}...'.format(archive))
             archive.download()
 
             temp_location = '{}.tmp'.format(self.location)
             archive.unpack(temp_location)
 
-            shutil.rmtree(self.location, ignore_errors=True)
-            shutil.move(os.path.join(temp_location, str(archive), self.name), self.location)
+            for candidate in [
+                os.path.join(temp_location, str(archive)),
+                os.path.join(temp_location, '{}-{}.{}'.format(archive.name, archive.version.major, archive.version.minor)),
+                os.path.join(temp_location, '{}-{}.{}.{}'.format(archive.name.replace('-', '_'), archive.version.major, archive.version.minor, archive.version.tiny)),
+                os.path.join(temp_location, '{}-{}'.format(archive.name.capitalize(), archive.version)),
+            ]:
+                if not os.path.exists(os.path.join(candidate, 'setup.py')):
+                    continue
+
+                log.warning('Installing {}...'.format(archive))
+
+                if self.slow_install:
+                    log.warning('{} is known to be slow to install'.format(archive))
+
+                with open(os.devnull, 'w') as devnull:
+                    subprocess.check_call(
+                        [
+                            sys.executable,
+                            os.path.join(candidate, 'setup.py'),
+                            'install',
+                            '--home={}'.format(install_location),
+                            '--root=/',
+                            '--single-version-externally-managed',
+                            '--install-lib={}'.format(install_location),
+                            '--install-scripts={}'.format(os.path.join(install_location, 'bin')),
+                            '--install-data={}'.format(os.path.join(install_location, 'data')),
+                            '--install-headers={}'.format(os.path.join(install_location, 'headers')),
+                            # Do not automatically install package dependencies, force scripts to be explicit
+                            # Even without this flag, setup.py is not consistent about installing dependencies.
+                            '--old-and-unmanageable',
+                        ],
+                        cwd=candidate,
+                        env=dict(
+                            PATH=os.environ.get('PATH', ''),
+                            PATHEXT=os.environ.get('PATHEXT', ''),
+                            PYTHONPATH=install_location,
+                            SYSTEMROOT=os.environ.get('SYSTEMROOT', ''),
+                        ),
+                        stdout=devnull,
+                        stderr=devnull,
+                    )
+
+                break
+            else:
+                # We might not need setup.py at all, check if we have dist-info and the library in the temporary location
+                to_be_moved = os.listdir(temp_location)
+                if self.name not in to_be_moved and any(element.endswith('.dist-info') for element in to_be_moved):
+                    raise OSError('Cannot install {}, could not find setup.py'.format(self.name))
+                for directory in to_be_moved:
+                    shutil.rmtree(os.path.join(install_location, directory), ignore_errors=True)
+                    shutil.move(os.path.join(temp_location, directory), install_location)
 
             self.do_post_install(temp_location)
 
             os.remove(archive.path)
             shutil.rmtree(temp_location, ignore_errors=True)
 
-            AutoInstall.userspace_should_own(self.location)
+            AutoInstall.userspace_should_own(install_location)
 
             AutoInstall.manifest[self.name] = {
                 'index': AutoInstall.index,
@@ -191,7 +285,7 @@ class Package(object):
 
             manifest = os.path.join(AutoInstall.directory, 'manifest.json')
             with open(manifest, 'w') as file:
-                json.dump(AutoInstall.manifest, file)
+                json.dump(AutoInstall.manifest, file, indent=4)
             AutoInstall.userspace_should_own(manifest)
 
             log.warning('Installed {}!'.format(archive))
@@ -315,6 +409,8 @@ class AutoInstall(object):
                 return cls.packages.get(package.name)
         else:
             raise ValueError('Expected package to be str or Package, not {}'.format(type(package)))
+        for alias in package.aliases:
+            cls.packages[alias] = package
         cls.packages[package.name] = package
         return package
 
@@ -337,6 +433,21 @@ class AutoInstall(object):
         name = fullname.split('.')[0]
         if cls.packages.get(name):
             cls.install(name)
+
+    @classmethod
+    def tags(cls):
+        from packaging import tags
+
+        for tag in tags.sys_tags():
+            yield tag
+
+        # FIXME: Work around for https://github.com/pypa/packaging/pull/319 and Big Sur
+        if sys.platform == 'darwin' and Version.from_string(platform.mac_ver()[0]) > Version(10):
+            for override in tags.mac_platforms(version=(10, 16)):
+                for tag in tags.sys_tags():
+                    if not tag.platform:
+                        pass
+                    yield tags.Tag(tag.interpreter, tag.abi, override)
 
 
 sys.meta_path.insert(0, AutoInstall)

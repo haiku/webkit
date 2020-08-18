@@ -87,6 +87,12 @@ window.UIHelper = class UIHelper {
         return new Promise(requestAnimationFrame);
     }
 
+    static async renderingUpdate()
+    {
+        await UIHelper.animationFrame();
+        await UIHelper.delayFor(0);
+    }
+
     static async waitForCondition(conditionFunc)
     {
         while (!conditionFunc()) {
@@ -1278,6 +1284,16 @@ window.UIHelper = class UIHelper {
                         uiController.uiScriptComplete();
                     });
                 })();`, resolve);
+        });
+    }
+
+    static async setSpellCheckerResults(results)
+    {
+        return new Promise(resolve => {
+            testRunner.runUIScript(`(() => {
+                uiController.setSpellCheckerResults(${JSON.stringify(results)});
+                uiController.uiScriptComplete();
+            })()`, resolve);
         });
     }
 

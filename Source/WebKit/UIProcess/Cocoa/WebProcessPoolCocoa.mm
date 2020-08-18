@@ -79,6 +79,7 @@
 
 #if PLATFORM(MAC)
 #import <QuartzCore/CARemoteLayerServer.h>
+#import <pal/spi/mac/NSApplicationSPI.h>
 #else
 #import "UIKitSPI.h"
 #endif
@@ -381,9 +382,13 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
     parameters.webKitLoggingChannels = [[NSUserDefaults standardUserDefaults] stringForKey:@"WebKit2Logging"];
 #endif
 
+#if PLATFORM(MAC) || PLATFORM(MACCATALYST)
     // FIXME: Remove this and related parameter when <rdar://problem/29448368> is fixed.
     if (isSafari && mediaDevicesEnabled && !m_defaultPageGroup->preferences().captureAudioInUIProcessEnabled() && !m_defaultPageGroup->preferences().captureAudioInGPUProcessEnabled())
         SandboxExtension::createHandleForGenericExtension("com.apple.webkit.microphone"_s, parameters.audioCaptureExtensionHandle);
+#else
+    UNUSED_PARAM(mediaDevicesEnabled);
+#endif
 #endif
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS) && !RELEASE_LOG_DISABLED
@@ -418,10 +423,6 @@ void WebProcessPool::platformInitializeWebProcess(const WebProcessProxy& process
 #if PLATFORM(COCOA)
     parameters.systemHasBattery = systemHasBattery();
     parameters.systemHasAC = cachedSystemHasAC().valueOr(true);
-
-    SandboxExtension::Handle mapDBHandle;
-    if (SandboxExtension::createHandleForMachLookup("com.apple.lsd.mapdb"_s, WTF::nullopt, mapDBHandle, SandboxExtension::Flags::NoReport))
-        parameters.mapDBExtensionHandle = WTFMove(mapDBHandle);
 #endif
 
     if (requiresContainerManagerAccess()) {
@@ -641,11 +642,13 @@ void WebProcessPool::registerNotificationObservers()
 #if !PLATFORM(IOS_FAMILY)
     // Listen for enhanced accessibility changes and propagate them to the WebProcess.
     m_enhancedAccessibilityObserver = [[NSNotificationCenter defaultCenter] addObserverForName:WebKitApplicationDidChangeAccessibilityEnhancedUserInterfaceNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *note) {
+        setEnhancedAccessibility([[[note userInfo] objectForKey:@"AXEnhancedUserInterface"] boolValue]);
 #if ENABLE(CFPREFS_DIRECT_MODE)
+        if (![[NSApp accessibilityEnhancedUserInterfaceAttribute] boolValue])
+            return;
         for (auto& process : m_processes)
             process->unblockPreferenceServiceIfNeeded();
 #endif
-        setEnhancedAccessibility([[[note userInfo] objectForKey:@"AXEnhancedUserInterface"] boolValue]);
     }];
 
     m_automaticTextReplacementNotificationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSSpellCheckerDidChangeAutomaticTextReplacementNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
@@ -700,6 +703,8 @@ void WebProcessPool::registerNotificationObservers()
 
 #if PLATFORM(IOS_FAMILY)
     m_accessibilityEnabledObserver = [[NSNotificationCenter defaultCenter] addObserverForName:(__bridge id)kAXSApplicationAccessibilityEnabledNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *) {
+        if (!_AXSApplicationAccessibilityEnabled())
+            return;
         for (size_t i = 0; i < m_processes.size(); ++i) {
 #if ENABLE(CFPREFS_DIRECT_MODE)
             m_processes[i]->unblockPreferenceServiceIfNeeded();

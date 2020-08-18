@@ -44,12 +44,10 @@ namespace WebCore {
 WTF_MAKE_ISO_ALLOCATED_IMPL(DefaultAudioDestinationNode);
 
 DefaultAudioDestinationNode::DefaultAudioDestinationNode(BaseAudioContext& context, Optional<float> sampleRate)
-    : AudioDestinationNode(context, sampleRate.valueOr(AudioDestination::hardwareSampleRate()))
+    : AudioDestinationNode(context)
+    , m_sampleRate(sampleRate.valueOr(AudioDestination::hardwareSampleRate()))
 {
-    // Node-specific default mixing rules.
-    m_channelCount = 2;
-    m_channelCountMode = ChannelCountMode::Explicit;
-    m_channelInterpretation = ChannelInterpretation::Speakers;
+    initializeDefaultNodeOptions(2, ChannelCountMode::Explicit, ChannelInterpretation::Speakers);
 }
 
 DefaultAudioDestinationNode::~DefaultAudioDestinationNode()
@@ -176,6 +174,11 @@ ExceptionOr<void> DefaultAudioDestinationNode::setChannelCount(unsigned channelC
 bool DefaultAudioDestinationNode::isPlaying()
 {
     return m_destination && m_destination->isPlaying();
+}
+
+unsigned DefaultAudioDestinationNode::framesPerBuffer() const
+{
+    return m_destination ? m_destination->framesPerBuffer() : 0.;
 }
 
 } // namespace WebCore

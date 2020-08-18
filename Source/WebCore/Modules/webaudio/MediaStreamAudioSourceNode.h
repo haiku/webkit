@@ -35,12 +35,13 @@
 namespace WebCore {
 
 class AudioContext;
+struct MediaStreamAudioSourceOptions;
 class MultiChannelResampler;
 
 class MediaStreamAudioSourceNode final : public AudioNode, public AudioSourceProviderClient {
     WTF_MAKE_ISO_ALLOCATED(MediaStreamAudioSourceNode);
 public:
-    static Ref<MediaStreamAudioSourceNode> create(BaseAudioContext&, MediaStream&, MediaStreamTrack&);
+    static ExceptionOr<Ref<MediaStreamAudioSourceNode>> create(BaseAudioContext&, MediaStreamAudioSourceOptions&&);
 
     virtual ~MediaStreamAudioSourceNode();
 

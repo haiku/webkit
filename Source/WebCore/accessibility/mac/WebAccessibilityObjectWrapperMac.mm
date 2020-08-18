@@ -542,6 +542,7 @@ extern "C" AXUIElementRef NSAccessibilityCreateAXUIElementRef(id element);
 
 - (void)unregisterUniqueIdForUIElement
 {
+    ASSERT(isMainThread());
     NSAccessibilityUnregisterUniqueIdForUIElement(self);
 }
 
@@ -3011,6 +3012,9 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         return createNSArray(classList).autorelease();
     }
 
+    if ([attributeName isEqualToString:@"AXResolvedEditingStyles"])
+        return [self baseAccessibilityResolvedEditingStyles];
+    
     // This allows us to connect to a plugin that creates a shadow node for editing (like PDFs).
     if ([attributeName isEqualToString:@"_AXAssociatedPluginParent"])
         return [self associatedPluginParent];

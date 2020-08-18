@@ -1,3 +1,391 @@
+2020-08-11  Mark Lam  <mark.lam@apple.com>
+
+        ScriptExecutable::newCodeBlockFor() neglected to set the exception pointer result in one case.
+        https://bugs.webkit.org/show_bug.cgi?id=215357
+        <rdar://problem/57675112>
+
+        Reviewed by Yusuke Suzuki.
+
+        At the bottom of ScriptExecutable::newCodeBlockFor(), it calls:
+            RELEASE_AND_RETURN(throwScope, FunctionCodeBlock::create(vm, executable, unlinkedCodeBlock, scope));
+
+        However, ScriptExecutable::newCodeBlockFor() has 2 return values: a CodeBlock*,
+        and a passed in Exception*& that needs to be set if there's an exception.
+        FunctionCodeBlock::create() is capable of returning a null CodeBlock* because
+        CodeBlock::finishCreation() can throw exceptions.  As a result, we have a scenario
+        here where ScriptExecutable::newCodeBlockFor() can return a null CodeBlock* without
+        setting the Exception*& result.
+
+        Consequently, Interpreter::executeCall() is relying on this and can end up
+        crashing while dereferencing a null CodeBlock* because the exception result was
+        not set.
+
+        This patch fixes ScriptExecutable::newCodeBlockFor() to set the exception result.
+
+        * runtime/ScriptExecutable.cpp:
+        (JSC::ScriptExecutable::newCodeBlockFor):
+
+2020-08-10  Lauro Moura  <lmoura@igalia.com>
+
+        [CMake][JSC] Fix testapiScripts copy location
+        https://bugs.webkit.org/show_bug.cgi?id=215338
+
+        file(COPY src/dir DESTINATION target/dir) copies the entire `dir`
+        inside target/dir instead of only the contents.
+
+        Reviewed by Alex Christensen.
+
+        * shell/CMakeLists.txt:
+
+2020-08-10  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION(r261159) PokerBros only shows black screen
+        https://bugs.webkit.org/show_bug.cgi?id=215293
+        <rdar://problem/66073740>
+
+        Reviewed by Keith Miller.
+
+        The PokerBros app has some logic that was broken by the change in behavior of r261159.
+        It caused the app do do nothing except show a black screen upon opening.
+        Revert to the old behavior for this app until they update to iOS14.
+
+        * runtime/JSObject.cpp:
+        (JSC::needsOldStringName):
+        (JSC::JSObject::toStringName):
+
+2020-08-10  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] JSFinalObject::finishCreation's ASSERT has stale condition
+        https://bugs.webkit.org/show_bug.cgi?id=215317
+
+        Reviewed by Mark Lam.
+
+        JSFinalObject::finishCreation assumes that there is no out-of-line property storage (inline storage capacity == total storage capacity).
+        But this is wrong when passing Butterfly* parameter to JSFinalObject. Previously, this feature is not used and we instead used JSObject::createRawObject,
+        which bypasses this assertion. But now, we start using this when creating an object for MaterializeNewObject in DFG and FTL, and then we hit the crash
+        because this assertion does not consider about non-nullptr butterfly.
+
+        This patch makes create function explicit by introducing `JSFinalObject::createWithButterfly`, which is similar to JSArray::createWithButterfly.
+        And we fix the assertion by checking butterfly existence. By renaming JSFinalObject::create to JSFinalObject::createWithButterfly when getting butterfly,
+        this patch also clarifies that only MaterializeNewObject related functions, which were using JSObject::createRawObject to bypass this assertion, is passing
+        butterfly.
+
+        * dfg/DFGOperations.cpp:
+        * runtime/JSObject.h:
+        (JSC::JSFinalObject::createWithButterfly):
+        (JSC::JSFinalObject::create):
+
+2020-08-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r265392.
+        https://bugs.webkit.org/show_bug.cgi?id=215316
+
+        Crash ARM64 / ARM64E JSC tests
+
+        Reverted changeset:
+
+        "REGRESSION(r261159) PokerBros only shows black screen"
+        https://bugs.webkit.org/show_bug.cgi?id=215293
+        https://trac.webkit.org/changeset/265392
+
+2020-08-09  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Make CommandLine on Worker agent (JSC shell feature for testing) work on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=215311
+        <rdar://problem/66660053>
+
+        Reviewed by Mark Lam.
+
+        We should not reconfigure Options since this is once initialized. Since Options are frozen,
+        this results in crash.
+
+        * jsc.cpp:
+        (CommandLine::CommandLine):
+        (functionDollarAgentStart):
+
+2020-08-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263195, r263252, and r265394.
+        https://bugs.webkit.org/show_bug.cgi?id=215312
+
+        Revert all related GC Bitmap changes because some of perf is
+        not fully recovered
+
+        Reverted changesets:
+
+        "Replace JSC::FreeList linked list with a Bitmap."
+        https://bugs.webkit.org/show_bug.cgi?id=213071
+        https://trac.webkit.org/changeset/263195
+
+        "Unify Bitmap math loops in
+        MarkedBlock::Handle::specializedSweep()."
+        https://bugs.webkit.org/show_bug.cgi?id=213345
+        https://trac.webkit.org/changeset/263252
+
+        "[JSC] Disable ENABLE_BITMAP_FREELIST"
+        https://bugs.webkit.org/show_bug.cgi?id=215285
+        https://trac.webkit.org/changeset/265394
+
+2020-08-08  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Speculate children first in DFG NewArray
+        https://bugs.webkit.org/show_bug.cgi?id=215308
+        <rdar://problem/64749263>
+
+        Reviewed by Mark Lam.
+
+        SpeculativeJIT::emitAllocateRawObject can create uninitialized butterfly since we later fill them.
+        However, DFG NewArray node has speculation after that. So if speculation failure happens, we release
+        half-baked butterfly.
+
+        Let's see the example.
+
+           8459         emitAllocateRawObject(resultGPR, structure, storageGPR, numElements, vectorLengthHint);
+           ...
+           8482             case ALL_INT32_INDEXING_TYPES:
+           8483             case ALL_CONTIGUOUS_INDEXING_TYPES: {
+           8484                 JSValueOperand operand(this, use, ManualOperandSpeculation);
+           8485                 JSValueRegs operandRegs = operand.jsValueRegs();
+           8486                 if (hasInt32(node->indexingType())) {
+           8487                     DFG_TYPE_CHECK(
+           8488                         operandRegs, use, SpecInt32Only,
+           8489                         m_jit.branchIfNotInt32(operandRegs));
+           8490                 }
+           8491                 m_jit.storeValue(operandRegs, MacroAssembler::Address(storageGPR, sizeof(JSValue) * operandIdx));
+           8492                 break;
+           8493             }
+
+        L8487-L8489 is doing speculation check. If it failed, the rest of the butterfly can be filled with garbage. This looks OK since
+        it is Int32 butterfly so GC never scans it. However, if have-a-bad-time happens and the array is reachable from the conservative root,
+        this half-baked array is converted from Int32 array to ArrayStorage. At that time, since Int32 butterfly should hold JSInt32,
+        we store this garbage to ArrayStorage. Later, if conservative root still holds this array, and GC scans this garbage as as JSValue,
+        this value confuses GC.
+
+        In this patch, we first perform speculation before creating uninitialized JSArray so that we can ensure that we never exit after
+        creating this array until we fill it. This strategy is the same to FTL's NewArray implementation.
+
+        And we also found that emitAllocateRawObject is allocating an object from JSFinalObject space while we use it for JSArray too.
+        We should get per-type allocator to ensure JSArray is allocated in its IsoSubspace.
+
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::emitAllocateRawObject):
+        (JSC::DFG::SpeculativeJIT::compileNewArray):
+        (JSC::DFG::SpeculativeJIT::compileMaterializeNewObject):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNewArray):
+        (JSC::FTL::DFG::LowerDFGToB3::compileMaterializeNewObject):
+        * runtime/JSObject.h:
+        (JSC::JSObject::createRawObject): Deleted.
+
+2020-08-07  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Disable ENABLE_BITMAP_FREELIST
+        https://bugs.webkit.org/show_bug.cgi?id=215285
+
+        Reviewed by Mark Lam.
+
+        From performance bots, we observed that,
+
+            1. MBP11,4 shows 1% regression in Speedometer2.
+            2. The other MBP / iMac / MBA bots show neutral or slight regression in Speedometer2.
+
+        Based on the above result, for now, we disable this feature.
+
+        * heap/FreeList.h:
+
+2020-08-07  Alex Christensen  <achristensen@webkit.org>
+
+        REGRESSION(r261159) PokerBros only shows black screen
+        https://bugs.webkit.org/show_bug.cgi?id=215293
+
+        Reviewed by Keith Miller.
+
+        The PokerBros app has some logic that was broken by the change in behavior of r261159.
+        It caused the app do do nothing except show a black screen upon opening.
+        Revert to the old behavior for this app until they update to iOS14.
+
+        * runtime/JSObject.cpp:
+        (JSC::needsOldStringName):
+        (JSC::JSObject::toStringName):
+
+2020-08-07  Michael Saboff  <msaboff@apple.com>
+
+        RegExp sticky not matching alternates correctly, ignoring lastIndex requirement
+        https://bugs.webkit.org/show_bug.cgi?id=214181
+
+        Reviewed by Yusuke Suzuki.
+
+        In the YARR JIT, we need to check for sticky patterns before checking for fixed character
+        terms when backtracking.  The YARR interpreter doesn't have this issue.
+
+        * yarr/YarrJIT.cpp:
+
+2020-08-05  Tim Horton  <timothy_horton@apple.com>
+
+        Remove all references to non-existent 10.16
+        https://bugs.webkit.org/show_bug.cgi?id=215202
+
+        Reviewed by Wenson Hsieh.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+        * Configurations/WebKitTargetConditionals.xcconfig:
+
+2020-08-05  Saam Barati  <sbarati@apple.com>
+
+        Fix returnEarlyFromInfiniteLoopsForFuzzing in DFG and validateDoesGC
+        https://bugs.webkit.org/show_bug.cgi?id=215194
+        <rdar://problem/66158641>
+
+        Reviewed by Mark Lam.
+
+        I already fixed this same issue in the FTL in r264330, but I forgot
+        to do it in the DFG.
+
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+
+2020-08-05  Keith Miller  <keith_miller@apple.com>
+
+        The various AllowList options should be able to take the function name inline
+        https://bugs.webkit.org/show_bug.cgi?id=215184
+
+        Reviewed by Saam Barati.
+
+        Right now when I use the various AllowList JSC options I almost
+        always only care about a single function. Right now you need to
+        create a file with that single name in it. That is inconvenient, so
+        this patch changes the behavior to treat the string as the
+        function name if no file at that path exists. I'm also
+        speculatively assuming fopen doesn't return ENOENT when it fails
+        due to sandboxing... I didn't feel like testing it because this is
+        a debug option.
+
+        * runtime/OptionsList.h:
+        * tools/FunctionAllowlist.cpp:
+        (JSC::FunctionAllowlist::FunctionAllowlist):
+
+2020-08-05  Keith Miller  <keith_miller@apple.com>
+
+        Add assertions / inline capacity to checkpoint side state stacks
+        https://bugs.webkit.org/show_bug.cgi?id=215175
+
+        Reviewed by Saam Barati.
+
+        The inline capacity should hopefully avoid unneeded mallocs close to 100% of the time during our OSR exit ramp.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+        * runtime/VM.cpp:
+        (JSC::VM::pushCheckpointOSRSideState):
+        * runtime/VM.h:
+
+2020-08-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Use LazyNeverDestroyed & std::call_once for complex singletons
+        https://bugs.webkit.org/show_bug.cgi?id=215153
+        <rdar://problem/65718983>
+
+        Reviewed by Mark Lam.
+
+        We are getting some crashes in RemoteInspector and this speculatively fixes the crash.
+        My guess is that NeverDestroyed<RemoteInspector> calls constructor twice in heavily contended situation:
+        WebKit's static does not have thread-safety. If two threads come here at the same time, it is possible that
+        constructor is invoked twice. In that case, later constructor will clear members, which involves clearing
+        Lock m_mutex field. This makes Lock's invariant broken.
+        This patch uses LazyNeverDestroyed and std::call_once to ensure invoking constructor only once.
+
+        * API/glib/JSCVirtualMachine.cpp:
+        * dfg/DFGCommonData.cpp:
+        * disassembler/Disassembler.cpp:
+        * inspector/remote/RemoteInspector.h:
+        * inspector/remote/cocoa/RemoteInspectorCocoa.mm:
+        (Inspector::RemoteInspector::singleton):
+        * inspector/remote/glib/RemoteInspectorGlib.cpp:
+        (Inspector::RemoteInspector::singleton):
+        * inspector/remote/socket/RemoteInspectorServer.cpp:
+        (Inspector::RemoteInspectorServer::singleton):
+        * inspector/remote/socket/RemoteInspectorServer.h:
+        * inspector/remote/socket/RemoteInspectorSocket.cpp:
+        (Inspector::RemoteInspector::singleton):
+        * inspector/remote/socket/RemoteInspectorSocketEndpoint.cpp:
+        (Inspector::RemoteInspectorSocketEndpoint::singleton):
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::opcodeIDTable):
+        * runtime/IntlObject.cpp:
+        (JSC::intlAvailableLocales):
+        (JSC::intlCollatorAvailableLocales):
+        (JSC::defaultLocale):
+        (JSC::numberingSystemsForLocale):
+
+2020-08-04  Keith Miller  <keith_miller@apple.com>
+
+        CheckpointSideState shoud play nicely with StackOverflowException unwinding.
+        https://bugs.webkit.org/show_bug.cgi?id=215114
+
+        Reviewed by Saam Barati.
+
+        This patch fixes an issue where we the StackVisitor would
+        automatically unwind into the first frame before calling into the
+        provided functor. As a note, we do this because the first frame is
+        not fully initialized at the time we check for stack
+        overflow. When this happened we would fail to clear the side state
+        causing a memory leak. To fix this the unwind function now clears
+        every checkpoint up to and including the call frame containing our
+        handler. Some care needs to be taken that we don't clear
+        checkpoint side state for other threads, which could happen if
+        there are no checkpoints on the current thread and an API
+        miggrated us from another thread below the current thread.
+
+        This patch also makes two refacorings. The first is to make the
+        checkpoint side state into a stack, which is how we used it
+        anyway. The second is that CallFrame::dump and everything associated
+        with it is now marked const so we can PointerDump a CallFrame*.
+
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::compileExit):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+        * interpreter/CallFrame.cpp:
+        (JSC::CallFrame::bytecodeIndex const):
+        (JSC::CallFrame::codeOrigin const):
+        (JSC::CallFrame::dump const):
+        (JSC::CallFrame::bytecodeIndex): Deleted.
+        (JSC::CallFrame::codeOrigin): Deleted.
+        (JSC::CallFrame::dump): Deleted.
+        * interpreter/CallFrame.h:
+        (JSC::CallFrame::argument const):
+        (JSC::CallFrame::uncheckedArgument const):
+        (JSC::CallFrame::getArgumentUnsafe const):
+        (JSC::CallFrame::thisValue const):
+        (JSC::CallFrame::newTarget const):
+        (JSC::CallFrame::argument): Deleted.
+        (JSC::CallFrame::uncheckedArgument): Deleted.
+        (JSC::CallFrame::getArgumentUnsafe): Deleted.
+        (JSC::CallFrame::thisValue): Deleted.
+        (JSC::CallFrame::newTarget): Deleted.
+        * interpreter/CheckpointOSRExitSideState.h:
+        (JSC::CheckpointOSRExitSideState::CheckpointOSRExitSideState):
+        * interpreter/Interpreter.cpp:
+        (JSC::UnwindFunctor::operator() const):
+        (JSC::Interpreter::unwind):
+        (): Deleted.
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::slow_path_checkpoint_osr_exit_from_inlined_call):
+        (JSC::LLInt::slow_path_checkpoint_osr_exit):
+        * runtime/VM.cpp:
+        (JSC::VM::scanSideState const):
+        (JSC::VM::pushCheckpointOSRSideState):
+        (JSC::VM::popCheckpointOSRSideState):
+        (JSC::VM::popAllCheckpointOSRSideStateUntil):
+        (JSC::VM::addCheckpointOSRSideState): Deleted.
+        (JSC::VM::findCheckpointOSRSideState): Deleted.
+        * runtime/VM.h:
+
 2020-08-03  Alberto Garcia  <berto@igalia.com>
 
         [GTK] 2.29.4 fails to build in armhf

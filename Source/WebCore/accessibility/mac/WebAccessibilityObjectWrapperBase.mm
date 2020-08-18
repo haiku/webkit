@@ -311,29 +311,20 @@ NSArray *convertToNSArray(const WebCore::AXCoreObject::AccessibilityChildrenVect
 }
 #endif
 
-- (void)detachAXObject
+- (void)detach
 {
+    ASSERT(isMainThread());
+    _identifier = InvalidAXID;
     m_axObject = nullptr;
 }
 
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-- (void)detachIsolatedObject
+- (void)detachIsolatedObject:(AccessibilityDetachmentType)detachmentType
 {
+    ASSERT_UNUSED(detachmentType, detachmentType == AccessibilityDetachmentType::ElementChanged ? _identifier != InvalidAXID && m_axObject : true);
     m_isolatedObject = nullptr;
 }
 #endif
-
-- (void)detach
-{
-    _identifier = InvalidAXID;
-#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-    if (AXObjectCache::isIsolatedTreeEnabled()) {
-        [self detachIsolatedObject];
-        return;
-    }
-#endif
-    [self detachAXObject];
-}
 
 - (WebCore::AXCoreObject*)updateObjectBackingStore
 {
@@ -370,6 +361,16 @@ NSArray *convertToNSArray(const WebCore::AXCoreObject::AccessibilityChildrenVect
         return m_isolatedObject;
 #endif
     return m_axObject;
+}
+
+- (BOOL)isIsolatedObject
+{
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
+    auto* backingObject = self.axBackingObject;
+    return backingObject && backingObject->isAXIsolatedObjectInstance();
+#else
+    return NO;
+#endif
 }
 
 - (NSString *)baseAccessibilityDescription
@@ -548,6 +549,23 @@ static void convertPathToScreenSpaceFunction(PathConversionInfo& conversion, con
     AccessibilityObject::AccessibilityMathMultiscriptPairs pairs;
     self.axBackingObject->mathPrescripts(pairs);
     return convertMathPairsToNSArray(pairs, [self accessibilityPlatformMathSubscriptKey], [self accessibilityPlatformMathSuperscriptKey]);
+}
+
+- (NSDictionary<NSString *, id> *)baseAccessibilityResolvedEditingStyles
+{
+    NSMutableDictionary<NSString *, id> *results = [NSMutableDictionary dictionary];
+    auto editingStyles = self.axBackingObject->resolvedEditingStyles();
+    for (String& key : editingStyles.keys()) {
+        auto value = editingStyles.get(key);
+        id result = WTF::switchOn(value,
+            [] (String& typedValue) -> id { return (NSString *)typedValue; },
+            [] (bool& typedValue) -> id { return @(typedValue); },
+            [] (int& typedValue) -> id { return @(typedValue); },
+            [] (auto&) { return nil; }
+        );
+        results[(NSString *)key] = result;
+    }
+    return results;
 }
 
 // This is set by DRT when it wants to listen for notifications.

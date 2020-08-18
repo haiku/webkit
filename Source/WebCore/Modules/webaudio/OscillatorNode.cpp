@@ -57,15 +57,7 @@ ExceptionOr<Ref<OscillatorNode>> OscillatorNode::create(BaseAudioContext& contex
     
     auto oscillator = adoptRef(*new OscillatorNode(context, options));
     
-    auto result = oscillator->setChannelCount(options.channelCount.valueOr(2));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = oscillator->setChannelCountMode(options.channelCountMode.valueOr(ChannelCountMode::Max));
-    if (result.hasException())
-        return result.releaseException();
-    
-    result = oscillator->setChannelInterpretation(options.channelInterpretation.valueOr(ChannelInterpretation::Speakers));
+    auto result = oscillator->handleAudioNodeOptions(options, { 2, ChannelCountMode::Max, ChannelInterpretation::Speakers });
     if (result.hasException())
         return result.releaseException();
     
@@ -85,7 +77,7 @@ ExceptionOr<Ref<OscillatorNode>> OscillatorNode::create(BaseAudioContext& contex
 }
 
 OscillatorNode::OscillatorNode(BaseAudioContext& context, const OscillatorOptions& options)
-    : AudioScheduledSourceNode(context, context.sampleRate())
+    : AudioScheduledSourceNode(context)
     , m_frequency(AudioParam::create(context, "frequency"_s, options.frequency, -context.sampleRate() / 2, context.sampleRate() / 2))
     , m_detune(AudioParam::create(context, "detune"_s, options.detune, -153600, 153600))
 {

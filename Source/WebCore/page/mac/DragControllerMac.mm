@@ -47,7 +47,7 @@
 #import "Range.h"
 #import "RuntimeEnabledFeatures.h"
 
-#if ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY)
 #import <MobileCoreServices/MobileCoreServices.h>
 #endif
 
@@ -61,12 +61,12 @@ const float DragController::DragImageAlpha = 0.75f;
 
 bool DragController::isCopyKeyDown(const DragData& dragData)
 {
-    return dragData.flags() & DragApplicationIsCopyKeyDown;
+    return dragData.flags().contains(DragApplicationIsCopyKeyDown);
 }
     
 Optional<DragOperation> DragController::dragOperation(const DragData& dragData)
 {
-    if (dragData.flags() & DragApplicationIsModal)
+    if (dragData.flags().contains(DragApplicationIsModal))
         return WTF::nullopt;
 
     bool mayContainURL;
@@ -78,7 +78,7 @@ Optional<DragOperation> DragController::dragOperation(const DragData& dragData)
     if (!mayContainURL && !dragData.containsPromise())
         return WTF::nullopt;
 
-    if (!m_documentUnderMouse || (!(dragData.flags() & (DragApplicationHasAttachedSheet | DragApplicationIsSource))))
+    if (!m_documentUnderMouse || (!(dragData.flags().containsAll({ DragApplicationHasAttachedSheet, DragApplicationIsSource }))))
         return DragOperation::Copy;
 
     return WTF::nullopt;
@@ -105,7 +105,7 @@ void DragController::cleanupAfterSystemDrag()
 #endif
 }
 
-#if ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY)
 
 DragOperation DragController::platformGenericDragOperation()
 {
@@ -146,7 +146,7 @@ void DragController::updateSupportedTypeIdentifiersForDragHandlingMethod(DragHan
     platformStrategies()->pasteboardStrategy()->updateSupportedTypeIdentifiers(supportedTypes, dragData.pasteboardName());
 }
 
-#endif
+#endif // PLATFORM(IOS_FAMILY)
 
 void DragController::declareAndWriteDragImage(DataTransfer& dataTransfer, Element& element, const URL& url, const String& label)
 {

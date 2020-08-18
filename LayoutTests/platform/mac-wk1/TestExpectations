@@ -678,6 +678,7 @@ webkit.org/b/172044 [ Debug ] imported/w3c/web-platform-tests/IndexedDB/open-req
 webkit.org/b/184742 accessibility/mac/async-increment-decrement-action.html [ Skip ]
 webkit.org/b/185897 accessibility/mac/set-value-editable-types.html [ Skip ]
 webkit.org/b/193414 accessibility/mac/relative-frame.html [ Skip ]
+webkit.org/b/215129 accessibility/mac/resolved-text-editing.html [ Skip ]
 
 webkit.org/b/182752 accessibility/mac/accessibility-make-first-responder.html [ Skip ]
 
@@ -853,7 +854,7 @@ imported/w3c/web-platform-tests/fetch/stale-while-revalidate [ Skip ]
 
 webkit.org/b/205412 [ Mojave Debug ] webgl/1.0.3/conformance/rendering/many-draw-calls.html [ Timeout ]
 
-webkit.org/b/205410 [ Debug ] accessibility/mac/expanded-notification.html [ Failure ]
+webkit.org/b/205410 [ Debug ] accessibility/mac/expanded-notification.html [ Pass Failure ]
 
 webkit.org/b/206071 editing/spelling/grammar.html [ Skip ]
 webkit.org/b/206071 editing/spelling/markers.html [ Skip ]
@@ -948,6 +949,7 @@ webkit.org/b/210134 media/track/track-css-user-override.html [ Pass Failure ]
 webkit.org/b/210198 webgl/2.0.0/conformance2/attribs/gl-vertexattribipointer.html [ Slow ]
 
 webkit.org/b/208477 accessibility/mac/text-marker-for-index.html [ Skip ]
+accessibility/mac/isolated-tree-mode-on-off.html [ Skip ]
 
 webkit.org/b/211923 imported/w3c/web-platform-tests/fetch/api/basic/stream-safe-creation.any.html [ Pass Crash ]
 
@@ -986,10 +988,25 @@ webkit.org/b/214469 imported/w3c/web-platform-tests/css/css-position/position-st
 webkit.org/b/214469 [ Debug ] imported/w3c/web-platform-tests/css/css-position/position-absolute-crash-chrome-013.html [ Skip ]
 webkit.org/b/214469 [ Debug ] imported/w3c/web-platform-tests/css/css-scoping/slotted-matches.html [ Skip ]
 
-webkit.org/b/214703 imported/w3c/web-platform-tests/css/css-overflow/overflow-recalc-001.html [ Pass Failure ]
+webkit.org/b/214703 imported/w3c/web-platform-tests/css/css-overflow/overflow-recalc-001.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/214682 imported/w3c/web-platform-tests/css/cssom/stylesheet-same-origin.sub.html [ Pass Failure ]
 
 webkit.org/b/214967 imported/w3c/web-platform-tests/pointerevents/pointerevent_attributes_hoverable_pointers.html [ Pass Failure ]
 
 webkit.org/b/215033 imported/w3c/web-platform-tests/websockets/cookies/third-party-cookie-accepted.https.html [ Pass Failure ]
+
+webkit.org/b/215296 media/modern-media-controls/placard/placard-ltr.html [ Pass Timeout ]
+
+webkit.org/b/215299 imported/w3c/web-platform-tests/css/css-logical/parsing/margin-block-inline-computed.html [ Pass Failure ]
+
+webkit.org/b/215335 [ Release ] webanimations/css-transition-retargeting-during-ready-promise.html [ Pass Failure ]
+
+webkit.org/b/215336 [ Release ] svg/text/hidpi-text-selection-rect-position.html [ Pass Failure ]
+
+webkit.org/b/215339 [ Release ] imported/w3c/web-platform-tests/IndexedDB/blob-delete-objectstore-db.any.html [ Pass Failure ]
+
+webkit.org/b/215392 webaudio/oscillator-sawtooth.html [ Pass Failure ]
+
+webkit.org/b/215397 media/modern-media-controls/media-controller/media-controller-fullscreen-ltr.html [ Pass Failure ]
+

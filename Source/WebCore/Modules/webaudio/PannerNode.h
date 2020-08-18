@@ -51,9 +51,6 @@ public:
     virtual float dopplerRate() = 0;
 
 protected:
-
-    // FIXME: Remove once dependency from prefixed version is removed
-    PannerNodeBase(BaseAudioContext&, float sampleRate);
     PannerNodeBase(BaseAudioContext&);
 };
 
@@ -79,7 +76,7 @@ public:
     void uninitialize() override;
 
     // Listener
-    AudioListener* listener();
+    AudioListener& listener();
 
     // Panning model
     PanningModelType panningModel() const { return m_panningModel; }

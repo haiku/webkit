@@ -1939,6 +1939,23 @@ void Editor::confirmComposition()
     setComposition(m_compositionNode->data().substring(m_compositionStart, m_compositionEnd - m_compositionStart), ConfirmComposition);
 }
 
+void Editor::confirmCompositionAndNotifyClient()
+{
+    if (!hasComposition())
+        return;
+
+    auto frame = makeRefPtr(m_document.frame());
+    if (!frame)
+        return;
+
+    confirmComposition();
+
+    if (auto editorClient = client()) {
+        editorClient->respondToChangedSelection(frame.get());
+        editorClient->discardedComposition(frame.get());
+    }
+}
+
 void Editor::cancelComposition()
 {
     if (!m_compositionNode)
@@ -2799,15 +2816,15 @@ void Editor::markAndReplaceFor(const SpellCheckRequest& request, const Vector<Te
         //    "wouldn'" as misspelled right after apostrophe is typed.
         if (shouldMarkSpelling && !shouldShowCorrectionPanel && resultType == TextCheckingType::Spelling
             && resultLocation >= paragraph.checkingStart() && resultEndLocation <= spellingRangeEndOffset && !resultEndsAtAmbiguousBoundary) {
-            ASSERT(resultLength > 0 && resultLocation >= 0);
+            ASSERT(resultLength > 0);
             auto misspellingRange = paragraph.subrange({ resultLocation, resultLength });
             if (!m_alternativeTextController->isSpellingMarkerAllowed(misspellingRange))
                 continue;
             addMarker(misspellingRange, DocumentMarker::Spelling, replacement);
         } else if (shouldMarkGrammar && resultType == TextCheckingType::Grammar && paragraph.checkingRangeCovers({ resultLocation, resultLength })) {
-            ASSERT(resultLength > 0 && resultLocation >= 0);
+            ASSERT(resultLength > 0);
             for (auto& detail : results[i].details) {
-                ASSERT(detail.range.length > 0 && detail.range.location >= 0);
+                ASSERT(detail.range.length > 0);
                 if (paragraph.checkingRangeCovers({ resultLocation + detail.range.location, detail.range.length })) {
                     auto badGrammarRange = paragraph.subrange({ resultLocation + detail.range.location, detail.range.length });
                     addMarker(badGrammarRange, DocumentMarker::Grammar, detail.userDescription);
@@ -2816,7 +2833,7 @@ void Editor::markAndReplaceFor(const SpellCheckRequest& request, const Vector<Te
         } else if (resultEndLocation <= automaticReplacementEndLocation && resultEndLocation >= paragraph.automaticReplacementStart()
             && isAutomaticTextReplacementType(resultType)) {
             // In this case the result range just has to touch the automatic replacement range, so we can handle replacing non-word text such as punctuation.
-            ASSERT(resultLength > 0 && resultLocation >= 0);
+            ASSERT(resultLength > 0);
 
             if (shouldShowCorrectionPanel && (resultEndLocation < automaticReplacementEndLocation
                 || (resultType != TextCheckingType::Replacement && resultType != TextCheckingType::Correction)))

@@ -114,10 +114,6 @@ class JSObject : public JSCell {
 public:
     using Base = JSCell;
 
-    // This is a super dangerous method for JITs. Sometimes the JITs will want to create either a
-    // JSFinalObject or a JSArray. This is the method that will do that.
-    static JSObject* createRawObject(VM& vm, Structure* structure, Butterfly* = nullptr);
-
     JS_EXPORT_PRIVATE static size_t estimatedSize(JSCell*, VM&);
     JS_EXPORT_PRIVATE static void visitChildren(JSCell*, SlotVisitor&);
     JS_EXPORT_PRIVATE static void analyzeHeap(JSCell*, HeapAnalyzer&);
@@ -1213,7 +1209,8 @@ public:
         return (maxSize - allocationSize(0)) / sizeof(WriteBarrier<Unknown>);
     }
 
-    static JSFinalObject* create(VM&, Structure*, Butterfly* = nullptr);
+    static JSFinalObject* create(VM&, Structure*);
+    static JSFinalObject* createWithButterfly(VM&, Structure*, Butterfly*);
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype, unsigned inlineCapacity)
     {
         return Structure::create(vm, globalObject, prototype, typeInfo(), info(), defaultIndexingType, inlineCapacity);
@@ -1228,7 +1225,7 @@ private:
 
     void visitChildrenCommon(SlotVisitor&);
 
-    explicit JSFinalObject(VM& vm, Structure* structure, Butterfly* butterfly = nullptr)
+    explicit JSFinalObject(VM& vm, Structure* structure, Butterfly* butterfly)
         : JSObject(vm, structure, butterfly)
     {
         gcSafeZeroMemory(inlineStorageUnsafe(), structure->inlineCapacity() * sizeof(EncodedJSValue));
@@ -1237,30 +1234,17 @@ private:
     void finishCreation(VM& vm)
     {
         Base::finishCreation(vm);
-        ASSERT(structure(vm)->totalStorageCapacity() == structure(vm)->inlineCapacity());
+        ASSERT(butterfly() || structure(vm)->totalStorageCapacity() == structure(vm)->inlineCapacity());
         ASSERT(classInfo(vm));
     }
 };
 
 JS_EXPORT_PRIVATE EncodedJSValue JSC_HOST_CALL objectPrivateFuncInstanceOf(JSGlobalObject*, CallFrame*);
 
-inline JSObject* JSObject::createRawObject(VM& vm, Structure* structure, Butterfly* butterfly)
-{
-    JSObject* finalObject = new (
-        NotNull, 
-        allocateCell<JSFinalObject>(
-            vm.heap,
-            JSFinalObject::allocationSize(structure->inlineCapacity())
-        )
-    ) JSObject(vm, structure, butterfly);
-    finalObject->finishCreation(vm);
-    return finalObject;
-}
-
-inline JSFinalObject* JSFinalObject::create(VM& vm, Structure* structure, Butterfly* butterfly)
+inline JSFinalObject* JSFinalObject::createWithButterfly(VM& vm, Structure* structure, Butterfly* butterfly)
 {
     JSFinalObject* finalObject = new (
-        NotNull, 
+        NotNull,
         allocateCell<JSFinalObject>(
             vm.heap,
             allocationSize(structure->inlineCapacity())
@@ -1268,6 +1252,11 @@ inline JSFinalObject* JSFinalObject::create(VM& vm, Structure* structure, Butter
     ) JSFinalObject(vm, structure, butterfly);
     finalObject->finishCreation(vm);
     return finalObject;
+}
+
+inline JSFinalObject* JSFinalObject::create(VM& vm, Structure* structure)
+{
+    return createWithButterfly(vm, structure, nullptr);
 }
 
 inline size_t JSObject::offsetOfInlineStorage()

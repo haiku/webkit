@@ -60,6 +60,9 @@ public:
     bool shouldPreventPointerMediaQueryFromEvaluatingToCoarse() const;
     bool shouldPreventDispatchOfTouchEvent(const AtomString&, EventTarget*) const;
 #endif
+#if ENABLE(IOS_TOUCH_EVENTS)
+    WEBCORE_EXPORT bool shouldSynthesizeTouchEvents() const;
+#endif
     bool shouldDisablePointerEventsQuirk() const;
     bool needsInputModeNoneImplicitly(const HTMLElement&) const;
     bool needsDeferKeyDownAndKeyPressTimersUntilNextEditingCommand() const;
@@ -110,6 +113,8 @@ public:
 
     bool needsVP9FullRangeFlagQuirk() const;
     bool needsHDRPixelDepthQuirk() const;
+    
+    bool needsAkamaiMediaPlayerQuirk(const HTMLVideoElement&) const;
 
 private:
     bool needsQuirks() const;
@@ -133,6 +138,9 @@ private:
     mutable Optional<bool> m_shouldDisableElementFullscreenQuirk;
 #if ENABLE(TOUCH_EVENTS)
     mutable Optional<bool> m_shouldDispatchSimulatedMouseEventsQuirk;
+#endif
+#if ENABLE(IOS_TOUCH_EVENTS)
+    mutable Optional<bool> m_shouldSynthesizeTouchEventsQuirk;
 #endif
     mutable Optional<bool> m_needsCanPlayAfterSeekedQuirk;
     mutable Optional<bool> m_shouldBypassAsyncScriptDeferring;

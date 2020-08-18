@@ -828,7 +828,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self _updateLongPressAndHighlightLongPressGestures];
 #endif
 
-#if ENABLE(DATA_INTERACTION)
+#if ENABLE(DRAG_SUPPORT)
     [self setUpDragAndDropInteractions];
 #endif
 
@@ -1003,7 +1003,7 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
 
     _layerTreeTransactionIdAtLastInteractionStart = { };
 
-#if ENABLE(DATA_INTERACTION)
+#if ENABLE(DRAG_SUPPORT)
     [existingLocalDragSessionContext(_dragDropInteractionState.dragSession()) cleanUpTemporaryDirectories];
     [self teardownDragAndDropInteractions];
 #endif
@@ -1388,7 +1388,26 @@ typedef NS_ENUM(NSInteger, EndEditingReason) {
     if (!self.webView._retainingActiveFocusedState) {
         // We need to complete the editing operation before we blur the element.
         [self _endEditing];
-        if ((reason == EndEditingReasonAccessoryDone && !WebKit::currentUserInterfaceIdiomIsPad()) || _keyboardDidRequestDismissal || self._shouldUseLegacySelectPopoverDismissalBehavior) {
+
+        auto shouldBlurFocusedElement = [&] {
+            if (_keyboardDidRequestDismissal)
+                return true;
+
+            if (self._shouldUseLegacySelectPopoverDismissalBehavior)
+                return true;
+
+            if (reason == EndEditingReasonAccessoryDone) {
+                if (_focusRequiresStrongPasswordAssistance)
+                    return true;
+
+                if (!WebKit::currentUserInterfaceIdiomIsPad())
+                    return true;
+            }
+
+            return false;
+        };
+
+        if (shouldBlurFocusedElement()) {
             _page->blurFocusedElement();
             // Don't wait for WebPageProxy::blurFocusedElement() to round-trip back to us to hide the keyboard
             // because we know that the user explicitly requested us to do so.
@@ -3562,6 +3581,7 @@ WEBCORE_COMMAND_FOR_WEBVIEW(pasteAndMatchStyle);
 
 - (void)selectAllForWebView:(id)sender
 {
+    WTFLogAlways("%s", __PRETTY_FUNCTION__);
     [_textInteractionAssistant selectAll:sender];
     _page->selectAll();
 }
@@ -7014,7 +7034,7 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
     if ([uiDelegate respondsToSelector:@selector(_webView:showCustomSheetForElement:)]) {
         ALLOW_DEPRECATED_DECLARATIONS_BEGIN
         if ([uiDelegate _webView:self.webView showCustomSheetForElement:element]) {
-#if ENABLE(DATA_INTERACTION)
+#if ENABLE(DRAG_SUPPORT)
             BOOL shouldCancelAllTouches = !_dragDropInteractionState.dragSession();
 #else
             BOOL shouldCancelAllTouches = YES;
@@ -7445,7 +7465,7 @@ static Optional<WebCore::DragOperation> coreDragOperationForUIDropOperation(UIDr
     auto dragOperationMask = WebCore::anyDragOperation();
     if (!session.allowsMoveOperation)
         dragOperationMask.remove(WebCore::DragOperation::Move);
-    return { session, WebCore::roundedIntPoint(client), WebCore::roundedIntPoint(global), dragOperationMask, WebCore::DragApplicationNone, WebKit::coreDragDestinationActionMask(dragDestinationAction) };
+    return { session, WebCore::roundedIntPoint(client), WebCore::roundedIntPoint(global), dragOperationMask, { }, WebKit::coreDragDestinationActionMask(dragDestinationAction) };
 }
 
 - (void)cleanUpDragSourceSessionState
@@ -8618,6 +8638,10 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
         // <rdar://problem/64671543> "ESPN Fantasy Sports" does not respond to mouse events, only touch events
         if (WebCore::IOSApplication::isESPNFantasySports())
+            return NO;
+
+        // <rdar://problem/64668138> DoubleDown Casino respin button stops working with trackpad
+        if (WebCore::IOSApplication::isDoubleDown())
             return NO;
 
         return YES;

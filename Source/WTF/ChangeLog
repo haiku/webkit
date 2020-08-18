@@ -1,3 +1,265 @@
+2020-08-11  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Text input autocorrect="off" attribute ignored on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=151019
+        <rdar://problem/65061700>
+
+        Reviewed by Simon Fraser.
+
+        * wtf/PlatformEnableCocoa.h: Turn the feature on for macOS.
+
+2020-08-10  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Migrate from CTFontTransformGlyphsWithLanguage() to CTFontShapeGlyphs()
+        https://bugs.webkit.org/show_bug.cgi?id=215059
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformUse.h: Rename CTFONTTRANSFORMGLYPHSWITHLANGUAGE to CTFONTSHAPEGLYPHS,
+        because that's the new function.
+
+2020-08-09  Ben Nham  <nham@apple.com>
+
+        Preload graphics drivers in Mac WebProcess
+        https://bugs.webkit.org/show_bug.cgi?id=215183
+
+        Reviewed by Darin Adler.
+
+        Enable GPU driver preheating in versions of the OS that might not have the drivers in the dyld
+        shared cache due to size restrictions.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-08-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r263195, r263252, and r265394.
+        https://bugs.webkit.org/show_bug.cgi?id=215312
+
+        Revert all related GC Bitmap changes because some of perf is
+        not fully recovered
+
+        Reverted changesets:
+
+        "Replace JSC::FreeList linked list with a Bitmap."
+        https://bugs.webkit.org/show_bug.cgi?id=213071
+        https://trac.webkit.org/changeset/263195
+
+        "Unify Bitmap math loops in
+        MarkedBlock::Handle::specializedSweep()."
+        https://bugs.webkit.org/show_bug.cgi?id=213345
+        https://trac.webkit.org/changeset/263252
+
+        "[JSC] Disable ENABLE_BITMAP_FREELIST"
+        https://bugs.webkit.org/show_bug.cgi?id=215285
+        https://trac.webkit.org/changeset/265394
+
+2020-08-08  Joonghun Park  <jh718.park@samsung.com>
+
+        [WTF] Remove the build warning since r265344.
+        https://bugs.webkit.org/show_bug.cgi?id=215269
+
+        warning: parameter ‘integer’ set but not used [-Wunused-but-set-parameter]
+
+        * wtf/text/IntegerToStringConversion.h:
+        (WTF::lengthOfIntegerAsString):
+
+2020-08-07  John Wilander  <wilander@apple.com>
+
+        Experimental: Cap the expiry of persistent cookies set in 3rd-party CNAME cloaked HTTP responses
+        https://bugs.webkit.org/show_bug.cgi?id=215201
+        <rdar://problem/57454633>
+
+        Reviewed by Brent Fulgham. Also reviewed and commented on by Chris Dumez, Jiten Mehta, Sam Weinig, and Alex Christensen.
+
+        This change defines HAVE_CFNETWORK_CNAME_AND_COOKIE_TRANSFORM_SPI.
+
+        * wtf/PlatformHave.h:
+
+2020-08-07  Saam Barati  <sbarati@apple.com>
+
+        Use thread_switch instead of switch_pri to drop priority to zero for 1ms instead of 10
+        https://bugs.webkit.org/show_bug.cgi?id=215248
+
+        Reviewed by Yusuke Suzuki.
+
+        This seems to be a slight JetStream2 and Speedometer2 speedup. In the
+        range of 0%-0.75%, depending on device.
+
+        * wtf/posix/ThreadingPOSIX.cpp:
+        (WTF::Thread::yield):
+
+2020-08-07  Robin Morisset  <rmorisset@apple.com>
+
+        Fix inequality in newly added assertion
+        https://bugs.webkit.org/show_bug.cgi?id=215272
+
+        Reviewed by Alexey Proskuryakov.
+
+        No new tests, as it was caught by our testing infrastructure (not sure why it only got caught after landing).
+
+        * wtf/IndexSparseSet.h:
+        (WTF::OverflowHandler>::validate):
+
+2020-08-07  Robin Morisset  <rmorisset@apple.com>
+
+        IndexSparseSet::sort() should update m_map
+        https://bugs.webkit.org/show_bug.cgi?id=215100
+
+        Reviewed by Yusuke Suzuki and Mark Lam.
+
+        IndexSparseSet is made of two fields: m_values and m_map, and the two must be kept in sync.
+        But its sort routine currently only sorts m_values.
+        This might be related to a random crash that seems to occasionally occur in the vicinity of this code in the wild (rdar://problem/64594569)
+
+        I added a validation routine, that I run in the tests that I added to TestWTF.
+        I verified, and without the fix, the validation routine fails after the sorting.
+
+        I also fixed remove() which was wrong on non-trivial types (thanks to Mark for catching this other bug).
+
+        * wtf/IndexSparseSet.h:
+        (WTF::OverflowHandler>::remove):
+        (WTF::OverflowHandler>::sort):
+        (WTF::OverflowHandler>::validate):
+
+2020-08-07  Youenn Fablet  <youenn@apple.com>
+
+        Introduce a Vector::isolatedCopy() &&
+        https://bugs.webkit.org/show_bug.cgi?id=215160
+
+        Reviewed by Alex Christensen.
+
+        By introducing an isolatedCopy() &&, we remove the need to allocate a vector buffer.
+        This can make a Vector<String>::isolatedCopy() allocate no memory at all in cases like RegistrationDatabase::schedulePushChanges.
+
+        * wtf/Vector.h:
+        (WTF::Malloc>::isolatedCopy const):
+        (WTF::Malloc>::isolatedCopy):
+
+2020-08-06  David Kilzer  <ddkilzer@apple.com>
+
+        WTF::makeString() should handle enum values
+        <https://webkit.org/b/214906>
+
+        Reviewed by Sam Weinig.
+
+        * wtf/text/IntegerToStringConversion.h:
+        (WTF::numberToStringSigned):
+        - Drive-by fix to change std::make_unsigned<>::type to
+          std::make_unsigned_t<>.
+        (WTF::writeNumberToBufferImpl): Delete.
+        (WTF::writeIntegerToBufferImpl):
+        - Rename from WTF::writeNumberToBufferImpl().
+        (WTF::writeNumberToBufferSigned): Delete.
+        (WTF::writeNumberToBufferUnsigned): Delete.
+        (WTF::writeIntegerToBuffer):
+        - Replace WTF::writeNumberToBufferSigned() and
+          WTF::writeNumberToBufferUnsigned() with a single function that
+          uses constexpr checks to let the compiler eliminate code.  Had
+          to use if/else if/else construct to help the compiler
+          eliminate unused cases.
+        (WTF::lengthOfNumberAsStringImpl): Delete.
+        (WTF::lengthOfIntegerAsStringImpl):
+        - Rename from WTF::lengthOfNumberAsStringImpl().
+        (WTF::lengthOfNumberAsStringSigned): Delete.
+        (WTF::lengthOfNumberAsStringUnsigned): Delete.
+        (WTF::lengthOfIntegerAsString):
+        - Replace WTF::lengthOfNumberAsStringSigned() and
+          WTF::lengthOfNumberAsStringUnsigned() with a single function
+          that uses constexpr checks to let the compiler eliminate code.
+          Had to use if/else if/else construct to help the compiler
+          eliminate unused cases.
+
+        * wtf/text/StringConcatenateNumbers.h:
+        (WTF::StringTypeAdapter<SignedInt, ...>): Deleted.
+        (WTF::StringTypeAdapter<UnignedInt, ...>): Deleted.
+        (WTF::StringTypeAdapter<Integer, ...>):
+        - Combine signed/unsigned templated classes into a single class
+          now that WTF::lengthOfIntegerAsString() and
+          WTF::writeIntegerToBuffer() are templated.
+        (WTF::StringTypeAdapter<Enum, ...>):
+        - Add support for enum types to WTF::makeString().  This also
+          takes advantage of templated WTF::lengthOfIntegerAsString()
+          and WTF::writeIntegerToBuffer() functions since enum types may
+          be either signed or unsigned.
+
+2020-08-05  Tim Horton  <timothy_horton@apple.com>
+
+        Remove all references to non-existent 10.16
+        https://bugs.webkit.org/show_bug.cgi?id=215202
+
+        Reviewed by Wenson Hsieh.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * wtf/PlatformEnableCocoa.h:
+        * wtf/PlatformHave.h:
+        * wtf/PlatformUse.h:
+
+2020-08-04  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Use LazyNeverDestroyed & std::call_once for complex singletons
+        https://bugs.webkit.org/show_bug.cgi?id=215153
+        <rdar://problem/65718983>
+
+        Reviewed by Mark Lam.
+
+        Add lock's bits in crash information to investigate if this speculative fix does not work.
+
+        * wtf/LockAlgorithmInlines.h:
+        (WTF::Hooks>::lockSlow):
+        (WTF::Hooks>::unlockSlow):
+
+2020-08-04  Keith Miller  <keith_miller@apple.com>
+
+        CheckpointSideState shoud play nicely with StackOverflowException unwinding.
+        https://bugs.webkit.org/show_bug.cgi?id=215114
+
+        Reviewed by Saam Barati.
+
+        Add a helper so we can have soft stack bounds.
+
+        * wtf/StackBounds.h:
+        (WTF::StackBounds::withSoftOrigin const):
+
+2020-08-04  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [MSVC] wtf/Optional.h: error C2280: 'WTF::constexpr_storage_t<T> &WTF::constexpr_storage_t<T>::operator =(const WTF::constexpr_storage_t<T> &)': attempting to reference a deleted function
+        https://bugs.webkit.org/show_bug.cgi?id=215003
+
+        Reviewed by Yusuke Suzuki.
+
+        Microsoft reported the upcoming MSVC can't compile
+        Optional<std::pair<JSC::SamplingProfiler::StackFrame::CodeLocation,JSC::CodeBlock *>>.
+
+        > wtf/Optional.h(419,39): error C2280: 'WTF::constexpr_storage_t<T> &WTF::constexpr_storage_t<T>::operator =(const WTF::constexpr_storage_t<T> &)': attempting to reference a deleted function
+
+        They suggests using std::is_trivially_copy_assignable_v in
+        Optional ctor instead of std::is_trivially_copyable_v.
+
+        * wtf/Optional.h:
+        (WTF::Optional::Optional): Replaced std::is_trivially_copyable_v with std::is_trivially_copy_assignable_v.
+
+2020-08-04  Alex Christensen  <achristensen@webkit.org>
+
+        about: scheme URL constants should be backed by StaticStringImpl
+        https://bugs.webkit.org/show_bug.cgi?id=215113
+
+        Reviewed by Darin Adler.
+
+        * wtf/URL.cpp:
+        (WTF::aboutBlankURL):
+        (WTF::aboutSrcDocURL):
+
+2020-08-03  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Remove the ENABLE_DATA_INTERACTION feature flag
+        https://bugs.webkit.org/show_bug.cgi?id=215091
+
+        Reviewed by Megan Gardner.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
 2020-08-01  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, reverting r265097, r265113, and r265122.

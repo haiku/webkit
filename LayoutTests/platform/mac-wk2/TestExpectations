@@ -79,7 +79,6 @@ http/tests/webAPIStatistics [ Pass ]
 webkit.org/b/184569 storage/indexeddb/modern/transactions-stop-on-navigation.html [ Pass Failure ]
 
 fast/events/detect-caps-lock.html [ Pass ]
-fast/forms/auto-fill-button/caps-lock-indicator-should-be-visible-after-hiding-auto-fill-strong-password-button.html [ Pass ]
 fast/forms/auto-fill-button/caps-lock-indicator-should-not-be-visible-when-auto-fill-strong-password-button-is-visible.html [ Pass ]
 fast/forms/password-scrolled-after-caps-lock-toggled.html [ Pass ]
 webkit.org/b/194170 [ Release ] fast/repaint/placeholder-after-caps-lock-hidden.html [ Pass Failure ]
@@ -207,7 +206,6 @@ webkit.org/b/105616 editing/spelling/spelling-with-whitespace-selection.html
 webkit.org/b/105616 editing/spelling/grammar.html
 webkit.org/b/105616 editing/spelling/markers.html
 webkit.org/b/105616 editing/spelling/retro-correction-spelling-markers.html
-webkit.org/b/105616 editing/spelling/text-replacement-after-typing-to-word.html
 webkit.org/b/105616 editing/spelling/spelling-markers-after-pasting-sentence.html
 webkit.org/b/105616 editing/mac/spelling/autocorrection-delete.html [ Failure ]
 webkit.org/b/105616 editing/mac/spelling/autocorrection-removing-underline-after-paste.html [ Failure ]
@@ -482,6 +480,9 @@ webkit.org/b/141085 http/tests/media/video-query-url.html [ Pass Timeout ]
 ### END OF (6) New WebKit2-only failures in Yosemite
 ########################################
 
+# Accessibility isolated tree mode is enabled in Big Sur and beyond, no in Catalina and before.
+[ Mojave Catalina ] accessibility/mac/isolated-tree-mode-on-off.html [ Skip ]
+
 # Content Extensions tests must be enabled explicitly on mac-wk2.
 http/tests/contentextensions [ Pass ]
 http/tests/inspector/network/contentextensions [ Pass ]
@@ -652,8 +653,6 @@ webkit.org/b/173861 [ Release ] http/tests/webrtc/filtering-ice-candidate-cross-
 
 webkit.org/b/172148 tiled-drawing/scrolling/scroll-snap/scroll-snap-mandatory-mainframe-vertical.html [ Pass Failure ]
 
-webkit.org/b/175341 accessibility/mac/select-element-selection-with-optgroups.html [ Pass Failure ]
-
 webkit.org/b/172044 [ Debug ] imported/w3c/web-platform-tests/IndexedDB/open-request-queue.html [ Pass Timeout ]
 
 webkit.org/b/173779 [ Debug ] fast/scrolling/arrow-key-scroll-in-rtl-document.html [ Pass Failure ]
@@ -709,6 +708,15 @@ http/tests/resourceLoadStatistics/cap-cache-max-age-for-prevalent-resource.html 
 [ Catalina+ ] http/tests/resourceLoadStatistics/set-all-cookies-to-same-site-strict.html [ Pass ]
 [ Catalina+ ] http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to.html [ Pass ]
 [ Catalina+ ] http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to-database.html [ Pass ]
+
+# The CNAME and cookie transform SPIs are only available in macOS Big Sur and above.
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-1p-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-3p-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-matching-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-no-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-1p-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-3p-cname.html [ Pass ]
+[ BigSur+ ] http/tests/resourceLoadStatistics/cname-cloaking-top-no-cname-sub-no-cname.html [ Pass ]
 
 # Skipped in general expectations since they only work on iOS and Mac, WK2.
 media/deactivate-audio-session.html [ Pass ]
@@ -1041,8 +1049,6 @@ webkit.org/b/188924 fast/mediastream/device-change-event-2.html [ Pass Timeout ]
 
 webkit.org/b/212721 svg/custom/textPath-change-id.svg [ Pass ImageOnlyFailure ]
 
-webkit.org/b/212824 [ Debug ] imported/w3c/web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam.html [ Pass Failure ]
-
 webkit.org/b/212042 [ Debug ] fast/scrolling/mac/scrollbars/overlay-scrollbar-reveal.html [ Pass Timeout ]
 webkit.org/b/212042 [ Debug ] fast/scrolling/mac/scrollbars/select-overlay-scrollbar-reveal.html [ Pass Timeout ]
 
@@ -1078,7 +1084,7 @@ webkit.org/b/214574 [ Release ] svg/animations/smil-leak-list-property-instances
 
 webkit.org/b/214579 [ Release ] svg/animations/smil-leak-element-instances.svg [ Pass Failure ]
 
-webkkit.org/b/214651 [ Debug ] tiled-drawing/scrolling/fast-scroll-mainframe-zoom.html [ Pass Crash ]
+webkit.org/b/214651 [ Debug ] tiled-drawing/scrolling/fast-scroll-mainframe-zoom.html [ Pass Crash ]
 
 webkit.org/b/214661 [ Debug ] imported/w3c/web-platform-tests/webrtc/RTCSctpTransport-events.html [ Pass Crash ]
 
@@ -1088,4 +1094,11 @@ webkit.org/b/214683 [ Debug ] imported/w3c/web-platform-tests/media-source/media
 
 webkit.org/b/214824 [ Debug ] js/throw-large-string-oom.html [ Skip ]
 
-webkit.org/b/215088 webrtc/datachannel/gather-candidates-networkprocess-crash.html [ Pass Timeout ]
+webkit.org/b/215221 [ Debug ] editing/undo-manager/undo-manager-delete-stale-undo-items.html [ Pass Crash ]
+
+webkit.org/b/215245 [ Release ] imported/w3c/web-platform-tests/content-security-policy/worker-src/service-worker-src-child-fallback.https.sub.html [ Pass Failure ]
+
+webkit.org/b/215304 fast/forms/auto-fill-button/caps-lock-indicator-should-be-visible-after-hiding-auto-fill-strong-password-button.html [ Pass Failure ]
+
+webkit.org/b/245353 [ Release ] svg/animations/smil-leak-element-instances-noBaseValRef.svg [ Pass Failure ]
+

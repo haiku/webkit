@@ -814,6 +814,8 @@ void NetworkProcess::getResourceLoadStatisticsDataSummary(PAL::SessionID session
 void NetworkProcess::resetParametersToDefaultValues(PAL::SessionID sessionID, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID)) {
+        networkSession->resetCNAMEDomainData();
+        networkSession->setCNAMECloakingMitigationEnabled(WebCore::CNAMECloakingMitigationEnabled::No);
         if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
             resourceLoadStatistics->resetParametersToDefaultValues(WTFMove(completionHandler));
         else
@@ -866,6 +868,7 @@ void NetworkProcess::setNotifyPagesWhenDataRecordsWereScanned(PAL::SessionID ses
 void NetworkProcess::setIsRunningResourceLoadStatisticsTest(PAL::SessionID sessionID, bool value, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession(sessionID)) {
+        networkSession->setCNAMECloakingMitigationEnabled(WebCore::CNAMECloakingMitigationEnabled::Yes);
         if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
             resourceLoadStatistics->setIsRunningTest(value, WTFMove(completionHandler));
         else
@@ -1379,6 +1382,20 @@ void NetworkProcess::setToSameSiteStrictCookiesForTesting(PAL::SessionID session
         completionHandler();
     }
 }
+
+void NetworkProcess::setFirstPartyHostCNAMEDomainForTesting(PAL::SessionID sessionID, String&& firstPartyHost, WebCore::RegistrableDomain&& cnameDomain, CompletionHandler<void()>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID))
+        networkSession->setFirstPartyHostCNAMEDomain(WTFMove(firstPartyHost), WTFMove(cnameDomain));
+    completionHandler();
+}
+
+void NetworkProcess::setThirdPartyCNAMEDomainForTesting(PAL::SessionID sessionID, WebCore::RegistrableDomain&& domain, CompletionHandler<void()>&& completionHandler)
+{
+    if (auto* networkSession = this->networkSession(sessionID))
+        networkSession->setThirdPartyCNAMEDomainForTesting(WTFMove(domain));
+    completionHandler();
+}
 #endif // ENABLE(RESOURCE_LOAD_STATISTICS)
 
 void NetworkProcess::setAdClickAttributionDebugMode(bool debugMode)
@@ -1398,6 +1415,8 @@ void NetworkProcess::setAdClickAttributionDebugMode(bool debugMode)
 
 void NetworkProcess::preconnectTo(PAL::SessionID sessionID, WebPageProxyIdentifier webPageProxyID, WebCore::PageIdentifier webPageID, const URL& url, const String& userAgent, WebCore::StoredCredentialsPolicy storedCredentialsPolicy, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain)
 {
+    LOG(Network, "(NetworkProcess) Preconnecting to URL %s (storedCredentialsPolicy %i)", url.string().utf8().data(), (int)storedCredentialsPolicy);
+
 #if ENABLE(SERVER_PRECONNECT)
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
     if (supplement<LegacyCustomProtocolManager>()->supportsScheme(url.protocol().toString()))
@@ -2271,7 +2290,7 @@ void NetworkProcess::prepareToSuspend(bool isSuspensionImminent, CompletionHandl
 
 #if PLATFORM(IOS_FAMILY) && ENABLE(INDEXED_DATABASE)
     for (auto& server : m_webIDBServers.values())
-        server->suspend(isSuspensionImminent ? WebIDBServer::ShouldForceStop::Yes : WebIDBServer::ShouldForceStop::No);
+        server->suspend();
 #endif
 
 #if PLATFORM(IOS_FAMILY)

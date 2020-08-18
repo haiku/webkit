@@ -345,12 +345,9 @@
 #import <WebCore/PlaybackSessionModelMediaElement.h>
 #endif
 
-#if ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY)
 #import <UIKit/UIColor.h>
 #import <UIKit/UIImage.h>
-#endif
-
-#if ENABLE(DATA_INTERACTION)
 #import <pal/ios/UIKitSoftLink.h>
 #endif
 
@@ -791,7 +788,7 @@ private:
 
 } // namespace WebKit
 
-#if ENABLE(DATA_INTERACTION)
+#if PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)
 
 @implementation WebUITextIndicatorData
 
@@ -864,7 +861,7 @@ private:
 #elif !PLATFORM(MAC)
 @implementation WebUITextIndicatorData
 @end
-#endif // ENABLE(DATA_INTERACTION)
+#endif
 
 NSString *WebElementDOMNodeKey =            @"WebElementDOMNode";
 NSString *WebElementFrameKey =              @"WebElementFrame";
@@ -2071,7 +2068,7 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 {
     auto dragOperationMask = coreDragOperationMask(operation);
     auto dragDestinationActionMask = coreDragDestinationActionMask([self dragDestinationActionMaskForSession:session]);
-    return { session, WebCore::roundedIntPoint(clientPosition), WebCore::roundedIntPoint(globalPosition), dragOperationMask, WebCore::DragApplicationNone, dragDestinationActionMask };
+    return { session, WebCore::roundedIntPoint(clientPosition), WebCore::roundedIntPoint(globalPosition), dragOperationMask, { }, dragDestinationActionMask };
 }
 
 - (uint64_t)_enteredDataInteraction:(id <UIDropSession>)session client:(CGPoint)clientPosition global:(CGPoint)globalPosition operation:(uint64_t)operation
@@ -3399,6 +3396,8 @@ static bool needsSelfRetainWhileLoadingQuirk()
 #if ENABLE(ENCRYPTED_MEDIA)
     RuntimeEnabledFeatures::sharedFeatures().setEncryptedMediaAPIEnabled(preferences.encryptedMediaAPIEnabled);
 #endif
+
+    RuntimeEnabledFeatures::sharedFeatures().setUserGesturePromisePropagationEnabled(preferences.userGesturePromisePropagationEnabled);
 
 #if ENABLE(PICTURE_IN_PICTURE_API)
     settings.setPictureInPictureAPIEnabled(preferences.pictureInPictureAPIEnabled);

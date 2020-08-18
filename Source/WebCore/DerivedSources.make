@@ -383,6 +383,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/AudioBufferCallback.idl \
     $(WebCore)/Modules/webaudio/AudioBufferOptions.idl \
     $(WebCore)/Modules/webaudio/AudioBufferSourceNode.idl \
+    $(WebCore)/Modules/webaudio/AudioBufferSourceOptions.idl \
     $(WebCore)/Modules/webaudio/AudioContext.idl \
     $(WebCore)/Modules/webaudio/AudioContextLatencyCategory.idl \
     $(WebCore)/Modules/webaudio/AudioContextOptions.idl \
@@ -393,9 +394,12 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/AudioNodeOptions.idl \
     $(WebCore)/Modules/webaudio/AudioParam.idl \
     $(WebCore)/Modules/webaudio/AudioProcessingEvent.idl \
+    $(WebCore)/Modules/webaudio/AudioProcessingEventInit.idl \
     $(WebCore)/Modules/webaudio/AudioScheduledSourceNode.idl \
     $(WebCore)/Modules/webaudio/BaseAudioContext.idl \
     $(WebCore)/Modules/webaudio/BiquadFilterNode.idl \
+    $(WebCore)/Modules/webaudio/BiquadFilterOptions.idl \
+    $(WebCore)/Modules/webaudio/BiquadFilterType.idl \
     $(WebCore)/Modules/webaudio/ChannelCountMode.idl \
     $(WebCore)/Modules/webaudio/ChannelInterpretation.idl \
     $(WebCore)/Modules/webaudio/ChannelMergerNode.idl \
@@ -403,14 +407,19 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/ChannelSplitterNode.idl \
     $(WebCore)/Modules/webaudio/ChannelSplitterOptions.idl \
     $(WebCore)/Modules/webaudio/ConvolverNode.idl \
+    $(WebCore)/Modules/webaudio/ConvolverOptions.idl \
     $(WebCore)/Modules/webaudio/DelayNode.idl \
     $(WebCore)/Modules/webaudio/DelayOptions.idl \
     $(WebCore)/Modules/webaudio/DistanceModelType.idl \
     $(WebCore)/Modules/webaudio/DynamicsCompressorNode.idl \
+    $(WebCore)/Modules/webaudio/DynamicsCompressorOptions.idl \
     $(WebCore)/Modules/webaudio/GainNode.idl \
+    $(WebCore)/Modules/webaudio/GainOptions.idl \
     $(WebCore)/Modules/webaudio/MediaElementAudioSourceNode.idl \
+    $(WebCore)/Modules/webaudio/MediaElementAudioSourceOptions.idl \
     $(WebCore)/Modules/webaudio/MediaStreamAudioDestinationNode.idl \
     $(WebCore)/Modules/webaudio/MediaStreamAudioSourceNode.idl \
+    $(WebCore)/Modules/webaudio/MediaStreamAudioSourceOptions.idl \
     $(WebCore)/Modules/webaudio/OfflineAudioCompletionEvent.idl \
     $(WebCore)/Modules/webaudio/OfflineAudioCompletionEventInit.idl \
     $(WebCore)/Modules/webaudio/OfflineAudioContext.idl \
@@ -428,8 +437,11 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/ScriptProcessorNode.idl \
     $(WebCore)/Modules/webaudio/WaveShaperNode.idl \
     $(WebCore)/Modules/webaudio/WaveShaperOptions.idl \
+    $(WebCore)/Modules/webaudio/WebKitAudioBufferSourceNode.idl \
     $(WebCore)/Modules/webaudio/WebKitAudioContext.idl \
+    $(WebCore)/Modules/webaudio/WebKitAudioListener.idl \
     $(WebCore)/Modules/webaudio/WebKitAudioPannerNode.idl \
+    $(WebCore)/Modules/webaudio/WebKitDynamicsCompressorNode.idl \
     $(WebCore)/Modules/webaudio/WebKitOfflineAudioContext.idl \
     $(WebCore)/Modules/webaudio/WebKitOscillatorNode.idl \
     $(WebCore)/Modules/webauthn/AttestationConveyancePreference.idl \
@@ -1215,6 +1227,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/worklets/PaintWorkletGlobalScope.idl \
     $(WebCore)/worklets/Worklet.idl \
     $(WebCore)/worklets/WorkletGlobalScope.idl \
+    $(WebCore)/xml/CustomXPathNSResolver.idl \
     $(WebCore)/xml/DOMParser.idl \
     $(WebCore)/xml/XMLHttpRequest.idl \
     $(WebCore)/xml/XMLHttpRequestEventTarget.idl \

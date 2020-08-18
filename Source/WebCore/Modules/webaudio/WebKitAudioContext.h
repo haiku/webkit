@@ -26,6 +26,7 @@
 #pragma once
 
 #include "BaseAudioContext.h"
+#include "WebKitAudioListener.h"
 
 namespace WebCore {
 
@@ -37,7 +38,9 @@ class MediaStream;
 class MediaStreamAudioDestinationNode;
 class MediaStreamAudioSourceNode;
 class PeriodicWave;
+class WebKitAudioBufferSourceNode;
 class WebKitAudioPannerNode;
+class WebKitDynamicsCompressorNode;
 class WebKitOscillatorNode;
 
 // AudioContext is the cornerstone of the web audio API and all AudioNodes are created from it.
@@ -53,6 +56,8 @@ public:
 
     void close(DOMPromiseDeferred<void>&&);
 
+    WebKitAudioListener& listener() { return downcast<WebKitAudioListener>(BaseAudioContext::listener()); }
+
     // The AudioNode create methods are called on the main thread (from JavaScript).
 #if ENABLE(VIDEO)
     ExceptionOr<Ref<MediaElementAudioSourceNode>> createMediaElementSource(HTMLMediaElement&);
@@ -64,6 +69,9 @@ public:
     ExceptionOr<Ref<WebKitAudioPannerNode>> createWebKitPanner();
     ExceptionOr<Ref<WebKitOscillatorNode>> createWebKitOscillator();
     ExceptionOr<Ref<PeriodicWave>> createPeriodicWave(Float32Array& real, Float32Array& imaginary);
+    ExceptionOr<Ref<WebKitAudioBufferSourceNode>> createWebKitBufferSource();
+    ExceptionOr<Ref<WebKitDynamicsCompressorNode>> createWebKitDynamicsCompressor();
+    ExceptionOr<Ref<AudioBuffer>> createLegacyBuffer(ArrayBuffer&, bool mixToMono);
 
 protected:
     explicit WebKitAudioContext(Document&);

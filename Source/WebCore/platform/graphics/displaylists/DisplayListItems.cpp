@@ -543,9 +543,8 @@ DrawGlyphs::~DrawGlyphs() = default;
 inline GlyphBuffer DrawGlyphs::generateGlyphBuffer() const
 {
     GlyphBuffer result;
-    for (size_t i = 0; i < m_glyphs.size(); ++i) {
-        result.add(m_glyphs[i], &m_font.get(), m_advances[i], GlyphBuffer::noOffset);
-    }
+    for (size_t i = 0; i < m_glyphs.size(); ++i)
+        result.add(m_glyphs[i], m_font.get(), m_advances[i], GlyphBuffer::noOffset);
     return result;
 }
 
@@ -1151,21 +1150,23 @@ static TextStream& operator<<(TextStream& ts, const FillEllipse& item)
     return ts;
 }
 
-PutImageData::PutImageData(AlphaPremultiplication inputFormat, const ImageData& imageData, const IntRect& srcRect, const IntPoint& destPoint)
+PutImageData::PutImageData(AlphaPremultiplication inputFormat, const ImageData& imageData, const IntRect& srcRect, const IntPoint& destPoint, AlphaPremultiplication destFormat)
     : DrawingItem(ItemType::PutImageData)
     , m_srcRect(srcRect)
     , m_destPoint(destPoint)
     , m_imageData(imageData.deepClone()) // This copy is actually required to preserve the semantics of putImageData().
     , m_inputFormat(inputFormat)
+    , m_destFormat(destFormat)
 {
 }
 
-PutImageData::PutImageData(AlphaPremultiplication inputFormat, Ref<ImageData>&& imageData, const IntRect& srcRect, const IntPoint& destPoint)
+PutImageData::PutImageData(AlphaPremultiplication inputFormat, Ref<ImageData>&& imageData, const IntRect& srcRect, const IntPoint& destPoint, AlphaPremultiplication destFormat)
     : DrawingItem(ItemType::PutImageData)
     , m_srcRect(srcRect)
     , m_destPoint(destPoint)
     , m_imageData(WTFMove(imageData))
     , m_inputFormat(inputFormat)
+    , m_destFormat(destFormat)
 {
 }
 
@@ -1184,6 +1185,7 @@ static TextStream& operator<<(TextStream& ts, const PutImageData& item)
     ts.dumpProperty("imageDataSize", item.imageData().size());
     ts.dumpProperty("srcRect", item.srcRect());
     ts.dumpProperty("destPoint", item.destPoint());
+    ts.dumpProperty("destFormat", item.destFormat());
     return ts;
 }
 

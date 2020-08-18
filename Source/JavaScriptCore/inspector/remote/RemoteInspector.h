@@ -123,7 +123,7 @@ public:
 #endif
     static void startDisabled();
     static RemoteInspector& singleton();
-    friend class NeverDestroyed<RemoteInspector>;
+    friend class LazyNeverDestroyed<RemoteInspector>;
 
     void registerTarget(RemoteControllableTarget*);
     void unregisterTarget(RemoteControllableTarget*);

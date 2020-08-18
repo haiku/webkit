@@ -809,8 +809,9 @@ void TestController::ensureViewSupportsOptionsForTest(const TestInvocation& test
 
     if (m_mainWebView) {
         // Having created another page (via window.open()) prevents process swapping on navigation and it may therefore
-        // cause flakiness to reuse the view.
-        if (!m_createdOtherPage && m_mainWebView->viewSupportsOptions(options))
+        // cause flakiness to reuse the view. We should also always make a new view if the test is marked as app-bound, because
+        // the view configuration must change.
+        if (!m_createdOtherPage && m_mainWebView->viewSupportsOptions(options) && !options.isAppBoundWebView)
             return;
 
         willDestroyWebView();
@@ -3859,6 +3860,22 @@ void TestController::setStatisticsToSameSiteStrictCookies(WKStringRef hostName)
     WKWebsiteDataStoreSetResourceLoadStatisticsToSameSiteStrictCookiesForTesting(websiteDataStore(), hostName, &context, resourceStatisticsVoidResultCallback);
     runUntil(context.done, noTimeout);
     m_currentInvocation->didSetToSameSiteStrictCookies();
+}
+
+void TestController::setStatisticsFirstPartyHostCNAMEDomain(WKStringRef firstPartyURLString, WKStringRef cnameURLString)
+{
+    ResourceStatisticsCallbackContext context(*this);
+    WKWebsiteDataStoreSetResourceLoadStatisticsFirstPartyHostCNAMEDomainForTesting(websiteDataStore(), firstPartyURLString, cnameURLString, &context, resourceStatisticsVoidResultCallback);
+    runUntil(context.done, noTimeout);
+    m_currentInvocation->didSetFirstPartyHostCNAMEDomain();
+}
+
+void TestController::setStatisticsThirdPartyCNAMEDomain(WKStringRef cnameURLString)
+{
+    ResourceStatisticsCallbackContext context(*this);
+    WKWebsiteDataStoreSetResourceLoadStatisticsThirdPartyCNAMEDomainForTesting(websiteDataStore(), cnameURLString, &context, resourceStatisticsVoidResultCallback);
+    runUntil(context.done, noTimeout);
+    m_currentInvocation->didSetThirdPartyCNAMEDomain();
 }
 
 struct AppBoundDomainsCallbackContext {
