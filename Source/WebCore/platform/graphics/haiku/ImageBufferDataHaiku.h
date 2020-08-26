@@ -41,13 +41,13 @@ class IntSize;
 
 class ImageBufferData {
 public:
-    ImageBufferData(const FloatSize&);
+    ImageBufferData(const IntSize&);
     ~ImageBufferData();
 
     NativeImagePtr m_bitmap;
     BView* m_view;
     GraphicsContext* m_context;
-    
+
     RefPtr<Image> m_image;
 };
 

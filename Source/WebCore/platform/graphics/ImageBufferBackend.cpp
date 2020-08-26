@@ -105,7 +105,7 @@ Vector<uint8_t> ImageBufferBackend::toBGRAData(void* data) const
     uint8_t* srcRows = reinterpret_cast<uint8_t*>(data);
 
     copyImagePixels(
-        AlphaPremultiplication::Premultiplied, backendColorFormat(), srcBytesPerRow, srcRows,
+        backendAlphaPremultiplication(), backendColorFormat(), srcBytesPerRow, srcRows,
         AlphaPremultiplication::Unpremultiplied, ColorFormat::BGRA, destBytesPerRow, result.data(), m_logicalSize);
 
     return result;
@@ -252,7 +252,7 @@ RefPtr<ImageData> ImageBufferBackend::getImageData(AlphaPremultiplication output
     uint8_t* srcRows = reinterpret_cast<uint8_t*>(data) + srcRectClipped.y() * srcBytesPerRow + srcRectClipped.x() * 4;
 
     copyImagePixels(
-        AlphaPremultiplication::Premultiplied, backendColorFormat(), srcBytesPerRow, srcRows,
+        backendAlphaPremultiplication(), backendColorFormat(), srcBytesPerRow, srcRows,
         outputFormat, ColorFormat::RGBA, destBytesPerRow, destRows, destRect.size());
 
     return imageData;
