@@ -278,21 +278,24 @@ Vector<uint8_t> ImageBufferHaikuSurfaceBackend::toBGRAData() const
 	Vector<uint8_t> v;
 	v.tryAppend(bits, m_data.m_bitmap->BitsLength());
 	return v;
-
 }
+
 
 RefPtr<ImageData> ImageBufferHaikuSurfaceBackend::getImageData(AlphaPremultiplication outputFormat, const IntRect& srcRect) const
 {
     IntRect logicalRect = srcRect;
     IntRect backingStoreRect = srcRect;
     backingStoreRect.scale(m_resolutionScale);
-    
+
     if (outputFormat == AlphaPremultiplication::Unpremultiplied)
         return getData<AlphaPremultiplication::Unpremultiplied>(backingStoreRect, logicalRect, m_data, m_size, m_logicalSize, m_resolutionScale);
     return getData<AlphaPremultiplication::Premultiplied>(backingStoreRect, logicalRect, m_data, m_size, m_logicalSize, m_resolutionScale);
 }
 
-void ImageBufferHaikuSurfaceBackend::putImageData(AlphaPremultiplication sourceFormat, const ImageData& imageData, const IntRect& sourceRect, const IntPoint& destPoint)
+
+void ImageBufferHaikuSurfaceBackend::putImageData(AlphaPremultiplication sourceFormat,
+    const ImageData& imageData, const IntRect& sourceRect, const IntPoint& destPoint,
+    AlphaPremultiplication)
 {
     IntRect logicalSourceRect = sourceRect;
     IntPoint logicalDestPoint = destPoint;
