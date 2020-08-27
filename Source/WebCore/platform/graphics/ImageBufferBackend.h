@@ -106,6 +106,7 @@ protected:
 
     virtual unsigned bytesPerRow() const { return 4 * m_backendSize.width(); }
     virtual ColorFormat backendColorFormat() const { return ColorFormat::RGBA; }
+    virtual AlphaPremultiplication backendAlphaPremultiplication() const { return AlphaPremultiplication::Premultiplied; }
 
     template<typename T>
     T toBackendCoordinates(T t) const

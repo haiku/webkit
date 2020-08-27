@@ -44,27 +44,27 @@ class ImageBufferHaikuSurfaceBackend : public ImageBufferBackend {
 public:
     static std::unique_ptr<ImageBufferHaikuSurfaceBackend> create(const FloatSize&, float resolutionScale, ColorSpace, const HostWindow*);
     static std::unique_ptr<ImageBufferHaikuSurfaceBackend> create(const FloatSize&, const GraphicsContext&);
-	~ImageBufferHaikuSurfaceBackend();
+    ~ImageBufferHaikuSurfaceBackend();
 
-	WebCore::GraphicsContext& context() const override;
-	WebCore::NativeImagePtr copyNativeImage(WebCore::BackingStoreCopy) const override;
-	WTF::RefPtr<WebCore::Image> copyImage(WebCore::BackingStoreCopy, WebCore::PreserveResolution) const override;
-	void draw(WebCore::GraphicsContext&, const WebCore::FloatRect&, const WebCore::FloatRect&, const WebCore::ImagePaintingOptions&) override;
-	void drawPattern(GraphicsContext&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
-	String toDataURL(const String& mimeType, Optional<double> quality, PreserveResolution) const override;
-	Vector<uint8_t> toData(const String& mimeType, Optional<double> quality) const override;
-	Vector<uint8_t> toBGRAData() const override;
-	RefPtr<ImageData> getImageData(AlphaPremultiplication outputFormat, const IntRect&) const override;
-	void putImageData(AlphaPremultiplication inputFormat, const ImageData&, const IntRect& srcRect, const IntPoint& destPoint, AlphaPremultiplication destFormat) override;
+    GraphicsContext& context() const override;
+    NativeImagePtr copyNativeImage(BackingStoreCopy) const override;
+    RefPtr<Image> copyImage(BackingStoreCopy, PreserveResolution) const override;
+    void draw(GraphicsContext&, const FloatRect&, const FloatRect&, const ImagePaintingOptions&) override;
+    void drawPattern(GraphicsContext&, const FloatRect& destRect, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, const FloatSize& spacing, const ImagePaintingOptions&) override;
+    String toDataURL(const String& mimeType, Optional<double> quality, PreserveResolution) const override;
+    Vector<uint8_t> toData(const String& mimeType, Optional<double> quality) const override;
+    Vector<uint8_t> toBGRAData() const override;
+    RefPtr<ImageData> getImageData(AlphaPremultiplication outputFormat, const IntRect&) const override;
+    void putImageData(AlphaPremultiplication inputFormat, const ImageData&, const IntRect& srcRect, const IntPoint& destPoint, AlphaPremultiplication destFormat) override;
 
 
 private:
-    ImageBufferHaikuSurfaceBackend(const FloatSize& logicalSize, float resolutionScale, ColorSpace, const HostWindow*);
+    ImageBufferHaikuSurfaceBackend(const FloatSize& logicalSize, const IntSize& backendSize, float resolutionScale, ColorSpace, const HostWindow*);
 
-	ImageBufferData m_data;
-	FloatSize m_size;
-	FloatSize m_logicalSize;
-	float m_resolutionScale;
+    ColorFormat backendColorFormat() const override;
+    AlphaPremultiplication backendAlphaPremultiplication() const override;
+
+    ImageBufferData m_data;
 };
 
 } // namespace WebCore
