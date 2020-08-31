@@ -1002,7 +1002,7 @@ void FrameLoaderClientHaiku::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld
 
 Ref<FrameNetworkingContext> FrameLoaderClientHaiku::createNetworkingContext()
 {
-    return FrameNetworkingContextHaiku::create(m_webFrame->Frame(), m_webPage->GetContext());
+    return FrameNetworkingContextHaiku::create(m_webFrame->Frame(), m_webPage->GetSession());
 }
 
 // #pragma mark - private

@@ -34,7 +34,7 @@
 
 #include <memory>
 
-class BUrlContext;
+class BUrlSession;
 class BWebPage;
 
 namespace WebCore {
@@ -53,7 +53,7 @@ public:
 	};
 
 public:
-								BWebView(const char* name, BUrlContext* context = nullptr);
+								BWebView(const char* name, BUrlSession* session = nullptr);
 	virtual						~BWebView();
 
 	// The BWebView needs to be deleted by the BWebPage instance running

@@ -57,9 +57,9 @@
 #include <stdio.h>
 
 enum {
-	OPEN_LOCATION = 'open',
-	OPEN_INSPECTOR = 'insp',
-	SAVE_PAGE = 'save',
+    OPEN_LOCATION = 'open',
+    OPEN_INSPECTOR = 'insp',
+    SAVE_PAGE = 'save',
     GO_BACK = 'goba',
     GO_FORWARD = 'gofo',
     STOP = 'stop',
@@ -71,21 +71,21 @@ enum {
     TEXT_SIZE_RESET = 'tsrs',
 };
 
-LauncherWindow::LauncherWindow(BRect frame, ToolbarPolicy toolbarPolicy)
+LauncherWindow::LauncherWindow(BRect frame, BUrlSession* session, ToolbarPolicy toolbarPolicy)
     : BWebWindow(frame, "HaikuLauncher",
         B_DOCUMENT_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
         B_AUTO_UPDATE_SIZE_LIMITS | B_ASYNCHRONOUS_CONTROLS)
 {
-	init(new BWebView("web view"), toolbarPolicy);
+    init(new BWebView("web view", session), toolbarPolicy);
 }
 
 LauncherWindow::LauncherWindow(BRect frame, BWebView* webView,
-		ToolbarPolicy toolbarPolicy)
+        ToolbarPolicy toolbarPolicy)
     : BWebWindow(frame, "HaikuLauncher",
         B_DOCUMENT_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
         B_AUTO_UPDATE_SIZE_LIMITS | B_ASYNCHRONOUS_CONTROLS)
 {
-	init(webView, toolbarPolicy);
+    init(webView, toolbarPolicy);
 }
 
 LauncherWindow::~LauncherWindow()
@@ -95,23 +95,23 @@ LauncherWindow::~LauncherWindow()
 
 void LauncherWindow::DispatchMessage(BMessage* message, BHandler* target)
 {
-	if (m_url && message->what == B_KEY_DOWN && target == m_url->TextView()) {
-		// Handle B_RETURN in the URL text control. This is the easiest
-		// way to react *only* when the user presses the return key in the
-		// address bar, as opposed to trying to load whatever is in there when
-		// the text control just goes out of focus.
-	    const char* bytes;
-	    if (message->FindString("bytes", &bytes) == B_OK
-	    	&& bytes[0] == B_RETURN) {
-	    	// Do it in such a way that the user sees the Go-button go down.
-	    	m_goButton->SetValue(B_CONTROL_ON);
-	    	UpdateIfNeeded();
-	    	m_goButton->Invoke();
-	    	snooze(1000);
-	    	m_goButton->SetValue(B_CONTROL_OFF);
-	    }
-	}
-	BWebWindow::DispatchMessage(message, target);
+    if (m_url && message->what == B_KEY_DOWN && target == m_url->TextView()) {
+        // Handle B_RETURN in the URL text control. This is the easiest
+        // way to react *only* when the user presses the return key in the
+        // address bar, as opposed to trying to load whatever is in there when
+        // the text control just goes out of focus.
+        const char* bytes;
+        if (message->FindString("bytes", &bytes) == B_OK
+            && bytes[0] == B_RETURN) {
+            // Do it in such a way that the user sees the Go-button go down.
+            m_goButton->SetValue(B_CONTROL_ON);
+            UpdateIfNeeded();
+            m_goButton->Invoke();
+            snooze(1000);
+            m_goButton->SetValue(B_CONTROL_OFF);
+        }
+    }
+    BWebWindow::DispatchMessage(message, target);
 }
 
 void LauncherWindow::MessageReceived(BMessage* message)
@@ -119,36 +119,36 @@ void LauncherWindow::MessageReceived(BMessage* message)
     switch (message->what) {
     case OPEN_LOCATION:
         if (m_url) {
-        	if (m_url->TextView()->IsFocus())
-        	    m_url->TextView()->SelectAll();
-        	else
-        	    m_url->MakeFocus(true);
+            if (m_url->TextView()->IsFocus())
+                m_url->TextView()->SelectAll();
+            else
+                m_url->MakeFocus(true);
         }
-    	break;
+        break;
     case OPEN_INSPECTOR: {
         // FIXME: wouldn't the view better be in the same window?
         BRect frame = Frame();
         frame.OffsetBy(20, 20);
-        LauncherWindow* inspectorWindow = new LauncherWindow(frame);
+        LauncherWindow* inspectorWindow = new LauncherWindow(frame, (BUrlSession*)NULL);
         inspectorWindow->Show();
 
         CurrentWebView()->SetInspectorView(inspectorWindow->CurrentWebView());
         break;
     }
-	case SAVE_PAGE: {
-		BMessage* message = new BMessage(B_SAVE_REQUESTED);
-		message->AddPointer("page", CurrentWebView()->WebPage());
-        
+    case SAVE_PAGE: {
+        BMessage* message = new BMessage(B_SAVE_REQUESTED);
+        message->AddPointer("page", CurrentWebView()->WebPage());
+
         if (m_saveFilePanel == NULL) {
-	        m_saveFilePanel = new BFilePanel(B_SAVE_PANEL, NULL, NULL,
+            m_saveFilePanel = new BFilePanel(B_SAVE_PANEL, NULL, NULL,
                 B_DIRECTORY_NODE, false);
         }
 
         m_saveFilePanel->SetSaveText(CurrentWebView()->WebPage()->MainFrameTitle());
         m_saveFilePanel->SetMessage(message);
-		m_saveFilePanel->Show();
-		break;
-	}
+        m_saveFilePanel->Show();
+        break;
+    }
 
     case RELOAD:
         CurrentWebView()->Reload();
@@ -156,7 +156,7 @@ void LauncherWindow::MessageReceived(BMessage* message)
     case GOTO_URL: {
         BString url;
         if (message->FindString("url", &url) != B_OK)
-        	url = m_url->Text();
+            url = m_url->Text();
         CurrentWebView()->LoadURL(url.String());
         break;
     }
@@ -239,12 +239,12 @@ void LauncherWindow::NewWindowRequested(const BString& url, bool primaryAction)
 }
 
 void LauncherWindow::NewPageCreated(BWebView* view, BRect windowFrame,
-	bool modalDialog, bool resizable, bool activate)
+    bool modalDialog, bool resizable, bool activate)
 {
-	if (!windowFrame.IsValid())
-		windowFrame = Frame().OffsetByCopy(10, 10);
-	LauncherWindow* window = new LauncherWindow(windowFrame, view, HaveToolbar);
-	window->Show();
+    if (!windowFrame.IsValid())
+        windowFrame = Frame().OffsetByCopy(10, 10);
+    LauncherWindow* window = new LauncherWindow(windowFrame, view, HaveToolbar);
+    window->Show();
 }
 
 void LauncherWindow::LoadNegotiating(const BString& url, BWebView* view)
@@ -256,7 +256,7 @@ void LauncherWindow::LoadNegotiating(const BString& url, BWebView* view)
 
 void LauncherWindow::LoadCommitted(const BString& url, BWebView* view)
 {
-	// This hook is invoked when the load is commited.
+    // This hook is invoked when the load is commited.
     if (m_url)
         m_url->SetText(url.String());
 
@@ -343,21 +343,21 @@ void LauncherWindow::NavigationCapabilitiesChanged(bool canGoBackward,
 
 bool
 LauncherWindow::AuthenticationChallenge(BString message, BString& inOutUser,
-	BString& inOutPassword, bool& inOutRememberCredentials,
-	uint32 failureCount, BWebView* view)
+    BString& inOutPassword, bool& inOutRememberCredentials,
+    uint32 failureCount, BWebView* view)
 {
-	AuthenticationPanel* panel = new AuthenticationPanel(Frame());
-		// Panel auto-destructs.
-	bool success = panel->getAuthentication(message, inOutUser, inOutPassword,
-		inOutRememberCredentials, failureCount > 0, inOutUser, inOutPassword,
-		&inOutRememberCredentials);
-	return success;
+    AuthenticationPanel* panel = new AuthenticationPanel(Frame());
+        // Panel auto-destructs.
+    bool success = panel->getAuthentication(message, inOutUser, inOutPassword,
+        inOutRememberCredentials, failureCount > 0, inOutUser, inOutPassword,
+        &inOutRememberCredentials);
+    return success;
 }
 
 
 void LauncherWindow::init(BWebView* webView, ToolbarPolicy toolbarPolicy)
 {
-	SetCurrentWebView(webView);
+    SetCurrentWebView(webView);
 
     if (toolbarPolicy == HaveToolbar) {
         // Menu
@@ -370,7 +370,7 @@ void LauncherWindow::init(BWebView* webView, ToolbarPolicy toolbarPolicy)
         newItem->SetTarget(be_app);
         menu->AddItem(new BMenuItem("Open location", new BMessage(OPEN_LOCATION), 'L'));
         menu->AddItem(new BMenuItem("Inspect page", new BMessage(OPEN_INSPECTOR), 'I'));
-	    menu->AddItem(new BMenuItem("Save page", new BMessage(SAVE_PAGE), 'S'));
+        menu->AddItem(new BMenuItem("Save page", new BMessage(SAVE_PAGE), 'S'));
         menu->AddSeparatorItem();
         menu->AddItem(new BMenuItem("Close", new BMessage(B_QUIT_REQUESTED), 'W', B_SHIFT_KEY));
         BMenuItem* quitItem = new BMenuItem("Quit", new BMessage(B_QUIT_REQUESTED), 'Q');

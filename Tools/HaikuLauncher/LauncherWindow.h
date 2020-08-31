@@ -43,6 +43,7 @@ class BStatusBar;
 class BStringView;
 class BTextControl;
 class BWebView;
+class BUrlSession;
 
 enum ToolbarPolicy {
     HaveToolbar,
@@ -57,7 +58,7 @@ enum {
 
 class LauncherWindow : public BWebWindow {
 public:
-    LauncherWindow(BRect frame, ToolbarPolicy = HaveToolbar);
+    LauncherWindow(BRect frame, BUrlSession*, ToolbarPolicy = HaveToolbar);
     LauncherWindow(BRect frame, BWebView* view, ToolbarPolicy = HaveToolbar);
     virtual ~LauncherWindow();
 

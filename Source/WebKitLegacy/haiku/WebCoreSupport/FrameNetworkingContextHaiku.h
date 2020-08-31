@@ -33,22 +33,22 @@
 
 #include <support/Locker.h>
 #include <Referenceable.h>
-#include <UrlContext.h>
+#include <UrlSession.h>
 
 namespace WebCore {
 
 class FrameNetworkingContextHaiku : public WebCore::FrameNetworkingContext {
 public:
-    static Ref<FrameNetworkingContextHaiku> create(Frame*, BUrlContext* context);
+    static Ref<FrameNetworkingContextHaiku> create(Frame*, BUrlSession*);
     virtual ~FrameNetworkingContextHaiku();
 
     WebCore::Frame* coreFrame() const { return frame(); }
     virtual uint64_t initiatingPageID() const;
 
-    BUrlContext* context();
+    BUrlSession* session();
 
 private:
-    FrameNetworkingContextHaiku(Frame*, BUrlContext* context);
+    FrameNetworkingContextHaiku(Frame*, BUrlSession*);
     WebCore::NetworkStorageSession* storageSession() const override;
 };
 

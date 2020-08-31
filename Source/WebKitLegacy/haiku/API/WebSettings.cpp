@@ -46,7 +46,6 @@
 #include <Font.h>
 #include <Path.h>
 #include <stdio.h>
-#include <UrlContext.h>
 
 enum {
 	HANDLE_SET_PERSISTENT_STORAGE_PATH = 'hspp',
@@ -524,7 +523,7 @@ void BWebSettings::_HandleSetProxyInfo(BMessage* message)
     // TODO there could be a cleaner way of accessing the default context from here.
     RefPtr<WebCore::FrameNetworkingContextHaiku> context
         = WebCore::FrameNetworkingContextHaiku::create(nullptr, nullptr);
-    context->context()->SetProxy(host, port);
+    context->session()->SetProxy(host, port);
 }
 
 void BWebSettings::_HandleApply()

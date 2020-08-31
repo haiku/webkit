@@ -36,7 +36,7 @@
 #include "Page.h"
 #include "ResourceHandle.h"
 
-#include <UrlContext.h>
+#include <UrlSession.h>
 #include <wtf/NeverDestroyed.h>
 
 namespace WebCore {
@@ -47,22 +47,22 @@ static std::unique_ptr<NetworkStorageSession>& privateSession()
     return session;
 }
 
-Ref<FrameNetworkingContextHaiku> FrameNetworkingContextHaiku::create(Frame* frame, BUrlContext* context)
+Ref<FrameNetworkingContextHaiku> FrameNetworkingContextHaiku::create(Frame* frame, BUrlSession* session)
 {
-    return adoptRef(*new FrameNetworkingContextHaiku(frame, context));
+    return adoptRef(*new FrameNetworkingContextHaiku(frame, session));
 }
 
-FrameNetworkingContextHaiku::FrameNetworkingContextHaiku(Frame* frame, BUrlContext* context)
+FrameNetworkingContextHaiku::FrameNetworkingContextHaiku(Frame* frame, BUrlSession* session)
     : FrameNetworkingContext(frame)
 {
-    storageSession()->setPlatformSession(context);
+    storageSession()->setPlatformSession(session);
 }
 
 FrameNetworkingContextHaiku::~FrameNetworkingContextHaiku()
 {
 }
 
-BUrlContext* FrameNetworkingContextHaiku::context()
+BUrlSession* FrameNetworkingContextHaiku::session()
 {
     return &storageSession()->platformSession();
 }

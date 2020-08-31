@@ -8,6 +8,8 @@
 
 #include "WebPage.h"
 
+#include <UrlRequest.h>
+
 namespace WebCore {
 
 BNotification
@@ -27,20 +29,21 @@ NotificationClientHaiku::fromDescriptor(Notification* descriptor)
     // with some changes for an update.
     BUrl iconURL(descriptor->icon());
     BMallocIO buffer;
-    BUrlRequest* request = BUrlProtocolRoster::MakeRequest(iconURL, &buffer);
-    if (request) {
-        thread_id thread = request->Run();
-        status_t dummy;
-        if (thread > B_OK)
-            wait_for_thread(thread, &dummy);
+    BUrlSession session;
+    if (session.InitCheck() == B_OK) {
+        BUrlRequest* request = session.MakeRequest(iconURL, &buffer);
+        if (request) {
+            if (request->Run())
+                request->WaitForCompletion();
 
-        BBitmap* bitmap = BTranslationUtils::GetBitmap(&buffer);
-        if (bitmap) {
-            notification.SetIcon(bitmap);
-            delete bitmap;
+            BBitmap* bitmap = BTranslationUtils::GetBitmap(&buffer);
+            if (bitmap) {
+                notification.SetIcon(bitmap);
+                delete bitmap;
+            }
+
+            delete request;
         }
-
-        delete request;
     }
 
     notification.SetMessageID(descriptor->tag());
