@@ -526,5 +526,11 @@ WebCore::IntRect ChromeClientHaiku::rootViewToAccessibilityScreen(WebCore::IntRe
 	return rect;
 }
 
+
+std::unique_ptr<WebCore::DateTimeChooser> ChromeClientHaiku::createDateTimeChooser(WebCore::DateTimeChooserClient& client)
+{
+    return std::make_unique<DateTimeChooserHaiku>(&client);
+}
+
 } // namespace WebCore
 
