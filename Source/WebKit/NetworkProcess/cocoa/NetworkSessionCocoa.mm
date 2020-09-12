@@ -674,6 +674,9 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
         }
         ALLOW_DEPRECATED_DECLARATIONS_END
 
+        if (negotiatedLegacyTLS == NegotiatedLegacyTLS::Yes && task._preconnect)
+            return completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+
         // Handle server trust evaluation at platform-level if requested, for performance reasons and to use ATS defaults.
         if (sessionCocoa->fastServerTrustEvaluationEnabled() && negotiatedLegacyTLS == NegotiatedLegacyTLS::No) {
             auto* networkDataTask = [self existingTask:task];
@@ -1018,8 +1021,10 @@ static inline void processServerTrustEvaluation(NetworkSessionCocoa& session, Se
 - (void)URLSession:(NSURLSession *)session webSocketTask:(NSURLSessionWebSocketTask *)task didCloseWithCode:(NSURLSessionWebSocketCloseCode)closeCode reason:(NSData *)reason
 {
     if (auto* webSocketTask = [self existingWebSocketTask:task]) {
-        auto reason = adoptNS([[NSString alloc] initWithData:[task closeReason] encoding:NSUTF8StringEncoding]);
-        webSocketTask->didClose(closeCode, reason.get());
+        ASSERT([reason isEqualToData:task.closeReason]);
+        ASSERT(closeCode == [task closeCode]);
+        auto closeReason = adoptNS([[NSString alloc] initWithData:reason encoding:NSUTF8StringEncoding]);
+        webSocketTask->didClose(closeCode, closeReason.get());
     }
 }
 #endif
@@ -1543,6 +1548,12 @@ void NetworkSessionCocoa::continueDidReceiveChallenge(SessionWrapper& sessionWra
 #endif
         completionHandler(disposition, credential);
     };
+
+    if (negotiatedLegacyTLS == NegotiatedLegacyTLS::Yes
+        && fastServerTrustEvaluationEnabled()
+        && !networkDataTask->isTopLevelNavigation())
+        return challengeCompletionHandler(AuthenticationChallengeDisposition::Cancel, { });
+
     networkDataTask->didReceiveChallenge(WTFMove(authenticationChallenge), negotiatedLegacyTLS, WTFMove(challengeCompletionHandler));
 }
 
@@ -1562,8 +1573,14 @@ DMFWebsitePolicyMonitor *NetworkSessionCocoa::deviceManagementPolicyMonitor()
 #if HAVE(NSURLSESSION_WEBSOCKET)
 std::unique_ptr<WebSocketTask> NetworkSessionCocoa::createWebSocketTask(NetworkSocketChannel& channel, const WebCore::ResourceRequest& request, const String& protocol)
 {
-    // FIXME: Use protocol.
-    RetainPtr<NSURLSessionWebSocketTask> task = [m_sessionWithCredentialStorage.session webSocketTaskWithRequest:request.nsURLRequest(WebCore::HTTPBodyUpdatePolicy::DoNotUpdateHTTPBody)];
+    ASSERT(!request.hasHTTPHeaderField(WebCore::HTTPHeaderName::SecWebSocketProtocol));
+    auto *nsRequest = request.nsURLRequest(WebCore::HTTPBodyUpdatePolicy::DoNotUpdateHTTPBody);
+    if (!protocol.isNull()) {
+        NSMutableURLRequest *requestWithProtocols = [[nsRequest mutableCopy] autorelease];
+        [requestWithProtocols addValue: StringView(protocol).createNSString().get() forHTTPHeaderField:@"Sec-WebSocket-Protocol"];
+        nsRequest = requestWithProtocols;
+    }
+    RetainPtr<NSURLSessionWebSocketTask> task = [m_sessionWithCredentialStorage.session webSocketTaskWithRequest:nsRequest];
     return makeUnique<WebSocketTask>(channel, WTFMove(task));
 }
 

@@ -83,7 +83,7 @@ void InlineFormattingContext::layoutInFlowContent(InvalidationState& invalidatio
 
     invalidateFormattingState(invalidationState);
     auto* layoutBox = root().firstInFlowOrFloatingChild();
-    // 1. Visit each inline box and partially compute their geometry (margins, paddings and borders).
+    // 1. Visit each inline box and partially compute their geometry (margins, padding and borders).
     // 2. Collect the inline items (flatten the the layout tree) and place them on lines in bidirectional order. 
     while (layoutBox) {
         ASSERT(layoutBox->isInlineLevelBox() || layoutBox->isFloatingPositioned());
@@ -113,7 +113,7 @@ void InlineFormattingContext::layoutInFlowContent(InvalidationState& invalidatio
         } else if (layoutBox->isInlineBox()) {
             // Text wrapper boxes (anonymous inline level boxes) and <br>s don't generate display boxes (only display runs).
             if (!layoutBox->isInlineTextBox() && !layoutBox->isLineBreakBox()) {
-                // Inline boxes (<span>) can't get sized/positioned yet. At this point we can only compute their margins, borders and paddings.
+                // Inline boxes (<span>) can't get sized/positioned yet. At this point we can only compute their margins, borders and padding.
                 computeBorderAndPadding(*layoutBox, constraints.horizontal);
                 computeHorizontalMargin(*layoutBox, constraints.horizontal);
                 formattingState().displayBox(*layoutBox).setVerticalMargin({ });
@@ -203,7 +203,7 @@ FormattingContext::IntrinsicWidthConstraints InlineFormattingContext::computedIn
     Vector<const Box*> formattingContextRootList;
     auto horizontalConstraints = HorizontalConstraints { 0_lu, 0_lu };
     auto* layoutBox = root().firstInFlowOrFloatingChild();
-    // In order to compute the max/min widths, we need to compute margins, borders and paddings for certain inline boxes first.
+    // In order to compute the max/min widths, we need to compute margins, borders and padding for certain inline boxes first.
     while (layoutBox) {
         if (layoutBox->isInlineTextBox() || layoutBox->isLineBreakBox()) {
             layoutBox = nextInlineLevelBoxToLayout(*layoutBox, root());
@@ -569,8 +569,7 @@ void InlineFormattingContext::setDisplayBoxesForLine(const LineLayoutContext::Li
         ASSERT_NOT_REACHED();
     }
     // FIXME: This is where the logical to physical translate should happen.
-    auto& baseline = lineBox.baseline();
-    inlineContent.lineBoxes.append({ lineBox.logicalRect(), lineBox.scrollableOverflow(), lineInkOverflow, { baseline.ascent(), baseline.descent() }, lineBox.baselineOffset() });
+    inlineContent.lineBoxes.append({ lineBox.logicalRect(), lineBox.scrollableOverflow(), lineInkOverflow, lineBox.alignmentBaseline() });
 }
 
 void InlineFormattingContext::invalidateFormattingState(const InvalidationState&)

@@ -77,8 +77,8 @@ ExceptionOr<Ref<AudioBufferSourceNode>> AudioBufferSourceNode::create(BaseAudioC
 
 AudioBufferSourceNode::AudioBufferSourceNode(BaseAudioContext& context)
     : AudioScheduledSourceNode(context)
-    , m_detune(AudioParam::create(context, "detune"_s, 0.0, -FLT_MAX, FLT_MAX))
-    , m_playbackRate(AudioParam::create(context, "playbackRate"_s, 1.0, -FLT_MAX, FLT_MAX))
+    , m_detune(AudioParam::create(context, "detune"_s, 0.0, -FLT_MAX, FLT_MAX, AutomationRate::KRate, AutomationRateMode::Fixed))
+    , m_playbackRate(AudioParam::create(context, "playbackRate"_s, 1.0, -FLT_MAX, FLT_MAX, AutomationRate::KRate, AutomationRateMode::Fixed))
     , m_grainDuration(DefaultGrainDuration)
 {
     setNodeType(NodeTypeAudioBufferSource);
@@ -245,9 +245,8 @@ bool AudioBufferSourceNode::renderFromBuffer(AudioBus* bus, unsigned destination
         virtualDeltaFrames = virtualMaxFrame - virtualMinFrame;
     }
 
-
     // Sanity check that our playback rate isn't larger than the loop size.
-    if (fabs(pitchRate) >= virtualDeltaFrames)
+    if (std::abs(pitchRate) > virtualDeltaFrames)
         return false;
 
     // Get local copy.
@@ -418,10 +417,13 @@ void AudioBufferSourceNode::reset()
     m_lastGain = legacyGainValue();
 }
 
-void AudioBufferSourceNode::setBuffer(RefPtr<AudioBuffer>&& buffer)
+ExceptionOr<void> AudioBufferSourceNode::setBuffer(RefPtr<AudioBuffer>&& buffer)
 {
     ASSERT(isMainThread());
     DEBUG_LOG(LOGIDENTIFIER);
+
+    if (buffer && m_wasBufferSet && shouldThrowOnAttemptToOverwriteBuffer())
+        return Exception { InvalidStateError, "The buffer was already set"_s };
 
     // The context must be locked since changing the buffer can re-configure the number of channels that are output.
     BaseAudioContext::AutoLocker contextLocker(context());
@@ -430,6 +432,8 @@ void AudioBufferSourceNode::setBuffer(RefPtr<AudioBuffer>&& buffer)
     auto locker = holdLock(m_processMutex);
     
     if (buffer) {
+        m_wasBufferSet = true;
+
         // Do any necesssary re-configuration to the buffer's number of channels.
         unsigned numberOfChannels = buffer->numberOfChannels();
         ASSERT(numberOfChannels <= AudioContext::maxNumberOfChannels());
@@ -445,6 +449,7 @@ void AudioBufferSourceNode::setBuffer(RefPtr<AudioBuffer>&& buffer)
 
     m_virtualReadIndex = 0;
     m_buffer = WTFMove(buffer);
+    return { };
 }
 
 unsigned AudioBufferSourceNode::numberOfChannels()
@@ -505,7 +510,7 @@ ExceptionOr<void> AudioBufferSourceNode::startPlaying(BufferPlaybackMode playbac
         // at a sub-sample position since it will degrade the quality.
         // When aligned to the sample-frame the playback will be identical to the PCM data stored in the buffer.
         // Since playbackRate == 1 is very common, it's worth considering quality.
-        if (totalPitchRate() < 0)
+        if (playbackRate().value() < 0)
             m_virtualReadIndex = AudioUtilities::timeToSampleFrame(m_grainOffset + m_grainDuration, buffer()->sampleRate()) - 1;
         else
             m_virtualReadIndex = AudioUtilities::timeToSampleFrame(m_grainOffset, buffer()->sampleRate());
@@ -525,10 +530,10 @@ double AudioBufferSourceNode::totalPitchRate()
     // Normally it's not an issue because buffers are loaded at the AudioContext's sample-rate, but we can handle it in any case.
     double sampleRateFactor = 1.0;
     if (buffer())
-        sampleRateFactor = buffer()->sampleRate() / sampleRate();
+        sampleRateFactor = buffer()->sampleRate() / static_cast<double>(sampleRate());
     
-    double basePitchRate = playbackRate().value();
-    double detune = pow(2, m_detune->value() / 1200);
+    double basePitchRate = playbackRate().finalValue();
+    double detune = pow(2, m_detune->finalValue() / 1200);
 
     double totalRate = dopplerRate * sampleRateFactor * basePitchRate * detune;
 

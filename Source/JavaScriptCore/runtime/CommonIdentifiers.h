@@ -54,6 +54,7 @@
     macro(RegExp) \
     macro(RelativeTimeFormat) \
     macro(RemotePlayback) \
+    macro(Segmenter) \
     macro(Set) \
     macro(SharedArrayBuffer) \
     macro(String) \
@@ -92,6 +93,7 @@
     macro(constructor) \
     macro(count) \
     macro(counters) \
+    macro(dateStyle) \
     macro(day) \
     macro(defineProperty) \
     macro(deref) \
@@ -119,6 +121,7 @@
     macro(get) \
     macro(global) \
     macro(go) \
+    macro(granularity) \
     macro(groups) \
     macro(has) \
     macro(hasOwnProperty) \
@@ -139,6 +142,7 @@
     macro(isPrototypeOf) \
     macro(isView) \
     macro(isWatchpoint) \
+    macro(isWordLike) \
     macro(jettisonReason) \
     macro(join) \
     macro(language) \
@@ -176,6 +180,7 @@
     macro(resolve) \
     macro(script) \
     macro(second) \
+    macro(segment) \
     macro(sensitivity) \
     macro(set) \
     macro(size) \
@@ -193,6 +198,7 @@
     macro(test) \
     macro(then) \
     macro(time) \
+    macro(timeStyle) \
     macro(timeZone) \
     macro(timeZoneName) \
     macro(toExponential) \

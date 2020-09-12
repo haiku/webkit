@@ -26,8 +26,18 @@
 
 // @internal
 
+function markPromiseAsHandled(promise)
+{
+    "use strict";
+
+    @assert(@isPromise(promise));
+    @putPromiseInternalField(promise, @promiseFieldFlags, @getPromiseInternalField(promise, @promiseFieldFlags) | @promiseFlagsIsHandled);
+}
+
 function shieldingPromiseResolve(result)
 {
+    "use strict";
+
     const promise = @Promise.@resolve(result);
     if (promise.@then === @undefined)
         promise.@then = @Promise.prototype.@then;
@@ -176,4 +186,11 @@ function extractHighWaterMark(strategy, defaultHWM)
         @throwRangeError("highWaterMark value is negative or not a number");
 
     return highWaterMark;
+}
+
+function createFulfilledPromise(value)
+{
+    const promise = @newPromise();
+    @fulfillPromise(promise, value);
+    return promise;
 }

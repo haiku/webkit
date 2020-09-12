@@ -30,6 +30,7 @@
 #include "ShareableBitmap.h"
 #include "WebColorPicker.h"
 #include "WebDataListSuggestionsDropdown.h"
+#include "WebDateTimePicker.h"
 #include "WebPopupMenuProxy.h"
 #include <WebCore/ActivityState.h>
 #include <WebCore/AlternativeTextClient.h>
@@ -158,6 +159,10 @@ class WebColorPicker;
 class WebDataListSuggestionsDropdown;
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+class WebDateTimePicker;
+#endif
+
 #if ENABLE(FULLSCREEN_API)
 class WebFullScreenManagerProxyClient;
 #endif
@@ -204,8 +209,7 @@ public:
     virtual bool isViewVisible() = 0;
 
 #if PLATFORM(IOS_FAMILY)
-    // Return whether the application is visible.
-    virtual bool isApplicationVisible() = 0;
+    virtual bool canTakeForegroundAssertions() = 0;
 #endif
 
     // Return whether the view is visible, or occluded by another window.
@@ -337,6 +341,10 @@ public:
 
 #if ENABLE(DATALIST_ELEMENT)
     virtual RefPtr<WebDataListSuggestionsDropdown> createDataListSuggestionsDropdown(WebPageProxy&) = 0;
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    virtual RefPtr<WebDateTimePicker> createDateTimePicker(WebPageProxy&) = 0;
 #endif
 
 #if PLATFORM(COCOA)

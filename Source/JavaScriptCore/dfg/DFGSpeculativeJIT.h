@@ -1405,8 +1405,8 @@ public:
     void compileRegExpTest(Node*);
     void compileStringReplace(Node*);
     void compileIsObject(Node*);
-    void compileIsObjectOrNull(Node*);
-    void compileIsFunction(Node*);
+    void compileTypeOfIsObject(Node*);
+    void compileIsCallable(Node*, S_JITOperation_GC);
     void compileIsConstructor(Node*);
     void compileTypeOf(Node*);
     void compileCheckIsConstant(Node*);
@@ -1466,7 +1466,7 @@ public:
     void compileNewArrayWithSize(Node*);
     void compileNewTypedArray(Node*);
     void compileToThis(Node*);
-    void compileObjectKeys(Node*);
+    void compileObjectKeysOrObjectGetOwnPropertyNames(Node*);
     void compileObjectCreate(Node*);
     void compileCreateThis(Node*);
     void compileCreatePromise(Node*);

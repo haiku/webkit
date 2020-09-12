@@ -31,7 +31,8 @@
 
 #pragma once
 
-#include "PageScriptDebugServer.h"
+#include "InspectorOverlay.h"
+#include "PageDebugger.h"
 #include <JavaScriptCore/InspectorAgentRegistry.h>
 #include <JavaScriptCore/InspectorEnvironment.h>
 #include <wtf/Forward.h>
@@ -120,7 +121,7 @@ public:
     Inspector::InspectorEvaluateHandler evaluateHandler() const override;
     void frontendInitialized() override;
     WTF::Stopwatch& executionStopwatch() const final;
-    PageScriptDebugServer& scriptDebugServer() override;
+    PageDebugger& debugger() override;
     JSC::VM& vm() override;
 
 private:
@@ -135,7 +136,7 @@ private:
     Ref<Inspector::BackendDispatcher> m_backendDispatcher;
     std::unique_ptr<InspectorOverlay> m_overlay;
     Ref<WTF::Stopwatch> m_executionStopwatch;
-    PageScriptDebugServer m_scriptDebugServer;
+    PageDebugger m_debugger;
     Inspector::AgentRegistry m_agents;
 
     Page& m_page;

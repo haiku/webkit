@@ -35,7 +35,6 @@ import tempfile
 import re
 
 from webkitpy.common.system.logutils import configure_logging
-import webkitpy.thirdparty.autoinstalled.toml
 import toml
 
 try:
@@ -714,7 +713,8 @@ class WebkitFlatpak:
                 "--socket=x11",
                 "--system-talk-name=org.a11y.Bus",
                 "--system-talk-name=org.freedesktop.GeoClue2",
-                "--talk-name=org.freedesktop.Flatpak"
+                "--talk-name=org.freedesktop.Flatpak",
+                "--talk-name=org.freedesktop.secrets"
             ])
 
             sandbox_environment.update({

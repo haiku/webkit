@@ -49,6 +49,8 @@ JSCell* JIT_OPERATION operationCallObjectConstructor(JSGlobalObject*, EncodedJSV
 JSCell* JIT_OPERATION operationToObject(JSGlobalObject*, EncodedJSValue encodedTarget, UniquedStringImpl*) WTF_INTERNAL;
 JSArray* JIT_OPERATION operationObjectKeys(JSGlobalObject*, EncodedJSValue) WTF_INTERNAL;
 JSArray* JIT_OPERATION operationObjectKeysObject(JSGlobalObject*, JSObject*) WTF_INTERNAL;
+JSArray* JIT_OPERATION operationObjectGetOwnPropertyNames(JSGlobalObject*, EncodedJSValue) WTF_INTERNAL;
+JSArray* JIT_OPERATION operationObjectGetOwnPropertyNamesObject(JSGlobalObject*, JSObject*) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationObjectCreate(JSGlobalObject*, EncodedJSValue) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationObjectCreateObject(JSGlobalObject*, JSObject*) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationCreateThis(JSGlobalObject*, JSObject* constructor, uint32_t inlineCapacity) WTF_INTERNAL;
@@ -213,8 +215,9 @@ JSCell* JIT_OPERATION operationMapSet(JSGlobalObject*, JSCell*, EncodedJSValue, 
 void JIT_OPERATION operationWeakSetAdd(VM*, JSCell*, JSCell*, int32_t) WTF_INTERNAL;
 void JIT_OPERATION operationWeakMapSet(VM*, JSCell*, JSCell*, EncodedJSValue, int32_t) WTF_INTERNAL;
 double JIT_OPERATION operationFModOnInts(int32_t, int32_t) WTF_INTERNAL;
-size_t JIT_OPERATION operationObjectIsObject(JSGlobalObject*, JSCell*) WTF_INTERNAL;
-size_t JIT_OPERATION operationObjectIsFunction(JSGlobalObject*, JSCell*) WTF_INTERNAL;
+size_t JIT_OPERATION operationTypeOfIsObject(JSGlobalObject*, JSCell*) WTF_INTERNAL;
+size_t JIT_OPERATION operationTypeOfIsFunction(JSGlobalObject*, JSCell*) WTF_INTERNAL;
+size_t JIT_OPERATION operationObjectIsCallable(JSGlobalObject*, JSCell*) WTF_INTERNAL;
 size_t JIT_OPERATION operationIsConstructor(JSGlobalObject*, EncodedJSValue) WTF_INTERNAL;
 JSCell* JIT_OPERATION operationTypeOfObject(JSGlobalObject*, JSCell*) WTF_INTERNAL;
 char* JIT_OPERATION operationAllocateSimplePropertyStorageWithInitialCapacity(VM*) WTF_INTERNAL;

@@ -20,14 +20,24 @@ scrollingcoordinator/ios/ [ Skip ]
 # ask for triaging.
 #//////////////////////////////////////////////////////////////////////////////////////////
 
+# Complex Text Path: Tests passing with --complex-text
+webkit.org/b/215355 fonts/ligature.html [ ImageOnlyFailure ]
+webkit.org/b/215421 fast/encoding/denormalised-voiced-japanese-chars.html [ ImageOnlyFailure ]
+
 # CSS3
 webkit.org/b/213829 css3/calc/background-position-parsing.html [ ImageOnlyFailure ]
 
-# Fonts
-webkit.org/b/215355 fonts/ligature.html [ ImageOnlyFailure ]
+# Flexbox layout
+webkit.org/b/215502 fast/flexbox/image-percent-max-height.html [ Failure Pass ]
 
 # Paint Timing
 webkit.org/b/211221 http/tests/performance/paint-timing/performance-paint-timing-fcp-after-visually-non-empty-for-num-chars.html [ Pass Failure ]
+
+# Scrolling coordinator
+webkit.org/b/215508 [ Release ] scrollingcoordinator/overflow-proxy-reattach.html [ Pass Timeout ]
+
+# Workers
+webkit.org/b/187597 fast/workers/worker-exception-during-navigation.html [ Timeout Pass ]
 
 # WPT tests
 webkit.org/b/215306 imported/w3c/web-platform-tests/html/user-activation/basic.html [ Timeout ]
@@ -488,8 +498,6 @@ webkit.org/b/197708 http/wpt/beacon/cors/cors-preflight-cookie.html [ Failure ]
 webkit.org/b/206652 imported/w3c/web-platform-tests/websockets/constructor/011.html [ Failure ]
 webkit.org/b/206652 imported/w3c/web-platform-tests/websockets/interfaces/WebSocket/bufferedAmount/bufferedAmount-getting.html [ Failure ]
 
-webkit.org/b/206583 webrtc/video-gpuProcess.html [ Failure ]
-
 webkit.org/b/206589 fast/box-shadow/inset-box-shadow.html [ ImageOnlyFailure ]
 
 webkit.org/b/206756 imported/w3c/web-platform-tests/css/css-backgrounds/background-size-025.html [ ImageOnlyFailure ]
@@ -671,11 +679,6 @@ webkit.org/b/213131 compositing/ [ Skip ]
 webkit.org/b/213131 editing/ [ Skip ]
 webkit.org/b/213131 inspector/ [ Skip ]
 webkit.org/b/213131 media/ [ Skip ]
-
-plugins/ [ Skip ]
-http/tests/plugins [ Skip ]
-imported/blink/http/tests/plugins/get-url-notify-on-removal.html [ Skip ]
-imported/blink/plugins/empty-per-context-data.html [ Skip ]
 
 Bug(WPE) fast/autoresize [ Skip ]
 webkit.org/b/213131 fast/files [ Skip ]
@@ -904,7 +907,7 @@ webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrDevice_requestSessio
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrDevice_requestSession_no_mode.https.html [ Pass ]
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrDevice_requestSession_non_immersive_no_gesture.https.html [ Pass ]
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrDevice_requestSession_optionalFeatures.https.html [ Pass ]
-webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrSession_cancelAnimationFrame.https.html [ Pass ]
+webkit.org/b/209859 webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrSession_cancelAnimationFrame.https.html [ Pass Failure ]
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrSession_cancelAnimationFrame_invalidhandle.https.html [ Pass ]
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrSession_features_deviceSupport.https.html [ Pass ]
 webkit.org/b/209859 imported/w3c/web-platform-tests/webxr/xrSession_requestAnimationFrame_callback_calls.https.html [ Pass ]
@@ -918,6 +921,8 @@ imported/w3c/web-platform-tests/webxr/navigator_xr_sameObject.https.html [ Pass 
 imported/w3c/web-platform-tests/webxr/xrFrame_session_sameObject.https.html [ Pass ]
 imported/w3c/web-platform-tests/webxr/xrRigidTransform_constructor.https.html [ Pass ]
 imported/w3c/web-platform-tests/webxr/xrSession_prevent_multiple_exclusive.https.html [ Pass ]
+imported/w3c/web-platform-tests/webxr/render_state_vertical_fov_immersive.https.html [ Pass ]
+imported/w3c/web-platform-tests/webxr/render_state_update.https.html [ Pass ]
 
 # Passing since r259532.
 imported/w3c/web-platform-tests/css/css-ui/outline-019.html
@@ -1331,8 +1336,6 @@ fast/canvas/webgl/webglcontextchangedevent.html [ Timeout ]
 Bug(WPE) security/contentSecurityPolicy/image-with-blob-url-allowed-by-img-src-star-with-AllowContentSecurityPolicySourceStarToMatchAnyProtocol-enabled.html [ Skip ]
 Bug(WPE) security/contentSecurityPolicy/image-with-blob-url-blocked-by-img-src-star.html [ Skip ]
 Bug(WPE) security/contentSecurityPolicy/video-with-blob-url-allowed-by-media-src-star.html [ Skip ]
-# Require QuickTime support
-Bug(WPE) security/contentSecurityPolicy/plugins-types-allows-quicktime-plugin-replacement.html [ Skip ]
 
 # accessibility/
 webkit.org/b/68512 accessibility/aria-hidden-updates-alldescendants.html [ Failure ]
@@ -1643,7 +1646,6 @@ webkit.org/b/184295 http/wpt/loading/redirect-headers.html [ Skip ]
 # This 3 fullscreen tests are still not passing.
 webkit.org/b/185676 fullscreen/requestFullscreen-escape-key.html [ Failure ]
 webkit.org/b/185676 fullscreen/video-controls-rtl.html [ Failure ]
-webkit.org/b/185676 fullscreen/full-screen-plugin.html [ Timeout ]
 
 webkit.org/b/185254 http/tests/cache/disk-cache/redirect-chain-limits.html [ Failure ]
 

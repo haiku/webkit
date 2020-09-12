@@ -156,9 +156,9 @@ class Array;
 
 namespace IPC {
 class Connection;
+class DataReference;
 class Decoder;
 class FormDataReference;
-class SharedBufferDataReference;
 }
 
 namespace WebCore {
@@ -193,9 +193,9 @@ class SubstituteData;
 class TextCheckingRequest;
 class VisiblePosition;
 
-enum DragApplicationFlags : uint8_t;
 enum SyntheticClickType : int8_t;
 enum class DOMPasteAccessResponse : uint8_t;
+enum class DragApplicationFlags : uint8_t;
 enum class DragHandlingMethod : uint8_t;
 enum class EventMakesGamepadsVisible : bool;
 enum class SelectionDirection : uint8_t;
@@ -230,7 +230,6 @@ class HTMLAttachmentElement;
 
 namespace WebKit {
 
-class DataReference;
 class DrawingArea;
 class DownloadID;
 class FindController;
@@ -250,6 +249,7 @@ class WebColorChooser;
 class WebContextMenu;
 class WebContextMenuItemData;
 class WebDataListSuggestionPicker;
+class WebDateTimeChooser;
 class WebDocumentLoader;
 class WebEvent;
 class PlaybackSessionManager;
@@ -437,6 +437,12 @@ public:
     void setActiveDataListSuggestionPicker(WebDataListSuggestionPicker&);
     void didSelectDataListOption(const String&);
     void didCloseSuggestions();
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    void setActiveDateTimeChooser(WebDateTimeChooser&);
+    void didChooseDate(const String&);
+    void didEndDateTimePicker();
 #endif
 
     WebOpenPanelResultListener* activeOpenPanelResultListener() const { return m_activeOpenPanelResultListener.get(); }
@@ -862,7 +868,7 @@ public:
 
     void readSelectionFromPasteboard(const String& pasteboardName, CompletionHandler<void(bool&&)>&&);
     void getStringSelectionForPasteboard(CompletionHandler<void(String&&)>&&);
-    void getDataSelectionForPasteboard(const String pasteboardType, CompletionHandler<void(SharedMemory::Handle&&, uint64_t)>&&);
+    void getDataSelectionForPasteboard(const String pasteboardType, CompletionHandler<void(SharedMemory::IPCHandle&&)>&&);
     void shouldDelayWindowOrderingEvent(const WebKit::WebMouseEvent&, CompletionHandler<void(bool)>&&);
     void acceptsFirstMouse(int eventNumber, const WebKit::WebMouseEvent&, CompletionHandler<void(bool)>&&);
     bool performNonEditingBehaviorForSelector(const String&, WebCore::KeyboardEvent*);
@@ -1213,8 +1219,9 @@ public:
     void addDomainWithPageLevelStorageAccess(const WebCore::RegistrableDomain& topLevelDomain, const WebCore::RegistrableDomain& resourceDomain);
     void wasLoadedWithDataTransferFromPrevalentResource();
     void didLoadFromRegistrableDomain(WebCore::RegistrableDomain&&);
-    void clearLoadedThirdPartyDomains();
-    void loadedThirdPartyDomains(CompletionHandler<void(Vector<WebCore::RegistrableDomain>)>&&);
+    void clearLoadedSubresourceDomains();
+    void getLoadedSubresourceDomains(CompletionHandler<void(Vector<WebCore::RegistrableDomain>)>&&);
+    const HashSet<WebCore::RegistrableDomain>& loadedSubresourceDomains() const { return m_loadedSubresourceDomains; }
 #endif
 
 #if ENABLE(DEVICE_ORIENTATION)
@@ -1225,7 +1232,7 @@ public:
     
 #if ENABLE(ATTACHMENT_ELEMENT)
     void insertAttachment(const String& identifier, Optional<uint64_t>&& fileSize, const String& fileName, const String& contentType, CallbackID);
-    void updateAttachmentAttributes(const String& identifier, Optional<uint64_t>&& fileSize, const String& contentType, const String& fileName, const IPC::SharedBufferDataReference& enclosingImageData, CallbackID);
+    void updateAttachmentAttributes(const String& identifier, Optional<uint64_t>&& fileSize, const String& contentType, const String& fileName, const IPC::DataReference& enclosingImageData, CallbackID);
     void updateAttachmentIcon(const String& identifier, const ShareableBitmap::Handle& qlThumbnailHandle);
 #endif
 
@@ -1728,10 +1735,10 @@ private:
 
     void urlSchemeTaskDidPerformRedirection(uint64_t handlerIdentifier, uint64_t taskIdentifier, WebCore::ResourceResponse&&, WebCore::ResourceRequest&&);
     void urlSchemeTaskDidReceiveResponse(uint64_t handlerIdentifier, uint64_t taskIdentifier, const WebCore::ResourceResponse&);
-    void urlSchemeTaskDidReceiveData(uint64_t handlerIdentifier, uint64_t taskIdentifier, const IPC::SharedBufferDataReference&);
+    void urlSchemeTaskDidReceiveData(uint64_t handlerIdentifier, uint64_t taskIdentifier, const IPC::DataReference&);
     void urlSchemeTaskDidComplete(uint64_t handlerIdentifier, uint64_t taskIdentifier, const WebCore::ResourceError&);
 
-    void setShouldFireEvents(bool);
+    void setIsTakingSnapshotsForApplicationSuspension(bool);
     void setNeedsDOMWindowResizeEvent();
 
     void setIsSuspended(bool);
@@ -1908,6 +1915,10 @@ private:
 
 #if ENABLE(DATALIST_ELEMENT)
     WeakPtr<WebDataListSuggestionPicker> m_activeDataListSuggestionPicker;
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    WeakPtr<WebDateTimeChooser> m_activeDateTimeChooser;
 #endif
 
     RefPtr<WebOpenPanelResultListener> m_activeOpenPanelResultListener;
@@ -2124,7 +2135,7 @@ private:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     HashMap<WebCore::RegistrableDomain, WebCore::RegistrableDomain> m_domainsWithPageLevelStorageAccess;
-    HashSet<WebCore::RegistrableDomain> m_loadedThirdPartyDomains;
+    HashSet<WebCore::RegistrableDomain> m_loadedSubresourceDomains;
 #endif
 
     String m_overriddenMediaType;

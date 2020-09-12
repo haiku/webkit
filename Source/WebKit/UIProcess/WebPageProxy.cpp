@@ -294,6 +294,10 @@
 #include "DefaultWebBrowserChecks.h"
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+#include "WebDateTimePicker.h"
+#endif
+
 // This controls what strategy we use for mouse wheel coalescing.
 #define MERGE_WHEEL_EVENTS 1
 
@@ -4098,7 +4102,7 @@ void WebPageProxy::runJavaScriptInFrameInScriptWorld(RunJavaScriptParameters&& p
 
     ProcessThrottler::ActivityVariant activity;
 #if PLATFORM(IOS_FAMILY)
-    if (pageClient().isApplicationVisible())
+    if (pageClient().canTakeForegroundAssertions())
         activity = m_process->throttler().foregroundActivity("WebPageProxy::runJavaScriptInFrameInScriptWorld"_s);
     else
 #endif
@@ -6175,6 +6179,43 @@ void WebPageProxy::didSelectOption(const String& selectedOption)
 
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+
+void WebPageProxy::showDateTimePicker(WebCore::DateTimeChooserParameters&& params)
+{
+    if (!m_dateTimePicker)
+        m_dateTimePicker = pageClient().createDateTimePicker(*this);
+
+    m_dateTimePicker->showDateTimePicker(WTFMove(params));
+}
+
+void WebPageProxy::endDateTimePicker()
+{
+    if (!m_dateTimePicker)
+        return;
+
+    m_dateTimePicker->endPicker();
+}
+
+void WebPageProxy::didChooseDate(StringView date)
+{
+    if (!hasRunningProcess())
+        return;
+
+    send(Messages::WebPage::DidChooseDate(date.toString()));
+}
+
+void WebPageProxy::didEndDateTimePicker()
+{
+    m_dateTimePicker = nullptr;
+    if (!hasRunningProcess())
+        return;
+
+    send(Messages::WebPage::DidEndDateTimePicker());
+}
+
+#endif
+
 WebInspectorProxy* WebPageProxy::inspector() const
 {
     if (isClosed())
@@ -7074,13 +7115,13 @@ void WebPageProxy::voidCallback(CallbackID callbackID)
     callback->performCallback();
 }
 
-void WebPageProxy::dataCallback(const IPC::SharedBufferDataReference& dataReference, CallbackID callbackID)
+void WebPageProxy::dataCallback(const IPC::DataReference& dataReference, CallbackID callbackID)
 {
     auto callback = m_callbacks.take<DataCallback>(callbackID);
     if (!callback)
         return;
 
-    callback->performCallbackWithReturnValue(API::Data::create(reinterpret_cast<const uint8_t*>(dataReference.data()), dataReference.size()).ptr());
+    callback->performCallbackWithReturnValue(API::Data::create(dataReference.data(), dataReference.size()).ptr());
 }
 
 void WebPageProxy::boolCallback(bool result, CallbackID callbackID)
@@ -9324,7 +9365,7 @@ void WebPageProxy::getLoadDecisionForIcon(const WebCore::LinkIcon& icon, Callbac
     });
 }
 
-void WebPageProxy::finishedLoadingIcon(CallbackID callbackID, const IPC::SharedBufferDataReference& data)
+void WebPageProxy::finishedLoadingIcon(CallbackID callbackID, const IPC::DataReference& data)
 {
     dataCallback(data, callbackID);
 }
@@ -9360,6 +9401,10 @@ void WebPageProxy::closeOverlayedViews()
 
 #if ENABLE(INPUT_TYPE_COLOR)
     endColorPicker();
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    endDateTimePicker();
 #endif
 }
 
@@ -9574,7 +9619,7 @@ void WebPageProxy::updateAttachmentIcon(const String& identifier, const RefPtr<S
 }
 #endif
 
-void WebPageProxy::registerAttachmentIdentifierFromData(const String& identifier, const String& contentType, const String& preferredFileName, const IPC::SharedBufferDataReference& data)
+void WebPageProxy::registerAttachmentIdentifierFromData(const String& identifier, const String& contentType, const String& preferredFileName, const IPC::SharedBufferCopy& data)
 {
     MESSAGE_CHECK(m_process, m_preferences->attachmentElementEnabled());
     MESSAGE_CHECK(m_process, IdentifierToAttachmentMap::isValidKey(identifier));
@@ -9692,7 +9737,7 @@ WebPageProxy::ShouldUpdateAttachmentAttributes WebPageProxy::willUpdateAttachmen
 
 #if !PLATFORM(COCOA)
 
-void WebPageProxy::platformRegisterAttachment(Ref<API::Attachment>&&, const String&, const IPC::SharedBufferDataReference&)
+void WebPageProxy::platformRegisterAttachment(Ref<API::Attachment>&&, const String&, const IPC::SharedBufferCopy&)
 {
 }
 
@@ -10152,9 +10197,9 @@ void WebPageProxy::setOverriddenMediaType(const String& mediaType)
     send(Messages::WebPage::SetOverriddenMediaType(mediaType));
 }
 
-void WebPageProxy::setShouldFireEvents(bool shouldFireEvents)
+void WebPageProxy::setIsTakingSnapshotsForApplicationSuspension(bool isTakingSnapshotsForApplicationSuspension)
 {
-    send(Messages::WebPage::SetShouldFireEvents(shouldFireEvents));
+    send(Messages::WebPage::SetIsTakingSnapshotsForApplicationSuspension(isTakingSnapshotsForApplicationSuspension));
 }
 
 void WebPageProxy::setNeedsDOMWindowResizeEvent()
@@ -10187,14 +10232,14 @@ void WebPageProxy::setOrientationForMediaCapture(uint64_t orientation)
 }
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-void WebPageProxy::loadedThirdPartyDomains(CompletionHandler<void(Vector<RegistrableDomain>&&)>&& completionHandler)
+void WebPageProxy::getLoadedSubresourceDomains(CompletionHandler<void(Vector<RegistrableDomain>&&)>&& completionHandler)
 {
-    sendWithAsyncReply(Messages::WebPage::LoadedThirdPartyDomains(), WTFMove(completionHandler));
+    sendWithAsyncReply(Messages::WebPage::GetLoadedSubresourceDomains(), WTFMove(completionHandler));
 }
 
-void WebPageProxy::clearLoadedThirdPartyDomains()
+void WebPageProxy::clearLoadedSubresourceDomains()
 {
-    send(Messages::WebPage::ClearLoadedThirdPartyDomains());
+    send(Messages::WebPage::ClearLoadedSubresourceDomains());
 }
 #endif
 

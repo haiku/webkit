@@ -63,6 +63,7 @@ class AudioSummingJunction;
 class BiquadFilterNode;
 class ChannelMergerNode;
 class ChannelSplitterNode;
+class ConstantSourceNode;
 class ConvolverNode;
 class DelayNode;
 class Document;
@@ -79,6 +80,7 @@ class PannerNode;
 class PeriodicWave;
 class ScriptProcessorNode;
 class SecurityOrigin;
+class StereoPannerNode;
 class WaveShaperNode;
 
 template<typename IDLType> class DOMPromiseDeferred;
@@ -122,6 +124,8 @@ public:
 
     void incrementActiveSourceCount();
     void decrementActiveSourceCount();
+
+    virtual bool shouldSuspend() { return false; }
     
     ExceptionOr<Ref<AudioBuffer>> createBuffer(unsigned numberOfChannels, unsigned length, float sampleRate);
 
@@ -132,6 +136,8 @@ public:
 
     void suspendRendering(DOMPromiseDeferred<void>&&);
     void resumeRendering(DOMPromiseDeferred<void>&&);
+
+    virtual void didSuspendRendering(size_t frame);
 
     AudioBuffer* renderTarget() const { return m_renderTarget.get(); }
 
@@ -156,12 +162,16 @@ public:
     ExceptionOr<Ref<ChannelMergerNode>> createChannelMerger(size_t numberOfInputs);
     ExceptionOr<Ref<OscillatorNode>> createOscillator();
     ExceptionOr<Ref<PeriodicWave>> createPeriodicWave(Vector<float>&& real, Vector<float>&& imaginary, const PeriodicWaveConstraints& = { });
+    ExceptionOr<Ref<ConstantSourceNode>> createConstantSource();
+    ExceptionOr<Ref<StereoPannerNode>> createStereoPanner();
 
     // When a source node has no more processing to do (has finished playing), then it tells the context to dereference it.
     void notifyNodeFinishedProcessing(AudioNode*);
 
     // Called at the start of each render quantum.
-    void handlePreRenderTasks();
+    void handlePreRenderTasks(const AudioIOPosition& outputPosition);
+
+    AudioIOPosition outputPosition();
 
     // Called at the end of each render quantum.
     void handlePostRenderTasks();
@@ -200,7 +210,7 @@ public:
 
     // Returns true only after the audio thread has been started and then shutdown.
     bool isAudioThreadFinished() { return m_isAudioThreadFinished; }
-    
+
     // mustReleaseLock is set to true if we acquired the lock in this method call and caller must unlock(), false if it was previously acquired.
     void lock(bool& mustReleaseLock);
 
@@ -305,11 +315,13 @@ protected:
     void clearPendingActivity();
     void makePendingActivity();
 
+    void lockInternal(bool& mustReleaseLock);
+
     AudioDestinationNode* destinationNode() const { return m_destinationNode.get(); }
 
     bool willBeginPlayback();
 
-    void uninitialize();
+    virtual void uninitialize();
 
 #if !RELEASE_LOG_DISABLED
     const char* logClassName() const final { return "BaseAudioContext"; }
@@ -442,6 +454,8 @@ private:
 
     State m_state { State::Suspended };
     RefPtr<PendingActivity<BaseAudioContext>> m_pendingActivity;
+
+    AudioIOPosition m_outputPosition;
 };
 
 } // WebCore

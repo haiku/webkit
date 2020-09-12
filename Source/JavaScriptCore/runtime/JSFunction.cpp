@@ -95,16 +95,6 @@ JSFunction* JSFunction::create(VM& vm, JSGlobalObject* globalObject, int length,
     return function;
 }
 
-JSFunction* JSFunction::createFunctionThatMasqueradesAsUndefined(VM& vm, JSGlobalObject* globalObject, int length, const String& name, NativeFunction nativeFunction, Intrinsic intrinsic, NativeFunction nativeConstructor, const DOMJIT::Signature* signature)
-{
-    NativeExecutable* executable = vm.getHostFunction(nativeFunction, intrinsic, nativeConstructor, signature, name);
-    Structure* structure = Structure::create(vm, globalObject, globalObject->objectPrototype(), TypeInfo(JSFunctionType, JSFunction::StructureFlags | MasqueradesAsUndefined), JSFunction::info());
-    globalObject->masqueradesAsUndefinedWatchpoint()->fireAll(globalObject->vm(), "Allocated masquerading object");
-    JSFunction* function = new (NotNull, allocateCell<JSFunction>(vm.heap)) JSFunction(vm, executable, globalObject, structure);
-    function->finishCreation(vm, executable, length, name);
-    return function;
-}
-
 JSFunction::JSFunction(VM& vm, NativeExecutable* executable, JSGlobalObject* globalObject, Structure* structure)
     : Base(vm, globalObject, structure)
     , m_executableOrRareData(bitwise_cast<uintptr_t>(executable))
@@ -131,9 +121,8 @@ void JSFunction::finishCreation(VM& vm, NativeExecutable*, int length, const Str
     ASSERT(methodTable(vm)->getConstructData == &JSFunction::getConstructData);
     ASSERT(methodTable(vm)->getCallData == &JSFunction::getCallData);
 
-    // Some NativeExecutable functions, like JSBoundFunction, decide to lazily allocate their name string / length.
-    if (this->inherits<JSBoundFunction>(vm))
-        return;
+    // JSBoundFunction instances use finishCreation(VM&) overload and lazily allocate their name string / length.
+    ASSERT(!this->inherits<JSBoundFunction>(vm));
 
     if (!name.isNull())
         putDirect(vm, vm.propertyNames->name, jsString(vm, name), PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum);
@@ -780,7 +769,7 @@ void JSFunction::reifyLength(VM& vm)
     FunctionRareData* rareData = this->ensureRareData(vm);
 
     ASSERT(!hasReifiedLength());
-    unsigned length = 0;
+    double length = 0;
     if (this->inherits<JSBoundFunction>(vm))
         length = jsCast<JSBoundFunction*>(this)->length(vm);
     else {

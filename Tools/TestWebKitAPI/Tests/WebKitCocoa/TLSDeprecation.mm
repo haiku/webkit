@@ -242,6 +242,27 @@ TEST(TLSVersion, ShouldAllowDeprecatedTLS)
     }
 }
 
+TEST(TLSVersion, Preconnect)
+{
+    bool connectionAttempted = false;
+    TCPServer server(TCPServer::Protocol::HTTPS, [&](SSL *ssl) {
+        EXPECT_FALSE(ssl);
+        connectionAttempted = true;
+    }, tls1_1);
+
+    auto webView = adoptNS([WKWebView new]);
+    [webView loadHTMLString:makeString("<head><link rel='preconnect' href='https://127.0.0.1:", server.port(), "/'></link></head>") baseURL:nil];
+
+    auto delegate = adoptNS([TestNavigationDelegate new]);
+    [webView setNavigationDelegate:delegate.get()];
+    [delegate setDidReceiveAuthenticationChallenge:^(WKWebView *, NSURLAuthenticationChallenge *challenge, void (^callback)(NSURLSessionAuthChallengeDisposition, NSURLCredential *)) {
+        EXPECT_TRUE(false);
+        callback(NSURLSessionAuthChallengeUseCredential, nil);
+    }];
+
+    TestWebKitAPI::Util::run(&connectionAttempted);
+}
+
 #endif // HAVE(TLS_VERSION_DURING_CHALLENGE)
 
 #if HAVE(NETWORK_FRAMEWORK) && HAVE(TLS_PROTOCOL_VERSION_T)
@@ -438,6 +459,47 @@ TEST(TLSVersion, BackForwardHasOnlySecureContent)
         TestWebKitAPI::Util::spinRunLoop();
     EXPECT_FALSE([webView hasOnlySecureContent]);
 }
+
+#if HAVE(TLS_VERSION_DURING_CHALLENGE)
+
+TEST(TLSVersion, LegacySubresources)
+{
+    HTTPServer legacyServer({
+        { "/frame", { "shouldn't load with fastServerTrustEvaluationEnabled" }}
+    }, HTTPServer::Protocol::HttpsWithLegacyTLS);
+
+    HTTPServer modernServer({
+        { "/", { makeString("<iframe src='https://127.0.0.1:", legacyServer.port(), "/frame'/>") }}
+    }, HTTPServer::Protocol::Https);
+
+    auto dataStoreConfiguration = [[[_WKWebsiteDataStoreConfiguration alloc] initNonPersistentConfiguration] autorelease];
+    dataStoreConfiguration.fastServerTrustEvaluationEnabled = YES;
+    auto webViewConfiguration = [[WKWebViewConfiguration new] autorelease];
+    webViewConfiguration.websiteDataStore = [[[WKWebsiteDataStore alloc] _initWithConfiguration:dataStoreConfiguration] autorelease];
+    auto webView = [[[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:webViewConfiguration] autorelease];
+
+    auto delegate = [[TestNavigationDelegate new] autorelease];
+    [delegate setDidReceiveAuthenticationChallenge:^(WKWebView *, NSURLAuthenticationChallenge *challenge, void (^callback)(NSURLSessionAuthChallengeDisposition, NSURLCredential *)) {
+        EXPECT_WK_STREQ(challenge.protectionSpace.authenticationMethod, NSURLAuthenticationMethodServerTrust);
+        callback(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
+    }];
+    [webView setNavigationDelegate:delegate];
+
+    [webView loadRequest:modernServer.request()];
+    [delegate waitForDidFinishNavigation];
+
+    EXPECT_EQ(legacyServer.totalRequests(), 0u);
+    EXPECT_EQ(modernServer.totalRequests(), 1u);
+
+    auto defaultWebView = [[WKWebView new] autorelease];
+    [defaultWebView setNavigationDelegate:delegate];
+    [defaultWebView loadRequest:modernServer.request()];
+    [delegate waitForDidFinishNavigation];
+    EXPECT_EQ(legacyServer.totalRequests(), 1u);
+    EXPECT_EQ(modernServer.totalRequests(), 2u);
+}
+
+#endif // HAVE(TLS_VERSION_DURING_CHALLENGE)
 
 #endif // HAVE(NETWORK_FRAMEWORK) && HAVE(TLS_PROTOCOL_VERSION_T)
 

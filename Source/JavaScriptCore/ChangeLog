@@ -1,3 +1,1443 @@
+2020-08-24  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: rename `ScriptDebugServer` subclasses/methods
+        https://bugs.webkit.org/show_bug.cgi?id=215363
+        <rdar://problem/67310441>
+
+        Reviewed by Brian Burg.
+
+        r266074 merged `Inspector::ScriptDebugServer` into `JSC::Debugger`. All subclasses and
+        functions should be renamed to match this change.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * inspector/InspectorEnvironment.h:
+        * inspector/JSGlobalObjectDebugger.h: Renamed from Source/JavaScriptCore/inspector/JSGlobalObjectScriptDebugServer.h.
+        * inspector/JSGlobalObjectDebugger.cpp: Renamed from Source/JavaScriptCore/inspector/JSGlobalObjectScriptDebugServer.cpp.
+        * inspector/JSGlobalObjectInspectorController.h:
+        * inspector/JSGlobalObjectInspectorController.cpp:
+        * inspector/agents/InspectorAuditAgent.h:
+        * inspector/agents/InspectorAuditAgent.cpp:
+        * inspector/agents/InspectorDebuggerAgent.h:
+        * inspector/agents/InspectorDebuggerAgent.cpp:
+        * inspector/agents/InspectorRuntimeAgent.h:
+        * inspector/agents/InspectorRuntimeAgent.cpp:
+        * inspector/agents/InspectorScriptProfilerAgent.cpp:
+        * inspector/agents/JSGlobalObjectDebuggerAgent.cpp:
+        * inspector/remote/RemoteInspectionTarget.cpp:
+        * inspector/remote/cocoa/RemoteConnectionToTargetCocoa.mm:
+
+2020-08-24  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow event breakpoints to be configured
+        https://bugs.webkit.org/show_bug.cgi?id=215362
+        <rdar://problem/66932921>
+
+        Reviewed by Brian Burg.
+
+        This allows developers to do things like:
+         - only pause when `window.event.type` is a certain value
+         - ignore the first N pauses
+         - evaluate JavaScript whenever an event listener is invoked without pausing
+
+        * inspector/protocol/DOM.json:
+        Add an `options` paramater to `DOM.setBreakpointForEventListener` to allow configuration.
+
+        * inspector/protocol/DOMDebugger.json:
+        Add an `options` paramater to `DOMDebugger.setEventBreakpoint` to allow configuration.
+
+        * debugger/Breakpoint.h:
+        (JSC::Breakpoint::id const): Added.
+        (JSC::Breakpoint::sourceID const): Added.
+        (JSC::Breakpoint::lineNumber const): Added.
+        (JSC::Breakpoint::columnNumber const): Added.
+        (JSC::Breakpoint::condition const): Added.
+        (JSC::Breakpoint::actions const): Added.
+        (JSC::Breakpoint::isAutoContinue const): Added.
+        (JSC::Breakpoint::resetHitCount): Added.
+        (JSC::Breakpoint::isLinked const): Added.
+        (JSC::Breakpoint::isResolved const): Added.
+        (JSC::BreakpointsList::~BreakpointsList): Deleted.
+        * debugger/Breakpoint.cpp: Added.
+        (JSC::Breakpoint::Action::Action): Added.
+        (JSC::Breakpoint::create): Added.
+        (JSC::Breakpoint::Breakpoint): Added.
+        (JSC::Breakpoint::link): Added.
+        (JSC::Breakpoint::resolve): Added.
+        (JSC::Breakpoint::shouldPause): Added.
+        Unify `JSC::Breakpoint` and `Inspector::ScriptBreakpoint`.
+
+        * debugger/DebuggerPrimitives.h:
+        * debugger/Debugger.h:
+        * debugger/Debugger.cpp:
+        (JSC::Debugger::Debugger):
+        (JSC::Debugger::addObserver): Added.
+        (JSC::Debugger::removeObserver): Added.
+        (JSC::Debugger::canDispatchFunctionToObservers const): Added.
+        (JSC::Debugger::dispatchFunctionToObservers): Added.
+        (JSC::Debugger::sourceParsed): Added.
+        (JSC::Debugger::toggleBreakpoint):
+        (JSC::Debugger::applyBreakpoints):
+        (JSC::Debugger::resolveBreakpoint):
+        (JSC::Debugger::setBreakpoint):
+        (JSC::Debugger::removeBreakpoint):
+        (JSC::Debugger::didHitBreakpoint): Added.
+        (JSC::Debugger::clearBreakpoints):
+        (JSC::Debugger::evaluateBreakpointCondition): Added.
+        (JSC::Debugger::evaluateBreakpointActions): Added.
+        (JSC::Debugger::schedulePauseAtNextOpportunity): Added.
+        (JSC::Debugger::cancelPauseAtNextOpportunity): Added.
+        (JSC::Debugger::schedulePauseForSpecialBreakpoint): Added.
+        (JSC::Debugger::cancelPauseForSpecialBreakpoint): Added.
+        (JSC::Debugger::continueProgram):
+        (JSC::Debugger::stepNextExpression):
+        (JSC::Debugger::stepIntoStatement):
+        (JSC::Debugger::stepOverStatement):
+        (JSC::Debugger::stepOutOfFunction):
+        (JSC::Debugger::pauseIfNeeded):
+        (JSC::Debugger::handlePause): Added.
+        (JSC::Debugger::exceptionOrCaughtValue): Added.
+        (JSC::Debugger::atExpression):
+        (JSC::Debugger::clearNextPauseState):
+        (JSC::Debugger::willRunMicrotask): Added.
+        (JSC::Debugger::didRunMicrotask): Added.
+        (JSC::Debugger::hasBreakpoint): Deleted.
+        (JSC::Debugger::setPauseOnNextStatement): Deleted.
+        Unify `JSC::Debugger` and `Inspector::ScriptDebugServer` to simplify breakpoint logic.
+        Introduce the concept of a "special breakpoint", which is essentially a `JSC::Breakpoint`
+        that is expected to pause at the next opportunity but isn't tied to a particular location.
+        As an example, whenever an event breakpoint is hit, instead of just pausing at the next
+        opportunity, the newly managed `JSC::Breakpoint` is used as a "special breakpoint", allowing
+        for it's configuration (ie.g. condition, ignore count, actions, auto-continue) to be used.
+
+        * inspector/agents/InspectorDebuggerAgent.h:
+        * inspector/agents/InspectorDebuggerAgent.cpp:
+        (Inspector::objectGroupForBreakpointAction):
+        (Inspector::breakpointActionTypeForString): Added.
+        (Inspector::parseBreakpointOptions): Added.
+        (Inspector::InspectorDebuggerAgent::ProtocolBreakpoint::fromPayload): Added.
+        (Inspector::InspectorDebuggerAgent::ProtocolBreakpoint::ProtocolBreakpoint): Added.
+        (Inspector::InspectorDebuggerAgent::ProtocolBreakpoint::createDebuggerBreakpoint const): Added.
+        (Inspector::InspectorDebuggerAgent::ProtocolBreakpoint::matchesScriptURL const): Added.
+        (Inspector::InspectorDebuggerAgent::debuggerBreakpointFromPayload): Added.
+        (Inspector::InspectorDebuggerAgent::enable):
+        (Inspector::InspectorDebuggerAgent::disable):
+        (Inspector::InspectorDebuggerAgent::buildBreakpointPauseReason):
+        (Inspector::InspectorDebuggerAgent::handleConsoleAssert):
+        (Inspector::InspectorDebuggerAgent::didScheduleAsyncCall):
+        (Inspector::buildDebuggerLocation):
+        (Inspector::InspectorDebuggerAgent::setBreakpointByUrl):
+        (Inspector::InspectorDebuggerAgent::setBreakpoint):
+        (Inspector::InspectorDebuggerAgent::didSetBreakpoint):
+        (Inspector::InspectorDebuggerAgent::resolveBreakpoint):
+        (Inspector::InspectorDebuggerAgent::removeBreakpoint):
+        (Inspector::InspectorDebuggerAgent::continueToLocation):
+        (Inspector::InspectorDebuggerAgent::schedulePauseAtNextOpportunity): Added.
+        (Inspector::InspectorDebuggerAgent::cancelPauseAtNextOpportunity): Added.
+        (Inspector::InspectorDebuggerAgent::schedulePauseForSpecialBreakpoint): Added.
+        (Inspector::InspectorDebuggerAgent::cancelPauseForSpecialBreakpoint): Added.
+        (Inspector::InspectorDebuggerAgent::pause):
+        (Inspector::InspectorDebuggerAgent::resume):
+        (Inspector::InspectorDebuggerAgent::didBecomeIdle):
+        (Inspector::InspectorDebuggerAgent::sourceMapURLForScript):
+        (Inspector::InspectorDebuggerAgent::didParseSource):
+        (Inspector::InspectorDebuggerAgent::willRunMicrotask):
+        (Inspector::InspectorDebuggerAgent::didRunMicrotask):
+        (Inspector::InspectorDebuggerAgent::didPause):
+        (Inspector::InspectorDebuggerAgent::breakpointActionSound):
+        (Inspector::InspectorDebuggerAgent::breakpointActionProbe):
+        (Inspector::InspectorDebuggerAgent::clearInspectorBreakpointState):
+        (Inspector::InspectorDebuggerAgent::clearDebuggerBreakpointState):
+        (Inspector::matches): Deleted.
+        (Inspector::buildObjectForBreakpointCookie): Deleted.
+        (Inspector::InspectorDebuggerAgent::breakpointActionsFromProtocol): Deleted.
+        (Inspector::InspectorDebuggerAgent::schedulePauseOnNextStatement): Deleted.
+        (Inspector::InspectorDebuggerAgent::cancelPauseOnNextStatement): Deleted.
+        Create a private `ProtocolBreakpoint` class that holds the data sent by the frontend. This
+        is necessary because breakpoints in the frontend have a potentially one-to-many relationship
+        with breakpoints in the backend, as the same script can be loaded many times on a page. Each
+        of those scripts is independent, however, and can execute differently, meaning that the same
+        breakpoint for each script also needs a different state (e.g. ignore count). As such, the
+        `ProtocolBreakpoint` is effectively a template that is actualized whenever a new script is
+        parsed that matches the URL of the `ProtocolBreakpoint` to create a `JSC::Breakpoint` that
+        is used by the `JSC::Debugger`. `ProtocolBreakpoint` also parses breakpoint configurations.
+
+        * inspector/InspectorEnvironment.h:
+        * inspector/JSGlobalObjectScriptDebugServer.h:
+        * inspector/JSGlobalObjectScriptDebugServer.cpp:
+        (Inspector::JSGlobalObjectScriptDebugServer::JSGlobalObjectScriptDebugServer):
+        (Inspector::JSGlobalObjectScriptDebugServer::attachDebugger):
+        (Inspector::JSGlobalObjectScriptDebugServer::detachDebugger):
+        (Inspector::JSGlobalObjectScriptDebugServer::runEventLoopWhilePaused):
+        * inspector/agents/InspectorAuditAgent.h:
+        * inspector/agents/InspectorAuditAgent.cpp:
+        (Inspector::InspectorAuditAgent::run):
+        * inspector/agents/InspectorRuntimeAgent.h:
+        * inspector/agents/InspectorRuntimeAgent.cpp:
+        (Inspector::setPauseOnExceptionsState):
+        (Inspector::InspectorRuntimeAgent::evaluate):
+        (Inspector::InspectorRuntimeAgent::callFunctionOn):
+        (Inspector::InspectorRuntimeAgent::getPreview):
+        (Inspector::InspectorRuntimeAgent::getProperties):
+        (Inspector::InspectorRuntimeAgent::getDisplayableProperties):
+        * inspector/agents/InspectorScriptProfilerAgent.cpp:
+        * inspector/agents/JSGlobalObjectDebuggerAgent.h:
+        Replace `Inspector::ScriptDebugServer` with `JSC::Debugger`.
+
+        * runtime/JSMicrotask.cpp:
+        (JSC::JSMicrotask::run):
+        Drive-by: r248894 mistakenly omitted the call to notify the debugger that the microtask ran.
+
+        * inspector/ScriptBreakpoint.h: Removed.
+        * inspector/ScriptDebugListener.h: Removed.
+        * inspector/ScriptDebugServer.h: Removed.
+        * inspector/ScriptDebugServer.cpp: Removed.
+        * CMakeLists.txt:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+
+2020-08-24  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: remove "extra domains" concept now that domains can be added based on the debuggable type
+        https://bugs.webkit.org/show_bug.cgi?id=201150
+        <rdar://problem/56545911>
+
+        Reviewed by Brian Burg.
+
+        * inspector/scripts/codegen/objc_generator_templates.py:
+        * inspector/augmentable/AugmentableInspectorController.h:
+
+        * inspector/JSGlobalObjectInspectorController.h:
+        * inspector/JSGlobalObjectInspectorController.cpp:
+        (Inspector::JSGlobalObjectInspectorController::connectFrontend):
+        (Inspector::JSGlobalObjectInspectorController::registerAlternateAgent): Added.
+        (Inspector::JSGlobalObjectInspectorController::appendExtraAgent): Deleted.
+
+        * inspector/InspectorAgentRegistry.h:
+        * inspector/InspectorAgentRegistry.cpp:
+        (Inspector::AgentRegistry::appendExtraAgent): Deleted.
+
+        * inspector/protocol/Inspector.json:
+        * inspector/agents/InspectorAgent.h:
+        * inspector/agents/InspectorAgent.cpp:
+        (Inspector::InspectorAgent::activateExtraDomain): Deleted.
+        (Inspector::InspectorAgent::activateExtraDomains): Deleted.
+
+        * inspector/scripts/tests/expected/command-targetType-matching-domain-debuggableType.json-result:
+        * inspector/scripts/tests/expected/commands-with-async-attribute.json-result:
+        * inspector/scripts/tests/expected/commands-with-optional-call-return-parameters.json-result:
+        * inspector/scripts/tests/expected/definitions-with-mac-platform.json-result:
+        * inspector/scripts/tests/expected/domain-debuggableTypes.json-result:
+        * inspector/scripts/tests/expected/domain-targetType-matching-domain-debuggableType.json-result:
+        * inspector/scripts/tests/expected/domain-targetTypes.json-result:
+        * inspector/scripts/tests/expected/domains-with-varying-command-sizes.json-result:
+        * inspector/scripts/tests/expected/enum-values.json-result:
+        * inspector/scripts/tests/expected/event-targetType-matching-domain-debuggableType.json-result:
+        * inspector/scripts/tests/expected/generate-domains-with-feature-guards.json-result:
+        Rebase protocol tests.
+
+2020-08-23  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, wrong merge resolution between r266031 and r263837
+        https://bugs.webkit.org/show_bug.cgi?id=209774
+
+        r263837 is landed after r266031 is configured. OSS buildbots didn't catch this since they are using old ICU headers.
+
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, assertion was opposite
+        https://bugs.webkit.org/show_bug.cgi?id=215058
+
+        We should ensure that this is *not* zero.
+
+        * runtime/IntlObject.cpp:
+        (JSC::parseVariantCode):
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Implement Intl Language Tag Parser
+        https://bugs.webkit.org/show_bug.cgi?id=215058
+
+        Reviewed by Ross Kirsling and Darin Adler.
+
+        This patch adds LanguageTagParser which performs isStructurallyValidLanguageTag[1] validation precisely.
+        The spec strictly defines acceptable format as language-tag and this is not the same to ICU's one and this
+        is even tested in test262. We should have LanguageTagParser to validate the input.
+
+        [1]: https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+
+        * runtime/IntlLocale.cpp:
+        (JSC::LocaleIDBuilder::initialize):
+        (JSC::IntlLocale::initializeLocale):
+        * runtime/IntlObject.cpp:
+        (JSC::canonicalizeLocaleList):
+        (JSC::parseVariantCode):
+        (JSC::convertToUnicodeSingletonIndex):
+        (JSC::isUnicodeExtensionAttribute):
+        (JSC::isUnicodeExtensionKey):
+        (JSC::isUnicodeExtensionTypeComponent):
+        (JSC::isUnicodePUExtensionValue):
+        (JSC::isUnicodeOtherExtensionValue):
+        (JSC::isUnicodeTKey):
+        (JSC::isUnicodeTValueComponent):
+        (JSC::LanguageTagParser::LanguageTagParser):
+        (JSC::LanguageTagParser::isEOS):
+        (JSC::LanguageTagParser::next):
+        (JSC::LanguageTagParser::parseUnicodeLocaleId):
+        (JSC::LanguageTagParser::parseUnicodeLanguageId):
+        (JSC::LanguageTagParser::parseUnicodeExtensionAfterPrefix):
+        (JSC::LanguageTagParser::parseTransformedExtensionAfterPrefix):
+        (JSC::LanguageTagParser::parseOtherExtensionAfterPrefix):
+        (JSC::LanguageTagParser::parsePUExtensionAfterPrefix):
+        (JSC::LanguageTagParser::parseExtensionsAndPUExtensions):
+        (JSC::isStructurallyValidLanguageTag):
+        (JSC::isUnicodeLanguageId):
+        * runtime/IntlObject.h:
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, workaround for old ICU headers in macOS Catalina bots
+        https://bugs.webkit.org/show_bug.cgi?id=209774
+
+        EWS and Catalina bots are inconsistent in terms of ICU header versions.
+        This patch adds a workaround which checks ICU header version too at runtime.
+
+        * tools/JSDollarVM.cpp:
+        (JSC::functionICUHeaderVersion):
+        (JSC::JSDollarVM::finishCreation):
+
+2020-08-22  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        The [[ThrowTypeError]] function object must not be extensible
+        https://bugs.webkit.org/show_bug.cgi?id=108873
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch:
+
+        1. Sets the value of %ThrowTypeError% "name" property to the empty string,
+           as required [1] for anonymous built-in functions.
+
+        2. Calls JSObject::freeze() on %ThrowTypeError%, making it non-extensible and
+           its "name" and "length" properties non-configurable to match the spec [2].
+
+        Both changes align JSC with V8 and SpiderMonkey.
+
+        [1]: https://tc39.es/ecma262/#sec-ecmascript-standard-built-in-objects
+        [2]: https://tc39.es/ecma262/#sec-%throwtypeerror%
+
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ECMA-402] Intl.DateTimeFormat dateStyle/timeStyle missing in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=209776
+
+        Reviewed by Darin Adler and Ross Kirsling.
+
+        This patch implements Intl.DateTimeFormat dateStyle and timeStyle options. When it is specified,
+        we query the best date-time format with these options to ICU instead of configuring each date-time
+        formats.
+
+        Since ECMA402 requires enforcement of hourCycle specified from the option, even if ICU ignores that.
+        So, after getting the appropriate pattern from ICU, we modify this pattern and re-create UDateFormat
+        from the modified pattern.
+
+        * builtins/DatePrototype.js:
+        (toLocaleString.toDateTimeOptionsAnyAll):
+        (toLocaleString):
+        (toLocaleDateString.toDateTimeOptionsDateDate):
+        (toLocaleDateString):
+        (toLocaleTimeString.toDateTimeOptionsTimeTime):
+        (toLocaleTimeString):
+        * runtime/CommonIdentifiers.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::toDateTimeOptionsAnyDate):
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        (JSC::IntlDateTimeFormat::formatStyleString):
+        (JSC::IntlDateTimeFormat::resolvedOptions const):
+        * runtime/IntlDateTimeFormat.h:
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ECMA-402] Implement Intl.DateTimeFormat.prototype.formatRange
+        https://bugs.webkit.org/show_bug.cgi?id=209778
+
+        Reviewed by Ross Kirsling.
+
+        This patch adds Intl.DateTimeFormat#formatRange. It takes two dates, and
+        generates formatted text which represents interval between these two dates.
+        We skip the implementation of Intl.DateTimeFormat#formatRangeToParts since
+        ICU udtitvfmt_formatToResult API is not getting stable state yet. We retrieve
+        pattern from UDateFormat, get skeleton from that pattern, and construct
+        UDateIntervalFormat from this skeleton.
+
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::initializeDateTimeFormat):
+        (JSC::IntlDateTimeFormat::createDateIntervalFormatIfNecessary):
+        (JSC::IntlDateTimeFormat::formatRange):
+        (JSC::IntlDateTimeFormat::UDateFormatDeleter::operator() const): Deleted.
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlDateTimeFormatPrototype.cpp:
+        (JSC::IntlDateTimeFormatPrototypeFuncFormatRange):
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add Intl.Segmenter
+        https://bugs.webkit.org/show_bug.cgi?id=213638
+
+        Reviewed by Ross Kirsling.
+
+        This patch implements Intl.Segmenter[1]. Intl.Segmenter offers access to ICU break iterator feature, which can break strings into grapheme cluster / words / sentences.
+
+        [1]: https://github.com/tc39/proposal-intl-segmenter
+
+        * CMakeLists.txt:
+        * DerivedSources-input.xcfilelist:
+        * DerivedSources-output.xcfilelist:
+        * DerivedSources.make:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Sources.txt:
+        * runtime/CommonIdentifiers.h:
+        * runtime/IntlObject.cpp:
+        (JSC::createSegmenterConstructor):
+        (JSC::IntlObject::finishCreation):
+        (JSC::intlSegmenterAvailableLocales):
+        * runtime/IntlObject.h:
+        * runtime/IntlSegmentIterator.cpp: Added.
+        (JSC::IntlSegmentIterator::create):
+        (JSC::IntlSegmentIterator::createStructure):
+        (JSC::IntlSegmentIterator::IntlSegmentIterator):
+        (JSC::IntlSegmentIterator::finishCreation):
+        (JSC::IntlSegmentIterator::visitChildren):
+        (JSC::IntlSegmentIterator::next):
+        * runtime/IntlSegmentIterator.h: Added.
+        * runtime/IntlSegmentIteratorPrototype.cpp: Added.
+        (JSC::IntlSegmentIteratorPrototype::create):
+        (JSC::IntlSegmentIteratorPrototype::createStructure):
+        (JSC::IntlSegmentIteratorPrototype::IntlSegmentIteratorPrototype):
+        (JSC::IntlSegmentIteratorPrototype::finishCreation):
+        (JSC::IntlSegmentIteratorPrototypeFuncNext):
+        * runtime/IntlSegmentIteratorPrototype.h: Added.
+        * runtime/IntlSegmenter.cpp: Added.
+        (JSC::IntlSegmenter::create):
+        (JSC::IntlSegmenter::createStructure):
+        (JSC::IntlSegmenter::IntlSegmenter):
+        (JSC::IntlSegmenter::finishCreation):
+        (JSC::IntlSegmenter::initializeSegmenter):
+        (JSC::IntlSegmenter::segment const):
+        (JSC::IntlSegmenter::resolvedOptions const):
+        (JSC::IntlSegmenter::granularityString):
+        (JSC::IntlSegmenter::createSegmentDataObject):
+        * runtime/IntlSegmenter.h: Added.
+        * runtime/IntlSegmenterConstructor.cpp: Added.
+        (JSC::IntlSegmenterConstructor::create):
+        (JSC::IntlSegmenterConstructor::createStructure):
+        (JSC::IntlSegmenterConstructor::IntlSegmenterConstructor):
+        (JSC::IntlSegmenterConstructor::finishCreation):
+        (JSC::constructIntlSegmenter):
+        (JSC::callIntlSegmenter):
+        (JSC::IntlSegmenterConstructorSupportedLocalesOf):
+        * runtime/IntlSegmenterConstructor.h: Added.
+        * runtime/IntlSegmenterPrototype.cpp: Added.
+        (JSC::IntlSegmenterPrototype::create):
+        (JSC::IntlSegmenterPrototype::createStructure):
+        (JSC::IntlSegmenterPrototype::IntlSegmenterPrototype):
+        (JSC::IntlSegmenterPrototype::finishCreation):
+        (JSC::IntlSegmenterPrototypeFuncSegment):
+        (JSC::IntlSegmenterPrototypeFuncResolvedOptions):
+        * runtime/IntlSegmenterPrototype.h: Added.
+        * runtime/IntlSegments.cpp: Added.
+        (JSC::IntlSegments::create):
+        (JSC::IntlSegments::createStructure):
+        (JSC::IntlSegments::IntlSegments):
+        (JSC::IntlSegments::finishCreation):
+        (JSC::IntlSegments::containing):
+        (JSC::IntlSegments::createSegmentIterator):
+        (JSC::IntlSegments::visitChildren):
+        * runtime/IntlSegments.h: Added.
+        * runtime/IntlSegmentsPrototype.cpp: Added.
+        (JSC::IntlSegmentsPrototype::create):
+        (JSC::IntlSegmentsPrototype::createStructure):
+        (JSC::IntlSegmentsPrototype::IntlSegmentsPrototype):
+        (JSC::IntlSegmentsPrototype::finishCreation):
+        (JSC::IntlSegmentsPrototypeFuncContaining):
+        (JSC::IntlSegmentsPrototypeFuncIterator):
+        * runtime/IntlSegmentsPrototype.h: Added.
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::segmentIteratorStructure):
+        (JSC::JSGlobalObject::segmenterStructure):
+        (JSC::JSGlobalObject::segmentsStructure):
+        * runtime/OptionsList.h:
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        * runtime/VM.h:
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [ECMA-402] Implement unified Intl.NumberFormat
+        https://bugs.webkit.org/show_bug.cgi?id=209774
+
+        Reviewed by Ross Kirsling and Darin Adler.
+
+        This patch implements updated Intl.NumberFormat. This update was proposed in [1], and integrated into ECMA-402 spec.
+        This patch adds support for missing features in the previous Intl.NumberFormat implementation. Adding "unit", "unitDisplay",
+        "signDisplay", "notation", and "currencySign". Then Intl.NumberFormat can now handle "unit" etc.
+
+        To support new features, we need to use UNumberFormatter which is available after ICU 64 (while it is offered in ICU 62, some
+        critical part are added in 64 too). So, we keep the old UNumberFormat based implementation which is used for [60, 64) since WebKit
+        currently supports ICU 60. Old implementation does not support new things. If ICU is 64 or later, Intl.NumberFormat starts using
+        UNumberFormatter, and implements all the specified features.
+
+        [1]: https://github.com/tc39/proposal-unified-intl-numberformat
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * runtime/IntlCollator.cpp:
+        (JSC::IntlCollator::UCollatorDeleter::operator() const): Deleted.
+        * runtime/IntlCollator.h:
+        * runtime/IntlDateTimeFormat.cpp:
+        (JSC::IntlDateTimeFormat::UDateFormatDeleter::operator() const): Deleted.
+        * runtime/IntlDateTimeFormat.h:
+        * runtime/IntlNumberFormat.cpp:
+        (JSC::computeCurrencyDigits):
+        (JSC::sanctionedSimpleUnitIdentifier):
+        (JSC::WellFormedUnit::WellFormedUnit):
+        (JSC::wellFormedUnitIdentifier):
+        (JSC::IntlNumberFormat::initializeNumberFormat):
+        (JSC::IntlNumberFormat::format const):
+        (JSC::IntlNumberFormat::styleString):
+        (JSC::IntlNumberFormat::currencyDisplayString):
+        (JSC::IntlNumberFormat::notationString):
+        (JSC::IntlNumberFormat::currencySignString):
+        (JSC::IntlNumberFormat::unitDisplayString):
+        (JSC::IntlNumberFormat::compactDisplayString):
+        (JSC::IntlNumberFormat::signDisplayString):
+        (JSC::IntlNumberFormat::resolvedOptions const):
+        (JSC::partTypeString):
+        (JSC::IntlNumberFormat::formatToPartsInternal):
+        (JSC::IntlNumberFormat::formatToParts const):
+        (JSC::IntlNumberFormat::UNumberFormatDeleter::operator() const): Deleted.
+        * runtime/IntlNumberFormat.h:
+        * runtime/IntlNumberFormatInlines.h: Added.
+        (JSC::setNumberFormatDigitOptions):
+        (JSC::IntlFieldIterator::IntlFieldIterator):
+        (JSC::IntlFieldIterator::next):
+        * runtime/IntlPluralRules.cpp:
+        (JSC::IntlPluralRules::initializePluralRules):
+        (JSC::IntlPluralRules::resolvedOptions const):
+        (JSC::IntlPluralRules::UPluralRulesDeleter::operator() const): Deleted.
+        (JSC::IntlPluralRules::UNumberFormatDeleter::operator() const): Deleted.
+        (JSC::UEnumerationDeleter::operator() const): Deleted.
+        * runtime/IntlPluralRules.h:
+        * runtime/IntlRelativeTimeFormat.cpp:
+        (JSC::IntlRelativeTimeFormat::formatToParts const):
+        (JSC::IntlRelativeTimeFormat::URelativeDateTimeFormatterDeleter::operator() const): Deleted.
+        (JSC::IntlRelativeTimeFormat::UNumberFormatDeleter::operator() const): Deleted.
+        * runtime/IntlRelativeTimeFormat.h:
+        * tools/JSDollarVM.cpp:
+        (JSC::functionICUVersion):
+
+2020-08-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Console object's @@toStringTag should be "console" instead of "Console"
+        https://bugs.webkit.org/show_bug.cgi?id=215750
+
+        Reviewed by Ross Kirsling.
+
+        Use "console" instead of "Console". Now, namespace object has @@toStringTag.
+        https://github.com/web-platform-tests/wpt/pull/24717
+
+        * runtime/ConsoleObject.cpp:
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Enable Intl.DisplayNames
+        https://bugs.webkit.org/show_bug.cgi?id=215749
+
+        Reviewed by Ross Kirsling.
+
+        Enable Intl.DisplayNames by default. This is already stage 4 and integrated into the spec.
+
+        * runtime/IntlObject.cpp:
+        (JSC::IntlObject::finishCreation):
+        * runtime/OptionsList.h:
+
+2020-08-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        StrictEq should not care about masqueradesAsUndefinedWatchpoint
+        https://bugs.webkit.org/show_bug.cgi?id=215743
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch removes masqueradesAsUndefinedWatchpoint handling for StrictEq
+        from fixupCompareStrictEqAndSameValue(), aligning it with SameValue.
+
+        According to the spec [1], only a few language constructs special-case
+        [[IsHTMLDDA]] objects: ToBoolean, abstract equality, and `typeof`.
+
+        No behavior change.
+
+        [1]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupCompareStrictEqAndSameValue):
+
+2020-08-21  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r265965.
+        https://bugs.webkit.org/show_bug.cgi?id=215744
+
+        getCallData can be called from DFG concurrent compiler, but it
+        is not safe in DOM PluginObject
+
+        Reverted changeset:
+
+        "Use jsTypeofIsObject() in DFG AI and
+        operationTypeOfIsObject()"
+        https://bugs.webkit.org/show_bug.cgi?id=144457
+        https://trac.webkit.org/changeset/265965
+
+2020-08-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Align "length" properties of function prototypes with the spec
+        https://bugs.webkit.org/show_bug.cgi?id=215716
+
+        Reviewed by Ross Kirsling.
+
+        This change defines Function.prototype.length [1] as [[Configurable]] and
+        removes "length" properties from other (async/generator) function prototypes 
+        that are ordinary non-callable objects [2], aligning JSC with V8 and SpiderMonkey.
+
+        Also, adds inherits() ASSERT in FunctionPrototype::finishCreation()
+        to match (most of) the other built-ins.
+
+        [1]: https://tc39.es/ecma262/#sec-properties-of-the-function-prototype-object
+        [2]: https://tc39.es/ecma262/#sec-async-function-prototype-properties
+
+        * runtime/AsyncFunctionPrototype.cpp:
+        (JSC::AsyncFunctionPrototype::finishCreation):
+        * runtime/AsyncGeneratorFunctionPrototype.cpp:
+        (JSC::AsyncGeneratorFunctionPrototype::finishCreation):
+        * runtime/FunctionPrototype.cpp:
+        (JSC::FunctionPrototype::finishCreation):
+        * runtime/GeneratorFunctionPrototype.cpp:
+        (JSC::GeneratorFunctionPrototype::finishCreation):
+
+2020-08-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Define Intl[Symbol.toStringTag]
+        https://bugs.webkit.org/show_bug.cgi?id=215715
+
+        Reviewed by Ross Kirsling.
+
+        This patch utilizes JSC_TO_STRING_TAG_WITHOUT_TRANSITION() to define Symbol.toStringTag
+        on Intl namespace object, implementing the recent spec change [1] and aligning JSC with V8.
+        Also, adds inherits() ASSERT to match (most of) the other built-ins.
+
+        [1]: https://github.com/tc39/ecma402/pull/487
+
+        * runtime/IntlObject.cpp:
+        (JSC::IntlObject::finishCreation):
+
+2020-08-21  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Function.prototype.bind should not clamp "length" to int32
+        https://bugs.webkit.org/show_bug.cgi?id=215733
+
+        Reviewed by Darin Adler.
+
+        This patch fixes to integer conversion of target function's "length" values
+        beyond UINT_MAX, aligning JSC with the spec [1], V8 and SpiderMonkey.
+
+        `double` is used instead of `uint64_t` to retain semantics of JS Number type [2]
+        and hold Infinity values. To avoid spreading `double length` over JSFunction::create()
+        and its subclasses, JSBoundFunction is modified to use JSFunction::finishCreation(VM&)
+        overload, removing 2 unused arguments and speeding up bound function creation by ~9%.
+
+        [1]: https://tc39.es/ecma262/#sec-function.prototype.bind (step 6.c.i)
+        [2]: https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type
+
+        * builtins/FunctionPrototype.js:
+        (bind):
+        * runtime/JSBoundFunction.cpp:
+        (JSC::JSBoundFunction::create):
+        (JSC::JSBoundFunction::JSBoundFunction):
+        (JSC::JSBoundFunction::finishCreation):
+        * runtime/JSBoundFunction.h:
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::finishCreation):
+        (JSC::JSFunction::reifyLength):
+        * runtime/JSGlobalObject.cpp:
+        (JSC::makeBoundFunction):
+
+2020-08-20  Saam Barati  <sbarati@apple.com>
+
+        Replace IC on Proxy must write barrier Proxy's target
+        https://bugs.webkit.org/show_bug.cgi?id=215720
+
+        Reviewed by Yusuke Suzuki.
+
+        The put_by_id opcode in the baseline and the DFG/FTl will emit a writeBarrier
+        after the operation is complete. But it does this to the base object. In the
+        case of an IC with the base as a Proxy, we're not actually storing to the Proxy, but
+        instead, the Proxy's target. This patch makes it so our IC code writeBarriers
+        the Proxy's target. This fixed a crash when running Speedometer2.
+
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::canReplace const):
+        (JSC::AccessCase::generateImpl):
+        * bytecode/PolymorphicAccess.cpp:
+        (JSC::AccessGenerationState::preserveLiveRegistersToStackForCallWithoutExceptions):
+        * bytecode/PolymorphicAccess.h:
+
+2020-08-20  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Invalid early errors for class methods named "constructor" and "prototype"
+        https://bugs.webkit.org/show_bug.cgi?id=215413
+
+        Reviewed by Darin Adler.
+
+        This change removes invalid early syntax errors, allowing static async/generator
+        methods named "constructor" and instance async/generator methods named "prototype",
+        which aligns JSC with the spec [1], V8, and SpiderMonkey.
+
+        Also, removes a FIXME related to super() calls outside constructor that was
+        resolved in r181404 and is covered by test262 suite.
+
+        [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::parseClass):
+
+2020-08-20  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use jsTypeofIsObject() in DFG AI and operationTypeOfIsObject()
+        https://bugs.webkit.org/show_bug.cgi?id=144457
+
+        Reviewed by Saam Barati.
+
+        This patch:
+
+        1. Refactors jsTypeofIsObject(), leveraging fast path of isCallable(),
+           moves it to the header, and utilizes it in DFG AI and
+           operationTypeOfIsObject() to eliminate code duplication.
+
+        2. Splits jsTypeofIsFunction() into 2 methods to accomodate
+           operationTypeOfIsFunction() calling it with JSObject* argument.
+
+        3. Removes orphaned slow_path_is_object declaration.
+
+        No behavior change, `typeof` microbenchmarks are neutral.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGOperations.cpp:
+        * runtime/CommonSlowPaths.h:
+        * runtime/Operations.cpp:
+        (JSC::jsTypeofIsObject): Deleted.
+        * runtime/Operations.h:
+        (JSC::jsTypeofIsObject):
+        (JSC::jsTypeofIsFunction):
+
+2020-08-19  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add Object.getOwnPropertyNames caching as it is done for Object.keys, and accelerate Object.getOwnPropertyDescriptor
+        https://bugs.webkit.org/show_bug.cgi?id=215666
+
+        Reviewed by Saam Barati.
+
+        Object.getOwnPropertyNames is immutable for Structure if structure meets some conditions. And we have optimization for Object.keys.
+        This patch wires existing caching mechanism for Object.keys to Object.getOwnPropertyNames so that Object.getOwnPropertyNames has
+        full support of caching & inlined code in DFG / FTL.
+
+        We also pre-bake structure for the result of Object.getOwnPropertyDescriptor so that we do not need to perform hash table lookup every
+        time we create an object for Object.getOwnPropertyDescriptor. This makes Object.getOwnPropertyDescriptor 2x faster from the microbenchmark.
+
+        The above two optimization makes Speedometer2/Inferno-TodoMVC 7% faster, and it also optimizes Speedometer2/EmberJS-Debug by 5%.
+        In total, we can get 0.7 - 1.0% progression in Speedometer2.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleIntrinsicCall):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileObjectKeysOrObjectGetOwnPropertyNames):
+        (JSC::DFG::SpeculativeJIT::compileObjectKeys): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLAbstractHeapRepository.h:
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileObjectKeysOrObjectGetOwnPropertyNames):
+        (JSC::FTL::DFG::LowerDFGToB3::compileObjectKeys): Deleted.
+        * runtime/Intrinsic.cpp:
+        (JSC::intrinsicName):
+        * runtime/Intrinsic.h:
+        * runtime/IteratorOperations.cpp:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::init):
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::dataPropertyDescriptorObjectStructure const):
+        (JSC::JSGlobalObject::accessorPropertyDescriptorObjectStructure const):
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::globalFuncOwnKeys):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::objectConstructorGetOwnPropertyNames):
+        (JSC::objectConstructorGetOwnPropertySymbols):
+        (JSC::objectConstructorKeys):
+        (JSC::ownPropertyKeys):
+        (JSC::constructObjectFromPropertyDescriptorSlow):
+        * runtime/ObjectConstructor.h:
+        (JSC::createDataPropertyDescriptorObjectStructure):
+        (JSC::createAccessorPropertyDescriptorObjectStructure):
+        (JSC::constructObjectFromPropertyDescriptor):
+        * runtime/ReflectObject.cpp:
+        (JSC::reflectObjectOwnKeys):
+        * runtime/Structure.cpp:
+        (JSC::Structure::canCachePropertyNameEnumerator const):
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::setCachedPropertyNames):
+        (JSC::Structure::cachedPropertyNames const):
+        (JSC::Structure::cachedPropertyNamesIgnoringSentinel const):
+        (JSC::Structure::canCacheOwnPropertyNames const):
+        (JSC::Structure::setCachedOwnKeys): Deleted.
+        (JSC::Structure::cachedOwnKeys const): Deleted.
+        (JSC::Structure::cachedOwnKeysIgnoringSentinel const): Deleted.
+        (JSC::Structure::canCacheOwnKeys const): Deleted.
+        * runtime/StructureRareData.cpp:
+        (JSC::StructureRareData::visitChildren):
+        * runtime/StructureRareData.h:
+        * runtime/StructureRareDataInlines.h:
+        (JSC::StructureRareData::cachedPropertyNames const):
+        (JSC::StructureRareData::cachedPropertyNamesIgnoringSentinel const):
+        (JSC::StructureRareData::cachedPropertyNamesConcurrently const):
+        (JSC::StructureRareData::setCachedPropertyNames):
+        (JSC::StructureRareData::cachedOwnKeys const): Deleted.
+        (JSC::StructureRareData::cachedOwnKeysIgnoringSentinel const): Deleted.
+        (JSC::StructureRareData::cachedOwnKeysConcurrently const): Deleted.
+        (JSC::StructureRareData::setCachedOwnKeys): Deleted.
+
+2020-08-19  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Introduce OpIsCallable bytecode and intrinsic
+        https://bugs.webkit.org/show_bug.cgi?id=215572
+
+        Reviewed by Ross Kirsling and Saam Barati.
+
+        This patch:
+
+        1. Aligns slow_path_is_function with DFG/FTL implementations by introducing
+           jsTypeofIsFunction() helper. This fixes `typeof document.all === "function"`
+           to return `false` instead of `true`.
+
+        2. Renames is_function bytecode op to typeof_is_function, aligning it with
+           typeof_is_undefined and typeof_is_object. New name offers better semantics
+           and clearly communicates the op should be avoided when implementing new
+           features because of `typeof` behavior with [[IsHTMLDDA]] objects [1].
+
+        3. Adds is_callable bytecode op and utilizes it in built-ins via intrinsic,
+           removing `typeof callback === "function"` checks. This prevents [[IsHTMLDDA]]
+           objects from being considered non-callable [2].
+
+           To preserve the fast path for JSFunctionType,
+           createFunctionThatMasqueradesAsUndefined() is relocated to InternalFunction.
+
+        `typeof` microbenchmarks are neutral.
+
+        [1]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot-typeof
+        [2]: https://tc39.es/ecma262/#sec-array.prototype.map (step 3)
+
+        * builtins/ArrayConstructor.js:
+        * builtins/ArrayPrototype.js:
+        (reduce):
+        (reduceRight):
+        (every):
+        (forEach):
+        (filter):
+        (map):
+        (some):
+        (find):
+        (findIndex):
+        (sort):
+        (flatMap):
+        * builtins/FunctionPrototype.js:
+        (overriddenName.string_appeared_here.symbolHasInstance):
+        (bind):
+        * builtins/MapPrototype.js:
+        (forEach):
+        * builtins/PromiseConstructor.js:
+        (all):
+        (allSettled):
+        (any):
+        (race):
+        (nakedConstructor.Promise):
+        (nakedConstructor.InternalPromise):
+        * builtins/PromiseOperations.js:
+        (globalPrivate.newPromiseCapabilitySlow):
+        (globalPrivate.resolvePromise):
+        (globalPrivate.resolveWithoutPromise):
+        * builtins/PromisePrototype.js:
+        (finally):
+        (globalPrivate.getThenFinally):
+        (globalPrivate.getCatchFinally):
+        * builtins/ReflectObject.js:
+        (apply):
+        * builtins/RegExpPrototype.js:
+        (globalPrivate.regExpExec):
+        (overriddenName.string_appeared_here.replace):
+        * builtins/SetPrototype.js:
+        (forEach):
+        * builtins/TypedArrayConstructor.js:
+        * builtins/TypedArrayPrototype.js:
+        (every):
+        (find):
+        (findIndex):
+        (forEach):
+        (some):
+        (sort):
+        (reduce):
+        (reduceRight):
+        (map):
+        (filter):
+        * bytecode/BytecodeIntrinsicRegistry.h:
+        * bytecode/BytecodeList.rb:
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitEqualityOpImpl):
+        (JSC::BytecodeGenerator::emitIsCallable):
+        * bytecompiler/BytecodeGenerator.h:
+        * bytecompiler/NodesCodegen.cpp:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGHeapLocation.cpp:
+        (WTF::printInternal):
+        * dfg/DFGHeapLocation.h:
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileIsCallable):
+        (JSC::DFG::SpeculativeJIT::compileIsFunction): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsCallable):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsFunction): Deleted.
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        * jit/JITOperations.h:
+        * jsc.cpp:
+        (functionMakeMasquerader):
+        * llint/LowLevelInterpreter.asm:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.h:
+        * runtime/InternalFunction.cpp:
+        (JSC::InternalFunction::createFunctionThatMasqueradesAsUndefined):
+        * runtime/InternalFunction.h:
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::createFunctionThatMasqueradesAsUndefined): Deleted.
+        * runtime/JSFunction.h:
+        * runtime/Operations.h:
+        (JSC::jsTypeofIsFunction):
+
+2020-08-19  Saam Barati  <sbarati@apple.com>
+
+        REGRESSION (r265775): DFG ASSERTION FAILED: AI-clobberize disagreement; AI says FoldedClobber while clobberize says (Direct:[], Super:[])
+        https://bugs.webkit.org/show_bug.cgi?id=215639
+        <rdar://problem/67376432>
+
+        Reviewed by Robin Morisset.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+
+2020-08-19  Tadeu Zagallo  <tzagallo@apple.com>
+
+        B3 IntRange is incorrect for negative masks
+        https://bugs.webkit.org/show_bug.cgi?id=215536
+        <rdar://problem/67130430>
+
+        Reviewed by Michael Saboff and Robin Morisset.
+
+        In the B3 ReduceStrength phase, we compute rangeForMask as (0, mask).  This is correct for
+        positive values, but incorrect when negative. To fix it, we use `(INT_MIN & mask, INT_MAX & mask)`
+        as the range for negative masks.
+
+        * b3/B3ReduceStrength.cpp:
+        * b3/testb3.h:
+        * b3/testb3_1.cpp:
+        (run):
+        * b3/testb3_5.cpp:
+        (testCheckSubBitAnd):
+
+2020-08-18  Saam Barati  <sbarati@apple.com>
+
+        Update byte offsets in JSString.h comment
+        https://bugs.webkit.org/show_bug.cgi?id=215621
+
+        Reviewed by Yusuke Suzuki.
+
+        * runtime/JSString.h:
+
+2020-08-17  Saam Barati  <sbarati@apple.com>
+
+        Have an OOB+SaneChain Array::Speculation
+        https://bugs.webkit.org/show_bug.cgi?id=215487
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch adds a new ArrayMode speculation in the DFG/FTL called OutOfBoundsSaneChain.
+        It allows us to do fast things when we go OOB, like simply return undefined.
+        This is because we install watchpoints on the prototype chain to ensure they
+        have no indexed properties. This patch implements OutOfBoundsSaneChain on
+        GetByVal over Int32/Double/Contiguous original JS arrays. We can extend it in
+        the future to non original JS arrays if we prove their prototype is Array.prototype. 
+        To implement this properly, we also need to ensure that the index isn't negative,
+        as Array.prototype/Object.prototype may have negative indexed accessors. We
+        do this via speculation, and if we ever recompile, and see an exit because of
+        this, we will stop speculating OutOfBoundsSaneChain.
+        
+        This is about 20% faster on crypto-md5-SP. And ~3-4x faster on the
+        microbenchmarks I created.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGArrayMode.cpp:
+        (JSC::DFG::ArrayMode::refine const):
+        (JSC::DFG::arraySpeculationToString):
+        * dfg/DFGArrayMode.h:
+        (JSC::DFG::ArrayMode::isInBoundsSaneChain const):
+        (JSC::DFG::ArrayMode::isOutOfBoundsSaneChain const):
+        (JSC::DFG::ArrayMode::isOutOfBounds const):
+        (JSC::DFG::ArrayMode::isEffectfulOutOfBounds const):
+        (JSC::DFG::ArrayMode::isInBounds const):
+        (JSC::DFG::ArrayMode::isSaneChain const): Deleted.
+        * dfg/DFGCSEPhase.cpp:
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::checkArray):
+        (JSC::DFG::FixupPhase::setSaneChainIfPossible):
+        (JSC::DFG::FixupPhase::convertToHasIndexedProperty):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileGetByValOnString):
+        (JSC::DFG::SpeculativeJIT::compileHasIndexedProperty):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGValidate.cpp:
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileGetByVal):
+        (JSC::FTL::DFG::LowerDFGToB3::compileStringCharAt):
+        (JSC::FTL::DFG::LowerDFGToB3::compileHasIndexedProperty):
+
+2020-08-16  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Remove OpIsObjectOrNull from ClassExprNode::emitBytecode()
+        https://bugs.webkit.org/show_bug.cgi?id=214525
+
+        Reviewed by Keith Miller.
+
+        This patch:
+
+        1. Replaces OpIsObjectOrNull in ClassExprNode::emitBytecode() [1] with emitIsObject() +
+           emitIsNull(), preventing DFG/FTL from throwing a TypeError if `document.all` is the
+           value of superclass "prototype" property, which aligns JSC with V8 and SpiderMonkey.
+           Also, tweaks error message to reflect that `null` is allowed.
+
+        2. Renames is_object_or_null bytecode op to typeof_is_object, fixing the confusing
+           operationObjectIsObject() name, and aligns it with typeof_is_undefined.
+           New name offers better semantics and clearly communicates the op should be avoided when
+           implementing new features because of `typeof` behavior with [[IsHTMLDDA]] objects [2].
+
+        [1]: https://tc39.es/ecma262/#sec-runtime-semantics-classdefinitionevaluation (step 5.g.ii)
+        [2]: https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot-typeof
+
+        * bytecode/BytecodeList.rb:
+        * bytecode/BytecodeUseDef.cpp:
+        (JSC::computeUsesForBytecodeIndexImpl):
+        (JSC::computeDefsForBytecodeIndexImpl):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitEqualityOpImpl):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ClassExprNode::emitBytecode):
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCapabilities.cpp:
+        (JSC::DFG::capabilityLevel):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGDoesGC.cpp:
+        (JSC::DFG::doesGC):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGHeapLocation.cpp:
+        (WTF::printInternal):
+        * dfg/DFGHeapLocation.h:
+        * dfg/DFGNodeType.h:
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileTypeOfIsObject):
+        (JSC::DFG::SpeculativeJIT::compileIsObjectOrNull): Deleted.
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLLowerDFGToB3.cpp:
+        (JSC::FTL::DFG::LowerDFGToB3::compileNode):
+        (JSC::FTL::DFG::LowerDFGToB3::compileTypeOfIsObject):
+        (JSC::FTL::DFG::LowerDFGToB3::compileIsObjectOrNull): Deleted.
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileMainPass):
+        * llint/LowLevelInterpreter.asm:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.h:
+        * runtime/Operations.cpp:
+        (JSC::jsTypeofIsObject):
+        (JSC::jsIsObjectTypeOrNull): Deleted.
+        * runtime/Operations.h:
+
+2020-08-15  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Unreviewed non-unified source build fix
+
+        * dfg/DFGOSRAvailabilityAnalysisPhase.cpp: Add missing OperandsInlines.h header.
+
+2020-08-14  Caio Lima  <ticaiolima@gmail.com>
+
+        [ARMv7][JSC] Conservative GC is not considering `r7` as a root
+        https://bugs.webkit.org/show_bug.cgi?id=215512
+
+        Reviewed by Yusuke Suzuki.
+
+        Since `r7` is a callee-saved register on ARMv7
+        we need to consider it as a conservative root.
+
+        See the statement "A subroutine must preserve
+        the contents of the registers r4-r8, r10, r11
+        and SP (and r9 in PCS variants that designate
+        r9 as v6) form page 15 of
+        https://developer.arm.com/documentation/ihi0042/f/.
+
+        * heap/RegisterState.h:
+
+2020-08-12  Keith Miller  <keith_miller@apple.com>
+
+        OSRAvailabilityAnalysis shouldn't mark GetStack nodes directly as valid places for recovery
+        https://bugs.webkit.org/show_bug.cgi?id=215434
+
+        Reviewed by Saam Barati.
+
+        It's somewhat subtle why we cannot use the node for the GetStack
+        itself in the Availability's node field. The reason is that if we
+        did we would need to make any phase that converts nodes to
+        GetStack availability aware. For instance, a place where this
+        could come up is in constant folding if you had a graph like the
+        following, which could arise from PutStack sinking:
+
+        BB#1:
+        @1: NewObject()
+        @2: MovHint(@1, inline-arg1)
+        @3: Jump(#2, #3)
+
+        BB#2:
+        @4: PutStack(@1, inline-arg1)
+        @5: GetMyArgumentByVal(inline-arg1)
+        @6: Jump(#3)
+
+        BB#3:
+        @7: InvalidationPoint()
+
+        If constant folding converts @5 to a GetStack then at @7
+        inline-arg1 won't be available since at the end of BB#1 our
+        availability is (@1, DeadFlush) and (@5,
+        FlushedAt(inline-arg1)). When that gets merged at BB#3 then the
+        availability will be (nullptr, ConflictingFlush).
+
+        This patch also makes validation check that availability is sane
+        at each pontential exit site if
+        Options::validateFTLOSRExitLiveness() is set. Since this is
+        actually a Phase we also need to make sure that we don't infinite
+        loop, so there is now a m_isValidating field on m_graph. The
+        validateOSRExitAvailability phase is also careful not to modify
+        the Graph, in order to avoid masking bugs when validating.
+
+        In a followup patch I intend to look into why MovHint elimination
+        will convert:
+
+        @2: MovHint(@0, loc1, bc#1, ExitInvalid)
+        @3: KillStack(loc1, bc#2, ExitValid)
+        @4: MovHint(@1 loc1, bc#2, ExitInvalid)
+
+        into
+
+        @2: ZombieHint(@0, loc1, bc#1, ExitInvalid)
+        @3: KillStack(loc1, bc#2, ExitValid)
+        @4: MovHint(@1 loc1, bc#2, ExitInvalid)
+
+        when loc1 is live in the bytecode at bc#2. But for now, the
+        validation rule works around this by only checking when mayExit
+        and the nodes exitOK agree exiting is possible.
+
+        * dfg/DFGGraph.h:
+        * dfg/DFGOSRAvailabilityAnalysisPhase.cpp:
+        (JSC::DFG::OSRAvailabilityAnalysisPhase::OSRAvailabilityAnalysisPhase):
+        (JSC::DFG::OSRAvailabilityAnalysisPhase::run):
+        (JSC::DFG::performOSRAvailabilityAnalysis):
+        (JSC::DFG::validateOSRExitAvailability):
+        (JSC::DFG::LocalOSRAvailabilityCalculator::executeNode):
+        * dfg/DFGOSRAvailabilityAnalysisPhase.h:
+        * dfg/DFGPhase.h:
+        (JSC::DFG::runPhase):
+        * dfg/DFGValidate.cpp:
+
+2020-08-13  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Cache Structure::attributeChangeTransition()
+        https://bugs.webkit.org/show_bug.cgi?id=214890
+
+        Reviewed by Yusuke Suzuki.
+
+        With this change, a non-dictionary structure adds attribute-change transitions
+        to transition table, making redefinition to previous atttributes a fast path.
+
+        After too many transitions, the structure becomes a dictionary, firing the
+        transition watchpoint. Attribute-change transitions pin their property tables,
+        preventing forEachPropertyConcurrently() traversal.
+
+        This patch advances provided microbenchmark by ~90% and progresses
+        Speedometer2/EmberJS-Debug-TodoMVC by ~12% (~5% over r264573).
+
+        No behavior change.
+
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::getRegExpPrototypeProperty):
+        * runtime/JSObjectInlines.h:
+        (JSC::JSObject::putDirectInternal):
+        * runtime/Structure.cpp:
+        (JSC::Structure::materializePropertyTable):
+        (JSC::Structure::removeNewPropertyTransition):
+        (JSC::Structure::attributeChangeTransition):
+        * runtime/Structure.h:
+
+2020-08-13  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Rework StructureTransitionTable::Hash::Key encoding
+        https://bugs.webkit.org/show_bug.cgi?id=215483
+
+        Reviewed by Yusuke Suzuki.
+
+        This patch implements new encoding of StructureTransitionTable::Hash::Key
+        to enable storing attribute change transitions in a transition table.
+
+        Since PropertyMapEntry attributes are always uint8_t, the remaining 8 bits
+        are used for TransitionKind, which also accommodates non-property transitions,
+        removing a bit hacky toAttributes() and utilization of unused pointer bits.
+
+        This change also introduces TransitionKind::Unknown we can validate against,
+        preventing addition transition from being a default, which could be unsafe.
+
+        No behavior change.
+
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::notifyPresenceOfIndexedAccessors):
+        (JSC::JSObject::createInitialUndecided):
+        (JSC::JSObject::createInitialInt32):
+        (JSC::JSObject::createInitialDouble):
+        (JSC::JSObject::createInitialContiguous):
+        (JSC::JSObject::convertUndecidedToInt32):
+        (JSC::JSObject::convertUndecidedToDouble):
+        (JSC::JSObject::convertUndecidedToContiguous):
+        (JSC::JSObject::convertUndecidedToArrayStorage):
+        (JSC::JSObject::convertInt32ToDouble):
+        (JSC::JSObject::convertInt32ToContiguous):
+        (JSC::JSObject::convertInt32ToArrayStorage):
+        (JSC::JSObject::convertDoubleToContiguous):
+        (JSC::JSObject::convertDoubleToArrayStorage):
+        (JSC::JSObject::convertContiguousToArrayStorage):
+        (JSC::JSObject::convertFromCopyOnWrite):
+        (JSC::JSObject::switchToSlowPutArrayStorage):
+        (JSC::JSObject::suggestedArrayStorageTransition const):
+        * runtime/JSObject.h:
+        * runtime/Structure.cpp:
+        (JSC::StructureTransitionTable::contains const):
+        (JSC::StructureTransitionTable::get const):
+        (JSC::StructureTransitionTable::add):
+        (JSC::Structure::Structure):
+        (JSC::Structure::addPropertyTransitionToExistingStructureImpl):
+        (JSC::Structure::addNewPropertyTransition):
+        (JSC::Structure::removePropertyTransitionFromExistingStructureImpl):
+        (JSC::Structure::removeNewPropertyTransition):
+        (JSC::Structure::sealTransition):
+        (JSC::Structure::freezeTransition):
+        (JSC::Structure::preventExtensionsTransition):
+        (JSC::Structure::nonPropertyTransitionSlow):
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::nonPropertyTransition):
+        * runtime/StructureTransitionTable.h:
+        (JSC::changesIndexingType):
+        (JSC::newIndexingType):
+        (JSC::preventsExtensions):
+        (JSC::setsDontDeleteOnAllProperties):
+        (JSC::setsReadOnlyOnNonAccessorProperties):
+        (JSC::StructureTransitionTable::Hash::Key::Key):
+        (JSC::StructureTransitionTable::Hash::Key::attributes const):
+        (JSC::StructureTransitionTable::Hash::Key::transitionKind const):
+        (JSC::StructureTransitionTable::Hash::hash):
+        (JSC::toAttributes): Deleted.
+        (JSC::StructureTransitionTable::Hash::Key::isAddition const): Deleted.
+
+2020-08-12  Keith Rollin  <krollin@apple.com>
+
+        Remove the need for defining USE_NEW_BUILD_SYSTEM
+        https://bugs.webkit.org/show_bug.cgi?id=215439
+
+        Reviewed by Darin Adler.
+
+        When building WebKit for XCBuild, we currently require that the
+        external build system (such as the Makefile, build-webkit, etc.)
+        defines the USE_NEW_BUILD_SYSTEM=YES build setting. This build setting
+        controls parts of our build instructions that are sensitive to when
+        XCBuild or the Legacy build system are being used. Notably, we need to
+        know when to use our custom “copy and modify” scripts with copying
+        certain header files (used with the Legacy build system) vs. using the
+        enhanced Copy Headers build phase that’s enabled with
+        APPLY_RULES_IN_COPY_HEADERS=YES (introduced with and used by XCBuild).
+        The choice of which method to copy headers is used is controlled by
+        USE_NEW_BUILD_SYSTEM.
+
+        There is no built-in build setting that we can probe to help us
+        determine which approach to take when copying and modifying headers,
+        which is why we need to define USE_NEW_BUILD_SYSTEM ourselves. But it
+        turns out that we can *detect* which build system is being used by
+        taking advantage of a subtle difference between the two systems. As
+        noted in:
+
+            https://developer.apple.com/documentation/xcode-release-notes/build-system-release-notes-for-xcode-10
+
+            “When an .xcconfig file contains multiple assignments of the same
+             build setting, later assignments using $(inherited) or
+             $(<setting_name>) will inherit from earlier assignments in the
+             .xcconfig. The legacy build system caused every use of
+             $(inherited) or $(<setting_name>) skip any other values defined
+             within the .xcconfig.”
+
+        This difference can be exploited as follows:
+
+            WK_WHICH_BUILD_SYSTEM = not_
+            WK_WHICH_BUILD_SYSTEM = $(inherited)legacy
+            WK_USE_NEW_BUILD_SYSTEM = $(WK_USE_NEW_BUILD_SYSTEM_$(WK_WHICH_BUILD_SYSTEM))
+            WK_USE_NEW_BUILD_SYSTEM_legacy = NO
+            WK_USE_NEW_BUILD_SYSTEM_not_legacy = YES
+
+        We can then use WK_USE_NEW_BUILD_SYSTEM where we used to use the
+        externally-defined USE_NEW_BUILD_SYSTEM.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/JavaScriptCore.xcconfig:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2020-08-12  Saam Barati  <sbarati@apple.com>
+
+        Inline cache Replace and Setters on PureForwardingProxy
+        https://bugs.webkit.org/show_bug.cgi?id=215250
+
+        Reviewed by Yusuke Suzuki.
+
+        We didn't used to cache any Puts on PureForwardingProxy. This patch
+        implements Replace and JS/Custom Setters on PureForwardingProxy. We don't support
+        Transition puts because in our current implementation different global objects
+        will never share the same structure.
+        
+        This patch also aligns how our runtime and the ICs invoke Customs when the
+        passed in |this| value is a JSProxy. For custom accessors, our runtime passes
+        in the JSProxy, where our ICs used to pass in the target of the JSProxy, for
+        the receiver value. For custom values, the IC behavior and the runtime were
+        already aligned in passing in the property owner, which is the JSProxy's
+        target. This patch aligns our IC behavior to match our runtime behavior.
+        
+        This patch also renames some of the registers in the IC code to clear
+        up what they're used for.
+        
+        This is a 2.5x speedup on the microbenchmark I've added, and a 15-20% speedup
+        on JetStream2's 3d-cube-SP.
+
+        * bytecode/AccessCase.cpp:
+        (JSC::AccessCase::generateWithGuard):
+        (JSC::AccessCase::generateImpl):
+        * bytecode/GetterSetterAccessCase.cpp:
+        (JSC::GetterSetterAccessCase::create):
+        * bytecode/GetterSetterAccessCase.h:
+        * jit/JITOperations.cpp:
+        * jit/Repatch.cpp:
+        (JSC::tryCachePutByID):
+        * runtime/CommonSlowPaths.h:
+        (JSC::CommonSlowPaths::originalStructureBeforePut):
+        (JSC::CommonSlowPaths::putDirectWithReify):
+
 2020-08-11  Mark Lam  <mark.lam@apple.com>
 
         ScriptExecutable::newCodeBlockFor() neglected to set the exception pointer result in one case.

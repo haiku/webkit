@@ -38,8 +38,8 @@
 #import "LocalCurrentGraphicsContext.h"
 #import "LocalDefaultSystemAppearance.h"
 #import "ScrollView.h"
-#import <Carbon/Carbon.h>
 #import <pal/spi/cocoa/NSButtonCellSPI.h>
+#import <pal/spi/mac/CoreUISPI.h>
 #import <pal/spi/mac/NSAppearanceSPI.h>
 #import <pal/spi/mac/NSGraphicsSPI.h>
 #import <wtf/BlockObjCExceptions.h>
@@ -167,7 +167,7 @@ static LengthSize sizeFromFont(const FontCascade& font, const LengthSize& zoomed
     return sizeFromNSControlSize(controlSizeForFont(font), zoomedSize, zoomFactor, sizes);
 }
 
-static ControlSize controlSizeFromPixelSize(const std::array<IntSize, 4>& sizes, const IntSize& minZoomedSize, float zoomFactor)
+static NSControlSize controlSizeFromPixelSize(const std::array<IntSize, 4>& sizes, const IntSize& minZoomedSize, float zoomFactor)
 {
 #if HAVE(LARGE_CONTROL_SIZE)
     if (ThemeMac::supportsLargeFormControls()
@@ -186,9 +186,9 @@ static ControlSize controlSizeFromPixelSize(const std::array<IntSize, 4>& sizes,
 
 static void setControlSize(NSCell* cell, const std::array<IntSize, 4>& sizes, const IntSize& minZoomedSize, float zoomFactor)
 {
-    ControlSize size = controlSizeFromPixelSize(sizes, minZoomedSize, zoomFactor);
+    auto size = controlSizeFromPixelSize(sizes, minZoomedSize, zoomFactor);
     if (size != [cell controlSize]) // Only update if we have to, since AppKit does work even if the size is the same.
-        [cell setControlSize:(NSControlSize)size];
+        [cell setControlSize:size];
 }
 
 static void updateStates(NSCell* cell, const ControlStates& controlStates, bool useAnimation = false)
@@ -231,22 +231,6 @@ static void updateStates(NSCell* cell, const ControlStates& controlStates, bool 
 
     // Window inactive state does not need to be checked explicitly, since we paint parented to 
     // a view in a window whose key state can be detected.
-}
-
-static ThemeDrawState convertControlStatesToThemeDrawState(ThemeButtonKind kind, const ControlStates& controlStates)
-{
-    ControlStates::States states = controlStates.states();
-
-    if (!(states & ControlStates::EnabledState))
-        return kThemeStateUnavailableInactive;
-
-    // Do not process PressedState if !EnabledState.
-    if (states & ControlStates::PressedState) {
-        if (kind == kThemeIncDecButton || kind == kThemeIncDecButtonSmall || kind == kThemeIncDecButtonMini)
-            return states & ControlStates::SpinUpState ? kThemeStatePressedUp : kThemeStatePressedDown;
-        return kThemeStatePressed;
-    }
-    return kThemeStateActive;
 }
 
 static FloatRect inflateRect(const FloatRect& zoomedRect, const IntSize& zoomedSize, const int* margins, float zoomFactor)
@@ -643,22 +627,28 @@ static NSControlSize stepperControlSizeForFont(const FontCascade& font)
     return NSControlSizeMini;
 }
 
-static void paintStepper(ControlStates& states, GraphicsContext& context, const FloatRect& zoomedRect, float zoomFactor, ScrollView*)
+static void paintStepper(ControlStates& controlStates, GraphicsContext& context, const FloatRect& zoomedRect, float zoomFactor, ScrollView*)
 {
     // We don't use NSStepperCell because there are no ways to draw an
     // NSStepperCell with the up button highlighted.
 
-    HIThemeButtonDrawInfo drawInfo;
-    drawInfo.version = 0;
-    drawInfo.state = convertControlStatesToThemeDrawState(kThemeIncDecButton, states);
-    drawInfo.adornment = kThemeAdornmentDefault;
-    ControlSize controlSize = controlSizeFromPixelSize(stepperSizes(), IntSize(zoomedRect.size()), zoomFactor);
-    if (controlSize == NSControlSizeSmall)
-        drawInfo.kind = kThemeIncDecButtonSmall;
-    else if (controlSize == NSControlSizeMini)
-        drawInfo.kind = kThemeIncDecButtonMini;
+    NSString *coreUIState;
+    auto states = controlStates.states();
+    if (!(states & ControlStates::EnabledState))
+        coreUIState = (__bridge NSString *)kCUIStateDisabled;
+    else if (states & ControlStates::PressedState)
+        coreUIState = (__bridge NSString *)kCUIStatePressed;
     else
-        drawInfo.kind = kThemeIncDecButton;
+        coreUIState = (__bridge NSString *)kCUIStateActive;
+
+    NSString *coreUISize;
+    auto controlSize = controlSizeFromPixelSize(stepperSizes(), IntSize(zoomedRect.size()), zoomFactor);
+    if (controlSize == NSControlSizeMini)
+        coreUISize = (__bridge NSString *)kCUISizeMini;
+    else if (controlSize == NSControlSizeSmall)
+        coreUISize = (__bridge NSString *)kCUISizeSmall;
+    else
+        coreUISize = (__bridge NSString *)kCUISizeRegular;
 
     IntRect rect(zoomedRect);
     GraphicsContextStateSaver stateSaver(context);
@@ -669,18 +659,17 @@ static void paintStepper(ControlStates& states, GraphicsContext& context, const 
         context.scale(zoomFactor);
         context.translate(-rect.location());
     }
-    CGRect bounds(rect);
-    CGRect backgroundBounds;
-    HIThemeGetButtonBackgroundBounds(&bounds, &drawInfo, &backgroundBounds);
-    // Center the stepper rectangle in the specified area.
-    backgroundBounds.origin.x = bounds.origin.x + (bounds.size.width - backgroundBounds.size.width) / 2;
-    if (backgroundBounds.size.height < bounds.size.height) {
-        int heightDiff = clampToInteger(bounds.size.height - backgroundBounds.size.height);
-        backgroundBounds.origin.y = bounds.origin.y + (heightDiff / 2) + 1;
-    }
 
     LocalCurrentGraphicsContext localContext(context);
-    HIThemeDrawButton(&backgroundBounds, &drawInfo, localContext.cgContext(), kHIThemeOrientationNormal, 0);
+    [[NSAppearance currentAppearance] _drawInRect:rect context:localContext.cgContext() options:@{
+        (__bridge NSString *)kCUIWidgetKey: (__bridge NSString *)kCUIWidgetButtonLittleArrows,
+        (__bridge NSString *)kCUISizeKey: coreUISize,
+        (__bridge NSString *)kCUIStateKey: coreUIState,
+        (__bridge NSString *)kCUIValueKey: (states & ControlStates::SpinUpState) ? @1 : @0,
+        (__bridge NSString *)kCUIIsFlippedKey: @NO,
+        (__bridge NSString *)kCUIScaleKey: @1,
+        (__bridge NSString *)kCUIMaskOnlyKey: @NO
+    }];
 }
 
 // This will ensure that we always return a valid NSView, even if ScrollView doesn't have an associated document NSView.
@@ -931,7 +920,7 @@ void ThemeMac::inflateControlPaintRect(ControlPart part, const ControlStates& st
         }
         case InnerSpinButtonPart: {
             static const int stepperMargin[4] = { 0, 0, 0, 0 };
-            ControlSize controlSize = controlSizeFromPixelSize(stepperSizes(), zoomRectSize, zoomFactor);
+            auto controlSize = controlSizeFromPixelSize(stepperSizes(), zoomRectSize, zoomFactor);
             IntSize zoomedSize = stepperSizes()[controlSize];
             zoomedSize.setHeight(zoomedSize.height() * zoomFactor);
             zoomedSize.setWidth(zoomedSize.width() * zoomFactor);

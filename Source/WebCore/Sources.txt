@@ -213,6 +213,7 @@ Modules/webaudio/BiquadFilterNode.cpp
 Modules/webaudio/BiquadProcessor.cpp
 Modules/webaudio/ChannelMergerNode.cpp
 Modules/webaudio/ChannelSplitterNode.cpp
+Modules/webaudio/ConstantSourceNode.cpp
 Modules/webaudio/ConvolverNode.cpp
 Modules/webaudio/DefaultAudioDestinationNode.cpp
 Modules/webaudio/DelayDSPKernel.cpp
@@ -232,6 +233,7 @@ Modules/webaudio/PannerNode.cpp
 Modules/webaudio/PeriodicWave.cpp
 Modules/webaudio/RealtimeAnalyser.cpp
 Modules/webaudio/ScriptProcessorNode.cpp
+Modules/webaudio/StereoPannerNode.cpp
 Modules/webaudio/WaveShaperDSPKernel.cpp
 Modules/webaudio/WaveShaperNode.cpp
 Modules/webaudio/WaveShaperProcessor.cpp
@@ -508,6 +510,7 @@ bindings/js/JSExecState.cpp
 bindings/js/JSExtendableMessageEventCustom.cpp
 bindings/js/JSFetchEventCustom.cpp
 bindings/js/JSFileSystemEntryCustom.cpp
+bindings/js/JSHTMLCanvasElementCustom.cpp
 bindings/js/JSHTMLCollectionCustom.cpp
 bindings/js/JSHTMLDocumentCustom.cpp
 bindings/js/JSHTMLElementCustom.cpp
@@ -1362,12 +1365,12 @@ inspector/InspectorShaderProgram.cpp
 inspector/InspectorStyleSheet.cpp
 inspector/InstrumentingAgents.cpp
 inspector/NetworkResourcesData.cpp
-inspector/PageScriptDebugServer.cpp
+inspector/PageDebugger.cpp
 inspector/TimelineRecordFactory.cpp
 inspector/WebInjectedScriptHost.cpp
 inspector/WebInjectedScriptManager.cpp
 inspector/WorkerInspectorController.cpp
-inspector/WorkerScriptDebugServer.cpp
+inspector/WorkerDebugger.cpp
 inspector/agents/InspectorAnimationAgent.cpp
 inspector/agents/InspectorApplicationCacheAgent.cpp
 inspector/agents/InspectorCPUProfilerAgent.cpp
@@ -1806,6 +1809,7 @@ platform/audio/ReverbConvolver.cpp
 platform/audio/ReverbConvolverStage.cpp
 platform/audio/ReverbInputBuffer.cpp
 platform/audio/SincResampler.cpp
+platform/audio/StereoPanner.cpp
 platform/audio/UpSampler.cpp
 platform/audio/VectorMath.cpp
 platform/audio/ZeroPole.cpp
@@ -2171,6 +2175,7 @@ rendering/RenderTextFragment.cpp
 rendering/RenderTextLineBoxes.cpp
 rendering/RenderTheme.cpp
 rendering/RenderTreeAsText.cpp
+rendering/RenderTreeMutationDisallowedScope.cpp
 rendering/RenderVTTCue.cpp
 rendering/RenderVideo.cpp
 rendering/RenderView.cpp
@@ -2646,6 +2651,7 @@ JSAudioParam.cpp
 JSAudioProcessingEvent.cpp
 JSAudioProcessingEventInit.cpp
 JSAudioScheduledSourceNode.cpp
+JSAudioTimestamp.cpp
 JSAudioTrack.cpp
 JSAudioTrackList.cpp
 JSAudioTrackMediaSource.cpp
@@ -2733,6 +2739,8 @@ JSCompositeOperation.cpp
 JSCompositeOperationOrAuto.cpp
 JSCompositionEvent.cpp
 JSComputedEffectTiming.cpp
+JSConstantSourceNode.cpp
+JSConstantSourceOptions.cpp
 JSConvolverNode.cpp
 JSConvolverOptions.cpp
 JSCountQueuingStrategy.cpp
@@ -3453,6 +3461,8 @@ JSSpeechSynthesis.cpp
 JSSpeechSynthesisEvent.cpp
 JSSpeechSynthesisUtterance.cpp
 JSSpeechSynthesisVoice.cpp
+JSStereoPannerNode.cpp
+JSStereoPannerOptions.cpp
 JSStaticRange.cpp
 JSStorage.cpp
 JSStorageErrorCallback.cpp

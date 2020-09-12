@@ -44,6 +44,8 @@
 #include "ChannelMergerOptions.h"
 #include "ChannelSplitterNode.h"
 #include "ChannelSplitterOptions.h"
+#include "ConstantSourceNode.h"
+#include "ConstantSourceOptions.h"
 #include "ConvolverNode.h"
 #include "DefaultAudioDestinationNode.h"
 #include "DelayNode.h"
@@ -72,6 +74,8 @@
 #include "PlatformMediaSessionManager.h"
 #include "ScriptController.h"
 #include "ScriptProcessorNode.h"
+#include "StereoPannerNode.h"
+#include "StereoPannerOptions.h"
 #include "WaveShaperNode.h"
 #include "WebKitAudioListener.h"
 #include <JavaScriptCore/ScriptCallStack.h>
@@ -610,6 +614,22 @@ ExceptionOr<Ref<PeriodicWave>> BaseAudioContext::createPeriodicWave(Vector<float
     return PeriodicWave::create(*this, WTFMove(options));
 }
 
+ExceptionOr<Ref<ConstantSourceNode>> BaseAudioContext::createConstantSource()
+{
+    ALWAYS_LOG(LOGIDENTIFIER);
+    
+    ASSERT(isMainThread());
+    return ConstantSourceNode::create(*this);
+}
+
+ExceptionOr<Ref<StereoPannerNode>> BaseAudioContext::createStereoPanner()
+{
+    ALWAYS_LOG(LOGIDENTIFIER);
+    
+    ASSERT(isMainThread());
+    return StereoPannerNode::create(*this);
+}
+
 void BaseAudioContext::notifyNodeFinishedProcessing(AudioNode* node)
 {
     ASSERT(isAudioThread());
@@ -659,6 +679,11 @@ void BaseAudioContext::lock(bool& mustReleaseLock)
     // Don't allow regular lock in real-time audio thread.
     ASSERT(isMainThread());
 
+    lockInternal(mustReleaseLock);
+}
+
+void BaseAudioContext::lockInternal(bool& mustReleaseLock)
+{
     Thread& thisThread = Thread::current();
 
     if (&thisThread == m_graphOwnerThread) {
@@ -729,7 +754,7 @@ void BaseAudioContext::addDeferredFinishDeref(AudioNode* node)
     m_deferredFinishDerefList.append(node);
 }
 
-void BaseAudioContext::handlePreRenderTasks()
+void BaseAudioContext::handlePreRenderTasks(const AudioIOPosition& outputPosition)
 {
     ASSERT(isAudioThread());
 
@@ -742,10 +767,18 @@ void BaseAudioContext::handlePreRenderTasks()
         handleDirtyAudioNodeOutputs();
 
         updateAutomaticPullNodes();
+        m_outputPosition = outputPosition;
 
         if (mustReleaseLock)
             unlock();
     }
+}
+
+AudioIOPosition BaseAudioContext::outputPosition()
+{
+    ASSERT(isMainThread());
+    AutoLocker locker(*this);
+    return m_outputPosition;
 }
 
 void BaseAudioContext::handlePostRenderTasks()
@@ -1141,6 +1174,11 @@ void BaseAudioContext::suspendRendering(DOMPromiseDeferred<void>&& promise)
     m_destinationNode->suspend([this, protectedThis = makeRef(*this)] {
         setState(State::Suspended);
     });
+}
+
+void BaseAudioContext::didSuspendRendering(size_t)
+{
+    setState(State::Suspended);
 }
 
 void BaseAudioContext::resumeRendering(DOMPromiseDeferred<void>&& promise)

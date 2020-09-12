@@ -2948,6 +2948,15 @@ bool ByteCodeParser::handleIntrinsicCall(Node* callee, Operand result, Intrinsic
             return true;
         }
 
+        case ObjectGetOwnPropertyNamesIntrinsic: {
+            if (argumentCountIncludingThis < 2)
+                return false;
+
+            insertChecks();
+            setResult(addToGraph(ObjectGetOwnPropertyNames, get(virtualRegisterForArgumentIncludingThis(1, registerOffset))));
+            return true;
+        }
+
         case ReflectGetPrototypeOfIntrinsic: {
             if (argumentCountIncludingThis < 2)
                 return false;
@@ -5742,6 +5751,18 @@ void ByteCodeParser::parseBlock(unsigned limit)
             set(bytecode.m_dst, addToGraph(TypeOfIsUndefined, value));
             NEXT_OPCODE(op_is_undefined);
         }
+        case op_typeof_is_object: {
+            auto bytecode = currentInstruction->as<OpTypeofIsObject>();
+            Node* value = get(bytecode.m_operand);
+            set(bytecode.m_dst, addToGraph(TypeOfIsObject, value));
+            NEXT_OPCODE(op_typeof_is_object);
+        }
+        case op_typeof_is_function: {
+            auto bytecode = currentInstruction->as<OpTypeofIsFunction>();
+            Node* value = get(bytecode.m_operand);
+            set(bytecode.m_dst, addToGraph(TypeOfIsFunction, value));
+            NEXT_OPCODE(op_typeof_is_function);
+        }
         case op_is_undefined_or_null: {
             auto bytecode = currentInstruction->as<OpIsUndefinedOrNull>();
             Node* value = get(bytecode.m_operand);
@@ -5788,18 +5809,11 @@ void ByteCodeParser::parseBlock(unsigned limit)
             NEXT_OPCODE(op_is_object);
         }
 
-        case op_is_object_or_null: {
-            auto bytecode = currentInstruction->as<OpIsObjectOrNull>();
+        case op_is_callable: {
+            auto bytecode = currentInstruction->as<OpIsCallable>();
             Node* value = get(bytecode.m_operand);
-            set(bytecode.m_dst, addToGraph(IsObjectOrNull, value));
-            NEXT_OPCODE(op_is_object_or_null);
-        }
-
-        case op_is_function: {
-            auto bytecode = currentInstruction->as<OpIsFunction>();
-            Node* value = get(bytecode.m_operand);
-            set(bytecode.m_dst, addToGraph(IsFunction, value));
-            NEXT_OPCODE(op_is_function);
+            set(bytecode.m_dst, addToGraph(IsCallable, value));
+            NEXT_OPCODE(op_is_callable);
         }
 
         case op_is_constructor: {

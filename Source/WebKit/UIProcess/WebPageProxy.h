@@ -206,9 +206,10 @@ enum class InspectorTargetType : uint8_t;
 }
 
 namespace IPC {
+class DataReference;
 class Decoder;
 class FormDataReference;
-class SharedBufferDataReference;
+class SharedBufferCopy;
 }
 OBJC_CLASS NSFileWrapper;
 OBJC_CLASS WKQLThumbnailLoadOperation;
@@ -249,6 +250,7 @@ struct BackForwardItemIdentifier;
 struct CompositionHighlight;
 struct ContentRuleListResults;
 struct DataListSuggestionInformation;
+struct DateTimeChooserParameters;
 struct DictionaryPopupInfo;
 struct DragItem;
 struct ElementContext;
@@ -304,7 +306,6 @@ class RemoteLayerTreeScrollingPerformanceData;
 class RemoteLayerTreeTransaction;
 class RemoteScrollingCoordinatorProxy;
 class SecKeyProxyStore;
-class SharedBufferDataReference;
 class UserData;
 class ViewSnapshot;
 class VisitedLinkStore;
@@ -416,6 +417,10 @@ typedef GenericCallback<const FocusedElementInformation&> FocusedElementInformat
 #if PLATFORM(COCOA)
 using DrawToPDFCallback = GenericCallback<const IPC::DataReference&>;
 typedef GenericCallback<bool, bool, String, double, double, uint64_t> NowPlayingInfoCallback;
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+class WebDateTimePicker;
 #endif
 
 using SpellDocumentTag = int64_t;
@@ -791,7 +796,7 @@ public:
     void startInteractionWithPositionInformation(const InteractionInformationAtPosition&);
     void stopInteraction();
     void performActionOnElement(uint32_t action);
-    void saveImageToLibrary(const SharedMemory::Handle& imageHandle, uint64_t imageSize);
+    void saveImageToLibrary(const SharedMemory::IPCHandle& imageHandle);
     void focusNextFocusedElement(bool isForward, CompletionHandler<void()>&& = [] { });
     void setFocusedElementValue(const String&);
     void setFocusedElementValueAsNumber(double);
@@ -1172,8 +1177,8 @@ public:
     void setDragCaretRect(const WebCore::IntRect&);
 #if PLATFORM(COCOA)
     void startDrag(const WebCore::DragItem&, const ShareableBitmap::Handle& dragImageHandle);
-    void setPromisedDataForImage(const String& pasteboardName, const SharedMemory::Handle& imageHandle, uint64_t imageSize, const String& filename, const String& extension,
-                         const String& title, const String& url, const String& visibleURL, const SharedMemory::Handle& archiveHandle, uint64_t archiveSize);
+    void setPromisedDataForImage(const String& pasteboardName, const SharedMemory::IPCHandle& imageHandle, const String& filename, const String& extension,
+        const String& title, const String& url, const String& visibleURL, const SharedMemory::IPCHandle& archiveHandle);
 #endif
 #if PLATFORM(GTK)
     void startDrag(WebCore::SelectionData&&, OptionSet<WebCore::DragOperation>, const ShareableBitmap::Handle& dragImage);
@@ -1553,7 +1558,7 @@ public:
     void didRestoreScrollPosition();
 
     void getLoadDecisionForIcon(const WebCore::LinkIcon&, WebKit::CallbackID);
-    void finishedLoadingIcon(WebKit::CallbackID, const IPC::SharedBufferDataReference&);
+    void finishedLoadingIcon(WebKit::CallbackID, const IPC::DataReference&);
 
     void setFocus(bool focused);
     void setWindowFrame(const WebCore::FloatRect&);
@@ -1603,8 +1608,8 @@ public:
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     void requestStorageAccessConfirm(const WebCore::RegistrableDomain& subFrameDomain, const WebCore::RegistrableDomain& topFrameDomain, WebCore::FrameIdentifier, CompletionHandler<void(bool)>&&);
     void didCommitCrossSiteLoadWithDataTransferFromPrevalentResource();
-    void loadedThirdPartyDomains(CompletionHandler<void(Vector<WebCore::RegistrableDomain>&&)>&&);
-    void clearLoadedThirdPartyDomains();
+    void getLoadedSubresourceDomains(CompletionHandler<void(Vector<WebCore::RegistrableDomain>&&)>&&);
+    void clearLoadedSubresourceDomains();
 #endif
 
 #if ENABLE(DEVICE_ORIENTATION)
@@ -1645,6 +1650,11 @@ public:
 #if ENABLE(DATALIST_ELEMENT)
     void didSelectOption(const String&);
     void didCloseSuggestions();
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    void didChooseDate(StringView);
+    void didEndDateTimePicker();
 #endif
 
     void updateCurrentModifierState();
@@ -1756,7 +1766,7 @@ public:
     void grantAccessToPreferenceService();
 #endif
 
-    void setShouldFireEvents(bool);
+    void setIsTakingSnapshotsForApplicationSuspension(bool);
     void setNeedsDOMWindowResizeEvent();
 
     void isNavigatingToAppBoundDomainTesting(CompletionHandler<void(bool)>&&);
@@ -2001,6 +2011,11 @@ private:
     void endDataListSuggestions();
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    void showDateTimePicker(WebCore::DateTimeChooserParameters&&);
+    void endDateTimePicker();
+#endif
+
     void closeOverlayedViews();
 
     void compositionWasCanceled();
@@ -2104,7 +2119,7 @@ private:
     void didReceiveEvent(uint32_t opaqueType, bool handled);
 
     void voidCallback(CallbackID);
-    void dataCallback(const IPC::SharedBufferDataReference&, CallbackID);
+    void dataCallback(const IPC::DataReference&, CallbackID);
     void imageCallback(const ShareableBitmap::Handle&, CallbackID);
     void boolCallback(bool result, CallbackID);
     void stringCallback(const String&, CallbackID);
@@ -2209,12 +2224,6 @@ private:
 
     void setRenderTreeSize(uint64_t treeSize) { m_renderTreeSize = treeSize; }
 
-#if PLATFORM(X11) && ENABLE(NETSCAPE_PLUGIN_API)
-    void createPluginContainer(CompletionHandler<void(uint64_t)>&&);
-    void windowedPluginGeometryDidChange(const WebCore::IntRect& frameRect, const WebCore::IntRect& clipRect, uint64_t windowID);
-    void windowedPluginVisibilityDidChange(bool isVisible, uint64_t windowID);
-#endif
-
     void processNextQueuedWheelEvent();
     void sendWheelEvent(const WebWheelEvent&);
     bool shouldProcessWheelEventNow(const WebWheelEvent&) const;
@@ -2280,12 +2289,12 @@ private:
     void stopAllURLSchemeTasks(WebProcessProxy* = nullptr);
 
 #if ENABLE(ATTACHMENT_ELEMENT)
-    void registerAttachmentIdentifierFromData(const String&, const String& contentType, const String& preferredFileName, const IPC::SharedBufferDataReference&);
+    void registerAttachmentIdentifierFromData(const String&, const String& contentType, const String& preferredFileName, const IPC::SharedBufferCopy&);
     void registerAttachmentIdentifierFromFilePath(const String&, const String& contentType, const String& filePath);
     void registerAttachmentsFromSerializedData(Vector<WebCore::SerializedAttachmentData>&&);
     void cloneAttachmentData(const String& fromIdentifier, const String& toIdentifier);
 
-    void platformRegisterAttachment(Ref<API::Attachment>&&, const String& preferredFileName, const IPC::SharedBufferDataReference&);
+    void platformRegisterAttachment(Ref<API::Attachment>&&, const String& preferredFileName, const IPC::SharedBufferCopy&);
     void platformRegisterAttachment(Ref<API::Attachment>&&, const String& filePath);
     void platformCloneAttachment(Ref<API::Attachment>&& fromAttachment, Ref<API::Attachment>&& toAttachment);
 
@@ -2606,6 +2615,9 @@ private:
 #endif
 #if ENABLE(DATALIST_ELEMENT)
     RefPtr<WebDataListSuggestionsDropdown> m_dataListSuggestionsDropdown;
+#endif
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    RefPtr<WebDateTimePicker> m_dateTimePicker;
 #endif
 #if PLATFORM(COCOA)
     RefPtr<WebCore::ValidationBubble> m_validationBubble;

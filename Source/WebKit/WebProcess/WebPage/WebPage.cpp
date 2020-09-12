@@ -80,6 +80,7 @@
 #include "WebCoreArgumentCoders.h"
 #include "WebDataListSuggestionPicker.h"
 #include "WebDatabaseProvider.h"
+#include "WebDateTimeChooser.h"
 #include "WebDiagnosticLoggingClient.h"
 #include "WebDocumentLoader.h"
 #include "WebDragClient.h"
@@ -3372,12 +3373,12 @@ void WebPage::show()
     send(Messages::WebPageProxy::ShowPage());
 }
 
-void WebPage::setShouldFireEvents(bool shouldFireEvents)
+void WebPage::setIsTakingSnapshotsForApplicationSuspension(bool isTakingSnapshotsForApplicationSuspension)
 {
-    RELEASE_LOG_IF_ALLOWED(Resize, "setShouldFireEvents(%d)", shouldFireEvents);
+    RELEASE_LOG_IF_ALLOWED(Resize, "setIsTakingSnapshotsForApplicationSuspension(%d)", isTakingSnapshotsForApplicationSuspension);
 
     if (m_page)
-        m_page->setShouldFireEvents(shouldFireEvents);
+        m_page->setIsTakingSnapshotsForApplicationSuspension(isTakingSnapshotsForApplicationSuspension);
 }
 
 void WebPage::setNeedsDOMWindowResizeEvent()
@@ -3569,7 +3570,7 @@ void WebPage::getSelectionAsWebArchiveData(CallbackID callbackID)
     IPC::SharedBufferDataReference dataReference;
 #if PLATFORM(COCOA)
     if (data)
-        dataReference = SharedBuffer::create(data.get());
+        dataReference = { CFDataGetBytePtr(data.get()), static_cast<size_t>(CFDataGetLength(data.get())) };
 #endif
     send(Messages::WebPageProxy::DataCallback(dataReference, callbackID));
 }
@@ -3650,7 +3651,7 @@ void WebPage::getWebArchiveOfFrame(FrameIdentifier frameID, CallbackID callbackI
     IPC::SharedBufferDataReference dataReference;
 #if PLATFORM(COCOA)
     if (data)
-        dataReference = SharedBuffer::create(data.get());
+        dataReference = { CFDataGetBytePtr(data.get()), static_cast<size_t>(CFDataGetLength(data.get())) };
 #endif
     send(Messages::WebPageProxy::DataCallback(dataReference, callbackID));
 }
@@ -4204,6 +4205,27 @@ void WebPage::didCloseSuggestions()
 {
     if (auto picker = std::exchange(m_activeDataListSuggestionPicker, nullptr))
         picker->didCloseSuggestions();
+}
+
+#endif
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+
+void WebPage::setActiveDateTimeChooser(WebDateTimeChooser& dateTimeChooser)
+{
+    m_activeDateTimeChooser = makeWeakPtr(&dateTimeChooser);
+}
+
+void WebPage::didChooseDate(const String& date)
+{
+    if (m_activeDateTimeChooser)
+        m_activeDateTimeChooser->didChooseDate(date);
+}
+
+void WebPage::didEndDateTimePicker()
+{
+    if (auto chooser = std::exchange(m_activeDateTimeChooser, nullptr))
+        chooser->didEndChooser();
 }
 
 #endif
@@ -5029,7 +5051,7 @@ void WebPage::drawPagesToPDF(FrameIdentifier frameID, const PrintInfo& printInfo
 {
     RetainPtr<CFMutableDataRef> pdfPageData;
     drawPagesToPDFImpl(frameID, printInfo, first, count, pdfPageData);
-    send(Messages::WebPageProxy::DataCallback({ SharedBuffer::create(pdfPageData.get()) }, callbackID));
+    send(Messages::WebPageProxy::DataCallback({ CFDataGetBytePtr(pdfPageData.get()), static_cast<size_t>(CFDataGetLength(pdfPageData.get())) }, callbackID));
 }
 
 void WebPage::drawPagesToPDFImpl(FrameIdentifier frameID, const PrintInfo& printInfo, uint32_t first, uint32_t count, RetainPtr<CFMutableDataRef>& pdfPageData)
@@ -5960,7 +5982,7 @@ void WebPage::didCommitLoad(WebFrame* frame)
     unfreezeLayerTree(LayerTreeFreezeReason::ProcessSwap);
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
-    clearLoadedThirdPartyDomains();
+    clearLoadedSubresourceDomains();
 #endif
     
     // If previous URL is invalid, then it's not a real page that's being navigated away from.
@@ -6715,12 +6737,12 @@ void WebPage::urlSchemeTaskDidReceiveResponse(uint64_t handlerIdentifier, uint64
     handler->taskDidReceiveResponse(taskIdentifier, response);
 }
 
-void WebPage::urlSchemeTaskDidReceiveData(uint64_t handlerIdentifier, uint64_t taskIdentifier, const IPC::SharedBufferDataReference& data)
+void WebPage::urlSchemeTaskDidReceiveData(uint64_t handlerIdentifier, uint64_t taskIdentifier, const IPC::DataReference& data)
 {
     auto* handler = m_identifierToURLSchemeHandlerProxyMap.get(handlerIdentifier);
     ASSERT(handler);
 
-    handler->taskDidReceiveData(taskIdentifier, data.size(), reinterpret_cast<const uint8_t *>(data.data()));
+    handler->taskDidReceiveData(taskIdentifier, data.size(), data.data());
 }
 
 void WebPage::urlSchemeTaskDidComplete(uint64_t handlerIdentifier, uint64_t taskIdentifier, const ResourceError& error)
@@ -6830,17 +6852,17 @@ void WebPage::wasLoadedWithDataTransferFromPrevalentResource()
 void WebPage::didLoadFromRegistrableDomain(RegistrableDomain&& targetDomain)
 {
     if (targetDomain != RegistrableDomain(mainWebFrame().url()))
-        m_loadedThirdPartyDomains.add(targetDomain);
+        m_loadedSubresourceDomains.add(targetDomain);
 }
 
-void WebPage::loadedThirdPartyDomains(CompletionHandler<void(Vector<RegistrableDomain>)>&& completionHandler)
+void WebPage::getLoadedSubresourceDomains(CompletionHandler<void(Vector<RegistrableDomain>)>&& completionHandler)
 {
-    completionHandler(copyToVector(m_loadedThirdPartyDomains));
+    completionHandler(copyToVector(m_loadedSubresourceDomains));
 }
 
-void WebPage::clearLoadedThirdPartyDomains()
+void WebPage::clearLoadedSubresourceDomains()
 {
-    m_loadedThirdPartyDomains.clear();
+    m_loadedSubresourceDomains.clear();
 }
 
 #endif
@@ -6926,7 +6948,7 @@ void WebPage::insertAttachment(const String& identifier, Optional<uint64_t>&& fi
     send(Messages::WebPageProxy::VoidCallback(callbackID));
 }
 
-void WebPage::updateAttachmentAttributes(const String& identifier, Optional<uint64_t>&& fileSize, const String& contentType, const String& fileName, const IPC::SharedBufferDataReference& enclosingImageData, CallbackID callbackID)
+void WebPage::updateAttachmentAttributes(const String& identifier, Optional<uint64_t>&& fileSize, const String& contentType, const String& fileName, const IPC::DataReference& enclosingImageData, CallbackID callbackID)
 {
     if (auto attachment = attachmentElementWithIdentifier(identifier)) {
         attachment->document().updateLayout();

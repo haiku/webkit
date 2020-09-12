@@ -222,6 +222,7 @@ inline CapabilityLevel canCompile(Node* node)
     case CallNumberConstructor:
     case ObjectCreate:
     case ObjectKeys:
+    case ObjectGetOwnPropertyNames:
     case MakeRope:
     case NewArrayWithSize:
     case TryGetById:
@@ -258,14 +259,15 @@ inline CapabilityLevel canCompile(Node* node)
     case WeakMapSet:
     case IsEmpty:
     case TypeOfIsUndefined:
+    case TypeOfIsObject:
+    case TypeOfIsFunction:
     case IsUndefinedOrNull:
     case IsBoolean:
     case IsNumber:
     case IsBigInt:
     case NumberIsInteger:
     case IsObject:
-    case IsObjectOrNull:
-    case IsFunction:
+    case IsCallable:
     case IsConstructor:
     case IsTypedArrayView:
     case CheckTypeInfoFlags:

@@ -144,14 +144,15 @@ bool doesGC(Graph& graph, Node* node)
     case OverridesHasInstance:
     case IsEmpty:
     case TypeOfIsUndefined:
+    case TypeOfIsObject:
+    case TypeOfIsFunction:
     case IsUndefinedOrNull:
     case IsBoolean:
     case IsNumber:
     case IsBigInt:
     case NumberIsInteger:
     case IsObject:
-    case IsObjectOrNull:
-    case IsFunction:
+    case IsCallable:
     case IsConstructor:
     case IsCellWithType:
     case IsTypedArrayView:
@@ -352,6 +353,7 @@ bool doesGC(Graph& graph, Node* node)
     case CreateAsyncGenerator:
     case ObjectCreate:
     case ObjectKeys:
+    case ObjectGetOwnPropertyNames:
     case AllocatePropertyStorage:
     case ReallocatePropertyStorage:
     case Arrayify:

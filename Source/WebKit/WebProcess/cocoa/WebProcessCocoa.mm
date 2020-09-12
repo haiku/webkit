@@ -26,8 +26,6 @@
 #import "config.h"
 #import "WebProcess.h"
 
-#import "LaunchServicesDatabaseManager.h"
-#import "LaunchServicesDatabaseXPCConstants.h"
 #import "LegacyCustomProtocolManager.h"
 #import "LogInitialization.h"
 #import "Logging.h"
@@ -49,7 +47,6 @@
 #import "WebProcessProxyMessages.h"
 #import "WebSleepDisablerClient.h"
 #import "WebsiteDataStoreParameters.h"
-#import "XPCEndpoint.h"
 #import <JavaScriptCore/ConfigFile.h>
 #import <JavaScriptCore/Options.h>
 #import <WebCore/AVAssetMIMETypeCache.h>
@@ -127,6 +124,7 @@
 #import "WebSwitchingGPUClient.h"
 #import <WebCore/GraphicsContextGLOpenGLManager.h>
 #import <WebCore/ScrollbarThemeMac.h>
+#import <pal/spi/mac/HIServicesSPI.h>
 #import <pal/spi/mac/NSScrollerImpSPI.h>
 #endif
 
@@ -166,41 +164,6 @@ static id NSApplicationAccessibilityFocusedUIElement(NSApplication*, SEL)
     return [page->accessibilityRemoteObject() accessibilityFocusedUIElement];
 }
 #endif
-
-void WebProcess::handleXPCEndpointMessages() const
-{
-    if (!parentProcessConnection())
-        return;
-
-    auto connection = parentProcessConnection()->xpcConnection();
-
-    if (!connection)
-        return;
-
-    RELEASE_ASSERT(xpc_get_type(connection) == XPC_TYPE_CONNECTION);
-
-    xpc_connection_suspend(connection);
-
-    xpc_connection_set_target_queue(connection, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-    xpc_connection_set_event_handler(connection, ^(xpc_object_t event) {
-        if (xpc_get_type(event) != XPC_TYPE_DICTIONARY)
-            return;
-
-        String messageName = xpc_dictionary_get_string(event, XPCEndpoint::xpcMessageNameKey);
-        if (messageName.isEmpty())
-            return;
-
-#if HAVE(LSDATABASECONTEXT)
-        if (messageName == LaunchServicesDatabaseXPCConstants::xpcLaunchServicesDatabaseXPCEndpointMessageName) {
-            auto endpoint = xpc_dictionary_get_value(event, LaunchServicesDatabaseXPCConstants::xpcLaunchServicesDatabaseXPCEndpointNameKey);
-            LaunchServicesDatabaseManager::singleton().setEndpoint(endpoint);
-            return;
-        }
-#endif
-    });
-
-    xpc_connection_resume(connection);
-}
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
@@ -948,6 +911,12 @@ static const WTF::String& userHighlightColorPreferenceKey()
     static NeverDestroyed<WTF::String> userHighlightColorPreferenceKey(MAKE_STATIC_STRING_IMPL("AppleHighlightColor"));
     return userHighlightColorPreferenceKey;
 }
+
+static const WTF::String& reduceMotionPreferenceKey()
+{
+    static NeverDestroyed<WTF::String> key(MAKE_STATIC_STRING_IMPL("reduceMotion"));
+    return key;
+}
 #endif
 
 static void dispatchSimulatedNotificationsForPreferenceChange(const String& key)
@@ -958,15 +927,17 @@ static void dispatchSimulatedNotificationsForPreferenceChange(const String& key)
     // of the system, we must re-post the notification in the Web Content process after updating the default.
     
     if (key == userAccentColorPreferenceKey()) {
-        NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+        auto notificationCenter = [NSNotificationCenter defaultCenter];
         [notificationCenter postNotificationName:@"kCUINotificationAquaColorVariantChanged" object:nil];
         [notificationCenter postNotificationName:@"NSSystemColorsWillChangeNotification" object:nil];
         [notificationCenter postNotificationName:NSSystemColorsDidChangeNotification object:nil];
-    }
-    if (key == userHighlightColorPreferenceKey()) {
-        NSNotificationCenter *notificationCenter = [NSNotificationCenter defaultCenter];
+    } else if (key == userHighlightColorPreferenceKey()) {
+        auto notificationCenter = [NSNotificationCenter defaultCenter];
         [notificationCenter postNotificationName:@"NSSystemColorsWillChangeNotification" object:nil];
         [notificationCenter postNotificationName:NSSystemColorsDidChangeNotification object:nil];
+    } else if (key == reduceMotionPreferenceKey()) {
+        auto notificationCenter = CFNotificationCenterGetDistributedCenter();
+        CFNotificationCenterPostNotification(notificationCenter, kAXInterfaceReduceMotionStatusDidChangeNotification, nullptr, nullptr, true);
     }
 #endif
 }
@@ -975,7 +946,10 @@ static void setPreferenceValue(const String& domain, const String& key, id value
 {
     if (domain.isEmpty()) {
         CFPreferencesSetValue(key.createCFString().get(), (__bridge CFPropertyListRef)value, kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-        ASSERT([[[NSUserDefaults standardUserDefaults] objectForKey:key] isEqual:value]);
+#if ASSERT_ENABLED
+        id valueAfterSetting = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+        ASSERT(valueAfterSetting == value || [valueAfterSetting isEqual:value]);
+#endif
     } else
         CFPreferencesSetValue(key.createCFString().get(), (__bridge CFPropertyListRef)value, domain.createCFString().get(), kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 }

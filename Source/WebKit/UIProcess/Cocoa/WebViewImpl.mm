@@ -414,6 +414,25 @@ static void* keyValueObservingContext = &keyValueObservingContext;
 
 @implementation WKFlippedView
 
+- (instancetype)initWithFrame:(NSRect)frame
+{
+    if (self = [super initWithFrame:frame])
+        [self _commonInitialize];
+    return self;
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder
+{
+    if (self = [super initWithCoder:coder])
+        [self _commonInitialize];
+    return self;
+}
+
+- (void)_commonInitialize
+{
+    [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+}
+
 - (BOOL)isFlipped
 {
     return YES;
@@ -1377,11 +1396,21 @@ WebViewImpl::WebViewImpl(NSView <WebViewImplDelegate> *view, WKWebView *outerWeb
 
     [view addTrackingArea:m_primaryTrackingArea.get()];
 
-    // Create an NSView that will host our layer tree.
-    m_layerHostingView = adoptNS([[WKFlippedView alloc] initWithFrame:[m_view bounds]]);
-    [m_layerHostingView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    for (NSView *subview in view.subviews) {
+        if ([subview isKindOfClass:WKFlippedView.class]) {
+            // A layer hosting view may have already been created and added to the view hierarchy
+            // in the process of initializing the WKWebView from an NSCoder.
+            m_layerHostingView = (WKFlippedView *)subview;
+            [m_layerHostingView setFrame:[m_view bounds]];
+            break;
+        }
+    }
 
-    [view addSubview:m_layerHostingView.get() positioned:NSWindowBelow relativeTo:nil];
+    if (!m_layerHostingView) {
+        // Create an NSView that will host our layer tree.
+        m_layerHostingView = adoptNS([[WKFlippedView alloc] initWithFrame:[m_view bounds]]);
+        [view addSubview:m_layerHostingView.get() positioned:NSWindowBelow relativeTo:nil];
+    }
 
     // Create a root layer that will back the NSView.
     RetainPtr<CALayer> layer = adoptNS([[CALayer alloc] init]);
@@ -3352,7 +3381,7 @@ void WebViewImpl::handleRequestedCandidates(NSInteger sequenceNumber, NSArray<NS
 
 #if HAVE(TOUCH_BAR)
     NSRange selectedRange = NSMakeRange(postLayoutData.candidateRequestStartPosition, postLayoutData.selectedTextLength);
-    WebCore::IntRect offsetSelectionRect = postLayoutData.focusedElementRect;
+    WebCore::IntRect offsetSelectionRect = postLayoutData.selectionBoundingRect;
     offsetSelectionRect.move(0, offsetSelectionRect.height());
 
     [candidateListTouchBarItem() setCandidates:candidates forSelectedRange:selectedRange inString:postLayoutData.paragraphContextForCandidateRequest rect:offsetSelectionRect view:m_view.getAutoreleased() completionHandler:nil];
@@ -3934,13 +3963,13 @@ static OptionSet<WebCore::DragApplicationFlags> applicationFlagsForDrag(NSView *
     ASSERT(hasProcessPrivilege(ProcessPrivilege::CanCommunicateWithWindowServer));
     OptionSet<WebCore::DragApplicationFlags> flags;
     if ([NSApp modalWindow])
-        flags.add(WebCore::DragApplicationIsModal);
+        flags.add(WebCore::DragApplicationFlags::IsModal);
     if (view.window.attachedSheet)
-        flags.add(WebCore::DragApplicationHasAttachedSheet);
+        flags.add(WebCore::DragApplicationFlags::HasAttachedSheet);
     if (draggingInfo.draggingSource == view)
-        flags.add(WebCore::DragApplicationIsSource);
+        flags.add(WebCore::DragApplicationFlags::IsSource);
     if ([NSApp currentEvent].modifierFlags & NSEventModifierFlagOption)
-        flags.add(WebCore::DragApplicationIsCopyKeyDown);
+        flags.add(WebCore::DragApplicationFlags::IsCopyKeyDown);
     return flags;
 
 }

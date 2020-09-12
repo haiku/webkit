@@ -295,9 +295,6 @@ test/annexB/language/eval-code/indirect/global-switch-dflt-eval-global-skip-earl
   default: 'Test262Error: An initialized binding is not created following evaluation Expected a ReferenceError to be thrown but no exception was thrown at all'
 test/annexB/language/eval-code/indirect/global-switch-dflt-eval-global-skip-early-err-try.js:
   default: 'Test262Error: An initialized binding is not created prior to evaluation Expected a ReferenceError to be thrown but no exception was thrown at all'
-test/annexB/language/expressions/typeof/emulates-undefined.js:
-  default: 'Test262Error: !== "function"'
-  strict mode: 'Test262Error: !== "function"'
 test/annexB/language/function-code/block-decl-func-skip-arguments.js:
   default: 'Test262Error: Expected SameValue(«function arguments() {}», «[object Arguments]») to be true'
 test/annexB/language/function-code/block-decl-func-skip-early-err-block.js:
@@ -765,9 +762,6 @@ test/built-ins/Function/internals/Construct/derived-return-val-realm.js:
 test/built-ins/Function/internals/Construct/derived-this-uninitialized-realm.js:
   default: 'Test262Error: Expected a ReferenceError but got a ReferenceError'
   strict mode: 'Test262Error: Expected a ReferenceError but got a ReferenceError'
-test/built-ins/Function/prototype/bind/length-exceeds-int32.js:
-  default: 'Test262Error: Expected SameValue(«0», «2147483648») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«0», «2147483648») to be true'
 test/built-ins/Function/prototype/toString/AsyncFunction.js:
   default: "SyntaxError: Unexpected token ';'. Expected a ')' or a ',' after a parameter declaration."
   strict mode: "SyntaxError: Unexpected token ';'. Expected a ')' or a ',' after a parameter declaration."
@@ -781,128 +775,128 @@ test/built-ins/Function/prototype/toString/GeneratorFunction.js:
   default: "SyntaxError: Unexpected keyword 'yield'. Expected a ')' or a ',' after a parameter declaration."
   strict mode: "SyntaxError: Unexpected keyword 'yield'. Expected a ')' or a ',' after a parameter declaration."
 test/built-ins/Function/prototype/toString/async-arrow-function.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ }'.(async /* a */ ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ }'.(async /* a */ ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ }" (async /* a */ ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ }" (async /* a */ ( /* b */ a /* c */ , /* d */ b /* e */ ) /* f */ => /* g */ { /* h */ ; /* i */ })'
 test/built-ins/Function/prototype/toString/async-function-declaration.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(async function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(async function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (async function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (async function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
 test/built-ins/Function/prototype/toString/async-function-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(async function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(async function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (async function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (async function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
 test/built-ins/Function/prototype/toString/async-generator-declaration.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }'.(async /* a */ function /* b */ * /* c */ f /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }'.(async /* a */ function /* b */ * /* c */ f /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }" (async /* a */ function /* b */ * /* c */ f /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }" (async /* a */ function /* b */ * /* c */ f /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })'
 test/built-ins/Function/prototype/toString/async-generator-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* F( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }'.(async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* F( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }'.(async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* F( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }" (async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* F( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ }" (async /* a */ function /* b */ * /* c */ F /* d */ ( /* e */ x /* f */ , /* g */ y /* h */ ) /* i */ { /* j */ ; /* k */ ; /* l */ })'
 test/built-ins/Function/prototype/toString/async-generator-method-class-expression-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/async-generator-method-class-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/async-generator-method-class-statement-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/async-generator-method-class-statement.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/async-generator-method-object.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function* f( /* d */ ) /* e */ { /* f */ }'.(async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function* f( /* d */ ) /* e */ { /* f */ }" (async /* a */ * /* b */ f /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/async-method-class-expression-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/async-method-class-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/async-method-class-statement-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/async-method-class-statement.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/async-method-object.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'async function f( /* b */ ) /* c */ { /* d */ }'.(async f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "async function f( /* b */ ) /* c */ { /* d */ }" (async f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/function-declaration-non-simple-parameter-list.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ }'.(function /* a */ f /* b */ ( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ }'.(function /* a */ f /* b */ ( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ }" (function /* a */ f /* b */ ( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ }" (function /* a */ f /* b */ ( /* c */ a /* d */ = /* e */ 0 /* f */ , /* g */ { /* h */ b /* i */ = /* j */ 0 /* k */ } /* l */ ) /* m */ { /* n */ })'
 test/built-ins/Function/prototype/toString/function-declaration.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (function /* a */ f /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
 test/built-ins/Function/prototype/toString/function-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }'.(function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function F( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ }" (function /* a */ F /* b */ ( /* c */ x /* d */ , /* e */ y /* f */ ) /* g */ { /* h */ ; /* i */ ; /* j */ })'
 test/built-ins/Function/prototype/toString/generator-function-declaration.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function* g( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }'.(function /* a */ * /* b */ g /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function* g( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }'.(function /* a */ * /* b */ g /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function* g( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }" (function /* a */ * /* b */ g /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function* g( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }" (function /* a */ * /* b */ g /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })'
 test/built-ins/Function/prototype/toString/generator-function-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function* F( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }'.(function /* a */ * /* b */ F /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function* F( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }'.(function /* a */ * /* b */ F /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function* F( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }" (function /* a */ * /* b */ F /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function* F( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ }" (function /* a */ * /* b */ F /* c */ ( /* d */ x /* e */ , /* f */ y /* g */ ) /* h */ { /* i */ ; /* j */ ; /* k */ })'
 test/built-ins/Function/prototype/toString/generator-method.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function* f( /* c */ ) /* d */ { /* e */ }'.(* /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function* f( /* c */ ) /* d */ { /* e */ }'.(* /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function* f( /* c */ ) /* d */ { /* e */ }" (* /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function* f( /* c */ ) /* d */ { /* e */ }" (* /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/getter-class-expression-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/getter-class-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/getter-class-statement-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/getter-class-statement.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/getter-object.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ ) /* d */ { /* e */ }'.(get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ ) /* d */ { /* e */ }" (get /* a */ f /* b */ ( /* c */ ) /* d */ { /* e */ })'
 test/built-ins/Function/prototype/toString/line-terminator-normalisation-CR-LF.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f(\r"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f(\r"
+  default: "Test262Error: Conforms to NativeFunction Syntax: \"function f(\\r\\n// c\\r\\nx\\r\\n// d\\r\\n,\\r\\n// e\\r\\ny\\r\\n// f\\r\\n)\\r\\n// g\\r\\n{\\r\\n// h\\r\\n;\\r\\n// i\\r\\n;\\r\\n// j\\r\\n}\" (function\r"
+  strict mode: "Test262Error: Conforms to NativeFunction Syntax: \"function f(\\r\\n// c\\r\\nx\\r\\n// d\\r\\n,\\r\\n// e\\r\\ny\\r\\n// f\\r\\n)\\r\\n// g\\r\\n{\\r\\n// h\\r\\n;\\r\\n// i\\r\\n;\\r\\n// j\\r\\n}\" (function\r"
 test/built-ins/Function/prototype/toString/line-terminator-normalisation-CR.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r}'.(function\r// a\rf\r// b\r(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r})"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r}'.(function\r// a\rf\r// b\r(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r})"
+  default: "Test262Error: Conforms to NativeFunction Syntax: \"function f(\\r// c\\rx\\r// d\\r,\\r// e\\ry\\r// f\\r)\\r// g\\r{\\r// h\\r;\\r// i\\r;\\r// j\\r}\" (function\r// a\rf\r// b\r(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r})"
+  strict mode: "Test262Error: Conforms to NativeFunction Syntax: \"function f(\\r// c\\rx\\r// d\\r,\\r// e\\ry\\r// f\\r)\\r// g\\r{\\r// h\\r;\\r// i\\r;\\r// j\\r}\" (function\r// a\rf\r// b\r(\r// c\rx\r// d\r,\r// e\ry\r// f\r)\r// g\r{\r// h\r;\r// i\r;\r// j\r})"
 test/built-ins/Function/prototype/toString/line-terminator-normalisation-LF.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f("
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f("
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f(\n// c\nx\n// d\n,\n// e\ny\n// f\n)\n// g\n{\n// h\n;\n// i\n;\n// j\n}" (function'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f(\n// c\nx\n// d\n,\n// e\ny\n// f\n)\n// g\n{\n// h\n;\n// i\n;\n// j\n}" (function'
 test/built-ins/Function/prototype/toString/method-class-expression-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/method-class-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/method-class-statement-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/method-class-statement.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/method-computed-property-name.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* d */ ) /* e */ { /* f */ }'.([ /* a */ \"f\" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* d */ ) /* e */ { /* f */ }'.([ /* a */ \"f\" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* d */ ) /* e */ { /* f */ }" ([ /* a */ "f" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* d */ ) /* e */ { /* f */ }" ([ /* a */ "f" /* b */ ] /* c */ ( /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/method-object.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function f( /* b */ ) /* c */ { /* d */ }'.(f /* a */ ( /* b */ ) /* c */ { /* d */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function f( /* b */ ) /* c */ { /* d */ }" (f /* a */ ( /* b */ ) /* c */ { /* d */ })'
 test/built-ins/Function/prototype/toString/setter-class-expression-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/setter-class-expression.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/setter-class-statement-static.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/setter-class-statement.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/setter-object.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function ( /* c */ a /* d */ ) /* e */ { /* f */ }'.(set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function ( /* c */ a /* d */ ) /* e */ { /* f */ }" (set /* a */ f /* b */ ( /* c */ a /* d */ ) /* e */ { /* f */ })'
 test/built-ins/Function/prototype/toString/unicode.js:
-  default: "Test262Error: Conforms to NativeFunction Syntax: 'function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }'.(function \\u0061(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; })"
-  strict mode: "Test262Error: Conforms to NativeFunction Syntax: 'function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }'.(function \\u0061(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; })"
+  default: 'Test262Error: Conforms to NativeFunction Syntax: "function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }" (function \u0061(\u{62}, \u0063) { \u0062 = \u{00063}; return b; })'
+  strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }" (function \u0061(\u{62}, \u0063) { \u0062 = \u{00063}; return b; })'
 test/built-ins/Object/assign/strings-and-symbol-order-proxy.js:
   default: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
   strict mode: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
@@ -1393,18 +1387,6 @@ test/built-ins/RegExp/prototype/exec/u-lastindex-adv.js:
 test/built-ins/RegExp/quantifier-integer-limit.js:
   default: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
   strict mode: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
-test/built-ins/ThrowTypeError/extensible.js:
-  default: 'Test262Error: Expected SameValue(«true», «false») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«true», «false») to be true'
-test/built-ins/ThrowTypeError/frozen.js:
-  default: 'Test262Error: Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«false», «true») to be true'
-test/built-ins/ThrowTypeError/length.js:
-  default: 'Test262Error: Expected obj[length] to have configurable:false.'
-  strict mode: 'Test262Error: Expected obj[length] to have configurable:false.'
-test/built-ins/ThrowTypeError/name.js:
-  default: 'Test262Error: obj should have an own property name'
-  strict mode: 'Test262Error: obj should have an own property name'
 test/built-ins/ThrowTypeError/unique-per-realm-non-simple.js:
   default: 'Test262Error: callee.get Expected SameValue(«function () {'
 test/built-ins/TypedArray/prototype/fill/fill-values-conversion-once.js:
@@ -1569,6 +1551,12 @@ test/built-ins/TypedArrayConstructors/of/new-instance-using-custom-ctor.js:
 test/intl402/Collator/missing-unicode-ext-value-defaults-to-true.js:
   default: "Test262Error: \"kn-true\" is returned in locale, but shouldn't be. Expected SameValue(«7», «-1») to be true"
   strict mode: "Test262Error: \"kn-true\" is returned in locale, but shouldn't be. Expected SameValue(«7», «-1») to be true"
+test/intl402/DateTimeFormat/prototype/format/timedatestyle-en.js:
+  default: 'Test262Error: Result for full with {} Expected SameValue(«14:12:47 PM Coordinated Universal Time», «14:12:47 Coordinated Universal Time») to be true'
+  strict mode: 'Test262Error: Result for full with {} Expected SameValue(«14:12:47 PM Coordinated Universal Time», «14:12:47 Coordinated Universal Time») to be true'
+test/intl402/DateTimeFormat/prototype/formatRange/en-US.js:
+  default: 'Test262Error: Expected SameValue(«1/3/2019 – 1/5/2019», «1/3/2019 – 1/5/2019») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«1/3/2019 – 1/5/2019», «1/3/2019 – 1/5/2019») to be true'
 test/intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default.js:
   default: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
   strict mode: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
@@ -1584,9 +1572,6 @@ test/intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement.js:
 test/intl402/Intl/getCanonicalLocales/grandfathered.js:
   default: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
   strict mode: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
-test/intl402/Intl/getCanonicalLocales/invalid-tags.js:
-  default: 'Test262Error: Language tag: no-nyn Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Language tag: no-nyn Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Intl/getCanonicalLocales/non-iana-canon.js:
   default: 'Test262Error: The value of Intl.getCanonicalLocales(tag)[0] equals the value of `canonical` Expected SameValue(«en-US-u-va-posix», «posix») to be true'
   strict mode: 'Test262Error: The value of Intl.getCanonicalLocales(tag)[0] equals the value of `canonical` Expected SameValue(«en-US-u-va-posix», «posix») to be true'
@@ -1599,9 +1584,6 @@ test/intl402/Intl/getCanonicalLocales/preferred-variant.js:
 test/intl402/Intl/getCanonicalLocales/transformed-ext-canonical.js:
   default: 'Test262Error: Expected SameValue(«sl-t-sl-rozaj-biske-1994», «sl-t-sl-1994-biske-rozaj») to be true'
   strict mode: 'Test262Error: Expected SameValue(«sl-t-sl-rozaj-biske-1994», «sl-t-sl-1994-biske-rozaj») to be true'
-test/intl402/Intl/getCanonicalLocales/transformed-ext-invalid.js:
-  default: 'Test262Error: en-t-root Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: en-t-root Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region.js:
   default: 'Test262Error: Expected SameValue(«und-u-rg-no23», «und-u-rg-no50») to be true'
   strict mode: 'Test262Error: Expected SameValue(«und-u-rg-no23», «und-u-rg-no50») to be true'
@@ -1612,20 +1594,14 @@ test/intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true.js:
   default: 'Test262Error: Expected SameValue(«und-u-kb-true», «und-u-kb») to be true'
   strict mode: 'Test262Error: Expected SameValue(«und-u-kb-true», «und-u-kb») to be true'
 test/intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
+  default: 'Test262Error: Expected SameValue(«en-u-0c-yes», «en-u-0c») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«en-u-0c-yes», «en-u-0c») to be true'
 test/intl402/Locale/constructor-apply-options-canonicalizes-twice.js:
   default: 'Test262Error: Expected SameValue(«ru-Armn-SU», «ru-Armn-AM») to be true'
   strict mode: 'Test262Error: Expected SameValue(«ru-Armn-SU», «ru-Armn-AM») to be true'
 test/intl402/Locale/constructor-non-iana-canon.js:
   default: 'Test262Error: new Intl.Locale("mo").maximize().toString() returns "ro-Latn-RO" Expected SameValue(«ro», «ro-Latn-RO») to be true'
   strict mode: 'Test262Error: new Intl.Locale("mo").maximize().toString() returns "ro-Latn-RO" Expected SameValue(«ro», «ro-Latn-RO») to be true'
-test/intl402/Locale/constructor-options-language-valid-undefined.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-test/intl402/Locale/constructor-options-language-valid.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Locale/constructor-options-numeric-undefined.js:
   default: 'Test262Error: new Intl.Locale("en-u-kn-true", {numeric: undefined}).toString() returns "en-u-kn" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
   strict mode: 'Test262Error: new Intl.Locale("en-u-kn-true", {numeric: undefined}).toString() returns "en-u-kn" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
@@ -1635,42 +1611,24 @@ test/intl402/Locale/constructor-options-numeric-valid.js:
 test/intl402/Locale/constructor-options-region-valid.js:
   default: "Test262Error: new Intl.Locale('en', {region: \"554\"}).toString() returns \"en-NZ\" Expected SameValue(«en-554», «en-NZ») to be true"
   strict mode: "Test262Error: new Intl.Locale('en', {region: \"554\"}).toString() returns \"en-NZ\" Expected SameValue(«en-554», «en-NZ») to be true"
-test/intl402/Locale/constructor-parse-twice.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Locale/constructor-tag.js:
   default: 'Test262Error: new Intl.Locale("sl-ROZAJ-BISKE-1994").toString() returns "sl-1994-biske-rozaj" Expected SameValue(«sl-rozaj-biske-1994», «sl-1994-biske-rozaj») to be true'
   strict mode: 'Test262Error: new Intl.Locale("sl-ROZAJ-BISKE-1994").toString() returns "sl-1994-biske-rozaj" Expected SameValue(«sl-rozaj-biske-1994», «sl-1994-biske-rozaj») to be true'
-test/intl402/Locale/extensions-grandfathered.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-test/intl402/Locale/extensions-private.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-test/intl402/Locale/getters-grandfathered.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Locale/getters.js:
   default: 'Test262Error: Expected SameValue(«de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-true-kn-false-nu-latn», «de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-kn-false-nu-latn») to be true'
   strict mode: 'Test262Error: Expected SameValue(«de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-true-kn-false-nu-latn», «de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-kn-false-nu-latn») to be true'
-test/intl402/Locale/invalid-tag-throws.js:
-  default: 'Test262Error: no-nyn is an invalid tag value Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: no-nyn is an invalid tag value Expected a RangeError to be thrown but no exception was thrown at all'
 test/intl402/Locale/likely-subtags-grandfathered.js:
-  default: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a RangeError to be thrown but no exception was thrown at all'
+  default: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
 test/intl402/Locale/likely-subtags.js:
   default: 'Test262Error: "en-u-co".maximize() should be "en-Latn-US-u-co" Expected SameValue(«en-Latn-US-u-co-yes», «en-Latn-US-u-co») to be true'
   strict mode: 'Test262Error: "en-u-co".maximize() should be "en-Latn-US-u-co" Expected SameValue(«en-Latn-US-u-co-yes», «en-Latn-US-u-co») to be true'
 test/intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags.js:
   default: 'Test262Error: "und".minimize() should be "en" Expected SameValue(«en-u-va-posix», «en») to be true'
   strict mode: 'Test262Error: "und".minimize() should be "en" Expected SameValue(«en-u-va-posix», «en») to be true'
-test/intl402/RelativeTimeFormat/constructor/constructor/locales-valid.js:
-  default: 'Test262Error: Grandfathered Expected a RangeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Grandfathered Expected a RangeError to be thrown but no exception was thrown at all'
-test/intl402/language-tags-invalid.js:
-  default: 'Test262Error: Invalid language tag no-nyn was not rejected. Expected a RangeError to be thrown but no exception was thrown at all (Testing with Collator.)'
-  strict mode: 'Test262Error: Invalid language tag no-nyn was not rejected. Expected a RangeError to be thrown but no exception was thrown at all (Testing with Collator.)'
+test/intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd.js:
+  default: 'RangeError: maximumFractionDigits is out of range'
+  strict mode: 'RangeError: maximumFractionDigits is out of range'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-arguments.js:
   default: 'Test262Error: Expected obj[0] to have enumerable:false.'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-param.js:
@@ -2068,15 +2026,6 @@ test/language/expressions/class/class-name-ident-static-escaped.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/expressions/class/class-name-ident-static.js:
   default: 'Test262: This statement should not be evaluated.'
-test/language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid.js:
-  default: "SyntaxError: Cannot declare an async generator method named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare an async generator method named 'constructor'."
-test/language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid.js:
-  default: "SyntaxError: Cannot declare an async method named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare an async method named 'constructor'."
-test/language/expressions/class/elements/syntax/valid/grammar-static-ctor-gen-meth-valid.js:
-  default: "SyntaxError: Cannot declare a generator function named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare a generator function named 'constructor'."
 test/language/expressions/class/ident-name-method-def-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -2969,15 +2918,6 @@ test/language/statements/class/class-name-ident-static-escaped.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/class/class-name-ident-static.js:
   default: 'Test262: This statement should not be evaluated.'
-test/language/statements/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid.js:
-  default: "SyntaxError: Cannot declare an async generator method named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare an async generator method named 'constructor'."
-test/language/statements/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid.js:
-  default: "SyntaxError: Cannot declare an async method named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare an async method named 'constructor'."
-test/language/statements/class/elements/syntax/valid/grammar-static-ctor-gen-meth-valid.js:
-  default: "SyntaxError: Cannot declare a generator function named 'constructor'."
-  strict mode: "SyntaxError: Cannot declare a generator function named 'constructor'."
 test/language/statements/class/ident-name-method-def-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -3111,6 +3051,15 @@ test/language/statements/class/poisoned-underscore-proto.js:
   default: 'Test262Error: should not be called'
   strict mode: 'Test262Error: should not be called'
 test/language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
+test/language/statements/const/dstr/ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/statements/const/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/const/dstr/ary-ptrn-rest-id-direct.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/do-while/let-array-with-newline.js:
@@ -3339,6 +3288,33 @@ test/language/statements/for-of/head-var-no-expr.js:
   strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-of/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
+test/language/statements/for/dstr/const-ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/statements/for/dstr/const-ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/for/dstr/const-ary-ptrn-rest-id-direct.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
+test/language/statements/for/dstr/let-ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/statements/for/dstr/let-ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/for/dstr/let-ary-ptrn-rest-id-direct.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
+test/language/statements/for/dstr/var-ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a TypeError but got a ReferenceError'
+test/language/statements/for/dstr/var-ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/for/dstr/var-ary-ptrn-rest-id-direct.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/for/head-lhs-let.js:
   default: "SyntaxError: Unexpected token ';'. Expected a parameter pattern or a ')' in parameter list."
 test/language/statements/for/let-array-with-newline.js:
@@ -3404,6 +3380,15 @@ test/language/statements/labeled/value-yield-non-strict-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'yi\\u0065ld'"
 test/language/statements/let/block-local-closure-set-before-initialization.js:
   default: 'Test262Error: Expected a ReferenceError to be thrown but no exception was thrown at all'
+test/language/statements/let/dstr/ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/statements/let/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/let/dstr/ary-ptrn-rest-id-direct.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/let/syntax/escaped-let.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'l\\u0065t'"
 test/language/statements/switch/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js:
@@ -3504,6 +3489,15 @@ test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-atte
 test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-attempt-with-generator.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
+test/language/statements/variable/dstr/ary-init-iter-get-err-array-prototype.js:
+  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/statements/variable/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
+  default: 'Test262Error: Expected SameValue(«3», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
+test/language/statements/variable/dstr/ary-ptrn-rest-id-direct.js:
+  default: 'Test262Error: Expected true but got false'
+  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/while/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/with/let-array-with-newline.js:

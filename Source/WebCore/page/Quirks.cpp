@@ -513,11 +513,16 @@ bool Quirks::shouldAvoidResizingWhenInputViewBoundsChange() const
     if (!needsQuirks())
         return false;
 
-    auto host = m_document->topDocument().url().host();
+    auto& url = m_document->topDocument().url();
+    auto host = url.host();
+
     if (equalLettersIgnoringASCIICase(host, "live.com") || host.endsWithIgnoringASCIICase(".live.com"))
         return true;
 
     if (equalLettersIgnoringASCIICase(host, "twitter.com") || host.endsWithIgnoringASCIICase(".twitter.com"))
+        return true;
+
+    if ((equalLettersIgnoringASCIICase(host, "google.com") || host.endsWithIgnoringASCIICase(".google.com")) && url.path().startsWithIgnoringASCIICase("/maps/"))
         return true;
 
     if (host.endsWithIgnoringASCIICase(".sharepoint.com"))
@@ -633,6 +638,46 @@ bool Quirks::needsFullscreenDisplayNoneQuirk() const
     }
 
     return *m_needsFullscreenDisplayNoneQuirk;
+#else
+    return false;
+#endif
+}
+
+bool Quirks::shouldSilenceWindowResizeEvents() const
+{
+#if PLATFORM(IOS)
+    if (!needsQuirks())
+        return false;
+
+    // We silence window resize events during the 'homing out' snapshot sequence when on nytimes.com
+    // to address <rdar://problem/59763843>, and on twitter.com to address <rdar://problem/58804852> &
+    // <rdar://problem/61731801>.
+    auto* page = m_document->page();
+    if (!page || !page->isTakingSnapshotsForApplicationSuspension())
+        return false;
+
+    auto host = m_document->topDocument().url().host();
+    return equalLettersIgnoringASCIICase(host, "nytimes.com") || host.endsWithIgnoringASCIICase(".nytimes.com")
+        || equalLettersIgnoringASCIICase(host, "twitter.com") || host.endsWithIgnoringASCIICase(".twitter.com");
+#else
+    return false;
+#endif
+}
+
+bool Quirks::shouldSilenceMediaQueryListChangeEvents() const
+{
+#if PLATFORM(IOS)
+    if (!needsQuirks())
+        return false;
+
+    // We silence MediaQueryList's change events during the 'homing out' snapshot sequence when on twitter.com
+    // to address <rdar://problem/58804852> & <rdar://problem/61731801>.
+    auto* page = m_document->page();
+    if (!page || !page->isTakingSnapshotsForApplicationSuspension())
+        return false;
+
+    auto host = m_document->topDocument().url().host();
+    return equalLettersIgnoringASCIICase(host, "twitter.com") || host.endsWithIgnoringASCIICase(".twitter.com");
 #else
     return false;
 #endif

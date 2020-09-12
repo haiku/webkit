@@ -398,6 +398,7 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/AudioProcessingEvent.idl \
     $(WebCore)/Modules/webaudio/AudioProcessingEventInit.idl \
     $(WebCore)/Modules/webaudio/AudioScheduledSourceNode.idl \
+    $(WebCore)/Modules/webaudio/AudioTimestamp.idl \
     $(WebCore)/Modules/webaudio/BaseAudioContext.idl \
     $(WebCore)/Modules/webaudio/BiquadFilterNode.idl \
     $(WebCore)/Modules/webaudio/BiquadFilterOptions.idl \
@@ -408,6 +409,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/ChannelMergerOptions.idl \
     $(WebCore)/Modules/webaudio/ChannelSplitterNode.idl \
     $(WebCore)/Modules/webaudio/ChannelSplitterOptions.idl \
+    $(WebCore)/Modules/webaudio/ConstantSourceNode.idl \
+    $(WebCore)/Modules/webaudio/ConstantSourceOptions.idl \
     $(WebCore)/Modules/webaudio/ConvolverNode.idl \
     $(WebCore)/Modules/webaudio/ConvolverOptions.idl \
     $(WebCore)/Modules/webaudio/DelayNode.idl \
@@ -437,6 +440,8 @@ JS_BINDING_IDLS = \
     $(WebCore)/Modules/webaudio/PeriodicWaveConstraints.idl \
     $(WebCore)/Modules/webaudio/PeriodicWaveOptions.idl \
     $(WebCore)/Modules/webaudio/ScriptProcessorNode.idl \
+    $(WebCore)/Modules/webaudio/StereoPannerNode.idl \
+	$(WebCore)/Modules/webaudio/StereoPannerOptions.idl \
     $(WebCore)/Modules/webaudio/WaveShaperNode.idl \
     $(WebCore)/Modules/webaudio/WaveShaperOptions.idl \
     $(WebCore)/Modules/webaudio/WebKitAudioBufferSourceNode.idl \

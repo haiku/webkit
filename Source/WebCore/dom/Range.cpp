@@ -33,6 +33,7 @@
 #include "Event.h"
 #include "Frame.h"
 #include "FrameView.h"
+#include "GeometryUtilities.h"
 #include "HTMLBodyElement.h"
 #include "HTMLElement.h"
 #include "HTMLHtmlElement.h"
@@ -1078,67 +1079,6 @@ Node* Range::pastLastNode() const
     return NodeTraversal::nextSkippingChildren(endContainer());
 }
 
-IntRect Range::absoluteBoundingBox(OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    Vector<IntRect> rects;
-    absoluteTextRects(rects, false, rectOptions);
-    IntRect result;
-    for (auto& rect : rects)
-        result.unite(rect);
-    return result;
-}
-
-Vector<FloatRect> Range::absoluteRectsForRangeInText(Node* node, RenderText& renderText, bool useSelectionHeight, bool& isFixed, OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    unsigned startOffset = node == &startContainer() ? m_start.offset() : 0;
-    unsigned endOffset = node == &endContainer() ? m_end.offset() : std::numeric_limits<unsigned>::max();
-
-    auto textQuads = renderText.absoluteQuadsForRange(startOffset, endOffset, useSelectionHeight, rectOptions.contains(BoundingRectBehavior::IgnoreEmptyTextSelections), &isFixed);
-
-    if (rectOptions.contains(BoundingRectBehavior::RespectClipping)) {
-        Vector<FloatRect> clippedRects;
-        clippedRects.reserveInitialCapacity(textQuads.size());
-
-        auto absoluteClippedOverflowRect = renderText.absoluteClippedOverflowRect();
-
-        for (auto& quad : textQuads) {
-            auto clippedRect = intersection(quad.boundingBox(), absoluteClippedOverflowRect);
-            if (!clippedRect.isEmpty())
-                clippedRects.uncheckedAppend(clippedRect);
-        }
-
-        return clippedRects;
-    }
-
-    return boundingBoxes(textQuads);
-}
-
-void Range::absoluteTextRects(Vector<IntRect>& rects, bool useSelectionHeight, OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    // FIXME: This function should probably return FloatRects.
-
-    bool allFixed = true;
-    bool someFixed = false;
-
-    Node* stopNode = pastLastNode();
-    for (Node* node = firstNode(); node != stopNode; node = NodeTraversal::next(*node)) {
-        RenderObject* renderer = node->renderer();
-        if (!renderer)
-            continue;
-        bool isFixed = false;
-        if (renderer->isBR())
-            renderer->absoluteRects(rects, flooredLayoutPoint(renderer->localToAbsolute()));
-        else if (is<RenderText>(*renderer)) {
-            auto rectsForRenderer = absoluteRectsForRangeInText(node, downcast<RenderText>(*renderer), useSelectionHeight, isFixed, rectOptions);
-            for (auto& rect : rectsForRenderer)
-                rects.append(enclosingIntRect(rect));
-        } else
-            continue;
-        allFixed &= isFixed;
-        someFixed |= isFixed;
-    }
-}
-
 #if ENABLE(TREE_DEBUGGING)
 void Range::formatForDebugger(char* buffer, unsigned length) const
 {
@@ -1163,7 +1103,7 @@ void Range::formatForDebugger(char* buffer, unsigned length) const
 
 bool Range::contains(const Range& other) const
 {
-    if (commonAncestorContainer()->ownerDocument() != other.commonAncestorContainer()->ownerDocument())
+    if (commonAncestorContainer()->document() != other.commonAncestorContainer()->document())
         return false;
 
     auto startToStart = compareBoundaryPoints(Range::START_TO_START, other);
@@ -1188,7 +1128,7 @@ bool areRangesEqual(const Range* a, const Range* b)
         return true;
     if (!a || !b)
         return false;
-    return a->startPosition() == b->startPosition() && a->endPosition() == b->endPosition();
+    return &a->startContainer() == &b->startContainer() && a->startOffset() == b->startOffset() && &a->endContainer() == &b->endContainer() && a->endOffset() == b->endOffset();
 }
 
 bool rangesOverlap(const Range* a, const Range* b)
@@ -1199,7 +1139,7 @@ bool rangesOverlap(const Range* a, const Range* b)
     if (a == b)
         return true;
 
-    if (!areNodesConnectedInSameTreeScope(a->commonAncestorContainer(), b->commonAncestorContainer()))
+    if (!connectedInSameTreeScope(a->commonAncestorContainer(), b->commonAncestorContainer()))
         return false;
 
     short startToStart = a->compareBoundaryPoints(Range::START_TO_START, *b).releaseReturnValue();
@@ -1387,8 +1327,8 @@ void Range::textNodeSplit(Text& oldNode)
 
 ExceptionOr<void> Range::expand(const String& unit)
 {
-    VisiblePosition start { startPosition() };
-    VisiblePosition end { endPosition() };
+    auto start = VisiblePosition { makeDeprecatedLegacyPosition(&startContainer(), startOffset()) };
+    auto end = VisiblePosition { makeDeprecatedLegacyPosition(&endContainer(), endOffset()) };
     if (unit == "word") {
         start = startOfWord(start);
         end = endOfWord(end);
@@ -1418,91 +1358,12 @@ ExceptionOr<void> Range::expand(const String& unit)
 
 Ref<DOMRectList> Range::getClientRects() const
 {
-    return DOMRectList::create(borderAndTextRects(CoordinateSpace::Client));
+    return DOMRectList::create(RenderObject::clientBorderAndTextRects(makeSimpleRange(*this)));
 }
 
 Ref<DOMRect> Range::getBoundingClientRect() const
 {
-    return DOMRect::create(boundingRect(CoordinateSpace::Client));
-}
-
-Vector<FloatRect> Range::borderAndTextRects(CoordinateSpace space, OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    Vector<FloatRect> rects;
-
-    ownerDocument().updateLayoutIgnorePendingStylesheets();
-
-    Node* stopNode = pastLastNode();
-    bool useVisibleBounds = rectOptions.contains(BoundingRectBehavior::UseVisibleBounds);
-
-    HashSet<Node*> selectedElementsSet;
-    for (Node* node = firstNode(); node != stopNode; node = NodeTraversal::next(*node)) {
-        if (is<Element>(*node))
-            selectedElementsSet.add(node);
-    }
-
-    // Don't include elements that are only partially selected.
-    Node* lastNode = m_end.childBefore() ? m_end.childBefore() : &endContainer();
-    for (Node* parent = lastNode->parentNode(); parent; parent = parent->parentNode())
-        selectedElementsSet.remove(parent);
-    
-    OptionSet<RenderObject::VisibleRectContextOption> visibleRectOptions = { RenderObject::VisibleRectContextOption::UseEdgeInclusiveIntersection, RenderObject::VisibleRectContextOption::ApplyCompositedClips, RenderObject::VisibleRectContextOption::ApplyCompositedContainerScrolls };
-
-    for (Node* node = firstNode(); node != stopNode; node = NodeTraversal::next(*node)) {
-        if (is<Element>(*node) && selectedElementsSet.contains(node) && (useVisibleBounds || !node->parentNode() || !selectedElementsSet.contains(node->parentNode()))) {
-            if (auto* renderer = downcast<Element>(*node).renderBoxModelObject()) {
-                if (useVisibleBounds) {
-                    auto localBounds = renderer->borderBoundingBox();
-                    auto rootClippedBounds = renderer->computeVisibleRectInContainer(localBounds, &renderer->view(), { false, false, visibleRectOptions });
-                    if (!rootClippedBounds)
-                        continue;
-                    auto snappedBounds = snapRectToDevicePixels(*rootClippedBounds, node->document().deviceScaleFactor());
-                    if (space == CoordinateSpace::Client)
-                        node->document().convertAbsoluteToClientRect(snappedBounds, renderer->style());
-                    rects.append(snappedBounds);
-
-                    continue;
-                }
-
-                Vector<FloatQuad> elementQuads;
-                renderer->absoluteQuads(elementQuads);
-                if (space == CoordinateSpace::Client)
-                    node->document().convertAbsoluteToClientQuads(elementQuads, renderer->style());
-
-                rects.appendVector(boundingBoxes(elementQuads));
-            }
-        } else if (is<Text>(*node)) {
-            if (auto* renderer = downcast<Text>(*node).renderer()) {
-                bool isFixed;
-                auto clippedRects = absoluteRectsForRangeInText(node, *renderer, false, isFixed, rectOptions);
-                if (space == CoordinateSpace::Client)
-                    node->document().convertAbsoluteToClientRects(clippedRects, renderer->style());
-
-                rects.appendVector(clippedRects);
-            }
-        }
-    }
-
-    if (rectOptions.contains(BoundingRectBehavior::IgnoreTinyRects)) {
-        rects.removeAllMatching([&] (const FloatRect& rect) -> bool {
-            return rect.area() <= 1;
-        });
-    }
-
-    return rects;
-}
-
-FloatRect Range::boundingRect(CoordinateSpace space, OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    FloatRect result;
-    for (auto& rect : borderAndTextRects(space, rectOptions))
-        result.uniteIfNonZero(rect);
-    return result;
-}
-
-FloatRect Range::absoluteBoundingRect(OptionSet<BoundingRectBehavior> rectOptions) const
-{
-    return boundingRect(CoordinateSpace::Absolute, rectOptions);
+    return DOMRect::create(unionRectIgnoringZeroRects(RenderObject::clientBorderAndTextRects(makeSimpleRange(*this))));
 }
 
 SimpleRange makeSimpleRange(const Range& range)
@@ -1542,16 +1403,6 @@ RefPtr<Range> createLiveRange(const Optional<SimpleRange>& range)
     if (!range)
         return nullptr;
     return createLiveRange(*range);
-}
-
-WTF::TextStream& operator<<(WTF::TextStream& ts, const RangeBoundaryPoint& r)
-{
-    return ts << r.toPosition();
-}
-    
-WTF::TextStream& operator<<(WTF::TextStream& ts, const Range& r)
-{
-    return ts << "Range: " << "start: " << r.startPosition() << " end: " << r.endPosition();
 }
 
 } // namespace WebCore

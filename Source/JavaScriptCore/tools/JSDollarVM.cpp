@@ -57,6 +57,7 @@
 #include <wtf/Language.h>
 #include <wtf/ProcessID.h>
 #include <wtf/StringPrintStream.h>
+#include <wtf/unicode/icu/ICUHelpers.h>
 
 #if ENABLE(WEBASSEMBLY)
 #include "JSWebAssemblyHelpers.h"
@@ -3091,9 +3092,12 @@ static EncodedJSValue JSC_HOST_CALL functionSetUserPreferredLanguages(JSGlobalOb
 
 static EncodedJSValue JSC_HOST_CALL functionICUVersion(JSGlobalObject*, CallFrame*)
 {
-    UVersionInfo versionInfo;
-    u_getVersion(versionInfo);
-    return JSValue::encode(jsNumber(versionInfo[0]));
+    return JSValue::encode(jsNumber(WTF::ICU::majorVersion()));
+}
+
+static EncodedJSValue JSC_HOST_CALL functionICUHeaderVersion(JSGlobalObject*, CallFrame*)
+{
+    return JSValue::encode(jsNumber(U_ICU_VERSION_MAJOR_NUM));
 }
 
 static EncodedJSValue JSC_HOST_CALL functionAssertEnabled(JSGlobalObject*, CallFrame*)
@@ -3254,6 +3258,7 @@ void JSDollarVM::finishCreation(VM& vm)
 
     addFunction(vm, "setUserPreferredLanguages", functionSetUserPreferredLanguages, 1);
     addFunction(vm, "icuVersion", functionICUVersion, 0);
+    addFunction(vm, "icuHeaderVersion", functionICUHeaderVersion, 0);
 
     addFunction(vm, "assertEnabled", functionAssertEnabled, 0);
 

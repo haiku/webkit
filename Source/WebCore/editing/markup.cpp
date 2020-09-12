@@ -668,7 +668,7 @@ Node* StyledMarkupAccumulator::traverseNodesForSerialization(Node* startNode, No
         if (!enterNode(*n)) {
             next = nextSkippingChildren(*n);
             // Don't skip over pastEnd.
-            if (pastEnd && isDescendantOf(*pastEnd, *n))
+            if (pastEnd && (isDescendantOf(*pastEnd, *n) || !next))
                 next = pastEnd;
             ASSERT(next || !pastEnd);
         } else {
@@ -842,7 +842,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
     if (!comparePositions(start, end))
         return emptyString();
 
-    RefPtr<Node> commonAncestor = commonShadowIncludingAncestor(start, end);
+    auto commonAncestor = commonInclusiveAncestor(start, end);
     if (!commonAncestor)
         return emptyString();
 

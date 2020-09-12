@@ -1,3 +1,109 @@
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Add Intl.Segmenter
+        https://bugs.webkit.org/show_bug.cgi?id=213638
+
+        Reviewed by Ross Kirsling.
+
+        * wtf/text/WTFString.cpp:
+        (WTF::String::charactersWithoutNullTermination const):
+        (WTF::String::charactersWithNullTermination const):
+        * wtf/text/WTFString.h:
+
+2020-08-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Turn off wheel event regions until we need them
+        https://bugs.webkit.org/show_bug.cgi?id=215586
+
+        Reviewed by Darin Adler.
+        
+        Leave ENABLE_WHEEL_EVENT_REGIONS off because it's currently unused, and adds extra
+        region building overhead on macOS.
+
+        * wtf/PlatformEnableCocoa.h:
+
+2020-08-17  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] HashTable<Ref<K>, V>::HashTable(const HashTable& other) can't compile
+        https://bugs.webkit.org/show_bug.cgi?id=215550
+
+        Reviewed by Darin Adler.
+
+        Even though the copy constructor takes a const HashTable
+        reference, RefHashTraits::assignToEmpty takes non-const Ref<P>. It
+        seems that RefHashTraits::assignToEmpty and
+        Ref::assignToHashTableEmptyValue are unnecessary. Just remove them.
+
+        * wtf/HashTraits.h:
+        (WTF::RefHashTraits::assignToEmpty): Deleted.
+        * wtf/Ref.h:
+        (WTF::Ref::assignToHashTableEmptyValue): Deleted.
+
+2020-08-17  Youenn Fablet  <youenn@apple.com>
+
+        Bump HAVE_NSURLSESSION_WEBSOCKET requirement to BigSur for MacOS
+        https://bugs.webkit.org/show_bug.cgi?id=215517
+
+        Reviewed by Alex Christensen.
+
+        Catalina NSURLSession WebSocket is missing some features we need.
+        Bump it to Big Sur.
+
+        * wtf/PlatformHave.h:
+
+2020-08-15  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Use std::call_once + LazyNeverDestroyed to initialize complex data structures
+        https://bugs.webkit.org/show_bug.cgi?id=215535
+        <rdar://problem/66774266>
+
+        Reviewed by Mark Lam.
+
+        NeverDestroyed<> is not thread-safe in Darwin build since it is not using C++11 thread-safe static variable semantics.
+        This patch uses LazyNeverDestroyed and call_once to initialize complex data structures so that we can ensure they are
+        initialized atomically.
+
+        We also move some of `singleton` definitions from headers to cpp files. This is important since this ensures that singleton
+        is only one instance which is generated in one translation unit.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/FastMalloc.cpp:
+        (WTF::MallocCallTracker::singleton):
+        * wtf/Language.cpp:
+        (WTF::observerMap):
+        (WTF::preferredLanguagesOverride):
+        * wtf/Logger.cpp:
+        (WTF::Logger::observers):
+        * wtf/Logger.h:
+        (WTF::Logger::observerLock):
+        (WTF::Logger::observers): Deleted.
+        * wtf/MemoryPressureHandler.cpp:
+        (WTF::MemoryPressureHandler::singleton):
+        * wtf/MemoryPressureHandler.h:
+        * wtf/RunLoop.cpp:
+        (WTF::RunLoop::current):
+        * wtf/Threading.cpp:
+        (WTF::Thread::initializeInThread):
+        * wtf/URL.cpp:
+        (WTF::aboutBlankURL):
+        (WTF::aboutSrcDocURL):
+        * wtf/cf/LanguageCF.cpp:
+        (WTF::preferredLanguages):
+        * wtf/cocoa/NSURLExtras.mm:
+        (WTF::rangeOfURLScheme):
+        * wtf/text/LineBreakIteratorPoolICU.cpp: Copied from Source/WTF/wtf/Logger.cpp.
+        (WTF::LineBreakIteratorPool::sharedPool):
+        * wtf/text/LineBreakIteratorPoolICU.h:
+        (WTF::LineBreakIteratorPool::sharedPool): Deleted.
+        * wtf/text/StringView.cpp:
+        * wtf/text/TextBreakIterator.cpp:
+        (WTF::TextBreakIteratorCache::singleton):
+        * wtf/text/TextBreakIterator.h:
+        (WTF::TextBreakIteratorCache::singleton): Deleted.
+        * wtf/threads/Signals.cpp:
+        (WTF::activeThreads):
+
 2020-08-11  Wenson Hsieh  <wenson_hsieh@apple.com>
 
         Text input autocorrect="off" attribute ignored on Mac

@@ -158,33 +158,6 @@ WI.loaded = function()
     ]);
     WI._selectedTabIndexSetting = new WI.Setting("selected-tab-index", 0);
 
-    // FIXME: <https://webkit.org/b/205826> Web Inspector: remove legacy code for replacing the Resources Tab and Debugger Tab with the Sources Tab
-    let debuggerIndex = WI._openTabsSetting.value.indexOf("debugger");
-    let resourcesIndex = WI._openTabsSetting.value.indexOf("resources");
-    if (debuggerIndex >= 0 || resourcesIndex >= 0) {
-        WI._openTabsSetting.value.remove("debugger");
-        WI._openTabsSetting.value.remove("resources");
-
-        if (debuggerIndex === -1)
-            debuggerIndex = Infinity;
-        if (resourcesIndex === -1)
-            resourcesIndex = Infinity;
-
-        let sourcesIndex = Math.min(debuggerIndex, resourcesIndex);
-        WI._openTabsSetting.value.splice(sourcesIndex, 1, WI.SourcesTabContentView.Type);
-        WI._openTabsSetting.save();
-
-        if (WI._selectedTabIndexSetting.value === debuggerIndex || WI._selectedTabIndexSetting.value === resourcesIndex)
-            WI._selectedTabIndexSetting.value = sourcesIndex;
-    }
-
-    // FIXME: <https://webkit.org/b/205827> Web Inspector: remove legacy code for replacing the Canvas Tab with the Graphics Tab
-    let canvasIndex = WI._openTabsSetting.value.indexOf("canvas");
-    if (canvasIndex >= 0) {
-        WI._openTabsSetting.value.splice(canvasIndex, 1, WI.GraphicsTabContentView.Type);
-        WI._openTabsSetting.save();
-    }
-
     // State.
     WI.printStylesEnabled = false;
     WI.setZoomFactor(WI.settings.zoomFactor.value);
@@ -234,7 +207,6 @@ WI.contentLoaded = function()
 
     document.addEventListener("click", WI._mouseWasClicked);
     document.addEventListener("dragover", WI._handleDragOver);
-    document.addEventListener("drop", WI._handleDrop);
     document.addEventListener("focus", WI._focusChanged, true);
 
     window.addEventListener("focus", WI._windowFocused);
@@ -797,6 +769,7 @@ WI.createNewTabWithType = function(tabType, options = {})
         WI.tabBrowser.showTabForContentView(tabContentView, options);
 };
 
+// COMPATIBILITY (iOS 14.0): Inspector.activateExtraDomains was removed in favor of a declared debuggable type
 WI.activateExtraDomains = function(domains)
 {
     WI.notifications.dispatchEventToListeners(WI.Notification.ExtraDomainsActivated, {domains});
@@ -1659,34 +1632,9 @@ WI._handleDragOver = function(event)
     if (WI.isEventTargetAnEditableField(event))
         return;
 
-    let tabContentView = WI.tabBrowser.selectedTabContentView;
-    if (!tabContentView || !tabContentView.handleFileDrop || !event.dataTransfer.types.includes("Files")) {
-        // Prevent the drop from being accepted.
-        event.dataTransfer.dropEffect = "none";
-    }
-
+    // Prevent the drop from being accepted.
+    event.dataTransfer.dropEffect = "none";
     event.preventDefault();
-};
-
-WI._handleDrop = function(event)
-{
-    // Do nothing if another event listener handled the event already.
-    if (event.defaultPrevented)
-        return;
-
-    // Allow dropping into editable areas.
-    if (WI.isEventTargetAnEditableField(event))
-        return;
-
-    let tabContentView = WI.tabBrowser.selectedTabContentView;
-    if (tabContentView && tabContentView.handleFileDrop && event.dataTransfer.files) {
-        event.preventDefault();
-
-        tabContentView.handleFileDrop(event.dataTransfer.files)
-        .then(() => {
-            event.dataTransfer.clearData();
-        });
-    }
 };
 
 WI._debuggerDidPause = function(event)

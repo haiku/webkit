@@ -1451,14 +1451,15 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
 
     case IsEmpty:
     case TypeOfIsUndefined:
+    case TypeOfIsObject:
+    case TypeOfIsFunction:
     case IsUndefinedOrNull:
     case IsBoolean:
     case IsNumber:
     case IsBigInt:
     case NumberIsInteger:
     case IsObject:
-    case IsObjectOrNull:
-    case IsFunction:
+    case IsCallable:
     case IsConstructor:
     case IsCellWithType:
     case IsTypedArrayView: {
@@ -1474,6 +1475,24 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                     child.value().isCell()
                     ? child.value().asCell()->structure(m_vm)->masqueradesAsUndefined(m_codeBlock->globalObjectFor(node->origin.semantic))
                     : child.value().isUndefined()));
+                break;
+            case TypeOfIsObject:
+                if (child.value().isObject()) {
+                    JSObject* object = asObject(child.value());
+                    if (object->type() == JSFunctionType)
+                        setConstant(node, jsBoolean(false));
+                    else if (!(object->inlineTypeFlags() & OverridesGetCallData))
+                        setConstant(node, jsBoolean(!child.value().asCell()->structure(m_vm)->masqueradesAsUndefined(m_codeBlock->globalObjectFor(node->origin.semantic))));
+                    else {
+                        // FIXME: This could just call getCallData.
+                        // https://bugs.webkit.org/show_bug.cgi?id=144457
+                        constantWasSet = false;
+                    }
+                } else
+                    setConstant(node, jsBoolean(child.value().isNull()));
+                break;
+            case TypeOfIsFunction:
+                setConstant(node, jsBoolean(jsTypeofIsFunction(m_codeBlock->globalObjectFor(node->origin.semantic), child.value())));
                 break;
             case IsUndefinedOrNull:
                 setConstant(node, jsBoolean(child.value().isUndefinedOrNull()));
@@ -1493,35 +1512,8 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             case IsObject:
                 setConstant(node, jsBoolean(child.value().isObject()));
                 break;
-            case IsObjectOrNull:
-                if (child.value().isObject()) {
-                    JSObject* object = asObject(child.value());
-                    if (object->type() == JSFunctionType)
-                        setConstant(node, jsBoolean(false));
-                    else if (!(object->inlineTypeFlags() & OverridesGetCallData))
-                        setConstant(node, jsBoolean(!child.value().asCell()->structure(m_vm)->masqueradesAsUndefined(m_codeBlock->globalObjectFor(node->origin.semantic))));
-                    else {
-                        // FIXME: This could just call getCallData.
-                        // https://bugs.webkit.org/show_bug.cgi?id=144457
-                        constantWasSet = false;
-                    }
-                } else
-                    setConstant(node, jsBoolean(child.value().isNull()));
-                break;
-            case IsFunction:
-                if (child.value().isObject()) {
-                    JSObject* object = asObject(child.value());
-                    if (object->type() == JSFunctionType)
-                        setConstant(node, jsBoolean(true));
-                    else if (!(object->inlineTypeFlags() & OverridesGetCallData))
-                        setConstant(node, jsBoolean(false));
-                    else {
-                        // FIXME: This could just call getCallData.
-                        // https://bugs.webkit.org/show_bug.cgi?id=144457
-                        constantWasSet = false;
-                    }
-                } else
-                    setConstant(node, jsBoolean(false));
+            case IsCallable:
+                setConstant(node, jsBoolean(child.value().isCallable(m_vm)));
                 break;
             case IsConstructor:
                 setConstant(node, jsBoolean(child.value().isConstructor(m_vm)));
@@ -1597,6 +1589,38 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             // https://bugs.webkit.org/show_bug.cgi?id=144456
             
             if (!(child.m_type & (SpecOther | SpecObjectOther))) {
+                setConstant(node, jsBoolean(false));
+                constantWasSet = true;
+                break;
+            }
+            
+            break;
+        case TypeOfIsObject:
+            // FIXME: Use the masquerades-as-undefined watchpoint thingy.
+            // https://bugs.webkit.org/show_bug.cgi?id=144456
+            
+            // These expressions are complicated to parse. A helpful way to parse this is that
+            // "!(T & ~S)" means "T is a subset of S". Conversely, "!(T & S)" means "T is a
+            // disjoint set from S". Things like "T - S" means that, provided that S is a
+            // subset of T, it's the "set of all things in T but not in S". Things like "T | S"
+            // mean the "union of T and S".
+            
+            // Is the child's type an object that isn't an other-object (i.e. object that could
+            // have masquaredes-as-undefined traps) and isn't a function? Then: we should fold
+            // this to true.
+            if (!(child.m_type & ~(SpecObject - SpecObjectOther - SpecFunction))) {
+                setConstant(node, jsBoolean(true));
+                constantWasSet = true;
+                break;
+            }
+            
+            // Is the child's type definitely not either of: an object that isn't a function,
+            // or either undefined or null? Then: we should fold this to false. This means
+            // for example that if it's any non-function object, including those that have
+            // masquerades-as-undefined traps, then we don't fold. It also means we won't fold
+            // if it's undefined-or-null, since the type bits don't distinguish between
+            // undefined (which should fold to false) and null (which should fold to true).
+            if (!(child.m_type & ((SpecObject - SpecFunction) | SpecOther))) {
                 setConstant(node, jsBoolean(false));
                 constantWasSet = true;
                 break;
@@ -1689,39 +1713,8 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             }
             
             break;
-        case IsObjectOrNull:
-            // FIXME: Use the masquerades-as-undefined watchpoint thingy.
-            // https://bugs.webkit.org/show_bug.cgi?id=144456
-            
-            // These expressions are complicated to parse. A helpful way to parse this is that
-            // "!(T & ~S)" means "T is a subset of S". Conversely, "!(T & S)" means "T is a
-            // disjoint set from S". Things like "T - S" means that, provided that S is a
-            // subset of T, it's the "set of all things in T but not in S". Things like "T | S"
-            // mean the "union of T and S".
-            
-            // Is the child's type an object that isn't an other-object (i.e. object that could
-            // have masquaredes-as-undefined traps) and isn't a function?  Then: we should fold
-            // this to true.
-            if (!(child.m_type & ~(SpecObject - SpecObjectOther - SpecFunction))) {
-                setConstant(node, jsBoolean(true));
-                constantWasSet = true;
-                break;
-            }
-            
-            // Is the child's type definitely not either of: an object that isn't a function,
-            // or either undefined or null?  Then: we should fold this to false.  This means
-            // for example that if it's any non-function object, including those that have
-            // masquerades-as-undefined traps, then we don't fold. It also means we won't fold
-            // if it's undefined-or-null, since the type bits don't distinguish between
-            // undefined (which should fold to false) and null (which should fold to true).
-            if (!(child.m_type & ((SpecObject - SpecFunction) | SpecOther))) {
-                setConstant(node, jsBoolean(false));
-                constantWasSet = true;
-                break;
-            }
-            
-            break;
-        case IsFunction:
+        case TypeOfIsFunction:
+        case IsCallable:
             if (!(child.m_type & ~SpecFunction)) {
                 setConstant(node, jsBoolean(true));
                 constantWasSet = true;
@@ -2301,7 +2294,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             case Array::ArrayStorage:
             case Array::SlowPutArrayStorage:
                 if (foldGetByValOnConstantProperty(m_graph.child(node, 0), m_graph.child(node, 1))) {
-                    if (!node->arrayMode().isInBounds())
+                    if (node->arrayMode().isEffectfulOutOfBounds())
                         didFoldClobberWorld();
                     didFold = true;
                 }
@@ -2350,7 +2343,7 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
                 // we got to the backend. So to do this right, we'd have to get the
                 // fixup phase to check the watchpoint state and then bake into the
                 // GetByVal operation the fact that we're using a watchpoint, using
-                // something like Array::SaneChain (except not quite, because that
+                // something like Array::InBoundsSaneChain (except not quite, because that
                 // implies an in-bounds access). None of this feels like it's worth it,
                 // so we're going with TOP for now. The same thing applies to
                 // clobbering the world.
@@ -2366,25 +2359,32 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
             makeHeapTopForNode(node);
             break;
         case Array::Int32:
-            if (node->arrayMode().isOutOfBounds()) {
+            if (node->arrayMode().isEffectfulOutOfBounds()) {
                 clobberWorld();
                 makeHeapTopForNode(node);
-            } else
+            } else if (node->arrayMode().isOutOfBoundsSaneChain())
+                setNonCellTypeForNode(node, SpecInt32Only | SpecOther);
+            else
                 setNonCellTypeForNode(node, SpecInt32Only);
             break;
         case Array::Double:
-            if (node->arrayMode().isOutOfBounds()) {
+            if (node->arrayMode().isEffectfulOutOfBounds()) {
                 clobberWorld();
                 makeHeapTopForNode(node);
-            } else if (node->arrayMode().isSaneChain())
+            } else if (node->arrayMode().isInBoundsSaneChain())
                 setNonCellTypeForNode(node, SpecBytecodeDouble);
-            else
+            else if (node->arrayMode().isOutOfBoundsSaneChain()) {
+                if (!!(node->flags() & NodeBytecodeUsesAsOther))
+                    setNonCellTypeForNode(node, SpecBytecodeDouble | SpecOther);
+                else
+                    setNonCellTypeForNode(node, SpecBytecodeDouble);
+            } else
                 setNonCellTypeForNode(node, SpecDoubleReal);
             break;
         case Array::Contiguous:
         case Array::ArrayStorage:
         case Array::SlowPutArrayStorage:
-            if (node->arrayMode().isOutOfBounds())
+            if (node->arrayMode().isEffectfulOutOfBounds())
                 clobberWorld();
             makeHeapTopForNode(node);
             break;
@@ -3065,13 +3065,14 @@ bool AbstractInterpreter<AbstractStateType>::executeEffects(unsigned clobberLimi
         break;
     }
 
+    case ObjectGetOwnPropertyNames:
     case ObjectKeys: {
         if (node->child1().useKind() == ObjectUse) {
             auto& structureSet = forNode(node->child1()).m_structure;
             if (structureSet.isFinite() && structureSet.size() == 1) {
                 RegisteredStructure structure = structureSet.onlyStructure();
                 if (auto* rareData = structure->rareDataConcurrently()) {
-                    if (!!rareData->cachedOwnKeysConcurrently()) {
+                    if (!!rareData->cachedPropertyNamesConcurrently(node->op() == ObjectGetOwnPropertyNames ? CachedPropertyNamesKind::GetOwnPropertyNames : CachedPropertyNamesKind::Keys)) {
                         if (m_graph.isWatchingHavingABadTimeWatchpoint(node)) {
                             m_state.setShouldTryConstantFolding(true);
                             didFoldClobberWorld();

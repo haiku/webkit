@@ -24,12 +24,18 @@ import logging
 import platform
 import sys
 
+from logging import NullHandler
+
 log = logging.getLogger('webkitcorepy')
+log.addHandler(NullHandler())
 
 from webkitcorepy.version import Version
 from webkitcorepy.string_utils import BytesIO, StringIO, UnicodeIO, unicode
+from webkitcorepy.timeout import Timeout
+from webkitcorepy.subprocess_utils import TimeoutExpired, CompletedProcess, run
+from webkitcorepy.output_capture import LoggerCapture, OutputCapture, OutputDuplicate
 
-version = Version(0, 2, 2)
+version = Version(0, 4, 0)
 
 from webkitcorepy.autoinstall import Package, AutoInstall
 if sys.version_info > (3, 0):
@@ -50,3 +56,5 @@ AutoInstall.register(Package('setuptools', Version(44, 1,  1)))
 AutoInstall.register(Package('socks', Version(1, 7, 1), pypi_name='PySocks'))
 AutoInstall.register(Package('six', Version(1, 15, 0)))
 AutoInstall.register(Package('urllib3', Version(1, 25, 10)))
+
+name = 'webkitcorepy'

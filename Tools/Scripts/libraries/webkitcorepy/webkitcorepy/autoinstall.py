@@ -29,6 +29,7 @@ import subprocess
 import shutil
 import sys
 import tarfile
+import tempfile
 import zipfile
 
 from webkitcorepy import log
@@ -37,8 +38,9 @@ from xml.dom import minidom
 
 if sys.version_info > (3, 0):
     from urllib.request import urlopen
+    from urllib.error import URLError
 else:
-    from urllib2 import urlopen
+    from urllib2 import urlopen, URLError
 
 
 class Package(object):
@@ -190,7 +192,7 @@ class Package(object):
         manifest = AutoInstall.manifest.get(self.name)
         if not manifest:
             return False
-        if manifest.get('index') != AutoInstall.index:
+        if AutoInstall.overwrite_foreign_packages and manifest.get('index') != AutoInstall.index:
             return False
         if not manifest.get('version'):
             return False
@@ -213,10 +215,10 @@ class Package(object):
             install_location = os.path.dirname(self.location)
             shutil.rmtree(self.location, ignore_errors=True)
 
-            log.warning('Installing {}...'.format(archive))
+            log.warning('Downloading {}...'.format(archive))
             archive.download()
 
-            temp_location = '{}.tmp'.format(self.location)
+            temp_location = os.path.join(tempfile.gettempdir(), self.name)
             archive.unpack(temp_location)
 
             for candidate in [
@@ -304,6 +306,10 @@ class AutoInstall(object):
     packages = {}
     manifest = {}
 
+    # When sharing an install location, projects may wish to overwrite packages on disk
+    # originating from a different index.
+    overwrite_foreign_packages = False
+
     @classmethod
     def _request(cls, url):
         # Rely on our own certificates for PyPi, since we use PyPi to standardize root certificates
@@ -379,15 +385,33 @@ class AutoInstall(object):
             cls.enabled = True
 
     @classmethod
-    def set_index(cls, index, check=True):
-        if check:
+    def set_index(cls, index, check=True, fatal=False):
+        if not check:
+            cls.index = index
+            return cls.index
+
+        def error(message):
+            if fatal:
+                raise ValueError(message)
+
+            sys.stderr.write('{}\n'.format(message))
+            sys.stderr.write('Falling back to current index, {}\n\n'.format(cls.index))
+
+        response = None
+        try:
             response = AutoInstall._request('https://{}/simple/pip/'.format(index))
-            try:
-                if response.code != 200:
-                    raise ValueError('Failed to set AutoInstall index to {}, received {} response when searching for pip'.format(index, response.code))
-            finally:
+            if response.code != 200:
+                error('Failed to set AutoInstall index to {}, received {} response when searching for simple/pip'.format(index, response.code))
+            else:
+                cls.index = index
+        except URLError:
+            error('Failed to set AutoInstall index to {}, no response from the server'.format(index))
+        finally:
+            if response:
                 response.close()
-        cls.index = index
+
+        return cls.index
+
 
     @classmethod
     def set_timeout(cls, timeout):

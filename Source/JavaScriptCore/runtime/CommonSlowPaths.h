@@ -137,6 +137,16 @@ inline bool canAccessArgumentIndexQuickly(JSObject& object, uint32_t index)
     return false;
 }
 
+ALWAYS_INLINE Structure* originalStructureBeforePut(VM& vm, JSValue value)
+{
+    if (!value.isCell())
+        return nullptr;
+    if (value.asCell()->type() == PureForwardingProxyType)
+        return jsCast<JSProxy*>(value)->target()->structure(vm);
+    return value.asCell()->structure(vm);
+}
+
+
 static ALWAYS_INLINE void putDirectWithReify(VM& vm, JSGlobalObject* globalObject, JSObject* baseObject, PropertyName propertyName, JSValue value, PutPropertySlot& slot, Structure** result = nullptr)
 {
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -145,7 +155,7 @@ static ALWAYS_INLINE void putDirectWithReify(VM& vm, JSGlobalObject* globalObjec
         RETURN_IF_EXCEPTION(scope, void());
     }
     if (result)
-        *result = baseObject->structure(vm);
+        *result = originalStructureBeforePut(vm, baseObject);
     scope.release();
     baseObject->putDirect(vm, propertyName, value, slot);
 }
@@ -241,9 +251,10 @@ SLOW_PATH_HIDDEN_DECL(slow_path_bitand);
 SLOW_PATH_HIDDEN_DECL(slow_path_bitor);
 SLOW_PATH_HIDDEN_DECL(slow_path_bitxor);
 SLOW_PATH_HIDDEN_DECL(slow_path_typeof);
+SLOW_PATH_HIDDEN_DECL(slow_path_typeof_is_object);
+SLOW_PATH_HIDDEN_DECL(slow_path_typeof_is_function);
 SLOW_PATH_HIDDEN_DECL(slow_path_is_object);
-SLOW_PATH_HIDDEN_DECL(slow_path_is_object_or_null);
-SLOW_PATH_HIDDEN_DECL(slow_path_is_function);
+SLOW_PATH_HIDDEN_DECL(slow_path_is_callable);
 SLOW_PATH_HIDDEN_DECL(slow_path_is_constructor);
 SLOW_PATH_HIDDEN_DECL(slow_path_in_by_id);
 SLOW_PATH_HIDDEN_DECL(slow_path_in_by_val);

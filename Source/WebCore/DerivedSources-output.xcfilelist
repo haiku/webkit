@@ -183,6 +183,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEventInit.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioProcessingEventInit.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioScheduledSourceNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTimestamp.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTimestamp.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrack.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrack.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSAudioTrackList.cpp
@@ -357,6 +359,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCompositionEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCompositionEvent.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSComputedEffectTiming.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSComputedEffectTiming.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConstantSourceNode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConstantSourceNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConstantSourceOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConstantSourceOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverNode.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverNode.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSConvolverOptions.cpp
@@ -397,6 +403,8 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomElementRegistry.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomElementRegistry.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomEvent.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomEvent.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDOMApplicationCache.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDOMApplicationCache.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSDOMBindingInternalsBuiltins.h
@@ -1884,6 +1892,10 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSSpeechSynthesisVoice.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSSpeechSynthesisVoice.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStaticRange.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStaticRange.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStereoPannerNode.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStereoPannerNode.h
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStereoPannerOptions.cpp
+$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStereoPannerOptions.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorage.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorage.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSStorageErrorCallback.cpp
@@ -2268,8 +2280,6 @@ $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathEvaluator.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathEvaluator.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathExpression.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathExpression.h
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.cpp
-$(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSCustomXPathNSResolver.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathNSResolver.cpp
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathNSResolver.h
 $(BUILT_PRODUCTS_DIR)/DerivedSources/WebCore/JSXPathResult.cpp

@@ -40,7 +40,7 @@
 #include "InstrumentingAgents.h"
 #include "Page.h"
 #include "PageConsoleClient.h"
-#include "PageScriptDebugServer.h"
+#include "PageDebugger.h"
 #include "ScriptExecutionContext.h"
 #include "ScriptState.h"
 #include "UserGestureEmulationScope.h"
@@ -90,7 +90,7 @@ void PageDebuggerAgent::disable(bool isBeingDestroyed)
     WebDebuggerAgent::disable(isBeingDestroyed);
 }
 
-String PageDebuggerAgent::sourceMapURLForScript(const Script& script)
+String PageDebuggerAgent::sourceMapURLForScript(const JSC::Debugger::Script& script)
 {
     static NeverDestroyed<String> sourceMapHTTPHeader(MAKE_STATIC_STRING_IMPL("SourceMap"));
     static NeverDestroyed<String> sourceMapHTTPHeaderDeprecated(MAKE_STATIC_STRING_IMPL("X-SourceMap"));

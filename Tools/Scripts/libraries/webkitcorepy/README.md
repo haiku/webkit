@@ -43,3 +43,36 @@ with mocks.Time:
     stamp = time.time()
     time.sleep(5)
 ```
+Capturing stdout, stderr and logging output for testing
+```
+capturer = OutputCapture()
+with capturer:
+    print('data\n')
+assert capturer.stdout.getvalue() == 'data\n'
+```
+Capturing stdout, stderr and logging output for testing
+```
+capturer = OutputCapture()
+with capturer:
+    print('data\n')
+assert capturer.stdout.getvalue() == 'data\n'
+```
+
+Timeout context:
+```
+import time
+
+from webkitcorepy import Timeout
+
+with Timeout(5, handler=RuntimeError('Exceeded 5 second timeout')):
+    time.sleep(4)
+```
+
+subprocess.run replacement:
+```
+import sys
+
+from webkitcorepy import run
+
+result = run([sys.executable, '-c', 'print("message")'], capture_output=True, encoding='utf-8')
+```

@@ -1,3 +1,834 @@
+2020-08-24  Justin Uberti  <justin@uberti.name>
+
+        RTCRtpSynchronizationSource.rtpTimestamp is not present
+        https://bugs.webkit.org/show_bug.cgi?id=215722
+
+        Reviewed by Youenn Fablet.
+
+        Updated expectations file to indicate that tests checking for .rtpTimestamp now pass.
+
+        * LayoutTests/imported/w3c/web-platform-tests/webrtc/RTCRtpReceiver-getSynchronizationSources.https-expected.txt:
+
+2020-08-22  Emilio Cobos Álvarez  <emilio@crisal.io>
+
+        Import css-content tests.
+        https://bugs.webkit.org/show_bug.cgi?id=215751
+
+        Reviewed by Antti Koivisto.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/css-content/META.yml: Added.
+        * web-platform-tests/css/css-content/attr-case-insensitive-expected.html: Added.
+        * web-platform-tests/css/css-content/attr-case-insensitive.html: Added.
+        * web-platform-tests/css/css-content/computed-value-expected.txt: Added.
+        * web-platform-tests/css/css-content/computed-value.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-alt-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-alt.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-contents-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-contents.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-none-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-none.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-dynamic-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-dynamic.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-image-alt-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-image-alt.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-on-replaced-element.tentative-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-on-replaced-element.tentative.html: Added.
+        * web-platform-tests/css/css-content/element-replacement.html: Added.
+        * web-platform-tests/css/css-content/inheritance-expected.txt: Added.
+        * web-platform-tests/css/css-content/inheritance.html: Added.
+        * web-platform-tests/css/css-content/pseudo-element-inline-box-expected.html: Added.
+        * web-platform-tests/css/css-content/pseudo-element-inline-box.html: Added.
+        * web-platform-tests/css/css-content/quotes-001-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-001.html: Added.
+        * web-platform-tests/css/css-content/quotes-002-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-002.html: Added.
+        * web-platform-tests/css/css-content/quotes-003-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-003.html: Added.
+        * web-platform-tests/css/css-content/quotes-004-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-004.html: Added.
+        * web-platform-tests/css/css-content/quotes-005-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-005.html: Added.
+        * web-platform-tests/css/css-content/quotes-006-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-006.html: Added.
+        * web-platform-tests/css/css-content/quotes-007-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-007.html: Added.
+        * web-platform-tests/css/css-content/quotes-008-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-008.html: Added.
+        * web-platform-tests/css/css-content/quotes-009-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-009.html: Added.
+        * web-platform-tests/css/css-content/quotes-010-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-010.html: Added.
+        * web-platform-tests/css/css-content/quotes-011-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-011.html: Added.
+        * web-platform-tests/css/css-content/quotes-012-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-012.html: Added.
+        * web-platform-tests/css/css-content/quotes-013-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-013.html: Added.
+        * web-platform-tests/css/css-content/quotes-014-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-014.html: Added.
+        * web-platform-tests/css/css-content/quotes-015-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-015.html: Added.
+        * web-platform-tests/css/css-content/quotes-016-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-016.html: Added.
+        * web-platform-tests/css/css-content/quotes-017-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-017.html: Added.
+        * web-platform-tests/css/css-content/quotes-018-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-018.html: Added.
+        * web-platform-tests/css/css-content/quotes-019-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-019.html: Added.
+        * web-platform-tests/css/css-content/quotes-020-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-020.html: Added.
+        * web-platform-tests/css/css-content/quotes-021-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-021.html: Added.
+        * web-platform-tests/css/css-content/quotes-022-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-022.html: Added.
+        * web-platform-tests/css/css-content/quotes-023-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-023.html: Added.
+        * web-platform-tests/css/css-content/quotes-024-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-024.html: Added.
+        * web-platform-tests/css/css-content/quotes-025-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-025.html: Added.
+        * web-platform-tests/css/css-content/quotes-026-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-026.html: Added.
+        * web-platform-tests/css/css-content/quotes-027-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-027.html: Added.
+        * web-platform-tests/css/css-content/quotes-028-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-028.html: Added.
+        * web-platform-tests/css/css-content/quotes-029-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-029.html: Added.
+        * web-platform-tests/css/css-content/quotes-030-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-030.html: Added.
+        * web-platform-tests/css/css-content/quotes-031-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-031.html: Added.
+        * web-platform-tests/css/css-content/quotes-032-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-032.html: Added.
+        * web-platform-tests/css/css-content/quotes-033-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-033.html: Added.
+        * web-platform-tests/css/css-content/quotes-034-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-034.html: Added.
+        * web-platform-tests/css/css-content/resources/rect.svg: Added.
+        * web-platform-tests/css/css-content/resources/w3c-import.log: Added.
+        * web-platform-tests/css/css-content/w3c-import.log: Added.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/css/css-content/META.yml: Added.
+        * web-platform-tests/css/css-content/attr-case-insensitive-expected.html: Added.
+        * web-platform-tests/css/css-content/attr-case-insensitive.html: Added.
+        * web-platform-tests/css/css-content/computed-value-expected.txt: Added.
+        * web-platform-tests/css/css-content/computed-value.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-alt-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-alt.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-contents-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-contents.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-none-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-display-none.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-dynamic-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-dynamic.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-image-alt-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-image-alt.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-on-replaced-element.tentative-expected.html: Added.
+        * web-platform-tests/css/css-content/element-replacement-on-replaced-element.tentative.html: Added.
+        * web-platform-tests/css/css-content/element-replacement.html: Added.
+        * web-platform-tests/css/css-content/inheritance-expected.txt: Added.
+        * web-platform-tests/css/css-content/inheritance.html: Added.
+        * web-platform-tests/css/css-content/pseudo-element-inline-box-expected.html: Added.
+        * web-platform-tests/css/css-content/pseudo-element-inline-box.html: Added.
+        * web-platform-tests/css/css-content/quotes-001-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-001.html: Added.
+        * web-platform-tests/css/css-content/quotes-002-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-002.html: Added.
+        * web-platform-tests/css/css-content/quotes-003-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-003.html: Added.
+        * web-platform-tests/css/css-content/quotes-004-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-004.html: Added.
+        * web-platform-tests/css/css-content/quotes-005-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-005.html: Added.
+        * web-platform-tests/css/css-content/quotes-006-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-006.html: Added.
+        * web-platform-tests/css/css-content/quotes-007-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-007.html: Added.
+        * web-platform-tests/css/css-content/quotes-008-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-008.html: Added.
+        * web-platform-tests/css/css-content/quotes-009-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-009.html: Added.
+        * web-platform-tests/css/css-content/quotes-010-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-010.html: Added.
+        * web-platform-tests/css/css-content/quotes-011-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-011.html: Added.
+        * web-platform-tests/css/css-content/quotes-012-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-012.html: Added.
+        * web-platform-tests/css/css-content/quotes-013-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-013.html: Added.
+        * web-platform-tests/css/css-content/quotes-014-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-014.html: Added.
+        * web-platform-tests/css/css-content/quotes-015-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-015.html: Added.
+        * web-platform-tests/css/css-content/quotes-016-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-016.html: Added.
+        * web-platform-tests/css/css-content/quotes-017-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-017.html: Added.
+        * web-platform-tests/css/css-content/quotes-018-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-018.html: Added.
+        * web-platform-tests/css/css-content/quotes-019-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-019.html: Added.
+        * web-platform-tests/css/css-content/quotes-020-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-020.html: Added.
+        * web-platform-tests/css/css-content/quotes-021-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-021.html: Added.
+        * web-platform-tests/css/css-content/quotes-022-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-022.html: Added.
+        * web-platform-tests/css/css-content/quotes-023-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-023.html: Added.
+        * web-platform-tests/css/css-content/quotes-024-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-024.html: Added.
+        * web-platform-tests/css/css-content/quotes-025-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-025.html: Added.
+        * web-platform-tests/css/css-content/quotes-026-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-026.html: Added.
+        * web-platform-tests/css/css-content/quotes-027-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-027.html: Added.
+        * web-platform-tests/css/css-content/quotes-028-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-028.html: Added.
+        * web-platform-tests/css/css-content/quotes-029-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-029.html: Added.
+        * web-platform-tests/css/css-content/quotes-030-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-030.html: Added.
+        * web-platform-tests/css/css-content/quotes-031-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-031.html: Added.
+        * web-platform-tests/css/css-content/quotes-032-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-032.html: Added.
+        * web-platform-tests/css/css-content/quotes-033-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-033.html: Added.
+        * web-platform-tests/css/css-content/quotes-034-expected.html: Added.
+        * web-platform-tests/css/css-content/quotes-034.html: Added.
+        * web-platform-tests/css/css-content/resources/rect.svg: Added.
+        * web-platform-tests/css/css-content/resources/w3c-import.log: Added.
+        * web-platform-tests/css/css-content/w3c-import.log: Added.
+
+2020-08-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Console object's @@toStringTag should be "console" instead of "Console"
+        https://bugs.webkit.org/show_bug.cgi?id=215750
+
+        Reviewed by Ross Kirsling.
+
+        Import ToT wpt/console tests including @@toStringTag tests.
+
+        * resources/import-expectations.json:
+        * web-platform-tests/console/META.yml: Added.
+        * web-platform-tests/console/console-is-a-namespace.any-expected.txt: Added.
+        * web-platform-tests/console/console-is-a-namespace.any.html: Added.
+        * web-platform-tests/console/console-is-a-namespace.any.js: Added.
+        (test):
+        * web-platform-tests/console/console-is-a-namespace.any.worker-expected.txt: Added.
+        * web-platform-tests/console/console-is-a-namespace.any.worker.html: Added.
+        * web-platform-tests/console/console-label-conversion.any-expected.txt: Added.
+        * web-platform-tests/console/console-label-conversion.any.html: Added.
+        * web-platform-tests/console/console-label-conversion.any.js: Added.
+        (const.method.of.methods.test):
+        * web-platform-tests/console/console-label-conversion.any.worker-expected.txt: Added.
+        * web-platform-tests/console/console-label-conversion.any.worker.html: Added.
+        * web-platform-tests/console/console-namespace-object-class-string.any-expected.txt: Added.
+        * web-platform-tests/console/console-namespace-object-class-string.any.html: Added.
+        * web-platform-tests/console/console-namespace-object-class-string.any.js: Added.
+        (test):
+        (test.t.t.add_cleanup):
+        * web-platform-tests/console/console-namespace-object-class-string.any.worker-expected.txt: Added.
+        * web-platform-tests/console/console-namespace-object-class-string.any.worker.html: Added.
+        * web-platform-tests/console/console-tests-historical.any-expected.txt: Added.
+        * web-platform-tests/console/console-tests-historical.any.html: Added.
+        * web-platform-tests/console/console-tests-historical.any.js: Added.
+        (test):
+        * web-platform-tests/console/console-tests-historical.any.worker-expected.txt: Added.
+        * web-platform-tests/console/console-tests-historical.any.worker.html: Added.
+        * web-platform-tests/console/idlharness.any-expected.txt: Added.
+        * web-platform-tests/console/idlharness.any.html: Added.
+        * web-platform-tests/console/idlharness.any.js: Added.
+        * web-platform-tests/console/idlharness.any.worker-expected.txt: Added.
+        * web-platform-tests/console/idlharness.any.worker.html: Added.
+        * web-platform-tests/console/w3c-import.log: Added.
+
+2020-08-20  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, rebaseline flaky webaudio tests.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/buffer-resampling-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-buffer-stitching-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-dynamics-compressor-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-rolloff-clamping-expected.txt:
+
+2020-08-20  Chris Dumez  <cdumez@apple.com>
+
+        AudioBufferSourceNode should use "final" values for playbackRate and detune
+        https://bugs.webkit.org/show_bug.cgi?id=215669
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audiobuffersource-connections-expected.txt:
+
+2020-08-20  Chris Dumez  <cdumez@apple.com>
+
+        AudioParam.automationRate attribute is missing
+        https://bugs.webkit.org/show_bug.cgi?id=215710
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/automation-rate-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-constant-source-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-dynamics-compressor-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-stereo-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/realtime-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-mediaelementaudiosourcenode-interface/mediaElementAudioSourceToScriptProcessorTest-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-rolloff-clamping-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/no-dezippering-expected.txt:
+
+2020-08-20  Rob Buis  <rbuis@igalia.com>
+
+        XMLHttpRequest.open should use USVString
+        https://bugs.webkit.org/show_bug.cgi?id=215704
+
+        Reviewed by Chris Dumez.
+
+        Update improved test result.
+
+        * web-platform-tests/xhr/open-url-encoding-expected.txt:
+
+2020-08-20  Clark Wang  <clark_wang@apple.com>
+
+        Introduce StereoPannerNode Interface
+        https://bugs.webkit.org/show_bug.cgi?id=215518
+
+        Reviewed by Darin Adler.
+
+        Re-baselined existing tests. Some now fail due to missing automation rate.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-connect-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/automation-rate-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-stereo-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/ctor-stereopanner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/stereopannernode-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/stereopannernode-panning-expected.txt:
+
+2020-08-19  Chris Dumez  <cdumez@apple.com>
+
+        Blob is missing text() & arrayBuffer() operations
+        https://bugs.webkit.org/show_bug.cgi?id=215663
+
+        Reviewed by Geoff Garen.
+
+        * web-platform-tests/FileAPI/blob/Blob-array-buffer.any-expected.txt:
+        * web-platform-tests/FileAPI/blob/Blob-array-buffer.any.worker-expected.txt:
+        * web-platform-tests/FileAPI/blob/Blob-text.any-expected.txt:
+        * web-platform-tests/FileAPI/blob/Blob-text.any.worker-expected.txt:
+        * web-platform-tests/FileAPI/idlharness-expected.txt:
+        * web-platform-tests/FileAPI/idlharness.worker-expected.txt:
+
+2020-08-19  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, rebaseline imported/w3c/web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform.html
+
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+
+2020-08-19  Rob Buis  <rbuis@igalia.com>
+
+        Implement PerfomanceObserverInit.buffered
+        https://bugs.webkit.org/show_bug.cgi?id=214883
+
+        Reviewed by Darin Adler.
+
+        Sync case-sensitivity.any.js which was upstreamed to WPT
+        a bit differently than in r265390 and specifically managed to
+        use one timeout instead of multiple, making it a faster test.
+
+        * web-platform-tests/performance-timeline/case-sensitivity.any-expected.txt:
+        * web-platform-tests/performance-timeline/case-sensitivity.any.js:
+        (async_test):
+        * web-platform-tests/performance-timeline/case-sensitivity.any.worker-expected.txt:
+
+2020-08-19  Youenn Fablet  <youenn@apple.com>
+
+        Optimise resolution of promises with values in ReadableStream implementation
+        https://bugs.webkit.org/show_bug.cgi?id=215557
+        <rdar://problem/66828616>
+
+        Reviewed by Yusuke Suzuki.
+
+        * web-platform-tests/fetch/api/response/response-stream-with-broken-then.any-expected.txt:
+        * web-platform-tests/fetch/api/response/response-stream-with-broken-then.any.worker-expected.txt:
+        Remaining test failure will be handled as part of pipeTo algorithm refresh.
+
+2020-08-19  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE] Gardening and rebaseline touch tests
+
+        Unreviewed test gardening.
+
+        Move some WPE-specific baselines here as it is only tested there.
+
+        Also rebaseline after r265749 updated some constructor rules.
+
+        * web-platform-tests/touch-events/historical-expected.txt:
+        * web-platform-tests/touch-events/idlharness.window-expected.txt:
+        * web-platform-tests/touch-events/touch-retargeting-expected.txt:
+        * web-platform-tests/touch-events/touch-touchevent-constructor-expected.txt:
+
+2020-08-18  Sergio Villar Senin  <svillar@igalia.com>
+
+        <button> should support display:inline-grid/grid/inline-flex/flex correctly
+        https://bugs.webkit.org/show_bug.cgi?id=209656
+
+        Reviewed by Javier Fernandez.
+
+        Replaced FAIL expectation by PASS one. Both tests should pass now with no failures.
+
+        * web-platform-tests/html/rendering/widgets/button-layout/flex-expected.txt:
+        * web-platform-tests/html/rendering/widgets/button-layout/grid-expected.txt:
+
+2020-08-18  Chris Dumez  <cdumez@apple.com>
+
+        AudioBuffer.duration should use double precision
+        https://bugs.webkit.org/show_bug.cgi?id=215632
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffer-interface/audiobuffer-expected.txt:
+
+2020-08-18  Chris Dumez  <cdumez@apple.com>
+
+        PannerNode's rolloffFactor should be clamped to [0, 1] internally when distanceModel is "linear"
+        https://bugs.webkit.org/show_bug.cgi?id=215625
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-rolloff-clamping-expected.txt:
+
+2020-08-18  Chris Dumez  <cdumez@apple.com>
+
+        ScriptProcessNode should only run script asynchronously if the audio context is not an OfflineAudioContext
+        https://bugs.webkit.org/show_bug.cgi?id=215624
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test that is now passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-scriptprocessornode-interface/simple-input-output-expected.txt:
+
+2020-08-18  Chris Dumez  <cdumez@apple.com>
+
+        WaveShaperNode.curve setter should create a copy of the input array
+        https://bugs.webkit.org/show_bug.cgi?id=215615
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test now that all checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve-expected.txt:
+
+2020-08-18  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, rebaseline webaudio WPT tests that are marked as flaky.
+
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-1-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-2-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/detune-limiting-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-equalpower-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-scriptprocessornode-interface/simple-input-output-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve-expected.txt:
+
+2020-08-17  Chris Dumez  <cdumez@apple.com>
+
+        AudioContext.getOutputTimestamp() is missing
+        https://bugs.webkit.org/show_bug.cgi?id=215591
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-getoutputtimestamp-expected.txt:
+
+2020-08-17  Chris Dumez  <cdumez@apple.com>
+
+        Improve channel mixing support in AudioBus
+        https://bugs.webkit.org/show_bug.cgi?id=215597
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT test now that all checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-channel-rules-expected.txt:
+
+2020-08-17  Chris Dumez  <cdumez@apple.com>
+
+        AudioNode.disconnect() does not match the specification
+        https://bugs.webkit.org/show_bug.cgi?id=215578
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT test now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-expected.txt:
+
+2020-08-17  Chris Dumez  <cdumez@apple.com>
+
+        WaveShaperNode should not output silence when it has no input or when input is silence
+        https://bugs.webkit.org/show_bug.cgi?id=215574
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline existing test now that all checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/silent-inputs-expected.txt:
+
+2020-08-17  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        JSDOMConstructorNotConstructable should be a constructor
+        https://bugs.webkit.org/show_bug.cgi?id=215554
+        <rdar://problem/65770688>
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/FileAPI/file/send-file-form-expected.txt:
+        * web-platform-tests/FileAPI/file/send-file-form-iso-2022-jp.tentative-expected.txt:
+        * web-platform-tests/FileAPI/file/send-file-form-utf-8-expected.txt:
+        * web-platform-tests/FileAPI/file/send-file-form-windows-1252.tentative-expected.txt:
+        * web-platform-tests/FileAPI/file/send-file-form-x-user-defined.tentative-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-baseURL.tentative-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-disabled-regular-sheet-insertion-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-disallow-import.tentative-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-duplicate-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-constructable-expected.txt:
+        * web-platform-tests/css/cssom/CSSStyleSheet-modify-after-removal-expected.txt:
+        * web-platform-tests/custom-elements/Document-createElement-expected.txt:
+        * web-platform-tests/custom-elements/Document-createElementNS-expected.txt:
+        * web-platform-tests/custom-elements/HTMLElement-attachInternals-expected.txt:
+        * web-platform-tests/custom-elements/HTMLElement-constructor-expected.txt:
+        * web-platform-tests/custom-elements/builtin-coverage-expected.txt:
+        * web-platform-tests/custom-elements/customized-built-in-constructor-exceptions-expected.txt:
+        * web-platform-tests/custom-elements/htmlconstructor/newtarget-expected.txt:
+        * web-platform-tests/custom-elements/parser/serializing-html-fragments-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLAreaElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLBaseElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLButtonElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLCanvasElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLDataElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLDetailsElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLEmbedElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLFieldSetElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLImageElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLLIElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLLabelElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLMapElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLMediaElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLMetaElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLMeterElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLModElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLOListElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLOptGroupElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLParamElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLProgressElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLQuoteElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLSlotElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLStyleElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLTableCellElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLTableColElement-expected.txt:
+        * web-platform-tests/custom-elements/reactions/HTMLTimeElement-expected.txt:
+        * web-platform-tests/custom-elements/upgrading/Document-importNode-expected.txt:
+        * web-platform-tests/custom-elements/upgrading/Node-cloneNode-expected.txt:
+        * web-platform-tests/dom/nodes/Node-appendChild-cereactions-vs-script.window-expected.txt:
+        * web-platform-tests/html/editing/dnd/datastore/datatransfer-constructor-001-expected.txt:
+        * web-platform-tests/html/editing/dnd/datastore/datatransfer-types-expected.txt:
+        * web-platform-tests/html/semantics/forms/form-submission-0/submit-file.sub-expected.txt:
+        * web-platform-tests/service-workers/service-worker/data-transfer-files.https-expected.txt:
+        * web-platform-tests/shadow-dom/Element-interface-attachShadow-custom-element-expected.txt:
+        * web-platform-tests/user-timing/mark-entry-constructor.any-expected.txt:
+        * web-platform-tests/user-timing/mark-entry-constructor.any.worker-expected.txt:
+        * web-platform-tests/user-timing/structured-serialize-detail.any-expected.txt:
+        * web-platform-tests/user-timing/structured-serialize-detail.any.worker-expected.txt:
+        * web-platform-tests/webrtc/RTCIceTransport-extension.https-expected.txt:
+
+2020-08-17  Youenn Fablet  <youenn@apple.com>
+
+        Make sure writableStreamDefaultWriterEnsureClosedPromiseRejected overwrite the closedPromise if needed
+        https://bugs.webkit.org/show_bug.cgi?id=215540
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/streams/writable-streams/aborting.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/aborting.any.worker-expected.txt:
+
+2020-08-17  Youenn Fablet  <youenn@apple.com>
+
+        Check WritableStream underlyingSink methods
+        https://bugs.webkit.org/show_bug.cgi?id=215539
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any.js:
+        (test):
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any.worker-expected.txt:
+
+2020-08-15  Youenn Fablet  <youenn@apple.com>
+
+        WritableStream rejected promises should be marked as handled as per spec
+        https://bugs.webkit.org/show_bug.cgi?id=215501
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/streams/writable-streams/aborting.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/aborting.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/close.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/close.any.worker-expected.txt:
+
+2020-08-14  Chris Dumez  <cdumez@apple.com>
+
+        OfflineAudioContext.destination has incorrect number of channels & channel count mode
+        https://bugs.webkit.org/show_bug.cgi?id=215522
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+        Note that some tests are now failing when checking the audio channels on the OfflineAudioContext's destination.
+        Previously, there were no such channels to check since the channel count was always 0.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/sub-sample-scheduling-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-biquad-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-constant-source-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-2-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/ctor-offlineaudiocontext-expected.txt:
+
+2020-08-14  Chris Dumez  <cdumez@apple.com>
+
+        Add support for suspending / resuming an OfflineAudioContext
+        https://bugs.webkit.org/show_bug.cgi?id=215417
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/audiocontext-suspend-resume-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/suspended-context-messageport.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-channelmergernode-interface/audiochannelmerger-disconnect-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/convolver-response-4-chan-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/current-time-block-size-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/automation-changes-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve-expected.txt:
+
+2020-08-14  Clark Wang  <clark_wang@apple.com>
+
+        Introduce ConstantSourceNode Interface
+        https://bugs.webkit.org/show_bug.cgi?id=215377
+
+        Reviewed by Chris Dumez.
+
+        Re-baselined existing tests. Some fail further, mainly due to lack of support for automation rate in AudioParam.
+
+        * web-platform-tests/webaudio/idlharness.https.window-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analyser-minimum-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/adding-events-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-close-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/automation-rate-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/cancel-scheduled-values-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/event-insertion-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audiobuffersource-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet-connections.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-audioworklet.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-constant-source-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-delay-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-dynamics-compressor-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-oscillator-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-connections-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/k-rate-panner-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-exponentialRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-linearRampToValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setTargetAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setValueAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/retrospective-setValueCurveAtTime-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/set-target-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworklet-audioparam.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletprocessor-process-frozen-array.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/constant-source-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/constant-source-onended-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/constant-source-output-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/ctor-constantsource-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-constantsourcenode-interface/test-constantsourcenode-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-convolvernode-interface/realtime-conv-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/delaynode-channel-count-1-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/maxdelay-rounding-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-azimuth-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-stereopanner-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/silent-inputs-expected.txt:
+
+2020-08-14  Chris Dumez  <cdumez@apple.com>
+
+        Make sure OfflineAudioContext::startOfflineRendering() does lazy initialization
+        https://bugs.webkit.org/show_bug.cgi?id=215481
+
+        Reviewed by Eric Carlson.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/active-processing.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/audioworkletnode-channel-count.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioworklet-interface/suspended-context-messageport.https-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-offlineaudiocontext-interface/current-time-block-size-expected.txt:
+
+2020-08-14  Chris Dumez  <cdumez@apple.com>
+
+        Fix bad check in AudioBufferSourceNode::renderFromBuffer()
+        https://bugs.webkit.org/show_bug.cgi?id=215513
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT tests now that more checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-analysernode-interface/test-analyser-gain-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-one-sample-loop-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-connect-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audionode-interface/audionode-disconnect-audioparam-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-method-chaining-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/audioparam-setValueCurve-exceptions-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/setTargetAtTime-after-event-within-block-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-audioparam-interface/setValueAtTime-within-block-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-tail-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-channelmergernode-interface/audiochannelmerger-disconnect-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-basic-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-pannernode-interface/panner-automation-position-expected.txt:
+
+2020-08-14  Chris Dumez  <cdumez@apple.com>
+
+        AudioBufferSourceNode.buffer setter should throw when the buffer was already set
+        https://bugs.webkit.org/show_bug.cgi?id=215510
+
+        Reviewed by Darin Adler.
+
+        Rebaseline WPT test now that all checks are passing.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiobuffersourcenode-interface/audiobuffersource-channels-expected.txt:
+
+2020-08-14  Takeshi Kurosawa  <taken.spc@gmail.com>
+
+        @font-face font-weight descriptor should reject bolder and lighter
+        https://bugs.webkit.org/show_bug.cgi?id=215359
+
+        Reviewed by Darin Adler.
+
+        Both bolder and lighter are not allowed in font-weight descriptor. This patch splits
+        font-weight descriptor parsers from font-weight property parsers.
+
+        * web-platform-tests/css/css-fonts/variations/at-font-face-descriptors-expected.txt:
+
+2020-08-14  Youenn Fablet  <youenn@apple.com>
+
+        WritableStreamDefaultWriterEnsureReadyPromiseRejected should create a new readPromise if the current readyPromise is not pending
+        https://bugs.webkit.org/show_bug.cgi?id=215500
+
+        Reviewed by Geoffrey Garen.
+
+        * web-platform-tests/streams/writable-streams/aborting.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/aborting.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/bad-underlying-sinks.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/close.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/close.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/general.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/general.any.worker-expected.txt:
+        * web-platform-tests/streams/writable-streams/reentrant-strategy.any-expected.txt:
+        * web-platform-tests/streams/writable-streams/reentrant-strategy.any.worker-expected.txt:
+
+2020-08-13  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WebXR] Implement WebXRSession::updateRenderState()
+        https://bugs.webkit.org/show_bug.cgi?id=213555
+
+        Reviewed by Darin Adler.
+
+        New expectations.
+
+        * web-platform-tests/webxr/render_state_update.https-expected.txt: Added.
+        * web-platform-tests/webxr/render_state_vertical_fov_immersive.https-expected.txt: Added.
+
+2020-08-13  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, rebaseline WPT tests that are currently marked as flaky.
+
+        * web-platform-tests/webaudio/the-audio-api/the-audiocontext-interface/suspend-after-construct-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-getFrequencyResponse-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-delaynode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-gainnode-interface/no-dezippering-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/detune-limiting-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-oscillatornode-interface/osc-basic-waveform-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-scriptprocessornode-interface/simple-input-output-expected.txt:
+        * web-platform-tests/webaudio/the-audio-api/the-waveshapernode-interface/waveshaper-copy-curve-expected.txt:
+
+2020-08-12  Lauro Moura  <lmoura@igalia.com>
+
+        Highpass Biquads use old formulas
+        https://bugs.webkit.org/show_bug.cgi?id=181191
+
+        Reviewed by Darin Adler.
+
+        *
+        web-platform-tests/webaudio/the-audio-api/the-biquadfilternode-interface/biquad-highpass-expected.txt:
+        Rebaselined
+
 2020-08-12  Youenn Fablet  <youenn@apple.com>
 
         Refresh WritableStream up to spec

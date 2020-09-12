@@ -1,5 +1,3 @@
-//@ runBigIntEnabled
-
 function shouldBe(actual, expected) {
     if (actual !== expected)
         throw new Error(`expected ${expected} but got ${actual}`);
@@ -49,12 +47,15 @@ function testNumberFormat(numberFormat, possibleDifferences) {
             style: "decimal",
             currency: undefined,
             currencyDisplay: undefined,
+            currencySign: undefined,
             minimumIntegerDigits: 1,
             minimumFractionDigits: 0,
             maximumFractionDigits: 3,
             minimumSignificantDigits: undefined,
             maximumSignificantDigits: undefined,
-            useGrouping: true
+            useGrouping: true,
+            notation: "standard",
+            signDisplay: "auto"
         };
         Object.assign(defaultOptions, difference);
         return JSON.stringify(defaultOptions);
@@ -124,11 +125,11 @@ shouldThrow(() => Intl.NumberFormat('en', {style: 'Decimal'}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', { get style() { throw new Error(); } }), Error);
 
 // The option currency is processed correctly.
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'UsD'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'CLF'}), [{locale: 'en', style: 'currency', currency: 'CLF', currencyDisplay: 'symbol', minimumFractionDigits: 4, maximumFractionDigits: 4}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'cLf'}), [{locale: 'en', style: 'currency', currency: 'CLF', currencyDisplay: 'symbol', minimumFractionDigits: 4, maximumFractionDigits: 4}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'XXX'}), [{locale: 'en', style: 'currency', currency: 'XXX', currencyDisplay: 'symbol', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'UsD'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'CLF'}), [{locale: 'en', style: 'currency', currency: 'CLF', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 4, maximumFractionDigits: 4}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'cLf'}), [{locale: 'en', style: 'currency', currency: 'CLF', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 4, maximumFractionDigits: 4}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'XXX'}), [{locale: 'en', style: 'currency', currency: 'XXX', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
 shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', currency: 'US$'}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', currency: 'US'}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', currency: 'US Dollar'}), RangeError);
@@ -136,9 +137,9 @@ shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', get currency() { t
 shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'decimal', currency: 'USD'}), [{locale: 'en', style: 'decimal'}]), true);
 
 // The option currencyDisplay is processed correctly.
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'code'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'symbol'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'name'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'name', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'code'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'code', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'symbol'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'symbol', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'name'}), [{locale: 'en', style: 'currency', currency: 'USD', currencyDisplay: 'name', currencySign: 'standard', minimumFractionDigits: 2, maximumFractionDigits: 2}]), true);
 shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', currency: 'USD', currencyDisplay: 'Code'}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {style: 'currency', currency: 'USD', get currencyDisplay() { throw new Error(); }}), Error);
 shouldBe(testNumberFormat(Intl.NumberFormat('en', {style: 'decimal', currencyDisplay: 'code'}), [{locale: 'en', style: 'decimal'}]), true);
@@ -172,12 +173,12 @@ shouldThrow(() => Intl.NumberFormat('en', {maximumFractionDigits: -1}), RangeErr
 shouldThrow(() => Intl.NumberFormat('en', {maximumFractionDigits: 21}), RangeError);
 
 // The option minimumSignificantDigits is processed correctly.
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {minimumSignificantDigits: 6}), [{locale: 'en', minimumSignificantDigits: 6, maximumSignificantDigits: 21}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {minimumSignificantDigits: 6}), [{locale: 'en', minimumFractionDigits: undefined, maximumFractionDigits: undefined, minimumSignificantDigits: 6, maximumSignificantDigits: 21}]), true);
 shouldThrow(() => Intl.NumberFormat('en', {minimumSignificantDigits: 0}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {minimumSignificantDigits: 22}), RangeError);
 
 // The option maximumSignificantDigits is processed correctly.
-shouldBe(testNumberFormat(Intl.NumberFormat('en', {maximumSignificantDigits: 6}), [{locale: 'en', minimumSignificantDigits: 1, maximumSignificantDigits: 6}]), true);
+shouldBe(testNumberFormat(Intl.NumberFormat('en', {maximumSignificantDigits: 6}), [{locale: 'en', minimumFractionDigits: undefined, maximumFractionDigits: undefined, minimumSignificantDigits: 1, maximumSignificantDigits: 6}]), true);
 shouldThrow(() => Intl.NumberFormat('en', {minimumSignificantDigits: 7, maximumSignificantDigits: 6}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {maximumSignificantDigits: 0}), RangeError);
 shouldThrow(() => Intl.NumberFormat('en', {maximumSignificantDigits: 22}), RangeError);
@@ -226,15 +227,13 @@ shouldBe(
         ? '["en-Latn-US-1abc-foobar-variant-a-aa-aaa-u-kn-x-reserved"]'
         : '["en-Latn-US-variant-foobar-1abc-a-aa-aaa-u-kn-true-x-reserved"]'
 );
-// Replaces outdated tags.
-shouldBe(JSON.stringify(Intl.NumberFormat.supportedLocalesOf('no-bok')), '["nb"]');
-// Doesn't throw, but ignores private tags.
-shouldBe(JSON.stringify(Intl.NumberFormat.supportedLocalesOf('x-some-thing')), '[]');
 // Throws on problems with length, get, or toString.
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf(Object.create(null, { length: { get() { throw new Error(); } } })), Error);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf(Object.create(null, { length: { value: 1 }, 0: { get() { throw new Error(); } } })), Error);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf([ { toString() { throw new Error(); } } ]), Error);
 // Throws on bad tags.
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('no-bok'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-some-thing'), RangeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf([ 5 ]), TypeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf(''), RangeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('a'), RangeError);
@@ -247,6 +246,13 @@ shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('en-x'), RangeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('en-*'), RangeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('en-'), RangeError);
 shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('en--US'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('i-klingon'), RangeError); // grandfathered tag is not accepted by IsStructurallyValidLanguageTag
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-en-US-12345'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-12345-12345-en-US'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-en-US-12345-12345'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-en-u-foo'), RangeError);
+shouldThrow(() => Intl.NumberFormat.supportedLocalesOf('x-en-u-foo-u-bar'), RangeError);
+
 // Accepts valid tags
 var validLanguageTags = [
     'de', // ISO 639 language code
@@ -258,16 +264,10 @@ var validLanguageTags = [
     'cmn-hans-cn', // + ISO 3166-1 country code
     'es-419', // + UN M.49 region code
     'es-419-u-nu-latn-cu-bob', // + Unicode locale extension sequence
-    'i-klingon', // grandfathered tag
     'cmn-hans-cn-t-ca-u-ca-x-t-u', // singleton subtags can also be used as private use subtags
     'enochian-enochian', // language and variant subtags may be the same
     'de-gregory-u-ca-gregory', // variant and extension subtags may be the same
     'aa-a-foo-x-a-foo-bar', // variant subtags can also be used as private use subtags
-    'x-en-US-12345', // anything goes in private use tags
-    'x-12345-12345-en-US',
-    'x-en-US-12345-12345',
-    'x-en-u-foo',
-    'x-en-u-foo-u-bar'
 ];
 for (var validLanguageTag of validLanguageTags)
     shouldNotThrow(() => Intl.NumberFormat.supportedLocalesOf(validLanguageTag));
@@ -435,7 +435,7 @@ shouldThrow(() => Intl.NumberFormat.prototype.resolvedOptions.call(5), TypeError
 {
     let options = defaultNFormat.resolvedOptions();
     delete options.locale; 
-    shouldBe(JSON.stringify(options), '{"numberingSystem":"latn","style":"decimal","minimumIntegerDigits":1,"minimumFractionDigits":0,"maximumFractionDigits":3,"useGrouping":true}');
+    shouldBe(JSON.stringify(options), '{"numberingSystem":"latn","style":"decimal","minimumIntegerDigits":1,"minimumFractionDigits":0,"maximumFractionDigits":3,"useGrouping":true,"notation":"standard","signDisplay":"auto"}');
 }
 
 // Legacy compatibility with ECMA-402 1.0

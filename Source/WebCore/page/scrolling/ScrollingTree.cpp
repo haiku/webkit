@@ -170,10 +170,12 @@ RefPtr<ScrollingTreeNode> ScrollingTree::scrollingNodeForPoint(FloatPoint)
     return m_rootNode;
 }
 
+#if ENABLE(WHEEL_EVENT_REGIONS)
 OptionSet<EventListenerRegionType> ScrollingTree::eventListenerRegionTypesForPoint(FloatPoint) const
 {
     return { };
 }
+#endif
 
 void ScrollingTree::traverseScrollingTree(VisitorFunction&& visitorFunction)
 {
@@ -598,6 +600,20 @@ PlatformDisplayID ScrollingTree::displayID()
 {
     LockHolder locker(m_treeStateMutex);
     return m_treeState.displayID;
+}
+
+bool ScrollingTree::hasProcessedWheelEventsRecently()
+{
+    LockHolder locker(m_lastWheelEventTimeMutex);
+    constexpr auto activityInterval = 50_ms; // Duration of a few frames so that we stay active for sequence of wheel events.
+    
+    return (MonotonicTime::now() - m_lastWheelEventTime) < activityInterval;
+}
+
+void ScrollingTree::willProcessWheelEvent()
+{
+    LockHolder locker(m_lastWheelEventTimeMutex);
+    m_lastWheelEventTime = MonotonicTime::now();
 }
 
 Optional<unsigned> ScrollingTree::nominalFramesPerSecond()

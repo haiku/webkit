@@ -2408,7 +2408,7 @@ void SpeculativeJIT::compileGetByValOnString(Node* node)
 
         if (globalObject->stringPrototypeChainIsSane()) {
             // FIXME: This could be captured using a Speculation mode that means "out-of-bounds
-            // loads return a trivial value". Something like SaneChainOutOfBounds. This should
+            // loads return a trivial value". Something like OutOfBoundsSaneChain. This should
             // speculate that we don't take negative out-of-bounds, or better yet, it should rely
             // on a stringPrototypeChainIsSane() guaranteeing that the prototypes have no negative
             // indexed properties either.
@@ -9506,7 +9506,7 @@ void SpeculativeJIT::compileIsObject(Node* node)
     unblessedBooleanResult(resultGPR, node);
 }
 
-void SpeculativeJIT::compileIsObjectOrNull(Node* node)
+void SpeculativeJIT::compileTypeOfIsObject(Node* node)
 {
     JSGlobalObject* globalObject = m_jit.graph().globalObjectFor(node->origin.semantic);
     
@@ -9541,7 +9541,7 @@ void SpeculativeJIT::compileIsObjectOrNull(Node* node)
     
     addSlowPathGenerator(
         slowPathCall(
-            slowPath, this, operationObjectIsObject, resultGPR, globalObject,
+            slowPath, this, operationTypeOfIsObject, resultGPR, globalObject,
             valueRegs.payloadGPR()));
     
     done.link(&m_jit);
@@ -9549,7 +9549,7 @@ void SpeculativeJIT::compileIsObjectOrNull(Node* node)
     unblessedBooleanResult(resultGPR, node);
 }
 
-void SpeculativeJIT::compileIsFunction(Node* node)
+void SpeculativeJIT::compileIsCallable(Node* node, S_JITOperation_GC slowPathOperation)
 {
     JSGlobalObject* globalObject = m_jit.graph().globalObjectFor(node->origin.semantic);
     
@@ -9578,7 +9578,7 @@ void SpeculativeJIT::compileIsFunction(Node* node)
     
     addSlowPathGenerator(
         slowPathCall(
-            slowPath, this, operationObjectIsFunction, resultGPR, globalObject,
+            slowPath, this, slowPathOperation, resultGPR, globalObject,
             valueRegs.payloadGPR()));
     
     done.link(&m_jit);
@@ -13179,7 +13179,7 @@ void SpeculativeJIT::compileToThis(Node* node)
     jsValueResult(tempRegs, node);
 }
 
-void SpeculativeJIT::compileObjectKeys(Node* node)
+void SpeculativeJIT::compileObjectKeysOrObjectGetOwnPropertyNames(Node* node)
 {
     switch (node->child1().useKind()) {
     case ObjectUse: {
@@ -13207,10 +13207,10 @@ void SpeculativeJIT::compileObjectKeys(Node* node)
             slowCases.append(m_jit.branchTestPtr(CCallHelpers::Zero, scratchGPR));
             slowCases.append(m_jit.branch32(CCallHelpers::Equal, CCallHelpers::Address(scratchGPR, JSCell::structureIDOffset()), TrustedImm32(bitwise_cast<int32_t>(vm().structureStructure->structureID()))));
 
-            m_jit.loadPtr(CCallHelpers::Address(scratchGPR, StructureRareData::offsetOfCachedOwnKeys()), scratchGPR);
+            m_jit.loadPtr(CCallHelpers::Address(scratchGPR, StructureRareData::offsetOfCachedPropertyNames(node->op() == ObjectKeys ? CachedPropertyNamesKind::Keys : CachedPropertyNamesKind::GetOwnPropertyNames)), scratchGPR);
 
-            ASSERT(bitwise_cast<uintptr_t>(StructureRareData::cachedOwnKeysSentinel()) == 1);
-            slowCases.append(m_jit.branchPtr(CCallHelpers::BelowOrEqual, scratchGPR, TrustedImmPtr(bitwise_cast<void*>(StructureRareData::cachedOwnKeysSentinel()))));
+            ASSERT(bitwise_cast<uintptr_t>(StructureRareData::cachedPropertyNamesSentinel()) == 1);
+            slowCases.append(m_jit.branchPtr(CCallHelpers::BelowOrEqual, scratchGPR, TrustedImmPtr(bitwise_cast<void*>(StructureRareData::cachedPropertyNamesSentinel()))));
 
             MacroAssembler::JumpList slowButArrayBufferCases;
 
@@ -13224,7 +13224,7 @@ void SpeculativeJIT::compileObjectKeys(Node* node)
 
             addSlowPathGenerator(slowPathCall(slowButArrayBufferCases, this, operationNewArrayBuffer, resultGPR, &vm(), arrayStructure, scratch3GPR));
 
-            addSlowPathGenerator(slowPathCall(slowCases, this, operationObjectKeysObject, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectGPR));
+            addSlowPathGenerator(slowPathCall(slowCases, this, node->op() == ObjectKeys ? operationObjectKeysObject : operationObjectGetOwnPropertyNamesObject, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectGPR));
 
             cellResult(resultGPR, node);
             break;
@@ -13239,7 +13239,7 @@ void SpeculativeJIT::compileObjectKeys(Node* node)
         flushRegisters();
         GPRFlushedCallResult result(this);
         GPRReg resultGPR = result.gpr();
-        callOperation(operationObjectKeysObject, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectGPR);
+        callOperation(node->op() == ObjectKeys ? operationObjectKeysObject : operationObjectGetOwnPropertyNamesObject, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectGPR);
         m_jit.exceptionCheck();
 
         cellResult(resultGPR, node);
@@ -13254,7 +13254,7 @@ void SpeculativeJIT::compileObjectKeys(Node* node)
         flushRegisters();
         GPRFlushedCallResult result(this);
         GPRReg resultGPR = result.gpr();
-        callOperation(operationObjectKeys, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectRegs);
+        callOperation(node->op() == ObjectKeys ? operationObjectKeys : operationObjectGetOwnPropertyNames, resultGPR, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), objectRegs);
         m_jit.exceptionCheck();
 
         cellResult(resultGPR, node);
@@ -14148,7 +14148,7 @@ void SpeculativeJIT::compileHasIndexedProperty(Node* node)
         m_jit.load32(MacroAssembler::BaseIndex(storageGPR, indexGPR, MacroAssembler::TimesEight, OBJECT_OFFSETOF(JSValue, u.asBits.tag)), scratchGPR);
 #endif
 
-        if (mode.isSaneChain()) {
+        if (mode.isInBoundsSaneChain()) {
             m_jit.isNotEmpty(scratchGPR, resultGPR);
             break;
         }
@@ -14177,7 +14177,7 @@ void SpeculativeJIT::compileHasIndexedProperty(Node* node)
 
         m_jit.loadDouble(MacroAssembler::BaseIndex(storageGPR, indexGPR, MacroAssembler::TimesEight), scratchFPR);
 
-        if (mode.isSaneChain()) {
+        if (mode.isInBoundsSaneChain()) {
             m_jit.compareDouble(MacroAssembler::DoubleEqualAndOrdered, scratchFPR, scratchFPR, resultGPR);
             break;
         }
@@ -14210,13 +14210,13 @@ void SpeculativeJIT::compileHasIndexedProperty(Node* node)
         m_jit.load32(MacroAssembler::BaseIndex(storageGPR, indexGPR, MacroAssembler::TimesEight, ArrayStorage::vectorOffset() + OBJECT_OFFSETOF(JSValue, u.asBits.tag)), scratchGPR);
 #endif
 
-        if (mode.isSaneChain()) {
+        if (mode.isInBoundsSaneChain()) {
             m_jit.isNotEmpty(scratchGPR, resultGPR);
             break;
         }
 
         MacroAssembler::Jump isHole = m_jit.branchIfEmpty(scratchGPR);
-        if (!mode.isInBounds() || mode.isSaneChain())
+        if (!mode.isInBounds() || mode.isInBoundsSaneChain())
             slowCases.append(isHole);
         else
             speculationCheck(LoadFromHole, JSValueRegs(), nullptr, isHole);

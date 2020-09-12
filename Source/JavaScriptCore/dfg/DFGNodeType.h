@@ -286,6 +286,7 @@ namespace JSC { namespace DFG {
     macro(GetPrototypeOf, NodeMustGenerate | NodeResultJS) \
     macro(ObjectCreate, NodeMustGenerate | NodeResultJS) \
     macro(ObjectKeys, NodeMustGenerate | NodeResultJS) \
+    macro(ObjectGetOwnPropertyNames, NodeMustGenerate | NodeResultJS) \
     \
     /* Atomics object functions. */\
     macro(AtomicsAdd, NodeResultJS | NodeMustGenerate | NodeHasVarArgs) \
@@ -393,6 +394,8 @@ namespace JSC { namespace DFG {
     macro(IsCellWithType, NodeResultBoolean) \
     macro(IsEmpty, NodeResultBoolean) \
     macro(TypeOfIsUndefined, NodeResultBoolean) \
+    macro(TypeOfIsObject, NodeResultBoolean) \
+    macro(TypeOfIsFunction, NodeResultBoolean) \
     macro(IsUndefinedOrNull, NodeResultBoolean) \
     macro(IsBoolean, NodeResultBoolean) \
     macro(IsNumber, NodeResultBoolean) \
@@ -400,8 +403,7 @@ namespace JSC { namespace DFG {
     macro(IsBigInt, NodeResultBoolean) \
     macro(NumberIsInteger, NodeResultBoolean) \
     macro(IsObject, NodeResultBoolean) \
-    macro(IsObjectOrNull, NodeResultBoolean) \
-    macro(IsFunction, NodeResultBoolean) \
+    macro(IsCallable, NodeResultBoolean) \
     macro(IsConstructor, NodeResultBoolean) \
     macro(IsTypedArrayView, NodeResultBoolean) \
     macro(TypeOf, NodeResultJS) \

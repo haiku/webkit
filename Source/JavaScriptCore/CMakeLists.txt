@@ -80,6 +80,10 @@ set(JavaScriptCore_OBJECT_LUT_SOURCES
     runtime/IntlPluralRulesPrototype.cpp
     runtime/IntlRelativeTimeFormatConstructor.cpp
     runtime/IntlRelativeTimeFormatPrototype.cpp
+    runtime/IntlSegmentIteratorPrototype.cpp
+    runtime/IntlSegmenterConstructor.cpp
+    runtime/IntlSegmenterPrototype.cpp
+    runtime/IntlSegmentsPrototype.cpp
     runtime/JSDataViewPrototype.cpp
     runtime/JSGlobalObject.cpp
     runtime/JSInternalPromiseConstructor.cpp
@@ -685,12 +689,9 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     inspector/InspectorTarget.h
     inspector/PerGlobalObjectWrapperWorld.h
     inspector/ScriptArguments.h
-    inspector/ScriptBreakpoint.h
     inspector/ScriptCallFrame.h
     inspector/ScriptCallStack.h
     inspector/ScriptCallStackFactory.h
-    inspector/ScriptDebugListener.h
-    inspector/ScriptDebugServer.h
 
     inspector/agents/InspectorAgent.h
     inspector/agents/InspectorAuditAgent.h

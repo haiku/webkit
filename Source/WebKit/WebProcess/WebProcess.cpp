@@ -294,10 +294,6 @@ void WebProcess::initializeConnection(IPC::Connection* connection)
 {
     AuxiliaryProcess::initializeConnection(connection);
 
-#if PLATFORM(COCOA)
-    handleXPCEndpointMessages();
-#endif
-
     // We call _exit() directly from the background queue in case the main thread is unresponsive
     // and AuxiliaryProcess::didClose() does not get called.
     connection->setDidCloseOnConnectionWorkQueueCallback(callExit);
@@ -1962,7 +1958,6 @@ void WebProcess::enableVP9Decoder()
     m_vp9DecoderEnabled = true;
 
 #if PLATFORM(COCOA)
-    WebCore::registerWebKitVP9Decoder();
     WebCore::registerSupplementalVP9Decoder();
 #endif
 }
@@ -1973,7 +1968,9 @@ void WebProcess::enableVP9SWDecoder()
         return;
 
     m_vp9SWDecoderEnabled = true;
-    LibWebRTCProvider::registerWebKitVP9Decoder();
+#if PLATFORM(COCOA)
+    WebCore::registerWebKitVP9Decoder();
+#endif
 }
 
 } // namespace WebKit

@@ -2366,7 +2366,7 @@ void SpeculativeJIT::compile(Node* node)
             
                 GPRTemporary resultPayload(this);
                 if (node->arrayMode().type() == Array::Int32) {
-                    ASSERT(!node->arrayMode().isSaneChain());
+                    ASSERT(!node->arrayMode().isInBoundsSaneChain());
                     
                     speculationCheck(
                         OutOfBounds, JSValueRegs(), 0,
@@ -2392,7 +2392,7 @@ void SpeculativeJIT::compile(Node* node)
                     MacroAssembler::BaseIndex(
                         storageReg, propertyReg, MacroAssembler::TimesEight, PayloadOffset),
                     resultPayload.gpr());
-                if (node->arrayMode().isSaneChain()) {
+                if (node->arrayMode().isInBoundsSaneChain()) {
                     JITCompiler::Jump notHole = m_jit.branchIfNotEmpty(resultTag.gpr());
                     m_jit.move(TrustedImm32(JSValue::UndefinedTag), resultTag.gpr());
                     m_jit.move(TrustedImm32(0), resultPayload.gpr());
@@ -2453,7 +2453,7 @@ void SpeculativeJIT::compile(Node* node)
             
                 FPRTemporary result(this);
                 m_jit.loadDouble(MacroAssembler::BaseIndex(storageReg, propertyReg, MacroAssembler::TimesEight), result.fpr());
-                if (!node->arrayMode().isSaneChain())
+                if (!node->arrayMode().isInBoundsSaneChain())
                     speculationCheck(LoadFromHole, JSValueRegs(), 0, m_jit.branchIfNaN(result.fpr()));
                 doubleResult(result.fpr(), node);
                 break;
@@ -3232,8 +3232,9 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
-    case ObjectKeys: {
-        compileObjectKeys(node);
+    case ObjectKeys:
+    case ObjectGetOwnPropertyNames: {
+        compileObjectKeysOrObjectGetOwnPropertyNames(node);
         break;
     }
 
@@ -3664,6 +3665,16 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
+    case TypeOfIsObject: {
+        compileTypeOfIsObject(node);
+        break;
+    }
+
+    case TypeOfIsFunction: {
+        compileIsCallable(node, operationTypeOfIsFunction);
+        break;
+    }
+
     case IsUndefinedOrNull: {
         JSValueOperand value(this, node->child1());
         GPRTemporary result(this, Reuse, value, TagWord);
@@ -3716,13 +3727,8 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
-    case IsObjectOrNull: {
-        compileIsObjectOrNull(node);
-        break;
-    }
-
-    case IsFunction: {
-        compileIsFunction(node);
+    case IsCallable: {
+        compileIsCallable(node, operationObjectIsCallable);
         break;
     }
 

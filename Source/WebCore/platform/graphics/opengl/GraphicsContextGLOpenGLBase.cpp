@@ -35,6 +35,7 @@
 #include "ExtensionsGLOpenGL.h"
 #include "IntRect.h"
 #include "IntSize.h"
+#include "Logging.h"
 #include "NotImplemented.h"
 #include "TemporaryOpenGLSetting.h"
 #include <algorithm>
@@ -61,12 +62,6 @@
 #endif
 
 namespace WebCore {
-
-void GraphicsContextGLOpenGL::releaseShaderCompiler()
-{
-    makeContextCurrent();
-    notImplemented();
-}
 
 #if PLATFORM(MAC)
 static void wipeAlphaChannelFromPixels(int width, int height, unsigned char* pixels)

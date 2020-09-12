@@ -50,8 +50,10 @@
 webkit.org/b/212805 accessibility/svg-text.html [ Failure ]
 
 # Added in r263823. Both tests are timing out.
-webkit.org/b/newbug accessibility/keyevents-for-increment-actions-with-node-removal.html [ Skip ]
-webkit.org/b/newbug accessibility/keyevents-posted-for-increment-actions.html [ Skip ]
+webkit.org/b/213874 accessibility/keyevents-for-increment-actions-with-node-removal.html [ Skip ]
+webkit.org/b/213874 accessibility/keyevents-posted-for-increment-actions.html [ Skip ]
+webkit.org/b/213874 accessibility/keyevents-posted-for-dismiss-action.html [ Skip ]
+
 
 webkit.org/b/214068 accessibility/textarea-selected-text-range.html [ Timeout ]
 
@@ -70,8 +72,6 @@ webkit.org/b/139352 accessibility/inline-block-assertion.html [ Failure ]
 webkit.org/b/153292 accessibility/text-marker [ Skip ]
 webkit.org/b/141072 accessibility/frame-disconnect-textmarker-cache-crash.html [ Skip ]
 
-webkit.org/b/143468 accessibility/plugin.html [ Failure ]
-
 webkit.org/b/182107 accessibility/aria-combobox-control-owns-elements.html [ Timeout ]
 
 webkit.org/b/98363 accessibility/canvas-fallback-content-2.html [ Failure ]
@@ -82,6 +82,10 @@ webkit.org/b/98382 accessibility/visible-elements.html [ Failure ]
 
 webkit.org/b/209102 accessibility/accessibility-node-memory-management.html [ Failure Pass ]
 
+webkit.org/b/215405 accessibility/roles-computedRoleString.html [ Failure ]
+webkit.org/b/215405 [ Release ] accessibility/roles-exposed.html [ Failure ]
+webkit.org/b/207711 [ Debug ] accessibility/roles-exposed.html [ Timeout ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Accessibility-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -90,9 +94,6 @@ webkit.org/b/209102 accessibility/accessibility-node-memory-management.html [ Fa
 #////////////////////////////////////////////////////////////////////////////////////////
 # Cairo-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
-
-webkit.org/b/214192 [ Debug ] imported/blink/fast/gradients/large-horizontal-gradient.html [ Crash ]
-webkit.org/b/214192 [ Debug ] imported/blink/fast/gradients/large-vertical-gradient.html [ Crash ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Cairo-related bugs
@@ -116,7 +117,7 @@ webkit.org/b/211979 imported/w3c/web-platform-tests/clipboard-apis/async-raw-wri
 
 webkit.org/b/214060 imported/blink/compositing/squashing/squashing-reflection-disallowed.html [ ImageOnlyFailure ]
 
-webkit.org/b/214417 css3/color/composited-solid-backgrounds.html [ Crash ]
+webkit.org/b/214417 [ Debug ] css3/color/composited-solid-backgrounds.html [ Crash ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Compositing tests
@@ -179,17 +180,6 @@ webkit.org/b/169988 css3/filters/backdrop/backdrop-filter-with-reflection-add-ba
 webkit.org/b/169988 css3/filters/backdrop/backdrop-filter-with-reflection-value-change.html [ ImageOnlyFailure ]
 webkit.org/b/169988 css3/filters/backdrop/backdrop-filter-with-reflection.html [ ImageOnlyFailure ]
 webkit.org/b/169988 css3/filters/backdrop/effect-hw.html [ ImageOnlyFailure ]
-
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-does-not-size-properly-absolute.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-does-not-size-properly-border-and-padding.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-with-cliprect.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-filter-with-mask.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-with-visibility-hidden-changing.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/backdrop-with-visibility-hidden.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-add-more-layers.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-excessive.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-ok.html [ Crash ]
-webkit.org/b/215209 [ Debug ] css3/filters/backdrop/resource-use-remove-some-layers.html [ Crash ]
 
 webkit.org/b/214682 imported/w3c/web-platform-tests/css/cssom/stylesheet-same-origin.sub.html [ Pass Failure ]
 
@@ -379,6 +369,8 @@ webkit.org/b/197421 imported/w3c/web-platform-tests/imagebitmap-renderingcontext
 webkit.org/b/197421 imported/w3c/web-platform-tests/imagebitmap-renderingcontext/tranferFromImageBitmap-TransferToImageBitmap-offscreen.html [ Failure ]
 webkit.org/b/197421 imported/w3c/web-platform-tests/imagebitmap-renderingcontext/tranferFromImageBitmap-null-offscreen.html [ Failure ]
 
+webkit.org/b/215462 imported/w3c/web-platform-tests/html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.commit.html [ Failure Pass ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of OffscreenCanvas-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -448,11 +440,14 @@ webkit.org/b/213921 fast/visual-viewport/scroll-event-fired-during-scroll-alone.
 
 
 #////////////////////////////////////////////////////////////////////////////////////////
-# SOUP-related bugs
+# SOUP and Networking-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
 
+webkit.org/b/215638 http/tests/websocket/tests/hybi/invalid-continuation.html [ Failure ]
+webkit.org/b/215638 http/tests/websocket/tests/hybi/stop-on-resume-in-error-handler.html [ Failure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
-# End of SOUP-related bugs
+# End of SOUP and Networking-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -565,6 +560,10 @@ webkit.org/b/211887 [ Debug ] fast/canvas/webgl/tex-sub-image-2d-bad-args.html [
 webkit.org/b/211887 [ Debug ] webgl/1.0.3/conformance/textures/tex-sub-image-2d-bad-args.html [ Crash ]
 webkit.org/b/211887 [ Debug ] webgl/1.0.3/conformance/more/functions/texSubImage2DHTMLBadArgs.html [ Crash ]
 
+webkit.org/b/215725 fast/canvas/webgl/webgl-compressed-texture-astc.html [ Crash ]
+webkit.org/b/215725 webgl/1.0.3/conformance/extensions/get-extension.html [ Crash ]
+webkit.org/b/215725 webgl/1.0.3/conformance/context/context-lost-restored.html [ Failure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of WebGL-related bugs
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -586,6 +585,10 @@ webkit.org/b/215005 webrtc/h264-baseline.html [ Crash ]
 # h264-high.html is marked as slow in the root expectation
 webkit.org/b/215007 [ Release ] webrtc/h264-high.html [ Timeout ]
 webkit.org/b/215007 [ Debug ] webrtc/h264-high.html [ Slow Failure ]
+
+webkit.org/b/206583 [ Release ] webrtc/video-gpuProcess.html [ Failure ]
+webkit.org/b/206583 [ Debug ] webrtc/video-gpuProcess.html [ Timeout ]
+
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of WebRTC-related bugs
@@ -863,27 +866,12 @@ crypto/workers/subtle/rsa-pss-import-key-verify.html [ Pass ]
 http/wpt/crypto/rsa-pss-crash.any.html [ Pass ]
 http/wpt/crypto/rsa-pss-crash.any.worker.html [ Pass ]
 
-fast/text/emoji-gender-2-3.html [ Pass ]
-fast/text/emoji-gender-2-4.html [ Pass ]
-fast/text/emoji-gender-2-5.html [ Pass ]
-fast/text/emoji-gender-2-6.html [ Pass ]
-fast/text/emoji-gender-2-7.html [ Pass ]
-fast/text/emoji-gender-2-8.html [ Pass ]
-fast/text/emoji-gender-2-9.html [ Pass ]
 fast/text/emoji-gender-3.html [ Pass ]
 fast/text/emoji-gender-4.html [ Pass ]
 fast/text/emoji-gender-5.html [ Pass ]
 fast/text/emoji-gender-6.html [ Pass ]
 fast/text/emoji-gender-8.html [ Pass ]
 fast/text/emoji-gender-9.html [ Pass ]
-fast/text/emoji-gender-fe0f-3.html [ Pass ]
-fast/text/emoji-gender-fe0f-4.html [ Pass ]
-fast/text/emoji-gender-fe0f-5.html [ Pass ]
-fast/text/emoji-gender-fe0f-6.html [ Pass ]
-fast/text/emoji-gender-fe0f-7.html [ Pass ]
-fast/text/emoji-gender-fe0f-8.html [ Pass ]
-fast/text/emoji-gender-fe0f-9.html [ Pass ]
-fast/text/emoji-gender.html [ Pass ]
 
 # Some Apple ports don't support RTL scrollbars.
 fast/scrolling/rtl-scrollbars-elementFromPoint-static.html [ Pass ]
@@ -942,6 +930,82 @@ webkit.org/b/193623 accessibility/set-selected-editable.html [ Skip ]
 
 # Payment Request
 imported/w3c/web-platform-tests/payment-request [ Skip ]
+
+# Plugins
+plugins/ [ Skip ]
+http/tests/plugins [ Skip ]
+http/tests/contentextensions/plugin-doesnt-crash.html [ Skip ]
+http/tests/security/cross-origin-plugin.html [ Skip ]
+http/tests/security/cross-origin-plugin-allowed.html [ Skip ]
+http/tests/security/cross-origin-plugin-private-browsing-toggled.html [ Skip ]
+http/tests/security/cross-origin-plugin-private-browsing-toggled-allowed.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-affects-child.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-invalid.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-mismatched-data.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-mismatched-url.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-notype-data.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-notype-url.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-nourl-allowed.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-nourl-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-url-01.html [ Skip ]
+http/tests/security/contentSecurityPolicy/1.1/plugintypes-url-02.html [ Skip ]
+http/tests/security/contentSecurityPolicy/block-all-mixed-content/insecure-plugin-in-iframe.html [ Skip ]
+http/tests/security/contentSecurityPolicy/block-all-mixed-content/insecure-plugin-in-main-frame.html [ Skip ]
+http/tests/security/contentSecurityPolicy/embed-with-no-url-allowed-by-default-src-star.html [ Skip ]
+http/tests/security/contentSecurityPolicy/embed-with-no-url-allowed-by-star.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-does-not-affect-child.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-no-url-allowed.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-no-url-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-none-allowed.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-none-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-param-code-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-param-movie-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-param-src-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-src-param-url-blocked.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-with-no-url-allowed-by-default-src-star.html [ Skip ]
+http/tests/security/contentSecurityPolicy/object-with-no-url-allowed-by-star.html [ Skip ]
+http/tests/security/contentSecurityPolicy/plugin-blocked-in-about-blank-window.html [ Skip ]
+http/tests/security/contentSecurityPolicy/source-list-parsing-no-semicolon.html [ Skip ]
+http/tests/security/contentSecurityPolicy/userAgentShadowDOM/allow-embed-plugin.html [ Skip ]
+http/tests/security/contentSecurityPolicy/userAgentShadowDOM/allow-object-plugin.html [ Skip ]
+http/tests/security/mixedContent/insecure-plugin-in-iframe.html [ Skip ]
+http/tests/security/storage-blocking-loosened-plugin.html [ Skip ]
+http/tests/security/storage-blocking-loosened-private-browsing-plugin.html [ Skip ]
+http/tests/security/storage-blocking-strengthened-plugin.html [ Skip ]
+http/tests/security/storage-blocking-strengthened-private-browsing-plugin.html [ Skip ]
+compositing/plugins [ Skip ]
+compositing/geometry/empty-embed-rects.html [ Skip ]
+accessibility/plugin.html [ Skip ]
+editing/selection/selection-plugin-clear-crash.html [ Skip ]
+fast/dom/Window/Plug-ins.html [ Skip ]
+fast/frames/iframe-plugin-load-remove-document-crash.html [ Skip ]
+fast/frames/sandboxed-iframe-about-blank.html [ Skip ]
+fast/frames/sandboxed-iframe-navigation-allowed.html [ Skip ]
+fast/history/go-back-to-iframe-with-plugin.html [ Skip ]
+fast/images/embed-does-not-propagate-dimensions-to-object-ancestor.html [ Skip ]
+fast/layers/clip-rects-transformed-2.html [ Skip ]
+fast/layers/clip-rects-transformed.html [ Skip ]
+fast/loader/loadInProgress.html [ Skip ]
+fast/loader/reload-zero-byte-plugin.html [ Skip ]
+fast/replaced/border-radius-clip.html [ Skip ]
+fast/replaced/embed-display-none.html [ Skip ]
+fast/replaced/invalid-object-with-fallback.html [ Skip ]
+fast/replaced/no-focus-ring-embed.html [ Skip ]
+fast/replaced/no-focus-ring-object.html [ Skip ]
+fast/replaced/object-with-non-empty-classid-triggers-fallback.html [ Skip ]
+fullscreen/full-screen-plugin.html [ Skip ]
+imported/blink/http/tests/plugins [ Skip ]
+imported/blink/plugins [ Skip ]
+js/dom/reflect-set-onto-dom.html [ Skip ]
+security/contentSecurityPolicy/object-src-none-blocks-quicktime-plugin-replacement.html [ Skip ]
+security/contentSecurityPolicy/object-src-none-blocks-youtube-plugin-replacement.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-allows-quicktime-plugin-replacement.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-allows-youtube-plugin-replacement.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-blocks-quicktime-plugin-replacement-without-mime-type.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-blocks-quicktime-plugin-replacement.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-blocks-youtube-plugin-replacement-without-mime-type.html [ Skip ]
+security/contentSecurityPolicy/plugins-types-blocks-youtube-plugin-replacement.html [ Skip ]
+userscripts/user-script-plugin-document.html [ Skip ]
 
 # WebArchive
 webarchive [ WontFix ]

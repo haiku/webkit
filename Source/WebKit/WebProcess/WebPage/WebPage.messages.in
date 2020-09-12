@@ -159,6 +159,11 @@ GenerateSyntheticEditingCommand(enum:uint8_t WebKit::SyntheticEditingCommandType
     DidCloseSuggestions();
 #endif
 
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    DidChooseDate(String date);
+    DidEndDateTimePicker();
+#endif
+
 #if ENABLE(CONTEXT_MENUS)
     ContextMenuHidden()
     ContextMenuForKeyEvent()
@@ -434,7 +439,7 @@ GenerateSyntheticEditingCommand(enum:uint8_t WebKit::SyntheticEditingCommandType
     SetMainFrameIsScrollable(bool isScrollable)
     RegisterUIProcessAccessibilityTokens(IPC::DataReference elemenToken, IPC::DataReference windowToken)
     GetStringSelectionForPasteboard() -> (String stringValue) Synchronous
-    GetDataSelectionForPasteboard(String pasteboardType) -> (WebKit::SharedMemory::Handle handle, uint64_t size) Synchronous
+    GetDataSelectionForPasteboard(String pasteboardType) -> (WebKit::SharedMemory::IPCHandle ipcHandle) Synchronous
     ReadSelectionFromPasteboard(String pasteboardName) -> (bool result) Synchronous
 
 #if ENABLE(SERVICE_CONTROLS)
@@ -584,8 +589,8 @@ GenerateSyntheticEditingCommand(enum:uint8_t WebKit::SyntheticEditingCommandType
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     WasLoadedWithDataTransferFromPrevalentResource()
-    ClearLoadedThirdPartyDomains()
-    LoadedThirdPartyDomains() -> (Vector<WebCore::RegistrableDomain> domains) Async
+    ClearLoadedSubresourceDomains()
+    GetLoadedSubresourceDomains() -> (Vector<WebCore::RegistrableDomain> domains) Async
 #endif
 
 #if USE(SYSTEM_PREVIEW)
@@ -605,7 +610,7 @@ GenerateSyntheticEditingCommand(enum:uint8_t WebKit::SyntheticEditingCommandType
 
     UpdateCORSDisablingPatterns(Vector<String> patterns)
 
-    SetShouldFireEvents(bool shouldFireEvents)
+    SetIsTakingSnapshotsForApplicationSuspension(bool isTakingSnapshotsForApplicationSuspension)
     SetNeedsDOMWindowResizeEvent()
 
     SetHasResourceLoadClient(bool has)

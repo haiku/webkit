@@ -29,7 +29,7 @@
 
 #include "DisplayRun.h"
 #include "InlineItem.h"
-#include "InlineLineBoxBuilder.h"
+#include "InlineLineBox.h"
 #include "InlineTextItem.h"
 
 namespace WebCore {
@@ -49,8 +49,8 @@ public:
         bool lineIsConstrainedByFloat { false };
         struct HeightAndBaseline {
             InlineLayoutUnit height { 0 };
-            InlineLayoutUnit baselineOffset { 0 };
-            Optional<LineBoxBuilder::Baseline> strut;
+            InlineLayoutUnit baseline { 0 };
+            Optional<AscentAndDescent> strut;
         };
         Optional<HeightAndBaseline> heightAndBaseline;
     };
@@ -70,7 +70,7 @@ public:
     InlineLayoutUnit trimmableTrailingWidth() const { return m_trimmableTrailingContent.width(); }
     bool isTrailingRunFullyTrimmable() const { return m_trimmableTrailingContent.isTrailingRunFullyTrimmable(); }
 
-    const LineBoxBuilder& lineBox() const { return m_lineBox; }
+    const LineBox& lineBox() const { return m_lineBox; }
     void moveLogicalLeft(InlineLayoutUnit);
     void moveLogicalRight(InlineLayoutUnit);
     void setHasIntrusiveFloat() { m_hasIntrusiveFloat = true; }
@@ -148,7 +148,7 @@ public:
     enum class IsLastLineWithInlineContent { No, Yes };
     RunList close(IsLastLineWithInlineContent = IsLastLineWithInlineContent::No);
 
-    static LineBoxBuilder::Baseline halfLeadingMetrics(const FontMetrics&, InlineLayoutUnit lineLogicalHeight);
+    static AscentAndDescent halfLeadingMetrics(const FontMetrics&, InlineLayoutUnit lineLogicalHeight);
 
 private:
     InlineLayoutUnit logicalTop() const { return m_lineBox.logicalTop(); }
@@ -162,7 +162,7 @@ private:
 
     InlineLayoutUnit contentLogicalWidth() const { return m_lineBox.logicalWidth(); }
     InlineLayoutUnit contentLogicalRight() const { return m_lineBox.logicalRight(); }
-    InlineLayoutUnit baselineOffset() const { return m_lineBox.baselineOffset(); }
+    InlineLayoutUnit baseline() const { return m_lineBox.alignmentBaseline(); }
 
     struct InlineRunDetails {
         InlineLayoutUnit logicalWidth { 0 };
@@ -183,7 +183,7 @@ private:
     void alignHorizontally(const HangingContent&, IsLastLineWithInlineContent);
     void alignContentVertically();
 
-    void adjustBaselineAndLineHeight(const Run&, const LineBoxBuilder::Baseline&);
+    void adjustBaselineAndLineHeight();
     InlineLayoutUnit runContentHeight(const Run&) const;
 
     void justifyRuns(InlineLayoutUnit availableWidth);
@@ -219,12 +219,12 @@ private:
     const InlineFormattingContext& m_inlineFormattingContext;
     RunList m_runs;
     TrimmableTrailingContent m_trimmableTrailingContent;
-    Optional<LineBoxBuilder::Baseline> m_initialStrut;
+    Optional<AscentAndDescent> m_initialStrut;
     InlineLayoutUnit m_lineLogicalWidth { 0 };
     Optional<TextAlignMode> m_horizontalAlignment;
     bool m_isIntrinsicSizing { false };
     bool m_hasIntrusiveFloat { false };
-    LineBoxBuilder m_lineBox;
+    LineBox m_lineBox;
     Optional<bool> m_lineIsVisuallyEmptyBeforeTrimmableTrailingContent;
     bool m_shouldIgnoreTrailingLetterSpacing { false };
 };

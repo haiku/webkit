@@ -30,7 +30,10 @@
 
 namespace WebCore {
 
+class DOMWindow;
 class DefaultAudioDestinationNode;
+
+struct AudioTimestamp;
 
 class AudioContext : public BaseAudioContext {
     WTF_MAKE_ISO_ALLOCATED(AudioContext);
@@ -42,6 +45,8 @@ public:
 
     DefaultAudioDestinationNode* destination();
     double baseLatency();
+
+    AudioTimestamp getOutputTimestamp(DOMWindow&);
 
 #if ENABLE(VIDEO)
     ExceptionOr<Ref<MediaElementAudioSourceNode>> createMediaElementSource(HTMLMediaElement&);

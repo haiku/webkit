@@ -2616,10 +2616,6 @@ webkit.org/b/167619 css3/filters/backdrop/dynamic-with-clip-path.html [ ImageOnl
 webkit.org/b/168215 imported/w3c/web-platform-tests/html/semantics/text-level-semantics/the-a-element/a-download-click.html [ Skip ]
 webkit.org/b/168215 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-area-element/area-download-click.html [ Skip ]
 
-# <rdar://problem/30610988>
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin-worker.html [ Failure ]
-imported/w3c/web-platform-tests/fetch/api/redirect/redirect-count-cross-origin.html [ Failure ]
-
 # rdar://problem/23643423
 [ Debug ] fast/frames/exponential-frames.html [ Skip ]
 
@@ -3476,6 +3472,10 @@ webkit.org/b/214498 imported/w3c/web-platform-tests/cors/remote-origin.htm [ Pas
 
 fast/text/selection-is-prevent-defaulted.html [ Failure ]
 
+# FIXME: These tests require UIScriptControllerIOS additions to know when a date/time picker is presented
+fast/forms/date/date-show-hide-picker.html [ Skip ]
+fast/forms/datetimelocal/datetimelocal-show-hide-picker.html [ Skip ]
+
 # <rdar://problem/59636115> REGRESSION: [ iOS & macOS ] two imported/w3c/web-platform-tests/WebCryptoAPI are failing
 imported/w3c/web-platform-tests/WebCryptoAPI/import_export/rsa_importKey.https.worker.html [ Failure ]
 imported/w3c/web-platform-tests/WebCryptoAPI/import_export/test_rsa_importKey.https.html [ Failure ]
@@ -3505,3 +3505,6 @@ animations/suspend-resume-animation-events.html [ Pass Failure ]
 
 # <rdar://problem/63399079> [ iOS Debug ] imported/w3c/web-platform-tests/xhr/access-control-basic-post-success-no-content-type.htm is a flaky failure
 imported/w3c/web-platform-tests/xhr/access-control-basic-post-success-no-content-type.htm [ Pass Failure ]
+
+webkit.org/b/215515 imported/w3c/web-platform-tests/user-timing/measure_navigation_timing.html [ Pass Failure ]
+

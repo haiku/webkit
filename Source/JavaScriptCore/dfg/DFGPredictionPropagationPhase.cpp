@@ -1035,14 +1035,15 @@ private:
         case InstanceOfCustom:
         case IsEmpty:
         case TypeOfIsUndefined:
+        case TypeOfIsObject:
+        case TypeOfIsFunction:
         case IsUndefinedOrNull:
         case IsBoolean:
         case IsNumber:
         case IsBigInt:
         case NumberIsInteger:
         case IsObject:
-        case IsObjectOrNull:
-        case IsFunction:
+        case IsCallable:
         case IsConstructor:
         case IsCellWithType:
         case IsTypedArrayView:
@@ -1110,7 +1111,8 @@ private:
         case NewArrayWithSize:
         case CreateRest:
         case NewArrayBuffer:
-        case ObjectKeys: {
+        case ObjectKeys:
+        case ObjectGetOwnPropertyNames: {
             setPrediction(SpecArray);
             break;
         }

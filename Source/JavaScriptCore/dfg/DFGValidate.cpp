@@ -33,6 +33,7 @@
 #include "DFGClobbersExitState.h"
 #include "DFGDominators.h"
 #include "DFGMayExit.h"
+#include "DFGOSRAvailabilityAnalysisPhase.h"
 #include <wtf/Assertions.h>
 
 namespace JSC { namespace DFG {
@@ -82,6 +83,11 @@ public:
         
     void validate()
     {
+        if (m_graph.m_isValidating)
+            return;
+
+        auto isValidating = SetForScope(m_graph.m_isValidating, true);
+
         // NB. This code is not written for performance, since it is not intended to run
         // in release builds.
 
@@ -375,6 +381,20 @@ public:
                     break;
                 case NewArrayBuffer:
                     VALIDATE((node), node->vectorLengthHint() >= node->castOperand<JSImmutableButterfly*>()->length());
+                    break;
+                case GetByVal:
+                    switch (node->arrayMode().type()) {
+                    case Array::Int32:
+                    case Array::Double:
+                    case Array::Contiguous:
+                        // We rely on being an original array structure because we are SaneChain, and we need 
+                        // Array.prototype to be our prototype, so we can return undefined when we go OOB.
+                        if (node->arrayMode().isOutOfBoundsSaneChain())
+                            VALIDATE((node), node->arrayMode().isJSArrayWithOriginalStructure());
+                        break;
+                    default:
+                        break;
+                    }
                     break;
                 default:
                     break;
@@ -801,14 +821,13 @@ private:
 
         auto& dominators = m_graph.ensureSSADominators();
 
+        if (Options::validateFTLOSRExitLiveness())
+            validateOSRExitAvailability(m_graph);
+
         for (unsigned entrypointIndex : m_graph.m_entrypointIndexToCatchBytecodeIndex.keys())
             VALIDATE((), entrypointIndex > 0); // By convention, 0 is the entrypoint index for the op_enter entrypoint, which can not be in a catch.
 
-        for (BlockIndex blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex) {
-            BasicBlock* block = m_graph.block(blockIndex);
-            if (!block)
-                continue;
-            
+        for (BasicBlock* block : m_graph.blocksInNaturalOrder()) {
             VALIDATE((block), block->phis.isEmpty());
 
             bool didSeeExitOK = false;

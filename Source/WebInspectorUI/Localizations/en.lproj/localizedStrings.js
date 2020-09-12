@@ -680,6 +680,8 @@ localizedStrings["Images"] = "Images";
 localizedStrings["Images:"] = "Images:";
 localizedStrings["Immediate Pause Requested"] = "Immediate Pause Requested";
 localizedStrings["Import"] = "Import";
+localizedStrings["Import Audit"] = "Import Audit";
+localizedStrings["Import HAR"] = "Import HAR";
 localizedStrings["Import Recording"] = "Import Recording";
 localizedStrings["Imported"] = "Imported";
 localizedStrings["Imported - %s"] = "Imported - %s";
@@ -1147,8 +1149,10 @@ localizedStrings["Show page rulers and node border lines"] = "Show page rulers a
 localizedStrings["Show rulers"] = "Show rulers";
 localizedStrings["Show the details sidebar (%s)"] = "Show the details sidebar (%s)";
 localizedStrings["Show the navigation sidebar (%s)"] = "Show the navigation sidebar (%s)";
-localizedStrings["Show transparency grid (tooltip)"] = "Show transparency grid";
+/* Settings tab checkbox label for whether the transparency grid is shown by default */
 localizedStrings["Show transparency grid (settings label)"] = "Show transparency grid";
+/* Tooltip for showing the checkered transparency grid under images and canvases */
+localizedStrings["Show transparency grid (tooltip)"] = "Show transparency grid";
 localizedStrings["Show type information"] = "Show type information";
 localizedStrings["Show:"] = "Show:";
 localizedStrings["Site-specific Hacks"] = "Site-specific Hacks";

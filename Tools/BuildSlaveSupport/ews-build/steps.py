@@ -29,7 +29,7 @@ from buildbot.steps.worker import CompositeStepMixin
 from twisted.internet import defer
 
 from layout_test_failures import LayoutTestFailures
-from send_email import send_email, send_email_to_bot_watchers
+from send_email import send_email_to_patch_author, send_email_to_bot_watchers
 
 import json
 import re
@@ -89,12 +89,7 @@ class ConfigureBuild(buildstep.BuildStep):
     def add_patch_id_url(self):
         patch_id = self.getProperty('patch_id', '')
         if patch_id:
-            self.addURL('Patch {}'.format(patch_id), self.getPatchURL(patch_id))
-
-    def getPatchURL(self, patch_id):
-        if not patch_id:
-            return None
-        return '{}attachment.cgi?id={}&action=prettypatch'.format(BUG_SERVER_URL, patch_id)
+            self.addURL('Patch {}'.format(patch_id), Bugzilla.patch_url(patch_id))
 
 
 class CheckOutSource(git.Git):
@@ -366,6 +361,21 @@ class CheckPatchRelevance(buildstep.BuildStep):
             return {u'step': u'Patch doesn\'t have relevant changes'}
         return super(CheckPatchRelevance, self).getResultSummary()
 
+
+class Bugzilla(object):
+    @classmethod
+    def bug_url(cls, bug_id):
+        if not bug_id:
+            return ''
+        return '{}show_bug.cgi?id={}'.format(BUG_SERVER_URL, bug_id)
+
+    @classmethod
+    def patch_url(cls, patch_id):
+        if not patch_id:
+            return ''
+        return '{}attachment.cgi?id={}&action=prettypatch'.format(BUG_SERVER_URL, patch_id)
+
+
 class BugzillaMixin(object):
     addURLs = False
     bug_open_statuses = ['UNCONFIRMED', 'NEW', 'ASSIGNED', 'REOPENED']
@@ -514,7 +524,7 @@ class BugzillaMixin(object):
             self.setProperty('sensitive', True)
             bug_title = ''
         if self.addURLs:
-            self.addURL(u'Bug {} {}'.format(bug_id, bug_title), '{}show_bug.cgi?id={}'.format(BUG_SERVER_URL, bug_id))
+            self.addURL(u'Bug {} {}'.format(bug_id, bug_title), Bugzilla.bug_url(bug_id))
         if bug_json.get('status') in self.bug_closed_statuses:
             return 1
         return 0
@@ -1458,6 +1468,7 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
     def send_email_for_new_build_failure(self):
         try:
             builder_name = self.getProperty('buildername', '')
+            bug_id = self.getProperty('bug_id', '')
             bug_title = self.getProperty('bug_title', '')
             worker_name = self.getProperty('workername', '')
             patch_id = self.getProperty('patch_id', '')
@@ -1470,14 +1481,16 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
             else:
                 logs = self.filter_logs_containing_error(logs)
 
-            email_subject = 'Build failure for Patch {}: {}'.format(patch_id, bug_title)
-            email_text = 'EWS has detected build failure on {} while testing Patch {}.'.format(builder_name, patch_id)
+            email_subject = u'Build failure for Patch {}: {}'.format(patch_id, bug_title)
+            email_text = 'EWS has detected build failure on {}'.format(builder_name)
+            email_text += ' while testing <a href="{}">Patch {}</a>'.format(Bugzilla.patch_url(patch_id), patch_id)
+            email_text += ' for <a href="{}">Bug {}</a>.'.format(Bugzilla.bug_url(bug_id), bug_id)
             email_text += '\n\nFull details are available at: {}\n\nPatch author: {}'.format(build_url, patch_author)
             if logs:
                 logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 email_text += u'\n\nError lines:\n\n<code>{}</code>'.format(logs)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
-            send_email([patch_author], email_subject, email_text)
+            send_email_to_patch_author(patch_author, email_subject, email_text)
         except Exception as e:
             print('Error in sending email for new build failure: {}'.format(e))
 
@@ -1493,7 +1506,7 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
             else:
                 logs = self.filter_logs_containing_error(logs)
 
-            email_subject = 'Build failure on trunk on {}'.format(builder_name)
+            email_subject = u'Build failure on trunk on {}'.format(builder_name)
             email_text = 'Failed to build WebKit without patch in {}\n\nBuilder: {}\n\nWorker: {}'.format(build_url, builder_name, worker_name)
             if logs:
                 logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -2011,7 +2024,7 @@ class ReRunWebKitTests(RunWebKitTests):
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
             history_url = '{}?suite=layout-tests&test={}'.format(RESULTS_DB_URL, test_name)
 
-            email_subject = 'Flaky test: {}'.format(test_name)
+            email_subject = u'Flaky test: {}'.format(test_name)
             email_text = 'Test {} flaked in {}\n\nBuilder: {}'.format(test_name, build_url, builder_name)
             email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
             send_email_to_bot_watchers(email_subject, email_text)
@@ -2110,7 +2123,7 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
             history_url = '{}?suite=layout-tests&test={}'.format(RESULTS_DB_URL, test_name)
 
-            email_subject = 'Flaky test: {}'.format(test_name)
+            email_subject = u'Flaky test: {}'.format(test_name)
             email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
             send_email_to_bot_watchers(email_subject, email_text)
         except Exception as e:
@@ -2123,7 +2136,7 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
             history_url = '{}?suite=layout-tests&test={}'.format(RESULTS_DB_URL, test_name)
 
-            email_subject = 'Pre-existing test failure: {}'.format(test_name)
+            email_subject = u'Pre-existing test failure: {}'.format(test_name)
             email_text = 'Test {} failed on clean tree run in {}.\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
             send_email_to_bot_watchers(email_subject, email_text)
         except Exception as e:
@@ -2132,22 +2145,26 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
     def send_email_for_new_test_failures(self, test_names):
         try:
             builder_name = self.getProperty('buildername', '')
+            bug_id = self.getProperty('bug_id', '')
             bug_title = self.getProperty('bug_title', '')
             worker_name = self.getProperty('workername', '')
             patch_id = self.getProperty('patch_id', '')
             patch_author = self.getProperty('patch_author', '')
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
             test_names_string = ''
-            for test_name in test_names:
+            for test_name in sorted(test_names):
                 history_url = '{}?suite=layout-tests&test={}'.format(RESULTS_DB_URL, test_name)
                 test_names_string += '\n- {} (<a href="{}">test history</a>)'.format(test_name, history_url)
 
-            email_subject = 'Layout test failure for Patch {}: {} '.format(patch_id, bug_title)
-            email_text = 'EWS has detected test failure on {} while testing Patch {}.'.format(builder_name, patch_id)
+            pluralSuffix = 's' if len(test_names) > 1 else ''
+            email_subject = u'Layout test failure for Patch {}: {} '.format(patch_id, bug_title)
+            email_text = 'EWS has detected layout test failure{} on {}'.format(pluralSuffix, builder_name)
+            email_text += ' while testing <a href="{}">Patch {}</a>'.format(Bugzilla.patch_url(patch_id), patch_id)
+            email_text += ' for <a href="{}">Bug {}</a>.'.format(Bugzilla.bug_url(bug_id), bug_id)
             email_text += '\n\nFull details are available at: {}\n\nPatch author: {}'.format(build_url, patch_author)
-            email_text += '\n\nLayout test failure:\n{}'.format(test_names_string)
+            email_text += '\n\nLayout test failure{}:\n{}'.format(pluralSuffix, test_names_string)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
-            send_email([patch_author], email_subject, email_text)
+            send_email_to_patch_author(patch_author, email_subject, email_text)
         except Exception as e:
             print('Error in sending email for new layout test failures: {}'.format(e))
 

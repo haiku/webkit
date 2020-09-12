@@ -64,6 +64,7 @@ namespace WebCore {
     macro(Clients) \
     macro(Clipboard) \
     macro(ClipboardItem) \
+    macro(ConstantSourceNode) \
     macro(Credential) \
     macro(CredentialsContainer) \
     macro(CSSAnimation) \
@@ -230,6 +231,7 @@ namespace WebCore {
     macro(ServiceWorkerRegistration) \
     macro(ShadowRoot) \
     macro(StaticRange) \
+    macro(StereoPannerNode) \
     macro(StylePropertyMapReadOnly) \
     macro(StylePropertyMap) \
     macro(TextTrackCue) \

@@ -1,3 +1,999 @@
+2020-08-24  Jonathan Bedard  <jbedard@apple.com>
+
+        [resultsdbpy] Fix pip package
+        https://bugs.webkit.org/show_bug.cgi?id=215721
+        <rdar://problem/67518275>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/resultsdbpy/MANIFEST.in: Add html and css.
+        * Scripts/libraries/resultsdbpy/resultsdbpy/__init__.py: Include submodules.
+        * Scripts/libraries/resultsdbpy/setup.py: Version bump.
+
+2020-08-24  Sihui Liu  <sihui_liu@apple.com>
+
+        Text manipulationshould not manipulate nodes out of paragraph range
+        https://bugs.webkit.org/show_bug.cgi?id=215406
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TextManipulation.mm:
+        (TestWebKitAPI::TEST):
+
+2020-08-24  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macOS] Show picker for date and datetime-local input types
+        https://bugs.webkit.org/show_bug.cgi?id=214946
+
+        Reviewed by Darin Adler and Wenson Hsieh.
+
+        Added isShowingDateTimePicker testing hook in order to enable testing of the visibility of
+        the picker.
+
+        * TestRunnerShared/UIScriptContext/Bindings/UIScriptController.idl:
+        * TestRunnerShared/UIScriptContext/UIScriptController.h:
+        (WTR::UIScriptController::isShowingDateTimePicker const):
+        * WebKitTestRunner/mac/UIScriptControllerMac.h:
+        * WebKitTestRunner/mac/UIScriptControllerMac.mm:
+        (WTR::UIScriptControllerMac::isShowingDateTimePicker const):
+
+2020-08-24  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix GTK4 build
+
+        * MiniBrowser/gtk/BrowserSearchBox.c:
+        * MiniBrowser/gtk/BrowserWindow.c:
+
+2020-08-23  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Programmatic selection of text in a text field causes the highlight overlay to spill out
+        https://bugs.webkit.org/show_bug.cgi?id=215647
+        <rdar://problem/67404979>
+
+        Reviewed by Darin Adler.
+
+        * WebKitTestRunner/ios/UIScriptControllerIOS.mm:
+        (WTR::clipSelectionViewRectToContentView):
+
+        Add a helper function to clip UIKit selection UI rects (for carets, selection grabbers, and ranged selection
+        highlights) to the content view's (WKContentView's) bounds, as well as the selection clip rect if it is nonnull.
+
+        (WTR::UIScriptControllerIOS::selectionStartGrabberViewRect const):
+        (WTR::UIScriptControllerIOS::selectionEndGrabberViewRect const):
+        (WTR::UIScriptControllerIOS::selectionCaretViewRect const):
+        (WTR::UIScriptControllerIOS::selectionRangeViewRects const):
+
+2020-08-17  Darin Adler  <darin@apple.com>
+
+        Create documentOrder function, start refactoring to use it instead of Range::compare functions
+        https://bugs.webkit.org/show_bug.cgi?id=215551
+
+        Reviewed by Chris Dumez.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj: Added DocumentOrder.cpp.
+        * TestWebKitAPI/Tests/WebCore/DocumentOrder.cpp: Added.
+        Relatively thorough test of three different documentOrder functions.
+        Could still use even more test cases involving different types of shadow trees.
+
+2020-08-22  Philippe Normand  <pnormand@igalia.com>
+
+        [GTK][WPE] Compilation warnings with clang/gcc 10
+        https://bugs.webkit.org/show_bug.cgi?id=215699
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WebKitGLib/TestUIClient.cpp: Wrap m_geometry private field in GTK
+        ifdefs, this is not used in WPE.
+        * WebKitTestRunner/wpe/PlatformWebViewWPE.cpp:
+        (WTR::PlatformWebView::windowFrame): Return rect built with explicit initializers.
+        * wpe/backends/WindowViewBackend.cpp: Supply additional touch client callbacks, mandated by the interface.
+
+2020-08-22  Lauro Moura  <lmoura@igalia.com>
+
+        Unreviewed, reverting r266012.
+
+        Fix API tests after r266020
+
+        Reverted changeset:
+
+        "[GLIB] Update checked exception after r265942"
+        https://bugs.webkit.org/show_bug.cgi?id=215738
+        https://trac.webkit.org/changeset/266012
+
+2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, add slackId to my contributors.json entry
+
+        Slack allows multiple users having the same name. How to identify one user in slack is using Slack member ID.
+        Try setting a slackId and leverage it via WKR / WebKitBot.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-08-21  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        [macOS] Unable to copy text from the function browser panel in Numbers
+        https://bugs.webkit.org/show_bug.cgi?id=215740
+        <rdar://problem/65189303>
+
+        Reviewed by Darin Adler.
+
+        Add a new API test that serializes a WKWebView, then deserializes it, and then verifies that calling `-hitTest:`
+        on the deserialized `WKWebView` grabs the `WKWebView` itself rather than the `WKFlippedView` underneath it.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/mac/WKWebViewCoders.mm: Added.
+
+2020-08-21  Jonathan Bedard  <jbedard@apple.com>
+
+        Regression (r265942): Layout-tests are hanging on iOS EWS
+        https://bugs.webkit.org/show_bug.cgi?id=215742
+        <rdar://problem/67584717>
+
+        Unreviewed infrastructure fix.
+
+        Partial revert of r265942, since EWS is raising objc exceptions after forking.
+
+        * Scripts/webkitpy/common/timeout_context.py:
+        (Timeout):
+        * Scripts/webkitpy/common/timeout_context_unittest.py: Added.
+        (TimeoutContextTests):
+
+2020-08-21  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix the Color/ExtendedColor lldb data provider
+        https://bugs.webkit.org/show_bug.cgi?id=215735
+
+        Reviewed by Darin Adler.
+
+        Fix the data provider for Color after Color and ExtendedColor internals changed.
+
+        * lldb/lldb_webkit.py:
+        (WebCoreColorProvider._to_string_extended):
+        (WebCoreColorProvider.to_string):
+
+2020-08-21  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Update checked exception after r265942
+        https://bugs.webkit.org/show_bug.cgi?id=215738
+
+        Reviewed by Carlos Alberto Lopez Perez.
+
+        Avoid aborting the full script on a timeout due to unchecked
+        exception.
+
+        * glib/api_test_runner.py:
+        (TestRunner._run_google_test): Use exception from new timeout module.
+
+2020-08-20  Diego Pino Garcia  <dpino@igalia.com>
+
+        [EWS] Add more workers to GTK-WK2-Tests-EWS queue
+        https://bugs.webkit.org/show_bug.cgi?id=215408
+
+        Reviewed by Aakash Jain.
+
+        * BuildSlaveSupport/ews-build/config.json:
+
+2020-08-20  Per Arne Vollan  <pvollan@apple.com>
+
+        [macOS] Web pages are not responding correctly to changes in "Reduce motion" setting
+        https://bugs.webkit.org/show_bug.cgi?id=215664
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WebKit/AccessibilityReduceMotion.mm: Added.
+        (TEST):
+
+2020-08-20  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Fix pip package
+        https://bugs.webkit.org/show_bug.cgi?id=215717
+        <rdar://problem/67512294>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/MANIFEST.in: Add cacert.pem.
+        * Scripts/libraries/webkitcorepy/setup.py: Include submodules.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Version bump.
+
+2020-08-20  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] Handle bugs with unicode characters in title in ews emails
+        https://bugs.webkit.org/show_bug.cgi?id=215627
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (AnalyzeCompileWebKitResults.send_email_for_new_build_failure): Ensure email_subject is unicode.
+        (AnalyzeCompileWebKitResults.send_email_for_preexisting_build_failure): Ditto.
+        (ReRunWebKitTests.send_email_for_flaky_failure): Ditto.
+        (AnalyzeLayoutTestsResults.send_email_for_flaky_failure): Ditto.
+        (AnalyzeLayoutTestsResults.send_email_for_pre_existing_failure): Ditto.
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures): Ditto.
+
+2020-08-20  Diego Pino Garcia  <dpino@igalia.com>
+
+        [ews] Add 'jsc-mips-tests' bubble
+        https://bugs.webkit.org/show_bug.cgi?id=215697
+
+        This new bubble runs jscore-tests for JSC MIPS 32-bit.  The former
+        'jsc-mips' bubble now reports about successful binary builds for the
+        same architecture.
+
+        Reviewed by Aakash Jain.
+
+        * BuildSlaveSupport/ews-app/ews/views/statusbubble.py:
+        (StatusBubble):
+
+2020-08-20  Diego Pino Garcia  <dpino@igalia.com>
+
+        [ews] Split JSC MIPS queue into separate builder and tester queue
+        https://bugs.webkit.org/show_bug.cgi?id=212009
+
+        Reviewed by Aakash Jain.
+
+        Currently there are two EWS JSC MIPS configured, one that runs as
+        buildAndTest and another one that runs as buildOnly.
+
+        This patch changes the buildAndTest bot to test, and makes the
+        bot fetch the binary product produced by the buildOnly bot.
+
+        * BuildSlaveSupport/ews-build/config.json:
+        * BuildSlaveSupport/ews-build/factories.py:
+        (JSCTestsFactory):
+        (JSCTestsFactory.__init__):
+        * BuildSlaveSupport/ews-build/factories_unittest.py:
+        (TestLayoutTestsFactory.test_gtk_factory):
+        (TestJSCBuildFactory):
+        (TestJSCBuildFactory.test_jsc_mipsel_factory):
+        (TestJSCBuildFactory.test_jsc_armv7_factory):
+        (TestJSCBuildAndTestsFactory):
+        (TestJSCBuildAndTestsFactory.test_jsc_mipsel_factory):
+        (TestJSCBuildAndTestsFactory.test_jsc_armv7_factory):
+        (TestJSCTestsFactory):
+        (TestJSCTestsFactory.test_jsc_mipsel_factory):
+        (TestJSCTestsFactory.test_jsc_armv7_factory):
+        * BuildSlaveSupport/ews-build/loadConfig.py:
+
+2020-08-20  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Add subprocess_utils.run
+        https://bugs.webkit.org/show_bug.cgi?id=215702
+        <rdar://problem/67487751>
+
+        Reviewed by Dewei Zhu.
+
+        Python 3's subprocess.run API is much better than the multiple subprocess APIs that Python 2 provides. Rather than
+        requiring new scripts and libraries to be fully Python 3, we should provide a Python 2 API identical to subprocess.run.
+
+        * Scripts/libraries/webkitcorepy/README.md: Document usage of subprocess_utils.run.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Export subprocess_utils, bump minor version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/subprocess_utils.py: Added.
+        (run): Declare Python 2 version of Python 3's subprocess.run API.
+        (TimeoutExpired): Ditto.
+        (CompletedProcess): Ditto.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/tests/subprocess_utils_unittest.py: Added.
+        (SubprocessUtils):
+        (SubprocessUtils.test_run):
+        (SubprocessUtils.test_run_exit):
+        (SubprocessUtils.test_run_timeout):
+        (SubprocessUtils.test_run_timeout_context):
+
+2020-08-20  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Move Timeout to webkitcorepy (Part 1)
+        https://bugs.webkit.org/show_bug.cgi?id=215584
+        <rdar://problem/67270713>
+
+        Reviewed by Darin Adler and Dewei Zhu.
+
+        The Timeout class is a generally useful Python utility, it should not live inside webkitpy.
+
+        * Scripts/libraries/webkitcorepy/README.md: Document Timeout object.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Expose Timeout object API, increment version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/mocks/time_.py:
+        (_MetaTime.__enter__): Replace timeout.py's ORIGINAL_SLEEP variable to speed up testing.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/tests/timeout_unittest.py: Added.
+        (TimeoutTests): Added.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/timeout.py: Added.
+        (Timeout): Class representing a stackable Timeout context.
+        (Timeout.Data): Class containing information about a specific deadline.
+        (Timeout.Exception): Exception belonging to the Timeout object.
+        (Timeout.DisableAlarm): For some block of code, disable Timeout alarms. This is useful because many APIs (such as
+        subprocess.run) define their own timeouts which do better cleanup than an interrupt would.
+        (Timeout.default_handler): Default Timeout handler which raises an exception.
+        (Timeout.current): Return the current Timeout.Data class, if one exists.
+        (Timeout.deadline): Return the closest deadline, if one exists.
+        (Timeout.difference): Return the number of seconds between the current time and the closest deadline.
+        (Timeout.check): Check if we have surpassed the closest deadline., raise an exception if we have.
+        (Timeout.bind): Create a signal based on the closest deadline.
+        (Timeout.sleep): Override the sleep function because if we ever request a sleep that is greater than the closest deadline,
+        we should imiediately trigger the timeout logic without waiting for the timeout to actually expire.
+        (Timeout.__init__): Create a Timeout context, 1 second by default.
+        (Timeout.__enter__):
+        (Timeout.__exit__):
+        * Scripts/webkitpy/common/timeout_context.py:
+        (Timeout): Moved to webkitcorepy.
+
+2020-08-19  Kate Cheney  <katherine_cheney@apple.com>
+
+        Third party domains are not stored in the case of back/forward navigations
+        https://bugs.webkit.org/show_bug.cgi?id=215595
+        <rdar://problem/66642893>
+
+        Reviewed by Chris Dumez.
+
+        API test coverage, including a new scheme handler to load third party
+        domains. Also this patch changes the function name from
+        loadedThirdPartyDomains to loadedSubresourceDomains based on the
+        conversation from https://bugs.webkit.org/show_bug.cgi?id=215595.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/ResourceLoadStatistics.mm:
+        (-[ResourceLoadStatisticsSchemeHandler webView:startURLSchemeTask:]):
+        (-[ResourceLoadStatisticsSchemeHandler webView:stopURLSchemeTask:]):
+        (TEST):
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl:
+        * WebKitTestRunner/InjectedBundle/InjectedBundle.cpp:
+        (WTR::InjectedBundle::didReceiveMessageToPage):
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp:
+        (WTR::TestRunner::loadedSubresourceDomains):
+        (WTR::TestRunner::callDidReceiveLoadedSubresourceDomainsCallback):
+        (WTR::TestRunner::loadedThirdPartyDomains): Deleted.
+        (WTR::TestRunner::callDidReceiveLoadedThirdPartyDomainsCallback): Deleted.
+        * WebKitTestRunner/InjectedBundle/TestRunner.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetStateToConsistentValues):
+        (WTR::LoadedSubresourceDomainsCallbackContext::LoadedSubresourceDomainsCallbackContext):
+        (WTR::loadedSubresourceDomainsCallback):
+        (WTR::TestController::loadedSubresourceDomains):
+        (WTR::TestController::clearLoadedSubresourceDomains):
+        (WTR::LoadedThirdPartyDomainsCallbackContext::LoadedThirdPartyDomainsCallbackContext): Deleted.
+        (WTR::loadedThirdPartyDomainsCallback): Deleted.
+        (WTR::TestController::loadedThirdPartyDomains): Deleted.
+        (WTR::TestController::clearLoadedThirdPartyDomains): Deleted.
+        * WebKitTestRunner/TestController.h:
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::didReceiveMessageFromInjectedBundle):
+        (WTR::TestInvocation::didReceiveLoadedSubresourceDomains):
+        (WTR::TestInvocation::didReceiveLoadedThirdPartyDomains): Deleted.
+        * WebKitTestRunner/TestInvocation.h:
+        * WebKitTestRunner/cocoa/TestControllerCocoa.mm:
+        (WTR::TestController::loadedSubresourceDomains):
+        (WTR::TestController::clearLoadedSubresourceDomains):
+        (WTR::TestController::loadedThirdPartyDomains): Deleted.
+        (WTR::TestController::clearLoadedThirdPartyDomains): Deleted.
+
+2020-08-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Failure to set index should not be fatal
+        https://bugs.webkit.org/show_bug.cgi?id=215653
+        <rdar://problem/67410416>
+
+        Reviewed by Stephanie Lewis.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py:
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (AutoInstall.set_index): By default, log an error instead of raising an exception if an index is unreachable.
+
+2020-08-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Adopt webkitcorepy's OutputCapture
+        https://bugs.webkit.org/show_bug.cgi?id=215628
+        <rdar://problem/67353710>
+
+        Reviewed by Dewei Zhu.
+
+        Remove webkitpy's OutputCapture in favor of webkitcorepy's. The refactor retains the orginal
+        functionality of the old OutputCapture, but deletes some now unused code.
+
+        * Scripts/webkitpy/common/checkout/checkout_unittest.py:
+        * Scripts/webkitpy/common/checkout/scm/detection_unittest.py:
+        * Scripts/webkitpy/common/checkout/scm/scm_unittest.py:
+        * Scripts/webkitpy/common/net/bugzilla/bugzilla_unittest.py:
+        * Scripts/webkitpy/common/net/credentials_unittest.py:
+        * Scripts/webkitpy/common/net/ewsserver_unittest.py:
+        * Scripts/webkitpy/common/net/irc/ircproxy_unittest.py:
+        * Scripts/webkitpy/common/net/layouttestresults_unittest.py:
+        * Scripts/webkitpy/common/system/outputcapture.py: Removed.
+        * Scripts/webkitpy/common/system/outputcapture_unittest.py: Removed.
+        * Scripts/webkitpy/common/system/stack_utils_unittest.py:
+        * Scripts/webkitpy/common/system/user_unittest.py:
+        * Scripts/webkitpy/common/system/workspace_unittest.py:
+        * Scripts/webkitpy/common/watchlist/watchlistparser_unittest.py:
+        * Scripts/webkitpy/layout_tests/models/test_expectations_unittest.py:
+        * Scripts/webkitpy/layout_tests/run_webkit_tests_integrationtest.py:
+        * Scripts/webkitpy/layout_tests/servers/apache_http_server_unittest.py:
+        * Scripts/webkitpy/performance_tests/perftest_unittest.py:
+        * Scripts/webkitpy/performance_tests/perftestsrunner_integrationtest.py:
+        * Scripts/webkitpy/performance_tests/perftestsrunner_unittest.py:
+        * Scripts/webkitpy/port/base_unittest.py:
+        * Scripts/webkitpy/port/config_unittest.py:
+        * Scripts/webkitpy/port/darwin_testcase.py:
+        * Scripts/webkitpy/port/gtk_unittest.py:
+        * Scripts/webkitpy/port/ios_device_unittest.py:
+        * Scripts/webkitpy/port/ios_simulator_unittest.py:
+        * Scripts/webkitpy/port/leakdetector_unittest.py:
+        * Scripts/webkitpy/port/leakdetector_valgrind_unittest.py:
+        * Scripts/webkitpy/port/mac_unittest.py:
+        * Scripts/webkitpy/port/port_testcase.py:
+        * Scripts/webkitpy/port/server_process_unittest.py:
+        * Scripts/webkitpy/port/watch_simulator_unittest.py:
+        * Scripts/webkitpy/port/westondriver_unittest.py:
+        * Scripts/webkitpy/port/win_unittest.py:
+        * Scripts/webkitpy/port/wpe_unittest.py:
+        * Scripts/webkitpy/port/xvfbdriver_unittest.py:
+        * Scripts/webkitpy/style/checkers/python.py:
+        * Scripts/webkitpy/style/main_unittest.py:
+        * Scripts/webkitpy/test/finder_unittest.py:
+        * Scripts/webkitpy/test/main_unittest.py:
+        * Scripts/webkitpy/test/printer.py:
+        * Scripts/webkitpy/tool/bot/flakytestreporter_unittest.py:
+        * Scripts/webkitpy/tool/bot/irc_command_unittest.py:
+        * Scripts/webkitpy/tool/bot/ircbot_unittest.py:
+        * Scripts/webkitpy/tool/bot/layouttestresultsreader_unittest.py:
+        * Scripts/webkitpy/tool/bot/queueengine_unittest.py:
+        * Scripts/webkitpy/tool/bot/sheriff_unittest.py:
+        * Scripts/webkitpy/tool/commands/analyzechangelog_unittest.py:
+        * Scripts/webkitpy/tool/commands/commandtest.py:
+        * Scripts/webkitpy/tool/commands/download_unittest.py:
+        * Scripts/webkitpy/tool/commands/earlywarningsystem_unittest.py:
+        * Scripts/webkitpy/tool/commands/perfalizer_unittest.py:
+        * Scripts/webkitpy/tool/commands/queries_unittest.py:
+        * Scripts/webkitpy/tool/commands/queues_unittest.py:
+        * Scripts/webkitpy/tool/commands/queuestest.py:
+        * Scripts/webkitpy/tool/commands/rebaseline_unittest.py:
+        * Scripts/webkitpy/tool/multicommandtool_unittest.py:
+        * Scripts/webkitpy/tool/servers/gardeningserver_unittest.py:
+        * Scripts/webkitpy/tool/steps/addsvnmimetypeforpng_unittest.py:
+        * Scripts/webkitpy/tool/steps/applywatchlist_unittest.py:
+        * Scripts/webkitpy/tool/steps/closebugforlanddiff_unittest.py:
+        * Scripts/webkitpy/tool/steps/commit_unittest.py:
+        * Scripts/webkitpy/tool/steps/preparechangelog_unittest.py:
+        * Scripts/webkitpy/tool/steps/runtests_unittest.py:
+        * Scripts/webkitpy/tool/steps/steps_unittest.py:
+        * Scripts/webkitpy/tool/steps/suggestreviewers_unittest.py:
+        * Scripts/webkitpy/tool/steps/updatechangelogswithreview_unittest.py:
+        * Scripts/webkitpy/tool/steps/validatechangelogs_unittest.py:
+        * Scripts/webkitpy/w3c/test_converter_unittest.py:
+        * Scripts/webkitpy/w3c/test_importer_unittest.py:
+        * Scripts/webkitpy/w3c/test_parser_unittest.py:
+
+2020-08-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Don't overwrite foreign packages by default
+        https://bugs.webkit.org/show_bug.cgi?id=215654
+        <rdar://problem/67411393>
+
+        Reviewed by Darin Adler.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (Package.is_cached): Consider a package cached if it is foreign and overwrite_foreign_packages is false.
+        (AutoInstall): Add overwrite_foreign_packages flag.
+
+2020-08-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Correct autoinstaller logging
+        https://bugs.webkit.org/show_bug.cgi?id=215650
+        <rdar://problem/67408049>
+
+        Reviewed by Stephanie Lewis.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (Package.install): Log "Downloading" insteading of "Installing" before downloading a package.
+
+2020-08-19  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Use webkitcorepy's auto installer for selenium
+        https://bugs.webkit.org/show_bug.cgi?id=215648
+        <rdar://problem/67405967>
+
+        Reviewed by Darin Adler.
+
+        * Scripts/webkitpy/__init__.py:
+        * Scripts/webkitpy/benchmark_runner/browser_driver/linux_chrome_driver.py:
+        (LinuxChromeDriver.launch_driver): Implicitly use webkitcorepy's auto-installer.
+        * Scripts/webkitpy/benchmark_runner/browser_driver/linux_firefox_driver.py:
+        (LinuxFirefoxDriver.launch_driver): Ditto.
+        * Scripts/webkitpy/benchmark_runner/browser_driver/osx_chrome_driver.py:
+        (OSXChromeDriver.launch_driver): Ditto.
+        (OSXChromeCanaryDriver.launch_driver): Ditto.
+        * Scripts/webkitpy/benchmark_runner/browser_driver/osx_firefox_driver.py:
+        (OSXFirefoxDriver.launch_driver): Ditto.
+        (OSXFirefoxNightlyDriver.launch_driver): Ditto.
+        * Scripts/webkitpy/benchmark_runner/browser_driver/osx_safari_driver.py:
+        (OSXSafariDriver.launch_driver): Ditto.
+        * Scripts/webkitpy/benchmark_runner/webdriver_benchmark_runner.py:
+        (WebDriverBenchmarkRunner._run_one_test): Ditto.
+        * Scripts/webkitpy/thirdparty/__init__.py:
+        (AutoinstallImportHook.find_module): Remove selenium.
+        (AutoinstallImportHook._install_selenium): Deleted.
+        * Scripts/webkitpy/webdriver_plt/liveplt.py: Implicitly use webkitcorepy's auto-installer.
+
+2020-08-19  Alex Christensen  <achristensen@webkit.org>
+
+        [Catalina/iOS 13] TestWebKitAPI.TLSVersion.LegacySubresources is failing
+        https://bugs.webkit.org/show_bug.cgi?id=215640
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TLSDeprecation.mm:
+        This tests behavior using CFNetwork functionality which is only available to Big Sur, iOS 14, and updated versions of Catalina.
+
+2020-08-18  Jonathan Bedard  <jbedard@apple.com>
+
+        [run-webkit-tests] Rosetta specific test expectations
+        https://bugs.webkit.org/show_bug.cgi?id=215633
+        <rdar://problem/67353771>
+
+        Reviewed by Darin Adler.
+
+        * Scripts/webkitpy/port/mac.py:
+        (MacPort.expectations_dict): Add special case for Rosetta expectations.
+        * Scripts/webkitpy/port/mac_unittest.py:
+        (MacTest.test_rosetta_expectations):
+
+2020-08-18  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Unreviewed, contributors.json is broken
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
+2020-08-18  Alex Christensen  <achristensen@webkit.org>
+
+        WKWebViews using fastServerTrustEvaluationEnabled should only allow legacy TLS for main resource loads
+        https://bugs.webkit.org/show_bug.cgi?id=215626
+        <rdar://problem/67268892>
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TLSDeprecation.mm:
+        (TestWebKitAPI::TEST):
+
+2020-08-17  Aakash Jain  <aakash_jain@apple.com>
+
+        Develop a mechanism to unsubscribe from ews emails
+        https://bugs.webkit.org/show_bug.cgi?id=215585
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/emails.json: Added.
+        * BuildSlaveSupport/ews-build/send_email.py:
+        (get_email_ids):
+        (send_email_to_patch_author): Do not email patch authors whose email is in unsubscribe list.
+        (send_email_to_bot_watchers):
+        * BuildSlaveSupport/ews-build/steps.py:
+        (AnalyzeCompileWebKitResults.send_email_for_new_build_failure):
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures):
+        * BuildSlaveSupport/ews-build/email_unittest.py: Added unit-tests.
+        (EmailsDotJSONTest.test_valid_emails_json):
+        (EmailsDotJSONTest.test_emails_json_required_categories_present):
+
+2020-08-17  Saagar Jha  <saagar@saagarjha.com>
+
+        Stop webkitpy from warning about not having a 64-bit git on Apple silicon
+        https://bugs.webkit.org/show_bug.cgi?id=214718
+
+        Reviewed by Jonathan Bedard.
+
+        * Scripts/webkitpy/common/checkout/scm/git.py:
+        (Git._executable_is_64bit): Loosen 64-bit check to succeed on systems that aren't x86_64.
+
+2020-08-17  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [WTF] HashTable<Ref<K>, V>::HashTable(const HashTable& other) can't compile
+        https://bugs.webkit.org/show_bug.cgi?id=215550
+
+        Reviewed by Darin Adler.
+
+        * TestWebKitAPI/Tests/WTF/HashSet.cpp:
+        (TestWebKitAPI::TEST):
+
+2020-08-17  Jonathan Bedard  <jbedard@apple.com>
+
+        [resultsdbpy]: Depend on webkitcorepy
+        https://bugs.webkit.org/show_bug.cgi?id=215573
+        <rdar://problem/67250272>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/resultsdbpy/resultsdbpy/__init__.py:
+        (_maybe_add_webkitcorepy_path): Attempt to add. webkitcorepy to the. Python path.
+        * Scripts/libraries/resultsdbpy/setup.py: Add webkitcorepy, remove webkitcorepy's dependencies.
+        * Scripts/libraries/webkitcorepy/setup.py: Add six as a dependency.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Include. package name, bump version.
+
+2020-08-17  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Add OutputCapture to webkitcorepy
+        https://bugs.webkit.org/show_bug.cgi?id=215380
+        <rdar://problem/66846384>
+
+        Reviewed by Dewei Zhu.
+
+        Although webkitpy has an OutputCapture class, that class does not separate logging from
+        stdout and stderr, which makes the API less useful. This version of the OutputCapture class
+        is inspired by the one in webkitpy, but with a cleaner interface.
+
+        * Scripts/libraries/webkitcorepy/README.md: Document usage of OutputCapture.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Export LoggerCapture, OutputCapture and
+        OutputDuplicate as API, bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/output_capture.py: Added.
+        (LoggerCapture): Capture logs at some level for the duration of the interface.
+        (OutputCapture): Capture stdout, stderr and all logging channels for the duration of the interface.
+        (OutputCapture.ReplaceSysStream): Replace sys.stdout or sys.stderr for a block.
+        (OutputDuplicate): Context which can duplicate all output for a block of code. This is useful to both print and
+        capture logs.
+        (OutputDuplicate.Stream): File-like object that routes output to multiple file-like objects.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/tests/output_capture_unittest.py: Added.
+        (LoggerCaptureTest):
+        (OutputCaptureTest):
+        (OutputOutputDuplicateTest):
+
+2020-08-17  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [TestWebKitAPI] Some WTF_HashMap tests are failing if TestWTF is executed directly
+        https://bugs.webkit.org/show_bug.cgi?id=215556
+
+        Reviewed by Darin Adler.
+
+        Some tests using RefLogger were failing if TestWTF is executed
+        directly without run-api-tests test driver script. Subsequent
+        tests were failing due to extra "deref(a) " which is a leftover of
+        the previous tests. Because run-api-tests is spawning a TestWTF
+        process for each test, it hides this issue.
+
+        * TestWebKitAPI/Tests/WTF/HashCountedSet.cpp:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WTF/HashMap.cpp:
+        (TestWebKitAPI::TEST):
+        Added blocks or calling clear() method to destroy local variables and added more
+        EXPECT_STREQ("deref(a) ", takeLogStr().c_str()).
+
+2020-08-17  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE] Fix file url in WPEQt api test
+        https://bugs.webkit.org/show_bug.cgi?id=215577
+
+        Reviewed by Philippe Normand.
+
+        The test expects the load to fail, so avoid file://foo.html resolving
+        to file:///.
+
+        * TestWebKitAPI/Tests/WPEQt/TestLoadRequest.cpp:
+        (TestLoadRequest::main):
+
+2020-08-17  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Autoinstaller is very slow in git-svn checkouts
+        https://bugs.webkit.org/show_bug.cgi?id=215534
+        <rdar://problem/67120623>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Bump version.
+        * Scripts/libraries/webkitcorepy/webkitcorepy/autoinstall.py:
+        (Package.install): Download packages to a temporary directory so that setup.py runs faster.
+
+2020-08-17  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][WPE] Remove support for NPAPI plugins
+        https://bugs.webkit.org/show_bug.cgi?id=215503
+
+        Reviewed by Darin Adler.
+
+        * PlatformGTK.cmake:
+        * TestWebKitAPI/Tests/WebKitGLib/TestWebKitSettings.cpp:
+        (testWebKitSettings):
+        * TestWebKitAPI/Tests/WebKitGLib/TestWebKitWebContext.cpp:
+        (beforeAll):
+
+2020-08-17  Youenn Fablet  <youenn@apple.com>
+
+        Update W3C test exporter to use Authorisation header instead of query parameter to validate GitHub account
+        https://bugs.webkit.org/show_bug.cgi?id=215548
+
+        Reviewed by Darin Adler.
+
+        * Scripts/webkitpy/w3c/test_exporter.py:
+        (WebPlatformTestExporter._validate_and_save_token):
+        access_token query parameter is dbeing deprecated in favor of Authorization header.
+        Update script accordingly.
+
+2020-08-15  Tim Horton  <timothy_horton@apple.com>
+
+        Live Web Content processes do not respect accent color if dynamically changed to "multicolor"
+        https://bugs.webkit.org/show_bug.cgi?id=215523
+        <rdar://problem/63941133>
+
+        Reviewed by Wenson Hsieh.
+
+        * TestWebKitAPI/Tests/WebKit/PreferenceChanges.mm:
+        (deleteTestDefaults):
+        (TEST):
+        Fix some minor style issues with these tests.
+        Fix a bug where these tests would leak state between themselves by leaving defaults behind.
+        Change the NSUserDefaults key name so that it is abundantly obvious where it comes from when you see it in your defaults.
+        Leave a FIXME for the future that these tests should probably not be writing to the real persistent defaults.
+        Add a test that ensures that the observer correctly respects deletion of a default.
+
+2020-08-14  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitcorepy] Add a NullHandler to logger
+        https://bugs.webkit.org/show_bug.cgi?id=215524
+        <rdar://problem/67102367>
+
+        Reviewed by Dewei Zhu.
+
+        * Scripts/libraries/webkitcorepy/webkitcorepy/__init__.py: Add default logging handler to webkitcorepy.log.
+
+2020-08-14  Brady Eidson  <beidson@apple.com>
+
+        Gamepad.GCFVersusHID fails on Big Sur.
+        <rdar://problem/66948608> and https://bugs.webkit.org/show_bug.cgi?id=215520
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/Tests/mac/HIDGamepads.mm: Accept two different names for the virtual Xbox One controller
+
+2020-08-14  Ryan Haddad  <ryanhaddad@apple.com>
+
+        Move WebGL bot from debug to release builds
+        https://bugs.webkit.org/show_bug.cgi?id=215509
+
+        Rubber-stamped by Darin Adler.
+
+        Make the switch to release builds since many of the tests are already slow, and running in debug configuration makes them even slower
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json:
+        * BuildSlaveSupport/build.webkit.org-config/steps_unittest.py:
+
+2020-08-14  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Unreviewed, revert r265213 and r265441
+        https://bugs.webkit.org/show_bug.cgi?id=215089
+
+        * WebKitTestRunner/ios/UIScriptControllerIOS.mm:
+        (WTR::UIScriptControllerIOS::keyDown):
+
+2020-08-14  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SK] Enable GNOME keyring support in subversion
+        https://bugs.webkit.org/show_bug.cgi?id=215498
+
+        Reviewed by Sergio Villar Senin.
+
+        * buildstream/elements/sdk/subversion.bst: Enable GNOME Keyring support, which pulls into libsecret.
+        * flatpak/flatpakutils.py:
+        (WebkitFlatpak.run_in_sandbox): Allow session dbus access to the host secret service.
+
+2020-08-13  Brady Eidson  <beidson@apple.com>
+
+        (WK2 only) gamepad mapping stops being reported as “standard” in new tabs.
+        rdar://problem/66946505 and https://bugs.webkit.org/show_bug.cgi?id=215486
+
+        Reviewed by Tim Horton.
+
+        * TestWebKitAPI/Tests/mac/HIDGamepads.mm:
+
+2020-08-13  Aakash Jain  <aakash_jain@apple.com>
+
+        Regression(r265580): apply-watchlist is broken
+        https://bugs.webkit.org/show_bug.cgi?id=215457
+
+        Unreviewed infrastructure fix.
+
+        * Scripts/webkitpy/common/config/watchlist:
+
+2020-08-13  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] email notifications should include Bugzilla link to the patch
+        https://bugs.webkit.org/show_bug.cgi?id=215455
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (Bugzilla):
+        (Bugzilla.patch_url): Method to generate patch url.
+        (AnalyzeCompileWebKitResults.send_email_for_new_build_failure): Added link to the patch id.
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures): Ditto.
+        (ConfigureBuild.add_patch_id_url):
+        (ConfigureBuild.getPatchURL): Deleted.
+
+2020-08-13  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] test names in ews notification email should be in sorted order
+        https://bugs.webkit.org/show_bug.cgi?id=215446
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures):
+
+2020-08-13  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] Improve wording for test failure email
+        https://bugs.webkit.org/show_bug.cgi?id=215449
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures): Pluralize 'test failure' accordingly.
+        * BuildSlaveSupport/ews-build/send_email.py:
+        (send_email): Drive-by fix.
+
+2020-08-13  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Use webkitcorepy's auto installer for coverage
+        https://bugs.webkit.org/show_bug.cgi?id=215419
+        <rdar://problem/66922400>
+
+        Reviewed by Stephanie Lewis.
+
+        * Scripts/webkitpy/__init__.py: Add coverage and it's dependencies.
+        * Scripts/webkitpy/test/main.py:
+        (Tester._run_tests): Stop relying on webkitpy's autoinstaller.
+        * Scripts/webkitpy/thirdparty/__init__.py:
+        (AutoinstallImportHook.find_module): Remove _install_coverage, _install_toml.
+        (AutoinstallImportHook._install_coverage): Deleted.
+        (AutoinstallImportHook._install_toml): Deleted.
+        * Scripts/webkitpy/thirdparty/__init___unittest.py:
+        (ThirdpartyTest.test_imports): Remove coverage.
+        * flatpak/flatpakutils.py: Stop relying on webkitpy's autoinstaller.
+
+2020-08-13  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        [GTK][WPE] Add a script for generating MiniBrowser bundles
+        https://bugs.webkit.org/show_bug.cgi?id=215266
+
+        Reviewed by Carlos Garcia Campos.
+
+        This converts the previous generate-jsc-bundle into a new script
+        that is now able to do the following:
+         - generate a jsc bundle
+         - generate a MiniBrowse bundle
+         - generate an all bundle (jsc+MiniBrowser)
+        The bundle can include all the system-libraries from the system,
+        so that way (in theory) the bundle would run on any other distribution
+        or it can generate an install-dependencies script so it generates
+        a lightweight bundle with only the minimum libraries included that
+        would run only on the distribution where it has been created
+        (after running the install-dependencies script)
+
+        We already have a bot generating the jsc bundle and we plan to also
+        have bots for generating the MiniBrowser bundles as well.
+
+        * BuildSlaveSupport/build.webkit.org-config/steps.py: Update the step for the new command.
+        (GenerateJSCBundle):
+        * Scripts/generate-bundle: Added.
+        * Scripts/generate-jsc-bundle: Removed.
+        * jhbuild/jhbuildutils.py:
+        (enter_jhbuild_environment_if_available): Unicode argument not longer available on python3's gettext.install()
+
+2020-08-12  Keith Rollin  <krollin@apple.com>
+
+        Remove the need for defining USE_NEW_BUILD_SYSTEM
+        https://bugs.webkit.org/show_bug.cgi?id=215439
+
+        Reviewed by Darin Adler.
+
+        When building WebKit for XCBuild, we currently require that the
+        external build system (such as the Makefile, build-webkit, etc.)
+        defines the USE_NEW_BUILD_SYSTEM=YES build setting. This build setting
+        controls parts of our build instructions that are sensitive to when
+        XCBuild or the Legacy build system are being used. Notably, we need to
+        know when to use our custom “copy and modify” scripts with copying
+        certain header files (used with the Legacy build system) vs. using the
+        enhanced Copy Headers build phase that’s enabled with
+        APPLY_RULES_IN_COPY_HEADERS=YES (introduced with and used by XCBuild).
+        The choice of which method to copy headers is used is controlled by
+        USE_NEW_BUILD_SYSTEM.
+
+        There is no built-in build setting that we can probe to help us
+        determine which approach to take when copying and modifying headers,
+        which is why we need to define USE_NEW_BUILD_SYSTEM ourselves. But it
+        turns out that we can *detect* which build system is being used by
+        taking advantage of a subtle difference between the two systems. As
+        noted in:
+
+            https://developer.apple.com/documentation/xcode-release-notes/build-system-release-notes-for-xcode-10
+
+            “When an .xcconfig file contains multiple assignments of the same
+             build setting, later assignments using $(inherited) or
+             $(<setting_name>) will inherit from earlier assignments in the
+             .xcconfig. The legacy build system caused every use of
+             $(inherited) or $(<setting_name>) skip any other values defined
+             within the .xcconfig.”
+
+        This difference can be exploited as follows:
+
+            WK_WHICH_BUILD_SYSTEM = not_
+            WK_WHICH_BUILD_SYSTEM = $(inherited)legacy
+            WK_USE_NEW_BUILD_SYSTEM = $(WK_USE_NEW_BUILD_SYSTEM_$(WK_WHICH_BUILD_SYSTEM))
+            WK_USE_NEW_BUILD_SYSTEM_legacy = NO
+            WK_USE_NEW_BUILD_SYSTEM_not_legacy = YES
+
+        We can then use WK_USE_NEW_BUILD_SYSTEM where we used to use the
+        externally-defined USE_NEW_BUILD_SYSTEM.
+
+        * Scripts/build-webkit:
+
+2020-08-12  Devin Rousso  <drousso@apple.com>
+
+        Add settings for Copy WebKit Permalink
+        https://bugs.webkit.org/show_bug.cgi?id=215440
+
+        Reviewed by Daniel Bates.
+
+        * CopyPermalink/Sublime Text/CopyWebKitPermalink/Context.sublime-settings: Added.
+
+        * CopyPermalink/Sublime Text/CopyWebKitPermalink/CopyWebKitPermalink.py:
+        (plugin_loaded): Added.
+        (plugin_unloaded): Added.
+        (Settings): Added.
+        (Settings.__init__): Added.
+        (Settings.unload): Added.
+        (Settings.include_revision): Added.
+        (Settings._get): Added.
+        (Settings._set): Added.
+        Helper class for caching settings values.
+
+        (CopyWebKitPermalinkCommand.run):
+        (CopyWebKitPermalinkCommand.revision_info_for_path):
+        (CopyWebKitPermalinkCommand.permalink_for_path):
+        Only include the current revision in the URL if the `include_revision` setting is true.
+        Turning this off is desirable as getting the current revision often takes a few seconds.
+
+        * CopyPermalink/Sublime Text/INSTALL:
+
+2020-08-12  Devin Rousso  <drousso@apple.com>
+
+        Update my watchlist entries and add some additional Web Inspector definitions
+
+        * Scripts/webkitpy/common/config/watchlist:
+
+2020-08-12  Jonathan Bedard  <jbedard@apple.com>
+
+        [webkitpy] Use webkitcorepy's auto installer for requests
+        https://bugs.webkit.org/show_bug.cgi?id=214951
+        <rdar://problem/66308049>
+
+        Reviewed by Stephanie Lewis.
+
+        * Scripts/webkitpy/common/net/bugzilla/test_expectation_updater.py: Use webkitcorepy's auto installer.
+        * Scripts/webkitpy/results/upload.py: Ditto.
+        * Scripts/webkitpy/results/upload_unittest.py: Ditto.
+        * Scripts/webkitpy/thirdparty/__init__.py:
+        (AutoinstallImportHook._ensure_autoinstalled_dir_is_in_sys_path): Make sure webkitcorepy takes precedence
+        over webkitpy.
+        (AutoinstallImportHook.find_module): Delete _install_requests.
+        (AutoinstallImportHook._install_pytest): Ditto.
+        (AutoinstallImportHook._install_beautifulsoup): Ditto.
+        (AutoinstallImportHook._install_selenium): Ditto.
+        (AutoinstallImportHook._install_requests): Deleted.
+
+2020-08-12  Alex Christensen  <achristensen@webkit.org>
+
+        Fail preconnect requests to deprecated TLS instead of allowing application to show warning
+        https://bugs.webkit.org/show_bug.cgi?id=215424
+        <rdar://problem/66784116>
+
+        Reviewed by Geoffrey Garen.
+
+        * TestWebKitAPI/Tests/WebKitCocoa/TLSDeprecation.mm:
+        (TestWebKitAPI::TEST):
+        (TestWebKitAPI::webViewWithNavigationDelegate):
+
+2020-08-12  Aakash Jain  <aakash_jain@apple.com>
+
+        [ews] email notifications should include link to corresponding bug
+        https://bugs.webkit.org/show_bug.cgi?id=215425
+
+        Reviewed by Jonathan Bedard.
+
+        * BuildSlaveSupport/ews-build/steps.py:
+        (AnalyzeCompileWebKitResults.send_email_for_new_build_failure):
+        (AnalyzeLayoutTestsResults.send_email_for_new_test_failures):
+
 2020-08-12  Wenson Hsieh  <wenson_hsieh@apple.com>
 
         Broken formatting in price table on yandex.ru after translating to English

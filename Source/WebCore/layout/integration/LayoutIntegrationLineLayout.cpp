@@ -173,7 +173,7 @@ LayoutUnit LineLayout::firstLineBaseline() const
     }
 
     auto& firstLineBox = inlineContent->lineBoxes.first();
-    return Layout::toLayoutUnit(firstLineBox.top() + firstLineBox.baselineOffset());
+    return Layout::toLayoutUnit(firstLineBox.top() + firstLineBox.baseline());
 }
 
 LayoutUnit LineLayout::lastLineBaseline() const
@@ -185,7 +185,7 @@ LayoutUnit LineLayout::lastLineBaseline() const
     }
 
     auto& lastLineBox = inlineContent->lineBoxes.last();
-    return Layout::toLayoutUnit(lastLineBox.top() + lastLineBox.baselineOffset());
+    return Layout::toLayoutUnit(lastLineBox.top() + lastLineBox.baseline());
 }
 
 void LineLayout::collectOverflow(RenderBlockFlow& flow)
@@ -294,7 +294,7 @@ void LineLayout::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
         }
 
         auto& lineBox = inlineContent.lineBoxForRun(run);
-        auto baselineOffset = paintOffset.y() + lineBox.top() + lineBox.baselineOffset();
+        auto baseline = paintOffset.y() + lineBox.top() + lineBox.baseline();
         auto expansion = run.expansion();
 
         String textWithHyphen;
@@ -302,7 +302,7 @@ void LineLayout::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
             textWithHyphen = makeString(textContent.content(), style.hyphenString());
         TextRun textRun { !textWithHyphen.isEmpty() ? textWithHyphen : textContent.content(), run.left() - lineBox.left(), expansion.horizontalExpansion, expansion.behavior };
         textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
-        FloatPoint textOrigin { rect.x() + paintOffset.x(), roundToDevicePixel(baselineOffset, deviceScaleFactor) };
+        FloatPoint textOrigin { rect.x() + paintOffset.x(), roundToDevicePixel(baseline, deviceScaleFactor) };
 
         TextPainter textPainter(paintInfo.context());
         textPainter.setFont(style.fontCascade());

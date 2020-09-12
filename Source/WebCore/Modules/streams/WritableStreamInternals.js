@@ -67,16 +67,19 @@ function setUpWritableStreamDefaultWriter(writer, stream)
     if (state === "writable") {
         if (@writableStreamCloseQueuedOrInFlight(stream) || !@getByIdDirectPrivate(stream, "backpressure"))
             readyPromiseCapability.@resolve.@call();
-    } else if (state === "erroring")
+    } else if (state === "erroring") {
         readyPromiseCapability.@reject.@call(@undefined, @getByIdDirectPrivate(stream, "storedError"));
-    else if (state === "closed") {
+        @markPromiseAsHandled(readyPromiseCapability.@promise);
+    } else if (state === "closed") {
         readyPromiseCapability.@resolve.@call();
         closedPromiseCapability.@resolve.@call();
     } else {
         @assert(state === "errored");
         const storedError = @getByIdDirectPrivate(stream, "storedError");
         readyPromiseCapability.@reject.@call(@undefined, storedError);
+        @markPromiseAsHandled(readyPromiseCapability.@promise);
         closedPromiseCapability.@reject.@call(@undefined, storedError);
+        @markPromiseAsHandled(closedPromiseCapability.@promise);
     }
 }
 
@@ -304,8 +307,11 @@ function writableStreamRejectCloseAndClosedPromiseIfNeeded(stream)
     }
 
     const writer = @getByIdDirectPrivate(stream, "writer");
-    if (writer !== @undefined)
-        @getByIdDirectPrivate(writer, "closedPromise").@reject.@call(@undefined, storedError);
+    if (writer !== @undefined) {
+        const closedPromise = @getByIdDirectPrivate(writer, "closedPromise");
+        closedPromise.@reject.@call(@undefined, storedError);
+        @markPromiseAsHandled(closedPromise.@promise);
+    }
 }
 
 function writableStreamStartErroring(stream, reason)
@@ -375,12 +381,32 @@ function writableStreamDefaultWriterCloseWithErrorPropagation(writer)
 
 function writableStreamDefaultWriterEnsureClosedPromiseRejected(writer, error)
 {
-    @getByIdDirectPrivate(writer, "closedPromise").@reject.@call(@undefined, error);
+    let closedPromiseCapability = @getByIdDirectPrivate(writer, "closedPromise");
+    let closedPromise = closedPromiseCapability.@promise;
+
+    if ((@getPromiseInternalField(closedPromise, @promiseFieldFlags) & @promiseStateMask) !== @promiseStatePending) {
+        closedPromiseCapability = @newPromiseCapability(@Promise);
+        closedPromise = closedPromiseCapability.@promise;
+        @putByIdDirectPrivate(writer, "closedPromise", closedPromiseCapability);
+    }
+
+    closedPromiseCapability.@reject.@call(@undefined, error);
+    @markPromiseAsHandled(closedPromise);
 }
 
 function writableStreamDefaultWriterEnsureReadyPromiseRejected(writer, error)
 {
-    @getByIdDirectPrivate(writer, "readyPromise").@reject.@call(@undefined, error);
+    let readyPromiseCapability = @getByIdDirectPrivate(writer, "readyPromise");
+    let readyPromise = readyPromiseCapability.@promise;
+
+    if ((@getPromiseInternalField(readyPromise, @promiseFieldFlags) & @promiseStateMask) !== @promiseStatePending) {
+        readyPromiseCapability = @newPromiseCapability(@Promise);
+        readyPromise = readyPromiseCapability.@promise;
+        @putByIdDirectPrivate(writer, "readyPromise", readyPromiseCapability);
+    }
+
+    readyPromiseCapability.@reject.@call(@undefined, error);
+    @markPromiseAsHandled(readyPromise);
 }
 
 function writableStreamDefaultWriterGetDesiredSize(writer)

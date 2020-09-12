@@ -47,6 +47,7 @@
 #include <limits>
 #include <memory>
 #include <wtf/CheckedArithmetic.h>
+#include <wtf/Lock.h>
 
 #if ENABLE(WEBGL2)
 #include "WebGLVertexArrayObject.h"
@@ -55,6 +56,14 @@
 #if ENABLE(WEBXR)
 #include "JSDOMPromiseDeferred.h"
 #endif
+
+namespace JSC {
+class SlotVisitor;
+}
+
+namespace WTF {
+class AbstractLocker;
+}
 
 namespace WebCore {
 
@@ -123,8 +132,8 @@ public:
     int drawingBufferHeight() const;
 
     void activeTexture(GCGLenum texture);
-    void attachShader(WebGLProgram*, WebGLShader*);
-    void bindAttribLocation(WebGLProgram*, GCGLuint index, const String& name);
+    void attachShader(WebGLProgram&, WebGLShader&);
+    void bindAttribLocation(WebGLProgram&, GCGLuint index, const String& name);
     void bindBuffer(GCGLenum target, WebGLBuffer*);
     virtual void bindFramebuffer(GCGLenum target, WebGLFramebuffer*);
     void bindRenderbuffer(GCGLenum target, WebGLRenderbuffer*);
@@ -146,7 +155,7 @@ public:
     void clearDepth(GCGLfloat);
     void clearStencil(GCGLint);
     void colorMask(GCGLboolean red, GCGLboolean green, GCGLboolean blue, GCGLboolean alpha);
-    void compileShader(WebGLShader*);
+    void compileShader(WebGLShader&);
 
     void compressedTexImage2D(GCGLenum target, GCGLint level, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, GCGLint border, ArrayBufferView& data);
     void compressedTexSubImage2D(GCGLenum target, GCGLint level, GCGLint xoffset, GCGLint yoffset, GCGLsizei width, GCGLsizei height, GCGLenum format, ArrayBufferView& data);
@@ -173,7 +182,7 @@ public:
     void depthFunc(GCGLenum);
     void depthMask(GCGLboolean);
     void depthRange(GCGLfloat zNear, GCGLfloat zFar);
-    void detachShader(WebGLProgram*, WebGLShader*);
+    void detachShader(WebGLProgram&, WebGLShader&);
     void disable(GCGLenum cap);
     void disableVertexAttribArray(GCGLuint index);
     void drawArrays(GCGLenum mode, GCGLint first, GCGLsizei count);
@@ -188,27 +197,27 @@ public:
     void frontFace(GCGLenum mode);
     void generateMipmap(GCGLenum target);
 
-    RefPtr<WebGLActiveInfo> getActiveAttrib(WebGLProgram*, GCGLuint index);
-    RefPtr<WebGLActiveInfo> getActiveUniform(WebGLProgram*, GCGLuint index);
-    Optional<Vector<RefPtr<WebGLShader>>> getAttachedShaders(WebGLProgram*);
-    GCGLint getAttribLocation(WebGLProgram*, const String& name);
+    RefPtr<WebGLActiveInfo> getActiveAttrib(WebGLProgram&, GCGLuint index);
+    RefPtr<WebGLActiveInfo> getActiveUniform(WebGLProgram&, GCGLuint index);
+    Optional<Vector<RefPtr<WebGLShader>>> getAttachedShaders(WebGLProgram&);
+    GCGLint getAttribLocation(WebGLProgram&, const String& name);
     WebGLAny getBufferParameter(GCGLenum target, GCGLenum pname);
     Optional<WebGLContextAttributes> getContextAttributes();
     GCGLenum getError();
     virtual WebGLExtension* getExtension(const String& name) = 0;
     virtual WebGLAny getFramebufferAttachmentParameter(GCGLenum target, GCGLenum attachment, GCGLenum pname) = 0;
     virtual WebGLAny getParameter(GCGLenum pname);
-    WebGLAny getProgramParameter(WebGLProgram*, GCGLenum pname);
-    String getProgramInfoLog(WebGLProgram*);
+    WebGLAny getProgramParameter(WebGLProgram&, GCGLenum pname);
+    String getProgramInfoLog(WebGLProgram&);
     WebGLAny getRenderbufferParameter(GCGLenum target, GCGLenum pname);
-    WebGLAny getShaderParameter(WebGLShader*, GCGLenum pname);
-    String getShaderInfoLog(WebGLShader*);
+    WebGLAny getShaderParameter(WebGLShader&, GCGLenum pname);
+    String getShaderInfoLog(WebGLShader&);
     RefPtr<WebGLShaderPrecisionFormat> getShaderPrecisionFormat(GCGLenum shaderType, GCGLenum precisionType);
-    String getShaderSource(WebGLShader*);
+    String getShaderSource(WebGLShader&);
     virtual Optional<Vector<String>> getSupportedExtensions() = 0;
     virtual WebGLAny getTexParameter(GCGLenum target, GCGLenum pname);
-    WebGLAny getUniform(WebGLProgram*, const WebGLUniformLocation*);
-    RefPtr<WebGLUniformLocation> getUniformLocation(WebGLProgram*, const String&);
+    WebGLAny getUniform(WebGLProgram&, const WebGLUniformLocation&);
+    RefPtr<WebGLUniformLocation> getUniformLocation(WebGLProgram&, const String&);
     WebGLAny getVertexAttrib(GCGLuint index, GCGLenum pname);
     long long getVertexAttribOffset(GCGLuint index, GCGLenum pname);
 
@@ -234,7 +243,7 @@ public:
     GCGLboolean isTexture(WebGLTexture*);
 
     void lineWidth(GCGLfloat);
-    void linkProgram(WebGLProgram*);
+    void linkProgram(WebGLProgram&);
     bool linkProgramWithoutInvalidatingAttribLocations(WebGLProgram*);
     virtual void pixelStorei(GCGLenum pname, GCGLint param);
 #if ENABLE(WEBXR)
@@ -246,11 +255,10 @@ public:
     // This must be virtual so more validation can be added in WebGL 2.0.
     virtual void readPixels(GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height, GCGLenum format, GCGLenum type, ArrayBufferView& pixels);
     void renderbufferStorage(GCGLenum target, GCGLenum internalformat, GCGLsizei width, GCGLsizei height);
-    void releaseShaderCompiler();
     virtual void renderbufferStorageImpl(GCGLenum target, GCGLsizei samples, GCGLenum internalformat, GCGLsizei width, GCGLsizei height, const char* functionName);
     void sampleCoverage(GCGLfloat value, GCGLboolean invert);
     void scissor(GCGLint x, GCGLint y, GCGLsizei width, GCGLsizei height);
-    void shaderSource(WebGLShader*, const String&);
+    void shaderSource(WebGLShader&, const String&);
     void stencilFunc(GCGLenum func, GCGLint ref, GCGLuint mask);
     void stencilFuncSeparate(GCGLenum face, GCGLenum func, GCGLint ref, GCGLuint mask);
     void stencilMask(GCGLuint);
@@ -335,7 +343,7 @@ public:
     void uniformMatrix4fv(const WebGLUniformLocation*, GCGLboolean transpose, Float32List&&);
 
     void useProgram(WebGLProgram*);
-    void validateProgram(WebGLProgram*);
+    void validateProgram(WebGLProgram&);
 
     void vertexAttrib1f(GCGLuint index, GCGLfloat x);
     void vertexAttrib2f(GCGLuint index, GCGLfloat x, GCGLfloat y);
@@ -397,6 +405,23 @@ public:
     void forceContextLost() override;
     void recycleContext() override;
     void dispatchContextChangedNotification() override;
+
+    virtual void addMembersToOpaqueRoots(JSC::SlotVisitor&);
+    // This lock must be held across all mutations of containers like
+    // Vectors, HashSets, etc. which contain RefPtr<WebGLObject>, and
+    // which are traversed by addMembersToOpaqueRoots() or any of the
+    // similarly-named methods in WebGLObject subclasses.
+    //
+    // FIXME: consider changing this mechanism to instead record when
+    // individual WebGLObjects are latched / unlatched in the
+    // context's state, either directly, or indirectly through
+    // container objects. If that were done, then the
+    // "GenerateIsReachable=Impl" in various WebGL objects' IDL files
+    // would need to be changed to instead query whether the object is
+    // currently latched into the context - without traversing all of
+    // the latched objects to find the current one, which would be
+    // prohibitively expensive.
+    Lock& objectGraphLock();
 
 protected:
     WebGLRenderingContextBase(CanvasBase&, WebGLContextAttributes);
@@ -490,11 +515,13 @@ protected:
     WebGLTexture::TextureExtensionFlag textureExtensionFlags() const;
 
     bool enableSupportedExtension(ASCIILiteral extensionNameLiteral);
+    void loseExtensions(LostContextMode);
 
-    virtual void uncacheDeletedBuffer(WebGLBuffer*);
+    virtual void uncacheDeletedBuffer(const WTF::AbstractLocker&, WebGLBuffer*);
 
     RefPtr<GraphicsContextGLOpenGL> m_context;
     RefPtr<WebGLContextGroup> m_contextGroup;
+    Lock m_objectGraphLock;
 
     bool m_restoreAllowed { false };
     SuspendableTimer m_restoreTimer;
@@ -509,10 +536,7 @@ protected:
     RefPtr<WebGLVertexArrayObjectBase> m_defaultVertexArrayObject;
     RefPtr<WebGLVertexArrayObjectBase> m_boundVertexArrayObject;
 
-    void setBoundVertexArrayObject(WebGLVertexArrayObjectBase* arrayObject)
-    {
-        m_boundVertexArrayObject = arrayObject ? arrayObject : m_defaultVertexArrayObject;
-    }
+    void setBoundVertexArrayObject(const WTF::AbstractLocker&, WebGLVertexArrayObjectBase*);
     
     class VertexAttribValue {
     public:
@@ -634,33 +658,33 @@ protected:
 
     // Enabled extension objects.
     // FIXME: Move some of these to WebGLRenderingContext, the ones not needed for WebGL2
-    std::unique_ptr<EXTFragDepth> m_extFragDepth;
-    std::unique_ptr<EXTBlendMinMax> m_extBlendMinMax;
-    std::unique_ptr<EXTsRGB> m_extsRGB;
-    std::unique_ptr<EXTTextureFilterAnisotropic> m_extTextureFilterAnisotropic;
-    std::unique_ptr<EXTShaderTextureLOD> m_extShaderTextureLOD;
-    std::unique_ptr<OESTextureFloat> m_oesTextureFloat;
-    std::unique_ptr<OESTextureFloatLinear> m_oesTextureFloatLinear;
-    std::unique_ptr<OESTextureHalfFloat> m_oesTextureHalfFloat;
-    std::unique_ptr<OESTextureHalfFloatLinear> m_oesTextureHalfFloatLinear;
-    std::unique_ptr<OESStandardDerivatives> m_oesStandardDerivatives;
-    std::unique_ptr<OESVertexArrayObject> m_oesVertexArrayObject;
-    std::unique_ptr<OESElementIndexUint> m_oesElementIndexUint;
-    std::unique_ptr<WebGLLoseContext> m_webglLoseContext;
-    std::unique_ptr<WebGLDebugRendererInfo> m_webglDebugRendererInfo;
-    std::unique_ptr<WebGLDebugShaders> m_webglDebugShaders;
-    std::unique_ptr<WebGLCompressedTextureASTC> m_webglCompressedTextureASTC;
-    std::unique_ptr<WebGLCompressedTextureATC> m_webglCompressedTextureATC;
-    std::unique_ptr<WebGLCompressedTextureETC> m_webglCompressedTextureETC;
-    std::unique_ptr<WebGLCompressedTextureETC1> m_webglCompressedTextureETC1;
-    std::unique_ptr<WebGLCompressedTexturePVRTC> m_webglCompressedTexturePVRTC;
-    std::unique_ptr<WebGLCompressedTextureS3TC> m_webglCompressedTextureS3TC;
-    std::unique_ptr<WebGLDepthTexture> m_webglDepthTexture;
-    std::unique_ptr<WebGLDrawBuffers> m_webglDrawBuffers;
-    std::unique_ptr<ANGLEInstancedArrays> m_angleInstancedArrays;
-    std::unique_ptr<EXTColorBufferHalfFloat> m_extColorBufferHalfFloat;
-    std::unique_ptr<WebGLColorBufferFloat> m_webglColorBufferFloat;
-    std::unique_ptr<EXTColorBufferFloat> m_extColorBufferFloat;
+    RefPtr<EXTFragDepth> m_extFragDepth;
+    RefPtr<EXTBlendMinMax> m_extBlendMinMax;
+    RefPtr<EXTsRGB> m_extsRGB;
+    RefPtr<EXTTextureFilterAnisotropic> m_extTextureFilterAnisotropic;
+    RefPtr<EXTShaderTextureLOD> m_extShaderTextureLOD;
+    RefPtr<OESTextureFloat> m_oesTextureFloat;
+    RefPtr<OESTextureFloatLinear> m_oesTextureFloatLinear;
+    RefPtr<OESTextureHalfFloat> m_oesTextureHalfFloat;
+    RefPtr<OESTextureHalfFloatLinear> m_oesTextureHalfFloatLinear;
+    RefPtr<OESStandardDerivatives> m_oesStandardDerivatives;
+    RefPtr<OESVertexArrayObject> m_oesVertexArrayObject;
+    RefPtr<OESElementIndexUint> m_oesElementIndexUint;
+    RefPtr<WebGLLoseContext> m_webglLoseContext;
+    RefPtr<WebGLDebugRendererInfo> m_webglDebugRendererInfo;
+    RefPtr<WebGLDebugShaders> m_webglDebugShaders;
+    RefPtr<WebGLCompressedTextureASTC> m_webglCompressedTextureASTC;
+    RefPtr<WebGLCompressedTextureATC> m_webglCompressedTextureATC;
+    RefPtr<WebGLCompressedTextureETC> m_webglCompressedTextureETC;
+    RefPtr<WebGLCompressedTextureETC1> m_webglCompressedTextureETC1;
+    RefPtr<WebGLCompressedTexturePVRTC> m_webglCompressedTexturePVRTC;
+    RefPtr<WebGLCompressedTextureS3TC> m_webglCompressedTextureS3TC;
+    RefPtr<WebGLDepthTexture> m_webglDepthTexture;
+    RefPtr<WebGLDrawBuffers> m_webglDrawBuffers;
+    RefPtr<ANGLEInstancedArrays> m_angleInstancedArrays;
+    RefPtr<EXTColorBufferHalfFloat> m_extColorBufferHalfFloat;
+    RefPtr<WebGLColorBufferFloat> m_webglColorBufferFloat;
+    RefPtr<EXTColorBufferFloat> m_extColorBufferFloat;
 
     bool m_areWebGL2TexImageSourceFormatsAndTypesAdded { false };
     bool m_areOESTextureFloatFormatsAndTypesAdded { false };
@@ -992,7 +1016,7 @@ protected:
 
     // Helper function for delete* (deleteBuffer, deleteProgram, etc) functions.
     // Return false if caller should return without further processing.
-    bool deleteObject(WebGLObject*);
+    bool deleteObject(const WTF::AbstractLocker&, WebGLObject*);
 
     // Helper function for bind* (bindBuffer, bindTexture, etc) and useProgram.
     // Return false if caller should return without further processing.
@@ -1006,7 +1030,7 @@ protected:
     // Return the current bound buffer to target, or 0 if the target is invalid.
     virtual WebGLBuffer* validateBufferDataTarget(const char* functionName, GCGLenum target);
 
-    virtual bool validateAndCacheBufferBinding(const char* functionName, GCGLenum target, WebGLBuffer*);
+    virtual bool validateAndCacheBufferBinding(const WTF::AbstractLocker&, const char* functionName, GCGLenum target, WebGLBuffer*);
 
 #if !USE(ANGLE)
     // Helpers for simulating vertexAttrib0.
@@ -1035,7 +1059,7 @@ protected:
     virtual GCGLint getMaxColorAttachments() = 0;
 
     void setBackDrawBuffer(GCGLenum);
-    void setFramebuffer(GCGLenum, WebGLFramebuffer*);
+    void setFramebuffer(const WTF::AbstractLocker&, GCGLenum, WebGLFramebuffer*);
 
     virtual void restoreCurrentFramebuffer();
     void restoreCurrentTexture2D();

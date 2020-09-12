@@ -74,11 +74,6 @@ void WebSocketTask::readNextMessage()
             didClose(WebCore::WebSocketChannel::CloseEventCodeAbnormalClosure, emptyString());
             return;
         }
-        if (!message) {
-            // FIXME: this is a workaround and we should probably never get there.
-            didClose(1000, "Unknown error");
-            return;
-        }
         if (message.type == NSURLSessionWebSocketMessageTypeString)
             m_channel.didReceiveText(message.string);
         else
@@ -100,9 +95,13 @@ void WebSocketTask::resume()
 
 void WebSocketTask::didConnect(const String& protocol)
 {
-    // FIXME: support extensions.
+    String extensionsValue;
+    auto response = [m_task response];
+    if ([response isKindOfClass:[NSHTTPURLResponse class]])
+        extensionsValue = [(NSHTTPURLResponse *)response valueForHTTPHeaderField:@"Sec-WebSocket-Extensions"];
+
     m_receivedDidConnect = true;
-    m_channel.didConnect(protocol, { });
+    m_channel.didConnect(protocol, extensionsValue);
     m_channel.didReceiveHandshakeResponse(ResourceResponse { [m_task response] });
 }
 
@@ -124,8 +123,7 @@ void WebSocketTask::sendString(const IPC::DataReference& utf8String, CompletionH
     }
     auto message = adoptNS([[NSURLSessionWebSocketMessage alloc] initWithString:text.get()]);
     [m_task sendMessage:message.get() completionHandler:makeBlockPtr([callback = WTFMove(callback)](NSError * _Nullable) mutable {
-        // Workaround rdar://problem/55324926 until it gets fixed.
-        callOnMainRunLoop(WTFMove(callback));
+        callback();
     }).get()];
 }
 
@@ -134,8 +132,7 @@ void WebSocketTask::sendData(const IPC::DataReference& data, CompletionHandler<v
     auto nsData = adoptNS([[NSData alloc] initWithBytes:data.data() length:data.size()]);
     auto message = adoptNS([[NSURLSessionWebSocketMessage alloc] initWithData:nsData.get()]);
     [m_task sendMessage:message.get() completionHandler:makeBlockPtr([callback = WTFMove(callback)](NSError * _Nullable) mutable {
-        // Workaround rdar://problem/55324926 until it gets fixed.
-        callOnMainRunLoop(WTFMove(callback));
+        callback();
     }).get()];
 }
 
@@ -144,7 +141,8 @@ void WebSocketTask::close(int32_t code, const String& reason)
     // FIXME: Should NSURLSession provide a way to call cancelWithCloseCode without any specific code.
     if (code == WebCore::WebSocketChannel::CloseEventCodeNotSpecified)
         code = 1005;
-    auto nsData = adoptNS([[NSData alloc] initWithBytes:reason.utf8().data() length:reason.sizeInBytes()]);
+    auto utf8 = reason.utf8();
+    auto nsData = adoptNS([[NSData alloc] initWithBytes:utf8.data() length:utf8.length()]);
     [m_task cancelWithCloseCode:(NSURLSessionWebSocketCloseCode)code reason:nsData.get()];
 }
 

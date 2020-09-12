@@ -470,6 +470,7 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/AudioProcessingEvent.idl
     Modules/webaudio/AudioProcessingEventInit.idl
     Modules/webaudio/AudioScheduledSourceNode.idl
+    Modules/webaudio/AudioTimestamp.idl
     Modules/webaudio/BaseAudioContext.idl
     Modules/webaudio/BiquadFilterNode.idl
     Modules/webaudio/BiquadFilterOptions.idl
@@ -480,6 +481,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/ChannelMergerOptions.idl
     Modules/webaudio/ChannelSplitterNode.idl
     Modules/webaudio/ChannelSplitterOptions.idl
+    Modules/webaudio/ConstantSourceNode.idl
+    Modules/webaudio/ConstantSourceOptions.idl
     Modules/webaudio/ConvolverNode.idl
     Modules/webaudio/ConvolverOptions.idl
     Modules/webaudio/DelayNode.idl
@@ -508,6 +511,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/PeriodicWave.idl
     Modules/webaudio/PeriodicWaveConstraints.idl
     Modules/webaudio/PeriodicWaveOptions.idl
+    Modules/webaudio/StereoPannerNode.idl
+    Modules/webaudio/StereoPannerOptions.idl
     Modules/webaudio/ScriptProcessorNode.idl
     Modules/webaudio/WaveShaperNode.idl
     Modules/webaudio/WaveShaperOptions.idl

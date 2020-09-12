@@ -1,6 +1,6 @@
 
 PASS # AUDIT TASK RUNNER STARTED. 
-FAIL Executing "from-dictionary" promise_test: Unhandled rejection with value: object "TypeError: undefined is not an object (evaluating 'context['create' + options.name].apply')"
+PASS Executing "from-dictionary" 
 PASS Executing "media-group" 
 PASS Executing "invalid-operation" 
 PASS Executing "verification" 
@@ -42,6 +42,13 @@ PASS   The return value of PannerNode.connect(ChannelMergerNode, 0, 1) matches t
 PASS   The return value of ScriptProcessorNode.connect(GainNode) matches the destination GainNode is equal to true. 
 PASS   The return value of ScriptProcessorNode.connect(BiquadFilterNode, 0) matches the destination BiquadFilterNode is equal to true. 
 PASS   The return value of ScriptProcessorNode.connect(ChannelMergerNode, 0, 1) matches the destination ChannelMergerNode is equal to true. 
+PASS   The return value of StereoPannerNode.connect(GainNode) matches the destination GainNode is equal to true. 
+PASS   The return value of StereoPannerNode.connect(BiquadFilterNode, 0) matches the destination BiquadFilterNode is equal to true. 
+PASS   The return value of StereoPannerNode.connect(ChannelMergerNode, 0, 1) matches the destination ChannelMergerNode is equal to true. 
+PASS   The return value of WaveShaperNode.connect(GainNode) matches the destination GainNode is equal to true. 
+PASS   The return value of WaveShaperNode.connect(BiquadFilterNode, 0) matches the destination BiquadFilterNode is equal to true. 
+PASS   The return value of WaveShaperNode.connect(ChannelMergerNode, 0, 1) matches the destination ChannelMergerNode is equal to true. 
+PASS < [from-dictionary] All assertions passed. (total 42 assertions) 
 PASS > [media-group]  
 PASS   The return value of MediaElementAudioSourceNode.connect(GainNode) matches the destination GainNode is equal to true. 
 PASS   The return value of MediaElementAudioSourceNode.connect(BiquadFilterNode, 0) matches the destination BiquadFilterNode is equal to true. 
@@ -55,13 +62,7 @@ PASS   Connecting with an invalid output threw IndexSizeError: "The index is not
 PASS   Connecting to a node from the different context threw SyntaxError: "The string did not match the expected pattern.". 
 PASS < [invalid-operation] All assertions passed. (total 2 assertions) 
 PASS > [verification]  
-FAIL X The output of chained connection of gain nodes: Expected 0.125 for all values but found 128 unexpected values: 
-	Index	Actual
-	[0]	0
-	[1]	0
-	[2]	0
-	[3]	0
-	...and 124 more errors. assert_true: expected true got false
-FAIL < [verification] 1 out of 1 assertions were failed. assert_true: expected true got false
-FAIL # AUDIT TASK RUNNER FINISHED: 1 out of 4 tasks were failed. assert_true: expected true got false
+PASS   The output of chained connection of gain nodes contains only the constant 0.125. 
+PASS < [verification] All assertions passed. (total 1 assertions) 
+PASS # AUDIT TASK RUNNER FINISHED: 4 tasks ran successfully. 
 
