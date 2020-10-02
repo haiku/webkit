@@ -47,8 +47,8 @@
 #include "ColorChooser.h"
 #endif
 
-#if USE(SOUP)
-#include "SoupNetworkSession.h"
+#if ENABLE(WEB_AUDIO)
+#include "AudioContext.h"
 #endif
 
 namespace WebCore {
@@ -110,14 +110,8 @@ InternalSettings::Backup::Backup(Settings& settings)
     , m_forcedPrefersReducedMotionAccessibilityValue(settings.forcedPrefersReducedMotionAccessibilityValue())
     , m_fontLoadTimingOverride(settings.fontLoadTimingOverride())
     , m_frameFlattening(settings.frameFlattening())
-#if ENABLE(INDEXED_DATABASE_IN_WORKERS)
-    , m_indexedDBWorkersEnabled(RuntimeEnabledFeatures::sharedFeatures().indexedDBWorkersEnabled())
-#endif
 #if ENABLE(WEBGL2)
     , m_webGL2Enabled(RuntimeEnabledFeatures::sharedFeatures().webGL2Enabled())
-#endif
-#if ENABLE(MEDIA_STREAM)
-    , m_setScreenCaptureEnabled(RuntimeEnabledFeatures::sharedFeatures().screenCaptureEnabled())
 #endif
     , m_fetchAPIKeepAliveAPIEnabled(RuntimeEnabledFeatures::sharedFeatures().fetchAPIKeepAliveEnabled())
     , m_shouldMockBoldSystemFontForAccessibility(RenderTheme::singleton().shouldMockBoldSystemFontForAccessibility())
@@ -175,6 +169,9 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     settings.setShouldDisplayCaptions(m_shouldDisplayCaptions);
     settings.setShouldDisplayTextDescriptions(m_shouldDisplayTextDescriptions);
 #endif
+#if ENABLE(WEB_AUDIO)
+    AudioContext::setDefaultSampleRateForTesting(WTF::nullopt);
+#endif
     settings.setDefaultVideoPosterURL(m_defaultVideoPosterURL);
     settings.setForcePendingWebGLPolicy(m_forcePendingWebGLPolicy);
     settings.setTimeWithoutMouseMovementBeforeHidingControls(m_originalTimeWithoutMouseMovementBeforeHidingControls);
@@ -214,14 +211,8 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
 #endif
     settings.setAnimatedImageDebugCanvasDrawingEnabled(m_animatedImageDebugCanvasDrawingEnabled);
 
-#if ENABLE(INDEXED_DATABASE_IN_WORKERS)
-    RuntimeEnabledFeatures::sharedFeatures().setIndexedDBWorkersEnabled(m_indexedDBWorkersEnabled);
-#endif
 #if ENABLE(WEBGL2)
     RuntimeEnabledFeatures::sharedFeatures().setWebGL2Enabled(m_webGL2Enabled);
-#endif
-#if ENABLE(MEDIA_STREAM)
-    RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(m_setScreenCaptureEnabled);
 #endif
     RuntimeEnabledFeatures::sharedFeatures().setFetchAPIKeepAliveEnabled(m_fetchAPIKeepAliveAPIEnabled);
     RuntimeEnabledFeatures::sharedFeatures().setCustomPasteboardDataEnabled(m_customPasteboardDataEnabled);
@@ -491,6 +482,15 @@ ExceptionOr<void> InternalSettings::setMediaCaptureRequiresSecureConnection(bool
     UNUSED_PARAM(requires);
 #endif
     return { };
+}
+
+void InternalSettings::setDefaultAudioContextSampleRate(float sampleRate)
+{
+#if ENABLE(WEB_AUDIO)
+    AudioContext::setDefaultSampleRateForTesting(sampleRate);
+#else
+    UNUSED_PARAM(sampleRate);
+#endif
 }
 
 ExceptionOr<void> InternalSettings::setEditingBehavior(const String& editingBehavior)
@@ -787,15 +787,6 @@ ExceptionOr<void> InternalSettings::setAnimatedImageDebugCanvasDrawingEnabled(bo
     return { };
 }
 
-void InternalSettings::setIndexedDBWorkersEnabled(bool enabled)
-{
-#if ENABLE(INDEXED_DATABASE_IN_WORKERS)
-    RuntimeEnabledFeatures::sharedFeatures().setIndexedDBWorkersEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
-}
-
 void InternalSettings::setWebGL2Enabled(bool enabled)
 {
 #if ENABLE(WEBGL2)
@@ -809,15 +800,6 @@ void InternalSettings::setWebGPUEnabled(bool enabled)
 {
 #if ENABLE(WEBGPU)
     RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
-}
-
-void InternalSettings::setScreenCaptureEnabled(bool enabled)
-{
-#if ENABLE(MEDIA_STREAM)
-    RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(enabled);
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -897,9 +879,6 @@ ExceptionOr<void> InternalSettings::setFrameFlattening(FrameFlatteningValue fram
 void InternalSettings::setAllowsAnySSLCertificate(bool allowsAnyCertificate)
 {
     DeprecatedGlobalSettings::setAllowsAnySSLCertificate(allowsAnyCertificate);
-#if USE(SOUP)
-    SoupNetworkSession::setShouldIgnoreTLSErrors(allowsAnyCertificate);
-#endif
 }
 
 ExceptionOr<bool> InternalSettings::deferredCSSParserEnabled()
@@ -1026,11 +1005,6 @@ InternalSettings::ForcedAccessibilityValue InternalSettings::forcedSupportsHighD
 void InternalSettings::setForcedSupportsHighDynamicRangeValue(InternalSettings::ForcedAccessibilityValue value)
 {
     settings().setForcedSupportsHighDynamicRangeValue(internalSettingsToSettingsValue(value));
-}
-
-bool InternalSettings::webAnimationsCSSIntegrationEnabled()
-{
-    return RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled();
 }
 
 void InternalSettings::setShouldDeactivateAudioSession(bool should)

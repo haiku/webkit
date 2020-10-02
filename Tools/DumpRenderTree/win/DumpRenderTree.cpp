@@ -488,6 +488,13 @@ static wstring dumpFramesAsText(IWebFrame* frame)
         }
     }
 
+    // To keep things tidy, strip all trailing spaces: they are not a meaningful part of dumpAsText test output.
+    std::wstring::size_type spacePosition;
+    while ((spacePosition = result.find(L" \n")) != std::wstring::npos)
+        result.erase(spacePosition, 1);
+    while (!result.empty() && result.back() == ' ')
+        result.pop_back();
+
     return result;
 }
 
@@ -796,7 +803,6 @@ static void enableExperimentalFeatures(IWebPreferences* preferences)
     prefsPrivate->setVisualViewportAPIEnabled(TRUE);
     prefsPrivate->setCSSOMViewScrollingAPIEnabled(TRUE);
     prefsPrivate->setResizeObserverEnabled(TRUE);
-    prefsPrivate->setWebAnimationsEnabled(TRUE);
     prefsPrivate->setWebAnimationsCompositeOperationsEnabled(TRUE);
     prefsPrivate->setWebAnimationsMutableTimelinesEnabled(TRUE);
     prefsPrivate->setCSSCustomPropertiesAndValuesEnabled(TRUE);
@@ -805,6 +811,7 @@ static void enableExperimentalFeatures(IWebPreferences* preferences)
     // FIXME: WebGL2
     // FIXME: WebRTC
     prefsPrivate->setCSSOMViewSmoothScrollingEnabled(TRUE);
+    prefsPrivate->setCSSIndividualTransformPropertiesEnabled(TRUE);
 }
 
 static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
@@ -897,11 +904,6 @@ static void resetWebPreferencesToConsistentValues(IWebPreferences* preferences)
 
     preferences->setFontSmoothing(FontSmoothingTypeStandard);
 
-    prefsPrivate->setFetchAPIEnabled(TRUE);
-    prefsPrivate->setShadowDOMEnabled(TRUE);
-    prefsPrivate->setCustomElementsEnabled(TRUE);
-    prefsPrivate->setResourceTimingEnabled(TRUE);
-    prefsPrivate->setUserTimingEnabled(TRUE);
     prefsPrivate->setDataTransferItemsEnabled(TRUE);
     prefsPrivate->clearNetworkLoaderSession();
 
@@ -912,11 +914,9 @@ static void setWebPreferencesForTestOptions(IWebPreferences* preferences, const 
 {
     COMPtr<IWebPreferencesPrivate8> prefsPrivate { Query, preferences };
 
-    prefsPrivate->setWebAnimationsCSSIntegrationEnabled(options.enableWebAnimationsCSSIntegration);
     prefsPrivate->setMenuItemElementEnabled(options.enableMenuItemElement);
     prefsPrivate->setKeygenElementEnabled(options.enableKeygenElement);
     prefsPrivate->setModernMediaControlsEnabled(options.enableModernMediaControls);
-    prefsPrivate->setIsSecureContextAttributeEnabled(options.enableIsSecureContextAttribute);
     prefsPrivate->setInspectorAdditionsEnabled(options.enableInspectorAdditions);
     prefsPrivate->setRequestIdleCallbackEnabled(options.enableRequestIdleCallback);
     prefsPrivate->setAsyncClipboardAPIEnabled(options.enableAsyncClipboardAPI);

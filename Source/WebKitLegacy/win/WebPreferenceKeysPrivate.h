@@ -188,13 +188,9 @@
 
 #define WebKitModernMediaControlsEnabledPreferenceKey "WebKitModernMediaControlsEnabled"
 
-#define WebKitWebAnimationsEnabledPreferenceKey "WebKitWebAnimationsEnabled"
-
 #define WebKitWebAnimationsCompositeOperationsEnabledPreferenceKey "WebKitWebAnimationsCompositeOperationsEnabled"
 
 #define WebKitWebAnimationsMutableTimelinesEnabledPreferenceKey "WebKitWebAnimationsMutableTimelinesEnabled"
-
-#define WebKitWebAnimationsCSSIntegrationEnabledPreferenceKey "WebKitWebAnimationsCSSIntegrationEnabled"
 
 #define WebKitCSSCustomPropertiesAndValuesEnabledPreferenceKey "WebKitCSSCustomPropertiesAndValuesEnabled"
 
@@ -231,3 +227,5 @@
 #define WebKitAspectRatioOfImgFromWidthAndHeightEnabledPreferenceKey "WebKitAspectRatioOfImgFromWidthAndHeightEnabled"
 
 #define WebKitWebSQLEnabledPreferenceKey "WebKitWebSQLEnabled"
+
+#define WebKitCSSIndividualTransformPropertiesEnabledPreferenceKey "WebKitCSSIndividualTransformPropertiesEnabled"

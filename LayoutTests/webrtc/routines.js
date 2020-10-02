@@ -114,7 +114,7 @@ function analyseAudio(stream, duration, context)
 
            var hasFrequency = expectedFrequency => {
                 var bin = Math.floor(expectedFrequency * analyser.fftSize / context.sampleRate);
-                return bin < freqDomain.length && freqDomain[bin] >= 150;
+                return bin < freqDomain.length && freqDomain[bin] >= 100;
            };
 
            if (!results.heardHum)
@@ -167,7 +167,7 @@ function waitForVideoSize(video, width, height, count)
 
 async function doHumAnalysis(stream, expected)
 {
-    var context = new webkitAudioContext();
+    var context = new AudioContext();
     for (var cptr = 0; cptr < 20; cptr++) {
         var results = await analyseAudio(stream, 200, context);
         if (results.heardHum === expected)

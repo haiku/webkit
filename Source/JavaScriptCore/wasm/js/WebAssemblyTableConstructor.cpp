@@ -42,12 +42,15 @@ namespace JSC {
 
 const ClassInfo WebAssemblyTableConstructor::s_info = { "Function", &Base::s_info, &constructorTableWebAssemblyTable, nullptr, CREATE_METHOD_TABLE(WebAssemblyTableConstructor) };
 
+static JSC_DECLARE_HOST_FUNCTION(callJSWebAssemblyTable);
+static JSC_DECLARE_HOST_FUNCTION(constructJSWebAssemblyTable);
+
 /* Source for WebAssemblyTableConstructor.lut.h
  @begin constructorTableWebAssemblyTable
  @end
  */
 
-static EncodedJSValue JSC_HOST_CALL constructJSWebAssemblyTable(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(constructJSWebAssemblyTable, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -106,7 +109,7 @@ static EncodedJSValue JSC_HOST_CALL constructJSWebAssemblyTable(JSGlobalObject* 
     RELEASE_AND_RETURN(throwScope, JSValue::encode(JSWebAssemblyTable::tryCreate(globalObject, vm, globalObject->webAssemblyTableStructure(), wasmTable.releaseNonNull())));
 }
 
-static EncodedJSValue JSC_HOST_CALL callJSWebAssemblyTable(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(callJSWebAssemblyTable, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -127,9 +130,8 @@ Structure* WebAssemblyTableConstructor::createStructure(VM& vm, JSGlobalObject* 
 
 void WebAssemblyTableConstructor::finishCreation(VM& vm, WebAssemblyTablePrototype* prototype)
 {
-    Base::finishCreation(vm, "Table"_s, NameAdditionMode::WithoutStructureTransition);
+    Base::finishCreation(vm, 1, "Table"_s, PropertyAdditionMode::WithoutStructureTransition);
     putDirectWithoutTransition(vm, vm.propertyNames->prototype, prototype, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
-    putDirectWithoutTransition(vm, vm.propertyNames->length, jsNumber(1), PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum);
 }
 
 WebAssemblyTableConstructor::WebAssemblyTableConstructor(VM& vm, Structure* structure)

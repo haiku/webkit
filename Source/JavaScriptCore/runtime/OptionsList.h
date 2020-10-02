@@ -240,7 +240,6 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Unsigned, frequentCallThreshold, 2, Normal, nullptr) \
     v(Double, minimumCallToKnownRate, 0.51, Normal, nullptr) \
     v(Bool, createPreHeaders, true, Normal, nullptr) \
-    v(Bool, useMovHintRemoval, true, Normal, nullptr) \
     v(Bool, usePutStackSinking, true, Normal, nullptr) \
     v(Bool, useObjectAllocationSinking, true, Normal, nullptr) \
     v(Bool, useValueRepElimination, true, Normal, nullptr) \
@@ -385,7 +384,8 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, validateExceptionChecks, false, Normal, "Verifies that needed exception checks are performed.") \
     v(Unsigned, unexpectedExceptionStackTraceLimit, 100, Normal, "Stack trace limit for debugging unexpected exceptions observed in the VM") \
     \
-    v(Bool, validateDFGClobberize, false, Normal, "Emits extra validation code in the DFG/FTL for the Clobberize phase")\
+    v(Bool, validateDFGClobberize, false, Normal, "Emits code in the DFG/FTL to validate the Clobberize phase")\
+    v(Bool, validateBoundsCheckElimination, false, Normal, "Emits code in the DFG/FTL to validate bounds check elimination")\
     \
     v(Bool, useExecutableAllocationFuzz, false, Normal, nullptr) \
     v(Unsigned, fireExecutableAllocationFuzzAt, 0, Normal, nullptr) \
@@ -396,6 +396,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Unsigned, fireOSRExitFuzzAtStatic, 0, Normal, nullptr) \
     v(Unsigned, fireOSRExitFuzzAt, 0, Normal, nullptr) \
     v(Unsigned, fireOSRExitFuzzAtOrAfter, 0, Normal, nullptr) \
+    v(Bool, verboseOSRExitFuzz, true, Normal, nullptr) \
     \
     v(Unsigned, seedOfVMRandomForFuzzer, 0, Normal, "0 means not fuzzing this; use a cryptographically random seed") \
     v(Bool, useRandomizingFuzzerAgent, false, Normal, nullptr) \
@@ -489,8 +490,7 @@ constexpr bool enableWebAssemblyStreamingApi = false;
     v(Bool, useWebAssemblyMultiValues, true, Normal, "Allow types from the wasm mulit-values spec.") \
     /* FIXME: We should make sure finalizers don't run for detached windows before enabling WeakRefs by default. https://bugs.webkit.org/show_bug.cgi?id=214508 */ \
     v(Bool, useWeakRefs, false, Normal, "Expose the WeakRef constructor.") \
-    v(Bool, useBigInt, true, Normal, "If true, we will enable BigInt support.") \
-    v(Bool, useIntlSegmenter, false, Normal, "Expose the Intl.Segmenter constructor.") \
+    v(Bool, useIntlDateTimeFormatDayPeriod, true, Normal, "Expose the Intl.DateTimeFormat dayPeriod feature.") \
     v(Bool, useArrayAllocationProfiling, true, Normal, "If true, we will use our normal array allocation profiling. If false, the allocation profile will always claim to be undecided.") \
     v(Bool, forcePolyProto, false, Normal, "If true, create_this will always create an object with a poly proto structure.") \
     v(Bool, forceMiniVMMode, false, Normal, "If true, it will force mini VM mode on.") \
@@ -560,7 +560,8 @@ enum OptionEquivalence {
     v(maximumFunctionForClosureCallInlineCandidateInstructionCount, maximumFunctionForClosureCallInlineCandidateBytecodeCost, SameOption) \
     v(maximumFunctionForConstructInlineCandidateInstructionCount, maximumFunctionForConstructInlineCandidateBytecoodeCost, SameOption) \
     v(maximumFTLCandidateInstructionCount, maximumFTLCandidateBytecodeCost, SameOption) \
-    v(maximumInliningCallerSize, maximumInliningCallerBytecodeCost, SameOption)
+    v(maximumInliningCallerSize, maximumInliningCallerBytecodeCost, SameOption) \
+    v(validateBCE, validateBoundsCheckElimination, SameOption)
 
 enum ExperimentalOptionFlags {
     LLIntAndBaselineOnly = 0,

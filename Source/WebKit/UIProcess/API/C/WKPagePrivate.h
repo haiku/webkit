@@ -201,6 +201,10 @@ typedef void (*WKPageLoadedSubresourceDomainsFunction)(WKArrayRef domains, void*
 WK_EXPORT void WKPageLoadedSubresourceDomains(WKPageRef page, WKPageLoadedSubresourceDomainsFunction callback, void* callbackContext);
 WK_EXPORT void WKPageClearLoadedSubresourceDomains(WKPageRef page);
 
+WK_EXPORT void WKPageSetMediaCaptureReportingDelayForTesting(WKPageRef page, double delay);
+
+WK_EXPORT void WKPageDispatchActivityStateUpdateForTesting(WKPageRef page);
+
 #ifdef __cplusplus
 }
 #endif

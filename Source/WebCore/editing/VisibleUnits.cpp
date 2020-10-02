@@ -90,7 +90,7 @@ static Position previousRootInlineBoxCandidatePosition(Node* node, const Visible
             break;
 
         Position pos = previousNode->hasTagName(brTag) ? positionBeforeNode(previousNode) :
-            createLegacyEditingPosition(previousNode, caretMaxOffset(*previousNode));
+            makeDeprecatedLegacyPosition(previousNode, caretMaxOffset(*previousNode));
         
         if (pos.isCandidate())
             return pos;
@@ -112,7 +112,7 @@ static Position nextRootInlineBoxCandidatePosition(Node* node, const VisiblePosi
             break;
 
         Position pos;
-        pos = createLegacyEditingPosition(nextNode, caretMinOffset(*nextNode));
+        pos = makeDeprecatedLegacyPosition(nextNode, caretMinOffset(*nextNode));
         
         if (pos.isCandidate())
             return pos;
@@ -228,7 +228,7 @@ static const InlineBox* logicallyPreviousBox(const VisiblePosition& visiblePosit
         if (position.isNull())
             break;
 
-        RenderedPosition renderedPosition(position, DOWNSTREAM);
+        RenderedPosition renderedPosition(position, Affinity::Downstream);
         RootInlineBox* previousRoot = renderedPosition.rootBox();
         if (!previousRoot)
             break;
@@ -269,7 +269,7 @@ static const InlineBox* logicallyNextBox(const VisiblePosition& visiblePosition,
         if (position.isNull())
             break;
 
-        RenderedPosition renderedPosition(position, DOWNSTREAM);
+        RenderedPosition renderedPosition(position, Affinity::Downstream);
         RootInlineBox* nextRoot = renderedPosition.rootBox();
         if (!nextRoot)
             break;
@@ -375,9 +375,8 @@ static VisiblePosition visualWordPosition(const VisiblePosition& visiblePosition
         if (previousPosition && adjacentCharacterPosition == previousPosition.value())
             return VisiblePosition();
     
-        InlineBox* box;
-        int offsetInBox;
-        adjacentCharacterPosition.deepEquivalent().getInlineBoxAndOffset(UPSTREAM, box, offsetInBox);
+        // FIXME: Why force the use of upstream affinity here instead of VisiblePosition::inlineBoxAndOffset, which will get affinity from adjacentCharacterPosition?
+        auto [box, offsetInBox] = adjacentCharacterPosition.deepEquivalent().inlineBoxAndOffset(Affinity::Upstream);
     
         if (!box)
             break;
@@ -610,12 +609,12 @@ static VisiblePosition previousBoundary(const VisiblePosition& position, Boundar
     unsigned next = backwardSearchForBoundaryWithTextIterator(it, string, suffixLength, searchFunction);
 
     if (!next)
-        return it.atEnd() ? createLegacyEditingPosition(searchRange->start) : position;
+        return it.atEnd() ? makeDeprecatedLegacyPosition(searchRange->start) : position;
 
     auto& node = (it.atEnd() ? *searchRange : it.range()).start.container.get();
     if ((!suffixLength && is<Text>(node) && next <= downcast<Text>(node).length()) || (node.renderer() && node.renderer()->isBR() && !next)) {
         // The next variable contains a usable index into a text node.
-        return createLegacyEditingPosition(&node, next);
+        return makeDeprecatedLegacyPosition(&node, next);
     }
 
     // Use the character iterator to translate the next value into a DOM position.
@@ -623,7 +622,7 @@ static VisiblePosition previousBoundary(const VisiblePosition& position, Boundar
     if (next < string.size() - suffixLength)
         charIt.advance(string.size() - suffixLength - next);
     // FIXME: charIt can get out of shadow host.
-    return createLegacyEditingPosition(charIt.range().end);
+    return makeDeprecatedLegacyPosition(charIt.range().end);
 }
 
 static VisiblePosition nextBoundary(const VisiblePosition& c, BoundarySearchFunction searchFunction)
@@ -653,24 +652,24 @@ static VisiblePosition nextBoundary(const VisiblePosition& c, BoundarySearchFunc
     unsigned next = forwardSearchForBoundaryWithTextIterator(it, string, prefixLength, searchFunction);
     
     if (it.atEnd() && next == string.size())
-        pos = createLegacyEditingPosition(searchRange->end);
+        pos = makeDeprecatedLegacyPosition(searchRange->end);
     else if (next > prefixLength) {
         // Use the character iterator to translate the next value into a DOM position.
         CharacterIterator charIt(*searchRange, TextIteratorEmitsCharactersBetweenAllVisiblePositions);
         charIt.advance(next - prefixLength - 1);
         auto characterRange = charIt.range();
-        pos = createLegacyEditingPosition(characterRange.end);
+        pos = makeDeprecatedLegacyPosition(characterRange.end);
         
         if (charIt.text()[0] == '\n') {
             // FIXME: workaround for collapsed range (where only start position is correct) emitted for some emitted newlines (see rdar://5192593)
-            if (VisiblePosition(pos) == VisiblePosition(createLegacyEditingPosition(characterRange.start))) {
+            if (VisiblePosition(pos) == VisiblePosition(makeDeprecatedLegacyPosition(characterRange.start))) {
                 charIt.advance(1);
-                pos = createLegacyEditingPosition(charIt.range().start);
+                pos = makeDeprecatedLegacyPosition(charIt.range().start);
             }
         }
     }
 
-    return VisiblePosition(pos, VP_UPSTREAM_IF_POSSIBLE);
+    return VisiblePosition(pos, Affinity::Upstream);
 }
 
 // ---------
@@ -897,7 +896,7 @@ static VisiblePosition endPositionForLine(const VisiblePosition& c, LineEndpoint
     } else
         pos = positionAfterNode(endNode);
     
-    return VisiblePosition(pos, VP_UPSTREAM_IF_POSSIBLE);
+    return VisiblePosition(pos, Affinity::Upstream);
 }
 
 static bool inSameLogicalLine(const VisiblePosition& a, const VisiblePosition& b)
@@ -975,7 +974,7 @@ bool isEndOfLine(const VisiblePosition& p)
     return p.isNotNull() && p == endOfLine(p);
 }
 
-bool isLogicalEndOfLine(const VisiblePosition &p)
+bool isLogicalEndOfLine(const VisiblePosition& p)
 {
     return p.isNotNull() && p == logicalEndOfLine(p);
 }
@@ -1013,10 +1012,7 @@ VisiblePosition previousLinePosition(const VisiblePosition& visiblePosition, int
         return VisiblePosition();
 
     RootInlineBox* root = nullptr;
-    InlineBox* box;
-    int ignoredCaretOffset;
-    visiblePosition.getInlineBoxAndOffset(box, ignoredCaretOffset);
-    if (box) {
+    if (auto box = visiblePosition.inlineBoxAndOffset().box) {
         root = box->root().prevRootBox();
         // We want to skip zero height boxes.
         // This could happen in case it is a TrailingFloatsRootInlineBox.
@@ -1050,28 +1046,23 @@ VisiblePosition previousLinePosition(const VisiblePosition& visiblePosition, int
     Element* rootElement = rootEditableOrDocumentElement(*node, editableType);
     if (!rootElement)
         return VisiblePosition();
-    return VisiblePosition(firstPositionInNode(rootElement), DOWNSTREAM);
+    return firstPositionInNode(rootElement);
 }
 
 VisiblePosition nextLinePosition(const VisiblePosition& visiblePosition, int lineDirectionPoint, EditableType editableType)
 {
     Position p = visiblePosition.deepEquivalent();
     Node* node = p.deprecatedNode();
-
     if (!node)
         return VisiblePosition();
     
     node->document().updateLayoutIgnorePendingStylesheets();
 
-    RenderObject* renderer = node->renderer();
-    if (!renderer)
+    if (!node->renderer())
         return VisiblePosition();
 
     RootInlineBox* root = nullptr;
-    InlineBox* box;
-    int ignoredCaretOffset;
-    visiblePosition.getInlineBoxAndOffset(box, ignoredCaretOffset);
-    if (box) {
+    if (auto box = visiblePosition.inlineBoxAndOffset().box) {
         root = box->root().nextRootBox();
         // We want to skip zero height boxes.
         // This could happen in case it is a TrailingFloatsRootInlineBox.
@@ -1108,7 +1099,7 @@ VisiblePosition nextLinePosition(const VisiblePosition& visiblePosition, int lin
     Element* rootElement = rootEditableOrDocumentElement(*node, editableType);
     if (!rootElement)
         return VisiblePosition();
-    return VisiblePosition(lastPositionInNode(rootElement), DOWNSTREAM);
+    return lastPositionInNode(rootElement);
 }
 
 // ---------
@@ -1301,14 +1292,14 @@ VisiblePosition startOfParagraph(const VisiblePosition& c, EditingBoundaryCrossi
     auto* node = findStartOfParagraph(startNode, highestRoot, startBlock, offset, type, boundaryCrossingRule);
     
     if (is<Text>(node))
-        return VisiblePosition(Position(downcast<Text>(node), offset), DOWNSTREAM);
+        return Position(downcast<Text>(node), offset);
     
     if (type == Position::PositionIsOffsetInAnchor) {
         ASSERT(type == Position::PositionIsOffsetInAnchor || !offset);
-        return VisiblePosition(Position(node, offset, type), DOWNSTREAM);
+        return Position(node, offset, type);
     }
     
-    return VisiblePosition(Position(node, type), DOWNSTREAM);
+    return Position(node, type);
 }
 
 VisiblePosition endOfParagraph(const VisiblePosition& c, EditingBoundaryCrossingRule boundaryCrossingRule)
@@ -1332,12 +1323,12 @@ VisiblePosition endOfParagraph(const VisiblePosition& c, EditingBoundaryCrossing
     auto* node = findEndOfParagraph(startNode, highestRoot, stayInsideBlock, offset, type, boundaryCrossingRule);
     
     if (is<Text>(node))
-        return VisiblePosition(Position(downcast<Text>(node), offset), DOWNSTREAM);
+        return Position(downcast<Text>(node), offset);
     
     if (type == Position::PositionIsOffsetInAnchor)
-        return VisiblePosition(Position(node, offset, type), DOWNSTREAM);
+        return Position(node, offset, type);
 
-    return VisiblePosition(Position(node, type), DOWNSTREAM);
+    return Position(node, type);
 }
 
 // FIXME: isStartOfParagraph(startOfNextParagraph(pos)) is not always true
@@ -1441,7 +1432,7 @@ VisiblePosition startOfDocument(const Node* node)
     // The canonicalization of the position at (documentElement, 0) can turn the visible
     // position to null, even when there's a valid candidate to be had, because the root HTML element
     // is not content editable.  So we construct directly from the valid candidate.
-    Position firstCandidate = nextCandidate(createLegacyEditingPosition(node->document().documentElement(), 0));
+    Position firstCandidate = nextCandidate(makeDeprecatedLegacyPosition(node->document().documentElement(), 0));
     if (firstCandidate.isNull())
         return VisiblePosition();
     return VisiblePosition(firstCandidate);
@@ -1460,7 +1451,7 @@ VisiblePosition endOfDocument(const Node* node)
     // (As above, in startOfDocument.)  The canonicalization can reject valid visible positions
     // when descending from the root element, so we construct the visible position directly from a
     // valid candidate.
-    Position lastPosition = createLegacyEditingPosition(node->document().documentElement(), node->document().documentElement()->countChildNodes());
+    Position lastPosition = makeDeprecatedLegacyPosition(node->document().documentElement(), node->document().documentElement()->countChildNodes());
     Position lastCandidate = previousCandidate(lastPosition);
     if (lastCandidate.isNull())
         return VisiblePosition();
@@ -1569,9 +1560,8 @@ bool atBoundaryOfGranularity(const VisiblePosition& vp, TextGranularity granular
         break;
 
     case TextGranularity::LineGranularity:
-        // Affinity has to be set to get right boundary of the line.
         boundary = vp;
-        boundary.setAffinity(useDownstream ? VP_UPSTREAM_IF_POSSIBLE : DOWNSTREAM);
+        boundary.setAffinity(useDownstream ? Affinity::Upstream : Affinity::Downstream);
         boundary = useDownstream ? endOfLine(boundary) : startOfLine(boundary);
         break;
 
@@ -1624,7 +1614,7 @@ bool withinTextUnitOfGranularity(const VisiblePosition& vp, TextGranularity gran
 
         if (prevBoundary == nextBoundary) {
             nextBoundary = nextLinePosition(nextBoundary, 0);
-            nextBoundary.setAffinity(UPSTREAM);
+            nextBoundary.setAffinity(Affinity::Upstream);
             if (!inSameLine(prevBoundary, nextBoundary))
                 nextBoundary = vp.next();
         }
@@ -1762,10 +1752,10 @@ static VisiblePosition nextLineBoundaryInDirection(const VisiblePosition& vp, Se
     VisiblePosition result = vp;
 
     if (useDownstream) {
-        result.setAffinity(DOWNSTREAM);
+        result.setAffinity(Affinity::Downstream);
         result = isEndOfLine(result) ? startOfLine(nextLinePosition(result, result.lineDirectionPointForBlockDirectionNavigation())) : endOfLine(result);
     } else {
-        result.setAffinity(VP_UPSTREAM_IF_POSSIBLE);
+        result.setAffinity(Affinity::Upstream);
         result = isStartOfLine(result) ? endOfLine(previousLinePosition(result, result.lineDirectionPointForBlockDirectionNavigation())) : startOfLine(result);
     }
 
@@ -1846,7 +1836,7 @@ Optional<SimpleRange> enclosingTextUnitOfGranularity(const VisiblePosition& vp, 
 
             if (prevBoundary == nextBoundary) {
                 nextBoundary = nextLinePosition(nextBoundary, 0);
-                nextBoundary.setAffinity(UPSTREAM);
+                nextBoundary.setAffinity(Affinity::Upstream);
                 if (!inSameLine(prevBoundary, nextBoundary))
                     nextBoundary = vp.next();
             }
@@ -1947,9 +1937,9 @@ VisiblePosition closestWordBoundaryForPosition(const VisiblePosition& position)
     } else if (withinTextUnitOfGranularity(position, TextGranularity::WordGranularity, SelectionDirection::Forward)) {
         // The position lies within a word.
         if (auto wordRange = enclosingTextUnitOfGranularity(position, TextGranularity::WordGranularity, SelectionDirection::Forward)) {
-            result = createLegacyEditingPosition(wordRange->start);
+            result = makeDeprecatedLegacyPosition(wordRange->start);
             if (distanceBetweenPositions(position, result) > 1)
-                result = createLegacyEditingPosition(wordRange->end);
+                result = makeDeprecatedLegacyPosition(wordRange->end);
         }
     } else if (atBoundaryOfGranularity(position, TextGranularity::WordGranularity, SelectionDirection::Backward)) {
         // The position is at the end of a word.
@@ -2004,9 +1994,9 @@ std::pair<VisiblePosition, WithinWordBoundary> wordBoundaryForPositionWithoutCro
     if (withinTextUnitOfGranularity(position, TextGranularity::WordGranularity, SelectionDirection::Forward)) {
         auto adjustedPosition = position;
         if (auto wordRange = enclosingTextUnitOfGranularity(position, TextGranularity::WordGranularity, SelectionDirection::Forward)) {
-            adjustedPosition = createLegacyEditingPosition(wordRange->start);
+            adjustedPosition = makeDeprecatedLegacyPosition(wordRange->start);
             if (distanceBetweenPositions(position, adjustedPosition) > 1)
-                adjustedPosition = createLegacyEditingPosition(wordRange->end);
+                adjustedPosition = makeDeprecatedLegacyPosition(wordRange->end);
         }
         return { adjustedPosition, WithinWordBoundary::Yes };
     }

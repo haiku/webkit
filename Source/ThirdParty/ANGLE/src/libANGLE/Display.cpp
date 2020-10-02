@@ -28,6 +28,7 @@
 #include "common/system_utils.h"
 #include "common/tls.h"
 #include "common/utilities.h"
+#include "gpu_info_util/SystemInfo.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Device.h"
 #include "libANGLE/EGLSync.h"
@@ -53,6 +54,9 @@
 #        include "libANGLE/renderer/gl/wgl/DisplayWGL.h"
 #    elif defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
 #        include "libANGLE/renderer/gl/cgl/DisplayCGL.h"
+#        if defined(ANGLE_PLATFORM_MACCATALYST) && defined(ANGLE_CPU_ARM64)
+#            include "libANGLE/renderer/gl/eagl/DisplayEAGL.h"
+#        endif
 #    elif defined(ANGLE_PLATFORM_IOS)
 #        include "libANGLE/renderer/gl/eagl/DisplayEAGL.h"
 #    elif defined(ANGLE_PLATFORM_LINUX)
@@ -260,8 +264,36 @@ rx::DisplayImpl *CreateDisplayFromAttribs(EGLAttrib displayType,
 #if defined(ANGLE_ENABLE_OPENGL)
 #    if defined(ANGLE_PLATFORM_WINDOWS)
             impl = new rx::DisplayWGL(state);
-#    elif defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
+            break;
+
+#    elif defined(ANGLE_PLATFORM_MACOS)
             impl = new rx::DisplayCGL(state);
+            break;
+#    elif defined(ANGLE_PLATFORM_MACCATALYST)
+#        if defined(ANGLE_CPU_ARM64)
+            {
+                angle::SystemInfo info;
+                if (!angle::GetSystemInfo(&info))
+                {
+                    impl = nullptr;
+                    break;
+                }
+
+                if (info.isiOSAppOnMac)
+                {
+                    impl = new rx::DisplayEAGL(state);
+                    break;
+                }
+                else
+                {
+                    impl = new rx::DisplayCGL(state);
+                    break;
+                }
+            }
+#        else
+            impl = new rx::DisplayCGL(state);
+            break;
+#        endif
 #    elif defined(ANGLE_PLATFORM_IOS)
             impl = new rx::DisplayEAGL(state);
 #    elif defined(ANGLE_PLATFORM_LINUX)
@@ -923,6 +955,16 @@ Error Display::terminate(const Thread *thread)
     return NoError();
 }
 
+Error Display::prepareForCall()
+{
+    return mImplementation->prepareForCall();
+}
+
+Error Display::releaseThread()
+{
+    return mImplementation->releaseThread();
+}
+
 std::vector<const Config *> Display::getConfigs(const egl::AttributeMap &attribs) const
 {
     return mConfigSet.filter(attribs);
@@ -1510,6 +1552,14 @@ static ClientExtensions GenerateClientExtensions()
 
 #if defined(ANGLE_PLATFORM_LINUX)
     extensions.platformANGLEDeviceTypeEGLANGLE = true;
+#endif
+
+#if (defined(ANGLE_PLATFORM_IOS) && !defined(ANGLE_PLATFORM_MACCATALYST)) || (defined(ANGLE_PLATFORM_MACCATALYST) && defined(ANGLE_CPU_ARM64))
+    extensions.platformANGLEDeviceContextVolatileEagl = true;
+#endif
+
+#if defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
+    extensions.platformANGLEDeviceContextVolatileCgl = true;
 #endif
 
     extensions.clientGetAllProcAddresses = true;

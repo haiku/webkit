@@ -44,6 +44,8 @@ namespace WebCore {
 class CARingBuffer;
 class ImageTransferSessionVT;
 class RemoteVideoSample;
+class WebAudioBufferList;
+struct MediaRecorderPrivateOptions;
 }
 
 namespace WebKit {
@@ -54,9 +56,10 @@ class SharedRingBufferStorage;
 class RemoteMediaRecorder : private IPC::MessageReceiver {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    static std::unique_ptr<RemoteMediaRecorder> create(GPUConnectionToWebProcess&, MediaRecorderIdentifier, bool recordAudio, bool recordVideo);
+    static std::unique_ptr<RemoteMediaRecorder> create(GPUConnectionToWebProcess&, MediaRecorderIdentifier, bool recordAudio, bool recordVideo, const WebCore::MediaRecorderPrivateOptions&);
     ~RemoteMediaRecorder();
 
+    String mimeType() const { return m_writer->mimeType(); }
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
 
 private:
@@ -66,7 +69,7 @@ private:
     void audioSamplesStorageChanged(const SharedMemory::IPCHandle&, const WebCore::CAAudioStreamDescription&, uint64_t numberOfFrames);
     void audioSamplesAvailable(MediaTime, uint64_t numberOfFrames, uint64_t startFrame, uint64_t endFrame);
     void videoSampleAvailable(WebCore::RemoteVideoSample&&);
-    void fetchData(CompletionHandler<void(IPC::DataReference&&, const String& mimeType)>&&);
+    void fetchData(CompletionHandler<void(IPC::DataReference&&)>&&);
     void stopRecording();
 
     SharedRingBufferStorage& storage();
@@ -77,6 +80,7 @@ private:
 
     WebCore::CAAudioStreamDescription m_description;
     std::unique_ptr<WebCore::CARingBuffer> m_ringBuffer;
+    std::unique_ptr<WebCore::WebAudioBufferList> m_audioBufferList;
     std::unique_ptr<WebCore::ImageTransferSessionVT> m_imageTransferSession;
 };
 

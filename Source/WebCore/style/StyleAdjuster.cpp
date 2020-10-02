@@ -30,7 +30,6 @@
 #include "config.h"
 #include "StyleAdjuster.h"
 
-#include "AnimationBase.h"
 #include "CSSFontSelector.h"
 #include "DOMWindow.h"
 #include "Element.h"
@@ -51,12 +50,12 @@
 #include "RenderStyle.h"
 #include "RenderTheme.h"
 #include "RuntimeEnabledFeatures.h"
-#include "SVGDocument.h"
 #include "SVGElement.h"
 #include "SVGNames.h"
 #include "SVGURIReference.h"
 #include "Settings.h"
 #include "Text.h"
+#include "WebAnimationTypes.h"
 
 namespace WebCore {
 namespace Style {
@@ -205,7 +204,7 @@ void Adjuster::adjustEventListenerRegionTypesForRootStyle(RenderStyle& rootStyle
 
 OptionSet<EventListenerRegionType> Adjuster::computeEventListenerRegionTypes(const EventTarget& eventTarget, OptionSet<EventListenerRegionType> parentTypes)
 {
-#if !PLATFORM(IOS_FAMILY)
+#if ENABLE(WHEEL_EVENT_REGIONS)
     if (!eventTarget.hasEventListeners())
         return parentTypes;
 
@@ -328,10 +327,10 @@ void Adjuster::adjust(RenderStyle& style, const RenderStyle* userAgentAppearance
             style.setWritingMode(m_parentStyle.writingMode());
 
         // FIXME: Since we don't support block-flow on flexible boxes yet, disallow setting
-        // of block-flow to anything other than TopToBottomWritingMode.
+        // of block-flow to anything other than WritingMode::TopToBottom.
         // https://bugs.webkit.org/show_bug.cgi?id=46418 - Flexible box support.
-        if (style.writingMode() != TopToBottomWritingMode && (style.display() == DisplayType::Box || style.display() == DisplayType::InlineBox))
-            style.setWritingMode(TopToBottomWritingMode);
+        if (style.writingMode() != WritingMode::TopToBottom && (style.display() == DisplayType::Box || style.display() == DisplayType::InlineBox))
+            style.setWritingMode(WritingMode::TopToBottom);
 
         // https://www.w3.org/TR/css-display/#transformations
         // "A parent with a grid or flex display value blockifies the box’s display type."
@@ -490,7 +489,7 @@ void Adjuster::adjust(RenderStyle& style, const RenderStyle* userAgentAppearance
         style.setEventListenerRegionTypes(computeEventListenerRegionTypes(*m_element, m_parentStyle.eventListenerRegionTypes()));
 
 #if ENABLE(TEXT_AUTOSIZING)
-    if (m_element)
+    if (m_element && m_document.settings().textAutosizingUsesIdempotentMode())
         adjustForTextAutosizing(style, *m_element);
 #endif
 

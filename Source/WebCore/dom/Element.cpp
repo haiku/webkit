@@ -29,7 +29,6 @@
 #include "AXObjectCache.h"
 #include "Attr.h"
 #include "AttributeChangeInvalidation.h"
-#include "CSSAnimationController.h"
 #include "CSSParser.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
@@ -105,7 +104,7 @@
 #include "SVGSVGElement.h"
 #include "ScriptDisallowedScope.h"
 #include "ScrollIntoViewOptions.h"
-#include "ScrollLatchingState.h"
+#include "ScrollLatchingController.h"
 #include "SelectorQuery.h"
 #include "Settings.h"
 #include "SimulatedClick.h"
@@ -119,6 +118,7 @@
 #include "TouchAction.h"
 #include "VoidCallback.h"
 #include "WebAnimation.h"
+#include "WebAnimationTypes.h"
 #include "WheelEvent.h"
 #include "XLinkNames.h"
 #include "XMLNSNames.h"
@@ -241,22 +241,47 @@ inline ElementRareData& Element::ensureElementRareData()
     return static_cast<ElementRareData&>(ensureRareData());
 }
 
-void Element::clearTabIndexExplicitlyIfNeeded()
+inline void Node::setTabIndexState(TabIndexState state)
 {
-    if (hasRareData())
-        elementRareData()->clearTabIndexExplicitly();
+    auto bitfields = rareDataBitfields();
+    bitfields.tabIndexState = static_cast<uint16_t>(state);
+    setRareDataBitfields(bitfields);
 }
 
-void Element::setTabIndexExplicitly(int tabIndex)
+void Element::setTabIndexExplicitly(Optional<int> tabIndex)
 {
-    ensureElementRareData().setTabIndexExplicitly(tabIndex);
+    if (!tabIndex) {
+        setTabIndexState(TabIndexState::NotSet);
+        return;
+    }
+    setTabIndexState([this, value = tabIndex.value()]() {
+        switch (value) {
+        case 0:
+            return TabIndexState::Zero;
+        case -1:
+            return TabIndexState::NegativeOne;
+        default:
+            ensureElementRareData().setUnusualTabIndex(value);
+            return TabIndexState::InRareData;
+        }
+    }());
 }
 
 Optional<int> Element::tabIndexSetExplicitly() const
 {
-    if (!hasRareData())
+    switch (tabIndexState()) {
+    case TabIndexState::NotSet:
         return WTF::nullopt;
-    return elementRareData()->tabIndex();
+    case TabIndexState::Zero:
+        return 0;
+    case TabIndexState::NegativeOne:
+        return -1;
+    case TabIndexState::InRareData:
+        ASSERT(hasRareData());
+        return elementRareData()->unusualTabIndex();
+    }
+    ASSERT_NOT_REACHED();
+    return WTF::nullopt;
 }
 
 int Element::defaultTabIndex() const
@@ -716,7 +741,7 @@ void Element::setHasFocusWithin(bool flag)
         return;
     {
         Style::PseudoClassChangeInvalidation styleInvalidation(*this, CSSSelector::PseudoClassFocusWithin);
-        setFlag(flag, HasFocusWithin);
+        setNodeFlag(NodeFlag::HasFocusWithin, flag);
     }
 }
 
@@ -747,12 +772,12 @@ inline ScrollAlignment toScrollAlignmentForInlineDirection(Optional<ScrollLogica
     switch (position.valueOr(ScrollLogicalPosition::Nearest)) {
     case ScrollLogicalPosition::Start: {
         switch (writingMode) {
-        case TopToBottomWritingMode:
-        case BottomToTopWritingMode: {
+        case WritingMode::TopToBottom:
+        case WritingMode::BottomToTop: {
             return isLTR ? ScrollAlignment::alignLeftAlways : ScrollAlignment::alignRightAlways;
         }
-        case LeftToRightWritingMode:
-        case RightToLeftWritingMode: {
+        case WritingMode::LeftToRight:
+        case WritingMode::RightToLeft: {
             return isLTR ? ScrollAlignment::alignTopAlways : ScrollAlignment::alignBottomAlways;
         }
         default:
@@ -764,12 +789,12 @@ inline ScrollAlignment toScrollAlignmentForInlineDirection(Optional<ScrollLogica
         return ScrollAlignment::alignCenterAlways;
     case ScrollLogicalPosition::End: {
         switch (writingMode) {
-        case TopToBottomWritingMode:
-        case BottomToTopWritingMode: {
+        case WritingMode::TopToBottom:
+        case WritingMode::BottomToTop: {
             return isLTR ? ScrollAlignment::alignRightAlways : ScrollAlignment::alignLeftAlways;
         }
-        case LeftToRightWritingMode:
-        case RightToLeftWritingMode: {
+        case WritingMode::LeftToRight:
+        case WritingMode::RightToLeft: {
             return isLTR ? ScrollAlignment::alignBottomAlways : ScrollAlignment::alignTopAlways;
         }
         default:
@@ -790,13 +815,13 @@ inline ScrollAlignment toScrollAlignmentForBlockDirection(Optional<ScrollLogical
     switch (position.valueOr(ScrollLogicalPosition::Start)) {
     case ScrollLogicalPosition::Start: {
         switch (writingMode) {
-        case TopToBottomWritingMode:
+        case WritingMode::TopToBottom:
             return ScrollAlignment::alignTopAlways;
-        case BottomToTopWritingMode:
+        case WritingMode::BottomToTop:
             return ScrollAlignment::alignBottomAlways;
-        case LeftToRightWritingMode:
+        case WritingMode::LeftToRight:
             return ScrollAlignment::alignLeftAlways;
-        case RightToLeftWritingMode:
+        case WritingMode::RightToLeft:
             return ScrollAlignment::alignRightAlways;
         default:
             ASSERT_NOT_REACHED();
@@ -807,13 +832,13 @@ inline ScrollAlignment toScrollAlignmentForBlockDirection(Optional<ScrollLogical
         return ScrollAlignment::alignCenterAlways;
     case ScrollLogicalPosition::End: {
         switch (writingMode) {
-        case TopToBottomWritingMode:
+        case WritingMode::TopToBottom:
             return ScrollAlignment::alignBottomAlways;
-        case BottomToTopWritingMode:
+        case WritingMode::BottomToTop:
             return ScrollAlignment::alignTopAlways;
-        case LeftToRightWritingMode:
+        case WritingMode::LeftToRight:
             return ScrollAlignment::alignRightAlways;
-        case RightToLeftWritingMode:
+        case WritingMode::RightToLeft:
             return ScrollAlignment::alignLeftAlways;
         default:
             ASSERT_NOT_REACHED();
@@ -1709,6 +1734,8 @@ void Element::setSynchronizedLazyAttribute(const QualifiedName& name, const Atom
 
 inline void Element::setAttributeInternal(unsigned index, const QualifiedName& name, const AtomString& newValue, SynchronizationOfLazyAttribute inSynchronizationOfLazyAttribute)
 {
+    ASSERT_WITH_MESSAGE(refCount() || parentNode(), "Attribute must not be set on an element before adoptRef");
+
     if (newValue.isNull()) {
         if (index != ElementData::attributeNotFound)
             removeAttributeInternal(index, inSynchronizationOfLazyAttribute);
@@ -1854,9 +1881,6 @@ void Element::classAttributeChanged(const AtomString& newClassString)
 
 void Element::partAttributeChanged(const AtomString& newValue)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().cssShadowPartsEnabled())
-        return;
-
     bool hasParts = isNonEmptyTokenList(newValue);
     if (hasParts || !partNames().isEmpty()) {
         auto newParts = hasParts ? SpaceSplitString(newValue, false) : SpaceSplitString();
@@ -1944,6 +1968,10 @@ void Element::invalidateStyle()
 {
     Node::invalidateStyle(Style::Validity::ElementInvalid);
     invalidateSiblingsIfNeeded(*this);
+
+    // FIXME: This flag should be set whenever styles are invalidated while computed styles are present,
+    // not just in this codepath.
+    setNodeFlag(NodeFlag::IsComputedStyleInvalidFlag);
 }
 
 void Element::invalidateStyleAndLayerComposition()
@@ -1994,6 +2022,7 @@ void Element::storeDisplayContentsStyle(std::unique_ptr<RenderStyle> style)
     ASSERT(style && style->display() == DisplayType::Contents);
     ASSERT(!renderer() || isPseudoElement());
     ensureElementRareData().setComputedStyle(WTFMove(style));
+    clearNodeFlag(NodeFlag::IsComputedStyleInvalidFlag);
 }
 
 // Returns true is the given attribute is an event handler.
@@ -2173,7 +2202,7 @@ Node::InsertedIntoAncestorResult Element::insertedIntoAncestor(InsertionType ins
     if (becomeConnected) {
         if (UNLIKELY(isCustomElementUpgradeCandidate())) {
             ASSERT(isConnected());
-            CustomElementReactionQueue::enqueueElementUpgradeIfDefined(*this);
+            CustomElementReactionQueue::tryToUpgradeElement(*this);
         }
         if (UNLIKELY(isDefinedCustomElement()))
             CustomElementReactionQueue::enqueueConnectedCallbackIfNeeded(*this);
@@ -2254,19 +2283,18 @@ void Element::removedFromAncestor(RemovalType removalType, ContainerNode& oldPar
 
     RefPtr<Frame> frame = document().frame();
     if (auto* timeline = document().existingTimeline())
-        timeline->elementWasRemoved(*this);
+        timeline->elementWasRemoved({ *this, pseudoId() });
 
-    if (frame)
-        frame->legacyAnimation().cancelAnimations(*this);
-
-#if PLATFORM(MAC)
-    if (frame && frame->page())
-        frame->page()->removeLatchingStateForTarget(*this);
+#if ENABLE(WHEEL_EVENT_LATCHING)
+    if (frame && frame->page()) {
+        if (auto* scrollLatchingController = frame->page()->scrollLatchingControllerIfExists())
+            scrollLatchingController->removeLatchingStateForTarget(*this);
+    }
 #endif
 
-    if (hasRareData() && elementRareData()->hasElementIdentifier()) {
+    if (hasNodeFlag(NodeFlag::HasElementIdentifier)) {
         document().identifiedElementWasRemovedFromDocument(*this);
-        elementRareData()->setHasElementIdentifier(false);
+        clearNodeFlag(NodeFlag::HasElementIdentifier);
     }
 }
 
@@ -2402,10 +2430,16 @@ ShadowRoot& Element::ensureUserAgentShadowRoot()
     return shadow;
 }
 
+inline void Node::setCustomElementState(CustomElementState state)
+{
+    auto bitfields = rareDataBitfields();
+    bitfields.customElementState = static_cast<uint16_t>(state);
+    setRareDataBitfields(bitfields);
+}
+
 void Element::setIsDefinedCustomElement(JSCustomElementInterface& elementInterface)
 {
-    clearFlag(IsEditingTextOrUndefinedCustomElementFlag);
-    setFlag(IsCustomElement);
+    setCustomElementState(CustomElementState::Custom);
     auto& data = ensureElementRareData();
     if (!data.customElementReactionQueue())
         data.setCustomElementReactionQueue(makeUnique<CustomElementReactionQueue>(elementInterface));
@@ -2413,35 +2447,41 @@ void Element::setIsDefinedCustomElement(JSCustomElementInterface& elementInterfa
     InspectorInstrumentation::didChangeCustomElementState(*this);
 }
 
-void Element::setIsFailedCustomElement(JSCustomElementInterface&)
+void Element::setIsFailedCustomElement()
+{
+    setIsFailedCustomElementWithoutClearingReactionQueue();
+    clearReactionQueueFromFailedCustomElement();
+}
+
+void Element::setIsFailedCustomElementWithoutClearingReactionQueue()
 {
     ASSERT(isUndefinedCustomElement());
-    ASSERT(getFlag(IsEditingTextOrUndefinedCustomElementFlag));
-    clearFlag(IsCustomElement);
+    ASSERT(customElementState() == CustomElementState::Undefined);
+    setCustomElementState(CustomElementState::Failed);
+    InspectorInstrumentation::didChangeCustomElementState(*this);
+}
 
+void Element::clearReactionQueueFromFailedCustomElement()
+{
+    ASSERT(isFailedCustomElement());
     if (hasRareData()) {
         // Clear the queue instead of deleting it since this function can be called inside CustomElementReactionQueue::invokeAll during upgrades.
         if (auto* queue = elementRareData()->customElementReactionQueue())
             queue->clear();
     }
-    InspectorInstrumentation::didChangeCustomElementState(*this);
 }
 
 void Element::setIsCustomElementUpgradeCandidate()
 {
-    ASSERT(!getFlag(IsCustomElement));
-    setFlag(IsCustomElement);
-    setFlag(IsEditingTextOrUndefinedCustomElementFlag);
+    ASSERT(customElementState() == CustomElementState::Uncustomized);
+    setCustomElementState(CustomElementState::Undefined);
     InspectorInstrumentation::didChangeCustomElementState(*this);
 }
 
 void Element::enqueueToUpgrade(JSCustomElementInterface& elementInterface)
 {
+    ASSERT(isCustomElementUpgradeCandidate());
     ASSERT(!isDefinedCustomElement() && !isFailedCustomElement());
-    setFlag(IsCustomElement);
-    setFlag(IsEditingTextOrUndefinedCustomElementFlag);
-    InspectorInstrumentation::didChangeCustomElementState(*this);
-
     auto& data = ensureElementRareData();
     bool alreadyScheduledToUpgrade = data.customElementReactionQueue();
     if (!alreadyScheduledToUpgrade)
@@ -2451,7 +2491,14 @@ void Element::enqueueToUpgrade(JSCustomElementInterface& elementInterface)
 
 CustomElementReactionQueue* Element::reactionQueue() const
 {
-    ASSERT(isDefinedCustomElement() || isCustomElementUpgradeCandidate());
+#if ASSERT_ENABLED
+    if (isFailedCustomElement()) {
+        auto* queue = elementRareData()->customElementReactionQueue();
+        ASSERT(queue);
+        ASSERT(queue->isEmpty() || queue->hasJustUpgradeReaction());
+    } else
+        ASSERT(isDefinedCustomElement() || isCustomElementUpgradeCandidate());
+#endif
     if (!hasRareData())
         return nullptr;
     return elementRareData()->customElementReactionQueue();
@@ -2670,36 +2717,6 @@ String Element::debugDescription() const
 
     return builder.toString();
 }
-
-#if ENABLE(TREE_DEBUGGING)
-
-void Element::formatForDebugger(char* buffer, unsigned length) const
-{
-    StringBuilder result;
-    String s;
-
-    result.append(nodeName());
-
-    s = getIdAttribute();
-    if (s.length() > 0) {
-        if (result.length() > 0)
-            result.appendLiteral("; ");
-        result.appendLiteral("id=");
-        result.append(s);
-    }
-
-    s = getAttribute(classAttr);
-    if (s.length() > 0) {
-        if (result.length() > 0)
-            result.appendLiteral("; ");
-        result.appendLiteral("class=");
-        result.append(s);
-    }
-
-    strncpy(buffer, result.toString().utf8().data(), length - 1);
-}
-
-#endif
 
 const Vector<RefPtr<Attr>>& Element::attrNodeList()
 {
@@ -3077,7 +3094,7 @@ void Element::updateFocusAppearance(SelectionRestorationMode, SelectionRevealMod
             return;
 
         // FIXME: We should restore the previous selection if there is one.
-        VisibleSelection newSelection = VisibleSelection(firstPositionInOrBeforeNode(this), DOWNSTREAM);
+        VisibleSelection newSelection = VisibleSelection(firstPositionInOrBeforeNode(this));
         
         if (frame->selection().shouldChangeSelection(newSelection)) {
             frame->selection().setSelection(newSelection, FrameSelection::defaultSetSelectionOptions(), Element::defaultFocusTextStateChangeIntent());
@@ -3317,7 +3334,7 @@ const RenderStyle* Element::renderOrDisplayContentsStyle() const
 const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
 {
     ASSERT(isConnected());
-    ASSERT(!existingComputedStyle());
+    ASSERT(!existingComputedStyle() || hasNodeFlag(NodeFlag::IsComputedStyleInvalidFlag));
 
     Deque<RefPtr<Element>, 32> elementsRequiringComputedStyle({ this });
     const RenderStyle* computedStyle = nullptr;
@@ -3337,6 +3354,7 @@ const RenderStyle* Element::resolveComputedStyle(ResolveComputedStyleMode mode)
         computedStyle = style.get();
         ElementRareData& rareData = element->ensureElementRareData();
         rareData.setComputedStyle(WTFMove(style));
+        element->clearNodeFlag(NodeFlag::IsComputedStyleInvalidFlag);
 
         if (mode == ResolveComputedStyleMode::RenderedOnly && computedStyle->display() == DisplayType::None)
             return nullptr;
@@ -3365,11 +3383,13 @@ bool Element::isVisibleWithoutResolvingFullStyle() const
     if (renderStyle() || hasValidStyle())
         return renderStyle() && renderStyle()->visibility() == Visibility::Visible;
 
-    // Compute style in yet unstyled subtree.
-    auto* style = existingComputedStyle();
-    if (!style)
-        style = const_cast<Element&>(*this).resolveComputedStyle(ResolveComputedStyleMode::RenderedOnly);
+    auto computedStyleForElement = [](Element& element) -> const RenderStyle* {
+        auto* style = element.hasNodeFlag(NodeFlag::IsComputedStyleInvalidFlag) ? nullptr : element.existingComputedStyle();
+        return style ? style : element.resolveComputedStyle(ResolveComputedStyleMode::RenderedOnly);
+    };
 
+    // Compute style in yet unstyled subtree.
+    auto* style = computedStyleForElement(const_cast<Element&>(*this));
     if (!style)
         return false;
 
@@ -3380,9 +3400,7 @@ bool Element::isVisibleWithoutResolvingFullStyle() const
         return false;
 
     for (auto& element : composedTreeAncestors(const_cast<Element&>(*this))) {
-        auto* style = element.existingComputedStyle();
-        if (!style)
-            style = element.resolveComputedStyle(ResolveComputedStyleMode::RenderedOnly);
+        auto* style = computedStyleForElement(element);
         if (!style || style->display() == DisplayType::None)
             return false;
     }
@@ -3700,14 +3718,12 @@ void Element::webkitRequestFullscreen()
     document().fullscreenManager().requestFullscreenForElement(this, FullscreenManager::EnforceIFrameAllowFullscreenRequirement);
 }
 
-bool Element::containsFullScreenElement() const
-{
-    return hasRareData() && elementRareData()->containsFullScreenElement();
-}
-
 void Element::setContainsFullScreenElement(bool flag)
 {
-    ensureElementRareData().setContainsFullScreenElement(flag);
+    if (flag)
+        setNodeFlag(NodeFlag::ContainsFullScreenElement);
+    else
+        clearNodeFlag(NodeFlag::ContainsFullScreenElement);
     invalidateStyleAndLayerComposition();
 }
 
@@ -3787,42 +3803,42 @@ IntersectionObserverData* Element::intersectionObserverDataIfExists()
 
 #endif
 
-ElementAnimationRareData* Element::animationRareData() const
+ElementAnimationRareData* Element::animationRareData(PseudoId pseudoId) const
 {
-    return hasRareData() ? elementRareData()->elementAnimationRareData() : nullptr;
+    return hasRareData() ? elementRareData()->animationRareData(pseudoId) : nullptr;
 }
 
-ElementAnimationRareData& Element::ensureAnimationRareData()
+ElementAnimationRareData& Element::ensureAnimationRareData(PseudoId pseudoId)
 {
-    return ensureElementRareData().ensureAnimationRareData();
+    return ensureElementRareData().ensureAnimationRareData(pseudoId);
 }
 
-KeyframeEffectStack* Element::keyframeEffectStack() const
+KeyframeEffectStack* Element::keyframeEffectStack(PseudoId pseudoId) const
 {
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         return animationData->keyframeEffectStack();
     return nullptr;
 }
 
-KeyframeEffectStack& Element::ensureKeyframeEffectStack()
+KeyframeEffectStack& Element::ensureKeyframeEffectStack(PseudoId pseudoId)
 {
-    return ensureAnimationRareData().ensureKeyframeEffectStack();
+    return ensureAnimationRareData(pseudoId).ensureKeyframeEffectStack();
 }
 
-bool Element::hasKeyframeEffects() const
+bool Element::hasKeyframeEffects(PseudoId pseudoId) const
 {
-    if (auto* animationData = animationRareData()) {
+    if (auto* animationData = animationRareData(pseudoId)) {
         if (auto* keyframeEffectStack = animationData->keyframeEffectStack())
             return keyframeEffectStack->hasEffects();
     }
     return false;
 }
 
-OptionSet<AnimationImpact> Element::applyKeyframeEffects(RenderStyle& targetStyle)
+OptionSet<AnimationImpact> Element::applyKeyframeEffects(PseudoId pseudoId, RenderStyle& targetStyle)
 {
     OptionSet<AnimationImpact> impact;
 
-    for (const auto& effect : ensureKeyframeEffectStack().sortedEffects()) {
+    for (const auto& effect : ensureKeyframeEffectStack(pseudoId).sortedEffects()) {
         ASSERT(effect->animation());
         effect->animation()->resolve(targetStyle);
 
@@ -3836,96 +3852,72 @@ OptionSet<AnimationImpact> Element::applyKeyframeEffects(RenderStyle& targetStyl
     return impact;
 }
 
-const AnimationCollection* Element::webAnimations() const
+const AnimationCollection* Element::animations(PseudoId pseudoId) const
 {
-    if (auto* animationData = animationRareData())
-        return &animationData->webAnimations();
+    if (auto* animationData = animationRareData(pseudoId))
+        return &animationData->animations();
     return nullptr;
 }
 
-const AnimationCollection* Element::cssAnimations() const
+bool Element::hasCompletedTransitionsForProperty(PseudoId pseudoId, CSSPropertyID property) const
 {
-    if (auto* animationData = animationRareData())
-        return &animationData->cssAnimations();
-    return nullptr;
-}
-
-const AnimationCollection* Element::transitions() const
-{
-    if (auto* animationData = animationRareData())
-        return &animationData->transitions();
-    return nullptr;
-}
-
-bool Element::hasCompletedTransitionsForProperty(CSSPropertyID property) const
-{
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         return animationData->completedTransitionsByProperty().contains(property);
     return false;
 }
 
-bool Element::hasRunningTransitionsForProperty(CSSPropertyID property) const
+bool Element::hasRunningTransitionsForProperty(PseudoId pseudoId, CSSPropertyID property) const
 {
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         return animationData->runningTransitionsByProperty().contains(property);
     return false;
 }
 
-bool Element::hasRunningTransitions() const
+bool Element::hasRunningTransitions(PseudoId pseudoId) const
 {
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         return !animationData->runningTransitionsByProperty().isEmpty();
     return false;
 }
 
-AnimationCollection& Element::ensureWebAnimations()
+AnimationCollection& Element::ensureAnimations(PseudoId pseudoId)
 {
-    return ensureAnimationRareData().webAnimations();
+    return ensureAnimationRareData(pseudoId).animations();
 }
 
-AnimationCollection& Element::ensureCSSAnimations()
+CSSAnimationCollection& Element::animationsCreatedByMarkup(PseudoId pseudoId)
 {
-    return ensureAnimationRareData().cssAnimations();
+    return ensureAnimationRareData(pseudoId).animationsCreatedByMarkup();
 }
 
-AnimationCollection& Element::ensureTransitions()
+void Element::setAnimationsCreatedByMarkup(PseudoId pseudoId, CSSAnimationCollection&& animations)
 {
-    return ensureAnimationRareData().transitions();
+    ensureAnimationRareData(pseudoId).setAnimationsCreatedByMarkup(WTFMove(animations));
 }
 
-CSSAnimationCollection& Element::animationsCreatedByMarkup()
+PropertyToTransitionMap& Element::ensureCompletedTransitionsByProperty(PseudoId pseudoId)
 {
-    return ensureAnimationRareData().animationsCreatedByMarkup();
+    return ensureAnimationRareData(pseudoId).completedTransitionsByProperty();
 }
 
-void Element::setAnimationsCreatedByMarkup(CSSAnimationCollection&& animations)
+PropertyToTransitionMap& Element::ensureRunningTransitionsByProperty(PseudoId pseudoId)
 {
-    ensureAnimationRareData().setAnimationsCreatedByMarkup(WTFMove(animations));
+    return ensureAnimationRareData(pseudoId).runningTransitionsByProperty();
 }
 
-PropertyToTransitionMap& Element::ensureCompletedTransitionsByProperty()
+const RenderStyle* Element::lastStyleChangeEventStyle(PseudoId pseudoId) const
 {
-    return ensureAnimationRareData().completedTransitionsByProperty();
-}
-
-PropertyToTransitionMap& Element::ensureRunningTransitionsByProperty()
-{
-    return ensureAnimationRareData().runningTransitionsByProperty();
-}
-
-const RenderStyle* Element::lastStyleChangeEventStyle() const
-{
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         return animationData->lastStyleChangeEventStyle();
     return nullptr;
 }
 
-void Element::setLastStyleChangeEventStyle(std::unique_ptr<const RenderStyle>&& style)
+void Element::setLastStyleChangeEventStyle(PseudoId pseudoId, std::unique_ptr<const RenderStyle>&& style)
 {
-    if (auto* animationData = animationRareData())
+    if (auto* animationData = animationRareData(pseudoId))
         animationData->setLastStyleChangeEventStyle(WTFMove(style));
     else if (style)
-        ensureAnimationRareData().setLastStyleChangeEventStyle(WTFMove(style));
+        ensureAnimationRareData(pseudoId).setLastStyleChangeEventStyle(WTFMove(style));
 }
 
 #if ENABLE(RESIZE_OBSERVER)
@@ -4233,7 +4225,9 @@ void Element::resetComputedStyle()
 void Element::resetStyleRelations()
 {
     // FIXME: Make this code more consistent.
-    clearStyleFlags();
+    auto bitfields = styleBitfields();
+    bitfields.clearDynamicStyleRelations();
+    setStyleBitfields(bitfields);
     if (!hasRareData())
         return;
     elementRareData()->resetStyleRelations();
@@ -4346,40 +4340,6 @@ void Element::createUniqueElementData()
         m_elementData = UniqueElementData::create();
     else
         m_elementData = downcast<ShareableElementData>(*m_elementData).makeUniqueCopy();
-}
-
-bool Element::hasPendingResources() const
-{
-    return hasRareData() && elementRareData()->hasPendingResources();
-}
-
-void Element::setHasPendingResources()
-{
-    ensureElementRareData().setHasPendingResources(true);
-}
-
-void Element::clearHasPendingResources()
-{
-    if (!hasRareData())
-        return;
-    elementRareData()->setHasPendingResources(false);
-}
-
-bool Element::hasCSSAnimation() const
-{
-    return hasRareData() && elementRareData()->hasCSSAnimation();
-}
-
-void Element::setHasCSSAnimation()
-{
-    ensureElementRareData().setHasCSSAnimation(true);
-}
-
-void Element::clearHasCSSAnimation()
-{
-    if (!hasRareData())
-        return;
-    elementRareData()->setHasCSSAnimation(false);
 }
 
 bool Element::canContainRangeEndPoint() const
@@ -4582,10 +4542,10 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(Optional<GetAnimationsOption
     document().updateStyleIfNeeded();
 
     Vector<RefPtr<WebAnimation>> animations;
-    if (auto timeline = document().existingTimeline()) {
-        for (auto& animation : timeline->animationsForElement(*this, AnimationTimeline::Ordering::Sorted)) {
-            if (animation->isRelevant())
-                animations.append(animation);
+    if (auto* effectStack = keyframeEffectStack(PseudoId::None)) {
+        for (auto& effect : effectStack->sortedEffects()) {
+            if (effect->animation()->isRelevant())
+                animations.append(effect->animation());
         }
     }
     return animations;
@@ -4593,10 +4553,8 @@ Vector<RefPtr<WebAnimation>> Element::getAnimations(Optional<GetAnimationsOption
 
 ElementIdentifier Element::createElementIdentifier()
 {
-    auto& rareData = ensureElementRareData();
-    ASSERT(!rareData.hasElementIdentifier());
-
-    rareData.setHasElementIdentifier(true);
+    ASSERT(!hasNodeFlag(NodeFlag::HasElementIdentifier));
+    setNodeFlag(NodeFlag::HasElementIdentifier);
     return ElementIdentifier::generate();
 }
 

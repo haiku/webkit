@@ -32,6 +32,7 @@
 #if ENABLE(INPUT_TYPE_MONTH)
 #include "MonthInputType.h"
 
+#include "DateComponents.h"
 #include "Decimal.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
@@ -55,9 +56,9 @@ const AtomString& MonthInputType::formControlType() const
     return InputTypeNames::month();
 }
 
-DateComponents::Type MonthInputType::dateType() const
+DateComponentsType MonthInputType::dateType() const
 {
-    return DateComponents::Month;
+    return DateComponentsType::Month;
 }
 
 double MonthInputType::valueAsDate() const
@@ -130,6 +131,20 @@ bool MonthInputType::isMonthField() const
 }
 
 void MonthInputType::handleDOMActivateEvent(Event&)
+{
+}
+
+bool MonthInputType::isValidFormat(OptionSet<DateTimeFormatValidationResults> results) const
+{
+    return results.containsAll({ DateTimeFormatValidationResults::HasYear, DateTimeFormatValidationResults::HasMonth });
+}
+
+String MonthInputType::formatDateTimeFieldsState(const DateTimeFieldsState&) const
+{
+    return emptyString();
+}
+
+void MonthInputType::setupLayoutParameters(DateTimeEditElement::LayoutParameters&, const DateComponents&) const
 {
 }
 

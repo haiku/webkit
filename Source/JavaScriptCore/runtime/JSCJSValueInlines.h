@@ -920,9 +920,25 @@ inline bool JSValue::isCallable(VM& vm) const
     return isCell() && asCell()->isCallable(vm);
 }
 
+template<Concurrency concurrency>
+inline TriState JSValue::isCallableWithConcurrency(VM& vm) const
+{
+    if (!isCell())
+        return TriState::False;
+    return asCell()->isCallableWithConcurrency<concurrency>(vm);
+}
+
 inline bool JSValue::isConstructor(VM& vm) const
 {
     return isCell() && asCell()->isConstructor(vm);
+}
+
+template<Concurrency concurrency>
+inline TriState JSValue::isConstructorWithConcurrency(VM& vm) const
+{
+    if (!isCell())
+        return TriState::False;
+    return asCell()->isConstructorWithConcurrency<concurrency>(vm);
 }
 
 // this method is here to be after the inline declaration of JSCell::inherits
@@ -1089,18 +1105,11 @@ ALWAYS_INLINE JSValue JSValue::getPrototype(JSGlobalObject* globalObject) const
     return synthesizePrototype(globalObject);
 }
 
-inline Structure* JSValue::structureOrNull() const
+inline Structure* JSValue::structureOrNull(VM& vm) const
 {
     if (isCell())
-        return asCell()->structure();
+        return asCell()->structure(vm);
     return nullptr;
-}
-
-inline JSValue JSValue::structureOrUndefined() const
-{
-    if (isCell())
-        return JSValue(asCell()->structure());
-    return jsUndefined();
 }
 
 // ECMA 11.9.3

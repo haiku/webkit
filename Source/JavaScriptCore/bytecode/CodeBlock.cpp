@@ -542,6 +542,7 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
         LINK(OpInByVal)
         LINK(OpPutByVal)
         LINK(OpPutByValDirect)
+        LINK(OpPutPrivateName)
 
         LINK(OpNewArray)
         LINK(OpNewArrayWithSize)
@@ -772,7 +773,7 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
         }
 
         case op_loop_hint: {
-            if (Options::returnEarlyFromInfiniteLoopsForFuzzing())
+            if (UNLIKELY(Options::returnEarlyFromInfiniteLoopsForFuzzing()))
                 vm.addLoopHintExecutionCounter(instruction.ptr());
             break;
         }
@@ -825,7 +826,7 @@ CodeBlock::~CodeBlock()
     // So, we can access member UnlinkedCodeBlock safely here. We bypass the assertion by using unvalidatedGet.
     UnlinkedCodeBlock* unlinkedCodeBlock = m_unlinkedCode.unvalidatedGet();
 
-    if (Options::returnEarlyFromInfiniteLoopsForFuzzing() && JITCode::isBaselineCode(jitType())) {
+    if (UNLIKELY(Options::returnEarlyFromInfiniteLoopsForFuzzing() && JITCode::isBaselineCode(jitType()))) {
         for (const auto& instruction : unlinkedCodeBlock->instructions()) {
             if (instruction->is<OpLoopHint>())
                 vm.removeLoopHintExecutionCounter(instruction.ptr());
@@ -1136,6 +1137,25 @@ void CodeBlock::propagateTransitions(const ConcurrentJSLocker&, SlotVisitor& vis
                 if (vm.heap.isMarked(oldStructure))
                     visitor.appendUnbarriered(newStructure);
             });
+
+            m_metadata->forEach<OpPutPrivateName>([&] (auto& metadata) {
+                StructureID oldStructureID = metadata.m_oldStructureID;
+                StructureID newStructureID = metadata.m_newStructureID;
+                if (!oldStructureID || !newStructureID)
+                    return;
+
+                JSCell* property = metadata.m_property.get();
+                ASSERT(property);
+                if (!vm.heap.isMarked(property))
+                    return;
+
+                Structure* oldStructure =
+                    vm.heap.structureIDTable().get(oldStructureID);
+                Structure* newStructure =
+                    vm.heap.structureIDTable().get(newStructureID);
+                if (vm.heap.isMarked(oldStructure))
+                    visitor.appendUnbarriered(newStructure);
+            });
         }
     }
 
@@ -1300,6 +1320,22 @@ void CodeBlock::finalizeLLIntInlineCaches()
             metadata.m_offset = 0;
             metadata.m_newStructureID = 0;
             metadata.m_structureChain.clear();
+        });
+
+        m_metadata->forEach<OpPutPrivateName>([&] (auto& metadata) {
+            StructureID oldStructureID = metadata.m_oldStructureID;
+            StructureID newStructureID = metadata.m_newStructureID;
+            JSCell* property = metadata.m_property.get();
+            if ((!oldStructureID || vm.heap.isMarked(vm.heap.structureIDTable().get(oldStructureID)))
+                && (!property || vm.heap.isMarked(property))
+                && (!newStructureID || vm.heap.isMarked(vm.heap.structureIDTable().get(newStructureID))))
+                return;
+
+            dataLogLnIf(Options::verboseOSR(), "Clearing LLInt put_private_name transition.");
+            metadata.m_oldStructureID = 0;
+            metadata.m_offset = 0;
+            metadata.m_newStructureID = 0;
+            metadata.m_property.clear();
         });
 
         m_metadata->forEach<OpToThis>([&] (auto& metadata) {
@@ -1582,10 +1618,10 @@ void CodeBlock::getICStatusMap(ICStatusMap& result)
 }
 
 #if ENABLE(JIT)
-StructureStubInfo* CodeBlock::addStubInfo(AccessType accessType)
+StructureStubInfo* CodeBlock::addStubInfo(AccessType accessType, CodeOrigin codeOrigin)
 {
     ConcurrentJSLocker locker(m_lock);
-    return ensureJITData(locker).m_stubInfos.add(accessType);
+    return ensureJITData(locker).m_stubInfos.add(accessType, codeOrigin);
 }
 
 JITAddIC* CodeBlock::addJITAddIC(BinaryArithProfile* arithProfile)
@@ -1636,16 +1672,16 @@ ByValInfo* CodeBlock::findByValInfo(CodeOrigin codeOrigin)
     return nullptr;
 }
 
-ByValInfo* CodeBlock::addByValInfo()
+ByValInfo* CodeBlock::addByValInfo(BytecodeIndex bytecodeIndex)
 {
     ConcurrentJSLocker locker(m_lock);
-    return ensureJITData(locker).m_byValInfos.add();
+    return ensureJITData(locker).m_byValInfos.add(bytecodeIndex);
 }
 
-CallLinkInfo* CodeBlock::addCallLinkInfo()
+CallLinkInfo* CodeBlock::addCallLinkInfo(CodeOrigin codeOrigin)
 {
     ConcurrentJSLocker locker(m_lock);
-    return ensureJITData(locker).m_callLinkInfos.add();
+    return ensureJITData(locker).m_callLinkInfos.add(codeOrigin);
 }
 
 CallLinkInfo* CodeBlock::getCallLinkInfoForBytecodeIndex(BytecodeIndex index)

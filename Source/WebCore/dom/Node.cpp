@@ -2,7 +2,7 @@
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2001 Dirk Mueller (mueller@kde.org)
- * Copyright (C) 2004-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies)
  * Copyright (C) 2009 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
@@ -60,10 +60,10 @@
 #include "RenderBox.h"
 #include "RenderTextControl.h"
 #include "RenderView.h"
-#include "RuntimeEnabledFeatures.h"
 #include "SVGElement.h"
 #include "ScopedEventQueue.h"
 #include "ScriptDisallowedScope.h"
+#include "Settings.h"
 #include "StorageEvent.h"
 #include "StyleResolver.h"
 #include "StyleSheetContents.h"
@@ -130,10 +130,18 @@ static const char* stringForRareDataUseType(NodeRareData::UseType useType)
         return "AttributeMap";
     case NodeRareData::UseType::InteractionObserver:
         return "InteractionObserver";
-    case NodeRareData::UseType::PseudoElements:
-        return "PseudoElements";
+    case NodeRareData::UseType::ResizeObserver:
+        return "ResizeObserver";
     case NodeRareData::UseType::Animations:
         return "Animations";
+    case NodeRareData::UseType::PseudoElements:
+        return "PseudoElements";
+    case NodeRareData::UseType::StyleMap:
+        return "StyleMap";
+    case NodeRareData::UseType::PartList:
+        return "PartList";
+    case NodeRareData::UseType::PartNames:
+        return "PartNames";
     }
     return nullptr;
 }
@@ -405,9 +413,9 @@ void Node::willBeDeletedFrom(Document& document)
 void Node::materializeRareData()
 {
     if (is<Element>(*this))
-        m_rareData = std::unique_ptr<NodeRareData, NodeRareDataDeleter>(new ElementRareData);
+        m_rareDataWithBitfields.setPointer(std::unique_ptr<NodeRareData, NodeRareDataDeleter>(new ElementRareData));
     else
-        m_rareData = std::unique_ptr<NodeRareData, NodeRareDataDeleter>(new NodeRareData);
+        m_rareDataWithBitfields.setPointer(std::unique_ptr<NodeRareData, NodeRareDataDeleter>(new NodeRareData));
 }
 
 inline void Node::NodeRareDataDeleter::operator()(NodeRareData* rareData) const
@@ -421,9 +429,8 @@ inline void Node::NodeRareDataDeleter::operator()(NodeRareData* rareData) const
 void Node::clearRareData()
 {
     ASSERT(hasRareData());
-    ASSERT(!transientMutationObserverRegistry() || transientMutationObserverRegistry()->isEmpty());
-
-    m_rareData = nullptr;
+    ASSERT(rareData()->transientMutationObserverRegistry().isEmpty());
+    m_rareDataWithBitfields.setPointer(nullptr);
 }
 
 bool Node::isNode() const
@@ -837,11 +844,12 @@ void Node::derefEventTarget()
 void Node::adjustStyleValidity(Style::Validity validity, Style::InvalidationMode mode)
 {
     if (validity > styleValidity()) {
-        m_nodeFlags &= ~StyleValidityMask;
-        m_nodeFlags |= static_cast<unsigned>(validity) << StyleValidityShift;
+        auto bitfields = styleBitfields();
+        bitfields.setStyleValidity(validity);
+        setStyleBitfields(bitfields);
     }
     if (mode == Style::InvalidationMode::RecompositeLayer)
-        setFlag(StyleResolutionShouldRecompositeLayerFlag);
+        setStyleFlag(NodeStyleFlag::StyleResolutionShouldRecompositeLayer);
 }
 
 inline void Node::updateAncestorsForStyleRecalc()
@@ -1012,12 +1020,12 @@ ExceptionOr<void> Node::checkSetPrefix(const AtomString& prefix)
 
 bool Node::isDescendantOf(const Node& other) const
 {
-    // Return true if other is an ancestor of this, otherwise false
+    // Return true if other is an ancestor of this.
+    if (other.isDocumentNode())
+        return &treeScope().rootNode() == &other && !isDocumentNode() && isConnected();
     if (!other.hasChildNodes() || isConnected() != other.isConnected())
         return false;
-    if (other.isDocumentNode())
-        return &document() == &other && !isDocumentNode() && isConnected();
-    for (const auto* ancestor = parentNode(); ancestor; ancestor = ancestor->parentNode()) {
+    for (auto ancestor = parentNode(); ancestor; ancestor = ancestor->parentNode()) {
         if (ancestor == &other)
             return true;
     }
@@ -1026,15 +1034,13 @@ bool Node::isDescendantOf(const Node& other) const
 
 bool Node::isDescendantOrShadowDescendantOf(const Node* other) const
 {
-    // FIXME: This element's shadow tree's host could be inside another shadow tree.
-    // This function doesn't handle that case correctly. Maybe share code with
-    // the containsIncludingShadowDOM function?
+    // FIXME: Correctly handle the case where the shadow host is itself in a shadow tree.
     return other && (isDescendantOf(*other) || other->contains(shadowHost()));
 }
 
-bool Node::contains(const Node* node) const
+bool Node::contains(const Node& node) const
 {
-    return this == node || (node && node->isDescendantOf(*this));
+    return this == &node || node.isDescendantOf(*this);
 }
 
 bool Node::containsIncludingShadowDOM(const Node* node) const
@@ -1289,9 +1295,9 @@ Node& Node::getRootNode(const GetRootNodeOptions& options) const
 Node::InsertedIntoAncestorResult Node::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
     if (insertionType.connectedToDocument)
-        setFlag(IsConnectedFlag);
+        setNodeFlag(NodeFlag::IsConnected);
     if (parentOfInsertedTree.isInShadowTree())
-        setFlag(IsInShadowTreeFlag);
+        setNodeFlag(NodeFlag::IsInShadowTree);
 
     invalidateStyle(Style::Validity::SubtreeAndRenderersInvalid);
 
@@ -1301,9 +1307,9 @@ Node::InsertedIntoAncestorResult Node::insertedIntoAncestor(InsertionType insert
 void Node::removedFromAncestor(RemovalType removalType, ContainerNode& oldParentOfRemovedTree)
 {
     if (removalType.disconnectedFromDocument)
-        clearFlag(IsConnectedFlag);
+        clearNodeFlag(NodeFlag::IsConnected);
     if (isInShadowTree() && !treeScope().rootNode().isShadowRoot())
-        clearFlag(IsInShadowTreeFlag);
+        clearNodeFlag(NodeFlag::IsInShadowTree);
     if (removalType.disconnectedFromDocument) {
         if (auto* cache = oldParentOfRemovedTree.document().existingAXObjectCache())
             cache->remove(*this);
@@ -1580,14 +1586,9 @@ ExceptionOr<void> Node::setTextContent(const String& text)
     case PROCESSING_INSTRUCTION_NODE:
         return setNodeValue(text);
     case ELEMENT_NODE:
-    case DOCUMENT_FRAGMENT_NODE: {
-        auto& container = downcast<ContainerNode>(*this);
-        if (text.isEmpty())
-            container.replaceAllChildren(nullptr);
-        else
-            container.replaceAllChildrenWithNewText(text);
+    case DOCUMENT_FRAGMENT_NODE:
+        downcast<ContainerNode>(*this).replaceAllChildrenWithNewText(text);
         return { };
-    }
     case DOCUMENT_NODE:
     case DOCUMENT_TYPE_NODE:
         // Do nothing.
@@ -1628,7 +1629,7 @@ bool connectedInSameTreeScope(const Node* a, const Node* b)
     return a && b && a->isConnected() == b->isConnected() && &a->treeScope() == &b->treeScope();
 }
 
-// FIXME: Refactor this so it calls documentOrdering, except for any exotic inefficient things that are needed only here.
+// FIXME: Refactor this so it calls documentOrder, except for any exotic inefficient things that are needed only here.
 unsigned short Node::compareDocumentPosition(Node& otherNode)
 {
     if (&otherNode == this)
@@ -1753,9 +1754,8 @@ FloatPoint Node::convertFromPage(const FloatPoint& p) const
 
 String Node::debugDescription() const
 {
-    StringBuilder builder;
-    builder.append(nodeName(), " 0x"_s, hex(reinterpret_cast<uintptr_t>(this), Lowercase));
-    return builder.toString();
+    auto name = nodeName();
+    return makeString(name.isEmpty() ? "<none>" : "", name, " 0x"_s, hex(reinterpret_cast<uintptr_t>(this), Lowercase));
 }
 
 #if ENABLE(TREE_DEBUGGING)
@@ -1878,20 +1878,6 @@ void Node::showTreeAndMark(const Node* markedNode1, const char* markedLabel1, co
 
     String startingIndent;
     traverseTreeAndMark(startingIndent, rootNode, markedNode1, markedLabel1, markedNode2, markedLabel2);
-}
-
-void Node::formatForDebugger(char* buffer, unsigned length) const
-{
-    String result;
-    String s;
-
-    s = nodeName();
-    if (s.isEmpty())
-        result = "<none>";
-    else
-        result = s;
-
-    strncpy(buffer, result.utf8().data(), length - 1);
 }
 
 static ContainerNode* parentOrShadowHostOrFrameOwner(const Node* node)
@@ -2046,19 +2032,15 @@ void Node::moveNodeToNewDocument(Document& oldDocument, Document& newDocument)
     oldDocument.decrementReferencingNodeCount();
 
     if (hasRareData()) {
-        if (auto* nodeLists = rareData()->nodeLists())
+        auto* rareData = this->rareData();
+        if (auto* nodeLists = rareData->nodeLists())
             nodeLists->adoptDocument(oldDocument, newDocument);
-        if (auto* registry = mutationObserverRegistry()) {
+        if (auto* registry = rareData->mutationObserverRegistryIfExists()) {
             for (auto& registration : *registry)
                 newDocument.addMutationObserverTypes(registration->mutationTypes());
         }
-        if (auto* transientRegistry = transientMutationObserverRegistry()) {
-            for (auto& registration : *transientRegistry)
-                newDocument.addMutationObserverTypes(registration->mutationTypes());
-        }
-    } else {
-        ASSERT(!mutationObserverRegistry());
-        ASSERT(!transientMutationObserverRegistry());
+        for (auto& registration : rareData->transientMutationObserverRegistry())
+            newDocument.addMutationObserverTypes(registration->mutationTypes());
     }
 
     oldDocument.moveNodeIteratorsToNewDocument(*this, newDocument);
@@ -2070,6 +2052,10 @@ void Node::moveNodeToNewDocument(Document& oldDocument, Document& newDocument)
         if (auto* cache = oldDocument.existingAXObjectCache())
             cache->remove(*this);
     }
+
+    auto* textManipulationController = oldDocument.textManipulationControllerIfExists();
+    if (UNLIKELY(textManipulationController))
+        textManipulationController->removeNode(this);
 
     if (auto* eventTargetData = this->eventTargetData()) {
         if (!eventTargetData->eventListenerMap.isEmpty()) {
@@ -2254,32 +2240,9 @@ void Node::clearEventTargetData()
     eventTargetDataMap().remove(this);
 }
 
-Vector<std::unique_ptr<MutationObserverRegistration>>* Node::mutationObserverRegistry()
+template<typename Registry> static inline void collectMatchingObserversForMutation(HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions>& observers, Registry& registry, Node& target, MutationObserver::MutationType type, const QualifiedName* attributeName)
 {
-    if (!hasRareData())
-        return nullptr;
-    auto* data = rareData()->mutationObserverData();
-    if (!data)
-        return nullptr;
-    return &data->registry;
-}
-
-HashSet<MutationObserverRegistration*>* Node::transientMutationObserverRegistry()
-{
-    if (!hasRareData())
-        return nullptr;
-    auto* data = rareData()->mutationObserverData();
-    if (!data)
-        return nullptr;
-    return &data->transientRegistry;
-}
-
-template<typename Registry> static inline void collectMatchingObserversForMutation(HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions>& observers, Registry* registry, Node& target, MutationObserver::MutationType type, const QualifiedName* attributeName)
-{
-    if (!registry)
-        return;
-
-    for (auto& registration : *registry) {
+    for (auto& registration : registry) {
         if (registration->shouldReceiveMutationFrom(target, type, attributeName)) {
             auto deliveryOptions = registration->deliveryOptions();
             auto result = observers.add(registration->observer(), deliveryOptions);
@@ -2293,61 +2256,53 @@ HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions> Node::registeredMu
 {
     HashMap<Ref<MutationObserver>, MutationRecordDeliveryOptions> result;
     ASSERT((type == MutationObserver::Attributes && attributeName) || !attributeName);
-    collectMatchingObserversForMutation(result, mutationObserverRegistry(), *this, type, attributeName);
-    collectMatchingObserversForMutation(result, transientMutationObserverRegistry(), *this, type, attributeName);
-    for (Node* node = parentNode(); node; node = node->parentNode()) {
-        collectMatchingObserversForMutation(result, node->mutationObserverRegistry(), *this, type, attributeName);
-        collectMatchingObserversForMutation(result, node->transientMutationObserverRegistry(), *this, type, attributeName);
+    for (auto node = makeRefPtr(this); node; node = node->parentNode()) {
+        if (!node->hasRareData())
+            continue;
+        auto* rareData = node->rareData();
+        if (auto* registry = rareData->mutationObserverRegistryIfExists())
+            collectMatchingObserversForMutation(result, *registry, *this, type, attributeName);
+        collectMatchingObserversForMutation(result, rareData->transientMutationObserverRegistry(), *this, type, attributeName);
     }
     return result;
 }
 
 void Node::registerMutationObserver(MutationObserver& observer, MutationObserverOptions options, const HashSet<AtomString>& attributeFilter)
 {
-    MutationObserverRegistration* registration = nullptr;
-    auto& registry = ensureRareData().ensureMutationObserverData().registry;
-
-    for (auto& candidateRegistration : registry) {
-        if (&candidateRegistration->observer() == &observer) {
-            registration = candidateRegistration.get();
-            registration->resetObservation(options, attributeFilter);
-        }
+    auto& registry = ensureRareData().mutationObserverRegistry();
+    auto index = registry.findMatching([&observer](auto& registration) { return &registration->observer() == &observer; });
+    if (index != notFound) {
+        auto registration = registry[index].copyRef();
+        registration->resetObservation(options, attributeFilter);
+        document().addMutationObserverTypes(registration->mutationTypes());
+        return;
     }
-
-    if (!registration) {
-        registry.append(makeUnique<MutationObserverRegistration>(observer, *this, options, attributeFilter));
-        registration = registry.last().get();
-    }
-
-    document().addMutationObserverTypes(registration->mutationTypes());
+    auto newRegistration = MutationObserverRegistration::create(observer, *this, options, attributeFilter);
+    document().addMutationObserverTypes(newRegistration->mutationTypes());
+    registry.append(WTFMove(newRegistration));
 }
 
 void Node::unregisterMutationObserver(MutationObserverRegistration& registration)
 {
-    auto* registry = mutationObserverRegistry();
+    ASSERT(hasRareData());
+    auto* registry = rareData()->mutationObserverRegistryIfExists();
     ASSERT(registry);
-    if (!registry)
-        return;
-
-    registry->removeFirstMatching([&registration] (auto& current) {
-        return current.get() == &registration;
+    auto removed = registry->removeFirstMatching([&registration] (auto& current) {
+        return current.ptr() == &registration;
     });
+    RELEASE_ASSERT(removed);
 }
 
 void Node::registerTransientMutationObserver(MutationObserverRegistration& registration)
 {
-    ensureRareData().ensureMutationObserverData().transientRegistry.add(&registration);
+    ensureRareData().transientMutationObserverRegistry().add(registration);
 }
 
 void Node::unregisterTransientMutationObserver(MutationObserverRegistration& registration)
 {
-    auto* transientRegistry = transientMutationObserverRegistry();
-    ASSERT(transientRegistry);
-    if (!transientRegistry)
-        return;
-
-    ASSERT(transientRegistry->contains(&registration));
-    transientRegistry->remove(&registration);
+    ASSERT(hasRareData());
+    bool removed = rareData()->transientMutationObserverRegistry().remove(&registration);
+    RELEASE_ASSERT(removed);
 }
 
 void Node::notifyMutationObserversNodeWillDetach()
@@ -2356,14 +2311,15 @@ void Node::notifyMutationObserversNodeWillDetach()
         return;
 
     for (Node* node = parentNode(); node; node = node->parentNode()) {
-        if (auto* registry = node->mutationObserverRegistry()) {
+        if (!node->hasRareData())
+            continue;
+        auto* rareData = node->rareData();
+        if (auto* registry = rareData->mutationObserverRegistryIfExists()) {
             for (auto& registration : *registry)
                 registration->observedSubtreeNodeWillDetach(*this);
         }
-        if (auto* transientRegistry = node->transientMutationObserverRegistry()) {
-            for (auto* registration : *transientRegistry)
-                registration->observedSubtreeNodeWillDetach(*this);
-        }
+        for (auto& registration : rareData->transientMutationObserverRegistry())
+            registration->observedSubtreeNodeWillDetach(*this);
     }
 }
 
@@ -2418,7 +2374,7 @@ void Node::dispatchDOMActivateEvent(Event& underlyingClickEvent)
 
 bool Node::dispatchBeforeLoadEvent(const String& sourceURL)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().legacyBeforeLoadEventEnabled())
+    if (!document().settings().legacyBeforeLoadEventEnabled())
         return true;
 
     if (!document().hasListenerType(Document::BEFORELOAD_LISTENER))
@@ -2565,23 +2521,24 @@ void Node::removedLastRef()
     delete this;
 }
 
-unsigned Node::connectedSubframeCount() const
-{
-    return hasRareData() ? rareData()->connectedSubframeCount() : 0;
-}
-
 void Node::incrementConnectedSubframeCount(unsigned amount)
 {
+    static_assert(RareDataBitFields { Page::maxNumberOfFrames, 0, 0 }.connectedSubframeCount == Page::maxNumberOfFrames, "connectedSubframeCount must fit Page::maxNumberOfFrames");
+
     ASSERT(isContainerNode());
-    ensureRareData().incrementConnectedSubframeCount(amount);
+    auto bitfields = rareDataBitfields();
+    bitfields.connectedSubframeCount += amount;
+    RELEASE_ASSERT(bitfields.connectedSubframeCount == rareDataBitfields().connectedSubframeCount + amount);
+    setRareDataBitfields(bitfields);
 }
 
 void Node::decrementConnectedSubframeCount(unsigned amount)
 {
-    ASSERT(rareData());
-    if (!hasRareData())
-        return; // Defend against type confusion when the above assertion fails. See webkit.org/b/200300.
-    rareData()->decrementConnectedSubframeCount(amount);
+    ASSERT(isContainerNode());
+    auto bitfields = rareDataBitfields();
+    RELEASE_ASSERT(amount <= bitfields.connectedSubframeCount);
+    bitfields.connectedSubframeCount -= amount;
+    setRareDataBitfields(bitfields);
 }
 
 void Node::updateAncestorConnectedSubframeCountForRemoval() const
@@ -2623,11 +2580,11 @@ void* Node::opaqueRootSlow() const
     return const_cast<void*>(static_cast<const void*>(node));
 }
 
-static size_t depth(const Node& node)
+static size_t depthInComposedTree(const Node& node)
 {
     size_t depth = 0;
     auto ancestor = &node;
-    while ((ancestor = ancestor->parentOrShadowHostNode()))
+    while ((ancestor = ancestor->parentInComposedTree()))
         ++depth;
     return depth;
 }
@@ -2637,33 +2594,39 @@ struct AncestorAndChildren {
     const Node* distinctAncestorA;
     const Node* distinctAncestorB;
 };
+
+// FIXME: This function's name is not explicit about the fact that it's the common inclusive ancestor in the composed tree.
 static AncestorAndChildren commonInclusiveAncestorAndChildren(const Node& a, const Node& b)
 {
-    // This first check isn't needed for correctness, but it is cheap and likely to be
+    // This check isn't needed for correctness, but it is cheap and likely to be
     // common enough to be worth optimizing so we don't have to walk to the root.
     if (&a == &b)
         return { &a, nullptr, nullptr };
-    auto [depthA, depthB] = std::make_tuple(depth(a), depth(b));
+    // FIXME: Could optimize cases where nodes are both in the same shadow tree.
+    // FIXME: Could optimize cases where nodes are in different documents to quickly return false.
+    // FIXME: Could optimize cases where one node is connected and the other is not to quickly return false.
+    auto [depthA, depthB] = std::make_tuple(depthInComposedTree(a), depthInComposedTree(b));
     auto [x, y, difference] = depthA >= depthB
         ? std::make_tuple(&a, &b, depthA - depthB)
         : std::make_tuple(&b, &a, depthB - depthA);
     decltype(x) distinctAncestorA = nullptr;
     for (decltype(difference) i = 0; i < difference; ++i) {
         distinctAncestorA = x;
-        x = x->parentOrShadowHostNode();
+        x = x->parentInComposedTree();
     }
     decltype(y) distinctAncestorB = nullptr;
     while (x != y) {
         distinctAncestorA = x;
         distinctAncestorB = y;
-        x = x->parentOrShadowHostNode();
-        y = y->parentOrShadowHostNode();
+        x = x->parentInComposedTree();
+        y = y->parentInComposedTree();
     }
     if (depthA < depthB)
         std::swap(distinctAncestorA, distinctAncestorB);
     return { x, distinctAncestorA, distinctAncestorB };
 }
 
+// FIXME: This function's name is not explicit about the fact that it's the common inclusive ancestor in the composed tree.
 RefPtr<Node> commonInclusiveAncestor(Node& a, Node& b)
 {
     return const_cast<Node*>(commonInclusiveAncestorAndChildren(a, b).commonAncestor);
@@ -2671,6 +2634,8 @@ RefPtr<Node> commonInclusiveAncestor(Node& a, Node& b)
 
 static bool isSiblingSubsequent(const Node& siblingA, const Node& siblingB)
 {
+    ASSERT(siblingA.parentNode());
+    ASSERT(siblingA.parentNode() == siblingB.parentNode());
     ASSERT(&siblingA != &siblingB);
     for (auto sibling = &siblingA; sibling; sibling = sibling->nextSibling()) {
         if (sibling == &siblingB)
@@ -2690,6 +2655,16 @@ PartialOrdering documentOrder(const Node& a, const Node& b)
         return PartialOrdering::less;
     if (!result.distinctAncestorB)
         return PartialOrdering::greater;
+    bool isShadowRootA = result.distinctAncestorA->isShadowRoot();
+    bool isShadowRootB = result.distinctAncestorB->isShadowRoot();
+    if (isShadowRootA || isShadowRootB) {
+        if (!isShadowRootB)
+            return PartialOrdering::less;
+        if (!isShadowRootA)
+            return PartialOrdering::greater;
+        ASSERT_NOT_REACHED();
+        return PartialOrdering::unordered;
+    }
     return isSiblingSubsequent(*result.distinctAncestorA, *result.distinctAncestorB) ? PartialOrdering::less : PartialOrdering::greater;
 }
 

@@ -71,6 +71,7 @@
 #include "MIMETypeRegistry.h"
 #include "MediaController.h"
 #include "MediaControlsHost.h"
+#include "MediaDevices.h"
 #include "MediaDocument.h"
 #include "MediaError.h"
 #include "MediaFragmentURIParser.h"
@@ -78,6 +79,7 @@
 #include "MediaPlayer.h"
 #include "MediaQueryEvaluator.h"
 #include "MediaResourceLoader.h"
+#include "NavigatorMediaDevices.h"
 #include "NetworkingContext.h"
 #include "PODIntervalTree.h"
 #include "Page.h"
@@ -2451,7 +2453,7 @@ void HTMLMediaElement::updateShouldContinueAfterNeedKey()
 {
     if (!m_player)
         return;
-    bool shouldContinue = hasEventListeners("webkitneedkey") || (RuntimeEnabledFeatures::sharedFeatures().encryptedMediaAPIEnabled() && !document().quirks().hasBrokenEncryptedMediaAPISupportQuirk());
+    bool shouldContinue = hasEventListeners("webkitneedkey") || (document().settings().encryptedMediaAPIEnabled() && !document().quirks().hasBrokenEncryptedMediaAPISupportQuirk());
     m_player->setShouldContinueAfterKeyNeeded(shouldContinue);
 }
 #endif
@@ -2463,14 +2465,14 @@ RefPtr<ArrayBuffer> HTMLMediaElement::mediaPlayerCachedKeyForKeyId(const String&
 
 void HTMLMediaElement::mediaPlayerKeyNeeded(Uint8Array* initData)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().legacyEncryptedMediaAPIEnabled())
+    if (!document().settings().legacyEncryptedMediaAPIEnabled())
         return;
 
     if (!hasEventListeners("webkitneedkey")
 #if ENABLE(ENCRYPTED_MEDIA)
         // Only fire an error if ENCRYPTED_MEDIA is not enabled, to give clients of the
         // "encrypted" event a chance to handle it without resulting in a synthetic error.
-        && (!RuntimeEnabledFeatures::sharedFeatures().encryptedMediaAPIEnabled() || document().quirks().hasBrokenEncryptedMediaAPISupportQuirk())
+        && (!document().settings().encryptedMediaAPIEnabled() || document().quirks().hasBrokenEncryptedMediaAPISupportQuirk())
 #endif
         ) {
         m_error = MediaError::create(MediaError::MEDIA_ERR_ENCRYPTED);
@@ -2498,7 +2500,7 @@ String HTMLMediaElement::mediaPlayerMediaKeysStorageDirectory() const
 
 void HTMLMediaElement::webkitSetMediaKeys(WebKitMediaKeys* mediaKeys)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().legacyEncryptedMediaAPIEnabled())
+    if (!document().settings().legacyEncryptedMediaAPIEnabled())
         return;
 
     if (m_webKitMediaKeys == mediaKeys)
@@ -2513,7 +2515,7 @@ void HTMLMediaElement::webkitSetMediaKeys(WebKitMediaKeys* mediaKeys)
 
 void HTMLMediaElement::keyAdded()
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().legacyEncryptedMediaAPIEnabled())
+    if (!document().settings().legacyEncryptedMediaAPIEnabled())
         return;
 
     if (m_player)
@@ -2604,7 +2606,7 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
 
 void HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& initDataType, RefPtr<ArrayBuffer>&& initData)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().encryptedMediaAPIEnabled() || document().quirks().hasBrokenEncryptedMediaAPISupportQuirk())
+    if (!document().settings().encryptedMediaAPIEnabled() || document().quirks().hasBrokenEncryptedMediaAPISupportQuirk())
         return;
 
     // https://w3c.github.io/encrypted-media/#initdata-encountered
@@ -2842,6 +2844,49 @@ void HTMLMediaElement::fastSeek(const MediaTime& time)
     MediaTime negativeTolerance = delta < MediaTime::zeroTime() ? MediaTime::positiveInfiniteTime() : delta;
     seekWithTolerance(time, negativeTolerance, MediaTime::zeroTime(), true);
 }
+
+#if ENABLE(MEDIA_STREAM)
+void HTMLMediaElement::setAudioOutputDevice(String&& deviceId, DOMPromiseDeferred<void>&& promise)
+{
+    auto* window = document().domWindow();
+    auto* mediaDevices = window ? NavigatorMediaDevices::mediaDevices(window->navigator()) : nullptr;
+    if (!mediaDevices) {
+        promise.reject(Exception { NotAllowedError });
+        return;
+    }
+
+    if (!document().processingUserGestureForMedia() && document().settings().speakerSelectionRequiresUserGesture()) {
+        promise.reject(Exception { NotAllowedError, "A user gesture is required"_s });
+        return;
+    }
+
+    if (deviceId.isEmpty())
+        deviceId = { };
+
+    if (deviceId == m_audioOutputHashedDeviceId) {
+        promise.resolve();
+        return;
+    }
+
+    String persistentId;
+    if (!deviceId.isNull()) {
+        persistentId = mediaDevices->deviceIdToPersistentId(deviceId);
+        if (persistentId.isNull()) {
+            promise.reject(Exception { NotFoundError });
+            return;
+        }
+    }
+
+    m_audioOutputPersistentDeviceId = WTFMove(persistentId);
+    if (m_player)
+        m_player->audioOutputDeviceChanged();
+
+    scriptExecutionContext()->eventLoop().queueTask(TaskSource::MediaElement, [this, protectedThis = makeRef(*this), deviceId = WTFMove(deviceId), promise = WTFMove(promise)]() mutable {
+        m_audioOutputHashedDeviceId = WTFMove(deviceId);
+        promise.resolve();
+    });
+}
+#endif
 
 void HTMLMediaElement::seek(const MediaTime& time)
 {
@@ -4989,9 +5034,8 @@ void HTMLMediaElement::mediaEngineWasUpdated()
 
 #if ENABLE(WEB_AUDIO)
     if (m_audioSourceNode && audioSourceProvider()) {
-        m_audioSourceNode->lock();
+        auto locker = holdLock(m_audioSourceNode->processLock());
         audioSourceProvider()->setClient(m_audioSourceNode);
-        m_audioSourceNode->unlock();
     }
 #endif
 
@@ -5006,11 +5050,11 @@ void HTMLMediaElement::mediaEngineWasUpdated()
 #endif
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
-    if (!m_player)
-        return;
-    m_player->setVideoFullscreenFrame(m_videoFullscreenFrame);
-    m_player->setVideoFullscreenGravity(m_videoFullscreenGravity);
-    m_player->setVideoFullscreenLayer(m_videoFullscreenLayer.get());
+    if (m_player) {
+        m_player->setVideoFullscreenFrame(m_videoFullscreenFrame);
+        m_player->setVideoFullscreenGravity(m_videoFullscreenGravity);
+        m_player->setVideoFullscreenLayer(m_videoFullscreenLayer.get());
+    }
 #endif
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -5020,6 +5064,9 @@ void HTMLMediaElement::mediaEngineWasUpdated()
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA) && ENABLE(ENCRYPTED_MEDIA)
     updateShouldContinueAfterNeedKey();
 #endif
+
+    if (auto* page = document().page())
+        page->playbackControlsMediaEngineChanged();
 }
 
 void HTMLMediaElement::mediaPlayerEngineUpdated()
@@ -5779,8 +5826,8 @@ void HTMLMediaElement::dispatchEvent(Event& event)
     // We need to fire the end fullscreen event to notify the page
     // to change the position/size back *before* exiting fullscreen.
     // Otherwise, the exit fullscreen animation will be incorrect.
-    if (!m_videoFullscreenStandby && event.type() == eventNames().webkitendfullscreenEvent) {
-        fullscreenModeChanged(VideoFullscreenModeNone);
+    if (!m_videoFullscreenStandby && !m_waitingToEnterFullscreen && event.type() == eventNames().webkitendfullscreenEvent) {
+        setFullscreenMode(VideoFullscreenModeNone);
         document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
     }
 }
@@ -5973,11 +6020,18 @@ void HTMLMediaElement::enterFullscreen(VideoFullscreenMode mode)
 
                 m_temporarilyAllowingInlinePlaybackAfterFullscreen = false;
                 m_waitingToEnterFullscreen = true;
-                fullscreenModeChanged(mode);
+                auto oldMode = m_videoFullscreenMode;
+                setFullscreenMode(mode);
                 configureMediaControls();
 
                 document().page()->chrome().client().enterVideoFullscreenForVideoElement(asVideo, m_videoFullscreenMode, m_videoFullscreenStandby);
-                scheduleEvent(eventNames().webkitbeginfullscreenEvent);
+                if (m_videoFullscreenStandby)
+                    return;
+
+                if (mode == VideoFullscreenModeStandard)
+                    scheduleEvent(eventNames().webkitbeginfullscreenEvent);
+                else if (oldMode == VideoFullscreenModeStandard)
+                    scheduleEvent(eventNames().webkitendfullscreenEvent);
             }
         }
     });
@@ -6024,21 +6078,32 @@ void HTMLMediaElement::exitFullscreen()
     }
 
     if (document().activeDOMObjectsAreSuspended() || document().activeDOMObjectsAreStopped()) {
-        fullscreenModeChanged(VideoFullscreenModeNone);
+        setFullscreenMode(VideoFullscreenModeNone);
         document().page()->chrome().client().exitVideoFullscreenToModeWithoutAnimation(downcast<HTMLVideoElement>(*this), VideoFullscreenModeNone);
     } else if (document().page()->chrome().client().supportsVideoFullscreen(oldVideoFullscreenMode)) {
         if (m_videoFullscreenStandby) {
-            fullscreenModeChanged(VideoFullscreenModeNone);
+            setFullscreenMode(VideoFullscreenModeNone);
             document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), m_videoFullscreenMode, m_videoFullscreenStandby);
+            return;
         }
 
-        scheduleEvent(eventNames().webkitendfullscreenEvent);
+        if (oldVideoFullscreenMode == VideoFullscreenModeStandard) {
+            // The exit fullscreen request will be sent in dispatchEvent().
+            scheduleEvent(eventNames().webkitendfullscreenEvent);
+            return;
+        }
+
+        setFullscreenMode(VideoFullscreenModeNone);
+        document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
     }
 }
 
 void HTMLMediaElement::prepareForVideoFullscreenStandby()
 {
 #if ENABLE(VIDEO_PRESENTATION_MODE)
+    if (!document().page())
+        return;
+
     document().page()->chrome().client().prepareForVideoFullscreen();
 #endif
 }
@@ -6066,7 +6131,7 @@ WEBCORE_EXPORT void HTMLMediaElement::setVideoFullscreenStandby(bool value)
         return;
 
     if (m_videoFullscreenStandby)
-        document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), m_videoFullscreenMode, m_videoFullscreenStandby);
+        document().page()->chrome().client().enterVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this), VideoFullscreenModeNone, m_videoFullscreenStandby);
     else
         document().page()->chrome().client().exitVideoFullscreenForVideoElement(downcast<HTMLVideoElement>(*this));
 }
@@ -6077,20 +6142,12 @@ void HTMLMediaElement::willBecomeFullscreenElement()
     HTMLMediaElementEnums::VideoFullscreenMode oldVideoFullscreenMode = m_videoFullscreenMode;
 #endif
 
-    fullscreenModeChanged(VideoFullscreenModeStandard);
+    if (m_videoFullscreenMode != VideoFullscreenModeStandard)
+        setFullscreenMode(VideoFullscreenModeStandard);
 
 #if PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE)
-    switch (oldVideoFullscreenMode) {
-    case VideoFullscreenModeNone:
-    case VideoFullscreenModeStandard:
-        // Don't need to do anything if we are not in any special fullscreen mode or it's already
-        // in standard fullscreen mode.
-        break;
-    case VideoFullscreenModePictureInPicture:
-        if (is<HTMLVideoElement>(*this))
-            downcast<HTMLVideoElement>(this)->exitToFullscreenModeWithoutAnimationIfPossible(oldVideoFullscreenMode, VideoFullscreenModeStandard);
-        break;
-    }
+    if (oldVideoFullscreenMode == VideoFullscreenModePictureInPicture && is<HTMLVideoElement>(*this))
+        downcast<HTMLVideoElement>(*this).exitToFullscreenModeWithoutAnimationIfPossible(oldVideoFullscreenMode, VideoFullscreenModeStandard);
 #endif
 
     Element::willBecomeFullscreenElement();
@@ -6106,7 +6163,7 @@ void HTMLMediaElement::didBecomeFullscreenElement()
 void HTMLMediaElement::willStopBeingFullscreenElement()
 {
     if (fullscreenMode() == VideoFullscreenModeStandard)
-        fullscreenModeChanged(VideoFullscreenModeNone);
+        setFullscreenMode(VideoFullscreenModeNone);
 }
 
 PlatformLayer* HTMLMediaElement::platformLayer() const
@@ -6146,7 +6203,7 @@ void HTMLMediaElement::willExitFullscreen()
 bool HTMLMediaElement::isVideoLayerInline()
 {
     return !m_videoFullscreenLayer;
-};
+}
 
 RetainPtr<PlatformLayer> HTMLMediaElement::createVideoFullscreenLayer()
 {
@@ -6169,7 +6226,7 @@ void HTMLMediaElement::setVideoFullscreenLayer(PlatformLayer* platformLayer, WTF
     updateTextTrackDisplay();
 }
 
-void HTMLMediaElement::setVideoFullscreenFrame(FloatRect frame)
+void HTMLMediaElement::setVideoFullscreenFrame(const FloatRect& frame)
 {
     m_videoFullscreenFrame = frame;
     if (m_player)
@@ -6528,8 +6585,8 @@ void HTMLMediaElement::createMediaPlayer()
     INFO_LOG(LOGIDENTIFIER);
 
 #if ENABLE(WEB_AUDIO)
-    if (m_audioSourceNode)
-        m_audioSourceNode->lock();
+    auto protectedAudioSourceNode = makeRefPtr(m_audioSourceNode);
+    Locker<Lock> audioSourceNodeLocker(m_audioSourceNode ? &m_audioSourceNode->processLock() : nullptr);
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
@@ -6545,7 +6602,8 @@ void HTMLMediaElement::createMediaPlayer()
 
     m_player = MediaPlayer::create(*this);
     m_player->setBufferingPolicy(m_bufferingPolicy);
-    m_player->setPreferredDynamicRangeMode(preferredDynamicRangeMode(document().view()));
+    m_player->setPreferredDynamicRangeMode(m_overrideDynamicRangeMode.valueOr(preferredDynamicRangeMode(document().view())));
+    m_player->setMuted(effectiveMuted());
     schedulePlaybackControlsManagerUpdate();
 
 #if ENABLE(WEB_AUDIO)
@@ -6553,8 +6611,6 @@ void HTMLMediaElement::createMediaPlayer()
         // When creating the player, make sure its AudioSourceProvider knows about the MediaElementAudioSourceNode.
         if (audioSourceProvider())
             audioSourceProvider()->setClient(m_audioSourceNode);
-
-        m_audioSourceNode->unlock();
     }
 #endif
 
@@ -6798,38 +6854,38 @@ String HTMLMediaElement::mediaPlayerUserAgent() const
 
 #if ENABLE(AVF_CAPTIONS)
 
-static inline PlatformTextTrack::TrackKind toPlatform(TextTrack::Kind kind)
+static inline PlatformTextTrackData::TrackKind toPlatform(TextTrack::Kind kind)
 {
     switch (kind) {
     case TextTrack::Kind::Captions:
-        return PlatformTextTrack::Caption;
+        return PlatformTextTrackData::TrackKind::Caption;
     case TextTrack::Kind::Chapters:
-        return PlatformTextTrack::Chapter;
+        return PlatformTextTrackData::TrackKind::Chapter;
     case TextTrack::Kind::Descriptions:
-        return PlatformTextTrack::Description;
+        return PlatformTextTrackData::TrackKind::Description;
     case TextTrack::Kind::Forced:
-        return PlatformTextTrack::Forced;
+        return PlatformTextTrackData::TrackKind::Forced;
     case TextTrack::Kind::Metadata:
-        return PlatformTextTrack::MetaData;
+        return PlatformTextTrackData::TrackKind::MetaData;
     case TextTrack::Kind::Subtitles:
-        return PlatformTextTrack::Subtitle;
+        return PlatformTextTrackData::TrackKind::Subtitle;
     }
     ASSERT_NOT_REACHED();
-    return PlatformTextTrack::Caption;
+    return PlatformTextTrackData::TrackKind::Caption;
 }
 
-static inline PlatformTextTrack::TrackMode toPlatform(TextTrack::Mode mode)
+static inline PlatformTextTrackData::TrackMode toPlatform(TextTrack::Mode mode)
 {
     switch (mode) {
     case TextTrack::Mode::Disabled:
-        return PlatformTextTrack::Disabled;
+        return PlatformTextTrackData::TrackMode::Disabled;
     case TextTrack::Mode::Hidden:
-        return PlatformTextTrack::Hidden;
+        return PlatformTextTrackData::TrackMode::Hidden;
     case TextTrack::Mode::Showing:
-        return PlatformTextTrack::Showing;
+        return PlatformTextTrackData::TrackMode::Showing;
     }
     ASSERT_NOT_REACHED();
-    return PlatformTextTrack::Disabled;
+    return PlatformTextTrackData::TrackMode::Disabled;
 }
 
 Vector<RefPtr<PlatformTextTrack>> HTMLMediaElement::outOfBandTrackSources()
@@ -6960,6 +7016,13 @@ String HTMLMediaElement::sourceApplicationIdentifier() const
 
 void HTMLMediaElement::setPreferredDynamicRangeMode(DynamicRangeMode mode)
 {
+    if (m_player && !m_overrideDynamicRangeMode)
+        m_player->setPreferredDynamicRangeMode(mode);
+}
+
+void HTMLMediaElement::setOverridePreferredDynamicRangeMode(DynamicRangeMode mode)
+{
+    m_overrideDynamicRangeMode = mode;
     if (m_player)
         m_player->setPreferredDynamicRangeMode(mode);
 }
@@ -7915,10 +7978,19 @@ bool HTMLMediaElement::shouldOverrideBackgroundLoadingRestriction() const
     return m_videoFullscreenMode == VideoFullscreenModePictureInPicture;
 }
 
-void HTMLMediaElement::fullscreenModeChanged(VideoFullscreenMode mode)
+void HTMLMediaElement::setFullscreenMode(VideoFullscreenMode mode)
 {
-    if (m_videoFullscreenMode == mode)
-        return;
+    INFO_LOG(LOGIDENTIFIER, "changed from ", fullscreenMode(), ", to ", mode);
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    scheduleEvent(eventNames().webkitpresentationmodechangedEvent);
+#endif
+
+    setPreparedToReturnVideoLayerToInline(mode != HTMLMediaElementEnums::VideoFullscreenModePictureInPicture);
+
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    if (player())
+        player()->setVideoFullscreenMode(mode);
+#endif
 
     m_videoFullscreenMode = mode;
     visibilityStateChanged();

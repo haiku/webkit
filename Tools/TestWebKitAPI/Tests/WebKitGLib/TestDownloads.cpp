@@ -379,6 +379,7 @@ static void testDownloadLocalFileError(DownloadErrorTest* test, gconstpointer)
 
 static WebKitTestServer* kServer;
 static const char* kServerSuggestedFilename = "webkit-downloaded-file";
+static HashMap<CString, CString> s_userAgentMap;
 
 static void addContentDispositionHTTPHeaderToResponse(SoupMessage* message)
 {
@@ -408,6 +409,9 @@ static void serverCallback(SoupServer* server, SoupMessage* message, const char*
 
     soup_message_set_status(message, SOUP_STATUS_OK);
 
+    if (g_str_has_prefix(path, "/ua-"))
+        s_userAgentMap.add(path, soup_message_headers_get_one(message->request_headers, "User-Agent"));
+
     if (g_str_equal(path, "/cancel-after-destination")) {
         // Use an infinite message to make sure it's cancelled before it finishes.
         soup_message_headers_set_encoding(message->response_headers, SOUP_ENCODING_CHUNKED);
@@ -417,7 +421,13 @@ static void serverCallback(SoupServer* server, SoupMessage* message, const char*
         return;
     }
 
-    if (g_str_equal(path, "/unknown"))
+    if (g_str_equal(path, "/ua-test-redirect")) {
+        soup_message_set_status(message, SOUP_STATUS_MOVED_PERMANENTLY);
+        soup_message_headers_append(message->response_headers, "Location", "/ua-test");
+        return;
+    }
+
+    if (g_str_equal(path, "/unknown") || g_str_equal(path, "/ua-test"))
         path = "/test.pdf";
 
     GUniquePtr<char> filePath(g_build_filename(Test::getResourcesDir().data(), path, nullptr));
@@ -721,6 +731,69 @@ static void testDownloadMIMEType(DownloadTest* test, gconstpointer)
     test->checkDestinationAndDeleteFile(download.get(), expectedFilename.get());
 }
 
+static void testDownloadUserAgent(DownloadTest* test, gconstpointer)
+{
+    s_userAgentMap.clear();
+    GRefPtr<WebKitDownload> download = test->downloadURIAndWaitUntilFinishes(kServer->getURIForPath("/ua-test"));
+    g_assert_null(webkit_download_get_web_view(download.get()));
+    WebKitURIRequest* request = webkit_download_get_request(download.get());
+    g_assert_true(WEBKIT_IS_URI_REQUEST(request));
+    ASSERT_CMP_CSTRING(webkit_uri_request_get_uri(request), ==, kServer->getURIForPath("/ua-test"));
+
+    const char* userAgent = soup_message_headers_get_one(webkit_uri_request_get_http_headers(request), "User-Agent");
+    g_assert_nonnull(userAgent);
+    g_assert_cmpuint(s_userAgentMap.size(), ==, 1);
+    g_assert_true(s_userAgentMap.contains("/ua-test"));
+    ASSERT_CMP_CSTRING(userAgent, ==, s_userAgentMap.get("/ua-test"));
+    s_userAgentMap.clear();
+
+    GUniquePtr<char> expectedFilename(g_strdup_printf("%s.pdf", kServerSuggestedFilename));
+    test->checkDestinationAndDeleteFile(download.get(), expectedFilename.get());
+
+    download = test->downloadURIAndWaitUntilFinishes(kServer->getURIForPath("/ua-test-redirect"));
+    g_assert_null(webkit_download_get_web_view(download.get()));
+    request = webkit_download_get_request(download.get());
+    g_assert_true(WEBKIT_IS_URI_REQUEST(request));
+    ASSERT_CMP_CSTRING(webkit_uri_request_get_uri(request), ==, kServer->getURIForPath("/ua-test-redirect"));
+
+    userAgent = soup_message_headers_get_one(webkit_uri_request_get_http_headers(request), "User-Agent");
+    g_assert_nonnull(userAgent);
+    g_assert_cmpuint(s_userAgentMap.size(), ==, 2);
+    g_assert_true(s_userAgentMap.contains("/ua-test-redirect"));
+    ASSERT_CMP_CSTRING(userAgent, ==, s_userAgentMap.get("/ua-test-redirect"));
+    g_assert_true(s_userAgentMap.contains("/ua-test"));
+    ASSERT_CMP_CSTRING(userAgent, ==, s_userAgentMap.get("/ua-test"));
+    s_userAgentMap.clear();
+
+    test->checkDestinationAndDeleteFile(download.get(), expectedFilename.get());
+}
+
+static void testDownloadEphemeralContext(Test* test, gconstpointer)
+{
+    GRefPtr<WebKitWebsiteDataManager> manager = adoptGRef(webkit_website_data_manager_new_ephemeral());
+    test->assertObjectIsDeletedWhenTestFinishes(G_OBJECT(manager.get()));
+    GRefPtr<WebKitWebContext> context = adoptGRef(webkit_web_context_new_with_website_data_manager(manager.get()));
+    test->assertObjectIsDeletedWhenTestFinishes(G_OBJECT(context.get()));
+    g_assert_true(webkit_web_context_is_ephemeral(context.get()));
+
+    GRefPtr<GMainLoop> mainLoop = adoptGRef(g_main_loop_new(nullptr, TRUE));
+    GRefPtr<WebKitDownload> download = adoptGRef(webkit_web_context_download_uri(context.get(), kServer->getURIForPath("/test.pdf").data()));
+    test->assertObjectIsDeletedWhenTestFinishes(G_OBJECT(download.get()));
+    g_signal_connect(download.get(), "decide-destination", G_CALLBACK(+[](WebKitDownload* download, const gchar* suggestedFilename, gpointer) {
+        GUniquePtr<char> destination(g_build_filename(Test::dataDirectory(), suggestedFilename, nullptr));
+        GUniquePtr<char> destinationURI(g_filename_to_uri(destination.get(), nullptr, nullptr));
+        webkit_download_set_destination(download, destinationURI.get());
+    }), nullptr);
+    g_signal_connect(download.get(), "finished", G_CALLBACK(+[](WebKitDownload*, GMainLoop* loop) {
+        g_main_loop_quit(loop);
+    }), mainLoop.get());
+
+    g_main_loop_run(mainLoop.get());
+
+    GRefPtr<GFile> destFile = adoptGRef(g_file_new_for_uri(webkit_download_get_destination(download.get())));
+    g_file_delete(destFile.get(), nullptr, nullptr);
+}
+
 #if PLATFORM(GTK)
 static void testContextMenuDownloadActions(WebViewDownloadTest* test, gconstpointer)
 {
@@ -805,6 +878,8 @@ void beforeAll()
     PolicyResponseDownloadTest::add("Downloads", "policy-decision-download", testPolicyResponseDownload);
     PolicyResponseDownloadTest::add("Downloads", "policy-decision-download-cancel", testPolicyResponseDownloadCancel);
     DownloadTest::add("Downloads", "mime-type", testDownloadMIMEType);
+    DownloadTest::add("Downloads", "user-agent", testDownloadUserAgent);
+    Test::add("Downloads", "ephemeral-context", testDownloadEphemeralContext);
     // FIXME: Implement keyStroke in WPE.
 #if PLATFORM(GTK)
 #if !USE(GTK4)

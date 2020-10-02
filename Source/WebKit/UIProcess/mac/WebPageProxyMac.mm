@@ -129,6 +129,11 @@ void WebPageProxy::platformInitialize()
     setShouldUseImplicitRubberBandControl(clientExpectsLegacyImplicitRubberBandControl);
 }
 
+String WebPageProxy::userAgentForURL(const URL&)
+{
+    return userAgent();
+}
+
 String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent)
 {
     return standardUserAgentWithApplicationName(applicationNameForUserAgent);
@@ -251,7 +256,6 @@ RefPtr<WebCore::SharedBuffer> WebPageProxy::dataSelectionForPasteboard(const Str
         return nullptr;
 
     SharedMemory::IPCHandle ipcHandle;
-    uint64_t size = 0;
     const Seconds messageTimeout(20);
     sendSync(Messages::WebPage::GetDataSelectionForPasteboard(pasteboardType), Messages::WebPage::GetDataSelectionForPasteboard::Reply(ipcHandle), messageTimeout);
     MESSAGE_CHECK_WITH_RETURN_VALUE(!ipcHandle.handle.isNull(), nullptr);
@@ -259,7 +263,7 @@ RefPtr<WebCore::SharedBuffer> WebPageProxy::dataSelectionForPasteboard(const Str
     auto sharedMemoryBuffer = SharedMemory::map(ipcHandle.handle, SharedMemory::Protection::ReadOnly);
     if (!sharedMemoryBuffer)
         return nullptr;
-    return SharedBuffer::create(static_cast<unsigned char *>(sharedMemoryBuffer->data()), static_cast<size_t>(size));
+    return SharedBuffer::create(static_cast<unsigned char *>(sharedMemoryBuffer->data()), ipcHandle.dataSize);
 }
 
 bool WebPageProxy::readSelectionFromPasteboard(const String& pasteboardName)
@@ -475,8 +479,6 @@ static NSString *pathToPDFOnDisk(const String& suggestedFilename)
 
 void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, FrameInfoData&& frameInfo, const IPC::DataReference& data, const String& pdfUUID)
 {
-    MESSAGE_CHECK(TemporaryPDFFileMap::isValidKey(pdfUUID));
-
     if (data.isEmpty()) {
         WTFLogAlways("Cannot save empty PDF file to the temporary directory.");
         return;
@@ -504,7 +506,8 @@ void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication(const St
     auto originatingURLString = frameInfo.request.url().string();
     FileSystem::setMetadataURL(nsPath.get(), originatingURLString);
 
-    m_temporaryPDFFiles.add(pdfUUID, nsPath.get());
+    if (TemporaryPDFFileMap::isValidKey(pdfUUID))
+        m_temporaryPDFFiles.add(pdfUUID, nsPath.get());
 
     auto pdfFileURL = URL::fileURLWithFileSystemPath(String(nsPath.get()));
     m_uiClient->confirmPDFOpening(*this, pdfFileURL, WTFMove(frameInfo), [pdfFileURL] (bool allowed) {
@@ -514,6 +517,7 @@ void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication(const St
     });
 }
 
+#if ENABLE(PDFKIT_PLUGIN) && !ENABLE(UI_PROCESS_PDF_HUD)
 void WebPageProxy::openPDFFromTemporaryFolderWithNativeApplication(FrameInfoData&& frameInfo, const String& pdfUUID)
 {
     MESSAGE_CHECK(TemporaryPDFFileMap::isValidKey(pdfUUID));
@@ -530,6 +534,7 @@ void WebPageProxy::openPDFFromTemporaryFolderWithNativeApplication(FrameInfoData
         [[NSWorkspace sharedWorkspace] openURL:pdfFileURL];
     });
 }
+#endif
 
 #if ENABLE(PDFKIT_PLUGIN)
 void WebPageProxy::showPDFContextMenu(const WebKit::PDFContextMenu& contextMenu, CompletionHandler<void(Optional<int32_t>&&)>&& completionHandler)
@@ -672,6 +677,49 @@ PlatformView* WebPageProxy::platformView() const
 {
     return [pageClient().platformWindow() contentView];
 }
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+
+void WebPageProxy::createPDFHUD(PDFPluginIdentifier identifier, const WebCore::IntRect& rect)
+{
+    pageClient().createPDFHUD(identifier, rect);
+}
+
+void WebPageProxy::removePDFHUD(PDFPluginIdentifier identifier)
+{
+    pageClient().removePDFHUD(identifier);
+}
+
+void WebPageProxy::updatePDFHUDLocation(PDFPluginIdentifier identifier, const WebCore::IntRect& rect)
+{
+    pageClient().updatePDFHUDLocation(identifier, rect);
+}
+
+void WebPageProxy::pdfZoomIn(PDFPluginIdentifier identifier)
+{
+    send(Messages::WebPage::ZoomPDFIn(identifier));
+}
+
+void WebPageProxy::pdfZoomOut(PDFPluginIdentifier identifier)
+{
+    send(Messages::WebPage::ZoomPDFOut(identifier));
+}
+
+void WebPageProxy::pdfSaveToPDF(PDFPluginIdentifier identifier)
+{
+    sendWithAsyncReply(Messages::WebPage::SavePDF(identifier), [this, protectedThis = makeRef(*this)] (String&& suggestedFilename, URL&& originatingURL, const IPC::DataReference& dataReference) {
+        savePDFToFileInDownloadsFolder(WTFMove(suggestedFilename), WTFMove(originatingURL), dataReference);
+    });
+}
+
+void WebPageProxy::pdfOpenWithPreview(PDFPluginIdentifier identifier)
+{
+    sendWithAsyncReply(Messages::WebPage::OpenPDFWithPreview(identifier), [this, protectedThis = makeRef(*this)] (String&& suggestedFilename, FrameInfoData&& frameInfo, const IPC::DataReference& data, const String& pdfUUID) {
+        savePDFToTemporaryFolderAndOpenWithNativeApplication(WTFMove(suggestedFilename), WTFMove(frameInfo), data, pdfUUID);
+    });
+}
+
+#endif // ENABLE(UI_PROCESS_PDF_HUD)
 
 } // namespace WebKit
 

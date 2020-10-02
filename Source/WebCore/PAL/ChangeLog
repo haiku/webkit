@@ -1,3 +1,272 @@
+2020-10-02  Youenn Fablet  <youenn@apple.com>
+
+        Add AVAssetWriter SPI header
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        <rdar://problem/69793050>
+
+        Reviewed by Eric Carlson.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/spi/cocoa/AVAssetWriterSPI.h: Added.
+
+2020-10-01  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r267841.
+
+        Broke Catalina Builds
+
+        Reverted changeset:
+
+        "Add AVAssetWriter SPI header"
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        https://trac.webkit.org/changeset/267841
+
+2020-10-01  Youenn Fablet  <youenn@apple.com>
+
+        Add AVAssetWriter SPI header
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        <rdar://problem/69793050>
+
+        Reviewed by Eric Carlson.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/spi/cocoa/AVAssetWriterSPI.h: Added.
+
+2020-09-29  Jonathan Bedard  <jbedard@apple.com>
+
+        [watchOS] AVKitSPI build fixes
+        https://bugs.webkit.org/show_bug.cgi?id=217070
+        <rdar://problem/69724883>
+
+        Rubber-stamped by Eric Carlson.
+
+        * pal/spi/cocoa/AVKitSPI.h: Explicitly import AVPlayer.h and UIKit.h.
+
+2020-09-29  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macCatalyst] Focus rings are not painted
+        https://bugs.webkit.org/show_bug.cgi?id=217073
+        <rdar://problem/46794111>
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/ios/UIKitSPI.h:
+
+        Ensure needed interfaces are available on all IOS_FAMILY platforms.
+
+2020-09-24  Dean Jackson  <dino@apple.com>
+
+        WebGL should use GLES in iOS apps running on Apple Silicon
+        https://bugs.webkit.org/show_bug.cgi?id=216722
+        <rdar://problem/68976337>
+
+        Reviewed by Tim Horton.
+
+        Add soft-linking content for OpenGL/OpenGLES.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/PlatformMac.cmake:
+        * pal/cocoa/OpenGLSoftLinkCocoa.h: Added.
+        * pal/cocoa/OpenGLSoftLinkCocoa.mm: Added.
+
+2020-09-17  Tim Horton  <timothy_horton@apple.com>
+
+        Per-app accent color overrides are broken
+        https://bugs.webkit.org/show_bug.cgi?id=216674
+        <rdar://problem/67745464>
+
+        Reviewed by Wenson Hsieh.
+
+        * pal/spi/mac/NSApplicationSPI.h:
+
+2020-09-16  Alex Christensen  <achristensen@webkit.org>
+
+        Remove unneeded HAVE_FOUNDATION_WITH_SAVE_COOKIES_WITH_COMPLETION_HANDLER
+        https://bugs.webkit.org/show_bug.cgi?id=216572
+
+        Reviewed by Youenn Fablet.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-09-14  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Apple Win] Migrate from FontPlatformDataWin.cpp to FontPlatformDataCoreText.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=216448
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/win/CoreTextSPIWin.h:
+
+2020-09-14  Peng Liu  <peng.liu6@apple.com>
+
+        Clean up AVKitSPI.h
+        https://bugs.webkit.org/show_bug.cgi?id=216449
+
+        Unreviewed, a follow-up patch to fix build failures on watchOS.
+
+        * pal/spi/cocoa/AVKitSPI.h:
+
+2020-09-14  Peng Liu  <peng.liu6@apple.com>
+
+        Clean up AVKitSPI.h
+        https://bugs.webkit.org/show_bug.cgi?id=216449
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/AVFoundationSPI.h:
+        Remove a duplicated AVKit header file.
+
+        * pal/spi/cocoa/AVKitSPI.h:
+        Organize header files (and definitions) in the following order:
+        - General AVKit header files
+        - General AVKit internal header files and definitions
+        - Feature specific internal header files and definitions
+
+2020-09-14  Peng Liu  <peng.liu6@apple.com>
+
+        Unreviewed, reverting r267004.
+
+        The patch leads to build failures on macOS Catalina.
+
+        Reverted changeset:
+
+        "Clean up AVKitSPI.h"
+        https://bugs.webkit.org/show_bug.cgi?id=216449
+        https://trac.webkit.org/changeset/267004
+
+2020-09-13  Peng Liu  <peng.liu6@apple.com>
+
+        Clean up AVKitSPI.h
+        https://bugs.webkit.org/show_bug.cgi?id=216449
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/AVFoundationSPI.h:
+        Remove a duplicated AVKit header file.
+
+        * pal/spi/cocoa/AVKitSPI.h:
+        Organize header files (and definitions) in the following order:
+        - General AVKit header files
+        - General AVKit internal header files and definitions
+        - Feature specific internal header files and definitions
+
+2020-09-11  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Migrate CoreText-specific code from ***Cocoa.mm to ***CoreText.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=216400
+
+        Reviewed by Tim Horton.
+
+        * pal/spi/win/CoreTextSPIWin.h:
+
+2020-09-11  Ben Nham  <nham@apple.com>
+
+        Fix undeclared identifier issue due to clashes in soft link headers
+        https://bugs.webkit.org/show_bug.cgi?id=216412
+
+        Reviewed by Geoffrey Garen.
+
+        r266898 broke builds on certain SDKs. The reason for this is that it includes
+        MediaToolbox/FigPhoto.h, which transitively includes CoreMedia/CMTimePrivate.h. The latter
+        header has a bunch of inline code in certain SDKs which conflicts with the
+        CoreMediaSoftLink.h header. For instance, CoreMediaSoftLink.h redefines CMTimeCompare to
+        softLink_CoreMedia_CMTimeCompare, which messes up the inline code in the CMTimePrivate.h
+        header that references CMTimeCompare.
+
+        For now, we just avoid including FigPhoto.h altogether and use a constant. We'll clean this
+        up once we start weak linking rather than soft linking CoreMedia and MediaToolbox (216388).
+
+        * pal/cocoa/MediaToolboxSoftLink.cpp:
+        * pal/cocoa/MediaToolboxSoftLink.h:
+        * pal/spi/cocoa/MediaToolboxSPI.h:
+
+2020-09-10  Ben Nham  <nham@apple.com>
+
+        Disable hardware JPEG decoding on x86 Mac
+        https://bugs.webkit.org/show_bug.cgi?id=216377
+
+        Reviewed by Geoff Garen.
+
+        Add wrappers for a new MediaToolbox SPI that allows us to disable HW JPEG decoding.
+
+        * PAL.xcodeproj/project.pbxproj:
+        * pal/PlatformMac.cmake:
+        * pal/cocoa/MediaToolboxSoftLink.cpp:
+        * pal/cocoa/MediaToolboxSoftLink.h:
+
+2020-09-10  Jer Noble  <jer.noble@apple.com>
+
+        [Cocoa] PERF: Don't instantiate AVPlayer-based audio decoders or renderers if an element is initially muted.
+        https://bugs.webkit.org/show_bug.cgi?id=216299
+
+        Reviewed by Eric Carlson.
+
+        * pal/spi/cocoa/AVFoundationSPI.h:
+
+2020-09-06  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [iOS] attachmentActionFont() Needs to use kCTFontSymbolicTrait: @(kCTFontTraitTightLeading | kCTFontTraitEmphasized) to get the short emphasized footnote font
+        https://bugs.webkit.org/show_bug.cgi?id=215707
+        <rdar://problem/63930892>
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/CoreTextSPI.h: Add an optimzation for platforms which support it.
+
+2020-09-06  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Prepare for migrating to CTFontHasTable() once it's faster than CTFontCopyAvailableTables()
+        https://bugs.webkit.org/show_bug.cgi?id=215688
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/CoreTextSPI.h:
+
+2020-09-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] USE(PLATFORM_SYSTEM_FALLBACK_LIST) is true on all Cocoa platforms, so there's no need to consult it in Cocoa-specific files
+        https://bugs.webkit.org/show_bug.cgi?id=215684
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/CoreTextSPI.h:
+
+2020-09-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] CTFontIsSystemUIFont() is faster than CTFontDescriptorIsSystemUIFont()/CTFontCopyFontDescriptor()
+        https://bugs.webkit.org/show_bug.cgi?id=215687
+
+        Reviewed by Darin Adler.
+
+        * pal/spi/cocoa/CoreTextSPI.h:
+
+2020-09-04  Sihui Liu  <sihui_liu@apple.com>
+
+        Webpages flash when switching between windows
+        https://bugs.webkit.org/show_bug.cgi?id=216012
+
+        Reviewed by Tim Horton.
+
+        * pal/spi/cocoa/QuartzCoreSPI.h:
+
+2020-08-25  Alex Christensen  <achristensen@webkit.org>
+
+        Clean up deprecated and unused SPI to set HSTS storage on ProcessPoolConfiguration
+        https://bugs.webkit.org/show_bug.cgi?id=215788
+
+        Reviewed by Chris Dumez.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
+2020-08-24  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * pal/spi/cf/CFNetworkSPI.h:
+
 2020-08-20  Per Arne Vollan  <pvollan@apple.com>
 
         [macOS] Web pages are not responding correctly to changes in "Reduce motion" setting

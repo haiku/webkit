@@ -180,7 +180,7 @@ Node* FocusNavigationScope::firstNodeInScope() const
         auto* assigneNodes = m_slotElement->assignedNodes();
         if (m_slotKind == SlotKind::Assigned) {
             ASSERT(assigneNodes);
-            return assigneNodes->first();
+            return assigneNodes->first().get();
         }
         ASSERT(m_slotKind == SlotKind::Fallback);
         return m_slotElement->firstChild();
@@ -195,7 +195,7 @@ Node* FocusNavigationScope::lastNodeInScope() const
         auto* assigneNodes = m_slotElement->assignedNodes();
         if (m_slotKind == SlotKind::Assigned) {
             ASSERT(assigneNodes);
-            return assigneNodes->last();
+            return assigneNodes->last().get();
         }
         ASSERT(m_slotKind == SlotKind::Fallback);
         return m_slotElement->lastChild();
@@ -526,8 +526,7 @@ bool FocusController::advanceFocusInDocumentOrder(FocusDirection direction, Keyb
     setFocusedFrame(newDocument.frame());
 
     if (caretBrowsing) {
-        Position position = firstPositionInOrBeforeNode(element.get());
-        VisibleSelection newSelection(position, position, DOWNSTREAM);
+        VisibleSelection newSelection(firstPositionInOrBeforeNode(element.get()), Affinity::Downstream);
         if (frame.selection().shouldChangeSelection(newSelection)) {
             AXTextStateChangeIntent intent(AXTextStateChangeTypeSelectionMove, AXTextSelection { AXTextSelectionDirectionDiscontiguous, AXTextSelectionGranularityUnknown, true });
             frame.selection().setSelection(newSelection, FrameSelection::defaultSetSelectionOptions(UserTriggered), intent);

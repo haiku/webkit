@@ -31,6 +31,7 @@
 
 #include "Error.h"
 #include "FunctionPrototype.h"
+#include "IntlCollator.h"
 #include "IntlCollatorConstructor.h"
 #include "IntlCollatorPrototype.h"
 #include "IntlDateTimeFormatConstructor.h"
@@ -69,7 +70,7 @@ namespace JSC {
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(IntlObject);
 
-static EncodedJSValue JSC_HOST_CALL intlObjectFuncGetCanonicalLocales(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(intlObjectFuncGetCanonicalLocales);
 
 static JSValue createCollatorConstructor(VM& vm, JSObject* object)
 {
@@ -82,7 +83,7 @@ static JSValue createDateTimeFormatConstructor(VM& vm, JSObject* object)
 {
     IntlObject* intlObject = jsCast<IntlObject*>(object);
     JSGlobalObject* globalObject = intlObject->globalObject(vm);
-    return IntlDateTimeFormatConstructor::create(vm, IntlDateTimeFormatConstructor::createStructure(vm, globalObject, globalObject->functionPrototype()), jsCast<IntlDateTimeFormatPrototype*>(globalObject->dateTimeFormatStructure()->storedPrototypeObject()));
+    return globalObject->dateTimeFormatConstructor();
 }
 
 static JSValue createDisplayNamesConstructor(VM& vm, JSObject* object)
@@ -103,7 +104,7 @@ static JSValue createNumberFormatConstructor(VM& vm, JSObject* object)
 {
     IntlObject* intlObject = jsCast<IntlObject*>(object);
     JSGlobalObject* globalObject = intlObject->globalObject(vm);
-    return IntlNumberFormatConstructor::create(vm, IntlNumberFormatConstructor::createStructure(vm, globalObject, globalObject->functionPrototype()), jsCast<IntlNumberFormatPrototype*>(globalObject->numberFormatStructure()->storedPrototypeObject()));
+    return globalObject->numberFormatConstructor();
 }
 
 static JSValue createPluralRulesConstructor(VM& vm, JSObject* object)
@@ -142,6 +143,7 @@ namespace JSC {
   NumberFormat          createNumberFormatConstructor                DontEnum|PropertyCallback
   PluralRules           createPluralRulesConstructor                 DontEnum|PropertyCallback
   RelativeTimeFormat    createRelativeTimeFormatConstructor          DontEnum|PropertyCallback
+  Segmenter             createSegmenterConstructor                   DontEnum|PropertyCallback
 @end
 */
 
@@ -181,13 +183,52 @@ void IntlObject::finishCreation(VM& vm, JSGlobalObject*)
 #else
     UNUSED_PARAM(createDisplayNamesConstructor);
 #endif
-    if (Options::useIntlSegmenter())
-        putDirectWithoutTransition(vm, vm.propertyNames->Segmenter, createSegmenterConstructor(vm, this), static_cast<unsigned>(PropertyAttribute::DontEnum));
 }
 
 Structure* IntlObject::createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
 {
     return Structure::create(vm, globalObject, prototype, TypeInfo(ObjectType, StructureFlags), info());
+}
+
+static Vector<StringView> unicodeExtensionComponents(StringView extension)
+{
+    // UnicodeExtensionSubtags (extension)
+    // https://tc39.github.io/ecma402/#sec-unicodeextensionsubtags
+
+    auto extensionLength = extension.length();
+    if (extensionLength < 3)
+        return { };
+
+    Vector<StringView> subtags;
+    size_t subtagStart = 3; // Skip initial -u-.
+    size_t valueStart = 3;
+    bool isLeading = true;
+    for (size_t index = subtagStart; index < extensionLength; ++index) {
+        if (extension[index] == '-') {
+            if (index - subtagStart == 2) {
+                // Tag is a key, first append prior key's value if there is one.
+                if (subtagStart - valueStart > 1)
+                    subtags.append(extension.substring(valueStart, subtagStart - valueStart - 1));
+                subtags.append(extension.substring(subtagStart, index - subtagStart));
+                valueStart = index + 1;
+                isLeading = false;
+            } else if (isLeading) {
+                // Leading subtags before first key.
+                subtags.append(extension.substring(subtagStart, index - subtagStart));
+                valueStart = index + 1;
+            }
+            subtagStart = index + 1;
+        }
+    }
+    if (extensionLength - subtagStart == 2) {
+        // Trailing an extension key, first append prior key's value if there is one.
+        if (subtagStart - valueStart > 1)
+            subtags.append(extension.substring(valueStart, subtagStart - valueStart - 1));
+        valueStart = subtagStart;
+    }
+    // Append final key's value.
+    subtags.append(extension.substring(valueStart, extensionLength - valueStart));
+    return subtags;
 }
 
 Vector<char, 32> localeIDBufferForLanguageTag(const CString& tag)
@@ -212,6 +253,71 @@ Vector<char, 32> localeIDBufferForLanguageTag(const CString& tag)
     return buffer;
 }
 
+Vector<char, 32> canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(Vector<char, 32>&& buffer)
+{
+    StringView locale(buffer.data(), buffer.size());
+    ASSERT(locale.is8Bit());
+    size_t extensionIndex = locale.find("-u-");
+    if (extensionIndex == notFound)
+        return WTFMove(buffer);
+
+    // Since ICU's canonicalization is incomplete, we need to perform some of canonicalization here.
+    size_t extensionLength = locale.length() - extensionIndex;
+    size_t end = extensionIndex + 3;
+    while (end < locale.length()) {
+        end = locale.find('-', end);
+        if (end == notFound)
+            break;
+        // Found another singleton.
+        if (end + 2 < locale.length() && locale[end + 2] == '-') {
+            extensionLength = end - extensionIndex;
+            break;
+        }
+        end++;
+    }
+
+    Vector<char, 32> result;
+    result.append(buffer.data(), extensionIndex + 2); // "-u" is included.
+    StringView extension = locale.substring(extensionIndex, extensionLength);
+    ASSERT(extension.is8Bit());
+    auto subtags = unicodeExtensionComponents(extension);
+    for (unsigned index = 0; index < subtags.size();) {
+        auto subtag = subtags[index];
+        ASSERT(subtag.is8Bit());
+        result.append('-');
+        result.append(subtag.characters8(), subtag.length());
+
+        if (subtag.length() != 2) {
+            ++index;
+            continue;
+        }
+        ASSERT(subtag.length() == 2);
+
+        // This is unicode extension key.
+        unsigned valueIndexStart = index + 1;
+        unsigned valueIndexEnd = valueIndexStart;
+        for (; valueIndexEnd < subtags.size(); ++valueIndexEnd) {
+            if (subtags[valueIndexEnd].length() == 2)
+                break;
+        }
+        // [valueIndexStart, valueIndexEnd) is value of this unicode extension. If there is no value, valueIndexStart == valueIndexEnd.
+
+        for (unsigned valueIndex = valueIndexStart; valueIndex < valueIndexEnd; ++valueIndex) {
+            auto value = subtags[valueIndex];
+            if (value != "true"_s) {
+                result.append('-');
+                result.append(value.characters8(), value.length());
+            }
+        }
+        index = valueIndexEnd;
+    }
+
+    unsigned remainingStart = extensionIndex + extensionLength;
+    unsigned remainingLength = buffer.size() - remainingStart;
+    result.append(buffer.data() + remainingStart, remainingLength);
+    return result;
+}
+
 String languageTagForLocaleID(const char* localeID, bool isImmortal)
 {
     Vector<char, 32> buffer;
@@ -219,12 +325,15 @@ String languageTagForLocaleID(const char* localeID, bool isImmortal)
     if (U_FAILURE(status))
         return String();
 
-    // This is used to store into static variables that may be shared across JSC execution threads.
-    // This must be immortal to make concurrent ref/deref safe.
-    if (isImmortal)
-        return StringImpl::createStaticStringImpl(buffer.data(), buffer.size());
+    auto createResult = [&](Vector<char, 32>&& buffer) -> String {
+        // This is used to store into static variables that may be shared across JSC execution threads.
+        // This must be immortal to make concurrent ref/deref safe.
+        if (isImmortal)
+            return StringImpl::createStaticStringImpl(buffer.data(), buffer.size());
+        return String(buffer.data(), buffer.size());
+    };
 
-    return String(buffer.data(), buffer.size());
+    return createResult(canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(WTFMove(buffer)));
 }
 
 // Ensure we have xx-ZZ whenever we have xx-Yyyy-ZZ.
@@ -273,6 +382,64 @@ const HashSet<String>& intlAvailableLocales()
     return availableLocales;
 }
 
+// This table is total ordering indexes for ASCII characters in UCA DUCET.
+// It is generated from CLDR common/uca/allkeys_DUCET.txt.
+//
+// Rough overview of UCA is the followings.
+// https://unicode.org/reports/tr10/#Main_Algorithm
+//
+//     1. Normalize each input string.
+//
+//     2. Produce an array of collation elements for each string.
+//
+//         There are 3 (or 4) levels. And each character has 4 weights. We concatenate them into one sequence called collation elements.
+//         For example, "c" has `[.0706.0020.0002]`. And "ca◌́b" becomes `[.0706.0020.0002], [.06D9.0020.0002], [.0000.0021.0002], [.06EE.0020.0002]`
+//         We need to consider variable weighting (https://unicode.org/reports/tr10/#Variable_Weighting), but if it is Non-ignorable, we can just use
+//         the collation elements defined in the table.
+//
+//     3. Produce a sort key for each string from the arrays of collation elements.
+//
+//         Generate sort key from collation elements. From lower levels to higher levels, we collect weights. But 0000 weight is skipped.
+//         Between levels, we insert 0000 weight if the boundary.
+//
+//             string: "ca◌́b"
+//             collation elements: `[.0706.0020.0002], [.06D9.0020.0002], [.0000.0021.0002], [.06EE.0020.0002]`
+//             sort key: `0706 06D9 06EE 0000 0020 0020 0021 0020 0000 0002 0002 0002 0002`
+//                                        ^                        ^
+//                                        level boundary           level boundary
+//
+//     4. Compare the two sort keys with a binary comparison operation.
+//
+// Key observations are the followings.
+//
+//     1. If an input is an ASCII string, UCA step-1 normalization does nothing.
+//     2. If an input is an ASCII string, non-starters (https://unicode.org/reports/tr10/#UTS10-D33) does not exist. So no special handling in UCA step-2 is required.
+//     3. If an input is an ASCII string, no multiple character collation elements exist. So no special handling in UCA step-2 is required. For example, "L·" is not ASCII.
+//     4. UCA step-3 handles 0000 weighted characters specially. And ASCII contains these characters. But 0000 elements are used only for rare control characters.
+//        We can ignore this special handling if ASCII strings do not include control characters.
+//     5. Except 0000 cases, all characters' level-1 weights are different. And level-2 weights are always 0020, which is lower than any level-1 weights.
+//        This means that binary comparison in UCA step-4 do not need to check level 2~ weights.
+//
+//  Based on the above observation, our fast path handles ASCII strings excluding control characters. The following weight is recomputed weights from level-1 weights.
+const uint8_t ducetWeights[128] = {
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 1, 2, 3, 4, 5, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    6, 12, 16, 28, 38, 29, 27, 15,
+    17, 18, 24, 32, 9, 8, 14, 25,
+    39, 40, 41, 42, 43, 44, 45, 46,
+    47, 48, 11, 10, 33, 34, 35, 13,
+    23, 50, 52, 54, 56, 58, 60, 62,
+    64, 66, 68, 70, 72, 74, 76, 78,
+    80, 82, 84, 86, 88, 90, 92, 94,
+    96, 98, 100, 19, 26, 20, 31, 7,
+    30, 49, 51, 53, 55, 57, 59, 61,
+    63, 65, 67, 69, 71, 73, 75, 77,
+    79, 81, 83, 85, 87, 89, 91, 93,
+    95, 97, 99, 21, 36, 22, 37, 0,
+};
+
 const HashSet<String>& intlCollatorAvailableLocales()
 {
     static LazyNeverDestroyed<HashSet<String>> availableLocales;
@@ -289,6 +456,7 @@ const HashSet<String>& intlCollatorAvailableLocales()
             availableLocales->add(locale);
             addScriptlessLocaleIfNeeded(availableLocales.get(), locale);
         }
+        IntlCollator::checkICULocaleInvariants(availableLocales.get());
     });
     return availableLocales;
 }
@@ -635,45 +803,6 @@ static MatcherResult bestFitMatcher(JSGlobalObject* globalObject, const HashSet<
     return lookupMatcher(globalObject, availableLocales, requestedLocales);
 }
 
-static void unicodeExtensionSubTags(const String& extension, Vector<String>& subtags)
-{
-    // UnicodeExtensionSubtags (extension)
-    // https://tc39.github.io/ecma402/#sec-unicodeextensionsubtags
-
-    auto extensionLength = extension.length();
-    if (extensionLength < 3)
-        return;
-
-    size_t subtagStart = 3; // Skip initial -u-.
-    size_t valueStart = 3;
-    bool isLeading = true;
-    for (size_t index = subtagStart; index < extensionLength; ++index) {
-        if (extension[index] == '-') {
-            if (index - subtagStart == 2) {
-                // Tag is a key, first append prior key's value if there is one.
-                if (subtagStart - valueStart > 1)
-                    subtags.append(extension.substring(valueStart, subtagStart - valueStart - 1));
-                subtags.append(extension.substring(subtagStart, index - subtagStart));
-                valueStart = index + 1;
-                isLeading = false;
-            } else if (isLeading) {
-                // Leading subtags before first key.
-                subtags.append(extension.substring(subtagStart, index - subtagStart));
-                valueStart = index + 1;
-            }
-            subtagStart = index + 1;
-        }
-    }
-    if (extensionLength - subtagStart == 2) {
-        // Trailing an extension key, first append prior key's value if there is one.
-        if (subtagStart - valueStart > 1)
-            subtags.append(extension.substring(valueStart, subtagStart - valueStart - 1));
-        valueStart = subtagStart;
-    }
-    // Append final key's value.
-    subtags.append(extension.substring(valueStart, extensionLength - valueStart));
-}
-
 constexpr ASCIILiteral relevantExtensionKeyString(RelevantExtensionKey key)
 {
     switch (key) {
@@ -697,9 +826,9 @@ ResolvedLocale resolveLocale(JSGlobalObject* globalObject, const HashSet<String>
 
     String foundLocale = matcherResult.locale;
 
-    Vector<String> extensionSubtags;
+    Vector<StringView> extensionSubtags;
     if (!matcherResult.extension.isNull())
-        unicodeExtensionSubTags(matcherResult.extension, extensionSubtags);
+        extensionSubtags = unicodeExtensionComponents(matcherResult.extension);
 
     ResolvedLocale resolved;
     resolved.dataLocale = foundLocale;
@@ -717,9 +846,10 @@ ResolvedLocale resolveLocale(JSGlobalObject* globalObject, const HashSet<String>
             size_t keyPos = extensionSubtags.find(keyString);
             if (keyPos != notFound) {
                 if (keyPos + 1 < extensionSubtags.size() && extensionSubtags[keyPos + 1].length() > 2) {
-                    const String& requestedValue = extensionSubtags[keyPos + 1];
-                    if (keyLocaleData.contains(requestedValue)) {
-                        value = requestedValue;
+                    StringView requestedValue = extensionSubtags[keyPos + 1];
+                    auto dataPos = keyLocaleData.find(requestedValue);
+                    if (dataPos != notFound) {
+                        value = keyLocaleData[dataPos];
                         supportedExtensionAddition = makeString('-', keyString, '-', value);
                     }
                 } else if (keyLocaleData.contains("true"_s)) {
@@ -1270,7 +1400,7 @@ bool isWellFormedCurrencyCode(StringView currency)
     return currency.length() == 3 && currency.isAllSpecialCharacters<isASCIIAlpha>();
 }
 
-EncodedJSValue JSC_HOST_CALL intlObjectFuncGetCanonicalLocales(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(intlObjectFuncGetCanonicalLocales, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     // Intl.getCanonicalLocales(locales)
     // https://tc39.github.io/ecma402/#sec-intl.getcanonicallocales

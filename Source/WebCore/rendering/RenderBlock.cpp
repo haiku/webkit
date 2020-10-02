@@ -1136,6 +1136,9 @@ void RenderBlock::paintContents(PaintInfo& paintInfo, const LayoutPoint& paintOf
         paintInfoForChild.phase = newPhase;
         paintInfoForChild.updateSubtreePaintRootForChildren(this);
 
+        if (paintInfo.eventRegionContext)
+            paintInfoForChild.paintBehavior.add(PaintBehavior::EventRegionIncludeBackground);
+
         // FIXME: Paint-time pagination is obsolete and is now only used by embedded WebViews inside AppKit
         // NSViews. Do not add any more code for this.
         bool usePrintRect = !view().printRect().isEmpty();
@@ -1249,11 +1252,14 @@ void RenderBlock::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
     if (paintPhase == PaintPhase::EventRegion) {
         auto borderRect = LayoutRect(paintOffset, size());
 
-        if (visibleToHitTesting()) {
+        if (paintInfo.paintBehavior.contains(PaintBehavior::EventRegionIncludeBackground) && visibleToHitTesting()) {
             auto borderRegion = approximateAsRegion(style().getRoundedBorderFor(borderRect));
             LOG_WITH_STREAM(EventRegions, stream << "RenderBlock " << *this << " uniting region " << borderRegion);
             paintInfo.eventRegionContext->unite(borderRegion, style(), isTextControl() && downcast<RenderTextControl>(*this).textFormControlElement().isInnerTextElementEditable());
         }
+
+        if (!paintInfo.paintBehavior.contains(PaintBehavior::EventRegionIncludeForeground))
+            return;
 
         bool needsTraverseDescendants = hasVisualOverflow() || containsFloats() || !paintInfo.eventRegionContext->contains(enclosingIntRect(borderRect)) || view().needsEventRegionUpdateForNonCompositedFrame();
         LOG_WITH_STREAM(EventRegions, stream << "RenderBlock " << *this << " needsTraverseDescendants for event region: hasVisualOverflow: " << hasVisualOverflow() << " containsFloats: "
@@ -1262,7 +1268,7 @@ void RenderBlock::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
         needsTraverseDescendants |= document().mayHaveElementsWithNonAutoTouchAction();
         LOG_WITH_STREAM(EventRegions, stream << "  may have touch-action elements: " << document().mayHaveElementsWithNonAutoTouchAction());
 #endif
-#if !PLATFORM(IOS_FAMILY)
+#if ENABLE(WHEEL_EVENT_REGIONS)
         needsTraverseDescendants |= document().hasWheelEventHandlers();
         LOG_WITH_STREAM(EventRegions, stream << "  has wheel event handlers: " << document().hasWheelEventHandlers());
 #endif
@@ -2163,8 +2169,8 @@ VisiblePosition positionForPointRespectingEditingBoundaries(RenderBlock& parent,
     LayoutUnit childMiddle = parent.logicalWidthForChild(child) / 2;
     LayoutUnit logicalLeft = parent.isHorizontalWritingMode() ? pointInChildCoordinates.x() : pointInChildCoordinates.y();
     if (logicalLeft < childMiddle)
-        return ancestor->createVisiblePosition(childElement->computeNodeIndex(), DOWNSTREAM);
-    return ancestor->createVisiblePosition(childElement->computeNodeIndex() + 1, UPSTREAM);
+        return ancestor->createVisiblePosition(childElement->computeNodeIndex(), Affinity::Downstream);
+    return ancestor->createVisiblePosition(childElement->computeNodeIndex() + 1, Affinity::Upstream);
 }
 
 VisiblePosition RenderBlock::positionForPointWithInlineChildren(const LayoutPoint&, const RenderFragmentContainer*)
@@ -2200,9 +2206,9 @@ VisiblePosition RenderBlock::positionForPoint(const LayoutPoint& point, const Re
         LayoutUnit pointLogicalTop = isHorizontalWritingMode() ? point.y() : point.x();
 
         if (pointLogicalTop < 0 || (pointLogicalTop < logicalHeight() && pointLogicalLeft < 0))
-            return createVisiblePosition(caretMinOffset(), DOWNSTREAM);
+            return createVisiblePosition(caretMinOffset(), Affinity::Downstream);
         if (pointLogicalTop >= logicalHeight() || (pointLogicalTop >= 0 && pointLogicalLeft >= logicalWidth()))
-            return createVisiblePosition(caretMaxOffset(), DOWNSTREAM);
+            return createVisiblePosition(caretMaxOffset(), Affinity::Downstream);
     } 
 
     LayoutPoint pointInContents = point;
@@ -3342,12 +3348,12 @@ void RenderBlock::adjustBorderBoxRectForPainting(LayoutRect& paintRect)
     if (style().isHorizontalWritingMode()) {
         LayoutUnit yOff = std::max(0_lu, (legend->height() - RenderBox::borderBefore()) / 2);
         paintRect.setHeight(paintRect.height() - yOff);
-        if (style().writingMode() == TopToBottomWritingMode)
+        if (style().writingMode() == WritingMode::TopToBottom)
             paintRect.setY(paintRect.y() + yOff);
     } else {
         LayoutUnit xOff = std::max(0_lu, (legend->width() - RenderBox::borderBefore()) / 2);
         paintRect.setWidth(paintRect.width() - xOff);
-        if (style().writingMode() == LeftToRightWritingMode)
+        if (style().writingMode() == WritingMode::LeftToRight)
             paintRect.setX(paintRect.x() + xOff);
     }
 }
@@ -3364,11 +3370,11 @@ LayoutRect RenderBlock::paintRectToClipOutFromBorder(const LayoutRect& paintRect
     LayoutUnit borderExtent = RenderBox::borderBefore();
     if (style().isHorizontalWritingMode()) {
         clipRect.setX(paintRect.x() + legend->x());
-        clipRect.setY(style().writingMode() == TopToBottomWritingMode ? paintRect.y() : paintRect.y() + paintRect.height() - borderExtent);
+        clipRect.setY(style().writingMode() == WritingMode::TopToBottom ? paintRect.y() : paintRect.y() + paintRect.height() - borderExtent);
         clipRect.setWidth(legend->width());
         clipRect.setHeight(borderExtent);
     } else {
-        clipRect.setX(style().writingMode() == LeftToRightWritingMode ? paintRect.x() : paintRect.x() + paintRect.width() - borderExtent);
+        clipRect.setX(style().writingMode() == WritingMode::LeftToRight ? paintRect.x() : paintRect.x() + paintRect.width() - borderExtent);
         clipRect.setY(paintRect.y() + legend->y());
         clipRect.setWidth(borderExtent);
         clipRect.setHeight(legend->height());
@@ -3395,28 +3401,28 @@ void RenderBlock::setIntrinsicBorderForFieldset(LayoutUnit padding)
 
 LayoutUnit RenderBlock::borderTop() const
 {
-    if (style().writingMode() != TopToBottomWritingMode || !intrinsicBorderForFieldset())
+    if (style().writingMode() != WritingMode::TopToBottom || !intrinsicBorderForFieldset())
         return RenderBox::borderTop();
     return RenderBox::borderTop() + intrinsicBorderForFieldset();
 }
 
 LayoutUnit RenderBlock::borderLeft() const
 {
-    if (style().writingMode() != LeftToRightWritingMode || !intrinsicBorderForFieldset())
+    if (style().writingMode() != WritingMode::LeftToRight || !intrinsicBorderForFieldset())
         return RenderBox::borderLeft();
     return RenderBox::borderLeft() + intrinsicBorderForFieldset();
 }
 
 LayoutUnit RenderBlock::borderBottom() const
 {
-    if (style().writingMode() != BottomToTopWritingMode || !intrinsicBorderForFieldset())
+    if (style().writingMode() != WritingMode::BottomToTop || !intrinsicBorderForFieldset())
         return RenderBox::borderBottom();
     return RenderBox::borderBottom() + intrinsicBorderForFieldset();
 }
 
 LayoutUnit RenderBlock::borderRight() const
 {
-    if (style().writingMode() != RightToLeftWritingMode || !intrinsicBorderForFieldset())
+    if (style().writingMode() != WritingMode::RightToLeft || !intrinsicBorderForFieldset())
         return RenderBox::borderRight();
     return RenderBox::borderRight() + intrinsicBorderForFieldset();
 }

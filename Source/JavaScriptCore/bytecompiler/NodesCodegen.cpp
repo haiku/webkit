@@ -747,6 +747,12 @@ void PropertyListNode::emitPutConstantProperty(BytecodeGenerator& generator, Reg
     // Private fields are handled in the synthetic instanceFieldInitializer function, not here.
     ASSERT(!(node.type() & PropertyNode::Private));
 
+    if (PropertyNode::isUnderscoreProtoSetter(generator.vm(), node)) {
+        RefPtr<RegisterID> prototype = generator.emitNode(node.m_assign);
+        generator.emitDirectSetPrototypeOf(newObj, prototype.get());
+        return;
+    }
+
     bool shouldSetFunctionName = generator.shouldSetFunctionName(node.m_assign);
 
     RefPtr<RegisterID> propertyName;
@@ -777,7 +783,7 @@ void PropertyListNode::emitPutConstantProperty(BytecodeGenerator& generator, Reg
         ASSERT(!propertyName);
         Optional<uint32_t> optionalIndex = parseIndex(*identifier);
         if (!optionalIndex) {
-            generator.emitDirectPutById(newObj, *identifier, value.get(), node.putType());
+            generator.emitDirectPutById(newObj, *identifier, value.get());
             return;
         }
 
@@ -1394,7 +1400,7 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_putByIdDirect(BytecodeGenerato
 
     ASSERT(!node->m_next);
 
-    return generator.move(dst, generator.emitDirectPutById(base.get(), ident, value.get(), PropertyNode::KnownDirect));
+    return generator.move(dst, generator.emitDirectPutById(base.get(), ident, value.get()));
 }
 
 RegisterID* BytecodeIntrinsicNode::emit_intrinsic_putByIdDirectPrivate(BytecodeGenerator& generator, RegisterID* dst)
@@ -1410,7 +1416,7 @@ RegisterID* BytecodeIntrinsicNode::emit_intrinsic_putByIdDirectPrivate(BytecodeG
 
     ASSERT(!node->m_next);
 
-    return generator.move(dst, generator.emitDirectPutById(base.get(), generator.parserArena().identifierArena().makeIdentifier(generator.vm(), symbol), value.get(), PropertyNode::KnownDirect));
+    return generator.move(dst, generator.emitDirectPutById(base.get(), generator.parserArena().identifierArena().makeIdentifier(generator.vm(), symbol), value.get()));
 }
 
 RegisterID* BytecodeIntrinsicNode::emit_intrinsic_putByValDirect(BytecodeGenerator& generator, RegisterID* dst)
@@ -4908,9 +4914,9 @@ RegisterID* ClassExprNode::emitBytecode(BytecodeGenerator& generator, RegisterID
         generator.emitThrowTypeError("The value of the superclass's prototype property is not an object or null."_s);
         generator.emitLabel(protoParentIsObjectOrNullLabel.get());
 
-        generator.emitDirectPutById(constructor.get(), generator.propertyNames().underscoreProto, superclass.get(), PropertyNode::Unknown);
+        generator.emitDirectSetPrototypeOf(constructor.get(), superclass.get());
         generator.emitLabel(superclassIsNullLabel.get());
-        generator.emitDirectPutById(prototype.get(), generator.propertyNames().underscoreProto, protoParent.get(), PropertyNode::Unknown);
+        generator.emitDirectSetPrototypeOf(prototype.get(), protoParent.get());
     }
 
     if (needsHomeObject)
@@ -4935,7 +4941,7 @@ RegisterID* ClassExprNode::emitBytecode(BytecodeGenerator& generator, RegisterID
             // https://bugs.webkit.org/show_bug.cgi?id=196867
             emitPutHomeObject(generator, instanceFieldInitializer.get(), prototype.get());
 
-            generator.emitDirectPutById(constructor.get(), generator.propertyNames().builtinNames().instanceFieldInitializerPrivateName(), instanceFieldInitializer.get(), PropertyNode::Unknown);
+            generator.emitDirectPutById(constructor.get(), generator.propertyNames().builtinNames().instanceFieldInitializerPrivateName(), instanceFieldInitializer.get());
         }
     }
 
@@ -5100,6 +5106,9 @@ RegisterID* ArrayPatternNode::emitDirectBinding(BytecodeGenerator& generator, Re
     if (!rhs->isSimpleArray())
         return nullptr;
 
+    if (m_targetPatterns.findMatching([&] (auto& target) { return target.bindingType == BindingType::RestElement; }) != notFound)
+        return nullptr;
+
     ElementNode* elementNodes = static_cast<ArrayNode*>(rhs)->elements();
     Vector<ExpressionNode*> elements;
     for (; elementNodes; elementNodes = elementNodes->next()) {
@@ -5224,7 +5233,9 @@ void ObjectPatternNode::bindValue(BytecodeGenerator& generator, RegisterID* rhs)
 
             if (m_containsRestElement) {
                 if (m_containsComputedProperty) {
-                    if (!target.propertyExpression)
+                    if (target.propertyExpression)
+                        generator.emitToPropertyKey(propertyName.get(), propertyName.get());
+                    else
                         propertyName = generator.emitLoad(nullptr, target.propertyName);
 
                     CallArguments args(generator, nullptr, 1);

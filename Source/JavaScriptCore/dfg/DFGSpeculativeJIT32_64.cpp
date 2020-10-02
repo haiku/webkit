@@ -781,8 +781,8 @@ void SpeculativeJIT::emitCall(Node* node)
         isEmulatedTail ? *staticInlineCallFrame->getCallerSkippingTailCalls() : staticOrigin;
     CallSiteIndex callSite = m_jit.recordCallSiteAndGenerateExceptionHandlingOSRExitIfNeeded(dynamicOrigin, m_stream->size());
     
-    CallLinkInfo* info = m_jit.codeBlock()->addCallLinkInfo();
-    info->setUpCall(callType, node->origin.semantic, calleePayloadGPR);
+    CallLinkInfo* info = m_jit.codeBlock()->addCallLinkInfo(node->origin.semantic);
+    info->setUpCall(callType, calleePayloadGPR);
     
     auto setResultAndResetStack = [&] () {
         JSValueRegsFlushedCallResult result(this);
@@ -1923,12 +1923,6 @@ void SpeculativeJIT::compile(Node* node)
         noResult(node);
         break;
     }
-        
-    case ZombieHint: {
-        recordSetLocal(m_currentNode->unlinkedOperand(), VirtualRegister(), DataFormatDead);
-        noResult(node);
-        break;
-    }
 
     case ExitOK: {
         noResult(node);
@@ -2593,6 +2587,16 @@ void SpeculativeJIT::compile(Node* node)
 
     case GetByValWithThis: {
         compileGetByValWithThis(node);
+        break;
+    }
+
+    case PutPrivateName: {
+        compilePutPrivateName(node);
+        break;
+    }
+
+    case PutPrivateNameById: {
+        compilePutPrivateNameById(node);
         break;
     }
 
@@ -4241,6 +4245,7 @@ void SpeculativeJIT::compile(Node* node)
     case Int52Rep:
     case FiatInt52:
     case Int52Constant:
+    case AssertInBounds:
     case CheckInBounds:
     case ArithIMul:
     case MultiGetByOffset:

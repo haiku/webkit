@@ -183,11 +183,12 @@ public:
 
     const PseudoStyleCache* cachedPseudoStyles() const { return m_cachedPseudoStyles.get(); }
 
+    void deduplicateInheritedCustomProperties(const RenderStyle&);
     const CustomPropertyValueMap& inheritedCustomProperties() const { return m_rareInheritedData->customProperties->values; }
     const CustomPropertyValueMap& nonInheritedCustomProperties() const { return m_rareNonInheritedData->customProperties->values; }
     const CSSCustomPropertyValue* getCustomProperty(const AtomString&) const;
-    void setInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&& value) { return m_rareInheritedData.access().customProperties.access().setCustomPropertyValue(name, WTFMove(value)); }
-    void setNonInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&& value) { return m_rareNonInheritedData.access().customProperties.access().setCustomPropertyValue(name, WTFMove(value)); }
+    void setInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&&);
+    void setNonInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&&);
 
     void setHasViewportUnits(bool v = true) { m_nonInheritedFlags.hasViewportUnits = v; }
     bool hasViewportUnits() const { return m_nonInheritedFlags.hasViewportUnits; }
@@ -205,8 +206,8 @@ public:
     bool hasMarginBeforeQuirk() const { return marginBefore().hasQuirk(); }
     bool hasMarginAfterQuirk() const { return marginAfter().hasQuirk(); }
 
-    bool hasBackgroundImage() const { return m_backgroundData->background.hasImage(); }
-    bool hasFixedBackgroundImage() const { return m_backgroundData->background.hasFixedImage(); }
+    bool hasBackgroundImage() const { return m_backgroundData->background->hasImage(); }
+    bool hasFixedBackgroundImage() const { return m_backgroundData->background->hasFixedImage(); }
 
     bool hasEntirelyFixedBackground() const;
 
@@ -352,9 +353,7 @@ public:
     unsigned computedFontPixelSize() const;
     std::pair<FontOrientation, NonCJKGlyphOrientation> fontAndGlyphOrientation();
 
-#if ENABLE(VARIATION_FONTS)
     FontVariationSettings fontVariationSettings() const { return fontDescription().variationSettings(); }
-#endif
     FontSelectionValue fontWeight() const { return fontDescription().weight(); }
     FontSelectionValue fontStretch() const { return fontDescription().stretch(); }
     Optional<FontSelectionValue> fontItalic() const { return fontDescription().italic(); }
@@ -405,30 +404,30 @@ public:
     bool breakOnlyAfterWhiteSpace() const;
     bool breakWords() const;
 
-    FillRepeat backgroundRepeatX() const { return static_cast<FillRepeat>(m_backgroundData->background.repeatX()); }
-    FillRepeat backgroundRepeatY() const { return static_cast<FillRepeat>(m_backgroundData->background.repeatY()); }
-    CompositeOperator backgroundComposite() const { return static_cast<CompositeOperator>(m_backgroundData->background.composite()); }
-    FillAttachment backgroundAttachment() const { return static_cast<FillAttachment>(m_backgroundData->background.attachment()); }
-    FillBox backgroundClip() const { return static_cast<FillBox>(m_backgroundData->background.clip()); }
-    FillBox backgroundOrigin() const { return static_cast<FillBox>(m_backgroundData->background.origin()); }
-    const Length& backgroundXPosition() const { return m_backgroundData->background.xPosition(); }
-    const Length& backgroundYPosition() const { return m_backgroundData->background.yPosition(); }
-    FillSizeType backgroundSizeType() const { return m_backgroundData->background.sizeType(); }
-    const LengthSize& backgroundSizeLength() const { return m_backgroundData->background.sizeLength(); }
-    FillLayer& ensureBackgroundLayers() { return m_backgroundData.access().background; }
+    FillRepeat backgroundRepeatX() const { return static_cast<FillRepeat>(m_backgroundData->background->repeatX()); }
+    FillRepeat backgroundRepeatY() const { return static_cast<FillRepeat>(m_backgroundData->background->repeatY()); }
+    CompositeOperator backgroundComposite() const { return static_cast<CompositeOperator>(m_backgroundData->background->composite()); }
+    FillAttachment backgroundAttachment() const { return static_cast<FillAttachment>(m_backgroundData->background->attachment()); }
+    FillBox backgroundClip() const { return static_cast<FillBox>(m_backgroundData->background->clip()); }
+    FillBox backgroundOrigin() const { return static_cast<FillBox>(m_backgroundData->background->origin()); }
+    const Length& backgroundXPosition() const { return m_backgroundData->background->xPosition(); }
+    const Length& backgroundYPosition() const { return m_backgroundData->background->yPosition(); }
+    FillSizeType backgroundSizeType() const { return m_backgroundData->background->sizeType(); }
+    const LengthSize& backgroundSizeLength() const { return m_backgroundData->background->sizeLength(); }
+    FillLayer& ensureBackgroundLayers() { return m_backgroundData.access().background.access(); }
     const FillLayer& backgroundLayers() const { return m_backgroundData->background; }
 
-    StyleImage* maskImage() const { return m_rareNonInheritedData->mask.image(); }
-    FillRepeat maskRepeatX() const { return static_cast<FillRepeat>(m_rareNonInheritedData->mask.repeatX()); }
-    FillRepeat maskRepeatY() const { return static_cast<FillRepeat>(m_rareNonInheritedData->mask.repeatY()); }
-    CompositeOperator maskComposite() const { return static_cast<CompositeOperator>(m_rareNonInheritedData->mask.composite()); }
-    FillBox maskClip() const { return static_cast<FillBox>(m_rareNonInheritedData->mask.clip()); }
-    FillBox maskOrigin() const { return static_cast<FillBox>(m_rareNonInheritedData->mask.origin()); }
-    const Length& maskXPosition() const { return m_rareNonInheritedData->mask.xPosition(); }
-    const Length& maskYPosition() const { return m_rareNonInheritedData->mask.yPosition(); }
-    FillSizeType maskSizeType() const { return m_rareNonInheritedData->mask.sizeType(); }
-    const LengthSize& maskSizeLength() const { return m_rareNonInheritedData->mask.sizeLength(); }
-    FillLayer& ensureMaskLayers() { return m_rareNonInheritedData.access().mask; }
+    StyleImage* maskImage() const { return m_rareNonInheritedData->mask->image(); }
+    FillRepeat maskRepeatX() const { return static_cast<FillRepeat>(m_rareNonInheritedData->mask->repeatX()); }
+    FillRepeat maskRepeatY() const { return static_cast<FillRepeat>(m_rareNonInheritedData->mask->repeatY()); }
+    CompositeOperator maskComposite() const { return static_cast<CompositeOperator>(m_rareNonInheritedData->mask->composite()); }
+    FillBox maskClip() const { return static_cast<FillBox>(m_rareNonInheritedData->mask->clip()); }
+    FillBox maskOrigin() const { return static_cast<FillBox>(m_rareNonInheritedData->mask->origin()); }
+    const Length& maskXPosition() const { return m_rareNonInheritedData->mask->xPosition(); }
+    const Length& maskYPosition() const { return m_rareNonInheritedData->mask->yPosition(); }
+    FillSizeType maskSizeType() const { return m_rareNonInheritedData->mask->sizeType(); }
+    const LengthSize& maskSizeLength() const { return m_rareNonInheritedData->mask->sizeLength(); }
+    FillLayer& ensureMaskLayers() { return m_rareNonInheritedData.access().mask.access(); }
     const FillLayer& maskLayers() const { return m_rareNonInheritedData->mask; }
     const NinePieceImage& maskBoxImage() const { return m_rareNonInheritedData->maskBoxImage; }
     StyleImage* maskBoxImageSource() const { return m_rareNonInheritedData->maskBoxImage.image(); }
@@ -649,7 +648,7 @@ public:
     void applyTransform(TransformationMatrix&, const FloatRect& boundingBox, ApplyTransformOrigin = IncludeTransformOrigin) const;
     void setPageScaleTransform(float);
 
-    bool hasMask() const { return m_rareNonInheritedData->mask.hasImage() || m_rareNonInheritedData->maskBoxImage.hasImage(); }
+    bool hasMask() const { return m_rareNonInheritedData->mask->hasImage() || m_rareNonInheritedData->maskBoxImage.hasImage(); }
 
     TextCombine textCombine() const { return static_cast<TextCombine>(m_rareNonInheritedData->textCombine); }
     bool hasTextCombine() const { return textCombine() != TextCombine::None; }
@@ -808,6 +807,8 @@ public:
     ApplePayButtonType applePayButtonType() const { return static_cast<ApplePayButtonType>(m_rareNonInheritedData->applePayButtonType); }
 #endif
 
+    MathStyle mathStyle() const { return static_cast<MathStyle>(m_rareInheritedData->mathStyle); }
+
 // attribute setter methods
 
     void setDisplay(DisplayType v) { m_nonInheritedFlags.effectiveDisplay = static_cast<unsigned>(v); }
@@ -845,10 +846,10 @@ public:
 
     void setBackgroundColor(const Color& v) { SET_VAR(m_backgroundData, color, v); }
 
-    void setBackgroundXPosition(Length&& length) { SET_VAR(m_backgroundData, background.m_xPosition, WTFMove(length)); }
-    void setBackgroundYPosition(Length&& length) { SET_VAR(m_backgroundData, background.m_yPosition, WTFMove(length)); }
-    void setBackgroundSize(FillSizeType b) { SET_VAR(m_backgroundData, background.m_sizeType, static_cast<unsigned>(b)); }
-    void setBackgroundSizeLength(LengthSize&& size) { SET_VAR(m_backgroundData, background.m_sizeLength, WTFMove(size)); }
+    void setBackgroundXPosition(Length&& length) { SET_NESTED_VAR(m_backgroundData, background, m_xPosition, WTFMove(length)); }
+    void setBackgroundYPosition(Length&& length) { SET_NESTED_VAR(m_backgroundData, background, m_yPosition, WTFMove(length)); }
+    void setBackgroundSize(FillSizeType b) { SET_NESTED_VAR(m_backgroundData, background, m_sizeType, static_cast<unsigned>(b)); }
+    void setBackgroundSizeLength(LengthSize&& size) { SET_NESTED_VAR(m_backgroundData, background, m_sizeLength, WTFMove(size)); }
     
     void setBorderImage(const NinePieceImage& b) { SET_VAR(m_surroundData, border.m_image, b); }
     void setBorderImageSource(RefPtr<StyleImage>&&);
@@ -913,9 +914,7 @@ public:
     // Only used for blending font sizes when animating, for MathML anonymous blocks, and for text autosizing.
     void setFontSize(float);
 
-#if ENABLE(VARIATION_FONTS)
     void setFontVariationSettings(FontVariationSettings);
-#endif
     void setFontWeight(FontSelectionValue);
     void setFontStretch(FontSelectionValue);
     void setFontItalic(Optional<FontSelectionValue>);
@@ -963,25 +962,28 @@ public:
     void setWhiteSpace(WhiteSpace v) { m_inheritedFlags.whiteSpace = static_cast<unsigned>(v); }
 
     void setWordSpacing(Length&&);
-    void setLetterSpacing(float);
 
-    void clearBackgroundLayers() { m_backgroundData.access().background = FillLayer(FillLayerType::Background); }
-    void inheritBackgroundLayers(const FillLayer& parent) { m_backgroundData.access().background = parent; }
+    // If letter-spacing is nonzero, we disable ligatures, which means this property affects font preparation.
+    void setLetterSpacing(float);
+    void setLetterSpacingWithoutUpdatingFontDescription(float);
+
+    void clearBackgroundLayers() { m_backgroundData.access().background = FillLayer::create(FillLayerType::Background); }
+    void inheritBackgroundLayers(const FillLayer& parent) { m_backgroundData.access().background = FillLayer::create(parent); }
 
     void adjustBackgroundLayers();
 
-    void clearMaskLayers() { m_rareNonInheritedData.access().mask = FillLayer(FillLayerType::Mask); }
-    void inheritMaskLayers(const FillLayer& parent) { m_rareNonInheritedData.access().mask = parent; }
+    void clearMaskLayers() { m_rareNonInheritedData.access().mask = FillLayer::create(FillLayerType::Mask); }
+    void inheritMaskLayers(const FillLayer& parent) { m_rareNonInheritedData.access().mask = FillLayer::create(parent); }
 
     void adjustMaskLayers();
 
-    void setMaskImage(RefPtr<StyleImage>&& v) { m_rareNonInheritedData.access().mask.setImage(WTFMove(v)); }
+    void setMaskImage(RefPtr<StyleImage>&& v) { m_rareNonInheritedData.access().mask.access().setImage(WTFMove(v)); }
 
     void setMaskBoxImage(const NinePieceImage& b) { SET_VAR(m_rareNonInheritedData, maskBoxImage, b); }
     void setMaskBoxImageSource(RefPtr<StyleImage>&& v) { m_rareNonInheritedData.access().maskBoxImage.setImage(WTFMove(v)); }
-    void setMaskXPosition(Length&& length) { SET_VAR(m_rareNonInheritedData, mask.m_xPosition, WTFMove(length)); }
-    void setMaskYPosition(Length&& length) { SET_VAR(m_rareNonInheritedData, mask.m_yPosition, WTFMove(length)); }
-    void setMaskSize(LengthSize size) { SET_VAR(m_rareNonInheritedData, mask.m_sizeLength, WTFMove(size)); }
+    void setMaskXPosition(Length&& length) { SET_NESTED_VAR(m_rareNonInheritedData, mask, m_xPosition, WTFMove(length)); }
+    void setMaskYPosition(Length&& length) { SET_NESTED_VAR(m_rareNonInheritedData, mask, m_yPosition, WTFMove(length)); }
+    void setMaskSize(LengthSize size) { SET_NESTED_VAR(m_rareNonInheritedData, mask, m_sizeLength, WTFMove(size)); }
 
     void setBorderCollapse(BorderCollapse collapse) { m_inheritedFlags.borderCollapse = static_cast<unsigned>(collapse); }
     void setHorizontalBorderSpacing(float);
@@ -1468,6 +1470,8 @@ public:
     void setHasExplicitlyInheritedProperties() { m_nonInheritedFlags.hasExplicitlyInheritedProperties = true; }
     bool hasExplicitlyInheritedProperties() const { return m_nonInheritedFlags.hasExplicitlyInheritedProperties; }
     
+    void setMathStyle(const MathStyle& v) { SET_VAR(m_rareInheritedData, mathStyle, static_cast<unsigned>(v)); }
+
     // Initial values for all the properties
     static Overflow initialOverflowX() { return Overflow::Visible; }
     static Overflow initialOverflowY() { return Overflow::Visible; }
@@ -1490,7 +1494,7 @@ public:
     static ColumnAxis initialColumnAxis() { return ColumnAxis::Auto; }
     static ColumnProgression initialColumnProgression() { return ColumnProgression::Normal; }
     static TextDirection initialDirection() { return TextDirection::LTR; }
-    static WritingMode initialWritingMode() { return TopToBottomWritingMode; }
+    static WritingMode initialWritingMode() { return WritingMode::TopToBottom; }
     static TextCombine initialTextCombine() { return TextCombine::None; }
     static TextOrientation initialTextOrientation() { return TextOrientation::Mixed; }
     static ObjectFit initialObjectFit() { return ObjectFit::Fill; }
@@ -1724,6 +1728,8 @@ public:
     static BlendMode initialBlendMode() { return BlendMode::Normal; }
     static Isolation initialIsolation() { return Isolation::Auto; }
 #endif
+
+    static MathStyle initialMathStyle() { return MathStyle::Normal; }
 
     // Indicates the style is likely to change due to a pending stylesheet load.
     bool isNotFinal() const { return m_rareNonInheritedData->isNotFinal; }
@@ -2245,7 +2251,7 @@ inline bool RenderStyle::setWritingMode(WritingMode v)
 {
     if (v == writingMode())
         return false;
-    m_inheritedFlags.writingMode = v;
+    m_inheritedFlags.writingMode = static_cast<unsigned>(v);
     return true;
 }
 

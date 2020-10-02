@@ -27,7 +27,7 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayLineBox.h"
+#include "DisplayLine.h"
 #include "DisplayRun.h"
 #include <wtf/IteratorRange.h>
 #include <wtf/Vector.h>
@@ -36,17 +36,28 @@ namespace WebCore {
 namespace Display {
 
 struct InlineContent : public RefCounted<InlineContent> {
+    static Ref<InlineContent> create() { return adoptRef(*new InlineContent); }
     ~InlineContent();
 
     using Runs = Vector<Run, 4>;
-    using LineBoxes = Vector<LineBox, 4>;
+    using Lines = Vector<Line, 4>;
 
     Runs runs;
-    LineBoxes lineBoxes;
+    Lines lines;
 
-    const LineBox& lineBoxForRun(const Run& run) const { return lineBoxes[run.lineIndex()]; }
+    const Line& lineForRun(const Run& run) const { return lines[run.lineIndex()]; }
     WTF::IteratorRange<const Run*> runsForRect(const LayoutRect&) const;
+    void shrinkToFit();
+
+private:
+    InlineContent() = default;
 };
+
+inline void InlineContent::shrinkToFit()
+{
+    runs.shrinkToFit();
+    lines.shrinkToFit();
+}
 
 }
 }

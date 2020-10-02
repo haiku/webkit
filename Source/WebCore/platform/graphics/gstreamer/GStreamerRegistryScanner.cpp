@@ -210,6 +210,7 @@ void GStreamerRegistryScanner::initialize()
     Vector<String> av1DecodersBlacklist { "av1dec"_s };
     if ((matroskaSupported || isContainerTypeSupported("video/mp4")) && hasElementForMediaType(m_videoDecoderFactories, "video/x-av1", false, makeOptional(WTFMove(av1DecodersBlacklist)))) {
         m_codecMap.add(AtomString("av01*"), false);
+        m_codecMap.add(AtomString("av1"), false);
         m_codecMap.add(AtomString("x-av1"), false);
     }
 
@@ -272,6 +273,7 @@ void GStreamerRegistryScanner::initialize()
         m_mimeTypeSet.add(AtomString("audio/mp3"));
         m_mimeTypeSet.add(AtomString("audio/x-mp3"));
         m_codecMap.add(AtomString("audio/mp3"), false);
+        m_codecMap.add(AtomString("mp3"), false);
     }
 
     if (hasElementForMediaType(m_audioDecoderFactories, "audio/mpeg, mpegversion=(int)2")) {
@@ -421,7 +423,7 @@ bool GStreamerRegistryScanner::isAVC1CodecSupported(const String& codec, bool sh
         return checkH264Caps(makeString("video/x-h264, level=(string)", maxLevelString).utf8().data());
     }
 
-    if (webkitGstCheckVersion(1, 17, 0)) {
+    if (webkitGstCheckVersion(1, 18, 0)) {
         GST_DEBUG("Checking video decoders for constrained caps");
         return checkH264Caps(makeString("video/x-h264, level=(string)", level, ", profile=(string)", profile).utf8().data());
     }

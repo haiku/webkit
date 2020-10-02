@@ -1,3 +1,289 @@
+2020-10-02  Kimmo Kinnunen  <kkinnunen@apple.com>
+
+        [iOS WK1] Crashes when using ANGLE WebGL from another thread
+        https://bugs.webkit.org/show_bug.cgi?id=216106
+        <rdar://problem/68602452>
+
+        Reviewed by Kenneth Russell.
+
+        Add two extensions for EAGL and CGL backends to declare the
+        underlying platform context being "volatile". It means that
+        the thread-global current context is being modified behind
+        ANGLE. If ANGLE context is marked volatile for a particular
+        API, it will sync the underlying context for every EGL
+        function that needs the context. Most intuitive use is
+        for the client to call eglMakeCurrent before calling any
+        gl function if the client knowns the platform state might
+        be dirty.
+
+        Implement eglReleaseThread for EAGL and CGL backends.
+        Releasing thread will unset the platform current context.
+
+        Fix a bug of omitting EGL_ANGLE_device_eagl from being
+        advertised.
+
+        * extensions/EGL_ANGLE_platform_angle_device_context_volatile_cgl.txt: Added.
+        * extensions/EGL_ANGLE_platform_angle_device_context_volatile_eagl.txt: Added.
+        * include/EGL/eglext_angle.h:
+        * src/libANGLE/Caps.cpp:
+        (egl::DeviceExtensions::getStrings const):
+        (egl::ClientExtensions::getStrings const):
+        * src/libANGLE/Caps.h:
+        * src/libANGLE/Display.cpp:
+        (egl::Display::prepareForCall):
+        (egl::Display::releaseThread):
+        (egl::GenerateClientExtensions):
+        * src/libANGLE/Display.h:
+        * src/libANGLE/renderer/DisplayImpl.cpp:
+        (rx::DisplayImpl::prepareForCall):
+        (rx::DisplayImpl::releaseThread):
+        * src/libANGLE/renderer/DisplayImpl.h:
+        * src/libANGLE/renderer/gl/cgl/DisplayCGL.h:
+        * src/libANGLE/renderer/gl/cgl/DisplayCGL.mm:
+        (rx::DisplayCGL::initialize):
+        (rx::DisplayCGL::terminate):
+        (rx::DisplayCGL::prepareForCall):
+        (rx::DisplayCGL::releaseThread):
+        (rx::DisplayCGL::makeCurrent):
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.h:
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.mm:
+        (rx::DisplayEAGL::initialize):
+        (rx::DisplayEAGL::terminate):
+        (rx::DisplayEAGL::prepareForCall):
+        (rx::DisplayEAGL::releaseThread):
+        * src/libANGLE/validationEGL.cpp:
+        * src/libGLESv2/entry_points_egl.cpp:
+        * src/libGLESv2/entry_points_egl_ext.cpp:
+
+2020-09-29  James Darpinian  <jdarpinian@chromium.org>
+
+        Fix EXT_color_buffer_half_float on iOS
+        https://bugs.webkit.org/show_bug.cgi?id=217107
+
+        Reviewed by Kenneth Russell.
+
+        * src/libANGLE/Context.cpp:
+        (gl::Context::generateSupportedExtensions const):
+        * src/libANGLE/renderer/gl/renderergl_utils.cpp:
+        (rx::nativegl_gl::GenerateTextureFormatCaps):
+
+2020-09-24  Dean Jackson  <dino@apple.com>
+
+        WebGL should use GLES in iOS apps running on Apple Silicon
+        https://bugs.webkit.org/show_bug.cgi?id=216722
+        <rdar://problem/68976337>
+
+        Reviewed by Tim Horton.
+
+        Change ANGLE to dynamically load either EAGL (OpenGLES) or CGL (OpenGL) depending
+        on both compile and runtime configurations.
+            Intel Mac -> CGL
+            Intel Mac Catalyst -> CGL
+            Intel iOS Simulator -> EAGL
+            iOS Device -> EAGL
+            Apple Silicon Mac -> CGL
+            Apple Silicon Mac Catalyst (with Mac app) -> CGL
+            Apple Silicon Mac Catalyst (with iOS app) -> EAGL
+
+        The trickiest bit is Apple Silicon Mac Catalyst, which depends on the
+        type of the application it is attempting to run. In that case ANGLE must compile
+        both the CGL and EAGL interfaces and then pick one to use after launch.
+
+        * ANGLE.xcodeproj/project.pbxproj: Add new files.
+
+        * Configurations/ANGLE-dynamic.xcconfig: Remove all the OpenGL* linking.
+        * Configurations/ANGLE-static.xcconfig:
+
+        * GLESv2.cmake: New files.
+
+        * src/common/platform.h: New definitions for CPU type on Apple Systems.
+
+        * src/gpu_info_util/SystemInfo.h: Split SystemInfo for Apple into two
+        files, for iOS and Mac. Added a field for isiOSAppOnMac that will only
+        be true when running an iOS binary on Apple Silicon.
+        * src/gpu_info_util/SystemInfo_apple.mm: Added. Decides which SystemInfo
+        to call.
+        (angle::GetSystemInfo):
+        * src/gpu_info_util/SystemInfo_ios.cpp:
+        (angle::GetSystemInfo_ios):
+        (angle::GetSystemInfo): Deleted.
+        * src/gpu_info_util/SystemInfo_macos.mm:
+        (angle::GetSystemInfo_mac):
+        (angle::GetSystemInfo): Deleted.
+
+        * src/libANGLE/Caps.cpp: Can no longer just check for PLATFORM_IOS. This
+        might still need a runtime check.
+        (gl::DetermineDepthTextureANGLESupport):
+        (gl::DetermineDepthTextureOESSupport):
+
+        * src/libANGLE/Display.cpp: This is the main initialization point for
+        ANGLE, which decides at compile/runtime which variant of Display to
+        create.
+
+        * src/libANGLE/formatutils.cpp: Add the correct formats.
+        (gl::BuildInternalFormatInfoMap):
+
+        * src/libANGLE/renderer/gl/SoftLinking_apple.h: Added. Macros to help soft-link
+        functions and ObjC classes.
+        * src/libANGLE/renderer/gl/cgl/CGLFunctions.cpp: Added. Where we soft-link all
+        the OpenGL/CGL API.
+        * src/libANGLE/renderer/gl/cgl/CGLFunctions.h: Added.
+
+        * src/libANGLE/renderer/gl/cgl/DisplayCGL.mm: Use the soft-linked methods.
+        * src/libANGLE/renderer/gl/cgl/IOSurfaceSurfaceCGL.cpp:
+        * src/libANGLE/renderer/gl/cgl/WindowSurfaceCGL.h:
+        * src/libANGLE/renderer/gl/cgl/WindowSurfaceCGL.mm: Rename WebSwapLayer to WebSwapLayerCGL
+        otherwise it clashes with the EAGL version.
+        (rx::WindowSurfaceCGL::initialize):
+        (-[WebSwapLayer initWithSharedState:withContext:withFunctions:]): Deleted.
+        (-[WebSwapLayer copyCGLPixelFormatForDisplayMask:]): Deleted.
+        (-[WebSwapLayer copyCGLContextForPixelFormat:]): Deleted.
+        (-[WebSwapLayer canDrawInCGLContext:pixelFormat:forLayerTime:displayTime:]): Deleted.
+        (-[WebSwapLayer drawInCGLContext:pixelFormat:forLayerTime:displayTime:]): Deleted.
+
+        * src/libANGLE/renderer/gl/eagl/DeviceEAGL.cpp: Similar changes to the CGL implementation.
+        * src/libANGLE/renderer/gl/eagl/DeviceEAGL.h:
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.h:
+        * src/libANGLE/renderer/gl/eagl/DisplayEAGL.mm:
+        (rx::DisplayEAGL::initialize):
+        (rx::DisplayEAGL::terminate):
+        (rx::WorkerContextEAGL::~WorkerContextEAGL):
+        (rx::WorkerContextEAGL::makeCurrent):
+        (rx::WorkerContextEAGL::unmakeCurrent):
+        (rx::DisplayEAGL::createWorkerContext):
+        * src/libANGLE/renderer/gl/eagl/EAGLFunctions.h: Added.
+        * src/libANGLE/renderer/gl/eagl/EAGLFunctions.mm: Added.
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.mm:
+        * src/libANGLE/renderer/gl/eagl/PbufferSurfaceEAGL.cpp:
+        * src/libANGLE/renderer/gl/eagl/RendererEAGL.cpp:
+        * src/libANGLE/renderer/gl/eagl/WindowSurfaceEAGL.h:
+        * src/libANGLE/renderer/gl/eagl/WindowSurfaceEAGL.mm:
+        (-[WebSwapLayerEAGL display]):
+        (rx::WindowSurfaceEAGL::initialize):
+        (-[WebSwapLayer initWithSharedState:withContext:withFunctions:]): Deleted.
+        (-[WebSwapLayer display]): Deleted.
+
+        * src/libANGLE/renderer/gl/renderergl_utils.cpp: Runtime check.
+        (rx::nativegl_gl::GenerateCaps):
+
+2020-09-25  James Darpinian  <jdarpinian@chromium.org>
+
+        Support EXT_float_blend
+        https://bugs.webkit.org/show_bug.cgi?id=216949
+
+        Reviewed by Kenneth Russell.
+
+        * src/libANGLE/renderer/gl/renderergl_utils.cpp:
+        (rx::nativegl_gl::GenerateCaps):
+
+2020-09-24  Kimmo Kinnunen  <kkinnunen@apple.com>
+
+        REGRESSION: Textures Fail to Render in WebGL from HLS Stream [iOS 14]
+        https://bugs.webkit.org/show_bug.cgi?id=215908
+        <rdar://problem/68000962>
+
+        Reviewed by Dean Jackson.
+
+        Disable ANGLE workers until EAGL implementation is more complete.
+        Current implementation fails to compile any shader, since the
+        compilation happens in the worker thread and worker EAGL context
+        which does not use the same sharegroup as the main context.
+        The shader objects are created in the main context but the shader
+        source setting and compilation happens in the worker context.
+        EAGL needs a flush between state changes, and adding that
+        correctly is a bigger change to be done later.
+
+        Use sized formats when calling [EAGLContext -texImageIOSurface]
+        from EGL_ANGLE_iosurface_client_buffer code. The texImageIOSurface
+        accepts parameters with glTexImage2D logic. On ES3, some of the
+        internal formats must be sized formats. The EAGLContext instantiated
+        by ANGLE is ES3, even if the ANGLE context would be ES2.
+
+        No tests added since this should be caught with the many video
+        related tests. It's unclear why this is not the case -- at
+        least on real hw. This is to be investigated later, too.
+
+        * src/libANGLE/renderer/driver_utils.h:
+        (rx::IsIOS):
+        * src/libANGLE/renderer/gl/eagl/IOSurfaceSurfaceEAGL.mm:
+        * src/libANGLE/renderer/gl/renderergl_utils.cpp:
+        (rx::nativegl_gl::InitializeFeatures):
+
+2020-09-11  James Darpinian  <jdarpinian@chromium.org>
+
+        [WebGL2] Support EXT_color_buffer_half_float on WebGL 2.0 contexts
+        https://bugs.webkit.org/show_bug.cgi?id=216010
+
+        Reviewed by Kenneth Russell.
+
+        * src/libANGLE/formatutils.cpp:
+        (gl::SizedHalfFloatRGTextureAttachmentSupport):
+        (gl::SizedHalfFloatRGBTextureAttachmentSupport):
+        (gl::SizedHalfFloatRGBRenderbufferSupport):
+        (gl::SizedHalfFloatRGBATextureAttachmentSupport):
+
+2020-09-03  Kimmo Kinnunen  <kkinnunen@apple.com>
+
+        Mark uniform samplers in an array unused per element
+        https://bugs.webkit.org/show_bug.cgi?id=215630
+
+        Reviewed by Dean Jackson.
+
+        Mark uniform samplers in an uniform sampler array unused per
+        element, if driver informs the element being unused.
+        Before, one element would mark the whole array as being
+        unused, and samplers that were in use would not be updated.
+
+        * src/libANGLE/Context.cpp:
+        (gl::StateCache::updateActiveImageUnitIndices):
+        * src/libANGLE/Program.cpp:
+        (gl::SamplerBinding::SamplerBinding):
+        (gl::ImageBinding::ImageBinding):
+        (gl::Program::getSamplerUniformBinding const):
+        (gl::Program::getImageUniformBinding const):
+        (gl::Program::linkSamplerAndImageBindings):
+        (gl::Program::updateSamplerUniform):
+        (gl::Program::serialize const):
+        (gl::Program::deserialize):
+        * src/libANGLE/ProgramExecutable.cpp:
+        (gl::ProgramExecutable::updateActiveSamplers):
+        (gl::ProgramExecutable::updateActiveImages):
+        (gl::ProgramExecutable::setSamplerUniformTextureTypeAndFormat):
+        * src/libANGLE/ProgramExecutable.h:
+        * src/libANGLE/renderer/gl/ProgramGL.cpp:
+        (rx::ProgramGL::markUnusedUniformLocations):
+        * src/libANGLE/renderer/metal/ProgramMtl.mm:
+        (rx::ProgramMtl::updateTextures):
+        * src/libANGLE/renderer/vulkan/ProgramExecutableVk.cpp:
+        (rx::ProgramExecutableVk::updateImagesDescriptorSet):
+        (rx::ProgramExecutableVk::updateTexturesDescriptorSet):
+        * src/tests/gl_tests/ComputeShaderTest.cpp:
+        * src/tests/gl_tests/UniformTest.cpp:
+
+2020-09-01  David Kilzer  <ddkilzer@apple.com>
+
+        [ANGLE] InternalFormat::blendSupport is uninitialized by constructor
+        <https://webkit.org/b/216053>
+        <rdar://problem/68166032>
+
+        Reviewed by Kenneth Russell.
+
+        * changes.diff: Add this patch.
+        * src/libANGLE/formatutils.cpp:
+        (gl::InternalFormat::InternalFormat):
+        - Initialize blendSupport to NeverSupported.
+
+2020-08-31  James Darpinian  <jdarpinian@chromium.org>
+
+        Implement WEBGL_compressed_texture_s3tc_srgb extension
+        https://bugs.webkit.org/show_bug.cgi?id=215973
+
+        Reviewed by Dean Jackson.
+
+        * src/libANGLE/renderer/gl/formatutilsgl.cpp:
+        (rx::nativegl::ExtAndVersionOrExt):
+        (rx::nativegl::BuildInternalFormatInfoMap):
+
 2020-08-12  Keith Rollin  <krollin@apple.com>
 
         Remove the need for defining USE_NEW_BUILD_SYSTEM

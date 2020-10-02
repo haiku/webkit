@@ -28,7 +28,8 @@
 #if PLATFORM(COCOA) && ENABLE(GPU_PROCESS) && ENABLE(MEDIA_STREAM)
 
 #include "AudioMediaStreamTrackRendererIdentifier.h"
-#include "MessageReceiver.h"
+#include "Connection.h"
+#include "GPUConnectionToWebProcess.h"
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 
@@ -41,21 +42,33 @@ namespace WebKit {
 
 class RemoteAudioMediaStreamTrackRenderer;
 
-class RemoteAudioMediaStreamTrackRendererManager final : private IPC::MessageReceiver {
+class RemoteAudioMediaStreamTrackRendererManager final : public IPC::Connection::ThreadMessageReceiver {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    RemoteAudioMediaStreamTrackRendererManager();
+    static Ref<RemoteAudioMediaStreamTrackRendererManager> create(GPUConnectionToWebProcess& process) { return adoptRef(*new RemoteAudioMediaStreamTrackRendererManager(process)); }
     ~RemoteAudioMediaStreamTrackRendererManager();
 
     void didReceiveRendererMessage(IPC::Connection&, IPC::Decoder&);
     void didReceiveMessageFromWebProcess(IPC::Connection& connection, IPC::Decoder& decoder) { didReceiveMessage(connection, decoder); }
 
+    IPC::Connection& connection() const { return m_connectionToWebProcess.connection(); }
+
+    void close();
+
 private:
+    explicit RemoteAudioMediaStreamTrackRendererManager(GPUConnectionToWebProcess&);
+
+    // IPC::Connection::ThreadMessageReceiver
+    void dispatchToThread(Function<void()>&&) final;
+
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
+    bool dispatchMessage(IPC::Connection&, IPC::Decoder&);
     void createRenderer(AudioMediaStreamTrackRendererIdentifier);
     void releaseRenderer(AudioMediaStreamTrackRendererIdentifier);
 
+    GPUConnectionToWebProcess& m_connectionToWebProcess;
+    Ref<WorkQueue> m_queue;
     HashMap<AudioMediaStreamTrackRendererIdentifier, std::unique_ptr<RemoteAudioMediaStreamTrackRenderer>> m_renderers;
 };
 

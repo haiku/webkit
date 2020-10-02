@@ -43,9 +43,6 @@ ExceptionOr<Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create(
 {
     RELEASE_ASSERT(options.mediaStream);
 
-    if (context.isStopped())
-        return Exception { InvalidStateError };
-
     auto audioTracks = options.mediaStream->getAudioTracks();
     if (audioTracks.isEmpty())
         return Exception { InvalidStateError, "Media stream has no audio tracks"_s };
@@ -60,8 +57,6 @@ ExceptionOr<Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create(
     if (!providerTrack)
         return Exception { InvalidStateError, "Could not find an audio track with an audio source provider"_s };
 
-    context.lazyInitialize();
-
     auto node = adoptRef(*new MediaStreamAudioSourceNode(context, *options.mediaStream, *providerTrack));
     node->setFormat(2, context.sampleRate());
 
@@ -71,19 +66,17 @@ ExceptionOr<Ref<MediaStreamAudioSourceNode>> MediaStreamAudioSourceNode::create(
 }
 
 MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(BaseAudioContext& context, MediaStream& mediaStream, MediaStreamTrack& audioTrack)
-    : AudioNode(context)
+    : AudioNode(context, NodeTypeMediaStreamAudioSource)
     , m_mediaStream(mediaStream)
     , m_audioTrack(audioTrack)
 {
-    setNodeType(NodeTypeMediaStreamAudioSource);
-    
     AudioSourceProvider* audioSourceProvider = m_audioTrack->audioSourceProvider();
     ASSERT(audioSourceProvider);
 
     audioSourceProvider->setClient(this);
     
     // Default to stereo. This could change depending on the format of the MediaStream's audio track.
-    addOutput(makeUnique<AudioNodeOutput>(this, 2));
+    addOutput(2);
 
     initialize();
 }

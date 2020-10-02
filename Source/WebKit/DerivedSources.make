@@ -104,6 +104,7 @@ VPATH = \
 
 PYTHON = python
 PERL = perl
+RUBY = ruby
 
 ifeq ($(OS),Windows_NT)
     DELETE = cmd //C del
@@ -150,7 +151,6 @@ MESSAGE_RECEIVERS = \
 	UIProcess/WebPageProxy \
 	UIProcess/VisitedLinkStore \
 	UIProcess/ios/WebDeviceOrientationUpdateProviderProxy \
-	UIProcess/ios/EditableImageController \
 	UIProcess/ios/SmartMagnificationController \
 	UIProcess/mac/SecItemShimProxy \
 	UIProcess/WebGeolocationManagerProxy \
@@ -173,7 +173,6 @@ MESSAGE_RECEIVERS = \
 	WebProcess/GPU/media/RemoteCDMInstanceSession \
 	WebProcess/GPU/media/RemoteLegacyCDMSession \
 	WebProcess/GPU/media/ios/RemoteMediaSessionHelper \
-	WebProcess/GPU/media/RemoteMediaPlayerManager \
 	WebProcess/GPU/media/RemoteAudioDestinationProxy \
 	WebProcess/GPU/media/RemoteAudioSession \
 	WebProcess/WebStorage/StorageAreaMap \
@@ -339,10 +338,16 @@ all : WebAutomationSessionProxyScriptSource.h
 # WebPreferences generation
 
 WEB_PREFERENCES_INPUT_FILES = \
-    $(WebKit2)/Shared/WebPreferences.yaml \
+    ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferences.yaml \
     $(ADDITIONAL_WEB_PREFERENCES_INPUT_FILES) \
 #
 WEB_PREFERENCES_COMBINED_INPUT_FILE = WebPreferencesCombined.yaml
+
+WEB_PREFERENCES_CATEGORY_INPUT_FILES = \
+    ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesDebug.yaml \
+    ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesExperimental.yaml \
+    ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesInternal.yaml \
+#
 
 WEB_PREFERENCES_TEMPLATES = \
     $(WebKit2)/Scripts/PreferencesTemplates/WebPageUpdatePreferences.cpp.erb \
@@ -361,8 +366,9 @@ all : $(WEB_PREFERENCES_FILES) $(WEB_PREFERENCES_COMBINED_INPUT_FILE)
 $(WEB_PREFERENCES_COMBINED_INPUT_FILE) : $(WEB_PREFERENCES_INPUT_FILES)
 	cat $^ > $(WEB_PREFERENCES_COMBINED_INPUT_FILE)
 
-$(WEB_PREFERENCES_PATTERNS) : $(WebKit2)/Scripts/GeneratePreferences.rb $(WEB_PREFERENCES_TEMPLATES) $(WEB_PREFERENCES_COMBINED_INPUT_FILE)
-	$(RUBY) $< --input $(WEB_PREFERENCES_COMBINED_INPUT_FILE)
+$(WEB_PREFERENCES_PATTERNS) : $(WTF_BUILD_SCRIPTS_DIR)/GeneratePreferences.rb $(WEB_PREFERENCES_TEMPLATES) $(WEB_PREFERENCES_COMBINED_INPUT_FILE) $(WEB_PREFERENCES_CATEGORY_INPUT_FILES)
+	$(RUBY) $< --frontend WebKit --base $(WEB_PREFERENCES_COMBINED_INPUT_FILE) --debug ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesDebug.yaml --experimental ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesExperimental.yaml	--internal ${WTF_BUILD_SCRIPTS_DIR}/Preferences/WebPreferencesInternal.yaml $(addprefix --template , $(WEB_PREFERENCES_TEMPLATES))
+
 
 # FIXME: We should switch to the internal HTTPSUpgradeList.txt once the feature is ready.
 # VPATH += $(WebKit2)/Shared/HTTPSUpgrade/

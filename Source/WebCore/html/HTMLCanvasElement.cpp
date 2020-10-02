@@ -129,7 +129,6 @@ HTMLCanvasElement::HTMLCanvasElement(const QualifiedName& tagName, Document& doc
     , ActiveDOMObject(document)
 {
     ASSERT(hasTagName(canvasTag));
-    addObserver(document);
 }
 
 Ref<HTMLCanvasElement> HTMLCanvasElement::create(Document& document)
@@ -442,6 +441,10 @@ WebGLRenderingContextBase* HTMLCanvasElement::createContextWebGL(const String& t
     // adapter when there is an active immersive device.
     m_context = WebGLRenderingContextBase::create(*this, attrs, type);
     if (m_context) {
+        // This new context needs to be observed by the Document, in order
+        // for it to be correctly preparedForRendering before it is composited.
+        addObserver(document());
+
         // Need to make sure a RenderLayer and compositing layer get created for the Canvas.
         invalidateStyleAndLayerComposition();
 #if ENABLE(WEBXR)
@@ -753,7 +756,7 @@ ExceptionOr<void> HTMLCanvasElement::toBlob(ScriptExecutionContext& context, Ref
         RefPtr<Blob> blob;
         Vector<uint8_t> blobData = data(*imageData, encodingMIMEType, quality);
         if (!blobData.isEmpty())
-            blob = Blob::create(WTFMove(blobData), encodingMIMEType);
+            blob = Blob::create(&document(), WTFMove(blobData), encodingMIMEType);
         callback->scheduleCallback(context, WTFMove(blob));
         return { };
     }
@@ -764,7 +767,7 @@ ExceptionOr<void> HTMLCanvasElement::toBlob(ScriptExecutionContext& context, Ref
     RefPtr<Blob> blob;
     Vector<uint8_t> blobData = buffer()->toData(encodingMIMEType, quality);
     if (!blobData.isEmpty())
-        blob = Blob::create(WTFMove(blobData), encodingMIMEType);
+        blob = Blob::create(&document(), WTFMove(blobData), encodingMIMEType);
     callback->scheduleCallback(context, WTFMove(blob));
     return { };
 }
@@ -776,6 +779,9 @@ ExceptionOr<Ref<OffscreenCanvas>> HTMLCanvasElement::transferControlToOffscreen(
         return Exception { InvalidStateError };
 
     m_context = makeUnique<PlaceholderRenderingContext>(*this);
+    if (m_context->isAccelerated())
+        invalidateStyleAndLayerComposition();
+
     return OffscreenCanvas::create(context, *this);
 }
 #endif
@@ -1002,7 +1008,7 @@ void HTMLCanvasElement::clearImageBuffer() const
     }
 }
 
-void HTMLCanvasElement::clearCopiedImage()
+void HTMLCanvasElement::clearCopiedImage() const
 {
     m_copiedImage = nullptr;
     m_didClearImageBuffer = false;
@@ -1036,24 +1042,32 @@ void HTMLCanvasElement::eventListenersDidChange()
 
 void HTMLCanvasElement::didMoveToNewDocument(Document& oldDocument, Document& newDocument)
 {
-    oldDocument.clearCanvasPreparation(this);
-    removeObserver(oldDocument);
-    addObserver(newDocument);
+    if (needsPreparationForDisplay()) {
+        oldDocument.clearCanvasPreparation(this);
+        removeObserver(oldDocument);
+        addObserver(newDocument);
+    }
 
     HTMLElement::didMoveToNewDocument(oldDocument, newDocument);
 }
 
 Node::InsertedIntoAncestorResult HTMLCanvasElement::insertedIntoAncestor(InsertionType insertionType, ContainerNode& parentOfInsertedTree)
 {
-    if (insertionType.connectedToDocument)
-        addObserver(parentOfInsertedTree.document());
+    if (needsPreparationForDisplay() && insertionType.connectedToDocument) {
+        auto& document = parentOfInsertedTree.document();
+        addObserver(document);
+        // Drawing commands may have been issued to the canvas before now, so we need to
+        // tell the document if we need preparation.
+        if (m_context && m_context->compositingResultsNeedUpdating())
+            document.canvasChanged(*this, FloatRect { });
+    }
 
     return HTMLElement::insertedIntoAncestor(insertionType, parentOfInsertedTree);
 }
 
 void HTMLCanvasElement::removedFromAncestor(RemovalType removalType, ContainerNode& oldParentOfRemovedTree)
 {
-    if (removalType.disconnectedFromDocument) {
+    if (needsPreparationForDisplay() && removalType.disconnectedFromDocument) {
         oldParentOfRemovedTree.document().clearCanvasPreparation(this);
         removeObserver(oldParentOfRemovedTree.document());
     }
@@ -1063,11 +1077,7 @@ void HTMLCanvasElement::removedFromAncestor(RemovalType removalType, ContainerNo
 
 bool HTMLCanvasElement::needsPreparationForDisplay()
 {
-#if ENABLE(WEBGL)
-    return is<WebGLRenderingContextBase>(m_context.get());
-#else
-    return false;
-#endif
+    return m_context && m_context->needsPreparationForDisplay();
 }
 
 void HTMLCanvasElement::prepareForDisplay()
@@ -1075,8 +1085,8 @@ void HTMLCanvasElement::prepareForDisplay()
 #if ENABLE(WEBGL)
     ASSERT(needsPreparationForDisplay());
 
-    if (is<WebGLRenderingContextBase>(m_context.get()))
-        downcast<WebGLRenderingContextBase>(m_context.get())->prepareForDisplay();
+    if (m_context)
+        m_context->prepareForDisplay();
 #endif
 }
 

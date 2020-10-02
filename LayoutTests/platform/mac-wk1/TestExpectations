@@ -65,6 +65,13 @@ inspector/page/overrideSetting-MockCaptureDevicesEnabled.html [ Skip ]
 http/tests/navigation/page-cache-getUserMedia-pending-promise.html [ Skip ]
 http/tests/navigation/page-cache-mediastream.html [ Skip ]
 
+http/wpt/mediarecorder [ Skip ]
+imported/w3c/web-platform-tests/mediacapture-record [ Skip ]
+fast/history/page-cache-media-recorder.html [ Skip ]
+
+http/wpt/audio-output [ Skip ]
+imported/w3c/web-platform-tests/audio-output [ Skip ]
+
 # Datalist is unsupported in WK1
 accessibility/datalist.html [ WontFix ]
 fast/forms/datalist [ WontFix ]
@@ -166,7 +173,16 @@ intersection-observer [ Skip ]
 http/tests/lazyload [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/below-viewport-image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/disconnected-image-loading-lazy.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/invisible-image.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-to-eager.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-below-viewport-dynamic.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-base-url-2.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-base-url.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-iframe-001.sub.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-iframe-002.sub.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-multiple-times.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-relevant-mutations.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-srcset.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-in-viewport-dynamic.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-load-event.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/image-loading-lazy-move-document.html [ Skip ]
@@ -179,6 +195,13 @@ imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/not-rendered-image-loading-lazy.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/picture-loading-lazy.html [ Skip ]
 imported/w3c/web-platform-tests/html/semantics/embedded-content/the-img-element/remove-element-and-scroll.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-base-url-2.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-base-url.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-load-event.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-multiple-times.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-referrerpolicy-change.sub.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-to-eager.html [ Skip ]
+imported/w3c/web-platform-tests/html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy.html [ Skip ]
 
 # testRunner.queueLoad() does not support loading data URLs in Mac WK1
 http/tests/security/contentSecurityPolicy/navigate-self-to-data-url.html [ Skip ]
@@ -253,6 +276,8 @@ http/tests/xmlhttprequest/range-test.html [ Skip ]
 
 # WK1 does not support sync XHR redirections as does WK2
 http/tests/security/contentSecurityPolicy/upgrade-insecure-requests/upgrade-insecure-sync-xhr-in-main-frame.html [ Skip ]
+# WK1 networking is blocked by JS
+imported/w3c/web-platform-tests/xhr/xhr-timeout-longtask.any.html
 
 webkit.org/b/187230 editing/mac/pasteboard/can-copy-url-without-title.html [ Skip ]
 webkit.org/b/187230 editing/mac/style/do-not-crash-when-showing-font-panel.html [ Skip ]
@@ -407,6 +432,7 @@ compositing/visibility/visibility-change-in-subframe.html [ Failure ]
 http/tests/cache/disk-cache
 http/tests/inspector/network/resource-response-source-disk-cache.html
 http/tests/inspector/network/resource-sizes-disk-cache.html
+http/tests/inspector/network/fetch-response-body-304.html [ Skip ]
 
 # Async image decoding is WK2 only
 fast/images/async-image-background-change.html
@@ -536,8 +562,6 @@ svg/hixie/text/003.html [ Failure ]
 webkit.org/b/159893 [ Debug ] imported/w3c/web-platform-tests/xhr/event-readystatechange-loaded.any.js [ Pass Failure ]
 
 webkit.org/b/160101 userscripts/window-onerror-for-isolated-world-3.html [ Pass Failure ]
-
-webkit.org/b/105870 [ Debug ] webaudio/audionode-connect-order.html [ Pass Crash ]
 
 # rdar://problem/27723718
 imported/blink/compositing/child-transform-with-anchor-point.html [ ImageOnlyFailure ]
@@ -900,7 +924,8 @@ webkit.org/b/207568 inspector/page/overrideUserAgent.html [ Pass Failure ]
 
 webkit.org/b/207857 fast/canvas/webgl/texImage2D-mse-flipY-false.html [ Pass Timeout ]
 
-webkit.org/b/207891 imported/w3c/web-platform-tests/css/css-position/fixed-z-index-blend.html [ Pass Failure ]
+webkit.org/b/207891 imported/w3c/web-platform-tests/css/css-position/fixed-z-index-blend.html [ Pass ImageOnlyFailure ]
+
 http/tests/websocket/web-socket-loads-captured-in-per-page-domains.html [ Skip ]
 
 webkit.org/b/208022 [ Debug ] http/tests/history/back-to-post.php [ Pass Failure ]
@@ -1062,6 +1087,8 @@ webkit.org/b/205412 [ Mojave Debug ] webgl/1.0.3/conformance/rendering/many-draw
 
 webkit.org/b/212851 [ Mojave Release ] js/dom/unhandled-promise-rejection-console-no-report.html [ Pass Failure ]
 
+webkit.org/b/68278 http/tests/history/back-with-fragment-change.php [ Failure ]
+
 # <rdar://problem/60376665> [ macOS ] svg/custom/glyph-selection-arabic-forms.svg is failing since around r252706
 [ Mojave ] svg/custom/glyph-selection-arabic-forms.svg [ Failure ]
 
@@ -1137,3 +1164,28 @@ webkit.org/b/122021 media/track/track-cue-rendering-mode-changed.html [ Pass Fai
 
 webkit.org/b/215767 [ Debug ] inspector/animation/nameChanged.html [ Pass Crash ]
 
+webkit.org/b/215778 fast/overflow/horizontal-scroll-after-back.html [ Pass Timeout ]
+
+#<rdar://61278051> [ macOS wk2 Debug ] http/tests/websocket/construct-in-detached-frame.html is a flaky crash
+[ Debug ] http/tests/websocket/construct-in-detached-frame.html [ Skip ]
+
+webkit.org/b/215819 [ Mojave ] fast/layers/hidpi-transform-on-child-content-is-mispositioned.html [ Pass Failure ]
+
+webkit.org/b/215926 svg/custom/object-sizing.xhtml [ Pass Failure ]
+
+# rdar://problem/66487888 [ BigSur+ ] media/media-source/media-source-webm.html is a constant failure
+[ BigSur+ ] media/media-source/media-source-webm.html [ Failure ]
+
+# rdar://65188503
+[ BigSur+ ] platform/mac/media/media-source/is-type-supported-vp9-codec-check.html [ Skip ]
+
+# rdar://65188503
+[ BigSur+ ] platform/mac/media/mediacapabilities/vp9-decodingInfo-sw.html [ Skip ]
+
+# <rdar://problem/32800095> REGRESSION: LayoutTest imported/blink/fast/gradients/gradient-transparency.html is failing
+[ Mojave Catalina ] imported/blink/fast/gradients/gradient-transparency.html [ ImageOnlyFailure ]
+
+webkit.org/b/216492 imported/w3c/web-platform-tests/selection/collapse-45.html [ Slow ]
+webkit.org/b/216492 imported/w3c/web-platform-tests/selection/collapse-15.html [ Slow ]
+
+webkit.org/b/216292 imported/w3c/web-platform-tests/css/css-flexbox/quirks-auto-block-size-with-percentage-item.html [ Pass Failure ]

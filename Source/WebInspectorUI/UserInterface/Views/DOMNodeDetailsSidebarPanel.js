@@ -262,6 +262,12 @@ WI.DOMNodeDetailsSidebarPanel = class DOMNodeDetailsSidebarPanel extends WI.DOMD
             const args = undefined;
             const generatePreview = false;
             object.callFunction(inspectedPage_node_collectPrototypes, args, generatePreview, nodePrototypesReady.bind(this));
+        }).catch((error) => {
+            // Bail if the DOM node changed while we were waiting for the async response.
+            if (this.domNode !== domNode)
+                return;
+
+            console.assert(false, "Cannot resolve node.", error, domNode);
         });
 
         function nodePrototypesReady(error, object, wasThrown)
@@ -354,7 +360,8 @@ WI.DOMNodeDetailsSidebarPanel = class DOMNodeDetailsSidebarPanel extends WI.DOMD
             }
 
             const defaultCollapsedSettingValue = true;
-            let section = new WI.DetailsSection(`${title}-event-listener-section`, title, groups, optionsElement, defaultCollapsedSettingValue);
+            let identifier = `${options.identifier ?? title}-event-listener-section`;
+            let section = new WI.DetailsSection(identifier, title, groups, optionsElement, defaultCollapsedSettingValue);
             section.element.classList.add("event-listener-section");
             return section;
         }
@@ -406,8 +413,9 @@ WI.DOMNodeDetailsSidebarPanel = class DOMNodeDetailsSidebarPanel extends WI.DOMD
                 eventListenersForTarget.sort((a, b) => a.type.toLowerCase().extendedLocaleCompare(b.type.toLowerCase()));
 
                 let title = target === windowTargetIdentifier ? WI.unlocalizedString("window") : target.displayName;
+                let identifier = target === windowTargetIdentifier ? WI.unlocalizedString("window") : target.unescapedSelector;
 
-                let section = createEventListenerSection(title, eventListenersForTarget, {hideTarget: true});
+                let section = createEventListenerSection(title, eventListenersForTarget, {hideTarget: true, identifier});
                 if (target instanceof WI.DOMNode)
                     WI.bindInteractionsForNodeToElement(target, section.titleElement, {ignoreClick: true});
                 rows.push(section);

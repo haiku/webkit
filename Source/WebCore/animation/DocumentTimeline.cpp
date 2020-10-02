@@ -37,6 +37,7 @@
 #include "KeyframeEffectStack.h"
 #include "Node.h"
 #include "Page.h"
+#include "RenderBoxModelObject.h"
 #include "RenderElement.h"
 #include "RenderLayer.h"
 #include "RenderLayerBacking.h"
@@ -83,7 +84,6 @@ void DocumentTimeline::detachFromDocument()
         controller->removeTimeline(*this);
 
     m_pendingAnimationEvents.clear();
-    m_elementsWithRunningAcceleratedAnimations.clear();
 
     auto& animationsToRemove = m_animations;
     while (!animationsToRemove.isEmpty())
@@ -227,12 +227,20 @@ bool DocumentTimeline::animationCanBeRemoved(WebAnimation& animation)
         return false;
 
     auto* keyframeEffect = downcast<KeyframeEffect>(effect);
-    auto* target = keyframeEffect->target();
-    if (!target || !target->isDescendantOf(*m_document))
+    auto target = keyframeEffect->targetStyleable();
+    if (!target || !target->element.isDescendantOf(*m_document))
         return false;
 
     HashSet<CSSPropertyID> propertiesToMatch = keyframeEffect->animatedProperties();
-    auto animations = animationsForElement(*target, AnimationTimeline::Ordering::Sorted);
+
+    Vector<RefPtr<WebAnimation>> animations;
+    if (auto* keyframeEffectStack = target->keyframeEffectStack()) {
+        for (auto& effect : keyframeEffectStack->sortedEffects()) {
+            if (effect->animation()->isRelevant())
+                animations.append(effect->animation());
+        }
+    }
+
     for (auto& animationWithHigherCompositeOrder : WTF::makeReversedRange(animations)) {
         if (&animation == animationWithHigherCompositeOrder)
             break;
@@ -289,8 +297,8 @@ void DocumentTimeline::transitionDidComplete(RefPtr<CSSTransition> transition)
     ASSERT(transition);
     removeAnimation(*transition);
     if (is<KeyframeEffect>(transition->effect())) {
-        if (auto* target = downcast<KeyframeEffect>(transition->effect())->targetElementOrPseudoElement())
-            target->ensureCompletedTransitionsByProperty().set(transition->property(), transition);
+        if (auto styleable = downcast<KeyframeEffect>(transition->effect())->targetStyleable())
+            styleable->ensureCompletedTransitionsByProperty().set(transition->property(), transition);
     }
 }
 
@@ -323,11 +331,16 @@ void DocumentTimeline::scheduleNextTick()
 
 bool DocumentTimeline::computeExtentOfAnimation(RenderElement& renderer, LayoutRect& bounds) const
 {
-    if (!renderer.element())
-        return true;
+    auto styleable = Styleable::fromRenderer(renderer);
+    if (!styleable)
+        return false;
+
+    auto* animations = styleable->animations();
+    if (!animations)
+        return false;
 
     KeyframeEffect* matchingEffect = nullptr;
-    for (const auto& animation : animationsForElement(*renderer.element())) {
+    for (const auto& animation : *animations) {
         auto* effect = animation->effect();
         if (is<KeyframeEffect>(effect)) {
             auto* keyframeEffect = downcast<KeyframeEffect>(effect);
@@ -344,10 +357,15 @@ bool DocumentTimeline::computeExtentOfAnimation(RenderElement& renderer, LayoutR
 
 bool DocumentTimeline::isRunningAnimationOnRenderer(RenderElement& renderer, CSSPropertyID property) const
 {
-    if (!renderer.element())
+    auto styleable = Styleable::fromRenderer(renderer);
+    if (!styleable)
         return false;
 
-    for (const auto& animation : animationsForElement(*renderer.element())) {
+    auto* animations = styleable->animations();
+    if (!animations)
+        return false;
+
+    for (const auto& animation : *animations) {
         auto playState = animation->playState();
         if (playState != WebAnimation::PlayState::Running && playState != WebAnimation::PlayState::Paused)
             continue;
@@ -361,10 +379,15 @@ bool DocumentTimeline::isRunningAnimationOnRenderer(RenderElement& renderer, CSS
 
 bool DocumentTimeline::isRunningAcceleratedAnimationOnRenderer(RenderElement& renderer, CSSPropertyID property) const
 {
-    if (!renderer.element())
+    auto styleable = Styleable::fromRenderer(renderer);
+    if (!styleable)
         return false;
 
-    for (const auto& animation : animationsForElement(*renderer.element())) {
+    auto* animations = styleable->animations();
+    if (!animations)
+        return false;
+
+    for (const auto& animation : *animations) {
         auto playState = animation->playState();
         if (playState != WebAnimation::PlayState::Running && playState != WebAnimation::PlayState::Paused)
             continue;
@@ -381,13 +404,18 @@ bool DocumentTimeline::isRunningAcceleratedAnimationOnRenderer(RenderElement& re
 
 std::unique_ptr<RenderStyle> DocumentTimeline::animatedStyleForRenderer(RenderElement& renderer)
 {
-    std::unique_ptr<RenderStyle> result;
+    auto styleable = Styleable::fromRenderer(renderer);
+    if (!styleable)
+        return RenderStyle::clonePtr(renderer.style());
 
-    if (auto* element = renderer.element()) {
-        for (const auto& animation : animationsForElement(*element)) {
-            if (is<KeyframeEffect>(animation->effect()))
-                downcast<KeyframeEffect>(animation->effect())->getAnimatedStyle(result);
-        }
+    auto* animations = styleable->animations();
+    if (!animations)
+        return RenderStyle::clonePtr(renderer.style());
+
+    std::unique_ptr<RenderStyle> result;
+    for (const auto& animation : *animations) {
+        if (is<KeyframeEffect>(animation->effect()))
+            downcast<KeyframeEffect>(animation->effect())->getAnimatedStyle(result);
     }
 
     if (!result)
@@ -396,50 +424,14 @@ std::unique_ptr<RenderStyle> DocumentTimeline::animatedStyleForRenderer(RenderEl
     return result;
 }
 
-void DocumentTimeline::animationWasAddedToElement(WebAnimation& animation, Element& element)
-{
-    AnimationTimeline::animationWasAddedToElement(animation, element);
-    updateListOfElementsWithRunningAcceleratedAnimationsForElement(element);
-}
-
-void DocumentTimeline::animationWasRemovedFromElement(WebAnimation& animation, Element& element)
-{
-    AnimationTimeline::animationWasRemovedFromElement(animation, element);
-    updateListOfElementsWithRunningAcceleratedAnimationsForElement(element);
-}
-
 void DocumentTimeline::animationAcceleratedRunningStateDidChange(WebAnimation& animation)
 {
     m_acceleratedAnimationsPendingRunningStateChange.add(&animation);
-
-    if (is<KeyframeEffect>(animation.effect())) {
-        if (auto* target = downcast<KeyframeEffect>(animation.effect())->targetElementOrPseudoElement())
-            updateListOfElementsWithRunningAcceleratedAnimationsForElement(*target);
-    }
 
     if (shouldRunUpdateAnimationsAndSendEventsIgnoringSuspensionState())
         scheduleAnimationResolution();
     else
         clearTickScheduleTimer();
-}
-
-void DocumentTimeline::updateListOfElementsWithRunningAcceleratedAnimationsForElement(Element& element)
-{
-    auto animations = animationsForElement(element);
-
-    if (animations.isEmpty()) {
-        m_elementsWithRunningAcceleratedAnimations.remove(&element);
-        return;
-    }
-
-    for (const auto& animation : animations) {
-        if (!animation->isRunningAccelerated()) {
-            m_elementsWithRunningAcceleratedAnimations.remove(&element);
-            return;
-        }
-    }
-
-    m_elementsWithRunningAcceleratedAnimations.add(&element);
 }
 
 void DocumentTimeline::applyPendingAcceleratedAnimations()
@@ -458,9 +450,22 @@ void DocumentTimeline::applyPendingAcceleratedAnimations()
     }
 }
 
-bool DocumentTimeline::runningAnimationsForElementAreAllAccelerated(Element& element) const
+bool DocumentTimeline::runningAnimationsForRendererAreAllAccelerated(const RenderBoxModelObject& renderer) const
 {
-    return m_elementsWithRunningAcceleratedAnimations.contains(&element);
+    auto styleable = Styleable::fromRenderer(renderer);
+    if (!styleable)
+        return false;
+
+    auto* animations = styleable->animations();
+    if (!animations || animations->isEmpty())
+        return false;
+
+    for (const auto& animation : *animations) {
+        if (!animation->isRunningAccelerated())
+            return false;
+    }
+
+    return true;
 }
 
 void DocumentTimeline::enqueueAnimationEvent(AnimationEventBase& event)

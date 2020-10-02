@@ -23,11 +23,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "WKWebViewPrivate.h"
-
+#import "PDFPluginIdentifier.h"
 #import "SameDocumentNavigationType.h"
 #import "WKShareSheet.h"
 #import "WKWebViewConfiguration.h"
+#import "WKWebViewPrivate.h"
 #import "_WKAttachmentInternal.h"
 #import "_WKWebViewPrintFormatterInternal.h"
 #import <wtf/CompletionHandler.h>
@@ -68,7 +68,6 @@ class Attachment;
 namespace WebKit {
 enum class ContinueUnsafeLoad : bool;
 class IconLoadingDelegate;
-class InspectorDelegate;
 class NavigationState;
 class ResourceLoadDelegate;
 class SafeBrowsingWarning;
@@ -113,7 +112,6 @@ class ViewGestureController;
     std::unique_ptr<WebKit::UIDelegate> _uiDelegate;
     std::unique_ptr<WebKit::IconLoadingDelegate> _iconLoadingDelegate;
     std::unique_ptr<WebKit::ResourceLoadDelegate> _resourceLoadDelegate;
-    std::unique_ptr<WebKit::InspectorDelegate> _inspectorDelegate;
 
     WeakObjCPtr<id <_WKTextManipulationDelegate>> _textManipulationDelegate;
     WeakObjCPtr<id <_WKInputDelegate>> _inputDelegate;
@@ -133,7 +131,7 @@ class ViewGestureController;
     // Only used with UI-side compositing.
     RetainPtr<WKScrollView> _scrollView;
     RetainPtr<WKContentView> _contentView;
-#endif
+#endif // PLATFORM(MAC)
 
 #if PLATFORM(IOS_FAMILY)
     RetainPtr<WKScrollView> _scrollView;

@@ -279,12 +279,14 @@ static bool animationHasStepsTimingFunction(const KeyframeValueList& valueList, 
 {
     if (is<StepsTimingFunction>(anim->timingFunction()))
         return true;
-    
+
+    bool hasStepsDefaultTimingFunctionForKeyframes = is<StepsTimingFunction>(anim->defaultTimingFunctionForKeyframes());
     for (unsigned i = 0; i < valueList.size(); ++i) {
         if (const TimingFunction* timingFunction = valueList.at(i).timingFunction()) {
             if (is<StepsTimingFunction>(timingFunction))
                 return true;
-        }
+        } else if (hasStepsDefaultTimingFunctionForKeyframes)
+            return true;
     }
 
     return false;
@@ -376,11 +378,6 @@ Ref<PlatformCALayer> GraphicsLayerCA::createPlatformCALayer(PlatformLayer* platf
 #elif PLATFORM(WIN)
     return PlatformCALayerWin::create(platformLayer, owner);
 #endif
-}
-
-Ref<PlatformCALayer> GraphicsLayerCA::createPlatformCALayerForEmbeddedView(PlatformCALayer::LayerType layerType, GraphicsLayer::EmbeddedViewID, PlatformCALayerClient* owner)
-{
-    return GraphicsLayerCA::createPlatformCALayer(layerType, owner);
 }
 
 Ref<PlatformCAAnimation> GraphicsLayerCA::createPlatformCAAnimation(PlatformCAAnimation::AnimationType type, const String& keyPath)
@@ -1031,7 +1028,7 @@ bool GraphicsLayerCA::shouldRepaintOnSizeChange() const
 
 bool GraphicsLayerCA::animationCanBeAccelerated(const KeyframeValueList& valueList, const Animation* anim) const
 {
-    if (anim->playbackRate() != 1)
+    if (anim->playbackRate() != 1 || !anim->directionIsForwards())
         return false;
 
     if (!anim || anim->isEmptyOrZeroDuration() || valueList.size() < 2)
@@ -1181,39 +1178,6 @@ void GraphicsLayerCA::setContentsToImage(Image* image)
     }
 
     noteLayerPropertyChanged(ContentsImageChanged);
-}
-
-void GraphicsLayerCA::setContentsToEmbeddedView(GraphicsLayer::ContentsLayerEmbeddedViewType layerType, GraphicsLayer::EmbeddedViewID embeddedViewID)
-{
-    bool contentsLayerChanged = false;
-
-    if (layerType != GraphicsLayer::ContentsLayerEmbeddedViewType::None) {
-        m_contentsLayerPurpose = ContentsLayerPurpose::EmbeddedView;
-
-        PlatformCALayer::LayerType platformType;
-        switch (layerType) {
-        case GraphicsLayer::ContentsLayerEmbeddedViewType::EditableImage:
-            platformType = PlatformCALayer::LayerTypeEditableImageLayer;
-            break;
-        default:
-            ASSERT_NOT_REACHED();
-            platformType = PlatformCALayer::LayerTypeLayer;
-            break;
-        }
-
-        if (!m_contentsLayer || m_contentsLayer->layerType() != platformType || m_contentsLayer->embeddedViewID() != embeddedViewID) {
-            m_contentsLayer = createPlatformCALayerForEmbeddedView(platformType, embeddedViewID, this);
-            m_contentsLayer->setAnchorPoint(FloatPoint3D());
-            contentsLayerChanged = true;
-        }
-    } else {
-        m_contentsLayerPurpose = ContentsLayerPurpose::None;
-        contentsLayerChanged = m_contentsLayer;
-        m_contentsLayer = nullptr;
-    }
-
-    if (contentsLayerChanged)
-        noteSublayersChanged();
 }
 
 void GraphicsLayerCA::setContentsToPlatformLayer(PlatformLayer* platformLayer, ContentsLayerPurpose purpose)
@@ -3076,9 +3040,7 @@ void GraphicsLayerCA::updateContentsNeedsDisplay()
 
 static bool isKeyframe(const KeyframeValueList& list)
 {
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
-        return list.size() > 1;
-    return list.size() > 2;
+    return list.size() > 1;
 }
 
 bool GraphicsLayerCA::createAnimationFromKeyframes(const KeyframeValueList& valueList, const Animation* animation, const String& animationName, Seconds timeOffset)
@@ -3329,23 +3291,29 @@ void GraphicsLayerCA::setupAnimation(PlatformCAAnimation* propertyAnim, const An
     propertyAnim->setAdditive(additive);
     propertyAnim->setFillMode(fillMode);
 
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
+    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=215918
+    // A CSS Transition is the only scenario where Animation::property() will have
+    // its mode set to SingleProperty. In this case, we don't set the animation-wide
+    // timing function to work around a Core Animation limitation.
+    if (anim->property().mode != Animation::TransitionMode::SingleProperty)
         propertyAnim->setTimingFunction(anim->timingFunction());
 }
 
 const TimingFunction& GraphicsLayerCA::timingFunctionForAnimationValue(const AnimationValue& animValue, const Animation& anim)
 {
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        if (animValue.timingFunction())
-            return *animValue.timingFunction();
-        return LinearTimingFunction::sharedLinearTimingFunction();
+    if (anim.property().mode == Animation::TransitionMode::SingleProperty && anim.timingFunction()) {
+        // FIXME: https://bugs.webkit.org/show_bug.cgi?id=215918
+        // A CSS Transition is the only scenario where Animation::property() will have
+        // its mode set to SingleProperty. In this case, we chose not to set set the
+        // animation-wide timing function, so we set it on the single keyframe interval
+        // to work around a Core Animation limitation.
+        return *anim.timingFunction();
     }
-
     if (animValue.timingFunction())
         return *animValue.timingFunction();
-    if (anim.isTimingFunctionSet())
-        return *anim.timingFunction();
-    return CubicBezierTimingFunction::defaultTimingFunction();
+    if (anim.defaultTimingFunctionForKeyframes())
+        return *anim.defaultTimingFunctionForKeyframes();
+    return LinearTimingFunction::sharedLinearTimingFunction();
 }
 
 bool GraphicsLayerCA::setAnimationEndpoints(const KeyframeValueList& valueList, const Animation* animation, PlatformCAAnimation* basicAnim)
@@ -3365,11 +3333,6 @@ bool GraphicsLayerCA::setAnimationEndpoints(const KeyframeValueList& valueList, 
         ASSERT_NOT_REACHED(); // we don't animate color yet
         break;
     }
-
-    // This codepath is used for 2-keyframe animations, so we still need to look in the start
-    // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
-        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     return true;
 }
@@ -3459,11 +3422,6 @@ bool GraphicsLayerCA::setTransformAnimationEndpoints(const KeyframeValueList& va
             basicAnim->setToValue(toValue);
         }
     }
-
-    // This codepath is used for 2-keyframe animations, so we still need to look in the start
-    // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
-        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     auto valueFunction = getValueFunctionNameForTransformOperation(transformOpType);
     if (valueFunction != PlatformCAAnimation::NoValueFunction)
@@ -3570,11 +3528,6 @@ bool GraphicsLayerCA::setFilterAnimationEndpoints(const KeyframeValueList& value
 
     basicAnim->setFromValue(fromOperation, internalFilterPropertyIndex);
     basicAnim->setToValue(toOperation, internalFilterPropertyIndex);
-
-    // This codepath is used for 2-keyframe animations, so we still need to look in the start
-    // for a timing function. Even in the reversing animation case, the first keyframe provides the timing function.
-    if (!RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled())
-        basicAnim->setTimingFunction(&timingFunctionForAnimationValue(valueList.at(0), *animation), !forwards);
 
     return true;
 }

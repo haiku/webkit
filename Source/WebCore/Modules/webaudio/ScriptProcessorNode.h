@@ -60,38 +60,40 @@ public:
 
     // AudioNode
     void process(size_t framesToProcess) override;
-    void reset() override;
     void initialize() override;
     void uninitialize() override;
     void didBecomeMarkedForDeletion() override;
 
     size_t bufferSize() const { return m_bufferSize; }
 
+    ExceptionOr<void> setChannelCount(unsigned) final;
+    ExceptionOr<void> setChannelCountMode(ChannelCountMode) final;
+
 private:
     double tailTime() const override;
     double latencyTime() const override;
+    bool requiresTailProcessing() const final;
 
     ScriptProcessorNode(BaseAudioContext&, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels);
 
-    void fireProcessEvent();
+    void fireProcessEvent(unsigned doubleBufferIndex);
 
     // Double buffering
     unsigned doubleBufferIndex() const { return m_doubleBufferIndex; }
     void swapBuffers() { m_doubleBufferIndex = 1 - m_doubleBufferIndex; }
-    unsigned m_doubleBufferIndex;
-    unsigned m_doubleBufferIndexForEvent;
+    unsigned m_doubleBufferIndex { 0 };
     Vector<RefPtr<AudioBuffer>> m_inputBuffers;
     Vector<RefPtr<AudioBuffer>> m_outputBuffers;
 
     size_t m_bufferSize;
-    unsigned m_bufferReadWriteIndex;
-    volatile bool m_isRequestOutstanding;
+    unsigned m_bufferReadWriteIndex { 0 };
 
     unsigned m_numberOfInputChannels;
     unsigned m_numberOfOutputChannels;
 
     RefPtr<AudioBus> m_internalInputBus;
     RefPtr<PendingActivity<ScriptProcessorNode>> m_pendingActivity;
+    Lock m_processLock;
 };
 
 } // namespace WebCore

@@ -574,9 +574,7 @@ static void logResourceLoaded(Frame* frame, CachedResource::Type type)
         resourceType = DiagnosticLoggingKeys::scriptKey();
         break;
     case CachedResource::Type::FontResource:
-#if ENABLE(SVG_FONTS)
     case CachedResource::Type::SVGFontResource:
-#endif
         resourceType = DiagnosticLoggingKeys::fontKey();
         break;
     case CachedResource::Type::Beacon:
@@ -821,8 +819,10 @@ void SubresourceLoader::willCancel(const ResourceError& error)
 
 void SubresourceLoader::didCancel(const ResourceError&)
 {
-    if (m_state == Uninitialized)
+    if (m_state == Uninitialized || reachedTerminalState())
         return;
+
+    ASSERT(m_resource);
 
     if (m_resource->type() != CachedResource::Type::MainResource)
         tracePoint(SubresourceLoadDidEnd);
@@ -863,9 +863,6 @@ void SubresourceLoader::releaseResources()
 
 void SubresourceLoader::reportResourceTiming(const NetworkLoadMetrics& networkLoadMetrics)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().resourceTimingEnabled())
-        return;
-
     if (!ResourceTimingInformation::shouldAddResourceTiming(*m_resource))
         return;
 

@@ -67,12 +67,17 @@ rm -f "${TMPCHECKPACKAGES}"
 if [[ -z "${TOINSTALL}" ]]; then
     echo "All required dependencies are already installed"
 else
-    AUTOINSTALL=""
-    [[ ${#} -gt 0 ]] && [[ "${1}" == "--autoinstall" ]] && AUTOINSTALL="-y" && export DEBIAN_FRONTEND="noninteractive"
-    SUDO=""
-    [[ ${UID} -ne 0 ]] && SUDO="sudo --preserve-env=DEBIAN_FRONTEND"
-
     echo "Need to install the following extra packages: ${TOINSTALL}"
+    [[ ${#} -gt 0 ]] && [[ "${1}" == "--printonly" ]] && exit 0
+    SUDO=""
+    [[ ${UID} -ne 0 ]] && SUDO="sudo"
+    AUTOINSTALL=""
+    if [[ ${#} -gt 0 ]] && [[ "${1}" == "--autoinstall" ]]; then
+        AUTOINSTALL="-y"
+        export DEBIAN_FRONTEND="noninteractive"
+        [[ ${UID} -ne 0 ]] && SUDO="sudo --preserve-env=DEBIAN_FRONTEND"
+        ${SUDO} apt-get update
+    fi
     set -x
     ${SUDO} apt-get install --no-install-recommends ${AUTOINSTALL} ${TOINSTALL}
 fi
@@ -547,7 +552,8 @@ class BundleUploader(object):
             # SFTP upload instructions file
             uploadinstructionsfile.write('progress\n')
             uploadinstructionsfile.write('put %s %s\n' % (self._bundle_file_path, remote_file_bundle_path))
-            uploadinstructionsfile.write('put %s %s\n' % (hashcheckfile.name, remote_file_bundle_path + '.sha256sum'))
+            remote_file_bundle_path_no_ext, _ = os.path.splitext(remote_file_bundle_path)
+            uploadinstructionsfile.write('put %s %s\n' % (hashcheckfile.name, remote_file_bundle_path_no_ext + '.sha256sum'))
             uploadinstructionsfile.write('put %s %s\n' % (lastisfile.name, os.path.join(os.path.dirname(remote_file_bundle_path), 'LAST-IS')))
             uploadinstructionsfile.write('quit\n')
             uploadinstructionsfile.flush()

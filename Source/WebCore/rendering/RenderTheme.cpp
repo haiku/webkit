@@ -34,10 +34,12 @@
 #include "FrameSelection.h"
 #include "GraphicsContext.h"
 #include "HTMLInputElement.h"
+#include "HTMLMeterElement.h"
 #include "HTMLNames.h"
 #include "LocalizedStrings.h"
 #include "Page.h"
 #include "PaintInfo.h"
+#include "RenderMeter.h"
 #include "RenderStyle.h"
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
@@ -48,10 +50,6 @@
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/StringConcatenateNumbers.h>
 
-#if ENABLE(METER_ELEMENT)
-#include "HTMLMeterElement.h"
-#include "RenderMeter.h"
-#endif
 
 #if ENABLE(DATALIST_ELEMENT)
 #include "HTMLDataListElement.h"
@@ -250,14 +248,12 @@ void RenderTheme::adjustStyle(RenderStyle& style, const Element* element, const 
         return adjustSearchFieldResultsButtonStyle(style, element);
     case ProgressBarPart:
         return adjustProgressBarStyle(style, element);
-#if ENABLE(METER_ELEMENT)
     case MeterPart:
     case RelevancyLevelIndicatorPart:
     case ContinuousCapacityLevelIndicatorPart:
     case DiscreteCapacityLevelIndicatorPart:
     case RatingLevelIndicatorPart:
         return adjustMeterStyle(style, element);
-#endif
 #if ENABLE(SERVICE_CONTROLS)
     case ImageControlsButtonPart:
         break;
@@ -347,14 +343,12 @@ bool RenderTheme::paint(const RenderBox& box, ControlStates& controlStates, cons
 #endif
     case MenulistPart:
         return paintMenuList(box, paintInfo, devicePixelSnappedRect);
-#if ENABLE(METER_ELEMENT)
     case MeterPart:
     case RelevancyLevelIndicatorPart:
     case ContinuousCapacityLevelIndicatorPart:
     case DiscreteCapacityLevelIndicatorPart:
     case RatingLevelIndicatorPart:
         return paintMeter(box, paintInfo, integralSnappedRect);
-#endif
     case ProgressBarPart:
         return paintProgressBar(box, paintInfo, integralSnappedRect);
     case SliderHorizontalPart:
@@ -473,13 +467,11 @@ bool RenderTheme::paintBorderOnly(const RenderBox& box, const PaintInfo& paintIn
     case DefaultButtonPart:
     case ButtonPart:
     case MenulistPart:
-#if ENABLE(METER_ELEMENT)
     case MeterPart:
     case RelevancyLevelIndicatorPart:
     case ContinuousCapacityLevelIndicatorPart:
     case DiscreteCapacityLevelIndicatorPart:
     case RatingLevelIndicatorPart:
-#endif
     case ProgressBarPart:
     case SliderHorizontalPart:
     case SliderVerticalPart:
@@ -536,13 +528,11 @@ bool RenderTheme::paintDecorations(const RenderBox& box, const PaintInfo& paintI
         return paintSliderThumbDecorations(box, paintInfo, integralSnappedRect);
     case SearchFieldPart:
         return paintSearchFieldDecorations(box, paintInfo, integralSnappedRect);
-#if ENABLE(METER_ELEMENT)
     case MeterPart:
     case RelevancyLevelIndicatorPart:
     case ContinuousCapacityLevelIndicatorPart:
     case DiscreteCapacityLevelIndicatorPart:
     case RatingLevelIndicatorPart:
-#endif
     case ProgressBarPart:
     case SliderHorizontalPart:
     case SliderVerticalPart:
@@ -984,8 +974,6 @@ void RenderTheme::adjustMenuListStyle(RenderStyle&, const Element*) const
 {
 }
 
-#if ENABLE(METER_ELEMENT)
-
 void RenderTheme::adjustMeterStyle(RenderStyle& style, const Element*) const
 {
     style.setBoxShadow(nullptr);
@@ -1005,8 +993,6 @@ bool RenderTheme::paintMeter(const RenderObject&, const PaintInfo&, const IntRec
 {
     return true;
 }
-
-#endif // METER_ELEMENT
 
 void RenderTheme::adjustCapsLockIndicatorStyle(RenderStyle&, const Element*) const
 {
@@ -1038,61 +1024,6 @@ String RenderTheme::colorInputStyleSheet() const
 }
 
 #endif // ENABLE(INPUT_TYPE_COLOR)
-
-#if PLATFORM(IOS_FAMILY)
-#define DATE_INPUT_WIDTH ""
-#else
-#define DATE_INPUT_WIDTH "width: 10em; "
-#endif
-
-#if ENABLE(INPUT_TYPE_DATE)
-
-String RenderTheme::dateInputStyleSheet() const
-{
-    return "input[type=\"date\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
-
-String RenderTheme::dateTimeLocalInputStyleSheet() const
-{
-    return "input[type=\"datetime-local\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_MONTH)
-
-String RenderTheme::monthInputStyleSheet() const
-{
-    return "input[type=\"month\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_TIME)
-
-String RenderTheme::timeInputStyleSheet() const
-{
-    return "input[type=\"time\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_WEEK)
-
-String RenderTheme::weekInputStyleSheet() const
-{
-#if PLATFORM(IOS_FAMILY)
-    return emptyString();
-#else
-    return "input[type=\"week\"] { align-items: center; -webkit-appearance: menulist-button; display: -webkit-inline-flex; overflow: hidden; " DATE_INPUT_WIDTH "} "_s;
-#endif
-}
-
-#endif
 
 #if ENABLE(DATALIST_ELEMENT)
 
@@ -1283,41 +1214,32 @@ auto RenderTheme::colorCache(OptionSet<StyleColor::Options> options) const -> Co
 
 FontCascadeDescription& RenderTheme::cachedSystemFontDescription(CSSValueID systemFontID) const
 {
-    static NeverDestroyed<FontCascadeDescription> caption;
-    static NeverDestroyed<FontCascadeDescription> icon;
-    static NeverDestroyed<FontCascadeDescription> menu;
-    static NeverDestroyed<FontCascadeDescription> messageBox;
-    static NeverDestroyed<FontCascadeDescription> smallCaption;
-    static NeverDestroyed<FontCascadeDescription> statusBar;
-    static NeverDestroyed<FontCascadeDescription> webkitMiniControl;
-    static NeverDestroyed<FontCascadeDescription> webkitSmallControl;
-    static NeverDestroyed<FontCascadeDescription> webkitControl;
-    static NeverDestroyed<FontCascadeDescription> defaultDescription;
+    static auto fontDescriptions = makeNeverDestroyed<std::array<FontCascadeDescription, 10>>({ });
 
     switch (systemFontID) {
     case CSSValueCaption:
-        return caption;
+        return fontDescriptions.get()[0];
     case CSSValueIcon:
-        return icon;
+        return fontDescriptions.get()[1];
     case CSSValueMenu:
-        return menu;
+        return fontDescriptions.get()[2];
     case CSSValueMessageBox:
-        return messageBox;
+        return fontDescriptions.get()[3];
     case CSSValueSmallCaption:
-        return smallCaption;
+        return fontDescriptions.get()[4];
     case CSSValueStatusBar:
-        return statusBar;
+        return fontDescriptions.get()[5];
     case CSSValueWebkitMiniControl:
-        return webkitMiniControl;
+        return fontDescriptions.get()[6];
     case CSSValueWebkitSmallControl:
-        return webkitSmallControl;
+        return fontDescriptions.get()[7];
     case CSSValueWebkitControl:
-        return webkitControl;
+        return fontDescriptions.get()[8];
     case CSSValueNone:
-        return defaultDescription;
+        return fontDescriptions.get()[9];
     default:
         ASSERT_NOT_REACHED();
-        return defaultDescription;
+        return fontDescriptions.get()[9];
     }
 }
 

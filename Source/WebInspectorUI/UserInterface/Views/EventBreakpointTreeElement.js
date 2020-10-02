@@ -34,7 +34,7 @@ WI.EventBreakpointTreeElement = class EventBreakpointTreeElement extends WI.Brea
         classNames.push("event", breakpoint.type);
 
         if (!title)
-            title = breakpoint.eventName;
+            title = breakpoint.displayName;
 
         super(breakpoint, {classNames, title});
     }

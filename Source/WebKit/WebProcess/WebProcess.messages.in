@@ -159,6 +159,7 @@ messages -> WebProcess LegacyReceiver NotRefCounted {
     SeedResourceLoadStatisticsForTesting(WebCore::RegistrableDomain firstPartyDomain, WebCore::RegistrableDomain thirdPartyDomain, bool shouldScheduleNotification) -> () Async
     SetThirdPartyCookieBlockingMode(enum:uint8_t WebCore::ThirdPartyCookieBlockingMode blockingMode) -> () Async
     SetDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain> domains)
+    SendResourceLoadStatisticsDataImmediately() -> () Async
 #endif
 
 #if PLATFORM(IOS)
@@ -181,5 +182,9 @@ messages -> WebProcess LegacyReceiver NotRefCounted {
 
 #if PLATFORM(COCOA)
     DidWriteToPasteboardAsynchronously(String pasteboardName);
+#endif
+
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+    DisplayWasRefreshed(uint32_t displayID)
 #endif
 }

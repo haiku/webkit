@@ -99,6 +99,10 @@
 #include <crt_externs.h>
 #endif
 
+#if PLATFORM(GTK)
+#include <locale.h>
+#endif
+
 #if HAVE(READLINE)
 // readline/history.h has a Function typedef which conflicts with the WTF::Function template from WTF/Forward.h
 // We #define it to something else to avoid this conflict.
@@ -249,114 +253,114 @@ private:
 };
 
 
-static EncodedJSValue JSC_HOST_CALL functionCreateGlobalObject(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCreateHeapBigInt(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionCreateGlobalObject);
+static JSC_DECLARE_HOST_FUNCTION(functionCreateHeapBigInt);
 #if USE(BIGINT32)
-static EncodedJSValue JSC_HOST_CALL functionCreateBigInt32(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionCreateBigInt32);
 #endif
-static EncodedJSValue JSC_HOST_CALL functionUseBigInt32(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIsBigInt32(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIsHeapBigInt(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionUseBigInt32);
+static JSC_DECLARE_HOST_FUNCTION(functionIsBigInt32);
+static JSC_DECLARE_HOST_FUNCTION(functionIsHeapBigInt);
 
-static EncodedJSValue JSC_HOST_CALL functionPrintStdOut(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionPrintStdErr(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDebug(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDescribe(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDescribeArray(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionSleepSeconds(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionJSCStack(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionGCAndSweep(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFullGC(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionEdenGC(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionHeapSize(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCreateMemoryFootprint(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionResetMemoryPeak(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionAddressOf(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionVersion(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionRun(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionRunString(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionLoad(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionLoadString(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionReadFile(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCheckSyntax(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionReadline(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionPreciseTime(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionNeverInlineFunction(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionNoDFG(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionNoFTL(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionNoOSRExitFuzzing(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionOptimizeNextInvocation(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionNumberOfDFGCompiles(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCallerIsOMGCompiled(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionJSCOptions(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionReoptimizationRetryCount(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionTransferArrayBuffer(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFailNextNewCodeBlock(JSGlobalObject*, CallFrame*);
-static NO_RETURN_WITH_VALUE EncodedJSValue JSC_HOST_CALL functionQuit(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFalse(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionUndefined1(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionUndefined2(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIsInt32(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIsPureNaN(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionEffectful42(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIdentity(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionMakeMasquerader(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCallMasquerader(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDumpTypesForAllVariables(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDrainMicrotasks(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionSetTimeout(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionReleaseWeakRefs(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryLiveCount(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryDeadCount(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIs32BitPlatform(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCheckModuleSyntax(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionPlatformSupportsSamplingProfiler(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshot(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshotForGCDebugging(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionResetSuperSamplerState(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionEnsureArrayStorage(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionPrintStdOut);
+static JSC_DECLARE_HOST_FUNCTION(functionPrintStdErr);
+static JSC_DECLARE_HOST_FUNCTION(functionDebug);
+static JSC_DECLARE_HOST_FUNCTION(functionDescribe);
+static JSC_DECLARE_HOST_FUNCTION(functionDescribeArray);
+static JSC_DECLARE_HOST_FUNCTION(functionSleepSeconds);
+static JSC_DECLARE_HOST_FUNCTION(functionJSCStack);
+static JSC_DECLARE_HOST_FUNCTION(functionGCAndSweep);
+static JSC_DECLARE_HOST_FUNCTION(functionFullGC);
+static JSC_DECLARE_HOST_FUNCTION(functionEdenGC);
+static JSC_DECLARE_HOST_FUNCTION(functionHeapSize);
+static JSC_DECLARE_HOST_FUNCTION(functionCreateMemoryFootprint);
+static JSC_DECLARE_HOST_FUNCTION(functionResetMemoryPeak);
+static JSC_DECLARE_HOST_FUNCTION(functionAddressOf);
+static JSC_DECLARE_HOST_FUNCTION(functionVersion);
+static JSC_DECLARE_HOST_FUNCTION(functionRun);
+static JSC_DECLARE_HOST_FUNCTION(functionRunString);
+static JSC_DECLARE_HOST_FUNCTION(functionLoad);
+static JSC_DECLARE_HOST_FUNCTION(functionLoadString);
+static JSC_DECLARE_HOST_FUNCTION(functionReadFile);
+static JSC_DECLARE_HOST_FUNCTION(functionCheckSyntax);
+static JSC_DECLARE_HOST_FUNCTION(functionReadline);
+static JSC_DECLARE_HOST_FUNCTION(functionPreciseTime);
+static JSC_DECLARE_HOST_FUNCTION(functionNeverInlineFunction);
+static JSC_DECLARE_HOST_FUNCTION(functionNoDFG);
+static JSC_DECLARE_HOST_FUNCTION(functionNoFTL);
+static JSC_DECLARE_HOST_FUNCTION(functionNoOSRExitFuzzing);
+static JSC_DECLARE_HOST_FUNCTION(functionOptimizeNextInvocation);
+static JSC_DECLARE_HOST_FUNCTION(functionNumberOfDFGCompiles);
+static JSC_DECLARE_HOST_FUNCTION(functionCallerIsOMGCompiled);
+static JSC_DECLARE_HOST_FUNCTION(functionJSCOptions);
+static JSC_DECLARE_HOST_FUNCTION(functionReoptimizationRetryCount);
+static JSC_DECLARE_HOST_FUNCTION(functionTransferArrayBuffer);
+static JSC_DECLARE_HOST_FUNCTION(functionFailNextNewCodeBlock);
+static NO_RETURN_WITH_VALUE JSC_DECLARE_HOST_FUNCTION(functionQuit);
+static JSC_DECLARE_HOST_FUNCTION(functionFalse);
+static JSC_DECLARE_HOST_FUNCTION(functionUndefined1);
+static JSC_DECLARE_HOST_FUNCTION(functionUndefined2);
+static JSC_DECLARE_HOST_FUNCTION(functionIsInt32);
+static JSC_DECLARE_HOST_FUNCTION(functionIsPureNaN);
+static JSC_DECLARE_HOST_FUNCTION(functionEffectful42);
+static JSC_DECLARE_HOST_FUNCTION(functionIdentity);
+static JSC_DECLARE_HOST_FUNCTION(functionMakeMasquerader);
+static JSC_DECLARE_HOST_FUNCTION(functionCallMasquerader);
+static JSC_DECLARE_HOST_FUNCTION(functionHasCustomProperties);
+static JSC_DECLARE_HOST_FUNCTION(functionDumpTypesForAllVariables);
+static JSC_DECLARE_HOST_FUNCTION(functionDrainMicrotasks);
+static JSC_DECLARE_HOST_FUNCTION(functionSetTimeout);
+static JSC_DECLARE_HOST_FUNCTION(functionReleaseWeakRefs);
+static JSC_DECLARE_HOST_FUNCTION(functionFinalizationRegistryLiveCount);
+static JSC_DECLARE_HOST_FUNCTION(functionFinalizationRegistryDeadCount);
+static JSC_DECLARE_HOST_FUNCTION(functionIs32BitPlatform);
+static JSC_DECLARE_HOST_FUNCTION(functionCheckModuleSyntax);
+static JSC_DECLARE_HOST_FUNCTION(functionPlatformSupportsSamplingProfiler);
+static JSC_DECLARE_HOST_FUNCTION(functionGenerateHeapSnapshot);
+static JSC_DECLARE_HOST_FUNCTION(functionGenerateHeapSnapshotForGCDebugging);
+static JSC_DECLARE_HOST_FUNCTION(functionResetSuperSamplerState);
+static JSC_DECLARE_HOST_FUNCTION(functionEnsureArrayStorage);
 #if ENABLE(SAMPLING_PROFILER)
-static EncodedJSValue JSC_HOST_CALL functionStartSamplingProfiler(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionSamplingProfilerStackTraces(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionStartSamplingProfiler);
+static JSC_DECLARE_HOST_FUNCTION(functionSamplingProfilerStackTraces);
 #endif
 
-static EncodedJSValue JSC_HOST_CALL functionMaxArguments(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionAsyncTestStart(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionAsyncTestPassed(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionMaxArguments);
+static JSC_DECLARE_HOST_FUNCTION(functionAsyncTestStart);
+static JSC_DECLARE_HOST_FUNCTION(functionAsyncTestPassed);
 
 #if ENABLE(WEBASSEMBLY)
-static EncodedJSValue JSC_HOST_CALL functionWebAssemblyMemoryMode(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionWebAssemblyMemoryMode);
 #endif
 
 #if ENABLE(SAMPLING_FLAGS)
-static EncodedJSValue JSC_HOST_CALL functionSetSamplingFlags(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionClearSamplingFlags(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionSetSamplingFlags);
+static JSC_DECLARE_HOST_FUNCTION(functionClearSamplingFlags);
 #endif
 
-static EncodedJSValue JSC_HOST_CALL functionGetRandomSeed(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionSetRandomSeed(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionIsRope(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionCallerSourceOrigin(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarCreateRealm(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarEvalScript(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentStart(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentReceiveBroadcast(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentReport(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentSleep(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentBroadcast(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentGetReport(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentLeaving(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDollarAgentMonotonicNow(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionWaitForReport(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionHeapCapacity(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionFlashHeapAccess(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionDisableRichSourceInfo(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionMallocInALoop(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionTotalCompileTime(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionGetRandomSeed);
+static JSC_DECLARE_HOST_FUNCTION(functionSetRandomSeed);
+static JSC_DECLARE_HOST_FUNCTION(functionIsRope);
+static JSC_DECLARE_HOST_FUNCTION(functionCallerSourceOrigin);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarCreateRealm);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarEvalScript);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentStart);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentReceiveBroadcast);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentReport);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentSleep);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentBroadcast);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentGetReport);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentLeaving);
+static JSC_DECLARE_HOST_FUNCTION(functionDollarAgentMonotonicNow);
+static JSC_DECLARE_HOST_FUNCTION(functionWaitForReport);
+static JSC_DECLARE_HOST_FUNCTION(functionHeapCapacity);
+static JSC_DECLARE_HOST_FUNCTION(functionFlashHeapAccess);
+static JSC_DECLARE_HOST_FUNCTION(functionDisableRichSourceInfo);
+static JSC_DECLARE_HOST_FUNCTION(functionMallocInALoop);
+static JSC_DECLARE_HOST_FUNCTION(functionTotalCompileTime);
 
-static EncodedJSValue JSC_HOST_CALL functionSetUnhandledRejectionCallback(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL functionAsDoubleNumber(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(functionSetUnhandledRejectionCallback);
+static JSC_DECLARE_HOST_FUNCTION(functionAsDoubleNumber);
 
 struct Script {
     enum class StrictMode {
@@ -454,6 +458,17 @@ static inline String stringFromUTF(const Vector& utf8)
 {
     return String::fromUTF8WithLatin1Fallback(utf8.data(), utf8.size());
 }
+
+static JSC_DECLARE_CUSTOM_GETTER(accessorMakeMasquerader);
+static JSC_DECLARE_CUSTOM_SETTER(testCustomAccessorSetter);
+static JSC_DECLARE_CUSTOM_SETTER(testCustomValueSetter);
+
+JSC_DEFINE_CUSTOM_GETTER(accessorMakeMasquerader, (JSGlobalObject* globalObject, EncodedJSValue, PropertyName))
+{
+    VM& vm = globalObject->vm();
+    return JSValue::encode(InternalFunction::createFunctionThatMasqueradesAsUndefined(vm, globalObject, 0, "IsHTMLDDA"_s, functionCallMasquerader));
+}
+
 
 class GlobalObject final : public JSGlobalObject {
 public:
@@ -606,9 +621,7 @@ private:
         
         dollar->putDirect(vm, Identifier::fromString(vm, "global"), this, DontEnum);
         dollar->putDirectCustomAccessor(vm, Identifier::fromString(vm, "IsHTMLDDA"),
-            CustomGetterSetter::create(vm, [](JSGlobalObject* globalObject, EncodedJSValue, PropertyName) {
-                return functionMakeMasquerader(globalObject, nullptr);
-            }, nullptr),
+            CustomGetterSetter::create(vm, accessorMakeMasquerader, nullptr),
             static_cast<unsigned>(PropertyAttribute::CustomValue)
         );
 
@@ -654,6 +667,7 @@ private:
         }
     }
 
+public:
     static bool testCustomSetterImpl(JSGlobalObject* lexicalGlobalObject, GlobalObject* thisObject, EncodedJSValue encodedValue, const char* propertyName)
     {
         VM& vm = lexicalGlobalObject->vm();
@@ -664,27 +678,7 @@ private:
         return true;
     }
 
-    static bool testCustomAccessorSetter(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue)
-    {
-        VM& vm = lexicalGlobalObject->vm();
-        RELEASE_ASSERT(JSValue::decode(thisValue).isCell());
-        JSCell* thisCell = JSValue::decode(thisValue).asCell();
-        RELEASE_ASSERT(thisCell->type() == PureForwardingProxyType);
-        GlobalObject* thisObject = jsDynamicCast<GlobalObject*>(vm, jsCast<JSProxy*>(thisCell)->target());
-        RELEASE_ASSERT(thisObject);
-        return testCustomSetterImpl(lexicalGlobalObject, thisObject, encodedValue, "_testCustomAccessorSetter");
-    }
-
-    static bool testCustomValueSetter(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue)
-    {
-        VM& vm = lexicalGlobalObject->vm();
-        RELEASE_ASSERT(JSValue::decode(thisValue).isCell());
-        JSCell* thisCell = JSValue::decode(thisValue).asCell();
-        GlobalObject* thisObject = jsDynamicCast<GlobalObject*>(vm, thisCell);
-        RELEASE_ASSERT(thisObject);
-        return testCustomSetterImpl(lexicalGlobalObject, thisObject, encodedValue, "_testCustomValueSetter");
-    }
-    
+private:
     void addFunction(VM& vm, JSObject* object, const char* name, NativeFunction function, unsigned arguments)
     {
         Identifier identifier = Identifier::fromString(vm, name);
@@ -733,6 +727,27 @@ const GlobalObjectMethodTable GlobalObject::s_globalObjectMethodTable = {
 GlobalObject::GlobalObject(VM& vm, Structure* structure)
     : JSGlobalObject(vm, structure, &s_globalObjectMethodTable)
 {
+}
+
+JSC_DEFINE_CUSTOM_SETTER(testCustomAccessorSetter, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
+{
+    VM& vm = lexicalGlobalObject->vm();
+    RELEASE_ASSERT(JSValue::decode(thisValue).isCell());
+    JSCell* thisCell = JSValue::decode(thisValue).asCell();
+    RELEASE_ASSERT(thisCell->type() == PureForwardingProxyType);
+    GlobalObject* thisObject = jsDynamicCast<GlobalObject*>(vm, jsCast<JSProxy*>(thisCell)->target());
+    RELEASE_ASSERT(thisObject);
+    return GlobalObject::testCustomSetterImpl(lexicalGlobalObject, thisObject, encodedValue, "_testCustomAccessorSetter");
+}
+
+JSC_DEFINE_CUSTOM_SETTER(testCustomValueSetter, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
+{
+    VM& vm = lexicalGlobalObject->vm();
+    RELEASE_ASSERT(JSValue::decode(thisValue).isCell());
+    JSCell* thisCell = JSValue::decode(thisValue).asCell();
+    GlobalObject* thisObject = jsDynamicCast<GlobalObject*>(vm, thisCell);
+    RELEASE_ASSERT(thisObject);
+    return GlobalObject::testCustomSetterImpl(lexicalGlobalObject, thisObject, encodedValue, "_testCustomValueSetter");
 }
 
 static UChar pathSeparator()
@@ -1258,10 +1273,17 @@ fail:
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionPrintStdOut(JSGlobalObject* globalObject, CallFrame* callFrame) { return printInternal(globalObject, callFrame, stdout); }
-EncodedJSValue JSC_HOST_CALL functionPrintStdErr(JSGlobalObject* globalObject, CallFrame* callFrame) { return printInternal(globalObject, callFrame, stderr); }
+JSC_DEFINE_HOST_FUNCTION(functionPrintStdOut, (JSGlobalObject* globalObject, CallFrame* callFrame))
+{
+    return printInternal(globalObject, callFrame, stdout);
+}
 
-EncodedJSValue JSC_HOST_CALL functionDebug(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionPrintStdErr, (JSGlobalObject* globalObject, CallFrame* callFrame))
+{
+    return printInternal(globalObject, callFrame, stderr);
+}
+
+JSC_DEFINE_HOST_FUNCTION(functionDebug, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1277,7 +1299,7 @@ EncodedJSValue JSC_HOST_CALL functionDebug(JSGlobalObject* globalObject, CallFra
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDescribe(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDescribe, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     if (callFrame->argumentCount() < 1)
@@ -1285,7 +1307,7 @@ EncodedJSValue JSC_HOST_CALL functionDescribe(JSGlobalObject* globalObject, Call
     return JSValue::encode(jsString(vm, toString(callFrame->argument(0))));
 }
 
-EncodedJSValue JSC_HOST_CALL functionDescribeArray(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDescribeArray, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     if (callFrame->argumentCount() < 1)
         return JSValue::encode(jsUndefined());
@@ -1296,7 +1318,7 @@ EncodedJSValue JSC_HOST_CALL functionDescribeArray(JSGlobalObject* globalObject,
     return JSValue::encode(jsNontrivialString(vm, toString("<Butterfly: ", RawPointer(object->butterfly()), "; public length: ", object->getArrayLength(), "; vector length: ", object->getVectorLength(), ">")));
 }
 
-EncodedJSValue JSC_HOST_CALL functionSleepSeconds(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionSleepSeconds, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1327,7 +1349,7 @@ private:
     StringBuilder& m_trace;
 };
 
-EncodedJSValue JSC_HOST_CALL functionJSCStack(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionJSCStack, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     StringBuilder trace;
@@ -1339,7 +1361,7 @@ EncodedJSValue JSC_HOST_CALL functionJSCStack(JSGlobalObject* globalObject, Call
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionGCAndSweep(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionGCAndSweep, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -1347,7 +1369,7 @@ EncodedJSValue JSC_HOST_CALL functionGCAndSweep(JSGlobalObject* globalObject, Ca
     return JSValue::encode(jsNumber(vm.heap.sizeAfterLastFullCollection()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionFullGC(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionFullGC, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -1355,7 +1377,7 @@ EncodedJSValue JSC_HOST_CALL functionFullGC(JSGlobalObject* globalObject, CallFr
     return JSValue::encode(jsNumber(vm.heap.sizeAfterLastFullCollection()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionEdenGC(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionEdenGC, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -1363,7 +1385,7 @@ EncodedJSValue JSC_HOST_CALL functionEdenGC(JSGlobalObject* globalObject, CallFr
     return JSValue::encode(jsNumber(vm.heap.sizeAfterLastEdenCollection()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionHeapSize(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionHeapSize, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -1422,14 +1444,14 @@ private:
 
 const ClassInfo JSCMemoryFootprint::s_info = { "MemoryFootprint", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSCMemoryFootprint) };
 
-EncodedJSValue JSC_HOST_CALL functionCreateMemoryFootprint(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionCreateMemoryFootprint, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
     return JSValue::encode(JSCMemoryFootprint::create(vm, globalObject));
 }
 
-EncodedJSValue JSC_HOST_CALL functionResetMemoryPeak(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionResetMemoryPeak, (JSGlobalObject*, CallFrame*))
 {
     MemoryFootprint::resetPeak();
     return JSValue::encode(jsUndefined());
@@ -1438,7 +1460,7 @@ EncodedJSValue JSC_HOST_CALL functionResetMemoryPeak(JSGlobalObject*, CallFrame*
 // This function is not generally very helpful in 64-bit code as the tag and payload
 // share a register. But in 32-bit JITed code the tag may not be checked if an
 // optimization removes type checking requirements, such as in ===.
-EncodedJSValue JSC_HOST_CALL functionAddressOf(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionAddressOf, (JSGlobalObject*, CallFrame* callFrame))
 {
     JSValue value = callFrame->argument(0);
     if (!value.isCell())
@@ -1449,14 +1471,14 @@ EncodedJSValue JSC_HOST_CALL functionAddressOf(JSGlobalObject*, CallFrame* callF
     return returnValue;
 }
 
-EncodedJSValue JSC_HOST_CALL functionVersion(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionVersion, (JSGlobalObject*, CallFrame*))
 {
     // We need this function for compatibility with the Mozilla JS tests but for now
     // we don't actually do any version-specific handling
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionRun(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionRun, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1491,7 +1513,7 @@ EncodedJSValue JSC_HOST_CALL functionRun(JSGlobalObject* globalObject, CallFrame
     return JSValue::encode(jsNumber(stopWatch.getElapsedMS()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionRunString(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionRunString, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1520,7 +1542,7 @@ EncodedJSValue JSC_HOST_CALL functionRunString(JSGlobalObject* globalObject, Cal
     return JSValue::encode(realm);
 }
 
-EncodedJSValue JSC_HOST_CALL functionLoad(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionLoad, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1549,7 +1571,7 @@ EncodedJSValue JSC_HOST_CALL functionLoad(JSGlobalObject* globalObject, CallFram
     return JSValue::encode(result);
 }
 
-EncodedJSValue JSC_HOST_CALL functionLoadString(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionLoadString, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1564,7 +1586,7 @@ EncodedJSValue JSC_HOST_CALL functionLoadString(JSGlobalObject* globalObject, Ca
     return JSValue::encode(result);
 }
 
-EncodedJSValue JSC_HOST_CALL functionReadFile(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionReadFile, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1595,7 +1617,7 @@ EncodedJSValue JSC_HOST_CALL functionReadFile(JSGlobalObject* globalObject, Call
     return JSValue::encode(result);
 }
 
-EncodedJSValue JSC_HOST_CALL functionCheckSyntax(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCheckSyntax, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1619,7 +1641,7 @@ EncodedJSValue JSC_HOST_CALL functionCheckSyntax(JSGlobalObject* globalObject, C
 }
 
 #if ENABLE(SAMPLING_FLAGS)
-EncodedJSValue JSC_HOST_CALL functionSetSamplingFlags(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionSetSamplingFlags, (JSGlobalObject*, CallFrame* callFrame))
 {
     for (unsigned i = 0; i < callFrame->argumentCount(); ++i) {
         unsigned flag = static_cast<unsigned>(callFrame->uncheckedArgument(i).toNumber(globalObject));
@@ -1629,7 +1651,7 @@ EncodedJSValue JSC_HOST_CALL functionSetSamplingFlags(JSGlobalObject*, CallFrame
     return JSValue::encode(jsNull());
 }
 
-EncodedJSValue JSC_HOST_CALL functionClearSamplingFlags(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionClearSamplingFlags, (JSGlobalObject*, CallFrame* callFrame))
 {
     for (unsigned i = 0; i < callFrame->argumentCount(); ++i) {
         unsigned flag = static_cast<unsigned>(callFrame->uncheckedArgument(i).toNumber(globalObject));
@@ -1640,12 +1662,12 @@ EncodedJSValue JSC_HOST_CALL functionClearSamplingFlags(JSGlobalObject*, CallFra
 }
 #endif
 
-EncodedJSValue JSC_HOST_CALL functionGetRandomSeed(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionGetRandomSeed, (JSGlobalObject* globalObject, CallFrame*))
 {
     return JSValue::encode(jsNumber(globalObject->weakRandom().seed()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionSetRandomSeed(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionSetRandomSeed, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1656,7 +1678,7 @@ EncodedJSValue JSC_HOST_CALL functionSetRandomSeed(JSGlobalObject* globalObject,
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionIsRope(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionIsRope, (JSGlobalObject*, CallFrame* callFrame))
 {
     JSValue argument = callFrame->argument(0);
     if (!argument.isString())
@@ -1665,7 +1687,7 @@ EncodedJSValue JSC_HOST_CALL functionIsRope(JSGlobalObject*, CallFrame* callFram
     return JSValue::encode(jsBoolean(!impl));
 }
 
-EncodedJSValue JSC_HOST_CALL functionCallerSourceOrigin(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCallerSourceOrigin, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     SourceOrigin sourceOrigin = callFrame->callerSourceOrigin(vm);
@@ -1674,7 +1696,7 @@ EncodedJSValue JSC_HOST_CALL functionCallerSourceOrigin(JSGlobalObject* globalOb
     return JSValue::encode(jsString(vm, sourceOrigin.string()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionReadline(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionReadline, (JSGlobalObject* globalObject, CallFrame*))
 {
     Vector<char, 256> line;
     int c;
@@ -1688,22 +1710,22 @@ EncodedJSValue JSC_HOST_CALL functionReadline(JSGlobalObject* globalObject, Call
     return JSValue::encode(jsString(globalObject->vm(), line.data()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionPreciseTime(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionPreciseTime, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsNumber(WallTime::now().secondsSinceEpoch().value()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionNeverInlineFunction(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionNeverInlineFunction, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return JSValue::encode(setNeverInline(globalObject, callFrame));
 }
 
-EncodedJSValue JSC_HOST_CALL functionNoDFG(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionNoDFG, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return JSValue::encode(setNeverOptimize(globalObject, callFrame));
 }
 
-EncodedJSValue JSC_HOST_CALL functionNoFTL(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionNoFTL, (JSGlobalObject*, CallFrame* callFrame))
 {
     if (callFrame->argumentCount()) {
         FunctionExecutable* executable = getExecutableForFunction(callFrame->argument(0));
@@ -1713,22 +1735,22 @@ EncodedJSValue JSC_HOST_CALL functionNoFTL(JSGlobalObject*, CallFrame* callFrame
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionNoOSRExitFuzzing(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionNoOSRExitFuzzing, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return JSValue::encode(setCannotUseOSRExitFuzzing(globalObject, callFrame));
 }
 
-EncodedJSValue JSC_HOST_CALL functionOptimizeNextInvocation(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionOptimizeNextInvocation, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return JSValue::encode(optimizeNextInvocation(globalObject, callFrame));
 }
 
-EncodedJSValue JSC_HOST_CALL functionNumberOfDFGCompiles(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionNumberOfDFGCompiles, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     return JSValue::encode(numberOfDFGCompiles(globalObject, callFrame));
 }
 
-EncodedJSValue JSC_HOST_CALL functionCallerIsOMGCompiled(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCallerIsOMGCompiled, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1864,14 +1886,14 @@ Workers& Workers::singleton()
     return *result;
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarCreateRealm(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDollarCreateRealm, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     GlobalObject* result = GlobalObject::create(vm, GlobalObject::createStructure(vm, jsNull()), Vector<String>());
     return JSValue::encode(result->getDirect(vm, Identifier::fromString(vm, "$")));
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarEvalScript(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarEvalScript, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1893,12 +1915,12 @@ EncodedJSValue JSC_HOST_CALL functionDollarEvalScript(JSGlobalObject* globalObje
     return JSValue::encode(result);
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentStart(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentStart, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    String sourceCode = callFrame->argument(0).toWTFString(globalObject).isolatedCopy();
+    String sourceCode = callFrame->argument(0).toWTFString(globalObject);
     RETURN_IF_EXCEPTION(scope, encodedJSValue());
     
     Lock didStartLock;
@@ -1918,7 +1940,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentStart(JSGlobalObject* globalObje
     
     Thread::create(
         "JSC Agent",
-        [sourceCode, &didStartLock, &didStartCondition, &didStart] () {
+        [sourceCode = sourceCode.isolatedCopy(), &didStartLock, &didStartCondition, &didStart] () {
             CommandLine commandLine(CommandLine::CommandLineForWorkers);
             commandLine.m_interactive = false;
             runJSC(
@@ -1951,7 +1973,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentStart(JSGlobalObject* globalObje
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentReceiveBroadcast(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentReceiveBroadcast, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1979,7 +2001,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentReceiveBroadcast(JSGlobalObject*
     RELEASE_AND_RETURN(scope, JSValue::encode(call(globalObject, callback, callData, jsNull(), args)));
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentReport(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentReport, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -1992,7 +2014,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentReport(JSGlobalObject* globalObj
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentSleep(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentSleep, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2005,7 +2027,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentSleep(JSGlobalObject* globalObje
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentBroadcast(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentBroadcast, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2029,7 +2051,7 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentBroadcast(JSGlobalObject* global
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentGetReport(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentGetReport, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
 
@@ -2040,17 +2062,17 @@ EncodedJSValue JSC_HOST_CALL functionDollarAgentGetReport(JSGlobalObject* global
     return JSValue::encode(jsString(vm, string));
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentLeaving(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentLeaving, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDollarAgentMonotonicNow(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDollarAgentMonotonicNow, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsNumber(MonotonicTime::now().secondsSinceEpoch().milliseconds()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionWaitForReport(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionWaitForReport, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
 
@@ -2065,13 +2087,13 @@ EncodedJSValue JSC_HOST_CALL functionWaitForReport(JSGlobalObject* globalObject,
     return JSValue::encode(jsString(vm, string));
 }
 
-EncodedJSValue JSC_HOST_CALL functionHeapCapacity(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionHeapCapacity, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     return JSValue::encode(jsNumber(vm.heap.capacity()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionFlashHeapAccess(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionFlashHeapAccess, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2089,13 +2111,13 @@ EncodedJSValue JSC_HOST_CALL functionFlashHeapAccess(JSGlobalObject* globalObjec
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDisableRichSourceInfo(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDisableRichSourceInfo, (JSGlobalObject*, CallFrame*))
 {
     supportsRichSourceInfo = false;
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionMallocInALoop(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionMallocInALoop, (JSGlobalObject*, CallFrame*))
 {
     Vector<void*> ptrs;
     for (unsigned i = 0; i < 5000; ++i)
@@ -2105,7 +2127,7 @@ EncodedJSValue JSC_HOST_CALL functionMallocInALoop(JSGlobalObject*, CallFrame*)
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionTotalCompileTime(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionTotalCompileTime, (JSGlobalObject*, CallFrame*))
 {
 #if ENABLE(JIT)
     return JSValue::encode(jsNumber(JIT::totalCompileTime().milliseconds()));
@@ -2123,7 +2145,7 @@ typename std::enable_if<std::is_fundamental<ValueType>::value>::type addOption(V
     optionsObject->putDirect(vm, identifier, JSValue(value));
 }
 
-EncodedJSValue JSC_HOST_CALL functionJSCOptions(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionJSCOptions, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSObject* optionsObject = constructEmptyObject(globalObject);
@@ -2134,7 +2156,7 @@ EncodedJSValue JSC_HOST_CALL functionJSCOptions(JSGlobalObject* globalObject, Ca
     return JSValue::encode(optionsObject);
 }
 
-EncodedJSValue JSC_HOST_CALL functionReoptimizationRetryCount(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionReoptimizationRetryCount, (JSGlobalObject*, CallFrame* callFrame))
 {
     if (callFrame->argumentCount() < 1)
         return JSValue::encode(jsUndefined());
@@ -2146,7 +2168,7 @@ EncodedJSValue JSC_HOST_CALL functionReoptimizationRetryCount(JSGlobalObject*, C
     return JSValue::encode(jsNumber(block->reoptimizationRetryCounter()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionTransferArrayBuffer(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionTransferArrayBuffer, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2164,14 +2186,14 @@ EncodedJSValue JSC_HOST_CALL functionTransferArrayBuffer(JSGlobalObject* globalO
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionFailNextNewCodeBlock(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionFailNextNewCodeBlock, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     vm.setFailNextNewCodeBlock();
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionQuit(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionQuit, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     vm.codeCache()->write(vm);
@@ -2184,11 +2206,22 @@ EncodedJSValue JSC_HOST_CALL functionQuit(JSGlobalObject* globalObject, CallFram
 #endif
 }
 
-EncodedJSValue JSC_HOST_CALL functionFalse(JSGlobalObject*, CallFrame*) { return JSValue::encode(jsBoolean(false)); }
+JSC_DEFINE_HOST_FUNCTION(functionFalse, (JSGlobalObject*, CallFrame*))
+{
+    return JSValue::encode(jsBoolean(false));
+}
 
-EncodedJSValue JSC_HOST_CALL functionUndefined1(JSGlobalObject*, CallFrame*) { return JSValue::encode(jsUndefined()); }
-EncodedJSValue JSC_HOST_CALL functionUndefined2(JSGlobalObject*, CallFrame*) { return JSValue::encode(jsUndefined()); }
-EncodedJSValue JSC_HOST_CALL functionIsInt32(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionUndefined1, (JSGlobalObject*, CallFrame*))
+{
+    return JSValue::encode(jsUndefined());
+}
+
+JSC_DEFINE_HOST_FUNCTION(functionUndefined2, (JSGlobalObject*, CallFrame*))
+{
+    return JSValue::encode(jsUndefined());
+}
+
+JSC_DEFINE_HOST_FUNCTION(functionIsInt32, (JSGlobalObject*, CallFrame* callFrame))
 {
     for (size_t i = 0; i < callFrame->argumentCount(); ++i) {
         if (!callFrame->argument(i).isInt32())
@@ -2197,7 +2230,7 @@ EncodedJSValue JSC_HOST_CALL functionIsInt32(JSGlobalObject*, CallFrame* callFra
     return JSValue::encode(jsBoolean(true));
 }
 
-EncodedJSValue JSC_HOST_CALL functionIsPureNaN(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionIsPureNaN, (JSGlobalObject*, CallFrame* callFrame))
 {
     for (size_t i = 0; i < callFrame->argumentCount(); ++i) {
         JSValue value = callFrame->argument(i);
@@ -2212,25 +2245,28 @@ EncodedJSValue JSC_HOST_CALL functionIsPureNaN(JSGlobalObject*, CallFrame* callF
     return JSValue::encode(jsBoolean(true));
 }
 
-EncodedJSValue JSC_HOST_CALL functionIdentity(JSGlobalObject*, CallFrame* callFrame) { return JSValue::encode(callFrame->argument(0)); }
+JSC_DEFINE_HOST_FUNCTION(functionIdentity, (JSGlobalObject*, CallFrame* callFrame))
+{
+    return JSValue::encode(callFrame->argument(0));
+}
 
-EncodedJSValue JSC_HOST_CALL functionEffectful42(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionEffectful42, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsNumber(42));
 }
 
-EncodedJSValue JSC_HOST_CALL functionMakeMasquerader(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionMakeMasquerader, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     return JSValue::encode(InternalFunction::createFunctionThatMasqueradesAsUndefined(vm, globalObject, 0, "IsHTMLDDA"_s, functionCallMasquerader));
 }
 
-EncodedJSValue JSC_HOST_CALL functionCallMasquerader(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionCallMasquerader, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsNull());
 }
 
-EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionHasCustomProperties, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     JSValue value = callFrame->argument(0);
     if (value.isObject())
@@ -2238,21 +2274,21 @@ EncodedJSValue JSC_HOST_CALL functionHasCustomProperties(JSGlobalObject* globalO
     return JSValue::encode(jsBoolean(false));
 }
 
-EncodedJSValue JSC_HOST_CALL functionDumpTypesForAllVariables(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDumpTypesForAllVariables, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     vm.dumpTypeProfilerData();
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionDrainMicrotasks(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionDrainMicrotasks, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     vm.drainMicrotasks();
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionSetTimeout(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionSetTimeout, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2275,14 +2311,14 @@ EncodedJSValue JSC_HOST_CALL functionSetTimeout(JSGlobalObject* globalObject, Ca
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionReleaseWeakRefs(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionReleaseWeakRefs, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     vm.finalizeSynchronousJSExecution();
     return JSValue::encode(jsUndefined());
 }
 
-static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryLiveCount(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionFinalizationRegistryLiveCount, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2295,7 +2331,7 @@ static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryLiveCount(JSGlob
     return JSValue::encode(jsNumber(finalizationRegistry->liveCount(locker)));
 }
 
-static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryDeadCount(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionFinalizationRegistryDeadCount, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2308,7 +2344,7 @@ static EncodedJSValue JSC_HOST_CALL functionFinalizationRegistryDeadCount(JSGlob
     return JSValue::encode(jsNumber(finalizationRegistry->deadCount(locker)));
 }
 
-EncodedJSValue JSC_HOST_CALL functionIs32BitPlatform(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionIs32BitPlatform, (JSGlobalObject*, CallFrame*))
 {
 #if USE(JSVALUE64)
     return JSValue::encode(JSValue(JSC::JSValue::JSFalse));
@@ -2317,13 +2353,13 @@ EncodedJSValue JSC_HOST_CALL functionIs32BitPlatform(JSGlobalObject*, CallFrame*
 #endif
 }
 
-EncodedJSValue JSC_HOST_CALL functionCreateGlobalObject(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionCreateGlobalObject, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     return JSValue::encode(GlobalObject::create(vm, GlobalObject::createStructure(vm, jsNull()), Vector<String>()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionCreateHeapBigInt(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCreateHeapBigInt, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2342,7 +2378,7 @@ EncodedJSValue JSC_HOST_CALL functionCreateHeapBigInt(JSGlobalObject* globalObje
 }
 
 #if USE(BIGINT32)
-EncodedJSValue JSC_HOST_CALL functionCreateBigInt32(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCreateBigInt32, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2370,7 +2406,7 @@ EncodedJSValue JSC_HOST_CALL functionCreateBigInt32(JSGlobalObject* globalObject
 }
 #endif
 
-EncodedJSValue JSC_HOST_CALL functionUseBigInt32(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionUseBigInt32, (JSGlobalObject*, CallFrame*))
 {
 #if USE(BIGINT32)
     return JSValue::encode(jsBoolean(true));
@@ -2379,7 +2415,7 @@ EncodedJSValue JSC_HOST_CALL functionUseBigInt32(JSGlobalObject*, CallFrame*)
 #endif
 }
 
-EncodedJSValue JSC_HOST_CALL functionIsBigInt32(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionIsBigInt32, (JSGlobalObject*, CallFrame* callFrame))
 {
 #if USE(BIGINT32)
     return JSValue::encode(jsBoolean(callFrame->argument(0).isBigInt32()));
@@ -2389,12 +2425,12 @@ EncodedJSValue JSC_HOST_CALL functionIsBigInt32(JSGlobalObject*, CallFrame* call
 #endif
 }
 
-EncodedJSValue JSC_HOST_CALL functionIsHeapBigInt(JSGlobalObject*, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionIsHeapBigInt, (JSGlobalObject*, CallFrame* callFrame))
 {
     return JSValue::encode(jsBoolean(callFrame->argument(0).isHeapBigInt()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionCheckModuleSyntax(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionCheckModuleSyntax, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2415,7 +2451,7 @@ EncodedJSValue JSC_HOST_CALL functionCheckModuleSyntax(JSGlobalObject* globalObj
     return JSValue::encode(jsNumber(stopWatch.getElapsedMS()));
 }
 
-EncodedJSValue JSC_HOST_CALL functionPlatformSupportsSamplingProfiler(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionPlatformSupportsSamplingProfiler, (JSGlobalObject*, CallFrame*))
 {
 #if ENABLE(SAMPLING_PROFILER)
     return JSValue::encode(JSValue(JSC::JSValue::JSTrue));
@@ -2424,7 +2460,7 @@ EncodedJSValue JSC_HOST_CALL functionPlatformSupportsSamplingProfiler(JSGlobalOb
 #endif
 }
 
-EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshot(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionGenerateHeapSnapshot, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -2439,7 +2475,7 @@ EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshot(JSGlobalObject* global
     return result;
 }
 
-EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshotForGCDebugging(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionGenerateHeapSnapshotForGCDebugging, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     JSLockHolder lock(vm);
@@ -2457,13 +2493,13 @@ EncodedJSValue JSC_HOST_CALL functionGenerateHeapSnapshotForGCDebugging(JSGlobal
     return JSValue::encode(jsString(vm, jsonString));
 }
 
-EncodedJSValue JSC_HOST_CALL functionResetSuperSamplerState(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionResetSuperSamplerState, (JSGlobalObject*, CallFrame*))
 {
     resetSuperSamplerState();
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionEnsureArrayStorage(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionEnsureArrayStorage, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     for (unsigned i = 0; i < callFrame->argumentCount(); ++i) {
@@ -2474,7 +2510,7 @@ EncodedJSValue JSC_HOST_CALL functionEnsureArrayStorage(JSGlobalObject* globalOb
 }
 
 #if ENABLE(SAMPLING_PROFILER)
-EncodedJSValue JSC_HOST_CALL functionStartSamplingProfiler(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionStartSamplingProfiler, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     SamplingProfiler& samplingProfiler = vm.ensureSamplingProfiler(WTF::Stopwatch::create());
@@ -2483,7 +2519,7 @@ EncodedJSValue JSC_HOST_CALL functionStartSamplingProfiler(JSGlobalObject* globa
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionSamplingProfilerStackTraces(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionSamplingProfilerStackTraces, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2498,12 +2534,12 @@ EncodedJSValue JSC_HOST_CALL functionSamplingProfilerStackTraces(JSGlobalObject*
 }
 #endif // ENABLE(SAMPLING_PROFILER)
 
-EncodedJSValue JSC_HOST_CALL functionMaxArguments(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionMaxArguments, (JSGlobalObject*, CallFrame*))
 {
     return JSValue::encode(jsNumber(JSC::maxArguments));
 }
 
-EncodedJSValue JSC_HOST_CALL functionAsyncTestStart(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionAsyncTestStart, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2516,7 +2552,7 @@ EncodedJSValue JSC_HOST_CALL functionAsyncTestStart(JSGlobalObject* globalObject
     return encodedJSUndefined();
 }
 
-EncodedJSValue JSC_HOST_CALL functionAsyncTestPassed(JSGlobalObject*, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(functionAsyncTestPassed, (JSGlobalObject*, CallFrame*))
 {
     asyncTestPasses++;
     return encodedJSUndefined();
@@ -2524,7 +2560,7 @@ EncodedJSValue JSC_HOST_CALL functionAsyncTestPassed(JSGlobalObject*, CallFrame*
 
 #if ENABLE(WEBASSEMBLY)
 
-static EncodedJSValue JSC_HOST_CALL functionWebAssemblyMemoryMode(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionWebAssemblyMemoryMode, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -2544,7 +2580,7 @@ static EncodedJSValue JSC_HOST_CALL functionWebAssemblyMemoryMode(JSGlobalObject
 
 #endif // ENABLE(WEBASSEMBLY)
 
-EncodedJSValue JSC_HOST_CALL functionSetUnhandledRejectionCallback(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionSetUnhandledRejectionCallback, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     JSObject* object = callFrame->argument(0).getObject();
@@ -2557,7 +2593,7 @@ EncodedJSValue JSC_HOST_CALL functionSetUnhandledRejectionCallback(JSGlobalObjec
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL functionAsDoubleNumber(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(functionAsDoubleNumber, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -3330,7 +3366,7 @@ int runJSC(const CommandLine& options, bool isWorker, const Func& func)
         Options::fireExecutableAllocationFuzzAt() || Options::fireExecutableAllocationFuzzAtOrAfter();
         if (Options::useExecutableAllocationFuzz() && (!fireAtEnabled || Options::verboseExecutableAllocationFuzz()))
             printf("JSC EXECUTABLE ALLOCATION FUZZ: encountered %u checks.\n", numberOfExecutableAllocationFuzzChecks());
-        if (Options::useOSRExitFuzz()) {
+        if (Options::useOSRExitFuzz() && Options::verboseOSRExitFuzz()) {
             printf("JSC OSR EXIT FUZZ: encountered %u static checks.\n", numberOfStaticOSRExitFuzzChecks());
             printf("JSC OSR EXIT FUZZ: encountered %u dynamic checks.\n", numberOfOSRExitFuzzChecks());
         }
@@ -3341,8 +3377,10 @@ int runJSC(const CommandLine& options, bool isWorker, const Func& func)
         for (auto& entry : compileTimeStats)
             compileTimeKeys.append(entry.key);
         std::sort(compileTimeKeys.begin(), compileTimeKeys.end());
-        for (const CString& key : compileTimeKeys)
-            printf("%40s: %.3lf ms\n", key.data(), compileTimeStats.get(key).milliseconds());
+        for (const CString& key : compileTimeKeys) {
+            if (key.data())
+                printf("%40s: %.3lf ms\n", key.data(), compileTimeStats.get(key).milliseconds());
+        }
 
         if (Options::reportTotalPhaseTimes())
             logTotalPhaseTimes();

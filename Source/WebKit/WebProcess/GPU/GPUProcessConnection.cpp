@@ -37,10 +37,10 @@
 #include "RemoteCDMProxy.h"
 #include "RemoteLegacyCDMFactory.h"
 #include "RemoteMediaPlayerManager.h"
-#include "RemoteMediaPlayerManagerMessages.h"
 #include "SampleBufferDisplayLayerMessages.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebPage.h"
+#include "WebPageCreationParameters.h"
 #include "WebPageMessages.h"
 #include "WebProcess.h"
 #include <WebCore/PlatformMediaSessionManager.h>
@@ -48,6 +48,16 @@
 
 #if ENABLE(ENCRYPTED_MEDIA)
 #include "RemoteCDMInstanceSessionMessages.h"
+#endif
+
+#if USE(AUDIO_SESSION)
+#include "RemoteAudioSession.h"
+#include "RemoteAudioSessionMessages.h"
+#endif
+
+#if PLATFORM(IOS_FAMILY)
+#include "RemoteMediaSessionHelper.h"
+#include "RemoteMediaSessionHelperMessages.h"
 #endif
 
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
@@ -123,11 +133,16 @@ bool GPUProcessConnection::dispatchMessage(IPC::Connection& connection, IPC::Dec
         sampleBufferDisplayLayerManager().didReceiveLayerMessage(connection, decoder);
         return true;
     }
-
 #endif // PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
 #if USE(LIBWEBRTC) && PLATFORM(COCOA)
     if (decoder.messageReceiverName() == Messages::LibWebRTCCodecs::messageReceiverName()) {
         WebProcess::singleton().libWebRTCCodecs().didReceiveMessage(connection, decoder);
+        return true;
+    }
+#endif
+#if USE(AUDIO_SESSION)
+    if (decoder.messageReceiverName() == Messages::RemoteAudioSession::messageReceiverName()) {
+        // FIXME
         return true;
     }
 #endif
@@ -149,6 +164,18 @@ void GPUProcessConnection::didReceiveRemoteCommand(PlatformMediaSession::RemoteC
 {
     const PlatformMediaSession::RemoteCommandArgument value { argument ? *argument : 0 };
     PlatformMediaSessionManager::sharedManager().processDidReceiveRemoteControlCommand(type, argument ? &value : nullptr);
+}
+
+void GPUProcessConnection::updateParameters(const WebPageCreationParameters& parameters)
+{
+#if ENABLE(VP9)
+    if (m_enableVP9Decoder == parameters.shouldEnableVP9Decoder && m_enableVP9SWDecoder == parameters.shouldEnableVP9SWDecoder)
+        return;
+
+    m_enableVP9Decoder = parameters.shouldEnableVP9Decoder;
+    m_enableVP9SWDecoder = parameters.shouldEnableVP9SWDecoder;
+    connection().send(Messages::GPUConnectionToWebProcess::EnableVP9Decoders(parameters.shouldEnableVP9Decoder, parameters.shouldEnableVP9SWDecoder), { });
+#endif
 }
 
 } // namespace WebKit

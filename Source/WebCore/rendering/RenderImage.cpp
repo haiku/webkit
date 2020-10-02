@@ -212,24 +212,6 @@ ImageSizeChangeType RenderImage::setImageSizeForAltText(CachedImage* newImage /*
     return ImageSizeChangeForAltText;
 }
 
-bool RenderImage::isEditableImage() const
-{
-    if (!element() || !is<HTMLImageElement>(element()))
-        return false;
-    return downcast<HTMLImageElement>(element())->hasEditableImageAttribute();
-}
-    
-bool RenderImage::requiresLayer() const
-{
-    if (RenderReplaced::requiresLayer())
-        return true;
-    
-    if (isEditableImage())
-        return true;
-    
-    return false;
-}
-
 void RenderImage::styleWillChange(StyleDifference diff, const RenderStyle& newStyle)
 {
     if (!hasInitializedStyle())
@@ -245,11 +227,11 @@ void RenderImage::styleDidChange(StyleDifference diff, const RenderStyle* oldSty
             repaintOrMarkForLayout(ImageSizeChangeForAltText);
         m_needsToSetSizeForAltText = false;
     }
-    if (diff == StyleDifference::Layout && oldStyle->imageOrientation() != style().imageOrientation())
+    if (diff == StyleDifference::Layout && oldStyle && oldStyle->imageOrientation() != style().imageOrientation())
         return repaintOrMarkForLayout(ImageSizeChangeNone);
 
 #if ENABLE(CSS_IMAGE_RESOLUTION)
-    if (diff == StyleDifference::Layout
+    if (diff == StyleDifference::Layout && oldStyle
         && (oldStyle->imageResolution() != style().imageResolution()
             || oldStyle->imageResolutionSnap() != style().imageResolutionSnap()
             || oldStyle->imageResolutionSource() != style().imageResolutionSource()))
@@ -325,11 +307,6 @@ void RenderImage::imageChanged(WrappedImagePtr newImage, const IntRect* rect)
     repaintOrMarkForLayout(imageSizeChange, rect);
     if (AXObjectCache* cache = document().existingAXObjectCache())
         cache->deferRecomputeIsIgnoredIfNeeded(element());
-
-#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    if (RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled())
-        view().frameView().layoutContext().invalidateLayoutTreeContent();
-#endif
 }
 
 void RenderImage::updateIntrinsicSizeIfNeeded(const LayoutSize& newSize)
@@ -615,7 +592,6 @@ void RenderImage::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     
 void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-#if !PLATFORM(IOS_FAMILY) || ENABLE(FULL_KEYBOARD_ACCESS)
     if (document().printing() || !frame().selection().isFocusedAndActive())
         return;
     
@@ -660,10 +636,6 @@ void RenderImage::paintAreaElementFocusRing(PaintInfo& paintInfo, const LayoutPo
 #else
     paintInfo.context().drawFocusRing(path, outlineWidth, areaElementStyle->outlineOffset(), areaElementStyle->visitedDependentColorWithColorFilter(CSSPropertyOutlineColor));
 #endif // PLATFORM(MAC)
-#else
-    UNUSED_PARAM(paintInfo);
-    UNUSED_PARAM(paintOffset);
-#endif // ENABLE(FULL_KEYBOARD_ACCESS)
 }
 
 void RenderImage::areaElementFocusChanged(HTMLAreaElement* element)
@@ -710,7 +682,7 @@ ImageDrawResult RenderImage::paintIntoRect(PaintInfo& paintInfo, const FloatRect
         imageResource().cachedImage()->addClientWaitingForAsyncDecoding(*this);
 
 #if USE(SYSTEM_PREVIEW)
-    if (imageElement && imageElement->isSystemPreviewImage() && drawResult == ImageDrawResult::DidDraw && RuntimeEnabledFeatures::sharedFeatures().systemPreviewEnabled())
+    if (imageElement && imageElement->isSystemPreviewImage() && drawResult == ImageDrawResult::DidDraw && imageElement->document().settings().systemPreviewEnabled())
         theme().paintSystemPreviewBadge(*img, paintInfo, rect);
 #endif
 

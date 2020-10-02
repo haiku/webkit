@@ -1901,7 +1901,7 @@ void SpeculativeJIT::noticeOSRBirth(Node* node)
 
 void SpeculativeJIT::compileMovHint(Node* node)
 {
-    ASSERT(node->containsMovHint() && node->op() != ZombieHint);
+    ASSERT(node->containsMovHint());
     
     Node* child = node->child1().node();
     noticeOSRBirth(child);
@@ -3522,6 +3522,44 @@ void SpeculativeJIT::compileGetByValWithThis(Node* node)
     m_jit.exceptionCheck();
 
     jsValueResult(resultRegs, node);
+}
+
+void SpeculativeJIT::compilePutPrivateName(Node* node)
+{
+    SpeculateCellOperand base(this, node->child1());
+    SpeculateCellOperand propertyValue(this, node->child2());
+    JSValueOperand value(this, node->child3());
+
+    JSValueRegs valueRegs = value.jsValueRegs();
+
+    GPRReg baseGPR = base.gpr();
+    GPRReg propertyGPR = propertyValue.gpr();
+
+    speculateSymbol(node->child2(), propertyGPR);
+
+    flushRegisters();
+    callOperation(operationPutPrivateNameGeneric, TrustedImmPtr::weakPointer(m_graph, m_graph.globalObjectFor(node->origin.semantic)), CCallHelpers::CellValue(baseGPR), CCallHelpers::CellValue(propertyGPR), valueRegs, TrustedImmPtr(nullptr), TrustedImm32(node->privateFieldPutKind().value()));
+    m_jit.exceptionCheck();
+
+    noResult(node);
+}
+
+void SpeculativeJIT::compilePutPrivateNameById(Node* node)
+{
+    SpeculateCellOperand base(this, node->child1());
+    JSValueOperand value(this, node->child2());
+    JSValueRegs valueRegs = value.jsValueRegs();
+    GPRReg baseGPR = base.gpr();
+
+    GPRTemporary scratch(this);
+    GPRReg scratchGPR = scratch.gpr();
+
+    // We emit property check during DFG generation, so we don't need
+    // to check it here.
+    auto putKind = node->privateFieldPutKind().isDefine() ? PutKind::DirectPrivateFieldDefine : PutKind::DirectPrivateFieldSet;
+    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), putKind, ECMAMode::strict());
+
+    noResult(node);
 }
 
 void SpeculativeJIT::compileCheckTypeInfoFlags(Node* node)
@@ -5979,8 +6017,7 @@ void SpeculativeJIT::compileArithMod(Node* node)
         
         FPRResult result(this);
 
-        using OperationType = D_JITOperation_DD;
-        callOperation<OperationType>(jsMod, result.fpr(), op1FPR, op2FPR);
+        callOperation(Math::fmodDouble, result.fpr(), op1FPR, op2FPR);
         
         doubleResult(result.fpr(), node);
         return;
@@ -6073,16 +6110,15 @@ void SpeculativeJIT::compileArithRounding(Node* node)
             flushRegisters();
             FPRResult roundedResultAsDouble(this);
             FPRReg resultFPR = roundedResultAsDouble.fpr();
-            using OperationType = D_JITOperation_D;
             if (node->op() == ArithRound)
-                callOperation<OperationType>(jsRound, resultFPR, valueFPR);
+                callOperation(Math::roundDouble, resultFPR, valueFPR);
             else if (node->op() == ArithFloor)
-                callOperation<OperationType>(floor, resultFPR, valueFPR);
+                callOperation(Math::floorDouble, resultFPR, valueFPR);
             else if (node->op() == ArithCeil)
-                callOperation<OperationType>(ceil, resultFPR, valueFPR);
+                callOperation(Math::ceilDouble, resultFPR, valueFPR);
             else {
                 ASSERT(node->op() == ArithTrunc);
-                callOperation<OperationType>(trunc, resultFPR, valueFPR);
+                callOperation(Math::truncDouble, resultFPR, valueFPR);
             }
             setResult(resultFPR);
         }
@@ -6127,7 +6163,7 @@ void SpeculativeJIT::compileArithSqrt(Node* node)
         if (!MacroAssembler::supportsFloatingPointSqrt() || !Options::useArchitectureSpecificOptimizations()) {
             flushRegisters();
             FPRResult result(this);
-            callOperation<D_JITOperation_D>(sqrt, result.fpr(), op1FPR);
+            callOperation(Math::sqrtDouble, result.fpr(), op1FPR);
             doubleResult(result.fpr(), node);
         } else {
             FPRTemporary result(this, op1);
@@ -12517,6 +12553,11 @@ void SpeculativeJIT::compileNormalizeMapKey(Node* node)
     CCallHelpers::JumpList passThroughCases;
     CCallHelpers::JumpList doneCases;
 
+    auto isNotCell = m_jit.branchIfNotCell(keyRegs);
+    passThroughCases.append(m_jit.branchIfNotHeapBigInt(keyRegs.payloadGPR()));
+    auto slowPath = m_jit.jump();
+    isNotCell.link(&m_jit);
+
     passThroughCases.append(m_jit.branchIfNotNumber(keyRegs, scratchGPR));
     passThroughCases.append(m_jit.branchIfInt32(keyRegs));
 
@@ -12539,6 +12580,7 @@ void SpeculativeJIT::compileNormalizeMapKey(Node* node)
 
     passThroughCases.link(&m_jit);
     m_jit.moveValueRegs(keyRegs, resultRegs);
+    addSlowPathGenerator(slowPathCall(slowPath, this, operationNormalizeMapKeyHeapBigInt, NeedToSpill, ExceptionCheckRequirement::CheckNotNeeded, resultRegs, &vm(), keyRegs.payloadGPR()));
 
     doneCases.link(&m_jit);
     jsValueResult(resultRegs, node);
@@ -12724,7 +12766,7 @@ void SpeculativeJIT::compilePutByIdFlush(Node* node)
     GPRReg scratchGPR = scratch.gpr();
     flushRegisters();
 
-    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), NotDirect, node->ecmaMode(), MacroAssembler::Jump(), DontSpill);
+    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), PutKind::NotDirect, node->ecmaMode(), MacroAssembler::Jump(), DontSpill);
 
     noResult(node);
 }
@@ -12739,7 +12781,7 @@ void SpeculativeJIT::compilePutById(Node* node)
     JSValueRegs valueRegs = value.jsValueRegs();
     GPRReg scratchGPR = scratch.gpr();
 
-    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), NotDirect, node->ecmaMode());
+    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), PutKind::NotDirect, node->ecmaMode());
 
     noResult(node);
 }
@@ -12754,7 +12796,7 @@ void SpeculativeJIT::compilePutByIdDirect(Node* node)
     JSValueRegs valueRegs = value.jsValueRegs();
     GPRReg scratchGPR = scratch.gpr();
 
-    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), Direct, node->ecmaMode());
+    cachedPutById(node->origin.semantic, baseGPR, valueRegs, scratchGPR, node->cacheableIdentifier(), PutKind::Direct, node->ecmaMode());
 
     noResult(node);
 }
@@ -14396,7 +14438,7 @@ void SpeculativeJIT::cachedPutById(CodeOrigin codeOrigin, GPRReg baseGPR, JSValu
     JITPutByIdGenerator gen(
         m_jit.codeBlock(), codeOrigin, callSite, usedRegisters, identifier,
         JSValueRegs::payloadOnly(baseGPR), valueRegs,
-        scratchGPR, ecmaMode, putKind, PrivateFieldAccessKind::None);
+        scratchGPR, ecmaMode, putKind);
 
     gen.generateFastPath(m_jit);
 

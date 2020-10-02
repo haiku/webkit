@@ -25,14 +25,10 @@
 
 #pragma once
 
-#import "UIScriptControllerCocoa.h"
-#import <wtf/BlockPtr.h>
-
 #if PLATFORM(IOS_FAMILY)
 
-#if HAVE(PENCILKIT)
-@class PKCanvasView;
-#endif
+#import "UIScriptControllerCocoa.h"
+#import <wtf/BlockPtr.h>
 
 namespace WebCore {
 class FloatPoint;
@@ -41,13 +37,14 @@ class FloatRect;
 
 namespace WTR {
 
-class UIScriptControllerIOS : public UIScriptControllerCocoa {
+class UIScriptControllerIOS final : public UIScriptControllerCocoa {
 public:
     explicit UIScriptControllerIOS(UIScriptContext& context)
         : UIScriptControllerCocoa(context)
     {
     }
 
+private:
     void waitForOutstandingCallbacks() override;
     void doAfterPresentationUpdate(JSValueRef) override;
     void doAfterNextStablePresentationUpdate(JSValueRef) override;
@@ -132,8 +129,6 @@ public:
     void completeBackSwipe(JSValueRef) override;
     bool isShowingDataListSuggestions() const override;
     void activateDataListSuggestion(unsigned, JSValueRef) override;
-    void drawSquareInEditableImage() override;
-    long numberOfStrokesInEditableImage() override;
     void setKeyboardInputModeIdentifier(JSStringRef) override;
     void toggleCapsLock(JSValueRef) override;
     bool keyboardIsAutomaticallyShifted() const override;
@@ -162,14 +157,10 @@ public:
     void setDidEndScrollingCallback(JSValueRef) override;
     void clearAllCallbacks() override;
 
-private:
     void waitForModalTransitionToFinish() const;
     void waitForSingleTapToReset() const;
     WebCore::FloatRect rectForMenuAction(CFStringRef) const;
     void singleTapAtPointWithModifiers(WebCore::FloatPoint location, Vector<String>&& modifierFlags, BlockPtr<void()>&&);
-#if HAVE(PENCILKIT)
-    PKCanvasView *findEditableImageCanvas() const;
-#endif
 };
 
 }

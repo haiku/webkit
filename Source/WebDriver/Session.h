@@ -127,8 +127,8 @@ public:
 private:
     Session(std::unique_ptr<SessionHost>&&);
 
-    void switchToTopLevelBrowsingContext(Optional<String>);
-    void switchToBrowsingContext(Optional<String>);
+    void switchToTopLevelBrowsingContext(const String&);
+    void switchToBrowsingContext(const String&);
     void closeTopLevelBrowsingContext(const String& toplevelBrowsingContext, Function<void (CommandResult&&)>&&);
     void closeAllToplevelBrowsingContexts(const String& toplevelBrowsingContext, Function<void (CommandResult&&)>&&);
 
@@ -143,10 +143,10 @@ private:
     void reportUnexpectedAlertOpen(Function<void (CommandResult&&)>&&);
 
     RefPtr<JSON::Object> createElement(RefPtr<JSON::Value>&&);
-    RefPtr<JSON::Object> createElement(const String& elementID);
+    Ref<JSON::Object> createElement(const String& elementID);
     RefPtr<JSON::Object> extractElement(JSON::Value&);
     String extractElementID(JSON::Value&);
-    RefPtr<JSON::Value> handleScriptResult(RefPtr<JSON::Value>&&);
+    Ref<JSON::Value> handleScriptResult(Ref<JSON::Value>&&);
     void elementIsEditable(const String& elementID, Function<void (CommandResult&&)>&&);
 
     struct Point {

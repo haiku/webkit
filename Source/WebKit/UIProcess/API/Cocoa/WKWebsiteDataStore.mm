@@ -304,17 +304,6 @@ static Vector<WebKit::WebsiteDataRecord> toWebsiteDataRecords(NSArray *dataRecor
     _websiteDataStore->setResourceLoadStatisticsEnabled(enabled);
 }
 
-- (void)_setUseITPDatabase:(BOOL)enabled completionHandler:(void (^)(void))completionHandler
-{
-#if ENABLE(RESOURCE_LOAD_STATISTICS)
-    _websiteDataStore->setUseITPDatabase(enabled, [completionHandler = makeBlockPtr(completionHandler)]() {
-        completionHandler();
-    });
-#else
-    completionHandler();
-#endif
-}
-
 - (BOOL)_resourceLoadStatisticsDebugMode
 {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
@@ -617,6 +606,11 @@ static Vector<WebKit::WebsiteDataRecord> toWebsiteDataRecords(NSArray *dataRecor
     });
 }
 
+- (BOOL)_networkProcessHasEntitlementForTesting:(NSString *)entitlement
+{
+    return _websiteDataStore->networkProcessHasEntitlementForTesting(entitlement);
+}
+
 - (id <_WKWebsiteDataStoreDelegate>)_delegate
 {
     return _delegate.get().get();
@@ -633,8 +627,14 @@ static Vector<WebKit::WebsiteDataRecord> toWebsiteDataRecords(NSArray *dataRecor
     return wrapper(_websiteDataStore->configuration().copy());
 }
 
+- (void)_allowTLSCertificateChain:(NSArray *)certificateChain forHost:(NSString *)host
+{
+    _websiteDataStore->allowSpecificHTTPSCertificateForHost(WebKit::WebCertificateInfo::create(WebCore::CertificateInfo((__bridge CFArrayRef)certificateChain)).ptr(), host);
+}
+
 - (void)_appBoundDomains:(void (^)(NSArray<NSString *> *))completionHandler
 {
+#if ENABLE(APP_BOUND_DOMAINS)
     _websiteDataStore->getAppBoundDomains([completionHandler = makeBlockPtr(completionHandler)](auto& domains) mutable {
         Vector<RefPtr<API::Object>> apiDomains;
         apiDomains.reserveInitialCapacity(domains.size());
@@ -642,10 +642,14 @@ static Vector<WebKit::WebsiteDataRecord> toWebsiteDataRecords(NSArray *dataRecor
             apiDomains.uncheckedAppend(API::String::create(domain.string()));
         completionHandler(wrapper(API::Array::create(WTFMove(apiDomains))));
     });
+#else
+    completionHandler({ });
+#endif
 }
 
 - (void)_appBoundSchemes:(void (^)(NSArray<NSString *> *))completionHandler
 {
+#if ENABLE(APP_BOUND_DOMAINS)
     _websiteDataStore->getAppBoundSchemes([completionHandler = makeBlockPtr(completionHandler)](auto& schemes) mutable {
         Vector<RefPtr<API::Object>> apiSchemes;
         apiSchemes.reserveInitialCapacity(schemes.size());
@@ -653,6 +657,47 @@ static Vector<WebKit::WebsiteDataRecord> toWebsiteDataRecords(NSArray *dataRecor
             apiSchemes.uncheckedAppend(API::String::create(scheme));
         completionHandler(wrapper(API::Array::create(WTFMove(apiSchemes))));
     });
+#else
+    completionHandler({ });
+#endif
+}
+
+- (void)_terminateNetworkProcess
+{
+    _websiteDataStore->terminateNetworkProcess();
+}
+
+- (void)_sendNetworkProcessPrepareToSuspend:(void(^)(void))completionHandler
+{
+    _websiteDataStore->sendNetworkProcessPrepareToSuspendForTesting([completionHandler = makeBlockPtr(completionHandler)] {
+        completionHandler();
+    });
+}
+
+- (void)_sendNetworkProcessWillSuspendImminently
+{
+    _websiteDataStore->sendNetworkProcessWillSuspendImminentlyForTesting();
+
+}
+
+- (void)_sendNetworkProcessDidResume
+{
+    _websiteDataStore->sendNetworkProcessDidResume();
+}
+
+- (void)_synthesizeAppIsBackground:(BOOL)background
+{
+    _websiteDataStore->networkProcess().synthesizeAppIsBackground(background);
+}
+
+- (pid_t)_networkProcessIdentifier
+{
+    return _websiteDataStore->networkProcess().processIdentifier();
+}
+
++ (void)_makeNextNetworkProcessLaunchFailForTesting
+{
+    WebKit::WebsiteDataStore::makeNextNetworkProcessLaunchFailForTesting();
 }
 
 @end

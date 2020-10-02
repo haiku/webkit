@@ -79,6 +79,16 @@ bool NetworkStorageSession::resourceLoadStatisticsEnabled() const
 }
 #endif
 
+void NetworkStorageSession::setResourceLoadStatisticsDebugLoggingEnabled(bool enabled)
+{
+    m_isResourceLoadStatisticsDebugLoggingEnabled = enabled;
+}
+
+bool NetworkStorageSession::resourceLoadStatisticsDebugLoggingEnabled() const
+{
+    return m_isResourceLoadStatisticsDebugLoggingEnabled;
+}
+
 bool NetworkStorageSession::shouldBlockThirdPartyCookies(const RegistrableDomain& registrableDomain) const
 {
     if (!m_isResourceLoadStatisticsEnabled || registrableDomain.isEmpty())
@@ -315,6 +325,7 @@ void NetworkStorageSession::setThirdPartyCookieBlockingMode(ThirdPartyCookieBloc
     m_thirdPartyCookieBlockingMode = blockingMode;
 }
 
+#if ENABLE(APP_BOUND_DOMAINS)
 void NetworkStorageSession::setAppBoundDomains(HashSet<RegistrableDomain>&& domains)
 {
     m_appBoundDomains = WTFMove(domains);
@@ -324,6 +335,7 @@ void NetworkStorageSession::resetAppBoundDomains()
 {
     m_appBoundDomains.clear();
 }
+#endif
 
 Optional<Seconds> NetworkStorageSession::clientSideCookieCap(const RegistrableDomain& firstParty, Optional<PageIdentifier> pageID) const
 {

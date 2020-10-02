@@ -1,3 +1,53 @@
+2020-09-24  Youenn Fablet  <youenn@apple.com>
+
+        Add libwebrtc.dylib version check
+        https://bugs.webkit.org/show_bug.cgi?id=216884
+        <rdar://problem/69441354>
+
+        Reviewed by Eric Carlson.
+
+        Introduce isMatchingBundleVersion to check libwebrtc.dylib version.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+        * Configurations/libwebrtc.xcconfig:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.h:
+        * Source/webrtc/sdk/WebKit/WebKitUtilities.mm:
+        (webrtc::isMatchingBundleVersion):
+
+2020-09-09  David Kilzer  <ddkilzer@apple.com>
+
+        [WebRTC] Fix uninitialized fields in FilterAnalyzer::ConsistentFilterDetector, FilterAnalyzer::FilterAnalysisState and InterArrival::TimestampGroup
+        <https://webkit.org/b/216314>
+
+        Reviewed by Youenn Fablet.
+
+        * Source/webrtc/modules/audio_processing/aec3/filter_analyzer.h:
+        (webrtc::FilterAnalyzer::ConsistentFilterDetector):
+        - Initialize fields in declarations. This matches the values set
+          by webrtc::FilterAnalyzer::ConsistentFilterDetector::Reset().
+        (webrtc::FilterAnalyzer::FilterAnalysisState):
+        - Initialize fields in declarations. Note that the
+          FilterAnalysis constructor calls FilterAnalyzer::Reset(),
+          which also sets these fields, but after the FilterAnalysisState
+          construtor is called.
+        * Source/webrtc/modules/remote_bitrate_estimator/inter_arrival.h:
+        (webrtc::InterArrival::TimestampGroup::TimestampGroup):
+        - Initialize field in constructor argument list.
+        * WebKit/0001-fix-216314.patch: Add.
+
+2020-09-07  Youenn Fablet  <youenn@apple.com>
+
+        Add missing members to RTCIceCandidate
+        https://bugs.webkit.org/show_bug.cgi?id=216075
+
+        Reviewed by Eric Carlson.
+
+        * Configurations/libwebrtc.iOS.exp:
+        * Configurations/libwebrtc.iOSsim.exp:
+        * Configurations/libwebrtc.mac.exp:
+
 2020-08-24  Youenn Fablet  <youenn@apple.com>
 
         Enable VP9D_SET_LOOP_FILTER_OPT for libvpx vp9 decoder

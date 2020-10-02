@@ -108,6 +108,8 @@ localizedStrings["Add New Class"] = "Add New Class";
 localizedStrings["Add New Probe Expression"] = "Add New Probe Expression";
 localizedStrings["Add New Watch Expression"] = "Add New Watch Expression";
 localizedStrings["Add Pattern"] = "Add Pattern";
+/* Text of button to add a new audit test case to the currently shown audit group. */
+localizedStrings["Add Test Case @ Audit Tab - Group"] = "Add Test Case";
 localizedStrings["Add a Class"] = "Add a Class";
 localizedStrings["Add new breakpoint action after this action"] = "Add new breakpoint action after this action";
 localizedStrings["Add new rule"] = "Add new rule";
@@ -116,18 +118,23 @@ localizedStrings["Add watch expression"] = "Add watch expression";
 localizedStrings["Additions"] = "Additions";
 localizedStrings["Address"] = "Address";
 localizedStrings["All"] = "All";
-localizedStrings["All Animation Frames"] = "All Animation Frames";
+/* Break (pause) on All animation frames */
+localizedStrings["All Animation Frames @ Event Breakpoint"] = "All Animation Frames";
 localizedStrings["All Changes"] = "All Changes";
-localizedStrings["All Events"] = "All Events";
+/* Break (pause) on all events */
+localizedStrings["All Events @ Event Breakpoint"] = "All Events";
 /* Break (pause) on all exceptions */
-localizedStrings["All Exceptions"] = "All Exceptions";
-localizedStrings["All Intervals"] = "All Intervals";
+localizedStrings["All Exceptions @ JavaScript Breakpoint"] = "All Exceptions";
+/* Break (pause) on all intervals */
+localizedStrings["All Intervals @ Event Breakpoint"] = "All Intervals";
 localizedStrings["All Layers"] = "All Layers";
-localizedStrings["All Microtasks"] = "All Microtasks";
+/* Break (pause) on all microtasks */
+localizedStrings["All Microtasks @ JavaScript Breakpoint"] = "All Microtasks";
 /* A submenu item of 'Break on' that breaks (pauses) before all network requests */
 localizedStrings["All Requests"] = "All Requests";
 localizedStrings["All Storage"] = "All Storage";
-localizedStrings["All Timeouts"] = "All Timeouts";
+/* Break (pause) on all timeouts */
+localizedStrings["All Timeouts @ Event Breakpoint"] = "All Timeouts";
 localizedStrings["All items in \u0022%s\u0022 must be error objects"] = "All items in \u0022%s\u0022 must be error objects";
 localizedStrings["All items in \u0022%s\u0022 must be non-empty strings"] = "All items in \u0022%s\u0022 must be non-empty strings";
 localizedStrings["All items in \u0022%s\u0022 must be valid DOM nodes"] = "All items in \u0022%s\u0022 must be valid DOM nodes";
@@ -159,14 +166,14 @@ localizedStrings["Assertion"] = "Assertion";
 localizedStrings["Assertion Failed"] = "Assertion Failed";
 localizedStrings["Assertion Failed: %s"] = "Assertion Failed: %s";
 /* Break (pause) when console.assert() fails */
-localizedStrings["Assertion Failures"] = "Assertion Failures";
+localizedStrings["Assertion Failures @ JavaScript Breakpoint"] = "Assertion Failures";
 localizedStrings["Assertion with message: %s"] = "Assertion with message: %s";
 localizedStrings["Assertive"] = "Assertive";
 localizedStrings["Associated Data"] = "Associated Data";
 localizedStrings["Async audits are not supported."] = "Async audits are not supported.";
 localizedStrings["Attribute"] = "Attribute";
 /* A submenu item of 'Break On' that breaks (pauses) before DOM attribute is modified */
-localizedStrings["Attribute Modified"] = "Attribute Modified";
+localizedStrings["Attribute Modified @ DOM Breakpoint"] = "Attribute Modified";
 localizedStrings["Attributes"] = "Attributes";
 localizedStrings["Audit Error: %s"] = "Audit Error: %s";
 /* Name of Audit Tab */
@@ -201,8 +208,6 @@ localizedStrings["Body:"] = "Body:";
 localizedStrings["Boundary"] = "Boundary";
 localizedStrings["Box Model"] = "Box Model";
 localizedStrings["Break on"] = "Break on";
-localizedStrings["Break on events with name:"] = "Break on events with name:";
-localizedStrings["Break on request with URL:"] = "Break on request with URL:";
 localizedStrings["Breakdown"] = "Breakdown";
 localizedStrings["Breakdown of each memory category at the end of the selected time range"] = "Breakdown of each memory category at the end of the selected time range";
 localizedStrings["Breakdown of time spent on the main thread"] = "Breakdown of time spent on the main thread";
@@ -354,9 +359,12 @@ localizedStrings["Could not capture screenshot"] = "Could not capture screenshot
 localizedStrings["Could not fetch properties. Object may no longer exist."] = "Could not fetch properties. Object may no longer exist.";
 localizedStrings["Count"] = "Count";
 localizedStrings["Create %s Rule"] = "Create %s Rule";
+/* Title of button that creates a new audit. */
+localizedStrings["Create @ Audit Tab Navigation Sidebar"] = "Create";
 localizedStrings["Create Breakpoint"] = "Create Breakpoint";
 localizedStrings["Create Local Override"] = "Create Local Override";
 localizedStrings["Create Resource"] = "Create Resource";
+localizedStrings["Create audit:"] = "Create audit:";
 localizedStrings["Cross-Origin Restrictions"] = "Cross-Origin Restrictions";
 localizedStrings["Current"] = "Current";
 localizedStrings["Current State"] = "Current State";
@@ -379,7 +387,8 @@ localizedStrings["Databases"] = "Databases";
 localizedStrings["Date"] = "Date";
 localizedStrings["Debug: "] = "Debug: ";
 localizedStrings["Debugger Statement"] = "Debugger Statement";
-localizedStrings["Debugger Statements"] = "Debugger Statements";
+/* Break (pause) on debugger statements */
+localizedStrings["Debugger Statements @ JavaScript Breakpoint"] = "Debugger Statements";
 localizedStrings["Debugger disabled during Audit"] = "Debugger disabled during Audit";
 localizedStrings["Debugger disabled during Timeline recording"] = "Debugger disabled during Timeline recording";
 localizedStrings["Debugging:"] = "Debugging:";
@@ -390,6 +399,7 @@ localizedStrings["Deferred pause from blackboxed script"] = "Deferred pause from
 /* Tooltip for a time range bar that represents when a CSS animation/transition is delayed */
 localizedStrings["Delay"] = "Delay";
 localizedStrings["Delete"] = "Delete";
+localizedStrings["Delete Audit"] = "Delete Audit";
 localizedStrings["Delete Blackbox"] = "Delete Blackbox";
 localizedStrings["Delete Breakpoint"] = "Delete Breakpoint";
 localizedStrings["Delete Breakpoints"] = "Delete Breakpoints";
@@ -407,6 +417,7 @@ localizedStrings["Device %d"] = "Device %d";
 localizedStrings["Device Settings"] = "Device Settings";
 localizedStrings["Diagnoses common accessibility problems affecting screen readers and other assistive technology."] = "Diagnoses common accessibility problems affecting screen readers and other assistive technology.";
 localizedStrings["Dimensions"] = "Dimensions";
+localizedStrings["Disable Audit"] = "Disable Audit";
 localizedStrings["Disable Breakpoint"] = "Disable Breakpoint";
 localizedStrings["Disable Breakpoints"] = "Disable Breakpoints";
 localizedStrings["Disable Descendant Breakpoints"] = "Disable Descendant Breakpoints";
@@ -440,6 +451,7 @@ localizedStrings["Download"] = "Download";
 localizedStrings["Download Web Archive"] = "Download Web Archive";
 localizedStrings["Dropped Element"] = "Dropped Element";
 localizedStrings["Dropped Node"] = "Dropped Node";
+localizedStrings["Duplicate Audit"] = "Duplicate Audit";
 localizedStrings["Duplicate Selector"] = "Duplicate Selector";
 localizedStrings["Duplicate property"] = "Duplicate property";
 localizedStrings["Duration"] = "Duration";
@@ -453,6 +465,7 @@ localizedStrings["Dynamically calculated for the selected element and did not ma
 localizedStrings["Edge of sRGB color space"] = "Edge of sRGB color space";
 localizedStrings["Edit"] = "Edit";
 localizedStrings["Edit %s"] = "Edit %s";
+localizedStrings["Edit Audit"] = "Edit Audit";
 localizedStrings["Edit Breakpoint\u2026"] = "Edit Breakpoint\u2026";
 localizedStrings["Edit Local Override\u2026"] = "Edit Local Override\u2026";
 localizedStrings["Edit \u201Cbox-shadow\u201D"] = "Edit \u201Cbox-shadow\u201D";
@@ -460,6 +473,8 @@ localizedStrings["Edit \u201Ccubic-bezier\u201D function"] = "Edit \u201Ccubic-b
 localizedStrings["Edit \u201Cspring\u201D function"] = "Edit \u201Cspring\u201D function";
 localizedStrings["Edit configuration"] = "Edit configuration";
 localizedStrings["Edit custom gradient"] = "Edit custom gradient";
+/* Title of icon indiciating that the selected audit is being edited. */
+localizedStrings["Editing Audit @ Audit Tab - Test Case"] = "Editing audit";
 localizedStrings["Editing audits"] = "Editing audits";
 localizedStrings["Element"] = "Element";
 localizedStrings["Element Selection:"] = "Element Selection:";
@@ -494,6 +509,7 @@ localizedStrings["Elements"] = "Elements";
 /* Name of Elements Tab */
 localizedStrings["Elements Tab Name"] = "Elements";
 localizedStrings["Emulate User Gesture"] = "Emulate User Gesture";
+localizedStrings["Enable Audit"] = "Enable Audit";
 localizedStrings["Enable Breakpoint"] = "Enable Breakpoint";
 localizedStrings["Enable Breakpoints"] = "Enable Breakpoints";
 localizedStrings["Enable Descendant Breakpoints"] = "Enable Descendant Breakpoints";
@@ -516,8 +532,7 @@ localizedStrings["Ensure aria-hidden=\u0022%s\u0022 is not used."] = "Ensure ari
 localizedStrings["Ensure that \u0022%s\u0022 is spelled correctly."] = "Ensure that \u0022%s\u0022 is spelled correctly.";
 localizedStrings["Ensure that buttons have accessible labels for assistive technology."] = "Ensure that buttons have accessible labels for assistive technology.";
 localizedStrings["Ensure that dialogs have accessible labels for assistive technology."] = "Ensure that dialogs have accessible labels for assistive technology.";
-localizedStrings["Ensure that element of role \u0022%s\u0022 and \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA."] = "Ensure that element of role \u0022%s\u0022 and \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA.";
-localizedStrings["Ensure that element of role \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA."] = "Ensure that element of role \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA.";
+localizedStrings["Ensure that elements of role \u0022%s\u0022 and \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA."] = "Ensure that elements of role \u0022%s\u0022 and \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA.";
 localizedStrings["Ensure that elements of role \u0022%s\u0022 have accessible labels for assistive technology."] = "Ensure that elements of role \u0022%s\u0022 have accessible labels for assistive technology.";
 localizedStrings["Ensure that elements of role \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA."] = "Ensure that elements of role \u0022%s\u0022 have required owned elements in accordance with WAI-ARIA.";
 localizedStrings["Ensure that links have accessible labels for assistive technology."] = "Ensure that links have accessible labels for assistive technology.";
@@ -527,6 +542,8 @@ localizedStrings["Ensure that only one main content section is used on the page.
 localizedStrings["Ensure that values for \u0022%s\u0022 are valid."] = "Ensure that values for \u0022%s\u0022 are valid.";
 localizedStrings["Entire Recording"] = "Entire Recording";
 localizedStrings["Error"] = "Error";
+/* Title of icon indicating that the selected audit threw an error. */
+localizedStrings["Error @ Audit Tab - Test Case"] = "Error";
 localizedStrings["Error: "] = "Error: ";
 localizedStrings["Errors"] = "Errors";
 localizedStrings["Errors:"] = "Errors:";
@@ -541,7 +558,6 @@ localizedStrings["Event Handlers:"] = "Event Handlers:";
 localizedStrings["Event Listeners"] = "Event Listeners";
 localizedStrings["Events"] = "Events";
 localizedStrings["Events:"] = "Events:";
-localizedStrings["Example: \u201C%s\u201D"] = "Example: \u201C%s\u201D";
 localizedStrings["Exception with thrown value: %s"] = "Exception with thrown value: %s";
 localizedStrings["Execution context for %s"] = "Execution context for %s";
 localizedStrings["Expand All"] = "Expand All";
@@ -550,12 +566,13 @@ localizedStrings["Expanded"] = "Expanded";
 localizedStrings["Experimental"] = "Experimental";
 localizedStrings["Export"] = "Export";
 localizedStrings["Export (%s)"] = "Export (%s)";
+localizedStrings["Export Audit"] = "Export Audit";
 localizedStrings["Export HAR"] = "Export HAR";
 localizedStrings["Export Result"] = "Export Result";
-localizedStrings["Export Test"] = "Export Test";
 localizedStrings["Export recording (%s)"] = "Export recording (%s)";
 localizedStrings["Export recording (%s)\nShift-click to export a HTML reduction"] = "Export recording (%s)\nShift-click to export a HTML reduction";
-localizedStrings["Export result (%s)"] = "Export result (%s)";
+/* Tooltip for button that exports the most recent result after running an audit. */
+localizedStrings["Export result (%s) @ Audit Tab"] = "Export result (%s)";
 localizedStrings["Expression"] = "Expression";
 localizedStrings["Extension Scripts"] = "Extension Scripts";
 localizedStrings["Extension Style Sheets"] = "Extension Style Sheets";
@@ -563,6 +580,8 @@ localizedStrings["Extensions"] = "Extensions";
 localizedStrings["Extra Scripts"] = "Extra Scripts";
 localizedStrings["Extra Style Sheets"] = "Extra Style Sheets";
 localizedStrings["Fade unexecuted code"] = "Fade unexecuted code";
+/* Title of icon indicating that the selected audit failed. */
+localizedStrings["Fail @ Audit Tab - Test Case"] = "Fail";
 localizedStrings["Failed to upgrade"] = "Failed to upgrade";
 localizedStrings["Failure status code"] = "Failure status code";
 /* Resource loaded via 'fetch' method */
@@ -602,6 +621,7 @@ localizedStrings["Forward (%s)"] = "Forward (%s)";
 localizedStrings["Fragment"] = "Fragment";
 localizedStrings["Fragment Shader"] = "Fragment Shader";
 localizedStrings["Frame %d"] = "Frame %d";
+localizedStrings["Frame %d \u2014 %s"] = "Frame %d \u2014 %s";
 localizedStrings["Frame URL"] = "Frame URL";
 localizedStrings["Frames"] = "Frames";
 localizedStrings["Frames %d \u2013 %d"] = "Frames %d \u2013 %d";
@@ -627,6 +647,8 @@ localizedStrings["Grammar"] = "Grammar";
 /* Name of Graphics Tab */
 localizedStrings["Graphics Tab Name"] = "Graphics";
 localizedStrings["Group"] = "Group";
+/* Dropdown option inside the popover used to creating an audit group. */
+localizedStrings["Group @ Audit Tab Navigation Sidebar"] = "Group";
 localizedStrings["Group By Resource"] = "Group By Resource";
 localizedStrings["Group Media Requests"] = "Group Media Requests";
 /* Group DOM event listeners by DOM event */
@@ -658,7 +680,10 @@ localizedStrings["Hide the navigation sidebar (%s)"] = "Hide the navigation side
 localizedStrings["Hide transparency grid"] = "Hide transparency grid";
 localizedStrings["Hide type information"] = "Hide type information";
 localizedStrings["Hierarchy Level"] = "Hierarchy Level";
-localizedStrings["High"] = "High";
+/* High network request priority */
+localizedStrings["High @ Network Priority"] = "High";
+/* Energy Impact: High */
+localizedStrings["High @ Timeline Energy Impact"] = "High";
 localizedStrings["Highest: %s"] = "Highest: %s";
 localizedStrings["Host"] = "Host";
 localizedStrings["ICO"] = "ICO";
@@ -680,9 +705,10 @@ localizedStrings["Images"] = "Images";
 localizedStrings["Images:"] = "Images:";
 localizedStrings["Immediate Pause Requested"] = "Immediate Pause Requested";
 localizedStrings["Import"] = "Import";
-localizedStrings["Import Audit"] = "Import Audit";
+localizedStrings["Import Audit or Result"] = "Import Audit or Result";
 localizedStrings["Import HAR"] = "Import HAR";
 localizedStrings["Import Recording"] = "Import Recording";
+localizedStrings["Import audit or result"] = "Import audit or result";
 localizedStrings["Imported"] = "Imported";
 localizedStrings["Imported - %s"] = "Imported - %s";
 localizedStrings["Imported \u2014 %s"] = "Imported \u2014 %s";
@@ -768,7 +794,10 @@ localizedStrings["Log Value"] = "Log Value";
 localizedStrings["Log WebSocket"] = "Log WebSocket";
 localizedStrings["Log: "] = "Log: ";
 localizedStrings["Logs"] = "Logs";
-localizedStrings["Low"] = "Low";
+/* Low network request priority */
+localizedStrings["Low @ Network Priority"] = "Low";
+/* Energy Impact: Low */
+localizedStrings["Low @ Timeline Energy Impact"] = "Low";
 localizedStrings["Lowest: %s"] = "Lowest: %s";
 localizedStrings["MIME Type"] = "MIME Type";
 localizedStrings["MIME Type:"] = "MIME Type:";
@@ -789,7 +818,10 @@ localizedStrings["Media Element"] = "Media Element";
 localizedStrings["Media Event"] = "Media Event";
 localizedStrings["Media Logging:"] = "Media Logging:";
 localizedStrings["MediaSource"] = "MediaSource";
-localizedStrings["Medium"] = "Medium";
+/* Medium network request priority */
+localizedStrings["Medium @ Network Priority"] = "Medium";
+/* Energy Impact: Medium */
+localizedStrings["Medium @ Timeline Energy Impact"] = "Medium";
 localizedStrings["Memory"] = "Memory";
 localizedStrings["Memory Cache"] = "Memory Cache";
 localizedStrings["Memory usage of this canvas"] = "Memory usage of this canvas";
@@ -858,10 +890,12 @@ localizedStrings["No search results"] = "No search results";
 localizedStrings["No search string"] = "No search string";
 localizedStrings["Node"] = "Node";
 /* A submenu item of 'Break On' that breaks (pauses) before DOM node is removed */
-localizedStrings["Node Removed"] = "Node Removed";
+localizedStrings["Node Removed @ DOM Breakpoint"] = "Node Removed";
 localizedStrings["Nodes"] = "Nodes";
 localizedStrings["None"] = "None";
 localizedStrings["Not found"] = "Not found";
+/* Title of icon indicating that the selected audit has not been run yet. */
+localizedStrings["Not yet run @ Audit Tab - Test Case"] = "Not yet run";
 localizedStrings["Object Graph"] = "Object Graph";
 localizedStrings["Object Store"] = "Object Store";
 localizedStrings["Observer Callback"] = "Observer Callback";
@@ -908,6 +942,8 @@ localizedStrings["Paints"] = "Paints";
 localizedStrings["Paints @ Column title"] = "Paints";
 localizedStrings["Parent"] = "Parent";
 localizedStrings["Partial Garbage Collection"] = "Partial Garbage Collection";
+/* Title of icon indicating that the selected audit passed with no issues. */
+localizedStrings["Pass @ Audit Tab - Test Case"] = "Pass";
 localizedStrings["Passive"] = "Passive";
 localizedStrings["Path"] = "Path";
 localizedStrings["Pause Processing"] = "Pause Processing";
@@ -931,11 +967,15 @@ localizedStrings["Power Efficient Playback"] = "Power Efficient Playback";
 localizedStrings["Prefer Shorthands"] = "Prefer Shorthands";
 localizedStrings["Prefer indent using:"] = "Prefer indent using:";
 localizedStrings["Preserve Log"] = "Preserve Log";
-localizedStrings["Press %s to import a test or result file"] = "Press %s to import a test or result file";
+localizedStrings["Press %s to create a new audit."] = "Press %s to create a new audit.";
+localizedStrings["Press %s to enable audits."] = "Press %s to enable audits.";
+localizedStrings["Press %s to import an audit or a result."] = "Press %s to import an audit or a result.";
 localizedStrings["Press %s to load a recording from file."] = "Press %s to load a recording from file.";
-localizedStrings["Press %s to see recent searches"] = "Press %s to see recent searches";
-localizedStrings["Press %s to start running the audit"] = "Press %s to start running the audit";
-localizedStrings["Press %s to stop editing"] = "Press %s to stop editing";
+localizedStrings["Press %s to see recent searches."] = "Press %s to see recent searches.";
+localizedStrings["Press %s to start editing audits."] = "Press %s to start editing audits.";
+localizedStrings["Press %s to start running the audit."] = "Press %s to start running the audit.";
+localizedStrings["Press %s to stop editing audits."] = "Press %s to stop editing audits.";
+localizedStrings["Press %s to stop running."] = "Press %s to stop running.";
 localizedStrings["Pressed"] = "Pressed";
 localizedStrings["Pretty print"] = "Pretty print";
 localizedStrings["Preview"] = "Preview";
@@ -970,7 +1010,8 @@ localizedStrings["Record first %s frames"] = "Record first %s frames";
 localizedStrings["Recording"] = "Recording";
 localizedStrings["Recording %d"] = "Recording %d";
 localizedStrings["Recording Error: %s"] = "Recording Error: %s";
-localizedStrings["Recording Timeline Data"] = "Recording Timeline Data";
+/* Message for progress of a timeline recording. */
+localizedStrings["Recording Timeline Data @ Timeline Recording Progress"] = "Recording Timeline Data";
 /* A type of canvas recording in the Graphics Tab */
 localizedStrings["Recording Type Canvas Bitmap Renderer"] = "Bitmap Renderer";
 localizedStrings["Recording Warning: %s"] = "Recording Warning: %s";
@@ -1006,12 +1047,16 @@ localizedStrings["Request Data"] = "Request Data";
 localizedStrings["Request Headers"] = "Request Headers";
 localizedStrings["Requesting: %s"] = "Requesting: %s";
 localizedStrings["Required"] = "Required";
+/* Context menu action for resetting the breakpoint to its initial configuration. */
+localizedStrings["Reset Breakpoint @ Breakpoint Context Menu"] = "Reset Breakpoint";
 localizedStrings["Resource"] = "Resource";
 localizedStrings["Resource Size"] = "Resource Size";
 localizedStrings["Resource Type"] = "Resource Type";
 localizedStrings["Resource does not have timing data"] = "Resource does not have timing data";
 localizedStrings["Resource failed to load."] = "Resource failed to load.";
-localizedStrings["Resource has no content"] = "Resource has no content";
+/* An error message shown when there is no cached content for a HTTP 304 Not Modified resource response. */
+localizedStrings["Resource has no cached content. @ Resource Preview"] = "Resource has no cached content.";
+localizedStrings["Resource has no content."] = "Resource has no content.";
 localizedStrings["Resource has no timing data"] = "Resource has no timing data";
 localizedStrings["Resource was loaded with the \u201Cdata\u201D scheme."] = "Resource was loaded with the \u201Cdata\u201D scheme.";
 localizedStrings["Resource was served from the cache."] = "Resource was served from the cache.";
@@ -1091,6 +1136,8 @@ localizedStrings["Secure"] = "Secure";
 localizedStrings["Security"] = "Security";
 localizedStrings["Security Issue"] = "Security Issue";
 localizedStrings["Security Origin"] = "Security Origin";
+localizedStrings["Select an audit in the navigation sidebar to edit it."] = "Select an audit in the navigation sidebar to edit it.";
+localizedStrings["Select an audit in the navigation sidebar to view its results."] = "Select an audit in the navigation sidebar to view its results.";
 localizedStrings["Select baseline snapshot"] = "Select baseline snapshot";
 localizedStrings["Select comparison snapshot"] = "Select comparison snapshot";
 localizedStrings["Selected"] = "Selected";
@@ -1159,6 +1206,8 @@ localizedStrings["Site-specific Hacks"] = "Site-specific Hacks";
 localizedStrings["Size"] = "Size";
 localizedStrings["Size of current object plus all objects it keeps alive"] = "Size of current object plus all objects it keeps alive";
 localizedStrings["Sizes"] = "Sizes";
+/* Label for checkbox that controls whether the local override will actually perform a network request or skip it to immediately serve the response. */
+localizedStrings["Skip Network @ Local Override Popover Options"] = "Skip Network";
 localizedStrings["Snapshot %d"] = "Snapshot %d";
 localizedStrings["Snapshot %d \u2014 %s"] = "Snapshot %d \u2014 %s";
 localizedStrings["Snapshot Comparison (%d and %d)"] = "Snapshot Comparison (%d and %d)";
@@ -1184,6 +1233,7 @@ localizedStrings["Spread @ Box Shadow Editor"] = "Spread";
 localizedStrings["Staging:"] = "Staging:";
 localizedStrings["Stalled"] = "Stalled";
 localizedStrings["Start"] = "Start";
+localizedStrings["Start Audit"] = "Start Audit";
 localizedStrings["Start Time"] = "Start Time";
 localizedStrings["Start element selection (%s)"] = "Start element selection (%s)";
 localizedStrings["Start recording (%s)\nCreate new recording (%s)"] = "Start recording (%s)\nCreate new recording (%s)";
@@ -1206,6 +1256,9 @@ localizedStrings["Stop recording"] = "Stop recording";
 localizedStrings["Stop recording (%s)"] = "Stop recording (%s)";
 localizedStrings["Stop recording canvas actions"] = "Stop recording canvas actions";
 localizedStrings["Stop recording once page loads"] = "Stop recording once page loads";
+/* Message for progress of stopping a timeline recording. */
+localizedStrings["Stopping Timeline Recording @ Timeline Recording Progress"] = "Stopping Timeline Recording";
+localizedStrings["Stopping recording"] = "Stopping recording";
 localizedStrings["Stopping the \u201C%s\u201D audit"] = "Stopping the \u201C%s\u201D audit";
 localizedStrings["Storage"] = "Storage";
 /* Name of Storage Tab */
@@ -1223,7 +1276,7 @@ localizedStrings["Styles \u2014 Rules"] = "Styles \u2014 Rules";
 localizedStrings["Styles:"] = "Styles:";
 localizedStrings["Subject"] = "Subject";
 /* A submenu item of 'Break On' that breaks (pauses) before child DOM node is modified */
-localizedStrings["Subtree Modified"] = "Subtree Modified";
+localizedStrings["Subtree Modified @ DOM Breakpoint"] = "Subtree Modified";
 localizedStrings["Summary"] = "Summary";
 /* Label of dropdown item used for forcing Web Inspector to be shown using the system's theme */
 localizedStrings["System @ Settings General Appearance"] = "System";
@@ -1236,6 +1289,8 @@ localizedStrings["Tag"] = "Tag";
 localizedStrings["Take snapshot"] = "Take snapshot";
 localizedStrings["Target"] = "Target";
 localizedStrings["Template Content"] = "Template Content";
+/* Dropdown option inside the popover used to creating an audit test case. */
+localizedStrings["Test Case @ Audit Tab Navigation Sidebar"] = "Test Case";
 localizedStrings["Text"] = "Text";
 localizedStrings["Text Frame"] = "Text Frame";
 localizedStrings["Text Node"] = "Text Node";
@@ -1252,21 +1307,36 @@ localizedStrings["The resource was requested insecurely."] = "The resource was r
 localizedStrings["There are unread messages that have been filtered"] = "There are unread messages that have been filtered";
 localizedStrings["There is an incurred energy penalty each time the page enters script. This commonly happens with timers, event handlers, and observers."] = "There is an incurred energy penalty each time the page enters script. This commonly happens with timers, event handlers, and observers.";
 localizedStrings["These are all of the different test result levels."] = "These are all of the different test result levels.";
-localizedStrings["These are all of the different types of data that can be returned with the test result."] = "These are all of the different types of data that can be returned with the test result.";
-localizedStrings["These tests demonstrate how to use %s to access information not normally available to JavaScript."] = "These tests demonstrate how to use %s to access information not normally available to JavaScript.";
-localizedStrings["These tests demonstrate how to use %s to get information about DOM nodes."] = "These tests demonstrate how to use %s to get information about DOM nodes.";
-localizedStrings["These tests demonstrate how to use %s to get information about loaded resources."] = "These tests demonstrate how to use %s to get information about loaded resources.";
-localizedStrings["These tests demonstrate how to use %s to get information about the accessibility tree."] = "These tests demonstrate how to use %s to get information about the accessibility tree.";
-localizedStrings["These tests serve as a demonstration of the functionality and structure of audits."] = "These tests serve as a demonstration of the functionality and structure of audits.";
+localizedStrings["These are example tests that demonstrate all of the different types of data that can be returned with the test result."] = "These are example tests that demonstrate all of the different types of data that can be returned with the test result.";
+localizedStrings["These are example tests that demonstrate how to use %s to access information not normally available to JavaScript."] = "These are example tests that demonstrate how to use %s to access information not normally available to JavaScript.";
+localizedStrings["These are example tests that demonstrate how to use %s to get information about DOM nodes."] = "These are example tests that demonstrate how to use %s to get information about DOM nodes.";
+localizedStrings["These are example tests that demonstrate how to use %s to get information about loaded resources."] = "These are example tests that demonstrate how to use %s to get information about loaded resources.";
+localizedStrings["These are example tests that demonstrate how to use %s to get information about the accessibility tree."] = "These are example tests that demonstrate how to use %s to get information about the accessibility tree.";
+localizedStrings["These are example tests that demonstrate the functionality and structure of audits."] = "These are example tests that demonstrate the functionality and structure of audits.";
 localizedStrings["This action causes no visual change"] = "This action causes no visual change";
 localizedStrings["This action moves the path outside the visible area"] = "This action moves the path outside the visible area";
 localizedStrings["This animation has no duration."] = "This animation has no duration.";
 localizedStrings["This animation has no keyframes."] = "This animation has no keyframes.";
 localizedStrings["This audit is not supported"] = "This audit is not supported";
+localizedStrings["This is an example of a test that will not run because it is unsupported."] = "This is an example of a test that will not run because it is unsupported.";
 localizedStrings["This is an example of how custom result data is shown."] = "This is an example of how custom result data is shown.";
 localizedStrings["This is an example of how errors are shown. The error was thrown manually, but execution errors will appear in the same way."] = "This is an example of how errors are shown. The error was thrown manually, but execution errors will appear in the same way.";
 localizedStrings["This is an example of how result DOM attributes are highlighted on any returned DOM nodes. It will pass with all elements with an id attribute."] = "This is an example of how result DOM attributes are highlighted on any returned DOM nodes. It will pass with all elements with an id attribute.";
 localizedStrings["This is an example of how result DOM nodes are shown. It will pass with the <body> element."] = "This is an example of how result DOM nodes are shown. It will pass with the <body> element.";
+localizedStrings["This is an example test that uses %s to find a variety of accessibility information about the <body> element."] = "This is an example test that uses %s to find a variety of accessibility information about the <body> element.";
+localizedStrings["This is an example test that uses %s to find all child nodes that are selected (\u0022%s\u0022) of the <body> element in the accessibility tree."] = "This is an example test that uses %s to find all child nodes that are selected (\u0022%s\u0022) of the <body> element in the accessibility tree.";
+localizedStrings["This is an example test that uses %s to find all nodes controlled (\u0022%s\u0022) by the <body> element, if any exist."] = "This is an example test that uses %s to find all nodes controlled (\u0022%s\u0022) by the <body> element, if any exist.";
+localizedStrings["This is an example test that uses %s to find all nodes flowed to (\u0022%s\u0022) from the <body> element, if any exist."] = "This is an example test that uses %s to find all nodes flowed to (\u0022%s\u0022) from the <body> element, if any exist.";
+localizedStrings["This is an example test that uses %s to find all nodes owned (\u0022%s\u0022) by the <body> element, if any exist."] = "This is an example test that uses %s to find all nodes owned (\u0022%s\u0022) by the <body> element, if any exist.";
+localizedStrings["This is an example test that uses %s to find any element that meets criteria for active descendant (\u0022%s\u0022) of the <body> element, if it exists."] = "This is an example test that uses %s to find any element that meets criteria for active descendant (\u0022%s\u0022) of the <body> element, if it exists.";
+localizedStrings["This is an example test that uses %s to find basic information about each resource."] = "This is an example test that uses %s to find basic information about each resource.";
+localizedStrings["This is an example test that uses %s to find child nodes of the <body> element in the accessibility tree."] = "This is an example test that uses %s to find child nodes of the <body> element in the accessibility tree.";
+localizedStrings["This is an example test that uses %s to find data indicating whether the <body> element has any click event listeners."] = "This is an example test that uses %s to find data indicating whether the <body> element has any click event listeners.";
+localizedStrings["This is an example test that uses %s to find data indicating whether the <body> element has any event listeners."] = "This is an example test that uses %s to find data indicating whether the <body> element has any event listeners.";
+localizedStrings["This is an example test that uses %s to find elements with a computed role of \u0022link\u0022."] = "This is an example test that uses %s to find elements with a computed role of \u0022link\u0022.";
+localizedStrings["This is an example test that uses %s to find the contents of the main resource."] = "This is an example test that uses %s to find the contents of the main resource.";
+localizedStrings["This is an example test that uses %s to find the node that would handle mouse events for the <body> element, if applicable."] = "This is an example test that uses %s to find the node that would handle mouse events for the <body> element, if applicable.";
+localizedStrings["This is an example test that uses %s to find the parent node of the <body> element in the accessibility tree."] = "This is an example test that uses %s to find the parent node of the <body> element in the accessibility tree.";
 localizedStrings["This is what the result of a failing test with no data looks like."] = "This is what the result of a failing test with no data looks like.";
 localizedStrings["This is what the result of a passing test with no data looks like."] = "This is what the result of a passing test with no data looks like.";
 localizedStrings["This is what the result of a test that threw an error with no data looks like."] = "This is what the result of a test that threw an error with no data looks like.";
@@ -1279,20 +1349,6 @@ localizedStrings["This resource was loaded from a local override"] = "This resou
 localizedStrings["This resource was loaded from a service worker"] = "This resource was loaded from a service worker";
 localizedStrings["This resource was loaded from the disk cache"] = "This resource was loaded from the disk cache";
 localizedStrings["This resource was loaded from the memory cache"] = "This resource was loaded from the memory cache";
-localizedStrings["This test will pass with a variety of accessibility information about the <body> element."] = "This test will pass with a variety of accessibility information about the <body> element.";
-localizedStrings["This test will pass with all DOM nodes that have a computed role of \u0022link\u0022."] = "This test will pass with all DOM nodes that have a computed role of \u0022link\u0022.";
-localizedStrings["This test will pass with all child nodes that are selected (\u0022%s\u0022) of the <body> element in the accessibility tree."] = "This test will pass with all child nodes that are selected (\u0022%s\u0022) of the <body> element in the accessibility tree.";
-localizedStrings["This test will pass with all nodes controlled (\u0022%s\u0022) by the <body> element, if any exist."] = "This test will pass with all nodes controlled (\u0022%s\u0022) by the <body> element, if any exist.";
-localizedStrings["This test will pass with all nodes flowed to (\u0022%s\u0022) from the <body> element, if any exist."] = "This test will pass with all nodes flowed to (\u0022%s\u0022) from the <body> element, if any exist.";
-localizedStrings["This test will pass with all nodes owned (\u0022%s\u0022) by the <body> element, if any exist."] = "This test will pass with all nodes owned (\u0022%s\u0022) by the <body> element, if any exist.";
-localizedStrings["This test will pass with all of the child nodes of the <body> element in the accessibility tree."] = "This test will pass with all of the child nodes of the <body> element in the accessibility tree.";
-localizedStrings["This test will pass with data indicating whether the <body> element has any click event listeners."] = "This test will pass with data indicating whether the <body> element has any click event listeners.";
-localizedStrings["This test will pass with data indicating whether the <body> element has any event listeners."] = "This test will pass with data indicating whether the <body> element has any event listeners.";
-localizedStrings["This test will pass with some basic information about each resource."] = "This test will pass with some basic information about each resource.";
-localizedStrings["This test will pass with the active descendant (\u0022%s\u0022) of the <body> element, if it exists."] = "This test will pass with the active descendant (\u0022%s\u0022) of the <body> element, if it exists.";
-localizedStrings["This test will pass with the contents of the main resource."] = "This test will pass with the contents of the main resource.";
-localizedStrings["This test will pass with the node that would handle mouse events for the <body> element, if applicable."] = "This test will pass with the node that would handle mouse events for the <body> element, if applicable.";
-localizedStrings["This test will pass with the parent node of the <body> element in the accessibility tree."] = "This test will pass with the parent node of the <body> element in the accessibility tree.";
 localizedStrings["This text resource could benefit from compression"] = "This text resource could benefit from compression";
 localizedStrings["Threads"] = "Threads";
 localizedStrings["Time"] = "Time";
@@ -1342,12 +1398,14 @@ localizedStrings["Unable to show certificate for \u201C%s\u201D"] = "Unable to s
 localizedStrings["Unblackbox Script"] = "Unblackbox Script";
 localizedStrings["Unblackbox script to include it when debugging"] = "Unblackbox script to include it when debugging";
 /* Break (pause) on uncaught (unhandled) exceptions */
-localizedStrings["Uncaught Exceptions"] = "Uncaught Exceptions";
+localizedStrings["Uncaught Exceptions @ JavaScript Breakpoint"] = "Uncaught Exceptions";
 localizedStrings["Undefined custom element"] = "Undefined custom element";
 localizedStrings["Unique"] = "Unique";
 localizedStrings["Unknown Location"] = "Unknown Location";
 localizedStrings["Unknown error"] = "Unknown error";
 localizedStrings["Unknown node"] = "Unknown node";
+/* Title of icon indicating that the selected audit is not able to be run (i.e. unsupported). */
+localizedStrings["Unsupported @ Audit Tab - Test Case"] = "Unsupported";
 localizedStrings["Unsupported property name"] = "Unsupported property name";
 localizedStrings["Unsupported property value"] = "Unsupported property value";
 localizedStrings["Untitled"] = "Untitled";
@@ -1372,7 +1430,8 @@ localizedStrings["Version"] = "Version";
 localizedStrings["Vertex"] = "Vertex";
 localizedStrings["Vertex Shader"] = "Vertex Shader";
 localizedStrings["Vertex/Fragment Shader"] = "Vertex/Fragment Shader";
-localizedStrings["Very High"] = "Very High";
+/* Energy Impact: Very High */
+localizedStrings["Very High @ Timeline Energy Impact"] = "Very High";
 localizedStrings["View Image"] = "View Image";
 localizedStrings["View Recording"] = "View Recording";
 localizedStrings["View Shader"] = "View Shader";
@@ -1384,6 +1443,8 @@ localizedStrings["Waiting for animations created by JavaScript."] = "Waiting for
 localizedStrings["Waiting for canvas contexts created by script or CSS."] = "Waiting for canvas contexts created by script or CSS.";
 localizedStrings["Waiting for frames\u2026"] = "Waiting for frames\u2026";
 localizedStrings["Waiting for transitions created by CSS."] = "Waiting for transitions created by CSS.";
+/* Title of icon indicating that the selected audit passed with issues (i.e. warnings). */
+localizedStrings["Warn @ Audit Tab - Test Case"] = "Warn";
 localizedStrings["Warning: "] = "Warning: ";
 localizedStrings["Warnings"] = "Warnings";
 localizedStrings["Watch Expressions"] = "Watch Expressions";
@@ -1470,8 +1531,8 @@ localizedStrings["\u0022%s\u0022 has a non-string \u0022%s\u0022 value"] = "\u00
 localizedStrings["\u0022%s\u0022 has an invalid \u0022%s\u0022 value"] = "\u0022%s\u0022 has an invalid \u0022%s\u0022 value";
 localizedStrings["\u0022%s\u0022 is not JSON serializable"] = "\u0022%s\u0022 is not JSON serializable";
 localizedStrings["\u0022%s\u0022 is not valid for %s"] = "\u0022%s\u0022 is not valid for %s";
+localizedStrings["\u0022%s\u0022 is too new to run in the inspected page"] = "\u0022%s\u0022 is too new to run in the inspected page";
 localizedStrings["\u0022%s\u0022 is too new to run in this Web Inspector"] = "\u0022%s\u0022 is too new to run in this Web Inspector";
-localizedStrings["\u0022%s\u0022 is too new to run on this inspected page"] = "\u0022%s\u0022 is too new to run on this inspected page";
 localizedStrings["\u0022%s\u0022 must be a %s"] = "\u0022%s\u0022 must be a %s";
 localizedStrings["\u0022%s\u0022 must be an %s"] = "\u0022%s\u0022 must be an %s";
 localizedStrings["\u0022%s\u0022 threw an error"] = "\u0022%s\u0022 threw an error";
@@ -1503,6 +1564,10 @@ localizedStrings["spaces"] = "spaces";
 localizedStrings["time before stopping"] = "time before stopping";
 localizedStrings["times before stopping"] = "times before stopping";
 localizedStrings["toggle"] = "toggle";
+/* Warning text shown if the version number in the 'supports' input is too new. */
+localizedStrings["too new to run in the inspected page @ Audit Tab"] = "too new to run in the inspected page";
+/* Warning text shown if the version number in the 'supports' input is too new. */
+localizedStrings["too new to run in this Web Inspector @ Audit Tab"] = "too new to run in this Web Inspector";
 localizedStrings["unknown %s \u0022%s\u0022"] = "unknown %s \u0022%s\u0022";
 localizedStrings["unsupported %s"] = "unsupported %s";
 localizedStrings["unsupported HAR version"] = "unsupported HAR version";

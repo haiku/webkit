@@ -68,6 +68,10 @@
 
 #import "DeviceManagementSoftLink.h"
 
+// FIXME: Remove this soft link once rdar://problem/50109631 is in a build and bots are updated.
+SOFT_LINK_FRAMEWORK(CFNetwork)
+SOFT_LINK_CLASS_OPTIONAL(CFNetwork, _NSHSTSStorage)
+
 using namespace WebKit;
 
 CFStringRef const WebKit2HTTPProxyDefaultsKey = static_cast<CFStringRef>(@"WebKit2HTTPProxy");
@@ -1097,6 +1101,17 @@ NSURLCredential *NetworkSessionCocoa::successfulClientCertificateForHost(const S
     return m_successfulClientCertificates.get(key).get();
 }
 
+_NSHSTSStorage *NetworkSessionCocoa::hstsStorage() const
+{
+#if HAVE(HSTS_STORAGE)
+    NSURLSessionConfiguration *configuration = m_sessionWithCredentialStorage.session.get().configuration;
+    // FIXME: Remove this respondsToSelector check once rdar://problem/50109631 is in a build and bots are updated.
+    if ([configuration respondsToSelector:@selector(_hstsStorage)])
+        return m_sessionWithCredentialStorage.session.get().configuration._hstsStorage;
+#endif
+    return nil;
+}
+
 const String& NetworkSessionCocoa::boundInterfaceIdentifier() const
 {
     return m_boundInterfaceIdentifier;
@@ -1200,6 +1215,15 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
 
     NSURLSessionConfiguration *configuration = configurationForSessionID(m_sessionID);
 
+#if HAVE(HSTS_STORAGE)
+    if (!!parameters.hstsStorageDirectory && !m_sessionID.isEphemeral()) {
+        SandboxExtension::consumePermanently(parameters.hstsStorageDirectoryExtensionHandle);
+        // FIXME: Remove this respondsToSelector check once rdar://problem/50109631 is in a build and bots are updated.
+        if ([configuration respondsToSelector:@selector(_hstsStorage)])
+            configuration._hstsStorage = [[alloc_NSHSTSStorageInstance() initPersistentStoreWithURL:[NSURL fileURLWithPath:parameters.hstsStorageDirectory isDirectory:YES]] autorelease];
+    }
+#endif
+
 #if HAVE(APP_SSO) || PLATFORM(MACCATALYST)
     configuration._preventsAppSSO = true;
 #endif
@@ -1287,8 +1311,11 @@ NetworkSessionCocoa::NetworkSessionCocoa(NetworkProcess& networkProcess, Network
     m_deviceManagementRestrictionsEnabled = parameters.deviceManagementRestrictionsEnabled;
     m_allLoadsBlockedByDeviceManagementRestrictionsForTesting = parameters.allLoadsBlockedByDeviceManagementRestrictionsForTesting;
 
+#if ENABLE(APP_BOUND_DOMAINS)
     if (m_resourceLoadStatistics && !parameters.resourceLoadStatisticsParameters.appBoundDomains.isEmpty())
         m_resourceLoadStatistics->setAppBoundDomains(WTFMove(parameters.resourceLoadStatisticsParameters.appBoundDomains), [] { });
+#endif
+
 #if HAVE(SESSION_CLEANUP)
     activateSessionCleanup(*this, parameters);
 #endif
@@ -1333,7 +1360,7 @@ SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::Resour
         ASSERT_NOT_REACHED();
 #endif
 
-#if PLATFORM(IOS_FAMILY)
+#if ENABLE(APP_BOUND_DOMAINS)
     if (shouldBeConsideredAppBound == NavigatingToAppBoundDomain::Yes)
         return appBoundSession(storedCredentialsPolicy);
 #endif
@@ -1350,6 +1377,7 @@ SessionWrapper& NetworkSessionCocoa::sessionWrapperForTask(const WebCore::Resour
     }
 }
 
+#if ENABLE(APP_BOUND_DOMAINS)
 SessionWrapper& NetworkSessionCocoa::appBoundSession(WebCore::StoredCredentialsPolicy storedCredentialsPolicy)
 {
     if (!m_appBoundSession) {
@@ -1375,6 +1403,7 @@ SessionWrapper& NetworkSessionCocoa::appBoundSession(WebCore::StoredCredentialsP
 
     return sessionWrapper;
 }
+#endif
 
 SessionWrapper& NetworkSessionCocoa::isolatedSession(WebCore::StoredCredentialsPolicy storedCredentialsPolicy, const WebCore::RegistrableDomain firstPartyDomain, NavigatingToAppBoundDomain isNavigatingToAppBoundDomain)
 {
@@ -1431,10 +1460,12 @@ void NetworkSessionCocoa::clearIsolatedSessions()
     m_isolatedSessions.clear();
 }
 
+#if ENABLE(APP_BOUND_DOMAINS)
 void NetworkSessionCocoa::clearAppBoundSession()
 {
     m_appBoundSession = nullptr;
 }
+#endif
 
 void NetworkSessionCocoa::invalidateAndCancel()
 {
@@ -1580,6 +1611,9 @@ std::unique_ptr<WebSocketTask> NetworkSessionCocoa::createWebSocketTask(NetworkS
         [requestWithProtocols addValue: StringView(protocol).createNSString().get() forHTTPHeaderField:@"Sec-WebSocket-Protocol"];
         nsRequest = requestWithProtocols;
     }
+    // rdar://problem/68057031: explicitly disable sniffing for WebSocket handshakes.
+    [nsRequest _setProperty:@NO forKey:(NSString *)_kCFURLConnectionPropertyShouldSniff];
+
     RetainPtr<NSURLSessionWebSocketTask> task = [m_sessionWithCredentialStorage.session webSocketTaskWithRequest:nsRequest];
     return makeUnique<WebSocketTask>(channel, WTFMove(task));
 }

@@ -72,9 +72,10 @@ WI.Sidebar = class Sidebar extends WI.View
         if (!(sidebarPanel instanceof WI.SidebarPanel))
             return;
 
-        console.assert(!sidebarPanel.parentSidebar);
-        if (sidebarPanel.parentSidebar)
+        if (sidebarPanel.parentSidebar && sidebarPanel.parentSidebar !== this) {
+            console.assert(false, "Failed to insert sidebar panel", sidebarPanel);
             return;
+        }
 
         console.assert(index >= 0 && index <= this._sidebarPanels.length);
         this._sidebarPanels.splice(index, 0, sidebarPanel);
@@ -87,7 +88,7 @@ WI.Sidebar = class Sidebar extends WI.View
 
     removeSidebarPanel(sidebarPanelOrIdentifierOrIndex)
     {
-        var sidebarPanel = this.findSidebarPanel(sidebarPanelOrIdentifierOrIndex);
+        let sidebarPanel = this.findSidebarPanel(sidebarPanelOrIdentifierOrIndex);
         if (!sidebarPanel)
             return;
 
@@ -95,11 +96,6 @@ WI.Sidebar = class Sidebar extends WI.View
             sidebarPanel.hidden();
 
         sidebarPanel.selected = false;
-
-        if (this._selectedSidebarPanel === sidebarPanel) {
-            var index = this._sidebarPanels.indexOf(sidebarPanel);
-            this.selectedSidebarPanel = this._sidebarPanels[index - 1] || this._sidebarPanels[index + 1] || null;
-        }
 
         this._sidebarPanels.remove(sidebarPanel);
 

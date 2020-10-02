@@ -84,8 +84,10 @@ WI.BreakpointTreeElement = class BreakpointTreeElement extends WI.GeneralTreeEle
 
         if (this._breakpoint.disabled)
             InspectorFrontendHost.beep();
-        else
+        else {
             this._breakpoint.disabled = true;
+            this._breakpoint.reset();
+        }
         return false;
     }
 
@@ -124,7 +126,7 @@ WI.BreakpointTreeElement = class BreakpointTreeElement extends WI.GeneralTreeEle
 
     populateContextMenu(contextMenu, event)
     {
-        WI.breakpointPopoverController.appendContextMenuItems(contextMenu, this._breakpoint, this.status);
+        WI.BreakpointPopover.appendContextMenuItems(contextMenu, this._breakpoint, this.status);
 
         super.populateContextMenu(contextMenu, event);
     }

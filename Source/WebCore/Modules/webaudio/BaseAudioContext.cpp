@@ -35,10 +35,12 @@
 #include "AudioBufferCallback.h"
 #include "AudioBufferOptions.h"
 #include "AudioBufferSourceNode.h"
+#include "AudioDestination.h"
 #include "AudioListener.h"
 #include "AudioNodeInput.h"
 #include "AudioNodeOutput.h"
 #include "AudioSession.h"
+#include "AudioWorklet.h"
 #include "BiquadFilterNode.h"
 #include "ChannelMergerNode.h"
 #include "ChannelMergerOptions.h"
@@ -57,9 +59,10 @@
 #include "Frame.h"
 #include "FrameLoader.h"
 #include "GainNode.h"
-#include "GenericEventQueue.h"
 #include "HRTFDatabaseLoader.h"
 #include "HRTFPanner.h"
+#include "IIRFilterNode.h"
+#include "IIRFilterOptions.h"
 #include "JSAudioBuffer.h"
 #include "JSDOMPromiseDeferred.h"
 #include "Logging.h"
@@ -123,8 +126,8 @@ BaseAudioContext::BaseAudioContext(Document& document, const AudioContextOptions
     , m_logger(document.logger())
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
+    , m_worklet(AudioWorklet::create(document))
     , m_mediaSession(PlatformMediaSession::create(PlatformMediaSessionManager::sharedManager(), *this))
-    , m_eventQueue(MainThreadGenericEventQueue::create(*this))
 {
     // According to spec AudioContext must die only after page navigate.
     // Lets mark it as ActiveDOMObject with pending activity and unmark it in clear method.
@@ -139,24 +142,34 @@ BaseAudioContext::BaseAudioContext(Document& document, const AudioContextOptions
 
     document.addAudioProducer(*this);
     document.registerForVisibilityStateChangedCallbacks(*this);
+
+    // Unlike OfflineAudioContext, AudioContext does not require calling resume() to start rendering.
+    // Lazy initialization starts rendering so we schedule a task here to make sure lazy initialization
+    // ends up happening, even if no audio node gets constructed.
+    postTask([this] {
+        if (m_isStopScheduled)
+            return;
+
+        lazyInitialize();
+    });
 }
 
 // Constructor for offline (non-realtime) rendering.
-BaseAudioContext::BaseAudioContext(Document& document, AudioBuffer* renderTarget)
+BaseAudioContext::BaseAudioContext(Document& document, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget)
     : ActiveDOMObject(document)
 #if !RELEASE_LOG_DISABLED
     , m_logger(document.logger())
     , m_logIdentifier(uniqueLogIdentifier())
 #endif
+    , m_worklet(AudioWorklet::create(document))
     , m_isOfflineContext(true)
     , m_mediaSession(PlatformMediaSession::create(PlatformMediaSessionManager::sharedManager(), *this))
-    , m_eventQueue(MainThreadGenericEventQueue::create(*this))
-    , m_renderTarget(renderTarget)
+    , m_renderTarget(WTFMove(renderTarget))
 {
     constructCommon();
 
     // Create a new destination for offline rendering.
-    m_destinationNode = OfflineAudioDestinationNode::create(*this, m_renderTarget.get());
+    m_destinationNode = OfflineAudioDestinationNode::create(*this, numberOfChannels, m_renderTarget.copyRef());
 }
 
 void BaseAudioContext::constructCommon()
@@ -188,7 +201,7 @@ BaseAudioContext::~BaseAudioContext()
     if (m_automaticPullNodesNeedUpdating)
         m_renderingAutomaticPullNodes.resize(m_automaticPullNodes.size());
     ASSERT(m_renderingAutomaticPullNodes.isEmpty());
-    // FIXME: Can we assert that m_deferredFinishDerefList is empty?
+    // FIXME: Can we assert that m_deferredBreakConnectionList is empty?
 
     if (!isOfflineContext() && scriptExecutionContext()) {
         document()->removeAudioProducer(*this);
@@ -198,7 +211,8 @@ BaseAudioContext::~BaseAudioContext()
 
 void BaseAudioContext::lazyInitialize()
 {
-    ASSERT(!m_isStopScheduled);
+    if (isStopped())
+        return;
 
     if (m_isInitialized)
         return;
@@ -211,7 +225,7 @@ void BaseAudioContext::lazyInitialize()
     if (m_destinationNode) {
         m_destinationNode->initialize();
 
-        if (!isOfflineContext()) {
+        if (!isOfflineContext() && state() != State::Running) {
             // This starts the audio thread. The destination node's provideInput() method will now be called repeatedly to render audio.
             // Each time provideInput() is called, a portion of the audio stream is rendered. Let's call this time period a "render quantum".
             // NOTE: for now default AudioContext does not need an explicit startRendering() call from JavaScript.
@@ -220,6 +234,7 @@ void BaseAudioContext::lazyInitialize()
             ++s_hardwareContextCount;
         }
     }
+
     m_isInitialized = true;
 }
 
@@ -265,6 +280,15 @@ void BaseAudioContext::uninitialize()
         setState(State::Closed);
     }
 
+    {
+        AutoLocker locker(*this);
+        // This should have been called from handlePostRenderTasks() at the end of rendering.
+        // However, in case of lock contention, the tryLock() call could have failed in handlePostRenderTasks(),
+        // leaving nodes in m_finishedNodes. Now that the audio thread is gone, make sure we deref those nodes
+        // before the BaseAudioContext gets destroyed.
+        derefFinishedSourceNodes();
+    }
+
     // Get rid of the sources which may still be playing.
     derefUnfinishedSourceNodes();
 
@@ -291,7 +315,8 @@ void BaseAudioContext::setState(State state)
         return;
 
     m_state = state;
-    m_eventQueue->enqueueEvent(Event::create(eventNames().statechangeEvent, Event::CanBubble::Yes, Event::IsCancelable::No));
+
+    queueTaskToDispatchEvent(*this, TaskSource::MediaElement, Event::create(eventNames().statechangeEvent, Event::CanBubble::Yes, Event::IsCancelable::No));
 
     size_t stateIndex = static_cast<size_t>(state);
     if (stateIndex >= m_stateReactions.size())
@@ -352,6 +377,11 @@ DocumentIdentifier BaseAudioContext::hostingDocumentIdentifier() const
 {
     auto* document = downcast<Document>(m_scriptExecutionContext);
     return document ? document->identifier() : DocumentIdentifier { };
+}
+
+float BaseAudioContext::sampleRate() const
+{
+    return m_destinationNode ? m_destinationNode->sampleRate() : AudioDestination::hardwareSampleRate();
 }
 
 bool BaseAudioContext::isSuspended() const
@@ -446,11 +476,6 @@ ExceptionOr<Ref<ScriptProcessorNode>> BaseAudioContext::createScriptProcessor(si
     ALWAYS_LOG(LOGIDENTIFIER);
     
     ASSERT(isMainThread());
-
-    if (m_isStopScheduled)
-        return Exception { InvalidStateError };
-
-    lazyInitialize();
 
     // W3C Editor's Draft 06 June 2017
     //  https://webaudio.github.io/web-audio-api/#widl-BaseAudioContext-createScriptProcessor-ScriptProcessorNode-unsigned-long-bufferSize-unsigned-long-numberOfInputChannels-unsigned-long-numberOfOutputChannels
@@ -630,6 +655,17 @@ ExceptionOr<Ref<StereoPannerNode>> BaseAudioContext::createStereoPanner()
     return StereoPannerNode::create(*this);
 }
 
+ExceptionOr<Ref<IIRFilterNode>> BaseAudioContext::createIIRFilter(ScriptExecutionContext& scriptExecutionContext, Vector<double>&& feedforward, Vector<double>&& feedback)
+{
+    ALWAYS_LOG(LOGIDENTIFIER);
+
+    ASSERT(isMainThread());
+    IIRFilterOptions options;
+    options.feedforward = WTFMove(feedforward);
+    options.feedback = WTFMove(feedback);
+    return IIRFilterNode::create(scriptExecutionContext, *this, WTFMove(options));
+}
+
 void BaseAudioContext::notifyNodeFinishedProcessing(AudioNode* node)
 {
     ASSERT(isAudioThread());
@@ -651,7 +687,6 @@ void BaseAudioContext::refNode(AudioNode& node)
     ASSERT(isMainThread());
     AutoLocker locker(*this);
     
-    node.ref(AudioNode::RefTypeConnection);
     m_referencedNodes.append(&node);
 }
 
@@ -659,8 +694,6 @@ void BaseAudioContext::derefNode(AudioNode& node)
 {
     ASSERT(isGraphOwner());
     
-    node.deref(AudioNode::RefTypeConnection);
-
     ASSERT(m_referencedNodes.contains(&node));
     m_referencedNodes.removeFirst(&node);
 }
@@ -668,9 +701,6 @@ void BaseAudioContext::derefNode(AudioNode& node)
 void BaseAudioContext::derefUnfinishedSourceNodes()
 {
     ASSERT(isMainThread() && isAudioThreadFinished());
-    for (auto& node : m_referencedNodes)
-        node->deref(AudioNode::RefTypeConnection);
-
     m_referencedNodes.clear();
 }
 
@@ -748,10 +778,10 @@ bool BaseAudioContext::isGraphOwner() const
     return m_graphOwnerThread == &Thread::current();
 }
 
-void BaseAudioContext::addDeferredFinishDeref(AudioNode* node)
+void BaseAudioContext::addDeferredDecrementConnectionCount(AudioNode* node)
 {
     ASSERT(isAudioThread());
-    m_deferredFinishDerefList.append(node);
+    m_deferredBreakConnectionList.append(node);
 }
 
 void BaseAudioContext::handlePreRenderTasks(const AudioIOPosition& outputPosition)
@@ -791,7 +821,7 @@ void BaseAudioContext::handlePostRenderTasks()
     bool mustReleaseLock;
     if (tryLock(mustReleaseLock)) {
         // Take care of finishing any derefs where the tryLock() failed previously.
-        handleDeferredFinishDerefs();
+        handleDeferredDecrementConnectionCounts();
 
         // Dynamically clean up nodes which are no longer needed.
         derefFinishedSourceNodes();
@@ -811,13 +841,13 @@ void BaseAudioContext::handlePostRenderTasks()
     }
 }
 
-void BaseAudioContext::handleDeferredFinishDerefs()
+void BaseAudioContext::handleDeferredDecrementConnectionCounts()
 {
     ASSERT(isAudioThread() && isGraphOwner());
-    for (auto& node : m_deferredFinishDerefList)
-        node->finishDeref(AudioNode::RefTypeConnection);
+    for (auto& node : m_deferredBreakConnectionList)
+        node->decrementConnectionCountWithLock();
     
-    m_deferredFinishDerefList.clear();
+    m_deferredBreakConnectionList.clear();
 }
 
 void BaseAudioContext::markForDeletion(AudioNode& node)
@@ -1056,8 +1086,10 @@ void BaseAudioContext::startRendering()
 
     makePendingActivity();
 
-    destination()->startRendering();
     setState(State::Running);
+
+    lazyInitialize();
+    destination()->startRendering();
 }
 
 void BaseAudioContext::mediaCanStart(Document& document)
@@ -1124,7 +1156,7 @@ void BaseAudioContext::finishedRendering(bool didRendering)
         return;
 
     clearPendingActivityIfExitEarly.release();
-    m_eventQueue->enqueueEvent(OfflineAudioCompletionEvent::create(*renderedBuffer));
+    queueTaskToDispatchEvent(*this, TaskSource::MediaElement, OfflineAudioCompletionEvent::create(*renderedBuffer));
 
     finishedRenderingScope.release();
     didFinishOfflineRendering(renderedBuffer.releaseNonNull());
@@ -1251,10 +1283,11 @@ void BaseAudioContext::mayResumePlayback(bool shouldResume)
 
 void BaseAudioContext::postTask(WTF::Function<void()>&& task)
 {
+    ASSERT(isMainThread());
     if (m_isStopScheduled)
         return;
 
-    m_scriptExecutionContext->postTask(WTFMove(task));
+    queueTaskKeepingObjectAlive(*this, TaskSource::MediaElement, WTFMove(task));
 }
 
 const SecurityOrigin* BaseAudioContext::origin() const
@@ -1270,19 +1303,38 @@ void BaseAudioContext::addConsoleMessage(MessageSource source, MessageLevel leve
 
 void BaseAudioContext::clearPendingActivity()
 {
-    if (!m_pendingActivity)
-        return;
     m_pendingActivity = nullptr;
-    // FIXME: Remove this specific deref() and ref() call in makePendingActivity().
-    deref();
 }
 
 void BaseAudioContext::makePendingActivity()
 {
-    if (m_pendingActivity)
-        return;
-    m_pendingActivity = ActiveDOMObject::makePendingActivity(*this);
-    ref();
+    if (!m_pendingActivity)
+        m_pendingActivity = ActiveDOMObject::makePendingActivity(*this);
+}
+
+PeriodicWave& BaseAudioContext::periodicWave(OscillatorType type)
+{
+    switch (type) {
+    case OscillatorType::Square:
+        if (!m_cachedPeriodicWaveSquare)
+            m_cachedPeriodicWaveSquare = PeriodicWave::createSquare(sampleRate());
+        return *m_cachedPeriodicWaveSquare;
+    case OscillatorType::Sawtooth:
+        if (!m_cachedPeriodicWaveSawtooth)
+            m_cachedPeriodicWaveSawtooth = PeriodicWave::createSawtooth(sampleRate());
+        return *m_cachedPeriodicWaveSawtooth;
+    case OscillatorType::Triangle:
+        if (!m_cachedPeriodicWaveTriangle)
+            m_cachedPeriodicWaveTriangle = PeriodicWave::createTriangle(sampleRate());
+        return *m_cachedPeriodicWaveTriangle;
+    case OscillatorType::Custom:
+        RELEASE_ASSERT_NOT_REACHED();
+    case OscillatorType::Sine:
+        if (!m_cachedPeriodicWaveSine)
+            m_cachedPeriodicWaveSine = PeriodicWave::createSine(sampleRate());
+        return *m_cachedPeriodicWaveSine;
+    }
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 #if !RELEASE_LOG_DISABLED

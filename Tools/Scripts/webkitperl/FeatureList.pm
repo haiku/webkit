@@ -414,9 +414,6 @@ my @features = (
     { option => "memory-sampler", desc => "Toggle Memory Sampler support",
       define => "ENABLE_MEMORY_SAMPLER", value => \$memorySamplerSupport },
 
-    { option => "meter-element", desc => "Toggle Meter Element support",
-      define => "ENABLE_METER_ELEMENT", value => \$meterElementSupport },
-
     { option => "mhtml", desc => "Toggle MHTML support",
       define => "ENABLE_MHTML", value => \$mhtmlSupport },
 
@@ -512,9 +509,6 @@ my @features = (
 
     { option => "spellcheck", desc => "Toggle Spellchecking support (requires Enchant)",
       define => "ENABLE_SPELLCHECK", value => \$spellcheckSupport },
-
-    { option => "svg-fonts", desc => "Toggle SVG Fonts support",
-      define => "ENABLE_SVG_FONTS", value => \$svgFontsSupport },
 
     { option => "telephone-number-detection", desc => "Toggle telephone number detection support",
       define => "ENABLE_TELEPHONE_NUMBER_DETECTION", value => \$telephoneNumberDetectionSupport },

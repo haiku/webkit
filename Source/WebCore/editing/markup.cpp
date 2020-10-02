@@ -584,7 +584,7 @@ void StyledMarkupAccumulator::appendEndTag(StringBuilder& out, const Element& el
 
 Node* StyledMarkupAccumulator::serializeNodes(const Position& start, const Position& end)
 {
-    ASSERT(comparePositions(start, end) <= 0);
+    ASSERT(start <= end);
     auto startNode = start.firstNode();
     Node* pastEnd = end.computeNodeAfterPosition();
     if (!pastEnd && end.containerNode())
@@ -839,7 +839,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
 {
     static NeverDestroyed<const String> interchangeNewlineString(MAKE_STATIC_STRING_IMPL("<br class=\"" AppleInterchangeNewline "\">"));
 
-    if (!comparePositions(start, end))
+    if (!(start < end))
         return emptyString();
 
     auto commonAncestor = commonInclusiveAncestor(start, end);
@@ -871,7 +871,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
         accumulator.append(interchangeNewlineString.get());
         startAdjustedForInterchangeNewline = visibleStart.next().deepEquivalent();
 
-        if (comparePositions(startAdjustedForInterchangeNewline, end) >= 0)
+        if (!(startAdjustedForInterchangeNewline < end))
             return interchangeNewlineString;
     }
 
@@ -935,7 +935,7 @@ static String serializePreservingVisualAppearanceInternal(const Position& start,
 
 String serializePreservingVisualAppearance(const SimpleRange& range, Vector<Node*>* nodes, AnnotateForInterchange annotate, ConvertBlocksToInlines convertBlocksToInlines, ResolveURLs resolveURLs)
 {
-    return serializePreservingVisualAppearanceInternal(createLegacyEditingPosition(range.start), createLegacyEditingPosition(range.end),
+    return serializePreservingVisualAppearanceInternal(makeDeprecatedLegacyPosition(range.start), makeDeprecatedLegacyPosition(range.end),
         nodes, resolveURLs, SerializeComposedTree::No,
         annotate, convertBlocksToInlines, StandardFontFamilySerializationMode::Keep, MSOListMode::DoNotPreserve);
 }
@@ -1000,9 +1000,9 @@ static void restoreAttachmentElementsInFragment(DocumentFragment& fragment)
         auto attachmentPath = attachment->attachmentPath();
         auto blobURL = attachment->blobURL();
         if (!attachmentPath.isEmpty())
-            attachment->setFile(File::create(attachmentPath));
+            attachment->setFile(File::create(fragment.ownerDocument(), attachmentPath));
         else if (!blobURL.isEmpty())
-            attachment->setFile(File::deserialize({ }, blobURL, attachment->attachmentType(), attachment->attachmentTitle()));
+            attachment->setFile(File::deserialize(fragment.ownerDocument(), { }, blobURL, attachment->attachmentType(), attachment->attachmentTitle()));
 
         // Remove temporary attributes that were previously added in StyledMarkupAccumulator::appendCustomAttributes.
         attachment->removeAttribute(webkitattachmentidAttr);
@@ -1114,13 +1114,13 @@ bool isPlainTextMarkup(Node* node)
 
 static bool contextPreservesNewline(const SimpleRange& context)
 {
-    auto container = VisiblePosition(createLegacyEditingPosition(context.start)).deepEquivalent().containerNode();
+    auto container = VisiblePosition(makeDeprecatedLegacyPosition(context.start)).deepEquivalent().containerNode();
     return container && container->renderer() && container->renderer()->style().preserveNewline();
 }
 
 Ref<DocumentFragment> createFragmentFromText(const SimpleRange& context, const String& text)
 {
-    auto& document = context.start.container->document();
+    auto& document = context.start.document();
     auto fragment = document.createDocumentFragment();
     
     if (text.isEmpty())
@@ -1157,7 +1157,7 @@ Ref<DocumentFragment> createFragmentFromText(const SimpleRange& context, const S
     }
 
     // Break string into paragraphs. Extra line breaks turn into empty paragraphs.
-    auto start = createLegacyEditingPosition(context.start);
+    auto start = makeDeprecatedLegacyPosition(context.start);
     auto block = enclosingBlock(start.firstNode().get());
     bool useClonesOfEnclosingBlock = block
         && !block->hasTagName(bodyTag)

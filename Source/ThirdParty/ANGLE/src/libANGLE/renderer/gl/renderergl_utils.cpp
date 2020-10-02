@@ -288,6 +288,18 @@ static gl::TextureCaps GenerateTextureFormatCaps(const FunctionsGL *functions,
     textureCaps.blendable         = textureCaps.renderbuffer || textureCaps.textureAttachment;
 
     // Do extra renderability validation for some formats.
+    if (internalFormat == GL_R16F || internalFormat == GL_RG16F || internalFormat == GL_RGB16F)
+    {
+        // SupportRequirement can't currently express a condition of the form (version && extension)
+        // || other extensions, so do the (version && extension) part here.
+        if (functions->isAtLeastGLES(gl::Version(3, 0)) &&
+            functions->hasGLESExtension("GL_EXT_color_buffer_half_float"))
+        {
+            textureCaps.textureAttachment = true;
+            textureCaps.renderbuffer      = true;
+        }
+    }
+
     // We require GL_RGBA16F is renderable to expose EXT_color_buffer_half_float but we can't know
     // if the format is supported unless we try to create a framebuffer.
     if (internalFormat == GL_RGBA16F)
@@ -1344,12 +1356,19 @@ void GenerateCaps(const FunctionsGL *functions,
         functions->hasGLESExtension("GL_EXT_compressed_ETC1_RGB8_sub_texture");
 
 #if defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
-    VendorID vendor = GetVendorID(functions);
-    if ((IsAMD(vendor) || IsIntel(vendor)) && *maxSupportedESVersion >= gl::Version(3, 0))
+    angle::SystemInfo info;
+    if (angle::GetSystemInfo(&info))
     {
-        // Apple Intel/AMD drivers do not correctly use the TEXTURE_SRGB_DECODE property of sampler
-        // states.  Disable this extension when we would advertise any ES version that has samplers.
-        extensions->textureSRGBDecode = false;
+        if (!info.isiOSAppOnMac)
+        {
+            VendorID vendor = GetVendorID(functions);
+            if ((IsAMD(vendor) || IsIntel(vendor)) && *maxSupportedESVersion >= gl::Version(3, 0))
+            {
+                // Apple Intel/AMD drivers do not correctly use the TEXTURE_SRGB_DECODE property of sampler
+                // states.  Disable this extension when we would advertise any ES version that has samplers.
+                extensions->textureSRGBDecode = false;
+            }
+        }
     }
 #endif
 
@@ -1481,7 +1500,8 @@ void GenerateCaps(const FunctionsGL *functions,
     // EXT_float_blend
     // Assume all desktop driver supports this by default.
     extensions->floatBlend = functions->standard == STANDARD_GL_DESKTOP ||
-                             functions->hasGLESExtension("GL_EXT_float_blend");
+                             functions->hasGLESExtension("GL_EXT_float_blend") ||
+                             functions->isAtLeastGLES(gl::Version(3, 2));
 
     // ANGLE_base_vertex_base_instance
     extensions->baseVertexBaseInstance =
@@ -1661,7 +1681,7 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // anglebug.com/3031
     // crbug.com/922936
     ANGLE_FEATURE_CONDITION(features, disableWorkerContexts,
-                            (IsWindows() && (isIntel || isAMD)) || (IsLinux() && isNvidia));
+                            (IsWindows() && (isIntel || isAMD)) || (IsLinux() && isNvidia) || IsIOS());
 
     bool limitMaxTextureSize = isIntel && IsLinux() && GetLinuxOSVersion() < OSVersion(5, 0, 0);
     ANGLE_FEATURE_CONDITION(features, limitMaxTextureSizeTo4096,

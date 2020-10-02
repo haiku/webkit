@@ -24,13 +24,13 @@
  */
 
 [
-    NoInterfaceObject,
+    LegacyNoInterfaceObject,
     Conditional=QUOTA,
     ImplementationLacksVTable,
 ] interface StorageInfo {
     const unsigned short TEMPORARY = 0;
     const unsigned short PERSISTENT = 1;
 
-    [CallWith=ScriptExecutionContext] void queryUsageAndQuota(unsigned short storageType, optional StorageUsageCallback? usageCallback, optional StorageErrorCallback? errorCallback);
-    [CallWith=ScriptExecutionContext] void requestQuota(unsigned short storageType, unsigned long long newQuotaInBytes, optional StorageQuotaCallback? quotaCallback, optional StorageErrorCallback? errorCallback);
+    [CallWith=ScriptExecutionContext] undefined queryUsageAndQuota(unsigned short storageType, optional StorageUsageCallback? usageCallback, optional StorageErrorCallback? errorCallback);
+    [CallWith=ScriptExecutionContext] undefined requestQuota(unsigned short storageType, unsigned long long newQuotaInBytes, optional StorageQuotaCallback? quotaCallback, optional StorageErrorCallback? errorCallback);
 };

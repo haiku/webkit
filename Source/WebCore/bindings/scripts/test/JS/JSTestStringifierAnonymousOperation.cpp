@@ -46,12 +46,12 @@ using namespace JSC;
 
 // Functions
 
-JSC::EncodedJSValue JSC_HOST_CALL jsTestStringifierAnonymousOperationPrototypeFunctionToString(JSC::JSGlobalObject*, JSC::CallFrame*);
+JSC_DECLARE_HOST_FUNCTION(jsTestStringifierAnonymousOperationPrototypeFunctionToString);
 
 // Attributes
 
-JSC::EncodedJSValue jsTestStringifierAnonymousOperationConstructor(JSC::JSGlobalObject*, JSC::EncodedJSValue, JSC::PropertyName);
-bool setJSTestStringifierAnonymousOperationConstructor(JSC::JSGlobalObject*, JSC::EncodedJSValue, JSC::EncodedJSValue);
+JSC_DECLARE_CUSTOM_GETTER(jsTestStringifierAnonymousOperationConstructor);
+JSC_DECLARE_CUSTOM_SETTER(setJSTestStringifierAnonymousOperationConstructor);
 
 class JSTestStringifierAnonymousOperationPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -161,7 +161,7 @@ template<> inline JSTestStringifierAnonymousOperation* IDLOperation<JSTestString
     return jsDynamicCast<JSTestStringifierAnonymousOperation*>(JSC::getVM(&lexicalGlobalObject), callFrame.thisValue());
 }
 
-EncodedJSValue jsTestStringifierAnonymousOperationConstructor(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, PropertyName)
+JSC_DEFINE_CUSTOM_GETTER(jsTestStringifierAnonymousOperationConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, PropertyName))
 {
     VM& vm = JSC::getVM(lexicalGlobalObject);
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -171,7 +171,7 @@ EncodedJSValue jsTestStringifierAnonymousOperationConstructor(JSGlobalObject* le
     return JSValue::encode(JSTestStringifierAnonymousOperation::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
 }
 
-bool setJSTestStringifierAnonymousOperationConstructor(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+JSC_DEFINE_CUSTOM_SETTER(setJSTestStringifierAnonymousOperationConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
 {
     VM& vm = JSC::getVM(lexicalGlobalObject);
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -194,7 +194,7 @@ static inline JSC::EncodedJSValue jsTestStringifierAnonymousOperationPrototypeFu
     RELEASE_AND_RETURN(throwScope, JSValue::encode(toJS<IDLDOMString>(*lexicalGlobalObject, impl.toString())));
 }
 
-EncodedJSValue JSC_HOST_CALL jsTestStringifierAnonymousOperationPrototypeFunctionToString(JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(jsTestStringifierAnonymousOperationPrototypeFunctionToString, (JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame))
 {
     return IDLOperation<JSTestStringifierAnonymousOperation>::call<jsTestStringifierAnonymousOperationPrototypeFunctionToStringBody>(*lexicalGlobalObject, *callFrame, "toString");
 }

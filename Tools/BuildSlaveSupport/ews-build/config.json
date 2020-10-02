@@ -397,6 +397,7 @@
       "platform": "ios-simulator-13",
       "configuration": "release",
       "architectures": ["x86_64"],
+      "triggered_by": ["ios-13-sim-build-ews"],
       "workernames": ["ews121", "ews122", "ews123", "ews124", "ews125", "ews126"]
     },
     {
@@ -428,6 +429,7 @@
       "platform": "mac-mojave",
       "configuration": "release",
       "architectures": ["x86_64"],
+      "triggered_by": ["macos-mojave-release-build-ews"],
       "workernames": ["ews100", "ews101", "ews102", "ews103"]
     },
     {
@@ -438,6 +440,7 @@
       "platform": "mac-mojave",
       "configuration": "release",
       "architectures": ["x86_64"],
+      "triggered_by": ["macos-mojave-release-build-ews"],
       "workernames": ["ews104", "ews105", "ews106", "ews107"]
     },
     {
@@ -459,6 +462,7 @@
       "platform": "mac-mojave",
       "configuration": "debug",
       "architectures": ["x86_64"],
+      "triggered_by": ["macos-mojave-debug-build-ews"],
       "workernames": ["ews112", "ews113", "ews115", "ews117"]
     },
     {
@@ -550,12 +554,12 @@
       "configuration": "release",
       "architectures": ["mipsel"],
       "triggers": ["jsc-tests-mipsel-tests-ews"],
-      "workernames": ["igalia-jsc32-mipsel-ews-03"]
+      "workernames": ["igalia-jsc32-mipsel-ews", "igalia-jsc32-mipsel-ews-03"]
     },
 	{
       "name": "JSC-MIPSEL-32bits-Tests-EWS",
       "shortname": "jsc-mips-tests",
-      "icon": "buildAndTest",
+      "icon": "testOnly",
       "factory": "JSCTestsFactory",
       "platform": "jsc-only",
       "configuration": "release",
@@ -565,23 +569,24 @@
     },
     {
       "name": "JSC-ARMv7-32bits-Build-EWS",
-      "shortname": "jsc-build-armv7",
+      "shortname": "jsc-armv7",
       "icon": "buildOnly",
       "factory": "JSCBuildFactory",
       "platform": "jsc-only",
       "configuration": "release",
       "architectures": ["armv7"],
-      "workernames": ["igalia-jsc32-armv7-ews-03"]
+      "triggers": ["jsc-tests-armv7-tests-ews"],
+      "workernames": ["igalia-jsc32-armv7-ews"]
     },
     {
-      "name": "JSC-ARMv7-32bits-EWS",
-      "shortname": "jsc-armv7",
-      "icon": "buildAndTest",
-      "factory": "JSCBuildAndTestsFactory",
+      "name": "JSC-ARMv7-32bits-Tests-EWS",
+      "shortname": "jsc-armv7-tests",
+      "icon": "testOnly",
+      "factory": "JSCTestsFactory",
       "platform": "jsc-only",
       "configuration": "release",
       "architectures": ["armv7"],
-      "workernames": ["igalia-jsc32-armv7-ews", "igalia-jsc32-armv7-ews-02"],
+      "workernames": ["igalia-jsc32-armv7-ews"],
       "remotes": "../../EWS-test-devices.json"
     },
     {
@@ -626,6 +631,7 @@
       "icon": "testOnly",
       "factory": "APITestsFactory",
       "platform": "*",
+      "triggered_by": ["ios-13-sim-build-ews"],
       "workernames": ["ews156", "ews157", "ews158", "ews159"]
     },
     {
@@ -634,6 +640,7 @@
       "icon": "testOnly",
       "factory": "APITestsFactory",
       "platform": "*",
+      "triggered_by": ["macos-mojave-release-build-ews"],
       "workernames": ["ews119", "ews150", "ews153", "ews155"]
     },
     {
@@ -671,8 +678,7 @@
       "name": "try",
       "port": 5555,
       "builderNames": ["Apply-WatchList-EWS", "Bindings-Tests-EWS", "GTK-Build-EWS", "iOS-13-Build-EWS", "iOS-13-Simulator-Build-EWS",
-                       "JSC-ARMv7-32bits-Build-EWS", "JSC-ARMv7-32bits-EWS", "JSC-i386-32bits-EWS", "JSC-MIPSEL-32bits-Build-EWS",
-                       "JSC-Tests-EWS",
+                       "JSC-ARMv7-32bits-Build-EWS", "JSC-i386-32bits-EWS", "JSC-MIPSEL-32bits-Build-EWS", "JSC-Tests-EWS",
                        "macOS-Apple-Silicon-Big-Sur-Release-Build-EWS", "macOS-Mojave-Debug-Build-EWS", "macOS-Mojave-Release-Build-EWS",
                        "Services-EWS", "Style-EWS",
                        "tvOS-13-Build-EWS", "tvOS-13-Simulator-Build-EWS", "watchOS-6-Build-EWS", "watchOS-6-Simulator-Build-EWS",
@@ -686,9 +692,23 @@
     },
     {
       "type": "Triggerable",
+      "name": "macos-mojave-debug-build-ews",
+      "builderNames": [
+        "macOS-Mojave-Debug-Build-EWS"
+      ]
+    },
+    {
+      "type": "Triggerable",
       "name": "macos-mojave-debug-wk1-tests-ews",
       "builderNames": [
         "macOS-Mojave-Debug-WK1-Tests-EWS"
+      ]
+    },
+    {
+      "type": "Triggerable",
+      "name": "macos-mojave-release-build-ews",
+      "builderNames": [
+        "macOS-Mojave-Release-Build-EWS"
       ]
     },
     {
@@ -703,6 +723,13 @@
       "name": "macos-mojave-release-wk2-tests-ews",
       "builderNames": [
         "macOS-Mojave-Release-WK2-Tests-EWS"
+      ]
+    },
+    {
+      "type": "Triggerable",
+      "name": "ios-13-sim-build-ews",
+      "builderNames": [
+        "iOS-13-Simulator-Build-EWS"
       ]
     },
     {
@@ -746,6 +773,13 @@
       "name": "jsc-tests-mipsel-tests-ews",
       "builderNames": [
         "JSC-MIPSEL-32bits-Tests-EWS"
+      ]
+    },
+    {
+      "type": "Triggerable",
+      "name": "jsc-tests-armv7-tests-ews",
+      "builderNames": [
+        "JSC-ARMv7-32bits-Tests-EWS"
       ]
     }
   ]

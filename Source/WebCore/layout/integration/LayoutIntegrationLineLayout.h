@@ -28,9 +28,9 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "LayoutIntegrationBoxTree.h"
+#include "LayoutIntegrationRunIterator.h"
 #include "LayoutPoint.h"
 #include "LayoutState.h"
-#include "LineLayoutTraversal.h"
 #include "RenderObjectEnums.h"
 
 namespace WebCore {
@@ -47,10 +47,6 @@ namespace Display {
 struct InlineContent;
 }
 
-namespace Layout {
-class LayoutTreeContent;
-}
-
 namespace LayoutIntegration {
 
 class LineLayout {
@@ -59,7 +55,9 @@ public:
     LineLayout(const RenderBlockFlow&);
     ~LineLayout();
 
-    static bool canUseFor(const RenderBlockFlow&, Optional<bool> couldUseSimpleLineLayout = { });
+    static bool isEnabled();
+    static bool canUseFor(const RenderBlockFlow&);
+    static bool canUseForAfterStyleChange(const RenderBlockFlow&, StyleDifference);
 
     void updateStyle();
     void layout();
@@ -70,21 +68,25 @@ public:
     LayoutUnit firstLineBaseline() const;
     LayoutUnit lastLineBaseline() const;
 
+    void adjustForPagination(RenderBlockFlow&);
     void collectOverflow(RenderBlockFlow&);
 
-    const Display::InlineContent* displayInlineContent() const;
+    const Display::InlineContent* displayInlineContent() const { return m_displayInlineContent.get(); }
+    bool isPaginated() const { return !!m_paginatedHeight; }
 
     void paint(PaintInfo&, const LayoutPoint& paintOffset);
     bool hitTest(const HitTestRequest&, HitTestResult&, const HitTestLocation&, const LayoutPoint& accumulatedOffset, HitTestAction);
 
-    LineLayoutTraversal::TextBoxIterator textBoxesFor(const RenderText&) const;
-    LineLayoutTraversal::ElementBoxIterator elementBoxFor(const RenderLineBreak&) const;
+    TextRunIterator textRunsFor(const RenderText&) const;
+    RunIterator runFor(const RenderElement&) const;
 
     static void releaseCaches(RenderView&);
 
 private:
     void prepareLayoutState();
     void prepareFloatingState();
+    void constructDisplayContent();
+    Display::InlineContent& ensureDisplayInlineContent();
 
     const Layout::ContainerBox& rootLayoutBox() const;
     Layout::ContainerBox& rootLayoutBox();
@@ -95,6 +97,8 @@ private:
     BoxTree m_boxTree;
     Layout::LayoutState m_layoutState;
     Layout::InlineFormattingState& m_inlineFormattingState;
+    RefPtr<Display::InlineContent> m_displayInlineContent;
+    Optional<LayoutUnit> m_paginatedHeight;
 };
 
 }

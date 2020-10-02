@@ -31,6 +31,7 @@
 #if PLATFORM(MAC)
 @property (nonatomic, copy) void (^getContextMenuFromProposedMenu)(NSMenu *, _WKContextMenuElementInfo *, id <NSSecureCoding>, void (^)(NSMenu *));
 #endif
+@property (nonatomic, copy) void (^saveDataToFile)(WKWebView *, NSData *, NSString *, NSString *, NSURL *);
 
 - (NSString *)waitForAlert;
 

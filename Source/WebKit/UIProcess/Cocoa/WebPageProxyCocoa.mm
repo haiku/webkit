@@ -28,6 +28,7 @@
 
 #import "APIAttachment.h"
 #import "APIUIClient.h"
+#import "CocoaImage.h"
 #import "Connection.h"
 #import "DataDetectionResult.h"
 #import "InsertTextOptions.h"
@@ -43,18 +44,27 @@
 #import "WebsiteDataStore.h"
 #import "WKErrorInternal.h"
 #import <WebCore/DragItem.h>
+#import <WebCore/GeometryUtilities.h>
 #import <WebCore/LocalCurrentGraphicsContext.h>
 #import <WebCore/NotImplemented.h>
+#import <WebCore/RunLoopObserver.h>
 #import <WebCore/SearchPopupMenuCocoa.h>
 #import <WebCore/TextAlternativeWithRange.h>
 #import <WebCore/ValidationBubble.h>
 #import <pal/spi/cocoa/NEFilterSourceSPI.h>
+#import <pal/spi/cocoa/QuartzCoreSPI.h>
 #import <wtf/BlockPtr.h>
 #import <wtf/SoftLinking.h>
 #import <wtf/cf/TypeCastsCF.h>
 
 #if ENABLE(MEDIA_USAGE)
 #import "MediaUsageManagerCocoa.h"
+#endif
+
+#if USE(APPKIT)
+#import <AppKit/NSImage.h>
+#else
+#import <UIKit/UIImage.h>
 #endif
 
 #if PLATFORM(IOS)
@@ -299,6 +309,15 @@ void WebPageProxy::insertDictatedTextAsync(const String& text, const EditingRang
     send(Messages::WebPage::InsertDictatedTextAsync { text, replacementRange, dictationAlternatives, WTFMove(options) });
 }
 
+#if USE(DICTATION_ALTERNATIVES)
+
+NSTextAlternatives *WebPageProxy::platformDictationAlternatives(WebCore::DictationContext dictationContext)
+{
+    return pageClient().platformDictationAlternatives(dictationContext);
+}
+
+#endif
+
 ResourceError WebPageProxy::errorForUnpermittedAppBoundDomainNavigation(const URL& url)
 {
     return { WKErrorDomain, WKErrorNavigationAppBoundDomain, url, localizedDescriptionForErrorCode(WKErrorNavigationAppBoundDomain) };
@@ -426,10 +445,14 @@ void WebPageProxy::removeMediaUsageManagerSession(WebCore::MediaSessionIdentifie
 
 #if HAVE(QUICKLOOK_THUMBNAILING)
 
-static RefPtr<WebKit::ShareableBitmap> convertPlatformImageToBitmap(CocoaImage *image, const WebCore::IntSize& size)
+static RefPtr<WebKit::ShareableBitmap> convertPlatformImageToBitmap(CocoaImage *image, const WebCore::IntSize& fittingSize)
 {
+    FloatSize originalThumbnailSize([image size]);
+    auto resultRect = roundedIntRect(largestRectWithAspectRatioInsideRect(originalThumbnailSize.aspectRatio(), { { }, fittingSize }));
+    resultRect.setLocation({ });
+
     WebKit::ShareableBitmap::Configuration bitmapConfiguration;
-    auto bitmap = WebKit::ShareableBitmap::createShareable(size, bitmapConfiguration);
+    auto bitmap = WebKit::ShareableBitmap::createShareable(resultRect.size(), bitmapConfiguration);
     if (!bitmap)
         return nullptr;
 
@@ -439,9 +462,9 @@ static RefPtr<WebKit::ShareableBitmap> convertPlatformImageToBitmap(CocoaImage *
 
     LocalCurrentGraphicsContext savedContext(*graphicsContext);
 #if PLATFORM(IOS_FAMILY)
-    [image drawInRect:CGRectMake(0, 0, bitmap->size().width(), bitmap->size().height())];
+    [image drawInRect:resultRect];
 #elif USE(APPKIT)
-    [image drawInRect:NSMakeRect(0, 0, bitmap->size().width(), bitmap->size().height()) fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];
+    [image drawInRect:resultRect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];
 #endif
 
     return bitmap;
@@ -477,6 +500,49 @@ void WebPageProxy::requestThumbnailWithPath(const String& identifier, const Stri
 }
 
 #endif // HAVE(QUICKLOOK_THUMBNAILING)
+
+void WebPageProxy::scheduleActivityStateUpdate()
+{
+    bool hasScheduledObserver = m_activityStateChangeDispatcher->isScheduled();
+    bool hasActiveCATransaction = [CATransaction currentState];
+
+    if (hasScheduledObserver && hasActiveCATransaction) {
+        ASSERT(m_hasScheduledActivityStateUpdate);
+        m_hasScheduledActivityStateUpdate = false;
+        m_activityStateChangeDispatcher->invalidate();
+    }
+
+    if (m_hasScheduledActivityStateUpdate)
+        return;
+    m_hasScheduledActivityStateUpdate = true;
+
+    // If there is an active transaction, we need to dispatch the update after the transaction is committed,
+    // to avoid flash caused by web process setting root layer too early.
+    // If there is no active transaction, likely there is no root layer change or change is committed,
+    // then schedule dispatch on runloop observer to collect changes in the same runloop cycle before dispatching.
+    if (hasActiveCATransaction) {
+        [CATransaction addCommitHandler:[weakThis = makeWeakPtr(*this)] {
+            auto protectedThis = makeRefPtr(weakThis.get());
+            if (!protectedThis)
+                return;
+
+            protectedThis->dispatchActivityStateChange();
+        } forPhase:kCATransactionPhasePostCommit];
+        return;
+    }
+
+    m_activityStateChangeDispatcher->schedule();
+}
+
+void WebPageProxy::addActivityStateUpdateCompletionHandler(CompletionHandler<void()>&& completionHandler)
+{
+    if (!m_hasScheduledActivityStateUpdate) {
+        completionHandler();
+        return;
+    }
+
+    m_activityStateUpdateCallbacks.append(WTFMove(completionHandler));
+}
 
 } // namespace WebKit
 

@@ -2288,11 +2288,13 @@
    },
    "Guowei Yang" : {
       "emails" : [
-         "guowei_yang@apple.com"
+         "frankhome61@hotmail.com",
+         "guowei@framiere.com"
       ],
       "nicks" : [
          "frank"
-      ]
+      ],
+      "status" : "committer"
    },
    "Gurpreet Kaur" : {
       "emails" : [
@@ -2635,8 +2637,9 @@
       ],
       "expertise" : "WebGL (Chromium and Safari ports)",
       "nicks" : [
-         "darpinian"
-      ]
+         "jdarpinian"
+      ],
+      "status" : "committer"
    },
    "James Hawkins" : {
       "emails" : [
@@ -3475,9 +3478,7 @@
    },
    "Kimmo Kinnunen" : {
       "emails" : [
-         "kimmo.t.kinnunen@nokia.com",
-         "kimmok@iki.fi",
-         "ktkinnun@webkit.org"
+         "kkinnunen@apple.com"
       ],
       "nicks" : [
          "kimmok"

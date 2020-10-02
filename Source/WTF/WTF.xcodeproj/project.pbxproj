@@ -373,6 +373,7 @@
 		413FE8F51F8D2EAB00F6D7D7 /* CallbackAggregator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CallbackAggregator.h; sourceTree = "<group>"; };
 		430B47871AAAAC1A001223DA /* StringCommon.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StringCommon.h; sourceTree = "<group>"; };
 		4427C5A921F6D6C300A612A4 /* ASCIICType.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ASCIICType.cpp; sourceTree = "<group>"; };
+		4468567225094FE8008CCA05 /* ThreadSanitizerSupport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThreadSanitizerSupport.h; sourceTree = "<group>"; };
 		46BA9EAB1F4CD61E009A2BBC /* CompletionHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CompletionHandler.h; sourceTree = "<group>"; };
 		46BEB6E922FFDDD500269867 /* RefCounted.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = RefCounted.cpp; sourceTree = "<group>"; };
 		50DE35F3215BB01500B979C7 /* ExternalStringImpl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ExternalStringImpl.cpp; sourceTree = "<group>"; };
@@ -496,6 +497,7 @@
 		974CFC8D16A4F327006D5404 /* WeakPtr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WeakPtr.h; sourceTree = "<group>"; };
 		996B17841EBA441C007E10EB /* DebugUtilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DebugUtilities.h; sourceTree = "<group>"; };
 		9B67F3F12228D5310030DE9C /* WeakHashSet.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WeakHashSet.h; sourceTree = "<group>"; };
+		9B96E9B324FF77B8001756C3 /* CompactUniquePtrTuple.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CompactUniquePtrTuple.h; sourceTree = "<group>"; };
 		9BC70F04176C379D00101DEC /* AtomStringTable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AtomStringTable.cpp; sourceTree = "<group>"; };
 		9BD8F40A176C2AD80002D865 /* AtomStringTable.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AtomStringTable.h; sourceTree = "<group>"; };
 		9C67C542589348E285B49699 /* IndexedContainerIterator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IndexedContainerIterator.h; sourceTree = "<group>"; };
@@ -703,6 +705,7 @@
 		DCEE21FD1CEA7551000C2396 /* BlockObjCExceptions.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = BlockObjCExceptions.mm; sourceTree = "<group>"; };
 		DCEE22041CEB9869000C2396 /* BackwardsGraph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BackwardsGraph.h; sourceTree = "<group>"; };
 		DEF7FE5F22581AC800C15129 /* TaggedArrayStoragePtr.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TaggedArrayStoragePtr.h; sourceTree = "<group>"; };
+		DFC610A724FB71B9006254C8 /* CodePointIterator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CodePointIterator.h; sourceTree = "<group>"; };
 		E15556F318A0CC18006F48FB /* CryptographicUtilities.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CryptographicUtilities.cpp; sourceTree = "<group>"; };
 		E15556F418A0CC18006F48FB /* CryptographicUtilities.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CryptographicUtilities.h; sourceTree = "<group>"; };
 		E300E521203D645F00DA79BE /* UniqueArray.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UniqueArray.h; sourceTree = "<group>"; };
@@ -972,6 +975,7 @@
 				0FC4EDE51696149600F65041 /* CommaPrinter.h */,
 				E3CF76902115D6BA0091DE48 /* CompactPointerTuple.h */,
 				E38020DB2401C0930037CA9E /* CompactRefPtrTuple.h */,
+				9B96E9B324FF77B8001756C3 /* CompactUniquePtrTuple.h */,
 				0F8F2B8F172E00F0007DBDA5 /* CompilationThread.cpp */,
 				0F8F2B90172E00F0007DBDA5 /* CompilationThread.h */,
 				A8A47270151A825A004123FF /* Compiler.h */,
@@ -1266,6 +1270,7 @@
 				5311BD5B1EA822F900525281 /* ThreadMessage.cpp */,
 				5311BD591EA81A9600525281 /* ThreadMessage.h */,
 				A8A4733E151A825B004123FF /* ThreadSafeRefCounted.h */,
+				4468567225094FE8008CCA05 /* ThreadSanitizerSupport.h */,
 				A8A4733F151A825B004123FF /* ThreadSpecific.h */,
 				0F66B2861DC97BAB004A1D3F /* TimeWithDynamicClockType.cpp */,
 				0F66B2871DC97BAB004A1D3F /* TimeWithDynamicClockType.h */,
@@ -1378,6 +1383,7 @@
 				9BD8F40A176C2AD80002D865 /* AtomStringTable.h */,
 				8134013615B092FD001FF0B8 /* Base64.cpp */,
 				8134013715B092FD001FF0B8 /* Base64.h */,
+				DFC610A724FB71B9006254C8 /* CodePointIterator.h */,
 				0F8F2B9B172F2594007DBDA5 /* ConversionMode.h */,
 				A8A47321151A825B004123FF /* CString.cpp */,
 				A8A47322151A825B004123FF /* CString.h */,
@@ -1611,7 +1617,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [[ \"${DEPLOYMENT_LOCATION}\" == \"NO\" ]]; then\n    PRIVATE_HEADERS_PATH=\"${TARGET_BUILD_DIR%/}/${PRIVATE_HEADERS_FOLDER_PATH}\"\n    ICU_PRIVATE_HEADERS_PATH=\"${TARGET_BUILD_DIR%/}/${ICU_PRIVATE_HEADERS_FOLDER_PATH}\"\nelse\n    PRIVATE_HEADERS_PATH=\"${DSTROOT}/${PRIVATE_HEADERS_FOLDER_PATH}\"\n    ICU_PRIVATE_HEADERS_PATH=\"${DSTROOT}/${ICU_PRIVATE_HEADERS_FOLDER_PATH}\"\nfi;\n\nmkdir -p \"${PRIVATE_HEADERS_PATH}\"\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.h\" --exclude \"*\" \"${SRCROOT}/wtf/\" \"${PRIVATE_HEADERS_PATH}\"\n\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.rb\" --exclude \"*\" \"${SRCROOT}/Scripts\" \"${PRIVATE_HEADERS_PATH}\"\n\nif [[ \"${USE_INTERNAL_SDK}\" != \"YES\" ]]; then\nmkdir -p \"${ICU_PRIVATE_HEADERS_PATH}\"\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.h\" --exclude \"*\" \"${SRCROOT}/icu/\" \"${ICU_PRIVATE_HEADERS_PATH}\"\nfi\n";
+			shellScript = "if [[ \"${DEPLOYMENT_LOCATION}\" == \"NO\" ]]; then\n    PRIVATE_HEADERS_PATH=\"${TARGET_BUILD_DIR%/}/${PRIVATE_HEADERS_FOLDER_PATH}\"\n    ICU_PRIVATE_HEADERS_PATH=\"${TARGET_BUILD_DIR%/}/${ICU_PRIVATE_HEADERS_FOLDER_PATH}\"\nelse\n    PRIVATE_HEADERS_PATH=\"${DSTROOT}/${PRIVATE_HEADERS_FOLDER_PATH}\"\n    ICU_PRIVATE_HEADERS_PATH=\"${DSTROOT}/${ICU_PRIVATE_HEADERS_FOLDER_PATH}\"\nfi;\n\necho \"${PRIVATE_HEADERS_PATH}\"\nmkdir -p \"${PRIVATE_HEADERS_PATH}\"\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.h\" --exclude \"*\" \"${SRCROOT}/wtf/\" \"${PRIVATE_HEADERS_PATH}\"\n\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.rb\" --include=\"*/*.yaml\" --exclude \"*\" \"${SRCROOT}/Scripts\" \"${PRIVATE_HEADERS_PATH}\"\n\nif [[ \"${USE_INTERNAL_SDK}\" != \"YES\" ]]; then\nmkdir -p \"${ICU_PRIVATE_HEADERS_PATH}\"\nrsync -av --no-owner --no-group --prune-empty-dirs --exclude \".svn\" --exclude \"usr\" --exclude \"DerivedSources\" --include \"*/\" --include \"*.h\" --exclude \"*\" \"${SRCROOT}/icu/\" \"${ICU_PRIVATE_HEADERS_PATH}\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -18,13 +18,15 @@
  * Boston, MA 02110-1301, USA.
  */
 
-interface HTMLBodyElement : HTMLElement {
-    [CEReactions=NotNeeded, Reflect] attribute [TreatNullAs=EmptyString] DOMString aLink;
+[
+    Exposed=Window
+] interface HTMLBodyElement : HTMLElement {
+    [CEReactions=NotNeeded, Reflect] attribute [LegacyNullToEmptyString] DOMString aLink;
     [CEReactions=NotNeeded, Reflect] attribute DOMString background;
-    [CEReactions=NotNeeded, Reflect] attribute [TreatNullAs=EmptyString] DOMString bgColor;
-    [CEReactions=NotNeeded, Reflect] attribute [TreatNullAs=EmptyString] DOMString link;
-    [CEReactions=NotNeeded, Reflect] attribute [TreatNullAs=EmptyString] DOMString text;
-    [CEReactions=NotNeeded, Reflect] attribute [TreatNullAs=EmptyString] DOMString vLink;
+    [CEReactions=NotNeeded, Reflect] attribute [LegacyNullToEmptyString] DOMString bgColor;
+    [CEReactions=NotNeeded, Reflect] attribute [LegacyNullToEmptyString] DOMString link;
+    [CEReactions=NotNeeded, Reflect] attribute [LegacyNullToEmptyString] DOMString text;
+    [CEReactions=NotNeeded, Reflect] attribute [LegacyNullToEmptyString] DOMString vLink;
 
     [NotEnumerable, WindowEventHandler] attribute EventHandler onblur;
     [NotEnumerable, WindowEventHandler] attribute EventHandler onerror;
@@ -44,4 +46,4 @@ interface HTMLBodyElement : HTMLElement {
     [NotEnumerable, DocumentEventHandler] attribute EventHandler onselectionchange;
 };
 
-HTMLBodyElement implements WindowEventHandlers;
+HTMLBodyElement includes WindowEventHandlers;

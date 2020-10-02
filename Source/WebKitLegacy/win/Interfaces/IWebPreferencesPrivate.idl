@@ -183,16 +183,12 @@ interface IWebPreferencesPrivate3 : IWebPreferencesPrivate2
     HRESULT setCustomElementsEnabled([in] BOOL enabled);
     HRESULT modernMediaControlsEnabled([out, retval] BOOL* enabled);
     HRESULT setModernMediaControlsEnabled([in] BOOL enabled);
-    HRESULT webAnimationsCSSIntegrationEnabled([out, retval] BOOL* enabled);
-    HRESULT setWebAnimationsCSSIntegrationEnabled([in] BOOL enabled);
 }
 
 [uuid(F9582D72-6348-45B1-AB09-39E33459B5B9)]
 interface IWebPreferencesPrivate4 : IWebPreferencesPrivate3
 {
     HRESULT setApplicationId([in] BSTR applicationId);
-    HRESULT webAnimationsEnabled([out, retval] BOOL*);
-    HRESULT setWebAnimationsEnabled([in] BOOL enabled);
     HRESULT userTimingEnabled([out, retval] BOOL*);
     HRESULT setUserTimingEnabled([in] BOOL enabled);
     HRESULT resourceTimingEnabled([out, retval] BOOL*);
@@ -260,6 +256,8 @@ interface IWebPreferencesPrivate7 : IWebPreferencesPrivate6
     HRESULT setAspectRatioOfImgFromWidthAndHeightEnabled([in] BOOL enabled);
     HRESULT setWebSQLEnabled([in] BOOL enabled);
     HRESULT webSQLEnabled([out, retval] BOOL* enabled);
+    HRESULT CSSIndividualTransformPropertiesEnabled([out, retval] BOOL* enabled);
+    HRESULT setCSSIndividualTransformPropertiesEnabled([in] BOOL enabled);
 }
 
 [uuid(04D4AAE1-5D01-4CCD-B46E-C022F10A6826)]

@@ -213,7 +213,8 @@ void WebPasteboardProxy::getPasteboardBufferForType(IPC::Connection& connection,
         return completionHandler({ });
     memcpy(sharedMemoryBuffer->data(), buffer->data(), size);
     SharedMemory::Handle handle;
-    sharedMemoryBuffer->createHandle(handle, SharedMemory::Protection::ReadOnly);
+    if (!sharedMemoryBuffer->createHandle(handle, SharedMemory::Protection::ReadOnly))
+        return completionHandler({ });
     completionHandler(SharedMemory::IPCHandle { WTFMove(handle), size });
 }
 
@@ -269,7 +270,10 @@ void WebPasteboardProxy::setPasteboardURL(IPC::Connection& connection, const Pas
     MESSAGE_CHECK_COMPLETION(!pasteboardName.isEmpty(), completionHandler(0));
 
     if (auto* webProcessProxy = webProcessProxyForConnection(connection)) {
-        if (!webProcessProxy->checkURLReceivedFromWebProcess(pasteboardURL.url.string()))
+        if (!pasteboardURL.url.isValid())
+            return completionHandler(0);
+
+        if (!webProcessProxy->checkURLReceivedFromWebProcess(pasteboardURL.url.string(), CheckBackForwardList::No))
             return completionHandler(0);
 
         auto previousChangeCount = PlatformPasteboard(pasteboardName).changeCount();
@@ -430,7 +434,8 @@ void WebPasteboardProxy::readBufferFromPasteboard(IPC::Connection& connection, s
         return completionHandler({ });
     memcpy(sharedMemoryBuffer->data(), buffer->data(), size);
     SharedMemory::Handle handle;
-    sharedMemoryBuffer->createHandle(handle, SharedMemory::Protection::ReadOnly);
+    if (!sharedMemoryBuffer->createHandle(handle, SharedMemory::Protection::ReadOnly))
+        return completionHandler({ });
     completionHandler(SharedMemory::IPCHandle { WTFMove(handle), size });
 }
 

@@ -265,6 +265,8 @@ typedef enum {
 
 @interface UIImagePickerController ()
 @property (nonatomic, setter=_setAllowsMultipleSelection:) BOOL _allowsMultipleSelection;
+@property (nonatomic, setter=_setRequiresPickingConfirmation:) BOOL _requiresPickingConfirmation;
+@property (nonatomic, setter=_setShowsFileSizePicker:) BOOL _showsFileSizePicker;
 @end
 
 @interface UIImage ()
@@ -307,6 +309,7 @@ typedef enum {
 
 @interface UIKeyboardImpl : UIView <UIKeyboardCandidateListDelegate>
 - (BOOL)smartInsertDeleteIsEnabled;
++ (BOOL)smartInsertDeleteIsEnabled;
 - (void)updateForChangedSelection;
 - (void)setCorrectionLearningAllowed:(BOOL)allowed;
 @end
@@ -487,7 +490,6 @@ typedef enum {
 - (void)modifierFlagsDidChangeFrom:(UIKeyModifierFlags)oldFlags to:(UIKeyModifierFlags)newFlags;
 #endif
 @property (nonatomic) UITextGranularity selectionGranularity;
-@property (nonatomic, readonly) CGRect _selectionClipRect;
 @required
 - (BOOL)hasContent;
 - (BOOL)hasSelection;
@@ -734,6 +736,7 @@ typedef NS_ENUM(NSInteger, UIWKGestureType) {
 - (void)requestDictationContext:(void (^)(NSString *selectedText, NSString *prefixText, NSString *postfixText))completionHandler;
 - (BOOL)pointIsNearMarkedText:(CGPoint)point;
 - (NSString *)selectedText;
+- (NSArray<NSTextAlternatives *> *)alternativesForSelectedText;
 - (void)replaceText:(NSString *)text withText:(NSString *)word;
 - (void)selectWordForReplacement;
 - (BOOL)isReplaceAllowed;
@@ -1373,6 +1376,11 @@ typedef NS_ENUM(NSUInteger, _UIContextMenuLayout) {
 @property (nonatomic, assign) NSString *password;
 @end
 #endif
+
+@protocol UITextInputInternal <UITextInputPrivate>
+@optional
+@property (nonatomic, readonly) CGRect _selectionClipRect;
+@end
 
 @interface UIDevice ()
 @property (nonatomic, setter=_setBacklightLevel:) float _backlightLevel;

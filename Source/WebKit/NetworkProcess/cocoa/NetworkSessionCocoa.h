@@ -33,6 +33,7 @@ OBJC_CLASS NSURLSessionDownloadTask;
 OBJC_CLASS NSOperationQueue;
 OBJC_CLASS WKNetworkSessionDelegate;
 OBJC_CLASS WKNetworkSessionWebSocketDelegate;
+OBJC_CLASS _NSHSTSStorage;
 
 #include "DownloadID.h"
 #include "NetworkDataTaskCocoa.h"
@@ -94,16 +95,19 @@ public:
     bool hasIsolatedSession(const WebCore::RegistrableDomain) const override;
     void clearIsolatedSessions() override;
 
+#if ENABLE(APP_BOUND_DOMAINS)
     bool hasAppBoundSession() const override { return !!m_appBoundSession; }
+    void clearAppBoundSession() override;
+#endif
 
     SessionWrapper& sessionWrapperForTask(const WebCore::ResourceRequest&, WebCore::StoredCredentialsPolicy, Optional<NavigatingToAppBoundDomain>);
-    void clearAppBoundSession() override;
     bool preventsSystemHTTPProxyAuthentication() const { return m_preventsSystemHTTPProxyAuthentication; }
     
     void clientCertificateSuggestedForHost(NetworkDataTaskCocoa::TaskIdentifier, NSURLCredential *, const String& host, uint16_t port);
     void taskServerConnectionSucceeded(NetworkDataTaskCocoa::TaskIdentifier);
     void taskFailed(NetworkDataTaskCocoa::TaskIdentifier);
     NSURLCredential *successfulClientCertificateForHost(const String& host, uint16_t port) const;
+    _NSHSTSStorage *hstsStorage() const;
 
 private:
     void invalidateAndCancel() override;
@@ -111,7 +115,10 @@ private:
     bool shouldLogCookieInformation() const override { return m_shouldLogCookieInformation; }
     Seconds loadThrottleLatency() const override { return m_loadThrottleLatency; }
     SessionWrapper& isolatedSession(WebCore::StoredCredentialsPolicy, const WebCore::RegistrableDomain, NavigatingToAppBoundDomain);
+
+#if ENABLE(APP_BOUND_DOMAINS)
     SessionWrapper& appBoundSession(WebCore::StoredCredentialsPolicy);
+#endif
 
     Vector<WebCore::SecurityOriginData> hostNamesWithAlternativeServices() const override;
     void deleteAlternativeServicesForHostNames(const Vector<String>&) override;

@@ -46,6 +46,7 @@
 #include "JSTemplateObjectDescriptor.h"
 #include "LinkTimeConstant.h"
 #include "Options.h"
+#include "PrivateFieldPutKind.h"
 #include "StrongInlines.h"
 #include "UnlinkedCodeBlock.h"
 #include "UnlinkedEvalCodeBlock.h"
@@ -959,6 +960,7 @@ BytecodeGenerator::BytecodeGenerator(VM& vm, ModuleProgramNode* moduleProgramNod
 
     // Now declare all variables.
 
+    createVariable(m_vm.propertyNames->starNamespacePrivateName, VarKind::Scope, moduleEnvironmentSymbolTable, VerifyExisting);
     createVariable(m_vm.propertyNames->builtinNames().metaPrivateName(), VarKind::Scope, moduleEnvironmentSymbolTable, VerifyExisting);
 
     for (auto& entry : moduleProgramNode->varDeclarations()) {
@@ -1704,7 +1706,7 @@ bool BytecodeGenerator::emitEqualityOpImpl(RegisterID* dst, RegisterID* src1, Re
                 OpIsCellWithType::emit(this, dst, op.m_value, SymbolType);
                 return true;
             }
-            if (Options::useBigInt() && value == "bigint") {
+            if (value == "bigint") {
                 rewind();
 #if USE(BIGINT32)
                 OpIsBigInt::emit(this, dst, op.m_value);
@@ -2576,7 +2578,7 @@ RegisterID* BytecodeGenerator::emitPutById(RegisterID* base, RegisterID* thisVal
     return value;
 }
 
-RegisterID* BytecodeGenerator::emitDirectPutById(RegisterID* base, const Identifier& property, RegisterID* value, PropertyNode::PutType putType)
+RegisterID* BytecodeGenerator::emitDirectPutById(RegisterID* base, const Identifier& property, RegisterID* value)
 {
     ASSERT_WITH_MESSAGE(!parseIndex(property), "Indexed properties should be handled with put_by_val(direct).");
 
@@ -2584,7 +2586,7 @@ RegisterID* BytecodeGenerator::emitDirectPutById(RegisterID* base, const Identif
 
     m_staticPropertyAnalyzer.putById(base, propertyIndex);
 
-    PutByIdFlags type = (putType == PropertyNode::KnownDirect || property != m_vm.propertyNames->underscoreProto) ? PutByIdFlags::createDirect(ecmaMode()) : PutByIdFlags::create(ecmaMode());
+    PutByIdFlags type = PutByIdFlags::createDirect(ecmaMode());
     OpPutById::emit(this, base, propertyIndex, value, type);
     return value;
 }
@@ -2692,6 +2694,19 @@ RegisterID* BytecodeGenerator::emitGetPrototypeOf(RegisterID* dst, RegisterID* v
     return dst;
 }
 
+RegisterID* BytecodeGenerator::emitDirectSetPrototypeOf(RegisterID* base, RegisterID* prototype)
+{
+    RefPtr<RegisterID> setPrototypeDirect = moveLinkTimeConstant(nullptr, LinkTimeConstant::setPrototypeDirect);
+
+    CallArguments args(*this, nullptr, 1);
+    move(args.thisRegister(), base);
+    move(args.argumentRegister(0), prototype);
+
+    JSTextPosition position;
+    emitCall(newTemporary(), setPrototypeDirect.get(), NoExpectedFunction, args, position, position, position, DebuggableCall::No);
+    return base;
+}
+
 RegisterID* BytecodeGenerator::emitPutByVal(RegisterID* base, RegisterID* property, RegisterID* value)
 {
     OpPutByVal::emit(this, base, property, value, ecmaMode());
@@ -2712,7 +2727,7 @@ RegisterID* BytecodeGenerator::emitDirectGetByVal(RegisterID* dst, RegisterID* b
 
 RegisterID* BytecodeGenerator::emitDirectPutByVal(RegisterID* base, RegisterID* property, RegisterID* value)
 {
-    OpPutByValDirect::emit(this, base, property, value, PutByValFlags::createDirect(ecmaMode()));
+    OpPutByValDirect::emit(this, base, property, value, ecmaMode());
     return value;
 }
 
@@ -2736,13 +2751,13 @@ RegisterID* BytecodeGenerator::emitPutInternalField(RegisterID* base, unsigned i
 
 RegisterID* BytecodeGenerator::emitDefinePrivateField(RegisterID* base, RegisterID* property, RegisterID* value)
 {
-    OpPutByValDirect::emit(this, base, property, value, PutByValFlags::createDefinePrivateField(ecmaMode()));
+    OpPutPrivateName::emit(this, base, property, value, PrivateFieldPutKind::define());
     return value;
 }
 
 RegisterID* BytecodeGenerator::emitPrivateFieldPut(RegisterID* base, RegisterID* property, RegisterID* value)
 {
-    OpPutByValDirect::emit(this, base, property, value, PutByValFlags::createPutPrivateField(ecmaMode()));
+    OpPutPrivateName::emit(this, base, property, value, PrivateFieldPutKind::set());
     return value;
 }
 

@@ -51,8 +51,6 @@ struct ResourceLoadStatistics;
 
 namespace WebKit {
 
-class ResourceLoadStatisticsPersistentStorage;
-
 class OperatingDate {
 public:
     OperatingDate() = default;
@@ -117,8 +115,6 @@ public:
     void processStatisticsAndDataRecords();
 
     virtual void classifyPrevalentResources() = 0;
-    virtual void syncStorageIfNeeded() = 0;
-    virtual void syncStorageImmediately() = 0;
     virtual void mergeStatistics(Vector<ResourceLoadStatistics>&&) = 0;
 
     virtual void requestStorageAccessUnderOpener(DomainInNeedOfStorageAccess&&, WebCore::PageIdentifier openerID, OpenerDomain&&) = 0;
@@ -176,8 +172,9 @@ public:
     bool isSameSiteStrictEnforcementEnabled() const { return m_sameSiteStrictEnforcementEnabled == WebCore::SameSiteStrictEnforcementEnabled::Yes; };
     void setFirstPartyWebsiteDataRemovalMode(WebCore::FirstPartyWebsiteDataRemovalMode mode) { m_firstPartyWebsiteDataRemovalMode = mode; }
     void setStandaloneApplicationDomain(RegistrableDomain&& domain) { m_standaloneApplicationDomain = WTFMove(domain); }
+#if ENABLE(APP_BOUND_DOMAINS)
     void setAppBoundDomains(HashSet<RegistrableDomain>&&);
-
+#endif
     virtual bool areAllThirdPartyCookiesBlockedUnder(const TopFrameDomain&) = 0;
     virtual void hasStorageAccess(const SubFrameDomain&, const TopFrameDomain&, Optional<WebCore::FrameIdentifier>, WebCore::PageIdentifier, CompletionHandler<void(bool)>&&) = 0;
     virtual void requestStorageAccess(SubFrameDomain&&, TopFrameDomain&&, WebCore::FrameIdentifier, WebCore::PageIdentifier, WebCore::StorageAccessScope, CompletionHandler<void(StorageAccessStatus)>&&) = 0;

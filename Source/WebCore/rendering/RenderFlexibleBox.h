@@ -89,7 +89,6 @@ public:
 
 protected:
     void computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const override;
-    void computePreferredLogicalWidths() override;
 
     bool shouldResetChildLogicalHeightBeforeLayout(const RenderBox&) const override { return m_shouldResetChildLogicalHeightBeforeLayout; }
 
@@ -113,6 +112,7 @@ private:
     bool isLeftToRightFlow() const;
     bool isMultiline() const;
     Length flexBasisForChild(const RenderBox& child) const;
+    bool shouldApplyMinSizeAutoForChild(const RenderBox&) const;
     LayoutUnit crossAxisExtentForChild(const RenderBox& child) const;
     LayoutUnit crossAxisIntrinsicExtentForChild(const RenderBox& child) const;
     LayoutUnit childIntrinsicLogicalHeight(const RenderBox& child) const;
@@ -161,7 +161,7 @@ private:
     void updateAutoMarginsInMainAxis(RenderBox& child, LayoutUnit autoMarginOffset);
     bool hasAutoMarginsInCrossAxis(const RenderBox& child) const;
     bool updateAutoMarginsInCrossAxis(RenderBox& child, LayoutUnit availableAlignmentSpace);
-    void repositionLogicalHeightDependentFlexItems(Vector<LineContext>&);
+    void repositionLogicalHeightDependentFlexItems(Vector<LineContext>&, LayoutUnit gapBetweenLines);
     LayoutUnit clientLogicalBottomAfterRepositioning();
     
     LayoutUnit availableAlignmentSpaceForChild(LayoutUnit lineCrossAxisExtent, const RenderBox& child);
@@ -180,9 +180,9 @@ private:
     void resetAutoMarginsAndLogicalTopInCrossAxis(RenderBox& child);
     void setOverrideMainAxisContentSizeForChild(RenderBox& child, LayoutUnit childPreferredSize);
     void prepareChildForPositionedLayout(RenderBox& child);
-    void layoutAndPlaceChildren(LayoutUnit& crossAxisOffset, Vector<FlexItem>&, LayoutUnit availableFreeSpace, bool relayoutChildren, Vector<LineContext>&);
+    void layoutAndPlaceChildren(LayoutUnit& crossAxisOffset, Vector<FlexItem>&, LayoutUnit availableFreeSpace, bool relayoutChildren, Vector<LineContext>&, LayoutUnit gapBetweenItems);
     void layoutColumnReverse(const Vector<FlexItem>&, LayoutUnit crossAxisOffset, LayoutUnit availableFreeSpace);
-    void alignFlexLines(Vector<LineContext>&);
+    void alignFlexLines(Vector<LineContext>&, LayoutUnit gapBetweenLines);
     void alignChildren(const Vector<LineContext>&);
     void applyStretchAlignmentToChild(RenderBox& child, LayoutUnit lineCrossAxisExtent);
     void flipForRightToLeftColumn(const Vector<LineContext>& lineContexts);
@@ -192,6 +192,9 @@ private:
     void repaintChildrenDuringLayoutIfMoved(const ChildFrameRects&);
 
     bool hasPercentHeightDescendants(const RenderBox&) const;
+
+    enum class GapType { BetweenLines, BetweenItems };
+    LayoutUnit computeGap(GapType) const;
 
     // This is used to cache the preferred size for orthogonal flow children so we
     // don't have to relayout to get it

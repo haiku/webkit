@@ -78,7 +78,6 @@ struct TestOptions {
     bool enablePointerLock { false };
     bool enableWebAuthentication { true };
     bool enableWebAuthenticationLocalAuthenticator { true };
-    bool enableIsSecureContextAttribute { true };
     bool enableInspectorAdditions { false };
     bool shouldShowTouches { false };
     bool dumpJSConsoleLogInStdErr { false };
@@ -91,13 +90,11 @@ struct TestOptions {
     bool shouldIgnoreMetaViewport { false };
     bool shouldShowSpellCheckingDots { false };
     bool enableServiceControls { false };
-    bool enableEditableImages { false };
     bool editable { false };
     bool shouldHandleRunOpenPanel { true };
     bool shouldPresentPopovers { true };
     bool enableAppNap { false };
     bool enableBackForwardCache { false };
-    bool enableLazyImageLoading { false };
     bool allowsLinkPreview { true };
     bool enableCaptureVideoInUIProcess { false };
     bool enableCaptureVideoInGPUProcess { false };
@@ -143,7 +140,6 @@ struct TestOptions {
             || enablePointerLock != options.enablePointerLock
             || enableWebAuthentication != options.enableWebAuthentication
             || enableWebAuthenticationLocalAuthenticator != options.enableWebAuthenticationLocalAuthenticator
-            || enableIsSecureContextAttribute != options.enableIsSecureContextAttribute
             || enableInspectorAdditions != options.enableInspectorAdditions
             || dumpJSConsoleLogInStdErr != options.dumpJSConsoleLogInStdErr
             || applicationManifest != options.applicationManifest
@@ -158,7 +154,6 @@ struct TestOptions {
             || shouldShowSpellCheckingDots != options.shouldShowSpellCheckingDots
             || enableServiceControls != options.enableServiceControls
             || shouldIgnoreMetaViewport != options.shouldIgnoreMetaViewport
-            || enableEditableImages != options.enableEditableImages
             || editable != options.editable
             || shouldHandleRunOpenPanel != options.shouldHandleRunOpenPanel
             || shouldPresentPopovers != options.shouldPresentPopovers
@@ -167,7 +162,6 @@ struct TestOptions {
             || applicationBundleIdentifier != options.applicationBundleIdentifier
             || enableAppNap != options.enableAppNap
             || enableBackForwardCache != options.enableBackForwardCache
-            || enableLazyImageLoading != options.enableLazyImageLoading
             || allowsLinkPreview != options.allowsLinkPreview
             || enableCaptureVideoInUIProcess != options.enableCaptureVideoInUIProcess
             || enableCaptureVideoInGPUProcess != options.enableCaptureVideoInGPUProcess

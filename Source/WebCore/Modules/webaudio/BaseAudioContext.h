@@ -25,6 +25,7 @@
 
 #pragma once
 
+#if ENABLE(WEB_AUDIO)
 #include "ActiveDOMObject.h"
 #include "AsyncAudioDecoder.h"
 #include "AudioBus.h"
@@ -35,6 +36,7 @@
 #include "JSDOMPromiseDeferred.h"
 #include "MediaCanStartListener.h"
 #include "MediaProducer.h"
+#include "OscillatorType.h"
 #include "PeriodicWaveConstraints.h"
 #include "PlatformMediaSession.h"
 #include "ScriptExecutionContext.h"
@@ -60,6 +62,7 @@ class AudioBufferCallback;
 class AudioBufferSourceNode;
 class AudioListener;
 class AudioSummingJunction;
+class AudioWorklet;
 class BiquadFilterNode;
 class ChannelMergerNode;
 class ChannelSplitterNode;
@@ -70,7 +73,7 @@ class Document;
 class DynamicsCompressorNode;
 class GainNode;
 class HTMLMediaElement;
-class MainThreadGenericEventQueue;
+class IIRFilterNode;
 class MediaElementAudioSourceNode;
 class MediaStream;
 class MediaStreamAudioDestinationNode;
@@ -78,6 +81,7 @@ class MediaStreamAudioSourceNode;
 class OscillatorNode;
 class PannerNode;
 class PeriodicWave;
+class ScriptExecutionContext;
 class ScriptProcessorNode;
 class SecurityOrigin;
 class StereoPannerNode;
@@ -119,7 +123,7 @@ public:
     AudioDestinationNode* destination() { return m_destinationNode.get(); }
     size_t currentSampleFrame() const { return m_destinationNode ? m_destinationNode->currentSampleFrame() : 0; }
     double currentTime() const { return m_destinationNode ? m_destinationNode->currentTime() : 0.; }
-    float sampleRate() const { return m_destinationNode ? m_destinationNode->sampleRate() : 0.f; }
+    float sampleRate() const;
     unsigned long activeSourceCount() const { return static_cast<unsigned long>(m_activeSourceCount); }
 
     void incrementActiveSourceCount();
@@ -145,6 +149,8 @@ public:
     State state() const { return m_state; }
     bool isClosed() const { return m_state == State::Closed; }
 
+    AudioWorklet& audioWorklet() { return m_worklet.get(); }
+
     bool wouldTaintOrigin(const URL&) const;
 
     // The AudioNode create methods are called on the main thread (from JavaScript).
@@ -164,6 +170,7 @@ public:
     ExceptionOr<Ref<PeriodicWave>> createPeriodicWave(Vector<float>&& real, Vector<float>&& imaginary, const PeriodicWaveConstraints& = { });
     ExceptionOr<Ref<ConstantSourceNode>> createConstantSource();
     ExceptionOr<Ref<StereoPannerNode>> createStereoPanner();
+    ExceptionOr<Ref<IIRFilterNode>> createIIRFilter(ScriptExecutionContext&, Vector<double>&& feedforward, Vector<double>&& feedback);
 
     // When a source node has no more processing to do (has finished playing), then it tells the context to dereference it.
     void notifyNodeFinishedProcessing(AudioNode*);
@@ -226,11 +233,11 @@ public:
     // Returns the maximum number of channels we can support.
     static unsigned maxNumberOfChannels() { return MaxNumberOfChannels; }
     
-    // In AudioNode::deref() a tryLock() is used for calling finishDeref(), but if it fails keep track here.
-    void addDeferredFinishDeref(AudioNode*);
+    // In AudioNode::decrementConnectionCount() a tryLock() is used for calling decrementConnectionCountWithLock(), but if it fails keep track here.
+    void addDeferredDecrementConnectionCount(AudioNode*);
 
-    // In the audio thread at the start of each render cycle, we'll call handleDeferredFinishDerefs().
-    void handleDeferredFinishDerefs();
+    // In the audio thread at the start of each render cycle, we'll call handleDeferredDecrementConnectionCounts().
+    void handleDeferredDecrementConnectionCounts();
 
     // Only accessed when the graph lock is held.
     void markSummingJunctionDirty(AudioSummingJunction*);
@@ -308,9 +315,11 @@ public:
 
     static bool isSupportedSampleRate(float sampleRate);
 
+    PeriodicWave& periodicWave(OscillatorType);
+
 protected:
     explicit BaseAudioContext(Document&, const AudioContextOptions& = { });
-    BaseAudioContext(Document&, AudioBuffer* renderTarget);
+    BaseAudioContext(Document&, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget);
     
     void clearPendingActivity();
     void makePendingActivity();
@@ -389,13 +398,13 @@ private:
     uint64_t m_nextAudioParameterIdentifier { 0 };
 #endif
 
+    Ref<AudioWorklet> m_worklet;
+
     // Only accessed in the audio thread.
     Vector<AudioNode*> m_finishedNodes;
 
-    // We don't use RefPtr<AudioNode> here because AudioNode has a more complex ref() / deref() implementation
-    // with an optional argument for refType.  We need to use the special refType: RefTypeConnection
     // Either accessed when the graph lock is held, or on the main thread when the audio thread has finished.
-    Vector<AudioNode*> m_referencedNodes;
+    Vector<AudioConnectionRefPtr<AudioNode>> m_referencedNodes;
 
     // Accumulate nodes which need to be deleted here.
     // This is copied to m_nodesToDelete at the end of a render cycle in handlePostRenderTasks(), where we're assured of a stable graph
@@ -422,11 +431,10 @@ private:
     HashSet<AudioNode*> m_automaticPullNodes;
     Vector<AudioNode*> m_renderingAutomaticPullNodes;
     // Only accessed in the audio thread.
-    Vector<AudioNode*> m_deferredFinishDerefList;
+    Vector<AudioNode*> m_deferredBreakConnectionList;
     Vector<Vector<DOMPromiseDeferred<void>>> m_stateReactions;
 
     std::unique_ptr<PlatformMediaSession> m_mediaSession;
-    UniqueRef<MainThreadGenericEventQueue> m_eventQueue;
 
     RefPtr<AudioBuffer> m_renderTarget;
     RefPtr<AudioDestinationNode> m_destinationNode;
@@ -456,6 +464,15 @@ private:
     RefPtr<PendingActivity<BaseAudioContext>> m_pendingActivity;
 
     AudioIOPosition m_outputPosition;
+
+    // These are cached per audio context for performance reasons. They cannot be
+    // static because they rely on the sample rate.
+    RefPtr<PeriodicWave> m_cachedPeriodicWaveSine;
+    RefPtr<PeriodicWave> m_cachedPeriodicWaveSquare;
+    RefPtr<PeriodicWave> m_cachedPeriodicWaveSawtooth;
+    RefPtr<PeriodicWave> m_cachedPeriodicWaveTriangle;
 };
 
 } // WebCore
+
+#endif // ENABLE(WEB_AUDIO)

@@ -37,7 +37,7 @@
 #include "HTMLParserIdioms.h"
 #include "Hyphenation.h"
 #include "InlineTextBox.h"
-#include "LineLayoutTraversal.h"
+#include "LayoutIntegrationRunIterator.h"
 #include "Range.h"
 #include "RenderBlock.h"
 #include "RenderCombineText.h"
@@ -46,7 +46,6 @@
 #include "RenderView.h"
 #include "RenderedDocumentMarker.h"
 #include "Settings.h"
-#include "SimpleLineLayoutFunctions.h"
 #include "Text.h"
 #include "TextResourceDecoder.h"
 #include "VisiblePosition.h"
@@ -304,8 +303,8 @@ String RenderText::originalText() const
 
 void RenderText::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
 {
-    for (auto& box : LineLayoutTraversal::textBoxesFor(*this)) {
-        auto rect = box.rect();
+    for (auto& run : LayoutIntegration::textRunsFor(*this)) {
+        auto rect = run.rect();
         rects.append(enclosingIntRect(FloatRect(accumulatedOffset + rect.location(), rect.size())));
     }
 }
@@ -409,8 +408,8 @@ static Vector<FloatQuad> collectAbsoluteQuadsForNonComplexPaths(const RenderText
     ASSERT(!textRenderer.usesComplexLineLayoutPath());
 
     Vector<FloatQuad> quads;
-    for (auto& box : LineLayoutTraversal::textBoxesFor(textRenderer))
-        quads.append(textRenderer.localToAbsoluteQuad(FloatQuad(box.rect()), UseTransforms, wasFixed));
+    for (auto& run : LayoutIntegration::textRunsFor(textRenderer))
+        quads.append(textRenderer.localToAbsoluteQuad(FloatQuad(run.rect()), UseTransforms, wasFixed));
     return quads;
 }
 
@@ -443,23 +442,13 @@ Vector<FloatQuad> RenderText::absoluteQuadsForRange(unsigned start, unsigned end
     ASSERT(start <= INT_MAX);
     start = std::min(start, static_cast<unsigned>(INT_MAX));
     end = std::min(end, static_cast<unsigned>(INT_MAX));
-    if (simpleLineLayout() && !useSelectionHeight)
-        return collectAbsoluteQuadsForRange(*this, start, end, *simpleLineLayout(), ignoreEmptyTextSelections, wasFixed);
+
     const_cast<RenderText&>(*this).ensureLineBoxes();
     return m_lineBoxes.absoluteQuadsForRange(*this, start, end, useSelectionHeight, ignoreEmptyTextSelections, wasFixed);
 }
 
 Position RenderText::positionForPoint(const LayoutPoint& point)
 {
-    if (simpleLineLayout() && parent()->firstChild() == parent()->lastChild()) {
-        auto offset = SimpleLineLayout::textOffsetForPoint(point, *this, *simpleLineLayout());
-        // Did not find a valid offset. Fall back to the normal line layout based Position.
-        if (offset == text().length())
-            return positionForPoint(point, nullptr).deepEquivalent();
-        auto position = Position(textNode(), offset);
-        ASSERT(position == positionForPoint(point, nullptr).deepEquivalent());
-        return position;
-    }
     return positionForPoint(point, nullptr).deepEquivalent();
 }
 
@@ -485,36 +474,6 @@ ALWAYS_INLINE float RenderText::widthFromCache(const FontCascade& f, unsigned st
         const RenderCombineText& combineText = downcast<RenderCombineText>(*this);
         if (combineText.isCombined())
             return combineText.combinedTextWidth(f);
-    }
-
-    if (f.isFixedPitch() && f.fontDescription().variantSettings().isAllNormal() && m_isAllASCII && (!glyphOverflow || !glyphOverflow->computeBounds)) {
-        float monospaceCharacterWidth = f.spaceWidth();
-        float w = 0;
-        bool isSpace;
-        for (unsigned i = start; i < start + len; i++) {
-            char c = text()[i];
-            if (c <= ' ') {
-                if (c == ' ' || c == '\n') {
-                    w += monospaceCharacterWidth;
-                    isSpace = true;
-                } else if (c == '\t') {
-                    if (style.collapseWhiteSpace()) {
-                        w += monospaceCharacterWidth;
-                        isSpace = true;
-                    } else {
-                        w += f.tabWidth(style.tabSize(), xPos + w);
-                        isSpace = false;
-                    }
-                } else
-                    isSpace = false;
-            } else {
-                w += monospaceCharacterWidth;
-                isSpace = false;
-            }
-            if (isSpace && i > start)
-                w += f.wordSpacing();
-        }
-        return w;
     }
 
     TextRun run = RenderBlock::constructTextRun(*this, start, len, style);
@@ -1076,7 +1035,7 @@ Vector<std::pair<unsigned, unsigned>> RenderText::draggedContentRangesBetweenOff
 
 IntPoint RenderText::firstRunLocation() const
 {
-    auto first = LineLayoutTraversal::firstTextBoxFor(*this);
+    auto first = LayoutIntegration::firstTextRunFor(*this);
     if (!first)
         return { };
     return IntPoint(first->rect().location());
@@ -1106,7 +1065,7 @@ void RenderText::setTextWithOffset(const String& newText, unsigned offset, unsig
     int delta = newText.length() - text().length();
     unsigned end = offset + length;
 
-    m_linesDirty = simpleLineLayout() || m_lineBoxes.dirtyRange(*this, offset, end, delta);
+    m_linesDirty = m_lineBoxes.dirtyRange(*this, offset, end, delta);
 
     setText(newText, force || m_linesDirty);
 }
@@ -1255,7 +1214,7 @@ bool RenderText::computeCanUseSimplifiedTextMeasuring() const
 
     auto whitespaceIsCollapsed = style().collapseWhiteSpace();
     for (unsigned i = 0; i < text().length(); ++i) {
-        if ((!whitespaceIsCollapsed && text()[i] == '\t') || text()[i] == noBreakSpace || text()[i] >= HiraganaLetterSmallA)
+        if ((!whitespaceIsCollapsed && text()[i] == '\t') || text()[i] == noBreakSpace || text()[i] == softHyphen || text()[i] >= HiraganaLetterSmallA)
             return false;
     }
     return true;
@@ -1330,13 +1289,6 @@ void RenderText::ensureLineBoxes()
     downcast<RenderBlockFlow>(*parent()).ensureLineBoxes();
 }
 
-const SimpleLineLayout::Layout* RenderText::simpleLineLayout() const
-{
-    if (!is<RenderBlockFlow>(*parent()))
-        return nullptr;
-    return downcast<RenderBlockFlow>(*parent()).simpleLineLayout();
-}
-
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 const LayoutIntegration::LineLayout* RenderText::layoutFormattingContextLineLayout() const
 {
@@ -1348,8 +1300,6 @@ const LayoutIntegration::LineLayout* RenderText::layoutFormattingContextLineLayo
 
 bool RenderText::usesComplexLineLayoutPath() const
 {
-    if (simpleLineLayout())
-        return false;
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
     if (layoutFormattingContextLineLayout())
         return false;
@@ -1405,7 +1355,7 @@ float RenderText::width(unsigned from, unsigned len, const FontCascade& f, float
 
 IntRect RenderText::linesBoundingBox() const
 {
-    auto first = LineLayoutTraversal::firstTextBoxFor(*this);
+    auto first = LayoutIntegration::firstTextRunFor(*this);
     if (!first)
         return { };
 
@@ -1418,7 +1368,6 @@ IntRect RenderText::linesBoundingBox() const
 
 LayoutRect RenderText::linesVisualOverflowBoundingBox() const
 {
-    ASSERT(!simpleLineLayout());
     return m_lineBoxes.visualOverflowBoundingBox(*this);
 }
 
@@ -1441,7 +1390,6 @@ LayoutRect RenderText::clippedOverflowRectForRepaint(const RenderLayerModelObjec
 LayoutRect RenderText::collectSelectionRectsForLineBoxes(const RenderLayerModelObject* repaintContainer, bool clipToVisibleContent, Vector<LayoutRect>* rects)
 {
     ASSERT(!needsLayout());
-    ASSERT(!simpleLineLayout());
 
     if (selectionState() == HighlightState::None)
         return LayoutRect();
@@ -1496,7 +1444,7 @@ LayoutRect RenderText::selectionRectForRepaint(const RenderLayerModelObject* rep
 
 int RenderText::caretMinOffset() const
 {
-    auto first = LineLayoutTraversal::firstTextBoxFor(*this);
+    auto first = LayoutIntegration::firstTextRunFor(*this);
     if (!first)
         return 0;
 
@@ -1509,7 +1457,7 @@ int RenderText::caretMinOffset() const
 
 int RenderText::caretMaxOffset() const
 {
-    auto first = LineLayoutTraversal::firstTextBoxFor(*this);
+    auto first = LayoutIntegration::firstTextRunFor(*this);
     if (!first)
         return text().length();
 
@@ -1523,9 +1471,9 @@ int RenderText::caretMaxOffset() const
 unsigned RenderText::countRenderedCharacterOffsetsUntil(unsigned offset) const
 {
     unsigned result = 0;
-    for (auto& box : LineLayoutTraversal::textBoxesFor(*this)) {
-        auto start = box.localStartOffset();
-        auto length = box.length();
+    for (auto& run : LayoutIntegration::textRunsFor(*this)) {
+        auto start = run.localStartOffset();
+        auto length = run.length();
         if (offset < start)
             return result;
         if (offset <= start + length) {
@@ -1540,7 +1488,7 @@ unsigned RenderText::countRenderedCharacterOffsetsUntil(unsigned offset) const
 enum class OffsetType { Character, Caret };
 static bool containsOffset(const RenderText& text, unsigned offset, OffsetType type)
 {
-    for (auto box = LineLayoutTraversal::firstTextBoxInTextOrderFor(text); box; box.traverseNextInTextOrder()) {
+    for (auto box = LayoutIntegration::firstTextRunInTextOrderFor(text); box; box.traverseNextTextRunInTextOrder()) {
         auto start = box->localStartOffset();
         if (offset < start)
             return false;
@@ -1569,7 +1517,7 @@ bool RenderText::containsCaretOffset(unsigned offset) const
 
 bool RenderText::hasRenderedText() const
 {
-    for (auto& box : LineLayoutTraversal::textBoxesFor(*this)) {
+    for (auto& box : LayoutIntegration::textRunsFor(*this)) {
         if (box.length())
             return true;
     }

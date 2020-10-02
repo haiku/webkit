@@ -31,6 +31,7 @@
 #include "AudioContext.h"
 #include "AudioNode.h"
 #include "AudioNodeOutput.h"
+#include "AudioUtilities.h"
 #include "ChannelCountMode.h"
 #include <algorithm>
 
@@ -41,7 +42,7 @@ AudioNodeInput::AudioNodeInput(AudioNode* node)
     , m_node(node)
 {
     // Set to mono by default.
-    m_internalSummingBus = AudioBus::create(1, AudioNode::ProcessingSizeInFrames);
+    m_internalSummingBus = AudioBus::create(1, AudioUtilities::renderQuantumSize);
 }
 
 void AudioNodeInput::connect(AudioNodeOutput* output)
@@ -52,15 +53,13 @@ void AudioNodeInput::connect(AudioNodeOutput* output)
     if (!output || !node())
         return;
 
+    auto& outputsMap = output->isEnabled() ? m_outputs : m_disabledOutputs;
     // Check if we're already connected to this output.
-    if (!m_outputs.add(output).isNewEntry)
+    if (!outputsMap.add(output).isNewEntry)
         return;
-        
+
     output->addInput(this);
     changedOutputs();
-
-    // Sombody has just connected to us, so count it as a reference.
-    node()->ref(AudioNode::RefTypeConnection);
 }
 
 void AudioNodeInput::disconnect(AudioNodeOutput* output)
@@ -74,15 +73,13 @@ void AudioNodeInput::disconnect(AudioNodeOutput* output)
     // First try to disconnect from "active" connections.
     if (m_outputs.remove(output)) {
         changedOutputs();
-        output->removeInput(this);
-        node()->deref(AudioNode::RefTypeConnection); // Note: it's important to return immediately after all deref() calls since the node may be deleted.
+        output->removeInput(this); // Note: it's important to return immediately after this since the node may be deleted.
         return;
     }
     
     // Otherwise, try to disconnect from disabled connections.
     if (m_disabledOutputs.remove(output)) {
-        output->removeInput(this);
-        node()->deref(AudioNode::RefTypeConnection); // Note: it's important to return immediately after all deref() calls since the node may be deleted.
+        output->removeInput(this); // Note: it's important to return immediately after this since the node may be deleted.
         return;
     }
 
@@ -140,7 +137,7 @@ void AudioNodeInput::updateInternalBus()
     if (numberOfInputChannels == m_internalSummingBus->numberOfChannels())
         return;
 
-    m_internalSummingBus = AudioBus::create(numberOfInputChannels, AudioNode::ProcessingSizeInFrames);
+    m_internalSummingBus = AudioBus::create(numberOfInputChannels, AudioUtilities::renderQuantumSize);
 }
 
 unsigned AudioNodeInput::numberOfChannels() const

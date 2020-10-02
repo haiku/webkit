@@ -165,6 +165,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/websockets/WebSocketExtensionDispatcher.h
     Modules/websockets/WebSocketExtensionProcessor.h
     Modules/websockets/WebSocketFrame.h
+    Modules/websockets/WebSocketIdentifier.h
     Modules/websockets/WebSocketHandshake.h
 
     accessibility/AXLogger.h
@@ -309,6 +310,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     crypto/SerializedCryptoKeyWrap.h
 
     css/CSSCalculationValue.h
+    css/CSSConditionRule.h
     css/CSSCustomPropertyValue.h
     css/CSSFontFaceRule.h
     css/CSSFontFamily.h
@@ -359,6 +361,18 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     css/parser/CSSParserMode.h
     css/parser/CSSParserToken.h
     css/parser/CSSParserTokenRange.h
+
+    display/DisplayLayerController.h
+    display/DisplayTree.h
+    display/DisplayTreeBuilder.h
+    display/DisplayView.h
+
+    display/css/DisplayBox.h
+    display/css/DisplayCSSPainter.h
+    display/css/DisplayContainerBox.h
+    display/css/DisplayImageBox.h
+    display/css/DisplayReplacedBox.h
+    display/css/DisplayStyle.h
 
     dom/ActiveDOMCallback.h
     dom/ActiveDOMObject.h
@@ -640,6 +654,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     html/HTMLUnknownElement.h
     html/HTMLVideoElement.h
     html/ImageBitmap.h
+    html/ImageBitmapBacking.h
     html/ImageData.h
     html/ImageDocument.h
     html/InputMode.h
@@ -692,12 +707,16 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     layout/LayoutUnits.h
     layout/MarginTypes.h
 
-    layout/displaytree/DisplayBox.h
     layout/displaytree/DisplayInlineContent.h
-    layout/displaytree/DisplayInlineRect.h
-    layout/displaytree/DisplayLineBox.h
+    layout/displaytree/DisplayLine.h
     layout/displaytree/DisplayRect.h
     layout/displaytree/DisplayRun.h
+
+    layout/inlineformatting/InlineRect.h
+
+    layout/integration/LayoutIntegrationRunIterator.h
+    layout/integration/LayoutIntegrationRunIteratorLegacyPath.h
+    layout/integration/LayoutIntegrationRunIteratorModernPath.h
 
     layout/layouttree/LayoutBox.h
 
@@ -884,9 +903,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     page/WheelEventDeltaFilter.h
     page/WheelEventTestMonitor.h
     page/WindowFeatures.h
-
-    page/animation/AnimationBase.h
-    page/animation/CSSAnimationController.h
 
     page/csp/ContentSecurityPolicy.h
     page/csp/ContentSecurityPolicyClient.h
@@ -1126,6 +1142,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/GeometryUtilities.h
     platform/graphics/Glyph.h
     platform/graphics/GlyphBuffer.h
+    platform/graphics/GlyphBufferMembers.h
     platform/graphics/GlyphMetricsMap.h
     platform/graphics/GlyphPage.h
     platform/graphics/Gradient.h
@@ -1196,9 +1213,11 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/StringTruncator.h
     platform/graphics/TabSize.h
     platform/graphics/TextRun.h
+    platform/graphics/TextTrackRepresentation.h
     platform/graphics/TiledBacking.h
     platform/graphics/TrackPrivateBase.h
     platform/graphics/VelocityData.h
+    platform/graphics/VideoLayerManager.h
     platform/graphics/VideoTrackPrivate.h
     platform/graphics/WidthCache.h
     platform/graphics/WindRule.h
@@ -1413,15 +1432,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/RenderWidget.h
     rendering/RootInlineBox.h
     rendering/ScrollAlignment.h
-    rendering/SimpleLineLayout.h
-    rendering/SimpleLineLayoutCoverage.h
-    rendering/SimpleLineLayoutFlowContents.h
-    rendering/SimpleLineLayoutResolver.h
 
-    rendering/line/LineLayoutTraversal.h
-    rendering/line/LineLayoutTraversalComplexPath.h
-    rendering/line/LineLayoutTraversalDisplayRunPath.h
-    rendering/line/LineLayoutTraversalSimplePath.h
     rendering/line/LineWidth.h
     rendering/line/TrailingObjects.h
 
@@ -1488,6 +1499,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     style/StyleScope.h
     style/StyleUpdate.h
     style/StyleValidity.h
+    style/Styleable.h
 
     svg/SVGLengthContext.h
     svg/SVGLengthValue.h
@@ -1598,11 +1610,11 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     ${WebCore_DERIVED_SOURCES_DIR}/JSTreeWalker.h
     ${WebCore_DERIVED_SOURCES_DIR}/JSXPathExpression.h
     ${WebCore_DERIVED_SOURCES_DIR}/JSXPathResult.h
-    ${WebCore_DERIVED_SOURCES_DIR}/RTCPeerConnectionInternalsBuiltins.h
     ${WebCore_DERIVED_SOURCES_DIR}/ReadableByteStreamInternalsBuiltins.h
     ${WebCore_DERIVED_SOURCES_DIR}/ReadableStreamInternalsBuiltins.h
     ${WebCore_DERIVED_SOURCES_DIR}/Settings.h
     ${WebCore_DERIVED_SOURCES_DIR}/StreamInternalsBuiltins.h
+    ${WebCore_DERIVED_SOURCES_DIR}/TransformStreamInternalsBuiltins.h
     ${WebCore_DERIVED_SOURCES_DIR}/WebCoreJSBuiltinInternals.h
     ${WebCore_DERIVED_SOURCES_DIR}/WebKitFontFamilyNames.h
     ${WebCore_DERIVED_SOURCES_DIR}/WritableStreamInternalsBuiltins.h

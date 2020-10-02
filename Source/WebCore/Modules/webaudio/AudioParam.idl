@@ -36,8 +36,9 @@
 
 [
     Conditional=WEB_AUDIO,
+    Exposed=Window
 ] interface AudioParam {
-    attribute float value;
+    [ImplementedAs=valueForBindings] attribute float value;
 
     attribute AutomationRate automationRate;
 
@@ -59,11 +60,5 @@
 
     // Cancels all scheduled parameter changes with times greater than or equal to startTime.
     [MayThrowException] AudioParam cancelScheduledValues(double cancelTime);
-
-    // FIXME: Add support for this.
-    // AudioParam cancelAndHoldAtTime(double cancelTime);
-
-    // FIXME: These are not standard.
-    [EnabledBySetting=PrefixedWebAudio] readonly attribute DOMString name;
-    [EnabledBySetting=PrefixedWebAudio] readonly attribute unsigned short units;
+    [MayThrowException] AudioParam cancelAndHoldAtTime(double cancelTime);
 };

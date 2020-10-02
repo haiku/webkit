@@ -286,13 +286,12 @@ bool RenderBoxModelObject::hasAutoHeightOrContainingBlockWithAutoHeight() const
     if (logicalHeightLength.isAuto() && !isOutOfFlowPositionedWithImplicitHeight(*this))
         return true;
 
-    if (document().inQuirksMode())
+    // We need the containing block to have a definite block-size in order to resolve the block-size of the descendant,
+    // except when in quirks mode. Flexboxes follow strict behavior even in quirks mode, though.
+    if (!cb || (document().inQuirksMode() && !cb->isFlexibleBoxIncludingDeprecated()))
         return false;
 
-    if (cb)
-        return !cb->hasDefiniteLogicalHeight();
-
-    return false;
+    return !cb->hasDefiniteLogicalHeight();
 }
 
 DecodingMode RenderBoxModelObject::decodingModeForImageDraw(const Image& image, const PaintInfo& paintInfo) const
@@ -2709,7 +2708,7 @@ bool RenderBoxModelObject::hasRunningAcceleratedAnimations() const
 {
     if (auto* node = element()) {
         if (auto* timeline = node->document().existingTimeline())
-            return timeline->runningAnimationsForElementAreAllAccelerated(*node);
+            return timeline->runningAnimationsForRendererAreAllAccelerated(*this);
     }
     return false;
 }

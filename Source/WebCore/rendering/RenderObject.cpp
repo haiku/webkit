@@ -1516,7 +1516,7 @@ Position RenderObject::positionForPoint(const LayoutPoint& point)
 
 VisiblePosition RenderObject::positionForPoint(const LayoutPoint&, const RenderFragmentContainer*)
 {
-    return createVisiblePosition(caretMinOffset(), DOWNSTREAM);
+    return createVisiblePosition(caretMinOffset(), Affinity::Downstream);
 }
 
 bool RenderObject::isComposited() const
@@ -1665,13 +1665,13 @@ RenderBoxModelObject* RenderObject::offsetParent() const
     return is<RenderBoxModelObject>(current) ? downcast<RenderBoxModelObject>(current) : nullptr;
 }
 
-VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affinity) const
+VisiblePosition RenderObject::createVisiblePosition(int offset, Affinity affinity) const
 {
     // If this is a non-anonymous renderer in an editable area, then it's simple.
     if (Node* node = nonPseudoNode()) {
         if (!node->hasEditableStyle()) {
             // If it can be found, we prefer a visually equivalent position that is editable. 
-            Position position = createLegacyEditingPosition(node, offset);
+            Position position = makeDeprecatedLegacyPosition(node, offset);
             Position candidate = position.downstream(CanCrossEditingBoundary);
             if (candidate.deprecatedNode()->hasEditableStyle())
                 return VisiblePosition(candidate, affinity);
@@ -1680,7 +1680,7 @@ VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affini
                 return VisiblePosition(candidate, affinity);
         }
         // FIXME: Eliminate legacy editing positions
-        return VisiblePosition(createLegacyEditingPosition(node, offset), affinity);
+        return VisiblePosition(makeDeprecatedLegacyPosition(node, offset), affinity);
     }
 
     // We don't want to cross the boundary between editable and non-editable
@@ -1695,7 +1695,7 @@ VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affini
         const RenderObject* renderer = child;
         while ((renderer = renderer->nextInPreOrder(parent))) {
             if (Node* node = renderer->nonPseudoNode())
-                return VisiblePosition(firstPositionInOrBeforeNode(node), DOWNSTREAM);
+                return firstPositionInOrBeforeNode(node);
         }
 
         // Find non-anonymous content before.
@@ -1704,12 +1704,12 @@ VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affini
             if (renderer == parent)
                 break;
             if (Node* node = renderer->nonPseudoNode())
-                return VisiblePosition(lastPositionInOrAfterNode(node), DOWNSTREAM);
+                return lastPositionInOrAfterNode(node);
         }
 
         // Use the parent itself unless it too is anonymous.
         if (Element* element = parent->nonPseudoElement())
-            return VisiblePosition(firstPositionInOrBeforeNode(element), DOWNSTREAM);
+            return firstPositionInOrBeforeNode(element);
 
         // Repeat at the next level up.
         child = parent;
@@ -1725,7 +1725,7 @@ VisiblePosition RenderObject::createVisiblePosition(const Position& position) co
         return VisiblePosition(position);
 
     ASSERT(!node());
-    return createVisiblePosition(0, DOWNSTREAM);
+    return createVisiblePosition(0, Affinity::Downstream);
 }
 
 CursorDirective RenderObject::getCursor(const LayoutPoint&, Cursor&) const
@@ -1975,12 +1975,12 @@ static Vector<FloatRect> borderAndTextRects(const SimpleRange& range, Coordinate
 {
     Vector<FloatRect> rects;
 
-    range.start.container->document().updateLayoutIgnorePendingStylesheets();
+    range.start.document().updateLayoutIgnorePendingStylesheets();
 
     bool useVisibleBounds = behavior.contains(RenderObject::BoundingRectBehavior::UseVisibleBounds);
 
     HashSet<Element*> selectedElementsSet;
-    for (auto& node : intersectingNodes(range)) {
+    for (auto& node : intersectingNodesWithDeprecatedZeroOffsetStartQuirk(range)) {
         if (is<Element>(node))
             selectedElementsSet.add(&downcast<Element>(node));
     }
@@ -1998,7 +1998,7 @@ static Vector<FloatRect> borderAndTextRects(const SimpleRange& range, Coordinate
         RenderObject::VisibleRectContextOption::ApplyCompositedContainerScrolls
     };
 
-    for (auto& node : intersectingNodes(range)) {
+    for (auto& node : intersectingNodesWithDeprecatedZeroOffsetStartQuirk(range)) {
         if (is<Element>(node) && selectedElementsSet.contains(&downcast<Element>(node)) && (useVisibleBounds || !node.parentElement() || !selectedElementsSet.contains(node.parentElement()))) {
             if (auto renderer = downcast<Element>(node).renderBoxModelObject()) {
                 if (useVisibleBounds) {
@@ -2104,7 +2104,7 @@ auto RenderObject::collectSelectionRectsInternal(const SimpleRange& range) -> Se
     Vector<SelectionRect> newRects;
     bool hasFlippedWritingMode = range.start.container->renderer() && range.start.container->renderer()->style().isFlippedBlocksWritingMode();
     bool containsDifferentWritingModes = false;
-    for (auto& node : intersectingNodes(range)) {
+    for (auto& node : intersectingNodesWithDeprecatedZeroOffsetStartQuirk(range)) {
         auto renderer = node.renderer();
         // Only ask leaf render objects for their line box rects.
         if (renderer && !renderer->firstChildSlow() && renderer->style().userSelect() != UserSelect::None) {
@@ -2148,7 +2148,7 @@ auto RenderObject::collectSelectionRectsInternal(const SimpleRange& range) -> Se
         // Only set the line break bit if the end of the range actually
         // extends all the way to include the <br>. VisiblePosition helps to
         // figure this out.
-        if (is<HTMLBRElement>(VisiblePosition(createLegacyEditingPosition(range.end)).deepEquivalent().firstNode()))
+        if (is<HTMLBRElement>(VisiblePosition(makeContainerOffsetPosition(range.end)).deepEquivalent().firstNode()))
             rects.last().setIsLineBreak(true);
     }
 

@@ -42,6 +42,7 @@ from collections import namedtuple
 from distutils import spawn
 from webkitpy.common.system.autoinstall import AutoInstaller
 from webkitpy.common.system.filesystem import FileSystem
+from webkitcorepy import AutoInstall
 
 _THIRDPARTY_DIR = os.path.dirname(__file__)
 _AUTOINSTALLED_DIR = os.path.join(_THIRDPARTY_DIR, "autoinstalled")
@@ -83,7 +84,7 @@ class AutoinstallImportHook(object):
     def _ensure_autoinstalled_dir_is_in_sys_path(self):
         # Some packages require that the are being put somewhere under a directory in sys.path.
         if not _AUTOINSTALLED_DIR in sys.path:
-            sys.path.insert(1 if 'libraries/autoinstalled' in sys.path[0] else 0, _AUTOINSTALLED_DIR)
+            sys.path.insert(sys.path.index(AutoInstall.directory) + 1 if AutoInstall.directory in sys.path else 0, _AUTOINSTALLED_DIR)
 
     def find_module(self, fullname, path=None):
         # This method will run before each import. See http://www.python.org/dev/peps/pep-0302/
@@ -94,8 +95,6 @@ class AutoinstallImportHook(object):
         # order for autoinstall_everything(), below, to work properly.
         if '.mechanize' in fullname:
             self._install_mechanize()
-        elif '.pycodestyle' in fullname:
-            self._install_pycodestyle()
         elif '.pylint' in fullname:
             self._install_pylint()
         elif '.buildbot' in fullname:
@@ -108,69 +107,35 @@ class AutoinstallImportHook(object):
             self.install_chromedriver()
         elif '.geckodriver' in fullname:
             self.install_geckodriver()
-        elif '.mozlog' in fullname:
-            self._install_mozlog()
-        elif '.mozprocess' in fullname:
-            self._install_mozprocess()
         elif '.pytest_timeout' in fullname:
             self._install_pytest_timeout()
         elif '.pytest' in fullname:
             self._install_pytest()
         elif '.bs4' in fullname:
             self._install_beautifulsoup()
-        elif '.html5lib' in fullname:
-            self._install_html5lib()
-
-    def _install_six(self):
-        self._install("https://files.pythonhosted.org/packages/16/d8/bc6316cf98419719bd59c91742194c111b6f2e85abac88e496adefaf7afe/six-1.11.0.tar.gz",
-                              "six-1.11.0/six.py")
-
-    def _install_html5lib(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/0b/02/ae6ceac1baeda530866a85075641cec12989bd8d31af6d5ab4a3e8c92f47/webencodings-0.5.1.tar.gz",
-                      "webencodings-0.5.1/webencodings")
-        self._install("https://files.pythonhosted.org/packages/85/3e/cf449cf1b5004e87510b9368e7a5f1acd8831c2d6691edd3c62a0823f98f/html5lib-1.0.1.tar.gz",
-                      "html5lib-1.0.1/html5lib")
 
     def _install_mechanize(self):
         self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install_html5lib()
         self._install("https://files.pythonhosted.org/packages/64/f1/1aa4c96dea14e17a955019b0fc4ac1b8dfbc50e3c90970c1fb8882e74a7b/mechanize-0.4.3.tar.gz",
                              "mechanize-0.4.3/mechanize")
-        self._install_six()
 
     def _install_keyring(self):
         self._install("https://files.pythonhosted.org/packages/7d/a9/8c6bf60710781ce13a9987c0debda8adab35eb79c6b5525f7fe5240b7a8a/keyring-7.3.1.tar.gz",
                              "keyring-7.3.1/keyring")
-
-    def _install_pycodestyle(self):
-        self._install("https://files.pythonhosted.org/packages/source/p/pycodestyle/pycodestyle-2.5.0.tar.gz",
-                             "pycodestyle-2.5.0/pycodestyle.py")
-
-    def _install_mozlog(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/a0/69/5ff6001df98cf1894e6fb4aa74eda1504f830515e52fc6b0a3acc8c1a788/mozterm-1.0.0.tar.gz",
-                              "mozterm-1.0.0/mozterm")
-        self._install("https://files.pythonhosted.org/packages/6b/7d/30d52c3b2cc022280c41f47f0499afc6d87116b23051bf69c683aaa1cdcb/mozlog-5.0.tar.gz",
-                              "mozlog-5.0/mozlog")
-
-    def _install_mozprocess(self):
-        self._ensure_autoinstalled_dir_is_in_sys_path()
-        self._install("https://files.pythonhosted.org/packages/97/e7/7907f0bf2d0b42b154741f8ff63a199486fc67c90aac88cde5f2d1ad1ea2/mozprocess-1.1.0.tar.gz",
-                              "mozprocess-1.1.0/mozprocess")
 
     def _install_pytest_timeout(self):
         self._install("https://files.pythonhosted.org/packages/cc/b7/b2a61365ea6b6d2e8881360ae7ed8dad0327ad2df89f2f0be4a02304deb2/pytest-timeout-1.2.0.tar.gz",
                               "pytest-timeout-1.2.0/pytest_timeout.py")
 
     def _install_pytest(self):
+        self._ensure_autoinstalled_dir_is_in_sys_path()
         self._install("https://files.pythonhosted.org/packages/90/e3/e075127d39d35f09a500ebb4a90afd10f9ef0a1d28a6d09abeec0e444fdd/py-1.5.2.tar.gz",
                               "py-1.5.2/py")
         self._install("https://files.pythonhosted.org/packages/11/bf/cbeb8cdfaffa9f2ea154a30ae31a9d04a1209312e2919138b4171a1f8199/pluggy-0.6.0.tar.gz",
                               "pluggy-0.6.0/pluggy")
         self._install("https://files.pythonhosted.org/packages/c0/2f/6773347277d76c5ade4414a6c3f785ef27e7f5c4b0870ec7e888e66a8d83/more-itertools-4.2.0.tar.gz",
                               "more-itertools-4.2.0/more_itertools")
-        self._install_six()
+
         self._install("https://files.pythonhosted.org/packages/a1/e1/2d9bc76838e6e6667fde5814aa25d7feb93d6fa471bf6816daac2596e8b2/atomicwrites-1.1.5.tar.gz",
                               "atomicwrites-1.1.5/atomicwrites")
         self._install("https://files.pythonhosted.org/packages/94/4a/db842e7a0545de1cdb0439bb80e6e42dfe82aaeaadd4072f2263a4fbed23/funcsigs-1.0.2.tar.gz",
@@ -186,7 +151,6 @@ class AutoinstallImportHook(object):
         if sys.version_info < (3, 0):
             return
 
-        self._install_html5lib()
         self._ensure_autoinstalled_dir_is_in_sys_path()
         self._install("https://files.pythonhosted.org/packages/7f/4e/95a13527e18b6f1a15c93f1c634b86d5fa634c5619dce695f4e0cd68182f/soupsieve-1.9.4.tar.gz",
                       "soupsieve-1.9.4/soupsieve")

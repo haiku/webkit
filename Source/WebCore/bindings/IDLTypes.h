@@ -93,7 +93,7 @@ struct IDLAny : IDLType<JSC::Strong<JSC::Unknown>> {
     template<typename U> static inline U&& extractValueFromNullable(U&& value) { return std::forward<U>(value); }
 };
 
-struct IDLVoid : IDLType<void> { };
+struct IDLUndefined : IDLType<void> { };
 
 struct IDLBoolean : IDLType<bool> { };
 
@@ -139,7 +139,7 @@ struct IDLDOMString : IDLString<String> { };
 struct IDLByteString : IDLString<String> { };
 struct IDLUSVString : IDLString<String> { };
 
-template<typename T> struct IDLTreatNullAsEmptyAdaptor : IDLString<String> {
+template<typename T> struct IDLLegacyNullToEmptyStringAdaptor : IDLString<String> {
     using InnerType = T;
 };
 

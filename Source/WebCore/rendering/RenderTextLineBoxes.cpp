@@ -200,7 +200,7 @@ static bool lineDirectionPointFitsInBox(int pointLineDirection, const InlineText
     if (!box.nextLeafOnLineIgnoringLineBreak()) {
         // box is last on line
         // and the x coordinate is to the right of the last text box right edge
-        // generate VisiblePosition, use UPSTREAM affinity if possible
+        // generate VisiblePosition, use Affinity::Upstream affinity if possible
         shouldAffinityBeDownstream = UpstreamIfPositionIsNotAtStart;
         return true;
     }
@@ -210,16 +210,16 @@ static bool lineDirectionPointFitsInBox(int pointLineDirection, const InlineText
 
 static VisiblePosition createVisiblePositionForBox(const InlineBox& box, int offset, ShouldAffinityBeDownstream shouldAffinityBeDownstream)
 {
-    EAffinity affinity = VP_DEFAULT_AFFINITY;
+    auto affinity = VisiblePosition::defaultAffinity;
     switch (shouldAffinityBeDownstream) {
     case AlwaysDownstream:
-        affinity = DOWNSTREAM;
+        affinity = Affinity::Downstream;
         break;
     case AlwaysUpstream:
-        affinity = VP_UPSTREAM_IF_POSSIBLE;
+        affinity = Affinity::Upstream;
         break;
     case UpstreamIfPositionIsNotAtStart:
-        affinity = offset > box.caretMinOffset() ? VP_UPSTREAM_IF_POSSIBLE : DOWNSTREAM;
+        affinity = offset > box.caretMinOffset() ? Affinity::Upstream : Affinity::Downstream;
         break;
     }
     return box.renderer().createVisiblePosition(offset, affinity);
@@ -300,7 +300,7 @@ static VisiblePosition createVisiblePositionAfterAdjustingOffsetForBiDi(const In
 VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer, const LayoutPoint& point) const
 {
     if (!m_first || !renderer.text().length())
-        return renderer.createVisiblePosition(0, DOWNSTREAM);
+        return renderer.createVisiblePosition(0, Affinity::Downstream);
 
     LayoutUnit pointLineDirection = m_first->isHorizontal() ? point.x() : point.y();
     LayoutUnit pointBlockDirection = m_first->isHorizontal() ? point.y() : point.x();
@@ -323,7 +323,7 @@ VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer
 #if PLATFORM(IOS_FAMILY)
                 if (pointLineDirection != box->logicalLeft() && point.x() < box->x() + box->logicalWidth()) {
                     int half = box->x() + box->logicalWidth() / 2;
-                    EAffinity affinity = point.x() < half ? DOWNSTREAM : VP_UPSTREAM_IF_POSSIBLE;
+                    auto affinity = point.x() < half ? Affinity::Downstream : Affinity::Upstream;
                     return renderer.createVisiblePosition(box->offsetForPosition(pointLineDirection) + box->start(), affinity);
                 }
 #endif
@@ -339,7 +339,7 @@ VisiblePosition RenderTextLineBoxes::positionForPoint(const RenderText& renderer
         lineDirectionPointFitsInBox(pointLineDirection, *lastBox, shouldAffinityBeDownstream);
         return createVisiblePositionAfterAdjustingOffsetForBiDi(*lastBox, lastBox->offsetForPosition(pointLineDirection) + lastBox->start(), shouldAffinityBeDownstream);
     }
-    return renderer.createVisiblePosition(0, DOWNSTREAM);
+    return renderer.createVisiblePosition(0, Affinity::Downstream);
 }
 
 void RenderTextLineBoxes::setSelectionState(RenderText& renderer, RenderObject::HighlightState state)

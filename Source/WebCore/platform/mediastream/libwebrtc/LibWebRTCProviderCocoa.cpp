@@ -37,7 +37,7 @@ ALLOW_UNUSED_PARAMETERS_END
 #include <wtf/MainThread.h>
 #include <wtf/darwin/WeakLinking.h>
 
-WTF_WEAK_LINK_FORCE_IMPORT(webrtc::setApplicationStatus);
+WTF_WEAK_LINK_FORCE_IMPORT(webrtc::isMatchingBundleVersion);
 
 namespace WebCore {
 
@@ -46,18 +46,22 @@ UniqueRef<LibWebRTCProvider> LibWebRTCProvider::create()
     return makeUniqueRef<LibWebRTCProviderCocoa>();
 }
 
-LibWebRTCProviderCocoa::~LibWebRTCProviderCocoa()
+void LibWebRTCProvider::setH264HardwareEncoderAllowed(bool allowed)
 {
+    if (webRTCAvailable())
+        webrtc::setH264HardwareEncoderAllowed(allowed);
 }
 
-void LibWebRTCProviderCocoa::setH264HardwareEncoderAllowed(bool allowed)
+LibWebRTCProviderCocoa::~LibWebRTCProviderCocoa()
 {
-    webrtc::setH264HardwareEncoderAllowed(allowed);
 }
 
 std::unique_ptr<webrtc::VideoDecoderFactory> LibWebRTCProviderCocoa::createDecoderFactory()
 {
     ASSERT(isMainThread());
+
+    if (!webRTCAvailable())
+        return nullptr;
 
     return webrtc::createWebKitDecoderFactory(isSupportingH265() ? webrtc::WebKitH265::On : webrtc::WebKitH265::Off, isSupportingVP9() ? webrtc::WebKitVP9::On : webrtc::WebKitVP9::Off);
 }
@@ -66,13 +70,17 @@ std::unique_ptr<webrtc::VideoEncoderFactory> LibWebRTCProviderCocoa::createEncod
 {
     ASSERT(isMainThread());
 
+    if (!webRTCAvailable())
+        return nullptr;
+
     webrtc::setH264LowLatencyEncoderEnabled(RuntimeEnabledFeatures::sharedFeatures().webRTCH264LowLatencyEncoderEnabled());
     return webrtc::createWebKitEncoderFactory(isSupportingH265() ? webrtc::WebKitH265::On : webrtc::WebKitH265::Off, isSupportingVP9() ? webrtc::WebKitVP9::On : webrtc::WebKitVP9::Off);
 }
 
 void LibWebRTCProviderCocoa::setActive(bool value)
 {
-    webrtc::setApplicationStatus(value);
+    if (webRTCAvailable())
+        webrtc::setApplicationStatus(value);
 }
 
 bool LibWebRTCProvider::webRTCAvailable()
@@ -80,7 +88,7 @@ bool LibWebRTCProvider::webRTCAvailable()
 #if PLATFORM(IOS)
     return true;
 #else
-    return !!webrtc::setApplicationStatus;
+    return !!webrtc::isMatchingBundleVersion;
 #endif
 }
 
@@ -89,6 +97,7 @@ void LibWebRTCProvider::registerWebKitVP9Decoder()
     if (webRTCAvailable())
         webrtc::registerWebKitVP9Decoder();
 }
+
 } // namespace WebCore
 
 #endif // USE(LIBWEBRTC)

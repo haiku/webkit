@@ -404,6 +404,42 @@ bool IOSApplication::isDoubleDown()
     return isDoubleDown;
 }
 
+bool IOSApplication::isFIFACompanion()
+{
+    static bool isFIFACompanion = applicationBundleIsEqualTo("com.ea.ios.fifaultimate"_s);
+    return isFIFACompanion;
+}
+
+bool IOSApplication::isNoggin()
+{
+    static bool isNoggin = applicationBundleIsEqualTo("com.mtvn.noggin"_s);
+    return isNoggin;
+}
+
+bool IOSApplication::isOKCupid()
+{
+    static bool isOKCupid = applicationBundleIsEqualTo("com.okcupid.app"_s);
+    return isOKCupid;
+}
+
+bool IOSApplication::isJWLibrary()
+{
+    static bool isJWLibrary = applicationBundleIsEqualTo("org.jw.jwlibrary"_s);
+    return isJWLibrary;
+}
+
+bool IOSApplication::isPaperIO()
+{
+    static bool isPaperIO = applicationBundleIsEqualTo("io.voodoo.paperio"_s);
+    return isPaperIO;
+}
+
+bool IOSApplication::isCrunchyroll()
+{
+    static bool isCrunchyroll = applicationBundleIsEqualTo("com.crunchyroll.iphone"_s);
+    return isCrunchyroll;
+}
+
 #endif
 
 } // namespace WebCore

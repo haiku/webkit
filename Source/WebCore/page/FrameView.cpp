@@ -30,7 +30,6 @@
 #include "AXObjectCache.h"
 #include "BackForwardCache.h"
 #include "BackForwardController.h"
-#include "CSSAnimationController.h"
 #include "CachedImage.h"
 #include "CachedResourceLoader.h"
 #include "Chrome.h"
@@ -41,6 +40,7 @@
 #include "DeprecatedGlobalSettings.h"
 #include "DocumentLoader.h"
 #include "DocumentMarkerController.h"
+#include "DocumentSVG.h"
 #include "Editor.h"
 #include "EventHandler.h"
 #include "EventNames.h"
@@ -130,6 +130,7 @@
 #endif
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+#include "DisplayView.h"
 #include "LayoutContext.h"
 #endif
 
@@ -167,7 +168,7 @@ Pagination::Mode paginationModeForRenderStyle(const RenderStyle& style)
     // is horizontal, then we use TextDirection to choose between those options. If the WritingMode
     // is vertical, then the direction of the verticality dictates the choice.
     if (overflow == Overflow::PagedX) {
-        if ((isHorizontalWritingMode && textDirection == TextDirection::LTR) || writingMode == LeftToRightWritingMode)
+        if ((isHorizontalWritingMode && textDirection == TextDirection::LTR) || writingMode == WritingMode::LeftToRight)
             return Pagination::LeftToRightPaginated;
         return Pagination::RightToLeftPaginated;
     }
@@ -175,7 +176,7 @@ Pagination::Mode paginationModeForRenderStyle(const RenderStyle& style)
     // paged-y always corresponds to TopToBottomPaginated or BottomToTopPaginated. If the WritingMode
     // is horizontal, then the direction of the horizontality dictates the choice. If the WritingMode
     // is vertical, then we use TextDirection to choose between those options. 
-    if (writingMode == TopToBottomWritingMode || (!isHorizontalWritingMode && textDirection == TextDirection::RTL))
+    if (writingMode == WritingMode::TopToBottom || (!isHorizontalWritingMode && textDirection == TextDirection::RTL))
         return Pagination::TopToBottomPaginated;
     return Pagination::BottomToTopPaginated;
 }
@@ -585,8 +586,6 @@ void FrameView::didDestroyRenderTree()
 
     ASSERT(!m_viewportConstrainedObjects || m_viewportConstrainedObjects->computesEmpty());
     ASSERT(!m_slowRepaintObjects || m_slowRepaintObjects->computesEmpty());
-
-    ASSERT(!frame().legacyAnimation().hasAnimations());
 }
 
 void FrameView::setContentsSize(const IntSize& size)
@@ -956,6 +955,14 @@ void FrameView::updateScrollingCoordinatorScrollSnapProperties() const
 
 bool FrameView::flushCompositingStateForThisFrame(const Frame& rootFrameForFlush)
 {
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled()) {
+        if (auto* view = existingDisplayView())
+            view->flushLayers();
+        return true;
+    }
+#endif
+
     RenderView* renderView = this->renderView();
     if (!renderView)
         return true; // We don't want to keep trying to update layers if we have no renderer.
@@ -1159,6 +1166,11 @@ void FrameView::setIsInWindow(bool isInWindow)
 {
     if (RenderView* renderView = this->renderView())
         renderView->setIsInWindow(isInWindow);
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+    if (auto* view = existingDisplayView())
+        view->setIsInWindow(isInWindow);
+#endif
 }
 
 void FrameView::forceLayoutParentViewIfNeeded()
@@ -2207,17 +2219,17 @@ bool FrameView::scrollToFragmentInternal(const String& fragmentIdentifier)
     auto& document = *frame().document();
     RELEASE_ASSERT(document.haveStylesheetsLoaded());
 
-    Element* anchorElement = document.findAnchor(fragmentIdentifier);
+    auto anchorElement = makeRefPtr(document.findAnchor(fragmentIdentifier));
 
-    LOG(Scrolling, " anchorElement is %p", anchorElement);
+    LOG(Scrolling, " anchorElement is %p", anchorElement.get());
 
     // Setting to null will clear the current target.
-    document.setCSSTarget(anchorElement);
+    document.setCSSTarget(anchorElement.get());
 
     if (is<SVGDocument>(document)) {
         if (fragmentIdentifier.isEmpty())
             return false;
-        if (auto rootElement = SVGDocument::rootElement(document)) {
+        if (auto rootElement = DocumentSVG::rootElement(document)) {
             if (rootElement->scrollToFragment(fragmentIdentifier))
                 return true;
             // If SVG failed to scrollToAnchor() and anchorElement is null, no other scrolling will be possible.
@@ -2229,18 +2241,18 @@ bool FrameView::scrollToFragmentInternal(const String& fragmentIdentifier)
         return false;
     }
 
-    ContainerNode* scrollPositionAnchor = anchorElement;
+    RefPtr<ContainerNode> scrollPositionAnchor = anchorElement;
     if (!scrollPositionAnchor)
         scrollPositionAnchor = frame().document();
-    maintainScrollPositionAtAnchor(scrollPositionAnchor);
+    maintainScrollPositionAtAnchor(scrollPositionAnchor.get());
     
     // If the anchor accepts keyboard focus, move focus there to aid users relying on keyboard navigation.
     if (anchorElement) {
         if (anchorElement->isFocusable())
-            document.setFocusedElement(anchorElement);
+            document.setFocusedElement(anchorElement.get());
         else {
             document.setFocusedElement(nullptr);
-            document.setFocusNavigationStartingNode(anchorElement);
+            document.setFocusNavigationStartingNode(anchorElement.get());
         }
     }
     
@@ -2312,7 +2324,7 @@ void FrameView::resetScrollAnchor()
     document.setCSSTarget(nullptr);
 
     if (is<SVGDocument>(document)) {
-        if (auto rootElement = SVGDocument::rootElement(document)) {
+        if (auto rootElement = DocumentSVG::rootElement(document)) {
             // We need to update the layout before resetScrollAnchor(), otherwise we
             // could really mess things up if resetting the anchor comes at a bad moment.
             document.updateStyleIfNeeded();
@@ -2632,7 +2644,7 @@ bool FrameView::isRubberBandInProgress() const
 
     if (auto scrollingCoordinator = this->scrollingCoordinator()) {
         if (!scrollingCoordinator->shouldUpdateScrollLayerPositionSynchronously(*this))
-            return scrollingCoordinator->isRubberBandInProgress();
+            return scrollingCoordinator->isRubberBandInProgress(scrollingNodeID());
     }
 
     if (auto scrollAnimator = existingScrollAnimator())
@@ -4408,8 +4420,6 @@ void FrameView::updateLayoutAndStyleIfNeededRecursive()
     // Style updates can trigger script, which can cause this FrameView to be destroyed.
     Ref<FrameView> protectedThis(*this);
 
-    AnimationUpdateBlock animationUpdateBlock(&frame().legacyAnimation());
-
     using DescendantsDeque = Deque<Ref<FrameView>, 16>;
     auto nextRenderedDescendant = [this] (DescendantsDeque& descendantsDeque) -> RefPtr<FrameView> {
         if (descendantsDeque.isEmpty())
@@ -5122,7 +5132,7 @@ bool FrameView::wheelEvent(const PlatformWheelEvent& wheelEvent)
 #if ENABLE(ASYNC_SCROLLING)
     if (auto scrollingCoordinator = this->scrollingCoordinator()) {
         if (scrollingCoordinator->coordinatesScrollingForFrameView(*this))
-            return scrollingCoordinator->handleWheelEvent(*this, wheelEvent);
+            return scrollingCoordinator->handleWheelEvent(*this, wheelEvent, scrollingNodeID());
     }
 #endif
 
@@ -5339,6 +5349,20 @@ RenderView* FrameView::renderView() const
 {
     return frame().contentRenderer();
 }
+
+#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
+Display::View* FrameView::existingDisplayView() const
+{
+    return m_displayView.get();
+}
+
+Display::View& FrameView::displayView()
+{
+    if (!m_displayView)
+        m_displayView = makeUnique<Display::View>(*this);
+    return *m_displayView;
+}
+#endif
 
 int FrameView::mapFromLayoutToCSSUnits(LayoutUnit value) const
 {

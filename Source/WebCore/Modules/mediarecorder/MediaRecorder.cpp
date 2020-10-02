@@ -46,11 +46,27 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(MediaRecorder);
 
 MediaRecorder::CreatorFunction MediaRecorder::m_customCreator = nullptr;
 
+bool MediaRecorder::isTypeSupported(Document& document, const String& value)
+{
+#if PLATFORM(COCOA)
+    auto* page = document.page();
+    return page && page->mediaRecorderProvider().isSupported(value);
+#else
+    UNUSED_PARAM(document);
+    return false;
+#endif
+
+}
+
 ExceptionOr<Ref<MediaRecorder>> MediaRecorder::create(Document& document, Ref<MediaStream>&& stream, Options&& options)
 {
-    auto privateInstance = MediaRecorder::createMediaRecorderPrivate(document, stream->privateStream());
-    if (!privateInstance)
-        return Exception { NotSupportedError, "The MediaRecorder is unsupported on this platform"_s };
+    if (!isTypeSupported(document, options.mimeType))
+        return Exception { NotSupportedError, "mimeType is not supported" };
+
+    auto result = MediaRecorder::createMediaRecorderPrivate(document, stream->privateStream(), options);
+    if (result.hasException())
+        return result.releaseException();
+
     auto recorder = adoptRef(*new MediaRecorder(document, WTFMove(stream), WTFMove(options)));
     recorder->suspendIfNeeded();
     return recorder;
@@ -61,27 +77,32 @@ void MediaRecorder::setCustomPrivateRecorderCreator(CreatorFunction creator)
     m_customCreator = creator;
 }
 
-std::unique_ptr<MediaRecorderPrivate> MediaRecorder::createMediaRecorderPrivate(Document& document, MediaStreamPrivate& stream)
+ExceptionOr<std::unique_ptr<MediaRecorderPrivate>> MediaRecorder::createMediaRecorderPrivate(Document& document, MediaStreamPrivate& stream, const Options& options)
 {
-    if (m_customCreator)
-        return m_customCreator(stream);
+#if !PLATFORM(COCOA)
+    UNUSED_PARAM(stream);
+#endif
 
-#if PLATFORM(COCOA)
+    if (m_customCreator)
+        return m_customCreator(stream, options);
+
     auto* page = document.page();
     if (!page)
-        return nullptr;
+        return Exception { InvalidStateError };
 
-    return page->mediaRecorderProvider().createMediaRecorderPrivate(stream);
+#if PLATFORM(COCOA)
+    auto result = page->mediaRecorderProvider().createMediaRecorderPrivate(stream, options);
 #else
-    UNUSED_PARAM(document);
-    UNUSED_PARAM(stream);
-    return nullptr;
+    std::unique_ptr<MediaRecorderPrivate> result;
 #endif
+    if (!result)
+        return Exception { NotSupportedError, "The MediaRecorder is unsupported on this platform"_s };
+    return result;
 }
 
-MediaRecorder::MediaRecorder(Document& document, Ref<MediaStream>&& stream, Options&& option)
+MediaRecorder::MediaRecorder(Document& document, Ref<MediaStream>&& stream, Options&& options)
     : ActiveDOMObject(document)
-    , m_options(WTFMove(option))
+    , m_options(WTFMove(options))
     , m_stream(WTFMove(stream))
     , m_timeSliceTimer([this] { requestData(); })
 {
@@ -135,18 +156,20 @@ ExceptionOr<void> MediaRecorder::startRecording(Optional<unsigned> timeSlice)
         return Exception { InvalidStateError, "The MediaRecorder's state must be inactive in order to start recording"_s };
 
     ASSERT(!m_private);
-    m_private = createMediaRecorderPrivate(*document(), m_stream->privateStream());
+    auto result = createMediaRecorderPrivate(*document(), m_stream->privateStream(), m_options);
 
-    if (!m_private)
-        return Exception { NotSupportedError, "The MediaRecorder is unsupported on this platform"_s };
+    ASSERT(!result.hasException());
+    if (result.hasException())
+        return result.releaseException();
 
-    m_private->startRecording([this, pendingActivity = makePendingActivity(*this)](auto&& exception) mutable {
+    m_private = result.releaseReturnValue();
+    m_private->startRecording([this, pendingActivity = makePendingActivity(*this)](auto&& mimeTypeOrException) mutable {
         if (!m_isActive)
             return;
 
-        if (exception) {
+        if (mimeTypeOrException.hasException()) {
             stopRecordingInternal();
-            queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [this, exception = WTFMove(*exception)]() mutable {
+            queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [this, exception = mimeTypeOrException.releaseException()]() mutable {
                 if (!m_isActive)
                     return;
                 dispatchError(WTFMove(exception));
@@ -154,9 +177,10 @@ ExceptionOr<void> MediaRecorder::startRecording(Optional<unsigned> timeSlice)
             return;
         }
 
-        queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [this] {
+        queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [this, mimeType = mimeTypeOrException.releaseReturnValue()]() mutable {
             if (!m_isActive)
                 return;
+            m_options.mimeType = WTFMove(mimeType);
             dispatchEvent(Event::create(eventNames().startEvent, Event::CanBubble::No, Event::IsCancelable::No));
         });
     });
@@ -182,7 +206,7 @@ ExceptionOr<void> MediaRecorder::stopRecording()
         queueTaskKeepingObjectAlive(*this, TaskSource::Networking, [this, buffer = WTFMove(buffer), mimeType]() mutable {
             if (!m_isActive)
                 return;
-            dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, buffer ? Blob::create(buffer.releaseNonNull(), mimeType) : Blob::create()));
+            dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, buffer ? Blob::create(scriptExecutionContext(), buffer.releaseNonNull(), mimeType) : Blob::create(scriptExecutionContext())));
 
             if (!m_isActive)
                 return;
@@ -204,7 +228,7 @@ ExceptionOr<void> MediaRecorder::requestData()
             if (!m_isActive)
                 return;
 
-            dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, buffer ? Blob::create(buffer.releaseNonNull(), mimeType) : Blob::create()));
+            dispatchEvent(BlobEvent::create(eventNames().dataavailableEvent, Event::CanBubble::No, Event::IsCancelable::No, buffer ? Blob::create(scriptExecutionContext(), buffer.releaseNonNull(), mimeType) : Blob::create(scriptExecutionContext())));
 
             if (m_timeSlice)
                 m_timeSliceTimer.startOneShot(Seconds::fromMilliseconds(*m_timeSlice));

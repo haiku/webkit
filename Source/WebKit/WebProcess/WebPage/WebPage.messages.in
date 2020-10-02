@@ -34,7 +34,7 @@ messages -> WebPage LegacyReceiver {
     TestProcessIncomingSyncMessagesWhenWaitingForSyncReply() -> (bool handled) Synchronous
 
 #if PLATFORM(COCOA)
-    SetTopContentInsetFenced(float contentInset, IPC::Attachment fencePort)
+    SetTopContentInsetFenced(float contentInset, MachSendRight machSendRight)
 #endif
     SetTopContentInset(float contentInset)
 
@@ -107,7 +107,6 @@ messages -> WebPage LegacyReceiver {
     GetSelectionContext(WebKit::CallbackID callbackID)
     SetAllowsMediaDocumentInlinePlayback(bool allows)
     HandleTwoFingerTapAtPoint(WebCore::IntPoint point, OptionSet<WebKit::WebEvent::Modifier> modifiers, uint64_t requestID)
-    HandleStylusSingleTapAtPoint(WebCore::IntPoint point, uint64_t requestID)
     SetForceAlwaysUserScalable(bool userScalable)
     GetRectsForGranularityWithSelectionOffset(enum:uint8_t WebCore::TextGranularity granularity, int32_t offset, WebKit::CallbackID callbackID)
     GetRectsAtSelectionOffsetWithText(int32_t offset, String text, WebKit::CallbackID callbackID)
@@ -575,6 +574,13 @@ GenerateSyntheticEditingCommand(enum:uint8_t WebKit::SyntheticEditingCommandType
 #endif
 
     SetDefersLoading(bool defersLoading)
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    ZoomPDFIn(WebKit::PDFPluginIdentifier identifier)
+    ZoomPDFOut(WebKit::PDFPluginIdentifier identifier)
+    SavePDF(WebKit::PDFPluginIdentifier identifier) -> (String filename, URL url, IPC::DataReference data) Async
+    OpenPDFWithPreview(WebKit::PDFPluginIdentifier identifier) -> (String filename, struct WebKit::FrameInfoData frameInfo, IPC::DataReference data, String uuid) Async
+#endif
 
     UpdateCurrentModifierState(OptionSet<WebCore::PlatformEvent::Modifier> modifiers)
     SimulateDeviceOrientationChange(double alpha, double beta, double gamma)

@@ -49,7 +49,7 @@ class Signature;
 }
 
 
-JS_EXPORT_PRIVATE EncodedJSValue JSC_HOST_CALL callHostFunctionAsConstructor(JSGlobalObject*, CallFrame*);
+JS_EXPORT_PRIVATE JSC_DECLARE_HOST_FUNCTION(callHostFunctionAsConstructor);
 
 JS_EXPORT_PRIVATE String getCalculatedDisplayName(VM&, JSObject*);
 
@@ -80,7 +80,7 @@ public:
 
     static Structure* selectStructureForNewFuncExp(JSGlobalObject*, FunctionExecutable*);
 
-    JS_EXPORT_PRIVATE static JSFunction* create(VM&, JSGlobalObject*, int length, const String& name, NativeFunction, Intrinsic = NoIntrinsic, NativeFunction nativeConstructor = callHostFunctionAsConstructor, const DOMJIT::Signature* = nullptr);
+    JS_EXPORT_PRIVATE static JSFunction* create(VM&, JSGlobalObject*, unsigned length, const String& name, NativeFunction, Intrinsic = NoIntrinsic, NativeFunction nativeConstructor = callHostFunctionAsConstructor, const DOMJIT::Signature* = nullptr);
     
     static JSFunction* createWithInvalidatedReallocationWatchpoint(VM&, FunctionExecutable*, JSScope*);
 
@@ -169,7 +169,7 @@ protected:
     JS_EXPORT_PRIVATE JSFunction(VM&, NativeExecutable*, JSGlobalObject*, Structure*);
     JSFunction(VM&, FunctionExecutable*, JSScope*, Structure*);
 
-    void finishCreation(VM&, NativeExecutable*, int length, const String& name);
+    void finishCreation(VM&, NativeExecutable*, unsigned length, const String& name);
     void finishCreation(VM&);
 
     static bool getOwnPropertySlot(JSObject*, JSGlobalObject*, PropertyName, PropertySlot&);
@@ -216,9 +216,6 @@ private:
 #endif
 
     friend class LLIntOffsetsExtractor;
-
-    static EncodedJSValue argumentsGetter(JSGlobalObject*, EncodedJSValue, PropertyName);
-    static EncodedJSValue callerGetter(JSGlobalObject*, EncodedJSValue, PropertyName);
 
     uintptr_t m_executableOrRareData;
 };

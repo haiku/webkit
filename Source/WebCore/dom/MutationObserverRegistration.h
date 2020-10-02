@@ -33,6 +33,7 @@
 #include "GCReachableRef.h"
 #include "MutationObserver.h"
 #include <wtf/HashSet.h>
+#include <wtf/WeakPtr.h>
 #include <wtf/text/AtomString.h>
 #include <wtf/text/AtomStringHash.h>
 
@@ -40,10 +41,11 @@ namespace WebCore {
 
 class QualifiedName;
 
-class MutationObserverRegistration {
+class MutationObserverRegistration : public RefCounted<MutationObserverRegistration> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    MutationObserverRegistration(MutationObserver&, Node&, MutationObserverOptions, const HashSet<AtomString>& attributeFilter);
+    static Ref<MutationObserverRegistration> create(MutationObserver&, Node&, MutationObserverOptions, const HashSet<AtomString>& attributeFilter);
+
     ~MutationObserverRegistration();
 
     void resetObservation(MutationObserverOptions, const HashSet<AtomString>& attributeFilter);
@@ -55,18 +57,21 @@ public:
     bool isSubtree() const { return m_options & MutationObserver::Subtree; }
 
     MutationObserver& observer() { return m_observer.get(); }
-    Node& node() { return m_node; }
+    Node* node() { return m_node.get(); }
+    RefPtr<Node> stopObserving();
     MutationRecordDeliveryOptions deliveryOptions() const { return m_options & (MutationObserver::AttributeOldValue | MutationObserver::CharacterDataOldValue); }
     MutationObserverOptions mutationTypes() const { return m_options & MutationObserver::AllMutationTypes; }
 
     void addRegistrationNodesToSet(HashSet<Node*>&) const;
 
 private:
+    MutationObserverRegistration(MutationObserver&, Node&, MutationObserverOptions, const HashSet<AtomString>& attributeFilter);
+
     Ref<MutationObserver> m_observer;
-    Node& m_node;
-    RefPtr<Node> m_nodeKeptAlive;
-    std::unique_ptr<HashSet<GCReachableRef<Node>>> m_transientRegistrationNodes;
+    WeakPtr<Node> m_node;
+    bool m_hasStoppedObservingNode { false };
     MutationObserverOptions m_options;
+    std::unique_ptr<HashSet<GCReachableRef<Node>>> m_transientRegistrationNodes;
     HashSet<AtomString> m_attributeFilter;
 };
 

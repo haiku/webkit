@@ -34,8 +34,8 @@
 
 namespace JSC {
 
-static EncodedJSValue JSC_HOST_CALL bigIntConstructorFuncAsUintN(JSGlobalObject*, CallFrame*);
-static EncodedJSValue JSC_HOST_CALL bigIntConstructorFuncAsIntN(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(bigIntConstructorFuncAsUintN);
+static JSC_DECLARE_HOST_FUNCTION(bigIntConstructorFuncAsIntN);
 
 } // namespace JSC
 
@@ -54,7 +54,7 @@ const ClassInfo BigIntConstructor::s_info = { "Function", &Base::s_info, &bigInt
 @end
 */
 
-static EncodedJSValue JSC_HOST_CALL callBigIntConstructor(JSGlobalObject*, CallFrame*);
+static JSC_DECLARE_HOST_FUNCTION(callBigIntConstructor);
 
 BigIntConstructor::BigIntConstructor(VM& vm, Structure* structure)
     : InternalFunction(vm, structure, callBigIntConstructor, nullptr)
@@ -63,11 +63,10 @@ BigIntConstructor::BigIntConstructor(VM& vm, Structure* structure)
 
 void BigIntConstructor::finishCreation(VM& vm, BigIntPrototype* bigIntPrototype)
 {
-    Base::finishCreation(vm, "BigInt"_s, NameAdditionMode::WithoutStructureTransition);
+    Base::finishCreation(vm, 1, "BigInt"_s, PropertyAdditionMode::WithoutStructureTransition);
     ASSERT(inherits(vm, info()));
 
     putDirectWithoutTransition(vm, vm.propertyNames->prototype, bigIntPrototype, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
-    putDirectWithoutTransition(vm, vm.propertyNames->length, jsNumber(1), PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum);
 }
 
 // ------------------------------ Functions ---------------------------
@@ -103,7 +102,7 @@ JSValue toBigInt(JSGlobalObject* globalObject, JSValue argument)
     return jsUndefined();
 }
 
-static EncodedJSValue JSC_HOST_CALL callBigIntConstructor(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(callBigIntConstructor, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -130,7 +129,7 @@ static EncodedJSValue JSC_HOST_CALL callBigIntConstructor(JSGlobalObject* global
     RELEASE_AND_RETURN(scope, JSValue::encode(toBigInt(globalObject, primitive)));
 }
 
-EncodedJSValue JSC_HOST_CALL bigIntConstructorFuncAsUintN(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(bigIntConstructorFuncAsUintN, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -150,7 +149,7 @@ EncodedJSValue JSC_HOST_CALL bigIntConstructorFuncAsUintN(JSGlobalObject* global
     RELEASE_AND_RETURN(scope, JSValue::encode(JSBigInt::asUintN(globalObject, numberOfBits, bigInt.asHeapBigInt())));
 }
 
-EncodedJSValue JSC_HOST_CALL bigIntConstructorFuncAsIntN(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(bigIntConstructorFuncAsIntN, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);

@@ -35,6 +35,8 @@
 #include "WebAnimationTypes.h"
 #include <JavaScriptCore/Strong.h>
 
+#define DUMP_NODE_STATISTICS 0
+
 namespace WebCore {
 
 class CustomElementReactionQueue;
@@ -297,13 +299,15 @@ public:
         ShadowRootMode mode;
         bool delegatesFocus { false };
     };
-    ExceptionOr<ShadowRoot&> attachShadow(const ShadowRootInit&);
+    WEBCORE_EXPORT ExceptionOr<ShadowRoot&> attachShadow(const ShadowRootInit&);
 
     RefPtr<ShadowRoot> userAgentShadowRoot() const;
     WEBCORE_EXPORT ShadowRoot& ensureUserAgentShadowRoot();
 
     void setIsDefinedCustomElement(JSCustomElementInterface&);
-    void setIsFailedCustomElement(JSCustomElementInterface&);
+    void setIsFailedCustomElement();
+    void setIsFailedCustomElementWithoutClearingReactionQueue();
+    void clearReactionQueueFromFailedCustomElement();
     void setIsCustomElementUpgradeCandidate();
     void enqueueToUpgrade(JSCustomElementInterface&);
     CustomElementReactionQueue* reactionQueue() const;
@@ -316,7 +320,7 @@ public:
     bool hovered() const { return isUserActionElement() && isUserActionElementHovered(); }
     bool focused() const { return isUserActionElement() && isUserActionElementFocused(); }
     bool isBeingDragged() const { return isUserActionElement() && isUserActionElementDragged(); }
-    bool hasFocusWithin() const { return getFlag(HasFocusWithin); };
+    bool hasFocusWithin() const { return hasNodeFlag(NodeFlag::HasFocusWithin); };
 
     virtual void setActive(bool = true, bool pause = false);
     virtual void setHovered(bool = true);
@@ -351,31 +355,32 @@ public:
     bool isVisibleWithoutResolvingFullStyle() const;
 
     // Methods for indicating the style is affected by dynamic updates (e.g., children changing, our position changing in our sibling list, etc.)
-    bool styleAffectedByEmpty() const { return hasStyleFlag(ElementStyleFlag::StyleAffectedByEmpty); }
-    bool descendantsAffectedByPreviousSibling() const { return getFlag(DescendantsAffectedByPreviousSiblingFlag); }
-    bool childrenAffectedByFirstChildRules() const { return getFlag(ChildrenAffectedByFirstChildRulesFlag); }
-    bool childrenAffectedByLastChildRules() const { return getFlag(ChildrenAffectedByLastChildRulesFlag); }
-    bool childrenAffectedByForwardPositionalRules() const { return hasStyleFlag(ElementStyleFlag::ChildrenAffectedByForwardPositionalRules); }
-    bool descendantsAffectedByForwardPositionalRules() const { return hasStyleFlag(ElementStyleFlag::DescendantsAffectedByForwardPositionalRules); }
-    bool childrenAffectedByBackwardPositionalRules() const { return hasStyleFlag(ElementStyleFlag::ChildrenAffectedByBackwardPositionalRules); }
-    bool descendantsAffectedByBackwardPositionalRules() const { return hasStyleFlag(ElementStyleFlag::DescendantsAffectedByBackwardPositionalRules); }
-    bool childrenAffectedByPropertyBasedBackwardPositionalRules() const { return hasStyleFlag(ElementStyleFlag::ChildrenAffectedByPropertyBasedBackwardPositionalRules); }
-    bool affectsNextSiblingElementStyle() const { return getFlag(AffectsNextSiblingElementStyle); }
+    bool styleAffectedByEmpty() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::StyleAffectedByEmpty); }
+    bool descendantsAffectedByPreviousSibling() const { return hasStyleFlag(NodeStyleFlag::DescendantsAffectedByPreviousSibling); }
+    bool childrenAffectedByFirstChildRules() const { return hasStyleFlag(NodeStyleFlag::ChildrenAffectedByFirstChildRules); }
+    bool childrenAffectedByLastChildRules() const { return hasStyleFlag(NodeStyleFlag::ChildrenAffectedByLastChildRules); }
+    bool childrenAffectedByForwardPositionalRules() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByForwardPositionalRules); }
+    bool descendantsAffectedByForwardPositionalRules() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::DescendantsAffectedByForwardPositionalRules); }
+    bool childrenAffectedByBackwardPositionalRules() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByBackwardPositionalRules); }
+    bool descendantsAffectedByBackwardPositionalRules() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::DescendantsAffectedByBackwardPositionalRules); }
+    bool childrenAffectedByPropertyBasedBackwardPositionalRules() const { return hasDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByPropertyBasedBackwardPositionalRules); }
+    bool affectsNextSiblingElementStyle() const { return hasStyleFlag(NodeStyleFlag::AffectsNextSiblingElementStyle); }
+    bool styleIsAffectedByPreviousSibling() const { return hasStyleFlag(NodeStyleFlag::StyleIsAffectedByPreviousSibling); }
     unsigned childIndex() const { return hasRareData() ? rareDataChildIndex() : 0; }
 
     bool hasFlagsSetDuringStylingOfChildren() const;
 
-    void setStyleAffectedByEmpty() { setStyleFlag(ElementStyleFlag::StyleAffectedByEmpty); }
-    void setDescendantsAffectedByPreviousSibling() { setFlag(DescendantsAffectedByPreviousSiblingFlag); }
-    void setChildrenAffectedByFirstChildRules() { setFlag(ChildrenAffectedByFirstChildRulesFlag); }
-    void setChildrenAffectedByLastChildRules() { setFlag(ChildrenAffectedByLastChildRulesFlag); }
-    void setChildrenAffectedByForwardPositionalRules() { setStyleFlag(ElementStyleFlag::ChildrenAffectedByForwardPositionalRules); }
-    void setDescendantsAffectedByForwardPositionalRules() { setStyleFlag(ElementStyleFlag::DescendantsAffectedByForwardPositionalRules); }
-    void setChildrenAffectedByBackwardPositionalRules() { setStyleFlag(ElementStyleFlag::ChildrenAffectedByBackwardPositionalRules); }
-    void setDescendantsAffectedByBackwardPositionalRules() { setStyleFlag(ElementStyleFlag::DescendantsAffectedByBackwardPositionalRules); }
-    void setChildrenAffectedByPropertyBasedBackwardPositionalRules() { setStyleFlag(ElementStyleFlag::ChildrenAffectedByPropertyBasedBackwardPositionalRules); }
-    void setAffectsNextSiblingElementStyle() { setFlag(AffectsNextSiblingElementStyle); }
-    void setStyleIsAffectedByPreviousSibling() { setFlag(StyleIsAffectedByPreviousSibling); }
+    void setStyleAffectedByEmpty() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::StyleAffectedByEmpty); }
+    void setDescendantsAffectedByPreviousSibling() { setStyleFlag(NodeStyleFlag::DescendantsAffectedByPreviousSibling); }
+    void setChildrenAffectedByFirstChildRules() { setStyleFlag(NodeStyleFlag::ChildrenAffectedByFirstChildRules); }
+    void setChildrenAffectedByLastChildRules() { setStyleFlag(NodeStyleFlag::ChildrenAffectedByLastChildRules); }
+    void setChildrenAffectedByForwardPositionalRules() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByForwardPositionalRules); }
+    void setDescendantsAffectedByForwardPositionalRules() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::DescendantsAffectedByForwardPositionalRules); }
+    void setChildrenAffectedByBackwardPositionalRules() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByBackwardPositionalRules); }
+    void setDescendantsAffectedByBackwardPositionalRules() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::DescendantsAffectedByBackwardPositionalRules); }
+    void setChildrenAffectedByPropertyBasedBackwardPositionalRules() { setDynamicStyleRelationFlag(DynamicStyleRelationFlag::ChildrenAffectedByPropertyBasedBackwardPositionalRules); }
+    void setAffectsNextSiblingElementStyle() { setStyleFlag(NodeStyleFlag::AffectsNextSiblingElementStyle); }
+    void setStyleIsAffectedByPreviousSibling() { setStyleFlag(NodeStyleFlag::StyleIsAffectedByPreviousSibling); }
     void setChildIndex(unsigned);
 
     WEBCORE_EXPORT AtomString computeInheritedLanguage() const;
@@ -476,39 +481,32 @@ public:
 
     virtual bool childShouldCreateRenderer(const Node&) const;
 
-    bool hasPendingResources() const;
-    void setHasPendingResources();
-    void clearHasPendingResources();
+    bool hasPendingResources() const { return hasNodeFlag(NodeFlag::HasPendingResources); }
+    void setHasPendingResources() { setNodeFlag(NodeFlag::HasPendingResources); }
+    void clearHasPendingResources() { clearNodeFlag(NodeFlag::HasPendingResources); }
     virtual void buildPendingResource() { };
 
-    bool hasCSSAnimation() const;
-    void setHasCSSAnimation();
-    void clearHasCSSAnimation();
+    KeyframeEffectStack* keyframeEffectStack(PseudoId) const;
+    KeyframeEffectStack& ensureKeyframeEffectStack(PseudoId);
+    bool hasKeyframeEffects(PseudoId) const;
+    OptionSet<AnimationImpact> applyKeyframeEffects(PseudoId, RenderStyle&);
 
-    KeyframeEffectStack* keyframeEffectStack() const;
-    KeyframeEffectStack& ensureKeyframeEffectStack();
-    bool hasKeyframeEffects() const;
-    OptionSet<AnimationImpact> applyKeyframeEffects(RenderStyle&);
+    const AnimationCollection* animations(PseudoId) const;
+    bool hasCompletedTransitionsForProperty(PseudoId, CSSPropertyID) const;
+    bool hasRunningTransitionsForProperty(PseudoId, CSSPropertyID) const;
+    bool hasRunningTransitions(PseudoId) const;
+    AnimationCollection& ensureAnimations(PseudoId);
 
-    const AnimationCollection* webAnimations() const;
-    const AnimationCollection* cssAnimations() const;
-    const AnimationCollection* transitions() const;
-    bool hasCompletedTransitionsForProperty(CSSPropertyID) const;
-    bool hasRunningTransitionsForProperty(CSSPropertyID) const;
-    bool hasRunningTransitions() const;
-    AnimationCollection& ensureWebAnimations();
-    AnimationCollection& ensureCSSAnimations();
-    AnimationCollection& ensureTransitions();
-    PropertyToTransitionMap& ensureCompletedTransitionsByProperty();
-    PropertyToTransitionMap& ensureRunningTransitionsByProperty();
-    CSSAnimationCollection& animationsCreatedByMarkup();
-    void setAnimationsCreatedByMarkup(CSSAnimationCollection&&);
+    PropertyToTransitionMap& ensureCompletedTransitionsByProperty(PseudoId);
+    PropertyToTransitionMap& ensureRunningTransitionsByProperty(PseudoId);
+    CSSAnimationCollection& animationsCreatedByMarkup(PseudoId);
+    void setAnimationsCreatedByMarkup(PseudoId, CSSAnimationCollection&&);
 
-    const RenderStyle* lastStyleChangeEventStyle() const;
-    void setLastStyleChangeEventStyle(std::unique_ptr<const RenderStyle>&&);
+    const RenderStyle* lastStyleChangeEventStyle(PseudoId) const;
+    void setLastStyleChangeEventStyle(PseudoId, std::unique_ptr<const RenderStyle>&&);
 
 #if ENABLE(FULLSCREEN_API)
-    WEBCORE_EXPORT bool containsFullScreenElement() const;
+    bool containsFullScreenElement() const { return hasNodeFlag(NodeFlag::ContainsFullScreenElement); }
     void setContainsFullScreenElement(bool);
     void setContainsFullScreenElementOnAncestorsCrossingFrameBoundaries(bool);
     WEBCORE_EXPORT virtual void webkitRequestFullscreen();
@@ -632,8 +630,7 @@ protected:
     void removeAllEventListeners() final;
     virtual void parserDidSetAttributes();
 
-    void clearTabIndexExplicitlyIfNeeded();
-    void setTabIndexExplicitly(int);
+    void setTabIndexExplicitly(Optional<int>);
 
     void classAttributeChanged(const AtomString& newClassString);
     void partAttributeChanged(const AtomString& newValue);
@@ -695,10 +692,6 @@ private:
     LayoutRect absoluteEventBounds(bool& boundsIncludeAllDescendantElements, bool& includesFixedPositionElements);
     LayoutRect absoluteEventBoundsOfElementAndDescendants(bool& includesFixedPositionElements);
 
-#if ENABLE(TREE_DEBUGGING)
-    void formatForDebugger(char* buffer, unsigned length) const override;
-#endif
-
 #if ENABLE(INTERSECTION_OBSERVER)
     void disconnectFromIntersectionObservers();
 #endif
@@ -724,8 +717,8 @@ private:
     ElementRareData* elementRareData() const;
     ElementRareData& ensureElementRareData();
 
-    ElementAnimationRareData* animationRareData() const;
-    ElementAnimationRareData& ensureAnimationRareData();
+    ElementAnimationRareData* animationRareData(PseudoId) const;
+    ElementAnimationRareData& ensureAnimationRareData(PseudoId);
 
     virtual int defaultTabIndex() const;
 

@@ -25,14 +25,11 @@
 
 #pragma once
 
-#import <wtf/RetainPtr.h>
-
-#if HAVE(NETWORK_FRAMEWORK)
-
 #import <Network/Network.h>
 #import <wtf/CompletionHandler.h>
 #import <wtf/Forward.h>
 #import <wtf/HashMap.h>
+#import <wtf/RetainPtr.h>
 #import <wtf/text/StringHash.h>
 
 namespace TestWebKitAPI {
@@ -54,8 +51,9 @@ public:
     size_t totalRequests() const;
     void cancel();
 
+    static void respondWithOK(Connection);
     static void respondWithChallengeThenOK(Connection);
-    
+
 private:
     static RetainPtr<nw_parameters_t> listenerParameters(Protocol, CertificateVerifier&&, RetainPtr<SecIdentityRef>&&, Optional<uint16_t> port);
     static void respondToRequests(Connection, Ref<RequestData>);
@@ -166,8 +164,6 @@ private:
 } // namespace H2
 
 } // namespace TestWebKitAPI
-
-#endif // HAVE(NETWORK_FRAMEWORK)
 
 RetainPtr<SecIdentityRef> testIdentity();
 RetainPtr<SecIdentityRef> testIdentity2();

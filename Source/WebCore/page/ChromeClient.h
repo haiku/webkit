@@ -51,6 +51,7 @@
 #include <wtf/Assertions.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Forward.h>
+#include <wtf/MonotonicTime.h>
 #include <wtf/Seconds.h>
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -367,6 +368,7 @@ public:
     virtual void enterVideoFullscreenForVideoElement(HTMLVideoElement&, HTMLMediaElementEnums::VideoFullscreenMode, bool standby) { UNUSED_PARAM(standby); }
     virtual void setUpPlaybackControlsManager(HTMLMediaElement&) { }
     virtual void clearPlaybackControlsManager() { }
+    virtual void playbackControlsMediaEngineChanged() { }
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -524,10 +526,6 @@ public:
     virtual void didRemoveMenuItemElement(HTMLMenuItemElement&) { }
 
     virtual String signedPublicKeyAndChallengeString(unsigned, const String&, const URL&) const { return emptyString(); }
-
-    virtual void associateEditableImageWithAttachment(GraphicsLayer::EmbeddedViewID, const String&) { }
-    virtual void didCreateEditableImage(GraphicsLayer::EmbeddedViewID) { }
-    virtual void didDestroyEditableImage(GraphicsLayer::EmbeddedViewID) { }
 
     virtual void configureLoggingChannel(const String&, WTFLogChannelState, WTFLogLevel) { }
 

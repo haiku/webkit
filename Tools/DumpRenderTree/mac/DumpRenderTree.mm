@@ -814,7 +814,6 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setMediaPreloadingEnabled:YES];
     // FIXME: InputEvents
     [preferences setFetchAPIKeepAliveEnabled:YES];
-    [preferences setWebAnimationsEnabled:YES];
     [preferences setWebAnimationsCompositeOperationsEnabled:YES];
     [preferences setWebAnimationsMutableTimelinesEnabled:YES];
     [preferences setCSSCustomPropertiesAndValuesEnabled:YES];
@@ -823,6 +822,7 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setCacheAPIEnabled:NO];
     [preferences setReadableByteStreamAPIEnabled:YES];
     [preferences setWritableStreamAPIEnabled:YES];
+    [preferences setTransformStreamAPIEnabled:YES];
     preferences.encryptedMediaAPIEnabled = YES;
     [preferences setAccessibilityObjectModelEnabled:YES];
     [preferences setAriaReflectionEnabled:YES];
@@ -835,9 +835,10 @@ static void enableExperimentalFeatures(WebPreferences* preferences)
     [preferences setMediaRecorderEnabled:YES];
     [preferences setReferrerPolicyAttributeEnabled:YES];
     [preferences setLinkPreloadResponsiveImagesEnabled:YES];
-    [preferences setCSSShadowPartsEnabled:YES];
     [preferences setAspectRatioOfImgFromWidthAndHeightEnabled:YES];
     [preferences setCSSOMViewSmoothScrollingEnabled:YES];
+    [preferences setCSSIndividualTransformPropertiesEnabled:YES];
+    [preferences setAudioWorkletEnabled:YES];
 }
 
 // Called before each test.
@@ -934,9 +935,6 @@ static void resetWebPreferencesToConsistentValues()
     [preferences setMediaSourceEnabled:YES];
     [preferences setSourceBufferChangeTypeEnabled:YES];
 
-    [preferences setShadowDOMEnabled:YES];
-    [preferences setCustomElementsEnabled:YES];
-
     [preferences setDataTransferItemsEnabled:YES];
     [preferences setCustomPasteboardDataEnabled:YES];
     [preferences setDialogElementEnabled:YES];
@@ -955,8 +953,6 @@ static void resetWebPreferencesToConsistentValues()
     [preferences setLargeImageAsyncDecodingEnabled:NO];
 
     [preferences setModernMediaControlsEnabled:YES];
-    [preferences setResourceTimingEnabled:YES];
-    [preferences setUserTimingEnabled:YES];
 
     [preferences setCacheAPIEnabled:NO];
     preferences.mediaCapabilitiesEnabled = YES;
@@ -978,10 +974,8 @@ static void setWebPreferencesForTestOptions(const TestOptions& options)
     preferences.menuItemElementEnabled = options.enableMenuItemElement;
     preferences.keygenElementEnabled = options.enableKeygenElement;
     preferences.modernMediaControlsEnabled = options.enableModernMediaControls;
-    preferences.isSecureContextAttributeEnabled = options.enableIsSecureContextAttribute;
     preferences.inspectorAdditionsEnabled = options.enableInspectorAdditions;
     preferences.allowCrossOriginSubresourcesToAskForCredentials = options.allowCrossOriginSubresourcesToAskForCredentials;
-    preferences.webAnimationsCSSIntegrationEnabled = options.enableWebAnimationsCSSIntegration;
     preferences.colorFilterEnabled = options.enableColorFilter;
     preferences.selectionAcrossShadowBoundariesEnabled = options.enableSelectionAcrossShadowBoundaries;
     preferences.webGPUEnabled = options.enableWebGPU;
@@ -1522,6 +1516,10 @@ static NSString *dumpFramesAsText(WebFrame *frame)
         }
     }
 
+    // To keep things tidy, strip all trailing spaces: they are not a meaningful part of dumpAsText test output.
+    [result replaceOccurrencesOfString:@" +\n" withString:@"\n" options:NSRegularExpressionSearch range:NSMakeRange(0, result.length)];
+    [result replaceOccurrencesOfString:@" +$" withString:@"" options:NSRegularExpressionSearch range:NSMakeRange(0, result.length)];
+
     return result;
 }
 
@@ -1827,7 +1825,8 @@ static void setJSCOptions(const TestOptions& options)
     }
 }
 
-static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& options)
+enum class ResetTime { BeforeTest, AfterTest };
+static void resetWebViewToConsistentState(const TestOptions& options, ResetTime resetTime)
 {
     setJSCOptions(options);
 
@@ -1877,7 +1876,10 @@ static void resetWebViewToConsistentStateBeforeTesting(const TestOptions& option
     // In the case that a test using the chrome input field failed, be sure to clean up for the next test.
     gTestRunner->removeChromeInputField();
 
-    WebCoreTestSupport::resetInternalsObject([mainFrame globalContext]);
+    // We do not do this before running the test since it may eagerly create the global JS context
+    // if we have not loaded anything yet.
+    if (resetTime == ResetTime::AfterTest)
+        WebCoreTestSupport::resetInternalsObject([mainFrame globalContext]);
 
 #if !PLATFORM(IOS_FAMILY)
     if (WebCore::Frame* frame = [webView _mainCoreFrame])
@@ -2001,7 +2003,7 @@ static void runTest(const string& inputLine)
     gTestRunner->setCustomTimeout(command.timeout);
     gTestRunner->setDumpJSConsoleLogInStdErr(command.dumpJSConsoleLogInStdErr || options.dumpJSConsoleLogInStdErr);
 
-    resetWebViewToConsistentStateBeforeTesting(options);
+    resetWebViewToConsistentState(options, ResetTime::BeforeTest);
 
 #if !PLATFORM(IOS_FAMILY)
     changeWindowScaleIfNeeded(testURL);
@@ -2121,7 +2123,7 @@ static void runTest(const string& inputLine)
             }
         }
 
-        resetWebViewToConsistentStateBeforeTesting(options);
+        resetWebViewToConsistentState(options, ResetTime::AfterTest);
 
         // Loading an empty request synchronously replaces the document with a blank one, which is necessary
         // to stop timers, WebSockets and other activity that could otherwise spill output into next test's results.

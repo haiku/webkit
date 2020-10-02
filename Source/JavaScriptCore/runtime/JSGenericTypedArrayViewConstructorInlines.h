@@ -38,39 +38,29 @@
 namespace JSC {
 
 template<typename ViewClass>
-static EncodedJSValue JSC_HOST_CALL callGenericTypedArrayView(JSGlobalObject*, CallFrame*);
-
-template<typename ViewClass>
-EncodedJSValue JSC_HOST_CALL constructGenericTypedArrayView(JSGlobalObject*, CallFrame*);
-
-template<typename ViewClass>
 JSGenericTypedArrayViewConstructor<ViewClass>::JSGenericTypedArrayViewConstructor(VM& vm, Structure* structure)
-    : Base(vm, structure, callGenericTypedArrayView<ViewClass>, constructGenericTypedArrayView<ViewClass>)
+    : Base(vm, structure, callConstructor(), constructConstructor())
 {
 }
 
 template<typename ViewClass>
-void JSGenericTypedArrayViewConstructor<ViewClass>::finishCreation(VM& vm, JSGlobalObject* globalObject, JSObject* prototype, const String& name, FunctionExecutable* privateAllocator)
+void JSGenericTypedArrayViewConstructor<ViewClass>::finishCreation(VM& vm, JSGlobalObject*, JSObject* prototype, const String& name)
 {
-    Base::finishCreation(vm, name, NameAdditionMode::WithoutStructureTransition);
+    Base::finishCreation(vm, ViewClass::TypedArrayStorageType == TypeDataView ? 1 : 3, name, PropertyAdditionMode::WithoutStructureTransition);
     putDirectWithoutTransition(vm, vm.propertyNames->prototype, prototype, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
-    putDirectWithoutTransition(vm, vm.propertyNames->length, jsNumber(3), PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly);
     putDirectWithoutTransition(vm, vm.propertyNames->BYTES_PER_ELEMENT, jsNumber(ViewClass::elementSize), PropertyAttribute::DontEnum | PropertyAttribute::ReadOnly | PropertyAttribute::DontDelete);
-
-    if (privateAllocator)
-        putDirectBuiltinFunction(vm, globalObject, vm.propertyNames->builtinNames().allocateTypedArrayPrivateName(), privateAllocator, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
 }
 
 template<typename ViewClass>
 JSGenericTypedArrayViewConstructor<ViewClass>*
 JSGenericTypedArrayViewConstructor<ViewClass>::create(
     VM& vm, JSGlobalObject* globalObject, Structure* structure, JSObject* prototype,
-    const String& name, FunctionExecutable* privateAllocator)
+    const String& name)
 {
     JSGenericTypedArrayViewConstructor* result =
         new (NotNull, allocateCell<JSGenericTypedArrayViewConstructor>(vm.heap))
         JSGenericTypedArrayViewConstructor(vm, structure);
-    result->finishCreation(vm, globalObject, prototype, name, privateAllocator);
+    result->finishCreation(vm, globalObject, prototype, name);
     return result;
 }
 
@@ -207,7 +197,7 @@ inline JSObject* constructGenericTypedArrayViewWithArguments(JSGlobalObject* glo
 }
 
 template<typename ViewClass>
-EncodedJSValue JSC_HOST_CALL constructGenericTypedArrayView(JSGlobalObject* globalObject, CallFrame* callFrame)
+ALWAYS_INLINE EncodedJSValue constructGenericTypedArrayViewImpl(JSGlobalObject* globalObject, CallFrame* callFrame)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -248,7 +238,7 @@ EncodedJSValue JSC_HOST_CALL constructGenericTypedArrayView(JSGlobalObject* glob
 }
 
 template<typename ViewClass>
-static EncodedJSValue JSC_HOST_CALL callGenericTypedArrayView(JSGlobalObject* globalObject, CallFrame*)
+ALWAYS_INLINE EncodedJSValue callGenericTypedArrayViewImpl(JSGlobalObject* globalObject, CallFrame*)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);

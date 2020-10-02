@@ -58,6 +58,8 @@ public:
 #if ENABLE(MEDIA_STREAM)
     static void forEach(const WTF::Function<void(UserMediaPermissionRequestManagerProxy&)>&);
 #endif
+    static bool permittedToCaptureAudio();
+    static bool permittedToCaptureVideo();
 
     void invalidatePendingRequests();
 
@@ -112,7 +114,7 @@ private:
 
     bool wasGrantedVideoOrAudioAccess(WebCore::FrameIdentifier, const WebCore::SecurityOrigin& userMediaDocumentOrigin, const WebCore::SecurityOrigin& topLevelDocumentOrigin);
 
-    Vector<WebCore::CaptureDevice> computeFilteredDeviceList(bool revealIdsAndLabels, const String& deviceIDHashSalt);
+    Vector<WebCore::CaptureDevice> computeFilteredDeviceList(bool revealIdsAndLabels);
 
     void processUserMediaPermissionRequest();
     void processUserMediaPermissionInvalidRequest(const String& invalidConstraint);

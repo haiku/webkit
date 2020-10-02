@@ -67,6 +67,8 @@ public:
     JSBoundFunction* boundFormat() const { return m_boundFormat.get(); }
     void setBoundFormat(VM&, JSBoundFunction*);
 
+    static IntlDateTimeFormat* unwrapForOldFunctions(JSGlobalObject*, JSValue);
+
 private:
     IntlDateTimeFormat(VM&, Structure*);
     void finishCreation(VM&);
@@ -76,11 +78,13 @@ private:
 
     UDateIntervalFormat* createDateIntervalFormatIfNecessary(JSGlobalObject*);
 
+    enum class HourCycle : uint8_t { None, H11, H12, H23, H24 };
     enum class Weekday : uint8_t { None, Narrow, Short, Long };
     enum class Era : uint8_t { None, Narrow, Short, Long };
     enum class Year : uint8_t { None, TwoDigit, Numeric };
     enum class Month : uint8_t { None, TwoDigit, Numeric, Narrow, Short, Long };
     enum class Day : uint8_t { None, TwoDigit, Numeric };
+    enum class DayPeriod : uint8_t { None, Narrow, Short, Long };
     enum class Hour : uint8_t { None, TwoDigit, Numeric };
     enum class Minute : uint8_t { None, TwoDigit, Numeric };
     enum class Second : uint8_t { None, TwoDigit, Numeric };
@@ -88,16 +92,24 @@ private:
     enum class DateTimeStyle : uint8_t { None, Full, Long, Medium, Short };
 
     void setFormatsFromPattern(const StringView&);
+    static ASCIILiteral hourCycleString(HourCycle);
     static ASCIILiteral weekdayString(Weekday);
     static ASCIILiteral eraString(Era);
     static ASCIILiteral yearString(Year);
     static ASCIILiteral monthString(Month);
     static ASCIILiteral dayString(Day);
+    static ASCIILiteral dayPeriodString(DayPeriod);
     static ASCIILiteral hourString(Hour);
     static ASCIILiteral minuteString(Minute);
     static ASCIILiteral secondString(Second);
     static ASCIILiteral timeZoneNameString(TimeZoneName);
     static ASCIILiteral formatStyleString(DateTimeStyle);
+
+    static HourCycle hourCycleFromSymbol(UChar);
+    static HourCycle parseHourCycle(const String&);
+    static HourCycle hourCycleFromPattern(const Vector<UChar, 32>&);
+    static void replaceHourCycleInSkeleton(Vector<UChar, 32>&, bool hour12);
+    static void replaceHourCycleInPattern(Vector<UChar, 32>&, HourCycle);
 
     using UDateFormatDeleter = ICUDeleter<udat_close>;
     using UDateIntervalFormatDeleter = ICUDeleter<udtitvfmt_close>;
@@ -111,15 +123,17 @@ private:
     String m_calendar;
     String m_numberingSystem;
     String m_timeZone;
-    String m_hourCycle;
+    HourCycle m_hourCycle { HourCycle::None };
     Weekday m_weekday { Weekday::None };
     Era m_era { Era::None };
     Year m_year { Year::None };
     Month m_month { Month::None };
     Day m_day { Day::None };
+    DayPeriod m_dayPeriod { DayPeriod::None };
     Hour m_hour { Hour::None };
     Minute m_minute { Minute::None };
     Second m_second { Second::None };
+    uint8_t m_fractionalSecondDigits { 0 };
     TimeZoneName m_timeZoneName { TimeZoneName::None };
     DateTimeStyle m_dateStyle { DateTimeStyle::None };
     DateTimeStyle m_timeStyle { DateTimeStyle::None };

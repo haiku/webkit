@@ -63,7 +63,7 @@ public:
     void contextDestroyed();
     virtual void waitForOutstandingCallbacks() { /* notImplemented(); */ }
 
-    void makeWindowObject(JSContextRef, JSObjectRef windowObject, JSValueRef* exception);
+    void makeWindowObject(JSContextRef);
 
     // Transaction helpers
     
@@ -188,8 +188,8 @@ public:
 
     virtual void replaceTextAtRange(JSStringRef, int location, int length) { notImplemented(); }
 
-    virtual bool windowIsKey() const;
-    virtual void setWindowIsKey(bool);
+    virtual bool windowIsKey() const { notImplemented(); return false; }
+    virtual void setWindowIsKey(bool) { notImplemented(); }
 
     // Stylus
 
@@ -217,6 +217,7 @@ public:
     virtual double timePickerValueHour() const { notImplemented(); return -1; }
     virtual double timePickerValueMinute() const { notImplemented(); return -1; }
     virtual bool isShowingDateTimePicker() const { notImplemented(); return false; }
+    virtual double dateTimePickerValue() const { notImplemented(); return 0; }
     virtual bool isShowingDataListSuggestions() const { notImplemented(); return false; }
     virtual JSObjectRef calendarType() const { notImplemented(); return nullptr; }
     virtual void setDefaultCalendarType(JSStringRef calendarIdentifier, JSStringRef localeIdentifier) { notImplemented(); }
@@ -266,11 +267,6 @@ public:
     virtual void simulateRotation(DeviceOrientation*, JSValueRef) { notImplemented(); }
     virtual void simulateRotationLikeSafari(DeviceOrientation*, JSValueRef) { notImplemented(); }
 
-    // Editable Images
-
-    virtual void drawSquareInEditableImage() { notImplemented(); }
-    virtual long numberOfStrokesInEditableImage() { notImplemented(); return 0; }
-
     // Undo/Redo
 
     virtual JSRetainPtr<JSStringRef> lastUndoLabel() const { notImplemented(); return nullptr; }
@@ -279,6 +275,7 @@ public:
     // Attachment Elements
 
     virtual JSObjectRef attachmentInfo(JSStringRef attachmentIdentifier) { notImplemented(); return nullptr; }
+    virtual void insertAttachmentForFilePath(JSStringRef filePath, JSStringRef contentType, JSValueRef callback) { notImplemented(); }
 
     // Callbacks
     

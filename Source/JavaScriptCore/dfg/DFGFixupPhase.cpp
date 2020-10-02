@@ -1905,12 +1905,20 @@ private:
             break;
         }
 
+
+        case PutPrivateName: {
+            fixEdge<CellUse>(node->child1());
+            fixEdge<SymbolUse>(node->child2());
+            break;
+        }
+
         case OverridesHasInstance:
         case CheckStructure:
         case CreateThis:
         case CreatePromise:
         case CreateGenerator:
         case CreateAsyncGenerator:
+        case PutPrivateNameById:
         case GetButterfly: {
             fixEdge<CellUse>(node->child1());
             break;
@@ -2110,6 +2118,7 @@ private:
         case CheckTierUpInLoop:
         case CheckTierUpAtReturn:
         case CheckTierUpAndOSREnter:
+        case AssertInBounds:
         case CheckInBounds:
         case ConstantStoragePointer:
         case DoubleAsInt32:
@@ -2377,12 +2386,18 @@ private:
                 fixEdge<BooleanUse>(node->child2());
             else if (node->child2()->shouldSpeculateInt32())
                 fixEdge<Int32Use>(node->child2());
+#if USE(BIGINT32)
+            else if (node->child2()->shouldSpeculateBigInt32())
+                fixEdge<BigInt32Use>(node->child2());
+#endif
             else if (node->child2()->shouldSpeculateSymbol())
                 fixEdge<SymbolUse>(node->child2());
             else if (node->child2()->shouldSpeculateObject())
                 fixEdge<ObjectUse>(node->child2());
             else if (node->child2()->shouldSpeculateString())
                 fixEdge<StringUse>(node->child2());
+            else if (node->child2()->shouldSpeculateHeapBigInt())
+                fixEdge<HeapBigIntUse>(node->child2());
             else if (node->child2()->shouldSpeculateCell())
                 fixEdge<CellUse>(node->child2());
             else
@@ -2433,6 +2448,18 @@ private:
 
             if (node->child1()->shouldSpeculateString()) {
                 fixEdge<StringUse>(node->child1());
+                break;
+            }
+
+#if USE(BIGINT32)
+            if (node->child1()->shouldSpeculateBigInt32()) {
+                fixEdge<BigInt32Use>(node->child1());
+                break;
+            }
+#endif
+
+            if (node->child1()->shouldSpeculateHeapBigInt()) {
+                fixEdge<HeapBigIntUse>(node->child1());
                 break;
             }
 
@@ -2759,7 +2786,6 @@ private:
         case LoopHint:
         case MovHint:
         case InitializeEntrypointArguments:
-        case ZombieHint:
         case ExitOK:
         case BottomValue:
         case TypeOf:
@@ -3997,11 +4023,13 @@ private:
             return;
         }
 
-        if (node->child1()->shouldSpeculateCell()) {
-            fixEdge<CellUse>(node->child1());
+#if USE(BIGINT32)
+        if (node->child1()->shouldSpeculateBigInt32()) {
+            fixEdge<BigInt32Use>(node->child1());
             node->convertToIdentity();
             return;
         }
+#endif
 
         fixEdge<UntypedUse>(node->child1());
     }

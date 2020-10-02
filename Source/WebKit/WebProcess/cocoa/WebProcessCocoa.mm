@@ -71,6 +71,7 @@
 #import <algorithm>
 #import <dispatch/dispatch.h>
 #import <objc/runtime.h>
+#import <pal/cocoa/MediaToolboxSoftLink.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
 #import <pal/spi/cf/CFUtilitiesSPI.h>
 #import <pal/spi/cg/CoreGraphicsSPI.h>
@@ -134,6 +135,12 @@
 
 #import <pal/cocoa/AVFoundationSoftLink.h>
 
+#if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
+// FIXME: This is only for binary compatibility with versions of UIKit in macOS 11 that are missing the change in <rdar://problem/68524148>.
+SOFT_LINK_FRAMEWORK(UIKit)
+SOFT_LINK_FUNCTION_MAY_FAIL_FOR_SOURCE(WebKit, UIKit, _UIApplicationCatalystRequestViewServiceIdiomAndScaleFactor, void, (UIUserInterfaceIdiom idiom, CGFloat scaleFactor), (idiom, scaleFactor))
+#endif
+
 SOFT_LINK_FRAMEWORK(CoreServices)
 SOFT_LINK_CLASS(CoreServices, _LSDService)
 SOFT_LINK_CLASS(CoreServices, _LSDOpenService)
@@ -167,6 +174,13 @@ static id NSApplicationAccessibilityFocusedUIElement(NSApplication*, SEL)
 
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
+#if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
+    if (canLoad_UIKit__UIApplicationCatalystRequestViewServiceIdiomAndScaleFactor()) {
+        auto [overrideUserInterfaceIdiom, overrideScaleFactor] = parameters.overrideUserInterfaceIdiomAndScale;
+        softLink_UIKit__UIApplicationCatalystRequestViewServiceIdiomAndScaleFactor(static_cast<UIUserInterfaceIdiom>(overrideUserInterfaceIdiom), overrideScaleFactor);
+    }
+#endif
+
     if (parameters.mobileGestaltExtensionHandle) {
         if (auto extension = SandboxExtension::create(WTFMove(*parameters.mobileGestaltExtensionHandle))) {
             bool ok = extension->consume();
@@ -239,7 +253,7 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
     setEnhancedAccessibility(parameters.accessibilityEnhancedUserInterfaceEnabled);
 
 #if PLATFORM(IOS_FAMILY)
-    setCurrentUserInterfaceIdiomIsPad(parameters.currentUserInterfaceIdiomIsPad);
+    setCurrentUserInterfaceIdiomIsPadOrMac(parameters.currentUserInterfaceIdiomIsPad);
     setLocalizedDeviceModel(parameters.localizedDeviceModel);
 #if ENABLE(VIDEO_PRESENTATION_MODE)
     setSupportsPictureInPicture(parameters.supportsPictureInPicture);
@@ -291,15 +305,14 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 #endif
 
 #if PLATFORM(IOS)
-    if (parameters.compilerServiceExtensionHandle)
-        SandboxExtension::consumePermanently(*parameters.compilerServiceExtensionHandle);
+    SandboxExtension::consumePermanently(parameters.compilerServiceExtensionHandles);
 #endif
 
     if (parameters.containerManagerExtensionHandle)
         SandboxExtension::consumePermanently(*parameters.containerManagerExtensionHandle);
     
-#if PLATFORM(IOS_FAMILY)
     SandboxExtension::consumePermanently(parameters.diagnosticsExtensionHandles);
+#if PLATFORM(IOS_FAMILY)
     SandboxExtension::consumePermanently(parameters.dynamicMachExtensionHandles);
     SandboxExtension::consumePermanently(parameters.dynamicIOKitExtensionHandles);
 #endif
@@ -323,6 +336,11 @@ void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& para
 #endif
         
     WebCore::sleepDisablerClient() = makeUnique<WebSleepDisablerClient>();
+
+#if HAVE(FIG_PHOTO_DECOMPRESSION_SET_HARDWARE_CUTOFF) && !ENABLE(HARDWARE_JPEG)
+    if (PAL::isMediaToolboxFrameworkAvailable() && PAL::canLoad_MediaToolbox_FigPhotoDecompressionSetHardwareCutoff())
+        PAL::softLinkMediaToolboxFigPhotoDecompressionSetHardwareCutoff(kPALFigPhotoContainerFormat_JFIF, INT_MAX);
+#endif
 
     updateProcessName();
 }
@@ -1016,14 +1034,9 @@ void WebProcess::setScreenProperties(const ScreenProperties& properties)
 #if PLATFORM(MAC)
 void WebProcess::updatePageScreenProperties()
 {
-#if HAVE(AVPLAYER_VIDEORANGEOVERRIDE)
-    // If AVPlayer.videoRangeOverride support is present, there's no need to override HDR mode
-    // at the MediaToolbox level, as the MediaToolbox override functionality is both duplicative
-    // and process global.
-    if (PAL::isAVFoundationFrameworkAvailable() && [PAL::getAVPlayerClass() instancesRespondToSelector:@selector(setVideoRangeOverride:)])
-        return;
-#endif
-
+#if !HAVE(AVPLAYER_VIDEORANGEOVERRIDE)
+    // Only override HDR support at the MediaToolbox level if AVPlayer.videoRangeOverride support is
+    // not present, as the MediaToolbox override functionality is both duplicative and process global.
     if (hasProcessPrivilege(ProcessPrivilege::CanCommunicateWithWindowServer)) {
         setShouldOverrideScreenSupportsHighDynamicRange(false, false);
         return;
@@ -1033,6 +1046,7 @@ void WebProcess::updatePageScreenProperties()
         return screenSupportsHighDynamicRange(page->mainFrameView());
     });
     setShouldOverrideScreenSupportsHighDynamicRange(true, allPagesAreOnHDRScreens);
+#endif
 }
 #endif
 

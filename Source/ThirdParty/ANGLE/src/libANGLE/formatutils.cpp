@@ -10,6 +10,7 @@
 
 #include "anglebase/no_destructor.h"
 #include "common/mathutil.h"
+#include "gpu_info_util/SystemInfo.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Framebuffer.h"
 
@@ -186,7 +187,7 @@ static bool SizedHalfFloatRGTextureAttachmentSupport(const Version &clientVersio
     // HALF_FLOAT
     if (clientVersion >= Version(3, 0))
     {
-        return extensions.colorBufferFloat;
+        return extensions.colorBufferFloat || (extensions.webglCompatibility && extensions.colorBufferHalfFloat);
     }
     // HALF_FLOAT_OES
     else
@@ -253,7 +254,7 @@ static bool SizedHalfFloatRGBTextureAttachmentSupport(const Version &clientVersi
         // It is unclear how EXT_color_buffer_half_float applies to ES3.0 and above, however,
         // dEQP GLES3 es3fFboColorbufferTests.cpp verifies that texture attachment of GL_RGB16F
         // is possible, so assume that all GLES implementations support it.
-        return extensions.colorBufferHalfFloat;
+        return extensions.colorBufferHalfFloat && !extensions.webglCompatibility;
     }
     // HALF_FLOAT_OES
     else
@@ -265,8 +266,8 @@ static bool SizedHalfFloatRGBTextureAttachmentSupport(const Version &clientVersi
 static bool SizedHalfFloatRGBRenderbufferSupport(const Version &clientVersion,
                                                  const Extensions &extensions)
 {
-    return (clientVersion >= Version(3, 0) || extensions.textureHalfFloat) &&
-           extensions.colorBufferHalfFloat;
+    return !extensions.webglCompatibility && ((clientVersion >= Version(3, 0) || extensions.textureHalfFloat) &&
+           extensions.colorBufferHalfFloat);
 }
 
 static bool SizedHalfFloatRGBATextureAttachmentSupport(const Version &clientVersion,
@@ -275,7 +276,7 @@ static bool SizedHalfFloatRGBATextureAttachmentSupport(const Version &clientVers
     // HALF_FLOAT
     if (clientVersion >= Version(3, 0))
     {
-        return extensions.colorBufferFloat;
+        return extensions.colorBufferFloat || (extensions.webglCompatibility && extensions.colorBufferHalfFloat);
     }
     // HALF_FLOAT_OES
     else
@@ -354,7 +355,8 @@ InternalFormat::InternalFormat()
       textureSupport(NeverSupported),
       filterSupport(NeverSupported),
       textureAttachmentSupport(NeverSupported),
-      renderbufferSupport(NeverSupported)
+      renderbufferSupport(NeverSupported),
+      blendSupport(NeverSupported)
 {}
 
 InternalFormat::InternalFormat(const InternalFormat &other) = default;
@@ -1029,8 +1031,21 @@ static InternalFormatInfoMap BuildInternalFormatInfoMap()
     AddRGBAFormat(&map, GL_RGBA,           false,  8,  8,  8,  8, 0, GL_RGBA,           GL_BYTE,                        GL_SIGNED_NORMALIZED,   false, NeverSupported,                                   NeverSupported,  NeverSupported,                                 NeverSupported, NeverSupported);
     AddRGBAFormat(&map, GL_SRGB,           false,  8,  8,  8,  0, 0, GL_SRGB,           GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, true,  RequireExt<&Extensions::sRGB>,                    AlwaysSupported, NeverSupported,                                 NeverSupported, NeverSupported);
     AddRGBAFormat(&map, GL_SRGB_ALPHA_EXT, false,  8,  8,  8,  8, 0, GL_SRGB_ALPHA_EXT, GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, true,  RequireExt<&Extensions::sRGB>,                    AlwaysSupported, RequireExt<&Extensions::sRGB>,                  NeverSupported, NeverSupported);
-#if defined(ANGLE_PLATFORM_IOS) && !defined(ANGLE_PLATFORM_MACCATALYST)
-    AddRGBAFormat(&map, GL_BGRA_EXT,       false,  8,  8,  8,  8, 0, GL_BGRA_EXT,       GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, false, RequireES<2, 0>,                                  AlwaysSupported, RequireES<2, 0>,                                NeverSupported, NeverSupported);
+#if (defined(ANGLE_PLATFORM_IOS) && !defined(ANGLE_PLATFORM_MACCATALYST)) || (defined(ANGLE_PLATFORM_MACCATALYST) && defined(ANGLE_CPU_ARM64))
+    angle::SystemInfo info;
+    if (angle::GetSystemInfo(&info))
+    {
+        if (info.isiOSAppOnMac)
+        {
+            // Using OpenGLES.framework.
+            AddRGBAFormat(&map, GL_BGRA_EXT,       false,  8,  8,  8,  8, 0, GL_BGRA_EXT,       GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, false, RequireES<2, 0>,                                  AlwaysSupported, RequireES<2, 0>,                                NeverSupported, NeverSupported);
+        }
+        else
+        {
+            // Using OpenGL.framework.
+            AddRGBAFormat(&map, GL_BGRA_EXT,       false,  8,  8,  8,  8, 0, GL_BGRA_EXT,       GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, false, RequireExt<&Extensions::textureFormatBGRA8888>,   AlwaysSupported, RequireExt<&Extensions::textureFormatBGRA8888>, NeverSupported, NeverSupported);
+        }
+    }
 #else
     AddRGBAFormat(&map, GL_BGRA_EXT,       false,  8,  8,  8,  8, 0, GL_BGRA_EXT,       GL_UNSIGNED_BYTE,               GL_UNSIGNED_NORMALIZED, false, RequireExt<&Extensions::textureFormatBGRA8888>,   AlwaysSupported, RequireExt<&Extensions::textureFormatBGRA8888>, NeverSupported, NeverSupported);
 #endif

@@ -25,16 +25,21 @@
 
 #pragma once
 
+#include "JSCPtrTag.h"
 
 namespace JSC {
 
 class CodeBlock;
 class VM;
 
+template<PtrTag> class MacroAssemblerCodeRef;
+
 namespace LLInt {
 
 void setEntrypoint(CodeBlock*);
 
 unsigned frameRegisterCountFor(CodeBlock*);
+
+MacroAssemblerCodeRef<JSEntryPtrTag> getHostCallReturnValueEntrypoint();
 
 } } // namespace JSC::LLInt

@@ -31,12 +31,14 @@
 #import "WKWebViewPrivateForTesting.h"
 #import <WebCore/AlternativeTextUIController.h>
 #import <wtf/Vector.h>
+#import <wtf/cocoa/VectorCocoa.h>
+#import <wtf/text/WTFString.h>
 
 namespace WebKit {
 
 PageClientImplCocoa::PageClientImplCocoa(WKWebView *webView)
     : m_webView { webView }
-    , m_alternativeTextUIController { makeUnique<AlternativeTextUIController>() }
+    , m_alternativeTextUIController { makeUnique<WebCore::AlternativeTextUIController>() }
 {
 }
 
@@ -107,6 +109,11 @@ void PageClientImplCocoa::removeDictationAlternatives(WebCore::DictationContext 
 }
 
 Vector<String> PageClientImplCocoa::dictationAlternatives(WebCore::DictationContext dictationContext)
+{
+    return makeVector<String>(platformDictationAlternatives(dictationContext).alternativeStrings);
+}
+
+NSTextAlternatives *PageClientImplCocoa::platformDictationAlternatives(WebCore::DictationContext dictationContext)
 {
     return m_alternativeTextUIController->alternativesForContext(dictationContext);
 }

@@ -30,6 +30,7 @@ namespace WebCore {
 class ControlStates;
 class KeyframeList;
 class RenderBlock;
+class RenderStyle;
 class RenderTreeBuilder;
 
 class RenderElement : public RenderObject {
@@ -226,15 +227,12 @@ public:
     RenderObject* attachRendererInternal(RenderPtr<RenderObject> child, RenderObject* beforeChild);
     RenderPtr<RenderObject> detachRendererInternal(RenderObject&);
 
-    virtual bool startTransition(double /* timeOffset */, CSSPropertyID, const RenderStyle* /* fromStyle */, const RenderStyle* /* toStyle */) { return false; }
-    virtual void transitionPaused(double /* timeOffset */, CSSPropertyID) { }
-    virtual void transitionFinished(CSSPropertyID) { }
-
     virtual bool startAnimation(double /* timeOffset */, const Animation&, const KeyframeList&) { return false; }
     virtual void animationPaused(double /* timeOffset */, const String& /* name */) { }
     virtual void animationFinished(const String& /* name */) { }
 
     virtual void suspendAnimations(MonotonicTime = MonotonicTime()) { }
+    std::unique_ptr<RenderStyle> animatedStyle();
 
 protected:
     enum BaseTypeFlag {
@@ -258,6 +256,8 @@ protected:
 
     void setFirstChild(RenderObject* child) { m_firstChild = child; }
     void setLastChild(RenderObject* child) { m_lastChild = child; }
+
+    bool repaintBeforeStyleChange(StyleDifference, const RenderStyle& oldStyle, const RenderStyle& newStyle);
 
     virtual void styleWillChange(StyleDifference, const RenderStyle& newStyle);
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);

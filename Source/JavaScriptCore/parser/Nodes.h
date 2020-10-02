@@ -722,12 +722,11 @@ namespace JSC {
     class PropertyNode final : public ParserArenaFreeable {
     public:
         enum Type : uint8_t { Constant = 1, Getter = 2, Setter = 4, Computed = 8, Shorthand = 16, Spread = 32, Private = 64 };
-        enum PutType : uint8_t { Unknown, KnownDirect };
 
-        PropertyNode(const Identifier&, ExpressionNode*, Type, PutType, SuperBinding, ClassElementTag);
-        PropertyNode(ExpressionNode*, Type, PutType, SuperBinding, ClassElementTag);
-        PropertyNode(ExpressionNode* propertyName, ExpressionNode*, Type, PutType, SuperBinding, ClassElementTag);
-        PropertyNode(const Identifier&, ExpressionNode* propertyName, ExpressionNode*, Type, PutType, SuperBinding, ClassElementTag);
+        PropertyNode(const Identifier&, ExpressionNode*, Type, SuperBinding, ClassElementTag);
+        PropertyNode(ExpressionNode*, Type, SuperBinding, ClassElementTag);
+        PropertyNode(ExpressionNode* propertyName, ExpressionNode*, Type, SuperBinding, ClassElementTag);
+        PropertyNode(const Identifier&, ExpressionNode* propertyName, ExpressionNode*, Type, SuperBinding, ClassElementTag);
 
         ExpressionNode* expressionName() const { return m_expression; }
         const Identifier* name() const { return m_name; }
@@ -744,7 +743,16 @@ namespace JSC {
         bool hasComputedName() const { return m_expression; }
         bool isComputedClassField() const { return isClassField() && hasComputedName(); }
         void setIsOverriddenByDuplicate() { m_isOverriddenByDuplicate = true; }
-        PutType putType() const { return static_cast<PutType>(m_putType); }
+
+        ALWAYS_INLINE static bool isUnderscoreProtoSetter(VM& vm, const PropertyNode& node)
+        {
+            return isUnderscoreProtoSetter(vm, node.name(), node.type(), node.needsSuperBinding(), node.isClassProperty());
+        }
+
+        ALWAYS_INLINE static bool isUnderscoreProtoSetter(VM& vm, const Identifier* name, Type type, bool needsSuperBinding, bool isClassProperty)
+        {
+            return name && *name == vm.propertyNames->underscoreProto && type == Type::Constant && !needsSuperBinding && !isClassProperty;
+        }
 
     private:
         friend class PropertyListNode;
@@ -753,7 +761,6 @@ namespace JSC {
         ExpressionNode* m_assign;
         unsigned m_type : 7;
         unsigned m_needsSuperBinding : 1;
-        unsigned m_putType : 1;
         static_assert(1 << 2 > static_cast<unsigned>(ClassElementTag::LastTag), "ClassElementTag shouldn't use more than two bits");
         unsigned m_classElementTag : 2;
         unsigned m_isOverriddenByDuplicate : 1;

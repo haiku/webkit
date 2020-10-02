@@ -44,12 +44,15 @@ namespace JSC {
 
 const ClassInfo WebAssemblyMemoryConstructor::s_info = { "Function", &Base::s_info, &constructorTableWebAssemblyMemory, nullptr, CREATE_METHOD_TABLE(WebAssemblyMemoryConstructor) };
 
+static JSC_DECLARE_HOST_FUNCTION(constructJSWebAssemblyMemory);
+static JSC_DECLARE_HOST_FUNCTION(callJSWebAssemblyMemory);
+
 /* Source for WebAssemblyMemoryConstructor.lut.h
  @begin constructorTableWebAssemblyMemory
  @end
  */
 
-static EncodedJSValue JSC_HOST_CALL constructJSWebAssemblyMemory(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(constructJSWebAssemblyMemory, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -114,7 +117,7 @@ static EncodedJSValue JSC_HOST_CALL constructJSWebAssemblyMemory(JSGlobalObject*
     return JSValue::encode(jsMemory);
 }
 
-static EncodedJSValue JSC_HOST_CALL callJSWebAssemblyMemory(JSGlobalObject* globalObject, CallFrame*)
+JSC_DEFINE_HOST_FUNCTION(callJSWebAssemblyMemory, (JSGlobalObject* globalObject, CallFrame*))
 {
     VM& vm = globalObject->vm();
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -135,9 +138,8 @@ Structure* WebAssemblyMemoryConstructor::createStructure(VM& vm, JSGlobalObject*
 
 void WebAssemblyMemoryConstructor::finishCreation(VM& vm, WebAssemblyMemoryPrototype* prototype)
 {
-    Base::finishCreation(vm, "Memory"_s, NameAdditionMode::WithoutStructureTransition);
+    Base::finishCreation(vm, 1, "Memory"_s, PropertyAdditionMode::WithoutStructureTransition);
     putDirectWithoutTransition(vm, vm.propertyNames->prototype, prototype, PropertyAttribute::DontEnum | PropertyAttribute::DontDelete | PropertyAttribute::ReadOnly);
-    putDirectWithoutTransition(vm, vm.propertyNames->length, jsNumber(1), PropertyAttribute::ReadOnly | PropertyAttribute::DontEnum);
 }
 
 WebAssemblyMemoryConstructor::WebAssemblyMemoryConstructor(VM& vm, Structure* structure)

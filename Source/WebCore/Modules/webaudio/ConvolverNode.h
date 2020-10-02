@@ -55,11 +55,10 @@ private:
 
     double tailTime() const final;
     double latencyTime() const final;
+    bool requiresTailProcessing() const final;
 
     void process(size_t framesToProcess) final;
-    void reset() final;
-    void initialize() final;
-    void uninitialize() final;
+    void checkNumberOfChannelsForInput(AudioNodeInput*) final;
 
     std::unique_ptr<Reverb> m_reverb;
     RefPtr<AudioBuffer> m_buffer;

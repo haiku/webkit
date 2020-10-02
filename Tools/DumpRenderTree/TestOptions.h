@@ -29,7 +29,6 @@
 
 struct TestOptions {
     bool enableAttachmentElement { false };
-    bool enableWebAnimationsCSSIntegration { true };
     bool useAcceleratedDrawing { false };
     bool enableIntersectionObserver { false };
     bool useEphemeralSession { false };
@@ -40,7 +39,6 @@ struct TestOptions {
     bool enablePointerLock { false };
     bool enableDragDestinationActionLoad { false };
     bool layerBackedWebView { false };
-    bool enableIsSecureContextAttribute { true };
     bool enableInspectorAdditions { false };
     bool dumpJSConsoleLogInStdErr { false };
     bool allowCrossOriginSubresourcesToAskForCredentials { false };

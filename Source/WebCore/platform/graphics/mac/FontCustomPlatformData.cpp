@@ -45,7 +45,7 @@ FontPlatformData FontCustomPlatformData::fontPlatformData(const FontDescription&
     int size = fontDescription.computedPixelSize();
     FontOrientation orientation = fontDescription.orientation();
     FontWidthVariant widthVariant = fontDescription.widthVariant();
-    RetainPtr<CTFontRef> font = adoptCF(CTFontCreateWithFontDescriptor(modifiedFontDescriptor.get(), size, nullptr));
+    auto font = adoptCF(CTFontCreateWithFontDescriptor(modifiedFontDescriptor.get(), size, nullptr));
     font = preparePlatformFont(font.get(), fontDescription, &fontFaceFeatures, fontFaceCapabilities);
     ASSERT(font);
     return FontPlatformData(font.get(), size, bold, italic, orientation, widthVariant, fontDescription.textRenderingMode());
@@ -93,14 +93,10 @@ bool FontCustomPlatformData::supportsFormat(const String& format)
     return equalLettersIgnoringASCIICase(format, "truetype")
         || equalLettersIgnoringASCIICase(format, "opentype")
         || equalLettersIgnoringASCIICase(format, "woff2")
-#if ENABLE(VARIATION_FONTS)
         || equalLettersIgnoringASCIICase(format, "woff2-variations")
-#endif
-#if ENABLE(VARIATION_FONTS)
         || equalLettersIgnoringASCIICase(format, "woff-variations")
         || equalLettersIgnoringASCIICase(format, "truetype-variations")
         || equalLettersIgnoringASCIICase(format, "opentype-variations")
-#endif
         || equalLettersIgnoringASCIICase(format, "woff");
 }
 

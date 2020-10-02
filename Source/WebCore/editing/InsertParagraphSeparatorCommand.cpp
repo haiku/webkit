@@ -71,18 +71,17 @@ bool InsertParagraphSeparatorCommand::preservesTypingStyle() const
     return true;
 }
 
-void InsertParagraphSeparatorCommand::calculateStyleBeforeInsertion(const Position &pos)
+void InsertParagraphSeparatorCommand::calculateStyleBeforeInsertion(const Position& position)
 {
     // It is only important to set a style to apply later if we're at the boundaries of
     // a paragraph. Otherwise, content that is moved as part of the work of the command
     // will lend their styles to the new paragraph without any extra work needed.
-    VisiblePosition visiblePos(pos, VP_DEFAULT_AFFINITY);
-    if (!isStartOfParagraph(visiblePos) && !isEndOfParagraph(visiblePos))
+    auto visiblePosition = VisiblePosition { position };
+    if (!isStartOfParagraph(visiblePosition) && !isEndOfParagraph(visiblePosition))
         return;
 
-    ASSERT(pos.isNotNull());
-    m_style = EditingStyle::create(pos, EditingStyle::EditingPropertiesInEffect);
-    m_style->mergeTypingStyle(pos.anchorNode()->document());
+    m_style = EditingStyle::create(position, EditingStyle::EditingPropertiesInEffect);
+    m_style->mergeTypingStyle(*position.document());
 }
 
 void InsertParagraphSeparatorCommand::applyStyleAfterInsertion(Node* originalEnclosingBlock)
@@ -151,10 +150,9 @@ void InsertParagraphSeparatorCommand::doApply()
     if (endingSelection().isNoneOrOrphaned())
         return;
     
-    Position insertionPosition = endingSelection().start();
-        
-    EAffinity affinity = endingSelection().affinity();
-        
+    auto insertionPosition = endingSelection().start();
+    auto affinity = endingSelection().affinity();
+
     // Delete the current selection.
     if (endingSelection().isRange()) {
         calculateStyleBeforeInsertion(insertionPosition);
@@ -250,7 +248,7 @@ void InsertParagraphSeparatorCommand::doApply()
         
         appendBlockPlaceholder(WTFMove(parent));
 
-        setEndingSelection(VisibleSelection(firstPositionInNode(parentPtr), DOWNSTREAM, endingSelection().isDirectional()));
+        setEndingSelection(VisibleSelection(firstPositionInNode(parentPtr), Affinity::Downstream, endingSelection().isDirectional()));
         return;
     }
     
@@ -288,7 +286,7 @@ void InsertParagraphSeparatorCommand::doApply()
         appendBlockPlaceholder(cloneHierarchyUnderNewBlock(ancestors, *blockToInsert));
         
         // In this case, we need to set the new ending selection.
-        setEndingSelection(VisibleSelection(insertionPosition, DOWNSTREAM, endingSelection().isDirectional()));
+        setEndingSelection(VisibleSelection(insertionPosition, Affinity::Downstream, endingSelection().isDirectional()));
         return;
     }
 
@@ -311,7 +309,7 @@ void InsertParagraphSeparatorCommand::doApply()
         // If the insertion point is a break element, there is nothing else
         // we need to do.
         if (visiblePos.deepEquivalent().anchorNode()->renderer()->isBR()) {
-            setEndingSelection(VisibleSelection(insertionPosition, DOWNSTREAM, endingSelection().isDirectional()));
+            setEndingSelection(VisibleSelection(insertionPosition, Affinity::Downstream, endingSelection().isDirectional()));
             return;
         }
     }
@@ -336,7 +334,7 @@ void InsertParagraphSeparatorCommand::doApply()
 
     // Make sure we do not cause a rendered space to become unrendered.
     // FIXME: We need the affinity for pos, but pos.downstream() does not give it
-    Position leadingWhitespace = insertionPosition.leadingWhitespacePosition(VP_DEFAULT_AFFINITY);
+    Position leadingWhitespace = insertionPosition.leadingWhitespacePosition(VisiblePosition::defaultAffinity);
     // FIXME: leadingWhitespacePosition is returning the position before preserved newlines for positions
     // after the preserved newline, causing the newline to be turned into a nbsp.
     if (is<Text>(leadingWhitespace.deprecatedNode())) {
@@ -391,8 +389,7 @@ void InsertParagraphSeparatorCommand::doApply()
             splitTreeToNode(*splitTo, *startBlock);
 
             for (n = startBlock->firstChild(); n; n = n->nextSibling()) {
-                VisiblePosition beforeNodePosition = positionBeforeNode(n);
-                if (!beforeNodePosition.isNull() && comparePositions(VisiblePosition(insertionPosition), beforeNodePosition) <= 0)
+                if (VisiblePosition(insertionPosition) <= VisiblePosition(positionBeforeNode(n)))
                     break;
             }
         }
@@ -412,7 +409,7 @@ void InsertParagraphSeparatorCommand::doApply()
         }
     }
 
-    setEndingSelection(VisibleSelection(firstPositionInNode(blockToInsert.get()), DOWNSTREAM, endingSelection().isDirectional()));
+    setEndingSelection(VisibleSelection(firstPositionInNode(blockToInsert.get()), Affinity::Downstream, endingSelection().isDirectional()));
     applyStyleAfterInsertion(startBlock.get());
 }
 

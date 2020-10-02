@@ -240,7 +240,7 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
 
     switch (action) {
     case ContextMenuItemTagOpenLinkInNewWindow:
-        openNewWindow(m_context.hitTestResult().absoluteLinkURL(), *frame, ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemes);
+        openNewWindow(m_context.hitTestResult().absoluteLinkURL(), *frame, ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemesButNotAppLinks);
         break;
     case ContextMenuItemTagDownloadLinkToDisk:
         // FIXME: Some day we should be able to do this from within WebCore. (Bug 117709)
@@ -532,7 +532,7 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuAction action, co
             page->inspectorController().inspect(m_context.hitTestResult().innerNonSharedNode());
         break;
     case ContextMenuItemTagDictationAlternative:
-        frame->editor().applyDictationAlternativelternative(title);
+        frame->editor().applyDictationAlternative(title);
         break;
     default:
         break;

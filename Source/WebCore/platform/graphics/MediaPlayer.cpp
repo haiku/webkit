@@ -1605,7 +1605,13 @@ SecurityOriginData MediaPlayer::documentSecurityOrigin() const
 
 void MediaPlayer::setPreferredDynamicRangeMode(DynamicRangeMode mode)
 {
+    m_preferredDynamicRangeMode = mode;
     m_private->setPreferredDynamicRangeMode(mode);
+}
+
+void MediaPlayer::audioOutputDeviceChanged()
+{
+    m_private->audioOutputDeviceChanged();
 }
 
 #if !RELEASE_LOG_DISABLED

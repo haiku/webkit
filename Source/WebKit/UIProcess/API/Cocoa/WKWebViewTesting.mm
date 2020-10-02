@@ -27,6 +27,7 @@
 #import "WKWebViewPrivateForTesting.h"
 
 #import "AudioSessionRoutingArbitratorProxy.h"
+#import "PlaybackSessionManagerProxy.h"
 #import "UserMediaProcessManager.h"
 #import "ViewGestureController.h"
 #import "WKWebViewIOS.h"
@@ -226,6 +227,25 @@
 #endif
 }
 
+- (double)_mediaCaptureReportingDelayForTesting
+{
+    return _page->mediaCaptureReportingDelay().value();
+}
+
+- (void)_setMediaCaptureReportingDelayForTesting:(double)captureReportingDelay
+{
+    _page->setMediaCaptureReportingDelay(Seconds(captureReportingDelay));
+}
+
+- (BOOL)_wirelessVideoPlaybackDisabled
+{
+#if ENABLE(VIDEO_PRESENTATION_MODE)
+    if (auto* playbackSessionManager = _page->playbackSessionManager())
+        return playbackSessionManager->wirelessVideoPlaybackDisabled();
+#endif
+    return false;
+}
+
 - (void)_doAfterProcessingAllPendingMouseEvents:(dispatch_block_t)action
 {
     _page->doAfterProcessingAllPendingMouseEvents([action = makeBlockPtr(action)] {
@@ -260,6 +280,20 @@
 #else
     return WKWebViewAudioRoutingArbitrationStatusNone;
 #endif
+}
+
+- (double)_audioRoutingArbitrationUpdateTime
+{
+#if ENABLE(ROUTING_ARBITRATION)
+    return _page->process().audioSessionRoutingArbitrator().arbitrationUpdateTime().secondsSinceEpoch().seconds();
+#else
+    return 0;
+#endif
+}
+
+- (void)_doAfterActivityStateUpdate:(void (^)(void))completionHandler
+{
+    _page->addActivityStateUpdateCompletionHandler(makeBlockPtr(completionHandler));
 }
 
 @end

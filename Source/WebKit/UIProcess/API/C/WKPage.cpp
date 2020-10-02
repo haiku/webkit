@@ -398,6 +398,11 @@ uint64_t WKPageGetRenderTreeSize(WKPageRef page)
     return toImpl(page)->renderTreeSize();
 }
 
+WKWebsiteDataStoreRef WKPageGetWebsiteDataStore(WKPageRef page)
+{
+    return toAPI(&toImpl(page)->websiteDataStore());
+}
+
 WKInspectorRef WKPageGetInspector(WKPageRef pageRef)
 {
     return toAPI(toImpl(pageRef)->inspector());
@@ -2862,7 +2867,7 @@ bool WKPageIsPlayingAudio(WKPageRef page)
 
 WKMediaState WKPageGetMediaState(WKPageRef page)
 {
-    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->mediaStateFlags();
+    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->reportedMediaCaptureState();
     WKMediaState state = kWKMediaIsNotPlaying;
 
     if (coreState & WebCore::MediaProducer::IsPlayingAudio)
@@ -2996,4 +3001,14 @@ void WKPageClearLoadedSubresourceDomains(WKPageRef page)
 #else
     UNUSED_PARAM(page);
 #endif
+}
+
+void WKPageSetMediaCaptureReportingDelayForTesting(WKPageRef page, double delay)
+{
+    toImpl(page)->setMediaCaptureReportingDelay(Seconds(delay));
+}
+
+void WKPageDispatchActivityStateUpdateForTesting(WKPageRef page)
+{
+    toImpl(page)->dispatchActivityStateUpdateForTesting();
 }

@@ -26,6 +26,7 @@
 #include "config.h"
 #include "DisplayListItems.h"
 
+#include "DisplayListReplayer.h"
 #include "FontCascade.h"
 #include "ImageData.h"
 #include "SharedBuffer.h"
@@ -94,6 +95,8 @@ size_t Item::sizeInBytes(const Item& item)
         return sizeof(downcast<ClipOutToPath>(item));
     case ItemType::ClipPath:
         return sizeof(downcast<ClipPath>(item));
+    case ItemType::ClipToDrawingCommands:
+        return sizeof(downcast<ClipToDrawingCommands>(item));
     case ItemType::DrawGlyphs:
         return sizeof(downcast<DrawGlyphs>(item));
     case ItemType::DrawImage:
@@ -510,6 +513,32 @@ static TextStream& operator<<(TextStream& ts, const ClipPath& item)
     return ts;
 }
 
+ClipToDrawingCommands::ClipToDrawingCommands(const FloatRect& destination, ColorSpace colorSpace, DisplayList&& drawingCommands)
+    : Item(ItemType::ClipToDrawingCommands)
+    , m_destination(destination)
+    , m_colorSpace(colorSpace)
+    , m_drawingCommands(WTFMove(drawingCommands))
+{
+}
+
+ClipToDrawingCommands::~ClipToDrawingCommands() = default;
+
+void ClipToDrawingCommands::apply(GraphicsContext& context) const
+{
+    context.clipToDrawingCommands(m_destination, m_colorSpace, [&] (GraphicsContext& clippingContext) {
+        Replayer replayer { clippingContext, m_drawingCommands };
+        replayer.replay();
+    });
+}
+
+static TextStream& operator<<(TextStream& ts, const ClipToDrawingCommands& item)
+{
+    ts.dumpProperty("destination", item.destination());
+    ts.dumpProperty("color-space", item.colorSpace());
+    ts.dumpProperty("drawing-commands-count", item.drawingCommands().itemCount());
+    return ts;
+}
+
 DrawGlyphs::DrawGlyphs(const Font& font, Vector<GlyphBufferGlyph, 128>&& glyphs, Vector<GlyphBufferAdvance, 128>&& advances, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
     : DrawingItem(ItemType::DrawGlyphs)
     , m_font(const_cast<Font&>(font))
@@ -563,10 +592,10 @@ void DrawGlyphs::computeBounds()
     size_t numGlyphs = m_glyphs.size();
     for (size_t i = 0; i < numGlyphs; ++i) {
         GlyphBufferAdvance advance = m_advances[i];
-        FloatRect glyphRect = FloatRect(current.x(), current.y() - ascent, advance.width(), ascent + descent);
+        FloatRect glyphRect = FloatRect(current.x(), current.y() - ascent, width(advance), ascent + descent);
         m_bounds.unite(glyphRect);
 
-        current.move(advance.width(), advance.height());
+        current.move(width(advance), height(advance));
     }
 }
 
@@ -1393,6 +1422,7 @@ static TextStream& operator<<(TextStream& ts, const ItemType& type)
     case ItemType::ClipOut: ts << "clip-out"; break;
     case ItemType::ClipOutToPath: ts << "clip-out-to-path"; break;
     case ItemType::ClipPath: ts << "clip-path"; break;
+    case ItemType::ClipToDrawingCommands: ts << "clip-to-image-buffer"; break;
     case ItemType::DrawGlyphs: ts << "draw-glyphs"; break;
     case ItemType::DrawImage: ts << "draw-image"; break;
     case ItemType::DrawTiledImage: ts << "draw-tiled-image"; break;
@@ -1482,6 +1512,9 @@ TextStream& operator<<(TextStream& ts, const Item& item)
         break;
     case ItemType::ClipPath:
         ts << downcast<ClipPath>(item);
+        break;
+    case ItemType::ClipToDrawingCommands:
+        ts << downcast<ClipToDrawingCommands>(item);
         break;
     case ItemType::DrawGlyphs:
         ts << downcast<DrawGlyphs>(item);

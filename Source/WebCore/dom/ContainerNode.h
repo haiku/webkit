@@ -25,7 +25,6 @@
 
 #include "CollectionType.h"
 #include "Node.h"
-#include <wtf/WeakPtr.h>
 
 namespace WebCore {
 
@@ -36,7 +35,7 @@ class RenderElement;
 const int initialNodeVectorSize = 11; // Covers 99.5%. See webkit.org/b/80706
 typedef Vector<Ref<Node>, initialNodeVectorSize> NodeVector;
 
-class ContainerNode : public CanMakeWeakPtr<ContainerNode>, public Node {
+class ContainerNode : public Node {
     WTF_MAKE_ISO_ALLOCATED(ContainerNode);
 public:
     virtual ~ContainerNode();
@@ -48,8 +47,8 @@ public:
     bool hasChildNodes() const { return m_firstChild; }
     bool hasOneChild() const { return m_firstChild && !m_firstChild->nextSibling(); }
 
-    bool directChildNeedsStyleRecalc() const { return getFlag(DirectChildNeedsStyleRecalcFlag); }
-    void setDirectChildNeedsStyleRecalc() { setFlag(DirectChildNeedsStyleRecalcFlag); }
+    bool directChildNeedsStyleRecalc() const { return hasStyleFlag(NodeStyleFlag::DirectChildNeedsStyleResolution); }
+    void setDirectChildNeedsStyleRecalc() { setStyleFlag(NodeStyleFlag::DirectChildNeedsStyleResolution); }
 
     WEBCORE_EXPORT unsigned countChildNodes() const;
     WEBCORE_EXPORT Node* traverseToChildAt(unsigned) const;

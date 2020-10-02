@@ -1286,7 +1286,7 @@ void WebView::paint(HDC dc, LPARAM options)
 {
     LOCAL_GDI_COUNTER(0, __FUNCTION__);
 
-    m_page->updateRendering();
+    m_page->isolatedUpdateRendering();
 
     if (paintCompositedContentToHDC(dc)) {
         ::ValidateRect(m_viewWindow, nullptr);
@@ -5230,21 +5230,6 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
 
     // FIXME: Add preferences for the runtime enabled features.
 
-    hr = prefsPrivate->fetchAPIEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setFetchAPIEnabled(!!enabled);
-
-    hr = prefsPrivate->shadowDOMEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setShadowDOMEnabled(!!enabled);
-
-    hr = prefsPrivate->customElementsEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setCustomElementsEnabled(!!enabled);
-
     hr = prefsPrivate->menuItemElementEnabled(&enabled);
     if (FAILED(hr))
         return hr;
@@ -5260,11 +5245,6 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     RuntimeEnabledFeatures::sharedFeatures().setModernMediaControlsEnabled(!!enabled);
 
-    hr = prefsPrivate->webAnimationsEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled(!!enabled);
-
     hr = prefsPrivate->webAnimationsCompositeOperationsEnabled(&enabled);
     if (FAILED(hr))
         return hr;
@@ -5275,30 +5255,15 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsMutableTimelinesEnabled(!!enabled);
 
-    hr = prefsPrivate->webAnimationsCSSIntegrationEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCSSIntegrationEnabled(!!enabled);
-
     hr = prefsPrivate->CSSCustomPropertiesAndValuesEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setCSSCustomPropertiesAndValuesEnabled(!!enabled);
-
-    hr = prefsPrivate->userTimingEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setUserTimingEnabled(!!enabled);
-
-    hr = prefsPrivate->resourceTimingEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setResourceTimingEnabled(!!enabled);
+    settings.setCSSCustomPropertiesAndValuesEnabled(!!enabled);
 
     hr = prefsPrivate->linkPreloadEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setLinkPreloadEnabled(!!enabled);
+    settings.setLinkPreloadEnabled(!!enabled);
 
     hr = prefsPrivate->fetchAPIKeepAliveEnabled(&enabled);
     if (FAILED(hr))
@@ -5308,17 +5273,12 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
     hr = prefsPrivate->mediaPreloadingEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setMediaPreloadingEnabled(!!enabled);
-
-    hr = prefsPrivate->isSecureContextAttributeEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setIsSecureContextAttributeEnabled(!!enabled);
+    settings.setMediaPreloadingEnabled(!!enabled);
 
     hr = prefsPrivate->dataTransferItemsEnabled(&enabled);
     if (FAILED(hr))
         return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setDataTransferItemsEnabled(!!enabled);
+    settings.setDataTransferItemsEnabled(!!enabled);
 
     hr = prefsPrivate->inspectorAdditionsEnabled(&enabled);
     if (FAILED(hr))
@@ -5344,6 +5304,11 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
     if (FAILED(hr))
         return hr;
     settings.setCSSOMViewSmoothScrollingEnabled(!!enabled);
+
+    hr = prefsPrivate->CSSIndividualTransformPropertiesEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setCSSIndividualTransformPropertiesEnabled(!!enabled);
 
     hr = preferences->privateBrowsingEnabled(&enabled);
     if (FAILED(hr))
@@ -7247,13 +7212,13 @@ void WebView::flushPendingGraphicsLayerChangesSoon()
 {
 #if USE(CA)
     if (!m_layerTreeHost) {
-        m_page->updateRendering();
+        m_page->isolatedUpdateRendering();
         return;
     }
     m_layerTreeHost->flushPendingGraphicsLayerChangesSoon();
 #elif USE(TEXTURE_MAPPER_GL)
     if (!isAcceleratedCompositing()) {
-        m_page->updateRendering();
+        m_page->isolatedUpdateRendering();
         return;
     }
     if (!m_acceleratedCompositingContext)
@@ -7480,7 +7445,7 @@ void WebView::flushPendingGraphicsLayerChanges()
     if (!isAcceleratedCompositing())
         return;
 
-    m_page->updateRendering();
+    m_page->isolatedUpdateRendering();
 
     // Updating layout might have taken us out of compositing mode.
     if (m_backingLayer)

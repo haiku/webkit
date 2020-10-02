@@ -22,10 +22,11 @@
 
 from buildbot.plugins import steps, util
 from buildbot.process import buildstep, logobserver, properties
-from buildbot.process.results import Results, SUCCESS, FAILURE, WARNINGS, SKIPPED, EXCEPTION, RETRY
+from buildbot.process.results import Results, SUCCESS, FAILURE, CANCELLED, WARNINGS, SKIPPED, EXCEPTION, RETRY
 from buildbot.steps import master, shell, transfer, trigger
 from buildbot.steps.source import git
 from buildbot.steps.worker import CompositeStepMixin
+from datetime import date
 from twisted.internet import defer
 
 from layout_test_failures import LayoutTestFailures
@@ -51,7 +52,7 @@ class ConfigureBuild(buildstep.BuildStep):
     description = ['configuring build']
     descriptionDone = ['Configured build']
 
-    def __init__(self, platform, configuration, architectures, buildOnly, triggers, remotes, additionalArguments):
+    def __init__(self, platform, configuration, architectures, buildOnly, triggers, remotes, additionalArguments, triggered_by=None):
         super(ConfigureBuild, self).__init__()
         self.platform = platform
         if platform != 'jsc-only':
@@ -61,6 +62,7 @@ class ConfigureBuild(buildstep.BuildStep):
         self.architecture = ' '.join(architectures) if architectures else None
         self.buildOnly = buildOnly
         self.triggers = triggers
+        self.triggered_by = triggered_by
         self.remotes = remotes
         self.additionalArguments = additionalArguments
 
@@ -75,8 +77,10 @@ class ConfigureBuild(buildstep.BuildStep):
             self.setProperty('architecture', self.architecture, 'config.json')
         if self.buildOnly:
             self.setProperty('buildOnly', self.buildOnly, 'config.json')
-        if self.triggers:
+        if self.triggers and not self.getProperty('triggers'):
             self.setProperty('triggers', self.triggers, 'config.json')
+        if self.triggered_by:
+            self.setProperty('triggered_by', self.triggered_by, 'config.json')
         if self.remotes:
             self.setProperty('remotes', self.remotes, 'config.json')
         if self.additionalArguments:
@@ -529,6 +533,27 @@ class BugzillaMixin(object):
             return 1
         return 0
 
+    def should_send_email(self, patch_id):
+        patch_json = self.get_patch_json(patch_id)
+        if not patch_json:
+            self._addToLog('stdio', 'Unable to fetch patch {}'.format(patch_id))
+            return True
+
+        obsolete = patch_json.get('is_obsolete')
+        if obsolete == 1:
+            self._addToLog('stdio', 'Skipping email since patch {} is obsolete'.format(patch_id))
+            return False
+
+        review_denied = False
+        for flag in patch_json.get('flags', []):
+            if flag.get('name') == 'review' and flag.get('status') == '-':
+                review_denied = True
+
+        if review_denied:
+            self._addToLog('stdio', 'Skipping email since patch {} is marked r-'.format(patch_id))
+            return False
+        return True
+
     def get_bugzilla_api_key(self):
         try:
             passwords = json.load(open('passwords.json'))
@@ -930,12 +955,14 @@ class UnApplyPatchIfRequired(CleanWorkingDirectory):
 
 
 class Trigger(trigger.Trigger):
-    def __init__(self, schedulerNames, **kwargs):
+    def __init__(self, schedulerNames, include_revision=True, triggers=None, **kwargs):
+        self.include_revision = include_revision
+        self.triggers = triggers
         set_properties = self.propertiesToPassToTriggers() or {}
         super(Trigger, self).__init__(schedulerNames=schedulerNames, set_properties=set_properties, **kwargs)
 
     def propertiesToPassToTriggers(self):
-        return {
+        properties_to_pass = {
             'patch_id': properties.Property('patch_id'),
             'bug_id': properties.Property('bug_id'),
             'configuration': properties.Property('configuration'),
@@ -943,8 +970,12 @@ class Trigger(trigger.Trigger):
             'fullPlatform': properties.Property('fullPlatform'),
             'architecture': properties.Property('architecture'),
             'owner': properties.Property('owner'),
-            'ews_revision': properties.Property('got_revision'),
         }
+        if self.include_revision:
+            properties_to_pass['ews_revision'] = properties.Property('got_revision')
+        if self.triggers:
+            properties_to_pass['triggers'] = self.triggers
+        return properties_to_pass
 
 
 class TestWithFailureCount(shell.Test):
@@ -1154,6 +1185,7 @@ class WebKitPyTest(shell.ShellCommand):
     language = 'python'
     descriptionDone = ['webkitpy-tests']
     flunkOnFailure = True
+    NUM_FAILURES_TO_DISPLAY = 10
 
     def __init__(self, **kwargs):
         super(WebKitPyTest, self).__init__(timeout=2 * 60, logEnviron=False, **kwargs)
@@ -1195,8 +1227,10 @@ class WebKitPyTest(shell.ShellCommand):
         if not failures:
             return super(WebKitPyTest, self).getResultSummary()
         pluralSuffix = 's' if len(failures) > 1 else ''
-        failures_string = ', '.join([failure.get('name') for failure in failures])
+        failures_string = ', '.join([failure.get('name') for failure in failures[:self.NUM_FAILURES_TO_DISPLAY]])
         message = 'Found {} webkitpy {} test failure{}: {}'.format(len(failures), self.language, pluralSuffix, failures_string)
+        if len(failures) > self.NUM_FAILURES_TO_DISPLAY:
+            message += ' ...'
         self.setBuildSummary(message)
         return {u'step': unicode(message)}
 
@@ -1387,7 +1421,7 @@ class CompileWebKitWithoutPatch(CompileWebKit):
         return shell.Compile.evaluateCommand(self, cmd)
 
 
-class AnalyzeCompileWebKitResults(buildstep.BuildStep):
+class AnalyzeCompileWebKitResults(buildstep.BuildStep, BugzillaMixin):
     name = 'analyze-compile-webkit-results'
     description = ['analyze-compile-webkit-results']
     descriptionDone = ['analyze-compile-webkit-results']
@@ -1408,24 +1442,26 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
         compile_without_patch_result = self.getStepResult(compile_without_patch_step)
 
         if compile_without_patch_result == FAILURE:
-            self.finished(FAILURE)
             message = 'Unable to build WebKit without patch, retrying build'
             self.descriptionDone = message
             self.send_email_for_preexisting_build_failure()
+            self.finished(FAILURE)
             self.build.buildFinished([message], RETRY)
             return defer.succeed(None)
 
-        self.finished(FAILURE)
         self.build.results = FAILURE
         patch_id = self.getProperty('patch_id', '')
         message = 'Patch {} does not build'.format(patch_id)
+        self.send_email_for_new_build_failure()
+
         self.descriptionDone = message
+        self.finished(FAILURE)
+        self.setProperty('build_finish_summary', message)
         if self.getProperty('buildername', '').lower() == 'commit-queue':
             self.setProperty('bugzilla_comment_text', message)
-            self.setProperty('build_finish_summary', message)
             self.build.addStepsAfterCurrentStep([CommentOnBug(), SetCommitQueueMinusFlagOnPatch()])
         else:
-            self.build.buildFinished([message], FAILURE)
+            self.build.addStepsAfterCurrentStep([SetCommitQueueMinusFlagOnPatch()])
 
     @defer.inlineCallbacks
     def getResults(self, name):
@@ -1467,11 +1503,13 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
 
     def send_email_for_new_build_failure(self):
         try:
+            patch_id = self.getProperty('patch_id', '')
+            if not self.should_send_email(patch_id):
+                return
             builder_name = self.getProperty('buildername', '')
             bug_id = self.getProperty('bug_id', '')
             bug_title = self.getProperty('bug_title', '')
             worker_name = self.getProperty('workername', '')
-            patch_id = self.getProperty('patch_id', '')
             patch_author = self.getProperty('patch_author', '')
             platform = self.getProperty('platform', '')
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
@@ -1490,7 +1528,8 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
                 logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 email_text += u'\n\nError lines:\n\n<code>{}</code>'.format(logs)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
-            send_email_to_patch_author(patch_author, email_subject, email_text)
+            self._addToLog('stdio', 'Sending email notification to {}'.format(patch_author))
+            send_email_to_patch_author(patch_author, email_subject, email_text, patch_id)
         except Exception as e:
             print('Error in sending email for new build failure: {}'.format(e))
 
@@ -1511,7 +1550,8 @@ class AnalyzeCompileWebKitResults(buildstep.BuildStep):
             if logs:
                 logs = logs.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 email_text += u'\n\nError lines:\n\n<code>{}</code>'.format(logs)
-            send_email_to_bot_watchers(email_subject, email_text)
+            reference = 'preexisting-build-failure-{}-{}'.format(builder_name, date.today().strftime("%Y-%d-%m"))
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, reference)
         except Exception as e:
             print('Error in sending email for build failure: {}'.format(e))
 
@@ -1694,7 +1734,7 @@ class AnalyzeJSCTestsResults(buildstep.BuildStep):
 
         flaky_stress_failures = first_run_stress_failures.union(second_run_stress_failures) - first_run_stress_failures.intersection(second_run_stress_failures)
         flaky_binary_failures = first_run_binary_failures.union(second_run_binary_failures) - first_run_binary_failures.intersection(second_run_binary_failures)
-        flaky_failures = list(flaky_binary_failures) + list(flaky_stress_failures)
+        flaky_failures = (list(flaky_binary_failures) + list(flaky_stress_failures))[:self.NUM_FAILURES_TO_DISPLAY]
         flaky_failures_string = ', '.join(flaky_failures)
 
         new_stress_failures = stress_failures_with_patch - clean_tree_stress_failures
@@ -1702,13 +1742,13 @@ class AnalyzeJSCTestsResults(buildstep.BuildStep):
         new_stress_failures_to_display = ', '.join(list(new_stress_failures)[:self.NUM_FAILURES_TO_DISPLAY])
         new_binary_failures_to_display = ', '.join(list(new_binary_failures)[:self.NUM_FAILURES_TO_DISPLAY])
 
-        self._addToLog('stderr', '\nFailures in first run: {}'.format(list(first_run_binary_failures) + list(first_run_stress_failures)))
-        self._addToLog('stderr', '\nFailures in second run: {}'.format(list(second_run_binary_failures) + list(second_run_stress_failures)))
+        self._addToLog('stderr', '\nFailures in first run: {}'.format((list(first_run_binary_failures) + list(first_run_stress_failures))[:self.NUM_FAILURES_TO_DISPLAY]))
+        self._addToLog('stderr', '\nFailures in second run: {}'.format((list(second_run_binary_failures) + list(second_run_stress_failures))[:self.NUM_FAILURES_TO_DISPLAY]))
         self._addToLog('stderr', '\nFlaky Tests: {}'.format(flaky_failures_string))
-        self._addToLog('stderr', '\nFailures on clean tree: {}'.format(list(clean_tree_stress_failures) + list(clean_tree_binary_failures)))
+        self._addToLog('stderr', '\nFailures on clean tree: {}'.format(clean_tree_failures_string))
 
         if new_stress_failures or new_binary_failures:
-            self._addToLog('stderr', '\nNew failures: {}\n'.format(list(new_binary_failures) + list(new_stress_failures)))
+            self._addToLog('stderr', '\nNew binary failures: {}.\nNew stress test failures: {}\n'.format(new_binary_failures_to_display, new_stress_failures_to_display))
             self.finished(FAILURE)
             self.build.results = FAILURE
             message = ''
@@ -1733,10 +1773,14 @@ class AnalyzeJSCTestsResults(buildstep.BuildStep):
             message = ''
             if clean_tree_failures:
                 message = 'Found {} pre-existing JSC test failure{}: {}'.format(len(clean_tree_failures), pluralSuffix, clean_tree_failures_string)
+                for clean_tree_failure in clean_tree_failures[:self.NUM_FAILURES_TO_DISPLAY]:
+                    self.send_email_for_pre_existing_failure(clean_tree_failure)
             if len(clean_tree_failures) > self.NUM_FAILURES_TO_DISPLAY:
                 message += ' ...'
             if flaky_failures:
                 message += ' Found flaky tests: {}'.format(flaky_failures_string)
+                for flaky_failure in flaky_failures:
+                    self.send_email_for_flaky_failure(flaky_failure)
             self.build.buildFinished([message], SUCCESS)
         return defer.succeed(None)
 
@@ -1747,6 +1791,33 @@ class AnalyzeJSCTestsResults(buildstep.BuildStep):
         except KeyError:
             log = yield self.addLog(logName)
         log.addStdout(message)
+
+    def send_email_for_flaky_failure(self, test_name):
+        try:
+            builder_name = self.getProperty('buildername', '')
+            worker_name = self.getProperty('workername', '')
+            build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
+            history_url = '{}?suite=javascriptcore-tests&test={}'.format(RESULTS_DB_URL, test_name)
+
+            email_subject = u'Flaky test: {}'.format(test_name)
+            email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'flaky-{}'.format(test_name))
+        except Exception as e:
+            print('Error in sending email for flaky failure: {}'.format(e))
+
+    def send_email_for_pre_existing_failure(self, test_name):
+        try:
+            builder_name = self.getProperty('buildername', '')
+            worker_name = self.getProperty('workername', '')
+            build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
+            history_url = '{}?suite=javascriptcore-tests&test={}'.format(RESULTS_DB_URL, test_name)
+
+            email_subject = u'Pre-existing test failure: {}'.format(test_name)
+            email_text = 'Test {} failed on clean tree run in {}.\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'preexisting-{}'.format(test_name))
+        except Exception as e:
+            print('Error in sending email for pre-existing failure: {}'.format(e))
+
 
 
 class CleanBuild(shell.Compile):
@@ -1969,6 +2040,7 @@ class RunWebKitTests(shell.Test):
 
 class ReRunWebKitTests(RunWebKitTests):
     name = 're-run-layout-tests'
+    NUM_FAILURES_TO_DISPLAY = 10
 
     def evaluateCommand(self, cmd):
         rc = self.evaluateResult(cmd)
@@ -1978,6 +2050,7 @@ class ReRunWebKitTests(RunWebKitTests):
         second_results_failing_tests = set(self.getProperty('second_run_failures', []))
         tests_that_consistently_failed = first_results_failing_tests.intersection(second_results_failing_tests)
         flaky_failures = first_results_failing_tests.union(second_results_failing_tests) - first_results_failing_tests.intersection(second_results_failing_tests)
+        flaky_failures = list(flaky_failures)[:self.NUM_FAILURES_TO_DISPLAY]
         flaky_failures_string = ', '.join(flaky_failures)
 
         if rc == SUCCESS or rc == WARNINGS:
@@ -2027,7 +2100,7 @@ class ReRunWebKitTests(RunWebKitTests):
             email_subject = u'Flaky test: {}'.format(test_name)
             email_text = 'Test {} flaked in {}\n\nBuilder: {}'.format(test_name, build_url, builder_name)
             email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
-            send_email_to_bot_watchers(email_subject, email_text)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'flaky-{}'.format(test_name))
         except Exception as e:
             # Catching all exceptions here to ensure that failure to send email doesn't impact the build
             print('Error in sending email for flaky failures: {}'.format(e))
@@ -2056,7 +2129,7 @@ class RunWebKitTestsWithoutPatch(RunWebKitTests):
         self._parseRunWebKitTestsOutput(logText)
 
 
-class AnalyzeLayoutTestsResults(buildstep.BuildStep):
+class AnalyzeLayoutTestsResults(buildstep.BuildStep, BugzillaMixin):
     name = 'analyze-layout-tests-results'
     description = ['analyze-layout-test-results']
     descriptionDone = ['analyze-layout-tests-results']
@@ -2071,13 +2144,14 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
         if len(new_failures) > self.NUM_FAILURES_TO_DISPLAY:
             message += ' ...'
         self.descriptionDone = message
+        self.send_email_for_new_test_failures(new_failures)
+        self.setProperty('build_finish_summary', message)
 
         if self.getProperty('buildername', '').lower() == 'commit-queue':
             self.setProperty('bugzilla_comment_text', message)
-            self.setProperty('build_finish_summary', message)
             self.build.addStepsAfterCurrentStep([CommentOnBug(), SetCommitQueueMinusFlagOnPatch()])
         else:
-            self.build.buildFinished([message], FAILURE)
+            self.build.addStepsAfterCurrentStep([SetCommitQueueMinusFlagOnPatch()])
         return defer.succeed(None)
 
     def report_pre_existing_failures(self, clean_tree_failures, flaky_failures):
@@ -2091,7 +2165,7 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             message = 'Found {} pre-existing test failure{}: {}'.format(len(clean_tree_failures), pluralSuffix, clean_tree_failures_string)
             if len(clean_tree_failures) > self.NUM_FAILURES_TO_DISPLAY:
                 message += ' ...'
-            for clean_tree_failure in clean_tree_failures:
+            for clean_tree_failure in list(clean_tree_failures)[:self.NUM_FAILURES_TO_DISPLAY]:
                 self.send_email_for_pre_existing_failure(clean_tree_failure)
 
         if flaky_failures:
@@ -2100,17 +2174,27 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             message += ' Found flaky test{}: {}'.format(pluralSuffix, flaky_failures_string)
             if len(flaky_failures) > self.NUM_FAILURES_TO_DISPLAY:
                 message += ' ...'
-            for flaky_failure in flaky_failures:
+            for flaky_failure in list(flaky_failures)[:self.NUM_FAILURES_TO_DISPLAY]:
                 self.send_email_for_flaky_failure(flaky_failure)
 
         self.setProperty('build_summary', message)
         return defer.succeed(None)
 
     def retry_build(self, message=''):
-        self.finished(RETRY)
-        message = 'Unable to confirm if test failures are introduced by patch, retrying build'
+        if not message:
+            message = 'Unable to confirm if test failures are introduced by patch, retrying build'
         self.descriptionDone = message
-        self.build.buildFinished([message], RETRY)
+
+        triggered_by = self.getProperty('triggered_by', None)
+        if triggered_by:
+            # Trigger parent build so that it can re-build ToT
+            schduler_for_current_queue = self.getProperty('scheduler')
+            self.build.addStepsAfterCurrentStep([Trigger(schedulerNames=triggered_by, include_revision=False, triggers=[schduler_for_current_queue])])
+            self.setProperty('build_summary', message)
+            self.finished(SUCCESS)
+        else:
+            self.finished(RETRY)
+            self.build.buildFinished([message], RETRY)
         return defer.succeed(None)
 
     def _results_failed_different_tests(self, first_results_failing_tests, second_results_failing_tests):
@@ -2125,7 +2209,7 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
 
             email_subject = u'Flaky test: {}'.format(test_name)
             email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
-            send_email_to_bot_watchers(email_subject, email_text)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'flaky-{}'.format(test_name))
         except Exception as e:
             print('Error in sending email for flaky failure: {}'.format(e))
 
@@ -2138,17 +2222,19 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
 
             email_subject = u'Pre-existing test failure: {}'.format(test_name)
             email_text = 'Test {} failed on clean tree run in {}.\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
-            send_email_to_bot_watchers(email_subject, email_text)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'preexisting-{}'.format(test_name))
         except Exception as e:
             print('Error in sending email for pre-existing failure: {}'.format(e))
 
     def send_email_for_new_test_failures(self, test_names):
         try:
+            patch_id = self.getProperty('patch_id', '')
+            if not self.should_send_email(patch_id):
+                return
             builder_name = self.getProperty('buildername', '')
             bug_id = self.getProperty('bug_id', '')
             bug_title = self.getProperty('bug_title', '')
             worker_name = self.getProperty('workername', '')
-            patch_id = self.getProperty('patch_id', '')
             patch_author = self.getProperty('patch_author', '')
             build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
             test_names_string = ''
@@ -2164,7 +2250,8 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
             email_text += '\n\nFull details are available at: {}\n\nPatch author: {}'.format(build_url, patch_author)
             email_text += '\n\nLayout test failure{}:\n{}'.format(pluralSuffix, test_names_string)
             email_text += '\n\nTo unsubscrible from these notifications or to provide any feedback please email aakash_jain@apple.com'
-            send_email_to_patch_author(patch_author, email_subject, email_text)
+            self._addToLog('stdio', 'Sending email notification to {}'.format(patch_author))
+            send_email_to_patch_author(patch_author, email_subject, email_text, patch_id)
         except Exception as e:
             print('Error in sending email for new layout test failures: {}'.format(e))
 
@@ -2180,6 +2267,12 @@ class AnalyzeLayoutTestsResults(buildstep.BuildStep):
         clean_tree_results_did_exceed_test_failure_limit = self.getProperty('clean_tree_results_exceed_failure_limit')
         clean_tree_results_failing_tests = set(self.getProperty('clean_tree_run_failures', []))
         flaky_failures = first_results_failing_tests.union(second_results_failing_tests) - first_results_failing_tests.intersection(second_results_failing_tests)
+
+        if (not first_results_failing_tests) and (not second_results_failing_tests):
+            # If we've made it here, then layout-tests and re-run-layout-tests failed, which means
+            # there should have been some test failures. Otherwise there is some unexpected issue.
+            # TODO: email EWS admins
+            return self.retry_build('Unexpected infrastructure issue, retrying build')
 
         if first_results_did_exceed_test_failure_limit and second_results_did_exceed_test_failure_limit:
             if (len(first_results_failing_tests) - len(clean_tree_results_failing_tests)) <= 5:
@@ -2455,7 +2548,7 @@ class AnalyzeAPITestsResults(buildstep.BuildStep):
     name = 'analyze-api-tests-results'
     description = ['analyze-api-test-results']
     descriptionDone = ['analyze-api-tests-results']
-    NUM_API_FAILURES_TO_DISPLAY = 10
+    NUM_FAILURES_TO_DISPLAY = 10
 
     def start(self):
         self.results = {}
@@ -2492,28 +2585,29 @@ class AnalyzeAPITestsResults(buildstep.BuildStep):
         first_run_failures = getAPITestFailures(first_run_results)
         second_run_failures = getAPITestFailures(second_run_results)
         clean_tree_failures = getAPITestFailures(clean_tree_results)
-        clean_tree_failures_to_display = list(clean_tree_failures)[:self.NUM_API_FAILURES_TO_DISPLAY]
+        clean_tree_failures_to_display = list(clean_tree_failures)[:self.NUM_FAILURES_TO_DISPLAY]
         clean_tree_failures_string = ', '.join(clean_tree_failures_to_display)
 
         failures_with_patch = first_run_failures.intersection(second_run_failures)
         flaky_failures = first_run_failures.union(second_run_failures) - first_run_failures.intersection(second_run_failures)
+        flaky_failures = list(flaky_failures)[:self.NUM_FAILURES_TO_DISPLAY]
         flaky_failures_string = ', '.join(flaky_failures)
         new_failures = failures_with_patch - clean_tree_failures
-        new_failures_to_display = list(new_failures)[:self.NUM_API_FAILURES_TO_DISPLAY]
+        new_failures_to_display = list(new_failures)[:self.NUM_FAILURES_TO_DISPLAY]
         new_failures_string = ', '.join(new_failures_to_display)
 
-        self._addToLog('stderr', '\nFailures in API Test first run: {}'.format(first_run_failures))
-        self._addToLog('stderr', '\nFailures in API Test second run: {}'.format(second_run_failures))
-        self._addToLog('stderr', '\nFlaky Tests: {}'.format(flaky_failures))
-        self._addToLog('stderr', '\nFailures in API Test on clean tree: {}'.format(clean_tree_failures))
+        self._addToLog('stderr', '\nFailures in API Test first run: {}'.format(list(first_run_failures)[:self.NUM_FAILURES_TO_DISPLAY]))
+        self._addToLog('stderr', '\nFailures in API Test second run: {}'.format(list(second_run_failures)[:self.NUM_FAILURES_TO_DISPLAY]))
+        self._addToLog('stderr', '\nFlaky Tests: {}'.format(flaky_failures_string))
+        self._addToLog('stderr', '\nFailures in API Test on clean tree: {}'.format(clean_tree_failures_string))
 
         if new_failures:
-            self._addToLog('stderr', '\nNew failures: {}\n'.format(new_failures))
+            self._addToLog('stderr', '\nNew failures: {}\n'.format(new_failures_string))
             self.finished(FAILURE)
             self.build.results = FAILURE
             pluralSuffix = 's' if len(new_failures) > 1 else ''
             message = 'Found {} new API test failure{}: {}'.format(len(new_failures), pluralSuffix, new_failures_string)
-            if len(new_failures) > self.NUM_API_FAILURES_TO_DISPLAY:
+            if len(new_failures) > self.NUM_FAILURES_TO_DISPLAY:
                 message += ' ...'
             self.descriptionDone = message
             self.build.buildFinished([message], FAILURE)
@@ -2526,10 +2620,14 @@ class AnalyzeAPITestsResults(buildstep.BuildStep):
             message = ''
             if clean_tree_failures:
                 message = 'Found {} pre-existing API test failure{}: {}'.format(len(clean_tree_failures), pluralSuffix, clean_tree_failures_string)
-            if len(clean_tree_failures) > self.NUM_API_FAILURES_TO_DISPLAY:
+                for clean_tree_failure in clean_tree_failures_to_display:
+                    self.send_email_for_pre_existing_failure(clean_tree_failure)
+            if len(clean_tree_failures) > self.NUM_FAILURES_TO_DISPLAY:
                 message += ' ...'
             if flaky_failures:
                 message += ' Found flaky tests: {}'.format(flaky_failures_string)
+                for flaky_failure in flaky_failures:
+                    self.send_email_for_flaky_failure(flaky_failure)
             self.build.buildFinished([message], SUCCESS)
 
     @defer.inlineCallbacks
@@ -2569,6 +2667,31 @@ class AnalyzeAPITestsResults(buildstep.BuildStep):
         except Exception as ex:
             self._addToLog('stderr', 'ERROR: unable to parse data, exception: {}'.format(ex))
 
+    def send_email_for_flaky_failure(self, test_name):
+        try:
+            builder_name = self.getProperty('buildername', '')
+            worker_name = self.getProperty('workername', '')
+            build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
+            history_url = '{}?suite=api-tests&test={}'.format(RESULTS_DB_URL, test_name)
+
+            email_subject = u'Flaky test: {}'.format(test_name)
+            email_text = 'Flaky test: {}\n\nBuild: {}\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'flaky-{}'.format(test_name))
+        except Exception as e:
+            print('Error in sending email for flaky failure: {}'.format(e))
+
+    def send_email_for_pre_existing_failure(self, test_name):
+        try:
+            builder_name = self.getProperty('buildername', '')
+            worker_name = self.getProperty('workername', '')
+            build_url = '{}#/builders/{}/builds/{}'.format(self.master.config.buildbotURL, self.build._builderid, self.build.number)
+            history_url = '{}?suite=api-tests&test={}'.format(RESULTS_DB_URL, test_name)
+
+            email_subject = u'Pre-existing test failure: {}'.format(test_name)
+            email_text = 'Test {} failed on clean tree run in {}.\n\nBuilder: {}\n\nWorker: {}\n\nHistory: {}'.format(test_name, build_url, builder_name, worker_name, history_url)
+            send_email_to_bot_watchers(email_subject, email_text, builder_name, 'preexisting-{}'.format(test_name))
+        except Exception as e:
+            print('Error in sending email for pre-existing failure: {}'.format(e))
 
 class ArchiveTestResults(shell.ShellCommand):
     command = ['python', 'Tools/BuildSlaveSupport/test-result-archive',

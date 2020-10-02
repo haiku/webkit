@@ -625,9 +625,10 @@ static bool DetermineDepthTextureANGLESupport(const TextureCapsMap &textureCaps)
 {
     constexpr GLenum requiredFormats[] = {
         GL_DEPTH_COMPONENT16,
-#if !ANGLE_PLATFORM_IOS
-        // FIXME: Temporarily Removing the need for GL_DEPTH_COMPONENT32_OES
+#if !defined(ANGLE_PLATFORM_IOS) && (!defined(ANGLE_PLATFORM_MACCATALYST) || !defined(ANGLE_CPU_ARM64))
+        // TODO(dino): Temporarily Removing the need for GL_DEPTH_COMPONENT32_OES
         // because it is not supported on iOS.
+        // TODO(dino): I think this needs to be a runtime check when running an iOS app on Mac.
         GL_DEPTH_COMPONENT32_OES,
 #endif
         GL_DEPTH24_STENCIL8_OES,
@@ -641,9 +642,10 @@ static bool DetermineDepthTextureOESSupport(const TextureCapsMap &textureCaps)
 {
     constexpr GLenum requiredFormats[] = {
         GL_DEPTH_COMPONENT16,
-#if !ANGLE_PLATFORM_IOS
-        // FIXME: Temporarily Removing the need for GL_DEPTH_COMPONENT32_OES
+#if !defined(ANGLE_PLATFORM_IOS) && (!defined(ANGLE_PLATFORM_MACCATALYST) || !defined(ANGLE_CPU_ARM64))
+        // TODO(dino): Temporarily Removing the need for GL_DEPTH_COMPONENT32_OES
         // because it is not supported on iOS.
+        // TODO(dino): I think this needs to be a runtime check when running an iOS app on Mac.
         GL_DEPTH_COMPONENT32_OES,
 #endif
     };
@@ -1416,6 +1418,8 @@ std::vector<std::string> DeviceExtensions::getStrings() const
     //                   | Extension name                                 | Supported flag                | Output vector   |
     InsertExtensionString("EGL_ANGLE_device_d3d",                          deviceD3D,                      &extensionStrings);
     InsertExtensionString("EGL_ANGLE_device_cgl",                          deviceCGL,                      &extensionStrings);
+    InsertExtensionString("EGL_ANGLE_device_eagl",                         deviceEAGL,                     &extensionStrings);
+
     // clang-format on
 
     return extensionStrings;
@@ -1443,6 +1447,8 @@ std::vector<std::string> ClientExtensions::getStrings() const
     InsertExtensionString("EGL_ANGLE_platform_angle_vulkan",                  platformANGLEVulkan,                &extensionStrings);
     InsertExtensionString("EGL_ANGLE_platform_angle_metal",                   platformANGLEMetal,                 &extensionStrings);
     InsertExtensionString("EGL_ANGLE_platform_angle_context_virtualization",  platformANGLEContextVirtualization, &extensionStrings);
+    InsertExtensionString("EGL_ANGLE_platform_device_context_volatile_eagl",  platformANGLEDeviceContextVolatileEagl, &extensionStrings);
+    InsertExtensionString("EGL_ANGLE_platform_device_context_volatile_cgl",   platformANGLEDeviceContextVolatileCgl, &extensionStrings);
     InsertExtensionString("EGL_ANGLE_device_creation",                        deviceCreation,                     &extensionStrings);
     InsertExtensionString("EGL_ANGLE_device_creation_d3d11",                  deviceCreationD3D11,                &extensionStrings);
     InsertExtensionString("EGL_ANGLE_x11_visual",                             x11Visual,                          &extensionStrings);

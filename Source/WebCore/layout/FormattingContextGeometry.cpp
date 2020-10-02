@@ -29,6 +29,7 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "BlockFormattingState.h"
+#include "FlexFormattingState.h"
 #include "FloatingState.h"
 #include "InlineFormattingState.h"
 #include "LayoutContext.h"
@@ -73,8 +74,6 @@ Optional<LayoutUnit> FormattingContext::Geometry::computedHeightValue(const Box&
         return LayoutUnit { height.value() };
 
     if (!containingBlockHeight) {
-        // Containing block's height is already computed since we layout the out-of-flow boxes as the last step.
-        ASSERT(!layoutBox.isOutOfFlowPositioned());
         if (layoutState().inQuirksMode())
             containingBlockHeight = formattingContext().quirks().heightValueOfNearestContainingBlockWithFixedHeight(layoutBox);
         else {
@@ -193,17 +192,23 @@ LayoutUnit FormattingContext::Geometry::contentHeightForFormattingContextRoot(co
     auto bottom = borderAndPaddingTop;
     auto& formattingRootContainer = downcast<ContainerBox>(layoutBox);
     if (formattingRootContainer.establishesInlineFormattingContext()) {
-        auto& lineBoxes = layoutState.establishedInlineFormattingState(formattingRootContainer).displayInlineContent()->lineBoxes;
+        auto& lines = layoutState.establishedInlineFormattingState(formattingRootContainer).lines();
         // Even empty containers generate one line. 
-        ASSERT(!lineBoxes.isEmpty());
-        top = lineBoxes.first().top();
-        bottom = lineBoxes.last().bottom();
+        ASSERT(!lines.isEmpty());
+        top = lines.first().logicalTop();
+        bottom = lines.last().logicalBottom();
+    } else if (formattingRootContainer.establishesFlexFormattingContext()) {
+        auto& lines = layoutState.establishedFlexFormattingState(formattingRootContainer).lines();
+        ASSERT(!lines.isEmpty());
+        // FIXME: Move flex over to layout geometry.
+        top = lines.first().rect().y();
+        bottom = lines.last().rect().maxY();
     } else if (formattingRootContainer.establishesBlockFormattingContext() || formattingRootContainer.establishesTableFormattingContext() || formattingRootContainer.isDocumentBox()) {
         if (formattingRootContainer.hasInFlowChild()) {
             auto& firstBoxGeometry = formattingContext.geometryForBox(*formattingRootContainer.firstInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
             auto& lastBoxGeometry = formattingContext.geometryForBox(*formattingRootContainer.lastInFlowChild(), EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
-            top = firstBoxGeometry.rectWithMargin().top();
-            bottom = lastBoxGeometry.rectWithMargin().bottom();
+            top = firstBoxGeometry.logicalRectWithMargin().top();
+            bottom = lastBoxGeometry.logicalRectWithMargin().bottom();
         }
     } else
         ASSERT_NOT_REACHED();
@@ -288,7 +293,7 @@ LayoutUnit FormattingContext::Geometry::staticVerticalPositionForOutOfFlowPositi
         auto& formattingState = downcast<BlockFormattingState>(layoutState().formattingStateForBox(previousInFlowSibling));
         auto usedVerticalMarginForPreviousBox = formattingState.usedVerticalMargin(previousInFlowSibling);
 
-        top += previousInFlowBoxGeometry.bottom() + usedVerticalMarginForPreviousBox.nonCollapsedValues.after;
+        top += previousInFlowBoxGeometry.logicalBottom() + usedVerticalMarginForPreviousBox.nonCollapsedValues.after;
     } else
         top = formattingContext.geometryForBox(layoutBox.parent(), EscapeReason::OutOfFlowBoxNeedsInFlowGeometry).contentBoxTop();
 
@@ -297,8 +302,8 @@ LayoutUnit FormattingContext::Geometry::staticVerticalPositionForOutOfFlowPositi
     // Start with the parent since we pretend that this box is normal flow.
     for (auto* ancestor = &layoutBox.parent(); ancestor != &containingBlock; ancestor = &ancestor->containingBlock()) {
         auto& boxGeometry = formattingContext.geometryForBox(*ancestor, EscapeReason::OutOfFlowBoxNeedsInFlowGeometry);
-        // Display::Box::top is the border box top position in its containing block's coordinate system.
-        top += boxGeometry.top();
+        // BoxGeometry::top is the border box top position in its containing block's coordinate system.
+        top += boxGeometry.logicalTop();
         ASSERT(!ancestor->isPositioned() || layoutBox.isFixedPositioned());
     }
     // Move the static position relative to the padding box. This is very specific to abolutely positioned boxes.
@@ -319,8 +324,8 @@ LayoutUnit FormattingContext::Geometry::staticHorizontalPositionForOutOfFlowPosi
     // Start with the parent since we pretend that this box is normal flow.
     for (auto* ancestor = &layoutBox.parent(); ancestor != &containingBlock; ancestor = &ancestor->containingBlock()) {
         auto& boxGeometry = formattingContext.geometryForBox(*ancestor, EscapeReason::OutOfFlowBoxNeedsInFlowGeometry);
-        // Display::Box::left is the border box left position in its containing block's coordinate system.
-        left += boxGeometry.left();
+        // BoxGeometry::left is the border box left position in its containing block's coordinate system.
+        left += boxGeometry.logicalLeft();
         ASSERT(!ancestor->isPositioned() || layoutBox.isFixedPositioned());
     }
     // Move the static position relative to the padding box. This is very specific to abolutely positioned boxes.
@@ -941,7 +946,7 @@ ContentHeightAndMargin FormattingContext::Geometry::inlineReplacedHeightAndMargi
         height = replacedBox.intrinsicHeight();
     } else if (heightIsAuto && replacedBox.hasIntrinsicRatio()) {
         // #3
-        auto usedWidth = formattingContext.geometryForBox(replacedBox).width();
+        auto usedWidth = formattingContext.geometryForBox(replacedBox).logicalWidth();
         height = usedWidth / replacedBox.intrinsicRatio();
     } else if (heightIsAuto && replacedBox.hasIntrinsicHeight()) {
         // #4
@@ -1167,7 +1172,6 @@ FormattingContext::ConstraintsForOutOfFlowContent FormattingContext::Geometry::c
 FormattingContext::ConstraintsForInFlowContent FormattingContext::Geometry::constraintsForInFlowContent(const ContainerBox& containerBox, Optional<EscapeReason> escapeReason)
 {
     auto& boxGeometry = formattingContext().geometryForBox(containerBox, escapeReason);
-    // FIXME: Find out if min/max-height properties should also be taken into account here.
     return { { boxGeometry.contentBoxLeft(), boxGeometry.contentBoxWidth() }, { boxGeometry.contentBoxTop(), computedHeight(containerBox) } };
 }
 

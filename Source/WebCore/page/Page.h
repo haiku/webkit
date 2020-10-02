@@ -35,7 +35,6 @@
 #include "RTCController.h"
 #include "Region.h"
 #include "RegistrableDomain.h"
-#include "RenderingUpdateScheduler.h"
 #include "ScrollTypes.h"
 #include "ShouldRelaxThirdPartyCookieBlocking.h"
 #include "Supplementable.h"
@@ -131,7 +130,8 @@ class PointerLockController;
 class ProgressTracker;
 class RenderObject;
 class ResourceUsageOverlay;
-class ScrollLatchingState;
+class RenderingUpdateScheduler;
+class ScrollLatchingController;
 class ScrollingCoordinator;
 class ServicesOverlayController;
 class Settings;
@@ -265,8 +265,6 @@ public:
     void mainFrameDidChangeToNonInitialEmptyDocument();
 
     PerformanceMonitor* performanceMonitor() { return m_performanceMonitor.get(); }
-
-    RenderingUpdateScheduler& renderingUpdateScheduler();
 
     ValidationMessageClient* validationMessageClient() const { return m_validationMessageClient.get(); }
     void updateValidationBubbleStateIfNeeded();
@@ -448,12 +446,8 @@ public:
 #endif
 
 #if ENABLE(WHEEL_EVENT_LATCHING)
-    ScrollLatchingState* latchingState();
-    const Vector<ScrollLatchingState>& latchingStateStack() const { return m_latchingState; }
-    void pushNewLatchingState(ScrollLatchingState&&);
-    void popLatchingState();
-    void resetLatchingState();
-    void removeLatchingStateForTarget(Element&);
+    ScrollLatchingController& scrollLatchingController();
+    ScrollLatchingController* scrollLatchingControllerIfExists();
 #endif // ENABLE(WHEEL_EVENT_LATCHING)
 
 #if ENABLE(APPLE_PAY)
@@ -494,12 +488,17 @@ public:
 
     WEBCORE_EXPORT void layoutIfNeeded();
     WEBCORE_EXPORT void updateRendering();
-    
+    // A call to updateRendering() that is not followed by a call to finalizeRenderingUpdate().
+    WEBCORE_EXPORT void isolatedUpdateRendering();
     WEBCORE_EXPORT void finalizeRenderingUpdate(OptionSet<FinalizeRenderingUpdateFlags>);
-    
+
+    // Do immediate or timed update as dictated by the ChromeClient.
     WEBCORE_EXPORT void scheduleRenderingUpdate();
+    // Schedule an update that coordinates with display refresh; the normal kind of update.
     void scheduleTimedRenderingUpdate();
-    
+    // Schedule an update in the current runloop; this is an eager update that may trigger rendering more than once per display refresh.
+    void scheduleImmediateRenderingUpdate();
+
     WEBCORE_EXPORT void startTrackingRenderingUpdates();
     WEBCORE_EXPORT unsigned renderingUpdateCount() const;
 
@@ -643,6 +642,7 @@ public:
     bool isAudioMuted() const { return m_mutedState & MediaProducer::AudioIsMuted; }
     bool isMediaCaptureMuted() const { return m_mutedState & MediaProducer::MediaStreamCaptureIsMuted; };
     void schedulePlaybackControlsManagerUpdate();
+    void playbackControlsMediaEngineChanged();
     WEBCORE_EXPORT void setMuted(MediaProducer::MutedStateFlags);
     WEBCORE_EXPORT void stopMediaCapture();
 
@@ -779,7 +779,16 @@ public:
     bool hasBeenNotifiedToInjectUserScripts() const { return m_hasBeenNotifiedToInjectUserScripts; }
     WEBCORE_EXPORT void notifyToInjectUserScripts();
 
+    MonotonicTime lastRenderingUpdateTimestamp() const { return m_lastRenderingUpdateTimestamp; }
+
 private:
+    enum class RenderingUpdatePhase : uint8_t {
+        Outside,
+        InUpdateRendering,
+        LayerFlushing,
+        PostLayerFlush
+    };
+
     struct Navigation {
         RegistrableDomain domain;
         FrameLoadType type;
@@ -815,6 +824,8 @@ private:
     void domTimerAlignmentIntervalIncreaseTimerFired();
 
     void doAfterUpdateRendering();
+
+    RenderingUpdateScheduler& renderingUpdateScheduler();
 
     WheelEventTestMonitor& ensureWheelEventTestMonitor();
 
@@ -1015,13 +1026,14 @@ private:
     bool m_shouldEnableICECandidateFilteringByDefault { true };
     bool m_mediaPlaybackIsSuspended { false };
     bool m_mediaBufferingIsSuspended { false };
-    bool m_inUpdateRendering { false };
     bool m_hasResourceLoadClient { false };
     bool m_delegatesScaling { false };
 
 #if ENABLE(EDITABLE_REGION)
     bool m_isEditableRegionEnabled { false };
 #endif
+
+    Vector<RenderingUpdatePhase, 2> m_updateRenderingPhaseStack;
 
     UserInterfaceLayoutDirection m_userInterfaceLayoutDirection { UserInterfaceLayoutDirection::LTR };
     
@@ -1038,7 +1050,7 @@ private:
 
     std::unique_ptr<PerformanceLogging> m_performanceLogging;
 #if ENABLE(WHEEL_EVENT_LATCHING)
-    Vector<ScrollLatchingState> m_latchingState;
+    std::unique_ptr<ScrollLatchingController> m_scrollLatchingController;
 #endif
 #if PLATFORM(MAC) && (ENABLE(SERVICE_CONTROLS) || ENABLE(TELEPHONE_NUMBER_DETECTION))
     std::unique_ptr<ServicesOverlayController> m_servicesOverlayController;
@@ -1073,6 +1085,8 @@ private:
     bool m_canUseCredentialStorage { true };
     ShouldRelaxThirdPartyCookieBlocking m_shouldRelaxThirdPartyCookieBlocking { ShouldRelaxThirdPartyCookieBlocking::No };
     bool m_hasBeenNotifiedToInjectUserScripts { false };
+
+    MonotonicTime m_lastRenderingUpdateTimestamp;
 };
 
 inline PageGroup& Page::group()

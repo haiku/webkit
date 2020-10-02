@@ -32,7 +32,7 @@
 #include "ArgumentCodersCF.h"
 #endif
 
-#if USE(CURL)
+#if USE(CURL) || USE(SOUP)
 #include "WebCoreArgumentCoders.h"
 #endif
 
@@ -57,10 +57,14 @@ void NetworkSessionCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << alternativeServiceDirectoryExtensionHandle;
     encoder << http3Enabled;
 #endif
+    encoder << hstsStorageDirectory;
+    encoder << hstsStorageDirectoryExtensionHandle;
 #if USE(SOUP)
     encoder << cookiePersistentStoragePath;
     encoder << cookiePersistentStorageType;
     encoder << persistentCredentialStorageEnabled;
+    encoder << ignoreTLSErrors;
+    encoder << proxySettings;
 #endif
 #if USE(CURL)
     encoder << cookiePersistentStorageFile;
@@ -154,6 +158,16 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
         return WTF::nullopt;
 #endif
 
+    Optional<String> hstsStorageDirectory;
+    decoder >> hstsStorageDirectory;
+    if (!hstsStorageDirectory)
+        return WTF::nullopt;
+
+    Optional<SandboxExtension::Handle> hstsStorageDirectoryExtensionHandle;
+    decoder >> hstsStorageDirectoryExtensionHandle;
+    if (!hstsStorageDirectoryExtensionHandle)
+        return WTF::nullopt;
+    
 #if USE(SOUP)
     Optional<String> cookiePersistentStoragePath;
     decoder >> cookiePersistentStoragePath;
@@ -168,6 +182,16 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
     Optional<bool> persistentCredentialStorageEnabled;
     decoder >> persistentCredentialStorageEnabled;
     if (!persistentCredentialStorageEnabled)
+        return WTF::nullopt;
+
+    Optional<bool> ignoreTLSErrors;
+    decoder >> ignoreTLSErrors;
+    if (!ignoreTLSErrors)
+        return WTF::nullopt;
+
+    Optional<WebCore::SoupNetworkProxySettings> proxySettings;
+    decoder >> proxySettings;
+    if (!proxySettings)
         return WTF::nullopt;
 #endif
 
@@ -281,10 +305,14 @@ Optional<NetworkSessionCreationParameters> NetworkSessionCreationParameters::dec
         , WTFMove(*alternativeServiceDirectoryExtensionHandle)
         , WTFMove(*http3Enabled)
 #endif
+        , WTFMove(*hstsStorageDirectory)
+        , WTFMove(*hstsStorageDirectoryExtensionHandle)
 #if USE(SOUP)
         , WTFMove(*cookiePersistentStoragePath)
         , WTFMove(*cookiePersistentStorageType)
         , WTFMove(*persistentCredentialStorageEnabled)
+        , WTFMove(*ignoreTLSErrors)
+        , WTFMove(*proxySettings)
 #endif
 #if USE(CURL)
         , WTFMove(*cookiePersistentStorageFile)

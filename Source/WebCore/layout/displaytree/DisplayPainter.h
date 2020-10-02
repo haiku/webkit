@@ -27,12 +27,15 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
+#include "LayoutBox.h"
+
 namespace WebCore {
 
 class GraphicsContext;
 class IntRect;
 
 namespace Layout {
+class BoxGeometry;
 class LayoutState;
 }
 
@@ -42,6 +45,9 @@ class Painter {
 public:
     static void paint(const Layout::LayoutState&, GraphicsContext&, const IntRect& dirtyRect);
     static void paintInlineFlow(const Layout::LayoutState&, GraphicsContext&);
+
+    // FIXME: Move to display box.
+    static Layout::BoxGeometry absoluteBoxGeometry(const Layout::LayoutState&, const Layout::Box&);
 };
 
 }

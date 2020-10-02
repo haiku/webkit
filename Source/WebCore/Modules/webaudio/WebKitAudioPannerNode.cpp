@@ -50,18 +50,14 @@ static void fixNANs(double &x)
 
 WebKitAudioPannerNode::WebKitAudioPannerNode(WebKitAudioContext& context)
     : PannerNodeBase(context)
-    , m_panningModel(PanningModelType::HRTF)
-    , m_lastGain(-1.0)
-    , m_connectionCount(0)
 {
-    setNodeType(NodeTypePanner);
     initializeDefaultNodeOptions(2, ChannelCountMode::ClampedMax, ChannelInterpretation::Speakers);
 
     // Load the HRTF database asynchronously so we don't block the Javascript thread while creating the HRTF database.
     m_hrtfDatabaseLoader = HRTFDatabaseLoader::createAndLoadAsynchronouslyIfNecessary(context.sampleRate());
 
-    addInput(makeUnique<AudioNodeInput>(this));
-    addOutput(makeUnique<AudioNodeOutput>(this, 2));
+    addInput();
+    addOutput(2);
 
     m_position = FloatPoint3D(0, 0, 0);
     m_orientation = FloatPoint3D(1, 0, 0);
@@ -132,19 +128,8 @@ void WebKitAudioPannerNode::process(size_t framesToProcess)
     // Get the distance and cone gain.
     double totalGain = distanceConeGain();
 
-    // Snap to desired gain at the beginning.
-    if (m_lastGain == -1.0)
-        m_lastGain = totalGain;
-
-    // Apply gain in-place with de-zippering.
-    destination->copyWithGainFrom(*destination, &m_lastGain, totalGain);
-}
-
-void WebKitAudioPannerNode::reset()
-{
-    m_lastGain = -1.0; // force to snap to initial gain
-    if (m_panner.get())
-        m_panner->reset();
+    // Apply gain in-place.
+    destination->copyWithGainFrom(*destination, totalGain);
 }
 
 void WebKitAudioPannerNode::initialize()
@@ -345,6 +330,14 @@ void WebKitAudioPannerNode::notifyAudioSourcesConnectedToNode(AudioNode* node, H
             }
         }
     }
+}
+
+bool WebKitAudioPannerNode::requiresTailProcessing() const
+{
+    // If there's no internal panner method set up yet, assume we require tail
+    // processing in case the HRTF panner is set later, which does require tail
+    // processing.
+    return !m_panner || m_panner->requiresTailProcessing();
 }
 
 } // namespace WebCore

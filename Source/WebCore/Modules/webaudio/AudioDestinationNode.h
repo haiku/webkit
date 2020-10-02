@@ -40,7 +40,6 @@ public:
     
     // AudioNode   
     void process(size_t) override { }; // we're pulled by hardware so this is never called
-    void reset() override { m_currentSampleFrame = 0; }
     
     // The audio hardware calls render() to get the next render quantum of audio into destinationBus.
     // It will optionally give us local/live audio input in sourceBus (if it's not 0).
@@ -49,7 +48,7 @@ public:
     size_t currentSampleFrame() const { return m_currentSampleFrame; }
     double currentTime() const { return currentSampleFrame() / static_cast<double>(sampleRate()); }
 
-    virtual unsigned maxChannelCount() const { return 0; }
+    virtual unsigned maxChannelCount() const = 0;
 
     // Enable local/live input for the specified device.
     virtual void enableInput(const String& inputDeviceId) = 0;
@@ -72,11 +71,11 @@ protected:
     void updateIsEffectivelyPlayingAudio();
 
     // Counts the number of sample-frames processed by the destination.
-    size_t m_currentSampleFrame;
+    size_t m_currentSampleFrame { 0 };
 
-    bool m_isSilent;
-    bool m_isEffectivelyPlayingAudio;
-    bool m_muted;
+    bool m_isSilent { true };
+    bool m_isEffectivelyPlayingAudio { false };
+    bool m_muted { false };
 };
 
 } // namespace WebCore

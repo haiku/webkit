@@ -150,11 +150,15 @@ else ()
         platform/graphics/cg/TransformationMatrixCG.cpp
         platform/graphics/cg/UTIRegistry.cpp
 
+        platform/graphics/coretext/FontCascadeCoreText.cpp
+        platform/graphics/coretext/FontCoreText.cpp
+        platform/graphics/coretext/FontPlatformDataCoreText.cpp
+        platform/graphics/coretext/GlyphPageCoreText.cpp
+
         platform/graphics/opentype/OpenTypeCG.cpp
 
         platform/graphics/win/FontCGWin.cpp
         platform/graphics/win/FontPlatformDataCGWin.cpp
-        platform/graphics/win/GlyphPageTreeNodeCGWin.cpp
         platform/graphics/win/GraphicsContextCGWin.cpp
         platform/graphics/win/ImageCGWin.cpp
         platform/graphics/win/SimpleFontDataCGWin.cpp

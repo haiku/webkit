@@ -69,6 +69,7 @@
 #import <WebCore/DiagnosticLoggingClient.h>
 #import <WebCore/DiagnosticLoggingKeys.h>
 #import <WebCore/DocumentLoader.h>
+#import <WebCore/DocumentMarkerController.h>
 #import <WebCore/DragController.h>
 #import <WebCore/Editing.h>
 #import <WebCore/Editor.h>
@@ -121,6 +122,7 @@
 #import <WebCore/RenderLayer.h>
 #import <WebCore/RenderThemeIOS.h>
 #import <WebCore/RenderView.h>
+#import <WebCore/RenderedDocumentMarker.h>
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/Settings.h>
 #import <WebCore/ShadowRoot.h>
@@ -280,6 +282,7 @@ void WebPage::getPlatformEditorState(Frame& frame, EditorState& result) const
     }
 
     const auto& selection = frame.selection().selection();
+    Optional<SimpleRange> selectedRange;
     postLayoutData.isStableStateUpdate = m_isInStableState;
     bool startNodeIsInsideFixedPosition = false;
     bool endNodeIsInsideFixedPosition = false;
@@ -289,13 +292,16 @@ void WebPage::getPlatformEditorState(Frame& frame, EditorState& result) const
         postLayoutData.caretRectAtEnd = postLayoutData.caretRectAtStart;
         // FIXME: The following check should take into account writing direction.
         postLayoutData.isReplaceAllowed = result.isContentEditable && atBoundaryOfGranularity(selection.start(), TextGranularity::WordGranularity, SelectionDirection::Forward);
-        postLayoutData.wordAtSelection = plainTextForContext(wordRangeFromPosition(selection.start()));
+
+        selectedRange = wordRangeFromPosition(selection.start());
+        postLayoutData.wordAtSelection = plainTextForContext(selectedRange);
+
         if (selection.isContentEditable())
             charactersAroundPosition(selection.start(), postLayoutData.characterAfterSelection, postLayoutData.characterBeforeSelection, postLayoutData.twoCharacterBeforeSelection);
     } else if (selection.isRange()) {
         postLayoutData.caretRectAtStart = view->contentsToRootView(VisiblePosition(selection.start()).absoluteCaretBounds(&startNodeIsInsideFixedPosition));
         postLayoutData.caretRectAtEnd = view->contentsToRootView(VisiblePosition(selection.end()).absoluteCaretBounds(&endNodeIsInsideFixedPosition));
-        auto selectedRange = selection.toNormalizedRange();
+        selectedRange = selection.toNormalizedRange();
         String selectedText;
         if (selectedRange) {
             postLayoutData.selectionRects = RenderObject::collectSelectionRects(*selectedRange);
@@ -308,6 +314,16 @@ void WebPage::getPlatformEditorState(Frame& frame, EditorState& result) const
         // FIXME: We should disallow replace when the string contains only CJ characters.
         postLayoutData.isReplaceAllowed = result.isContentEditable && !result.isInPasswordField && !selectedText.isAllSpecialCharacters<isHTMLSpace>();
     }
+
+#if USE(DICTATION_ALTERNATIVES)
+    if (selectedRange) {
+        auto markers = frame.document()->markers().markersInRange(*selectedRange, DocumentMarker::MarkerType::DictationAlternatives);
+        postLayoutData.dictationContextsForSelection = WTF::map(markers, [] (auto* marker) {
+            return WTF::get<DocumentMarker::DictationData>(marker->data()).context;
+        });
+    }
+#endif
+
     postLayoutData.atStartOfSentence = frame.selection().selectionAtSentenceStart();
     postLayoutData.insideFixedPosition = startNodeIsInsideFixedPosition || endNodeIsInsideFixedPosition;
     if (!selection.isNone()) {
@@ -753,7 +769,7 @@ void WebPage::handleSyntheticClick(Node& nodeRespondingToClick, const WebCore::F
         if (targetNode.document().quirks().shouldIgnoreAriaForFastPathContentObservationCheck())
             return false;
         auto ariaRole = AccessibilityObject::ariaRoleToWebCoreRole(downcast<Element>(targetNode).getAttribute(HTMLNames::roleAttr));
-        return AccessibilityObject::isARIAControl(ariaRole) || AccessibilityObject::isARIAInput(ariaRole);
+        return AccessibilityObject::isARIAControl(ariaRole);
     };
     auto targetNodeTriggersFastPath = nodeTriggersFastPath(nodeRespondingToClick);
 
@@ -988,7 +1004,7 @@ void WebPage::didConcludeEditDrag()
     auto frame = makeRef(m_page->focusController().focusedOrMainFrame());
     if (auto selectionRange = frame->selection().selection().toNormalizedRange()) {
         m_pendingImageElementsForDropSnapshot = visibleImageElementsInRangeWithNonLoadedImages(*selectionRange);
-        frame->selection().setSelectedRange(makeSimpleRange(selectionRange->end), DOWNSTREAM, FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+        frame->selection().setSelectedRange(makeSimpleRange(selectionRange->end), Affinity::Downstream, FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
         m_rangeForDropSnapshot = WTFMove(selectionRange);
     }
 
@@ -1090,38 +1106,6 @@ void WebPage::handleTwoFingerTapAtPoint(const WebCore::IntPoint& point, OptionSe
     }
     sendTapHighlightForNodeIfNecessary(requestID, nodeRespondingToClick);
     completeSyntheticClick(*nodeRespondingToClick, adjustedPoint, modifiers, WebCore::TwoFingerTap);
-}
-
-void WebPage::handleStylusSingleTapAtPoint(const WebCore::IntPoint& point, uint64_t requestID)
-{
-    SetForScope<bool> userIsInteractingChange { m_userIsInteracting, true };
-
-    auto& frame = m_page->focusController().focusedOrMainFrame();
-
-    auto pointInDocument = frame.view()->rootViewToContents(point);
-    constexpr OptionSet<HitTestRequest::RequestType> hitType { HitTestRequest::ReadOnly, HitTestRequest::Active, HitTestRequest::AllowVisibleChildFrameContentOnly };
-    HitTestResult hitTest = frame.eventHandler().hitTestResultAtPoint(pointInDocument, hitType);
-
-    Node* node = hitTest.innerNonSharedNode();
-    if (!node)
-        return;
-    auto renderer = node->renderer();
-    if (!renderer)
-        return;
-
-    if (renderer->isReplaced())
-        return;
-
-    auto position = renderer->positionForPoint(hitTest.localPoint(), nullptr);
-    if (position.isNull())
-        position = firstPositionInOrBeforeNode(node);
-    auto range = makeSimpleRange(position);
-    if (!range)
-        return;
-
-    frame.selection().setSelectedRange(*range, position.affinity(), WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
-    auto image = frame.editor().insertEditableImage();
-    frame.document()->setFocusedElement(image.get());
 }
 
 void WebPage::potentialTapAtPosition(uint64_t requestID, const WebCore::FloatPoint& position, bool shouldRequestMagnificationInformation)
@@ -1377,8 +1361,8 @@ void WebPage::selectWithGesture(const IntPoint& point, GestureType gestureType, 
         if (!frame.editor().hasComposition())
             break;
         auto markedRange = frame.editor().compositionRange();
-        auto startPosition = VisiblePosition { createLegacyEditingPosition(markedRange->start) };
-        position = std::clamp(position, startPosition, VisiblePosition { createLegacyEditingPosition(markedRange->end) });
+        auto startPosition = VisiblePosition { makeDeprecatedLegacyPosition(markedRange->start) };
+        position = std::clamp(position, startPosition, VisiblePosition { makeDeprecatedLegacyPosition(markedRange->end) });
         if (wkGestureState != GestureRecognizerState::Began)
             flags = distanceBetweenPositions(startPosition, frame.selection().selection().start()) != distanceBetweenPositions(startPosition, position) ? PhraseBoundaryChanged : OptionSet<SelectionFlags> { };
         else
@@ -1409,7 +1393,7 @@ void WebPage::selectWithGesture(const IntPoint& point, GestureType gestureType, 
             case GestureRecognizerState::Changed:
                 if (m_startingGestureRange) {
                     auto& start = m_startingGestureRange->start;
-                    if (createLegacyEditingPosition(start) < position)
+                    if (makeDeprecatedLegacyPosition(start) < position)
                         range = makeSimpleRange(start, position);
                     else
                         range = makeSimpleRange(position, start);
@@ -1441,9 +1425,9 @@ void WebPage::selectWithGesture(const IntPoint& point, GestureType gestureType, 
             if (!m_currentWordRange)
                 break;
             range = m_currentWordRange;
-            if (position < createLegacyEditingPosition(range->start))
+            if (position < makeDeprecatedLegacyPosition(range->start))
                 range->start = *makeBoundaryPoint(position);
-            if (position > createLegacyEditingPosition(range->end))
+            if (position > makeDeprecatedLegacyPosition(range->end))
                 range->end = *makeBoundaryPoint(position);
             break;
         case GestureRecognizerState::Ended:
@@ -1531,14 +1515,14 @@ static Optional<SimpleRange> rangeForPointInRootViewCoordinates(Frame& frame, co
         result = frame.visiblePositionForPoint(pointInDocument).deepEquivalent();
     
     if (baseIsStart) {
-        if (comparePositions(result, selectionStart) <= 0)
+        if (result <= selectionStart)
             result = selectionStart.next();
         else if (&selectionStart.deepEquivalent().anchorNode()->treeScope() != &hitTest.targetNode()->treeScope())
             result = VisibleSelection::adjustPositionForEnd(result.deepEquivalent(), selectionStart.deepEquivalent().containerNode());
 
         range = makeSimpleRange(selectionStart, result);
     } else {
-        if (comparePositions(selectionEnd, result) <= 0)
+        if (selectionEnd <= result)
             result = selectionEnd.previous();
         else if (&hitTest.targetNode()->treeScope() != &selectionEnd.deepEquivalent().anchorNode()->treeScope())
             result = VisibleSelection::adjustPositionForStart(result.deepEquivalent(), selectionEnd.deepEquivalent().containerNode());
@@ -1784,8 +1768,8 @@ void WebPage::extendSelection(WebCore::TextGranularity granularity, CompletionHa
     IntPoint endLocationForSyntheticMouseEvents;
     bool shouldDispatchMouseEvents = shouldDispatchSyntheticMouseEventsWhenModifyingSelection();
     if (shouldDispatchMouseEvents) {
-        auto startLocationForSyntheticMouseEvents = frame.view()->contentsToRootView(VisiblePosition(createLegacyEditingPosition(wordRange->start)).absoluteCaretBounds()).center();
-        endLocationForSyntheticMouseEvents = frame.view()->contentsToRootView(VisiblePosition(createLegacyEditingPosition(wordRange->end)).absoluteCaretBounds()).center();
+        auto startLocationForSyntheticMouseEvents = frame.view()->contentsToRootView(VisiblePosition(makeDeprecatedLegacyPosition(wordRange->start)).absoluteCaretBounds()).center();
+        endLocationForSyntheticMouseEvents = frame.view()->contentsToRootView(VisiblePosition(makeDeprecatedLegacyPosition(wordRange->end)).absoluteCaretBounds()).center();
         dispatchSyntheticMouseEventsForSelectionGesture(SelectionTouch::Started, startLocationForSyntheticMouseEvents);
         dispatchSyntheticMouseEventsForSelectionGesture(SelectionTouch::Moved, endLocationForSyntheticMouseEvents);
     }
@@ -2062,7 +2046,7 @@ void WebPage::selectPositionAtBoundaryWithDirection(const WebCore::IntPoint& poi
     if (position.isNotNull()) {
         position = positionOfNextBoundaryOfGranularity(position, granularity, direction);
         if (position.isNotNull())
-            frame.selection().setSelectedRange(makeSimpleRange(position), UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+            frame.selection().setSelectedRange(makeSimpleRange(position), Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
     }
     completionHandler();
 }
@@ -2076,7 +2060,7 @@ void WebPage::moveSelectionAtBoundaryWithDirection(WebCore::TextGranularity gran
         VisiblePosition position = (isForward) ? frame.selection().selection().visibleEnd() : frame.selection().selection().visibleStart();
         position = positionOfNextBoundaryOfGranularity(position, granularity, direction);
         if (position.isNotNull())
-            frame.selection().setSelectedRange(makeSimpleRange(position), isForward? UPSTREAM : DOWNSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+            frame.selection().setSelectedRange(makeSimpleRange(position), isForward? Affinity::Upstream : Affinity::Downstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
     }
     completionHandler();
 }
@@ -2138,7 +2122,7 @@ void WebPage::selectTextWithGranularityAtPoint(const WebCore::IntPoint& point, W
     auto& frame = m_page->focusController().focusedOrMainFrame();
     auto range = rangeForGranularityAtPoint(frame, point, granularity, isInteractingWithFocusedElement);
     if (range)
-        frame.selection().setSelectedRange(*range, UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+        frame.selection().setSelectedRange(*range, Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
     m_initialSelection = range;
     completionHandler();
 }
@@ -2160,18 +2144,18 @@ void WebPage::updateSelectionWithExtentPointAndBoundary(const WebCore::IntPoint&
         return;
     }
 
-    auto initialSelectionStartPosition = createLegacyEditingPosition(m_initialSelection->start);
-    auto initialSelectionEndPosition = createLegacyEditingPosition(m_initialSelection->end);
+    auto initialSelectionStartPosition = makeDeprecatedLegacyPosition(m_initialSelection->start);
+    auto initialSelectionEndPosition = makeDeprecatedLegacyPosition(m_initialSelection->end);
 
     VisiblePosition selectionStart = initialSelectionStartPosition;
     VisiblePosition selectionEnd = initialSelectionEndPosition;
     if (position > initialSelectionEndPosition)
-        selectionEnd = createLegacyEditingPosition(newRange->end);
+        selectionEnd = makeDeprecatedLegacyPosition(newRange->end);
     else if (position < initialSelectionStartPosition)
-        selectionStart = createLegacyEditingPosition(newRange->start);
+        selectionStart = makeDeprecatedLegacyPosition(newRange->start);
 
     if (auto range = makeSimpleRange(selectionStart, selectionEnd))
-        frame.selection().setSelectedRange(range, UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+        frame.selection().setSelectedRange(range, Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
 
     send(Messages::WebPageProxy::UnsignedCallback(selectionStart == initialSelectionStartPosition, callbackID));
 }
@@ -2220,7 +2204,7 @@ void WebPage::updateSelectionWithExtentPoint(const WebCore::IntPoint& point, boo
     }
     
     if (auto range = makeSimpleRange(selectionStart, selectionEnd))
-        frame.selection().setSelectedRange(range, UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+        frame.selection().setSelectedRange(range, Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
 
     send(Messages::WebPageProxy::UnsignedCallback(m_selectionAnchor == Start, callbackID));
 }
@@ -2272,7 +2256,7 @@ void WebPage::replaceSelectedText(const String& oldText, const String& newText)
     if (plainTextForContext(wordRange) != oldText)
         return;
     frame.editor().setIgnoreSelectionChanges(true);
-    frame.selection().setSelectedRange(wordRange, UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes);
+    frame.selection().setSelectedRange(wordRange, Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes);
     frame.editor().insertText(newText, 0);
     frame.editor().setIgnoreSelectionChanges(false);
 }
@@ -2299,7 +2283,7 @@ void WebPage::replaceDictatedText(const String& oldText, const String& newText)
 
     // We don't want to notify the client that the selection has changed until we are done inserting the new text.
     frame.editor().setIgnoreSelectionChanges(true);
-    frame.selection().setSelectedRange(range, UPSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes);
+    frame.selection().setSelectedRange(range, Affinity::Upstream, WebCore::FrameSelection::ShouldCloseTyping::Yes);
     frame.editor().insertText(newText, 0);
     frame.editor().setIgnoreSelectionChanges(false);
 }
@@ -2321,8 +2305,8 @@ void WebPage::requestAutocorrectionData(const String& textForAutocorrection, Com
     auto textForRange = plainTextForContext(range);
     const unsigned maxSearchAttempts = 5;
     for (size_t i = 0;  i < maxSearchAttempts && textForRange != textForAutocorrection; ++i) {
-        auto position = createLegacyEditingPosition(range->start).previous();
-        if (position.isNull() || position == createLegacyEditingPosition(range->start))
+        auto position = makeDeprecatedLegacyPosition(range->start).previous();
+        if (position.isNull() || position == makeDeprecatedLegacyPosition(range->start))
             break;
         range = { { wordRangeFromPosition(position)->start, range->end } };
         textForRange = plainTextForContext(range);
@@ -2426,9 +2410,9 @@ bool WebPage::applyAutocorrectionInternal(const String& correction, const String
         return false;
     
     // Correctly determine affinity, using logic currently only present in VisiblePosition
-    EAffinity affinity = DOWNSTREAM;
+    auto affinity = Affinity::Downstream;
     if (range && range->collapsed())
-        affinity = VisiblePosition(createLegacyEditingPosition(range->start), UPSTREAM).affinity();
+        affinity = VisiblePosition(makeDeprecatedLegacyPosition(range->start), Affinity::Upstream).affinity();
     
     frame.selection().setSelectedRange(range, affinity, WebCore::FrameSelection::ShouldCloseTyping::Yes);
     if (correction.length())
@@ -2526,8 +2510,6 @@ static inline bool isAssistableElement(Element& element)
         return true;
     if (is<HTMLTextAreaElement>(element))
         return true;
-    if (is<HTMLImageElement>(element) && downcast<HTMLImageElement>(element).hasEditableImageAttribute())
-        return true;
     if (is<HTMLInputElement>(element)) {
         HTMLInputElement& inputElement = downcast<HTMLInputElement>(element);
         // FIXME: This laundry list of types is not a good way to factor this. Need a suitable function on HTMLInputElement itself.
@@ -2577,8 +2559,8 @@ static void focusedElementPositionInformation(WebPage& page, Element& focusedEle
     if (!compositionRange)
         return;
 
-    auto startPosition = createLegacyEditingPosition(compositionRange->start);
-    auto endPosition = createLegacyEditingPosition(compositionRange->end);
+    auto startPosition = makeDeprecatedLegacyPosition(compositionRange->start);
+    auto endPosition = makeDeprecatedLegacyPosition(compositionRange->end);
     if (position < startPosition)
         position = startPosition;
     else if (position > endPosition)
@@ -2630,9 +2612,9 @@ static void dataDetectorLinkPositionInformation(Element& element, InteractionInf
         return;
     
     auto range = makeRangeSelectingNodeContents(element);
-    info.textBefore = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(createLegacyEditingPosition(range.start),
+    info.textBefore = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(makeDeprecatedLegacyPosition(range.start),
         dataDetectionExtendedContextLength, SelectionDirection::Backward));
-    info.textAfter = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(createLegacyEditingPosition(range.end),
+    info.textAfter = plainTextForDisplay(rangeExpandedByCharactersInDirectionAtWordBoundary(makeDeprecatedLegacyPosition(range.end),
         dataDetectionExtendedContextLength, SelectionDirection::Forward));
 }
 
@@ -3202,9 +3184,6 @@ void WebPage::getFocusedElementInformation(FocusedElementInformation& informatio
         information.value = element.value();
         information.valueAsNumber = element.valueAsNumber();
         information.autofillFieldName = WebCore::toAutofillFieldName(element.autofillData().fieldName);
-    } else if (is<HTMLImageElement>(*focusedElement) && downcast<HTMLImageElement>(*focusedElement).hasEditableImageAttribute()) {
-        information.elementType = InputType::Drawing;
-        information.embeddedViewID = downcast<HTMLImageElement>(*focusedElement).editableImageViewID();
     } else if (focusedElement->hasEditableStyle()) {
         information.elementType = InputType::ContentEditable;
         if (is<HTMLElement>(*focusedElement)) {
@@ -3462,7 +3441,7 @@ void WebPage::dynamicViewportSizeUpdate(const FloatSize& viewLayoutSize, const W
     setDeviceOrientation(deviceOrientation);
     frameView.setScrollOffset(roundedUnobscuredContentRectPosition);
 
-    m_page->updateRendering();
+    m_page->isolatedUpdateRendering();
 
 #if ENABLE(VIEWPORT_RESIZING)
     shrinkToFitContent();
@@ -4073,7 +4052,7 @@ void WebPage::updateSelectionWithDelta(int64_t locationDelta, int64_t lengthDelt
 
     auto newSelectionRange = CharacterRange(newSelectionLocation.unsafeGet(), newSelectionLength.unsafeGet());
     auto updatedSelectionRange = resolveCharacterRange(makeRangeSelectingNodeContents(*root), newSelectionRange);
-    frame->selection().setSelectedRange(updatedSelectionRange, DOWNSTREAM, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
+    frame->selection().setSelectedRange(updatedSelectionRange, Affinity::Downstream, WebCore::FrameSelection::ShouldCloseTyping::Yes, UserTriggered);
     completionHandler();
 }
 
@@ -4184,7 +4163,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
 
     auto selectionRange = selection.toNormalizedRange();
     auto rangeOfInterest = *makeSimpleRange(rangeOfInterestStart, rangeOfInterestEnd);
-    if (selectionRange && rangesOverlap(createLiveRange(rangeOfInterest).ptr(), createLiveRange(*selectionRange).ptr())) {
+    if (selectionRange && intersects(rangeOfInterest, *selectionRange)) {
         startOfRangeOfInterestInSelection = std::max(rangeOfInterestStart, selectionStart);
         endOfRangeOfInterestInSelection = std::min(rangeOfInterestEnd, selectionEnd);
     } else {
@@ -4206,7 +4185,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
             completionHandler({ });
             return;
         }
-        auto midpoint = createLegacyEditingPosition(resolveCharacterLocation(scope, midpointLocation.unsafeGet()));
+        auto midpoint = makeDeprecatedLegacyPosition(resolveCharacterLocation(scope, midpointLocation.unsafeGet()));
 
         startOfRangeOfInterestInSelection = startOfWord(midpoint);
         if (startOfRangeOfInterestInSelection < rangeOfInterestStart) {
@@ -4229,8 +4208,8 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
         if (wantsMarkedTextRects && compositionRange) {
             // In the case where the client has requested marked text rects make sure that the context
             // range encompasses the entire marked text range so that we don't return a truncated result.
-            auto compositionStart = createLegacyEditingPosition(compositionRange->start);
-            auto compositionEnd = createLegacyEditingPosition(compositionRange->end);
+            auto compositionStart = makeDeprecatedLegacyPosition(compositionRange->start);
+            auto compositionEnd = makeDeprecatedLegacyPosition(compositionRange->end);
             if (contextBeforeStart > compositionStart)
                 contextBeforeStart = compositionStart;
             if (contextAfterEnd < compositionEnd)
@@ -4249,9 +4228,9 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
     context.contextBefore = makeString(contextBeforeStart, startOfRangeOfInterestInSelection);
     context.selectedText = makeString(startOfRangeOfInterestInSelection, endOfRangeOfInterestInSelection);
     context.contextAfter = makeString(endOfRangeOfInterestInSelection, contextAfterEnd);
-    if (compositionRange && rangesOverlap(createLiveRange(rangeOfInterest).ptr(), createLiveRange(*compositionRange).ptr())) {
-        VisiblePosition compositionStart(createLegacyEditingPosition(compositionRange->start));
-        VisiblePosition compositionEnd(createLegacyEditingPosition(compositionRange->end));
+    if (compositionRange && intersects(rangeOfInterest, *compositionRange)) {
+        VisiblePosition compositionStart(makeDeprecatedLegacyPosition(compositionRange->start));
+        VisiblePosition compositionEnd(makeDeprecatedLegacyPosition(compositionRange->end));
         context.markedText = makeString(compositionStart, compositionEnd);
         context.selectedRangeInMarkedText.location = distanceBetweenPositions(startOfRangeOfInterestInSelection, compositionStart);
         context.selectedRangeInMarkedText.length = [context.selectedText.string length];
@@ -4265,7 +4244,7 @@ void WebPage::requestDocumentEditingContext(DocumentEditingContextRequest reques
         while (!iterator.atEnd()) {
             if (!iterator.text().isEmpty()) {
                 auto absoluteBoundingBox = unionRect(RenderObject::absoluteTextRects(iterator.range(), RenderObject::BoundingRectBehavior::IgnoreEmptyTextSelections));
-                rects.append({ iterator.range().start.container->document().view()->contentsToRootView(absoluteBoundingBox), { offsetSoFar++, stride } });
+                rects.append({ iterator.range().start.document().view()->contentsToRootView(absoluteBoundingBox), { offsetSoFar++, stride } });
             }
             iterator.advance(stride);
         }

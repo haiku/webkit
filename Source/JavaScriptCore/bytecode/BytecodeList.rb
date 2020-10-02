@@ -46,10 +46,10 @@ types [
     :LLIntCallLinkInfo,
     :ResultType,
     :OperandTypes,
+    :PrivateFieldPutKind,
     :ProfileTypeBytecodeFlag,
     :PropertyOffset,
     :PutByIdFlags,
-    :PutByValFlags,
     :ResolveType,
     :Structure,
     :StructureID,
@@ -574,6 +574,20 @@ op :get_private_name,
         property: WriteBarrier[JSCell],
     }
 
+op :put_private_name,
+    args: {
+        base: VirtualRegister,
+        property: VirtualRegister,
+        value: VirtualRegister,
+        putKind: PrivateFieldPutKind,
+    },
+    metadata: {
+        oldStructureID: StructureID,
+        property: WriteBarrier[JSCell],
+        offset: unsigned,
+        newStructureID: StructureID,
+    }
+
 op :put_by_val,
     args: {
         base: VirtualRegister,
@@ -599,7 +613,7 @@ op :put_by_val_direct,
         base: VirtualRegister,
         property: VirtualRegister,
         value: VirtualRegister,
-        flags: PutByValFlags,
+        ecmaMode: ECMAMode,
     },
     metadata: {
         arrayProfile: ArrayProfile,
@@ -1316,7 +1330,6 @@ begin_section :CLoopHelpers,
     macro_name_component: :CLOOP_BYTECODE_HELPER
 
 op :llint_entry
-op :getHostCallReturnValue
 op :llint_return_to_host
 op :llint_vm_entry_to_javascript
 op :llint_vm_entry_to_native
@@ -1391,6 +1404,7 @@ op :llint_internal_function_construct_trampoline
 op :checkpoint_osr_exit_from_inlined_call_trampoline
 op :checkpoint_osr_exit_trampoline
 op :fuzzer_return_early_from_loop_hint
+op :llint_get_host_call_return_value
 op :handleUncaughtException
 op :op_call_return_location
 op :op_construct_return_location

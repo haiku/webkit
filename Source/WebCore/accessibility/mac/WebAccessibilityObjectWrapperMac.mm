@@ -903,10 +903,10 @@ static CharacterOffset characterOffsetForTextMarker(AXObjectCache* cache, CFType
     return backingObject ? characterOffsetForTextMarker(backingObject->axObjectCache(), (__bridge CFTypeRef)textMarker) : nil;
 }
 
-- (id)textMarkerForVisiblePosition:(const VisiblePosition &)visiblePos
+- (id)textMarkerForVisiblePosition:(const VisiblePosition&)position
 {
     auto *backingObject = self.axBackingObject;
-    return backingObject ? textMarkerForVisiblePosition(backingObject->axObjectCache(), visiblePos) : nil;
+    return backingObject ? textMarkerForVisiblePosition(backingObject->axObjectCache(), position) : nil;
 }
 
 - (id)textMarkerForFirstPositionInTextControl:(HTMLTextFormControlElement &)textControl
@@ -1254,7 +1254,7 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
             // non-zero length means textual node, zero length means replaced node (AKA "attachments" in AX)
             if (it.text().length()) {
                 // Add the text of the list marker item if necessary.
-                String listMarkerText = AccessibilityObject::listMarkerTextForNodeAndPosition(&node, VisiblePosition(createLegacyEditingPosition(it.range().start)));
+                String listMarkerText = AccessibilityObject::listMarkerTextForNodeAndPosition(&node, makeContainerOffsetPosition(it.range().start));
                 if (!listMarkerText.isEmpty())
                     AXAttributedStringAppendText(attrString.get(), &node, listMarkerText, spellCheck);
                 AXAttributedStringAppendText(attrString.get(), &node, it.text(), spellCheck);
@@ -3688,9 +3688,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 #if ENABLE(TREE_DEBUGGING)
 - (NSString *)debugDescriptionForTextMarker:(id)textMarker
 {
-    char description[1024];
-    [self visiblePositionForTextMarker:textMarker].formatForDebugger(description, sizeof(description));
-    return [NSString stringWithUTF8String:description];
+    return [self visiblePositionForTextMarker:textMarker].debugDescription();
 
 }
 
@@ -3728,14 +3726,10 @@ static void formatForDebugger(const VisiblePositionRange& range, char* buffer, u
 {
     StringBuilder result;
     
-    const int FormatBufferSize = 1024;
-    char format[FormatBufferSize];
     result.appendLiteral("from ");
-    range.start.formatForDebugger(format, FormatBufferSize);
-    result.append(format);
+    result.append(range.start.debugDescription());
     result.appendLiteral(" to ");
-    range.end.formatForDebugger(format, FormatBufferSize);
-    result.append(format);
+    result.append(range.end.debugDescription());
     
     strlcpy(buffer, result.toString().utf8().data(), length);
 }

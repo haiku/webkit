@@ -26,8 +26,6 @@
 #import "config.h"
 #import "HTTPServer.h"
 
-#if HAVE(NETWORK_FRAMEWORK)
-
 #import "Utilities.h"
 #import <wtf/BlockPtr.h>
 #import <wtf/CompletionHandler.h>
@@ -150,14 +148,19 @@ void HTTPServer::respondWithChallengeThenOK(Connection connection)
         "Content-Length: 0\r\n"
         "WWW-Authenticate: Basic realm=\"testrealm\"\r\n\r\n";
         connection.send(challengeHeader, [connection] {
-            connection.receiveHTTPRequest([connection] (Vector<char>&&) {
-                connection.send(
-                    "HTTP/1.1 200 OK\r\n"
-                    "Content-Length: 13\r\n\r\n"
-                    "Hello, World!"
-                );
-            });
+            respondWithOK(connection);
         });
+    });
+}
+
+void HTTPServer::respondWithOK(Connection connection)
+{
+    connection.receiveHTTPRequest([connection] (Vector<char>&&) {
+        connection.send(
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 13\r\n\r\n"
+            "Hello, World!"
+        );
     });
 }
 
@@ -405,5 +408,3 @@ void H2::Connection::receive(CompletionHandler<void(Frame&&)>&& completionHandle
 }
 
 } // namespace TestWebKitAPI
-
-#endif // HAVE(NETWORK_FRAMEWORK)
