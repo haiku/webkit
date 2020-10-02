@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2018 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2020 Apple Inc. All rights reserved.
  * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
  * Copyright (C) 2007 Holger Hans Peter Freyther
  * Copyright (C) 2007 Pioneer Research Center USA, Inc.
@@ -45,20 +45,11 @@
 #include <memory>
 #endif
 
-#if PLATFORM(HAIKU)
-#include <memory>
-
-#include <interface/Font.h>
-
-#include <wtf/text/AtomString.h>
-#include <wtf/text/CString.h>
-#endif
-
 #if USE(APPKIT)
 OBJC_CLASS NSFont;
 #endif
 
-#if PLATFORM(COCOA)
+#if USE(CORE_TEXT)
 typedef const struct __CTFont* CTFontRef;
 #endif
 
@@ -88,72 +79,54 @@ class FontPlatformData {
 public:
     FontPlatformData(WTF::HashTableDeletedValueType);
     FontPlatformData();
-#if PLATFORM(HAIKU)
-    FontPlatformData(const FontPlatformData&);
-#else
-    FontPlatformData(FontPlatformData&&) = default;
-#endif
 
     FontPlatformData(float size, bool syntheticBold, bool syntheticOblique, FontOrientation = FontOrientation::Horizontal, FontWidthVariant = FontWidthVariant::RegularWidth, TextRenderingMode = TextRenderingMode::AutoTextRendering);
 
-#if PLATFORM(COCOA)
+#if USE(CORE_TEXT)
     WEBCORE_EXPORT FontPlatformData(CTFontRef, float size, bool syntheticBold = false, bool syntheticOblique = false, FontOrientation = FontOrientation::Horizontal, FontWidthVariant = FontWidthVariant::RegularWidth, TextRenderingMode = TextRenderingMode::AutoTextRendering);
-#endif
-
-#if PLATFORM(HAIKU)
-    FontPlatformData(const FontDescription& fontDescription, const AtomString& familyName);
-    static void SetFallBackSerifFont(const BString& font);
-    static void SetFallBackSansSerifFont(const BString& font);
-    static void SetFallBackFixedFont(const BString& font);
-    static void SetFallBackStandardFont(const BString& font);
-#endif
-
-    static FontPlatformData cloneWithOrientation(const FontPlatformData&, FontOrientation);
-    static FontPlatformData cloneWithSyntheticOblique(const FontPlatformData&, bool);
-    static FontPlatformData cloneWithSize(const FontPlatformData&, float);
-
-#if USE(CG) && PLATFORM(WIN)
-    FontPlatformData(CGFontRef, float size, bool syntheticBold, bool syntheticOblique, FontOrientation, FontWidthVariant, TextRenderingMode);
 #endif
 
 #if PLATFORM(WIN)
     FontPlatformData(GDIObject<HFONT>, float size, bool syntheticBold, bool syntheticOblique, bool useGDI);
+#if USE(CORE_TEXT)
+    FontPlatformData(GDIObject<HFONT>, CTFontRef, CGFontRef, float size, bool syntheticBold, bool syntheticOblique, bool useGDI);
 #endif
-
-#if PLATFORM(WIN) && USE(CG)
-    FontPlatformData(GDIObject<HFONT>, CGFontRef, float size, bool syntheticBold, bool syntheticOblique, bool useGDI);
-#endif
-
-#if PLATFORM(WIN) && USE(DIRECT2D)
+#if USE(DIRECT2D)
     FontPlatformData(GDIObject<HFONT>&&, COMPtr<IDWriteFont>&&, float size, bool syntheticBold, bool syntheticOblique, bool useGDI);
 #endif
-
-#if PLATFORM(WIN) && USE(CAIRO)
+#if USE(CAIRO)
     FontPlatformData(GDIObject<HFONT>, cairo_font_face_t*, float size, bool bold, bool italic);
+#endif
 #endif
 
 #if USE(FREETYPE)
     FontPlatformData(cairo_font_face_t*, RefPtr<FcPattern>&&, float size, bool fixedWidth, bool syntheticBold, bool syntheticOblique, FontOrientation);
 #endif
 
-#if PLATFORM(HAIKU)
-	const BFont* font() const { return m_font.get(); }
-#endif
+    static FontPlatformData cloneWithOrientation(const FontPlatformData&, FontOrientation);
+    static FontPlatformData cloneWithSyntheticOblique(const FontPlatformData&, bool);
+    static FontPlatformData cloneWithSize(const FontPlatformData&, float);
 
 #if PLATFORM(WIN)
     HFONT hfont() const { return m_font ? m_font->get() : 0; }
     bool useGDI() const { return m_useGDI; }
+#if USE(CG)
+    CGFontRef cgFont() const { return m_cgFont.get(); }
+#endif
 #endif
 
-#if PLATFORM(COCOA)
-    CTFontRef font() const { return m_font.get(); }
+#if USE(CORE_TEXT)
     WEBCORE_EXPORT CTFontRef registeredFont() const; // Returns nullptr iff the font is not registered, such as web fonts (otherwise returns font()).
-
-    CTFontRef ctFont() const;
     static RetainPtr<CFTypeRef> objectForEqualityCheck(CTFontRef);
     RetainPtr<CFTypeRef> objectForEqualityCheck() const;
-
     bool hasCustomTracking() const { return isSystemFont(); }
+
+#if PLATFORM(WIN)
+    CTFontRef ctFont() const { return m_ctFont.get(); }
+#else
+    CTFontRef font() const { return m_font.get(); }
+    CTFontRef ctFont() const;
+#endif
 #endif
 
 #if PLATFORM(WIN) || PLATFORM(COCOA)
@@ -161,10 +134,6 @@ public:
 #endif
 
     bool hasVariations() const { return m_hasVariations; }
-
-#if USE(CG) && PLATFORM(WIN)
-    CGFontRef cgFont() const { return m_cgFont.get(); }
-#endif
 
 #if USE(DIRECT2D)
     IDWriteFont* dwFont() const { return m_dwFont.get(); }
@@ -198,12 +167,6 @@ public:
 
     unsigned hash() const;
 
-#if USE(HAIKU)
-    FontPlatformData& operator=(const FontPlatformData&);
-#else
-    FontPlatformData& operator=(const FontPlatformData&) = default;
-#endif
-
     bool operator==(const FontPlatformData& other) const
     {
         return platformIsEqual(other)
@@ -231,13 +194,10 @@ public:
 #endif
     }
 
-#if PLATFORM(COCOA) || PLATFORM(WIN) || PLATFORM(HAIKU) || USE(FREETYPE)
     RefPtr<SharedBuffer> openTypeTable(uint32_t table) const;
-#endif
+    RefPtr<SharedBuffer> platformOpenTypeTable(uint32_t table) const;
 
-#if !LOG_DISABLED
     String description() const;
-#endif
 
 private:
     bool platformIsEqual(const FontPlatformData&) const;
@@ -253,23 +213,17 @@ private:
 #if USE(FREETYPE)
     void buildScaledFont(cairo_font_face_t*);
 #endif
-#if PLATFORM(HAIKU)
-    static void findMatchingFontFamily(const AtomString& familyName,
-		font_family& fontFamily);
-#endif
 
-#if PLATFORM(COCOA)
+#if PLATFORM(WIN)
+    RefPtr<SharedGDIObject<HFONT>> m_font; // FIXME: Delete this in favor of m_ctFont or m_dwFont or m_scaledFont.
+#if USE(CORE_TEXT)
+    RetainPtr<CGFontRef> m_cgFont; // FIXME: Delete this in favor of m_ctFont.
+    RetainPtr<CTFontRef> m_ctFont;
+#endif
+#elif USE(CORE_TEXT)
     // FIXME: Get rid of one of these. These two fonts are subtly different, and it is not obvious which one to use where.
     RetainPtr<CTFontRef> m_font;
     mutable RetainPtr<CTFontRef> m_ctFont;
-#elif PLATFORM(WIN)
-    RefPtr<SharedGDIObject<HFONT>> m_font;
-#elif PLATFORM(HAIKU)
-	std::unique_ptr<BFont> m_font;
-#endif
-
-#if USE(CG) && PLATFORM(WIN)
-    RetainPtr<CGFontRef> m_cgFont;
 #endif
 
 #if USE(DIRECT2D)
@@ -282,13 +236,9 @@ private:
 #endif
 
 #if USE(FREETYPE)
-#if USE(CAIRO)
     RefPtr<FcPattern> m_pattern;
 #endif
-#endif
 
-    // The values below are common to all ports
-    // FIXME: If they're common to all ports, they should move to Font
     float m_size { 0 };
 
     FontOrientation m_orientation { FontOrientation::Horizontal };
@@ -303,13 +253,6 @@ private:
     bool m_hasVariations { false };
     // The values above are common to all ports
 
-#if PLATFORM(HAIKU)
-    static font_family m_FallbackSerifFontFamily;
-    static font_family m_FallbackSansSerifFontFamily;
-    static font_family m_FallbackFixedFontFamily;
-    static font_family m_FallbackStandardFontFamily;
-#endif
-
 #if PLATFORM(IOS_FAMILY)
     bool m_isEmoji { false };
 #endif
@@ -322,6 +265,10 @@ private:
     bool m_fixedWidth { false };
 #endif
 };
+
+#if USE(CORE_TEXT)
+bool isSystemFont(CTFontRef);
+#endif
 
 #if USE(APPKIT) && defined(__OBJC__)
 
