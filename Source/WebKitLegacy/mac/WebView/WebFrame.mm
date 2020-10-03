@@ -715,7 +715,7 @@ static NSURL *createUniqueWebDataURL();
 
 - (NSRect)_caretRectAtPosition:(const WebCore::Position&)pos affinity:(NSSelectionAffinity)affinity
 {
-    WebCore::VisiblePosition visiblePosition(pos, static_cast<WebCore::EAffinity>(affinity));
+    WebCore::VisiblePosition visiblePosition(pos, static_cast<WebCore::Affinity>(affinity));
     return visiblePosition.absoluteCaretBounds();
 }
 
@@ -1130,7 +1130,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 - (void)_selectNSRange:(NSRange)range
 {
     if (auto domRange = [self _convertToDOMRange:range])
-        _private->coreFrame->selection().setSelection(WebCore::VisibleSelection(*domRange, WebCore::SEL_DEFAULT_AFFINITY));
+        _private->coreFrame->selection().setSelection(WebCore::VisibleSelection(*domRange));
 }
 
 - (BOOL)_isDisplayingStandaloneImage
@@ -1515,12 +1515,20 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (unichar)characterBeforeCaretSelection
 {
-    return core(self)->selection().characterBeforeCaretSelection();
+    auto frame = core(self);
+    if (!frame)
+        return 0;
+    frame->document()->updateLayout();
+    return frame->selection().selection().visibleStart().characterBefore();
 }
 
 - (unichar)characterAfterCaretSelection
 {
-    return core(self)->selection().characterAfterCaretSelection();
+    auto frame = core(self);
+    if (!frame)
+        return 0;
+    frame->document()->updateLayout();
+    return frame->selection().selection().visibleEnd().characterAfter();
 }
 
 - (DOMRange *)wordRangeContainingCaretSelection
@@ -1550,7 +1558,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (BOOL)spaceFollowsWordInRange:(DOMRange *)range
 {
-    return range && isSpaceOrNewline(WebCore::VisiblePosition(createLegacyEditingPosition(makeSimpleRange(core(range))->end)).characterAfter());
+    return range && isSpaceOrNewline(WebCore::VisiblePosition(makeDeprecatedLegacyPosition(makeSimpleRange(core(range))->end)).characterAfter());
 }
 
 - (NSArray *)wordsInCurrentParagraph
@@ -1560,14 +1568,11 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (BOOL)selectionAtDocumentStart
 {
-    WebCore::Frame *frame = core(self);
-    
-    if (frame->selection().selection().isNone())
+    auto frame = core(self);
+    if (!frame)
         return NO;
-
     frame->document()->updateLayout();
-    
-    return frame->selection().selectionAtDocumentStart();
+    return isStartOfDocument(frame->selection().selection().visibleStart());
 }
 
 - (BOOL)selectionAtSentenceStart
@@ -1606,17 +1611,16 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (void)selectNSRange:(NSRange)range onElement:(DOMElement *)element
 {
-    WebCore::Frame *frame = core(self);
-
-    WebCore::Document* doc = frame->document();
-    if (!doc)
+    // FIXME: This method does not do a useful operation: treating NSRange offsets as child node offsets does not make logical sense. Also, it's highly unlikely anyone calls it. We should delete it.
+    if (!element)
         return;
-
-    auto* node = core(element);
-    if (!node->isConnected())
+    auto frame = core(self);
+    if (!frame)
         return;
-
-    frame->selection().selectRangeOnElement(range.location, range.length, *node);
+    auto& coreElement = *core(element);
+    unsigned startOffset = range.location;
+    unsigned endOffset = NSMaxRange(range);
+    frame->selection().setSelection(WebCore::VisibleSelection { WebCore::SimpleRange { { coreElement, startOffset }, { coreElement, endOffset } } }, { WebCore::FrameSelection::FireSelectEvent });
 }
 
 - (DOMRange *)markedTextDOMRange
@@ -1699,31 +1703,31 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
     ASSERT(outRanges);
     if (!outRanges)
         return;
-    
+
     // *outRanges should not already point to an array.
     ASSERT(!(*outRanges));
     *outRanges = nil;
-    
+
     ASSERT(outMetadatas);
     if (!outMetadatas)
         return;
-    
+
     // *metadata should not already point to an array.
     ASSERT(!(*outMetadatas));
     *outMetadatas = nil;
-    
+
     NSMutableArray *ranges = [NSMutableArray array];
     NSMutableArray *metadatas = [NSMutableArray array];
-    
+
     auto* frame = core(self);
     auto* document = frame->document();
 
-    const auto& selection = frame->selection().selection();
-    WebCore::Element* root = selection.selectionType() == WebCore::VisibleSelection::NoSelection ? frame->document()->bodyOrFrameset() : selection.rootEditableElement();
-    
+    auto& selection = frame->selection().selection();
+    auto root = selection.isNone() ? frame->document()->bodyOrFrameset() : selection.rootEditableElement();
+
     DOMRange *previousDOMRange = nil;
     id previousMetadata = nil;
-    
+
     for (WebCore::Node* node = root; node; node = WebCore::NodeTraversal::next(*node)) {
         auto markers = document->markers().markersFor(*node);
         for (auto* marker : markers) {
@@ -1736,7 +1740,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
             ASSERT(metadata);
             if (!metadata)
                 continue;
-            
+
             DOMRange *domRange = kit(makeSimpleRange(*node, *marker));
 
             if (metadata != previousMetadata) {
@@ -1800,7 +1804,7 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
 
 - (NSRect)caretRectAtNode:(DOMNode *)node offset:(int)offset affinity:(NSSelectionAffinity)affinity
 {
-    return [self _caretRectAtPosition:createLegacyEditingPosition(core(node), offset) affinity:affinity];
+    return [self _caretRectAtPosition:makeDeprecatedLegacyPosition(core(node), offset) affinity:affinity];
 }
 
 - (DOMRange *)characterRangeAtPoint:(NSPoint)point
@@ -1989,13 +1993,13 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
     auto start = WebCore::VisiblePosition { makeContainerOffsetPosition(range->start) };
     auto end = WebCore::VisiblePosition { makeContainerOffsetPosition(range->end) };
 
-    bool addLeadingSpace = start.deepEquivalent().leadingWhitespacePosition(WebCore::VP_DEFAULT_AFFINITY, true).isNull() && !isStartOfParagraph(start);
+    bool addLeadingSpace = start.deepEquivalent().leadingWhitespacePosition(WebCore::VisiblePosition::defaultAffinity, true).isNull() && !isStartOfParagraph(start);
     if (addLeadingSpace) {
         if (UChar previousCharacter = start.previous().characterAfter())
             addLeadingSpace = !WebCore::isCharacterSmartReplaceExempt(previousCharacter, true);
     }
     
-    bool addTrailingSpace = end.deepEquivalent().trailingWhitespacePosition(WebCore::VP_DEFAULT_AFFINITY, true).isNull() && !isEndOfParagraph(end);
+    bool addTrailingSpace = end.deepEquivalent().trailingWhitespacePosition(WebCore::VisiblePosition::defaultAffinity, true).isNull() && !isEndOfParagraph(end);
     if (addTrailingSpace) {
         if (UChar followingCharacter = end.characterAfter())
             addTrailingSpace = !WebCore::isCharacterSmartReplaceExempt(followingCharacter, false);
@@ -2298,8 +2302,8 @@ static WebFrameLoadType toWebFrameLoadType(WebCore::FrameLoadType frameLoadType)
     if (!root || !root->hasChildNodes())
         return NO;
 
-    WebCore::VisiblePosition first(createLegacyEditingPosition(root, 0));
-    WebCore::VisiblePosition last(createLegacyEditingPosition(root, root->countChildNodes()));
+    WebCore::VisiblePosition first(makeContainerOffsetPosition(root, 0));
+    WebCore::VisiblePosition last(makeContainerOffsetPosition(root, root->countChildNodes()));
     return first != last;
 }
 

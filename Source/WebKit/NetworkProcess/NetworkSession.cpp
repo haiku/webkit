@@ -90,7 +90,6 @@ NetworkSession::NetworkSession(NetworkProcess& networkProcess, const NetworkSess
     , m_sameSiteStrictEnforcementEnabled(parameters.resourceLoadStatisticsParameters.sameSiteStrictEnforcementEnabled)
     , m_firstPartyWebsiteDataRemovalMode(parameters.resourceLoadStatisticsParameters.firstPartyWebsiteDataRemovalMode)
     , m_standaloneApplicationDomain(parameters.resourceLoadStatisticsParameters.standaloneApplicationDomain)
-    , m_cnameCloakingMitigationEnabled(parameters.resourceLoadStatisticsParameters.cnameCloakingMitigationEnabled)
 #endif
     , m_adClickAttribution(makeUniqueRef<AdClickAttributionManager>(networkProcess, parameters.sessionID))
     , m_testSpeedMultiplier(parameters.testSpeedMultiplier)
@@ -148,14 +147,6 @@ void NetworkSession::destroyResourceLoadStatistics(CompletionHandler<void()>&& c
 
     m_resourceLoadStatistics->didDestroyNetworkSession(WTFMove(completionHandler));
     m_resourceLoadStatistics = nullptr;
-}
-
-void NetworkSession::flushAndDestroyPersistentStore(CompletionHandler<void()>&& completionHandler)
-{
-    if (!m_resourceLoadStatistics)
-        return completionHandler();
-
-    m_resourceLoadStatistics->flushAndDestroyPersistentStore(WTFMove(completionHandler));
 }
 #endif
 
@@ -285,9 +276,6 @@ void NetworkSession::setShouldEnbleSameSiteStrictEnforcement(WebCore::SameSiteSt
 void NetworkSession::setFirstPartyHostCNAMEDomain(String&& firstPartyHost, WebCore::RegistrableDomain&& cnameDomain)
 {
 #if HAVE(CFNETWORK_CNAME_AND_COOKIE_TRANSFORM_SPI)
-    if (!cnameCloakingMitigationEnabled())
-        return;
-
     ASSERT(!firstPartyHost.isEmpty() && !cnameDomain.isEmpty() && firstPartyHost != cnameDomain.string());
     if (firstPartyHost.isEmpty() || cnameDomain.isEmpty() || firstPartyHost == cnameDomain.string())
         return;
@@ -301,7 +289,7 @@ void NetworkSession::setFirstPartyHostCNAMEDomain(String&& firstPartyHost, WebCo
 Optional<WebCore::RegistrableDomain> NetworkSession::firstPartyHostCNAMEDomain(const String& firstPartyHost)
 {
 #if HAVE(CFNETWORK_CNAME_AND_COOKIE_TRANSFORM_SPI)
-    if (!cnameCloakingMitigationEnabled())
+    if (!decltype(m_firstPartyHostCNAMEDomains)::isValidKey(firstPartyHost))
         return WTF::nullopt;
 
     auto iterator = m_firstPartyHostCNAMEDomains.find(firstPartyHost);

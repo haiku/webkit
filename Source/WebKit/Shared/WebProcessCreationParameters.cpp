@@ -130,10 +130,6 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << waylandCompositorDisplayName;
 #endif
 
-#if USE(SOUP)
-    encoder << proxySettings;
-#endif
-
 #if ENABLE(RESOURCE_LOAD_STATISTICS) && !RELEASE_LOG_DISABLED
     encoder << shouldLogUserInteraction;
 #endif
@@ -156,14 +152,14 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
     encoder << websiteDataStoreParameters;
     
 #if PLATFORM(IOS)
-    encoder << compilerServiceExtensionHandle;
+    encoder << compilerServiceExtensionHandles;
 #endif
 
     encoder << containerManagerExtensionHandle;
     encoder << mobileGestaltExtensionHandle;
 
-#if PLATFORM(IOS_FAMILY)
     encoder << diagnosticsExtensionHandles;
+#if PLATFORM(IOS_FAMILY)
     encoder << dynamicMachExtensionHandles;
     encoder << dynamicIOKitExtensionHandles;
 #endif
@@ -191,6 +187,10 @@ void WebProcessCreationParameters::encode(IPC::Encoder& encoder) const
 
 #if PLATFORM(GTK)
     encoder << useSystemAppearanceForScrollbars;
+#endif
+
+#if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
+    encoder << overrideUserInterfaceIdiomAndScale;
 #endif
 }
 
@@ -373,11 +373,6 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
         return false;
 #endif
 
-#if USE(SOUP)
-    if (!decoder.decode(parameters.proxySettings))
-        return false;
-#endif
-
 #if ENABLE(RESOURCE_LOAD_STATISTICS) && !RELEASE_LOG_DISABLED
     if (!decoder.decode(parameters.shouldLogUserInteraction))
         return false;
@@ -415,11 +410,11 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     parameters.websiteDataStoreParameters = WTFMove(*websiteDataStoreParameters);
 
 #if PLATFORM(IOS)
-    Optional<Optional<SandboxExtension::Handle>> compilerServiceExtensionHandle;
-    decoder >> compilerServiceExtensionHandle;
-    if (!compilerServiceExtensionHandle)
+    Optional<SandboxExtension::HandleArray> compilerServiceExtensionHandles;
+    decoder >> compilerServiceExtensionHandles;
+    if (!compilerServiceExtensionHandles)
         return false;
-    parameters.compilerServiceExtensionHandle = WTFMove(*compilerServiceExtensionHandle);
+    parameters.compilerServiceExtensionHandles = WTFMove(*compilerServiceExtensionHandles);
 #endif
 
     Optional<Optional<SandboxExtension::Handle>> containerManagerExtensionHandle;
@@ -434,13 +429,13 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
         return false;
     parameters.mobileGestaltExtensionHandle = WTFMove(*mobileGestaltExtensionHandle);
 
-#if PLATFORM(IOS_FAMILY)
     Optional<SandboxExtension::HandleArray> diagnosticsExtensionHandles;
     decoder >> diagnosticsExtensionHandles;
     if (!diagnosticsExtensionHandles)
         return false;
     parameters.diagnosticsExtensionHandles = WTFMove(*diagnosticsExtensionHandles);
 
+#if PLATFORM(IOS_FAMILY)
     Optional<SandboxExtension::HandleArray> dynamicMachExtensionHandles;
     decoder >> dynamicMachExtensionHandles;
     if (!dynamicMachExtensionHandles)
@@ -515,6 +510,14 @@ bool WebProcessCreationParameters::decode(IPC::Decoder& decoder, WebProcessCreat
     if (!useSystemAppearanceForScrollbars)
         return false;
     parameters.useSystemAppearanceForScrollbars = WTFMove(*useSystemAppearanceForScrollbars);
+#endif
+
+#if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
+    Optional<std::pair<int64_t, double>> overrideUserInterfaceIdiomAndScale;
+    decoder >> overrideUserInterfaceIdiomAndScale;
+    if (!overrideUserInterfaceIdiomAndScale)
+        return false;
+    parameters.overrideUserInterfaceIdiomAndScale = WTFMove(*overrideUserInterfaceIdiomAndScale);
 #endif
 
     return true;

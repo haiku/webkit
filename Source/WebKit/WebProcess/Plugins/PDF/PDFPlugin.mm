@@ -41,10 +41,11 @@
 #import "WKAccessibilityWebPageObjectMac.h"
 #import "WKPageFindMatchesClient.h"
 #import "WebCoreArgumentCoders.h"
-#import "WebEvent.h"
 #import "WebEventConversion.h"
 #import "WebFindOptions.h"
+#import "WebKeyboardEvent.h"
 #import "WebLoaderStrategy.h"
+#import "WebMouseEvent.h"
 #import "WebPage.h"
 #import "WebPageProxyMessages.h"
 #import "WebPasteboardProxyMessages.h"
@@ -433,12 +434,16 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (void)openWithNativeApplication
 {
+#if !ENABLE(UI_PROCESS_PDF_HUD)
     _pdfPlugin->openWithNativeApplication();
+#endif
 }
 
 - (void)saveToPDF
 {
+#if !ENABLE(UI_PROCESS_PDF_HUD)
     _pdfPlugin->saveToPDF();
+#endif
 }
 
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController clickedLinkWithURL:(NSURL *)url
@@ -600,7 +605,13 @@ inline PDFPlugin::PDFPlugin(WebFrame& frame)
 #if HAVE(INCREMENTAL_PDF_APIS)
     , m_incrementalPDFLoadingEnabled(WebCore::RuntimeEnabledFeatures::sharedFeatures().incrementalPDFLoadingEnabled())
 #endif
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    , m_identifier(PDFPluginIdentifier::generate())
+#endif
 {
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    [m_pdfLayerController setDisplaysPDFHUDController:NO];
+#endif
     m_pdfLayerController.get().delegate = m_pdfLayerControllerDelegate.get();
     m_pdfLayerController.get().parentLayer = m_contentLayer.get();
 
@@ -640,6 +651,10 @@ inline PDFPlugin::PDFPlugin(WebFrame& frame)
 
 PDFPlugin::~PDFPlugin()
 {
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    if (auto* page = m_frame.page())
+        page->removePDFHUD(*this);
+#endif
 }
 
 #if HAVE(INCREMENTAL_PDF_APIS)
@@ -705,13 +720,14 @@ void PDFPlugin::receivedNonLinearizedPDFSentinel()
 {
     m_incrementalPDFLoadingEnabled = false;
 
+    if (m_hasBeenDestroyed)
+        return;
+
     if (!isMainThread()) {
 #if !LOG_DISABLED
         pdfLog("Disabling incremental PDF loading on background thread");
 #endif
         callOnMainThread([this, protectedThis = makeRef(*this)] {
-            if (m_hasBeenDestroyed)
-                return;
             receivedNonLinearizedPDFSentinel();
         });
         return;
@@ -890,8 +906,6 @@ void PDFPlugin::threadEntry(Ref<PDFPlugin>&& protectedPlugin)
     [m_backgroundThreadDocument preloadDataOfPagesInRange:NSMakeRange(0, 1) onQueue:firstPageQueue->dispatchQueue() completion:[&firstPageSemaphore, this] (NSIndexSet *) mutable {
         if (m_incrementalPDFLoadingEnabled) {
             callOnMainThread([this] {
-                if (m_hasBeenDestroyed)
-                    return;
                 adoptBackgroundThreadDocument();
             });
         } else
@@ -986,6 +1000,9 @@ void PDFPlugin::getResourceBytesAtPosition(size_t count, off_t position, Complet
 
 void PDFPlugin::adoptBackgroundThreadDocument()
 {
+    if (m_hasBeenDestroyed)
+        return;
+
     ASSERT(!m_pdfDocument);
     ASSERT(m_backgroundThreadDocument);
     ASSERT(isMainThread());
@@ -1219,6 +1236,9 @@ PluginInfo PDFPlugin::pluginInfo()
 
 void PDFPlugin::updateScrollbars()
 {
+    if (m_hasBeenDestroyed)
+        return;
+
     bool hadScrollbars = m_horizontalScrollbar || m_verticalScrollbar;
 
     if (m_horizontalScrollbar) {
@@ -1304,13 +1324,21 @@ Ref<Scrollbar> PDFPlugin::createScrollbar(ScrollbarOrientation orientation)
         [m_containerLayer addSublayer:m_verticalScrollbarLayer.get()];
     }
     didAddScrollbar(widget.ptr(), orientation);
+
     if (auto* frame = m_frame.coreFrame()) {
         if (Page* page = frame->page()) {
             if (page->isMonitoringWheelEvents())
                 scrollAnimator().setWheelEventTestMonitor(page->wheelEventTestMonitor());
         }
     }
-    pluginView()->frame()->view()->addChild(widget);
+
+    // Is it ever possible that the code above and the code below can ever get at different Frames?
+    // Can't we settle on one Frame accessor?
+    if (auto* frame = pluginView()->frame()) {
+        if (auto* frameView = frame->view())
+            frameView->addChild(widget);
+    }
+
     return widget;
 }
 
@@ -1527,6 +1555,9 @@ void PDFPlugin::convertPostScriptDataIfNeeded()
 
 void PDFPlugin::documentDataDidFinishLoading()
 {
+    if (m_hasBeenDestroyed)
+        return;
+
     addArchiveResource();
 
     m_documentFinishedLoading = true;
@@ -1554,6 +1585,12 @@ void PDFPlugin::installPDFDocument()
     ASSERT(m_pdfDocument);
     ASSERT(isMainThread());
     LOG(IncrementalPDF, "Installing PDF document");
+
+    if (m_hasBeenDestroyed)
+        return;
+
+    // If we haven't been destroyed yet, there must still be a PluginController
+    RELEASE_ASSERT(controller());
 
 #if HAVE(INCREMENTAL_PDF_APIS)
     maybeClearHighLatencyDataProviderFlag();
@@ -1772,6 +1809,11 @@ void PDFPlugin::contentsScaleFactorChanged(float)
     updatePageAndDeviceScaleFactors();
 }
 
+IntRect PDFPlugin::frameForHUD() const
+{
+    return convertFromPDFViewToRootView(IntRect(IntPoint(), size()));
+}
+
 void PDFPlugin::calculateSizes()
 {
     if ([m_pdfDocument isLocked]) {
@@ -1782,6 +1824,10 @@ void PDFPlugin::calculateSizes()
 
     m_firstPageHeight = [m_pdfDocument pageCount] ? static_cast<unsigned>(CGCeiling([[m_pdfDocument pageAtIndex:0] boundsForBox:kPDFDisplayBoxCropBox].size.height)) : 0;
     setPDFDocumentSize(IntSize([m_pdfLayerController contentSizeRespectingZoom]));
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    m_frame.page()->updatePDFHUDLocation(*this, frameForHUD());
+#endif
 }
 
 bool PDFPlugin::initialize(const Parameters& parameters)
@@ -1916,7 +1962,13 @@ IntPoint PDFPlugin::convertFromPDFViewToRootView(const IntPoint& point) const
     IntPoint pointInPluginCoordinates(point.x(), size().height() - point.y());
     return m_rootViewToPluginTransform.inverse().valueOr(AffineTransform()).mapPoint(pointInPluginCoordinates);
 }
-    
+
+IntRect PDFPlugin::convertFromPDFViewToRootView(const IntRect& rect) const
+{
+    IntRect rectInPluginCoordinates(rect.x(), rect.y(), rect.width(), rect.height());
+    return m_rootViewToPluginTransform.inverse().valueOr(AffineTransform()).mapRect(rectInPluginCoordinates);
+}
+
 IntPoint PDFPlugin::convertFromRootViewToPDFView(const IntPoint& point) const
 {
     IntPoint pointInPluginCoordinates = m_rootViewToPluginTransform.mapPoint(point);
@@ -1945,6 +1997,18 @@ IntRect PDFPlugin::boundsOnScreen() const
     FloatRect bounds = FloatRect(FloatPoint(), size());
     FloatRect rectInRootViewCoordinates = m_rootViewToPluginTransform.inverse().valueOr(AffineTransform()).mapRect(bounds);
     return frameView->contentsToScreen(enclosingIntRect(rectInRootViewCoordinates));
+}
+
+void PDFPlugin::visibilityDidChange(bool visible)
+{
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    if (visible)
+        m_frame.page()->createPDFHUD(*this, frameForHUD());
+    else
+        m_frame.page()->removePDFHUD(*this);
+#else
+    UNUSED_PARAM(visible);
+#endif
 }
 
 void PDFPlugin::geometryDidChange(const IntSize& pluginSize, const IntRect&, const AffineTransform& pluginToRootViewTransform)
@@ -2392,6 +2456,31 @@ bool PDFPlugin::pluginHandlesContentOffsetForAccessibilityHitTest() const
     return true;
 }
 
+#if ENABLE(UI_PROCESS_PDF_HUD)
+
+void PDFPlugin::zoomIn()
+{
+    [m_pdfLayerController zoomIn:nil];
+}
+
+void PDFPlugin::zoomOut()
+{
+    [m_pdfLayerController zoomOut:nil];
+}
+
+void PDFPlugin::save(CompletionHandler<void(const String&, const URL&, const IPC::DataReference&)>&& completionHandler)
+{
+    NSData *data = liveData();
+    completionHandler(m_suggestedFilename, m_frame.url(), IPC:: DataReference(static_cast<const uint8_t*>(data.bytes), data.length));
+}
+
+void PDFPlugin::openWithPreview(CompletionHandler<void(const String&, FrameInfoData&&, const IPC::DataReference&, const String&)>&& completionHandler)
+{
+    NSData *data = liveData();
+    completionHandler(m_suggestedFilename, m_frame.info(), IPC:: DataReference { static_cast<const uint8_t*>(data.bytes), data.length }, createCanonicalUUIDString());
+}
+
+#else // ENABLE(UI_PROCESS_PDF_HUD)
     
 void PDFPlugin::saveToPDF()
 {
@@ -2423,6 +2512,8 @@ void PDFPlugin::openWithNativeApplication()
 
     m_frame.page()->send(Messages::WebPageProxy::OpenPDFFromTemporaryFolderWithNativeApplication(m_frame.info(), m_temporaryPDFUUID));
 }
+
+#endif // ENABLE(UI_PROCESS_PDF_HUD)
 
 void PDFPlugin::writeItemsToPasteboard(NSString *pasteboardName, NSArray *items, NSArray *types)
 {

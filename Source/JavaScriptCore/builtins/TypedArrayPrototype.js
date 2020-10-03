@@ -91,14 +91,13 @@ function fill(value /* [, start [, end]] */)
 
     var length = @typedArrayLength(this);
 
-    var start = @argument(1);
-    var end = @argument(2);
+    var number = @toNumber(value);
 
-    start = @typedArrayClampArgumentToStartOrEnd(start, length, 0);
-    end = @typedArrayClampArgumentToStartOrEnd(end, length, length);
+    var start = @typedArrayClampArgumentToStartOrEnd(@argument(1), length, 0);
+    var end = @typedArrayClampArgumentToStartOrEnd(@argument(2), length, length);
 
     for (var i = start; i < end; i++)
-        this[i] = value;
+        this[i] = number;
     return this;
 }
 
@@ -218,16 +217,18 @@ function sort(comparator)
         }
     }
 
-    var length = @typedArrayLength(this);
+    if (comparator !== @undefined && !@isCallable(comparator))
+        @throwTypeError("TypedArray.prototype.sort requires the comparator argument to be a function or undefined");
 
+    var length = @typedArrayLength(this);
     if (length < 2)
         return;
 
-    if (@isCallable(comparator))
+    if (comparator !== @undefined)
         mergeSort(this, length, comparator);
     else
         @typedArraySort(this);
-    
+
     return this;
 }
 
@@ -312,21 +313,10 @@ function map(callback /*, thisArg */)
 
     var thisArg = @argument(1);
 
-    // Do species construction
-    var constructor = this.constructor;
-    var result;
-    if (constructor === @undefined)
-        result = new (@typedArrayGetOriginalConstructor(this))(length);
-    else {
-        var speciesConstructor = constructor.@@species;
-        if (@isUndefinedOrNull(speciesConstructor))
-            result = new (@typedArrayGetOriginalConstructor(this))(length);
-        else {
-            result = new speciesConstructor(length);
-            // typedArrayLength throws if it doesn't get a view.
-            @typedArrayLength(result);
-        }
-    }
+    var constructor = @typedArraySpeciesConstructor(this);
+    var result = new constructor(length);
+    if (@typedArrayLength(result) < length)
+        @throwTypeError("TypedArray.prototype.map constructed typed array of insufficient length");
 
     for (var i = 0; i < length; i++) {
         var mappedValue = callback.@call(thisArg, this[i], i, this);
@@ -352,24 +342,14 @@ function filter(callback /*, thisArg */)
         if (callback.@call(thisArg, value, i, this))
             kept.@push(value);
     }
+    var length = kept.length;
 
-    var constructor = this.constructor;
-    var result;
-    var resultLength = kept.length;
-    if (constructor === @undefined)
-        result = new (@typedArrayGetOriginalConstructor(this))(resultLength);
-    else {
-        var speciesConstructor = constructor.@@species;
-        if (@isUndefinedOrNull(speciesConstructor))
-            result = new (@typedArrayGetOriginalConstructor(this))(resultLength);
-        else {
-            result = new speciesConstructor(resultLength);
-            // typedArrayLength throws if it doesn't get a view.
-            @typedArrayLength(result);
-        }
-    }
+    var constructor = @typedArraySpeciesConstructor(this);
+    var result = new constructor(length);
+    if (@typedArrayLength(result) < length)
+        @throwTypeError("TypedArray.prototype.filter constructed typed array of insufficient length");
 
-    for (var i = 0; i < kept.length; i++)
+    for (var i = 0; i < length; i++)
         result[i] = kept[i];
 
     return result;
@@ -384,9 +364,22 @@ function toLocaleString(/* locale, options */)
     if (length == 0)
         return "";
 
-    var string = this[0].toLocaleString(@argument(0), @argument(1));
+    var string = @toString(this[0].toLocaleString(@argument(0), @argument(1)));
     for (var i = 1; i < length; i++)
-        string += "," + this[i].toLocaleString(@argument(0), @argument(1));
+        string += "," + @toString(this[i].toLocaleString(@argument(0), @argument(1)));
 
     return string;
+}
+
+function item(index)
+{
+    "use strict";
+
+    var length = @typedArrayLength(this);
+
+    var k = @toInteger(index);
+    if (k < 0)
+        k += length;
+
+    return (k >= 0 && k < length) ? this[k] : @undefined;
 }

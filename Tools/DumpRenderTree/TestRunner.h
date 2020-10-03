@@ -29,6 +29,7 @@
 #pragma once
 
 #include "UIScriptContext.h"
+#include "UIScriptController.h"
 #include <JavaScriptCore/JSObjectRef.h>
 #include <map>
 #include <set>
@@ -53,7 +54,7 @@ public:
     
     void cleanup();
 
-    void makeWindowObject(JSContextRef, JSObjectRef windowObject, JSValueRef* exception);
+    void makeWindowObject(JSContextRef);
 
     void addDisallowedURL(JSStringRef url);
     const std::set<std::string>& allowedHosts() const { return m_allowedHosts; }
@@ -94,7 +95,6 @@ public:
     void queueReload();
     void removeAllVisitedLinks();
     void setAcceptsEditing(bool);
-    void setFetchAPIEnabled(bool);
     void setAllowUniversalAccessFromFileURLs(bool);
     void setAllowFileAccessFromFileURLs(bool);
     void setNeedsStorageAccessFromFileURLsQuirk(bool);
@@ -497,7 +497,7 @@ private:
     std::vector<char> m_openPanelFilesMediaIcon;
 #endif
 
-    static JSClassRef getJSClass();
-    static JSStaticValue* staticValues();
-    static JSStaticFunction* staticFunctions();
+    static JSRetainPtr<JSClassRef> createJSClass();
+    static const JSStaticValue* staticValues();
+    static const JSStaticFunction* staticFunctions();
 };

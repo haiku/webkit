@@ -28,67 +28,16 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "InlineLineBuilder.h"
-#include "LayoutState.h"
-
 namespace WebCore {
 namespace Layout {
 
-bool InlineFormattingContext::Quirks::lineDescentNeedsCollapsing(const LineBuilder::RunList& runList) const
+InlineLayoutUnit InlineFormattingContext::Quirks::initialLineHeight() const
 {
-    // Collapse line descent in limited and full quirk mode when there's no baseline aligned content or
-    // the baseline aligned content has no descent.
-    auto& layoutState = this->layoutState();
-    if (!layoutState.inQuirksMode() && !layoutState.inLimitedQuirksMode())
-        return false;
-
-    for (auto& run : runList) {
-        auto& layoutBox = run.layoutBox();
-        if (run.isContainerEnd() || layoutBox.style().verticalAlign() != VerticalAlign::Baseline)
-            continue;
-
-        if (run.isLineBreak())
-            return false;
-        if (run.isText())
-            return false;
-        if (run.isContainerStart()) {
-            auto& boxGeometry = formattingContext().geometryForBox(layoutBox);
-            if (boxGeometry.horizontalBorder() || (boxGeometry.horizontalPadding() && boxGeometry.horizontalPadding().value()))
-                return false;
-            continue;
-        }
-        if (run.isBox()) {
-            if (layoutBox.isInlineBlockBox() && layoutBox.establishesInlineFormattingContext()) {
-                auto& formattingState = layoutState.establishedInlineFormattingState(downcast<ContainerBox>(layoutBox));
-                auto lastLineBox = formattingState.displayInlineContent()->lineBoxes.last();
-                if (lastLineBox.height() > lastLineBox.baseline())
-                    return false;
-            }
-            continue;
-        }
-        ASSERT_NOT_REACHED();
-    }
-    return true;
-}
-
-LineBuilder::Constraints::HeightAndBaseline InlineFormattingContext::Quirks::lineHeightConstraints(const ContainerBox& formattingRoot) const
-{
-    // computedLineHeight takes font-size into account when line-height is not set.
-    // Strut is the imaginary box that we put on every line. It sets the initial vertical constraints for each new line.
-    InlineLayoutUnit strutHeight = formattingRoot.style().computedLineHeight();
-    auto strutBaseline = LineBuilder::halfLeadingMetrics(formattingRoot.style().fontMetrics(), strutHeight).ascent;
-    if (layoutState().inNoQuirksMode())
-        return { strutHeight, strutBaseline, { } };
-
-    auto lineHeight = formattingRoot.style().lineHeight();
-    if (lineHeight.isPercentOrCalculated()) {
-        auto initialBaseline = LineBuilder::halfLeadingMetrics(formattingRoot.style().fontMetrics(), 0_lu).ascent;
-        return { initialBaseline, initialBaseline, AscentAndDescent { strutBaseline, strutHeight - strutBaseline } };
-    }
-    // FIXME: The only reason why we use intValue() here is to match current inline tree (integral)behavior.
-    InlineLayoutUnit initialLineHeight = lineHeight.intValue();
-    auto initialBaseline = LineBuilder::halfLeadingMetrics(formattingRoot.style().fontMetrics(), initialLineHeight).ascent;
-    return { initialLineHeight, initialBaseline, AscentAndDescent { strutBaseline, strutHeight - strutBaseline } };
+    // Negative lineHeight value means the line-height is not set
+    auto& root = formattingContext().root();
+    if (layoutState().inNoQuirksMode() || !root.style().lineHeight().isNegative())
+        return root.style().computedLineHeight();
+    return root.style().fontMetrics().floatHeight();
 }
 
 }

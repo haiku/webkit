@@ -102,7 +102,6 @@ class WebPageProxy;
 @class WKActionSheetAssistant;
 @class WKContextMenuElementInfo;
 @class WKDateTimeInputControl;
-@class WKDrawingCoordinator;
 @class WKFocusedFormControlView;
 @class WKFormInputSession;
 @class WKHighlightLongPressGestureRecognizer;
@@ -228,7 +227,6 @@ struct WKAutoCorrectionData {
     RetainPtr<UITapGestureRecognizer> _doubleTapGestureRecognizerForDoubleClick;
     RetainPtr<UITapGestureRecognizer> _twoFingerDoubleTapGestureRecognizer;
     RetainPtr<UITapGestureRecognizer> _twoFingerSingleTapGestureRecognizer;
-    RetainPtr<UITapGestureRecognizer> _stylusSingleTapGestureRecognizer;
     RetainPtr<WKInspectorNodeSearchGestureRecognizer> _inspectorNodeSearchGestureRecognizer;
 
     RetainPtr<WKTouchActionGestureRecognizer> _touchActionGestureRecognizer;
@@ -244,6 +242,10 @@ struct WKAutoCorrectionData {
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     RetainPtr<WKMouseGestureRecognizer> _mouseGestureRecognizer;
     WebCore::MouseEventPolicy _mouseEventPolicy;
+#endif
+
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+    RetainPtr<UIIndirectScribbleInteraction> _scribbleInteraction;
 #endif
 
 #if HAVE(UI_CURSOR_INTERACTION)
@@ -337,10 +339,6 @@ struct WKAutoCorrectionData {
 #if ENABLE(DATALIST_ELEMENT)
     RetainPtr<UIView <WKFormControl>> _dataListTextSuggestionsInputView;
     RetainPtr<NSArray<UITextSuggestion *>> _dataListTextSuggestions;
-#endif
-
-#if HAVE(PENCILKIT)
-    RetainPtr<WKDrawingCoordinator> _drawingCoordinator;
 #endif
 
     BOOL _isEditable;
@@ -583,10 +581,6 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)updateTextSuggestionsForInputDelegate;
 #endif
 
-#if HAVE(PENCILKIT)
-- (WKDrawingCoordinator *)_drawingCoordinator;
-#endif
-
 - (void)_requestTextInputContextsInRect:(CGRect)rect completionHandler:(void (^)(NSArray<_WKTextInputContext *> *))completionHandler;
 - (void)_focusTextInputContext:(_WKTextInputContext *)context placeCaretAt:(CGPoint)point completionHandler:(void (^)(UIResponder<UITextInput> *))completionHandler;
 - (void)_willBeginTextInteractionInTextInputContext:(_WKTextInputContext *)context;
@@ -651,9 +645,5 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(DECLARE_WKCONTENTVIEW_ACTION_FOR_WEB_VIEW)
 - (void)_unregisterPreview;
 @end
 #endif
-
-@interface WKContentView (WKFileUploadPanel)
-+ (Class)_fileUploadPanelClass;
-@end
 
 #endif // PLATFORM(IOS_FAMILY)

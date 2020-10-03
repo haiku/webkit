@@ -147,8 +147,6 @@ public:
     void enterFullscreenHandler(BOOL success, NSError *);
     bool isPlayingVideoInEnhancedFullscreen() const;
     WEBCORE_EXPORT void setReadyToStopPictureInPicture(BOOL);
-    WEBCORE_EXPORT bool willEnterStandbyFromPictureInPicture();
-    WEBCORE_EXPORT void setWillEnterStandbyFromPictureInPicture(BOOL);
 
     WEBCORE_EXPORT void setMode(HTMLMediaElementEnums::VideoFullscreenMode);
     void clearMode(HTMLMediaElementEnums::VideoFullscreenMode);
@@ -168,6 +166,7 @@ protected:
     void returnToStandby();
     void doEnterFullscreen();
     void watchdogTimerFired();
+    void stopPictureInPictureTimerFired();
     WebAVPlayerController *playerController() const;
 
     Ref<PlaybackSessionInterfaceAVKit> m_playbackSessionInterface;
@@ -185,6 +184,7 @@ protected:
     RetainPtr<WebAVPlayerLayerView> m_playerLayerView;
     WTF::Function<void(bool)> m_prepareToInlineCallback;
     RunLoop::Timer<VideoFullscreenInterfaceAVKit> m_watchdogTimer;
+    RunLoop::Timer<VideoFullscreenInterfaceAVKit> m_stopPictureInPictureTimer;
     FloatRect m_inlineRect;
     RouteSharingPolicy m_routeSharingPolicy { RouteSharingPolicy::Default };
     String m_routingContextUID;
@@ -225,7 +225,6 @@ protected:
     bool m_enteringPictureInPicture { false };
     bool m_exitingPictureInPicture { false };
     bool m_readyToStopPictureInPicture { true };
-    bool m_willEnterStandbyFromPictureInPicture { false };
 };
 
 }

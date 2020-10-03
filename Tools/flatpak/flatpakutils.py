@@ -33,6 +33,7 @@ import subprocess
 import sys
 import tempfile
 import re
+import platform
 
 from webkitpy.common.system.logutils import configure_logging
 import toml
@@ -487,7 +488,7 @@ class WebkitFlatpak:
 
         self.build_gst = False
 
-        self.sdk_branch = "0.2"
+        self.sdk_branch = "0.3"
         self.platform = "gtk"
         self.check_available = False
         self.user_command = []
@@ -724,11 +725,13 @@ class WebkitFlatpak:
         env_var_prefixes_to_keep = [
             "G",
             "CCACHE",
+            "EGL",
             "GIGACAGE",
             "GTK",
             "ICECC",
             "JSC",
             "MESA",
+            "LIBGL",
             "RUST",
             "SCCACHE",
             "WAYLAND",
@@ -873,13 +876,14 @@ class WebkitFlatpak:
         else:
             regenerate_toolchains = self.regenerate_toolchains
 
+        result = self.setup_dev_env()
         if regenerate_toolchains:
             self.icc_version = {}
             toolchains = self.pack_toolchain(("gcc", "g++"), {"/usr/bin/c++": "/usr/bin/g++"})
             toolchains.extend(self.pack_toolchain(("clang", "clang++"), {"/usr/bin/clang++": "/usr/bin/clang++"}))
             self.save_config(toolchains)
 
-        return self.setup_dev_env()
+        return result
 
     def run(self):
         try:
@@ -965,8 +969,7 @@ class WebkitFlatpak:
         return 0
 
     def _get_packages(self):
-        # FIXME: Make arch configurable.
-        arch = "x86_64"
+        arch = platform.machine()
         self.runtime = FlatpakPackage("org.webkit.Platform", self.sdk_branch,
                                       self.sdk_repo, arch)
         self.sdk = FlatpakPackage("org.webkit.Sdk", self.sdk_branch,
@@ -975,14 +978,12 @@ class WebkitFlatpak:
         packages.append(FlatpakPackage('org.webkit.Sdk.Debug', self.sdk_branch,
                                        self.sdk_repo, arch))
 
-        # FIXME: For unknown reasons, the GL extension needs to be explicitely
-        # installed for Flatpak 1.2.x to be able to make use of it. Seems like
-        # it's not correctly inheriting it from the SDK.
         self.flathub_repo = self.repos.add(FlatpakRepo("flathub", url="https://dl.flathub.org/repo/",
                                                        repo_file="https://dl.flathub.org/repo/flathub.flatpakrepo"))
 
-        packages.append(FlatpakPackage("org.freedesktop.Platform.GL.default", "19.08",
+        packages.append(FlatpakPackage("org.freedesktop.Sdk.Extension.rust-stable", "20.08",
                                        self.flathub_repo, arch))
+
         return packages
 
     def install_all(self):

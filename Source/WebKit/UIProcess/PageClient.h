@@ -26,6 +26,7 @@
 #pragma once
 
 #include "LayerTreeContext.h"
+#include "PDFPluginIdentifier.h"
 #include "SameDocumentNavigationType.h"
 #include "ShareableBitmap.h"
 #include "WebColorPicker.h"
@@ -57,7 +58,6 @@ OBJC_CLASS NSMenu;
 OBJC_CLASS NSSet;
 OBJC_CLASS NSTextAlternatives;
 OBJC_CLASS UIGestureRecognizer;
-OBJC_CLASS WKDrawingView;
 OBJC_CLASS _WKRemoteObjectRegistry;
 
 #if USE(APPKIT)
@@ -242,6 +242,13 @@ public:
     virtual void didFailProvisionalLoadForMainFrame() { };
     virtual void didCommitLoadForMainFrame(const String& mimeType, bool useCustomContentProvider) = 0;
 
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    virtual void createPDFHUD(PDFPluginIdentifier, const WebCore::IntRect&) = 0;
+    virtual void updatePDFHUDLocation(PDFPluginIdentifier, const WebCore::IntRect&) = 0;
+    virtual void removePDFHUD(PDFPluginIdentifier) = 0;
+    virtual void removeAllPDFHUDs() = 0;
+#endif
+    
     virtual void handleDownloadRequest(DownloadProxy&) = 0;
 
     virtual bool handleRunOpenPanel(WebPageProxy*, WebFrameProxy*, const FrameInfoData&, API::OpenPanelParameters*, WebOpenPanelResultListenerProxy*) { return false; }
@@ -378,6 +385,7 @@ public:
     virtual void removeDictationAlternatives(WebCore::DictationContext) = 0;
     virtual void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, WebCore::DictationContext) = 0;
     virtual Vector<String> dictationAlternatives(WebCore::DictationContext) = 0;
+    virtual NSTextAlternatives *platformDictationAlternatives(WebCore::DictationContext) = 0;
 #endif
 
 #if PLATFORM(MAC)
@@ -534,10 +542,6 @@ public:
     virtual NSFileWrapper *allocFileWrapperInstance() const { return nullptr; }
     virtual NSSet *serializableFileWrapperClasses() const { return nullptr; }
 #endif
-#endif
-
-#if HAVE(PENCILKIT)
-    virtual RetainPtr<WKDrawingView> createDrawingView(WebCore::GraphicsLayer::EmbeddedViewID) { return nullptr; }
 #endif
 
 #if PLATFORM(COCOA)

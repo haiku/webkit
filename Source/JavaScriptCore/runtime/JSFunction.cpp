@@ -45,12 +45,15 @@
 
 namespace JSC {
 
-EncodedJSValue JSC_HOST_CALL callHostFunctionAsConstructor(JSGlobalObject* globalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(callHostFunctionAsConstructor, (JSGlobalObject* globalObject, CallFrame* callFrame))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
     return throwVMError(globalObject, scope, createNotAConstructorError(globalObject, callFrame->jsCallee()));
 }
+
+static JSC_DECLARE_CUSTOM_GETTER(argumentsGetter);
+static JSC_DECLARE_CUSTOM_GETTER(callerGetter);
 
 const ClassInfo JSFunction::s_info = { "Function", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSFunction) };
 const ClassInfo JSStrictFunction::s_info = { "Function", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSStrictFunction) };
@@ -85,7 +88,7 @@ JSFunction* JSFunction::create(VM& vm, FunctionExecutable* executable, JSScope* 
     return result;
 }
 
-JSFunction* JSFunction::create(VM& vm, JSGlobalObject* globalObject, int length, const String& name, NativeFunction nativeFunction, Intrinsic intrinsic, NativeFunction nativeConstructor, const DOMJIT::Signature* signature)
+JSFunction* JSFunction::create(VM& vm, JSGlobalObject* globalObject, unsigned length, const String& name, NativeFunction nativeFunction, Intrinsic intrinsic, NativeFunction nativeConstructor, const DOMJIT::Signature* signature)
 {
     NativeExecutable* executable = vm.getHostFunction(nativeFunction, intrinsic, nativeConstructor, signature, name);
     Structure* structure = globalObject->hostFunctionStructure();
@@ -109,15 +112,17 @@ void JSFunction::finishCreation(VM& vm)
     Base::finishCreation(vm);
     ASSERT(jsDynamicCast<JSFunction*>(vm, this));
     ASSERT(type() == JSFunctionType);
+    // JSCell::{getCallData,getConstructData} relies on the following conditions.
     ASSERT(methodTable(vm)->getConstructData == &JSFunction::getConstructData);
     ASSERT(methodTable(vm)->getCallData == &JSFunction::getCallData);
 }
 
-void JSFunction::finishCreation(VM& vm, NativeExecutable*, int length, const String& name)
+void JSFunction::finishCreation(VM& vm, NativeExecutable*, unsigned length, const String& name)
 {
     Base::finishCreation(vm);
     ASSERT(inherits(vm, info()));
     ASSERT(type() == JSFunctionType);
+    // JSCell::{getCallData,getConstructData} relies on the following conditions.
     ASSERT(methodTable(vm)->getConstructData == &JSFunction::getConstructData);
     ASSERT(methodTable(vm)->getCallData == &JSFunction::getCallData);
 
@@ -211,7 +216,7 @@ String JSFunction::name(VM& vm)
         return executable->name();
     }
     const Identifier identifier = jsExecutable()->name();
-    if (identifier == vm.propertyNames->builtinNames().starDefaultPrivateName())
+    if (identifier == vm.propertyNames->starDefaultPrivateName)
         return emptyString();
     return identifier.string();
 }
@@ -258,6 +263,7 @@ void JSFunction::visitChildren(JSCell* cell, SlotVisitor& visitor)
 
 CallData JSFunction::getCallData(JSCell* cell)
 {
+    // Keep this function OK for invocation from concurrent compilers.
     CallData callData;
 
     JSFunction* thisObject = jsCast<JSFunction*>(cell);
@@ -311,7 +317,7 @@ static JSValue retrieveArguments(VM& vm, CallFrame* callFrame, JSFunction* funct
     return functor.result();
 }
 
-EncodedJSValue JSFunction::argumentsGetter(JSGlobalObject* globalObject, EncodedJSValue thisValue, PropertyName)
+JSC_DEFINE_CUSTOM_GETTER(argumentsGetter, (JSGlobalObject* globalObject, EncodedJSValue thisValue, PropertyName))
 {
     VM& vm = globalObject->vm();
     JSFunction* thisObj = jsCast<JSFunction*>(JSValue::decode(thisValue));
@@ -371,7 +377,7 @@ static JSValue retrieveCallerFunction(VM& vm, CallFrame* callFrame, JSFunction* 
     return functor.result();
 }
 
-EncodedJSValue JSFunction::callerGetter(JSGlobalObject* globalObject, EncodedJSValue thisValue, PropertyName)
+JSC_DEFINE_CUSTOM_GETTER(callerGetter, (JSGlobalObject* globalObject, EncodedJSValue thisValue, PropertyName))
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -682,6 +688,7 @@ bool JSFunction::defineOwnProperty(JSObject* object, JSGlobalObject* globalObjec
 // ECMA 13.2.2 [[Construct]]
 CallData JSFunction::getConstructData(JSCell* cell)
 {
+    // Keep this function OK for invocation from concurrent compilers.
     CallData constructData;
 
     JSFunction* thisObject = jsCast<JSFunction*>(cell);
@@ -790,7 +797,7 @@ void JSFunction::reifyName(VM& vm, JSGlobalObject* globalObject)
     // https://tc39.github.io/ecma262/#sec-exports-runtime-semantics-evaluation
     // When the ident is "*default*", we need to set "default" for the ecma name.
     // This "*default*" name is never shown to users.
-    if (ecmaName == vm.propertyNames->builtinNames().starDefaultPrivateName())
+    if (ecmaName == vm.propertyNames->starDefaultPrivateName)
         name = vm.propertyNames->defaultKeyword.string();
     else
         name = ecmaName.string();

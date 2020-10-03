@@ -60,7 +60,6 @@
 #include "WebSWServerConnectionMessages.h"
 #include "WebSWServerToContextConnection.h"
 #include "WebSWServerToContextConnectionMessages.h"
-#include "WebSocketIdentifier.h"
 #include "WebsiteDataStoreParameters.h"
 #include <WebCore/DocumentStorageAccess.h>
 #include <WebCore/HTTPCookieAcceptPolicy.h>
@@ -594,6 +593,11 @@ void NetworkConnectionToWebProcess::preconnectTo(Optional<uint64_t> preconnectio
     completionHandler(internalError(loadParameters.request.url()));
 }
 
+void NetworkConnectionToWebProcess::isResourceLoadFinished(uint64_t loadIdentifier, CompletionHandler<void(bool)>&& callback)
+{
+    callback(!m_networkResourceLoaders.contains(loadIdentifier));
+}
+
 void NetworkConnectionToWebProcess::didFinishPreconnection(uint64_t preconnectionIdentifier, const ResourceError& error)
 {
     if (!m_connection->isValid())
@@ -870,14 +874,19 @@ void NetworkConnectionToWebProcess::logUserInteraction(const RegistrableDomain& 
     }
 }
 
-void NetworkConnectionToWebProcess::resourceLoadStatisticsUpdated(Vector<ResourceLoadStatistics>&& statistics)
+void NetworkConnectionToWebProcess::resourceLoadStatisticsUpdated(Vector<ResourceLoadStatistics>&& statistics, CompletionHandler<void()>&& completionHandler)
 {
     if (auto* networkSession = this->networkSession()) {
-        if (networkSession->sessionID().isEphemeral())
+        if (networkSession->sessionID().isEphemeral()) {
+            completionHandler();
             return;
-        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics())
-            resourceLoadStatistics->resourceLoadStatisticsUpdated(WTFMove(statistics));
+        }
+        if (auto* resourceLoadStatistics = networkSession->resourceLoadStatistics()) {
+            resourceLoadStatistics->resourceLoadStatisticsUpdated(WTFMove(statistics), WTFMove(completionHandler));
+            return;
+        }
     }
+    completionHandler();
 }
 
 void NetworkConnectionToWebProcess::hasStorageAccess(const RegistrableDomain& subFrameDomain, const RegistrableDomain& topFrameDomain, FrameIdentifier frameID, PageIdentifier pageID, CompletionHandler<void(bool)>&& completionHandler)

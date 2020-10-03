@@ -136,7 +136,7 @@ constexpr bool typeExposedByDefault = true;
 #define FOR_EACH_SIMPLE_BUILTIN_TYPE_WITH_CONSTRUCTOR(macro) \
     macro(String, string, stringObject, StringObject, String, object, typeExposedByDefault) \
     macro(JSPromise, promise, promise, JSPromise, Promise, object, typeExposedByDefault) \
-    macro(BigInt, bigInt, bigIntObject, BigIntObject, BigInt, object, Options::useBigInt()) \
+    macro(BigInt, bigInt, bigIntObject, BigIntObject, BigInt, object, typeExposedByDefault) \
     macro(WeakObjectRef, weakObjectRef, weakObjectRef, JSWeakObjectRef, WeakRef, object, Options::useWeakRefs()) \
     macro(FinalizationRegistry, finalizationRegistry, finalizationRegistry, JSFinalizationRegistry, FinalizationRegistry, object, Options::useWeakRefs()) \
 
@@ -296,15 +296,15 @@ public:
 
     LazyProperty<JSGlobalObject, IntlCollator> m_defaultCollator;
     LazyProperty<JSGlobalObject, Structure> m_collatorStructure;
-    LazyProperty<JSGlobalObject, Structure> m_dateTimeFormatStructure;
     LazyProperty<JSGlobalObject, Structure> m_displayNamesStructure;
     LazyProperty<JSGlobalObject, Structure> m_localeStructure;
-    LazyProperty<JSGlobalObject, Structure> m_numberFormatStructure;
     LazyProperty<JSGlobalObject, Structure> m_pluralRulesStructure;
     LazyProperty<JSGlobalObject, Structure> m_relativeTimeFormatStructure;
     LazyProperty<JSGlobalObject, Structure> m_segmentIteratorStructure;
     LazyProperty<JSGlobalObject, Structure> m_segmenterStructure;
     LazyProperty<JSGlobalObject, Structure> m_segmentsStructure;
+    LazyClassStructure m_dateTimeFormatStructure;
+    LazyClassStructure m_numberFormatStructure;
 
     WriteBarrier<NullGetterFunction> m_nullGetterFunction;
     WriteBarrier<NullSetterFunction> m_nullSetterFunction;
@@ -313,6 +313,7 @@ public:
     LazyProperty<JSGlobalObject, JSFunction> m_parseIntFunction;
     LazyProperty<JSGlobalObject, JSFunction> m_parseFloatFunction;
 
+    LazyProperty<JSGlobalObject, JSFunction> m_objectProtoToStringFunction;
     LazyProperty<JSGlobalObject, JSFunction> m_arrayProtoToStringFunction;
     LazyProperty<JSGlobalObject, JSFunction> m_arrayProtoValuesFunction;
     LazyProperty<JSGlobalObject, JSFunction> m_evalFunction;
@@ -633,6 +634,7 @@ public:
 
     JSFunction* evalFunction() const { return m_evalFunction.get(this); }
     JSFunction* throwTypeErrorFunction() const;
+    JSFunction* objectProtoToStringFunction() const { return m_objectProtoToStringFunction.get(this); }
     JSFunction* arrayProtoToStringFunction() const { return m_arrayProtoToStringFunction.get(this); }
     JSFunction* arrayProtoValuesFunction() const { return m_arrayProtoValuesFunction.get(this); }
     JSFunction* arrayProtoValuesFunctionConcurrently() const { return m_arrayProtoValuesFunction.getConcurrently(); }
@@ -816,6 +818,11 @@ public:
     Structure* segmenterStructure() { return m_segmenterStructure.get(this); }
     Structure* segmentsStructure() { return m_segmentsStructure.get(this); }
 
+    JSObject* dateTimeFormatConstructor() { return m_dateTimeFormatStructure.constructor(this); }
+    JSObject* dateTimeFormatPrototype() { return m_dateTimeFormatStructure.prototype(this); }
+    JSObject* numberFormatConstructor() { return m_numberFormatStructure.constructor(this); }
+    JSObject* numberFormatPrototype() { return m_numberFormatStructure.prototype(this); }
+
     JS_EXPORT_PRIVATE void setRemoteDebuggingEnabled(bool);
     JS_EXPORT_PRIVATE bool remoteDebuggingEnabled() const;
 
@@ -823,6 +830,8 @@ public:
 
     RegExpGlobalData& regExpGlobalData() { return m_regExpGlobalData; }
     static ptrdiff_t regExpGlobalDataOffset() { return OBJECT_OFFSETOF(JSGlobalObject, m_regExpGlobalData); }
+
+    static ptrdiff_t offsetOfVM() { return OBJECT_OFFSETOF(JSGlobalObject, m_vm); }
 
 #if ENABLE(REMOTE_INSPECTOR)
     Inspector::JSGlobalObjectInspectorController& inspectorController() const { return *m_inspectorController.get(); }

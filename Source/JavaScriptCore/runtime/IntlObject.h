@@ -34,6 +34,8 @@ struct UFieldPositionIterator;
 
 namespace JSC {
 
+extern const uint8_t ducetWeights[128];
+
 enum class LocaleMatcher : uint8_t {
     Lookup,
     BestFit,
@@ -110,6 +112,8 @@ String removeUnicodeLocaleExtension(const String& locale);
 String bestAvailableLocale(const HashSet<String>& availableLocales, const String& requestedLocale);
 template<typename Predicate> String bestAvailableLocale(const String& requestedLocale, Predicate);
 Vector<String> numberingSystemsForLocale(const String& locale);
+
+Vector<char, 32> canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(Vector<char, 32>&&);
 
 bool isUnicodeLocaleIdentifierType(StringView);
 

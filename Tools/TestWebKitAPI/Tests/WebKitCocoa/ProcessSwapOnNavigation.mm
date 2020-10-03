@@ -31,6 +31,7 @@
 #import "TestWKWebView.h"
 #import <WebKit/WKBackForwardListItemPrivate.h>
 #import <WebKit/WKContentRuleListStore.h>
+#import <WebKit/WKHTTPCookieStorePrivate.h>
 #import <WebKit/WKNavigationDelegatePrivate.h>
 #import <WebKit/WKNavigationPrivate.h>
 #import <WebKit/WKPreferencesPrivate.h>
@@ -5384,7 +5385,7 @@ TEST(ProcessSwap, UsePrewarmedProcessAfterTerminatingNetworkProcess)
 
     TestWebKitAPI::Util::spinRunLoop(1);
 
-    [processPool _terminateNetworkProcess];
+    [webViewConfiguration.get().websiteDataStore _terminateNetworkProcess];
 
     auto webView2 = adoptNS([[WKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:webViewConfiguration.get()]);
     [webView2 setNavigationDelegate:delegate.get()];
@@ -5397,6 +5398,8 @@ TEST(ProcessSwap, UsePrewarmedProcessAfterTerminatingNetworkProcess)
 
 TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInPrivateBrowsing)
 {
+    auto originalCookieAcceptPolicy = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookieAcceptPolicy];
+
     auto processPoolConfiguration = psonProcessPoolConfiguration();
     auto processPool = adoptNS([[WKProcessPool alloc] _initWithConfiguration:processPoolConfiguration.get()]);
     RetainPtr<WKWebsiteDataStore> ephemeralStore = [WKWebsiteDataStore nonPersistentDataStore];
@@ -5415,7 +5418,11 @@ TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInPrivateBrowsing)
     auto delegate = adoptNS([[PSONNavigationDelegate alloc] init]);
     [webView setNavigationDelegate:delegate.get()];
 
-    [processPool _setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways];
+    __block bool setPolicy = false;
+    [webView.get().configuration.websiteDataStore.httpCookieStore _setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways completionHandler:^{
+        setPolicy = true;
+    }];
+    TestWebKitAPI::Util::run(&setPolicy);
 
     NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"SetSessionCookie" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:request];
@@ -5450,10 +5457,18 @@ TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInPrivateBrowsing)
 
     EXPECT_EQ(1u, [receivedMessages count]);
     EXPECT_WK_STREQ(@"foo=bar", receivedMessages.get()[0]);
+    
+    setPolicy = false;
+    [webView.get().configuration.websiteDataStore.httpCookieStore _setCookieAcceptPolicy:originalCookieAcceptPolicy completionHandler:^{
+        setPolicy = true;
+    }];
+    TestWebKitAPI::Util::run(&setPolicy);
 }
 
 TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInNonDefaultPersistentSession)
 {
+    auto originalCookieAcceptPolicy = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookieAcceptPolicy];
+
     auto processPoolConfiguration = psonProcessPoolConfiguration();
 
     // Prevent WebProcess reuse.
@@ -5481,7 +5496,11 @@ TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInNonDefaultPersistentSession
     auto delegate = adoptNS([[PSONNavigationDelegate alloc] init]);
     [webView setNavigationDelegate:delegate.get()];
 
-    [processPool _setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways];
+    __block bool setPolicy = false;
+    [webView.get().configuration.websiteDataStore.httpCookieStore _setCookieAcceptPolicy:NSHTTPCookieAcceptPolicyAlways completionHandler:^{
+        setPolicy = true;
+    }];
+    TestWebKitAPI::Util::run(&setPolicy);
 
     NSURLRequest *request = [NSURLRequest requestWithURL:[[NSBundle mainBundle] URLForResource:@"SetSessionCookie" withExtension:@"html" subdirectory:@"TestWebKitAPI.resources"]];
     [webView loadRequest:request];
@@ -5517,6 +5536,12 @@ TEST(ProcessSwap, UseSessionCookiesAfterProcessSwapInNonDefaultPersistentSession
 
     EXPECT_EQ(1u, [receivedMessages count]);
     EXPECT_WK_STREQ(@"foo=bar", receivedMessages.get()[0]);
+
+    setPolicy = false;
+    [webView.get().configuration.websiteDataStore.httpCookieStore _setCookieAcceptPolicy:originalCookieAcceptPolicy completionHandler:^{
+        setPolicy = true;
+    }];
+    TestWebKitAPI::Util::run(&setPolicy);
 }
 
 TEST(ProcessSwap, ProcessSwapInRelatedView)
@@ -6371,6 +6396,7 @@ TEST(ProcessSwap, LoadAlternativeHTML)
 #if ENABLE(MEDIA_STREAM)
 
 static bool isCapturing = false;
+static bool isNotCapturing = false;
 @interface GetUserMediaUIDelegate : NSObject<WKUIDelegate>
 - (void)_webView:(WKWebView *)webView requestUserMediaAuthorizationForDevices:(_WKCaptureDevices)devices url:(NSURL *)url mainFrameURL:(NSURL *)mainFrameURL decisionHandler:(void (^)(BOOL authorized))decisionHandler;
 - (void)_webView:(WKWebView *)webView checkUserMediaPermissionForURL:(NSURL *)url mainFrameURL:(NSURL *)mainFrameURL frameIdentifier:(NSUInteger)frameIdentifier decisionHandler:(void (^)(NSString *salt, BOOL authorized))decisionHandler;
@@ -6391,6 +6417,7 @@ static bool isCapturing = false;
 - (void)_webView:(WKWebView *)webView mediaCaptureStateDidChange:(_WKMediaCaptureState)state
 {
     isCapturing = state == _WKMediaCaptureStateActiveCamera;
+    isNotCapturing = !state;
 }
 @end
 
@@ -6413,7 +6440,7 @@ TEST(ProcessSwap, GetUserMediaCaptureState)
     auto webViewConfiguration = adoptNS([[WKWebViewConfiguration alloc] init]);
     auto preferences = [webViewConfiguration.get() preferences];
     preferences._mediaCaptureRequiresSecureConnection = NO;
-    preferences._mediaDevicesEnabled = YES;
+    webViewConfiguration.get()._mediaCaptureEnabled = YES;
     preferences._mockCaptureDevicesEnabled = YES;
 
     [webViewConfiguration setProcessPool:processPool.get()];
@@ -6423,6 +6450,7 @@ TEST(ProcessSwap, GetUserMediaCaptureState)
     [webViewConfiguration setURLSchemeHandler:handler.get() forURLScheme:@"PSON"];
 
     auto webView = adoptNS([[TestWKWebView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600) configuration:webViewConfiguration.get()]);
+    webView.get()._mediaCaptureReportingDelayForTesting = 1;
 
     auto navigationDelegate = adoptNS([[PSONNavigationDelegate alloc] init]);
     [webView setNavigationDelegate:navigationDelegate.get()];
@@ -6447,14 +6475,17 @@ TEST(ProcessSwap, GetUserMediaCaptureState)
     done = false;
 
     auto pid2 = [webView _webProcessIdentifier];
+    TestWebKitAPI::Util::run(&isNotCapturing);
 
     EXPECT_FALSE(isCapturing);
     EXPECT_FALSE(pid1 == pid2);
 
     isCapturing = false;
     [webView goBack];
+
     TestWebKitAPI::Util::run(&isCapturing);
     isCapturing = false;
+    isNotCapturing = true;
 }
 
 #endif

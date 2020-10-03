@@ -1043,6 +1043,61 @@ Optional<Ref<ClipPath>> ClipPath::decode(Decoder& decoder)
     return ClipPath::create(*path, *windRule);
 }
 
+class ClipToDrawingCommands : public Item {
+public:
+    static Ref<ClipToDrawingCommands> create(const FloatRect& destination, ColorSpace colorSpace, DisplayList&& drawingCommands)
+    {
+        return adoptRef(*new ClipToDrawingCommands(destination, colorSpace, WTFMove(drawingCommands)));
+    }
+
+    WEBCORE_EXPORT ~ClipToDrawingCommands();
+
+    const FloatRect& destination() const { return m_destination; }
+    ColorSpace colorSpace() const { return m_colorSpace; }
+    const DisplayList& drawingCommands() const { return m_drawingCommands; }
+
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static Optional<Ref<ClipToDrawingCommands>> decode(Decoder&);
+
+private:
+    WEBCORE_EXPORT ClipToDrawingCommands(const FloatRect& destination, ColorSpace, DisplayList&& drawingCommands);
+
+    void apply(GraphicsContext&) const override;
+
+    FloatRect m_destination;
+    ColorSpace m_colorSpace;
+    DisplayList m_drawingCommands;
+};
+
+template<class Encoder>
+void ClipToDrawingCommands::encode(Encoder& encoder) const
+{
+    encoder << m_destination;
+    encoder << m_colorSpace;
+    encoder << m_drawingCommands;
+}
+
+template<class Decoder>
+Optional<Ref<ClipToDrawingCommands>> ClipToDrawingCommands::decode(Decoder& decoder)
+{
+    Optional<FloatRect> destination;
+    decoder >> destination;
+    if (!destination)
+        return WTF::nullopt;
+
+    Optional<ColorSpace> colorSpace;
+    decoder >> colorSpace;
+    if (!colorSpace)
+        return WTF::nullopt;
+
+    Optional<DisplayList> drawingCommands;
+    decoder >> drawingCommands;
+    if (!drawingCommands)
+        return WTF::nullopt;
+
+    return ClipToDrawingCommands::create(*destination, *colorSpace, WTFMove(*drawingCommands));
+}
+
 class DrawGlyphs : public DrawingItem {
 public:
     static Ref<DrawGlyphs> create(const Font& font, const GlyphBufferGlyph* glyphs, const GlyphBufferAdvance* advances, unsigned count, const FloatPoint& blockLocation, const FloatSize& localAnchor, FontSmoothingMode smoothingMode)
@@ -1093,9 +1148,7 @@ private:
 template<class Encoder>
 void DrawGlyphs::encode(Encoder& encoder) const
 {
-    FontHandle handle;
-    handle.font = m_font.ptr();
-    encoder << handle;
+    encoder << m_font;
     encoder << m_glyphs;
     encoder << m_advances;
     encoder << m_blockLocation;
@@ -1106,9 +1159,9 @@ void DrawGlyphs::encode(Encoder& encoder) const
 template<class Decoder>
 Optional<Ref<DrawGlyphs>> DrawGlyphs::decode(Decoder& decoder)
 {
-    Optional<FontHandle> handle;
-    decoder >> handle;
-    if (!handle || !handle->font)
+    Optional<Ref<Font>> font;
+    decoder >> font;
+    if (!font)
         return WTF::nullopt;
 
     Optional<Vector<GlyphBufferGlyph, 128>> glyphs;
@@ -1139,7 +1192,7 @@ Optional<Ref<DrawGlyphs>> DrawGlyphs::decode(Decoder& decoder)
     if (!smoothingMode)
         return WTF::nullopt;
 
-    return DrawGlyphs::create(handle->font.releaseNonNull(), WTFMove(*glyphs), WTFMove(*advances), *blockLocation, *localAnchor, *smoothingMode);
+    return DrawGlyphs::create(font->get(), WTFMove(*glyphs), WTFMove(*advances), *blockLocation, *localAnchor, *smoothingMode);
 }
 
 class DrawImage : public DrawingItem {
@@ -2856,6 +2909,9 @@ void Item::encode(Encoder& encoder) const
     case ItemType::ClipPath:
         encoder << downcast<ClipPath>(*this);
         break;
+    case ItemType::ClipToDrawingCommands:
+        encoder << downcast<ClipToDrawingCommands>(*this);
+        break;
     case ItemType::DrawGlyphs:
         encoder << downcast<DrawGlyphs>(*this);
         break;
@@ -3036,6 +3092,10 @@ Optional<Ref<Item>> Item::decode(Decoder& decoder)
         if (auto item = ClipPath::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
         break;
+    case ItemType::ClipToDrawingCommands:
+        if (auto item = ClipToDrawingCommands::decode(decoder))
+            return static_reference_cast<Item>(WTFMove(*item));
+        break;
     case ItemType::DrawGlyphs:
         if (auto item = DrawGlyphs::decode(decoder))
             return static_reference_cast<Item>(WTFMove(*item));
@@ -3205,6 +3265,7 @@ SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(Clip)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(ClipOut)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(ClipOutToPath)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(ClipPath)
+SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(ClipToDrawingCommands)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawGlyphs)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawImage)
 SPECIALIZE_TYPE_TRAITS_DISPLAYLIST_ITEM(DrawTiledImage)
@@ -3265,6 +3326,7 @@ template<> struct EnumTraits<WebCore::DisplayList::ItemType> {
     WebCore::DisplayList::ItemType::ClipOut,
     WebCore::DisplayList::ItemType::ClipOutToPath,
     WebCore::DisplayList::ItemType::ClipPath,
+    WebCore::DisplayList::ItemType::ClipToDrawingCommands,
     WebCore::DisplayList::ItemType::DrawGlyphs,
     WebCore::DisplayList::ItemType::DrawImage,
     WebCore::DisplayList::ItemType::DrawTiledImage,

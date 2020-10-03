@@ -1,3 +1,205 @@
+2020-10-01  Chris Dumez  <cdumez@apple.com>
+
+        Add basic infrastructure for AudioWorklet
+        https://bugs.webkit.org/show_bug.cgi?id=217153
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/WebPlatformStrategies.cpp:
+
+2020-09-25  Simon Fraser  <simon.fraser@apple.com>
+
+        WebKitLegacy should call Page::finalizeRenderingUpdate()
+        https://bugs.webkit.org/show_bug.cgi?id=216958
+
+        Reviewed by Tim Horton.
+
+        Windows doesn't call finalizeRenderingUpdate() so needs to use isolatedUpdateRendering().
+
+        * WebCoreSupport/AcceleratedCompositingContext.cpp:
+        (AcceleratedCompositingContext::flushAndRenderLayers):
+        * WebView.cpp:
+        (WebView::paint):
+        (WebView::flushPendingGraphicsLayerChangesSoon):
+        (WebView::flushPendingGraphicsLayerChanges):
+
+2020-09-25  Antoine Quint  <graouts@webkit.org>
+
+        Add an experimental feature flag for CSS individual transform properties
+        https://bugs.webkit.org/show_bug.cgi?id=216271
+        <rdar://problem/68914539>
+
+        Reviewed by Dean Jackson.
+
+        * Interfaces/IWebPreferencesPrivate.idl:
+        * WebPreferenceKeysPrivate.h:
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::CSSIndividualTransformPropertiesEnabled):
+        (WebPreferences::setCSSIndividualTransformPropertiesEnabled):
+        * WebPreferences.h:
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-17  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the UserTiming and ResourceTiming APIs
+        https://bugs.webkit.org/show_bug.cgi?id=216556
+
+        Reviewed by Darin Adler.
+
+        Remove runtime setting for enabling/disabling UserTiming and ResourceTiming 
+        APIs. They have both been on for a while in WebKit2 and there aren't any
+        known uses cases for disabling them. In addition to removing the setting, 
+        they are now enabled in LegacyWebKit as well.
+
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::setUserTimingEnabled):
+        (WebPreferences::userTimingEnabled):
+        (WebPreferences::setResourceTimingEnabled):
+        (WebPreferences::resourceTimingEnabled):
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-17  Antoine Quint  <graouts@webkit.org>
+
+        Remove the legacy animation code
+        https://bugs.webkit.org/show_bug.cgi?id=216608
+
+        Reviewed by Dean Jackson.
+
+        Since we now have a single animation engine, the runtime flags to optionally enable the Web Animations engine are
+        not needed anymore and are now removed.
+
+        * Interfaces/IWebFramePrivate.idl:
+        * Interfaces/IWebPreferencesPrivate.idl:
+        * WebFrame.cpp:
+        (WebFrame::resumeAnimations): Deleted.
+        (WebFrame::suspendAnimations): Deleted.
+        (WebFrame::pauseAnimation): Deleted.
+        (WebFrame::pauseTransition): Deleted.
+        (WebFrame::numberOfActiveAnimations): Deleted.
+        * WebFrame.h:
+        * WebPreferenceKeysPrivate.h:
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::webAnimationsCSSIntegrationEnabled): Deleted.
+        (WebPreferences::setWebAnimationsCSSIntegrationEnabled): Deleted.
+        (WebPreferences::setWebAnimationsEnabled): Deleted.
+        (WebPreferences::webAnimationsEnabled): Deleted.
+        * WebPreferences.h:
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-16  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the isSecureContext API?
+        https://bugs.webkit.org/show_bug.cgi?id=216562
+
+        Reviewed by Darin Adler.
+
+        Remove runtime setting for enabling/disabling the the isSecureContext attribute. 
+        on window and the worker global scope. There is no known reason one would need 
+        to disable it.
+
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::setIsSecureContextAttributeEnabled):
+        (WebPreferences::isSecureContextAttributeEnabled):
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-15  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the fetch API
+        https://bugs.webkit.org/show_bug.cgi?id=216519
+
+        Reviewed by Alex Christensen.
+
+        Remove runtime setting for enabling/disabling the fetch API. There is no
+        reason one needs to disable it now and it has been on by default for
+        a long enough time.
+
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::fetchAPIEnabled):
+        (WebPreferences::setFetchAPIEnabled):
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-15  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling custom elements
+        https://bugs.webkit.org/show_bug.cgi?id=216518
+
+        Reviewed by Tim Horton.
+
+        Remove runtime setting for enabling/disabling custom elements. There is no
+        reason one need to disable it now, and it has been on by default for
+        a long enough time.
+
+        * WebPreferences.cpp:
+        (WebPreferences::customElementsEnabled):
+        (WebPreferences::setCustomElementsEnabled):
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-14  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling ShadowDOM
+        https://bugs.webkit.org/show_bug.cgi?id=216511
+
+        Reviewed by Ryosuke Niwa.
+
+        Remove runtime setting for enabling/disabling ShadowDOM. There is no
+        reason one need to disable it now, and it has been on by default for
+        a long enough time.
+
+        * WebPreferences.cpp:
+        (WebPreferences::initializeDefaultSettings):
+        (WebPreferences::shadowDOMEnabled):
+        (WebPreferences::setShadowDOMEnabled):
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+
+2020-09-02  Darin Adler  <darin@apple.com>
+
+        Remove EAffinity, UPSTREAM, DOWNSTREAM, SEL_DEFAULT_AFFINITY, and VisibleSelection::selectionType
+        https://bugs.webkit.org/show_bug.cgi?id=216102
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/WebEditorClient.cpp:
+        (toWebSelectionAffinity): Added.
+        (WebEditorClient::shouldChangeSelectedRange): Use Affinity.
+        * WebCoreSupport/WebEditorClient.h: Ditto.
+
+2020-09-01  Darin Adler  <darin@apple.com>
+
+        Remove comparePositions and make VisiblePosition improvements
+        https://bugs.webkit.org/show_bug.cgi?id=215982
+
+        Reviewed by Sam Weinig.
+
+        * AccessibleTextImpl.cpp:
+        (AccessibleText::isInRange): Use isPointInRange instead of
+        comparePositions.
+
+2020-08-31  Sam Weinig  <weinig@apple.com>
+
+        Many settings in RuntimeEnabledSettings should autogenerated Settings: Part 1
+        https://bugs.webkit.org/show_bug.cgi?id=215981
+
+        Reviewed by Darin Adler.
+
+        This moves an initial chunk of RuntimeEnabledSettings settings to Settings.yaml, focusing
+        on settings that don't require substantial refactoring or new features to work in Settings.yaml.
+
+        * WebView.cpp:
+        (WebView::notifyPreferencesChanged):
+        Update changed settings to use Settings rather than RuntimeEnabledSettings.
+
 2020-08-20  Darin Adler  <darin@apple.com>
 
         Move node geometry functions from Range to RenderObject

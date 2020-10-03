@@ -118,7 +118,7 @@ XMLHttpRequest::XMLHttpRequest(ScriptExecutionContext& context)
     , m_readyState(static_cast<unsigned>(UNSENT))
     , m_responseType(static_cast<unsigned>(ResponseType::EmptyString))
     , m_progressEventThrottle(*this)
-    , m_timeoutTimer(*this, &XMLHttpRequest::didReachTimeout)
+    , m_timeoutTimer(*this, &XMLHttpRequest::timeoutTimerFired)
 {
 #ifndef NDEBUG
     xmlHttpRequestCounter.increment();
@@ -172,10 +172,11 @@ ExceptionOr<Document*> XMLHttpRequest::responseXML()
 
         String mimeType = responseMIMEType();
         bool isHTML = equalLettersIgnoringASCIICase(mimeType, "text/html");
+        bool isXML = MIMETypeRegistry::isXMLMIMEType(mimeType);
 
         // The W3C spec requires the final MIME type to be some valid XML type, or text/html.
         // If it is text/html, then the responseType of "document" must have been supplied explicitly.
-        if ((m_response.isInHTTPFamily() && !responseIsXML() && !isHTML)
+        if ((m_response.isInHTTPFamily() && !isXML && !isHTML)
             || (isHTML && responseType() == ResponseType::EmptyString)) {
             m_responseDocument = nullptr;
         } else {
@@ -209,7 +210,7 @@ Ref<Blob> XMLHttpRequest::createResponseBlob()
         data.append(m_binaryResponseBuilder->data(), m_binaryResponseBuilder->size());
     m_binaryResponseBuilder = nullptr;
     String normalizedContentType = Blob::normalizedContentType(responseMIMEType()); // responseMIMEType defaults to text/xml which may be incorrect.
-    return Blob::create(WTFMove(data), normalizedContentType);
+    return Blob::create(scriptExecutionContext(), WTFMove(data), normalizedContentType);
 }
 
 RefPtr<ArrayBuffer> XMLHttpRequest::createResponseArrayBuffer()
@@ -858,11 +859,6 @@ String XMLHttpRequest::responseMIMEType() const
     return mimeType;
 }
 
-bool XMLHttpRequest::responseIsXML() const
-{
-    return MIMETypeRegistry::isXMLMIMEType(responseMIMEType());
-}
-
 int XMLHttpRequest::status() const
 {
     if (readyState() == UNSENT || readyState() == OPENED || m_error)
@@ -996,7 +992,7 @@ Ref<TextResourceDecoder> XMLHttpRequest::createDecoder() const
 
     switch (responseType()) {
     case ResponseType::EmptyString:
-        if (responseIsXML()) {
+        if (MIMETypeRegistry::isXMLMIMEType(responseMIMEType())) {
             auto decoder = TextResourceDecoder::create("application/xml");
             // Don't stop on encoding errors, unlike it is done for other kinds of XML resources. This matches the behavior of previous WebKit versions, Firefox and Opera.
             decoder->useLenientXMLDecoding();
@@ -1101,6 +1097,20 @@ void XMLHttpRequest::dispatchErrorEvents(const AtomString& type)
     }
     m_progressEventThrottle.dispatchProgressEvent(type);
     m_progressEventThrottle.dispatchProgressEvent(eventNames().loadendEvent);
+}
+
+void XMLHttpRequest::timeoutTimerFired()
+{
+    if (!m_loadingActivity)
+        return;
+    m_loadingActivity->loader->computeIsDone();
+}
+
+void XMLHttpRequest::notifyIsDone(bool isDone)
+{
+    if (isDone)
+        return;
+    didReachTimeout();
 }
 
 void XMLHttpRequest::didReachTimeout()

@@ -432,6 +432,7 @@ MediaPlayerPrivateAVFoundationObjC::MediaPlayerPrivateAVFoundationObjC(MediaPlay
     , m_loaderDelegate(adoptNS([[WebCoreAVFLoaderDelegate alloc] initWithPlayer:makeWeakPtr(*this)]))
     , m_cachedItemStatus(MediaPlayerAVPlayerItemStatusDoesNotExist)
 {
+    m_muted = player->muted();
 }
 
 MediaPlayerPrivateAVFoundationObjC::~MediaPlayerPrivateAVFoundationObjC()
@@ -668,23 +669,23 @@ bool MediaPlayerPrivateAVFoundationObjC::hasAvailableVideoFrame() const
 
 #if ENABLE(AVF_CAPTIONS)
 
-static const NSArray *mediaDescriptionForKind(PlatformTextTrack::TrackKind kind)
+static const NSArray *mediaDescriptionForKind(PlatformTextTrackData::TrackKind kind)
 {
     static bool manualSelectionMode = MTEnableCaption2015BehaviorPtr() && MTEnableCaption2015BehaviorPtr()();
     if (manualSelectionMode)
         return @[ AVMediaCharacteristicIsAuxiliaryContent ];
 
     // FIXME: Match these to correct types:
-    if (kind == PlatformTextTrack::Caption)
+    if (kind == PlatformTextTrackData::TrackKind::Caption)
         return @[ AVMediaCharacteristicTranscribesSpokenDialogForAccessibility ];
 
-    if (kind == PlatformTextTrack::Subtitle)
+    if (kind == PlatformTextTrackData::TrackKind::Subtitle)
         return @[ AVMediaCharacteristicTranscribesSpokenDialogForAccessibility ];
 
-    if (kind == PlatformTextTrack::Description)
+    if (kind == PlatformTextTrackData::TrackKind::Description)
         return @[ AVMediaCharacteristicTranscribesSpokenDialogForAccessibility, AVMediaCharacteristicDescribesMusicAndSoundForAccessibility ];
 
-    if (kind == PlatformTextTrack::Forced)
+    if (kind == PlatformTextTrackData::TrackKind::Forced)
         return @[ AVMediaCharacteristicContainsOnlyForcedSubtitles ];
 
     return @[ AVMediaCharacteristicTranscribesSpokenDialogForAccessibility ];
@@ -697,7 +698,7 @@ void MediaPlayerPrivateAVFoundationObjC::notifyTrackModeChanged()
     
 void MediaPlayerPrivateAVFoundationObjC::synchronizeTextTrackState()
 {
-    const Vector<RefPtr<PlatformTextTrack>>& outOfBandTrackSources = player()->outOfBandTrackSources();
+    const auto& outOfBandTrackSources = player()->outOfBandTrackSources();
     
     for (auto& textTrack : m_textTracks) {
         if (textTrack->textTrackCategory() != InbandTextTrackPrivateAVF::OutOfBand)
@@ -713,12 +714,17 @@ void MediaPlayerPrivateAVFoundationObjC::synchronizeTextTrackState()
                 continue;
             
             InbandTextTrackPrivate::Mode mode = InbandTextTrackPrivate::Mode::Hidden;
-            if (track->mode() == PlatformTextTrack::Hidden)
+            switch (track->mode()) {
+            case PlatformTextTrackData::TrackMode::Hidden:
                 mode = InbandTextTrackPrivate::Mode::Hidden;
-            else if (track->mode() == PlatformTextTrack::Disabled)
+                break;
+            case PlatformTextTrackData::TrackMode::Disabled:
                 mode = InbandTextTrackPrivate::Mode::Disabled;
-            else if (track->mode() == PlatformTextTrack::Showing)
+                break;
+            case PlatformTextTrackData::TrackMode::Showing:
                 mode = InbandTextTrackPrivate::Mode::Showing;
+                break;
+            }
             
             textTrack->setMode(mode);
             break;
@@ -940,6 +946,10 @@ void MediaPlayerPrivateAVFoundationObjC::createAVPlayer()
         // Clear m_muted so setMuted doesn't return without doing anything.
         m_muted = false;
         [m_avPlayer.get() setMuted:m_muted];
+
+#if HAVE(AVPLAYER_SUPRESSES_AUDIO_RENDERING)
+        m_avPlayer.get().suppressesAudioRendering = YES;
+#endif
     }
 
     if (player()->isVideoPlayer())
@@ -947,6 +957,16 @@ void MediaPlayerPrivateAVFoundationObjC::createAVPlayer()
 
     if (m_avPlayerItem)
         setAVPlayerItem(m_avPlayerItem.get());
+
+#if HAVE(AUDIO_OUTPUT_DEVICE_UNIQUE_ID)
+    auto audioOutputDeviceId = player()->audioOutputDeviceIdOverride();
+    if (!audioOutputDeviceId.isNull()) {
+        if (audioOutputDeviceId.isEmpty())
+            m_avPlayer.get().audioOutputDeviceUniqueID = nil;
+        else
+            m_avPlayer.get().audioOutputDeviceUniqueID = audioOutputDeviceId;
+    }
+#endif
 
     setDelayCallbacks(false);
 }
@@ -1324,6 +1344,10 @@ void MediaPlayerPrivateAVFoundationObjC::setMuted(bool muted)
         return;
 
     [m_avPlayer.get() setMuted:m_muted];
+#if HAVE(AVPLAYER_SUPRESSES_AUDIO_RENDERING)
+    if (!m_muted)
+        m_avPlayer.get().suppressesAudioRendering = NO;
+#endif
 }
 
 void MediaPlayerPrivateAVFoundationObjC::setRateDouble(double rate)
@@ -1523,7 +1547,7 @@ long MediaPlayerPrivateAVFoundationObjC::assetErrorCode() const
 
 void MediaPlayerPrivateAVFoundationObjC::paintCurrentFrameInContext(GraphicsContext& context, const FloatRect& rect)
 {
-    if (!metaDataAvailable() || context.paintingDisabled())
+    if (!metaDataAvailable() || context.paintingDisabled() || isCurrentPlaybackTargetWireless())
         return;
 
     setDelayCallbacks(true);
@@ -2093,7 +2117,8 @@ void MediaPlayerPrivateAVFoundationObjC::syncTextTrackBounds()
 
 void MediaPlayerPrivateAVFoundationObjC::setTextTrackRepresentation(TextTrackRepresentation* representation)
 {
-    m_videoLayerManager->setTextTrackRepresentation(representation);
+    auto* representationLayer = representation ? representation->platformLayer() : nil;
+    m_videoLayerManager->setTextTrackRepresentationLayer(representationLayer);
 }
 
 #if ENABLE(WEB_AUDIO) && USE(MEDIATOOLBOX)
@@ -3168,6 +3193,7 @@ void MediaPlayerPrivateAVFoundationObjC::timeControlStatusDidChange(int timeCont
         return;
 
     m_cachedTimeControlStatus = timeControlStatus;
+    rateChanged();
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
     if (!isCurrentPlaybackTargetWireless())
@@ -3280,6 +3306,19 @@ void MediaPlayerPrivateAVFoundationObjC::setPreferredDynamicRangeMode(DynamicRan
         m_avPlayer.get().videoRangeOverride = convertDynamicRangeModeEnumToAVVideoRange(mode);
 #else
     UNUSED_PARAM(mode);
+#endif
+}
+
+void MediaPlayerPrivateAVFoundationObjC::audioOutputDeviceChanged()
+{
+#if HAVE(AUDIO_OUTPUT_DEVICE_UNIQUE_ID)
+    if (!m_avPlayer || !player())
+        return;
+    auto deviceId = player()->audioOutputDeviceId();
+    if (deviceId.isEmpty())
+        m_avPlayer.get().audioOutputDeviceUniqueID = nil;
+    else
+        m_avPlayer.get().audioOutputDeviceUniqueID = deviceId;
 #endif
 }
 

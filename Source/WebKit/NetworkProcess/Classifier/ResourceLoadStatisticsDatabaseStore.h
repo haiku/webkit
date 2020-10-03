@@ -93,8 +93,6 @@ public:
     void updateCookieBlocking(CompletionHandler<void()>&&) override;
 
     void classifyPrevalentResources() override;
-    void syncStorageIfNeeded() override { };
-    void syncStorageImmediately() override { };
     void runIncrementalVacuumCommand();
 
     void requestStorageAccessUnderOpener(DomainInNeedOfStorageAccess&&, WebCore::PageIdentifier openerID, OpenerDomain&&) override;
@@ -154,7 +152,6 @@ private:
     void includeTodayAsOperatingDateIfNecessary() override;
     void clearOperatingDates() override { }
     bool hasStatisticsExpired(WallTime mostRecentUserInteractionTime, OperatingDatesWindow) const override;
-    Optional<Seconds> statisticsExpirationTime() const;
     void updateOperatingDatesParameters();
 
     void openITPDatabase();
@@ -205,8 +202,6 @@ private:
     };
     Vector<DomainData> domains() const;
     bool hasHadUnexpiredRecentUserInteraction(const DomainData&, OperatingDatesWindow);
-    Vector<unsigned> findExpiredUserInteractions() const;
-    void clearExpiredUserInteractions();
     void clearGrandfathering(Vector<unsigned>&&);
     WebCore::StorageAccessPromptWasShown hasUserGrantedStorageAccessThroughPrompt(unsigned domainID, const RegistrableDomain&) const;
     void incrementRecordsDeletedCountForDomains(HashSet<RegistrableDomain>&&) override;
@@ -271,7 +266,6 @@ private:
     std::unique_ptr<WebCore::SQLiteStatement> m_updateGrandfatheredStatement;
     mutable std::unique_ptr<WebCore::SQLiteStatement> m_updateIsScheduledForAllButCookieDataRemovalStatement;
     mutable std::unique_ptr<WebCore::SQLiteStatement> m_isGrandfatheredStatement;
-    mutable std::unique_ptr<WebCore::SQLiteStatement> m_findExpiredUserInteractionStatement;
     mutable std::unique_ptr<WebCore::SQLiteStatement> m_countPrevalentResourcesStatement;
     mutable std::unique_ptr<WebCore::SQLiteStatement> m_countPrevalentResourcesWithUserInteractionStatement;
     mutable std::unique_ptr<WebCore::SQLiteStatement> m_countPrevalentResourcesWithoutUserInteractionStatement;

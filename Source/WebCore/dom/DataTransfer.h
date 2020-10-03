@@ -39,6 +39,7 @@ class Element;
 class FileList;
 class File;
 class Pasteboard;
+class ScriptExecutionContext;
 enum class WebContentReadingPolicy : bool;
 
 class DataTransfer : public RefCounted<DataTransfer> {
@@ -46,6 +47,7 @@ public:
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-mode
     enum class StoreMode { Invalid, ReadWrite, Readonly, Protected };
 
+    static Ref<DataTransfer> create();
     static Ref<DataTransfer> createForCopyAndPaste(const Document&, StoreMode, std::unique_ptr<Pasteboard>&&);
     static Ref<DataTransfer> createForInputEvent(const String& plainText, const String& htmlText);
 
@@ -57,11 +59,12 @@ public:
     String effectAllowed() const;
     void setEffectAllowed(const String&);
 
-    DataTransferItemList& items();
+    DataTransferItemList& items(Document&);
     Vector<String> types() const;
     Vector<String> typesForItemList() const;
 
-    FileList& files() const;
+    FileList& files(Document*) const;
+    FileList& files(Document&) const;
 
     void clearData(const String& type = String());
 
@@ -108,11 +111,11 @@ public:
 #endif
 
     void didAddFileToItemList();
-    void updateFileList();
+    void updateFileList(ScriptExecutionContext*);
 
 private:
     enum class Type { CopyAndPaste, DragAndDropData, DragAndDropFiles, InputEvent };
-    DataTransfer(StoreMode, std::unique_ptr<Pasteboard>, Type = Type::CopyAndPaste);
+    DataTransfer(StoreMode, std::unique_ptr<Pasteboard>, Type = Type::CopyAndPaste, String&& effectAllowed = "uninitialized"_s);
 
 #if ENABLE(DRAG_SUPPORT)
     bool forDrag() const { return m_type == Type::DragAndDropData || m_type == Type::DragAndDropFiles; }
@@ -127,7 +130,7 @@ private:
 
     enum class AddFilesType { No, Yes };
     Vector<String> types(AddFilesType) const;
-    Vector<Ref<File>> filesFromPasteboardAndItemList() const;
+    Vector<Ref<File>> filesFromPasteboardAndItemList(ScriptExecutionContext*) const;
 
     String m_originIdentifier;
     StoreMode m_storeMode;

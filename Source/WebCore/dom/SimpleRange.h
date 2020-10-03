@@ -65,8 +65,26 @@ WEBCORE_EXPORT RefPtr<Node> commonInclusiveAncestor(const SimpleRange&);
 
 bool operator==(const SimpleRange&, const SimpleRange&);
 
+WEBCORE_EXPORT bool isPointInRange(const SimpleRange&, const BoundaryPoint&);
+bool isPointInRange(const SimpleRange&, const Optional<BoundaryPoint>&);
+
+WEBCORE_EXPORT bool contains(const SimpleRange& outerRange, const SimpleRange& innerRange);
+WEBCORE_EXPORT bool intersects(const SimpleRange&, const SimpleRange&);
+WEBCORE_EXPORT SimpleRange unionRange(const SimpleRange&, const SimpleRange&);
+WEBCORE_EXPORT Optional<SimpleRange> intersection(const Optional<SimpleRange>&, const Optional<SimpleRange>&);
+
+WEBCORE_EXPORT bool contains(const SimpleRange&, const Node&);
+WEBCORE_EXPORT bool intersects(const SimpleRange&, const Node&);
+
+// Returns equivalent if point is in range.
+WEBCORE_EXPORT PartialOrdering documentOrder(const SimpleRange&, const BoundaryPoint&);
+WEBCORE_EXPORT PartialOrdering documentOrder(const BoundaryPoint&, const SimpleRange&);
+
 class IntersectingNodeRange;
 IntersectingNodeRange intersectingNodes(const SimpleRange&);
+
+class IntersectingNodeRangeWithQuirk;
+IntersectingNodeRangeWithQuirk intersectingNodesWithDeprecatedZeroOffsetStartQuirk(const SimpleRange&);
 
 struct OffsetRange {
     unsigned start { 0 };
@@ -77,6 +95,9 @@ OffsetRange characterDataOffsetRange(const SimpleRange&, const Node&);
 class IntersectingNodeIterator : public std::iterator<std::forward_iterator_tag, Node> {
 public:
     IntersectingNodeIterator(const SimpleRange&);
+
+    enum QuirkFlag { DeprecatedZeroOffsetStartQuirk };
+    IntersectingNodeIterator(const SimpleRange&, QuirkFlag);
 
     Node& operator*() const { return *m_node; }
     Node* operator->() const { ASSERT(m_node); return m_node.get(); }
@@ -107,12 +128,33 @@ private:
     SimpleRange m_range;
 };
 
+class IntersectingNodeRangeWithQuirk {
+public:
+    IntersectingNodeRangeWithQuirk(const SimpleRange&);
+
+    IntersectingNodeIterator begin() const { return { m_range, IntersectingNodeIterator::DeprecatedZeroOffsetStartQuirk }; }
+    static constexpr std::nullptr_t end() { return nullptr; }
+
+private:
+    SimpleRange m_range;
+};
+
 inline IntersectingNodeRange::IntersectingNodeRange(const SimpleRange& range)
     : m_range(range)
 {
 }
 
+inline IntersectingNodeRangeWithQuirk::IntersectingNodeRangeWithQuirk(const SimpleRange& range)
+    : m_range(range)
+{
+}
+
 inline IntersectingNodeRange intersectingNodes(const SimpleRange& range)
+{
+    return { range };
+}
+
+inline IntersectingNodeRangeWithQuirk intersectingNodesWithDeprecatedZeroOffsetStartQuirk(const SimpleRange& range)
 {
     return { range };
 }

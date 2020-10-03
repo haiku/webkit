@@ -226,15 +226,12 @@ UIProcess/HighPerformanceGraphicsUsageSampler.cpp
 UIProcess/PerActivityStateCPUUsageSampler.cpp
 UIProcess/ViewGestureController.cpp
 UIProcess/ViewSnapshotStore.cpp
-UIProcess/WebMediaSessionFocusManager.cpp
-UIProcess/WebMediaSessionFocusManagerClient.cpp
 UIProcess/WebMemoryPressureHandler.cpp
 UIProcess/WKImagePreviewViewController.mm
 
 UIProcess/API/APIWebsiteDataRecord.cpp
 
 UIProcess/API/C/WKContextMenuListener.cpp
-UIProcess/API/C/WKMediaSessionFocusManager.cpp
 UIProcess/API/C/WKTestingSupport.cpp
 UIProcess/API/C/WKUserScriptRef.cpp
 
@@ -259,6 +256,7 @@ UIProcess/API/Cocoa/_WKExperimentalFeature.mm
 UIProcess/API/Cocoa/_WKFrameTreeNode.mm
 UIProcess/API/Cocoa/_WKGeolocationPosition.mm
 UIProcess/API/Cocoa/_WKInspector.mm
+UIProcess/API/Cocoa/_WKInspectorTesting.mm
 UIProcess/API/Cocoa/_WKInspectorDebuggableInfo.mm
 UIProcess/API/Cocoa/_WKInspectorWindow.mm
 UIProcess/API/Cocoa/_WKInternalDebugFeature.mm
@@ -385,6 +383,8 @@ UIProcess/Cocoa/TextCheckingController.mm
 UIProcess/Cocoa/UIDelegate.mm
 UIProcess/Cocoa/UIRemoteObjectRegistry.cpp
 UIProcess/Cocoa/UserMediaCaptureManagerProxy.cpp
+UIProcess/Cocoa/UserMediaPermissionRequestManagerProxy.mm
+UIProcess/Cocoa/UserMediaPermissionRequestProxy.mm
 UIProcess/Cocoa/VersionChecks.mm
 UIProcess/Cocoa/VideoFullscreenManagerProxy.mm
 UIProcess/Cocoa/WebPageProxyCocoa.mm
@@ -442,12 +442,9 @@ UIProcess/ios/fullscreen/WKFullScreenWindowControllerIOS.mm
 
 UIProcess/ios/AppKitSoftLink.mm
 UIProcess/ios/DragDropInteractionState.mm
-UIProcess/ios/EditableImageController.mm
 UIProcess/ios/InputViewUpdateDeferrer.mm
 UIProcess/ios/PageClientImplIOS.mm
-UIProcess/ios/PencilKitSoftLink.mm
 UIProcess/ios/ProcessAssertionIOS.mm
-UIProcess/ios/ResourceLoadStatisticsPersistentStorageIOS.mm
 UIProcess/ios/SmartMagnificationController.mm
 UIProcess/ios/TextCheckerIOS.mm
 UIProcess/ios/ViewGestureControllerIOS.mm
@@ -460,8 +457,6 @@ UIProcess/ios/WKApplicationStateTrackingView.mm
 UIProcess/ios/WKContentView.mm @no-unify
 UIProcess/ios/WKContentViewInteraction.mm @no-unify
 UIProcess/ios/WKDeferringGestureRecognizer.mm
-UIProcess/ios/WKDrawingCoordinator.mm
-UIProcess/ios/WKDrawingView.mm
 UIProcess/ios/WKGeolocationProviderIOS.mm
 UIProcess/ios/WKGeolocationProviderIOSObjCSecurityOrigin.mm
 UIProcess/ios/WKHighlightLongPressGestureRecognizer.mm
@@ -482,7 +477,7 @@ UIProcess/Launcher/mac/ProcessLauncherMac.mm
 
 UIProcess/mac/CorrectionPanel.mm
 UIProcess/mac/DisplayLink.cpp
-UIProcess/mac/HighPerformanceGPUManager.cpp
+UIProcess/mac/HighPerformanceGPUManager.mm
 UIProcess/mac/LegacySessionStateCoding.cpp
 UIProcess/mac/PageClientImplMac.mm
 UIProcess/mac/SecItemShimProxy.cpp
@@ -657,7 +652,6 @@ WebProcess/WebPage/RemoteLayerTree/RemoteLayerTreeDrawingArea.mm @no-unify
 WebProcess/WebPage/RemoteLayerTree/RemoteScrollingCoordinator.mm
 
 // Derived Sources
-EditableImageControllerMessageReceiver.cpp
 GPUConnectionToWebProcessMessageReceiver.cpp
 GPUProcessConnectionMessageReceiver.cpp
 GPUProcessProxyMessageReceiver.cpp

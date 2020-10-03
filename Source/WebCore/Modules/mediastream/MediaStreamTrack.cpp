@@ -429,6 +429,7 @@ MediaProducer::MediaStateFlags sourceCaptureState(RealtimeMediaSource& source)
         if (source.isProducingData())
             return MediaProducer::HasActiveDisplayCaptureDevice;
         break;
+    case CaptureDevice::DeviceType::Speaker:
     case CaptureDevice::DeviceType::Unknown:
         ASSERT_NOT_REACHED();
     }
@@ -471,7 +472,7 @@ void MediaStreamTrack::updateCaptureAccordingToMutedState(Document& document)
     auto* activeAudioSource = RealtimeMediaSourceCenter::singleton().audioCaptureFactory().activeSource();
     if (activeAudioSource && isSourceCapturingForTrackInDocument(*activeAudioSource, document)) {
         bool pageMuted = page->mutedState() & MediaProducer::AudioAndVideoCaptureIsMuted;
-        activeAudioSource->setMuted(pageMuted || (document.hidden() && RuntimeEnabledFeatures::sharedFeatures().interruptAudioOnPageVisibilityChangeEnabled()));
+        activeAudioSource->setMuted(pageMuted || (document.hidden() && document.settings().interruptAudioOnPageVisibilityChangeEnabled()));
     }
 
     auto* activeVideoSource = RealtimeMediaSourceCenter::singleton().videoCaptureFactory().activeSource();
@@ -503,6 +504,7 @@ void MediaStreamTrack::updateToPageMutedState()
     case CaptureDevice::DeviceType::Window:
         m_private->setMuted(page->mutedState() & MediaProducer::ScreenCaptureIsMuted);
         break;
+    case CaptureDevice::DeviceType::Speaker:
     case CaptureDevice::DeviceType::Unknown:
         ASSERT_NOT_REACHED();
         break;

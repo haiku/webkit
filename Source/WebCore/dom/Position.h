@@ -43,10 +43,21 @@ class Text;
 struct BoundaryPoint;
 struct SimpleRange;
 
+namespace LayoutIntegration {
+class RunIterator;
+}
+
 enum PositionMoveType {
     CodePoint,       // Move by a single code point.
     Character,       // Move to the next Unicode character break.
     BackwardDeletion // Subject to platform conventions.
+};
+
+struct InlineBoxAndOffset {
+    InlineBoxAndOffset(LayoutIntegration::RunIterator, unsigned offset);
+
+    InlineBox* box { nullptr };
+    int offset { 0 };
 };
 
 class Position {
@@ -156,8 +167,8 @@ public:
 
     // FIXME: Make these non-member functions and put them somewhere in the editing directory.
     // These aren't really basic "position" operations. More high level editing helper functions.
-    WEBCORE_EXPORT Position leadingWhitespacePosition(EAffinity, bool considerNonCollapsibleWhitespace = false) const;
-    WEBCORE_EXPORT Position trailingWhitespacePosition(EAffinity, bool considerNonCollapsibleWhitespace = false) const;
+    WEBCORE_EXPORT Position leadingWhitespacePosition(Affinity, bool considerNonCollapsibleWhitespace = false) const;
+    WEBCORE_EXPORT Position trailingWhitespacePosition(Affinity, bool considerNonCollapsibleWhitespace = false) const;
     
     // These return useful visually equivalent positions.
     WEBCORE_EXPORT Position upstream(EditingBoundaryCrossingRule = CannotCrossEditingBoundary) const;
@@ -167,8 +178,8 @@ public:
     bool isRenderedCharacter() const;
     bool rendersInDifferentPosition(const Position&) const;
 
-    void getInlineBoxAndOffset(EAffinity, InlineBox*&, int& caretOffset) const;
-    void getInlineBoxAndOffset(EAffinity, TextDirection primaryDirection, InlineBox*&, int& caretOffset) const;
+    InlineBoxAndOffset inlineBoxAndOffset(Affinity) const;
+    InlineBoxAndOffset inlineBoxAndOffset(Affinity, TextDirection primaryDirection) const;
 
     TextDirection primaryDirection() const;
 
@@ -188,7 +199,7 @@ public:
     void debugPosition(const char* msg = "") const;
 
 #if ENABLE(TREE_DEBUGGING)
-    void formatForDebugger(char* buffer, unsigned length) const;
+    String debugDescription() const;
     void showAnchorTypeAndOffset() const;
     void showTreeForThis() const;
 #endif
@@ -205,8 +216,8 @@ private:
 
     WEBCORE_EXPORT int offsetForPositionAfterAnchor() const;
     
-    Position previousCharacterPosition(EAffinity) const;
-    Position nextCharacterPosition(EAffinity) const;
+    Position previousCharacterPosition(Affinity) const;
+    Position nextCharacterPosition(Affinity) const;
 
     static AnchorType anchorTypeForLegacyEditingPosition(Node* anchorNode, unsigned offset);
 
@@ -287,26 +298,22 @@ inline bool operator!=(const Position& a, const Position& b)
 
 inline bool operator<(const Position& a, const Position& b)
 {
-    if (a.isNull() || b.isNull())
-        return false;
-    if (a.anchorNode() == b.anchorNode())
-        return a.deprecatedEditingOffset() < b.deprecatedEditingOffset();
-    return b.anchorNode()->compareDocumentPosition(*a.anchorNode()) == Node::DOCUMENT_POSITION_PRECEDING;
+    return is_lt(documentOrder(a, b));
 }
 
 inline bool operator>(const Position& a, const Position& b) 
 {
-    return !a.isNull() && !b.isNull() && a != b && b < a;
+    return is_gt(documentOrder(a, b));
 }
 
 inline bool operator>=(const Position& a, const Position& b) 
 {
-    return !a.isNull() && !b.isNull() && (a == b || a > b);
+    return is_gteq(documentOrder(a, b));
 }
 
 inline bool operator<=(const Position& a, const Position& b) 
 {
-    return !a.isNull() && !b.isNull() && (a == b || a < b);
+    return is_lteq(documentOrder(a, b));
 }
 
 // positionBeforeNode and positionAfterNode return neighbor-anchored positions, construction is O(1)
@@ -346,18 +353,6 @@ inline bool offsetIsBeforeLastNodeOffset(unsigned offset, Node* anchorNode)
     for (Node* node = anchorNode->firstChild(); node && currentOffset < offset; node = node->nextSibling())
         currentOffset++;
     return offset < currentOffset;
-}
-
-// FIXME: Delete this after changing all callers to use the makeDeprecatedLegacyPosition name.
-inline Position createLegacyEditingPosition(Node* node, unsigned offset)
-{
-    return makeDeprecatedLegacyPosition(node, offset);
-}
-
-// FIXME: Delete this after changing all callers to use the makeDeprecatedLegacyPosition name.
-inline Position createLegacyEditingPosition(const BoundaryPoint& point)
-{
-    return makeDeprecatedLegacyPosition(point);
 }
 
 } // namespace WebCore

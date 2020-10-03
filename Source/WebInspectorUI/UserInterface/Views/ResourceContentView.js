@@ -60,7 +60,7 @@ WI.ResourceContentView = class ResourceContentView extends WI.ContentView
 
         this._showingLocalResourceOverride = false;
 
-        if (WI.NetworkManager.supportsLocalResourceOverrides()) {
+        if (WI.NetworkManager.supportsOverridingResponses()) {
             if (resource.isLocalResourceOverride) {
                 this._showingLocalResourceOverride = true;
 
@@ -157,7 +157,14 @@ WI.ResourceContentView = class ResourceContentView extends WI.ContentView
 
     showGenericNoContentMessage()
     {
-        this.showMessage(WI.UIString("Resource has no content"));
+        this.showMessage(WI.UIString("Resource has no content."));
+
+        this.dispatchEventToListeners(WI.ResourceContentView.Event.ContentError);
+    }
+    
+    showNoCachedContentMessage()
+    {
+        this.showMessage(WI.UIString("Resource has no cached content.", "Resource has no cached content. @ Resource Preview", "An error message shown when there is no cached content for a HTTP 304 Not Modified resource response."));
 
         this.dispatchEventToListeners(WI.ResourceContentView.Event.ContentError);
     }
@@ -184,7 +191,7 @@ WI.ResourceContentView = class ResourceContentView extends WI.ContentView
     {
         super.closed();
 
-        if (WI.NetworkManager.supportsLocalResourceOverrides())
+        if (WI.NetworkManager.supportsOverridingResponses())
             WI.networkManager.removeEventListener(null, null, this);
 
         if (!this.managesOwnIssues)
@@ -211,6 +218,12 @@ WI.ResourceContentView = class ResourceContentView extends WI.ContentView
     _contentAvailable(parameters)
     {
         if (parameters.error) {
+            // A 304 Not Modified request that is missing content means we didn't have a cached copy.
+            if (parameters.sourceCode.statusCode == 304 && parameters.reason === "Missing content of resource for given requestId") {
+                this.showNoCachedContentMessage();
+                return;
+            }
+            
             this._contentError(parameters.error);
             return;
         }
@@ -224,6 +237,11 @@ WI.ResourceContentView = class ResourceContentView extends WI.ContentView
         // content arrives. SourceCodeTextEditor will handle that.
         if (this._hasContent())
             return;
+        
+        if (!parameters.sourceCode.content && !parameters.sourceCode.mimeType) {
+            this.showGenericNoContentMessage();
+            return;
+        }
 
         // Content is ready to show, call the public method now.
         console.assert(parameters.sourceCode === this._resource);

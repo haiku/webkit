@@ -49,7 +49,6 @@ public:
 
     // AudioNode
     void process(size_t framesToProcess) override;
-    void reset() override { }
 
     // AudioSourceProviderClient
     void setFormat(size_t numberOfChannels, float sampleRate) override;
@@ -59,6 +58,7 @@ private:
 
     double tailTime() const override { return 0; }
     double latencyTime() const override { return 0; }
+    bool requiresTailProcessing() const final { return false; }
 
     // As an audio source, we will never propagate silence.
     bool propagatesSilence() const override { return false; }

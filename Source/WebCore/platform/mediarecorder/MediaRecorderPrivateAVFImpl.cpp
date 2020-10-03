@@ -37,7 +37,7 @@
 
 namespace WebCore {
 
-std::unique_ptr<MediaRecorderPrivateAVFImpl> MediaRecorderPrivateAVFImpl::create(MediaStreamPrivate& stream)
+std::unique_ptr<MediaRecorderPrivateAVFImpl> MediaRecorderPrivateAVFImpl::create(MediaStreamPrivate& stream, const MediaRecorderPrivateOptions& options)
 {
     // FIXME: we will need to implement support for multiple audio/video tracks
     // Currently we only choose the first track as the recorded track.
@@ -45,11 +45,11 @@ std::unique_ptr<MediaRecorderPrivateAVFImpl> MediaRecorderPrivateAVFImpl::create
 
     auto selectedTracks = MediaRecorderPrivate::selectTracks(stream);
 
-    auto writer = MediaRecorderPrivateWriter::create(!!selectedTracks.audioTrack, !!selectedTracks.videoTrack);
+    auto writer = MediaRecorderPrivateWriter::create(!!selectedTracks.audioTrack, !!selectedTracks.videoTrack, options);
     if (!writer)
         return nullptr;
 
-    auto recorder = makeUnique<MediaRecorderPrivateAVFImpl>(writer.releaseNonNull());
+    auto recorder = std::unique_ptr<MediaRecorderPrivateAVFImpl>(new MediaRecorderPrivateAVFImpl(writer.releaseNonNull()));
     if (selectedTracks.audioTrack)
         recorder->setAudioSource(&selectedTracks.audioTrack->source());
     if (selectedTracks.videoTrack)
@@ -70,7 +70,7 @@ MediaRecorderPrivateAVFImpl::~MediaRecorderPrivateAVFImpl()
 
 void MediaRecorderPrivateAVFImpl::videoSampleAvailable(MediaSample& sampleBuffer)
 {
-    m_writer->appendVideoSampleBuffer(sampleBuffer.platformSample().sample.cmSampleBuffer);
+    m_writer->appendVideoSampleBuffer(sampleBuffer);
 }
 
 void MediaRecorderPrivateAVFImpl::audioSamplesAvailable(const WTF::MediaTime& mediaTime, const PlatformAudioData& data, const AudioStreamDescription& description, size_t sampleCount)
@@ -94,11 +94,9 @@ void MediaRecorderPrivateAVFImpl::fetchData(FetchDataCallback&& completionHandle
     });
 }
 
-const String& MediaRecorderPrivateAVFImpl::mimeType()
+const String& MediaRecorderPrivateAVFImpl::mimeType() const
 {
-    static NeverDestroyed<const String> mp4MimeType(MAKE_STATIC_STRING_IMPL("video/mp4"));
-    // FIXME: we will need to support more MIME types.
-    return mp4MimeType;
+    return m_writer->mimeType();
 }
 
 } // namespace WebCore

@@ -29,10 +29,11 @@
         {
             "id": "CoordinateSystem",
             "type": "string",
-            "description": "The coordinate system in which rects, points, and sizes are to be interpreted.",
+            "description": "The coordinate system in which rects, points, and sizes are to be interpreted. LayoutViewport is a legacy value and should not be used going forward.",
             "enum": [
                 "Page",
-                "Viewport"
+                "Viewport",
+                "LayoutViewport"
             ]
         },
         {
@@ -225,6 +226,16 @@
             ]
         },
         {
+            "id": "CookieSameSitePolicy",
+            "type": "string",
+            "description": "Enumerates values for cookies same site policy",
+            "enum": [
+                "None",
+                "Lax",
+                "Strict"
+            ]
+        },
+        {
             "id": "Cookie",
             "type": "object",
             "properties": [
@@ -236,7 +247,8 @@
                 { "name": "size", "type": "integer", "description": "Cookie size." },
                 { "name": "httpOnly", "type": "boolean", "description": "True if cookie is http-only." },
                 { "name": "secure", "type": "boolean", "description": "True if cookie is secure." },
-                { "name": "session", "type": "boolean", "description": "True in case of session cookie." }
+                { "name": "session", "type": "boolean", "description": "True in case of session cookie." },
+                { "name": "sameSite", "$ref": "CookieSameSitePolicy", "description": "Cookie same site policy." }
             ]
         },
         {

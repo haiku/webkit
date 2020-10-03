@@ -1,3 +1,373 @@
+2020-10-02  Keith Rollin  <krollin@apple.com>
+
+        Seeing "usage: basename string [suffix]" spam when using make to build
+        https://bugs.webkit.org/show_bug.cgi?id=217231
+        <rdar://problem/69889138>
+
+        Reviewed by Darin Adler.
+
+        The name of the project being built is no longer displayed when using
+        XCBuild. Therefore, https://bugs.webkit.org/show_bug.cgi?id=216865
+        taught the Makefile to perform this logging. The approach took
+        advantage of a `make` variable (PATH_FROM_ROOT) that tracks the
+        relative path from the root of the build hierarchy to the current
+        project. However, that variable may not be initialized if the build is
+        not initiated from the root. Therefore, don't count on that variable,
+        and get the name of the current project by invoking `pwd`.
+
+        * Makefile.shared:
+
+2020-10-02  Sam Weinig  <weinig@apple.com>
+
+        Remove code behind ENABLE(MEDIA_SESSION), no ports enable it
+        https://bugs.webkit.org/show_bug.cgi?id=216831
+
+        Reviewed by Alex Christensen.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        Remove option to build with MEDIA_SESSION, no one was doing it.
+
+2020-10-02  Karl Rackler  <rackler@apple.com>
+
+        Unreviewed, reverting r267796.
+
+        This change is breaking the build on AzulE debug bots.
+
+        Reverted changeset:
+
+        "Remove code behind ENABLE(MEDIA_SESSION), no ports enable it"
+        https://bugs.webkit.org/show_bug.cgi?id=216831
+        https://trac.webkit.org/changeset/267796
+
+2020-10-02  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [GTK] Build broken with ENABLE_MEDIA_STREAM enabled and ENABLE_WEB_RTC_DISABLED
+        https://bugs.webkit.org/show_bug.cgi?id=217128
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/GStreamerChecks.cmake: Only enable USE_LIBWEBRTC when both
+        ENABLE_MEDIA_STREAM and ENABLE_WEB_RTC is defined. This prevents trying to
+        build code that uses libwebrtc types when ENABLE_WEB_RTC is disabled but
+        ENABLE_MEDIA_STREAM is enabled.
+
+2020-09-30  Sam Weinig  <weinig@apple.com>
+
+        Remove code behind ENABLE(MEDIA_SESSION), no ports enable it
+        https://bugs.webkit.org/show_bug.cgi?id=216831
+
+        Reviewed by Alex Christensen.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        Remove option to build with MEDIA_SESSION, no one was doing it.
+
+2020-09-30  Philippe Normand  <pnormand@igalia.com>
+
+        [GStreamer] Internal audio rendering support
+        https://bugs.webkit.org/show_bug.cgi?id=207634
+
+        Reviewed by Xabier Rodriguez-Calvar.
+
+        * Source/cmake/FindWPEBackend_fdo.cmake: Check for the audio extension header initially
+        shipped in the 1.8.0 release.
+        * Source/cmake/GStreamerChecks.cmake: Check and enable external audio rendering support if
+        the WPEBackend-FDO audio extension was found.
+
+2020-09-29  Don Olmstead  <don.olmstead@sony.com>
+
+        [CMake][WebGPU] Add FindDawn module
+        https://bugs.webkit.org/show_bug.cgi?id=217097
+
+        Reviewed by Darin Adler.
+
+        Add a FindDawn CMake module to use for a WebGPU implementation on non-Cocoa platforms.
+        If ENABLE_WEBGPU is on for WinCairo it will attempt to detect Dawn.
+
+        * Source/cmake/FindDawn.cmake: Added.
+        * Source/cmake/OptionsWinCairo.cmake:
+
+2020-09-28  Keith Rollin  <krollin@apple.com>
+
+        Print message saying what project is being built
+        https://bugs.webkit.org/show_bug.cgi?id=216865
+        <rdar://problem/69408135>
+
+        Reviewed by Andy Estes.
+
+        XCBuild removes the progress messages saying which project/target is
+        being built. We can't show the target, but update the Makefiles to at
+        least show which project is being built.
+
+        * Makefile.shared:
+
+2020-09-27  Philippe Normand  <pnormand@igalia.com>
+
+        Add .ccls config file
+        https://bugs.webkit.org/show_bug.cgi?id=216877
+
+        Reviewed by Darin Adler.
+
+        ccls is a stand-alone server implementing the Language Server Protocol for C, C++, and
+        Objective-C languages. It can be used with any editor which provides an LSP client
+        implementation. It originates from cquery.
+
+        https://github.com/MaskRay/ccls/wiki
+
+        It's basically used to provide semantic highlighting and code navigation. Many IDEs support
+        LSP nowadays.
+
+        * .ccls: Added.
+        * .gitignore:
+
+2020-09-25  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        make_names.pl no longer needs C preprocessor
+        https://bugs.webkit.org/show_bug.cgi?id=216953
+
+        Reviewed by Sam Weinig.
+
+        * Source/cmake/WebKitCompilerFlags.cmake: Removed CODE_GENERATOR_PREPROCESSOR_WITH_LINEMARKERS which was used only for make_names.pl.
+
+2020-09-25  Antti Koivisto  <antti@apple.com>
+
+        [LFC][Integration] Enable on Apple Windows port
+        https://bugs.webkit.org/show_bug.cgi?id=216928
+        <rdar://problem/69505961>
+
+        Reviewed by Zalan Bujtas.
+
+        * Source/cmake/OptionsWin.cmake:
+
+2020-09-23  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Remove ENABLE_SVG_FONTS macro
+        https://bugs.webkit.org/show_bug.cgi?id=216850
+
+        Reviewed by Don Olmstead.
+
+        No ports have this disabled, so remove it.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/OptionsWin.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmake/tools/vsprops/FeatureDefines.props:
+        * Source/cmake/tools/vsprops/FeatureDefinesCairo.props:
+
+2020-09-22  Keith Rollin  <krollin@apple.com>
+
+        Unify debug and release target aliases
+        https://bugs.webkit.org/show_bug.cgi?id=216863
+        <rdar://problem/69407746>
+
+        Reviewed by Tim Horton.
+
+        All Makefiles have "debug", "d", "release", and "r" for build
+        targets. Others -- but not all -- also include "dev", "develop",
+        "development", "dep", "deploy", and "deployment". Because of this
+        inconsistency, trying to use those additional targets didn't work. It
+        looks like all Makefiles used to support all of those targets, but
+        some got dropped along the way. For instance, the top-level Makefile
+        and Source/Makefile dropped them in 2013 as part of Bug 107863. And it
+        looks like WebKitLibraries/Makefile never had them. Given that those
+        additional targets don't work, it seems like no one uses them, so
+        let's remove them completely.
+
+        * Makefile.shared:
+
+2020-09-22  Keith Rollin  <krollin@apple.com>
+
+        Refactor build rules in Makefiles and Makefile.shared
+        https://bugs.webkit.org/show_bug.cgi?id=216806
+        <rdar://problem/69332316>
+
+        Reviewed by David Kilzer.
+
+        Build fix: Previous change for this bug broke the ability to perform a
+        build with just `make`, due to that code path invoking
+        `set-webkit-configuration` with no parameters, which causes that
+        script to error-out.
+
+        * Makefile.shared:
+
+2020-09-22  Keith Rollin  <krollin@apple.com>
+
+        Refactor build rules in Makefiles and Makefile.shared
+        https://bugs.webkit.org/show_bug.cgi?id=216806
+        <rdar://problem/69332316>
+
+        Reviewed by David Kilzer.
+
+        Factor out the common aspects of the build rules in Makefile.shared
+        and the various Makefiles. This allows us to more easily see what's
+        different between the various build targets, and to apply uniform
+        changes across all of the targets.
+
+        * Makefile:
+        * Makefile.shared:
+        * Source/Makefile:
+
+2020-09-22  Jonathan Bedard  <jbedard@apple.com>
+
+        Correct instructions for building iOS in ReadMe
+        https://bugs.webkit.org/show_bug.cgi?id=216825
+        <rdar://problem/69372654>
+
+        Reviewed by David Kilzer.
+
+        * ReadMe.md: Update iOS build instructions to apply to all embedded platforms.
+
+2020-09-21  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [CMake] Use imported targets in find module for the ATK SPI2 bridge dependency
+        https://bugs.webkit.org/show_bug.cgi?id=216773
+
+        Reviewed by Don Olmstead.
+
+        * Source/cmake/FindATKBridge.cmake: Rewrite to define an ATK::Bridge imported target.
+        * Source/cmake/OptionsWPE.cmake: Use the ATK::Bridge imported target.
+
+2020-09-16  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [CMake] Add a new library target TestRunnerShared
+        https://bugs.webkit.org/show_bug.cgi?id=216465
+
+        WinCairo port is using both DRT and WTR. However, it has a problem
+        for precompiled header builds to compile the source of
+        TestRunnerShared twice for DRT and WTR.
+
+        Add a new library target TestRunnerShared. Re-enable precompiled
+        header for DRT and WTR for WinCairo.
+
+        Reviewed by Don Olmstead.
+
+        * Source/cmake/OptionsWinCairo.cmake:
+        * Source/cmake/WebKitFS.cmake:
+
+2020-09-16  Stephan Szabo  <stephan.szabo@sony.com>
+
+        Remove ENABLE_METER_ELEMENT
+        https://bugs.webkit.org/show_bug.cgi?id=216582
+
+        Reviewed by Fujii Hironori.
+
+        With PlayStation finally planning to turn this on,
+        no ports had this disabled, so remove the enable flag.
+
+        * Source/cmake/OptionsFTW.cmake:
+        * Source/cmake/OptionsMac.cmake:
+        * Source/cmake/OptionsPlayStation.cmake:
+        * Source/cmake/OptionsWin.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmake/tools/vsprops/FeatureDefines.props:
+        * Source/cmake/tools/vsprops/FeatureDefinesCairo.props:
+
+2020-09-15  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should support building with clang ThreadSanitizer enabled
+        <https://webkit.org/b/216318>
+        <rdar://problem/31615729>
+
+        Reviewed by Darin Adler.
+
+        This patch doesn't attempt to resolve every potential false
+        positive, but makes it easy to build WebKit with TSan enabled.
+
+        * Makefile.shared:
+        - Update to work with `make [args] TSAN=YES`.
+
+2020-09-14  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        [PlayStation] Enable ENABLE_SVG_FONTS
+        https://bugs.webkit.org/show_bug.cgi?id=216522
+
+        Reviewed by Don Olmstead.
+
+        * Source/cmake/OptionsPlayStation.cmake:
+
+2020-09-12  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Apple Win] Add a CTFont member to FontPlatformData
+        https://bugs.webkit.org/show_bug.cgi?id=216432
+
+        Reviewed by Darin Adler.
+
+        Include ***CoreText.cpp files on the Apple Win port.
+
+        * Source/cmake/OptionsAppleWin.cmake:
+
+2020-09-10  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [CMake] Use imported targets in find module for libseccomp
+        https://bugs.webkit.org/show_bug.cgi?id=216329
+
+        Reviewed by Don Olmstead.
+
+        * Source/cmake/BubblewrapSandboxChecks.cmake: Use Libseccomp_FOUND.
+        * Source/cmake/FindLibseccomp.cmake: Rewrite to define the
+        Libseccomp::Libseccomp target, fall-back to read version from the main
+        header, and define variables with Libseccomp_ as prefix.
+
+2020-09-04  Adrian Perez de Castro  <aperez@igalia.com>
+
+        Unreviewed. [WPE] Bump version numbers
+
+        * Source/cmake/OptionsWPE.cmake:
+
+2020-09-04  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. [GTK] Bump version numbers
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2020-09-02  Philippe Normand  <pnormand@igalia.com>
+
+        [Flatpak SDK] Update to FDO 20.08
+        https://bugs.webkit.org/show_bug.cgi?id=215763
+
+        Reviewed by Žan Doberšek.
+
+        * .gitignore: Ignore buildstream local Flatpak repository. This is created only when
+        manually building the SDK.
+
+2020-08-31  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [PlayStation] Build fix for intermittent copy errors
+        https://bugs.webkit.org/show_bug.cgi?id=215951
+
+        Reviewed by Ross Kirsling.
+
+        * Source/cmake/OptionsPlayStation.cmake:
+        When copying platform specific files into the binary
+        directory post build on executable targets, we'd
+        intermittently get copy errors in parallel builds.
+
+2020-08-28  Adrian Perez de Castro  <aperez@igalia.com>
+
+        [WPE] Enable Notifications support
+        https://bugs.webkit.org/show_bug.cgi?id=215924
+
+        Reviewed by Philippe Normand.
+
+        Enable web notifications support for the WPE port. The code is shared with the GTK
+        port, but as we do not try to find and enable libnotify the default implementation
+        is a stub: embedders can customize how to display notifications by connecting to
+        the WebKitWebView:show-notification signal. This way we do not add any additional
+        build dependencies.
+
+        * Source/cmake/OptionsWPE.cmake: Flip ENABLE_NOTIFICATIONS to ON.
+
+2020-08-27  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [PlayStation] Build fix due to memmem not always being available.
+        https://bugs.webkit.org/show_bug.cgi?id=215893
+
+        Unreviewed build fix
+
+        * Source/cmake/OptionsPlayStation.cmake: Check for memmem
+
 2020-08-22  Philippe Normand  <pnormand@igalia.com>
 
         [GTK][WPE] Compilation warnings with clang/gcc 10

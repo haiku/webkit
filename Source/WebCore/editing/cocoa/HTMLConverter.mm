@@ -352,8 +352,8 @@ private:
 };
 
 HTMLConverter::HTMLConverter(const SimpleRange& range)
-    : m_start(createLegacyEditingPosition(range.start))
-    , m_end(createLegacyEditingPosition(range.end))
+    : m_start(makeContainerOffsetPosition(range.start))
+    , m_end(makeContainerOffsetPosition(range.end))
 {
     _attrStr = [[NSMutableAttributedString alloc] init];
     _documentAttrs = [[NSMutableDictionary alloc] init];
@@ -398,7 +398,7 @@ HTMLConverter::~HTMLConverter()
 
 AttributedString HTMLConverter::convert()
 {
-    if (comparePositions(m_start, m_end) > 0)
+    if (m_start > m_end)
         return { };
 
     Node* commonAncestorContainer = _caches->cacheAncestorsOfStartToBeConverted(m_start, m_end);

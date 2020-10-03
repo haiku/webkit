@@ -652,7 +652,7 @@ frames:
         1: (anonymous function)
         2: executeFrameFunction
   48: (duration)
-    0: setCompositeOperation("undefined")
+    0: setCompositeOperation("")
       swizzleTypes: [String]
       trace:
         0: setCompositeOperation
@@ -695,14 +695,8 @@ frames:
         0: setFillColor
         1: (anonymous function)
         2: executeFrameFunction
-    5: setFillColor(9, 10, 11, 12, 13)
-      swizzleTypes: [Number, Number, Number, Number, Number]
-      trace:
-        0: setFillColor
-        1: (anonymous function)
-        2: executeFrameFunction
   50: (duration)
-    0: setLineCap("undefined")
+    0: setLineCap("")
       swizzleTypes: [String]
       trace:
         0: setLineCap
@@ -722,7 +716,7 @@ frames:
         1: (anonymous function)
         2: executeFrameFunction
   52: (duration)
-    0: setLineJoin("undefined")
+    0: setLineJoin("")
       swizzleTypes: [String]
       trace:
         0: setLineJoin
@@ -824,12 +818,6 @@ frames:
         2: executeFrameFunction
     4: setStrokeColor(5, 6, 7, 8)
       swizzleTypes: [Number, Number, Number, Number]
-      trace:
-        0: setStrokeColor
-        1: (anonymous function)
-        2: executeFrameFunction
-    5: setStrokeColor(9, 10, 11, 12, 13)
-      swizzleTypes: [Number, Number, Number, Number, Number]
       trace:
         0: setStrokeColor
         1: (anonymous function)

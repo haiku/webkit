@@ -452,7 +452,7 @@ void HTMLElement::parseAttribute(const QualifiedName& name, const AtomString& va
 
     if (name == tabindexAttr) {
         if (value.isEmpty())
-            clearTabIndexExplicitlyIfNeeded();
+            setTabIndexExplicitly(WTF::nullopt);
         else if (auto optionalTabIndex = parseHTMLInteger(value))
             setTabIndexExplicitly(optionalTabIndex.value());
         return;
@@ -539,10 +539,7 @@ ExceptionOr<void> HTMLElement::setInnerText(const String& text)
     // FIXME: This doesn't take whitespace collapsing into account at all.
 
     if (!text.contains('\n') && !text.contains('\r')) {
-        if (text.isEmpty())
-            replaceAllChildren(nullptr);
-        else
-            replaceAllChildrenWithNewText(text);
+        replaceAllChildrenWithNewText(text);
         return { };
     }
 

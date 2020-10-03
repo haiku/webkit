@@ -187,7 +187,6 @@ static WKProcessPool *sharedProcessPool;
 
 - (void)_setAllowsSpecificHTTPSCertificate:(NSArray *)certificateChain forHost:(NSString *)host
 {
-    _processPool->allowSpecificHTTPSCertificateForHost(WebKit::WebCertificateInfo::create(WebCore::CertificateInfo((__bridge CFArrayRef)certificateChain)).ptr(), host);
 }
 
 - (void)_registerURLSchemeAsCanDisplayOnlyIfCanRequest:(NSString *)scheme
@@ -201,7 +200,6 @@ static WKProcessPool *sharedProcessPool;
 
 - (void)_setCookieAcceptPolicy:(NSHTTPCookieAcceptPolicy)policy
 {
-    _processPool->supplement<WebKit::WebCookieManagerProxy>()->setHTTPCookieAcceptPolicy(PAL::SessionID::defaultSessionID(), WebCore::toHTTPCookieAcceptPolicy(policy), []() { });
 }
 
 - (id)_objectForBundleParameter:(NSString *)parameter
@@ -408,28 +406,6 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     _processPool->clearSupportedPlugins();
 }
 
-- (void)_terminateNetworkProcess
-{
-    _processPool->terminateNetworkProcess();
-}
-
-- (void)_sendNetworkProcessWillSuspendImminently
-{
-    _processPool->sendNetworkProcessWillSuspendImminentlyForTesting();
-}
-
-- (void)_sendNetworkProcessPrepareToSuspend:(void(^)(void))completionHandler
-{
-    _processPool->sendNetworkProcessPrepareToSuspendForTesting([completionHandler = makeBlockPtr(completionHandler)] {
-        completionHandler();
-    });
-}
-
-- (void)_sendNetworkProcessDidResume
-{
-    _processPool->sendNetworkProcessDidResume();
-}
-
 - (void)_terminateServiceWorkers
 {
     _processPool->terminateServiceWorkers();
@@ -437,12 +413,7 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 
 - (void)_setUseSeparateServiceWorkerProcess:(BOOL)useSeparateServiceWorkerProcess
 {
-    _processPool->setUseSeparateServiceWorkerProcess(useSeparateServiceWorkerProcess);
-}
-
-- (pid_t)_networkProcessIdentifier
-{
-    return _processPool->networkProcessIdentifier();
+    WebKit::WebProcessPool::setUseSeparateServiceWorkerProcess(useSeparateServiceWorkerProcess);
 }
 
 - (pid_t)_prewarmedProcessIdentifier
@@ -452,7 +423,6 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 
 - (void)_syncNetworkProcessCookies
 {
-    _processPool->syncNetworkProcessCookies();
 }
 
 - (void)_clearWebProcessCache
@@ -468,11 +438,6 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
 - (void)_makeNextWebProcessLaunchFailForTesting
 {
     _processPool->setShouldMakeNextWebProcessLaunchFailForTesting(true);
-}
-
-- (void)_makeNextNetworkProcessLaunchFailForTesting
-{
-    _processPool->setShouldMakeNextNetworkProcessLaunchFailForTesting(true);
 }
 
 - (BOOL)_hasPrewarmedWebProcess
@@ -563,28 +528,6 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     _processPool->setCookieStoragePartitioningEnabled(enabled);
 }
 
-- (BOOL)_isStorageAccessAPIEnabled
-{
-    return _processPool->storageAccessAPIEnabled();
-}
-
-- (void)_setStorageAccessAPIEnabled:(BOOL)enabled
-{
-    _processPool->setStorageAccessAPIEnabled(enabled);
-}
-
-- (void)_synthesizeAppIsBackground:(BOOL)background
-{
-    _processPool->synthesizeAppIsBackground(background);
-}
-
-- (void)_setAllowsAnySSLCertificateForServiceWorker:(BOOL)allows
-{
-#if ENABLE(SERVICE_WORKER)
-    _processPool->setAllowsAnySSLCertificateForServiceWorker(allows);
-#endif
-}
-
 #if PLATFORM(IOS_FAMILY)
 - (id <_WKGeolocationCoreLocationProvider>)_coreLocationProvider
 {
@@ -617,19 +560,9 @@ static NSDictionary *policiesHashMapToDictionary(const HashMap<String, HashMap<S
     });
 }
 
-- (BOOL)_networkProcessHasEntitlementForTesting:(NSString *)entitlement
-{
-    return _processPool->networkProcessHasEntitlementForTesting(entitlement);
-}
-
 - (void)_clearPermanentCredentialsForProtectionSpace:(NSURLProtectionSpace *)protectionSpace
 {
     _processPool->clearPermanentCredentialsForProtectionSpace(WebCore::ProtectionSpace(protectionSpace));
-}
-
-- (void)_allowAnyTLSCertificateForWebSocketTesting
-{
-    _processPool->setAllowsAnySSLCertificateForWebSocket(true);
 }
 
 - (void)_seedResourceLoadStatisticsForTestingWithFirstParty:(NSURL *)firstPartyURL thirdParty:(NSURL *)thirdPartyURL shouldScheduleNotification:(BOOL)shouldScheduleNotification completionHandler:(void(^)(void))completionHandler

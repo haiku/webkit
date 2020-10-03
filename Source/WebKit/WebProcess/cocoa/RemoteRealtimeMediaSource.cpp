@@ -33,9 +33,11 @@
 #include "UserMediaCaptureManager.h"
 #include "UserMediaCaptureManagerMessages.h"
 #include "UserMediaCaptureManagerProxyMessages.h"
+#include "WebCoreArgumentCoders.h"
 #include "WebProcess.h"
 #include <WebCore/ImageTransferSessionVT.h>
 #include <WebCore/MediaConstraints.h>
+#include <WebCore/RealtimeMediaSource.h>
 #include <WebCore/RealtimeMediaSourceCenter.h>
 #include <WebCore/RemoteVideoSample.h>
 #include <WebCore/WebAudioBufferList.h>
@@ -70,6 +72,7 @@ static inline RealtimeMediaSource::Type sourceTypeFromDeviceType(CaptureDevice::
     case CaptureDevice::DeviceType::Screen:
     case CaptureDevice::DeviceType::Window:
         return RealtimeMediaSource::Type::Video;
+    case CaptureDevice::DeviceType::Speaker:
     case CaptureDevice::DeviceType::Unknown:
         ASSERT_NOT_REACHED();
     }
@@ -97,6 +100,7 @@ RemoteRealtimeMediaSource::RemoteRealtimeMediaSource(RealtimeMediaSourceIdentifi
     case CaptureDevice::DeviceType::Screen:
     case CaptureDevice::DeviceType::Window:
         break;
+    case CaptureDevice::DeviceType::Speaker:
     case CaptureDevice::DeviceType::Unknown:
         ASSERT_NOT_REACHED();
     }
@@ -118,6 +122,7 @@ RemoteRealtimeMediaSource::~RemoteRealtimeMediaSource()
     case CaptureDevice::DeviceType::Screen:
     case CaptureDevice::DeviceType::Window:
         break;
+    case CaptureDevice::DeviceType::Speaker:
     case CaptureDevice::DeviceType::Unknown:
         ASSERT_NOT_REACHED();
     }

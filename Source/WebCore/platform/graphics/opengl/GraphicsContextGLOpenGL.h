@@ -124,6 +124,13 @@ public:
 #endif
 
     bool makeContextCurrent();
+#if PLATFORM(IOS_FAMILY) && USE(ANGLE)
+    enum class ReleaseBehavior {
+        PreserveThreadResources,
+        ReleaseThreadResources
+    };
+    static bool releaseCurrentContext(ReleaseBehavior);
+#endif
 
     void addClient(Client& client) { m_clients.add(&client); }
     void removeClient(Client& client) { m_clients.remove(&client); }

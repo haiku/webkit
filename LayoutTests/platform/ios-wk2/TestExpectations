@@ -113,9 +113,6 @@ fast/dom/Window/window-property-invalid-characters-ignored.html
 fast/events/show-modal-dialog-onblur-onfocus.html
 fast/harness/show-modal-dialog.html
 
-# JavaScript tests that fail:
-js/dom/dom-static-property-for-in-iteration.html [ Failure ]
-
 # JavaScript tests that time out:
 js/dom/dfg-inline-resolve.html
 
@@ -1017,6 +1014,7 @@ imported/blink/editing/selection/selectstart-event-crash.html [ Skip ]
 imported/blink/fast/forms/label/label-contains-other-interactive-content.html [ Skip ]
 fast/dom/Window/post-message-user-action.html [ Skip ]
 fast/images/image-usemap-parsing.html [ Skip ]
+fast/shadow-dom/fullscreen-in-shadow-event-should-propagate.html [ Skip ]
 fast/shadow-dom/fullscreen-in-shadow-full-screen-ancestor.html [ Skip ]
 fast/shadow-dom/fullscreen-in-shadow-fullscreenElement.html [ Skip ]
 fast/shadow-dom/fullscreen-in-shadow-webkitCurrentFullScreenElement.html [ Skip ]
@@ -1261,7 +1259,7 @@ fast/forms/password-scrolled-after-caps-lock-toggled.html [ Skip ]
 
 webkit.org/b/194826 [ Debug ] http/tests/resourceLoadStatistics/do-not-block-top-level-navigation-redirect.html [ Pass Timeout ]
 
-webkit.org/b/195341 compositing/ios/overflow-scroll-update-overlap.html [ ImageOnlyFailure ]
+webkit.org/b/195341 compositing/ios/overflow-scroll-update-overlap.html [ Pass ImageOnlyFailure Crash ]
 
 webkit.org/b/196013 fast/scrolling/rtl-scrollbars-sticky-overflow-scroll-2.html [ ImageOnlyFailure ]
 webkit.org/b/196013 fast/scrolling/rtl-scrollbars-sticky-overflow-scroll.html [ ImageOnlyFailure ]
@@ -1403,8 +1401,6 @@ webkit.org/b/208662 http/tests/security/contentSecurityPolicy/javascript-url-blo
 webkit.org/b/208601 fast/backgrounds/hidpi-bitmap-background-on-subpixel-position.html [ Pass ImageOnlyFailure ]
 
 webkit.org/b/208739 http/tests/resourceLoadStatistics/third-party-cookie-blocking-ephemeral.html [ Pass Timeout ]
-
-webkit.org/b/208739 http/tests/resourceLoadStatistics/third-party-cookie-blocking-ephemeral-database.html [ Pass Timeout ]
 
 webkit.org/b/208890 imported/w3c/web-platform-tests/IndexedDB/idbobjectstore_openKeyCursor.htm [ Pass Failure ]
 
@@ -1756,11 +1752,11 @@ webkit.org/b/210205 [ Debug ] fast/text/firstline/001.html [ Pass Crash ]
 
 webkit.org/b/210219 [ Debug ] http/tests/IndexedDB/collect-IDB-objects.https.html [ Pass Crash ]
 
-webkit.org/b/209189 http/tests/IndexedDB/storage-limit.https.html [ Pass Failure ]
+webkit.org/b/209189 http/tests/IndexedDB/storage-limit.https.html [ Pass Failure Timeout ]
 
 webkit.org/b/210046 [ Release ] storage/indexeddb/value-cursor-cycle.html [ Pass Failure ]
 
-webkit.org/b/211928 http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion-database.html [ Pass Timeout ]
+webkit.org/b/211928 http/tests/resourceLoadStatistics/standalone-web-application-exempt-from-website-data-deletion.html [ Pass Timeout ]
 
 webkit.org/b/212219 media/track/track-cue-missing.html [ Pass Failure ]
 
@@ -1849,8 +1845,6 @@ webkit.org/b/215398 [ Release ] imported/w3c/web-platform-tests/css/css-images/i
 
 webkit.org/b/215403 imported/w3c/web-platform-tests/css/css-grid/layout-algorithm/flex-and-intrinsic-sizes-001.html [ Pass Timeout ]
 
-webkit.org/b/215465 [ Debug ] http/tests/security/no-indexeddb-from-sandbox.html [ Crash ]
-
 webkit.org/b/215476 [ Release ] imported/w3c/web-platform-tests/css/css-grid/abspos/empty-grid-001.html [ Pass Timeout ]
 
 webkit.org/b/215476 [ Release ] imported/w3c/web-platform-tests/css/css-text/overflow-wrap/overflow-wrap-break-word-long-crash.html [ Pass Timeout ]
@@ -1863,4 +1857,46 @@ webkit.org/b/215706 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scr
 
 webkit.org/b/215773 http/tests/websocket/tests/hybi/client-close-2.html [ Pass Failure ]
 
-webkit.org/b/215772 platform/ios/ios/fast/coordinates/range-client-rects.html [ Failure ]
+webkit.org/b/215783 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/moving-between-documents/before-prepare-iframe-fetch-error-external-module.html [ Pass Failure ]
+
+webkit.org/b/209461 imported/w3c/web-platform-tests/css/css-grid/grid-items/grid-item-dynamic-min-contribution-001.html [ Failure ]
+
+webkit.org/b/215929 compositing/video/poster.html [ Pass ImageOnlyFailure ]
+
+webkit.org/b/216126 fast/encoding/charset-replacement.html [ Failure ]
+
+webkit.org/b/216156 http/tests/misc/script-async.html [ Pass Failure ]
+
+webkit.org/b/216159 imported/w3c/web-platform-tests/webrtc/RTCPeerConnection-restartIce.https.html [ Pass Failure ]
+
+webkit.org/b/216162 [ Debug ] imported/w3c/web-platform-tests/encoding/textdecoder-fatal-single-byte.any.worker.html [ Pass Timeout ]
+
+webkit.org/b/216298 imported/w3c/web-platform-tests/IndexedDB/blob-valid-after-deletion.any.html [ Pass Failure ]
+
+webkit.org/b/209619 compositing/clipping/border-radius-async-overflow-stacking.html [ Pass ImageOnlyFailure ]
+
+#<rdar://problem/63026283> [ macOS iOS ] media/modern-media-controls/playback-support/playback-support-autoplay.html is a flaky failure/timeout
+media/modern-media-controls/playback-support/playback-support-autoplay.html [ Pass Timeout ]
+
+http/tests/resourceLoadStatistics/exemptDomains/ [ Pass ]
+
+webkit.org/b/216492 [ Debug ] imported/w3c/web-platform-tests/selection/extend-20.html [ Slow ]
+
+webkit.org/b/216292 [ Release ] imported/w3c/web-platform-tests/css/css-flexbox/quirks-auto-block-size-with-percentage-item.html [ Pass Failure ]
+
+webkit.org/b/186045 imported/w3c/web-platform-tests/css/css-ui/text-overflow-017.html [ Skip ]
+webkit.org/b/186045 imported/w3c/web-platform-tests/css/css-values/vh_not_refreshing_on_chrome.html [ Skip ]
+
+webkit.org/b/217118 [ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.worker.html [ Pass Failure ]
+
+webkit.org/b/217257 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-video.html [ Failure ]
+
+webkit.org/b/217258 svg/W3C-I18N/tspan-direction-rtl.svg [ Failure ]
+
+webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-no-sink.https.html [ Failure ]
+
+webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html [ Failure ]
+
+webkit.org/b/217268 imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/border-002.html [ Failure ]
+
+webkit.org/b/217268 imported/w3c/web-platform-tests/mathml/relations/html5-tree/dynamic-childlist-001.html [ Failure ]

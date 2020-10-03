@@ -110,7 +110,7 @@ WebSocketChannel::ConnectStatus WebSocketChannel::connect(const URL& requestedUR
 
     ref();
     String partition = m_document->domainForCachePartition();
-    m_handle = m_socketProvider->createSocketStreamHandle(m_handshake->url(), *this, page->sessionID(), partition, frame->loader().networkingContext());
+    m_handle = m_socketProvider->createSocketStreamHandle(m_handshake->url(), *this, identifier(), page->sessionID(), partition, frame->loader().networkingContext());
     return ConnectStatus::OK;
 }
 
@@ -833,19 +833,14 @@ void WebSocketChannel::sendFrame(WebSocketFrame::OpCode opCode, const char* data
     m_handle->sendData(frameData.data(), frameData.size(), WTFMove(completionHandler));
 }
 
-ResourceRequest WebSocketChannel::clientHandshakeRequest(Function<String(const URL&)>&& cookieRequestHeaderFieldValue)
+ResourceRequest WebSocketChannel::clientHandshakeRequest(const CookieGetter& cookieRequestHeaderFieldValue) const
 {
-    return m_handshake->clientHandshakeRequest(WTFMove(cookieRequestHeaderFieldValue));
+    return m_handshake->clientHandshakeRequest(cookieRequestHeaderFieldValue);
 }
 
 const ResourceResponse& WebSocketChannel::serverHandshakeResponse() const
 {
     return m_handshake->serverHandshakeResponse();
-}
-
-WebSocketHandshake::Mode WebSocketChannel::handshakeMode() const
-{
-    return m_handshake->mode();
 }
 
 } // namespace WebCore

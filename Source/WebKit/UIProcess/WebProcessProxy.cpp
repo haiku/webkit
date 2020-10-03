@@ -201,6 +201,7 @@ WebProcessProxy::WebProcessProxy(WebProcessPool& processPool, WebsiteDataStore* 
     , m_userMediaCaptureManagerProxy(makeUnique<UserMediaCaptureManagerProxy>(makeUniqueRef<UIProxyForCapture>(*this)))
 #endif
     , m_isPrewarmed(isPrewarmed == IsPrewarmed::Yes)
+    , m_shutdownPreventingScopeCounter([this](RefCounterEvent event) { if (event == RefCounterEvent::Decrement) maybeShutDown(); })
 {
     RELEASE_ASSERT(isMainThreadOrCheckDisabled());
 
@@ -267,6 +268,9 @@ void WebProcessProxy::setWebsiteDataStore(WebsiteDataStore& dataStore)
 {
     ASSERT(!m_websiteDataStore);
     m_websiteDataStore = &dataStore;
+#if PLATFORM(COCOA)
+    dataStore.sendNetworkProcessXPCEndpointToWebProcess(*this);
+#endif
     updateRegistrationWithDataStore();
     send(Messages::WebProcess::SetWebsiteDataStoreParameters(processPool().webProcessDataStoreParameters(*this, dataStore)), 0);
 }
@@ -610,12 +614,12 @@ bool WebProcessProxy::hasAssumedReadAccessToURL(const URL& url) const
     return false;
 }
 
-bool WebProcessProxy::checkURLReceivedFromWebProcess(const String& urlString)
+bool WebProcessProxy::checkURLReceivedFromWebProcess(const String& urlString, CheckBackForwardList checkBackForwardList)
 {
-    return checkURLReceivedFromWebProcess(URL(URL(), urlString));
+    return checkURLReceivedFromWebProcess(URL(URL(), urlString), checkBackForwardList);
 }
 
-bool WebProcessProxy::checkURLReceivedFromWebProcess(const URL& url)
+bool WebProcessProxy::checkURLReceivedFromWebProcess(const URL& url, CheckBackForwardList checkBackForwardList)
 {
     // FIXME: Consider checking that the URL is valid. Currently, WebProcess sends invalid URLs in many cases, but it probably doesn't have good reasons to do that.
 
@@ -633,14 +637,16 @@ bool WebProcessProxy::checkURLReceivedFromWebProcess(const URL& url)
 
     // Items in back/forward list have been already checked.
     // One case where we don't have sandbox extensions for file URLs in b/f list is if the list has been reinstated after a crash or a browser restart.
-    String path = url.fileSystemPath();
-    for (auto& item : WebBackForwardListItem::allItems().values()) {
-        URL itemURL(URL(), item->url());
-        if (itemURL.isLocalFile() && itemURL.fileSystemPath() == path)
-            return true;
-        URL itemOriginalURL(URL(), item->originalURL());
-        if (itemOriginalURL.isLocalFile() && itemOriginalURL.fileSystemPath() == path)
-            return true;
+    if (checkBackForwardList == CheckBackForwardList::Yes) {
+        String path = url.fileSystemPath();
+        for (auto& item : WebBackForwardListItem::allItems().values()) {
+            URL itemURL(URL(), item->url());
+            if (itemURL.isLocalFile() && itemURL.fileSystemPath() == path)
+                return true;
+            URL itemOriginalURL(URL(), item->originalURL());
+            if (itemOriginalURL.isLocalFile() && itemOriginalURL.fileSystemPath() == path)
+                return true;
+        }
     }
 
     // A Web process that was never asked to load a file URL should not ever ask us to do anything with a file URL.
@@ -735,7 +741,7 @@ void WebProcessProxy::getPluginProcessConnection(uint64_t pluginProcessToken, Me
 
 void WebProcessProxy::getNetworkProcessConnection(Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply&& reply)
 {
-    m_processPool->getNetworkProcessConnection(*this, WTFMove(reply));
+    websiteDataStore().getNetworkProcessConnection(*this, WTFMove(reply));
 }
 
 #if ENABLE(GPU_PROCESS)
@@ -952,9 +958,8 @@ void WebProcessProxy::didFinishLaunching(ProcessLauncher* launcher, IPC::Connect
     }
 
 #if PLATFORM(COCOA)
-    auto endpointMessage = processPool().xpcEndpointMessage();
-    if (endpointMessage)
-        xpc_connection_send_message(connection()->xpcConnection(), endpointMessage.get());
+    if (m_websiteDataStore)
+        m_websiteDataStore->sendNetworkProcessXPCEndpointToWebProcess(*this);
 #endif
 
     RELEASE_ASSERT(!m_webConnection);
@@ -1013,6 +1018,8 @@ void WebProcessProxy::didDestroyFrame(FrameIdentifier frameID)
             page->websiteDataStore().authenticatorManager().cancelRequest(page->webPageID(), frameID);
     }
 #endif
+    if (auto* automationSession = m_processPool->automationSession())
+        automationSession->didDestroyFrame(frameID);
     m_frameMap.remove(frameID);
 }
 
@@ -1089,7 +1096,7 @@ void WebProcessProxy::maybeShutDown()
 
 bool WebProcessProxy::canTerminateAuxiliaryProcess()
 {
-    if (!m_pageMap.isEmpty() || m_suspendedPageCount || !m_provisionalPages.isEmpty() || m_isInProcessCache || m_shutdownPreventingScopeCount)
+    if (!m_pageMap.isEmpty() || m_suspendedPageCount || !m_provisionalPages.isEmpty() || m_isInProcessCache || m_shutdownPreventingScopeCounter.value())
         return false;
 
     if (isRunningServiceWorkers())

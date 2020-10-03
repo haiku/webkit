@@ -38,7 +38,6 @@
 #import "FullscreenClient.h"
 #import "GlobalFindInPageState.h"
 #import "IconLoadingDelegate.h"
-#import "InspectorDelegate.h"
 #import "LegacySessionStateCoding.h"
 #import "Logging.h"
 #import "MediaUtilities.h"
@@ -103,7 +102,6 @@
 #import "_WKFullscreenDelegate.h"
 #import "_WKHitTestResultInternal.h"
 #import "_WKInputDelegate.h"
-#import "_WKInspectorDelegate.h"
 #import "_WKInspectorInternal.h"
 #import "_WKRemoteObjectRegistryInternal.h"
 #import "_WKSessionStateInternal.h"
@@ -398,7 +396,6 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
 
     _iconLoadingDelegate = makeUnique<WebKit::IconLoadingDelegate>(self);
     _resourceLoadDelegate = makeUnique<WebKit::ResourceLoadDelegate>(self);
-    _inspectorDelegate = makeUnique<WebKit::InspectorDelegate>(self);
 
     for (auto& pair : pageConfiguration->urlSchemeHandlers())
         _page->setURLSchemeHandlerForScheme(WebKit::WebURLSchemeHandlerCocoa::create(static_cast<WebKit::WebURLSchemeHandlerCocoa&>(pair.value.get()).apiHandler()), pair.key);
@@ -511,10 +508,11 @@ static void hardwareKeyboardAvailabilityChangedCallback(CFNotificationCenterRef,
     pageConfiguration->preferences()->setNeedsStorageAccessFromFileURLsQuirk(!![_configuration _needsStorageAccessFromFileURLsQuirk]);
     pageConfiguration->preferences()->setMediaContentTypesRequiringHardwareSupport(String([_configuration _mediaContentTypesRequiringHardwareSupport]));
     pageConfiguration->preferences()->setAllowMediaContentTypesRequiringHardwareSupportAsFallback(!![_configuration _allowMediaContentTypesRequiringHardwareSupportAsFallback]);
+    if (!pageConfiguration->preferences()->mediaDevicesEnabled())
+        pageConfiguration->preferences()->setMediaDevicesEnabled(!![_configuration _mediaCaptureEnabled]);
 
     pageConfiguration->preferences()->setColorFilterEnabled(!![_configuration _colorFilterEnabled]);
 
-    pageConfiguration->preferences()->setEditableImagesEnabled(!![_configuration _editableImagesEnabled]);
     pageConfiguration->preferences()->setUndoManagerAPIEnabled(!![_configuration _undoManagerAPIEnabled]);
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
@@ -1554,17 +1552,6 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(FORWARD_ACTION_TO_WKCONTENTVIEW)
     return nil;
 }
 
-- (id <_WKInspectorDelegate>)_inspectorDelegate
-{
-    return _inspectorDelegate->delegate().autorelease();
-}
-
-- (void)_setInspectorDelegate:(id<_WKInspectorDelegate>)delegate
-{
-    _page->setInspectorClient(_inspectorDelegate->createInspectorClient());
-    _inspectorDelegate->setDelegate(delegate);
-}
-
 - (_WKFrameHandle *)_mainFrame
 {
     if (auto* frame = _page->mainFrame())
@@ -1637,6 +1624,7 @@ static RetainPtr<NSDictionary<NSString *, id>> createUserInfo(const Optional<Web
         [result setObject:(NSString *)info->tagName forKey:_WKTextManipulationTokenUserInfoTagNameKey];
     if (!info->roleAttribute.isNull())
         [result setObject:(NSString *)info->roleAttribute forKey:_WKTextManipulationTokenUserInfoRoleAttributeKey];
+    [result setObject:@(info->isVisible) forKey:_WKTextManipulationTokenUserInfoVisibilityKey];
 
     return result;
 }
@@ -1939,7 +1927,25 @@ static RetainPtr<NSArray> wkTextManipulationErrors(NSArray<_WKTextManipulationIt
 
 - (WKNavigation *)_loadRequest:(NSURLRequest *)request shouldOpenExternalURLs:(BOOL)shouldOpenExternalURLs
 {
-    return wrapper(_page->loadRequest(request, shouldOpenExternalURLs ? WebCore::ShouldOpenExternalURLsPolicy::ShouldAllow : WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow));
+    _WKShouldOpenExternalURLsPolicy policy = shouldOpenExternalURLs ? _WKShouldOpenExternalURLsPolicyAllow : _WKShouldOpenExternalURLsPolicyNotAllow;
+    return [self _loadRequest:request shouldOpenExternalURLsPolicy:policy];
+}
+
+- (WKNavigation *)_loadRequest:(NSURLRequest *)request shouldOpenExternalURLsPolicy:(_WKShouldOpenExternalURLsPolicy)shouldOpenExternalURLsPolicy
+{
+    WebCore::ShouldOpenExternalURLsPolicy policy;
+    switch (shouldOpenExternalURLsPolicy) {
+    case _WKShouldOpenExternalURLsPolicyNotAllow:
+        policy = WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow;
+        break;
+    case _WKShouldOpenExternalURLsPolicyAllow:
+        policy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllow;
+        break;
+    case _WKShouldOpenExternalURLsPolicyAllowExternalSchemesButNotAppLinks:
+        policy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemesButNotAppLinks;
+        break;
+    }
+    return wrapper(_page->loadRequest(request, policy));
 }
 
 - (NSArray *)_certificateChain
@@ -2108,9 +2114,9 @@ static RetainPtr<NSArray> wkTextManipulationErrors(NSArray<_WKTextManipulationIt
     _page->close();
 }
 
-- (void)_tryClose
+- (BOOL)_tryClose
 {
-    _page->tryClose();
+    return _page->tryClose();
 }
 
 - (BOOL)_isClosed
@@ -2642,20 +2648,6 @@ static inline OptionSet<WebKit::FindOptions> toFindOptions(_WKFindOptions wkFind
     _page->recordNavigationSnapshot(item._item);
 }
 
-- (void)_isNavigatingToAppBoundDomain:(void(^)(BOOL))completionHandler
-{
-    _page->isNavigatingToAppBoundDomainTesting([completionHandler = makeBlockPtr(completionHandler)] (bool isAppBound) {
-        completionHandler(isAppBound);
-    });
-}
-
-- (void)_isForcedIntoAppBoundMode:(void(^)(BOOL))completionHandler
-{
-    _page->isForcedIntoAppBoundModeTesting([completionHandler = makeBlockPtr(completionHandler)] (bool isForcedIntoAppBoundMode) {
-        completionHandler(isForcedIntoAppBoundMode);
-    });
-}
-
 - (void)_serviceWorkersEnabled:(void(^)(BOOL))completionHandler
 {
     auto enabled = [_configuration preferences]->_preferences.get()->serviceWorkersEnabled() || WebCore::RuntimeEnabledFeatures::sharedFeatures().serviceWorkerEnabled();
@@ -2979,7 +2971,7 @@ static inline OptionSet<WebKit::FindOptions> toFindOptions(_WKFindOptions wkFind
 
 - (_WKMediaCaptureState)_mediaCaptureState
 {
-    return WebKit::toWKMediaCaptureState(_page->mediaStateFlags());
+    return WebKit::toWKMediaCaptureState(_page->reportedMediaCaptureState());
 }
 
 - (void)_setMediaCaptureEnabled:(BOOL)enabled

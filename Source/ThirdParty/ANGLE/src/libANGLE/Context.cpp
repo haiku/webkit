@@ -3192,7 +3192,7 @@ Extensions Context::generateSupportedExtensions() const
         // We require colorBufferFloat to be present in order to enable colorBufferHalfFloat, so
         // that blitting is always allowed if the requested formats are exposed and have the correct
         // feature capabilities
-        if (!supportedExtensions.colorBufferFloat)
+        if (!supportedExtensions.colorBufferFloat && !mWebGLContext)
         {
             supportedExtensions.colorBufferHalfFloat = false;
         }
@@ -8781,10 +8781,6 @@ void StateCache::updateActiveImageUnitIndices(Context *context)
     {
         for (const ImageBinding &imageBinding : program->getState().getImageBindings())
         {
-            if (imageBinding.unreferenced)
-            {
-                continue;
-            }
             for (GLuint binding : imageBinding.boundImageUnits)
             {
                 mCachedActiveImageUnitIndices.set(binding);

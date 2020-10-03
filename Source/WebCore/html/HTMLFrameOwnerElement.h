@@ -29,7 +29,6 @@ namespace WebCore {
 
 class Frame;
 class RenderWidget;
-class SVGDocument;
 
 class HTMLFrameOwnerElement : public HTMLElement {
     WTF_MAKE_ISO_ALLOCATED(HTMLFrameOwnerElement);
@@ -61,6 +60,9 @@ public:
     virtual bool canLoadScriptURL(const URL&) const = 0;
 
     virtual ReferrerPolicy referrerPolicy() const { return ReferrerPolicy::EmptyString; }
+
+    virtual bool shouldLoadFrameLazily() { return false; }
+    virtual bool isLazyLoadObserverActive() const { return false; }
 
 protected:
     HTMLFrameOwnerElement(const QualifiedName& tagName, Document&);

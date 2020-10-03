@@ -32,7 +32,6 @@
 #include "Attr.h"
 #include "BeforeUnloadEvent.h"
 #include "CDATASection.h"
-#include "CSSAnimationController.h"
 #include "CSSFontSelector.h"
 #include "CSSStyleDeclaration.h"
 #include "CSSStyleSheet.h"
@@ -53,6 +52,7 @@
 #include "CustomElementReactionQueue.h"
 #include "CustomElementRegistry.h"
 #include "CustomEvent.h"
+#include "DOMCSSPaintWorklet.h"
 #include "DOMImplementation.h"
 #include "DOMWindow.h"
 #include "DateComponents.h"
@@ -238,7 +238,6 @@
 #include "WheelEvent.h"
 #include "WindowEventLoop.h"
 #include "WindowFeatures.h"
-#include "Worklet.h"
 #include "XMLDocument.h"
 #include "XMLDocumentParser.h"
 #include "XMLNSNames.h"
@@ -297,10 +296,6 @@
 #include "MathMLElement.h"
 #include "MathMLElementFactory.h"
 #include "MathMLNames.h"
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-#include "MediaSession.h"
 #endif
 
 #if USE(QUICK_LOOK)
@@ -950,8 +945,7 @@ void Document::childrenChanged(const ChildChange& change)
 
 static ALWAYS_INLINE Ref<HTMLElement> createUpgradeCandidateElement(Document& document, const QualifiedName& name)
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().customElementsEnabled()
-        || Document::validateCustomElementName(name.localName()) != CustomElementNameValidationStatus::Valid)
+    if (Document::validateCustomElementName(name.localName()) != CustomElementNameValidationStatus::Valid)
         return HTMLUnknownElement::create(name, document);
 
     auto element = HTMLElement::create(name, document);
@@ -1151,6 +1145,7 @@ static Ref<HTMLElement> createFallbackHTMLElement(Document& document, const Qual
         if (UNLIKELY(registry)) {
             if (auto* elementInterface = registry->findInterface(name)) {
                 auto element = HTMLElement::create(name, document);
+                element->setIsCustomElementUpgradeCandidate();
                 element->enqueueToUpgrade(*elementInterface);
                 return element;
             }
@@ -1267,15 +1262,16 @@ CustomElementNameValidationStatus Document::validateCustomElementName(const Atom
 #else
     static MainThreadNeverDestroyed<const AtomString> annotationXmlLocalName("annotation-xml", AtomString::ConstructFromLiteral);
 #endif
+    static MainThreadNeverDestroyed<const AtomString> colorProfileLocalName("color-profile", AtomString::ConstructFromLiteral);
 
-    if (localName == SVGNames::color_profileTag->localName()
-        || localName == SVGNames::font_faceTag->localName()
+    if (localName == SVGNames::font_faceTag->localName()
         || localName == SVGNames::font_face_formatTag->localName()
         || localName == SVGNames::font_face_nameTag->localName()
         || localName == SVGNames::font_face_srcTag->localName()
         || localName == SVGNames::font_face_uriTag->localName()
         || localName == SVGNames::missing_glyphTag->localName()
-        || localName == annotationXmlLocalName)
+        || localName == annotationXmlLocalName
+        || localName == colorProfileLocalName)
         return CustomElementNameValidationStatus::ConflictsWithStandardElementName;
 
     return CustomElementNameValidationStatus::Valid;
@@ -1772,7 +1768,7 @@ VisibilityState Document::visibilityState() const
     // page. If there is no page associated with the document, we will assume
     // that the page is hidden, as specified by the spec:
     // https://w3c.github.io/page-visibility/#visibilitystate-attribute
-    if (!m_frame || !m_frame->page())
+    if (!m_frame || !m_frame->page() || m_visibilityHiddenDueToDismissal)
         return VisibilityState::Hidden;
     return m_frame->page()->visibilityState();
 }
@@ -1962,7 +1958,6 @@ void Document::resolveStyle(ResolveStyleType type)
     TraceScope tracingScope(StyleRecalcStart, StyleRecalcEnd);
 
     RenderView::RepaintRegionAccumulator repaintRegionAccumulator(renderView());
-    AnimationUpdateBlock animationUpdateBlock(&m_frame->legacyAnimation());
 
     // FIXME: Do this update per tree scope.
     {
@@ -2008,7 +2003,7 @@ void Document::resolveStyle(ResolveStyleType type)
                 documentStyle.fontCascade().update(&fontSelector());
 
             auto documentChange = Style::determineChange(documentStyle, m_renderView->style());
-            if (documentChange != Style::NoChange)
+            if (documentChange != Style::Change::None)
                 renderView()->setStyle(WTFMove(documentStyle));
 
             if (auto* documentElement = this->documentElement())
@@ -2422,19 +2417,13 @@ void Document::didBecomeCurrentDocumentInFrame()
     // be out of sync if the DOM suspension state changed while the document was not in the frame (possibly in the
     // back/forward cache, or simply newly created).
     if (m_frame->activeDOMObjectsAndAnimationsSuspended()) {
-        if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-            if (m_timelinesController)
-                m_timelinesController->suspendAnimations();
-        } else
-            m_frame->legacyAnimation().suspendAnimationsForDocument(this);
+        if (m_timelinesController)
+            m_timelinesController->suspendAnimations();
         suspendScheduledTasks(ReasonForSuspension::PageWillBeSuspended);
     } else {
         resumeScheduledTasks(ReasonForSuspension::PageWillBeSuspended);
-        if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-            if (m_timelinesController)
-                m_timelinesController->resumeAnimations();
-        } else
-            m_frame->legacyAnimation().resumeAnimationsForDocument(this);
+        if (m_timelinesController)
+            m_timelinesController->resumeAnimations();
     }
 }
 
@@ -2527,9 +2516,6 @@ void Document::willBeRemovedFromFrame()
 {
     if (m_hasPreparedForDestruction)
         return;
-
-    if (m_frame)
-        m_frame->legacyAnimation().detachFromDocument(this);
 
 #if USE(LIBWEBRTC)
     // FIXME: This should be moved to Modules/mediastream.
@@ -3066,8 +3052,6 @@ void Document::implicitClose()
         if (auto* documentLoader = loader())
             documentLoader->startIconLoading();
 
-        f->legacyAnimation().startAnimationsIfNotSuspended(this);
-
         // FIXME: We shouldn't be dispatching pending events globally on all Documents here.
         // For now, only do this when there is a Frame, otherwise this could cause JS reentrancy
         // below SVG font parsing, for example. <https://webkit.org/b/136269>
@@ -3267,6 +3251,15 @@ void Document::setTimerThrottlingEnabled(bool shouldThrottle)
 
     m_isTimerThrottlingEnabled = shouldThrottle;
     didChangeTimerAlignmentInterval();
+}
+
+void Document::setVisibilityHiddenDueToDismissal(bool hiddenDueToDismissal)
+{
+    if (m_visibilityHiddenDueToDismissal == hiddenDueToDismissal)
+        return;
+
+    m_visibilityHiddenDueToDismissal = hiddenDueToDismissal;
+    dispatchEvent(Event::create(eventNames().visibilitychangeEvent, Event::CanBubble::Yes, Event::IsCancelable::No));
 }
 
 Seconds Document::domTimerAlignmentInterval(bool hasReachedMaxNestingLevel) const
@@ -4186,22 +4179,6 @@ void Document::updateIsPlayingMedia(uint64_t sourceElementID)
 
 #if ENABLE(MEDIA_STREAM)
     state |= MediaStreamTrack::captureState(*this);
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    if (HTMLMediaElement* sourceElement = HTMLMediaElement::elementWithID(sourceElementID)) {
-        if (sourceElement->isPlaying())
-            state |= MediaProducer::IsSourceElementPlaying;
-
-        if (auto* session = sourceElement->session()) {
-            if (auto* controls = session->controls()) {
-                if (controls->previousTrackEnabled())
-                    state |= MediaProducer::IsPreviousTrackControlEnabled;
-                if (controls->nextTrackEnabled())
-                    state |= MediaProducer::IsNextTrackControlEnabled;
-            }
-        }
-    }
 #endif
 
     if (m_userHasInteractedWithMediaElement)
@@ -5386,8 +5363,9 @@ void Document::setBackForwardCacheState(BackForwardCacheState state)
 
 void Document::documentWillBecomeInactive()
 {
-    if (renderView())
-        renderView()->setIsInWindow(false);
+    ASSERT_IMPLIES(renderView(), view());
+    if (auto* frameView = view())
+        frameView->setIsInWindow(false);
 }
 
 void Document::suspend(ReasonForSuspension reason)
@@ -5454,11 +5432,8 @@ void Document::resume(ReasonForSuspension reason)
 
     ASSERT(m_frame);
 
-    if (RuntimeEnabledFeatures::sharedFeatures().webAnimationsCSSIntegrationEnabled()) {
-        if (m_timelinesController)
-            m_timelinesController->resumeAnimations();  
-    } else
-        m_frame->legacyAnimation().resumeAnimationsForDocument(this);
+    if (m_timelinesController)
+        m_timelinesController->resumeAnimations();
 
     resumeScheduledTasks(reason);
 
@@ -6512,7 +6487,6 @@ void Document::dispatchPopstateEvent(RefPtr<SerializedScriptValue>&& stateObject
 
 void Document::addMediaCanStartListener(MediaCanStartListener& listener)
 {
-    ASSERT(!m_mediaCanStartListeners.contains(listener));
     m_mediaCanStartListeners.add(listener);
 }
 
@@ -7475,17 +7449,6 @@ void Document::playbackTargetPickerWasDismissed(PlaybackTargetClientContextIdent
 
 #endif // ENABLE(WIRELESS_PLAYBACK_TARGET)
 
-#if ENABLE(MEDIA_SESSION)
-
-MediaSession& Document::defaultMediaSession()
-{
-    if (!m_defaultMediaSession)
-        m_defaultMediaSession = MediaSession::create(*scriptExecutionContext());
-    return *m_defaultMediaSession;
-}
-
-#endif
-
 ShouldOpenExternalURLsPolicy Document::shouldOpenExternalURLsPolicyToPropagate() const
 {
     if (DocumentLoader* documentLoader = loader())
@@ -7576,7 +7539,7 @@ void Document::scheduleTimedRenderingUpdate()
     m_intersectionObserversInitialUpdateTimer.stop();
 #endif
     if (auto page = this->page())
-        page->renderingUpdateScheduler().scheduleTimedRenderingUpdate();
+        page->scheduleTimedRenderingUpdate();
 }
 
 #if ENABLE(INTERSECTION_OBSERVER)
@@ -8473,10 +8436,10 @@ DeviceOrientationAndMotionAccessController& Document::deviceOrientationAndMotion
 #endif
 
 #if ENABLE(CSS_PAINTING_API)
-Worklet& Document::ensurePaintWorklet()
+PaintWorklet& Document::ensurePaintWorklet()
 {
     if (!m_paintWorklet)
-        m_paintWorklet = Worklet::create();
+        m_paintWorklet = PaintWorklet::create(*this);
     return *m_paintWorklet;
 }
 
@@ -8626,7 +8589,7 @@ TextManipulationController& Document::textManipulationController()
 LazyLoadImageObserver& Document::lazyLoadImageObserver()
 {
     if (!m_lazyLoadImageObserver)
-        m_lazyLoadImageObserver = LazyLoadImageObserver::create();
+        m_lazyLoadImageObserver = makeUnique<LazyLoadImageObserver>();
     return *m_lazyLoadImageObserver;
 }
 
@@ -8634,6 +8597,11 @@ void Document::prepareCanvasesForDisplayIfNeeded()
 {
     // Some canvas contexts need to do work when rendering has finished but
     // before their content is composited.
+
+    // FIXME: Calling prepareForDisplay should not call back into a method
+    // that would mutate our m_canvasesNeedingDisplayPreparation list. It
+    // would be nice if this could be enforced to remove the copyToVector.
+
     for (auto* canvas : copyToVector(m_canvasesNeedingDisplayPreparation)) {
         // However, if they are not in the document body, then they won't
         // be composited and thus don't need preparation. Unfortunately they

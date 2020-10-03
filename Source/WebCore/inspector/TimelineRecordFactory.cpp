@@ -56,6 +56,13 @@ Ref<JSON::Object> TimelineRecordFactory::createGenericRecord(double startTime, i
     return record;
 }
 
+Ref<JSON::Object> TimelineRecordFactory::createRenderingFrameData(const String& name)
+{
+    Ref<JSON::Object> data = JSON::Object::create();
+    data->setString("name"_s, name);
+    return data;
+}
+
 Ref<JSON::Object> TimelineRecordFactory::createFunctionCallData(const String& scriptName, int scriptLine, int scriptColumn)
 {
     Ref<JSON::Object> data = JSON::Object::create();
@@ -154,9 +161,9 @@ Ref<JSON::Object> TimelineRecordFactory::createPaintData(const FloatQuad& quad)
     return data;
 }
 
-void TimelineRecordFactory::appendLayoutRoot(JSON::Object* data, const FloatQuad& quad)
+void TimelineRecordFactory::appendLayoutRoot(JSON::Object& data, const FloatQuad& quad)
 {
-    data->setArray("root"_s, createQuad(quad));
+    data.setArray("root"_s, createQuad(quad));
 }
 
 } // namespace WebCore

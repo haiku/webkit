@@ -630,120 +630,9 @@ test/built-ins/ArrayBuffer/prototype/slice/species-returns-smaller-arraybuffer.j
 test/built-ins/ArrayBuffer/prototype/slice/species.js:
   default: 'Test262Error: Expected SameValue(«[object ArrayBuffer]», «undefined») to be true'
   strict mode: 'Test262Error: Expected SameValue(«[object ArrayBuffer]», «undefined») to be true'
-test/built-ins/ArrayIteratorPrototype/next/detach-typedarray-in-progress.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/DataView/custom-proto-access-detaches-buffer.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-test/built-ins/DataView/detached-buffer.js:
-  default: 'Test262Error: throws if buffer is detached Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: throws if buffer is detached Expected a TypeError to be thrown but no exception was thrown at all'
-test/built-ins/DataView/length.js:
-  default: 'Test262Error: descriptor value should be 1'
-  strict mode: 'Test262Error: descriptor value should be 1'
-test/built-ins/DataView/prototype/byteLength/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-test/built-ins/DataView/prototype/byteOffset/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-test/built-ins/DataView/prototype/getFloat32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getFloat32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getFloat64/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getFloat64/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt16/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt16/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt8/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getInt8/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint16/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint16/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint8/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/getUint8/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setFloat32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setFloat32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setFloat64/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setFloat64/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt16/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt16/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt8/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setInt8/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint16/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint16/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint32/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint32/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset.js:
-  default: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: 13 Expected a TypeError but got a RangeError'
-test/built-ins/DataView/prototype/setUint8/detached-buffer.js:
-  default: 'Test262Error: Expected a TypeError but got a RangeError'
-  strict mode: 'Test262Error: Expected a TypeError but got a RangeError'
+test/built-ins/Date/UTC/fp-evaluation-order.js:
+  default: 'Test262Error: order of operations / precision in MakeTime Expected SameValue(«NaN», «29312») to be true'
+  strict mode: 'Test262Error: order of operations / precision in MakeTime Expected SameValue(«NaN», «29312») to be true'
 test/built-ins/Function/call-bind-this-realm-undef.js:
   default: 'Test262Error: implicit undefined Expected SameValue(«[object global]», «[object Undefined]») to be true'
   strict mode: 'Test262Error: implicit undefined Expected SameValue(«[object global]», «[object Undefined]») to be true'
@@ -897,21 +786,9 @@ test/built-ins/Function/prototype/toString/setter-object.js:
 test/built-ins/Function/prototype/toString/unicode.js:
   default: 'Test262Error: Conforms to NativeFunction Syntax: "function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }" (function \u0061(\u{62}, \u0063) { \u0062 = \u{00063}; return b; })'
   strict mode: 'Test262Error: Conforms to NativeFunction Syntax: "function a(\\u{62}, \\u0063) { \\u0062 = \\u{00063}; return b; }" (function \u0061(\u{62}, \u0063) { \u0062 = \u{00063}; return b; })'
-test/built-ins/Object/assign/strings-and-symbol-order-proxy.js:
-  default: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
-  strict mode: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
-test/built-ins/Object/defineProperties/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
 test/built-ins/Object/entries/order-after-define-property.js:
   default: 'Test262Error: Expected [a, name] and [name, a] to have the same contents. '
   strict mode: 'Test262Error: Expected [a, name] and [name, a] to have the same contents. '
-test/built-ins/Object/freeze/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-test/built-ins/Object/getOwnPropertyDescriptors/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
 test/built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments.js:
   default: 'Test262Error: Expected SameValue(«null», «[object Arguments]») to be true'
 test/built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller.js:
@@ -919,27 +796,9 @@ test/built-ins/Object/internals/DefineOwnProperty/consistent-value-function-call
 test/built-ins/Object/internals/DefineOwnProperty/consistent-value-regexp-dollar1.js:
   default: 'Test262Error: Expected SameValue(«», «x») to be true'
   strict mode: 'Test262Error: Expected SameValue(«», «x») to be true'
-test/built-ins/Object/isFrozen/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-test/built-ins/Object/isSealed/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
 test/built-ins/Object/keys/order-after-define-property.js:
   default: 'Test262Error: Expected [a, length] and [length, a] to have the same contents. '
   strict mode: 'Test262Error: Expected [a, length] and [length, a] to have the same contents. '
-test/built-ins/Object/seal/proxy-no-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-  strict mode: 'Test262Error: Expected [0, Symbol(), foo] and [0, foo, Symbol()] to have the same contents. '
-test/built-ins/Promise/prototype/finally/species-constructor.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: 7 new promises were created Expected SameValue(«6», «7») to be true'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: 7 new promises were created Expected SameValue(«6», «7») to be true'
-test/built-ins/Promise/prototype/finally/subclass-reject-count.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«6», «7») to be true'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«6», «7») to be true'
-test/built-ins/Promise/prototype/finally/subclass-resolve-count.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«6», «7») to be true'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected SameValue(«6», «7») to be true'
 test/built-ins/Proxy/apply/arguments-realm.js:
   default: 'Test262Error: Expected SameValue(«function Array() {'
   strict mode: 'Test262Error: Expected SameValue(«function Array() {'
@@ -976,9 +835,6 @@ test/built-ins/Proxy/construct/return-not-object-throws-undefined-realm.js:
 test/built-ins/Proxy/construct/trap-is-not-callable-realm.js:
   default: 'Test262Error: Expected a TypeError but got a TypeError'
   strict mode: 'Test262Error: Expected a TypeError but got a TypeError'
-test/built-ins/Proxy/ownKeys/trap-is-undefined-target-is-proxy.js:
-  default: 'Test262Error: Expected [length, foo, 0, Symbol()] and [Symbol(), length, foo, 0] to have the same contents. '
-  strict mode: 'Test262Error: Expected [length, foo, 0, Symbol()] and [Symbol(), length, foo, 0] to have the same contents. '
 test/built-ins/RegExp/property-escapes/generated/Alphabetic.js:
   default: 'Test262Error: `\p{Alphabetic}` should match U+001CFA (`ᳺ`)'
   strict mode: 'Test262Error: `\p{Alphabetic}` should match U+001CFA (`ᳺ`)'
@@ -1375,6 +1231,9 @@ test/built-ins/RegExp/property-escapes/generated/XID_Start.js:
 test/built-ins/RegExp/prototype/Symbol.match/builtin-infer-unicode.js:
   default: 'Test262Error: Expected SameValue(«�», «null») to be true'
   strict mode: 'Test262Error: Expected SameValue(«�», «null») to be true'
+test/built-ins/RegExp/prototype/Symbol.replace/poisoned-stdlib.js:
+  default: 'Test262Error: 0 setter should be unreachable.'
+  strict mode: 'Test262Error: 0 setter should be unreachable.'
 test/built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance.js:
   default: 'Test262Error: Expected SameValue(«1», «-1») to be true'
   strict mode: 'Test262Error: Expected SameValue(«1», «-1») to be true'
@@ -1389,39 +1248,12 @@ test/built-ins/RegExp/quantifier-integer-limit.js:
   strict mode: 'SyntaxError: Invalid regular expression: number too large in {} quantifier'
 test/built-ins/ThrowTypeError/unique-per-realm-non-simple.js:
   default: 'Test262Error: callee.get Expected SameValue(«function () {'
-test/built-ins/TypedArray/prototype/fill/fill-values-conversion-once.js:
-  default: 'Test262Error: additional unexpected ToNumber() calls Expected SameValue(«3», «2») to be true (Testing with Float64Array.)'
-  strict mode: 'Test262Error: additional unexpected ToNumber() calls Expected SameValue(«3», «2») to be true (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/filter/speciesctor-get-ctor-returns-throws.js:
-  default: 'Test262Error: 42 Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: 42 Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/filter/speciesctor-get-species-custom-ctor-length-throws.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/map/speciesctor-get-ctor-returns-throws.js:
-  default: 'Test262Error: 42 Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: 42 Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/map/speciesctor-get-species-custom-ctor-length-throws.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
 test/built-ins/TypedArray/prototype/slice/detached-buffer-zero-count-custom-ctor-other-targettype.js:
   default: 'TypeError: Underlying ArrayBuffer has been detached from the view (Testing with Float64Array.)'
   strict mode: 'TypeError: Underlying ArrayBuffer has been detached from the view (Testing with Float64Array.)'
 test/built-ins/TypedArray/prototype/slice/detached-buffer-zero-count-custom-ctor-same-targettype.js:
   default: 'TypeError: Underlying ArrayBuffer has been detached from the view (Testing with Float64Array.)'
   strict mode: 'TypeError: Underlying ArrayBuffer has been detached from the view (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/slice/speciesctor-get-species-custom-ctor-length-throws.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/sort/comparefn-nonfunction-call-throws.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/toLocaleString/calls-tostring-from-each-value.js:
-  default: 'Test262Error: should not call valueOf if toString is present (Testing with Float64Array.)'
-  strict mode: 'Test262Error: should not call valueOf if toString is present (Testing with Float64Array.)'
-test/built-ins/TypedArray/prototype/toLocaleString/calls-valueof-from-each-value.js:
-  default: 'Test262Error: returns expected value Expected SameValue(«hacks2,hacks1», «hacks1,hacks2») to be true (Testing with Float64Array.)'
-  strict mode: 'Test262Error: returns expected value Expected SameValue(«hacks2,hacks1», «hacks1,hacks2») to be true (Testing with Float64Array.)'
 test/built-ins/TypedArrayConstructors/ctors/buffer-arg/byteoffset-to-number-detachbuffer.js:
   default: 'Test262Error: Expected a TypeError but got a RangeError (Testing with Float64Array.)'
   strict mode: 'Test262Error: Expected a TypeError but got a RangeError (Testing with Float64Array.)'
@@ -1482,15 +1314,6 @@ test/built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor
 test/built-ins/TypedArrayConstructors/ctors/typedarray-arg/same-ctor-buffer-ctor-value-not-obj-throws.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/from/custom-ctor-returns-other-instance.js:
-  default: 'TypeError: TypedArray.from requires its this argument subclass a TypedArray constructor (Testing with Float64Array.)'
-  strict mode: 'TypeError: TypedArray.from requires its this argument subclass a TypedArray constructor (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/from/custom-ctor.js:
-  default: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/from/new-instance-using-custom-ctor.js:
-  default: 'TypeError: TypedArray.from requires its this argument subclass a TypedArray constructor (Testing with Float64Array.)'
-  strict mode: 'TypeError: TypedArray.from requires its this argument subclass a TypedArray constructor (Testing with Float64Array.)'
 test/built-ins/TypedArrayConstructors/from/set-value-abrupt-completion.js:
   default: 'Test262Error: interrupted source iteration Expected SameValue(«1», «[object Object]») to be true (Testing with Float64Array.)'
   strict mode: 'Test262Error: interrupted source iteration Expected SameValue(«1», «[object Object]») to be true (Testing with Float64Array.)'
@@ -1539,24 +1362,12 @@ test/built-ins/TypedArrayConstructors/internals/HasProperty/key-is-not-integer.j
 test/built-ins/TypedArrayConstructors/internals/Set/tonumber-value-throws.js:
   default: 'Test262Error: ToNumber runs before ToInteger(index) Expected a Test262Error to be thrown but no exception was thrown at all (Testing with Float64Array.)'
   strict mode: 'Test262Error: ToNumber runs before ToInteger(index) Expected a Test262Error to be thrown but no exception was thrown at all (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/of/custom-ctor-returns-other-instance.js:
-  default: 'TypeError: TypedArray.of requires its this argument to subclass a TypedArray constructor (Testing with Float64Array.)'
-  strict mode: 'TypeError: TypedArray.of requires its this argument to subclass a TypedArray constructor (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/of/custom-ctor.js:
-  default: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
-  strict mode: 'Test262Error: Expected a Test262Error but got a TypeError (Testing with Float64Array.)'
-test/built-ins/TypedArrayConstructors/of/new-instance-using-custom-ctor.js:
-  default: 'TypeError: TypedArray.of requires its this argument to subclass a TypedArray constructor (Testing with Float64Array.)'
-  strict mode: 'TypeError: TypedArray.of requires its this argument to subclass a TypedArray constructor (Testing with Float64Array.)'
-test/intl402/Collator/missing-unicode-ext-value-defaults-to-true.js:
-  default: "Test262Error: \"kn-true\" is returned in locale, but shouldn't be. Expected SameValue(«7», «-1») to be true"
-  strict mode: "Test262Error: \"kn-true\" is returned in locale, but shouldn't be. Expected SameValue(«7», «-1») to be true"
-test/intl402/DateTimeFormat/prototype/format/timedatestyle-en.js:
-  default: 'Test262Error: Result for full with {} Expected SameValue(«14:12:47 PM Coordinated Universal Time», «14:12:47 Coordinated Universal Time») to be true'
-  strict mode: 'Test262Error: Result for full with {} Expected SameValue(«14:12:47 PM Coordinated Universal Time», «14:12:47 Coordinated Universal Time») to be true'
 test/intl402/DateTimeFormat/prototype/formatRange/en-US.js:
   default: 'Test262Error: Expected SameValue(«1/3/2019 – 1/5/2019», «1/3/2019 – 1/5/2019») to be true'
   strict mode: 'Test262Error: Expected SameValue(«1/3/2019 – 1/5/2019», «1/3/2019 – 1/5/2019») to be true'
+test/intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits.js:
+  default: 'Test262Error: no fractionalSecondDigits Expected SameValue(«02:03 – 02:13», «02:03 – 02:13») to be true'
+  strict mode: 'Test262Error: no fractionalSecondDigits Expected SameValue(«02:03 – 02:13», «02:03 – 02:13») to be true'
 test/intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-default.js:
   default: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
   strict mode: 'Test262Error: Expected SameValue(«h24», «h23») to be true'
@@ -1590,9 +1401,6 @@ test/intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region.js:
 test/intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision.js:
   default: 'Test262Error: Expected SameValue(«und-NO-u-sd-no23», «und-NO-u-sd-no50») to be true'
   strict mode: 'Test262Error: Expected SameValue(«und-NO-u-sd-no23», «und-NO-u-sd-no50») to be true'
-test/intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true.js:
-  default: 'Test262Error: Expected SameValue(«und-u-kb-true», «und-u-kb») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«und-u-kb-true», «und-u-kb») to be true'
 test/intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit.js:
   default: 'Test262Error: Expected SameValue(«en-u-0c-yes», «en-u-0c») to be true'
   strict mode: 'Test262Error: Expected SameValue(«en-u-0c-yes», «en-u-0c») to be true'
@@ -1602,21 +1410,12 @@ test/intl402/Locale/constructor-apply-options-canonicalizes-twice.js:
 test/intl402/Locale/constructor-non-iana-canon.js:
   default: 'Test262Error: new Intl.Locale("mo").maximize().toString() returns "ro-Latn-RO" Expected SameValue(«ro», «ro-Latn-RO») to be true'
   strict mode: 'Test262Error: new Intl.Locale("mo").maximize().toString() returns "ro-Latn-RO" Expected SameValue(«ro», «ro-Latn-RO») to be true'
-test/intl402/Locale/constructor-options-numeric-undefined.js:
-  default: 'Test262Error: new Intl.Locale("en-u-kn-true", {numeric: undefined}).toString() returns "en-u-kn" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
-  strict mode: 'Test262Error: new Intl.Locale("en-u-kn-true", {numeric: undefined}).toString() returns "en-u-kn" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
-test/intl402/Locale/constructor-options-numeric-valid.js:
-  default: 'Test262Error: new Intl.Locale("en", {numeric: true}).toString() returns "true" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
-  strict mode: 'Test262Error: new Intl.Locale("en", {numeric: true}).toString() returns "true" Expected SameValue(«en-u-kn-true», «en-u-kn») to be true'
 test/intl402/Locale/constructor-options-region-valid.js:
   default: "Test262Error: new Intl.Locale('en', {region: \"554\"}).toString() returns \"en-NZ\" Expected SameValue(«en-554», «en-NZ») to be true"
   strict mode: "Test262Error: new Intl.Locale('en', {region: \"554\"}).toString() returns \"en-NZ\" Expected SameValue(«en-554», «en-NZ») to be true"
 test/intl402/Locale/constructor-tag.js:
   default: 'Test262Error: new Intl.Locale("sl-ROZAJ-BISKE-1994").toString() returns "sl-1994-biske-rozaj" Expected SameValue(«sl-rozaj-biske-1994», «sl-1994-biske-rozaj») to be true'
   strict mode: 'Test262Error: new Intl.Locale("sl-ROZAJ-BISKE-1994").toString() returns "sl-1994-biske-rozaj" Expected SameValue(«sl-rozaj-biske-1994», «sl-1994-biske-rozaj») to be true'
-test/intl402/Locale/getters.js:
-  default: 'Test262Error: Expected SameValue(«de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-true-kn-false-nu-latn», «de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-kn-false-nu-latn») to be true'
-  strict mode: 'Test262Error: Expected SameValue(«de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-true-kn-false-nu-latn», «de-Latn-DE-u-ca-gregory-co-phonebk-hc-h23-kf-kn-false-nu-latn») to be true'
 test/intl402/Locale/likely-subtags-grandfathered.js:
   default: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
   strict mode: 'Test262Error: Expected SameValue(«cmn», «zh») to be true'
@@ -1626,9 +1425,6 @@ test/intl402/Locale/likely-subtags.js:
 test/intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags.js:
   default: 'Test262Error: "und".minimize() should be "en" Expected SameValue(«en-u-va-posix», «en») to be true'
   strict mode: 'Test262Error: "und".minimize() should be "en" Expected SameValue(«en-u-va-posix», «en») to be true'
-test/intl402/NumberFormat/dft-currency-mnfd-range-check-mxfd.js:
-  default: 'RangeError: maximumFractionDigits is out of range'
-  strict mode: 'RangeError: maximumFractionDigits is out of range'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-arguments.js:
   default: 'Test262Error: Expected obj[0] to have enumerable:false.'
 test/language/arguments-object/mapped/nonconfigurable-nonenumerable-nonwritable-descriptors-set-by-param.js:
@@ -1765,6 +1561,298 @@ test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-f
   default: 'Test262: This statement should not be evaluated.'
 test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-generator.js:
   default: 'Test262: This statement should not be evaluated.'
+test/language/eval-code/direct/arrow-fn-a-following-parameter-is-named-arguments-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/arrow-fn-a-following-parameter-is-named-arguments-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/arrow-fn-a-preceding-parameter-is-named-arguments-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/arrow-fn-a-preceding-parameter-is-named-arguments-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-fn-decl-params-cntns-dflt-assignment-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-fn-decl-params-cntns-dflt-assignment-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-func-decl-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-func-decl-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-lex-bind-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-lex-bind-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-var-bind-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-body-cntns-arguments-var-bind-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-no-pre-existing-arguments-bindings-are-present-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/arrow-fn-no-pre-existing-arguments-bindings-are-present-arrow-func-declare-arguments-assign.js:
+  default: 'Test262Error: globalThis.arguments unchanged Expected SameValue(«param», «undefined») to be true'
+test/language/eval-code/direct/async-gen-func-decl-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/async-gen-named-func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/func-expr-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-decl-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-named-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-func-expr-nameless-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/gen-meth-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-a-following-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-a-following-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-a-preceding-parameter-is-named-arguments-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-a-preceding-parameter-is-named-arguments-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-func-decl-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-lex-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/eval-code/direct/non-definable-function-with-function.js:
   default: 'Test262Error: Expected SameValue(«[object Object]», «undefined») to be true'
 test/language/eval-code/direct/non-definable-function-with-variable.js:
@@ -1803,11 +1891,6 @@ test/language/expressions/arrow-function/scope-body-lex-distinct.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/expressions/arrow-function/scope-param-rest-elem-var-open.js:
   default: 'Test262Error: Expected SameValue(«outside», «inside») to be true'
-test/language/expressions/assignment/S11.13.1_A5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/assignment/S11.13.1_A5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "ReferenceError: Can't find variable: x"
 test/language/expressions/assignment/S11.13.1_A7_T1.js:
   default: 'Test262Error: Expected a TypeError but got a Test262Error'
   strict mode: 'Test262Error: Expected a TypeError but got a Test262Error'
@@ -1878,8 +1961,8 @@ test/language/expressions/assignment/dstr/array-rest-iter-rtrn-close-null.js:
   default: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
   strict mode: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
 test/language/expressions/assignment/dstr/array-rest-iter-rtrn-close.js:
-  default: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
-  strict mode: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
+  default: 'Test262Error: '
+  strict mode: 'Test262Error: '
 test/language/expressions/assignment/dstr/array-rest-iter-thrw-close-err.js:
   default: 'Test262Error: Expected SameValue(«11», «0») to be true'
   strict mode: 'Test262Error: Expected SameValue(«11», «0») to be true'
@@ -1964,6 +2047,10 @@ test/language/expressions/assignment/dstr/ident-name-prop-name-literal-with-esca
 test/language/expressions/assignment/fn-name-lhs-cover.js:
   default: 'Test262Error: descriptor value should be '
   strict mode: 'Test262Error: descriptor value should be '
+test/language/expressions/assignmenttargettype/direct-callexpression-arguments.js:
+  default: 'Test262: This statement should not be evaluated.'
+test/language/expressions/assignmenttargettype/parenthesized-callexpression-arguments.js:
+  default: 'Test262: This statement should not be evaluated.'
 test/language/expressions/async-generator/early-errors-expression-yield-as-function-binding-identifier.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/expressions/async-generator/eval-var-scope-syntax-err.js:
@@ -2026,6 +2113,198 @@ test/language/expressions/class/class-name-ident-static-escaped.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/expressions/class/class-name-ident-static.js:
   default: 'Test262: This statement should not be evaluated.'
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-additive-expression-add.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-additive-expression-subtract.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-assignment-expression-assignment.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-assignment-expression-bitwise-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-assignment-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-assignment-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-assignment-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-async-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-condition-expression-false.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-condition-expression-true.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-decimal-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-decimal-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-exponetiation-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-generator-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-identifier.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-integer-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-integer-separators.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-math.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-multiplicative-expression-div.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-multiplicative-expression-mult.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-null.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-numeric-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-string-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-computed-property-name-from-yield-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-additive-expression-add.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-additive-expression-subtract.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-assignment-expression-assignment.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-assignment-expression-bitwise-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-assignment-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-assignment-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-assignment-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-async-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-condition-expression-false.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-condition-expression-true.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-decimal-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-decimal-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-exponetiation-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-generator-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-identifier.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-integer-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-integer-separators.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-math.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-multiplicative-expression-div.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-multiplicative-expression-mult.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-null.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-numeric-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-string-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/cpn-class-expr-fields-methods-computed-property-name-from-yield-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/expressions/class/elements/arrow-body-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/expressions/class/elements/arrow-body-private-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/expressions/class/elements/nested-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/expressions/class/elements/nested-private-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
 test/language/expressions/class/ident-name-method-def-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -2155,130 +2434,81 @@ test/language/expressions/class/ident-name-method-def-while-escaped.js:
 test/language/expressions/class/ident-name-method-def-with-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
-test/language/expressions/class/poisoned-underscore-proto.js:
-  default: 'Test262Error: should not be called'
-  strict mode: 'Test262Error: should not be called'
+test/language/expressions/class/subclass-builtins/subclass-BigInt64Array.js:
+  default: "ReferenceError: Can't find variable: BigInt64Array"
+  strict mode: "ReferenceError: Can't find variable: BigInt64Array"
+test/language/expressions/class/subclass-builtins/subclass-BigUint64Array.js:
+  default: "ReferenceError: Can't find variable: BigUint64Array"
+  strict mode: "ReferenceError: Can't find variable: BigUint64Array"
+test/language/expressions/class/subclass-builtins/subclass-WeakRef.js:
+  default: 'TypeError: First argument to WeakRef should be an object'
+  strict mode: 'TypeError: First argument to WeakRef should be an object'
 test/language/expressions/compound-assignment/S11.13.2_A5.10_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.10_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.10_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.10_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.10_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.11_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.11_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.11_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.11_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.11_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.1_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.1_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.1_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.1_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.1_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.2_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.2_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.2_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.2_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.2_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.3_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.3_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.3_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.3_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.3_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.4_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.4_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.4_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.4_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.4_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.5_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.5_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.5_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.6_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.6_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.6_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.6_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.6_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.7_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.7_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.7_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.7_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.7_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.8_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.8_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.8_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.8_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.8_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A5.9_T1.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.9_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/compound-assignment/S11.13.2_A5.9_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.9_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/compound-assignment/S11.13.2_A5.9_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/compound-assignment/S11.13.2_A7.10_T4.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
@@ -2322,28 +2552,6 @@ test/language/expressions/dynamic-import/catch/nested-async-gen-return-await-eva
 test/language/expressions/dynamic-import/for-await-resolution-and-error-agen-yield.js:
   default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: f Expected SameValue(«null», «foo») to be true'
   strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: f Expected SameValue(«null», «foo») to be true'
-test/language/expressions/dynamic-import/namespace/await-ns-define-own-property.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: No change requested, Reflect.defineProperty: local1 Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: No change requested, Reflect.defineProperty: local1 Expected SameValue(«false», «true») to be true'
-test/language/expressions/dynamic-import/namespace/await-ns-get-nested-namespace-dflt-direct.js:
-  default: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-  strict mode: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/expressions/dynamic-import/namespace/await-ns-get-nested-namespace-dflt-indirect.js:
-  module: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/expressions/dynamic-import/namespace/await-ns-get-nested-namespace-props-nrml.js:
-  default: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-  strict mode: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/expressions/dynamic-import/namespace/promise-then-ns-define-own-property.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: No change requested, Reflect.defineProperty: local1 Expected SameValue(«false», «true») to be true'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: No change requested, Reflect.defineProperty: local1 Expected SameValue(«false», «true») to be true'
-test/language/expressions/dynamic-import/namespace/promise-then-ns-get-nested-namespace-dflt-direct.js:
-  default: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-  strict mode: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/expressions/dynamic-import/namespace/promise-then-ns-get-nested-namespace-dflt-indirect.js:
-  module: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/expressions/dynamic-import/namespace/promise-then-ns-get-nested-namespace-props-nrml.js:
-  default: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-  strict mode: "Test262:AsyncTestFailure:SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
 test/language/expressions/function/eval-var-scope-syntax-err.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/expressions/function/scope-body-lex-distinct.js:
@@ -2359,14 +2567,6 @@ test/language/expressions/generators/scope-body-lex-distinct.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/expressions/generators/scope-param-rest-elem-var-open.js:
   default: 'Test262Error: Expected SameValue(«outside», «inside») to be true'
-test/language/expressions/import.meta/import-meta-is-an-ordinary-object.js:
-  module: 'SyntaxError: Cannot use new with import.'
-test/language/expressions/import.meta/syntax/invalid-assignment-target-for-await-of-loop.js:
-  module: 'Test262: This statement should not be evaluated.'
-test/language/expressions/import.meta/syntax/invalid-assignment-target-for-in-loop.js:
-  module: 'Test262: This statement should not be evaluated.'
-test/language/expressions/import.meta/syntax/invalid-assignment-target-for-of-loop.js:
-  module: 'Test262: This statement should not be evaluated.'
 test/language/expressions/instanceof/prototype-getter-with-primitive.js:
   default: "Test262Error: getter for 'prototype' called"
   strict mode: "Test262Error: getter for 'prototype' called"
@@ -2385,9 +2585,6 @@ test/language/expressions/new/ctorExpr-isCtor-after-args-eval-fn-wrapup.js:
 test/language/expressions/new/non-ctor-err-realm.js:
   default: 'Test262Error: production including Arguments Expected a TypeError but got a TypeError'
   strict mode: 'Test262Error: production including Arguments Expected a TypeError but got a TypeError'
-test/language/expressions/object/__proto__-permitted-dup.js:
-  default: 'SyntaxError: Attempted to redefine __proto__ property.'
-  strict mode: 'SyntaxError: Attempted to redefine __proto__ property.'
 test/language/expressions/object/covered-ident-name-prop-name-literal-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -2510,9 +2707,6 @@ test/language/expressions/object/covered-ident-name-prop-name-literal-while-esca
 test/language/expressions/object/covered-ident-name-prop-name-literal-with-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
-test/language/expressions/object/dstr/object-rest-proxy-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
-  strict mode: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
 test/language/expressions/object/ident-name-method-def-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -2759,7 +2953,25 @@ test/language/expressions/object/ident-name-prop-name-literal-with-escaped.js:
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
 test/language/expressions/object/method-definition/async-gen-meth-eval-var-scope-syntax-err.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
+test/language/expressions/object/method-definition/escaped-get-e.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
+test/language/expressions/object/method-definition/escaped-get-g.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
+test/language/expressions/object/method-definition/escaped-get-t.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/expressions/object/method-definition/escaped-get.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
+test/language/expressions/object/method-definition/escaped-set-e.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
+test/language/expressions/object/method-definition/escaped-set-s.js:
+  default: 'Test262: This statement should not be evaluated.'
+  strict mode: 'Test262: This statement should not be evaluated.'
+test/language/expressions/object/method-definition/escaped-set-t.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
 test/language/expressions/object/method-definition/escaped-set.js:
@@ -2769,9 +2981,6 @@ test/language/expressions/object/method-definition/gen-meth-eval-var-scope-synta
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/expressions/object/method-definition/meth-eval-var-scope-syntax-err.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
-test/language/expressions/object/object-spread-proxy-ownkeys-returned-keys-order.js:
-  default: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
-  strict mode: 'Test262Error: Expected [foo, 0, Symbol()] and [Symbol(), foo, 0] to have the same contents. '
 test/language/expressions/object/scope-gen-meth-body-lex-distinct.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/expressions/object/scope-gen-meth-param-rest-elem-var-open.js:
@@ -2790,11 +2999,6 @@ test/language/expressions/postfix-decrement/S11.3.2_A5_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/postfix-decrement/S11.3.2_A5_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/postfix-decrement/S11.3.2_A5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/postfix-decrement/S11.3.2_A5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/postfix-decrement/S11.3.2_A6_T3.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
@@ -2804,11 +3008,6 @@ test/language/expressions/postfix-increment/S11.3.1_A5_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/postfix-increment/S11.3.1_A5_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/postfix-increment/S11.3.1_A5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/postfix-increment/S11.3.1_A5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/postfix-increment/S11.3.1_A6_T3.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
@@ -2818,11 +3017,6 @@ test/language/expressions/prefix-decrement/S11.4.5_A5_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/prefix-decrement/S11.4.5_A5_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/prefix-decrement/S11.4.5_A5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/prefix-decrement/S11.4.5_A5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/prefix-decrement/S11.4.5_A6_T3.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
@@ -2832,11 +3026,6 @@ test/language/expressions/prefix-increment/S11.4.4_A5_T2.js:
   default: "ReferenceError: Can't find variable: x"
 test/language/expressions/prefix-increment/S11.4.4_A5_T3.js:
   default: "ReferenceError: Can't find variable: x"
-test/language/expressions/prefix-increment/S11.4.4_A5_T4.js:
-  default: "ReferenceError: Can't find variable: x"
-test/language/expressions/prefix-increment/S11.4.4_A5_T5.js:
-  default: "ReferenceError: Can't find variable: x"
-  strict mode: "TypeError: undefined is not an object (evaluating 'delete this.x')"
 test/language/expressions/prefix-increment/S11.4.4_A6_T3.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
@@ -2861,6 +3050,8 @@ test/language/global-code/script-decl-func-err-non-extensible.js:
 test/language/global-code/script-decl-var-err.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+test/language/identifier-resolution/assign-to-global-undefined.js:
+  strict mode: Expected uncaught exception with name 'ReferenceError' but none was thrown
 test/language/identifiers/part-unicode-13.0.0-escaped.js:
   default: "SyntaxError: Invalid unicode escape in identifier: '_\\u0B55'"
   strict mode: "SyntaxError: Invalid unicode escape in identifier: '_\\u0B55'"
@@ -2876,26 +3067,6 @@ test/language/identifiers/start-unicode-13.0.0.js:
 test/language/literals/regexp/u-astral-char-class-invert.js:
   default: 'Test262Error: Expected SameValue(«�», «null») to be true'
   strict mode: 'Test262Error: Expected SameValue(«�», «null») to be true'
-test/language/module-code/eval-rqstd-once.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/eval-rqstd-order.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/eval-self-once.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/export-star-as-dflt.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/instn-once.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/instn-star-as-props-dflt-skip.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/instn-star-props-nrml.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/namespace/internals/define-own-property.js:
-  module: 'Test262Error: Reflect.defineProperty: local1 Expected SameValue(«false», «true») to be true'
-test/language/module-code/namespace/internals/get-nested-namespace-dflt-skip.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
-test/language/module-code/namespace/internals/get-nested-namespace-props-nrml.js:
-  module: "SyntaxError: Unexpected identifier 'as'. Expected 'from' before exported module name."
 test/language/module-code/parse-err-hoist-lex-fun.js:
   module: 'Test262: This statement should not be evaluated.'
 test/language/module-code/parse-err-hoist-lex-gen.js:
@@ -2918,6 +3089,204 @@ test/language/statements/class/class-name-ident-static-escaped.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/class/class-name-ident-static.js:
   default: 'Test262: This statement should not be evaluated.'
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-additive-expression-add.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-additive-expression-subtract.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-assignment-expression-assignment.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-assignment-expression-bitwise-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-assignment-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-assignment-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-assignment-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-async-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-condition-expression-false.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-condition-expression-true.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-decimal-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-decimal-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-exponetiation-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-generator-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-identifier.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-integer-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-integer-separators.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-math.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-multiplicative-expression-div.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-multiplicative-expression-mult.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-null.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-numeric-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-string-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-computed-property-name-from-yield-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-additive-expression-add.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-additive-expression-subtract.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-assignment-expression-assignment.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-assignment-expression-bitwise-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-assignment-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-assignment-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-assignment-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-async-arrow-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-condition-expression-false.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-condition-expression-true.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-decimal-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-decimal-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-exponetiation-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-expression-coalesce.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-expression-logical-and.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-expression-logical-or.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-function-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-generator-function-declaration.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-identifier.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-integer-e-notational-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-integer-separators.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-math.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-multiplicative-expression-div.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-multiplicative-expression-mult.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-null.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-numeric-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-string-literal.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/cpn-class-decl-fields-methods-computed-property-name-from-yield-expression.js:
+  default: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+  strict mode: "SyntaxError: Unexpected token '='. Expected an opening '(' before a method's parameter list."
+test/language/statements/class/elements/arrow-body-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/statements/class/elements/arrow-body-indirect-eval-err-contains-arguments.js:
+  default: "ReferenceError: Can't find variable: executed"
+  strict mode: "ReferenceError: Can't find variable: executed"
+test/language/statements/class/elements/arrow-body-private-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/statements/class/elements/nested-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+test/language/statements/class/elements/nested-indirect-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected SameValue(«true», «false») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«true», «false») to be true'
+test/language/statements/class/elements/nested-private-direct-eval-err-contains-arguments.js:
+  default: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
+  strict mode: 'Test262Error: Expected a SyntaxError but got a ReferenceError'
 test/language/statements/class/ident-name-method-def-break-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'bre\\u0061k'"
@@ -3047,103 +3416,40 @@ test/language/statements/class/ident-name-method-def-while-escaped.js:
 test/language/statements/class/ident-name-method-def-with-escaped.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
   strict mode: "SyntaxError: Unexpected escaped characters in keyword token: 'w\\u0069th'"
-test/language/statements/class/poisoned-underscore-proto.js:
-  default: 'Test262Error: should not be called'
-  strict mode: 'Test262Error: should not be called'
+test/language/statements/class/subclass-builtins/subclass-BigInt64Array.js:
+  default: "ReferenceError: Can't find variable: BigInt64Array"
+  strict mode: "ReferenceError: Can't find variable: BigInt64Array"
+test/language/statements/class/subclass-builtins/subclass-BigUint64Array.js:
+  default: "ReferenceError: Can't find variable: BigUint64Array"
+  strict mode: "ReferenceError: Can't find variable: BigUint64Array"
+test/language/statements/class/subclass-builtins/subclass-WeakRef.js:
+  default: 'TypeError: First argument to WeakRef should be an object'
+  strict mode: 'TypeError: First argument to WeakRef should be an object'
 test/language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing.js:
   default: 'Test262Error: Expected true but got false'
   strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/const/dstr/ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/const/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/const/dstr/ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
-test/language/statements/do-while/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-await-of/async-from-sync-iterator-continuation-abrupt-completion-get-constructor.js:
   default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [start, tick 1, tick 2] and [start, tick 1, tick 2, catch] to have the same contents. '
   strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [start, tick 1, tick 2] and [start, tick 1, tick 2, catch] to have the same contents. '
-test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict.js:
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-await-of/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-await-of/ticks-with-async-iter-resolved-promise-and-constructor-lookup-two.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, tick 2, loop] and [pre, constructor, tick 1, loop, constructor, tick 2, post] to have the same contents. Ticks and constructor lookups'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, tick 2, loop] and [pre, constructor, tick 1, loop, constructor, tick 2, post] to have the same contents. Ticks and constructor lookups'
+  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, constructor, tick 2, loop] and [pre, constructor, tick 1, loop, constructor, tick 2, post] to have the same contents. Ticks and constructor lookups'
+  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, constructor, tick 2, loop] and [pre, constructor, tick 1, loop, constructor, tick 2, post] to have the same contents. Ticks and constructor lookups'
 test/language/statements/for-await-of/ticks-with-sync-iter-resolved-promise-and-constructor-lookup.js:
-  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, tick 2, tick 3, loop, tick 4] and [pre, constructor, constructor, tick 1, tick 2, loop, constructor, tick 3, tick 4, post] to have the same contents. Ticks and constructor lookups'
-  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, tick 2, tick 3, loop, tick 4] and [pre, constructor, constructor, tick 1, tick 2, loop, constructor, tick 3, tick 4, post] to have the same contents. Ticks and constructor lookups'
+  default: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, constructor, constructor, tick 2, tick 3, loop, tick 4, constructor] and [pre, constructor, constructor, tick 1, tick 2, loop, constructor, tick 3, tick 4, post] to have the same contents. Ticks and constructor lookups'
+  strict mode: 'Test262:AsyncTestFailure:Test262Error: Test262Error: Expected [pre, tick 1, constructor, constructor, tick 2, tick 3, loop, tick 4, constructor] and [pre, constructor, constructor, tick 1, tick 2, loop, constructor, tick 3, tick 4, post] to have the same contents. Ticks and constructor lookups'
 test/language/statements/for-in/12.6.4-2.js:
   default: 'Test262Error: accessedProp Expected SameValue(«true», «false») to be true'
   strict mode: 'Test262Error: accessedProp Expected SameValue(«true», «false») to be true'
-test/language/statements/for-in/dstr/array-elem-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-elem-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-elem-target-simple-strict.js:
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-before-element.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-before-elision.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-before-rest.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-elision-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-init.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/array-rest-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/obj-id-simple-strict.js:
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/obj-prop-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/obj-prop-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/dstr/obj-rest-not-last-element-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/head-lhs-cover-non-asnmt-trgt.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-obj.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-in/head-lhs-let.js:
   default: "SyntaxError: Cannot use the keyword 'in' as a lexical variable name."
-test/language/statements/for-in/head-lhs-non-asnmt-trgt.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-in/identifier-let-allowed-as-lefthandside-expression-not-strict.js:
   default: "SyntaxError: Cannot use the keyword 'in' as a lexical variable name."
-test/language/statements/for-in/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-in/order-enumerable-shadowed.js:
   default: 'Test262Error: Expected [p1, p2] and [p1] to have the same contents. '
   strict mode: 'Test262Error: Expected [p1, p2] and [p1] to have the same contents. '
@@ -3171,14 +3477,6 @@ test/language/statements/for-of/dstr/array-elem-iter-thrw-close-err.js:
 test/language/statements/for-of/dstr/array-elem-iter-thrw-close.js:
   default: 'Test262Error: Expected SameValue(«1», «0») to be true'
   strict mode: 'Test262Error: Expected SameValue(«1», «0») to be true'
-test/language/statements/for-of/dstr/array-elem-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-elem-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-elem-target-simple-strict.js:
-  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-of/dstr/array-elem-trlg-iter-list-rtrn-close-err.js:
   default: 'Test262Error: Expected a Test262Error to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a Test262Error to be thrown but no exception was thrown at all'
@@ -3209,21 +3507,6 @@ test/language/statements/for-of/dstr/array-elem-trlg-iter-rest-thrw-close-err.js
 test/language/statements/for-of/dstr/array-elem-trlg-iter-rest-thrw-close.js:
   default: 'Test262Error: Expected SameValue(«11», «1») to be true'
   strict mode: 'Test262Error: Expected SameValue(«11», «1») to be true'
-test/language/statements/for-of/dstr/array-rest-before-element.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-rest-before-elision.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-rest-before-rest.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-rest-elision-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-rest-init.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-of/dstr/array-rest-iter-rtrn-close-err.js:
   default: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
   strict mode: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
@@ -3231,8 +3514,8 @@ test/language/statements/for-of/dstr/array-rest-iter-rtrn-close-null.js:
   default: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
   strict mode: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
 test/language/statements/for-of/dstr/array-rest-iter-rtrn-close.js:
-  default: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
-  strict mode: "TypeError: undefined is not a function (near '...[...{}[yield]]...')"
+  default: 'Test262Error: '
+  strict mode: 'Test262Error: '
 test/language/statements/for-of/dstr/array-rest-iter-thrw-close-err.js:
   default: 'Test262Error: Expected SameValue(«11», «0») to be true'
   strict mode: 'Test262Error: Expected SameValue(«11», «0») to be true'
@@ -3242,83 +3525,32 @@ test/language/statements/for-of/dstr/array-rest-iter-thrw-close.js:
 test/language/statements/for-of/dstr/array-rest-lref-err.js:
   default: 'Test262Error: Expected SameValue(«1», «0») to be true'
   strict mode: 'Test262Error: Expected SameValue(«1», «0») to be true'
-test/language/statements/for-of/dstr/array-rest-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/array-rest-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/for-of/dstr/obj-id-put-const.js:
   default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
 test/language/statements/for-of/dstr/obj-id-put-let.js:
   default: 'Test262Error: Expected a ReferenceError to be thrown but no exception was thrown at all'
   strict mode: 'Test262Error: Expected a ReferenceError to be thrown but no exception was thrown at all'
-test/language/statements/for-of/dstr/obj-id-simple-strict.js:
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/obj-prop-nested-array-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/obj-prop-nested-obj-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/dstr/obj-rest-not-last-element-invalid.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-decl-no-expr.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-expr-no-expr.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-lhs-cover-non-asnmt-trgt.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-ary.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-obj.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/head-var-no-expr.js:
-  default: 'Test262: This statement should not be evaluated.'
-  strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/for-of/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for/dstr/const-ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/for/dstr/const-ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/for/dstr/const-ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/for/dstr/let-ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/for/dstr/let-ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/for/dstr/let-ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/for/dstr/var-ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError but got a ReferenceError'
-  strict mode: 'Test262Error: Expected a TypeError but got a ReferenceError'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/for/dstr/var-ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/for/dstr/var-ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/for/head-lhs-let.js:
   default: "SyntaxError: Unexpected token ';'. Expected a parameter pattern or a ')' in parameter list."
-test/language/statements/for/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/for/scope-body-lex-open.js:
   default: 'Test262Error: Expected SameValue(«inside», «outside») to be true'
   strict mode: 'Test262Error: Expected SameValue(«inside», «outside») to be true'
@@ -3337,40 +3569,12 @@ test/language/statements/generators/scope-body-lex-distinct.js:
   default: 'Test262Error: Expected a SyntaxError to be thrown but no exception was thrown at all'
 test/language/statements/generators/scope-param-rest-elem-var-open.js:
   default: 'Test262Error: Expected SameValue(«outside», «inside») to be true'
-test/language/statements/if/if-async-fun-else-async-fun.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-async-fun-else-stmt.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-async-fun-no-else.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-async-gen-else-async-gen.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-async-gen-else-stmt.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-async-gen-no-else.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-gen-else-gen.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-gen-else-stmt.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-gen-no-else.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-stmt-else-async-fun.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-stmt-else-async-gen.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/if-stmt-else-gen.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/if/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/labeled/decl-async-function.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
 test/language/statements/labeled/decl-async-generator.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
-test/language/statements/labeled/decl-gen.js:
-  default: 'Test262: This statement should not be evaluated.'
 test/language/statements/labeled/let-array-with-newline.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/labeled/value-await-non-module-escaped.js:
@@ -3381,16 +3585,19 @@ test/language/statements/labeled/value-yield-non-strict-escaped.js:
 test/language/statements/let/block-local-closure-set-before-initialization.js:
   default: 'Test262Error: Expected a ReferenceError to be thrown but no exception was thrown at all'
 test/language/statements/let/dstr/ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/let/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/let/dstr/ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
 test/language/statements/let/syntax/escaped-let.js:
   default: "SyntaxError: Unexpected escaped characters in keyword token: 'l\\u0065t'"
+test/language/statements/switch/scope-lex-async-function.js:
+  default: Expected uncaught exception with name 'ReferenceError' but none was thrown
+test/language/statements/switch/scope-lex-async-generator.js:
+  default: Expected uncaught exception with name 'ReferenceError' but none was thrown
+test/language/statements/switch/scope-lex-generator.js:
+  default: Expected uncaught exception with name 'ReferenceError' but none was thrown
 test/language/statements/switch/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js:
   default: 'Test262: This statement should not be evaluated.'
 test/language/statements/switch/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js:
@@ -3489,22 +3696,12 @@ test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-atte
 test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-attempt-with-generator.js:
   default: 'Test262: This statement should not be evaluated.'
   strict mode: 'Test262: This statement should not be evaluated.'
+test/language/statements/try/completion-values.js:
+  default: 'Test262Error: Expected SameValue(«39», «42») to be true'
+  strict mode: 'Test262Error: Expected SameValue(«39», «42») to be true'
 test/language/statements/variable/dstr/ary-init-iter-get-err-array-prototype.js:
-  default: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
-  strict mode: 'Test262Error: Expected a TypeError to be thrown but no exception was thrown at all'
+  default: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
+  strict mode: 'TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function'
 test/language/statements/variable/dstr/ary-ptrn-elem-id-iter-val-array-prototype.js:
   default: 'Test262Error: Expected SameValue(«3», «42») to be true'
   strict mode: 'Test262Error: Expected SameValue(«3», «42») to be true'
-test/language/statements/variable/dstr/ary-ptrn-rest-id-direct.js:
-  default: 'Test262Error: Expected true but got false'
-  strict mode: 'Test262Error: Expected true but got false'
-test/language/statements/while/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/statements/with/let-array-with-newline.js:
-  default: 'Test262: This statement should not be evaluated.'
-test/language/types/reference/put-value-prop-base-primitive-realm.js:
-  default: 'Test262Error: number Expected SameValue(«0», «1») to be true'
-  strict mode: 'Test262Error: number Expected SameValue(«0», «1») to be true'
-test/language/types/reference/put-value-prop-base-primitive.js:
-  default: 'Test262Error: number Expected SameValue(«0», «1») to be true'
-  strict mode: 'TypeError: Attempted to assign to readonly property.'

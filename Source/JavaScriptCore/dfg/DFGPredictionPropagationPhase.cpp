@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1315,6 +1315,7 @@ private:
         case CheckTierUpInLoop:
         case CheckTierUpAtReturn:
         case CheckTierUpAndOSREnter:
+        case AssertInBounds:
         case CheckInBounds:
         case ValueToInt32:
         case DoubleRep:
@@ -1378,6 +1379,8 @@ private:
         case PutByValWithThis:
         case PutByIdWithThis:
         case PutByVal:
+        case PutPrivateName:
+        case PutPrivateNameById:
         case PutClosureVar:
         case PutInternalField:
         case PutToArguments:
@@ -1430,7 +1433,6 @@ private:
         case NotifyWrite:
         case ConstantStoragePointer:
         case MovHint:
-        case ZombieHint:
         case ExitOK:
         case VarargsLength:
         case LoadVarargs:

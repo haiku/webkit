@@ -1,3 +1,1249 @@
+2020-09-28  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: add checkbox to local override popover to allow it to skip the network
+        https://bugs.webkit.org/show_bug.cgi?id=217031
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/LocalResourceOverride.js:
+        (WI.LocalResourceOverride):
+        (WI.LocalResourceOverride.create):
+        (WI.LocalResourceOverride.fromJSON):
+        (WI.LocalResourceOverride.prototype.toJSON):
+        (WI.LocalResourceOverride.prototype.get type): Added.
+        (WI.LocalResourceOverride.prototype.saveIdentityToCookie):
+        Introduce a `WI.LocalResourceOverride.Type` that is used when handling request/response
+        interceptions to determined the `Network` command for continuing.
+
+        * UserInterface/Controllers/NetworkManager.js:
+        (WI.NetworkManager.supportsOverridingRequestsWithResponses): Added.
+        (WI.NetworkManager.supportsOverridingResponses): Added.
+        (WI.NetworkManager.prototype.initializeTarget):
+        (WI.NetworkManager.prototype.addLocalResourceOverride):
+        (WI.NetworkManager.prototype.removeLocalResourceOverride):
+        (WI.NetworkManager.prototype.requestIntercepted):
+        (WI.NetworkManager.prototype.responseIntercepted):
+        (WI.NetworkManager.prototype._commandArgumentsForInterception):
+        (WI.NetworkManager.prototype._addInterception): Added.
+        (WI.NetworkManager.prototype._removeInterception): Added.
+        (WI.NetworkManager.prototype._handleResourceOverrideDisabledChanged):
+        (WI.NetworkManager.supportsLocalResourceOverrides): Deleted.
+        Add logic for `Network.interceptRequestWithResponse` in `Network.requestIntercepted`.
+        Drive-by: refactor common logic into member functions.
+
+        * UserInterface/Views/LocalResourceOverridePopover.js:
+        (WI.LocalResourceOverridePopover.prototype.get serializedData):
+        (WI.LocalResourceOverridePopover.prototype.show):
+        * UserInterface/Views/LocalResourceOverridePopover.css:
+        (.popover .local-resource-override-popover-content .add-header + .reference-page-link-container): Added.
+        (.popover .local-resource-override-popover-content .options td): Added.
+        (.popover .local-resource-override-popover-content .reference-page-link-container): Deleted.
+        Add an "Options" row containing a "[ ] Skip Network" checkbox for controlling whether
+        `Network.interceptWithResponse` or `Network.interceptRequestWithResponse` is used.
+
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.prototype.async createLocalResourceOverride):
+        * UserInterface/Views/ContextMenuUtilities.js:
+        (WI.appendContextMenuItemsForSourceCode):
+        * UserInterface/Views/FontResourceContentView.js:
+        (WI.FontResourceContentView.prototype.contentAvailable):
+        * UserInterface/Views/ImageResourceContentView.js:
+        (WI.ImageResourceContentView.prototype.contentAvailable):
+        * UserInterface/Views/LocalResourceOverrideTreeElement.js:
+        (WI.LocalResourceOverrideTreeElement.prototype.willDismissPopover):
+        * UserInterface/Views/OpenResourceDialog.js:
+        (WI.OpenResourceDialog.prototype._addLocalResourceOverrides):
+        * UserInterface/Views/ResourceContentView.js:
+        (WI.ResourceContentView):
+        (WI.ResourceContentView.prototype.closed):
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._willDismissLocalOverridePopover):
+        (WI.SourcesNavigationSidebarPanel.prototype._addLocalOverride):
+        (WI.SourcesNavigationSidebarPanel.prototype._removeResourceOverride):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateResourceContextMenu):
+        Rename `supportsLocalResourceOverrides` to `supportsOverridingResponses` for clarity.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-09-25  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Uncaught Exception: TypeError: null is not an object (evaluating 'this.listItemElement.classList')
+        https://bugs.webkit.org/show_bug.cgi?id=216307
+        <rdar://problem/68565824>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/DOMTreeUpdater.js:
+        (WI.DOMTreeUpdater.prototype._updateModifiedNodes):
+        Don't update the element if it hasn't been attached yet. It will use the latest data when attached.
+
+2020-09-24  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION(r267379): Web Inspector: Sources navigation sidebar is empty every other time it's selected
+        https://bugs.webkit.org/show_bug.cgi?id=216942
+        <rdar://problem/69520398>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/Sidebar.js:
+        (WI.Sidebar.prototype.insertSidebarPanel):
+        insertSidebarPanel was exiting early when sidebarPanel.parentSidebar matched the current sidebar,
+        creating a state when `this._sidebarPanels` is an empty array.
+
+2020-09-22  Brian Burg  <bburg@apple.com>
+
+        [Cocoa] _WKInspectorDelegate should handle showing external resources
+        https://bugs.webkit.org/show_bug.cgi?id=216334
+
+        Reviewed by Devin Rousso.
+
+        Adapt to the rename of InspectorFrontendHost.{openInNewTab => openURLExternally}.
+
+        * UserInterface/Base/Main.js:
+        * UserInterface/Debug/UncaughtExceptionReporter.js:
+        (sheetElement.innerHTML.div):
+        * UserInterface/Protocol/InspectorFrontendAPI.js:
+        * UserInterface/Views/ResourceTreeElement.js:
+        (WI.ResourceTreeElement.prototype.ondblclick):
+
+2020-09-21  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Uncaught Exception: Missing node for given nodeId
+        https://bugs.webkit.org/show_bug.cgi?id=216067
+        <rdar://problem/68520144>
+
+        Reviewed by Devin Rousso.
+
+        * UserInterface/Views/ContentBrowserTabContentView.js:
+        (WI.ContentBrowserTabContentView.prototype.showDetailsSidebarPanels):
+        Rewrite `showDetailsSidebarPanels` in such way that causes no more than one change of selectedSidebarPanel.
+        Previously, `removeSidebarPanel` would cause the change of selectedSidebarPanel, resulting in showing
+        a panel with outdated `this.domNode`.
+
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.js:
+        Display a useful error with a relevant location instead of a generic Connection.js error.
+
+        * UserInterface/Views/Sidebar.js:
+        (WI.Sidebar.prototype.removeSidebarPanel):
+        After removing a panel, don't select the nearest panel. There doesn't seem to be a useful case for it.
+        The selected panel is determined at the removeSidebarPanel callsites.
+
+2020-09-21  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Timelines: remove "stop requested" marker
+        https://bugs.webkit.org/show_bug.cgi?id=216423
+
+        Reviewed by Devin Rousso.
+
+        Removed the "Stop Requested" timeline marker, which was made unneccesary in r267038 which makes the recording
+        head marker stop at the moment the stop was requested, even if more time is required to complete the processing
+        of incoming data.
+
+        * UserInterface/Models/TimelineMarker.js:
+        * UserInterface/Views/TimelineOverview.js:
+        (WI.TimelineOverview):
+        (WI.TimelineOverview.prototype._recordingReset):
+        (WI.TimelineOverview.prototype._handleTimelineCapturingStateChanged):
+        * UserInterface/Views/TimelineRuler.css:
+        (.timeline-ruler > .markers > .marker.current-time::after):
+        (.timeline-ruler > .markers > .marker.stopping-time): Deleted.
+        (.timeline-ruler > .markers > .marker:matches(.stopping-time, .current-time)::after): Deleted.
+        (@media (prefers-color-scheme: dark) .timeline-ruler > .markers > .marker.stopping-time): Deleted.
+        * UserInterface/Views/TimelineRuler.js:
+        (WI.TimelineRuler.prototype.addMarker):
+
+2020-09-14  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Stop Recording in Timelines tab doesn't work reliably
+        https://bugs.webkit.org/show_bug.cgi?id=216416
+
+        Reviewed by Devin Rousso.
+
+        Improved UX surrounding stopping recordings. In the Frames view, the interface now shows a "Stopping Recording
+        Timeline Data" message and disables the Stop Recording button as soon as the user has pressed the button to stop
+        recording. For all timeline views, the Record/Continue/Stop buttons in the top-right are replaced with an
+        indeterminate progress spinner while recording is being stopped to better indicate that all work has not
+        completed yet. Lastly, the recording head now stops at the moment recording was stopped. After we have finished
+        stopping the recording, the timeline is updated one more time to account for any records we receive after the
+        moment the user requested recording to stop, instead of continously updating during the stopping phase, which
+        made it appear that recording was instead continuing.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Main.html: Added `IndeterminateProgressSpinnerNavigationItem.css` and
+        `IndeterminateProgressSpinnerNavigationItem.js`.
+        * UserInterface/Views/ButtonNavigationItem.css:
+        (.navigation-bar .item.button.image-only):
+        * UserInterface/Views/IndeterminateProgressSpinnerNavigationItem.css: Added.
+        (.navigation-bar .item.indeterminate-progress-spinner):
+        (.navigation-bar .item.indeterminate-progress-spinner-item .indeterminate-progress-spinner):
+        * UserInterface/Views/IndeterminateProgressSpinnerNavigationItem.js: Added.
+        (WI.IndeterminateProgressSpinnerNavigationItem):
+        * UserInterface/Views/TextNavigationItem.js: Drive-by fix for misplaced `assert`.
+        (WI.TextNavigationItem):
+        * UserInterface/Views/TimelineRecordingContentView.js: Don't advanced the recording head after the user requests
+        recording to stop.
+        (WI.TimelineRecordingContentView.prototype._updateTimes):
+        (WI.TimelineRecordingContentView.prototype._updateTimelineViewTimes):
+        * UserInterface/Views/TimelineRecordingProgressView.js: Listen to the TimelineManager to show different messages
+        for Recording and Stopping, as well as disabling the Stop Recording button.
+        (WI.TimelineRecordingProgressView):
+        (WI.TimelineRecordingProgressView.prototype.set visible):
+        (WI.TimelineRecordingProgressView.prototype._updateState):
+        (WI.TimelineRecordingProgressView.prototype._handleTimelineCapturingStateChanged):
+        * UserInterface/Views/TimelineTabContentView.js: Show a progress spinner while stopping recording.
+        (WI.TimelineTabContentView):
+        (WI.TimelineTabContentView.prototype._showRecordButton):
+        (WI.TimelineTabContentView.prototype._showRecordStoppingSpinner):
+        (WI.TimelineTabContentView.prototype._showContinueButton):
+        (WI.TimelineTabContentView.prototype._updateNavigationBarButtons):
+        (WI.TimelineTabContentView.prototype._handleTimelineCapturingStateChanged):
+        * UserInterface/Views/Variables.css: New variable for navigation items with only an icon.
+        (:root):
+
+2020-09-14  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: docking buttons don't work when already docked if window is too small
+        https://bugs.webkit.org/show_bug.cgi?id=216488
+        <rdar://problem/68242717>
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Base/Main.js:
+        (WI.updateDockingAvailability):
+        (WI.updateDockedState):
+        (WI._updateDockNavigationItems):
+        Always be sure to update the docking navigation items when docking becomes unavailable
+        instead of just forcing Web Inspector to undock as if Web Inspector is already undocked
+        then none of the docking navigation items will be updated. This makes it so that the
+        docking navigation items are hidden when docking becomes unavailable while undocked.
+
+2020-09-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] REGRESSION(r266815): Several GTK API tests are timing out
+        https://bugs.webkit.org/show_bug.cgi?id=216361
+
+        Reviewed by Adrian Perez de Castro.
+
+        Add missing trailing ';'.
+
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.js:
+
+2020-09-10  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: modernize generated backend protocol code
+        https://bugs.webkit.org/show_bug.cgi?id=216302
+        <rdar://problem/68547649>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/CSSManager.js:
+        (WI.CSSManager.prototype.set forcedAppearance):
+        Now that enums are processed before being passed to backend dispacher handlers, the
+        `appearance` parameter of `Page.setForcedAppearance` must be marked `optional` as
+        there's no way for it to accept an empty string, as that's not possible for an enum.
+        As such, rework the frontend logic for invoking `Page.setForcedAppearance` to instead
+        not provide an `appearance` parameter at all when wanting to "unset" it.
+
+        * UserInterface/Views/SettingsTabContentView.js:
+        (WI.SettingsTabContentView.prototype._createConsoleSettingsView):
+        Now that all logging channels matching a `Console.ChannelSource` are returned instead of
+        just the hardcoded list, check for a matching `WI.UIString` before showing a `<select>`.
+
+2020-09-09  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: InvalidCharacterError: The string contains invalid characters.
+        https://bugs.webkit.org/show_bug.cgi?id=216138
+
+        Reviewed by Brian Burg.
+
+        Fixed to no longer use displayName as the identifier for `DOMNodeDetailsSidebarPanel` when creating a
+        `DetailsSection`, which could end up with illegal characters due to the escaping done by
+        `DOMNode.prototype.displayName`.
+
+        * UserInterface/Models/DOMNode.js:
+        (WI.DOMNode.prototype.get escapedIdSelector): Changed to use `_idSelector`.
+        (WI.DOMNode.prototype.get escapedClassSelector): Changed to use `_classSelector`.
+        (WI.DOMNode.prototype.get unescapedSelector): Added. Uses unescaped forms of `_idSelector` and `_classSelector`.
+        (WI.DOMNode.prototype._idSelector): Added. Supports optionally not escaping the selector.
+        (WI.DOMNode.prototype._classSelector): Added. Supports optionally not escaping the selector.
+        * UserInterface/Views/DOMNodeDetailsSidebarPanel.js:
+        (WI.DOMNodeDetailsSidebarPanel.prototype._refreshEventListeners.generateGroupsByTarget): Use separate identifier
+        and title.
+
+2020-09-08  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Incorrect decimal separator in Network web inspector
+        https://bugs.webkit.org/show_bug.cgi?id=216177
+
+        Reviewed by Brian Burg.
+
+        Removed separate bytes and suffix pieces for resources sizes, allowing the suffix to be localized and the number
+        to be correctly formatted for the locale.
+
+        * UserInterface/Base/Utilities.js: `Number.bytesToString(...)` now accepts a byte threshold to support
+        `ResourceSizesContentView` where we want less jitter between B and KB as you up/down through resources.
+        * UserInterface/Views/ResourceSizesContentView.css:
+        (.resource-sizes > .content > section.network .bytes): Adopted `text-align` from `.bytes-group`.
+        (.resource-sizes > .content > section.network .bytes-group): Deleted.
+        (.resource-sizes > .content > section.network .suffix): Deleted.
+        * UserInterface/Views/ResourceSizesContentView.js: No longer using a separate `suffix` element for sizes.
+        (WI.ResourceSizesContentView.prototype.initialLayout.createSizeComponents):
+        (WI.ResourceSizesContentView.prototype.initialLayout):
+        (WI.ResourceSizesContentView.prototype._formattedSizeComponent): Replaces `_sizeComponents`.
+        (WI.ResourceSizesContentView.prototype._refreshResourceSizeSection):
+        (WI.ResourceSizesContentView.prototype._sizeComponents): Deleted.
+
+2020-09-05  Greg Doolittle  <gr3g@apple.com>
+
+        Web Inspector: AXI: Audit: obtuse error strings
+        https://bugs.webkit.org/show_bug.cgi?id=201080
+        <rdar://problem/54648118>
+
+        Reviewed by Devin Rousso.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Controllers/AuditManager.js:
+        (WI.AuditManager.prototype._addDefaultTests):
+        (WI.AuditManager):
+
+2020-09-05  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow DOM breakpoints to be configured
+        https://bugs.webkit.org/show_bug.cgi?id=215795
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/DOMManager.js:
+        (WI.DOMManager.prototype._setChildNodes):
+        Dispatch events for each new child node added and each existing child node removed so that
+        any listeners can also know when new nodes are added via a full children payload update.
+
+        * UserInterface/Controllers/DOMDebuggerManager.js:
+        (WI.DOMDebuggerManager):
+        (WI.DOMDebuggerManager.prototype.addDOMBreakpoint):
+        (WI.DOMDebuggerManager.prototype.removeDOMBreakpoint):
+        (WI.DOMDebuggerManager.prototype._detachDOMBreakpointsForFrame): Added.
+        (WI.DOMDebuggerManager.prototype._speculativelyResolveDOMBreakpointsForURL):
+        (WI.DOMDebuggerManager.prototype._speculativelyResolveDOMBreakpoint): Added.
+        (WI.DOMDebuggerManager.prototype._resolveDOMBreakpoint):
+        (WI.DOMDebuggerManager.prototype._setDOMBreakpoint): Added.
+        (WI.DOMDebuggerManager.prototype._removeDOMBreakpoint): Added.
+        (WI.DOMDebuggerManager.prototype._handleDOMBreakpointDisabledStateChanged):
+        (WI.DOMDebuggerManager.prototype._handleDOMBreakpointEditablePropertyChanged): Added.
+        (WI.DOMDebuggerManager.prototype._handleDOMBreakpointActionsChanged): Added.
+        (WI.DOMDebuggerManager.prototype._handleDOMBreakpointDOMNodeWillChange): Added.
+        (WI.DOMDebuggerManager.prototype._handleDOMBreakpointDOMNodeDidChange): Added.
+        (WI.DOMDebuggerManager.prototype._childFrameWasRemoved):
+        (WI.DOMDebuggerManager.prototype._mainResourceDidChange):
+        (WI.DOMDebuggerManager.prototype._nodeInserted):
+        (WI.DOMDebuggerManager.prototype._nodeRemoved):
+        (WI.DOMDebuggerManager.prototype._detachDOMBreakpoint): Deleted.
+        (WI.DOMDebuggerManager.prototype._detachBreakpointsForFrame): Deleted.
+        (WI.DOMDebuggerManager.prototype._updateDOMBreakpoint): Deleted.
+        Recursively walk any added node's subtree to resolve and set any matching DOM breakpoints.
+        Iterate all existing DOM breakpoints to see if the owner node is part of the subtree of any
+        removed nodes and remove ot if so.
+
+        * UserInterface/Models/DOMBreakpoint.js:
+        (WI.DOMBreakpoint):
+        (WI.DOMBreakpoint.displayNameForType):
+        (WI.DOMBreakpoint.fromJSON):
+        (WI.DOMBreakpoint.prototype.get editable): Added.
+        (WI.DOMBreakpoint.prototype.get domNode): Added.
+        (WI.DOMBreakpoint.prototype.set domNode): Added.
+        (WI.DOMBreakpoint.prototype.get domNodeIdentifier): Deleted.
+        (WI.DOMBreakpoint.prototype.set domNodeIdentifier): Deleted.
+        * UserInterface/Views/DOMTreeContentView.js:
+        (WI.DOMTreeContentView):
+        (WI.DOMTreeContentView.prototype.closed):
+        (WI.DOMTreeContentView.prototype._domTreeElementAdded):
+        (WI.DOMTreeContentView.prototype._domBreakpointAddedOrRemoved):
+        (WI.DOMTreeContentView.prototype._handleDOMBreakpointDisabledStateChanged):
+        (WI.DOMTreeContentView.prototype._handleDOMBreakpointDOMNodeWillChange): Added.
+        (WI.DOMTreeContentView.prototype._handleDOMBreakpointDOMNodeDidChange): Added.
+        (WI.DOMTreeContentView.prototype._updateBreakpointStatus):
+        (WI.DOMTreeContentView.prototype._restoreBreakpointsAfterUpdate):
+        (WI.DOMTreeContentView.prototype._handleDOMBreakpointDOMNodeChanged): Deleted.
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._updatePauseReasonSection):
+        (WI.SourcesNavigationSidebarPanel.prototype._handleDOMBreakpointDOMNodeWillChange): Added.
+        (WI.SourcesNavigationSidebarPanel.prototype._handleDOMBreakpointDOMNodeDidChange): Added.
+        (WI.SourcesNavigationSidebarPanel.prototype._handleDOMBreakpointDOMNodeChanged): Deleted.
+        Use a `WI.DOMNode` instead of an identifier instead of fetching the node for the identifier
+        each time and checking if is valid.
+
+2020-09-04  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Localization: typo in WAI-ARIA string ("[the] element have")
+        https://bugs.webkit.org/show_bug.cgi?id=216176
+
+        Reviewed by Devin Rousso.
+
+        Resolved element not being pluralized in some audit test descriptions.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Controllers/AuditManager.js:
+        (WI.AuditManager.prototype._addDefaultTests):
+        (WI.AuditManager):
+
+2020-09-04  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Localization: "Low/Medium/High" strings need separate keys for different uses in the UI
+        https://bugs.webkit.org/show_bug.cgi?id=216136
+
+        Reviewed by Brian Burg.
+
+        Provide enough context to understand what nouns "low/medium/high" are used with
+        ("impact" and "priority", in our case). This is necessary to determine adjectives'
+        grammatical gender.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Models/Resource.js:
+        (WI.Resource.displayNameForPriority):
+
+        * UserInterface/Views/CPUTimelineView.js:
+        (WI.CPUTimelineView.prototype._layoutEnergyChart):
+        Drive-by: merge two if blocks into one to minimize code repetition.
+
+2020-09-04  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector: Localization: typo in WAI-ARIA string ("[the] element have")
+        https://bugs.webkit.org/show_bug.cgi?id=216176
+
+        Reviewed by Brian Burg.
+
+        Resolved auxiliary verb in localizable strings having the wrong pluralization for the singular element.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Controllers/AuditManager.js:
+        (WI.AuditManager.prototype._addDefaultTests):
+        (WI.AuditManager):
+
+2020-09-03  Patrick Angle  <pangle@apple.com>
+
+        Web Inspector fails to preview response from XHR requests
+        https://bugs.webkit.org/show_bug.cgi?id=215852
+
+        Reviewed by Devin Rousso.
+
+        Responses with a no content error and a status code of 304 now show a `Resource has no cached content` message instead
+            of a generic error. Also responses with empty content and no mime type now show a `Resource has no content`
+            message.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Models/Resource.js: More consistant error handling model - previously some paths rejected on
+            failure and some resolved with an error property.
+        (WI.Resource.prototype.requestContent):
+        (WI.Resource.prototype._requestContentFailure):
+        * UserInterface/Views/ResourceContentView.js: Error messages
+        (WI.ResourceContentView.prototype.async showGenericNoContentMessage): Text now consistent with other messages.
+        (WI.ResourceContentView.prototype.showNoCachedContentMessage):
+        (WI.ResourceContentView.prototype._contentAvailable):
+
+2020-09-03  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow url breakpoints to be configured
+        https://bugs.webkit.org/show_bug.cgi?id=215793
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/URLBreakpoint.js:
+        (WI.URLBreakpoint.get editable): Added.
+        (WI.URLBreakpoint.fromJSON):
+        (WI.URLBreakpoint.prototype.get editable):
+
+        * UserInterface/Controllers/DOMDebuggerManager.js:
+        (WI.DOMDebuggerManager):
+        (WI.DOMDebuggerManager.prototype.initializeTarget):
+        (WI.DOMDebuggerManager.prototype.addURLBreakpoint):
+        (WI.DOMDebuggerManager.prototype.removeURLBreakpoint):
+        (WI.DOMDebuggerManager.prototype._setURLBreakpoint): Added.
+        (WI.DOMDebuggerManager.prototype._removeURLBreakpoint): Added.
+        (WI.DOMDebuggerManager.prototype._handleURLBreakpointDisabledStateChanged):
+        (WI.DOMDebuggerManager.prototype._handleURLBreakpointEditablePropertyChanged): Added.
+        (WI.DOMDebuggerManager.prototype._handleURLBreakpointActionsChanged): Added.
+        (WI.DOMDebuggerManager.prototype._updateURLBreakpoint): Deleted.
+
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateBreakpointContextMenu):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateBreakpointContextMenu.addToggleForSpecialBreakpoint): Added.
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateBreakpointContextMenu.addToggleForSpecialEventBreakpoint): Deleted.
+
+        * UserInterface/Views/URLBreakpointPopover.js:
+        (WI.URLBreakpointPopover.get editable):
+
+        * UserInterface/Base/Setting.js:
+
+2020-09-03  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        Web Inspector: Timelines: record button disappears when UI is narrow
+        https://bugs.webkit.org/show_bug.cgi?id=216133
+
+        Reviewed by Devin Rousso.
+
+        The record button is one of the most important items on Timelines toolbar.
+        It should always be visible.
+
+        * UserInterface/Views/TimelineTabContentView.js:
+        (WI.TimelineTabContentView):
+
+2020-09-03  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow special JavaScript breakpoints to be configured
+        https://bugs.webkit.org/show_bug.cgi?id=215794
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/Breakpoint.js:
+        (WI.Breakpoint.prototype.reset): Added.
+        Provide a way to consistently clear the current configuration.
+
+        * UserInterface/Models/JavaScriptBreakpoint.js:
+        (WI.JavaScriptBreakpoint.supportsMicrotasks): Added.
+        (WI.JavaScriptBreakpoint.supportsDebuggerStatements): Added.
+        (WI.JavaScriptBreakpoint.fromJSON):
+        (WI.JavaScriptBreakpoint.prototype.toJSON):
+        (WI.JavaScriptBreakpoint.prototype.get editable):
+        (WI.JavaScriptBreakpoint.prototype._isSpecial):
+
+        * UserInterface/Models/SourceCodeLocation.js:
+        (WI.SourceCodeLocation.get specialBreakpointLocation): Added.
+        Add a helper for the special `null:Infinity:Infinity` breakpoint location for consistency.
+
+        * UserInterface/Controllers/DebuggerManager.js:
+        (WI.DebuggerManager):
+        (WI.DebuggerManager.prototype.async initializeTarget):
+        (WI.DebuggerManager.prototype.createAssertionFailuresBreakpoint): Added.
+        (WI.DebuggerManager.prototype.createAllMicrotasksBreakpoint): Added.
+        (WI.DebuggerManager.prototype.set breakpointsEnabled):
+        (WI.DebuggerManager.prototype.addBreakpoint):
+        (WI.DebuggerManager.prototype.removeBreakpoint):
+        (WI.DebuggerManager.prototype._setPauseOnExceptions): Added.
+        (WI.DebuggerManager.prototype._createSpecialBreakpoint): Added.
+        (WI.DebuggerManager.prototype._updateSpecialBreakpoint): Added.
+        (WI.DebuggerManager.prototype._breakpointDisabledStateDidChange):
+        (WI.DebuggerManager.prototype._breakpointEditablePropertyDidChange):
+        (WI.DebuggerManager.prototype._updateBreakOnExceptionsState): Deleted.
+        Maintain a `WI.Setting` for the configuration of each special `WI.JavaScriptBreakpoint`.
+        Have a common path for updating all special `WI.JavaScriptBreakpoint` to avoid duplicated
+        code.
+        Add methods for creating the Assertion Failures and All Microtasks `WI.JavaScriptBreakpoint`
+        since they can be removed (in addition to being disabled) and re-added.
+
+        * UserInterface/Views/BreakpointPopover.js:
+        (WI.BreakpointPopover.appendContextMenuItems):
+        * UserInterface/Views/BreakpointTreeElement.js:
+        (WI.BreakpointTreeElement.prototype.ondelete):
+        If the `WI.Breakpoint` is not removable, make sure to `reset` it in addition to disabling
+        it so that no configuration persists if the `WI.Breakpoint` is later enabled.
+
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel):
+        (WI.SourcesNavigationSidebarPanel.prototype._handleBreakpointTreeOutlineElementRemoved): Added.
+        (WI.SourcesNavigationSidebarPanel.prototype._handleBreakpointElementAddedOrRemoved): Deleted.
+        Eliminate the need to listen for when breakpoints are added to the `WI.TreeOutline`, which
+        was previously used to update the `WI.Setting` for whether special `WI.JavaScriptBreakpoint`
+        are visible.
+        Don't assume that a `WI.Breakpoint` exists for each special `WI.JavaScriptBreakpoint`.
+
+        * UserInterface/Base/Setting.js:
+        (WI.Setting):
+        (WI.Setting.migrateValue):
+        (WI.Setting.reset):
+        (WI.Setting.prototype.get value):
+        (WI.Setting.prototype.save):
+        (WI.Setting._localStorageKeyPrefix): Added.
+        (WI.Setting._localStorageKey): Deleted.
+        Eagerly compute the key prefix as it shouldn't change through the lifetime of Web Inspector
+        and is used early on too.
+        Add a static member `isFirstLaunch` which can be used by other `WI.Setting` to adjust their
+        value when Web Inspector is in a clean state (e.g. show the Assertion Failures breakpoint by
+        default, but only for the first launch). This is needed because `WI.Setting` clears the key
+        from `localStorage` if the current `value` matches the `_defaultValue`.
+
+        * UserInterface/Models/ProbeSet.js:
+        (WI.ProbeSet):
+        (WI.ProbeSet.prototype.willRemove):
+        (WI.ProbeSet.prototype._sampleCollected):
+        (WI.ProbeSet.prototype._breakpointResolvedStateDidChange): Deleted.
+        Drive-by: remove an unused event.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-09-02  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION (r251254): Web Inspector: Text insertion point is invisible when editing DOM nodes
+        https://bugs.webkit.org/show_bug.cgi?id=210197
+        <rdar://problem/61485409>
+
+        Reviewed by Devin Rousso.
+
+        r251254 promoted the selection area into a layer on top the the tree outline item.
+        Combined with the existing WebKit bug (https://webkit.org/b/213501), it introduced the regression.
+
+        This patch is largely a workaround for the WebKit bug.
+
+        Revert r251254 and instead change the background color of the shadow DOM items from
+        the semi-transparent gray to black (white in the dark mode) with 5% transparency, which
+        produced the same gray color overlayed on top of the white background of the DOM tree outline.
+
+        * UserInterface/Views/DOMTreeOutline.css:
+        (.tree-outline.dom):
+        (.tree-outline.dom li .selection-area):
+
+        (.tree-outline.dom li > :not(.selection-area)): Deleted.
+        Don't introduce a layer for every DOM node.
+
+        (.tree-outline.dom li.parent.shadow::after):
+        (.tree-outline.dom li.parent.shadow + ol.children.expanded):
+        (@media (prefers-color-scheme: dark) .tree-outline.dom):
+        (@media (prefers-color-scheme: dark) .tree-outline.dom .shadow):
+
+2020-09-02  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow event breakpoints to be configured when they're added
+        https://bugs.webkit.org/show_bug.cgi?id=215747
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/Breakpoint.js:
+        (WI.Breakpoint):
+        (WI.Breakpoint.prototype.get displayName): Added.
+        (WI.Breakpoint.prototype.addAction): Added.
+        (WI.Breakpoint.prototype.removeAction):
+        (WI.Breakpoint.prototype._handleBreakpointActionChanged): Added.
+        (WI.Breakpoint.prototype.createAction): Deleted.
+        (WI.Breakpoint.prototype.recreateAction): Deleted.
+        (WI.Breakpoint.prototype.breakpointActionDidChange): Deleted.
+        * UserInterface/Models/DOMBreakpoint.js:
+        (WI.DOMBreakpoint.displayNameForType):
+        (WI.DOMBreakpoint.prototype.get displayName): Added.
+        * UserInterface/Models/EventBreakpoint.js:
+        (WI.EventBreakpoint.get editable): Added.
+        (WI.EventBreakpoint.fromJSON):
+        (WI.EventBreakpoint.prototype.get displayName): Added.
+        (WI.EventBreakpoint.prototype.get editable):
+        * UserInterface/Models/JavaScriptBreakpoint.js:
+        (WI.JavaScriptBreakpoint.fromJSON):
+        (WI.JavaScriptBreakpoint.prototype.get displayName): Added.
+        * UserInterface/Models/URLBreakpoint.js:
+        (WI.URLBreakpoint.prototype.get displayName): Added.
+        Add a `get displayName` "virtual" member function.
+
+        * UserInterface/Models/BreakpointAction.js:
+        (WI.BreakpointAction):
+        (WI.BreakpointAction.fromJSON):
+        (WI.BreakpointAction.prototype.get type):
+        (WI.BreakpointAction.prototype.set type): Added.
+        (WI.BreakpointAction.prototype.set data): Added.
+        (WI.BreakpointAction.prototype.get breakpoint): Deleted.
+        Remove the requirement that `WI.BreakpointAction` be passed a `WI.Breakpoint` when its
+        constructed. Instead, have `WI.BreakpointAction` dispatch events when its `type` or `data`
+        changes.
+
+        * UserInterface/Views/BreakpointActionView.js:
+        (WI.BreakpointActionView):
+        (WI.BreakpointActionView.prototype._pickerChanged):
+        (WI.BreakpointActionView.prototype._appendActionButtonClicked):
+        (WI.BreakpointActionView.prototype._removeAction):
+        (WI.BreakpointActionView.prototype._updateBody):
+        (WI.BreakpointActionView.prototype._handleLogInputInput): Added.
+        (WI.BreakpointActionView.prototype._handleJavaScriptCodeMirrorChange): Added.
+        (WI.BreakpointActionView.prototype._logInputChanged): Deleted.
+        (WI.BreakpointActionView.prototype._codeMirrorBlurred): Deleted.
+        Call functions on the `delegate` instead of directly manipulating a `WI.Breakpoint` as there
+        is no longer a `WI.Breakpoint` to manipulate since `WI.BreakpointAction` doesn't have one.
+
+        * UserInterface/Controllers/BreakpointPopoverController.js: Removed.
+        * UserInterface/Views/BreakpointPopoverController.css: Removed.
+        * UserInterface/Views/BreakpointPopover.js: Renamed from Source/WebInspectorUI/UserInterface/Views/BreakpointPopoverController.css.
+        (WI.BreakpointPopover):
+        (WI.BreakpointPopover.appendContextMenuItems):
+        (WI.BreakpointPopover.prototype.get breakpoint):
+        (WI.BreakpointPopover.prototype.show):
+        (WI.BreakpointPopover.dismiss):
+        (WI.BreakpointPopover.prototype.completionControllerShouldAllowEscapeCompletion):
+        (WI.BreakpointPopover.prototype.breakpointActionViewAppendActionView):
+        (WI.BreakpointPopover.prototype.breakpointActionViewRemoveActionView):
+        (WI.BreakpointPopover.prototype.breakpointActionViewResized):
+        (WI.BreakpointPopover.prototype.populateContent):
+        (WI.BreakpointPopover.prototype.addRow):
+        (WI.BreakpointPopover.prototype.createBreakpoint):
+        (WI.BreakpointPopover.prototype._presentOverTargetElement):
+        (WI.BreakpointPopover.prototype._parseIgnoreCountNumber):
+        (WI.BreakpointPopover.prototype._updateIgnoreCountText):
+        (WI.BreakpointPopover.prototype._createAddActionButton):
+        (WI.BreakpointPopover.prototype._insertBreakpointActionView):
+        (WI.BreakpointPopover.prototype._handleEnabledCheckboxChange):
+        (WI.BreakpointPopover.prototype._handleConditionCodeMirrorBeforeChange):
+        (WI.BreakpointPopover.prototype._handleConditionCodeMirrorChange):
+        (WI.BreakpointPopover.prototype._handleIgnoreCountInputChange):
+        (WI.BreakpointPopover.prototype._handleAddActionButtonClick):
+        (WI.BreakpointPopover.prototype._handleAutoContinueCheckboxChange):
+        * UserInterface/Views/BreakpointPopover.css: Added.
+        (.popover .edit-breakpoint-popover-content):
+        (.popover .edit-breakpoint-popover-content.wide):
+        (.popover .edit-breakpoint-popover-content > label.toggle):
+        (.popover .edit-breakpoint-popover-content > table):
+        (.popover .edit-breakpoint-popover-content > table > tr > th):
+        (.popover .edit-breakpoint-popover-content > table > tr > td):
+        (.popover .edit-breakpoint-popover-content > table > tr.condition > td > .editor):
+        (.popover .edit-breakpoint-popover-content > table > tr.condition > td > .editor > .CodeMirror):
+        (.popover .edit-breakpoint-popover-content.wide .condition > .CodeMirror):
+        (.popover .edit-breakpoint-popover-content input#edit-breakpoint-popover-ignore-count):
+        (.popover .edit-breakpoint-popover-content input:is(#edit-breakpoint-popover-ignore-count, #edit-breakpoint-popover-auto-continue)):
+        (.popover .edit-breakpoint-popover-content > .reference-page-link-container):
+        (body[dir=ltr] .popover .edit-breakpoint-popover-content > .reference-page-link-container):
+        (body[dir=rtl] .popover .edit-breakpoint-popover-content > .reference-page-link-container):
+        (@media (prefers-color-scheme: dark) .popover .edit-breakpoint-popover-content > table > tr > th):
+        * UserInterface/Views/EventBreakpointPopover.js:
+        (WI.EventBreakpointPopover):
+        (WI.EventBreakpointPopover.get editable): Added.
+        (WI.EventBreakpointPopover.prototype.dismiss):
+        (WI.EventBreakpointPopover.prototype.populateContent): Added.
+        (WI.EventBreakpointPopover.prototype.createBreakpoint): Added.
+        (WI.EventBreakpointPopover.prototype._showSuggestionsView):
+        (WI.EventBreakpointPopover.prototype._handleDOMEventNameInputKeydown): Added.
+        (WI.EventBreakpointPopover.prototype._handleDOMEventNameInputInput): Added.
+        (WI.EventBreakpointPopover.prototype._handleDOMEventNameInputBlur): Added.
+        (WI.EventBreakpointPopover.prototype.get breakpoint): Deleted.
+        (WI.EventBreakpointPopover.prototype.show): Deleted.
+        (WI.EventBreakpointPopover.prototype._presentOverTargetElement): Deleted.
+        * UserInterface/Views/EventBreakpointPopover.css:
+        (.popover .edit-breakpoint-popover-content .event input): Added.
+        (.popover .edit-breakpoint-popover-content .event:last-child input): Added.
+        (.popover .edit-breakpoint-popover-content .event input::placeholder): Added.
+        (.popover .event-breakpoint-content): Deleted.
+        (.popover .event-breakpoint-content > input): Deleted.
+        (.popover .event-breakpoint-content > input::placeholder): Deleted.
+        (.popover .event-breakpoint-content .reference-page-link-container): Deleted.
+        * UserInterface/Views/URLBreakpointPopover.js:
+        (WI.URLBreakpointPopover):
+        (WI.URLBreakpointPopover.get editable): Added.
+        (WI.URLBreakpointPopover.prototype.populateContent): Added.
+        (WI.URLBreakpointPopover.prototype.createBreakpoint): Added.
+        (WI.URLBreakpointPopover.prototype._updateEditor):
+        (WI.URLBreakpointPopover.prototype.get breakpoint): Deleted.
+        (WI.URLBreakpointPopover.prototype.show): Deleted.
+        (WI.URLBreakpointPopover.prototype.dismiss): Deleted.
+        (WI.URLBreakpointPopover.prototype._createEditor): Deleted.
+        (WI.URLBreakpointPopover.prototype._presentOverTargetElement): Deleted.
+        * UserInterface/Views/URLBreakpointPopover.css:
+        (.popover .edit-breakpoint-popover-content .url .editor): Added.
+        (.popover .edit-breakpoint-popover-content .url:last-child .editor): Added.
+        (.popover .edit-breakpoint-popover-content .url .editor > .CodeMirror): Added.
+        (.popover .edit-breakpoint-popover-content .url .editor > .CodeMirror-scroll): Added.
+        (@media (prefers-color-scheme: dark) .popover .edit-breakpoint-popover-content .url .editor): Added.
+        (.popover .url-breakpoint-content): Deleted.
+        (.popover .url-breakpoint-content > .editor-wrapper): Deleted.
+        (.popover .url-breakpoint-content > .editor-wrapper > .editor): Deleted.
+        (.popover .url-breakpoint-content > .editor-wrapper > .editor > .CodeMirror): Deleted.
+        (.popover .url-breakpoint-content > .editor-wrapper > .editor > .CodeMirror-scroll): Deleted.
+        (.popover .url-breakpoint-content .reference-page-link-container): Deleted.
+        (@media (prefers-color-scheme: dark) .popover .url-breakpoint-content > .editor-wrapper > .editor): Deleted.
+        Make `WI.BreakpointPopoverController` into a subclass of `WI.Popover` with a `static` member
+        function for adding context menu items. This allows both `WI.EventBreakpointPopover` and
+        `WI.URLBreakpointPopover` to inherit from `WI.BreakpointPopover`, meaning that they can show
+        the configuration UI when adding the breakpoint instead of as a second step after creating
+        the breakpoint.
+
+        * UserInterface/Models/ProbeSet.js:
+        (WI.ProbeSet.prototype.createProbe):
+        Update to use newly named `WI.Breakpoint.prototype.addAction`.
+
+        * UserInterface/Views/ContextMenuUtilities.js:
+        * UserInterface/Views/DOMBreakpointTreeElement.js:
+        (WI.DOMBreakpointTreeElement):
+        (WI.DOMBreakpointTreeElement.displayNameForType): Deleted.
+        * UserInterface/Views/EventBreakpointTreeElement.js:
+        (WI.EventBreakpointTreeElement):
+        * UserInterface/Views/JavaScriptBreakpointTreeElement.js:
+        (WI.JavaScriptBreakpointTreeElement):
+        (WI.JavaScriptBreakpointTreeElement.prototype.updateTitles):
+        * UserInterface/Views/URLBreakpointTreeElement.js:
+        (WI.URLBreakpointTreeElement):
+        * UserInterface/Views/ProbeSetDetailsSection.js:
+        (WI.ProbeSetDetailsSection):
+        * UserInterface/Views/SourcesNavigationSidebarPanel.js:
+        (WI.SourcesNavigationSidebarPanel.prototype._addBreakpoint):
+        (WI.SourcesNavigationSidebarPanel.prototype._updatePauseReasonSection):
+        (WI.SourcesNavigationSidebarPanel.prototype._populateCreateBreakpointContextMenu):
+        Use the new `WI.Breakpoint.prototype.get displayName`.
+
+        * UserInterface/Base/Main.js:
+        * UserInterface/Views/BreakpointTreeElement.js:
+        (WI.BreakpointTreeElement.prototype.populateContextMenu):
+        * UserInterface/Views/SourceCodeTextEditor.js:
+        (WI.SourceCodeTextEditor.prototype.textEditorGutterContextMenu):
+        Replace `WI.breakpointPopoverController` with `WI.BreakpointPopover`.
+
+        * UserInterface/Views/Variables.css:
+        (:root):
+        * UserInterface/Views/Main.css:
+        (.reference-page-link):
+        Create a variable for the size of the reference page (?) button so it can be use elsewhere.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/LoadLocalizedStrings.js:
+        (WI.repeatedUIString.debuggerStatements): Added.
+        (WI.repeatedUIString.allExceptions): Added.
+        (WI.repeatedUIString.uncaughtExceptions): Added.
+        (WI.repeatedUIString.assertionFailures): Added.
+        (WI.repeatedUIString.allMicrotasks): Added.
+        (WI.repeatedUIString.allAnimationFrames): Added.
+        (WI.repeatedUIString.allIntervals): Added.
+        (WI.repeatedUIString.allEvents): Added.
+        (WI.repeatedUIString.allTimeouts): Added.
+        Create repeated localized string helper functions for special breakpoints.
+
+        * UserInterface/Base/ReferencePage.js: Added.
+        Add an enum for reference page URLs.
+
+        * UserInterface/Main.html:
+
+2020-09-02  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Timelines: duplicate "Timeline Recording 1" on open
+        https://bugs.webkit.org/show_bug.cgi?id=216060
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Controllers/TimelineManager.js:
+        (WI.TimelineManager):
+        (WI.TimelineManager.prototype.get recordings): Deleted.
+        Don't `reset` in the `constructor` as this is already done in `enable` and `disable`, which
+        is called whenever the Timeline Tab is added/removed.
+
+        * UserInterface/Views/TimelineTabContentView.js:
+        (WI.TimelineTabContentView):
+        There should never be any existing recordings when adding the Timelines Tab, as they should
+        have been removed when the tab was last removed (via `WI.TimelineManager.prototype.disable`).
+
+2020-09-02  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(?): Timelines: Frames: clicking a record bar to select it when another record bar is already selected instead removes all selections
+        https://bugs.webkit.org/show_bug.cgi?id=216045
+        <rdar://problem/68156740>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/RenderingFrameTimelineOverviewGraph.js:
+        (WI.RenderingFrameTimelineOverviewGraph.prototype._mouseClicked):
+
+2020-09-02  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Graphics: reloading the page doesn't automatically deselect shaders if they are shown
+        https://bugs.webkit.org/show_bug.cgi?id=216054
+        <rdar://problem/68167882>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/GraphicsTabContentView.js:
+        (WI.GraphicsTabContentView.prototype._removeCanvas):
+
+2020-09-02  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Timelines: re-enabling the JavaScript Allocations timeline doesn't show previously captured heap snapshots in the table
+        https://bugs.webkit.org/show_bug.cgi?id=216057
+        <rdar://problem/68172848>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Views/HeapAllocationsTimelineView.js:
+        (WI.HeapAllocationsTimelineView):
+        Add a `WI.HeapAllocationsTimelineDataGridNode` for each `WI.HeapAllocationsTimelineRecord`
+        that already exists when the `WI.HeapAllocationsTimelineView` is created.
+
+2020-09-01  Nikita Vasilyev  <nvasilyev@apple.com>
+
+        REGRESSION(r243264): Web Inspector: Style pane doesn't update after toggling CSS class
+        https://bugs.webkit.org/show_bug.cgi?id=202065
+        <rdar://problem/55149141>
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/DOMNodeStyles.js:
+        (WI.DOMNodeStyles.prototype.refresh.fetchedMatchedStyles):
+        (WI.DOMNodeStyles.prototype.refresh.fetchedComputedStyle):
+        (WI.DOMNodeStyles.prototype.refresh):
+        (WI.DOMNodeStyles.prototype._parseStyleDeclarationPayload):
+        r243264 introduced this bug by never clearing `_styleMap` making it impossible to diff old
+        and new style declarations. Create and clear `_styleMap` at the same place as it was before r243264.
+
+        * UserInterface/Views/SpreadsheetRulesStyleDetailsPanel.js:
+        (WI.SpreadsheetRulesStyleDetailsPanel):
+        (WI.SpreadsheetRulesStyleDetailsPanel.prototype.layout):
+        Layout now always re-layouts everything. Rules with modified selectors are now preserved by
+        exiting layout early.
+
+        (WI.SpreadsheetRulesStyleDetailsPanel.prototype._handleSectionSelectorWillChange):
+        Remove logic that tried to preserve indexes of CSS rules with modified selectors that
+        don't match (SectionIndexSymbol and everything related to it). Instead, avoid re-layout after
+        editing a selector.
+
+2020-09-01  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: WebSockets should be reported as type 'websocket' in Network Tab
+        https://bugs.webkit.org/show_bug.cgi?id=216055
+        <rdar://problem/68171040>
+
+        Reviewed by Darin Adler.
+
+        * UserInterface/Views/NetworkTableContentView.js:
+        (WI.NetworkTableContentView.shortDisplayNameForResourceType):
+
+2020-08-28  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: Audit: should be able to create/edit imported audits
+        https://bugs.webkit.org/show_bug.cgi?id=215555
+        <rdar://problem/67255483>
+
+        Reviewed by Devin Rousso.
+
+        Extend the existing audit edit mode (which previously only let audits be disabled/deleted)
+        to also allow other JSON properties of audits to be added/edited/removed, meaning that
+        audits can now be completely created/configured from within the Web Inspector UI. \(o.o)/
+
+        * UserInterface/Models/AuditTestBase.js:
+        (WI.AuditTestBase):
+        (WI.AuditTestBase.prototype.set name): Added.
+        (WI.AuditTestBase.prototype.set description): Added.
+        (WI.AuditTestBase.prototype.get supports): Added.
+        (WI.AuditTestBase.prototype.set supports): Added.
+        (WI.AuditTestBase.prototype.get setup): Added.
+        (WI.AuditTestBase.prototype.set setup): Added.
+        (WI.AuditTestBase.prototype.set disabled):
+        (WI.AuditTestBase.prototype.get editable): Added.
+        (WI.AuditTestBase.prototype.get default): Added.
+        (WI.AuditTestBase.prototype.markAsDefault): Added.
+        (WI.AuditTestBase.prototype.get topLevelTest): Added.
+        (WI.AuditTestBase.prototype.async runSetup): Added.
+        (WI.AuditTestBase.prototype.async start()):
+        (WI.AuditTestBase.prototype.stop()):
+        (WI.AuditTestBase.prototype.async clone): Added.
+        (WI.AuditTestBase.remove): Added.
+        (WI.AuditTestBase.saveIdentityToCookie):
+        (WI.AuditTestBase.toJSON):
+        (WI.AuditTestBase.prototype.determineIfSupported): Added.
+        (WI.AuditTestBase.prototype.updateSupported): Added.
+        (WI.AuditTestBase.prototype.updateResult): Added.
+        (WI.AuditTestBase.prototype.set supported): Deleted.
+        (WI.AuditTestBase.async setup): Deleted.
+        (WI.AuditTestBase.prototype.async setup): Deleted.
+        * UserInterface/Models/AuditTestGroup.js:
+        (WI.AuditTestGroup):
+        (WI.AuditTestGroup.prototype.addTest): Added.
+        (WI.AuditTestGroup.prototype.removeTest): Added.
+        (WI.AuditTestGroup.prototype.clearResult):
+        (WI.AuditTestGroup.prototype.async run):
+        (WI.AuditTestGroup.prototype.determineIfSupported): Added.
+        (WI.AuditTestGroup.prototype.updateSupported): Added.
+        (WI.AuditTestGroup.prototype.updateResult): Added.
+        (WI.AuditTestGroup.prototype._checkDisabled): Added.
+        (WI.AuditTestGroup.prototype._handleTestCompleted):
+        (WI.AuditTestGroup.prototype._handleTestDisabledChanged):
+        (WI.AuditTestGroup.prototype._handleTestSupportedChanged): Added.
+        (WI.AuditTestGroup.prototype._handleTestChanged): Added.
+        (WI.AuditTestGroup.prototype.get supported): Deleted.
+        (WI.AuditTestGroup.prototype.set supported): Deleted.
+        (WI.AuditTestGroup.prototype.get disabled): Deleted.
+        (WI.AuditTestGroup.prototype.set disabled): Deleted.
+        (WI.AuditTestGroup.prototype._updateResult): Deleted.
+        (WI.AuditTestGroup.prototype._updateResult): Deleted.
+        * UserInterface/Models/AuditTestCase.js:
+        (WI.AuditTestCase):
+        (WI.AuditTestCase.stringifyFunction): Added.
+        (WI.AuditTestCase.prototype.set test): Added.
+        (WI.AuditTestCase.prototype.async run):
+        Allow additional JSON keys to be changed in the UI:
+         - `name`
+         - `description`
+         - `supports` (ensure that changes recalculate whether the audit is actually supported)
+         - `setup`
+         - (groups) `tests` (via separate add and remove functions)
+         - (test cases) the actual `test` function
+        These properties are expected to only change in edit mode.
+
+        * UserInterface/Models/AuditTestResultBase.js:
+        (WI.AuditTestResultBase.prototype.get disabled): Added.
+        (WI.AuditTestResultBase.prototype.get editable): Added.
+        Audit results are never disabled and not editable.
+
+        * UserInterface/Controllers/AuditManager.js:
+        (WI.AuditManager):
+        (WI.AuditManager.prototype.set editing):
+        (WI.AuditManager.async start):
+        (WI.AuditManager.prototype.async start):
+        (WI.AuditManager.prototype.stop):
+        (WI.AuditManager.prototype.async processJSON):
+        (WI.AuditManager.prototype.loadStoredTests):
+        (WI.AuditManager.prototype.async addTest): Added.
+        (WI.AuditManager.prototype.removeTest):
+        (WI.AuditManager.prototype._addDefaultTests):
+        (WI.AuditManager.prototype._addDefaultTests.removeWhitespace):
+        (WI.AuditManager.prototype._addTest): Deleted.
+        (WI.AuditManager.prototype._topLevelTestForTest): Deleted.
+        Add helper functions and events for when the audit manager running mode changes to update UI.
+        Also add another default test that demonstrates the `supports` JSON key.
+
+        * UserInterface/Views/AuditNavigationSidebarPanel.js:
+        (WI.AuditNavigationSidebarPanel.prototype.showDefaultContentView):
+        (WI.AuditNavigationSidebarPanel.prototype.willDismissPopover): Added.
+        (WI.AuditNavigationSidebarPanel.prototype.initialLayout):
+        (WI.AuditNavigationSidebarPanel.prototype.matchTreeElementAgainstCustomFilters):
+        (WI.AuditNavigationSidebarPanel.prototype._addTest):
+        (WI.AuditNavigationSidebarPanel.prototype._addResult):
+        (WI.AuditNavigationSidebarPanel.prototype._updateControlNavigationItems): Added.
+        (WI.AuditNavigationSidebarPanel.prototype._updateEditNavigationItems): Added.
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditManagerEditingChanged):
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditManagerRunningStateChanged): Added.
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditTestAdded):
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditTestCompleted):
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditTestRemoved):
+        (WI.AuditNavigationSidebarPanel.prototype._handleAuditTestScheduled):
+        (WI.AuditNavigationSidebarPanel.prototype._treeSelectionDidChange):
+        (WI.AuditNavigationSidebarPanel.prototype._handleStartStopButtonNavigationItemClicked):
+        (WI.AuditNavigationSidebarPanel.prototype._handleCreateButtonNavigationItemClicked): Added.
+        (WI.AuditNavigationSidebarPanel.prototype._updateStartStopButtonNavigationItemState): Deleted.
+        (WI.AuditNavigationSidebarPanel.prototype._updateEditButtonNavigationItemState): Deleted.
+        * UserInterface/Views/AuditNavigationSidebarPanel.css:
+        (.sidebar > .panel.navigation.audit .edit-audits:not(.disabled):active): Added.
+        (.sidebar > .panel.navigation.audit .edit-audits:not(.disabled).activated): Added.
+        (.sidebar > .panel.navigation.audit .edit-audits:not(.disabled).activated:active): Added.
+        (.sidebar > .panel.navigation.audit .edit-audits.disabled): Added.
+        (.content-view.audit .message-text-view .navigation-item-help:is(.start-editing-audits, .stop-editing-audits) .navigation-bar): Added.
+        (.content-view.tab.audit .content-view > .audit-version): Added.
+        (.content-view.tab.audit .content-view .reference-page-link-container): Added.
+        (body[dir=ltr] .content-view.tab.audit .content-view .reference-page-link-container): Added.
+        (body[dir=rtl] .content-view.tab.audit .content-view .reference-page-link-container): Added.
+        (.sidebar > .panel.navigation.audit > .content .edit-audits:not(.disabled):active): Deleted.
+        (.sidebar > .panel.navigation.audit > .content .edit-audits:not(.disabled).activated): Deleted.
+        (.sidebar > .panel.navigation.audit > .content .edit-audits:not(.disabled).activated:active): Deleted.
+        (.sidebar > .panel.navigation.audit > .content .edit-audits.disabled): Deleted.
+        (.finish-editing-audits-placeholder.message-text-view .navigation-item-help .navigation-bar): Deleted.
+        (.audit-version): Deleted.
+        Move the "Edit" toggle to be next to the filter bar so that it's always visible. Replace the
+        "[|>] Start" button  with a "[+] Create" button when in edit mode, which adds a new audit at
+        the top-level.
+
+        * UserInterface/Views/AuditTestContentView.js:
+        (WI.AuditTestContentView):
+        (WI.AuditTestContentView.get navigationItems):
+        (WI.AuditTestContentView.get supportsSave):
+        (WI.AuditTestContentView.prototype.createNameElement): Added.
+        (WI.AuditTestContentView.prototype.createDescriptionElement): Added.
+        (WI.AuditTestContentView.prototype.createControlsTableElement): Added.
+        (WI.AuditTestContentView.prototype.layout):
+        (WI.AuditTestContentView.prototype.shown):
+        (WI.AuditTestContentView.prototype.hidden):
+        (WI.AuditTestContentView.prototype.handleResultChanged):
+        (WI.AuditTestContentView.prototype.showStoppingPlaceholder):
+        (WI.AuditTestContentView.prototype.showNoResultPlaceholder):
+        (WI.AuditTestContentView.prototype.showNoResultDataPlaceholder):
+        (WI.AuditTestContentView.prototype.showFilteredPlaceholder):
+        (WI.AuditTestContentView.prototype._updateExportNavigationItems): Added.
+        (WI.AuditTestContentView.prototype._updateSupportsInputState): Added.
+        (WI.AuditTestContentView.prototype._createSetupEditor): Added.
+        (WI.AuditTestContentView.prototype._handleEditorKeydown): Added.
+        (WI.AuditTestContentView.prototype._handleExportTestButtonNavigationItemClicked): Added.
+        (WI.AuditTestContentView.prototype._handleExportResultButtonNavigationItemClicked): Added.
+        (WI.AuditTestContentView.prototype._handleTestDisabledChanged): Added.
+        (WI.AuditTestContentView.prototype._handleTestSupportedChanged): Added.
+        (WI.AuditTestContentView.prototype._handleEditingChanged): Added.
+        (WI.AuditTestContentView.prototype._updateExportButtonNavigationItemState): Deleted.
+        (WI.AuditTestContentView.prototype._handleExportButtonNavigationItemClicked): Deleted.
+        * UserInterface/Views/AuditTestContentView.css:
+        (.content-view.audit-test:is(.unsupported, .disabled):not(.manager-editing)): Added.
+        (.content-view.audit-test.manager-editing .editor:not(:empty)): Added.
+        (.content-view.audit-test.manager-editing :is(.content-view.audit-test, header) .editor:not(:empty)): Added.
+        (.content-view.audit-test .CodeMirror): Added.
+        (.content-view.audit-test > header :is(.name, .description):not([contenteditable])): Added.
+        (.content-view.audit-test.manager-editing > header :is(.name, .description)[contenteditable]): Added.
+        (.content-view.audit-test.manager-editing > header .name[contenteditable]:empty): Added.
+        (.content-view.audit-test.manager-editing > header .name[contenteditable]:empty:before): Added.
+        (.content-view.audit-test.manager-editing > header .description[contenteditable]:empty:before): Added.
+        (.content-view.audit-test:not(.manager-editing) > header .description:empty): Added.
+        (.content-view.audit-test:not(.manager-editing) > header .description:empty, .content-view.audit-test:not(.manager-editing) > header table.controls): Added.
+        (.content-view.audit-test > header table.controls, .content-view.audit-test > header table.controls > tr > td): Added.
+        (.content-view.audit-test > header table.controls > tr > th): Added.
+        (.content-view.audit-test > header table.controls > tr.supports input[type="number"]): Added.
+        (.content-view.audit-test > header table.controls > tr.supports .warning): Added.
+        (.content-view.audit-test > header table.controls > tr.supports .warning:not(:empty)::before ): Added.
+        (.content-view.audit-test > header table.controls > tr.setup .editor): Added.
+        (.content-view.audit-test > section > .message-text-view > :is(progress, .indeterminate-progress-spinner)): Added.
+        (@media (prefers-color-scheme: dark) .content-view.audit-test > header table.controls > tr > th): Added.
+        Create helper functions for subclasses that simplify creating the editing UI. When in edit
+        mode, add `contenteditable` to the `name`/`description` and inputs for `supports`/`setup`.
+
+        * UserInterface/Views/AuditTestGroupContentView.js:
+        (WI.AuditTestGroupContentView):
+        (WI.AuditTestGroupContentView.prototype.willDismissPopover): Added.
+        (WI.AuditTestGroupContentView.prototype.createControlsTableElement): Added.
+        (WI.AuditTestGroupContentView.prototype.initialLayout):
+        (WI.AuditTestGroupContentView.prototype.layout):
+        (WI.AuditTestGroupContentView.prototype.shown):
+        (WI.AuditTestGroupContentView.prototype.hidden):
+        (WI.AuditTestGroupContentView.prototype.showRunningPlaceholder):
+        (WI.AuditTestGroupContentView.prototype._updateClassList): Added.
+        (WI.AuditTestGroupContentView.prototype._updateLevelScopeBar):
+        (WI.AuditTestGroupContentView.prototype._addTest): Added.
+        (WI.AuditTestGroupContentView.prototype._handleTestGroupTestAdded): Added.
+        (WI.AuditTestGroupContentView.prototype._handleTestGroupTestRemoved): Added.
+        * UserInterface/Views/AuditTestGroupContentView.css:
+        (.content-view.audit-test-group > section > .audit-test-group > header): Added.
+        (.content-view.audit-test-group.contains-test-case > header):
+        (.content-view.audit-test-group > section > .audit-test-group.contains-test-case > header): Added.
+        (.content-view.audit-test-group.contains-test-case + .audit-test-group.contains-test-case, .content-view.audit-test-group + .content-view.audit-test-case): Added.
+        (.content-view.audit-test-group.contains-test-case + .audit-test-group.contains-test-case): Deleted.
+        When in edit mode, add buttons for removing the audit and adding a new sub-audit (using the
+        new `WI.CreateAuditPopover` popover).
+
+        * UserInterface/Views/AuditTestCaseContentView.js:
+        (WI.AuditTestCaseContentView):
+        (WI.AuditTestCaseContentView.prototype.initialLayout):
+        (WI.AuditTestCaseContentView.prototype.layout):
+        (WI.AuditTestCaseContentView.prototype.showRunningPlaceholder):
+        * UserInterface/Views/AuditTestCaseContentView.css:
+        (.content-view-container > .content-view.audit-test-case): Added.
+        (.content-view-container > .content-view.audit-test-case > header):
+        (.content-view-container > .content-view.audit-test-case.manager-editing > header h1 > img): Added.
+        (.content-view-container > .content-view.audit-test-case > section > :not(.message-text-view, .editor):first-child): Added.
+        (.content-view-container > .content-view.audit-test-case > section): Added.
+        (.content-view-container > .content-view.audit-test-case > section, .content-view-container > .content-view.audit-test-case > section :is(.editor, .CodeMirror)): Added.
+        (.content-view.audit-test-case.manager-editing.disabled:not(.editable) > header h1 > img): Added.
+        (.content-view.audit-test-case > section > :not(.message-text-view, .editor)): Added.
+        (.content-view.audit-test-case > section > :not(.message-text-view, .editor):last-child): Added.
+        (.content-view.audit-test-case > section > :not(.message-text-view, .editor) + :not(.message-text-view, .editor)): Added.
+        (@media (prefers-color-scheme: dark) .content-view.audit-test-case.manager-editing > header h1 > img): Added.
+        (.content-view-container > .content-view.audit-test-case > section > :not(.message-text-view):first-child): Deleted.
+        (.content-view.audit-test-case > section > :not(.message-text-view)): Deleted.
+        (.content-view.audit-test-case > section > :not(.message-text-view):last-child): Deleted.
+        (.content-view.audit-test-case > section > :not(.message-text-view) + :not(.message-text-view)): Deleted.
+        (.content-view.audit-test-case > section .CodeMirror): Deleted.
+        When in edit mode, replace the icon with a (X) to remove the audit and show a `CodeMirror`
+        instance to allow editing the content.
+
+        * UserInterface/Views/AuditTreeElement.js:
+        (WI.AuditTreeElement):
+        (WI.AuditTreeElement.expandedSettingKey): Added.
+        (WI.AuditTreeElement.prototype.onattach):
+        (WI.AuditTreeElement.prototype.ondelete):
+        (WI.AuditTreeElement.prototype.canSelectOnMouseDown): Added.
+        (WI.AuditTreeElement.prototype.populateContextMenu):
+        (WI.AuditTreeElement.prototype._handleTestNameChanged): Added.
+        (WI.AuditTreeElement.prototype._handleTestSupportedChanged): Added.
+        (WI.AuditTreeElement.prototype._handleTestGroupTestAdded): Added.
+        * UserInterface/Views/AuditTreeElement.css:
+        (.tree-outline .item.audit:matches(.test-case, .test-group):not(.unsupported, .manager-active):hover > .status > img): Added.
+        (body:not(.window-inactive, .window-docked-inactive) .tree-outline:focus-within .item.audit:matches(.test-case, .test-group):not(.unsupported, .manager-active).selected:hover > .status > img, body:not(.window-inactive, .window-docked-inactive) .tree-outline:focus-within .item.audit.test-case.selected > .status > .indeterminate-progress-spinner, body:not(.window-inactive, .window-docked-inactive) .tree-outline:focus-within .item.audit.test-group.selected > .status > progress): Added.
+        (.tree-outline .item.audit:not(:hover) > .status > img.show-on-hover, .tree-outline .item.audit.test-group.expanded:not(.unsupported, .editing-audits):not(:hover) > .status): Added.
+        (.tree-outline .item.audit.manager-active > .status > img.show-on-hover, .tree-outline .item.audit.manager-active > .status > img.show-on-hover, .tree-outline .item.audit.test-group.expanded:not(.editing-audits):hover > .status > :not(img), .tree-outline .item.audit.test-group-result.expanded > .status, .tree-outline .item.audit.unsupported + .children .item.audit.unsupported  > .status > img): Added.
+        (@media (prefers-color-scheme: dark) .tree-outline .item.audit:matches(.test-case, .test-group):not(.unsupported, .manager-active):hover > .status > img): Added.
+        (.tree-outline .item.audit:matches(.test-case, .test-group):not(.unsupported, .manager-active) > .status:hover > img): Deleted.
+        (.tree-outline .item.audit > .status:not(:hover) > img.show-on-hover, .tree-outline .item.audit.test-group.expanded:not(.unsupported, .editing-audits) > .status:not(:hover)): Deleted.
+        (.tree-outline .item.audit.manager-active > .status > img.show-on-hover, .tree-outline .item.audit.test-group.expanded:not(.editing-audits) > .status:hover > :not(img), .tree-outline .item.audit.test-group-result.expanded > .status, .tree-outline .item.audit.unsupported + .children .item.audit.unsupported  > .status > img): Deleted.
+        Add context menu items for duplicating/deleting tests when in edit mode. Adjust the label
+        and disabled state of existing context menu items for clarity.
+
+        * UserInterface/Views/CreateAuditPopover.js: Added.
+        (WI.CreateAuditPopover):
+        (WI.CreateAuditPopover.prototype.get audit):
+        (WI.CreateAuditPopover.prototype.show):
+        (WI.CreateAuditPopover.prototype.dismiss.const.testFunction):
+        (WI.CreateAuditPopover.prototype.dismiss):
+        (WI.CreateAuditPopover.prototype._presentOverTargetElement):
+        * UserInterface/Views/CreateAuditPopover.css: Added.
+        (.popover .create-audit-content):
+        (.popover .create-audit-content > .editor-wrapper):
+        (.popover .create-audit-content > .editor-wrapper > .reference-page-link):
+        New popover for creating an audit:
+
+            [<select> of group or test case] [<input> for name] (?)
+
+        * UserInterface/Views/Main.css:
+        (.navigation-item-help > .navigation-bar):
+        (.message-text-view > .navigation-item-help + .navigation-item-help): Added.
+        Add styles for when multiple navigation help items are used in the same message text view.
+
+        * UserInterface/Views/Variables.css:
+        (:root):
+        (@media (prefers-color-scheme: dark) :root):
+        Add `--filter-invert` to light mode too.
+
+        * UserInterface/Base/Utilities.js:
+        (HTMLInputElement.prototype.autosize):
+        * UserInterface/Views/CanvasOverviewContentView.js:
+        (WI.CanvasOverviewContentView):
+        (WI.CanvasOverviewContentView.prototype._updateRecordingAutoCaptureInputElementSize):
+        (WI.CanvasOverviewContentView.get recordingAutoCaptureInputMargin): Deleted.
+        * UserInterface/Views/CanvasOverviewContentView.css:
+        (.navigation-bar > .item.canvas-recording-auto-capture > label > input):
+        (.navigation-bar > .item.canvas-recording-auto-capture > label > input::-webkit-inner-spin-button): Deleted.
+        Create a helper function for autosizing an `<input>`.
+
+        * UserInterface/Views/AuditTabContentView.js:
+        (WI.AuditTabContentView):
+        (WI.AuditTabContentView.prototype.initialLayout):
+        Remove the back/foward arrows as they can get into an inconsistent state when editing.
+        Drive-by: update the drop zone text for clarity.
+
+        * UserInterface/Views/SearchSidebarPanel.js:
+        (WI.SearchSidebarPanel.prototype.showDefaultContentView):
+        Drive-by: add period to help text.
+
+        * UserInterface/Main.html:
+        * Localizations/en.lproj/localizedStrings.js:
+
+2020-08-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Include the run loop source name in frame rendering timeline
+        https://bugs.webkit.org/show_bug.cgi?id=215847
+
+        Reviewed by Adrian Perez de Castro.
+
+        Show the frame name if present in timeline panel.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Controllers/TimelineManager.js:
+        (WI.TimelineManager.prototype._processRecord):
+        * UserInterface/Models/RenderingFrameTimelineRecord.js:
+        (WI.RenderingFrameTimelineRecord):
+        (WI.RenderingFrameTimelineRecord.prototype.get name):
+        * UserInterface/Views/TimelineTabContentView.js:
+        (WI.TimelineTabContentView.displayNameForRecord):
+
+2020-08-26  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: button for Inspector^2 doesn't work without setting default for DeveloperExtrasEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=215828
+
+        Reviewed by Devin Rousso.
+
+        Drive-by: because the Inspector^2 button is text-only and has no
+        .name element, the '2' button does not become dimmed when the
+        window is inactive, unlike every other item in the tab bar.
+        Fix this by coloring the text-only button similar to tab labels.
+
+        * UserInterface/Debug/Bootstrap.css:
+        (body.window-inactive .tab-bar > .navigation-bar .item.button.text-only):
+        (.tab-bar > .navigation-bar .item.button.text-only):
+        (.tab-bar > .navigation-bar .item.button.text-only:not(.selected):hover):
+        (.tab-bar > .navigation-bar .item.button.text-only:not(.disabled).selected):
+        (body.window-inactive .tab-bar > .navigation-bar .item.button.text-only:not(.disabled).selected >):
+
+2020-08-26  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266074): cannot edit JavaScript breakpoints
+        https://bugs.webkit.org/show_bug.cgi?id=215860
+
+        Reviewed by Brian Burg.
+
+        * UserInterface/Models/JavaScriptBreakpoint.js:
+        (WI.JavaScriptBreakpoint.prototype.get editable):
+
 2020-08-24  Devin Rousso  <drousso@apple.com>
 
         Web Inspector: remove legacy code for replacing the Resources Tab and Debugger Tab with the Sources Tab

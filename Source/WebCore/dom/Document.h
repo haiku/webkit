@@ -177,12 +177,12 @@ class MediaPlaybackTarget;
 class MediaPlaybackTargetClient;
 class MediaQueryList;
 class MediaQueryMatcher;
-class MediaSession;
 class MessagePortChannelProvider;
 class MouseEventWithHitTestResults;
 class NodeFilter;
 class NodeIterator;
 class Page;
+class PaintWorklet;
 class PaintWorkletGlobalScope;
 class PlatformMouseEvent;
 class ProcessingInstruction;
@@ -225,7 +225,6 @@ class WebGL2RenderingContext;
 class WebGLRenderingContext;
 class WindowEventLoop;
 class WindowProxy;
-class Worklet;
 class XPathEvaluator;
 class XPathExpression;
 class XPathNSResolver;
@@ -490,6 +489,8 @@ public:
 
     void setTimerThrottlingEnabled(bool);
     bool isTimerThrottlingEnabled() const { return m_isTimerThrottlingEnabled; }
+
+    void setVisibilityHiddenDueToDismissal(bool);
 
     WEBCORE_EXPORT ExceptionOr<Ref<Node>> adoptNode(Node& source);
 
@@ -905,7 +906,7 @@ public:
 
     // Returns the owning element in the parent document.
     // Returns nullptr if this is the top level document.
-    HTMLFrameOwnerElement* ownerElement() const;
+    WEBCORE_EXPORT HTMLFrameOwnerElement* ownerElement() const;
 
     // Used by DOM bindings; no direction known.
     const String& title() const { return m_title.string; }
@@ -1094,10 +1095,6 @@ public:
     bool audioPlaybackRequiresUserGesture() const;
     bool videoPlaybackRequiresUserGesture() const;
     bool mediaDataLoadsAutomatically() const;
-
-#if ENABLE(MEDIA_SESSION)
-    MediaSession& defaultMediaSession();
-#endif
 
     void privateBrowsingStateDidChange(PAL::SessionID);
 
@@ -1533,7 +1530,7 @@ public:
     bool registerCSSProperty(CSSRegisteredCustomProperty&&);
 
 #if ENABLE(CSS_PAINTING_API)
-    Worklet& ensurePaintWorklet();
+    PaintWorklet& ensurePaintWorklet();
     PaintWorkletGlobalScope* paintWorkletGlobalScopeForName(const String& name);
     void setPaintWorkletGlobalScopeForName(const String& name, Ref<PaintWorkletGlobalScope>&&);
 #endif
@@ -1590,6 +1587,9 @@ public:
     void canvasChanged(CanvasBase&, const FloatRect&) final;
     void canvasResized(CanvasBase&) final { };
     void canvasDestroyed(CanvasBase&) final;
+
+    bool contains(const Node& node) const { return this == &node.treeScope() && node.isConnected(); }
+    bool contains(const Node* node) const { return node && contains(*node); }
 
 protected:
     enum ConstructionFlags { Synthesized = 1, NonRenderedPlaceholder = 1 << 1 };
@@ -1947,10 +1947,6 @@ private:
     TargetClientToIdMap m_clientToIDMap;
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-    RefPtr<MediaSession> m_defaultMediaSession;
-#endif
-
 #if ENABLE(INDEXED_DATABASE)
     RefPtr<IDBClient::IDBConnectionProxy> m_idbConnectionProxy;
 #endif
@@ -2110,7 +2106,7 @@ private:
     CSSRegisteredCustomPropertySet m_CSSRegisteredPropertySet;
 
 #if ENABLE(CSS_PAINTING_API)
-    RefPtr<Worklet> m_paintWorklet;
+    RefPtr<PaintWorklet> m_paintWorklet;
     HashMap<String, Ref<PaintWorkletGlobalScope>> m_paintWorkletGlobalScopes;
 #endif
     unsigned m_numberOfRejectedSyncXHRs { 0 };
@@ -2124,6 +2120,8 @@ private:
     bool m_hasStartedApplePaySession { false };
 #endif
     bool m_hasVisuallyNonEmptyCustomContent { false };
+
+    bool m_visibilityHiddenDueToDismissal { false };
 
     Ref<UndoManager> m_undoManager;
 #if PLATFORM(IOS_FAMILY)

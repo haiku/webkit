@@ -76,7 +76,7 @@ private:
     };
 #endif
 
-    class UIClient : public API::UIClient {
+    class UIClient : public API::UIClient, public CanMakeWeakPtr<UIClient> {
     public:
         explicit UIClient(UIDelegate&);
         ~UIClient();
@@ -124,6 +124,7 @@ private:
         bool runOpenPanel(WebPageProxy&, WebFrameProxy*, FrameInfoData&&, API::OpenPanelParameters*, WebOpenPanelResultListenerProxy*) final;
         void didExceedBackgroundResourceLimitWhileInForeground(WebPageProxy&, WKResourceLimit) final;
         void saveDataToFileInDownloadsFolder(WebPageProxy*, const WTF::String&, const WTF::String&, const URL&, API::Data&) final;
+        void didAttachLocalInspector(WebPageProxy&, WebInspectorProxy&) final;
 #endif
 #if ENABLE(DEVICE_ORIENTATION)
         void shouldAllowDeviceOrientationAndMotionAccess(WebKit::WebPageProxy&, WebFrameProxy&, FrameInfoData&&, CompletionHandler<void(bool)>&&) final;
@@ -199,6 +200,7 @@ private:
         bool webViewSaveDataToFileSuggestedFilenameMimeTypeOriginatingURL : 1;
         bool webViewRunOpenPanelWithParametersInitiatedByFrameCompletionHandler : 1;
         bool webViewRequestNotificationPermissionForSecurityOriginDecisionHandler : 1;
+        bool webViewDidAttachLocalInspector : 1;
 #endif
 #if ENABLE(DEVICE_ORIENTATION)
         bool webViewShouldAllowDeviceOrientationAndMotionAccessRequestedByFrameDecisionHandler : 1;
@@ -213,7 +215,6 @@ private:
         bool webViewFullscreenMayReturnToInline : 1;
         bool webViewDidEnterFullscreen : 1;
         bool webViewDidExitFullscreen : 1;
-        bool webViewRequestMediaCaptureAuthorizationForFrameDecisionHandler : 1;
         bool webViewIsMediaCaptureAuthorizedForFrameDecisionHandler : 1;
         bool webViewMediaCaptureStateDidChange : 1;
         bool webViewDidChangeFontAttributes : 1;

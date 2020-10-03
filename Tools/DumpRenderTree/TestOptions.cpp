@@ -54,6 +54,7 @@ static bool shouldDumpJSConsoleLogInStdErr(const std::string& pathOrURL)
         || pathContains(pathOrURL, "localhost:8800/fetch") || pathContains(pathOrURL, "localhost:9443/fetch")
         || pathContains(pathOrURL, "localhost:8800/service-workers") || pathContains(pathOrURL, "localhost:9443/service-workers")
         || pathContains(pathOrURL, "localhost:8800/streams/writable-streams") || pathContains(pathOrURL, "localhost:9443/streams/writable-streams")
+        || pathContains(pathOrURL, "localhost:8800/streams/piping") || pathContains(pathOrURL, "localhost:9443/streams/piping")
         || pathContains(pathOrURL, "localhost:8800/xhr") || pathContains(pathOrURL, "localhost:9443/xhr")
         || pathContains(pathOrURL, "localhost:8800/webrtc") || pathContains(pathOrURL, "localhost:9443/webrtc")
         || pathContains(pathOrURL, "localhost:8800/websockets") || pathContains(pathOrURL, "localhost:9443/websockets");
@@ -117,16 +118,12 @@ TestOptions::TestOptions(const std::string& pathOrURL, const std::string& absolu
             enableDragDestinationActionLoad = parseBooleanTestHeaderValue(value);
         else if (key == "layerBackedWebView")
             layerBackedWebView = parseBooleanTestHeaderValue(value);
-        else if (key == "enableIsSecureContextAttribute")
-            enableIsSecureContextAttribute = parseBooleanTestHeaderValue(value);
         else if (key == "enableInspectorAdditions")
             enableInspectorAdditions = parseBooleanTestHeaderValue(value);
         else if (key == "dumpJSConsoleLogInStdErr")
             dumpJSConsoleLogInStdErr = parseBooleanTestHeaderValue(value);
         else if (key == "allowCrossOriginSubresourcesToAskForCredentials")
             allowCrossOriginSubresourcesToAskForCredentials = parseBooleanTestHeaderValue(value);
-        else if (key == "experimental:WebAnimationsCSSIntegrationEnabled")
-            enableWebAnimationsCSSIntegration = parseBooleanTestHeaderValue(value);
         else if (key == "internal:selectionAcrossShadowBoundariesEnabled")
             enableSelectionAcrossShadowBoundaries = parseBooleanTestHeaderValue(value);
         else if (key == "enableColorFilter")
@@ -166,6 +163,5 @@ TestOptions::TestOptions(const std::string& pathOrURL, const std::string& absolu
 bool TestOptions::webViewIsCompatibleWithOptions(const TestOptions& other) const
 {
     return other.layerBackedWebView == layerBackedWebView
-        && other.jscOptions == jscOptions
-        && other.enableWebAnimationsCSSIntegration == enableWebAnimationsCSSIntegration;
+        && other.jscOptions == jscOptions;
 }

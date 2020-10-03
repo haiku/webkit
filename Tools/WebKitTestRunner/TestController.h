@@ -140,7 +140,7 @@ public:
     
     // Geolocation.
     void setGeolocationPermission(bool);
-    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, bool providesAltitude, double altitude, bool providesAltitudeAccuracy, double altitudeAccuracy, bool providesHeading, double heading, bool providesSpeed, double speed, bool providesFloorLevel, double floorLevel);
+    void setMockGeolocationPosition(double latitude, double longitude, double accuracy, Optional<double> altitude, Optional<double> altitudeAccuracy, Optional<double> heading, Optional<double> speed, Optional<double> floorLevel);
     void setMockGeolocationPositionUnavailableError(WKStringRef errorMessage);
     void handleGeolocationPermissionRequest(WKGeolocationPermissionRequestRef);
     bool isGeolocationProviderActive() const;
@@ -236,7 +236,6 @@ public:
     bool isStatisticsOnlyInDatabaseOnce(WKStringRef subHost, WKStringRef topHost);
     void setStatisticsGrandfathered(WKStringRef hostName, bool value);
     bool isStatisticsGrandfathered(WKStringRef hostName);
-    void setUseITPDatabase(bool value);
     void setStatisticsSubframeUnderTopFrameOrigin(WKStringRef hostName, WKStringRef topFrameHostName);
     void setStatisticsSubresourceUnderTopFrameOrigin(WKStringRef hostName, WKStringRef topFrameHostName);
     void setStatisticsSubresourceUniqueRedirectTo(WKStringRef hostName, WKStringRef hostNameRedirectedTo);
@@ -358,6 +357,8 @@ public:
     void markAdClickAttributionsAsExpiredForTesting();
 
     void didSetAppBoundDomains() const;
+
+    WKURLRef currentTestURL() const;
 
 private:
     WKRetainPtr<WKPageConfigurationRef> generatePageConfiguration(const TestOptions&);

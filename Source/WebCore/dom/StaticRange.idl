@@ -24,11 +24,11 @@
  */
 
 [
-    EnabledAtRuntime=InputEvents,
+    EnabledBySetting=InputEvents,
     ImplementationLacksVTable,
-    Exposed=Window,
+    Exposed=Window
 ] interface StaticRange {
-    [MayThrowException] constructor(StaticRangeInit staticRangeInitDict);
+    constructor(StaticRangeInit staticRangeInitDict);
 
     readonly attribute unsigned long startOffset;
     readonly attribute unsigned long endOffset;

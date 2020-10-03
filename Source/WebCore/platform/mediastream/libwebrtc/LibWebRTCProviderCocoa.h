@@ -38,7 +38,7 @@ namespace WebCore {
 
 class WEBCORE_EXPORT LibWebRTCProviderCocoa : public LibWebRTCProvider {
 public:
-    LibWebRTCProviderCocoa() = default;
+    LibWebRTCProviderCocoa();
     ~LibWebRTCProviderCocoa();
 
     std::unique_ptr<webrtc::VideoDecoderFactory> createDecoderFactory() override;
@@ -46,8 +46,6 @@ public:
 private:
     void setActive(bool) final;
     std::unique_ptr<webrtc::VideoEncoderFactory> createEncoderFactory() final;
-
-    void setH264HardwareEncoderAllowed(bool allowed) final;
 };
 
 } // namespace WebCore

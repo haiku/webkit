@@ -32,17 +32,20 @@
 
 #if ENABLE(INPUT_TYPE_MONTH)
 
-#include "BaseChooserOnlyDateAndTimeInputType.h"
+#include "BaseDateAndTimeInputType.h"
 
 namespace WebCore {
 
-class MonthInputType final : public BaseChooserOnlyDateAndTimeInputType {
+class MonthInputType final : public BaseDateAndTimeInputType {
 public:
-    explicit MonthInputType(HTMLInputElement& element) : BaseChooserOnlyDateAndTimeInputType(element) { }
+    explicit MonthInputType(HTMLInputElement& element)
+        : BaseDateAndTimeInputType(element)
+    {
+    }
 
 private:
     const AtomString& formControlType() const override;
-    DateComponents::Type dateType() const override;
+    DateComponentsType dateType() const override;
     double valueAsDate() const override;
     String serializeWithMilliseconds(double) const override;
     Decimal parseToNumber(const String&, const Decimal&) const override;
@@ -52,6 +55,10 @@ private:
     Optional<DateComponents> setMillisecondToDateComponents(double) const override;
     bool isMonthField() const override;
     void handleDOMActivateEvent(Event&) override;
+
+    bool isValidFormat(OptionSet<DateTimeFormatValidationResults>) const final;
+    String formatDateTimeFieldsState(const DateTimeFieldsState&) const final;
+    void setupLayoutParameters(DateTimeEditElement::LayoutParameters&, const DateComponents&) const final;
 };
 
 } // namespace WebCore

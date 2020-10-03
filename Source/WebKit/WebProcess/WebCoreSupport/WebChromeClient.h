@@ -184,10 +184,6 @@ private:
 
     Seconds eventThrottlingDelay() final;
 
-    void associateEditableImageWithAttachment(WebCore::GraphicsLayer::EmbeddedViewID, const String& attachmentID) final;
-    void didCreateEditableImage(WebCore::GraphicsLayer::EmbeddedViewID) final;
-    void didDestroyEditableImage(WebCore::GraphicsLayer::EmbeddedViewID) final;
-
     bool shouldUseMouseEventForSelection(const WebCore::PlatformMouseEvent&) final;
 
     bool showDataDetectorsUIForElement(const WebCore::Element&, const WebCore::Event&) final;
@@ -276,6 +272,7 @@ private:
     void exitVideoFullscreenForVideoElement(WebCore::HTMLVideoElement&) final;
     void setUpPlaybackControlsManager(WebCore::HTMLMediaElement&) final;
     void clearPlaybackControlsManager() final;
+    void playbackControlsMediaEngineChanged() final;
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -339,12 +336,6 @@ private:
 
     void isPlayingMediaDidChange(WebCore::MediaProducer::MediaStateFlags, uint64_t) final;
     void handleAutoplayEvent(WebCore::AutoplayEvent, OptionSet<WebCore::AutoplayEventFlags>) final;
-
-#if ENABLE(MEDIA_SESSION)
-    void hasMediaSessionWithActiveMediaElementsDidChange(bool) final;
-    void mediaSessionMetadataDidChange(const WebCore::MediaSessionMetadata&) final;
-    void focusedContentMediaElementDidChange(uint64_t) final;
-#endif
 
 #if ENABLE(WEB_CRYPTO)
     bool wrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&) const final;

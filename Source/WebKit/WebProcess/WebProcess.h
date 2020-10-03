@@ -332,8 +332,10 @@ public:
     void setUseGPUProcessForMedia(bool);
 #endif
 
+#if ENABLE(VP9)
     void enableVP9Decoder();
     void enableVP9SWDecoder();
+#endif
 
 #if PLATFORM(COCOA)
     void willWriteToPasteboardAsynchronously(const String& pasteboardName);
@@ -475,6 +477,11 @@ private:
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     void setThirdPartyCookieBlockingMode(WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
     void setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain>&&);
+    void sendResourceLoadStatisticsDataImmediately(CompletionHandler<void()>&&);
+#endif
+
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+    void displayWasRefreshed(uint32_t displayID);
 #endif
 
     void platformInitializeProcess(const AuxiliaryProcessInitializationParameters&);
@@ -656,8 +663,11 @@ private:
 #endif
 
     bool m_useGPUProcessForMedia { false };
+
+#if ENABLE(VP9)
     bool m_vp9DecoderEnabled { false };
     bool m_vp9SWDecoderEnabled { false };
+#endif
 };
 
 } // namespace WebKit

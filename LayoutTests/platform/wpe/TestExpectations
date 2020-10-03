@@ -24,11 +24,14 @@ scrollingcoordinator/ios/ [ Skip ]
 webkit.org/b/215355 fonts/ligature.html [ ImageOnlyFailure ]
 webkit.org/b/215421 fast/encoding/denormalised-voiced-japanese-chars.html [ ImageOnlyFailure ]
 
+# ContentExtensions
+webkit.org/b/207723 http/tests/contentextensions/hide-on-ping-with-ping-that-redirects.html [ Pass Failure ]
+
 # CSS3
 webkit.org/b/213829 css3/calc/background-position-parsing.html [ ImageOnlyFailure ]
 
 # Flexbox layout
-webkit.org/b/215502 fast/flexbox/image-percent-max-height.html [ Failure Pass ]
+webkit.org/b/215502 fast/flexbox/image-percent-max-height.html [ Failure Pass ImageOnlyFailure ]
 
 # Paint Timing
 webkit.org/b/211221 http/tests/performance/paint-timing/performance-paint-timing-fcp-after-visually-non-empty-for-num-chars.html [ Pass Failure ]
@@ -36,11 +39,16 @@ webkit.org/b/211221 http/tests/performance/paint-timing/performance-paint-timing
 # Scrolling coordinator
 webkit.org/b/215508 [ Release ] scrollingcoordinator/overflow-proxy-reattach.html [ Pass Timeout ]
 
+# Subpixel
+webkit.org/b/216037 imported/w3c/web-platform-tests/css/css-backgrounds/background-position/subpixel-position-center.tentative.html [ Pass ImageOnlyFailure ]
+
 # Workers
 webkit.org/b/187597 fast/workers/worker-exception-during-navigation.html [ Timeout Pass ]
 
 # WPT tests
 webkit.org/b/215306 imported/w3c/web-platform-tests/html/user-activation/basic.html [ Timeout ]
+webkit.org/b/215299 [ Release ] imported/w3c/web-platform-tests/css/css-logical/parsing/margin-block-inline-computed.html [ Pass Failure ]
+webkit.org/b/215299 [ Release ] imported/w3c/web-platform-tests/css/css-logical/parsing/padding-block-inline-computed.html [ Pass Failure ]
 
 #//////////////////////////////////////////////////////////////////////////////////////////
 # End of Triaged Expectations
@@ -132,7 +140,6 @@ webkit.org/b/79203 fast/mediastream/mock-media-source-webaudio.html [ Pass Timeo
 webkit.org/b/79203 fast/mediastream/getUserMedia-webaudio.html [ Pass Timeout ]
 webkit.org/b/79203 fast/mediastream/MediaStream-video-element-track-stop.html [ Timeout Failure ]
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-icecandidate-event.html [ Pass Timeout ]
-webkit.org/b/79203 fast/mediastream/RTCRtpSender-replaceTrack.html [ Failure ]
 # Crash is webkit.org/b/184292
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-iceconnectionstatechange-event.html [ Failure Timeout ]
 webkit.org/b/79203 fast/mediastream/RTCPeerConnection-ice.html [ Failure Timeout ]
@@ -634,7 +641,6 @@ media/media-usage-state.html [ Skip ]
 media/media-usage-state-private-browsing.html [ Skip ]
 media/now-playing-status-without-media.html [ Skip ]
 
-webkit.org/b/210487 http/tests/resourceLoadStatistics/switch-session-on-navigation-to-prevalent-with-interaction-database.php [ Failure ]
 webkit.org/b/210487 http/tests/resourceLoadStatistics/switch-session-on-navigation-to-prevalent-with-interaction.php [ Failure ]
 
 # Failing in test bots. Started failing since r260615.
@@ -671,6 +677,29 @@ webkit.org/b/214300 imported/w3c/web-platform-tests/css/css-fonts/font-language-
 
 webkit.org/b/214291 imported/w3c/web-platform-tests/css/css-writing-modes/baseline-with-orthogonal-flow-001.html  [ ImageOnlyFailure ]
 
+# LFC painting is work in progress.
+webkit.org/b/216471 fast/layoutformattingcontext/block-only/absolute-position-left-right-margin.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/block-only/replaced-intrinsic-width-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/empty-table-with-specified-height-quirk-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/empty-table-with-specified-height-standards-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/fit-content-width-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/float-in-inline-context-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/floats-shrinking-line-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/inline-max-width-height-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/simple-table-with-empty-td.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-cell-vertical-alignment-simple.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-border-collapse-with-padding.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-border-collapse3.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-row-border.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-row-border2.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-collapsed-tbody-border.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-multiple-sections.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-row-border.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-rowspan-with-spacing.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/table-simple-thead-border-ignore.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/vertical-align-middle-nested.html [ ImageOnlyFailure ]
+webkit.org/b/216471 fast/layoutformattingcontext/vertical-align-middle-simple.html [ ImageOnlyFailure ]
+
 #////////////////////////////////////////////////////////////////////////////////////////
 # 3. UNRESOLVED TESTS
 #////////////////////////////////////////////////////////////////////////////////////////
@@ -694,7 +723,6 @@ http/tests/inspector [ Skip ]
 http/tests/local [ Skip ]
 http/tests/media [ Skip ]
 http/tests/navigation/ping-attribute/ [ Skip ]
-http/tests/notifications [ Skip ]
 http/tests/pointer-lock [ Skip ]
 http/tests/security [ Skip ]
 
@@ -712,7 +740,6 @@ webkit.org/b/175419 imported/w3c/web-platform-tests/service-workers/service-work
 Bug(WPE) imported/w3c/web-platform-tests/mediacapture-fromelement [ Skip ]
 Bug(WPE) imported/w3c/web-platform-tests/mediacapture-streams [ Skip ]
 Bug(WPE) imported/w3c/web-platform-tests/media-source [ Skip ]
-Bug(WPE) imported/w3c/web-platform-tests/notifications [ Skip ]
 Bug(WPE) imported/w3c/web-platform-tests/webrtc [ Skip ]
 
 Bug(WPE) fast/dom/DeviceMotion [ Skip ]
@@ -923,6 +950,7 @@ imported/w3c/web-platform-tests/webxr/xrRigidTransform_constructor.https.html [ 
 imported/w3c/web-platform-tests/webxr/xrSession_prevent_multiple_exclusive.https.html [ Pass ]
 imported/w3c/web-platform-tests/webxr/render_state_vertical_fov_immersive.https.html [ Pass ]
 imported/w3c/web-platform-tests/webxr/render_state_update.https.html [ Pass ]
+imported/w3c/web-platform-tests/webxr/xrSession_end.https.html [ Pass ]
 
 # Passing since r259532.
 imported/w3c/web-platform-tests/css/css-ui/outline-019.html
@@ -981,6 +1009,8 @@ webkit.org/b/179898 svg/animations/svglengthlist-animation-3.html [ Pass Failure
 webkit.org/b/181534 perf/show-hide-table-rows.html [ Pass Failure ]
 
 webkit.org/b/187593 http/tests/cache/disk-cache/disk-cache-cancel.html [ Failure Pass ]
+
+webkit.org/b/215950 imported/w3c/web-platform-tests/notifications/shownotification-resolve-manual.https.html [ Timeout Pass ]
 
 webkit.org/b/187594 imported/w3c/web-platform-tests/IndexedDB/idbobjectstore_createIndex7-event_order.htm [ Failure Pass ]
 
@@ -1143,6 +1173,13 @@ webkit.org/b/213232 fast/flexbox/aspect-ratio-intrinsic-adjust.html [ ImageOnlyF
 webkit.org/b/213233 fast/images/imagemap-focus-ring-zoom-style.html [ ImageOnlyFailure Pass ]
 
 webkit.org/b/213717 fast/scrolling/overflow-scrollable-after-back.html [ Pass Timeout ]
+
+webkit.org/b/216650 fast/events/mouse-cursor-multiframecur.html [ Failure Pass ]
+webkit.org/b/216650 fast/events/mouse-cursor.html [ Failure Pass ]
+webkit.org/b/216650 fast/events/mouse-drag-from-frame-to-other-frame.html [ Failure Pass ]
+webkit.org/b/216650 fast/events/mouse-drag-from-frame.html [ Failure Pass ]
+webkit.org/b/216650 fast/events/mouse-focus-imagemap.html [ Failure Pass ]
+webkit.org/b/216650 fast/events/mouse-moved-remove-frame-crash.html [ Timeout Pass ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # 7. SLOW TESTS
@@ -1927,7 +1964,6 @@ webkit.org/b/212080 imported/w3c/web-platform-tests/mathml/relations/css-styling
 webkit.org/b/212080 imported/w3c/web-platform-tests/mathml/relations/css-styling/not-participating-to-parent-layout.html [ Failure ]
 webkit.org/b/212080 imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/border-002.html [ Failure ]
 webkit.org/b/212080 imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/padding-002.html [ Failure ]
-webkit.org/b/212080 imported/w3c/web-platform-tests/mathml/relations/css-styling/color-004.html [ ImageOnlyFailure ]
 
 webkit.org/b/203240 css3/shapes/shape-outside/shape-image/shape-image-025.html [ Pass ImageOnlyFailure ]
 webkit.org/b/136065 css3/shapes/shape-outside/supported-shapes/circle/shape-outside-circle-027.html [ ImageOnlyFailure ]

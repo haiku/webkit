@@ -33,19 +33,27 @@
 
 constexpr CGFloat kCalendarWidth = 139;
 constexpr CGFloat kCalendarHeight = 148;
+constexpr CGFloat kCalendarCornerRadius = 10;
 constexpr NSString * kDateFormatString = @"yyyy-MM-dd";
 constexpr NSString * kDateTimeFormatString = @"yyyy-MM-dd'T'HH:mm";
+constexpr NSString * kDateTimeWithSecondsFormatString = @"yyyy-MM-dd'T'HH:mm:ss";
+constexpr NSString * kDateTimeWithMillisecondsFormatString = @"yyyy-MM-dd'T'HH:mm:ss.SSS";
 constexpr NSString * kDefaultLocaleIdentifier = @"en_US_POSIX";
+constexpr NSString * kDefaultTimeZoneIdentifier = @"UTC";
 
 @interface WKDateTimePicker : NSObject
 
 - (id)initWithParams:(WebCore::DateTimeChooserParameters&&)params inView:(NSView *)view;
 - (void)showPicker:(WebKit::WebDateTimePickerMac&)picker;
+- (void)updatePicker:(WebCore::DateTimeChooserParameters&&)params;
 - (void)invalidate;
 
 @end
 
 @interface WKDateTimePickerWindow : NSWindow
+@end
+
+@interface WKDateTimePickerBackdropView : NSView
 @end
 
 namespace WebKit {
@@ -75,8 +83,10 @@ void WebDateTimePickerMac::endPicker()
 
 void WebDateTimePickerMac::showDateTimePicker(WebCore::DateTimeChooserParameters&& params)
 {
-    if (m_picker)
+    if (m_picker) {
+        [m_picker updatePicker:WTFMove(params)];
         return;
+    }
 
     m_picker = adoptNS([[WKDateTimePicker alloc] initWithParams:WTFMove(params) inView:m_view.get().get()]);
     [m_picker showPicker:*this];
@@ -88,14 +98,12 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
         return;
 
     m_page->didChooseDate(date);
-    endPicker();
 }
 
 } // namespace WebKit
 
-// FIXME: Share this implementation with WKDataListSuggestionWindow.
 @implementation WKDateTimePickerWindow {
-    RetainPtr<NSVisualEffectView> _backdropView;
+    RetainPtr<WKDateTimePickerBackdropView> _backdropView;
 }
 
 - (id)initWithContentRect:(NSRect)contentRect styleMask:(NSUInteger)styleMask backing:(NSBackingStoreType)backingStoreType defer:(BOOL)defer
@@ -112,12 +120,8 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
     self.backgroundColor = [NSColor clearColor];
     self.opaque = NO;
 
-    _backdropView = adoptNS([[NSVisualEffectView alloc] initWithFrame:contentRect]);
+    _backdropView = adoptNS([[WKDateTimePickerBackdropView alloc] initWithFrame:contentRect]);
     [_backdropView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [_backdropView setMaterial:NSVisualEffectMaterialMenu];
-    [_backdropView setState:NSVisualEffectStateActive];
-    [_backdropView setBlendingMode:NSVisualEffectBlendingModeBehindWindow];
-
     [self setContentView:_backdropView.get()];
 
     return self;
@@ -140,6 +144,37 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
 
 @end
 
+@implementation WKDateTimePickerBackdropView
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    [NSGraphicsContext saveGraphicsState];
+
+    [[NSColor controlBackgroundColor] setFill];
+
+    NSRect frame = self.frame;
+    NSPoint topLeft = NSMakePoint(NSMinX(frame), NSMaxY(frame));
+    NSPoint topRight = NSMakePoint(NSMaxX(frame), NSMaxY(frame));
+    NSPoint bottomRight = NSMakePoint(NSMaxX(frame), NSMinY(frame));
+    NSPoint bottomLeft = NSMakePoint(NSMinX(frame), NSMinY(frame));
+
+    NSBezierPath *path = [NSBezierPath bezierPath];
+    [path moveToPoint:topLeft];
+    [path lineToPoint:NSMakePoint(topRight.x - kCalendarCornerRadius, topRight.y)];
+    [path curveToPoint:NSMakePoint(topRight.x, topRight.y - kCalendarCornerRadius) controlPoint1:topRight controlPoint2:topRight];
+    [path lineToPoint:NSMakePoint(bottomRight.x, bottomRight.y + kCalendarCornerRadius)];
+    [path curveToPoint:NSMakePoint(bottomRight.x - kCalendarCornerRadius, bottomRight.y) controlPoint1:bottomRight controlPoint2:bottomRight];
+    [path lineToPoint:NSMakePoint(bottomLeft.x + kCalendarCornerRadius, bottomLeft.y)];
+    [path curveToPoint:NSMakePoint(bottomLeft.x, bottomLeft.y + kCalendarCornerRadius) controlPoint1:bottomLeft controlPoint2:bottomLeft];
+    [path lineToPoint:topLeft];
+
+    [path fill];
+
+    [NSGraphicsContext restoreGraphicsState];
+}
+
+@end
+
 @implementation WKDateTimePicker {
     WeakPtr<WebKit::WebDateTimePickerMac> _picker;
     WebCore::DateTimeChooserParameters _params;
@@ -156,35 +191,36 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
         return self;
 
     _presentingView = view;
-    _params = WTFMove(params);
 
-    NSRect windowRect = [[_presentingView window] convertRectToScreen:[_presentingView convertRect:_params.anchorRectInRootView toView:nil]];
+    NSRect windowRect = [[_presentingView window] convertRectToScreen:[_presentingView convertRect:params.anchorRectInRootView toView:nil]];
     windowRect.origin.y = NSMinY(windowRect) - kCalendarHeight;
     windowRect.size.width = kCalendarWidth;
     windowRect.size.height = kCalendarHeight;
 
-    _enclosingWindow = adoptNS([[WKDateTimePickerWindow alloc] initWithContentRect:NSZeroRect styleMask:(NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView) backing:NSBackingStoreBuffered defer:NO]);
+    // Use a UTC timezone as all incoming double values are UTC timestamps. This also ensures that
+    // the date value of the NSDatePicker matches the date value returned by JavaScript. The timezone
+    // has no effect on the value returned to the WebProcess, as a timezone-agnostic format string is
+    // used to return the date.
+    NSTimeZone *timeZone = [NSTimeZone timeZoneWithName:kDefaultTimeZoneIdentifier];
+
+    _enclosingWindow = adoptNS([[WKDateTimePickerWindow alloc] initWithContentRect:NSZeroRect styleMask:NSWindowStyleMaskBorderless backing:NSBackingStoreBuffered defer:NO]);
     [_enclosingWindow setFrame:windowRect display:YES];
 
     _datePicker = adoptNS([[NSDatePicker alloc] initWithFrame:[_enclosingWindow contentView].bounds]);
+    [_datePicker setBezeled:NO];
+    [_datePicker setDrawsBackground:NO];
     [_datePicker setDatePickerStyle:NSDatePickerStyleClockAndCalendar];
     [_datePicker setDatePickerElements:NSDatePickerElementFlagYearMonthDay];
+    [_datePicker setTimeZone:timeZone];
     [_datePicker setTarget:self];
     [_datePicker setAction:@selector(didChooseDate:)];
 
     auto englishLocale = adoptNS([[NSLocale alloc] initWithLocaleIdentifier:kDefaultLocaleIdentifier]);
     _dateFormatter = adoptNS([[NSDateFormatter alloc] init]);
-    [_dateFormatter setDateFormat:[self dateFormatStringForType:_params.type]];
     [_dateFormatter setLocale:englishLocale.get()];
+    [_dateFormatter setTimeZone:timeZone];
 
-    NSString *currentDateValueString = _params.currentValue;
-    if (![currentDateValueString length])
-        [_datePicker setDateValue:[NSDate date]];
-    else
-        [_datePicker setDateValue:[_dateFormatter dateFromString:currentDateValueString]];
-
-    [_datePicker setMinDate:[NSDate dateWithTimeIntervalSince1970:_params.minimum / 1000.0]];
-    [_datePicker setMaxDate:[NSDate dateWithTimeIntervalSince1970:_params.maximum / 1000.0]];
+    [self updatePicker:WTFMove(params)];
 
     return self;
 }
@@ -195,6 +231,25 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
 
     [[_enclosingWindow contentView] addSubview:_datePicker.get()];
     [[_presentingView window] addChildWindow:_enclosingWindow.get() ordered:NSWindowAbove];
+}
+
+- (void)updatePicker:(WebCore::DateTimeChooserParameters&&)params
+{
+    _params = WTFMove(params);
+
+    NSString *currentDateValueString = _params.currentValue;
+
+    [_dateFormatter setDateFormat:[self dateFormatStringForType:_params.type value:currentDateValueString]];
+
+    if (![currentDateValueString length])
+        [_datePicker setDateValue:[self initialDateForEmptyValue]];
+    else
+        [_datePicker setDateValue:[_dateFormatter dateFromString:currentDateValueString]];
+
+    [_datePicker setMinDate:[NSDate dateWithTimeIntervalSince1970:_params.minimum / 1000.0]];
+    [_datePicker setMaxDate:[NSDate dateWithTimeIntervalSince1970:_params.maximum / 1000.0]];
+
+    [_enclosingWindow setAppearance:[NSAppearance appearanceNamed:_params.useDarkAppearance ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua]];
 }
 
 - (void)invalidate
@@ -220,12 +275,27 @@ void WebDateTimePickerMac::didChooseDate(StringView date)
     _picker->didChooseDate(StringView(dateString));
 }
 
-- (NSString *)dateFormatStringForType:(NSString *)type
+- (NSString *)dateFormatStringForType:(NSString *)type value:(NSString *)value
 {
-    if ([type isEqualToString:@"datetime-local"])
-        return kDateTimeFormatString;
+    if ([type isEqualToString:@"datetime-local"]) {
+        // Add two additional characters for the string delimiters in 'T'.
+        NSUInteger valueLengthForFormat = value.length + 2;
+        if (valueLengthForFormat == kDateTimeFormatString.length)
+            return kDateTimeFormatString;
+        if (valueLengthForFormat == kDateTimeWithSecondsFormatString.length)
+            return kDateTimeWithSecondsFormatString;
+        return kDateTimeWithMillisecondsFormatString;
+    }
 
     return kDateFormatString;
+}
+
+- (NSDate *)initialDateForEmptyValue
+{
+    NSDate *now = [NSDate date];
+    NSTimeZone *defaultTimeZone = [NSTimeZone defaultTimeZone];
+    NSInteger offset = [defaultTimeZone secondsFromGMTForDate:now];
+    return [now dateByAddingTimeInterval:offset];
 }
 
 @end

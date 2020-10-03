@@ -132,7 +132,6 @@
 #import <WebCore/ApplicationCacheStorage.h>
 #import <WebCore/BackForwardCache.h>
 #import <WebCore/BackForwardController.h>
-#import <WebCore/CSSAnimationController.h>
 #import <WebCore/CacheStorageProvider.h>
 #import <WebCore/Chrome.h>
 #import <WebCore/ColorMac.h>
@@ -754,6 +753,22 @@ static WebPageVisibilityState kit(WebCore::VisibilityState visibilityState)
 
     ASSERT_NOT_REACHED();
     return WebPageVisibilityStateVisible;
+}
+
+static WebCore::SecurityOrigin::StorageBlockingPolicy core(WebStorageBlockingPolicy storageBlockingPolicy)
+{
+    switch (storageBlockingPolicy) {
+    case WebAllowAllStorage:
+        return WebCore::SecurityOrigin::AllowAllStorage;
+    case WebBlockThirdPartyStorage:
+        return WebCore::SecurityOrigin::BlockThirdPartyStorage;
+    case WebBlockAllStorage:
+        return WebCore::SecurityOrigin::BlockAllStorage;
+    default:
+        // If an invalid value was set (as can be done via NSUserDefaults), fall back to
+        // the default value, WebCore::SecurityOrigin::AllowAllStorage.
+        return WebCore::SecurityOrigin::AllowAllStorage;
+    }
 }
 
 namespace WebKit {
@@ -1425,31 +1440,11 @@ static bool shouldAllowDisplayAndRunningOfInsecureContent()
     return shouldAllowDisplayAndRunningOfInsecureContent;
 }
 
-static bool shouldAllowPictureInPictureMediaPlayback()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldAllowPictureInPictureMediaPlayback = dyld_get_program_sdk_version() >= DYLD_IOS_VERSION_9_0;
-    return shouldAllowPictureInPictureMediaPlayback;
-#else
-    return false;
-#endif
-}
-
 static bool shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol()
 {
 #if PLATFORM(IOS_FAMILY)
     static bool shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol = !WebKitLinkedOnOrAfter(WEBKIT_FIRST_VERSION_WITH_CONTENT_SECURITY_POLICY_SOURCE_STAR_PROTOCOL_RESTRICTION);
     return shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol;
-#else
-    return false;
-#endif
-}
-
-static bool shouldAllowWindowOpenWithoutUserGesture()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldAllowWindowOpenWithoutUserGesture = WebCore::IOSApplication::isTheSecretSocietyHiddenMystery() && dyld_get_program_sdk_version() < DYLD_IOS_VERSION_10_0;
-    return shouldAllowWindowOpenWithoutUserGesture;
 #else
     return false;
 #endif
@@ -1466,22 +1461,6 @@ static bool shouldConvertInvalidURLsToBlank()
 #endif
 
     return shouldConvertInvalidURLsToBlank;
-}
-
-static bool shouldRequireUserGestureToLoadVideo()
-{
-#if PLATFORM(IOS_FAMILY)
-    static bool shouldRequireUserGestureToLoadVideo = dyld_get_program_sdk_version() >= DYLD_IOS_VERSION_10_0;
-    return shouldRequireUserGestureToLoadVideo;
-#else
-    return false;
-#endif
-}
-
-static bool shouldRestrictBaseURLSchemes()
-{
-    static bool shouldRestrictBaseURLSchemes = linkedOnOrAfter(SDKVersion::FirstThatRestrictsBaseURLSchemes);
-    return shouldRestrictBaseURLSchemes;
 }
 
 #if ENABLE(GAMEPAD)
@@ -1653,7 +1632,6 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     _private->page->setCanStartMedia([self window]);
     _private->page->settings().setLocalStorageDatabasePath([[self preferences] _localStorageDatabasePath]);
     _private->page->settings().setUseLegacyBackgroundSizeShorthandBehavior(shouldUseLegacyBackgroundSizeShorthandBehavior());
-    _private->page->settings().setShouldRestrictBaseURLSchemes(shouldRestrictBaseURLSchemes());
 
 #if !PLATFORM(IOS_FAMILY)
     if (needsOutlookQuirksScript()) {
@@ -1665,10 +1643,6 @@ static void WebKitInitializeGamepadProviderIfNecessary()
 #if PLATFORM(IOS)
     if (needsLaBanquePostaleQuirks())
         [self _injectLaBanquePostaleQuirks];
-#endif
-
-#if PLATFORM(IOS_FAMILY)
-    _private->page->settings().setPassiveTouchListenersAsDefaultOnDocument(linkedOnOrAfter(SDKVersion::FirstThatDefaultsToPassiveTouchListenersOnDocument));
 #endif
 
 #if PLATFORM(IOS_FAMILY)
@@ -1790,10 +1764,17 @@ static void WebKitInitializeGamepadProviderIfNecessary()
     return self;
 }
 
-- (void)_viewWillDrawInternal
+- (void)_updateRendering
 {
-    if (_private->page)
+#if PLATFORM(IOS_FAMILY)
+    // Ensure fixed positions layers are where they should be.
+    [self _synchronizeCustomFixedPositionLayoutRect];
+#endif
+
+    if (_private->page) {
         _private->page->updateRendering();
+        _private->page->finalizeRenderingUpdate({ });
+    }
 }
 
 + (NSArray *)_supportedMIMETypes
@@ -3031,9 +3012,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
     if (!_private->userAgentOverridden)
         [self _invalidateUserAgentCache];
 
-    // Cache this value so we don't have to read NSUserDefaults on each page load
-    _private->useSiteSpecificSpoofing = [preferences _useSiteSpecificSpoofing];
-
     // Update corresponding WebCore Settings object.
     if (!_private->page)
         return;
@@ -3055,189 +3033,43 @@ static bool needsSelfRetainWhileLoadingQuirk()
     }
 #endif
 
-    auto& settings = _private->page->settings();
-
-    settings.setCursiveFontFamily([preferences cursiveFontFamily]);
-    settings.setDefaultFixedFontSize([preferences defaultFixedFontSize]);
-    settings.setDefaultFontSize([preferences defaultFontSize]);
-    settings.setDefaultTextEncodingName([preferences defaultTextEncodingName]);
-    settings.setUsesEncodingDetector([preferences usesEncodingDetector]);
-    settings.setFantasyFontFamily([preferences fantasyFontFamily]);
-    settings.setFixedFontFamily([preferences fixedFontFamily]);
-    settings.setForceFTPDirectoryListings([preferences _forceFTPDirectoryListings]);
-    settings.setFTPDirectoryTemplatePath([preferences _ftpDirectoryTemplatePath]);
-    settings.setLocalStorageDatabasePath([preferences _localStorageDatabasePath]);
-    settings.setJavaEnabled([preferences isJavaEnabled]);
-    settings.setScriptEnabled([preferences isJavaScriptEnabled]);
-    settings.setScriptMarkupEnabled([preferences javaScriptMarkupEnabled]);
-    settings.setWebSecurityEnabled([preferences isWebSecurityEnabled]);
-    settings.setAllowUniversalAccessFromFileURLs([preferences allowUniversalAccessFromFileURLs]);
-    settings.setAllowFileAccessFromFileURLs([preferences allowFileAccessFromFileURLs]);
-    settings.setAllowCrossOriginSubresourcesToAskForCredentials([preferences allowCrossOriginSubresourcesToAskForCredentials]);
-    settings.setAllowTopNavigationToDataURLs([preferences allowTopNavigationToDataURLs]);
-    settings.setNeedsStorageAccessFromFileURLsQuirk([preferences needsStorageAccessFromFileURLsQuirk]);
-    settings.setMinimumFontSize([preferences minimumFontSize]);
-    settings.setMinimumLogicalFontSize([preferences minimumLogicalFontSize]);
-    settings.setPictographFontFamily([preferences pictographFontFamily]);
-    settings.setPluginsEnabled([preferences arePlugInsEnabled]);
-    settings.setLocalStorageEnabled([preferences localStorageEnabled]);
-
-    _private->page->setSessionID([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
-    _private->group->storageNamespaceProvider().setSessionIDForTesting([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
-    settings.setSansSerifFontFamily([preferences sansSerifFontFamily]);
-    settings.setSerifFontFamily([preferences serifFontFamily]);
-    settings.setStandardFontFamily([preferences standardFontFamily]);
-    settings.setLoadsImagesAutomatically([preferences loadsImagesAutomatically]);
-    settings.setLoadsSiteIconsIgnoringImageLoadingSetting([preferences loadsSiteIconsIgnoringImageLoadingPreference]);
-
     WebCore::setAdditionalSupportedImageTypes(makeVector<String>([preferences additionalSupportedImageTypes]));
 
-#if PLATFORM(IOS_FAMILY)
-    settings.setShouldPrintBackgrounds(true);
-#else
-    settings.setShouldPrintBackgrounds([preferences shouldPrintBackgrounds]);
-#endif
-    settings.setShrinksStandaloneImagesToFit([preferences shrinksStandaloneImagesToFit]);
-    settings.setEditableLinkBehavior(core([preferences editableLinkBehavior]));
-    settings.setTextDirectionSubmenuInclusionBehavior(core([preferences textDirectionSubmenuInclusionBehavior]));
-    settings.setDOMPasteAllowed([preferences isDOMPasteAllowed]);
-    settings.setUsesBackForwardCache([self usesPageCache]);
-    settings.setBackForwardCacheSupportsPlugins([preferences pageCacheSupportsPlugins]);
-    settings.setBackForwardCacheExpirationInterval(Seconds { [preferences _backForwardCacheExpirationInterval] });
+    [self _preferencesChangedGenerated:preferences];
 
-    settings.setDeveloperExtrasEnabled([preferences developerExtrasEnabled]);
-    settings.setJavaScriptRuntimeFlags(JSC::RuntimeFlags([preferences javaScriptRuntimeFlags]));
-    settings.setAuthorAndUserStylesEnabled([preferences authorAndUserStylesEnabled]);
-
-    settings.setNeedsSiteSpecificQuirks(_private->useSiteSpecificSpoofing);
-    settings.setDOMTimersThrottlingEnabled([preferences domTimersThrottlingEnabled]);
-    settings.setWebArchiveDebugModeEnabled([preferences webArchiveDebugModeEnabled]);
-    settings.setLocalFileContentSniffingEnabled([preferences localFileContentSniffingEnabled]);
-    settings.setOfflineWebApplicationCacheEnabled([preferences offlineWebApplicationCacheEnabled]);
-    settings.setJavaScriptCanAccessClipboard([preferences javaScriptCanAccessClipboard]);
-    settings.setXSSAuditorEnabled([preferences isXSSAuditorEnabled]);
-    settings.setDNSPrefetchingEnabled([preferences isDNSPrefetchingEnabled]);
-
-    settings.setAcceleratedCompositingEnabled([preferences acceleratedCompositingEnabled]);
-    settings.setAcceleratedDrawingEnabled([preferences acceleratedDrawingEnabled]);
-    settings.setDisplayListDrawingEnabled([preferences displayListDrawingEnabled]);
-    settings.setCanvasUsesAcceleratedDrawing([preferences canvasUsesAcceleratedDrawing]);
-    settings.setShowDebugBorders([preferences showDebugBorders]);
-    settings.setSimpleLineLayoutEnabled([preferences simpleLineLayoutEnabled]);
-    settings.setSimpleLineLayoutDebugBordersEnabled([preferences simpleLineLayoutDebugBordersEnabled]);
-    settings.setShowRepaintCounter([preferences showRepaintCounter]);
-    settings.setWebGLEnabled([preferences webGLEnabled]);
-    settings.setSubpixelCSSOMElementMetricsEnabled([preferences subpixelCSSOMElementMetricsEnabled]);
-    settings.setSubpixelAntialiasedLayerTextEnabled([preferences subpixelAntialiasedLayerTextEnabled]);
-
-    settings.setForceWebGLUsesLowPower([preferences forceLowPowerGPUForWebGL]);
-    settings.setAccelerated2dCanvasEnabled([preferences accelerated2dCanvasEnabled]);
-    settings.setLoadDeferringEnabled(shouldEnableLoadDeferring());
-    settings.setWindowFocusRestricted(shouldRestrictWindowFocus());
-    settings.setFrameFlattening((const WebCore::FrameFlattening)[preferences frameFlattening]);
-    settings.setAsyncFrameScrollingEnabled([preferences asyncFrameScrollingEnabled]);
-    settings.setSpatialNavigationEnabled([preferences isSpatialNavigationEnabled]);
-    settings.setPaginateDuringLayoutEnabled([preferences paginateDuringLayoutEnabled]);
-
-    settings.setAsynchronousSpellCheckingEnabled([preferences asynchronousSpellCheckingEnabled]);
-    settings.setHyperlinkAuditingEnabled([preferences hyperlinkAuditingEnabled]);
-    settings.setUsePreHTML5ParserQuirks([self _needsPreHTML5ParserQuirks]);
+    auto& settings = _private->page->settings();
+    
+    // FIXME: This should switch to using WebPreferences for storage and adopt autogeneration.
     settings.setInteractiveFormValidationEnabled([self interactiveFormValidationEnabled]);
-    settings.setValidationMessageTimerMagnification([self validationMessageTimerMagnification]);
+
+    // FIXME: We should make autogeneration smart enough to deal with core/kit conversions of enums.
+    settings.setStorageBlockingPolicy(core([preferences storageBlockingPolicy]));
+    settings.setEditableLinkBehavior(core([preferences editableLinkBehavior]));
+    settings.setJavaScriptRuntimeFlags(JSC::RuntimeFlags([preferences javaScriptRuntimeFlags]));
+    settings.setFrameFlattening((const WebCore::FrameFlattening)[preferences frameFlattening]);
 
     BOOL mediaPlaybackRequiresUserGesture = [preferences mediaPlaybackRequiresUserGesture];
     settings.setVideoPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture || [preferences videoPlaybackRequiresUserGesture]);
     settings.setAudioPlaybackRequiresUserGesture(mediaPlaybackRequiresUserGesture || [preferences audioPlaybackRequiresUserGesture]);
-    settings.setRequiresUserGestureToLoadVideo(shouldRequireUserGestureToLoadVideo());
-    settings.setMainContentUserGestureOverrideEnabled([preferences overrideUserGestureRequirementForMainContent]);
-    settings.setAllowsInlineMediaPlayback([preferences mediaPlaybackAllowsInline]);
-    settings.setAllowsInlineMediaPlaybackAfterFullscreen([preferences allowsInlineMediaPlaybackAfterFullscreen]);
-    settings.setInlineMediaPlaybackRequiresPlaysInlineAttribute([preferences inlineMediaPlaybackRequiresPlaysInlineAttribute]);
-    settings.setInvisibleAutoplayNotPermitted([preferences invisibleAutoplayNotPermitted]);
-    settings.setAllowsPictureInPictureMediaPlayback([preferences allowsPictureInPictureMediaPlayback] && shouldAllowPictureInPictureMediaPlayback());
-    settings.setMediaControlsScaleWithPageZoom([preferences mediaControlsScaleWithPageZoom]);
-    settings.setSuppressesIncrementalRendering([preferences suppressesIncrementalRendering]);
-    settings.setBackspaceKeyNavigationEnabled([preferences backspaceKeyNavigationEnabled]);
-    settings.setWantsBalancedSetDefersLoadingBehavior([preferences wantsBalancedSetDefersLoadingBehavior]);
-    WebCore::DeprecatedGlobalSettings::setMockScrollbarsEnabled([preferences mockScrollbarsEnabled]);
 
-    settings.setShouldRespectImageOrientation([preferences shouldRespectImageOrientation]);
+    RuntimeEnabledFeatures::sharedFeatures().setWebSQLDisabled(![preferences webSQLEnabled]);
+    DatabaseManager::singleton().setIsAvailable([preferences databasesEnabled]);
+    settings.setLocalStorageDatabasePath([preferences _localStorageDatabasePath]);
+    _private->page->setSessionID([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
+    _private->group->storageNamespaceProvider().setSessionIDForTesting([preferences privateBrowsingEnabled] ? PAL::SessionID::legacyPrivateSessionID() : PAL::SessionID::defaultSessionID());
 
-    settings.setRequestAnimationFrameEnabled([preferences requestAnimationFrameEnabled]);
-    settings.setDiagnosticLoggingEnabled([preferences diagnosticLoggingEnabled]);
-    WebCore::DeprecatedGlobalSettings::setLowPowerVideoAudioBufferSizeEnabled([preferences lowPowerVideoAudioBufferSizeEnabled]);
-
-    settings.setUseLegacyTextAlignPositionedElementBehavior([preferences useLegacyTextAlignPositionedElementBehavior]);
-
-    settings.setShouldConvertPositionStyleOnCopy([preferences shouldConvertPositionStyleOnCopy]);
-    settings.setEnableInheritURIQueryComponent([preferences isInheritURIQueryComponentEnabled]);
-
+    settings.setShrinksStandaloneImagesToFit([preferences shrinksStandaloneImagesToFit]);
+    settings.setTextDirectionSubmenuInclusionBehavior(core([preferences textDirectionSubmenuInclusionBehavior]));
+    settings.setBackForwardCacheExpirationInterval(Seconds { [preferences _backForwardCacheExpirationInterval] });
+    settings.setForceWebGLUsesLowPower([preferences forceLowPowerGPUForWebGL]);
+    settings.setLoadDeferringEnabled(shouldEnableLoadDeferring());
+    settings.setWindowFocusRestricted(shouldRestrictWindowFocus());
+    settings.setUsePreHTML5ParserQuirks([self _needsPreHTML5ParserQuirks]);
+    settings.setValidationMessageTimerMagnification([self validationMessageTimerMagnification]);
     settings.setAllowDisplayOfInsecureContent(shouldAllowDisplayAndRunningOfInsecureContent());
     settings.setAllowRunningOfInsecureContent(shouldAllowDisplayAndRunningOfInsecureContent());
-
-    settings.setJavaScriptCanOpenWindowsAutomatically([preferences javaScriptCanOpenWindowsAutomatically] || shouldAllowWindowOpenWithoutUserGesture());
-
-    settings.setVisualViewportAPIEnabled([preferences visualViewportAPIEnabled]);
-    settings.setSyntheticEditingCommandsEnabled([preferences syntheticEditingCommandsEnabled]);
-    settings.setCSSOMViewScrollingAPIEnabled([preferences CSSOMViewScrollingAPIEnabled]);
-    settings.setCSSOMViewSmoothScrollingEnabled([preferences CSSOMViewSmoothScrollingEnabled]);
-    settings.setMediaContentTypesRequiringHardwareSupport([preferences mediaContentTypesRequiringHardwareSupport]);
-
-    switch ([preferences storageBlockingPolicy]) {
-    case WebAllowAllStorage:
-        settings.setStorageBlockingPolicy(WebCore::SecurityOrigin::AllowAllStorage);
-        break;
-    case WebBlockThirdPartyStorage:
-        settings.setStorageBlockingPolicy(WebCore::SecurityOrigin::BlockThirdPartyStorage);
-        break;
-    case WebBlockAllStorage:
-        settings.setStorageBlockingPolicy(WebCore::SecurityOrigin::BlockAllStorage);
-        break;
-    }
-
-    settings.setPlugInSnapshottingEnabled([preferences plugInSnapshottingEnabled]);
-    settings.setHttpEquivEnabled([preferences httpEquivEnabled]);
-    settings.setColorFilterEnabled([preferences colorFilterEnabled]);
-    settings.setPunchOutWhiteBackgroundsInDarkMode([preferences punchOutWhiteBackgroundsInDarkMode]);
-
-#if PLATFORM(MAC)
-    settings.setAcceleratedCompositingForFixedPositionEnabled(true);
-#endif
-
-#if ENABLE(RUBBER_BANDING)
-    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=136131
-    settings.setRubberBandingForSubScrollableRegionsEnabled(false);
-#endif
-
-#if ENABLE(WIRELESS_PLAYBACK_TARGET)
-    settings.setAllowsAirPlayForMediaPlayback([preferences allowsAirPlayForMediaPlayback]);
-#endif
-#if PLATFORM(IOS_FAMILY)
-    settings.setVisualViewportEnabled(false);
-    settings.setVisualViewportAPIEnabled(false);
-    settings.setStandalone([preferences _standalone]);
-    settings.setTelephoneNumberParsingEnabled([preferences _telephoneNumberParsingEnabled]);
-    settings.setAllowMultiElementImplicitSubmission([preferences _allowMultiElementImplicitFormSubmission]);
-    settings.setMaxParseDuration([preferences _maxParseDuration]);
-    settings.setAlwaysUseAcceleratedOverflowScroll([preferences _alwaysUseAcceleratedOverflowScroll]);
-    settings.setContentChangeObserverEnabled([preferences contentChangeObserverEnabled]);
-    WebCore::DeprecatedGlobalSettings::setAudioSessionCategoryOverride([preferences audioSessionCategoryOverride]);
-    WebCore::DeprecatedGlobalSettings::setNetworkDataUsageTrackingEnabled([preferences networkDataUsageTrackingEnabled]);
-    WebCore::DeprecatedGlobalSettings::setNetworkInterfaceName([preferences networkInterfaceName]);
-#if HAVE(AVKIT)
-    WebCore::DeprecatedGlobalSettings::setAVKitEnabled([preferences avKitEnabled]);
-#endif
-
-    settings.setPasswordEchoEnabled([preferences _allowPasswordEcho]);
-    settings.setPasswordEchoDurationInSeconds([preferences _passwordEchoDuration]);
-
-    ASSERT_WITH_MESSAGE(settings.backForwardCacheSupportsPlugins(), "BackForwardCacheSupportsPlugins should be enabled on iOS.");
-
-#if ENABLE(TEXT_AUTOSIZING)
-    settings.setMinimumZoomFontSize([preferences _minimumZoomFontSize]);
-    settings.setTextAutosizingEnabled([preferences _textAutosizingEnabled]);
-#endif
-#endif // PLATFORM(IOS_FAMILY)
+    settings.setAllowContentSecurityPolicySourceStarToMatchAnyProtocol(shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol());
+    settings.setShouldConvertInvalidURLsToBlank(shouldConvertInvalidURLsToBlank());
 
 #if PLATFORM(MAC)
     // This parses the user stylesheet synchronously so anything that may affect it should be done first.
@@ -3247,181 +3079,39 @@ static bool needsSelfRetainWhileLoadingQuirk()
     } else
         settings.setUserStyleSheetLocation([NSURL URLWithString:@""]);
 
+    settings.setAcceleratedCompositingForFixedPositionEnabled(true);
     settings.setNeedsAdobeFrameReloadingQuirk([self _needsAdobeFrameReloadingQuirk]);
     settings.setTreatsAnyTextCSSLinkAsStylesheet([self _needsLinkElementTextCSSQuirk]);
     settings.setNeedsFrameNameFallbackToIdQuirk([self _needsFrameNameFallbackToIdQuirk]);
     settings.setNeedsKeyboardEventDisambiguationQuirks([self _needsKeyboardEventDisambiguationQuirks]);
     settings.setEnforceCSSMIMETypeInNoQuirksMode(!_CFAppVersionCheckLessThan(CFSTR("com.apple.iWeb"), -1, 2.1));
     settings.setNeedsIsLoadingInAPISenseQuirk([self _needsIsLoadingInAPISenseQuirk]);
-    settings.setTextAreasAreResizable([preferences textAreasAreResizable]);
     settings.setExperimentalNotificationsEnabled([preferences experimentalNotificationsEnabled]);
-    settings.setShowsURLsInToolTips([preferences showsURLsInToolTips]);
-    settings.setShowsToolTipOverTruncatedText([preferences showsToolTipOverTruncatedText]);
-#endif // PLATFORM(MAC)
-
-    DatabaseManager::singleton().setIsAvailable([preferences databasesEnabled]);
-
-#if ENABLE(MEDIA_SOURCE)
-    settings.setMediaSourceEnabled([preferences mediaSourceEnabled]);
-    settings.setSourceBufferChangeTypeEnabled([preferences sourceBufferChangeTypeEnabled]);
 #endif
 
-#if ENABLE(SERVICE_CONTROLS)
-    settings.setImageControlsEnabled([preferences imageControlsEnabled]);
-    settings.setServiceControlsEnabled([preferences serviceControlsEnabled]);
+#if PLATFORM(IOS_FAMILY)
+    settings.setVisualViewportEnabled(false);
+    settings.setVisualViewportAPIEnabled(false);
+    WebCore::DeprecatedGlobalSettings::setAudioSessionCategoryOverride([preferences audioSessionCategoryOverride]);
+    WebCore::DeprecatedGlobalSettings::setNetworkDataUsageTrackingEnabled([preferences networkDataUsageTrackingEnabled]);
+    WebCore::DeprecatedGlobalSettings::setNetworkInterfaceName([preferences networkInterfaceName]);
+#if HAVE(AVKIT)
+    WebCore::DeprecatedGlobalSettings::setAVKitEnabled([preferences avKitEnabled]);
+#endif
+    ASSERT_WITH_MESSAGE(settings.backForwardCacheSupportsPlugins(), "BackForwardCacheSupportsPlugins should be enabled on iOS.");
 #endif
 
-#if ENABLE(VIDEO)
-    settings.setShouldDisplaySubtitles([preferences shouldDisplaySubtitles]);
-    settings.setShouldDisplayCaptions([preferences shouldDisplayCaptions]);
-    settings.setShouldDisplayTextDescriptions([preferences shouldDisplayTextDescriptions]);
-#endif
-
-#if USE(AVFOUNDATION)
-    WebCore::DeprecatedGlobalSettings::setAVFoundationEnabled([preferences isAVFoundationEnabled]);
-    WebCore::DeprecatedGlobalSettings::setAVFoundationNSURLSessionEnabled([preferences isAVFoundationNSURLSessionEnabled]);
-#endif
-
-#if ENABLE(MEDIA_STREAM)
-    settings.setMockCaptureDevicesEnabled(false);
-    settings.setMediaCaptureRequiresSecureConnection(true);
-    RuntimeEnabledFeatures::sharedFeatures().setMediaStreamEnabled(false);
-    RuntimeEnabledFeatures::sharedFeatures().setMediaDevicesEnabled(false);
-    RuntimeEnabledFeatures::sharedFeatures().setMediaRecorderEnabled(preferences.mediaRecorderEnabled);
-#endif
-
-#if ENABLE(WEB_RTC)
-    RuntimeEnabledFeatures::sharedFeatures().setPeerConnectionEnabled([preferences peerConnectionEnabled]);
-#endif
-
-#if ENABLE(WEB_AUDIO)
-    settings.setWebAudioEnabled([preferences webAudioEnabled]);
-    settings.setPrefixedWebAudioEnabled([preferences webAudioEnabled]);
-    settings.setModernUnprefixedWebAudioEnabled([preferences modernUnprefixedWebAudioEnabled]);
-#endif
-
-#if ENABLE(FULLSCREEN_API)
-    settings.setFullScreenEnabled([preferences fullScreenEnabled]);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setCSSLogicalEnabled([preferences cssLogicalEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setLineHeightUnitsEnabled([preferences lineHeightUnitsEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setAdClickAttributionEnabled([preferences adClickAttributionEnabled]);
-
-    settings.setHiddenPageDOMTimerThrottlingEnabled([preferences hiddenPageDOMTimerThrottlingEnabled]);
-
-    settings.setHiddenPageCSSAnimationSuspensionEnabled([preferences hiddenPageCSSAnimationSuspensionEnabled]);
-
-    WebCore::DeprecatedGlobalSettings::setResourceLoadStatisticsEnabled([preferences resourceLoadStatisticsEnabled]);
-
-    settings.setViewportFitEnabled([preferences viewportFitEnabled]);
-    settings.setConstantPropertiesEnabled([preferences constantPropertiesEnabled]);
-
-#if ENABLE(GAMEPAD)
-    RuntimeEnabledFeatures::sharedFeatures().setGamepadsEnabled([preferences gamepadsEnabled]);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setHighlightAPIEnabled([preferences highlightAPIEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setShadowDOMEnabled([preferences shadowDOMEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setCustomElementsEnabled([preferences customElementsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setDataTransferItemsEnabled([preferences dataTransferItemsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setCustomPasteboardDataEnabled([preferences customPasteboardDataEnabled]);
-
-#if ENABLE(ATTACHMENT_ELEMENT)
-    RuntimeEnabledFeatures::sharedFeatures().setAttachmentElementEnabled([preferences attachmentElementEnabled]);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setInteractiveFormValidationEnabled([self interactiveFormValidationEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setModernMediaControlsEnabled([preferences modernMediaControlsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCSSIntegrationEnabled([preferences webAnimationsCSSIntegrationEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setCacheAPIEnabled([preferences cacheAPIEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setFetchAPIEnabled([preferences fetchAPIEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setWritableStreamAPIEnabled([preferences writableStreamAPIEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setReadableByteStreamAPIEnabled([preferences readableByteStreamAPIEnabled]);
-
-#if ENABLE(WEBGL2)
-    RuntimeEnabledFeatures::sharedFeatures().setWebGL2Enabled([preferences webGL2Enabled]);
-#endif
-
-#if ENABLE(WEBGPU)
-    RuntimeEnabledFeatures::sharedFeatures().setWebGPUEnabled([preferences webGPUEnabled]);
-#endif
-
-#if ENABLE(WEBGL) || ENABLE(WEBGL2)
-    RuntimeEnabledFeatures::sharedFeatures().setMaskWebGLStringsEnabled([preferences maskWebGLStringsEnabled]);
-#endif
-
-#if ENABLE(DOWNLOAD_ATTRIBUTE)
-    RuntimeEnabledFeatures::sharedFeatures().setDownloadAttributeEnabled([preferences downloadAttributeEnabled]);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled([preferences webAnimationsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCompositeOperationsEnabled([preferences webAnimationsCompositeOperationsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsMutableTimelinesEnabled([preferences webAnimationsMutableTimelinesEnabled]);
-
-    RuntimeEnabledFeatures::sharedFeatures().setCSSCustomPropertiesAndValuesEnabled([preferences CSSCustomPropertiesAndValuesEnabled]);
-
-#if ENABLE(INTERSECTION_OBSERVER)
-    RuntimeEnabledFeatures::sharedFeatures().setIntersectionObserverEnabled(preferences.intersectionObserverEnabled);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setUserTimingEnabled(preferences.userTimingEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setResourceTimingEnabled(preferences.resourceTimingEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setLinkPreloadEnabled(preferences.linkPreloadEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setMediaPreloadingEnabled(preferences.mediaPreloadingEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setIsSecureContextAttributeEnabled(preferences.isSecureContextAttributeEnabled);
-    RuntimeEnabledFeatures::sharedFeatures().setDirectoryUploadEnabled([preferences directoryUploadEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setMenuItemElementEnabled([preferences menuItemElementEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setAccessibilityObjectModelEnabled([preferences accessibilityObjectModelEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setAriaReflectionEnabled([preferences ariaReflectionEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setFetchAPIKeepAliveEnabled([preferences fetchAPIKeepAliveEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setReferrerPolicyAttributeEnabled([preferences referrerPolicyAttributeEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setLinkPreloadResponsiveImagesEnabled([preferences linkPreloadResponsiveImagesEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setDialogElementEnabled([preferences dialogElementEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setKeygenElementEnabled([preferences keygenElementEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setCSSShadowPartsEnabled([preferences cssShadowPartsEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setLayoutFormattingContextIntegrationEnabled([preferences layoutFormattingContextIntegrationEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setIsInAppBrowserPrivacyEnabled([preferences isInAppBrowserPrivacyEnabled]);
-    RuntimeEnabledFeatures::sharedFeatures().setWebSQLDisabled(![preferences webSQLEnabled]);
-    
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA)
-    RuntimeEnabledFeatures::sharedFeatures().setLegacyEncryptedMediaAPIEnabled(preferences.legacyEncryptedMediaAPIEnabled);
+    settings.setMediaKeysStorageDirectory([preferences mediaKeysStorageDirectory]);
 #endif
 
-#if ENABLE(ENCRYPTED_MEDIA)
-    RuntimeEnabledFeatures::sharedFeatures().setEncryptedMediaAPIEnabled(preferences.encryptedMediaAPIEnabled);
+#if ENABLE(RUBBER_BANDING)
+    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=136131
+    settings.setRubberBandingForSubScrollableRegionsEnabled(false);
 #endif
 
-    RuntimeEnabledFeatures::sharedFeatures().setUserGesturePromisePropagationEnabled(preferences.userGesturePromisePropagationEnabled);
-
-#if ENABLE(PICTURE_IN_PICTURE_API)
-    settings.setPictureInPictureAPIEnabled(preferences.pictureInPictureAPIEnabled);
-#endif
-
-#if ENABLE(VIDEO)
-    settings.setGenericCueAPIEnabled(preferences.genericCueAPIEnabled);
-#endif
-
-#if ENABLE(GPU_PROCESS)
-    settings.setUseGPUProcessForMedia(preferences.useGPUProcessForMedia);
-#endif
-
-    RuntimeEnabledFeatures::sharedFeatures().setInspectorAdditionsEnabled(preferences.inspectorAdditionsEnabled);
-
-    settings.setAllowMediaContentTypesRequiringHardwareSupportAsFallback(preferences.allowMediaContentTypesRequiringHardwareSupportAsFallback);
-
-#if ENABLE(WIRELESS_PLAYBACK_TARGET)
-    settings.setRemotePlaybackEnabled(preferences.remotePlaybackEnabled);
-#endif
-
-    NSTimeInterval timeout = [preferences incrementalRenderingSuppressionTimeoutInSeconds];
-    if (timeout > 0)
-        settings.setIncrementalRenderingSuppressionTimeoutInSeconds(timeout);
+    // FIXME: Is this relevent to WebKitLegacy? If not, we should remove it.
+    WebCore::DeprecatedGlobalSettings::setResourceLoadStatisticsEnabled([preferences resourceLoadStatisticsEnabled]);
 
     // Application Cache Preferences are stored on the global cache storage manager, not in Settings.
     [WebApplicationCache setDefaultOriginQuota:[preferences applicationCacheDefaultOriginQuota]];
@@ -3436,33 +3126,6 @@ static bool needsSelfRetainWhileLoadingQuirk()
     [[self window] setAcceleratedDrawingEnabled:[preferences acceleratedDrawingEnabled]];
     [WAKView _setInterpolationQuality:[preferences _interpolationQuality]];
 #endif
-
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA)
-    settings.setMediaKeysStorageDirectory([preferences mediaKeysStorageDirectory]);
-#endif
-
-    settings.setMediaDataLoadsAutomatically([preferences mediaDataLoadsAutomatically]);
-
-    settings.setAllowContentSecurityPolicySourceStarToMatchAnyProtocol(shouldAllowContentSecurityPolicySourceStarToMatchAnyProtocol());
-
-    settings.setShouldConvertInvalidURLsToBlank(shouldConvertInvalidURLsToBlank());
-
-    settings.setLargeImageAsyncDecodingEnabled([preferences largeImageAsyncDecodingEnabled]);
-    settings.setAnimatedImageAsyncDecodingEnabled([preferences animatedImageAsyncDecodingEnabled]);
-    settings.setMediaCapabilitiesEnabled([preferences mediaCapabilitiesEnabled]);
-
-    settings.setCoreMathMLEnabled([preferences coreMathMLEnabled]);
-    settings.setRequestIdleCallbackEnabled([preferences requestIdleCallbackEnabled]);
-    settings.setAsyncClipboardAPIEnabled(preferences.asyncClipboardAPIEnabled);
-
-    RuntimeEnabledFeatures::sharedFeatures().setServerTimingEnabled([preferences serverTimingEnabled]);
-
-    settings.setSelectionAcrossShadowBoundariesEnabled(preferences.selectionAcrossShadowBoundariesEnabled);
-
-#if ENABLE(RESIZE_OBSERVER)
-    settings.setResizeObserverEnabled([preferences resizeObserverEnabled]);
-#endif
-    settings.setAspectRatioOfImgFromWidthAndHeightEnabled([preferences aspectRatioOfImgFromWidthAndHeightEnabled]);
 }
 
 static inline IMP getMethod(id o, SEL s)
@@ -4939,13 +4602,7 @@ IGNORE_WARNINGS_END
 
 - (void)_forceRepaintForTesting
 {
-#if PLATFORM(IOS_FAMILY)
-    // Ensure fixed positions layers are where they should be.
-    [self _synchronizeCustomFixedPositionLayoutRect];
-#endif
-
-    [self _viewWillDrawInternal];
-    [self _flushCompositingChanges];
+    [self _updateRendering];
     [CATransaction flush];
     [CATransaction synchronize];
 }
@@ -9383,28 +9040,19 @@ bool LayerFlushController::flushLayers()
     NSWindow *window = [m_webView window];
 #endif // PLATFORM(MAC)
 
-#if PLATFORM(IOS_FAMILY)
-    // Ensure fixed positions layers are where they should be.
-    [m_webView _synchronizeCustomFixedPositionLayoutRect];
-#endif
+    [m_webView _updateRendering];
 
-    [m_webView _viewWillDrawInternal];
-
-    if ([m_webView _flushCompositingChanges]) {
 #if PLATFORM(MAC)
-        // AppKit may have disabled screen updates, thinking an upcoming window flush will re-enable them.
-        // In case setNeedsDisplayInRect() has prevented the window from needing to be flushed, re-enable screen
-        // updates here.
-        ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-        if (![window isFlushWindowDisabled])
-            ALLOW_DEPRECATED_DECLARATIONS_END
-            [window _enableScreenUpdatesIfNeeded];
+    // AppKit may have disabled screen updates, thinking an upcoming window flush will re-enable them.
+    // In case setNeedsDisplayInRect() has prevented the window from needing to be flushed, re-enable screen
+    // updates here.
+    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
+    if (![window isFlushWindowDisabled])
+        [window _enableScreenUpdatesIfNeeded];
+    ALLOW_DEPRECATED_DECLARATIONS_END
 #endif
 
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 - (void)_scheduleUpdateRendering
@@ -9528,6 +9176,14 @@ bool LayerFlushController::flushLayers()
     [self updateTouchBar];
 }
 
+- (void)_playbackControlsMediaEngineChanged
+{
+    if (!_private->playbackSessionModel)
+        return;
+
+    _private->playbackSessionModel->mediaEngineChanged();
+}
+
 #endif // PLATFORM(MAC)
 
 #endif // ENABLE(VIDEO_PRESENTATION_MODE)
@@ -9595,7 +9251,7 @@ bool LayerFlushController::flushLayers()
 
 - (Vector<String>)_dictationAlternatives:(WebCore::DictationContext)dictationContext
 {
-    return _private->m_alternativeTextUIController->alternativesForContext(dictationContext);
+    return makeVector<String>(_private->m_alternativeTextUIController->alternativesForContext(dictationContext).alternativeStrings);
 }
 
 #if ENABLE(SERVICE_CONTROLS)

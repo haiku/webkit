@@ -36,6 +36,7 @@
 #include "CSSValuePool.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "DateComponents.h"
 #include "DateTimeChooser.h"
 #include "DateTimeChooserParameters.h"
 #include "Document.h"
@@ -1676,7 +1677,7 @@ bool HTMLInputElement::isSteppable() const
     return m_inputType->isSteppable();
 }
 
-DateComponents::Type HTMLInputElement::dateType() const
+DateComponentsType HTMLInputElement::dateType() const
 {
     return m_inputType->dateType();
 }
@@ -2135,7 +2136,10 @@ bool HTMLInputElement::setupDateTimeChooserParameters(DateTimeChooserParameters&
     else
         parameters.anchorRectInRootView = IntRect();
     parameters.currentValue = value();
-    parameters.isAnchorElementRTL = computedStyle()->direction() == TextDirection::RTL;
+
+    auto* computedStyle = this->computedStyle();
+    parameters.isAnchorElementRTL = computedStyle->direction() == TextDirection::RTL;
+    parameters.useDarkAppearance = document().useDarkAppearance(computedStyle);
 
 #if ENABLE(DATALIST_ELEMENT)
     if (auto dataList = this->dataList()) {

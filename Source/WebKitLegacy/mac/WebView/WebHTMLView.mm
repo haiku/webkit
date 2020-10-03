@@ -3668,8 +3668,17 @@ static RetainPtr<NSMenuItem> createMenuItem(const WebCore::HitTestResult& hitTes
 static RetainPtr<NSArray> customMenuFromDefaultItems(WebView *webView, const WebCore::ContextMenu& defaultMenu)
 {
     const auto& hitTestResult = webView.page->contextMenuController().hitTestResult();
-    auto defaultMenuItems = createMenuItems(hitTestResult, defaultMenu.items());
-
+    bool isPopover = webView.window._childWindowOrderingPriority == NSWindowChildOrderingPriorityPopover;
+    bool isLookupDisabled = [NSUserDefaults.standardUserDefaults boolForKey:@"LULookupDisabled"];
+    auto filteredItems = defaultMenu.items();
+    
+    if (isLookupDisabled || isPopover) {
+        filteredItems.removeAllMatching([] (auto& item) {
+            return item.action() == WebCore::ContextMenuItemTagLookUpInDictionary;
+        });
+    }
+    auto defaultMenuItems = createMenuItems(hitTestResult, filteredItems);
+    
     id delegate = [webView UIDelegate];
     SEL selector = @selector(webView:contextMenuItemsForElement:defaultMenuItems:);
     if (![delegate respondsToSelector:selector])
@@ -4642,7 +4651,7 @@ static RefPtr<WebCore::KeyboardEvent> currentKeyboardEvent(WebCore::Frame* coreF
         id nextResponder = [[self window] _newFirstResponderAfterResigning];
         bool nextResponderIsInWebView = [nextResponder isKindOfClass:[NSView class]]
             && [nextResponder isDescendantOf:[[[self _webView] mainFrame] frameView]];
-        if (!nextResponderIsInWebView)
+        if (!nextResponderIsInWebView && ![[self _webView] _isPerformingProgrammaticFocus])
             page->focusController().setFocused(false);
     }
     return resign;
@@ -6698,7 +6707,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
         WebRangeIsRelativeTo rangeIsRelativeTo = needToRemoveSoftSpace ? WebRangeIsRelativeTo::Paragraph : WebRangeIsRelativeTo::EditableRoot;
         if (auto domRange = [[self _frame] _convertToDOMRange:replacementRange rangeIsRelativeTo:rangeIsRelativeTo]) {
             WebCore::IgnoreSelectionChangeForScope selectionChange { *coreFrame };
-            coreFrame->selection().setSelection(WebCore::VisibleSelection(*domRange, WebCore::SEL_DEFAULT_AFFINITY));
+            coreFrame->selection().setSelection(WebCore::VisibleSelection(*domRange));
             replacesText = replacementRange.length;
         }
     }

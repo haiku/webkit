@@ -94,11 +94,6 @@
 #include "WebContextMenuItem.h"
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include "WebMediaSessionMetadata.h"
-#include <WebCore/MediaSessionEvents.h>
-#endif
-
 #if PLATFORM(COCOA)
 #include "VersionChecks.h"
 #endif
@@ -396,6 +391,11 @@ WKFrameRef WKPageGetFrameSetLargestFrame(WKPageRef pageRef)
 uint64_t WKPageGetRenderTreeSize(WKPageRef page)
 {
     return toImpl(page)->renderTreeSize();
+}
+
+WKWebsiteDataStoreRef WKPageGetWebsiteDataStore(WKPageRef page)
+{
+    return toAPI(&toImpl(page)->websiteDataStore());
 }
 
 WKInspectorRef WKPageGetInspector(WKPageRef pageRef)
@@ -2028,15 +2028,6 @@ void WKPageSetPageUIClient(WKPageRef pageRef, const WKPageUIClientBase* wkClient
             m_client.didResignInputElementStrongPasswordAppearance(toAPI(&page), toAPI(userInfo), m_client.base.clientInfo);
         }
 
-#if ENABLE(MEDIA_SESSION)
-        void mediaSessionMetadataDidChange(WebPageProxy& page, WebMediaSessionMetadata* metadata) final
-        {
-            if (!m_client.mediaSessionMetadataDidChange)
-                return;
-
-            m_client.mediaSessionMetadataDidChange(toAPI(&page), toAPI(metadata), m_client.base.clientInfo);
-        }
-#endif
 #if ENABLE(POINTER_LOCK)
         void requestPointerLock(WebPageProxy* page) final
         {
@@ -2727,43 +2718,6 @@ void WKPageDidDenyPointerLock(WKPageRef page)
 #endif
 }
 
-bool WKPageHasMediaSessionWithActiveMediaElements(WKPageRef page)
-{
-#if ENABLE(MEDIA_SESSION)
-    return toImpl(page)->hasMediaSessionWithActiveMediaElements();
-#else
-    UNUSED_PARAM(page);
-    return false;
-#endif
-}
-
-void WKPageHandleMediaEvent(WKPageRef page, WKMediaEventType wkEventType)
-{
-#if ENABLE(MEDIA_SESSION)
-    MediaEventType eventType;
-
-    switch (wkEventType) {
-    case kWKMediaEventTypePlayPause:
-        eventType = MediaEventType::PlayPause;
-        break;
-    case kWKMediaEventTypeTrackNext:
-        eventType = MediaEventType::TrackNext;
-        break;
-    case kWKMediaEventTypeTrackPrevious:
-        eventType = MediaEventType::TrackPrevious;
-        break;
-    default:
-        ASSERT_NOT_REACHED();
-        return;
-    }
-
-    toImpl(page)->handleMediaEvent(eventType);
-#else
-    UNUSED_PARAM(page);
-    UNUSED_PARAM(wkEventType);
-#endif
-}
-
 void WKPagePostMessageToInjectedBundle(WKPageRef pageRef, WKStringRef messageNameRef, WKTypeRef messageBodyRef)
 {
     toImpl(pageRef)->postMessageToInjectedBundle(toImpl(messageNameRef)->string(), toImpl(messageBodyRef));
@@ -2862,7 +2816,7 @@ bool WKPageIsPlayingAudio(WKPageRef page)
 
 WKMediaState WKPageGetMediaState(WKPageRef page)
 {
-    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->mediaStateFlags();
+    WebCore::MediaProducer::MediaStateFlags coreState = toImpl(page)->reportedMediaCaptureState();
     WKMediaState state = kWKMediaIsNotPlaying;
 
     if (coreState & WebCore::MediaProducer::IsPlayingAudio)
@@ -2996,4 +2950,14 @@ void WKPageClearLoadedSubresourceDomains(WKPageRef page)
 #else
     UNUSED_PARAM(page);
 #endif
+}
+
+void WKPageSetMediaCaptureReportingDelayForTesting(WKPageRef page, double delay)
+{
+    toImpl(page)->setMediaCaptureReportingDelay(Seconds(delay));
+}
+
+void WKPageDispatchActivityStateUpdateForTesting(WKPageRef page)
+{
+    toImpl(page)->dispatchActivityStateUpdateForTesting();
 }

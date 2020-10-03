@@ -83,13 +83,13 @@ namespace JSC {
     macro(push) \
     macro(repeatCharacter) \
     macro(starDefault) \
+    macro(starNamespace) \
     macro(InspectorInstrumentation) \
     macro(keys) \
     macro(values) \
     macro(get) \
     macro(set) \
     macro(shift) \
-    macro(allocateTypedArray) \
     macro(Int8Array) \
     macro(Int16Array) \
     macro(Int32Array) \
@@ -111,12 +111,12 @@ namespace JSC {
     macro(nextMethod) \
     macro(asyncGeneratorQueueItemNext) \
     macro(dateTimeFormat) \
-    macro(intlSubstituteValue) \
     macro(this) \
     macro(thisTimeValue) \
     macro(newTargetLocal) \
     macro(derivedConstructor) \
     macro(isTypedArrayView) \
+    macro(isNeutered) \
     macro(isBoundFunction) \
     macro(hasInstanceBoundFunction) \
     macro(instanceOf) \
@@ -138,6 +138,7 @@ namespace JSC {
     macro(setBucketHead) \
     macro(setBucketNext) \
     macro(setBucketKey) \
+    macro(setPrototypeDirect) \
     macro(regExpBuiltinExec) \
     macro(regExpMatchFast) \
     macro(regExpProtoFlagsGetter) \
@@ -210,6 +211,7 @@ public:
     const JSC::Identifier& dollarVMPublicName() const { return m_dollarVMName; }
     const JSC::Identifier& dollarVMPrivateName() const { return m_dollarVMPrivateName; }
     const JSC::Identifier& polyProtoName() const { return m_polyProtoPrivateName; }
+    const JSC::Identifier& intlLegacyConstructedSymbol() const { return m_intlLegacyConstructedSymbol; }
 
 private:
     void checkPublicToPrivateMapConsistency(UniquedStringImpl* privateName);
@@ -218,6 +220,7 @@ private:
     JSC_FOREACH_BUILTIN_FUNCTION_NAME(DECLARE_BUILTIN_NAMES_IN_JSC)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(DECLARE_BUILTIN_NAMES_IN_JSC)
     JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_WELL_KNOWN_SYMBOL(DECLARE_BUILTIN_SYMBOLS_IN_JSC)
+    const JSC::Identifier m_intlLegacyConstructedSymbol;
     const JSC::Identifier m_dollarVMName;
     const JSC::Identifier m_dollarVMPrivateName;
     const JSC::Identifier m_polyProtoPrivateName;

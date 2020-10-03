@@ -28,9 +28,9 @@ messages -> NetworkProcess LegacyReceiver {
     CreateNetworkConnectionToWebProcess(WebCore::ProcessIdentifier processIdentifier, PAL::SessionID sessionID) -> (Optional<IPC::Attachment> connectionIdentifier, enum:uint8_t WebCore::HTTPCookieAcceptPolicy cookieAcceptPolicy) Async
 
 #if USE(SOUP)
-    SetIgnoreTLSErrors(bool ignoreTLSErrors)
+    SetIgnoreTLSErrors(PAL::SessionID sessionID, bool ignoreTLSErrors)
     UserPreferredLanguagesChanged(Vector<String> languages)
-    SetNetworkProxySettings(struct WebCore::SoupNetworkProxySettings settings)
+    SetNetworkProxySettings(PAL::SessionID sessionID, struct WebCore::SoupNetworkProxySettings settings)
     PrefetchDNS(String hostname)
     SetPersistentCredentialStorageEnabled(PAL::SessionID sessionID, bool enabled)
 #endif
@@ -39,7 +39,7 @@ messages -> NetworkProcess LegacyReceiver {
     SetNetworkProxySettings(PAL::SessionID sessionID, WebCore::CurlProxySettings settings)
 #endif
 
-    ClearCachedCredentials()
+    ClearCachedCredentials(PAL::SessionID sessionID)
 
     AddWebsiteDataStore(struct WebKit::WebsiteDataStoreParameters websiteDataStoreParameters);
     DestroySession(PAL::SessionID sessionID)
@@ -63,11 +63,10 @@ messages -> NetworkProcess LegacyReceiver {
 
 #if PLATFORM(COCOA)
     SetQOS(int latencyQOS, int throughputQOS)
-    SetStorageAccessAPIEnabled(bool enabled)
 #endif
     SetAllowsAnySSLCertificateForWebSocket(bool enabled) -> () Synchronous
 
-    SyncAllCookies()
+    FlushCookies(PAL::SessionID sessionID) -> () Async
 
     AllowSpecificHTTPSCertificateForHost(WebCore::CertificateInfo certificate, String host)
 
@@ -118,7 +117,6 @@ messages -> NetworkProcess LegacyReceiver {
     SubmitTelemetry(PAL::SessionID sessionID) -> () Async
     SetCacheMaxAgeCapForPrevalentResources(PAL::SessionID sessionID, Seconds seconds) -> () Async
     SetGrandfathered(PAL::SessionID sessionID, WebCore::RegistrableDomain resourceDomain, bool isGrandfathered) -> () Async
-    SetUseITPDatabase(PAL::SessionID sessionID, bool value) -> () Async
     GetResourceLoadStatisticsDataSummary(PAL::SessionID sessionID) -> (Vector<WebKit::WebResourceLoadStatisticsStore::ThirdPartyData> thirdPartyData) Async
     SetGrandfatheringTime(PAL::SessionID sessionID, Seconds seconds) -> () Async
     SetMaxStatisticsEntries(PAL::SessionID sessionID, uint64_t maximumEntryCount) -> () Async
@@ -142,7 +140,9 @@ messages -> NetworkProcess LegacyReceiver {
     ResetCrossSiteLoadsWithLinkDecorationForTesting(PAL::SessionID sessionID) -> () Async
     DeleteCookiesForTesting(PAL::SessionID sessionID, WebCore::RegistrableDomain domain, bool includeHttpOnlyCookies) -> () Async
     HasIsolatedSession(PAL::SessionID sessionID, WebCore::RegistrableDomain domain) -> (bool hasIsolatedSession) Async
+#if ENABLE(APP_BOUND_DOMAINS)
     SetAppBoundDomainsForResourceLoadStatistics(PAL::SessionID sessionID, HashSet<WebCore::RegistrableDomain> appBoundDomains) -> () Async
+#endif
     SetShouldDowngradeReferrerForTesting(bool enabled) -> () Async
     SetThirdPartyCookieBlockingMode(PAL::SessionID sessionID, enum:uint8_t WebCore::ThirdPartyCookieBlockingMode blockingMode) -> () Async
     SetShouldEnbleSameSiteStrictEnforcementForTesting(PAL::SessionID sessionID, enum:bool WebCore::SameSiteStrictEnforcementEnabled enabled) -> () Async
@@ -163,8 +163,7 @@ messages -> NetworkProcess LegacyReceiver {
 
     SetCacheStorageParameters(PAL::SessionID sessionID, String cacheStorageDirectory, WebKit::SandboxExtension::Handle handle);
 
-    SyncLocalStorage() -> () Synchronous
-    ClearLegacyPrivateBrowsingLocalStorage()
+    SyncLocalStorage() -> () Async
 
     StoreAdClickAttribution(PAL::SessionID sessionID, WebCore::AdClickAttribution adClickAttribution)
     DumpAdClickAttribution(PAL::SessionID sessionID) -> (String adClickAttributionState) Async
@@ -179,8 +178,10 @@ messages -> NetworkProcess LegacyReceiver {
 
     ResetQuota(PAL::SessionID sessionID) -> () Async
     
+#if ENABLE(APP_BOUND_DOMAINS)
     HasAppBoundSession(PAL::SessionID sessionID) -> (bool hasAppBoundSession) Async
     ClearAppBoundSession(PAL::SessionID sessionID) -> () Async
+#endif
 
 #if PLATFORM(IOS_FAMILY) && !PLATFORM(MACCATALYST)
     DisableServiceWorkerEntitlement()

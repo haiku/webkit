@@ -54,7 +54,7 @@ void ScrollingTreeScrollingNode::commitStateBeforeChildren(const ScrollingStateN
         m_scrollableAreaSize = state.scrollableAreaSize();
 
     if (state.hasChangedProperty(ScrollingStateScrollingNode::TotalContentsSize)) {
-        if (scrollingTree().isRubberBandInProgress())
+        if (scrollingTree().isRubberBandInProgressForNode(scrollingNodeID()))
             m_totalContentsSizeForRubberBand = m_totalContentsSize;
         else
             m_totalContentsSizeForRubberBand = state.totalContentsSize();
@@ -144,9 +144,10 @@ bool ScrollingTreeScrollingNode::canHandleWheelEvent(const PlatformWheelEvent& w
         return true;
 
     // We always rubber-band the latched node, or the root node.
-    if (isLatchedNode() || isRootNode())
+    // The stateless wheel event doesn't trigger rubber-band.
+    if (isLatchedNode() || (isRootNode() && !wheelEvent.isNonGestureEvent()))
         return true;
-    
+
     return eventCanScrollContents(wheelEvent);
 }
 
@@ -255,9 +256,6 @@ void ScrollingTreeScrollingNode::scrollTo(const FloatPoint& position, ScrollType
 {
     if (position == m_currentScrollPosition)
         return;
-
-    if (scrollType == ScrollType::Programmatic)
-        stopScrollAnimations();
 
     scrollingTree().setIsHandlingProgrammaticScroll(scrollType == ScrollType::Programmatic);
     

@@ -28,8 +28,8 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayBox.h"
 #include "InlineFormattingState.h"
+#include "LayoutBoxGeometry.h"
 #include "LayoutContext.h"
 #include "LayoutDescendantIterator.h"
 #include "LayoutInitialContainingBlock.h"
@@ -50,8 +50,8 @@ LayoutUnit TableFormattingContext::Geometry::cellHeigh(const ContainerBox& cellB
         auto& firstInFlowChildGeometry = formattingContext.geometryForBox(firstInFlowChild, EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
         auto& lastInFlowChildGeometry = formattingContext.geometryForBox(lastInFlowChild, EscapeReason::NeedsGeometryFromEstablishedFormattingContext);
 
-        auto top = firstInFlowChild.style().hasMarginBeforeQuirk() ? firstInFlowChildGeometry.top() : firstInFlowChildGeometry.rectWithMargin().top();
-        auto bottom = lastInFlowChild.style().hasMarginAfterQuirk() ? lastInFlowChildGeometry.bottom() : lastInFlowChildGeometry.rectWithMargin().bottom();
+        auto top = firstInFlowChild.style().hasMarginBeforeQuirk() ? firstInFlowChildGeometry.logicalTop() : firstInFlowChildGeometry.logicalRectWithMargin().top();
+        auto bottom = lastInFlowChild.style().hasMarginAfterQuirk() ? lastInFlowChildGeometry.logicalBottom() : lastInFlowChildGeometry.logicalRectWithMargin().bottom();
         contentHeight = bottom - top;
     } else
         contentHeight = contentHeightForFormattingContextRoot(cellBox);
@@ -146,12 +146,12 @@ InlineLayoutUnit TableFormattingContext::Geometry::usedBaselineForCell(const Con
     // or the first in-flow table-row in the cell, whichever comes first.
     // If there is no such line box, the baseline is the bottom of content edge of the cell box.
     if (cellBox.establishesInlineFormattingContext())
-        return layoutState().establishedInlineFormattingState(cellBox).displayInlineContent()->lineBoxes[0].baseline();
+        return layoutState().establishedInlineFormattingState(cellBox).lines()[0].baseline();
     for (auto& cellDescendant : descendantsOfType<ContainerBox>(cellBox)) {
         if (cellDescendant.establishesInlineFormattingContext()) {
-            auto* displayInlineContent = layoutState().establishedInlineFormattingState(cellDescendant).displayInlineContent();
-            if (!displayInlineContent->runs.isEmpty())
-                return displayInlineContent->lineBoxes[0].baseline();
+            auto& inlineFormattingStateForCell = layoutState().establishedInlineFormattingState(cellDescendant);
+            if (!inlineFormattingStateForCell.lines().isEmpty())
+                return inlineFormattingStateForCell.lines()[0].baseline();
         }
         if (cellDescendant.establishesTableFormattingContext())
             return layoutState().establishedTableFormattingState(cellDescendant).tableGrid().rows().list()[0].baseline();

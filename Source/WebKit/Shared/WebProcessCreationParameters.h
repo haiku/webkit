@@ -43,11 +43,6 @@
 #include <wtf/MachSendRight.h>
 #endif
 
-#if USE(SOUP)
-#include <WebCore/HTTPCookieAcceptPolicy.h>
-#include <WebCore/SoupNetworkProxySettings.h>
-#endif
-
 #if PLATFORM(IOS_FAMILY)
 #include <WebCore/RenderThemeIOS.h>
 #endif
@@ -124,7 +119,7 @@ struct WebProcessCreationParameters {
     bool fullKeyboardAccessEnabled { false };
     bool memoryCacheDisabled { false };
     bool attrStyleEnabled { false };
-    bool useGPUProcessForMedia { false };
+    bool useGPUProcessForMediaEnabled { false };
 
 #if ENABLE(SERVICE_CONTROLS)
     bool hasImageServices { false };
@@ -174,10 +169,6 @@ struct WebProcessCreationParameters {
     String waylandCompositorDisplayName;
 #endif
 
-#if USE(SOUP)
-    WebCore::SoupNetworkProxySettings proxySettings;
-#endif
-
 #if PLATFORM(COCOA)
     Vector<String> mediaMIMETypes;
     WebCore::ScreenProperties screenProperties;
@@ -200,14 +191,14 @@ struct WebProcessCreationParameters {
     Optional<WebProcessDataStoreParameters> websiteDataStoreParameters;
     
 #if PLATFORM(IOS)
-    Optional<SandboxExtension::Handle> compilerServiceExtensionHandle;
+    SandboxExtension::HandleArray compilerServiceExtensionHandles;
 #endif
 
     Optional<SandboxExtension::Handle> containerManagerExtensionHandle;
     Optional<SandboxExtension::Handle> mobileGestaltExtensionHandle;
 
-#if PLATFORM(IOS_FAMILY)
     SandboxExtension::HandleArray diagnosticsExtensionHandles;
+#if PLATFORM(IOS_FAMILY)
     SandboxExtension::HandleArray dynamicMachExtensionHandles;
     SandboxExtension::HandleArray dynamicIOKitExtensionHandles;
 #endif
@@ -234,6 +225,10 @@ struct WebProcessCreationParameters {
 
 #if PLATFORM(GTK)
     bool useSystemAppearanceForScrollbars { false };
+#endif
+
+#if HAVE(CATALYST_USER_INTERFACE_IDIOM_AND_SCALE_FACTOR)
+    std::pair<int64_t, double> overrideUserInterfaceIdiomAndScale;
 #endif
 };
 

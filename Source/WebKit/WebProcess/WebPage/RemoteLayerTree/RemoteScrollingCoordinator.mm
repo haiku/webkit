@@ -72,19 +72,24 @@ bool RemoteScrollingCoordinator::coordinatesScrollingForFrameView(const FrameVie
     return renderView && renderView->usesCompositing();
 }
 
-bool RemoteScrollingCoordinator::isRubberBandInProgress() const
+bool RemoteScrollingCoordinator::isRubberBandInProgress(ScrollingNodeID nodeID) const
 {
-    // FIXME: need to maintain state in the web process?
-    return false;
+    if (!nodeID)
+        return false;
+    return m_nodesWithActiveRubberBanding.contains(nodeID);
 }
 
 bool RemoteScrollingCoordinator::isUserScrollInProgress(ScrollingNodeID nodeID) const
 {
+    if (!nodeID)
+        return false;
     return m_nodesWithActiveUserScrolls.contains(nodeID);
 }
 
 bool RemoteScrollingCoordinator::isScrollSnapInProgress(ScrollingNodeID nodeID) const
 {
+    if (!nodeID)
+        return false;
     return m_nodesWithActiveScrollSnap.contains(nodeID);
 }
 
@@ -112,6 +117,7 @@ void RemoteScrollingCoordinator::currentSnapPointIndicesChangedForNode(Scrolling
 
 void RemoteScrollingCoordinator::scrollingStateInUIProcessChanged(const RemoteScrollingUIState& uiState)
 {
+    // FIXME: Also track m_nodesWithActiveRubberBanding.
     if (uiState.changes().contains(RemoteScrollingUIState::Changes::ScrollSnapNodes))
         m_nodesWithActiveScrollSnap = uiState.nodesWithActiveScrollSnap();
 

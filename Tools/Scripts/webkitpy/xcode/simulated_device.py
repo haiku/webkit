@@ -27,12 +27,11 @@ import plistlib
 import re
 import time
 
-from webkitcorepy import Version
+from webkitcorepy import Version, Timeout
 
 from webkitpy.common.memoized import memoized
 from webkitpy.common.system.executive import ScriptError
 from webkitpy.common.system.systemhost import SystemHost
-from webkitpy.common.timeout_context import Timeout
 from webkitpy.port.device import Device
 from webkitpy.xcode.device_type import DeviceType
 
@@ -640,7 +639,7 @@ class SimulatedDevice(object):
 
         output = None
 
-        with Timeout(timeout, RuntimeError(u'Timed out waiting for process to open {} on {}'.format(bundle_id, self.udid))):
+        with Timeout(timeout, handler=RuntimeError(u'Timed out waiting for process to open {} on {}'.format(bundle_id, self.udid)), patch=False):
             while True:
                 output = self.executive.run_command(
                     ['xcrun', 'simctl', 'launch', self.udid, bundle_id] + args,

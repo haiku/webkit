@@ -37,7 +37,7 @@ namespace WebCore {
 const int kRenderBufferSize = 128;
 
 MockAudioDestinationCocoa::MockAudioDestinationCocoa(AudioIOCallback& callback, float sampleRate)
-    : AudioDestinationCocoa(callback, sampleRate)
+    : AudioDestinationCocoa(callback, 2, sampleRate)
     , m_workQueue(WorkQueue::create("MockAudioDestinationCocoa Render Queue"))
     , m_timer(RunLoop::current(), this, &MockAudioDestinationCocoa::tick)
 {
@@ -45,8 +45,9 @@ MockAudioDestinationCocoa::MockAudioDestinationCocoa(AudioIOCallback& callback, 
 
 MockAudioDestinationCocoa::~MockAudioDestinationCocoa() = default;
 
-void MockAudioDestinationCocoa::start()
+void MockAudioDestinationCocoa::start(Function<void(Function<void()>&&)>&& dispatchToRenderThread)
 {
+    m_dispatchToRenderThread = WTFMove(dispatchToRenderThread);
     m_timer.startRepeating(Seconds { m_numberOfFramesToProcess / sampleRate() });
     setIsPlaying(true);
 }
@@ -67,7 +68,7 @@ void MockAudioDestinationCocoa::tick()
 {
     m_workQueue->dispatch([this, sampleRate = sampleRate(), numberOfFramesToProcess = m_numberOfFramesToProcess] {
         AudioStreamBasicDescription streamFormat;
-        setAudioStreamBasicDescription(streamFormat, sampleRate);
+        setAudioStreamBasicDescription(streamFormat);
 
         WebAudioBufferList webAudioBufferList { streamFormat, numberOfFramesToProcess };
         AudioDestinationCocoa::inputProc(this, 0, 0, 0, numberOfFramesToProcess, webAudioBufferList.list());

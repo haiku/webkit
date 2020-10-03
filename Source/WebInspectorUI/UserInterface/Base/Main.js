@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -277,7 +277,6 @@ WI.contentLoaded = function()
     WI._consoleRepresentedObject = new WI.LogObject;
     WI.consoleContentView = WI.consoleDrawer.contentViewForRepresentedObject(WI._consoleRepresentedObject);
     WI.consoleLogViewController = WI.consoleContentView.logViewController;
-    WI.breakpointPopoverController = new WI.BreakpointPopoverController;
 
     // FIXME: The sidebars should be flipped in RTL languages.
     WI.navigationSidebar = new WI.Sidebar(document.getElementById("navigation-sidebar"), WI.Sidebar.Sides.Left);
@@ -829,12 +828,10 @@ WI.updateDockingAvailability = function(available)
 {
     WI._dockingAvailable = available;
 
-    if (!WI._dockingAvailable) {
-        WI.updateDockedState(WI.DockConfiguration.Undocked);
-        return;
-    }
-
     WI._updateDockNavigationItems();
+
+    if (!WI._dockingAvailable)
+        WI.updateDockedState(WI.DockConfiguration.Undocked);
 };
 
 WI.updateDockedState = function(side)
@@ -875,8 +872,6 @@ WI.updateDockedState = function(side)
     }
 
     WI._updateDockNavigationItems();
-
-    WI.tabBar.resetCachedWidths();
 
     if (!WI.dockedConfigurationSupportsSplitContentBrowser() && !WI.doesCurrentTabSupportSplitContentBrowser())
         WI.hideSplitConsole();
@@ -1065,7 +1060,7 @@ WI.openURL = function(url, frame, options = {})
         options.alwaysOpenExternally = window.event ? window.event.metaKey : false;
 
     if (options.alwaysOpenExternally) {
-        InspectorFrontendHost.openInNewTab(url);
+        InspectorFrontendHost.openURLExternally(url);
         return;
     }
 
@@ -1092,7 +1087,7 @@ WI.openURL = function(url, frame, options = {})
         return;
     }
 
-    InspectorFrontendHost.openInNewTab(url);
+    InspectorFrontendHost.openURLExternally(url);
 };
 
 WI.close = function()
@@ -1902,6 +1897,8 @@ WI._updateDockNavigationItems = function()
     }
 
     WI._updateTabBarDividers();
+
+    WI.tabBar.resetCachedWidths();
 };
 
 WI._tabBrowserSizeDidChange = function()

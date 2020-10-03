@@ -104,7 +104,6 @@
 #include "ResourceLoadInfo.h"
 #include "ResourceLoadObserver.h"
 #include "ResourceRequest.h"
-#include "SVGDocument.h"
 #include "SVGLocatable.h"
 #include "SVGNames.h"
 #include "SVGViewElement.h"
@@ -824,10 +823,15 @@ void FrameLoader::subresourceLoadDone(LoadCompletionType type)
         scheduleCheckLoadComplete();
 }
 
+bool FrameLoader::preventsParentFromBeingComplete(const Frame& frame) const
+{
+    return !frame.loader().m_isComplete && (!frame.ownerElement() || !frame.ownerElement()->isLazyLoadObserverActive());
+}
+
 bool FrameLoader::allChildrenAreComplete() const
 {
     for (Frame* child = m_frame.tree().firstChild(); child; child = child->tree().nextSibling()) {
-        if (!child->loader().m_isComplete)
+        if (preventsParentFromBeingComplete(*child))
             return false;
     }
     return true;
@@ -3276,8 +3280,8 @@ void FrameLoader::dispatchUnloadEvents(UnloadEventPolicy unloadEventPolicy)
                 m_frame.document()->domWindow()->dispatchEvent(PageTransitionEvent::create(eventNames().pagehideEvent, m_frame.document()->backForwardCacheState() == Document::AboutToEnterBackForwardCache), m_frame.document());
             }
 
-            // FIXME: update Page Visibility state here.
-            // https://bugs.webkit.org/show_bug.cgi?id=116770
+            // This takes care of firing the visibilitychange event and making sure the document is reported as hidden.
+            m_frame.document()->setVisibilityHiddenDueToDismissal(true);
 
             if (m_frame.document()->backForwardCacheState() == Document::NotInBackForwardCache) {
                 Ref<Event> unloadEvent(Event::create(eventNames().unloadEvent, Event::CanBubble::No, Event::IsCancelable::No));

@@ -142,7 +142,6 @@ void RemoteMediaPlayerManager::initialize(const WebProcessCreationParameters& pa
 
 std::unique_ptr<MediaPlayerPrivateInterface> RemoteMediaPlayerManager::createRemoteMediaPlayer(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier remoteEngineIdentifier)
 {
-
     RemoteMediaPlayerProxyConfiguration proxyConfiguration;
     proxyConfiguration.referrer = player->referrer();
     proxyConfiguration.userAgent = player->userAgent();
@@ -157,6 +156,11 @@ std::unique_ptr<MediaPlayerPrivateInterface> RemoteMediaPlayerManager::createRem
 #endif
     proxyConfiguration.shouldUsePersistentCache = player->shouldUsePersistentCache();
     proxyConfiguration.isVideo = player->isVideoPlayer();
+
+#if ENABLE(AVF_CAPTIONS)
+    for (const auto& track : player->outOfBandTrackSources())
+        proxyConfiguration.outOfBandTrackData.append(track->data());
+#endif
 
     auto documentSecurityOrigin = player->documentSecurityOrigin();
     proxyConfiguration.documentSecurityOrigin = documentSecurityOrigin;
@@ -265,10 +269,10 @@ void RemoteMediaPlayerManager::updatePreferences(const Settings& settings)
         registrar(makeUnique<MediaPlayerRemoteFactory>(remoteEngineIdentifier, *this));
     };
 
-    RemoteMediaPlayerSupport::setRegisterRemotePlayerCallback(settings.useGPUProcessForMedia() ? WTFMove(registerEngine) : RemoteMediaPlayerSupport::RegisterRemotePlayerCallback());
+    RemoteMediaPlayerSupport::setRegisterRemotePlayerCallback(settings.useGPUProcessForMediaEnabled() ? WTFMove(registerEngine) : RemoteMediaPlayerSupport::RegisterRemotePlayerCallback());
 
 #if PLATFORM(COCOA) && ENABLE(MEDIA_STREAM)
-    if (settings.useGPUProcessForMedia()) {
+    if (settings.useGPUProcessForMediaEnabled()) {
         WebCore::SampleBufferDisplayLayer::setCreator([](auto& client) {
             return WebProcess::singleton().ensureGPUProcessConnection().sampleBufferDisplayLayerManager().createLayer(client);
         });

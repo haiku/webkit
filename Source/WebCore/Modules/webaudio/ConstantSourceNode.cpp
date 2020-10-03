@@ -31,6 +31,7 @@
 
 #include "AudioNodeOutput.h"
 #include "AudioParam.h"
+#include "AudioUtilities.h"
 #include "ConstantSourceOptions.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -40,11 +41,6 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(ConstantSourceNode);
 
 ExceptionOr<Ref<ConstantSourceNode>> ConstantSourceNode::create(BaseAudioContext& context, const ConstantSourceOptions& options)
 {
-    if (context.isStopped())
-        return Exception { InvalidStateError };
-    
-    context.lazyInitialize();
-    
     auto node = adoptRef(*new ConstantSourceNode(context, options.offset));
     
     context.refNode(node);
@@ -53,11 +49,11 @@ ExceptionOr<Ref<ConstantSourceNode>> ConstantSourceNode::create(BaseAudioContext
 }
 
 ConstantSourceNode::ConstantSourceNode(BaseAudioContext& context, float offset)
-    : AudioScheduledSourceNode(context)
+    : AudioScheduledSourceNode(context, NodeTypeConstant)
     , m_offset(AudioParam::create(context, "offset"_s, offset, -FLT_MAX, FLT_MAX, AutomationRate::ARate))
+    , m_sampleAccurateValues(AudioUtilities::renderQuantumSize)
 {
-    setNodeType(NodeTypeConstant);
-    addOutput(makeUnique<AudioNodeOutput>(this, 1));
+    addOutput(1);
     initialize();
 }
 
@@ -77,7 +73,8 @@ void ConstantSourceNode::process(size_t framesToProcess)
     
     size_t quantumFrameOffset = 0;
     size_t nonSilentFramesToProcess = 0;
-    updateSchedulingInfo(framesToProcess, outputBus, quantumFrameOffset, nonSilentFramesToProcess);
+    double startFrameOffset = 0;
+    updateSchedulingInfo(framesToProcess, outputBus, quantumFrameOffset, nonSilentFramesToProcess, startFrameOffset);
     
     if (!nonSilentFramesToProcess) {
         outputBus.zero();

@@ -28,6 +28,7 @@ from webkit import parser
 
 WANTS_CONNECTION_ATTRIBUTE = 'WantsConnection'
 WANTS_DISPATCH_MESSAGE_ATTRIBUTE = 'WantsDispatchMessage'
+WANTS_ASYNC_DISPATCH_MESSAGE_ATTRIBUTE = 'WantsAsyncDispatchMessage'
 LEGACY_RECEIVER_ATTRIBUTE = 'LegacyReceiver'
 NOT_REFCOUNTED_RECEIVER_ATTRIBUTE = 'NotRefCounted'
 SYNCHRONOUS_ATTRIBUTE = 'Synchronous'
@@ -229,6 +230,7 @@ def types_that_cannot_be_forward_declared():
         'WebCore::SharedStringHash',
         'WebCore::SleepDisablerIdentifier',
         'WebCore::SWServerConnectionIdentifier',
+        'WebCore::WebSocketIdentifier',
         'WebKit::ActivityStateChangeID',
         'WebKit::AudioMediaStreamTrackRendererIdentifier',
         'WebKit::ContentWorldIdentifier',
@@ -243,6 +245,7 @@ def types_that_cannot_be_forward_declared():
         'WebKit::MDNSRegisterIdentifier',
         'WebKit::MediaPlayerPrivateRemoteIdentifier',
         'WebKit::MediaRecorderIdentifier',
+        'WebKit::PDFPluginIdentifier',
         'WebKit::PlaybackSessionContextIdentifier',
         'WebKit::PluginProcessType',
         'WebKit::RemoteAudioDestinationIdentifier',
@@ -264,7 +267,6 @@ def types_that_cannot_be_forward_declared():
         'WebKit::TransactionID',
         'WebKit::UserContentControllerIdentifier',
         'WebKit::WebPageProxyIdentifier',
-        'WebKit::WebSocketIdentifier',
     ])
 
 
@@ -621,6 +623,7 @@ def headers_for_type(type):
         'WebCore::PasteboardWebContent': ['<WebCore/Pasteboard.h>'],
         'WebCore::PaymentAuthorizationResult': ['<WebCore/ApplePaySessionPaymentRequest.h>'],
         'WebCore::PaymentMethodUpdate': ['<WebCore/ApplePaySessionPaymentRequest.h>'],
+        'WebCore::PlatformTextTrackData': ['<WebCore/PlatformTextTrack.h>'],
         'WebCore::PluginInfo': ['<WebCore/PluginData.h>'],
         'WebCore::PluginLoadClientPolicy': ['<WebCore/PluginData.h>'],
         'WebCore::PolicyAction': ['<WebCore/FrameLoaderTypes.h>'],
@@ -675,11 +678,6 @@ def headers_for_type(type):
         'WebKit::RespectSelectionAnchor': ['"GestureTypes.h"'],
         'WebKit::SelectionFlags': ['"GestureTypes.h"'],
         'WebKit::SelectionTouch': ['"GestureTypes.h"'],
-        'WebKit::WebGestureEvent': ['"WebEvent.h"'],
-        'WebKit::WebKeyboardEvent': ['"WebEvent.h"'],
-        'WebKit::WebMouseEvent': ['"WebEvent.h"'],
-        'WebKit::WebTouchEvent': ['"WebEvent.h"'],
-        'WebKit::WebWheelEvent': ['"WebEvent.h"'],
         'WebCore::MediaEngineSupportParameters': ['<WebCore/MediaPlayer.h>'],
         'WebCore::ISOWebVTTCue': ['<WebCore/ISOVTTCue.h>'],
         'struct WebCore::Cookie': ['<WebCore/Cookie.h>'],
@@ -835,14 +833,14 @@ def generate_message_handler(receiver):
         else:
             async_messages.append(message)
 
-    if async_messages or receiver.has_attribute(WANTS_DISPATCH_MESSAGE_ATTRIBUTE):
+    if async_messages or receiver.has_attribute(WANTS_DISPATCH_MESSAGE_ATTRIBUTE) or receiver.has_attribute(WANTS_ASYNC_DISPATCH_MESSAGE_ATTRIBUTE):
         result.append('void %s::didReceive%sMessage(IPC::Connection& connection, IPC::Decoder& decoder)\n' % (receiver.name, receiver.name if receiver.has_attribute(LEGACY_RECEIVER_ATTRIBUTE) else ''))
         result.append('{\n')
         if not receiver.has_attribute(NOT_REFCOUNTED_RECEIVER_ATTRIBUTE):
             result.append('    auto protectedThis = makeRef(*this);\n')
 
         result += [async_message_statement(receiver, message) for message in async_messages]
-        if receiver.has_attribute(WANTS_DISPATCH_MESSAGE_ATTRIBUTE):
+        if receiver.has_attribute(WANTS_DISPATCH_MESSAGE_ATTRIBUTE) or receiver.has_attribute(WANTS_ASYNC_DISPATCH_MESSAGE_ATTRIBUTE):
             result.append('    if (dispatchMessage(connection, decoder))\n')
             result.append('        return;\n')
         if (receiver.superclass):

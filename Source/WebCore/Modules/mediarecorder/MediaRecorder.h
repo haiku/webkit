@@ -28,6 +28,8 @@
 
 #include "ActiveDOMObject.h"
 #include "EventTarget.h"
+#include "ExceptionOr.h"
+#include "MediaRecorderPrivateOptions.h"
 #include "MediaStream.h"
 #include "MediaStreamTrackPrivate.h"
 #include "Timer.h"
@@ -49,23 +51,20 @@ class MediaRecorder final
 public:
     enum class RecordingState { Inactive, Recording, Paused };
     
-    struct Options {
-        String mimeType;
-        unsigned audioBitsPerSecond;
-        unsigned videoBitsPerSecond;
-        unsigned bitsPerSecond;
-    };
-    
     ~MediaRecorder();
     
+    static bool isTypeSupported(Document&, const String&);
+
+    using Options = MediaRecorderPrivateOptions;
     static ExceptionOr<Ref<MediaRecorder>> create(Document&, Ref<MediaStream>&&, Options&& = { });
-    
-    using CreatorFunction = std::unique_ptr<MediaRecorderPrivate>(*)(MediaStreamPrivate&);
+
+    using CreatorFunction = ExceptionOr<std::unique_ptr<MediaRecorderPrivate>> (*)(MediaStreamPrivate&, const Options&);
 
     WEBCORE_EXPORT static void setCustomPrivateRecorderCreator(CreatorFunction);
-    
+
     RecordingState state() const { return m_state; }
-    
+    const String& mimeType() const { return m_options.mimeType; }
+
     using RefCounted::ref;
     using RefCounted::deref;
     
@@ -76,9 +75,9 @@ public:
     MediaStream& stream() { return m_stream.get(); }
 
 private:
-    MediaRecorder(Document&, Ref<MediaStream>&&, Options&& = { });
+    MediaRecorder(Document&, Ref<MediaStream>&&, Options&&);
 
-    static std::unique_ptr<MediaRecorderPrivate> createMediaRecorderPrivate(Document&, MediaStreamPrivate&);
+    static ExceptionOr<std::unique_ptr<MediaRecorderPrivate>> createMediaRecorderPrivate(Document&, MediaStreamPrivate&, const Options&);
     
     Document* document() const;
 
@@ -111,7 +110,7 @@ private:
     void trackEnabledChanged(MediaStreamTrackPrivate&) final { };
 
     static CreatorFunction m_customCreator;
-    
+
     Options m_options;
     Ref<MediaStream> m_stream;
     std::unique_ptr<MediaRecorderPrivate> m_private;

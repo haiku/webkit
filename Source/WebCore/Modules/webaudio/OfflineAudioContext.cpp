@@ -38,8 +38,8 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(OfflineAudioContext);
 
-inline OfflineAudioContext::OfflineAudioContext(Document& document, AudioBuffer* renderTarget)
-    : BaseAudioContext(document, renderTarget)
+inline OfflineAudioContext::OfflineAudioContext(Document& document, unsigned numberOfChannels, RefPtr<AudioBuffer>&& renderTarget)
+    : BaseAudioContext(document, numberOfChannels, WTFMove(renderTarget))
 {
 }
 
@@ -48,17 +48,15 @@ ExceptionOr<Ref<OfflineAudioContext>> OfflineAudioContext::create(ScriptExecutio
     // FIXME: Add support for workers.
     if (!is<Document>(context))
         return Exception { NotSupportedError };
-    if (!numberOfChannels || numberOfChannels > 10)
+    if (!numberOfChannels || numberOfChannels > maxNumberOfChannels())
         return Exception { SyntaxError, "Number of channels is not in range"_s };
     if (!length)
         return Exception { SyntaxError, "length cannot be 0"_s };
     if (!isSupportedSampleRate(sampleRate))
         return Exception { SyntaxError, "sampleRate is not in range"_s };
-    auto renderTarget = AudioBuffer::create(numberOfChannels, length, sampleRate);
-    if (!renderTarget)
-        return Exception { SyntaxError, "Unable to create AudioBuffer"_s };
 
-    auto audioContext = adoptRef(*new OfflineAudioContext(downcast<Document>(context), renderTarget.get()));
+    auto renderTarget = AudioBuffer::create(numberOfChannels, length, sampleRate);
+    auto audioContext = adoptRef(*new OfflineAudioContext(downcast<Document>(context), numberOfChannels, WTFMove(renderTarget)));
     audioContext->suspendIfNeeded();
     return audioContext;
 }
@@ -106,6 +104,11 @@ void OfflineAudioContext::startOfflineRendering(Ref<DeferredPromise>&& promise)
         return;
     }
 
+    if (!renderTarget()) {
+        promise->reject(Exception { InvalidStateError, "Failed to create audio buffer"_s });
+        return;
+    }
+
     lazyInitialize();
 
     auto result = destination()->startRendering();
@@ -139,7 +142,7 @@ void OfflineAudioContext::suspendOfflineRendering(double suspendTime, Ref<Deferr
     }
 
     size_t frame = AudioUtilities::timeToSampleFrame(suspendTime, sampleRate());
-    frame = OfflineAudioDestinationNode::renderQuantumSize * ((frame + OfflineAudioDestinationNode::renderQuantumSize - 1) / OfflineAudioDestinationNode::renderQuantumSize);
+    frame = AudioUtilities::renderQuantumSize * ((frame + AudioUtilities::renderQuantumSize - 1) / AudioUtilities::renderQuantumSize);
     if (frame < currentSampleFrame()) {
         promise->reject(Exception { InvalidStateError, "Suspension frame is earlier than current frame"_s });
         return;

@@ -34,12 +34,17 @@
 #include "ExceptionOr.h"
 #include "IDLTypes.h"
 #include "ImageBuffer.h"
+#include "ImageBufferPipe.h"
 #include "IntSize.h"
 #include "ScriptWrappable.h"
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/WeakPtr.h>
 #include <wtf/text/WTFString.h>
+#if ENABLE(WEBGL)
+#include "WebGLContextAttributes.h"
+#endif
+
 
 namespace WebCore {
 
@@ -50,13 +55,19 @@ class HTMLCanvasElement;
 class ImageBitmap;
 class ImageData;
 class OffscreenCanvasRenderingContext2D;
+class WebGL2RenderingContext;
 class WebGLRenderingContext;
+class WebGLRenderingContextBase;
 
+using OffscreenRenderingContext = Variant<
 #if ENABLE(WEBGL)
-using OffscreenRenderingContext = Variant<RefPtr<OffscreenCanvasRenderingContext2D>, RefPtr<WebGLRenderingContext>>;
-#else
-using OffscreenRenderingContext = Variant<RefPtr<OffscreenCanvasRenderingContext2D>>;
+    RefPtr<WebGLRenderingContext>,
 #endif
+#if ENABLE(WEBGL2)
+    RefPtr<WebGL2RenderingContext>,
+#endif
+    RefPtr<OffscreenCanvasRenderingContext2D>
+>;
 
 class DetachedOffscreenCanvas {
     WTF_MAKE_NONCOPYABLE(DetachedOffscreenCanvas);
@@ -96,7 +107,8 @@ public:
 
     enum class RenderingContextType {
         _2d,
-        Webgl
+        Webgl,
+        Webgl2
     };
 
     static Ref<OffscreenCanvas> create(ScriptExecutionContext&, unsigned width, unsigned height);
@@ -118,6 +130,8 @@ public:
     void didDraw(const FloatRect&) final;
 
     Image* copiedImage() const final;
+    void clearCopiedImage() const final;
+
     bool hasCreatedImageBuffer() const final { return m_hasCreatedImageBuffer; }
 
     SecurityOrigin* securityOrigin() const final;
@@ -149,12 +163,15 @@ private:
     void derefCanvasBase() final { deref(); }
 
     void setSize(const IntSize&) final;
+
+#if ENABLE(WEBGL)
+    void createContextWebGL(RenderingContextType, WebGLContextAttributes&& = { });
+#endif
+
     void createImageBuffer() const final;
     std::unique_ptr<ImageBuffer> takeImageBuffer() const;
 
     void reset();
-
-    void clearCopiedImage() const;
 
     void setPlaceholderCanvas(HTMLCanvasElement&);
     void pushBufferToPlaceholder();
@@ -171,10 +188,10 @@ private:
 
     bool m_hasScheduledCommit { false };
     WeakPtr<HTMLCanvasElement> m_placeholderCanvas;
+    RefPtr<ImageBufferPipe::Source> m_bufferPipeSource;
 
     mutable Lock m_commitLock;
-    bool m_hasPendingCommitData { false };
-    RefPtr<ImageData> m_pendingCommitData;
+    std::unique_ptr<ImageBuffer> m_pendingCommitBuffer;
 };
 
 }

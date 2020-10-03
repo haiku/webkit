@@ -57,6 +57,15 @@ const float emphasisMarkFontSizeMultiplier = 0.5f;
 
 DEFINE_ALLOCATOR_WITH_HEAP_IDENTIFIER(Font);
 
+Ref<Font> Font::create(Ref<SharedBuffer>&& fontFaceData, Font::Origin origin, float fontSize, bool syntheticBold, bool syntheticItalic)
+{
+    bool wrapping;
+    auto customFontData = CachedFont::createCustomFontData(fontFaceData.get(), { }, wrapping);
+    FontDescription description;
+    description.setComputedSize(fontSize);
+    return Font::create(CachedFont::platformDataFromCustomData(*customFontData, description, syntheticBold, syntheticItalic, { }, { }), origin);
+}
+
 Font::Font(const FontPlatformData& platformData, Origin origin, Interstitial interstitial, Visibility visibility, OrientationFallback orientationFallback)
     : m_platformData(platformData)
     , m_origin(origin)
@@ -474,7 +483,7 @@ const Font& Font::brokenIdeographFont() const
     return *derivedFontData.brokenIdeographFont;
 }
 
-#if !PLATFORM(COCOA)
+#if !USE(CORE_TEXT)
 
 bool Font::isProbablyOnlyUsedToRenderIcons() const
 {
@@ -511,7 +520,7 @@ RefPtr<Font> Font::createScaledFont(const FontDescription& fontDescription, floa
     return platformCreateScaledFont(fontDescription, scaleFactor);
 }
 
-#if !PLATFORM(COCOA)
+#if !USE(CORE_TEXT)
 void Font::applyTransforms(GlyphBuffer&, unsigned, unsigned, bool, bool, const AtomString&, StringView, TextDirection) const
 {
 }
@@ -647,11 +656,6 @@ bool Font::variantCapsSupportsCharacterForSynthesis(FontVariantCaps fontVariantC
         return true;
     }
 }
-
-bool Font::platformSupportsCodePoint(UChar32 character, Optional<UChar32> variation) const
-{
-    return variation ? false : glyphForCharacter(character);
-}
 #endif
 
 bool Font::supportsCodePoint(UChar32 character) const
@@ -714,15 +718,6 @@ const Path& Font::pathForGlyph(Glyph glyph) const
 void Font::setFontFaceData(RefPtr<SharedBuffer>&& fontFaceData)
 {
     m_fontFaceData = WTFMove(fontFaceData);
-}
-
-FontHandle::FontHandle(Ref<SharedBuffer>&& fontFaceData, Font::Origin origin, float fontSize, bool syntheticBold, bool syntheticItalic)
-{
-    bool wrapping;
-    auto customFontData = CachedFont::createCustomFontData(fontFaceData.get(), { }, wrapping);
-    FontDescription description;
-    description.setComputedSize(fontSize);
-    font = Font::create(CachedFont::platformDataFromCustomData(*customFontData, description, syntheticBold, syntheticItalic, { }, { }), origin);
 }
 
 } // namespace WebCore

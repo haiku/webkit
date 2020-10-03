@@ -43,6 +43,7 @@
 #import <pal/spi/mac/NSMenuSPI.h>
 #import <pal/spi/mac/NSSharingServicePickerSPI.h>
 #import <pal/spi/mac/NSWindowSPI.h>
+#import <wtf/BlockPtr.h>
 #import <wtf/RetainPtr.h>
 
 @interface WKUserDataWrapper : NSObject {
@@ -347,16 +348,16 @@ void WebContextMenuProxyMac::getContextMenuFromItems(const Vector<WebContextMenu
         return;
     }
     
-    Vector<WebContextMenuItemData> filteredItems;
-    filteredItems.reserveInitialCapacity(items.size());
+    auto filteredItems = items;
     auto webView = m_webView.get();
     
     bool isPopover = webView.get().window._childWindowOrderingPriority == NSWindowChildOrderingPriorityPopover;
     bool isLookupDisabled = [NSUserDefaults.standardUserDefaults boolForKey:@"LULookupDisabled"];
-
-    for (auto& item : items) {
-        if (item.action() != ContextMenuItemTagLookUpInDictionary || (!isLookupDisabled && !isPopover))
-            filteredItems.uncheckedAppend(item);
+    
+    if (isLookupDisabled || isPopover) {
+        filteredItems.removeAllMatching([] (auto& item) {
+            return item.action() == WebCore::ContextMenuItemTagLookUpInDictionary;
+        });
     }
 
     auto sparseMenuItems = retainPtr([NSPointerArray strongObjectsPointerArray]);

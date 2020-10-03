@@ -269,7 +269,6 @@ bytecode/ProxyableAccessCase.cpp
 bytecode/PutByIdFlags.cpp
 bytecode/PutByIdStatus.cpp
 bytecode/PutByIdVariant.cpp
-bytecode/PutByValFlags.cpp
 bytecode/RecordedStatuses.cpp
 bytecode/ReduceWhitespace.cpp
 bytecode/SpeculatedType.cpp
@@ -383,7 +382,6 @@ dfg/DFGLoopPreHeaderCreationPhase.cpp
 dfg/DFGMayExit.cpp
 dfg/DFGMinifiedGraph.cpp
 dfg/DFGMinifiedNode.cpp
-dfg/DFGMovHintRemovalPhase.cpp
 dfg/DFGMultiGetByOffsetData.cpp
 dfg/DFGNode.cpp
 dfg/DFGNodeAbstractValuePair.cpp
@@ -631,7 +629,6 @@ jit/ExecutableAllocationFuzz.cpp
 jit/ExecutableAllocator.cpp
 jit/GCAwareJITStubRoutine.cpp
 jit/GPRInfo.cpp
-jit/HostCallReturnValue.cpp
 jit/ICStats.cpp
 jit/IntrinsicEmitter.cpp
 jit/JIT.cpp
@@ -741,6 +738,7 @@ runtime/CachePayload.cpp
 runtime/CacheUpdate.cpp
 runtime/CacheableIdentifier.cpp
 runtime/CachedBytecode.cpp
+runtime/CachedSpecialPropertyAdaptiveStructureWatchpoint.cpp
 runtime/CachedTypes.cpp
 runtime/CatchScope.cpp
 runtime/ClassInfo.cpp
@@ -810,6 +808,7 @@ runtime/InitializeThreading.cpp
 runtime/InspectorInstrumentationObject.cpp
 runtime/InternalFunction.cpp
 runtime/Intrinsic.cpp
+runtime/IntlCache.cpp
 runtime/IntlCollator.cpp
 runtime/IntlCollatorConstructor.cpp
 runtime/IntlCollatorPrototype.cpp
@@ -940,10 +939,10 @@ runtime/NumberPrototype.cpp
 runtime/ObjectConstructor.cpp
 runtime/ObjectInitializationScope.cpp
 runtime/ObjectPrototype.cpp
-runtime/ObjectToStringAdaptiveStructureWatchpoint.cpp
 runtime/Operations.cpp
 runtime/Options.cpp
 runtime/PredictionFileCreatingFuzzerAgent.cpp
+runtime/PrivateFieldPutKind.cpp
 runtime/ProgramExecutable.cpp
 runtime/DeferredWorkTimer.cpp
 runtime/PropertyDescriptor.cpp

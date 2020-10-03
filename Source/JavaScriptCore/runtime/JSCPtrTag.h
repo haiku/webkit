@@ -32,7 +32,6 @@ namespace JSC {
 using PtrTag = WTF::PtrTag;
 
 #define FOR_EACH_JSC_PTRTAG(v) \
-    v(B3CCallPtrTag) \
     v(B3CompilationPtrTag) \
     v(BytecodePtrTag) \
     v(DOMJITFunctionPtrTag) \
@@ -40,7 +39,6 @@ using PtrTag = WTF::PtrTag;
     v(ExceptionHandlerPtrTag) \
     v(ExecutableMemoryPtrTag) \
     v(JITProbePtrTag) \
-    v(JITProbeTrampolinePtrTag) \
     v(JITProbeExecutorPtrTag) \
     v(JITProbeStackInitializationFunctionPtrTag) \
     v(JITThunkPtrTag) \
@@ -71,9 +69,9 @@ FOR_EACH_JSC_PTRTAG(WTF_DECLARE_PTRTAG)
 #pragma warning(pop)
 #endif
 
+#if CPU(ARM64E) && ENABLE(PTRTAG_DEBUGGING)
 void initializePtrTagLookup();
-
-#if !CPU(ARM64E)
+#else
 inline void initializePtrTagLookup() { }
 #endif
 

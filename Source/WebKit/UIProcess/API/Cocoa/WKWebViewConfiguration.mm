@@ -38,6 +38,7 @@
 #import "WKWebViewContentProviderRegistry.h"
 #import "WebKit2Initialize.h"
 #import "WebPreferencesDefaultValues.h"
+#import "WebPreferencesDefinitions.h"
 #import "WebURLSchemeHandlerCocoa.h"
 #import "_WKApplicationManifestInternal.h"
 #import "_WKVisitedLinkStore.h"
@@ -173,7 +174,6 @@ static bool defaultShouldDecidePolicyBeforeLoadingQuickLookPreview()
     BOOL _incompleteImageBorderEnabled;
     BOOL _shouldDeferAsynchronousScriptsUntilAfterDocumentLoad;
     BOOL _drawsBackground;
-    BOOL _editableImagesEnabled;
     BOOL _undoManagerAPIEnabled;
 
     RetainPtr<NSString> _mediaContentTypesRequiringHardwareSupport;
@@ -194,11 +194,7 @@ static bool defaultShouldDecidePolicyBeforeLoadingQuickLookPreview()
     _allowsPictureInPictureMediaPlayback = YES;
 #endif
 
-#if PLATFORM(MACCATALYST)
-    _allowsInlineMediaPlayback = YES;
-#else
-    _allowsInlineMediaPlayback = WebKit::currentUserInterfaceIdiomIsPad();
-#endif
+    _allowsInlineMediaPlayback = WebKit::currentUserInterfaceIdiomIsPadOrMac();
     _inlineMediaPlaybackRequiresPlaysInlineAttribute = !_allowsInlineMediaPlayback;
     _allowsInlineMediaPlaybackAfterFullscreen = !_allowsInlineMediaPlayback;
 
@@ -269,11 +265,10 @@ static bool defaultShouldDecidePolicyBeforeLoadingQuickLookPreview()
     _shouldDeferAsynchronousScriptsUntilAfterDocumentLoad = YES;
     _drawsBackground = YES;
 
-    _editableImagesEnabled = NO;
     _undoManagerAPIEnabled = NO;
 
 #if ENABLE(APPLE_PAY)
-    _applePayEnabled = DEFAULT_APPLE_PAY_ENABLED;
+    _applePayEnabled = DEFAULT_VALUE_FOR_ApplePayEnabled;
 #endif
 
     return self;
@@ -446,7 +441,6 @@ static bool defaultShouldDecidePolicyBeforeLoadingQuickLookPreview()
     configuration->_shouldDeferAsynchronousScriptsUntilAfterDocumentLoad = self->_shouldDeferAsynchronousScriptsUntilAfterDocumentLoad;
     configuration->_drawsBackground = self->_drawsBackground;
 
-    configuration->_editableImagesEnabled = self->_editableImagesEnabled;
     configuration->_undoManagerAPIEnabled = self->_undoManagerAPIEnabled;
 
     return configuration;
@@ -596,16 +590,6 @@ ALLOW_DEPRECATED_DECLARATIONS_END
 - (Ref<API::PageConfiguration>)copyPageConfiguration
 {
     return _pageConfiguration->copy();
-}
-
-- (BOOL)limitsNavigationsToAppBoundDomains
-{
-    return _pageConfiguration->limitsNavigationsToAppBoundDomains();
-}
-
-- (void)setLimitsNavigationsToAppBoundDomains:(BOOL)limitsToAppBoundDomains
-{
-    _pageConfiguration->setLimitsNavigationsToAppBoundDomains(limitsToAppBoundDomains);
 }
 
 @end
@@ -833,7 +817,32 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     return _pageConfiguration->clickInteractionDriverForTesting().get();
 }
 
+- (BOOL)limitsNavigationsToAppBoundDomains
+{
+    return _pageConfiguration->limitsNavigationsToAppBoundDomains();
+}
+
+- (void)setLimitsNavigationsToAppBoundDomains:(BOOL)limitsToAppBoundDomains
+{
+    _pageConfiguration->setLimitsNavigationsToAppBoundDomains(limitsToAppBoundDomains);
+}
 #endif // PLATFORM(IOS_FAMILY)
+
+- (BOOL)_ignoresAppBoundDomains
+{
+#if PLATFORM(IOS_FAMILY)
+    return _pageConfiguration->ignoresAppBoundDomains();
+#else
+    return NO;
+#endif
+}
+
+- (void)_setIgnoresAppBoundDomains:(BOOL)ignoresAppBoundDomains
+{
+#if PLATFORM(IOS_FAMILY)
+    _pageConfiguration->setIgnoresAppBoundDomains(ignoresAppBoundDomains);
+#endif
+}
 
 - (BOOL)_invisibleAutoplayNotPermitted
 {
@@ -1188,14 +1197,14 @@ ALLOW_DEPRECATED_DECLARATIONS_END
     return _allowMediaContentTypesRequiringHardwareSupportAsFallback;
 }
 
-- (void)_setEditableImagesEnabled:(BOOL)enabled
+- (BOOL)_mediaCaptureEnabled
 {
-    _editableImagesEnabled = enabled;
+    return _pageConfiguration->mediaCaptureEnabled();
 }
 
-- (BOOL)_editableImagesEnabled
+- (void)_setMediaCaptureEnabled:(BOOL)enabled
 {
-    return _editableImagesEnabled;
+    _pageConfiguration->setMediaCaptureEnabled(enabled);
 }
 
 - (void)_setUndoManagerAPIEnabled:(BOOL)enabled
@@ -1248,16 +1257,6 @@ static _WKWebViewCategory toWKWebViewCategory(WebKit::WebViewCategory category)
 - (void)_setWebViewCategory:(_WKWebViewCategory)category
 {
     _pageConfiguration->setWebViewCategory(toWebKitWebViewCategory(category));
-}
-
-- (BOOL)_ignoresAppBoundDomains
-{
-    return _pageConfiguration->ignoresAppBoundDomains();
-}
-
-- (void)_setIgnoresAppBoundDomains:(BOOL)ignoresAppBoundDomains
-{
-    _pageConfiguration->setIgnoresAppBoundDomains(ignoresAppBoundDomains);
 }
 
 - (BOOL)_shouldRelaxThirdPartyCookieBlocking

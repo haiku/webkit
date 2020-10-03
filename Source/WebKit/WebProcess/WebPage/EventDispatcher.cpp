@@ -27,11 +27,12 @@
 #include "EventDispatcher.h"
 
 #include "EventDispatcherMessages.h"
-#include "WebEvent.h"
 #include "WebEventConversion.h"
 #include "WebPage.h"
 #include "WebPageProxyMessages.h"
 #include "WebProcess.h"
+#include "WebTouchEvent.h"
+#include "WebWheelEvent.h"
 #include <WebCore/Page.h>
 #include <WebCore/WheelEventTestMonitor.h>
 #include <wtf/MainThread.h>
@@ -269,13 +270,20 @@ void EventDispatcher::sendDidReceiveEvent(PageIdentifier pageID, WebEvent::Type 
 #endif
 
 #if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
-void EventDispatcher::displayWasRefreshed(PlatformDisplayID displayID)
+
+void EventDispatcher::notifyScrollingTreesDisplayWasRefreshed(PlatformDisplayID displayID)
 {
 #if ENABLE(SCROLLING_THREAD)
     LockHolder locker(m_scrollingTreesMutex);
     for (auto keyValuePair : m_scrollingTrees)
         keyValuePair.value->displayDidRefresh(displayID);
 #endif
+}
+
+void EventDispatcher::displayWasRefreshed(PlatformDisplayID displayID)
+{
+    ASSERT(!RunLoop::isMain());
+    notifyScrollingTreesDisplayWasRefreshed(displayID);
 
     RunLoop::main().dispatch([displayID]() {
         DisplayRefreshMonitorManager::sharedManager().displayWasUpdated(displayID);

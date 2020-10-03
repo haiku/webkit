@@ -67,6 +67,7 @@ public:
     ExceptionOr<void> setCanStartMedia(bool);
     ExceptionOr<void> setAllowsAirPlayForMediaPlayback(bool);
     ExceptionOr<void> setMediaCaptureRequiresSecureConnection(bool);
+    void setDefaultAudioContextSampleRate(float);
 
     ExceptionOr<void> setEditingBehavior(const String&);
     ExceptionOr<void> setPreferMIMETypeForImages(bool);
@@ -128,14 +129,10 @@ public:
     void setForcedSupportsHighDynamicRangeValue(ForcedAccessibilityValue);
 
     // RuntimeEnabledFeatures.
-    static void setIndexedDBWorkersEnabled(bool);
     static void setWebGL2Enabled(bool);
     static void setWebGPUEnabled(bool);
     static void setPictureInPictureAPIEnabled(bool);
-    static void setScreenCaptureEnabled(bool);
     static void setFetchAPIKeepAliveEnabled(bool);
-
-    static bool webAnimationsCSSIntegrationEnabled();
 
     void setShouldDeactivateAudioSession(bool);
     
@@ -222,9 +219,7 @@ private:
         FrameFlattening m_frameFlattening;
 
         // Runtime enabled settings.
-        bool m_indexedDBWorkersEnabled;
         bool m_webGL2Enabled;
-        bool m_setScreenCaptureEnabled;
         bool m_fetchAPIKeepAliveAPIEnabled;
         
         bool m_shouldMockBoldSystemFontForAccessibility;

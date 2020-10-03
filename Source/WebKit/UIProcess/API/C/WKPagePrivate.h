@@ -154,18 +154,7 @@ enum {
 };
 typedef uint32_t WKMediaState;
 
-
 WK_EXPORT WKMediaState WKPageGetMediaState(WKPageRef page);
-
-enum {
-    kWKMediaEventTypePlayPause,
-    kWKMediaEventTypeTrackNext,
-    kWKMediaEventTypeTrackPrevious
-};
-typedef uint32_t WKMediaEventType;
-
-WK_EXPORT bool WKPageHasMediaSessionWithActiveMediaElements(WKPageRef page);
-WK_EXPORT void WKPageHandleMediaEvent(WKPageRef page, WKMediaEventType event);
 
 WK_EXPORT void WKPageLoadURLWithShouldOpenExternalURLsPolicy(WKPageRef page, WKURLRef url, bool shouldOpenExternalURLs);
 
@@ -200,6 +189,10 @@ WK_EXPORT bool WKPageIsMockRealtimeMediaSourceCenterEnabled(WKPageRef page);
 typedef void (*WKPageLoadedSubresourceDomainsFunction)(WKArrayRef domains, void* functionContext);
 WK_EXPORT void WKPageLoadedSubresourceDomains(WKPageRef page, WKPageLoadedSubresourceDomainsFunction callback, void* callbackContext);
 WK_EXPORT void WKPageClearLoadedSubresourceDomains(WKPageRef page);
+
+WK_EXPORT void WKPageSetMediaCaptureReportingDelayForTesting(WKPageRef page, double delay);
+
+WK_EXPORT void WKPageDispatchActivityStateUpdateForTesting(WKPageRef page);
 
 #ifdef __cplusplus
 }

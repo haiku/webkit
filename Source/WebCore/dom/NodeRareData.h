@@ -229,45 +229,38 @@ private:
     CollectionCacheMap m_cachedCollections;
 };
 
-class NodeMutationObserverData {
-    WTF_MAKE_NONCOPYABLE(NodeMutationObserverData); WTF_MAKE_FAST_ALLOCATED;
-public:
-    Vector<std::unique_ptr<MutationObserverRegistration>> registry;
-    HashSet<MutationObserverRegistration*> transientRegistry;
-
-    NodeMutationObserverData() { }
-};
-
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(NodeRareData);
 class NodeRareData {
     WTF_MAKE_NONCOPYABLE(NodeRareData);
     WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(NodeRareData);
 public:
 #if defined(DUMP_NODE_STATISTICS) && DUMP_NODE_STATISTICS
-    enum class UseType : uint16_t {
-        ConnectedFrameCount = 1 << 0,
-        NodeList = 1 << 1,
-        MutationObserver = 1 << 2,
-        TabIndex = 1 << 3,
-        MinimumSize = 1 << 4,
-        ScrollingPosition = 1 << 5,
-        ComputedStyle = 1 << 6,
-        Dataset = 1 << 7,
-        ClassList = 1 << 8,
-        ShadowRoot = 1 << 9,
-        CustomElementQueue = 1 << 10,
-        AttributeMap = 1 << 11,
-        InteractionObserver = 1 << 12,
-        PseudoElements = 1 << 13,
-        Animations = 1 << 14,
+    enum class UseType : uint32_t {
+        NodeList = 1 << 0,
+        MutationObserver = 1 << 1,
+        TabIndex = 1 << 2,
+        MinimumSize = 1 << 3,
+        ScrollingPosition = 1 << 4,
+        ComputedStyle = 1 << 5,
+        Dataset = 1 << 6,
+        ClassList = 1 << 7,
+        ShadowRoot = 1 << 8,
+        CustomElementQueue = 1 << 9,
+        AttributeMap = 1 << 10,
+        InteractionObserver = 1 << 11,
+        ResizeObserver = 1 << 12,
+        Animations = 1 << 13,
+        PseudoElements = 1 << 14,
+        StyleMap = 1 << 15,
+        PartList = 1 << 16,
+        PartNames = 1 << 17,
     };
 #endif
 
     enum class Type { Element, Node };
 
     NodeRareData(Type type = Type::Node)
-        : m_connectedFrameCount(0)
-        , m_isElementRareData(type == Type::Element)
+        : m_isElementRareData(type == Type::Element)
     {
     }
 
@@ -282,46 +275,46 @@ public:
         return *m_nodeLists;
     }
 
-    NodeMutationObserverData* mutationObserverData() { return m_mutationObserverData.get(); }
-    NodeMutationObserverData& ensureMutationObserverData()
-    {
-        if (!m_mutationObserverData)
-            m_mutationObserverData = makeUnique<NodeMutationObserverData>();
-        return *m_mutationObserverData;
-    }
+    using MutationObserverRegistryVector = Vector<Ref<MutationObserverRegistration>, 4>;
 
-    unsigned connectedSubframeCount() const { return m_connectedFrameCount; }
-    void incrementConnectedSubframeCount(unsigned amount)
+    MutationObserverRegistryVector& mutationObserverRegistry()
     {
-        m_connectedFrameCount += amount;
+        if (!m_mutationObserverRegistry)
+            m_mutationObserverRegistry = makeUnique<MutationObserverRegistryVector>();
+        return *m_mutationObserverRegistry;
     }
-    void decrementConnectedSubframeCount(unsigned amount)
+    MutationObserverRegistryVector* mutationObserverRegistryIfExists()
     {
-        ASSERT(m_connectedFrameCount);
-        ASSERT(amount <= m_connectedFrameCount);
-        m_connectedFrameCount -= amount;
+        return m_mutationObserverRegistry.get();
+    }
+    HashSet<Ref<MutationObserverRegistration>>& transientMutationObserverRegistry()
+    {
+        return m_transientMutationObserverRegistry;
     }
 
 #if DUMP_NODE_STATISTICS
     OptionSet<UseType> useTypes() const
     {
         OptionSet<UseType> result;
-        if (m_connectedFrameCount)
-            result.add(UseType::ConnectedFrameCount);
         if (m_nodeLists)
             result.add(UseType::NodeList);
-        if (m_mutationObserverData)
+        if (m_mutationObserverRegistry || m_transientMutationObserverRegistry.capacity())
             result.add(UseType::MutationObserver);
         return result;
     }
 #endif
 
+protected:
+    // Used by ElementRareData. Defined here for better packing in 64-bit.
+    int m_unusualTabIndex { 0 };
+    unsigned short m_childIndex { 0 };
+
 private:
-    unsigned m_connectedFrameCount : 31; // Must fit Page::maxNumberOfFrames.
-    unsigned m_isElementRareData : 1;
+    bool m_isElementRareData;
 
     std::unique_ptr<NodeListsNodeData> m_nodeLists;
-    std::unique_ptr<NodeMutationObserverData> m_mutationObserverData;
+    std::unique_ptr<MutationObserverRegistryVector> m_mutationObserverRegistry;
+    HashSet<Ref<MutationObserverRegistration>> m_transientMutationObserverRegistry;
 };
 
 template<> struct NodeListTypeIdentifier<NameNodeList> {

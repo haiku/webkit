@@ -49,16 +49,16 @@ using namespace JSC;
 // Functions
 
 #if ENABLE(ConditionBase)
-JSC::EncodedJSValue JSC_HOST_CALL jsTestOperationConditionalPrototypeFunctionNonConditionalOperation(JSC::JSGlobalObject*, JSC::CallFrame*);
+JSC_DECLARE_HOST_FUNCTION(jsTestOperationConditionalPrototypeFunctionNonConditionalOperation);
 #endif
 #if ENABLE(ConditionBase) && ENABLE(ConditionOperation)
-JSC::EncodedJSValue JSC_HOST_CALL jsTestOperationConditionalPrototypeFunctionConditionalOperation(JSC::JSGlobalObject*, JSC::CallFrame*);
+JSC_DECLARE_HOST_FUNCTION(jsTestOperationConditionalPrototypeFunctionConditionalOperation);
 #endif
 
 // Attributes
 
-JSC::EncodedJSValue jsTestOperationConditionalConstructor(JSC::JSGlobalObject*, JSC::EncodedJSValue, JSC::PropertyName);
-bool setJSTestOperationConditionalConstructor(JSC::JSGlobalObject*, JSC::EncodedJSValue, JSC::EncodedJSValue);
+JSC_DECLARE_CUSTOM_GETTER(jsTestOperationConditionalConstructor);
+JSC_DECLARE_CUSTOM_SETTER(setJSTestOperationConditionalConstructor);
 
 class JSTestOperationConditionalPrototype final : public JSC::JSNonFinalObject {
 public:
@@ -92,22 +92,22 @@ private:
 };
 STATIC_ASSERT_ISO_SUBSPACE_SHARABLE(JSTestOperationConditionalPrototype, JSTestOperationConditionalPrototype::Base);
 
-using JSTestOperationConditionalConstructor = JSDOMConstructorNotConstructable<JSTestOperationConditional>;
+using JSTestOperationConditionalDOMConstructor = JSDOMConstructorNotConstructable<JSTestOperationConditional>;
 
-template<> JSValue JSTestOperationConditionalConstructor::prototypeForStructure(JSC::VM& vm, const JSDOMGlobalObject& globalObject)
+template<> JSValue JSTestOperationConditionalDOMConstructor::prototypeForStructure(JSC::VM& vm, const JSDOMGlobalObject& globalObject)
 {
     UNUSED_PARAM(vm);
     return globalObject.functionPrototype();
 }
 
-template<> void JSTestOperationConditionalConstructor::initializeProperties(VM& vm, JSDOMGlobalObject& globalObject)
+template<> void JSTestOperationConditionalDOMConstructor::initializeProperties(VM& vm, JSDOMGlobalObject& globalObject)
 {
     putDirect(vm, vm.propertyNames->prototype, JSTestOperationConditional::prototype(vm, globalObject), JSC::PropertyAttribute::DontDelete | JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::DontEnum);
     putDirect(vm, vm.propertyNames->name, jsNontrivialString(vm, "TestOperationConditional"_s), JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::DontEnum);
     putDirect(vm, vm.propertyNames->length, jsNumber(0), JSC::PropertyAttribute::ReadOnly | JSC::PropertyAttribute::DontEnum);
 }
 
-template<> const ClassInfo JSTestOperationConditionalConstructor::s_info = { "TestOperationConditional", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSTestOperationConditionalConstructor) };
+template<> const ClassInfo JSTestOperationConditionalDOMConstructor::s_info = { "TestOperationConditional", &Base::s_info, nullptr, nullptr, CREATE_METHOD_TABLE(JSTestOperationConditionalDOMConstructor) };
 
 /* Hash table for prototype */
 
@@ -163,7 +163,7 @@ JSObject* JSTestOperationConditional::prototype(VM& vm, JSDOMGlobalObject& globa
 
 JSValue JSTestOperationConditional::getConstructor(VM& vm, const JSGlobalObject* globalObject)
 {
-    return getDOMConstructor<JSTestOperationConditionalConstructor>(vm, *jsCast<const JSDOMGlobalObject*>(globalObject));
+    return getDOMConstructor<JSTestOperationConditionalDOMConstructor>(vm, *jsCast<const JSDOMGlobalObject*>(globalObject));
 }
 
 void JSTestOperationConditional::destroy(JSC::JSCell* cell)
@@ -177,7 +177,7 @@ template<> inline JSTestOperationConditional* IDLOperation<JSTestOperationCondit
     return jsDynamicCast<JSTestOperationConditional*>(JSC::getVM(&lexicalGlobalObject), callFrame.thisValue());
 }
 
-EncodedJSValue jsTestOperationConditionalConstructor(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, PropertyName)
+JSC_DEFINE_CUSTOM_GETTER(jsTestOperationConditionalConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, PropertyName))
 {
     VM& vm = JSC::getVM(lexicalGlobalObject);
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -187,7 +187,7 @@ EncodedJSValue jsTestOperationConditionalConstructor(JSGlobalObject* lexicalGlob
     return JSValue::encode(JSTestOperationConditional::getConstructor(JSC::getVM(lexicalGlobalObject), prototype->globalObject()));
 }
 
-bool setJSTestOperationConditionalConstructor(JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+JSC_DEFINE_CUSTOM_SETTER(setJSTestOperationConditionalConstructor, (JSGlobalObject* lexicalGlobalObject, EncodedJSValue thisValue, EncodedJSValue encodedValue))
 {
     VM& vm = JSC::getVM(lexicalGlobalObject);
     auto throwScope = DECLARE_THROW_SCOPE(vm);
@@ -213,7 +213,7 @@ static inline JSC::EncodedJSValue jsTestOperationConditionalPrototypeFunctionNon
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL jsTestOperationConditionalPrototypeFunctionNonConditionalOperation(JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(jsTestOperationConditionalPrototypeFunctionNonConditionalOperation, (JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame))
 {
     return IDLOperation<JSTestOperationConditional>::call<jsTestOperationConditionalPrototypeFunctionNonConditionalOperationBody>(*lexicalGlobalObject, *callFrame, "nonConditionalOperation");
 }
@@ -233,7 +233,7 @@ static inline JSC::EncodedJSValue jsTestOperationConditionalPrototypeFunctionCon
     return JSValue::encode(jsUndefined());
 }
 
-EncodedJSValue JSC_HOST_CALL jsTestOperationConditionalPrototypeFunctionConditionalOperation(JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame)
+JSC_DEFINE_HOST_FUNCTION(jsTestOperationConditionalPrototypeFunctionConditionalOperation, (JSGlobalObject* lexicalGlobalObject, CallFrame* callFrame))
 {
     return IDLOperation<JSTestOperationConditional>::call<jsTestOperationConditionalPrototypeFunctionConditionalOperationBody>(*lexicalGlobalObject, *callFrame, "conditionalOperation");
 }

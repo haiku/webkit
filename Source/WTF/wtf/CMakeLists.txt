@@ -32,6 +32,7 @@ set(WTF_PUBLIC_HEADERS
     CommaPrinter.h
     CompactPointerTuple.h
     CompactRefPtrTuple.h
+    CompactUniquePtrTuple.h
     CompilationThread.h
     Compiler.h
     CompletionHandler.h
@@ -259,6 +260,7 @@ set(WTF_PUBLIC_HEADERS
     ThreadGroup.h
     ThreadMessage.h
     ThreadSafeRefCounted.h
+    ThreadSanitizerSupport.h
     ThreadSpecific.h
     Threading.h
     ThreadingPrimitives.h
@@ -323,6 +325,7 @@ set(WTF_PUBLIC_HEADERS
     text/AtomStringTable.h
     text/Base64.h
     text/CString.h
+    text/CodePointIterator.h
     text/ConversionMode.h
     text/ExternalStringImpl.h
     text/IntegerToStringConversion.h
@@ -569,8 +572,25 @@ if (USE_VERSION_STAMPER)
         VERBATIM)
 endif ()
 
-file(COPY
+set(WTF_UNIFIED_SOURCES_SCRIPTS
     ../Scripts/generate-unified-source-bundles.rb
-    DESTINATION
-    ${WTF_SCRIPTS_DIR}
+)
+
+file(COPY
+     ${WTF_UNIFIED_SOURCES_SCRIPTS}
+     DESTINATION ${WTF_SCRIPTS_DIR}
+)
+
+set(WTF_PREFERENCES
+    ../Scripts/GeneratePreferences.rb
+
+    ../Scripts/Preferences/WebPreferences.yaml
+    ../Scripts/Preferences/WebPreferencesDebug.yaml
+    ../Scripts/Preferences/WebPreferencesExperimental.yaml
+    ../Scripts/Preferences/WebPreferencesInternal.yaml
+)
+
+WEBKIT_COPY_FILES(WTF_CopyPreferences
+    DESTINATION ${WTF_SCRIPTS_DIR}
+    FILES ${WTF_PREFERENCES}
 )

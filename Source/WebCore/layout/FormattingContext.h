@@ -35,15 +35,12 @@
 
 namespace WebCore {
 
-namespace Display {
-class Box;
-}
 class LayoutSize;
 struct Length;
 
 namespace Layout {
 
-class Box;
+class BoxGeometry;
 class ReplacedBox;
 struct ComputedHorizontalMargin;
 struct ComputedVerticalMargin;
@@ -95,6 +92,7 @@ public:
     bool isInlineFormattingContext() const { return root().establishesInlineFormattingContext(); }
     bool isTableFormattingContext() const { return root().establishesTableFormattingContext(); }
     bool isTableWrapperBlockFormattingContext() const { return isBlockFormattingContext() && root().isTableWrapperBox(); }
+    bool isFlexFormattingContext() const { return root().establishesFlexFormattingContext(); }
 
     enum class EscapeReason {
         NeedsGeometryFromEstablishedFormattingContext,
@@ -103,16 +101,16 @@ public:
         FindFixedHeightAncestorQuirk,
         DocumentBoxStretchesToViewportQuirk,
         BodyStretchesToViewportQuirk,
-        StrokeOverflowNeedsViewportGeometry,
         TableNeedsAccessToTableWrapper
     };
-    const Display::Box& geometryForBox(const Box&, Optional<EscapeReason> = WTF::nullopt) const;
+    const BoxGeometry& geometryForBox(const Box&, Optional<EscapeReason> = WTF::nullopt) const;
+    const ContainerBox& root() const { return *m_root; }
+
+    LayoutState& layoutState() const;
 
 protected:
     using LayoutQueue = Vector<const Box*>;
 
-    const ContainerBox& root() const { return *m_root; }
-    LayoutState& layoutState() const;
     const FormattingState& formattingState() const { return m_formattingState; }
     FormattingState& formattingState() { return m_formattingState; }
 

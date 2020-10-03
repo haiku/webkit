@@ -193,6 +193,10 @@
 #include <WebCore/VP9UtilitiesCocoa.h>
 #endif
 
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+#include <WebCore/DisplayRefreshMonitorManager.h>
+#endif
+
 #define RELEASE_LOG_SESSION_ID (m_sessionID ? m_sessionID->toUInt64() : 0)
 #define RELEASE_LOG_IF_ALLOWED(channel, fmt, ...) RELEASE_LOG_IF(isAlwaysOnLoggingAllowed(), channel, "%p - [sessionID=%" PRIu64 "] WebProcess::" fmt, this, RELEASE_LOG_SESSION_ID, ##__VA_ARGS__)
 #define RELEASE_LOG_ERROR_IF_ALLOWED(channel, fmt, ...) RELEASE_LOG_ERROR_IF(isAlwaysOnLoggingAllowed(), channel, "%p - [sessionID=%" PRIu64 "] WebProcess::" fmt, this, RELEASE_LOG_SESSION_ID, ##__VA_ARGS__)
@@ -1144,8 +1148,12 @@ NetworkProcessConnection& WebProcess::ensureNetworkProcessConnection()
         if (!Document::allDocuments().isEmpty())
             m_networkProcessConnection->serviceWorkerConnection().registerServiceWorkerClients();
 #endif
-        for (auto& webPage : m_pageMap.values())
-            webPage->synchronizeCORSDisablingPatternsWithNetworkProcess();
+
+        // This can be called during a WebPage's constructor, so wait until after the constructor returns to touch the WebPage.
+        RunLoop::main().dispatch([this] {
+            for (auto& webPage : m_pageMap.values())
+                webPage->synchronizeCORSDisablingPatternsWithNetworkProcess();
+        });
     }
     
     return *m_networkProcessConnection;
@@ -1595,7 +1603,7 @@ void WebProcess::flushResourceLoadStatistics()
 {
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     if (auto* observer = ResourceLoadObserver::sharedIfExists())
-        observer->updateCentralStatisticsStore();
+        observer->updateCentralStatisticsStore([] { });
 #endif
 }
 
@@ -1896,6 +1904,15 @@ bool WebProcess::areAllPagesThrottleable() const
     });
 }
 
+#if ENABLE(WEBPROCESS_WINDOWSERVER_BLOCKING)
+void WebProcess::displayWasRefreshed(uint32_t displayID)
+{
+    ASSERT(RunLoop::isMain());
+    m_eventDispatcher->notifyScrollingTreesDisplayWasRefreshed(displayID);
+    DisplayRefreshMonitorManager::sharedManager().displayWasUpdated(displayID);
+}
+#endif
+
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
 void WebProcess::setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode thirdPartyCookieBlockingMode, CompletionHandler<void()>&& completionHandler)
 {
@@ -1906,6 +1923,11 @@ void WebProcess::setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode th
 void WebProcess::setDomainsWithUserInteraction(HashSet<WebCore::RegistrableDomain>&& domains)
 {
     ResourceLoadObserver::shared().setDomainsWithUserInteraction(WTFMove(domains));
+}
+
+void WebProcess::sendResourceLoadStatisticsDataImmediately(CompletionHandler<void()>&& completionHandler)
+{
+    ResourceLoadObserver::shared().updateCentralStatisticsStore(WTFMove(completionHandler));
 }
 #endif
 
@@ -1950,6 +1972,7 @@ void WebProcess::setUseGPUProcessForMedia(bool useGPUProcessForMedia)
 }
 #endif
 
+#if ENABLE(VP9)
 void WebProcess::enableVP9Decoder()
 {
     if (m_vp9DecoderEnabled)
@@ -1972,6 +1995,7 @@ void WebProcess::enableVP9SWDecoder()
     WebCore::registerWebKitVP9Decoder();
 #endif
 }
+#endif
 
 } // namespace WebKit
 

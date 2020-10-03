@@ -64,6 +64,11 @@ enum FontVariant { AutoVariant, NormalVariant, SmallCapsVariant, EmphasisMarkVar
 enum Pitch { UnknownPitch, FixedPitch, VariablePitch };
 enum class IsForPlatformFont : uint8_t { No, Yes };
 
+#if USE(CORE_TEXT)
+bool fontHasTable(CTFontRef, unsigned tableTag);
+bool fontHasEitherTable(CTFontRef, unsigned tableTag1, unsigned tableTag2);
+#endif
+
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(Font);
 class Font : public RefCounted<Font> {
     WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Font);
@@ -89,6 +94,7 @@ public:
     {
         return adoptRef(*new Font(platformData, origin, interstitial, visibility, orientationFallback));
     }
+    WEBCORE_EXPORT static Ref<Font> create(Ref<SharedBuffer>&& fontFaceData, Font::Origin, float fontSize, bool syntheticBold, bool syntheticItalic);
 
     WEBCORE_EXPORT ~Font();
 
@@ -321,14 +327,6 @@ private:
 #if PLATFORM(IOS_FAMILY)
     unsigned m_shouldNotBeUsedForArabic : 1;
 #endif
-};
-
-class FontHandle {
-public:
-    FontHandle() = default;
-    WEBCORE_EXPORT FontHandle(Ref<SharedBuffer>&& fontFaceData, Font::Origin, float fontSize, bool syntheticBold, bool syntheticItalic);
-
-    RefPtr<Font> font;
 };
 
 #if PLATFORM(IOS_FAMILY)

@@ -40,10 +40,6 @@
 #import <AVFoundation/AVPlayerItem_Private.h>
 #import <AVFoundation/AVPlayerLayer_Private.h>
 
-#if PLATFORM(IOS_FAMILY) && HAVE(AVKIT)
-#import <AVKit/AVPlayerViewController_WebKitOnly.h>
-#endif
-
 #if ENABLE(MEDIA_SOURCE)
 #import <AVFoundation/AVStreamDataParser.h>
 #endif
@@ -69,6 +65,12 @@ typedef NSString * AVVideoRange NS_TYPED_ENUM;
 @interface AVPlayer (AVPlayerVideoRangeOverride)
 @property (nonatomic, copy, nullable) AVVideoRange videoRangeOverride;
 + (nullable AVVideoRange)preferredVideoRangeForDisplays:(nonnull NSArray <NSNumber *>*)displays;
+@end
+#endif
+
+#if HAVE(AVPLAYER_SUPRESSES_AUDIO_RENDERING)
+@interface AVPlayer (AVPlayerSupressesAudioRendering)
+@property (nonatomic, getter=_suppressesAudioRendering, setter=_setSuppressesAudioRendering:) BOOL suppressesAudioRendering;
 @end
 #endif
 
@@ -98,6 +100,7 @@ typedef NS_OPTIONS(NSUInteger, AVOutputDeviceFeatures) {
 
 @interface AVOutputDevice : NSObject
 @property (nonatomic, readonly) NSString *name;
+@property (nonatomic, readonly) NSString *deviceName;
 @property (nonatomic, readonly) AVOutputDeviceFeatures deviceFeatures;
 @end
 

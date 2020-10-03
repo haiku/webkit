@@ -567,10 +567,9 @@ static Ref<AccessibilityObject> createFromRenderer(RenderObject* renderer)
         if (is<RenderAttachment>(cssBox))
             return AccessibilityAttachment::create(&downcast<RenderAttachment>(cssBox));
 #endif
-#if ENABLE(METER_ELEMENT)
+
         if (is<RenderMeter>(cssBox))
             return AccessibilityProgressIndicator::create(&downcast<RenderMeter>(cssBox));
-#endif
 
         // input type=range
         if (is<RenderSlider>(cssBox))
@@ -666,10 +665,7 @@ AccessibilityObject* AXObjectCache::getOrCreate(Node* node)
     bool inCanvasSubtree = lineageOfType<HTMLCanvasElement>(*node->parentElement()).first();
     bool isHidden = isNodeAriaVisible(node);
 
-    bool insideMeterElement = false;
-#if ENABLE(METER_ELEMENT)
-    insideMeterElement = is<HTMLMeterElement>(*node->parentElement());
-#endif
+    bool insideMeterElement = is<HTMLMeterElement>(*node->parentElement());
     
     if (!inCanvasSubtree && !isHidden && !insideMeterElement)
         return nullptr;
@@ -1106,8 +1102,8 @@ void AXObjectCache::passwordNotificationPostTimerFired()
         postTextStateChangePlatformNotification(notification.get(), AXTextEditTypeInsert, " ", VisiblePosition());
 #endif
 }
-    
-void AXObjectCache::postNotification(RenderObject* renderer, AXNotification notification, PostTarget postTarget, PostType postType)
+
+void AXObjectCache::postNotification(RenderObject* renderer, AXNotification notification, PostTarget postTarget)
 {
     if (!renderer)
         return;
@@ -1125,10 +1121,10 @@ void AXObjectCache::postNotification(RenderObject* renderer, AXNotification noti
     if (!renderer)
         return;
     
-    postNotification(object.get(), &renderer->document(), notification, postTarget, postType);
+    postNotification(object.get(), &renderer->document(), notification, postTarget);
 }
 
-void AXObjectCache::postNotification(Node* node, AXNotification notification, PostTarget postTarget, PostType postType)
+void AXObjectCache::postNotification(Node* node, AXNotification notification, PostTarget postTarget)
 {
     if (!node)
         return;
@@ -1146,10 +1142,10 @@ void AXObjectCache::postNotification(Node* node, AXNotification notification, Po
     if (!node)
         return;
     
-    postNotification(object.get(), &node->document(), notification, postTarget, postType);
+    postNotification(object.get(), &node->document(), notification, postTarget);
 }
 
-void AXObjectCache::postNotification(AXCoreObject* object, Document* document, AXNotification notification, PostTarget postTarget, PostType postType)
+void AXObjectCache::postNotification(AXCoreObject* object, Document* document, AXNotification notification, PostTarget postTarget)
 {
     AXTRACE("AXObjectCache::postNotification");
     AXLOG(std::make_pair(object, notification));
@@ -1157,7 +1153,7 @@ void AXObjectCache::postNotification(AXCoreObject* object, Document* document, A
 
     stopCachingComputedObjectAttributes();
 
-    if (object && postTarget == TargetObservableParent)
+    if (object && postTarget == PostTarget::ObservableParent)
         object = object->observableObject();
 
     if (!object && document)
@@ -1166,17 +1162,9 @@ void AXObjectCache::postNotification(AXCoreObject* object, Document* document, A
     if (!object)
         return;
 
-    if (postType == PostAsynchronously) {
-        m_notificationsToPost.append(std::make_pair(object, notification));
-        if (!m_notificationPostTimer.isActive())
-            m_notificationPostTimer.startOneShot(0_s);
-    } else {
-#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-        updateIsolatedTree(*object, notification);
-#endif
-
-        postPlatformNotification(object, notification);
-    }
+    m_notificationsToPost.append(std::make_pair(object, notification));
+    if (!m_notificationPostTimer.isActive())
+        m_notificationPostTimer.startOneShot(0_s);
 }
 
 void AXObjectCache::checkedStateChanged(Node* node)
@@ -1229,9 +1217,9 @@ void AXObjectCache::selectedChildrenChanged(Node* node)
 {
     handleMenuItemSelected(node);
     
-    // postTarget is TargetObservableParent so that you can pass in any child of an element and it will go up the parent tree
+    // postTarget is ObservableParent so that you can pass in any child of an element and it will go up the parent tree
     // to find the container which should send out the notification.
-    postNotification(node, AXSelectedChildrenChanged, TargetObservableParent);
+    postNotification(node, AXSelectedChildrenChanged, PostTarget::ObservableParent);
 }
 
 void AXObjectCache::selectedChildrenChanged(RenderObject* renderer)
@@ -1239,9 +1227,9 @@ void AXObjectCache::selectedChildrenChanged(RenderObject* renderer)
     if (renderer)
         handleMenuItemSelected(renderer->node());
 
-    // postTarget is TargetObservableParent so that you can pass in any child of an element and it will go up the parent tree
+    // postTarget is ObservableParent so that you can pass in any child of an element and it will go up the parent tree
     // to find the container which should send out the notification.
-    postNotification(renderer, AXSelectedChildrenChanged, TargetObservableParent);
+    postNotification(renderer, AXSelectedChildrenChanged, PostTarget::ObservableParent);
 }
 
 #ifndef NDEBUG
@@ -1388,7 +1376,7 @@ void AXObjectCache::postTextStateChangeNotification(Node* node, const AXTextStat
 
     postTextStateChangeNotification(getOrCreate(node), intent, selection);
 #else
-    postNotification(node->renderer(), AXObjectCache::AXSelectedTextChanged, TargetObservableParent);
+    postNotification(node->renderer(), AXObjectCache::AXSelectedTextChanged, PostTarget::ObservableParent);
     UNUSED_PARAM(intent);
     UNUSED_PARAM(selection);
 #endif
@@ -1562,11 +1550,6 @@ void AXObjectCache::frameLoadingEventNotification(Frame* frame, AXLoadingEvent l
         return;
 
     AccessibilityObject* obj = getOrCreate(contentRenderer);
-
-#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
-    updateIsolatedTree(*obj, loadingEvent);
-#endif
-
     frameLoadingEventPlatformNotification(obj, loadingEvent);
 }
 
@@ -1727,8 +1710,12 @@ void AXObjectCache::handleAttributeChange(const QualifiedName& attrName, Element
         labelChanged(element);
     else if (attrName == tabindexAttr)
         childrenChanged(element->parentNode(), element);
+#if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     else if (attrName == langAttr)
-        postNotification(element, AXObjectCache::AXLanguageChanged);
+        updateIsolatedTree(get(element), AXObjectCache::AXLanguageChanged);
+    else if (attrName == idAttr)
+        updateIsolatedTree(get(element), AXObjectCache::AXIdAttributeChanged);
+#endif
 
     if (!attrName.localName().string().startsWith("aria-"))
         return;
@@ -1829,8 +1816,7 @@ VisiblePosition AXObjectCache::visiblePositionForTextMarkerData(TextMarkerData& 
     if (!isNodeInUse(textMarkerData.node))
         return VisiblePosition();
     
-    // FIXME: Accessability should make it clear these are DOM-compliant offsets or store Position objects.
-    VisiblePosition visiblePos = VisiblePosition(createLegacyEditingPosition(textMarkerData.node, textMarkerData.offset), textMarkerData.affinity);
+    VisiblePosition visiblePos = VisiblePosition(makeContainerOffsetPosition(textMarkerData.node, textMarkerData.offset), textMarkerData.affinity);
     Position deepPos = visiblePos.deepEquivalent();
     if (deepPos.isNull())
         return VisiblePosition();
@@ -1857,7 +1843,7 @@ CharacterOffset AXObjectCache::characterOffsetForTextMarkerData(TextMarkerData& 
     CharacterOffset result = CharacterOffset(textMarkerData.node, textMarkerData.characterStartIndex, textMarkerData.characterOffset);
     // When we are at a line wrap and the VisiblePosition is upstream, it means the text marker is at the end of the previous line.
     // We use the previous CharacterOffset so that it will match the Range.
-    if (textMarkerData.affinity == UPSTREAM)
+    if (textMarkerData.affinity == Affinity::Upstream)
         return previousCharacterOffset(result, false);
     return result;
 }
@@ -2014,8 +2000,8 @@ Optional<SimpleRange> AXObjectCache::rangeMatchesTextNearRange(const SimpleRange
 {
     // Create a large enough range for searching the text within.
     unsigned textLength = matchText.length();
-    auto startPosition = visiblePositionForPositionWithOffset(createLegacyEditingPosition(originalRange.start), -textLength);
-    auto endPosition = visiblePositionForPositionWithOffset(createLegacyEditingPosition(originalRange.start), 2 * textLength);
+    auto startPosition = visiblePositionForPositionWithOffset(makeContainerOffsetPosition(originalRange.start), -textLength);
+    auto endPosition = visiblePositionForPositionWithOffset(makeContainerOffsetPosition(originalRange.start), 2 * textLength);
     if (startPosition.isNull())
         startPosition = firstPositionInOrBeforeNode(originalRange.start.container.ptr());
     if (endPosition.isNull())
@@ -2036,6 +2022,8 @@ static bool isReplacedNodeOrBR(Node* node)
 
 static bool characterOffsetsInOrder(const CharacterOffset& characterOffset1, const CharacterOffset& characterOffset2)
 {
+    // FIXME: Should just be able to call documentOrder without accessibility-specific logic. Not clear why we need CharacterOffset instead of Position or BoundaryPoint.
+
     if (characterOffset1.isNull() || characterOffset2.isNull())
         return false;
     
@@ -2048,16 +2036,12 @@ static bool characterOffsetsInOrder(const CharacterOffset& characterOffset1, con
         node1 = node1->traverseToChildAt(characterOffset1.offset);
     if (!node2->isCharacterDataNode() && !isReplacedNodeOrBR(node2) && node2->hasChildNodes())
         node2 = node2->traverseToChildAt(characterOffset2.offset);
-    
     if (!node1 || !node2)
         return false;
     
     auto range1 = AXObjectCache::rangeForNodeContents(*node1);
     auto range2 = AXObjectCache::rangeForNodeContents(*node2);
-    auto result = createLiveRange(range1)->compareBoundaryPoints(Range::START_TO_START, createLiveRange(range2));
-    if (result.hasException())
-        return true;
-    return result.releaseReturnValue() <= 0;
+    return is_lteq(documentOrder(range1.start, range2.start));
 }
 
 static Node* resetNodeAndOffsetForReplacedNode(Node& replacedNode, int& offset, int characterCount)
@@ -2332,7 +2316,7 @@ VisiblePosition AXObjectCache::visiblePositionFromCharacterOffset(const Characte
     auto range = rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
     if (!range)
         return { };
-    return createLegacyEditingPosition(range->start);
+    return makeContainerOffsetPosition(range->start);
 }
 
 CharacterOffset AXObjectCache::characterOffsetFromVisiblePosition(const VisiblePosition& visiblePos)
@@ -2876,27 +2860,22 @@ LayoutRect AXObjectCache::localCaretRectForCharacterOffset(RenderObject*& render
         return IntRect();
     }
     
-    Node* node = characterOffset.node;
-    
-    renderer = node->renderer();
+    renderer = characterOffset.node->renderer();
     if (!renderer)
         return LayoutRect();
     
-    InlineBox* inlineBox = nullptr;
-    int caretOffset;
     // Use a collapsed range to get the position.
     auto range = rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
     if (!range)
         return IntRect();
-    
-    createLegacyEditingPosition(range->start).getInlineBoxAndOffset(DOWNSTREAM, inlineBox, caretOffset);
-    
+
+    auto [inlineBox, caretOffset] = makeContainerOffsetPosition(range->start).inlineBoxAndOffset(Affinity::Downstream);
     if (inlineBox)
         renderer = &inlineBox->renderer();
-    
+
     if (is<RenderLineBreak>(renderer) && downcast<RenderLineBreak>(renderer)->inlineBoxWrapper() != inlineBox)
         return IntRect();
-    
+
     return renderer->localCaretRect(inlineBox, caretOffset);
 }
 
@@ -3024,7 +3003,7 @@ int AXObjectCache::indexForCharacterOffset(const CharacterOffset& characterOffse
     auto range = rangeForUnorderedCharacterOffsets(characterOffset, characterOffset);
     if (!range)
         return 0;
-    return obj->indexForVisiblePosition(createLegacyEditingPosition(range->start));
+    return obj->indexForVisiblePosition(makeContainerOffsetPosition(range->start));
 }
 
 const Element* AXObjectCache::rootAXEditableElement(const Node* node)
@@ -3200,6 +3179,13 @@ void AXObjectCache::updateIsolatedTree(AXCoreObject& object, AXNotification noti
 
     switch (notification) {
     case AXCheckedStateChanged:
+        tree->updateNodeProperty(object, AXPropertyName::IsChecked);
+        break;
+    case AXIdAttributeChanged:
+        tree->updateNodeProperty(object, AXPropertyName::IdentifierAttribute);
+        break;
+    case AXActiveDescendantChanged:
+    case AXSelectedChildrenChanged:
     case AXSelectedTextChanged:
     case AXValueChanged:
         tree->updateNode(object);
@@ -3217,11 +3203,10 @@ void AXObjectCache::updateIsolatedTree(AXCoreObject& object, AXNotification noti
     }
 }
 
-void AXObjectCache::updateIsolatedTree(AXCoreObject& object, AXLoadingEvent notification)
+void AXObjectCache::updateIsolatedTree(AXCoreObject* object, AXNotification notification)
 {
-    AXTRACE("AXObjectCache::updateIsolatedTree");
-    if (notification == AXLoadingFinished)
-        updateIsolatedTree(object, AXChildrenChanged);
+    if (object)
+        updateIsolatedTree(*object, notification);
 }
 
 // FIXME: should be added to WTF::Vector.
@@ -3260,6 +3245,13 @@ void AXObjectCache::updateIsolatedTree(const Vector<std::pair<RefPtr<AXCoreObjec
 
         switch (notification.second) {
         case AXCheckedStateChanged:
+            tree->updateNodeProperty(*notification.first, AXPropertyName::IsChecked);
+            break;
+        case AXIdAttributeChanged:
+            tree->updateNodeProperty(*notification.first, AXPropertyName::IdentifierAttribute);
+            break;
+        case AXActiveDescendantChanged:
+        case AXSelectedChildrenChanged:
         case AXSelectedTextChanged:
         case AXValueChanged: {
             bool needsUpdate = appendIfNotContainsMatching(filteredNotifications, notification, [&notification] (const std::pair<RefPtr<AXCoreObject>, AXNotification>& note) {

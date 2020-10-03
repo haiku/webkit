@@ -30,11 +30,11 @@
 
 #include "CachedImage.h"
 #include "Color.h"
-#include "DisplayBox.h"
 #include "GraphicsContext.h"
 #include "InlineFormattingState.h"
 #include "InlineTextItem.h"
 #include "IntRect.h"
+#include "LayoutBoxGeometry.h"
 #include "LayoutContainerBox.h"
 #include "LayoutInitialContainingBlock.h"
 #include "LayoutState.h"
@@ -44,10 +44,11 @@
 namespace WebCore {
 namespace Display {
 
-static void paintBoxDecoration(GraphicsContext& context, const Box& absoluteDisplayBox, const RenderStyle& style, bool needsMarginPainting)
+// FIXME: Move to display box.
+static void paintBoxDecoration(GraphicsContext& context, const Layout::BoxGeometry& absoluteBoxGeometry, const RenderStyle& style, bool needsMarginPainting)
 {
-    auto decorationBoxTopLeft = needsMarginPainting ? absoluteDisplayBox.rectWithMargin().topLeft() : absoluteDisplayBox.topLeft();
-    auto decorationBoxSize = needsMarginPainting ? absoluteDisplayBox.rectWithMargin().size() : LayoutSize(absoluteDisplayBox.borderBoxWidth(), absoluteDisplayBox.borderBoxHeight());
+    auto decorationBoxTopLeft = needsMarginPainting ? absoluteBoxGeometry.logicalRectWithMargin().topLeft() : absoluteBoxGeometry.logicalTopLeft();
+    auto decorationBoxSize = needsMarginPainting ? absoluteBoxGeometry.logicalRectWithMargin().size() : LayoutSize(absoluteBoxGeometry.borderBoxWidth(), absoluteBoxGeometry.borderBoxHeight());
     // Background color
     if (style.hasBackground()) {
         context.fillRect({ decorationBoxTopLeft, decorationBoxSize }, style.backgroundColor());
@@ -112,42 +113,32 @@ static void paintBoxDecoration(GraphicsContext& context, const Box& absoluteDisp
 
 static void paintInlineContent(GraphicsContext& context, LayoutPoint absoluteOffset, const Layout::InlineFormattingState& formattingState)
 {
-    auto* displayInlineContent = formattingState.displayInlineContent();
-    if (!displayInlineContent)
-        return;
-
-    auto& displayRuns = displayInlineContent->runs;
-    if (displayRuns.isEmpty())
-        return;
-
-    for (auto& run : displayRuns) {
-        if (auto& textContent = run.textContent()) {
-            auto& style = run.style();
+    for (auto& run : formattingState.lineRuns()) {
+        auto& runRect = run.logicalRect();
+        if (auto& textContent = run.text()) {
+            auto& style = run.layoutBox().style();
             context.setStrokeColor(style.color());
             context.setFillColor(style.color());
 
-            auto absoluteLeft = absoluteOffset.x() + run.left();
+            auto absoluteLeft = absoluteOffset.x() + runRect.left();
             // FIXME: Add non-baseline align painting
-            auto& lineBox = displayInlineContent->lineBoxForRun(run);
-            auto baseline = absoluteOffset.y() + lineBox.top() + lineBox.baseline();
+            auto baseline = absoluteOffset.y() + runRect.top() + style.fontMetrics().ascent();
             auto expansion = run.expansion();
-            auto textRun = TextRun { textContent->content(), run.left() - lineBox.left(), expansion.horizontalExpansion, expansion.behavior };
+            // FIXME: The final painter should have access to the current line to offset the runs.
+            auto textRun = TextRun { textContent->content(), runRect.left(), expansion.horizontalExpansion, expansion.behavior };
             textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
             context.drawText(style.fontCascade(), textRun, { absoluteLeft, baseline });
-        } else if (auto* cachedImage = run.image()) {
-            auto runAbsoluteRect = FloatRect { absoluteOffset.x() + run.left(), absoluteOffset.y() + run.top(), run.width(), run.height() };
-            context.drawImage(*cachedImage->image(), runAbsoluteRect);
         }
     }
 }
 
-static Box absoluteDisplayBox(const Layout::LayoutState& layoutState, const Layout::Box& layoutBoxToPaint)
+Layout::BoxGeometry Painter::absoluteBoxGeometry(const Layout::LayoutState& layoutState, const Layout::Box& layoutBoxToPaint)
 {
     // Should never really happen but table code is way too incomplete.
-    if (!layoutState.hasDisplayBox(layoutBoxToPaint))
+    if (!layoutState.hasBoxGeometry(layoutBoxToPaint))
         return { };
     if (is<Layout::InitialContainingBlock>(layoutBoxToPaint))
-        return layoutState.displayBoxForLayoutBox(layoutBoxToPaint);
+        return layoutState.geometryForBox(layoutBoxToPaint);
 
     auto paintContainer = [&] (const auto& layoutBox) {
         if (layoutBox.isTableCell()) {
@@ -157,9 +148,9 @@ static Box absoluteDisplayBox(const Layout::LayoutState& layoutState, const Layo
         }
         return &layoutBox.containingBlock();
     };
-    auto absoluteBox = Box { layoutState.displayBoxForLayoutBox(layoutBoxToPaint) };
+    auto absoluteBox = Layout::BoxGeometry { layoutState.geometryForBox(layoutBoxToPaint) };
     for (auto* container = paintContainer(layoutBoxToPaint); !is<Layout::InitialContainingBlock>(container); container = paintContainer(*container))
-        absoluteBox.moveBy(layoutState.displayBoxForLayoutBox(*container).topLeft());
+        absoluteBox.moveBy(layoutState.geometryForBox(*container).logicalTopLeft());
     return absoluteBox;
 }
 
@@ -176,22 +167,22 @@ static void paintSubtree(GraphicsContext& context, const Layout::LayoutState& la
     auto paint = [&] (auto& layoutBox) {
         if (layoutBox.style().visibility() != Visibility::Visible)
             return;
-        if (!layoutState.hasDisplayBox(layoutBox))
+        if (!layoutState.hasBoxGeometry(layoutBox))
             return;
-        auto absoluteDisplayBox = Display::absoluteDisplayBox(layoutState, layoutBox);
-        if (!dirtyRect.intersects(snappedIntRect(absoluteDisplayBox.rect())))
+        auto absoluteBoxGeometry = Painter::absoluteBoxGeometry(layoutState, layoutBox);
+        if (!dirtyRect.intersects(snappedIntRect(absoluteBoxGeometry.logicalRect())))
             return;
 
         if (paintPhase == PaintPhase::Decoration) {
             if (layoutBox.isAnonymous())
                 return;
-            paintBoxDecoration(context, absoluteDisplayBox, layoutBox.style(), layoutBox.isBodyBox());
+            paintBoxDecoration(context, absoluteBoxGeometry, layoutBox.style(), layoutBox.isBodyBox());
             return;
         }
         // Only inline content for now.
         if (layoutBox.establishesInlineFormattingContext()) {
             auto& containerBox = downcast<Layout::ContainerBox>(layoutBox);
-            paintInlineContent(context, absoluteDisplayBox.topLeft(), layoutState.establishedInlineFormattingState(containerBox));
+            paintInlineContent(context, absoluteBoxGeometry.logicalTopLeft(), layoutState.establishedInlineFormattingState(containerBox));
         }
     };
 
@@ -234,7 +225,7 @@ static LayoutRect collectPaintRootsAndContentRect(const Layout::LayoutState& lay
         positiveZOrderList.append(&layoutBox);
     };
 
-    auto contentRect = LayoutRect { layoutState.displayBoxForLayoutBox(rootLayoutBox).rect() };
+    auto contentRect = LayoutRect { layoutState.geometryForBox(rootLayoutBox).logicalRect() };
 
     // Initial BFC is always a paint root.
     appendPaintRoot(rootLayoutBox);
@@ -247,8 +238,8 @@ static LayoutRect collectPaintRootsAndContentRect(const Layout::LayoutState& lay
                 break;
             if (isPaintRootCandidate(layoutBox))
                 appendPaintRoot(layoutBox);
-            if (layoutState.hasDisplayBox(layoutBox))
-                contentRect.uniteIfNonZero(Display::absoluteDisplayBox(layoutState, layoutBox).rect());
+            if (layoutState.hasBoxGeometry(layoutBox))
+                contentRect.uniteIfNonZero(Painter::absoluteBoxGeometry(layoutState, layoutBox).logicalRect());
             if (!is<Layout::ContainerBox>(layoutBox) || !downcast<Layout::ContainerBox>(layoutBox).hasChild())
                 break;
             layoutBoxList.append(downcast<Layout::ContainerBox>(layoutBox).firstChild());

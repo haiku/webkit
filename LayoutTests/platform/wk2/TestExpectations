@@ -727,10 +727,16 @@ webkit.org/b/180703 http/tests/resourceLoadStatistics/telemetry-generation.html 
 http/tests/resourceLoadStatistics/prune-statistics.html [ Pass ]
 http/tests/resourceLoadStatistics [ Pass ]
 
+# App Bound Domains is for iOS only, so we should skip
+# them here and enable them in the iOS platform specific file.
+http/tests/resourceLoadStatistics/exemptDomains/ [ Skip ]
+
 # The SameSite cookie API is only available in macOS Catalina and above.
 http/tests/resourceLoadStatistics/set-all-cookies-to-same-site-strict.html [ Skip ]
 http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to.html [ Skip ]
-http/tests/resourceLoadStatistics/enforce-samesite-strict-based-on-top-frame-unique-redirects-to-database.html [ Skip ]
+
+# This test is flaky. <rdar://problem/69748720>
+http/tests/resourceLoadStatistics/operating-dates-all-but-cookies-removed-statistics-with-no-user-interaction.html [ Pass Failure ]
 
 # The CNAME and cookie transform SPIs are only available in macOS Big Sur + iOS 14 and above.
 http/tests/resourceLoadStatistics/cname-cloaking-top-cname-sub-1p-cname.html [ Skip ]
@@ -783,6 +789,11 @@ editing/input/composition-highlights.html [ Pass ]
 
 # Tests a setting behind the ENABLE_FULLSCREEN_API flag, which is WK2-only
 media/video-supports-fullscreen.html [ Pass ]
+
+imported/w3c/web-platform-tests/service-workers/service-worker/svg-target-reftest.https.html [ Pass ]
+
+# These tests rely on webkit-test-runner flags that aren't implemented for DumpRenderTree, so they will fail under legacy WebKit.
+editing/selection/expando.html [ Pass ]
 
 ### END OF (5) Progressions, expected successes that are expected failures in WebKit1.
 ########################################

@@ -31,7 +31,6 @@
 #import "APIUIClient.h"
 #import "CompletionHandlerCallChecker.h"
 #import "DocumentEditingContext.h"
-#import "EditableImageController.h"
 #import "InputViewUpdateDeferrer.h"
 #import "InsertTextOptions.h"
 #import "Logging.h"
@@ -51,7 +50,6 @@
 #import "WKContextMenuElementInfoPrivate.h"
 #import "WKDatePickerViewController.h"
 #import "WKDateTimeInputControl.h"
-#import "WKDrawingCoordinator.h"
 #import "WKError.h"
 #import "WKFocusedFormControlView.h"
 #import "WKFormSelectControl.h"
@@ -163,14 +161,6 @@
 #import "WKWebEvent.h"
 #endif
 
-#if USE(APPLE_INTERNAL_SDK) && __has_include(<WebKitAdditions/WKPlatformFileUploadPanel.mm>)
-#import <WebKitAdditions/WKPlatformFileUploadPanel.mm>
-#endif
-
-#if USE(APPLE_INTERNAL_SDK)
-#import <WebKitAdditions/WKContentViewInteractionAdditions.mm>
-#endif
-
 #import <pal/ios/ManagedConfigurationSoftLink.h>
 
 #if HAVE(LINK_PREVIEW) && USE(UICONTEXTMENU)
@@ -182,6 +172,11 @@ static NSString * const cursorRegionIdentifier = @"WKCursorRegion";
 static NSString * const editableCursorRegionIdentifier = @"WKEditableCursorRegion";
 
 @interface WKContentView (WKUICursorInteractionDelegate) <_UICursorInteractionDelegate>
+@end
+#endif
+
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+@interface WKContentView (WKUIIndirectScribbleInteractionDelegate) <UIIndirectScribbleInteractionDelegate>
 @end
 #endif
 
@@ -393,7 +388,7 @@ constexpr double fasterTapSignificantZoomThreshold = 0.8;
         [[_contentView formAccessoryView] showAutoFillButtonWithTitle:title];
     else
         [[_contentView formAccessoryView] hideAutoFillButton];
-    if (WebKit::currentUserInterfaceIdiomIsPad())
+    if (WebKit::currentUserInterfaceIdiomIsPadOrMac())
         [_contentView reloadInputViews];
 }
 
@@ -836,8 +831,8 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self setUpCursorInteraction];
 #endif
 
-#if USE(APPLE_INTERNAL_SDK)
-    [self setUpAdditionalInteractions];
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+    [self setUpScribbleInteraction];
 #endif
 
     _twoFingerSingleTapGestureRecognizer = adoptNS([[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_twoFingerSingleTapGestureRecognized:)]);
@@ -849,12 +844,6 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [_twoFingerSingleTapGestureRecognizer setDelegate:self];
     [_twoFingerSingleTapGestureRecognizer setEnabled:!self.webView._editable];
     [self addGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
-
-    _stylusSingleTapGestureRecognizer = adoptNS([[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_stylusSingleTapRecognized:)]);
-    [_stylusSingleTapGestureRecognizer setNumberOfTapsRequired:1];
-    [_stylusSingleTapGestureRecognizer setDelegate:self];
-    [_stylusSingleTapGestureRecognizer setAllowedTouchTypes:@[ @(UITouchTypePencil) ]];
-    [self addGestureRecognizer:_stylusSingleTapGestureRecognizer.get()];
 
     _touchActionGestureRecognizer = adoptNS([[WKTouchActionGestureRecognizer alloc] initWithTouchActionDelegate:self]);
     [self addGestureRecognizer:_touchActionGestureRecognizer.get()];
@@ -992,9 +981,6 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [_twoFingerSingleTapGestureRecognizer setDelegate:nil];
     [self removeGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
 
-    [_stylusSingleTapGestureRecognizer setDelegate:nil];
-    [self removeGestureRecognizer:_stylusSingleTapGestureRecognizer.get()];
-
     [self removeGestureRecognizer:_touchActionGestureRecognizer.get()];
     [self removeGestureRecognizer:_touchActionLeftSwipeGestureRecognizer.get()];
     [self removeGestureRecognizer:_touchActionRightSwipeGestureRecognizer.get()];
@@ -1013,8 +999,8 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     _cursorInteraction = nil;
 #endif
 
-#if USE(APPLE_INTERNAL_SDK)
-    [self cleanUpAdditionalInteractions];
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+    [self cleanUpScribbleInteraction];
 #endif
 
     _inspectorNodeSearchEnabled = NO;
@@ -1047,10 +1033,6 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     
     [_keyboardScrollingAnimator invalidate];
     _keyboardScrollingAnimator = nil;
-
-#if HAVE(PENCILKIT)
-    _drawingCoordinator = nil;
-#endif
 
 #if ENABLE(DATALIST_ELEMENT)
     _dataListTextSuggestionsInputView = nil;
@@ -1094,7 +1076,6 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self removeGestureRecognizer:_doubleTapGestureRecognizerForDoubleClick.get()];
     [self removeGestureRecognizer:_twoFingerDoubleTapGestureRecognizer.get()];
     [self removeGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
-    [self removeGestureRecognizer:_stylusSingleTapGestureRecognizer.get()];
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     [self removeGestureRecognizer:_mouseGestureRecognizer.get()];
 #endif
@@ -1122,7 +1103,6 @@ static WKDragSessionContext *ensureLocalDragSessionContext(id <UIDragSession> se
     [self addGestureRecognizer:_doubleTapGestureRecognizerForDoubleClick.get()];
     [self addGestureRecognizer:_twoFingerDoubleTapGestureRecognizer.get()];
     [self addGestureRecognizer:_twoFingerSingleTapGestureRecognizer.get()];
-    [self addGestureRecognizer:_stylusSingleTapGestureRecognizer.get()];
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
     [self addGestureRecognizer:_mouseGestureRecognizer.get()];
 #endif
@@ -1400,7 +1380,7 @@ typedef NS_ENUM(NSInteger, EndEditingReason) {
                 if (_focusRequiresStrongPasswordAssistance)
                     return true;
 
-                if (!WebKit::currentUserInterfaceIdiomIsPad())
+                if (!WebKit::currentUserInterfaceIdiomIsPadOrMac())
                     return true;
             }
 
@@ -1971,7 +1951,7 @@ static NSValue *nsSizeForTapHighlightBorderRadius(WebCore::IntSize borderRadius,
 #if ENABLE(INPUT_TYPE_COLOR)
     case WebKit::InputType::Color:
 #endif
-        return !WebKit::currentUserInterfaceIdiomIsPad();
+        return !WebKit::currentUserInterfaceIdiomIsPadOrMac();
     default:
         return YES;
     }
@@ -2015,7 +1995,7 @@ static NSValue *nsSizeForTapHighlightBorderRadius(WebCore::IntSize borderRadius,
         fontSize:_focusedElementInformation.nodeFontSize
         minimumScale:_focusedElementInformation.minimumScaleFactor
         maximumScale:_focusedElementInformation.maximumScaleFactorIgnoringAlwaysScalable
-        allowScaling:_focusedElementInformation.allowsUserScalingIgnoringAlwaysScalable && !WebKit::currentUserInterfaceIdiomIsPad()
+        allowScaling:_focusedElementInformation.allowsUserScalingIgnoringAlwaysScalable && !WebKit::currentUserInterfaceIdiomIsPadOrMac()
         forceScroll:[self requiresAccessoryView]];
 }
 
@@ -2059,8 +2039,8 @@ static NSValue *nsSizeForTapHighlightBorderRadius(WebCore::IntSize borderRadius,
     if (_page->waitingForPostLayoutEditorStateUpdateAfterFocusingElement())
         return _focusedElementInformation.interactionRect;
 
-    if (!_page->editorState().postLayoutData().selectionClipRect.isEmpty())
-        return _page->editorState().postLayoutData().selectionClipRect;
+    // if (!_page->editorState().postLayoutData().selectionClipRect.isEmpty())
+    //     return _page->editorState().postLayoutData().selectionClipRect;
 
     return CGRectNull;
 }
@@ -2412,9 +2392,6 @@ static Class tapAndAHalfRecognizerClass()
 {
     CGPoint point = [gestureRecognizer locationInView:self];
 
-    if (gestureRecognizer == _stylusSingleTapGestureRecognizer)
-        return self.webView._stylusTapGestureShouldCreateEditableImage;
-
     auto isInterruptingDecelerationForScrollViewOrAncestor = [&] (UIScrollView *scrollView) {
         UIScrollView *mainScroller = self.webView.scrollView;
         UIView *view = scrollView ?: mainScroller;
@@ -2707,13 +2684,6 @@ static Class tapAndAHalfRecognizerClass()
     _page->handleTwoFingerTapAtPoint(WebCore::roundedIntPoint(gestureRecognizer.centroid), WebKit::webEventModifierFlags(gestureRecognizerModifierFlags(gestureRecognizer) | UIKeyModifierCommand), ++_latestTapID);
 }
 
-- (void)_stylusSingleTapRecognized:(UITapGestureRecognizer *)gestureRecognizer
-{
-    ASSERT(self.webView._stylusTapGestureShouldCreateEditableImage);
-    ASSERT(gestureRecognizer == _stylusSingleTapGestureRecognizer);
-    _page->handleStylusSingleTapAtPoint(WebCore::roundedIntPoint(gestureRecognizer.location), ++_latestTapID);
-}
-
 - (void)_longPressRecognized:(UILongPressGestureRecognizer *)gestureRecognizer
 {
     ASSERT(gestureRecognizer == _longPressGestureRecognizer);
@@ -2934,10 +2904,7 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 
 - (void)_willStartScrollingOrZooming
 {
-    if ([_textInteractionAssistant respondsToSelector:@selector(willStartScrollingOrZooming)])
-        [_textInteractionAssistant willStartScrollingOrZooming];
-    else
-        [_textInteractionAssistant willStartScrollingOverflow];
+    [_textInteractionAssistant willStartScrollingOrZooming];
     _page->setIsScrollingOrZooming(true);
 
 #if PLATFORM(WATCHOS)
@@ -2956,12 +2923,8 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 
 - (void)_didEndScrollingOrZooming
 {
-    if (!_needsDeferredEndScrollingSelectionUpdate) {
-        if ([_textInteractionAssistant respondsToSelector:@selector(didEndScrollingOrZooming)])
-            [_textInteractionAssistant didEndScrollingOrZooming];
-        else
-            [_textInteractionAssistant didEndScrollingOverflow];
-    }
+    if (!_needsDeferredEndScrollingSelectionUpdate)
+        [_textInteractionAssistant didEndScrollingOrZooming];
     _page->setIsScrollingOrZooming(false);
 
     [self _resetPanningPreventionFlags];
@@ -3002,7 +2965,7 @@ static void cancelPotentialTapIfNecessary(WKContentView* contentView)
 #if ENABLE(INPUT_TYPE_COLOR)
     case WebKit::InputType::Color:
 #endif
-        return !WebKit::currentUserInterfaceIdiomIsPad();
+        return !WebKit::currentUserInterfaceIdiomIsPadOrMac();
     }
 }
 
@@ -3116,6 +3079,14 @@ FOR_EACH_PRIVATE_WKCONTENTVIEW_ACTION(FORWARD_ACTION_TO_WKWEBVIEW)
 - (NSString *)selectedText
 {
     return (NSString *)_page->editorState().postLayoutData().wordAtSelection;
+}
+
+- (NSArray<NSTextAlternatives *> *)alternativesForSelectedText
+{
+    auto& dictationContextsForSelection = _page->editorState().postLayoutData().dictationContextsForSelection;
+    return createNSArray(dictationContextsForSelection, [&] (auto& dictationContext) {
+        return _page->platformDictationAlternatives(dictationContext);
+    }).autorelease();
 }
 
 - (void)makeTextWritingDirectionNaturalForWebView:(id)sender
@@ -4477,7 +4448,7 @@ static void selectionChangedWithTouch(WKContentView *view, const WebCore::IntPoi
     [accessoryView setNextEnabled:_focusedElementInformation.hasNextNode];
     [accessoryView setPreviousEnabled:_focusedElementInformation.hasPreviousNode];
 
-    if (WebKit::currentUserInterfaceIdiomIsPad()) {
+    if (WebKit::currentUserInterfaceIdiomIsPadOrMac()) {
         [accessoryView setClearVisible:NO];
         return;
     }
@@ -4862,8 +4833,8 @@ static WebKit::WritingDirection coreWritingDirection(NSWritingDirection directio
 
 - (BOOL)_shouldSimulateKeyboardInputOnTextInsertion
 {
-#if USE(TEXT_INTERACTION_ADDITIONS)
-    return [self _shouldSimulateKeyboardInputOnTextInsertionInternal];
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+    return [_scribbleInteraction isHandlingWriting];
 #else
     return NO;
 #endif
@@ -4875,7 +4846,7 @@ static WebKit::WritingDirection coreWritingDirection(NSWritingDirection directio
     auto* keyboard = [UIKeyboardImpl sharedInstance];
 
     WebKit::InsertTextOptions options;
-    options.processingUserGesture = [keyboard respondsToSelector:@selector(isCallingInputDelegate)] && keyboard.isCallingInputDelegate;
+    options.processingUserGesture = keyboard.isCallingInputDelegate;
     options.shouldSimulateKeyboardInput = [self _shouldSimulateKeyboardInputOnTextInsertion];
     _page->insertTextAsync(aStringValue, WebKit::EditingRange(), WTFMove(options));
 
@@ -5386,7 +5357,7 @@ static NSString *contentTypeFromFieldName(WebCore::AutofillFieldName fieldName)
     using HandledByInputMethod = WebKit::NativeWebKeyboardEvent::HandledByInputMethod;
 #if USE(UIKIT_KEYBOARD_ADDITIONS)
     auto* keyboard = [UIKeyboardImpl sharedInstance];
-    if ((_page->editorState().isContentEditable || _treatAsContentEditableUntilNextEditorStateUpdate) && [keyboard respondsToSelector:@selector(handleKeyInputMethodCommandForCurrentEvent)] && [keyboard handleKeyInputMethodCommandForCurrentEvent]) {
+    if ((_page->editorState().isContentEditable || _treatAsContentEditableUntilNextEditorStateUpdate) && [keyboard handleKeyInputMethodCommandForCurrentEvent]) {
         completionHandler(theEvent, YES);
         _page->handleKeyboardEvent(WebKit::NativeWebKeyboardEvent(theEvent, HandledByInputMethod::Yes));
         return;
@@ -5450,9 +5421,9 @@ static NSString *contentTypeFromFieldName(WebCore::AutofillFieldName fieldName)
 
     UIKeyboardImpl *keyboard = [UIKeyboardImpl sharedInstance];
 
-    if (!isCharEvent && [keyboard respondsToSelector:@selector(handleKeyTextCommandForCurrentEvent)] && [keyboard handleKeyTextCommandForCurrentEvent])
+    if (!isCharEvent && [keyboard handleKeyTextCommandForCurrentEvent])
         return YES;
-    if (isCharEvent && [keyboard respondsToSelector:@selector(handleKeyAppCommandForCurrentEvent)] && [keyboard handleKeyAppCommandForCurrentEvent])
+    if (isCharEvent && [keyboard handleKeyAppCommandForCurrentEvent])
         return YES;
 
     // Don't insert character for an unhandled Command-key key command. This matches iOS and Mac platform conventions.
@@ -5849,7 +5820,7 @@ static bool shouldShowKeyboardForElement(const WebKit::FocusedElementInformation
     if (mayContainSelectableText(information.elementType))
         return true;
 
-    return !WebKit::currentUserInterfaceIdiomIsPad();
+    return !WebKit::currentUserInterfaceIdiomIsPadOrMac();
 }
 
 static WebCore::FloatRect rectToRevealWhenZoomingToFocusedElement(const WebKit::FocusedElementInformation& elementInfo, const WebKit::EditorState& editorState)
@@ -5975,11 +5946,6 @@ static RetainPtr<NSObject <WKFormPeripheral>> createInputPeripheralWithView(WebK
         [self _elementDidBlur];
     }
 
-#if HAVE(PENCILKIT)
-    if (information.elementType == WebKit::InputType::Drawing)
-        [_drawingCoordinator installInkPickerForDrawing:information.embeddedViewID];
-#endif
-
     if (!shouldShowInputView || information.elementType == WebKit::InputType::None) {
         _page->setIsShowingInputViewForFocusedElement(false);
         return;
@@ -6084,10 +6050,6 @@ static RetainPtr<NSObject <WKFormPeripheral>> createInputPeripheralWithView(WebK
 - (void)_elementDidBlur
 {
     SetForScope<BOOL> isBlurringFocusedElementForScope { _isBlurringFocusedElement, YES };
-
-#if HAVE(PENCILKIT)
-    [_drawingCoordinator uninstallInkPicker];
-#endif
 
 #if USE(UIKIT_KEYBOARD_ADDITIONS)
     [self _endEditing];
@@ -6813,15 +6775,8 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
     if (_fileUploadPanel)
         return;
 
-    Class ownClass = self.class;
-    Class panelClass = nil;
-    if ([ownClass respondsToSelector:@selector(_fileUploadPanelClass)])
-        panelClass = [ownClass _fileUploadPanelClass];
-    if (!panelClass)
-        panelClass = [WKFileUploadPanel class];
-
     _frameInfoForFileUploadPanel = frameInfo;
-    _fileUploadPanel = adoptNS([[panelClass alloc] initWithView:self]);
+    _fileUploadPanel = adoptNS([[WKFileUploadPanel alloc] initWithView:self]);
     [_fileUploadPanel setDelegate:self];
     [_fileUploadPanel presentWithParameters:parameters resultListener:listener];
 }
@@ -7160,7 +7115,7 @@ static BOOL allPasteboardItemOriginsMatchOrigin(UIPasteboard *pasteboard, const 
 
 - (BOOL)_shouldUseLegacySelectPopoverDismissalBehavior
 {
-    if (!WebKit::currentUserInterfaceIdiomIsPad())
+    if (!WebKit::currentUserInterfaceIdiomIsPadOrMac())
         return NO;
 
     if (_focusedElementInformation.elementType != WebKit::InputType::Select)
@@ -8593,15 +8548,6 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 }
 #endif
 
-#if HAVE(PENCILKIT)
-- (WKDrawingCoordinator *)_drawingCoordinator
-{
-    if (!_drawingCoordinator)
-        _drawingCoordinator = adoptNS([[WKDrawingCoordinator alloc] initWithContentView:self]);
-    return _drawingCoordinator.get();
-}
-#endif // HAVE(PENCILKIT)
-
 - (void)setContinuousSpellCheckingEnabled:(BOOL)enabled
 {
     if (WebKit::TextChecker::setContinuousSpellCheckingEnabled(enabled))
@@ -8610,40 +8556,52 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 
 #if HAVE(UIKIT_WITH_MOUSE_SUPPORT)
 
+static BOOL applicationIsKnownToIgnoreMouseEvents(const char* &warningVersion)
+{
+    // System apps will always be linked on the current OS, so
+    // check them before the linked-on-or-after.
+
+    // <rdar://problem/59521967> iAd Video does not respond to mouse events, only touch events
+    if (WebCore::IOSApplication::isNews() || WebCore::IOSApplication::isStocks()) {
+        warningVersion = nullptr;
+        return YES;
+    }
+
+    if (!WebKit::linkedOnOrAfter(WebKit::SDKVersion::FirstVersionWithiOSAppsOnMacOS)) {
+        if (WebCore::IOSApplication::isFIFACompanion() // <rdar://problem/67093487>
+            || WebCore::IOSApplication::isNoggin() // <rdar://problem/64830335>
+            || WebCore::IOSApplication::isOKCupid() // <rdar://problem/65698496>
+            || WebCore::IOSApplication::isJWLibrary() // <rdar://problem/68104852>
+            || WebCore::IOSApplication::isPaperIO() // <rdar://problem/68738585>
+            || WebCore::IOSApplication::isCrunchyroll()) { // <rdar://problem/66362029>
+            warningVersion = "14.2";
+            return YES;
+        }
+    }
+
+    if (!WebKit::linkedOnOrAfter(WebKit::SDKVersion::FirstThatSendsNativeMouseEvents)) {
+        if (WebCore::IOSApplication::isPocketCity() // <rdar://problem/62273077>
+            || WebCore::IOSApplication::isEssentialSkeleton() // <rdar://problem/62694519>
+            || WebCore::IOSApplication::isESPNFantasySports() // <rdar://problem/64671543>
+            || WebCore::IOSApplication::isDoubleDown()) { // <rdar://problem/64668138>
+            warningVersion = "13.4";
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
 - (BOOL)shouldUseMouseGestureRecognizer
 {
     static const BOOL shouldUseMouseGestureRecognizer = []() -> BOOL {
-        // System apps will always be linked on the current OS, so
-        // check them before the linked-on-or-after.
+        const char* warningVersion = nullptr;
+        BOOL knownToIgnoreMouseEvents = applicationIsKnownToIgnoreMouseEvents(warningVersion);
 
-        // <rdar://problem/59521967> iAd Video does not respond to mouse events, only touch events
-        if (WebCore::IOSApplication::isNews() || WebCore::IOSApplication::isStocks())
-            return NO;
+        if (knownToIgnoreMouseEvents && warningVersion)
+            os_log_error(OS_LOG_DEFAULT, "WARNING: This application has been observed to ignore mouse events in web content; touch events will be sent until it is built against the iOS %s SDK, but after that, the web content must respect mouse or pointer events in addition to touch events in order to behave correctly when a trackpad or mouse is used.", warningVersion);
 
-        if (WebKit::linkedOnOrAfter(WebKit::SDKVersion::FirstThatSendsNativeMouseEvents))
-            return YES;
-
-        // <rdar://problem/59155220> Some Feedly UI does not respond to mouse events, only touch events
-        if (WebCore::IOSApplication::isFeedly())
-            return NO;
-
-        // <rdar://problem/62273077> "Pocket City" does not respond to mouse events, only touch events
-        if (WebCore::IOSApplication::isPocketCity())
-            return NO;
-
-        // <rdar://problem/62694519> "Essential Skeleton" does not respond to mouse events, only touch events
-        if (WebCore::IOSApplication::isEssentialSkeleton())
-            return NO;
-
-        // <rdar://problem/64671543> "ESPN Fantasy Sports" does not respond to mouse events, only touch events
-        if (WebCore::IOSApplication::isESPNFantasySports())
-            return NO;
-
-        // <rdar://problem/64668138> DoubleDown Casino respin button stops working with trackpad
-        if (WebCore::IOSApplication::isDoubleDown())
-            return NO;
-
-        return YES;
+        return !knownToIgnoreMouseEvents;
     }();
 
     switch (_mouseEventPolicy) {
@@ -8821,6 +8779,81 @@ static Vector<WebCore::IntSize> sizesOfPlaceholderElementsToInsertWhenDroppingIt
 }
 
 #endif // HAVE(UI_CURSOR_INTERACTION)
+
+#if ENABLE(PENCILKIT_TEXT_INPUT)
+
+- (void)setUpScribbleInteraction
+{
+    _scribbleInteraction = adoptNS([[UIIndirectScribbleInteraction alloc] initWithDelegate:self]);
+    [self addInteraction:_scribbleInteraction.get()];
+}
+
+- (void)cleanUpScribbleInteraction
+{
+    [self removeInteraction:_scribbleInteraction.get()];
+    _scribbleInteraction = nil;
+}
+
+- (_WKTextInputContext *)_textInputContextByScribbleIdentifier:(UIScribbleElementIdentifier)identifier
+{
+    _WKTextInputContext *textInputContext = (_WKTextInputContext *)identifier;
+    if (![textInputContext isKindOfClass:_WKTextInputContext.class])
+        return nil;
+    auto elementContext = textInputContext._textInputContext;
+    if (elementContext.webPageIdentifier != _page->webPageID())
+        return nil;
+    return textInputContext;
+}
+
+- (BOOL)_elementForTextInputContextIsFocused:(_WKTextInputContext *)context
+{
+    // We ignore bounding rect changes as the bounding rect of the focused element is not kept up-to-date.
+    return self._hasFocusedElement && context && context._textInputContext.isSameElement(_focusedElementInformation.elementContext);
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction requestElementsInRect:(CGRect)rect completion:(void(^)(NSArray<UIScribbleElementIdentifier> *))completion
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    [self _requestTextInputContextsInRect:rect completionHandler:completion];
+}
+
+- (BOOL)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction isElementFocused:(UIScribbleElementIdentifier)identifier
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    return [self _elementForTextInputContextIsFocused:[self _textInputContextByScribbleIdentifier:identifier]];
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction focusElementIfNeeded:(UIScribbleElementIdentifier)identifier referencePoint:(CGPoint)initialPoint completion:(void (^)(UIResponder<UITextInput> *))completionBlock
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    if (auto *textInputContext = [self _textInputContextByScribbleIdentifier:identifier])
+        [self _focusTextInputContext:textInputContext placeCaretAt:initialPoint completionHandler:completionBlock];
+    else
+        completionBlock(nil);
+}
+
+- (CGRect)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction frameForElement:(UIScribbleElementIdentifier)identifier
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    auto *textInputContext = [self _textInputContextByScribbleIdentifier:identifier];
+    return textInputContext ? textInputContext.boundingRect : CGRectNull;
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction willBeginWritingInElement:(UIScribbleElementIdentifier)identifier
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    if (auto *textInputContext = [self _textInputContextByScribbleIdentifier:identifier])
+        [self _willBeginTextInteractionInTextInputContext:textInputContext];
+}
+
+- (void)indirectScribbleInteraction:(UIIndirectScribbleInteraction *)interaction didFinishWritingInElement:(UIScribbleElementIdentifier)identifier
+{
+    ASSERT(_scribbleInteraction.get() == interaction);
+    if (auto *textInputContext = [self _textInputContextByScribbleIdentifier:identifier])
+        [self _didFinishTextInteractionInTextInputContext:textInputContext];
+}
+
+#endif // ENABLE(PENCILKIT_TEXT_INPUT)
 
 #if ENABLE(ATTACHMENT_ELEMENT)
 

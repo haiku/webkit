@@ -21,6 +21,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import inspect
+import json
 import operator
 import os
 import shutil
@@ -51,9 +52,6 @@ from steps import (AnalyzeAPITestsResults, AnalyzeCompileWebKitResults, AnalyzeJ
                    RunWebKitPyPython3Tests, RunWebKitTests, RunWebKitTestsWithoutPatch, TestWithFailureCount,
                    Trigger, TransferToS3, UnApplyPatchIfRequired, UpdateWorkingDirectory, UploadBuiltProduct,
                    UploadTestResults, ValidateCommiterAndReviewer, ValidatePatch)
-
-import send_email
-send_email.BOT_WATCHERS_EMAILS = []
 
 # Workaround for https://github.com/buildbot/buildbot/issues/4669
 from buildbot.test.fake.fakebuild import FakeBuild
@@ -509,6 +507,23 @@ FAILED (failures=1, errors=0)''')
         self.expectOutcome(result=FAILURE, state_string='Found 2 webkitpy python2 test failures: webkitpy.style.checkers.cpp_unittest.WebKitStyleTest.test_os_version_checks, webkitpy.port.win_unittest.WinPortTest.test_diff_image__missing_actual')
         return self.runStep()
 
+    def test_lot_of_failures(self):
+        self.setupStep(RunWebKitPyPython2Tests())
+        json_with_failures = json.dumps({"failures": [{"name": 'test{}'.format(i)} for i in range(1, 31)]})
+
+        self.expectRemoteCommands(
+            ExpectShell(workdir='wkdir',
+                        logEnviron=False,
+                        command=['python', 'Tools/Scripts/test-webkitpy', '--verbose', '--json-output={0}'.format(self.jsonFileName)],
+                        logfiles={'json': self.jsonFileName},
+                        timeout=120,
+                        ) +
+            ExpectShell.log('json', stdout=json_with_failures) +
+            2,
+        )
+        self.expectOutcome(result=FAILURE, state_string='Found 30 webkitpy python2 test failures: test1, test2, test3, test4, test5, test6, test7, test8, test9, test10 ...')
+        return self.runStep()
+
 
 class TestWebKitPyPython3Tests(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):
@@ -580,6 +595,23 @@ FAILED (failures=1, errors=0)''')
             2,
         )
         self.expectOutcome(result=FAILURE, state_string='Found 2 webkitpy python3 test failures: webkitpy.style.checkers.cpp_unittest.WebKitStyleTest.test_os_version_checks, webkitpy.port.win_unittest.WinPortTest.test_diff_image__missing_actual')
+        return self.runStep()
+
+    def test_lot_of_failures(self):
+        self.setupStep(RunWebKitPyPython3Tests())
+        json_with_failures = json.dumps({"failures": [{"name": 'test{}'.format(i)} for i in range(1, 31)]})
+
+        self.expectRemoteCommands(
+            ExpectShell(workdir='wkdir',
+                        logEnviron=False,
+                        command=['python3', 'Tools/Scripts/test-webkitpy', '--verbose', '--json-output={0}'.format(self.jsonFileName)],
+                        logfiles={'json': self.jsonFileName},
+                        timeout=120,
+                        ) +
+            ExpectShell.log('json', stdout=json_with_failures) +
+            2,
+        )
+        self.expectOutcome(result=FAILURE, state_string='Found 30 webkitpy python3 test failures: test1, test2, test3, test4, test5, test6, test7, test8, test9, test10 ...')
         return self.runStep()
 
 
@@ -1082,7 +1114,7 @@ class TestAnalyzeCompileWebKitResults(BuildStepMixinAdditions, unittest.TestCase
         self.expectOutcome(result=FAILURE, state_string='Patch 1234 does not build (failure)')
         rc = self.runStep()
         self.assertEqual(self.getProperty('bugzilla_comment_text'), None)
-        self.assertEqual(self.getProperty('build_finish_summary'), None)
+        self.assertEqual(self.getProperty('build_finish_summary'), 'Patch 1234 does not build')
         return rc
 
     def test_patch_with_build_failure_on_commit_queue(self):
@@ -1453,6 +1485,8 @@ class TestAnalyzeJSCTestsResults(BuildStepMixinAdditions, unittest.TestCase):
         self.setProperty('jsc_rerun_binary_failures', [])
         self.setProperty('jsc_clean_tree_stress_test_failures', [])
         self.setProperty('jsc_clean_tree_binary_failures', [])
+        AnalyzeJSCTestsResults.send_email_for_flaky_failure = lambda self, test: None
+        AnalyzeJSCTestsResults.send_email_for_pre_existing_failure = lambda self, test: None
 
     def test_single_new_stress_failure(self):
         self.configureStep()
@@ -1941,7 +1975,7 @@ class TestAnalyzeLayoutTestsResults(BuildStepMixinAdditions, unittest.TestCase):
         self.expectOutcome(result=FAILURE, state_string='Found 1 new test failure: test1 (failure)')
         rc = self.runStep()
         self.assertEqual(self.getProperty('bugzilla_comment_text'), None)
-        self.assertEqual(self.getProperty('build_finish_summary'), None)
+        self.assertEqual(self.getProperty('build_finish_summary'), 'Found 1 new test failure: test1')
         return rc
 
     def test_consistent_failure_without_clean_tree_failures_commit_queue(self):
@@ -2024,6 +2058,20 @@ class TestAnalyzeLayoutTestsResults(BuildStepMixinAdditions, unittest.TestCase):
         self.expectOutcome(result=RETRY, state_string='Unable to confirm if test failures are introduced by patch, retrying build (retry)')
         return self.runStep()
 
+    def test_clean_tree_exceed_failure_limit_with_triggered_by(self):
+        self.configureStep()
+        self.setProperty('buildername', 'iOS-13-Simulator-WK2-Tests-EWS')
+        self.setProperty('triggered_by', 'ios-13-sim-build-ews')
+        self.setProperty('first_run_failures', ['test1'])
+        self.setProperty('second_run_failures', ['test1'])
+        self.setProperty('clean_tree_results_exceed_failure_limit', True)
+        self.setProperty('clean_tree_run_failures',  ['test{}'.format(i) for i in range(0, 30)])
+        message = 'Unable to confirm if test failures are introduced by patch, retrying build'
+        self.expectOutcome(result=SUCCESS, state_string=message)
+        rc = self.runStep()
+        self.assertEqual(self.getProperty('build_summary'), message)
+        return rc
+
     def test_clean_tree_has_lot_of_failures(self):
         self.configureStep()
         self.setProperty('first_results_exceed_failure_limit', True)
@@ -2067,6 +2115,14 @@ class TestAnalyzeLayoutTestsResults(BuildStepMixinAdditions, unittest.TestCase):
         self.assertEqual(self.getProperty('bugzilla_comment_text'), failure_message)
         self.assertEqual(self.getProperty('build_finish_summary'), failure_message)
         return rc
+
+    def test_unexpected_infra_issue(self):
+        self.configureStep()
+        self.setProperty('first_run_failures', [])
+        self.setProperty('second_run_failures', [])
+        self.expectOutcome(result=RETRY, state_string='Unexpected infrastructure issue, retrying build (retry)')
+        return self.runStep()
+
 
 class TestCheckOutSpecificRevision(BuildStepMixinAdditions, unittest.TestCase):
     def setUp(self):

@@ -353,6 +353,16 @@ op(handleUncaughtException, macro ()
     ret
 end)
 
+op(llint_get_host_call_return_value, macro ()
+    functionPrologue()
+    pushCalleeSaves()
+    loadp Callee[cfr], t0
+    convertCalleeToVM(t0)
+    loadq VM::encodedHostCallReturnValue[t0], t0
+    popCalleeSaves()
+    functionEpilogue()
+    ret
+end)
 
 macro prepareStateForCCall()
     addp PB, PC
@@ -440,7 +450,7 @@ end
 
 macro cagePrimitive(basePtr, mask, ptr, scratch)
     if GIGACAGE_ENABLED and not (C_LOOP or C_LOOP_WIN)
-        loadb _g_config + (constexpr Gigacage::startOffsetOfGigacageConfig) + Gigacage::Config::disablingPrimitiveGigacageIsForbidden, scratch
+        loadb GigacageConfig + Gigacage::Config::disablingPrimitiveGigacageIsForbidden, scratch
         btbnz scratch, .doCaging
 
         loadb _disablePrimitiveGigacageRequested, scratch
@@ -460,7 +470,7 @@ macro cagedPrimitive(ptr, length, scratch, scratch2)
         const source = ptr
     end
     if GIGACAGE_ENABLED
-        cagePrimitive(_g_config + (constexpr Gigacage::startOffsetOfGigacageConfig) + Gigacage::Config::basePtrs + GigacagePrimitiveBasePtrOffset, constexpr Gigacage::primitiveGigacageMask, source, scratch)
+        cagePrimitive(GigacageConfig + Gigacage::Config::basePtrs + GigacagePrimitiveBasePtrOffset, constexpr Gigacage::primitiveGigacageMask, source, scratch)
         if ARM64E
             const numberOfPACBits = constexpr MacroAssembler::numberOfPACBits
             bfiq scratch2, 0, 64 - numberOfPACBits, ptr
@@ -474,7 +484,7 @@ end
 macro loadCagedJSValue(source, dest, scratchOrLength)
     loadp source, dest
     if GIGACAGE_ENABLED
-        cage(_g_config + (constexpr Gigacage::startOffsetOfGigacageConfig) + Gigacage::Config::basePtrs + GigacageJSValueBasePtrOffset, constexpr Gigacage::jsValueGigacageMask, dest, scratchOrLength)
+        cage(GigacageConfig + Gigacage::Config::basePtrs + GigacageJSValueBasePtrOffset, constexpr Gigacage::jsValueGigacageMask, dest, scratchOrLength)
     end
 end
 
@@ -1734,6 +1744,49 @@ llintOpWithMetadata(op_get_private_name, OpGetPrivateName, macro (size, get, dis
     dispatch()
 end)
 
+llintOpWithMetadata(op_put_private_name, OpPutPrivateName, macro (size, get, dispatch, metadata, return)
+    get(m_base, t3)
+    loadConstantOrVariableCell(size, t3, t0, .opPutPrivateNameSlow)
+    get(m_property, t3)
+    loadConstantOrVariableCell(size, t3, t1, .opPutPrivateNameSlow)
+    metadata(t5, t2)
+    loadi OpPutPrivateName::Metadata::m_oldStructureID[t5], t2
+    bineq t2, JSCell::m_structureID[t0], .opPutPrivateNameSlow
+
+    loadi OpPutPrivateName::Metadata::m_property[t5], t3
+    bineq t3, t1, .opPutPrivateNameSlow
+
+    # At this point, we have:
+    # t0 -> object base
+    # t2 -> current structure ID
+    # t5 -> metadata
+
+    loadi OpPutPrivateName::Metadata::m_newStructureID[t5], t1
+    btiz t1, .opPutNotTransition
+
+    storei t1, JSCell::m_structureID[t0]
+    writeBarrierOnOperandWithReload(size, get, m_base, macro ()
+        # Reload metadata into t5
+        metadata(t5, t1)
+        # Reload base into t0
+        get(m_base, t1)
+        loadConstantOrVariable(size, t1, t0)
+    end)
+
+.opPutNotTransition:
+    # The only thing live right now is t0, which holds the base.
+    get(m_value, t1)
+    loadConstantOrVariable(size, t1, t2)
+    loadi OpPutPrivateName::Metadata::m_offset[t5], t1
+    storePropertyAtVariableOffset(t1, t0, t2)
+    writeBarrierOnOperands(size, get, m_base, m_value)
+    dispatch()
+
+.opPutPrivateNameSlow:
+    callSlowPath(_llint_slow_path_put_private_name)
+    dispatch()
+end)
+
 macro putByValOp(opcodeName, opcodeStruct, osrExitPoint)
     llintOpWithMetadata(op_%opcodeName%, opcodeStruct, macro (size, get, dispatch, metadata, return)
         macro contiguousPutByVal(storeCallback)
@@ -2961,7 +3014,8 @@ llintOpWithReturn(op_in_structure_property, OpInStructureProperty, macro (size, 
 end)
 
 op(fuzzer_return_early_from_loop_hint, macro ()
-    move ValueUndefined, r0
+    loadp CodeBlock[cfr], t0
+    loadp CodeBlock::m_globalObject[t0], t0
     doReturn()
 end)
 

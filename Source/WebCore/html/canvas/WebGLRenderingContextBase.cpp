@@ -37,6 +37,7 @@
 #include "EXTBlendMinMax.h"
 #include "EXTColorBufferFloat.h"
 #include "EXTColorBufferHalfFloat.h"
+#include "EXTFloatBlend.h"
 #include "EXTFragDepth.h"
 #include "EXTShaderTextureLOD.h"
 #include "EXTTextureFilterAnisotropic.h"
@@ -61,6 +62,7 @@
 #include "NavigatorWebXR.h"
 #include "NotImplemented.h"
 #include "OESElementIndexUint.h"
+#include "OESFBORenderMipmap.h"
 #include "OESStandardDerivatives.h"
 #include "OESTextureFloat.h"
 #include "OESTextureFloatLinear.h"
@@ -81,6 +83,7 @@
 #include "WebGLCompressedTextureETC1.h"
 #include "WebGLCompressedTexturePVRTC.h"
 #include "WebGLCompressedTextureS3TC.h"
+#include "WebGLCompressedTextureS3TCsRGB.h"
 #include "WebGLContextAttributes.h"
 #include "WebGLContextEvent.h"
 #include "WebGLContextGroup.h"
@@ -751,7 +754,8 @@ WebGLRenderingContextBase::WebGLRenderingContextBase(CanvasBase& canvas, WebGLCo
     m_restoreTimer.suspendIfNeeded();
 
     registerWithWebGLStateTracker();
-    m_checkForContextLossHandlingTimer.startOneShot(checkContextLossHandlingDelay);
+    if (canvas.isHTMLCanvasElement())
+        m_checkForContextLossHandlingTimer.startOneShot(checkContextLossHandlingDelay);
 }
 
 WebGLRenderingContextBase::WebGLRenderingContextBase(CanvasBase& canvas, Ref<GraphicsContextGLOpenGL>&& context, WebGLContextAttributes attributes)
@@ -778,7 +782,8 @@ WebGLRenderingContextBase::WebGLRenderingContextBase(CanvasBase& canvas, Ref<Gra
     setupFlags();
 
     registerWithWebGLStateTracker();
-    m_checkForContextLossHandlingTimer.startOneShot(checkContextLossHandlingDelay);
+    if (canvas.isHTMLCanvasElement())
+        m_checkForContextLossHandlingTimer.startOneShot(checkContextLossHandlingDelay);
 
     addActivityStateChangeObserverIfNecessary();
 }
@@ -1066,26 +1071,30 @@ void WebGLRenderingContextBase::markContextChanged()
     m_context->markContextChanged();
 
     m_layerCleared = false;
+    m_compositingResultsNeedUpdating = true;
 
-    auto* canvas = htmlCanvas();
-    if (!canvas)
-        return;
-
-    RenderBox* renderBox = canvas->renderBox();
-    if (isAccelerated() && renderBox && renderBox->hasAcceleratedCompositing()) {
-        m_markedCanvasDirty = true;
-        htmlCanvas()->clearCopiedImage();
-        renderBox->contentChanged(CanvasPixelsChanged);
-    } else {
-        if (!m_markedCanvasDirty) {
+    if (auto* canvas = htmlCanvas()) {
+        RenderBox* renderBox = canvas->renderBox();
+        if (isAccelerated() && renderBox && renderBox->hasAcceleratedCompositing()) {
             m_markedCanvasDirty = true;
-            canvas->didDraw(FloatRect(FloatPoint(0, 0), clampedCanvasSize()));
+            canvas->clearCopiedImage();
+            renderBox->contentChanged(CanvasPixelsChanged);
+            return;
         }
+    }
+
+    if (!m_markedCanvasDirty) {
+        m_markedCanvasDirty = true;
+        canvasBase().didDraw(FloatRect(FloatPoint(0, 0), clampedCanvasSize()));
     }
 }
 
 void WebGLRenderingContextBase::markContextChangedAndNotifyCanvasObserver()
 {
+    // If we're not touching the default framebuffer, nothing visible has changed.
+    if (m_framebufferBinding)
+        return;
+
     markContextChanged();
     if (!isAccelerated())
         return;
@@ -1094,9 +1103,7 @@ void WebGLRenderingContextBase::markContextChangedAndNotifyCanvasObserver()
     if (!canvas)
         return;
 
-    RenderBox* renderBox = canvas->renderBox();
-    if (renderBox && renderBox->hasAcceleratedCompositing())
-        canvas->notifyObserversCanvasChanged(FloatRect(FloatPoint(0, 0), clampedCanvasSize()));
+    canvas->notifyObserversCanvasChanged(FloatRect(FloatPoint(0, 0), clampedCanvasSize()));
 }
 
 bool WebGLRenderingContextBase::clearIfComposited(GCGLbitfield mask)
@@ -1188,30 +1195,31 @@ void WebGLRenderingContextBase::paintRenderingResultsToCanvas()
     if (isContextLostOrPending())
         return;
 
-    auto* canvas = htmlCanvas();
-    if (!canvas)
-        return;
+    if (auto* canvas = htmlCanvas()) {
+        if (canvas->document().printing() || (canvas->isSnapshotting() && canvas->document().page()->isVisible()))
+            canvas->clearPresentationCopy();
 
-    if (canvas->document().printing() || (canvas->isSnapshotting() && canvas->document().page()->isVisible()))
-        canvas->clearPresentationCopy();
+        // Until the canvas is written to by the application, the clear that
+        // happened after it was composited should be ignored by the compositor.
+        if (m_context->layerComposited() && !m_attributes.preserveDrawingBuffer) {
+            m_context->paintRenderingResultsToCanvas(canvas->buffer());
 
-    // Until the canvas is written to by the application, the clear that
-    // happened after it was composited should be ignored by the compositor.
-    if (m_context->layerComposited() && !m_attributes.preserveDrawingBuffer) {
-        m_context->paintRenderingResultsToCanvas(canvas->buffer());
+            canvas->makePresentationCopy();
+        } else
+            canvas->clearPresentationCopy();
+    }
 
-        canvas->makePresentationCopy();
-    } else
-        canvas->clearPresentationCopy();
     clearIfComposited();
 
     if (!m_markedCanvasDirty && !m_layerCleared)
         return;
 
-    canvas->clearCopiedImage();
+    auto& base = canvasBase();
+    base.clearCopiedImage();
+
     m_markedCanvasDirty = false;
 
-    m_context->paintRenderingResultsToCanvas(canvas->buffer());
+    m_context->paintRenderingResultsToCanvas(base.buffer());
 }
 
 RefPtr<ImageData> WebGLRenderingContextBase::paintRenderingResultsToImageData()
@@ -2717,8 +2725,8 @@ void WebGLRenderingContextBase::framebufferTexture2D(GCGLenum target, GCGLenum a
 {
     if (isContextLostOrPending() || !validateFramebufferFuncParameters("framebufferTexture2D", target, attachment))
         return;
-    if (level && isWebGL1()) {
-        synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "framebufferTexture2D", "level not 0");
+    if (level && isWebGL1() && !m_oesFBORenderMipmap) {
+        synthesizeGLError(GraphicsContextGL::INVALID_VALUE, "framebufferTexture2D", "level not 0 and OES_fbo_render_mipmap not enabled");
         return;
     }
     if (texture && !texture->validate(contextGroup(), *this)) {
@@ -3716,6 +3724,7 @@ bool WebGLRenderingContextBase::extensionIsEnabled(const String& name)
     CHECK_EXTENSION(m_oesStandardDerivatives, "OES_standard_derivatives");
     CHECK_EXTENSION(m_oesVertexArrayObject, "OES_vertex_array_object");
     CHECK_EXTENSION(m_oesElementIndexUint, "OES_element_index_uint");
+    CHECK_EXTENSION(m_oesFBORenderMipmap, "OES_fbo_render_mipmap");
     CHECK_EXTENSION(m_webglLoseContext, "WEBGL_lose_context");
     CHECK_EXTENSION(m_webglDebugRendererInfo, "WEBGL_debug_renderer_info");
     CHECK_EXTENSION(m_webglDebugShaders, "WEBGL_debug_shaders");
@@ -3725,10 +3734,12 @@ bool WebGLRenderingContextBase::extensionIsEnabled(const String& name)
     CHECK_EXTENSION(m_webglCompressedTextureETC1, "WEBGL_compressed_texture_etc1");
     CHECK_EXTENSION(m_webglCompressedTexturePVRTC, "WEBKIT_WEBGL_compressed_texture_pvrtc");
     CHECK_EXTENSION(m_webglCompressedTextureS3TC, "WEBGL_compressed_texture_s3tc");
+    CHECK_EXTENSION(m_webglCompressedTextureS3TCsRGB, "WEBGL_compressed_texture_s3tc_srgb");
     CHECK_EXTENSION(m_webglDepthTexture, "WEBGL_depth_texture");
     CHECK_EXTENSION(m_webglDrawBuffers, "WEBGL_draw_buffers");
     CHECK_EXTENSION(m_angleInstancedArrays, "ANGLE_instanced_arrays");
     CHECK_EXTENSION(m_extColorBufferHalfFloat, "EXT_color_buffer_half_float");
+    CHECK_EXTENSION(m_extFloatBlend, "EXT_float_blend");
     CHECK_EXTENSION(m_webglColorBufferFloat, "WEBGL_color_buffer_float");
     CHECK_EXTENSION(m_extColorBufferFloat, "EXT_color_buffer_float");
     return false;
@@ -6612,6 +6623,8 @@ bool WebGLRenderingContextBase::validateCompressedTexFuncData(const char* functi
     switch (format) {
     case ExtensionsGL::COMPRESSED_RGB_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_ATC_RGB_AMD:
     case ExtensionsGL::ETC1_RGB8_OES: {
         const int kBlockSize = 8;
@@ -6624,6 +6637,8 @@ bool WebGLRenderingContextBase::validateCompressedTexFuncData(const char* functi
     }
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT3_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT5_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT:
     case ExtensionsGL::COMPRESSED_ATC_RGBA_EXPLICIT_ALPHA_AMD:
     case ExtensionsGL::COMPRESSED_ATC_RGBA_INTERPOLATED_ALPHA_AMD:
         {
@@ -6734,7 +6749,11 @@ bool WebGLRenderingContextBase::validateCompressedTexDimensions(const char* func
     case ExtensionsGL::COMPRESSED_RGB_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT3_EXT:
-    case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT5_EXT: {
+    case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT5_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT: {
         const GCGLsizei kBlockWidth = 4;
         const GCGLsizei kBlockHeight = 4;
         const GCGLint maxTextureSize = target ? m_maxTextureSize : m_maxCubeMapTextureSize;
@@ -6814,7 +6833,11 @@ bool WebGLRenderingContextBase::validateCompressedTexSubDimensions(const char* f
     case ExtensionsGL::COMPRESSED_RGB_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT1_EXT:
     case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT3_EXT:
-    case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT5_EXT: {
+    case ExtensionsGL::COMPRESSED_RGBA_S3TC_DXT5_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT:
+    case ExtensionsGL::COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT: {
         const int kBlockWidth = 4;
         const int kBlockHeight = 4;
         if ((xoffset % kBlockWidth) || (yoffset % kBlockHeight)) {
@@ -7770,6 +7793,7 @@ void WebGLRenderingContextBase::loseExtensions(LostContextMode mode)
     LOSE_EXTENSION(m_oesStandardDerivatives);
     LOSE_EXTENSION(m_oesVertexArrayObject);
     LOSE_EXTENSION(m_oesElementIndexUint);
+    LOSE_EXTENSION(m_oesFBORenderMipmap);
     LOSE_EXTENSION(m_webglLoseContext);
     LOSE_EXTENSION(m_webglDebugRendererInfo);
     LOSE_EXTENSION(m_webglDebugShaders);
@@ -7783,6 +7807,7 @@ void WebGLRenderingContextBase::loseExtensions(LostContextMode mode)
     LOSE_EXTENSION(m_webglDrawBuffers);
     LOSE_EXTENSION(m_angleInstancedArrays);
     LOSE_EXTENSION(m_extColorBufferHalfFloat);
+    LOSE_EXTENSION(m_extFloatBlend);
     LOSE_EXTENSION(m_webglColorBufferFloat);
     LOSE_EXTENSION(m_extColorBufferFloat);
 }
@@ -7807,6 +7832,8 @@ void WebGLRenderingContextBase::setFailNextGPUStatusCheck()
 
 void WebGLRenderingContextBase::didComposite()
 {
+    m_compositingResultsNeedUpdating = false;
+
     if (UNLIKELY(callTracingActive()))
         InspectorInstrumentation::didFinishRecordingCanvasFrame(*this);
 }

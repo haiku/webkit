@@ -109,10 +109,6 @@
 #include <WebCore/MediaPlaybackTargetContext.h>
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include <WebCore/MediaSessionMetadata.h>
-#endif
-
 #if ENABLE(MEDIA_STREAM)
 #include <WebCore/CaptureDevice.h>
 #include <WebCore/MediaConstraints.h>
@@ -1180,69 +1176,58 @@ bool ArgumentCoder<NativeImageHandle>::decode(Decoder& decoder, NativeImageHandl
     return decodeOptionalNativeImage(decoder, imageHandle.image);
 }
 
-void ArgumentCoder<FontHandle>::encode(Encoder& encoder, const FontHandle& handle)
+void ArgumentCoder<Ref<Font>>::encode(Encoder& encoder, const Ref<WebCore::Font>& font)
 {
-    encoder << !!handle.font;
-    if (!handle.font)
-        return;
-
-    auto* fontFaceData = handle.font->fontFaceData();
-    encoder << !!fontFaceData;
+    auto* fontFaceData = font->fontFaceData();
+    encoder << static_cast<bool>(fontFaceData);
     if (fontFaceData) {
         encodeSharedBuffer(encoder, fontFaceData);
-        auto& data = handle.font->platformData();
+        auto& data = font->platformData();
         encoder << data.size();
         encoder << data.syntheticBold();
         encoder << data.syntheticOblique();
     }
 
-    encodePlatformData(encoder, handle);
+    encodePlatformData(encoder, font);
 }
 
-bool ArgumentCoder<FontHandle>::decode(Decoder& decoder, FontHandle& handle)
+Optional<Ref<Font>> ArgumentCoder<Ref<Font>>::decode(Decoder& decoder)
 {
-    Optional<bool> hasFont;
-    decoder >> hasFont;
-    if (!hasFont.hasValue())
-        return false;
-
-    if (!hasFont.value())
-        return true;
-
     Optional<bool> hasFontFaceData;
     decoder >> hasFontFaceData;
     if (!hasFontFaceData.hasValue())
-        return false;
+        return WTF::nullopt;
 
+    Optional<Ref<WebCore::Font>> result;
     if (hasFontFaceData.value()) {
         RefPtr<SharedBuffer> fontFaceData;
         if (!decodeSharedBuffer(decoder, fontFaceData))
-            return false;
+            return WTF::nullopt;
 
         if (!fontFaceData)
-            return false;
+            return WTF::nullopt;
 
         Optional<float> fontSize;
         decoder >> fontSize;
         if (!fontSize)
-            return false;
+            return WTF::nullopt;
 
         Optional<bool> syntheticBold;
         decoder >> syntheticBold;
         if (!syntheticBold)
-            return false;
+            return WTF::nullopt;
 
         Optional<bool> syntheticItalic;
         decoder >> syntheticItalic;
         if (!syntheticItalic)
-            return false;
+            return WTF::nullopt;
 
         FontDescription description;
         description.setComputedSize(*fontSize);
-        handle = { fontFaceData.releaseNonNull(), Font::Origin::Remote, *fontSize, *syntheticBold, *syntheticItalic };
+        result = Font::create(fontFaceData.releaseNonNull(), Font::Origin::Remote, *fontSize, *syntheticBold, *syntheticItalic);
     }
 
-    return decodePlatformData(decoder, handle);
+    return decodePlatformData(decoder, WTFMove(result));
 }
 
 void ArgumentCoder<Cursor>::encode(Encoder& encoder, const Cursor& cursor)
@@ -2116,32 +2101,6 @@ bool ArgumentCoder<UserStyleSheet>::decode(Decoder& decoder, UserStyleSheet& use
     userStyleSheet = UserStyleSheet(source, url, WTFMove(allowlist), WTFMove(blocklist), injectedFrames, level, WTFMove(*pageID));
     return true;
 }
-
-#if ENABLE(MEDIA_SESSION)
-void ArgumentCoder<MediaSessionMetadata>::encode(Encoder& encoder, const MediaSessionMetadata& result)
-{
-    encoder << result.artist();
-    encoder << result.album();
-    encoder << result.title();
-    encoder << result.artworkURL();
-}
-
-bool ArgumentCoder<MediaSessionMetadata>::decode(Decoder& decoder, MediaSessionMetadata& result)
-{
-    String artist, album, title;
-    URL artworkURL;
-    if (!decoder.decode(artist))
-        return false;
-    if (!decoder.decode(album))
-        return false;
-    if (!decoder.decode(title))
-        return false;
-    if (!decoder.decode(artworkURL))
-        return false;
-    result = MediaSessionMetadata(title, artist, album, artworkURL);
-    return true;
-}
-#endif
 
 void ArgumentCoder<ScrollableAreaParameters>::encode(Encoder& encoder, const ScrollableAreaParameters& parameters)
 {

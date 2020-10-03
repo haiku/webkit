@@ -28,7 +28,6 @@
 #include "config.h"
 #include "PseudoElement.h"
 
-#include "CSSAnimationController.h"
 #include "ContentData.h"
 #include "DocumentTimeline.h"
 #include "InspectorInstrumentation.h"
@@ -91,11 +90,8 @@ void PseudoElement::clearHostElement()
     InspectorInstrumentation::pseudoElementDestroyed(document().page(), *this);
 
     if (auto* timeline = document().existingTimeline())
-        timeline->elementWasRemoved(*this);
+        timeline->elementWasRemoved(Styleable::fromElement(*this));
     
-    if (auto* frame = document().frame())
-        frame->legacyAnimation().cancelAnimations(*this);
-
     m_hostElement = nullptr;
 }
 
@@ -106,8 +102,10 @@ bool PseudoElement::rendererIsNeeded(const RenderStyle& style)
 
 bool PseudoElement::isTargetedByKeyframeEffectRequiringPseudoElement()
 {
-    if (auto* stack = keyframeEffectStack())
-        return stack->requiresPseudoElement();
+    if (m_hostElement) {
+        if (auto* stack = m_hostElement->keyframeEffectStack(pseudoId()))
+            return stack->requiresPseudoElement();
+    }
     return false;
 }
 

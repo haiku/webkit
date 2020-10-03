@@ -20,6 +20,11 @@ if (ENABLE_XSLT)
     find_package(LibXslt 1.1.32 REQUIRED)
 endif ()
 
+if (ENABLE_WEBGPU)
+    find_package(Dawn REQUIRED COMPONENTS dawn native OPTIONAL_COMPONENTS wire)
+    SET_AND_EXPOSE_TO_BUILD(USE_DAWN ON)
+endif ()
+
 # Optional packages
 find_package(OpenJPEG 2.3.1)
 if (OpenJPEG_FOUND)
@@ -79,6 +84,7 @@ set(JavaScriptCore_DERIVED_SOURCES_DIR ${CMAKE_BINARY_DIR}/JavaScriptCore/Derive
 set(WebCore_DERIVED_SOURCES_DIR ${CMAKE_BINARY_DIR}/WebCore/DerivedSources)
 set(WebKitLegacy_DERIVED_SOURCES_DIR ${CMAKE_BINARY_DIR}/WebKitLegacy/DerivedSources)
 set(WebKit_DERIVED_SOURCES_DIR ${CMAKE_BINARY_DIR}/WebKit/DerivedSources)
+set(TestRunnerShared_DERIVED_SOURCES_DIR ${CMAKE_BINARY_DIR}/TestRunnerShared/DerivedSources)
 
 # Override scripts directories
 set(WTF_SCRIPTS_DIR ${CMAKE_BINARY_DIR}/WTF/Scripts)

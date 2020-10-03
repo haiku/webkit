@@ -22,7 +22,6 @@ MediaController conditional=VIDEO
 MediaDevices conditional=MEDIA_STREAM
 MediaKeySession conditional=ENCRYPTED_MEDIA
 MediaQueryList
-MediaRemoteControls conditional=MEDIA_SESSION
 MediaRecorder conditional=MEDIA_STREAM
 MediaSource conditional=MEDIA_SOURCE
 MediaStream conditional=MEDIA_STREAM
@@ -56,7 +55,7 @@ WebGPUDevice conditional=WEBGPU
 WebKitMediaKeySession conditional=LEGACY_ENCRYPTED_MEDIA
 WebSocket
 Worker
-WorkletGlobalScope conditional=CSS_PAINTING_API
+WorkletGlobalScope
 XMLHttpRequest
 XMLHttpRequestUpload
 WebXRLayer conditional=WEBXR

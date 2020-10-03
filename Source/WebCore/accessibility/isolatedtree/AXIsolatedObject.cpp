@@ -197,7 +197,7 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::SupportsExpandedTextValue, object.supportsExpandedTextValue());
     setProperty(AXPropertyName::SupportsPressAction, object.supportsPressAction());
     setProperty(AXPropertyName::ClickPoint, object.clickPoint());
-    setProperty(AXPropertyName::ComputedRoleString, object.computedRoleString());
+    setProperty(AXPropertyName::ComputedRoleString, object.computedRoleString().isolatedCopy());
     setProperty(AXPropertyName::ValueAutofillButtonType, static_cast<int>(object.valueAutofillButtonType()));
     setProperty(AXPropertyName::URL, object.url().isolatedCopy());
     setProperty(AXPropertyName::AccessKey, object.accessKey());
@@ -206,7 +206,7 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::AutoCompleteValue, object.autoCompleteValue());
     setProperty(AXPropertyName::SpeakAs, object.speakAsProperty());
     setProperty(AXPropertyName::StringValue, object.stringValue().isolatedCopy());
-#if PLATFORM(COCOA) && !PLATFORM(IOS_FAMILY)
+#if PLATFORM(MAC)
     setProperty(AXPropertyName::CaretBrowsingEnabled, object.caretBrowsingEnabled());
 #endif
     setObjectProperty(AXPropertyName::FocusableAncestor, object.focusableAncestor());
@@ -229,7 +229,9 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     setProperty(AXPropertyName::HasPlainText, object.hasPlainText());
     setProperty(AXPropertyName::HasUnderline, object.hasUnderline());
     setProperty(AXPropertyName::IsKeyboardFocusable, object.isKeyboardFocusable());
-    
+    setObjectProperty(AXPropertyName::NextSibling, object.nextSibling());
+    setObjectProperty(AXPropertyName::PreviousSibling, object.previousSibling());
+
     if (object.isTable()) {
         setProperty(AXPropertyName::IsTable, true);
         setProperty(AXPropertyName::IsExposable, object.isExposable());
@@ -282,9 +284,11 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
     if (object.isTextControl())
         setProperty(AXPropertyName::TextLength, object.textLength());
 
-    AccessibilityChildrenVector selectedChildren;
-    object.selectedChildren(selectedChildren);
-    setObjectVectorProperty(AXPropertyName::SelectedChildren, selectedChildren);
+    if (object.canHaveSelectedChildren()) {
+        AccessibilityChildrenVector selectedChildren;
+        object.selectedChildren(selectedChildren);
+        setObjectVectorProperty(AXPropertyName::SelectedChildren, selectedChildren);
+    }
 
     AccessibilityChildrenVector visibleChildren;
     object.visibleChildren(visibleChildren);
@@ -328,12 +332,10 @@ void AXIsolatedObject::initializeAttributeData(AXCoreObject& object, bool isRoot
 
     Vector<AccessibilityText> texts;
     object.accessibilityText(texts);
-    Vector<AccessibilityIsolatedTreeText> isolatedTexts;
+    Vector<AccessibilityText> isolatedTexts;
     isolatedTexts.reserveCapacity(texts.size());
-    for (auto text : texts) {
-        AccessibilityIsolatedTreeText isolatedText;
-        isolatedText.text = text.text;
-        isolatedText.textSource = text.textSource;
+    for (const auto& text : texts) {
+        AccessibilityText isolatedText(text.text.isolatedCopy(), text.textSource);
         isolatedTexts.uncheckedAppend(isolatedText);
     }
     setProperty(AXPropertyName::AccessibilityText, isolatedTexts);
@@ -414,11 +416,11 @@ void AXIsolatedObject::setMathscripts(AXPropertyName propertyName, AXCoreObject&
     size_t mathSize = pairs.size();
     if (!mathSize)
         return;
-    
-    Vector<AccessibilityIsolatedTreeMathMultiscriptPair> idPairs;
+
+    Vector<std::pair<AXID, AXID>> idPairs;
     idPairs.reserveCapacity(mathSize);
     for (auto mathPair : pairs) {
-        AccessibilityIsolatedTreeMathMultiscriptPair idPair;
+        std::pair<AXID, AXID> idPair;
         if (mathPair.first)
             idPair.first = mathPair.first->objectID();
         if (mathPair.second)
@@ -450,14 +452,12 @@ void AXIsolatedObject::setObjectVectorProperty(AXPropertyName propertyName, cons
     setProperty(propertyName, childIDs);
 }
 
-void AXIsolatedObject::setProperty(AXPropertyName propertyName, AttributeValueVariant&& value, bool shouldRemove)
+void AXIsolatedObject::setProperty(AXPropertyName propertyName, AXPropertyValueVariant&& value, bool shouldRemove)
 {
-    ASSERT(isMainThread());
-
     if (shouldRemove)
-        m_attributeMap.remove(propertyName);
+        m_propertyMap.remove(propertyName);
     else
-        m_attributeMap.set(propertyName, value);
+        m_propertyMap.set(propertyName, value);
 }
 
 void AXIsolatedObject::setParent(AXID parent)
@@ -526,11 +526,7 @@ AXCoreObject* AXIsolatedObject::cellForColumnAndRow(unsigned columnIndex, unsign
 
 void AXIsolatedObject::accessibilityText(Vector<AccessibilityText>& texts) const
 {
-    auto isolatedTexts = vectorAttributeValue<AccessibilityIsolatedTreeText>(AXPropertyName::AccessibilityText);
-    for (const auto& isolatedText : isolatedTexts) {
-        AccessibilityText text(isolatedText.text, isolatedText.textSource);
-        texts.append(text);
-    }
+    texts = vectorAttributeValue<AccessibilityText>(AXPropertyName::AccessibilityText);
 }
 
 void AXIsolatedObject::classList(Vector<String>& list) const
@@ -567,7 +563,7 @@ String AXIsolatedObject::documentEncoding() const
     return String();
 }
 
-void AXIsolatedObject::insertMathPairs(Vector<AccessibilityIsolatedTreeMathMultiscriptPair>& isolatedPairs, AccessibilityMathMultiscriptPairs& pairs)
+void AXIsolatedObject::insertMathPairs(Vector<std::pair<AXID, AXID>>& isolatedPairs, AccessibilityMathMultiscriptPairs& pairs)
 {
     for (const auto& pair : isolatedPairs) {
         AccessibilityMathMultiscriptPair prescriptPair;
@@ -581,13 +577,13 @@ void AXIsolatedObject::insertMathPairs(Vector<AccessibilityIsolatedTreeMathMulti
 
 void AXIsolatedObject::mathPrescripts(AccessibilityMathMultiscriptPairs& pairs)
 {
-    auto isolatedPairs = vectorAttributeValue<AccessibilityIsolatedTreeMathMultiscriptPair>(AXPropertyName::MathPrescripts);
+    auto isolatedPairs = vectorAttributeValue<std::pair<AXID, AXID>>(AXPropertyName::MathPrescripts);
     insertMathPairs(isolatedPairs, pairs);
 }
 
 void AXIsolatedObject::mathPostscripts(AccessibilityMathMultiscriptPairs& pairs)
 {
-    auto isolatedPairs = vectorAttributeValue<AccessibilityIsolatedTreeMathMultiscriptPair>(AXPropertyName::MathPostscripts);
+    auto isolatedPairs = vectorAttributeValue<std::pair<AXID, AXID>>(AXPropertyName::MathPostscripts);
     insertMathPairs(isolatedPairs, pairs);
 }
 
@@ -729,7 +725,7 @@ AXCoreObject* AXIsolatedObject::accessibilityHitTest(const IntPoint& point) cons
 
 IntPoint AXIsolatedObject::intPointAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (IntPoint& typedValue) { return typedValue; },
         [] (auto&) { return IntPoint(); }
@@ -738,7 +734,7 @@ IntPoint AXIsolatedObject::intPointAttributeValue(AXPropertyName propertyName) c
 
 AXCoreObject* AXIsolatedObject::objectAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     AXID nodeID = WTF::switchOn(value,
         [] (AXID& typedValue) { return typedValue; },
         [] (auto&) { return InvalidAXID; }
@@ -750,7 +746,7 @@ AXCoreObject* AXIsolatedObject::objectAttributeValue(AXPropertyName propertyName
 template<typename T>
 T AXIsolatedObject::rectAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (T& typedValue) { return typedValue; },
         [] (auto&) { return T { }; }
@@ -760,7 +756,7 @@ T AXIsolatedObject::rectAttributeValue(AXPropertyName propertyName) const
 template<typename T>
 Vector<T> AXIsolatedObject::vectorAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (Vector<T>& typedValue) { return typedValue; },
         [] (auto&) { return Vector<T>(); }
@@ -770,7 +766,7 @@ Vector<T> AXIsolatedObject::vectorAttributeValue(AXPropertyName propertyName) co
 template<typename T>
 OptionSet<T> AXIsolatedObject::optionSetAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (T& typedValue) { return typedValue; },
         [] (auto&) { return OptionSet<T>(); }
@@ -780,7 +776,7 @@ OptionSet<T> AXIsolatedObject::optionSetAttributeValue(AXPropertyName propertyNa
 template<typename T>
 std::pair<T, T> AXIsolatedObject::pairAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (std::pair<T, T>& typedValue) { return typedValue; },
         [] (auto&) { return std::pair<T, T>(0, 1); }
@@ -789,7 +785,7 @@ std::pair<T, T> AXIsolatedObject::pairAttributeValue(AXPropertyName propertyName
 
 uint64_t AXIsolatedObject::uint64AttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (uint64_t& typedValue) { return typedValue; },
         [] (auto&) { return 0; }
@@ -798,7 +794,7 @@ uint64_t AXIsolatedObject::uint64AttributeValue(AXPropertyName propertyName) con
 
 URL AXIsolatedObject::urlAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (URL& typedValue) { return typedValue; },
         [] (auto&) { return URL(); }
@@ -807,7 +803,7 @@ URL AXIsolatedObject::urlAttributeValue(AXPropertyName propertyName) const
 
 Path AXIsolatedObject::pathAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (Path& typedValue) { return typedValue; },
         [] (auto&) { return Path(); }
@@ -816,7 +812,7 @@ Path AXIsolatedObject::pathAttributeValue(AXPropertyName propertyName) const
 
 Color AXIsolatedObject::colorAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (Color& typedValue) { return typedValue; },
         [] (auto&) { return Color(); }
@@ -825,7 +821,7 @@ Color AXIsolatedObject::colorAttributeValue(AXPropertyName propertyName) const
 
 float AXIsolatedObject::floatAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (float& typedValue) { return typedValue; },
         [] (auto&) { return 0; }
@@ -834,7 +830,7 @@ float AXIsolatedObject::floatAttributeValue(AXPropertyName propertyName) const
 
 double AXIsolatedObject::doubleAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (double& typedValue) { return typedValue; },
         [] (auto&) { return 0; }
@@ -843,7 +839,7 @@ double AXIsolatedObject::doubleAttributeValue(AXPropertyName propertyName) const
 
 unsigned AXIsolatedObject::unsignedAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (unsigned& typedValue) { return typedValue; },
         [] (auto&) { return 0; }
@@ -852,7 +848,7 @@ unsigned AXIsolatedObject::unsignedAttributeValue(AXPropertyName propertyName) c
 
 bool AXIsolatedObject::boolAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (bool& typedValue) { return typedValue; },
         [] (auto&) { return false; }
@@ -861,7 +857,7 @@ bool AXIsolatedObject::boolAttributeValue(AXPropertyName propertyName) const
 
 String AXIsolatedObject::stringAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (String& typedValue) { return typedValue; },
         [] (auto&) { return emptyString(); }
@@ -870,7 +866,7 @@ String AXIsolatedObject::stringAttributeValue(AXPropertyName propertyName) const
 
 int AXIsolatedObject::intAttributeValue(AXPropertyName propertyName) const
 {
-    auto value = m_attributeMap.get(propertyName);
+    auto value = m_propertyMap.get(propertyName);
     return WTF::switchOn(value,
         [] (int& typedValue) { return typedValue; },
         [] (auto&) { return 0; }
@@ -1426,18 +1422,6 @@ AXCoreObject* AXIsolatedObject::firstChild() const
 }
 
 AXCoreObject* AXIsolatedObject::lastChild() const
-{
-    ASSERT_NOT_REACHED();
-    return nullptr;
-}
-
-AXCoreObject* AXIsolatedObject::previousSibling() const
-{
-    ASSERT_NOT_REACHED();
-    return nullptr;
-}
-
-AXCoreObject* AXIsolatedObject::nextSibling() const
 {
     ASSERT_NOT_REACHED();
     return nullptr;

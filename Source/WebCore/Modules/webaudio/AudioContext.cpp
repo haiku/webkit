@@ -58,7 +58,18 @@ constexpr unsigned maxHardwareContexts = 4;
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(AudioContext);
 
-ExceptionOr<Ref<AudioContext>> AudioContext::create(Document& document, const AudioContextOptions& contextOptions)
+static Optional<float>& defaultSampleRateForTesting()
+{
+    static Optional<float> sampleRate;
+    return sampleRate;
+}
+
+void AudioContext::setDefaultSampleRateForTesting(Optional<float> sampleRate)
+{
+    defaultSampleRateForTesting() = sampleRate;
+}
+
+ExceptionOr<Ref<AudioContext>> AudioContext::create(Document& document, AudioContextOptions&& contextOptions)
 {
     ASSERT(isMainThread());
 #if OS(WINDOWS)
@@ -71,6 +82,9 @@ ExceptionOr<Ref<AudioContext>> AudioContext::create(Document& document, const Au
     
     // FIXME: Figure out where latencyHint should go.
 
+    if (!contextOptions.sampleRate && defaultSampleRateForTesting())
+        contextOptions.sampleRate = *defaultSampleRateForTesting();
+
     if (contextOptions.sampleRate.hasValue() && !isSupportedSampleRate(contextOptions.sampleRate.value()))
         return Exception { SyntaxError, "sampleRate is not in range"_s };
     
@@ -82,12 +96,6 @@ ExceptionOr<Ref<AudioContext>> AudioContext::create(Document& document, const Au
 // Constructor for rendering to the audio hardware.
 AudioContext::AudioContext(Document& document, const AudioContextOptions& contextOptions)
     : BaseAudioContext(document, contextOptions)
-{
-}
-
-// Constructor for offline (non-realtime) rendering.
-AudioContext::AudioContext(Document& document, AudioBuffer* renderTarget)
-    : BaseAudioContext(document, renderTarget)
 {
 }
 

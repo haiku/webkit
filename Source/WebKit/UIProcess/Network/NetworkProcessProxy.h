@@ -46,10 +46,15 @@
 
 #if PLATFORM(COCOA)
 #include "XPCEventHandler.h"
+#include <wtf/OSObjectPtr.h>
 #endif
 
 namespace IPC {
 class FormDataReference;
+}
+
+namespace API {
+class CustomProtocolManagerClient;
 }
 
 namespace PAL {
@@ -73,8 +78,8 @@ namespace WebKit {
 
 class DownloadProxy;
 class DownloadProxyMap;
+class WebCookieManagerProxy;
 class WebPageProxy;
-class WebProcessPool;
 class WebUserContentControllerProxy;
 
 enum class ShouldGrandfatherStatistics : bool;
@@ -86,8 +91,9 @@ struct FrameInfoData;
 struct NetworkProcessCreationParameters;
 struct ResourceLoadInfo;
 struct WebsiteData;
+struct WebsiteDataStoreParameters;
 
-class NetworkProcessProxy final : public AuxiliaryProcessProxy, private ProcessThrottlerClient, public CanMakeWeakPtr<NetworkProcessProxy> {
+class NetworkProcessProxy final : public AuxiliaryProcessProxy, private ProcessThrottlerClient, public CanMakeWeakPtr<NetworkProcessProxy>, public RefCounted<NetworkProcessProxy> {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     using RegistrableDomain = WebCore::RegistrableDomain;
@@ -102,12 +108,18 @@ public:
     using DomainInNeedOfStorageAccess = WebCore::RegistrableDomain;
     using OpenerDomain = WebCore::RegistrableDomain;
 
-    explicit NetworkProcessProxy(WebProcessPool&);
+    static Ref<NetworkProcessProxy> defaultNetworkProcess();
+    static Ref<NetworkProcessProxy> create() { return adoptRef(*new NetworkProcessProxy); }
     ~NetworkProcessProxy();
+
+    static Vector<Ref<NetworkProcessProxy>> allNetworkProcesses();
+    
+    void terminate() final;
+    void didTerminate();
 
     void getNetworkProcessConnection(WebProcessProxy&, Messages::WebProcessProxy::GetNetworkProcessConnectionDelayedReply&&);
 
-    DownloadProxy& createDownloadProxy(WebsiteDataStore&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy* originatingPage);
+    DownloadProxy& createDownloadProxy(WebsiteDataStore&, WebProcessPool&, const WebCore::ResourceRequest&, const FrameInfoData&, WebPageProxy* originatingPage);
 
     void fetchWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, OptionSet<WebsiteDataFetchOption>, CompletionHandler<void(WebsiteData)>&&);
     void deleteWebsiteData(PAL::SessionID, OptionSet<WebsiteDataType>, WallTime modifiedSince, CompletionHandler<void()>&& completionHandler);
@@ -142,7 +154,6 @@ public:
     void setAgeCapForClientSideCookies(PAL::SessionID, Optional<Seconds>, CompletionHandler<void()>&&);
     void setCacheMaxAgeCap(PAL::SessionID, Seconds, CompletionHandler<void()>&&);
     void setGrandfathered(PAL::SessionID, const RegistrableDomain&, bool isGrandfathered, CompletionHandler<void()>&&);
-    void setUseITPDatabase(PAL::SessionID, bool value, CompletionHandler<void()>&&);
     void setNotifyPagesWhenDataRecordsWereScanned(PAL::SessionID, bool, CompletionHandler<void()>&&);
     void setIsRunningResourceLoadStatisticsTest(PAL::SessionID, bool, CompletionHandler<void()>&&);
     void setSubframeUnderTopFrameDomain(PAL::SessionID, const SubFrameDomain&, const TopFrameDomain&, CompletionHandler<void()>&&);
@@ -179,7 +190,9 @@ public:
     void deleteCookiesForTesting(PAL::SessionID, const RegistrableDomain&, bool includeHttpOnlyCookies, CompletionHandler<void()>&&);
     void deleteWebsiteDataInUIProcessForRegistrableDomains(PAL::SessionID, OptionSet<WebsiteDataType>, OptionSet<WebsiteDataFetchOption>, Vector<RegistrableDomain>, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&&);
     void hasIsolatedSession(PAL::SessionID, const RegistrableDomain&, CompletionHandler<void(bool)>&&);
+#if ENABLE(APP_BOUND_DOMAINS)
     void setAppBoundDomainsForResourceLoadStatistics(PAL::SessionID, const HashSet<RegistrableDomain>&, CompletionHandler<void()>&&);
+#endif
     void setShouldDowngradeReferrerForTesting(bool, CompletionHandler<void()>&&);
     void setThirdPartyCookieBlockingMode(PAL::SessionID, WebCore::ThirdPartyCookieBlockingMode, CompletionHandler<void()>&&);
     void setShouldEnbleSameSiteStrictEnforcementForTesting(PAL::SessionID, WebCore::SameSiteStrictEnforcementEnabled, CompletionHandler<void()>&&);
@@ -196,8 +209,7 @@ public:
 
     void setIsHoldingLockedFiles(bool);
 
-    void syncAllCookies();
-    void didSyncAllCookies();
+    void flushCookies(const PAL::SessionID&, CompletionHandler<void()>&&);
 
     void testProcessIncomingSyncMessagesWhenWaitingForSyncReply(WebPageProxyIdentifier, Messages::NetworkProcessProxy::TestProcessIncomingSyncMessagesWhenWaitingForSyncReplyDelayedReply&&);
     void terminateUnresponsiveServiceWorkerProcesses(WebCore::ProcessIdentifier);
@@ -205,14 +217,12 @@ public:
     ProcessThrottler& throttler() final { return m_throttler; }
     void updateProcessAssertion();
 
-    WebProcessPool& processPool() { return m_processPool; }
-
 #if ENABLE(CONTENT_EXTENSIONS)
     void didDestroyWebUserContentControllerProxy(WebUserContentControllerProxy&);
 #endif
 
-    void addSession(Ref<WebsiteDataStore>&&);
-    void removeSession(PAL::SessionID);
+    void addSession(WebsiteDataStore&);
+    void removeSession(WebsiteDataStore&);
     
 #if ENABLE(INDEXED_DATABASE)
     void createSymLinkForFileUpgrade(const String& indexedDatabaseDirectory);
@@ -227,6 +237,8 @@ public:
     void registerSchemeForLegacyCustomProtocol(const String&);
     void unregisterSchemeForLegacyCustomProtocol(const String&);
 
+    void networkProcessCrashed();
+    
     void resetQuota(PAL::SessionID, CompletionHandler<void()>&&);
 
     void resourceLoadDidSendRequest(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::ResourceRequest&&, Optional<IPC::FormDataReference>&&);
@@ -235,16 +247,30 @@ public:
     void resourceLoadDidReceiveResponse(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::ResourceResponse&&);
     void resourceLoadDidCompleteWithError(WebPageProxyIdentifier, ResourceLoadInfo&&, WebCore::ResourceResponse&&, WebCore::ResourceError&&);
 
+#if ENABLE(APP_BOUND_DOMAINS)
     void hasAppBoundSession(PAL::SessionID, CompletionHandler<void(bool)>&&);
     void clearAppBoundSession(PAL::SessionID, CompletionHandler<void()>&&);
     void getAppBoundDomains(PAL::SessionID, CompletionHandler<void(HashSet<WebCore::RegistrableDomain>&&)>&&);
+#endif
 
     // ProcessThrottlerClient
     void sendPrepareToSuspend(IsSuspensionImminent, CompletionHandler<void()>&&) final;
     void updateBundleIdentifier(const String&, CompletionHandler<void()>&&);
     void clearBundleIdentifier(CompletionHandler<void()>&&);
 
+    WebCookieManagerProxy& cookieManager() { return m_cookieManager.get(); }
+
+    API::CustomProtocolManagerClient& customProtocolManagerClient() { return m_customProtocolManagerClient.get(); }
+
+#if PLATFORM(COCOA)
+    xpc_object_t xpcEndpointMessage() const { return m_endpointMessage.get(); }
+#endif
+
 private:
+    explicit NetworkProcessProxy();
+
+    void sendCreationParametersToNewProcess();
+
     // AuxiliaryProcessProxy
     ASCIILiteral processName() const final { return "Networking"_s; }
 
@@ -252,7 +278,6 @@ private:
     void connectionWillOpen(IPC::Connection&) override;
     void processWillShutDown(IPC::Connection&) override;
 
-    void networkProcessCrashed();
     void clearCallbackStates();
 
     // IPC::Connection::Client
@@ -308,22 +333,20 @@ private:
 
     void processAuthenticationChallenge(PAL::SessionID, Ref<AuthenticationChallengeProxy>&&);
 
-    WebProcessPool& m_processPool;
-
     HashMap<CallbackID, CompletionHandler<void(WebsiteData)>> m_pendingFetchWebsiteDataCallbacks;
     HashMap<CallbackID, CompletionHandler<void()>> m_pendingDeleteWebsiteDataCallbacks;
     HashMap<CallbackID, CompletionHandler<void()>> m_pendingDeleteWebsiteDataForOriginsCallbacks;
 
     std::unique_ptr<DownloadProxyMap> m_downloadProxyMap;
+
+    UniqueRef<API::CustomProtocolManagerClient> m_customProtocolManagerClient;
 #if ENABLE(LEGACY_CUSTOM_PROTOCOL_MANAGER)
     LegacyCustomProtocolManagerProxy m_customProtocolManagerProxy;
 #endif
+
     ProcessThrottler m_throttler;
     std::unique_ptr<ProcessThrottler::BackgroundActivity> m_activityForHoldingLockedFiles;
-    std::unique_ptr<ProcessThrottler::BackgroundActivity> m_syncAllCookiesActivity;
     ProcessThrottler::ActivityVariant m_activityFromWebProcesses;
-    
-    unsigned m_syncAllCookiesCounter { 0 };
 
 #if ENABLE(CONTENT_EXTENSIONS)
     HashSet<WebUserContentControllerProxy*> m_webUserContentControllerProxies;
@@ -346,7 +369,11 @@ private:
     private:
         WeakPtr<NetworkProcessProxy> m_networkProcess;
     };
+    OSObjectPtr<xpc_object_t> m_endpointMessage;
 #endif
+
+    WeakHashSet<WebsiteDataStore> m_websiteDataStores;
+    Ref<WebCookieManagerProxy> m_cookieManager;
 };
 
 } // namespace WebKit

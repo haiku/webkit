@@ -433,9 +433,8 @@ messages -> WebPageProxy {
     SaveRecentSearches(String name, Vector<WebCore::RecentSearch> searchItems)
     LoadRecentSearches(String name) -> (Vector<WebCore::RecentSearch> result) Synchronous
 
+#if ENABLE(PDFKIT_PLUGIN) && !ENABLE(UI_PROCESS_PDF_HUD)
     SavePDFToFileInDownloadsFolder(String suggestedFilename, URL originatingURL, IPC::DataReference data)
-
-#if PLATFORM(COCOA)
     SavePDFToTemporaryFolderAndOpenWithNativeApplication(String suggestedFilename, struct WebKit::FrameInfoData sourceFrameInfo, IPC::DataReference data, String pdfUUID)
     OpenPDFFromTemporaryFolderWithNativeApplication(struct WebKit::FrameInfoData sourceFrameInfo, String pdfUUID)
 #endif
@@ -474,12 +473,6 @@ messages -> WebPageProxy {
 
     IsPlayingMediaDidChange(unsigned state, uint64_t sourceElementID)
     HandleAutoplayEvent(enum:uint8_t WebCore::AutoplayEvent event, OptionSet<WebCore::AutoplayEventFlags> flags)
-
-#if ENABLE(MEDIA_SESSION)
-    HasMediaSessionWithActiveMediaElementsDidChange(bool state)
-    MediaSessionMetadataDidChange(WebCore::MediaSessionMetadata metadata);
-    FocusedContentMediaElementDidChange(uint64_t elementID)
-#endif
 
 #if PLATFORM(MAC)
     DidPerformImmediateActionHitTest(struct WebKit::WebHitTestResultData result, bool contentPreventsDefault, WebKit::UserData userData)
@@ -564,6 +557,12 @@ messages -> WebPageProxy {
     SpeechSynthesisCancel()
     SpeechSynthesisPause() -> () Async
     SpeechSynthesisResume() -> () Async
+#endif
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    CreatePDFHUD(WebKit::PDFPluginIdentifier identifier, WebCore::IntRect boundingBox)
+    UpdatePDFHUDLocation(WebKit::PDFPluginIdentifier identifier, WebCore::IntRect boundingBox)
+    RemovePDFHUD(WebKit::PDFPluginIdentifier identifier)
 #endif
 
     ConfigureLoggingChannel(String channelName, enum:uint8_t WTFLogChannelState state, enum:uint8_t WTFLogLevel level)

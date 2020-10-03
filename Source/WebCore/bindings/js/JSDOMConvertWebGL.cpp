@@ -33,11 +33,13 @@
 #include "JSEXTBlendMinMax.h"
 #include "JSEXTColorBufferFloat.h"
 #include "JSEXTColorBufferHalfFloat.h"
+#include "JSEXTFloatBlend.h"
 #include "JSEXTFragDepth.h"
 #include "JSEXTShaderTextureLOD.h"
 #include "JSEXTTextureFilterAnisotropic.h"
 #include "JSEXTsRGB.h"
 #include "JSOESElementIndexUint.h"
+#include "JSOESFBORenderMipmap.h"
 #include "JSOESStandardDerivatives.h"
 #include "JSOESTextureFloat.h"
 #include "JSOESTextureFloatLinear.h"
@@ -52,6 +54,7 @@
 #include "JSWebGLCompressedTextureETC1.h"
 #include "JSWebGLCompressedTexturePVRTC.h"
 #include "JSWebGLCompressedTextureS3TC.h"
+#include "JSWebGLCompressedTextureS3TCsRGB.h"
 #include "JSWebGLDebugRendererInfo.h"
 #include "JSWebGLDebugShaders.h"
 #include "JSWebGLDepthTexture.h"
@@ -190,6 +193,8 @@ JSValue convertToJSValue(JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject&
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<OESVertexArrayObject&>(extension));
     case WebGLExtension::OESElementIndexUintName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<OESElementIndexUint&>(extension));
+    case WebGLExtension::OESFBORenderMipmapName:
+        return toJS(&lexicalGlobalObject, &globalObject, static_cast<OESFBORenderMipmap&>(extension));
     case WebGLExtension::WebGLDebugRendererInfoName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLDebugRendererInfo&>(extension));
     case WebGLExtension::WebGLDebugShadersName:
@@ -204,6 +209,8 @@ JSValue convertToJSValue(JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject&
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLCompressedTexturePVRTC&>(extension));
     case WebGLExtension::WebGLCompressedTextureS3TCName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLCompressedTextureS3TC&>(extension));
+    case WebGLExtension::WebGLCompressedTextureS3TCsRGBName:
+        return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLCompressedTextureS3TCsRGB&>(extension));
     case WebGLExtension::WebGLCompressedTextureASTCName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLCompressedTextureASTC&>(extension));
     case WebGLExtension::WebGLDepthTextureName:
@@ -214,6 +221,8 @@ JSValue convertToJSValue(JSGlobalObject& lexicalGlobalObject, JSDOMGlobalObject&
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<ANGLEInstancedArrays&>(extension));
     case WebGLExtension::EXTColorBufferHalfFloatName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<EXTColorBufferHalfFloat&>(extension));
+    case WebGLExtension::EXTFloatBlendName:
+        return toJS(&lexicalGlobalObject, &globalObject, static_cast<EXTFloatBlend&>(extension));
     case WebGLExtension::WebGLColorBufferFloatName:
         return toJS(&lexicalGlobalObject, &globalObject, static_cast<WebGLColorBufferFloat&>(extension));
     case WebGLExtension::EXTColorBufferFloatName:

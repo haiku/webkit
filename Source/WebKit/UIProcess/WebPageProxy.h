@@ -40,6 +40,7 @@
 #include "LayerTreeContext.h"
 #include "MessageSender.h"
 #include "NotificationPermissionRequestManagerProxy.h"
+#include "PDFPluginIdentifier.h"
 #include "PageLoadState.h"
 #include "PluginProcessAttributes.h"
 #include "PolicyDecision.h"
@@ -129,6 +130,7 @@
 #include "EndowmentStateTracker.h"
 #endif
 
+OBJC_CLASS NSTextAlternatives;
 OBJC_CLASS NSView;
 OBJC_CLASS _WKRemoteObjectRegistry;
 
@@ -167,12 +169,6 @@ OBJC_CLASS _WKRemoteObjectRegistry;
 #include <WebCore/PromisedAttachmentInfo.h>
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-namespace WebCore {
-class MediaSessionMetadata;
-}
-#endif
-
 #if USE(DIRECT2D)
 interface ID3D11Device1;
 #endif
@@ -191,7 +187,6 @@ class FormClient;
 class FullscreenClient;
 class HistoryClient;
 class IconLoadingClient;
-class InspectorClient;
 class LoaderClient;
 class Navigation;
 class NavigationClient;
@@ -292,7 +287,6 @@ typedef HWND PlatformViewWidget;
 namespace WebKit {
 class AudioSessionRoutingArbitratorProxy;
 class DrawingAreaProxy;
-class EditableImageController;
 class GamepadData;
 class MediaUsageManager;
 class NativeWebGestureEvent;
@@ -582,9 +576,6 @@ public:
     API::IconLoadingClient& iconLoadingClient() { return *m_iconLoadingClient; }
     void setIconLoadingClient(std::unique_ptr<API::IconLoadingClient>&&);
 
-    API::InspectorClient& inspectorClient() { return *m_inspectorClient; }
-    void setInspectorClient(std::unique_ptr<API::InspectorClient>&&);
-
     void setPageLoadStateObserver(std::unique_ptr<PageLoadState::Observer>&&);
 
     void initializeWebPage();
@@ -612,7 +603,7 @@ public:
     void closePage();
 
     void addPlatformLoadParameters(WebProcessProxy&, LoadParameters&);
-    RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemes, API::Object* userData = nullptr);
+    RefPtr<API::Navigation> loadRequest(WebCore::ResourceRequest&&, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldAllowExternalSchemesButNotAppLinks, API::Object* userData = nullptr);
     RefPtr<API::Navigation> loadFile(const String& fileURL, const String& resourceDirectoryURL, API::Object* userData = nullptr);
     RefPtr<API::Navigation> loadData(const IPC::DataReference&, const String& MIMEType, const String& encoding, const String& baseURL, API::Object* userData = nullptr, WebCore::ShouldOpenExternalURLsPolicy = WebCore::ShouldOpenExternalURLsPolicy::ShouldNotAllow);
     void loadAlternateHTML(const IPC::DataReference&, const String& encoding, const URL& baseURL, const URL& unreachableURL, API::Object* userData = nullptr);
@@ -817,7 +808,6 @@ public:
     void contentSizeCategoryDidChange(const String& contentSizeCategory);
     void getSelectionContext(WTF::Function<void(const String&, const String&, const String&, CallbackBase::Error)>&&);
     void handleTwoFingerTapAtPoint(const WebCore::IntPoint&, OptionSet<WebKit::WebEvent::Modifier>, uint64_t requestID);
-    void handleStylusSingleTapAtPoint(const WebCore::IntPoint&, uint64_t requestID);
     void setForceAlwaysUserScalable(bool);
     bool forceAlwaysUserScalable() const { return m_forceAlwaysUserScalable; }
     double layoutSizeScaleFactor() const { return m_viewportConfigurationLayoutSizeScaleFactor; }
@@ -884,6 +874,10 @@ public:
     void insertTextAsync(const String&, const EditingRange& replacementRange, InsertTextOptions&&);
     void insertDictatedTextAsync(const String&, const EditingRange& replacementRange, const Vector<WebCore::TextAlternativeWithRange>&, InsertTextOptions&&);
 
+#if USE(DICTATION_ALTERNATIVES)
+    NSTextAlternatives *platformDictationAlternatives(WebCore::DictationContext);
+#endif
+
     void hasMarkedText(CompletionHandler<void(bool)>&&);
     void getMarkedRangeAsync(CompletionHandler<void(const EditingRange&)>&&);
     void getSelectedRangeAsync(CompletionHandler<void(const EditingRange&)>&&);
@@ -895,7 +889,12 @@ public:
     void setScrollPerformanceDataCollectionEnabled(bool);
     bool scrollPerformanceDataCollectionEnabled() const { return m_scrollPerformanceDataCollectionEnabled; }
     RemoteLayerTreeScrollingPerformanceData* scrollingPerformanceData() { return m_scrollingPerformanceData.get(); }
+
+    void scheduleActivityStateUpdate();
+    void addActivityStateUpdateCompletionHandler(CompletionHandler<void()>&&);
 #endif // PLATFORM(COCOA)
+
+    void dispatchActivityStateUpdateForTesting();
 
     void changeFontAttributes(WebCore::FontAttributeChanges&&);
     void changeFont(WebCore::FontChanges&&);
@@ -972,6 +971,7 @@ public:
     const String& toolTip() const { return m_toolTip; }
 
     const String& userAgent() const { return m_userAgent; }
+    String userAgentForURL(const URL&);
     void setApplicationNameForUserAgent(const String&);
     const String& applicationNameForUserAgent() const { return m_applicationNameForUserAgent; }
     void setApplicationNameForDesktopUserAgent(const String& applicationName) { m_applicationNameForDesktopUserAgent = applicationName; }
@@ -1311,9 +1311,11 @@ public:
 
     void saveDataToFileInDownloadsFolder(String&& suggestedFilename, String&& mimeType, URL&& originatingURL, API::Data&);
     void savePDFToFileInDownloadsFolder(String&& suggestedFilename, URL&& originatingURL, const IPC::DataReference&);
-#if PLATFORM(COCOA)
+#if ENABLE(PDFKIT_PLUGIN)
     void savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, FrameInfoData&&, const IPC::DataReference&, const String& pdfUUID);
+#if !ENABLE(UI_PROCESS_PDF_HUD)
     void openPDFFromTemporaryFolderWithNativeApplication(FrameInfoData&&, const String& pdfUUID);
+#endif
 #endif
 
 #if ENABLE(PDFKIT_PLUGIN)
@@ -1336,12 +1338,6 @@ public:
     void suspendAllMediaPlayback();
     void resumeAllMediaPlayback();
 
-#if ENABLE(MEDIA_SESSION)
-    bool hasMediaSessionWithActiveMediaElements() const { return m_hasMediaSessionWithActiveMediaElements; }
-    void handleMediaEvent(WebCore::MediaEventType);
-    void setVolumeOfMediaElement(double, uint64_t);
-#endif
-        
 #if ENABLE(POINTER_LOCK)
     void didAllowPointerLock();
     void didDenyPointerLock();
@@ -1443,12 +1439,15 @@ public:
 
     bool isPlayingAudio() const { return !!(m_mediaState & WebCore::MediaProducer::IsPlayingAudio); }
     void isPlayingMediaDidChange(WebCore::MediaProducer::MediaStateFlags, uint64_t);
+    void updateReportedMediaCaptureState();
+
     void updatePlayingMediaDidChange(WebCore::MediaProducer::MediaStateFlags);
     bool isCapturingAudio() const { return m_mediaState & WebCore::MediaProducer::AudioCaptureMask; }
     bool isCapturingVideo() const { return m_mediaState & WebCore::MediaProducer::VideoCaptureMask; }
     bool hasActiveAudioStream() const { return m_mediaState & WebCore::MediaProducer::HasActiveAudioCaptureDevice; }
     bool hasActiveVideoStream() const { return m_mediaState & WebCore::MediaProducer::HasActiveVideoCaptureDevice; }
     WebCore::MediaProducer::MediaStateFlags mediaStateFlags() const { return m_mediaState; }
+    WebCore::MediaProducer::MediaStateFlags reportedMediaCaptureState() const { return m_reportedMediaCaptureState; }
     WebCore::MediaProducer::MutedStateFlags mutedStateFlags() const { return m_mutedState; }
 
     void handleAutoplayEvent(WebCore::AutoplayEvent, OptionSet<WebCore::AutoplayEventFlags>);
@@ -1462,12 +1461,6 @@ public:
 #if PLATFORM(COCOA)
     void requestActiveNowPlayingSessionInfo(Ref<NowPlayingInfoCallback>&&);
     void nowPlayingInfoCallback(bool, bool, const String&, double, double, uint64_t, CallbackID);
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    void hasMediaSessionWithActiveMediaElementsDidChange(bool);
-    void mediaSessionMetadataDidChange(const WebCore::MediaSessionMetadata&);
-    void focusedContentMediaElementDidChange(uint64_t);
 #endif
 
 #if PLATFORM(MAC)
@@ -1659,10 +1652,6 @@ public:
 
     void updateCurrentModifierState();
 
-#if HAVE(PENCILKIT)
-    EditableImageController& editableImageController() { return *m_editableImageController; }
-#endif
-
     ProvisionalPageProxy* provisionalPageProxy() const { return m_provisionalPage.get(); }
     void commitProvisionalPage(WebCore::FrameIdentifier, FrameInfoData&&, WebCore::ResourceRequest&&, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, WebCore::FrameLoadType, const WebCore::CertificateInfo&, bool usedLegacyTLS, bool containsPluginDocument, Optional<WebCore::HasInsecureContent> forcedHasInsecureContent, WebCore::MouseEventPolicy, const UserData&);
 
@@ -1769,11 +1758,14 @@ public:
     void setIsTakingSnapshotsForApplicationSuspension(bool);
     void setNeedsDOMWindowResizeEvent();
 
+#if ENABLE(APP_BOUND_DOMAINS)
+    Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain() const { return m_isNavigatingToAppBoundDomain; }
     void isNavigatingToAppBoundDomainTesting(CompletionHandler<void(bool)>&&);
     void isForcedIntoAppBoundModeTesting(CompletionHandler<void(bool)>&&);
-
-    Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain() const { return m_isNavigatingToAppBoundDomain; }
     Optional<NavigatingToAppBoundDomain> isTopFrameNavigatingToAppBoundDomain() const { return m_isTopFrameNavigatingToAppBoundDomain; }
+#else
+        Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain() const { return WTF::nullopt; }
+#endif
 
 #if PLATFORM(COCOA)
     WebCore::ResourceError errorForUnpermittedAppBoundDomainNavigation(const URL&);
@@ -1805,6 +1797,20 @@ public:
 
     bool canUseCredentialStorage() { return m_canUseCredentialStorage; }
     void setCanUseCredentialStorage(bool);
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    void createPDFHUD(PDFPluginIdentifier, const WebCore::IntRect&);
+    void updatePDFHUDLocation(PDFPluginIdentifier, const WebCore::IntRect&);
+    void removePDFHUD(PDFPluginIdentifier);
+    void pdfZoomIn(PDFPluginIdentifier);
+    void pdfZoomOut(PDFPluginIdentifier);
+    void pdfSaveToPDF(PDFPluginIdentifier);
+    void pdfOpenWithPreview(PDFPluginIdentifier);
+#endif
+
+    Seconds mediaCaptureReportingDelay() const { return m_mediaCaptureReportingDelay; }
+    void setMediaCaptureReportingDelay(Seconds captureReportingDelay) { m_mediaCaptureReportingDelay = captureReportingDelay; }
+    size_t suspendMediaPlaybackCounter() { return m_suspendMediaPlaybackCounter; }
 
 private:
     WebPageProxy(PageClient&, WebProcessProxy&, Ref<API::PageConfiguration>&&);
@@ -2360,8 +2366,10 @@ private:
     void tryCloseTimedOut();
     void makeStorageSpaceRequest(WebCore::FrameIdentifier, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, CompletionHandler<void(uint64_t)>&&);
         
+#if ENABLE(APP_BOUND_DOMAINS)
     bool setIsNavigatingToAppBoundDomainAndCheckIfPermitted(bool isMainFrame, const URL&, Optional<NavigatingToAppBoundDomain>);
-        
+#endif
+
     const Identifier m_identifier;
     WebCore::PageIdentifier m_webPageID;
     WeakPtr<PageClient> m_pageClient;
@@ -2381,7 +2389,6 @@ private:
 #if ENABLE(CONTEXT_MENUS)
     std::unique_ptr<API::ContextMenuClient> m_contextMenuClient;
 #endif
-    std::unique_ptr<API::InspectorClient> m_inspectorClient;
     std::unique_ptr<WebPageInjectedBundleClient> m_injectedBundleClient;
     std::unique_ptr<PageLoadState::Observer> m_pageLoadStateObserver;
 
@@ -2720,6 +2727,9 @@ private:
 
     std::unique_ptr<RemoteLayerTreeScrollingPerformanceData> m_scrollingPerformanceData;
     bool m_scrollPerformanceDataCollectionEnabled { false };
+
+    bool m_hasScheduledActivityStateUpdate { false };
+    Vector<CompletionHandler<void()>> m_activityStateUpdateCallbacks;
 #endif
     UserObservablePageCounter::Token m_pageIsUserObservableCount;
     ProcessSuppressionDisabledToken m_preventProcessSuppressionCount;
@@ -2737,15 +2747,18 @@ private:
 
     WebCore::MediaProducer::MediaStateFlags m_mediaState { WebCore::MediaProducer::IsNotPlaying };
 
+    // To make sure capture indicators are visible long enough, m_reportedMediaCaptureState is the same as m_mediaState except that we might delay a bit transition from capturing to not-capturing.
+    WebCore::MediaProducer::MediaStateFlags m_reportedMediaCaptureState { WebCore::MediaProducer::IsNotPlaying };
+    WebCore::DeferrableTaskTimer m_delayStopCapturingReportingTimer;
+    bool m_delayStopCapturingReporting { false };
+    static constexpr Seconds DefaultMediaCaptureReportingDelay { 3_s };
+    Seconds m_mediaCaptureReportingDelay { DefaultMediaCaptureReportingDelay };
+
     bool m_hasHadSelectionChangesFromUserInteraction { false };
 
 #if HAVE(TOUCH_BAR)
     bool m_isTouchBarUpdateSupressedForHiddenContentEditable { false };
     bool m_isNeverRichlyEditableForTouchBar { false };
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    bool m_hasMediaSessionWithActiveMediaElements { false };
 #endif
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET) && !PLATFORM(IOS_FAMILY)
@@ -2811,10 +2824,6 @@ private:
 
     TextManipulationItemCallback m_textManipulationItemCallback;
 
-#if HAVE(PENCILKIT)
-    std::unique_ptr<EditableImageController> m_editableImageController;
-#endif
-
 #if HAVE(VISIBILITY_PROPAGATION_VIEW)
     LayerHostingContextID m_contextIDForVisibilityPropagation { 0 };
 #endif
@@ -2859,13 +2868,18 @@ private:
     MonotonicTime m_didFinishDocumentLoadForMainFrameTimestamp;
 #endif
         
+#if ENABLE(APP_BOUND_DOMAINS)
     Optional<NavigatingToAppBoundDomain> m_isNavigatingToAppBoundDomain;
     Optional<NavigatingToAppBoundDomain> m_isTopFrameNavigatingToAppBoundDomain;
     bool m_ignoresAppBoundDomains { false };
-    bool m_userScriptsNotified { false };
     bool m_limitsNavigationsToAppBoundDomains { false };
+#endif
+
+    bool m_userScriptsNotified { false };
     bool m_hasExecutedAppBoundBehaviorBeforeNavigation { false };
     bool m_canUseCredentialStorage { true };
+
+    size_t m_suspendMediaPlaybackCounter { 0 };
 };
 
 } // namespace WebKit

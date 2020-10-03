@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "ColorSpace.h"
 #include "DashArray.h"
 #include "FloatRect.h"
 #include "FontCascade.h"
@@ -412,6 +413,9 @@ public:
     void clipOutRoundedRect(const FloatRoundedRect&);
     void clipPath(const Path&, WindRule = WindRule::EvenOdd);
     void clipToImageBuffer(ImageBuffer&, const FloatRect&);
+
+    enum class ClipToDrawingCommandsResult : bool { Success, FailedToCreateImageBuffer };
+    ClipToDrawingCommandsResult clipToDrawingCommands(const FloatRect& destination, ColorSpace, Function<void(GraphicsContext&)>&&);
     
     IntRect clipBounds() const;
 

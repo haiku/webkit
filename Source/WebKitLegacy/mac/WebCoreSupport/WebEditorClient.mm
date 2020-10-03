@@ -300,7 +300,7 @@ bool WebEditorClient::shouldInsertText(const String& text, const Optional<Simple
     return [[webView _editingDelegateForwarder] webView:webView shouldInsertText:text replacingDOMRange:kit(range) givenAction:kit(action)];
 }
 
-bool WebEditorClient::shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange, EAffinity selectionAffinity, bool stillSelecting)
+bool WebEditorClient::shouldChangeSelectedRange(const Optional<SimpleRange>& fromRange, const Optional<SimpleRange>& toRange, Affinity selectionAffinity, bool stillSelecting)
 {
     return [m_webView _shouldChangeSelectedDOMRange:kit(fromRange) toDOMRange:kit(toRange) affinity:kit(selectionAffinity) stillSelecting:stillSelecting];
 }
@@ -1221,12 +1221,11 @@ void WebEditorClient::handleAcceptedCandidateWithSoftSpaces(TextCheckingResult a
 
 void WebEditorClient::didCheckSucceed(TextCheckingRequestIdentifier identifier, NSArray *results)
 {
-    auto requestOptional = m_requestsInFlight.take(identifier);
-    ASSERT(requestOptional);
-    if (!requestOptional)
+    auto request = m_requestsInFlight.take(identifier);
+    ASSERT(request);
+    if (!request)
         return;
-    
-    auto request = WTFMove(requestOptional.value());
+
     ASSERT(identifier == request->data().identifier().value());
     request->didSucceed(core(results, request->data().checkingTypes()));
 }

@@ -107,8 +107,12 @@ WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEven
         if (!m_rootNode)
             return WheelEventHandlingResult::unhandled();
 
-        if (!asyncFrameOrOverflowScrollingEnabled())
-            return m_rootNode->handleWheelEvent(wheelEvent);
+        if (!asyncFrameOrOverflowScrollingEnabled()) {
+            auto result = m_rootNode->handleWheelEvent(wheelEvent);
+            if (result.wasHandled)
+                m_gestureState.nodeDidHandleEvent(m_rootNode->scrollingNodeID(), wheelEvent);
+            return result;
+        }
 
         if (m_gestureState.handleGestureCancel(wheelEvent)) {
             clearNodesWithUserScrollInProgress();
@@ -122,8 +126,10 @@ WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEven
             auto* node = nodeForID(*latchedNodeID);
             if (is<ScrollingTreeScrollingNode>(node)) {
                 auto result = downcast<ScrollingTreeScrollingNode>(*node).handleWheelEvent(wheelEvent);
-                if (result.wasHandled)
+                if (result.wasHandled) {
+                    m_latchingController.nodeDidHandleEvent(*latchedNodeID, wheelEvent, m_allowLatching);
                     m_gestureState.nodeDidHandleEvent(*latchedNodeID, wheelEvent);
+                }
                 return result;
             }
         }
@@ -134,34 +140,39 @@ WheelEventHandlingResult ScrollingTree::handleWheelEvent(const PlatformWheelEven
 
         LOG_WITH_STREAM(Scrolling, stream << "ScrollingTree::handleWheelEvent found node " << (node ? node->scrollingNodeID() : 0) << " for point " << position);
 
-        while (node) {
-            if (is<ScrollingTreeScrollingNode>(*node)) {
-                auto& scrollingNode = downcast<ScrollingTreeScrollingNode>(*node);
-                auto result = scrollingNode.handleWheelEvent(wheelEvent);
-
-                if (result.wasHandled) {
-                    m_latchingController.nodeDidHandleEvent(scrollingNode.scrollingNodeID(), wheelEvent, m_allowLatching);
-                    m_gestureState.nodeDidHandleEvent(scrollingNode.scrollingNodeID(), wheelEvent);
-                    return result;
-                }
-
-                if (result.needsMainThreadProcessing())
-                    return result;
-            }
-
-            if (is<ScrollingTreeOverflowScrollProxyNode>(*node)) {
-                if (auto relatedNode = nodeForID(downcast<ScrollingTreeOverflowScrollProxyNode>(*node).overflowScrollingNodeID())) {
-                    node = relatedNode;
-                    continue;
-                }
-            }
-
-            node = node->parent();
-        }
-        return WheelEventHandlingResult::unhandled();
+        return handleWheelEventWithNode(wheelEvent, node.get());
     }();
 
     return result;
+}
+
+WheelEventHandlingResult ScrollingTree::handleWheelEventWithNode(const PlatformWheelEvent& wheelEvent, ScrollingTreeNode* node)
+{
+    while (node) {
+        if (is<ScrollingTreeScrollingNode>(*node)) {
+            auto& scrollingNode = downcast<ScrollingTreeScrollingNode>(*node);
+            auto result = scrollingNode.handleWheelEvent(wheelEvent);
+
+            if (result.wasHandled) {
+                m_latchingController.nodeDidHandleEvent(scrollingNode.scrollingNodeID(), wheelEvent, m_allowLatching);
+                m_gestureState.nodeDidHandleEvent(scrollingNode.scrollingNodeID(), wheelEvent);
+                return result;
+            }
+
+            if (result.needsMainThreadProcessing())
+                return result;
+        }
+
+        if (is<ScrollingTreeOverflowScrollProxyNode>(*node)) {
+            if (auto relatedNode = nodeForID(downcast<ScrollingTreeOverflowScrollProxyNode>(*node).overflowScrollingNodeID())) {
+                node = relatedNode;
+                continue;
+            }
+        }
+
+        node = node->parent();
+    }
+    return WheelEventHandlingResult::unhandled();
 }
 
 RefPtr<ScrollingTreeNode> ScrollingTree::scrollingNodeForPoint(FloatPoint)
@@ -458,16 +469,22 @@ TrackingType ScrollingTree::eventTrackingTypeForPoint(const AtomString& eventNam
 }
 
 // Can be called from the main thread.
-bool ScrollingTree::isRubberBandInProgress()
+bool ScrollingTree::isRubberBandInProgressForNode(ScrollingNodeID nodeID)
 {
+    if (!nodeID)
+        return false;
+
     LockHolder lock(m_treeStateMutex);
-    return m_treeState.mainFrameIsRubberBanding;
+    return m_treeState.nodesWithActiveRubberBanding.contains(nodeID);
 }
 
-void ScrollingTree::setMainFrameIsRubberBanding(bool isRubberBanding)
+void ScrollingTree::setRubberBandingInProgressForNode(ScrollingNodeID nodeID, bool isRubberBanding)
 {
     LockHolder locker(m_treeStateMutex);
-    m_treeState.mainFrameIsRubberBanding = isRubberBanding;
+    if (isRubberBanding)
+        m_treeState.nodesWithActiveRubberBanding.add(nodeID);
+    else
+        m_treeState.nodesWithActiveRubberBanding.remove(nodeID);
 }
 
 // Can be called from the main thread.

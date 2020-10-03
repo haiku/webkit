@@ -27,7 +27,6 @@
 #include "RenderTreeUpdater.h"
 
 #include "AXObjectCache.h"
-#include "CSSAnimationController.h"
 #include "ComposedTreeAncestorIterator.h"
 #include "ComposedTreeIterator.h"
 #include "Document.h"
@@ -169,7 +168,7 @@ void RenderTreeUpdater::updateRenderTree(ContainerNode& root)
         if (is<Text>(node)) {
             auto& text = downcast<Text>(node);
             auto* textUpdate = m_styleUpdate->textUpdate(text);
-            bool didCreateParent = parent().updates && parent().updates->update.change == Style::Detach;
+            bool didCreateParent = parent().updates && parent().updates->update.change == Style::Change::Renderer;
             bool mayNeedUpdateWhitespaceOnlyRenderer = renderingParent().didCreateOrDestroyChildRenderer && text.data().isAllSpecialCharacters<isHTMLSpace>();
             if (didCreateParent || textUpdate || mayNeedUpdateWhitespaceOnlyRenderer)
                 updateTextRenderer(text, textUpdate);
@@ -266,7 +265,7 @@ void RenderTreeUpdater::updateAfterDescendants(Element& element, const Style::El
 
     m_builder.updateAfterDescendants(*renderer);
 
-    if (element.hasCustomStyleResolveCallbacks() && updates && updates->update.change == Style::Detach)
+    if (element.hasCustomStyleResolveCallbacks() && updates && updates->update.change == Style::Change::Renderer)
         element.didAttachRenderers();
 }
 
@@ -296,17 +295,6 @@ void RenderTreeUpdater::updateRendererStyle(RenderElement& renderer, RenderStyle
     auto oldStyle = RenderStyle::clone(renderer.style());
     renderer.setStyle(WTFMove(newStyle), minimalStyleDifference);
     m_builder.normalizeTreeAfterStyleChange(renderer, oldStyle);
-#if ENABLE(LAYOUT_FORMATTING_CONTEXT)
-    if (RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextEnabled()) {
-        if (!m_document.view() || !m_document.view()->layoutContext().layoutTreeContent())
-            return;
-        auto& layoutContext = m_document.view()->layoutContext();
-        if (minimalStyleDifference >= StyleDifference::LayoutPositionedMovementOnly || renderer.needsLayout())
-            layoutContext.invalidateLayoutState();
-        if (auto* layoutBox = layoutContext.layoutTreeContent()->layoutBoxForRenderer(renderer))
-            layoutBox->updateStyle(renderer.style());
-    }
-#endif
 }
 
 void RenderTreeUpdater::updateElementRenderer(Element& element, const Style::ElementUpdate& update)
@@ -315,7 +303,7 @@ void RenderTreeUpdater::updateElementRenderer(Element& element, const Style::Ele
     ContentChangeObserver::StyleChangeScope observingScope(m_document, element);
 #endif
 
-    bool shouldTearDownRenderers = update.change == Style::Detach && (element.renderer() || element.hasDisplayContents());
+    bool shouldTearDownRenderers = update.change == Style::Change::Renderer && (element.renderer() || element.hasDisplayContents());
     if (shouldTearDownRenderers) {
         if (!element.renderer()) {
             // We may be tearing down a descendant renderer cached in renderTreePosition.
@@ -354,7 +342,7 @@ void RenderTreeUpdater::updateElementRenderer(Element& element, const Style::Ele
         return;
     }
 
-    if (update.change == Style::NoChange) {
+    if (update.change == Style::Change::None) {
         if (pseudoStyleCacheIsInvalid(&renderer, update.style.get())) {
             updateRendererStyle(renderer, RenderStyle::clone(*update.style), StyleDifference::Equal);
             return;
@@ -556,7 +544,6 @@ void RenderTreeUpdater::tearDownRenderers(Element& root, TeardownType teardownTy
 
     auto& document = root.document();
     auto* timeline = document.existingTimeline();
-    auto& animationController = document.frame()->legacyAnimation();    
 
     auto pop = [&] (unsigned depth) {
         while (teardownStack.size() > depth) {
@@ -571,15 +558,14 @@ void RenderTreeUpdater::tearDownRenderers(Element& root, TeardownType teardownTy
             case TeardownType::RendererUpdateCancelingAnimations:
                 if (timeline) {
                     if (document.renderTreeBeingDestroyed())
-                        timeline->cancelDeclarativeAnimationsForElement(element, WebAnimation::Silently::Yes);
+                        timeline->cancelDeclarativeAnimationsForStyleable(Styleable::fromElement(element), WebAnimation::Silently::Yes);
                     else if (teardownType == TeardownType::RendererUpdateCancelingAnimations)
-                        timeline->cancelDeclarativeAnimationsForElement(element, WebAnimation::Silently::No);
+                        timeline->cancelDeclarativeAnimationsForStyleable(Styleable::fromElement(element), WebAnimation::Silently::No);
                 }
-                animationController.cancelAnimations(element);
                 break;
             case TeardownType::RendererUpdate:
                 if (timeline)
-                    timeline->willChangeRendererForElement(element);
+                    timeline->willChangeRendererForStyleable(Styleable::fromElement(element));
                 break;
             }
 

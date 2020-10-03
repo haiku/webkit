@@ -144,9 +144,6 @@ static int32_t deviceOrientationForUIInterfaceOrientation(UIInterfaceOrientation
         [_scrollView _setAvoidsJumpOnInterruptedBounce:YES];
     }
 
-    if ([_configuration _editableImagesEnabled])
-        [_scrollView panGestureRecognizer].allowedTouchTypes = @[ @(UITouchTypeDirect) ];
-
     [self _updateScrollViewInsetAdjustmentBehavior];
 
     [self addSubview:_scrollView.get()];
@@ -1458,11 +1455,6 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
     // if the content's width and height were large, we might have had to shrink it.
     // We'll enable double tap zoom whenever we're not at the actual initial scale.
     return !WTF::areEssentiallyEqual<float>(contentZoomScale(self), _initialScaleFactor);
-}
-
-- (BOOL)_stylusTapGestureShouldCreateEditableImage
-{
-    return [_configuration _editableImagesEnabled];
 }
 
 #pragma mark UIScrollViewDelegate
@@ -3121,6 +3113,20 @@ static WTF::Optional<WebCore::ViewportArguments> viewportArgumentsFromDictionary
 {
     if (_page)
         _page->willOpenAppLink();
+}
+
+- (void)_isNavigatingToAppBoundDomain:(void(^)(BOOL))completionHandler
+{
+    _page->isNavigatingToAppBoundDomainTesting([completionHandler = makeBlockPtr(completionHandler)] (bool isAppBound) {
+        completionHandler(isAppBound);
+    });
+}
+
+- (void)_isForcedIntoAppBoundMode:(void(^)(BOOL))completionHandler
+{
+    _page->isForcedIntoAppBoundModeTesting([completionHandler = makeBlockPtr(completionHandler)] (bool isForcedIntoAppBoundMode) {
+        completionHandler(isForcedIntoAppBoundMode);
+    });
 }
 
 @end // WKWebView (WKPrivateIOS)

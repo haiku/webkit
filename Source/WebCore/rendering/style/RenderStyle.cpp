@@ -165,7 +165,7 @@ RenderStyle::RenderStyle(CreateDefaultStyleTag)
     m_inheritedFlags.pointerEvents = static_cast<unsigned>(initialPointerEvents());
     m_inheritedFlags.insideLink = static_cast<unsigned>(InsideLink::NotInside);
     m_inheritedFlags.insideDefaultButton = false;
-    m_inheritedFlags.writingMode = initialWritingMode();
+    m_inheritedFlags.writingMode = static_cast<unsigned>(initialWritingMode());
 #if ENABLE(TEXT_AUTOSIZING)
     m_inheritedFlags.autosizeStatus = 0;
 #endif
@@ -1115,12 +1115,14 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<Styl
     if (!requiresPainting(*this) && !requiresPainting(other))
         return false;
 
+    bool currentColorDiffers = m_inheritedData->color != other.m_inheritedData->color;
+
     if (m_inheritedFlags.visibility != other.m_inheritedFlags.visibility
         || m_inheritedFlags.printColorAdjust != other.m_inheritedFlags.printColorAdjust
         || m_inheritedFlags.insideLink != other.m_inheritedFlags.insideLink
         || m_inheritedFlags.insideDefaultButton != other.m_inheritedFlags.insideDefaultButton
         || m_surroundData->border != other.m_surroundData->border
-        || !m_backgroundData->isEquivalentForPainting(*other.m_backgroundData))
+        || !m_backgroundData->isEquivalentForPainting(*other.m_backgroundData, currentColorDiffers))
         return true;
 
     if (m_rareNonInheritedData.ptr() != other.m_rareNonInheritedData.ptr()
@@ -1816,7 +1818,21 @@ void RenderStyle::setWordSpacing(Length&& value)
     m_rareInheritedData.access().wordSpacing = WTFMove(value);
 }
 
-void RenderStyle::setLetterSpacing(float v) { m_inheritedData.access().fontCascade.setLetterSpacing(v); }
+void RenderStyle::setLetterSpacing(float letterSpacing)
+{
+    FontSelector* currentFontSelector = fontCascade().fontSelector();
+    auto description = fontDescription();
+    description.setShouldDisableLigaturesForSpacing(letterSpacing);
+    setFontDescription(WTFMove(description));
+    fontCascade().update(currentFontSelector);
+
+    setLetterSpacingWithoutUpdatingFontDescription(letterSpacing);
+}
+
+void RenderStyle::setLetterSpacingWithoutUpdatingFontDescription(float letterSpacing)
+{
+    m_inheritedData.access().fontCascade.setLetterSpacing(letterSpacing);
+}
 
 void RenderStyle::setFontSize(float size)
 {
@@ -1838,7 +1854,6 @@ void RenderStyle::setFontSize(float size)
     fontCascade().update(currentFontSelector);
 }
 
-#if ENABLE(VARIATION_FONTS)
 void RenderStyle::setFontVariationSettings(FontVariationSettings settings)
 {
     FontSelector* currentFontSelector = fontCascade().fontSelector();
@@ -1848,7 +1863,6 @@ void RenderStyle::setFontVariationSettings(FontVariationSettings settings)
     setFontDescription(WTFMove(description));
     fontCascade().update(currentFontSelector);
 }
-#endif
 
 void RenderStyle::setFontWeight(FontSelectionValue value)
 {
@@ -2091,13 +2105,13 @@ Color RenderStyle::colorByApplyingColorFilter(const Color& color) const
 const BorderValue& RenderStyle::borderBefore() const
 {
     switch (writingMode()) {
-    case TopToBottomWritingMode:
+    case WritingMode::TopToBottom:
         return borderTop();
-    case BottomToTopWritingMode:
+    case WritingMode::BottomToTop:
         return borderBottom();
-    case LeftToRightWritingMode:
+    case WritingMode::LeftToRight:
         return borderLeft();
-    case RightToLeftWritingMode:
+    case WritingMode::RightToLeft:
         return borderRight();
     }
     ASSERT_NOT_REACHED();
@@ -2107,13 +2121,13 @@ const BorderValue& RenderStyle::borderBefore() const
 const BorderValue& RenderStyle::borderAfter() const
 {
     switch (writingMode()) {
-    case TopToBottomWritingMode:
+    case WritingMode::TopToBottom:
         return borderBottom();
-    case BottomToTopWritingMode:
+    case WritingMode::BottomToTop:
         return borderTop();
-    case LeftToRightWritingMode:
+    case WritingMode::LeftToRight:
         return borderRight();
-    case RightToLeftWritingMode:
+    case WritingMode::RightToLeft:
         return borderLeft();
     }
     ASSERT_NOT_REACHED();
@@ -2137,13 +2151,13 @@ const BorderValue& RenderStyle::borderEnd() const
 float RenderStyle::borderBeforeWidth() const
 {
     switch (writingMode()) {
-    case TopToBottomWritingMode:
+    case WritingMode::TopToBottom:
         return borderTopWidth();
-    case BottomToTopWritingMode:
+    case WritingMode::BottomToTop:
         return borderBottomWidth();
-    case LeftToRightWritingMode:
+    case WritingMode::LeftToRight:
         return borderLeftWidth();
-    case RightToLeftWritingMode:
+    case WritingMode::RightToLeft:
         return borderRightWidth();
     }
     ASSERT_NOT_REACHED();
@@ -2153,13 +2167,13 @@ float RenderStyle::borderBeforeWidth() const
 float RenderStyle::borderAfterWidth() const
 {
     switch (writingMode()) {
-    case TopToBottomWritingMode:
+    case WritingMode::TopToBottom:
         return borderBottomWidth();
-    case BottomToTopWritingMode:
+    case WritingMode::BottomToTop:
         return borderTopWidth();
-    case LeftToRightWritingMode:
+    case WritingMode::LeftToRight:
         return borderRightWidth();
-    case RightToLeftWritingMode:
+    case WritingMode::RightToLeft:
         return borderLeftWidth();
     }
     ASSERT_NOT_REACHED();
@@ -2327,6 +2341,30 @@ void RenderStyle::setColumnStylesFromPaginationMode(const Pagination::Mode& pagi
         ASSERT_NOT_REACHED();
         break;
     }
+}
+
+void RenderStyle::deduplicateInheritedCustomProperties(const RenderStyle& other)
+{
+    auto& properties = const_cast<DataRef<StyleCustomPropertyData>&>(m_rareInheritedData->customProperties);
+    auto& otherProperties = other.m_rareInheritedData->customProperties;
+    if (properties.ptr() != otherProperties.ptr() && *properties == *otherProperties)
+        properties = otherProperties;
+}
+
+void RenderStyle::setInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&& value)
+{
+    auto* existingValue = m_rareInheritedData->customProperties->values.get(name);
+    if (existingValue && existingValue->equals(value.get()))
+        return;
+    m_rareInheritedData.access().customProperties.access().setCustomPropertyValue(name, WTFMove(value));
+}
+
+void RenderStyle::setNonInheritedCustomPropertyValue(const AtomString& name, Ref<CSSCustomPropertyValue>&& value)
+{
+    auto* existingValue = m_rareNonInheritedData->customProperties->values.get(name);
+    if (existingValue && existingValue->equals(value.get()))
+        return;
+    m_rareNonInheritedData.access().customProperties.access().setCustomPropertyValue(name, WTFMove(value));
 }
 
 #if ENABLE(CSS_SCROLL_SNAP)

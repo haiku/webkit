@@ -33,12 +33,14 @@
 #include <Timer.h>
 
 ALLOW_UNUSED_PARAMETERS_BEGIN
+ALLOW_DEPRECATED_DECLARATIONS_BEGIN
 
 #include <webrtc/api/jsep.h>
 #include <webrtc/api/peer_connection_interface.h>
 #include <webrtc/pc/peer_connection_factory.h>
 #include <webrtc/pc/rtc_stats_collector.h>
 
+ALLOW_DEPRECATED_DECLARATIONS_END
 ALLOW_UNUSED_PARAMETERS_END
 
 #include <wtf/LoggerHelper.h>
@@ -75,11 +77,12 @@ public:
     static Ref<LibWebRTCMediaEndpoint> create(LibWebRTCPeerConnectionBackend& peerConnection, LibWebRTCProvider& client) { return adoptRef(*new LibWebRTCMediaEndpoint(peerConnection, client)); }
     virtual ~LibWebRTCMediaEndpoint() = default;
 
+    void restartIce();
     bool setConfiguration(LibWebRTCProvider&, webrtc::PeerConnectionInterface::RTCConfiguration&&);
 
     webrtc::PeerConnectionInterface& backend() const { ASSERT(m_backend); return *m_backend.get(); }
-    void doSetLocalDescription(RTCSessionDescription&);
-    void doSetRemoteDescription(RTCSessionDescription&);
+    void doSetLocalDescription(const RTCSessionDescription*);
+    void doSetRemoteDescription(const RTCSessionDescription&);
     void doCreateOffer(const RTCOfferOptions&);
     void doCreateAnswer();
     void getStats(Ref<DeferredPromise>&&);

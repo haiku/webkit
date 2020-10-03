@@ -205,7 +205,7 @@ private:
     bool shouldEndEditing(const SimpleRange&) final { return false; }
     bool shouldInsertNode(Node&, const Optional<SimpleRange>&, EditorInsertAction) final { return false; }
     bool shouldInsertText(const String&, const Optional<SimpleRange>&, EditorInsertAction) final { return false; }
-    bool shouldChangeSelectedRange(const Optional<SimpleRange>&, const Optional<SimpleRange>&, EAffinity, bool) final { return false; }
+    bool shouldChangeSelectedRange(const Optional<SimpleRange>&, const Optional<SimpleRange>&, Affinity, bool) final { return false; }
 
     bool shouldApplyStyle(const StyleProperties&, const Optional<SimpleRange>&) final { return false; }
     void didApplyStyle() final { }
@@ -598,7 +598,7 @@ public:
     EmptyMediaRecorderProvider() = default;
 private:
 #if ENABLE(MEDIA_STREAM) && PLATFORM(COCOA)
-    std::unique_ptr<MediaRecorderPrivate> createMediaRecorderPrivate(MediaStreamPrivate&) final { return nullptr; }
+    std::unique_ptr<MediaRecorderPrivate> createMediaRecorderPrivate(MediaStreamPrivate&, const MediaRecorderPrivateOptions&) final { return nullptr; }
 #endif
 };
 

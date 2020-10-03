@@ -29,11 +29,13 @@ from email.mime.text import MIMEText
 is_test_mode_enabled = os.getenv('BUILDBOT_PRODUCTION') is None
 
 FROM_EMAIL = 'ews@webkit.org'
+IGALIA_JSC_QUEUES_PATTERNS = ['armv7', 'mips', 'i386']
+IGALIA_GTK_WPE_QUEUES_PATTERNS = ['gtk', 'wpe']
 SERVER = 'localhost'
 
 
 def get_email_ids(category):
-    # Valid categories: 'ADMIN_EMAILS', 'BOT_WATCHERS_EMAILS', 'EMAIL_IDS_TO_UNSUBSCRIBE'
+    # Valid categories: 'ADMIN_EMAILS', 'APPLE_BOT_WATCHERS_EMAILS', 'EMAIL_IDS_TO_UNSUBSCRIBE' etc.
     try:
         emails = json.load(open('emails.json'))
         return emails.get(category, [])
@@ -42,7 +44,7 @@ def get_email_ids(category):
         return []
 
 
-def send_email(to_emails, subject, text):
+def send_email(to_emails, subject, text, reference=''):
     if is_test_mode_enabled:
         return
     if not to_emails:
@@ -59,20 +61,28 @@ def send_email(to_emails, subject, text):
     msg['From'] = FROM_EMAIL
     msg['To'] = ', '.join(to_emails)
     msg['Subject'] = subject
+    msg.add_header('reply-to', 'aakash_jain@apple.com')
+    if reference:
+        msg.add_header('references', '{}@webkit.org'.format(reference))
 
     server = smtplib.SMTP(SERVER)
     server.sendmail(FROM_EMAIL, to_emails, msg.as_string())
     server.quit()
 
 
-def send_email_to_patch_author(author_email, subject, text):
+def send_email_to_patch_author(author_email, subject, text, reference=''):
     if not author_email:
         return
+    send_email(['aakash_jain@apple.com'], subject, text, reference)
     if author_email in get_email_ids('EMAIL_IDS_TO_UNSUBSCRIBE'):
         print('email {} is in unsubscribe list, skipping email'.format(author_email))
         return
-    send_email([author_email], subject, text)
+    send_email([author_email], subject, text, reference)
 
 
-def send_email_to_bot_watchers(subject, text):
-    send_email(get_email_ids('BOT_WATCHERS_EMAILS'), subject, text)
+def send_email_to_bot_watchers(subject, text, builder_name, reference=''):
+    send_email(get_email_ids('APPLE_BOT_WATCHERS_EMAILS'), subject, text, reference)
+    if any(pattern in builder_name.lower() for pattern in IGALIA_JSC_QUEUES_PATTERNS):
+        send_email(get_email_ids('IGALIA_JSC_TEAM_EMAILS'), subject, text, reference)
+    if any(pattern in builder_name.lower() for pattern in IGALIA_GTK_WPE_QUEUES_PATTERNS):
+        send_email(get_email_ids('IGALIA_GTK_WPE_EMAILS'), subject, text, reference)

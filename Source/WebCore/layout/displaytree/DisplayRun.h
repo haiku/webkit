@@ -27,7 +27,7 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayInlineRect.h"
+#include "InlineRect.h"
 #include "LayoutBox.h"
 #include "RenderStyle.h"
 #include "TextFlags.h"
@@ -43,42 +43,26 @@ struct Run {
     struct TextContent {
         WTF_MAKE_STRUCT_FAST_ALLOCATED;
     public:
-        TextContent(unsigned position, unsigned length, const String&, bool needsHyphen);
+        TextContent(size_t position, size_t length, const String&, bool needsHyphen);
 
-        unsigned start() const { return m_start; }
-        unsigned end() const { return start() + length(); }
-        unsigned length() const { return m_length; }
+        size_t start() const { return m_start; }
+        size_t end() const { return start() + length(); }
+        size_t length() const { return m_length; }
         StringView content() const { return StringView(m_contentString).substring(m_start, m_length); }
-
         bool needsHyphen() const { return m_needsHyphen; }
-        void setNeedsHyphen() { m_needsHyphen = true; }
-
-        void expand(unsigned delta) { m_length += delta; }
-        void shrink(unsigned delta) { m_length -= delta; }
 
     private:
-        unsigned m_start { 0 };
-        unsigned m_length { 0 };
+        size_t m_start { 0 };
+        size_t m_length { 0 };
         bool m_needsHyphen { false };
         String m_contentString;
     };
 
     struct Expansion;
-    Run(size_t lineIndex, const Layout::Box&, const InlineRect&, const InlineRect& inkOverflow, Expansion, Optional<TextContent> = WTF::nullopt);
+    Run(size_t lineIndex, const Layout::Box&, const FloatRect&, const FloatRect& inkOverflow, Expansion, Optional<TextContent> = WTF::nullopt);
 
-    const InlineRect& rect() const { return m_rect; }
-    const InlineRect& inkOverflow() const { return m_inkOverflow; }
-
-    InlineLayoutPoint topLeft() const { return m_rect.topLeft(); }
-    InlineLayoutUnit left() const { return m_rect.left(); }
-    InlineLayoutUnit right() const { return m_rect.right(); }
-    InlineLayoutUnit top() const { return m_rect.top(); }
-    InlineLayoutUnit bottom() const { return m_rect.bottom(); }
-
-    InlineLayoutUnit width() const { return m_rect.width(); }
-    InlineLayoutUnit height() const { return m_rect.height(); }
-
-    void moveVertically(InlineLayoutUnit);
+    const FloatRect& rect() const { return m_rect; }
+    const FloatRect& inkOverflow() const { return m_inkOverflow; }
 
     Optional<TextContent>& textContent() { return m_textContent; }
     const Optional<TextContent>& textContent() const { return m_textContent; }
@@ -93,6 +77,8 @@ struct Run {
 
     CachedImage* image() const { return m_cachedImage; }
 
+    bool hasUnderlyingLayout() const { return !!m_layoutBox; }
+    
     const Layout::Box& layoutBox() const { return *m_layoutBox; }
     const RenderStyle& style() const { return m_layoutBox->style(); }
 
@@ -103,13 +89,13 @@ private:
     const size_t m_lineIndex;
     WeakPtr<const Layout::Box> m_layoutBox;
     CachedImage* m_cachedImage { nullptr };
-    InlineRect m_rect;
-    InlineRect m_inkOverflow;
+    FloatRect m_rect;
+    FloatRect m_inkOverflow;
     Expansion m_expansion;
     Optional<TextContent> m_textContent;
 };
 
-inline Run::Run(size_t lineIndex, const Layout::Box& layoutBox, const InlineRect& rect, const InlineRect& inkOverflow, Expansion expansion, Optional<TextContent> textContent)
+inline Run::Run(size_t lineIndex, const Layout::Box& layoutBox, const FloatRect& rect, const FloatRect& inkOverflow, Expansion expansion, Optional<TextContent> textContent)
     : m_lineIndex(lineIndex)
     , m_layoutBox(makeWeakPtr(layoutBox))
     , m_rect(rect)
@@ -119,18 +105,12 @@ inline Run::Run(size_t lineIndex, const Layout::Box& layoutBox, const InlineRect
 {
 }
 
-inline Run::TextContent::TextContent(unsigned start, unsigned length, const String& contentString, bool needsHyphen)
+inline Run::TextContent::TextContent(size_t start, size_t length, const String& contentString, bool needsHyphen)
     : m_start(start)
     , m_length(length)
     , m_needsHyphen(needsHyphen)
     , m_contentString(contentString)
 {
-}
-
-inline void Run::moveVertically(InlineLayoutUnit offset)
-{
-    m_rect.moveVertically(offset);
-    m_inkOverflow.moveVertically(offset);
 }
 
 }

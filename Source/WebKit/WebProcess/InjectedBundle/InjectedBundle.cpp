@@ -187,12 +187,6 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
     }
 #endif
 
-    if (preference == "WebKitWebAnimationsEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled(enabled);
-
-    if (preference == "WebKitWebAnimationsCSSIntegrationEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCSSIntegrationEnabled(enabled);
-
     if (preference == "WebKitCacheAPIEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setCacheAPIEnabled(enabled);
 
@@ -200,9 +194,8 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
         RuntimeEnabledFeatures::sharedFeatures().setReadableByteStreamAPIEnabled(enabled);
     if (preference == "WebKitWritableStreamAPIEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setWritableStreamAPIEnabled(enabled);
-
-    if (preference == "WebKitInteractiveFormValidationEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setInteractiveFormValidationEnabled(enabled);
+    if (preference == "WebKitTransformStreamAPIEnabled")
+        RuntimeEnabledFeatures::sharedFeatures().setTransformStreamAPIEnabled(enabled);
 
 #if ENABLE(WEBGL2)
     if (preference == "WebKitWebGL2Enabled")
@@ -217,20 +210,6 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
     if (preference == "WebKitModernMediaControlsEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setModernMediaControlsEnabled(enabled);
 
-#if ENABLE(ENCRYPTED_MEDIA)
-    if (preference == "WebKitEncryptedMediaAPIEnabled") {
-        WebPreferencesStore::overrideBoolValueForKey(WebPreferencesKey::encryptedMediaAPIEnabledKey(), enabled);
-        RuntimeEnabledFeatures::sharedFeatures().setEncryptedMediaAPIEnabled(enabled);
-    }
-#endif
-
-#if ENABLE(MEDIA_STREAM)
-    if (preference == "WebKitMediaDevicesEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setMediaDevicesEnabled(enabled);
-    if (preference == "WebKitScreenCaptureEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setScreenCaptureEnabled(enabled);
-#endif
-
 #if ENABLE(WEB_RTC)
     if (preference == "WebKitWebRTCMDNSICECandidatesEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setWebRTCMDNSICECandidatesEnabled(enabled);
@@ -244,24 +223,16 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
     }
 
 #if ENABLE(GPU_PROCESS)
-    if (preference == "WebKitUseGPUProcessForMedia" || preference == "WebKitCaptureAudioInGPUProcessEnabledKey") {
-        WebPreferencesStore::overrideBoolValueForKey(WebPreferencesKey::useGPUProcessForMediaKey(), enabled);
+    if (preference == "WebKitUseGPUProcessForMediaEnabled" || preference == "WebKitCaptureAudioInGPUProcessEnabledKey") {
+        WebPreferencesStore::overrideBoolValueForKey(WebPreferencesKey::useGPUProcessForMediaEnabledKey(), enabled);
         for (auto* page : pages)
-            page->settings().setUseGPUProcessForMedia(enabled);
+            page->settings().setUseGPUProcessForMediaEnabled(enabled);
         return;
     }
 #endif
 
-    if (preference == "WebKitIsSecureContextAttributeEnabled") {
-        WebPreferencesStore::overrideBoolValueForKey(WebPreferencesKey::isSecureContextAttributeEnabledKey(), enabled);
-        RuntimeEnabledFeatures::sharedFeatures().setIsSecureContextAttributeEnabled(enabled);
-    }
-
     if (preference == "WebKitWebAPIStatisticsEnabled")
         RuntimeEnabledFeatures::sharedFeatures().setWebAPIStatisticsEnabled(enabled);
-
-    if (preference == "CSSCustomPropertiesAndValuesEnabled")
-        RuntimeEnabledFeatures::sharedFeatures().setCSSCustomPropertiesAndValuesEnabled(enabled);
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
     if (preference == "LayoutFormattingContextEnabled")
@@ -605,16 +576,6 @@ InjectedBundle::DocumentIDToURLMap InjectedBundle::liveDocumentURLs(WebPageGroup
 void InjectedBundle::setTabKeyCyclesThroughElements(WebPage* page, bool enabled)
 {
     page->corePage()->setTabKeyCyclesThroughElements(enabled);
-}
-
-void InjectedBundle::setWebAnimationsEnabled(bool enabled)
-{
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsEnabled(enabled);
-}
-
-void InjectedBundle::setWebAnimationsCSSIntegrationEnabled(bool enabled)
-{
-    RuntimeEnabledFeatures::sharedFeatures().setWebAnimationsCSSIntegrationEnabled(enabled);
 }
 
 void InjectedBundle::setAccessibilityIsolatedTreeEnabled(bool enabled)

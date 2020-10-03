@@ -85,7 +85,6 @@
 #include "WebDocumentLoader.h"
 #include "WebDragClient.h"
 #include "WebEditorClient.h"
-#include "WebEvent.h"
 #include "WebEventConversion.h"
 #include "WebEventFactory.h"
 #include "WebFrame.h"
@@ -100,9 +99,11 @@
 #include "WebInspectorMessages.h"
 #include "WebInspectorUI.h"
 #include "WebInspectorUIMessages.h"
+#include "WebKeyboardEvent.h"
 #include "WebLoaderStrategy.h"
 #include "WebMediaKeyStorageManager.h"
 #include "WebMediaStrategy.h"
+#include "WebMouseEvent.h"
 #include "WebNotificationClient.h"
 #include "WebOpenPanelResultListener.h"
 #include "WebPageCreationParameters.h"
@@ -127,11 +128,13 @@
 #include "WebSocketProvider.h"
 #include "WebSpeechSynthesisClient.h"
 #include "WebStorageNamespaceProvider.h"
+#include "WebTouchEvent.h"
 #include "WebURLSchemeHandlerProxy.h"
 #include "WebUndoStep.h"
 #include "WebUserContentController.h"
 #include "WebUserMediaClient.h"
 #include "WebValidationMessageClient.h"
+#include "WebWheelEvent.h"
 #include "WebsiteDataStoreParameters.h"
 #include <JavaScriptCore/APICast.h>
 #include <JavaScriptCore/JSCInlines.h>
@@ -416,7 +419,9 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     , m_alwaysShowsHorizontalScroller { parameters.alwaysShowsHorizontalScroller }
     , m_alwaysShowsVerticalScroller { parameters.alwaysShowsVerticalScroller }
     , m_shouldRenderCanvasInGPUProcess { parameters.shouldRenderCanvasInGPUProcess }
+#if ENABLE(APP_BOUND_DOMAINS)
     , m_needsInAppBrowserPrivacyQuirks { parameters.needsInAppBrowserPrivacyQuirks }
+#endif
 #if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
     , m_determinePrimarySnapshottedPlugInTimer(RunLoop::main(), this, &WebPage::determinePrimarySnapshottedPlugInTimerFired)
 #endif
@@ -479,7 +484,9 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
 #endif
     , m_overriddenMediaType(parameters.overriddenMediaType)
     , m_processDisplayName(parameters.processDisplayName)
+#if ENABLE(APP_BOUND_DOMAINS)
     , m_limitsNavigationsToAppBoundDomains(parameters.limitsNavigationsToAppBoundDomains)
+#endif
 {
     ASSERT(m_identifier);
 
@@ -575,7 +582,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     updatePreferences(parameters.store);
 
 #if PLATFORM(IOS_FAMILY) || ENABLE(ROUTING_ARBITRATION)
-    if (!m_page->settings().useGPUProcessForMedia())
+    if (!m_page->settings().useGPUProcessForMediaEnabled())
         DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
 #endif
 
@@ -778,11 +785,18 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     send(Messages::WebPageProxy::DidCreateContextForVisibilityPropagation(m_contextForVisibilityPropagation->contextID()));
 #endif
 
+#if ENABLE(GPU_PROCESS)
+    if (m_page->settings().useGPUProcessForMediaEnabled())
+        WebProcess::singleton().ensureGPUProcessConnection().updateParameters(parameters);
+#endif
+
+#if ENABLE(VP9)
     if (parameters.shouldEnableVP9Decoder)
         WebProcess::singleton().enableVP9Decoder();
 
     if (parameters.shouldEnableVP9SWDecoder)
         WebProcess::singleton().enableVP9SWDecoder();
+#endif
 
     m_page->setCanUseCredentialStorage(parameters.canUseCredentialStorage);
 
@@ -1561,7 +1575,9 @@ void WebPage::platformDidReceiveLoadParameters(const LoadParameters& loadParamet
 
 void WebPage::loadRequest(LoadParameters&& loadParameters)
 {
+#if ENABLE(APP_BOUND_DOMAINS)
     setIsNavigatingToAppBoundDomain(loadParameters.isNavigatingToAppBoundDomain, &m_mainFrame.get());
+#endif
 
     SendStopResponsivenessTimer stopper;
 
@@ -1599,7 +1615,9 @@ NO_RETURN void WebPage::loadRequestWaitingForProcessLaunch(LoadParameters&&, URL
 
 void WebPage::loadDataImpl(uint64_t navigationID, bool shouldTreatAsContinuingLoad, Optional<WebsitePoliciesData>&& websitePolicies, Ref<SharedBuffer>&& sharedBuffer, const String& MIMEType, const String& encodingName, const URL& baseURL, const URL& unreachableURL, const UserData& userData, Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, ShouldOpenExternalURLsPolicy shouldOpenExternalURLsPolicy)
 {
+#if ENABLE(APP_BOUND_DOMAINS)
     setIsNavigatingToAppBoundDomain(isNavigatingToAppBoundDomain, &m_mainFrame.get());
+#endif
 
     SendStopResponsivenessTimer stopper;
 
@@ -3158,18 +3176,10 @@ void WebPage::setBackgroundColor(const Optional<WebCore::Color>& backgroundColor
 }
 
 #if PLATFORM(COCOA)
-void WebPage::setTopContentInsetFenced(float contentInset, IPC::Attachment fencePort)
+void WebPage::setTopContentInsetFenced(float contentInset, const WTF::MachSendRight& machSendRight)
 {
-    if (fencePort.disposition() != MACH_MSG_TYPE_MOVE_SEND) {
-        LOG(Layers, "WebPage::setTopContentInsetFenced(%g, fencePort) Received an invalid fence port: %d, disposition: %d", contentInset, fencePort.port(), fencePort.disposition());
-        return;
-    }
-
-    m_drawingArea->addFence(MachSendRight::create(fencePort.port()));
-
+    m_drawingArea->addFence(machSendRight);
     setTopContentInset(contentInset);
-
-    deallocateSendRightSafely(fencePort.port());
 }
 #endif
 
@@ -3316,8 +3326,9 @@ void WebPage::didReceivePolicyDecision(FrameIdentifier frameID, uint64_t listene
 
     if (!frame)
         return;
-
+#if ENABLE(APP_BOUND_DOMAINS)
     setIsNavigatingToAppBoundDomain(policyDecision.isNavigatingToAppBoundDomain, frame);
+#endif
     frame->didReceivePolicyDecision(listenerID, WTFMove(policyDecision));
 }
 
@@ -3486,6 +3497,7 @@ void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameter
 
         send(Messages::WebPageProxy::ScriptValueCallback(dataReference, details, callbackID));
     };
+#if ENABLE(APP_BOUND_DOMAINS)
     if (frame->shouldEnableInAppBrowserPrivacyProtections()) {
         send(Messages::WebPageProxy::ScriptValueCallback({ }, ExceptionDetails { "Unable to execute JavaScript in a frame that is not in an app-bound domain"_s, 0, 0, ExceptionDetails::Type::AppBoundDomain }, callbackID));
         if (auto* document = m_page->mainFrame().document())
@@ -3493,7 +3505,7 @@ void WebPage::runJavaScript(WebFrame* frame, RunJavaScriptParameters&& parameter
         RELEASE_LOG_ERROR_IF_ALLOWED(Loading, "runJavaScript: Ignoring user script injection for non app-bound domain");
         return;
     }
-
+#endif
     JSLockHolder lock(commonVM());
     frame->coreFrame()->script().executeAsynchronousUserAgentScriptInWorld(world->coreWorld(), WTFMove(parameters), WTFMove(resolveFunction));
 }
@@ -3726,9 +3738,6 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     settings.setPaymentRequestEnabled(store.getBoolValueForKey(WebPreferencesKey::applePayEnabledKey()));
 #endif
 
-    // FIXME: This is both a RuntimeEnabledFeatures (generated) and a setting. It should pick one.
-    settings.setInteractiveFormValidationEnabled(store.getBoolValueForKey(WebPreferencesKey::interactiveFormValidationEnabledKey()));
-
 #if PLATFORM(IOS_FAMILY)
     setForceAlwaysUserScalable(m_forceAlwaysUserScalable || store.getBoolValueForKey(WebPreferencesKey::forceAlwaysUserScalableKey()));
 
@@ -3741,17 +3750,24 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 #if ENABLE(SERVICE_WORKER)
     if (store.getBoolValueForKey(WebPreferencesKey::serviceWorkerEntitlementDisabledForTestingKey()))
         disableServiceWorkerEntitlement();
+#if ENABLE(APP_BOUND_DOMAINS)
+    bool shouldAllowServiceWorkersForAppBoundViews = m_limitsNavigationsToAppBoundDomains;
+#else
+    bool shouldAllowServiceWorkersForAppBoundViews = false;
+#endif
 
     if (store.getBoolValueForKey(WebPreferencesKey::serviceWorkersEnabledKey())) {
-        ASSERT(parentProcessHasServiceWorkerEntitlement() || m_limitsNavigationsToAppBoundDomains);
-        if (!parentProcessHasServiceWorkerEntitlement() && !m_limitsNavigationsToAppBoundDomains)
+        ASSERT(parentProcessHasServiceWorkerEntitlement() || shouldAllowServiceWorkersForAppBoundViews);
+        if (!parentProcessHasServiceWorkerEntitlement() && !shouldAllowServiceWorkersForAppBoundViews)
             RuntimeEnabledFeatures::sharedFeatures().setServiceWorkerEnabled(false);
     }
 #endif
 
     settings.setLayoutViewportHeightExpansionFactor(store.getDoubleValueForKey(WebPreferencesKey::layoutViewportHeightExpansionFactorKey()));
 
+#if ENABLE(APP_BOUND_DOMAINS)
     m_needsInAppBrowserPrivacyQuirks = store.getBoolValueForKey(WebPreferencesKey::needsInAppBrowserPrivacyQuirksKey());
+#endif
 
     if (m_drawingArea)
         m_drawingArea->updatePreferences(store);
@@ -3759,13 +3775,14 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 #if USE(LIBWEBRTC)
     m_page->libWebRTCProvider().setH265Support(RuntimeEnabledFeatures::sharedFeatures().webRTCH265CodecEnabled());
     m_page->libWebRTCProvider().setVP9Support(RuntimeEnabledFeatures::sharedFeatures().webRTCVP9CodecEnabled());
+    LibWebRTCProvider::setH264HardwareEncoderAllowed(store.getBoolValueForKey(WebPreferencesKey::webRTCH264HardwareEncoderEnabledKey()));
 #endif
 
 #if ENABLE(GPU_PROCESS)
-    // FIXME: useGPUProcessForMedia should be a RuntimeEnabledFeature since it's global.
-    static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMedia());
+    // FIXME: useGPUProcessForMediaEnabled should be a RuntimeEnabledFeature since it's global.
+    static_cast<WebMediaStrategy&>(platformStrategies()->mediaStrategy()).setUseGPUProcess(settings.useGPUProcessForMediaEnabled());
     WebProcess::singleton().supplement<RemoteMediaPlayerManager>()->updatePreferences(settings);
-    WebProcess::singleton().setUseGPUProcessForMedia(settings.useGPUProcessForMedia());
+    WebProcess::singleton().setUseGPUProcessForMedia(settings.useGPUProcessForMediaEnabled());
 #endif
 }
 
@@ -5123,12 +5140,12 @@ void WebPage::didFinishPrintOperation(const WebCore::ResourceError& error, Callb
 }
 #endif
 
+#if ENABLE(PDFKIT_PLUGIN) && !ENABLE(UI_PROCESS_PDF_HUD)
 void WebPage::savePDFToFileInDownloadsFolder(const String& suggestedFilename, const URL& originatingURL, const uint8_t* data, unsigned long size)
 {
     send(Messages::WebPageProxy::SavePDFToFileInDownloadsFolder(suggestedFilename, originatingURL, IPC::DataReference(data, size)));
 }
 
-#if PLATFORM(COCOA)
 void WebPage::savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, FrameInfoData&& frameInfo, const uint8_t* data, unsigned long size, const String& pdfUUID)
 {
     send(Messages::WebPageProxy::SavePDFToTemporaryFolderAndOpenWithNativeApplication(suggestedFilename, frameInfo, IPC::DataReference(data, size), pdfUUID));
@@ -5175,18 +5192,6 @@ void WebPage::stopMediaCapture()
     m_page->stopMediaCapture();
 #endif
 }
-
-#if ENABLE(MEDIA_SESSION)
-void WebPage::handleMediaEvent(uint32_t eventType)
-{
-    m_page->handleMediaEvent(static_cast<MediaEventType>(eventType));
-}
-
-void WebPage::setVolumeOfMediaElement(double volume, uint64_t elementID)
-{
-    m_page->setVolumeOfMediaElement(volume, elementID);
-}
-#endif
 
 void WebPage::setMayStartMediaWhenInWindow(bool mayStartMedia)
 {
@@ -5437,7 +5442,7 @@ void WebPage::insertTextAsync(const String& text, const EditingRange& replacemen
     if (replacementEditingRange.location != notFound) {
         if (auto replacementRange = EditingRange::toRange(frame, replacementEditingRange, options.editingRangeIsRelativeTo)) {
             SetForScope<bool> isSelectingTextWhileInsertingAsynchronously(m_isSelectingTextWhileInsertingAsynchronously, options.suppressSelectionUpdate);
-            frame.selection().setSelection(VisibleSelection(*replacementRange, SEL_DEFAULT_AFFINITY));
+            frame.selection().setSelection(VisibleSelection(*replacementRange));
             replacesText = replacementEditingRange.length;
         }
     }
@@ -5510,7 +5515,7 @@ void WebPage::setCompositionAsync(const String& text, const Vector<CompositionUn
     if (frame.selection().selection().isContentEditable()) {
         if (replacementEditingRange.location != notFound) {
             if (auto replacementRange = EditingRange::toRange(frame, replacementEditingRange))
-                frame.selection().setSelection(VisibleSelection(*replacementRange, SEL_DEFAULT_AFFINITY));
+                frame.selection().setSelection(VisibleSelection(*replacementRange));
         }
         frame.editor().setComposition(text, underlines, highlights, selection.location, selection.location + selection.length);
     }
@@ -5575,7 +5580,7 @@ void WebPage::deleteSurrounding(int64_t offset, unsigned characterCount)
     auto selectionRange = resolveCharacterRange(makeRangeSelectingNodeContents(rootNode), characterRange);
 
     targetFrame->editor().setIgnoreSelectionChanges(true);
-    targetFrame->selection().setSelection(VisibleSelection(selectionRange, SEL_DEFAULT_AFFINITY));
+    targetFrame->selection().setSelection(VisibleSelection(selectionRange));
     targetFrame->editor().deleteSelectionWithSmartDelete(false);
     targetFrame->editor().setIgnoreSelectionChanges(false);
     sendEditorStateUpdate();
@@ -7215,6 +7220,7 @@ void WebPage::animationDidFinishForElement(const WebCore::Element&)
 
 #endif
 
+#if ENABLE(APP_BOUND_DOMAINS)
 void WebPage::setIsNavigatingToAppBoundDomain(Optional<NavigatingToAppBoundDomain> isNavigatingToAppBoundDomain, WebFrame* frame)
 {
     frame->setIsNavigatingToAppBoundDomain(isNavigatingToAppBoundDomain);
@@ -7227,6 +7233,7 @@ void WebPage::notifyPageOfAppBoundBehavior()
     if (!m_navigationHasOccured && !m_limitsNavigationsToAppBoundDomains)
         send(Messages::WebPageProxy::SetHasExecutedAppBoundBehaviorBeforeNavigation());
 }
+#endif
 
 } // namespace WebKit
 

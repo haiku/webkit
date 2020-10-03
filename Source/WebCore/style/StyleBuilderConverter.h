@@ -95,7 +95,7 @@ public:
     static Resize convertResize(BuilderState&, const CSSValue&);
     static int convertMarqueeRepetition(BuilderState&, const CSSValue&);
     static int convertMarqueeSpeed(BuilderState&, const CSSValue&);
-    static Ref<QuotesData> convertQuotes(BuilderState&, const CSSValue&);
+    static RefPtr<QuotesData> convertQuotes(BuilderState&, const CSSValue&);
     static TextUnderlinePosition convertTextUnderlinePosition(BuilderState&, const CSSValue&);
     static TextUnderlineOffset convertTextUnderlineOffset(BuilderState&, const CSSValue&);
     static TextDecorationThickness convertTextDecorationThickness(BuilderState&, const CSSValue&);
@@ -135,9 +135,7 @@ public:
     static FontSelectionValue convertFontWeight(BuilderState&, const CSSValue&);
     static FontSelectionValue convertFontStretch(BuilderState&, const CSSValue&);
     static FontSelectionValue convertFontStyle(BuilderState&, const CSSValue&);
-#if ENABLE(VARIATION_FONTS)
     static FontVariationSettings convertFontVariationSettings(BuilderState&, const CSSValue&);
-#endif
     static SVGLengthValue convertSVGLengthValue(BuilderState&, const CSSValue&);
     static Vector<SVGLengthValue> convertSVGLengthVector(BuilderState&, const CSSValue&);
     static Vector<SVGLengthValue> convertStrokeDashArray(BuilderState&, const CSSValue&);
@@ -669,11 +667,14 @@ inline int BuilderConverter::convertMarqueeSpeed(BuilderState&, const CSSValue& 
     return primitiveValue.intValue();
 }
 
-inline Ref<QuotesData> BuilderConverter::convertQuotes(BuilderState&, const CSSValue& value)
+inline RefPtr<QuotesData> BuilderConverter::convertQuotes(BuilderState&, const CSSValue& value)
 {
     if (is<CSSPrimitiveValue>(value)) {
-        ASSERT(downcast<CSSPrimitiveValue>(value).valueID() == CSSValueNone);
-        return QuotesData::create(Vector<std::pair<String, String>>());
+        auto& primitiveValue = downcast<CSSPrimitiveValue>(value);
+        if (primitiveValue.valueID() == CSSValueNone)
+            return QuotesData::create({ });
+        ASSERT(primitiveValue.valueID() == CSSValueAuto);
+        return nullptr;
     }
 
     auto& list = downcast<CSSValueList>(value);
@@ -1323,7 +1324,6 @@ inline FontSelectionValue BuilderConverter::convertFontStretch(BuilderState&, co
     return convertFontStretchFromValue(value);
 }
 
-#if ENABLE(VARIATION_FONTS)
 inline FontVariationSettings BuilderConverter::convertFontVariationSettings(BuilderState&, const CSSValue& value)
 {
     if (is<CSSPrimitiveValue>(value)) {
@@ -1338,7 +1338,6 @@ inline FontVariationSettings BuilderConverter::convertFontVariationSettings(Buil
     }
     return settings;
 }
-#endif
 
 #if PLATFORM(IOS_FAMILY)
 inline bool BuilderConverter::convertTouchCallout(BuilderState&, const CSSValue& value)

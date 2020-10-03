@@ -94,7 +94,7 @@ class FloatRect;
 class FloatRoundedRect;
 class FloatSize;
 class FixedPositionViewportConstraints;
-class FontHandle;
+class Font;
 class HTTPHeaderMap;
 class ImageHandle;
 class IntPoint;
@@ -185,10 +185,6 @@ class ContentFilterUnblockHandler;
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 class MediaPlaybackTargetContext;
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-class MediaSessionMetadata;
 #endif
 
 #if ENABLE(MEDIA_STREAM)
@@ -407,11 +403,11 @@ template<> struct ArgumentCoder<WebCore::Cursor> {
     static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::Cursor&);
 };
 
-template<> struct ArgumentCoder<WebCore::FontHandle> {
-    static void encode(Encoder&, const WebCore::FontHandle&);
-    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::FontHandle&);
-    static void encodePlatformData(Encoder&, const WebCore::FontHandle&);
-    static WARN_UNUSED_RETURN bool decodePlatformData(Decoder&, WebCore::FontHandle&);
+template<> struct ArgumentCoder<Ref<WebCore::Font>> {
+    static void encode(Encoder&, const Ref<WebCore::Font>&);
+    static Optional<Ref<WebCore::Font>> decode(Decoder&);
+    static void encodePlatformData(Encoder&, const Ref<WebCore::Font>&);
+    static Optional<Ref<WebCore::Font>> decodePlatformData(Decoder&, Optional<Ref<WebCore::Font>>&&);
 };
 
 template<> struct ArgumentCoder<WebCore::ImageHandle> {
@@ -632,13 +628,6 @@ template<> struct ArgumentCoder<WebCore::BlobPart> {
 template<> struct ArgumentCoder<WebCore::ContentFilterUnblockHandler> {
     static void encode(Encoder&, const WebCore::ContentFilterUnblockHandler&);
     static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::ContentFilterUnblockHandler&);
-};
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-template<> struct ArgumentCoder<WebCore::MediaSessionMetadata> {
-    static void encode(Encoder&, const WebCore::MediaSessionMetadata&);
-    static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::MediaSessionMetadata&);
 };
 #endif
 

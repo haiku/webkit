@@ -87,7 +87,6 @@ enum class IncludeSecureCookies : bool;
 enum class IncludeHttpOnlyCookies : bool;
 enum class ThirdPartyCookieBlockingMode : uint8_t { All, AllExceptBetweenAppBoundDomains, AllOnSitesWithoutUserInteraction, OnlyAccordingToPerDomainPolicy };
 enum class SameSiteStrictEnforcementEnabled : bool { Yes, No };
-enum class CNAMECloakingMitigationEnabled : bool { Yes, No };
 enum class FirstPartyWebsiteDataRemovalMode : uint8_t { AllButCookies, None, AllButCookiesLiveOnTestingTimeout, AllButCookiesReproTestingTimeout };
 enum class ShouldAskITP : bool { No, Yes };
 
@@ -130,7 +129,6 @@ public:
     // May be null, in which case a Foundation default should be used.
     CFURLStorageSessionRef platformSession() { return m_platformSession.get(); }
     WEBCORE_EXPORT RetainPtr<CFHTTPCookieStorageRef> cookieStorage() const;
-    WEBCORE_EXPORT static void setStorageAccessAPIEnabled(bool);
 #elif USE(SOUP)
     WEBCORE_EXPORT explicit NetworkStorageSession(PAL::SessionID);
     ~NetworkStorageSession();
@@ -194,6 +192,8 @@ public:
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     WEBCORE_EXPORT void setResourceLoadStatisticsEnabled(bool);
     WEBCORE_EXPORT bool resourceLoadStatisticsEnabled() const;
+    WEBCORE_EXPORT void setResourceLoadStatisticsDebugLoggingEnabled(bool);
+    WEBCORE_EXPORT bool resourceLoadStatisticsDebugLoggingEnabled() const;
     WEBCORE_EXPORT bool shouldBlockCookies(const ResourceRequest&, Optional<FrameIdentifier>, Optional<PageIdentifier>, ShouldRelaxThirdPartyCookieBlocking) const;
     WEBCORE_EXPORT bool shouldBlockCookies(const URL& firstPartyForCookies, const URL& resource, Optional<FrameIdentifier>, Optional<PageIdentifier>, ShouldRelaxThirdPartyCookieBlocking) const;
     WEBCORE_EXPORT bool shouldBlockThirdPartyCookies(const RegistrableDomain&) const;
@@ -219,6 +219,9 @@ public:
     WEBCORE_EXPORT void didCommitCrossSiteLoadWithDataTransferFromPrevalentResource(const RegistrableDomain& toDomain, PageIdentifier);
     WEBCORE_EXPORT void resetCrossSiteLoadsWithLinkDecorationForTesting();
     WEBCORE_EXPORT void setThirdPartyCookieBlockingMode(ThirdPartyCookieBlockingMode);
+#endif
+    
+#if ENABLE(APP_BOUND_DOMAINS)
     WEBCORE_EXPORT void setAppBoundDomains(HashSet<RegistrableDomain>&&);
     WEBCORE_EXPORT void resetAppBoundDomains();
 #endif
@@ -269,6 +272,7 @@ private:
 
 #if ENABLE(RESOURCE_LOAD_STATISTICS)
     bool m_isResourceLoadStatisticsEnabled = false;
+    bool m_isResourceLoadStatisticsDebugLoggingEnabled = false;
     Optional<Seconds> clientSideCookieCap(const TopFrameDomain&, Optional<PageIdentifier>) const;
     bool shouldExemptDomainPairFromThirdPartyCookieBlocking(const TopFrameDomain&, const SubResourceDomain&) const;
     HashSet<RegistrableDomain> m_registrableDomainsToBlockAndDeleteCookiesFor;

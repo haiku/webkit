@@ -64,27 +64,19 @@ static inline RenderObject* rendererFromPosition(const Position& position)
 }
 
 RenderedPosition::RenderedPosition(const VisiblePosition& position)
-    : m_offset(0)
-    , m_previousLeafOnLine(uncachedInlineBox())
-    , m_nextLeafOnLine(uncachedInlineBox())
+    : RenderedPosition(position.deepEquivalent(), position.affinity())
 {
-    if (position.isNull())
-        return;
-    position.getInlineBoxAndOffset(m_inlineBox, m_offset);
-    if (m_inlineBox)
-        m_renderer = &m_inlineBox->renderer();
-    else
-        m_renderer = rendererFromPosition(position.deepEquivalent());
 }
 
-RenderedPosition::RenderedPosition(const Position& position, EAffinity affinity)
-    : m_offset(0)
-    , m_previousLeafOnLine(uncachedInlineBox())
+RenderedPosition::RenderedPosition(const Position& position, Affinity affinity)
+    : m_previousLeafOnLine(uncachedInlineBox())
     , m_nextLeafOnLine(uncachedInlineBox())
 {
     if (position.isNull())
         return;
-    position.getInlineBoxAndOffset(affinity, m_inlineBox, m_offset);
+    auto box = position.inlineBoxAndOffset(affinity);
+    m_inlineBox = box.box;
+    m_offset = box.offset;
     if (m_inlineBox)
         m_renderer = &m_inlineBox->renderer();
     else
@@ -203,9 +195,9 @@ Position RenderedPosition::positionAtLeftBoundaryOfBiDiRun() const
     ASSERT(atLeftBoundaryOfBidiRun());
 
     if (atLeftmostOffsetInBox())
-        return createLegacyEditingPosition(m_renderer->node(), m_offset);
+        return makeDeprecatedLegacyPosition(m_renderer->node(), m_offset);
 
-    return createLegacyEditingPosition(nextLeafOnLine()->renderer().node(), nextLeafOnLine()->caretLeftmostOffset());
+    return makeDeprecatedLegacyPosition(nextLeafOnLine()->renderer().node(), nextLeafOnLine()->caretLeftmostOffset());
 }
 
 Position RenderedPosition::positionAtRightBoundaryOfBiDiRun() const
@@ -213,9 +205,9 @@ Position RenderedPosition::positionAtRightBoundaryOfBiDiRun() const
     ASSERT(atRightBoundaryOfBidiRun());
 
     if (atRightmostOffsetInBox())
-        return createLegacyEditingPosition(m_renderer->node(), m_offset);
+        return makeDeprecatedLegacyPosition(m_renderer->node(), m_offset);
 
-    return createLegacyEditingPosition(previousLeafOnLine()->renderer().node(), previousLeafOnLine()->caretRightmostOffset());
+    return makeDeprecatedLegacyPosition(previousLeafOnLine()->renderer().node(), previousLeafOnLine()->caretRightmostOffset());
 }
 
 IntRect RenderedPosition::absoluteRect(LayoutUnit* extraWidthToEndOfLine) const

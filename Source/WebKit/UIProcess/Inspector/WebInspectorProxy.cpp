@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2017 Apple Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Apple Inc. All rights reserved.
  * Portions Copyright (c) 2011 Motorola Mobility, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@ const unsigned WebInspectorProxy::initialWindowHeight = 650;
 
 WebInspectorProxy::WebInspectorProxy(WebPageProxy& inspectedPage)
     : m_inspectedPage(&inspectedPage)
+    , m_inspectorClient(makeUnique<API::InspectorClient>())
 #if PLATFORM(MAC)
     , m_closeFrontendAfterInactivityTimer(RunLoop::main(), this, &WebInspectorProxy::closeFrontendAfterInactivityTimerFired)
 #endif
@@ -77,6 +78,16 @@ WebInspectorProxy::WebInspectorProxy(WebPageProxy& inspectedPage)
 
 WebInspectorProxy::~WebInspectorProxy()
 {
+}
+
+void WebInspectorProxy::setInspectorClient(std::unique_ptr<API::InspectorClient>&& inspectorClient)
+{
+    if (!inspectorClient) {
+        m_inspectorClient = makeUnique<API::InspectorClient>();
+        return;
+    }
+
+    m_inspectorClient = WTFMove(inspectorClient);
 }
 
 unsigned WebInspectorProxy::inspectionLevel() const
@@ -279,7 +290,7 @@ void WebInspectorProxy::attachLeft()
 void WebInspectorProxy::attach(AttachmentSide side)
 {
     ASSERT(m_inspectorPage);
-    if (!m_inspectedPage || !m_inspectorPage || !platformCanAttach(canAttach()))
+    if (!m_inspectedPage || !m_inspectorPage || (!m_isAttached && !platformCanAttach(m_canAttach)))
         return;
 
     m_isAttached = true;
@@ -466,7 +477,7 @@ void WebInspectorProxy::openLocalInspectorFrontend(bool canAttach, bool underTes
     }
 
     // Notify WebKit client when a local inspector attaches so that it may install delegates prior to the _WKInspector loading its frontend.
-    m_inspectedPage->inspectorClient().didAttachLocalInspector(*m_inspectedPage, *this);
+    m_inspectedPage->uiClient().didAttachLocalInspector(*m_inspectedPage, *this);
 
     // Bail out if the client closed the inspector from the delegate method.
     if (!m_inspectorPage)
@@ -578,7 +589,7 @@ void WebInspectorProxy::attachAvailabilityChanged(bool available)
 {
     bool previousCanAttach = m_canAttach;
 
-    m_canAttach = platformCanAttach(available);
+    m_canAttach = m_isAttached || platformCanAttach(available);
 
     if (previousCanAttach == m_canAttach)
         return;
@@ -592,6 +603,11 @@ void WebInspectorProxy::attachAvailabilityChanged(bool available)
 void WebInspectorProxy::setForcedAppearance(InspectorFrontendClient::Appearance appearance)
 {
     platformSetForcedAppearance(appearance);
+}
+
+void WebInspectorProxy::openURLExternally(const String& url)
+{
+    m_inspectorClient->openURLExternally(*this, url);
 }
 
 void WebInspectorProxy::inspectedURLChanged(const String& urlString)
@@ -698,6 +714,14 @@ void WebInspectorProxy::append(const String& filename, const String& content)
 bool WebInspectorProxy::shouldOpenAttached()
 {
     return inspectorPagePreferences().inspectorStartsAttached() && canAttach();
+}
+
+void WebInspectorProxy::evaluateInFrontendForTesting(const String& expression)
+{
+    if (!m_inspectorPage)
+        return;
+
+    m_inspectorPage->send(Messages::WebInspectorUI::EvaluateInFrontendForTesting(expression));
 }
 
 // Unsupported configurations can use the stubs provided here.

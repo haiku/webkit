@@ -40,10 +40,13 @@
 #include <wtf/RefPtr.h>
 
 namespace IPC {
-class Attachment;
 class Connection;
 class Decoder;
 class MessageReceiver;
+}
+
+namespace WTF {
+class MachSendRight;
 }
 
 namespace WebCore {
@@ -149,9 +152,9 @@ protected:
     void didSetupFullscreen(PlaybackSessionContextIdentifier);
     void willExitFullscreen(PlaybackSessionContextIdentifier);
     void didExitFullscreen(PlaybackSessionContextIdentifier);
-    void didEnterFullscreen(PlaybackSessionContextIdentifier);
+    void didEnterFullscreen(PlaybackSessionContextIdentifier, Optional<WebCore::FloatSize>);
     void didCleanupFullscreen(PlaybackSessionContextIdentifier);
-    void setVideoLayerFrameFenced(PlaybackSessionContextIdentifier, WebCore::FloatRect bounds, IPC::Attachment fencePort);
+    void setVideoLayerFrameFenced(PlaybackSessionContextIdentifier, WebCore::FloatRect bounds, const WTF::MachSendRight&);
     void setVideoLayerGravityEnum(PlaybackSessionContextIdentifier, unsigned gravity);
     void fullscreenModeChanged(PlaybackSessionContextIdentifier, WebCore::HTMLMediaElementEnums::VideoFullscreenMode);
     void fullscreenWillReturnToInline(PlaybackSessionContextIdentifier, bool isPageVisible);

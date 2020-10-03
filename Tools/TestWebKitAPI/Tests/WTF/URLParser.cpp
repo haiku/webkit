@@ -209,6 +209,39 @@ static void shouldFail(const String& urlString, const String& baseString)
     checkRelativeURL(urlString, baseString, {"", "", "", "", 0, "", "", "", urlString});
 }
 
+TEST_F(WTF_URLParser, Idempotence)
+{
+    checkURL("a://", {"a", "", "", "", 0, "", "", "", "a://"});
+    checkURL("b:///", {"b", "", "", "", 0, "/", "", "", "b:///"});
+    checkURL("c:/.//", {"c", "", "", "", 0, "//", "", "", "c:/.//"});
+    checkURL("d:/..//", {"d", "", "", "", 0, "//", "", "", "d:/.//"});
+    checkURL("e:/../..//", {"e", "", "", "", 0, "//", "", "", "e:/.//"});
+    checkURL("f:/../../", {"f", "", "", "", 0, "/", "", "", "f:/"});
+    checkURL("g:/././", {"g", "", "", "", 0, "/", "", "", "g:/"});
+    checkURL("h:/./../", {"h", "", "", "", 0, "/", "", "", "h:/"});
+    checkURL("i:/.././", {"i", "", "", "", 0, "/", "", "", "i:/"});
+    checkURL("j:/./..//", {"j", "", "", "", 0, "//", "", "", "j:/.//"});
+    checkURL("k:/.././/", {"k", "", "", "", 0, "//", "", "", "k:/.//"});
+    checkURL("l:/.?", {"l", "", "", "", 0, "/", "", "", "l:/?"});
+    checkURL("m:/./?", {"m", "", "", "", 0, "/", "", "", "m:/?"});
+    checkURL("n:/.//?", {"n", "", "", "", 0, "//", "", "", "n:/.//?"});
+    checkURL("o:/.#", {"o", "", "", "", 0, "/", "", "", "o:/#"});
+    checkURL("p:/%2e//", {"p", "", "", "", 0, "//", "", "", "p:/.//"});
+    checkURL("q:/%2e%2e//", {"q", "", "", "", 0, "//", "", "", "q:/.//"});
+    checkURL("r:/%2e%2e/", {"r", "", "", "", 0, "/", "", "", "r:/"});
+    checkURL("s:/%2e/", {"s", "", "", "", 0, "/", "", "", "s:/"});
+    checkURL("t:/.//p/../../../..//x", {"t", "", "", "", 0, "//x", "", "", "t:/.//x"});
+    checkRelativeURL("../path", "u:/.//p", {"u", "", "", "", 0, "/path", "", "", "u:/path"});
+    checkURL("v:/.//..", {"v", "", "", "", 0, "/", "", "", "v:/"});
+    checkURL("w:/.//..//", {"w", "", "", "", 0, "//", "", "", "w:/.//"});
+    checkURL("x:/.//../a", {"x", "", "", "", 0, "/a", "", "", "x:/a"});
+    checkURL("http://host/./", {"http", "", "", "host", 0, "/", "", "", "http://host/"});
+    checkURL("http://host/../", {"http", "", "", "host", 0, "/", "", "", "http://host/"});
+    checkURL("http://host/.../", {"http", "", "", "host", 0, "/.../", "", "", "http://host/.../"});
+    checkURL("http://host/..", {"http", "", "", "host", 0, "/", "", "", "http://host/"});
+    checkURL("http://host/.", {"http", "", "", "host", 0, "/", "", "", "http://host/"});
+}
+
 TEST_F(WTF_URLParser, Basic)
 {
     checkURL("http://user:pass@webkit.org:123/path?query#fragment", {"http", "user", "pass", "webkit.org", 123, "/path", "query", "fragment", "http://user:pass@webkit.org:123/path?query#fragment"});
@@ -450,12 +483,12 @@ TEST_F(WTF_URLParser, Basic)
     checkURLDifferences("aA://",
         {"aa", "", "", "", 0, "", "", "", "aa://"},
         {"aa", "", "", "", 0, "//", "", "", "aa://"});
-    checkURL(utf16String(u"foo://host/#ПП\u0007 a</"), {"foo", "", "", "host", 0, "/", "", "%D0%9F%D0%9F%07 a</", "foo://host/#%D0%9F%D0%9F%07 a</"});
-    checkURL(utf16String(u"foo://host/#\u0007 a</"), {"foo", "", "", "host", 0, "/", "", "%07 a</", "foo://host/#%07 a</"});
+    checkURL(utf16String(u"foo://host/#ПП\u0007 a</"), {"foo", "", "", "host", 0, "/", "", "%D0%9F%D0%9F%07%20a%3C/", "foo://host/#%D0%9F%D0%9F%07%20a%3C/"});
+    checkURL(utf16String(u"foo://host/#\u0007 a</"), {"foo", "", "", "host", 0, "/", "", "%07%20a%3C/", "foo://host/#%07%20a%3C/"});
     checkURL(utf16String(u"http://host?ß😍#ß😍"), {"http", "", "", "host", 0, "/", "%C3%9F%F0%9F%98%8D", "%C3%9F%F0%9F%98%8D", "http://host/?%C3%9F%F0%9F%98%8D#%C3%9F%F0%9F%98%8D"}, testTabsValueForSurrogatePairs);
     checkURL(utf16String(u"http://host/path#💩\t💩"), {"http", "", "", "host", 0, "/path", "", "%F0%9F%92%A9%F0%9F%92%A9", "http://host/path#%F0%9F%92%A9%F0%9F%92%A9"}, testTabsValueForSurrogatePairs);
-    checkURL(utf16String(u"http://host/#ПП\u0007 a</"), {"http", "", "", "host", 0, "/", "", "%D0%9F%D0%9F%07 a</", "http://host/#%D0%9F%D0%9F%07 a</"});
-    checkURL(utf16String(u"http://host/#\u0007 a</"), {"http", "", "", "host", 0, "/", "", "%07 a</", "http://host/#%07 a</"});
+    checkURL(utf16String(u"http://host/#ПП\u0007 a</"), {"http", "", "", "host", 0, "/", "", "%D0%9F%D0%9F%07%20a%3C/", "http://host/#%D0%9F%D0%9F%07%20a%3C/"});
+    checkURL(utf16String(u"http://host/#\u0007 a</"), {"http", "", "", "host", 0, "/", "", "%07%20a%3C/", "http://host/#%07%20a%3C/"});
 
     // This disagrees with the web platform test for http://:@www.example.com but agrees with Chrome and URL::parse,
     // and Firefox fails the web platform test differently. Maybe the web platform test ought to be changed.

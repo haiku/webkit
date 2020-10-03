@@ -40,6 +40,7 @@
 #import "HTMLAttachmentElement.h"
 #import "HTMLInputElement.h"
 #import "HTMLMediaElement.h"
+#import "HTMLMeterElement.h"
 #import "HTMLNames.h"
 #import "HTMLPlugInImageElement.h"
 #import "Icon.h"
@@ -54,6 +55,7 @@
 #import "RenderAttachment.h"
 #import "RenderLayer.h"
 #import "RenderMedia.h"
+#import "RenderMeter.h"
 #import "RenderProgress.h"
 #import "RenderSlider.h"
 #import "RenderSnapshottedPlugIn.h"
@@ -82,11 +84,6 @@
 #import <wtf/RetainPtr.h>
 #import <wtf/StdLibExtras.h>
 #import <wtf/text/StringBuilder.h>
-
-#if ENABLE(METER_ELEMENT)
-#import "RenderMeter.h"
-#import "HTMLMeterElement.h"
-#endif
 
 #if ENABLE(SERVICE_CONTROLS)
 
@@ -359,51 +356,6 @@ String RenderThemeMac::mediaControlsBase64StringForIconNameAndType(const String&
     return [[NSData dataWithContentsOfFile:[bundle pathForResource:iconName ofType:iconType inDirectory:directory]] base64EncodedStringWithOptions:0];
 }
 
-#if ENABLE(INPUT_TYPE_DATE)
-
-String RenderThemeMac::dateInputStyleSheet() const
-{
-    return "input[type=\"date\"] { -webkit-appearance: textfield; align-items: center; display: -webkit-inline-flex; overflow: hidden; width: 10em; outline: none; } "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_DATETIMELOCAL)
-
-String RenderThemeMac::dateTimeLocalInputStyleSheet() const
-{
-    return "input[type=\"datetime-local\"] { -webkit-appearance: textfield; align-items: center; display: -webkit-inline-flex; overflow: hidden; width: 10em; outline: none; } "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_MONTH)
-
-String RenderThemeMac::monthInputStyleSheet() const
-{
-    return "input[type=\"month\"] { -webkit-appearance: textfield; align-items: center; display: -webkit-inline-flex; overflow: hidden; width: 10em; outline: none; } "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_TIME)
-
-String RenderThemeMac::timeInputStyleSheet() const
-{
-    return "input[type=\"time\"] { -webkit-appearance: textfield; align-items: center; display: -webkit-inline-flex; overflow: hidden; width: 10em; outline: none; } "_s;
-}
-
-#endif
-
-#if ENABLE(INPUT_TYPE_WEEK)
-
-String RenderThemeMac::weekInputStyleSheet() const
-{
-    return "input[type=\"week\"] { -webkit-appearance: textfield; align-items: center; display: -webkit-inline-flex; overflow: hidden; width: 10em; outline: none; } "_s;
-}
-
-#endif
-
 #if ENABLE(SERVICE_CONTROLS)
 
 String RenderThemeMac::imageControlsStyleSheet() const
@@ -426,9 +378,7 @@ Color RenderThemeMac::platformInactiveSelectionBackgroundColor(OptionSet<StyleCo
     return colorFromNSColor([NSColor unemphasizedSelectedTextBackgroundColor]);
 #else
     UNUSED_PARAM(options);
-    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-    return colorFromNSColor([NSColor secondarySelectedControlColor]);
-    ALLOW_DEPRECATED_DECLARATIONS_END
+    return colorFromNSColor([NSColor unemphasizedSelectedContentBackgroundColor]);
 #endif
 }
 
@@ -488,13 +438,11 @@ Color RenderThemeMac::platformInactiveListBoxSelectionBackgroundColor(OptionSet<
 {
 #if HAVE(OS_DARK_MODE_SUPPORT)
     LocalDefaultSystemAppearance localAppearance(options.contains(StyleColor::Options::UseDarkAppearance));
-    return colorFromNSColor([NSColor unemphasizedSelectedContentBackgroundColor]);
 #else
     UNUSED_PARAM(options);
-    ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-    return colorFromNSColor([NSColor secondarySelectedControlColor]);
-    ALLOW_DEPRECATED_DECLARATIONS_END
 #endif
+    return colorFromNSColor([NSColor unemphasizedSelectedContentBackgroundColor]);
+
 }
 
 Color RenderThemeMac::platformActiveListBoxSelectionForegroundColor(OptionSet<StyleColor::Options> options) const
@@ -694,13 +642,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
             case CSSValueAppleSystemAlternateSelectedText:
                 return @selector(alternateSelectedControlTextColor);
             case CSSValueAppleSystemUnemphasizedSelectedContentBackground:
-#if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(unemphasizedSelectedContentBackgroundColor);
-#else
-                ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-                return @selector(secondarySelectedControlColor);
-                ALLOW_DEPRECATED_DECLARATIONS_END
-#endif
             case CSSValueAppleSystemSelectedText:
                 return @selector(selectedTextColor);
             case CSSValueAppleSystemUnemphasizedSelectedText:
@@ -713,9 +655,7 @@ Color RenderThemeMac::systemColor(CSSValueID cssValueID, OptionSet<StyleColor::O
 #if HAVE(OS_DARK_MODE_SUPPORT)
                 return @selector(unemphasizedSelectedTextBackgroundColor);
 #else
-                ALLOW_DEPRECATED_DECLARATIONS_BEGIN
-                return @selector(secondarySelectedControlColor);
-                ALLOW_DEPRECATED_DECLARATIONS_END
+                return @selector(unemphasizedSelectedContentBackgroundColor);
 #endif
             case CSSValueAppleSystemPlaceholderText:
                 return @selector(placeholderTextColor);
@@ -1261,8 +1201,6 @@ bool RenderThemeMac::paintMenuList(const RenderObject& renderer, const PaintInfo
     return false;
 }
 
-#if ENABLE(METER_ELEMENT)
-
 IntSize RenderThemeMac::meterSizeForBounds(const RenderMeter& renderMeter, const IntRect& bounds) const
 {
     if (NoControlPart == renderMeter.style().appearance())
@@ -1361,8 +1299,6 @@ NSLevelIndicatorCell* RenderThemeMac::levelIndicatorFor(const RenderMeter& rende
 
     return cell;
 }
-
-#endif
 
 const IntSize* RenderThemeMac::progressBarSizes() const
 {
@@ -2571,7 +2507,7 @@ void AttachmentLayout::addTitleLine(CTLineRef line, CGFloat& yOffset, Vector<CGP
 void AttachmentLayout::layOutTitle(const RenderAttachment& attachment)
 {
     CFStringRef language = 0; // By not specifying a language we use the system language.
-    RetainPtr<CTFontRef> font = adoptCF(CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, attachmentTitleFontSize, language));
+    auto font = adoptCF(CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, attachmentTitleFontSize, language));
     baseline = CGRound(attachmentIconBackgroundSize + attachmentIconToTitleMargin + CTFontGetAscent(font.get()));
 
     String title = attachment.attachmentElement().attachmentTitleForDisplay();
@@ -2636,7 +2572,7 @@ void AttachmentLayout::layOutSubtitle(const RenderAttachment& attachment)
 
     Color subtitleColor = attachment.style().colorByApplyingColorFilter(attachmentSubtitleTextColor);
     CFStringRef language = 0; // By not specifying a language we use the system language.
-    RetainPtr<CTFontRef> font = adoptCF(CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, attachmentSubtitleFontSize, language));
+    auto font = adoptCF(CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, attachmentSubtitleFontSize, language));
     NSDictionary *textAttributes = @{
         (__bridge id)kCTFontAttributeName: (__bridge id)font.get(),
         (__bridge id)kCTForegroundColorAttributeName: (__bridge NSColor *)cachedCGColor(subtitleColor)

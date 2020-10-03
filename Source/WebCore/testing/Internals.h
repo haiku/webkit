@@ -41,10 +41,6 @@
 #include <JavaScriptCore/Float32Array.h>
 #include <wtf/Optional.h>
 
-#if ENABLE(MEDIA_SESSION)
-#include "MediaSessionInterruptionProvider.h"
-#endif
-
 #if ENABLE(VIDEO)
 #include "MediaElementSession.h"
 #endif
@@ -69,6 +65,7 @@ class File;
 class Frame;
 class GCObservation;
 class HTMLAnchorElement;
+class HTMLAttachmentElement;
 class HTMLImageElement;
 class HTMLInputElement;
 class HTMLLinkElement;
@@ -232,13 +229,7 @@ public:
     ExceptionOr<bool> animationsAreSuspended() const;
     ExceptionOr<void> suspendAnimations() const;
     ExceptionOr<void> resumeAnimations() const;
-    ExceptionOr<bool> pauseAnimationAtTimeOnElement(const String& animationName, double pauseTime, Element&);
-    ExceptionOr<bool> pauseAnimationAtTimeOnPseudoElement(const String& animationName, double pauseTime, Element&, const String& pseudoId);
     double animationsInterval() const;
-
-    // CSS Transition testing.
-    ExceptionOr<bool> pauseTransitionAtTimeOnElement(const String& propertyName, double pauseTime, Element&);
-    ExceptionOr<bool> pauseTransitionAtTimeOnPseudoElement(const String& property, double pauseTime, Element&, const String& pseudoId);
 
     // Web Animations testing.
     struct AcceleratedAnimation {
@@ -370,6 +361,7 @@ public:
 
     void handleAcceptedCandidate(const String& candidate, unsigned location, unsigned length);
     void changeSelectionListType();
+    void changeBackToReplacedString(const String& replacedString);
 
     bool isOverwriteModeEnabled();
     void toggleOverwriteModeEnabled();
@@ -621,7 +613,10 @@ public:
     bool elementShouldBufferData(HTMLMediaElement&);
     String elementBufferingPolicy(HTMLMediaElement&);
     double privatePlayerVolume(const HTMLMediaElement&);
+    ExceptionOr<void> setOverridePreferredDynamicRangeMode(HTMLMediaElement&, const String&);
 #endif
+
+    ExceptionOr<void> setIsPlayingToBluetoothOverride(Optional<bool>);
 
     bool isSelectPopupVisible(HTMLSelectElement&);
 
@@ -665,15 +660,6 @@ public:
     void setMediaElementRestrictions(HTMLMediaElement&, StringView restrictionsString);
     ExceptionOr<void> postRemoteControlCommand(const String&, float argument);
     bool elementIsBlockingDisplaySleep(HTMLMediaElement&) const;
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    void sendMediaSessionStartOfInterruptionNotification(MediaSessionInterruptingCategory);
-    void sendMediaSessionEndOfInterruptionNotification(MediaSessionInterruptingCategory);
-    String mediaSessionCurrentState(MediaSession&) const;
-    double mediaElementPlayerVolume(HTMLMediaElement&) const;
-    enum class MediaControlEvent { PlayPause, NextTrack, PreviousTrack };
-    void sendMediaControlEvent(MediaControlEvent);
 #endif
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -913,8 +899,6 @@ public:
 
     bool capsLockIsOn();
         
-    bool supportsVCPEncoder();
-        
     using HEVCParameterSet = WebCore::HEVCParameterSet;
     Optional<HEVCParameterSet> parseHEVCCodecParameters(const String& codecString);
 
@@ -1054,6 +1038,15 @@ public:
 
     enum class ContentSizeCategory { L, XXXL };
     void setContentSizeCategory(ContentSizeCategory);
+
+#if ENABLE(ATTACHMENT_ELEMENT)
+    struct AttachmentThumbnailInfo {
+        unsigned width { 0 };
+        unsigned height { 0 };
+    };
+
+    ExceptionOr<AttachmentThumbnailInfo> attachmentThumbnailInfo(const HTMLAttachmentElement&);
+#endif
 
 private:
     explicit Internals(Document&);

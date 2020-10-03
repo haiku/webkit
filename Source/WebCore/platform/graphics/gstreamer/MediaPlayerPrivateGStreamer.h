@@ -513,7 +513,6 @@ private:
 #if ENABLE(WEB_AUDIO)
     std::unique_ptr<AudioSourceProviderGStreamer> m_audioSourceProvider;
 #endif
-    GRefPtr<GstElement> m_autoAudioSink;
     GRefPtr<GstElement> m_downloadBuffer;
     Vector<RefPtr<MediaPlayerRequestInstallMissingPluginsCallback>> m_missingPluginCallbacks;
     HashMap<AtomString, RefPtr<AudioTrackPrivateGStreamer>> m_audioTracks;
@@ -533,6 +532,8 @@ private:
     Optional<bool> m_hasTaintedOrigin { WTF::nullopt };
 
     GRefPtr<GstElement> m_fpsSink { nullptr };
+    uint64_t m_totalVideoFrames { 0 };
+    uint64_t m_droppedVideoFrames { 0 };
 
 private:
 #if USE(WPE_VIDEO_PLANE_DISPLAY_DMABUF)

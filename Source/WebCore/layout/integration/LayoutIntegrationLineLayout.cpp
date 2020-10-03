@@ -28,7 +28,6 @@
 
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
-#include "DisplayBox.h"
 #include "EventRegion.h"
 #include "FloatingState.h"
 #include "HitTestLocation.h"
@@ -37,6 +36,9 @@
 #include "InlineFormattingContext.h"
 #include "InlineFormattingState.h"
 #include "InvalidationState.h"
+#include "LayoutBoxGeometry.h"
+#include "LayoutIntegrationCoverage.h"
+#include "LayoutIntegrationPagination.h"
 #include "LayoutTreeBuilder.h"
 #include "PaintInfo.h"
 #include "RenderBlockFlow.h"
@@ -46,7 +48,6 @@
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
-#include "SimpleLineLayout.h"
 #include "TextDecorationPainter.h"
 #include "TextPainter.h"
 
@@ -64,23 +65,23 @@ LineLayout::LineLayout(const RenderBlockFlow& flow)
 
 LineLayout::~LineLayout() = default;
 
-bool LineLayout::canUseFor(const RenderBlockFlow& flow, Optional<bool> couldUseSimpleLineLayout)
+bool LineLayout::isEnabled()
 {
-    if (!RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextIntegrationEnabled())
+    return RuntimeEnabledFeatures::sharedFeatures().layoutFormattingContextIntegrationEnabled();
+}
+
+bool LineLayout::canUseFor(const RenderBlockFlow& flow)
+{
+    if (!isEnabled())
         return false;
 
-    // Initially only a subset of SLL features is supported.
-    auto passesSimpleLineLayoutTest = valueOrCompute(couldUseSimpleLineLayout, [&] {
-        return SimpleLineLayout::canUseFor(flow);
-    });
+    return canUseForLineLayout(flow);
+}
 
-    if (!passesSimpleLineLayoutTest)
-        return false;
-
-    if (flow.fragmentedFlowState() != RenderObject::NotInsideFragmentedFlow)
-        return false;
-
-    return true;
+bool LineLayout::canUseForAfterStyleChange(const RenderBlockFlow& flow, StyleDifference diff)
+{
+    ASSERT(isEnabled());
+    return canUseForLineLayoutAfterStyleChange(flow, diff);
 }
 
 void LineLayout::updateStyle()
@@ -104,6 +105,7 @@ void LineLayout::layout()
     prepareLayoutState();
     prepareFloatingState();
 
+    m_displayInlineContent = nullptr;
     auto inlineFormattingContext = Layout::InlineFormattingContext { rootLayoutBox(), m_inlineFormattingState };
 
     auto invalidationState = Layout::InvalidationState { };
@@ -111,7 +113,75 @@ void LineLayout::layout()
     auto verticalConstraints = Layout::VerticalConstraints { m_flow.borderAndPaddingBefore(), { } };
 
     inlineFormattingContext.layoutInFlowContent(invalidationState, { horizontalConstraints, verticalConstraints });
-    m_inlineFormattingState.shrinkDisplayInlineContent();
+    constructDisplayContent();
+}
+
+void LineLayout::constructDisplayContent()
+{
+    auto& displayInlineContent = ensureDisplayInlineContent();
+
+    auto constructDisplayLineRuns = [&] {
+        auto initialContaingBlockSize = m_layoutState.viewportSize();
+        for (auto& lineRun : m_inlineFormattingState.lineRuns()) {
+            auto& layoutBox = lineRun.layoutBox();
+            auto computedInkOverflow = [&] (const auto& logicalRect) {
+                // FIXME: Add support for non-text ink overflow.
+                if (!lineRun.text())
+                    return logicalRect;
+                auto& style = layoutBox.style();
+                auto inkOverflow = logicalRect;
+                auto strokeOverflow = std::ceil(style.computedStrokeWidth(ceiledIntSize(initialContaingBlockSize)));
+                inkOverflow.inflate(strokeOverflow);
+
+                auto letterSpacing = style.fontCascade().letterSpacing();
+                if (letterSpacing < 0) {
+                    // Last letter's negative spacing shrinks logical rect. Push it to ink overflow.
+                    inkOverflow.expand(-letterSpacing, { });
+                }
+                return inkOverflow;
+            };
+            auto logicalRect = FloatRect { lineRun.logicalRect() };
+            // Inline boxes are relative to the line box while final Display::Runs need to be relative to the parent Display:Box
+            // FIXME: Shouldn't we just leave them be relative to the line box?
+            auto lineIndex = lineRun.lineIndex();
+            auto& lineBoxLogicalRect = m_inlineFormattingState.lines()[lineIndex].lineBoxLogicalRect();
+            logicalRect.moveBy({ lineBoxLogicalRect.left(), lineBoxLogicalRect.top() });
+
+            WTF::Optional<Display::Run::TextContent> textContent;
+            if (auto text = lineRun.text())
+                textContent = Display::Run::TextContent { text->start(), text->length(), text->content(), text->needsHyphen() };
+            auto expansion = Display::Run::Expansion { lineRun.expansion().behavior, lineRun.expansion().horizontalExpansion };
+            auto displayRun = Display::Run { lineIndex, layoutBox, logicalRect, computedInkOverflow(logicalRect), expansion, textContent };
+            displayInlineContent.runs.append(displayRun);
+        }
+    };
+    constructDisplayLineRuns();
+
+    auto constructDisplayLine = [&] {
+        auto& lines = m_inlineFormattingState.lines();
+        auto& runs = displayInlineContent.runs;
+        size_t runIndex = 0;
+        for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+            auto& line = lines[lineIndex];
+            auto& lineBoxLogicalRect = line.lineBoxLogicalRect();
+            // FIXME: This is where the logical to physical translate should happen.
+            auto overflowWidth = std::max(line.logicalWidth(), lineBoxLogicalRect.width());
+            auto lineBoxLogicalBottom = (lineBoxLogicalRect.top() - line.logicalTop()) + lineBoxLogicalRect.height();
+            auto overflowHeight = std::max(line.logicalHeight(), lineBoxLogicalBottom);
+            auto scrollableOverflowRect = FloatRect { line.logicalLeft(), line.logicalTop(), overflowWidth, overflowHeight };
+
+            auto lineInkOverflowRect = scrollableOverflowRect;
+            while (runIndex < runs.size() && runs[runIndex].lineIndex() == lineIndex)
+                lineInkOverflowRect.unite(runs[runIndex++].inkOverflow());
+            auto lineRect = FloatRect { line.logicalRect() };
+            // Painting code (specifically TextRun's xPos) needs the line box offset to be able to compute tab positions.
+            lineRect.setX(lineBoxLogicalRect.left());
+            displayInlineContent.lines.append({ lineRect, scrollableOverflowRect, lineInkOverflowRect, line.baseline(), line.horizontalAlignmentOffset() });
+        }
+    };
+    constructDisplayLine();
+    displayInlineContent.shrinkToFit();
+    m_inlineFormattingState.shrinkToFit();
 }
 
 void LineLayout::prepareLayoutState()
@@ -132,26 +202,29 @@ void LineLayout::prepareFloatingState()
         auto position = floatingObject->type() == FloatingObject::FloatRight
             ? Layout::FloatingState::FloatItem::Position::Right
             : Layout::FloatingState::FloatItem::Position::Left;
-        auto box = Display::Box { };
+        auto boxGeometry = Layout::BoxGeometry { };
         // FIXME: We are flooring here for legacy compatibility.
         //        See FloatingObjects::intervalForFloatingObject.
         auto y = rect.y().floor();
         auto maxY = rect.maxY().floor();
-        box.setTopLeft({ rect.x(), y });
-        box.setContentBoxWidth(rect.width());
-        box.setContentBoxHeight(maxY - y);
-        box.setBorder({ });
-        box.setPadding({ });
-        box.setHorizontalMargin({ });
-        box.setVerticalMargin({ });
-        floatingState.append({ position, box });
+        boxGeometry.setLogicalTopLeft({ rect.x(), y });
+        boxGeometry.setContentBoxWidth(rect.width());
+        boxGeometry.setContentBoxHeight(maxY - y);
+        boxGeometry.setBorder({ });
+        boxGeometry.setPadding({ });
+        boxGeometry.setHorizontalMargin({ });
+        boxGeometry.setVerticalMargin({ });
+        floatingState.append({ position, boxGeometry });
     }
 }
 
 LayoutUnit LineLayout::contentLogicalHeight() const
 {
-    auto& lineBoxes = displayInlineContent()->lineBoxes;
-    return LayoutUnit { lineBoxes.last().bottom() - lineBoxes.first().top() };
+    if (m_paginatedHeight)
+        return *m_paginatedHeight;
+
+    auto& lines = m_inlineFormattingState.lines();
+    return LayoutUnit { lines.last().logicalBottom() - lines.first().logicalTop() };
 }
 
 size_t LineLayout::lineCount() const
@@ -161,31 +234,46 @@ size_t LineLayout::lineCount() const
         return 0;
     if (inlineContent->runs.isEmpty())
         return 0;
-    return inlineContent->lineBoxes.size();
+    return m_inlineFormattingState.lines().size();
 }
 
 LayoutUnit LineLayout::firstLineBaseline() const
 {
-    auto* inlineContent = displayInlineContent();
-    if (!inlineContent) {
+    auto& lines = m_inlineFormattingState.lines();
+    if (lines.isEmpty()) {
         ASSERT_NOT_REACHED();
         return 0_lu;
     }
 
-    auto& firstLineBox = inlineContent->lineBoxes.first();
-    return Layout::toLayoutUnit(firstLineBox.top() + firstLineBox.baseline());
+    auto& firstLine = lines.first();
+    return Layout::toLayoutUnit(firstLine.logicalTop() + firstLine.baseline());
 }
 
 LayoutUnit LineLayout::lastLineBaseline() const
 {
-    auto* inlineContent = displayInlineContent();
-    if (!inlineContent) {
+    auto& lines = m_inlineFormattingState.lines();
+    if (lines.isEmpty()) {
         ASSERT_NOT_REACHED();
         return 0_lu;
     }
 
-    auto& lastLineBox = inlineContent->lineBoxes.last();
-    return Layout::toLayoutUnit(lastLineBox.top() + lastLineBox.baseline());
+    auto& lastLine = lines.last();
+    return Layout::toLayoutUnit(lastLine.logicalTop() + lastLine.baseline());
+}
+
+void LineLayout::adjustForPagination(RenderBlockFlow& flow)
+{
+    ASSERT(&flow == &m_flow);
+    auto paginedInlineContent = adjustLinePositionsForPagination(*m_displayInlineContent, flow);
+    if (paginedInlineContent.ptr() == m_displayInlineContent) {
+        m_paginatedHeight = { };
+        return;
+    }
+
+    auto& lines = paginedInlineContent->lines;
+    m_paginatedHeight = LayoutUnit { lines.last().rect().maxY() - lines.first().rect().y() };
+
+    m_displayInlineContent = WTFMove(paginedInlineContent);
 }
 
 void LineLayout::collectOverflow(RenderBlockFlow& flow)
@@ -193,18 +281,20 @@ void LineLayout::collectOverflow(RenderBlockFlow& flow)
     ASSERT(&flow == &m_flow);
     ASSERT(!flow.hasOverflowClip());
 
-    for (auto& lineBox : displayInlineContent()->lineBoxes) {
-        flow.addLayoutOverflow(Layout::toLayoutRect(lineBox.scrollableOverflow()));
-        flow.addVisualOverflow(Layout::toLayoutRect(lineBox.inkOverflow()));
+    for (auto& line : displayInlineContent()->lines) {
+        flow.addLayoutOverflow(Layout::toLayoutRect(line.scrollableOverflow()));
+        flow.addVisualOverflow(Layout::toLayoutRect(line.inkOverflow()));
     }
 }
 
-const Display::InlineContent* LineLayout::displayInlineContent() const
+Display::InlineContent& LineLayout::ensureDisplayInlineContent()
 {
-    return m_inlineFormattingState.displayInlineContent();
+    if (!m_displayInlineContent)
+        m_displayInlineContent = Display::InlineContent::create();
+    return *m_displayInlineContent;
 }
 
-LineLayoutTraversal::TextBoxIterator LineLayout::textBoxesFor(const RenderText& renderText) const
+TextRunIterator LineLayout::textRunsFor(const RenderText& renderText) const
 {
     auto* inlineContent = displayInlineContent();
     if (!inlineContent)
@@ -212,35 +302,32 @@ LineLayoutTraversal::TextBoxIterator LineLayout::textBoxesFor(const RenderText& 
     auto* layoutBox = m_boxTree.layoutBoxForRenderer(renderText);
     ASSERT(layoutBox);
 
-    Optional<size_t> firstIndex;
-    size_t lastIndex = 0;
-    for (size_t i = 0; i < inlineContent->runs.size(); ++i) {
-        auto& run = inlineContent->runs[i];
-        if (&run.layoutBox() == layoutBox) {
-            if (!firstIndex)
-                firstIndex = i;
-            lastIndex = i;
-        } else if (firstIndex)
-            break;
-    }
+    auto firstIndex = [&]() -> Optional<size_t> {
+        for (size_t i = 0; i < inlineContent->runs.size(); ++i) {
+            if (&inlineContent->runs[i].layoutBox() == layoutBox)
+                return i;
+        }
+        return { };
+    }();
+
     if (!firstIndex)
         return { };
 
-    return { LineLayoutTraversal::DisplayRunPath(*inlineContent, *firstIndex, lastIndex + 1) };
+    return { LayoutIntegration::ModernPath(*inlineContent, *firstIndex) };
 }
 
-LineLayoutTraversal::ElementBoxIterator LineLayout::elementBoxFor(const RenderLineBreak& renderLineBreak) const
+RunIterator LineLayout::runFor(const RenderElement& renderElement) const
 {
     auto* inlineContent = displayInlineContent();
     if (!inlineContent)
         return { };
-    auto* layoutBox = m_boxTree.layoutBoxForRenderer(renderLineBreak);
+    auto* layoutBox = m_boxTree.layoutBoxForRenderer(renderElement);
     ASSERT(layoutBox);
 
     for (size_t i = 0; i < inlineContent->runs.size(); ++i) {
         auto& run =  inlineContent->runs[i];
         if (&run.layoutBox() == layoutBox)
-            return { LineLayoutTraversal::DisplayRunPath(*inlineContent, i, i + 1) };
+            return { LayoutIntegration::ModernPath(*inlineContent, i) };
     }
 
     return { };
@@ -293,14 +380,17 @@ void LineLayout::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
             continue;
         }
 
-        auto& lineBox = inlineContent.lineBoxForRun(run);
-        auto baseline = paintOffset.y() + lineBox.top() + lineBox.baseline();
+        auto& line = inlineContent.lineForRun(run);
+        auto baseline = paintOffset.y() + line.rect().y() + line.baseline();
         auto expansion = run.expansion();
 
         String textWithHyphen;
         if (textContent.needsHyphen())
             textWithHyphen = makeString(textContent.content(), style.hyphenString());
-        TextRun textRun { !textWithHyphen.isEmpty() ? textWithHyphen : textContent.content(), run.left() - lineBox.left(), expansion.horizontalExpansion, expansion.behavior };
+        // TextRun expects the xPos to be adjusted with the aligment offset (e.g. when the line is center aligned
+        // and the run starts at 100px, due to the horizontal aligment, the xpos is supposed to be at 0px).
+        auto xPos = rect.x() - (line.rect().x() + line.horizontalAlignmentOffset());
+        WebCore::TextRun textRun { !textWithHyphen.isEmpty() ? textWithHyphen : textContent.content(), xPos, expansion.horizontalExpansion, expansion.behavior };
         textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
         FloatPoint textOrigin { rect.x() + paintOffset.x(), roundToDevicePixel(baseline, deviceScaleFactor) };
 

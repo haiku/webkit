@@ -142,7 +142,7 @@ void TestController::platformInitializeDataStore(WKPageConfigurationRef, const T
 
 void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOptions& options)
 {
-    RetainPtr<WKWebViewConfiguration> copiedConfiguration = adoptNS([globalWebViewConfiguration copy]);
+    auto copiedConfiguration = adoptNS([globalWebViewConfiguration copy]);
 
 #if PLATFORM(IOS_FAMILY)
     if (options.useDataDetection)
@@ -162,9 +162,6 @@ void TestController::platformCreateWebView(WKPageConfigurationRef, const TestOpt
 
     if (options.enableColorFilter)
         [copiedConfiguration _setColorFilterEnabled:YES];
-
-    if (options.enableEditableImages)
-        [copiedConfiguration _setEditableImagesEnabled:YES];
 
     [copiedConfiguration setWebsiteDataStore:(WKWebsiteDataStore *)websiteDataStore()];
 
@@ -454,7 +451,7 @@ void TestController::setAllowStorageQuotaIncrease(bool value)
 void TestController::setAllowsAnySSLCertificate(bool allows)
 {
     m_allowsAnySSLCertificate = allows;
-    WKContextSetAllowsAnySSLCertificateForWebSocketTesting(platformContext(), allows);
+    WKWebsiteDataStoreSetAllowsAnySSLCertificateForWebSocketTesting(websiteDataStore(), allows);
     [globalWebsiteDataStoreDelegateClient setAllowAnySSLCertificate: allows];
 }
 

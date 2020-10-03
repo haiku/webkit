@@ -29,9 +29,9 @@
 #if ENABLE(LAYOUT_FORMATTING_CONTEXT)
 
 #include "BlockFormattingState.h"
-#include "DisplayBox.h"
 #include "FormattingContext.h"
 #include "InlineFormattingState.h"
+#include "LayoutBoxGeometry.h"
 #include "LayoutChildIterator.h"
 #include "LayoutContext.h"
 #include "LayoutInitialContainingBlock.h"
@@ -77,17 +77,17 @@ ContentHeightAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedHeight
         // 1. the bottom edge of the last line box, if the box establishes a inline formatting context with one or more lines
         auto& layoutContainer = downcast<ContainerBox>(layoutBox);
         if (layoutContainer.establishesInlineFormattingContext()) {
-            auto& lineBoxes = layoutState().establishedInlineFormattingState(layoutContainer).displayInlineContent()->lineBoxes;
+            auto& lines = layoutState().establishedInlineFormattingState(layoutContainer).lines();
             // Even empty containers generate one line. 
-            ASSERT(!lineBoxes.isEmpty());
-            return { toLayoutUnit(lineBoxes.last().bottom()) - borderAndPaddingTop, nonCollapsedMargin };
+            ASSERT(!lines.isEmpty());
+            return { toLayoutUnit(lines.last().logicalBottom()) - borderAndPaddingTop, nonCollapsedMargin };
         }
 
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin...
         auto& lastInFlowChild = *layoutContainer.lastInFlowChild();
         if (!formattingContext().marginCollapse().marginAfterCollapsesWithParentMarginAfter(lastInFlowChild)) {
             auto& lastInFlowBoxGeometry = formattingContext().geometryForBox(lastInFlowChild);
-            auto bottomEdgeOfBottomMargin = lastInFlowBoxGeometry.bottom() + lastInFlowBoxGeometry.marginAfter(); 
+            auto bottomEdgeOfBottomMargin = lastInFlowBoxGeometry.logicalBottom() + lastInFlowBoxGeometry.marginAfter(); 
             return { bottomEdgeOfBottomMargin - borderAndPaddingTop, nonCollapsedMargin };
         }
 
@@ -96,17 +96,17 @@ ContentHeightAndMargin BlockFormattingContext::Geometry::inFlowNonReplacedHeight
         while (inFlowChild && formattingContext().marginCollapse().marginBeforeCollapsesWithParentMarginAfter(*inFlowChild))
             inFlowChild = inFlowChild->previousInFlowSibling();
         if (inFlowChild) {
-            auto& inFlowDisplayBoxGeometry = formattingContext().geometryForBox(*inFlowChild);
-            return { inFlowDisplayBoxGeometry.top() + inFlowDisplayBoxGeometry.borderBox().height() - borderAndPaddingTop, nonCollapsedMargin };
+            auto& inFlowBoxGeometry = formattingContext().geometryForBox(*inFlowChild);
+            return { inFlowBoxGeometry.logicalTop() + inFlowBoxGeometry.borderBox().height() - borderAndPaddingTop, nonCollapsedMargin };
         }
 
         // 4. zero, otherwise
         return { 0, nonCollapsedMargin };
     };
 
-    // 10.6.7 'Auto' heights for block formatting context roots
+    // 10.6.7 'Auto' heights for block-level formatting context boxes.
     auto isAutoHeight = !overrideVerticalValues.height && !computedHeight(layoutBox);
-    if (isAutoHeight && layoutBox.establishesBlockFormattingContext())
+    if (isAutoHeight && (layoutBox.establishesFormattingContext() && !layoutBox.establishesInlineFormattingContext()))
         return compute( OverrideVerticalValues { contentHeightForFormattingContextRoot(layoutBox) });
     return compute(overrideVerticalValues);
 }
@@ -237,7 +237,7 @@ LayoutUnit BlockFormattingContext::Geometry::staticVerticalPosition(const Box& l
     // Vertical margins between adjacent block-level boxes in a block formatting context collapse.
     if (auto* previousInFlowSibling = layoutBox.previousInFlowSibling()) {
         auto& previousInFlowBoxGeometry = formattingContext().geometryForBox(*previousInFlowSibling);
-        return previousInFlowBoxGeometry.bottom() + previousInFlowBoxGeometry.marginAfter();
+        return previousInFlowBoxGeometry.logicalBottom() + previousInFlowBoxGeometry.marginAfter();
     }
     return verticalConstraints.logicalTop;
 }

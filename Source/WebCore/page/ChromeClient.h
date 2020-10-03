@@ -51,6 +51,7 @@
 #include <wtf/Assertions.h>
 #include <wtf/CompletionHandler.h>
 #include <wtf/Forward.h>
+#include <wtf/MonotonicTime.h>
 #include <wtf/Seconds.h>
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
@@ -367,6 +368,7 @@ public:
     virtual void enterVideoFullscreenForVideoElement(HTMLVideoElement&, HTMLMediaElementEnums::VideoFullscreenMode, bool standby) { UNUSED_PARAM(standby); }
     virtual void setUpPlaybackControlsManager(HTMLMediaElement&) { }
     virtual void clearPlaybackControlsManager() { }
+    virtual void playbackControlsMediaEngineChanged() { }
 #endif
 
 #if ENABLE(MEDIA_USAGE)
@@ -462,12 +464,6 @@ public:
     virtual void isPlayingMediaDidChange(MediaProducer::MediaStateFlags, uint64_t) { }
     virtual void handleAutoplayEvent(AutoplayEvent, OptionSet<AutoplayEventFlags>) { }
 
-#if ENABLE(MEDIA_SESSION)
-    virtual void hasMediaSessionWithActiveMediaElementsDidChange(bool) { }
-    virtual void mediaSessionMetadataDidChange(const MediaSessionMetadata&) { }
-    virtual void focusedContentMediaElementDidChange(uint64_t) { }
-#endif
-
 #if ENABLE(WEB_CRYPTO)
     virtual bool wrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&) const { return false; }
     virtual bool unwrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&) const { return false; }
@@ -524,10 +520,6 @@ public:
     virtual void didRemoveMenuItemElement(HTMLMenuItemElement&) { }
 
     virtual String signedPublicKeyAndChallengeString(unsigned, const String&, const URL&) const { return emptyString(); }
-
-    virtual void associateEditableImageWithAttachment(GraphicsLayer::EmbeddedViewID, const String&) { }
-    virtual void didCreateEditableImage(GraphicsLayer::EmbeddedViewID) { }
-    virtual void didDestroyEditableImage(GraphicsLayer::EmbeddedViewID) { }
 
     virtual void configureLoggingChannel(const String&, WTFLogChannelState, WTFLogLevel) { }
 

@@ -45,7 +45,7 @@ class StatusBubble(View):
     # Note: This list is sorted in the order of which bubbles appear in bugzilla.
     ALL_QUEUES = ['style', 'ios', 'ios-sim', 'mac', 'mac-debug', 'mac-AS', 'tv', 'tv-sim', 'watch', 'watch-sim', 'gtk', 'wpe', 'wincairo', 'win',
                   'ios-wk2', 'mac-wk1', 'mac-wk2', 'mac-debug-wk1', 'api-ios', 'api-mac', 'api-gtk',
-                  'bindings', 'jsc', 'jsc-armv7', 'jsc-mips', 'jsc-mips-tests', 'jsc-i386', 'webkitperl', 'webkitpy', 'services']
+                  'bindings', 'jsc', 'jsc-armv7', 'jsc-armv7-tests', 'jsc-mips', 'jsc-mips-tests', 'jsc-i386', 'webkitperl', 'webkitpy', 'services']
     # FIXME: Auto-generate the queue's trigger relationship
     QUEUE_TRIGGERS = {
         'api-ios': 'ios-sim',
@@ -56,6 +56,7 @@ class StatusBubble(View):
         'mac-debug-wk1': 'mac-debug',
         'api-gtk': 'gtk',
         'jsc-mips-tests': 'jsc-mips',
+        'jsc-armv7-tests': 'jsc-armv7',
     }
 
     STEPS_TO_HIDE = ['^Archived built product$', '^Uploaded built product$', '^Transferred archive to S3$',
@@ -71,6 +72,7 @@ class StatusBubble(View):
     DAYS_TO_CHECK = 3
     BUILDER_ICON = u'\U0001f6e0'
     TESTER_ICON = u'\U0001f52c'
+    BUILD_RETRY_MSG = 'retrying build'
 
     def _build_bubble(self, patch, queue, hide_icons=False):
         bubble = {
@@ -150,6 +152,8 @@ class StatusBubble(View):
         elif build.result == Buildbot.FAILURE:
             bubble['state'] = 'fail'
             bubble['details_message'] = self._most_recent_failure_message(build)
+            if StatusBubble.BUILD_RETRY_MSG in bubble['details_message']:
+                bubble['state'] = 'provisional-fail'
         elif build.result == Buildbot.SKIPPED:
             bubble['state'] = 'none'
             bubble['details_message'] = 'The patch is no longer eligible for processing.'
@@ -238,6 +242,8 @@ class StatusBubble(View):
 
     def _most_recent_failure_message(self, build):
         for step in build.step_set.all().order_by('-uid'):
+            if step.result == Buildbot.SUCCESS and StatusBubble.BUILD_RETRY_MSG in step.state_string:
+                return step.state_string
             if step.result == Buildbot.FAILURE:
                 return step.state_string
         return ''

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2019 Apple Inc. All rights reserved.
+ * Copyright (C) 2014-2020 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,7 +70,6 @@ bool doesGC(Graph& graph, Node* node)
     case SetLocal:
     case MovHint:
     case InitializeEntrypointArguments:
-    case ZombieHint:
     case ExitOK:
     case Phantom:
     case Upsilon:
@@ -165,7 +164,7 @@ bool doesGC(Graph& graph, Node* node)
     case SuperSamplerBegin:
     case SuperSamplerEnd:
     case CPUIntrinsic:
-    case NormalizeMapKey:
+    case NormalizeMapKey: // HeapBigInt => BigInt32 conversion does not involve GC.
     case GetMapBucketHead:
     case GetMapBucketNext:
     case LoadKeyFromMapBucket:
@@ -183,6 +182,7 @@ bool doesGC(Graph& graph, Node* node)
     case FencedStoreBarrier:
     case InvalidationPoint:
     case NotifyWrite:
+    case AssertInBounds:
     case CheckInBounds:
     case ConstantStoragePointer:
     case Check:
@@ -322,6 +322,8 @@ bool doesGC(Graph& graph, Node* node)
     case PutGetterSetterById:
     case PutSetterById:
     case PutSetterByVal:
+    case PutPrivateName:
+    case PutPrivateNameById:
     case PutStack:
     case PutToArguments:
     case RegExpExec:
@@ -518,6 +520,10 @@ bool doesGC(Graph& graph, Node* node)
         case Int32Use:
         case SymbolUse:
         case ObjectUse:
+#if USE(BIGINT32)
+        case BigInt32Use:
+#endif
+        case HeapBigIntUse:
             return false;
         default:
             // We might resolve a rope.

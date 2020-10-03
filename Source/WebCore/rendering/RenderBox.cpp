@@ -269,9 +269,7 @@ void RenderBox::styleWillChange(StyleDifference diff, const RenderStyle& newStyl
         // to dirty the render tree using the old position value now.
         if (diff == StyleDifference::Layout && parent() && oldStyle->position() != newStyle.position()) {
             markContainingBlocksForLayout();
-            if (oldStyle->position() == PositionType::Static)
-                repaint();
-            else if (newStyle.hasOutOfFlowPosition())
+            if (oldStyle->position() != PositionType::Static && newStyle.hasOutOfFlowPosition())
                 parent()->setChildNeedsLayout();
             if (isFloating() && !isOutOfFlowPositioned() && newStyle.hasOutOfFlowPosition())
                 removeFloatingOrPositionedChildFromBlockLists();
@@ -2036,7 +2034,7 @@ LayoutUnit RenderBox::perpendicularContainingBlockLogicalHeight() const
 
     // FIXME: For now just support fixed heights.  Eventually should support percentage heights as well.
     if (!logicalHeightLength.isFixed()) {
-        LayoutUnit fillFallbackExtent = containingBlockStyle.isHorizontalWritingMode() ? view().frameView().visibleHeight() : view().frameView().visibleWidth();
+        LayoutUnit fillFallbackExtent = containingBlockStyle.isHorizontalWritingMode() ? view().frameView().layoutSize().height() : view().frameView().layoutSize().width();
         LayoutUnit fillAvailableExtent = containingBlock()->availableLogicalHeight(ExcludeMarginBorderPadding);
         view().addPercentHeightDescendant(const_cast<RenderBox&>(*this));
         // FIXME: https://bugs.webkit.org/show_bug.cgi?id=158286 We also need to perform the same percentHeightDescendant treatment to the element which dictates the return value for containingBlock()->availableLogicalHeight() above.
@@ -2756,17 +2754,17 @@ static bool shouldFlipBeforeAfterMargins(const RenderStyle& containingBlockStyle
     WritingMode childWritingMode = childStyle->writingMode();
     bool shouldFlip = false;
     switch (containingBlockStyle.writingMode()) {
-    case TopToBottomWritingMode:
-        shouldFlip = (childWritingMode == RightToLeftWritingMode);
+    case WritingMode::TopToBottom:
+        shouldFlip = (childWritingMode == WritingMode::RightToLeft);
         break;
-    case BottomToTopWritingMode:
-        shouldFlip = (childWritingMode == RightToLeftWritingMode);
+    case WritingMode::BottomToTop:
+        shouldFlip = (childWritingMode == WritingMode::RightToLeft);
         break;
-    case RightToLeftWritingMode:
-        shouldFlip = (childWritingMode == BottomToTopWritingMode);
+    case WritingMode::RightToLeft:
+        shouldFlip = (childWritingMode == WritingMode::BottomToTop);
         break;
-    case LeftToRightWritingMode:
-        shouldFlip = (childWritingMode == BottomToTopWritingMode);
+    case WritingMode::LeftToRight:
+        shouldFlip = (childWritingMode == WritingMode::BottomToTop);
         break;
     }
 
@@ -2987,7 +2985,7 @@ bool RenderBox::skipContainingBlockForPercentHeightCalculation(const RenderBox& 
     
     // For quirks mode, we skip most auto-height containing blocks when computing
     // percentages.
-    return document().inQuirksMode() && !containingBlock.isTableCell() && !containingBlock.isOutOfFlowPositioned() && !containingBlock.isRenderGrid() && containingBlock.style().logicalHeight().isAuto();
+    return document().inQuirksMode() && !containingBlock.isTableCell() && !containingBlock.isOutOfFlowPositioned() && !containingBlock.isRenderGrid() && !containingBlock.isFlexibleBoxIncludingDeprecated() && containingBlock.style().logicalHeight().isAuto();
 }
 
 bool RenderBox::shouldTreatChildAsReplacedInTableCells() const
@@ -4817,9 +4815,9 @@ LayoutRect RenderBox::visualOverflowRectForPropagation(const RenderStyle* parent
     
     // We are putting ourselves into our parent's coordinate space.  If there is a flipped block mismatch
     // in a particular axis, then we have to flip the rect along that axis.
-    if (style().writingMode() == RightToLeftWritingMode || parentStyle->writingMode() == RightToLeftWritingMode)
+    if (style().writingMode() == WritingMode::RightToLeft || parentStyle->writingMode() == WritingMode::RightToLeft)
         rect.setX(width() - rect.maxX());
-    else if (style().writingMode() == BottomToTopWritingMode || parentStyle->writingMode() == BottomToTopWritingMode)
+    else if (style().writingMode() == WritingMode::BottomToTop || parentStyle->writingMode() == WritingMode::BottomToTop)
         rect.setY(height() - rect.maxY());
 
     return rect;
@@ -4841,10 +4839,14 @@ LayoutRect RenderBox::layoutOverflowRectForPropagation(const RenderStyle* parent
         rect.unite(layoutOverflowRect());
 
     bool hasTransform = this->hasTransform();
-    if (isInFlowPositioned() || hasTransform) {
+    // While a stickily positioned renderer is also inflow positioned, they stretch the overflow rect with their inflow geometry
+    // (as opposed to the paint geometry) because they are not stationary.
+    bool paintGeometryAffectsLayoutOverflow = hasTransform || (isInFlowPositioned() && !isStickilyPositioned());
+    if (paintGeometryAffectsLayoutOverflow) {
         // If we are relatively positioned or if we have a transform, then we have to convert
         // this rectangle into physical coordinates, apply relative positioning and transforms
         // to it, and then convert it back.
+        // It ensures that the overflow rect tracks the paint geometry and not the inflow layout position.
         flipForWritingMode(rect);
         
         if (hasTransform && hasLayer())
@@ -4864,9 +4866,9 @@ LayoutRect RenderBox::layoutOverflowRectForPropagation(const RenderStyle* parent
     
     // We are putting ourselves into our parent's coordinate space.  If there is a flipped block mismatch
     // in a particular axis, then we have to flip the rect along that axis.
-    if (style().writingMode() == RightToLeftWritingMode || parentStyle->writingMode() == RightToLeftWritingMode)
+    if (style().writingMode() == WritingMode::RightToLeft || parentStyle->writingMode() == WritingMode::RightToLeft)
         rect.setX(width() - rect.maxX());
-    else if (style().writingMode() == BottomToTopWritingMode || parentStyle->writingMode() == BottomToTopWritingMode)
+    else if (style().writingMode() == WritingMode::BottomToTop || parentStyle->writingMode() == WritingMode::BottomToTop)
         rect.setY(height() - rect.maxY());
 
     return rect;

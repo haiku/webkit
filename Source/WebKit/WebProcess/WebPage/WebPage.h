@@ -45,6 +45,7 @@
 #include "MessageReceiver.h"
 #include "MessageSender.h"
 #include "OptionalCallbackID.h"
+#include "PDFPluginIdentifier.h"
 #include "Plugin.h"
 #include "PolicyDecision.h"
 #include "SandboxExtension.h"
@@ -344,6 +345,16 @@ public:
     bool scrollBy(uint32_t scrollDirection, uint32_t scrollGranularity);
 
     void centerSelectionInVisibleArea();
+
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    void createPDFHUD(PDFPlugin&, const WebCore::IntRect&);
+    void updatePDFHUDLocation(PDFPlugin&, const WebCore::IntRect&);
+    void removePDFHUD(PDFPlugin&);
+    void zoomPDFIn(PDFPluginIdentifier);
+    void zoomPDFOut(PDFPluginIdentifier);
+    void savePDF(PDFPluginIdentifier, CompletionHandler<void(const String&, const URL&, const IPC::DataReference&)>&&);
+    void openPDFWithPreview(PDFPluginIdentifier, CompletionHandler<void(const String&, FrameInfoData&&, const IPC::DataReference&, const String&)>&&);
+#endif
 
 #if PLATFORM(COCOA)
     void willCommitLayerTree(RemoteLayerTreeTransaction&);
@@ -735,7 +746,6 @@ public:
     void updateSelectionAppearance();
     void getSelectionContext(CallbackID);
     void handleTwoFingerTapAtPoint(const WebCore::IntPoint&, OptionSet<WebKit::WebEvent::Modifier>, uint64_t requestID);
-    void handleStylusSingleTapAtPoint(const WebCore::IntPoint&, uint64_t requestID);
     void getRectsForGranularityWithSelectionOffset(WebCore::TextGranularity, int32_t, CallbackID);
     void getRectsAtSelectionOffsetWithText(int32_t, const String&, CallbackID);
     void storeSelectionForAccessibility(bool);
@@ -957,11 +967,6 @@ public:
     void setMayStartMediaWhenInWindow(bool);
     void stopMediaCapture();
 
-#if ENABLE(MEDIA_SESSION)
-    void handleMediaEvent(uint32_t /* WebCore::MediaEventType */);
-    void setVolumeOfMediaElement(double, uint64_t);
-#endif
-
     void updateMainFrameScrollOffsetPinning();
 
     bool mainFrameHasCustomContentProvider() const;
@@ -1074,9 +1079,8 @@ public:
     NSDictionary *dataDetectionContext() const { return m_dataDetectionContext.get(); }
 #endif
 
+#if ENABLE(PDFKIT_PLUGIN) && !ENABLE(UI_PROCESS_PDF_HUD)
     void savePDFToFileInDownloadsFolder(const String& suggestedFilename, const URL& originatingURL, const uint8_t* data, unsigned long size);
-
-#if PLATFORM(COCOA)
     void savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, FrameInfoData&&, const uint8_t* data, unsigned long size, const String& pdfUUID);
 #endif
 
@@ -1335,9 +1339,11 @@ public:
 
     void getAllFrames(CompletionHandler<void(FrameTreeNodeData&&)>&&);
 
+#if ENABLE(APP_BOUND_DOMAINS)
     void notifyPageOfAppBoundBehavior();
     void setIsNavigatingToAppBoundDomain(Optional<NavigatingToAppBoundDomain>, WebFrame*);
     bool needsInAppBrowserPrivacyQuirks() { return m_needsInAppBrowserPrivacyQuirks; }
+#endif
 
     bool shouldUseRemoteRenderingFor(WebCore::RenderingPurpose);
 
@@ -1520,7 +1526,7 @@ private:
     void setBackgroundColor(const Optional<WebCore::Color>&);
 
 #if PLATFORM(COCOA)
-    void setTopContentInsetFenced(float, IPC::Attachment);
+    void setTopContentInsetFenced(float, const WTF::MachSendRight&);
 #endif
     void setTopContentInset(float);
 
@@ -1791,6 +1797,10 @@ private:
 
     WebCore::Color m_underlayColor;
 
+#if ENABLE(UI_PROCESS_PDF_HUD)
+    HashMap<PDFPluginIdentifier, WeakPtr<PDFPlugin>> m_pdfPlugInsWithHUD;
+#endif
+
     bool m_isInRedo { false };
     bool m_isClosed { false };
     bool m_tabToLinks { false };
@@ -1805,8 +1815,9 @@ private:
     bool m_alwaysShowsVerticalScroller { false };
 
     bool m_shouldRenderCanvasInGPUProcess { false };
+#if ENABLE(APP_BOUND_DOMAINS)
     bool m_needsInAppBrowserPrivacyQuirks { false };
-
+#endif
 #if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
     bool m_readyToFindPrimarySnapshottedPlugin { false };
     bool m_didFindPrimarySnapshottedPlugin { false };
@@ -2146,8 +2157,10 @@ private:
     String m_themeName;
 #endif
     
+#if ENABLE(APP_BOUND_DOMAINS)
     bool m_limitsNavigationsToAppBoundDomains { false };
     bool m_navigationHasOccured { false };
+#endif
     bool m_canUseCredentialStorage { true };
 
     Vector<String> m_corsDisablingPatterns;

@@ -24,11 +24,10 @@
  */
 
 #include "config.h"
-
-#if ENABLE(GPU_PROCESS)
 #include "MediaPlayerPrivateRemote.h"
 
-#include "AudioTrackPrivateRemote.h"
+#if ENABLE(GPU_PROCESS)
+
 #include "Logging.h"
 #include "RemoteLegacyCDM.h"
 #include "RemoteLegacyCDMFactory.h"
@@ -36,9 +35,7 @@
 #include "RemoteMediaPlayerManagerProxyMessages.h"
 #include "RemoteMediaPlayerProxyMessages.h"
 #include "SandboxExtension.h"
-#include "TextTrackPrivateRemote.h"
 #include "VideoLayerRemote.h"
-#include "VideoTrackPrivateRemote.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebProcess.h"
 #include <JavaScriptCore/GenericTypedArrayViewInlines.h>
@@ -48,6 +45,8 @@
 #include <WebCore/PlatformLayer.h>
 #include <WebCore/PlatformTimeRanges.h>
 #include <WebCore/ResourceError.h>
+#include <WebCore/TextTrackRepresentation.h>
+#include <WebCore/VideoLayerManager.h>
 #include <wtf/HashMap.h>
 #include <wtf/MachSendRight.h>
 #include <wtf/MainThread.h>
@@ -91,18 +90,29 @@ using namespace WebCore;
 } while (0)
 #endif
 
+#if !PLATFORM(COCOA)
 MediaPlayerPrivateRemote::MediaPlayerPrivateRemote(MediaPlayer* player, MediaPlayerEnums::MediaEngineIdentifier engineIdentifier, MediaPlayerPrivateRemoteIdentifier playerIdentifier, RemoteMediaPlayerManager& manager)
     : m_player(player)
-    , m_mediaResourceLoader(player->createResourceLoader())
+#if !RELEASE_LOG_DISABLED
+    , m_logger(player->mediaPlayerLogger())
+    , m_logIdentifier(player->mediaPlayerLogIdentifier())
+#endif
+    , m_mediaResourceLoader(*player->createResourceLoader())
     , m_manager(manager)
     , m_remoteEngineIdentifier(engineIdentifier)
     , m_id(playerIdentifier)
-#if !RELEASE_LOG_DISABLED
-    , m_logger(&player->mediaPlayerLogger())
-    , m_logIdentifier(player->mediaPlayerLogIdentifier())
-#endif
 {
     INFO_LOG(LOGIDENTIFIER);
+}
+#endif
+
+MediaPlayerPrivateRemote::~MediaPlayerPrivateRemote()
+{
+    INFO_LOG(LOGIDENTIFIER);
+#if PLATFORM(COCOA)
+    m_videoLayerManager->didDestroyVideoLayer();
+#endif
+    m_manager.deleteRemoteMediaPlayer(m_id);
 }
 
 void MediaPlayerPrivateRemote::setConfiguration(RemoteMediaPlayerConfiguration&& configuration, WebCore::SecurityOriginData&& documentSecurityOrigin)
@@ -112,26 +122,20 @@ void MediaPlayerPrivateRemote::setConfiguration(RemoteMediaPlayerConfiguration&&
     m_player->mediaEngineUpdated();
 }
 
-MediaPlayerPrivateRemote::~MediaPlayerPrivateRemote()
-{
-    INFO_LOG(LOGIDENTIFIER);
-    m_manager.deleteRemoteMediaPlayer(m_id);
-}
-
 void MediaPlayerPrivateRemote::prepareForPlayback(bool privateMode, MediaPlayer::Preload preload, bool preservesPitch, bool prepare)
 {
     auto scale = m_player->playerContentsScale();
 
-    connection().sendWithAsyncReply(Messages::RemoteMediaPlayerProxy::PrepareForPlayback(privateMode, preload, preservesPitch, prepare, scale), [weakThis = makeWeakPtr(*this), this](auto inlineLayerHostingContextId, auto fullscreenLayerHostingContextId) mutable {
+    connection().sendWithAsyncReply(Messages::RemoteMediaPlayerProxy::PrepareForPlayback(privateMode, preload, preservesPitch, prepare, scale), [weakThis = makeWeakPtr(*this), this](auto inlineLayerHostingContextId) mutable {
         if (!weakThis)
             return;
 
         if (!inlineLayerHostingContextId)
             return;
 
-        m_videoInlineLayer = createVideoLayerRemote(this, inlineLayerHostingContextId.value());
-#if ENABLE(VIDEO_PRESENTATION_MODE)
-        m_fullscreenLayerHostingContextId = fullscreenLayerHostingContextId;
+        m_videoLayer = createVideoLayerRemote(this, inlineLayerHostingContextId.value());
+#if PLATFORM(COCOA)
+        m_videoLayerManager->setVideoLayer(m_videoLayer.get(), snappedIntRect(m_player->playerContentBoxRect()).size());
 #endif
     }, m_id);
 }
@@ -405,6 +409,7 @@ void MediaPlayerPrivateRemote::updateCachedState(RemoteMediaPlayerState&& state)
     m_cachedState.wirelessVideoPlaybackDisabled = state.wirelessVideoPlaybackDisabled;
     m_cachedState.hasSingleSecurityOrigin = state.hasSingleSecurityOrigin;
     m_cachedState.didPassCORSAccessCheck = state.didPassCORSAccessCheck;
+    m_cachedState.wouldTaintDocumentSecurityOrigin = state.wouldTaintDocumentSecurityOrigin;
 
     if (state.bufferedRanges.length())
         m_cachedBufferedTimeRanges = makeUnique<PlatformTimeRanges>(state.bufferedRanges);
@@ -643,20 +648,20 @@ void MediaPlayerPrivateRemote::load(MediaStreamPrivate&)
 
 PlatformLayer* MediaPlayerPrivateRemote::platformLayer() const
 {
-    return m_videoInlineLayer.get();
+#if PLATFORM(COCOA)
+    return m_videoLayerManager->videoInlineLayer();
+#else
+    return nullptr;
+#endif
 }
 
 #if ENABLE(VIDEO_PRESENTATION_MODE)
 
 void MediaPlayerPrivateRemote::setVideoFullscreenLayer(PlatformLayer* videoFullscreenLayer, WTF::Function<void()>&& completionHandler)
 {
-    if (!videoFullscreenLayer) {
-        connection().sendWithAsyncReply(Messages::RemoteMediaPlayerProxy::ExitFullscreen(), WTFMove(completionHandler), m_id);
-        return;
-    }
-
-    ASSERT(m_videoFullscreenLayer.get() == videoFullscreenLayer);
-    connection().sendWithAsyncReply(Messages::RemoteMediaPlayerProxy::EnterFullscreen(), WTFMove(completionHandler), m_id);
+#if PLATFORM(COCOA)
+    m_videoLayerManager->setVideoFullscreenLayer(videoFullscreenLayer, WTFMove(completionHandler), nullptr);
+#endif
 }
 
 void MediaPlayerPrivateRemote::updateVideoFullscreenInlineImage()
@@ -664,9 +669,12 @@ void MediaPlayerPrivateRemote::updateVideoFullscreenInlineImage()
     connection().send(Messages::RemoteMediaPlayerProxy::UpdateVideoFullscreenInlineImage(), m_id);
 }
 
-void MediaPlayerPrivateRemote::setVideoFullscreenFrameFenced(const WebCore::FloatRect& rect, const WTF::MachSendRight& sendRight)
+void MediaPlayerPrivateRemote::setVideoFullscreenFrame(WebCore::FloatRect rect)
 {
-    connection().send(Messages::RemoteMediaPlayerProxy::SetVideoFullscreenFrameFenced(rect, sendRight), m_id);
+#if PLATFORM(COCOA)
+    ALWAYS_LOG(LOGIDENTIFIER, "width = ", rect.size().width(), ", height = ", rect.size().height());
+    m_videoLayerManager->setVideoFullscreenFrame(rect);
+#endif
 }
 
 void MediaPlayerPrivateRemote::setVideoFullscreenGravity(WebCore::MediaPlayerEnums::VideoGravity gravity)
@@ -1011,18 +1019,26 @@ void MediaPlayerPrivateRemote::setShouldContinueAfterKeyNeeded(bool should)
 
 bool MediaPlayerPrivateRemote::requiresTextTrackRepresentation() const
 {
-    notImplemented();
+#if PLATFORM(COCOA)
+    return m_videoLayerManager->requiresTextTrackRepresentation();
+#else
     return false;
+#endif
 }
 
-void MediaPlayerPrivateRemote::setTextTrackRepresentation(TextTrackRepresentation*)
+void MediaPlayerPrivateRemote::setTextTrackRepresentation(WebCore::TextTrackRepresentation* representation)
 {
-    notImplemented();
+#if PLATFORM(COCOA)
+    auto* representationLayer = representation ? representation->platformLayer() : nil;
+    m_videoLayerManager->setTextTrackRepresentationLayer(representationLayer);
+#endif
 }
 
 void MediaPlayerPrivateRemote::syncTextTrackBounds()
 {
-    connection().send(Messages::RemoteMediaPlayerProxy::SyncTextTrackBounds(), m_id);
+#if PLATFORM(COCOA)
+    m_videoLayerManager->syncTextTrackBounds();
+#endif
 }
 
 void MediaPlayerPrivateRemote::tracksChanged()

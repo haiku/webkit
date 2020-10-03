@@ -239,11 +239,11 @@ WI.Resource = class Resource extends WI.SourceCode
     {
         switch (priority) {
         case WI.Resource.NetworkPriority.Low:
-            return WI.UIString("Low");
+            return WI.UIString("Low", "Low @ Network Priority", "Low network request priority");
         case WI.Resource.NetworkPriority.Medium:
-            return WI.UIString("Medium");
+            return WI.UIString("Medium", "Medium @ Network Priority", "Medium network request priority");
         case WI.Resource.NetworkPriority.High:
-            return WI.UIString("High");
+            return WI.UIString("High", "High @ Network Priority", "High network request priority");
         default:
             return null;
         }
@@ -1027,16 +1027,16 @@ WI.Resource = class Resource extends WI.SourceCode
     requestContent()
     {
         if (this._finished)
-            return super.requestContent();
+            return super.requestContent().catch(this._requestContentFailure.bind(this));
 
         if (this._failed)
-            return Promise.resolve({error: WI.UIString("An error occurred trying to load the resource.")});
+            return this._requestContentFailure();
 
         if (!this._finishThenRequestContentPromise) {
             this._finishThenRequestContentPromise = new Promise((resolve, reject) => {
                 this.addEventListener(WI.Resource.Event.LoadingDidFinish, resolve);
                 this.addEventListener(WI.Resource.Event.LoadingDidFail, reject);
-            }).then(WI.SourceCode.prototype.requestContent.bind(this));
+            }).then(this.requestContent.bind(this));
         }
 
         return this._finishThenRequestContentPromise;
@@ -1065,11 +1065,11 @@ WI.Resource = class Resource extends WI.SourceCode
     async createLocalResourceOverride({initialMIMEType, initialBase64Encoded, initialContent} = {})
     {
         console.assert(!this.isLocalResourceOverride);
-        console.assert(WI.NetworkManager.supportsLocalResourceOverrides());
+        console.assert(WI.NetworkManager.supportsOverridingResponses());
 
         let {rawContent, rawBase64Encoded} = await this.requestContent();
 
-        return WI.LocalResourceOverride.create({
+        return WI.LocalResourceOverride.create(WI.LocalResourceOverride.InterceptType.Response, {
             url: this.url,
             mimeType: initialMIMEType !== undefined ? initialMIMEType : this.mimeType,
             content: initialContent !== undefined ? initialContent : rawContent,
@@ -1184,6 +1184,17 @@ WI.Resource = class Resource extends WI.SourceCode
         WI.consoleLogViewController.appendConsoleMessage(consoleMessage);
 
         throw errorString;
+    }
+    
+    // Private
+    
+    _requestContentFailure(error)
+    {
+        return Promise.resolve({
+            error: WI.UIString("An error occurred trying to load the resource."),
+            reason: error.message || this._failureReasonText,
+            sourceCode: this,
+        });
     }
 };
 

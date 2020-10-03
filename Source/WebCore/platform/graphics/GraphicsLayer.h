@@ -474,9 +474,7 @@ public:
     // Transitions are identified by a special animation name that cannot clash with a keyframe identifier.
     static String animationNameForTransition(AnimatedPropertyID);
 
-    // Return true if the animation is handled by the compositing system. If this returns
-    // false, the animation will be run by CSSAnimationController.
-    // These methods handle both transitions and keyframe animations.
+    // Return true if the animation is handled by the compositing system.
     virtual bool addAnimation(const KeyframeValueList&, const FloatSize& /*boxSize*/, const Animation*, const String& /*animationName*/, double /*timeOffset*/)  { return false; }
     virtual void pauseAnimation(const String& /*animationName*/, double /*timeOffset*/) { }
     virtual void removeAnimation(const String& /*animationName*/) { }
@@ -499,21 +497,11 @@ public:
         Media,
         Canvas,
         BackgroundColor,
-        Plugin,
-        EmbeddedView
+        Plugin
     };
-
-    enum class ContentsLayerEmbeddedViewType : uint8_t {
-        None = 0,
-        EditableImage,
-    };
-
-    using EmbeddedViewID = uint64_t;
-    static EmbeddedViewID nextEmbeddedViewID();
 
     // Pass an invalid color to remove the contents layer.
     virtual void setContentsToSolidColor(const Color&) { }
-    virtual void setContentsToEmbeddedView(GraphicsLayer::ContentsLayerEmbeddedViewType, EmbeddedViewID) { }
     virtual void setContentsToPlatformLayer(PlatformLayer*, ContentsLayerPurpose) { }
     virtual bool usesContentsLayer() const { return false; }
 

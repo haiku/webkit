@@ -1,3 +1,1033 @@
+2020-10-02  Alex Christensen  <achristensen@webkit.org>
+
+        Copy host from base file URL
+        https://bugs.webkit.org/show_bug.cgi?id=217170
+
+        Reviewed by Brady Eidson.
+
+        This matches Chrome and the URL specification.
+        Covered by newly passing web platform tests.
+
+        I also updated the web platform tests from https://github.com/web-platform-tests/wpt/pull/25716
+        which aligns with Safari in cases except copying of the host from base file URLs.
+
+        The implementation pushes copying from the base URL downstream in the parsing process to where it is in the URL specification
+        so that we can properly decide how much of the base URL to copy and so we can copy it into the right place in the result URL.
+
+        I also updated an assertion that makes sure that we re-use the input String if possible because there are cases where we copy
+        part of the parent URL, which is a "syntax violation" (meaning we copy the string parts and assemble a new one), then re-assemble
+        a new String that is equal to the input string.  This is not a problem, it just needed to be reflected in the assertion.
+
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::URLParser):
+        (WTF::URLParser::parse):
+
+2020-10-02  Youenn Fablet  <youenn@apple.com>
+
+        Add AVAssetWriter SPI header
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        <rdar://problem/69793050>
+
+        Reviewed by Eric Carlson.
+
+        * wtf/PlatformHave.h:
+        Remove dependency on AVAssetWriter_private.h.
+        Introduce HAVE_AVASSETWRITERDELEGATE_API for older OSes that only have delegate as SPI.
+
+2020-10-01  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r267841.
+
+        Broke Catalina Builds
+
+        Reverted changeset:
+
+        "Add AVAssetWriter SPI header"
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        https://trac.webkit.org/changeset/267841
+
+2020-10-01  Youenn Fablet  <youenn@apple.com>
+
+        Add AVAssetWriter SPI header
+        https://bugs.webkit.org/show_bug.cgi?id=217169
+        <rdar://problem/69793050>
+
+        Reviewed by Eric Carlson.
+
+        * wtf/PlatformHave.h:
+        Remove dependency on AVAssetWriter_private.h
+
+2020-10-01  Alex Christensen  <achristensen@webkit.org>
+
+        Non-special URLs are not idempotent
+        https://bugs.webkit.org/show_bug.cgi?id=215762
+
+        Reviewed by Tim Horton.
+
+        https://github.com/whatwg/url/pull/505 added an interesting edge case to the URL serialization:
+        "If url’s host is null, url’s path’s size is greater than 1, and url’s path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output."
+        The problem was that URLs like "a:/a/..//a" would be parsed into "a://a" with a pathname of "//a" and an empty host.  If "a://a" was then reparsed, it would again have an href of "a://a"
+        but its host would be "a" and it would have an empty path.  There is consensus that URL parsing should be idempotent, so we need to do something different here.
+        According to https://github.com/whatwg/url/issues/415#issuecomment-419197290 this follows what Edge did (and then subsequently abandoned when they switched to Chromium)
+        to make URL parsing idempotent by adding "/." before the path in the edge case of a URL with a non-special scheme (not http, https, wss, etc.) and a null host and a non-empty path that
+        has an empty first segment.  All the members of the URL remain unchanged except the full serialization (href).  This is not important in practice, but important in theory.
+
+        Our URL parser tries very hard to use the exact same WTF::String object given as input if it can.  However, this step is better implemented as a post-processing step that will almost never happen
+        because otherwise we would have to parse the entire path twice to find out if we need to add "./" or if the "./" that may have already been there needs to stay.  This is illustrated with the test URL
+        "t:/.//p/../../../..//x" which does need the "./".
+
+        In the common case, this adds one well-predicted branch to URL parsing, so I expect performance to be unaffected.  Since this is such a rare edge case of URLs, I expect no compatibility problems.
+
+        * wtf/URL.cpp:
+        (WTF::URL::pathStart const):
+        * wtf/URL.h:
+        (WTF::URL::pathStart const): Deleted.
+        * wtf/URLParser.cpp:
+        (WTF::URLParser::copyURLPartsUntil):
+        (WTF::URLParser::URLParser):
+        (WTF::URLParser::needsNonSpecialDotSlash const):
+        (WTF::URLParser::addNonSpecialDotSlash):
+        * wtf/URLParser.h:
+
+2020-09-30  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, reverting r267795.
+        https://bugs.webkit.org/show_bug.cgi?id=217135
+
+        Incorrect fix.
+
+        Reverted changeset:
+
+        "REGRESSION(r259582): Build fails on aarch64 Linux with WebKit
+        2.30.1 on LLIntOffsetsExtractor.cpp.o"
+        https://bugs.webkit.org/show_bug.cgi?id=217079
+        https://trac.webkit.org/changeset/267795
+
+2020-09-30  Mike Gorse  <mgorse@suse.com>
+
+        REGRESSION(r259582): Build fails on aarch64 Linux with WebKit 2.30.1 on LLIntOffsetsExtractor.cpp.o
+        https://bugs.webkit.org/show_bug.cgi?id=217079
+
+        Reviewed by Michael Catanzaro.
+
+        * wtf/PlatformEnable.h: Only define USE_JUMP_ISLANDS if JIT is enabled.
+
+2020-09-30  Alexander Mikhaylenko  <alexm@gnome.org>
+
+        [GTK] Chassis type check fails if the value is quoted
+        https://bugs.webkit.org/show_bug.cgi?id=217123
+
+        Reviewed by Carlos Garcia Campos.
+
+        Sometimes the chassis type can be quoted, in this case we'll fail to
+        parse it and fall back to desktop type. Unquote the string before
+        attempting to parse it.
+
+        * wtf/glib/ChassisType.cpp:
+        (WTF::readMachineInfoChassisType):
+
+2020-09-29  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Adopt shared preferences configuration and script in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=217075
+
+        Reviewed by Darin Adler.
+
+        * Scripts/GeneratePreferences.rb:
+        Simplify input by passing the templates as complete paths, rather than by name + template directory.
+
+        * Scripts/Preferences/WebPreferences.yaml:
+        * Scripts/Preferences/WebPreferencesDebug.yaml:
+        * Scripts/Preferences/WebPreferencesExperimental.yaml:
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+        Fix some mistakes / things left out to make WebKit defaults and names match current WebKit names and defaults.
+
+        * wtf/CMakeLists.txt:
+        Copy all the preferences and scripts into WTF_SCRIPTS_DIR so it can be accessed by WebKit.
+
+2020-09-29  Alex Christensen  <achristensen@webkit.org>
+
+        Remove plist-based ResourceLoadStatistics storage, which has been replaced by database-based storage
+        https://bugs.webkit.org/show_bug.cgi?id=217063
+
+        Reviewed by John Wilander.
+
+        * Scripts/Preferences/WebPreferencesInternal.yaml:
+
+2020-09-28  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        Use JSC_DECLARE_JIT_OPERATION / JSC_DECLARE_CUSTOM_GETTER / JSC_DECLARE_CUSTOM_SETTER
+        https://bugs.webkit.org/show_bug.cgi?id=217071
+
+        Reviewed by Keith Miller.
+
+        Add the following macros.
+
+            1. JSC_DECLARE_JIT_OPERATION
+            2. JSC_DEFINE_JIT_OPERATION
+            3. JSC_DECLARE_CUSTOM_GETTER
+            4. JSC_DEFINE_CUSTOM_GETTER
+            5. JSC_DECLARE_CUSTOM_SETTER
+            6. JSC_DEFINE_CUSTOM_SETTER
+
+        * wtf/PlatformCallingConventions.h:
+
+2020-09-28  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Move GeneratePreferences.rb and yaml configuration files to WTF to be shared
+        https://bugs.webkit.org/show_bug.cgi?id=217056
+
+        Reviewed by Darin Adler.
+
+        Move GeneratePreferences.rb and WebPreferences*.yaml files from WebKitLegacy to WTF, and install them into the existing
+        $SDKROOT/usr/local/install/wtf/Scripts for use by down stack projects.
+
+        * Scripts/GeneratePreferences.rb: Copied from Source/WebKitLegacy/mac/Scripts/GeneratePreferences.rb.
+        * Scripts/Preferences: Added.
+        * Scripts/Preferences/WebPreferences.yaml: Copied from Source/WebKitLegacy/mac/WebView/WebPreferences.yaml.
+        * Scripts/Preferences/WebPreferencesDebug.yaml: Copied from Source/WebKitLegacy/mac/WebView/WebPreferencesDebug.yaml.
+        * Scripts/Preferences/WebPreferencesExperimental.yaml: Copied from Source/WebKitLegacy/mac/WebView/WebPreferencesExperimental.yaml.
+        * Scripts/Preferences/WebPreferencesInternal.yaml: Copied from Source/WebKitLegacy/mac/WebView/WebPreferencesInternal.yaml.
+        * WTF.xcodeproj/project.pbxproj:
+
+2020-09-25  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Introduce JSC_DECLARE_HOST_FUNCTION / JSC_DEFINE_HOST_FUNCTION to make host function definition easy-to-scanned for JIT-caging
+        https://bugs.webkit.org/show_bug.cgi?id=216966
+
+        Reviewed by Saam Barati.
+
+        Rename JSC_HOST_CALL to JSC_HOST_CALL_ATTRIBUTE, and introduce JSC_DECLARE_HOST_FUNCTION / JSC_DEFINE_HOST_FUNCTION.
+        We also introduce JSC_ANNOTATE_HOST_FUNCTION if the function is not defined as free-function[1].
+
+        [1]: https://stackoverflow.com/questions/4861914/what-is-the-meaning-of-the-term-free-function-in-c
+
+        * wtf/PlatformCallingConventions.h:
+
+2020-09-25  Chris Dumez  <cdumez@apple.com>
+
+        Get rid of AudioNode::RefType
+        https://bugs.webkit.org/show_bug.cgi?id=216945
+
+        Reviewed by Darin Adler.
+
+        Add third template parameter to RefPtr allowing to define the traits
+        from incrementing / decrementing the refcount. The default traits
+        call ref() / deref() but this can now be customized to call other
+        functions.
+
+        * wtf/CompactRefPtrTuple.h:
+        * wtf/Forward.h:
+        * wtf/RefPtr.h:
+        (WTF::DefaultRefDerefTraits::refIfNotNull):
+        (WTF::DefaultRefDerefTraits::derefIfNotNull):
+        (WTF::RefPtr::RefPtr):
+        (WTF::RefPtr::~RefPtr):
+        (WTF::V>::RefPtr):
+        (WTF::V>::leakRef):
+        (WTF::=):
+        (WTF::V>::swap):
+        (WTF::swap):
+        (WTF::operator==):
+        (WTF::operator!=):
+        (WTF::static_pointer_cast):
+        (WTF::adoptRef):
+        (WTF::is):
+
+2020-09-25  Antti Koivisto  <antti@apple.com>
+
+        [LFC][Integration] Enable on Apple Windows port
+        https://bugs.webkit.org/show_bug.cgi?id=216928
+        <rdar://problem/69505961>
+
+        Reviewed by Zalan Bujtas.
+
+        * wtf/PlatformEnableWinApple.h:
+
+2020-09-24  Keith Miller  <keith_miller@apple.com>
+
+        CSS angle unit conversions should consistently use the same associativity
+        https://bugs.webkit.org/show_bug.cgi?id=216906
+
+        Reviewed by Simon Fraser.
+
+        Right now we inconsistently associate our floating point math for
+        angle unit conversions. In particular,
+        conversionToCanonicalUnitsScaleFactor expects there to be a single
+        fixed constant we can multiply by to change units. However, the
+        various conversion functions in WTF are not associated in this
+        way. e.g. rad2deg does ((radian * 180) / pi) rather than
+        (radian  *(180 / pi)). Since FP math is NOT associative these
+        produce different results. For example, 1.57 radians is
+        89.954373835539258 degrees in the first case but
+        89.954373835539243 in the second.
+
+        This patch changes those WTF functions to operate on a single
+        scale factor when converting to/from the canonical
+        unit. Conversions between non-canonical units first convert to the
+        canonical unit (degree).
+
+        * wtf/MathExtras.h:
+        (deg2rad):
+        (rad2deg):
+        (deg2grad):
+        (grad2deg):
+        (deg2turn):
+        (turn2deg):
+        (rad2grad):
+        (grad2rad):
+
+2020-09-24  Antti Koivisto  <antti@apple.com>
+
+        [LFC][Integration] Enable on Apple Windows port
+        https://bugs.webkit.org/show_bug.cgi?id=216928
+
+        Reviewed by Sam Weinig.
+
+        * wtf/PlatformEnableWinApple.h:
+
+        For consistency.
+
+2020-09-23  Fujii Hironori  <Hironori.Fujii@sony.com>
+
+        Remove ENABLE_SVG_FONTS macro
+        https://bugs.webkit.org/show_bug.cgi?id=216850
+
+        Reviewed by Don Olmstead.
+
+        * wtf/PlatformEnable.h:
+
+2020-09-23  Youenn Fablet  <youenn@apple.com>
+
+        Add support for HTMLMediaElement.setSinkId
+        https://bugs.webkit.org/show_bug.cgi?id=216696
+
+        Reviewed by Eric Carlson.
+
+        Add HAVE_AUDIO_OUTPUT_DEVICE_UNIQUE_ID.
+        * wtf/PlatformHave.h:
+
+2020-09-21  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] BigInt should work with Map / Set
+        https://bugs.webkit.org/show_bug.cgi?id=216667
+
+        Reviewed by Robin Morisset.
+
+        * wtf/Hasher.h:
+        (WTF::Hasher::hash const):
+        (WTF::add):
+
+2020-09-21  Mark Lam  <mark.lam@apple.com>
+
+        Move some LLInt globals into JSC::Config.
+        https://bugs.webkit.org/show_bug.cgi?id=216685
+        rdar://68964544
+
+        Reviewed by Keith Miller.
+
+        1. Introduce ConfigAlignment as a distinct value from ConfigSizeToProtect.
+           This is because ConfigSizeToProtect is now larger than 1 CeilingOnPageSize on
+           some platforms, but ConfigAlignment only needs to match CeilingOnPageSize.
+
+        2. Introduced ENABLE(UNIFIED_AND_FREEZABLE_CONFIG_RECORD) to disable using the
+           unified g_config record for Windows ports.
+
+           This is needed because WTF is built as a DLL on Windows.  offlineasm does not
+           know how to resolve a DLL exported variable.  Additionally, the Windows ports
+           have never supported freezing of the Config record to begin with.  So, we're
+           working around this by disabling ENABLE(UNIFIED_AND_FREEZABLE_CONFIG_RECORD)
+           for Windows.  This allows JSC to have its own g_jscConfig record, which solves
+           this issue for now.
+
+        * wtf/PlatformEnable.h:
+        * wtf/WTFConfig.cpp:
+        (WTF::Config::permanentlyFreeze):
+        * wtf/WTFConfig.h:
+
+2020-09-18  Don Olmstead  <don.olmstead@sony.com>
+
+        [WebGPU] Add ENABLE(WHLSL_COMPILER) guard
+        https://bugs.webkit.org/show_bug.cgi?id=216713
+
+        Reviewed by Myles C. Maxfield.
+
+        Adds a default for ENABLE_WHLSL_COMPILER on Cocoa platforms.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-09-17  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: REGRESSION(r266885): fix open source build
+        https://bugs.webkit.org/show_bug.cgi?id=216675
+
+        Reviewed by Timothy Hatcher.
+
+        Add back methods used by `WebInspector.framework`.
+
+        * wtf/JSONValues.h:
+        * wtf/JSONValues.cpp:
+        (WTF::JSONImpl::Value::asDouble const): Added.
+        (WTF::JSONImpl::Value::asInteger const): Added.
+        (WTF::JSONImpl::Value::asString const): Added.
+        (WTF::JSONImpl::ObjectBase::getBoolean const): Added.
+        (WTF::JSONImpl::ObjectBase::getString const): Added.
+        (WTF::JSONImpl::ObjectBase::getObject const): Added.
+        (WTF::JSONImpl::ObjectBase::getArray const): Added.
+        (WTF::JSONImpl::ObjectBase::getValue const): Added.
+
+2020-09-16  Stephan Szabo  <stephan.szabo@sony.com>
+
+        Remove ENABLE_METER_ELEMENT
+        https://bugs.webkit.org/show_bug.cgi?id=216582
+
+        Reviewed by Fujii Hironori.
+
+        With PlayStation finally planning to turn this on,
+        no ports had this disabled, so remove the enable flag.
+
+        * wtf/PlatformEnable.h:
+
+2020-09-16  Alex Christensen  <achristensen@webkit.org>
+
+        Remove unneeded HAVE_FOUNDATION_WITH_SAVE_COOKIES_WITH_COMPLETION_HANDLER
+        https://bugs.webkit.org/show_bug.cgi?id=216572
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformHave.h:
+
+2020-09-15  David Kilzer  <ddkilzer@apple.com>
+
+        WebKit should support building with clang ThreadSanitizer enabled
+        <https://webkit.org/b/216318>
+        <rdar://problem/31615729>
+
+        Reviewed by Darin Adler.
+
+        This patch doesn't attempt to resolve every potential false
+        positive, but makes it easy to build WebKit with TSan enabled.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        - Add ThreadSanitizerSupport.h to the project.
+
+        * wtf/Compiler.h:
+        - Define TSAN_ENABLED and SUPPRESS_TSAN macros.
+
+        * wtf/Locker.h:
+        (WTF::Locker::~Locker):
+        (WTF::Locker::unlockEarly):
+        (WTF::Locker::operator=):
+        (WTF::Locker::lock):
+        - Instrument lock/unlock methods for ThreadSanitizer.
+
+        * wtf/ThreadSanitizerSupport.h: Add.
+        (AnnotateHappensBefore):
+        (AnnotateHappensAfter):
+        - Declare TSan runtime functions needed to annotate WTF::Locker.
+        (TSAN_ANNOTATE_HAPPENS_BEFORE):
+        (TSAN_ANNOTATE_HAPPENS_AFTER):
+        - Define macros used to call TSan runtime functions if TSan is
+          enabled.
+
+2020-09-15  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [macOS Big Sur] CGFontRenderingGetFontSmoothingDisabled() is no longer useful
+        https://bugs.webkit.org/show_bug.cgi?id=216588
+        <rdar://problem/68657748>
+
+        Reviewed by Simon Fraser.
+
+        We can eliminate WebKit's use of it to eventually phase it out entirely.
+
+        * wtf/PlatformHave.h:
+
+2020-09-12  Simon Fraser  <simon.fraser@apple.com>
+
+        Convert TextStream::FormattingFlags to an OptionSet<>
+        https://bugs.webkit.org/show_bug.cgi?id=216443
+
+        Reviewed by Darin Adler.
+
+        Use an OptionSet<> for FormattingFlags.
+
+        * wtf/text/TextStream.h:
+        (WTF::TextStream::TextStream):
+        (WTF::TextStream::formattingFlags const):
+        (WTF::TextStream::setFormattingFlags):
+        (WTF::TextStream::hasFormattingFlag const):
+
+2020-09-11  Yusuke Suzuki  <ysuzuki@apple.com>
+
+        [JSC] Canonicalize "true" unicode extension type value to ""
+        https://bugs.webkit.org/show_bug.cgi?id=216224
+
+        Reviewed by Ross Kirsling.
+
+        * wtf/text/StringView.h:
+        (WTF::StringView::characterAt const):
+        (WTF::StringView::operator[] const):
+
+2020-09-11  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Migrate CoreText-specific code from ***Cocoa.mm to ***CoreText.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=216400
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformUse.h:
+
+2020-09-11  Kate Cheney  <katherine_cheney@apple.com>
+
+        Followup to Bug 215027: address comments to improve APP_BOUND_DOMAINS macro use
+        https://bugs.webkit.org/show_bug.cgi?id=216373
+        <rdar://problem/68645704>
+
+        Reviewed by Darin Adler.
+
+        Remove unnecessary default. All enable flags are off by default.
+
+        * wtf/PlatformEnable.h:
+
+2020-09-10  Ben Nham  <nham@apple.com>
+
+        Disable hardware JPEG decoding on x86 Mac
+        https://bugs.webkit.org/show_bug.cgi?id=216377
+
+        Reviewed by Geoff Garen.
+
+        Add macros to disable HW JPEG decoding on x86 Macs and indicate the presence of a new MediaToolbox SPI.
+        (The latter is to prevent unnecessary dlopen/dlsym calls since we soft-link MediaToolbox.)
+
+        * wtf/PlatformEnableCocoa.h:
+        * wtf/PlatformHave.h:
+
+2020-09-10  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: modernize generated backend protocol code
+        https://bugs.webkit.org/show_bug.cgi?id=216302
+        <rdar://problem/68547649>
+
+        Reviewed by Brian Burg.
+
+        * wtf/JSONValues.h:
+        (WTF::JSONImpl::ObjectBase::setValue):
+        (WTF::JSONImpl::ObjectBase::setObject):
+        (WTF::JSONImpl::ObjectBase::setArray):
+        (WTF::JSONImpl::ArrayBase::pushValue):
+        (WTF::JSONImpl::ArrayBase::pushObject):
+        (WTF::JSONImpl::ArrayBase::pushArray):
+        (WTF::JSONImpl::ArrayOf::ArrayOf): Deleted.
+        (WTF::JSONImpl::ArrayOf::castedArray): Deleted.
+        (WTF::JSONImpl::ArrayOf::addItem): Deleted.
+        (WTF::JSONImpl::ArrayOf::create): Deleted.
+        * wtf/JSONValues.cpp:
+        (WTF::JSONImpl::Value::asValue):
+        (WTF::JSONImpl::Value::asObject):
+        (WTF::JSONImpl::Value::asArray):
+        (WTF::JSONImpl::Value::parseJSON):
+        (WTF::JSONImpl::Value::asBoolean const):
+        (WTF::JSONImpl::Value::asDouble const):
+        (WTF::JSONImpl::Value::asInteger const):
+        (WTF::JSONImpl::Value::asString const):
+        (WTF::JSONImpl::ObjectBase::asObject):
+        (WTF::JSONImpl::ObjectBase::memoryCost const):
+        (WTF::JSONImpl::ObjectBase::getBoolean const):
+        (WTF::JSONImpl::ObjectBase::getDouble const):
+        (WTF::JSONImpl::ObjectBase::getInteger const):
+        (WTF::JSONImpl::ObjectBase::getString const):
+        (WTF::JSONImpl::ObjectBase::getObject const):
+        (WTF::JSONImpl::ObjectBase::getArray const):
+        (WTF::JSONImpl::ObjectBase::getValue const):
+        (WTF::JSONImpl::ObjectBase::ObjectBase):
+        (WTF::JSONImpl::ArrayBase::asArray):
+        (WTF::JSONImpl::ArrayBase::writeJSON const):
+        (WTF::JSONImpl::ArrayBase::ArrayBase):
+        (WTF::JSONImpl::ArrayBase::get const):
+        (WTF::JSONImpl::ArrayBase::memoryCost const):
+        (WTF::JSONImpl::ObjectBase::openAccessors): Deleted.
+        Use `Ref&&` wherever possible and `Optional` instead of an out parameter for `get*`/`as*`
+        so that values can be more easily manipulated and can be confidently assumed to exist.
+        Remove unused overloads and allow subclasses to call `as*` instead of `openAccessors` as
+        they're effectively the same thing.
+
+2020-09-10  Jer Noble  <jer.noble@apple.com>
+
+        [Cocoa] PERF: Don't instantiate AVPlayer-based audio decoders or renderers if an element is initially muted.
+        https://bugs.webkit.org/show_bug.cgi?id=216299
+
+        Reviewed by Eric Carlson.
+
+        * wtf/PlatformHave.h:
+
+2020-09-10  Tim Horton  <timothy_horton@apple.com>
+
+        Upstream additional linked-on-or-after version checks
+        https://bugs.webkit.org/show_bug.cgi?id=216365
+
+        Reviewed by Sam Weinig.
+
+        * wtf/spi/darwin/dyldSPI.h:
+
+2020-09-10  Kate Cheney  <katherine_cheney@apple.com>
+
+        Clean up App-Bound Domains code to only compile for iOS with its own macro
+        https://bugs.webkit.org/show_bug.cgi?id=215027
+        <rdar://problem/63688232>
+
+        Reviewed by Darin Adler.
+
+        Define a new APP_BOUND_DOMAINS preprocessor macro to more aptly gate
+        App Bound Domains behavior.
+
+        * wtf/PlatformEnable.h:
+        * wtf/PlatformEnableCocoa.h:
+
+2020-09-10  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [CG] REGRESSION (Big Sur): A GIF image with a finite loopCount loops an extra cycle
+        https://bugs.webkit.org/show_bug.cgi?id=216018
+        <rdar://problem/68304035>
+
+        Reviewed by Tim Horton.
+
+        Add a new macro for the new accurate behavior of CGImageSource.
+
+        Unrelated change: Fix the conditions for enabling the WebP images.
+
+        * wtf/PlatformHave.h:
+
+2020-09-09  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Simplify OptionSet::set
+        https://bugs.webkit.org/show_bug.cgi?id=216335
+
+        Reviewed by Said Abou-Hallawa.
+
+        Simplified the implementation of OptionSet::set since we've verified that both clang and gcc
+        generate comparable code in x86_64 and clang does the same for arm64.
+
+        * wtf/OptionSet.h:
+        (WTF::OptionSet::set):
+
+2020-09-09  Wenson Hsieh  <wenson_hsieh@apple.com>
+
+        Text copied and pasted from Mac Catalyst apps appears larger than expected
+        https://bugs.webkit.org/show_bug.cgi?id=215971
+        <rdar://problem/65768907>
+
+        Reviewed by Tim Horton.
+
+        Add a new flag to guard the presence of `_UIApplicationCatalystUserInterfaceIdiom`,
+        `_UIApplicationCatalystScaleFactor`, and `_UIApplicationCatalystRequestViewServiceIdiomAndScaleFactor`.
+
+        * wtf/PlatformHave.h:
+
+2020-09-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Node flags should be an OptionSet
+        https://bugs.webkit.org/show_bug.cgi?id=216305
+
+        Reviewed by Antti Koivisto.
+
+        * wtf/OptionSet.h:
+        (WTF::OptionSet::set): Added.
+
+2020-09-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Make CompactUniquePtrTuple actually work with subclassing and custom deleter
+        https://bugs.webkit.org/show_bug.cgi?id=216225
+
+        Reviewed by Darin Adler.
+
+        Fixed bugs in CompactUniquePtrTuple which prevented subclassing and custom deleter to work.
+
+        * wtf/CompactPointerTuple.h:
+        (WTF::CompactPointerTuple::CompactPointerTuple): Added move constructor with implicit cast
+        of a convertible pointer type.
+        * wtf/CompactUniquePtrTuple.h:
+        (WTF::makeCompactUniquePtr): Added the missing deleter from the return type.
+        (WTF::CompactUniquePtrTuple::CompactUniquePtrTuple): Allow Deleter to be different if it's
+        the default deleter in the move constructor so that CompactUniquePtrTuple<U, Type> could be
+        moved to CompactUniquePtrTuple<T, Type> if U is convertible to T without having to specify
+        the same deleter (std::default_delete<U> is not same as std::default_delete<T> but allow it).
+        (WTF::CompactUniquePtrTuple::operator=): Ditto.
+        (WTF::CompactUniquePtrTuple::setPointer): Ditto from std::unique_ptr.
+        (WTF::CompactUniquePtrTuple): Friend declare all other specializations of CompactUniquePtrTuple
+        so that the above fixes work.
+
+2020-09-06  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [iOS] attachmentActionFont() Needs to use kCTFontSymbolicTrait: @(kCTFontTraitTightLeading | kCTFontTraitEmphasized) to get the short emphasized footnote font
+        https://bugs.webkit.org/show_bug.cgi?id=215707
+        <rdar://problem/63930892>
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h:
+
+2020-09-06  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        CTFontGetPhysicalSymbolicTraits() is faster than CTFontCopyPhysicalFont()/CTFontGetSymbolicTraits()
+        https://bugs.webkit.org/show_bug.cgi?id=215685
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h:
+
+2020-09-06  Darin Adler  <darin@apple.com>
+
+        TextCodec refinements
+        https://bugs.webkit.org/show_bug.cgi?id=216219
+
+        Reviewed by Sam Weinig.
+
+        * wtf/unicode/CharacterNames.h: Use constexpr instead of just const.
+        Added byteOrderMark, synonym for zeroWidthNoBreakSpace.
+
+2020-09-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] USE(PLATFORM_SYSTEM_FALLBACK_LIST) is true on all Cocoa platforms, so there's no need to consult it in Cocoa-specific files
+        https://bugs.webkit.org/show_bug.cgi?id=215684
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformUse.h:
+
+2020-09-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] CTFontIsSystemUIFont() is faster than CTFontDescriptorIsSystemUIFont()/CTFontCopyFontDescriptor()
+        https://bugs.webkit.org/show_bug.cgi?id=215687
+
+        Reviewed by Darin Adler.
+
+        * wtf/PlatformHave.h:
+
+2020-09-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [Cocoa] Migrate off SPI in Font::platformWidthForGlyph()
+        https://bugs.webkit.org/show_bug.cgi?id=215670
+
+        Reviewed by Zalan Bujtas.
+
+        * wtf/PlatformUse.h:
+
+2020-09-04  Alex Christensen  <achristensen@webkit.org>
+
+        Move PDF heads-up display to UI process on macOS
+        https://bugs.webkit.org/show_bug.cgi?id=215780
+        <rdar://problem/58715847>
+
+        Reviewed by Tim Horton.
+
+        * wtf/PlatformHave.h:
+
+2020-09-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        GTK+ build fix attempt after r266573.
+
+        * wtf/CompactUniquePtrTuple.h:
+
+2020-09-02  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add CompactUniquePtrTuple
+        https://bugs.webkit.org/show_bug.cgi?id=215936
+
+        Reviewed by Darin Adler.
+
+        Added a new template class, CompactUniquePtrTuple, which stores a pointer and up to 16-bits of
+        a POD type using CompactPointerTuple.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/CompactUniquePtrTuple.h: Added.
+        (WTF::makeCompactUniquePtr): Added. Like makeUnique, creates an object of the specified type
+        and returns CompactUniquePtrTuple.
+        (WTF::CompactUniquePtrTuple): Added.
+        (WTF::CompactUniquePtrTuple::CompactUniquePtrTuple): Move constructor.
+        (WTF::CompactUniquePtrTuple::~CompactUniquePtrTuple):
+        (WTF::CompactUniquePtrTuple::operator=):
+        (WTF::CompactUniquePtrTuple::pointer):
+        (WTF::CompactUniquePtrTuple::moveToUniquePtr): Clears this pointer and returns unique_ptr.
+        (WTF::CompactUniquePtrTuple::setPointer): Like CompactPointerTuple sets the pointer component
+        of this tuple, freeing the old object if there is already one stored.
+        (WTF::CompactUniquePtrTuple::type):
+        (WTF::CompactUniquePtrTuple::setType):
+        (WTF::CompactUniquePtrTuple::CompactUniquePtrTuple): Constructor which takes unique_ptr&&.
+        (WTF::CompactUniquePtrTuple::deletePointer):
+
+2020-09-02  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add a variant of map which filters items to Vector.h
+        https://bugs.webkit.org/show_bug.cgi?id=215879
+
+        Reviewed by Darin Adler and Yusuke Suzuki.
+
+        This patch adds WTF::compactMap, which calls a function on each item in an iterable object like WTF::map
+        but also filters the returned value. The mapped function may return Optional<T> or RefPtr<T>. The value
+        is kept in the result if the returned value is not WTF::nullopt in the case of Optional<T> and not null
+        in the case of RefPtr<T>. The result will be either Vector<T> for Optional<T> or else Vector<Ref<T>>.
+
+        * wtf/Vector.h:
+        (WTF::CompactMapTraits:): Added. Traits to have a different behavior
+        (WTF::CompactMapTraits<Optional<T>>::hasValue): Added.
+        (WTF::CompactMapTraits<Optional<T>>::extractValue): Added.
+        (WTF::CompactMapTraits<RefPtr<T>>::hasValue): Added.
+        (WTF::CompactMapTraits<RefPtr<T>>::extractValue): Added.
+        (WTF::CompactMap): Added. The helper to use WTFMove on the argument to the mapped function if possible.
+        (WTF::compactMap): Added.
+
+2020-09-02  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        Unreviewed, reverting r266449.
+
+        Underlying frameworks do not work correctly for loopCount >=
+        1.
+
+        Reverted changeset:
+
+        "[CG] REGRESSION (Big Sur): A GIF image with a finite
+        loopCount loops an extra cycle"
+        https://bugs.webkit.org/show_bug.cgi?id=216018
+        https://trac.webkit.org/changeset/266449
+
+2020-09-01  Said Abou-Hallawa  <sabouhallawa@apple.com>
+
+        [CG] REGRESSION (Big Sur): A GIF image with a finite loopCount loops an extra cycle
+        https://bugs.webkit.org/show_bug.cgi?id=216018
+        <rdar://problem/66660579>
+
+        Reviewed by Tim Horton.
+
+        Add a new macro for the new accurate behavior of CGImageSource.
+
+        Unrelated change: Fix the conditions for enabling the WebP images.
+
+        * wtf/PlatformHave.h:
+
+2020-08-31  Mark Lam  <mark.lam@apple.com>
+
+        Remove some PtrTag debugging code from release builds.
+        https://bugs.webkit.org/show_bug.cgi?id=216025
+        <rdar://problem/68098263>
+
+        Reviewed by Saam Barati.
+
+        Converted uses of PtrTagAction::ReleaseAssert to PtrTagAction::DebugAssert.
+        These assertions serve a purpose during development (hence, PtrTagAction::DebugAssert),
+        but is no longer needed for release builds.  Previously, we use these assertions
+        to verify that pointers are tagged correctly in release build.  Clang takes care
+        of that automatically now.
+
+        Also removed PtrTag name lookup debugging utility from release builds.
+
+        * wtf/PtrTag.cpp:
+        * wtf/PtrTag.h:
+        (WTF::untagCodePtr):
+        (WTF::retagCodePtrImpl):
+        (WTF::assertIsCFunctionPtr):
+        (WTF::assertIsNotTagged):
+        (WTF::assertIsTagged):
+        (WTF::assertIsTaggedWith):
+
+2020-09-01  Alex Christensen  <achristensen@webkit.org>
+
+        Update URL fragment percent encode set
+        https://bugs.webkit.org/show_bug.cgi?id=216022
+
+        Reviewed by Youenn Fablet.
+
+        It now matches the behavior of Chrome and Firefox, as well as the spec at
+        https://url.spec.whatwg.org/#fragment-percent-encode-set
+
+        * wtf/URLParser.cpp:
+        (WTF::isInFragmentEncodeSet):
+        (WTF::URLParser::parse):
+
+2020-09-01  Alex Christensen  <achristensen@webkit.org>
+
+        Align Big5 decoding with spec, Chrome, and Firefox
+        https://bugs.webkit.org/show_bug.cgi?id=216016
+
+        Reviewed by Darin Adler.
+
+        * wtf/text/CodePointIterator.h:
+
+2020-09-01  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [Linux] Web Inspector: show per thread cpu usage
+        https://bugs.webkit.org/show_bug.cgi?id=215883
+
+        Reviewed by Adrian Perez de Castro.
+
+        Add API to get the thread ID in Linux platform.
+
+        * wtf/Threading.cpp:
+        (WTF::Thread::initializeInThread):
+        * wtf/Threading.h:
+        (WTF::Thread::id const):
+        * wtf/ThreadingPrimitives.h:
+        * wtf/posix/ThreadingPOSIX.cpp:
+        (WTF::Thread::currentID):
+
+2020-08-31  Alex Christensen  <achristensen@webkit.org>
+
+        Make Big5 encoder conform to the specification and behavior of Chrome and Firefox
+        https://bugs.webkit.org/show_bug.cgi?id=215983
+
+        Reviewed by Darin Adler.
+
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/URLParser.cpp:
+        (WTF::CodePointIterator::CodePointIterator): Deleted.
+        (WTF::CodePointIterator::operator== const): Deleted.
+        (WTF::CodePointIterator::operator!= const): Deleted.
+        (WTF::CodePointIterator::atEnd const): Deleted.
+        (WTF::CodePointIterator::codeUnitsSince const): Deleted.
+        (WTF::CodePointIterator<LChar>::operator const): Deleted.
+        (WTF::CodePointIterator<LChar>::operator): Deleted.
+        (WTF::CodePointIterator<UChar>::operator const): Deleted.
+        (WTF::CodePointIterator<UChar>::operator): Deleted.
+        * wtf/text/CodePointIterator.h: Added.
+        (WTF::CodePointIterator::CodePointIterator):
+        (WTF::CodePointIterator::operator== const):
+        (WTF::CodePointIterator::operator!= const):
+        (WTF::CodePointIterator::atEnd const):
+        (WTF::CodePointIterator::codeUnitsSince const):
+        (WTF::CodePointIterator<LChar>::operator const):
+        (WTF::CodePointIterator<LChar>::operator):
+        (WTF::CodePointIterator<UChar>::operator const):
+        (WTF::CodePointIterator<UChar>::operator):
+
+2020-08-30  Jim Mason  <jmason@ibinx.com>
+
+        [GTK] REGRESSION(r150392) insufficient space allocation results in heap corruption
+        https://bugs.webkit.org/show_bug.cgi?id=215976
+
+        Reviewed by Carlos Garcia Campos.
+
+        * wtf/glib/RunLoopGLib.cpp:
+        (WTF::RunLoop::TimerBase::TimerBase):
+
+2020-08-27  Stephan Szabo  <stephan.szabo@sony.com>
+
+        [PlayStation] Build fix due to memmem not always being available.
+        https://bugs.webkit.org/show_bug.cgi?id=215893
+
+        Unreviewed build fix
+
+        * wtf/PlatformHave.h: Don't always HAVE_MEMMEM on playstation
+
+2020-08-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Include the run loop source name in frame rendering timeline
+        https://bugs.webkit.org/show_bug.cgi?id=215847
+
+        Reviewed by Adrian Perez de Castro.
+
+        Pass the run loop source name to the observer.
+
+        * wtf/RunLoop.h:
+        * wtf/glib/RunLoopGLib.cpp:
+        (WTF::RunLoop::RunLoop):
+        (WTF::RunLoop::notify):
+
+2020-08-26  Alexey Shvayka  <shvaikalesh@gmail.com>
+
+        Use jsTypeofIsObject() in DFG AI and operationTypeOfIsObject()
+        https://bugs.webkit.org/show_bug.cgi?id=144457
+
+        Reviewed by Saam Barati.
+
+        * wtf/TriState.h:
+        (WTF::invert):
+
+2020-08-25  Ryosuke Niwa  <rniwa@webkit.org>
+
+        HashMap<Ref<T>>::take should return RefPtr<T>
+        https://bugs.webkit.org/show_bug.cgi?id=215830
+
+        Reviewed by Darin Adler.
+
+        Updated the hash traits for Ref<T> to make HashMap<Ref<T>> and HashSet<Ref<T>>
+        return RefPtr<T> instad of Optional<Ref<T>>.
+
+        * wtf/HashTraits.h:
+        (WTF::RefHashTraits::take):
+
+2020-08-25  Per Arne Vollan  <pvollan@apple.com>
+
+        [Win] Assert failure under RunLoop::RunLoop
+        https://bugs.webkit.org/show_bug.cgi?id=215812
+
+        Reviewed by Brent Fulgham.
+
+        The assert 'ASSERT(::IsWindow(m_runLoopMessageWindow))' under RunLoop::RunLoop will fail if the JSC API JSGlobalContextCreate*()
+        is being called by a client before WTF::initializeMainThread() has been called. The assertion fails because the method
+        RunLoop::registerRunLoopMessageWindowClass() has not been called yet, since it is only called when initializing the main thread.
+        This patch addresses this issue by making sure the window class has been registered before being referenced in RunLoop::RunLoopl
+        The method call is also removed from the main thread initialization, since the window class is only used in RunLoop::RunLoop,
+        making it sufficient to only be registered there. Also change the debug assert to a release assert, so we can catch similar
+        issues in release builds.
+
+        * wtf/win/MainThreadWin.cpp:
+        (WTF::initializeMainThreadPlatform):
+        * wtf/win/RunLoopWin.cpp:
+        (WTF::RunLoop::registerRunLoopMessageWindowClass):
+        (WTF::RunLoop::RunLoop):
+
+2020-08-24  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Implement rendering frames timeline panel for GTK+ port
+        https://bugs.webkit.org/show_bug.cgi?id=150392
+        <rdar://problem/23200510>
+
+        Reviewed by Brian Burg.
+
+        Add API to observe RunLoop events for GLib event loop implementation.
+
+        * wtf/RunLoop.h:
+        * wtf/glib/RunLoopGLib.cpp:
+        (WTF::RunLoop::RunLoop): Use RunLoopSource struct and initialize the RunLoop.
+        (WTF::RunLoop::observe): Add the given observer to the set.
+        (WTF::RunLoop::notify): Notife observers of the given event.
+        (WTF::RunLoop::TimerBase::TimerBase): Use RunLoopSource struct and initialize the RunLoop.
+
+2020-08-24  Alex Christensen  <achristensen@webkit.org>
+
+        Implement Request/Response consuming as FormData
+        https://bugs.webkit.org/show_bug.cgi?id=215671
+
+        Reviewed by Darin Adler.
+
+        In order to be compatible with other browsers, we need a verson of String::fromUTF8 that
+        uses U8_NEXT_OR_FFFD instead of U8_NEXT, but changing that across the board will break other things.
+        Leave everything else as it is, use templates and constexpr to not add any branches, but add
+        String::fromUTF8ReplacingInvalidSequences to allow me to make our FormData consuming compatible with other browsers.
+
+        * wtf/text/WTFString.cpp:
+        (WTF::fromUTF8Helper):
+        (WTF::String::fromUTF8):
+        (WTF::String::fromUTF8ReplacingInvalidSequences):
+        * wtf/text/WTFString.h:
+        * wtf/unicode/UTF8Conversion.cpp:
+        (WTF::Unicode::convertUTF8ToUTF16Impl):
+        (WTF::Unicode::convertUTF8ToUTF16):
+        (WTF::Unicode::convertUTF8ToUTF16ReplacingInvalidSequences):
+        * wtf/unicode/UTF8Conversion.h:
+
+2020-08-24  Alex Christensen  <achristensen@webkit.org>
+
+        Make _WKWebsiteDataStoreConfiguration SPI for HSTS storage to replace _WKProcessPoolConfiguration.hstsStorageDirectory
+        https://bugs.webkit.org/show_bug.cgi?id=213048
+
+        Reviewed by Youenn Fablet.
+
+        * wtf/PlatformHave.h:
+
 2020-08-22  Yusuke Suzuki  <ysuzuki@apple.com>
 
         [JSC] Add Intl.Segmenter

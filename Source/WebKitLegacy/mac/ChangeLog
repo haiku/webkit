@@ -1,3 +1,841 @@
+2020-10-01  Chris Dumez  <cdumez@apple.com>
+
+        Add basic infrastructure for AudioWorklet
+        https://bugs.webkit.org/show_bug.cgi?id=217153
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/WebPlatformStrategies.mm:
+
+2020-10-01  Sam Weinig  <weinig@apple.com>
+
+        Remove duplicate definitions of @property (nonatomic) BOOL CSSIndividualTransformPropertiesEnabled
+        https://bugs.webkit.org/show_bug.cgi?id=217182
+
+        Reviewed by Alex Christensen.
+
+        When the fix for ​https://webkit.org/b/216271 was landed, it added two definitions of
+        the CSSIndividualTransformPropertiesEnabled property (though one getter was misnamed), leading 
+        to linker warnings. This removes one of them.
+
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences cssIndividualTransformPropertiesEnabled]): Deleted.
+
+2020-10-01  Aditya Keerthi  <akeerthi@apple.com>
+
+        [macCatalyst] Crash when attempting to display a select dropdown in a UIWebView
+        https://bugs.webkit.org/show_bug.cgi?id=217148
+        <rdar://problem/64004677>
+
+        Reviewed by Darin Adler.
+
+        When clicking on a select element in a Catalyst UIWebView, WebKit calls
+        into UIKit to present a popover. On Catalyst, UIKit popovers call
+        resignFirstResponder on the current first responder, when presented.
+        Consequently, when an attempt to display the select dropdown is made,
+        [WebHTMLView resignFirstResponder] is invoked. This method blurs the
+        currently focused element, which tells UIKit to destroy the popover.
+        Destroying the popover while its attempting to become first responder
+        is not safe, leading to a crash.
+
+        In [WebHTMLView resignFirstResponder], clearFocus is only called if
+        [WebView _isPerformingProgrammaticFocus] is false. UIKit can take
+        advantage of this to prevent blurring an element if the first
+        responder is being resigned due to presenting a view associated with
+        the same element.
+
+        However, [WebHTMLView resignFirstResponder] also clears focus on the
+        current page's FocusController, which can also cause the element to be
+        blurred. To prevent this, guard the call on the same check as
+        clearFocus.
+
+        Note that this approach to preventing resignFirstResponder from blurring
+        the focused element is similar to the approach taken in WebKit2.
+
+        This change is made for all Cocoa platforms, since _isPerformingProgrammaticFocus
+        is internal to WebKit and the only time it is true is within a call to
+        WebChromeClient::makeFirstResponder. That method calls
+        [WebUIDelegate webView:makeFirstResponder], which states in its
+        documentation: "responder will always be a view that is in the view
+        subhierarchy of the top-level web view for this WebView". Consequently,
+        nextResponderIsInWebView will be true when _isPerformingProgrammaticFocus
+        is true, meaning the change doesn't affect existing behavior.
+
+        No new tests as the functionality is dependent on a UIKit change.
+
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView resignFirstResponder]):
+
+2020-09-29  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Adopt shared preferences configuration and script in WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=217075
+
+        Reviewed by Darin Adler.
+
+        * Scripts/generate-preferences.sh:
+        Update to account for new interface requiring the full path to each template.
+
+2020-09-29  Alex Christensen  <achristensen@webkit.org>
+
+        Unreviewed, reverting r267397.
+
+        SPI is still used <rdar://problem/69749992>
+
+        Reverted changeset:
+
+        "Remove deprecated script and stylesheet injection SPI,
+        replaced with more inclusively-named SPI"
+        https://bugs.webkit.org/show_bug.cgi?id=214936
+        https://trac.webkit.org/changeset/267397
+
+2020-09-28  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Move GeneratePreferences.rb and yaml configuration files to WTF to be shared
+        https://bugs.webkit.org/show_bug.cgi?id=217056
+
+        Reviewed by Darin Adler.
+
+        Move GeneratePreferences.rb and WebPreferences*.yaml files from WebKitLegacy to WTF, and install them into the existing
+        $SDKROOT/usr/local/install/wtf/Scripts for use by down stack projects.
+
+        Also adds new script, generate-preferences.sh, to make editing / reviewing the invocation a bit easier as you don't
+        have to use the tiny editor in the Run Scripts phase pane.
+
+        Adds new build variable, WTF_BUILD_SCRIPTS_DIR, to easily specify the new location of the moved files.
+
+        * Configurations/WebKitLegacy.xcconfig:
+        * Scripts/GeneratePreferences.rb: Removed.
+        * Scripts/generate-preferences.sh: Added.
+        * WebView/WebPreferences.yaml: Removed.
+        * WebView/WebPreferencesDebug.yaml: Removed.
+        * WebView/WebPreferencesExperimental.yaml: Removed.
+        * WebView/WebPreferencesInternal.yaml: Removed.
+
+2020-09-28  Devin Rousso  <drousso@apple.com>
+
+        [iOS] unable to airplay directly loaded fullscreen video
+        https://bugs.webkit.org/show_bug.cgi?id=216858
+        <rdar://problem/68746321>
+
+        Reviewed by Eric Carlson.
+
+        It's possible that `MediaPlayerPrivate::wirelessVideoPlaybackDisabled` is queried before a
+        "real" `MediaPlayerPrivate` (i.e. not `NullMediaPlayerPrivate`) is initialized through one
+        of the registered `MediaPlayerFactory` "engine"s. It's further possible that the value
+        returned by `MediaPlayerPrivate::wirelessVideoPlaybackDisabled` will change as the new
+        "real" `MediaPlayerPrivate` may have different logic. In this case, the `MediaPlayer`
+        doesn't update its client (and therefore nothing "up" the tree, including the client's
+        clients) with the new `MediaPlayerPrivate::wirelessVideoPlaybackDisabled` value, meaning
+        that the old value will still be used.
+
+        Add piping such that when the `MediaPlayerFactory` "engine" changes, the `MediaPlayer`
+        notifies its client (which is further piped "up" the tree to the client's clients) which
+        eventually causes `MediaPlayerPrivate::wirelessVideoPlaybackDisabled` to be re-evaluated.
+
+        * WebCoreSupport/WebChromeClient.h:
+        * WebCoreSupport/WebChromeClient.mm:
+        (WebChromeClient::playbackControlsMediaEngineChanged): Added.
+        * WebView/WebViewInternal.h:
+        * WebView/WebView.mm:
+        (-[WebView _playbackControlsMediaEngineChanged]): Added.
+
+2020-09-27  Sam Weinig  <weinig@apple.com>
+
+        Fix some typos found by Simon post-review for https://bugs.webkit.org/show_bug.cgi?id=217042
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+        "rmeove" -> "remove".
+
+2020-09-27  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Generate base preferences for WebKitLegacy
+        https://bugs.webkit.org/show_bug.cgi?id=217042
+
+        Reviewed by Tim Horton.
+
+        Imports (and sorts) WebPreferences.yaml from WebKit, and starts generation for
+        for WebKitLegacy. To support this, a few tweaks to generation were required:
+        
+        - A new 'exposed' key was added to the configuration files which allows restricting
+          which frontends a preference is exposed to. By default, preferences are exposed to
+          all frontends. This is intended to be used for preferences that don't have a binding
+          to WebCore (e.g. process model related preferences for Webkit). We will require a
+          seperate concept for features that WebCore knows about, but are not supported by
+          a frontend, but that will be added in future revisions.
+          
+          'exposed' is used in a few places that have 'custom' bindings to WebCore where 
+          WebKitLegacy and WebKit don't use the same type or meaning for a preference, such
+          as WebKitLegacy's FrameFlattening enum vs. WebKit's FrameFlatteningEnabled bool,
+          or WebKitLegacy's WebSQLEnabled vs. WebKit's WebSQLDisabled. Eventually, it would
+          be nice to make these match, but it is not required.
+        
+        - A new 'webKitLegacyPreferenceKey' key was added to the configuration files allowing
+          for existing keys that don't match the default pattern of "WebKit" + keyName. This is
+          to avoid changing the value of the preference key strings in WebPreferenceKeysPrivate.h,
+          as I am not confident that changing them is kosher. I also went back and reverted the
+          few I had already changed, just to be on the safe side.
+
+        - Support was added in WebViewPreferencesChangedGenerated.mm.erb for non bool values.
+
+        - Preferences that are conditionally compiled out (using the conditional key) no longer
+          generate a default when they are compiled out, which required a little macro magic
+          in WebPreferencesDefinitions.h.erb in the form of the new INITIALIZE_DEFAULT_PREFERENCES_FOR_
+          macros.
+
+        * Scripts/GeneratePreferences.rb:
+        * Scripts/PreferencesTemplates/WebPreferencesDefinitions.h.erb:
+        * Scripts/PreferencesTemplates/WebViewPreferencesChangedGenerated.mm.erb:
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        * WebView/WebPreferences.yaml:
+        * WebView/WebPreferencesDebug.yaml:
+        * WebView/WebPreferencesDefaultValues.h:
+        * WebView/WebPreferencesDefaultValues.mm:
+        (WebKit::defaultAllowsInlineMediaPlayback):
+        (WebKit::defaultAllowsInlineMediaPlaybackAfterFullscreen):
+        (WebKit::defaultAllowsPictureInPictureMediaPlayback):
+        (WebKit::defaultJavaScriptCanOpenWindowsAutomatically):
+        (WebKit::defaultInlineMediaPlaybackRequiresPlaysInlineAttribute):
+        (WebKit::defaultPassiveTouchListenersAsDefaultOnDocument):
+        (WebKit::defaultRequiresUserGestureToLoadVideo):
+        (WebKit::defaultWebSQLEnabled):
+        (WebKit::defaultAttachmentElementEnabled):
+        (WebKit::defaultShouldRestrictBaseURLSchemes):
+        * WebView/WebPreferencesExperimental.yaml:
+        * WebView/WebPreferencesInternal.h:
+        * WebView/WebPreferencesInternal.yaml:
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        (-[WebView _preferencesChanged:]):
+        (shouldAllowPictureInPictureMediaPlayback): Deleted.
+        (shouldAllowWindowOpenWithoutUserGesture): Deleted.
+        (shouldRequireUserGestureToLoadVideo): Deleted.
+        (shouldRestrictBaseURLSchemes): Deleted.
+        * WebView/WebViewData.h:
+
+2020-09-24  Simon Fraser  <simon.fraser@apple.com>
+
+        WebKitLegacy should call Page::finalizeRenderingUpdate()
+        https://bugs.webkit.org/show_bug.cgi?id=216958
+
+        Reviewed by Tim Horton.
+
+        This is a precursor to fixing webkit.org/b/216726. Page needs to track the phase
+        of updateRendering that we are in, and to ease this tracking, WebKitLegacy needs to call
+        Page::finalizeRenderingUpdate() so the state is tracked.
+        
+        Rename -_viewWillDrawInternal to -_updateRendering, and have it call updateRendering()
+        and finalizeRenderingUpdate(). We can also move in the call to -_synchronizeCustomFixedPositionLayoutRect
+        which both call sites do.
+        
+        Since updateRendering() is guaranteed to update layout, we know -_flushCompositingChanges would have
+        never returned NO here, so we can remove the condition in LayerFlushController::flushLayers().
+        
+        -[WebHTMLView viewWillDraw] also does a similar -_web_updateLayoutAndStyleIfNeededRecursive
+        then -_flushCompositingChanges but this is called from AppKit with a timing that we don't control;
+        it may be redundant with -[WebView _updateRendering] but I leave that behavior unchanged.
+
+        * WebView/WebView.mm:
+        (-[WebView _updateRendering]):
+        (-[WebView _forceRepaintForTesting]):
+        (LayerFlushController::flushLayers):
+        (-[WebView _viewWillDrawInternal]): Deleted.
+
+2020-09-26  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Generate Debug and Internal preferences for WebKitLegacy
+        https://bugs.webkit.org/show_bug.cgi?id=217015
+
+        Reviewed by Darin Adler.
+
+        Imports WebPreferencesDebug.yaml and WebPreferencesInternal.yaml from WebKit and starts
+        generating them. 
+        
+        In addition, preference yaml files must now be sorted alphabetically by preference name, and
+        this is now enforced by GeneratePreferences.rb, generating an error if they are out of order.
+
+        * Scripts/GeneratePreferences.rb:
+        * Scripts/PreferencesTemplates/WebPreferencesDefinitions.h.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesInternalFeatures.mm.erb: Added.
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (+[WebPreferences _internalDebugFeatures]): Deleted.
+        * WebView/WebPreferencesDebug.yaml:
+        * WebView/WebPreferencesDefaultValues.h:
+        * WebView/WebPreferencesExperimental.yaml:
+        * WebView/WebPreferencesInternal.yaml:
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-26  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] It should be possible to have different default values for WebKitLegacy and WebKit in preference yaml files
+        https://bugs.webkit.org/show_bug.cgi?id=216987
+
+        Reviewed by Darin Adler.
+
+        Add new syntax for default values that allows specializing based on both frontend (WebKit or 
+        WebKitLegacy) and then futher based on platform macros. For example, the preference for 
+        CSSTypedOMEnabled now looks like:
+        
+           CSSTypedOMEnabled:
+             type: bool
+             humanReadableName: "CSS Typed OM"
+             humanReadableDescription: "Enable the CSS Typed OM"
+             webcoreBinding: RuntimeEnabledFeatures
+             condition: ENABLE(CSS_TYPED_OM)
+             defaultValue:
+               WebKitLegacy:
+                 default: false
+               WebKit:
+                 "ENABLE(EXPERIMENTAL_FEATURES) && (PLATFORM(GTK) || PLATFORM(WPE))": true
+                 default: false
+        
+        Which means that in WebKitLegacy, the default value is false, and in WebKit, the default
+        value will be:
+        
+            #if ENABLE(EXPERIMENTAL_FEATURES) && (PLATFORM(GTK) || PLATFORM(WPE))
+               true
+            #else
+               false
+            #endif
+
+        As many platform macro based conditions can be provided as wanted, and they are evaluated
+        in the order specified in the file.
+        
+        The syntax currently always requires explicitly specifying WebKitLegacy and WebKit and default 
+        for each, even if they are all the same, but could be extended in the future to allow compaction
+        if that becomes desirable. There is also not yet support for conditionally enabling a feature
+        based on os-feature-flags or linked-on-or-after checks, so those still require specifying the
+        default value as a function, but that seems like a nice future improvement.
+        
+        As this is still staging for doing this for both WebKitLegacy and WebKit, this change only effects
+        WebKitLegacy for now, and subsequent changes will move this to a shared location.
+
+        * Scripts/GeneratePreferences.rb:
+        * Scripts/PreferencesTemplates/WebPreferencesDefinitions.h.erb:
+        * Scripts/PreferencesTemplates/WebPreferencesExperimentalFeatures.mm.erb:
+        * WebView/WebPreferencesExperimental.yaml:
+
+2020-09-25  Antoine Quint  <graouts@webkit.org>
+
+        Add an experimental feature flag for CSS individual transform properties
+        https://bugs.webkit.org/show_bug.cgi?id=216271
+        <rdar://problem/68914539>
+
+        Reviewed by Dean Jackson.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences setCSSIndividualTransformPropertiesEnabled:]):
+        (-[WebPreferences cssIndividualTransformPropertiesEnabled]):
+        (-[WebPreferences CSSIndividualTransformPropertiesEnabled]):
+        * WebView/WebPreferencesExperimental.yaml:
+        * WebView/WebPreferencesPrivate.h:
+
+2020-09-24  Darin Adler  <darin@apple.com>
+
+        Add CSSConditionRule and CSSGroupingRule
+        https://bugs.webkit.org/show_bug.cgi?id=216855
+
+        Reviewed by Sam Weinig.
+
+        * DOM/DOMCSS.mm:
+        (kitClass): Added a default case since we don't intend to list every single rule type here.
+
+2020-09-25  Sam Weinig  <weinig@apple.com>
+
+        [Preferences] Start generating experimental feature preferences for legacy WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=216909
+
+        Reviewed by Tim Horton.
+
+        As a stepping stone to unified preferences definitions and generation, this adds
+        generation of "experimental feature" preferences for WebKitLegacy. The generator
+        is almost identical to the one in WebKit, but the templates are changed. The end
+        goal will be to share the preferences definition (yaml) files. In this pass, I
+        have copied WebPreferencesExperimental.yaml from WebKit, but change the default
+        values to match the existing WebKitLegacy default values (and temporarily removed
+        WebSQLDisabled, as WebKitLegacy has a WebSQLEnabled, and its not clear how to map
+        to the inverse yet). I have also imported empty versions of WebPreferences.yaml, 
+        WebPreferencesDebug.yaml, and  WebPreferencesInternal.yaml, to keep the generator 
+        happy, these will be filled in subsequent changes or, if we decide on a good home 
+        for them, perhaps in WTF, we can just switch to using the shared ones.
+
+        Much of the change is moving around existing getter/setters in WebPreferences
+        to go in their own category, with the intention to remove them when we we have
+        determined no more callers remain.
+
+        * Scripts: Added.
+        * Scripts/GeneratePreferences.rb: Added.
+        * Scripts/PreferencesTemplates: Added.
+        * Scripts/PreferencesTemplates/WebPreferencesDefinitions.h.erb: Added.
+        * Scripts/PreferencesTemplates/WebPreferencesExperimentalFeatures.mm.erb: Added.
+        * Scripts/PreferencesTemplates/WebViewPreferencesChangedGenerated.mm.erb: Added.
+        * WebView/WebFeature.h: Added.
+        * WebView/WebFeature.m: Added.
+        (-[WebFeature initWithKey:preferenceKey:name:details:defaultValue:hidden:]):
+        (-[WebFeature description]):
+        * WebView/WebFeatureInternal.h: Added.
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        * WebView/WebPreferences.yaml: Added.
+        * WebView/WebPreferencesDebug.yaml: Added.
+        * WebView/WebPreferencesDefaultValues.h: Added.
+        * WebView/WebPreferencesDefaultValues.mm: Added.
+        * WebView/WebPreferencesExperimental.yaml: Added.
+        * WebView/WebPreferencesInternal.h: Added.
+        * WebView/WebPreferencesInternal.yaml: Added.
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+        * WebView/WebViewInternal.h:
+
+2020-09-23  Peng Liu  <peng.liu6@apple.com>
+
+        Add feature flags for GPU Process features
+        https://bugs.webkit.org/show_bug.cgi?id=216901
+
+        Reviewed by Tim Horton.
+
+        Minor cleanups.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences useGPUProcessForMediaEnabled]):
+        (-[WebPreferences setUseGPUProcessForMediaEnabled:]):
+        (-[WebPreferences useGPUProcessForMedia]): Deleted.
+        (-[WebPreferences setUseGPUProcessForMedia:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-23  Chris Dumez  <cdumez@apple.com>
+
+        Turn off the legacy prefixed WebAudio API
+        https://bugs.webkit.org/show_bug.cgi?id=216886
+
+        Reviewed by Sam Weinig.
+
+        Turn off the legacy prefixed WebAudio API, now that the modern unprefixed API has been enabled
+        in r267488.
+
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-23  Chris Dumez  <cdumez@apple.com>
+
+        Turn on the modern unprefixed WebAudio API
+        https://bugs.webkit.org/show_bug.cgi?id=216885
+
+        Reviewed by Eric Carlson.
+
+        Turn on the modern unprefixed WebAudio API now that we support most of the API
+        besides AudioWorklet and now that we have a good pass rate on WPT tests.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+
+2020-09-21  Alex Christensen  <achristensen@webkit.org>
+
+        Remove deprecated script and stylesheet injection SPI, replaced with more inclusively-named SPI
+        https://bugs.webkit.org/show_bug.cgi?id=214936
+
+        Reviewed by Youenn Fablet.
+
+        rdar://64376341 tracks the adoption of the replacement.  Once that is done, we can remove the old SPI.
+
+        * WebView/WebView.mm:
+        (+[WebView _addUserScriptToGroup:world:source:url:whitelist:blacklist:injectionTime:]): Deleted.
+        (+[WebView _addUserScriptToGroup:world:source:url:whitelist:blacklist:injectionTime:injectedFrames:]): Deleted.
+        (+[WebView _addUserStyleSheetToGroup:world:source:url:whitelist:blacklist:]): Deleted.
+        (+[WebView _addUserStyleSheetToGroup:world:source:url:whitelist:blacklist:injectedFrames:]): Deleted.
+        * WebView/WebViewPrivate.h:
+
+2020-09-20  Darin Adler  <darin@apple.com>
+
+        Next step towards eliminating deprecated legacy positions
+        https://bugs.webkit.org/show_bug.cgi?id=216751
+
+        Reviewed by Sam Weinig.
+
+        * DOM/DOMUIKitExtensions.mm:
+        (-[DOMNode rangeOfContainingParagraph]):
+        * WebView/WebFrame.mm:
+        (-[WebFrame spaceFollowsWordInRange:]):
+        (-[WebFrame caretRectAtNode:offset:affinity:]):
+        (-[WebFrame focusedNodeHasContent]):
+        Replaced calls to createLegacyEditingPosition with calls to
+        makeDeprecatedLegacyPosition or makeContainerOffsetPosition.
+
+2020-09-17  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the UserTiming and ResourceTiming APIs
+        https://bugs.webkit.org/show_bug.cgi?id=216556
+
+        Reviewed by Darin Adler.
+
+        Remove runtime setting for enabling/disabling UserTiming and ResourceTiming 
+        APIs. They have both been on for a while in WebKit2 and there aren't any
+        known uses cases for disabling them. In addition to removing the setting, 
+        they are now enabled in LegacyWebKit as well.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setUserTimingEnabled:]):
+        (-[WebPreferences userTimingEnabled]):
+        (-[WebPreferences setResourceTimingEnabled:]):
+        (-[WebPreferences resourceTimingEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-17  Antoine Quint  <graouts@webkit.org>
+
+        Remove the legacy animation code
+        https://bugs.webkit.org/show_bug.cgi?id=216608
+
+        Reviewed by Dean Jackson.
+
+        Since we now have a single animation engine, the runtime flags to optionally enable the Web Animations engine are
+        not needed anymore and are now removed.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences webAnimationsEnabled]): Deleted.
+        (-[WebPreferences setWebAnimationsEnabled:]): Deleted.
+        (-[WebPreferences webAnimationsCSSIntegrationEnabled]): Deleted.
+        (-[WebPreferences setWebAnimationsCSSIntegrationEnabled:]): Deleted.
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-16  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling CSS shadow parts
+        https://bugs.webkit.org/show_bug.cgi?id=216567
+
+        Reviewed by Tim Horton.
+
+        Remove runtime setting for enabling/disabling CSS shadow parts. It is
+        on by default and there is no known reason one would need to disable it.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setCSSShadowPartsEnabled:]):
+        (-[WebPreferences cssShadowPartsEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-16  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the isSecureContext API?
+        https://bugs.webkit.org/show_bug.cgi?id=216562
+
+        Reviewed by Darin Adler.
+
+        Remove runtime setting for enabling/disabling the the isSecureContext attribute. 
+        on window and the worker global scope. There is no known reason one would need 
+        to disable it.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setIsSecureContextAttributeEnabled:]):
+        (-[WebPreferences isSecureContextAttributeEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-15  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling the fetch API
+        https://bugs.webkit.org/show_bug.cgi?id=216519
+
+        Reviewed by Alex Christensen.
+
+        Remove runtime setting for enabling/disabling the fetch API. There is no
+        reason one needs to disable it now and it has been on by default for
+        a long enough time.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setFetchAPIEnabled:]):
+        (-[WebPreferences fetchAPIEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-15  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling custom elements
+        https://bugs.webkit.org/show_bug.cgi?id=216518
+
+        Reviewed by Tim Horton.
+
+        Remove runtime setting for enabling/disabling custom elements. There is no
+        reason one need to disable it now, and it has been on by default for
+        a long enough time.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setCustomElementsEnabled:]):
+        (-[WebPreferences customElementsEnabled]):
+        * WebView/WebPreferencesPrivate.h:
+
+2020-09-14  Sam Weinig  <weinig@apple.com>
+
+        Remove runtime setting for enabling/disabling ShadowDOM
+        https://bugs.webkit.org/show_bug.cgi?id=216511
+
+        Reviewed by Ryosuke Niwa.
+
+        Remove runtime setting for enabling/disabling ShadowDOM. There is no
+        reason one need to disable it now, and it has been on by default for
+        a long enough time.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences setShadowDOMEnabled:]):
+        (-[WebPreferences shadowDOMEnabled]):
+        (-[WebPreferences setVideoPluginProxyEnabled:]):
+        (-[WebPreferences isVideoPluginProxyEnabled]):
+        (-[WebPreferences setHixie76WebSocketProtocolEnabled:]):
+        (-[WebPreferences isHixie76WebSocketProtocolEnabled]):
+        (-[WebPreferences setDiskImageCacheEnabled:]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-09-14  Dean Jackson  <dino@apple.com>
+
+        Enable WebGL2 by default
+        https://bugs.webkit.org/show_bug.cgi?id=216464
+        <rdar://problem/68811378>
+
+        Reviewed by Sam Weinig.
+
+        Our WebGL2 implementation is in good enough shape that we should
+        enable it by default for broader testing.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+
+2020-09-10  Chris Dumez  <cdumez@apple.com>
+
+        Unreviewed, reverting r266842 and r266883.
+
+        Causes some assertions to be hit in debug builds
+
+        Reverted changesets:
+
+        "Some WebAudio tests give different output on different
+        machines"
+        https://bugs.webkit.org/show_bug.cgi?id=216371
+        https://trac.webkit.org/changeset/266842
+
+        "Unreviewed Windows build fix after r266842."
+        https://trac.webkit.org/changeset/266883
+
+2020-09-10  Chris Dumez  <cdumez@apple.com>
+
+        Some WebAudio tests give different output on different machines
+        https://bugs.webkit.org/show_bug.cgi?id=216371
+
+        Reviewed by Alex Christensen.
+
+        Add WebView SPI to set the hardware sample rate.
+
+        * WebView/WebView.mm:
+        (+[WebView _setHardwareSampleRateOverride:]):
+        * WebView/WebViewPrivate.h:
+
+2020-09-08  Megan Gardner  <megan_gardner@apple.com>
+
+        Switch from deprecated secondarySelectedControlColor to unemphasizedSelectedContentBackgroundColor.
+        https://bugs.webkit.org/show_bug.cgi?id=216207
+
+        Reviewed by Darin Adler.
+
+        * Plugins/WebPluginController.mm:
+        (-[WebPluginController webPlugInContainerSelectionColor]):
+
+2020-09-02  Darin Adler  <darin@apple.com>
+
+        Remove EAffinity, UPSTREAM, DOWNSTREAM, SEL_DEFAULT_AFFINITY, and VisibleSelection::selectionType
+        https://bugs.webkit.org/show_bug.cgi?id=216102
+
+        Reviewed by Sam Weinig.
+
+        * DOM/DOMUIKitExtensions.mm:
+        (-[DOMNode rangeOfContainingParagraph]): Rely on default affinity.
+
+        * WebCoreSupport/WebEditorClient.h:
+        (kit): Use Affinity.
+        (core): Ditto.
+        * WebCoreSupport/WebEditorClient.mm:
+        (WebEditorClient::shouldChangeSelectedRange): Ditto.
+        * WebView/WebFrame.mm:
+        (-[WebFrame _caretRectAtPosition:affinity:]): Ditto.
+        (-[WebFrame _selectNSRange:]): Rely on default affinity.
+        (-[WebFrame getDictationResultRanges:andMetadatas:]): Use isNone.
+
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView insertText:]): Rely on default affinity.
+
+2020-09-03  Devin Rousso  <drousso@apple.com>
+
+        Web Inspector: allow special JavaScript breakpoints to be configured
+        https://bugs.webkit.org/show_bug.cgi?id=215794
+
+        Reviewed by Brian Burg.
+
+        * WebView/WebScriptDebugger.mm:
+        (WebScriptDebugger::WebScriptDebugger):
+
+2020-09-02  Darin Adler  <darin@apple.com>
+
+        Change Affinity into an enum class
+        https://bugs.webkit.org/show_bug.cgi?id=216096
+
+        Reviewed by Wenson Hsieh.
+
+        * WebCoreSupport/WebEditorClient.h:
+        (kit): Use prefix.
+        (core): Ditto.
+
+2020-09-01  Darin Adler  <darin@apple.com>
+
+        Remove comparePositions and make VisiblePosition improvements
+        https://bugs.webkit.org/show_bug.cgi?id=215982
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/WebEditorClient.h:
+        (kit): Update for changes to Affinity enumeration.
+        (core): Ditto.
+        * WebView/WebFrame.mm:
+        (-[WebFrame characterBeforeCaretSelection]): Moved the code from
+        FrameSelection::characterBeforeCaretSelection because it's a one-liner now.
+        Added a call to updateLayout because it's unclear why we could do without it before.
+        Also added a null check for frame, since there's no guarantee it's not null.
+        (-[WebFrame characterAfterCaretSelection]): Ditto.
+        (-[WebFrame selectionAtDocumentStart]): Ditto.
+        (-[WebFrame selectNSRange:onElement:]): Ditto, but also added a comment because
+        this method is not useful and almost certainly not used.
+        (-[WebFrame _smartInsertForString:replacingRange:beforeString:afterString:]):
+        Use VisiblePosition::defaultAffinity instead of VP_DEFAULT_AFFINITY.
+
+2020-08-31  Sam Weinig  <weinig@apple.com>
+
+        Many settings in RuntimeEnabledSettings should autogenerated Settings: Part 1
+        https://bugs.webkit.org/show_bug.cgi?id=215981
+
+        Reviewed by Darin Adler.
+
+        This moves an initial chunk of RuntimeEnabledSettings settings to Settings.yaml, focusing
+        on settings that don't require substantial refactoring or new features to work in Settings.yaml.
+
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+        Update changed settings to use Settings rather than RuntimeEnabledSettings.
+
+2020-08-30  Timothy Horton  <timothy_horton@apple.com>
+
+        Remove an unused addition point
+
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+
+2020-08-28  Darin Adler  <darin@apple.com>
+
+        Remove almost all the remaining uses of live ranges
+        https://bugs.webkit.org/show_bug.cgi?id=215755
+
+        Reviewed by Sam Weinig.
+
+        * DOM/DOMRange.mm:
+        (-[DOMRange text]): Use plainText.
+        (-[DOMRange compareBoundaryPoints:sourceRange:]): Update for rename of
+        compareBoundaryPointsForBindings.
+        (-[DOMRange intersectsNode:]): Removed raiseOnDOMError.
+
+        * DOM/DOMUIKitExtensions.mm:
+        (firstNodeAfter): Moved Range::firstNode here since it's the only remaining caller;
+        might need to keep legacy behavior depending on how this is used by UIKit.
+        (-[DOMRange firstNode]): Call firstNodeAfter.
+
+        * DOM/WebDOMOperations.mm:
+        (-[DOMRange markupString]): Stop using Range::ownerDocument.
+
+2020-08-27  Devin Rousso  <drousso@apple.com>
+
+        [iOS] provide a way to get previously inserted alternatives for the selected text
+        https://bugs.webkit.org/show_bug.cgi?id=215816
+        <rdar://problem/66646042>
+
+        Reviewed by Darin Adler.
+
+        * WebView/WebView.mm:
+        (-[WebView _dictationAlternatives:]):
+        Create a `Vector<String>` from the returned `NSTextAlternatives *` now that the member
+        `WebCore::AlternativeTextUIController::alternativesForContext` returns it.
+
+2020-08-27  Youenn Fablet  <youenn@apple.com>
+
+        Add support for TransformStream
+        https://bugs.webkit.org/show_bug.cgi?id=215607
+
+        Reviewed by Alex Christensen.
+
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences transformStreamAPIEnabled]):
+        (-[WebPreferences setTransformStreamAPIEnabled:]):
+        * WebView/WebPreferencesPrivate.h:
+        * WebView/WebView.mm:
+        (-[WebView _preferencesChanged:]):
+
+2020-08-25  Ryosuke Niwa  <rniwa@webkit.org>
+
+        HashMap<Ref<T>>::take should return RefPtr<T>
+        https://bugs.webkit.org/show_bug.cgi?id=215830
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebEditorClient.mm:
+        (WebEditorClient::didCheckSucceed):
+
+2020-08-25  Megan Gardner  <megan_gardner@apple.com>
+
+        Trying to lookup when WebView is in a popover causes process to hang. Fix for Legacy WebView.
+        https://bugs.webkit.org/show_bug.cgi?id=215792
+
+        Reviewed by Tim Horton.
+
+        Fix for https://bugs.webkit.org/show_bug.cgi?id=214773 also needed in legacy WebView.
+        The Lookup framework does not populate the menus that it vends with the option to 'lookup'
+        words that are selected in popovers. WebKit should follow the pattern and not put the
+        item in the menu as Lookup is not able to handle this situation. Also if Lookup is disabled
+        via defaults, we should not show it in the menu.
+
+        * WebView/WebHTMLView.mm:
+        (customMenuFromDefaultItems):
+
 2020-08-24  Aditya Keerthi  <akeerthi@apple.com>
 
         [macOS] Show picker for date and datetime-local input types

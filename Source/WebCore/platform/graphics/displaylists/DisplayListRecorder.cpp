@@ -27,6 +27,7 @@
 #include "DisplayListRecorder.h"
 
 #include "DisplayList.h"
+#include "DisplayListDrawingContext.h"
 #include "DisplayListItems.h"
 #include "GraphicsContext.h"
 #include "Logging.h"
@@ -36,13 +37,13 @@
 namespace WebCore {
 namespace DisplayList {
 
-Recorder::Recorder(GraphicsContext& context, DisplayList& displayList, const GraphicsContextState& state, const FloatRect& initialClip, const AffineTransform& baseCTM, Observer* observer)
-    : GraphicsContextImpl(context, initialClip, baseCTM)
+Recorder::Recorder(GraphicsContext& context, DisplayList& displayList, const GraphicsContextState& state, const FloatRect& initialClip, const AffineTransform& initialCTM, Observer* observer)
+    : GraphicsContextImpl(context, initialClip, AffineTransform())
     , m_displayList(displayList)
     , m_observer(observer)
 {
     LOG_WITH_STREAM(DisplayLists, stream << "\nRecording with clip " << initialClip);
-    m_stateStack.append(ContextState(state, baseCTM, initialClip));
+    m_stateStack.append({ state, initialCTM, initialClip });
 }
 
 Recorder::~Recorder()
@@ -379,6 +380,13 @@ IntRect Recorder::clipBounds()
 void Recorder::clipToImageBuffer(ImageBuffer&, const FloatRect&)
 {
     WTFLogAlways("GraphicsContext::clipToImageBuffer is not compatible with DisplayList::Recorder.");
+}
+
+void Recorder::clipToDrawingCommands(const FloatRect& destination, ColorSpace colorSpace, Function<void(GraphicsContext&)>&& drawingFunction)
+{
+    auto recordingContext = makeUnique<DrawingContext>(destination.size());
+    drawingFunction(recordingContext->context());
+    appendItem(ClipToDrawingCommands::create(destination, colorSpace, recordingContext->takeDisplayList()));
 }
 
 void Recorder::applyDeviceScaleFactor(float deviceScaleFactor)

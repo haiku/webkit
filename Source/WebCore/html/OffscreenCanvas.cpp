@@ -39,9 +39,17 @@
 #include "MIMETypeRegistry.h"
 #include "OffscreenCanvasRenderingContext2D.h"
 #include "PlaceholderRenderingContext.h"
-#include "WebGLRenderingContext.h"
 #include "WorkerGlobalScope.h"
 #include <wtf/IsoMallocInlines.h>
+
+#if ENABLE(WEBGL)
+#include "Settings.h"
+#include "WebGLRenderingContext.h"
+
+#if ENABLE(WEBGL2)
+#include "WebGL2RenderingContext.h"
+#endif
+#endif // ENABLE(WEBGL)
 
 namespace WebCore {
 
@@ -79,6 +87,12 @@ Ref<OffscreenCanvas> OffscreenCanvas::create(ScriptExecutionContext& context, st
 
     callOnMainThread([detachedCanvas = WTFMove(detachedCanvas), offscreenCanvas = makeRef(clone.get())] () mutable {
         offscreenCanvas->m_placeholderCanvas = detachedCanvas->takePlaceholderCanvas();
+        if (offscreenCanvas->m_placeholderCanvas) {
+            auto& placeholderContext = downcast<PlaceholderRenderingContext>(*offscreenCanvas->m_placeholderCanvas->renderingContext());
+            auto& imageBufferPipe = placeholderContext.imageBufferPipe();
+            if (imageBufferPipe)
+                offscreenCanvas->m_bufferPipeSource = imageBufferPipe->source();
+        }
         offscreenCanvas->scriptExecutionContext()->postTask({ ScriptExecutionContext::Task::CleanupTask,
             [releaseOffscreenCanvas = WTFMove(offscreenCanvas)] (ScriptExecutionContext&) { } });
     });
@@ -141,6 +155,48 @@ void OffscreenCanvas::setSize(const IntSize& newSize)
     reset();
 }
 
+#if ENABLE(WEBGL)
+static bool requiresAcceleratedCompositingForWebGL()
+{
+#if PLATFORM(GTK) || PLATFORM(WIN_CAIRO)
+    return false;
+#else
+    return true;
+#endif
+}
+
+static bool shouldEnableWebGL(bool webGLEnabled, bool acceleratedCompositingEnabled)
+{
+    if (!webGLEnabled)
+        return false;
+
+    if (!requiresAcceleratedCompositingForWebGL())
+        return true;
+
+    return acceleratedCompositingEnabled;
+}
+
+void OffscreenCanvas::createContextWebGL(RenderingContextType contextType, WebGLContextAttributes&& attrs)
+{
+    ASSERT(!m_context);
+
+    auto context = scriptExecutionContext();
+    if (context->isWorkerGlobalScope()) {
+        WorkerGlobalScope& workerGlobalScope = downcast<WorkerGlobalScope>(*context);
+        if (!shouldEnableWebGL(workerGlobalScope.webGLEnabled(), workerGlobalScope.acceleratedCompositingEnabled()))
+            return;
+    } else if (context->isDocument()) {
+        auto& settings = downcast<Document>(*context).settings();
+        if (!shouldEnableWebGL(settings.webGLEnabled(), settings.acceleratedCompositingEnabled()))
+            return;
+    } else
+        return;
+
+    m_context = WebGLRenderingContextBase::create(*this, attrs, (contextType == RenderingContextType::Webgl) ? "webgl" : "webgl2");
+}
+
+#endif // ENABLE(WEBGL)
+
 ExceptionOr<Optional<OffscreenRenderingContext>> OffscreenCanvas::getContext(JSC::JSGlobalObject& state, RenderingContextType contextType, Vector<JSC::Strong<JSC::Unknown>>&& arguments)
 {
     if (m_detached)
@@ -160,10 +216,14 @@ ExceptionOr<Optional<OffscreenRenderingContext>> OffscreenCanvas::getContext(JSC
         return { { RefPtr<OffscreenCanvasRenderingContext2D> { &downcast<OffscreenCanvasRenderingContext2D>(*m_context) } } };
     }
 #if ENABLE(WEBGL)
-    if (contextType == RenderingContextType::Webgl) {
+    else {
         if (m_context) {
             if (is<WebGLRenderingContext>(*m_context))
                 return { { RefPtr<WebGLRenderingContext> { &downcast<WebGLRenderingContext>(*m_context) } } };
+#if ENABLE(WEBGL2)
+            if (is<WebGL2RenderingContext>(*m_context))
+                return { { RefPtr<WebGL2RenderingContext> { &downcast<WebGL2RenderingContext>(*m_context) } } };
+#endif
             return { { WTF::nullopt } };
         }
 
@@ -171,10 +231,14 @@ ExceptionOr<Optional<OffscreenRenderingContext>> OffscreenCanvas::getContext(JSC
         auto attributes = convert<IDLDictionary<WebGLContextAttributes>>(state, !arguments.isEmpty() ? arguments[0].get() : JSC::jsUndefined());
         RETURN_IF_EXCEPTION(scope, Exception { ExistingExceptionError });
 
-        m_context = WebGLRenderingContextBase::create(*this, attributes, "webgl");
+        createContextWebGL(contextType, WTFMove(attributes));
         if (!m_context)
             return { { WTF::nullopt } };
 
+#if ENABLE(WEBGL2)
+        if (is<WebGL2RenderingContext>(*m_context))
+            return { { RefPtr<WebGL2RenderingContext> { &downcast<WebGL2RenderingContext>(*m_context) } } };
+#endif
         return { { RefPtr<WebGLRenderingContext> { &downcast<WebGLRenderingContext>(*m_context) } } };
     }
 #endif
@@ -192,13 +256,13 @@ ExceptionOr<RefPtr<ImageBitmap>> OffscreenCanvas::transferToImageBitmap()
             return { RefPtr<ImageBitmap> { nullptr } };
 
         if (!m_hasCreatedImageBuffer)
-            return { ImageBitmap::create({ ImageBuffer::create(size(), RenderingMode::Unaccelerated), ImageBuffer::SerializationState { true, false, false }}) };
+            return { ImageBitmap::create(ImageBitmapBacking(ImageBuffer::create(size(), RenderingMode::Unaccelerated))) };
 
         auto buffer = takeImageBuffer();
         if (!buffer)
             return { RefPtr<ImageBitmap> { nullptr } };
 
-        return { ImageBitmap::create({ WTFMove(buffer), ImageBuffer::SerializationState { originClean(), false, false }}) };
+        return { ImageBitmap::create(ImageBitmapBacking(WTFMove(buffer), originClean() ? SerializationState::OriginClean : SerializationState())) };
     }
 
 #if ENABLE(WEBGL)
@@ -274,7 +338,7 @@ void OffscreenCanvas::convertToBlob(ImageEncodeOptions&& options, Ref<DeferredPr
         return;
     }
 
-    Ref<Blob> blob = Blob::create(WTFMove(blobData), encodingMIMEType);
+    Ref<Blob> blob = Blob::create(canvasBaseScriptExecutionContext(), WTFMove(blobData), encodingMIMEType);
     promise->resolveWithNewlyCreated<IDLInterface<Blob>>(WTFMove(blob));
 }
 
@@ -335,21 +399,24 @@ void OffscreenCanvas::setPlaceholderCanvas(HTMLCanvasElement& canvas)
     ASSERT(!m_context);
     ASSERT(isMainThread());
     m_placeholderCanvas = makeWeakPtr(canvas);
+    auto& placeholderContext = downcast<PlaceholderRenderingContext>(*canvas.renderingContext());
+    auto& imageBufferPipe = placeholderContext.imageBufferPipe();
+    if (imageBufferPipe)
+        m_bufferPipeSource = imageBufferPipe->source();
 }
 
 void OffscreenCanvas::pushBufferToPlaceholder()
 {
     callOnMainThread([protectedThis = makeRef(*this), this] () mutable {
-        auto locker = holdLock(m_commitLock);
-
-        if (m_placeholderCanvas && m_hasPendingCommitData) {
-            std::unique_ptr<ImageBuffer> buffer = ImageBuffer::create(FloatSize(m_pendingCommitData->size()), RenderingMode::Unaccelerated);
-            buffer->putImageData(AlphaPremultiplication::Premultiplied, *m_pendingCommitData, IntRect(IntPoint(), m_pendingCommitData->size()));
-            m_placeholderCanvas->setImageBufferAndMarkDirty(WTFMove(buffer));
-            m_hasPendingCommitData = false;
+        {
+            auto locker = holdLock(m_commitLock);
+            if (m_placeholderCanvas && m_pendingCommitBuffer)
+                m_placeholderCanvas->setImageBufferAndMarkDirty(WTFMove(m_pendingCommitBuffer));
+            m_pendingCommitBuffer = nullptr;
         }
 
-        scriptExecutionContext()->postTask([releaseThis = WTFMove(protectedThis)] (ScriptExecutionContext&) { });
+        scriptExecutionContext()->postTask({ ScriptExecutionContext::Task::CleanupTask,
+            [releaseThis = WTFMove(protectedThis)] (ScriptExecutionContext&) { } });
     });
 }
 
@@ -363,21 +430,16 @@ void OffscreenCanvas::commitToPlaceholderCanvas()
     if (m_context && (m_context->isWebGL() || m_context->isAccelerated()))
         m_context->paintRenderingResultsToCanvas();
 
-    if (isMainThread()) {
-        if (m_placeholderCanvas) {
-            if (auto bufferCopy = imageBuffer->copyRectToBuffer(FloatRect(FloatPoint(), imageBuffer->logicalSize()), ColorSpace::SRGB, imageBuffer->context()))
-                m_placeholderCanvas->setImageBufferAndMarkDirty(WTFMove(bufferCopy));
-        }
-        return;
+    if (m_bufferPipeSource) {
+        auto bufferCopy = imageBuffer->copyRectToBuffer(FloatRect(FloatPoint(), imageBuffer->logicalSize()), ColorSpace::SRGB, imageBuffer->context());
+        if (bufferCopy)
+            m_bufferPipeSource->handle(WTFMove(bufferCopy));
     }
 
     auto locker = holdLock(m_commitLock);
-
-    bool shouldPushBuffer = !m_hasPendingCommitData;
-    m_pendingCommitData = imageBuffer->getImageData(AlphaPremultiplication::Premultiplied, IntRect(IntPoint(), imageBuffer->logicalSize()));
-    m_hasPendingCommitData = true;
-
-    if (shouldPushBuffer)
+    bool shouldPushBuffer = !m_pendingCommitBuffer;
+    m_pendingCommitBuffer = imageBuffer->copyRectToBuffer(FloatRect(FloatPoint(), imageBuffer->logicalSize()), ColorSpace::SRGB, imageBuffer->context());
+    if (m_pendingCommitBuffer && shouldPushBuffer)
         pushBufferToPlaceholder();
 }
 

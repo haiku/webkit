@@ -1,51 +1,21 @@
 
-PASS # AUDIT TASK RUNNER STARTED. 
-PASS Executing "test0" 
-PASS Executing "test1" 
-PASS Executing "test2" 
-PASS Audit report 
-PASS > [test0] Test DelayNode has no dezippering 
-FAIL X output[0:63]: Expected 0 for all values but found 64 unexpected values: 
-	Index	Actual
-	[0]	65.1462631225586
-	[1]	66.29207611083984
-	[2]	67.43744659423828
-	[3]	68.5823745727539
-	...and 60 more errors. assert_true: expected true got false
-FAIL X output[64:127] expected to be equal to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...] but differs in 64 places:
-	Index	Actual			Expected
-	[0]	1.3763658142089844e+2	1.0000000000000000e+0
-	[1]	1.3875653076171875e+2	2.0000000000000000e+0
-	[2]	1.3987611389160156e+2	3.0000000000000000e+0
-	[3]	1.4099533081054688e+2	4.0000000000000000e+0
-	...and 60 more errors. assert_true: expected true got false
-FAIL X output[128:] expected to be equal to the array [113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128...] but differs in 16256 places:
-	Index	Actual			Expected
-	[0]	2.0862054443359375e+2	1.1300000000000000e+2
-	[1]	2.0971920776367188e+2	1.1400000000000000e+2
-	[2]	2.1081756591796875e+2	1.1500000000000000e+2
-	[3]	2.1191563415527344e+2	1.1600000000000000e+2
-	...and 16252 more errors. assert_true: expected true got false
-FAIL < [test0] 3 out of 3 assertions were failed. assert_true: expected true got false
-PASS > [test1] Test value setter and setValueAtTime 
-FAIL X .value setter output does not equal [0.5214688181877136,0.5697038173675537,0.616049587726593,0.660352349281311,0.7024649381637573,0.7422480583190918,0.7795694470405579,0.81430584192276,0.8463413715362549,0.8755701780319214,0.9018954038619995,0.9252294898033142,0.9454952478408813,0.96262526512146,0.9765629768371582,0.987261950969696...] with an element-wise tolerance of {"absoluteThreshold":0.000065819,"relativeThreshold":0}.
-	Index	Actual			Expected		AbsError		RelError		Test threshold
-	[0]	6.0565695166587830e-2	5.2146881818771362e-1	4.6090312302112579e-1	8.8385557668227455e-1	6.5819000000000001e-5
-	[1]	1.0737668722867966e-2	5.6970381736755371e-1	5.5896614864468575e-1	9.8115219102360274e-1	6.5819000000000001e-5
-	[2]	-3.9133124053478241e-2	6.1604958772659302e-1	6.5518271178007126e-1	1.0635226852401463e+0	6.5819000000000001e-5
-	[3]	-8.8932193815708160e-2	6.6035234928131104e-1	7.4928454309701920e-1	1.1346738508805136e+0	6.5819000000000001e-5
-	[4]	-1.3854481279850006e-1	7.0246493816375732e-1	8.4100975096225739e-1	1.1972266589712734e+0	6.5819000000000001e-5
-	...and 3227 more errors.
-	Max AbsError of 1.8450423479080200e+0 at index of 24.
-	[24]	-9.0947800874710083e-1	9.3556433916091919e-1	1.8450423479080200e+0	1.9721170107475297e+0	6.5819000000000001e-5
-	Max RelError of 7.7123865752010784e+2 at index of 45.
-	[45]	-8.0465185642242432e-1	1.0446786182001233e-3	8.0569653504062444e-1	7.7123865752010784e+2	6.5819000000000001e-5
- assert_true: expected true got false
-FAIL X .value setter output matches setValueAtTime output is not true. Got false. assert_true: expected true got false
-FAIL < [test1] 2 out of 2 assertions were failed. assert_true: expected true got false
-PASS > [test2] Test value setter and modulation 
-PASS   With modulation: .value setter output equals [0.5214566588401794,-0.5851858854293823,-0.9781315922737122,-0.2492080181837082,0.7155246138572693,0.9808593392372131,0.4836493134498596,-0.24869835376739502,-0.770362913608551,-0.9790927767753601,-0.9903184175491333,-0.9490256309509277,-0.9418102502822876,-0.9788252711296082,-0.9951662421226501,-0.8529807329177856...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}. 
-PASS   With modulation: .value setter output matches setValueAtTime output is true. 
-PASS < [test2] All assertions passed. (total 2 assertions) 
-FAIL # AUDIT TASK RUNNER FINISHED: 2 out of 3 tasks were failed. assert_true: expected true got false
+PASS # AUDIT TASK RUNNER STARTED.
+PASS Executing "test0"
+PASS Executing "test1"
+PASS Executing "test2"
+PASS Audit report
+PASS > [test0] Test DelayNode has no dezippering
+PASS   output[0:63] contains only the constant 0.
+PASS   output[64:127] is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+PASS   output[128:] is identical to the array [113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128...].
+PASS < [test0] All assertions passed. (total 3 assertions)
+PASS > [test1] Test value setter and setValueAtTime
+PASS   .value setter output equals [expected array] with an element-wise tolerance of {"absoluteThreshold":0.000065819,"relativeThreshold":0}.
+PASS   .value setter output matches setValueAtTime output is true.
+PASS < [test1] All assertions passed. (total 2 assertions)
+PASS > [test2] Test value setter and modulation
+PASS   With modulation: .value setter output equals [expected array] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+PASS   With modulation: .value setter output matches setValueAtTime output is true.
+PASS < [test2] All assertions passed. (total 2 assertions)
+PASS # AUDIT TASK RUNNER FINISHED: 3 tasks ran successfully.
 

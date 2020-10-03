@@ -66,10 +66,27 @@
 namespace WebCore {
 using namespace JSC;
 
-static inline void invalidateElement(Element* element)
+static Element* elementOrPseudoElementForStyleable(const Optional<const Styleable>& styleable)
 {
-    if (element)
-        element->invalidateStyle();
+    if (!styleable)
+        return nullptr;
+
+    switch (styleable->pseudoId) {
+    case PseudoId::None:
+        return &styleable->element;
+    case PseudoId::Before:
+        return styleable->element.beforePseudoElement();
+    case PseudoId::After:
+        return styleable->element.afterPseudoElement();
+    default:
+        return nullptr;
+    }
+}
+
+static inline void invalidateElement(const Optional<const Styleable>& styleable)
+{
+    if (auto* elementOrPseudoElement = elementOrPseudoElementForStyleable(styleable))
+        elementOrPseudoElement->invalidateStyleInternal();
 }
 
 static inline String CSSPropertyIDToIDLAttributeName(CSSPropertyID cssPropertyId)
@@ -1051,13 +1068,14 @@ void KeyframeEffect::computeStackingContextImpact()
 
 void KeyframeEffect::animationTimelineDidChange(AnimationTimeline* timeline)
 {
-    if (!targetElementOrPseudoElement())
+    auto target = targetStyleable();
+    if (!target)
         return;
 
     if (timeline)
-        m_inTargetEffectStack = targetElementOrPseudoElement()->ensureKeyframeEffectStack().addEffect(*this);
+        m_inTargetEffectStack = target->ensureKeyframeEffectStack().addEffect(*this);
     else {
-        targetElementOrPseudoElement()->ensureKeyframeEffectStack().removeEffect(*this);
+        target->ensureKeyframeEffectStack().removeEffect(*this);
         m_inTargetEffectStack = false;
     }
 }
@@ -1069,14 +1087,15 @@ void KeyframeEffect::animationTimingDidChange()
 
 void KeyframeEffect::updateEffectStackMembership()
 {
-    if (!targetElementOrPseudoElement())
+    auto target = targetStyleable();
+    if (!target)
         return;
 
     bool isRelevant = animation() && animation()->isRelevant();
     if (isRelevant && !m_inTargetEffectStack)
-        m_inTargetEffectStack = targetElementOrPseudoElement()->ensureKeyframeEffectStack().addEffect(*this);
+        m_inTargetEffectStack = target->ensureKeyframeEffectStack().addEffect(*this);
     else if (!isRelevant && m_inTargetEffectStack) {
-        targetElementOrPseudoElement()->ensureKeyframeEffectStack().removeEffect(*this);
+        target->ensureKeyframeEffectStack().removeEffect(*this);
         m_inTargetEffectStack = false;
     }
 }
@@ -1092,6 +1111,13 @@ void KeyframeEffect::setAnimation(WebAnimation* animation)
     if (animation)
         animation->updateRelevance();
     updateEffectStackMembership();
+}
+
+const Optional<const Styleable> KeyframeEffect::targetStyleable() const
+{
+    if (m_target)
+        return Styleable(*m_target, m_pseudoId);
+    return WTF::nullopt;
 }
 
 bool KeyframeEffect::targetsPseudoElement() const
@@ -1119,9 +1145,9 @@ void KeyframeEffect::setTarget(RefPtr<Element>&& newTarget)
     if (m_target == newTarget)
         return;
 
-    auto* previousTargetElementOrPseudoElement = targetElementOrPseudoElement();
+    auto& previousTargetStyleable = targetStyleable();
     m_target = WTFMove(newTarget);
-    didChangeTargetElementOrPseudoElement(previousTargetElementOrPseudoElement);
+    didChangeTargetStyleable(previousTargetStyleable);
 }
 
 const String KeyframeEffect::pseudoElement() const
@@ -1161,26 +1187,28 @@ ExceptionOr<void> KeyframeEffect::setPseudoElement(const String& pseudoElement)
     if (pseudoId == m_pseudoId)
         return { };
 
-    auto* previousTargetElementOrPseudoElement = targetElementOrPseudoElement();
+    auto& previousTargetStyleable = targetStyleable();
     m_pseudoId = pseudoId;
-    didChangeTargetElementOrPseudoElement(previousTargetElementOrPseudoElement);
+    didChangeTargetStyleable(previousTargetStyleable);
 
     return { };
 }
 
-void KeyframeEffect::didChangeTargetElementOrPseudoElement(Element* previousTargetElementOrPseudoElement)
+void KeyframeEffect::didChangeTargetStyleable(const Optional<const Styleable>& previousTargetStyleable)
 {
-    auto* newTargetElementOrPseudoElement = targetElementOrPseudoElement();
+    auto newTargetStyleable = targetStyleable();
 
     // We must ensure a PseudoElement exists for this m_target / m_pseudoId pair if both are specified.
+    // FIXME: Ideally this wouldn't be necessary.
+    auto* newTargetElementOrPseudoElement = elementOrPseudoElementForStyleable(newTargetStyleable);
     if (!newTargetElementOrPseudoElement && m_target.get() && m_pseudoId != PseudoId::None) {
-        // We only support targeting ::before and ::after pseudo-elements at the moment.
+        // FIXME: We only support targeting ::before and ::after pseudo-elements at the moment.
         if (m_pseudoId == PseudoId::Before || m_pseudoId == PseudoId::After)
             newTargetElementOrPseudoElement = &m_target->ensurePseudoElement(m_pseudoId);
     }
 
     if (auto* effectAnimation = animation())
-        effectAnimation->effectTargetDidChange(previousTargetElementOrPseudoElement, newTargetElementOrPseudoElement);
+        effectAnimation->effectTargetDidChange(previousTargetStyleable, newTargetStyleable);
 
     clearBlendingKeyframes();
 
@@ -1190,14 +1218,15 @@ void KeyframeEffect::didChangeTargetElementOrPseudoElement(Element* previousTarg
 
     // Likewise, we need to invalidate styles on the previous target so that
     // any animated styles are removed immediately.
-    invalidateElement(previousTargetElementOrPseudoElement);
+    invalidateElement(previousTargetStyleable);
 
-    if (previousTargetElementOrPseudoElement) {
-        previousTargetElementOrPseudoElement->ensureKeyframeEffectStack().removeEffect(*this);
+    if (previousTargetStyleable) {
+        previousTargetStyleable->ensureKeyframeEffectStack().removeEffect(*this);
         m_inTargetEffectStack = false;
     }
-    if (newTargetElementOrPseudoElement)
-        m_inTargetEffectStack = newTargetElementOrPseudoElement->ensureKeyframeEffectStack().addEffect(*this);
+
+    if (newTargetStyleable)
+        m_inTargetEffectStack = newTargetStyleable->ensureKeyframeEffectStack().addEffect(*this);
 }
 
 void KeyframeEffect::apply(RenderStyle& targetStyle, Optional<Seconds> startTime)
@@ -1238,7 +1267,7 @@ bool KeyframeEffect::isRunningAcceleratedAnimationForProperty(CSSPropertyID prop
 void KeyframeEffect::invalidate()
 {
     LOG_WITH_STREAM(Animations, stream << "KeyframeEffect::invalidate on element " << ValueOrNull(targetElementOrPseudoElement()));
-    invalidateElement(targetElementOrPseudoElement());
+    invalidateElement(targetStyleable());
 }
 
 void KeyframeEffect::computeAcceleratedPropertiesState()
@@ -1493,9 +1522,14 @@ TimingFunction* KeyframeEffect::timingFunctionForKeyframeAtIndex(size_t index) c
     return nullptr;
 }
 
+bool KeyframeEffect::canBeAccelerated() const
+{
+    return m_acceleratedPropertiesState != AcceleratedProperties::None && !m_someKeyframesUseStepsTimingFunction && !is<StepsTimingFunction>(timingFunction());
+}
+
 void KeyframeEffect::updateAcceleratedActions()
 {
-    if (m_acceleratedPropertiesState == AcceleratedProperties::None)
+    if (!canBeAccelerated())
         return;
 
     auto computedTiming = getComputedTiming();
@@ -1557,13 +1591,11 @@ void KeyframeEffect::animationDidPlay()
 void KeyframeEffect::animationDidChangeTimingProperties()
 {
     computeSomeKeyframesUseStepsTimingFunction();
-    // The timing function can affect whether the platform can run this as an accelerated animation.
-    m_runningAccelerated = RunningAccelerated::NotStarted;
 
-    // There is no need to update the animation if we're not playing already. If updating timing
-    // means we're moving into an active lexicalGlobalObject, we'll pick this up in apply().
-    if (isAboutToRunAccelerated())
-        addPendingAcceleratedAction(AcceleratedAction::UpdateTiming);
+    if (isRunningAccelerated() || isAboutToRunAccelerated())
+        addPendingAcceleratedAction(canBeAccelerated() ? AcceleratedAction::UpdateTiming : AcceleratedAction::Stop);
+    else if (canBeAccelerated())
+        m_runningAccelerated = RunningAccelerated::NotStarted;
 }
 
 void KeyframeEffect::animationWasCanceled()
@@ -1620,7 +1652,7 @@ void KeyframeEffect::applyPendingAcceleratedActions()
 
         ASSERT(m_target);
 
-        auto* lastStyleChangeEventStyle = m_target->lastStyleChangeEventStyle();
+        auto* lastStyleChangeEventStyle = m_target->lastStyleChangeEventStyle(m_pseudoId);
         ASSERT(lastStyleChangeEventStyle);
 
         KeyframeList explicitKeyframes(m_blendingKeyframes.animationName());
@@ -1662,8 +1694,6 @@ void KeyframeEffect::applyPendingAcceleratedActions()
 Ref<const Animation> KeyframeEffect::backingAnimationForCompositedRenderer() const
 {
     auto effectAnimation = animation();
-    if (is<DeclarativeAnimation>(effectAnimation))
-        return downcast<DeclarativeAnimation>(effectAnimation)->backingAnimation();
 
     // FIXME: The iterationStart and endDelay AnimationEffectTiming properties do not have
     // corresponding Animation properties.
@@ -1673,6 +1703,13 @@ Ref<const Animation> KeyframeEffect::backingAnimationForCompositedRenderer() con
     animation->setIterationCount(iterations());
     animation->setTimingFunction(timingFunction()->clone());
     animation->setPlaybackRate(effectAnimation->playbackRate());
+
+    if (m_blendingKeyframesSource == BlendingKeyframesSource::CSSTransition && is<CubicBezierTimingFunction>(timingFunction())) {
+        // FIXME: https://bugs.webkit.org/show_bug.cgi?id=215918
+        // If we are dealing with a CSS Transition and using a cubic bezier timing function, we set up
+        // the Animation object so that GraphicsLayerCA can work around a Core Animation limitation.
+        animation->setProperty({ Animation::TransitionMode::SingleProperty, *m_blendingKeyframes.properties().begin() });
+    }
 
     switch (fill()) {
     case FillMode::None:
@@ -1704,6 +1741,12 @@ Ref<const Animation> KeyframeEffect::backingAnimationForCompositedRenderer() con
         animation->setDirection(Animation::AnimationDirectionAlternateReverse);
         break;
     }
+
+    // In the case of CSS Animations, we must set the default timing function for keyframes to match
+    // the current value set for animation-timing-function on the target element which affects only
+    // keyframes and not the animation-wide timing.
+    if (is<CSSAnimation>(effectAnimation))
+        animation->setDefaultTimingFunctionForKeyframes(downcast<CSSAnimation>(effectAnimation)->backingAnimation().timingFunction());
 
     return animation;
 }

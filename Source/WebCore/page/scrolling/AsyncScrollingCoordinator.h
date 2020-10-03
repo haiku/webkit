@@ -129,7 +129,7 @@ private:
     WEBCORE_EXPORT void scrollBySimulatingWheelEventForTesting(ScrollingNodeID, FloatSize) final;
 
     WEBCORE_EXPORT bool isUserScrollInProgress(ScrollingNodeID) const override;
-    bool isRubberBandInProgress() const override;
+    bool isRubberBandInProgress(ScrollingNodeID) const override;
 
 #if ENABLE(CSS_SCROLL_SNAP)
     WEBCORE_EXPORT bool isScrollSnapInProgress(ScrollingNodeID) const override;
@@ -144,6 +144,8 @@ private:
     WEBCORE_EXPORT bool hasSynchronousScrollingReasons(ScrollingNodeID) const final;
 
     WEBCORE_EXPORT void windowScreenDidChange(PlatformDisplayID, Optional<unsigned> nominalFramesPerSecond) final;
+
+    WEBCORE_EXPORT bool hasSubscrollers() const final;
 
     virtual void scheduleTreeStateCommit() = 0;
 

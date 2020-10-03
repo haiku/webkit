@@ -35,7 +35,7 @@ namespace Layout {
 
 class InlineItem {
 public:
-    enum class Type : uint8_t { Text, HardLineBreak, SoftLineBreak, Box, Float, ContainerStart, ContainerEnd };
+    enum class Type : uint8_t { Text, HardLineBreak, SoftLineBreak, WordBreakOpportunity, Box, Float, ContainerStart, ContainerEnd };
     InlineItem(const Box& layoutBox, Type);
 
     Type type() const { return m_type; }
@@ -46,6 +46,7 @@ public:
     bool isBox() const { return type() == Type::Box; }
     bool isFloat() const { return type() == Type::Float; }
     bool isLineBreak() const { return isSoftLineBreak() || isHardLineBreak(); }
+    bool isWordBreakOpportunity() const { return type() == Type::WordBreakOpportunity; }
     bool isSoftLineBreak() const { return type() == Type::SoftLineBreak; }
     bool isHardLineBreak() const { return type() == Type::HardLineBreak; }
     bool isContainerStart() const { return type() == Type::ContainerStart; }
@@ -60,6 +61,7 @@ protected:
     enum class TextItemType  : uint8_t { Undefined, Whitespace, NonWhitespace };
     TextItemType m_textItemType { TextItemType::Undefined };
     bool m_hasWidth { false };
+    bool m_hasTrailingSoftHyphen { false };
     bool m_isCollapsible { false };
     InlineLayoutUnit m_width { };
     unsigned m_length { 0 };

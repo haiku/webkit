@@ -21,6 +21,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import logging
 import math
 import os
 import platform
@@ -32,6 +33,7 @@ import tarfile
 import tempfile
 import zipfile
 
+from logging import NullHandler
 from webkitcorepy import log
 from webkitcorepy.version import Version
 from xml.dom import minidom
@@ -215,7 +217,7 @@ class Package(object):
             install_location = os.path.dirname(self.location)
             shutil.rmtree(self.location, ignore_errors=True)
 
-            log.warning('Downloading {}...'.format(archive))
+            AutoInstall.log('Downloading {}...'.format(archive))
             archive.download()
 
             temp_location = os.path.join(tempfile.gettempdir(), self.name)
@@ -230,10 +232,10 @@ class Package(object):
                 if not os.path.exists(os.path.join(candidate, 'setup.py')):
                     continue
 
-                log.warning('Installing {}...'.format(archive))
+                AutoInstall.log('Installing {}...'.format(archive))
 
                 if self.slow_install:
-                    log.warning('{} is known to be slow to install'.format(archive))
+                    AutoInstall.log('{} is known to be slow to install'.format(archive))
 
                 with open(os.devnull, 'w') as devnull:
                     subprocess.check_call(
@@ -243,6 +245,7 @@ class Package(object):
                             'install',
                             '--home={}'.format(install_location),
                             '--root=/',
+                            '--prefix=',
                             '--single-version-externally-managed',
                             '--install-lib={}'.format(install_location),
                             '--install-scripts={}'.format(os.path.join(install_location, 'bin')),
@@ -290,15 +293,15 @@ class Package(object):
                 json.dump(AutoInstall.manifest, file, indent=4)
             AutoInstall.userspace_should_own(manifest)
 
-            log.warning('Installed {}!'.format(archive))
+            AutoInstall.log('Installed {}!'.format(archive))
         except Exception:
-            log.critical('Failed to install {}!'.format(archive))
+            AutoInstall.log('Failed to install {}!'.format(archive), level=logging.CRITICAL)
             raise
 
 
 class AutoInstall(object):
-    _enabled = None
-    enabled = False
+    DISABLE_ENV_VAR = 'DISABLE_WEBKITCOREPY_AUTOINSTALLER'
+
     directory = None
     index = 'pypi.org'
     timeout = 30
@@ -322,14 +325,10 @@ class AutoInstall(object):
         return urlopen(url, timeout=cls.timeout)
 
     @classmethod
-    def enable(cls):
-        cls._enabled = True
-        cls.enabled = True
-
-    @classmethod
-    def disable(cls):
-        cls._enabled = False
-        cls.enabled = False
+    def enabled(cls):
+        if os.environ.get(cls.DISABLE_ENV_VAR) not in ['0', 'FALSE', 'False', 'false', 'NO', 'No', 'no', None]:
+            return False
+        return True if cls.directory else None
 
     @classmethod
     def userspace_should_own(cls, path):
@@ -360,6 +359,14 @@ class AutoInstall(object):
         if not directory or not isinstance(directory, str):
             raise ValueError('{} is an invalid autoinstall directory'.format(directory))
 
+        if cls.enabled() is False:
+            AutoInstall.log('Request to set autoinstall directory to {}'.format(directory))
+            AutoInstall.log('Environment variable {}={} overriding request'.format(
+                cls.DISABLE_ENV_VAR,
+                os.environ.get(cls.DISABLE_ENV_VAR),
+            ))
+            return
+
         directory = os.path.abspath(directory)
         if not os.path.isdir(directory):
             creation_root = directory
@@ -380,9 +387,6 @@ class AutoInstall(object):
 
         sys.path.insert(0, directory)
         cls.directory = directory
-        if cls._enabled is None:
-            cls._enabled = True
-            cls.enabled = True
 
     @classmethod
     def set_index(cls, index, check=True, fatal=False):
@@ -420,7 +424,7 @@ class AutoInstall(object):
         cls.timeout = math.ceil(timeout)
 
     @classmethod
-    def register(cls, package):
+    def register(cls, package, local=False):
         if isinstance(package, str):
             if cls.packages.get(package):
                 return cls.packages[package]
@@ -433,6 +437,23 @@ class AutoInstall(object):
                 return cls.packages.get(package.name)
         else:
             raise ValueError('Expected package to be str or Package, not {}'.format(type(package)))
+
+        # If inside the WebKit checkout, a local library is likely checked in at Tools/Scripts/libraries.
+        # When we detect such a library, we should not register it to be auto-installed
+        if local and package.name != 'autoinstalled':
+            libraries = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            checkout_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(libraries))))
+            for candidate in [
+                os.path.join(libraries, package.pypi_name),
+                os.path.join(checkout_root, 'Internal', 'Tools', 'Scripts', 'libraries', package.pypi_name),
+            ]:
+                if candidate in sys.path:
+                    return package
+                if not os.path.isdir(os.path.join(candidate, package.name)):
+                    continue
+                sys.path.insert(0, candidate)
+                return package
+
         for alias in package.aliases:
             cls.packages[alias] = package
         cls.packages[package.name] = package
@@ -451,7 +472,7 @@ class AutoInstall(object):
 
     @classmethod
     def find_module(cls, fullname, path=None):
-        if not cls.enabled or path is not None:
+        if not cls.enabled() or path is not None:
             return
 
         name = fullname.split('.')[0]
@@ -472,6 +493,13 @@ class AutoInstall(object):
                     if not tag.platform:
                         pass
                     yield tags.Tag(tag.interpreter, tag.abi, override)
+
+    @classmethod
+    def log(cls, message, level=logging.WARNING):
+        if not log.handlers or all([isinstance(handle, NullHandler) for handle in log.handlers]):
+            sys.stderr.write(message + '\n')
+        else:
+            log.log(level, message)
 
 
 sys.meta_path.insert(0, AutoInstall)

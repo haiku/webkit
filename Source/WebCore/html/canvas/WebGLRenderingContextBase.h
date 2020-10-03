@@ -71,6 +71,7 @@ class ANGLEInstancedArrays;
 class EXTBlendMinMax;
 class EXTColorBufferFloat;
 class EXTColorBufferHalfFloat;
+class EXTFloatBlend;
 class EXTTextureFilterAnisotropic;
 class EXTShaderTextureLOD;
 class EXTsRGB;
@@ -85,6 +86,7 @@ class OESTextureHalfFloat;
 class OESTextureHalfFloatLinear;
 class OESVertexArrayObject;
 class OESElementIndexUint;
+class OESFBORenderMipmap;
 #if ENABLE(OFFSCREEN_CANVAS)
 class OffscreenCanvas;
 #endif
@@ -96,6 +98,7 @@ class WebGLCompressedTextureETC;
 class WebGLCompressedTextureETC1;
 class WebGLCompressedTexturePVRTC;
 class WebGLCompressedTextureS3TC;
+class WebGLCompressedTextureS3TCsRGB;
 class WebGLContextGroup;
 class WebGLContextObject;
 class WebGLDebugRendererInfo;
@@ -398,8 +401,6 @@ public:
     // Used for testing only, from Internals.
     WEBCORE_EXPORT void setFailNextGPUStatusCheck();
 
-    void prepareForDisplay();
-
     // GraphicsContextGL::Client
     void didComposite() override;
     void forceContextLost() override;
@@ -438,6 +439,7 @@ protected:
     friend class WebGLCompressedTextureETC1;
     friend class WebGLCompressedTexturePVRTC;
     friend class WebGLCompressedTextureS3TC;
+    friend class WebGLCompressedTextureS3TCsRGB;
     friend class WebGLRenderingContextErrorMessageCallback;
     friend class WebGLVertexArrayObjectOES;
     friend class WebGLVertexArrayObject;
@@ -518,6 +520,10 @@ protected:
     void loseExtensions(LostContextMode);
 
     virtual void uncacheDeletedBuffer(const WTF::AbstractLocker&, WebGLBuffer*);
+
+    bool compositingResultsNeedUpdating() const final { return m_compositingResultsNeedUpdating; }
+    bool needsPreparationForDisplay() const final { return true; }
+    void prepareForDisplay() final;
 
     RefPtr<GraphicsContextGLOpenGL> m_context;
     RefPtr<WebGLContextGroup> m_contextGroup;
@@ -656,6 +662,8 @@ protected:
     bool m_hasRequestedPolicyResolution { false };
     bool isContextLostOrPending();
 
+    bool m_compositingResultsNeedUpdating { false };
+
     // Enabled extension objects.
     // FIXME: Move some of these to WebGLRenderingContext, the ones not needed for WebGL2
     RefPtr<EXTFragDepth> m_extFragDepth;
@@ -670,6 +678,7 @@ protected:
     RefPtr<OESStandardDerivatives> m_oesStandardDerivatives;
     RefPtr<OESVertexArrayObject> m_oesVertexArrayObject;
     RefPtr<OESElementIndexUint> m_oesElementIndexUint;
+    RefPtr<OESFBORenderMipmap> m_oesFBORenderMipmap;
     RefPtr<WebGLLoseContext> m_webglLoseContext;
     RefPtr<WebGLDebugRendererInfo> m_webglDebugRendererInfo;
     RefPtr<WebGLDebugShaders> m_webglDebugShaders;
@@ -679,10 +688,12 @@ protected:
     RefPtr<WebGLCompressedTextureETC1> m_webglCompressedTextureETC1;
     RefPtr<WebGLCompressedTexturePVRTC> m_webglCompressedTexturePVRTC;
     RefPtr<WebGLCompressedTextureS3TC> m_webglCompressedTextureS3TC;
+    RefPtr<WebGLCompressedTextureS3TCsRGB> m_webglCompressedTextureS3TCsRGB;
     RefPtr<WebGLDepthTexture> m_webglDepthTexture;
     RefPtr<WebGLDrawBuffers> m_webglDrawBuffers;
     RefPtr<ANGLEInstancedArrays> m_angleInstancedArrays;
     RefPtr<EXTColorBufferHalfFloat> m_extColorBufferHalfFloat;
+    RefPtr<EXTFloatBlend> m_extFloatBlend;
     RefPtr<WebGLColorBufferFloat> m_webglColorBufferFloat;
     RefPtr<EXTColorBufferFloat> m_extColorBufferFloat;
 

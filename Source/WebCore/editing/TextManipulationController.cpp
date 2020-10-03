@@ -31,6 +31,7 @@
 #include "Editing.h"
 #include "ElementAncestorIterator.h"
 #include "EventLoop.h"
+#include "FrameView.h"
 #include "HTMLBRElement.h"
 #include "HTMLElement.h"
 #include "HTMLInputElement.h"
@@ -40,6 +41,7 @@
 #include "NodeRenderStyle.h"
 #include "NodeTraversal.h"
 #include "PseudoElement.h"
+#include "RenderBox.h"
 #include "ScriptDisallowedScope.h"
 #include "Text.h"
 #include "TextIterator.h"
@@ -297,6 +299,12 @@ static Optional<TextManipulationController::ManipulationTokenInfo> tokenInfo(Nod
         result.tagName = element->tagName();
         if (element->hasAttributeWithoutSynchronization(HTMLNames::roleAttr))
             result.roleAttribute = element->attributeWithoutSynchronization(HTMLNames::roleAttr);
+        if (auto frame = makeRefPtr(node->document().frame()); frame && frame->view() && element->renderer()) {
+            // FIXME: This doesn't account for overflow clip.
+            auto elementRect = element->renderer()->absoluteAnchorRect();
+            auto visibleContentRect = frame->view()->visibleContentRect();
+            result.isVisible = visibleContentRect.intersects(enclosingIntRect(elementRect));
+        }
     }
     return result;
 }
@@ -821,6 +829,9 @@ auto TextManipulationController::replace(const ManipulationItemData& item, const
             ASSERT(commonAncestor);
         }
     }
+
+    if (!firstContentNode)
+        return ManipulationFailureType::ContentChanged;
 
     while (lastChildOfCommonAncestorInRange && lastChildOfCommonAncestorInRange->parentNode() != commonAncestor)
         lastChildOfCommonAncestorInRange = lastChildOfCommonAncestorInRange->parentNode();

@@ -178,7 +178,7 @@ public:
 #ifdef __OBJC__
     PlatformLayer* videoFullscreenLayer() const { return m_videoFullscreenLayer.get(); }
 #endif
-    virtual void setVideoFullscreenFrame(FloatRect);
+    virtual void setVideoFullscreenFrame(const FloatRect&);
     void setVideoFullscreenGravity(MediaPlayer::VideoGravity);
     MediaPlayer::VideoGravity videoFullscreenGravity() const { return m_videoFullscreenGravity; }
 #endif
@@ -267,6 +267,11 @@ public:
     WEBCORE_EXPORT void fastSeek(double);
     double minFastReverseRate() const;
     double maxFastForwardRate() const;
+
+#if ENABLE(MEDIA_STREAM)
+    void setAudioOutputDevice(String&& deviceId, DOMPromiseDeferred<void>&&);
+    String audioOutputHashedDeviceId() const { return m_audioOutputHashedDeviceId; }
+#endif
 
     using HTMLMediaElementEnums::BufferingPolicy;
     void setBufferingPolicy(BufferingPolicy);
@@ -430,7 +435,6 @@ public:
 
     using MediaPlayerEnums::VideoFullscreenMode;
     VideoFullscreenMode fullscreenMode() const { return m_videoFullscreenMode; }
-    virtual void fullscreenModeChanged(VideoFullscreenMode);
 
     void enterFullscreen(VideoFullscreenMode);
     WEBCORE_EXPORT void enterFullscreen() override;
@@ -480,21 +484,6 @@ public:
 
     void mediaLoadingFailed(MediaPlayer::NetworkState);
     void mediaLoadingFailedFatally(MediaPlayer::NetworkState);
-
-#if ENABLE(MEDIA_SESSION)
-    WEBCORE_EXPORT double playerVolume() const;
-
-    const String& kind() const { return m_kind; }
-    void setKind(const String& kind) { m_kind = kind; }
-
-    MediaSession* session() const;
-    void setSession(MediaSession*);
-
-    void setShouldDuck(bool);
-
-    static HTMLMediaElement* elementWithID(uint64_t);
-    uint64_t elementID() const { return m_elementID; }
-#endif
 
     RefPtr<VideoPlaybackQuality> getVideoPlaybackQuality();
 
@@ -578,6 +567,7 @@ public:
     String mediaSessionTitle() const;
     String sourceApplicationIdentifier() const;
 
+    WEBCORE_EXPORT void setOverridePreferredDynamicRangeMode(DynamicRangeMode);
     void setPreferredDynamicRangeMode(DynamicRangeMode);
 
 protected:
@@ -605,6 +595,9 @@ protected:
 
     SecurityOriginData documentSecurityOrigin() const final;
 
+    String audioOutputDeviceId() const final { return m_audioOutputPersistentDeviceId; }
+    String audioOutputDeviceIdOverride() const final { return m_audioOutputPersistentDeviceId; }
+
     bool mediaControlsDependOnPageScaleFactor() const { return m_mediaControlsDependOnPageScaleFactor; }
     void setMediaControlsDependOnPageScaleFactor(bool);
     void updateMediaControlsAfterPresentationModeChange();
@@ -624,6 +617,8 @@ private:
     void removedFromAncestor(RemovalType, ContainerNode&) override;
     void didRecalcStyle(Style::Change) override;
     bool isInteractiveContent() const override;
+
+    void setFullscreenMode(VideoFullscreenMode);
 
     void willBecomeFullscreenElement() override;
     void willStopBeingFullscreenElement() override;
@@ -698,10 +693,6 @@ private:
 
     using EventTarget::dispatchEvent;
     void dispatchEvent(Event&) override;
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    void setSessionInternal(MediaSession&);
 #endif
 
     String mediaPlayerReferrer() const override;
@@ -1035,13 +1026,6 @@ private:
     // calling the media engine recursively.
     int m_processingMediaPlayerCallback { 0 };
 
-#if ENABLE(MEDIA_SESSION)
-    String m_kind;
-    RefPtr<MediaSession> m_session;
-    bool m_shouldDuck { false };
-    uint64_t m_elementID;
-#endif
-
 #if ENABLE(MEDIA_SOURCE)
     RefPtr<MediaSource> m_mediaSource;
     unsigned m_droppedVideoFrames { 0 };
@@ -1146,6 +1130,8 @@ private:
 
     WeakPtr<const MediaResourceLoader> m_lastMediaResourceLoaderForTesting;
 
+    Optional<DynamicRangeMode> m_overrideDynamicRangeMode;
+
     friend class TrackDisplayUpdateScope;
 
     RefPtr<Blob> m_blob;
@@ -1193,6 +1179,11 @@ private:
     bool m_isPlayingToWirelessTarget { false };
     bool m_playingOnSecondScreen { false };
     bool m_removedBehaviorRestrictionsAfterFirstUserGesture { false };
+
+    String m_audioOutputPersistentDeviceId;
+#if ENABLE(MEDIA_STREAM)
+    String m_audioOutputHashedDeviceId;
+#endif
 };
 
 String convertEnumerationToString(HTMLMediaElement::AutoplayEventPlaybackState);

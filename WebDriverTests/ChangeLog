@@ -1,3 +1,43 @@
+2020-10-02  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed Gardening. Remove expectations for tests fixed in r267872
+
+        * TestExpectations.json:
+
+2020-10-01  Lauro Moura  <lmoura@igalia.com>
+
+        [WebDriver] Gardening no_browsing_context failures.
+
+        Unreviewed test gardening.
+
+        * TestExpectations.json:
+
+2020-10-01  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update W3C WebDriver imported tests.
+
+        * TestExpectations.json:
+        * imported/w3c/importer.json:
+        * imported/w3c/tools/webdriver/:
+        * imported/w3c/tools/wptrunner/:
+        * imported/w3c/webdriver/:
+
+2020-08-31  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE][WebDriver] Gardening a few more failures
+
+        Unreviewed test gardening.
+
+        * TestExpectations.json:
+
+2020-08-30  Lauro Moura  <lmoura@igalia.com>
+
+        [WPE] Gardening some webdriver failures
+
+        Unreviewed test gardening.
+
+        * TestExpectations.json:
+
 2020-08-17  Lauro Moura  <lmoura@igalia.com>
 
         [WPE][WebDriver] Gardening some failures
