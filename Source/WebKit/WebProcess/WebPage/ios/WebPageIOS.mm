@@ -59,6 +59,7 @@
 #import "WebPageProxyMessages.h"
 #import "WebPreviewLoaderClient.h"
 #import "WebProcess.h"
+#import "WebTouchEvent.h"
 #import <CoreText/CTFont.h>
 #import <WebCore/Autofill.h>
 #import <WebCore/AutofillElements.h>
@@ -1014,16 +1015,14 @@ void WebPage::didConcludeEditDrag()
 
 void WebPage::didFinishLoadingImageForElement(WebCore::HTMLImageElement& element)
 {
-    if (element.isDroppedImagePlaceholder())
-        m_page->dragController().finalizeDroppedImagePlaceholder(element);
-
-    if (m_pendingImageElementsForDropSnapshot.isEmpty())
+    if (!m_pendingImageElementsForDropSnapshot.remove(&element))
         return;
 
-    m_pendingImageElementsForDropSnapshot.remove(&element);
-
-    if (m_pendingImageElementsForDropSnapshot.isEmpty())
-        computeAndSendEditDragSnapshot();
+    bool shouldSendSnapshot = m_pendingImageElementsForDropSnapshot.isEmpty();
+    m_page->dragController().finalizeDroppedImagePlaceholder(element, [protectedThis = makeRefPtr(this), shouldSendSnapshot] {
+        if (shouldSendSnapshot)
+            protectedThis->computeAndSendEditDragSnapshot();
+    });
 }
 
 void WebPage::computeAndSendEditDragSnapshot()
@@ -3447,7 +3446,7 @@ void WebPage::dynamicViewportSizeUpdate(const FloatSize& viewLayoutSize, const W
     shrinkToFitContent();
 #endif
 
-    m_drawingArea->scheduleRenderingUpdate();
+    m_drawingArea->triggerRenderingUpdate();
 
     m_pendingDynamicViewportSizeUpdateID = dynamicViewportSizeUpdateID;
 }

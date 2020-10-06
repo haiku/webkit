@@ -1,3 +1,305 @@
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        Align URL setters with reasonably behaving other browsers
+        https://bugs.webkit.org/show_bug.cgi?id=217366
+
+        Reviewed by Youenn Fablet.
+
+        * web-platform-tests/url/url-setters-expected.txt:
+
+2020-10-06  Youenn Fablet  <youenn@apple.com>
+
+        In case all tracks are ended, enqueue a task to stop recording instead of stopping recording
+        https://bugs.webkit.org/show_bug.cgi?id=217372
+
+        Reviewed by Eric Carlson.
+
+        * web-platform-tests/mediacapture-record/MediaRecorder-stop-expected.txt:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Don't NFC normalize strings from blobs
+        https://bugs.webkit.org/show_bug.cgi?id=217327
+
+        Reviewed by Sam Weinig.
+
+        * web-platform-tests/FileAPI/unicode-expected.txt:
+
+2020-10-05  Rob Buis  <rbuis@igalia.com>
+
+        WebKit doesn't parse "#" as delimiter for fragment identifier in data URIs
+        https://bugs.webkit.org/show_bug.cgi?id=68089
+
+        Reviewed by Alex Christensen, Ryosuke Niwa, and Darin Adler.
+
+        Update improved test results.
+
+        * web-platform-tests/fetch/data-urls/processing.any-expected.txt:
+        * web-platform-tests/fetch/data-urls/processing.any.worker-expected.txt:
+        * web-platform-tests/url/data-uri-fragment-expected.txt:
+
+2020-10-05  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Fix expectations of a test which is actually passing
+        https://bugs.webkit.org/show_bug.cgi?id=217318
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * web-platform-tests/css/css-flexbox/padding-overflow-crash-expected.html: Added a missing " only"
+        to match the string used in the test.
+
+2020-10-05  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS rotate property
+        https://bugs.webkit.org/show_bug.cgi?id=217320
+        <rdar://problem/69956248>
+
+        Reviewed by Dean Jackson.
+
+        WPT progressions showing the correct parsing and computed style output of a non-animated "rotate" property.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/rotate-composition-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/rotate-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/rotate-parsing-valid-expected.txt:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Remove url-domainToUnicode web platform test as it was done upstream.
+
+        * web-platform-tests/url/url-domainToUnicode-expected.txt: Removed.
+        * web-platform-tests/url/url-domainToUnicode.html: Removed.
+
+2020-10-05  Diego Pino Garcia  <dpino@igalia.com>
+
+        [WPE] Update baselines of two touch-events tests after r266649.
+
+        Unreviewed test gardening.
+
+        General baselines are updated because WPE is the only port running
+        these tests. They're skipped in all other ports.
+
+        * web-platform-tests/touch-events/historical-expected.txt:
+        * web-platform-tests/touch-events/idlharness.window-expected.txt:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Remove unused -expected.txt file
+
+        * web-platform-tests/url/urlencoded-parser-expected.txt: Removed.
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        URLParser should fail to parse URLs with hosts containing invalid punycode encodings
+        https://bugs.webkit.org/show_bug.cgi?id=217285
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/failure-expected.txt:
+        * web-platform-tests/url/toascii.window-expected.txt:
+        * web-platform-tests/url/url-constructor-expected.txt:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        When appending a Windows drive letter to a file URL, remove any path we may have copied from the base URL
+        https://bugs.webkit.org/show_bug.cgi?id=217284
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/resources/urltestdata.json:
+        * web-platform-tests/url/url-constructor-expected.txt:
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Fix UTF-8 encoding in URL parsing
+        https://bugs.webkit.org/show_bug.cgi?id=217289
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-origin-expected.txt:
+        * web-platform-tests/url/a-element-origin-xhtml-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/resources/urltestdata.json:
+        * web-platform-tests/url/url-constructor-expected.txt:
+        * web-platform-tests/url/url-origin-expected.txt:
+
+2020-10-05  Rob Buis  <rbuis@igalia.com>
+
+        Make xhr.response more conforming to the specification
+        https://bugs.webkit.org/show_bug.cgi?id=217296
+
+        Reviewed by Darin Adler.
+
+        Update improved test result.
+
+        * web-platform-tests/xhr/overridemimetype-blob-expected.txt:
+
+2020-10-04  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS scale property
+        https://bugs.webkit.org/show_bug.cgi?id=217291
+        <rdar://problem/69926254>
+
+        Reviewed by Simon Fraser.
+
+        WPT progressions showing the correct parsing and computed style output of a non-animated "scale" property.
+        We are also adding some more tests to the invalid "scale" parsing to check that we bail once we get junk
+        for optional values after valid values and move percentage values to invalid tests (also filed a WPT PR
+        at https://github.com/web-platform-tests/wpt/pull/25960).
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/scale-composition-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/scale-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/scale-parsing-invalid-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/scale-parsing-invalid.html:
+        * web-platform-tests/css/css-transforms/parsing/scale-parsing-valid-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/scale-parsing-valid.html:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-10-05  Rob Buis  <rbuis@igalia.com>
+
+        MIME type parser should skip trailing HTTP whitespace
+        https://bugs.webkit.org/show_bug.cgi?id=217179
+
+        Reviewed by Darin Adler.
+
+        Update test expectation.
+
+        * web-platform-tests/xhr/overridemimetype-blob-expected.txt:
+
+2020-10-03  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-lists] Implement list-style-type: <string>
+        https://bugs.webkit.org/show_bug.cgi?id=167729
+
+        Reviewed by Darin Adler.
+
+        Update test expectations, and await document.fonts.ready in a test with Ahem.
+
+        * web-platform-tests/css/css-lists/parsing/list-style-type-computed-expected.txt:
+        * web-platform-tests/css/css-lists/parsing/list-style-type-valid-expected.txt:
+        * web-platform-tests/css/css-pseudo/marker-hit-testing-expected.txt:
+        * web-platform-tests/css/css-pseudo/marker-intrinsic-contribution-001-expected.txt:
+        * web-platform-tests/css/css-pseudo/marker-intrinsic-contribution-001.html:
+
+2020-10-03  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Add onslotchange on ShadowRoot and GlobalEventHandlers
+        https://bugs.webkit.org/show_bug.cgi?id=191310
+
+        Reviewed by Sam Weinig.
+
+        Rebaselined tests to pass more test cases.
+
+        * web-platform-tests/dom/idlharness.window-expected.txt:
+        * web-platform-tests/html/webappapis/scripting/events/event-handler-all-global-events-expected.txt:
+        * web-platform-tests/html/webappapis/scripting/events/event-handler-attributes-body-window-expected.txt:
+        * web-platform-tests/html/webappapis/scripting/events/event-handler-attributes-windowless-body-expected.txt:
+        * web-platform-tests/mathml/relations/html5-tree/math-global-event-handlers.tentative-expected.txt:
+
+2020-10-03  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS translate property
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        <rdar://problem/69597083>
+
+        Reviewed by Simon Fraser.
+
+        WPT progressions showing the correct parsing and computed style output of a non-animated "translate" property.
+        We are also adding some more tests to the invalid "translate" parsing to check that we bail once we get junk
+        for optional values after valid values.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/translate-composition-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/translate-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-invalid-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-invalid.html:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-valid-expected.txt:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-10-03  Alex Christensen  <achristensen@webkit.org>
+
+        Add extra slash after empty host copied from base URL if path is also empty
+        https://bugs.webkit.org/show_bug.cgi?id=217278
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/url-constructor-expected.txt:
+
+2020-10-03  Alex Christensen  <achristensen@webkit.org>
+
+        "http:" should not be a valid URL
+        https://bugs.webkit.org/show_bug.cgi?id=217250
+
+        Reviewed by Brady Eidson.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/url-constructor-expected.txt:
+
+2020-10-02  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r267887.
+
+        Broke two tests on iOS and Mac
+
+        Reverted changeset:
+
+        "Add non-animated support for the CSS translate property"
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        https://trac.webkit.org/changeset/267887
+
+2020-10-02  Alex Christensen  <achristensen@webkit.org>
+
+        Copy host from base file URL
+        https://bugs.webkit.org/show_bug.cgi?id=217170
+
+        Reviewed by Brady Eidson.
+
+        * web-platform-tests/url/a-element-expected.txt:
+        * web-platform-tests/url/a-element-xhtml-expected.txt:
+        * web-platform-tests/url/resources/urltestdata.json:
+        * web-platform-tests/url/url-constructor-expected.txt:
+
+2020-10-02  Sam Weinig  <weinig@apple.com>
+
+        Re-align HTMLElement with the HTML spec
+        https://bugs.webkit.org/show_bug.cgi?id=217202
+
+        Reviewed by Darin Adler.
+
+        * web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * web-platform-tests/svg/types/scripted/event-handler-all-document-element-events-expected.txt:
+        Update more now passing results.
+
+2020-09-30  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS translate property
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        <rdar://problem/69597083>
+
+        Reviewed by Simon Fraser.
+
+        WPT progressions showing the correct parsing and computed style output of a non-animated "translate" property.
+        We are also adding some more tests to the invalid "translate" parsing to check that we bail once we get junk
+        for optional values after valid values.
+
+        * web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/translate-composition-expected.txt:
+        * web-platform-tests/css/css-transforms/animation/translate-interpolation-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-invalid-expected.txt:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-invalid.html:
+        * web-platform-tests/css/css-transforms/parsing/translate-parsing-valid-expected.txt:
+        * web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
 2020-10-01  Rob Buis  <rbuis@igalia.com>
 
         update FormData to latest spec webidl

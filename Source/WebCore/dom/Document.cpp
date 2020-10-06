@@ -298,10 +298,6 @@
 #include "MathMLNames.h"
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include "MediaSession.h"
-#endif
-
 #if USE(QUICK_LOOK)
 #include "QuickLook.h"
 #endif
@@ -564,7 +560,7 @@ Document::Document(Frame* frame, const URL& url, DocumentClassFlags documentClas
     , m_fullscreenManager { makeUniqueRef<FullscreenManager>(*this) }
 #endif
 #if ENABLE(INTERSECTION_OBSERVER)
-    , m_intersectionObserversInitialUpdateTimer(*this, &Document::scheduleTimedRenderingUpdate)
+    , m_intersectionObserversInitialUpdateTimer(*this, &Document::scheduleRenderingUpdate)
 #endif
     , m_loadEventDelayTimer(*this, &Document::loadEventDelayTimerFired)
 #if PLATFORM(IOS_FAMILY) && ENABLE(DEVICE_ORIENTATION)
@@ -4081,13 +4077,13 @@ void Document::updateViewportUnitsOnResize()
 void Document::setNeedsDOMWindowResizeEvent()
 {
     m_needsDOMWindowResizeEvent = true;
-    scheduleTimedRenderingUpdate();
+    scheduleRenderingUpdate();
 }
 
 void Document::setNeedsVisualViewportResize()
 {
     m_needsVisualViewportResizeEvent = true;
-    scheduleTimedRenderingUpdate();
+    scheduleRenderingUpdate();
 }
 
 // https://drafts.csswg.org/cssom-view/#run-the-resize-steps
@@ -4117,7 +4113,7 @@ void Document::addPendingScrollEventTarget(ContainerNode& target)
         return;
 
     if (targets.isEmpty())
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate();
 
     targets.append(target);
 }
@@ -4125,7 +4121,7 @@ void Document::addPendingScrollEventTarget(ContainerNode& target)
 void Document::setNeedsVisualViewportScrollEvent()
 {
     if (!m_needsVisualViewportScrollEvent)
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate();
     m_needsVisualViewportScrollEvent = true;
 }
 
@@ -4183,22 +4179,6 @@ void Document::updateIsPlayingMedia(uint64_t sourceElementID)
 
 #if ENABLE(MEDIA_STREAM)
     state |= MediaStreamTrack::captureState(*this);
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-    if (HTMLMediaElement* sourceElement = HTMLMediaElement::elementWithID(sourceElementID)) {
-        if (sourceElement->isPlaying())
-            state |= MediaProducer::IsSourceElementPlaying;
-
-        if (auto* session = sourceElement->session()) {
-            if (auto* controls = session->controls()) {
-                if (controls->previousTrackEnabled())
-                    state |= MediaProducer::IsPreviousTrackControlEnabled;
-                if (controls->nextTrackEnabled())
-                    state |= MediaProducer::IsNextTrackControlEnabled;
-            }
-        }
-    }
 #endif
 
     if (m_userHasInteractedWithMediaElement)
@@ -7469,17 +7449,6 @@ void Document::playbackTargetPickerWasDismissed(PlaybackTargetClientContextIdent
 
 #endif // ENABLE(WIRELESS_PLAYBACK_TARGET)
 
-#if ENABLE(MEDIA_SESSION)
-
-MediaSession& Document::defaultMediaSession()
-{
-    if (!m_defaultMediaSession)
-        m_defaultMediaSession = MediaSession::create(*scriptExecutionContext());
-    return *m_defaultMediaSession;
-}
-
-#endif
-
 ShouldOpenExternalURLsPolicy Document::shouldOpenExternalURLsPolicyToPropagate() const
 {
     if (DocumentLoader* documentLoader = loader())
@@ -7564,13 +7533,13 @@ void Document::removeDynamicMediaQueryDependentImage(HTMLImageElement& element)
     m_dynamicMediaQueryDependentImages.remove(element);
 }
 
-void Document::scheduleTimedRenderingUpdate()
+void Document::scheduleRenderingUpdate()
 {
 #if ENABLE(INTERSECTION_OBSERVER)
     m_intersectionObserversInitialUpdateTimer.stop();
 #endif
     if (auto page = this->page())
-        page->scheduleTimedRenderingUpdate();
+        page->scheduleRenderingUpdate();
 }
 
 #if ENABLE(INTERSECTION_OBSERVER)
@@ -7795,7 +7764,7 @@ void Document::updateIntersectionObservations()
 void Document::scheduleInitialIntersectionObservationUpdate()
 {
     if (m_readyState == Complete)
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate();
     else if (!m_intersectionObserversInitialUpdateTimer.isActive())
         m_intersectionObserversInitialUpdateTimer.startOneShot(intersectionObserversInitialUpdateDelay);
 }
@@ -7887,7 +7856,7 @@ void Document::updateResizeObservations(Page& page)
         getParserLocation(url, line, column);
         reportException("ResizeObserver loop completed with undelivered notifications.", line, column, url, nullptr, nullptr);
         // Starting a new schedule the next round of notify.
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate();
     }
 }
 

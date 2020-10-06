@@ -501,9 +501,6 @@ simpleLineLayoutDebugBordersEnabled:
 contentChangeObserverEnabled:
   initial: defaultContentChangeObserverEnabled()
 
-subpixelCSSOMElementMetricsEnabled:
-  initial: false
-
 useGiantTiles:
   initial: false
 
@@ -1050,6 +1047,9 @@ webShareFileAPIEnabled:
   initial: false
 
 undoManagerAPIEnabled:
+  initial: false
+
+contactPickerAPIEnabled:
   initial: false
 
 intersectionObserverEnabled:

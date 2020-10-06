@@ -32,10 +32,13 @@
 #include "LengthPoint.h"
 #include "LineClampValue.h"
 #include "NinePieceImage.h"
+#include "RotateTransformOperation.h"
+#include "ScaleTransformOperation.h"
 #include "ShapeValue.h"
 #include "StyleContentAlignmentData.h"
 #include "StyleSelfAlignmentData.h"
 #include "TouchAction.h"
+#include "TranslateTransformOperation.h"
 #include "WillChangeData.h"
 #include <memory>
 #include <wtf/DataRef.h>
@@ -176,6 +179,10 @@ public:
 
     DataRef<StyleCustomPropertyData> customProperties;
     std::unique_ptr<HashSet<String>> customPaintWatchedProperties;
+
+    RefPtr<RotateTransformOperation> rotate;
+    RefPtr<ScaleTransformOperation> scale;
+    RefPtr<TranslateTransformOperation> translate;
 
     OptionSet<TouchAction> touchActions;
 

@@ -1,4 +1,6 @@
 set(WebCore_PRIVATE_FRAMEWORK_HEADERS
+    Modules/airplay/PlaybackTargetClientContextIdentifier.h
+
     Modules/applepay/ApplePaySessionPaymentRequest.h
     Modules/applepay/Payment.h
     Modules/applepay/PaymentAuthorizationStatus.h
@@ -86,12 +88,6 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     Modules/indexeddb/shared/IDBTransactionInfo.h
 
     Modules/mediarecorder/MediaRecorderProvider.h
-
-    Modules/mediasession/MediaSessionEvents.h
-    Modules/mediasession/MediaSessionMetadata.h
-    Modules/mediasession/PlaybackTargetClientContextIdentifier.h
-    Modules/mediasession/WebMediaSessionManager.h
-    Modules/mediasession/WebMediaSessionManagerClient.h
 
     Modules/mediasource/SampleMap.h
 
@@ -262,6 +258,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     bindings/js/ScriptWrappableInlines.h
     bindings/js/SerializedScriptValue.h
     bindings/js/StringAdaptors.h
+    bindings/js/WebCoreJITOperations.h
     bindings/js/WebCoreTypedArrayController.h
     bindings/js/WindowProxy.h
 
@@ -529,6 +526,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     editing/FontShadow.h
     editing/FrameSelection.h
     editing/HTMLInterchange.h
+    editing/InlineRunAndOffset.h
     editing/SelectionRectGatherer.h
     editing/SerializedAttachmentData.h
     editing/SmartReplace.h
@@ -707,13 +705,11 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     layout/LayoutUnits.h
     layout/MarginTypes.h
 
-    layout/displaytree/DisplayInlineContent.h
-    layout/displaytree/DisplayLine.h
-    layout/displaytree/DisplayRect.h
-    layout/displaytree/DisplayRun.h
-
     layout/inlineformatting/InlineRect.h
 
+    layout/integration/LayoutIntegrationInlineContent.h
+    layout/integration/LayoutIntegrationLine.h
+    layout/integration/LayoutIntegrationRun.h
     layout/integration/LayoutIntegrationRunIterator.h
     layout/integration/LayoutIntegrationRunIteratorLegacyPath.h
     layout/integration/LayoutIntegrationRunIteratorModernPath.h
@@ -1257,9 +1253,12 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     platform/graphics/opentype/OpenTypeVerticalData.h
 
     platform/graphics/transforms/AffineTransform.h
+    platform/graphics/transforms/RotateTransformOperation.h
+    platform/graphics/transforms/ScaleTransformOperation.h
     platform/graphics/transforms/TransformOperation.h
     platform/graphics/transforms/TransformOperations.h
     platform/graphics/transforms/TransformationMatrix.h
+    platform/graphics/transforms/TranslateTransformOperation.h
 
     platform/mediarecorder/MediaRecorderPrivate.h
 

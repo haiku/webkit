@@ -85,7 +85,6 @@
 #include "WebDocumentLoader.h"
 #include "WebDragClient.h"
 #include "WebEditorClient.h"
-#include "WebEvent.h"
 #include "WebEventConversion.h"
 #include "WebEventFactory.h"
 #include "WebFrame.h"
@@ -100,9 +99,11 @@
 #include "WebInspectorMessages.h"
 #include "WebInspectorUI.h"
 #include "WebInspectorUIMessages.h"
+#include "WebKeyboardEvent.h"
 #include "WebLoaderStrategy.h"
 #include "WebMediaKeyStorageManager.h"
 #include "WebMediaStrategy.h"
+#include "WebMouseEvent.h"
 #include "WebNotificationClient.h"
 #include "WebOpenPanelResultListener.h"
 #include "WebPageCreationParameters.h"
@@ -127,11 +128,13 @@
 #include "WebSocketProvider.h"
 #include "WebSpeechSynthesisClient.h"
 #include "WebStorageNamespaceProvider.h"
+#include "WebTouchEvent.h"
 #include "WebURLSchemeHandlerProxy.h"
 #include "WebUndoStep.h"
 #include "WebUserContentController.h"
 #include "WebUserMediaClient.h"
 #include "WebValidationMessageClient.h"
+#include "WebWheelEvent.h"
 #include "WebsiteDataStoreParameters.h"
 #include <JavaScriptCore/APICast.h>
 #include <JavaScriptCore/JSCInlines.h>
@@ -579,8 +582,7 @@ WebPage::WebPage(PageIdentifier pageID, WebPageCreationParameters&& parameters)
     updatePreferences(parameters.store);
 
 #if PLATFORM(IOS_FAMILY) || ENABLE(ROUTING_ARBITRATION)
-    if (!m_page->settings().useGPUProcessForMediaEnabled())
-        DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
+    DeprecatedGlobalSettings::setShouldManageAudioSessionCategory(true);
 #endif
 
     m_backgroundColor = parameters.backgroundColor;
@@ -5190,18 +5192,6 @@ void WebPage::stopMediaCapture()
 #endif
 }
 
-#if ENABLE(MEDIA_SESSION)
-void WebPage::handleMediaEvent(uint32_t eventType)
-{
-    m_page->handleMediaEvent(static_cast<MediaEventType>(eventType));
-}
-
-void WebPage::setVolumeOfMediaElement(double volume, uint64_t elementID)
-{
-    m_page->setVolumeOfMediaElement(volume, elementID);
-}
-#endif
-
 void WebPage::setMayStartMediaWhenInWindow(bool mayStartMedia)
 {
     if (mayStartMedia == m_mayStartMediaWhenInWindow)
@@ -6381,7 +6371,7 @@ void WebPage::scheduleFullEditorStateUpdate()
     m_hasPendingEditorStateUpdate = true;
     // FIXME: Scheduling a compositing layer flush here can be more expensive than necessary.
     // Instead, we should just compute and send post-layout editor state during the next frame.
-    m_drawingArea->scheduleRenderingUpdate();
+    m_drawingArea->triggerRenderingUpdate();
 }
 
 #if HAVE(TOUCH_BAR)
@@ -6857,6 +6847,11 @@ bool WebPage::hasPageLevelStorageAccess(const RegistrableDomain& topLevelDomain,
 {
     auto it = m_domainsWithPageLevelStorageAccess.find(topLevelDomain);
     return it != m_domainsWithPageLevelStorageAccess.end() && it->value == resourceDomain;
+}
+
+void WebPage::clearPageLevelStorageAccess()
+{
+    m_domainsWithPageLevelStorageAccess.clear();
 }
 
 void WebPage::wasLoadedWithDataTransferFromPrevalentResource()

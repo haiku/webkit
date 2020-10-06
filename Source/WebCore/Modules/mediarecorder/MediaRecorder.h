@@ -94,8 +94,11 @@ private:
     bool virtualHasPendingActivity() const final;
     
     void stopRecordingInternal();
-
     void dispatchError(Exception&&);
+
+    enum class TakePrivateRecorder { No, Yes };
+    using FetchDataCallback = Function<void(RefPtr<SharedBuffer>&&, const String& mimeType)>;
+    void fetchData(FetchDataCallback&&, TakePrivateRecorder);
 
     // MediaStream::Observer
     void didAddTrack(MediaStreamTrackPrivate&) final { handleTrackChange(); }
@@ -105,9 +108,9 @@ private:
 
     // MediaStreamTrackPrivate::Observer
     void trackEnded(MediaStreamTrackPrivate&) final;
-    void trackMutedChanged(MediaStreamTrackPrivate&) final { };
+    void trackMutedChanged(MediaStreamTrackPrivate&) final;
+    void trackEnabledChanged(MediaStreamTrackPrivate&) final;
     void trackSettingsChanged(MediaStreamTrackPrivate&) final { };
-    void trackEnabledChanged(MediaStreamTrackPrivate&) final { };
 
     static CreatorFunction m_customCreator;
 
@@ -120,6 +123,8 @@ private:
     Timer m_timeSliceTimer;
     
     bool m_isActive { true };
+    bool m_isFetchingData { false };
+    Deque<FetchDataCallback> m_pendingFetchDataTasks;
 };
 
 } // namespace WebCore

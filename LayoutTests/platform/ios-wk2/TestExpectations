@@ -1829,7 +1829,7 @@ webkit.org/b/215278 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scr
 
 webkit.org/b/215283 [ Debug ] imported/w3c/web-platform-tests/html/semantics/scripting-1/the-script-element/moving-between-documents/before-prepare-iframe-success-external-classic.html [ Pass Failure ]
 
-webkit.org/b/215324 compositing/clipping/border-radius-on-webgl.html [ Pass Failure ]
+webkit.org/b/215324 compositing/clipping/border-radius-on-webgl.html [ Pass Failure Timeout ]
 
 webkit.org/b/215326 imported/w3c/web-platform-tests/css/css-images/image-set/image-set-parsing.html [ Pass Timeout ]
 
@@ -1889,3 +1889,16 @@ webkit.org/b/186045 imported/w3c/web-platform-tests/css/css-values/vh_not_refres
 
 webkit.org/b/217118 [ Release ] imported/w3c/web-platform-tests/user-timing/measure-l3.any.worker.html [ Pass Failure ]
 
+webkit.org/b/217257 webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-video.html [ Failure ]
+
+webkit.org/b/217258 svg/W3C-I18N/tspan-direction-rtl.svg [ Failure ]
+
+webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-no-sink.https.html [ Failure ]
+
+webkit.org/b/217263 imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html [ Failure ]
+
+webkit.org/b/217268 imported/w3c/web-platform-tests/mathml/relations/css-styling/padding-border-margin/border-002.html [ Failure ]
+
+webkit.org/b/217268 imported/w3c/web-platform-tests/mathml/relations/html5-tree/dynamic-childlist-001.html [ Failure ]
+
+webkit.org/b/217357 http/wpt/cache-storage/cache-quota-after-restart.any.html [ Pass Failure ]

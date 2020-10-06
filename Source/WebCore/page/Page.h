@@ -62,10 +62,6 @@
 #include "ApplicationManifest.h"
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include "MediaSessionEvents.h"
-#endif
-
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
 #include "MediaPlaybackTargetContext.h"
 #endif
@@ -492,12 +488,10 @@ public:
     WEBCORE_EXPORT void isolatedUpdateRendering();
     WEBCORE_EXPORT void finalizeRenderingUpdate(OptionSet<FinalizeRenderingUpdateFlags>);
 
-    // Do immediate or timed update as dictated by the ChromeClient.
+    // Schedule a rerndering update that coordinates with display refresh.
     WEBCORE_EXPORT void scheduleRenderingUpdate();
-    // Schedule an update that coordinates with display refresh; the normal kind of update.
-    void scheduleTimedRenderingUpdate();
-    // Schedule an update in the current runloop; this is an eager update that may trigger rendering more than once per display refresh.
-    void scheduleImmediateRenderingUpdate();
+    // Trigger a rendering update in the current runloop. Only used for testing.
+    void triggerRenderingUpdateForTesting();
 
     WEBCORE_EXPORT void startTrackingRenderingUpdates();
     WEBCORE_EXPORT unsigned renderingUpdateCount() const;
@@ -659,11 +653,6 @@ public:
 
     void setCanUseCredentialStorage(bool canUse) { m_canUseCredentialStorage = canUse; }
     bool canUseCredentialStorage() const { return m_canUseCredentialStorage; }
-
-#if ENABLE(MEDIA_SESSION)
-    WEBCORE_EXPORT void handleMediaEvent(MediaEventType);
-    WEBCORE_EXPORT void setVolumeOfMediaElement(double, uint64_t);
-#endif
 
 #if ENABLE(WIRELESS_PLAYBACK_TARGET)
     void addPlaybackTargetPickerClient(PlaybackTargetClientContextIdentifier);

@@ -29,6 +29,7 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/async-clipboard"
     "${WEBCORE_DIR}/Modules/beacon"
     "${WEBCORE_DIR}/Modules/cache"
+    "${WEBCORE_DIR}/Modules/contact-picker"
     "${WEBCORE_DIR}/Modules/credentialmanagement"
     "${WEBCORE_DIR}/Modules/encryptedmedia"
     "${WEBCORE_DIR}/Modules/encryptedmedia/legacy"
@@ -43,7 +44,6 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/mediacapabilities"
     "${WEBCORE_DIR}/Modules/mediacontrols"
     "${WEBCORE_DIR}/Modules/mediarecorder"
-    "${WEBCORE_DIR}/Modules/mediasession"
     "${WEBCORE_DIR}/Modules/mediasource"
     "${WEBCORE_DIR}/Modules/mediastream"
     "${WEBCORE_DIR}/Modules/mediastream/libwebrtc"
@@ -139,7 +139,6 @@ set(WebCore_PRIVATE_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/graphics/transforms"
     "${WEBCORE_DIR}/platform/mediacapabilities"
     "${WEBCORE_DIR}/platform/mediarecorder"
-    "${WEBCORE_DIR}/platform/mediasession"
     "${WEBCORE_DIR}/platform/mediastream"
     "${WEBCORE_DIR}/platform/mediastream/libwebrtc"
     "${WEBCORE_DIR}/platform/mock"
@@ -198,7 +197,6 @@ set(WebCore_IDL_INCLUDES
     Modules/indexeddb
     Modules/mediacapabilities
     Modules/mediarecorder
-    Modules/mediasession
     Modules/mediastream
     Modules/notifications
     Modules/paymentrequest
@@ -235,6 +233,12 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/cache/DOMCacheStorage.idl
     Modules/cache/DOMWindow+Caches.idl
     Modules/cache/WorkerGlobalScope+Caches.idl
+
+    Modules/contact-picker/ContactInfo.idl
+    Modules/contact-picker/ContactProperty.idl
+    Modules/contact-picker/ContactsManager.idl
+    Modules/contact-picker/ContactsSelectOptions.idl
+    Modules/contact-picker/Navigator+Contacts.idl
 
     Modules/credentialmanagement/BasicCredential.idl
     Modules/credentialmanagement/CredentialCreationOptions.idl
@@ -326,10 +330,6 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/mediarecorder/BlobEvent.idl
     Modules/mediarecorder/MediaRecorder.idl
     Modules/mediarecorder/MediaRecorderErrorEvent.idl
-
-    Modules/mediasession/HTMLMediaElement+MediaSession.idl
-    Modules/mediasession/MediaRemoteControls.idl
-    Modules/mediasession/MediaSession.idl
 
     Modules/mediasource/AudioTrack+MediaSource.idl
     Modules/mediasource/DOMURL+MediaSource.idl
@@ -484,6 +484,8 @@ set(WebCore_NON_SVG_IDL_FILES
     Modules/webaudio/AudioWorkletGlobalScope.idl
     Modules/webaudio/AudioWorkletNode.idl
     Modules/webaudio/AudioWorkletNodeOptions.idl
+    Modules/webaudio/AudioWorkletProcessor.idl
+    Modules/webaudio/AudioWorkletProcessorConstructor.idl
     Modules/webaudio/BaseAudioContext.idl
     Modules/webaudio/BiquadFilterNode.idl
     Modules/webaudio/BiquadFilterOptions.idl
@@ -798,8 +800,13 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/DocumentOrShadowRoot.idl
     dom/DocumentType.idl
     dom/DragEvent.idl
+    dom/Element+CSSOMView.idl
     dom/Element+DOMParsing.idl
+    dom/Element+Fullscreen.idl
+    dom/Element+PointerEvents.idl
+    dom/Element+PointerLock.idl
     dom/Element.idl
+    dom/ElementContentEditable.idl
     dom/ErrorEvent.idl
     dom/Event.idl
     dom/EventInit.idl
@@ -840,6 +847,8 @@ set(WebCore_NON_SVG_IDL_FILES
     dom/ProcessingInstruction.idl
     dom/ProgressEvent.idl
     dom/PromiseRejectionEvent.idl
+    dom/Range+CSSOMView.idl
+    dom/Range+DOMParsing.idl
     dom/Range.idl
     dom/RequestAnimationFrameCallback.idl
     dom/SecurityPolicyViolationEvent.idl
@@ -889,6 +898,7 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLAudioElement.idl
     html/HTMLBRElement.idl
     html/HTMLBaseElement.idl
+    html/HTMLBodyElement+Compat.idl
     html/HTMLBodyElement.idl
     html/HTMLButtonElement.idl
     html/HTMLCanvasElement.idl
@@ -901,6 +911,7 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLDirectoryElement.idl
     html/HTMLDivElement.idl
     html/HTMLDocument.idl
+    html/HTMLElement+CSSOMView.idl
     html/HTMLElement.idl
     html/HTMLEmbedElement.idl
     html/HTMLFieldSetElement.idl
@@ -915,6 +926,7 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLHtmlElement.idl
     html/HTMLHyperlinkElementUtils.idl
     html/HTMLIFrameElement.idl
+    html/HTMLImageElement+CSSOMView.idl
     html/HTMLImageElement.idl
     html/HTMLInputElement.idl
     html/HTMLKeygenElement.idl
@@ -924,8 +936,8 @@ set(WebCore_NON_SVG_IDL_FILES
     html/HTMLLinkElement.idl
     html/HTMLMapElement.idl
     html/HTMLMarqueeElement.idl
+    html/HTMLMediaElement+AudioOutput.idl
     html/HTMLMediaElement.idl
-    html/HTMLMediaElementAudioOutput.idl
     html/HTMLMenuElement.idl
     html/HTMLMenuItemElement.idl
     html/HTMLMetaElement.idl
@@ -1039,10 +1051,16 @@ set(WebCore_NON_SVG_IDL_FILES
     page/BarProp.idl
     page/Crypto.idl
     page/DOMSelection.idl
+    page/DOMWindow+CSSOM.idl
+    page/DOMWindow+CSSOMView.idl
+    page/DOMWindow+Compat.idl
+    page/DOMWindow+DeviceMotion.idl
+    page/DOMWindow+DeviceOrientation.idl
+    page/DOMWindow+RequestIdleCallback.idl
+    page/DOMWindow+Selection.idl
+    page/DOMWindow+VisualViewport.idl
     page/DOMWindow.idl
     page/EventSource.idl
-    page/GlobalCrypto.idl
-    page/GlobalPerformance.idl
     page/History.idl
     page/IntersectionObserver.idl
     page/IntersectionObserverCallback.idl
@@ -1091,7 +1109,11 @@ set(WebCore_NON_SVG_IDL_FILES
     page/VisualViewport.idl
     page/WebKitPoint.idl
     page/WindowEventHandlers.idl
+    page/WindowLocalStorage.idl
+    page/WindowOrWorkerGlobalScope+Crypto.idl
+    page/WindowOrWorkerGlobalScope+Performance.idl
     page/WindowOrWorkerGlobalScope.idl
+    page/WindowSessionStorage.idl
     page/WorkerNavigator.idl
 
     plugins/DOMMimeType.idl

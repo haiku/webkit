@@ -28,6 +28,7 @@
 #include "AuxiliaryProcess.h"
 #include "CacheModel.h"
 #include "CallbackID.h"
+#include "DownloadID.h"
 #include "DownloadManager.h"
 #include "LocalStorageDatabaseTracker.h"
 #include "NetworkContentRuleListManager.h"
@@ -77,7 +78,6 @@ class SessionID;
 namespace WebCore {
 class CertificateInfo;
 class CurlProxySettings;
-class DownloadID;
 class ProtectionSpace;
 class StorageQuotaManager;
 class NetworkStorageSession;
@@ -429,7 +429,6 @@ private:
     void publishDownloadProgress(DownloadID, const URL&, SandboxExtension::Handle&&);
 #endif
     void continueWillSendRequest(DownloadID, WebCore::ResourceRequest&&);
-    void continueDecidePendingDownloadDestination(DownloadID, String destination, SandboxExtension::Handle&&, bool allowOverwrite);
     void applicationDidEnterBackground();
     void applicationWillEnterForeground();
 

@@ -153,7 +153,7 @@ void RemoteLayerTreeDrawingArea::setRootCompositingLayer(GraphicsLayer* rootLaye
 {
     m_contentLayer = rootLayer;
     updateRootLayers();
-    scheduleRenderingUpdate();
+    triggerRenderingUpdate();
 }
 
 void RemoteLayerTreeDrawingArea::updateGeometry(const IntSize& viewSize, bool flushSynchronously, const WTF::MachSendRight&)
@@ -161,7 +161,7 @@ void RemoteLayerTreeDrawingArea::updateGeometry(const IntSize& viewSize, bool fl
     m_viewSize = viewSize;
     m_webPage.setSize(viewSize);
 
-    scheduleRenderingUpdate();
+    triggerRenderingUpdate();
 
     send(Messages::DrawingAreaProxy::DidUpdateGeometry());
 }
@@ -202,7 +202,7 @@ void RemoteLayerTreeDrawingArea::setLayerTreeStateIsFrozen(bool isFrozen)
 
     if (!m_isRenderingSuspended && m_hasDeferredRenderingUpdate) {
         m_hasDeferredRenderingUpdate = false;
-        scheduleImmediateRenderingUpdate();
+        startRenderingUpdateTimer();
     }
 }
 
@@ -258,7 +258,7 @@ void RemoteLayerTreeDrawingArea::setExposedContentRect(const FloatRect& exposedC
         return;
 
     frameView->setExposedContentRect(exposedContentRect);
-    scheduleRenderingUpdate();
+    triggerRenderingUpdate();
 }
 
 TiledBacking* RemoteLayerTreeDrawingArea::mainFrameTiledBacking() const
@@ -267,21 +267,21 @@ TiledBacking* RemoteLayerTreeDrawingArea::mainFrameTiledBacking() const
     return frameView ? frameView->tiledBacking() : nullptr;
 }
 
-void RemoteLayerTreeDrawingArea::scheduleImmediateRenderingUpdate()
+void RemoteLayerTreeDrawingArea::startRenderingUpdateTimer()
 {
+    if (m_updateRenderingTimer.isActive())
+        return;
     m_updateRenderingTimer.startOneShot(0_s);
 }
 
-void RemoteLayerTreeDrawingArea::scheduleRenderingUpdate()
+void RemoteLayerTreeDrawingArea::triggerRenderingUpdate()
 {
     if (m_isRenderingSuspended) {
         m_hasDeferredRenderingUpdate = true;
         return;
     }
 
-    if (m_updateRenderingTimer.isActive())
-        return;
-    scheduleImmediateRenderingUpdate();
+    startRenderingUpdateTimer();
 }
 
 void RemoteLayerTreeDrawingArea::addCommitHandlers()
@@ -425,7 +425,7 @@ void RemoteLayerTreeDrawingArea::didUpdate()
     m_waitingForBackingStoreSwap = false;
 
     if (m_deferredRenderingUpdateWhileWaitingForBackingStoreSwap) {
-        scheduleRenderingUpdate();
+        triggerRenderingUpdate();
         m_deferredRenderingUpdateWhileWaitingForBackingStoreSwap = false;
     }
 
@@ -484,7 +484,7 @@ void RemoteLayerTreeDrawingArea::activityStateDidChange(OptionSet<WebCore::Activ
     if (activityStateChangeID != ActivityStateChangeAsynchronous) {
         m_nextRenderingUpdateRequiresSynchronousImageDecoding = true;
         m_activityStateChangeID = activityStateChangeID;
-        scheduleImmediateRenderingUpdate();
+        startRenderingUpdateTimer();
     }
 
     // FIXME: We may want to match behavior in TiledCoreAnimationDrawingArea by firing these callbacks after the next compositing flush, rather than immediately after
@@ -500,7 +500,7 @@ void RemoteLayerTreeDrawingArea::addTransactionCallbackID(CallbackID callbackID)
     m_nextRenderingUpdateRequiresSynchronousImageDecoding = true;
 
     m_pendingCallbackIDs.append(static_cast<RemoteLayerTreeTransaction::TransactionCallbackID>(callbackID));
-    scheduleRenderingUpdate();
+    triggerRenderingUpdate();
 }
 
 void RemoteLayerTreeDrawingArea::adoptLayersFromDrawingArea(DrawingArea& oldDrawingArea)

@@ -753,18 +753,14 @@ TEST_F(WTF_URLParser, ParserDifferences)
     checkRelativeURLDifferences("http:/", "about:blank",
         {"", "", "", "", 0, "", "", "", "http:/"},
         {"http", "", "", "", 0, "/", "", "", "http:/"});
-    checkRelativeURLDifferences("http:", "about:blank",
-        {"http", "", "", "", 0, "", "", "", "http:"},
-        {"http", "", "", "", 0, "/", "", "", "http:/"});
+    checkRelativeURL("http:", "about:blank", {"", "", "", "", 0, "", "", "", "http:"});
     checkRelativeURLDifferences("http:/", "http://host",
         {"", "", "", "", 0, "", "", "", "http:/"},
         {"http", "", "", "", 0, "/", "", "", "http:/"});
     checkURLDifferences("http:/",
         {"", "", "", "", 0, "", "", "", "http:/"},
         {"http", "", "", "", 0, "/", "", "", "http:/"});
-    checkURLDifferences("http:",
-        {"http", "", "", "", 0, "", "", "", "http:"},
-        {"http", "", "", "", 0, "/", "", "", "http:/"});
+    checkURL("http:", {"", "", "", "", 0, "", "", "", "http:"});
     checkRelativeURLDifferences("http:/example.com/", "http://example.org/foo/bar",
         {"http", "", "", "example.org", 0, "/example.com/", "", "", "http://example.org/example.com/"},
         {"http", "", "", "example.com", 0, "/", "", "", "http://example.com/"});
@@ -1279,9 +1275,7 @@ TEST_F(WTF_URLParser, AdditionalTests)
     checkURL("notspecial:\t\t\n\t", {"notspecial", "", "", "", 0, "", "", "", "notspecial:"});
     checkURL("notspecial\t\t\n\t:\t\t\n\t/\t\t\n\t/\t\t\n\thost", {"notspecial", "", "", "host", 0, "", "", "", "notspecial://host"});
     checkRelativeURL("http:", "http://example.org/foo/bar?query#fragment", {"http", "", "", "example.org", 0, "/foo/bar", "query", "", "http://example.org/foo/bar?query"});
-    checkRelativeURLDifferences("ws:", "http://example.org/foo/bar",
-        {"ws", "", "", "", 0, "", "", "", "ws:"},
-        {"ws", "", "", "", 0, "s:", "", "", "ws:s:"});
+    checkRelativeURL("ws:", "http://example.org/foo/bar", {"", "", "", "", 0, "", "", "", "ws:"});
     checkRelativeURL("notspecial:", "http://example.org/foo/bar", {"notspecial", "", "", "", 0, "", "", "", "notspecial:"});
 
     const wchar_t surrogateBegin = 0xD800;
@@ -1309,8 +1303,6 @@ TEST_F(WTF_URLParser, AdditionalTests)
     checkURLDifferences(utf16String<13>({'h', 't', 't', 'p', ':', '/', '/', 'w', '/', '?', surrogateBegin, ' ', '\0'}),
         {"http", "", "", "w", 0, "/", "%EF%BF%BD", "", "http://w/?%EF%BF%BD"},
         {"http", "", "", "w", 0, "/", "%ED%A0%80", "", "http://w/?%ED%A0%80"});
-    
-    // FIXME: Write more invalid surrogate pair tests based on feedback from https://bugs.webkit.org/show_bug.cgi?id=162105
 }
 
 } // namespace TestWebKitAPI

@@ -104,7 +104,6 @@
 #include "WebContextMenuProxy.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebEditCommandProxy.h"
-#include "WebEvent.h"
 #include "WebEventConversion.h"
 #include "WebFramePolicyListenerProxy.h"
 #include "WebFullScreenManagerProxy.h"
@@ -112,6 +111,7 @@
 #include "WebImage.h"
 #include "WebInspectorProxy.h"
 #include "WebInspectorUtilities.h"
+#include "WebKeyboardEvent.h"
 #include "WebNavigationDataStore.h"
 #include "WebNavigationState.h"
 #include "WebNotificationManagerProxy.h"
@@ -206,13 +206,13 @@
 #include "RemoteLayerTreeDrawingAreaProxy.h"
 #include "RemoteLayerTreeScrollingPerformanceData.h"
 #include "UserMediaCaptureManagerProxy.h"
-#include "VersionChecks.h"
 #include "VideoFullscreenManagerProxy.h"
 #include "VideoFullscreenManagerProxyMessages.h"
 #include <WebCore/AttributedString.h>
 #include <WebCore/RunLoopObserver.h>
 #include <WebCore/SystemBattery.h>
 #include <WebCore/TextIndicatorWindow.h>
+#include <WebCore/VersionChecks.h>
 #include <wtf/MachSendRight.h>
 #include <wtf/cocoa/Entitlements.h>
 #endif
@@ -242,12 +242,6 @@
 #if ENABLE(WIRELESS_PLAYBACK_TARGET) && !PLATFORM(IOS_FAMILY)
 #include <WebCore/MediaPlaybackTarget.h>
 #include <WebCore/WebMediaSessionManager.h>
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-#include "WebMediaSessionFocusManager.h"
-#include "WebMediaSessionMetadata.h"
-#include <WebCore/MediaSessionMetadata.h>
 #endif
 
 #if PLATFORM(IOS_FAMILY) || (PLATFORM(MAC) && ENABLE(VIDEO_PRESENTATION_MODE))
@@ -1254,7 +1248,7 @@ void WebPageProxy::maybeInitializeSandboxExtensionHandle(WebProcessProxy& proces
     }
 
 #if PLATFORM(COCOA)
-    if (!linkedOnOrAfter(SDKVersion::FirstWithoutUnconditionalUniversalSandboxExtension))
+    if (!linkedOnOrAfter(WebCore::SDKVersion::FirstWithoutUnconditionalUniversalSandboxExtension))
         willAcquireUniversalFileReadSandboxExtension(process);
 #endif
 
@@ -3322,7 +3316,7 @@ void WebPageProxy::receivedNavigationPolicyDecision(PolicyAction policyAction, A
 void WebPageProxy::receivedPolicyDecision(PolicyAction action, API::Navigation* navigation, RefPtr<API::WebsitePolicies>&& websitePolicies, Ref<PolicyDecisionSender>&& sender, Optional<SandboxExtension::Handle> sandboxExtensionHandle, WillContinueLoadInNewProcess willContinueLoadInNewProcess)
 {
     if (!hasRunningProcess()) {
-        sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Ignore, 0, DownloadID(), WTF::nullopt });
+        sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Ignore, 0, WTF::nullopt, WTF::nullopt });
         return;
     }
 
@@ -3331,7 +3325,7 @@ void WebPageProxy::receivedPolicyDecision(PolicyAction action, API::Navigation* 
     if (action == PolicyAction::Ignore && willContinueLoadInNewProcess == WillContinueLoadInNewProcess::No && navigation && navigation->navigationID() == m_pageLoadState.pendingAPIRequest().navigationID)
         m_pageLoadState.clearPendingAPIRequest(transaction);
 
-    DownloadID downloadID = { };
+    Optional<DownloadID> downloadID;
     if (action == PolicyAction::Download) {
         // Create a download proxy.
         auto& download = m_process->processPool().createDownloadProxy(m_websiteDataStore, m_decidePolicyForResponseRequest, this, navigation ? navigation->originatingFrameInfo() : FrameInfoData { });
@@ -5131,7 +5125,7 @@ void WebPageProxy::decidePolicyForNavigationAction(Ref<WebProcessProxy>&& proces
 
     if (!checkURLReceivedFromCurrentOrPreviousWebProcess(process, request.url())) {
         RELEASE_LOG_ERROR_IF_ALLOWED(Process, "Ignoring request to load this main resource because it is outside the sandbox");
-        sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Ignore, 0, DownloadID(), WTF::nullopt });
+        sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Ignore, 0, WTF::nullopt, WTF::nullopt });
         return;
     }
 
@@ -5389,7 +5383,7 @@ void WebPageProxy::decidePolicyForNavigationActionSyncShared(Ref<WebProcessProxy
     decidePolicyForNavigationAction(WTFMove(process), *frame, WTFMove(frameInfo), navigationID, WTFMove(navigationActionData), WTFMove(originatingFrameInfo), originatingPageID, originalRequest, WTFMove(request), WTFMove(requestBody), WTFMove(redirectResponse), userData, sender.copyRef());
 
     // If the client did not respond synchronously, proceed with the load.
-    sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Use, navigationID, DownloadID(), WTF::nullopt });
+    sender->send(PolicyDecision { sender->identifier(), isNavigatingToAppBoundDomain(), PolicyAction::Use, navigationID, WTF::nullopt, WTF::nullopt });
 }
 
 void WebPageProxy::decidePolicyForNewWindowAction(FrameIdentifier frameID, FrameInfoData&& frameInfo, PolicyCheckIdentifier identifier, NavigationActionData&& navigationActionData, ResourceRequest&& request, const String& frameName, uint64_t listenerID, const UserData& userData)
@@ -6032,6 +6026,7 @@ void WebPageProxy::stopAllMediaPlayback()
 
 void WebPageProxy::suspendAllMediaPlayback()
 {
+    m_suspendMediaPlaybackCounter++;
     if (m_mediaPlaybackIsSuspended)
         return;
     m_mediaPlaybackIsSuspended = true;
@@ -6044,7 +6039,10 @@ void WebPageProxy::suspendAllMediaPlayback()
 
 void WebPageProxy::resumeAllMediaPlayback()
 {
-    if (!m_mediaPlaybackIsSuspended)
+    if (m_suspendMediaPlaybackCounter > 0)
+        m_suspendMediaPlaybackCounter--;
+
+    if (!m_mediaPlaybackIsSuspended || m_suspendMediaPlaybackCounter)
         return;
     m_mediaPlaybackIsSuspended = false;
 
@@ -6053,24 +6051,6 @@ void WebPageProxy::resumeAllMediaPlayback()
 
     send(Messages::WebPage::ResumeAllMediaPlayback());
 }
-
-#if ENABLE(MEDIA_SESSION)
-void WebPageProxy::handleMediaEvent(MediaEventType eventType)
-{
-    if (!hasRunningProcess())
-        return;
-    
-    send(Messages::WebPage::HandleMediaEvent(eventType));
-}
-
-void WebPageProxy::setVolumeOfMediaElement(double volume, uint64_t elementID)
-{
-    if (!hasRunningProcess())
-        return;
-
-    send(Messages::WebPage::SetVolumeOfMediaElement(volume, elementID));
-}
-#endif
 
 void WebPageProxy::setMayStartMediaWhenInWindow(bool mayStartMedia)
 {
@@ -8976,12 +8956,6 @@ void WebPageProxy::navigationGestureSnapshotWasRemoved()
 
 void WebPageProxy::isPlayingMediaDidChange(MediaProducer::MediaStateFlags newState, uint64_t sourceElementID)
 {
-#if ENABLE(MEDIA_SESSION)
-    WebMediaSessionFocusManager* focusManager = process().processPool().supplement<WebMediaSessionFocusManager>();
-    ASSERT(focusManager);
-    focusManager->updatePlaybackAttributesFromMediaState(this, sourceElementID, newState);
-#endif
-
 #if PLATFORM(IOS_FAMILY)
     if (!m_process->throttler().shouldBeRunnable())
         return;
@@ -9127,26 +9101,6 @@ void WebPageProxy::nowPlayingInfoCallback(bool hasActiveSession, bool registered
     }
 
     callback->performCallbackWithReturnValue(hasActiveSession, registeredAsNowPlayingApplication, title, duration, elapsedTime, uniqueIdentifier);
-}
-#endif
-
-#if ENABLE(MEDIA_SESSION)
-void WebPageProxy::hasMediaSessionWithActiveMediaElementsDidChange(bool state)
-{
-    m_hasMediaSessionWithActiveMediaElements = state;
-}
-
-void WebPageProxy::mediaSessionMetadataDidChange(const WebCore::MediaSessionMetadata& metadata)
-{
-    Ref<WebMediaSessionMetadata> webMetadata = WebMediaSessionMetadata::create(metadata);
-    m_uiClient->mediaSessionMetadataDidChange(*this, webMetadata.ptr());
-}
-
-void WebPageProxy::focusedContentMediaElementDidChange(uint64_t elementID)
-{
-    WebMediaSessionFocusManager* focusManager = process().processPool().supplement<WebMediaSessionFocusManager>();
-    ASSERT(focusManager);
-    focusManager->setFocusedMediaElement(*this, elementID);
 }
 #endif
 

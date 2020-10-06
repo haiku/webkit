@@ -123,9 +123,6 @@ static OptionSet<AvoidanceReason> canUseForText(const CharacterType* text, unsig
         if (FontCascade::treatAsSpace(character))
             continue;
 
-        if (character == softHyphen)
-            SET_REASON_AND_RETURN_IF_NEEDED(FlowTextHasSoftHyphen, reasons, includeReasons);
-
         auto characterReasons = canUseForCharacter(character, textIsJustified, includeReasons);
         if (characterReasons)
             ADD_REASONS_AND_RETURN_IF_NEEDED(characterReasons, reasons, includeReasons);
@@ -180,7 +177,7 @@ static OptionSet<AvoidanceReason> canUseForFontAndText(const RenderBlockFlow& fl
             // No need to check the code path at this point. We already know it can't be simple.
             SET_REASON_AND_RETURN_IF_NEEDED(FlowHasComplexFontCodePath, reasons, includeReasons);
         } else {
-            TextRun run(String(textRenderer.text()));
+            WebCore::TextRun run(String(textRenderer.text()));
             run.setCharacterScanForCodePath(false);
             if (style.fontCascade().codePath(run) != FontCascade::Simple)
                 SET_REASON_AND_RETURN_IF_NEEDED(FlowHasComplexFontCodePath, reasons, includeReasons);
@@ -322,20 +319,12 @@ OptionSet<AvoidanceReason> canUseForLineLayoutWithReason(const RenderBlockFlow& 
         ADD_REASONS_AND_RETURN_IF_NEEDED(styleReasons, reasons, includeReasons);
     // We can't use the code path if any lines would need to be shifted below floats. This is because we don't keep per-line y coordinates.
     if (flow.containsFloats()) {
-        float minimumWidthNeeded = std::numeric_limits<float>::max();
-        for (const auto& textRenderer : childrenOfType<RenderText>(flow)) {
-            minimumWidthNeeded = std::min(minimumWidthNeeded, textRenderer.minLogicalWidth());
-
-            for (auto& floatingObject : *flow.floatingObjectSet()) {
-                ASSERT(floatingObject);
-                // if a float has a shape, we cannot tell if content will need to be shifted until after we lay it out,
-                // since the amount of space is not uniform for the height of the float.
-                if (floatingObject->renderer().shapeOutsideInfo())
-                    SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedFloat, reasons, includeReasons);
-                float availableWidth = flow.availableLogicalWidthForLine(floatingObject->y(), DoNotIndentText);
-                if (availableWidth < minimumWidthNeeded)
-                    SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedFloat, reasons, includeReasons);
-            }
+        for (auto& floatingObject : *flow.floatingObjectSet()) {
+            ASSERT(floatingObject);
+            // if a float has a shape, we cannot tell if content will need to be shifted until after we lay it out,
+            // since the amount of space is not uniform for the height of the float.
+            if (floatingObject->renderer().shapeOutsideInfo())
+                SET_REASON_AND_RETURN_IF_NEEDED(FlowHasUnsupportedFloat, reasons, includeReasons);
         }
     }
     auto fontAndTextReasons = canUseForFontAndText(flow, includeReasons);

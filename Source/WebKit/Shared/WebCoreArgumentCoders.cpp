@@ -109,10 +109,6 @@
 #include <WebCore/MediaPlaybackTargetContext.h>
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include <WebCore/MediaSessionMetadata.h>
-#endif
-
 #if ENABLE(MEDIA_STREAM)
 #include <WebCore/CaptureDevice.h>
 #include <WebCore/MediaConstraints.h>
@@ -1182,56 +1178,42 @@ bool ArgumentCoder<NativeImageHandle>::decode(Decoder& decoder, NativeImageHandl
 
 void ArgumentCoder<Ref<Font>>::encode(Encoder& encoder, const Ref<WebCore::Font>& font)
 {
-    auto* fontFaceData = font->fontFaceData();
-    encoder << static_cast<bool>(fontFaceData);
-    if (fontFaceData) {
-        encodeSharedBuffer(encoder, fontFaceData);
-        auto& data = font->platformData();
-        encoder << data.size();
-        encoder << data.syntheticBold();
-        encoder << data.syntheticOblique();
-    }
+    encoder << font->origin();
+    encoder << (font->isInterstitial() ? Font::Interstitial::Yes : Font::Interstitial::No);
+    encoder << font->visibility();
+    encoder << (font->isTextOrientationFallback() ? Font::OrientationFallback::Yes : Font::OrientationFallback::No);
+    // Intentionally don't encode m_isBrokenIdeographFallback because it doesn't affect drawGlyphs().
 
     encodePlatformData(encoder, font);
 }
 
 Optional<Ref<Font>> ArgumentCoder<Ref<Font>>::decode(Decoder& decoder)
 {
-    Optional<bool> hasFontFaceData;
-    decoder >> hasFontFaceData;
-    if (!hasFontFaceData.hasValue())
+    Optional<Font::Origin> origin;
+    decoder >> origin;
+    if (!origin.hasValue())
         return WTF::nullopt;
 
-    Optional<Ref<WebCore::Font>> result;
-    if (hasFontFaceData.value()) {
-        RefPtr<SharedBuffer> fontFaceData;
-        if (!decodeSharedBuffer(decoder, fontFaceData))
-            return WTF::nullopt;
+    Optional<Font::Interstitial> isInterstitial;
+    decoder >> isInterstitial;
+    if (!isInterstitial.hasValue())
+        return WTF::nullopt;
 
-        if (!fontFaceData)
-            return WTF::nullopt;
+    Optional<Font::Visibility> visibility;
+    decoder >> visibility;
+    if (!visibility.hasValue())
+        return WTF::nullopt;
 
-        Optional<float> fontSize;
-        decoder >> fontSize;
-        if (!fontSize)
-            return WTF::nullopt;
+    Optional<Font::OrientationFallback> isTextOrientationFallback;
+    decoder >> isTextOrientationFallback;
+    if (!isTextOrientationFallback.hasValue())
+        return WTF::nullopt;
 
-        Optional<bool> syntheticBold;
-        decoder >> syntheticBold;
-        if (!syntheticBold)
-            return WTF::nullopt;
+    auto platformData = decodePlatformData(decoder);
+    if (!platformData.hasValue())
+        return WTF::nullopt;
 
-        Optional<bool> syntheticItalic;
-        decoder >> syntheticItalic;
-        if (!syntheticItalic)
-            return WTF::nullopt;
-
-        FontDescription description;
-        description.setComputedSize(*fontSize);
-        result = Font::create(fontFaceData.releaseNonNull(), Font::Origin::Remote, *fontSize, *syntheticBold, *syntheticItalic);
-    }
-
-    return decodePlatformData(decoder, WTFMove(result));
+    return Font::create(platformData.value(), origin.value(), isInterstitial.value(), visibility.value(), isTextOrientationFallback.value());
 }
 
 void ArgumentCoder<Cursor>::encode(Encoder& encoder, const Cursor& cursor)
@@ -2105,32 +2087,6 @@ bool ArgumentCoder<UserStyleSheet>::decode(Decoder& decoder, UserStyleSheet& use
     userStyleSheet = UserStyleSheet(source, url, WTFMove(allowlist), WTFMove(blocklist), injectedFrames, level, WTFMove(*pageID));
     return true;
 }
-
-#if ENABLE(MEDIA_SESSION)
-void ArgumentCoder<MediaSessionMetadata>::encode(Encoder& encoder, const MediaSessionMetadata& result)
-{
-    encoder << result.artist();
-    encoder << result.album();
-    encoder << result.title();
-    encoder << result.artworkURL();
-}
-
-bool ArgumentCoder<MediaSessionMetadata>::decode(Decoder& decoder, MediaSessionMetadata& result)
-{
-    String artist, album, title;
-    URL artworkURL;
-    if (!decoder.decode(artist))
-        return false;
-    if (!decoder.decode(album))
-        return false;
-    if (!decoder.decode(title))
-        return false;
-    if (!decoder.decode(artworkURL))
-        return false;
-    result = MediaSessionMetadata(title, artist, album, artworkURL);
-    return true;
-}
-#endif
 
 void ArgumentCoder<ScrollableAreaParameters>::encode(Encoder& encoder, const ScrollableAreaParameters& parameters)
 {

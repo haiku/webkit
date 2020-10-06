@@ -71,18 +71,18 @@ void RenderingUpdateScheduler::adjustRenderingUpdateFrequency()
 
     if (isScheduled()) {
         clearScheduled();
-        scheduleTimedRenderingUpdate();
+        scheduleRenderingUpdate();
     }
 }
 
-void RenderingUpdateScheduler::scheduleTimedRenderingUpdate()
+void RenderingUpdateScheduler::scheduleRenderingUpdate()
 {
     if (isScheduled())
         return;
 
     // Optimize the case when an invisible page wants just to schedule layer flush.
     if (!m_page.isVisible()) {
-        scheduleImmediateRenderingUpdate();
+        triggerRenderingUpdate();
         return;
     }
 
@@ -136,20 +136,17 @@ void RenderingUpdateScheduler::displayRefreshFired()
     tracePoint(TriggerRenderingUpdate);
 
     clearScheduled();
-    scheduleImmediateRenderingUpdate();
+    triggerRenderingUpdate();
 }
 
-void RenderingUpdateScheduler::scheduleImmediateRenderingUpdate()
+void RenderingUpdateScheduler::triggerRenderingUpdateForTesting()
 {
-    m_page.chrome().client().scheduleRenderingUpdate();
+    triggerRenderingUpdate();
 }
 
-void RenderingUpdateScheduler::scheduleRenderingUpdate()
+void RenderingUpdateScheduler::triggerRenderingUpdate()
 {
-    if (m_page.chrome().client().needsImmediateRenderingUpdate())
-        scheduleImmediateRenderingUpdate();
-    else
-        scheduleTimedRenderingUpdate();
+    m_page.chrome().client().triggerRenderingUpdate();
 }
 
 }

@@ -47,8 +47,6 @@ constexpr unsigned MaxPeriodicWaveSize = 16384;
 constexpr float CentsPerRange = 1200 / NumberOfOctaveBands;
 
 namespace WebCore {
-    
-using namespace VectorMath;
 
 Ref<PeriodicWave> PeriodicWave::create(float sampleRate, Float32Array& real, Float32Array& imaginary)
 {
@@ -190,7 +188,6 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
 
     unsigned fftSize = periodicWaveSize();
     unsigned halfSize = fftSize / 2;
-    unsigned i;
     
     numberOfComponents = std::min(numberOfComponents, halfSize);
 
@@ -203,10 +200,8 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
         float* imagP = frame.imagData();
 
         // Copy from loaded frequency data and scale.
-        float scale = fftSize;
-        vsmul(realData, 1, &scale, realP, 1, numberOfComponents);
-        scale = -scale;
-        vsmul(imagData, 1, &scale, imagP, 1, numberOfComponents);
+        VectorMath::multiplyByScalar(realData, fftSize, realP, numberOfComponents);
+        VectorMath::multiplyByScalar(imagData, -static_cast<float>(fftSize), imagP, numberOfComponents);
 
         // Find the starting bin where we should start culling.
         // We need to clear out the highest frequencies to band-limit the waveform.
@@ -215,9 +210,11 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
         // If fewer components were provided than 1/2 FFT size, then clear the
         // remaining bins. We also need to cull the aliasing partials for this
         // pitch range.
-        for (i = std::min(numberOfComponents, numberOfPartials + 1); i < halfSize; ++i) {
-            realP[i] = 0;
-            imagP[i] = 0;
+        unsigned clampedNumberOfComponents = std::min(numberOfComponents, numberOfPartials + 1);
+        if (clampedNumberOfComponents < halfSize) {
+            size_t numBytes = (halfSize - clampedNumberOfComponents) * sizeof(float);
+            memset(&realP[clampedNumberOfComponents], 0, numBytes);
+            memset(&imagP[clampedNumberOfComponents], 0, numBytes);
         }
 
         // Clear packed-nyquist and any DC-offset.
@@ -235,8 +232,7 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
         // For the first range (which has the highest power), calculate its peak value then compute normalization scale.
         if (disableNormalization == ShouldDisableNormalization::No) {
             if (!rangeIndex) {
-                float maxValue;
-                vmaxmgv(data, 1, &maxValue, fftSize);
+                float maxValue = VectorMath::maximumMagnitude(data, fftSize);
 
                 if (maxValue)
                     normalizationScale = 1.0f / maxValue;
@@ -244,7 +240,7 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
         }
 
         // Apply normalization scale.
-        vsmul(data, 1, &normalizationScale, data, 1, fftSize);
+        VectorMath::multiplyByScalar(data, normalizationScale, data, fftSize);
     }
 }
 

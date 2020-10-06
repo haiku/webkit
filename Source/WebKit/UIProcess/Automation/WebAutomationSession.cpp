@@ -203,6 +203,13 @@ String WebAutomationSession::handleForWebPageProxy(const WebPageProxy& webPagePr
     return handle;
 }
 
+void WebAutomationSession::didDestroyFrame(FrameIdentifier frameID)
+{
+    auto handle = m_webFrameHandleMap.take(frameID);
+    if (!handle.isEmpty())
+        m_handleWebFrameMap.remove(handle);
+}
+
 Optional<FrameIdentifier> WebAutomationSession::webFrameIDForHandle(const String& handle, bool& frameNotFound)
 {
     if (handle.isEmpty())
@@ -738,9 +745,19 @@ void WebAutomationSession::reloadBrowsingContext(const Inspector::Protocol::Auto
 void WebAutomationSession::navigationOccurredForFrame(const WebFrameProxy& frame)
 {
     if (frame.isMainFrame()) {
-        // New page loaded, clear frame handles previously cached.
-        m_handleWebFrameMap.clear();
-        m_webFrameHandleMap.clear();
+        // New page loaded, clear frame handles previously cached for frame's page.
+        HashSet<String> handlesToRemove;
+        for (const auto& iter : m_handleWebFrameMap) {
+            auto* webFrame = frame.page()->process().webFrame(iter.value);
+            if (webFrame && webFrame->page() == frame.page()) {
+                handlesToRemove.add(iter.key);
+                m_webFrameHandleMap.remove(iter.value);
+            }
+        }
+        m_handleWebFrameMap.removeIf([&](auto& iter) {
+            return handlesToRemove.contains(iter.key);
+        });
+
         if (auto callback = m_pendingNormalNavigationInBrowsingContextCallbacksPerPage.take(frame.page()->identifier())) {
             m_loadTimer.stop();
             callback->sendSuccess(JSON::Object::create());
@@ -1262,6 +1279,32 @@ void WebAutomationSession::setFilesForInputFileUpload(const Inspector::Protocol:
     page->process().sendWithAsyncReply(Messages::WebAutomationSessionProxy::SetFilesForInputFileUpload(page->webPageID(), frameID, nodeHandle, WTFMove(newFileList)), WTFMove(completionHandler));
 }
 
+static inline Inspector::Protocol::Automation::CookieSameSitePolicy toProtocolSameSitePolicy(WebCore::Cookie::SameSitePolicy policy)
+{
+    switch (policy) {
+    case WebCore::Cookie::SameSitePolicy::None:
+        return Inspector::Protocol::Automation::CookieSameSitePolicy::None;
+    case WebCore::Cookie::SameSitePolicy::Lax:
+        return Inspector::Protocol::Automation::CookieSameSitePolicy::Lax;
+    case WebCore::Cookie::SameSitePolicy::Strict:
+        return Inspector::Protocol::Automation::CookieSameSitePolicy::Strict;
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+static inline WebCore::Cookie::SameSitePolicy toWebCoreSameSitePolicy(Inspector::Protocol::Automation::CookieSameSitePolicy policy)
+{
+    switch (policy) {
+    case Inspector::Protocol::Automation::CookieSameSitePolicy::None:
+        return WebCore::Cookie::SameSitePolicy::None;
+    case Inspector::Protocol::Automation::CookieSameSitePolicy::Lax:
+        return WebCore::Cookie::SameSitePolicy::Lax;
+    case Inspector::Protocol::Automation::CookieSameSitePolicy::Strict:
+        return WebCore::Cookie::SameSitePolicy::Strict;
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
 static Ref<Inspector::Protocol::Automation::Cookie> buildObjectForCookie(const WebCore::Cookie& cookie)
 {
     return Inspector::Protocol::Automation::Cookie::create()
@@ -1274,6 +1317,7 @@ static Ref<Inspector::Protocol::Automation::Cookie> buildObjectForCookie(const W
         .setHttpOnly(cookie.httpOnly)
         .setSecure(cookie.secure)
         .setSession(cookie.session)
+        .setSameSite(toProtocolSameSitePolicy(cookie.sameSite))
         .release();
 }
 
@@ -1391,6 +1435,16 @@ void WebAutomationSession::addSingleCookie(const Inspector::Protocol::Automation
         ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(MissingParameter, "The parameter 'httpOnly' was not found.");
 
     cookie.httpOnly = *httpOnly;
+
+    auto sameSite = cookieObject->getString("sameSite"_s);
+    if (!sameSite)
+        ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(MissingParameter, "The parameter 'sameSite' was not found.");
+
+    auto parsedSameSite = Inspector::Protocol::AutomationHelpers::parseEnumValueFromString<Inspector::Protocol::Automation::CookieSameSitePolicy>(sameSite);
+    if (!parsedSameSite)
+        ASYNC_FAIL_WITH_PREDEFINED_ERROR_AND_DETAILS(InvalidParameter, "The parameter 'sameSite' has an unknown value.");
+
+    cookie.sameSite = toWebCoreSameSitePolicy(*parsedSameSite);
 
     WebCookieManagerProxy& cookieManager = page->websiteDataStore().networkProcess().cookieManager();
     cookieManager.setCookies(page->websiteDataStore().sessionID(), { cookie }, [callback]() {

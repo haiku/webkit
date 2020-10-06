@@ -154,10 +154,6 @@
 #include "ServicesOverlayController.h"
 #endif
 
-#if ENABLE(MEDIA_SESSION)
-#include "MediaSessionManager.h"
-#endif
-
 #if ENABLE(INDEXED_DATABASE)
 #include "IDBConnectionToServer.h"
 #endif
@@ -600,7 +596,7 @@ void Page::updateStyleAfterChangeInEnvironment()
             styleResolver->invalidateMatchedDeclarationsCache();
         document.scheduleFullStyleRebuild();
         document.styleScope().didChangeStyleSheetEnvironment();
-        document.scheduleTimedRenderingUpdate();
+        document.scheduleRenderingUpdate();
     });
 }
 
@@ -1412,19 +1408,14 @@ void Page::layoutIfNeeded()
 
 void Page::scheduleRenderingUpdate()
 {
+    if (chrome().client().scheduleRenderingUpdate())
+        return;
     renderingUpdateScheduler().scheduleRenderingUpdate();
 }
 
-void Page::scheduleTimedRenderingUpdate()
+void Page::triggerRenderingUpdateForTesting()
 {
-    if (chrome().client().scheduleTimedRenderingUpdate())
-        return;
-    renderingUpdateScheduler().scheduleTimedRenderingUpdate();
-}
-
-void Page::scheduleImmediateRenderingUpdate()
-{
-    renderingUpdateScheduler().scheduleImmediateRenderingUpdate();
+    renderingUpdateScheduler().triggerRenderingUpdateForTesting();
 }
 
 void Page::startTrackingRenderingUpdates()
@@ -2096,31 +2087,6 @@ void Page::resumeAllMediaBuffering()
     });
 #endif
 }
-
-#if ENABLE(MEDIA_SESSION)
-
-void Page::handleMediaEvent(MediaEventType eventType)
-{
-    switch (eventType) {
-    case MediaEventType::PlayPause:
-        MediaSessionManager::singleton().togglePlayback();
-        break;
-    case MediaEventType::TrackNext:
-        MediaSessionManager::singleton().skipToNextTrack();
-        break;
-    case MediaEventType::TrackPrevious:
-        MediaSessionManager::singleton().skipToPreviousTrack();
-        break;
-    }
-}
-
-void Page::setVolumeOfMediaElement(double volume, uint64_t elementID)
-{
-    if (HTMLMediaElement* element = HTMLMediaElement::elementWithID(elementID))
-        element->setVolume(volume, ASSERT_NO_EXCEPTION);
-}
-
-#endif
 
 unsigned Page::subframeCount() const
 {
@@ -2960,7 +2926,7 @@ void Page::accessibilitySettingsDidChange()
     forEachDocument([] (auto& document) {
         document.styleScope().evaluateMediaQueriesForAccessibilitySettingsChange();
         document.updateElementsAffectedByMediaQueries();
-        document.scheduleTimedRenderingUpdate();
+        document.scheduleRenderingUpdate();
     });
 }
 
@@ -2970,7 +2936,7 @@ void Page::appearanceDidChange()
         document.styleScope().didChangeStyleSheetEnvironment();
         document.styleScope().evaluateMediaQueriesForAppearanceChange();
         document.updateElementsAffectedByMediaQueries();
-        document.scheduleTimedRenderingUpdate();
+        document.scheduleRenderingUpdate();
     });
 }
 

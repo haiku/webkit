@@ -1,3 +1,789 @@
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Skip LFC tests.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-10-06  Alex Christensen  <achristensen@webkit.org>
+
+        Align URL setters with reasonably behaving other browsers
+        https://bugs.webkit.org/show_bug.cgi?id=217366
+
+        Reviewed by Youenn Fablet.
+
+        * fast/dom/DOMURL/set-href-attribute-host-expected.txt:
+        * fast/dom/DOMURL/set-href-attribute-host.html:
+        * fast/dom/HTMLAnchorElement/set-href-attribute-host-expected.txt:
+        * fast/dom/HTMLAnchorElement/set-href-attribute-host.html:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Remove tests passing.
+
+        * platform/glib/TestExpectations:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK] Unreviewed test gardening. Remove tests passing.
+
+        * platform/gtk/TestExpectations:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [WPE] Unreviewed test gardening. Remove test passing.
+
+        * platform/wpe/TestExpectations:
+
+2020-10-06  Rob Buis  <rbuis@igalia.com>
+
+        Make value parameter in Document.execCommand non nullable
+        https://bugs.webkit.org/show_bug.cgi?id=217331
+
+        Reviewed by Sam Weinig.
+
+        Adapt test to change.
+
+        * editing/execCommand/arguments-combinations-expected.txt:
+        * editing/execCommand/arguments-combinations.html:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [WPE] Unreviewed test gardening. Update test expectations after r268038.
+
+        * platform/wpe/TestExpectations:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GTK][WPE] Update baseline of WPT test css/cssom/cssstyledeclaration-csstext.html after r267985
+
+        Unreviewed test gardening.
+
+        * platform/gtk/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Update two webaudio tests baselines after r268006
+
+        Unreviewed test gardening.
+
+        * platform/glib/webaudio/Analyser/realtimeanalyser-fftsize-reset-expected.txt: Updated.
+        * platform/glib/webaudio/Analyser/realtimeanalyser-freq-data-expected.txt: Removed.
+
+2020-10-06  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Move two common cache tests to GLIB test expectations.
+
+        Unreviewed test gardening.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-10-05  Peng Liu  <peng.liu6@apple.com>
+
+        [Media in GPU Process] Enable some fullscreen and picture-in-picture tests
+        https://bugs.webkit.org/show_bug.cgi?id=217360
+
+        Unreviewed test gardening.
+
+        * gpu-process/TestExpectations:
+        * media/navigate-with-pip-should-not-crash.html:
+        * media/pip-video-going-into-fullscreen.html:
+
+2020-10-05  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Gardening some flaky crashes related to NetworkProcess
+
+        Unreviewed test gardening.
+
+        * platform/gtk-wayland/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-10-05  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): http/wpt/cache-storage/cache-quota-after-restart.any.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217357
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-05  Hector Lopez  <hector_i_lopez@apple.com>
+
+        Adjust test expectation for timeouts
+        https://bugs.webkit.org/show_bug.cgi?id=215324
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-05  Chris Dumez  <cdumez@apple.com>
+
+        [Cocoa] Vectorize linear to decibels conversion in RealtimeAnalyser
+        https://bugs.webkit.org/show_bug.cgi?id=217322
+
+        Reviewed by Darin Adler.
+
+        Slightly increase the error threshold in a few WebAudio tests because the vectorization
+        output for linear to decibels conversion is not quite identical to our previous output
+        (although very close).
+
+        * webaudio/Analyser/realtimeanalyser-downmix-expected.txt:
+        * webaudio/Analyser/realtimeanalyser-downmix.html:
+        * webaudio/Analyser/realtimeanalyser-fftsize-reset-expected.txt:
+        * webaudio/Analyser/realtimeanalyser-fftsize-reset.html:
+        * webaudio/Analyser/realtimeanalyser-freq-data-expected.txt:
+        * webaudio/Analyser/realtimeanalyser-freq-data.html:
+
+2020-10-05  Peng Liu  <peng.liu6@apple.com>
+
+        Update TestExpectations for layout tests related to GPU process features
+        https://bugs.webkit.org/show_bug.cgi?id=217326
+
+        Unreviewed test gardening.
+
+        * gpu-process/TestExpectations:
+
+2020-10-05  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        REGRESSION(r267763) [SOUP] Some tests flaky crashing in NetworkSessionSoup::soupSession()
+        https://bugs.webkit.org/show_bug.cgi?id=217163
+
+        Reviewed by Alex Christensen.
+
+        Remove expectations for tests that should pass now.
+
+        * platform/glib/TestExpectations:
+
+2020-10-04  Darin Adler  <darin@apple.com>
+
+        Selection API: Fix more editing tests that rely on non-standard selection API behavior
+        https://bugs.webkit.org/show_bug.cgi?id=217301
+
+        Reviewed by Sam Weinig.
+
+        These changes do not change what the tests are testing. They remove
+        dependencies in these tests on "canonicalization" of selection points.
+        This is often always a change to the setup for the test, not the test substance.
+
+        In other cases, tests that are not trying to test selection are leaving unimportant
+        remnants of the selection in their results: clear the selection for those.
+
+        Patch also includes a few other expectations fixes so all the tests in the editing
+        directory pass for me on my development machine.
+
+        * editing/pasteboard/copy-null-characters-expected.txt: Remove expected selection.
+        * editing/pasteboard/copy-null-characters.html: Clear the selection after one part
+        of this test so the markup dump doesn't contain selection endpoints.
+
+        * editing/pasteboard/paste-noscript-xhtml-expected.txt: Remove expected selection.
+        * editing/pasteboard/paste-noscript-xhtml.xhtml: Clear the selection at two points
+        in this test so the markup dump doesn't contain selection endpoints.
+
+        * editing/selection/extend-by-sentence-002.html: Check the selected string rather
+        than checking the DOM node and offset of the selection. Keeps the substance of this
+        test without depending on the selection object selecting differently than what we
+        tell it to do.
+
+        * editing/selection/extend-selection-enclosing-block-mac.html: Set the position
+        at the start of a text node instead of before the text node.
+        * editing/selection/extend-selection-enclosing-block-win.html: Ditto.
+
+        * editing/selection/home-end.html: Added a setPositionAfterLeadingWhitespace
+        function and use it to set the position at the point the test results are
+        expecting. Before this change, the code relied on the Selection API to adjust the
+        selection to the first non-whitespace character, even though that is both non-standard
+        and not what we are testing. Doing this lets us keep the expected test results the same.
+
+        * editing/selection/move-by-word-visually-multi-line-expected.txt: Updated to
+        expect moving across the word, even the one that was preceded by a collapsed newline.
+        * editing/selection/move-by-word-visually-multi-line.html: Ditto.
+
+        * editing/selection/resources/extend-selection.js:
+        (setPositionAfterLeadingWhitespace): Added.
+        (runSelectionTestsWithGranularity): Use setPositionAfterLeadingWhitespace here
+        for the same purpose as in home-end.html above, to preserve the existing tests
+        without relying on non-standard Selection API behavior.
+
+        * editing/selection/resources/move-by-word-visually.js:
+        (setPositionAfterCollapsedLeadingWhitespace): Added.
+        (moveByWordForEveryPosition): Same as above, use the function.
+
+        * editing/selection/setBaseAndExtent-revert-selection.html: Fix the output function
+        to properly write out the node ID when the node is a text node within the node with
+        the ID. Before, the test could fail if the anchor node returned the text node we
+        passed in, but that relies on non-standard Selection API changes to the passed-in node.
+
+        * editing/selection/toString-1.html: Write out the unexpected result when the test
+        fails. It's not failing, but at one point it was, and this made it easier to diagnose.
+
+        * editing/undo/undo-after-event-edited.html: Use the Delete command to do a deletion
+        that we later undo. The old code was using the Selection API extractContents method,
+        which is not an undoable editing operation.
+
+        * platform/gtk/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        * platform/ios/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        * platform/mac-bigsur-wk1/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        * platform/mac-bigsur/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        * platform/win/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        * platform/wincairo/editing/pasteboard/drop-text-without-selection-expected.txt: Removed.
+        These unused files were incorrectly left behind when we converted this into a reftest.
+
+        * platform/mac-wk1/TestExpectations: Changed retro-correction-spelling-markers.html
+        to "[ Pass Failure ]" since it's a flaky test, not a reliable failure.
+
+        * platform/mac/TestExpectations: Changed some flakiness expectations that were marked
+        Release-only to be in effect in Debug builds too. For autocorrection-contraction.html,
+        expect a timeout on BigSur+ Debug. Not sure exactly what is causing it, but it's happening
+        both locally for me and on the bots.
+
+        * platform/wk2/TestExpectations: Expect a timeout in Debug builds for two tests that are
+        timing out both for me and on the Modern WebKit Debug bots, but not Legacy WebKit and not
+        Release bots.
+
+2020-10-05  Rob Buis  <rbuis@igalia.com>
+
+        WebKit doesn't parse "#" as delimiter for fragment identifier in data URIs
+        https://bugs.webkit.org/show_bug.cgi?id=68089
+
+        Reviewed by Alex Christensen, Ryosuke Niwa, and Darin Adler.
+
+        Adjusts tests thats use data URIs to escape the # character.
+
+        * accessibility/ios-simulator/iframe-access.html:
+        * accessibility/ios-simulator/unobscured-content-rect.html:
+        * accessibility/resources/iframe.html:
+        * accessibility/scroll-to-global-point-iframe.html:
+        * accessibility/scroll-to-make-visible-iframe-offscreen.html:
+        * accessibility/scroll-to-make-visible-iframe.html:
+        * css3/blending/background-blend-mode-crossfade-image.html:
+        * css3/blending/background-blend-mode-data-uri-svg-image.html:
+        * css3/blending/background-blend-mode-tiled-layers.html:
+        * css3/flexbox/flexitem.html:
+        * css3/shapes/shape-outside/shape-image/shape-image-002.html:
+        * css3/shapes/shape-outside/shape-image/shape-image-005.html:
+        * editing/pasteboard/data-transfer-set-data-sanitize-url-when-copying-in-null-origin.html:
+        * editing/pasteboard/data-transfer-set-data-sanitize-url-when-dragging-in-null-origin.html:
+        * fast/css-grid-layout/grid-item-display.html:
+        * fast/css/import-style-update.html:
+        * fast/css/link-media-attr.html:
+        * fast/dom/HTMLLinkElement/link-stylesheet-media-type.html:
+        * fast/events/attribute-listener-cloned-from-frameless-doc-context-2.html:
+        * fast/events/attribute-listener-cloned-from-frameless-doc-context.html:
+        * fast/events/attribute-listener-extracted-from-frameless-doc-context-2.html:
+        * fast/events/attribute-listener-extracted-from-frameless-doc-context.html:
+        * fast/hidpi/image-srcset-data-escaped-srcset.html:
+        * fast/html/link-rel-stylesheet.html:
+        * fast/loader/data-url-encoding-html.html:
+        * fast/loader/data-url-encoding-svg.html:
+        * fast/spatial-navigation/resources/iframe.html:
+        * http/tests/security/top-level-unique-origin.https.html:
+        * platform/ios/css3/flexbox/flexitem-expected.txt:
+        * platform/win/css3/flexbox/flexitem-expected.txt:
+        * security/contentSecurityPolicy/link-with-data-url-allowed-by-style-src-star-with-AllowContentSecurityPolicySourceStarToMatchAnyProtocol-enabled.html:
+        * svg/animations/css-animation-background-svg.html:
+        * svg/animations/css-animation-embedded-svg.html:
+        * svg/animations/css-animation-hover-svg.html:
+        * svg/as-image/svg-canvas-data-url-svg-with-feimage-not-tainted.html:
+        * svg/custom/object-data-href.html:
+
+2020-10-05  Sergio Villar Senin  <svillar@igalia.com>
+
+        [css-flex] Fix expectations of a test which is actually passing
+        https://bugs.webkit.org/show_bug.cgi?id=217318
+
+        Reviewed by Manuel Rego Casasnovas.
+
+        * TestExpectations: Removed a padding-overflow-crash.html which is actually passing.
+
+2020-10-05  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Remove two WebGL tests crashing that are passing since r266809.
+
+        Unreviewed test gardening.
+
+        Also emit GLIB baseline for webgl/1.0.3/conformance/context/context-lost-restored.html.
+
+        * platform/glib/TestExpectations:
+        * platform/glib/webgl/1.0.3/conformance/context/context-lost-restored-expected.txt:
+
+2020-10-05  Aditya Keerthi  <akeerthi@apple.com>
+
+        [Contact Picker API] Introduce bindings for the Contact Picker API
+        https://bugs.webkit.org/show_bug.cgi?id=216793
+        <rdar://problem/69317957>
+
+        Reviewed by Wenson Hsieh.
+
+        * contact-picker/contacts-interfaces-expected.txt: Added.
+        * contact-picker/contacts-interfaces.html: Added.
+
+        Added a new test to verify the new API interfaces.
+
+        * fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/gtk/fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/mac-wk2/fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/mac/fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/win/fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/wincairo/fast/dom/navigator-detached-no-crash-expected.txt:
+        * platform/wpe/fast/dom/navigator-detached-no-crash-expected.txt:
+
+        Updated an existing test to include "navigator.contacts".
+
+2020-10-05  Youenn Fablet  <youenn@apple.com>
+
+        MediaRecorder should respect enabled and muted tracks
+        https://bugs.webkit.org/show_bug.cgi?id=217312
+
+        Reviewed by Eric Carlson.
+
+        * http/wpt/mediarecorder/mute-tracks-expected.txt: Added.
+        * http/wpt/mediarecorder/mute-tracks.html: Added.
+
+2020-10-05  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS rotate property
+        https://bugs.webkit.org/show_bug.cgi?id=217320
+        <rdar://problem/69956248>
+
+        Reviewed by Dean Jackson.
+
+        Add tests checking that the "rotate" CSS property is applied in the correct order related to
+        "transform-origin", "transform", "scale" and "translate". We also check that it is applied
+        in SVG as well.
+
+        * platform/ios-13/imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        * transforms/2d/rotate-and-scale-and-translate-order-expected.html: Added.
+        * transforms/2d/rotate-and-scale-and-translate-order.html: Added.
+        * transforms/2d/rotate-and-transform-attribute-in-svg-expected.svg: Added.
+        * transforms/2d/rotate-and-transform-attribute-in-svg.svg: Added.
+        * transforms/2d/rotate-and-transform-css-property-in-svg-expected.svg: Added.
+        * transforms/2d/rotate-and-transform-css-property-in-svg.svg: Added.
+        * transforms/2d/rotate-and-translate-in-svg-expected.svg: Added.
+        * transforms/2d/rotate-and-translate-in-svg.svg: Added.
+        * transforms/2d/rotate-and-translate-order-expected.html: Added.
+        * transforms/2d/rotate-and-translate-order.html: Added.
+        * transforms/2d/rotate-in-svg-expected.svg: Added.
+        * transforms/2d/rotate-in-svg.svg: Added.
+        * transforms/2d/rotate-transform-order-expected.html: Added.
+        * transforms/2d/rotate-transform-order.html: Added.
+        * transforms/2d/rotate-transform-origin-order-expected.html: Added.
+        * transforms/2d/rotate-transform-origin-order.html: Added.
+
+2020-10-05  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Move tests also timing out in WPE to GLIB test expectations.
+
+        * platform/glib/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2020-10-05  John Wilander  <wilander@apple.com>
+
+        Storage Access API: Enable per-page storage access scope and align test cases
+        https://bugs.webkit.org/show_bug.cgi?id=217077
+        <rdar://problem/69017878>
+
+        Reviewed by Brent Fulgham.
+
+        It was decided in https://github.com/privacycg/storage-access/issues/3 that
+        browsers should grant storage access for all same-site resources on the whole
+        page, not just the requesting iframe.
+
+        * http/tests/storageAccess/request-and-grant-access-cross-origin-sandboxed-iframe-from-prevalent-domain-with-user-interaction-and-access-from-right-frame.html:
+        * http/tests/storageAccess/request-and-grant-access-cross-origin-sandboxed-iframe-from-prevalent-domain-with-user-interaction-but-access-from-wrong-frame.html:
+        * http/tests/storageAccess/request-and-grant-access-then-detach-should-not-have-access.html:
+        * http/tests/storageAccess/request-and-grant-access-then-navigate-cross-site-should-not-have-access.html:
+            All of the above now explicitly call
+            internals.settings.setStorageAccessAPIPerPageScopeEnabled(false)
+            to opt out of the new default setting.
+        * http/tests/storageAccess/request-and-grant-access-with-per-page-scope-access-from-another-frame.html:
+            Changed to assume per-page is the default.
+
+2020-10-05  Diego Pino Garcia  <dpino@igalia.com>
+
+        [GLIB] Unreviewed test gardening. Merge common GTK and WPE baselines and emit new baselines for WPE tests after r267960.
+
+        Also move webaudio/oscillator-sine.html failure to glib.
+
+        * platform/glib/TestExpectations:
+        * platform/glib/fetch/fetch-url-serialization-expected.txt:
+        * platform/glib/imported/w3c/web-platform-tests/mathml/relations/css-styling/attribute-mapping-002-expected.txt:
+        * platform/glib/imported/w3c/web-platform-tests/mathml/relations/html5-tree/display-1-expected.txt:
+        * platform/gtk/TestExpectations:
+        * platform/gtk/imported/w3c/web-platform-tests/mathml/relations/html5-tree/display-1-expected.txt: Removed.
+        * platform/gtk/imported/w3c/web-platform-tests/selection/selection-select-all-move-input-crash-expected.txt: Copied from LayoutTests/platform/glib/imported/w3c/web-platform-tests/selection/selection-select-all-move-input-crash-expected.txt.
+        * platform/wpe/http/tests/storageAccess/aggregate-sorted-data-with-storage-access-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/css/css-sizing/percentage-height-in-flexbox-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/mathml/relations/css-styling/attribute-mapping-002-expected.txt: Renamed from LayoutTests/platform/gtk/imported/w3c/web-platform-tests/mathml/relations/css-styling/attribute-mapping-002-expected.txt.
+        * platform/wpe/imported/w3c/web-platform-tests/selection/selection-select-all-move-input-crash-expected.txt: Renamed from LayoutTests/platform/glib/imported/w3c/web-platform-tests/selection/selection-select-all-move-input-crash-expected.txt.
+
+2020-10-05  Alex Christensen  <achristensen@webkit.org>
+
+        Fix UTF-8 encoding in URL parsing
+        https://bugs.webkit.org/show_bug.cgi?id=217289
+
+        Reviewed by Darin Adler.
+
+        * fast/url/anchor-expected.txt:
+        * fast/url/anchor.html:
+        * fast/url/path-expected.txt:
+        * fast/url/path.html:
+
+2020-10-04  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS scale property
+        https://bugs.webkit.org/show_bug.cgi?id=217291
+        <rdar://problem/69926254>
+
+        Reviewed by Simon Fraser.
+
+        Add tests checking that the "scale" CSS property is applied in the correct order related to
+        "transform-origin" and "transform" and that it is applied in SVG as well.
+
+        * platform/ios-13/imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        * transforms/2d/scale-and-transform-attribute-in-svg-expected.svg: Added.
+        * transforms/2d/scale-and-transform-attribute-in-svg.svg: Added.
+        * transforms/2d/scale-and-transform-css-property-in-svg-expected.svg: Added.
+        * transforms/2d/scale-and-transform-css-property-in-svg.svg: Added.
+        * transforms/2d/scale-and-translate-in-svg-expected.svg: Added.
+        * transforms/2d/scale-and-translate-in-svg.svg: Added.
+        * transforms/2d/scale-and-translate-order-expected.html: Added.
+        * transforms/2d/scale-and-translate-order.html: Added.
+        * transforms/2d/scale-in-svg-expected.svg: Added.
+        * transforms/2d/scale-in-svg.svg: Added.
+        * transforms/2d/scale-transform-order-expected.html: Added.
+        * transforms/2d/scale-transform-order.html: Added.
+        * transforms/2d/scale-transform-origin-order-expected.html: Added.
+        * transforms/2d/scale-transform-origin-order.html: Added.
+
+
+2020-10-04  Rob Buis  <rbuis@igalia.com>
+
+        DataTransfer.setDragImage takes a non nullable Element parameter
+        https://bugs.webkit.org/show_bug.cgi?id=217283
+
+        Reviewed by Sam Weinig.
+
+        Add test to verify DataTransfer.setDragImage throws if a null
+        is passed for the Element parameter.
+
+        * fast/events/setDragImage-element-non-nullable-expected.txt: Added.
+        * fast/events/setDragImage-element-non-nullable.html: Added.
+        * platform/ios/TestExpectations:
+
+2020-10-04  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Floats] Do not assert when right aligned float overflows the containing block on the left
+        https://bugs.webkit.org/show_bug.cgi?id=217305
+
+        Reviewed by Antti Koivisto.
+
+        * fast/layoutformattingcontext/intrusive-floats-takes-entire-horizontal-space-expected.html: Added.
+        * fast/layoutformattingcontext/intrusive-floats-takes-entire-horizontal-space.html: Added.
+
+2020-10-04  Tyler Wilcock  <twilco.o@protonmail.com>
+
+        Presence of CSS variable causes a background url() to get resolved with a different base
+        https://bugs.webkit.org/show_bug.cgi?id=198512
+
+        Reviewed by Darin Adler.
+
+        Add test ensuring shorthands containing `url()` and CSS variable(s)
+        resolve the `url()` relative to the stylesheet the rule is present in, 
+        not the document root.
+
+        * fast/css/variables/support/images/600x600-green-square.png: Added.
+        * fast/css/variables/support/styles/url-with-variable-is-sheet-relative.css: Added.
+        * fast/css/variables/url-with-variable-is-sheet-relative-expected.html: Added.
+        * fast/css/variables/url-with-variable-is-sheet-relative.html: Added.
+
+2020-10-04  Zalan Bujtas  <zalan@apple.com>
+
+        [LFC][Integration] Enable soft hyphen
+        https://bugs.webkit.org/show_bug.cgi?id=217293
+
+        Reviewed by Antti Koivisto.
+
+        * fast/parser/entities-in-html-expected.txt: Progression? Now soft hyphen "renders". 
+        * fast/text/softHyphen-expected.html: Added. Text-dumping soft hyphens seems defective in some cases.
+        In this test case there should not be any hyphenation triggered by soft hyphens,
+        so let's use a reftest instead (which should have been used the first place). 
+        * platform/mac/fast/text/softHyphen-expected.png: Removed.
+        * platform/mac/fast/text/softHyphen-expected.txt: Removed.
+
+2020-10-04  Youenn Fablet  <youenn@apple.com>
+
+        Make sure MediaRecorder does not call fetchData until the last fetchData is completed
+        https://bugs.webkit.org/show_bug.cgi?id=217276
+
+        Reviewed by Darin Adler.
+
+        Add test to cover patch
+        Update some test expectations according bot results.
+
+        * http/wpt/mediarecorder/MediaRecorder-dataavailable-expected.txt:
+        * http/wpt/mediarecorder/MediaRecorder-dataavailable.html:
+        * platform/mac/TestExpectations:
+
+2020-10-03  Oriol Brufau  <obrufau@igalia.com>
+
+        [css-lists] Implement list-style-type: <string>
+        https://bugs.webkit.org/show_bug.cgi?id=167729
+
+        Reviewed by Darin Adler.
+
+        Most tests for 'list-style-type: <string>' pass now, but some still fail
+        because mixed-bidi is not supported in markers
+        (https://bugs.webkit.org/show_bug.cgi?id=202849).
+
+        Various tests for the 'content' property in ::marker fail now. This is
+        expected because they were only passing by chance, since ::marker does
+        not support 'content' (https://bugs.webkit.org/show_bug.cgi?id=204163).
+
+        iOS and Mac have some extra failures due to subpixel differences for the
+        marker position.
+
+        * TestExpectations:
+        * platform/gtk/imported/w3c/web-platform-tests/css/css-pseudo/marker-intrinsic-contribution-001-expected.txt: Removed.
+        * platform/ios/TestExpectations:
+        * platform/mac/TestExpectations:
+        * platform/mac/imported/w3c/web-platform-tests/css/css-pseudo/text-selection-expected.txt: Added.
+        * platform/wpe/imported/w3c/web-platform-tests/css/css-pseudo/marker-intrinsic-contribution-001-expected.txt: Removed.
+
+2020-10-03  Tetsuharu Ohzeki  <tetsuharu.ohzeki@gmail.com>
+
+        Add onslotchange on ShadowRoot and GlobalEventHandlers
+        https://bugs.webkit.org/show_bug.cgi?id=191310
+
+        Reviewed by Sam Weinig.
+
+        Rebaselined tests to pass more test cases.
+
+        * platform/glib/imported/w3c/web-platform-tests/mathml/relations/html5-tree/math-global-event-handlers.tentative-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/mathml/relations/html5-tree/math-global-event-handlers.tentative-expected.txt:
+        * platform/mac-wk1/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/mac-wk1/imported/w3c/web-platform-tests/mathml/relations/html5-tree/math-global-event-handlers.tentative-expected.txt:
+        * platform/mac-wk2/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/mac-wk2/imported/w3c/web-platform-tests/mathml/relations/html5-tree/math-global-event-handlers.tentative-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+
+2020-10-03  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS translate property
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        <rdar://problem/69597083>
+
+        Reviewed by Simon Fraser.
+
+        Add tests checking that the "translate" CSS property is applied in the correct order related to
+        "transform-origin" and "transform" and that it is applied in SVG as well.
+
+        * platform/ios-13/imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt:
+        * transforms/2d/translate-and-transform-attribute-in-svg-expected.svg: Added.
+        * transforms/2d/translate-and-transform-attribute-in-svg.svg: Added.
+        * transforms/2d/translate-and-transform-css-property-in-svg-expected.svg: Added.
+        * transforms/2d/translate-and-transform-css-property-in-svg.svg: Added.
+        * transforms/2d/translate-in-svg-expected.svg: Added.
+        * transforms/2d/translate-in-svg.svg: Added.
+        * transforms/2d/translate-transform-order-expected.html: Added.
+        * transforms/2d/translate-transform-order.html: Added.
+        * transforms/2d/translate-transform-origin-order-expected.html: Added.
+        * transforms/2d/translate-transform-origin-order.html: Added.
+
+2020-10-03  Alex Christensen  <achristensen@webkit.org>
+
+        "http:" should not be a valid URL
+        https://bugs.webkit.org/show_bug.cgi?id=217250
+
+        Reviewed by Brady Eidson.
+
+        * platform/mac-wk1/imported/w3c/web-platform-tests/url/failure-expected.txt: Removed.
+
+2020-10-03  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        [GPU Process] Support drawing text in 2D canvas with font features
+        https://bugs.webkit.org/show_bug.cgi?id=206118
+
+        Reviewed by Wenson Hsieh.
+
+        * fast/canvas/fill-text-with-font-features-expected.html: Added.
+        * fast/canvas/fill-text-with-font-features.html: Added.
+        * fast/canvas/resources/FontWithFeatures.ttf: Added.
+
+2020-10-02  Lauro Moura  <lmoura@igalia.com>
+
+        [GLIB] Gardening some failures and flakies
+
+        Unreviewed test gardening.
+
+        * platform/glib/TestExpectations:
+        * platform/glib/fast/mediacapturefromelement/CanvasCaptureMediaStream-offscreencanvas-expected.txt:
+          Rebaselined after r267825.
+        * platform/gtk/TestExpectations:
+        * platform/wpe/TestExpectations:
+
+2020-10-02  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): 2 imported/w3c/web-platform-tests/mathml/ tests are constant failures
+        https://bugs.webkit.org/show_bug.cgi?id=217268
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-02  Ross Kirsling  <ross.kirsling@sony.com>
+
+        [JSC] Add Array#item to @@unscopables
+        https://bugs.webkit.org/show_bug.cgi?id=217243
+
+        Reviewed by Yusuke Suzuki.
+
+        * js/array-unscopables-properties-expected.txt:
+        * js/script-tests/array-unscopables-properties.js:
+        Update test.
+
+2020-10-02  Chris Dumez  <cdumez@apple.com>
+
+        Calling suspend() on audio context with no node does not prevent auto transition to running when first node is created
+        https://bugs.webkit.org/show_bug.cgi?id=216972
+        <rdar://problem/69878834>
+
+        Reviewed by Darin Adler.
+
+        Add layout test coverage.
+
+        * webaudio/suspend-context-before-first-node-creation-expected.txt: Added.
+        * webaudio/suspend-context-before-first-node-creation.html: Added.
+
+2020-10-02  Hector Lopez  <hector_i_lopez@apple.com>
+
+        [ iOS ] 2 mediacapture-record tests are a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217263
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-02  Karl Rackler  <rackler@apple.com>
+
+        REGRESSION: [ Catalina wk2 ] imported/w3c/web-platform-tests/mediacapture-record/MediaRecorder-peerconnection.https.html is a flaky failure
+        https://bugs.webkit.org/show_bug.cgi?id=217262
+
+        Unreviewed test gardening.
+
+        * platform/mac-wk2/TestExpectations:
+
+2020-10-02  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): svg/W3C-I18N/tspan-direction-rtl.svg is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217258
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-02  Hector Lopez  <hector_i_lopez@apple.com>
+
+        REGRESSION(iOS 14): webgl/1.0.3/conformance/textures/tex-image-and-sub-image-2d-with-video.html is a constant failure
+        https://bugs.webkit.org/show_bug.cgi?id=217257
+
+        Unreviewed test gardening.
+
+        * platform/ios-wk2/TestExpectations:
+
+2020-10-02  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r267887.
+
+        Broke two tests on iOS and Mac
+
+        Reverted changeset:
+
+        "Add non-animated support for the CSS translate property"
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        https://trac.webkit.org/changeset/267887
+
+2020-10-02  Truitt Savell  <tsavell@apple.com>
+
+        Unreviewed, reverting r267817.
+
+        Broke two tests on Mac
+
+        Reverted changeset:
+
+        "Storage Access API: Enable per-page storage access scope and
+        align test cases"
+        https://bugs.webkit.org/show_bug.cgi?id=217077
+        https://trac.webkit.org/changeset/267817
+
+2020-10-02  Sam Weinig  <weinig@apple.com>
+
+        Re-align HTMLElement with the HTML spec
+        https://bugs.webkit.org/show_bug.cgi?id=217202
+
+        Reviewed by Darin Adler.
+
+        * fast/events/DocumentAndElementEventHandlers-expected.txt:
+        * fast/events/DocumentAndElementEventHandlers.html:
+        Update test to match spec by checking on the HTMLElement prototype, not the 
+        Element prototype.
+
+        * fast/dom/event-handler-attributes-expected.txt:
+        * platform/gtk/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/ios-wk2/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/mac-wk1/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/mac-wk2/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        * platform/wpe/imported/w3c/web-platform-tests/html/dom/idlharness.https-expected.txt:
+        Update more now passing results.
+
+2020-09-30  Antoine Quint  <graouts@webkit.org>
+
+        Add non-animated support for the CSS translate property
+        https://bugs.webkit.org/show_bug.cgi?id=216997
+        <rdar://problem/69597083>
+
+        Reviewed by Simon Fraser.
+
+        Add tests checking that the "translate" CSS property is applied in the correct order related to
+        "transform-origin" and "transform" and that it is applied in SVG as well.
+
+        * imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt: 
+        * imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt: 
+        * platform/ios-13/imported/w3c/web-platform-tests/css/css-cascade/all-prop-initial-xml-expected.txt: 
+        * platform/ios-wk2/imported/w3c/web-platform-tests/css/cssom/cssstyledeclaration-csstext-expected.txt: 
+        * transforms/2d/translate-and-transform-attribute-in-svg-expected.svg: Added.
+        * transforms/2d/translate-and-transform-attribute-in-svg.svg: Added.
+        * transforms/2d/translate-and-transform-css-property-in-svg-expected.svg: Added.
+        * transforms/2d/translate-and-transform-css-property-in-svg.svg: Added.
+        * transforms/2d/translate-in-svg-expected.svg: Added.
+        * transforms/2d/translate-in-svg.svg: Added.
+        * transforms/2d/translate-transform-order-expected.html: Added.
+        * transforms/2d/translate-transform-order.html: Added.
+        * transforms/2d/translate-transform-origin-order-expected.html: Added.
+        * transforms/2d/translate-transform-origin-order.html: Added.
+
+2020-10-02  Sam Weinig  <weinig@apple.com>
+
+        Remove code behind ENABLE(MEDIA_SESSION), no ports enable it
+        https://bugs.webkit.org/show_bug.cgi?id=216831
+
+        Reviewed by Alex Christensen.
+
+        Remove always skipped Media Session tests.
+
+        * TestExpectations:
+        * gpu-process/TestExpectations:
+        * media/session: Removed.
+
 2020-10-02  Sam Weinig  <weinig@apple.com>
 
         Remove unhelpful dom-static-property-for-in-iteration.html test

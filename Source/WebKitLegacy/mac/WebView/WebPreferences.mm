@@ -48,6 +48,7 @@
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/Settings.h>
 #import <WebCore/TextEncodingRegistry.h>
+#import <WebCore/WebCoreJITOperations.h>
 #import <pal/spi/cf/CFNetworkSPI.h>
 #import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
@@ -376,6 +377,7 @@ public:
 #if PLATFORM(MAC)
     JSC::initialize();
     WTF::initializeMainThread();
+    WebCore::populateJITOperations();
 #endif
 
     NSDictionary *dict = [NSDictionary dictionaryWithObjectsAndKeys:
@@ -1848,16 +1850,6 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:enabled forKey:WebKitWebAudioEnabledPreferenceKey];
 }
 
-- (BOOL)subpixelCSSOMElementMetricsEnabled
-{
-    return [self _boolValueForKey:WebKitSubpixelCSSOMElementMetricsEnabledPreferenceKey];
-}
-
-- (void)setSubpixelCSSOMElementMetricsEnabled:(BOOL)enabled
-{
-    [self _setBoolValue:enabled forKey:WebKitSubpixelCSSOMElementMetricsEnabledPreferenceKey];
-}
-
 - (BOOL)webGLEnabled
 {
     return [self _boolValueForKey:WebKitWebGLEnabledPreferenceKey];
@@ -3083,6 +3075,16 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitAsyncClipboardAPIEnabledPreferenceKey];
 }
 
+- (BOOL)contactPickerAPIEnabled
+{
+    return [self _boolValueForKey:WebKitContactPickerAPIEnabledPreferenceKey];
+}
+
+- (void)setContactPickerAPIEnabled:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey:WebKitContactPickerAPIEnabledPreferenceKey];
+}
+
 - (BOOL)intersectionObserverEnabled
 {
     return [self _boolValueForKey:WebKitIntersectionObserverEnabledPreferenceKey];
@@ -3379,6 +3381,16 @@ static NSString *classIBCreatorID = nil;
 
 // The preferences in this category are deprecated and have no effect. They should
 // be removed when it is considered safe to do so.
+
+- (void)setSubpixelCSSOMElementMetricsEnabled:(BOOL)enabled
+{
+    [self _setBoolValue:enabled forKey:WebKitSubpixelCSSOMElementMetricsEnabledPreferenceKey];
+}
+
+- (BOOL)subpixelCSSOMElementMetricsEnabled
+{
+    return [self _boolValueForKey:WebKitSubpixelCSSOMElementMetricsEnabledPreferenceKey];
+}
 
 - (void)setUserTimingEnabled:(BOOL)flag
 {

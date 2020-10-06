@@ -44,8 +44,10 @@
 #include "NinePieceImage.h"
 #include "Pagination.h"
 #include "RenderStyleConstants.h"
+#include "RotateTransformOperation.h"
 #include "RoundedRect.h"
 #include "SVGRenderStyle.h"
+#include "ScaleTransformOperation.h"
 #include "ShadowData.h"
 #include "ShapeValue.h"
 #include "StyleBackgroundData.h"
@@ -65,6 +67,7 @@
 #include "ThemeTypes.h"
 #include "TouchAction.h"
 #include "TransformOperations.h"
+#include "TranslateTransformOperation.h"
 #include "UnicodeBidi.h"
 #include <memory>
 #include <wtf/DataRef.h>
@@ -438,6 +441,7 @@ public:
     EmptyCell emptyCells() const { return static_cast<EmptyCell>(m_inheritedFlags.emptyCells); }
     CaptionSide captionSide() const { return static_cast<CaptionSide>(m_inheritedFlags.captionSide); }
 
+    const AtomString& listStyleStringValue() const { return m_rareInheritedData->listStyleStringValue; }
     ListStyleType listStyleType() const { return static_cast<ListStyleType>(m_inheritedFlags.listStyleType); }
     StyleImage* listStyleImage() const;
     ListStylePosition listStylePosition() const { return static_cast<ListStylePosition>(m_inheritedFlags.listStylePosition); }
@@ -621,6 +625,10 @@ public:
 
     TransformBox transformBox() const { return m_rareNonInheritedData->transform->transformBox; }
 
+    RotateTransformOperation* rotate() const { return m_rareNonInheritedData->rotate.get(); }
+    ScaleTransformOperation* scale() const { return m_rareNonInheritedData->scale.get(); }
+    TranslateTransformOperation* translate() const { return m_rareNonInheritedData->translate.get(); }
+
     TextEmphasisFill textEmphasisFill() const { return static_cast<TextEmphasisFill>(m_rareInheritedData->textEmphasisFill); }
     TextEmphasisMark textEmphasisMark() const;
     const AtomString& textEmphasisCustomMark() const { return m_rareInheritedData->textEmphasisCustomMark; }
@@ -640,9 +648,9 @@ public:
     ObjectFit objectFit() const { return static_cast<ObjectFit>(m_rareNonInheritedData->objectFit); }
     LengthPoint objectPosition() const { return m_rareNonInheritedData->objectPosition; }
 
-    // Return true if any transform related property (currently transform, transformStyle3D or perspective)
+    // Return true if any transform related property (currently transform, translate, scale, rotate, transformStyle3D or perspective)
     // indicates that we are transforming.
-    bool hasTransformRelatedProperty() const { return hasTransform() || preserves3D() || hasPerspective(); }
+    bool hasTransformRelatedProperty() const { return hasTransform() || translate() || scale() || rotate() || preserves3D() || hasPerspective(); }
 
     enum ApplyTransformOrigin { IncludeTransformOrigin, ExcludeTransformOrigin };
     void applyTransform(TransformationMatrix&, const FloatRect& boundingBox, ApplyTransformOrigin = IncludeTransformOrigin) const;
@@ -995,6 +1003,7 @@ public:
     void setAspectRatioDenominator(float v) { SET_VAR(m_rareNonInheritedData, aspectRatioDenominator, v); }
     void setAspectRatioNumerator(float v) { SET_VAR(m_rareNonInheritedData, aspectRatioNumerator, v); }
 
+    void setListStyleStringValue(const AtomString& value) { SET_VAR(m_rareInheritedData, listStyleStringValue, value); }
     void setListStyleType(ListStyleType v) { m_inheritedFlags.listStyleType = static_cast<unsigned>(v); }
     void setListStyleImage(RefPtr<StyleImage>&&);
     void setListStylePosition(ListStylePosition v) { m_inheritedFlags.listStylePosition = static_cast<unsigned>(v); }
@@ -1177,6 +1186,10 @@ public:
     void setTransformOriginY(Length&& length) { SET_NESTED_VAR(m_rareNonInheritedData, transform, y, WTFMove(length)); }
     void setTransformOriginZ(float f) { SET_NESTED_VAR(m_rareNonInheritedData, transform, z, f); }
     void setTransformBox(TransformBox box) { SET_NESTED_VAR(m_rareNonInheritedData, transform, transformBox, box); }
+
+    void setRotate(RefPtr<RotateTransformOperation>&&);
+    void setScale(RefPtr<ScaleTransformOperation>&&);
+    void setTranslate(RefPtr<TranslateTransformOperation>&&);
 
     void setSpeakAs(OptionSet<SpeakAs> s) { SET_VAR(m_rareInheritedData, speakAs, s.toRaw()); }
     void setTextCombine(TextCombine v) { SET_VAR(m_rareNonInheritedData, textCombine, static_cast<unsigned>(v)); }
@@ -1501,6 +1514,7 @@ public:
     static LengthPoint initialObjectPosition() { return LengthPoint(Length(50.0f, Percent), Length(50.0f, Percent)); }
     static EmptyCell initialEmptyCells() { return EmptyCell::Show; }
     static ListStylePosition initialListStylePosition() { return ListStylePosition::Outside; }
+    static const AtomString& initialListStyleStringValue() { return nullAtom(); }
     static ListStyleType initialListStyleType() { return ListStyleType::Disc; }
     static TextTransform initialTextTransform() { return TextTransform::None; }
     static Visibility initialVisibility() { return Visibility::Visible; }
@@ -1599,6 +1613,9 @@ public:
     static Length initialTransformOriginX() { return Length(50.0f, Percent); }
     static Length initialTransformOriginY() { return Length(50.0f, Percent); }
     static TransformBox initialTransformBox() { return TransformBox::ViewBox; }
+    static RotateTransformOperation* initialRotate() { return nullptr; }
+    static ScaleTransformOperation* initialScale() { return nullptr; }
+    static TranslateTransformOperation* initialTranslate() { return nullptr; }
     static PointerEvents initialPointerEvents() { return PointerEvents::Auto; }
     static float initialTransformOriginZ() { return 0; }
     static TransformStyle3D initialTransformStyle3D() { return TransformStyle3D::Flat; }
