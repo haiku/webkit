@@ -1,3 +1,13 @@
+if (UNIX AND NOT APPLE)
+    set(is_linux TRUE)
+endif()
+if (WIN32)
+    set(is_win TRUE)
+endif()
+if (APPLE)
+    set(is_mac TRUE)
+endif()
+
 include(Compiler.cmake)
 include(GLESv2.cmake)
 
@@ -44,6 +54,7 @@ set(ANGLE_PRIVATE_INCLUDE_DIRECTORIES
     "${CMAKE_CURRENT_SOURCE_DIR}/include/KHR"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common/third_party/base"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/google"
     "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 
@@ -57,23 +68,9 @@ set(ANGLE_SOURCES
     ${angle_translator_essl_sources}
     ${angle_translator_glsl_sources}
     ${angle_translator_sources}
-    ${libangle_capture_sources}
+    ${angle_system_utils_sources}
+    "src/libANGLE/FrameCapture_mock.cpp"
 )
-
-if (UNIX)
-    list(APPEND ANGLE_SOURCES ${angle_system_utils_sources_posix})
-    if (APPLE)
-        list(APPEND ANGLE_SOURCES ${angle_system_utils_sources_mac})
-	elseif (HAIKU)
-        list(APPEND ANGLE_SOURCES ${angle_system_utils_sources_haiku})
-    else()
-        list(APPEND ANGLE_SOURCES ${angle_system_utils_sources_linux})
-    endif()
-endif()
-
-if (WIN32)
-    list(APPEND ANGLE_SOURCES ${angle_system_utils_sources_win})
-endif()
 
 set(ANGLEGLESv2_LIBRARIES
     ANGLE
@@ -90,8 +87,11 @@ if (USE_ANGLE_EGL)
     add_library(ANGLE STATIC
         ${ANGLE_SOURCES}
         ${libangle_sources}
+        ${libangle_headers}
         ${libangle_image_util_sources}
+        ${libangle_image_util_headers}
         ${xxhash_sources}
+        ${zlib_wrapper_sources}
     )
     target_include_directories(ANGLE PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
     target_compile_definitions(ANGLE PRIVATE
@@ -131,6 +131,7 @@ if (USE_ANGLE_EGL)
 else ()
     add_library(ANGLE STATIC ${ANGLE_SOURCES})
     target_include_directories(ANGLE PRIVATE ${ANGLE_PRIVATE_INCLUDE_DIRECTORIES})
+    target_link_libraries(ANGLE PRIVATE ${CMAKE_DL_LIBS})
     target_compile_definitions(ANGLE PRIVATE
         ${ANGLE_DEFINITIONS}
         ${no_gl_prototypes}
@@ -138,8 +139,34 @@ else ()
     )
 endif ()
 
+if (USE_ANGLE_WEBGL)
+    set(libglesv2_entry_points_headers
+        src/libGLESv2/entry_points_egl.h
+        src/libGLESv2/entry_points_gles_2_0_autogen.h
+        src/libGLESv2/entry_points_gles_3_0_autogen.h
+        src/libGLESv2/entry_points_gles_ext_autogen.h
+    )
+
+    WEBKIT_COPY_FILES(LibGLESv2EntryPointsHeaders
+        DESTINATION ${ANGLE_FRAMEWORK_HEADERS_DIR}/ANGLE
+        FILES ${libglesv2_entry_points_headers}
+        FLATTENED
+    )
+
+    add_custom_target(ANGLE-webgl-headers
+        DEPENDS LibGLESv2EntryPointsHeaders ANGLEWebGLHeaders
+        COMMAND BUILT_PRODUCTS_DIR=${ANGLE_FRAMEWORK_HEADERS_DIR}/
+            DERIVED_FILE_DIR=${BUILT_PRODUCTS_DIR}
+            PUBLIC_HEADERS_FOLDER_PATH=ANGLE
+            ${CMAKE_CURRENT_SOURCE_DIR}/adjust-angle-include-paths.sh
+        VERBATIM
+    )
+    add_dependencies(ANGLEFramework ANGLE-webgl-headers)
+endif ()
+
 if (COMPILER_IS_GCC_OR_CLANG)
     WEBKIT_ADD_TARGET_CXX_FLAGS(ANGLE -Wno-cast-align
+                                      -Wno-deprecated-copy
                                       -Wno-suggest-attribute=format
                                       -Wno-type-limits
                                       -Wno-undef
